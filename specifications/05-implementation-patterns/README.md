@@ -19,7 +19,6 @@ Technology stack, monorepo structure, naming conventions, and foundational imple
 |------------|-------------------|------|
 | **Nx** | v19 | Monorepo orchestration with workspace layout and affected-based builds |
 | **AWS CDK** | v2 | Infrastructure as Code, TypeScript-native |
-| **Projen** | Latest | Configuration generation (auto-generates `package.json`, `tsconfig.json`, etc.) |
 | **Node.js** | 20 LTS | Lambda runtime |
 | **TypeScript** | 5.x | Language for all application and infrastructure code |
 | **pnpm** | Latest | Package management with workspace support |
@@ -70,7 +69,6 @@ Technology stack, monorepo structure, naming conventions, and foundational imple
 │           │       ├── schema.graphql
 │           │       └── resolvers.ts
 │           ├── test/                  # Unit & integration tests
-│           ├── .projenrc.ts           # Projen configuration
 │           └── project.json           # Nx project configuration
 │
 └── libs/
@@ -151,5 +149,4 @@ Every service stack composes exactly four CDK constructs. For full code examples
 | DI container files | `container.ts` uses Awilix CLASSIC mode with `strict: true` |
 | Stream pipeline files | `pipeline.ts` implements the `Pipe` interface |
 | Per-event processors | `{event-name}.pipe.ts` in a `pipes/` subdirectory |
-| Projen config | `.projenrc.ts` at service root |
 | Nx project config | `project.json` at service root |
