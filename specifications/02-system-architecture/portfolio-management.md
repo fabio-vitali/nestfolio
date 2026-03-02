@@ -196,14 +196,14 @@ All state transitions are appended to the event store and drive projection updat
 
 ### Credential Isolation
 
-Nestfolio uses a **User-Delegated Authorization Model** for IBKR access:
+Nestfolio uses a **Platform-Managed Authorization Model** for IBKR access. The brokerage account is provisioned and managed entirely by Nestfolio -- the user never interacts with the broker directly:
 
-1. User connects IBKR account via secure authorization flow
-2. IBKR issues delegated access artifacts (tokens or equivalent)
+1. Nestfolio provisions the brokerage account on the user's behalf during onboarding (transparent to the user)
+2. IBKR issues delegated access artifacts (tokens or equivalent) to Nestfolio
 3. Nestfolio stores only the delegated artifacts in a managed secrets vault, partitioned by `tenant_id`
 4. Tokens are exchanged for short-lived runtime credentials at execution time
 
-Only the Execution Agent can access broker secrets. Credentials never appear in logs, events, or Context Bundles. Token refresh is automatic. Users may revoke authorization at any time, which pauses execution until reauthorization.
+Only the Execution Agent can access broker secrets. Credentials never appear in logs, events, or Context Bundles. Token refresh is automatic. Account closure or mandate revocation triggers broker authorization cleanup internally.
 
 See [Governance and Compliance](../06-governance-compliance.md) for the full secrets handling and break-glass controls.
 

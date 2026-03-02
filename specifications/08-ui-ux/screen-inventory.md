@@ -19,7 +19,7 @@ Complete screen specifications mapped to bounded contexts and BFF services, resp
 | 7 | Activity & Notifications | `notification-bff` | `getNotifications`, `markAsRead` | Notification inbox, history |
 | 8 | Confirmation Dialog | `advisory-bff` | `confirmDecision`, `rejectDecision` | Level 2 user confirmation |
 | 9 | Settings & Profile | `identity-bff`, `compliance-bff`, `notification-bff` | `getProfile`, `updateGoal`, `updateOperatingMode`, `updateMandate` | Goals, risk profile, mode, preferences |
-| 10 | IBKR Connection | `identity-bff` | `getBrokerStatus`, `revokeBrokerAuthorization` | Broker link status, authorization flow |
+| 10 | *(Removed -- broker is fully transparent to user)* | -- | -- | -- |
 | 11 | Deposit Flow | `identity-bff` | `initiateDeposit` | Bank transfer instructions, deposit status |
 | 12 | Withdrawal Flow | `identity-bff` | `requestWithdrawal` | Withdrawal amount, confirmation, status |
 | 13 | Account Closure & Deletion | `identity-bff` | `requestAccountClosure`, `requestDeletion` | Closure confirmation, GDPR deletion, data retention |
@@ -37,7 +37,7 @@ Complete screen specifications mapped to bounded contexts and BFF services, resp
 | Decision Detail | Advisory, Compliance | `advisory-bff`, `compliance-bff` | Consumes: explanations, recommendations, compliance audit. Produces: `USER_VIEWED_EXPLANATION` |
 | Confirmation | Advisory, Compliance | `advisory-bff` | Consumes: `USER_CONFIRMATION_REQUESTED`. Produces: `USER_CONFIRMED` or `USER_REJECTED` |
 | Notifications | Notification | `notification-bff` | Consumes: all notification types. Produces: `NOTIFICATION_READ` |
-| Settings | Identity, Compliance, Notification | `identity-bff`, `compliance-bff`, `notification-bff` | Produces: `GOAL_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`, `BROKER_AUTHORIZATION_REVOKED` |
+| Settings | Identity, Compliance, Notification | `identity-bff`, `compliance-bff`, `notification-bff` | Produces: `GOAL_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_UPDATED`, `MANDATE_REVOKED` |
 | Deposit Flow | Identity, Execution | `identity-bff` | Produces: `DEPOSIT_INITIATED`. Consumes: `DEPOSIT_DETECTED` |
 | Withdrawal Flow | Identity, Execution | `identity-bff` | Produces: `WITHDRAWAL_REQUESTED`. Consumes: `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED` |
 | Account Closure | Identity, Execution | `identity-bff` | Produces: `ACCOUNT_CLOSURE_REQUESTED`, `USER_DELETION_REQUESTED`, `MANDATE_REVOKED`, `ACCOUNT_CLOSED` |
@@ -134,7 +134,7 @@ Complete screen specifications mapped to bounded contexts and BFF services, resp
 - Instrument names use common names, not ticker symbols (e.g., "Global Stocks ETF" not "VWCE.DE"). Ticker shown as secondary text.
 - Gains shown in absolute and percentage terms. Losses use neutral language ("down 2.1%" not "lost EUR 510").
 - No buy/sell buttons. The UI reinforces this with copy: "Managed by Nestfolio."
-- "Last synced with broker: 2 min ago" timestamp at the bottom of the Overview tab.
+- "Last updated: 2 min ago" timestamp at the bottom of the Overview tab.
 
 ---
 
@@ -259,7 +259,7 @@ The system requests user confirmation for Level 2 decisions:
 | **Advisory** | "New recommendation available", "Corporate action applied", "Deposit received" | Decision Detail |
 | **Impactful** (soft pre-notice) | "Upcoming: rebalance planned for tomorrow", "Large rebalance completed", "Dividend reinvested" | Decision Detail |
 | **Confirmable** | "Your confirmation is needed: strategy adjustment" | Confirmation Dialog |
-| **Critical** | "Trading paused due to market volatility", "Broker connection lost", "Order partially filled" | Status detail / Decision Detail |
+| **Critical** | "Trading paused due to market volatility", "Trading service disruption", "Order partially filled" | Status detail / Decision Detail |
 
 ### Specific Notification Templates
 
@@ -310,9 +310,9 @@ Users configure push preferences in Settings.
 | **Your Safety Rules** | Expandable panel with simplified guardrail parameters | Read-only (changes with mode) | `compliance-bff` -> `getGuardrailSummary` |
 | **Mandate** | Plain-language summary of what Nestfolio can do | Revocable | `identity-bff` -> `updateMandate` |
 | **Notifications** | Channel preferences (push/email per type), timing mode, email frequency | Yes | `notification-bff` |
-| **Broker Connection** | IBKR status, last sync, reconnect/disconnect | Action: reconnect / disconnect | `identity-bff` |
 | **Deposits & Withdrawals** | Initiate deposit, request withdrawal | Action flows | `identity-bff` |
 | **Language** | Interface language selection | Yes | Client-side (i18n) |
+| **Model Updates** | Changelog of allocation model version updates | Read-only | `advisory-bff` |
 | **Legal & Privacy** | Terms, privacy policy, mandate document, data retention summary | Read-only | Static |
 | **Account** | Account deletion (GDPR), account closure | Action: close / delete | `identity-bff` |
 | **How Nestfolio Works** | Link to educational overview | Read-only | -- |

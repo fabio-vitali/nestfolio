@@ -73,9 +73,9 @@ Visual comparison card for each mode with plain-language guardrail summary.
 
 "Here's what you're allowing Nestfolio to do for you." Summary of mandate scope in plain language, explicit consent toggle, link to full terms.
 
-**Step 6 -- Broker Connection**
+**Step 6 -- Account Activation**
 
-"Connect your Interactive Brokers account." OAuth/redirect flow to IBKR. Success confirmation.
+"We're setting everything up for you." Nestfolio provisions and configures the brokerage account transparently behind the scenes. The user sees a progress indicator ("Creating your investment account...") and a success confirmation ("Your account is ready!"). The user never interacts with the broker directly.
 
 **Step 7 -- Confirmation & Launch**
 
@@ -121,7 +121,7 @@ Deposits are Level 3 (user-exclusive) actions. Nestfolio facilitates but does no
 
 ### Steps
 
-1. **Initiate**: User taps "Add funds" (from Portfolio Detail or Settings). Shows bank transfer instructions for their IBKR account. Reference number and amount input. "Funds typically arrive in 1-3 business days."
+1. **Initiate**: User taps "Add funds" (from Portfolio Detail or Settings). Shows bank transfer instructions for their investment account. Reference number and amount input. "Funds typically arrive in 1-3 business days."
 2. **Pending**: `DEPOSIT_INITIATED` emitted. Dashboard shows "Deposit pending" status. Notification: "We'll let you know when your deposit arrives."
 3. **Detected**: `execution-adpt` detects new cash via IBKR snapshot diff. `DEPOSIT_DETECTED` emitted. Dashboard: "Deposit of EUR 500 received." Notification: "Deposit received -- we're evaluating how to invest it."
 4. **Investment**: `advisory-ctrl` triggers portfolio assessment for new cash. Normal decision lifecycle: construction -> compliance -> execution. Decision Detail shows: "We invested your new deposit."
@@ -162,10 +162,10 @@ The advisory system may recommend a withdrawal (Level 2). This appears as a Conf
 ### Account Closure
 
 1. User taps "Close my account" -> multi-step confirmation:
-   - Step 1: "This will stop all portfolio management. Your holdings remain in your IBKR account."
-   - Step 2: "Your mandate will be revoked and broker connection disconnected."
+   - Step 1: "This will stop all portfolio management."
+   - Step 2: "Your mandate will be revoked and your investment account will be closed."
    - Step 3: Explicit "I understand, close my account" confirmation.
-2. `ACCOUNT_CLOSURE_REQUESTED` -> mandate revoked -> broker authorization revoked -> execution halted.
+2. `ACCOUNT_CLOSURE_REQUESTED` -> mandate revoked -> broker authorization revoked internally -> execution halted.
 3. `ACCOUNT_CLOSED` emitted. Portfolio visible in read-only mode. Welcome-back flow available.
 
 ### GDPR Data Deletion
@@ -180,7 +180,7 @@ The advisory system may recommend a withdrawal (Level 2). This appears as a Conf
 
 ## Mandate Revocation
 
-1. User taps "Revoke mandate" -> warning: "Nestfolio will stop managing your portfolio. Your current holdings will remain in your IBKR account."
+1. User taps "Revoke mandate" -> warning: "Nestfolio will stop managing your portfolio. Your current holdings will remain in your investment account."
 2. Confirmation required.
 3. `MANDATE_REVOKED` emitted -> execution halted -> user notified.
 4. Portfolio remains visible in read-only mode. Re-onboarding possible.
@@ -203,12 +203,14 @@ Per-channel toggles for each notification severity tier (push on/off, email on/o
 
 ---
 
-## Broker Connection Management
+## Broker Connection Status (Internal)
 
-- **Status**: Connected / Disconnected, last sync timestamp.
-- **Reconnect**: Button to re-authorize IBKR session (redirects to IBKR auth flow).
-- **Disconnect**: Explicit action with warning: "Disconnecting will stop all trading. Your current holdings remain in your IBKR account. You can reconnect at any time." Emits `BROKER_AUTHORIZATION_REVOKED` -> `EXECUTION_PAUSED`.
-- **Re-authorization**: After disconnect, a "Reconnect" flow re-establishes IBKR authorization. Execution resumes after compliance revalidation.
+The brokerage connection is managed entirely by Nestfolio behind the scenes. The user never interacts with the broker directly -- no OAuth redirects, no broker login pages, no manual reconnection. Nestfolio provisions, authorizes, and maintains the brokerage account on the user's behalf.
+
+- **No user-facing broker screen** in Settings or elsewhere.
+- Session management, token refresh, and reconnection are handled automatically by `execution-adpt`.
+- If the broker connection is lost, the system recovers silently. The user is only notified if execution is paused for an extended period (via a Critical notification: "We're experiencing a temporary issue with trading. We're working on it.")
+- Account closure and mandate revocation trigger broker authorization cleanup internally.
 
 ---
 
@@ -251,8 +253,9 @@ A periodic summary delivered in-app and via email:
 
 - Triggered by `MONTHLY_REPORT_GENERATED` event from `notification-ctrl`.
 - Report data assembled from `portfolio-bff` and `advisory-bff` projections.
-- In-app: scrollable card-based layout.
+- In-app: scrollable card-based layout with a "Download PDF" button for offline record-keeping, tax preparation, and advisor sharing.
 - Email: HTML email with summary and "View full report in Nestfolio" CTA.
+- PDF: Generated server-side on demand. Includes all report sections in a print-optimized layout with Nestfolio branding.
 
 ---
 
@@ -268,7 +271,7 @@ Each BFF service owns a microfrontend hosted in its S3 bucket (part of the Facad
 | Dashboard microfrontend | Home screen, portfolio summary, status | `portfolio-bff` S3 bucket |
 | Advisory microfrontend | Decision Detail, Confirmation Dialog | `advisory-bff` S3 bucket |
 | Notification microfrontend | Activity feed, notification preferences | `notification-bff` S3 bucket |
-| Identity microfrontend | Onboarding, Settings, Profile, Broker | `identity-bff` S3 bucket |
+| Identity microfrontend | Onboarding, Settings, Profile | `identity-bff` S3 bucket |
 
 ### Integration
 
@@ -276,14 +279,3 @@ Each BFF service owns a microfrontend hosted in its S3 bucket (part of the Facad
 - The shell application loads microfrontends dynamically.
 - Shared design tokens and component library are published as an Nx library (`libs/ui-components`).
 - Each microfrontend communicates with its own BFF's GraphQL API. Cross-BFF data is resolved via subscriptions, not direct calls.
-
----
-
-## Open Questions
-
-- What is the exact IBKR OAuth flow UX? (Depends on IBKR integration contract -- to be refined in implementation.)
-- Should the monthly report include a downloadable PDF for record-keeping?
-- Will dark mode ship at launch or be a fast-follow?
-- Should beta/early-access users see a banner indicating limited-functionality phase and per-tenant capital limits?
-- Should model version updates be communicated to all users or only surfaced in the "How Nestfolio Works" screen?
-- How should the UI indicate that an explanation is deterministic (stored factors) vs. enhanced (LLM-generated) -- or should this distinction remain invisible?

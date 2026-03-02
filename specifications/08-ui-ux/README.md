@@ -163,10 +163,9 @@ The dashboard status banner always explains the current state in plain language.
 | Order staged | "A trade is scheduled for when markets open." |
 | Deposit received | "New deposit received -- we're evaluating how to invest it." |
 | Withdrawal processing | "Your withdrawal is being processed." |
-| Reconciliation in progress | "We're verifying your portfolio with your broker -- routine safety check." |
+| Reconciliation in progress | "We're verifying your portfolio -- routine safety check." |
 | Incident resolved | "Everything is back to normal. Trading has resumed." |
 | Cool-down active | "Your portfolio was recently adjusted. Next rebalance check in X days." |
-| Broker disconnected | "Your broker connection needs attention. Tap Settings to reconnect." |
 
 ---
 
@@ -185,16 +184,16 @@ The dashboard status banner always explains the current state in plain language.
 | Condition | User-Facing Message |
 |-----------|---------------------|
 | Network offline | "You're offline. Showing your last known portfolio data." |
-| Broker disconnected | "Your broker connection needs attention. Tap to reconnect." |
+| Trading service disruption | "We're experiencing a temporary issue with trading. We're working on it." |
 | Stale data (>1h) | "Last updated 2 hours ago" (subtle timestamp) |
-| Order rejected -- insufficient funds | "A trade could not be completed. Your broker account may need additional funds." |
+| Order rejected -- insufficient funds | "A trade could not be completed. Your account may need additional funds." |
 | Order rejected -- invalid instrument | "A trade could not be completed. We're investigating the issue." |
-| Order rejected -- permission | "A trade was blocked by your broker. Tap Settings to check your broker connection." |
+| Order rejected -- permission | "A trade was blocked. We're investigating the issue." |
 | Order partially filled | "A trade was partially completed. We're monitoring the remaining portion." |
 | Order cancelled | "A pending trade was cancelled. Tap to see why." |
 | Circuit breaker active | "Trading is temporarily paused for safety. Your portfolio is secure." |
 | Reconciliation failed | "We're having trouble verifying your portfolio. Our team is looking into it." |
-| Withdrawal rejected | "Your withdrawal could not be processed: [reason]. Please check your broker account." |
+| Withdrawal rejected | "Your withdrawal could not be processed: [reason]." |
 | Degraded explanations | "Simplified explanation shown. A detailed explanation will be available shortly." |
 
 ### Loading States

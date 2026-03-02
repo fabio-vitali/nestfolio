@@ -75,9 +75,9 @@ No BFF needed -- auth features are served by Cognito hosted UI and the landing p
 
 Owns the InvestorProfile aggregate (event-sourced: goals, risk profile, mandate, operating mode, onboarding answers, deposit intents, withdrawal requests) and the NotificationInbox projection (materialized from `investor-ctrl` events). Absorbs the former notification-bff inbox features.
 
-**Feature set**: Onboarding conversation, profile/goal/risk/mandate management, operating mode selection, deposit initiation, withdrawal requests, account closure, broker authorization lifecycle, notification inbox, unread count, mark-as-read, real-time notification push, notification preferences.
+**Feature set**: Onboarding conversation, profile/goal/risk/mandate management, operating mode selection, deposit initiation, withdrawal requests, account closure, notification inbox, unread count, mark-as-read, real-time notification push, notification preferences.
 
-**API**: AppSync GraphQL -- onboarding mutations, profile queries, goal CRUD, mandate management, deposit/withdrawal, closure, broker authorization, notification inbox queries, mark-as-read mutations, real-time notification subscriptions.
+**API**: AppSync GraphQL -- onboarding mutations, profile queries, goal CRUD, mandate management, deposit/withdrawal, closure, notification inbox queries, mark-as-read mutations, real-time notification subscriptions.
 
 **AI agents**: Conversational AgentCore instances of **User & Goals Agent** (onboarding goal dialogue, goal refinement) and **Risk Agent** (risk questionnaire evaluation).
 
