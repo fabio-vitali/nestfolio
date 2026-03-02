@@ -64,20 +64,20 @@ Design philosophy, constraints, accessibility standards (WCAG 2.1 AA), and local
 
 ## How Documents Relate
 
-```
-Product Vision (01)
-    ↓ drives
-System Architecture (02)
-    ↓ decomposes into
-Event-Driven Architecture (03)  ←  architectural patterns
-    ↓ applied by
-Service Decomposition (04)      ←  concrete services & flows
-    ↓ implemented via
-Implementation Patterns (05)    ←  code-level guidance
+```mermaid
+flowchart TD
+    PV["Product Vision (01)"] -->|drives| SA["System Architecture (02)"]
+    SA -->|decomposes into| EDA["Event-Driven Architecture (03)"]
+    EDA -->|applied by| SD["Service Decomposition (04)"]
+    SD -->|implemented via| IP["Implementation Patterns (05)"]
 
-Governance & Compliance (06)    ←  cross-cutting: controls & oversight
-Operations & Deployment (07)    ←  cross-cutting: production operations
-UI/UX (08)                      ←  user-facing layer, consumes BFF services from (04)
+    AP["Architectural patterns"] -.-> EDA
+    CSF["Concrete services & flows"] -.-> SD
+    CLG["Code-level guidance"] -.-> IP
+
+    GC["Governance & Compliance (06)"] -.-|cross-cutting: controls & oversight| SA
+    OD["Operations & Deployment (07)"] -.-|cross-cutting: production operations| SA
+    UI["UI/UX (08)"] -.-|user-facing layer, consumes BFF services from 04| SD
 ```
 
 ## Reading Guides

@@ -109,24 +109,19 @@ The Context Bundle hash is stored in the Decision Packet, enabling deterministic
 
 Every portfolio-impacting change follows a nine-step lifecycle:
 
-```
-1. Trigger Event
-       |
-2. Orchestrator Routes to Analysis Agents
-       |
-3. Agents Emit Proposals as Events
-       |
-4. Orchestrator Composes Decision Packet
-       |
-5. Compliance Agent Authorizes (or Blocks)
-       |
-6. User Confirmation (if L2 required)
-       |
-7. Execution Agent Submits Orders to IBKR
-       |
-8. Fills/Rejections Recorded as Events
-       |
-9. Projections Update; User Receives Explanation
+```mermaid
+flowchart TD
+    S1["1. Trigger Event"]
+    S2["2. Orchestrator Routes to Analysis Agents"]
+    S3["3. Agents Emit Proposals as Events"]
+    S4["4. Orchestrator Composes Decision Packet"]
+    S5["5. Compliance Agent Authorizes (or Blocks)"]
+    S6["6. User Confirmation (if L2 required)"]
+    S7["7. Execution Agent Submits Orders to IBKR"]
+    S8["8. Fills/Rejections Recorded as Events"]
+    S9["9. Projections Update; User Receives Explanation"]
+
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
 ```
 
 ### Trigger Sources

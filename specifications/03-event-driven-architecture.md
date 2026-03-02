@@ -68,9 +68,10 @@ Each domain owns a **dedicated event bus**. Services within a domain publish to 
 
 This topology enforces domain boundaries at the infrastructure level. A domain controls which events leave its boundary and which external events it accepts. The Event Hub is the single point where cross-domain routing is defined, making inter-domain event flow explicit and centrally governed per domain.
 
-```
-Domain A Bus ──[Event Hub A rules]──> Domain B Bus
-Domain B Bus ──[Event Hub B rules]──> Domain A Bus
+```mermaid
+flowchart LR
+    A["Domain A Bus"] -->|Event Hub A rules| B["Domain B Bus"]
+    B -->|Event Hub B rules| A
 ```
 
 ---
@@ -117,14 +118,13 @@ This avoids the complexity of version negotiation and keeps consumers resilient 
 
 Events are consumed through a standardized three-tier ingestion pattern:
 
-```
-EventBridge Rule (filters by event type)
-    |
-    v
-SQS Queue (buffering, retry, dead-letter queue)
-    |
-    v
-Lambda Handler (stream processing pipeline)
+```mermaid
+flowchart TD
+    EB["EventBridge Rule (filters by event type)"]
+    SQS["SQS Queue (buffering, retry, dead-letter queue)"]
+    LH["Lambda Handler (stream processing pipeline)"]
+
+    EB --> SQS --> LH
 ```
 
 - **EventBridge rule**: Selects which event types a service cares about.

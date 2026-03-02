@@ -51,42 +51,29 @@ Complete screen specifications mapped to bounded contexts and BFF services, resp
 
 ### Layout
 
-```
-+------------------------------------------+
-|  +------------------------------------+  |
-|  |  PORTFOLIO VALUE              ^3.2% |  |
-|  |  EUR 24,350.00                      |  |
-|  |  +------------------------------+  |  |
-|  |  |  ~~~~~~ performance chart ~~ |  |  |
-|  |  +------------------------------+  |  |
-|  |  1W  1M  3M  6M  YTD  1Y  ALL     |  |
-|  +------------------------------------+  |
-|                                          |
-|  +------------------------------------+  |
-|  |  STATUS                            |  |
-|  |  . Portfolio is on track           |  |
-|  |  . No action needed               |  |
-|  +------------------------------------+  |
-|                                          |
-|  +------------------------------------+  |
-|  |  RECENT ACTIVITY                   |  |
-|  |  * Rebalanced 3 positions          |  |
-|  |    Feb 28 . "Why?"                 |  |
-|  |  - Monthly report ready            |  |
-|  |    Feb 1                           |  |
-|  |  See all activity ->               |  |
-|  +------------------------------------+  |
-|                                          |
-|  +------------------------------------+  |
-|  |  ! ACTION REQUIRED (if any)        |  |
-|  |  "Confirm: strategy adjustment"    |  |
-|  |  [Review & Confirm]                |  |
-|  +------------------------------------+  |
-|                                          |
-|  +------+-------+-------+--------+      |
-|  | Home | Portf.| Notifs| Settings|      |
-|  +------+-------+-------+--------+      |
-+------------------------------------------+
+```mermaid
+block-beta
+    columns 1
+
+    block:portfolio["PORTFOLIO VALUE — EUR 24,350.00 ▲3.2%"]
+        chart["~~~ performance chart ~~~\n1W  1M  3M  6M  YTD  1Y  ALL"]
+    end
+
+    block:status["STATUS"]
+        s1["Portfolio is on track · No action needed"]
+    end
+
+    block:activity["RECENT ACTIVITY"]
+        a1["Rebalanced 3 positions — Feb 28 · 'Why?'\nMonthly report ready — Feb 1\nSee all activity →"]
+    end
+
+    block:action["! ACTION REQUIRED (if any)"]
+        a2["Confirm: strategy adjustment\n[Review & Confirm]"]
+    end
+
+    block:nav
+        Home Portf. Notifs Settings
+    end
 ```
 
 ### Sections
@@ -194,40 +181,36 @@ The system requests user confirmation for Level 2 decisions:
 
 ### Layout
 
-```
-+------------------------------------------+
-|                                          |
-|  ! YOUR CONFIRMATION IS NEEDED          |
-|                                          |
-|  PROPOSED ACTION                         |
-|  ------------------------------------   |
-|  "Nestfolio recommends adjusting your    |
-|   portfolio: reduce stocks by 5%,        |
-|   increase bonds by 5%."                 |
-|                                          |
-|  WHY THIS NEEDS YOUR OK                  |
-|  ------------------------------------   |
-|  "This trade is 12% of your portfolio,   |
-|   above your Balanced mode limit of 10%. |
-|   Your settings require your OK for      |
-|   changes of this size."                 |
-|                                          |
-|  WHAT WILL HAPPEN                        |
-|  ------------------------------------   |
-|  * Sell: Global Stocks ETF (EUR 1,200)   |
-|  * Buy: Euro Bonds ETF (EUR 1,200)       |
-|  * Estimated fees: EUR 2.40              |
-|  * Estimated tax impact: EUR 0           |
-|  * Turnover: 8% of 25% monthly limit     |
-|                                          |
-|  > Full reasoning (expandable)           |
-|                                          |
-|  +--------------+  +------------------+  |
-|  |   Decline    |  |   Confirm        |  |
-|  +--------------+  +------------------+  |
-|                                          |
-|  Expires in: 48h                         |
-+------------------------------------------+
+```mermaid
+block-beta
+    columns 1
+
+    block:header["! YOUR CONFIRMATION IS NEEDED"]
+    end
+
+    block:proposed["PROPOSED ACTION"]
+        p1["Nestfolio recommends adjusting your portfolio:\nreduce stocks by 5%, increase bonds by 5%."]
+    end
+
+    block:why["WHY THIS NEEDS YOUR OK"]
+        w1["This trade is 12% of your portfolio,\nabove your Balanced mode limit of 10%.\nYour settings require your OK for changes of this size."]
+    end
+
+    block:what["WHAT WILL HAPPEN"]
+        wh1["Sell: Global Stocks ETF (EUR 1,200)\nBuy: Euro Bonds ETF (EUR 1,200)\nEstimated fees: EUR 2.40\nEstimated tax impact: EUR 0\nTurnover: 8% of 25% monthly limit"]
+    end
+
+    block:expand
+        e1["> Full reasoning (expandable)"]
+    end
+
+    block:buttons
+        decline["Decline"] confirm["Confirm"]
+    end
+
+    block:expiry
+        exp["Expires in: 48h"]
+    end
 ```
 
 ### Behavior

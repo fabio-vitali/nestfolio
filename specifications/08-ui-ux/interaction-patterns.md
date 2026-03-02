@@ -8,29 +8,13 @@ User flows, real-time update behavior, and microfrontend architecture strategy f
 
 ## User Journey Map
 
-```
-+------------------------------------------------------------------+
-|                        USER JOURNEY                              |
-|                                                                  |
-|  +---------+   +----------+   +-----------+   +-------------+   |
-|  |  LAND   |-->|  SIGN UP |-->|  ONBOARD  |-->|  DASHBOARD  |   |
-|  +---------+   +----------+   +-----------+   +------+------+   |
-|                                                      |          |
-|                          +---------------------------+          |
-|                          |            |              |          |
-|                          v            v              v          |
-|                   +-----------+ +----------+  +----------+     |
-|                   | PORTFOLIO | | ACTIVITY |  | SETTINGS |     |
-|                   | DETAIL    | | & NOTIFS |  | & PROFILE|     |
-|                   +-----+-----+ +----------+  +----------+     |
-|                         |                                       |
-|                         v                                       |
-|                   +-----------+                                  |
-|                   | DECISION  |                                  |
-|                   | DETAIL    |                                  |
-|                   | ("Why")   |                                  |
-|                   +-----------+                                  |
-+------------------------------------------------------------------+
+```mermaid
+flowchart TD
+    LAND["LAND"] --> SIGNUP["SIGN UP"] --> ONBOARD["ONBOARD"] --> DASH["DASHBOARD"]
+    DASH --> PORT["PORTFOLIO DETAIL"]
+    DASH --> ACT["ACTIVITY & NOTIFS"]
+    DASH --> SET["SETTINGS & PROFILE"]
+    PORT --> DEC["DECISION DETAIL ('Why')"]
 ```
 
 ---

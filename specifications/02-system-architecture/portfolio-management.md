@@ -51,45 +51,24 @@ Rebalancing evaluation is initiated by:
 
 ### Rebalancing Flow
 
-```
-Trigger Event
-     |
-     v
-Rebalance Need Detected
-     |
-     v
-Portfolio Construction Agent --> Target Allocation
-     |
-     v
-Rebalance Planner Agent --> Trade Plan
-     |
-     v
-Risk Checks (pre/post risk band, stress tests)
-     |
-     v
-Cost Checks (fees, slippage, tax impact)
-     |
-     v
-Decision Packet Created
-     |
-     v
-Compliance Agent Authorization
-     |
-     +-- Blocked --> Escalate or Postpone
-     |
-     +-- Approved (L2) --> Request User Confirmation
-     |                           |
-     |                     +-- Rejected --> Archive
-     |                     |
-     |                     +-- Confirmed --|
-     |                                     |
-     +-- Approved (L1) -------------------|
-                                           |
-                                           v
-                                   Execution Agent
-                                           |
-                                           v
-                                   Orders to IBKR
+```mermaid
+flowchart TD
+    TE["Trigger Event"] --> RND["Rebalance Need Detected"]
+    RND --> PCA["Portfolio Construction Agent → Target Allocation"]
+    PCA --> RPA["Rebalance Planner Agent → Trade Plan"]
+    RPA --> RC["Risk Checks (pre/post risk band, stress tests)"]
+    RC --> CC["Cost Checks (fees, slippage, tax impact)"]
+    CC --> DP["Decision Packet Created"]
+    DP --> CA["Compliance Agent Authorization"]
+
+    CA -->|Blocked| ESP["Escalate or Postpone"]
+    CA -->|Approved L2| UCR["Request User Confirmation"]
+    CA -->|Approved L1| EA["Execution Agent"]
+
+    UCR -->|Rejected| ARC["Archive"]
+    UCR -->|Confirmed| EA
+
+    EA --> IBKR["Orders to IBKR"]
 ```
 
 ### Anti-Thrashing Rules
@@ -159,10 +138,15 @@ Nestfolio integrates with IBKR using a **full trading plus streaming posture** f
 
 Internal order states map to IBKR execution events:
 
-```
-Draft --> Authorized --> Submitted --> Acknowledged --> PartiallyFilled --> Filled
-                                                                       --> Rejected
-                                                                       --> Cancelled
+```mermaid
+stateDiagram-v2
+    Draft --> Authorized
+    Authorized --> Submitted
+    Submitted --> Acknowledged
+    Acknowledged --> PartiallyFilled
+    PartiallyFilled --> Filled
+    Acknowledged --> Rejected
+    Acknowledged --> Cancelled
 ```
 
 All state transitions are appended to the event store and drive projection updates.

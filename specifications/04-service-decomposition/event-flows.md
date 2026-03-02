@@ -51,28 +51,24 @@ Rows represent consuming domains. Columns represent producing domains. Cells lis
 
 The core end-to-end flow from investor intent through AI-driven recommendation to trade execution.
 
-```
-Investor ──[GOAL_UPDATED, OPERATING_MODE_CHANGED]──> Advisory
-Execution ──[PORTFOLIO_DRIFT_DETECTED]──────────────> Advisory
-Execution ──[ORDER_FILLED, DEPOSIT_DETECTED]────────> Advisory
-    |
-    v
-Advisory (advisory-ctrl: 6-agent orchestration --> Decision Packet)
-    |
-    v  DECISION_PACKET_CREATED (intra-domain)
-Advisory (compliance-ctrl: validate --> approve/block)
-    |
-    v  DECISION_APPROVED (intra-domain)
-Advisory (advisory-ctrl: Level 2? --> USER_CONFIRMATION_REQUESTED --> USER_CONFIRMED)
-    |
-    v  DECISION_APPROVED + USER_CONFIRMED (cross-domain --> execution-hub)
-Execution (execution-ctrl: safety checks --> ORDER_SUBMITTED)
-    |
-    v  ORDER_SUBMITTED (intra-domain)
-Execution (execution-adpt: IBKR --> ORDER_FILLED)
-    |
-    v  ORDER_FILLED + PORTFOLIO_SNAPSHOT_IMPORTED (intra-domain)
-Execution (portfolio-bff: update projections; portfolio-ctrl: reconciliation)
+```mermaid
+flowchart TD
+    INV["Investor"] -->|"GOAL_UPDATED, OPERATING_MODE_CHANGED"| ADV
+    EX1["Execution"] -->|PORTFOLIO_DRIFT_DETECTED| ADV
+    EX2["Execution"] -->|"ORDER_FILLED, DEPOSIT_DETECTED"| ADV
+
+    ADV["Advisory
+    (advisory-ctrl: 6-agent orchestration → Decision Packet)"]
+    ADV -->|"DECISION_PACKET_CREATED (intra-domain)"| COMP["Advisory
+    (compliance-ctrl: validate → approve/block)"]
+    COMP -->|"DECISION_APPROVED (intra-domain)"| L2["Advisory
+    (advisory-ctrl: Level 2? → USER_CONFIRMATION_REQUESTED → USER_CONFIRMED)"]
+    L2 -->|"DECISION_APPROVED + USER_CONFIRMED (cross-domain → execution-hub)"| EXEC["Execution
+    (execution-ctrl: safety checks → ORDER_SUBMITTED)"]
+    EXEC -->|"ORDER_SUBMITTED (intra-domain)"| ADPT["Execution
+    (execution-adpt: IBKR → ORDER_FILLED)"]
+    ADPT -->|"ORDER_FILLED + PORTFOLIO_SNAPSHOT_IMPORTED (intra-domain)"| PROJ["Execution
+    (portfolio-bff: update projections; portfolio-ctrl: reconciliation)"]
 ```
 
 **Trigger sources**: Investor intent changes (goal updates, operating mode changes), execution outcomes (order fills, deposits detected), portfolio drift detection.
@@ -83,17 +79,15 @@ Execution (portfolio-bff: update projections; portfolio-ctrl: reconciliation)
 
 ### User Onboarding
 
-```
-Investor (investor-web: Cognito) ──[USER_REGISTERED]──> Investor (investor-bff)
-    |                                                     [intra-domain]
-    v
-Investor (investor-bff: onboarding conversation)
-    | GOAL_SET, RISK_PROFILE_SET, OPERATING_MODE_SELECTED, MANDATE_GRANTED
-    | ONBOARDING_COMPLETED
-    |
-    |──> Advisory (compliance-ctrl: stores guardrail policy)     [cross-domain]
-    |──> Advisory (advisory-ctrl: may trigger initial assessment) [cross-domain]
-    +──> Investor (investor-ctrl: sends welcome notification)    [intra-domain]
+```mermaid
+flowchart TD
+    REG["Investor (investor-web: Cognito)"] -->|"USER_REGISTERED (intra-domain)"| BFF["Investor (investor-bff)"]
+    BFF --> ONB["Investor (investor-bff: onboarding conversation)
+    GOAL_SET, RISK_PROFILE_SET, OPERATING_MODE_SELECTED,
+    MANDATE_GRANTED, ONBOARDING_COMPLETED"]
+    ONB -->|cross-domain| COMP["Advisory (compliance-ctrl: stores guardrail policy)"]
+    ONB -->|cross-domain| ADV["Advisory (advisory-ctrl: may trigger initial assessment)"]
+    ONB -->|intra-domain| NOTIF["Investor (investor-ctrl: sends welcome notification)"]
 ```
 
 ---
@@ -102,15 +96,16 @@ Investor (investor-bff: onboarding conversation)
 
 Intra-domain flow within the Execution domain. Compares broker settlement truth against internal projection (intent truth).
 
-```
-Execution (execution-adpt) ──[PORTFOLIO_SNAPSHOT_IMPORTED]──> Execution (portfolio-ctrl)
-    --> Compare intent vs settlement                           [intra-domain]
-    --> If drift: PORTFOLIO_DRIFT_DETECTED
-    --> RECONCILIATION_LOCK_ACQUIRED
-    --> Execution (execution-ctrl) pauses affected instruments  [intra-domain]
-    --> Execution (portfolio-ctrl) corrects projections
-    --> RECONCILIATION_COMPLETED --> RECONCILIATION_LOCK_RELEASED
-    --> Execution resumes
+```mermaid
+flowchart TD
+    ADPT["Execution (execution-adpt)"] -->|"PORTFOLIO_SNAPSHOT_IMPORTED (intra-domain)"| PC["Execution (portfolio-ctrl)"]
+    PC --> CMP["Compare intent vs settlement"]
+    CMP -->|"If drift"| DRIFT["PORTFOLIO_DRIFT_DETECTED"]
+    DRIFT --> LOCK["RECONCILIATION_LOCK_ACQUIRED"]
+    LOCK --> PAUSE["Execution (execution-ctrl) pauses affected instruments"]
+    PAUSE --> CORR["Execution (portfolio-ctrl) corrects projections"]
+    CORR --> DONE["RECONCILIATION_COMPLETED → RECONCILIATION_LOCK_RELEASED"]
+    DONE --> RESUME["Execution resumes"]
 ```
 
 Reconciliation runs on three schedules: post-execution (after every order fill), periodic (hourly, daily), and startup.
@@ -119,16 +114,13 @@ Reconciliation runs on three schedules: post-execution (after every order fill),
 
 ### Deposit Flow
 
-```
-Investor (investor-bff) ──[DEPOSIT_INITIATED]──> Investor (investor-ctrl: sends "pending")
-                                                  [intra-domain]
+```mermaid
+flowchart TD
+    BFF["Investor (investor-bff)"] -->|"DEPOSIT_INITIATED (intra-domain)"| CTRL["Investor (investor-ctrl: sends 'pending')"]
 
-Execution (execution-adpt) ──[DEPOSIT_DETECTED]──> Advisory (triggers investment assessment)
-                                                    [cross-domain]
-                                                  > Investor (investor-ctrl: sends "received")
-                                                    [cross-domain]
-                                                  > Investor (investor-bff: updates deposit status)
-                                                    [cross-domain]
+    ADPT["Execution (execution-adpt)"] -->|"DEPOSIT_DETECTED (cross-domain)"| ADV["Advisory (triggers investment assessment)"]
+    ADPT -->|"DEPOSIT_DETECTED (cross-domain)"| NOTIF["Investor (investor-ctrl: sends 'received')"]
+    ADPT -->|"DEPOSIT_DETECTED (cross-domain)"| UPD["Investor (investor-bff: updates deposit status)"]
 ```
 
 Deposit detection occurs when `execution-adpt` observes a cash balance increase in a periodic IBKR snapshot import.
@@ -137,14 +129,12 @@ Deposit detection occurs when `execution-adpt` observes a cash balance increase 
 
 ### Withdrawal Flow
 
-```
-Investor (investor-bff) ──[WITHDRAWAL_REQUESTED]──> Execution (execution-adpt: submits to IBKR)
-                                                     [cross-domain]
+```mermaid
+flowchart TD
+    BFF["Investor (investor-bff)"] -->|"WITHDRAWAL_REQUESTED (cross-domain)"| ADPT["Execution (execution-adpt: submits to IBKR)"]
 
-Execution ──[WITHDRAWAL_COMPLETED/REJECTED]──> Investor (investor-bff: updates status)
-                                                [cross-domain]
-                                              > Investor (investor-ctrl: notifies user)
-                                                [cross-domain]
+    EX["Execution"] -->|"WITHDRAWAL_COMPLETED/REJECTED (cross-domain)"| UPD["Investor (investor-bff: updates status)"]
+    EX -->|"WITHDRAWAL_COMPLETED/REJECTED (cross-domain)"| NOTIF["Investor (investor-ctrl: notifies user)"]
 ```
 
 **SAGA compensation**: While `WITHDRAWAL_REQUESTED` is in flight, `execution-ctrl` excludes the withdrawal amount from rebalanceable cash and blocks new rebalance orders that would overlap. If `WITHDRAWAL_REJECTED` arrives while a rebalance is queued, held cash is released back to the rebalanceable pool and the queued rebalance re-evaluates. If a rebalance is already submitted and `WITHDRAWAL_REJECTED` arrives, no compensation is needed -- the next scheduled decision cycle accounts for the restored cash position.
@@ -153,28 +143,30 @@ Execution ──[WITHDRAWAL_COMPLETED/REJECTED]──> Investor (investor-bff: u
 
 ### Account Closure
 
-```
-Investor (investor-bff) ──[ACCOUNT_CLOSURE_REQUESTED]──> Execution (execution-ctrl)
-                                                          [cross-domain]
-    --> Cancels all pending/staged orders
-    --> Blocks new order submissions
-    --> Account enters terminal wind-down state
-    --> Investor (investor-bff) confirms ACCOUNT_CLOSED after wind-down
+```mermaid
+flowchart TD
+    BFF["Investor (investor-bff)"] -->|"ACCOUNT_CLOSURE_REQUESTED (cross-domain)"| EXEC["Execution (execution-ctrl)"]
+    EXEC --> CANCEL["Cancels all pending/staged orders"]
+    CANCEL --> BLOCK["Blocks new order submissions"]
+    BLOCK --> WIND["Account enters terminal wind-down state"]
+    WIND --> CLOSED["Investor (investor-bff) confirms ACCOUNT_CLOSED after wind-down"]
 ```
 
 ---
 
 ### Incident Response
 
-```
-Execution ──[failure/anomaly events]──> Advisory (operations-ctrl)  [cross-domain]
-Advisory (advisory-ctrl failures)──> Advisory (operations-ctrl)     [intra-domain]
-    --> Detection & classification (SEV-1 through SEV-5)
-    --> CIRCUIT_BREAKER_TRIGGERED --> Execution pauses              [cross-domain]
-    --> Stabilization workflows
-    --> Human review via advisory-bff (ops dashboard)
-    --> INCIDENT_RESOLVED --> CIRCUIT_BREAKER_RESET                 [cross-domain]
-    --> Execution resumes
+```mermaid
+flowchart TD
+    EX["Execution"] -->|"failure/anomaly events (cross-domain)"| OPS["Advisory (operations-ctrl)"]
+    ADV["Advisory (advisory-ctrl failures)"] -->|intra-domain| OPS
+
+    OPS --> DET["Detection & classification (SEV-1 through SEV-5)"]
+    DET --> CB["CIRCUIT_BREAKER_TRIGGERED → Execution pauses"]
+    CB --> STAB["Stabilization workflows"]
+    STAB --> REVIEW["Human review via advisory-bff (ops dashboard)"]
+    REVIEW --> RESOLVED["INCIDENT_RESOLVED → CIRCUIT_BREAKER_RESET"]
+    RESOLVED --> RESUME["Execution resumes"]
 ```
 
 Incident triggers include broker session loss, stream disconnection, order rejection anomalies, portfolio drift detection, reconciliation failure, agent execution failure, guardrail violations, and suitability check failures.

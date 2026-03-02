@@ -107,26 +107,22 @@ Five principles govern all architectural decisions:
 
 The system operates as a governed multi-agent architecture with four tiers:
 
-```
-User Interface (Web / Mobile)
-        |
-        v
-  API Gateway + Authentication
-        |
-        v
-  Orchestrator (Deterministic Control Plane)
-        |
-   +---------+---------+---------+
-   |         |         |         |
-   v         v         v         v
-Advisory  Compliance  Execution  Reconciliation
- Agents     Agent      Agent       Agent
-   |         |         |           |
-   v         v         v           v
-       Event Store (Append-Only)
-              |
-              v
-        Projections (Read Models)
+```mermaid
+flowchart TD
+    UI["User Interface (Web / Mobile)"]
+    API["API Gateway + Authentication"]
+    ORCH["Orchestrator (Deterministic Control Plane)"]
+    ADV["Advisory Agents"]
+    COMP["Compliance Agent"]
+    EXEC["Execution Agent"]
+    RECON["Reconciliation Agent"]
+    ES["Event Store (Append-Only)"]
+    PROJ["Projections (Read Models)"]
+
+    UI --> API --> ORCH
+    ORCH --> ADV & COMP & EXEC & RECON
+    ADV & COMP & EXEC & RECON --> ES
+    ES --> PROJ
 ```
 
 **Orchestrator** -- Owns workflow state machines and timing. Routes events to agents, enforces step ordering and idempotency, and produces canonical Decision Packets.
