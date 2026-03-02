@@ -8,15 +8,15 @@ Describes inter-domain event routing, the cross-domain subscription matrix, and 
 
 ## Event Hub Topology
 
-Eight domain buses consolidated into three:
+Each domain operates its own EventBridge bus, acting as the single event hub for all services within that domain:
 
-| Event Hub | Consolidates | Bus |
+| Event Hub | Sub-Capabilities Served | Bus |
 |---|---|---|
-| `investor-hub` | identity-hub + investor-hub + notification-hub | Investor domain EventBridge bus |
-| `advisory-hub` | advisory-hub + compliance-hub + operations-hub | Advisory domain EventBridge bus |
-| `execution-hub` | execution-hub + portfolio-hub | Execution domain EventBridge bus |
+| `investor-hub` | Identity, investor profile, notifications | Investor domain EventBridge bus |
+| `advisory-hub` | AI advisory, compliance, operations | Advisory domain EventBridge bus |
+| `execution-hub` | Order lifecycle, portfolio | Execution domain EventBridge bus |
 
-Cross-domain forwarding routes reduced from approximately 25 directional routes to **6 directional routes**.
+Cross-domain communication is limited to **6 directional forwarding routes**, keeping inter-domain coupling minimal.
 
 ---
 
