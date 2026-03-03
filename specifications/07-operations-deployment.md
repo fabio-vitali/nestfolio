@@ -28,6 +28,7 @@ Nestfolio advances through five progressive launch phases. Each phase increases 
 - Historical replay and shadow decision execution.
 - No real capital at risk.
 - Validates model behavior against known outcomes.
+- The simulation engine developed for this phase is retained as production infrastructure -- the user-facing Simulation mode reuses the same engine, event schemas, and guardrail pipeline. Phase 0 work is not throwaway scaffolding; it becomes a permanent product capability.
 
 ### Phase 1 -- Sandbox Capital
 

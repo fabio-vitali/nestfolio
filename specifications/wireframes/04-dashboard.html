@@ -176,6 +176,52 @@
       line-height: 1.4;
       margin-bottom: 14px;
     }
+
+    /* ── Simulation Banner ── */
+    .sim-banner {
+      background: var(--cautionary-light);
+      border-bottom: 1px solid #F59E0B;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .sim-banner-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .sim-banner-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      background: var(--cautionary);
+      color: var(--white);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+    .sim-banner-text {
+      font-size: var(--font-size-xs);
+      color: var(--neutral-700);
+      font-weight: 500;
+    }
+    .sim-banner-link {
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+      color: var(--cautionary);
+      text-decoration: none;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .sim-banner-link:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -191,6 +237,15 @@
         <span>WiFi</span>
         <span>&#128267;</span>
       </span>
+    </div>
+
+    <!-- ── Simulation Mode Banner ── -->
+    <div class="sim-banner">
+      <div class="sim-banner-left">
+        <span class="sim-banner-badge">Simulazione</span>
+        <span class="sim-banner-text">Capitale virtuale: &euro;10.000</span>
+      </div>
+      <a href="#" class="sim-banner-link">Passa al Live &rarr;</a>
     </div>
 
     <!-- ── Scrollable Content ── -->

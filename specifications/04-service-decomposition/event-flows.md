@@ -24,11 +24,11 @@ Cross-domain communication is limited to **6 directional forwarding routes**, ke
 
 | # | Direction | Purpose | Events Forwarded |
 |---|---|---|---|
-| 1 | Investor --> Advisory | Investor intent changes trigger advisory decisions and compliance guardrail materialization | `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED` |
-| 2 | Investor --> Execution | Withdrawal requests and account closure flow to broker adapter | `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED` |
+| 1 | Investor --> Advisory | Investor intent changes trigger advisory decisions and compliance guardrail materialization | `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`, `ACCOUNT_MODE_SET` |
+| 2 | Investor --> Execution | Withdrawal requests, account closure, and account mode changes flow to broker adapter and order lifecycle | `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `ACCOUNT_MODE_SET`, `GO_LIVE_REQUESTED` |
 | 3 | Advisory --> Investor | Decision outcomes and operational incidents trigger notifications | `DECISION_PACKET_CREATED`, `USER_CONFIRMATION_REQUESTED`, `EXPLANATION_GENERATED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `ESCALATION_TRIGGERED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`, `INCIDENT_DETECTED`, `INCIDENT_RESOLVED` |
 | 4 | Advisory --> Execution | Approved decisions and circuit breaker state flow to order lifecycle | `DECISION_APPROVED`, `USER_CONFIRMED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET` |
-| 5 | Execution --> Investor | Trade outcomes and deposit/withdrawal status trigger notifications and update request state | `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `ORDER_STAGED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `CORPORATE_ACTION_APPLIED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED` |
+| 5 | Execution --> Investor | Trade outcomes, deposit/withdrawal status, and simulation lifecycle events trigger notifications and update request state | `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `ORDER_STAGED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `CORPORATE_ACTION_APPLIED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED`, `VIRTUAL_DEPOSIT_CREDITED`, `VIRTUAL_WITHDRAWAL_DEBITED`, `PORTFOLIO_RESET_COMPLETED` |
 | 6 | Execution --> Advisory | Order outcomes and portfolio drift trigger new decisions; broker failures trigger incidents | `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `PORTFOLIO_DRIFT_DETECTED`, `BROKER_SESSION_LOST`, `STREAM_DISCONNECTED`, `RECONCILIATION_FAILED` |
 
 ---
@@ -39,9 +39,9 @@ Rows represent consuming domains. Columns represent producing domains. Cells lis
 
 | Consumer / Producer | Investor | Advisory | Execution |
 |---|---|---|---|
-| **Investor** | -- | `DECISION_PACKET_CREATED`, `USER_CONFIRMATION_REQUESTED`, `EXPLANATION_GENERATED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `ESCALATION_TRIGGERED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`, `INCIDENT_DETECTED`, `INCIDENT_RESOLVED` | `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `ORDER_STAGED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `CORPORATE_ACTION_APPLIED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED` |
-| **Advisory** | `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED` | -- | `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `PORTFOLIO_DRIFT_DETECTED`, `BROKER_SESSION_LOST`, `STREAM_DISCONNECTED`, `RECONCILIATION_FAILED` |
-| **Execution** | `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED` | `DECISION_APPROVED`, `USER_CONFIRMED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET` | -- |
+| **Investor** | -- | `DECISION_PACKET_CREATED`, `USER_CONFIRMATION_REQUESTED`, `EXPLANATION_GENERATED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `ESCALATION_TRIGGERED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`, `INCIDENT_DETECTED`, `INCIDENT_RESOLVED` | `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `ORDER_STAGED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `CORPORATE_ACTION_APPLIED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED`, `VIRTUAL_DEPOSIT_CREDITED`, `VIRTUAL_WITHDRAWAL_DEBITED`, `PORTFOLIO_RESET_COMPLETED` |
+| **Advisory** | `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`, `ACCOUNT_MODE_SET` | -- | `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `PORTFOLIO_DRIFT_DETECTED`, `BROKER_SESSION_LOST`, `STREAM_DISCONNECTED`, `RECONCILIATION_FAILED` |
+| **Execution** | `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `ACCOUNT_MODE_SET`, `GO_LIVE_REQUESTED` | `DECISION_APPROVED`, `USER_CONFIRMED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET` | -- |
 
 ---
 
@@ -66,7 +66,7 @@ flowchart TD
     L2 -->|"DECISION_APPROVED + USER_CONFIRMED (cross-domain → execution-hub)"| EXEC["Execution
     (execution-ctrl: safety checks → ORDER_SUBMITTED)"]
     EXEC -->|"ORDER_SUBMITTED (intra-domain)"| ADPT["Execution
-    (execution-adpt: IBKR → ORDER_FILLED)"]
+    (execution-adpt: IBKR or Simulation → ORDER_FILLED)"]
     ADPT -->|"ORDER_FILLED + PORTFOLIO_SNAPSHOT_IMPORTED (intra-domain)"| PROJ["Execution
     (portfolio-bff: update projections; portfolio-ctrl: reconciliation)"]
 ```
@@ -84,9 +84,10 @@ flowchart TD
     REG["Investor (investor-web: Cognito)"] -->|"USER_REGISTERED (intra-domain)"| BFF["Investor (investor-bff)"]
     BFF --> ONB["Investor (investor-bff: onboarding conversation)
     GOAL_SET, RISK_PROFILE_SET, OPERATING_MODE_SELECTED,
-    MANDATE_GRANTED, ONBOARDING_COMPLETED"]
+    ACCOUNT_MODE_SET, MANDATE_GRANTED, ONBOARDING_COMPLETED"]
     ONB -->|cross-domain| COMP["Advisory (compliance-ctrl: stores guardrail policy)"]
     ONB -->|cross-domain| ADV["Advisory (advisory-ctrl: may trigger initial assessment)"]
+    ONB -->|cross-domain| EXEC["Execution (execution-adpt: provisions IBKR account OR initializes virtual portfolio)"]
     ONB -->|intra-domain| NOTIF["Investor (investor-ctrl: sends welcome notification)"]
 ```
 
@@ -123,7 +124,25 @@ flowchart TD
     ADPT -->|"DEPOSIT_DETECTED (cross-domain)"| UPD["Investor (investor-bff: updates deposit status)"]
 ```
 
-Deposit detection occurs when `execution-adpt` observes a cash balance increase in a periodic IBKR snapshot import.
+Deposit detection occurs when `execution-adpt` observes a cash balance increase via periodic IBKR snapshot import (Live) or immediate virtual balance update (Simulation).
+
+---
+
+### Virtual Deposit Flow (Simulation)
+
+```mermaid
+flowchart TD
+    BFF["Investor (investor-bff)"] -->|"DEPOSIT_INITIATED (intra-domain)"| CTRL["Investor (investor-ctrl: sends 'pending')"]
+
+    BFF2["Investor (investor-bff)"] -->|"DEPOSIT_INITIATED (cross-domain)"| ADPT["Execution (execution-adpt: simulation engine)"]
+    ADPT --> CREDIT["Immediate credit to virtual cash balance"]
+    CREDIT --> DET["VIRTUAL_DEPOSIT_CREDITED + DEPOSIT_DETECTED"]
+    DET -->|cross-domain| ADV["Advisory (triggers investment assessment)"]
+    DET -->|cross-domain| NOTIF["Investor (investor-ctrl: sends 'received')"]
+    DET -->|cross-domain| UPD["Investor (investor-bff: updates deposit status)"]
+```
+
+In SIMULATION mode, the simulation engine within `execution-adpt` credits the virtual cash balance immediately upon receiving the deposit intent. It emits `VIRTUAL_DEPOSIT_CREDITED` and `DEPOSIT_DETECTED`, triggering the same advisory decision lifecycle as a real deposit.
 
 ---
 
@@ -131,13 +150,33 @@ Deposit detection occurs when `execution-adpt` observes a cash balance increase 
 
 ```mermaid
 flowchart TD
-    BFF["Investor (investor-bff)"] -->|"WITHDRAWAL_REQUESTED (cross-domain)"| ADPT["Execution (execution-adpt: submits to IBKR)"]
+    BFF["Investor (investor-bff)"] -->|"WITHDRAWAL_REQUESTED (cross-domain)"| ADPT["Execution (execution-adpt: submits to IBKR or simulation engine)"]
 
     EX["Execution"] -->|"WITHDRAWAL_COMPLETED/REJECTED (cross-domain)"| UPD["Investor (investor-bff: updates status)"]
     EX -->|"WITHDRAWAL_COMPLETED/REJECTED (cross-domain)"| NOTIF["Investor (investor-ctrl: notifies user)"]
 ```
 
 **SAGA compensation**: While `WITHDRAWAL_REQUESTED` is in flight, `execution-ctrl` excludes the withdrawal amount from rebalanceable cash and blocks new rebalance orders that would overlap. If `WITHDRAWAL_REJECTED` arrives while a rebalance is queued, held cash is released back to the rebalanceable pool and the queued rebalance re-evaluates. If a rebalance is already submitted and `WITHDRAWAL_REJECTED` arrives, no compensation is needed -- the next scheduled decision cycle accounts for the restored cash position.
+
+---
+
+### Virtual Withdrawal Flow (Simulation)
+
+```mermaid
+flowchart TD
+    BFF["Investor (investor-bff)"] -->|"WITHDRAWAL_REQUESTED (cross-domain)"| ADPT["Execution (execution-adpt: simulation engine)"]
+    ADPT --> DEBIT["Instant debit from virtual cash balance"]
+    DEBIT -->|"If sufficient cash"| DONE["VIRTUAL_WITHDRAWAL_DEBITED + WITHDRAWAL_COMPLETED"]
+    DEBIT -->|"If positions must be sold"| LIQ["Same liquidation logic as live mode"]
+    LIQ --> FILLS["Simulated fills at market price"]
+    FILLS --> DONE2["VIRTUAL_WITHDRAWAL_DEBITED + WITHDRAWAL_COMPLETED"]
+    DONE -->|cross-domain| UPD["Investor (investor-bff: updates status)"]
+    DONE -->|cross-domain| NOTIF["Investor (investor-ctrl: notifies user)"]
+    DONE2 -->|cross-domain| UPD
+    DONE2 -->|cross-domain| NOTIF
+```
+
+In SIMULATION mode, withdrawals are debited instantly from the virtual cash balance. If insufficient cash is available, the same liquidation logic applies as in live mode -- positions are sold via simulated fills at real market prices before the withdrawal completes.
 
 ---
 
@@ -151,6 +190,24 @@ flowchart TD
     BLOCK --> WIND["Account enters terminal wind-down state"]
     WIND --> CLOSED["Investor (investor-bff) confirms ACCOUNT_CLOSED after wind-down"]
 ```
+
+---
+
+### Simulation-to-Live Transition
+
+```mermaid
+flowchart TD
+    BFF["Investor (investor-bff)"] -->|"GO_LIVE_REQUESTED + ACCOUNT_MODE_SET (mode: LIVE)"| HUB["Investor (investor-hub: forwards cross-domain)"]
+    HUB -->|cross-domain| ADPT["Execution (execution-adpt: provisions real IBKR account)"]
+    ADPT --> CLEAR["execution-adpt clears virtual ledger"]
+    CLEAR --> RESET["PORTFOLIO_RESET_COMPLETED (intra-domain)"]
+    RESET --> PBFF["Execution (portfolio-bff: rebuilds from empty state)"]
+    RESET --> PCTRL["Execution (portfolio-ctrl: rebuilds from empty state)"]
+    PCTRL --> DONE["Goals, risk profile, operating mode, mandate preserved
+    User deposits real funds to begin live trading"]
+```
+
+Transition preserves the investor's goals, risk profile, operating mode, and mandate. The virtual portfolio is discarded -- positions and virtual cash do not carry over. After transition, the investor deposits real funds via the standard deposit flow to begin live trading.
 
 ---
 

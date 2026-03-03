@@ -17,6 +17,12 @@ Nestfolio adopts a **Dual Truth Model** aligned with institutional investment ma
 
 **Settlement truth always prevails for real asset state.** When intent and settlement diverge, the system triggers reconciliation workflows to resolve the discrepancy rather than assuming internal state is correct.
 
+### Simulation Truth Model
+
+In Simulation mode, the Dual Truth model collapses to a **Single Truth** -- both intent and settlement are maintained internally by the simulation engine. There is no external broker state to diverge from, so intent truth and settlement truth are always identical by construction.
+
+Reconciliation still runs against the virtual position ledger on the same cadence as Live mode. This exercises the full reconciliation code path and validates pipeline correctness, but produces zero drift under normal operation.
+
 ---
 
 ## Portfolio Lifecycle
@@ -27,8 +33,8 @@ A portfolio progresses through a defined lifecycle from onboarding through ongoi
 2. **Risk Profiling** -- Risk Agent assesses suitability and assigns a risk band
 3. **Mandate Grant** -- User grants a scoped discretionary mandate with an operating mode (Conservative, Balanced, or Aggressive)
 4. **Portfolio Construction** -- Portfolio Construction Agent generates a target allocation based on goals, risk profile, and mandate
-5. **Initial Execution** -- Execution Agent places initial orders via IBKR
-6. **Ongoing Monitoring** -- Continuous monitoring for drift, market changes, and goal progress
+5. **Initial Execution** -- Execution Agent places initial orders via IBKR (Live) or the simulation engine (Simulation) through `execution-adpt`
+6. **Ongoing Monitoring** -- Continuous monitoring for drift, market changes, and goal progress. Monitoring uses the same logic regardless of account mode, evaluating the virtual portfolio in Simulation with identical thresholds and triggers
 7. **Rebalancing** -- Periodic or event-triggered adjustments to maintain alignment with target allocation
 8. **Reporting** -- Regular performance reports and explanation delivery
 
@@ -68,7 +74,7 @@ flowchart TD
     UCR -->|Rejected| ARC["Archive"]
     UCR -->|Confirmed| EA
 
-    EA --> IBKR["Orders to IBKR"]
+    EA --> IBKR["Orders to IBKR / Simulation"]
 ```
 
 ### Anti-Thrashing Rules
@@ -191,11 +197,24 @@ Only the Execution Agent can access broker secrets. Credentials never appear in 
 
 See [Governance and Compliance](../06-governance-compliance.md) for the full secrets handling and break-glass controls.
 
+### Simulation Mode Bypass
+
+Simulation-mode accounts bypass the entire IBKR integration layer. No broker session is established, no credentials are provisioned or stored, and no streaming feeds are opened.
+
+Instead, `execution-adpt` routes orders to an internal simulation engine that fills them at real market prices sourced from live market data feeds. The simulation engine enforces realistic behavior:
+
+- Orders are simulated internally at real-time market prices
+- Identical domain events are emitted (`ORDER_ACCEPTED`, `ORDER_FILLED`, `ORDER_REJECTED`, etc.) with the same schema and payload structure as live execution
+- Deposits and withdrawals are virtual and instantaneous
+- Portfolio snapshots are generated from a virtual position ledger rather than broker account data
+
+The key architectural constraint is that `execution-adpt` emits identical event types and payloads regardless of account mode. No downstream service -- including the Reconciliation Agent, projection builders, and notification pipeline -- can distinguish between a live fill and a simulated fill. This ensures the entire post-execution pipeline is exercised identically.
+
 ---
 
 ## Reconciliation
 
-The Reconciliation Agent continuously compares internal portfolio projections against IBKR settlement truth.
+The Reconciliation Agent continuously compares internal portfolio projections against IBKR settlement truth (Live) or virtual ledger (Simulation).
 
 ### Reconciliation Cadence
 
@@ -220,7 +239,7 @@ Detected drift emits `PortfolioDriftDetected` and `ReconciliationRequired` event
 ### Safe Recovery Flow
 
 1. Execution paused for affected instruments (reconciliation lock)
-2. IBKR snapshot imported as authoritative source
+2. IBKR snapshot imported as authoritative source (Live) or virtual ledger snapshot (Simulation)
 3. Internal projections corrected to match settlement truth
 4. Adjustment events emitted to the event store
 5. Compliance revalidation executed
@@ -238,6 +257,10 @@ Duplicate execution is prevented through multiple layers:
 - Reconciliation lock during drift resolution
 - Orders cannot be resubmitted unless explicitly invalidated by reconciliation events
 
+### Reconciliation in Simulation Mode
+
+In Simulation mode, the Reconciliation Agent compares internal portfolio projections against the virtual position ledger maintained by the simulation engine. Because both sides are internal and updated atomically, reconciliation always produces zero drift under normal operation. The full reconciliation pipeline -- cadence, drift detection, safe recovery flow, and never-double-trade checks -- runs unchanged, exercising the complete code path and validating pipeline correctness without requiring an external broker connection.
+
 ---
 
 ## Circuit Breakers
@@ -245,7 +268,7 @@ Duplicate execution is prevented through multiple layers:
 Execution is automatically paused when:
 
 - Market volatility exceeds configured thresholds for the operating mode
-- IBKR portfolio sync mismatch is detected
+- IBKR (Live) or simulation engine (Simulation) portfolio sync mismatch is detected
 - Data feeds are unavailable or inconsistent
 - Compliance validation fails
 
@@ -269,7 +292,7 @@ Incidents affecting portfolio operations follow the platform's autonomous contai
 
 | Class | Example | Automatic Response |
 |---|---|---|
-| Broker Connectivity | IBKR streaming loss | Execution pause, switch to monitoring-only |
+| Broker/Engine Connectivity | IBKR streaming loss (Live) or simulation engine degradation (Simulation) | Execution pause, switch to monitoring-only |
 | Portfolio Drift | Position mismatch after reconciliation | Reconciliation lock, snapshot import, projection rebuild |
 | Execution Failure | Repeated order rejections | Agent retry with backoff, escalate after budget exhausted |
 | Data Integrity | Inconsistent market data feeds | Pause non-critical analysis, continue safety checks |

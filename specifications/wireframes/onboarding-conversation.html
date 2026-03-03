@@ -827,7 +827,7 @@
       <div class="progress-track">
         <div class="progress-fill" id="progressFill"></div>
       </div>
-      <div class="progress-label" id="progressLabel">1 di 7</div>
+      <div class="progress-label" id="progressLabel">1 di 8</div>
     </div>
   </div>
 
@@ -873,7 +873,7 @@ const conversationScript = [
   // ═══ Step 1: Welcome ═══
   {
     step: 1,
-    progress: 14,
+    progress: 12,
     actions: [
       { type: 'agent-msg', text: 'Ciao! 👋 Sono Nestfolio, il tuo assistente per gli investimenti.' },
       { type: 'agent-msg', text: 'Ti guido nella creazione del tuo piano di investimento personalizzato. Risponderemo a qualche domanda insieme — una alla volta, senza fretta.', delay: 600 },
@@ -884,7 +884,7 @@ const conversationScript = [
   // ═══ Step 2: Goal Setting ═══
   {
     step: 2,
-    progress: 28,
+    progress: 25,
     actions: [
       { type: 'agent-msg', text: 'Per prima cosa, vorrei capire il tuo obiettivo. <strong>Per cosa stai risparmiando?</strong>' },
       {
@@ -902,7 +902,7 @@ const conversationScript = [
   },
   {
     step: 2,
-    progress: 28,
+    progress: 25,
     actions: [
       { type: 'user-msg', text: 'Far crescere il capitale' },
       { type: 'agent-msg', text: 'Ottima scelta! Investire per far crescere il patrimonio nel tempo e\' uno degli obiettivi piu\' comuni e sensati.' },
@@ -921,7 +921,7 @@ const conversationScript = [
   },
   {
     step: 2,
-    progress: 28,
+    progress: 25,
     actions: [
       { type: 'user-msg', text: '10 anni' },
       { type: 'agent-msg', text: '10 anni e\' un orizzonte eccellente. Ti permette di beneficiare della crescita a lungo termine, superando le oscillazioni di mercato.' },
@@ -936,17 +936,58 @@ const conversationScript = [
   },
   {
     step: 2,
-    progress: 28,
+    progress: 25,
     actions: [
       { type: 'user-msg', text: '€5.000' },
       { type: 'agent-msg', text: 'Perfetto. €5.000 e\' un buon punto di partenza. Potrai sempre aggiungere fondi in seguito.' },
     ]
   },
 
-  // ═══ Step 3: Risk Comfort ═══
+  // ═══ Step 3: Account Mode (Simulation vs Live) ═══
   {
     step: 3,
-    progress: 42,
+    progress: 37,
+    actions: [
+      { type: 'agent-msg', text: '<strong>Vorresti iniziare con denaro reale o provarlo prima?</strong>' },
+      { type: 'agent-msg', text: 'Molti investitori iniziano dalla simulazione per prendere confidenza. Nessun rischio, stesse funzionalita\'.', delay: 400 },
+      {
+        type: 'options',
+        items: [
+          { icon: '🧪', title: 'Prova prima (Simulazione)', desc: 'Capitale virtuale, zero rischi. Passa al reale quando vuoi.' },
+          { icon: '💰', title: 'Inizia a investire (Live)', desc: 'Investi subito con denaro reale.' },
+        ],
+        autoSelect: 0 // "Prova prima (Simulazione)"
+      }
+    ]
+  },
+  {
+    step: 3,
+    progress: 37,
+    actions: [
+      { type: 'user-msg', text: 'Prova prima (Simulazione)' },
+      { type: 'agent-msg', text: 'Ottima scelta! La simulazione ti permette di vedere come funziona Nestfolio senza rischi.' },
+      { type: 'agent-msg', text: '<strong>Con quanto capitale virtuale vuoi iniziare?</strong>', delay: 400 },
+      {
+        type: 'amount',
+        value: '10.000',
+        presets: ['5.000', '10.000', '25.000', '50.000'],
+        activePreset: 1
+      }
+    ]
+  },
+  {
+    step: 3,
+    progress: 37,
+    actions: [
+      { type: 'user-msg', text: '€10.000 virtuali' },
+      { type: 'agent-msg', text: 'Perfetto! Avrai €10.000 di capitale virtuale per esplorare. Potrai passare alla modalita\' Live in qualsiasi momento dalle impostazioni.' },
+    ]
+  },
+
+  // ═══ Step 4: Risk Comfort ═══
+  {
+    step: 4,
+    progress: 50,
     actions: [
       { type: 'agent-msg', text: 'Ora vorrei capire come ti senti rispetto al rischio. Non ci sono risposte giuste o sbagliate.' },
       { type: 'agent-msg', text: '<strong>Se il tuo portafoglio perdesse il 10% in un mese, cosa faresti?</strong>', delay: 500 },
@@ -963,8 +1004,8 @@ const conversationScript = [
     ]
   },
   {
-    step: 3,
-    progress: 42,
+    step: 4,
+    progress: 50,
     actions: [
       { type: 'user-msg', text: 'Non farei nulla' },
       { type: 'agent-msg', text: 'Questo indica un buon livello di calma di fronte alla volatilita\'. E\' un approccio molto razionale.' },
@@ -982,18 +1023,18 @@ const conversationScript = [
     ]
   },
   {
-    step: 3,
-    progress: 42,
+    step: 4,
+    progress: 50,
     actions: [
       { type: 'user-msg', text: 'Poca esperienza' },
       { type: 'agent-msg', text: 'Nessun problema! Nestfolio e\' progettato proprio per questo. Mi occupo io della gestione, tu puoi sempre chiedere <em>"perche\'?"</em> per capire ogni decisione.' },
     ]
   },
 
-  // ═══ Step 4: Operating Mode ═══
+  // ═══ Step 5: Operating Mode ═══
   {
-    step: 4,
-    progress: 57,
+    step: 5,
+    progress: 62,
     actions: [
       { type: 'agent-msg', text: 'Adesso la parte importante: <strong>quanta autonomia vuoi darmi?</strong>' },
       { type: 'agent-msg', text: 'Scegli il livello di controllo che preferisci. Potrai sempre cambiarlo in seguito.', delay: 400 },
@@ -1036,18 +1077,18 @@ const conversationScript = [
     ]
   },
   {
-    step: 4,
-    progress: 57,
+    step: 5,
+    progress: 62,
     actions: [
       { type: 'user-msg', text: 'Bilanciato' },
       { type: 'agent-msg', text: 'Scelta saggia! Con la modalita\' Bilanciata gestiro\' le operazioni quotidiane e ti chiedero\' conferma solo per i cambiamenti significativi.' },
     ]
   },
 
-  // ═══ Step 5: Mandate & Terms ═══
+  // ═══ Step 6: Mandate & Terms ═══
   {
-    step: 5,
-    progress: 71,
+    step: 6,
+    progress: 75,
     actions: [
       { type: 'agent-msg', text: 'Ecco un riepilogo di cosa mi stai autorizzando a fare per te:' },
       {
@@ -1069,18 +1110,18 @@ const conversationScript = [
     ]
   },
   {
-    step: 5,
-    progress: 71,
+    step: 6,
+    progress: 75,
     actions: [
       { type: 'user-msg', text: 'Accetto i termini del mandato' },
       { type: 'agent-msg', text: 'Grazie per la fiducia! Manca solo un ultimo passaggio.' },
     ]
   },
 
-  // ═══ Step 6: Broker Connection ═══
+  // ═══ Step 7: Broker Connection ═══
   {
-    step: 6,
-    progress: 85,
+    step: 7,
+    progress: 87,
     actions: [
       { type: 'agent-msg', text: 'Per gestire i tuoi investimenti, devo connettermi al tuo conto <strong>Interactive Brokers</strong>.' },
       { type: 'agent-msg', text: 'Verrai reindirizzato al sito di IBKR per autorizzare la connessione in modo sicuro. Nestfolio non vedra\' mai le tue credenziali.', delay: 500 },
@@ -1088,16 +1129,16 @@ const conversationScript = [
     ]
   },
   {
-    step: 6,
-    progress: 85,
+    step: 7,
+    progress: 87,
     actions: [
       { type: 'agent-msg', text: '✓ <strong>Connessione riuscita!</strong> Il tuo conto IBKR e\' ora collegato a Nestfolio.' },
     ]
   },
 
-  // ═══ Step 7: Confirmation & Launch ═══
+  // ═══ Step 8: Confirmation & Launch ═══
   {
-    step: 7,
+    step: 8,
     progress: 100,
     actions: [
       { type: 'agent-msg', text: 'Tutto pronto! Ecco il riepilogo del tuo piano di investimento:' },
@@ -1108,6 +1149,7 @@ const conversationScript = [
           { label: 'Obiettivo', value: 'Crescita del capitale' },
           { label: 'Orizzonte', value: '10 anni' },
           { label: 'Investimento iniziale', value: '€5.000' },
+          { label: 'Modalita\' account', value: '🧪 Simulazione (€10.000 virtuali)' },
           { label: 'Profilo di rischio', value: 'Moderato' },
           { label: 'Modalita\' operativa', value: '<span class="badge balanced">Bilanciato</span>' },
           { label: 'Broker', value: 'IBKR ✓ Connesso' },
@@ -1151,7 +1193,7 @@ function hideTyping() {
 
 function updateProgress(step, percent) {
   progressFill.style.width = percent + '%';
-  progressLabel.textContent = step + ' di 7';
+  progressLabel.textContent = step + ' di 8';
 }
 
 function createMessageGroup() {

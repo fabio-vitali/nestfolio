@@ -12,13 +12,13 @@ Complete screen specifications mapped to bounded contexts and BFF services, resp
 |---|--------|-----------|----------------|--------------------|-----------------|
 | 1 | Landing / Marketing | [View](../wireframes/01-landing.html) | `identity-web` | -- | Value proposition, trust signals, CTA |
 | 2 | Sign Up / Sign In | [View](../wireframes/01-landing.html) | `identity-web` | Cognito federation (Google, Facebook, email) | Authentication |
-| 3 | Onboarding Conversation | [View](../wireframes/onboarding-conversation.html) | `identity-bff` | `recordOnboardingAnswer`, `setGoal`, `setRiskProfile`, `selectOperatingMode`, `grantMandate` | Guided Q&A |
-| 4 | Dashboard (Home) | [View](../wireframes/04-dashboard.html) | `portfolio-bff`, `advisory-bff`, `notification-bff` | `getPortfolioSummary`, `getRecommendations`, `getUnreadCount` | Portfolio health, recent activity, nudges |
+| 3 | Onboarding Conversation | [View](../wireframes/onboarding-conversation.html) | `identity-bff` | `recordOnboardingAnswer`, `setGoal`, `setRiskProfile`, `setAccountMode`, `selectOperatingMode`, `grantMandate` | Guided Q&A (includes account mode selection: simulation or live) |
+| 4 | Dashboard (Home) | [View](../wireframes/04-dashboard.html) | `portfolio-bff`, `advisory-bff`, `notification-bff` | `getPortfolioSummary`, `getRecommendations`, `getUnreadCount` | Portfolio health, recent activity, nudges. Simulation mode indicator when `account_mode = SIMULATION`. |
 | 5 | Portfolio Detail | [View](../wireframes/05-portfolio.html) | `portfolio-bff`, `advisory-bff`, `identity-bff` | `getPositions`, `getCashBalances`, `getPerformanceChart` | Holdings, allocation, performance |
 | 6 | Decision Detail ("Why") | [View](../wireframes/06-decision-detail.html) | `advisory-bff`, `compliance-bff` | `getExplanation`, `getRecommendation` | Plain-language reasoning for a specific action |
 | 7 | Activity & Notifications | [View](../wireframes/07-notifications.html) | `notification-bff` | `getNotifications`, `markAsRead` | Notification inbox, history |
 | 8 | Confirmation Dialog | [View](../wireframes/08-confirmation.html) | `advisory-bff` | `confirmDecision`, `rejectDecision` | Level 2 user confirmation |
-| 9 | Settings & Profile | [View](../wireframes/09-settings.html) | `identity-bff`, `compliance-bff`, `notification-bff` | `getProfile`, `updateGoal`, `updateOperatingMode`, `updateMandate` | Goals, risk profile, mode, preferences |
+| 9 | Settings & Profile | [View](../wireframes/09-settings.html) | `identity-bff`, `compliance-bff`, `notification-bff` | `getProfile`, `updateGoal`, `updateOperatingMode`, `updateMandate`, `requestGoLive` | Goals, risk profile, mode, preferences |
 | 10 | *(Removed -- broker is fully transparent to user)* | -- | -- | -- | -- |
 | 11 | Deposit Flow | [View](../wireframes/11-deposit-withdrawal.html) | `identity-bff` | `initiateDeposit` | Bank transfer instructions, deposit status |
 | 12 | Withdrawal Flow | [View](../wireframes/11-deposit-withdrawal.html) | `identity-bff` | `requestWithdrawal` | Withdrawal amount, confirmation, status |
@@ -31,7 +31,7 @@ Complete screen specifications mapped to bounded contexts and BFF services, resp
 
 | UI Surface | Bounded Context(s) | BFF(s) | Key Events Consumed/Produced |
 |------------|-------------------|--------|------------------------------|
-| Onboarding | Identity | `identity-bff` | Produces: `ONBOARDING_ANSWER_RECORDED`, `GOAL_SET`, `RISK_PROFILE_SET`, `OPERATING_MODE_SELECTED`, `MANDATE_GRANTED`, `ONBOARDING_COMPLETED` |
+| Onboarding | Identity | `identity-bff` | Produces: `ONBOARDING_ANSWER_RECORDED`, `GOAL_SET`, `ACCOUNT_MODE_SET`, `RISK_PROFILE_SET`, `OPERATING_MODE_SELECTED`, `MANDATE_GRANTED`, `ONBOARDING_COMPLETED` |
 | Dashboard | Portfolio, Advisory, Notification, Operations | `portfolio-bff`, `advisory-bff`, `notification-bff` | Consumes: position/cash projections, recommendations, notifications, health check status |
 | Portfolio Detail | Portfolio, Advisory, Identity | `portfolio-bff`, `advisory-bff`, `identity-bff` | Consumes: positions, cash balances, performance data, target allocation, goal data |
 | Decision Detail | Advisory, Compliance | `advisory-bff`, `compliance-bff` | Consumes: explanations, recommendations, compliance audit. Produces: `USER_VIEWED_EXPLANATION` |
@@ -85,6 +85,7 @@ block-beta
 | **Portfolio Value** | `portfolio-bff` -> `getPortfolioSummary` | Total value, change %, sparkline chart. Tap opens Portfolio Detail. |
 | **Status Banner** | `advisory-bff` -> `getRecommendations` | One-sentence system state summary. Green/amber/red sentiment. |
 | **Recent Activity** | `notification-bff` -> `getNotifications(limit: 3)` | Last 3 notifications. Each links to Decision Detail ("Why?") or notification detail. |
+| **Simulation Badge** | `identity-bff` -> `getProfile` -> `account_mode` | Persistent amber banner when `account_mode = SIMULATION`: "Simulation Mode -- virtual capital, real market data." Links to "Go Live" in Settings. Hidden when account mode is `LIVE`. |
 | **Action Required** | `advisory-bff` -> pending `USER_CONFIRMATION_REQUESTED` | Appears only when Level 2 confirmation is needed. Tap opens Confirmation Dialog. |
 
 ### Trust Signals
@@ -302,6 +303,7 @@ Users configure push preferences in Settings.
 | **Investment Goal** | Goal type, target amount, time horizon | Yes | `identity-bff` -> `updateGoal` |
 | **Risk Profile** | Risk comfort summary, risk band | Re-take questionnaire | `identity-bff` |
 | **Operating Mode** | Current mode, description, guardrail summary, change option | Yes (Level 2) | `identity-bff` -> `updateOperatingMode` |
+| **Account Mode** | Current mode (Simulation or Live), virtual capital balance (shown only in simulation mode), "Go Live" action (shown only in simulation mode) | "Go Live" triggers simulation-to-live transition flow (Level 2) | `identity-bff` -> `requestGoLive` |
 | **Your Safety Rules** | Expandable panel with simplified guardrail parameters | Read-only (changes with mode) | `compliance-bff` -> `getGuardrailSummary` |
 | **Mandate** | Plain-language summary of what Nestfolio can do | Revocable | `identity-bff` -> `updateMandate` |
 | **Notifications** | Channel preferences (push/email per type), timing mode, email frequency | Yes | `notification-bff` |

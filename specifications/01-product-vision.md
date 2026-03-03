@@ -62,6 +62,23 @@ Nestfolio offers three configurable operating modes that govern autonomy levels,
 
 Users select a mode during onboarding and may adjust it at any time within compliance constraints.
 
+## Account Modes
+
+Orthogonal to the operating mode, each Nestfolio account operates in one of two account modes that determine whether capital and execution are real or virtual:
+
+| Mode | Description |
+|---|---|
+| **Simulation** | Virtual capital, simulated execution, real market data. No brokerage account required. Ideal for users who want to experience Nestfolio's full decision lifecycle before committing real capital. |
+| **Live** | Real capital, real execution via Interactive Brokers. Full brokerage provisioning and custody lifecycle. |
+
+Account mode is independent of operating mode -- all guardrails, compliance checks, authority levels, and the full decision lifecycle apply identically in both modes. A Simulation account running in Aggressive mode behaves exactly as a Live account in Aggressive mode, except that orders are fulfilled by a simulation engine rather than a broker.
+
+Key constraints:
+
+- **Selected during onboarding.** Users choose Simulation or Live as part of the initial account setup flow.
+- **Simulation to Live transition** preserves goals, risk profile, operating mode, and mandate but resets portfolio data. The transition is an L2 action requiring user confirmation.
+- **Live to Simulation transition is not supported.** Once live, the account remains in Live mode.
+
 ## Communication Philosophy
 
 Nestfolio follows a configurable hybrid communication model:
@@ -69,6 +86,7 @@ Nestfolio follows a configurable hybrid communication model:
 - **Autonomous actions** are explained post-execution via notification.
 - **High-impact actions** trigger pre-execution notifications.
 - **Compliance-mandated actions** require explicit user confirmation before proceeding.
+- **Simulation actions** are explained with the same level of detail as live actions. A persistent visual indicator distinguishes simulation context throughout the interface so users always know they are viewing virtual results.
 
 Users may override notification timing within the bounds set by their operating mode and regulatory requirements.
 

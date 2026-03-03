@@ -19,7 +19,7 @@ Nestfolio's business capabilities are organized into three bounded contexts. Eac
 
 | # | Domain | Business Capability | Core Vocabulary |
 |---|---|---|---|
-| 1 | **Investor** | Authentication, tenant lifecycle, PII, onboarding, goals, risk profiles, mandates, operating modes, deposit/withdrawal intent, broker authorization, notification policy and delivery, GDPR deletion | user, tenant, JWT, PII, goal, risk profile, mandate, operating mode, onboarding, consent, notification, severity tier, timing mode, channel |
+| 1 | **Investor** | Authentication, tenant lifecycle, PII, onboarding, goals, risk profiles, mandates, operating modes, account modes (SIMULATION/LIVE), deposit/withdrawal intent, broker authorization, notification policy and delivery, GDPR deletion | user, tenant, JWT, PII, goal, risk profile, mandate, operating mode, account mode, onboarding, consent, notification, severity tier, timing mode, channel |
 | 2 | **Advisory** | AI-driven decision lifecycle, compliance validation, guardrail enforcement, audit trail, incident management, AI model governance, cost governance | decision packet, recommendation, explanation, rebalance, compliance check, guardrail, escalation, audit artifact, incident, circuit breaker, model registry, shadow run, promotion |
 | 3 | **Execution** | Broker integration, order lifecycle, broker session management, portfolio projections, positions, reconciliation, drift detection, performance metrics | order, fill, broker session, streaming, portfolio, position, cash balance, drift, reconciliation, settlement truth, intent truth, snapshot |
 
@@ -51,9 +51,9 @@ Each domain is the authoritative source for its data. Other domains hold copies 
 
 | Domain | Authoritative Data | Consumed Projections |
 |---|---|---|
-| **Investor** | User credentials, tenant claims, PII, investor preferences (goals, risk profiles, mandates, operating modes), onboarding state, notification records, delivery policies, channel preferences | Deposit/withdrawal status updates (from Execution), decision outcomes (from Advisory) |
+| **Investor** | User credentials, tenant claims, PII, investor preferences (goals, risk profiles, mandates, operating modes, account modes), onboarding state, notification records, delivery policies, channel preferences | Deposit/withdrawal status updates (from Execution), decision outcomes (from Advisory) |
 | **Advisory** | Decision Packets, agent reasoning outputs, compliance decisions, guardrail policies, audit artifacts, incidents, model versions, containment actions, cost budgets | Investor intent changes (from Investor), order outcomes and drift signals (from Execution) |
-| **Execution** | Orders, execution outcomes, broker sessions, portfolio projections, positions, reconciliation state, drift records, cash balances | Approved decisions (from Advisory), withdrawal/closure requests (from Investor) |
+| **Execution** | Orders, execution outcomes, broker sessions, portfolio projections, positions, reconciliation state, drift records, cash balances, virtual portfolio ledger (simulation accounts) | Approved decisions (from Advisory), withdrawal/closure requests (from Investor) |
 
 ---
 

@@ -305,6 +305,61 @@
       flex-shrink: 0;
     }
 
+    /* ── Account Mode Card ── */
+    .account-mode-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .account-mode-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .account-mode-badge.simulation {
+      background: var(--cautionary-light);
+      color: var(--cautionary);
+    }
+    .account-mode-badge.live {
+      background: var(--positive-light);
+      color: var(--positive);
+    }
+    .account-mode-balance {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-600);
+      padding: 4px 0;
+      line-height: 1.5;
+    }
+    .account-mode-balance strong {
+      color: var(--neutral-800);
+      font-weight: 600;
+    }
+    .btn-go-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 10px 20px;
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid var(--primary);
+      background: var(--primary);
+      color: var(--white);
+      font-family: var(--font-family);
+      transition: all 0.2s;
+    }
+    .btn-go-live:hover {
+      background: var(--primary-dark);
+      border-color: var(--primary-dark);
+    }
+
     /* ── Section Groups ── */
     .section-group {
       background: var(--white);
@@ -415,6 +470,28 @@
 
           <div class="rules-note">Queste regole proteggono il tuo portafoglio. Si aggiornano automaticamente cambiando modalita'.</div>
           <a class="action-link" href="#">Cambia modalita'</a>
+        </div>
+      </div>
+
+      <!-- ── Account Mode (expandable) ── -->
+      <div class="settings-section" data-expandable>
+        <div class="expand-header">
+          <div class="expand-title-row">
+            <span class="expand-title">Modalita' account</span>
+            <span class="badge-pill badge-amber">SIMULAZIONE</span>
+          </div>
+          <svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </div>
+        <div class="expand-content">
+          <div class="account-mode-status">
+            <span class="account-mode-badge simulation">Simulazione attiva</span>
+          </div>
+          <div class="account-mode-balance">Capitale virtuale: <strong>&euro;10.000,00</strong></div>
+          <div class="account-mode-balance">Valore portafoglio simulato: <strong>&euro;24.350,00</strong></div>
+          <div class="mode-desc" style="margin-top: 8px;">Stai utilizzando la modalita' simulazione. I tuoi investimenti sono virtuali e senza rischio. Quando ti senti pronto, passa alla modalita' Live per investire con denaro reale.</div>
+          <button class="btn-go-live">Passa alla modalita' Live &rarr;</button>
         </div>
       </div>
 

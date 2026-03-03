@@ -144,6 +144,19 @@ describe('end-to-end event flow', () => {
 | Event publishing | Outbound events reach EventBridge with correct detail type |
 | Idempotency | Duplicate event processing produces no side effects |
 | Error paths | DLQ delivery on repeated failures, error event publishing |
+| Simulation/live parity | `execution-adpt` emits structurally identical events in both simulation and live modes |
+
+### Simulation/Live Event Parity Testing
+
+A dedicated integration test suite validates that `execution-adpt` produces structurally identical events regardless of whether the underlying execution path is simulated or live. The suite covers the full surface area of execution-related events:
+
+- **Order submission** -- event shape, detail type, and payload schema match between modes.
+- **Fills** -- partial and complete fill events carry the same fields and value types.
+- **Deposit detection** -- simulated deposit events are indistinguishable from broker-sourced ones.
+- **Withdrawals** -- withdrawal confirmation events maintain identical structure.
+- **Snapshots** -- periodic portfolio snapshots produced by either path conform to the same schema.
+
+The core safety invariant enforced by this suite: **no downstream service can distinguish a simulated event from a real event based on structure alone.** This guarantee ensures that every service consuming execution events -- projections, compliance agents, the audit log -- behaves identically in both modes. If a structural divergence is introduced, the parity tests fail before the change can reach production.
 
 ---
 

@@ -56,9 +56,9 @@ The Compliance Agent validates reasoning completeness before permitting executio
 
 ### Execution Agent (Single Writer)
 
-The Execution Agent is the sole component authorized to interact with the broker:
+The Execution Agent is the sole component authorized to submit orders. It operates identically regardless of account mode -- it submits orders to `execution-adpt`, which routes them to Interactive Brokers (Live) or the simulation engine (Simulation). The Execution Agent itself has no mode-specific logic:
 
-- Submits, modifies, and cancels orders via Interactive Brokers
+- Submits, modifies, and cancels orders via `execution-adpt`
 - Tracks order status through the full lifecycle
 - Operates under the Single Writer Principle -- no other agent or service can submit orders
 - Verifies safety checks before every submission: no active reconciliation lock, no pending conflicting staged orders, turnover limits respected, market liquidity checks pass
@@ -93,6 +93,7 @@ Each agent invocation receives:
 - **Prior decision references** -- Bounded window of recent decisions for continuity
 - **Feature snapshot** -- Key inputs used for the decision
 - **Model and policy versions** -- Exact versions of models and policies in effect
+- **Account mode** -- `SIMULATION` or `LIVE`. Included so the Recommendation and Explainability Agent can frame explanations appropriately (e.g., "In your simulation portfolio..." vs "In your portfolio..."). Account mode does not alter agent reasoning, compliance checks, or decision logic -- it is a presentational signal only.
 
 ### Context Bundle Principles
 
@@ -117,7 +118,7 @@ flowchart TD
     S4["4. Orchestrator Composes Decision Packet"]
     S5["5. Compliance Agent Authorizes (or Blocks)"]
     S6["6. User Confirmation (if L2 required)"]
-    S7["7. Execution Agent Submits Orders to IBKR"]
+    S7["7. Execution Agent Submits Orders to IBKR / Simulation Engine"]
     S8["8. Fills/Rejections Recorded as Events"]
     S9["9. Projections Update; User Receives Explanation"]
 
@@ -129,7 +130,7 @@ flowchart TD
 The lifecycle can be initiated by:
 
 - **Event-driven triggers** -- Deposit confirmed, goal or risk profile change, portfolio drift detected, order filled/rejected, volatility circuit breaker trip, data feed recovery
-- **Scheduled cycles** -- Daily portfolio health check, daily IBKR reconciliation, weekly risk review, monthly strategic rebalance review, monthly report generation
+- **Scheduled cycles** -- Daily portfolio health check, daily reconciliation (IBKR or virtual ledger), weekly risk review, monthly strategic rebalance review, monthly report generation
 
 This hybrid cadence ensures responsiveness to real-time events while maintaining consistent coverage through scheduled routines.
 

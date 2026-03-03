@@ -149,6 +149,8 @@ Financial terms throughout the UI are underlined with a dotted line. Tapping or 
 | Corporate action | A company event (like a stock split or merger) that changes your holdings |
 | Mandate | The permission you give Nestfolio to manage your portfolio |
 | Staged order | A trade waiting to execute when markets reopen |
+| Simulation mode | A practice mode using virtual money to show how Nestfolio manages real investments |
+| Virtual capital | Practice money used in simulation mode |
 
 ### Status Explanations
 
@@ -167,6 +169,9 @@ The dashboard status banner always explains the current state in plain language.
 | Reconciliation in progress | "We're verifying your portfolio -- routine safety check." |
 | Incident resolved | "Everything is back to normal. Trading has resumed." |
 | Cool-down active | "Your portfolio was recently adjusted. Next rebalance check in X days." |
+| Simulation active | "This is a simulated portfolio using virtual capital. Market data is real." |
+| Virtual deposit received | "Virtual deposit received -- we're evaluating how to invest it." |
+| Going live | "Your account is being upgraded to live. Your simulated portfolio will be reset." |
 
 ---
 
@@ -179,6 +184,9 @@ The dashboard status banner always explains the current state in plain language.
 | Dashboard | New user, no portfolio yet | "Your portfolio is being set up. We'll notify you when it's ready." |
 | Portfolio Detail | No positions yet | "Once your first investment is placed, your holdings will appear here." |
 | Notifications | No notifications | "You're all caught up. Nestfolio is working quietly in the background." |
+| Dashboard | Simulation mode, no activity yet | "Your simulation portfolio is ready. Add virtual funds to see Nestfolio in action." |
+| Portfolio Detail | Simulation mode, no positions yet | "Once your virtual funds are invested, your simulated holdings will appear here." |
+| Dashboard | Simulation mode, going live | "We're setting up your live account. Your simulation portfolio will be reset." |
 
 ### Error States
 

@@ -37,13 +37,20 @@ Onboarding is a conversational flow, not a traditional form. It feels like talki
 - "When do you want to reach this goal?" Slider: 1 year to 30+ years
 - "How much do you want to invest to start?" Amount input with sensible defaults
 
-**Step 3 -- Risk Comfort (2-3 questions)**
+**Step 3 -- Account Mode**
+
+"Would you like to start with real money or try it out first?"
+
+- **"Try it first" (Simulation)**: Virtual capital amount picker with preset options: EUR 5,000 / 10,000 / 25,000 / 50,000 / Custom. Framed positively: "Many investors start here to build confidence. You'll see exactly how Nestfolio manages a real portfolio -- with virtual money."
+- **"Start investing" (Live)**: Continues to the next step as before. No additional UI.
+
+**Step 4 -- Risk Comfort (2-3 questions)**
 
 - "If your portfolio dropped 10% in a month, what would you do?" Options: Sell everything, Sell some, Do nothing, Buy more
 - "Which best describes your investment experience?" Options: None, A little, Some, Experienced
 - Additional questions as needed for suitability compliance
 
-**Step 4 -- Operating Mode Selection**
+**Step 5 -- Operating Mode Selection**
 
 "How much control do you want to keep?"
 
@@ -55,27 +62,31 @@ Onboarding is a conversational flow, not a traditional form. It feels like talki
 
 Visual comparison card for each mode with plain-language guardrail summary.
 
-**Step 5 -- Mandate & Terms**
+**Step 6 -- Mandate & Terms**
 
 "Here's what you're allowing Nestfolio to do for you." Summary of mandate scope in plain language, explicit consent toggle, link to full terms.
 
-**Step 6 -- Account Activation**
+**Step 7 -- Account Activation**
 
-"We're setting everything up for you." Nestfolio provisions and configures the brokerage account transparently behind the scenes. The user sees a progress indicator ("Creating your investment account...") and a success confirmation ("Your account is ready!"). The user never interacts with the broker directly.
+Behavior branches by account mode:
 
-**Step 7 -- Confirmation & Launch**
+- **Live mode**: "We're setting everything up for you." Nestfolio provisions and configures the brokerage account transparently behind the scenes. The user sees a progress indicator ("Creating your investment account...") and a success confirmation ("Your account is ready!"). The user never interacts with the broker directly.
+- **Simulation mode**: "Your simulation portfolio is ready!" Virtual capital is credited immediately. No brokerage provisioning required. The user sees a brief confirmation ("EUR 10,000 in virtual capital has been added to your portfolio.") and proceeds directly to the next step.
 
-"You're all set! Here's your plan:" Goal summary card, risk profile summary, operating mode badge. [Go to Dashboard]
+**Step 8 -- Confirmation & Launch**
+
+"You're all set! Here's your plan:" Goal summary card, risk profile summary, operating mode badge, account mode badge (Simulation or Live). [Go to Dashboard]
 
 ### Events Emitted per Step
 
 | Step | Events |
 |------|--------|
 | Step 2 | `ONBOARDING_ANSWER_RECORDED` (xN), `GOAL_SET` |
-| Step 3 | `ONBOARDING_ANSWER_RECORDED` (xN), `RISK_PROFILE_SET` |
-| Step 4 | `OPERATING_MODE_SELECTED` |
-| Step 5 | `MANDATE_GRANTED` |
-| Step 7 | `ONBOARDING_COMPLETED` |
+| Step 3 | `ACCOUNT_MODE_SET` |
+| Step 4 | `ONBOARDING_ANSWER_RECORDED` (xN), `RISK_PROFILE_SET` |
+| Step 5 | `OPERATING_MODE_SELECTED` |
+| Step 6 | `MANDATE_GRANTED` |
+| Step 8 | `ONBOARDING_COMPLETED` |
 
 `ONBOARDING_COMPLETED` triggers downstream processing: `advisory-ctrl` begins initial portfolio assessment, `compliance-ctrl` stores guardrail policy, `notification-ctrl` sends welcome message.
 
@@ -83,7 +94,7 @@ Visual comparison card for each mode with plain-language guardrail summary.
 
 - One question per screen on mobile. Grouped on desktop where appropriate.
 - Back navigation is always available. No answer is permanent during onboarding.
-- Progress indicator shows steps completed (e.g., "3 of 7").
+- Progress indicator shows steps completed (e.g., "3 of 8").
 - Skip is never available -- all steps are required for suitability compliance.
 - If the user abandons mid-flow, the system resumes from where they left off on next visit.
 
@@ -113,8 +124,16 @@ Deposits are Level 3 (user-exclusive) actions. Nestfolio facilitates but does no
 
 1. **Initiate**: User taps "Add funds" (from Portfolio Detail or Settings). Shows bank transfer instructions for their investment account. Reference number and amount input. "Funds typically arrive in 1-3 business days."
 2. **Pending**: `DEPOSIT_INITIATED` emitted. Dashboard shows "Deposit pending" status. Notification: "We'll let you know when your deposit arrives."
-3. **Detected**: `execution-adpt` detects new cash via IBKR snapshot diff. `DEPOSIT_DETECTED` emitted. Dashboard: "Deposit of EUR 500 received." Notification: "Deposit received -- we're evaluating how to invest it."
+3. **Detected**: `execution-adpt` detects new cash via IBKR snapshot diff (Live) or immediate virtual balance update (Simulation). `DEPOSIT_DETECTED` emitted. Dashboard: "Deposit of EUR 500 received." Notification: "Deposit received -- we're evaluating how to invest it."
 4. **Investment**: `advisory-ctrl` triggers portfolio assessment for new cash. Normal decision lifecycle: construction -> compliance -> execution. Decision Detail shows: "We invested your new deposit."
+
+### Simulation Deposit Variant
+
+When `account_mode = SIMULATION`, deposits use virtual capital and are instantaneous. No bank transfer or waiting period.
+
+1. **Initiate**: User taps "Add virtual funds" (from Portfolio Detail or Settings). Amount input with virtual capital balance shown. "Virtual funds are credited instantly."
+2. **Credit**: Virtual capital is added immediately. `VIRTUAL_DEPOSIT_CREDITED` emitted. Dashboard: "Virtual deposit of EUR 500 received." Notification: "Virtual deposit received -- we're evaluating how to invest it."
+3. **Investment**: `advisory-ctrl` triggers the same portfolio assessment as a live deposit. Normal decision lifecycle applies. Decision Detail shows: "We invested your virtual deposit."
 
 ---
 
@@ -127,7 +146,7 @@ Withdrawals are Level 3 (user-exclusive) actions.
 ### Steps
 
 1. **Request**: User taps "Withdraw funds" (from Settings -> Deposits & Withdrawals). Amount input with available cash shown. Warning if positions must be sold: "To withdraw EUR X, we may need to sell some holdings. Nestfolio will choose the most tax-efficient way to free up the funds." Confirmation: "Withdraw EUR X."
-2. **Processing**: `WITHDRAWAL_REQUESTED` emitted. If positions must be sold: `advisory-ctrl` triggers liquidation plan. `execution-adpt` submits withdrawal to IBKR -> `WITHDRAWAL_SUBMITTED`. Status shown in Settings and Dashboard: "Withdrawal processing."
+2. **Processing**: `WITHDRAWAL_REQUESTED` emitted. If positions must be sold: `advisory-ctrl` triggers liquidation plan. `execution-adpt` submits withdrawal to IBKR (Live) or simulation engine (Simulation) -> `WITHDRAWAL_SUBMITTED`. Status shown in Settings and Dashboard: "Withdrawal processing."
 3. **Outcome**: `WITHDRAWAL_COMPLETED` -> "Your withdrawal of EUR X has been processed." OR `WITHDRAWAL_REJECTED` -> "Withdrawal could not be processed: [reason]."
 
 ### Withdrawal Recommendation
@@ -137,6 +156,13 @@ The advisory system may recommend a withdrawal (Level 2). This appears as a Conf
 - Copy: "Based on your goal timeline, we recommend withdrawing EUR X to [reason]."
 - User confirms or declines.
 - If confirmed, enters the standard withdrawal execution flow.
+
+### Simulation Withdrawal Variant
+
+When `account_mode = SIMULATION`, withdrawals use virtual capital and are instantaneous. No real fund movement.
+
+1. **Request**: User taps "Withdraw virtual funds" (from Settings -> Deposits & Withdrawals). Amount input with available virtual cash shown. Same warning logic applies if simulated positions must be sold: "To withdraw EUR X, we may need to sell some virtual holdings. Nestfolio will choose the most tax-efficient way to free up the funds."
+2. **Debit**: Virtual capital is debited immediately. `VIRTUAL_WITHDRAWAL_DEBITED` emitted. If positions must be sold, `advisory-ctrl` triggers the same liquidation logic as a live withdrawal. Status: "Virtual withdrawal of EUR X processed."
 
 ### Deposits and Withdrawals in Portfolio Activity
 
@@ -178,6 +204,28 @@ The advisory system may recommend a withdrawal (Level 2). This appears as a Conf
 2. Confirmation required.
 3. `MANDATE_REVOKED` emitted -> execution halted -> user notified.
 4. Portfolio remains visible in read-only mode. Re-onboarding possible.
+
+---
+
+## Simulation-to-Live Transition Flow
+
+Users in simulation mode can upgrade to a live account at any time from Settings -> Account Mode -> "Go Live".
+
+### Steps
+
+1. **Impact Summary**: "Going live means your simulation portfolio will be reset and you'll start fresh with real money." Clear summary of what is preserved (goals, risk profile, operating mode, mandate) and what is reset (portfolio positions, virtual capital balance, simulated trade history).
+2. **Confirmation**: Level 2 confirmation with press-and-hold: "I understand. Go live." Copy: "This cannot be undone. Your simulation data will no longer be accessible."
+3. **Account Provisioning**: Same as live onboarding Step 7 -- Nestfolio provisions and configures the brokerage account transparently behind the scenes. Progress indicator: "Creating your live investment account..."
+4. **Portfolio Reset**: Simulation positions and virtual capital are cleared. `ACCOUNT_MODE_SET` (mode: LIVE) emitted. All downstream services update accordingly.
+5. **Completion & Deposit Prompt**: "Your live account is ready!" Prompt to make a first deposit: "Add funds to start investing with real money." Links to the Deposit Flow.
+
+### Events
+
+| Step | Events |
+|------|--------|
+| Step 2 | `GO_LIVE_REQUESTED`, `ACCOUNT_MODE_SET` (mode: LIVE) |
+| Step 4 | `PORTFOLIO_RESET_COMPLETED` |
+| Step 5 | `GO_LIVE_COMPLETED` |
 
 ---
 

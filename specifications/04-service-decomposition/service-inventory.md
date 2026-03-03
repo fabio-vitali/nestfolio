@@ -47,8 +47,8 @@ Owns the Investor domain EventBridge bus, cross-domain forwarding rules, and eve
 
 | Target | Events |
 |---|---|
-| advisory-hub | `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED` |
-| execution-hub | `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED` |
+| advisory-hub | `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`, `ACCOUNT_MODE_SET` |
+| execution-hub | `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `ACCOUNT_MODE_SET`, `GO_LIVE_REQUESTED` |
 
 ---
 
@@ -73,17 +73,17 @@ No BFF needed -- auth features are served by Cognito hosted UI and the landing p
 **Type**: BFF
 **Actor**: Investor
 
-Owns the InvestorProfile aggregate (event-sourced: goals, risk profile, mandate, operating mode, onboarding answers, deposit intents, withdrawal requests) and the NotificationInbox projection (materialized from `investor-ctrl` events). Absorbs the former notification-bff inbox features.
+Owns the InvestorProfile aggregate (event-sourced: goals, risk profile, mandate, operating mode, account_mode, onboarding answers, deposit intents, withdrawal requests) and the NotificationInbox projection (materialized from `investor-ctrl` events). Absorbs the former notification-bff inbox features.
 
-**Feature set**: Onboarding conversation, profile/goal/risk/mandate management, operating mode selection, deposit initiation, withdrawal requests, account closure, notification inbox, unread count, mark-as-read, real-time notification push, notification preferences.
+**Feature set**: Onboarding conversation, profile/goal/risk/mandate management, operating mode selection, account mode selection (SIMULATION/LIVE), simulation-to-live transition flow, deposit initiation, withdrawal requests, account closure, notification inbox, unread count, mark-as-read, real-time notification push, notification preferences.
 
-**API**: AppSync GraphQL -- onboarding mutations, profile queries, goal CRUD, mandate management, deposit/withdrawal, closure, notification inbox queries, mark-as-read mutations, real-time notification subscriptions.
+**API**: AppSync GraphQL -- onboarding mutations, profile queries, goal CRUD, mandate management, setAccountMode mutation, requestGoLive mutation, account mode query, deposit/withdrawal, closure, notification inbox queries, mark-as-read mutations, real-time notification subscriptions.
 
 **AI agents**: Conversational AgentCore instances of **User & Goals Agent** (onboarding goal dialogue, goal refinement) and **Risk Agent** (risk questionnaire evaluation).
 
 **Knowledge Base**: Bedrock KB (vector + graph) fed by investor domain events -- user intent history, goal context, risk preference patterns.
 
-**Events published**: `ONBOARDING_ANSWER_RECORDED`, `ONBOARDING_COMPLETED`, `GOAL_SET`, `GOAL_UPDATED`, `RISK_PROFILE_SET`, `RISK_PROFILE_UPDATED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`, `OPERATING_MODE_SELECTED`, `OPERATING_MODE_CHANGED`, `DEPOSIT_INITIATED`, `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `ACCOUNT_CLOSED`, `BROKER_AUTHORIZATION_REVOKED`, `NOTIFICATION_READ`
+**Events published**: `ONBOARDING_ANSWER_RECORDED`, `ONBOARDING_COMPLETED`, `GOAL_SET`, `GOAL_UPDATED`, `RISK_PROFILE_SET`, `RISK_PROFILE_UPDATED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`, `OPERATING_MODE_SELECTED`, `OPERATING_MODE_CHANGED`, `ACCOUNT_MODE_SET`, `GO_LIVE_REQUESTED`, `GO_LIVE_COMPLETED`, `DEPOSIT_INITIATED`, `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `ACCOUNT_CLOSED`, `BROKER_AUTHORIZATION_REVOKED`, `NOTIFICATION_READ`
 
 **Events consumed (intra-domain)**: `USER_REGISTERED` (from investor-web), `NOTIFICATION_CREATED` (from investor-ctrl)
 
@@ -103,11 +103,13 @@ Notification pipeline via Step Functions -- impact classification, policy resolu
 
 **Events published**: `NOTIFICATION_CREATED`, `NOTIFICATION_SENT`, `NOTIFICATION_DELIVERED`, `MONTHLY_REPORT_GENERATED`
 
-**Events consumed (intra-domain)**: `DEPOSIT_INITIATED`, `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED` (from investor-bff)
+**Events consumed (intra-domain)**: `DEPOSIT_INITIATED`, `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `GO_LIVE_COMPLETED` (from investor-bff)
 
 **Events consumed (cross-domain from advisory-hub)**: `DECISION_PACKET_CREATED`, `USER_CONFIRMATION_REQUESTED`, `EXPLANATION_GENERATED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `ESCALATION_TRIGGERED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`, `INCIDENT_DETECTED`, `INCIDENT_RESOLVED`
 
-**Events consumed (cross-domain from execution-hub)**: `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `ORDER_STAGED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `CORPORATE_ACTION_APPLIED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED`
+**Events consumed (cross-domain from execution-hub)**: `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `ORDER_STAGED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `CORPORATE_ACTION_APPLIED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED`, `VIRTUAL_DEPOSIT_CREDITED`, `VIRTUAL_WITHDRAWAL_DEBITED`
+
+Simulation-specific notification templates are included for virtual deposit confirmation and go-live completion events. Template selection uses the account mode context from the triggering event to render simulation-appropriate copy.
 
 ---
 
@@ -243,7 +245,7 @@ Owns the Execution domain EventBridge bus, cross-domain forwarding rules, and ev
 
 | Target | Events |
 |---|---|
-| investor-hub | `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `ORDER_STAGED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `CORPORATE_ACTION_APPLIED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED` |
+| investor-hub | `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `ORDER_STAGED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `CORPORATE_ACTION_APPLIED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED`, `VIRTUAL_DEPOSIT_CREDITED`, `VIRTUAL_WITHDRAWAL_DEBITED`, `PORTFOLIO_RESET_COMPLETED` |
 | advisory-hub | `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `PORTFOLIO_DRIFT_DETECTED`, `BROKER_SESSION_LOST`, `STREAM_DISCONNECTED`, `RECONCILIATION_FAILED` |
 
 ---
@@ -262,26 +264,28 @@ Order lifecycle orchestration via Step Functions -- pre-submission safety checks
 
 **Events consumed (cross-domain from advisory-hub)**: `DECISION_APPROVED`, `USER_CONFIRMED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`
 
-**Events consumed (cross-domain from investor-hub)**: `ACCOUNT_CLOSURE_REQUESTED` -- triggers cancellation of all pending/staged orders and blocks new submissions. The account enters a terminal wind-down state.
+**Events consumed (cross-domain from investor-hub)**: `ACCOUNT_CLOSURE_REQUESTED` -- triggers cancellation of all pending/staged orders and blocks new submissions. The account enters a terminal wind-down state. `ACCOUNT_MODE_SET` -- adjusts order routing behavior; in SIMULATION mode, submitted orders are directed to the simulation engine within `execution-adpt` rather than IBKR.
 
 ---
 
 ### execution-adpt
 
 **Type**: ADPT
-**External system**: Interactive Brokers (IBKR)
+**External system**: Interactive Brokers (IBKR) / Simulation Engine
 
 Anti-corruption layer translating IBKR protocols (REST API, webhooks, streaming feeds) into domain events. Handles order submission, position/account snapshots (periodic + streaming), session management, credential isolation (Secrets Manager), deposit detection (via snapshot cash diff), and withdrawal execution.
 
+When the tenant's account mode is SIMULATION, the internal simulation engine handles all broker-facing operations instead of IBKR. The simulation engine maintains a virtual position ledger and virtual cash balance, produces simulated fills at real market prices (sourced from the same market data feed used by the Market & Research Agent), and emits identical domain events as the IBKR path so that downstream services (advisory, portfolio, notifications) operate without branching. Virtual deposits and withdrawals are credited/debited immediately against the virtual cash balance. Portfolio snapshots are generated from the virtual ledger on the same periodic schedule as IBKR snapshots.
+
 **Facade**: API Gateway REST API for IBKR webhook callbacks.
 
-**State**: DynamoDB table (BrokerSession, StreamConnection, API response cache, Deposit, Withdrawal).
+**State**: DynamoDB table (BrokerSession, StreamConnection, API response cache, Deposit, Withdrawal, VirtualPortfolioLedger, VirtualCashBalance).
 
-**Events published**: `ORDER_ACCEPTED`, `ORDER_PARTIALLY_FILLED`, `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `PORTFOLIO_SNAPSHOT_IMPORTED`, `BROKER_SESSION_ESTABLISHED`, `BROKER_SESSION_LOST`, `STREAM_CONNECTED`, `STREAM_DISCONNECTED`, `BROKER_AUTHORIZATION_REVOKED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_SUBMITTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`
+**Events published**: `ORDER_ACCEPTED`, `ORDER_PARTIALLY_FILLED`, `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `PORTFOLIO_SNAPSHOT_IMPORTED`, `BROKER_SESSION_ESTABLISHED`, `BROKER_SESSION_LOST`, `STREAM_CONNECTED`, `STREAM_DISCONNECTED`, `BROKER_AUTHORIZATION_REVOKED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_SUBMITTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `VIRTUAL_DEPOSIT_CREDITED`, `VIRTUAL_WITHDRAWAL_DEBITED`, `PORTFOLIO_RESET_COMPLETED`
 
 **Events consumed (intra-domain)**: `ORDER_SUBMITTED` (from execution-ctrl)
 
-**Events consumed (cross-domain from investor-hub)**: `WITHDRAWAL_REQUESTED`; scheduled events for periodic snapshot imports
+**Events consumed (cross-domain from investor-hub)**: `WITHDRAWAL_REQUESTED`; `ACCOUNT_MODE_SET` -- switches between IBKR and simulation engine routing; `GO_LIVE_REQUESTED` -- provisions a real IBKR account, clears the virtual ledger, and emits `PORTFOLIO_RESET_COMPLETED`; scheduled events for periodic snapshot imports
 
 ---
 
@@ -290,9 +294,9 @@ Anti-corruption layer translating IBKR protocols (REST API, webhooks, streaming 
 **Type**: BFF
 **Actor**: Investor
 
-Portfolio dashboard, holdings, performance charts, real-time position subscriptions, goal progress.
+Portfolio dashboard, holdings, performance charts, real-time position subscriptions, goal progress. In SIMULATION mode, displays a simulation mode indicator, virtual capital balance, and a "Go Live" call-to-action.
 
-**Aggregate**: Portfolio projection (positions, cash balances, performance metrics).
+**Aggregate**: Portfolio projection (positions, cash balances, performance metrics, account mode).
 
 **API**: AppSync GraphQL with real-time subscriptions.
 
@@ -302,6 +306,8 @@ Portfolio dashboard, holdings, performance charts, real-time position subscripti
 
 **Events consumed (intra-domain)**: `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `PORTFOLIO_SNAPSHOT_IMPORTED` (from execution-adpt); `CORPORATE_ACTION_APPLIED`, reconciliation events (from portfolio-ctrl)
 
+**Events consumed (cross-domain from investor-hub)**: `ACCOUNT_MODE_SET` -- toggles simulation mode indicator and virtual capital display in the portfolio UI
+
 **Microfrontends**: Dashboard -- Portfolio Value (partial), Portfolio Detail.
 
 ---
@@ -310,7 +316,7 @@ Portfolio dashboard, holdings, performance charts, real-time position subscripti
 
 **Type**: CTRL
 
-Reconciliation pipeline via Step Functions -- compare intent vs settlement, detect drift, acquire lock, pause affected execution, import snapshot, correct projections, revalidate compliance, release lock, resume. Also handles post-execution reconciliation, scheduled reconciliation (hourly, daily), and startup reconciliation.
+Reconciliation pipeline via Step Functions -- compare intent vs settlement, detect drift, acquire lock, pause affected execution, import snapshot, correct projections, revalidate compliance, release lock, resume. Also handles post-execution reconciliation, scheduled reconciliation (hourly, daily), and startup reconciliation. In SIMULATION mode, reconciliation compares the intent projection against the virtual portfolio ledger maintained by `execution-adpt` rather than an external broker snapshot.
 
 **State**: DynamoDB table (Reconciliation records, DriftRecord).
 
@@ -363,6 +369,7 @@ All 6 agents are implemented via Amazon AgentCore. BFF agents are conversational
 | External System | Service | Integration Pattern |
 |---|---|---|
 | **Interactive Brokers (IBKR)** | `execution-adpt` | REST API (orders, snapshots), streaming feeds (positions, order status), webhook callbacks, OAuth. Credential isolation via Secrets Manager |
+| **Simulation Engine** | `execution-adpt` | Internal module within `execution-adpt`. Virtual position ledger, virtual cash balance, simulated fills at real market prices. No external dependency -- all state is managed in DynamoDB |
 | **Amazon Cognito** | `investor-web` | User Pool with Google/Facebook federation, JWT with `tenant_id` claim, Lambda triggers |
 | **Amazon AgentCore** | `advisory-ctrl`, `advisory-bff`, `investor-bff` | AI agent hosting (6 specialized agents). Platform service |
 | **Amazon Bedrock KB** | `investor-bff`, `advisory-ctrl`, `advisory-bff` | RAG-based knowledge access, per-service KB fed by domain events |

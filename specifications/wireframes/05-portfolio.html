@@ -385,6 +385,35 @@
     .activity-meta a:hover {
       text-decoration: underline;
     }
+
+    /* ── Simulation Indicators ── */
+    .sim-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      background: var(--cautionary-light);
+      color: var(--cautionary);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .sim-indicator::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: var(--radius-full);
+      background: var(--cautionary);
+    }
+    .virtual-label {
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      color: var(--cautionary);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
   </style>
 </head>
 <body>
@@ -408,6 +437,7 @@
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <span class="screen-title">Portafoglio</span>
+      <span class="sim-indicator">Simulazione</span>
     </div>
 
     <!-- ── Inner Tab Bar ── -->
@@ -428,9 +458,10 @@
 
         <!-- Total Value -->
         <div class="card">
+          <span class="virtual-label">Capitale virtuale</span>
           <div class="total-value">&#8364;24.350,00</div>
           <div class="total-change">&#9650; &#8364;756,20 (+3,2%)</div>
-          <div class="cash-balance">Liquidita': &#8364;1.230,45</div>
+          <div class="cash-balance">Liquidita' virtuale: &#8364;1.230,45</div>
         </div>
 
         <!-- Allocation Donut -->

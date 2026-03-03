@@ -56,12 +56,13 @@ See [Agent System](./agent-system.md) for the full agent topology and decision l
 
 ### Execution Domain
 
-Translates authorized decisions into real-world actions:
+Translates authorized decisions into real-world actions or simulated execution for Simulation-mode accounts:
 
 - Order generation from approved trade plans
-- Broker integration via Interactive Brokers (IBKR)
+- Broker integration via Interactive Brokers (IBKR) for Live accounts
 - Trade execution with idempotency guarantees
 - Position synchronization and reconciliation
+- Virtual portfolio management for Simulation accounts using real market data
 
 See [Portfolio Management](./portfolio-management.md) for execution flow and broker integration details.
 
@@ -160,6 +161,8 @@ Actions automatically escalate from L1 to L2 when:
 - Portfolio drawdown exceeds circuit breaker threshold
 - Strategy model changes allocation class
 - User mandate or risk profile mismatch detected
+
+The same authority levels apply identically in Simulation mode. L1 actions execute autonomously against the simulation engine; L2 actions still require user confirmation before simulated execution proceeds. No compliance checks or guardrails are bypassed -- Simulation mode is a capital mode, not a compliance mode.
 
 ---
 

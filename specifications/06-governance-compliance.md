@@ -18,6 +18,7 @@ Nestfolio's governance framework encompasses six domains:
 | Incident Response | Autonomous containment with mandated human recovery approval |
 | Data Protection | Layered retention, PII handling, and anonymization |
 | Security | Tenant isolation, access control, and secrets management |
+| Simulation Governance | Same compliance, guardrail, and audit framework applied to simulation accounts as to live accounts |
 
 Regulated investment responsibility -- including discretionary authority and investor protection obligations -- remains outside Nestfolio's internal scope.
 
@@ -38,7 +39,7 @@ Reasoning Factors are persisted at the moment of each decision. This ensures tha
 
 ### Controlled Autonomy
 
-Autonomous actions execute only within mandate guardrails. Compliance Agents validate every proposed action against the active policy set before execution proceeds.
+Autonomous actions execute only within mandate guardrails. Compliance Agents validate every proposed action against the active policy set before execution proceeds. Simulation accounts operate under this same autonomy framework -- guardrail evaluation, compliance validation, and audit logging are identical to live accounts. This eliminates behavioral surprises when a user transitions from simulation to live execution.
 
 ## Model Governance
 
