@@ -59,6 +59,7 @@ Design philosophy, constraints, accessibility standards (WCAG 2.1 AA), and local
 |----------|-------------|
 | [Screen Inventory](./08-ui-ux/screen-inventory.md) | Complete screen specifications mapped to bounded contexts and BFF services, responsive layouts, and component specifications |
 | [Interaction Patterns](./08-ui-ux/interaction-patterns.md) | User flows, real-time update behavior, and microfrontend architecture strategy |
+| [Wireframes](wireframes/index.html) | Interactive wireframes for all app screens (390x844px mobile frames with realistic mock data) |
 
 ---
 
