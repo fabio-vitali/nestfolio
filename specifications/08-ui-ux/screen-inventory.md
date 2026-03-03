@@ -8,22 +8,22 @@ Complete screen specifications mapped to bounded contexts and BFF services, resp
 
 ## Screen Map
 
-| # | Screen | BFF Service(s) | GraphQL Operations | Primary Content |
-|---|--------|----------------|--------------------|-----------------|
-| 1 | Landing / Marketing | `identity-web` | -- | Value proposition, trust signals, CTA |
-| 2 | Sign Up / Sign In | `identity-web` | Cognito federation (Google, Facebook, email) | Authentication |
-| 3 | Onboarding Conversation | `identity-bff` | `recordOnboardingAnswer`, `setGoal`, `setRiskProfile`, `selectOperatingMode`, `grantMandate` | Guided Q&A |
-| 4 | Dashboard (Home) | `portfolio-bff`, `advisory-bff`, `notification-bff` | `getPortfolioSummary`, `getRecommendations`, `getUnreadCount` | Portfolio health, recent activity, nudges |
-| 5 | Portfolio Detail | `portfolio-bff`, `advisory-bff`, `identity-bff` | `getPositions`, `getCashBalances`, `getPerformanceChart` | Holdings, allocation, performance |
-| 6 | Decision Detail ("Why") | `advisory-bff`, `compliance-bff` | `getExplanation`, `getRecommendation` | Plain-language reasoning for a specific action |
-| 7 | Activity & Notifications | `notification-bff` | `getNotifications`, `markAsRead` | Notification inbox, history |
-| 8 | Confirmation Dialog | `advisory-bff` | `confirmDecision`, `rejectDecision` | Level 2 user confirmation |
-| 9 | Settings & Profile | `identity-bff`, `compliance-bff`, `notification-bff` | `getProfile`, `updateGoal`, `updateOperatingMode`, `updateMandate` | Goals, risk profile, mode, preferences |
-| 10 | *(Removed -- broker is fully transparent to user)* | -- | -- | -- |
-| 11 | Deposit Flow | `identity-bff` | `initiateDeposit` | Bank transfer instructions, deposit status |
-| 12 | Withdrawal Flow | `identity-bff` | `requestWithdrawal` | Withdrawal amount, confirmation, status |
-| 13 | Account Closure & Deletion | `identity-bff` | `requestAccountClosure`, `requestDeletion` | Closure confirmation, GDPR deletion, data retention |
-| 14 | How Nestfolio Works | `identity-bff`, `compliance-bff` | `getProfile`, `getGuardrailSummary` | Goals, mode, mandate scope, safety rules, authority levels |
+| # | Screen | Wireframe | BFF Service(s) | GraphQL Operations | Primary Content |
+|---|--------|-----------|----------------|--------------------|-----------------|
+| 1 | Landing / Marketing | [View](../wireframes/01-landing.html) | `identity-web` | -- | Value proposition, trust signals, CTA |
+| 2 | Sign Up / Sign In | [View](../wireframes/01-landing.html) | `identity-web` | Cognito federation (Google, Facebook, email) | Authentication |
+| 3 | Onboarding Conversation | [View](../wireframes/onboarding-conversation.html) | `identity-bff` | `recordOnboardingAnswer`, `setGoal`, `setRiskProfile`, `selectOperatingMode`, `grantMandate` | Guided Q&A |
+| 4 | Dashboard (Home) | [View](../wireframes/04-dashboard.html) | `portfolio-bff`, `advisory-bff`, `notification-bff` | `getPortfolioSummary`, `getRecommendations`, `getUnreadCount` | Portfolio health, recent activity, nudges |
+| 5 | Portfolio Detail | [View](../wireframes/05-portfolio.html) | `portfolio-bff`, `advisory-bff`, `identity-bff` | `getPositions`, `getCashBalances`, `getPerformanceChart` | Holdings, allocation, performance |
+| 6 | Decision Detail ("Why") | [View](../wireframes/06-decision-detail.html) | `advisory-bff`, `compliance-bff` | `getExplanation`, `getRecommendation` | Plain-language reasoning for a specific action |
+| 7 | Activity & Notifications | [View](../wireframes/07-notifications.html) | `notification-bff` | `getNotifications`, `markAsRead` | Notification inbox, history |
+| 8 | Confirmation Dialog | [View](../wireframes/08-confirmation.html) | `advisory-bff` | `confirmDecision`, `rejectDecision` | Level 2 user confirmation |
+| 9 | Settings & Profile | [View](../wireframes/09-settings.html) | `identity-bff`, `compliance-bff`, `notification-bff` | `getProfile`, `updateGoal`, `updateOperatingMode`, `updateMandate` | Goals, risk profile, mode, preferences |
+| 10 | *(Removed -- broker is fully transparent to user)* | -- | -- | -- | -- |
+| 11 | Deposit Flow | [View](../wireframes/11-deposit-withdrawal.html) | `identity-bff` | `initiateDeposit` | Bank transfer instructions, deposit status |
+| 12 | Withdrawal Flow | [View](../wireframes/11-deposit-withdrawal.html) | `identity-bff` | `requestWithdrawal` | Withdrawal amount, confirmation, status |
+| 13 | Account Closure & Deletion | [View](../wireframes/13-account-closure.html) | `identity-bff` | `requestAccountClosure`, `requestDeletion` | Closure confirmation, GDPR deletion, data retention |
+| 14 | How Nestfolio Works | [View](../wireframes/14-how-it-works.html) | `identity-bff`, `compliance-bff` | `getProfile`, `getGuardrailSummary` | Goals, mode, mandate scope, safety rules, authority levels |
 
 ---
 
@@ -46,6 +46,8 @@ Complete screen specifications mapped to bounded contexts and BFF services, resp
 ---
 
 ## Dashboard (Home Screen)
+
+> Wireframe: [Dashboard](../wireframes/04-dashboard.html)
 
 **Design intent**: Answer the single question "Is my money OK?" Everything else is secondary.
 
@@ -98,6 +100,8 @@ block-beta
 
 ## Portfolio Detail
 
+> Wireframe: [Portfolio Detail](../wireframes/05-portfolio.html)
+
 **Design intent**: For users who want to look deeper. Shows what is in the portfolio and how it is performing. Never demands action.
 
 ### Content Tabs
@@ -126,6 +130,8 @@ block-beta
 ---
 
 ## Decision Detail ("Why" View)
+
+> Wireframe: [Decision Detail](../wireframes/06-decision-detail.html)
 
 **Design intent**: The core trust-building screen. Progressive disclosure of what happened and why.
 
@@ -165,6 +171,8 @@ block-beta
 ---
 
 ## Confirmation Dialog (Level 2)
+
+> Wireframe: [Confirmation Dialog](../wireframes/08-confirmation.html)
 
 ### Triggers
 
@@ -234,6 +242,8 @@ block-beta
 
 ## Activity & Notifications
 
+> Wireframe: [Notifications](../wireframes/07-notifications.html)
+
 ### Notification Severity Tiers
 
 | Severity | Examples | Tappable Destination |
@@ -284,6 +294,8 @@ Users configure push preferences in Settings.
 
 ## Settings & Profile
 
+> Wireframe: [Settings & Profile](../wireframes/09-settings.html)
+
 | Section | Content | Editable | BFF |
 |---------|---------|----------|-----|
 | **Profile** | Name, email, federation provider | Read-only (Cognito-managed) | `identity-bff` |
@@ -328,6 +340,8 @@ Copy: "These rules protect your portfolio. They adjust automatically when you ch
 ---
 
 ## How Nestfolio Works (Educational Screen)
+
+> Wireframe: [How Nestfolio Works](../wireframes/14-how-it-works.html)
 
 A trust-building screen tying together the mandate, authority levels, operating mode, and safety rules. Accessible from Settings and Dashboard.
 

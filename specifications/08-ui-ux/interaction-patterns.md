@@ -21,6 +21,8 @@ flowchart TD
 
 ## Onboarding Flow
 
+> Wireframe: [Onboarding Conversation](../wireframes/onboarding-conversation.html)
+
 Onboarding is a conversational flow, not a traditional form. It feels like talking to a knowledgeable friend who asks one question at a time.
 
 ### Flow Steps
@@ -89,6 +91,8 @@ Visual comparison card for each mode with plain-language guardrail summary.
 
 ## Mode Change Flow
 
+> Wireframe: [Settings & Profile](../wireframes/09-settings.html)
+
 Changing the operating mode is a Level 2 action.
 
 1. User taps current mode in Settings -> side-by-side comparison of all three modes with both qualitative descriptions and quantitative guardrail parameters (rebalance frequency, max trade size, confirmation thresholds, cool-down periods, circuit breaker levels).
@@ -100,6 +104,8 @@ Changing the operating mode is a Level 2 action.
 ---
 
 ## Deposit Flow
+
+> Wireframe: [Deposit & Withdrawal](../wireframes/11-deposit-withdrawal.html)
 
 Deposits are Level 3 (user-exclusive) actions. Nestfolio facilitates but does not initiate them.
 
@@ -113,6 +119,8 @@ Deposits are Level 3 (user-exclusive) actions. Nestfolio facilitates but does no
 ---
 
 ## Withdrawal Flow
+
+> Wireframe: [Deposit & Withdrawal](../wireframes/11-deposit-withdrawal.html)
 
 Withdrawals are Level 3 (user-exclusive) actions.
 
@@ -143,6 +151,8 @@ The advisory system may recommend a withdrawal (Level 2). This appears as a Conf
 
 ## Account Closure and Deletion
 
+> Wireframe: [Account Closure & GDPR](../wireframes/13-account-closure.html)
+
 ### Account Closure
 
 1. User taps "Close my account" -> multi-step confirmation:
@@ -172,6 +182,8 @@ The advisory system may recommend a withdrawal (Level 2). This appears as a Conf
 ---
 
 ## Notification Timing Preferences
+
+> Wireframe: [Settings & Profile](../wireframes/09-settings.html)
 
 A sub-screen within Settings -> Notifications.
 
