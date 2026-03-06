@@ -77,7 +77,7 @@ Nestfolio serves two purposes:
 
 | # | Decision | Rationale |
 |---|----------|-----------|
-| **AD-1** | **Nx v20+ monorepo** with Node.js 22 LTS, TypeScript 5.x, pnpm | Latest LTS versions; Nx provides build caching, affected commands, and generators for solo dev velocity |
+| **AD-1** | **Nx v22+ monorepo** with Node.js 24, TypeScript 5.x, pnpm | Latest LTS versions; Nx provides build caching, affected commands, and generators for solo dev velocity |
 | **AD-2** | **Angular (latest stable)** with microfrontend architecture | Microfrontends via Native Federation (esbuild-compatible). One shell host (`investor-web`) loads 3 MFE remotes — one per BFF (`portfolio-mfe`, `advisory-mfe`, `investor-mfe`). Each remote is deployed independently to its BFF's S3 bucket. Enables independent deployment per BFF. |
 | **AD-3** | **AWS AppSync** for all BFF GraphQL APIs and real-time subscriptions | Provides built-in auth, subscriptions, and offline support. Multiple AppSync APIs (one per BFF). |
 | **AD-4** | **LLM-powered agents from Phase 1** using Bedrock model tiering | Full LLM integration from the start to validate the AI value proposition. Bedrock models tiered by task complexity. Compliance is the sole exception — deterministic rule engine, no LLM. |

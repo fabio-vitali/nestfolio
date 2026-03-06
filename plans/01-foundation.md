@@ -3,7 +3,7 @@
 Blueprint for Nestfolio's development foundation -- Nx monorepo setup, shared libraries, AWS infrastructure, CI/CD pipeline, and local development environment.
 
 > **Audience**: Solo developer building with AI assistance
-> **Tech Stack**: Nx v20+, Node.js 22 LTS, TypeScript 5.x, pnpm, AWS CDK v2
+> **Tech Stack**: Nx v22+, Node.js 24, TypeScript 5.x, pnpm, AWS CDK v2
 > **Scope**: Phase 1-3 (prototype/reference architecture through IBKR sandbox). See [00-master-plan.md](./00-master-plan.md) for phase definitions.
 
 ---
@@ -486,7 +486,7 @@ import { Duration } from 'aws-cdk-lib';
 import { NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 export const defaultLambdaProps = (scope: Construct): Partial<NodejsFunctionProps> => ({
-  runtime: Runtime.NODEJS_22_X,
+  runtime: Runtime.NODEJS_24_X,
   architecture: Architecture.ARM_64,
   memorySize: 256,
   timeout: Duration.seconds(30),
@@ -494,7 +494,7 @@ export const defaultLambdaProps = (scope: Construct): Partial<NodejsFunctionProp
   bundling: {
     minify: true,
     sourceMap: true,
-    target: 'node22',
+    target: 'node24',
   },
 });
 ```
@@ -1586,7 +1586,7 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - id: affected
         run: |
@@ -1602,7 +1602,7 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: bash .github/scripts/validate-pipeline-configs.sh
       - run: pnpm nx affected -t lint --base=origin/main --parallel=3
@@ -1619,7 +1619,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -1920,5 +1920,5 @@ The critical path is **F1 -> F2 -> F3** because services need `platform-core`, `
 | CDK circular references between hubs | Deploy in 2 passes: buses first, then forwarding rules. Use SSM parameters for ARN sharing |
 | Highland.js learning curve | The event-processing library is being developed separately; integrate once stable |
 | AWS dev account costs | Teardown stacks when not developing; use DESTROY removal policies for dev |
-| Nx v20+ breaking changes | Pin exact Nx version in package.json; test upgrades in isolation |
+| Nx v22+ breaking changes | Pin exact Nx version in package.json; test upgrades in isolation |
 | Single-table DynamoDB complexity | Start with well-defined PK/SK patterns; use `domain-core` types to enforce key structure at compile time |

@@ -3,7 +3,7 @@
 Detailed implementation plan for all 14 Nestfolio backend services. Covers service inventory, phased build order for a solo developer, per-service implementation details, cross-domain event flows, CQRS/event sourcing patterns, multi-tenancy, and phased scope.
 
 > **Audience**: Solo developer building with AI assistance
-> **Tech Stack**: Nx v20+, Node.js 22 LTS, TypeScript 5.x, pnpm, AWS CDK v2
+> **Tech Stack**: Nx v22+, Node.js 24, TypeScript 5.x, pnpm, AWS CDK v2
 > **Scope**: Phase 1 (Foundation) through Phase 5 (Observability). See [00-master-plan.md](./00-master-plan.md) for phase definitions.
 
 ---

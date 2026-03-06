@@ -741,7 +741,7 @@ CDK integration for all Lambda functions:
 ```typescript
 // libs/cdk-constructs/src/default-lambda-props.ts
 export const defaultLambdaProps = (scope: Construct): Partial<NodejsFunctionProps> => ({
-  runtime: Runtime.NODEJS_22_X,
+  runtime: Runtime.NODEJS_24_X,
   memorySize: 256,
   timeout: Duration.seconds(30),
   tracing: Tracing.ACTIVE,  // X-Ray
@@ -1172,7 +1172,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -1194,7 +1194,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Deploy affected to dev
@@ -1211,7 +1211,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Integration tests (against deployed dev account)
