@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nestfolio Demo</title>
+<style>
+:root{--primary:#1B6B4A;--primary-light:#E8F5EE;--primary-dark:#0F4A30;--accent:#2A9D6E;--positive:#059669;--positive-light:#ECFDF5;--cautionary:#D97706;--cautionary-light:#FFFBEB;--negative:#DC2626;--negative-light:#FEF2F2;--n50:#FAFBFC;--n100:#F3F4F6;--n200:#E5E7EB;--n300:#D1D5DB;--n400:#9CA3AF;--n500:#6B7280;--n600:#4B5563;--n700:#374151;--n800:#1F2937;--n900:#111827;--white:#fff;--shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,.07),0 2px 4px -2px rgba(0,0,0,.05);--r-sm:8px;--r-md:12px;--r-lg:16px;--r-full:9999px;--font:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);background:var(--n50);color:var(--n800);line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.screen{display:none;flex-direction:column;min-height:100vh;min-height:100dvh}
+.screen.active{display:flex}
+/* Bottom Tab Bar */
+.bottom-tabs{height:72px;background:var(--white);border-top:1px solid var(--n200);display:flex;align-items:flex-start;justify-content:space-around;padding-top:8px;flex-shrink:0;position:sticky;bottom:0;z-index:50}
+.tab-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 12px;border:none;background:none;position:relative;font-family:var(--font)}
+.tab-item .tab-icon{width:24px;height:24px;color:var(--n400)}
+.tab-item .tab-label{font-size:11px;color:var(--n400);font-weight:500}
+.tab-item.active .tab-icon{color:var(--primary)}
+.tab-item.active .tab-label{color:var(--primary);font-weight:600}
+.tab-item .badge{position:absolute;top:0;right:4px;min-width:18px;height:18px;background:var(--negative);color:var(--white);border-radius:var(--r-full);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--white);padding:0 4px}
+/* Nav Header */
+.nav-header{height:56px;background:var(--white);border-bottom:1px solid var(--n200);display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0}
+.back-btn{width:36px;height:36px;border:none;background:var(--n100);border-radius:var(--r-full);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--n600)}
+.back-btn:hover{background:var(--n200)}
+.screen-title{font-size:16px;font-weight:600;color:var(--n800);flex:1}
+/* Scrollable Content */
+.content-area{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px}
+.content-area::-webkit-scrollbar{width:0}
+/* Cards */
+.card{background:var(--white);border-radius:var(--r-md);padding:16px;box-shadow:var(--shadow-sm)}
+.section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--n400);margin-bottom:8px}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 24px;border-radius:var(--r-full);font-size:15px;font-weight:600;cursor:pointer;border:none;transition:all .2s;font-family:var(--font)}
+.btn-primary{background:var(--primary);color:var(--white)}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-outline{background:transparent;color:var(--primary);border:2px solid var(--primary)}
+.btn-outline:hover{background:var(--primary-light)}
+.btn-danger{background:var(--negative);color:var(--white)}
+.btn-full{width:100%}
+/* Badge pills */
+.badge-pill{display:inline-block;padding:2px 10px;border-radius:var(--r-full);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.badge-green{background:var(--positive-light);color:var(--positive)}
+.badge-amber{background:var(--cautionary-light);color:var(--cautionary)}
+/* Divider */
+.divider{height:1px;background:var(--n200);margin:12px 0}
+/* Toggle */
+.toggle{width:44px;height:26px;border-radius:var(--r-full);background:var(--n300);cursor:pointer;position:relative;flex-shrink:0;transition:background .3s}
+.toggle.active{background:var(--primary)}
+.toggle::after{content:'';position:absolute;width:20px;height:20px;border-radius:var(--r-full);background:var(--white);top:3px;left:3px;transition:left .3s;box-shadow:var(--shadow-sm)}
+.toggle.active::after{left:21px}
+/* Gauge */
+.gauge-track{height:8px;background:var(--n200);border-radius:var(--r-full);overflow:hidden}
+.gauge-fill{height:100%;border-radius:var(--r-full);transition:width .6s}
+.gauge-fill.green{background:linear-gradient(90deg,var(--positive),var(--accent))}
+/* Status dot */
+.status-dot{width:8px;height:8px;border-radius:var(--r-full);flex-shrink:0}
+.status-dot.green{background:var(--positive)}
+.text-positive{color:var(--positive)}
+.text-negative{color:var(--negative)}
+.text-muted{color:var(--n500)}
+.hidden{display:none!important}
+.text-center{text-align:center}
+.mt-8{margin-top:8px}
+.mt-16{margin-top:16px}
+.mb-8{margin-bottom:8px}
+
+/* ═══ SCREEN: Landing ═══ */
+.landing-bg{background:linear-gradient(180deg,var(--primary-light) 0%,var(--white) 100%);flex:1;display:flex;flex-direction:column}
+.hero-section{padding:48px 24px 32px;text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.hero-logo{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;font-size:36px;color:var(--white);font-weight:800;box-shadow:0 8px 24px rgba(27,107,74,.25);margin-bottom:24px}
+.hero-headline{font-size:26px;font-weight:700;color:var(--n900);line-height:1.3;margin-bottom:12px;max-width:340px}
+.hero-subtitle{font-size:15px;color:var(--n500);line-height:1.5;max-width:320px;margin-bottom:32px}
+.trust-cards{display:flex;flex-direction:column;gap:10px;padding:0 24px;width:100%;max-width:400px}
+.trust-card{display:flex;align-items:flex-start;gap:14px;background:var(--white);border:1px solid var(--n200);border-radius:var(--r-md);padding:14px 16px;box-shadow:var(--shadow-sm);text-align:left;}
+.trust-icon{width:40px;height:40px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.trust-title{font-size:15px;font-weight:600;color:var(--n800);margin-bottom:2px}
+.trust-desc{font-size:13px;color:var(--n500);line-height:1.4}
+.cta-section{padding:24px;margin-top:auto}
+.cta-button{display:block;width:100%;padding:16px 24px;background:var(--primary);color:var(--white);border:none;border-radius:var(--r-full);font-size:16px;font-weight:600;cursor:pointer;font-family:var(--font);transition:background .2s}
+.cta-button:hover{background:var(--primary-dark)}
+.cta-sub{font-size:11px;color:var(--n400);text-align:center;margin-top:10px}
+.login-link{font-size:13px;color:var(--n500);text-align:center;padding:12px}
+.login-link a{color:var(--primary);font-weight:600;text-decoration:none;cursor:pointer}
+
+/* ═══ SCREEN: Signup ═══ */
+.signup-content{flex:1;overflow-y:auto;padding:0;display:flex;flex-direction:column}
+.signup-header{padding:28px 24px 8px;text-align:center}
+.signup-title{font-size:22px;font-weight:700;color:var(--n900);margin-bottom:6px}
+.signup-subtitle{font-size:13px;color:var(--n500)}
+.social-auth{padding:20px 24px 0;display:flex;flex-direction:column;gap:12px}
+.social-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px 16px;border-radius:var(--r-full);font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font);border:none}
+.social-btn.google{background:var(--white);color:var(--n700);border:1.5px solid var(--n200)}
+.social-btn.facebook{background:#1877F2;color:var(--white)}
+.auth-divider{display:flex;align-items:center;gap:16px;padding:20px 24px}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--n200)}
+.auth-divider span{font-size:13px;color:var(--n400);font-weight:500}
+.email-form{padding:0 24px;display:flex;flex-direction:column;gap:14px}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-field label{font-size:13px;font-weight:600;color:var(--n600)}
+.form-field input{width:100%;padding:14px 16px;border:1.5px solid var(--n200);border-radius:var(--r-md);font-size:15px;font-family:var(--font);color:var(--n800);outline:none;transition:border-color .2s}
+.form-field input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(27,107,74,.1)}
+.register-btn{display:block;width:100%;padding:14px 24px;background:var(--primary);color:var(--white);border:none;border-radius:var(--r-full);font-size:16px;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:4px}
+.signup-footer{padding:20px 24px;text-align:center;margin-top:auto}
+.legal-text{font-size:11px;color:var(--n400);line-height:1.4;margin-top:12px}
+.legal-text a{color:var(--n500);text-decoration:underline}
+
+/* ═══ SCREEN: Onboarding Chat ═══ */
+.chat-screen{flex-direction:column;height:100vh;height:100dvh}
+.screen.active.chat-screen{display:flex}
+.agent-header{display:flex;align-items:center;gap:10px}
+.agent-avatar{width:36px;height:36px;border-radius:var(--r-full);background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;color:var(--white);font-weight:700;font-size:14px;flex-shrink:0}
+.agent-name{font-size:16px;font-weight:600;color:var(--n800)}
+.agent-status{font-size:12px;color:var(--positive);display:flex;align-items:center;gap:4px}
+.agent-status::before{content:'';width:6px;height:6px;background:var(--positive);border-radius:var(--r-full)}
+.progress-container{background:var(--white);padding:0 16px 12px}
+.progress-bar-wrapper{display:flex;align-items:center;gap:8px}
+.progress-track{flex:1;height:4px;background:var(--n200);border-radius:var(--r-full);overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:var(--r-full);transition:width .6s;width:0%}
+.progress-label{font-size:12px;color:var(--n400);white-space:nowrap;font-weight:500}
+.chat-area{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:4px;scroll-behavior:smooth}
+.chat-area::-webkit-scrollbar{width:0}
+.message-group{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;opacity:0;transform:translateY(12px);transition:opacity .35s,transform .35s}
+.message-group.visible{opacity:1;transform:translateY(0)}
+.message{max-width:82%;padding:12px 16px;font-size:15px;line-height:1.45;word-break:break-word}
+.message.agent{align-self:flex-start;background:var(--white);color:var(--n800);border-radius:4px 16px 16px 16px;box-shadow:var(--shadow-sm)}
+.message.user{align-self:flex-end;background:var(--primary);color:var(--white);border-radius:16px 4px 16px 16px}
+.message strong{font-weight:600}
+.message em{font-style:italic;color:var(--n500)}
+.message.user em{color:rgba(255,255,255,.75)}
+.options-container,.mode-cards-container{display:flex;flex-direction:column;gap:8px;max-width:88%;align-self:flex-start;opacity:0;transform:translateY(12px);transition:opacity .35s,transform .35s}
+.options-container.visible,.mode-cards-container.visible{opacity:1;transform:translateY(0)}
+.option-card{background:var(--white);border:2px solid var(--n200);border-radius:var(--r-md);padding:14px 16px;cursor:pointer;transition:all .2s;display:flex;align-items:flex-start;gap:12px}
+.option-card:hover{border-color:var(--primary);background:var(--primary-light)}
+.option-card.selected{border-color:var(--primary);background:var(--primary-light)}
+.option-card .option-icon{width:36px;height:36px;border-radius:var(--r-sm);background:var(--n100);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.option-card.selected .option-icon{background:var(--primary);color:var(--white)}
+.option-card .option-title{font-size:15px;font-weight:600;color:var(--n800)}
+.option-card .option-desc{font-size:13px;color:var(--n500);margin-top:2px}
+.mode-card{background:var(--white);border:2px solid var(--n200);border-radius:var(--r-md);padding:14px 16px;cursor:pointer;transition:all .2s}
+.mode-card:hover{border-color:var(--primary)}
+.mode-card.recommended{border-color:var(--accent)}
+.mode-card.selected{border-color:var(--primary);background:var(--primary-light)}
+.mode-card .mode-badge{display:inline-block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);background:rgba(42,157,110,.1);padding:2px 8px;border-radius:var(--r-full);margin-bottom:6px}
+.mode-card .mode-title{font-size:15px;font-weight:700;color:var(--n800);margin-bottom:4px}
+.mode-card .mode-subtitle{font-size:13px;color:var(--n600);margin-bottom:8px}
+.mode-card .mode-detail{font-size:12px;color:var(--n500);display:flex;align-items:center;gap:6px;padding:1px 0}
+.mode-card .mode-detail::before{content:'';width:4px;height:4px;background:var(--n300);border-radius:var(--r-full);flex-shrink:0}
+.slider-container,.amount-container,.consent-container{max-width:88%;align-self:flex-start;background:var(--white);border-radius:var(--r-md);padding:16px;box-shadow:var(--shadow-sm);opacity:0;transform:translateY(12px);transition:opacity .35s,transform .35s}
+.slider-container.visible,.amount-container.visible,.consent-container.visible{opacity:1;transform:translateY(0)}
+.slider-label{font-size:13px;font-weight:600;color:var(--n600);margin-bottom:12px}
+.slider-value{font-size:28px;font-weight:700;color:var(--primary);text-align:center;margin-bottom:12px}
+.slider-track{width:100%;height:6px;-webkit-appearance:none;appearance:none;background:var(--n200);border-radius:var(--r-full);outline:none}
+.slider-track::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:var(--r-full);background:var(--primary);border:3px solid var(--white);box-shadow:var(--shadow-md);cursor:pointer}
+.slider-range-labels{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--n400)}
+.amount-input-wrap{display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:12px}
+.amount-input-wrap .currency-symbol{font-size:28px;font-weight:600;color:var(--n400)}
+.amount-input-wrap .amount-value{font-size:36px;font-weight:700;color:var(--primary);border:none;outline:none;width:160px;text-align:center;background:transparent;font-family:var(--font)}
+.amount-presets{display:flex;gap:8px;justify-content:center}
+.amount-presets .preset-btn{padding:6px 14px;border:1.5px solid var(--n200);border-radius:var(--r-full);background:var(--white);font-size:13px;font-weight:500;color:var(--n600);cursor:pointer;font-family:var(--font)}
+.amount-presets .preset-btn.active{border-color:var(--primary);background:var(--primary-light);color:var(--primary);font-weight:600}
+.consent-row{display:flex;align-items:flex-start;gap:12px}
+.consent-toggle{width:44px;height:26px;border-radius:var(--r-full);background:var(--n300);cursor:pointer;position:relative;flex-shrink:0;transition:background .3s;margin-top:2px}
+.consent-toggle.active{background:var(--primary)}
+.consent-toggle::after{content:'';position:absolute;width:20px;height:20px;border-radius:var(--r-full);background:var(--white);top:3px;left:3px;transition:left .3s;box-shadow:var(--shadow-sm)}
+.consent-toggle.active::after{left:21px}
+.consent-text{font-size:14px;color:var(--n600);line-height:1.4}
+.consent-text a{color:var(--primary);text-decoration:underline;cursor:pointer}
+.summary-card{max-width:88%;align-self:flex-start;background:var(--white);border-radius:var(--r-md);padding:20px 16px;box-shadow:var(--shadow-md);border-left:4px solid var(--primary);opacity:0;transform:translateY(12px);transition:opacity .35s,transform .35s}
+.summary-card.visible{opacity:1;transform:translateY(0)}
+.summary-card .summary-title{font-size:14px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.summary-card .summary-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--n100)}
+.summary-card .summary-row:last-child{border-bottom:none}
+.summary-card .summary-label{font-size:13px;color:var(--n500)}
+.summary-card .summary-value{font-size:14px;font-weight:600;color:var(--n800)}
+.summary-card .summary-value .badge{display:inline-block;padding:2px 8px;border-radius:var(--r-full);font-size:11px;font-weight:600;text-transform:uppercase}
+.summary-card .summary-value .badge.balanced{background:rgba(42,157,110,.1);color:var(--accent)}
+.typing-indicator{display:none;align-self:flex-start;background:var(--white);padding:12px 18px;border-radius:4px 16px 16px 16px;box-shadow:var(--shadow-sm);margin-bottom:8px}
+.typing-indicator.visible{display:flex;gap:4px;align-items:center}
+.typing-indicator .dot{width:7px;height:7px;background:var(--n300);border-radius:var(--r-full);animation:tbounce 1.4s ease-in-out infinite}
+.typing-indicator .dot:nth-child(2){animation-delay:.15s}
+.typing-indicator .dot:nth-child(3){animation-delay:.3s}
+@keyframes tbounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
+.chat-cta{max-width:88%;align-self:flex-start;background:var(--primary);color:var(--white);border:none;padding:14px 28px;border-radius:var(--r-full);font-size:15px;font-weight:600;cursor:pointer;box-shadow:var(--shadow-md);opacity:0;transform:translateY(12px);transition:opacity .35s,transform .35s,background .2s;font-family:var(--font)}
+.chat-cta.visible{opacity:1;transform:translateY(0)}
+.chat-cta:hover{background:var(--primary-dark)}
+.input-area{background:var(--white);border-top:1px solid var(--n200);padding:12px 16px 24px;display:flex;align-items:flex-end;gap:10px;flex-shrink:0}
+.input-area .input-wrapper{flex:1;background:var(--n100);border-radius:20px;padding:10px 16px;display:flex;align-items:center;min-height:44px;border:2px solid transparent;transition:border-color .2s,background .2s}
+.input-area .input-wrapper:focus-within{border-color:var(--primary);background:var(--white)}
+.input-area .text-input{flex:1;border:none;outline:none;font-size:15px;background:transparent;color:var(--n800);font-family:var(--font)}
+.input-area .text-input::placeholder{color:var(--n400)}
+.input-area .send-btn{width:44px;height:44px;border:none;background:var(--primary);border-radius:var(--r-full);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--white);flex-shrink:0}
+.input-area .send-btn:hover{background:var(--primary-dark)}
+.input-area .send-btn.disabled{background:var(--n300);pointer-events:none}
+.timestamp{text-align:center;font-size:11px;color:var(--n400);margin:12px 0 8px;font-weight:500}
+
+/* ═══ SCREEN: Dashboard ═══ */
+.sim-banner{background:var(--cautionary-light);border-bottom:1px solid #F59E0B;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0}
+.sim-banner-badge{padding:2px 8px;border-radius:var(--r-full);background:var(--cautionary);color:var(--white);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.sim-banner-text{font-size:11px;color:var(--n700);font-weight:500}
+.sim-banner-link{font-size:11px;font-weight:700;color:var(--cautionary);text-decoration:none;cursor:pointer}
+.greeting h1{font-size:22px;font-weight:700;color:var(--n900)}
+.portfolio-card{text-align:center;padding:20px 16px 12px}
+.portfolio-card .value-label{font-size:13px;color:var(--n500);font-weight:500;margin-bottom:4px}
+.portfolio-card .value-amount{font-size:34px;font-weight:700;color:var(--n900);font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.portfolio-card .value-change{display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:3px 10px;border-radius:var(--r-full);background:var(--positive-light);color:var(--positive);font-size:13px;font-weight:600}
+.sparkline-container{margin:16px 0 8px;height:120px}
+.sparkline-container svg{width:100%;height:100%}
+.chart-periods{display:flex;gap:4px;justify-content:center;margin-top:8px}
+.chart-periods .period{padding:4px 10px;border-radius:var(--r-full);font-size:11px;font-weight:500;color:var(--n500);cursor:pointer;border:none;background:none;font-family:var(--font)}
+.chart-periods .period.active{background:var(--primary);color:var(--white)}
+.status-banner{border-left:4px solid var(--positive);padding:14px 16px}
+.status-banner .status-row{display:flex;align-items:center;gap:8px}
+.status-banner .status-text{font-size:15px;font-weight:600;color:var(--n800)}
+.status-banner .status-subtext{font-size:13px;color:var(--n500);margin-top:2px;padding-left:16px}
+.status-banner .status-time{font-size:11px;color:var(--n400);margin-top:6px;padding-left:16px}
+.status-time{font-size:11px;color:var(--n400);margin-top:6px}
+.activity-card{padding:16px}
+.activity-item{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--n100)}
+.activity-item:last-of-type{border-bottom:none}
+.activity-dot{width:10px;height:10px;border-radius:var(--r-full);flex-shrink:0;margin-top:5px}
+.activity-dot.green{background:var(--positive)}
+.activity-dot.blue{background:#2563EB}
+.activity-dot.gray{background:var(--n300)}
+.activity-content{flex:1;min-width:0}
+.activity-title{font-size:13px;font-weight:500;color:var(--n800);line-height:1.4}
+.activity-meta{font-size:11px;color:var(--n400);margin-top:2px}
+.activity-meta .why-link{color:var(--primary);font-weight:600;cursor:pointer;text-decoration:none}
+.activity-footer{padding-top:10px;text-align:center}
+.activity-footer a{font-size:13px;color:var(--primary);font-weight:600;text-decoration:none;cursor:pointer}
+.action-card{border-left:4px solid var(--cautionary);padding:16px}
+.action-card .action-label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cautionary);margin-bottom:6px}
+.action-card .action-desc{font-size:15px;color:var(--n700);line-height:1.4;margin-bottom:14px}
+
+/* ═══ SCREEN: Portfolio ═══ */
+.inner-tabs{display:flex;background:var(--white);border-bottom:1px solid var(--n200);flex-shrink:0}
+.inner-tab{flex:1;padding:10px 4px 8px;text-align:center;font-size:13px;font-weight:500;color:var(--n400);cursor:pointer;border:none;background:none;font-family:var(--font);border-bottom:2px solid transparent}
+.inner-tab.active{color:var(--primary);font-weight:600;border-bottom-color:var(--primary)}
+.tab-panel{display:none;flex-direction:column;gap:16px}
+.tab-panel.active{display:flex}
+.total-value{font-size:28px;font-weight:700;color:var(--n900);font-variant-numeric:tabular-nums}
+.total-change{font-size:15px;font-weight:600;color:var(--positive);margin-top:2px}
+.cash-balance{font-size:13px;color:var(--n500);margin-top:4px}
+.donut-wrapper{display:flex;flex-direction:column;align-items:center;gap:16px}
+.donut-container{position:relative;width:140px;height:140px}
+.donut{width:140px;height:140px;border-radius:50%;background:conic-gradient(var(--primary-dark) 0% 45%,#0D9488 45% 70%,var(--accent) 70% 85%,var(--cautionary) 85% 95%,var(--n300) 95% 100%);position:relative}
+.donut::after{content:'';position:absolute;top:30px;left:30px;width:80px;height:80px;border-radius:50%;background:var(--white)}
+.donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1;text-align:center}
+.donut-center-value{font-size:13px;font-weight:700;color:var(--n800)}
+.donut-center-label{font-size:10px;color:var(--n400)}
+.legend{display:flex;flex-direction:column;gap:6px;width:100%}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:13px}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.legend-label{flex:1;color:var(--n700)}
+.legend-pct{font-weight:600;color:var(--n800);min-width:32px;text-align:right}
+.legend-target{font-size:11px;color:var(--n400);min-width:64px;text-align:right}
+.position-card{display:flex;align-items:center;gap:10px;padding:12px;background:var(--white);border-radius:var(--r-md);box-shadow:var(--shadow-sm)}
+.position-icon{width:40px;height:40px;border-radius:var(--r-sm);background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;font-weight:700;color:var(--primary)}
+.position-info{flex:1;min-width:0}
+.position-name{font-size:13px;font-weight:600;color:var(--n800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.position-ticker{font-size:11px;color:var(--n400)}
+.position-weight{font-size:11px;color:var(--n500);margin-top:1px}
+.position-trailing{text-align:right;flex-shrink:0}
+.position-value{font-size:13px;font-weight:600;color:var(--n800);font-variant-numeric:tabular-nums}
+.position-change{font-size:11px;font-weight:500}
+.sim-indicator{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:var(--r-full);background:var(--cautionary-light);color:var(--cautionary);font-size:10px;font-weight:700;text-transform:uppercase}
+
+/* ═══ SCREEN: Decision Detail ═══ */
+.narrative-section{padding:16px;background:var(--white);border-radius:var(--r-md);box-shadow:var(--shadow-sm)}
+.narrative-body{font-size:15px;font-weight:500;color:var(--n800);line-height:1.6}
+.narrative-body-lg{font-size:18px;font-weight:600;color:var(--n900);line-height:1.5}
+.detail-card{background:var(--white);border-radius:var(--r-md);box-shadow:var(--shadow-sm);overflow:hidden}
+.detail-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer}
+.detail-header:hover{background:var(--n50)}
+.detail-header-title{font-size:15px;font-weight:500;color:var(--n700)}
+.detail-chevron{width:20px;height:20px;color:var(--n400);transition:transform .25s;flex-shrink:0}
+.detail-card.open .detail-chevron{transform:rotate(90deg)}
+.detail-body{display:none;padding:0 16px 16px}
+.detail-card.open .detail-body{display:block}
+.reasoning-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+.reasoning-list li{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--n700);line-height:1.5}
+.reasoning-list li::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--primary);flex-shrink:0;margin-top:7px}
+.ops-table{display:flex;flex-direction:column;gap:12px}
+.ops-row{display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:var(--n50);border-radius:var(--r-sm);border-left:3px solid var(--n300)}
+.ops-row.sell{border-left-color:var(--negative)}
+.ops-row.buy{border-left-color:var(--positive)}
+.ops-row-header{display:flex;align-items:center;justify-content:space-between}
+.ops-action{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.ops-action.sell{color:var(--negative)}
+.ops-action.buy{color:var(--positive)}
+.ops-status{font-size:11px;font-weight:600;color:var(--positive)}
+.ops-name{font-size:13px;font-weight:600;color:var(--n800)}
+.ops-ticker{font-size:11px;color:var(--n400)}
+.ops-details{display:flex;gap:16px;font-size:11px;color:var(--n500);margin-top:2px}
+.cost-list{display:flex;flex-direction:column;gap:8px}
+.cost-item{display:flex;justify-content:space-between;font-size:13px;color:var(--n700)}
+.cost-value{font-weight:600;color:var(--n800)}
+.risk-impact-card{padding:16px;background:var(--white);border-radius:var(--r-md);box-shadow:var(--shadow-sm)}
+.gauge-row{display:flex;flex-direction:column;gap:4px}
+.gauge-row+.gauge-row{margin-top:14px}
+.gauge-label{font-size:13px;color:var(--n600);display:flex;align-items:center;gap:6px}
+.gauge-bar-track{height:10px;background:var(--n200);border-radius:var(--r-full);overflow:hidden;position:relative}
+.gauge-bar-fill{height:100%;border-radius:var(--r-full)}
+.gauge-bar-fill.amber{background:linear-gradient(90deg,var(--cautionary),#F59E0B)}
+.gauge-bar-fill.green{background:linear-gradient(90deg,var(--positive),var(--accent))}
+.gauge-bar-target{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--n700);border-radius:1px}
+
+/* ═══ SCREEN: Notifications ═══ */
+.notification-list{padding:0;gap:0}
+.date-group-header{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--n400);padding:16px 16px 8px}
+.notification-item{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:var(--white);border-bottom:1px solid var(--n100);cursor:pointer;transition:background .15s}
+.notification-item:hover{background:var(--n50)}
+.notif-icon{width:36px;height:36px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px}
+.notif-icon.info{background:var(--n100);color:var(--n500)}
+.notif-icon.advisory{background:#EDE9FE;color:#7C3AED}
+.notif-icon.impactful{background:#DBEAFE;color:#2563EB}
+.notif-icon.confirmable{background:var(--cautionary-light);color:var(--cautionary)}
+.notif-icon.critical{background:var(--negative-light);color:var(--negative)}
+.notif-content{flex:1;min-width:0}
+.notif-title{font-size:15px;font-weight:500;color:var(--n800);line-height:1.4}
+.notification-item.unread .notif-title{font-weight:600}
+.notif-meta{font-size:13px;color:var(--n400);margin-top:2px}
+.notif-meta .why-link{color:var(--primary);font-weight:600;cursor:pointer;text-decoration:none}
+.notif-trailing{display:flex;align-items:center;padding-top:8px;flex-shrink:0}
+.unread-dot{width:8px;height:8px;background:var(--primary);border-radius:var(--r-full);flex-shrink:0;transition:opacity .35s}
+.unread-dot.fade-out{opacity:0}
+.mark-all{font-size:13px;font-weight:600;color:var(--primary);cursor:pointer;background:none;border:none;font-family:var(--font);white-space:nowrap}
+
+/* ═══ SCREEN: Confirmation ═══ */
+.warning-banner{background:var(--cautionary-light);border-radius:var(--r-md);padding:20px 16px;text-align:center}
+.warning-banner .warning-icon{font-size:40px;line-height:1;margin-bottom:10px}
+.warning-banner .warning-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cautionary)}
+.section-card{background:var(--white);border-radius:var(--r-md);padding:16px;box-shadow:var(--shadow-sm)}
+.section-card .section-body{font-size:15px;color:var(--n700);line-height:1.5}
+.trade-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+.trade-item{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--n700)}
+.trade-item .trade-icon{flex-shrink:0;width:22px;height:22px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.trade-icon.sell{background:var(--negative-light);color:var(--negative)}
+.trade-icon.buy{background:var(--positive-light);color:var(--positive)}
+.trade-item strong{font-weight:600;color:var(--n800)}
+.trade-secondary{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--n500);padding-left:30px}
+.action-area{flex-shrink:0;background:var(--white);border-top:1px solid var(--n200);padding:16px;padding-bottom:32px}
+.action-buttons{display:flex;gap:12px}
+.btn-decline{flex:1;display:flex;align-items:center;justify-content:center;padding:14px 16px;border-radius:var(--r-full);font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font);background:transparent;color:var(--n700);border:2px solid var(--n300)}
+.btn-confirm{flex:1;display:flex;align-items:center;justify-content:center;padding:14px 16px;border-radius:var(--r-full);font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font);background:var(--positive);color:var(--white);border:none}
+.action-expiry{text-align:center;margin-top:12px;font-size:11px;font-weight:600;color:var(--cautionary)}
+
+/* ═══ SCREEN: Settings ═══ */
+.profile-card{display:flex;align-items:center;gap:14px;padding:18px 16px}
+.profile-avatar{width:52px;height:52px;border-radius:var(--r-full);background:var(--primary);color:var(--white);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0}
+.profile-name{font-size:16px;font-weight:600;color:var(--n800)}
+.profile-email{font-size:13px;color:var(--n500);margin-top:1px}
+.profile-federation{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:var(--r-full);background:var(--n100);color:var(--n600);font-size:11px;font-weight:600}
+.settings-section{background:var(--white);border-radius:var(--r-md);box-shadow:var(--shadow-sm)}
+.expand-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer}
+.expand-header:hover{background:var(--n50)}
+.expand-title-row{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.expand-title{font-size:15px;font-weight:500;color:var(--n700)}
+.expand-chevron{width:20px;height:20px;color:var(--n400);flex-shrink:0;transition:transform .25s}
+.settings-section.open .expand-chevron{transform:rotate(90deg)}
+.expand-content{display:none;padding:0 16px 16px}
+.settings-section.open .expand-content{display:block}
+.detail-row{font-size:13px;color:var(--n600);padding:3px 0;line-height:1.5}
+.detail-row strong{color:var(--n700);font-weight:600}
+.action-link{display:inline-block;margin-top:10px;font-size:13px;font-weight:600;color:var(--primary);text-decoration:none;cursor:pointer}
+.action-link.red{color:var(--negative)}
+.rule-item{font-size:13px;color:var(--n600);padding:4px 0 4px 12px;position:relative;line-height:1.5}
+.rule-item::before{content:'';position:absolute;left:0;top:11px;width:4px;height:4px;border-radius:var(--r-full);background:var(--n400)}
+.rules-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--n400);margin:10px 0 8px}
+.rules-note{font-size:11px;color:var(--n400);margin-top:10px;line-height:1.5}
+.mode-desc{font-size:13px;color:var(--n600);line-height:1.5;margin-bottom:4px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--n100)}
+.toggle-row:last-of-type{border-bottom:none}
+.toggle-label{font-size:13px;color:var(--n700);font-weight:500}
+.broker-card{padding:16px}
+.broker-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.broker-title{font-size:15px;font-weight:600;color:var(--n800)}
+.broker-status{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--positive)}
+.broker-sync{font-size:11px;color:var(--n400);margin-bottom:14px}
+.broker-actions{display:flex;align-items:center;gap:10px}
+.btn-broker{padding:8px 16px;border-radius:var(--r-full);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)}
+.btn-reconnect{background:transparent;color:var(--primary);border:1.5px solid var(--primary)}
+.btn-disconnect{background:transparent;color:var(--negative);border:1.5px solid var(--negative)}
+.section-group{background:var(--white);border-radius:var(--r-md);box-shadow:var(--shadow-sm);overflow:hidden}
+.link-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;transition:background .15s}
+.link-row:hover{background:var(--n50)}
+.link-row+.link-row{border-top:1px solid var(--n100)}
+.link-row-title{font-size:15px;font-weight:500;color:var(--n700)}
+.link-row-title.red{color:var(--negative)}
+.link-row-value{font-size:13px;color:var(--n400);margin-right:4px}
+.chevron-right{width:16px;height:16px;color:var(--n400);flex-shrink:0}
+
+/* ═══ SCREEN: How it works ═══ */
+.how-section{display:flex;flex-direction:column;gap:8px}
+.how-card{background:var(--white);border-radius:var(--r-md);padding:16px;box-shadow:var(--shadow-sm)}
+.how-card-title{font-size:15px;font-weight:600;color:var(--n800)}
+.how-card-subtitle{font-size:13px;color:var(--n500);margin-top:2px}
+.how-card-link{font-size:13px;font-weight:500;color:var(--positive);margin-top:8px;display:inline-block;text-decoration:none;cursor:pointer}
+.how-card--green-border{border-left:4px solid var(--positive)}
+.how-card--amber-border{border-left:4px solid var(--cautionary)}
+.authority-list{display:flex;flex-direction:column;gap:12px}
+.authority-item{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--n700);line-height:1.45}
+.authority-icon{width:22px;height:22px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700}
+.authority-icon--green{background:var(--positive-light);color:var(--positive)}
+.authority-icon--amber{background:var(--cautionary-light);color:var(--cautionary)}
+.authority-icon--neutral{background:var(--n200);color:var(--n600)}
+.guardrail-list{display:flex;flex-direction:column;gap:10px}
+.guardrail-item{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--n700);line-height:1.5}
+.guardrail-bullet{width:6px;height:6px;border-radius:50%;background:var(--n400);flex-shrink:0;margin-top:7px}
+
+/* ═══ Deposit/Withdrawal ═══ */
+.flow-section-title{font-size:18px;font-weight:700;color:var(--n900)}
+.info-card{background:var(--white);border-radius:var(--r-md);padding:14px 16px;box-shadow:var(--shadow-sm);font-size:13px;color:var(--n600);line-height:1.5;display:flex;align-items:flex-start;gap:10px}
+.info-card .info-icon-circle{flex-shrink:0;width:20px;height:20px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.bank-details-card{background:var(--n100);border-radius:var(--r-md);padding:16px;display:flex;flex-direction:column;gap:10px}
+.bank-detail-row{display:flex;flex-direction:column;gap:2px}
+.bank-detail-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;color:var(--n400)}
+.bank-detail-value{font-size:15px;font-weight:500;color:var(--n800);font-variant-numeric:tabular-nums}
+.amount-input-section{background:var(--white);border-radius:var(--r-md);padding:20px 16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;align-items:center;gap:16px}
+.amount-label-s{font-size:13px;font-weight:600;color:var(--n500);text-transform:uppercase;letter-spacing:.3px}
+.amount-value-s{font-size:36px;font-weight:700;color:var(--n900);text-align:center}
+.amount-underline{width:120px;height:2px;background:var(--primary);border-radius:var(--r-full);margin-top:-8px}
+.preset-buttons{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.preset-btn{padding:8px 16px;border-radius:var(--r-full);font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--n200);background:var(--white);color:var(--n600);font-family:var(--font)}
+.preset-btn:hover{border-color:var(--primary);color:var(--primary)}
+.preset-btn.active{background:var(--primary);color:var(--white);border-color:var(--primary)}
+.result-state{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:24px 0 16px}
+.result-icon{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px}
+.result-icon.pending{background:var(--cautionary-light);color:var(--cautionary)}
+.result-icon.success{background:var(--positive-light);color:var(--positive)}
+.result-title{font-size:22px;font-weight:700;color:var(--n900)}
+.result-desc{font-size:13px;color:var(--n500);line-height:1.5;max-width:280px}
+.status-card{background:var(--white);border-radius:var(--r-md);padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:10px;width:100%}
+.status-row-item{display:flex;align-items:center;justify-content:space-between}
+.status-row-label{font-size:13px;color:var(--n500)}
+.status-row-value{font-size:13px;font-weight:600;color:var(--n800)}
+.status-row-value.pending{color:var(--cautionary)}
+.status-row-value.processing{color:var(--primary)}
+.warning-card{background:var(--cautionary-light);border-left:4px solid var(--cautionary);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--n700);line-height:1.5}
+.step-container{display:none;flex-direction:column;gap:16px}
+.step-container.active{display:flex}
+
+/* ═══ Account Closure ═══ */
+.icon-circle{width:72px;height:72px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;margin:8px auto 4px;font-size:36px}
+.icon-circle.danger{background:var(--negative-light);color:var(--negative)}
+.icon-circle.icon-muted{background:var(--n200);color:var(--n500)}
+.icon-circle.icon-success{background:var(--positive-light);color:var(--positive)}
+.icon-circle.icon-info{background:#DBEAFE;color:#2563EB}
+.step-title{font-size:22px;font-weight:700;color:var(--n800);text-align:center;line-height:1.3}
+.step-body{font-size:15px;color:var(--n600);line-height:1.6}
+.bullet-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+.bullet-list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--n700);line-height:1.5}
+.bullet-list li::before{content:'';width:6px;height:6px;border-radius:var(--r-full);background:var(--n400);flex-shrink:0;margin-top:7px}
+.danger-card{background:var(--negative-light);border:2px solid var(--negative);border-radius:var(--r-md);padding:16px;font-size:13px;color:var(--n800);line-height:1.6}
+.consent-check-row{display:flex;align-items:flex-start;gap:12px;cursor:pointer}
+.consent-checkbox{width:22px;height:22px;border-radius:6px;border:2px solid var(--n300);flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--white);transition:all .2s;color:transparent;font-size:14px;font-weight:700}
+.consent-check-row.checked .consent-checkbox{background:var(--negative);border-color:var(--negative);color:var(--white)}
+.consent-label-text{font-size:13px;color:var(--n700);line-height:1.5}
+.text-link{display:block;text-align:center;font-size:13px;font-weight:600;color:var(--n500);cursor:pointer;background:none;border:none;font-family:var(--font);padding:8px}
+.data-table-card{background:var(--white);border-radius:var(--r-md);box-shadow:var(--shadow-sm);overflow:hidden}
+.data-table{width:100%;border-collapse:collapse;font-size:11px}
+.data-table thead th{background:var(--n100);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--n500);padding:10px;text-align:left}
+.data-table tbody td{padding:10px;color:var(--n700);line-height:1.4;border-bottom:1px solid var(--n100)}
+.note-box{background:var(--cautionary-light);border-radius:var(--r-sm);padding:12px 14px;font-size:11px;color:var(--cautionary);line-height:1.5;display:flex;align-items:flex-start;gap:8px}
+.completion-text{font-size:13px;color:var(--n500);line-height:1.6;text-align:center}
+.btn-danger:disabled{opacity:.45;cursor:not-allowed}
+
+/* Responsive */
+@media(min-width:600px){
+  .screen{max-width:430px;margin:0 auto;box-shadow:0 0 40px rgba(0,0,0,.08)}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: LANDING
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen active" id="screen-landing">
+  <div class="landing-bg">
+    <div class="hero-section">
+      <div class="hero-logo">N</div>
+      <h1 class="hero-headline">Il tuo patrimonio, gestito dall'intelligenza artificiale</h1>
+      <p class="hero-subtitle">Nestfolio investe per te in modo autonomo, trasparente e sicuro. Tu rilassati.</p>
+      <div class="trust-cards">
+        <div class="trust-card">
+          <div class="trust-icon" style="background:#DBEAFE;color:#2563EB">&#9737;</div>
+          <div><div class="trust-title">Trasparente</div><div class="trust-desc">Ogni decisione spiegata in linguaggio semplice</div></div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon" style="background:var(--primary-light);color:var(--primary)">&#9740;</div>
+          <div><div class="trust-title">Sicuro</div><div class="trust-desc">Regole di protezione automatiche sul tuo portafoglio</div></div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon" style="background:#F3E8FF;color:#7C3AED">&#9881;</div>
+          <div><div class="trust-title">Autonomo</div><div class="trust-desc">Nestfolio lavora per te, 24/7</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cta-section">
+      <button class="cta-button" onclick="navigateTo('signup')">Inizia ora &mdash; e' gratuito</button>
+      <p class="cta-sub">Nessun costo nascosto. Nessuna configurazione richiesta.</p>
+    </div>
+    <div class="login-link">Hai gia' un account? <a onclick="navigateTo('dashboard')">Accedi</a></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: SIGNUP
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-signup">
+  <div class="nav-header">
+    <button class="back-btn" onclick="navigateTo('landing')"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <span class="screen-title"></span>
+  </div>
+  <div class="signup-content">
+    <div class="signup-header">
+      <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;color:var(--white);font-weight:800;font-size:20px;margin:0 auto 16px">N</div>
+      <h2 class="signup-title">Crea il tuo account</h2>
+      <p class="signup-subtitle">Inizia a investire in modo intelligente</p>
+    </div>
+    <div class="social-auth">
+      <button class="social-btn google" onclick="navigateTo('onboarding')"><span style="font-size:18px;font-weight:700;background:linear-gradient(135deg,#4285F4 25%,#EA4335 25%,#EA4335 50%,#FBBC05 50%,#FBBC05 75%,#34A853 75%);-webkit-background-clip:text;-webkit-text-fill-color:transparent">G</span> Continua con Google</button>
+      <button class="social-btn facebook" onclick="navigateTo('onboarding')"><span style="font-weight:800">f</span> Continua con Facebook</button>
+    </div>
+    <div class="auth-divider"><span>oppure</span></div>
+    <div class="email-form">
+      <div class="form-field"><label>Email</label><input type="email" placeholder="tu@esempio.it"></div>
+      <div class="form-field"><label>Password</label><input type="password" placeholder="Minimo 8 caratteri"></div>
+      <button class="register-btn" onclick="navigateTo('onboarding')">Registrati</button>
+    </div>
+    <div class="signup-footer">
+      <div class="login-link">Hai gia' un account? <a onclick="navigateTo('dashboard')">Accedi</a></div>
+      <p class="legal-text">Continuando accetti i <a href="#">termini di servizio</a> e la <a href="#">privacy policy</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: ONBOARDING CHAT
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen chat-screen" id="screen-onboarding">
+  <div class="nav-header">
+    <button class="back-btn" onclick="navigateTo('signup')"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="agent-header">
+      <div class="agent-avatar">N</div>
+      <div><div class="agent-name">Nestfolio</div><div class="agent-status">Attivo ora</div></div>
+    </div>
+  </div>
+  <div class="progress-container">
+    <div class="progress-bar-wrapper">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">1 di 8</div>
+    </div>
+  </div>
+  <div class="chat-area" id="chatArea">
+    <div class="timestamp">Oggi, 9:41</div>
+  </div>
+  <div class="typing-indicator" id="typingIndicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+  <div class="input-area" id="inputArea">
+    <div class="input-wrapper">
+      <input type="text" class="text-input" id="textInput" placeholder="Scrivi un messaggio...">
+    </div>
+    <button class="send-btn" id="sendBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: DASHBOARD
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-dashboard">
+  <div class="sim-banner">
+    <div style="display:flex;align-items:center;gap:8px"><span class="sim-banner-badge">Simulazione</span><span class="sim-banner-text">Capitale virtuale: &euro;10.000</span></div>
+    <a class="sim-banner-link">Passa al Live &rarr;</a>
+  </div>
+  <div class="content-area">
+    <div class="greeting"><h1>Buongiorno, Luca &#128075;</h1></div>
+    <div class="card portfolio-card">
+      <div class="value-label">Valore del portafoglio</div>
+      <div class="value-amount">&euro;24.350,00</div>
+      <span class="value-change">&#9650; 3,2%</span>
+      <div class="sparkline-container">
+        <svg viewBox="0 0 340 120" preserveAspectRatio="none">
+          <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2A9D6E" stop-opacity=".25"/><stop offset="100%" stop-color="#2A9D6E" stop-opacity=".02"/></linearGradient></defs>
+          <path d="M0,90 C20,88 40,82 60,78 C80,74 100,80 120,72 C140,64 160,60 180,55 C200,50 220,52 240,44 C260,36 280,30 300,24 C320,18 330,15 340,12 L340,120 L0,120 Z" fill="url(#sg)"/>
+          <path d="M0,90 C20,88 40,82 60,78 C80,74 100,80 120,72 C140,64 160,60 180,55 C200,50 220,52 240,44 C260,36 280,30 300,24 C320,18 330,15 340,12" fill="none" stroke="#2A9D6E" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="340" cy="12" r="4" fill="#2A9D6E"/>
+        </svg>
+      </div>
+      <div class="chart-periods">
+        <button class="period active">1S</button><button class="period">1M</button><button class="period">3M</button><button class="period">6M</button><button class="period">YTD</button><button class="period">1A</button><button class="period">Tutto</button>
+      </div>
+    </div>
+
+    <div class="card activity-card">
+      <div class="section-label">ATTIVITA' RECENTE</div>
+      <div class="activity-item"><span class="activity-dot green"></span><div class="activity-content"><div class="activity-title">Ribilanciamento di 3 posizioni</div><div class="activity-meta">28 feb &middot; <a class="why-link" onclick="navigateTo('decision')">Perche'?</a></div></div></div>
+      <div class="activity-item"><span class="activity-dot blue"></span><div class="activity-content"><div class="activity-title">Dividendo reinvestito: Global Stocks ETF</div><div class="activity-meta">25 feb &middot; <a class="why-link" onclick="navigateTo('decision')">Perche'?</a></div></div></div>
+      <div class="activity-item"><span class="activity-dot gray"></span><div class="activity-content"><div class="activity-title">Report mensile disponibile</div><div class="activity-meta">1 feb</div></div></div>
+      <div class="activity-footer"><a onclick="navigateTo('notifications')">Vedi tutta l'attivita' &rarr;</a></div>
+    </div>
+    <div class="card action-card">
+      <div class="action-label"><span>&#9888;</span><span>LA TUA CONFERMA E' NECESSARIA</span></div>
+      <div class="action-desc">Nestfolio consiglia un aggiustamento della strategia</div>
+      <button class="btn btn-outline btn-full" onclick="navigateTo('confirmation')">Rivedi e Conferma</button>
+      <div class="status-time">Ultimo controllo: oggi alle 8:30</div>
+    </div>
+  </div>
+  <div class="bottom-tabs" id="tabs-dashboard"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: PORTFOLIO
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-portfolio">
+  <div class="nav-header">
+    <button class="back-btn" onclick="navigateTo('dashboard')"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <span class="screen-title">Portafoglio</span>
+    <span class="sim-indicator">Simulazione</span>
+  </div>
+  <div class="inner-tabs">
+    <button class="inner-tab active" data-tab="panoramica">Panoramica</button>
+    <button class="inner-tab" data-tab="posizioni">Posizioni</button>
+    <button class="inner-tab" data-tab="performance">Performance</button>
+    <button class="inner-tab" data-tab="attivita">Attivita'</button>
+  </div>
+  <div class="content-area">
+    <!-- TAB: Panoramica -->
+    <div class="tab-panel active" id="panel-panoramica">
+      <div class="card"><span style="font-size:11px;font-weight:600;color:var(--cautionary);text-transform:uppercase">Capitale virtuale</span><div class="total-value">&euro;24.350,00</div><div class="total-change">&#9650; &euro;756,20 (+3,2%)</div><div class="cash-balance">Liquidita' virtuale: &euro;1.230,45</div></div>
+      <div class="card">
+        <div class="section-label">Allocazione</div>
+        <div class="donut-wrapper">
+          <div class="donut-container"><div class="donut"></div><div class="donut-center"><div class="donut-center-value">5</div><div class="donut-center-label">asset</div></div></div>
+          <div class="legend">
+            <div class="legend-item"><span class="legend-dot" style="background:var(--primary-dark)"></span><span class="legend-label">Azioni Globali</span><span class="legend-pct">45%</span><span class="legend-target">Target: 45%</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#0D9488"></span><span class="legend-label">Obbligazioni Euro</span><span class="legend-pct">25%</span><span class="legend-target">Target: 25%</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span><span class="legend-label">Azioni Europa</span><span class="legend-pct">15%</span><span class="legend-target">Target: 15%</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:var(--cautionary)"></span><span class="legend-label">Mercati Emergenti</span><span class="legend-pct">10%</span><span class="legend-target">Target: 10%</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:var(--n300)"></span><span class="legend-label">Liquidita'</span><span class="legend-pct">5%</span><span class="legend-target">Target: 5%</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card"><div class="section-label">Obiettivo</div><div style="font-size:13px;font-weight:600;color:var(--n700)">Crescita del capitale</div><div style="margin-top:8px"><div class="gauge-track"><div class="gauge-fill green" style="width:35%"></div></div></div><div style="font-size:13px;color:var(--n500);margin-top:6px">&euro;24.350 di &euro;50.000 &middot; In linea per mar 2036</div></div>
+      <div style="text-align:center;font-size:11px;color:var(--n400)">Ultima sincronizzazione broker: 2 min fa</div>
+    </div>
+    <!-- TAB: Posizioni -->
+    <div class="tab-panel" id="panel-posizioni">
+      <div class="position-card"><div class="position-icon">GS</div><div class="position-info"><div class="position-name">Global Stocks ETF</div><div class="position-ticker">VWCE.DE</div><div class="position-weight">Peso: 32,2% <span class="text-muted">(target: 30%)</span></div></div><div class="position-trailing"><div class="position-value">&euro;7.850,00</div><div class="position-change text-positive">&#9650; 4,1%</div></div></div>
+      <div class="position-card"><div class="position-icon">GB</div><div class="position-info"><div class="position-name">Euro Government Bonds ETF</div><div class="position-ticker">VGEA.DE</div><div class="position-weight">Peso: 25,0% <span class="text-muted">(target: 25%)</span></div></div><div class="position-trailing"><div class="position-value">&euro;6.087,50</div><div class="position-change text-positive">&#9650; 1,2%</div></div></div>
+      <div class="position-card"><div class="position-icon">ES</div><div class="position-info"><div class="position-name">European Stocks ETF</div><div class="position-ticker">VEUR.DE</div><div class="position-weight">Peso: 15,0% <span class="text-muted">(target: 15%)</span></div></div><div class="position-trailing"><div class="position-value">&euro;3.652,50</div><div class="position-change text-positive">&#9650; 2,8%</div></div></div>
+      <div class="position-card"><div class="position-icon">EM</div><div class="position-info"><div class="position-name">Emerging Markets ETF</div><div class="position-ticker">VFEM.DE</div><div class="position-weight">Peso: 10,0% <span class="text-muted">(target: 10%)</span></div></div><div class="position-trailing"><div class="position-value">&euro;2.435,00</div><div class="position-change text-negative">&#9660; 1,5%</div></div></div>
+      <div class="position-card"><div class="position-icon">CB</div><div class="position-info"><div class="position-name">Euro Corporate Bonds ETF</div><div class="position-ticker">VECP.DE</div><div class="position-weight">Peso: 12,7% <span class="text-muted">(target: 15%)</span></div></div><div class="position-trailing"><div class="position-value">&euro;3.095,55</div><div class="position-change text-positive">&#9650; 0,8%</div></div></div>
+      <div style="text-align:center;font-size:11px;color:var(--n400);padding-top:4px">Gestito da Nestfolio</div>
+    </div>
+    <!-- TAB: Performance -->
+    <div class="tab-panel" id="panel-performance">
+      <div class="card" style="padding:0;overflow:hidden"><div style="background:linear-gradient(180deg,var(--primary-light),var(--white));padding:16px;height:200px;position:relative"><svg viewBox="0 0 340 160" preserveAspectRatio="none" style="width:100%;height:100%"><defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--primary)" stop-opacity=".2"/><stop offset="100%" stop-color="var(--primary)" stop-opacity="0"/></linearGradient></defs><line x1="0" y1="120" x2="340" y2="40" stroke="var(--n300)" stroke-width="1.5" stroke-dasharray="6 4"/><polyline points="0,130 30,125 60,118 90,122 120,110 150,105 180,98 210,95 240,88 270,80 300,75 340,68" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round"/><polygon points="0,130 30,125 60,118 90,122 120,110 150,105 180,98 210,95 240,88 270,80 300,75 340,68 340,160 0,160" fill="url(#ag)"/><circle cx="340" cy="68" r="4" fill="var(--primary)"/></svg></div></div>
+      <div class="chart-periods"><button class="period">1S</button><button class="period">1M</button><button class="period active">3M</button><button class="period">6M</button><button class="period">YTD</button><button class="period">1A</button><button class="period">Tutto</button></div>
+      <div class="card"><div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--n500)">Rendimento 3M</span><span style="font-weight:600;color:var(--positive)">+2,8%</span></div><div class="divider"></div><div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--n500)">Obiettivo proiezione</span><span style="font-weight:600;color:var(--n800)">mar 2036</span></div><div style="font-size:11px;color:var(--n400);font-style:italic;margin-top:4px">Linea tratteggiata = traiettoria obiettivo</div></div>
+    </div>
+    <!-- TAB: Attivita -->
+    <div class="tab-panel" id="panel-attivita">
+      <div class="card" style="padding:12px 16px">
+        <div class="activity-item"><div style="width:36px;height:36px;border-radius:50%;background:var(--positive-light);color:var(--positive);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">&#8645;</div><div class="activity-content"><div class="activity-title">Ribilanciamento di 3 posizioni</div><div class="activity-meta">28 feb 2026 &middot; <a class="why-link" onclick="navigateTo('decision')">Perche'?</a></div></div></div>
+        <div class="activity-item"><div style="width:36px;height:36px;border-radius:50%;background:#DBEAFE;color:#2563EB;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">+</div><div class="activity-content"><div class="activity-title">Dividendo reinvestito: Global Stocks ETF</div><div class="activity-meta">25 feb 2026 &middot; <a class="why-link" onclick="navigateTo('decision')">Perche'?</a></div></div></div>
+        <div class="activity-item"><div style="width:36px;height:36px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">&#8595;</div><div class="activity-content"><div class="activity-title">Deposito: &euro;500 ricevuto</div><div class="activity-meta">20 feb 2026</div></div></div>
+        <div class="activity-item"><div style="width:36px;height:36px;border-radius:50%;background:var(--positive-light);color:var(--positive);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">&#8645;</div><div class="activity-content"><div class="activity-title">Ribilanciamento di 2 posizioni</div><div class="activity-meta">15 feb 2026 &middot; <a class="why-link" onclick="navigateTo('decision')">Perche'?</a></div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-tabs" id="tabs-portfolio"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: DECISION DETAIL
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-decision">
+  <div class="nav-header">
+    <button class="back-btn" onclick="goBack()"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <span class="screen-title">Dettaglio Decisione</span>
+  </div>
+  <div class="content-area">
+    <div class="narrative-section"><div class="section-label">COSA E' SUCCESSO</div><div class="narrative-body-lg">Abbiamo ribilanciato il tuo portafoglio per mantenerlo in linea con i tuoi obiettivi.</div></div>
+    <div class="narrative-section"><div class="section-label">PERCHE'</div><div class="narrative-body">L'allocazione azionaria era salita al 62%, oltre il tuo target del 60%. Abbiamo venduto una piccola quantita' di azioni globali e acquistato obbligazioni per riportarla in equilibrio.</div></div>
+    <div class="narrative-section"><div class="section-label">CONTESTO DI MERCATO</div><div class="narrative-body">I mercati azionari europei hanno registrato una crescita sostenuta nelle ultime settimane. Le condizioni attuali sono stabili con volatilita' contenuta.</div></div>
+    <div class="detail-card" id="det-reasoning"><div class="detail-header" onclick="toggleDetailCard('det-reasoning')"><span class="detail-header-title">Fattori di ragionamento (3)</span><svg class="detail-chevron" viewBox="0 0 20 20" fill="none"><path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="detail-body"><ul class="reasoning-list"><li>Drift allocazione: 2,0% sopra il target</li><li>Banda di rischio: rientrato nei limiti</li><li>Orizzonte obiettivo: 10 anni &mdash; nessuna urgenza</li></ul></div></div>
+    <div class="detail-card" id="det-operations"><div class="detail-header" onclick="toggleDetailCard('det-operations')"><span class="detail-header-title">Operazioni eseguite (2)</span><svg class="detail-chevron" viewBox="0 0 20 20" fill="none"><path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="detail-body"><div class="ops-table"><div class="ops-row sell"><div class="ops-row-header"><span class="ops-action sell">Vendita</span><span class="ops-status">&#10003; Eseguito</span></div><div class="ops-name">Global Stocks ETF <span class="ops-ticker">(VWCE.DE)</span></div><div class="ops-details"><span>3 quote</span><span>&euro;645,00</span></div></div><div class="ops-row buy"><div class="ops-row-header"><span class="ops-action buy">Acquisto</span><span class="ops-status">&#10003; Eseguito</span></div><div class="ops-name">Euro Government Bonds ETF <span class="ops-ticker">(VGEA.DE)</span></div><div class="ops-details"><span>5 quote</span><span>&euro;642,50</span></div></div></div></div></div>
+    <div class="detail-card" id="det-costs"><div class="detail-header" onclick="toggleDetailCard('det-costs')"><span class="detail-header-title">Costi e impatto</span><svg class="detail-chevron" viewBox="0 0 20 20" fill="none"><path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="detail-body"><div class="cost-list"><div class="cost-item"><span>Commissioni stimate</span><span class="cost-value">&euro;2,40</span></div><div class="divider"></div><div class="cost-item"><span>Slippage stimato</span><span class="cost-value">&euro;0,80</span></div><div class="divider"></div><div class="cost-item"><span>Impatto fiscale</span><span class="cost-value">&euro;0</span></div><div class="divider"></div><div class="cost-item"><span>Turnover mensile utilizzato</span><span class="cost-value">8% di 25%</span></div></div></div></div>
+    <div class="detail-card" id="det-compliance"><div class="detail-header" onclick="toggleDetailCard('det-compliance')"><span class="detail-header-title">Compliance: &#10003; Superato</span><svg class="detail-chevron" viewBox="0 0 20 20" fill="none"><path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="detail-body"><div style="display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;color:var(--n700)"><strong>Livello di autorita':</strong> Livello 1 (autonomo)</div><div style="font-size:13px;color:var(--n700)"><strong>Ambito del mandato:</strong> Ribilanciamento</div><div style="font-size:13px;color:var(--n700)">Nessuna escalation necessaria</div></div></div></div>
+    <div class="risk-impact-card">
+      <div class="section-label">Impatto sul rischio</div>
+      <div class="gauge-row"><div class="gauge-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--cautionary)"></span> Prima: 62% azioni (target: 60%)</div><div class="gauge-bar-track"><div class="gauge-bar-fill amber" style="width:62%"></div><div class="gauge-bar-target" style="left:60%"></div></div></div>
+      <div class="gauge-row"><div class="gauge-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--positive)"></span> Dopo: 60% azioni (target: 60%)</div><div class="gauge-bar-track"><div class="gauge-bar-fill green" style="width:60%"></div><div class="gauge-bar-target" style="left:60%"></div></div></div>
+    </div>
+    <div style="text-align:center;font-size:11px;color:var(--n400);padding:4px 0 8px">Decisione #d8f3a &middot; 28 feb 2026 &middot; Modello: v2.3</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: NOTIFICATIONS
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-notifications">
+  <div class="nav-header">
+    <span class="screen-title">Notifiche</span>
+    <button class="mark-all" id="markAllBtn">Segna tutte come lette</button>
+  </div>
+  <div class="content-area notification-list">
+    <div class="date-group-header">Oggi</div>
+    <div class="notification-item unread" onclick="markNotifRead(this)"><div class="notif-icon confirmable">&#9888;</div><div class="notif-content"><div class="notif-title">La tua conferma e' necessaria: aggiustamento strategia</div><div class="notif-meta">2 ore fa</div></div><div class="notif-trailing"><span class="unread-dot"></span></div></div>
+    <div class="notification-item unread" onclick="markNotifRead(this)"><div class="notif-icon impactful">&#9672;</div><div class="notif-content"><div class="notif-title">Ribilanciamento completato &mdash; entro le tue regole di sicurezza</div><div class="notif-meta">Stamattina &middot; <a class="why-link" onclick="event.stopPropagation();navigateTo('decision')">Perche'?</a></div></div><div class="notif-trailing"><span class="unread-dot"></span></div></div>
+    <div class="date-group-header">Ieri</div>
+    <div class="notification-item unread" onclick="markNotifRead(this)"><div class="notif-icon advisory">&#9673;</div><div class="notif-content"><div class="notif-title">Deposito di &euro;500 ricevuto &mdash; stiamo valutando come investirlo</div><div class="notif-meta">Ieri alle 14:22</div></div><div class="notif-trailing"><span class="unread-dot"></span></div></div>
+    <div class="notification-item"><div class="notif-icon info">&#9675;</div><div class="notif-content"><div class="notif-title">Report mensile di febbraio disponibile</div><div class="notif-meta">Ieri alle 9:00</div></div></div>
+    <div class="date-group-header">26 feb 2026</div>
+    <div class="notification-item"><div class="notif-icon impactful">&#9672;</div><div class="notif-content"><div class="notif-title">Dividendo da Global Stocks ETF reinvestito</div><div class="notif-meta">26 feb &middot; <a class="why-link" onclick="event.stopPropagation();navigateTo('decision')">Perche'?</a></div></div></div>
+    <div class="notification-item"><div class="notif-icon advisory">&#9673;</div><div class="notif-content"><div class="notif-title">Azione societaria applicata: split VWCE 2:1</div><div class="notif-meta">26 feb</div></div></div>
+    <div class="date-group-header">20 feb 2026</div>
+    <div class="notification-item"><div class="notif-icon info">&#9675;</div><div class="notif-content"><div class="notif-title">Il tuo portafoglio e' stato verificato &mdash; tutto corrisponde</div><div class="notif-meta">20 feb</div></div></div>
+    <div class="notification-item"><div class="notif-icon critical">&#9670;</div><div class="notif-content"><div class="notif-title">Il trading e' stato temporaneamente sospeso per sicurezza.</div><div class="notif-meta">20 feb</div></div></div>
+  </div>
+  <div class="bottom-tabs" id="tabs-notifications"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: CONFIRMATION
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-confirmation">
+  <div class="nav-header">
+    <button class="back-btn" onclick="goBack()"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <span class="screen-title">Conferma Richiesta</span>
+  </div>
+  <div class="content-area">
+    <div class="warning-banner"><div class="warning-icon">&#9888;&#65039;</div><div class="warning-title">LA TUA CONFERMA E' NECESSARIA</div></div>
+    <div class="section-card"><div class="section-label">AZIONE PROPOSTA</div><div class="section-body">Nestfolio consiglia di aggiustare il tuo portafoglio: ridurre le azioni del 5% e aumentare le obbligazioni del 5%.</div></div>
+    <div class="section-card"><div class="section-label">PERCHE' SERVE LA TUA CONFERMA</div><div class="section-body">Questa operazione rappresenta il 12% del tuo portafoglio, sopra il limite del 10% della tua modalita' Bilanciata.</div></div>
+    <div class="section-card"><div class="section-label">COSA SUCCEDERA'</div><ul class="trade-list"><li class="trade-item"><span class="trade-icon sell">&#8595;</span><span><strong>Vendita:</strong> Global Stocks ETF &mdash; &euro;1.200,00</span></li><li class="trade-item"><span class="trade-icon buy">&#8593;</span><span><strong>Acquisto:</strong> Euro Government Bonds ETF &mdash; &euro;1.200,00</span></li></ul><div style="height:1px;background:var(--n200);margin:8px 0"></div><div class="trade-secondary">Commissioni stimate: &euro;2,40</div><div class="trade-secondary" style="margin-top:4px">Impatto fiscale: &euro;0</div></div>
+    <div style="background:#EFF6FF;border-radius:var(--r-md);padding:14px 16px;display:flex;align-items:flex-start;gap:10px"><span style="width:22px;height:22px;border-radius:var(--r-full);background:#DBEAFE;color:#2563EB;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">i</span><span style="font-size:13px;color:#1E40AF;line-height:1.4">Questa operazione sara' inviata all'apertura dei mercati lunedi'.</span></div>
+  </div>
+  <div class="action-area" id="confirmActionArea">
+    <div class="action-buttons" id="confirmButtons">
+      <button class="btn-decline" id="btnDecline">Rifiuta</button>
+      <button class="btn-confirm" id="btnConfirm">Conferma &#10003;</button>
+    </div>
+    <div id="declineMsg" style="display:none;text-align:center;padding:8px 0"><p style="font-size:15px;color:var(--n600);margin-bottom:12px">Nessun problema &mdash; non effettueremo questa modifica.</p><button class="text-link" onclick="navigateTo('dashboard')">Chiudi</button></div>
+    <div class="action-expiry" id="confirmExpiry">Scade tra: 47h 32m</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: SETTINGS
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-settings">
+  <div class="nav-header"><span class="screen-title">Impostazioni</span></div>
+  <div class="content-area">
+    <div class="card profile-card"><div class="profile-avatar">LM</div><div><div class="profile-name">Luca Moretti</div><div class="profile-email">luca.moretti@email.com</div><span class="profile-federation">Google</span></div></div>
+    <div class="settings-section" data-expandable><div class="expand-header"><div class="expand-title-row"><span class="expand-title">Obiettivo di investimento</span></div><svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div><div class="expand-content"><div class="detail-row">Tipo: <strong>Crescita del capitale</strong></div><div class="detail-row">Importo target: <strong>&euro;50.000</strong></div><div class="detail-row">Orizzonte: <strong>10 anni (2036)</strong></div><a class="action-link">Modifica obiettivo</a></div></div>
+    <div class="settings-section" data-expandable><div class="expand-header"><div class="expand-title-row"><span class="expand-title">Profilo di rischio</span></div><svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div><div class="expand-content"><div class="detail-row">Tolleranza: <strong>Moderata</strong></div><div class="detail-row">Banda di rischio: <strong>40-70% azioni</strong></div><a class="action-link">Ripeti questionario</a></div></div>
+    <div class="settings-section" data-expandable><div class="expand-header"><div class="expand-title-row"><span class="expand-title">Modalita' operativa</span><span class="badge-pill badge-green">BILANCIATO</span></div><svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div><div class="expand-content"><div class="mode-desc">Nestfolio gestisce la maggior parte delle operazioni e ti chiede conferma per i cambiamenti importanti.</div><div class="rules-label">LE TUE REGOLE DI SICUREZZA</div><div class="rule-item">Ribilanciamento: circa 1 volta al mese</div><div class="rule-item">Operazione singola max: 10% del portafoglio</div><div class="rule-item">Turnover mensile max: 25% del valore</div><div class="rule-item">Concentrazione: nessun ETF sopra il 30%</div><div class="rule-item">Cool-down: 5 giorni tra operazioni</div><div class="rule-item">Protezione drawdown: pausa a -12%</div><div class="rules-note">Queste regole proteggono il tuo portafoglio.</div><a class="action-link">Cambia modalita'</a></div></div>
+    <div class="settings-section" data-expandable><div class="expand-header"><div class="expand-title-row"><span class="expand-title">Modalita' account</span><span class="badge-pill badge-amber">SIMULAZIONE</span></div><svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div><div class="expand-content"><div style="font-size:13px;color:var(--n600);line-height:1.5">Stai utilizzando la modalita' simulazione con capitale virtuale di <strong>&euro;10.000,00</strong>.</div><button class="btn btn-primary mt-8" style="font-size:13px;padding:10px 20px">Passa alla modalita' Live &rarr;</button></div></div>
+    <div class="settings-section" data-expandable><div class="expand-header"><div class="expand-title-row"><span class="expand-title">Notifiche</span></div><svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div><div class="expand-content"><div class="toggle-row"><span class="toggle-label">Notifiche push</span><div class="toggle active" data-toggle></div></div><div class="toggle-row"><span class="toggle-label">Email di riepilogo</span><div class="toggle active" data-toggle></div></div><div class="toggle-row"><span class="toggle-label">Azioni autonome</span><div class="toggle active" data-toggle></div></div><div class="toggle-row"><span class="toggle-label">Report mensile</span><div class="toggle active" data-toggle></div></div></div></div>
+    <div class="card broker-card"><div class="broker-header"><span class="broker-title">Interactive Brokers</span><span class="broker-status"><span class="status-dot green"></span>Connesso</span></div><div class="broker-sync">Ultima sincronizzazione: 2 min fa</div><div class="broker-actions"><button class="btn-broker btn-reconnect">Riconnetti</button><button class="btn-broker btn-disconnect">Disconnetti</button></div></div>
+    <div class="section-group"><div class="link-row" onclick="navigateTo('deposit')"><span class="link-row-title">Depositi e Prelievi</span><svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div><div class="link-row"><span class="link-row-title">Lingua</span><div style="display:flex;align-items:center;gap:4px"><span class="link-row-value">Italiano</span><svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div></div><div class="link-row"><span class="link-row-title">Legale e Privacy</span><svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div></div>
+    <div class="section-group"><div class="link-row" onclick="navigateTo('closure')"><span class="link-row-title red">Chiudi account</span><svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div></div>
+    <div class="section-group"><div class="link-row" onclick="navigateTo('howitworks')"><span class="link-row-title">Come lavoro per te</span><svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div></div>
+  </div>
+  <div class="bottom-tabs" id="tabs-settings"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: DEPOSIT
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-deposit">
+  <div class="nav-header"><button class="back-btn" onclick="navigateTo('settings')"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="screen-title">Aggiungi Fondi</span></div>
+  <div class="content-area">
+    <div class="step-container active" id="deposit-step-1">
+      <div class="flow-section-title">Deposita fondi</div>
+      <div class="info-card"><span class="info-icon-circle">i</span><span>Per depositare fondi, effettua un bonifico bancario al tuo conto Interactive Brokers.</span></div>
+      <div class="bank-details-card"><div class="bank-detail-row"><span class="bank-detail-label">Intestatario</span><span class="bank-detail-value">Interactive Brokers Ireland Ltd</span></div><div class="bank-detail-row"><span class="bank-detail-label">IBAN</span><span class="bank-detail-value">IE12 CITI 9905 0388 1234 56</span></div><div class="bank-detail-row"><span class="bank-detail-label">BIC / SWIFT</span><span class="bank-detail-value">CITIIE2X</span></div><div class="bank-detail-row"><span class="bank-detail-label">Riferimento</span><span class="bank-detail-value">LMORETTI-NF-001</span></div></div>
+      <div class="amount-input-section"><span class="amount-label-s">Importo del deposito</span><div class="amount-value-s" id="depositAmountDisplay">&euro;500</div><div class="amount-underline"></div><div class="preset-buttons" id="depositPresets"><button class="preset-btn active" data-amount="500">&euro;500</button><button class="preset-btn" data-amount="1000">&euro;1.000</button><button class="preset-btn" data-amount="2500">&euro;2.500</button><button class="preset-btn" data-amount="5000">&euro;5.000</button></div></div>
+      <p style="font-size:13px;color:var(--n400);text-align:center">I fondi arrivano generalmente in 1-3 giorni lavorativi.</p>
+      <button class="btn btn-primary btn-full" onclick="showDepositStep(2)">Ho effettuato il bonifico</button>
+    </div>
+    <div class="step-container" id="deposit-step-2">
+      <div class="result-state"><div class="result-icon pending">&#128336;</div><div class="result-title">Deposito in attesa</div><p class="result-desc">Ti avviseremo quando il deposito sara' rilevato sul tuo conto broker.</p></div>
+      <div class="status-card"><div class="status-row-item"><span class="status-row-label">Importo</span><span class="status-row-value" id="depositStatusAmt">&euro;500,00</span></div><div class="status-row-item"><span class="status-row-label">Stato</span><span class="status-row-value pending">In attesa</span></div><div class="status-row-item"><span class="status-row-label">Stima arrivo</span><span class="status-row-value">1-3 giorni lavorativi</span></div></div>
+      <button class="btn btn-outline btn-full" onclick="navigateTo('dashboard')">Torna alla Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: HOW IT WORKS
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-howitworks">
+  <div class="nav-header"><button class="back-btn" onclick="navigateTo('settings')"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="screen-title">Come lavoro per te</span></div>
+  <div class="content-area">
+    <div class="how-section"><div class="section-label">I TUOI OBIETTIVI</div><div class="how-card"><div class="how-card-title">Crescita del capitale</div><div class="how-card-subtitle">&euro;50.000 &middot; entro il 2036</div></div></div>
+    <div class="how-section"><div class="section-label">IL TUO PROFILO DI RISCHIO</div><div class="how-card"><div class="how-card-title">Tolleranza al rischio moderata</div><div class="how-card-subtitle">Banda: 40-70% azioni</div></div></div>
+    <div class="how-section"><div class="section-label">LA TUA MODALITA' OPERATIVA</div><div class="how-card how-card--green-border"><div class="badge-pill badge-green" style="margin-bottom:8px">BILANCIATO</div><div class="mode-desc">Nestfolio gestisce la maggior parte delle operazioni e ti chiede conferma per i cambiamenti importanti.</div></div></div>
+    <div class="how-section"><div class="section-label">COSA PUO' FARE NESTFOLIO</div><div class="how-card how-card--green-border"><div class="authority-list"><div class="authority-item"><div class="authority-icon authority-icon--green">&#10003;</div><span>Ribilanciare il tuo portafoglio</span></div><div class="authority-item"><div class="authority-icon authority-icon--green">&#10003;</div><span>Reinvestire i dividendi</span></div><div class="authority-item"><div class="authority-icon authority-icon--green">&#10003;</div><span>Effettuare swap fiscalmente efficienti</span></div><div class="authority-item"><div class="authority-icon authority-icon--green">&#10003;</div><span>Rispondere ai cambiamenti di mercato</span></div></div></div></div>
+    <div class="how-section"><div class="section-label">COSA RICHIEDE LA TUA CONFERMA</div><div class="how-card how-card--amber-border"><div class="authority-list"><div class="authority-item"><div class="authority-icon authority-icon--amber">!</div><span>Operazioni sopra il 10% del portafoglio</span></div><div class="authority-item"><div class="authority-icon authority-icon--amber">!</div><span>Cambiamenti di strategia o livello di rischio</span></div><div class="authority-item"><div class="authority-icon authority-icon--amber">!</div><span>Raccomandazioni di prelievo</span></div></div></div></div>
+    <div class="how-section"><div class="section-label">LE TUE REGOLE DI SICUREZZA</div><div class="how-card"><div class="guardrail-list"><div class="guardrail-item"><div class="guardrail-bullet"></div><span>Ribilanciamento: circa 1 volta al mese</span></div><div class="guardrail-item"><div class="guardrail-bullet"></div><span>Operazione singola max: 10% del portafoglio</span></div><div class="guardrail-item"><div class="guardrail-bullet"></div><span>Limite turnover mensile: 25%</span></div><div class="guardrail-item"><div class="guardrail-bullet"></div><span>Cool-down: 5 giorni tra operazioni</span></div><div class="guardrail-item"><div class="guardrail-bullet"></div><span>Protezione drawdown: pausa a -12%</span></div></div></div></div>
+    <div class="how-section"><div class="section-label">RIEPILOGO COMPLIANCE</div><div class="how-card how-card--green-border"><div style="font-size:13px;color:var(--n700)">Tutte le 47 decisioni nell'ultimo anno sono state entro il tuo mandato.</div></div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN: ACCOUNT CLOSURE
+     ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-closure">
+  <div class="nav-header"><button class="back-btn" onclick="navigateTo('settings')"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="screen-title">Chiudi Account</span></div>
+  <div class="content-area">
+    <div class="step-container active" id="closure-step-1">
+      <div class="icon-circle danger">&#9888;</div>
+      <div class="step-title">Vuoi chiudere il tuo account?</div>
+      <div class="step-body">Chiudendo il tuo account:</div>
+      <ul class="bullet-list"><li>La gestione del portafoglio verra' interrotta</li><li>I tuoi investimenti rimarranno nel tuo conto IBKR</li><li>Potrai riattivare il tuo account in futuro</li></ul>
+      <button class="btn btn-danger btn-full" onclick="showClosureStep(2)">Continua</button>
+      <button class="text-link" onclick="navigateTo('settings')">Annulla</button>
+    </div>
+    <div class="step-container" id="closure-step-2">
+      <div class="step-title" style="text-align:left">Cosa succedera'</div>
+      <div class="info-card"><span style="width:36px;height:36px;border-radius:var(--r-full);background:var(--n100);color:var(--n500);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">&#10005;</span><span>Il tuo mandato verra' revocato</span></div>
+      <div class="info-card"><span style="width:36px;height:36px;border-radius:var(--r-full);background:var(--n100);color:var(--n500);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">&#9951;</span><span>La connessione broker verra' disconnessa</span></div>
+      <div class="step-body">I tuoi dati personali saranno conservati. Per cancellarli, usa l'opzione <strong>"Cancella i miei dati"</strong> dopo la chiusura.</div>
+      <button class="btn btn-danger btn-full" onclick="showClosureStep(3)">Ho capito, procedi</button>
+      <button class="text-link" onclick="showClosureStep(1)">Torna indietro</button>
+    </div>
+    <div class="step-container" id="closure-step-3">
+      <div class="step-title" style="text-align:left">Conferma finale</div>
+      <div class="danger-card">Stai per chiudere il tuo account Nestfolio. Questa azione interrompera' immediatamente la gestione del portafoglio.</div>
+      <div class="consent-check-row" id="closureConsent" onclick="toggleClosureConsent()"><div class="consent-checkbox">&#10003;</div><span class="consent-label-text">Confermo di voler chiudere il mio account e revocare il mandato a Nestfolio.</span></div>
+      <button class="btn btn-danger btn-full" id="closureConfirmBtn" disabled onclick="showClosureStep(4)">Chiudi il mio account</button>
+      <button class="text-link" onclick="navigateTo('settings')">Annulla</button>
+    </div>
+    <div class="step-container" id="closure-step-4">
+      <div class="icon-circle icon-muted">&#10003;</div>
+      <div class="step-title">Account chiuso</div>
+      <p class="completion-text">Il tuo account e' stato chiuso. La gestione del portafoglio e' stata interrotta.</p>
+      <p class="completion-text">I tuoi investimenti rimangono nel tuo conto Interactive Brokers.</p>
+      <button class="btn btn-outline btn-full mt-8" onclick="navigateTo('landing')">Torna alla home</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  NESTFOLIO DEMO — JavaScript
+// ══════════════════════════════════════════════
+
+// ── Navigation ──
+const navHistory = ['landing'];
+function navigateTo(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById('screen-' + screenId);
+  if (target) {
+    target.classList.add('active');
+    target.querySelector('.content-area')?.scrollTo(0, 0);
+  }
+  navHistory.push(screenId);
+  // Update active tab
+  document.querySelectorAll('.bottom-tabs .tab-item').forEach(t => {
+    t.classList.toggle('active', t.dataset.screen === screenId);
+  });
+  // Auto-start onboarding when first entering the chat
+  if (screenId === 'onboarding' && currentScriptIndex === 0) {
+    setTimeout(() => playNextBlock(), 600);
+  }
+}
+
+function goBack() {
+  navHistory.pop();
+  const prev = navHistory[navHistory.length - 1] || 'landing';
+  navigateTo(prev);
+  navHistory.pop(); // remove duplicate push from navigateTo
+}
+
+// ── Bottom Tab Bar (injected into all tab containers) ──
+const tabBarHTML = `
+  <button class="tab-item" data-screen="dashboard" onclick="navigateTo('dashboard')">
+    <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span class="tab-label">Home</span>
+  </button>
+  <button class="tab-item" data-screen="portfolio" onclick="navigateTo('portfolio')">
+    <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    <span class="tab-label">Portafoglio</span>
+  </button>
+  <button class="tab-item" data-screen="notifications" onclick="navigateTo('notifications')">
+    <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+    <span class="tab-label">Attivita'</span>
+    <span class="badge notif-badge">3</span>
+  </button>
+  <button class="tab-item" data-screen="settings" onclick="navigateTo('settings')">
+    <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    <span class="tab-label">Profilo</span>
+  </button>
+`;
+document.querySelectorAll('.bottom-tabs').forEach(container => {
+  container.innerHTML = tabBarHTML;
+  // Set active based on parent screen id
+  const screenId = container.closest('.screen')?.id?.replace('screen-', '');
+  container.querySelectorAll('.tab-item').forEach(t => {
+    t.classList.toggle('active', t.dataset.screen === screenId);
+  });
+});
+
+// ── Portfolio Inner Tabs ──
+document.querySelectorAll('#screen-portfolio .inner-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#screen-portfolio .inner-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const target = btn.dataset.tab;
+    document.querySelectorAll('#screen-portfolio .tab-panel').forEach(p => {
+      p.classList.toggle('active', p.id === 'panel-' + target);
+    });
+  });
+});
+
+// ── Settings Expandable Sections ──
+document.querySelectorAll('[data-expandable]').forEach(section => {
+  const header = section.querySelector('.expand-header');
+  const content = section.querySelector('.expand-content');
+  const chevron = section.querySelector('.expand-chevron');
+  if (header && content) {
+    header.style.cursor = 'pointer';
+    header.addEventListener('click', () => {
+      const isOpen = content.style.display === 'block';
+      content.style.display = isOpen ? 'none' : 'block';
+      if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
+    });
+  }
+});
+
+// ── Toggle Switches ──
+document.querySelectorAll('[data-toggle]').forEach(toggle => {
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggle.classList.toggle('active');
+  });
+});
+
+// ── Decision Detail Expandable ──
+function toggleDetailCard(id) {
+  const card = document.getElementById(id);
+  if (!card) return;
+  const body = card.querySelector('.detail-body');
+  const chevron = card.querySelector('.detail-chevron');
+  const isOpen = body.style.display === 'block';
+  body.style.display = isOpen ? 'none' : 'block';
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+/// ── Notifications: Mark as Read ──
+function markNotifRead(item) {
+  if (!item.classList.contains('unread')) return;
+  item.classList.remove('unread');
+  const dot = item.querySelector('.unread-dot');
+  if (dot) {
+    dot.style.opacity = '0';
+    setTimeout(() => dot.remove(), 350);
+  }
+  document.querySelectorAll('.notif-badge').forEach(b => {
+    const count = parseInt(b.textContent) - 1;
+    if (count <= 0) b.style.display = 'none';
+    else b.textContent = count;
+  });
+}
+
+const markAllBtn = document.getElementById('markAllBtn');
+if (markAllBtn) {
+  markAllBtn.addEventListener('click', () => {
+    document.querySelectorAll('#screen-notifications .unread-dot').forEach(dot => {
+      dot.style.opacity = '0';
+      setTimeout(() => dot.remove(), 300);
+    });
+    document.querySelectorAll('.notif-badge').forEach(b => b.style.display = 'none');
+  });
+}
+
+/// ── Confirmation: Decline & Confirm ──
+const declineBtn = document.getElementById('btnDecline');
+const confirmBtn = document.getElementById('btnConfirm');
+const confirmExpiry = document.getElementById('confirmExpiry');
+const confirmButtons = document.getElementById('confirmButtons');
+const declineMsg = document.getElementById('declineMsg');
+
+if (declineBtn) {
+  declineBtn.addEventListener('click', () => {
+    confirmButtons.style.display = 'none';
+    if (declineMsg) declineMsg.style.display = 'block';
+    if (confirmExpiry) confirmExpiry.style.display = 'none';
+  });
+}
+
+function resetConfirm() {
+  if (confirmButtons) confirmButtons.style.display = 'flex';
+  if (declineMsg) declineMsg.style.display = 'none';
+  if (confirmExpiry) confirmExpiry.style.display = 'block';
+}
+
+if (confirmBtn) {
+  confirmBtn.addEventListener('click', () => {
+    confirmButtons.innerHTML = '<div style="text-align:center;padding:16px;color:var(--positive);font-weight:600">&#10003; Operazione confermata</div>';
+    if (confirmExpiry) confirmExpiry.style.display = 'none';
+    setTimeout(() => navigateTo('dashboard'), 1200);
+  });
+}
+
+// ── Deposit Flow ──
+const depositPresets = document.getElementById('depositPresets');
+if (depositPresets) {
+  depositPresets.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      depositPresets.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const amt = btn.dataset.amount;
+      const display = document.getElementById('depositAmountDisplay');
+      const statusAmt = document.getElementById('depositStatusAmt');
+      if (display) display.textContent = '€' + Number(amt).toLocaleString('it-IT');
+      if (statusAmt) statusAmt.textContent = '€' + Number(amt).toLocaleString('it-IT') + ',00';
+    });
+  });
+}
+
+function showDepositStep(step) {
+  document.querySelectorAll('#screen-deposit .step-container').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById('deposit-step-' + step);
+  if (target) target.classList.add('active');
+}
+
+// ── Account Closure Flow ──
+function showClosureStep(step) {
+  document.querySelectorAll('#screen-closure .step-container').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById('closure-step-' + step);
+  if (target) target.classList.add('active');
+}
+
+function toggleClosureConsent() {
+  const row = document.getElementById('closureConsent');
+  const btn = document.getElementById('closureConfirmBtn');
+  if (!row || !btn) return;
+  const checkbox = row.querySelector('.consent-checkbox');
+  const isChecked = checkbox.classList.toggle('checked');
+  btn.disabled = !isChecked;
+}
+
+// ── Chart Period Selector ──
+document.querySelectorAll('.chart-periods .period').forEach(btn => {
+  btn.addEventListener('click', () => {
+    btn.closest('.chart-periods').querySelectorAll('.period').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// ══════════════════════════════════════════════
+//  ONBOARDING CONVERSATION ENGINE
+// ══════════════════════════════════════════════
+
+const conversationScript = [
+  // ── Step 1: Greeting ──
+  {step:1,progress:14,actions:[
+    {type:'agent-msg',text:'Ciao! 👋 Sono Nestfolio, il tuo assistente per gli investimenti.'},
+    {type:'agent-msg',text:'Ti guido nella creazione del tuo piano di investimento personalizzato. Risponderemo a qualche domanda insieme — una alla volta, senza fretta.',delay:600},
+    {type:'agent-msg',text:'Iniziamo?',delay:400}
+  ]},
+  // ── Step 2: Goal ──
+  {step:2,progress:28,actions:[
+    {type:'agent-msg',text:'Per prima cosa, vorrei capire il tuo obiettivo. <strong>Per cosa stai risparmiando?</strong>'},
+    {type:'options',items:[
+      {icon:'🏠',title:'Comprare casa',desc:'Risparmiare per un immobile'},
+      {icon:'☂️',title:'Fondo emergenza',desc:'Un cuscinetto per gli imprevisti'},
+      {icon:'📈',title:'Far crescere il capitale',desc:'Investire per il lungo periodo'},
+      {icon:'🎓',title:'Istruzione',desc:'Per te o per i tuoi figli'},
+      {icon:'🌅',title:'Pensione',desc:'Prepararsi per il futuro'}
+    ],autoSelect:2}
+  ]},
+  {step:2,progress:28,actions:[
+    {type:'user-msg',text:'Far crescere il capitale'},
+    {type:'agent-msg',text:'Ottima scelta! Investire per far crescere il patrimonio nel tempo e\' uno degli obiettivi piu\' comuni e sensati.'},
+    {type:'agent-msg',text:'<strong>Quando vorresti raggiungere questo obiettivo?</strong>',delay:400},
+    {type:'slider',label:'Orizzonte temporale',min:1,max:30,value:10,unit:' anni',minLabel:'1 anno',maxLabel:'30+ anni'}
+  ]},
+  // ── Step 3: Sim/Live ──
+  {step:3,progress:42,actions:[
+    {type:'user-msg',text:'10 anni'},
+    {type:'agent-msg',text:'10 anni e\' un orizzonte eccellente. Ti permette di beneficiare della crescita a lungo termine, superando le oscillazioni di mercato.'},
+    {type:'agent-msg',text:'<strong>Come vorresti iniziare?</strong>',delay:400},
+    {type:'agent-msg',text:'Molti investitori iniziano dalla simulazione per prendere confidenza. Nessun rischio, stesse funzionalita\'.',delay:300},
+    {type:'options',items:[
+      {icon:'🧪',title:'Prova prima (Simulazione)',desc:'Capitale virtuale, zero rischi. Passa al reale quando vuoi.'},
+      {icon:'💰',title:'Inizia a investire (Live)',desc:'Investi subito con denaro reale.'}
+    ],autoSelect:0}
+  ]},
+  // ── Step 4: Amount ──
+  {step:4,progress:57,actions:[
+    {type:'user-msg',text:'Prova prima (Simulazione)'},
+    {type:'agent-msg',text:'Ottima scelta! La simulazione ti permette di vedere come funziona Nestfolio senza rischi.'},
+    {type:'agent-msg',text:'<strong>Con quanto capitale virtuale vuoi iniziare?</strong>',delay:400},
+    {type:'amount',value:'10.000',presets:['5.000','10.000','25.000','50.000'],activePreset:1}
+  ]},
+  {step:4,progress:57,actions:[
+    {type:'user-msg',text:'€10.000 virtuali'},
+    {type:'agent-msg',text:'Perfetto! Avrai €10.000 di capitale virtuale per esplorare. Potrai passare alla modalita\' Live in qualsiasi momento dalle impostazioni.'}
+  ]},
+  // ── Step 5: Risk + Experience ──
+  {step:5,progress:71,actions:[
+    {type:'agent-msg',text:'Ora vorrei capire come ti senti rispetto al rischio. Non ci sono risposte giuste o sbagliate.'},
+    {type:'agent-msg',text:'<strong>Se il tuo portafoglio perdesse il 10% in un mese, cosa faresti?</strong>',delay:500},
+    {type:'options',items:[
+      {icon:'🚪',title:'Venderei tutto',desc:'Troppo stressante, meglio uscire'},
+      {icon:'📉',title:'Venderei una parte',desc:'Ridurrei l\'esposizione'},
+      {icon:'⏸️',title:'Non farei nulla',desc:'Aspetterei che si riprenda'},
+      {icon:'🛒',title:'Comprerei di piu\'',desc:'Un\'opportunita\' di acquisto'}
+    ],autoSelect:2}
+  ]},
+  {step:5,progress:71,actions:[
+    {type:'user-msg',text:'Non farei nulla'},
+    {type:'agent-msg',text:'Questo indica un buon livello di calma di fronte alla volatilita\'. E\' un approccio molto razionale.'},
+    {type:'agent-msg',text:'<strong>Come descriveresti la tua esperienza con gli investimenti?</strong>',delay:400},
+    {type:'options',items:[
+      {icon:'🌱',title:'Nessuna',desc:'E\' la mia prima volta'},
+      {icon:'📖',title:'Poca',desc:'Ho letto qualcosa, niente di pratico'},
+      {icon:'💼',title:'Qualcosa',desc:'Ho gia\' investito in passato'},
+      {icon:'📊',title:'Esperienza',desc:'Investo regolarmente'}
+    ],autoSelect:1}
+  ]},
+  {step:5,progress:71,actions:[
+    {type:'user-msg',text:'Poca esperienza'},
+    {type:'agent-msg',text:'Nessun problema! Nestfolio e\' progettato proprio per questo. Mi occupo io della gestione, tu puoi sempre chiedere <em>"perche\'?"</em> per capire ogni decisione.'}
+  ]},
+  // ── Step 6: Control mode + Mandate ──
+  {step:6,progress:85,actions:[
+    {type:'agent-msg',text:'Adesso la parte importante: <strong>quanta autonomia vuoi darmi?</strong>'},
+    {type:'agent-msg',text:'Scegli il livello di controllo che preferisci. Potrai sempre cambiarlo in seguito.',delay:400},
+    {type:'mode-cards',items:[
+      {title:'Conservativo',subtitle:'"Chiedimi spesso prima di agire"',badge:null,details:['Ribilanciamento circa 1 volta a trimestre','Chiede conferma per operazioni sopra il 5%','Protezione drawdown: pausa a -8%']},
+      {title:'Bilanciato',subtitle:'"Gestisci la maggior parte, chiedimi per i cambiamenti importanti"',badge:'Consigliato',details:['Ribilanciamento circa 1 volta al mese','Chiede conferma per operazioni sopra il 10%','Protezione drawdown: pausa a -12%']},
+      {title:'Aggressivo',subtitle:'"Gestisci tutto, tienimi solo informato"',badge:null,details:['Ribilanciamento fino a 2 volte al mese','Chiede conferma per operazioni sopra il 20%','Protezione drawdown: pausa a -18%']}
+    ],autoSelect:1}
+  ]},
+  {step:6,progress:85,actions:[
+    {type:'user-msg',text:'Bilanciato'},
+    {type:'agent-msg',text:'Scelta saggia! Con la modalita\' Bilanciata gestiro\' le operazioni quotidiane e ti chiedero\' conferma solo per i cambiamenti significativi.'},
+    {type:'agent-msg',text:'Ecco un riepilogo di cosa mi stai autorizzando a fare per te:',delay:400},
+    {type:'summary',title:'Il tuo mandato',rows:[
+      {label:'Ribilanciare il portafoglio',value:'✓ Autonomamente'},
+      {label:'Reinvestire i dividendi',value:'✓ Autonomamente'},
+      {label:'Swap fiscalmente efficienti',value:'✓ Autonomamente'},
+      {label:'Operazioni importanti (>10%)',value:'⚠ Con la tua conferma'},
+      {label:'Depositi e prelievi',value:'◉ Solo tu'}
+    ]},
+    {type:'agent-msg',text:'Per procedere, leggi e accetta i termini del mandato.',delay:300},
+    {type:'consent',text:'Ho letto e accetto i <a>termini del mandato</a> e la <a>privacy policy</a>. Autorizzo Nestfolio a gestire il mio portafoglio secondo le modalita\' descritte.'}
+  ]},
+  // ── Step 7: Summary ──
+  {step:7,progress:100,actions:[
+    {type:'user-msg',text:'Accetto i termini del mandato'},
+    {type:'agent-msg',text:'Tutto pronto! Ecco il riepilogo del tuo piano di investimento:'},
+    {type:'summary',title:'Il tuo piano',rows:[
+      {label:'Obiettivo',value:'Crescita del capitale'},
+      {label:'Orizzonte',value:'10 anni'},
+      {label:'Modalita\'',value:'🧪 Simulazione'},
+      {label:'Capitale virtuale',value:'€10.000'},
+      {label:'Profilo di rischio',value:'Moderato'},
+      {label:'Modalita\' operativa',value:'Bilanciato'}
+    ]},
+    {type:'agent-msg',text:'Iniziero\' subito a valutare la migliore allocazione per il tuo portafoglio. Riceverai una notifica quando sara\' pronto.',delay:400},
+    {type:'agent-msg',text:'Puoi sempre chiedermi <em>"perche\'?"</em> per ogni decisione che prendo. La trasparenza e\' il mio principio fondamentale. 🤝',delay:500},
+    {type:'cta',text:'Vai alla Dashboard',action:'go-dashboard'}
+  ]}
+];
+
+// ── Onboarding State ──
+let currentScriptIndex = 0;
+let isPlaying = false;
+const chatArea = document.getElementById('chatArea');
+const typingIndicator = document.getElementById('typingIndicator');
+const sendBtn = document.getElementById('sendBtn');
+const textInput = document.getElementById('textInput');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+
+function obDelay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function scrollChat() { chatArea.scrollTop = chatArea.scrollHeight; }
+
+function showTyping() {
+  typingIndicator.classList.add('visible');
+  chatArea.appendChild(typingIndicator);
+  scrollChat();
+}
+function hideTyping() { typingIndicator.classList.remove('visible'); }
+
+function updateProgress(step, pct) {
+  progressFill.style.width = pct + '%';
+  progressLabel.textContent = step + ' di 7';
+}
+
+function createMsgGroup() {
+  const g = document.createElement('div');
+  g.className = 'message-group';
+  chatArea.appendChild(g);
+  return g;
+}
+
+async function addAgentMsg(text, group) {
+  showTyping();
+  await obDelay(600 + Math.random() * 400);
+  hideTyping();
+  const msg = document.createElement('div');
+  msg.className = 'message agent';
+  msg.innerHTML = text;
+  if (!group) group = createMsgGroup();
+  group.appendChild(msg);
+  requestAnimationFrame(() => { group.classList.add('visible'); scrollChat(); });
+  return group;
+}
+
+function addUserMsg(text) {
+  const group = createMsgGroup();
+  const msg = document.createElement('div');
+  msg.className = 'message user';
+  msg.innerHTML = text;
+  group.appendChild(msg);
+  requestAnimationFrame(() => { group.classList.add('visible'); scrollChat(); });
+}
+
+function addOptions(items, autoIdx) {
+  return new Promise(resolve => {
+    const c = document.createElement('div');
+    c.className = 'options-container';
+    items.forEach((item, i) => {
+      const card = document.createElement('div');
+      card.className = 'option-card';
+      card.innerHTML = `<div class="option-icon">${item.icon}</div><div class="option-text"><div class="option-title">${item.title}</div><div class="option-desc">${item.desc}</div></div>`;
+      card.addEventListener('click', () => {
+        c.querySelectorAll('.option-card').forEach(x => x.classList.remove('selected'));
+        card.classList.add('selected');
+      });
+      c.appendChild(card);
+    });
+    chatArea.appendChild(c);
+    requestAnimationFrame(() => { c.classList.add('visible'); scrollChat(); });
+    setTimeout(() => {
+      const cards = c.querySelectorAll('.option-card');
+      if (cards[autoIdx]) { cards[autoIdx].classList.add('selected'); scrollChat(); }
+      resolve();
+    }, 800);
+  });
+}
+
+function addModeCards(items, autoIdx) {
+  return new Promise(resolve => {
+    const c = document.createElement('div');
+    c.className = 'mode-cards-container';
+    items.forEach((item, i) => {
+      const card = document.createElement('div');
+      card.className = 'mode-card' + (item.badge ? ' recommended' : '');
+      card.innerHTML = `${item.badge ? '<div class="mode-badge">' + item.badge + '</div>' : ''}<div class="mode-title">${item.title}</div><div class="mode-subtitle">${item.subtitle}</div><div class="mode-details">${item.details.map(d => '<div class="mode-detail">' + d + '</div>').join('')}</div>`;
+      card.addEventListener('click', () => {
+        c.querySelectorAll('.mode-card').forEach(x => x.classList.remove('selected'));
+        card.classList.add('selected');
+      });
+      c.appendChild(card);
+    });
+    chatArea.appendChild(c);
+    requestAnimationFrame(() => { c.classList.add('visible'); scrollChat(); });
+    setTimeout(() => {
+      const cards = c.querySelectorAll('.mode-card');
+      if (cards[autoIdx]) { cards[autoIdx].classList.add('selected'); scrollChat(); }
+      resolve();
+    }, 800);
+  });
+}
+
+function addSlider(cfg) {
+  return new Promise(resolve => {
+    const c = document.createElement('div');
+    c.className = 'slider-container';
+    c.innerHTML = `<div class="slider-label">${cfg.label}</div><div class="slider-value">${cfg.value}${cfg.unit}</div><input type="range" class="slider-track" min="${cfg.min}" max="${cfg.max}" value="${cfg.value}"><div class="slider-range-labels"><span>${cfg.minLabel}</span><span>${cfg.maxLabel}</span></div>`;
+    const slider = c.querySelector('.slider-track');
+    const vd = c.querySelector('.slider-value');
+    const pct = ((cfg.value - cfg.min) / (cfg.max - cfg.min)) * 100;
+    slider.style.background = `linear-gradient(90deg, var(--primary) 0%, var(--primary) ${pct}%, var(--n200) ${pct}%)`;
+    slider.addEventListener('input', () => {
+      const p = ((slider.value - cfg.min) / (cfg.max - cfg.min)) * 100;
+      slider.style.background = `linear-gradient(90deg, var(--primary) 0%, var(--primary) ${p}%, var(--n200) ${p}%)`;
+      vd.textContent = slider.value + cfg.unit;
+    });
+    chatArea.appendChild(c);
+    requestAnimationFrame(() => { c.classList.add('visible'); scrollChat(); });
+    setTimeout(resolve, 500);
+  });
+}
+
+function addAmount(cfg) {
+  return new Promise(resolve => {
+    const c = document.createElement('div');
+    c.className = 'amount-container';
+    c.innerHTML = `<div class="amount-input-wrap"><span class="currency-symbol">&euro;</span><input type="text" class="amount-value" value="${cfg.value}" readonly></div><div class="amount-presets">${cfg.presets.map((p, i) => '<button class="preset-btn' + (i === cfg.activePreset ? ' active' : '') + '">&euro;' + p + '</button>').join('')}</div>`;
+    const btns = c.querySelectorAll('.preset-btn');
+    const inp = c.querySelector('.amount-value');
+    btns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        btns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        inp.value = btn.textContent.replace('€', '');
+      });
+    });
+    chatArea.appendChild(c);
+    requestAnimationFrame(() => { c.classList.add('visible'); scrollChat(); });
+    setTimeout(resolve, 500);
+  });
+}
+
+function addConsent(cfg) {
+  return new Promise(resolve => {
+    const c = document.createElement('div');
+    c.className = 'consent-container';
+    c.innerHTML = `<div class="consent-row"><div class="consent-toggle"></div><div class="consent-text">${cfg.text}</div></div>`;
+    const toggle = c.querySelector('.consent-toggle');
+    toggle.addEventListener('click', () => toggle.classList.toggle('active'));
+    chatArea.appendChild(c);
+    requestAnimationFrame(() => { c.classList.add('visible'); scrollChat(); });
+    setTimeout(() => { toggle.classList.add('active'); resolve(); }, 1000);
+  });
+}
+
+function addSummary(cfg) {
+  return new Promise(resolve => {
+    const card = document.createElement('div');
+    card.className = 'summary-card';
+    card.innerHTML = `<div class="summary-title">${cfg.title}</div>${cfg.rows.map(r => '<div class="summary-row"><span class="summary-label">' + r.label + '</span><span class="summary-value">' + r.value + '</span></div>').join('')}`;
+    chatArea.appendChild(card);
+    requestAnimationFrame(() => { card.classList.add('visible'); scrollChat(); });
+    setTimeout(resolve, 300);
+  });
+}
+
+function addCTA(text, action) {
+  return new Promise(resolve => {
+    const btn = document.createElement('button');
+    btn.className = 'cta-button';
+    btn.textContent = text;
+    btn.addEventListener('click', () => {
+      if (action === 'connect-broker') {
+        btn.textContent = 'Connessione in corso...';
+        btn.style.opacity = '0.7';
+        btn.style.pointerEvents = 'none';
+        setTimeout(() => { btn.style.display = 'none'; playNextBlock(); }, 1500);
+      } else if (action === 'go-dashboard') {
+        navigateTo('dashboard');
+      }
+    });
+    chatArea.appendChild(btn);
+    requestAnimationFrame(() => { btn.classList.add('visible'); scrollChat(); });
+    setTimeout(resolve, 200);
+  });
+}
+
+async function playBlock(block) {
+  updateProgress(block.step, block.progress);
+  let grp = null;
+  for (const a of block.actions) {
+    if (a.delay) await obDelay(a.delay);
+    switch (a.type) {
+      case 'agent-msg': grp = await addAgentMsg(a.text, grp); break;
+      case 'user-msg': grp = null; addUserMsg(a.text); await obDelay(300); break;
+      case 'options': grp = null; await addOptions(a.items, a.autoSelect); break;
+      case 'mode-cards': grp = null; await addModeCards(a.items, a.autoSelect); break;
+      case 'slider': grp = null; await addSlider(a); break;
+      case 'amount': grp = null; await addAmount(a); break;
+      case 'consent': grp = null; await addConsent(a); break;
+      case 'summary': grp = null; await addSummary(a); break;
+      case 'cta': grp = null; await addCTA(a.text, a.action); return true;
+    }
+  }
+}
+
+async function playNextBlock() {
+  if (currentScriptIndex >= conversationScript.length || isPlaying) return;
+  isPlaying = true;
+  const block = conversationScript[currentScriptIndex++];
+  const endedWithCTA = await playBlock(block);
+  isPlaying = false;
+  if (endedWithCTA) return;
+  if (currentScriptIndex < conversationScript.length) {
+    const next = conversationScript[currentScriptIndex];
+    const first = next.actions[0];
+    if (first.type === 'user-msg') {
+      textInput.value = first.text;
+    } else {
+      textInput.value = '';
+      await obDelay(1200);
+      playNextBlock();
+    }
+  } else {
+    textInput.value = '';
+  }
+}
+
+sendBtn.addEventListener('click', async () => {
+  if (isPlaying || !textInput.value.trim()) return;
+  textInput.value = '';
+  await playNextBlock();
+});
+textInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); sendBtn.click(); }
+});
+
+</script>
+</body>
+</html>
