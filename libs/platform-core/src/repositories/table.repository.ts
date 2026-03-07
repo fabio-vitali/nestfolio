@@ -50,15 +50,12 @@ export abstract class TableRepository {
   @log()
   protected async queryAll<T = Record<string, unknown>>(input: QueryCommandInput): Promise<T[]> {
     const items: T[] = [];
-    let lastKey: Record<string, unknown> | undefined;
+    let lastKey: Record<string, unknown> | undefined = undefined;
 
     do {
-      const result = await this.docClient.send(
-        new QueryCommand({
-          ...input,
-          ExclusiveStartKey: lastKey,
-        }),
-      );
+      const params: QueryCommandInput = { ...input };
+      if (lastKey) params.ExclusiveStartKey = lastKey;
+      const result = await this.docClient.send(new QueryCommand(params));
       items.push(...((result.Items ?? []) as T[]));
       lastKey = result.LastEvaluatedKey;
     } while (lastKey);
