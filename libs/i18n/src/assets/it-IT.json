@@ -1,0 +1,127 @@
+{
+  "common": {
+    "loading": "Caricamento...",
+    "error": "Si e verificato un errore",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "confirm": "Conferma",
+    "back": "Indietro",
+    "next": "Avanti",
+    "close": "Chiudi",
+    "search": "Cerca",
+    "noData": "Nessun dato disponibile"
+  },
+  "auth": {
+    "login": "Accedi",
+    "signup": "Registrati",
+    "logout": "Esci",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Conferma password",
+    "forgotPassword": "Password dimenticata?",
+    "confirmCode": "Codice di conferma",
+    "welcomeBack": "Bentornato",
+    "createAccount": "Crea un account"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "portfolio": "Portafoglio",
+    "advisory": "Consulenza",
+    "notifications": "Notifiche",
+    "profile": "Profilo",
+    "settings": "Impostazioni"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "portfolioValue": "Valore Portafoglio",
+    "dailyChange": "Variazione Giornaliera",
+    "recentActivity": "Attivita Recente",
+    "pendingActions": "Azioni in Attesa",
+    "status": "Stato",
+    "overview": {
+      "totalValue": "Valore Totale",
+      "cashBalance": "Saldo Contante",
+      "unrealizedPnl": "P&L Non Realizzato",
+      "drift": "Scostamento",
+      "pendingDecisions": "Decisioni in Attesa"
+    },
+    "positions": {
+      "symbol": "Simbolo",
+      "assetClass": "Classe di Attivo",
+      "quantity": "Qta",
+      "avgCost": "Costo Medio",
+      "currentPrice": "Prezzo Corrente",
+      "marketValue": "Valore di Mercato",
+      "weight": "Peso %",
+      "pnl": "P&L",
+      "noPositions": "Nessuna posizione"
+    },
+    "activity": {
+      "recentActivity": "Attivita Recente",
+      "noActivity": "Nessuna attivita recente",
+      "orderFilled": "Ordine Eseguito",
+      "decisionApproved": "Decisione Approvata",
+      "decisionBlocked": "Decisione Bloccata",
+      "depositDetected": "Deposito Rilevato",
+      "withdrawalCompleted": "Prelievo Completato"
+    },
+    "advisory": {
+      "pendingCount": "Decisioni in Attesa",
+      "lastRecommendation": "Ultima Raccomandazione",
+      "lastStatus": "Ultimo Stato",
+      "viewAll": "Vedi Tutta la Consulenza"
+    }
+  },
+  "portfolio": {
+    "positions": "Posizioni",
+    "performance": "Performance",
+    "cashBalance": "Saldo Contante",
+    "allocation": "Allocazione",
+    "instrument": "Strumento",
+    "quantity": "Quantita",
+    "avgCost": "Costo Medio",
+    "currentPrice": "Prezzo Corrente",
+    "marketValue": "Valore di Mercato",
+    "pnl": "P&L",
+    "pnlPercent": "P&L %"
+  },
+  "advisory": {
+    "pendingDecisions": "Decisioni in Attesa",
+    "decisionHistory": "Storico Decisioni",
+    "confirm": "Approva",
+    "reject": "Rifiuta",
+    "explanation": "Spiegazione",
+    "proposedTrades": "Operazioni Proposte",
+    "compliance": "Compliance",
+    "detail": {
+      "trades": "Operazioni Proposte",
+      "tradeSymbol": "Simbolo",
+      "tradeSide": "Lato",
+      "tradeQty": "Qta",
+      "tradeType": "Tipo",
+      "agentInvocations": "Invocazioni Agenti AI",
+      "compliance": "Conformita",
+      "auditDecisionId": "ID Decisione",
+      "auditModels": "Modelli",
+      "auditCreatedAt": "Creato il",
+      "auditVersion": "Versione"
+    }
+  },
+  "notifications": {
+    "title": "Notifiche",
+    "empty": "Nessuna notifica",
+    "emptyHint": "Le notifiche appariranno qui quando ci saranno aggiornamenti",
+    "loadMore": "Carica altre",
+    "markAllRead": "Segna tutte come lette"
+  },
+  "onboarding": {
+    "welcome": "Benvenuto in Nestfolio",
+    "getStarted": "Iniziamo",
+    "goalSetting": "Definisci i tuoi Obiettivi",
+    "riskProfile": "Profilo di Rischio",
+    "operatingMode": "Modalita Operativa",
+    "mandate": "Mandato",
+    "confirmation": "Conferma",
+    "complete": "Configurazione Completata!"
+  }
+}

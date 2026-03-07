@@ -1,0 +1,167 @@
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MessageModule } from 'primeng/message';
+import { I18nService } from '@nestfolio/i18n';
+import { LoadingSkeletonComponent } from '@nestfolio/ui-components';
+import { DashboardStore } from '../stores/dashboard.store';
+import { DashboardService } from '../services/dashboard.service';
+import { KpiCardsComponent } from './kpi-cards.component';
+import { PositionsTableComponent } from './positions-table.component';
+import { AllocationChartComponent } from './allocation-chart.component';
+import { ActivityFeedComponent } from './activity-feed.component';
+import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
+
+@Component({
+  selector: 'app-dashboard-container',
+  standalone: true,
+  imports: [
+    CommonModule,
+    MessageModule,
+    LoadingSkeletonComponent,
+    KpiCardsComponent,
+    PositionsTableComponent,
+    AllocationChartComponent,
+    ActivityFeedComponent,
+    AdvisoryAlertBarComponent,
+  ],
+  template: `
+    @if (store.loading() && !store.isLoaded()) {
+      <nf-loading-skeleton [count]="8" />
+    } @else {
+      <div class="dashboard-grid">
+        @if (store.error()) {
+          <div class="dashboard-error">
+            <p-message severity="error" [text]="store.error()!" styleClass="w-full" />
+          </div>
+        }
+
+        <div class="kpi-row">
+          <app-kpi-cards
+            [portfolioSummary]="store.portfolioSummary()"
+            [totalPnl]="store.totalPnl()"
+            [advisoryStatus]="store.advisoryStatus()"
+          />
+        </div>
+
+        <div class="main-content">
+          <div class="positions-panel">
+            <app-positions-table [positions]="store.positions()" />
+          </div>
+
+          <div class="right-panel">
+            <app-allocation-chart [allocation]="store.allocationByAssetClass()" />
+            <app-activity-feed [activities]="store.activities()" />
+          </div>
+        </div>
+
+        @if (store.hasAdvisoryAlerts()) {
+          <div class="alert-bar">
+            <app-advisory-alert-bar [advisoryStatus]="store.advisoryStatus()" />
+          </div>
+        }
+      </div>
+    }
+  `,
+  styles: [`
+    :host {
+      display: block;
+      height: 100%;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: 100%;
+      gap: 0.75rem;
+      padding: 0.75rem;
+    }
+
+    .dashboard-error {
+      grid-column: 1 / -1;
+    }
+
+    .kpi-row {
+      grid-column: 1 / -1;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 0.75rem;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .positions-panel {
+      overflow: auto;
+      min-height: 0;
+    }
+
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      overflow: auto;
+      min-height: 0;
+    }
+
+    .alert-bar {
+      grid-column: 1 / -1;
+    }
+
+    .w-full { width: 100%; }
+
+    /* Mobile: stack all panels */
+    @media (max-width: 768px) {
+      .dashboard-grid {
+        grid-template-rows: auto;
+        height: auto;
+        overflow: auto;
+      }
+
+      .main-content {
+        grid-template-columns: 1fr;
+        overflow: visible;
+      }
+
+      .positions-panel,
+      .right-panel {
+        overflow: visible;
+      }
+    }
+  `],
+})
+export class DashboardContainerComponent implements OnInit, OnDestroy {
+  private dashboardService = inject(DashboardService);
+  readonly i18n = inject(I18nService);
+  readonly store = inject(DashboardStore);
+
+  async ngOnInit(): Promise<void> {
+    await this.loadDashboard();
+  }
+
+  ngOnDestroy(): void {
+    // Future: unsubscribe from AppSync subscriptions
+  }
+
+  private async loadDashboard(): Promise<void> {
+    this.store.setLoading(true);
+    this.store.setError(null);
+
+    try {
+      const [dashboard, positions, activities] = await Promise.all([
+        this.dashboardService.getDashboard(),
+        this.dashboardService.getPositionSnapshots(),
+        this.dashboardService.getRecentActivity(20),
+      ]);
+
+      this.store.setDashboard(dashboard);
+      this.store.setPositions(positions);
+      this.store.setActivities(activities);
+    } catch (e: unknown) {
+      this.store.setError(e instanceof Error ? e.message : 'Failed to load dashboard');
+    } finally {
+      this.store.setLoading(false);
+    }
+  }
+}

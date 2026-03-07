@@ -1,0 +1,210 @@
+type Query {
+  getProfile: InvestorProfile!
+  getGoals: [Goal!]!
+  getNotifications(limit: Int, cursor: String): NotificationConnection!
+  getUnreadCount: Int!
+}
+
+type Mutation {
+  recordOnboardingAnswer(input: OnboardingAnswerInput!): OnboardingStep!
+  setGoal(input: GoalInput!): Goal!
+  updateGoal(goalId: ID!, input: GoalInput!): Goal!
+  setRiskProfile(input: RiskProfileInput!): RiskProfile!
+  grantMandate(input: MandateInput!): Mandate!
+  updateMandate(input: MandateInput!): Mandate!
+  revokeMandate: Mandate!
+  selectOperatingMode(mode: OperatingMode!): OperatingModeResult!
+  initiateDeposit(input: DepositInput!): DepositIntent!
+  requestWithdrawal(input: WithdrawalInput!): WithdrawalRequest!
+  requestAccountClosure: ClosureRequest!
+  markNotificationRead(notificationId: ID!): Notification!
+}
+
+type Subscription {
+  onNotification: Notification!
+  @aws_subscribe(mutations: ["markNotificationRead"])
+}
+
+# --- Enums ---
+
+enum OperatingMode {
+  CONSERVATIVE
+  BALANCED
+  AGGRESSIVE
+}
+
+enum MandateLevel {
+  ADVISORY
+  DISCRETIONARY
+}
+
+enum RebalanceCadence {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+  SMS
+  IN_APP
+}
+
+enum NotificationStatus {
+  CREATED
+  SENT
+  DELIVERED
+  READ
+}
+
+# --- Types ---
+
+type InvestorProfile {
+  tenantId: ID!
+  userId: String!
+  name: String!
+  email: String!
+  age: Int!
+  locale: String!
+  operatingMode: OperatingMode!
+  monthlyContributionCents: Int!
+  currency: String!
+  onboardingCompletedAt: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Goal {
+  goalId: ID!
+  tenantId: ID!
+  objective: String!
+  targetAmountCents: Int!
+  currency: String!
+  timeHorizonMonths: Int!
+  targetReturn: Float!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type RiskProfile {
+  profileId: ID!
+  tenantId: ID!
+  score: Int!
+  band: RiskBand!
+  assessedAt: String!
+  version: Int!
+}
+
+type RiskBand {
+  minEquity: Float!
+  maxEquity: Float!
+}
+
+type Mandate {
+  mandateId: ID!
+  tenantId: ID!
+  level: MandateLevel!
+  monthlyTurnoverCapPercent: Float!
+  maxSingleTradePercent: Float!
+  coolDownDays: Int!
+  rebalanceCadence: RebalanceCadence!
+  effectiveDate: String!
+  revokedAt: String
+  version: Int!
+}
+
+type OperatingModeResult {
+  mode: OperatingMode!
+  selectedAt: String!
+}
+
+type DepositIntent {
+  depositId: ID!
+  amountCents: Int!
+  currency: String!
+  status: String!
+  initiatedAt: String!
+}
+
+type WithdrawalRequest {
+  withdrawalId: ID!
+  amountCents: Int!
+  currency: String!
+  status: String!
+  requestedAt: String!
+}
+
+type ClosureRequest {
+  closureId: ID!
+  status: String!
+  requestedAt: String!
+}
+
+type Notification {
+  notificationId: ID!
+  tenantId: ID!
+  channel: NotificationChannel!
+  title: String!
+  body: String!
+  status: NotificationStatus!
+  relatedEntityType: String!
+  relatedEntityId: String!
+  createdAt: String!
+  sentAt: String
+  deliveredAt: String
+  readAt: String
+}
+
+type NotificationConnection {
+  items: [Notification!]!
+  nextCursor: String
+}
+
+type OnboardingStep {
+  step: String!
+  answeredAt: String!
+}
+
+# --- Inputs ---
+
+input OnboardingAnswerInput {
+  questionId: String!
+  answer: String!
+}
+
+input GoalInput {
+  objective: String!
+  targetAmountCents: Int!
+  currency: String!
+  timeHorizonMonths: Int!
+  targetReturn: Float!
+}
+
+input RiskProfileInput {
+  score: Int!
+  band: RiskBandInput!
+}
+
+input RiskBandInput {
+  minEquity: Float!
+  maxEquity: Float!
+}
+
+input MandateInput {
+  level: MandateLevel!
+  monthlyTurnoverCapPercent: Float!
+  maxSingleTradePercent: Float!
+  coolDownDays: Int!
+  rebalanceCadence: RebalanceCadence!
+}
+
+input DepositInput {
+  amountCents: Int!
+  currency: String!
+}
+
+input WithdrawalInput {
+  amountCents: Int!
+  currency: String!
+}

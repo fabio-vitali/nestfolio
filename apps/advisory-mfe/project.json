@@ -1,0 +1,118 @@
+{
+  "name": "advisory-mfe",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "app",
+  "sourceRoot": "apps/advisory-mfe/src",
+  "tags": ["scope:advisory", "type:mfe"],
+  "targets": {
+    "esbuild": {
+      "executor": "@angular-devkit/build-angular:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/advisory-mfe",
+        "index": "apps/advisory-mfe/src/index.html",
+        "browser": "apps/advisory-mfe/src/main.ts",
+        "polyfills": ["zone.js"],
+        "tsConfig": "apps/advisory-mfe/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/advisory-mfe/public"
+          }
+        ],
+        "styles": ["apps/advisory-mfe/src/styles.scss"]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "500kb",
+              "maximumError": "1mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "build": {
+      "executor": "@angular-architects/native-federation:build",
+      "options": {},
+      "configurations": {
+        "production": {
+          "target": "advisory-mfe:esbuild:production"
+        },
+        "development": {
+          "target": "advisory-mfe:esbuild:development",
+          "dev": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve-original": {
+      "continuous": true,
+      "executor": "@angular-devkit/build-angular:dev-server",
+      "options": {
+        "port": 4202
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "advisory-mfe:esbuild:production"
+        },
+        "development": {
+          "buildTarget": "advisory-mfe:esbuild:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "serve": {
+      "executor": "@angular-architects/native-federation:build",
+      "options": {
+        "target": "advisory-mfe:serve-original:development",
+        "rebuildDelay": 0,
+        "dev": true,
+        "port": 0
+      }
+    },
+    "extract-i18n": {
+      "executor": "@angular-devkit/build-angular:extract-i18n",
+      "options": {
+        "buildTarget": "advisory-mfe:esbuild"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/advisory-mfe/jest.config.ts",
+        "tsConfig": "apps/advisory-mfe/tsconfig.spec.json"
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "advisory-mfe:build",
+        "port": 4202,
+        "staticFilePath": "dist/apps/advisory-mfe/browser",
+        "spa": true
+      }
+    }
+  }
+}

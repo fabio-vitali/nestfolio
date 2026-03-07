@@ -1,0 +1,81 @@
+name: Main Deploy Pipeline
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: main-deploy
+  cancel-in-progress: false
+
+env:
+  PREFIX_STAGING: staging
+
+jobs:
+  detect-affected:
+    runs-on: ubuntu-latest
+    outputs:
+      affected: ${{ steps.affected.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - id: affected
+        run: |
+          AFFECTED=$(pnpm nx show projects --affected --base=HEAD~1 --type=app | tr '\n' ',')
+          echo "services=$AFFECTED" >> $GITHUB_OUTPUT
+
+  build-and-test:
+    needs: detect-affected
+    if: needs.detect-affected.outputs.affected != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: bash .github/scripts/validate-pipeline-configs.sh
+      - run: pnpm nx affected -t lint --base=HEAD~1 --parallel=3
+      - run: pnpm nx affected -t test --base=HEAD~1 --parallel=3
+
+  staging-deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      - run: bash deploy-all.sh "$PREFIX_STAGING"
+
+  integration-test:
+    needs: staging-deploy
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      - run: pnpm nx affected -t e2e --base=HEAD~1 --parallel=1

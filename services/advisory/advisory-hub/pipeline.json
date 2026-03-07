@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../.pipeline-schema.json",
+  "service": "advisory-hub",
+  "subsystem": "advisory",
+  "deploymentPhase": 1,
+  "production": {
+    "regions": ["us-east-1"],
+    "parallelDeploy": true
+  },
+  "dependencies": []
+}

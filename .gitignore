@@ -1,2 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+tmp/
+.nx/
+
+# IDE
 .idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
 .env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CDK
+cdk.out/
+cdk.context.json
+
+# Coverage
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Nx cache
+.nx/cache
+.nx/workspace-data
+
+.angular

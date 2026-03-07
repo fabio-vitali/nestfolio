@@ -1,0 +1,111 @@
+type Query {
+  getDecision(decisionId: ID!): DecisionPacket
+  getPendingDecisions(limit: Int, cursor: String): DecisionConnection!
+  getDecisionHistory(limit: Int, cursor: String): DecisionConnection!
+  getAgentInvocations(decisionId: ID!): [AgentInvocation!]!
+  getComplianceChecks(decisionId: ID!): [ComplianceCheck!]!
+}
+
+type Mutation {
+  confirmDecision(decisionId: ID!): DecisionPacket!
+  rejectDecision(decisionId: ID!, reason: String!): DecisionPacket!
+  recordExplanationView(decisionId: ID!): ViewReceipt!
+}
+
+type Subscription {
+  onDecisionUpdate: DecisionPacket!
+  @aws_subscribe(mutations: ["confirmDecision", "rejectDecision"])
+}
+
+enum DecisionStatus {
+  DRAFT
+  PROPOSED
+  COMPLIANCE_REVIEW
+  APPROVED
+  BLOCKED
+  CONFIRMATION_REQUIRED
+  AWAITING_CONFIRMATION
+  CONFIRMED
+  REJECTED
+  EXECUTING
+  FILLED
+  FAILED
+}
+
+enum ComplianceLevel {
+  L1
+  L2
+  L3
+}
+
+enum ComplianceResult {
+  PASSED
+  FAILED
+  ESCALATED
+}
+
+enum TradeSide {
+  BUY
+  SELL
+}
+
+type DecisionPacket {
+  decisionId: ID!
+  tenantId: ID!
+  trigger: String!
+  status: DecisionStatus!
+  proposedTrades: [ProposedTrade!]!
+  explanation: String!
+  complianceChecks: [ComplianceCheck!]!
+  agentInvocations: [AgentInvocation!]!
+  confirmationRequired: Boolean!
+  confirmedAt: String
+  rejectedAt: String
+  rejectionReason: String
+  createdAt: String!
+  updatedAt: String!
+  version: Int!
+}
+
+type ProposedTrade {
+  symbol: String!
+  assetClass: String!
+  side: TradeSide!
+  quantityOrAmountCents: Int!
+  targetWeightPercent: Float!
+  rationale: String!
+}
+
+type ComplianceCheck {
+  checkId: ID!
+  decisionId: ID!
+  level: ComplianceLevel!
+  ruleName: String!
+  result: ComplianceResult!
+  details: String
+  checkedAt: String!
+}
+
+type AgentInvocation {
+  invocationId: ID!
+  decisionId: ID!
+  agentName: String!
+  modelId: String!
+  inputTokens: Int!
+  outputTokens: Int!
+  latencyMs: Int!
+  status: String!
+  errorMessage: String
+  startedAt: String!
+  completedAt: String
+}
+
+type DecisionConnection {
+  items: [DecisionPacket!]!
+  nextCursor: String
+}
+
+type ViewReceipt {
+  decisionId: ID!
+  viewedAt: String!
+}

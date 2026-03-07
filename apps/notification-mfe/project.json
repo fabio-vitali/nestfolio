@@ -1,0 +1,118 @@
+{
+  "name": "notification-mfe",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "app",
+  "sourceRoot": "apps/notification-mfe/src",
+  "tags": ["scope:notification", "type:mfe"],
+  "targets": {
+    "esbuild": {
+      "executor": "@angular-devkit/build-angular:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/notification-mfe",
+        "index": "apps/notification-mfe/src/index.html",
+        "browser": "apps/notification-mfe/src/main.ts",
+        "polyfills": ["zone.js"],
+        "tsConfig": "apps/notification-mfe/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/notification-mfe/public"
+          }
+        ],
+        "styles": ["apps/notification-mfe/src/styles.scss"]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "500kb",
+              "maximumError": "1mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "build": {
+      "executor": "@angular-architects/native-federation:build",
+      "options": {},
+      "configurations": {
+        "production": {
+          "target": "notification-mfe:esbuild:production"
+        },
+        "development": {
+          "target": "notification-mfe:esbuild:development",
+          "dev": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve-original": {
+      "continuous": true,
+      "executor": "@angular-devkit/build-angular:dev-server",
+      "options": {
+        "port": 4203
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "notification-mfe:esbuild:production"
+        },
+        "development": {
+          "buildTarget": "notification-mfe:esbuild:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "serve": {
+      "executor": "@angular-architects/native-federation:build",
+      "options": {
+        "target": "notification-mfe:serve-original:development",
+        "rebuildDelay": 0,
+        "dev": true,
+        "port": 0
+      }
+    },
+    "extract-i18n": {
+      "executor": "@angular-devkit/build-angular:extract-i18n",
+      "options": {
+        "buildTarget": "notification-mfe:esbuild"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/notification-mfe/jest.config.ts",
+        "tsConfig": "apps/notification-mfe/tsconfig.spec.json"
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "notification-mfe:build",
+        "port": 4203,
+        "staticFilePath": "dist/apps/notification-mfe/browser",
+        "spa": true
+      }
+    }
+  }
+}

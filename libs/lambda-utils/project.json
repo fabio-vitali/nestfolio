@@ -1,0 +1,28 @@
+{
+  "name": "lambda-utils",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/lambda-utils/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/lambda-utils",
+        "main": "libs/lambda-utils/src/index.ts",
+        "tsConfig": "libs/lambda-utils/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/lambda-utils"],
+      "options": {
+        "jestConfig": "libs/lambda-utils/jest.config.js"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": ["scope:platform", "type:lib"]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "cdk-constructs",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/cdk-constructs/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/cdk-constructs",
+        "main": "libs/cdk-constructs/src/index.ts",
+        "tsConfig": "libs/cdk-constructs/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/cdk-constructs"],
+      "options": {
+        "jestConfig": "libs/cdk-constructs/jest.config.js"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": ["scope:platform", "type:lib"]
+}

@@ -1,0 +1,61 @@
+import { join } from 'path';
+import { Construct } from 'constructs';
+import { Stack } from 'aws-cdk-lib';
+import { ITable } from 'aws-cdk-lib/aws-dynamodb';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
+import { StartingPosition, FilterCriteria, FilterRule } from 'aws-cdk-lib/aws-lambda';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+
+export interface EgressProps {
+  table: ITable;
+  busName: string;
+  serviceName: string;
+  /** DynamoDB __typename values to publish events for */
+  publishableTypes: string[];
+}
+
+export class Egress extends Construct {
+  constructor(scope: Construct, id: string, props: EgressProps) {
+    super(scope, id);
+
+    const publisher = new NodejsFunction(this, 'Publisher', {
+      entry: join(__dirname, '..', '..', 'lambda-utils', 'src', 'event-publisher.ts'),
+      environment: {
+        BUS_NAME: props.busName,
+        SERVICE_NAME: props.serviceName,
+      },
+    });
+
+    publisher.addToRolePolicy(new PolicyStatement({
+      actions: ['events:PutEvents'],
+      resources: [
+        `arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${props.busName}`,
+      ],
+    }));
+
+    publisher.addEventSource(new DynamoEventSource(props.table, {
+      startingPosition: StartingPosition.LATEST,
+      bisectBatchOnError: true,
+      retryAttempts: 3,
+      filters: props.publishableTypes.flatMap(typeName => [
+        FilterCriteria.filter({
+          eventName: FilterRule.isEqual('INSERT'),
+          dynamodb: {
+            NewImage: {
+              __typename: { S: FilterRule.isEqual(typeName) },
+            },
+          },
+        }),
+        FilterCriteria.filter({
+          eventName: FilterRule.isEqual('MODIFY'),
+          dynamodb: {
+            NewImage: {
+              __typename: { S: FilterRule.isEqual(typeName) },
+            },
+          },
+        }),
+      ]),
+    }));
+  }
+}

@@ -1,0 +1,191 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "search": "Search",
+    "noData": "No data available"
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot password?",
+    "confirmCode": "Confirmation Code",
+    "welcomeBack": "Welcome Back",
+    "createAccount": "Create Account"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "portfolio": "Portfolio",
+    "advisory": "Advisory",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "portfolioValue": "Portfolio Value",
+    "dailyChange": "Daily Change",
+    "recentActivity": "Recent Activity",
+    "pendingActions": "Pending Actions",
+    "status": "Status"
+  },
+  "portfolio": {
+    "positions": "Positions",
+    "performance": "Performance",
+    "cashBalance": "Cash Balance",
+    "allocation": "Allocation",
+    "instrument": "Instrument",
+    "quantity": "Quantity",
+    "avgCost": "Avg Cost",
+    "currentPrice": "Current Price",
+    "marketValue": "Market Value",
+    "pnl": "P&L",
+    "pnlPercent": "P&L %"
+  },
+  "advisory": {
+    "pendingDecisions": "Pending Decisions",
+    "decisionHistory": "Decision History",
+    "confirm": "Approve",
+    "reject": "Reject",
+    "explanation": "Explanation",
+    "proposedTrades": "Proposed Trades",
+    "compliance": "Compliance"
+  },
+  "onboarding": {
+    "title": "Profile Setup",
+    "getStarted": "Get Started",
+    "back": "Back",
+    "next": "Next",
+    "complete": "Complete Setup",
+    "steps": {
+      "welcome": "Welcome",
+      "riskAssessment": "Risk Assessment",
+      "goals": "Goals",
+      "riskConfirm": "Risk Confirmation",
+      "operatingMode": "Mode",
+      "mandate": "Mandate"
+    },
+    "welcome": {
+      "title": "Welcome to Nestfolio",
+      "subtitle": "Let's set up your investment profile together",
+      "step1": "We'll assess your risk tolerance",
+      "step2": "You'll define your investment goals",
+      "step3": "You'll confirm your risk profile",
+      "step4": "You'll choose your operating mode",
+      "step5": "You'll configure your mandate"
+    },
+    "risk": {
+      "title": "Risk Assessment",
+      "description": "Answer 5 questions to determine your profile",
+      "progress": "{{answered}} of {{total}} questions completed",
+      "q1": {
+        "text": "What is your investment experience?",
+        "a": "None",
+        "b": "Less than 2 years",
+        "c": "2 to 5 years",
+        "d": "More than 5 years"
+      },
+      "q2": {
+        "text": "How would you react to a 20% portfolio loss?",
+        "a": "Sell everything",
+        "b": "Sell some",
+        "c": "Hold positions",
+        "d": "Buy more"
+      },
+      "q3": {
+        "text": "What is your primary investment goal?",
+        "a": "Capital preservation",
+        "b": "Steady income",
+        "c": "Growth",
+        "d": "Aggressive growth"
+      },
+      "q4": {
+        "text": "What is your investment time horizon?",
+        "a": "Less than 1 year",
+        "b": "1 to 3 years",
+        "c": "3 to 7 years",
+        "d": "More than 7 years"
+      },
+      "q5": {
+        "text": "How stable is your income?",
+        "a": "Unstable",
+        "b": "Somewhat stable",
+        "c": "Stable",
+        "d": "Very stable with savings"
+      }
+    },
+    "goals": {
+      "title": "Investment Goals",
+      "description": "Define what you want to achieve",
+      "objective": "Objective",
+      "selectObjective": "Select an objective",
+      "targetAmount": "Target Amount",
+      "timeHorizon": "Time Horizon (months)",
+      "yearsLabel": "approx. {{years}} years",
+      "objectives": {
+        "retirement": "Retirement",
+        "education": "Education",
+        "wealthGrowth": "Wealth Growth",
+        "income": "Income",
+        "custom": "Custom"
+      }
+    },
+    "riskConfirm": {
+      "title": "Confirm Risk Profile",
+      "description": "Review your calculated profile",
+      "riskScore": "Risk Score",
+      "low": "Low",
+      "high": "High",
+      "minEquity": "Minimum Equity",
+      "maxEquity": "Maximum Equity",
+      "confirmLabel": "I confirm my risk profile"
+    },
+    "mode": {
+      "title": "Operating Mode",
+      "description": "Choose how you want to manage your portfolio",
+      "conservative": {
+        "title": "Conservative",
+        "description": "Low risk, stable returns"
+      },
+      "balanced": {
+        "title": "Balanced",
+        "description": "Moderate risk, balanced growth"
+      },
+      "aggressive": {
+        "title": "Aggressive",
+        "description": "High risk, maximum growth"
+      }
+    },
+    "mandate": {
+      "title": "Mandate Configuration",
+      "description": "Define how your portfolio will be managed",
+      "levelLabel": "Mandate Type",
+      "advisory": "Advisory",
+      "advisoryDesc": "Receive suggestions, you decide",
+      "discretionary": "Discretionary",
+      "discretionaryDesc": "Automated portfolio management",
+      "turnoverCap": "Monthly Turnover Cap (%)",
+      "coolDownDays": "Cool-Down Days",
+      "rebalanceCadence": "Rebalance Cadence",
+      "selectCadence": "Select cadence",
+      "cadenceMonthly": "Monthly",
+      "cadenceQuarterly": "Quarterly",
+      "cadenceSemiAnnual": "Semi-Annual",
+      "summaryTitle": "Summary",
+      "summaryRiskScore": "Risk Score",
+      "summaryGoal": "Goal",
+      "summaryMode": "Mode",
+      "summaryMandate": "Mandate"
+    }
+  }
+}

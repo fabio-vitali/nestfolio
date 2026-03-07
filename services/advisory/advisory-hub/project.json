@@ -1,0 +1,21 @@
+{
+  "name": "advisory-hub",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "services/advisory/advisory-hub/src",
+  "projectType": "application",
+  "targets": {
+    "deploy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx cdk deploy --app 'npx ts-node -r ./tools/register-paths.js services/advisory/advisory-hub/src/main.ts' --require-approval never -c prefix={args.prefix}"
+      }
+    },
+    "destroy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx cdk destroy --app 'npx ts-node -r ./tools/register-paths.js services/advisory/advisory-hub/src/main.ts' --force -c prefix={args.prefix}"
+      }
+    }
+  },
+  "tags": ["scope:advisory", "type:hub"]
+}

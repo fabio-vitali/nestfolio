@@ -1,0 +1,54 @@
+type Query {
+  getPortfolio: Portfolio!
+  getPositions: [Position!]!
+  getCashBalance: CashBalance!
+  getPerformance(period: Period!): PerformanceMetrics!
+}
+
+type Subscription {
+  onPortfolioUpdate: Portfolio!
+  onPositionUpdate: Position!
+}
+
+enum Period {
+  DAY
+  WEEK
+  MONTH
+  QUARTER
+  YEAR
+  ALL
+}
+
+type Portfolio {
+  portfolioId: ID!
+  tenantId: String!
+  totalValue: Float!
+  cashBalance: Float!
+  positionCount: Int!
+  updatedAt: String!
+}
+
+type Position {
+  instrument: String!
+  quantity: Float!
+  avgCostBasis: Float!
+  currentPrice: Float!
+  marketValue: Float!
+  unrealizedPnl: Float!
+  unrealizedPnlPercent: Float!
+  updatedAt: String!
+}
+
+type CashBalance {
+  currency: String!
+  amount: Float!
+  updatedAt: String!
+}
+
+type PerformanceMetrics {
+  period: Period!
+  returnPercent: Float!
+  returnAbsolute: Float!
+  sharpeRatio: Float
+  maxDrawdown: Float
+}

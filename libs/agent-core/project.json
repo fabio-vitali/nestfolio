@@ -1,0 +1,28 @@
+{
+  "name": "agent-core",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/agent-core/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/agent-core",
+        "main": "libs/agent-core/src/index.ts",
+        "tsConfig": "libs/agent-core/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/agent-core"],
+      "options": {
+        "jestConfig": "libs/agent-core/jest.config.js"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": ["scope:domain", "type:lib"]
+}

@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../.pipeline-schema.json",
+  "service": "investor-bff",
+  "subsystem": "investor",
+  "deploymentPhase": 3,
+  "production": { "regions": ["us-east-1"], "parallelDeploy": true },
+  "dependencies": ["investor-hub", "investor-web"]
+}

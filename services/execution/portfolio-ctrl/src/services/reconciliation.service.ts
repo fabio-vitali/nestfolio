@@ -1,0 +1,86 @@
+import { getUUID, log, logger } from '@nestfolio/platform-core';
+import { ReconciliationRepository } from '../repositories/reconciliation.repository';
+
+export interface ReconciliationInput {
+  tenantId: string;
+  portfolioId: string;
+  intentPositions: Array<{ instrument: string; quantity: number }>;
+  settlementPositions: Array<{ instrument: string; quantity: number }>;
+}
+
+export interface ReconciliationResult {
+  reconciliationId: string;
+  status: 'COMPLETED' | 'DRIFT_DETECTED' | 'FAILED';
+  driftRecords: Array<{
+    instrument: string;
+    intentQty: number;
+    settlementQty: number;
+    drift: number;
+  }>;
+}
+
+export class ReconciliationService {
+  constructor(private readonly repository: ReconciliationRepository) {}
+
+  @log()
+  async reconcile(input: ReconciliationInput): Promise<ReconciliationResult> {
+    const reconciliationId = getUUID();
+    await this.repository.createReconciliation(
+      input.tenantId,
+      reconciliationId,
+      'MANUAL',
+    );
+
+    const driftRecords: Array<{
+      instrument: string;
+      intentQty: number;
+      settlementQty: number;
+      drift: number;
+    }> = [];
+
+    // Compare intent vs settlement positions
+    const intentMap = new Map(
+      input.intentPositions.map((p) => [p.instrument, p.quantity]),
+    );
+    const settlementMap = new Map(
+      input.settlementPositions.map((p) => [p.instrument, p.quantity]),
+    );
+
+    const allInstruments = new Set([
+      ...intentMap.keys(),
+      ...settlementMap.keys(),
+    ]);
+
+    for (const instrument of allInstruments) {
+      const intentQty = intentMap.get(instrument) ?? 0;
+      const settlementQty = settlementMap.get(instrument) ?? 0;
+      const drift = intentQty - settlementQty;
+      if (Math.abs(drift) > 0.001) {
+        driftRecords.push({ instrument, intentQty, settlementQty, drift });
+        await this.repository.createDriftRecord(
+          input.tenantId,
+          reconciliationId,
+          instrument,
+          intentQty,
+          settlementQty,
+          drift,
+        );
+      }
+    }
+
+    const status = driftRecords.length > 0 ? 'DRIFT_DETECTED' : 'COMPLETED';
+    await this.repository.updateReconciliationStatus(
+      input.tenantId,
+      reconciliationId,
+      status,
+    );
+
+    logger.info('Reconciliation completed', {
+      reconciliationId,
+      status,
+      driftCount: driftRecords.length,
+    });
+
+    return { reconciliationId, status, driftRecords };
+  }
+}

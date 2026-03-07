@@ -1,0 +1,61 @@
+type Query {
+  getDashboard: Dashboard!
+  getPositionSnapshots: [PositionSnapshot!]!
+  getRecentActivity(limit: Int): [ActivityEntry!]!
+}
+
+type Subscription {
+  onDashboardUpdate: Dashboard!
+  @aws_subscribe(mutations: [])
+}
+
+# --- Types ---
+
+type Dashboard {
+  portfolioSummary: PortfolioSummary
+  advisoryStatus: AdvisoryStatus
+  investorSnapshot: InvestorSnapshot
+}
+
+type PortfolioSummary {
+  totalValueCents: Int!
+  cashBalanceCents: Int!
+  positionCount: Int!
+  driftPercent: Float!
+  updatedAt: String!
+}
+
+type PositionSnapshot {
+  symbol: String!
+  assetClass: String
+  quantity: Float!
+  avgCostBasisCents: Int!
+  currentPriceCents: Int!
+  marketValueCents: Int!
+  weightPercent: Float!
+  unrealizedPnlCents: Int!
+  lastUpdatedAt: String!
+}
+
+type ActivityEntry {
+  activityType: String!
+  description: String!
+  timestamp: String!
+  metadata: String
+}
+
+type AdvisoryStatus {
+  pendingDecisionsCount: Int!
+  lastRecommendationAt: String
+  lastDecisionStatus: String
+  updatedAt: String!
+}
+
+type InvestorSnapshot {
+  goalType: String
+  riskLevel: String
+  operatingMode: String
+  mandateLevel: String
+  onboardedAt: String
+  updatedAt: String!
+}

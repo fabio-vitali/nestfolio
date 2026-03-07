@@ -1,0 +1,28 @@
+{
+  "name": "i18n",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/i18n/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/i18n",
+        "main": "libs/i18n/src/index.ts",
+        "tsConfig": "libs/i18n/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/i18n"],
+      "options": {
+        "jestConfig": "libs/i18n/jest.config.js"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": ["scope:shared", "type:lib"]
+}

@@ -1,0 +1,191 @@
+{
+  "common": {
+    "loading": "Caricamento...",
+    "error": "Si e verificato un errore",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "confirm": "Conferma",
+    "back": "Indietro",
+    "next": "Avanti",
+    "close": "Chiudi",
+    "search": "Cerca",
+    "noData": "Nessun dato disponibile"
+  },
+  "auth": {
+    "login": "Accedi",
+    "signup": "Registrati",
+    "logout": "Esci",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Conferma password",
+    "forgotPassword": "Password dimenticata?",
+    "confirmCode": "Codice di conferma",
+    "welcomeBack": "Bentornato",
+    "createAccount": "Crea un account"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "portfolio": "Portafoglio",
+    "advisory": "Consulenza",
+    "notifications": "Notifiche",
+    "profile": "Profilo",
+    "settings": "Impostazioni"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "portfolioValue": "Valore Portafoglio",
+    "dailyChange": "Variazione Giornaliera",
+    "recentActivity": "Attivita Recente",
+    "pendingActions": "Azioni in Attesa",
+    "status": "Stato"
+  },
+  "portfolio": {
+    "positions": "Posizioni",
+    "performance": "Performance",
+    "cashBalance": "Saldo Contante",
+    "allocation": "Allocazione",
+    "instrument": "Strumento",
+    "quantity": "Quantita",
+    "avgCost": "Costo Medio",
+    "currentPrice": "Prezzo Corrente",
+    "marketValue": "Valore di Mercato",
+    "pnl": "P&L",
+    "pnlPercent": "P&L %"
+  },
+  "advisory": {
+    "pendingDecisions": "Decisioni in Attesa",
+    "decisionHistory": "Storico Decisioni",
+    "confirm": "Approva",
+    "reject": "Rifiuta",
+    "explanation": "Spiegazione",
+    "proposedTrades": "Operazioni Proposte",
+    "compliance": "Compliance"
+  },
+  "onboarding": {
+    "title": "Configurazione Profilo",
+    "getStarted": "Iniziamo",
+    "back": "Indietro",
+    "next": "Avanti",
+    "complete": "Completa Configurazione",
+    "steps": {
+      "welcome": "Benvenuto",
+      "riskAssessment": "Valutazione Rischio",
+      "goals": "Obiettivi",
+      "riskConfirm": "Conferma Rischio",
+      "operatingMode": "Modalita",
+      "mandate": "Mandato"
+    },
+    "welcome": {
+      "title": "Benvenuto in Nestfolio",
+      "subtitle": "Configuriamo insieme il tuo profilo di investimento",
+      "step1": "Valuteremo la tua tolleranza al rischio",
+      "step2": "Definirai i tuoi obiettivi di investimento",
+      "step3": "Confermerai il tuo profilo di rischio",
+      "step4": "Sceglierai la tua modalita operativa",
+      "step5": "Configurerai il tuo mandato"
+    },
+    "risk": {
+      "title": "Valutazione del Rischio",
+      "description": "Rispondi a 5 domande per determinare il tuo profilo",
+      "progress": "{{answered}} di {{total}} domande completate",
+      "q1": {
+        "text": "Qual e la tua esperienza di investimento?",
+        "a": "Nessuna",
+        "b": "Meno di 2 anni",
+        "c": "Da 2 a 5 anni",
+        "d": "Piu di 5 anni"
+      },
+      "q2": {
+        "text": "Come reagiresti a una perdita del 20% del portafoglio?",
+        "a": "Venderei tutto",
+        "b": "Venderei una parte",
+        "c": "Manterrei le posizioni",
+        "d": "Comprerei di piu"
+      },
+      "q3": {
+        "text": "Qual e il tuo obiettivo principale di investimento?",
+        "a": "Preservazione del capitale",
+        "b": "Reddito stabile",
+        "c": "Crescita",
+        "d": "Crescita aggressiva"
+      },
+      "q4": {
+        "text": "Qual e il tuo orizzonte temporale di investimento?",
+        "a": "Meno di 1 anno",
+        "b": "Da 1 a 3 anni",
+        "c": "Da 3 a 7 anni",
+        "d": "Piu di 7 anni"
+      },
+      "q5": {
+        "text": "Quanto e stabile il tuo reddito?",
+        "a": "Instabile",
+        "b": "Abbastanza stabile",
+        "c": "Stabile",
+        "d": "Molto stabile con risparmi"
+      }
+    },
+    "goals": {
+      "title": "Obiettivi di Investimento",
+      "description": "Definisci cosa vuoi raggiungere",
+      "objective": "Obiettivo",
+      "selectObjective": "Seleziona un obiettivo",
+      "targetAmount": "Importo Obiettivo",
+      "timeHorizon": "Orizzonte Temporale (mesi)",
+      "yearsLabel": "circa {{years}} anni",
+      "objectives": {
+        "retirement": "Pensione",
+        "education": "Istruzione",
+        "wealthGrowth": "Crescita Patrimonio",
+        "income": "Reddito",
+        "custom": "Personalizzato"
+      }
+    },
+    "riskConfirm": {
+      "title": "Conferma Profilo di Rischio",
+      "description": "Verifica il tuo profilo calcolato",
+      "riskScore": "Punteggio di Rischio",
+      "low": "Basso",
+      "high": "Alto",
+      "minEquity": "Equity Minima",
+      "maxEquity": "Equity Massima",
+      "confirmLabel": "Confermo il mio profilo di rischio"
+    },
+    "mode": {
+      "title": "Modalita Operativa",
+      "description": "Scegli come vuoi gestire il tuo portafoglio",
+      "conservative": {
+        "title": "Conservativo",
+        "description": "Basso rischio, rendimenti stabili"
+      },
+      "balanced": {
+        "title": "Bilanciato",
+        "description": "Rischio moderato, crescita equilibrata"
+      },
+      "aggressive": {
+        "title": "Aggressivo",
+        "description": "Alto rischio, massima crescita"
+      }
+    },
+    "mandate": {
+      "title": "Configurazione Mandato",
+      "description": "Definisci il tipo di gestione del tuo portafoglio",
+      "levelLabel": "Tipo di Mandato",
+      "advisory": "Consulenza",
+      "advisoryDesc": "Ricevi suggerimenti, decidi tu",
+      "discretionary": "Discrezionale",
+      "discretionaryDesc": "Gestione automatica del portafoglio",
+      "turnoverCap": "Cap Turnover Mensile (%)",
+      "coolDownDays": "Giorni di Raffreddamento",
+      "rebalanceCadence": "Cadenza Ribilanciamento",
+      "selectCadence": "Seleziona cadenza",
+      "cadenceMonthly": "Mensile",
+      "cadenceQuarterly": "Trimestrale",
+      "cadenceSemiAnnual": "Semestrale",
+      "summaryTitle": "Riepilogo",
+      "summaryRiskScore": "Punteggio Rischio",
+      "summaryGoal": "Obiettivo",
+      "summaryMode": "Modalita",
+      "summaryMandate": "Mandato"
+    }
+  }
+}
