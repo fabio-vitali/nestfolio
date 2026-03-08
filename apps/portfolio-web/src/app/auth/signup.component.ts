@@ -113,7 +113,7 @@ export class SignupComponent {
       if (result.isSignUpComplete) {
         await this.router.navigate(['/login']);
       } else {
-        await this.router.navigate(['/confirm'], { queryParams: { email: this.email } });
+        await this.router.navigate(['/confirm'], { state: { email: this.email } });
       }
     } catch (e: unknown) {
       this.error.set(e instanceof Error ? e.message : 'Signup failed');

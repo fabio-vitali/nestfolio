@@ -354,6 +354,61 @@ A DPIA is required because Nestfolio processes:
 | Mitigation measures | Encryption, access controls, data minimization, right to human review |
 | DPO consultation | Engage Data Protection Officer (partner obligation or external) |
 
+### Multi-Tenancy Model & Licensed Partner Data Architecture
+
+This section documents the tenant isolation model and the future Licensed Partner data architecture. These decisions were made deliberately after analyzing the full data layer (DynamoDB keys, GSI queries, event envelopes, GraphQL resolvers, domain models).
+
+#### Current Model: Tenant = Individual Investor
+
+`tenantId` is a **UUID generated per user** at signup (`post-confirmation.ts → randomUUID()`), stored as `custom:tenant_id` in the Cognito User Pool. It is intentionally 1:1 with `userId`. This provides a **stable, application-controlled identity** for data partitioning, distinct from the Cognito `sub`.
+
+**Why `tenantId` instead of `userId` (Cognito `sub`)?**
+
+| Concern | `tenantId` (app-controlled UUID) | `userId` (Cognito `sub`) |
+|---|---|---|
+| Auth provider migration | Survives migration to Auth0/Clerk/custom | Changes if IdP changes |
+| Multi-portfolio scenarios | One person could have multiple tenants (personal + family) | Tied to one identity |
+| GDPR data operations | Single GSI query on `tenantId-index` for export/delete | Requires knowing IdP-internal format |
+| Domain purity | Application concept, no infrastructure coupling | Leaks IdP implementation detail into every DynamoDB key |
+
+#### Why Not Tenant = Licensed Partner
+
+The data layer assumes `tenantId` scopes **a single investor's data**. Changing tenant to mean "Licensed Partner" (1:many with users) would break isolation in the following repositories:
+
+| Repository | PK Pattern | Issue if multi-user tenant |
+|---|---|---|
+| advisory.repository (BFF) | `Decision#{tenantId}#{decisionId}` | GSI queries return ALL decisions — cross-user visibility |
+| decision.repository (ctrl) | `DecisionPacket#{tenantId}#{dpId}` | No userId in key |
+| order.repository | `Order#{tenantId}#{orderId}` | GSI returns all staged orders across users |
+| portfolio.repository | `Portfolio#{tenantId}#{portfolioId}` | `portfolioId` defaults to `tenantId` — shared portfolio |
+| dashboard.repository | `Dashboard#{tenantId}` | Single dashboard per tenant — all users see same data |
+| notification.repository | `Notification#{tenantId}#{notificationId}` | No userId — cross-user notification visibility |
+| reconciliation.repository | `ReconciliationLock#{tenantId}` | Single lock blocks all users in tenant |
+
+Only `investor-profile.repository` (`InvestorProfile#{tenantId}#{userId}`) and `virtual-ledger.repository` (`VirtualLedger#{tenantId}#{userId}`) include `userId` in keys. Refactoring the other 7+ repositories, all GSI queries, and the dashboard read model would be a significant rewrite with no prototype-phase benefit.
+
+#### Licensed Partner Association (Future Design)
+
+When partner acquisition progresses (see § 6 Licensed Partner Acquisition), introduce `partnerId` as a **separate attribute** — not a replacement for `tenantId`.
+
+**Data model extension:**
+- Add `partnerId: string` to `InvestorProfile` and to the `USER_REGISTERED` event subject
+- Store a `Partner` entity (`partnerId`, `partnerCode`, `name`, `status`, `ibAccountId`, `contactEmail`)
+- Add a `partnerId-index` GSI for partner-level aggregation queries
+
+**Signup association options (to be decided with partner):**
+- **Subdomain routing**: `acme.nestfolio.app` → CloudFront/Route53 maps subdomain to partner config, auto-associates investor
+- **Signup code / invite link**: Single domain, partner determined by code or URL param (`/signup?partner=ACME01`)
+- **Partner-assigned accounts**: Partner admin creates investor accounts directly
+
+**Partner-level features enabled by `partnerId`:**
+- Aggregated AUM reporting across partner's investors
+- Investor roster management
+- Partner-scoped compliance dashboards
+- Revenue share calculation per partner
+
+This layered approach preserves per-investor isolation (`tenantId`) while enabling partner-level operations (`partnerId`) without refactoring the data layer.
+
 ---
 
 ## 7. IBKR Production Integration
@@ -693,11 +748,11 @@ Access pattern rigidity (max 20 GSIs), debugging difficulty with mixed entity ty
 
 **Mitigation**: Document all access patterns upfront. Monitor partition metrics. Plan migration strategy for schema evolution.
 
-#### TW-7: Multi-Tenancy May Be Premature
+#### TW-7: Multi-Tenancy Overhead
 
 Tenant_id at every layer adds development overhead for the prototype phases with no real users. Every query needs tenant filtering, every event carries tenant context, every resolver enforces isolation.
 
-**Mitigation**: The overhead is justified — retrofitting multi-tenancy is extremely painful. Accept near-term cost for long-term correctness.
+**Mitigation**: The overhead is justified — retrofitting multi-tenancy is extremely painful. Accept near-term cost for long-term correctness. The 1:1 tenant-per-investor model is a **deliberate design choice**: `tenantId` is an application-controlled UUID decoupled from the auth provider, not a redundant copy of `userId`. See § 6 — Multi-Tenancy Model & Licensed Partner Data Architecture for the full rationale, data isolation analysis, and future Licensed Partner integration design.
 
 #### TW-8: Step Functions Complexity
 

@@ -20,23 +20,24 @@ export class NotificationService {
     if (limit !== undefined) variables['limit'] = limit;
     if (cursor !== undefined) variables['cursor'] = cursor;
 
-    const data = await query<{ getNotifications: NotificationPage }>(
+    const data = await query<{ getNotifications: NotificationPage | null }>(
       GET_NOTIFICATIONS,
       Object.keys(variables).length > 0 ? variables : undefined,
     );
-    return data.getNotifications;
+    return data.getNotifications ?? { items: [], nextCursor: null };
   }
 
   async getUnreadCount(): Promise<number> {
-    const data = await query<{ getUnreadCount: number }>(GET_UNREAD_COUNT);
-    return data.getUnreadCount;
+    const data = await query<{ getUnreadCount: number | null }>(GET_UNREAD_COUNT);
+    return data.getUnreadCount ?? 0;
   }
 
   async markNotificationRead(notificationId: string): Promise<Notification> {
-    const data = await mutate<{ markNotificationRead: Notification }>(
+    const data = await mutate<{ markNotificationRead: Notification | null }>(
       MARK_NOTIFICATION_READ,
       { notificationId },
     );
+    if (!data.markNotificationRead) throw new Error('Failed to mark notification as read');
     return data.markNotificationRead;
   }
 }

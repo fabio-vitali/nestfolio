@@ -92,9 +92,8 @@ async function processEvent(
     await new Promise<void>((resolve, reject) => {
       const source = Highland<UnitOfWork<BusEvent<Record<string, unknown>>>>([uow]);
 
-      pipe.feed(source).done(() => resolve());
-
       source.on('error', (err: Error) => reject(err));
+      pipe.feed(source).done(() => resolve());
     });
   }
 }

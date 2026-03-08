@@ -12,7 +12,7 @@ export const handler = async (event: PostAuthenticationTriggerEvent, _context: C
   const tenantId = event.request.userAttributes['custom:tenant_id'];
 
   if (tenantId) {
-    await ebClient.send(new PutEventsCommand({
+    const result = await ebClient.send(new PutEventsCommand({
       Entries: [{
         EventBusName: BUS_NAME,
         Source: `${BUS_NAME}@${SERVICE_NAME}`,
@@ -26,7 +26,13 @@ export const handler = async (event: PostAuthenticationTriggerEvent, _context: C
         }),
       }],
     }));
+
+    if (result.FailedEntryCount && result.FailedEntryCount > 0) {
+      throw new Error(
+        `Failed to publish USER_AUTHENTICATED event: ${result.Entries?.[0]?.ErrorMessage ?? 'unknown error'}`,
+      );
+    }
   }
 
-  return event; // Must return event for Cognito
+  return event;
 };

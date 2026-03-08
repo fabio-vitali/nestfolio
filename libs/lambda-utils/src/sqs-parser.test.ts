@@ -118,10 +118,44 @@ describe('parseRecord', () => {
       id: 'evt-missing',
       type: 'SOME_TYPE',
       timestamp: '2025-01-01T00:00:00.000Z',
-      context: {},
+      context: { tenantId: 'tenant-1' },
     });
 
     expect(() => parseRecord(record)).toThrow(NotRetryableError);
     expect(() => parseRecord(record)).toThrow('missing "subject" field');
+  });
+
+  it('should throw NotRetryableError when event.type is missing', () => {
+    const record = buildSqsRecord({
+      id: 'evt-no-type',
+      subject: { foo: 'bar' },
+      context: { tenantId: 'tenant-1' },
+    });
+
+    expect(() => parseRecord(record)).toThrow(NotRetryableError);
+    expect(() => parseRecord(record)).toThrow('missing "type" field');
+  });
+
+  it('should throw NotRetryableError when context.tenantId is missing', () => {
+    const record = buildSqsRecord({
+      id: 'evt-no-tenant',
+      type: 'SOME_TYPE',
+      subject: { foo: 'bar' },
+      context: {},
+    });
+
+    expect(() => parseRecord(record)).toThrow(NotRetryableError);
+    expect(() => parseRecord(record)).toThrow('missing "context.tenantId" field');
+  });
+
+  it('should throw NotRetryableError when context is missing entirely', () => {
+    const record = buildSqsRecord({
+      id: 'evt-no-context',
+      type: 'SOME_TYPE',
+      subject: { foo: 'bar' },
+    });
+
+    expect(() => parseRecord(record)).toThrow(NotRetryableError);
+    expect(() => parseRecord(record)).toThrow('missing "context.tenantId" field');
   });
 });

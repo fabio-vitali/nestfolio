@@ -10,8 +10,6 @@ const BUS_NAME = requireEnv('BUS_NAME');
 const SERVICE_NAME = requireEnv('SERVICE_NAME');
 
 export const handler = async (event: PostConfirmationTriggerEvent, _context: Context): Promise<PostConfirmationTriggerEvent> => {
-  // Design decision: retail model — each investor is their own tenant.
-  // For org-based tenancy, replace with tenant-lookup or invitation flow.
   const tenantId = randomUUID();
   const userId = event.request.userAttributes.sub;
   const email = event.request.userAttributes.email;
@@ -23,8 +21,8 @@ export const handler = async (event: PostConfirmationTriggerEvent, _context: Con
     UserAttributes: [{ Name: 'custom:tenant_id', Value: tenantId }],
   }));
 
-  // Publish USER_REGISTERED event
-  await ebClient.send(new PutEventsCommand({
+  // Publish USER_REGISTERED event — propagate errors to fail the Cognito trigger
+  const result = await ebClient.send(new PutEventsCommand({
     Entries: [{
       EventBusName: BUS_NAME,
       Source: `${BUS_NAME}@${SERVICE_NAME}`,
@@ -39,5 +37,11 @@ export const handler = async (event: PostConfirmationTriggerEvent, _context: Con
     }],
   }));
 
-  return event; // Must return event for Cognito
+  if (result.FailedEntryCount && result.FailedEntryCount > 0) {
+    throw new Error(
+      `Failed to publish USER_REGISTERED event: ${result.Entries?.[0]?.ErrorMessage ?? 'unknown error'}`,
+    );
+  }
+
+  return event;
 };

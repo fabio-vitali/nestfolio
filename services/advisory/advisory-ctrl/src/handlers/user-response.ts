@@ -30,11 +30,17 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const dpId = subject?.decisionId as string;
 
       if (eventType === 'USER_CONFIRMED') {
+        if (!dpId) {
+          throw new Error('Missing decisionId in user response event subject');
+        }
         await repository.updateDecisionStatus(tenantId, dpId, 'CONFIRMED', {
           confirmedAt: new Date().toISOString(),
         });
         logger.info('Decision confirmed by user', { dpId, tenantId });
       } else if (eventType === 'USER_REJECTED') {
+        if (!dpId) {
+          throw new Error('Missing decisionId in user response event subject');
+        }
         const reason = subject?.reason as string ?? 'User rejected decision';
         await repository.updateDecisionStatus(tenantId, dpId, 'REJECTED', {
           rejectedAt: new Date().toISOString(),

@@ -59,4 +59,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
-      - run: bash deploy-all.sh "$PREFIX_SANDBOX"
+      - run: |
+          export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          export CDK_DEFAULT_REGION=us-east-1
+          bash deploy-all.sh "$PREFIX_SANDBOX"

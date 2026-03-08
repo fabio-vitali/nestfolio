@@ -1,6 +1,7 @@
 import { App, Stack } from 'aws-cdk-lib';
 import { Annotations, Match, Template } from 'aws-cdk-lib/assertions';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
+import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
 import { Facade } from './facade';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -11,7 +12,17 @@ const SCHEMA_PATH = path.join(SCHEMA_DIR, 'test-schema.graphql');
 
 beforeAll(() => {
   if (!fs.existsSync(SCHEMA_DIR)) fs.mkdirSync(SCHEMA_DIR, { recursive: true });
-  fs.writeFileSync(SCHEMA_PATH, 'type Query { hello: String }');
+  fs.writeFileSync(
+    SCHEMA_PATH,
+    `type Query {
+  hello(name: String): String
+  items: [String]
+}
+
+type Mutation {
+  addItem(name: String!): String
+}`,
+  );
 });
 
 afterAll(() => {
@@ -79,5 +90,58 @@ describe('Facade construct', () => {
     template.hasResourceProperties('AWS::SSM::Parameter', {
       Name: '/nestfolio/dev-test/api/graphqlUrl',
     });
+  });
+
+  it('wires default resolver function to all Query and Mutation fields', () => {
+    const app = new App();
+    const stack = new Stack(app, 'TestStack');
+    const userPool = new UserPool(stack, 'Pool');
+    const resolver = new Function(stack, 'Resolver', {
+      runtime: Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: Code.fromInline('exports.handler = async () => ({})'),
+    });
+
+    new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+      resolverFunctions: { default: resolver },
+    });
+
+    const template = Template.fromStack(stack);
+
+    // Should create a Lambda data source
+    template.resourceCountIs('AWS::AppSync::DataSource', 1);
+
+    // Should create resolvers for hello, items (Query) and addItem (Mutation)
+    template.resourceCountIs('AWS::AppSync::Resolver', 3);
+
+    template.hasResourceProperties('AWS::AppSync::Resolver', {
+      TypeName: 'Query',
+      FieldName: 'hello',
+    });
+    template.hasResourceProperties('AWS::AppSync::Resolver', {
+      TypeName: 'Query',
+      FieldName: 'items',
+    });
+    template.hasResourceProperties('AWS::AppSync::Resolver', {
+      TypeName: 'Mutation',
+      FieldName: 'addItem',
+    });
+  });
+
+  it('creates no resolvers when resolverFunctions is not provided', () => {
+    const app = new App();
+    const stack = new Stack(app, 'TestStack');
+    const userPool = new UserPool(stack, 'Pool');
+
+    new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+    });
+
+    const template = Template.fromStack(stack);
+    template.resourceCountIs('AWS::AppSync::DataSource', 0);
+    template.resourceCountIs('AWS::AppSync::Resolver', 0);
   });
 });

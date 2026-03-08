@@ -111,7 +111,7 @@ export class LoginComponent {
       if (result.isSignedIn) {
         await this.router.navigate(['/dashboard']);
       } else if (result.nextStep === 'CONFIRM_SIGN_UP') {
-        await this.router.navigate(['/confirm'], { queryParams: { email: this.email } });
+        await this.router.navigate(['/confirm'], { state: { email: this.email } });
       }
     } catch (e: unknown) {
       this.error.set(e instanceof Error ? e.message : 'Login failed');

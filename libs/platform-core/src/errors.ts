@@ -91,7 +91,7 @@ export const handleErrors =
           details: error.details,
         },
       };
-      push(null, _(bus.publish(event).then(() => event)));
+      push(null, _(bus.publish(event).then(() => event).catch(() => event)));
     } else {
       push(error);
     }

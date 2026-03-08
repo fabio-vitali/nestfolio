@@ -33,6 +33,9 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       switch (eventType) {
         case 'MANDATE_GRANTED':
         case 'MANDATE_UPDATED':
+          if (!subject.mandateId || !subject.level) {
+            throw new Error(`Missing required mandate fields: mandateId=${subject.mandateId}, level=${subject.level}`);
+          }
           await repository.putMandateSnapshot(tenantId, userId, {
             mandateId: subject.mandateId,
             level: subject.level,

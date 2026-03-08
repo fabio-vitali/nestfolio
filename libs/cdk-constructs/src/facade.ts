@@ -1,10 +1,16 @@
 import { Construct } from 'constructs';
 import { Annotations } from 'aws-cdk-lib';
-import { GraphqlApi, SchemaFile, AuthorizationType } from 'aws-cdk-lib/aws-appsync';
+import {
+  GraphqlApi,
+  SchemaFile,
+  AuthorizationType,
+  MappingTemplate,
+} from 'aws-cdk-lib/aws-appsync';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { IUserPool } from 'aws-cdk-lib/aws-cognito';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
+import * as fs from 'fs';
 
 export interface FacadeProps {
   /** Path to GraphQL schema file (for BFF services) */
@@ -46,6 +52,20 @@ export class Facade extends Construct {
       });
       this.graphqlUrl = this.api.graphqlUrl;
 
+      // Wire resolver functions to all Query and Mutation fields
+      if (props.resolverFunctions?.default) {
+        const ds = this.api.addLambdaDataSource('DefaultDS', props.resolverFunctions.default);
+        const fieldNames = this.parseSchemaFields(props.schemaPath);
+        for (const { typeName, fieldName } of fieldNames) {
+          ds.createResolver(`${typeName}${fieldName}Resolver`, {
+            typeName,
+            fieldName,
+            requestMappingTemplate: MappingTemplate.lambdaRequest(),
+            responseMappingTemplate: MappingTemplate.lambdaResult(),
+          });
+        }
+      }
+
       if (props.ssmPrefix && this.api) {
         new StringParameter(this, 'ApiUrlParam', {
           parameterName: `${props.ssmPrefix}/api/graphqlUrl`,
@@ -54,5 +74,25 @@ export class Facade extends Construct {
         });
       }
     }
+  }
+
+  /** Parse Query and Mutation field names from a GraphQL schema file */
+  private parseSchemaFields(
+    schemaPath: string,
+  ): Array<{ typeName: string; fieldName: string }> {
+    const schema = fs.readFileSync(schemaPath, 'utf-8');
+    const fields: Array<{ typeName: string; fieldName: string }> = [];
+    const typeRegex = /type\s+(Query|Mutation)\s*\{([^}]*)}/g;
+    let typeMatch: RegExpExecArray | null;
+    while ((typeMatch = typeRegex.exec(schema)) !== null) {
+      const typeName = typeMatch[1];
+      const body = typeMatch[2];
+      const fieldRegex = /^\s*(\w+)\s*[\(:]/gm;
+      let fieldMatch: RegExpExecArray | null;
+      while ((fieldMatch = fieldRegex.exec(body)) !== null) {
+        fields.push({ typeName, fieldName: fieldMatch[1] });
+      }
+    }
+    return fields;
   }
 }

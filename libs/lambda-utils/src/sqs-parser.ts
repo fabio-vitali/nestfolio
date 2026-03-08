@@ -27,5 +27,19 @@ export function parseRecord<T = Record<string, unknown>>(
     );
   }
 
+  if (!event.type) {
+    throw new NotRetryableError(
+      `Invalid event: missing "type" field`,
+      { messageId: record.messageId },
+    );
+  }
+
+  if (!event.context?.tenantId) {
+    throw new NotRetryableError(
+      `Invalid event: missing "context.tenantId" field`,
+      { messageId: record.messageId },
+    );
+  }
+
   return { event, payload: event.subject as Record<string, unknown>, record };
 }

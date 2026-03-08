@@ -1,10 +1,10 @@
 import { AgentType } from './model-config';
 import type { GoalInterpretation } from './output-schemas/user-goals.schema';
-import type { RiskAssessment } from '@nestfolio/agent-core/output-schemas';
-import type { MarketResearch } from '@nestfolio/agent-core/output-schemas';
-import type { PortfolioConstruction } from '@nestfolio/agent-core/output-schemas';
-import type { RebalancePlan } from '@nestfolio/agent-core/output-schemas';
-import type { Explanation } from '@nestfolio/agent-core/output-schemas';
+import type { RiskAssessment } from './output-schemas/risk-assessment.schema';
+import type { MarketResearch } from './output-schemas/market-research.schema';
+import type { PortfolioConstruction } from './output-schemas/portfolio-construction.schema';
+import type { RebalancePlan } from './output-schemas/rebalance-planner.schema';
+import type { Explanation } from './output-schemas/explainability.schema';
 
 export interface ValidationResult {
   valid: boolean;

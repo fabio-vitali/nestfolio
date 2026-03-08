@@ -62,6 +62,10 @@ async function processOrderSubmitted(
   const side = subject.side as 'BUY' | 'SELL';
   const quantity = subject.quantity as number;
 
+  if (!orderId || !symbol || !side || quantity === undefined) {
+    throw new Error(`Missing required ORDER_SUBMITTED fields: orderId=${orderId}, symbol=${symbol}, side=${side}, quantity=${quantity}`);
+  }
+
   // Ensure simulation account exists (lazy initialization)
   const cashBalance = await repository.getCashBalance(tenantId, userId, 'USD');
   if (!cashBalance) {
@@ -94,6 +98,10 @@ async function processWithdrawalRequested(
   const userId = (subject.userId ?? tenantId) as string;
   const withdrawalId = subject.withdrawalId as string;
   const amount = subject.amount as number;
+
+  if (!withdrawalId || amount === undefined) {
+    throw new Error(`Missing required WITHDRAWAL_REQUESTED fields: withdrawalId=${withdrawalId}, amount=${amount}`);
+  }
 
   const result = await simulationEngine.processWithdrawal(
     tenantId,

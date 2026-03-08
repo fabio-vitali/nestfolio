@@ -6,7 +6,7 @@ import {
   PutEventsRequestEntry,
 } from '@aws-sdk/client-eventbridge';
 import { AttributeValue } from '@aws-sdk/client-dynamodb';
-import { logger } from '@nestfolio/platform-core';
+import { logger, NotRetryableError } from '@nestfolio/platform-core';
 
 const client = new EventBridgeClient({});
 
@@ -55,7 +55,7 @@ export async function handler(event: DynamoDBStreamEvent): Promise<void> {
   const serviceName = process.env.SERVICE_NAME;
 
   if (!busName || !serviceName) {
-    throw new Error(
+    throw new NotRetryableError(
       'Missing required environment variables: BUS_NAME, SERVICE_NAME',
     );
   }

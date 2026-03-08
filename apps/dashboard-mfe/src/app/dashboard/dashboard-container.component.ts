@@ -135,13 +135,14 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
   private dashboardService = inject(DashboardService);
   readonly i18n = inject(I18nService);
   readonly store = inject(DashboardStore);
+  private destroyed = false;
 
   async ngOnInit(): Promise<void> {
     await this.loadDashboard();
   }
 
   ngOnDestroy(): void {
-    // Future: unsubscribe from AppSync subscriptions
+    this.destroyed = true;
   }
 
   private async loadDashboard(): Promise<void> {
@@ -155,13 +156,18 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
         this.dashboardService.getRecentActivity(20),
       ]);
 
+      if (this.destroyed) return;
+
       this.store.setDashboard(dashboard);
       this.store.setPositions(positions);
       this.store.setActivities(activities);
     } catch (e: unknown) {
+      if (this.destroyed) return;
       this.store.setError(e instanceof Error ? e.message : 'Failed to load dashboard');
     } finally {
-      this.store.setLoading(false);
+      if (!this.destroyed) {
+        this.store.setLoading(false);
+      }
     }
   }
 }

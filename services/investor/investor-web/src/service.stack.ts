@@ -28,7 +28,7 @@ export class InvestorWebStack extends Stack {
     });
     postConfirmation.addToRolePolicy(new PolicyStatement({
       actions: ['events:PutEvents'],
-      resources: ['*'],
+      resources: [`arn:aws:events:${this.region}:${this.account}:event-bus/${naming.eventBusName()}`],
     }));
 
     // PostAuthentication Lambda
@@ -42,7 +42,7 @@ export class InvestorWebStack extends Stack {
     });
     postAuthentication.addToRolePolicy(new PolicyStatement({
       actions: ['events:PutEvents'],
-      resources: ['*'],
+      resources: [`arn:aws:events:${this.region}:${this.account}:event-bus/${naming.eventBusName()}`],
     }));
 
     // Cognito User Pool

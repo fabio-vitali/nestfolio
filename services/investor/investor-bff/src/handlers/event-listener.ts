@@ -71,9 +71,8 @@ async function processEvent(
         return;
     }
 
+    source.on('error', (err: Error) => reject(err));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (pipe as any).feed(source).done(() => resolve());
-
-    source.on('error', (err: Error) => reject(err));
   });
 }

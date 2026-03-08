@@ -1,7 +1,7 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Router } from '@angular/router';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
@@ -69,7 +69,6 @@ import { I18nService } from '@nestfolio/i18n';
 })
 export class ConfirmComponent implements OnInit {
   private router = inject(Router);
-  private route = inject(ActivatedRoute);
   readonly i18n = inject(I18nService);
 
   email = '';
@@ -80,7 +79,8 @@ export class ConfirmComponent implements OnInit {
   success = signal(false);
 
   ngOnInit() {
-    this.emailFromRoute = this.route.snapshot.queryParamMap.get('email') ?? '';
+    const nav = this.router.getCurrentNavigation();
+    this.emailFromRoute = (nav?.extras?.state?.['email'] as string) ?? '';
     this.email = this.emailFromRoute;
   }
 

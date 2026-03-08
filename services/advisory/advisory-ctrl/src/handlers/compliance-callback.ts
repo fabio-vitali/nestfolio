@@ -31,6 +31,9 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const authorityLevel = subject?.authorityLevel as string ?? 'L2';
 
       if (eventType === 'DECISION_APPROVED') {
+        if (!dpId) {
+          throw new Error('Missing decisionId in compliance callback event subject');
+        }
         if (authorityLevel === 'L1') {
           // L1: Autonomous — update status to APPROVED, ready for execution
           await repository.updateDecisionStatus(tenantId, dpId, 'APPROVED', {
@@ -47,6 +50,9 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
           logger.info('Decision requires user confirmation (L2)', { dpId, tenantId });
         }
       } else if (eventType === 'DECISION_BLOCKED') {
+        if (!dpId) {
+          throw new Error('Missing decisionId in compliance callback event subject');
+        }
         await repository.updateDecisionStatus(tenantId, dpId, 'BLOCKED', {
           blockedAt: new Date().toISOString(),
           blockReason: subject?.reason as string ?? 'Compliance check failed',
