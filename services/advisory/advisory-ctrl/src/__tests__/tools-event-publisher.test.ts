@@ -12,6 +12,10 @@ jest.mock('@nestfolio/platform-core', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }));
 
+jest.mock('@nestfolio/lambda-utils', () => ({
+  requireEnv: (name: string) => process.env[name] ?? name,
+}));
+
 import { handler } from '../handlers/tools/event-publisher';
 
 describe('event-publisher tool handler', () => {

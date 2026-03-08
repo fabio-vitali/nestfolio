@@ -23,6 +23,7 @@ export {
 export {
   invokeGraph,
   type InvokeGraphOptions,
+  type ServiceUnavailableResponse,
 } from './agent-invoker';
 
 export { loadPromptTemplate, clearTemplateCache } from './prompt-templates';

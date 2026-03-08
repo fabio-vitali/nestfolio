@@ -122,7 +122,7 @@ describe('PortfolioRepository', () => {
   });
 
   describe('upsertPosition', () => {
-    it('should create position with edit event in transaction', async () => {
+    it('should create position with version 1 when no expectedVersion', async () => {
       mockSend.mockResolvedValueOnce({});
 
       const result = await repo.upsertPosition('t1', 'p1', 'AAPL', 100, 150, 175);
@@ -140,12 +140,30 @@ describe('PortfolioRepository', () => {
         avgCostBasis: 150,
         currentPrice: 175,
         marketValue: 17500,
+        version: 1,
       });
+      // No ConditionExpression when expectedVersion is undefined
+      expect(call.input.TransactItems[0].Put.ConditionExpression).toBeUndefined();
       expect(call.input.TransactItems[1].Put.Item).toMatchObject({
         __typename: 'EditEvent',
         operation: 'replace',
       });
-      expect(result).toMatchObject({ instrument: 'AAPL', quantity: 100 });
+      expect(result).toMatchObject({ instrument: 'AAPL', quantity: 100, version: 1 });
+    });
+
+    it('should include conditional write when expectedVersion is provided', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      const result = await repo.upsertPosition('t1', 'p1', 'AAPL', 200, 150, 175, 3);
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      const putItem = call.input.TransactItems[0].Put;
+      expect(putItem.Item.version).toBe(4);
+      expect(putItem.ConditionExpression).toBe('#v = :expectedVersion');
+      expect(putItem.ExpressionAttributeNames).toEqual({ '#v': 'version' });
+      expect(putItem.ExpressionAttributeValues).toEqual({ ':expectedVersion': 3 });
+      expect(result).toMatchObject({ version: 4 });
     });
   });
 

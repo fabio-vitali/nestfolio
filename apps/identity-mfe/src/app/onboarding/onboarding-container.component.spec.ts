@@ -223,6 +223,31 @@ describe('OnboardingContainerComponent', () => {
     expect(mockStore['nextStep']).toHaveBeenCalled();
   });
 
+  it('should stop at failed answer and show error with questionId on step 1', async () => {
+    const nextCb = jest.fn();
+    (mockStore['currentStep'] as jest.Mock).mockReturnValue(1);
+    const answers: RiskAnswer[] = [
+      { questionId: 'Q1', answerId: 'Q1_A' },
+      { questionId: 'Q2', answerId: 'Q2_B' },
+      { questionId: 'Q3', answerId: 'Q3_C' },
+    ];
+    (mockStore['riskAnswers'] as jest.Mock).mockReturnValue(answers);
+    mockService.recordOnboardingAnswer
+      .mockResolvedValueOnce({ step: 'Q1', answeredAt: '2026-01-01' })
+      .mockRejectedValueOnce(new Error('Save failed'));
+
+    await component.onNext(nextCb);
+
+    // Q1 succeeded, Q2 failed — should not call Q3
+    expect(mockService.recordOnboardingAnswer).toHaveBeenCalledTimes(2);
+    expect(mockStore['setError']).toHaveBeenCalledWith('Save failed (question Q2)');
+    expect(mockStore['nextStep']).not.toHaveBeenCalled();
+    expect(nextCb).not.toHaveBeenCalled();
+    // Loading should be set back to false
+    const setLoadingCalls = (mockStore['setLoading'] as jest.Mock).mock.calls;
+    expect(setLoadingCalls[setLoadingCalls.length - 1]).toEqual([false]);
+  });
+
   it('should set error when onNext throws', async () => {
     const nextCb = jest.fn();
     (mockStore['currentStep'] as jest.Mock).mockReturnValue(2);

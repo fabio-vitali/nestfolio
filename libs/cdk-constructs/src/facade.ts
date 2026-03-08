@@ -1,4 +1,5 @@
 import { Construct } from 'constructs';
+import { Annotations } from 'aws-cdk-lib';
 import { GraphqlApi, SchemaFile, AuthorizationType } from 'aws-cdk-lib/aws-appsync';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
@@ -25,14 +26,21 @@ export class Facade extends Construct {
   constructor(scope: Construct, id: string, props: FacadeProps) {
     super(scope, id);
 
-    if (props.schemaPath) {
+    if (props.schemaPath && !props.userPool) {
+      Annotations.of(this).addError(
+        'Facade: schemaPath requires a userPool for AppSync authentication. Provide a userPool or remove schemaPath.',
+      );
+      return;
+    }
+
+    if (props.schemaPath && props.userPool) {
       this.api = new GraphqlApi(this, 'Api', {
         name: `${id}-api`,
         schema: SchemaFile.fromAsset(props.schemaPath),
         authorizationConfig: {
           defaultAuthorization: {
             authorizationType: AuthorizationType.USER_POOL,
-            userPoolConfig: { userPool: props.userPool! },
+            userPoolConfig: { userPool: props.userPool },
           },
         },
       });

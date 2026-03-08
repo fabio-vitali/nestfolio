@@ -1,6 +1,9 @@
 import { SQSRecord } from 'aws-lambda';
 import { parseRecord } from './sqs-parser';
 
+// Import NotRetryableError from platform-core errors directly to avoid Highland type issues
+import { NotRetryableError } from '@nestfolio/platform-core';
+
 function buildSqsRecord(body: object): SQSRecord {
   return {
     messageId: 'msg-001',
@@ -89,10 +92,36 @@ describe('parseRecord', () => {
     });
   });
 
-  it('should throw on invalid JSON body', () => {
+  it('should throw NotRetryableError on invalid JSON body', () => {
     const record = buildSqsRecord({});
     record.body = 'not-json';
 
-    expect(() => parseRecord(record)).toThrow();
+    expect(() => parseRecord(record)).toThrow(NotRetryableError);
+    expect(() => parseRecord(record)).toThrow('Malformed SQS message body');
+  });
+
+  it('should include messageId in NotRetryableError details for malformed JSON', () => {
+    const record = buildSqsRecord({});
+    record.body = '{broken';
+
+    try {
+      parseRecord(record);
+      fail('Expected NotRetryableError');
+    } catch (err) {
+      expect(err).toBeInstanceOf(NotRetryableError);
+      expect((err as NotRetryableError).details).toEqual({ messageId: 'msg-001' });
+    }
+  });
+
+  it('should throw NotRetryableError when event.subject is missing', () => {
+    const record = buildSqsRecord({
+      id: 'evt-missing',
+      type: 'SOME_TYPE',
+      timestamp: '2025-01-01T00:00:00.000Z',
+      context: {},
+    });
+
+    expect(() => parseRecord(record)).toThrow(NotRetryableError);
+    expect(() => parseRecord(record)).toThrow('missing "subject" field');
   });
 });

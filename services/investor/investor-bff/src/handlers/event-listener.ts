@@ -2,14 +2,14 @@ import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import Highland from 'highland';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { UserRegisteredPipe } from '../pipes/user-registered.pipe';
 import { NotificationCreatedPipe } from '../pipes/notification-created.pipe';
 import { DepositDetectedPipe } from '../pipes/deposit-detected.pipe';
 import { WithdrawalCompletedPipe } from '../pipes/withdrawal-completed.pipe';
 
-const TABLE_NAME = process.env.TABLE_NAME!;
+const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new InvestorProfileRepository(TABLE_NAME, dynamoClient);
 const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);

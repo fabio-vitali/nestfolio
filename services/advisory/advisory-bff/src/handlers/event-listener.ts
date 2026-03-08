@@ -2,12 +2,12 @@ import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import Highland from 'highland';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
 import { AdvisoryRepository } from '../repositories/advisory.repository';
 import { DecisionPacketCreatedPipe } from '../pipes/decision-packet-created.pipe';
 import { DecisionStatusChangedPipe } from '../pipes/decision-status-changed.pipe';
 
-const TABLE_NAME = process.env.TABLE_NAME!;
+const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new AdvisoryRepository(TABLE_NAME, dynamoClient);
 const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
@@ -24,6 +24,12 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const eventType = uow.event.type;
 
       logger.info('Processing event', { eventType, eventId: uow.event.id });
+
+      const isNew = await idempotencyGuard.ensureOnce(eventType, uow.event.id);
+      if (!isNew) {
+        logger.info('Duplicate event, skipping', { eventId: uow.event.id });
+        continue;
+      }
 
       await processEvent(eventType, uow);
     } catch (error) {

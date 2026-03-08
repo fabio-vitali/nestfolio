@@ -1,6 +1,8 @@
 import { initFederation } from '@angular-architects/native-federation';
 
 initFederation('/assets/federation.manifest.json')
-  .catch(err => console.error(err))
   .then(() => import('./bootstrap'))
-  .catch(err => console.error(err));
+  .catch(err => {
+    document.body.innerHTML = '<h1>Failed to load application</h1>';
+    console.error('Federation init failed', err);
+  });

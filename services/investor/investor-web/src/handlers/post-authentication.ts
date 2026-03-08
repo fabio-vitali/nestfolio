@@ -1,10 +1,11 @@
 import { PostAuthenticationTriggerEvent, Context } from 'aws-lambda';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { randomUUID } from 'crypto';
+import { requireEnv } from '@nestfolio/lambda-utils';
 
 const ebClient = new EventBridgeClient({});
-const BUS_NAME = process.env.BUS_NAME!;
-const SERVICE_NAME = process.env.SERVICE_NAME!;
+const BUS_NAME = requireEnv('BUS_NAME');
+const SERVICE_NAME = requireEnv('SERVICE_NAME');
 
 export const handler = async (event: PostAuthenticationTriggerEvent, _context: Context): Promise<PostAuthenticationTriggerEvent> => {
   const userId = event.request.userAttributes.sub;

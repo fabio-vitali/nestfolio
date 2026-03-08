@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, getUUID } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';
@@ -9,7 +9,7 @@ import { GuardrailEvaluator } from '../rules/guardrail-evaluator';
 import { SuitabilityChecker } from '../rules/suitability-checker';
 import { AuthorityResolver } from '../rules/authority-resolver';
 
-const TABLE_NAME = process.env.TABLE_NAME!;
+const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new ComplianceRepository(TABLE_NAME, dynamoClient);
 const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
@@ -65,7 +65,7 @@ async function processDecisionPacket(
   const subject = event.subject as Record<string, unknown>;
   const context = event.context as Record<string, unknown>;
   const tenantId = (context.tenantId ?? subject.tenantId) as string;
-  const userId = subject.userId as string ?? tenantId;
+  const userId = (subject.userId as string) ?? tenantId;
   const decisionPacketId = subject.decisionId as string;
 
   // Load mandate snapshot from DynamoDB

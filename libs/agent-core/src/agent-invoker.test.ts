@@ -160,31 +160,90 @@ describe('invokeGraph', () => {
     );
   });
 
-  it('throws when both primary and fallback fail', async () => {
+  it('returns ServiceUnavailableResponse when both primary and fallback fail', async () => {
+    const mockFallbackInvoke = jest.fn().mockRejectedValue(new Error('Fallback failed'));
+
     mockBuildDecisionGraph
       .mockReturnValueOnce({
         invoke: jest.fn().mockRejectedValue(new Error('Primary failed')),
       } as never)
       .mockReturnValueOnce({
-        invoke: jest.fn().mockRejectedValue(new Error('Fallback failed')),
+        invoke: mockFallbackInvoke,
       } as never);
 
     const fallbackNodeMap = { ...mockNodeMap };
 
-    await expect(
-      invokeGraph(
-        { input: 'test' },
-        {
-          nodeMap: mockNodeMap,
-          fallbackNodeMap,
-          logger: mockLogger,
-          metrics: mockMetrics,
-        },
-      ),
-    ).rejects.toThrow('Fallback failed');
+    const result = await invokeGraph(
+      { input: 'test' },
+      {
+        nodeMap: mockNodeMap,
+        fallbackNodeMap,
+        logger: mockLogger,
+        metrics: mockMetrics,
+      },
+    );
+
+    expect(result).toEqual({
+      serviceUnavailable: true,
+      reason: 'Both primary and fallback graphs failed',
+      primaryError: 'Primary failed',
+      fallbackError: 'Fallback failed',
+    });
+
+    // Fallback should have been invoked twice (initial + 1 retry)
+    expect(mockFallbackInvoke).toHaveBeenCalledTimes(2);
 
     expect(mockMetrics.addMetric).toHaveBeenCalledWith(
+      'FallbackRetry',
+      MetricUnit.Count,
+      1,
+    );
+    expect(mockMetrics.addMetric).toHaveBeenCalledWith(
       'FallbackError',
+      MetricUnit.Count,
+      1,
+    );
+  });
+
+  it('retries fallback once and succeeds on second attempt', async () => {
+    const fallbackResult = { input: 'fallback-retry' };
+    const mockFallbackInvoke = jest.fn()
+      .mockRejectedValueOnce(new Error('Transient error'))
+      .mockResolvedValueOnce(fallbackResult);
+
+    mockBuildDecisionGraph
+      .mockReturnValueOnce({
+        invoke: jest.fn().mockRejectedValue(new Error('Primary failed')),
+      } as never)
+      .mockReturnValueOnce({
+        invoke: mockFallbackInvoke,
+      } as never);
+
+    const fallbackNodeMap = { ...mockNodeMap };
+
+    const result = await invokeGraph(
+      { input: 'test' },
+      {
+        nodeMap: mockNodeMap,
+        fallbackNodeMap,
+        logger: mockLogger,
+        metrics: mockMetrics,
+      },
+    );
+
+    expect(result).toEqual(fallbackResult);
+    expect(mockFallbackInvoke).toHaveBeenCalledTimes(2);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'Fallback graph attempt failed, retrying',
+      expect.objectContaining({ attempt: 1 }),
+    );
+    expect(mockMetrics.addMetric).toHaveBeenCalledWith(
+      'FallbackRetry',
+      MetricUnit.Count,
+      1,
+    );
+    expect(mockMetrics.addMetric).toHaveBeenCalledWith(
+      'FallbackSuccess',
       MetricUnit.Count,
       1,
     );

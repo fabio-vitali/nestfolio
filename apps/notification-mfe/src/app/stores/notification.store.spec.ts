@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { NotificationStore, Notification } from './notification.store';
+import { LogoutSignal } from '@nestfolio/shared-state';
 
 const makeNotification = (id: string, status = 'CREATED'): Notification => ({
   notificationId: id,
@@ -18,10 +19,13 @@ const makeNotification = (id: string, status = 'CREATED'): Notification => ({
 
 describe('NotificationStore', () => {
   let store: InstanceType<typeof NotificationStore>;
+  let logoutSignal: LogoutSignal;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
     store = TestBed.inject(NotificationStore);
+    logoutSignal = TestBed.inject(LogoutSignal);
+    store.reset();
   });
 
   it('should start with initial state', () => {
@@ -114,6 +118,19 @@ describe('NotificationStore', () => {
     expect(store.unreadCount()).toBe(0);
     expect(store.loading()).toBe(false);
     expect(store.error()).toBeNull();
+    expect(store.nextCursor()).toBeNull();
+  });
+
+  it('should reset on logout signal', () => {
+    store.setNotifications([makeNotification('n-001')], 'cursor');
+    store.setUnreadCount(3);
+    store.setLoading(true);
+
+    logoutSignal.emit();
+
+    expect(store.notifications()).toEqual([]);
+    expect(store.unreadCount()).toBe(0);
+    expect(store.loading()).toBe(false);
     expect(store.nextCursor()).toBeNull();
   });
 });

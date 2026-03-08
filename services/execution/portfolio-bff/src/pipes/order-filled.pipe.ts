@@ -2,6 +2,8 @@ import Highland from 'highland';
 import { type Pipe, type UnitOfWork, type BusEvent, logger } from '@nestfolio/platform-core';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 
+const MAX_RETRIES = 3;
+
 type OrderFilledPayload = {
   tenantId: string;
   portfolioId: string;
@@ -24,42 +26,64 @@ export class OrderFilledPipe implements Pipe<UnitOfWork<BusEvent<OrderFilledPayl
 
           const pid = portfolioId ?? tenantId;
 
-          // Get existing position or default
-          const existing = await this.repository.getPosition(tenantId, pid, symbol);
-          const currentQty = (existing?.quantity as number) ?? 0;
-          const currentAvgCost = (existing?.avgCostBasis as number) ?? 0;
+          for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            // Get existing position or default
+            const existing = await this.repository.getPosition(tenantId, pid, symbol);
+            const currentQty = (existing?.quantity as number) ?? 0;
+            const currentAvgCost = (existing?.avgCostBasis as number) ?? 0;
+            const currentVersion = existing?.version as number | undefined;
 
-          let newQty: number;
-          let newAvgCost: number;
+            let newQty: number;
+            let newAvgCost: number;
 
-          if (side === 'BUY') {
-            newQty = currentQty + filledQuantity;
-            // Weighted average cost basis
-            newAvgCost =
-              newQty !== 0
-                ? (currentQty * currentAvgCost + filledQuantity * averageFillPrice) / newQty
-                : 0;
-          } else {
-            newQty = currentQty - filledQuantity;
-            newAvgCost = currentAvgCost; // avg cost doesn't change on sells
+            if (side === 'BUY') {
+              newQty = currentQty + filledQuantity;
+              // Weighted average cost basis
+              newAvgCost =
+                newQty !== 0
+                  ? (currentQty * currentAvgCost + filledQuantity * averageFillPrice) / newQty
+                  : 0;
+            } else {
+              newQty = currentQty - filledQuantity;
+              newAvgCost = currentAvgCost; // avg cost doesn't change on sells
+            }
+
+            try {
+              await this.repository.upsertPosition(
+                tenantId,
+                pid,
+                symbol,
+                newQty,
+                newAvgCost,
+                averageFillPrice,
+                currentVersion,
+              );
+
+              logger.info('Updated position on order fill', {
+                tenantId,
+                symbol,
+                side,
+                newQty,
+                newAvgCost,
+                version: (currentVersion ?? 0) + 1,
+              });
+              return; // success
+            } catch (error: unknown) {
+              if (
+                error instanceof Error &&
+                error.name === 'ConditionalCheckFailedException' &&
+                attempt < MAX_RETRIES
+              ) {
+                logger.warn('Version conflict on position update, retrying', {
+                  tenantId,
+                  symbol,
+                  attempt,
+                });
+                continue;
+              }
+              throw error;
+            }
           }
-
-          await this.repository.upsertPosition(
-            tenantId,
-            pid,
-            symbol,
-            newQty,
-            newAvgCost,
-            averageFillPrice,
-          );
-
-          logger.info('Updated position on order fill', {
-            tenantId,
-            symbol,
-            side,
-            newQty,
-            newAvgCost,
-          });
         })(),
       ),
     );

@@ -7,13 +7,16 @@ import {
   AdvisoryStatus,
   DashboardData,
 } from './dashboard.store';
+import { LogoutSignal } from '@nestfolio/shared-state';
 
 describe('DashboardStore', () => {
   let store: InstanceType<typeof DashboardStore>;
+  let logoutSignal: LogoutSignal;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
     store = TestBed.inject(DashboardStore);
+    logoutSignal = TestBed.inject(LogoutSignal);
     store.reset();
   });
 
@@ -157,5 +160,18 @@ describe('DashboardStore', () => {
     expect(store.loading()).toBe(false);
     expect(store.error()).toBeNull();
     expect(store.positions()).toEqual([]);
+  });
+
+  it('should reset on logout signal', () => {
+    store.setLoading(true);
+    store.setError('err');
+    store.setPositions(mockPositions);
+
+    logoutSignal.emit();
+
+    expect(store.loading()).toBe(false);
+    expect(store.error()).toBeNull();
+    expect(store.positions()).toEqual([]);
+    expect(store.portfolioSummary()).toBeNull();
   });
 });

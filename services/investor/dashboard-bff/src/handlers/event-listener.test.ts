@@ -51,12 +51,18 @@ jest.mock('@nestfolio/platform-core', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }));
 
+const mockEnsureOnce = jest.fn().mockResolvedValue(true);
+
 jest.mock('@nestfolio/lambda-utils', () => ({
+  requireEnv: (name: string) => process.env[name] ?? name,
   parseRecord: jest.fn((record) => {
     const body = JSON.parse(record.body);
     const event = body.detail ?? body;
     return { event, payload: event.subject ?? {}, record };
   }),
+  IdempotencyGuard: jest.fn().mockImplementation(() => ({
+    ensureOnce: mockEnsureOnce,
+  })),
 }));
 
 process.env.TABLE_NAME = 'test-table';
@@ -84,6 +90,7 @@ describe('dashboard-bff event-listener handler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
+    mockEnsureOnce.mockResolvedValue(true);
   });
 
   it('should process ORDER_FILLED event through multiple pipes', async () => {
@@ -262,6 +269,35 @@ describe('dashboard-bff event-listener handler', () => {
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
     expect(mockSend).toHaveBeenCalledTimes(1);
+  });
+
+  it('should skip duplicate events via idempotency guard', async () => {
+    mockEnsureOnce.mockResolvedValue(false);
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-dup',
+        body: {
+          detail: {
+            id: 'evt-dup',
+            type: 'ORDER_FILLED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              orderId: 'o1',
+              symbol: 'AAPL',
+              filledQuantity: 50,
+              averageFillPrice: 150.00,
+            },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+    // No DynamoDB calls for pipe processing — only idempotency check happened
+    expect(mockSend).not.toHaveBeenCalled();
   });
 
   it('should process DECISION_PACKET_CREATED through advisory pipe', async () => {

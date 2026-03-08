@@ -14,3 +14,4 @@ export {
 export { parseRecord } from './sqs-parser';
 export { IdempotencyGuard } from './idempotency';
 export { buildContainer } from './container';
+export { requireEnv } from './require-env';

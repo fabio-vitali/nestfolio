@@ -55,6 +55,7 @@ jest.mock('@nestfolio/platform-core', () => ({
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
+  requireEnv: (name: string) => process.env[name] ?? name,
   parseRecord: jest.fn((record) => {
     const body = JSON.parse(record.body);
     const event = body.detail ?? body;
@@ -180,6 +181,39 @@ describe('event-listener handler', () => {
       const { handler } = require('../handlers/event-listener');
       const result = await handler(sqsEvent);
       expect(result.batchItemFailures).toHaveLength(0);
+    });
+  });
+
+  it('should skip duplicate events via idempotency guard', async () => {
+    const { IdempotencyGuard } = require('@nestfolio/lambda-utils');
+
+    // Override IdempotencyGuard to return false (duplicate)
+    const ensureOnceMock = jest.fn().mockResolvedValue(false);
+    (IdempotencyGuard as jest.Mock).mockImplementation(() => ({
+      ensureOnce: ensureOnceMock,
+    }));
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-dup',
+        body: {
+          detail: {
+            id: 'evt-dup',
+            type: 'DECISION_PACKET_CREATED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: { tenantId: 't1', decisionId: 'd1' },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+      // No DynamoDB calls for pipe processing since event is duplicate
+      expect(mockSend).not.toHaveBeenCalled();
     });
   });
 

@@ -91,12 +91,14 @@ export class PortfolioRepository extends TableRepository {
     quantity: number,
     avgCost: number,
     currentPrice: number,
+    expectedVersion?: number,
   ): Promise<Record<string, unknown>> {
     const pk = portfolioPk(tenantId, portfolioId);
     const now = getTime();
     const marketValue = quantity * currentPrice;
     const unrealizedPnl = (currentPrice - avgCost) * quantity;
     const unrealizedPnlPercent = avgCost !== 0 ? ((currentPrice - avgCost) / avgCost) * 100 : 0;
+    const newVersion = (expectedVersion ?? 0) + 1;
 
     const item: TableEntry = {
       pk,
@@ -111,6 +113,7 @@ export class PortfolioRepository extends TableRepository {
       marketValue,
       unrealizedPnl,
       unrealizedPnlPercent,
+      version: newVersion,
       updatedAt: now,
     };
 
@@ -127,9 +130,21 @@ export class PortfolioRepository extends TableRepository {
       editedAt: now,
     };
 
+    const positionPut: Record<string, unknown> = {
+      TableName: this.tableName,
+      Item: item,
+    };
+
+    // Add optimistic concurrency check when updating an existing position
+    if (expectedVersion !== undefined) {
+      positionPut.ConditionExpression = '#v = :expectedVersion';
+      positionPut.ExpressionAttributeNames = { '#v': 'version' };
+      positionPut.ExpressionAttributeValues = { ':expectedVersion': expectedVersion };
+    }
+
     await this.transactWrite({
       TransactItems: [
-        { Put: { TableName: this.tableName, Item: item } },
+        { Put: positionPut as any },
         { Put: { TableName: this.tableName, Item: editEvent } },
       ],
     });

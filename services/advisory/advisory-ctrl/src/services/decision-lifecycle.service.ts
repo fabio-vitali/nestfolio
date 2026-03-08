@@ -7,6 +7,7 @@ import {
   AGENT_TYPES,
   type AgentNodeMap,
   type DecisionStateType,
+  type ServiceUnavailableResponse,
 } from '@nestfolio/agent-core';
 import { DecisionRepository } from '../repositories/decision.repository';
 
@@ -88,10 +89,18 @@ export class DecisionLifecycleService {
       nodeMap[type] = createAgentNode(type);
     }
 
-    return await invokeGraph(
+    const result = await invokeGraph(
       { input: JSON.stringify(context) },
       { nodeMap, fallbackNodeMap: createFallbackNodeMap() },
     );
+
+    // Handle structured "service unavailable" response from agent-core
+    if ('serviceUnavailable' in result && (result as ServiceUnavailableResponse).serviceUnavailable) {
+      const unavailable = result as ServiceUnavailableResponse;
+      throw new Error(`Agent pipeline unavailable: ${unavailable.reason}`);
+    }
+
+    return result as DecisionStateType;
   }
 
   private extractTrades(result: DecisionStateType): ProposedTrade[] {

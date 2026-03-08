@@ -32,6 +32,27 @@ describe('query', () => {
 
     expect(mockGraphql).toHaveBeenCalledWith({ query: 'query Q { result }', variables: {} });
   });
+
+  it('throws Error when result contains errors', async () => {
+    mockGraphql.mockResolvedValue({
+      data: null,
+      errors: [{ message: 'Unauthorized' }, { message: 'Second error' }],
+    });
+
+    await expect(query('query Q { result }')).rejects.toThrow('GraphQL query error: Unauthorized');
+  });
+
+  it('attaches full errors array to thrown error', async () => {
+    const errors = [{ message: 'Field not found' }, { message: 'Validation failed' }];
+    mockGraphql.mockResolvedValue({ data: null, errors });
+
+    try {
+      await query('query Q { result }');
+      fail('Expected error');
+    } catch (err) {
+      expect((err as Error & { graphqlErrors: unknown[] }).graphqlErrors).toEqual(errors);
+    }
+  });
 });
 
 describe('mutate', () => {
@@ -47,6 +68,29 @@ describe('mutate', () => {
       variables: { input: { objective: 'Retirement' } },
     });
     expect(result).toEqual({ setGoal: { goalId: 'g1' } });
+  });
+
+  it('throws Error when mutation result contains errors', async () => {
+    mockGraphql.mockResolvedValue({
+      data: null,
+      errors: [{ message: 'Conflict' }],
+    });
+
+    await expect(
+      mutate('mutation M { doThing }'),
+    ).rejects.toThrow('GraphQL mutation error: Conflict');
+  });
+
+  it('attaches full errors array to thrown mutation error', async () => {
+    const errors = [{ message: 'Input invalid' }];
+    mockGraphql.mockResolvedValue({ data: null, errors });
+
+    try {
+      await mutate('mutation M { doThing }');
+      fail('Expected error');
+    } catch (err) {
+      expect((err as Error & { graphqlErrors: unknown[] }).graphqlErrors).toEqual(errors);
+    }
   });
 });
 

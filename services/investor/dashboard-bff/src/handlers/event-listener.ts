@@ -2,7 +2,7 @@ import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import Highland from 'highland';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { PortfolioSummaryPipe } from '../pipes/portfolio-summary.pipe';
 import { PositionSnapshotPipe } from '../pipes/position-snapshot.pipe';
@@ -10,9 +10,10 @@ import { RecentActivityPipe } from '../pipes/recent-activity.pipe';
 import { AdvisoryStatusPipe } from '../pipes/advisory-status.pipe';
 import { InvestorSnapshotPipe } from '../pipes/investor-snapshot.pipe';
 
-const TABLE_NAME = process.env.TABLE_NAME!;
+const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new DashboardRepository(TABLE_NAME, dynamoClient);
+const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 
 const portfolioSummaryPipe = new PortfolioSummaryPipe(repository);
 const positionSnapshotPipe = new PositionSnapshotPipe(repository);
@@ -53,6 +54,12 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const eventType = uow.event.type;
 
       logger.info('Processing event', { eventType, eventId: uow.event.id });
+
+      const isNew = await idempotencyGuard.ensureOnce(eventType, uow.event.id);
+      if (!isNew) {
+        logger.info('Duplicate event, skipping', { eventId: uow.event.id });
+        continue;
+      }
 
       await processEvent(eventType, uow);
     } catch (error) {

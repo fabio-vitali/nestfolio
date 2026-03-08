@@ -1,6 +1,7 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
+import { requireEnv } from '@nestfolio/lambda-utils';
 import { AdvisoryRepository } from '../repositories/advisory.repository';
 import {
   getDecision,
@@ -15,7 +16,7 @@ import {
   recordExplanationView,
 } from '../resolvers/confirmation.resolver';
 
-const TABLE_NAME = process.env.TABLE_NAME!;
+const TABLE_NAME = requireEnv('TABLE_NAME');
 const repository = new AdvisoryRepository(TABLE_NAME, new DynamoDBClient({}));
 
 export const handler = async (

@@ -298,13 +298,23 @@ export class OnboardingContainerComponent {
           // Welcome step — no backend call
           break;
         case 1: {
-          // Save risk answers
+          // Save risk answers — wrap each mutation individually so that
+          // a failure stops at the failed answer without losing prior progress.
           const answers = this.store.riskAnswers();
-          for (const answer of answers) {
-            await this.onboardingService.recordOnboardingAnswer({
-              step: answer.questionId,
-              payload: { answerId: answer.answerId },
-            });
+          for (let i = 0; i < answers.length; i++) {
+            try {
+              await this.onboardingService.recordOnboardingAnswer({
+                step: answers[i].questionId,
+                payload: { answerId: answers[i].answerId },
+              });
+            } catch (answerError: unknown) {
+              const msg = answerError instanceof Error
+                ? answerError.message
+                : 'Failed to save answer';
+              this.store.setError(`${msg} (question ${answers[i].questionId})`);
+              this.store.setLoading(false);
+              return; // stop — don't advance; user can retry
+            }
           }
           break;
         }

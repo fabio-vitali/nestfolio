@@ -15,7 +15,12 @@
       "options": {
         "command": "npx cdk destroy --app 'npx ts-node -r ./tools/register-paths.js services/advisory/advisory-hub/src/main.ts' --force -c prefix={args.prefix}"
       }
-    }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": { "jestConfig": "services/advisory/advisory-hub/jest.config.js" }
+    },
+    "lint": { "executor": "@nx/eslint:lint" }
   },
   "tags": ["scope:advisory", "type:hub"]
 }

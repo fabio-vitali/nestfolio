@@ -5,5 +5,5 @@ export { Egress, EgressProps } from './egress';
 export { Facade, FacadeProps } from './facade';
 export { AgentRuntime, AgentRuntimeProps } from './agent-runtime';
 export { CostControls, CostControlsProps } from './cost-controls';
-export { defaultLambdaProps } from './default-lambda-props';
+export { defaultLambdaProps, agentLambdaProps } from './default-lambda-props';
 export { NamingService, NamingServiceConfig, createNamingService } from './naming-service';

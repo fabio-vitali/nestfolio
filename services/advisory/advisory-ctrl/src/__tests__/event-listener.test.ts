@@ -51,6 +51,7 @@ jest.mock('@nestfolio/platform-core', () => ({
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
+  requireEnv: (name: string) => process.env[name] ?? name,
   parseRecord: jest.fn((record) => {
     const body = JSON.parse(record.body);
     const event = body.detail ?? body;

@@ -1,6 +1,7 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
+import { requireEnv } from '@nestfolio/lambda-utils';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { getProfile } from '../resolvers/profile.resolver';
 import { setGoal, updateGoal, getGoals } from '../resolvers/goal.resolver';
@@ -15,7 +16,7 @@ import {
   markNotificationRead,
 } from '../resolvers/notification.resolver';
 
-const TABLE_NAME = process.env.TABLE_NAME!;
+const TABLE_NAME = requireEnv('TABLE_NAME');
 const repository = new InvestorProfileRepository(TABLE_NAME, new DynamoDBClient({}));
 
 export const handler = async (

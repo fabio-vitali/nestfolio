@@ -135,13 +135,14 @@ export class InvestorProfileRepository extends TableRepository {
     const pk = profilePk(tenantId, userId);
     const now = getTime();
 
-    const updateExpressions: string[] = ['#ts = :ts', 'updatedAt = :now'];
-    const expressionNames: Record<string, string> = { '#ts': 'timestamp' };
+    const updateExpressions: string[] = ['#ts = :ts', '#updatedAt = :now'];
+    const expressionNames: Record<string, string> = { '#ts': 'timestamp', '#updatedAt': 'updatedAt' };
     const expressionValues: Record<string, unknown> = { ':ts': now, ':now': now };
 
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) {
-        updateExpressions.push(`${key} = :${key}`);
+        updateExpressions.push(`#${key} = :${key}`);
+        expressionNames[`#${key}`] = key;
         expressionValues[`:${key}`] = value;
       }
     }
@@ -358,19 +359,17 @@ export class InvestorProfileRepository extends TableRepository {
       TransactItems: [
         { Put: { TableName: this.tableName, Item: item } },
         { Put: { TableName: this.tableName, Item: editEvent } },
+        {
+          Update: {
+            TableName: this.tableName,
+            Key: { pk, sk: 'InvestorProfile' },
+            UpdateExpression: 'SET operatingMode = :mode, updatedAt = :now, #ts = :ts',
+            ExpressionAttributeNames: { '#ts': 'timestamp' },
+            ExpressionAttributeValues: { ':mode': mode, ':now': now, ':ts': now },
+          },
+        },
       ],
     });
-
-    // Also update the profile record
-    await this.docClient.send(
-      new UpdateCommand({
-        TableName: this.tableName,
-        Key: { pk, sk: 'InvestorProfile' },
-        UpdateExpression: 'SET operatingMode = :mode, updatedAt = :now, #ts = :ts',
-        ExpressionAttributeNames: { '#ts': 'timestamp' },
-        ExpressionAttributeValues: { ':mode': mode, ':now': now, ':ts': now },
-      }),
-    );
 
     return item;
   }

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { AdvisoryStore, Decision, AgentInvocation, ComplianceCheck } from './advisory.store';
+import { LogoutSignal } from '@nestfolio/shared-state';
 
 const mockDecision: Decision = {
   decisionId: 'dec-001',
@@ -53,10 +54,13 @@ const mockChecks: ComplianceCheck[] = [
 
 describe('AdvisoryStore', () => {
   let store: InstanceType<typeof AdvisoryStore>;
+  let logoutSignal: LogoutSignal;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
     store = TestBed.inject(AdvisoryStore);
+    logoutSignal = TestBed.inject(LogoutSignal);
+    store.reset();
   });
 
   it('should start with initial state', () => {
@@ -159,5 +163,19 @@ describe('AdvisoryStore', () => {
     expect(store.complianceChecks()).toEqual([]);
     expect(store.loading()).toBe(false);
     expect(store.error()).toBeNull();
+  });
+
+  it('should reset on logout signal', () => {
+    store.setDecision(mockDecision);
+    store.setAgentInvocations(mockInvocations);
+    store.setComplianceChecks(mockChecks);
+    store.setLoading(true);
+
+    logoutSignal.emit();
+
+    expect(store.decision()).toBeNull();
+    expect(store.agentInvocations()).toEqual([]);
+    expect(store.complianceChecks()).toEqual([]);
+    expect(store.loading()).toBe(false);
   });
 });

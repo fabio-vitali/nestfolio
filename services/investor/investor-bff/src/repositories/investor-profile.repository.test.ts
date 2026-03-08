@@ -160,6 +160,45 @@ describe('InvestorProfileRepository', () => {
     });
   });
 
+  describe('updateGoal', () => {
+    it('should use ExpressionAttributeNames for all dynamic fields', async () => {
+      const updatedGoal = {
+        pk: 'InvestorProfile#t1#u1',
+        sk: 'Goal#g1',
+        __typename: 'Goal',
+        objective: 'Retirement Updated',
+        currency: 'EUR',
+      };
+      // UpdateCommand returns attributes, then put for edit event
+      mockSend.mockResolvedValueOnce({ Attributes: updatedGoal });
+      mockSend.mockResolvedValueOnce({});
+
+      const result = await repo.updateGoal('t1', 'u1', 'g1', {
+        objective: 'Retirement Updated',
+        currency: 'EUR',
+      });
+
+      expect(result).toMatchObject({ objective: 'Retirement Updated' });
+      const call = mockSend.mock.calls[0][0];
+      // All attribute names should be aliased with #
+      expect(call.input.ExpressionAttributeNames).toMatchObject({
+        '#ts': 'timestamp',
+        '#updatedAt': 'updatedAt',
+        '#objective': 'objective',
+        '#currency': 'currency',
+      });
+      expect(call.input.UpdateExpression).toContain('#objective = :objective');
+      expect(call.input.UpdateExpression).toContain('#currency = :currency');
+      expect(call.input.UpdateExpression).toContain('#updatedAt = :now');
+    });
+
+    it('should throw EntityNotFoundError when goal not found', async () => {
+      mockSend.mockResolvedValueOnce({ Attributes: undefined });
+
+      await expect(repo.updateGoal('t1', 'u1', 'g1', { objective: 'X' })).rejects.toThrow('not found');
+    });
+  });
+
   describe('grantMandate', () => {
     it('should create mandate and edit event in transaction', async () => {
       mockSend.mockResolvedValueOnce({});
@@ -200,6 +239,34 @@ describe('InvestorProfileRepository', () => {
       const result = await repo.revokeMandate('t1', 'u1');
 
       expect(result).toMatchObject({ revokedAt: '2025-01-01T00:00:00.000Z' });
+    });
+  });
+
+  describe('setOperatingMode', () => {
+    it('should merge profile update into single transaction with 3 items', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      const result = await repo.setOperatingMode('t1', 'u1', 'AGGRESSIVE' as any);
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call.input.TransactItems).toHaveLength(3);
+      // Item 0: OperatingMode record
+      expect(call.input.TransactItems[0].Put.Item).toMatchObject({
+        __typename: 'OperatingModeRecord',
+        mode: 'AGGRESSIVE',
+      });
+      // Item 1: EditEvent
+      expect(call.input.TransactItems[1].Put.Item).toMatchObject({
+        __typename: 'EditEvent',
+        operation: 'replace',
+      });
+      // Item 2: Update InvestorProfile
+      expect(call.input.TransactItems[2].Update).toMatchObject({
+        Key: { pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile' },
+      });
+      expect(call.input.TransactItems[2].Update.ExpressionAttributeValues[':mode']).toBe('AGGRESSIVE');
+      expect(result).toMatchObject({ mode: 'AGGRESSIVE' });
     });
   });
 

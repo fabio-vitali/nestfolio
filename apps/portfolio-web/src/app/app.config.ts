@@ -1,4 +1,4 @@
-import { ApplicationConfig, provideZoneChangeDetection, APP_INITIALIZER } from '@angular/core';
+import { ApplicationConfig, provideZoneChangeDetection, APP_INITIALIZER, isDevMode } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -23,6 +23,21 @@ export function getRuntimeConfig(): RuntimeConfig {
   return runtimeConfig ?? environment;
 }
 
+export function validateEndpoints(config: RuntimeConfig): void {
+  const endpoints = [
+    config.appsync.investorBff.endpoint,
+    config.appsync.portfolioBff.endpoint,
+    config.appsync.advisoryBff.endpoint,
+  ];
+
+  for (const url of endpoints) {
+    if (!url) continue;
+    if (url.startsWith('https://')) continue;
+    if (isDevMode() && url.startsWith('http://localhost')) continue;
+    throw new Error(`Invalid endpoint URL: "${url}". All endpoints must use HTTPS.`);
+  }
+}
+
 function loadRuntimeConfig(): () => Promise<void> {
   return async () => {
     if (!environment.production) {
@@ -31,8 +46,13 @@ function loadRuntimeConfig(): () => Promise<void> {
     }
     try {
       const response = await fetch('/assets/config.json');
-      runtimeConfig = await response.json();
-    } catch {
+      const config: RuntimeConfig = await response.json();
+      validateEndpoints(config);
+      runtimeConfig = config;
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith('Invalid endpoint URL')) {
+        throw err;
+      }
       runtimeConfig = environment;
     }
   };

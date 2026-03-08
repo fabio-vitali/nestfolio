@@ -3,6 +3,18 @@ import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 
 import { DecisionStateType, buildDecisionGraph, AgentNodeMap } from './graph-orchestrator';
 
+/**
+ * Structured response returned when both primary and fallback graphs fail.
+ * Downstream consumers can check `serviceUnavailable === true` to detect
+ * this condition without catching exceptions.
+ */
+export interface ServiceUnavailableResponse {
+  serviceUnavailable: true;
+  reason: string;
+  primaryError: string;
+  fallbackError: string;
+}
+
 export interface InvokeGraphOptions {
   /** Agent node map for the primary graph. */
   nodeMap: AgentNodeMap;
@@ -24,7 +36,7 @@ export interface InvokeGraphOptions {
 export async function invokeGraph(
   input: Partial<DecisionStateType>,
   options: InvokeGraphOptions,
-): Promise<DecisionStateType> {
+): Promise<DecisionStateType | ServiceUnavailableResponse> {
   const log = options.logger ?? new Logger({ serviceName: 'agent-core' });
   const metrics = options.metrics ?? new Metrics({ namespace: 'Nestfolio/AgentCore' });
 
@@ -56,38 +68,60 @@ export async function invokeGraph(
     if (options.fallbackNodeMap) {
       log.info('Attempting fallback graph invocation');
 
-      try {
-        const fallbackGraph = buildDecisionGraph(options.fallbackNodeMap);
-        const fallbackResult = (await fallbackGraph.invoke(
-          input,
-        )) as DecisionStateType;
+      const fallbackGraph = buildDecisionGraph(options.fallbackNodeMap);
+      const maxAttempts = 2; // retry once on system errors
 
-        const fallbackLatencyMs = Date.now() - startTime;
-        metrics.addMetric(
-          'FallbackLatency',
-          MetricUnit.Milliseconds,
-          fallbackLatencyMs,
-        );
-        metrics.addMetric('FallbackSuccess', MetricUnit.Count, 1);
-        metrics.publishStoredMetrics();
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const fallbackResult = (await fallbackGraph.invoke(
+            input,
+          )) as DecisionStateType;
 
-        log.info('Fallback graph invocation completed', {
-          latencyMs: fallbackLatencyMs,
-        });
+          const fallbackLatencyMs = Date.now() - startTime;
+          metrics.addMetric(
+            'FallbackLatency',
+            MetricUnit.Milliseconds,
+            fallbackLatencyMs,
+          );
+          metrics.addMetric('FallbackSuccess', MetricUnit.Count, 1);
+          metrics.publishStoredMetrics();
 
-        return fallbackResult;
-      } catch (fallbackError: unknown) {
-        const fbErrorMessage =
-          fallbackError instanceof Error
-            ? fallbackError.message
-            : String(fallbackError);
-        log.error('Fallback graph invocation also failed', {
-          error: fbErrorMessage,
-        });
-        metrics.addMetric('FallbackError', MetricUnit.Count, 1);
-        metrics.publishStoredMetrics();
+          log.info('Fallback graph invocation completed', {
+            latencyMs: fallbackLatencyMs,
+            attempt,
+          });
 
-        throw fallbackError;
+          return fallbackResult;
+        } catch (fallbackError: unknown) {
+          const fbErrorMessage =
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : String(fallbackError);
+
+          if (attempt < maxAttempts) {
+            log.warn('Fallback graph attempt failed, retrying', {
+              error: fbErrorMessage,
+              attempt,
+            });
+            metrics.addMetric('FallbackRetry', MetricUnit.Count, 1);
+            continue;
+          }
+
+          log.error('Fallback graph invocation failed after retry', {
+            error: fbErrorMessage,
+            attempts: maxAttempts,
+          });
+          metrics.addMetric('FallbackError', MetricUnit.Count, 1);
+          metrics.publishStoredMetrics();
+
+          // Return structured response instead of throwing
+          return {
+            serviceUnavailable: true,
+            reason: 'Both primary and fallback graphs failed',
+            primaryError: errorMessage,
+            fallbackError: fbErrorMessage,
+          };
+        }
       }
     }
 

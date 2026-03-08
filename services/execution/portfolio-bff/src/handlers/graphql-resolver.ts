@@ -1,9 +1,10 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
+import { requireEnv } from '@nestfolio/lambda-utils';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 
-const TABLE_NAME = process.env.TABLE_NAME!;
+const TABLE_NAME = requireEnv('TABLE_NAME');
 const repository = new PortfolioRepository(TABLE_NAME, new DynamoDBClient({}));
 
 export const handler = async (

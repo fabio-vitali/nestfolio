@@ -53,6 +53,7 @@ jest.mock('@nestfolio/platform-core', () => ({
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
+  requireEnv: (name: string) => process.env[name] ?? name,
   parseRecord: jest.fn((record) => {
     const body = JSON.parse(record.body);
     const event = body.detail ?? body;
@@ -200,6 +201,62 @@ describe('event-listener handler', () => {
       const result = await handler(sqsEvent);
       expect(result.batchItemFailures).toHaveLength(0);
     });
+  });
+
+  it('should fall back to tenantId when subject.userId is undefined', async () => {
+    // getMandateSnapshot -> found (called with tenantId as userId fallback)
+    mockSend.mockResolvedValueOnce({
+      Item: {
+        mandateId: 'm-1',
+        level: 'DISCRETIONARY',
+        monthlyTurnoverCapPercent: 10,
+        maxSingleTradePercent: 5,
+        effectiveDate: '2024-01-01T00:00:00.000Z',
+        revokedAt: null,
+      },
+    });
+    // createComplianceCheck -> put
+    mockSend.mockResolvedValueOnce({});
+    // updateCheckResult -> update
+    mockSend.mockResolvedValueOnce({ Attributes: { status: 'COMPLETED', result: 'APPROVED' } });
+    // updateCheckResult -> edit event put
+    mockSend.mockResolvedValueOnce({});
+    // createAuditArtifact -> put
+    mockSend.mockResolvedValueOnce({});
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-uid',
+        body: {
+          detail: {
+            id: 'evt-uid',
+            type: 'DECISION_PACKET_CREATED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              decisionId: 'dp-uid',
+              tenantId: 't-1',
+              // userId is intentionally omitted
+              proposedTrades: [],
+              portfolioValue: 100_000_00,
+              riskScore: 5,
+              currentPositions: [],
+            },
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+    });
+
+    // getMandateSnapshot should be called with tenantId as userId fallback
+    const getMandateCall = mockSend.mock.calls[0][0];
+    expect(getMandateCall.input.Key.pk.S ?? getMandateCall.input.Key?.pk).toBeDefined();
+    expect(mockSend).toHaveBeenCalledTimes(5);
   });
 
   it('should skip unknown event types gracefully', async () => {

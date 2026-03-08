@@ -2,8 +2,9 @@
 // Publishes events to the advisory EventBridge bus
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { logger } from '@nestfolio/platform-core';
+import { requireEnv } from '@nestfolio/lambda-utils';
 
-const BUS_NAME = process.env.BUS_NAME!;
+const BUS_NAME = requireEnv('BUS_NAME');
 const client = new EventBridgeClient({});
 
 export const handler = async (event: { eventType: string; detail: Record<string, unknown> }): Promise<unknown> => {

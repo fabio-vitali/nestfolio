@@ -24,7 +24,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - id: affected
         run: |
-          AFFECTED=$(pnpm nx show projects --affected --base=HEAD~1 --type=app | tr '\n' ',')
+          AFFECTED=$(pnpm nx show projects --affected --base=HEAD~1 --head=HEAD --type=app | tr '\n' ',')
           echo "services=$AFFECTED" >> $GITHUB_OUTPUT
 
   build-and-test:
@@ -39,8 +39,8 @@ jobs:
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: bash .github/scripts/validate-pipeline-configs.sh
-      - run: pnpm nx affected -t lint --base=HEAD~1 --parallel=3
-      - run: pnpm nx affected -t test --base=HEAD~1 --parallel=3
+      - run: pnpm nx affected -t lint --base=HEAD~1 --head=HEAD --parallel=3
+      - run: pnpm nx affected -t test --base=HEAD~1 --head=HEAD --parallel=3
 
   staging-deploy:
     needs: build-and-test
@@ -78,4 +78,4 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
-      - run: pnpm nx affected -t e2e --base=HEAD~1 --parallel=1
+      - run: pnpm nx affected -t e2e --base=HEAD~1 --head=HEAD --parallel=1

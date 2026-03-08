@@ -11,6 +11,10 @@ jest.mock('crypto', () => ({
   randomUUID: jest.fn().mockReturnValue('event-uuid-1'),
 }));
 
+jest.mock('@nestfolio/lambda-utils', () => ({
+  requireEnv: (name: string) => process.env[name] ?? name,
+}));
+
 const buildEvent = (overrides: Partial<PostAuthenticationTriggerEvent> = {}): PostAuthenticationTriggerEvent => ({
   version: '1',
   region: 'us-east-1',

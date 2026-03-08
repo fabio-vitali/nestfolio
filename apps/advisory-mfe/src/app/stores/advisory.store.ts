@@ -1,5 +1,6 @@
-import { computed } from '@angular/core';
-import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+import { computed, inject, DestroyRef } from '@angular/core';
+import { signalStore, withState, withComputed, withMethods, withHooks, patchState } from '@ngrx/signals';
+import { LogoutSignal } from '@nestfolio/shared-state';
 
 export interface ProposedAction {
   actionType: string;
@@ -133,4 +134,12 @@ export const AdvisoryStore = signalStore(
       patchState(store, { ...initialState });
     },
   })),
+  withHooks({
+    onInit(store) {
+      const logoutSignal = inject(LogoutSignal);
+      const destroyRef = inject(DestroyRef);
+      const sub = logoutSignal.logout$.subscribe(() => store.reset());
+      destroyRef.onDestroy(() => sub.unsubscribe());
+    },
+  }),
 );

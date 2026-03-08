@@ -53,7 +53,9 @@ jest.mock('@nestfolio/platform-core', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }));
 
-jest.mock('@nestfolio/lambda-utils', () => ({}));
+jest.mock('@nestfolio/lambda-utils', () => ({
+  requireEnv: (name: string) => process.env[name] ?? name,
+}));
 jest.mock('@nestfolio/domain-core', () => ({}));
 
 import { AppSyncResolverEvent } from 'aws-lambda';
