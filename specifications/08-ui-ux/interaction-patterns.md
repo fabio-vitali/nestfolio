@@ -2,7 +2,7 @@
 
 User flows, real-time update behavior, and microfrontend architecture strategy for Nestfolio.
 
-> [Back to Index](../../README.md) | [Section Overview](./README.md)
+> [Back to Index](../README.md) | [Section Overview](./README.md)
 
 ---
 

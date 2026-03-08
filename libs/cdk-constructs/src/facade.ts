@@ -77,9 +77,7 @@ export class Facade extends Construct {
   }
 
   /** Parse Query and Mutation field names from a GraphQL schema file */
-  private parseSchemaFields(
-    schemaPath: string,
-  ): Array<{ typeName: string; fieldName: string }> {
+  private parseSchemaFields(schemaPath: string): Array<{ typeName: string; fieldName: string }> {
     const schema = fs.readFileSync(schemaPath, 'utf-8');
     const fields: Array<{ typeName: string; fieldName: string }> = [];
     const typeRegex = /type\s+(Query|Mutation)\s*\{([^}]*)}/g;
@@ -87,7 +85,7 @@ export class Facade extends Construct {
     while ((typeMatch = typeRegex.exec(schema)) !== null) {
       const typeName = typeMatch[1];
       const body = typeMatch[2];
-      const fieldRegex = /^\s*(\w+)\s*[\(:]/gm;
+      const fieldRegex = /^\s*(\w+)\s*[(:]/gm;
       let fieldMatch: RegExpExecArray | null;
       while ((fieldMatch = fieldRegex.exec(body)) !== null) {
         fields.push({ typeName, fieldName: fieldMatch[1] });
