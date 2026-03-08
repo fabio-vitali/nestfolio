@@ -117,7 +117,7 @@ Every deployable service uses a suffix that indicates its architectural role.
 
 | Suffix | Role | Example | Purpose |
 |--------|------|---------|---------|
-| `-web` | Web Frontend | `portfolio-web` | Frontend infrastructure, CloudFront distribution |
+| `-web` | Web Frontend | `investor-web` | Frontend infrastructure, CloudFront distribution |
 | `-event-hub` | Event Router | `portfolio-event-hub` | EventBridge bus for cross-domain routing |
 | `-bff` | Backend-for-Frontend | `portfolio-viewer-bff` | GraphQL/REST API, CQRS command ingestion |
 | `-ctrl` | Controller | `portfolio-publisher-ctrl` | Async orchestration, Step Functions workflows |

@@ -305,13 +305,13 @@ A periodic summary delivered in-app and via email:
 
 ## Microfrontend Strategy
 
-Each BFF service owns a microfrontend hosted in its S3 bucket (part of the Facade construct). The `portfolio-web` service provides the shell application and CloudFront distribution.
+Each BFF service owns a microfrontend hosted in its S3 bucket (part of the Facade construct). The `nestfolio-host` service provides the shell application and CloudFront distribution.
 
 ### Architecture
 
 | Component | Responsibility | Hosting |
 |-----------|---------------|---------|
-| Shell application | Navigation, authentication, layout chrome | `portfolio-web` CloudFront |
+| Shell application | Navigation, authentication, layout chrome | `nestfolio-host` CloudFront |
 | Dashboard microfrontend | Home screen, portfolio summary, status | `portfolio-bff` S3 bucket |
 | Advisory microfrontend | Decision Detail, Confirmation Dialog | `advisory-bff` S3 bucket |
 | Notification microfrontend | Activity feed, notification preferences | `notification-bff` S3 bucket |

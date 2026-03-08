@@ -1,9 +1,9 @@
 export default {
-  displayName: 'portfolio-web',
+  displayName: 'nestfolio-host',
   preset: '../../jest.preset.js',
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
-  coverageDirectory: '../../coverage/apps/portfolio-web',
+  coverageDirectory: '../../coverage/apps/nestfolio-host',
   transform: {
     '^.+\\.(ts|mjs|js|html)$': [
       'jest-preset-angular',
