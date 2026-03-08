@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { LoadingSkeletonComponent } from '@nestfolio/ui-components';
+import { LoadingSkeletonComponent } from './loading-skeleton.component';
 
 describe('LoadingSkeletonComponent', () => {
   let fixture: ComponentFixture<LoadingSkeletonComponent>;
