@@ -60,6 +60,11 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   IdempotencyGuard: jest.fn().mockImplementation(() => ({
     ensureOnce: jest.fn().mockResolvedValue(true),
   })),
+  extractTenantId: jest.fn((event: Record<string, unknown>) => {
+    const context = event.context as Record<string, unknown> | undefined;
+    const subject = event.subject as Record<string, unknown> | undefined;
+    return (context?.tenantId ?? subject?.tenantId ?? 'unknown') as string;
+  }),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
@@ -151,6 +156,29 @@ describe('event-listener handler', () => {
     });
   });
 
+  it('should report failure for malformed event body (invalid JSON)', async () => {
+    const sqsEvent: SQSEvent = {
+      Records: [{
+        messageId: 'msg-malformed',
+        body: '{{invalid',
+        receiptHandle: 'handle',
+        attributes: {} as any,
+        messageAttributes: {},
+        md5OfBody: '',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
+        awsRegion: 'us-east-1',
+      }],
+    };
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
+    });
+  });
+
   it('should skip unknown event types gracefully', async () => {
     const sqsEvent = buildSqsEvent([
       {
@@ -192,6 +220,53 @@ describe('event-listener handler', () => {
       const result = await handler(sqsEvent);
       expect(result.batchItemFailures).toHaveLength(1);
       expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
+    });
+  });
+
+  it('should log error with full context and re-throw when reconcile fails', async () => {
+    // Make reconcile throw an error
+    mockSend.mockRejectedValueOnce(new Error('DynamoDB timeout'));
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-reconcile-fail',
+        body: {
+          detail: {
+            id: 'evt-reconcile-fail',
+            type: 'ORDER_FILLED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              tenantId: 't1',
+              portfolioId: 'p1',
+              positions: [
+                { symbol: 'AAPL', quantity: 100 },
+              ],
+            },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const { logger: loggerMock } = require('@nestfolio/platform-core');
+      const result = await handler(sqsEvent);
+      // Should report as batch item failure for SQS retry
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-reconcile-fail');
+      // Should log reconciliation-specific error with full context
+      expect(loggerMock.error).toHaveBeenCalledWith(
+        'Reconciliation failed',
+        expect.objectContaining({
+          tenantId: 't1',
+          portfolioId: 'p1',
+          eventType: 'ORDER_FILLED',
+          eventId: 'evt-reconcile-fail',
+          positionCount: 1,
+          error: 'DynamoDB timeout',
+        }),
+      );
     });
   });
 

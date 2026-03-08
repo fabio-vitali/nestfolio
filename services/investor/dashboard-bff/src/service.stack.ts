@@ -11,6 +11,7 @@ import {
   Facade,
   createNamingService,
   defaultLambdaProps,
+  applyStandardTags,
 } from '@nestfolio/cdk-constructs';
 
 export class DashboardBffStack extends Stack {
@@ -21,6 +22,9 @@ export class DashboardBffStack extends Stack {
       subsystem: 'investor',
       service: 'dashboard-bff',
     });
+
+    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    applyStandardTags(this, { service: 'dashboard-bff', domain: 'investor', environment: prefix });
 
     // State: DynamoDB table for all dashboard projections
     const state = new State(this, 'State');

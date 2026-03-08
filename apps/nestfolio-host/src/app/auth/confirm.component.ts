@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -8,11 +8,13 @@ import { MessageModule } from 'primeng/message';
 import { CardModule } from 'primeng/card';
 import { authConfirmSignUp } from '@nestfolio/auth';
 import { I18nService } from '@nestfolio/i18n';
+import { AuthStore } from '@nestfolio/shared-state';
 
 @Component({
   selector: 'app-confirm',
   standalone: true,
   imports: [CommonModule, FormsModule, InputTextModule, ButtonModule, MessageModule, CardModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="auth-container">
       <p-card>
@@ -34,7 +36,7 @@ import { I18nService } from '@nestfolio/i18n';
         <div class="auth-form">
           <div class="field">
             <label for="email">{{ i18n.t('auth.email') }}</label>
-            <input pInputText id="email" [(ngModel)]="email" [disabled]="!!emailFromRoute" class="w-full" />
+            <input pInputText id="email" [(ngModel)]="email" [disabled]="!!emailFromStore" class="w-full" />
           </div>
 
           <div class="field">
@@ -67,21 +69,29 @@ import { I18nService } from '@nestfolio/i18n';
     .w-full { width: 100%; }
   `],
 })
-export class ConfirmComponent implements OnInit {
+export class ConfirmComponent implements OnInit, OnDestroy {
   private router = inject(Router);
+  private authStore = inject(AuthStore);
   readonly i18n = inject(I18nService);
 
+  private redirectTimer: ReturnType<typeof setTimeout> | undefined;
+
   email = '';
-  emailFromRoute = '';
+  emailFromStore = '';
   code = '';
   loading = signal(false);
   error = signal<string | null>(null);
   success = signal(false);
 
+  ngOnDestroy() {
+    if (this.redirectTimer) {
+      clearTimeout(this.redirectTimer);
+    }
+  }
+
   ngOnInit() {
-    const nav = this.router.getCurrentNavigation();
-    this.emailFromRoute = (nav?.extras?.state?.['email'] as string) ?? '';
-    this.email = this.emailFromRoute;
+    this.emailFromStore = this.authStore.pendingEmail() ?? '';
+    this.email = this.emailFromStore;
   }
 
   async onConfirm() {
@@ -97,7 +107,8 @@ export class ConfirmComponent implements OnInit {
       const result = await authConfirmSignUp(this.email, this.code);
       if (result.isSignUpComplete) {
         this.success.set(true);
-        setTimeout(() => this.router.navigate(['/login']), 2000);
+        this.authStore.clearPendingEmail();
+        this.redirectTimer = setTimeout(() => this.router.navigate(['/login']), 2000);
       }
     } catch (e: unknown) {
       this.error.set(e instanceof Error ? e.message : 'Confirmation failed');

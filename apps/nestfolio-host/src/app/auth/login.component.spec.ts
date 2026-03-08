@@ -66,4 +66,52 @@ describe('LoginComponent', () => {
     await component.onLogin();
     expect(component.error()).toBe('Invalid credentials');
   });
+
+  it('should set loading true during login and false after success', async () => {
+    (authSignIn as jest.Mock).mockResolvedValue({ isSignedIn: true });
+    component.email = 'test@test.com';
+    component.password = 'password123';
+
+    const promise = component.onLogin();
+    // Loading should be true while in-flight
+    expect(component.loading()).toBe(true);
+
+    await promise;
+    expect(component.loading()).toBe(false);
+  });
+
+  it('should set loading false after login failure', async () => {
+    (authSignIn as jest.Mock).mockRejectedValue(new Error('fail'));
+    component.email = 'test@test.com';
+    component.password = 'wrong';
+
+    await component.onLogin();
+
+    expect(component.loading()).toBe(false);
+  });
+
+  it('should clear previous error before new login attempt', async () => {
+    // First attempt fails
+    (authSignIn as jest.Mock).mockRejectedValueOnce(new Error('Bad creds'));
+    component.email = 'test@test.com';
+    component.password = 'wrong';
+    await component.onLogin();
+    expect(component.error()).toBe('Bad creds');
+
+    // Second attempt - sign in succeeds but nextStep is not sign-in complete
+    // (avoids router navigation issue in test environment)
+    (authSignIn as jest.Mock).mockResolvedValueOnce({ isSignedIn: false, nextStep: 'DONE' });
+    component.password = 'correct';
+    await component.onLogin();
+    // Error should have been cleared before the call
+    expect(component.error()).toBeNull();
+  });
+
+  it('should handle non-Error exceptions with generic message', async () => {
+    (authSignIn as jest.Mock).mockRejectedValue('string-error');
+    component.email = 'test@test.com';
+    component.password = 'password';
+    await component.onLogin();
+    expect(component.error()).toBe('Login failed');
+  });
 });

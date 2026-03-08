@@ -1,4 +1,5 @@
 import { getUUID, getTime } from './core';
+import { logger } from './logger';
 
 /**
  * Error that should NOT be retried by the Lambda runtime.
@@ -91,7 +92,10 @@ export const handleErrors =
           details: error.details,
         },
       };
-      push(null, _(bus.publish(event).then(() => event).catch(() => event)));
+      push(null, _(bus.publish(event).then(() => event).catch((publishErr) => {
+        logger.error('Failed to publish error event', { publishErr, originalEvent: event });
+        return event;
+      })));
     } else {
       push(error);
     }

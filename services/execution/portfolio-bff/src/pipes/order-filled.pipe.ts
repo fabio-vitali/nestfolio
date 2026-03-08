@@ -1,5 +1,5 @@
 import Highland from 'highland';
-import { type Pipe, type UnitOfWork, type BusEvent, logger } from '@nestfolio/platform-core';
+import { type Pipe, type UnitOfWork, type BusEvent, logger, NotRetryableError } from '@nestfolio/platform-core';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 
 const MAX_RETRIES = 3;
@@ -29,23 +29,29 @@ export class OrderFilledPipe implements Pipe<UnitOfWork<BusEvent<OrderFilledPayl
           for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             // Get existing position or default
             const existing = await this.repository.getPosition(tenantId, pid, symbol);
-            const currentQty = (existing?.quantity as number) ?? 0;
-            const currentAvgCost = (existing?.avgCostBasis as number) ?? 0;
+            const currentQty = existing?.quantity ?? 0;
+            const currentAvgCost = existing?.avgCostBasis ?? 0;
             const currentVersion = existing?.version as number | undefined;
 
             let newQty: number;
             let newAvgCost: number;
 
             if (side === 'BUY') {
-              newQty = currentQty + filledQuantity;
+              newQty = (currentQty as number) + filledQuantity;
               // Weighted average cost basis
               newAvgCost =
                 newQty !== 0
-                  ? (currentQty * currentAvgCost + filledQuantity * averageFillPrice) / newQty
+                  ? ((currentQty as number) * (currentAvgCost as number) + filledQuantity * averageFillPrice) / newQty
                   : 0;
             } else {
-              newQty = currentQty - filledQuantity;
-              newAvgCost = currentAvgCost; // avg cost doesn't change on sells
+              newQty = (currentQty as number) - filledQuantity;
+              newAvgCost = currentAvgCost as number; // avg cost doesn't change on sells
+            }
+
+            if (Number.isNaN(newQty) || Number.isNaN(newAvgCost)) {
+              throw new NotRetryableError(
+                `NaN detected in position calculation: quantity=${newQty}, avgCost=${newAvgCost}`,
+              );
             }
 
             try {

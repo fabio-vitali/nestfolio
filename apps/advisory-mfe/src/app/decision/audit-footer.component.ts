@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, input, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslateModule } from '@ngx-translate/core';
 
@@ -6,6 +6,7 @@ import { TranslateModule } from '@ngx-translate/core';
   selector: 'app-audit-footer',
   standalone: true,
   imports: [CommonModule, TranslateModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="audit-footer">
       <div class="audit-line">

@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
+import { logger, NotRetryableError } from '@nestfolio/platform-core';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId } from '@nestfolio/lambda-utils';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from '../services/market-data.service';
 import { SimulationEngineService } from '../services/simulation-engine.service';
@@ -34,7 +34,7 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       } else if (eventType === 'WITHDRAWAL_REQUESTED') {
         await processWithdrawalRequested(uow.event);
       } else {
-        logger.info('No handler for event type, skipping', { eventType });
+        logger.warn('No handler for event type, skipping', { eventType });
       }
     } catch (error) {
       logger.error('Failed to process record', {
@@ -54,9 +54,11 @@ async function processOrderSubmitted(
   event: Record<string, unknown>,
 ): Promise<void> {
   const subject = event.subject as Record<string, unknown>;
-  const context = event.context as Record<string, unknown>;
-  const tenantId = (context.tenantId ?? subject.tenantId) as string;
-  const userId = (subject.userId ?? tenantId) as string;
+  if (!subject) {
+    throw new NotRetryableError(`Missing subject in ORDER_SUBMITTED event ${event.id}`);
+  }
+  const tenantId = extractTenantId(event);
+  const userId = (subject.userId as string) ?? tenantId;
   const orderId = subject.orderId as string;
   const symbol = subject.symbol as string;
   const side = subject.side as 'BUY' | 'SELL';
@@ -93,9 +95,11 @@ async function processWithdrawalRequested(
   event: Record<string, unknown>,
 ): Promise<void> {
   const subject = event.subject as Record<string, unknown>;
-  const context = event.context as Record<string, unknown>;
-  const tenantId = (context.tenantId ?? subject.tenantId) as string;
-  const userId = (subject.userId ?? tenantId) as string;
+  if (!subject) {
+    throw new NotRetryableError(`Missing subject in WITHDRAWAL_REQUESTED event ${event.id}`);
+  }
+  const tenantId = extractTenantId(event);
+  const userId = (subject.userId as string) ?? tenantId;
   const withdrawalId = subject.withdrawalId as string;
   const amount = subject.amount as number;
 

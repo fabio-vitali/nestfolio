@@ -62,6 +62,13 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   IdempotencyGuard: jest.fn().mockImplementation(() => ({
     ensureOnce: jest.fn().mockResolvedValue(true),
   })),
+  extractTenantId: jest.fn((event: Record<string, unknown>) => {
+    const context = event.context as Record<string, unknown> | undefined;
+    const subject = event.subject as Record<string, unknown> | undefined;
+    const id = context?.tenantId ?? subject?.tenantId;
+    if (!id || typeof id !== 'string') throw new Error('Missing tenantId');
+    return id;
+  }),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
@@ -155,6 +162,46 @@ describe('event-listener handler', () => {
     ]);
 
     const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+  });
+
+  it('should report failure for malformed event body (invalid JSON)', async () => {
+    const sqsEvent: SQSEvent = {
+      Records: [{
+        messageId: 'msg-malformed',
+        body: '{{not-json',
+        receiptHandle: 'handle',
+        attributes: {} as any,
+        messageAttributes: {},
+        md5OfBody: '',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
+        awsRegion: 'us-east-1',
+      }],
+    };
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
+  });
+
+  it('should report failure when event has empty body', async () => {
+    const sqsEvent: SQSEvent = {
+      Records: [{
+        messageId: 'msg-empty',
+        body: '{}',
+        receiptHandle: 'handle',
+        attributes: {} as any,
+        messageAttributes: {},
+        md5OfBody: '',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
+        awsRegion: 'us-east-1',
+      }],
+    };
+
+    const result = await handler(sqsEvent);
+    // Empty body should be parsed as unknown type and skipped
     expect(result.batchItemFailures).toHaveLength(0);
   });
 

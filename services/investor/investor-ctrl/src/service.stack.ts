@@ -9,6 +9,7 @@ import {
   Egress,
   createNamingService,
   defaultLambdaProps,
+  applyStandardTags,
 } from '@nestfolio/cdk-constructs';
 
 export class InvestorCtrlStack extends Stack {
@@ -19,6 +20,9 @@ export class InvestorCtrlStack extends Stack {
       subsystem: 'investor',
       service: 'investor-ctrl',
     });
+
+    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    applyStandardTags(this, { service: 'investor-ctrl', domain: 'investor', environment: prefix });
 
     // State: DynamoDB table
     const state = new State(this, 'State');

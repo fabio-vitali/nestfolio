@@ -92,7 +92,37 @@ describe('event-publisher handler', () => {
     expect(batch2.input.Entries).toHaveLength(2);
   });
 
-  it('throws on partial failure from EventBridge', async () => {
+  it('retries retryable errors (ThrottlingException) and succeeds', async () => {
+    // First call: throttling failure
+    mockSend.mockResolvedValueOnce({
+      FailedEntryCount: 1,
+      Entries: [{ ErrorCode: 'ThrottlingException', ErrorMessage: 'Rate exceeded' }],
+    });
+    // Second call (retry): success
+    mockSend.mockResolvedValueOnce({ FailedEntryCount: 0, Entries: [{}] });
+
+    await handler(makeStreamEvent([{
+      newImage: { __typename: { S: 'Retry' } },
+    }]));
+
+    expect(mockSend).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws NotRetryableError for non-retryable error codes', async () => {
+    mockSend.mockResolvedValue({
+      FailedEntryCount: 1,
+      Entries: [{ ErrorCode: 'ValidationException', ErrorMessage: 'Invalid input' }],
+    });
+
+    await expect(
+      handler(makeStreamEvent([{
+        newImage: { __typename: { S: 'Fail' } },
+      }])),
+    ).rejects.toThrow(NotRetryableError);
+  });
+
+  it('throws after retries exhausted for retryable errors', async () => {
+    // All 3 attempts fail with throttling
     mockSend.mockResolvedValue({
       FailedEntryCount: 1,
       Entries: [{ ErrorCode: 'ThrottlingException', ErrorMessage: 'Rate exceeded' }],
@@ -102,7 +132,33 @@ describe('event-publisher handler', () => {
       handler(makeStreamEvent([{
         newImage: { __typename: { S: 'Fail' } },
       }])),
-    ).rejects.toThrow('Failed to publish 1 event(s) to EventBridge');
+    ).rejects.toThrow('Failed to publish 1 event(s) to EventBridge after 2 retries');
+
+    // 1 original + 2 retries = 3 calls
+    expect(mockSend).toHaveBeenCalledTimes(3);
+  });
+
+  it('retries only failed entries from partial batch failure', async () => {
+    // First call: 1 of 2 entries fails
+    mockSend.mockResolvedValueOnce({
+      FailedEntryCount: 1,
+      Entries: [
+        {},
+        { ErrorCode: 'InternalException', ErrorMessage: 'Internal error' },
+      ],
+    });
+    // Second call (retry): success with the single failed entry
+    mockSend.mockResolvedValueOnce({ FailedEntryCount: 0, Entries: [{}] });
+
+    await handler(makeStreamEvent([
+      { newImage: { __typename: { S: 'Success' } } },
+      { newImage: { __typename: { S: 'RetryMe' } } },
+    ]));
+
+    expect(mockSend).toHaveBeenCalledTimes(2);
+    // Second call should only have 1 entry (the failed one)
+    const retryCmd = mockSend.mock.calls[1][0];
+    expect(retryCmd.input.Entries).toHaveLength(1);
   });
 
   it('handles empty Records array', async () => {

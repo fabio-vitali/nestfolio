@@ -217,6 +217,29 @@ describe('event-listener handler', () => {
     });
   });
 
+  it('should report failure for malformed event body (invalid JSON)', async () => {
+    const sqsEvent: SQSEvent = {
+      Records: [{
+        messageId: 'msg-malformed',
+        body: '{{invalid-json',
+        receiptHandle: 'handle',
+        attributes: {} as any,
+        messageAttributes: {},
+        md5OfBody: '',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
+        awsRegion: 'us-east-1',
+      }],
+    };
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
+    });
+  });
+
   it('should skip unknown event types gracefully', async () => {
     const sqsEvent = buildSqsEvent([
       {

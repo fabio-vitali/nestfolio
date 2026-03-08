@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, Input, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { I18nService } from '@nestfolio/i18n';
@@ -9,33 +9,34 @@ import type { PortfolioSummary, AdvisoryStatus } from '../stores/dashboard.store
   selector: 'app-kpi-cards',
   standalone: true,
   imports: [CommonModule, CardModule, CurrencyFormatPipe, PercentFormatPipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="kpi-cards">
       <p-card styleClass="kpi-card">
         <div class="kpi-label">{{ i18n.t('dashboard.overview.totalValue') }}</div>
-        <div class="kpi-value">{{ (portfolioSummary?.totalValueCents ?? 0) | currencyFormat }}</div>
+        <div class="kpi-value" [attr.aria-label]="i18n.t('dashboard.overview.totalValue') + ': ' + ((portfolioSummary?.totalValueCents ?? 0) | currencyFormat)">{{ (portfolioSummary?.totalValueCents ?? 0) | currencyFormat }}</div>
       </p-card>
 
       <p-card styleClass="kpi-card">
         <div class="kpi-label">{{ i18n.t('dashboard.overview.cashBalance') }}</div>
-        <div class="kpi-value">{{ (portfolioSummary?.cashBalanceCents ?? 0) | currencyFormat }}</div>
+        <div class="kpi-value" [attr.aria-label]="i18n.t('dashboard.overview.cashBalance') + ': ' + ((portfolioSummary?.cashBalanceCents ?? 0) | currencyFormat)">{{ (portfolioSummary?.cashBalanceCents ?? 0) | currencyFormat }}</div>
       </p-card>
 
       <p-card styleClass="kpi-card">
         <div class="kpi-label">{{ i18n.t('dashboard.overview.unrealizedPnl') }}</div>
-        <div class="kpi-value" [class.positive]="totalPnl > 0" [class.negative]="totalPnl < 0">
+        <div class="kpi-value" [class.positive]="totalPnl > 0" [class.negative]="totalPnl < 0" [attr.aria-label]="i18n.t('dashboard.overview.unrealizedPnl') + ': ' + (totalPnl | currencyFormat)">
           {{ totalPnl | currencyFormat }}
         </div>
       </p-card>
 
       <p-card styleClass="kpi-card">
         <div class="kpi-label">{{ i18n.t('dashboard.overview.drift') }}</div>
-        <div class="kpi-value">{{ (portfolioSummary?.driftPercent ?? 0) | percentFormat }}</div>
+        <div class="kpi-value" [attr.aria-label]="i18n.t('dashboard.overview.drift') + ': ' + ((portfolioSummary?.driftPercent ?? 0) | percentFormat)">{{ (portfolioSummary?.driftPercent ?? 0) | percentFormat }}</div>
       </p-card>
 
       <p-card styleClass="kpi-card">
         <div class="kpi-label">{{ i18n.t('dashboard.overview.pendingDecisions') }}</div>
-        <div class="kpi-value" [class.alert]="(advisoryStatus?.pendingDecisionsCount ?? 0) > 0">
+        <div class="kpi-value" [class.alert]="(advisoryStatus?.pendingDecisionsCount ?? 0) > 0" [attr.aria-label]="i18n.t('dashboard.overview.pendingDecisions') + ': ' + (advisoryStatus?.pendingDecisionsCount ?? 0)">
           {{ advisoryStatus?.pendingDecisionsCount ?? 0 }}
         </div>
       </p-card>

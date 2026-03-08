@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
@@ -24,6 +24,7 @@ const PAGE_SIZE = 20;
     EmptyStateComponent,
     NotificationItemComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (store.loading() && store.notifications().length === 0) {
       <nf-loading-skeleton [count]="6" />
@@ -139,7 +140,11 @@ export class NotificationListComponent implements OnInit {
   onTap(notification: Notification): void {
     if (notification.status !== 'READ') {
       this.store.markRead(notification.notificationId);
-      this.notificationService.markNotificationRead(notification.notificationId).catch(() => {});
+      this.notificationService.markNotificationRead(notification.notificationId).catch((err) => {
+        console.error('markRead failed', err);
+        // Revert optimistic update by reloading
+        this.loadNotifications();
+      });
     }
 
     if (notification.relatedEntityType === 'DECISION' && notification.relatedEntityId) {

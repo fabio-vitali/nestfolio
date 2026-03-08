@@ -51,6 +51,12 @@ jest.mock('@nestfolio/platform-core', () => ({
       await this.docClient.send(new TransactWriteCommand(input));
     }
   },
+  NotRetryableError: class NotRetryableError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'NotRetryableError';
+    }
+  },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
@@ -67,6 +73,11 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   IdempotencyGuard: jest.fn().mockImplementation(() => ({
     ensureOnce: jest.fn().mockResolvedValue(true),
   })),
+  extractTenantId: jest.fn((event: Record<string, unknown>) => {
+    const context = event.context as Record<string, unknown> | undefined;
+    const subject = event.subject as Record<string, unknown> | undefined;
+    return (context?.tenantId ?? subject?.tenantId ?? 'unknown') as string;
+  }),
 }));
 
 import { SQSEvent } from 'aws-lambda';
@@ -181,6 +192,66 @@ describe('event-listener handler', () => {
     });
   });
 
+  it('should report failure for malformed event body (invalid JSON)', async () => {
+    const sqsEvent: SQSEvent = {
+      Records: [{
+        messageId: 'msg-malformed',
+        body: '{{not-json',
+        receiptHandle: 'handle',
+        attributes: {} as any,
+        messageAttributes: {},
+        md5OfBody: '',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
+        awsRegion: 'us-east-1',
+      }],
+    };
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
+    });
+  });
+
+  it('should report failure when ORDER_SUBMITTED is missing required fields', async () => {
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-missing-order-fields',
+        body: {
+          detail: {
+            id: 'evt-missing-fields',
+            type: 'ORDER_SUBMITTED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              tenantId: 't-1',
+              userId: 'u-1',
+              // Missing: orderId, symbol, side, quantity
+            },
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    const { logger } = require('@nestfolio/platform-core');
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-missing-order-fields');
+    });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Failed to process record',
+      expect.objectContaining({
+        error: expect.stringContaining('Missing required ORDER_SUBMITTED fields'),
+      }),
+    );
+  });
+
   it('should skip unknown event types gracefully', async () => {
     const sqsEvent = buildSqsEvent([
       {
@@ -223,6 +294,156 @@ describe('event-listener handler', () => {
       expect(result.batchItemFailures).toHaveLength(1);
       expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
     });
+  });
+
+  it('should skip duplicate ORDER_SUBMITTED event', async () => {
+    const mockEnsureOnce = jest.fn().mockResolvedValue(false);
+    const { IdempotencyGuard } = require('@nestfolio/lambda-utils');
+    (IdempotencyGuard as jest.Mock).mockImplementation(() => ({
+      ensureOnce: mockEnsureOnce,
+    }));
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-dup-order',
+        body: {
+          detail: {
+            id: 'evt-dup-order',
+            type: 'ORDER_SUBMITTED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              orderId: 'order-dup',
+              tenantId: 't-1',
+              userId: 'u-1',
+              symbol: 'VTI',
+              side: 'BUY',
+              quantity: 10,
+            },
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+    });
+
+    // Idempotency guard was called, but no DynamoDB operations for the order itself
+    expect(mockEnsureOnce).toHaveBeenCalledWith('ORDER_SUBMITTED', 'evt-dup-order');
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it('should skip duplicate WITHDRAWAL_REQUESTED event', async () => {
+    const mockEnsureOnce = jest.fn().mockResolvedValue(false);
+    const { IdempotencyGuard } = require('@nestfolio/lambda-utils');
+    (IdempotencyGuard as jest.Mock).mockImplementation(() => ({
+      ensureOnce: mockEnsureOnce,
+    }));
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-dup-withdraw',
+        body: {
+          detail: {
+            id: 'evt-dup-withdraw',
+            type: 'WITHDRAWAL_REQUESTED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              withdrawalId: 'w-dup',
+              tenantId: 't-1',
+              userId: 'u-1',
+              amount: 5000,
+            },
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+    });
+
+    // Idempotency guard was called, but no DynamoDB operations for the withdrawal itself
+    expect(mockEnsureOnce).toHaveBeenCalledWith('WITHDRAWAL_REQUESTED', 'evt-dup-withdraw');
+    expect(mockSend).not.toHaveBeenCalled();
+
+    // Restore default IdempotencyGuard mock
+    const { IdempotencyGuard: Guard } = require('@nestfolio/lambda-utils');
+    (Guard as jest.Mock).mockImplementation(() => ({
+      ensureOnce: jest.fn().mockResolvedValue(true),
+    }));
+  });
+
+  it('should throw descriptive error when ORDER_SUBMITTED has null subject', async () => {
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-null-subject-order',
+        body: {
+          detail: {
+            id: 'evt-null-subject',
+            type: 'ORDER_SUBMITTED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: null,
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    const { logger } = require('@nestfolio/platform-core');
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-null-subject-order');
+    });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Failed to process record',
+      expect.objectContaining({
+        error: expect.stringContaining('Missing subject in ORDER_SUBMITTED event'),
+      }),
+    );
+  });
+
+  it('should throw descriptive error when WITHDRAWAL_REQUESTED has null subject', async () => {
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-null-subject-withdraw',
+        body: {
+          detail: {
+            id: 'evt-null-subject-w',
+            type: 'WITHDRAWAL_REQUESTED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: null,
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    const { logger } = require('@nestfolio/platform-core');
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-null-subject-withdraw');
+    });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Failed to process record',
+      expect.objectContaining({
+        error: expect.stringContaining('Missing subject in WITHDRAWAL_REQUESTED event'),
+      }),
+    );
   });
 
   it('should initialize account on first ORDER_SUBMITTED if no cash balance exists', async () => {

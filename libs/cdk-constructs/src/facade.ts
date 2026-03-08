@@ -11,6 +11,7 @@ import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { IUserPool } from 'aws-cdk-lib/aws-cognito';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import * as fs from 'fs';
+import { parse, visit } from 'graphql';
 
 export interface FacadeProps {
   /** Path to GraphQL schema file (for BFF services) */
@@ -76,21 +77,36 @@ export class Facade extends Construct {
     }
   }
 
-  /** Parse Query and Mutation field names from a GraphQL schema file */
+  /** Parse Query and Mutation field names from a GraphQL schema file using the graphql parser */
   private parseSchemaFields(schemaPath: string): Array<{ typeName: string; fieldName: string }> {
     const schema = fs.readFileSync(schemaPath, 'utf-8');
-    const fields: Array<{ typeName: string; fieldName: string }> = [];
-    const typeRegex = /type\s+(Query|Mutation)\s*\{([^}]*)}/g;
-    let typeMatch: RegExpExecArray | null;
-    while ((typeMatch = typeRegex.exec(schema)) !== null) {
-      const typeName = typeMatch[1];
-      const body = typeMatch[2];
-      const fieldRegex = /^\s*(\w+)\s*[(:]/gm;
-      let fieldMatch: RegExpExecArray | null;
-      while ((fieldMatch = fieldRegex.exec(body)) !== null) {
-        fields.push({ typeName, fieldName: fieldMatch[1] });
-      }
-    }
-    return fields;
+    return parseSchemaFields(schema);
   }
+}
+
+/**
+ * Parse Query and Mutation field names from a GraphQL schema string.
+ * Uses the official `graphql` package parser instead of regex for correctness.
+ */
+export function parseSchemaFields(schema: string): Array<{ typeName: string; fieldName: string }> {
+  let doc;
+  try {
+    doc = parse(schema);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to parse GraphQL schema: ${message}`);
+  }
+
+  const fields: Array<{ typeName: string; fieldName: string }> = [];
+  visit(doc, {
+    ObjectTypeDefinition(node) {
+      if (node.name.value === 'Query' || node.name.value === 'Mutation') {
+        const typeName = node.name.value;
+        for (const field of node.fields ?? []) {
+          fields.push({ typeName, fieldName: field.name.value });
+        }
+      }
+    },
+  });
+  return fields;
 }

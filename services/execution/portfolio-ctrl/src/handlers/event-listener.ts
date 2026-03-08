@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId } from '@nestfolio/lambda-utils';
 import { ReconciliationRepository } from '../repositories/reconciliation.repository';
 import { ReconciliationService } from '../services/reconciliation.service';
 
@@ -27,7 +27,7 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       logger.info('Processing event', { eventType, eventId: uow.event.id });
 
       if (!TRIGGER_EVENT_TYPES.has(eventType)) {
-        logger.info('No handler for event type, skipping', { eventType });
+        logger.warn('No handler for event type, skipping', { eventType });
         continue;
       }
 
@@ -37,10 +37,7 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
         continue;
       }
 
-      const tenantId =
-        (uow.event.context as Record<string, unknown>)?.tenantId as string ??
-        (uow.event.subject as Record<string, unknown>)?.tenantId as string ??
-        'unknown';
+      const tenantId = extractTenantId(uow.event as unknown as Record<string, unknown>);
 
       const subject = uow.event.subject as Record<string, unknown>;
       const portfolioId = (subject?.portfolioId as string) ?? tenantId;
@@ -48,18 +45,30 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       // Phase 2: Virtual ledger is sole truth source -- reconciliation always succeeds with zero drift
       const positions = (subject?.positions as Array<{ symbol: string; quantity: number }>) ?? [];
 
-      await reconciliationService.reconcile({
-        tenantId,
-        portfolioId,
-        intentPositions: positions.map((p) => ({
-          instrument: p.symbol,
-          quantity: p.quantity,
-        })),
-        settlementPositions: positions.map((p) => ({
-          instrument: p.symbol,
-          quantity: p.quantity,
-        })),
-      });
+      try {
+        await reconciliationService.reconcile({
+          tenantId,
+          portfolioId,
+          intentPositions: positions.map((p) => ({
+            instrument: p.symbol,
+            quantity: p.quantity,
+          })),
+          settlementPositions: positions.map((p) => ({
+            instrument: p.symbol,
+            quantity: p.quantity,
+          })),
+        });
+      } catch (reconcileError) {
+        logger.error('Reconciliation failed', {
+          tenantId,
+          portfolioId,
+          eventType,
+          eventId: uow.event.id,
+          positionCount: positions.length,
+          error: reconcileError instanceof Error ? reconcileError.message : String(reconcileError),
+        });
+        throw reconcileError;
+      }
     } catch (error) {
       logger.error('Failed to process record', {
         messageId: record.messageId,

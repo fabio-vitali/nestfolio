@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -10,11 +10,13 @@ import { CardModule } from 'primeng/card';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { authSignUp } from '@nestfolio/auth';
 import { I18nService } from '@nestfolio/i18n';
+import { AuthStore } from '@nestfolio/shared-state';
 
 @Component({
   selector: 'app-signup',
   standalone: true,
   imports: [CommonModule, FormsModule, InputTextModule, PasswordModule, ButtonModule, MessageModule, CardModule, InputNumberModule, RouterLink],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="auth-container">
       <p-card>
@@ -31,7 +33,7 @@ import { I18nService } from '@nestfolio/i18n';
 
         <div class="auth-form">
           <div class="field">
-            <label for="name">Name</label>
+            <label for="name">{{ i18n.t('auth.name') }}</label>
             <input pInputText id="name" [(ngModel)]="name" placeholder="Full name" class="w-full" />
           </div>
 
@@ -41,7 +43,7 @@ import { I18nService } from '@nestfolio/i18n';
           </div>
 
           <div class="field">
-            <label for="age">Age</label>
+            <label for="age">{{ i18n.t('auth.age') }}</label>
             <p-inputNumber id="age" [(ngModel)]="age" [min]="18" [max]="120" class="w-full" />
           </div>
 
@@ -83,6 +85,7 @@ import { I18nService } from '@nestfolio/i18n';
 })
 export class SignupComponent {
   private router = inject(Router);
+  private authStore = inject(AuthStore);
   readonly i18n = inject(I18nService);
 
   name = '';
@@ -113,7 +116,8 @@ export class SignupComponent {
       if (result.isSignUpComplete) {
         await this.router.navigate(['/login']);
       } else {
-        await this.router.navigate(['/confirm'], { state: { email: this.email } });
+        this.authStore.setPendingEmail(this.email);
+        await this.router.navigate(['/confirm']);
       }
     } catch (e: unknown) {
       this.error.set(e instanceof Error ? e.message : 'Signup failed');

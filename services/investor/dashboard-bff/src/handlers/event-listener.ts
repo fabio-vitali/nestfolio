@@ -21,28 +21,70 @@ const recentActivityPipe = new RecentActivityPipe(repository);
 const advisoryStatusPipe = new AdvisoryStatusPipe(repository);
 const investorSnapshotPipe = new InvestorSnapshotPipe(repository);
 
-// Map event types to the pipes they should trigger
-const EVENT_PIPE_MAP: Record<string, Array<{ feed: (s: Highland.Stream<any>) => Highland.Stream<any> }>> = {
-  // Execution events (forwarded from execution-hub → investor-bus)
-  ORDER_FILLED: [portfolioSummaryPipe, positionSnapshotPipe, recentActivityPipe],
-  ORDER_PARTIALLY_FILLED: [portfolioSummaryPipe, positionSnapshotPipe, recentActivityPipe],
-  CORPORATE_ACTION_APPLIED: [portfolioSummaryPipe, positionSnapshotPipe],
-  RECONCILIATION_COMPLETED: [portfolioSummaryPipe],
-  DEPOSIT_DETECTED: [recentActivityPipe],
-  WITHDRAWAL_COMPLETED: [recentActivityPipe],
+interface NamedPipe {
+  name: string;
+  pipe: { feed: (s: Highland.Stream<any>) => Highland.Stream<any> };
+}
 
-  // Advisory events (forwarded from advisory-hub → investor-bus)
-  DECISION_PACKET_CREATED: [advisoryStatusPipe],
-  USER_CONFIRMATION_REQUESTED: [advisoryStatusPipe],
-  DECISION_APPROVED: [advisoryStatusPipe, recentActivityPipe],
-  DECISION_BLOCKED: [advisoryStatusPipe, recentActivityPipe],
+// Map event types to the pipes they should trigger
+const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
+  // Execution events (forwarded from execution-hub -> investor-bus)
+  ORDER_FILLED: [
+    { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+    { name: 'positionSnapshot', pipe: positionSnapshotPipe },
+    { name: 'recentActivity', pipe: recentActivityPipe },
+  ],
+  ORDER_PARTIALLY_FILLED: [
+    { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+    { name: 'positionSnapshot', pipe: positionSnapshotPipe },
+    { name: 'recentActivity', pipe: recentActivityPipe },
+  ],
+  CORPORATE_ACTION_APPLIED: [
+    { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+    { name: 'positionSnapshot', pipe: positionSnapshotPipe },
+  ],
+  RECONCILIATION_COMPLETED: [
+    { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+  ],
+  DEPOSIT_DETECTED: [
+    { name: 'recentActivity', pipe: recentActivityPipe },
+  ],
+  WITHDRAWAL_COMPLETED: [
+    { name: 'recentActivity', pipe: recentActivityPipe },
+  ],
+
+  // Advisory events (forwarded from advisory-hub -> investor-bus)
+  DECISION_PACKET_CREATED: [
+    { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+  ],
+  USER_CONFIRMATION_REQUESTED: [
+    { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+  ],
+  DECISION_APPROVED: [
+    { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+    { name: 'recentActivity', pipe: recentActivityPipe },
+  ],
+  DECISION_BLOCKED: [
+    { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+    { name: 'recentActivity', pipe: recentActivityPipe },
+  ],
 
   // Investor events (native on investor-bus)
-  ONBOARDING_COMPLETED: [investorSnapshotPipe],
-  GOAL_SET: [investorSnapshotPipe],
-  GOAL_UPDATED: [investorSnapshotPipe],
-  RISK_PROFILE_SET: [investorSnapshotPipe],
-  RISK_PROFILE_UPDATED: [investorSnapshotPipe],
+  ONBOARDING_COMPLETED: [
+    { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+  ],
+  GOAL_SET: [
+    { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+  ],
+  GOAL_UPDATED: [
+    { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+  ],
+  RISK_PROFILE_SET: [
+    { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+  ],
+  RISK_PROFILE_UPDATED: [
+    { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+  ],
 };
 
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
@@ -54,12 +96,6 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const eventType = uow.event.type;
 
       logger.info('Processing event', { eventType, eventId: uow.event.id });
-
-      const isNew = await idempotencyGuard.ensureOnce(eventType, uow.event.id);
-      if (!isNew) {
-        logger.info('Duplicate event, skipping', { eventId: uow.event.id });
-        continue;
-      }
 
       await processEvent(eventType, uow);
     } catch (error) {
@@ -80,15 +116,22 @@ async function processEvent(
   eventType: string,
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): Promise<void> {
-  const pipes = EVENT_PIPE_MAP[eventType];
+  const namedPipes = EVENT_PIPE_MAP[eventType];
 
-  if (!pipes || pipes.length === 0) {
+  if (!namedPipes || namedPipes.length === 0) {
     logger.info('No pipes for event type, skipping', { eventType });
     return;
   }
 
-  // Run all applicable pipes sequentially for this event
-  for (const pipe of pipes) {
+  // Run all applicable pipes sequentially, with per-pipe idempotency
+  for (const { name: pipeName, pipe } of namedPipes) {
+    const pipeKey = `${eventType}#${uow.event.id}#${pipeName}`;
+    const isNew = await idempotencyGuard.ensureOnce(eventType, pipeKey);
+    if (!isNew) {
+      logger.info('Pipe already processed, skipping', { eventType, pipeName, eventId: uow.event.id });
+      continue;
+    }
+
     await new Promise<void>((resolve, reject) => {
       const source = Highland<UnitOfWork<BusEvent<Record<string, unknown>>>>([uow]);
 

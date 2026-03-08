@@ -79,33 +79,82 @@ export async function handler(event: DynamoDBStreamEvent): Promise<void> {
     return;
   }
 
+  const RETRYABLE_ERROR_CODES = new Set([
+    'ThrottlingException',
+    'InternalException',
+  ]);
+  const MAX_RETRIES = 2;
+
   // EventBridge PutEvents supports up to 10 entries per call
   const batchSize = 10;
   for (let i = 0; i < entries.length; i += batchSize) {
-    const batch = entries.slice(i, i + batchSize);
+    let pending = entries.slice(i, i + batchSize);
 
-    const result = await client.send(
-      new PutEventsCommand({ Entries: batch }),
-    );
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const result = await client.send(
+        new PutEventsCommand({ Entries: pending }),
+      );
 
-    if (result.FailedEntryCount && result.FailedEntryCount > 0) {
-      const failedEntries = (result.Entries ?? [])
-        .map((entry, idx) => ({ ...entry, index: idx }))
+      if (!result.FailedEntryCount || result.FailedEntryCount === 0) {
+        logger.info('Published events to EventBridge', {
+          count: pending.length,
+          busName,
+          attempt,
+        });
+        break;
+      }
+
+      // Identify failed entries and their error codes
+      const resultEntries = result.Entries ?? [];
+      const failedWithMeta = resultEntries
+        .map((entry, idx) => ({ ...entry, originalEntry: pending[idx], index: idx }))
         .filter((entry) => entry.ErrorCode);
 
-      logger.error('Some events failed to publish', {
-        failedCount: result.FailedEntryCount,
-        failedEntries,
-      });
+      const hasRetryable = failedWithMeta.some((e) =>
+        RETRYABLE_ERROR_CODES.has(e.ErrorCode!),
+      );
+      const hasNonRetryable = failedWithMeta.some(
+        (e) => !RETRYABLE_ERROR_CODES.has(e.ErrorCode!),
+      );
 
+      // If any non-retryable errors exist, fail immediately
+      if (hasNonRetryable) {
+        logger.error('Non-retryable event publish failure', {
+          failedCount: result.FailedEntryCount,
+          failedEntries: failedWithMeta.map(({ ErrorCode, ErrorMessage, index }) => ({
+            ErrorCode,
+            ErrorMessage,
+            index,
+          })),
+        });
+        throw new NotRetryableError(
+          `Failed to publish ${result.FailedEntryCount} event(s) to EventBridge`,
+        );
+      }
+
+      // All failures are retryable
+      if (attempt < MAX_RETRIES && hasRetryable) {
+        // Retry only the failed entries
+        pending = failedWithMeta.map((e) => e.originalEntry);
+        logger.info('Retrying failed EventBridge entries', {
+          retryCount: pending.length,
+          attempt: attempt + 1,
+        });
+        continue;
+      }
+
+      // Retries exhausted
+      logger.error('Some events failed to publish after retries', {
+        failedCount: result.FailedEntryCount,
+        failedEntries: failedWithMeta.map(({ ErrorCode, ErrorMessage, index }) => ({
+          ErrorCode,
+          ErrorMessage,
+          index,
+        })),
+      });
       throw new Error(
-        `Failed to publish ${result.FailedEntryCount} event(s) to EventBridge`,
+        `Failed to publish ${result.FailedEntryCount} event(s) to EventBridge after ${MAX_RETRIES} retries`,
       );
     }
-
-    logger.info('Published events to EventBridge', {
-      count: batch.length,
-      busName,
-    });
   }
 }

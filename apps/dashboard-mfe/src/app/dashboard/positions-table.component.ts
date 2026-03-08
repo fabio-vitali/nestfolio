@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, Input, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
 import { I18nService } from '@nestfolio/i18n';
@@ -9,6 +9,7 @@ import type { PositionSnapshot } from '../stores/dashboard.store';
   selector: 'app-positions-table',
   standalone: true,
   imports: [CommonModule, TableModule, CurrencyFormatPipe, EmptyStateComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (positions.length === 0) {
       <nf-empty-state
@@ -26,14 +27,14 @@ import type { PositionSnapshot } from '../stores/dashboard.store';
       >
         <ng-template pTemplate="header">
           <tr>
-            <th pSortableColumn="symbol">{{ i18n.t('dashboard.positions.symbol') }} <p-sortIcon field="symbol" /></th>
-            <th pSortableColumn="assetClass">{{ i18n.t('dashboard.positions.assetClass') }} <p-sortIcon field="assetClass" /></th>
-            <th pSortableColumn="quantity" class="text-right">{{ i18n.t('dashboard.positions.quantity') }} <p-sortIcon field="quantity" /></th>
-            <th pSortableColumn="avgCostBasisCents" class="text-right">{{ i18n.t('dashboard.positions.avgCost') }} <p-sortIcon field="avgCostBasisCents" /></th>
-            <th pSortableColumn="currentPriceCents" class="text-right">{{ i18n.t('dashboard.positions.currentPrice') }} <p-sortIcon field="currentPriceCents" /></th>
-            <th pSortableColumn="marketValueCents" class="text-right">{{ i18n.t('dashboard.positions.marketValue') }} <p-sortIcon field="marketValueCents" /></th>
-            <th pSortableColumn="weightPercent" class="text-right">{{ i18n.t('dashboard.positions.weight') }} <p-sortIcon field="weightPercent" /></th>
-            <th pSortableColumn="unrealizedPnlCents" class="text-right">{{ i18n.t('dashboard.positions.pnl') }} <p-sortIcon field="unrealizedPnlCents" /></th>
+            <th pSortableColumn="symbol" aria-sort="none">{{ i18n.t('dashboard.positions.symbol') }} <p-sortIcon field="symbol" /></th>
+            <th pSortableColumn="assetClass" aria-sort="none">{{ i18n.t('dashboard.positions.assetClass') }} <p-sortIcon field="assetClass" /></th>
+            <th pSortableColumn="quantity" class="text-right" aria-sort="none">{{ i18n.t('dashboard.positions.quantity') }} <p-sortIcon field="quantity" /></th>
+            <th pSortableColumn="avgCostBasisCents" class="text-right" aria-sort="none">{{ i18n.t('dashboard.positions.avgCost') }} <p-sortIcon field="avgCostBasisCents" /></th>
+            <th pSortableColumn="currentPriceCents" class="text-right" aria-sort="none">{{ i18n.t('dashboard.positions.currentPrice') }} <p-sortIcon field="currentPriceCents" /></th>
+            <th pSortableColumn="marketValueCents" class="text-right" aria-sort="none">{{ i18n.t('dashboard.positions.marketValue') }} <p-sortIcon field="marketValueCents" /></th>
+            <th pSortableColumn="weightPercent" class="text-right" aria-sort="none">{{ i18n.t('dashboard.positions.weight') }} <p-sortIcon field="weightPercent" /></th>
+            <th pSortableColumn="unrealizedPnlCents" class="text-right" aria-sort="none">{{ i18n.t('dashboard.positions.pnl') }} <p-sortIcon field="unrealizedPnlCents" /></th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-position>

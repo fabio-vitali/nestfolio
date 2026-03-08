@@ -1,10 +1,11 @@
-import { ApplicationConfig, provideZoneChangeDetection, APP_INITIALIZER, isDevMode } from '@angular/core';
+import { ApplicationConfig, provideZoneChangeDetection, APP_INITIALIZER, isDevMode, inject } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { provideAuth, authInterceptor } from '@nestfolio/auth';
+import { provideAuth, authInterceptor, getAuthUser } from '@nestfolio/auth';
 import { provideI18n } from '@nestfolio/i18n';
 import { provideNestfolioTheme } from '@nestfolio/ui-components';
+import { AuthStore } from '@nestfolio/shared-state';
 import { appRoutes } from './app.routes';
 import { environment } from '../environments/environment';
 
@@ -58,6 +59,23 @@ function loadRuntimeConfig(): () => Promise<void> {
   };
 }
 
+function initializeAuth(): () => Promise<void> {
+  const authStore = inject(AuthStore);
+  return async () => {
+    const user = await getAuthUser();
+    if (user) {
+      authStore.setAuthenticated({
+        userId: user.userId,
+        username: user.username,
+        email: user.email ?? '',
+        tenantId: user.tenantId ?? '',
+      });
+    } else {
+      authStore.setUnauthenticated();
+    }
+  };
+}
+
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
@@ -70,6 +88,11 @@ export const appConfig: ApplicationConfig = {
     {
       provide: APP_INITIALIZER,
       useFactory: loadRuntimeConfig,
+      multi: true,
+    },
+    {
+      provide: APP_INITIALIZER,
+      useFactory: initializeAuth,
       multi: true,
     },
   ],

@@ -51,8 +51,21 @@ jest.mock('@nestfolio/platform-core', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }));
 
+class MockNotRetryableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotRetryableError';
+  }
+}
+
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
+  authorizeTenant: (event: { identity?: Record<string, unknown> }) => {
+    const claims = event.identity as Record<string, unknown> | undefined;
+    const tenantId = (claims?.['claims'] as Record<string, string>)?.['custom:tenant_id'];
+    if (!tenantId) throw new MockNotRetryableError('UNAUTHORIZED: missing tenantId');
+    return tenantId;
+  },
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({
@@ -191,6 +204,55 @@ describe('graphql-resolver handler', () => {
     await jest.isolateModulesAsync(async () => {
       const { handler } = require('./graphql-resolver');
       await expect(handler(event)).rejects.toThrow('Unknown field: unknownField');
+    });
+  });
+
+  describe('tenant authorization', () => {
+    it('should throw when tenantId is missing from claims', async () => {
+      const event = {
+        info: { fieldName: 'getProfile', parentTypeName: '', variables: {}, selectionSetList: [], selectionSetGraphQL: '' },
+        arguments: {},
+        identity: { claims: { sub: 'user-1' } },
+        source: null,
+        request: { headers: {} },
+        prev: null,
+        stash: {},
+      } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
+
+      await jest.isolateModulesAsync(async () => {
+        const { handler } = require('./graphql-resolver');
+        await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
+      });
+    });
+
+    it('should throw when identity is undefined', async () => {
+      const event = {
+        info: { fieldName: 'getProfile', parentTypeName: '', variables: {}, selectionSetList: [], selectionSetGraphQL: '' },
+        arguments: {},
+        identity: undefined,
+        source: null,
+        request: { headers: {} },
+        prev: null,
+        stash: {},
+      } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
+
+      await jest.isolateModulesAsync(async () => {
+        const { handler } = require('./graphql-resolver');
+        await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
+      });
+    });
+
+    it('should succeed with valid tenantId and return data', async () => {
+      const profile = { tenantId: 'tenant-1', email: 'test@example.com' };
+      mockSend.mockResolvedValueOnce({ Item: profile });
+
+      const event = buildEvent('getProfile');
+
+      await jest.isolateModulesAsync(async () => {
+        const { handler } = require('./graphql-resolver');
+        const result = await handler(event);
+        expect(result).toEqual(profile);
+      });
     });
   });
 });

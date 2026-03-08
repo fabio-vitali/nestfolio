@@ -179,6 +179,54 @@ describe('dashboard-bff event-listener handler', () => {
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
+  it('should report failure for malformed event body (invalid JSON)', async () => {
+    const sqsEvent: SQSEvent = {
+      Records: [{
+        messageId: 'msg-malformed',
+        body: '{{not-json',
+        receiptHandle: 'handle',
+        attributes: {} as any,
+        messageAttributes: {},
+        md5OfBody: '',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
+        awsRegion: 'us-east-1',
+      }],
+    };
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
+  });
+
+  it('should report failure when idempotency guard throws DynamoDB error', async () => {
+    mockEnsureOnce.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-dynamo-err',
+        body: {
+          detail: {
+            id: 'evt-dynamo',
+            type: 'ORDER_FILLED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              orderId: 'o1',
+              symbol: 'AAPL',
+              filledQuantity: 50,
+              averageFillPrice: 150.00,
+            },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-dynamo-err');
+  });
+
   it('should skip unknown event types gracefully', async () => {
     const sqsEvent = buildSqsEvent([
       {
@@ -271,7 +319,7 @@ describe('dashboard-bff event-listener handler', () => {
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
-  it('should skip duplicate events via idempotency guard', async () => {
+  it('should skip all pipes when all per-pipe idempotency keys are duplicates', async () => {
     mockEnsureOnce.mockResolvedValue(false);
 
     const sqsEvent = buildSqsEvent([
@@ -296,8 +344,69 @@ describe('dashboard-bff event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-    // No DynamoDB calls for pipe processing — only idempotency check happened
+    // 3 idempotency checks for ORDER_FILLED (portfolioSummary, positionSnapshot, recentActivity)
+    expect(mockEnsureOnce).toHaveBeenCalledTimes(3);
+    // No DynamoDB calls for pipe processing — only idempotency checks happened
     expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it('should use per-pipe idempotency keys with format eventType#eventId#pipeName', async () => {
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-idem',
+        body: {
+          detail: {
+            id: 'evt-100',
+            type: 'DECISION_APPROVED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              decisionId: 'd1',
+              approvedAt: '2025-01-01T00:00:00.000Z',
+            },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+
+    // DECISION_APPROVED has 2 pipes: advisoryStatus, recentActivity
+    expect(mockEnsureOnce).toHaveBeenCalledTimes(2);
+    expect(mockEnsureOnce).toHaveBeenCalledWith('DECISION_APPROVED', 'DECISION_APPROVED#evt-100#advisoryStatus');
+    expect(mockEnsureOnce).toHaveBeenCalledWith('DECISION_APPROVED', 'DECISION_APPROVED#evt-100#recentActivity');
+  });
+
+  it('should skip only already-processed pipes and run remaining pipes', async () => {
+    // First pipe (advisoryStatus) already processed, second (recentActivity) is new
+    mockEnsureOnce
+      .mockResolvedValueOnce(false)  // advisoryStatus — already processed
+      .mockResolvedValueOnce(true);  // recentActivity — new
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-partial',
+        body: {
+          detail: {
+            id: 'evt-partial',
+            type: 'DECISION_APPROVED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              decisionId: 'd1',
+              approvedAt: '2025-01-01T00:00:00.000Z',
+            },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+
+    // Only 1 pipe should have run (recentActivity), not advisoryStatus
+    expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   it('should process DECISION_PACKET_CREATED through advisory pipe', async () => {

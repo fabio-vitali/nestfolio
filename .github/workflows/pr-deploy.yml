@@ -27,6 +27,21 @@ jobs:
           AFFECTED=$(pnpm nx show projects --affected --base=origin/main --type=app | tr '\n' ',')
           echo "services=$AFFECTED" >> $GITHUB_OUTPUT
 
+  security-scan:
+    needs: detect-affected
+    if: needs.detect-affected.outputs.affected != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Dependency vulnerability audit
+        run: pnpm audit --audit-level=high
+      - name: Secret scanning
+        run: npx trivy fs --security-checks secret .
+
   build-and-test:
     needs: detect-affected
     if: needs.detect-affected.outputs.affected != ''
@@ -43,7 +58,7 @@ jobs:
       - run: pnpm nx affected -t test --base=origin/main --parallel=3
 
   sandbox-deploy:
-    needs: build-and-test
+    needs: [build-and-test, security-scan]
     runs-on: ubuntu-latest
     environment: sandbox
     permissions:

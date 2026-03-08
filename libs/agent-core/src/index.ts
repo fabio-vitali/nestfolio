@@ -47,6 +47,9 @@ export {
 export {
   createFallbackNode,
   createFallbackNodeMap,
+  getFallbackAllocationConfig,
+  type FallbackInvestorContext,
+  type FallbackAllocationConfig,
 } from './fallback-agents';
 
 export {
@@ -58,7 +61,11 @@ export {
   validateRebalancePlan,
   validateExplanation,
   AGENT_VALIDATORS,
+  getValidationConfig,
+  isValidTicker,
   type ValidationResult,
+  type ValidationConfig,
+  type ValidationRiskProfile,
 } from './output-validation';
 
 export {

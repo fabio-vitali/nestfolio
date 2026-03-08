@@ -11,7 +11,7 @@ import { AdvisoryService } from '../services/advisory.service';
 import { I18nService } from '@nestfolio/i18n';
 
 const mockDecision: Decision = {
-  decisionId: 'dec-001',
+  decisionId: 'd0000000-0000-0000-0000-000000000001',
   tenantId: 'tenant-1',
   status: 'APPROVED',
   rationale: 'Portfolio drift detected',
@@ -39,7 +39,7 @@ const mockDecision: Decision = {
 const mockInvocations: AgentInvocation[] = [
   {
     invocationId: 'inv-001',
-    decisionId: 'dec-001',
+    decisionId: 'd0000000-0000-0000-0000-000000000001',
     agentName: 'Portfolio Analyst',
     tier: 'Claude Opus 4.6',
     input: null,
@@ -53,7 +53,7 @@ const mockInvocations: AgentInvocation[] = [
 const mockChecks: ComplianceCheck[] = [
   {
     checkId: 'chk-001',
-    decisionId: 'dec-001',
+    decisionId: 'd0000000-0000-0000-0000-000000000001',
     ruleName: 'MaxSingleTrade',
     result: 'PASSED',
     details: null,
@@ -86,7 +86,7 @@ describe('DecisionDetailComponent', () => {
         { provide: I18nService, useValue: { t: (k: string) => k } },
         {
           provide: ActivatedRoute,
-          useValue: { snapshot: { paramMap: { get: () => 'dec-001' } } },
+          useValue: { snapshot: { paramMap: { get: () => 'd0000000-0000-0000-0000-000000000001' } } },
         },
       ],
     })
@@ -108,11 +108,11 @@ describe('DecisionDetailComponent', () => {
   it('should load decision on init', async () => {
     await component.ngOnInit();
 
-    expect(advisoryService.getDecision).toHaveBeenCalledWith('dec-001');
-    expect(advisoryService.getAgentInvocations).toHaveBeenCalledWith('dec-001');
-    expect(advisoryService.getComplianceChecks).toHaveBeenCalledWith('dec-001');
+    expect(advisoryService.getDecision).toHaveBeenCalledWith('d0000000-0000-0000-0000-000000000001');
+    expect(advisoryService.getAgentInvocations).toHaveBeenCalledWith('d0000000-0000-0000-0000-000000000001');
+    expect(advisoryService.getComplianceChecks).toHaveBeenCalledWith('d0000000-0000-0000-0000-000000000001');
     expect(store.isLoaded()).toBe(true);
-    expect(store.decision()?.decisionId).toBe('dec-001');
+    expect(store.decision()?.decisionId).toBe('d0000000-0000-0000-0000-000000000001');
   });
 
   it('should record explanation view', async () => {
@@ -121,7 +121,7 @@ describe('DecisionDetailComponent', () => {
     // Wait for fire-and-forget promise
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(advisoryService.recordExplanationView).toHaveBeenCalledWith('dec-001');
+    expect(advisoryService.recordExplanationView).toHaveBeenCalledWith('d0000000-0000-0000-0000-000000000001');
   });
 
   it('should set agent invocations and compliance checks', async () => {
@@ -180,11 +180,93 @@ describe('DecisionDetailComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
   });
 
+  it('should set loading true during data fetch', async () => {
+    // Use a deferred promise to control timing
+    let resolveDecision!: (v: unknown) => void;
+    advisoryService.getDecision.mockReturnValue(
+      new Promise((res) => { resolveDecision = res; })
+    );
+
+    const initPromise = component.ngOnInit();
+    expect(store.loading()).toBe(true);
+
+    resolveDecision(mockDecision);
+    await initPromise;
+    expect(store.loading()).toBe(false);
+  });
+
+  it('should handle non-Error exceptions with generic message', async () => {
+    advisoryService.getDecision.mockRejectedValue('string-error');
+
+    await component.ngOnInit();
+
+    // Should set some error — either the string itself or a generic message
+    expect(store.error()).toBeTruthy();
+    expect(store.loading()).toBe(false);
+  });
+
+  it('should still call all service methods even if getDecision fails (Promise.all)', async () => {
+    advisoryService.getDecision.mockRejectedValue(new Error('Not found'));
+
+    await component.ngOnInit();
+
+    // All three are called in Promise.all, so they all fire before any rejection
+    expect(advisoryService.getDecision).toHaveBeenCalled();
+    expect(advisoryService.getAgentInvocations).toHaveBeenCalled();
+    expect(advisoryService.getComplianceChecks).toHaveBeenCalled();
+    expect(store.error()).toBe('Not found');
+  });
+
+  it('should compute compliance passed correctly', async () => {
+    await component.ngOnInit();
+
+    expect(store.compliancePassed()).toBe(true);
+  });
+
   it('should reset store on destroy', async () => {
     await component.ngOnInit();
     expect(store.isLoaded()).toBe(true);
 
     component.ngOnDestroy();
     expect(store.decision()).toBeNull();
+  });
+
+  it('should redirect to dashboard when decision ID is invalid (not UUID)', async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [DecisionDetailComponent],
+      providers: [
+        { provide: AdvisoryService, useValue: advisoryService },
+        { provide: Router, useValue: router },
+        { provide: I18nService, useValue: { t: (k: string) => k } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => 'not-a-uuid' } } },
+        },
+      ],
+    })
+      .overrideComponent(DecisionDetailComponent, {
+        set: { template: '<div>test</div>', imports: [], styles: [] },
+      })
+      .compileComponents();
+
+    const s = TestBed.inject(AdvisoryStore);
+    s.reset();
+    const f = TestBed.createComponent(DecisionDetailComponent);
+    await f.componentInstance.ngOnInit();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
+    expect(advisoryService.getDecision).not.toHaveBeenCalled();
+  });
+
+  it('should log error when recordExplanationView fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    advisoryService.recordExplanationView.mockRejectedValue(new Error('audit fail'));
+
+    await component.ngOnInit();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(consoleSpy).toHaveBeenCalledWith('audit log failed', expect.any(Error));
+    consoleSpy.mockRestore();
   });
 });

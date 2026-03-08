@@ -28,9 +28,14 @@ export class PortfolioSummaryPipe
           const updates: Record<string, number> = {};
 
           if (payload.filledQuantity !== undefined && payload.averageFillPrice !== undefined) {
-            updates.totalValueCents = Math.round(
+            const tradeValueCents = Math.round(
               payload.filledQuantity * payload.averageFillPrice * 100,
             );
+
+            // Read existing summary to accumulate total value
+            const existing = await this.repository.getPortfolioSummary(tenantId);
+            const existingTotalValueCents = (existing?.totalValueCents as number) ?? 0;
+            updates.totalValueCents = existingTotalValueCents + tradeValueCents;
           }
 
           if (payload.driftPercent !== undefined) {

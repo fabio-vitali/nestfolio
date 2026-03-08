@@ -1,9 +1,10 @@
 import { Stack, StackProps, Duration } from 'aws-cdk-lib';
 import { EventBus, Archive, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
+import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import { createNamingService } from '@nestfolio/cdk-constructs';
+import { createNamingService, applyStandardTags } from '@nestfolio/cdk-constructs';
 
 export class ExecutionHubStack extends Stack {
   readonly bus: EventBus;
@@ -15,6 +16,9 @@ export class ExecutionHubStack extends Stack {
       subsystem: 'execution',
       service: 'execution-hub',
     });
+
+    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    applyStandardTags(this, { service: 'execution-hub', domain: 'execution', environment: prefix });
 
     // Domain bus
     this.bus = new EventBus(this, 'ExecutionBus', {
@@ -36,14 +40,15 @@ export class ExecutionHubStack extends Stack {
       description: 'Execution event hub bus ARN',
     });
 
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
-
     // Cross-domain forwarding: Execution --> Investor
     const investorBusArn = StringParameter.valueForStringParameter(
       this,
       `/nestfolio/${prefix}-investor/event-hub/busArn`,
     );
     const investorBus = EventBus.fromEventBusArn(this, 'InvestorBus', investorBusArn);
+    const toInvestorDlq = new Queue(this, 'ToInvestorDLQ', {
+      retentionPeriod: Duration.days(14),
+    });
     new Rule(this, 'ToInvestor', {
       eventBus: this.bus,
       eventPattern: {
@@ -61,7 +66,7 @@ export class ExecutionHubStack extends Stack {
           'RECONCILIATION_FAILED',
         ],
       },
-      targets: [new EventBusTarget(investorBus)],
+      targets: [new EventBusTarget(investorBus, { deadLetterQueue: toInvestorDlq })],
     });
 
     // Cross-domain forwarding: Execution --> Advisory
@@ -70,6 +75,9 @@ export class ExecutionHubStack extends Stack {
       `/nestfolio/${prefix}-advisory/event-hub/busArn`,
     );
     const advisoryBus = EventBus.fromEventBusArn(this, 'AdvisoryBus', advisoryBusArn);
+    const toAdvisoryDlq = new Queue(this, 'ToAdvisoryDLQ', {
+      retentionPeriod: Duration.days(14),
+    });
     new Rule(this, 'ToAdvisory', {
       eventBus: this.bus,
       eventPattern: {
@@ -84,7 +92,7 @@ export class ExecutionHubStack extends Stack {
           'RECONCILIATION_FAILED',
         ],
       },
-      targets: [new EventBusTarget(advisoryBus)],
+      targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: toAdvisoryDlq })],
     });
   }
 }

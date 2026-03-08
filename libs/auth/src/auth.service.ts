@@ -67,6 +67,18 @@ export async function getAuthSession(): Promise<AuthTokens | null> {
   }
 }
 
+export async function forceRefreshSession(): Promise<AuthTokens | null> {
+  try {
+    const session = await fetchAuthSession({ forceRefresh: true });
+    const idToken = session.tokens?.idToken?.toString();
+    const accessToken = session.tokens?.accessToken?.toString();
+    if (!idToken || !accessToken) return null;
+    return { idToken, accessToken };
+  } catch {
+    return null;
+  }
+}
+
 export async function getAuthUser(): Promise<AuthUser | null> {
   try {
     const user = await getCurrentUser();

@@ -1,9 +1,10 @@
 import { Stack, StackProps, Duration } from 'aws-cdk-lib';
 import { EventBus, Archive, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
+import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import { createNamingService } from '@nestfolio/cdk-constructs';
+import { createNamingService, applyStandardTags } from '@nestfolio/cdk-constructs';
 
 export class AdvisoryHubStack extends Stack {
   readonly bus: EventBus;
@@ -15,6 +16,9 @@ export class AdvisoryHubStack extends Stack {
       subsystem: 'advisory',
       service: 'advisory-hub',
     });
+
+    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    applyStandardTags(this, { service: 'advisory-hub', domain: 'advisory', environment: prefix });
 
     // Domain bus
     this.bus = new EventBus(this, 'AdvisoryBus', {
@@ -36,7 +40,24 @@ export class AdvisoryHubStack extends Stack {
       description: 'Advisory event hub bus ARN',
     });
 
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    // Bedrock model IDs — single source of truth for all advisory services
+    new StringParameter(this, 'ModelOpusParam', {
+      parameterName: naming.ssmParameterPath('models/opus'),
+      stringValue: 'anthropic.claude-opus-4-6-20250501-v1:0',
+      description: 'Bedrock model ID for Opus tier',
+    });
+
+    new StringParameter(this, 'ModelSonnetParam', {
+      parameterName: naming.ssmParameterPath('models/sonnet'),
+      stringValue: 'anthropic.claude-sonnet-4-6-20250514-v1:0',
+      description: 'Bedrock model ID for Sonnet tier',
+    });
+
+    new StringParameter(this, 'ModelHaikuParam', {
+      parameterName: naming.ssmParameterPath('models/haiku'),
+      stringValue: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+      description: 'Bedrock model ID for Haiku tier',
+    });
 
     // Cross-domain forwarding: Advisory --> Investor
     const investorBusArn = StringParameter.valueForStringParameter(
@@ -44,6 +65,9 @@ export class AdvisoryHubStack extends Stack {
       `/nestfolio/${prefix}-investor/event-hub/busArn`,
     );
     const investorBus = EventBus.fromEventBusArn(this, 'InvestorBus', investorBusArn);
+    const toInvestorDlq = new Queue(this, 'ToInvestorDLQ', {
+      retentionPeriod: Duration.days(14),
+    });
     new Rule(this, 'ToInvestor', {
       eventBus: this.bus,
       eventPattern: {
@@ -60,7 +84,7 @@ export class AdvisoryHubStack extends Stack {
           'INCIDENT_RESOLVED',
         ],
       },
-      targets: [new EventBusTarget(investorBus)],
+      targets: [new EventBusTarget(investorBus, { deadLetterQueue: toInvestorDlq })],
     });
 
     // Cross-domain forwarding: Advisory --> Execution
@@ -69,6 +93,9 @@ export class AdvisoryHubStack extends Stack {
       `/nestfolio/${prefix}-execution/event-hub/busArn`,
     );
     const executionBus = EventBus.fromEventBusArn(this, 'ExecutionBus', executionBusArn);
+    const toExecutionDlq = new Queue(this, 'ToExecutionDLQ', {
+      retentionPeriod: Duration.days(14),
+    });
     new Rule(this, 'ToExecution', {
       eventBus: this.bus,
       eventPattern: {
@@ -79,7 +106,7 @@ export class AdvisoryHubStack extends Stack {
           'CIRCUIT_BREAKER_RESET',
         ],
       },
-      targets: [new EventBusTarget(executionBus)],
+      targets: [new EventBusTarget(executionBus, { deadLetterQueue: toExecutionDlq })],
     });
   }
 }

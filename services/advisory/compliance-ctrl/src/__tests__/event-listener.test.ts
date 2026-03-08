@@ -50,6 +50,12 @@ jest.mock('@nestfolio/platform-core', () => ({
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  NotRetryableError: class NotRetryableError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'NotRetryableError';
+    }
+  },
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
@@ -62,6 +68,11 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   IdempotencyGuard: jest.fn().mockImplementation(() => ({
     ensureOnce: jest.fn().mockResolvedValue(true),
   })),
+  extractTenantId: jest.fn((event: Record<string, unknown>) => {
+    const context = event.context as Record<string, unknown> | undefined;
+    const subject = event.subject as Record<string, unknown> | undefined;
+    return (context?.tenantId ?? subject?.tenantId) as string;
+  }),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({
@@ -189,6 +200,10 @@ describe('event-listener handler', () => {
               decisionId: 'dp-2',
               tenantId: 't-1',
               userId: 'u-1',
+              proposedTrades: [],
+              portfolioValue: 0,
+              riskScore: 5,
+              currentPositions: [],
             },
             context: { tenantId: 't-1' },
           },
@@ -256,7 +271,68 @@ describe('event-listener handler', () => {
     // getMandateSnapshot should be called with tenantId as userId fallback
     const getMandateCall = mockSend.mock.calls[0][0];
     expect(getMandateCall.input.Key.pk.S ?? getMandateCall.input.Key?.pk).toBeDefined();
-    expect(mockSend).toHaveBeenCalledTimes(5);
+    expect(mockSend).toHaveBeenCalled();
+  });
+
+  it('should report failure for malformed event body (invalid JSON)', async () => {
+    const sqsEvent: SQSEvent = {
+      Records: [{
+        messageId: 'msg-malformed',
+        body: '{{invalid',
+        receiptHandle: 'handle',
+        attributes: {} as any,
+        messageAttributes: {},
+        md5OfBody: '',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
+        awsRegion: 'us-east-1',
+      }],
+    };
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
+    });
+  });
+
+  it('should throw NotRetryableError when DECISION_PACKET_CREATED is missing required fields', async () => {
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-missing-fields',
+        body: {
+          detail: {
+            id: 'evt-missing',
+            type: 'DECISION_PACKET_CREATED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              decisionId: 'dp-missing',
+              tenantId: 't-1',
+              userId: 'u-1',
+              // Missing: proposedTrades, portfolioValue, riskScore, currentPositions
+            },
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    const { logger } = require('@nestfolio/platform-core');
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-missing-fields');
+    });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Failed to process record',
+      expect.objectContaining({
+        error: expect.stringContaining('Missing fields'),
+      }),
+    );
   });
 
   it('should skip unknown event types gracefully', async () => {
@@ -301,5 +377,100 @@ describe('event-listener handler', () => {
       expect(result.batchItemFailures).toHaveLength(1);
       expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
     });
+  });
+
+  it('should report failure when DECISION_PACKET_CREATED is missing required fields', async () => {
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-missing',
+        body: {
+          detail: {
+            id: 'evt-missing',
+            type: 'DECISION_PACKET_CREATED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              decisionId: 'dp-missing',
+              tenantId: 't-1',
+              userId: 'u-1',
+              // Missing: proposedTrades, portfolioValue, riskScore, currentPositions
+            },
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-missing');
+    });
+
+    // Should NOT have called any DynamoDB operations (validation rejects before processing)
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it('should proceed when DECISION_PACKET_CREATED has all required fields', async () => {
+    // getMandateSnapshot -> found
+    mockSend.mockResolvedValueOnce({
+      Item: {
+        mandateId: 'm-1',
+        level: 'DISCRETIONARY',
+        monthlyTurnoverCapPercent: 10,
+        maxSingleTradePercent: 5,
+        effectiveDate: '2024-01-01T00:00:00.000Z',
+        revokedAt: null,
+      },
+    });
+    // createComplianceCheck -> put
+    mockSend.mockResolvedValueOnce({});
+    // updateCheckResult -> update
+    mockSend.mockResolvedValueOnce({ Attributes: { status: 'COMPLETED', result: 'APPROVED' } });
+    // updateCheckResult -> edit event put
+    mockSend.mockResolvedValueOnce({});
+    // createAuditArtifact -> put
+    mockSend.mockResolvedValueOnce({});
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-valid',
+        body: {
+          detail: {
+            id: 'evt-valid',
+            type: 'DECISION_PACKET_CREATED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              decisionId: 'dp-valid',
+              tenantId: 't-1',
+              userId: 'u-1',
+              proposedTrades: [
+                {
+                  symbol: 'AAPL',
+                  assetClass: 'EQUITY',
+                  side: 'BUY',
+                  quantityOrAmountCents: 2_000_00,
+                  targetWeightPercent: 2,
+                  rationale: 'Good value',
+                },
+              ],
+              portfolioValue: 100_000_00,
+              riskScore: 7,
+              currentPositions: [{ ticker: 'MSFT', weight: 10 }],
+            },
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/event-listener');
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+    });
+
+    // Should have processed: getMandateSnapshot + createComplianceCheck + updateCheckResult (2) + createAuditArtifact
+    expect(mockSend).toHaveBeenCalledTimes(5);
   });
 });

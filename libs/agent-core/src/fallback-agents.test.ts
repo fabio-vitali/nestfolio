@@ -1,4 +1,4 @@
-import { createFallbackNode, createFallbackNodeMap } from './fallback-agents';
+import { createFallbackNode, createFallbackNodeMap, getFallbackAllocationConfig } from './fallback-agents';
 import { AGENT_TYPES, AgentType } from './model-config';
 import {
   GoalInterpretationSchema,
@@ -71,6 +71,66 @@ describe('fallback-agents', () => {
         const parsed = schema.safeParse(result[type]);
         expect(parsed.success).toBe(true);
       }
+    });
+  });
+
+  describe('risk-profile-aware fallback (portfolio-construction)', () => {
+    it('returns conservative allocation (30% VTI / 50% BND / 20% VTIP)', async () => {
+      const node = createFallbackNode('portfolio-construction', { riskProfile: 'conservative' });
+      const result = await node({});
+      const pc = result['portfolio-construction'] as { allocations: Array<{ ticker: string; weight: number }> };
+
+      expect(pc.allocations).toHaveLength(3);
+      expect(pc.allocations.find((a) => a.ticker === 'VTI')?.weight).toBe(0.3);
+      expect(pc.allocations.find((a) => a.ticker === 'BND')?.weight).toBe(0.5);
+      expect(pc.allocations.find((a) => a.ticker === 'VTIP')?.weight).toBe(0.2);
+
+      // Validate against Zod schema
+      const parsed = PortfolioConstructionSchema.safeParse(pc);
+      expect(parsed.success).toBe(true);
+    });
+
+    it('returns balanced allocation (60% VTI / 40% BND) — default', async () => {
+      const node = createFallbackNode('portfolio-construction', { riskProfile: 'balanced' });
+      const result = await node({});
+      const pc = result['portfolio-construction'] as { allocations: Array<{ ticker: string; weight: number }> };
+
+      expect(pc.allocations).toHaveLength(2);
+      expect(pc.allocations.find((a) => a.ticker === 'VTI')?.weight).toBe(0.6);
+      expect(pc.allocations.find((a) => a.ticker === 'BND')?.weight).toBe(0.4);
+    });
+
+    it('returns aggressive allocation (80% VTI / 10% BND / 10% QQQ)', async () => {
+      const node = createFallbackNode('portfolio-construction', { riskProfile: 'aggressive' });
+      const result = await node({});
+      const pc = result['portfolio-construction'] as { allocations: Array<{ ticker: string; weight: number }> };
+
+      expect(pc.allocations).toHaveLength(3);
+      expect(pc.allocations.find((a) => a.ticker === 'VTI')?.weight).toBe(0.8);
+      expect(pc.allocations.find((a) => a.ticker === 'BND')?.weight).toBe(0.1);
+      expect(pc.allocations.find((a) => a.ticker === 'QQQ')?.weight).toBe(0.1);
+
+      const parsed = PortfolioConstructionSchema.safeParse(pc);
+      expect(parsed.success).toBe(true);
+    });
+
+    it('createFallbackNodeMap with investor context applies to portfolio-construction', async () => {
+      const map = createFallbackNodeMap({ riskProfile: 'conservative' });
+      const result = await map['portfolio-construction']({});
+      const pc = result['portfolio-construction'] as { allocations: Array<{ ticker: string; weight: number }> };
+
+      expect(pc.allocations).toHaveLength(3);
+      expect(pc.allocations.find((a) => a.ticker === 'VTIP')).toBeDefined();
+    });
+
+    it('getFallbackAllocationConfig returns correct config per profile', () => {
+      const conservative = getFallbackAllocationConfig('conservative');
+      expect(conservative.allocations).toHaveLength(3);
+      expect(conservative.expectedReturn).toBeLessThan(0.065);
+
+      const aggressive = getFallbackAllocationConfig('aggressive');
+      expect(aggressive.allocations).toHaveLength(3);
+      expect(aggressive.expectedReturn).toBeGreaterThan(0.065);
     });
   });
 });

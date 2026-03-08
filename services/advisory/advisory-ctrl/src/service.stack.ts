@@ -1,5 +1,6 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
@@ -10,6 +11,7 @@ import {
   AgentRuntime,
   createNamingService,
   defaultLambdaProps,
+  applyStandardTags,
 } from '@nestfolio/cdk-constructs';
 
 export class AdvisoryCtrlStack extends Stack {
@@ -20,6 +22,9 @@ export class AdvisoryCtrlStack extends Stack {
       subsystem: 'advisory',
       service: 'advisory-ctrl',
     });
+
+    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    applyStandardTags(this, { service: 'advisory-ctrl', domain: 'advisory', environment: prefix });
 
     // State: DynamoDB table
     const state = new State(this, 'State');
@@ -87,6 +92,29 @@ export class AdvisoryCtrlStack extends Stack {
       publishableTypes: ['DecisionPacket', 'AgentInvocation', 'WorkflowState'],
     });
 
+    // Read Bedrock model IDs from SSM (published by advisory-hub)
+    const hubNaming = createNamingService(this, {
+      subsystem: 'advisory',
+      service: 'advisory-hub',
+    });
+    const modelOpusId = StringParameter.valueForStringParameter(
+      this,
+      hubNaming.ssmParameterPath('models/opus'),
+    );
+    const modelSonnetId = StringParameter.valueForStringParameter(
+      this,
+      hubNaming.ssmParameterPath('models/sonnet'),
+    );
+    const modelHaikuId = StringParameter.valueForStringParameter(
+      this,
+      hubNaming.ssmParameterPath('models/haiku'),
+    );
+
+    // Pass model SSM parameter names as env vars for runtime Lambda resolution
+    eventListener.addEnvironment('MODEL_OPUS_SSM', hubNaming.ssmParameterPath('models/opus'));
+    eventListener.addEnvironment('MODEL_SONNET_SSM', hubNaming.ssmParameterPath('models/sonnet'));
+    eventListener.addEnvironment('MODEL_HAIKU_SSM', hubNaming.ssmParameterPath('models/haiku'));
+
     // AgentCore Runtime for decision lifecycle agent
     const portfolioLookupFn = new NodejsFunction(this, 'PortfolioLookup', {
       ...defaultLambdaProps(this),
@@ -117,11 +145,7 @@ export class AdvisoryCtrlStack extends Stack {
       agentCodePath: join(__dirname, '..', 'agents', 'decision-lifecycle'),
       description: 'Multi-agent decision lifecycle orchestrated via LangGraph.js',
       tables: [state.table],
-      modelIds: [
-        'anthropic.claude-opus-4-6-20250501-v1:0',
-        'anthropic.claude-sonnet-4-6-20250514-v1:0',
-        'anthropic.claude-haiku-4-5-20251001-v1:0',
-      ],
+      modelIds: [modelOpusId, modelSonnetId, modelHaikuId],
       toolTargets: [
         {
           name: 'portfolio-lookup',

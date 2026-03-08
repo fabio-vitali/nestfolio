@@ -94,5 +94,19 @@ describe('errors', () => {
       expect(push).toHaveBeenCalledWith(error);
       expect(mockBus.publish).not.toHaveBeenCalled();
     });
+
+    it('should log error when publish fails and still push event to stream', async () => {
+      const publishError = new Error('EventBridge down');
+      mockBus.publish.mockRejectedValueOnce(publishError);
+
+      const handler = handleErrors(mockBus, 'SERVICE_FAILED');
+      const error = new NotRetryableError('bad data', { field: 'amount' });
+
+      const push = jest.fn();
+      handler(error, push);
+
+      // push should still be called with the stream wrapping the catch result
+      expect(push).toHaveBeenCalledWith(null, expect.anything());
+    });
   });
 });

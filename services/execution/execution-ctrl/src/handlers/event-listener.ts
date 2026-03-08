@@ -34,7 +34,7 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       logger.info('Processing event', { eventType, eventId: uow.event.id });
 
       if (!HANDLED_EVENT_TYPES.has(eventType)) {
-        logger.info('No handler for event type, skipping', { eventType });
+        logger.warn('No handler for event type, skipping', { eventType });
         continue;
       }
 

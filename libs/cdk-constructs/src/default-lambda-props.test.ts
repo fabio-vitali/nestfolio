@@ -23,6 +23,11 @@ describe('defaultLambdaProps', () => {
     const props = defaultLambdaProps(stack);
     expect(props.tracing).toBeDefined();
   });
+
+  it('excludes @aws-sdk/* from bundling', () => {
+    const props = defaultLambdaProps(stack);
+    expect(props.bundling?.externalModules).toEqual(['@aws-sdk/*']);
+  });
 });
 
 describe('agentLambdaProps', () => {

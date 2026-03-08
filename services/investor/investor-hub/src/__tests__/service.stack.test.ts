@@ -1,5 +1,5 @@
 import { App } from 'aws-cdk-lib';
-import { Template } from 'aws-cdk-lib/assertions';
+import { Template, Match } from 'aws-cdk-lib/assertions';
 import { InvestorHubStack } from '../service.stack';
 
 describe('InvestorHubStack', () => {
@@ -37,6 +37,28 @@ describe('InvestorHubStack', () => {
       Budget: {
         BudgetLimit: { Amount: 200, Unit: 'USD' },
       },
+    });
+  });
+
+  it('creates DLQs for cross-domain forwarding rule targets', () => {
+    const queues = template.findResources('AWS::SQS::Queue', {
+      Properties: {
+        MessageRetentionPeriod: 1209600,
+      },
+    });
+    expect(Object.keys(queues).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('applies standard tags to taggable resources', () => {
+    template.hasResourceProperties('AWS::SQS::Queue', {
+      Tags: Match.arrayWith([
+        Match.objectLike({ Key: 'Service', Value: 'investor-hub' }),
+      ]),
+    });
+    template.hasResourceProperties('AWS::SQS::Queue', {
+      Tags: Match.arrayWith([
+        Match.objectLike({ Key: 'Project', Value: 'nestfolio' }),
+      ]),
     });
   });
 });

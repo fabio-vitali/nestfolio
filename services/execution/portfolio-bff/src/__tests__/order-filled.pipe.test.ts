@@ -1,6 +1,12 @@
 jest.mock('@nestfolio/platform-core', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
+  NotRetryableError: class NotRetryableError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'NotRetryableError';
+    }
+  },
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
@@ -119,6 +125,75 @@ describe('OrderFilledPipe', () => {
       expect(mockUpsertPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL', 50, 150, 175, 2);
       done();
     });
+  });
+
+  it('should default to 0 when existing position has null quantity', (done) => {
+    mockGetPosition.mockResolvedValue({ quantity: null, avgCostBasis: null, version: 1 });
+
+    const uow: UnitOfWork<BusEvent<any>> = {
+      event: {
+        id: 'evt-null',
+        type: 'ORDER_FILLED',
+        timestamp: '2025-01-01T00:00:00.000Z',
+        subject: {
+          tenantId: 't1',
+          portfolioId: 'p1',
+          symbol: 'AAPL',
+          side: 'BUY',
+          filledQuantity: 50,
+          averageFillPrice: 100,
+        },
+        context: { tenantId: 't1' },
+      },
+      payload: {},
+      record: {},
+    };
+
+    const source = Highland<UnitOfWork<BusEvent<any>>>([uow]);
+
+    pipe.feed(source).done(() => {
+      // null quantity defaults to 0, so newQty = 0 + 50 = 50
+      // null avgCostBasis defaults to 0, so newAvgCost = (0*0 + 50*100)/50 = 100
+      expect(mockUpsertPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL', 50, 100, 100, 1);
+      done();
+    });
+  });
+
+  it('should throw NotRetryableError when calculation produces NaN', (done) => {
+    mockGetPosition.mockResolvedValue({ quantity: 'not-a-number', avgCostBasis: 100, version: 1 });
+
+    const uow: UnitOfWork<BusEvent<any>> = {
+      event: {
+        id: 'evt-nan',
+        type: 'ORDER_FILLED',
+        timestamp: '2025-01-01T00:00:00.000Z',
+        subject: {
+          tenantId: 't1',
+          portfolioId: 'p1',
+          symbol: 'AAPL',
+          side: 'BUY',
+          filledQuantity: 50,
+          averageFillPrice: 100,
+        },
+        context: { tenantId: 't1' },
+      },
+      payload: {},
+      record: {},
+    };
+
+    const source = Highland<UnitOfWork<BusEvent<any>>>([uow]);
+    const errors: Error[] = [];
+
+    pipe
+      .feed(source)
+      .errors((err: Error) => errors.push(err))
+      .done(() => {
+        expect(errors).toHaveLength(1);
+        expect(errors[0].name).toBe('NotRetryableError');
+        expect(errors[0].message).toContain('NaN detected');
+        expect(mockUpsertPosition).not.toHaveBeenCalled();
+        done();
+      });
   });
 
   it('should retry on ConditionalCheckFailedException up to 3 times', (done) => {

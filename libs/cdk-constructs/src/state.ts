@@ -1,9 +1,9 @@
 import { Construct } from 'constructs';
 import {
   Table, AttributeType, BillingMode,
-  StreamViewType, ProjectionType,
+  StreamViewType, ProjectionType, TableEncryption,
 } from 'aws-cdk-lib/aws-dynamodb';
-import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
+import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
 import { RemovalPolicy } from 'aws-cdk-lib';
 
 export interface GsiConfig {
@@ -18,6 +18,10 @@ export interface StateProps {
   withBucket?: boolean;
   /** Additional GSIs beyond the two default ones */
   additionalGsis?: GsiConfig[];
+  /** Removal policy for DynamoDB table and S3 bucket (default: RETAIN) */
+  removalPolicy?: RemovalPolicy;
+  /** DynamoDB encryption type (default: AWS_MANAGED) */
+  encryption?: TableEncryption;
 }
 
 export class State extends Construct {
@@ -27,6 +31,8 @@ export class State extends Construct {
   constructor(scope: Construct, id: string, props: StateProps = {}) {
     super(scope, id);
 
+    const removalPolicy = props.removalPolicy ?? RemovalPolicy.RETAIN;
+
     this.table = new Table(this, 'Table', {
       partitionKey: { name: 'pk', type: AttributeType.STRING },
       sortKey: { name: 'sk', type: AttributeType.STRING },
@@ -34,7 +40,8 @@ export class State extends Construct {
       stream: StreamViewType.NEW_AND_OLD_IMAGES,
       timeToLiveAttribute: 'ttl',
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
-      removalPolicy: RemovalPolicy.DESTROY, // Phase 1: DESTROY for clean teardown. Use RETAIN for production.
+      encryption: props.encryption ?? TableEncryption.AWS_MANAGED,
+      removalPolicy,
     });
 
     // GSI 1: Tenant queries -- all entities for a tenant
@@ -68,9 +75,10 @@ export class State extends Construct {
     if (props.withBucket) {
       this.bucket = new Bucket(this, 'Bucket', {
         encryption: BucketEncryption.S3_MANAGED,
+        blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
         versioned: true,
-        removalPolicy: RemovalPolicy.DESTROY, // Phase 1: DESTROY for clean teardown. Use RETAIN for production.
-        autoDeleteObjects: true, // Required for DESTROY policy on non-empty buckets
+        removalPolicy,
+        autoDeleteObjects: removalPolicy === RemovalPolicy.DESTROY,
       });
     }
   }

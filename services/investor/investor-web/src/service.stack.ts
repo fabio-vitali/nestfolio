@@ -1,13 +1,16 @@
-import { Stack, StackProps, RemovalPolicy } from 'aws-cdk-lib';
+import { Stack, StackProps, RemovalPolicy, Duration } from 'aws-cdk-lib';
 import { UserPool, AccountRecovery, Mfa, StringAttribute } from 'aws-cdk-lib/aws-cognito';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
-import { Distribution, ViewerProtocolPolicy, OriginAccessIdentity } from 'aws-cdk-lib/aws-cloudfront';
+import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
+import {
+  Distribution, ViewerProtocolPolicy, OriginAccessIdentity,
+  ResponseHeadersPolicy, HeadersFrameOption, HeadersReferrerPolicy,
+} from 'aws-cdk-lib/aws-cloudfront';
 import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
-import { createNamingService, defaultLambdaProps } from '@nestfolio/cdk-constructs';
+import { createNamingService, defaultLambdaProps, applyStandardTags } from '@nestfolio/cdk-constructs';
 import { join } from 'path';
 
 export class InvestorWebStack extends Stack {
@@ -16,6 +19,8 @@ export class InvestorWebStack extends Stack {
 
     const naming = createNamingService(this, { subsystem: 'investor', service: 'investor-web' });
     const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+
+    applyStandardTags(this, { service: 'investor-web', domain: 'investor', environment: prefix });
 
     // PostConfirmation Lambda
     const postConfirmation = new NodejsFunction(this, 'PostConfirmation', {
@@ -78,8 +83,30 @@ export class InvestorWebStack extends Stack {
     // S3 bucket for static assets
     const assetsBucket = new Bucket(this, 'AssetsBucket', {
       encryption: BucketEncryption.S3_MANAGED,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
+    });
+
+    // Security response headers policy
+    const securityHeaders = new ResponseHeadersPolicy(this, 'SecurityHeaders', {
+      securityHeadersBehavior: {
+        contentSecurityPolicy: {
+          contentSecurityPolicy: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
+          override: true,
+        },
+        frameOptions: { frameOption: HeadersFrameOption.DENY, override: true },
+        contentTypeOptions: { override: true },
+        strictTransportSecurity: {
+          accessControlMaxAge: Duration.seconds(63072000),
+          includeSubdomains: true,
+          override: true,
+        },
+        referrerPolicy: {
+          referrerPolicy: HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+          override: true,
+        },
+      },
     });
 
     // CloudFront distribution
@@ -89,6 +116,7 @@ export class InvestorWebStack extends Stack {
       defaultBehavior: {
         origin: new S3Origin(assetsBucket, { originAccessIdentity: oai }),
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        responseHeadersPolicy: securityHeaders,
       },
       defaultRootObject: 'index.html',
       errorResponses: [{ httpStatus: 404, responsePagePath: '/index.html', responseHttpStatus: 200 }],

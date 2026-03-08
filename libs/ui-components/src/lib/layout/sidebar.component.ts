@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, input, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { NavItem } from './bottom-nav.component';
@@ -7,6 +7,7 @@ import { NavItem } from './bottom-nav.component';
   selector: 'nf-sidebar',
   standalone: true,
   imports: [CommonModule, RouterModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nav class="nf-sidebar" [class.collapsed]="collapsed()">
       @for (item of items(); track item.route) {

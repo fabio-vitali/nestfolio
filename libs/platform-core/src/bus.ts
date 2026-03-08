@@ -35,6 +35,16 @@ export class EventBridgeBus implements Bus {
 
   @log()
   async publish(event: BusEvent | ErrorEvent): Promise<void> {
+    const detail = JSON.stringify(event);
+    const detailSizeBytes = Buffer.byteLength(detail, 'utf-8');
+    const MAX_EVENT_SIZE = 256 * 1024; // EventBridge 256KB limit
+    if (detailSizeBytes > MAX_EVENT_SIZE) {
+      throw new NotRetryableError(
+        `Event exceeds EventBridge 256KB size limit: ${detailSizeBytes} bytes (type=${event.type}, id=${event.id})`,
+        { eventType: event.type, eventId: event.id, sizeBytes: detailSizeBytes },
+      );
+    }
+
     const result = await this.client.send(
       new PutEventsCommand({
         Entries: [
@@ -42,7 +52,7 @@ export class EventBridgeBus implements Bus {
             EventBusName: this.busName,
             Source: `${this.busName}@${this.serviceName}`,
             DetailType: event.type,
-            Detail: JSON.stringify(event),
+            Detail: detail,
           },
         ],
       }),

@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger, getUUID } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
+import { logger, getUUID, NotRetryableError } from '@nestfolio/platform-core';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId } from '@nestfolio/lambda-utils';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';
@@ -41,9 +41,16 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
         eventType === 'DECISION_PACKET_CREATED' ||
         eventType === 'DECISION_PACKET_ENRICHED'
       ) {
+        const subject = uow.event.subject as Record<string, unknown>;
+        const requiredFields = ['proposedTrades', 'portfolioValue', 'riskScore', 'currentPositions'];
+        const missingFields = requiredFields.filter((f) => !(f in subject));
+        if (missingFields.length) {
+          throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
+        }
+
         await processDecisionPacket(uow.event);
       } else {
-        logger.info('No handler for event type, skipping', { eventType });
+        logger.warn('No handler for event type, skipping', { eventType });
       }
     } catch (error) {
       logger.error('Failed to process record', {
@@ -63,8 +70,7 @@ async function processDecisionPacket(
   event: Record<string, unknown>,
 ): Promise<void> {
   const subject = event.subject as Record<string, unknown>;
-  const context = event.context as Record<string, unknown>;
-  const tenantId = (context.tenantId ?? subject.tenantId) as string;
+  const tenantId = extractTenantId(event);
   const userId = (subject.userId as string) ?? tenantId;
   const decisionPacketId = subject.decisionId as string;
 

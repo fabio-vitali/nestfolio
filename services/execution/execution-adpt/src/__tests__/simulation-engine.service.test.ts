@@ -3,6 +3,12 @@ jest.mock('@nestfolio/platform-core', () => ({
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  NotRetryableError: class NotRetryableError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'NotRetryableError';
+    }
+  },
 }));
 
 import { SimulationEngineService } from '../services/simulation-engine.service';
@@ -143,6 +149,24 @@ describe('SimulationEngineService', () => {
       expect(result.status).toBe('REJECTED');
       expect(result.rejectReason).toContain('Unknown symbol: UNKNOWN');
       expect(mockRepo.getCashBalance).not.toHaveBeenCalled();
+      expect(mockRepo.executeTrade).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotRetryableError for zero quantity', async () => {
+      await expect(
+        engine.processOrderSubmitted('t-1', 'u-1', 'order-1', 'VTI', 'BUY', 0),
+      ).rejects.toThrow('Invalid quantity: 0');
+
+      expect(mockMarketData.getPrice).not.toHaveBeenCalled();
+      expect(mockRepo.executeTrade).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotRetryableError for negative quantity', async () => {
+      await expect(
+        engine.processOrderSubmitted('t-1', 'u-1', 'order-1', 'VTI', 'SELL', -5),
+      ).rejects.toThrow('Invalid quantity: -5');
+
+      expect(mockMarketData.getPrice).not.toHaveBeenCalled();
       expect(mockRepo.executeTrade).not.toHaveBeenCalled();
     });
 

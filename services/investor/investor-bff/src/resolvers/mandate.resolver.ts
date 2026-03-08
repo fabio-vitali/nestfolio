@@ -13,7 +13,7 @@ export async function grantMandate(
     rebalanceCadence: RebalanceCadence;
   },
 ): Promise<Mandate> {
-  return repository.grantMandate(tenantId, userId, input);
+  return repository.grantMandate(tenantId, userId, input, userId);
 }
 
 export async function updateMandate(
@@ -29,7 +29,7 @@ export async function updateMandate(
   },
 ): Promise<Mandate> {
   // Update is essentially a re-grant with new parameters
-  return repository.grantMandate(tenantId, userId, input);
+  return repository.grantMandate(tenantId, userId, input, userId);
 }
 
 export async function revokeMandate(
@@ -37,5 +37,5 @@ export async function revokeMandate(
   tenantId: string,
   userId: string,
 ): Promise<Mandate> {
-  return repository.revokeMandate(tenantId, userId);
+  return repository.revokeMandate(tenantId, userId, userId);
 }

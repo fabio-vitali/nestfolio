@@ -1,5 +1,6 @@
-import { computed } from '@angular/core';
-import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+import { computed, inject, DestroyRef } from '@angular/core';
+import { signalStore, withState, withComputed, withMethods, withHooks, patchState } from '@ngrx/signals';
+import { LogoutOrchestrator } from '@nestfolio/shared-state';
 
 export interface RiskAnswer {
   questionId: string;
@@ -121,4 +122,13 @@ export const OnboardingStore = signalStore(
       patchState(store, { ...initialState });
     },
   })),
+  withHooks({
+    onInit(store) {
+      const orchestrator = inject(LogoutOrchestrator);
+      const destroyRef = inject(DestroyRef);
+      const resetFn = () => store.reset();
+      orchestrator.register(resetFn);
+      destroyRef.onDestroy(() => orchestrator.unregister(resetFn));
+    },
+  }),
 );

@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, Input, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { I18nService } from '@nestfolio/i18n';
@@ -7,6 +7,7 @@ import { I18nService } from '@nestfolio/i18n';
   selector: 'app-allocation-chart',
   standalone: true,
   imports: [CommonModule, CardModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-card [header]="i18n.t('portfolio.allocation')" styleClass="allocation-card">
       @if (allocationEntries.length === 0) {

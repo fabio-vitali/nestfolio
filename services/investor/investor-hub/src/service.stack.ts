@@ -1,9 +1,10 @@
 import { Stack, StackProps, Duration } from 'aws-cdk-lib';
 import { EventBus, Archive, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
+import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import { createNamingService, CostControls } from '@nestfolio/cdk-constructs';
+import { createNamingService, CostControls, applyStandardTags } from '@nestfolio/cdk-constructs';
 
 export class InvestorHubStack extends Stack {
   readonly bus: EventBus;
@@ -15,6 +16,9 @@ export class InvestorHubStack extends Stack {
       subsystem: 'investor',
       service: 'investor-hub',
     });
+
+    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    applyStandardTags(this, { service: 'investor-hub', domain: 'investor', environment: prefix });
 
     // Domain bus
     this.bus = new EventBus(this, 'InvestorBus', {
@@ -44,12 +48,14 @@ export class InvestorHubStack extends Stack {
     });
 
     // Cross-domain forwarding: Investor --> Advisory
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
     const advisoryBusArn = StringParameter.valueForStringParameter(
       this,
       `/nestfolio/${prefix}-advisory/event-hub/busArn`,
     );
     const advisoryBus = EventBus.fromEventBusArn(this, 'AdvisoryBus', advisoryBusArn);
+    const toAdvisoryDlq = new Queue(this, 'ToAdvisoryDLQ', {
+      retentionPeriod: Duration.days(14),
+    });
     new Rule(this, 'ToAdvisory', {
       eventBus: this.bus,
       eventPattern: {
@@ -62,7 +68,7 @@ export class InvestorHubStack extends Stack {
           'MANDATE_REVOKED',
         ],
       },
-      targets: [new EventBusTarget(advisoryBus)],
+      targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: toAdvisoryDlq })],
     });
 
     // Cross-domain forwarding: Investor --> Execution
@@ -71,12 +77,15 @@ export class InvestorHubStack extends Stack {
       `/nestfolio/${prefix}-execution/event-hub/busArn`,
     );
     const executionBus = EventBus.fromEventBusArn(this, 'ExecutionBus', executionBusArn);
+    const toExecutionDlq = new Queue(this, 'ToExecutionDLQ', {
+      retentionPeriod: Duration.days(14),
+    });
     new Rule(this, 'ToExecution', {
       eventBus: this.bus,
       eventPattern: {
         detailType: ['WITHDRAWAL_REQUESTED', 'ACCOUNT_CLOSURE_REQUESTED'],
       },
-      targets: [new EventBusTarget(executionBus)],
+      targets: [new EventBusTarget(executionBus, { deadLetterQueue: toExecutionDlq })],
     });
   }
 }

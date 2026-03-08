@@ -7,6 +7,8 @@ import {
   validateExplanation,
   validateAgentOutput,
   AGENT_VALIDATORS,
+  getValidationConfig,
+  isValidTicker,
 } from './output-validation';
 import { AGENT_TYPES } from './model-config';
 
@@ -79,26 +81,29 @@ describe('output-validation', () => {
       expect(result.errors.some((e) => e.includes('Negative weight'))).toBe(true);
     });
 
-    it('fails when single position exceeds 40%', () => {
+    it('fails when single position exceeds 40% (default balanced)', () => {
       const result = validatePortfolioConstruction({
         ...validPortfolio,
         allocations: [
-          { ticker: 'VTI', weight: 0.25, rationale: 'Core' },
-          { ticker: 'BND', weight: 0.25, rationale: 'Ballast' },
-          { ticker: 'VXUS', weight: 0.5, rationale: 'Too big' },
+          { ticker: 'VTI', weight: 0.20, rationale: 'Core' },
+          { ticker: 'BND', weight: 0.30, rationale: 'Ballast' },
+          { ticker: 'VXUS', weight: 0.50, rationale: 'Too big' },
         ],
       });
       expect(result.valid).toBe(false);
       expect(result.errors.some((e) => e.includes('exceeds 40%'))).toBe(true);
     });
 
-    it('fails with fewer than 2 allocations', () => {
+    it('fails with fewer than minimum allocations (default: 3)', () => {
       const result = validatePortfolioConstruction({
         ...validPortfolio,
-        allocations: [{ ticker: 'VTI', weight: 0.4, rationale: 'All in' }],
+        allocations: [
+          { ticker: 'VTI', weight: 0.5, rationale: 'Core' },
+          { ticker: 'BND', weight: 0.5, rationale: 'Ballast' },
+        ],
       });
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes('2 allocations'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('3 allocations'))).toBe(true);
     });
 
     it('fails with expectedReturn out of range', () => {
@@ -383,6 +388,136 @@ describe('output-validation', () => {
       });
       expect(result.valid).toBe(false);
       expect(result.errors[0]).toContain('inconsistent');
+    });
+  });
+
+  describe('risk-profile-aware validation', () => {
+    const basePortfolio = {
+      expectedReturn: 0.07,
+      expectedVolatility: 0.1,
+      sharpeRatio: 0.7,
+    };
+
+    it('conservative profile: rejects single position > 30%', () => {
+      const config = getValidationConfig('conservative');
+      const result = validatePortfolioConstruction(
+        {
+          ...basePortfolio,
+          allocations: [
+            { ticker: 'VTI', weight: 0.35, rationale: 'Core' },
+            { ticker: 'BND', weight: 0.25, rationale: 'Bonds' },
+            { ticker: 'VXUS', weight: 0.20, rationale: 'Intl' },
+            { ticker: 'VTIP', weight: 0.20, rationale: 'TIPS' },
+          ],
+        },
+        config,
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('exceeds 30%'))).toBe(true);
+    });
+
+    it('aggressive profile: allows single position up to 50%', () => {
+      const config = getValidationConfig('aggressive');
+      const result = validatePortfolioConstruction(
+        {
+          ...basePortfolio,
+          allocations: [
+            { ticker: 'VTI', weight: 0.50, rationale: 'Core' },
+            { ticker: 'BND', weight: 0.50, rationale: 'Bonds' },
+          ],
+        },
+        config,
+      );
+      expect(result.valid).toBe(true);
+    });
+
+    it('conservative profile: requires at least 4 allocations', () => {
+      const config = getValidationConfig('conservative');
+      const result = validatePortfolioConstruction(
+        {
+          ...basePortfolio,
+          allocations: [
+            { ticker: 'VTI', weight: 0.30, rationale: 'Core' },
+            { ticker: 'BND', weight: 0.30, rationale: 'Bonds' },
+            { ticker: 'VXUS', weight: 0.40, rationale: 'Intl' },
+          ],
+        },
+        config,
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('4 allocations'))).toBe(true);
+    });
+  });
+
+  describe('isValidTicker', () => {
+    it('accepts valid US tickers', () => {
+      expect(isValidTicker('VTI')).toBe(true);
+      expect(isValidTicker('AAPL')).toBe(true);
+      expect(isValidTicker('A')).toBe(true);
+      expect(isValidTicker('VXUS')).toBe(true);
+    });
+
+    it('accepts valid ISINs', () => {
+      expect(isValidTicker('US0378331005')).toBe(true);
+      expect(isValidTicker('GB00B03MLX29')).toBe(true);
+    });
+
+    it('rejects invalid ticker formats', () => {
+      expect(isValidTicker('vti')).toBe(false);
+      expect(isValidTicker('TOOLONG')).toBe(false);
+      expect(isValidTicker('123')).toBe(false);
+      expect(isValidTicker('')).toBe(false);
+      expect(isValidTicker('VTI.US')).toBe(false);
+    });
+  });
+
+  describe('ticker validation in portfolio', () => {
+    it('fails when portfolio contains invalid ticker', () => {
+      const result = validatePortfolioConstruction({
+        allocations: [
+          { ticker: 'VTI', weight: 0.35, rationale: 'Core' },
+          { ticker: 'invalid_ticker', weight: 0.35, rationale: 'Bad' },
+          { ticker: 'BND', weight: 0.30, rationale: 'Bonds' },
+        ],
+        expectedReturn: 0.07,
+        expectedVolatility: 0.1,
+        sharpeRatio: 0.7,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('Invalid ticker format'))).toBe(true);
+    });
+  });
+
+  describe('weight tolerance boundary (0.005)', () => {
+    it('passes at exactly 0.005 deviation', () => {
+      const result = validatePortfolioConstruction({
+        allocations: [
+          { ticker: 'VTI', weight: 0.335, rationale: 'Core' },
+          { ticker: 'BND', weight: 0.33, rationale: 'Ballast' },
+          { ticker: 'VXUS', weight: 0.33, rationale: 'International' },
+        ],
+        expectedReturn: 0.07,
+        expectedVolatility: 0.1,
+        sharpeRatio: 0.7,
+      });
+      // 0.335 + 0.33 + 0.33 = 0.995, deviation = 0.005, NOT > 0.005 → passes
+      expect(result.valid).toBe(true);
+    });
+
+    it('fails at 0.006 deviation', () => {
+      const result = validatePortfolioConstruction({
+        allocations: [
+          { ticker: 'VTI', weight: 0.334, rationale: 'Core' },
+          { ticker: 'BND', weight: 0.33, rationale: 'Ballast' },
+          { ticker: 'VXUS', weight: 0.33, rationale: 'International' },
+        ],
+        expectedReturn: 0.07,
+        expectedVolatility: 0.1,
+        sharpeRatio: 0.7,
+      });
+      // 0.334 + 0.33 + 0.33 = 0.994, deviation = 0.006 > 0.005 → fails
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('Weights sum to');
     });
   });
 });

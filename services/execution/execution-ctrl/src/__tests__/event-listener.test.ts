@@ -216,6 +216,47 @@ describe('event-listener handler', () => {
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
+  it('should report failure for malformed event body (invalid JSON)', async () => {
+    const sqsEvent: SQSEvent = {
+      Records: [{
+        messageId: 'msg-malformed',
+        body: '{{invalid-json',
+        receiptHandle: 'handle',
+        attributes: {} as any,
+        messageAttributes: {},
+        md5OfBody: '',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
+        awsRegion: 'us-east-1',
+      }],
+    };
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
+  });
+
+  it('should report failure when event is missing type field', async () => {
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-no-type',
+        body: {
+          detail: {
+            id: 'evt-no-type',
+            // type is missing
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: { tenantId: 't1' },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    // Should process without failure (treated as unknown type and skipped)
+    expect(result.batchItemFailures).toHaveLength(0);
+  });
+
   it('should handle CIRCUIT_BREAKER_TRIGGERED event', async () => {
     const sqsEvent = buildSqsEvent([
       {

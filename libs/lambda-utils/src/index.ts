@@ -15,3 +15,5 @@ export { parseRecord } from './sqs-parser';
 export { IdempotencyGuard } from './idempotency';
 export { buildContainer } from './container';
 export { requireEnv } from './require-env';
+export { authorizeTenant } from './authorize-tenant';
+export { extractTenantId } from './extract-tenant-id';

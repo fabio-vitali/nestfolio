@@ -2,7 +2,7 @@ import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import Highland from 'highland';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId } from '@nestfolio/lambda-utils';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 import { OrderFilledPipe } from '../pipes/order-filled.pipe';
 import { SnapshotImportedPipe } from '../pipes/snapshot-imported.pipe';
@@ -65,7 +65,7 @@ async function processEvent(
       return;
 
     default:
-      logger.info('No handler for event type, skipping', { eventType });
+      logger.warn('No handler for event type, skipping', { eventType });
   }
 }
 
@@ -85,7 +85,7 @@ async function handleCorporateAction(
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): Promise<void> {
   const payload = uow.event.subject as Record<string, unknown>;
-  const tenantId = (payload.tenantId as string) ?? 'unknown';
+  const tenantId = extractTenantId(uow.event as unknown as Record<string, unknown>);
   const portfolioId = (payload.portfolioId as string) ?? tenantId;
   const actionType = payload.actionType as string;
   const symbol = payload.symbol as string;

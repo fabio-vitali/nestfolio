@@ -51,6 +51,12 @@ jest.mock('@nestfolio/platform-core', () => ({
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  NotRetryableError: class NotRetryableError extends Error {
+    constructor(message: string, public readonly details?: Record<string, unknown>) {
+      super(message);
+      this.name = 'NotRetryableError';
+    }
+  },
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({
@@ -222,6 +228,29 @@ describe('InvestorProfileRepository', () => {
       });
       expect(result).toMatchObject({ mandateId: 'test-uuid', level: 'DISCRETIONARY' });
     });
+
+    it('should record editedBy in the EditEvent when granting mandate', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      const mandate = {
+        level: 'DISCRETIONARY' as const,
+        monthlyTurnoverCapPercent: 10,
+        maxSingleTradePercent: 5,
+        coolDownDays: 7,
+        rebalanceCadence: 'MONTHLY' as const,
+      };
+
+      await repo.grantMandate('t1', 'u1', mandate, 'admin-user');
+
+      const call = mockSend.mock.calls[0][0];
+      const editEvent = call.input.TransactItems[1].Put.Item;
+      expect(editEvent).toMatchObject({
+        __typename: 'EditEvent',
+        editedBy: 'admin-user',
+        action: 'GRANT_MANDATE',
+      });
+      expect(editEvent.editedAt).toBeDefined();
+    });
   });
 
   describe('revokeMandate', () => {
@@ -239,6 +268,28 @@ describe('InvestorProfileRepository', () => {
       const result = await repo.revokeMandate('t1', 'u1');
 
       expect(result).toMatchObject({ revokedAt: '2025-01-01T00:00:00.000Z' });
+    });
+
+    it('should record editedBy in the EditEvent when revoking mandate', async () => {
+      const updatedMandate = {
+        pk: 'InvestorProfile#t1#u1',
+        sk: 'Mandate',
+        __typename: 'Mandate',
+        revokedAt: '2025-01-01T00:00:00.000Z',
+      };
+      mockSend.mockResolvedValueOnce({ Attributes: updatedMandate });
+      mockSend.mockResolvedValueOnce({});
+
+      await repo.revokeMandate('t1', 'u1', 'admin-user');
+
+      // Second call is the put for the EditEvent
+      const editEventCall = mockSend.mock.calls[1][0];
+      expect(editEventCall.input.Item).toMatchObject({
+        __typename: 'EditEvent',
+        editedBy: 'admin-user',
+        action: 'REVOKE_MANDATE',
+      });
+      expect(editEventCall.input.Item.editedAt).toBeDefined();
     });
   });
 
@@ -298,6 +349,48 @@ describe('InvestorProfileRepository', () => {
       const count = await repo.getUnreadCount('t1', 'u1');
 
       expect(count).toBe(5);
+    });
+  });
+
+  describe('input validation', () => {
+    describe('setGoal validation', () => {
+      it('should reject negative targetAmountCents', async () => {
+        await expect(
+          repo.setGoal('t1', 'u1', {
+            objective: 'Retirement',
+            targetAmountCents: -100,
+            currency: 'USD',
+            timeHorizonMonths: 120,
+            targetReturn: 0.07,
+          }),
+        ).rejects.toThrow('targetAmountCents must be >= 0');
+      });
+
+      it('should reject zero timeHorizonMonths', async () => {
+        await expect(
+          repo.setGoal('t1', 'u1', {
+            objective: 'Retirement',
+            targetAmountCents: 100000,
+            currency: 'USD',
+            timeHorizonMonths: 0,
+            targetReturn: 0.07,
+          }),
+        ).rejects.toThrow('timeHorizonMonths must be > 0');
+      });
+    });
+
+    describe('updateGoal validation', () => {
+      it('should reject negative targetAmountCents in partial update', async () => {
+        await expect(
+          repo.updateGoal('t1', 'u1', 'g1', { targetAmountCents: -500 }),
+        ).rejects.toThrow('targetAmountCents must be >= 0');
+      });
+
+      it('should reject zero timeHorizonMonths in partial update', async () => {
+        await expect(
+          repo.updateGoal('t1', 'u1', 'g1', { timeHorizonMonths: 0 }),
+        ).rejects.toThrow('timeHorizonMonths must be > 0');
+      });
     });
   });
 });

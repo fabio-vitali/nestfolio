@@ -20,6 +20,8 @@
     "confirmPassword": "Conferma password",
     "forgotPassword": "Password dimenticata?",
     "confirmCode": "Codice di conferma",
+    "name": "Nome",
+    "age": "Eta",
     "welcomeBack": "Bentornato",
     "createAccount": "Crea un account"
   },

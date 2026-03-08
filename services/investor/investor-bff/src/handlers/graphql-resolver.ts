@@ -1,7 +1,7 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { requireEnv } from '@nestfolio/lambda-utils';
+import { requireEnv, authorizeTenant } from '@nestfolio/lambda-utils';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { getProfile } from '../resolvers/profile.resolver';
 import { setGoal, updateGoal, getGoals } from '../resolvers/goal.resolver';
@@ -22,15 +22,16 @@ const repository = new InvestorProfileRepository(TABLE_NAME, new DynamoDBClient(
 export const handler = async (
   event: AppSyncResolverEvent<Record<string, unknown>>,
 ): Promise<unknown> => {
-  const fieldName = event.info.fieldName;
-  const claims = event.identity as Record<string, unknown> | undefined;
-  const tenantId = (claims?.['claims'] as Record<string, string>)?.['custom:tenant_id'] ?? '';
-  const userId = (claims?.['claims'] as Record<string, string>)?.['sub'] ?? '';
-  const args = event.arguments ?? {};
+  try {
+    const tenantId = authorizeTenant(event);
+    const fieldName = event.info.fieldName;
+    const claims = event.identity as Record<string, unknown> | undefined;
+    const userId = (claims?.['claims'] as Record<string, string>)?.['sub'] ?? '';
+    const args = event.arguments ?? {};
 
-  logger.info('Resolving field', { fieldName, tenantId, userId });
+    logger.info('Resolving field', { fieldName, tenantId, userId });
 
-  switch (fieldName) {
+    switch (fieldName) {
     // Queries
     case 'getProfile':
       return getProfile(repository, tenantId, userId);
@@ -128,5 +129,9 @@ export const handler = async (
 
     default:
       throw new Error(`Unknown field: ${fieldName}`);
+    }
+  } catch (error) {
+    logger.error('GraphQL resolver error', { error, fieldName: event.info.fieldName });
+    throw error;
   }
 };

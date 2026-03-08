@@ -20,6 +20,8 @@
     "confirmPassword": "Confirm Password",
     "forgotPassword": "Forgot password?",
     "confirmCode": "Confirmation Code",
+    "name": "Name",
+    "age": "Age",
     "welcomeBack": "Welcome Back",
     "createAccount": "Create Account"
   },

@@ -2,7 +2,7 @@ import { App, Stack } from 'aws-cdk-lib';
 import { Annotations, Match, Template } from 'aws-cdk-lib/assertions';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
-import { Facade } from './facade';
+import { Facade, parseSchemaFields } from './facade';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -143,5 +143,83 @@ describe('Facade construct', () => {
     const template = Template.fromStack(stack);
     template.resourceCountIs('AWS::AppSync::DataSource', 0);
     template.resourceCountIs('AWS::AppSync::Resolver', 0);
+  });
+});
+
+describe('parseSchemaFields', () => {
+  it('parses complex return types (lists, non-null, nested)', () => {
+    const schema = `
+      type Query {
+        getItems(limit: Int!): [Item!]!
+        getUser(id: ID!): User
+        health: HealthStatus!
+      }
+      type Mutation {
+        createItem(input: CreateItemInput!): Item!
+        deleteItem(id: ID!): Boolean
+      }
+      type Item {
+        id: ID!
+        name: String!
+      }
+    `;
+    const fields = parseSchemaFields(schema);
+    expect(fields).toEqual([
+      { typeName: 'Query', fieldName: 'getItems' },
+      { typeName: 'Query', fieldName: 'getUser' },
+      { typeName: 'Query', fieldName: 'health' },
+      { typeName: 'Mutation', fieldName: 'createItem' },
+      { typeName: 'Mutation', fieldName: 'deleteItem' },
+    ]);
+  });
+
+  it('parses multi-line field definitions with descriptions and directives', () => {
+    const schema = `
+      type Query {
+        """
+        Get a paginated list of portfolios.
+        """
+        getPortfolios(
+          tenantId: String!
+          cursor: String
+          limit: Int
+        ): PortfolioConnection! @auth(requires: USER)
+
+        getPositions(portfolioId: ID!): [Position!]!
+      }
+    `;
+    const fields = parseSchemaFields(schema);
+    expect(fields).toEqual([
+      { typeName: 'Query', fieldName: 'getPortfolios' },
+      { typeName: 'Query', fieldName: 'getPositions' },
+    ]);
+  });
+
+  it('ignores comments in schema', () => {
+    const schema = `
+      # This is the main query type
+      type Query {
+        # Returns the dashboard data
+        getDashboard(tenantId: String!): Dashboard
+        # Health check
+        health: String
+      }
+
+      # Mutations for the app
+      type Mutation {
+        # Update a setting
+        updateSetting(key: String!, value: String!): Setting
+      }
+    `;
+    const fields = parseSchemaFields(schema);
+    expect(fields).toEqual([
+      { typeName: 'Query', fieldName: 'getDashboard' },
+      { typeName: 'Query', fieldName: 'health' },
+      { typeName: 'Mutation', fieldName: 'updateSetting' },
+    ]);
+  });
+
+  it('throws descriptive error for invalid schema', () => {
+    expect(() => parseSchemaFields('invalid { schema }')).toThrow('Failed to parse GraphQL schema');
   });
 });

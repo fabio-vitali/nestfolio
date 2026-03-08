@@ -35,4 +35,10 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     expect(fixture.componentInstance.authStore).toBeDefined();
   });
+
+  it('should not have ngOnInit (auth moved to APP_INITIALIZER)', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((fixture.componentInstance as any).ngOnInit).toBeUndefined();
+  });
 });

@@ -1,6 +1,14 @@
 import { Route } from '@angular/router';
 import { loadRemoteModule } from '@angular-architects/native-federation';
 import { authGuard } from '@nestfolio/auth';
+import { MfeErrorComponent } from './mfe-error.component';
+
+function loadMfe(remoteName: string, exposedModule: string) {
+  return () =>
+    loadRemoteModule(remoteName, exposedModule).catch(() => ({
+      remoteRoutes: [{ path: '**', component: MfeErrorComponent }],
+    }));
+}
 
 export const appRoutes: Route[] = [
   {
@@ -18,26 +26,22 @@ export const appRoutes: Route[] = [
   {
     path: 'dashboard',
     canActivate: [authGuard],
-    loadChildren: () =>
-      loadRemoteModule('dashboard-mfe', './routes').then((m) => m.remoteRoutes),
+    loadChildren: loadMfe('dashboard-mfe', './routes'),
   },
   {
     path: 'advisory',
     canActivate: [authGuard],
-    loadChildren: () =>
-      loadRemoteModule('advisory-mfe', './routes').then((m) => m.remoteRoutes),
+    loadChildren: loadMfe('advisory-mfe', './routes'),
   },
   {
     path: 'notifications',
     canActivate: [authGuard],
-    loadChildren: () =>
-      loadRemoteModule('notification-mfe', './routes').then((m) => m.remoteRoutes),
+    loadChildren: loadMfe('notification-mfe', './routes'),
   },
   {
     path: 'identity',
     canActivate: [authGuard],
-    loadChildren: () =>
-      loadRemoteModule('identity-mfe', './routes').then((m) => m.remoteRoutes),
+    loadChildren: loadMfe('identity-mfe', './routes'),
   },
   {
     path: '',

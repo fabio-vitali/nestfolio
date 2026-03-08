@@ -1,23 +1,26 @@
 import { inject } from '@angular/core';
 import { signalStore, withState, withMethods, patchState } from '@ngrx/signals';
 import type { AuthStatus, UserProfile } from '../models';
-import { LogoutSignal } from '../logout-signal';
+import { LogoutOrchestrator } from '../logout-orchestrator';
 
 interface AuthState {
   user: UserProfile | null;
   status: AuthStatus;
+  /** Email stored temporarily during signup-to-confirm flow */
+  pendingEmail: string | null;
 }
 
 const initialState: AuthState = {
   user: null,
   status: 'unknown',
+  pendingEmail: null,
 };
 
 export const AuthStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
   withMethods((store) => {
-    const logoutSignal = inject(LogoutSignal);
+    const logoutOrchestrator = inject(LogoutOrchestrator);
 
     return {
       setAuthenticated(user: UserProfile): void {
@@ -32,12 +35,18 @@ export const AuthStore = signalStore(
           patchState(store, { user: { ...current, ...updates } });
         }
       },
+      setPendingEmail(email: string): void {
+        patchState(store, { pendingEmail: email });
+      },
+      clearPendingEmail(): void {
+        patchState(store, { pendingEmail: null });
+      },
       reset(): void {
         patchState(store, { ...initialState });
       },
       logout(): void {
         patchState(store, { ...initialState, status: 'unauthenticated' });
-        logoutSignal.emit();
+        logoutOrchestrator.resetAll();
       },
     };
   }),

@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { AdvisoryPlaceholderComponent } from './advisory-placeholder.component';
 
 export const remoteRoutes: Routes = [
   {
@@ -10,7 +11,6 @@ export const remoteRoutes: Routes = [
   },
   {
     path: '',
-    redirectTo: '/dashboard',
-    pathMatch: 'full',
+    component: AdvisoryPlaceholderComponent,
   },
 ];

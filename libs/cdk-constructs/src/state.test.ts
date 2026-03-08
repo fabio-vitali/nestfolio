@@ -1,6 +1,6 @@
 import { Template, Match } from 'aws-cdk-lib/assertions';
-import { App, Stack } from 'aws-cdk-lib';
-import { AttributeType, ProjectionType } from 'aws-cdk-lib/aws-dynamodb';
+import { App, RemovalPolicy, Stack } from 'aws-cdk-lib';
+import { AttributeType, ProjectionType, TableEncryption } from 'aws-cdk-lib/aws-dynamodb';
 import { State } from './state';
 
 describe('State construct', () => {
@@ -95,10 +95,19 @@ describe('State construct', () => {
       template.resourceCountIs('AWS::S3::Bucket', 0);
     });
 
-    it('sets removal policy to DESTROY', () => {
+    it('defaults to RETAIN removal policy', () => {
       const tables = template.findResources('AWS::DynamoDB::Table');
       const tableKey = Object.keys(tables)[0];
-      expect(tables[tableKey].DeletionPolicy).toBe('Delete');
+      expect(tables[tableKey].DeletionPolicy).toBe('Retain');
+    });
+
+    it('defaults to AWS_MANAGED encryption', () => {
+      // AWS_MANAGED is the default, which means no SSESpecification in the template
+      // (CDK does not emit SSESpecification for AWS_MANAGED)
+      const tables = template.findResources('AWS::DynamoDB::Table');
+      const tableKey = Object.keys(tables)[0];
+      // AWS_MANAGED means no SSESpecification or SSEEnabled=true with no KMSMasterKeyId
+      expect(tables[tableKey].Properties.SSESpecification).toEqual({ SSEEnabled: true });
     });
   });
 
@@ -118,6 +127,62 @@ describe('State construct', () => {
       template.hasResourceProperties('AWS::S3::Bucket', {
         VersioningConfiguration: { Status: 'Enabled' },
       });
+    });
+
+    it('blocks public access on S3 bucket', () => {
+      template.hasResourceProperties('AWS::S3::Bucket', {
+        PublicAccessBlockConfiguration: {
+          BlockPublicAcls: true,
+          BlockPublicPolicy: true,
+          IgnorePublicAcls: true,
+          RestrictPublicBuckets: true,
+        },
+      });
+    });
+
+    it('S3 bucket uses RETAIN removal policy by default', () => {
+      const buckets = template.findResources('AWS::S3::Bucket');
+      const bucketKey = Object.keys(buckets)[0];
+      expect(buckets[bucketKey].DeletionPolicy).toBe('Retain');
+    });
+  });
+
+  describe('with removalPolicy=DESTROY', () => {
+    beforeAll(() => {
+      const app = new App();
+      const stack = new Stack(app, 'TestStack');
+      new State(stack, 'TestState', {
+        removalPolicy: RemovalPolicy.DESTROY,
+        withBucket: true,
+      });
+      template = Template.fromStack(stack);
+    });
+
+    it('sets DynamoDB table removal policy to DESTROY', () => {
+      const tables = template.findResources('AWS::DynamoDB::Table');
+      const tableKey = Object.keys(tables)[0];
+      expect(tables[tableKey].DeletionPolicy).toBe('Delete');
+    });
+
+    it('sets S3 bucket removal policy to DESTROY', () => {
+      const buckets = template.findResources('AWS::S3::Bucket');
+      const bucketKey = Object.keys(buckets)[0];
+      expect(buckets[bucketKey].DeletionPolicy).toBe('Delete');
+    });
+  });
+
+  describe('with KMS encryption', () => {
+    beforeAll(() => {
+      const app = new App();
+      const stack = new Stack(app, 'TestStack');
+      new State(stack, 'TestState', {
+        encryption: TableEncryption.CUSTOMER_MANAGED,
+      });
+      template = Template.fromStack(stack);
+    });
+
+    it('creates a KMS key for encryption', () => {
+      template.resourceCountIs('AWS::KMS::Key', 1);
     });
   });
 

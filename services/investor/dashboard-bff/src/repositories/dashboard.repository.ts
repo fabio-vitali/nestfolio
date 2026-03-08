@@ -62,6 +62,18 @@ export class DashboardRepository extends TableRepository {
     );
   }
 
+  @log()
+  async getPortfolioSummary(tenantId: string): Promise<Record<string, unknown> | null> {
+    const pk = dashboardPk(tenantId);
+    const result = await this.docClient.send(
+      new GetCommand({
+        TableName: this.tableName,
+        Key: { pk, sk: 'PortfolioSummary' },
+      }),
+    );
+    return (result.Item as Record<string, unknown>) ?? null;
+  }
+
   // --- Position Snapshots ---
 
   @log()

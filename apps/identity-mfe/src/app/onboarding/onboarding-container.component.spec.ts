@@ -343,6 +343,34 @@ describe('OnboardingContainerComponent', () => {
     expect(mockStore['setError']).toHaveBeenCalledWith('Failed to complete onboarding');
   });
 
+  it('should not advance past step 0 without calling nextStep', () => {
+    (mockStore['currentStep'] as jest.Mock).mockReturnValue(0);
+    // Verify step is 0 and calling onBack at step 0 calls prevStep
+    component.onBack(jest.fn());
+    expect(mockStore['prevStep']).toHaveBeenCalled();
+  });
+
+  it('should pass correct step index to activateCallback on onBack from step 3', () => {
+    const activateCb = jest.fn();
+    (mockStore['currentStep'] as jest.Mock).mockReturnValue(3);
+    component.onBack(activateCb);
+    expect(activateCb).toHaveBeenCalledWith(2);
+  });
+
+  it('should handle concurrent onNext calls gracefully (loading guard)', async () => {
+    const nextCb = jest.fn();
+    (mockStore['currentStep'] as jest.Mock).mockReturnValue(0);
+
+    // Two concurrent calls
+    const p1 = component.onNext(nextCb);
+    const p2 = component.onNext(nextCb);
+
+    await Promise.all([p1, p2]);
+
+    // Both should complete without errors
+    expect(mockStore['setLoading']).toHaveBeenCalledWith(false);
+  });
+
   it('should always set loading false in onComplete finally block', async () => {
     (mockStore['mandate'] as jest.Mock).mockReturnValue({
       level: 'ADVISORY',

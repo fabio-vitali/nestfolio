@@ -11,12 +11,21 @@ on:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.number != '' || github.event.inputs.pr-number != ''
     environment: sandbox
     permissions:
       id-token: write
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Validate PR number is numeric
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.inputs.pr-number }}"
+          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "ERROR: PR number '$PR_NUMBER' is not numeric. Aborting."
+            exit 1
+          fi
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm }
@@ -25,4 +34,4 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
-      - run: echo "yes" | bash destroy-all.sh "sandbox-pr-${{ github.event.pull_request.number || github.event.inputs.pr-number }}"
+      - run: echo "yes" | bash destroy-all.sh "sandbox-pr-${{ env.PR_NUMBER }}"

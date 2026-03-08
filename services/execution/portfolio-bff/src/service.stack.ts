@@ -12,6 +12,7 @@ import {
   Facade,
   createNamingService,
   defaultLambdaProps,
+  applyStandardTags,
 } from '@nestfolio/cdk-constructs';
 
 export class PortfolioBffStack extends Stack {
@@ -22,6 +23,8 @@ export class PortfolioBffStack extends Stack {
       subsystem: 'execution',
       service: 'portfolio-bff',
     });
+
+    applyStandardTags(this, { service: 'portfolio-bff', domain: 'execution', environment: this.node.tryGetContext('prefix') ?? 'dev' });
 
     // State: DynamoDB table
     const state = new State(this, 'State');

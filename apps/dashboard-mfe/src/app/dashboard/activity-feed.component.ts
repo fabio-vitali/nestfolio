@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, Input, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { I18nService } from '@nestfolio/i18n';
@@ -9,13 +9,14 @@ import type { ActivityEntry } from '../stores/dashboard.store';
   selector: 'app-activity-feed',
   standalone: true,
   imports: [CommonModule, CardModule, RelativeTimePipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-card [header]="i18n.t('dashboard.activity.recentActivity')" styleClass="activity-card">
       @if (activities.length === 0) {
         <div class="no-data">{{ i18n.t('dashboard.activity.noActivity') }}</div>
       } @else {
         <div class="activity-list">
-          @for (activity of activities; track activity.timestamp) {
+          @for (activity of activities; track activity.activityId) {
             <div class="activity-item">
               <span class="activity-icon" [class]="getIconClass(activity.activityType)"></span>
               <div class="activity-content">

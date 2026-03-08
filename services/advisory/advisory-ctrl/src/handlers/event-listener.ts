@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId } from '@nestfolio/lambda-utils';
 import { DecisionRepository } from '../repositories/decision.repository';
 import { DecisionLifecycleService } from '../services/decision-lifecycle.service';
 
@@ -34,7 +34,7 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       logger.info('Processing event', { eventType, eventId: uow.event.id });
 
       if (!TRIGGER_EVENT_TYPES.has(eventType)) {
-        logger.info('No handler for event type, skipping', { eventType });
+        logger.warn('No handler for event type, skipping', { eventType });
         continue;
       }
 
@@ -44,10 +44,7 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
         continue;
       }
 
-      const tenantId =
-        (uow.event.context as Record<string, unknown>)?.tenantId as string ??
-        (uow.event.subject as Record<string, unknown>)?.tenantId as string ??
-        'unknown';
+      const tenantId = extractTenantId(uow.event as unknown as Record<string, unknown>);
 
       await lifecycleService.executeDecisionLifecycle({
         tenantId,

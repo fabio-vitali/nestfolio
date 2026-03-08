@@ -9,6 +9,7 @@ import {
   Egress,
   createNamingService,
   defaultLambdaProps,
+  applyStandardTags,
 } from '@nestfolio/cdk-constructs';
 
 export class ExecutionCtrlStack extends Stack {
@@ -19,6 +20,9 @@ export class ExecutionCtrlStack extends Stack {
       subsystem: 'execution',
       service: 'execution-ctrl',
     });
+
+    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    applyStandardTags(this, { service: 'execution-ctrl', domain: 'execution', environment: prefix });
 
     // State: DynamoDB table
     const state = new State(this, 'State');

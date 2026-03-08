@@ -199,6 +199,16 @@ describe('ReconciliationRepository', () => {
     });
   });
 
+  describe('createReconciliation — error paths', () => {
+    it('should propagate DynamoDB errors on create', async () => {
+      mockSend.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
+
+      await expect(
+        repo.createReconciliation('t1', 'recon-err', 'MANUAL'),
+      ).rejects.toThrow('ProvisionedThroughputExceededException');
+    });
+  });
+
   describe('isLocked', () => {
     it('should return true when lock exists and not expired', async () => {
       mockSend.mockResolvedValueOnce({

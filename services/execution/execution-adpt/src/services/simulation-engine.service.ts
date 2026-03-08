@@ -1,4 +1,4 @@
-import { getUUID, log, logger } from '@nestfolio/platform-core';
+import { getUUID, log, logger, NotRetryableError } from '@nestfolio/platform-core';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from './market-data.service';
 
@@ -26,6 +26,11 @@ export class SimulationEngineService {
     side: 'BUY' | 'SELL',
     quantity: number,
   ): Promise<FillResult> {
+    // 0. Validate quantity
+    if (!quantity || quantity <= 0) {
+      throw new NotRetryableError(`Invalid quantity: ${quantity}`);
+    }
+
     // 1. Get fill price
     const fillPrice = this.marketData.getPrice(symbol);
     if (!fillPrice) {

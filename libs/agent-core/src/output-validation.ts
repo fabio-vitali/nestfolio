@@ -6,6 +6,35 @@ import type { PortfolioConstruction } from './output-schemas/portfolio-construct
 import type { RebalancePlan } from './output-schemas/rebalance-planner.schema';
 import type { Explanation } from './output-schemas/explainability.schema';
 
+/** Risk profile category for validation limit adjustments. */
+export type ValidationRiskProfile = 'conservative' | 'balanced' | 'aggressive';
+
+/** Configuration for portfolio construction validation, adjustable per risk profile. */
+export interface ValidationConfig {
+  /** Maximum weight for a single position (default: 0.4 = 40%) */
+  maxSinglePositionWeight: number;
+  /** Minimum number of allocations required (default: 3) */
+  minAllocations: number;
+  /** Weight sum tolerance (default: 0.005) */
+  weightTolerance: number;
+}
+
+const RISK_PROFILE_LIMITS: Record<ValidationRiskProfile, ValidationConfig> = {
+  conservative: { maxSinglePositionWeight: 0.3, minAllocations: 4, weightTolerance: 0.005 },
+  balanced:     { maxSinglePositionWeight: 0.4, minAllocations: 3, weightTolerance: 0.005 },
+  aggressive:   { maxSinglePositionWeight: 0.5, minAllocations: 2, weightTolerance: 0.005 },
+};
+
+/** Returns validation config for a given risk profile, or default (balanced) if not provided. */
+export function getValidationConfig(riskProfile?: ValidationRiskProfile): ValidationConfig {
+  return RISK_PROFILE_LIMITS[riskProfile ?? 'balanced'];
+}
+
+/** Validates a ticker format: US ticker (1-5 uppercase letters) or ISIN (2 letters + 10 alphanumeric). */
+export function isValidTicker(ticker: string): boolean {
+  return /^[A-Z]{1,5}$/.test(ticker) || /^[A-Z]{2}[A-Z0-9]{10}$/.test(ticker);
+}
+
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
@@ -21,27 +50,37 @@ function fail(errors: string[]): ValidationResult {
 
 /**
  * Validates portfolio construction output beyond Zod schema checks.
+ * Accepts an optional config to adjust limits per risk profile.
  */
-export function validatePortfolioConstruction(output: unknown): ValidationResult {
+export function validatePortfolioConstruction(
+  output: unknown,
+  config?: ValidationConfig,
+): ValidationResult {
   const errors: string[] = [];
   const pc = output as PortfolioConstruction;
+  const cfg = config ?? getValidationConfig();
 
   const weightSum = pc.allocations.reduce((sum, a) => sum + a.weight, 0);
-  if (Math.abs(weightSum - 1.0) > 0.01) {
-    errors.push(`Weights sum to ${weightSum.toFixed(4)}, expected ~1.0 (tolerance 0.01)`);
+  if (Math.abs(weightSum - 1.0) > cfg.weightTolerance) {
+    errors.push(`Weights sum to ${weightSum.toFixed(4)}, expected ~1.0 (tolerance ${cfg.weightTolerance})`);
   }
 
   for (const a of pc.allocations) {
     if (a.weight < 0) {
       errors.push(`Negative weight for ${a.ticker}: ${a.weight}`);
     }
-    if (a.weight > 0.4) {
-      errors.push(`Single position ${a.ticker} exceeds 40%: ${a.weight}`);
+    if (a.weight > cfg.maxSinglePositionWeight) {
+      errors.push(
+        `Single position ${a.ticker} exceeds ${(cfg.maxSinglePositionWeight * 100).toFixed(0)}%: ${a.weight}`,
+      );
+    }
+    if (!isValidTicker(a.ticker)) {
+      errors.push(`Invalid ticker format: '${a.ticker}' (expected 1-5 uppercase letters or ISIN)`);
     }
   }
 
-  if (pc.allocations.length < 2) {
-    errors.push('At least 2 allocations required for diversification');
+  if (pc.allocations.length < cfg.minAllocations) {
+    errors.push(`At least ${cfg.minAllocations} allocations required for diversification`);
   }
 
   if (pc.expectedReturn < -0.5 || pc.expectedReturn > 1.0) {

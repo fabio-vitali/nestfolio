@@ -177,6 +177,24 @@ describe('DecisionRepository', () => {
     });
   });
 
+  describe('createDecisionPacket — error paths', () => {
+    it('should propagate DynamoDB errors with descriptive context', async () => {
+      mockSend.mockRejectedValueOnce(new Error('ConditionalCheckFailedException'));
+
+      const triggerEvent = {
+        id: 'evt-err',
+        type: 'MANDATE_GRANTED',
+        timestamp: '2025-01-01T00:00:00.000Z',
+        subject: {},
+        context: { tenantId: 't1' },
+      };
+
+      await expect(
+        repo.createDecisionPacket('t1', 'dp-err', triggerEvent as any, { tenantId: 't1' }),
+      ).rejects.toThrow('ConditionalCheckFailedException');
+    });
+  });
+
   describe('updateWorkflowState', () => {
     it('should create a WorkflowState record', async () => {
       mockSend.mockResolvedValueOnce({});

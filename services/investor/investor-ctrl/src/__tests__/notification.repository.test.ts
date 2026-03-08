@@ -111,6 +111,28 @@ describe('NotificationRepository', () => {
     });
   });
 
+  describe('createNotification — error paths', () => {
+    it('should propagate DynamoDB errors on create', async () => {
+      mockSend.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
+
+      await expect(
+        repo.createNotification('t1', 'notif-err', {
+          title: 'Test',
+          body: 'Test body',
+          channel: 'email',
+        }),
+      ).rejects.toThrow('ProvisionedThroughputExceededException');
+    });
+
+    it('should propagate TransactWriteItems error on status update', async () => {
+      mockSend.mockRejectedValueOnce(new Error('TransactionCanceledException'));
+
+      await expect(
+        repo.updateNotificationStatus('t1', 'notif-err', 'SENT', {}),
+      ).rejects.toThrow('TransactionCanceledException');
+    });
+  });
+
   describe('createMonthlyReport', () => {
     it('should create a MonthlyReport with correct pk and sk', async () => {
       mockSend.mockResolvedValueOnce({});

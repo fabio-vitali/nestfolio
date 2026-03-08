@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
@@ -29,6 +29,7 @@ import { TradesTableComponent } from './trades-table.component';
     AuditFooterComponent,
     TradesTableComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (store.loading() && !store.isLoaded()) {
       <nf-loading-skeleton [count]="10" />
@@ -255,10 +256,16 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
   readonly i18n = inject(I18nService);
   readonly store = inject(AdvisoryStore);
 
+  private static readonly UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   async ngOnInit(): Promise<void> {
     const decisionId = this.route.snapshot.paramMap.get('id');
     if (!decisionId) {
       this.store.setError('Missing decision ID');
+      return;
+    }
+    if (!DecisionDetailComponent.UUID_REGEX.test(decisionId)) {
+      this.router.navigate(['/dashboard']);
       return;
     }
     await this.loadDecision(decisionId);
@@ -283,9 +290,9 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
       this.store.setAgentInvocations(invocations);
       this.store.setComplianceChecks(checks);
 
-      // Record that user viewed the explanation
-      this.advisoryService.recordExplanationView(decisionId).catch(() => {
-        // Fire-and-forget: don't block the UI
+      // Record that user viewed the explanation (fire-and-forget, but log errors)
+      this.advisoryService.recordExplanationView(decisionId).catch((err) => {
+        console.error('audit log failed', err);
       });
     } catch (e: unknown) {
       this.store.setError(e instanceof Error ? e.message : 'Failed to load decision');

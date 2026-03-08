@@ -4,3 +4,4 @@ export { TenantStore } from './stores/tenant.store';
 export { UiStore } from './stores/ui.store';
 export { NotificationStore } from './stores/notification.store';
 export { LogoutSignal } from './logout-signal';
+export { LogoutOrchestrator } from './logout-orchestrator';

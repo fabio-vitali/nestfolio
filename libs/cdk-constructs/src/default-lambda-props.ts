@@ -17,6 +17,7 @@ export const defaultLambdaProps = (_scope: Construct): Partial<NodejsFunctionPro
     minify: true,
     sourceMap: true,
     target: 'node24',
+    externalModules: ['@aws-sdk/*'],
   },
 });
 

@@ -1,4 +1,4 @@
-import { Component, inject, output, signal } from '@angular/core';
+import { Component, inject, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { I18nService } from '@nestfolio/i18n';
@@ -36,6 +36,7 @@ const MODE_OPTIONS: ModeOption[] = [
   selector: 'app-operating-mode-step',
   standalone: true,
   imports: [CommonModule, CardModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mode-step">
       <h3>{{ i18n.t('onboarding.mode.title') }}</h3>

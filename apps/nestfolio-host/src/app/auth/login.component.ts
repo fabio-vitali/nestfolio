@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -9,11 +9,13 @@ import { MessageModule } from 'primeng/message';
 import { CardModule } from 'primeng/card';
 import { authSignIn } from '@nestfolio/auth';
 import { I18nService } from '@nestfolio/i18n';
+import { AuthStore } from '@nestfolio/shared-state';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   imports: [CommonModule, FormsModule, InputTextModule, PasswordModule, ButtonModule, MessageModule, CardModule, RouterLink],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="auth-container">
       <p-card>
@@ -90,6 +92,7 @@ import { I18nService } from '@nestfolio/i18n';
 })
 export class LoginComponent {
   private router = inject(Router);
+  private authStore = inject(AuthStore);
   readonly i18n = inject(I18nService);
 
   email = '';
@@ -111,7 +114,8 @@ export class LoginComponent {
       if (result.isSignedIn) {
         await this.router.navigate(['/dashboard']);
       } else if (result.nextStep === 'CONFIRM_SIGN_UP') {
-        await this.router.navigate(['/confirm'], { state: { email: this.email } });
+        this.authStore.setPendingEmail(this.email);
+        await this.router.navigate(['/confirm']);
       }
     } catch (e: unknown) {
       this.error.set(e instanceof Error ? e.message : 'Login failed');

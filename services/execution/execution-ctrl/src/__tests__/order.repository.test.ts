@@ -248,6 +248,28 @@ describe('OrderRepository', () => {
     });
   });
 
+  describe('createOrder — error paths', () => {
+    it('should propagate DynamoDB errors on create', async () => {
+      mockSend.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
+
+      const trades = [
+        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY' as const, quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy VTI' },
+      ];
+
+      await expect(
+        repo.createOrder('t1', 'ord-err', 'dp-1', trades),
+      ).rejects.toThrow('ProvisionedThroughputExceededException');
+    });
+
+    it('should propagate TransactWriteItems error on status update', async () => {
+      mockSend.mockRejectedValueOnce(new Error('TransactionCanceledException'));
+
+      await expect(
+        repo.updateOrderStatus('t1', 'ord-err', 'SUBMITTED'),
+      ).rejects.toThrow('TransactionCanceledException');
+    });
+  });
+
   describe('getConflictingStagedOrders', () => {
     it('should return staged orders with conflicting instruments', async () => {
       const staged = [

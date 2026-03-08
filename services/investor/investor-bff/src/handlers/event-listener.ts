@@ -66,7 +66,7 @@ async function processEvent(
         pipe = withdrawalCompletedPipe;
         break;
       default:
-        logger.info('No pipe for event type, skipping', { eventType });
+        logger.warn('No pipe for event type, skipping', { eventType });
         resolve();
         return;
     }

@@ -4,7 +4,7 @@ import {
   UpdateCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, log, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getUUID, getTime, log, NotRetryableError, type TableEntry } from '@nestfolio/platform-core';
 import { EntityNotFoundError } from '@nestfolio/domain-core';
 import type {
   Goal,
@@ -76,6 +76,7 @@ export class InvestorProfileRepository extends TableRepository {
       targetReturn: number;
     },
   ): Promise<Goal> {
+    validateGoalFields(goal);
     const pk = profilePk(tenantId, userId);
     const now = getTime();
     const goalId = getUUID();
@@ -132,6 +133,7 @@ export class InvestorProfileRepository extends TableRepository {
       targetReturn: number;
     }>,
   ): Promise<Goal> {
+    validateGoalFields(updates);
     const pk = profilePk(tenantId, userId);
     const now = getTime();
 
@@ -244,7 +246,17 @@ export class InvestorProfileRepository extends TableRepository {
       coolDownDays: number;
       rebalanceCadence: RebalanceCadence;
     },
+    editedBy?: string,
   ): Promise<Mandate> {
+    if (mandate.monthlyTurnoverCapPercent < 0 || mandate.monthlyTurnoverCapPercent > 100) {
+      throw new NotRetryableError('monthlyTurnoverCapPercent must be between 0 and 100');
+    }
+    if (mandate.maxSingleTradePercent < 0 || mandate.maxSingleTradePercent > 100) {
+      throw new NotRetryableError('maxSingleTradePercent must be between 0 and 100');
+    }
+    if (mandate.coolDownDays < 0) {
+      throw new NotRetryableError('coolDownDays must be >= 0');
+    }
     const pk = profilePk(tenantId, userId);
     const now = getTime();
     const mandateId = getUUID();
@@ -275,8 +287,9 @@ export class InvestorProfileRepository extends TableRepository {
       operation: 'add',
       path: '/mandate',
       value: mandate,
-      editedBy: userId,
+      editedBy: editedBy ?? userId,
       editedAt: now,
+      action: 'GRANT_MANDATE',
     };
 
     await this.transactWrite({
@@ -290,7 +303,7 @@ export class InvestorProfileRepository extends TableRepository {
   }
 
   @log()
-  async revokeMandate(tenantId: string, userId: string): Promise<Mandate> {
+  async revokeMandate(tenantId: string, userId: string, editedBy?: string): Promise<Mandate> {
     const pk = profilePk(tenantId, userId);
     const now = getTime();
 
@@ -319,8 +332,9 @@ export class InvestorProfileRepository extends TableRepository {
       operation: 'replace',
       path: '/mandate/revokedAt',
       value: now,
-      editedBy: userId,
+      editedBy: editedBy ?? userId,
       editedAt: now,
+      action: 'REVOKE_MANDATE',
     };
     await this.put(editEvent);
 
@@ -484,5 +498,27 @@ export class InvestorProfileRepository extends TableRepository {
     );
 
     return result.Count ?? 0;
+  }
+}
+
+/**
+ * Validates goal fields before DynamoDB writes.
+ * Accepts partial updates (only validates provided fields).
+ */
+function validateGoalFields(
+  fields: Partial<{
+    targetAmountCents: number;
+    timeHorizonMonths: number;
+    targetReturn: number;
+  }>,
+): void {
+  if (fields.targetAmountCents !== undefined && fields.targetAmountCents < 0) {
+    throw new NotRetryableError('targetAmountCents must be >= 0');
+  }
+  if (fields.timeHorizonMonths !== undefined && fields.timeHorizonMonths <= 0) {
+    throw new NotRetryableError('timeHorizonMonths must be > 0');
+  }
+  if (fields.targetReturn !== undefined && (fields.targetReturn < -1 || fields.targetReturn > 1)) {
+    throw new NotRetryableError('targetReturn must be between -1 and 1');
   }
 }
