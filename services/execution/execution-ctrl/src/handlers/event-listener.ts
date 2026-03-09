@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent } from '@nestfolio/lambda-utils';
 import { OrderRepository } from '../repositories/order.repository';
 import { SafetyChecksService } from '../services/safety-checks.service';
 import { MarketHoursService } from '../services/market-hours.service';
@@ -14,6 +14,7 @@ const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 const safetyChecks = new SafetyChecksService(repository);
 const marketHours = new MarketHoursService();
 const lifecycleService = new OrderLifecycleService(repository, safetyChecks, marketHours);
+const metrics = createServiceMetrics('execution-ctrl');
 
 const HANDLED_EVENT_TYPES = new Set([
   'DECISION_APPROVED',
@@ -32,6 +33,7 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const eventType = uow.event.type;
 
       logger.info('Processing event', { eventType, eventId: uow.event.id });
+      traceEvent(eventType, uow.event.id);
 
       if (!HANDLED_EVENT_TYPES.has(eventType)) {
         logger.warn('No handler for event type, skipping', { eventType });
@@ -44,26 +46,36 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
         continue;
       }
 
-      if (eventType === 'DECISION_APPROVED' || eventType === 'USER_CONFIRMED') {
-        await lifecycleService.processApprovedDecision(uow.event);
-      } else if (eventType === 'CIRCUIT_BREAKER_TRIGGERED') {
-        logger.info('Circuit breaker triggered — execution paused', { eventId: uow.event.id });
-        // Phase 2: Log only. Future: set a flag to pause all order submission.
-      } else if (eventType === 'CIRCUIT_BREAKER_RESET') {
-        logger.info('Circuit breaker reset — execution resumed', { eventId: uow.event.id });
-        // Phase 2: Log only. Future: resume staged order submission.
-      } else if (eventType === 'ACCOUNT_CLOSURE_REQUESTED') {
-        logger.info('Account closure requested', { eventId: uow.event.id });
-        // Phase 2: Log only. Future: cancel all pending/staged orders.
+      switch (eventType) {
+        case 'DECISION_APPROVED':
+        case 'USER_CONFIRMED':
+          await lifecycleService.processApprovedDecision(uow.event);
+          break;
+        case 'CIRCUIT_BREAKER_TRIGGERED':
+          logger.info('Circuit breaker triggered — execution paused', { eventId: uow.event.id });
+          break;
+        case 'CIRCUIT_BREAKER_RESET':
+          logger.info('Circuit breaker reset — execution resumed', { eventId: uow.event.id });
+          break;
+        case 'ACCOUNT_CLOSURE_REQUESTED':
+          logger.info('Account closure requested', { eventId: uow.event.id });
+          break;
       }
+
+      metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
     } catch (error) {
       logger.error('Failed to process record', {
         messageId: record.messageId,
         error: error instanceof Error ? error.message : String(error),
       });
-      failures.push(record.messageId);
+      metrics.addMetric('EventFailed', MetricUnit.Count, 1);
+      if (isRetryable(error)) {
+        failures.push(record.messageId);
+      }
     }
   }
+
+  metrics.publishStoredMetrics();
 
   return {
     batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),

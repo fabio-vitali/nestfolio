@@ -8,7 +8,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   IdempotencyGuard: jest.fn(),
 }));
 
-import Highland from 'highland';
 import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
 import { PortfolioSummaryPipe } from './portfolio-summary.pipe';
 
@@ -28,7 +27,7 @@ describe('PortfolioSummaryPipe', () => {
     pipe = new PortfolioSummaryPipe(mockRepository);
   });
 
-  it('should initialize totalValueCents from first trade when no existing summary', (done) => {
+  it('should initialize totalValueCents from first trade when no existing summary', async () => {
     mockGetPortfolioSummary.mockResolvedValue(null);
 
     const uow: UnitOfWork<BusEvent<any>> = {
@@ -49,19 +48,16 @@ describe('PortfolioSummaryPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<any>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      expect(mockGetPortfolioSummary).toHaveBeenCalledWith('t1');
-      // 100 * 150 * 100 = 1_500_000 cents, no existing summary so starts from 0
-      expect(mockUpsertPortfolioSummary).toHaveBeenCalledWith('t1', {
-        totalValueCents: 1_500_000,
-      });
-      done();
+    expect(mockGetPortfolioSummary).toHaveBeenCalledWith('t1');
+    // 100 * 150 * 100 = 1_500_000 cents, no existing summary so starts from 0
+    expect(mockUpsertPortfolioSummary).toHaveBeenCalledWith('t1', {
+      totalValueCents: 1_500_000,
     });
   });
 
-  it('should accumulate totalValueCents across subsequent trades', (done) => {
+  it('should accumulate totalValueCents across subsequent trades', async () => {
     mockGetPortfolioSummary.mockResolvedValue({ totalValueCents: 1_500_000 });
 
     const uow: UnitOfWork<BusEvent<any>> = {
@@ -82,15 +78,12 @@ describe('PortfolioSummaryPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<any>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      expect(mockGetPortfolioSummary).toHaveBeenCalledWith('t1');
-      // Existing 1_500_000 + new 50 * 200 * 100 = 1_500_000 + 1_000_000 = 2_500_000
-      expect(mockUpsertPortfolioSummary).toHaveBeenCalledWith('t1', {
-        totalValueCents: 2_500_000,
-      });
-      done();
+    expect(mockGetPortfolioSummary).toHaveBeenCalledWith('t1');
+    // Existing 1_500_000 + new 50 * 200 * 100 = 1_500_000 + 1_000_000 = 2_500_000
+    expect(mockUpsertPortfolioSummary).toHaveBeenCalledWith('t1', {
+      totalValueCents: 2_500_000,
     });
   });
 });

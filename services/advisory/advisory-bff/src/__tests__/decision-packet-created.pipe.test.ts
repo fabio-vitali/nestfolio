@@ -10,7 +10,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
 
 jest.mock('@nestfolio/domain-core', () => ({}));
 
-import Highland from 'highland';
 import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
 import { DecisionPacketCreatedPipe } from '../pipes/decision-packet-created.pipe';
 
@@ -37,7 +36,7 @@ describe('DecisionPacketCreatedPipe', () => {
     pipe = new DecisionPacketCreatedPipe(mockRepository, mockIdempotencyGuard);
   });
 
-  it('should store decision on new DECISION_PACKET_CREATED event', (done) => {
+  it('should store decision on new DECISION_PACKET_CREATED event', async () => {
     mockEnsureOnce.mockResolvedValue(true);
 
     const uow: UnitOfWork<BusEvent<Payload>> = {
@@ -59,23 +58,20 @@ describe('DecisionPacketCreatedPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<Payload>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      expect(mockEnsureOnce).toHaveBeenCalledWith('DECISION_PACKET_CREATED', 'evt-1');
-      expect(mockStoreDecision).toHaveBeenCalledWith('t1', 'd1', {
-        trigger: 'REBALANCE',
-        proposedTrades: [],
-        explanation: 'Portfolio rebalance needed',
-        confirmationRequired: true,
-        complianceChecks: [],
-        agentInvocations: [],
-      });
-      done();
+    expect(mockEnsureOnce).toHaveBeenCalledWith('DECISION_PACKET_CREATED', 'evt-1');
+    expect(mockStoreDecision).toHaveBeenCalledWith('t1', 'd1', {
+      trigger: 'REBALANCE',
+      proposedTrades: [],
+      explanation: 'Portfolio rebalance needed',
+      confirmationRequired: true,
+      complianceChecks: [],
+      agentInvocations: [],
     });
   });
 
-  it('should skip duplicate events', (done) => {
+  it('should skip duplicate events', async () => {
     mockEnsureOnce.mockResolvedValue(false);
 
     const uow: UnitOfWork<BusEvent<Payload>> = {
@@ -97,12 +93,9 @@ describe('DecisionPacketCreatedPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<Payload>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      expect(mockEnsureOnce).toHaveBeenCalledWith('DECISION_PACKET_CREATED', 'evt-dup');
-      expect(mockStoreDecision).not.toHaveBeenCalled();
-      done();
-    });
+    expect(mockEnsureOnce).toHaveBeenCalledWith('DECISION_PACKET_CREATED', 'evt-dup');
+    expect(mockStoreDecision).not.toHaveBeenCalled();
   });
 });

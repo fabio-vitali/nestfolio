@@ -63,6 +63,14 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   IdempotencyGuard: jest.fn().mockImplementation(() => ({
     ensureOnce: mockEnsureOnce,
   })),
+  createServiceMetrics: jest.fn().mockReturnValue({
+    addMetric: jest.fn(),
+    addDimension: jest.fn(),
+    publishStoredMetrics: jest.fn(),
+  }),
+  isRetryable: jest.fn().mockReturnValue(true),
+  traceEvent: jest.fn(),
+  MetricUnit: { Count: 'Count' },
 }));
 
 process.env.TABLE_NAME = 'test-table';

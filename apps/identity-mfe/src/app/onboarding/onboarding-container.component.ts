@@ -263,8 +263,8 @@ import { MandateStepComponent } from './steps/mandate-step.component';
   ],
 })
 export class OnboardingContainerComponent {
-  private router = inject(Router);
-  private onboardingService = inject(OnboardingService);
+  private readonly router = inject(Router);
+  private readonly onboardingService = inject(OnboardingService);
   readonly i18n = inject(I18nService);
   readonly store = inject(OnboardingStore);
 

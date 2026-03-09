@@ -19,3 +19,31 @@ export function authorizeTenant(
 
   return tenantId;
 }
+
+export type AuthorizedIdentity = {
+  tenantId: string;
+  userId: string;
+};
+
+/**
+ * Extracts and validates both tenantId and userId from Cognito claims.
+ * userId is extracted from the 'sub' claim.
+ * Throws NotRetryableError if either value is missing.
+ */
+export function authorizeUser(
+  event: AppSyncResolverEvent<Record<string, unknown>>,
+): AuthorizedIdentity {
+  const claims = event.identity as Record<string, unknown> | undefined;
+  const claimsMap = claims?.['claims'] as Record<string, string> | undefined;
+  const tenantId = claimsMap?.['custom:tenant_id'];
+  const userId = claimsMap?.['sub'];
+
+  if (!tenantId) {
+    throw new NotRetryableError('UNAUTHORIZED: missing tenantId');
+  }
+  if (!userId) {
+    throw new NotRetryableError('UNAUTHORIZED: missing userId');
+  }
+
+  return { tenantId, userId };
+}

@@ -19,7 +19,7 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
-import { authInterceptor, _resetInflightSession, _resetRetryFlag } from './auth.interceptor';
+import { authInterceptor, resetInflightSession, resetRetryFlag } from './auth.interceptor';
 import * as authService from './auth.service';
 
 describe('authInterceptor', () => {
@@ -28,8 +28,8 @@ describe('authInterceptor', () => {
   let router: Router;
 
   beforeEach(() => {
-    _resetInflightSession();
-    _resetRetryFlag();
+    resetInflightSession();
+    resetRetryFlag();
 
     TestBed.configureTestingModule({
       providers: [
@@ -135,5 +135,62 @@ describe('authInterceptor', () => {
     expect(caughtError).toBeTruthy();
     expect(caughtError!.status).toBe(500);
     expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('should pass through requests to /assets/', () => {
+    const spy = jest.spyOn(authService, 'getAuthSession');
+
+    http.get('/assets/config.json', { responseType: 'text' }).subscribe();
+
+    const req = httpTesting.expectOne('/assets/config.json');
+    expect(req.request.headers.has('Authorization')).toBe(false);
+    expect(spy).not.toHaveBeenCalled();
+    req.flush('{}');
+  });
+
+  it('should pass through non-appsync requests', () => {
+    const spy = jest.spyOn(authService, 'getAuthSession');
+
+    http.get('https://other-api.com/data', { responseType: 'text' }).subscribe();
+
+    const req = httpTesting.expectOne('https://other-api.com/data');
+    expect(req.request.headers.has('Authorization')).toBe(false);
+    expect(spy).not.toHaveBeenCalled();
+    req.flush('ok');
+  });
+
+  it('should add Authorization header when tokens available', async () => {
+    jest
+      .spyOn(authService, 'getAuthSession')
+      .mockResolvedValue({ idToken: 'my-id-token', accessToken: 'my-access' });
+
+    http.get('https://appsync.example.com/graphql', { responseType: 'text' }).subscribe();
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const req = httpTesting.expectOne('https://appsync.example.com/graphql');
+    expect(req.request.headers.get('Authorization')).toBe('my-id-token');
+    req.flush('ok');
+  });
+
+  it('should dedup concurrent session requests', async () => {
+    const spy = jest
+      .spyOn(authService, 'getAuthSession')
+      .mockResolvedValue({ idToken: 'shared-token', accessToken: 'acc' });
+
+    http.get('https://appsync.example.com/graphql', { responseType: 'text' }).subscribe();
+    http.get('https://appsync.example.com/graphql', { responseType: 'text' }).subscribe();
+
+    // Both calls should share the same session promise
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const reqs = httpTesting.match('https://appsync.example.com/graphql');
+    expect(reqs.length).toBe(2);
+    expect(reqs[0].request.headers.get('Authorization')).toBe('shared-token');
+    expect(reqs[1].request.headers.get('Authorization')).toBe('shared-token');
+    reqs[0].flush('ok');
+    reqs[1].flush('ok');
   });
 });

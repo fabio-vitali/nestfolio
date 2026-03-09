@@ -1,8 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
-import Highland from 'highland';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent } from '@nestfolio/lambda-utils';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { UserRegisteredPipe } from '../pipes/user-registered.pipe';
 import { NotificationCreatedPipe } from '../pipes/notification-created.pipe';
@@ -18,6 +17,14 @@ const userRegisteredPipe = new UserRegisteredPipe(repository, idempotencyGuard);
 const notificationCreatedPipe = new NotificationCreatedPipe(repository);
 const depositDetectedPipe = new DepositDetectedPipe(repository);
 const withdrawalCompletedPipe = new WithdrawalCompletedPipe(repository);
+const metrics = createServiceMetrics('investor-bff');
+
+const TRIGGER_EVENT_TYPES = new Set([
+  'USER_REGISTERED',
+  'NOTIFICATION_CREATED',
+  'DEPOSIT_DETECTED',
+  'WITHDRAWAL_COMPLETED',
+]);
 
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const failures: string[] = [];
@@ -28,16 +35,28 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const eventType = uow.event.type;
 
       logger.info('Processing event', { eventType, eventId: uow.event.id });
+      traceEvent(eventType, uow.event.id);
+
+      if (!TRIGGER_EVENT_TYPES.has(eventType)) {
+        logger.warn('No handler for event type, skipping', { eventType });
+        continue;
+      }
 
       await processEvent(eventType, uow);
+      metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
     } catch (error) {
       logger.error('Failed to process record', {
         messageId: record.messageId,
         error: error instanceof Error ? error.message : String(error),
       });
-      failures.push(record.messageId);
+      metrics.addMetric('EventFailed', MetricUnit.Count, 1);
+      if (isRetryable(error)) {
+        failures.push(record.messageId);
+      }
     }
   }
+
+  metrics.publishStoredMetrics();
 
   return {
     batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
@@ -48,31 +67,18 @@ async function processEvent(
   eventType: string,
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const source = Highland<UnitOfWork<BusEvent<Record<string, unknown>>>>([uow]);
-
-    let pipe;
-    switch (eventType) {
-      case 'USER_REGISTERED':
-        pipe = userRegisteredPipe;
-        break;
-      case 'NOTIFICATION_CREATED':
-        pipe = notificationCreatedPipe;
-        break;
-      case 'DEPOSIT_DETECTED':
-        pipe = depositDetectedPipe;
-        break;
-      case 'WITHDRAWAL_COMPLETED':
-        pipe = withdrawalCompletedPipe;
-        break;
-      default:
-        logger.warn('No pipe for event type, skipping', { eventType });
-        resolve();
-        return;
-    }
-
-    source.on('error', (err: Error) => reject(err));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (pipe as any).feed(source).done(() => resolve());
-  });
+  switch (eventType) {
+    case 'USER_REGISTERED':
+      await userRegisteredPipe.process(uow as any);
+      break;
+    case 'NOTIFICATION_CREATED':
+      await notificationCreatedPipe.process(uow as any);
+      break;
+    case 'DEPOSIT_DETECTED':
+      await depositDetectedPipe.process(uow as any);
+      break;
+    case 'WITHDRAWAL_COMPLETED':
+      await withdrawalCompletedPipe.process(uow as any);
+      break;
+  }
 }

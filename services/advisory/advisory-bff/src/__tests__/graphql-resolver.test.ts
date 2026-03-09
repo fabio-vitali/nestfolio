@@ -68,6 +68,7 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     if (!tenantId) throw new MockNotRetryableError('UNAUTHORIZED: missing tenantId');
     return tenantId;
   },
+  validateQueryDepth: jest.fn(),
 }));
 jest.mock('@nestfolio/domain-core', () => ({}));
 
@@ -198,6 +199,66 @@ describe('graphql-resolver handler', () => {
       expect(result).toEqual({
         decisionId: 'd1',
         viewedAt: '2025-01-01T00:00:00.000Z',
+      });
+    });
+  });
+
+  it('should resolve getAgentInvocations', async () => {
+    const invocations = [
+      { invocationId: 'inv-1', agentId: 'portfolio-agent', tier: 'sonnet', status: 'COMPLETED' },
+      { invocationId: 'inv-2', agentId: 'risk-agent', tier: 'haiku', status: 'COMPLETED' },
+    ];
+    mockSend.mockResolvedValueOnce({ Items: invocations });
+
+    const event = buildEvent('getAgentInvocations', { decisionId: 'd1' });
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/graphql-resolver');
+      const result = await handler(event);
+      expect(result).toEqual(invocations);
+    });
+  });
+
+  it('should resolve getComplianceChecks', async () => {
+    const checks = [
+      { checkId: 'chk-1', rule: 'MAX_CONCENTRATION', passed: true },
+      { checkId: 'chk-2', rule: 'RISK_LIMIT', passed: false, reason: 'Exceeds band' },
+    ];
+    mockSend.mockResolvedValueOnce({ Items: checks });
+
+    const event = buildEvent('getComplianceChecks', { decisionId: 'd1' });
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/graphql-resolver');
+      const result = await handler(event);
+      expect(result).toEqual(checks);
+    });
+  });
+
+  it('should resolve getDecisionHistory', async () => {
+    const decisions = [
+      { decisionId: 'd1', status: 'CONFIRMED' },
+      { decisionId: 'd2', status: 'REJECTED' },
+    ];
+    mockSend.mockResolvedValueOnce({ Items: decisions });
+
+    const event = buildEvent('getDecisionHistory', { limit: 10 });
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('../handlers/graphql-resolver');
+      const result = await handler(event);
+      expect(result.items).toEqual(decisions);
+    });
+  });
+
+  describe('Zod validation', () => {
+    it('should throw ZodError for invalid mutation input', async () => {
+      // rejectDecision requires decisionId (non-empty string) and reason (non-empty string)
+      const event = buildEvent('rejectDecision', { decisionId: '', reason: '' });
+
+      await jest.isolateModulesAsync(async () => {
+        const { handler } = require('../handlers/graphql-resolver');
+        await expect(handler(event)).rejects.toThrow();
       });
     });
   });

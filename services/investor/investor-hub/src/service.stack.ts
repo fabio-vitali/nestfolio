@@ -4,7 +4,7 @@ import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import { createNamingService, CostControls, applyStandardTags } from '@nestfolio/cdk-constructs';
+import { createNamingService, CostControls, Monitoring, ServiceDashboard, applyStandardTags } from '@nestfolio/cdk-constructs';
 
 export class InvestorHubStack extends Stack {
   readonly bus: EventBus;
@@ -17,7 +17,8 @@ export class InvestorHubStack extends Stack {
       service: 'investor-hub',
     });
 
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    const prefix = this.node.tryGetContext('prefix');
+    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
     applyStandardTags(this, { service: 'investor-hub', domain: 'investor', environment: prefix });
 
     // Domain bus
@@ -86,6 +87,20 @@ export class InvestorHubStack extends Stack {
         detailType: ['WITHDRAWAL_REQUESTED', 'ACCOUNT_CLOSURE_REQUESTED'],
       },
       targets: [new EventBusTarget(executionBus, { deadLetterQueue: toExecutionDlq })],
+    });
+
+    // Monitoring: CloudWatch alarms for EventBridge failures, forwarding DLQs
+    new Monitoring(this, 'Monitoring', {
+      dlqs: [toAdvisoryDlq, toExecutionDlq],
+      eventBusBusNames: [naming.eventBusName()],
+    });
+
+    // Dashboard: CloudWatch dashboard for hub observability
+    new ServiceDashboard(this, 'Dashboard', {
+      serviceName: 'investor-hub',
+      lambdaFunctions: [],
+      dlqs: [toAdvisoryDlq, toExecutionDlq],
+      eventBusNames: [naming.eventBusName()],
     });
   }
 }

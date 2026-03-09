@@ -1,8 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
-import Highland from 'highland';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger, type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
+import { logger, type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/platform-core';
+import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent } from '@nestfolio/lambda-utils';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { PortfolioSummaryPipe } from '../pipes/portfolio-summary.pipe';
 import { PositionSnapshotPipe } from '../pipes/position-snapshot.pipe';
@@ -20,10 +19,11 @@ const positionSnapshotPipe = new PositionSnapshotPipe(repository);
 const recentActivityPipe = new RecentActivityPipe(repository);
 const advisoryStatusPipe = new AdvisoryStatusPipe(repository);
 const investorSnapshotPipe = new InvestorSnapshotPipe(repository);
+const metrics = createServiceMetrics('dashboard-bff');
 
 interface NamedPipe {
   name: string;
-  pipe: { feed: (s: Highland.Stream<any>) => Highland.Stream<any> };
+  pipe: Pipe<UnitOfWork<BusEvent<Record<string, unknown>>>>;
 }
 
 // Map event types to the pipes they should trigger
@@ -96,16 +96,23 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const eventType = uow.event.type;
 
       logger.info('Processing event', { eventType, eventId: uow.event.id });
+      traceEvent(eventType, uow.event.id);
 
       await processEvent(eventType, uow);
+      metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
     } catch (error) {
       logger.error('Failed to process record', {
         messageId: record.messageId,
         error: error instanceof Error ? error.message : String(error),
       });
-      failures.push(record.messageId);
+      metrics.addMetric('EventFailed', MetricUnit.Count, 1);
+      if (isRetryable(error)) {
+        failures.push(record.messageId);
+      }
     }
   }
+
+  metrics.publishStoredMetrics();
 
   return {
     batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
@@ -132,11 +139,6 @@ async function processEvent(
       continue;
     }
 
-    await new Promise<void>((resolve, reject) => {
-      const source = Highland<UnitOfWork<BusEvent<Record<string, unknown>>>>([uow]);
-
-      source.on('error', (err: Error) => reject(err));
-      pipe.feed(source).done(() => resolve());
-    });
+    await pipe.process(uow);
   }
 }

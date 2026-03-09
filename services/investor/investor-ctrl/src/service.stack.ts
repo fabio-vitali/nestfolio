@@ -7,6 +7,8 @@ import {
   State,
   Ingress,
   Egress,
+  Monitoring,
+  ServiceDashboard,
   createNamingService,
   defaultLambdaProps,
   applyStandardTags,
@@ -21,7 +23,8 @@ export class InvestorCtrlStack extends Stack {
       service: 'investor-ctrl',
     });
 
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    const prefix = this.node.tryGetContext('prefix');
+    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
     applyStandardTags(this, { service: 'investor-ctrl', domain: 'investor', environment: prefix });
 
     // State: DynamoDB table
@@ -36,7 +39,7 @@ export class InvestorCtrlStack extends Stack {
     state.table.grantReadWriteData(eventListener);
 
     // Ingress: investor EventBridge bus -> SQS -> event-listener
-    new Ingress(this, 'TriggerIngress', {
+    const triggerIngress = new Ingress(this, 'TriggerIngress', {
       eventBus: EventBus.fromEventBusName(this, 'InvestorBus', naming.eventBusName()),
       eventTypes: [
         'ONBOARDING_COMPLETED',
@@ -56,6 +59,19 @@ export class InvestorCtrlStack extends Stack {
       busName: naming.eventBusName(),
       serviceName: 'investor-ctrl',
       publishableTypes: ['Notification', 'MonthlyReport'],
+    });
+
+    // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
+    new Monitoring(this, 'Monitoring', {
+      lambdaFunctions: [eventListener],
+      dlqs: [triggerIngress.dlq],
+    });
+
+    // Dashboard: CloudWatch dashboard for service observability
+    new ServiceDashboard(this, 'Dashboard', {
+      serviceName: 'investor-ctrl',
+      lambdaFunctions: [eventListener],
+      dlqs: [triggerIngress.dlq],
     });
   }
 }

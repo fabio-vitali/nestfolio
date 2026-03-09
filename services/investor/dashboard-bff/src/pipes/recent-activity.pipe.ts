@@ -1,4 +1,3 @@
-import Highland from 'highland';
 import { type Pipe, type UnitOfWork, type BusEvent, logger } from '@nestfolio/platform-core';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 
@@ -11,34 +10,28 @@ const ACTIVITY_DESCRIPTIONS: Record<string, (payload: Record<string, unknown>) =
   WITHDRAWAL_COMPLETED: (p) => `Withdrawal completed: ${((p.amountCents as number) ?? 0) / 100} ${p.currency ?? ''}`.trim(),
 };
 
-export class RecentActivityPipe implements Pipe<UnitOfWork<BusEvent<Record<string, unknown>>>, void> {
+export class RecentActivityPipe implements Pipe<UnitOfWork<BusEvent<Record<string, unknown>>>> {
   constructor(private readonly repository: DashboardRepository) {}
 
-  feed(source: Highland.Stream<UnitOfWork<BusEvent<Record<string, unknown>>>>): Highland.Stream<void> {
-    return source.flatMap((uow) =>
-      Highland(
-        (async () => {
-          const { event } = uow;
-          const tenantId = (event.context as Record<string, string>).tenantId;
-          const payload = event.subject as Record<string, unknown>;
+  async process(uow: UnitOfWork<BusEvent<Record<string, unknown>>>): Promise<void> {
+    const { event } = uow;
+    const tenantId = (event.context as Record<string, string>).tenantId;
+    const payload = event.subject as Record<string, unknown>;
 
-          const descriptionFn = ACTIVITY_DESCRIPTIONS[event.type];
-          const description = descriptionFn
-            ? descriptionFn(payload)
-            : `${event.type}: ${JSON.stringify(payload).slice(0, 100)}`;
+    const descriptionFn = ACTIVITY_DESCRIPTIONS[event.type];
+    const description = descriptionFn
+      ? descriptionFn(payload)
+      : `${event.type}: ${JSON.stringify(payload).slice(0, 100)}`;
 
-          await this.repository.addActivity(tenantId, {
-            activityType: event.type,
-            description,
-            metadata: payload,
-          });
+    await this.repository.addActivity(tenantId, {
+      activityType: event.type,
+      description,
+      metadata: payload,
+    });
 
-          logger.info('Added activity entry', {
-            tenantId,
-            activityType: event.type,
-          });
-        })(),
-      ),
-    );
+    logger.info('Added activity entry', {
+      tenantId,
+      activityType: event.type,
+    });
   }
 }

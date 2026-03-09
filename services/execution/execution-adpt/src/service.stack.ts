@@ -7,6 +7,8 @@ import {
   State,
   Ingress,
   Egress,
+  Monitoring,
+  ServiceDashboard,
   createNamingService,
   defaultLambdaProps,
   applyStandardTags,
@@ -21,7 +23,8 @@ export class ExecutionAdptStack extends Stack {
       service: 'execution-adpt',
     });
 
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    const prefix = this.node.tryGetContext('prefix');
+    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
     applyStandardTags(this, { service: 'execution-adpt', domain: 'execution', environment: prefix });
 
     // State: DynamoDB table
@@ -36,7 +39,7 @@ export class ExecutionAdptStack extends Stack {
     state.table.grantReadWriteData(eventListener);
 
     // Ingress: EventBridge -> SQS -> event-listener
-    new Ingress(this, 'Ingress', {
+    const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'ExecutionBus', naming.eventBusName()),
       eventTypes: ['ORDER_SUBMITTED', 'WITHDRAWAL_REQUESTED'],
       handler: eventListener,
@@ -48,6 +51,19 @@ export class ExecutionAdptStack extends Stack {
       busName: naming.eventBusName(),
       serviceName: 'execution-adpt',
       publishableTypes: ['VirtualTrade', 'VirtualCashBalance', 'VirtualPosition'],
+    });
+
+    // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
+    new Monitoring(this, 'Monitoring', {
+      lambdaFunctions: [eventListener],
+      dlqs: [ingress.dlq],
+    });
+
+    // Dashboard: CloudWatch dashboard for service observability
+    new ServiceDashboard(this, 'Dashboard', {
+      serviceName: 'execution-adpt',
+      lambdaFunctions: [eventListener],
+      dlqs: [ingress.dlq],
     });
   }
 }

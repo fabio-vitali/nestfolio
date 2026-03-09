@@ -1,6 +1,7 @@
 import { Construct } from 'constructs';
 import { Runtime, Architecture, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { Duration } from 'aws-cdk-lib';
+import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 /**
@@ -13,6 +14,7 @@ export const defaultLambdaProps = (_scope: Construct): Partial<NodejsFunctionPro
   memorySize: 256,
   timeout: Duration.seconds(30),
   tracing: Tracing.ACTIVE,
+  logRetention: RetentionDays.THREE_MONTHS,
   bundling: {
     minify: true,
     sourceMap: true,

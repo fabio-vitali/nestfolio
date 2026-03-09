@@ -14,7 +14,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   IdempotencyGuard: jest.fn(),
 }));
 
-import Highland from 'highland';
 import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
 import { OrderFilledPipe } from '../pipes/order-filled.pipe';
 
@@ -34,7 +33,7 @@ describe('OrderFilledPipe', () => {
     pipe = new OrderFilledPipe(mockRepository);
   });
 
-  it('should create new position on BUY when no existing position', (done) => {
+  it('should create new position on BUY when no existing position', async () => {
     mockGetPosition.mockResolvedValue(null);
 
     const uow: UnitOfWork<BusEvent<any>> = {
@@ -56,17 +55,14 @@ describe('OrderFilledPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<any>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      expect(mockGetPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL');
-      // No existing position => expectedVersion is undefined
-      expect(mockUpsertPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL', 100, 150, 150, undefined);
-      done();
-    });
+    expect(mockGetPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL');
+    // No existing position => expectedVersion is undefined
+    expect(mockUpsertPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL', 100, 150, 150, undefined);
   });
 
-  it('should update avg cost basis on BUY with existing position and pass version', (done) => {
+  it('should update avg cost basis on BUY with existing position and pass version', async () => {
     mockGetPosition.mockResolvedValue({ quantity: 100, avgCostBasis: 100, version: 3 });
 
     const uow: UnitOfWork<BusEvent<any>> = {
@@ -88,16 +84,13 @@ describe('OrderFilledPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<any>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      // 100 shares at $100 + 100 shares at $200 = 200 shares at $150 avg cost
-      expect(mockUpsertPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL', 200, 150, 200, 3);
-      done();
-    });
+    // 100 shares at $100 + 100 shares at $200 = 200 shares at $150 avg cost
+    expect(mockUpsertPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL', 200, 150, 200, 3);
   });
 
-  it('should reduce quantity on SELL and keep avg cost', (done) => {
+  it('should reduce quantity on SELL and keep avg cost', async () => {
     mockGetPosition.mockResolvedValue({ quantity: 100, avgCostBasis: 150, version: 2 });
 
     const uow: UnitOfWork<BusEvent<any>> = {
@@ -119,15 +112,12 @@ describe('OrderFilledPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<any>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      expect(mockUpsertPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL', 50, 150, 175, 2);
-      done();
-    });
+    expect(mockUpsertPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL', 50, 150, 175, 2);
   });
 
-  it('should default to 0 when existing position has null quantity', (done) => {
+  it('should default to 0 when existing position has null quantity', async () => {
     mockGetPosition.mockResolvedValue({ quantity: null, avgCostBasis: null, version: 1 });
 
     const uow: UnitOfWork<BusEvent<any>> = {
@@ -149,17 +139,14 @@ describe('OrderFilledPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<any>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      // null quantity defaults to 0, so newQty = 0 + 50 = 50
-      // null avgCostBasis defaults to 0, so newAvgCost = (0*0 + 50*100)/50 = 100
-      expect(mockUpsertPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL', 50, 100, 100, 1);
-      done();
-    });
+    // null quantity defaults to 0, so newQty = 0 + 50 = 50
+    // null avgCostBasis defaults to 0, so newAvgCost = (0*0 + 50*100)/50 = 100
+    expect(mockUpsertPosition).toHaveBeenCalledWith('t1', 'p1', 'AAPL', 50, 100, 100, 1);
   });
 
-  it('should throw NotRetryableError when calculation produces NaN', (done) => {
+  it('should throw NotRetryableError when calculation produces NaN', async () => {
     mockGetPosition.mockResolvedValue({ quantity: 'not-a-number', avgCostBasis: 100, version: 1 });
 
     const uow: UnitOfWork<BusEvent<any>> = {
@@ -181,22 +168,11 @@ describe('OrderFilledPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<any>>>([uow]);
-    const errors: Error[] = [];
-
-    pipe
-      .feed(source)
-      .errors((err: Error) => errors.push(err))
-      .done(() => {
-        expect(errors).toHaveLength(1);
-        expect(errors[0].name).toBe('NotRetryableError');
-        expect(errors[0].message).toContain('NaN detected');
-        expect(mockUpsertPosition).not.toHaveBeenCalled();
-        done();
-      });
+    await expect(pipe.process(uow)).rejects.toThrow('NaN detected');
+    expect(mockUpsertPosition).not.toHaveBeenCalled();
   });
 
-  it('should retry on ConditionalCheckFailedException up to 3 times', (done) => {
+  it('should retry on ConditionalCheckFailedException up to 3 times', async () => {
     // First attempt: version 1
     mockGetPosition.mockResolvedValueOnce({ quantity: 100, avgCostBasis: 100, version: 1 });
     const conflictError = new Error('ConditionalCheckFailedException');
@@ -226,21 +202,18 @@ describe('OrderFilledPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<any>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      // Should have been called twice (first failed, second succeeded)
-      expect(mockGetPosition).toHaveBeenCalledTimes(2);
-      expect(mockUpsertPosition).toHaveBeenCalledTimes(2);
-      // Second call uses re-read values: 120 + 50 = 170 qty, weighted avg cost
-      expect(mockUpsertPosition).toHaveBeenLastCalledWith(
-        't1', 'p1', 'AAPL',
-        170, // 120 + 50
-        expect.closeTo((120 * 110 + 50 * 200) / 170, 2),
-        200,
-        2, // version from re-read
-      );
-      done();
-    });
+    // Should have been called twice (first failed, second succeeded)
+    expect(mockGetPosition).toHaveBeenCalledTimes(2);
+    expect(mockUpsertPosition).toHaveBeenCalledTimes(2);
+    // Second call uses re-read values: 120 + 50 = 170 qty, weighted avg cost
+    expect(mockUpsertPosition).toHaveBeenLastCalledWith(
+      't1', 'p1', 'AAPL',
+      170, // 120 + 50
+      expect.closeTo((120 * 110 + 50 * 200) / 170, 2),
+      200,
+      2, // version from re-read
+    );
   });
 });

@@ -65,6 +65,14 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     const subject = event.subject as Record<string, unknown> | undefined;
     return (context?.tenantId ?? subject?.tenantId ?? 'unknown') as string;
   }),
+  createServiceMetrics: jest.fn().mockReturnValue({
+    addMetric: jest.fn(),
+    addDimension: jest.fn(),
+    publishStoredMetrics: jest.fn(),
+  }),
+  isRetryable: jest.fn().mockReturnValue(true),
+  traceEvent: jest.fn(),
+  MetricUnit: { Count: 'Count' },
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));

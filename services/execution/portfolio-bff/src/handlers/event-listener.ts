@@ -1,8 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
-import Highland from 'highland';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent } from '@nestfolio/lambda-utils';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 import { OrderFilledPipe } from '../pipes/order-filled.pipe';
 import { SnapshotImportedPipe } from '../pipes/snapshot-imported.pipe';
@@ -14,6 +13,14 @@ const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 
 const orderFilledPipe = new OrderFilledPipe(repository);
 const snapshotImportedPipe = new SnapshotImportedPipe(repository);
+const metrics = createServiceMetrics('portfolio-bff');
+
+const TRIGGER_EVENT_TYPES = new Set([
+  'ORDER_FILLED',
+  'ORDER_PARTIALLY_FILLED',
+  'PORTFOLIO_SNAPSHOT_IMPORTED',
+  'CORPORATE_ACTION_APPLIED',
+]);
 
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const failures: string[] = [];
@@ -24,6 +31,12 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const eventType = uow.event.type;
 
       logger.info('Processing event', { eventType, eventId: uow.event.id });
+      traceEvent(eventType, uow.event.id);
+
+      if (!TRIGGER_EVENT_TYPES.has(eventType)) {
+        logger.warn('No handler for event type, skipping', { eventType });
+        continue;
+      }
 
       const isNew = await idempotencyGuard.ensureOnce(eventType, uow.event.id);
       if (!isNew) {
@@ -32,15 +45,20 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       }
 
       await processEvent(eventType, uow);
+      metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
     } catch (error) {
       logger.error('Failed to process record', {
         messageId: record.messageId,
         error: error instanceof Error ? error.message : String(error),
       });
-      failures.push(record.messageId);
+      metrics.addMetric('EventFailed', MetricUnit.Count, 1);
+      if (isRetryable(error)) {
+        failures.push(record.messageId);
+      }
     }
   }
 
+  metrics.publishStoredMetrics();
   return {
     batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
   };
@@ -53,32 +71,17 @@ async function processEvent(
   switch (eventType) {
     case 'ORDER_FILLED':
     case 'ORDER_PARTIALLY_FILLED':
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return runPipe(orderFilledPipe as any, uow);
+      await orderFilledPipe.process(uow as any);
+      break;
 
     case 'PORTFOLIO_SNAPSHOT_IMPORTED':
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return runPipe(snapshotImportedPipe as any, uow);
+      await snapshotImportedPipe.process(uow as any);
+      break;
 
     case 'CORPORATE_ACTION_APPLIED':
       await handleCorporateAction(uow);
-      return;
-
-    default:
-      logger.warn('No handler for event type, skipping', { eventType });
+      break;
   }
-}
-
-function runPipe(
-  pipe: { feed: (source: Highland.Stream<UnitOfWork<BusEvent<Record<string, unknown>>>>) => Highland.Stream<void> },
-  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
-): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const source = Highland<UnitOfWork<BusEvent<Record<string, unknown>>>>([uow]);
-
-    const output = pipe.feed(source);
-    output.errors((err: Error) => reject(err)).done(() => resolve());
-  });
 }
 
 async function handleCorporateAction(

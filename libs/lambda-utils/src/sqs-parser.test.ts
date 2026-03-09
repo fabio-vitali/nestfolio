@@ -107,9 +107,9 @@ describe('parseRecord', () => {
     try {
       parseRecord(record);
       fail('Expected NotRetryableError');
-    } catch (err) {
-      expect(err).toBeInstanceOf(NotRetryableError);
-      expect((err as NotRetryableError).details).toEqual({ messageId: 'msg-001' });
+    } catch (error) {
+      expect(error).toBeInstanceOf(NotRetryableError);
+      expect((error as NotRetryableError).details).toEqual({ messageId: 'msg-001' });
     }
   });
 

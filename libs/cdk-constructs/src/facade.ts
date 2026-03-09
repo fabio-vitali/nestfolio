@@ -10,6 +10,7 @@ import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { IUserPool } from 'aws-cdk-lib/aws-cognito';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
+import { CfnWebACL, CfnWebACLAssociation } from 'aws-cdk-lib/aws-wafv2';
 import * as fs from 'fs';
 import { parse, visit } from 'graphql';
 
@@ -24,6 +25,12 @@ export interface FacadeProps {
   table?: ITable;
   /** SSM parameter path prefix for outputs (e.g., /nestfolio/dev-advisory) */
   ssmPrefix?: string;
+  /** Maximum query depth allowed (default 10) */
+  queryDepthLimit?: number;
+  /** Enable WAF rate limiting (default true) */
+  enableWaf?: boolean;
+  /** WAF rate limit: max requests per 5 min per IP (default 1000) */
+  wafRateLimit?: number;
 }
 
 export class Facade extends Construct {
@@ -41,6 +48,8 @@ export class Facade extends Construct {
     }
 
     if (props.schemaPath && props.userPool) {
+      const depthLimit = props.queryDepthLimit ?? 10;
+
       this.api = new GraphqlApi(this, 'Api', {
         name: `${id}-api`,
         schema: SchemaFile.fromAsset(props.schemaPath),
@@ -50,8 +59,47 @@ export class Facade extends Construct {
             userPoolConfig: { userPool: props.userPool },
           },
         },
+        queryDepthLimit: depthLimit,
       });
       this.graphqlUrl = this.api.graphqlUrl;
+
+      // WAF rate limiting (S10)
+      if (props.enableWaf !== false) {
+        const rateLimit = props.wafRateLimit ?? 1000;
+
+        const webAcl = new CfnWebACL(this, 'WebAcl', {
+          scope: 'REGIONAL',
+          defaultAction: { allow: {} },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: `${id}-waf`,
+            sampledRequestsEnabled: true,
+          },
+          rules: [
+            {
+              name: 'RateLimitRule',
+              priority: 1,
+              action: { block: {} },
+              statement: {
+                rateBasedStatement: {
+                  limit: rateLimit,
+                  aggregateKeyType: 'IP',
+                },
+              },
+              visibilityConfig: {
+                cloudWatchMetricsEnabled: true,
+                metricName: `${id}-rate-limit`,
+                sampledRequestsEnabled: true,
+              },
+            },
+          ],
+        });
+
+        new CfnWebACLAssociation(this, 'WebAclAssociation', {
+          resourceArn: this.api.arn,
+          webAclArn: webAcl.attrArn,
+        });
+      }
 
       // Wire resolver functions to all Query and Mutation fields
       if (props.resolverFunctions?.default) {
@@ -92,8 +140,8 @@ export function parseSchemaFields(schema: string): Array<{ typeName: string; fie
   let doc;
   try {
     doc = parse(schema);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to parse GraphQL schema: ${message}`);
   }
 

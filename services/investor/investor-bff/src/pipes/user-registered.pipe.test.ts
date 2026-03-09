@@ -8,7 +8,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   IdempotencyGuard: jest.fn(),
 }));
 
-import Highland from 'highland';
 import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
 import { UserRegisteredPipe } from './user-registered.pipe';
 
@@ -26,7 +25,7 @@ describe('UserRegisteredPipe', () => {
     pipe = new UserRegisteredPipe(mockRepository, mockIdempotencyGuard);
   });
 
-  it('should create an investor profile for a new USER_REGISTERED event', (done) => {
+  it('should create an investor profile for a new USER_REGISTERED event', async () => {
     mockEnsureOnce.mockResolvedValue(true);
 
     const uow: UnitOfWork<BusEvent<{ userId: string; tenantId: string; email: string }>> = {
@@ -41,16 +40,13 @@ describe('UserRegisteredPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<{ userId: string; tenantId: string; email: string }>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      expect(mockEnsureOnce).toHaveBeenCalledWith('USER_REGISTERED', 'evt-1');
-      expect(mockCreateProfile).toHaveBeenCalledWith('t1', 'u1', 'test@example.com');
-      done();
-    });
+    expect(mockEnsureOnce).toHaveBeenCalledWith('USER_REGISTERED', 'evt-1');
+    expect(mockCreateProfile).toHaveBeenCalledWith('t1', 'u1', 'test@example.com');
   });
 
-  it('should skip duplicate events', (done) => {
+  it('should skip duplicate events', async () => {
     mockEnsureOnce.mockResolvedValue(false);
 
     const uow: UnitOfWork<BusEvent<{ userId: string; tenantId: string; email: string }>> = {
@@ -65,12 +61,9 @@ describe('UserRegisteredPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<{ userId: string; tenantId: string; email: string }>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      expect(mockEnsureOnce).toHaveBeenCalledWith('USER_REGISTERED', 'evt-dup');
-      expect(mockCreateProfile).not.toHaveBeenCalled();
-      done();
-    });
+    expect(mockEnsureOnce).toHaveBeenCalledWith('USER_REGISTERED', 'evt-dup');
+    expect(mockCreateProfile).not.toHaveBeenCalled();
   });
 });

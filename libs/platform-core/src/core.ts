@@ -10,11 +10,11 @@ export type Event = {
 };
 
 /**
- * Pipe interface — transforms a Highland stream of input into a Highland stream of output.
+ * Pipe interface — processes a single unit of work asynchronously.
  * Each pipe represents a single processing step in a pipeline.
  */
-export type Pipe<T, O = T> = {
-  feed(source: Highland.Stream<T>): Highland.Stream<O>;
+export type Pipe<T, O = void> = {
+  process(uow: T): Promise<O>;
 };
 
 /**

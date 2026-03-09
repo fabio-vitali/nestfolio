@@ -1,7 +1,7 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { requireEnv, authorizeTenant } from '@nestfolio/lambda-utils';
+import { requireEnv, authorizeTenant, validateQueryDepth } from '@nestfolio/lambda-utils';
 import { AdvisoryRepository } from '../repositories/advisory.repository';
 import {
   getDecision,
@@ -15,6 +15,7 @@ import {
   rejectDecision,
   recordExplanationView,
 } from '../resolvers/confirmation.resolver';
+import { DecisionIdSchema, RejectDecisionInputSchema } from '../validation/schemas';
 
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const repository = new AdvisoryRepository(TABLE_NAME, new DynamoDBClient({}));
@@ -23,6 +24,7 @@ export const handler = async (
   event: AppSyncResolverEvent<Record<string, unknown>>,
 ): Promise<unknown> => {
   try {
+    validateQueryDepth(event.info.selectionSetGraphQL);
     const tenantId = authorizeTenant(event);
     const fieldName = event.info.fieldName;
     const claims = event.identity as Record<string, unknown> | undefined;
@@ -55,20 +57,23 @@ export const handler = async (
       return getComplianceChecks(repository, tenantId, args.decisionId as string);
 
     // Mutations
-    case 'confirmDecision':
-      return confirmDecision(repository, tenantId, userId, args.decisionId as string);
+    case 'confirmDecision': {
+      const decisionId = DecisionIdSchema.parse(args.decisionId);
+      return confirmDecision(repository, tenantId, userId, decisionId);
+    }
 
-    case 'rejectDecision':
-      return rejectDecision(
-        repository,
-        tenantId,
-        userId,
-        args.decisionId as string,
-        args.reason as string,
-      );
+    case 'rejectDecision': {
+      const { decisionId, reason } = RejectDecisionInputSchema.parse({
+        decisionId: args.decisionId,
+        reason: args.reason,
+      });
+      return rejectDecision(repository, tenantId, userId, decisionId, reason);
+    }
 
-    case 'recordExplanationView':
-      return recordExplanationView(repository, tenantId, userId, args.decisionId as string);
+    case 'recordExplanationView': {
+      const decisionId = DecisionIdSchema.parse(args.decisionId);
+      return recordExplanationView(repository, tenantId, userId, decisionId);
+    }
 
     default:
       throw new Error(`Unknown field: ${fieldName}`);

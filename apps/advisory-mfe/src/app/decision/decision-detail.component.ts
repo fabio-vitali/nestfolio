@@ -250,9 +250,9 @@ import { TradesTableComponent } from './trades-table.component';
   `],
 })
 export class DecisionDetailComponent implements OnInit, OnDestroy {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private advisoryService = inject(AdvisoryService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly advisoryService = inject(AdvisoryService);
   readonly i18n = inject(I18nService);
   readonly store = inject(AdvisoryStore);
 

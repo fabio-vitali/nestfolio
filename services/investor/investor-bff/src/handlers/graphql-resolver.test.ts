@@ -66,6 +66,7 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     if (!tenantId) throw new MockNotRetryableError('UNAUTHORIZED: missing tenantId');
     return tenantId;
   },
+  validateQueryDepth: jest.fn(),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({
@@ -204,6 +205,188 @@ describe('graphql-resolver handler', () => {
     await jest.isolateModulesAsync(async () => {
       const { handler } = require('./graphql-resolver');
       await expect(handler(event)).rejects.toThrow('Unknown field: unknownField');
+    });
+  });
+
+  it('should resolve setRiskProfile', async () => {
+    mockSend.mockResolvedValueOnce({}); // transactWrite
+
+    const input = {
+      score: 7,
+      band: { minEquity: 40, maxEquity: 80 },
+    };
+
+    const event = buildEvent('setRiskProfile', { input });
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('./graphql-resolver');
+      const result = await handler(event);
+      expect(result).toMatchObject({ score: 7, band: { minEquity: 40, maxEquity: 80 } });
+    });
+  });
+
+  it('should resolve selectOperatingMode', async () => {
+    mockSend.mockResolvedValueOnce({}); // transactWrite
+
+    const event = buildEvent('selectOperatingMode', { mode: 'AGGRESSIVE' });
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('./graphql-resolver');
+      const result = await handler(event);
+      expect(result).toMatchObject({ mode: 'AGGRESSIVE' });
+    });
+  });
+
+  it('should resolve updateGoal', async () => {
+    const updated = { goalId: 'g1', objective: 'Early Retirement', targetAmountCents: 200000000 };
+    mockSend
+      .mockResolvedValueOnce({ Attributes: updated }) // UpdateCommand
+      .mockResolvedValueOnce({}); // put editEvent
+
+    const event = buildEvent('updateGoal', {
+      goalId: 'g1',
+      input: { objective: 'Early Retirement' },
+    });
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('./graphql-resolver');
+      const result = await handler(event);
+      expect(result).toMatchObject({ goalId: 'g1', objective: 'Early Retirement' });
+    });
+  });
+
+  it('should resolve updateMandate', async () => {
+    mockSend.mockResolvedValueOnce({}); // transactWrite
+
+    const input = {
+      level: 'ADVISORY',
+      monthlyTurnoverCapPercent: 5,
+      maxSingleTradePercent: 3,
+      coolDownDays: 14,
+      rebalanceCadence: 'QUARTERLY',
+    };
+
+    const event = buildEvent('updateMandate', { input });
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('./graphql-resolver');
+      const result = await handler(event);
+      expect(result).toMatchObject({ mandateId: 'test-uuid', level: 'ADVISORY' });
+    });
+  });
+
+  it('should resolve revokeMandate', async () => {
+    const revoked = { mandateId: 'm1', revokedAt: '2025-01-01T00:00:00.000Z' };
+    mockSend
+      .mockResolvedValueOnce({ Attributes: revoked }) // UpdateCommand
+      .mockResolvedValueOnce({}); // put editEvent
+
+    const event = buildEvent('revokeMandate');
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('./graphql-resolver');
+      const result = await handler(event);
+      expect(result).toMatchObject({ revokedAt: '2025-01-01T00:00:00.000Z' });
+    });
+  });
+
+  it('should resolve initiateDeposit', async () => {
+    const input = { amountCents: 50000, currency: 'EUR' };
+
+    const event = buildEvent('initiateDeposit', { input });
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('./graphql-resolver');
+      const result = await handler(event);
+      expect(result).toMatchObject({
+        depositId: 'test-uuid',
+        amountCents: 50000,
+        currency: 'EUR',
+        status: 'PENDING',
+      });
+    });
+  });
+
+  it('should resolve requestWithdrawal', async () => {
+    const input = { amountCents: 25000, currency: 'USD' };
+
+    const event = buildEvent('requestWithdrawal', { input });
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('./graphql-resolver');
+      const result = await handler(event);
+      expect(result).toMatchObject({
+        withdrawalId: 'test-uuid',
+        amountCents: 25000,
+        currency: 'USD',
+        status: 'PENDING',
+      });
+    });
+  });
+
+  it('should resolve recordOnboardingAnswer', async () => {
+    const input = { stepId: 'step-1', questionId: 'q-1', answer: 'A' };
+
+    const event = buildEvent('recordOnboardingAnswer', { input });
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('./graphql-resolver');
+      const result = await handler(event);
+      expect(result).toMatchObject({ step: 'COMPLETED' });
+      expect(result.answeredAt).toBeDefined();
+    });
+  });
+
+  it('should resolve requestAccountClosure', async () => {
+    const event = buildEvent('requestAccountClosure');
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('./graphql-resolver');
+      const result = await handler(event);
+      expect(result).toMatchObject({ status: 'PENDING' });
+      expect(result.requestedAt).toBeDefined();
+    });
+  });
+
+  it('should resolve getNotifications', async () => {
+    const notifications = [
+      { notificationId: 'n1', title: 'Hello', status: 'CREATED' },
+      { notificationId: 'n2', title: 'World', status: 'READ' },
+    ];
+    mockSend.mockResolvedValueOnce({ Items: notifications });
+
+    const event = buildEvent('getNotifications', { limit: 10 });
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('./graphql-resolver');
+      const result = await handler(event);
+      expect(result.items).toEqual(notifications);
+      expect(result.nextCursor).toBeNull();
+    });
+  });
+
+  it('should resolve getUnreadCount', async () => {
+    mockSend.mockResolvedValueOnce({ Count: 5 });
+
+    const event = buildEvent('getUnreadCount');
+
+    await jest.isolateModulesAsync(async () => {
+      const { handler } = require('./graphql-resolver');
+      const result = await handler(event);
+      expect(result).toBe(5);
+    });
+  });
+
+  describe('Zod validation', () => {
+    it('should throw ZodError for invalid mutation input', async () => {
+      // setRiskProfile expects score 1-10, band with minEquity/maxEquity
+      const invalidInput = { score: 'not-a-number', band: 'invalid' };
+      const event = buildEvent('setRiskProfile', { input: invalidInput });
+
+      await jest.isolateModulesAsync(async () => {
+        const { handler } = require('./graphql-resolver');
+        await expect(handler(event)).rejects.toThrow();
+      });
     });
   });
 

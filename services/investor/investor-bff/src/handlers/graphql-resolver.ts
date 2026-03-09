@@ -1,7 +1,7 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { requireEnv, authorizeTenant } from '@nestfolio/lambda-utils';
+import { requireEnv, authorizeTenant, validateQueryDepth } from '@nestfolio/lambda-utils';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { getProfile } from '../resolvers/profile.resolver';
 import { setGoal, updateGoal, getGoals } from '../resolvers/goal.resolver';
@@ -15,6 +15,17 @@ import {
   getUnreadCount,
   markNotificationRead,
 } from '../resolvers/notification.resolver';
+import {
+  GoalInputSchema,
+  UpdateGoalInputSchema,
+  GoalIdSchema,
+  RiskProfileInputSchema,
+  MandateInputSchema,
+  OperatingModeSchema,
+  MoneyInputSchema,
+  NotificationIdSchema,
+  OnboardingAnswerInputSchema,
+} from '../validation/schemas';
 
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const repository = new InvestorProfileRepository(TABLE_NAME, new DynamoDBClient({}));
@@ -23,6 +34,7 @@ export const handler = async (
   event: AppSyncResolverEvent<Record<string, unknown>>,
 ): Promise<unknown> => {
   try {
+    validateQueryDepth(event.info.selectionSetGraphQL);
     const tenantId = authorizeTenant(event);
     const fieldName = event.info.fieldName;
     const claims = event.identity as Record<string, unknown> | undefined;
@@ -53,79 +65,62 @@ export const handler = async (
       return getUnreadCount(repository, tenantId, userId);
 
     // Mutations
-    case 'setGoal':
-      return setGoal(repository, tenantId, userId, args.input as {
-        objective: string;
-        targetAmountCents: number;
-        currency: string;
-        timeHorizonMonths: number;
-        targetReturn: number;
-      });
+    case 'setGoal': {
+      const input = GoalInputSchema.parse(args.input);
+      return setGoal(repository, tenantId, userId, input);
+    }
 
-    case 'updateGoal':
-      return updateGoal(
-        repository,
-        tenantId,
-        userId,
-        args.goalId as string,
-        args.input as Record<string, unknown>,
-      );
+    case 'updateGoal': {
+      const goalId = GoalIdSchema.parse(args.goalId);
+      const input = UpdateGoalInputSchema.parse(args.input);
+      return updateGoal(repository, tenantId, userId, goalId, input);
+    }
 
-    case 'setRiskProfile':
-      return setRiskProfile(repository, tenantId, userId, args.input as {
-        score: number;
-        band: { minEquity: number; maxEquity: number };
-      });
+    case 'setRiskProfile': {
+      const input = RiskProfileInputSchema.parse(args.input);
+      return setRiskProfile(repository, tenantId, userId, input);
+    }
 
-    case 'grantMandate':
-      return grantMandate(repository, tenantId, userId, args.input as {
-        level: 'ADVISORY' | 'DISCRETIONARY';
-        monthlyTurnoverCapPercent: number;
-        maxSingleTradePercent: number;
-        coolDownDays: number;
-        rebalanceCadence: 'WEEKLY' | 'MONTHLY' | 'QUARTERLY';
-      });
+    case 'grantMandate': {
+      const input = MandateInputSchema.parse(args.input);
+      return grantMandate(repository, tenantId, userId, input);
+    }
 
-    case 'updateMandate':
-      return updateMandate(repository, tenantId, userId, args.input as {
-        level: 'ADVISORY' | 'DISCRETIONARY';
-        monthlyTurnoverCapPercent: number;
-        maxSingleTradePercent: number;
-        coolDownDays: number;
-        rebalanceCadence: 'WEEKLY' | 'MONTHLY' | 'QUARTERLY';
-      });
+    case 'updateMandate': {
+      const input = MandateInputSchema.parse(args.input);
+      return updateMandate(repository, tenantId, userId, input);
+    }
 
     case 'revokeMandate':
       return revokeMandate(repository, tenantId, userId);
 
-    case 'selectOperatingMode':
-      return selectOperatingMode(
-        repository,
-        tenantId,
-        userId,
-        args.mode as 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE',
-      );
+    case 'selectOperatingMode': {
+      const mode = OperatingModeSchema.parse(args.mode);
+      return selectOperatingMode(repository, tenantId, userId, mode);
+    }
 
-    case 'initiateDeposit':
-      return initiateDeposit(tenantId, userId, args.input as {
-        amountCents: number;
-        currency: string;
-      });
+    case 'initiateDeposit': {
+      const input = MoneyInputSchema.parse(args.input);
+      return initiateDeposit(tenantId, userId, input);
+    }
 
-    case 'requestWithdrawal':
-      return requestWithdrawal(tenantId, userId, args.input as {
-        amountCents: number;
-        currency: string;
-      });
+    case 'requestWithdrawal': {
+      const input = MoneyInputSchema.parse(args.input);
+      return requestWithdrawal(tenantId, userId, input);
+    }
 
-    case 'markNotificationRead':
-      return markNotificationRead(repository, tenantId, userId, args.notificationId as string);
+    case 'markNotificationRead': {
+      const notificationId = NotificationIdSchema.parse(args.notificationId);
+      return markNotificationRead(repository, tenantId, userId, notificationId);
+    }
 
     case 'requestAccountClosure':
       return { closureId: '', status: 'PENDING', requestedAt: new Date().toISOString() };
 
-    case 'recordOnboardingAnswer':
+    case 'recordOnboardingAnswer': {
+      OnboardingAnswerInputSchema.parse(args.input);
       return { step: 'COMPLETED', answeredAt: new Date().toISOString() };
+    }
 
     default:
       throw new Error(`Unknown field: ${fieldName}`);

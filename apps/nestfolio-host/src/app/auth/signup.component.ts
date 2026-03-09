@@ -84,8 +84,8 @@ import { AuthStore } from '@nestfolio/shared-state';
   `],
 })
 export class SignupComponent {
-  private router = inject(Router);
-  private authStore = inject(AuthStore);
+  private readonly router = inject(Router);
+  private readonly authStore = inject(AuthStore);
   readonly i18n = inject(I18nService);
 
   name = '';

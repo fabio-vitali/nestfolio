@@ -10,6 +10,8 @@ import {
   Ingress,
   Egress,
   Facade,
+  Monitoring,
+  ServiceDashboard,
   createNamingService,
   defaultLambdaProps,
   applyStandardTags,
@@ -24,7 +26,8 @@ export class InvestorBffStack extends Stack {
       service: 'investor-bff',
     });
 
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    const prefix = this.node.tryGetContext('prefix');
+    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
     applyStandardTags(this, { service: 'investor-bff', domain: 'investor', environment: prefix });
 
     // State: DynamoDB table
@@ -39,7 +42,7 @@ export class InvestorBffStack extends Stack {
     state.table.grantReadWriteData(eventListener);
 
     // Ingress: EventBridge -> SQS -> event-listener
-    new Ingress(this, 'Ingress', {
+    const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'InvestorBus', naming.eventBusName()),
       eventTypes: [
         'USER_REGISTERED',
@@ -85,6 +88,19 @@ export class InvestorBffStack extends Stack {
       schemaPath: join(__dirname, 'schema.graphql'),
       userPool,
       resolverFunctions: { default: resolver },
+    });
+
+    // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
+    new Monitoring(this, 'Monitoring', {
+      lambdaFunctions: [eventListener, resolver],
+      dlqs: [ingress.dlq],
+    });
+
+    // Dashboard: CloudWatch dashboard for service observability
+    new ServiceDashboard(this, 'Dashboard', {
+      serviceName: 'investor-bff',
+      lambdaFunctions: [eventListener, resolver],
+      dlqs: [ingress.dlq],
     });
   }
 }

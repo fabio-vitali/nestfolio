@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger, getUUID, NotRetryableError } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId } from '@nestfolio/lambda-utils';
+import { logger, getUUID } from '@nestfolio/platform-core';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, NotRetryableError, traceEvent } from '@nestfolio/lambda-utils';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';
@@ -21,6 +21,13 @@ const ruleEngine = new RuleEngine(
   new AuthorityResolver(),
 );
 
+const metrics = createServiceMetrics('compliance-ctrl');
+
+const HANDLED_EVENT_TYPES = new Set([
+  'DECISION_PACKET_CREATED',
+  'DECISION_PACKET_ENRICHED',
+]);
+
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const failures: string[] = [];
 
@@ -30,6 +37,12 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const eventType = uow.event.type;
 
       logger.info('Processing event', { eventType, eventId: uow.event.id });
+      traceEvent(eventType, uow.event.id);
+
+      if (!HANDLED_EVENT_TYPES.has(eventType)) {
+        logger.warn('No handler for event type, skipping', { eventType });
+        continue;
+      }
 
       const isNew = await idempotencyGuard.ensureOnce(eventType, uow.event.id);
       if (!isNew) {
@@ -37,29 +50,28 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
         continue;
       }
 
-      if (
-        eventType === 'DECISION_PACKET_CREATED' ||
-        eventType === 'DECISION_PACKET_ENRICHED'
-      ) {
-        const subject = uow.event.subject as Record<string, unknown>;
-        const requiredFields = ['proposedTrades', 'portfolioValue', 'riskScore', 'currentPositions'];
-        const missingFields = requiredFields.filter((f) => !(f in subject));
-        if (missingFields.length) {
-          throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
-        }
-
-        await processDecisionPacket(uow.event);
-      } else {
-        logger.warn('No handler for event type, skipping', { eventType });
+      const subject = uow.event.subject as Record<string, unknown>;
+      const requiredFields = ['proposedTrades', 'portfolioValue', 'riskScore', 'currentPositions'];
+      const missingFields = requiredFields.filter((f) => !(f in subject));
+      if (missingFields.length) {
+        throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
       }
+
+      await processDecisionPacket(uow.event);
+      metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
     } catch (error) {
       logger.error('Failed to process record', {
         messageId: record.messageId,
         error: error instanceof Error ? error.message : String(error),
       });
-      failures.push(record.messageId);
+      metrics.addMetric('EventFailed', MetricUnit.Count, 1);
+      if (isRetryable(error)) {
+        failures.push(record.messageId);
+      }
     }
   }
+
+  metrics.publishStoredMetrics();
 
   return {
     batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),

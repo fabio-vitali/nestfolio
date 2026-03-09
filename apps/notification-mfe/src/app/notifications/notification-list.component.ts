@@ -118,8 +118,8 @@ const PAGE_SIZE = 20;
   `],
 })
 export class NotificationListComponent implements OnInit {
-  private notificationService = inject(NotificationService);
-  private router = inject(Router);
+  private readonly notificationService = inject(NotificationService);
+  private readonly router = inject(Router);
   readonly i18n = inject(I18nService);
   readonly store = inject(NotificationStore);
 

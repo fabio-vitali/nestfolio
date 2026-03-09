@@ -60,12 +60,16 @@ class MockNotRetryableError extends Error {
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  authorizeTenant: (event: { identity?: Record<string, unknown> }) => {
+  authorizeUser: (event: { identity?: Record<string, unknown> }) => {
     const claims = event.identity as Record<string, unknown> | undefined;
-    const tenantId = (claims?.['claims'] as Record<string, string>)?.['custom:tenant_id'];
+    const claimsMap = claims?.['claims'] as Record<string, string> | undefined;
+    const tenantId = claimsMap?.['custom:tenant_id'];
+    const userId = claimsMap?.['sub'];
     if (!tenantId) throw new MockNotRetryableError('UNAUTHORIZED: missing tenantId');
-    return tenantId;
+    if (!userId) throw new MockNotRetryableError('UNAUTHORIZED: missing userId');
+    return { tenantId, userId };
   },
+  validateQueryDepth: jest.fn(),
 }));
 
 import { AppSyncResolverEvent } from 'aws-lambda';
@@ -228,6 +232,23 @@ describe('dashboard-bff graphql-resolver handler', () => {
       await jest.isolateModulesAsync(async () => {
         const { handler } = require('./graphql-resolver');
         await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
+      });
+    });
+
+    it('should throw when userId (sub) is missing from claims', async () => {
+      const event = {
+        info: { fieldName: 'getDashboard', parentTypeName: '', variables: {}, selectionSetList: [], selectionSetGraphQL: '' },
+        arguments: {},
+        identity: { claims: { 'custom:tenant_id': 'tenant-1' } },
+        source: null,
+        request: { headers: {} },
+        prev: null,
+        stash: {},
+      } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
+
+      await jest.isolateModulesAsync(async () => {
+        const { handler } = require('./graphql-resolver');
+        await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing userId');
       });
     });
 

@@ -10,7 +10,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
 
 jest.mock('@nestfolio/domain-core', () => ({}));
 
-import Highland from 'highland';
 import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
 import { DecisionStatusChangedPipe } from '../pipes/decision-status-changed.pipe';
 
@@ -32,7 +31,7 @@ describe('DecisionStatusChangedPipe', () => {
     pipe = new DecisionStatusChangedPipe(mockRepository);
   });
 
-  it('should update status to APPROVED on DECISION_APPROVED', (done) => {
+  it('should update status to APPROVED on DECISION_APPROVED', async () => {
     const uow: UnitOfWork<BusEvent<Payload>> = {
       event: {
         id: 'evt-1',
@@ -45,15 +44,12 @@ describe('DecisionStatusChangedPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<Payload>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      expect(mockUpdateDecisionStatus).toHaveBeenCalledWith('t1', 'd1', 'APPROVED');
-      done();
-    });
+    expect(mockUpdateDecisionStatus).toHaveBeenCalledWith('t1', 'd1', 'APPROVED');
   });
 
-  it('should update status to BLOCKED on DECISION_BLOCKED', (done) => {
+  it('should update status to BLOCKED on DECISION_BLOCKED', async () => {
     const uow: UnitOfWork<BusEvent<Payload>> = {
       event: {
         id: 'evt-2',
@@ -66,15 +62,12 @@ describe('DecisionStatusChangedPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<Payload>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      expect(mockUpdateDecisionStatus).toHaveBeenCalledWith('t1', 'd1', 'BLOCKED');
-      done();
-    });
+    expect(mockUpdateDecisionStatus).toHaveBeenCalledWith('t1', 'd1', 'BLOCKED');
   });
 
-  it('should update status to AWAITING_CONFIRMATION on USER_CONFIRMATION_REQUESTED', (done) => {
+  it('should update status to AWAITING_CONFIRMATION on USER_CONFIRMATION_REQUESTED', async () => {
     const uow: UnitOfWork<BusEvent<Payload>> = {
       event: {
         id: 'evt-3',
@@ -87,11 +80,8 @@ describe('DecisionStatusChangedPipe', () => {
       record: {},
     };
 
-    const source = Highland<UnitOfWork<BusEvent<Payload>>>([uow]);
+    await pipe.process(uow);
 
-    pipe.feed(source).done(() => {
-      expect(mockUpdateDecisionStatus).toHaveBeenCalledWith('t1', 'd1', 'AWAITING_CONFIRMATION');
-      done();
-    });
+    expect(mockUpdateDecisionStatus).toHaveBeenCalledWith('t1', 'd1', 'AWAITING_CONFIRMATION');
   });
 });

@@ -133,7 +133,7 @@ import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
   `],
 })
 export class DashboardContainerComponent implements OnInit, OnDestroy {
-  private dashboardService = inject(DashboardService);
+  private readonly dashboardService = inject(DashboardService);
   readonly i18n = inject(I18nService);
   readonly store = inject(DashboardStore);
   private destroyed = false;

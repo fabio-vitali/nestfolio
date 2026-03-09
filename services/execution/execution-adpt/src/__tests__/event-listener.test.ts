@@ -78,6 +78,20 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     const subject = event.subject as Record<string, unknown> | undefined;
     return (context?.tenantId ?? subject?.tenantId ?? 'unknown') as string;
   }),
+  NotRetryableError: class NotRetryableError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'NotRetryableError';
+    }
+  },
+  createServiceMetrics: jest.fn().mockReturnValue({
+    addMetric: jest.fn(),
+    addDimension: jest.fn(),
+    publishStoredMetrics: jest.fn(),
+  }),
+  isRetryable: jest.fn().mockReturnValue(true),
+  traceEvent: jest.fn(),
+  MetricUnit: { Count: 'Count' },
 }));
 
 import { SQSEvent } from 'aws-lambda';

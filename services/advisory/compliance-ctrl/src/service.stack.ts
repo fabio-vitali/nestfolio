@@ -7,6 +7,8 @@ import {
   State,
   Ingress,
   Egress,
+  Monitoring,
+  ServiceDashboard,
   createNamingService,
   defaultLambdaProps,
   applyStandardTags,
@@ -21,7 +23,8 @@ export class ComplianceCtrlStack extends Stack {
       service: 'compliance-ctrl',
     });
 
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    const prefix = this.node.tryGetContext('prefix');
+    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
     applyStandardTags(this, { service: 'compliance-ctrl', domain: 'advisory', environment: prefix });
 
     // State: DynamoDB table
@@ -36,7 +39,7 @@ export class ComplianceCtrlStack extends Stack {
     state.table.grantReadWriteData(eventListener);
 
     // Decision ingress: EventBridge -> SQS -> event-listener
-    new Ingress(this, 'DecisionIngress', {
+    const decisionIngress = new Ingress(this, 'DecisionIngress', {
       eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus', naming.eventBusName()),
       eventTypes: ['DECISION_PACKET_CREATED', 'DECISION_PACKET_ENRICHED'],
       handler: eventListener,
@@ -51,7 +54,7 @@ export class ComplianceCtrlStack extends Stack {
     state.table.grantReadWriteData(mandateListener);
 
     // Mandate ingress: EventBridge -> SQS -> mandate-listener
-    new Ingress(this, 'MandateIngress', {
+    const mandateIngress = new Ingress(this, 'MandateIngress', {
       eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus2', naming.eventBusName()),
       eventTypes: [
         'MANDATE_GRANTED',
@@ -68,6 +71,19 @@ export class ComplianceCtrlStack extends Stack {
       busName: naming.eventBusName(),
       serviceName: 'compliance-ctrl',
       publishableTypes: ['ComplianceCheck', 'AuditArtifact'],
+    });
+
+    // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
+    new Monitoring(this, 'Monitoring', {
+      lambdaFunctions: [eventListener, mandateListener],
+      dlqs: [decisionIngress.dlq, mandateIngress.dlq],
+    });
+
+    // Dashboard: CloudWatch dashboard for service observability
+    new ServiceDashboard(this, 'Dashboard', {
+      serviceName: 'compliance-ctrl',
+      lambdaFunctions: [eventListener, mandateListener],
+      dlqs: [decisionIngress.dlq, mandateIngress.dlq],
     });
   }
 }

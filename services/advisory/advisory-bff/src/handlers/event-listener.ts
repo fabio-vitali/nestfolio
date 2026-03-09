@@ -1,8 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
-import Highland from 'highland';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent } from '@nestfolio/lambda-utils';
 import { AdvisoryRepository } from '../repositories/advisory.repository';
 import { DecisionPacketCreatedPipe } from '../pipes/decision-packet-created.pipe';
 import { DecisionStatusChangedPipe } from '../pipes/decision-status-changed.pipe';
@@ -14,6 +13,15 @@ const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 
 const decisionPacketCreatedPipe = new DecisionPacketCreatedPipe(repository, idempotencyGuard);
 const decisionStatusChangedPipe = new DecisionStatusChangedPipe(repository);
+const metrics = createServiceMetrics('advisory-bff');
+
+const TRIGGER_EVENT_TYPES = new Set([
+  'DECISION_PACKET_CREATED',
+  'DECISION_PACKET_ENRICHED',
+  'DECISION_APPROVED',
+  'DECISION_BLOCKED',
+  'USER_CONFIRMATION_REQUESTED',
+]);
 
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const failures: string[] = [];
@@ -24,6 +32,12 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const eventType = uow.event.type;
 
       logger.info('Processing event', { eventType, eventId: uow.event.id });
+      traceEvent(eventType, uow.event.id);
+
+      if (!TRIGGER_EVENT_TYPES.has(eventType)) {
+        logger.warn('No handler for event type, skipping', { eventType });
+        continue;
+      }
 
       const isNew = await idempotencyGuard.ensureOnce(eventType, uow.event.id);
       if (!isNew) {
@@ -32,14 +46,20 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       }
 
       await processEvent(eventType, uow);
+      metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
     } catch (error) {
       logger.error('Failed to process record', {
         messageId: record.messageId,
         error: error instanceof Error ? error.message : String(error),
       });
-      failures.push(record.messageId);
+      metrics.addMetric('EventFailed', MetricUnit.Count, 1);
+      if (isRetryable(error)) {
+        failures.push(record.messageId);
+      }
     }
   }
+
+  metrics.publishStoredMetrics();
 
   return {
     batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
@@ -50,28 +70,15 @@ async function processEvent(
   eventType: string,
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const source = Highland<UnitOfWork<BusEvent<Record<string, unknown>>>>([uow]);
-
-    let pipe;
-    switch (eventType) {
-      case 'DECISION_PACKET_CREATED':
-        pipe = decisionPacketCreatedPipe;
-        break;
-      case 'DECISION_PACKET_ENRICHED':
-      case 'DECISION_APPROVED':
-      case 'DECISION_BLOCKED':
-      case 'USER_CONFIRMATION_REQUESTED':
-        pipe = decisionStatusChangedPipe;
-        break;
-      default:
-        logger.warn('No pipe for event type, skipping', { eventType });
-        resolve();
-        return;
-    }
-
-    source.on('error', (err: Error) => reject(err));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (pipe as any).feed(source).done(() => resolve());
-  });
+  switch (eventType) {
+    case 'DECISION_PACKET_CREATED':
+      await decisionPacketCreatedPipe.process(uow as any);
+      break;
+    case 'DECISION_PACKET_ENRICHED':
+    case 'DECISION_APPROVED':
+    case 'DECISION_BLOCKED':
+    case 'USER_CONFIRMATION_REQUESTED':
+      await decisionStatusChangedPipe.process(uow as any);
+      break;
+  }
 }

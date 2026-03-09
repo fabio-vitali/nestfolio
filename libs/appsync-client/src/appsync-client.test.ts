@@ -49,8 +49,8 @@ describe('query', () => {
     try {
       await query('query Q { result }');
       fail('Expected error');
-    } catch (err) {
-      expect((err as Error & { graphqlErrors: unknown[] }).graphqlErrors).toEqual(errors);
+    } catch (error) {
+      expect((error as Error & { graphqlErrors: unknown[] }).graphqlErrors).toEqual(errors);
     }
   });
 });
@@ -88,8 +88,8 @@ describe('mutate', () => {
     try {
       await mutate('mutation M { doThing }');
       fail('Expected error');
-    } catch (err) {
-      expect((err as Error & { graphqlErrors: unknown[] }).graphqlErrors).toEqual(errors);
+    } catch (error) {
+      expect((error as Error & { graphqlErrors: unknown[] }).graphqlErrors).toEqual(errors);
     }
   });
 });

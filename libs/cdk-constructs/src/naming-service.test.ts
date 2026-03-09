@@ -74,14 +74,14 @@ describe('createNamingService', () => {
     expect(naming.tableName()).toBe('staging-execution-ctrl-table');
   });
 
-  it('defaults prefix to "dev" when not in context', () => {
+  it('throws when prefix is not in context', () => {
     const app = new App();
     const stack = new Stack(app, 'TestStack');
-    const naming = createNamingService(stack, {
-      subsystem: 'investor',
-      service: 'investor-hub',
-    });
-
-    expect(naming.eventBusName()).toBe('dev-investor-event-bus');
+    expect(() =>
+      createNamingService(stack, {
+        subsystem: 'investor',
+        service: 'investor-hub',
+      }),
+    ).toThrow('CDK context "prefix" is required');
   });
 });

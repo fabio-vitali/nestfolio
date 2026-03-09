@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger, NotRetryableError } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId } from '@nestfolio/lambda-utils';
+import { logger } from '@nestfolio/platform-core';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, NotRetryableError, traceEvent } from '@nestfolio/lambda-utils';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from '../services/market-data.service';
 import { SimulationEngineService } from '../services/simulation-engine.service';
@@ -12,6 +12,12 @@ const repository = new VirtualLedgerRepository(TABLE_NAME, dynamoClient);
 const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 const marketData = new MarketDataService();
 const simulationEngine = new SimulationEngineService(repository, marketData);
+const metrics = createServiceMetrics('execution-adpt');
+
+const HANDLED_EVENT_TYPES = new Set([
+  'ORDER_SUBMITTED',
+  'WITHDRAWAL_REQUESTED',
+]);
 
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const failures: string[] = [];
@@ -22,6 +28,12 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const eventType = uow.event.type;
 
       logger.info('Processing event', { eventType, eventId: uow.event.id });
+      traceEvent(eventType, uow.event.id);
+
+      if (!HANDLED_EVENT_TYPES.has(eventType)) {
+        logger.warn('No handler for event type, skipping', { eventType });
+        continue;
+      }
 
       const isNew = await idempotencyGuard.ensureOnce(eventType, uow.event.id);
       if (!isNew) {
@@ -29,22 +41,28 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
         continue;
       }
 
-      if (eventType === 'ORDER_SUBMITTED') {
-        await processOrderSubmitted(uow.event);
-      } else if (eventType === 'WITHDRAWAL_REQUESTED') {
-        await processWithdrawalRequested(uow.event);
-      } else {
-        logger.warn('No handler for event type, skipping', { eventType });
+      switch (eventType) {
+        case 'ORDER_SUBMITTED':
+          await processOrderSubmitted(uow.event);
+          break;
+        case 'WITHDRAWAL_REQUESTED':
+          await processWithdrawalRequested(uow.event);
+          break;
       }
+      metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
     } catch (error) {
       logger.error('Failed to process record', {
         messageId: record.messageId,
         error: error instanceof Error ? error.message : String(error),
       });
-      failures.push(record.messageId);
+      metrics.addMetric('EventFailed', MetricUnit.Count, 1);
+      if (isRetryable(error)) {
+        failures.push(record.messageId);
+      }
     }
   }
 
+  metrics.publishStoredMetrics();
   return {
     batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
   };
@@ -65,7 +83,7 @@ async function processOrderSubmitted(
   const quantity = subject.quantity as number;
 
   if (!orderId || !symbol || !side || quantity === undefined) {
-    throw new Error(`Missing required ORDER_SUBMITTED fields: orderId=${orderId}, symbol=${symbol}, side=${side}, quantity=${quantity}`);
+    throw new NotRetryableError(`Missing required ORDER_SUBMITTED fields: orderId=${orderId}, symbol=${symbol}, side=${side}, quantity=${quantity}`);
   }
 
   // Ensure simulation account exists (lazy initialization)
@@ -104,7 +122,7 @@ async function processWithdrawalRequested(
   const amount = subject.amount as number;
 
   if (!withdrawalId || amount === undefined) {
-    throw new Error(`Missing required WITHDRAWAL_REQUESTED fields: withdrawalId=${withdrawalId}, amount=${amount}`);
+    throw new NotRetryableError(`Missing required WITHDRAWAL_REQUESTED fields: withdrawalId=${withdrawalId}, amount=${amount}`);
   }
 
   const result = await simulationEngine.processWithdrawal(

@@ -2,7 +2,8 @@ import { App } from 'aws-cdk-lib';
 import { PortfolioCtrlStack } from './service.stack';
 
 const app = new App();
-const prefix = app.node.tryGetContext('prefix') ?? 'dev';
+const prefix = app.node.tryGetContext('prefix');
+if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
 
 new PortfolioCtrlStack(app, `${prefix}-portfolio-ctrl`, {
   env: {

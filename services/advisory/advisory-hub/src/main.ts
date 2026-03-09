@@ -2,7 +2,8 @@ import { App } from 'aws-cdk-lib';
 import { AdvisoryHubStack } from './service.stack';
 
 const app = new App();
-const prefix = app.node.tryGetContext('prefix') ?? 'dev';
+const prefix = app.node.tryGetContext('prefix');
+if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
 
 new AdvisoryHubStack(app, `${prefix}-advisory-hub`, {
   env: {

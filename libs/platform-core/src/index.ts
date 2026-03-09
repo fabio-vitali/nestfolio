@@ -15,6 +15,7 @@ export {
   type ErrorEvent,
 } from './errors';
 export { log, logger } from './logger';
+export { tracer } from './tracer';
 export { type TableEntry } from './table';
 export { validateIncomingEvent, withSchemaValidation, type ValidationResult } from './validation';
 export { TableRepository } from './repositories/table.repository';

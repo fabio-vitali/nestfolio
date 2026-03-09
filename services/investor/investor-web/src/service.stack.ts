@@ -18,7 +18,8 @@ export class InvestorWebStack extends Stack {
     super(scope, id, props);
 
     const naming = createNamingService(this, { subsystem: 'investor', service: 'investor-web' });
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    const prefix = this.node.tryGetContext('prefix');
+    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
 
     applyStandardTags(this, { service: 'investor-web', domain: 'investor', environment: prefix });
 

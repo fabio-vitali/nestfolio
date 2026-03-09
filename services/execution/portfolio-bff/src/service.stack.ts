@@ -10,6 +10,8 @@ import {
   Ingress,
   Egress,
   Facade,
+  Monitoring,
+  ServiceDashboard,
   createNamingService,
   defaultLambdaProps,
   applyStandardTags,
@@ -24,7 +26,9 @@ export class PortfolioBffStack extends Stack {
       service: 'portfolio-bff',
     });
 
-    applyStandardTags(this, { service: 'portfolio-bff', domain: 'execution', environment: this.node.tryGetContext('prefix') ?? 'dev' });
+    const prefix = this.node.tryGetContext('prefix');
+    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
+    applyStandardTags(this, { service: 'portfolio-bff', domain: 'execution', environment: prefix });
 
     // State: DynamoDB table
     const state = new State(this, 'State');
@@ -38,7 +42,7 @@ export class PortfolioBffStack extends Stack {
     state.table.grantReadWriteData(eventListener);
 
     // Ingress: EventBridge -> SQS -> event-listener
-    new Ingress(this, 'Ingress', {
+    const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'ExecutionBus', naming.eventBusName()),
       eventTypes: [
         'ORDER_FILLED',
@@ -72,7 +76,6 @@ export class PortfolioBffStack extends Stack {
     state.table.grantReadWriteData(resolver);
 
     // Read Cognito UserPool from SSM (investor subsystem owns auth)
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
     const userPoolId = StringParameter.valueForStringParameter(
       this,
       `/nestfolio/${prefix}-investor/auth/userPoolId`,
@@ -84,6 +87,19 @@ export class PortfolioBffStack extends Stack {
       schemaPath: join(__dirname, 'schema.graphql'),
       userPool,
       resolverFunctions: { default: resolver },
+    });
+
+    // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
+    new Monitoring(this, 'Monitoring', {
+      lambdaFunctions: [eventListener, resolver],
+      dlqs: [ingress.dlq],
+    });
+
+    // Dashboard: CloudWatch dashboard for service observability
+    new ServiceDashboard(this, 'Dashboard', {
+      serviceName: 'portfolio-bff',
+      lambdaFunctions: [eventListener, resolver],
+      dlqs: [ingress.dlq],
     });
   }
 }

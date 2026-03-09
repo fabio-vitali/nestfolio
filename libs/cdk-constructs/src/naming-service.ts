@@ -66,6 +66,7 @@ export function createNamingService(
   scope: Construct,
   config: Omit<NamingServiceConfig, 'prefix'>,
 ): NamingService {
-  const prefix = scope.node.tryGetContext('prefix') ?? 'dev';
+  const prefix = scope.node.tryGetContext('prefix');
+  if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
   return new NamingService({ ...config, prefix });
 }

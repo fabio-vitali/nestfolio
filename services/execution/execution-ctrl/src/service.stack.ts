@@ -7,6 +7,8 @@ import {
   State,
   Ingress,
   Egress,
+  Monitoring,
+  ServiceDashboard,
   createNamingService,
   defaultLambdaProps,
   applyStandardTags,
@@ -21,7 +23,8 @@ export class ExecutionCtrlStack extends Stack {
       service: 'execution-ctrl',
     });
 
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    const prefix = this.node.tryGetContext('prefix');
+    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
     applyStandardTags(this, { service: 'execution-ctrl', domain: 'execution', environment: prefix });
 
     // State: DynamoDB table
@@ -36,7 +39,7 @@ export class ExecutionCtrlStack extends Stack {
     state.table.grantReadWriteData(eventListener);
 
     // Ingress: execution EventBridge bus -> SQS -> event-listener
-    new Ingress(this, 'Ingress', {
+    const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'ExecutionBus', naming.eventBusName()),
       eventTypes: [
         'DECISION_APPROVED',
@@ -54,6 +57,19 @@ export class ExecutionCtrlStack extends Stack {
       busName: naming.eventBusName(),
       serviceName: 'execution-ctrl',
       publishableTypes: ['Order', 'StagedOrder'],
+    });
+
+    // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
+    new Monitoring(this, 'Monitoring', {
+      lambdaFunctions: [eventListener],
+      dlqs: [ingress.dlq],
+    });
+
+    // Dashboard: CloudWatch dashboard for service observability
+    new ServiceDashboard(this, 'Dashboard', {
+      serviceName: 'execution-ctrl',
+      lambdaFunctions: [eventListener],
+      dlqs: [ingress.dlq],
     });
   }
 }

@@ -9,6 +9,8 @@ import {
   State,
   Ingress,
   Facade,
+  Monitoring,
+  ServiceDashboard,
   createNamingService,
   defaultLambdaProps,
   applyStandardTags,
@@ -23,7 +25,8 @@ export class DashboardBffStack extends Stack {
       service: 'dashboard-bff',
     });
 
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    const prefix = this.node.tryGetContext('prefix');
+    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
     applyStandardTags(this, { service: 'dashboard-bff', domain: 'investor', environment: prefix });
 
     // State: DynamoDB table for all dashboard projections
@@ -39,7 +42,7 @@ export class DashboardBffStack extends Stack {
 
     // Ingress: investor-bus → SQS → event-listener
     // investor-bus receives forwarded events from advisory-hub and execution-hub
-    new Ingress(this, 'Ingress', {
+    const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'InvestorBus', naming.eventBusName()),
       eventTypes: [
         // Execution domain (forwarded via execution-hub → investor-bus)
@@ -86,6 +89,19 @@ export class DashboardBffStack extends Stack {
       schemaPath: join(__dirname, 'schema.graphql'),
       userPool,
       resolverFunctions: { default: resolver },
+    });
+
+    // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
+    new Monitoring(this, 'Monitoring', {
+      lambdaFunctions: [eventListener, resolver],
+      dlqs: [ingress.dlq],
+    });
+
+    // Dashboard: CloudWatch dashboard for service observability
+    new ServiceDashboard(this, 'Dashboard', {
+      serviceName: 'dashboard-bff',
+      lambdaFunctions: [eventListener, resolver],
+      dlqs: [ingress.dlq],
     });
   }
 }

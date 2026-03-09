@@ -1,11 +1,11 @@
-import { ApplicationConfig, provideZoneChangeDetection, APP_INITIALIZER, isDevMode, inject } from '@angular/core';
+import { ApplicationConfig, provideZoneChangeDetection, APP_INITIALIZER, ErrorHandler, isDevMode, inject } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideAuth, authInterceptor, getAuthUser } from '@nestfolio/auth';
 import { provideI18n } from '@nestfolio/i18n';
 import { provideNestfolioTheme } from '@nestfolio/ui-components';
-import { AuthStore } from '@nestfolio/shared-state';
+import { AuthStore, GlobalErrorHandler } from '@nestfolio/shared-state';
 import { appRoutes } from './app.routes';
 import { environment } from '../environments/environment';
 
@@ -50,9 +50,9 @@ function loadRuntimeConfig(): () => Promise<void> {
       const config: RuntimeConfig = await response.json();
       validateEndpoints(config);
       runtimeConfig = config;
-    } catch (err) {
-      if (err instanceof Error && err.message.startsWith('Invalid endpoint URL')) {
-        throw err;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Invalid endpoint URL')) {
+        throw error;
       }
       runtimeConfig = environment;
     }
@@ -78,6 +78,7 @@ function initializeAuth(): () => Promise<void> {
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(appRoutes),
     provideHttpClient(withInterceptors([authInterceptor])),

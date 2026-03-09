@@ -1,10 +1,23 @@
-/** @type {import('jest').Config} */
+/**
+ * Jest preset — shared by all projects
+ *
+ * Conventions:
+ *   Test naming:  Backend = .test.ts | Frontend = .spec.ts | Libs = .test.ts (backend-oriented)
+ *   Environment:  Backend services = 'node' | Frontend apps/libs = 'jsdom'
+ *   Paths:        Services use <rootDir>/../../libs/… | Apps use <rootDir>/../../../libs/…
+ *                 (moduleNameMapper overrides are per-project due to different relative depths)
+ *   Transform:    Backend uses ts-jest | Frontend uses jest-preset-angular
+ *   Ignore:       Frontend needs transformIgnorePatterns for ESM packages (primeng, ngrx, ngx-translate)
+ *
+ * @type {import('jest').Config}
+ */
 const preset = {
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   moduleFileExtensions: ['ts', 'js', 'json'],
   testMatch: ['**/*.test.ts', '**/*.spec.ts'],
+  testEnvironment: 'node',
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/index.ts',

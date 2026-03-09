@@ -75,11 +75,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 };
 
 /** @internal — exposed for testing only */
-export function _resetInflightSession(): void {
+export function resetInflightSession(): void {
   inflightSession = null;
 }
 
 /** @internal — exposed for testing only */
-export function _resetRetryFlag(): void {
+export function resetRetryFlag(): void {
   isRetrying = false;
 }

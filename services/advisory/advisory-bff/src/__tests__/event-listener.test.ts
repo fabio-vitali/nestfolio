@@ -64,6 +64,14 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   IdempotencyGuard: jest.fn().mockImplementation(() => ({
     ensureOnce: jest.fn().mockResolvedValue(true),
   })),
+  createServiceMetrics: jest.fn().mockReturnValue({
+    addMetric: jest.fn(),
+    addDimension: jest.fn(),
+    publishStoredMetrics: jest.fn(),
+  }),
+  isRetryable: jest.fn().mockReturnValue(true),
+  traceEvent: jest.fn(),
+  MetricUnit: { Count: 'Count' },
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));

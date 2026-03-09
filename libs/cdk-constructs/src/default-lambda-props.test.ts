@@ -1,4 +1,5 @@
 import { App, Stack, Duration } from 'aws-cdk-lib';
+import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { defaultLambdaProps, agentLambdaProps } from './default-lambda-props';
 
 describe('defaultLambdaProps', () => {
@@ -27,6 +28,11 @@ describe('defaultLambdaProps', () => {
   it('excludes @aws-sdk/* from bundling', () => {
     const props = defaultLambdaProps(stack);
     expect(props.bundling?.externalModules).toEqual(['@aws-sdk/*']);
+  });
+
+  it('sets 90-day log retention', () => {
+    const props = defaultLambdaProps(stack);
+    expect(props.logRetention).toBe(RetentionDays.THREE_MONTHS);
   });
 });
 

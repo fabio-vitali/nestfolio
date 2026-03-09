@@ -9,6 +9,8 @@ import {
   Ingress,
   Egress,
   AgentRuntime,
+  Monitoring,
+  ServiceDashboard,
   createNamingService,
   defaultLambdaProps,
   applyStandardTags,
@@ -23,7 +25,8 @@ export class AdvisoryCtrlStack extends Stack {
       service: 'advisory-ctrl',
     });
 
-    const prefix = this.node.tryGetContext('prefix') ?? 'dev';
+    const prefix = this.node.tryGetContext('prefix');
+    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
     applyStandardTags(this, { service: 'advisory-ctrl', domain: 'advisory', environment: prefix });
 
     // State: DynamoDB table
@@ -38,7 +41,7 @@ export class AdvisoryCtrlStack extends Stack {
     state.table.grantReadWriteData(eventListener);
 
     // Ingress: advisory EventBridge bus -> SQS -> event-listener
-    new Ingress(this, 'TriggerIngress', {
+    const triggerIngress = new Ingress(this, 'TriggerIngress', {
       eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus', naming.eventBusName()),
       eventTypes: [
         'MANDATE_GRANTED',
@@ -63,7 +66,7 @@ export class AdvisoryCtrlStack extends Stack {
     state.table.grantReadWriteData(complianceCallback);
 
     // Compliance ingress
-    new Ingress(this, 'ComplianceIngress', {
+    const complianceIngress = new Ingress(this, 'ComplianceIngress', {
       eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus2', naming.eventBusName()),
       eventTypes: ['DECISION_APPROVED', 'DECISION_BLOCKED'],
       handler: complianceCallback,
@@ -78,7 +81,7 @@ export class AdvisoryCtrlStack extends Stack {
     state.table.grantReadWriteData(userResponse);
 
     // User response ingress
-    new Ingress(this, 'UserResponseIngress', {
+    const userResponseIngress = new Ingress(this, 'UserResponseIngress', {
       eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus3', naming.eventBusName()),
       eventTypes: ['USER_CONFIRMED', 'USER_REJECTED'],
       handler: userResponse,
@@ -172,6 +175,21 @@ export class AdvisoryCtrlStack extends Stack {
           schemaPath: join(__dirname, 'tools', 'event-publisher-schema.json'),
         },
       ],
+    });
+
+    // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth, Bedrock errors
+    new Monitoring(this, 'Monitoring', {
+      lambdaFunctions: [eventListener, complianceCallback, userResponse, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
+      dlqs: [triggerIngress.dlq, complianceIngress.dlq, userResponseIngress.dlq],
+      monitorBedrock: true,
+      bedrockModelIds: [modelOpusId, modelSonnetId, modelHaikuId],
+    });
+
+    // Dashboard: CloudWatch dashboard for service observability
+    new ServiceDashboard(this, 'Dashboard', {
+      serviceName: 'advisory-ctrl',
+      lambdaFunctions: [eventListener, complianceCallback, userResponse, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
+      dlqs: [triggerIngress.dlq, complianceIngress.dlq, userResponseIngress.dlq],
     });
   }
 }

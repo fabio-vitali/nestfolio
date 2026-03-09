@@ -69,6 +69,14 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     if (!id || typeof id !== 'string') throw new Error('Missing tenantId');
     return id;
   }),
+  createServiceMetrics: jest.fn().mockReturnValue({
+    addMetric: jest.fn(),
+    addDimension: jest.fn(),
+    publishStoredMetrics: jest.fn(),
+  }),
+  isRetryable: jest.fn().mockReturnValue(true),
+  traceEvent: jest.fn(),
+  MetricUnit: { Count: 'Count' },
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));

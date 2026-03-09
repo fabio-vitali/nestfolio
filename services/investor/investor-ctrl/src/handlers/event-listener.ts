@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent } from '@nestfolio/lambda-utils';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationLifecycleService } from '../services/notification-lifecycle.service';
 
@@ -10,6 +10,7 @@ const dynamoClient = new DynamoDBClient({});
 const repository = new NotificationRepository(TABLE_NAME, dynamoClient);
 const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 const lifecycleService = new NotificationLifecycleService(repository);
+const metrics = createServiceMetrics('investor-ctrl');
 
 const TRIGGER_EVENT_TYPES = new Set([
   'ONBOARDING_COMPLETED',
@@ -30,6 +31,7 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       const eventType = uow.event.type;
 
       logger.info('Processing event', { eventType, eventId: uow.event.id });
+      traceEvent(eventType, uow.event.id);
 
       if (!TRIGGER_EVENT_TYPES.has(eventType)) {
         logger.warn('No handler for event type, skipping', { eventType });
@@ -48,14 +50,21 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
         tenantId,
         triggerEvent: uow.event,
       });
+
+      metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
     } catch (error) {
       logger.error('Failed to process record', {
         messageId: record.messageId,
         error: error instanceof Error ? error.message : String(error),
       });
-      failures.push(record.messageId);
+      metrics.addMetric('EventFailed', MetricUnit.Count, 1);
+      if (isRetryable(error)) {
+        failures.push(record.messageId);
+      }
     }
   }
+
+  metrics.publishStoredMetrics();
 
   return {
     batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),

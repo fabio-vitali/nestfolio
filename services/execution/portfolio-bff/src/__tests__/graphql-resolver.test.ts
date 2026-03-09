@@ -66,6 +66,7 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     if (!tenantId) throw new MockNotRetryableError('UNAUTHORIZED: missing tenantId');
     return tenantId;
   },
+  validateQueryDepth: jest.fn(),
 }));
 
 import { AppSyncResolverEvent } from 'aws-lambda';
