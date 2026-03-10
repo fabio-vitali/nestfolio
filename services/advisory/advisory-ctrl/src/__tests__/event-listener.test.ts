@@ -47,7 +47,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
@@ -75,12 +75,18 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   isRetryable: jest.fn().mockReturnValue(true),
   traceEvent: jest.fn(),
   MetricUnit: { Count: 'Count' },
+  applyMiddleware: jest.fn((handler: unknown) => handler),
+  withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
 
-import { SQSEvent } from 'aws-lambda';
-import { handler } from '../handlers/event-listener';
+import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
+import { DecisionRepository } from '../repositories/decision.repository';
+import { DecisionLifecycleService } from '../services/decision-lifecycle.service';
+import { createHandler, type EventListenerDeps } from '../handlers/event-listener';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
@@ -100,11 +106,28 @@ function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, 
 
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
+  let handler: (event: SQSEvent) => Promise<SQSBatchResponse>;
+  let mockDeps: EventListenerDeps;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+
+    const repository = new DecisionRepository('test-table');
+    const lifecycleService = new DecisionLifecycleService(repository);
+
+    mockDeps = {
+      idempotencyGuard: { ensureOnce: jest.fn().mockResolvedValue(true) } as any,
+      lifecycleService,
+      metrics: {
+        addMetric: jest.fn(),
+        addDimension: jest.fn(),
+        publishStoredMetrics: jest.fn(),
+      } as any,
+    };
+
+    handler = createHandler(mockDeps);
   });
 
   afterAll(() => {
@@ -227,22 +250,7 @@ describe('event-listener handler', () => {
   });
 
   it('should skip duplicate events via idempotency guard', async () => {
-    // This test needs the idempotencyGuard instance to return false.
-    // Since the handler's idempotencyGuard is already constructed with the mock,
-    // we need to make the mock's ensureOnce return false.
-    // The IdempotencyGuard constructor mock returns an object with ensureOnce.
-    // But the handler's instance was already created at module load time.
-    // We need to control the mockSend to simulate ConditionalCheckFailedException
-    // when IdempotencyGuard.ensureOnce is called (which calls DynamoDB PutItem).
-    // Actually, the IdempotencyGuard is mocked at the lambda-utils level, so
-    // ensureOnce is already a mock. We just need to get the instance.
-    // Since IdempotencyGuard is mocked, the handler's idempotencyGuard.ensureOnce
-    // is the mock function. Let's get it from the mock constructor calls.
-    const { IdempotencyGuard } = require('@nestfolio/lambda-utils');
-    const guardInstance = (IdempotencyGuard as jest.Mock).mock.results[0]?.value;
-    if (guardInstance) {
-      guardInstance.ensureOnce.mockResolvedValue(false);
-    }
+    (mockDeps.idempotencyGuard.ensureOnce as jest.Mock).mockResolvedValue(false);
 
     const sqsEvent = buildSqsEvent([
       {

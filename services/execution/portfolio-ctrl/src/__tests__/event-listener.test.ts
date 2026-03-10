@@ -46,8 +46,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
@@ -73,11 +72,21 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   isRetryable: jest.fn().mockReturnValue(true),
   traceEvent: jest.fn(),
   MetricUnit: { Count: 'Count' },
+  applyMiddleware: jest.fn((handler) => handler),
+  withLambdaContext: jest.fn(() => (next: unknown) => next),
+  withTiming: jest.fn(() => (next: unknown) => next),
+  withMethodLogging: jest.fn((_className: string) =>
+    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+  ),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
 
 import { SQSEvent } from 'aws-lambda';
+import { createHandler } from '../handlers/event-listener';
+import { ReconciliationRepository } from '../repositories/reconciliation.repository';
+import { ReconciliationService } from '../services/reconciliation.service';
+import { IdempotencyGuard } from '@nestfolio/lambda-utils';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
@@ -98,10 +107,28 @@ function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, 
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
 
+  const mockMetrics = {
+    addMetric: jest.fn(),
+    addDimension: jest.fn(),
+    publishStoredMetrics: jest.fn(),
+  };
+
+  const repository = new ReconciliationRepository('test-table');
+  const idempotencyGuard = new IdempotencyGuard({} as any, 'test-table');
+  const reconciliationService = new ReconciliationService(repository);
+
+  let handler: (event: SQSEvent) => Promise<any>;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+
+    handler = createHandler({
+      idempotencyGuard,
+      reconciliationService,
+      metrics: mockMetrics as any,
+    });
   });
 
   afterAll(() => {
@@ -130,11 +157,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should process ORDER_FILLED event and trigger reconciliation', async () => {
@@ -157,11 +181,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should report failure for malformed event body (invalid JSON)', async () => {
@@ -179,12 +200,9 @@ describe('event-listener handler', () => {
       }],
     };
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
   });
 
   it('should skip unknown event types gracefully', async () => {
@@ -203,11 +221,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should report batch item failures for processing errors', async () => {
@@ -223,12 +238,9 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
   });
 
   it('should log error with full context and re-throw when reconcile fails', async () => {
@@ -256,31 +268,27 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const { logger: loggerMock } = require('@nestfolio/platform-core');
-      const result = await handler(sqsEvent);
-      // Should report as batch item failure for SQS retry
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-reconcile-fail');
-      // Should log reconciliation-specific error with full context
-      expect(loggerMock.error).toHaveBeenCalledWith(
-        'Reconciliation failed',
-        expect.objectContaining({
-          tenantId: 't1',
-          portfolioId: 'p1',
-          eventType: 'ORDER_FILLED',
-          eventId: 'evt-reconcile-fail',
-          positionCount: 1,
-          error: 'DynamoDB timeout',
-        }),
-      );
-    });
+    const { logger: loggerMock } = require('@nestfolio/platform-core');
+    const result = await handler(sqsEvent);
+    // Should report as batch item failure for SQS retry
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-reconcile-fail');
+    // Should log reconciliation-specific error with full context
+    expect(loggerMock.error).toHaveBeenCalledWith(
+      'Reconciliation failed',
+      expect.objectContaining({
+        tenantId: 't1',
+        portfolioId: 'p1',
+        eventType: 'ORDER_FILLED',
+        eventId: 'evt-reconcile-fail',
+        positionCount: 1,
+        error: 'DynamoDB timeout',
+      }),
+    );
   });
 
   it('should skip duplicate events via idempotency guard', async () => {
-    const { IdempotencyGuard } = require('@nestfolio/lambda-utils');
-    const guardInstance = (IdempotencyGuard as jest.Mock).mock.results[0]?.value;
+    const guardInstance = (IdempotencyGuard as unknown as jest.Mock).mock.results[0]?.value;
     if (guardInstance) {
       guardInstance.ensureOnce.mockResolvedValue(false);
     }
@@ -300,10 +308,7 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 });

@@ -48,41 +48,56 @@ jest.mock('@nestfolio/platform-core', () => ({
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
+
+const mockParseRecord = jest.fn((record) => {
+  const body = JSON.parse(record.body);
+  const event = body.detail ?? body;
+  return { event, payload: event.subject ?? {}, record };
+});
+
+const mockEnsureOnce = jest.fn().mockResolvedValue(true);
+
+const mockExtractTenantId = jest.fn((event: Record<string, unknown>) => {
+  const context = event.context as Record<string, unknown> | undefined;
+  const subject = event.subject as Record<string, unknown> | undefined;
+  const id = context?.tenantId ?? subject?.tenantId;
+  if (!id || typeof id !== 'string') throw new Error('Missing tenantId');
+  return id;
+});
+
+const mockMetrics = {
+  addMetric: jest.fn(),
+  addDimension: jest.fn(),
+  publishStoredMetrics: jest.fn(),
+};
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  parseRecord: jest.fn((record) => {
-    const body = JSON.parse(record.body);
-    const event = body.detail ?? body;
-    return { event, payload: event.subject ?? {}, record };
-  }),
+  parseRecord: mockParseRecord,
   IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: jest.fn().mockResolvedValue(true),
+    ensureOnce: mockEnsureOnce,
   })),
-  extractTenantId: jest.fn((event: Record<string, unknown>) => {
-    const context = event.context as Record<string, unknown> | undefined;
-    const subject = event.subject as Record<string, unknown> | undefined;
-    const id = context?.tenantId ?? subject?.tenantId;
-    if (!id || typeof id !== 'string') throw new Error('Missing tenantId');
-    return id;
-  }),
-  createServiceMetrics: jest.fn().mockReturnValue({
-    addMetric: jest.fn(),
-    addDimension: jest.fn(),
-    publishStoredMetrics: jest.fn(),
-  }),
+  extractTenantId: mockExtractTenantId,
+  createServiceMetrics: jest.fn().mockReturnValue(mockMetrics),
   isRetryable: jest.fn().mockReturnValue(true),
   traceEvent: jest.fn(),
   MetricUnit: { Count: 'Count' },
+  applyMiddleware: jest.fn((handler: unknown) => handler),
+  withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withMethodLogging: jest.fn().mockImplementation(() =>
+    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+  ),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
 
 import { SQSEvent } from 'aws-lambda';
-import { handler } from '../handlers/event-listener';
+import { createHandler, EventListenerDeps } from '../handlers/event-listener';
+import { NotificationRepository } from '../repositories/notification.repository';
+import { NotificationLifecycleService } from '../services/notification-lifecycle.service';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
@@ -103,10 +118,25 @@ function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, 
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
 
+  let handler: (event: SQSEvent) => Promise<import('aws-lambda').SQSBatchResponse>;
+  let mockDeps: EventListenerDeps;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
+    mockEnsureOnce.mockResolvedValue(true);
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+
+    const repository = new NotificationRepository('test-table');
+    const lifecycleService = new NotificationLifecycleService(repository);
+
+    mockDeps = {
+      idempotencyGuard: { ensureOnce: mockEnsureOnce } as any,
+      lifecycleService,
+      metrics: mockMetrics as any,
+    };
+
+    handler = createHandler(mockDeps);
   });
 
   afterAll(() => {
@@ -234,8 +264,7 @@ describe('event-listener handler', () => {
   });
 
   it('should report batch item failures on parse errors', async () => {
-    const { parseRecord } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
+    mockParseRecord.mockImplementationOnce(() => {
       throw new Error('Parse error');
     });
 
@@ -252,11 +281,7 @@ describe('event-listener handler', () => {
   });
 
   it('should skip duplicate events via idempotency guard', async () => {
-    const { IdempotencyGuard } = require('@nestfolio/lambda-utils');
-    const guardInstance = (IdempotencyGuard as jest.Mock).mock.results[0]?.value;
-    if (guardInstance) {
-      guardInstance.ensureOnce.mockResolvedValue(false);
-    }
+    mockEnsureOnce.mockResolvedValue(false);
 
     const sqsEvent = buildSqsEvent([
       {

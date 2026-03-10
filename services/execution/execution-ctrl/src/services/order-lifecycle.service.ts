@@ -1,46 +1,50 @@
-import { getUUID, log, logger, type BusEvent } from '@nestfolio/platform-core';
+import { getUUID, logger, type BusEvent } from '@nestfolio/platform-core';
+import { withMethodLogging } from '@nestfolio/lambda-utils';
 import type { ProposedTrade } from '@nestfolio/domain-core';
 import { OrderRepository } from '../repositories/order.repository';
 import { SafetyChecksService } from './safety-checks.service';
 import { MarketHoursService } from './market-hours.service';
 
 export class OrderLifecycleService {
+  private readonly log = withMethodLogging('OrderLifecycleService');
+
   constructor(
     private readonly repository: OrderRepository,
     private readonly safetyChecks: SafetyChecksService,
     private readonly marketHours: MarketHoursService,
   ) {}
 
-  @log()
-  async processApprovedDecision(event: BusEvent): Promise<void> {
-    const { tenantId, decisionPacketId, proposedTrades } = this.extractFromEvent(event);
-    const orderId = getUUID();
+  readonly processApprovedDecision = this.log('processApprovedDecision',
+    async (event: BusEvent): Promise<void> => {
+      const { tenantId, decisionPacketId, proposedTrades } = this.extractFromEvent(event);
+      const orderId = getUUID();
 
-    logger.info('Processing approved decision', { tenantId, decisionPacketId, orderId, tradeCount: proposedTrades.length });
+      logger.info('Processing approved decision', { tenantId, decisionPacketId, orderId, tradeCount: proposedTrades.length });
 
-    // 1. Create order record
-    await this.repository.createOrder(tenantId, orderId, decisionPacketId, proposedTrades);
+      // 1. Create order record
+      await this.repository.createOrder(tenantId, orderId, decisionPacketId, proposedTrades);
 
-    // 2. Run safety checks
-    const safetyResult = await this.safetyChecks.runAllChecks(tenantId, proposedTrades);
-    if (!safetyResult.passed) {
-      logger.info('Safety checks failed, rejecting order', { orderId, reason: safetyResult.reason });
-      await this.repository.updateOrderStatus(tenantId, orderId, 'REJECTED', { reason: safetyResult.reason });
-      return;
-    }
+      // 2. Run safety checks
+      const safetyResult = await this.safetyChecks.runAllChecks(tenantId, proposedTrades);
+      if (!safetyResult.passed) {
+        logger.info('Safety checks failed, rejecting order', { orderId, reason: safetyResult.reason });
+        await this.repository.updateOrderStatus(tenantId, orderId, 'REJECTED', { reason: safetyResult.reason });
+        return;
+      }
 
-    // 3. Check market hours
-    if (this.marketHours.isMarketOpen()) {
-      // Submit immediately
-      logger.info('Market open, submitting order', { orderId });
-      await this.repository.updateOrderStatus(tenantId, orderId, 'SUBMITTED');
-    } else {
-      // Stage for later
-      logger.info('Market closed, staging order', { orderId });
-      await this.repository.createStagedOrder(tenantId, orderId, { proposedTrades });
-      await this.repository.updateOrderStatus(tenantId, orderId, 'STAGED');
-    }
-  }
+      // 3. Check market hours
+      if (await this.marketHours.isMarketOpen()) {
+        // Submit immediately
+        logger.info('Market open, submitting order', { orderId });
+        await this.repository.updateOrderStatus(tenantId, orderId, 'SUBMITTED');
+      } else {
+        // Stage for later
+        logger.info('Market closed, staging order', { orderId });
+        await this.repository.createStagedOrder(tenantId, orderId, { proposedTrades });
+        await this.repository.updateOrderStatus(tenantId, orderId, 'STAGED');
+      }
+    },
+  );
 
   private extractFromEvent(event: BusEvent): {
     tenantId: string;

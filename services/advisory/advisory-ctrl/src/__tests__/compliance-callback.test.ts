@@ -60,6 +60,7 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   IdempotencyGuard: jest.fn().mockImplementation(() => ({
     ensureOnce: jest.fn().mockResolvedValue(true),
   })),
+  withMethodLogging: () => (_name: string, fn: (...args: unknown[]) => unknown) => fn,
 }));
 
 import { SQSEvent } from 'aws-lambda';

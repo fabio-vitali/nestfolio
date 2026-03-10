@@ -1,5 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { TableRepository, getUUID, getTime, log, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { withMethodLogging } from '@nestfolio/lambda-utils';
 import type { BusEvent } from '@nestfolio/platform-core';
 
 function decisionPk(tenantId: string, dpId: string): string {
@@ -11,17 +12,18 @@ function workflowPk(tenantId: string, wfId: string): string {
 }
 
 export class DecisionRepository extends TableRepository {
+  private readonly log = withMethodLogging('DecisionRepository');
+
   constructor(tableName: string, client?: DynamoDBClient) {
     super(tableName, client);
   }
 
-  @log()
-  async createDecisionPacket(
+  readonly createDecisionPacket = this.log('createDecisionPacket', async (
     tenantId: string,
     dpId: string,
     triggerEvent: BusEvent,
     investorContext: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<void> => {
     const now = getTime();
     const item: TableEntry = {
       pk: decisionPk(tenantId, dpId),
@@ -47,22 +49,20 @@ export class DecisionRepository extends TableRepository {
       version: 1,
     };
     await this.put(item);
-  }
+  });
 
-  @log()
-  async getDecisionPacket(tenantId: string, dpId: string): Promise<Record<string, unknown> | null> {
+  readonly getDecisionPacket = this.log('getDecisionPacket', async (tenantId: string, dpId: string): Promise<Record<string, unknown> | null> => {
     const pk = decisionPk(tenantId, dpId);
     const items = await this.queryByPk(pk, 'DecisionPacket');
     return items.length > 0 ? items[0] : null;
-  }
+  });
 
-  @log()
-  async updateDecisionStatus(
+  readonly updateDecisionStatus = this.log('updateDecisionStatus', async (
     tenantId: string,
     dpId: string,
     status: string,
     details?: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<void> => {
     const pk = decisionPk(tenantId, dpId);
     const now = getTime();
 
@@ -97,10 +97,9 @@ export class DecisionRepository extends TableRepository {
         { Put: { TableName: this.tableName, Item: editEvent } },
       ],
     });
-  }
+  });
 
-  @log()
-  async recordAgentInvocation(
+  readonly recordAgentInvocation = this.log('recordAgentInvocation', async (
     tenantId: string,
     dpId: string,
     step: number,
@@ -108,7 +107,7 @@ export class DecisionRepository extends TableRepository {
     input: unknown,
     output: unknown,
     latencyMs: number,
-  ): Promise<void> {
+  ): Promise<void> => {
     const now = getTime();
     const item: TableEntry = {
       pk: decisionPk(tenantId, dpId),
@@ -132,15 +131,14 @@ export class DecisionRepository extends TableRepository {
       completedAt: now,
     };
     await this.put(item);
-  }
+  });
 
-  @log()
-  async recordReasoningOutput(
+  readonly recordReasoningOutput = this.log('recordReasoningOutput', async (
     tenantId: string,
     dpId: string,
     agentName: string,
     output: unknown,
-  ): Promise<void> {
+  ): Promise<void> => {
     const now = getTime();
     const item: TableEntry = {
       pk: decisionPk(tenantId, dpId),
@@ -153,14 +151,13 @@ export class DecisionRepository extends TableRepository {
       output,
     };
     await this.put(item);
-  }
+  });
 
-  @log()
-  async updateWorkflowState(
+  readonly updateWorkflowState = this.log('updateWorkflowState', async (
     tenantId: string,
     wfId: string,
     state: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<void> => {
     const now = getTime();
     const item: TableEntry = {
       pk: workflowPk(tenantId, wfId),
@@ -172,5 +169,5 @@ export class DecisionRepository extends TableRepository {
       ...state,
     };
     await this.put(item);
-  }
+  });
 }

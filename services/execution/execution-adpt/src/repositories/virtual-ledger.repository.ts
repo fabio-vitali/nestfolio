@@ -1,6 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, log, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { withMethodLogging } from '@nestfolio/lambda-utils';
 
 function ledgerPk(tenantId: string, userId: string): string {
   return `VirtualLedger#${tenantId}#${userId}`;
@@ -26,223 +27,233 @@ export interface VirtualSnapshot {
 }
 
 export class VirtualLedgerRepository extends TableRepository {
+  private readonly log = withMethodLogging('VirtualLedgerRepository');
+
   constructor(tableName: string, client?: DynamoDBClient) {
     super(tableName, client);
   }
 
-  @log()
-  async getCashBalance(
-    tenantId: string,
-    userId: string,
-    currency: string,
-  ): Promise<Record<string, unknown> | null> {
-    const pk = ledgerPk(tenantId, userId);
-    const result = await this.docClient.send(
-      new GetCommand({
-        TableName: this.tableName,
-        Key: { pk, sk: `CashBalance#${currency}` },
-      }),
-    );
-    return result.Item ?? null;
-  }
+  readonly getCashBalance = this.log('getCashBalance',
+    async (
+      tenantId: string,
+      userId: string,
+      currency: string,
+    ): Promise<Record<string, unknown> | null> => {
+      const pk = ledgerPk(tenantId, userId);
+      const result = await this.docClient.send(
+        new GetCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: `CashBalance#${currency}` },
+        }),
+      );
+      return result.Item ?? null;
+    },
+  );
 
-  @log()
-  async initializeCashBalance(
-    tenantId: string,
-    userId: string,
-    currency: string,
-    amount: number,
-  ): Promise<void> {
-    const now = getTime();
-    const item: TableEntry = {
-      pk: ledgerPk(tenantId, userId),
-      sk: `CashBalance#${currency}`,
-      __typename: 'VirtualCashBalance',
-      tenantId,
-      timestamp: now,
-      userId,
-      currency,
-      balance: amount,
-      updatedAt: now,
-    };
-    await this.put(item);
-  }
+  readonly initializeCashBalance = this.log('initializeCashBalance',
+    async (
+      tenantId: string,
+      userId: string,
+      currency: string,
+      amount: number,
+    ): Promise<void> => {
+      const now = getTime();
+      const item: TableEntry = {
+        pk: ledgerPk(tenantId, userId),
+        sk: `CashBalance#${currency}`,
+        __typename: 'VirtualCashBalance',
+        tenantId,
+        timestamp: now,
+        userId,
+        currency,
+        balance: amount,
+        updatedAt: now,
+      };
+      await this.put(item);
+    },
+  );
 
-  @log()
-  async getPosition(
-    tenantId: string,
-    userId: string,
-    symbol: string,
-  ): Promise<Record<string, unknown> | null> {
-    const pk = ledgerPk(tenantId, userId);
-    const result = await this.docClient.send(
-      new GetCommand({
-        TableName: this.tableName,
-        Key: { pk, sk: `Position#${symbol}` },
-      }),
-    );
-    return result.Item ?? null;
-  }
+  readonly getPosition = this.log('getPosition',
+    async (
+      tenantId: string,
+      userId: string,
+      symbol: string,
+    ): Promise<Record<string, unknown> | null> => {
+      const pk = ledgerPk(tenantId, userId);
+      const result = await this.docClient.send(
+        new GetCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: `Position#${symbol}` },
+        }),
+      );
+      return result.Item ?? null;
+    },
+  );
 
-  @log()
-  async getAllPositions(
-    tenantId: string,
-    userId: string,
-  ): Promise<Record<string, unknown>[]> {
-    const pk = ledgerPk(tenantId, userId);
-    return this.queryByPk(pk, 'Position#');
-  }
+  readonly getAllPositions = this.log('getAllPositions',
+    async (
+      tenantId: string,
+      userId: string,
+    ): Promise<Record<string, unknown>[]> => {
+      const pk = ledgerPk(tenantId, userId);
+      return this.queryByPk(pk, 'Position#');
+    },
+  );
 
-  @log()
-  async executeTrade(
-    tenantId: string,
-    userId: string,
-    trade: VirtualTrade,
-  ): Promise<void> {
-    const now = getTime();
-    const pk = ledgerPk(tenantId, userId);
+  readonly executeTrade = this.log('executeTrade',
+    async (
+      tenantId: string,
+      userId: string,
+      trade: VirtualTrade,
+    ): Promise<void> => {
+      const now = getTime();
+      const pk = ledgerPk(tenantId, userId);
 
-    const cashUpdate = {
-      Put: {
-        TableName: this.tableName,
-        Item: {
-          pk,
-          sk: `CashBalance#USD`,
-          __typename: 'VirtualCashBalance',
-          tenantId,
-          timestamp: now,
-          userId,
-          currency: 'USD',
-          balance: trade.cashAfter,
-          updatedAt: now,
+      const cashUpdate = {
+        Put: {
+          TableName: this.tableName,
+          Item: {
+            pk,
+            sk: `CashBalance#USD`,
+            __typename: 'VirtualCashBalance',
+            tenantId,
+            timestamp: now,
+            userId,
+            currency: 'USD',
+            balance: trade.cashAfter,
+            updatedAt: now,
+          },
         },
-      },
-    };
+      };
 
-    const currentPosition = await this.getPosition(tenantId, userId, trade.symbol);
-    const currentQty = (currentPosition?.quantity as number) ?? 0;
-    const currentAvgCost = (currentPosition?.averageCostBasis as number) ?? 0;
+      const currentPosition = await this.getPosition(tenantId, userId, trade.symbol);
+      const currentQty = (currentPosition?.quantity as number) ?? 0;
+      const currentAvgCost = (currentPosition?.averageCostBasis as number) ?? 0;
 
-    let newQty: number;
-    let newAvgCost: number;
-    if (trade.side === 'BUY') {
-      newQty = currentQty + trade.quantity;
-      // Weighted average cost basis
-      newAvgCost =
-        newQty > 0
-          ? (currentQty * currentAvgCost + trade.quantity * trade.fillPrice) / newQty
-          : 0;
-    } else {
-      newQty = currentQty - trade.quantity;
-      newAvgCost = newQty > 0 ? currentAvgCost : 0;
-    }
+      let newQty: number;
+      let newAvgCost: number;
+      if (trade.side === 'BUY') {
+        newQty = currentQty + trade.quantity;
+        // Weighted average cost basis
+        newAvgCost =
+          newQty > 0
+            ? (currentQty * currentAvgCost + trade.quantity * trade.fillPrice) / newQty
+            : 0;
+      } else {
+        newQty = currentQty - trade.quantity;
+        newAvgCost = newQty > 0 ? currentAvgCost : 0;
+      }
 
-    const positionUpdate = {
-      Put: {
-        TableName: this.tableName,
-        Item: {
-          pk,
-          sk: `Position#${trade.symbol}`,
-          __typename: 'VirtualPosition',
-          tenantId,
-          timestamp: now,
-          userId,
-          symbol: trade.symbol,
-          quantity: newQty,
-          averageCostBasis: newAvgCost,
-          marketValue: newQty * trade.fillPrice,
-          updatedAt: now,
+      const positionUpdate = {
+        Put: {
+          TableName: this.tableName,
+          Item: {
+            pk,
+            sk: `Position#${trade.symbol}`,
+            __typename: 'VirtualPosition',
+            tenantId,
+            timestamp: now,
+            userId,
+            symbol: trade.symbol,
+            quantity: newQty,
+            averageCostBasis: newAvgCost,
+            marketValue: newQty * trade.fillPrice,
+            updatedAt: now,
+          },
         },
-      },
-    };
+      };
 
-    const tradeId = trade.tradeId;
-    const tradeRecord = {
-      Put: {
-        TableName: this.tableName,
-        Item: {
-          pk,
-          sk: `Trade#${now}#${tradeId}`,
-          __typename: 'VirtualTrade',
-          tenantId,
-          timestamp: now,
-          userId,
-          tradeId,
-          orderId: trade.orderId,
-          symbol: trade.symbol,
-          side: trade.side,
-          quantity: trade.quantity,
-          fillPrice: trade.fillPrice,
-          totalValue: trade.totalValue,
-          cashBefore: trade.cashBefore,
-          cashAfter: trade.cashAfter,
-          executedAt: now,
+      const tradeId = trade.tradeId;
+      const tradeRecord = {
+        Put: {
+          TableName: this.tableName,
+          Item: {
+            pk,
+            sk: `Trade#${now}#${tradeId}`,
+            __typename: 'VirtualTrade',
+            tenantId,
+            timestamp: now,
+            userId,
+            tradeId,
+            orderId: trade.orderId,
+            symbol: trade.symbol,
+            side: trade.side,
+            quantity: trade.quantity,
+            fillPrice: trade.fillPrice,
+            totalValue: trade.totalValue,
+            cashBefore: trade.cashBefore,
+            cashAfter: trade.cashAfter,
+            executedAt: now,
+          },
         },
-      },
-    };
+      };
 
-    await this.transactWrite({
-      TransactItems: [cashUpdate, positionUpdate, tradeRecord],
-    });
-  }
+      await this.transactWrite({
+        TransactItems: [cashUpdate, positionUpdate, tradeRecord],
+      });
+    },
+  );
 
-  @log()
-  async getTradeHistory(
-    tenantId: string,
-    userId: string,
-    limit?: number,
-  ): Promise<Record<string, unknown>[]> {
-    const pk = ledgerPk(tenantId, userId);
-    const params = {
-      TableName: this.tableName,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
-      ExpressionAttributeValues: {
-        ':pk': pk,
-        ':sk': 'Trade#',
-      },
-      ScanIndexForward: false,
-      ...(limit ? { Limit: limit } : {}),
-    };
-    return this.queryAll(params);
-  }
+  readonly getTradeHistory = this.log('getTradeHistory',
+    async (
+      tenantId: string,
+      userId: string,
+      limit?: number,
+    ): Promise<Record<string, unknown>[]> => {
+      const pk = ledgerPk(tenantId, userId);
+      const params = {
+        TableName: this.tableName,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+        ExpressionAttributeValues: {
+          ':pk': pk,
+          ':sk': 'Trade#',
+        },
+        ScanIndexForward: false,
+        ...(limit ? { Limit: limit } : {}),
+      };
+      return this.queryAll(params);
+    },
+  );
 
-  @log()
-  async createSnapshot(
-    tenantId: string,
-    userId: string,
-    snapshot: VirtualSnapshot,
-  ): Promise<void> {
-    const now = getTime();
-    const item: TableEntry = {
-      pk: ledgerPk(tenantId, userId),
-      sk: `Snapshot#${snapshot.date}`,
-      __typename: 'VirtualSnapshot',
-      tenantId,
-      timestamp: now,
-      userId,
-      ...snapshot,
-      createdAt: now,
-    };
-    await this.put(item);
-  }
+  readonly createSnapshot = this.log('createSnapshot',
+    async (
+      tenantId: string,
+      userId: string,
+      snapshot: VirtualSnapshot,
+    ): Promise<void> => {
+      const now = getTime();
+      const item: TableEntry = {
+        pk: ledgerPk(tenantId, userId),
+        sk: `Snapshot#${snapshot.date}`,
+        __typename: 'VirtualSnapshot',
+        tenantId,
+        timestamp: now,
+        userId,
+        ...snapshot,
+        createdAt: now,
+      };
+      await this.put(item);
+    },
+  );
 
-  @log()
-  async getLatestSnapshot(
-    tenantId: string,
-    userId: string,
-  ): Promise<Record<string, unknown> | null> {
-    const pk = ledgerPk(tenantId, userId);
-    const params = {
-      TableName: this.tableName,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
-      ExpressionAttributeValues: {
-        ':pk': pk,
-        ':sk': 'Snapshot#',
-      },
-      ScanIndexForward: false,
-      Limit: 1,
-    };
-    const results = await this.queryAll(params);
-    return results.length > 0 ? results[0] as Record<string, unknown> : null;
-  }
+  readonly getLatestSnapshot = this.log('getLatestSnapshot',
+    async (
+      tenantId: string,
+      userId: string,
+    ): Promise<Record<string, unknown> | null> => {
+      const pk = ledgerPk(tenantId, userId);
+      const params = {
+        TableName: this.tableName,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+        ExpressionAttributeValues: {
+          ':pk': pk,
+          ':sk': 'Snapshot#',
+        },
+        ScanIndexForward: false,
+        Limit: 1,
+      };
+      const results = await this.queryAll(params);
+      return results.length > 0 ? results[0] as Record<string, unknown> : null;
+    },
+  );
 }

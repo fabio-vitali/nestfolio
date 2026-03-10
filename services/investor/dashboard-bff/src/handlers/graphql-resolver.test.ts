@@ -47,8 +47,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
 class MockNotRetryableError extends Error {
@@ -70,9 +69,17 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     return { tenantId, userId };
   },
   validateQueryDepth: jest.fn(),
+  applyMiddleware: jest.fn((handler: unknown) => handler),
+  withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withMethodLogging: jest.fn().mockImplementation(() =>
+    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+  ),
 }));
 
 import { AppSyncResolverEvent } from 'aws-lambda';
+import { createResolver, ResolverDeps } from './graphql-resolver';
+import { DashboardRepository } from '../repositories/dashboard.repository';
 
 function buildEvent(
   fieldName: string,
@@ -98,9 +105,17 @@ function buildEvent(
 describe('dashboard-bff graphql-resolver handler', () => {
   const ORIGINAL_ENV = process.env;
 
+  let handler: (event: AppSyncResolverEvent<Record<string, unknown>>) => Promise<unknown>;
+
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+
+    const resolverDeps: ResolverDeps = {
+      repository: new DashboardRepository('test-table'),
+    };
+
+    handler = createResolver(resolverDeps);
   });
 
   afterAll(() => {
@@ -118,15 +133,11 @@ describe('dashboard-bff graphql-resolver handler', () => {
       .mockResolvedValueOnce({ Item: investorSnapshot });
 
     const event = buildEvent('getDashboard');
-
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('./graphql-resolver');
-      const result = await handler(event);
-      expect(result).toEqual({
-        portfolioSummary,
-        advisoryStatus,
-        investorSnapshot,
-      });
+    const result = await handler(event);
+    expect(result).toEqual({
+      portfolioSummary,
+      advisoryStatus,
+      investorSnapshot,
     });
   });
 
@@ -137,14 +148,10 @@ describe('dashboard-bff graphql-resolver handler', () => {
       .mockResolvedValueOnce({ Item: undefined });
 
     const event = buildEvent('getDashboard');
-
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('./graphql-resolver');
-      const result = await handler(event);
-      expect(result.portfolioSummary).toBeNull();
-      expect(result.advisoryStatus).toBeNull();
-      expect(result.investorSnapshot).toBeNull();
-    });
+    const result = await handler(event) as any;
+    expect(result.portfolioSummary).toBeNull();
+    expect(result.advisoryStatus).toBeNull();
+    expect(result.investorSnapshot).toBeNull();
   });
 
   it('should resolve getPositionSnapshots', async () => {
@@ -155,12 +162,8 @@ describe('dashboard-bff graphql-resolver handler', () => {
     mockSend.mockResolvedValueOnce({ Items: positions });
 
     const event = buildEvent('getPositionSnapshots');
-
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('./graphql-resolver');
-      const result = await handler(event);
-      expect(result).toEqual(positions);
-    });
+    const result = await handler(event);
+    expect(result).toEqual(positions);
   });
 
   it('should resolve getRecentActivity with default limit', async () => {
@@ -168,24 +171,16 @@ describe('dashboard-bff graphql-resolver handler', () => {
     mockSend.mockResolvedValueOnce({ Items: activities });
 
     const event = buildEvent('getRecentActivity');
-
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('./graphql-resolver');
-      const result = await handler(event);
-      expect(result).toEqual(activities);
-    });
+    const result = await handler(event);
+    expect(result).toEqual(activities);
   });
 
   it('should resolve getRecentActivity with custom limit', async () => {
     mockSend.mockResolvedValueOnce({ Items: [] });
 
     const event = buildEvent('getRecentActivity', { limit: 5 });
-
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('./graphql-resolver');
-      const result = await handler(event);
-      expect(result).toEqual([]);
-    });
+    const result = await handler(event);
+    expect(result).toEqual([]);
 
     const cmd = mockSend.mock.calls[0][0];
     expect(cmd.input.Limit).toBe(5);
@@ -193,11 +188,7 @@ describe('dashboard-bff graphql-resolver handler', () => {
 
   it('should throw for unknown field', async () => {
     const event = buildEvent('unknownField');
-
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('./graphql-resolver');
-      await expect(handler(event)).rejects.toThrow('Unknown field: unknownField');
-    });
+    await expect(handler(event)).rejects.toThrow('Unknown field: unknownField');
   });
 
   describe('tenant authorization', () => {
@@ -212,10 +203,7 @@ describe('dashboard-bff graphql-resolver handler', () => {
         stash: {},
       } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
 
-      await jest.isolateModulesAsync(async () => {
-        const { handler } = require('./graphql-resolver');
-        await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
-      });
+      await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
     });
 
     it('should throw when identity is undefined', async () => {
@@ -229,10 +217,7 @@ describe('dashboard-bff graphql-resolver handler', () => {
         stash: {},
       } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
 
-      await jest.isolateModulesAsync(async () => {
-        const { handler } = require('./graphql-resolver');
-        await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
-      });
+      await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
     });
 
     it('should throw when userId (sub) is missing from claims', async () => {
@@ -246,10 +231,7 @@ describe('dashboard-bff graphql-resolver handler', () => {
         stash: {},
       } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
 
-      await jest.isolateModulesAsync(async () => {
-        const { handler } = require('./graphql-resolver');
-        await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing userId');
-      });
+      await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing userId');
     });
 
     it('should succeed with valid tenantId and return data', async () => {
@@ -260,12 +242,8 @@ describe('dashboard-bff graphql-resolver handler', () => {
         .mockResolvedValueOnce({ Item: null });
 
       const event = buildEvent('getDashboard');
-
-      await jest.isolateModulesAsync(async () => {
-        const { handler } = require('./graphql-resolver');
-        const result = await handler(event);
-        expect(result.portfolioSummary).toEqual(portfolioSummary);
-      });
+      const result = await handler(event) as any;
+      expect(result.portfolioSummary).toEqual(portfolioSummary);
     });
   });
 });

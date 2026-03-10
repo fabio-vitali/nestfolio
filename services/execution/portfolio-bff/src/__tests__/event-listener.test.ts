@@ -22,17 +22,17 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
 
 jest.mock('@nestfolio/platform-core', () => ({
   TableRepository: class {
-    docClient: { send: jest.Mock };
-    tableName: string;
+    protected readonly docClient: { send: jest.Mock };
+    protected readonly tableName: string;
     constructor(tableName: string) {
       this.tableName = tableName;
       this.docClient = { send: mockSend };
     }
-    async put(item: Record<string, unknown>) {
+    protected async put(item: Record<string, unknown>) {
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
-    async queryByPk(pk: string, skPrefix?: string) {
+    protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
         TableName: this.tableName,
@@ -41,15 +41,14 @@ jest.mock('@nestfolio/platform-core', () => ({
       }));
       return result.Items ?? [];
     }
-    async transactWrite(input: unknown) {
+    protected async transactWrite(input: unknown) {
       const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new TransactWriteCommand(input));
     }
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
@@ -77,12 +76,22 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   isRetryable: jest.fn().mockReturnValue(true),
   traceEvent: jest.fn(),
   MetricUnit: { Count: 'Count' },
+  applyMiddleware: jest.fn((handler) => handler),
+  withLambdaContext: jest.fn(() => (next: unknown) => next),
+  withTiming: jest.fn(() => (next: unknown) => next),
+  withMethodLogging: jest.fn((_className: string) =>
+    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+  ),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
 
 import { SQSEvent } from 'aws-lambda';
-import { handler } from '../handlers/event-listener';
+import { createHandler } from '../handlers/event-listener';
+import { PortfolioRepository } from '../repositories/portfolio.repository';
+import { OrderFilledPipe } from '../pipes/order-filled.pipe';
+import { SnapshotImportedPipe } from '../pipes/snapshot-imported.pipe';
+import { IdempotencyGuard } from '@nestfolio/lambda-utils';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
@@ -103,10 +112,32 @@ function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, 
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
 
+  const mockMetrics = {
+    addMetric: jest.fn(),
+    addDimension: jest.fn(),
+    publishStoredMetrics: jest.fn(),
+  };
+
+  const repository = new PortfolioRepository('test-table');
+  const idempotencyGuard = new IdempotencyGuard({} as any, 'test-table');
+
+  const mockOrderFilledPipe = { process: jest.fn().mockResolvedValue(undefined) };
+  const mockSnapshotImportedPipe = { process: jest.fn().mockResolvedValue(undefined) };
+
+  let handler: (event: SQSEvent) => Promise<any>;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+
+    handler = createHandler({
+      repository,
+      idempotencyGuard,
+      orderFilledPipe: mockOrderFilledPipe as unknown as OrderFilledPipe,
+      snapshotImportedPipe: mockSnapshotImportedPipe as unknown as SnapshotImportedPipe,
+      metrics: mockMetrics as any,
+    });
   });
 
   afterAll(() => {
@@ -138,6 +169,7 @@ describe('event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockOrderFilledPipe.process).toHaveBeenCalled();
   });
 
   it('should process PORTFOLIO_SNAPSHOT_IMPORTED event', async () => {
@@ -169,6 +201,7 @@ describe('event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockSnapshotImportedPipe.process).toHaveBeenCalled();
   });
 
   it('should report failure for malformed event body (invalid JSON)', async () => {

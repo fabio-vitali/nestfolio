@@ -51,6 +51,10 @@ jest.mock('@nestfolio/platform-core', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }));
 
+jest.mock('@nestfolio/lambda-utils', () => ({
+  withMethodLogging: () => (_name: string, fn: (...args: unknown[]) => unknown) => fn,
+}));
+
 import { DecisionRepository } from '../repositories/decision.repository';
 
 describe('DecisionRepository', () => {

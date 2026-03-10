@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, getUUID } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, NotRetryableError, traceEvent } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, NotRetryableError, traceEvent, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';
@@ -9,76 +9,71 @@ import { GuardrailEvaluator } from '../rules/guardrail-evaluator';
 import { SuitabilityChecker } from '../rules/suitability-checker';
 import { AuthorityResolver } from '../rules/authority-resolver';
 
-const TABLE_NAME = requireEnv('TABLE_NAME');
-const dynamoClient = new DynamoDBClient({});
-const repository = new ComplianceRepository(TABLE_NAME, dynamoClient);
-const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
-
-const ruleEngine = new RuleEngine(
-  new MandateValidator(),
-  new GuardrailEvaluator(),
-  new SuitabilityChecker(),
-  new AuthorityResolver(),
-);
-
-const metrics = createServiceMetrics('compliance-ctrl');
+export interface EventListenerDeps {
+  readonly repository: ComplianceRepository;
+  readonly idempotencyGuard: IdempotencyGuard;
+  readonly ruleEngine: RuleEngine;
+  readonly metrics: ReturnType<typeof createServiceMetrics>;
+}
 
 const HANDLED_EVENT_TYPES = new Set([
   'DECISION_PACKET_CREATED',
   'DECISION_PACKET_ENRICHED',
 ]);
 
-export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
-  const failures: string[] = [];
+export const createHandler = (deps: EventListenerDeps) =>
+  async (event: SQSEvent): Promise<SQSBatchResponse> => {
+    const failures: string[] = [];
 
-  for (const record of event.Records) {
-    try {
-      const uow = parseRecord(record);
-      const eventType = uow.event.type;
+    for (const record of event.Records) {
+      try {
+        const uow = parseRecord(record);
+        const eventType = uow.event.type;
 
-      logger.info('Processing event', { eventType, eventId: uow.event.id });
-      traceEvent(eventType, uow.event.id);
+        logger.info('Processing event', { eventType, eventId: uow.event.id });
+        traceEvent(eventType, uow.event.id);
 
-      if (!HANDLED_EVENT_TYPES.has(eventType)) {
-        logger.warn('No handler for event type, skipping', { eventType });
-        continue;
-      }
+        if (!HANDLED_EVENT_TYPES.has(eventType)) {
+          logger.warn('No handler for event type, skipping', { eventType });
+          continue;
+        }
 
-      const isNew = await idempotencyGuard.ensureOnce(eventType, uow.event.id);
-      if (!isNew) {
-        logger.info('Duplicate event, skipping', { eventId: uow.event.id });
-        continue;
-      }
+        const isNew = await deps.idempotencyGuard.ensureOnce(eventType, uow.event.id);
+        if (!isNew) {
+          logger.info('Duplicate event, skipping', { eventId: uow.event.id });
+          continue;
+        }
 
-      const subject = uow.event.subject as Record<string, unknown>;
-      const requiredFields = ['proposedTrades', 'portfolioValue', 'riskScore', 'currentPositions'];
-      const missingFields = requiredFields.filter((f) => !(f in subject));
-      if (missingFields.length) {
-        throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
-      }
+        const subject = uow.event.subject as Record<string, unknown>;
+        const requiredFields = ['proposedTrades', 'portfolioValue', 'riskScore', 'currentPositions'];
+        const missingFields = requiredFields.filter((f) => !(f in subject));
+        if (missingFields.length) {
+          throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
+        }
 
-      await processDecisionPacket(uow.event);
-      metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
-    } catch (error) {
-      logger.error('Failed to process record', {
-        messageId: record.messageId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      metrics.addMetric('EventFailed', MetricUnit.Count, 1);
-      if (isRetryable(error)) {
-        failures.push(record.messageId);
+        await processDecisionPacket(deps, uow.event);
+        deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
+      } catch (error) {
+        logger.error('Failed to process record', {
+          messageId: record.messageId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
+        if (isRetryable(error)) {
+          failures.push(record.messageId);
+        }
       }
     }
-  }
 
-  metrics.publishStoredMetrics();
+    deps.metrics.publishStoredMetrics();
 
-  return {
-    batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
+    return {
+      batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
+    };
   };
-};
 
 async function processDecisionPacket(
+  deps: EventListenerDeps,
   event: Record<string, unknown>,
 ): Promise<void> {
   const subject = event.subject as Record<string, unknown>;
@@ -87,12 +82,12 @@ async function processDecisionPacket(
   const decisionPacketId = subject.decisionId as string;
 
   // Load mandate snapshot from DynamoDB
-  const mandateRecord = await repository.getMandateSnapshot(tenantId, userId);
+  const mandateRecord = await deps.repository.getMandateSnapshot(tenantId, userId);
   if (!mandateRecord) {
     logger.error('No mandate snapshot found for user', { tenantId, userId });
     // Create a compliance check with BLOCKED result for missing mandate
     const ccId = getUUID();
-    await repository.createComplianceCheck(tenantId, ccId, decisionPacketId, {
+    await deps.repository.createComplianceCheck(tenantId, ccId, decisionPacketId, {
       mandateId: 'NONE',
       level: 'ADVISORY',
       monthlyTurnoverCapPercent: 0,
@@ -100,7 +95,7 @@ async function processDecisionPacket(
       effectiveDate: new Date().toISOString(),
       revokedAt: null,
     });
-    await repository.updateCheckResult(tenantId, ccId, 'BLOCKED', [
+    await deps.repository.updateCheckResult(tenantId, ccId, 'BLOCKED', [
       { rule: 'MANDATE_MISSING', description: 'No mandate found for user', severity: 'BLOCKING' },
     ], 'L2');
     return;
@@ -123,7 +118,7 @@ async function processDecisionPacket(
   const ccId = getUUID();
 
   // Create compliance check record
-  await repository.createComplianceCheck(tenantId, ccId, decisionPacketId, mandate);
+  await deps.repository.createComplianceCheck(tenantId, ccId, decisionPacketId, mandate);
 
   // Run rule engine
   const complianceInput: ComplianceInput = {
@@ -137,10 +132,10 @@ async function processDecisionPacket(
     currentPositions,
   };
 
-  const output = ruleEngine.evaluate(complianceInput);
+  const output = deps.ruleEngine.evaluate(complianceInput);
 
   // Persist result
-  await repository.updateCheckResult(
+  await deps.repository.updateCheckResult(
     tenantId,
     ccId,
     output.result,
@@ -150,7 +145,7 @@ async function processDecisionPacket(
 
   // Create audit artifact
   const artifactId = getUUID();
-  await repository.createAuditArtifact(tenantId, ccId, artifactId, {
+  await deps.repository.createAuditArtifact(tenantId, ccId, artifactId, {
     decisionPacketId,
     input: complianceInput,
     output,
@@ -165,3 +160,29 @@ async function processDecisionPacket(
     violationCount: output.violations.length,
   });
 }
+
+// Production wiring
+const TABLE_NAME = requireEnv('TABLE_NAME');
+const dynamoClient = new DynamoDBClient({});
+const repository = new ComplianceRepository(TABLE_NAME, dynamoClient);
+const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
+
+const ruleEngine = new RuleEngine(
+  new MandateValidator(),
+  new GuardrailEvaluator(),
+  new SuitabilityChecker(),
+  new AuthorityResolver(),
+);
+
+const deps: EventListenerDeps = {
+  repository,
+  idempotencyGuard,
+  ruleEngine,
+  metrics: createServiceMetrics('compliance-ctrl'),
+};
+
+export const handler = applyMiddleware(
+  createHandler(deps) as (event: unknown) => Promise<SQSBatchResponse>,
+  withLambdaContext(),
+  withTiming('compliance-ctrl-event-listener'),
+);

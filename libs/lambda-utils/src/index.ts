@@ -20,3 +20,10 @@ export { extractTenantId } from './extract-tenant-id';
 export { validateQueryDepth } from './validate-query-depth';
 export { createServiceMetrics, MetricUnit } from './service-metrics';
 export { traceEvent } from './trace-event';
+
+// Middleware composition
+export { applyMiddleware, type Middleware } from './middleware/apply-middleware';
+export { withLambdaContext } from './middleware/with-lambda-context';
+export { withTiming } from './middleware/with-timing';
+export { withErrorPublishing } from './middleware/with-error-publishing';
+export { withMethodLogging } from './middleware/with-method-logging';

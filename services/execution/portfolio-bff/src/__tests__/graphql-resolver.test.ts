@@ -47,8 +47,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
 class MockNotRetryableError extends Error {
@@ -67,9 +66,17 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     return tenantId;
   },
   validateQueryDepth: jest.fn(),
+  applyMiddleware: jest.fn((handler) => handler),
+  withLambdaContext: jest.fn(() => (next: unknown) => next),
+  withTiming: jest.fn(() => (next: unknown) => next),
+  withMethodLogging: jest.fn((_className: string) =>
+    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+  ),
 }));
 
 import { AppSyncResolverEvent } from 'aws-lambda';
+import { createResolver } from '../handlers/graphql-resolver';
+import { PortfolioRepository } from '../repositories/portfolio.repository';
 
 function buildEvent(
   fieldName: string,
@@ -95,9 +102,14 @@ function buildEvent(
 describe('graphql-resolver handler', () => {
   const ORIGINAL_ENV = process.env;
 
+  const repository = new PortfolioRepository('test-table');
+  let resolver: (event: AppSyncResolverEvent<Record<string, unknown>>) => Promise<unknown>;
+
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+
+    resolver = createResolver({ repository });
   });
 
   afterAll(() => {
@@ -116,12 +128,8 @@ describe('graphql-resolver handler', () => {
     mockSend.mockResolvedValueOnce({ Item: portfolio });
 
     const event = buildEvent('getPortfolio');
-
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result).toEqual(portfolio);
-    });
+    const result = await resolver(event);
+    expect(result).toEqual(portfolio);
   });
 
   it('should resolve getPositions', async () => {
@@ -132,12 +140,8 @@ describe('graphql-resolver handler', () => {
     mockSend.mockResolvedValueOnce({ Items: positions });
 
     const event = buildEvent('getPositions');
-
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result).toEqual(positions);
-    });
+    const result = await resolver(event);
+    expect(result).toEqual(positions);
   });
 
   it('should resolve getCashBalance with default currency', async () => {
@@ -145,35 +149,23 @@ describe('graphql-resolver handler', () => {
     mockSend.mockResolvedValueOnce({ Item: balance });
 
     const event = buildEvent('getCashBalance');
-
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result).toEqual(balance);
-    });
+    const result = await resolver(event);
+    expect(result).toEqual(balance);
   });
 
   it('should resolve getPerformance', async () => {
     const event = buildEvent('getPerformance', { period: 'MONTH' });
-
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result).toMatchObject({
-        period: 'MONTH',
-        returnPercent: 0,
-        returnAbsolute: 0,
-      });
+    const result = await resolver(event);
+    expect(result).toMatchObject({
+      period: 'MONTH',
+      returnPercent: 0,
+      returnAbsolute: 0,
     });
   });
 
   it('should throw for unknown field', async () => {
     const event = buildEvent('unknownField');
-
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      await expect(handler(event)).rejects.toThrow('Unknown field: unknownField');
-    });
+    await expect(resolver(event)).rejects.toThrow('Unknown field: unknownField');
   });
 
   describe('tenant authorization', () => {
@@ -188,10 +180,7 @@ describe('graphql-resolver handler', () => {
         stash: {},
       } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
 
-      await jest.isolateModulesAsync(async () => {
-        const { handler } = require('../handlers/graphql-resolver');
-        await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
-      });
+      await expect(resolver(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
     });
 
     it('should throw when identity is undefined', async () => {
@@ -205,10 +194,7 @@ describe('graphql-resolver handler', () => {
         stash: {},
       } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
 
-      await jest.isolateModulesAsync(async () => {
-        const { handler } = require('../handlers/graphql-resolver');
-        await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
-      });
+      await expect(resolver(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
     });
 
     it('should succeed with valid tenantId and return data', async () => {
@@ -216,12 +202,8 @@ describe('graphql-resolver handler', () => {
       mockSend.mockResolvedValueOnce({ Item: portfolio });
 
       const event = buildEvent('getPortfolio');
-
-      await jest.isolateModulesAsync(async () => {
-        const { handler } = require('../handlers/graphql-resolver');
-        const result = await handler(event);
-        expect(result).toEqual(portfolio);
-      });
+      const result = await resolver(event);
+      expect(result).toEqual(portfolio);
     });
   });
 });

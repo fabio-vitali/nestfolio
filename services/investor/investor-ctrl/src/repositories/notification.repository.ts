@@ -1,5 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { TableRepository, getUUID, getTime, log, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { withMethodLogging } from '@nestfolio/lambda-utils';
 
 function notificationPk(tenantId: string, notificationId: string): string {
   return `Notification#${tenantId}#${notificationId}`;
@@ -10,95 +11,100 @@ function monthlyReportPk(tenantId: string, reportId: string): string {
 }
 
 export class NotificationRepository extends TableRepository {
+  private readonly log = withMethodLogging('NotificationRepository');
+
   constructor(tableName: string, client?: DynamoDBClient) {
     super(tableName, client);
   }
 
-  @log()
-  async createNotification(
-    tenantId: string,
-    notificationId: string,
-    data: Record<string, unknown>,
-  ): Promise<void> {
-    const now = getTime();
-    const item: TableEntry = {
-      pk: notificationPk(tenantId, notificationId),
-      sk: 'Notification',
-      __typename: 'Notification',
-      tenantId,
-      timestamp: now,
-      notificationId,
-      status: 'CREATED',
-      ...data,
-      createdAt: now,
-      updatedAt: now,
-      version: 1,
-    };
-    await this.put(item);
-  }
+  readonly createNotification = this.log('createNotification',
+    async (
+      tenantId: string,
+      notificationId: string,
+      data: Record<string, unknown>,
+    ): Promise<void> => {
+      const now = getTime();
+      const item: TableEntry = {
+        pk: notificationPk(tenantId, notificationId),
+        sk: 'Notification',
+        __typename: 'Notification',
+        tenantId,
+        timestamp: now,
+        notificationId,
+        status: 'CREATED',
+        ...data,
+        createdAt: now,
+        updatedAt: now,
+        version: 1,
+      };
+      await this.put(item);
+    },
+  );
 
-  @log()
-  async updateNotificationStatus(
-    tenantId: string,
-    notificationId: string,
-    status: string,
-    details?: Record<string, unknown>,
-  ): Promise<void> {
-    const pk = notificationPk(tenantId, notificationId);
-    const now = getTime();
+  readonly updateNotificationStatus = this.log('updateNotificationStatus',
+    async (
+      tenantId: string,
+      notificationId: string,
+      status: string,
+      details?: Record<string, unknown>,
+    ): Promise<void> => {
+      const pk = notificationPk(tenantId, notificationId);
+      const now = getTime();
 
-    const notificationUpdate: TableEntry = {
-      pk,
-      sk: 'Notification',
-      __typename: 'Notification',
-      tenantId,
-      timestamp: now,
-      notificationId,
-      status,
-      updatedAt: now,
-      ...(details ?? {}),
-    };
+      const notificationUpdate: TableEntry = {
+        pk,
+        sk: 'Notification',
+        __typename: 'Notification',
+        tenantId,
+        timestamp: now,
+        notificationId,
+        status,
+        updatedAt: now,
+        ...(details ?? {}),
+      };
 
-    const editEvent: TableEntry = {
-      pk,
-      sk: `EditEvent#${now}#${getUUID()}`,
-      __typename: 'EditEvent',
-      tenantId,
-      timestamp: now,
-      operation: 'replace',
-      path: `/notification/${notificationId}/status`,
-      value: { status, ...(details ?? {}) },
-      editedBy: 'system',
-      editedAt: now,
-    };
+      const editEvent: TableEntry = {
+        pk,
+        sk: `EditEvent#${now}#${getUUID()}`,
+        __typename: 'EditEvent',
+        tenantId,
+        timestamp: now,
+        operation: 'replace',
+        path: `/notification/${notificationId}/status`,
+        value: { status, ...(details ?? {}) },
+        editedBy: 'system',
+        editedAt: now,
+      };
 
-    await this.transactWrite({
-      TransactItems: [
-        { Put: { TableName: this.tableName, Item: notificationUpdate } },
-        { Put: { TableName: this.tableName, Item: editEvent } },
-      ],
-    });
-  }
+      await this.transactWrite({
+        TransactItems: [
+          { Put: { TableName: this.tableName, Item: notificationUpdate } },
+          { Put: { TableName: this.tableName, Item: editEvent } },
+        ],
+      });
+    },
+  );
 
-  @log()
-  async createMonthlyReport(
-    tenantId: string,
-    reportId: string,
-    data: Record<string, unknown>,
-  ): Promise<void> {
-    const now = getTime();
-    const item: TableEntry = {
-      pk: monthlyReportPk(tenantId, reportId),
-      sk: 'MonthlyReport',
-      __typename: 'MonthlyReport',
-      tenantId,
-      timestamp: now,
-      reportId,
-      ...data,
-      createdAt: now,
-      updatedAt: now,
-      version: 1,
-    };
-    await this.put(item);
-  }
+  readonly createMonthlyReport = this.log('createMonthlyReport',
+    async (
+      tenantId: string,
+      reportId: string,
+      data: Record<string, unknown>,
+    ): Promise<void> => {
+      const now = getTime();
+      const item: TableEntry = {
+        pk: monthlyReportPk(tenantId, reportId),
+        sk: 'MonthlyReport',
+        __typename: 'MonthlyReport',
+        tenantId,
+        timestamp: now,
+        reportId,
+        ...data,
+        createdAt: now,
+        updatedAt: now,
+        version: 1,
+      };
+      await this.put(item);
+    },
+  );
 }

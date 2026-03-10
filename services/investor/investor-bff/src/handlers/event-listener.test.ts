@@ -48,8 +48,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
@@ -70,6 +69,12 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   isRetryable: jest.fn().mockReturnValue(true),
   traceEvent: jest.fn(),
   MetricUnit: { Count: 'Count' },
+  applyMiddleware: jest.fn((handler) => handler),
+  withLambdaContext: jest.fn(() => (next: unknown) => next),
+  withTiming: jest.fn(() => (next: unknown) => next),
+  withMethodLogging: jest.fn((_className: string) =>
+    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+  ),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({
@@ -81,6 +86,13 @@ jest.mock('@nestfolio/domain-core', () => ({
 }));
 
 import { SQSEvent } from 'aws-lambda';
+import { createHandler } from './event-listener';
+import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
+import { UserRegisteredPipe } from '../pipes/user-registered.pipe';
+import { NotificationCreatedPipe } from '../pipes/notification-created.pipe';
+import { DepositDetectedPipe } from '../pipes/deposit-detected.pipe';
+import { WithdrawalCompletedPipe } from '../pipes/withdrawal-completed.pipe';
+import { IdempotencyGuard } from '@nestfolio/lambda-utils';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
@@ -101,9 +113,37 @@ function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, 
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
 
+  const mockMetrics = {
+    addMetric: jest.fn(),
+    addDimension: jest.fn(),
+    publishStoredMetrics: jest.fn(),
+  };
+
+  const repository = new InvestorProfileRepository('test-table');
+  const idempotencyGuard = new IdempotencyGuard({} as any, 'test-table');
+
+  const mockUserRegisteredPipe = { process: jest.fn().mockResolvedValue(undefined) };
+  const mockNotificationCreatedPipe = { process: jest.fn().mockResolvedValue(undefined) };
+  const mockDepositDetectedPipe = { process: jest.fn().mockResolvedValue(undefined) };
+  const mockWithdrawalCompletedPipe = { process: jest.fn().mockResolvedValue(undefined) };
+
+  let handler: (event: SQSEvent) => Promise<any>;
+
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+
+    mockSend.mockResolvedValue({});
+
+    handler = createHandler({
+      repository,
+      idempotencyGuard,
+      userRegisteredPipe: mockUserRegisteredPipe as unknown as UserRegisteredPipe,
+      notificationCreatedPipe: mockNotificationCreatedPipe as unknown as NotificationCreatedPipe,
+      depositDetectedPipe: mockDepositDetectedPipe as unknown as DepositDetectedPipe,
+      withdrawalCompletedPipe: mockWithdrawalCompletedPipe as unknown as WithdrawalCompletedPipe,
+      metrics: mockMetrics as any,
+    });
   });
 
   afterAll(() => {
@@ -111,10 +151,6 @@ describe('event-listener handler', () => {
   });
 
   it('should process USER_REGISTERED event and create profile', async () => {
-    // IdempotencyGuard.ensureOnce -> true, then createProfile -> put
-    mockSend.mockResolvedValueOnce({}); // idempotency put
-    mockSend.mockResolvedValueOnce({}); // createProfile put
-
     const sqsEvent = buildSqsEvent([
       {
         messageId: 'msg-1',
@@ -130,11 +166,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('./event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should report failure for malformed event body (invalid JSON)', async () => {
@@ -152,12 +185,9 @@ describe('event-listener handler', () => {
       }],
     };
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('./event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
   });
 
   it('should skip unknown event types gracefully', async () => {
@@ -176,15 +206,11 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('./event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should report batch item failures for processing errors', async () => {
-    // Make parseRecord throw
     const { parseRecord } = require('@nestfolio/lambda-utils');
     (parseRecord as jest.Mock).mockImplementationOnce(() => {
       throw new Error('Parse error');
@@ -197,11 +223,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('./event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
   });
 });

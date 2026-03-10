@@ -1,7 +1,6 @@
 jest.mock('@nestfolio/platform-core', () => ({
   getUUID: jest.fn().mockReturnValue('test-trade-id'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
   NotRetryableError: class NotRetryableError extends Error {
     constructor(message: string) {
@@ -9,6 +8,12 @@ jest.mock('@nestfolio/platform-core', () => ({
       this.name = 'NotRetryableError';
     }
   },
+}));
+
+jest.mock('@nestfolio/lambda-utils', () => ({
+  withMethodLogging: jest.fn((_className: string) =>
+    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+  ),
 }));
 
 import { SimulationEngineService } from '../services/simulation-engine.service';

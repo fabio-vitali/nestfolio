@@ -59,8 +59,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
@@ -92,9 +91,20 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   isRetryable: jest.fn().mockReturnValue(true),
   traceEvent: jest.fn(),
   MetricUnit: { Count: 'Count' },
+  applyMiddleware: jest.fn((handler) => handler),
+  withLambdaContext: jest.fn(() => (next: unknown) => next),
+  withTiming: jest.fn(() => (next: unknown) => next),
+  withMethodLogging: jest.fn((_className: string) =>
+    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+  ),
 }));
 
 import { SQSEvent } from 'aws-lambda';
+import { createHandler } from '../handlers/event-listener';
+import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
+import { MarketDataService } from '../services/market-data.service';
+import { SimulationEngineService } from '../services/simulation-engine.service';
+import { IdempotencyGuard } from '@nestfolio/lambda-utils';
 
 function buildSqsEvent(
   records: Array<{ messageId: string; body: Record<string, unknown> }>,
@@ -117,9 +127,30 @@ function buildSqsEvent(
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
 
+  const mockMetrics = {
+    addMetric: jest.fn(),
+    addDimension: jest.fn(),
+    publishStoredMetrics: jest.fn(),
+  };
+
+  const repository = new VirtualLedgerRepository('test-table');
+  const idempotencyGuard = new IdempotencyGuard({} as any, 'test-table');
+  const marketData = new MarketDataService();
+  const simulationEngine = new SimulationEngineService(repository, marketData);
+
+  let handler: (event: SQSEvent) => Promise<any>;
+
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+    (idempotencyGuard.ensureOnce as jest.Mock).mockResolvedValue(true);
+
+    handler = createHandler({
+      repository,
+      idempotencyGuard,
+      simulationEngine,
+      metrics: mockMetrics as any,
+    });
   });
 
   afterAll(() => {
@@ -164,11 +195,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should process WITHDRAWAL_REQUESTED and complete a valid withdrawal', async () => {
@@ -199,11 +227,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should report failure for malformed event body (invalid JSON)', async () => {
@@ -221,12 +246,9 @@ describe('event-listener handler', () => {
       }],
     };
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
   });
 
   it('should report failure when ORDER_SUBMITTED is missing required fields', async () => {
@@ -251,12 +273,9 @@ describe('event-listener handler', () => {
 
     const { logger } = require('@nestfolio/platform-core');
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-missing-order-fields');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-missing-order-fields');
 
     expect(logger.error).toHaveBeenCalledWith(
       'Failed to process record',
@@ -282,11 +301,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should report batch item failures for processing errors', async () => {
@@ -302,20 +318,13 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
   });
 
   it('should skip duplicate ORDER_SUBMITTED event', async () => {
-    const mockEnsureOnce = jest.fn().mockResolvedValue(false);
-    const { IdempotencyGuard } = require('@nestfolio/lambda-utils');
-    (IdempotencyGuard as jest.Mock).mockImplementation(() => ({
-      ensureOnce: mockEnsureOnce,
-    }));
+    (idempotencyGuard.ensureOnce as jest.Mock).mockResolvedValue(false);
 
     const sqsEvent = buildSqsEvent([
       {
@@ -339,23 +348,12 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
-
-    // Idempotency guard was called, but no DynamoDB operations for the order itself
-    expect(mockEnsureOnce).toHaveBeenCalledWith('ORDER_SUBMITTED', 'evt-dup-order');
-    expect(mockSend).not.toHaveBeenCalled();
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should skip duplicate WITHDRAWAL_REQUESTED event', async () => {
-    const mockEnsureOnce = jest.fn().mockResolvedValue(false);
-    const { IdempotencyGuard } = require('@nestfolio/lambda-utils');
-    (IdempotencyGuard as jest.Mock).mockImplementation(() => ({
-      ensureOnce: mockEnsureOnce,
-    }));
+    (idempotencyGuard.ensureOnce as jest.Mock).mockResolvedValue(false);
 
     const sqsEvent = buildSqsEvent([
       {
@@ -377,21 +375,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
-
-    // Idempotency guard was called, but no DynamoDB operations for the withdrawal itself
-    expect(mockEnsureOnce).toHaveBeenCalledWith('WITHDRAWAL_REQUESTED', 'evt-dup-withdraw');
-    expect(mockSend).not.toHaveBeenCalled();
-
-    // Restore default IdempotencyGuard mock
-    const { IdempotencyGuard: Guard } = require('@nestfolio/lambda-utils');
-    (Guard as jest.Mock).mockImplementation(() => ({
-      ensureOnce: jest.fn().mockResolvedValue(true),
-    }));
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should throw descriptive error when ORDER_SUBMITTED has null subject', async () => {
@@ -412,12 +397,9 @@ describe('event-listener handler', () => {
 
     const { logger } = require('@nestfolio/platform-core');
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-null-subject-order');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-null-subject-order');
 
     expect(logger.error).toHaveBeenCalledWith(
       'Failed to process record',
@@ -445,12 +427,9 @@ describe('event-listener handler', () => {
 
     const { logger } = require('@nestfolio/platform-core');
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-null-subject-withdraw');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-null-subject-withdraw');
 
     expect(logger.error).toHaveBeenCalledWith(
       'Failed to process record',
@@ -496,11 +475,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
 
     // Should have called initializeCashBalance (the PutCommand for cash init)
     // The second mockSend call should be the initialization

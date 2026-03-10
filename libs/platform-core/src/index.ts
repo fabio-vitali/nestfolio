@@ -21,3 +21,10 @@ export { validateIncomingEvent, withSchemaValidation, type ValidationResult } fr
 export { TableRepository } from './repositories/table.repository';
 export { EventRepository } from './repositories/event.repository';
 export { BucketRepository } from './repositories/bucket.repository';
+
+// FP utilities
+export { pipe } from './fp/pipe';
+export { type Result, ok, err, isOk, isErr, mapResult, flatMapResult, tryCatch } from './fp/result';
+
+// Branded types
+export { type TenantId, type UserId, type EventId, asTenantId, asUserId, asEventId } from './types/branded';

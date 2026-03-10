@@ -50,7 +50,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
 class MockNotRetryableError extends Error {
@@ -69,10 +69,16 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     return tenantId;
   },
   validateQueryDepth: jest.fn(),
+  applyMiddleware: jest.fn((handler: unknown) => handler),
+  withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
 }));
 jest.mock('@nestfolio/domain-core', () => ({}));
 
 import { AppSyncResolverEvent } from 'aws-lambda';
+import { AdvisoryRepository } from '../repositories/advisory.repository';
+import { createResolver, type ResolverDeps } from '../handlers/graphql-resolver';
 
 function buildEvent(
   fieldName: string,
@@ -98,10 +104,18 @@ function buildEvent(
 
 describe('graphql-resolver handler', () => {
   const ORIGINAL_ENV = process.env;
+  let handler: (event: AppSyncResolverEvent<Record<string, unknown>>) => Promise<unknown>;
+  let resolverDeps: ResolverDeps;
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+
+    resolverDeps = {
+      repository: new AdvisoryRepository('test-table'),
+    };
+
+    handler = createResolver(resolverDeps);
   });
 
   afterAll(() => {
@@ -121,11 +135,8 @@ describe('graphql-resolver handler', () => {
 
     const event = buildEvent('getDecision', { decisionId: 'd1' });
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result).toEqual(decision);
-    });
+    const result = await handler(event);
+    expect(result).toEqual(decision);
   });
 
   it('should resolve getPendingDecisions', async () => {
@@ -137,11 +148,8 @@ describe('graphql-resolver handler', () => {
 
     const event = buildEvent('getPendingDecisions', { limit: 10 });
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result.items).toEqual(decisions);
-    });
+    const result = await handler(event) as { items: unknown[] };
+    expect(result.items).toEqual(decisions);
   });
 
   it('should resolve confirmDecision', async () => {
@@ -158,11 +166,8 @@ describe('graphql-resolver handler', () => {
 
     const event = buildEvent('confirmDecision', { decisionId: 'd1' });
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result).toMatchObject({ status: 'CONFIRMED' });
-    });
+    const result = await handler(event);
+    expect(result).toMatchObject({ status: 'CONFIRMED' });
   });
 
   it('should resolve rejectDecision', async () => {
@@ -180,11 +185,8 @@ describe('graphql-resolver handler', () => {
 
     const event = buildEvent('rejectDecision', { decisionId: 'd1', reason: 'Too risky' });
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result).toMatchObject({ status: 'REJECTED', rejectionReason: 'Too risky' });
-    });
+    const result = await handler(event);
+    expect(result).toMatchObject({ status: 'REJECTED', rejectionReason: 'Too risky' });
   });
 
   it('should resolve recordExplanationView', async () => {
@@ -193,13 +195,10 @@ describe('graphql-resolver handler', () => {
 
     const event = buildEvent('recordExplanationView', { decisionId: 'd1' });
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result).toEqual({
-        decisionId: 'd1',
-        viewedAt: '2025-01-01T00:00:00.000Z',
-      });
+    const result = await handler(event);
+    expect(result).toEqual({
+      decisionId: 'd1',
+      viewedAt: '2025-01-01T00:00:00.000Z',
     });
   });
 
@@ -212,11 +211,8 @@ describe('graphql-resolver handler', () => {
 
     const event = buildEvent('getAgentInvocations', { decisionId: 'd1' });
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result).toEqual(invocations);
-    });
+    const result = await handler(event);
+    expect(result).toEqual(invocations);
   });
 
   it('should resolve getComplianceChecks', async () => {
@@ -228,11 +224,8 @@ describe('graphql-resolver handler', () => {
 
     const event = buildEvent('getComplianceChecks', { decisionId: 'd1' });
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result).toEqual(checks);
-    });
+    const result = await handler(event);
+    expect(result).toEqual(checks);
   });
 
   it('should resolve getDecisionHistory', async () => {
@@ -244,11 +237,8 @@ describe('graphql-resolver handler', () => {
 
     const event = buildEvent('getDecisionHistory', { limit: 10 });
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/graphql-resolver');
-      const result = await handler(event);
-      expect(result.items).toEqual(decisions);
-    });
+    const result = await handler(event) as { items: unknown[] };
+    expect(result.items).toEqual(decisions);
   });
 
   describe('Zod validation', () => {
@@ -256,10 +246,7 @@ describe('graphql-resolver handler', () => {
       // rejectDecision requires decisionId (non-empty string) and reason (non-empty string)
       const event = buildEvent('rejectDecision', { decisionId: '', reason: '' });
 
-      await jest.isolateModulesAsync(async () => {
-        const { handler } = require('../handlers/graphql-resolver');
-        await expect(handler(event)).rejects.toThrow();
-      });
+      await expect(handler(event)).rejects.toThrow();
     });
   });
 
@@ -275,10 +262,7 @@ describe('graphql-resolver handler', () => {
         stash: {},
       } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
 
-      await jest.isolateModulesAsync(async () => {
-        const { handler } = require('../handlers/graphql-resolver');
-        await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
-      });
+      await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
     });
 
     it('should throw when identity is undefined', async () => {
@@ -292,10 +276,7 @@ describe('graphql-resolver handler', () => {
         stash: {},
       } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
 
-      await jest.isolateModulesAsync(async () => {
-        const { handler } = require('../handlers/graphql-resolver');
-        await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
-      });
+      await expect(handler(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
     });
 
     it('should succeed with valid tenantId and return data', async () => {
@@ -304,11 +285,8 @@ describe('graphql-resolver handler', () => {
 
       const event = buildEvent('getDecision', { decisionId: 'd1' });
 
-      await jest.isolateModulesAsync(async () => {
-        const { handler } = require('../handlers/graphql-resolver');
-        const result = await handler(event);
-        expect(result).toEqual(decision);
-      });
+      const result = await handler(event);
+      expect(result).toEqual(decision);
     });
   });
 });

@@ -51,7 +51,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
@@ -72,11 +72,19 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   isRetryable: jest.fn().mockReturnValue(true),
   traceEvent: jest.fn(),
   MetricUnit: { Count: 'Count' },
+  applyMiddleware: jest.fn((handler: unknown) => handler),
+  withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
 
 import { SQSEvent } from 'aws-lambda';
+import { AdvisoryRepository } from '../repositories/advisory.repository';
+import { DecisionPacketCreatedPipe } from '../pipes/decision-packet-created.pipe';
+import { DecisionStatusChangedPipe } from '../pipes/decision-status-changed.pipe';
+import { createHandler, type EventListenerDeps } from '../handlers/event-listener';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
@@ -96,10 +104,28 @@ function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, 
 
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
+  let handler: (event: SQSEvent) => Promise<import('aws-lambda').SQSBatchResponse>;
+  let mockDeps: EventListenerDeps;
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+
+    const repository = new AdvisoryRepository('test-table');
+    const mockIdempotencyGuard = { ensureOnce: jest.fn().mockResolvedValue(true) } as any;
+
+    mockDeps = {
+      idempotencyGuard: mockIdempotencyGuard,
+      decisionPacketCreatedPipe: new DecisionPacketCreatedPipe(repository, mockIdempotencyGuard),
+      decisionStatusChangedPipe: new DecisionStatusChangedPipe(repository),
+      metrics: {
+        addMetric: jest.fn(),
+        addDimension: jest.fn(),
+        publishStoredMetrics: jest.fn(),
+      } as any,
+    };
+
+    handler = createHandler(mockDeps);
   });
 
   afterAll(() => {
@@ -107,8 +133,7 @@ describe('event-listener handler', () => {
   });
 
   it('should process DECISION_PACKET_CREATED event and store decision', async () => {
-    // IdempotencyGuard.ensureOnce -> true, then storeDecision -> put
-    mockSend.mockResolvedValueOnce({}); // idempotency put
+    // IdempotencyGuard.ensureOnce -> true (mocked above), then storeDecision -> put
     mockSend.mockResolvedValueOnce({}); // storeDecision put
 
     const sqsEvent = buildSqsEvent([
@@ -133,11 +158,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should process DECISION_APPROVED event and update status', async () => {
@@ -159,11 +181,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should process DECISION_BLOCKED event and update status', async () => {
@@ -185,21 +204,13 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should skip duplicate events via idempotency guard', async () => {
-    const { IdempotencyGuard } = require('@nestfolio/lambda-utils');
-
     // Override IdempotencyGuard to return false (duplicate)
-    const ensureOnceMock = jest.fn().mockResolvedValue(false);
-    (IdempotencyGuard as jest.Mock).mockImplementation(() => ({
-      ensureOnce: ensureOnceMock,
-    }));
+    (mockDeps.idempotencyGuard.ensureOnce as jest.Mock).mockResolvedValue(false);
 
     const sqsEvent = buildSqsEvent([
       {
@@ -216,13 +227,10 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-      // No DynamoDB calls for pipe processing since event is duplicate
-      expect(mockSend).not.toHaveBeenCalled();
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+    // No DynamoDB calls for pipe processing since event is duplicate
+    expect(mockSend).not.toHaveBeenCalled();
   });
 
   it('should report failure for malformed event body (invalid JSON)', async () => {
@@ -240,12 +248,9 @@ describe('event-listener handler', () => {
       }],
     };
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
   });
 
   it('should skip unknown event types gracefully', async () => {
@@ -264,11 +269,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should report batch item failures for processing errors', async () => {
@@ -284,11 +286,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
   });
 });

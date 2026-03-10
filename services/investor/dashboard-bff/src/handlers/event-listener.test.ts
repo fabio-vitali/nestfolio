@@ -47,36 +47,51 @@ jest.mock('@nestfolio/platform-core', () => ({
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
 const mockEnsureOnce = jest.fn().mockResolvedValue(true);
 
+const mockParseRecord = jest.fn((record) => {
+  const body = JSON.parse(record.body);
+  const event = body.detail ?? body;
+  return { event, payload: event.subject ?? {}, record };
+});
+
+const mockMetrics = {
+  addMetric: jest.fn(),
+  addDimension: jest.fn(),
+  publishStoredMetrics: jest.fn(),
+};
+
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  parseRecord: jest.fn((record) => {
-    const body = JSON.parse(record.body);
-    const event = body.detail ?? body;
-    return { event, payload: event.subject ?? {}, record };
-  }),
+  parseRecord: mockParseRecord,
   IdempotencyGuard: jest.fn().mockImplementation(() => ({
     ensureOnce: mockEnsureOnce,
   })),
-  createServiceMetrics: jest.fn().mockReturnValue({
-    addMetric: jest.fn(),
-    addDimension: jest.fn(),
-    publishStoredMetrics: jest.fn(),
-  }),
+  createServiceMetrics: jest.fn().mockReturnValue(mockMetrics),
   isRetryable: jest.fn().mockReturnValue(true),
   traceEvent: jest.fn(),
   MetricUnit: { Count: 'Count' },
+  applyMiddleware: jest.fn((handler: unknown) => handler),
+  withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withMethodLogging: jest.fn().mockImplementation(() =>
+    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+  ),
 }));
 
 process.env.TABLE_NAME = 'test-table';
 
-import { SQSEvent } from 'aws-lambda';
-import { handler } from './event-listener';
+import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
+import { createHandler, EventListenerDeps } from './event-listener';
+import { DashboardRepository } from '../repositories/dashboard.repository';
+import { PortfolioSummaryPipe } from '../pipes/portfolio-summary.pipe';
+import { PositionSnapshotPipe } from '../pipes/position-snapshot.pipe';
+import { RecentActivityPipe } from '../pipes/recent-activity.pipe';
+import { AdvisoryStatusPipe } from '../pipes/advisory-status.pipe';
+import { InvestorSnapshotPipe } from '../pipes/investor-snapshot.pipe';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
@@ -95,10 +110,83 @@ function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, 
 }
 
 describe('dashboard-bff event-listener handler', () => {
+  let handler: (event: SQSEvent) => Promise<SQSBatchResponse>;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
     mockEnsureOnce.mockResolvedValue(true);
+
+    const repository = new DashboardRepository('test-table');
+
+    const portfolioSummaryPipe = new PortfolioSummaryPipe(repository);
+    const positionSnapshotPipe = new PositionSnapshotPipe(repository);
+    const recentActivityPipe = new RecentActivityPipe(repository);
+    const advisoryStatusPipe = new AdvisoryStatusPipe(repository);
+    const investorSnapshotPipe = new InvestorSnapshotPipe(repository);
+
+    const eventPipeMap: Record<string, { name: string; pipe: any }[]> = {
+      ORDER_FILLED: [
+        { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+        { name: 'positionSnapshot', pipe: positionSnapshotPipe },
+        { name: 'recentActivity', pipe: recentActivityPipe },
+      ],
+      ORDER_PARTIALLY_FILLED: [
+        { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+        { name: 'positionSnapshot', pipe: positionSnapshotPipe },
+        { name: 'recentActivity', pipe: recentActivityPipe },
+      ],
+      CORPORATE_ACTION_APPLIED: [
+        { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+        { name: 'positionSnapshot', pipe: positionSnapshotPipe },
+      ],
+      RECONCILIATION_COMPLETED: [
+        { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+      ],
+      DEPOSIT_DETECTED: [
+        { name: 'recentActivity', pipe: recentActivityPipe },
+      ],
+      WITHDRAWAL_COMPLETED: [
+        { name: 'recentActivity', pipe: recentActivityPipe },
+      ],
+      DECISION_PACKET_CREATED: [
+        { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+      ],
+      USER_CONFIRMATION_REQUESTED: [
+        { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+      ],
+      DECISION_APPROVED: [
+        { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+        { name: 'recentActivity', pipe: recentActivityPipe },
+      ],
+      DECISION_BLOCKED: [
+        { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+        { name: 'recentActivity', pipe: recentActivityPipe },
+      ],
+      ONBOARDING_COMPLETED: [
+        { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+      ],
+      GOAL_SET: [
+        { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+      ],
+      GOAL_UPDATED: [
+        { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+      ],
+      RISK_PROFILE_SET: [
+        { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+      ],
+      RISK_PROFILE_UPDATED: [
+        { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+      ],
+    };
+
+    const mockDeps: EventListenerDeps = {
+      idempotencyGuard: { ensureOnce: mockEnsureOnce } as any,
+      eventPipeMap,
+      metrics: mockMetrics as any,
+    };
+
+    handler = createHandler(mockDeps);
   });
 
   it('should process ORDER_FILLED event through multiple pipes', async () => {
@@ -257,8 +345,7 @@ describe('dashboard-bff event-listener handler', () => {
   });
 
   it('should report batch item failures for processing errors', async () => {
-    const { parseRecord } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
+    mockParseRecord.mockImplementationOnce(() => {
       throw new Error('Parse error');
     });
 

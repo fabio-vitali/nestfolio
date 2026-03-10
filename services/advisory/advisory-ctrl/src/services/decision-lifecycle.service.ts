@@ -1,4 +1,5 @@
-import { getUUID, log, logger, type BusEvent } from '@nestfolio/platform-core';
+import { getUUID, logger, type BusEvent } from '@nestfolio/platform-core';
+import { withMethodLogging } from '@nestfolio/lambda-utils';
 import type { ProposedTrade } from '@nestfolio/domain-core';
 import {
   createAgentNode,
@@ -27,10 +28,11 @@ export interface DecisionResult {
 }
 
 export class DecisionLifecycleService {
+  private readonly log = withMethodLogging('DecisionLifecycleService');
+
   constructor(private readonly repository: DecisionRepository) {}
 
-  @log()
-  async executeDecisionLifecycle(context: DecisionContext): Promise<DecisionResult> {
+  readonly executeDecisionLifecycle = this.log('executeDecisionLifecycle', async (context: DecisionContext): Promise<DecisionResult> => {
     const dpId = getUUID();
 
     // 1. Create decision packet
@@ -81,7 +83,7 @@ export class DecisionLifecycleService {
       proposedTrades,
       explanation,
     };
-  }
+  });
 
   private async runAgentPipeline(context: DecisionContext): Promise<DecisionStateType> {
     const nodeMap = {} as AgentNodeMap;

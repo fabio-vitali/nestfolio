@@ -1,22 +1,24 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, log, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { withMethodLogging } from '@nestfolio/lambda-utils';
 
 function decisionPk(tenantId: string, decisionId: string): string {
   return `Decision#${tenantId}#${decisionId}`;
 }
 
 export class AdvisoryRepository extends TableRepository {
+  private readonly log = withMethodLogging('AdvisoryRepository');
+
   constructor(tableName: string, client?: DynamoDBClient) {
     super(tableName, client);
   }
 
-  @log()
-  async storeDecision(
+  readonly storeDecision = this.log('storeDecision', async (
     tenantId: string,
     decisionId: string,
     data: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<void> => {
     const now = getTime();
     const item: TableEntry = {
       pk: decisionPk(tenantId, decisionId),
@@ -32,22 +34,20 @@ export class AdvisoryRepository extends TableRepository {
       ...data,
     };
     await this.put(item);
-  }
+  });
 
-  @log()
-  async getDecision(tenantId: string, decisionId: string): Promise<Record<string, unknown> | null> {
+  readonly getDecision = this.log('getDecision', async (tenantId: string, decisionId: string): Promise<Record<string, unknown> | null> => {
     const pk = decisionPk(tenantId, decisionId);
     const items = await this.queryByPk(pk, 'DecisionReadModel');
     return items.length > 0 ? items[0] : null;
-  }
+  });
 
-  @log()
-  async updateDecisionStatus(
+  readonly updateDecisionStatus = this.log('updateDecisionStatus', async (
     tenantId: string,
     decisionId: string,
     status: string,
     details?: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<void> => {
     const pk = decisionPk(tenantId, decisionId);
     const now = getTime();
 
@@ -81,15 +81,14 @@ export class AdvisoryRepository extends TableRepository {
         { Put: { TableName: this.tableName, Item: editEvent } },
       ],
     });
-  }
+  });
 
-  @log()
-  async getDecisionsByStatus(
+  readonly getDecisionsByStatus = this.log('getDecisionsByStatus', async (
     tenantId: string,
     statuses: string[],
     limit: number = 20,
     cursor?: string,
-  ): Promise<{ items: Record<string, unknown>[]; nextCursor: string | null }> {
+  ): Promise<{ items: Record<string, unknown>[]; nextCursor: string | null }> => {
     const result = await this.docClient.send(
       new QueryCommand({
         TableName: this.tableName,
@@ -118,14 +117,13 @@ export class AdvisoryRepository extends TableRepository {
       items: (result.Items ?? []) as Record<string, unknown>[],
       nextCursor,
     };
-  }
+  });
 
-  @log()
-  async getDecisionHistory(
+  readonly getDecisionHistory = this.log('getDecisionHistory', async (
     tenantId: string,
     limit: number = 20,
     cursor?: string,
-  ): Promise<{ items: Record<string, unknown>[]; nextCursor: string | null }> {
+  ): Promise<{ items: Record<string, unknown>[]; nextCursor: string | null }> => {
     const result = await this.docClient.send(
       new QueryCommand({
         TableName: this.tableName,
@@ -152,14 +150,13 @@ export class AdvisoryRepository extends TableRepository {
       items: (result.Items ?? []) as Record<string, unknown>[],
       nextCursor,
     };
-  }
+  });
 
-  @log()
-  async storeAgentInvocation(
+  readonly storeAgentInvocation = this.log('storeAgentInvocation', async (
     tenantId: string,
     decisionId: string,
     invocation: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<void> => {
     const now = getTime();
     const invocationId = (invocation.invocationId as string) ?? getUUID();
     const item: TableEntry = {
@@ -173,20 +170,18 @@ export class AdvisoryRepository extends TableRepository {
       ...invocation,
     };
     await this.put(item);
-  }
+  });
 
-  @log()
-  async getAgentInvocations(tenantId: string, decisionId: string): Promise<Record<string, unknown>[]> {
+  readonly getAgentInvocations = this.log('getAgentInvocations', async (tenantId: string, decisionId: string): Promise<Record<string, unknown>[]> => {
     const pk = decisionPk(tenantId, decisionId);
     return this.queryByPk(pk, 'AgentInvocation#');
-  }
+  });
 
-  @log()
-  async storeComplianceCheck(
+  readonly storeComplianceCheck = this.log('storeComplianceCheck', async (
     tenantId: string,
     decisionId: string,
     check: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<void> => {
     const now = getTime();
     const checkId = (check.checkId as string) ?? getUUID();
     const item: TableEntry = {
@@ -200,21 +195,19 @@ export class AdvisoryRepository extends TableRepository {
       ...check,
     };
     await this.put(item);
-  }
+  });
 
-  @log()
-  async getComplianceChecks(tenantId: string, decisionId: string): Promise<Record<string, unknown>[]> {
+  readonly getComplianceChecks = this.log('getComplianceChecks', async (tenantId: string, decisionId: string): Promise<Record<string, unknown>[]> => {
     const pk = decisionPk(tenantId, decisionId);
     return this.queryByPk(pk, 'ComplianceCheck#');
-  }
+  });
 
-  @log()
-  async recordUserInteraction(
+  readonly recordUserInteraction = this.log('recordUserInteraction', async (
     tenantId: string,
     userId: string,
     decisionId: string,
     interactionType: string,
-  ): Promise<void> {
+  ): Promise<void> => {
     const now = getTime();
     const interactionId = getUUID();
     const item: TableEntry = {
@@ -229,5 +222,5 @@ export class AdvisoryRepository extends TableRepository {
       interactedAt: now,
     };
     await this.put(item);
-  }
+  });
 }

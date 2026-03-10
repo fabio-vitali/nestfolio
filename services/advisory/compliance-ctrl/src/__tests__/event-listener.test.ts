@@ -49,7 +49,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
   NotRetryableError: class NotRetryableError extends Error {
     constructor(message: string) {
       super(message);
@@ -87,6 +87,10 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   isRetryable: jest.fn().mockReturnValue(true),
   traceEvent: jest.fn(),
   MetricUnit: { Count: 'Count' },
+  applyMiddleware: jest.fn((handler: unknown) => handler),
+  withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
+  withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({
@@ -97,7 +101,14 @@ jest.mock('@nestfolio/domain-core', () => ({
   },
 }));
 
-import { SQSEvent } from 'aws-lambda';
+import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
+import { ComplianceRepository } from '../repositories/compliance.repository';
+import { RuleEngine } from '../rules/rule-engine';
+import { MandateValidator } from '../rules/mandate-validator';
+import { GuardrailEvaluator } from '../rules/guardrail-evaluator';
+import { SuitabilityChecker } from '../rules/suitability-checker';
+import { AuthorityResolver } from '../rules/authority-resolver';
+import { createHandler, type EventListenerDeps } from '../handlers/event-listener';
 
 function buildSqsEvent(
   records: Array<{ messageId: string; body: Record<string, unknown> }>,
@@ -119,10 +130,33 @@ function buildSqsEvent(
 
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
+  let handler: (event: SQSEvent) => Promise<SQSBatchResponse>;
+  let mockDeps: EventListenerDeps;
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+
+    const repository = new ComplianceRepository('test-table');
+    const ruleEngine = new RuleEngine(
+      new MandateValidator(),
+      new GuardrailEvaluator(),
+      new SuitabilityChecker(),
+      new AuthorityResolver(),
+    );
+
+    mockDeps = {
+      repository,
+      idempotencyGuard: { ensureOnce: jest.fn().mockResolvedValue(true) } as any,
+      ruleEngine,
+      metrics: {
+        addMetric: jest.fn(),
+        addDimension: jest.fn(),
+        publishStoredMetrics: jest.fn(),
+      } as any,
+    };
+
+    handler = createHandler(mockDeps);
   });
 
   afterAll(() => {
@@ -182,11 +216,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
 
     // Should have called: getMandateSnapshot, createComplianceCheck, updateCheckResult (2 calls), createAuditArtifact
     expect(mockSend).toHaveBeenCalledTimes(5);
@@ -225,11 +256,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should fall back to tenantId when subject.userId is undefined', async () => {
@@ -276,11 +304,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
 
     // getMandateSnapshot should be called with tenantId as userId fallback
     const getMandateCall = mockSend.mock.calls[0][0];
@@ -303,12 +328,9 @@ describe('event-listener handler', () => {
       }],
     };
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
   });
 
   it('should throw NotRetryableError when DECISION_PACKET_CREATED is missing required fields', async () => {
@@ -334,12 +356,9 @@ describe('event-listener handler', () => {
 
     const { logger } = require('@nestfolio/platform-core');
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-missing-fields');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-missing-fields');
 
     expect(logger.error).toHaveBeenCalledWith(
       'Failed to process record',
@@ -365,11 +384,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should report batch item failures for processing errors', async () => {
@@ -385,12 +401,9 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
   });
 
   it('should report failure when DECISION_PACKET_CREATED is missing required fields', async () => {
@@ -414,12 +427,9 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-missing');
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(1);
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-missing');
 
     // Should NOT have called any DynamoDB operations (validation rejects before processing)
     expect(mockSend).not.toHaveBeenCalled();
@@ -478,11 +488,8 @@ describe('event-listener handler', () => {
       },
     ]);
 
-    await jest.isolateModulesAsync(async () => {
-      const { handler } = require('../handlers/event-listener');
-      const result = await handler(sqsEvent);
-      expect(result.batchItemFailures).toHaveLength(0);
-    });
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
 
     // Should have processed: getMandateSnapshot + createComplianceCheck + updateCheckResult (2) + createAuditArtifact
     expect(mockSend).toHaveBeenCalledTimes(5);

@@ -52,8 +52,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
@@ -74,12 +73,23 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   isRetryable: jest.fn().mockReturnValue(true),
   traceEvent: jest.fn(),
   MetricUnit: { Count: 'Count' },
+  applyMiddleware: jest.fn((handler) => handler),
+  withLambdaContext: jest.fn(() => (next: unknown) => next),
+  withTiming: jest.fn(() => (next: unknown) => next),
+  withMethodLogging: jest.fn((_className: string) =>
+    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+  ),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
 
 import { SQSEvent } from 'aws-lambda';
-import { handler } from '../handlers/event-listener';
+import { createHandler } from '../handlers/event-listener';
+import { OrderRepository } from '../repositories/order.repository';
+import { SafetyChecksService } from '../services/safety-checks.service';
+import { MarketHoursService } from '../services/market-hours.service';
+import { OrderLifecycleService } from '../services/order-lifecycle.service';
+import { IdempotencyGuard } from '@nestfolio/lambda-utils';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
@@ -100,10 +110,31 @@ function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, 
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
 
+  const mockMetrics = {
+    addMetric: jest.fn(),
+    addDimension: jest.fn(),
+    publishStoredMetrics: jest.fn(),
+  };
+
+  const repository = new OrderRepository('test-table');
+  const idempotencyGuard = new IdempotencyGuard({} as any, 'test-table');
+  const safetyChecks = new SafetyChecksService(repository);
+  const marketHours = new MarketHoursService();
+  const lifecycleService = new OrderLifecycleService(repository, safetyChecks, marketHours);
+
+  let handler: (event: SQSEvent) => Promise<any>;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({ Items: [] });
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+
+    handler = createHandler({
+      repository,
+      idempotencyGuard,
+      lifecycleService,
+      metrics: mockMetrics as any,
+    });
   });
 
   afterAll(() => {
@@ -199,8 +230,7 @@ describe('event-listener handler', () => {
   });
 
   it('should skip duplicate events via idempotency guard', async () => {
-    const { IdempotencyGuard } = require('@nestfolio/lambda-utils');
-    const guardInstance = (IdempotencyGuard as jest.Mock).mock.results[0]?.value;
+    const guardInstance = (IdempotencyGuard as unknown as jest.Mock).mock.results[0]?.value;
     if (guardInstance) {
       guardInstance.ensureOnce.mockResolvedValue(false);
     }

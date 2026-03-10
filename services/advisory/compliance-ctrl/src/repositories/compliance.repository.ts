@@ -1,6 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, log, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { withMethodLogging } from '@nestfolio/lambda-utils';
 import { EntityNotFoundError } from '@nestfolio/domain-core';
 import type { MandateSnapshot } from '../rules/rule-engine';
 
@@ -13,17 +14,18 @@ function guardrailPolicyPk(tenantId: string, userId: string): string {
 }
 
 export class ComplianceRepository extends TableRepository {
+  private readonly log = withMethodLogging('ComplianceRepository');
+
   constructor(tableName: string, client?: DynamoDBClient) {
     super(tableName, client);
   }
 
-  @log()
-  async createComplianceCheck(
+  readonly createComplianceCheck = this.log('createComplianceCheck', async (
     tenantId: string,
     ccId: string,
     decisionPacketId: string,
     mandateSnapshot: MandateSnapshot,
-  ): Promise<void> {
+  ): Promise<void> => {
     const now = getTime();
     const item: TableEntry = {
       pk: complianceCheckPk(tenantId, ccId),
@@ -42,13 +44,12 @@ export class ComplianceRepository extends TableRepository {
       updatedAt: now,
     };
     await this.put(item);
-  }
+  });
 
-  @log()
-  async getComplianceCheck(
+  readonly getComplianceCheck = this.log('getComplianceCheck', async (
     tenantId: string,
     ccId: string,
-  ): Promise<Record<string, unknown>> {
+  ): Promise<Record<string, unknown>> => {
     const pk = complianceCheckPk(tenantId, ccId);
     const result = await this.docClient.send(
       new GetCommand({
@@ -60,16 +61,15 @@ export class ComplianceRepository extends TableRepository {
       throw new EntityNotFoundError('ComplianceCheck', `${tenantId}#${ccId}`);
     }
     return result.Item;
-  }
+  });
 
-  @log()
-  async updateCheckResult(
+  readonly updateCheckResult = this.log('updateCheckResult', async (
     tenantId: string,
     ccId: string,
     checkResult: 'APPROVED' | 'BLOCKED',
     violations: unknown[],
     authorityLevel: 'L1' | 'L2',
-  ): Promise<Record<string, unknown>> {
+  ): Promise<Record<string, unknown>> => {
     const pk = complianceCheckPk(tenantId, ccId);
     const now = getTime();
 
@@ -117,15 +117,14 @@ export class ComplianceRepository extends TableRepository {
     await this.put(editEvent);
 
     return updateResult.Attributes;
-  }
+  });
 
-  @log()
-  async createAuditArtifact(
+  readonly createAuditArtifact = this.log('createAuditArtifact', async (
     tenantId: string,
     ccId: string,
     artifactId: string,
     artifact: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<void> => {
     const now = getTime();
     const item: TableEntry = {
       pk: complianceCheckPk(tenantId, ccId),
@@ -138,13 +137,12 @@ export class ComplianceRepository extends TableRepository {
       createdAt: now,
     };
     await this.put(item);
-  }
+  });
 
-  @log()
-  async getGuardrailPolicy(
+  readonly getGuardrailPolicy = this.log('getGuardrailPolicy', async (
     tenantId: string,
     userId: string,
-  ): Promise<Record<string, unknown> | null> {
+  ): Promise<Record<string, unknown> | null> => {
     const pk = guardrailPolicyPk(tenantId, userId);
     const result = await this.docClient.send(
       new GetCommand({
@@ -153,14 +151,13 @@ export class ComplianceRepository extends TableRepository {
       }),
     );
     return result.Item ?? null;
-  }
+  });
 
-  @log()
-  async putMandateSnapshot(
+  readonly putMandateSnapshot = this.log('putMandateSnapshot', async (
     tenantId: string,
     userId: string,
     mandate: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<void> => {
     const now = getTime();
     const item: TableEntry = {
       pk: guardrailPolicyPk(tenantId, userId),
@@ -172,13 +169,12 @@ export class ComplianceRepository extends TableRepository {
       snapshotAt: now,
     };
     await this.put(item);
-  }
+  });
 
-  @log()
-  async getMandateSnapshot(
+  readonly getMandateSnapshot = this.log('getMandateSnapshot', async (
     tenantId: string,
     userId: string,
-  ): Promise<Record<string, unknown> | null> {
+  ): Promise<Record<string, unknown> | null> => {
     const pk = guardrailPolicyPk(tenantId, userId);
     const result = await this.docClient.send(
       new GetCommand({
@@ -187,5 +183,5 @@ export class ComplianceRepository extends TableRepository {
       }),
     );
     return result.Item ?? null;
-  }
+  });
 }

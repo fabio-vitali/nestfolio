@@ -1,5 +1,3 @@
-import { log } from '@nestfolio/platform-core';
-
 // Hardcoded prices for ~20 major ETFs — sufficient for Phase 2 simulation
 const STATIC_PRICES: Record<string, number> = {
   VTI: 250.50,   // Vanguard Total Stock Market
@@ -25,12 +23,10 @@ const STATIC_PRICES: Record<string, number> = {
 };
 
 export class MarketDataService {
-  @log()
   getPrice(symbol: string): number | null {
     return STATIC_PRICES[symbol] ?? null;
   }
 
-  @log()
   getAllPrices(): Record<string, number> {
     return { ...STATIC_PRICES };
   }
