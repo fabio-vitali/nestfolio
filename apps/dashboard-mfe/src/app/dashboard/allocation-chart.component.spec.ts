@@ -1,24 +1,16 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture } from '@angular/core/testing';
 import { AllocationChartComponent } from './allocation-chart.component';
 import { I18nService } from '@nestfolio/i18n';
+import { setupComponentTest, createMockI18nService } from '@nestfolio/shared-state/testing';
 
 describe('AllocationChartComponent', () => {
   let component: AllocationChartComponent;
   let fixture: ComponentFixture<AllocationChartComponent>;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [AllocationChartComponent],
-      providers: [
-        { provide: I18nService, useValue: { t: (k: string) => k } },
-      ],
-    })
-      .overrideComponent(AllocationChartComponent, {
-        set: { template: '<div>test</div>', imports: [], styles: [] },
-      })
-      .compileComponents();
-
-    fixture = TestBed.createComponent(AllocationChartComponent);
+    fixture = await setupComponentTest(AllocationChartComponent, {
+      providers: [{ provide: I18nService, useValue: createMockI18nService() }],
+    });
     component = fixture.componentInstance;
   });
 

@@ -1,38 +1,29 @@
 import { TestBed } from '@angular/core/testing';
+import { GraphqlService } from '@nestfolio/appsync-client';
 import { OnboardingService } from './onboarding.service';
 import type { GoalInput, MandateInput, RiskProfileInput } from '../stores/onboarding.store';
 
-jest.mock('@nestfolio/appsync-client', () => ({
-  mutate: jest.fn(),
-  RECORD_ONBOARDING_ANSWER: 'RECORD_ONBOARDING_ANSWER',
-  SET_GOAL: 'SET_GOAL',
-  SET_RISK_PROFILE: 'SET_RISK_PROFILE',
-  SELECT_OPERATING_MODE: 'SELECT_OPERATING_MODE',
-  GRANT_MANDATE: 'GRANT_MANDATE',
-}));
-
-import { mutate } from '@nestfolio/appsync-client';
-
-const mockMutate = mutate as jest.MockedFunction<typeof mutate>;
-
 describe('OnboardingService', () => {
   let service: OnboardingService;
+  let graphql: jest.Mocked<GraphqlService>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    graphql = { query: jest.fn(), mutate: jest.fn(), subscribe: jest.fn(), resetClient: jest.fn() } as any;
+    TestBed.configureTestingModule({
+      providers: [{ provide: GraphqlService, useValue: graphql }],
+    });
     service = TestBed.inject(OnboardingService);
-    jest.clearAllMocks();
   });
 
   describe('recordOnboardingAnswer', () => {
     it('should call mutate with RECORD_ONBOARDING_ANSWER and return result', async () => {
       const input = { step: 'risk-1', payload: { answer: 'low' } };
       const expected = { step: 'risk-1', answeredAt: '2026-03-07T10:00:00Z' };
-      mockMutate.mockResolvedValue({ recordOnboardingAnswer: expected });
+      graphql.mutate.mockResolvedValue({ recordOnboardingAnswer: expected });
 
       const result = await service.recordOnboardingAnswer(input);
 
-      expect(mockMutate).toHaveBeenCalledWith('RECORD_ONBOARDING_ANSWER', { input });
+      expect(graphql.mutate).toHaveBeenCalledWith(expect.any(String), { input });
       expect(result).toEqual(expected);
     });
   });
@@ -56,11 +47,11 @@ describe('OnboardingService', () => {
         createdAt: '2026-03-07T10:00:00Z',
         updatedAt: '2026-03-07T10:00:00Z',
       };
-      mockMutate.mockResolvedValue({ setGoal: expected });
+      graphql.mutate.mockResolvedValue({ setGoal: expected });
 
       const result = await service.setGoal(input);
 
-      expect(mockMutate).toHaveBeenCalledWith('SET_GOAL', { input });
+      expect(graphql.mutate).toHaveBeenCalledWith(expect.any(String), { input });
       expect(result).toEqual(expected);
     });
   });
@@ -79,11 +70,11 @@ describe('OnboardingService', () => {
         assessedAt: '2026-03-07T10:00:00Z',
         version: 1,
       };
-      mockMutate.mockResolvedValue({ setRiskProfile: expected });
+      graphql.mutate.mockResolvedValue({ setRiskProfile: expected });
 
       const result = await service.setRiskProfile(input);
 
-      expect(mockMutate).toHaveBeenCalledWith('SET_RISK_PROFILE', { input });
+      expect(graphql.mutate).toHaveBeenCalledWith(expect.any(String), { input });
       expect(result).toEqual(expected);
     });
   });
@@ -91,11 +82,11 @@ describe('OnboardingService', () => {
   describe('selectOperatingMode', () => {
     it('should call mutate with SELECT_OPERATING_MODE and return result', async () => {
       const expected = { operatingMode: 'BALANCED', updatedAt: '2026-03-07T10:00:00Z' };
-      mockMutate.mockResolvedValue({ selectOperatingMode: expected });
+      graphql.mutate.mockResolvedValue({ selectOperatingMode: expected });
 
       const result = await service.selectOperatingMode('BALANCED');
 
-      expect(mockMutate).toHaveBeenCalledWith('SELECT_OPERATING_MODE', { mode: 'BALANCED' });
+      expect(graphql.mutate).toHaveBeenCalledWith(expect.any(String), { mode: 'BALANCED' });
       expect(result).toEqual(expected);
     });
   });
@@ -120,18 +111,18 @@ describe('OnboardingService', () => {
         revokedAt: null,
         version: 1,
       };
-      mockMutate.mockResolvedValue({ grantMandate: expected });
+      graphql.mutate.mockResolvedValue({ grantMandate: expected });
 
       const result = await service.grantMandate(input);
 
-      expect(mockMutate).toHaveBeenCalledWith('GRANT_MANDATE', { input });
+      expect(graphql.mutate).toHaveBeenCalledWith(expect.any(String), { input });
       expect(result).toEqual(expected);
     });
   });
 
   describe('error handling', () => {
     it('should propagate errors from mutate', async () => {
-      mockMutate.mockRejectedValue(new Error('Network error'));
+      graphql.mutate.mockRejectedValue(new Error('Network error'));
 
       await expect(service.recordOnboardingAnswer({ step: 'risk-1', payload: {} }))
         .rejects

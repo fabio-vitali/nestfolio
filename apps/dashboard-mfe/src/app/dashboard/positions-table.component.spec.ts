@@ -1,24 +1,16 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture } from '@angular/core/testing';
 import { PositionsTableComponent } from './positions-table.component';
 import { I18nService } from '@nestfolio/i18n';
+import { setupComponentTest, createMockI18nService } from '@nestfolio/shared-state/testing';
 
 describe('PositionsTableComponent', () => {
   let component: PositionsTableComponent;
   let fixture: ComponentFixture<PositionsTableComponent>;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [PositionsTableComponent],
-      providers: [
-        { provide: I18nService, useValue: { t: (k: string) => k } },
-      ],
-    })
-      .overrideComponent(PositionsTableComponent, {
-        set: { template: '<div>test</div>', imports: [], styles: [] },
-      })
-      .compileComponents();
-
-    fixture = TestBed.createComponent(PositionsTableComponent);
+    fixture = await setupComponentTest(PositionsTableComponent, {
+      providers: [{ provide: I18nService, useValue: createMockI18nService() }],
+    });
     component = fixture.componentInstance;
   });
 

@@ -1,6 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
-  mutate,
+  GraphqlService,
   RECORD_ONBOARDING_ANSWER,
   SET_GOAL,
   SET_RISK_PROFILE,
@@ -12,10 +12,12 @@ import type { GoalInput, MandateInput, OperatingMode, RiskProfileInput } from '.
 
 @Injectable({ providedIn: 'root' })
 export class OnboardingService {
+  private readonly graphql = inject(GraphqlService);
+
   async recordOnboardingAnswer(
     input: { step: string; payload: Record<string, string> },
   ): Promise<{ step: string; answeredAt: string }> {
-    const data = await mutate<{ recordOnboardingAnswer: { step: string; answeredAt: string } }>(
+    const data = await this.graphql.mutate<{ recordOnboardingAnswer: { step: string; answeredAt: string } }>(
       RECORD_ONBOARDING_ANSWER,
       { input },
     );
@@ -23,19 +25,19 @@ export class OnboardingService {
   }
 
   async setGoal(input: GoalInput): Promise<Goal> {
-    const data = await mutate<{ setGoal: Goal }>(SET_GOAL, { input });
+    const data = await this.graphql.mutate<{ setGoal: Goal }>(SET_GOAL, { input });
     return data.setGoal;
   }
 
   async setRiskProfile(input: RiskProfileInput): Promise<RiskProfile> {
-    const data = await mutate<{ setRiskProfile: RiskProfile }>(SET_RISK_PROFILE, { input });
+    const data = await this.graphql.mutate<{ setRiskProfile: RiskProfile }>(SET_RISK_PROFILE, { input });
     return data.setRiskProfile;
   }
 
   async selectOperatingMode(
     mode: OperatingMode,
   ): Promise<{ operatingMode: string; updatedAt: string }> {
-    const data = await mutate<{ selectOperatingMode: { operatingMode: string; updatedAt: string } }>(
+    const data = await this.graphql.mutate<{ selectOperatingMode: { operatingMode: string; updatedAt: string } }>(
       SELECT_OPERATING_MODE,
       { mode },
     );
@@ -43,7 +45,7 @@ export class OnboardingService {
   }
 
   async grantMandate(input: MandateInput): Promise<Mandate> {
-    const data = await mutate<{ grantMandate: Mandate }>(GRANT_MANDATE, { input });
+    const data = await this.graphql.mutate<{ grantMandate: Mandate }>(GRANT_MANDATE, { input });
     return data.grantMandate;
   }
 }

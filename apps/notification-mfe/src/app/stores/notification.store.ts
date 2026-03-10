@@ -1,6 +1,13 @@
-import { computed, inject, DestroyRef } from '@angular/core';
-import { signalStore, withState, withComputed, withMethods, withHooks, patchState } from '@ngrx/signals';
-import { LogoutSignal } from '@nestfolio/shared-state';
+import { computed } from '@angular/core';
+import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+import {
+  withCallState,
+  setLoading as callLoading,
+  setLoaded as callLoaded,
+  setError as callError,
+  withDevtools,
+  withLogoutReset,
+} from '@nestfolio/shared-state';
 
 export interface Notification {
   notificationId: string;
@@ -20,24 +27,21 @@ export interface Notification {
 interface NotificationState {
   notifications: Notification[];
   unreadCount: number;
-  loading: boolean;
   loadingMore: boolean;
-  error: string | null;
   nextCursor: string | null;
 }
 
 const initialState: NotificationState = {
   notifications: [],
   unreadCount: 0,
-  loading: false,
   loadingMore: false,
-  error: null,
   nextCursor: null,
 };
 
 export const NotificationStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
+  withCallState(),
   withComputed((store) => ({
     hasMore: computed(() => store.nextCursor() !== null),
     isEmpty: computed(() => !store.loading() && store.notifications().length === 0),
@@ -66,25 +70,31 @@ export const NotificationStore = signalStore(
         unreadCount: Math.max(0, store.unreadCount() - 1),
       });
     },
-    setLoading(loading: boolean): void {
-      patchState(store, { loading });
+    setLoading(v: boolean): void {
+      if (v) {
+        patchState(store, callLoading());
+      } else {
+        patchState(store, { callState: store.callError() ? ('error' as const) : ('loaded' as const) });
+      }
     },
     setLoadingMore(loadingMore: boolean): void {
       patchState(store, { loadingMore });
     },
     setError(error: string | null): void {
-      patchState(store, { error });
+      if (error) {
+        patchState(store, callError(error));
+      } else {
+        patchState(store, { callError: null });
+      }
     },
     reset(): void {
-      patchState(store, { ...initialState });
+      patchState(store, { ...initialState, callState: 'init', callError: null });
     },
   })),
-  withHooks({
-    onInit(store) {
-      const logoutSignal = inject(LogoutSignal);
-      const destroyRef = inject(DestroyRef);
-      const sub = logoutSignal.logout$.subscribe(() => store.reset());
-      destroyRef.onDestroy(() => sub.unsubscribe());
-    },
-  }),
+  withLogoutReset(() => ({
+    ...initialState,
+    callState: 'init' as const,
+    callError: null,
+  })),
+  withDevtools('NotificationStore'),
 );

@@ -1,6 +1,13 @@
-import { computed, inject, DestroyRef } from '@angular/core';
-import { signalStore, withState, withComputed, withMethods, withHooks, patchState } from '@ngrx/signals';
-import { LogoutOrchestrator } from '@nestfolio/shared-state';
+import { computed } from '@angular/core';
+import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+import {
+  withCallState,
+  setLoading as callLoading,
+  setLoaded as callLoaded,
+  setError as callError,
+  withDevtools,
+  withLogoutReset,
+} from '@nestfolio/shared-state';
 
 export interface RiskAnswer {
   questionId: string;
@@ -36,8 +43,6 @@ interface OnboardingState {
   riskProfile: RiskProfileInput | null;
   operatingMode: OperatingMode | null;
   mandate: MandateInput | null;
-  loading: boolean;
-  error: string | null;
 }
 
 const initialState: OnboardingState = {
@@ -48,13 +53,12 @@ const initialState: OnboardingState = {
   riskProfile: null,
   operatingMode: null,
   mandate: null,
-  loading: false,
-  error: null,
 };
 
 export const OnboardingStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
+  withCallState(),
   withComputed((store) => ({
     isFirstStep: computed(() => store.currentStep() === 0),
     isLastStep: computed(() => store.currentStep() === store.totalSteps() - 1),
@@ -112,23 +116,28 @@ export const OnboardingStore = signalStore(
     setMandate(mandate: MandateInput): void {
       patchState(store, { mandate });
     },
-    setLoading(loading: boolean): void {
-      patchState(store, { loading });
+    setLoading(v: boolean): void {
+      if (v) {
+        patchState(store, callLoading());
+      } else {
+        patchState(store, { callState: store.callError() ? ('error' as const) : ('loaded' as const) });
+      }
     },
     setError(error: string | null): void {
-      patchState(store, { error });
+      if (error) {
+        patchState(store, callError(error));
+      } else {
+        patchState(store, { callError: null });
+      }
     },
     reset(): void {
-      patchState(store, { ...initialState });
+      patchState(store, { ...initialState, callState: 'init', callError: null });
     },
   })),
-  withHooks({
-    onInit(store) {
-      const orchestrator = inject(LogoutOrchestrator);
-      const destroyRef = inject(DestroyRef);
-      const resetFn = () => store.reset();
-      orchestrator.register(resetFn);
-      destroyRef.onDestroy(() => orchestrator.unregister(resetFn));
-    },
-  }),
+  withLogoutReset(() => ({
+    ...initialState,
+    callState: 'init' as const,
+    callError: null,
+  })),
+  withDevtools('OnboardingStore'),
 );

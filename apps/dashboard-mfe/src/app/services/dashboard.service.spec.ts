@@ -1,59 +1,104 @@
 import { TestBed } from '@angular/core/testing';
-
-const mockQuery = jest.fn();
-jest.mock('@nestfolio/appsync-client', () => ({
-  query: mockQuery,
-  GET_DASHBOARD: 'GET_DASHBOARD',
-  GET_POSITION_SNAPSHOTS: 'GET_POSITION_SNAPSHOTS',
-  GET_RECENT_ACTIVITY: 'GET_RECENT_ACTIVITY',
-}));
-
+import { GraphqlService } from '@nestfolio/appsync-client';
+import { LogoutOrchestrator } from '@nestfolio/shared-state';
 import { DashboardService } from './dashboard.service';
 
 describe('DashboardService', () => {
   let service: DashboardService;
+  let graphql: jest.Mocked<GraphqlService>;
+  let orchestrator: { register: jest.Mock; resetAll: jest.Mock };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    TestBed.configureTestingModule({});
+    graphql = { query: jest.fn(), mutate: jest.fn(), subscribe: jest.fn(), resetClient: jest.fn() } as any;
+    orchestrator = { register: jest.fn(), resetAll: jest.fn() };
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: GraphqlService, useValue: graphql },
+        { provide: LogoutOrchestrator, useValue: orchestrator },
+      ],
+    });
     service = TestBed.inject(DashboardService);
   });
 
   it('should call query with GET_DASHBOARD and return getDashboard', async () => {
     const mockData = { portfolioSummary: null, advisoryStatus: null, investorSnapshot: null };
-    mockQuery.mockResolvedValue({ getDashboard: mockData });
+    graphql.query.mockResolvedValue({ getDashboard: mockData });
 
     const result = await service.getDashboard();
 
-    expect(mockQuery).toHaveBeenCalledWith('GET_DASHBOARD');
+    expect(graphql.query).toHaveBeenCalledWith(expect.any(String));
     expect(result).toEqual(mockData);
+  });
+
+  it('should throw when getDashboard returns null', async () => {
+    graphql.query.mockResolvedValue({ getDashboard: null });
+
+    await expect(service.getDashboard()).rejects.toThrow('Dashboard data not found');
   });
 
   it('should call query with GET_POSITION_SNAPSHOTS and return array', async () => {
     const positions = [{ symbol: 'AAPL' }];
-    mockQuery.mockResolvedValue({ getPositionSnapshots: positions });
+    graphql.query.mockResolvedValue({ getPositionSnapshots: positions });
 
     const result = await service.getPositionSnapshots();
 
-    expect(mockQuery).toHaveBeenCalledWith('GET_POSITION_SNAPSHOTS');
     expect(result).toEqual(positions);
   });
 
   it('should call query with GET_RECENT_ACTIVITY without limit', async () => {
     const activities = [{ activityType: 'ORDER_FILLED' }];
-    mockQuery.mockResolvedValue({ getRecentActivity: activities });
+    graphql.query.mockResolvedValue({ getRecentActivity: activities });
 
     const result = await service.getRecentActivity();
 
-    expect(mockQuery).toHaveBeenCalledWith('GET_RECENT_ACTIVITY', undefined);
+    expect(graphql.query).toHaveBeenCalledWith(expect.any(String), undefined);
     expect(result).toEqual(activities);
   });
 
   it('should call query with GET_RECENT_ACTIVITY with limit', async () => {
-    mockQuery.mockResolvedValue({ getRecentActivity: [] });
+    graphql.query.mockResolvedValue({ getRecentActivity: [] });
 
     await service.getRecentActivity(10);
 
-    expect(mockQuery).toHaveBeenCalledWith('GET_RECENT_ACTIVITY', { limit: 10 });
+    expect(graphql.query).toHaveBeenCalledWith(expect.any(String), { limit: 10 });
+  });
+
+  it('should return cached getDashboard on second call within TTL', async () => {
+    const mockData = { portfolioSummary: null, advisoryStatus: null, investorSnapshot: null };
+    graphql.query.mockResolvedValue({ getDashboard: mockData });
+
+    await service.getDashboard();
+    await service.getDashboard();
+
+    // Only one query call for getDashboard (cached)
+    expect(graphql.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('should invalidate caches and refetch', async () => {
+    const mockData = { portfolioSummary: null, advisoryStatus: null, investorSnapshot: null };
+    graphql.query.mockResolvedValue({ getDashboard: mockData });
+
+    await service.getDashboard();
+    service.invalidateCaches();
+    await service.getDashboard();
+
+    expect(graphql.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('should register cache invalidation with LogoutOrchestrator', () => {
+    expect(orchestrator.register).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it('should invalidate caches when orchestrator calls registered fn', async () => {
+    const mockData = { portfolioSummary: null, advisoryStatus: null, investorSnapshot: null };
+    graphql.query.mockResolvedValue({ getDashboard: mockData });
+
+    await service.getDashboard();
+    // Simulate logout — call the registered reset function
+    const resetFn = orchestrator.register.mock.calls[0][0];
+    resetFn();
+    await service.getDashboard();
+
+    expect(graphql.query).toHaveBeenCalledTimes(2);
   });
 });

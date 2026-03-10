@@ -1,12 +1,12 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { DashboardContainerComponent } from './dashboard-container.component';
 import { DashboardStore } from '../stores/dashboard.store';
 import { DashboardService } from '../services/dashboard.service';
 import { I18nService } from '@nestfolio/i18n';
+import { setupComponentTest, createMockI18nService } from '@nestfolio/shared-state/testing';
 
 describe('DashboardContainerComponent', () => {
   let component: DashboardContainerComponent;
-  let fixture: ComponentFixture<DashboardContainerComponent>;
   let store: InstanceType<typeof DashboardStore>;
   let mockService: jest.Mocked<DashboardService>;
 
@@ -21,21 +21,15 @@ describe('DashboardContainerComponent', () => {
       getRecentActivity: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<DashboardService>;
 
-    await TestBed.configureTestingModule({
-      imports: [DashboardContainerComponent],
+    const fixture = await setupComponentTest(DashboardContainerComponent, {
       providers: [
         { provide: DashboardService, useValue: mockService },
-        { provide: I18nService, useValue: { t: (k: string) => k } },
+        { provide: I18nService, useValue: createMockI18nService() },
       ],
-    })
-      .overrideComponent(DashboardContainerComponent, {
-        set: { template: '<div>test</div>', imports: [], styles: [] },
-      })
-      .compileComponents();
+    });
 
     store = TestBed.inject(DashboardStore);
     store.reset();
-    fixture = TestBed.createComponent(DashboardContainerComponent);
     component = fixture.componentInstance;
   });
 
@@ -73,6 +67,6 @@ describe('DashboardContainerComponent', () => {
 
     await component.ngOnInit();
 
-    expect(store.error()).toBe('Failed to load dashboard');
+    expect(store.error()).toBe('errors.dashboard');
   });
 });

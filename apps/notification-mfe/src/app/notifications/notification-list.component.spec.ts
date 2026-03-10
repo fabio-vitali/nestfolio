@@ -4,6 +4,7 @@ import { NotificationListComponent } from './notification-list.component';
 import { NotificationStore, Notification } from '../stores/notification.store';
 import { NotificationService } from '../services/notification.service';
 import { I18nService } from '@nestfolio/i18n';
+import { setupComponentTest, createMockI18nService, createMockRouter } from '@nestfolio/shared-state/testing';
 
 const makeNotification = (id: string, status = 'CREATED'): Notification => ({
   notificationId: id,
@@ -36,24 +37,18 @@ describe('NotificationListComponent', () => {
       markNotificationRead: jest.fn().mockResolvedValue(makeNotification('n-001', 'READ')),
     } as unknown as jest.Mocked<NotificationService>;
 
-    router = { navigate: jest.fn() } as unknown as jest.Mocked<Router>;
+    router = createMockRouter() as jest.Mocked<Router>;
 
-    await TestBed.configureTestingModule({
-      imports: [NotificationListComponent],
+    const fixture = await setupComponentTest(NotificationListComponent, {
       providers: [
         { provide: NotificationService, useValue: notificationService },
         { provide: Router, useValue: router },
-        { provide: I18nService, useValue: { t: (k: string) => k } },
+        { provide: I18nService, useValue: createMockI18nService() },
       ],
-    })
-      .overrideComponent(NotificationListComponent, {
-        set: { template: '<div>test</div>', imports: [], styles: [] },
-      })
-      .compileComponents();
+    });
 
     store = TestBed.inject(NotificationStore);
     store.reset();
-    const fixture = TestBed.createComponent(NotificationListComponent);
     component = fixture.componentInstance;
   });
 

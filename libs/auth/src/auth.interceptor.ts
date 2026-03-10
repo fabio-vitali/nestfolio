@@ -3,21 +3,8 @@ import { type HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http'
 import { Router } from '@angular/router';
 import { Observable, EMPTY, from, throwError } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
-import { type AuthTokens, getAuthSession, forceRefreshSession } from './auth.service';
-
-let inflightSession: Promise<AuthTokens | null> | null = null;
-
-function getSharedSession(): Promise<AuthTokens | null> {
-  if (!inflightSession) {
-    inflightSession = getAuthSession().finally(() => {
-      inflightSession = null;
-    });
-  }
-  return inflightSession;
-}
-
-/** Tracks whether a 401 retry is already in progress to prevent infinite refresh loops. */
-let isRetrying = false;
+import { forceRefreshSession } from './auth.service';
+import { AuthInterceptorState } from './auth-interceptor-state.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   if (req.url.includes('/assets/') || !req.url.includes('appsync')) {
@@ -25,20 +12,20 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   }
 
   const router = inject(Router);
+  const state = inject(AuthInterceptorState);
 
   return new Observable<import('@angular/common/http').HttpEvent<unknown>>(subscriber => {
-    getSharedSession().then(tokens => {
+    state.getSharedSession().then(tokens => {
       if (tokens) {
         const authReq = req.clone({
           setHeaders: { Authorization: tokens.idToken },
         });
         next(authReq).pipe(
           catchError((error: HttpErrorResponse) => {
-            if (error.status === 401 && !isRetrying) {
-              isRetrying = true;
+            if (error.status === 401 && state.startRetry()) {
               return from(forceRefreshSession()).pipe(
                 switchMap((newTokens) => {
-                  isRetrying = false;
+                  state.endRetry();
                   if (!newTokens) {
                     router.navigate(['/login']);
                     return EMPTY;
@@ -49,14 +36,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
                   return next(retryReq);
                 }),
                 catchError(() => {
-                  isRetrying = false;
+                  state.endRetry();
                   router.navigate(['/login']);
                   return EMPTY;
                 }),
               );
             }
-            if (error.status === 401 && isRetrying) {
-              isRetrying = false;
+            if (error.status === 401) {
+              state.endRetry();
               router.navigate(['/login']);
               return EMPTY;
             }
@@ -73,13 +60,3 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     });
   });
 };
-
-/** @internal — exposed for testing only */
-export function resetInflightSession(): void {
-  inflightSession = null;
-}
-
-/** @internal — exposed for testing only */
-export function resetRetryFlag(): void {
-  isRetrying = false;
-}

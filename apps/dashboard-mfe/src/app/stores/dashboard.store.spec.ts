@@ -7,16 +7,16 @@ import {
   AdvisoryStatus,
   DashboardData,
 } from './dashboard.store';
-import { LogoutSignal } from '@nestfolio/shared-state';
+import { LogoutOrchestrator } from '@nestfolio/shared-state';
 
 describe('DashboardStore', () => {
   let store: InstanceType<typeof DashboardStore>;
-  let logoutSignal: LogoutSignal;
+  let orchestrator: LogoutOrchestrator;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
     store = TestBed.inject(DashboardStore);
-    logoutSignal = TestBed.inject(LogoutSignal);
+    orchestrator = TestBed.inject(LogoutOrchestrator);
     store.reset();
   });
 
@@ -162,16 +162,32 @@ describe('DashboardStore', () => {
     expect(store.positions()).toEqual([]);
   });
 
-  it('should reset on logout signal', () => {
+  it('should reset on logout via orchestrator', () => {
     store.setLoading(true);
     store.setError('err');
     store.setPositions(mockPositions);
 
-    logoutSignal.emit();
+    orchestrator.resetAll();
 
     expect(store.loading()).toBe(false);
     expect(store.error()).toBeNull();
     expect(store.positions()).toEqual([]);
     expect(store.portfolioSummary()).toBeNull();
+  });
+
+  it('should expose callState-based loading/error signals', () => {
+    expect(store.loading()).toBe(false);
+    expect(store.loaded()).toBe(false);
+    expect(store.error()).toBeNull();
+
+    store.setLoading(true);
+    expect(store.loading()).toBe(true);
+
+    store.setLoading(false);
+    expect(store.loaded()).toBe(true);
+
+    store.setError('fail');
+    expect(store.error()).toBe('fail');
+    expect(store.loading()).toBe(false);
   });
 });

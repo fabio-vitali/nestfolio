@@ -1,6 +1,13 @@
-import { computed, inject, DestroyRef } from '@angular/core';
-import { signalStore, withState, withComputed, withMethods, withHooks, patchState } from '@ngrx/signals';
-import { LogoutSignal } from '@nestfolio/shared-state';
+import { computed } from '@angular/core';
+import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+import {
+  withCallState,
+  setLoading as callLoading,
+  setLoaded as callLoaded,
+  setError as callError,
+  withDevtools,
+  withLogoutReset,
+} from '@nestfolio/shared-state';
 
 export interface ProposedAction {
   actionType: string;
@@ -53,21 +60,18 @@ interface AdvisoryState {
   decision: Decision | null;
   agentInvocations: AgentInvocation[];
   complianceChecks: ComplianceCheck[];
-  loading: boolean;
-  error: string | null;
 }
 
 const initialState: AdvisoryState = {
   decision: null,
   agentInvocations: [],
   complianceChecks: [],
-  loading: false,
-  error: null,
 };
 
 export const AdvisoryStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
+  withCallState(),
   withComputed((store) => ({
     isLoaded: computed(() => store.decision() !== null),
     headline: computed(() => {
@@ -124,22 +128,28 @@ export const AdvisoryStore = signalStore(
     setComplianceChecks(complianceChecks: ComplianceCheck[]): void {
       patchState(store, { complianceChecks });
     },
-    setLoading(loading: boolean): void {
-      patchState(store, { loading });
+    setLoading(v: boolean): void {
+      if (v) {
+        patchState(store, callLoading());
+      } else {
+        patchState(store, { callState: store.callError() ? ('error' as const) : ('loaded' as const) });
+      }
     },
     setError(error: string | null): void {
-      patchState(store, { error });
+      if (error) {
+        patchState(store, callError(error));
+      } else {
+        patchState(store, { callError: null });
+      }
     },
     reset(): void {
-      patchState(store, { ...initialState });
+      patchState(store, { ...initialState, callState: 'init', callError: null });
     },
   })),
-  withHooks({
-    onInit(store) {
-      const logoutSignal = inject(LogoutSignal);
-      const destroyRef = inject(DestroyRef);
-      const sub = logoutSignal.logout$.subscribe(() => store.reset());
-      destroyRef.onDestroy(() => sub.unsubscribe());
-    },
-  }),
+  withLogoutReset(() => ({
+    ...initialState,
+    callState: 'init' as const,
+    callError: null,
+  })),
+  withDevtools('AdvisoryStore'),
 );

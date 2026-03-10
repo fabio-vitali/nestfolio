@@ -1,48 +1,39 @@
 import { TestBed } from '@angular/core/testing';
+import { GraphqlService } from '@nestfolio/appsync-client';
 import { NotificationService } from './notification.service';
-
-jest.mock('@nestfolio/appsync-client', () => ({
-  query: jest.fn(),
-  mutate: jest.fn(),
-  GET_NOTIFICATIONS: 'GET_NOTIFICATIONS',
-  GET_UNREAD_COUNT: 'GET_UNREAD_COUNT',
-  MARK_NOTIFICATION_READ: 'MARK_NOTIFICATION_READ',
-}));
-
-import { query, mutate } from '@nestfolio/appsync-client';
-
-const mockQuery = query as jest.MockedFunction<typeof query>;
-const mockMutate = mutate as jest.MockedFunction<typeof mutate>;
 
 describe('NotificationService', () => {
   let service: NotificationService;
+  let graphql: jest.Mocked<GraphqlService>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    graphql = { query: jest.fn(), mutate: jest.fn(), subscribe: jest.fn(), resetClient: jest.fn() } as any;
+    TestBed.configureTestingModule({
+      providers: [{ provide: GraphqlService, useValue: graphql }],
+    });
     service = TestBed.inject(NotificationService);
-    jest.clearAllMocks();
   });
 
   it('should call getNotifications without params', async () => {
     const page = { items: [], nextCursor: null };
-    mockQuery.mockResolvedValue({ getNotifications: page } as never);
+    graphql.query.mockResolvedValue({ getNotifications: page });
 
     const result = await service.getNotifications();
     expect(result).toEqual(page);
-    expect(mockQuery).toHaveBeenCalledWith('GET_NOTIFICATIONS', undefined);
+    expect(graphql.query).toHaveBeenCalledWith(expect.any(String), undefined);
   });
 
   it('should call getNotifications with limit and cursor', async () => {
     const page = { items: [{ notificationId: 'n-001' }], nextCursor: 'abc' };
-    mockQuery.mockResolvedValue({ getNotifications: page } as never);
+    graphql.query.mockResolvedValue({ getNotifications: page });
 
     const result = await service.getNotifications(10, 'prev-cursor');
     expect(result).toEqual(page);
-    expect(mockQuery).toHaveBeenCalledWith('GET_NOTIFICATIONS', { limit: 10, cursor: 'prev-cursor' });
+    expect(graphql.query).toHaveBeenCalledWith(expect.any(String), { limit: 10, cursor: 'prev-cursor' });
   });
 
   it('should call getUnreadCount', async () => {
-    mockQuery.mockResolvedValue({ getUnreadCount: 3 } as never);
+    graphql.query.mockResolvedValue({ getUnreadCount: 3 });
 
     const result = await service.getUnreadCount();
     expect(result).toBe(3);
@@ -50,10 +41,16 @@ describe('NotificationService', () => {
 
   it('should call markNotificationRead', async () => {
     const notification = { notificationId: 'n-001', status: 'READ' };
-    mockMutate.mockResolvedValue({ markNotificationRead: notification } as never);
+    graphql.mutate.mockResolvedValue({ markNotificationRead: notification });
 
     const result = await service.markNotificationRead('n-001');
     expect(result).toEqual(notification);
-    expect(mockMutate).toHaveBeenCalledWith('MARK_NOTIFICATION_READ', { notificationId: 'n-001' });
+    expect(graphql.mutate).toHaveBeenCalledWith(expect.any(String), { notificationId: 'n-001' });
+  });
+
+  it('should throw when markNotificationRead returns null', async () => {
+    graphql.mutate.mockResolvedValue({ markNotificationRead: null });
+
+    await expect(service.markNotificationRead('n-001')).rejects.toThrow('Failed to mark notification as read');
   });
 });

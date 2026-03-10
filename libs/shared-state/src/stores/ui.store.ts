@@ -1,5 +1,6 @@
 import { signalStore, withState, withMethods, patchState } from '@ngrx/signals';
 import type { ThemeMode, Locale } from '../models';
+import { withDevtools } from '../features/with-devtools';
 
 interface UiState {
   theme: ThemeMode;
@@ -30,4 +31,5 @@ export const UiStore = signalStore(
       patchState(store, { loading });
     },
   })),
+  withDevtools('UiStore'),
 );

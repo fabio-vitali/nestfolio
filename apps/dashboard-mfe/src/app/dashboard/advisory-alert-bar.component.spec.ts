@@ -1,24 +1,16 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture } from '@angular/core/testing';
 import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
 import { I18nService } from '@nestfolio/i18n';
+import { setupComponentTest, createMockI18nService } from '@nestfolio/shared-state/testing';
 
 describe('AdvisoryAlertBarComponent', () => {
   let component: AdvisoryAlertBarComponent;
   let fixture: ComponentFixture<AdvisoryAlertBarComponent>;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [AdvisoryAlertBarComponent],
-      providers: [
-        { provide: I18nService, useValue: { t: (k: string) => k } },
-      ],
-    })
-      .overrideComponent(AdvisoryAlertBarComponent, {
-        set: { template: '<div>test</div>', imports: [], styles: [] },
-      })
-      .compileComponents();
-
-    fixture = TestBed.createComponent(AdvisoryAlertBarComponent);
+    fixture = await setupComponentTest(AdvisoryAlertBarComponent, {
+      providers: [{ provide: I18nService, useValue: createMockI18nService() }],
+    });
     component = fixture.componentInstance;
   });
 

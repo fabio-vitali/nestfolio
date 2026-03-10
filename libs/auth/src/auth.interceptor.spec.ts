@@ -19,18 +19,17 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
-import { authInterceptor, resetInflightSession, resetRetryFlag } from './auth.interceptor';
+import { authInterceptor } from './auth.interceptor';
+import { AuthInterceptorState } from './auth-interceptor-state.service';
 import * as authService from './auth.service';
 
 describe('authInterceptor', () => {
   let http: HttpClient;
   let httpTesting: HttpTestingController;
   let router: Router;
+  let interceptorState: AuthInterceptorState;
 
   beforeEach(() => {
-    resetInflightSession();
-    resetRetryFlag();
-
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
@@ -42,6 +41,8 @@ describe('authInterceptor', () => {
     http = TestBed.inject(HttpClient);
     httpTesting = TestBed.inject(HttpTestingController);
     router = TestBed.inject(Router);
+    interceptorState = TestBed.inject(AuthInterceptorState);
+    interceptorState.reset();
     jest.spyOn(router, 'navigate').mockResolvedValue(true);
   });
 
@@ -65,20 +66,14 @@ describe('authInterceptor', () => {
       });
     });
 
-    // Wait for the initial session fetch
     await new Promise((r) => setTimeout(r, 0));
 
-    // First request should use old token
     const req1 = httpTesting.expectOne('https://appsync.example.com/graphql');
     expect(req1.request.headers.get('Authorization')).toBe('old-token');
-
-    // Respond with 401
     req1.flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });
 
-    // Wait for refresh
     await new Promise((r) => setTimeout(r, 0));
 
-    // Retry request should use new token
     const req2 = httpTesting.expectOne('https://appsync.example.com/graphql');
     expect(req2.request.headers.get('Authorization')).toBe('new-token');
     req2.flush('ok');
@@ -95,13 +90,10 @@ describe('authInterceptor', () => {
       .spyOn(authService, 'forceRefreshSession')
       .mockResolvedValue(null);
 
-    let completed = false;
-    let errored = false;
-
     http.get('https://appsync.example.com/graphql', { responseType: 'text' }).subscribe({
-      next: () => { completed = true; },
-      error: () => { errored = true; },
-      complete: () => { completed = true; },
+      next: () => {},
+      error: () => {},
+      complete: () => {},
     });
 
     await new Promise((r) => setTimeout(r, 0));
@@ -181,7 +173,6 @@ describe('authInterceptor', () => {
     http.get('https://appsync.example.com/graphql', { responseType: 'text' }).subscribe();
     http.get('https://appsync.example.com/graphql', { responseType: 'text' }).subscribe();
 
-    // Both calls should share the same session promise
     expect(spy).toHaveBeenCalledTimes(1);
 
     await new Promise((r) => setTimeout(r, 0));
@@ -192,5 +183,14 @@ describe('authInterceptor', () => {
     expect(reqs[1].request.headers.get('Authorization')).toBe('shared-token');
     reqs[0].flush('ok');
     reqs[1].flush('ok');
+  });
+
+  it('should use injectable AuthInterceptorState', () => {
+    expect(interceptorState).toBeDefined();
+    expect(interceptorState.startRetry()).toBe(true);
+    expect(interceptorState.startRetry()).toBe(false);
+    interceptorState.endRetry();
+    expect(interceptorState.startRetry()).toBe(true);
+    interceptorState.reset();
   });
 });

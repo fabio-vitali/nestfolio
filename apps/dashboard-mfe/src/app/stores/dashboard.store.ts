@@ -1,6 +1,13 @@
-import { computed, inject, DestroyRef } from '@angular/core';
-import { signalStore, withState, withComputed, withMethods, withHooks, patchState } from '@ngrx/signals';
-import { LogoutSignal } from '@nestfolio/shared-state';
+import { computed } from '@angular/core';
+import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+import {
+  withCallState,
+  setLoading as callLoading,
+  setLoaded as callLoaded,
+  setError as callError,
+  withDevtools,
+  withLogoutReset,
+} from '@nestfolio/shared-state';
 
 export interface PortfolioSummary {
   totalValueCents: number;
@@ -57,8 +64,6 @@ interface DashboardState {
   investorSnapshot: InvestorSnapshot | null;
   positions: PositionSnapshot[];
   activities: ActivityEntry[];
-  loading: boolean;
-  error: string | null;
 }
 
 const initialState: DashboardState = {
@@ -67,13 +72,12 @@ const initialState: DashboardState = {
   investorSnapshot: null,
   positions: [],
   activities: [],
-  loading: false,
-  error: null,
 };
 
 export const DashboardStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
+  withCallState(),
   withComputed((store) => ({
     totalPnl: computed(() => {
       const positions = store.positions();
@@ -108,22 +112,28 @@ export const DashboardStore = signalStore(
     setActivities(activities: ActivityEntry[]): void {
       patchState(store, { activities });
     },
-    setLoading(loading: boolean): void {
-      patchState(store, { loading });
+    setLoading(v: boolean): void {
+      if (v) {
+        patchState(store, callLoading());
+      } else {
+        patchState(store, { callState: store.callError() ? ('error' as const) : ('loaded' as const) });
+      }
     },
     setError(error: string | null): void {
-      patchState(store, { error });
+      if (error) {
+        patchState(store, callError(error));
+      } else {
+        patchState(store, { callError: null });
+      }
     },
     reset(): void {
-      patchState(store, { ...initialState });
+      patchState(store, { ...initialState, callState: 'init', callError: null });
     },
   })),
-  withHooks({
-    onInit(store) {
-      const logoutSignal = inject(LogoutSignal);
-      const destroyRef = inject(DestroyRef);
-      const sub = logoutSignal.logout$.subscribe(() => store.reset());
-      destroyRef.onDestroy(() => sub.unsubscribe());
-    },
-  }),
+  withLogoutReset(() => ({
+    ...initialState,
+    callState: 'init' as const,
+    callError: null,
+  })),
+  withDevtools('DashboardStore'),
 );

@@ -1,7 +1,8 @@
-import { Component, inject, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MessageModule } from 'primeng/message';
 import { I18nService } from '@nestfolio/i18n';
+import { parseError } from '@nestfolio/shared-state';
 import { LoadingSkeletonComponent } from '@nestfolio/ui-components';
 import { DashboardStore } from '../stores/dashboard.store';
 import { DashboardService } from '../services/dashboard.service';
@@ -132,18 +133,13 @@ import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
     }
   `],
 })
-export class DashboardContainerComponent implements OnInit, OnDestroy {
+export class DashboardContainerComponent implements OnInit {
   private readonly dashboardService = inject(DashboardService);
   readonly i18n = inject(I18nService);
   readonly store = inject(DashboardStore);
-  private destroyed = false;
 
   async ngOnInit(): Promise<void> {
     await this.loadDashboard();
-  }
-
-  ngOnDestroy(): void {
-    this.destroyed = true;
   }
 
   private async loadDashboard(): Promise<void> {
@@ -157,18 +153,13 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
         this.dashboardService.getRecentActivity(20),
       ]);
 
-      if (this.destroyed) return;
-
       this.store.setDashboard(dashboard);
       this.store.setPositions(positions);
       this.store.setActivities(activities);
     } catch (e: unknown) {
-      if (this.destroyed) return;
-      this.store.setError(e instanceof Error ? e.message : 'Failed to load dashboard');
+      this.store.setError(parseError(e, 'errors.dashboard'));
     } finally {
-      if (!this.destroyed) {
-        this.store.setLoading(false);
-      }
+      this.store.setLoading(false);
     }
   }
 }

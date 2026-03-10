@@ -1,4 +1,5 @@
 import { signalStore, withState, withMethods, patchState } from '@ngrx/signals';
+import { withDevtools } from '../features/with-devtools';
 
 interface NotificationState {
   unreadCount: number;
@@ -22,4 +23,5 @@ export const NotificationStore = signalStore(
       patchState(store, { unreadCount: Math.max(0, store.unreadCount() - 1) });
     },
   })),
+  withDevtools('NotificationCountStore'),
 );

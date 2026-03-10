@@ -1,5 +1,6 @@
 import { signalStore, withState, withMethods, patchState } from '@ngrx/signals';
 import type { TenantContext } from '../models';
+import { withDevtools } from '../features/with-devtools';
 
 interface TenantState {
   tenant: TenantContext | null;
@@ -20,4 +21,5 @@ export const TenantStore = signalStore(
       patchState(store, { tenant: null });
     },
   })),
+  withDevtools('TenantStore'),
 );

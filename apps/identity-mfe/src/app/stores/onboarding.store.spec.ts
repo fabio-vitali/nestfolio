@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { OnboardingStore } from './onboarding.store';
 import type { GoalInput, MandateInput, RiskAnswer, RiskProfileInput } from './onboarding.store';
+import { LogoutOrchestrator } from '@nestfolio/shared-state';
 
 describe('OnboardingStore', () => {
   let store: InstanceType<typeof OnboardingStore>;
@@ -214,6 +215,30 @@ describe('OnboardingStore', () => {
       store.setError(null);
       expect(store.error()).toBeNull();
     });
+  });
+
+  it('should expose callState-based loading/error signals', () => {
+    store.setLoading(true);
+    expect(store.loading()).toBe(true);
+
+    store.setLoading(false);
+    expect(store.loaded()).toBe(true);
+
+    store.setError('fail');
+    expect(store.error()).toBe('fail');
+  });
+
+  it('should reset on logout via orchestrator', () => {
+    const orchestrator = TestBed.inject(LogoutOrchestrator);
+    store.nextStep();
+    store.setRiskAnswers([{ questionId: 'q1', answerId: 'a1' }]);
+    store.setLoading(true);
+
+    orchestrator.resetAll();
+
+    expect(store.currentStep()).toBe(0);
+    expect(store.riskAnswers()).toEqual([]);
+    expect(store.loading()).toBe(false);
   });
 
   describe('reset', () => {

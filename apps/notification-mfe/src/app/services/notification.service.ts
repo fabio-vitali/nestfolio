@@ -1,7 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
-  query,
-  mutate,
+  GraphqlService,
   GET_NOTIFICATIONS,
   GET_UNREAD_COUNT,
   MARK_NOTIFICATION_READ,
@@ -15,12 +14,14 @@ export interface NotificationPage {
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
+  private readonly graphql = inject(GraphqlService);
+
   async getNotifications(limit?: number, cursor?: string): Promise<NotificationPage> {
     const variables: Record<string, unknown> = {};
     if (limit !== undefined) variables['limit'] = limit;
     if (cursor !== undefined) variables['cursor'] = cursor;
 
-    const data = await query<{ getNotifications: NotificationPage | null }>(
+    const data = await this.graphql.query<{ getNotifications: NotificationPage | null }>(
       GET_NOTIFICATIONS,
       Object.keys(variables).length > 0 ? variables : undefined,
     );
@@ -28,12 +29,12 @@ export class NotificationService {
   }
 
   async getUnreadCount(): Promise<number> {
-    const data = await query<{ getUnreadCount: number | null }>(GET_UNREAD_COUNT);
+    const data = await this.graphql.query<{ getUnreadCount: number | null }>(GET_UNREAD_COUNT);
     return data.getUnreadCount ?? 0;
   }
 
   async markNotificationRead(notificationId: string): Promise<Notification> {
-    const data = await mutate<{ markNotificationRead: Notification | null }>(
+    const data = await this.graphql.mutate<{ markNotificationRead: Notification | null }>(
       MARK_NOTIFICATION_READ,
       { notificationId },
     );

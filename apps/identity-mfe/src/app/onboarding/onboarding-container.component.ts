@@ -5,6 +5,7 @@ import { Stepper, StepList, Step, StepPanels, StepPanel } from 'primeng/stepper'
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { I18nService } from '@nestfolio/i18n';
+import { parseError } from '@nestfolio/shared-state';
 import {
   OnboardingStore,
   type RiskAnswer,
@@ -309,10 +310,7 @@ export class OnboardingContainerComponent {
                 payload: { answerId: answers[i].answerId },
               });
             } catch (answerError: unknown) {
-              const msg = answerError instanceof Error
-                ? answerError.message
-                : 'Failed to save answer';
-              this.store.setError(`${msg} (question ${answers[i].questionId})`);
+              this.store.setError(`${parseError(answerError, 'errors.onboarding')} (question ${answers[i].questionId})`);
               this.store.setLoading(false);
               return; // stop — don't advance; user can retry
             }
@@ -348,7 +346,7 @@ export class OnboardingContainerComponent {
       this.store.nextStep();
       activateCallback(step + 1);
     } catch (e: unknown) {
-      this.store.setError(e instanceof Error ? e.message : 'An error occurred');
+      this.store.setError(parseError(e, 'errors.onboarding'));
     } finally {
       this.store.setLoading(false);
     }
@@ -372,7 +370,7 @@ export class OnboardingContainerComponent {
       this.store.reset();
       await this.router.navigate(['/dashboard']);
     } catch (e: unknown) {
-      this.store.setError(e instanceof Error ? e.message : 'Failed to complete onboarding');
+      this.store.setError(parseError(e, 'errors.onboarding'));
     } finally {
       this.store.setLoading(false);
     }

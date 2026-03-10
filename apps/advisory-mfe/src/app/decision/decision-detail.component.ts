@@ -10,6 +10,7 @@ import {
   LoadingSkeletonComponent,
 } from '@nestfolio/ui-components';
 import { I18nService } from '@nestfolio/i18n';
+import { parseError } from '@nestfolio/shared-state';
 import { AdvisoryStore } from '../stores/advisory.store';
 import { AdvisoryService } from '../services/advisory.service';
 import { AuditFooterComponent } from './audit-footer.component';
@@ -295,7 +296,7 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
         console.error('audit log failed', err);
       });
     } catch (e: unknown) {
-      this.store.setError(e instanceof Error ? e.message : 'Failed to load decision');
+      this.store.setError(parseError(e, 'errors.decision'));
     } finally {
       this.store.setLoading(false);
     }

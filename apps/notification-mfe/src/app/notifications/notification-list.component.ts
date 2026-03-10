@@ -6,6 +6,7 @@ import { MessageModule } from 'primeng/message';
 import { ButtonModule } from 'primeng/button';
 import { LoadingSkeletonComponent, EmptyStateComponent } from '@nestfolio/ui-components';
 import { I18nService } from '@nestfolio/i18n';
+import { parseError } from '@nestfolio/shared-state';
 import { NotificationStore, Notification } from '../stores/notification.store';
 import { NotificationService } from '../services/notification.service';
 import { NotificationItemComponent } from './notification-item.component';
@@ -161,7 +162,7 @@ export class NotificationListComponent implements OnInit {
       const page = await this.notificationService.getNotifications(PAGE_SIZE, cursor);
       this.store.appendNotifications(page.items, page.nextCursor);
     } catch (e: unknown) {
-      this.store.setError(e instanceof Error ? e.message : 'Failed to load more');
+      this.store.setError(parseError(e, 'errors.notifications'));
     } finally {
       this.store.setLoadingMore(false);
     }
@@ -180,7 +181,7 @@ export class NotificationListComponent implements OnInit {
       this.store.setNotifications(page.items, page.nextCursor);
       this.store.setUnreadCount(unreadCount);
     } catch (e: unknown) {
-      this.store.setError(e instanceof Error ? e.message : 'Failed to load notifications');
+      this.store.setError(parseError(e, 'errors.notifications'));
     } finally {
       this.store.setLoading(false);
     }

@@ -269,7 +269,7 @@ describe('OnboardingContainerComponent', () => {
 
     await component.onNext(nextCb);
 
-    expect(mockStore['setError']).toHaveBeenCalledWith('An error occurred');
+    expect(mockStore['setError']).toHaveBeenCalledWith('errors.onboarding');
   });
 
   // --- onBack tests ---
@@ -340,7 +340,7 @@ describe('OnboardingContainerComponent', () => {
 
     await component.onComplete();
 
-    expect(mockStore['setError']).toHaveBeenCalledWith('Failed to complete onboarding');
+    expect(mockStore['setError']).toHaveBeenCalledWith('errors.onboarding');
   });
 
   it('should not advance past step 0 without calling nextStep', () => {

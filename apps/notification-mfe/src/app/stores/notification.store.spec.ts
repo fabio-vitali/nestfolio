@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { NotificationStore, Notification } from './notification.store';
-import { LogoutSignal } from '@nestfolio/shared-state';
+import { LogoutOrchestrator } from '@nestfolio/shared-state';
 
 const makeNotification = (id: string, status = 'CREATED'): Notification => ({
   notificationId: id,
@@ -19,12 +19,12 @@ const makeNotification = (id: string, status = 'CREATED'): Notification => ({
 
 describe('NotificationStore', () => {
   let store: InstanceType<typeof NotificationStore>;
-  let logoutSignal: LogoutSignal;
+  let orchestrator: LogoutOrchestrator;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
     store = TestBed.inject(NotificationStore);
-    logoutSignal = TestBed.inject(LogoutSignal);
+    orchestrator = TestBed.inject(LogoutOrchestrator);
     store.reset();
   });
 
@@ -121,16 +121,27 @@ describe('NotificationStore', () => {
     expect(store.nextCursor()).toBeNull();
   });
 
-  it('should reset on logout signal', () => {
+  it('should reset on logout via orchestrator', () => {
     store.setNotifications([makeNotification('n-001')], 'cursor');
     store.setUnreadCount(3);
     store.setLoading(true);
 
-    logoutSignal.emit();
+    orchestrator.resetAll();
 
     expect(store.notifications()).toEqual([]);
     expect(store.unreadCount()).toBe(0);
     expect(store.loading()).toBe(false);
     expect(store.nextCursor()).toBeNull();
+  });
+
+  it('should expose callState-based loading/error signals', () => {
+    store.setLoading(true);
+    expect(store.loading()).toBe(true);
+
+    store.setLoading(false);
+    expect(store.loaded()).toBe(true);
+
+    store.setError('fail');
+    expect(store.error()).toBe('fail');
   });
 });

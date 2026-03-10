@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { signalStore, withState, withMethods, patchState } from '@ngrx/signals';
 import type { AuthStatus, UserProfile } from '../models';
 import { LogoutOrchestrator } from '../logout-orchestrator';
+import { withDevtools } from '../features/with-devtools';
 
 interface AuthState {
   user: UserProfile | null;
@@ -50,4 +51,5 @@ export const AuthStore = signalStore(
       },
     };
   }),
+  withDevtools('AuthStore'),
 );

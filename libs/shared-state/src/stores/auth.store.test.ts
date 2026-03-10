@@ -1,15 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import { AuthStore } from './auth.store';
-import { LogoutSignal } from '../logout-signal';
+import { LogoutOrchestrator } from '../logout-orchestrator';
 
 describe('AuthStore', () => {
   let store: InstanceType<typeof AuthStore>;
-  let logoutSignal: LogoutSignal;
+  let orchestrator: LogoutOrchestrator;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
     store = TestBed.inject(AuthStore);
-    logoutSignal = TestBed.inject(LogoutSignal);
+    orchestrator = TestBed.inject(LogoutOrchestrator);
     store.reset();
   });
 
@@ -46,14 +46,14 @@ describe('AuthStore', () => {
     expect(store.user()).toBeNull();
   });
 
-  it('should logout: set unauthenticated and emit logout signal', () => {
-    const emitSpy = jest.spyOn(logoutSignal, 'emit');
+  it('should logout: set unauthenticated and call orchestrator.resetAll', () => {
+    const resetAllSpy = jest.spyOn(orchestrator, 'resetAll');
     store.setAuthenticated({ userId: 'u1', username: 'test', email: 'test@test.com', tenantId: 't1' });
 
     store.logout();
 
     expect(store.status()).toBe('unauthenticated');
     expect(store.user()).toBeNull();
-    expect(emitSpy).toHaveBeenCalledTimes(1);
+    expect(resetAllSpy).toHaveBeenCalledTimes(1);
   });
 });
