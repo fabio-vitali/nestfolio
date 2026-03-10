@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Stepper, StepList, Step, StepPanels, StepPanel } from 'primeng/stepper';
@@ -41,7 +41,6 @@ import { MandateStepComponent } from './steps/mandate-step.component';
     OperatingModeStepComponent,
     MandateStepComponent,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="onboarding-container">
       <div class="onboarding-header">

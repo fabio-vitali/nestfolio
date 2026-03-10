@@ -1,33 +1,36 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { NotificationItemComponent } from './notification-item.component';
 import type { Notification } from '../stores/notification.store';
+
+const makeNotification = (overrides: Partial<Notification> = {}): Notification => ({
+  notificationId: 'n-001',
+  tenantId: 'tenant-1',
+  channel: 'IN_APP',
+  title: 'Decision Approved',
+  body: 'Your portfolio rebalancing has been approved',
+  status: 'CREATED',
+  relatedEntityType: 'DECISION',
+  relatedEntityId: 'dec-001',
+  createdAt: new Date().toISOString(),
+  sentAt: null,
+  deliveredAt: null,
+  readAt: null,
+  ...overrides,
+});
 
 // Use a simple host to avoid PrimeNG issues
 @Component({
   standalone: true,
   imports: [NotificationItemComponent],
   template: `<app-notification-item
-    [notification]="notification"
+    [notification]="notification()"
     (markRead)="markedId = $event"
     (tap)="tapped = $event"
   />`,
 })
 class TestHostComponent {
-  notification: Notification = {
-    notificationId: 'n-001',
-    tenantId: 'tenant-1',
-    channel: 'IN_APP',
-    title: 'Decision Approved',
-    body: 'Your portfolio rebalancing has been approved',
-    status: 'CREATED',
-    relatedEntityType: 'DECISION',
-    relatedEntityId: 'dec-001',
-    createdAt: new Date().toISOString(),
-    sentAt: null,
-    deliveredAt: null,
-    readAt: null,
-  };
+  notification = signal<Notification>(makeNotification());
   markedId: string | null = null;
   tapped: Notification | null = null;
 }
@@ -81,7 +84,7 @@ describe('NotificationItemComponent', () => {
   });
 
   it('should not show unread indicator for read notifications', () => {
-    host.notification = { ...host.notification, status: 'READ', readAt: new Date().toISOString() };
+    host.notification.set(makeNotification({ status: 'READ', readAt: new Date().toISOString() }));
     fixture.detectChanges();
 
     const item = fixture.nativeElement.querySelector('.notification-item');
@@ -94,7 +97,7 @@ describe('NotificationItemComponent', () => {
   });
 
   it('should not show mark-read button for read notifications', () => {
-    host.notification = { ...host.notification, status: 'READ' };
+    host.notification.set(makeNotification({ status: 'READ' }));
     fixture.detectChanges();
 
     const btn = fixture.nativeElement.querySelector('.mark-read-btn');

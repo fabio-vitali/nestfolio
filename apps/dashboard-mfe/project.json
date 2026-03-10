@@ -13,7 +13,7 @@
         "outputPath": "dist/apps/dashboard-mfe",
         "index": "apps/dashboard-mfe/src/index.html",
         "browser": "apps/dashboard-mfe/src/main.ts",
-        "polyfills": ["zone.js"],
+        "polyfills": [],
         "tsConfig": "apps/dashboard-mfe/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "assets": [

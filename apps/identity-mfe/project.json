@@ -13,7 +13,7 @@
         "outputPath": "dist/apps/identity-mfe",
         "index": "apps/identity-mfe/src/index.html",
         "browser": "apps/identity-mfe/src/main.ts",
-        "polyfills": ["zone.js"],
+        "polyfills": [],
         "tsConfig": "apps/identity-mfe/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "assets": [

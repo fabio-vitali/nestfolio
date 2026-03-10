@@ -1,11 +1,10 @@
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'nf-empty-state',
   standalone: true,
   imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="nf-empty-state">
       <i [class]="icon()" class="nf-empty-state-icon"></i>

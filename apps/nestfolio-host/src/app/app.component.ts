@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ShellLayoutComponent } from '@nestfolio/ui-components';
 import { AuthStore } from '@nestfolio/shared-state';
@@ -7,7 +7,6 @@ import { AuthStore } from '@nestfolio/shared-state';
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, ShellLayoutComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nf-shell-layout>
       <router-outlet />

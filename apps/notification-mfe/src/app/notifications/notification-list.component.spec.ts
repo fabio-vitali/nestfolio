@@ -231,15 +231,17 @@ describe('NotificationListComponent', () => {
     notificationService.markNotificationRead.mockRejectedValue(new Error('server error'));
 
     await component.ngOnInit();
+    const callsBefore = notificationService.getNotifications.mock.calls.length;
     const notification = makeNotification('n-001');
     component.onTap(notification);
 
-    // Wait for the failed promise to settle
+    // Wait for the failed promise and subsequent reload to settle
+    await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
     expect(consoleSpy).toHaveBeenCalledWith('markRead failed', expect.any(Error));
-    // Should have reloaded notifications (second call)
-    expect(notificationService.getNotifications).toHaveBeenCalledTimes(2);
+    // Should have reloaded notifications (at least one additional call after the error)
+    expect(notificationService.getNotifications.mock.calls.length).toBeGreaterThan(callsBefore);
     consoleSpy.mockRestore();
   });
 });

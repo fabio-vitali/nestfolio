@@ -1,4 +1,4 @@
-import { ApplicationConfig, provideZoneChangeDetection, APP_INITIALIZER, ErrorHandler, isDevMode, inject } from '@angular/core';
+import { ApplicationConfig, provideZonelessChangeDetection, APP_INITIALIZER, ErrorHandler, isDevMode, inject } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -80,7 +80,7 @@ function initializeAuth(): () => Promise<void> {
 export const appConfig: ApplicationConfig = {
   providers: [
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
-    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideZonelessChangeDetection(),
     provideRouter(appRoutes),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideAnimationsAsync(),

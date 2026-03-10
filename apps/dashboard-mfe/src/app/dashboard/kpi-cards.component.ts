@@ -1,4 +1,4 @@
-import { Component, Input, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { I18nService } from '@nestfolio/i18n';
@@ -9,7 +9,6 @@ import type { PortfolioSummary, AdvisoryStatus } from '../stores/dashboard.store
   selector: 'app-kpi-cards',
   standalone: true,
   imports: [CommonModule, CardModule, CurrencyFormatPipe, PercentFormatPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="kpi-cards">
       <p-card styleClass="kpi-card">

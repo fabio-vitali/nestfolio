@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -31,7 +31,6 @@ function scoreFromAnswerId(answerId: string): number {
   selector: 'app-risk-confirm-step',
   standalone: true,
   imports: [CommonModule, FormsModule, CheckboxModule, CardModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="risk-confirm-step">
       <h3>{{ i18n.t('onboarding.riskConfirm.title') }}</h3>

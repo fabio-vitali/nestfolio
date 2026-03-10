@@ -1,4 +1,4 @@
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslateModule } from '@ngx-translate/core';
 import type { ProposedAction } from '../stores/advisory.store';
@@ -7,7 +7,6 @@ import type { ProposedAction } from '../stores/advisory.store';
   selector: 'app-trades-table',
   standalone: true,
   imports: [CommonModule, TranslateModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <table class="trades-table" aria-label="Trades summary">
       <thead>

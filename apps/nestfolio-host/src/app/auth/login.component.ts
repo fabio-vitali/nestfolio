@@ -1,4 +1,4 @@
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -15,7 +15,6 @@ import { AuthStore } from '@nestfolio/shared-state';
   selector: 'app-login',
   standalone: true,
   imports: [CommonModule, FormsModule, InputTextModule, PasswordModule, ButtonModule, MessageModule, CardModule, RouterLink],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="auth-container">
       <p-card>

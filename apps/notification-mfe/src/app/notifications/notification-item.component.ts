@@ -1,4 +1,4 @@
-import { Component, input, output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RelativeTimePipe } from '@nestfolio/ui-components';
 import type { Notification } from '../stores/notification.store';
@@ -7,7 +7,6 @@ import type { Notification } from '../stores/notification.store';
   selector: 'app-notification-item',
   standalone: true,
   imports: [CommonModule, RelativeTimePipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
       class="notification-item"

@@ -13,7 +13,7 @@
         "outputPath": "dist/apps/nestfolio-host",
         "index": "apps/nestfolio-host/src/index.html",
         "browser": "apps/nestfolio-host/src/main.ts",
-        "polyfills": ["zone.js"],
+        "polyfills": [],
         "tsConfig": "apps/nestfolio-host/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "assets": [

@@ -1,11 +1,10 @@
-import { Component, input, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'nf-expandable',
   standalone: true,
   imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="nf-expandable" [class.nf-expandable--open]="open()">
       <button

@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -14,7 +14,6 @@ import { AuthStore } from '@nestfolio/shared-state';
   selector: 'app-confirm',
   standalone: true,
   imports: [CommonModule, FormsModule, InputTextModule, ButtonModule, MessageModule, CardModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="auth-container">
       <p-card>

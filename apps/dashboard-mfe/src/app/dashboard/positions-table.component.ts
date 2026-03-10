@@ -1,4 +1,4 @@
-import { Component, Input, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
 import { I18nService } from '@nestfolio/i18n';
@@ -9,7 +9,6 @@ import type { PositionSnapshot } from '../stores/dashboard.store';
   selector: 'app-positions-table',
   standalone: true,
   imports: [CommonModule, TableModule, CurrencyFormatPipe, EmptyStateComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (positions.length === 0) {
       <nf-empty-state

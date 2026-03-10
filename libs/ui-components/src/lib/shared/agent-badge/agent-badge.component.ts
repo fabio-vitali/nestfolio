@@ -1,11 +1,10 @@
-import { Component, input, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'nf-agent-badge',
   standalone: true,
   imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <span class="nf-agent-badge" [ngClass]="'nf-agent-badge--' + tierClass()">
       <span class="nf-agent-badge__icon">{{ tierIcon() }}</span>

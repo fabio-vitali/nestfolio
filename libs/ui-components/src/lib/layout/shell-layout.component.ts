@@ -1,4 +1,4 @@
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from './header.component';
 import { SidebarComponent } from './sidebar.component';
@@ -8,7 +8,6 @@ import { BottomNavComponent, NavItem } from './bottom-nav.component';
   selector: 'nf-shell-layout',
   standalone: true,
   imports: [CommonModule, HeaderComponent, SidebarComponent, BottomNavComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="shell-layout" [class.sidebar-collapsed]="sidebarCollapsed">
       <nf-header

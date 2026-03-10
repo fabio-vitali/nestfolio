@@ -1,4 +1,4 @@
-import { Component, inject, output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RadioButtonModule } from 'primeng/radiobutton';
@@ -19,7 +19,6 @@ interface CadenceOption {
   selector: 'app-mandate-step',
   standalone: true,
   imports: [CommonModule, FormsModule, RadioButtonModule, InputNumberModule, SelectModule, CardModule, DividerModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mandate-step">
       <h3>{{ i18n.t('onboarding.mandate.title') }}</h3>

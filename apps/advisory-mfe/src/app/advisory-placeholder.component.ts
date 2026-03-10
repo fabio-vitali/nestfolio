@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { I18nService } from '@nestfolio/i18n';
 import { EmptyStateComponent } from '@nestfolio/ui-components';
@@ -7,7 +7,6 @@ import { EmptyStateComponent } from '@nestfolio/ui-components';
   selector: 'app-advisory-placeholder',
   standalone: true,
   imports: [CommonModule, EmptyStateComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nf-empty-state
       icon="pi pi-chart-line"

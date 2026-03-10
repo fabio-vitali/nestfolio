@@ -13,7 +13,7 @@
         "outputPath": "dist/apps/advisory-mfe",
         "index": "apps/advisory-mfe/src/index.html",
         "browser": "apps/advisory-mfe/src/main.ts",
-        "polyfills": ["zone.js"],
+        "polyfills": [],
         "tsConfig": "apps/advisory-mfe/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "assets": [

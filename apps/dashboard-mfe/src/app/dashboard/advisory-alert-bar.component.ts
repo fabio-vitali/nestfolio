@@ -1,4 +1,4 @@
-import { Component, Input, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
@@ -9,7 +9,6 @@ import type { AdvisoryStatus } from '../stores/dashboard.store';
   selector: 'app-advisory-alert-bar',
   standalone: true,
   imports: [CommonModule, RouterModule, ButtonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="alert-bar">
       <div class="alert-content">

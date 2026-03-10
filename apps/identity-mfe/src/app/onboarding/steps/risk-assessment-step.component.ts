@@ -1,4 +1,4 @@
-import { Component, inject, output, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RadioButtonModule } from 'primeng/radiobutton';
@@ -69,7 +69,6 @@ const QUESTIONS: Question[] = [
   selector: 'app-risk-assessment-step',
   standalone: true,
   imports: [CommonModule, FormsModule, RadioButtonModule, CardModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="risk-assessment">
       <h3>{{ i18n.t('onboarding.risk.title') }}</h3>

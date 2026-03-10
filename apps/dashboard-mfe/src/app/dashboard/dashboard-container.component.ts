@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MessageModule } from 'primeng/message';
 import { I18nService } from '@nestfolio/i18n';
@@ -25,7 +25,6 @@ import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
     ActivityFeedComponent,
     AdvisoryAlertBarComponent,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (store.loading() && !store.isLoaded()) {
       <nf-loading-skeleton [count]="8" />

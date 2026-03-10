@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 
@@ -6,7 +6,6 @@ import { ButtonModule } from 'primeng/button';
   selector: 'app-mfe-error',
   standalone: true,
   imports: [CommonModule, ButtonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mfe-error">
       <i class="pi pi-exclamation-circle mfe-error-icon"></i>

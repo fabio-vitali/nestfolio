@@ -1,15 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { AgentBadgeComponent } from './agent-badge.component';
 
 @Component({
   standalone: true,
   imports: [AgentBadgeComponent],
-  template: `<nf-agent-badge [agentName]="name" [tier]="tier" />`,
+  template: `<nf-agent-badge [agentName]="name()" [tier]="tier()" />`,
 })
 class TestHostComponent {
-  name = 'Portfolio Analyst';
-  tier = 'Claude Opus 4.6';
+  name = signal('Portfolio Analyst');
+  tier = signal('Claude Opus 4.6');
 }
 
 describe('AgentBadgeComponent', () => {
@@ -42,21 +42,21 @@ describe('AgentBadgeComponent', () => {
   });
 
   it('should apply sonnet tier class', () => {
-    host.tier = 'Claude Sonnet 4.6';
+    host.tier.set('Claude Sonnet 4.6');
     fixture.detectChanges();
     const badge = fixture.nativeElement.querySelector('.nf-agent-badge');
     expect(badge.classList).toContain('nf-agent-badge--sonnet');
   });
 
   it('should apply haiku tier class', () => {
-    host.tier = 'Claude Haiku 4.5';
+    host.tier.set('Claude Haiku 4.5');
     fixture.detectChanges();
     const badge = fixture.nativeElement.querySelector('.nf-agent-badge');
     expect(badge.classList).toContain('nf-agent-badge--haiku');
   });
 
   it('should apply deterministic tier class for non-LLM agents', () => {
-    host.tier = 'deterministic';
+    host.tier.set('deterministic');
     fixture.detectChanges();
     const badge = fixture.nativeElement.querySelector('.nf-agent-badge');
     expect(badge.classList).toContain('nf-agent-badge--deterministic');
@@ -68,7 +68,7 @@ describe('AgentBadgeComponent', () => {
   });
 
   it('should show gear icon for deterministic', () => {
-    host.tier = 'deterministic';
+    host.tier.set('deterministic');
     fixture.detectChanges();
     const icon = fixture.nativeElement.querySelector('.nf-agent-badge__icon');
     expect(icon.textContent).toBe('\u2699');

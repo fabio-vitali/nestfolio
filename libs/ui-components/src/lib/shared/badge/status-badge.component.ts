@@ -1,4 +1,4 @@
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export type BadgeSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary';
@@ -7,7 +7,6 @@ export type BadgeSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary'
   selector: 'nf-status-badge',
   standalone: true,
   imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <span class="nf-badge" [ngClass]="'nf-badge--' + severity()">
       {{ label() }}

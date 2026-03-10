@@ -13,7 +13,7 @@
         "outputPath": "dist/apps/notification-mfe",
         "index": "apps/notification-mfe/src/index.html",
         "browser": "apps/notification-mfe/src/main.ts",
-        "polyfills": ["zone.js"],
+        "polyfills": [],
         "tsConfig": "apps/notification-mfe/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "assets": [

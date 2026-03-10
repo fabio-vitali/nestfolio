@@ -1,4 +1,4 @@
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 
@@ -12,7 +12,6 @@ export interface NavItem {
   selector: 'nf-bottom-nav',
   standalone: true,
   imports: [CommonModule, RouterModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nav class="nf-bottom-nav">
       @for (item of items(); track item.route) {

@@ -1,4 +1,4 @@
-import { Component, inject, output, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -16,7 +16,6 @@ interface ObjectiveOption {
   selector: 'app-goals-step',
   standalone: true,
   imports: [CommonModule, FormsModule, InputNumberModule, SelectModule, CardModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="goals-step">
       <h3>{{ i18n.t('onboarding.goals.title') }}</h3>

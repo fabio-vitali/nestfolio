@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
@@ -25,7 +25,6 @@ const PAGE_SIZE = 20;
     EmptyStateComponent,
     NotificationItemComponent,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (store.loading() && store.notifications().length === 0) {
       <nf-loading-skeleton [count]="6" />

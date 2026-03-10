@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
@@ -30,7 +30,6 @@ import { TradesTableComponent } from './trades-table.component';
     AuditFooterComponent,
     TradesTableComponent,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (store.loading() && !store.isLoaded()) {
       <nf-loading-skeleton [count]="10" />
