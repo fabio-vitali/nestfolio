@@ -43,7 +43,6 @@ describe('withDevtools', () => {
   });
 
   it('should not throw in SSR environment (no window)', () => {
-    const originalWindow = globalThis.window;
     // In jsdom, window is always defined, so test the guard differently
     const Store = signalStore(
       { providedIn: 'root' },

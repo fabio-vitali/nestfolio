@@ -25,7 +25,6 @@ describe('withLogoutReset', () => {
   });
 
   it('should register with LogoutOrchestrator on init', () => {
-    const registerSpy = jest.spyOn(orchestrator, 'register');
     // Store is already initialized, register was called
     // Re-inject to capture the spy (already called during first inject)
     // Verify indirectly: resetAll should reset state

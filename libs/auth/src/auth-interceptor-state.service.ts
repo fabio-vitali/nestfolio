@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { type AuthTokens, getAuthSession, forceRefreshSession } from './auth.service';
+import { type AuthTokens, getAuthSession } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthInterceptorState {

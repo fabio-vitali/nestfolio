@@ -3,7 +3,10 @@ import { withErrorPublishing } from './with-error-publishing';
 
 jest.mock('@nestfolio/platform-core', () => {
   class MockNotRetryableError extends Error {
-    constructor(message: string, public readonly details?: Record<string, unknown>) {
+    constructor(
+      message: string,
+      public readonly details?: Record<string, unknown>,
+    ) {
       super(message);
       this.name = 'NotRetryableError';
     }
@@ -11,8 +14,7 @@ jest.mock('@nestfolio/platform-core', () => {
   return {
     NotRetryableError: MockNotRetryableError,
     isRetryable: (error: unknown) => {
-      if (error instanceof MockNotRetryableError) return false;
-      return true;
+      return !(error instanceof MockNotRetryableError);
     },
     logger: { warn: jest.fn() },
   };

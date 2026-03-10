@@ -33,10 +33,7 @@ describe('withMethodLogging', () => {
 
     await expect(method()).rejects.toThrow('DDB error');
 
-    expect(logger.debug).toHaveBeenCalledWith(
-      'TestRepository.saveItem called',
-      expect.any(Object),
-    );
+    expect(logger.debug).toHaveBeenCalledWith('TestRepository.saveItem called', expect.any(Object));
     expect(logger.error).toHaveBeenCalledWith(
       'TestRepository.saveItem failed',
       expect.objectContaining({
@@ -57,7 +54,7 @@ describe('withMethodLogging', () => {
   });
 
   it('should truncate long string arguments', async () => {
-    const method = log('search', async (query: string) => []);
+    const method = log('search', async () => []);
     const longString = 'a'.repeat(200);
 
     await method(longString);

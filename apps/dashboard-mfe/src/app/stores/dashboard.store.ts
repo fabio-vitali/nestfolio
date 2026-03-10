@@ -1,10 +1,9 @@
 import { computed } from '@angular/core';
-import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import {
-  withCallState,
-  setLoading as callLoading,
-  setLoaded as callLoaded,
   setError as callError,
+  setLoading as callLoading,
+  withCallState,
   withDevtools,
   withLogoutReset,
 } from '@nestfolio/shared-state';
@@ -116,7 +115,9 @@ export const DashboardStore = signalStore(
       if (v) {
         patchState(store, callLoading());
       } else {
-        patchState(store, { callState: store.callError() ? ('error' as const) : ('loaded' as const) });
+        patchState(store, {
+          callState: store.callError() ? ('error' as const) : ('loaded' as const),
+        });
       }
     },
     setError(error: string | null): void {

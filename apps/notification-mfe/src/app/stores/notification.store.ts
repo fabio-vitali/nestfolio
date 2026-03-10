@@ -1,10 +1,9 @@
 import { computed } from '@angular/core';
-import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import {
-  withCallState,
-  setLoading as callLoading,
-  setLoaded as callLoaded,
   setError as callError,
+  setLoading as callLoading,
+  withCallState,
   withDevtools,
   withLogoutReset,
 } from '@nestfolio/shared-state';
@@ -60,11 +59,13 @@ export const NotificationStore = signalStore(
       patchState(store, { unreadCount });
     },
     markRead(notificationId: string): void {
-      const updated = store.notifications().map((n) =>
-        n.notificationId === notificationId
-          ? { ...n, status: 'READ', readAt: new Date().toISOString() }
-          : n,
-      );
+      const updated = store
+        .notifications()
+        .map((n) =>
+          n.notificationId === notificationId
+            ? { ...n, status: 'READ', readAt: new Date().toISOString() }
+            : n,
+        );
       patchState(store, {
         notifications: updated,
         unreadCount: Math.max(0, store.unreadCount() - 1),
@@ -74,7 +75,9 @@ export const NotificationStore = signalStore(
       if (v) {
         patchState(store, callLoading());
       } else {
-        patchState(store, { callState: store.callError() ? ('error' as const) : ('loaded' as const) });
+        patchState(store, {
+          callState: store.callError() ? ('error' as const) : ('loaded' as const),
+        });
       }
     },
     setLoadingMore(loadingMore: boolean): void {

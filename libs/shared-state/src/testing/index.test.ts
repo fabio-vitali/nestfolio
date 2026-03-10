@@ -1,6 +1,10 @@
 import { Component } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import { createMockGraphqlService, createMockI18nService, createMockRouter, setupComponentTest } from './index';
+import {
+  createMockGraphqlService,
+  createMockI18nService,
+  createMockRouter,
+  setupComponentTest,
+} from './index';
 
 describe('createMockGraphqlService', () => {
   it('returns mock with all methods as jest.fn()', () => {
