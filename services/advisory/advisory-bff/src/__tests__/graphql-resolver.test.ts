@@ -82,6 +82,8 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
   withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
   withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
+  withErrorPublishing: jest.fn().mockReturnValue((fn: unknown) => fn),
+  EventBridgeBus: jest.fn(),
 }));
 jest.mock('@nestfolio/domain-core', () => ({}));
 

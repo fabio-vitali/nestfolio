@@ -1,7 +1,7 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { requireEnv, authorizeTenant, validateQueryDepth, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { requireEnv, authorizeTenant, validateQueryDepth, applyMiddleware, withLambdaContext, withTiming, withErrorPublishing, EventBridgeBus } from '@nestfolio/lambda-utils';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 import { CurrencySchema, PerformancePeriodSchema } from '../validation/schemas';
 
@@ -57,12 +57,14 @@ export const createResolver = (deps: ResolverDeps) =>
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
+const bus = new EventBridgeBus(requireEnv('BUS_NAME'), 'portfolio-bff');
 const repository = new PortfolioRepository(TABLE_NAME, new DynamoDBClient({}));
 
 const deps: ResolverDeps = { repository };
 
 export const handler = applyMiddleware(
   createResolver(deps) as (event: unknown) => Promise<unknown>,
+  withErrorPublishing(bus, 'PORTFOLIO_BFF_FAILED'),
   withLambdaContext(),
   withTiming('portfolio-bff-graphql-resolver'),
 );

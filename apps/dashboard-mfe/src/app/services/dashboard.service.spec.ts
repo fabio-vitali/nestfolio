@@ -9,7 +9,12 @@ describe('DashboardService', () => {
   let orchestrator: { register: jest.Mock; resetAll: jest.Mock };
 
   beforeEach(() => {
-    graphql = { query: jest.fn(), mutate: jest.fn(), subscribe: jest.fn(), resetClient: jest.fn() } as any;
+    graphql = {
+      query: jest.fn(),
+      mutate: jest.fn(),
+      subscribe: jest.fn(),
+      resetClient: jest.fn(),
+    } as jest.Mocked<GraphqlService>;
     orchestrator = { register: jest.fn(), resetAll: jest.fn() };
     TestBed.configureTestingModule({
       providers: [
@@ -83,6 +88,28 @@ describe('DashboardService', () => {
     await service.getDashboard();
 
     expect(graphql.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('should return simulation summary', async () => {
+    const mockSim = {
+      actualTotalValueCents: 10500000,
+      simulatedTotalValueCents: 10800000,
+      actualReturnPercent: 5.0,
+      simulatedReturnPercent: 8.0,
+      returnDifferencePercent: 3.0,
+      updatedAt: '2026-03-01T00:00:00Z',
+    };
+    graphql.query.mockResolvedValue({ getSimulationSummary: mockSim });
+
+    const result = await service.getSimulationSummary();
+    expect(result).toEqual(mockSim);
+  });
+
+  it('should return null when simulation summary is null', async () => {
+    graphql.query.mockResolvedValue({ getSimulationSummary: null });
+
+    const result = await service.getSimulationSummary();
+    expect(result).toBeNull();
   });
 
   it('should register cache invalidation with LogoutOrchestrator', () => {

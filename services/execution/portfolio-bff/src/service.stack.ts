@@ -1,5 +1,6 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
@@ -37,9 +38,10 @@ export class PortfolioBffStack extends Stack {
     const eventListener = new NodejsFunction(this, 'EventListener', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      environment: { TABLE_NAME: state.table.tableName },
+      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'portfolio-bff' },
     });
     state.table.grantReadWriteData(eventListener);
+    eventListener.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
 
     // Ingress: EventBridge -> SQS -> event-listener
     const ingress = new Ingress(this, 'Ingress', {
@@ -71,9 +73,10 @@ export class PortfolioBffStack extends Stack {
     const resolver = new NodejsFunction(this, 'GraphqlResolver', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'graphql-resolver.ts'),
-      environment: { TABLE_NAME: state.table.tableName },
+      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'portfolio-bff' },
     });
     state.table.grantReadWriteData(resolver);
+    resolver.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
 
     // Read Cognito UserPool from SSM (investor subsystem owns auth)
     const userPoolId = StringParameter.valueForStringParameter(

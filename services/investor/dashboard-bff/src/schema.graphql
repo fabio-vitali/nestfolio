@@ -2,6 +2,8 @@ type Query {
   getDashboard: Dashboard!
   getPositionSnapshots: [PositionSnapshot!]!
   getRecentActivity(limit: Int): [ActivityEntry!]!
+  getTimeTravelAvailability: TimeTravelAvailability!
+  getSimulationSummary: SimulationSummary
 }
 
 type Subscription {
@@ -57,5 +59,20 @@ type InvestorSnapshot {
   operatingMode: String
   mandateLevel: String
   onboardedAt: String
+  updatedAt: String!
+}
+
+type TimeTravelAvailability {
+  available: Boolean!
+  oldestDate: String
+  latestDate: String
+}
+
+type SimulationSummary {
+  actualTotalValueCents: Int!
+  simulatedTotalValueCents: Int!
+  actualReturnPercent: Float!
+  simulatedReturnPercent: Float!
+  returnDifferencePercent: Float!
   updatedAt: String!
 }

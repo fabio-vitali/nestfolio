@@ -104,6 +104,7 @@ export class AdvisoryHubStack extends Stack {
       eventPattern: {
         detailType: [
           'DECISION_APPROVED',
+          'DECISION_PACKET_CREATED',
           'USER_CONFIRMED',
           'CIRCUIT_BREAKER_TRIGGERED',
           'CIRCUIT_BREAKER_RESET',

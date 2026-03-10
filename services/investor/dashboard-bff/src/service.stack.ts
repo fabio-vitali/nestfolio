@@ -1,5 +1,6 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
@@ -36,9 +37,13 @@ export class DashboardBffStack extends Stack {
     const eventListener = new NodejsFunction(this, 'EventListener', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      environment: { TABLE_NAME: state.table.tableName },
+      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'dashboard-bff' },
     });
     state.table.grantReadWriteData(eventListener);
+    eventListener.addToRolePolicy(new PolicyStatement({
+      actions: ['events:PutEvents'],
+      resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`],
+    }));
 
     // Ingress: investor-bus → SQS → event-listener
     // investor-bus receives forwarded events from advisory-hub and execution-hub
@@ -57,6 +62,8 @@ export class DashboardBffStack extends Stack {
         'USER_CONFIRMATION_REQUESTED',
         'DECISION_APPROVED',
         'DECISION_BLOCKED',
+        // Order-ledger events (forwarded from execution-hub → investor-bus)
+        'PORTFOLIO_SNAPSHOT_UPDATED',
         // Investor domain (native on investor-bus)
         'ONBOARDING_COMPLETED',
         'GOAL_SET',
@@ -73,9 +80,13 @@ export class DashboardBffStack extends Stack {
     const resolver = new NodejsFunction(this, 'GraphqlResolver', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'graphql-resolver.ts'),
-      environment: { TABLE_NAME: state.table.tableName },
+      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'dashboard-bff' },
     });
     state.table.grantReadData(resolver);
+    resolver.addToRolePolicy(new PolicyStatement({
+      actions: ['events:PutEvents'],
+      resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`],
+    }));
 
     // Read Cognito UserPool from SSM
     const userPoolId = StringParameter.valueForStringParameter(

@@ -99,6 +99,19 @@ export const GET_RECENT_ACTIVITY = `
   ${ACTIVITY_ENTRY_FIELDS}
 `;
 
+export const GET_SIMULATION_SUMMARY = `
+  query GetSimulationSummary {
+    getSimulationSummary {
+      actualTotalValueCents
+      simulatedTotalValueCents
+      actualReturnPercent
+      simulatedReturnPercent
+      returnDifferencePercent
+      updatedAt
+    }
+  }
+`;
+
 // --- Subscriptions ---
 
 export const ON_DASHBOARD_UPDATE = `

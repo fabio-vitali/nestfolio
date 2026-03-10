@@ -1,8 +1,9 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { requireEnv, authorizeUser, validateQueryDepth, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { requireEnv, authorizeUser, validateQueryDepth, applyMiddleware, withLambdaContext, withTiming, withErrorPublishing, EventBridgeBus } from '@nestfolio/lambda-utils';
 import { DashboardRepository } from '../repositories/dashboard.repository';
+import { PaginationLimitSchema } from '../validation/schemas';
 
 export interface ResolverDeps {
   readonly repository: DashboardRepository;
@@ -28,8 +29,30 @@ export const createResolver = (deps: ResolverDeps) =>
           return deps.repository.getPositionSnapshots(tenantId);
 
         case 'getRecentActivity': {
-          const limit = (args.limit as number) ?? 20;
+          const limit = PaginationLimitSchema.parse(args.limit);
           return deps.repository.getRecentActivity(tenantId, limit);
+        }
+
+        case 'getTimeTravelAvailability': {
+          const availability = await deps.repository.getTimeTravelAvailability(tenantId);
+          return {
+            available: availability?.['available'] ?? false,
+            oldestDate: availability?.['oldestDate'] ?? null,
+            latestDate: availability?.['latestDate'] ?? null,
+          };
+        }
+
+        case 'getSimulationSummary': {
+          const summary = await deps.repository.getSimulationSummary(tenantId);
+          if (!summary) return null;
+          return {
+            actualTotalValueCents: summary['actualTotalValueCents'],
+            simulatedTotalValueCents: summary['simulatedTotalValueCents'],
+            actualReturnPercent: summary['actualReturnPercent'],
+            simulatedReturnPercent: summary['simulatedReturnPercent'],
+            returnDifferencePercent: summary['returnDifferencePercent'],
+            updatedAt: summary['updatedAt'],
+          };
         }
 
         default:
@@ -43,12 +66,14 @@ export const createResolver = (deps: ResolverDeps) =>
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
+const bus = new EventBridgeBus(requireEnv('BUS_NAME'), 'dashboard-bff');
 const resolverDeps: ResolverDeps = {
   repository: new DashboardRepository(TABLE_NAME, new DynamoDBClient({})),
 };
 
 export const handler = applyMiddleware(
   createResolver(resolverDeps) as (event: unknown) => Promise<unknown>,
+  withErrorPublishing(bus, 'DASHBOARD_BFF_FAILED'),
   withLambdaContext(),
   withTiming('dashboard-bff-graphql-resolver'),
 );

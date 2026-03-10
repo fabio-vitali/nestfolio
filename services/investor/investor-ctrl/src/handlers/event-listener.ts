@@ -1,13 +1,14 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationLifecycleService } from '../services/notification-lifecycle.service';
 
 export interface EventListenerDeps {
   readonly idempotencyGuard: IdempotencyGuard;
   readonly lifecycleService: NotificationLifecycleService;
+  readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
 }
 
@@ -57,6 +58,7 @@ export const createHandler = (deps: EventListenerDeps) =>
           messageId: record.messageId,
           error: error instanceof Error ? error.message : String(error),
         });
+        await publishErrorEvent(deps.bus, 'INVESTOR_CTRL_FAILED', error);
         deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
         if (isRetryable(error)) {
           failures.push(record.messageId);
@@ -79,6 +81,7 @@ const repository = new NotificationRepository(TABLE_NAME, dynamoClient);
 const deps: EventListenerDeps = {
   idempotencyGuard: new IdempotencyGuard(dynamoClient, TABLE_NAME),
   lifecycleService: new NotificationLifecycleService(repository),
+  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'investor-ctrl'),
   metrics: createServiceMetrics('investor-ctrl'),
 };
 

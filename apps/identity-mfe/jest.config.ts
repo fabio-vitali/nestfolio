@@ -8,6 +8,7 @@ export default {
     '^@nestfolio/appsync-client$': '<rootDir>/../../libs/appsync-client/src/index.ts',
     '^@nestfolio/domain-core$': '<rootDir>/../../libs/domain-core/src/index.ts',
     '^@nestfolio/shared-state$': '<rootDir>/../../libs/shared-state/src/index.ts',
+    '^@nestfolio/shared-state/testing$': '<rootDir>/../../libs/shared-state/src/testing/index.ts',
     '^@nestfolio/auth$': '<rootDir>/../../libs/auth/src/index.ts',
     '^@nestfolio/i18n$': '<rootDir>/../../libs/i18n/src/index.ts',
     '^@nestfolio/ui-components$': '<rootDir>/../../libs/ui-components/src/index.ts',

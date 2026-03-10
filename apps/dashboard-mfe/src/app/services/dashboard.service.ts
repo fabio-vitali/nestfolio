@@ -5,12 +5,14 @@ import {
   GET_DASHBOARD,
   GET_POSITION_SNAPSHOTS,
   GET_RECENT_ACTIVITY,
+  GET_SIMULATION_SUMMARY,
 } from '@nestfolio/appsync-client';
 import { LogoutOrchestrator } from '@nestfolio/shared-state';
 import type {
   DashboardData,
   PositionSnapshot,
   ActivityEntry,
+  SimulationSummary,
 } from '../stores/dashboard.store';
 
 @Injectable({ providedIn: 'root' })
@@ -42,6 +44,16 @@ export class DashboardService {
     return data.getPositionSnapshots ?? [];
   }
 
+  private readonly simulationSummaryCache = new CachedQuery(
+    () => this.graphql.query<{ getSimulationSummary: SimulationSummary | null }>(GET_SIMULATION_SUMMARY),
+    60_000,
+  );
+
+  async getSimulationSummary(forceRefresh = false): Promise<SimulationSummary | null> {
+    const data = await this.simulationSummaryCache.get(forceRefresh);
+    return data.getSimulationSummary ?? null;
+  }
+
   async getRecentActivity(limit?: number): Promise<ActivityEntry[]> {
     const data = await this.graphql.query<{ getRecentActivity: ActivityEntry[] | null }>(
       GET_RECENT_ACTIVITY,
@@ -53,5 +65,6 @@ export class DashboardService {
   invalidateCaches(): void {
     this.dashboardCache.invalidate();
     this.positionsCache.invalidate();
+    this.simulationSummaryCache.invalidate();
   }
 }

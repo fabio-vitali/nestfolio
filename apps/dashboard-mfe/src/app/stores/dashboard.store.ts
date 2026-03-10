@@ -51,6 +51,15 @@ export interface InvestorSnapshot {
   updatedAt: string;
 }
 
+export interface SimulationSummary {
+  actualTotalValueCents: number;
+  simulatedTotalValueCents: number;
+  actualReturnPercent: number;
+  simulatedReturnPercent: number;
+  returnDifferencePercent: number;
+  updatedAt: string;
+}
+
 export interface DashboardData {
   portfolioSummary: PortfolioSummary | null;
   advisoryStatus: AdvisoryStatus | null;
@@ -63,6 +72,7 @@ interface DashboardState {
   investorSnapshot: InvestorSnapshot | null;
   positions: PositionSnapshot[];
   activities: ActivityEntry[];
+  simulationSummary: SimulationSummary | null;
 }
 
 const initialState: DashboardState = {
@@ -71,6 +81,7 @@ const initialState: DashboardState = {
   investorSnapshot: null,
   positions: [],
   activities: [],
+  simulationSummary: null,
 };
 
 export const DashboardStore = signalStore(
@@ -96,6 +107,8 @@ export const DashboardStore = signalStore(
       return (status?.pendingDecisionsCount ?? 0) > 0;
     }),
     isLoaded: computed(() => store.portfolioSummary() !== null),
+    hasSimulationData: computed(() => store.simulationSummary() !== null),
+    simulationAdvantagePercent: computed(() => store.simulationSummary()?.returnDifferencePercent ?? 0),
   })),
   withMethods((store) => ({
     setDashboard(data: DashboardData): void {
@@ -110,6 +123,9 @@ export const DashboardStore = signalStore(
     },
     setActivities(activities: ActivityEntry[]): void {
       patchState(store, { activities });
+    },
+    setSimulationSummary(simulationSummary: SimulationSummary | null): void {
+      patchState(store, { simulationSummary });
     },
     setLoading(v: boolean): void {
       if (v) {

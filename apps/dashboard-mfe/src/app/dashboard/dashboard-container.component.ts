@@ -11,6 +11,7 @@ import { PositionsTableComponent } from './positions-table.component';
 import { AllocationChartComponent } from './allocation-chart.component';
 import { ActivityFeedComponent } from './activity-feed.component';
 import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
+import { ComparisonCardComponent } from './comparison-card.component';
 
 @Component({
   selector: 'app-dashboard-container',
@@ -24,6 +25,7 @@ import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
     AllocationChartComponent,
     ActivityFeedComponent,
     AdvisoryAlertBarComponent,
+    ComparisonCardComponent,
   ],
   template: `
     @if (store.loading() && !store.isLoaded()) {
@@ -32,7 +34,7 @@ import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
       <div class="dashboard-grid">
         @if (store.error()) {
           <div class="dashboard-error">
-            <p-message severity="error" [text]="store.error()!" styleClass="w-full" />
+            <p-message severity="error" [text]="i18n.t(store.error()!)" styleClass="w-full" />
           </div>
         }
 
@@ -51,6 +53,9 @@ import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
 
           <div class="right-panel">
             <app-allocation-chart [allocation]="store.allocationByAssetClass()" />
+            @if (store.hasSimulationData()) {
+              <app-comparison-card [summary]="store.simulationSummary()" />
+            }
             <app-activity-feed [activities]="store.activities()" />
           </div>
         </div>
@@ -146,15 +151,17 @@ export class DashboardContainerComponent implements OnInit {
     this.store.setError(null);
 
     try {
-      const [dashboard, positions, activities] = await Promise.all([
+      const [dashboard, positions, activities, simulationSummary] = await Promise.all([
         this.dashboardService.getDashboard(),
         this.dashboardService.getPositionSnapshots(),
         this.dashboardService.getRecentActivity(20),
+        this.dashboardService.getSimulationSummary(),
       ]);
 
       this.store.setDashboard(dashboard);
       this.store.setPositions(positions);
       this.store.setActivities(activities);
+      this.store.setSimulationSummary(simulationSummary);
     } catch (e: unknown) {
       this.store.setError(parseError(e, 'errors.dashboard'));
     } finally {

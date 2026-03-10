@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 import { OrderFilledPipe } from '../pipes/order-filled.pipe';
 import { SnapshotImportedPipe } from '../pipes/snapshot-imported.pipe';
@@ -11,6 +11,7 @@ interface EventListenerDeps {
   readonly idempotencyGuard: IdempotencyGuard;
   readonly orderFilledPipe: OrderFilledPipe;
   readonly snapshotImportedPipe: SnapshotImportedPipe;
+  readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
 }
 
@@ -51,6 +52,7 @@ export const createHandler = (deps: EventListenerDeps) =>
           messageId: record.messageId,
           error: error instanceof Error ? error.message : String(error),
         });
+        await publishErrorEvent(deps.bus, 'PORTFOLIO_BFF_FAILED', error);
         deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
         if (isRetryable(error)) {
           failures.push(record.messageId);
@@ -127,6 +129,7 @@ const deps: EventListenerDeps = {
   idempotencyGuard,
   orderFilledPipe: new OrderFilledPipe(repository),
   snapshotImportedPipe: new SnapshotImportedPipe(repository),
+  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'portfolio-bff'),
   metrics: createServiceMetrics('portfolio-bff'),
 };
 

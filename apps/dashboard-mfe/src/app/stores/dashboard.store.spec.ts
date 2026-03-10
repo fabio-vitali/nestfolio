@@ -6,6 +6,7 @@ import {
   ActivityEntry,
   AdvisoryStatus,
   DashboardData,
+  SimulationSummary,
 } from './dashboard.store';
 import { LogoutOrchestrator } from '@nestfolio/shared-state';
 
@@ -69,12 +70,22 @@ describe('DashboardStore', () => {
     },
   ];
 
+  const mockSimulationSummary: SimulationSummary = {
+    actualTotalValueCents: 10500000,
+    simulatedTotalValueCents: 10800000,
+    actualReturnPercent: 5.0,
+    simulatedReturnPercent: 8.0,
+    returnDifferencePercent: 3.0,
+    updatedAt: '2026-03-01T00:00:00Z',
+  };
+
   it('should have correct initial state', () => {
     expect(store.portfolioSummary()).toBeNull();
     expect(store.advisoryStatus()).toBeNull();
     expect(store.investorSnapshot()).toBeNull();
     expect(store.positions()).toEqual([]);
     expect(store.activities()).toEqual([]);
+    expect(store.simulationSummary()).toBeNull();
     expect(store.loading()).toBe(false);
     expect(store.error()).toBeNull();
   });
@@ -138,6 +149,17 @@ describe('DashboardStore', () => {
       investorSnapshot: null,
     });
     expect(store.hasAdvisoryAlerts()).toBe(true);
+  });
+
+  it('should set and compute simulation summary', () => {
+    expect(store.hasSimulationData()).toBe(false);
+    expect(store.simulationAdvantagePercent()).toBe(0);
+
+    store.setSimulationSummary(mockSimulationSummary);
+
+    expect(store.simulationSummary()).toEqual(mockSimulationSummary);
+    expect(store.hasSimulationData()).toBe(true);
+    expect(store.simulationAdvantagePercent()).toBe(3.0);
   });
 
   it('should compute isLoaded', () => {

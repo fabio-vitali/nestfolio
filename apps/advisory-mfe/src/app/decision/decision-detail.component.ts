@@ -36,7 +36,7 @@ import { TradesTableComponent } from './trades-table.component';
     } @else {
       <div class="decision-detail">
         @if (store.error()) {
-          <p-message severity="error" [text]="store.error()!" styleClass="w-full" />
+          <p-message severity="error" [text]="i18n.t(store.error()!)" styleClass="w-full" />
         }
 
         @if (store.decision(); as decision) {

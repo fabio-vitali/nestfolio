@@ -334,6 +334,142 @@ export class DashboardRepository extends TableRepository {
     },
   );
 
+  // --- Time-Travel Availability ---
+
+  readonly upsertTimeTravelAvailability = this.log('upsertTimeTravelAvailability',
+    async (tenantId: string, snapshotAt: string): Promise<void> => {
+      const pk = dashboardPk(tenantId);
+      const now = getTime();
+
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: 'TimeTravel' },
+          UpdateExpression: 'SET #ts = :ts, updatedAt = :now, __typename = :typename, tenantId = :tenantId, available = :available, latestDate = :latest, oldestDate = if_not_exists(oldestDate, :latest)',
+          ExpressionAttributeNames: { '#ts': 'timestamp' },
+          ExpressionAttributeValues: {
+            ':ts': now,
+            ':now': now,
+            ':typename': 'TimeTravelAvailability',
+            ':tenantId': tenantId,
+            ':available': true,
+            ':latest': snapshotAt.slice(0, 10),
+          },
+        }),
+      );
+    },
+  );
+
+  readonly getTimeTravelAvailability = this.log('getTimeTravelAvailability',
+    async (tenantId: string): Promise<Record<string, unknown> | null> => {
+      const pk = dashboardPk(tenantId);
+      const result = await this.docClient.send(
+        new GetCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: 'TimeTravel' },
+        }),
+      );
+      return (result.Item as Record<string, unknown>) ?? null;
+    },
+  );
+
+  // --- Simulation Summary ---
+
+  readonly upsertStreamSnapshot = this.log('upsertStreamSnapshot',
+    async (
+      tenantId: string,
+      streamType: string,
+      data: {
+        totalValueCents: number;
+        cashBalanceCents: number;
+        positionCount: number;
+      },
+    ): Promise<void> => {
+      const pk = dashboardPk(tenantId);
+      const now = getTime();
+
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: `StreamSnapshot#${streamType}` },
+          UpdateExpression: 'SET #ts = :ts, updatedAt = :now, __typename = :typename, tenantId = :tenantId, totalValueCents = :totalValue, cashBalanceCents = :cash, positionCount = :posCount',
+          ExpressionAttributeNames: { '#ts': 'timestamp' },
+          ExpressionAttributeValues: {
+            ':ts': now,
+            ':now': now,
+            ':typename': 'StreamSnapshot',
+            ':tenantId': tenantId,
+            ':totalValue': data.totalValueCents,
+            ':cash': data.cashBalanceCents,
+            ':posCount': data.positionCount,
+          },
+        }),
+      );
+    },
+  );
+
+  readonly getStreamSnapshot = this.log('getStreamSnapshot',
+    async (tenantId: string, streamType: string): Promise<Record<string, unknown> | null> => {
+      const pk = dashboardPk(tenantId);
+      const result = await this.docClient.send(
+        new GetCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: `StreamSnapshot#${streamType}` },
+        }),
+      );
+      return (result.Item as Record<string, unknown>) ?? null;
+    },
+  );
+
+  readonly upsertSimulationSummary = this.log('upsertSimulationSummary',
+    async (
+      tenantId: string,
+      data: {
+        actualTotalValueCents: number;
+        simulatedTotalValueCents: number;
+        actualReturnPercent: number;
+        simulatedReturnPercent: number;
+        returnDifferencePercent: number;
+      },
+    ): Promise<void> => {
+      const pk = dashboardPk(tenantId);
+      const now = getTime();
+
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: 'SimulationSummary' },
+          UpdateExpression: 'SET #ts = :ts, updatedAt = :now, __typename = :typename, tenantId = :tenantId, actualTotalValueCents = :actualTotal, simulatedTotalValueCents = :simTotal, actualReturnPercent = :actualRet, simulatedReturnPercent = :simRet, returnDifferencePercent = :retDiff',
+          ExpressionAttributeNames: { '#ts': 'timestamp' },
+          ExpressionAttributeValues: {
+            ':ts': now,
+            ':now': now,
+            ':typename': 'SimulationSummary',
+            ':tenantId': tenantId,
+            ':actualTotal': data.actualTotalValueCents,
+            ':simTotal': data.simulatedTotalValueCents,
+            ':actualRet': data.actualReturnPercent,
+            ':simRet': data.simulatedReturnPercent,
+            ':retDiff': data.returnDifferencePercent,
+          },
+        }),
+      );
+    },
+  );
+
+  readonly getSimulationSummary = this.log('getSimulationSummary',
+    async (tenantId: string): Promise<Record<string, unknown> | null> => {
+      const pk = dashboardPk(tenantId);
+      const result = await this.docClient.send(
+        new GetCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: 'SimulationSummary' },
+        }),
+      );
+      return (result.Item as Record<string, unknown>) ?? null;
+    },
+  );
+
   // --- Aggregated Dashboard Query ---
 
   readonly getDashboard = this.log('getDashboard',

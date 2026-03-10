@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { OrderRepository } from '../repositories/order.repository';
 import { SafetyChecksService } from '../services/safety-checks.service';
 import { MarketHoursService } from '../services/market-hours.service';
@@ -11,6 +11,7 @@ interface EventListenerDeps {
   readonly repository: OrderRepository;
   readonly idempotencyGuard: IdempotencyGuard;
   readonly lifecycleService: OrderLifecycleService;
+  readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
 }
 
@@ -67,6 +68,7 @@ export const createHandler = (deps: EventListenerDeps) =>
           messageId: record.messageId,
           error: error instanceof Error ? error.message : String(error),
         });
+        await publishErrorEvent(deps.bus, 'EXECUTION_CTRL_FAILED', error);
         deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
         if (isRetryable(error)) {
           failures.push(record.messageId);
@@ -94,6 +96,7 @@ const deps: EventListenerDeps = {
   repository,
   idempotencyGuard,
   lifecycleService,
+  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'execution-ctrl'),
   metrics: createServiceMetrics('execution-ctrl'),
 };
 

@@ -60,6 +60,13 @@ jest.mock('@nestfolio/platform-core', () => ({
 
 const mockIsRetryable = jest.fn();
 
+class MockNotRetryableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotRetryableError';
+  }
+}
+
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   parseRecord: jest.fn((record) => {
@@ -71,10 +78,19 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     ensureOnce: jest.fn().mockResolvedValue(true),
   })),
   isRetryable: mockIsRetryable,
+  NotRetryableError: MockNotRetryableError,
+  createServiceMetrics: jest.fn().mockReturnValue({
+    addMetric: jest.fn(),
+    publishStoredMetrics: jest.fn(),
+  }),
+  MetricUnit: { Count: 'Count' },
+  traceEvent: jest.fn(),
   applyMiddleware: jest.fn((handler: unknown) => handler),
   withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
   withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
   withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
+  publishErrorEvent: jest.fn().mockResolvedValue(undefined),
+  EventBridgeBus: jest.fn(),
 }));
 
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
@@ -111,9 +127,12 @@ describe('mandate-listener handler', () => {
 
     const repository = new ComplianceRepository('test-table');
 
+    const { createServiceMetrics } = require('@nestfolio/lambda-utils');
     mockDeps = {
       repository,
       idempotencyGuard: { ensureOnce: jest.fn().mockResolvedValue(true) } as any,
+      bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
+      metrics: createServiceMetrics('compliance-ctrl'),
     };
 
     handler = createHandler(mockDeps);

@@ -83,6 +83,8 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn().mockImplementation(() =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
+  withErrorPublishing: jest.fn().mockReturnValue((fn: unknown) => fn),
+  EventBridgeBus: jest.fn(),
 }));
 
 import { AppSyncResolverEvent } from 'aws-lambda';
@@ -192,6 +194,66 @@ describe('dashboard-bff graphql-resolver handler', () => {
 
     const cmd = mockSend.mock.calls[0][0];
     expect(cmd.input.Limit).toBe(5);
+  });
+
+  describe('getTimeTravelAvailability', () => {
+    it('should return default availability when no data exists', async () => {
+      mockSend.mockResolvedValueOnce({ Item: undefined });
+
+      const event = buildEvent('getTimeTravelAvailability');
+      const result = await handler(event) as any;
+
+      expect(result.available).toBe(false);
+      expect(result.oldestDate).toBeNull();
+      expect(result.latestDate).toBeNull();
+    });
+
+    it('should return availability data when it exists', async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: { available: true, oldestDate: '2025-01-01', latestDate: '2025-06-15' },
+      });
+
+      const event = buildEvent('getTimeTravelAvailability');
+      const result = await handler(event) as any;
+
+      expect(result.available).toBe(true);
+      expect(result.oldestDate).toBe('2025-01-01');
+      expect(result.latestDate).toBe('2025-06-15');
+    });
+  });
+
+  describe('getSimulationSummary', () => {
+    it('should return null when no simulation summary exists', async () => {
+      mockSend.mockResolvedValueOnce({ Item: undefined });
+
+      const event = buildEvent('getSimulationSummary');
+      const result = await handler(event);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return simulation summary data when it exists', async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          actualTotalValueCents: 10500000,
+          simulatedTotalValueCents: 10800000,
+          actualReturnPercent: 5.0,
+          simulatedReturnPercent: 8.0,
+          returnDifferencePercent: 3.0,
+          updatedAt: '2025-06-15T12:00:00.000Z',
+        },
+      });
+
+      const event = buildEvent('getSimulationSummary');
+      const result = await handler(event) as any;
+
+      expect(result.actualTotalValueCents).toBe(10500000);
+      expect(result.simulatedTotalValueCents).toBe(10800000);
+      expect(result.actualReturnPercent).toBe(5.0);
+      expect(result.simulatedReturnPercent).toBe(8.0);
+      expect(result.returnDifferencePercent).toBe(3.0);
+      expect(result.updatedAt).toBe('2025-06-15T12:00:00.000Z');
+    });
   });
 
   it('should throw for unknown field', async () => {

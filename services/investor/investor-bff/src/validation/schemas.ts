@@ -57,3 +57,9 @@ export const OnboardingAnswerInputSchema = z.object({
   questionId: z.string().min(1).max(100).optional(),
   answer: z.unknown().optional(),
 });
+
+// --- Query argument schemas ---
+
+export const PaginationLimitSchema = z.number().int().positive().max(100).default(20);
+
+export const CursorSchema = z.string().min(1).max(1024).optional();

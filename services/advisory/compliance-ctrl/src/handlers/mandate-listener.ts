@@ -1,12 +1,14 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, NotRetryableError, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 
 export interface MandateListenerDeps {
   readonly repository: ComplianceRepository;
   readonly idempotencyGuard: IdempotencyGuard;
+  readonly metrics: ReturnType<typeof createServiceMetrics>;
+  readonly bus: Bus;
 }
 
 export const createHandler = (deps: MandateListenerDeps) =>
@@ -19,6 +21,7 @@ export const createHandler = (deps: MandateListenerDeps) =>
         const eventType = uow.event.type;
 
         logger.info('Processing mandate event', { eventType, eventId: uow.event.id });
+        traceEvent(eventType, uow.event.id);
 
         const isNew = await deps.idempotencyGuard.ensureOnce(eventType, uow.event.id);
         if (!isNew) {
@@ -35,7 +38,7 @@ export const createHandler = (deps: MandateListenerDeps) =>
           case 'MANDATE_GRANTED':
           case 'MANDATE_UPDATED':
             if (!subject.mandateId || !subject.level) {
-              throw new Error(`Missing required mandate fields: mandateId=${subject.mandateId}, level=${subject.level}`);
+              throw new NotRetryableError(`Missing required mandate fields: mandateId=${subject.mandateId}, level=${subject.level}`);
             }
             await deps.repository.putMandateSnapshot(tenantId, userId, {
               mandateId: subject.mandateId,
@@ -67,16 +70,21 @@ export const createHandler = (deps: MandateListenerDeps) =>
           default:
             logger.info('No handler for mandate event type, skipping', { eventType });
         }
+        deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
       } catch (error) {
         logger.error('Failed to process mandate record', {
           messageId: record.messageId,
           error: error instanceof Error ? error.message : String(error),
         });
+        await publishErrorEvent(deps.bus, 'COMPLIANCE_CTRL_FAILED', error);
+        deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
         if (isRetryable(error)) {
           failures.push(record.messageId);
         }
       }
     }
+
+    deps.metrics.publishStoredMetrics();
 
     return {
       batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
@@ -92,6 +100,8 @@ const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 const mandateDeps: MandateListenerDeps = {
   repository,
   idempotencyGuard,
+  metrics: createServiceMetrics('compliance-ctrl'),
+  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'compliance-ctrl'),
 };
 
 export const handler = applyMiddleware(

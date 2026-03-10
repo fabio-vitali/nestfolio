@@ -72,6 +72,43 @@
       "lastRecommendation": "Ultima Raccomandazione",
       "lastStatus": "Ultimo Stato",
       "viewAll": "Vedi Tutta la Consulenza"
+    },
+    "comparison": {
+      "title": "Confronto Simulazione",
+      "pageTitle": "Portafoglio Reale vs Simulato",
+      "yourPortfolio": "Il Tuo Portafoglio",
+      "agentAdvice": "Consiglio dell'Agente",
+      "difference": "Differenza",
+      "viewDetails": "Vedi Dettagli",
+      "backToDashboard": "Torna alla Dashboard",
+      "actual": "Reale",
+      "simulated": "Simulato",
+      "totalValue": "Valore Totale",
+      "cashBalance": "Saldo Contante",
+      "positions": "Posizioni",
+      "totalReturn": "Rendimento Totale",
+      "returnCents": "Importo Rendimento",
+      "divergence": "Divergenza Posizioni",
+      "missedDecisions": "Decisioni Mancate",
+      "valueDifference": "Differenza di Valore",
+      "symbol": "Simbolo",
+      "actualQty": "Qta Reale",
+      "simulatedQty": "Qta Simulata",
+      "qtyDiff": "Diff Qta",
+      "actualValue": "Valore Reale",
+      "simulatedValue": "Valore Simulato",
+      "noDivergence": "Nessuna divergenza nelle posizioni",
+      "noData": "Nessun dato di simulazione disponibile. I confronti appariranno dopo che l'agente iniziera a elaborare le decisioni."
+    },
+    "timeTravel": {
+      "title": "Portafoglio Storico",
+      "backToNow": "Torna al Presente",
+      "unavailable": "Il viaggio nel tempo non e ancora disponibile. Le istantanee del portafoglio appariranno qui quando inizierai a operare.",
+      "historicalPositions": "Posizioni Storiche",
+      "totalValue": "Valore Totale",
+      "cash": "Contante",
+      "lastPrice": "Ultimo Prezzo",
+      "noPositions": "Nessuna posizione a questa data"
     }
   },
   "portfolio": {
@@ -115,6 +152,18 @@
     "emptyHint": "Le notifiche appariranno qui quando ci saranno aggiornamenti",
     "loadMore": "Carica altre",
     "markAllRead": "Segna tutte come lette"
+  },
+  "errors": {
+    "unexpected": "Si è verificato un errore imprevisto. Riprova.",
+    "unauthorized": "Non sei autorizzato ad eseguire questa azione.",
+    "validation": "I dati inseriti non sono validi. Controlla e riprova.",
+    "conflict": "Si è verificato un conflitto. I dati potrebbero essere stati modificati da un'altra sessione.",
+    "throttled": "Troppe richieste. Attendi un momento e riprova.",
+    "timeTravel": "Impossibile caricare i dati storici del portafoglio. Riprova.",
+    "comparison": "Impossibile caricare il confronto delle simulazioni. Riprova.",
+    "dashboard": "Impossibile caricare i dati della dashboard. Riprova.",
+    "decision": "Impossibile caricare i dettagli della decisione. Riprova.",
+    "notifications": "Impossibile caricare le notifiche. Riprova."
   },
   "onboarding": {
     "welcome": "Benvenuto in Nestfolio",

@@ -87,6 +87,8 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
   withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
   withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
+  publishErrorEvent: jest.fn().mockResolvedValue(undefined),
+  EventBridgeBus: jest.fn(),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
@@ -128,6 +130,7 @@ describe('event-listener handler', () => {
     mockDeps = {
       idempotencyGuard: { ensureOnce: jest.fn().mockResolvedValue(true) } as any,
       lifecycleService,
+      bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: {
         addMetric: jest.fn(),
         addDimension: jest.fn(),

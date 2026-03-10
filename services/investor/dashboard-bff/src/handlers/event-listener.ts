@@ -1,13 +1,15 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { PortfolioSummaryPipe } from '../pipes/portfolio-summary.pipe';
 import { PositionSnapshotPipe } from '../pipes/position-snapshot.pipe';
 import { RecentActivityPipe } from '../pipes/recent-activity.pipe';
 import { AdvisoryStatusPipe } from '../pipes/advisory-status.pipe';
 import { InvestorSnapshotPipe } from '../pipes/investor-snapshot.pipe';
+import { TimeTravelAvailabilityPipe } from '../pipes/time-travel-availability.pipe';
+import { SimulationSummaryPipe } from '../pipes/simulation-summary.pipe';
 
 interface NamedPipe {
   name: string;
@@ -17,6 +19,7 @@ interface NamedPipe {
 export interface EventListenerDeps {
   readonly idempotencyGuard: IdempotencyGuard;
   readonly eventPipeMap: Record<string, NamedPipe[]>;
+  readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
 }
 
@@ -39,6 +42,7 @@ export const createHandler = (deps: EventListenerDeps) =>
           messageId: record.messageId,
           error: error instanceof Error ? error.message : String(error),
         });
+        await publishErrorEvent(deps.bus, 'DASHBOARD_BFF_FAILED', error);
         deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
         if (isRetryable(error)) {
           failures.push(record.messageId);
@@ -87,6 +91,8 @@ const positionSnapshotPipe = new PositionSnapshotPipe(repository);
 const recentActivityPipe = new RecentActivityPipe(repository);
 const advisoryStatusPipe = new AdvisoryStatusPipe(repository);
 const investorSnapshotPipe = new InvestorSnapshotPipe(repository);
+const timeTravelAvailabilityPipe = new TimeTravelAvailabilityPipe(repository);
+const simulationSummaryPipe = new SimulationSummaryPipe(repository);
 
 const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
   // Execution events (forwarded from execution-hub -> investor-bus)
@@ -130,6 +136,12 @@ const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
     { name: 'recentActivity', pipe: recentActivityPipe },
   ],
 
+  // Order-ledger events (forwarded from execution-hub → investor-bus)
+  PORTFOLIO_SNAPSHOT_UPDATED: [
+    { name: 'timeTravelAvailability', pipe: timeTravelAvailabilityPipe },
+    { name: 'simulationSummary', pipe: simulationSummaryPipe },
+  ],
+
   // Investor events (native on investor-bus)
   ONBOARDING_COMPLETED: [
     { name: 'investorSnapshot', pipe: investorSnapshotPipe },
@@ -151,6 +163,7 @@ const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
 const deps: EventListenerDeps = {
   idempotencyGuard: new IdempotencyGuard(dynamoClient, TABLE_NAME),
   eventPipeMap: EVENT_PIPE_MAP,
+  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'dashboard-bff'),
   metrics: createServiceMetrics('dashboard-bff'),
 };
 

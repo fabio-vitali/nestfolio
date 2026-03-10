@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { DecisionRepository } from '../repositories/decision.repository';
 import { DecisionLifecycleService } from '../services/decision-lifecycle.service';
 
@@ -9,6 +9,7 @@ export interface EventListenerDeps {
   readonly idempotencyGuard: IdempotencyGuard;
   readonly lifecycleService: DecisionLifecycleService;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
+  readonly bus: Bus;
 }
 
 const TRIGGER_EVENT_TYPES = new Set([
@@ -60,10 +61,11 @@ export const createHandler = (deps: EventListenerDeps) =>
           messageId: record.messageId,
           error: error instanceof Error ? error.message : String(error),
         });
+        await publishErrorEvent(deps.bus, 'ADVISORY_CTRL_FAILED', error);
+        deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
         if (isRetryable(error)) {
           failures.push(record.messageId);
         }
-        deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
       }
     }
 
@@ -85,6 +87,7 @@ const deps: EventListenerDeps = {
   idempotencyGuard,
   lifecycleService,
   metrics: createServiceMetrics('advisory-ctrl'),
+  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'advisory-ctrl'),
 };
 
 export const handler = applyMiddleware(

@@ -38,7 +38,7 @@ const PAGE_SIZE = 20;
         </div>
 
         @if (store.error()) {
-          <p-message severity="error" [text]="store.error()!" styleClass="w-full" />
+          <p-message severity="error" [text]="i18n.t(store.error()!)" styleClass="w-full" />
         }
 
         @if (store.isEmpty()) {

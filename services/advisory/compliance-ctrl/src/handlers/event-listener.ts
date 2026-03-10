@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, getUUID } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, NotRetryableError, traceEvent, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, NotRetryableError, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';
@@ -14,6 +14,7 @@ export interface EventListenerDeps {
   readonly idempotencyGuard: IdempotencyGuard;
   readonly ruleEngine: RuleEngine;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
+  readonly bus: Bus;
 }
 
 const HANDLED_EVENT_TYPES = new Set([
@@ -58,6 +59,7 @@ export const createHandler = (deps: EventListenerDeps) =>
           messageId: record.messageId,
           error: error instanceof Error ? error.message : String(error),
         });
+        await publishErrorEvent(deps.bus, 'COMPLIANCE_CTRL_FAILED', error);
         deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
         if (isRetryable(error)) {
           failures.push(record.messageId);
@@ -179,6 +181,7 @@ const deps: EventListenerDeps = {
   idempotencyGuard,
   ruleEngine,
   metrics: createServiceMetrics('compliance-ctrl'),
+  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'compliance-ctrl'),
 };
 
 export const handler = applyMiddleware(

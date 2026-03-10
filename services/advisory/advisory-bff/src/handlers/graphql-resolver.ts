@@ -1,7 +1,7 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { requireEnv, authorizeUser, validateQueryDepth, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { requireEnv, authorizeUser, validateQueryDepth, applyMiddleware, withLambdaContext, withTiming, withErrorPublishing, EventBridgeBus } from '@nestfolio/lambda-utils';
 import { AdvisoryRepository } from '../repositories/advisory.repository';
 import {
   getDecision,
@@ -15,7 +15,7 @@ import {
   rejectDecision,
   recordExplanationView,
 } from '../resolvers/confirmation.resolver';
-import { DecisionIdSchema, RejectDecisionInputSchema } from '../validation/schemas';
+import { DecisionIdSchema, RejectDecisionInputSchema, PaginationLimitSchema, CursorSchema } from '../validation/schemas';
 
 export interface ResolverDeps {
   readonly repository: AdvisoryRepository;
@@ -33,26 +33,32 @@ export const createResolver = (deps: ResolverDeps) =>
 
       switch (fieldName) {
       // Queries
-      case 'getDecision':
-        return getDecision(deps.repository, tenantId, args.decisionId as string);
+      case 'getDecision': {
+        const decisionId = DecisionIdSchema.parse(args.decisionId);
+        return getDecision(deps.repository, tenantId, decisionId);
+      }
 
       case 'getPendingDecisions': {
-        const limit = (args.limit as number) ?? 20;
-        const cursor = args.cursor as string | undefined;
+        const limit = PaginationLimitSchema.parse(args.limit);
+        const cursor = CursorSchema.parse(args.cursor);
         return getPendingDecisions(deps.repository, tenantId, limit, cursor);
       }
 
       case 'getDecisionHistory': {
-        const limit = (args.limit as number) ?? 20;
-        const cursor = args.cursor as string | undefined;
+        const limit = PaginationLimitSchema.parse(args.limit);
+        const cursor = CursorSchema.parse(args.cursor);
         return getDecisionHistory(deps.repository, tenantId, limit, cursor);
       }
 
-      case 'getAgentInvocations':
-        return getAgentInvocations(deps.repository, tenantId, args.decisionId as string);
+      case 'getAgentInvocations': {
+        const decisionId = DecisionIdSchema.parse(args.decisionId);
+        return getAgentInvocations(deps.repository, tenantId, decisionId);
+      }
 
-      case 'getComplianceChecks':
-        return getComplianceChecks(deps.repository, tenantId, args.decisionId as string);
+      case 'getComplianceChecks': {
+        const decisionId = DecisionIdSchema.parse(args.decisionId);
+        return getComplianceChecks(deps.repository, tenantId, decisionId);
+      }
 
       // Mutations
       case 'confirmDecision': {
@@ -84,12 +90,14 @@ export const createResolver = (deps: ResolverDeps) =>
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
+const bus = new EventBridgeBus(requireEnv('BUS_NAME'), 'advisory-bff');
 const resolverDeps: ResolverDeps = {
   repository: new AdvisoryRepository(TABLE_NAME, new DynamoDBClient({})),
 };
 
 export const handler = applyMiddleware(
   createResolver(resolverDeps) as (event: unknown) => Promise<unknown>,
+  withErrorPublishing(bus, 'ADVISORY_BFF_FAILED'),
   withLambdaContext(),
   withTiming('advisory-bff-graphql-resolver'),
 );

@@ -8,4 +8,18 @@ export const remoteRoutes: Routes = [
         (m) => m.DashboardContainerComponent,
       ),
   },
+  {
+    path: 'time-travel',
+    loadComponent: () =>
+      import('./time-travel/time-travel-container.component').then(
+        (m) => m.TimeTravelContainerComponent,
+      ),
+  },
+  {
+    path: 'comparison',
+    loadComponent: () =>
+      import('./comparison/comparison-container.component').then(
+        (m) => m.ComparisonContainerComponent,
+      ),
+  },
 ];

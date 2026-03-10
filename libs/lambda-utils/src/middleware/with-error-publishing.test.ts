@@ -16,6 +16,8 @@ jest.mock('@nestfolio/platform-core', () => {
     isRetryable: (error: unknown) => {
       return !(error instanceof MockNotRetryableError);
     },
+    getUUID: () => 'test-uuid',
+    getTime: () => '2025-01-01T00:00:00.000Z',
     logger: { warn: jest.fn() },
   };
 });
@@ -44,7 +46,8 @@ describe('withErrorPublishing', () => {
 
     expect(mockBus.publish).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'test-svc.ERROR',
+        id: 'test-uuid',
+        type: 'test-svc',
         error: { name: 'NotRetryableError', message: 'validation failed' },
       }),
     );

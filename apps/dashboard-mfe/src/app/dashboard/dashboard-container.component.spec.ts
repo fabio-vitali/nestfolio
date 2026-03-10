@@ -19,6 +19,8 @@ describe('DashboardContainerComponent', () => {
       }),
       getPositionSnapshots: jest.fn().mockResolvedValue([]),
       getRecentActivity: jest.fn().mockResolvedValue([]),
+      getSimulationSummary: jest.fn().mockResolvedValue(null),
+      invalidateCaches: jest.fn(),
     } as unknown as jest.Mocked<DashboardService>;
 
     const fixture = await setupComponentTest(DashboardContainerComponent, {
@@ -43,6 +45,7 @@ describe('DashboardContainerComponent', () => {
     expect(mockService.getDashboard).toHaveBeenCalled();
     expect(mockService.getPositionSnapshots).toHaveBeenCalled();
     expect(mockService.getRecentActivity).toHaveBeenCalledWith(20);
+    expect(mockService.getSimulationSummary).toHaveBeenCalled();
   });
 
   it('should set store data after successful load', async () => {

@@ -83,6 +83,8 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
+  publishErrorEvent: jest.fn().mockResolvedValue(undefined),
+  EventBridgeBus: jest.fn(),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({
@@ -150,6 +152,7 @@ describe('event-listener handler', () => {
       notificationCreatedPipe: mockNotificationCreatedPipe as unknown as NotificationCreatedPipe,
       depositDetectedPipe: mockDepositDetectedPipe as unknown as DepositDetectedPipe,
       withdrawalCompletedPipe: mockWithdrawalCompletedPipe as unknown as WithdrawalCompletedPipe,
+      bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: mockMetrics as any,
     });
   });

@@ -1,7 +1,7 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { requireEnv, authorizeUser, validateQueryDepth, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { requireEnv, authorizeUser, validateQueryDepth, applyMiddleware, withLambdaContext, withTiming, withErrorPublishing, EventBridgeBus } from '@nestfolio/lambda-utils';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { getProfile } from '../resolvers/profile.resolver';
 import { setGoal, updateGoal, getGoals } from '../resolvers/goal.resolver';
@@ -25,6 +25,8 @@ import {
   MoneyInputSchema,
   NotificationIdSchema,
   OnboardingAnswerInputSchema,
+  PaginationLimitSchema,
+  CursorSchema,
 } from '../validation/schemas';
 
 interface ResolverDeps {
@@ -52,8 +54,8 @@ export const createResolver = (deps: ResolverDeps) =>
         return getGoals(deps.repository, tenantId, userId);
 
       case 'getNotifications': {
-        const limit = (args.limit as number) ?? 20;
-        const cursor = args.cursor as string | undefined;
+        const limit = PaginationLimitSchema.parse(args.limit);
+        const cursor = CursorSchema.parse(args.cursor);
         const result = await getNotifications(deps.repository, tenantId, userId, limit, cursor);
         return {
           items: result.items,
@@ -133,12 +135,14 @@ export const createResolver = (deps: ResolverDeps) =>
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
+const bus = new EventBridgeBus(requireEnv('BUS_NAME'), 'investor-bff');
 const resolverDeps: ResolverDeps = {
   repository: new InvestorProfileRepository(TABLE_NAME, new DynamoDBClient({})),
 };
 
 export const handler = applyMiddleware(
   createResolver(resolverDeps) as (event: unknown) => Promise<unknown>,
+  withErrorPublishing(bus, 'INVESTOR_BFF_FAILED'),
   withLambdaContext(),
   withTiming('investor-bff-graphql-resolver'),
 );

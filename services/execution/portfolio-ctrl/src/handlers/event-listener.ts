@@ -1,13 +1,14 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { ReconciliationRepository } from '../repositories/reconciliation.repository';
 import { ReconciliationService } from '../services/reconciliation.service';
 
 interface EventListenerDeps {
   readonly idempotencyGuard: IdempotencyGuard;
   readonly reconciliationService: ReconciliationService;
+  readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
 }
 
@@ -78,6 +79,7 @@ export const createHandler = (deps: EventListenerDeps) =>
           messageId: record.messageId,
           error: error instanceof Error ? error.message : String(error),
         });
+        await publishErrorEvent(deps.bus, 'PORTFOLIO_CTRL_FAILED', error);
         deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
         if (isRetryable(error)) {
           failures.push(record.messageId);
@@ -101,6 +103,7 @@ const reconciliationService = new ReconciliationService(repository);
 const deps: EventListenerDeps = {
   idempotencyGuard,
   reconciliationService,
+  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'portfolio-ctrl'),
   metrics: createServiceMetrics('portfolio-ctrl'),
 };
 

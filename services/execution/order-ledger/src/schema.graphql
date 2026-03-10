@@ -1,0 +1,90 @@
+type Query {
+  getLedgerPortfolio(streamType: StreamType!): LedgerPortfolio!
+  getPortfolioAt(streamType: StreamType!, timestamp: String!): LedgerPortfolio!
+  getSimulationComparison: SimulationComparison!
+  getOrderHistory(
+    streamType: StreamType!
+    orderId: String
+    limit: Int
+    cursor: String
+  ): OrderHistoryPage!
+  getTimeTravelAvailability: TimeTravelAvailability!
+}
+
+type TimeTravelAvailability {
+  available: Boolean!
+  oldestDate: String
+  latestDate: String
+}
+
+enum StreamType {
+  ACTUAL
+  SIMULATED
+}
+
+type LedgerPortfolio {
+  positions: [LedgerPosition!]!
+  cashBalanceCents: Int!
+  totalValueCents: Int!
+  positionCount: Int!
+  snapshotAt: String!
+  streamType: StreamType!
+}
+
+type LedgerPosition {
+  symbol: String!
+  quantity: Float!
+  averageCostBasis: Float!
+  totalCostBasis: Float!
+  lastFillPrice: Float!
+}
+
+type SimulationComparison {
+  actual: PortfolioSummary!
+  simulated: PortfolioSummary!
+  divergence: ComparisonDivergence!
+}
+
+type PortfolioSummary {
+  totalValueCents: Int!
+  cashBalanceCents: Int!
+  positionCount: Int!
+  totalReturnPercent: Float!
+  totalReturnCents: Int!
+}
+
+type ComparisonDivergence {
+  returnDifferencePercent: Float!
+  returnDifferenceCents: Int!
+  positionDifferences: [PositionDifference!]!
+  missedDecisions: Int!
+  totalDecisions: Int!
+}
+
+type PositionDifference {
+  symbol: String!
+  actualQuantity: Float!
+  simulatedQuantity: Float!
+  quantityDifference: Float!
+  actualValueCents: Int!
+  simulatedValueCents: Int!
+}
+
+type OrderHistoryPage {
+  entries: [LedgerEntry!]!
+  nextCursor: String
+  hasMore: Boolean!
+}
+
+type LedgerEntry {
+  eventId: String!
+  eventType: String!
+  orderId: String!
+  symbol: String
+  side: String
+  quantity: Float
+  fillPrice: Float
+  timestamp: String!
+  sequenceNo: Int!
+  decisionId: String
+}
