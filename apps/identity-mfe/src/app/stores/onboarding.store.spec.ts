@@ -92,23 +92,18 @@ describe('OnboardingStore', () => {
       expect(store.progress()).toBe(100);
     });
 
-    it('canProceed should be false at step 0 with no risk answers', () => {
-      expect(store.canProceed()).toBe(false);
-    });
-
-    it('canProceed should be true at step 0 with risk answers', () => {
-      store.setRiskAnswers([{ questionId: 'q1', answerId: 'a1' }]);
+    it('canProceed should be true at step 0 (Welcome)', () => {
       expect(store.canProceed()).toBe(true);
     });
 
-    it('canProceed should be false at step 1 with no risk profile', () => {
+    it('canProceed should be false at step 1 with no risk answers', () => {
       store.goToStep(1);
       expect(store.canProceed()).toBe(false);
     });
 
-    it('canProceed should be true at step 1 with risk profile', () => {
+    it('canProceed should be true at step 1 with risk answers', () => {
       store.goToStep(1);
-      store.setRiskProfile({ score: 7, band: { minEquity: 40, maxEquity: 60 } });
+      store.setRiskAnswers([{ questionId: 'q1', answerId: 'a1' }]);
       expect(store.canProceed()).toBe(true);
     });
 
@@ -123,35 +118,41 @@ describe('OnboardingStore', () => {
       expect(store.canProceed()).toBe(true);
     });
 
-    it('canProceed should be false at step 3 with no operating mode', () => {
+    it('canProceed should be false at step 3 with no risk profile', () => {
       store.goToStep(3);
       expect(store.canProceed()).toBe(false);
     });
 
-    it('canProceed should be true at step 3 with operating mode', () => {
+    it('canProceed should be true at step 3 with risk profile', () => {
       store.goToStep(3);
+      store.setRiskProfile({ score: 7, band: { minEquity: 40, maxEquity: 60 } });
+      expect(store.canProceed()).toBe(true);
+    });
+
+    it('canProceed should be false at step 4 with no operating mode', () => {
+      store.goToStep(4);
+      expect(store.canProceed()).toBe(false);
+    });
+
+    it('canProceed should be true at step 4 with operating mode', () => {
+      store.goToStep(4);
       store.setOperatingMode('BALANCED');
       expect(store.canProceed()).toBe(true);
     });
 
-    it('canProceed should be false at step 4 with no mandate', () => {
-      store.goToStep(4);
+    it('canProceed should be false at step 5 with no mandate', () => {
+      store.goToStep(5);
       expect(store.canProceed()).toBe(false);
     });
 
-    it('canProceed should be true at step 4 with mandate', () => {
-      store.goToStep(4);
+    it('canProceed should be true at step 5 with mandate', () => {
+      store.goToStep(5);
       store.setMandate({
         level: 'ADVISORY',
         monthlyTurnoverCapPercent: 10,
         coolDownDays: 5,
         rebalanceCadence: 'QUARTERLY',
       });
-      expect(store.canProceed()).toBe(true);
-    });
-
-    it('canProceed should be true at step 5 (summary)', () => {
-      store.goToStep(5);
       expect(store.canProceed()).toBe(true);
     });
   });

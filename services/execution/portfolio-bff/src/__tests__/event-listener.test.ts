@@ -45,6 +45,14 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new TransactWriteCommand(input));
     }
+    protected buildTransactUpdate(pk: string, sk: string, attrs: Record<string, unknown>) {
+      const entries = Object.entries(attrs);
+      const names: Record<string, string> = {};
+      const values: Record<string, unknown> = {};
+      const sets: string[] = [];
+      entries.forEach(([k, v], i) => { names[`#a${i}`] = k; values[`:v${i}`] = v; sets.push(`#a${i} = :v${i}`); });
+      return { Update: { TableName: this.tableName, Key: { pk, sk }, UpdateExpression: `SET ${sets.join(', ')}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values } };
+    }
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
@@ -204,6 +212,69 @@ describe('event-listener handler', () => {
     expect(mockSnapshotImportedPipe.process).toHaveBeenCalled();
   });
 
+  it('should pass expectedVersion from existing position when handling CORPORATE_ACTION_APPLIED', async () => {
+    // Reset mockSend completely to clear any queued once-values from prior tests
+    mockSend.mockReset();
+
+    // getPosition returns existing position with version
+    const existingPosition = {
+      pk: 'Portfolio#t1#t1',
+      sk: 'Position#AAPL',
+      quantity: 100,
+      avgCostBasis: 150,
+      currentPrice: 175,
+      version: 3,
+    };
+    mockSend.mockResolvedValueOnce({ Item: existingPosition });
+    // upsertPosition -> transactWrite (default for remaining calls)
+    mockSend.mockResolvedValue({});
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-corp-action',
+        body: {
+          detail: {
+            id: 'evt-corp',
+            type: 'CORPORATE_ACTION_APPLIED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              tenantId: 't1',
+              portfolioId: 't1',
+              actionType: 'SPLIT',
+              symbol: 'AAPL',
+              ratio: 2,
+            },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+
+    // Verify mockSend was called (getPosition + transactWrite)
+    expect(mockSend).toHaveBeenCalled();
+
+    // Find the transactWrite call (the one with TransactItems)
+    const transactCall = mockSend.mock.calls.find(
+      (call) => call[0]?.input?.TransactItems,
+    );
+    expect(transactCall).toBeDefined();
+
+    const transactItems = transactCall![0].input.TransactItems;
+    expect(transactItems).toHaveLength(2);
+
+    // Position Put should include ConditionExpression for optimistic locking
+    const positionPut = transactItems[0].Put;
+    expect(positionPut.Item.instrument).toBe('AAPL');
+    expect(positionPut.Item.quantity).toBe(200); // 100 * 2
+    expect(positionPut.Item.version).toBe(4); // expectedVersion (3) + 1
+    expect(positionPut.ConditionExpression).toBe('#v = :expectedVersion');
+    expect(positionPut.ExpressionAttributeNames).toEqual({ '#v': 'version' });
+    expect(positionPut.ExpressionAttributeValues).toEqual({ ':expectedVersion': 3 });
+  });
+
   it('should report failure for malformed event body (invalid JSON)', async () => {
     const sqsEvent: SQSEvent = {
       Records: [{
@@ -260,5 +331,24 @@ describe('event-listener handler', () => {
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(1);
     expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
+  });
+
+  it('should NOT add to batchItemFailures when error is not retryable', async () => {
+    const { parseRecord, isRetryable } = require('@nestfolio/lambda-utils');
+    (parseRecord as jest.Mock).mockImplementationOnce(() => {
+      throw new Error('Non-retryable error');
+    });
+    (isRetryable as jest.Mock).mockReturnValueOnce(false);
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-non-retryable',
+        body: { detail: { id: 'evt-nr', type: 'ORDER_FILLED', subject: {} } },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+    expect(isRetryable).toHaveBeenCalled();
   });
 });

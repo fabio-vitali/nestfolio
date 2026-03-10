@@ -108,6 +108,7 @@ async function handleCorporateAction(
         currentQty * ratio,
         currentAvgCost / ratio,
         (existing.currentPrice as number) / ratio,
+        (existing.version as number) ?? undefined,
       );
     }
   }

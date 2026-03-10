@@ -44,6 +44,14 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new TransactWriteCommand(input));
     }
+    protected buildTransactUpdate(pk: string, sk: string, attrs: Record<string, unknown>) {
+      const entries = Object.entries(attrs);
+      const names: Record<string, string> = {};
+      const values: Record<string, unknown> = {};
+      const sets: string[] = [];
+      entries.forEach(([k, v], i) => { names[`#a${i}`] = k; values[`:v${i}`] = v; sets.push(`#a${i} = :v${i}`); });
+      return { Update: { TableName: this.tableName, Key: { pk, sk }, UpdateExpression: `SET ${sets.join(', ')}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values } };
+    }
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
@@ -225,6 +233,53 @@ describe('DecisionLifecycleService', () => {
 
       // 1 createDecisionPacket + (6 agents * 2 calls each = 12) + 1 updateDecisionStatus = 14
       expect(mockSend).toHaveBeenCalledTimes(14);
+    });
+
+    it('should propagate error when agent pipeline throws', async () => {
+      const { invokeGraph } = require('@nestfolio/agent-core');
+      (invokeGraph as jest.Mock).mockRejectedValueOnce(new Error('Agent pipeline timeout'));
+
+      const context = {
+        tenantId: 't1',
+        triggerEvent: {
+          id: 'evt-err',
+          type: 'MANDATE_GRANTED',
+          timestamp: '2025-01-01T00:00:00.000Z',
+          subject: {},
+          context: { tenantId: 't1' },
+        },
+      };
+
+      await expect(service.executeDecisionLifecycle(context)).rejects.toThrow('Agent pipeline timeout');
+
+      // Only createDecisionPacket should have been called (1 DDB call before pipeline)
+      expect(mockSend).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw when agent pipeline returns ServiceUnavailableResponse', async () => {
+      const { invokeGraph } = require('@nestfolio/agent-core');
+      (invokeGraph as jest.Mock).mockResolvedValueOnce({
+        serviceUnavailable: true,
+        reason: 'Bedrock throttled',
+      });
+
+      const context = {
+        tenantId: 't1',
+        triggerEvent: {
+          id: 'evt-unavail',
+          type: 'MANDATE_GRANTED',
+          timestamp: '2025-01-01T00:00:00.000Z',
+          subject: {},
+          context: { tenantId: 't1' },
+        },
+      };
+
+      await expect(service.executeDecisionLifecycle(context)).rejects.toThrow(
+        'Agent pipeline unavailable: Bedrock throttled',
+      );
+
+      // Only createDecisionPacket should have been called
+      expect(mockSend).toHaveBeenCalledTimes(1);
     });
   });
 });

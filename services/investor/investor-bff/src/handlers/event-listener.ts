@@ -42,6 +42,12 @@ export const createHandler = (deps: EventListenerDeps) =>
           continue;
         }
 
+        const isNew = await deps.idempotencyGuard.ensureOnce(eventType, uow.event.id);
+        if (!isNew) {
+          logger.info('Duplicate event, skipping', { eventId: uow.event.id });
+          continue;
+        }
+
         await processEvent(deps, eventType, uow);
         deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
       } catch (error) {

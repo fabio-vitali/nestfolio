@@ -3,6 +3,7 @@ import {
   DynamoDBDocumentClient,
   PutCommand,
   QueryCommand,
+  UpdateCommand,
   TransactWriteCommand,
   type QueryCommandInput,
   type TransactWriteCommandInput,
@@ -61,6 +62,61 @@ export abstract class TableRepository {
     } while (lastKey);
 
     return items;
+  }
+
+  @log()
+  protected async update(pk: string, sk: string, attrs: Record<string, unknown>): Promise<void> {
+    const { expression, names, values } = TableRepository.buildUpdateExpression(attrs);
+    await this.docClient.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { pk, sk },
+        UpdateExpression: expression,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
+      }),
+    );
+  }
+
+  protected buildTransactUpdate(
+    pk: string,
+    sk: string,
+    attrs: Record<string, unknown>,
+  ): { Update: Record<string, unknown> } {
+    const { expression, names, values } = TableRepository.buildUpdateExpression(attrs);
+    return {
+      Update: {
+        TableName: this.tableName,
+        Key: { pk, sk },
+        UpdateExpression: expression,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
+      },
+    };
+  }
+
+  static buildUpdateExpression(attrs: Record<string, unknown>): {
+    expression: string;
+    names: Record<string, string>;
+    values: Record<string, unknown>;
+  } {
+    const entries = Object.entries(attrs);
+    const names: Record<string, string> = {};
+    const values: Record<string, unknown> = {};
+    const setClauses: string[] = [];
+
+    for (let i = 0; i < entries.length; i++) {
+      const [key, value] = entries[i];
+      names[`#a${i}`] = key;
+      values[`:v${i}`] = value;
+      setClauses.push(`#a${i} = :v${i}`);
+    }
+
+    return {
+      expression: `SET ${setClauses.join(', ')}`,
+      names,
+      values,
+    };
   }
 
   @log()

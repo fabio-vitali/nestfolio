@@ -45,6 +45,14 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new TransactWriteCommand(input));
     }
+    protected buildTransactUpdate(pk: string, sk: string, attrs: Record<string, unknown>) {
+      const entries = Object.entries(attrs);
+      const names: Record<string, string> = {};
+      const values: Record<string, unknown> = {};
+      const sets: string[] = [];
+      entries.forEach(([k, v], i) => { names[`#a${i}`] = k; values[`:v${i}`] = v; sets.push(`#a${i} = :v${i}`); });
+      return { Update: { TableName: this.tableName, Key: { pk, sk }, UpdateExpression: `SET ${sets.join(', ')}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values } };
+    }
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
@@ -493,5 +501,24 @@ describe('event-listener handler', () => {
 
     // Should have processed: getMandateSnapshot + createComplianceCheck + updateCheckResult (2) + createAuditArtifact
     expect(mockSend).toHaveBeenCalledTimes(5);
+  });
+
+  it('should NOT add to batchItemFailures when error is not retryable', async () => {
+    const { parseRecord, isRetryable } = require('@nestfolio/lambda-utils');
+    (parseRecord as jest.Mock).mockImplementationOnce(() => {
+      throw new Error('Non-retryable error');
+    });
+    (isRetryable as jest.Mock).mockReturnValueOnce(false);
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-non-retryable',
+        body: { detail: { id: 'evt-nr', type: 'DECISION_PACKET_CREATED', subject: {} } },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+    expect(isRetryable).toHaveBeenCalled();
   });
 });

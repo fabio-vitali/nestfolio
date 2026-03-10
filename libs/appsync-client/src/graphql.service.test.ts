@@ -1,11 +1,18 @@
+const mockRegister = jest.fn();
+
 jest.mock('@angular/core', () => ({
   Injectable: () => (target: any) => target,
+  inject: () => ({ register: mockRegister }),
 }));
 
 import { GraphqlService } from './graphql.service';
 
 const mockGraphql = jest.fn();
 const mockGenerateClient = jest.fn(() => ({ graphql: mockGraphql }));
+
+jest.mock('@nestfolio/shared-state', () => ({
+  LogoutOrchestrator: class {},
+}));
 
 jest.mock('aws-amplify/api', () => ({
   generateClient: () => mockGenerateClient(),
@@ -98,6 +105,26 @@ describe('GraphqlService', () => {
 
       sub.unsubscribe();
       expect(mockUnsub).toHaveBeenCalled();
+    });
+  });
+
+  describe('logout integration', () => {
+    it('registers resetClient with LogoutOrchestrator on construction', () => {
+      expect(mockRegister).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    it('resets client when LogoutOrchestrator callback is invoked', async () => {
+      mockGraphql.mockResolvedValue({ data: {} });
+
+      await service.query('q1');
+      expect(mockGenerateClient).toHaveBeenCalledTimes(1);
+
+      // Invoke the registered callback (simulates logout)
+      const resetCallback = mockRegister.mock.calls[0][0];
+      resetCallback();
+
+      await service.query('q2');
+      expect(mockGenerateClient).toHaveBeenCalledTimes(2);
     });
   });
 

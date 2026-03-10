@@ -1,7 +1,7 @@
 import { Stack, StackProps, Duration } from 'aws-cdk-lib';
 import { EventBus, Archive, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
-import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { createNamingService, Monitoring, ServiceDashboard, applyStandardTags } from '@nestfolio/cdk-constructs';
@@ -68,6 +68,7 @@ export class AdvisoryHubStack extends Stack {
     const investorBus = EventBus.fromEventBusArn(this, 'InvestorBus', investorBusArn);
     const toInvestorDlq = new Queue(this, 'ToInvestorDLQ', {
       retentionPeriod: Duration.days(14),
+      encryption: QueueEncryption.KMS_MANAGED,
     });
     new Rule(this, 'ToInvestor', {
       eventBus: this.bus,
@@ -96,6 +97,7 @@ export class AdvisoryHubStack extends Stack {
     const executionBus = EventBus.fromEventBusArn(this, 'ExecutionBus', executionBusArn);
     const toExecutionDlq = new Queue(this, 'ToExecutionDLQ', {
       retentionPeriod: Duration.days(14),
+      encryption: QueueEncryption.KMS_MANAGED,
     });
     new Rule(this, 'ToExecution', {
       eventBus: this.bus,

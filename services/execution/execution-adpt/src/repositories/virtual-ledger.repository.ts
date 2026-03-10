@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { GetCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getTime, type TableEntry } from '@nestfolio/platform-core';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 
@@ -67,9 +67,44 @@ export class VirtualLedgerRepository extends TableRepository {
         userId,
         currency,
         balance: amount,
+        version: 1,
         updatedAt: now,
       };
       await this.put(item);
+    },
+  );
+
+  readonly updateCashBalanceConditional = this.log('updateCashBalanceConditional',
+    async (
+      tenantId: string,
+      userId: string,
+      currency: string,
+      newBalance: number,
+      expectedVersion: number,
+    ): Promise<void> => {
+      const now = getTime();
+      const pk = ledgerPk(tenantId, userId);
+      const item: TableEntry = {
+        pk,
+        sk: `CashBalance#${currency}`,
+        __typename: 'VirtualCashBalance',
+        tenantId,
+        timestamp: now,
+        userId,
+        currency,
+        balance: newBalance,
+        version: expectedVersion + 1,
+        updatedAt: now,
+      };
+      await this.docClient.send(
+        new PutCommand({
+          TableName: this.tableName,
+          Item: item,
+          ConditionExpression: '#v = :expectedVersion',
+          ExpressionAttributeNames: { '#v': 'version' },
+          ExpressionAttributeValues: { ':expectedVersion': expectedVersion },
+        }),
+      );
     },
   );
 
@@ -109,6 +144,10 @@ export class VirtualLedgerRepository extends TableRepository {
       const now = getTime();
       const pk = ledgerPk(tenantId, userId);
 
+      // Read current cash version for optimistic locking
+      const currentCash = await this.getCashBalance(tenantId, userId, 'USD');
+      const currentVersion = (currentCash?.version as number) ?? 0;
+
       const cashUpdate = {
         Put: {
           TableName: this.tableName,
@@ -121,8 +160,19 @@ export class VirtualLedgerRepository extends TableRepository {
             userId,
             currency: 'USD',
             balance: trade.cashAfter,
+            version: currentVersion + 1,
             updatedAt: now,
           },
+          ...(currentVersion > 0
+            ? {
+                ConditionExpression: '#v = :expectedVersion',
+                ExpressionAttributeNames: { '#v': 'version' },
+                ExpressionAttributeValues: { ':expectedVersion': currentVersion },
+              }
+            : {
+                ConditionExpression: 'attribute_not_exists(#v)',
+                ExpressionAttributeNames: { '#v': 'version' },
+              }),
         },
       };
 

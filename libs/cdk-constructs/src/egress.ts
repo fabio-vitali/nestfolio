@@ -6,6 +6,7 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { StartingPosition, FilterCriteria, FilterRule } from 'aws-cdk-lib/aws-lambda';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { defaultLambdaProps } from './default-lambda-props';
 
 export interface EgressProps {
   table: ITable;
@@ -20,6 +21,7 @@ export class Egress extends Construct {
     super(scope, id);
 
     const publisher = new NodejsFunction(this, 'Publisher', {
+      ...defaultLambdaProps(this),
       entry: join(__dirname, '..', '..', 'lambda-utils', 'src', 'event-publisher.ts'),
       environment: {
         BUS_NAME: props.busName,

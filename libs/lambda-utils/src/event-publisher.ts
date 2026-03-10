@@ -6,9 +6,32 @@ import {
   PutEventsRequestEntry,
 } from '@aws-sdk/client-eventbridge';
 import { AttributeValue } from '@aws-sdk/client-dynamodb';
-import { logger, NotRetryableError } from '@nestfolio/platform-core';
+import { logger, getUUID, getTime, NotRetryableError } from '@nestfolio/platform-core';
 
 const client = new EventBridgeClient({});
+
+const OPERATION_SUFFIX: Record<string, string> = {
+  INSERT: 'CREATED',
+  MODIFY: 'UPDATED',
+  REMOVE: 'DELETED',
+};
+
+/**
+ * Converts PascalCase or camelCase to SCREAMING_SNAKE_CASE.
+ * e.g. 'DecisionPacket' → 'DECISION_PACKET', 'OrderFilled' → 'ORDER_FILLED'
+ */
+function toScreamingSnake(name: string): string {
+  return name.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase();
+}
+
+/**
+ * Derives an event type name from DDB __typename + stream eventName.
+ * e.g. ('Goal', 'INSERT') → 'GOAL_CREATED', ('RiskProfile', 'MODIFY') → 'RISK_PROFILE_UPDATED'
+ */
+function toDetailType(typename: string, eventName: string): string {
+  const suffix = OPERATION_SUFFIX[eventName] ?? 'CHANGED';
+  return `${toScreamingSnake(typename)}_${suffix}`;
+}
 
 /**
  * Extracts the event payload from a DynamoDB stream record's NEW_IMAGE.
@@ -25,20 +48,30 @@ function extractEvent(
 }
 
 /**
- * Builds an EventBridge entry from a DynamoDB item.
- * Uses the item's `__typename` as the DetailType and the item itself as the Detail.
+ * Builds an EventBridge entry from a DynamoDB item and stream event name.
+ * Derives DetailType from eventName + __typename (convention-based).
+ * Wraps item in a BusEvent envelope for compatibility with Ingress consumers.
  */
 function toEventBridgeEntry(
   item: Record<string, unknown>,
+  eventName: string,
   busName: string,
   serviceName: string,
 ): PutEventsRequestEntry {
-  const detailType = (item.__typename as string) ?? 'Unknown';
+  const typename = (item.__typename as string) ?? 'Unknown';
+  const detailType = toDetailType(typename, eventName);
+  const busEvent = {
+    id: (item.eventId as string) ?? getUUID(),
+    type: detailType,
+    timestamp: (item.timestamp as string) ?? getTime(),
+    subject: item,
+    context: { tenantId: item.tenantId as string },
+  };
   return {
     EventBusName: busName,
     Source: `${busName}@${serviceName}`,
     DetailType: detailType,
-    Detail: JSON.stringify(item),
+    Detail: JSON.stringify(busEvent),
   };
 }
 
@@ -71,7 +104,7 @@ export async function handler(event: DynamoDBStreamEvent): Promise<void> {
       continue;
     }
 
-    entries.push(toEventBridgeEntry(item, busName, serviceName));
+    entries.push(toEventBridgeEntry(item, record.eventName ?? 'INSERT', busName, serviceName));
   }
 
   if (entries.length === 0) {
@@ -158,3 +191,6 @@ export async function handler(event: DynamoDBStreamEvent): Promise<void> {
     }
   }
 }
+
+// Exported for testing
+export { toScreamingSnake, toDetailType };

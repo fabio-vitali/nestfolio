@@ -66,18 +66,6 @@ export class OrderRepository extends TableRepository {
       const pk = orderPk(tenantId, orderId);
       const now = getTime();
 
-      const orderUpdate: TableEntry = {
-        pk,
-        sk: 'Order',
-        __typename: 'Order',
-        tenantId,
-        timestamp: now,
-        orderId,
-        status,
-        updatedAt: now,
-        ...(details ?? {}),
-      };
-
       const editEvent: TableEntry = {
         pk,
         sk: `EditEvent#${now}#${getUUID()}`,
@@ -93,7 +81,12 @@ export class OrderRepository extends TableRepository {
 
       await this.transactWrite({
         TransactItems: [
-          { Put: { TableName: this.tableName, Item: orderUpdate } },
+          this.buildTransactUpdate(pk, 'Order', {
+            status,
+            updatedAt: now,
+            timestamp: now,
+            ...(details ?? {}),
+          }) as any,
           { Put: { TableName: this.tableName, Item: editEvent } },
         ],
       });

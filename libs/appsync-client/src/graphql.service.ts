@@ -1,10 +1,16 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { generateClient } from 'aws-amplify/api';
+import { LogoutOrchestrator } from '@nestfolio/shared-state';
 
 @Injectable({ providedIn: 'root' })
 export class GraphqlService {
   private client: any = null;
+  private readonly logoutOrchestrator = inject(LogoutOrchestrator);
+
+  constructor() {
+    this.logoutOrchestrator.register(() => this.resetClient());
+  }
 
   private getClient(): any {
     if (!this.client) {

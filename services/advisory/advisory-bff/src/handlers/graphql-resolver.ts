@@ -1,7 +1,7 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { requireEnv, authorizeTenant, validateQueryDepth, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { requireEnv, authorizeUser, validateQueryDepth, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
 import { AdvisoryRepository } from '../repositories/advisory.repository';
 import {
   getDecision,
@@ -25,10 +25,8 @@ export const createResolver = (deps: ResolverDeps) =>
   async (event: AppSyncResolverEvent<Record<string, unknown>>): Promise<unknown> => {
     try {
       validateQueryDepth(event.info.selectionSetGraphQL);
-      const tenantId = authorizeTenant(event);
+      const { tenantId, userId } = authorizeUser(event);
       const fieldName = event.info.fieldName;
-      const claims = event.identity as Record<string, unknown> | undefined;
-      const userId = (claims?.['claims'] as Record<string, string>)?.['sub'] ?? '';
       const args = event.arguments ?? {};
 
       logger.info('Resolving field', { fieldName, tenantId, userId });

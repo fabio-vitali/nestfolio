@@ -50,6 +50,14 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new TransactWriteCommand(input));
     }
+    protected buildTransactUpdate(pk: string, sk: string, attrs: Record<string, unknown>) {
+      const entries = Object.entries(attrs);
+      const names: Record<string, string> = {};
+      const values: Record<string, unknown> = {};
+      const sets: string[] = [];
+      entries.forEach(([k, v], i) => { names[`#a${i}`] = k; values[`:v${i}`] = v; sets.push(`#a${i} = :v${i}`); });
+      return { Update: { TableName: this.tableName, Key: { pk, sk }, UpdateExpression: `SET ${sets.join(', ')}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values } };
+    }
   },
   NotRetryableError: class NotRetryableError extends Error {
     constructor(message: string) {
@@ -437,6 +445,25 @@ describe('event-listener handler', () => {
         error: expect.stringContaining('Missing subject in WITHDRAWAL_REQUESTED event'),
       }),
     );
+  });
+
+  it('should NOT add to batchItemFailures when error is not retryable', async () => {
+    const { parseRecord, isRetryable } = require('@nestfolio/lambda-utils');
+    (parseRecord as jest.Mock).mockImplementationOnce(() => {
+      throw new Error('Non-retryable error');
+    });
+    (isRetryable as jest.Mock).mockReturnValueOnce(false);
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-non-retryable',
+        body: { detail: { id: 'evt-nr', type: 'ORDER_SUBMITTED', subject: {} } },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+    expect(isRetryable).toHaveBeenCalled();
   });
 
   it('should initialize account on first ORDER_SUBMITTED if no cash balance exists', async () => {

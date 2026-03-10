@@ -2,7 +2,6 @@ const mockSend = jest.fn();
 
 jest.mock('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient: jest.fn().mockImplementation(() => ({ send: mockSend })),
-  PutItemCommand: jest.fn().mockImplementation((input) => ({ _type: 'PutItem', input })),
 }));
 
 jest.mock('@aws-sdk/lib-dynamodb', () => {
@@ -36,9 +35,7 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
         TableName: this.tableName,
-        KeyConditionExpression: skPrefix
-          ? 'pk = :pk AND begins_with(sk, :sk)'
-          : 'pk = :pk',
+        KeyConditionExpression: skPrefix ? 'pk = :pk AND begins_with(sk, :sk)' : 'pk = :pk',
         ExpressionAttributeValues: { ':pk': pk, ...(skPrefix ? { ':sk': skPrefix } : {}) },
       }));
       return result.Items ?? [];
@@ -58,9 +55,10 @@ jest.mock('@nestfolio/platform-core', () => ({
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
+
+const mockIsRetryable = jest.fn();
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
@@ -72,29 +70,20 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   IdempotencyGuard: jest.fn().mockImplementation(() => ({
     ensureOnce: jest.fn().mockResolvedValue(true),
   })),
-  createServiceMetrics: jest.fn().mockReturnValue({
-    addMetric: jest.fn(),
-    addDimension: jest.fn(),
-    publishStoredMetrics: jest.fn(),
-  }),
-  isRetryable: jest.fn().mockReturnValue(true),
-  traceEvent: jest.fn(),
-  MetricUnit: { Count: 'Count' },
+  isRetryable: mockIsRetryable,
   applyMiddleware: jest.fn((handler: unknown) => handler),
   withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
   withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
   withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
 }));
 
-jest.mock('@nestfolio/domain-core', () => ({}));
+import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
+import { ComplianceRepository } from '../repositories/compliance.repository';
+import { createHandler, type MandateListenerDeps } from '../handlers/mandate-listener';
 
-import { SQSEvent } from 'aws-lambda';
-import { AdvisoryRepository } from '../repositories/advisory.repository';
-import { DecisionPacketCreatedPipe } from '../pipes/decision-packet-created.pipe';
-import { DecisionStatusChangedPipe } from '../pipes/decision-status-changed.pipe';
-import { createHandler, type EventListenerDeps } from '../handlers/event-listener';
-
-function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
+function buildSqsEvent(
+  records: Array<{ messageId: string; body: Record<string, unknown> }>,
+): SQSEvent {
   return {
     Records: records.map((r) => ({
       messageId: r.messageId,
@@ -110,27 +99,21 @@ function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, 
   };
 }
 
-describe('event-listener handler', () => {
+describe('mandate-listener handler', () => {
   const ORIGINAL_ENV = process.env;
-  let handler: (event: SQSEvent) => Promise<import('aws-lambda').SQSBatchResponse>;
-  let mockDeps: EventListenerDeps;
+  let handler: (event: SQSEvent) => Promise<SQSBatchResponse>;
+  let mockDeps: MandateListenerDeps;
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
+    mockIsRetryable.mockReturnValue(true);
 
-    const repository = new AdvisoryRepository('test-table');
-    const mockIdempotencyGuard = { ensureOnce: jest.fn().mockResolvedValue(true) } as any;
+    const repository = new ComplianceRepository('test-table');
 
     mockDeps = {
-      idempotencyGuard: mockIdempotencyGuard,
-      decisionPacketCreatedPipe: new DecisionPacketCreatedPipe(repository, mockIdempotencyGuard),
-      decisionStatusChangedPipe: new DecisionStatusChangedPipe(repository),
-      metrics: {
-        addMetric: jest.fn(),
-        addDimension: jest.fn(),
-        publishStoredMetrics: jest.fn(),
-      } as any,
+      repository,
+      idempotencyGuard: { ensureOnce: jest.fn().mockResolvedValue(true) } as any,
     };
 
     handler = createHandler(mockDeps);
@@ -140,9 +123,8 @@ describe('event-listener handler', () => {
     process.env = ORIGINAL_ENV;
   });
 
-  it('should process DECISION_PACKET_CREATED event and store decision', async () => {
-    // IdempotencyGuard.ensureOnce -> true (mocked above), then storeDecision -> put
-    mockSend.mockResolvedValueOnce({}); // storeDecision put
+  it('should process MANDATE_GRANTED event and persist snapshot', async () => {
+    mockSend.mockResolvedValueOnce({});
 
     const sqsEvent = buildSqsEvent([
       {
@@ -150,17 +132,18 @@ describe('event-listener handler', () => {
         body: {
           detail: {
             id: 'evt-1',
-            type: 'DECISION_PACKET_CREATED',
+            type: 'MANDATE_GRANTED',
             timestamp: '2025-01-01T00:00:00.000Z',
             subject: {
-              tenantId: 't1',
-              decisionId: 'd1',
-              trigger: 'REBALANCE',
-              proposedTrades: [],
-              explanation: 'Portfolio rebalance needed',
-              confirmationRequired: true,
+              tenantId: 't-1',
+              userId: 'u-1',
+              mandateId: 'm-1',
+              level: 'DISCRETIONARY',
+              monthlyTurnoverCapPercent: 10,
+              maxSingleTradePercent: 5,
+              effectiveDate: '2025-01-01T00:00:00.000Z',
             },
-            context: { tenantId: 't1' },
+            context: { tenantId: 't-1' },
           },
         },
       },
@@ -168,110 +151,117 @@ describe('event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
-  it('should process DECISION_APPROVED event and update status', async () => {
-    // transactWrite for updateDecisionStatus
-    mockSend.mockResolvedValueOnce({});
+  it('should NOT push non-retryable errors to failures', async () => {
+    mockIsRetryable.mockReturnValue(false);
+
+    // Make the putMandateSnapshot fail
+    mockSend.mockRejectedValueOnce(new Error('ConditionalCheckFailed'));
 
     const sqsEvent = buildSqsEvent([
       {
-        messageId: 'msg-2',
+        messageId: 'msg-not-retryable',
         body: {
           detail: {
-            id: 'evt-2',
-            type: 'DECISION_APPROVED',
+            id: 'evt-nr',
+            type: 'MANDATE_GRANTED',
             timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1', decisionId: 'd1' },
-            context: { tenantId: 't1' },
+            subject: {
+              tenantId: 't-1',
+              userId: 'u-1',
+              mandateId: 'm-1',
+              level: 'DISCRETIONARY',
+              monthlyTurnoverCapPercent: 10,
+              maxSingleTradePercent: 5,
+              effectiveDate: '2025-01-01T00:00:00.000Z',
+            },
+            context: { tenantId: 't-1' },
           },
         },
       },
     ]);
 
     const result = await handler(sqsEvent);
+    // Non-retryable errors should NOT be added to batchItemFailures
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
-  it('should process DECISION_BLOCKED event and update status', async () => {
-    // transactWrite for updateDecisionStatus
-    mockSend.mockResolvedValueOnce({});
+  it('should push retryable errors to failures', async () => {
+    mockIsRetryable.mockReturnValue(true);
+
+    // Make the putMandateSnapshot fail
+    mockSend.mockRejectedValueOnce(new Error('ServiceUnavailable'));
 
     const sqsEvent = buildSqsEvent([
       {
-        messageId: 'msg-3',
+        messageId: 'msg-retryable',
         body: {
           detail: {
-            id: 'evt-3',
-            type: 'DECISION_BLOCKED',
+            id: 'evt-r',
+            type: 'MANDATE_GRANTED',
             timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1', decisionId: 'd1' },
-            context: { tenantId: 't1' },
+            subject: {
+              tenantId: 't-1',
+              userId: 'u-1',
+              mandateId: 'm-1',
+              level: 'DISCRETIONARY',
+              monthlyTurnoverCapPercent: 10,
+              maxSingleTradePercent: 5,
+              effectiveDate: '2025-01-01T00:00:00.000Z',
+            },
+            context: { tenantId: 't-1' },
           },
         },
       },
     ]);
 
     const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-  });
-
-  it('should skip duplicate events via idempotency guard', async () => {
-    // Override IdempotencyGuard to return false (duplicate)
-    (mockDeps.idempotencyGuard.ensureOnce as jest.Mock).mockResolvedValue(false);
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-dup',
-        body: {
-          detail: {
-            id: 'evt-dup',
-            type: 'DECISION_PACKET_CREATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1', decisionId: 'd1' },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-    // No DynamoDB calls for pipe processing since event is duplicate
-    expect(mockSend).not.toHaveBeenCalled();
-  });
-
-  it('should report failure for malformed event body (invalid JSON)', async () => {
-    const sqsEvent: SQSEvent = {
-      Records: [{
-        messageId: 'msg-malformed',
-        body: '{{invalid-json',
-        receiptHandle: 'handle',
-        attributes: {} as any,
-        messageAttributes: {},
-        md5OfBody: '',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
-        awsRegion: 'us-east-1',
-      }],
-    };
-
-    const result = await handler(sqsEvent);
+    // Retryable errors SHOULD be added to batchItemFailures
     expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-retryable');
+  });
+
+  it('should process MANDATE_REVOKED event', async () => {
+    mockSend.mockResolvedValueOnce({});
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-revoke',
+        body: {
+          detail: {
+            id: 'evt-revoke',
+            type: 'MANDATE_REVOKED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              tenantId: 't-1',
+              userId: 'u-1',
+              mandateId: 'm-1',
+              revokedAt: '2025-01-01T00:00:00.000Z',
+            },
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   it('should skip unknown event types gracefully', async () => {
     const sqsEvent = buildSqsEvent([
       {
-        messageId: 'msg-4',
+        messageId: 'msg-unknown',
         body: {
           detail: {
-            id: 'evt-4',
-            type: 'UNKNOWN_EVENT',
+            id: 'evt-unknown',
+            type: 'SOME_UNKNOWN_TYPE',
             timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {},
-            context: { tenantId: 't1' },
+            subject: { tenantId: 't-1' },
+            context: { tenantId: 't-1' },
           },
         },
       },
@@ -281,40 +271,30 @@ describe('event-listener handler', () => {
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
-  it('should report batch item failures for processing errors', async () => {
-    const { parseRecord } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Parse error');
-    });
+  it('should throw on MANDATE_GRANTED with missing required fields', async () => {
+    mockIsRetryable.mockReturnValue(true);
 
     const sqsEvent = buildSqsEvent([
       {
-        messageId: 'msg-fail',
-        body: { detail: { id: 'evt-fail', type: 'DECISION_PACKET_CREATED', subject: {} } },
+        messageId: 'msg-missing',
+        body: {
+          detail: {
+            id: 'evt-missing',
+            type: 'MANDATE_GRANTED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              tenantId: 't-1',
+              userId: 'u-1',
+              // mandateId and level are missing
+            },
+            context: { tenantId: 't-1' },
+          },
+        },
       },
     ]);
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
-  });
-
-  it('should NOT add to batchItemFailures when error is not retryable', async () => {
-    const { parseRecord, isRetryable } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Non-retryable error');
-    });
-    (isRetryable as jest.Mock).mockReturnValueOnce(false);
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-non-retryable',
-        body: { detail: { id: 'evt-nr', type: 'DECISION_PACKET_CREATED', subject: {} } },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-    expect(isRetryable).toHaveBeenCalled();
+    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-missing');
   });
 });

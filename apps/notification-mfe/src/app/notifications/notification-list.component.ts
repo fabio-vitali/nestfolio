@@ -6,7 +6,7 @@ import { MessageModule } from 'primeng/message';
 import { ButtonModule } from 'primeng/button';
 import { LoadingSkeletonComponent, EmptyStateComponent } from '@nestfolio/ui-components';
 import { I18nService } from '@nestfolio/i18n';
-import { parseError } from '@nestfolio/shared-state';
+import { parseError, NotificationStore as NotificationCountStore } from '@nestfolio/shared-state';
 import { NotificationStore, Notification } from '../stores/notification.store';
 import { NotificationService } from '../services/notification.service';
 import { NotificationItemComponent } from './notification-item.component';
@@ -121,6 +121,7 @@ const PAGE_SIZE = 20;
 export class NotificationListComponent implements OnInit {
   private readonly notificationService = inject(NotificationService);
   private readonly router = inject(Router);
+  private readonly notificationCountStore = inject(NotificationCountStore);
   readonly i18n = inject(I18nService);
   readonly store = inject(NotificationStore);
 
@@ -130,6 +131,7 @@ export class NotificationListComponent implements OnInit {
 
   async onMarkRead(notificationId: string): Promise<void> {
     this.store.markRead(notificationId);
+    this.notificationCountStore.decrementUnread();
     try {
       await this.notificationService.markNotificationRead(notificationId);
     } catch {
@@ -141,6 +143,7 @@ export class NotificationListComponent implements OnInit {
   onTap(notification: Notification): void {
     if (notification.status !== 'READ') {
       this.store.markRead(notification.notificationId);
+      this.notificationCountStore.decrementUnread();
       this.notificationService.markNotificationRead(notification.notificationId).catch((err) => {
         console.error('markRead failed', err);
         // Revert optimistic update by reloading

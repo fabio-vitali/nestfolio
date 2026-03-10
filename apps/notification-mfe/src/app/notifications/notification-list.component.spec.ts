@@ -4,6 +4,7 @@ import { NotificationListComponent } from './notification-list.component';
 import { NotificationStore, Notification } from '../stores/notification.store';
 import { NotificationService } from '../services/notification.service';
 import { I18nService } from '@nestfolio/i18n';
+import { NotificationStore as NotificationCountStore } from '@nestfolio/shared-state';
 import { setupComponentTest, createMockI18nService, createMockRouter } from '@nestfolio/shared-state/testing';
 
 const makeNotification = (id: string, status = 'CREATED'): Notification => ({
@@ -26,6 +27,7 @@ describe('NotificationListComponent', () => {
   let notificationService: jest.Mocked<NotificationService>;
   let router: jest.Mocked<Router>;
   let store: InstanceType<typeof NotificationStore>;
+  let countStore: InstanceType<typeof NotificationCountStore>;
 
   beforeEach(async () => {
     notificationService = {
@@ -48,7 +50,9 @@ describe('NotificationListComponent', () => {
     });
 
     store = TestBed.inject(NotificationStore);
+    countStore = TestBed.inject(NotificationCountStore);
     store.reset();
+    countStore.setUnreadCount(5);
     component = fixture.componentInstance;
   });
 
@@ -82,6 +86,22 @@ describe('NotificationListComponent', () => {
     expect(n?.status).toBe('READ');
     expect(store.unreadCount()).toBe(1);
     expect(notificationService.markNotificationRead).toHaveBeenCalledWith('n-001');
+  });
+
+  it('should decrement shared NotificationCountStore on markRead', async () => {
+    await component.ngOnInit();
+
+    await component.onMarkRead('n-001');
+
+    expect(countStore.unreadCount()).toBe(4);
+  });
+
+  it('should decrement shared NotificationCountStore on tap (unread)', async () => {
+    await component.ngOnInit();
+
+    component.onTap(makeNotification('n-001'));
+
+    expect(countStore.unreadCount()).toBe(4);
   });
 
   it('should navigate to decision on tap', async () => {

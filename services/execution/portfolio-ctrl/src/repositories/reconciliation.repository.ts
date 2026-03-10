@@ -71,20 +71,6 @@ export class ReconciliationRepository extends TableRepository {
       const pk = reconciliationPk(tenantId, reconciliationId);
       const now = getTime();
 
-      const reconciliationUpdate: TableEntry = {
-        pk,
-        sk: 'Reconciliation',
-        __typename: 'Reconciliation',
-        tenantId,
-        timestamp: now,
-        reconciliationId,
-        status,
-        updatedAt: now,
-        ...(status === 'COMPLETED' ? { completedAt: now } : {}),
-        ...(status === 'FAILED' ? { failedAt: now } : {}),
-        ...(details ?? {}),
-      };
-
       const editEvent: TableEntry = {
         pk,
         sk: `EditEvent#${now}#${getUUID()}`,
@@ -100,7 +86,14 @@ export class ReconciliationRepository extends TableRepository {
 
       await this.transactWrite({
         TransactItems: [
-          { Put: { TableName: this.tableName, Item: reconciliationUpdate } },
+          this.buildTransactUpdate(pk, 'Reconciliation', {
+            status,
+            updatedAt: now,
+            timestamp: now,
+            ...(status === 'COMPLETED' ? { completedAt: now } : {}),
+            ...(status === 'FAILED' ? { failedAt: now } : {}),
+            ...(details ?? {}),
+          }) as any,
           { Put: { TableName: this.tableName, Item: editEvent } },
         ],
       });

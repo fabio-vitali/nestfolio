@@ -7,7 +7,7 @@ export const GoalInputSchema = z.object({
   targetAmountCents: z.number().int().positive(),
   currency: z.string().length(3),
   timeHorizonMonths: z.number().int().positive().max(600),
-  targetReturn: z.number().min(0).max(100),
+  targetReturn: z.number().min(0).max(1),
 });
 
 export const UpdateGoalInputSchema = z.object({

@@ -51,6 +51,14 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new TransactWriteCommand(input));
     }
+    protected buildTransactUpdate(pk: string, sk: string, attrs: Record<string, unknown>) {
+      const entries = Object.entries(attrs);
+      const names: Record<string, string> = {};
+      const values: Record<string, unknown> = {};
+      const sets: string[] = [];
+      entries.forEach(([k, v], i) => { names[`#a${i}`] = k; values[`:v${i}`] = v; sets.push(`#a${i} = :v${i}`); });
+      return { Update: { TableName: this.tableName, Key: { pk, sk }, UpdateExpression: `SET ${sets.join(', ')}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values } };
+    }
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
@@ -120,6 +128,46 @@ describe('VirtualLedgerRepository', () => {
         balance: 100000,
       });
     });
+
+    it('should set version to 1 for new cash balances', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await repo.initializeCashBalance('t-1', 'u-1', 'EUR', 50000);
+
+      const call = mockSend.mock.calls[0][0];
+      expect(call.input.Item.version).toBe(1);
+    });
+  });
+
+  describe('updateCashBalanceConditional', () => {
+    it('should use PutCommand with ConditionExpression for optimistic locking', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await repo.updateCashBalanceConditional('t-1', 'u-1', 'USD', 95000, 3);
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call._type).toBe('Put');
+      expect(call.input.Item).toMatchObject({
+        pk: 'VirtualLedger#t-1#u-1',
+        sk: 'CashBalance#USD',
+        __typename: 'VirtualCashBalance',
+        balance: 95000,
+        version: 4,
+      });
+      expect(call.input.ConditionExpression).toBe('#v = :expectedVersion');
+      expect(call.input.ExpressionAttributeNames).toEqual({ '#v': 'version' });
+      expect(call.input.ExpressionAttributeValues).toEqual({ ':expectedVersion': 3 });
+    });
+
+    it('should increment version by 1', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await repo.updateCashBalanceConditional('t-1', 'u-1', 'USD', 80000, 5);
+
+      const call = mockSend.mock.calls[0][0];
+      expect(call.input.Item.version).toBe(6);
+    });
   });
 
   describe('getPosition', () => {
@@ -173,6 +221,8 @@ describe('VirtualLedgerRepository', () => {
 
   describe('executeTrade', () => {
     it('should execute a BUY trade atomically with TransactWriteItems', async () => {
+      // getCashBalance call for version read
+      mockSend.mockResolvedValueOnce({ Item: { balance: 100000, version: 2 } });
       // getPosition call returns null (no existing position)
       mockSend.mockResolvedValueOnce({ Item: undefined });
       // transactWrite
@@ -190,16 +240,20 @@ describe('VirtualLedgerRepository', () => {
         cashAfter: 97495,
       });
 
-      expect(mockSend).toHaveBeenCalledTimes(2);
-      const transactCall = mockSend.mock.calls[1][0];
+      expect(mockSend).toHaveBeenCalledTimes(3);
+      const transactCall = mockSend.mock.calls[2][0];
       const items = transactCall.input.TransactItems;
       expect(items).toHaveLength(3);
 
-      // Cash update
+      // Cash update with version-based optimistic locking
       expect(items[0].Put.Item).toMatchObject({
         __typename: 'VirtualCashBalance',
         balance: 97495,
+        version: 3,
       });
+      expect(items[0].Put.ConditionExpression).toBe('#v = :expectedVersion');
+      expect(items[0].Put.ExpressionAttributeNames).toEqual({ '#v': 'version' });
+      expect(items[0].Put.ExpressionAttributeValues).toEqual({ ':expectedVersion': 2 });
 
       // Position update
       expect(items[1].Put.Item).toMatchObject({
@@ -217,7 +271,37 @@ describe('VirtualLedgerRepository', () => {
       });
     });
 
+    it('should use attribute_not_exists when no prior cash balance exists', async () => {
+      // getCashBalance returns null (no existing cash)
+      mockSend.mockResolvedValueOnce({ Item: undefined });
+      // getPosition returns null
+      mockSend.mockResolvedValueOnce({ Item: undefined });
+      // transactWrite
+      mockSend.mockResolvedValueOnce({});
+
+      await repo.executeTrade('t-1', 'u-1', {
+        tradeId: 'trade-new',
+        orderId: 'order-new',
+        symbol: 'VTI',
+        side: 'BUY',
+        quantity: 5,
+        fillPrice: 100,
+        totalValue: 500,
+        cashBefore: 0,
+        cashAfter: -500,
+      });
+
+      const transactCall = mockSend.mock.calls[2][0];
+      const cashPut = transactCall.input.TransactItems[0].Put;
+      expect(cashPut.Item.version).toBe(1);
+      expect(cashPut.ConditionExpression).toBe('attribute_not_exists(#v)');
+      expect(cashPut.ExpressionAttributeNames).toEqual({ '#v': 'version' });
+      expect(cashPut.ExpressionAttributeValues).toBeUndefined();
+    });
+
     it('should execute a SELL trade and reduce position', async () => {
+      // getCashBalance call for version read
+      mockSend.mockResolvedValueOnce({ Item: { balance: 50000, version: 1 } });
       // getPosition returns existing position
       mockSend.mockResolvedValueOnce({
         Item: { quantity: 20, averageCostBasis: 240 },
@@ -237,8 +321,8 @@ describe('VirtualLedgerRepository', () => {
         cashAfter: 51252.50,
       });
 
-      expect(mockSend).toHaveBeenCalledTimes(2);
-      const transactCall = mockSend.mock.calls[1][0];
+      expect(mockSend).toHaveBeenCalledTimes(3);
+      const transactCall = mockSend.mock.calls[2][0];
       const positionItem = transactCall.input.TransactItems[1].Put.Item;
       expect(positionItem.quantity).toBe(15);
       expect(positionItem.averageCostBasis).toBe(240); // preserves cost basis on sell

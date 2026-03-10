@@ -44,6 +44,14 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new TransactWriteCommand(input));
     }
+    protected buildTransactUpdate(pk: string, sk: string, attrs: Record<string, unknown>) {
+      const entries = Object.entries(attrs);
+      const names: Record<string, string> = {};
+      const values: Record<string, unknown> = {};
+      const sets: string[] = [];
+      entries.forEach(([k, v], i) => { names[`#a${i}`] = k; values[`:v${i}`] = v; sets.push(`#a${i} = :v${i}`); });
+      return { Update: { TableName: this.tableName, Key: { pk, sk }, UpdateExpression: `SET ${sets.join(', ')}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values } };
+    }
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
@@ -57,6 +65,17 @@ jest.mock('@nestfolio/lambda-utils', () => ({
 }));
 
 import { NotificationRepository } from '../repositories/notification.repository';
+
+function extractUpdateAttrs(update: any): Record<string, unknown> {
+  const names = update.ExpressionAttributeNames;
+  const values = update.ExpressionAttributeValues;
+  const result: Record<string, unknown> = {};
+  for (const [nameKey, attrName] of Object.entries(names)) {
+    const idx = nameKey.replace('#a', '');
+    result[attrName as string] = values[`:v${idx}`];
+  }
+  return result;
+}
 
 describe('NotificationRepository', () => {
   let repo: NotificationRepository;
@@ -103,16 +122,30 @@ describe('NotificationRepository', () => {
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.TransactItems).toHaveLength(2);
-      expect(call.input.TransactItems[0].Put.Item).toMatchObject({
-        pk: 'Notification#t1#notif-1',
-        sk: 'Notification',
-        __typename: 'Notification',
-        status: 'SENT',
-      });
+      const updateItem = call.input.TransactItems[0].Update;
+      expect(updateItem.Key).toEqual({ pk: 'Notification#t1#notif-1', sk: 'Notification' });
+      const attrs = extractUpdateAttrs(updateItem);
+      expect(attrs).toMatchObject({ status: 'SENT', sentAt: '2025-01-01T00:00:00.000Z' });
       expect(call.input.TransactItems[1].Put.Item).toMatchObject({
         __typename: 'EditEvent',
         operation: 'replace',
       });
+    });
+
+    it('should use Update (not Put) to preserve existing attributes', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await repo.updateNotificationStatus('t1', 'notif-1', 'SENT');
+
+      const call = mockSend.mock.calls[0][0];
+      const firstItem = call.input.TransactItems[0];
+      expect(firstItem.Update).toBeDefined();
+      expect(firstItem.Put).toBeUndefined();
+      const attrs = extractUpdateAttrs(firstItem.Update);
+      expect(attrs).not.toHaveProperty('pk');
+      expect(attrs).not.toHaveProperty('sk');
+      expect(attrs).not.toHaveProperty('__typename');
+      expect(attrs).not.toHaveProperty('notificationId');
     });
   });
 

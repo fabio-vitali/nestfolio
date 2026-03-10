@@ -99,6 +99,7 @@ export class SimulationEngineService {
     ): Promise<{ status: 'COMPLETED' | 'REJECTED'; reason?: string }> => {
       const cashBalance = await this.repository.getCashBalance(tenantId, userId, 'USD');
       const balance = (cashBalance?.balance as number) ?? 0;
+      const currentVersion = (cashBalance?.version as number) ?? 0;
 
       if (balance < amount) {
         logger.info('Withdrawal rejected: insufficient cash', { withdrawalId, balance, amount });
@@ -108,8 +109,8 @@ export class SimulationEngineService {
         };
       }
 
-      // Debit cash
-      await this.repository.initializeCashBalance(tenantId, userId, 'USD', balance - amount);
+      // Debit cash with optimistic locking
+      await this.repository.updateCashBalanceConditional(tenantId, userId, 'USD', balance - amount, currentVersion);
 
       logger.info('Withdrawal completed', { withdrawalId, amount, newBalance: balance - amount });
       return { status: 'COMPLETED' };

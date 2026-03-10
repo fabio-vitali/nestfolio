@@ -7,22 +7,54 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand: jest.fn((input) => ({ input })),
 }));
 
-import { handler } from './event-publisher';
+import { handler, toScreamingSnake, toDetailType } from './event-publisher';
 
 function makeStreamEvent(records: Array<{
   eventID?: string;
+  eventName?: 'INSERT' | 'MODIFY' | 'REMOVE';
   newImage?: Record<string, { S?: string; N?: string }>;
 }>): DynamoDBStreamEvent {
   return {
     Records: records.map((r) => ({
       eventID: r.eventID ?? 'evt-1',
-      eventName: 'INSERT' as const,
+      eventName: r.eventName ?? ('INSERT' as const),
       dynamodb: r.newImage
         ? { NewImage: r.newImage }
         : {},
     })),
   };
 }
+
+describe('toScreamingSnake', () => {
+  it('converts PascalCase to SCREAMING_SNAKE_CASE', () => {
+    expect(toScreamingSnake('DecisionPacket')).toBe('DECISION_PACKET');
+    expect(toScreamingSnake('RiskProfile')).toBe('RISK_PROFILE');
+    expect(toScreamingSnake('OrderFilled')).toBe('ORDER_FILLED');
+    expect(toScreamingSnake('Goal')).toBe('GOAL');
+    expect(toScreamingSnake('Order')).toBe('ORDER');
+    expect(toScreamingSnake('Notification')).toBe('NOTIFICATION');
+  });
+});
+
+describe('toDetailType', () => {
+  it('maps INSERT to _CREATED', () => {
+    expect(toDetailType('Goal', 'INSERT')).toBe('GOAL_CREATED');
+    expect(toDetailType('DecisionPacket', 'INSERT')).toBe('DECISION_PACKET_CREATED');
+  });
+
+  it('maps MODIFY to _UPDATED', () => {
+    expect(toDetailType('RiskProfile', 'MODIFY')).toBe('RISK_PROFILE_UPDATED');
+    expect(toDetailType('Order', 'MODIFY')).toBe('ORDER_UPDATED');
+  });
+
+  it('maps REMOVE to _DELETED', () => {
+    expect(toDetailType('Goal', 'REMOVE')).toBe('GOAL_DELETED');
+  });
+
+  it('maps unknown operations to _CHANGED', () => {
+    expect(toDetailType('Order', 'UNKNOWN')).toBe('ORDER_CHANGED');
+  });
+});
 
 describe('event-publisher handler', () => {
   const ENV_BACKUP = process.env;
@@ -52,11 +84,13 @@ describe('event-publisher handler', () => {
     expect(mockSend).not.toHaveBeenCalled();
   });
 
-  it('publishes a single record to EventBridge', async () => {
+  it('derives DetailType from eventName + __typename', async () => {
     await handler(makeStreamEvent([{
+      eventName: 'INSERT',
       newImage: {
         __typename: { S: 'OrderFilled' },
         pk: { S: 'TENANT#t1' },
+        tenantId: { S: 't1' },
       },
     }]));
 
@@ -65,16 +99,51 @@ describe('event-publisher handler', () => {
     expect(cmd.input.Entries).toHaveLength(1);
     expect(cmd.input.Entries[0].EventBusName).toBe('test-bus');
     expect(cmd.input.Entries[0].Source).toBe('test-bus@test-svc');
-    expect(cmd.input.Entries[0].DetailType).toBe('OrderFilled');
+    expect(cmd.input.Entries[0].DetailType).toBe('ORDER_FILLED_CREATED');
   });
 
-  it('uses "Unknown" as DetailType when __typename is missing', async () => {
+  it('uses MODIFY suffix for modify events', async () => {
+    await handler(makeStreamEvent([{
+      eventName: 'MODIFY',
+      newImage: {
+        __typename: { S: 'Goal' },
+        tenantId: { S: 't1' },
+      },
+    }]));
+
+    const cmd = mockSend.mock.calls[0][0];
+    expect(cmd.input.Entries[0].DetailType).toBe('GOAL_UPDATED');
+  });
+
+  it('wraps item in BusEvent envelope', async () => {
+    await handler(makeStreamEvent([{
+      eventName: 'INSERT',
+      newImage: {
+        __typename: { S: 'Goal' },
+        tenantId: { S: 't1' },
+        pk: { S: 'TENANT#t1' },
+      },
+    }]));
+
+    const cmd = mockSend.mock.calls[0][0];
+    const detail = JSON.parse(cmd.input.Entries[0].Detail);
+    expect(detail).toMatchObject({
+      type: 'GOAL_CREATED',
+      context: { tenantId: 't1' },
+    });
+    expect(detail.subject).toBeDefined();
+    expect(detail.subject.__typename).toBe('Goal');
+    expect(detail.id).toBeDefined();
+    expect(detail.timestamp).toBeDefined();
+  });
+
+  it('uses UNKNOWN_CHANGED when __typename is missing', async () => {
     await handler(makeStreamEvent([{
       newImage: { pk: { S: 'TENANT#t1' } },
     }]));
 
     const cmd = mockSend.mock.calls[0][0];
-    expect(cmd.input.Entries[0].DetailType).toBe('Unknown');
+    expect(cmd.input.Entries[0].DetailType).toBe('UNKNOWN_CREATED');
   });
 
   it('batches records in groups of 10', async () => {

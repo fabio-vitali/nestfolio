@@ -66,6 +66,53 @@ export class DashboardRepository extends TableRepository {
     },
   );
 
+  readonly atomicIncrementTotalValue = this.log('atomicIncrementTotalValue',
+    async (
+      tenantId: string,
+      deltaCents: number,
+      extraUpdates?: Record<string, number>,
+    ): Promise<void> => {
+      const pk = dashboardPk(tenantId);
+      const now = getTime();
+
+      const updateExpressions: string[] = [
+        '#ts = :ts',
+        'updatedAt = :now',
+        '__typename = :typename',
+        'tenantId = :tenantId',
+        'totalValueCents = if_not_exists(totalValueCents, :zero) + :delta',
+      ];
+      const expressionNames: Record<string, string> = { '#ts': 'timestamp' };
+      const expressionValues: Record<string, unknown> = {
+        ':ts': now,
+        ':now': now,
+        ':typename': 'PortfolioSummary',
+        ':tenantId': tenantId,
+        ':zero': 0,
+        ':delta': deltaCents,
+      };
+
+      if (extraUpdates) {
+        for (const [key, value] of Object.entries(extraUpdates)) {
+          if (value !== undefined) {
+            updateExpressions.push(`${key} = :${key}`);
+            expressionValues[`:${key}`] = value;
+          }
+        }
+      }
+
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: 'PortfolioSummary' },
+          UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+          ExpressionAttributeNames: expressionNames,
+          ExpressionAttributeValues: expressionValues,
+        }),
+      );
+    },
+  );
+
   readonly getPortfolioSummary = this.log('getPortfolioSummary',
     async (tenantId: string): Promise<Record<string, unknown> | null> => {
       const pk = dashboardPk(tenantId);

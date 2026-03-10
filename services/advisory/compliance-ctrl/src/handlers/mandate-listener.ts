@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 
 export interface MandateListenerDeps {
@@ -72,7 +72,9 @@ export const createHandler = (deps: MandateListenerDeps) =>
           messageId: record.messageId,
           error: error instanceof Error ? error.message : String(error),
         });
-        failures.push(record.messageId);
+        if (isRetryable(error)) {
+          failures.push(record.messageId);
+        }
       }
     }
 

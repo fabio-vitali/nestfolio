@@ -73,7 +73,7 @@ export class InvestorWebStack extends Stack {
         postConfirmation,
         postAuthentication,
       },
-      removalPolicy: RemovalPolicy.DESTROY,
+      removalPolicy: prefix === 'prod' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
     });
 
     const client = userPool.addClient('WebClient', {

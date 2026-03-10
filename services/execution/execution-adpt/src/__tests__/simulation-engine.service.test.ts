@@ -33,6 +33,7 @@ describe('SimulationEngineService', () => {
       getPosition: jest.fn(),
       executeTrade: jest.fn(),
       initializeCashBalance: jest.fn(),
+      updateCashBalanceConditional: jest.fn(),
       getAllPositions: jest.fn(),
       getTradeHistory: jest.fn(),
       createSnapshot: jest.fn(),
@@ -191,14 +192,14 @@ describe('SimulationEngineService', () => {
 
   describe('processWithdrawal', () => {
     it('should complete withdrawal when sufficient cash', async () => {
-      mockRepo.getCashBalance.mockResolvedValue({ balance: 100000 });
-      mockRepo.initializeCashBalance.mockResolvedValue(undefined);
+      mockRepo.getCashBalance.mockResolvedValue({ balance: 100000, version: 3 });
+      mockRepo.updateCashBalanceConditional.mockResolvedValue(undefined);
 
       const result = await engine.processWithdrawal('t-1', 'u-1', 'w-1', 5000);
 
       expect(result.status).toBe('COMPLETED');
       expect(result.reason).toBeUndefined();
-      expect(mockRepo.initializeCashBalance).toHaveBeenCalledWith('t-1', 'u-1', 'USD', 95000);
+      expect(mockRepo.updateCashBalanceConditional).toHaveBeenCalledWith('t-1', 'u-1', 'USD', 95000, 3);
     });
 
     it('should reject withdrawal when insufficient cash', async () => {
@@ -210,7 +211,7 @@ describe('SimulationEngineService', () => {
       expect(result.reason).toContain('Insufficient cash');
       expect(result.reason).toContain('1000');
       expect(result.reason).toContain('5000');
-      expect(mockRepo.initializeCashBalance).not.toHaveBeenCalled();
+      expect(mockRepo.updateCashBalanceConditional).not.toHaveBeenCalled();
     });
 
     it('should reject withdrawal when no cash balance exists', async () => {
@@ -220,6 +221,7 @@ describe('SimulationEngineService', () => {
 
       expect(result.status).toBe('REJECTED');
       expect(result.reason).toContain('Insufficient cash');
+      expect(mockRepo.updateCashBalanceConditional).not.toHaveBeenCalled();
     });
   });
 

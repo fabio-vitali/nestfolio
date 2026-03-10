@@ -7,7 +7,7 @@ import { PasswordModule } from 'primeng/password';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { CardModule } from 'primeng/card';
-import { authSignIn } from '@nestfolio/auth';
+import { authSignIn, getAuthUser } from '@nestfolio/auth';
 import { I18nService } from '@nestfolio/i18n';
 import { AuthStore } from '@nestfolio/shared-state';
 
@@ -112,6 +112,15 @@ export class LoginComponent {
     try {
       const result = await authSignIn(this.email, this.password);
       if (result.isSignedIn) {
+        const user = await getAuthUser();
+        if (user) {
+          this.authStore.setAuthenticated({
+            userId: user.userId,
+            username: user.username,
+            email: user.email ?? '',
+            tenantId: user.tenantId ?? '',
+          });
+        }
         await this.router.navigate(['/dashboard']);
       } else if (result.nextStep === 'CONFIRM_SIGN_UP') {
         this.authStore.setPendingEmail(this.email);

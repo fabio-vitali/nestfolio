@@ -51,18 +51,6 @@ export class NotificationRepository extends TableRepository {
       const pk = notificationPk(tenantId, notificationId);
       const now = getTime();
 
-      const notificationUpdate: TableEntry = {
-        pk,
-        sk: 'Notification',
-        __typename: 'Notification',
-        tenantId,
-        timestamp: now,
-        notificationId,
-        status,
-        updatedAt: now,
-        ...(details ?? {}),
-      };
-
       const editEvent: TableEntry = {
         pk,
         sk: `EditEvent#${now}#${getUUID()}`,
@@ -78,7 +66,12 @@ export class NotificationRepository extends TableRepository {
 
       await this.transactWrite({
         TransactItems: [
-          { Put: { TableName: this.tableName, Item: notificationUpdate } },
+          this.buildTransactUpdate(pk, 'Notification', {
+            status,
+            updatedAt: now,
+            timestamp: now,
+            ...(details ?? {}),
+          }) as any,
           { Put: { TableName: this.tableName, Item: editEvent } },
         ],
       });

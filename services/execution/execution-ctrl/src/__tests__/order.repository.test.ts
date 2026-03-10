@@ -50,6 +50,14 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new TransactWriteCommand(input));
     }
+    protected buildTransactUpdate(pk: string, sk: string, attrs: Record<string, unknown>) {
+      const entries = Object.entries(attrs);
+      const names: Record<string, string> = {};
+      const values: Record<string, unknown> = {};
+      const sets: string[] = [];
+      entries.forEach(([k, v], i) => { names[`#a${i}`] = k; values[`:v${i}`] = v; sets.push(`#a${i} = :v${i}`); });
+      return { Update: { TableName: this.tableName, Key: { pk, sk }, UpdateExpression: `SET ${sets.join(', ')}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values } };
+    }
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
@@ -65,6 +73,17 @@ jest.mock('@nestfolio/lambda-utils', () => ({
 jest.mock('@nestfolio/domain-core', () => ({}));
 
 import { OrderRepository } from '../repositories/order.repository';
+
+function extractUpdateAttrs(update: any): Record<string, unknown> {
+  const names = update.ExpressionAttributeNames;
+  const values = update.ExpressionAttributeValues;
+  const result: Record<string, unknown> = {};
+  for (const [nameKey, attrName] of Object.entries(names)) {
+    const idx = nameKey.replace('#a', '');
+    result[attrName as string] = values[`:v${idx}`];
+  }
+  return result;
+}
 
 describe('OrderRepository', () => {
   let repo: OrderRepository;
@@ -134,12 +153,10 @@ describe('OrderRepository', () => {
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.TransactItems).toHaveLength(2);
-      expect(call.input.TransactItems[0].Put.Item).toMatchObject({
-        pk: 'Order#t1#ord-1',
-        sk: 'Order',
-        __typename: 'Order',
-        status: 'SUBMITTED',
-      });
+      const updateItem = call.input.TransactItems[0].Update;
+      expect(updateItem.Key).toEqual({ pk: 'Order#t1#ord-1', sk: 'Order' });
+      const attrs = extractUpdateAttrs(updateItem);
+      expect(attrs).toMatchObject({ status: 'SUBMITTED' });
       expect(call.input.TransactItems[1].Put.Item).toMatchObject({
         __typename: 'EditEvent',
         operation: 'replace',
@@ -152,10 +169,27 @@ describe('OrderRepository', () => {
       await repo.updateOrderStatus('t1', 'ord-1', 'REJECTED', { reason: 'Safety check failed' });
 
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems[0].Put.Item).toMatchObject({
+      const attrs = extractUpdateAttrs(call.input.TransactItems[0].Update);
+      expect(attrs).toMatchObject({
         status: 'REJECTED',
         reason: 'Safety check failed',
       });
+    });
+
+    it('should use Update (not Put) to preserve existing attributes', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await repo.updateOrderStatus('t1', 'ord-1', 'SUBMITTED');
+
+      const call = mockSend.mock.calls[0][0];
+      const firstItem = call.input.TransactItems[0];
+      expect(firstItem.Update).toBeDefined();
+      expect(firstItem.Put).toBeUndefined();
+      const attrs = extractUpdateAttrs(firstItem.Update);
+      expect(attrs).not.toHaveProperty('pk');
+      expect(attrs).not.toHaveProperty('sk');
+      expect(attrs).not.toHaveProperty('__typename');
+      expect(attrs).not.toHaveProperty('orderId');
     });
   });
 

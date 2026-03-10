@@ -73,7 +73,7 @@ export class AdvisoryBffStack extends Stack {
     // Read Cognito UserPool from SSM
     const userPoolId = StringParameter.valueForStringParameter(
       this,
-      naming.ssmParameterPath('auth/userPoolId'),
+      `/nestfolio/${prefix}-investor/auth/userPoolId`,
     );
     const userPool = UserPool.fromUserPoolId(this, 'UserPool', userPoolId);
 

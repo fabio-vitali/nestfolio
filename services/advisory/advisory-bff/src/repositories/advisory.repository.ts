@@ -51,18 +51,6 @@ export class AdvisoryRepository extends TableRepository {
     const pk = decisionPk(tenantId, decisionId);
     const now = getTime();
 
-    const updatedItem: TableEntry = {
-      pk,
-      sk: 'DecisionReadModel',
-      __typename: 'DecisionReadModel',
-      tenantId,
-      timestamp: now,
-      decisionId,
-      status,
-      updatedAt: now,
-      ...details,
-    };
-
     const editEvent: TableEntry = {
       pk,
       sk: `EditEvent#${now}#${getUUID()}`,
@@ -77,7 +65,12 @@ export class AdvisoryRepository extends TableRepository {
 
     await this.transactWrite({
       TransactItems: [
-        { Put: { TableName: this.tableName, Item: updatedItem } },
+        this.buildTransactUpdate(pk, 'DecisionReadModel', {
+          status,
+          updatedAt: now,
+          timestamp: now,
+          ...(details ?? {}),
+        }) as any,
         { Put: { TableName: this.tableName, Item: editEvent } },
       ],
     });

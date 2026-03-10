@@ -44,6 +44,14 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new TransactWriteCommand(input));
     }
+    protected buildTransactUpdate(pk: string, sk: string, attrs: Record<string, unknown>) {
+      const entries = Object.entries(attrs);
+      const names: Record<string, string> = {};
+      const values: Record<string, unknown> = {};
+      const sets: string[] = [];
+      entries.forEach(([k, v], i) => { names[`#a${i}`] = k; values[`:v${i}`] = v; sets.push(`#a${i} = :v${i}`); });
+      return { Update: { TableName: this.tableName, Key: { pk, sk }, UpdateExpression: `SET ${sets.join(', ')}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values } };
+    }
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
@@ -79,6 +87,40 @@ describe('DashboardRepository', () => {
       const cmd = mockSend.mock.calls[0][0];
       expect(cmd.input.Key).toEqual({ pk: 'Dashboard#tenant-1', sk: 'PortfolioSummary' });
       expect(cmd.input.ExpressionAttributeValues[':totalValueCents']).toBe(12500000);
+      expect(cmd.input.ExpressionAttributeValues[':positionCount']).toBe(5);
+    });
+  });
+
+  describe('atomicIncrementTotalValue', () => {
+    it('should use if_not_exists(totalValueCents, :zero) + :delta expression', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await repository.atomicIncrementTotalValue('tenant-1', 500000);
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const cmd = mockSend.mock.calls[0][0];
+      expect(cmd.input.Key).toEqual({ pk: 'Dashboard#tenant-1', sk: 'PortfolioSummary' });
+      expect(cmd.input.UpdateExpression).toContain('totalValueCents = if_not_exists(totalValueCents, :zero) + :delta');
+      expect(cmd.input.ExpressionAttributeValues[':zero']).toBe(0);
+      expect(cmd.input.ExpressionAttributeValues[':delta']).toBe(500000);
+    });
+
+    it('should support negative deltas for decrements', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await repository.atomicIncrementTotalValue('tenant-1', -250000);
+
+      const cmd = mockSend.mock.calls[0][0];
+      expect(cmd.input.ExpressionAttributeValues[':delta']).toBe(-250000);
+    });
+
+    it('should include extra updates when provided', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await repository.atomicIncrementTotalValue('tenant-1', 100000, { positionCount: 5 });
+
+      const cmd = mockSend.mock.calls[0][0];
+      expect(cmd.input.UpdateExpression).toContain('positionCount = :positionCount');
       expect(cmd.input.ExpressionAttributeValues[':positionCount']).toBe(5);
     });
   });

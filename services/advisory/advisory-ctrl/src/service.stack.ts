@@ -1,5 +1,6 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
+import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
@@ -141,6 +142,15 @@ export class AdvisoryCtrlStack extends Stack {
       entry: join(__dirname, 'handlers', 'tools', 'event-publisher.ts'),
       environment: { BUS_NAME: naming.eventBusName() },
     });
+    eventPublisherFn.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['events:PutEvents'],
+        resources: [
+          EventBus.fromEventBusName(this, 'AdvisoryBusForIam', naming.eventBusName()).eventBusArn,
+        ],
+      }),
+    );
 
     new AgentRuntime(this, 'AgentRuntime', {
       // AgentCore runtimeName must match ^[a-zA-Z][a-zA-Z0-9_]{0,47}$

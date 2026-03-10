@@ -67,17 +67,17 @@ export const OnboardingStore = signalStore(
       const step = store.currentStep();
       switch (step) {
         case 0:
-          return store.riskAnswers().length > 0;
+          return true; // Welcome step — always proceed
         case 1:
-          return store.riskProfile() !== null;
+          return store.riskAnswers().length > 0;
         case 2:
           return store.goal() !== null;
         case 3:
-          return store.operatingMode() !== null;
+          return store.riskProfile() !== null;
         case 4:
-          return store.mandate() !== null;
+          return store.operatingMode() !== null;
         case 5:
-          return true; // summary/confirmation step
+          return store.mandate() !== null;
         default:
           return false;
       }

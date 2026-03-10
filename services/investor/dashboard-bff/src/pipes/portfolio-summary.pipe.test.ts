@@ -14,10 +14,12 @@ import { PortfolioSummaryPipe } from './portfolio-summary.pipe';
 describe('PortfolioSummaryPipe', () => {
   const mockGetPortfolioSummary = jest.fn();
   const mockUpsertPortfolioSummary = jest.fn().mockResolvedValue({});
+  const mockAtomicIncrementTotalValue = jest.fn().mockResolvedValue(undefined);
 
   const mockRepository = {
     getPortfolioSummary: mockGetPortfolioSummary,
     upsertPortfolioSummary: mockUpsertPortfolioSummary,
+    atomicIncrementTotalValue: mockAtomicIncrementTotalValue,
   } as any;
 
   let pipe: PortfolioSummaryPipe;
@@ -28,8 +30,6 @@ describe('PortfolioSummaryPipe', () => {
   });
 
   it('should initialize totalValueCents from first trade when no existing summary', async () => {
-    mockGetPortfolioSummary.mockResolvedValue(null);
-
     const uow: UnitOfWork<BusEvent<any>> = {
       event: {
         id: 'evt-1',
@@ -50,16 +50,12 @@ describe('PortfolioSummaryPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockGetPortfolioSummary).toHaveBeenCalledWith('t1');
-    // 100 * 150 * 100 = 1_500_000 cents, no existing summary so starts from 0
-    expect(mockUpsertPortfolioSummary).toHaveBeenCalledWith('t1', {
-      totalValueCents: 1_500_000,
-    });
+    // 100 * 150 * 100 = 1_500_000 cents — atomic increment, no read needed
+    expect(mockAtomicIncrementTotalValue).toHaveBeenCalledWith('t1', 1_500_000, {});
+    expect(mockGetPortfolioSummary).not.toHaveBeenCalled();
   });
 
   it('should accumulate totalValueCents across subsequent trades', async () => {
-    mockGetPortfolioSummary.mockResolvedValue({ totalValueCents: 1_500_000 });
-
     const uow: UnitOfWork<BusEvent<any>> = {
       event: {
         id: 'evt-2',
@@ -80,10 +76,7 @@ describe('PortfolioSummaryPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockGetPortfolioSummary).toHaveBeenCalledWith('t1');
-    // Existing 1_500_000 + new 50 * 200 * 100 = 1_500_000 + 1_000_000 = 2_500_000
-    expect(mockUpsertPortfolioSummary).toHaveBeenCalledWith('t1', {
-      totalValueCents: 2_500_000,
-    });
+    // 50 * 200 * 100 = 1_000_000 cents — atomic increment handles accumulation
+    expect(mockAtomicIncrementTotalValue).toHaveBeenCalledWith('t1', 1_000_000, {});
   });
 });

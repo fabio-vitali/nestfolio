@@ -19,24 +19,22 @@ export class PortfolioSummaryPipe
     const tenantId = (event.context as Record<string, string>).tenantId;
     const payload = event.subject as OrderFilledPayload & Record<string, unknown>;
 
-    const updates: Record<string, number> = {};
+    const extraUpdates: Record<string, number> = {};
+
+    if (payload.driftPercent !== undefined) {
+      extraUpdates.driftPercent = payload.driftPercent as number;
+    }
 
     if (payload.filledQuantity !== undefined && payload.averageFillPrice !== undefined) {
       const tradeValueCents = Math.round(
         payload.filledQuantity * payload.averageFillPrice * 100,
       );
 
-      // Read existing summary to accumulate total value
-      const existing = await this.repository.getPortfolioSummary(tenantId);
-      const existingTotalValueCents = (existing?.totalValueCents as number) ?? 0;
-      updates.totalValueCents = existingTotalValueCents + tradeValueCents;
+      // Atomic increment — no read-modify-write race
+      await this.repository.atomicIncrementTotalValue(tenantId, tradeValueCents, extraUpdates);
+    } else if (Object.keys(extraUpdates).length > 0) {
+      await this.repository.upsertPortfolioSummary(tenantId, extraUpdates);
     }
-
-    if (payload.driftPercent !== undefined) {
-      updates.driftPercent = payload.driftPercent as number;
-    }
-
-    await this.repository.upsertPortfolioSummary(tenantId, updates);
 
     logger.info('Updated portfolio summary projection', {
       tenantId,
