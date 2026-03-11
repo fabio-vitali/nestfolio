@@ -15,5 +15,8 @@ module.exports = {
     ],
   },
   transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$|@ngrx)'],
-  setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
+  moduleNameMapper: {
+    '^@nestfolio/shared-state/testing$': '<rootDir>/test/testing/index.ts',
+  },
+  setupFilesAfterEnv: ['<rootDir>/test/test-setup.ts'],
 };

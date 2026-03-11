@@ -2,7 +2,7 @@ export default {
   displayName: 'nestfolio-host',
   preset: '../../jest.preset.js',
   testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/test/test-setup.ts'],
   coverageDirectory: '../../coverage/apps/nestfolio-host',
   transform: {
     '^.+\\.(ts|mjs|js|html)$': [
