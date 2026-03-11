@@ -114,6 +114,17 @@ function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, 
   };
 }
 
+function extractUpdateAttrs(update: any): Record<string, unknown> {
+  const names = update.ExpressionAttributeNames;
+  const values = update.ExpressionAttributeValues;
+  const result: Record<string, unknown> = {};
+  for (const [nameKey, attrName] of Object.entries(names)) {
+    const idx = nameKey.replace('#a', '');
+    result[attrName as string] = values[`:v${idx}`];
+  }
+  return result;
+}
+
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
   let handler: (event: SQSEvent) => Promise<SQSBatchResponse>;
@@ -130,6 +141,7 @@ describe('event-listener handler', () => {
     mockDeps = {
       idempotencyGuard: { ensureOnce: jest.fn().mockResolvedValue(true) } as any,
       lifecycleService,
+      repository,
       bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: {
         addMetric: jest.fn(),
@@ -299,5 +311,169 @@ describe('event-listener handler', () => {
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
     expect(isRetryable).toHaveBeenCalled();
+  });
+
+  // Compliance callback tests (merged from compliance-callback.test.ts)
+  describe('compliance callback events', () => {
+    it('should handle DECISION_APPROVED with L1 authority (autonomous)', async () => {
+      const sqsEvent = buildSqsEvent([
+        {
+          messageId: 'msg-c1',
+          body: {
+            detail: {
+              id: 'evt-c1',
+              type: 'DECISION_APPROVED',
+              timestamp: '2025-01-01T00:00:00.000Z',
+              subject: { tenantId: 't1', decisionId: 'dp-1', authorityLevel: 'L1' },
+              context: { tenantId: 't1' },
+            },
+          },
+        },
+      ]);
+
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+
+      const transactCalls = mockSend.mock.calls.filter(
+        (c) => c[0]._type === 'TransactWrite',
+      );
+      expect(transactCalls.length).toBeGreaterThanOrEqual(1);
+      const lastTransact = transactCalls[transactCalls.length - 1][0];
+      const attrs = extractUpdateAttrs(lastTransact.input.TransactItems[0].Update);
+      expect(attrs).toMatchObject({
+        status: 'APPROVED',
+        authorityLevel: 'L1',
+      });
+    });
+
+    it('should handle DECISION_APPROVED with L2 authority (needs confirmation)', async () => {
+      const sqsEvent = buildSqsEvent([
+        {
+          messageId: 'msg-c2',
+          body: {
+            detail: {
+              id: 'evt-c2',
+              type: 'DECISION_APPROVED',
+              timestamp: '2025-01-01T00:00:00.000Z',
+              subject: { tenantId: 't1', decisionId: 'dp-2', authorityLevel: 'L2' },
+              context: { tenantId: 't1' },
+            },
+          },
+        },
+      ]);
+
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+
+      const transactCalls = mockSend.mock.calls.filter(
+        (c) => c[0]._type === 'TransactWrite',
+      );
+      expect(transactCalls.length).toBeGreaterThanOrEqual(1);
+      const lastTransact = transactCalls[transactCalls.length - 1][0];
+      const attrs = extractUpdateAttrs(lastTransact.input.TransactItems[0].Update);
+      expect(attrs).toMatchObject({
+        status: 'AWAITING_CONFIRMATION',
+        confirmationRequired: true,
+      });
+    });
+
+    it('should handle DECISION_BLOCKED', async () => {
+      const sqsEvent = buildSqsEvent([
+        {
+          messageId: 'msg-c3',
+          body: {
+            detail: {
+              id: 'evt-c3',
+              type: 'DECISION_BLOCKED',
+              timestamp: '2025-01-01T00:00:00.000Z',
+              subject: { tenantId: 't1', decisionId: 'dp-3', reason: 'Exceeds risk limits' },
+              context: { tenantId: 't1' },
+            },
+          },
+        },
+      ]);
+
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+
+      const transactCalls = mockSend.mock.calls.filter(
+        (c) => c[0]._type === 'TransactWrite',
+      );
+      expect(transactCalls.length).toBeGreaterThanOrEqual(1);
+      const lastTransact = transactCalls[transactCalls.length - 1][0];
+      const attrs = extractUpdateAttrs(lastTransact.input.TransactItems[0].Update);
+      expect(attrs).toMatchObject({
+        status: 'BLOCKED',
+        blockReason: 'Exceeds risk limits',
+      });
+    });
+  });
+
+  // User response tests (merged from user-response.test.ts)
+  describe('user response events', () => {
+    it('should handle USER_CONFIRMED and update status to CONFIRMED', async () => {
+      const sqsEvent = buildSqsEvent([
+        {
+          messageId: 'msg-u1',
+          body: {
+            detail: {
+              id: 'evt-u1',
+              type: 'USER_CONFIRMED',
+              timestamp: '2025-01-01T00:00:00.000Z',
+              subject: { tenantId: 't1', decisionId: 'dp-1' },
+              context: { tenantId: 't1' },
+            },
+          },
+        },
+      ]);
+
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+
+      const transactCalls = mockSend.mock.calls.filter(
+        (c) => c[0]._type === 'TransactWrite',
+      );
+      expect(transactCalls.length).toBeGreaterThanOrEqual(1);
+      const lastTransact = transactCalls[transactCalls.length - 1][0];
+      const attrs = extractUpdateAttrs(lastTransact.input.TransactItems[0].Update);
+      expect(attrs).toMatchObject({
+        status: 'CONFIRMED',
+      });
+    });
+
+    it('should handle USER_REJECTED and update status to REJECTED', async () => {
+      const sqsEvent = buildSqsEvent([
+        {
+          messageId: 'msg-u2',
+          body: {
+            detail: {
+              id: 'evt-u2',
+              type: 'USER_REJECTED',
+              timestamp: '2025-01-01T00:00:00.000Z',
+              subject: {
+                tenantId: 't1',
+                decisionId: 'dp-2',
+                reason: 'Too risky',
+              },
+              context: { tenantId: 't1' },
+            },
+          },
+        },
+      ]);
+
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+
+      const transactCalls = mockSend.mock.calls.filter(
+        (c) => c[0]._type === 'TransactWrite',
+      );
+      expect(transactCalls.length).toBeGreaterThanOrEqual(1);
+      const lastTransact = transactCalls[transactCalls.length - 1][0];
+      const attrs = extractUpdateAttrs(lastTransact.input.TransactItems[0].Update);
+      expect(attrs).toMatchObject({
+        status: 'REJECTED',
+        rejectionReason: 'Too risky',
+      });
+    });
   });
 });

@@ -57,7 +57,7 @@ export class AdvisoryBffStack extends Stack {
     });
 
     // Egress: DynamoDB Streams -> EventBridge publisher
-    new Egress(this, 'Egress', {
+    const egress = new Egress(this, 'Egress', {
       table: state.table,
       busName: naming.eventBusName(),
       serviceName: 'advisory-bff',
@@ -90,14 +90,14 @@ export class AdvisoryBffStack extends Stack {
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
       lambdaFunctions: [eventListener, resolver],
-      dlqs: [ingress.dlq],
+      dlqs: [ingress.dlq, egress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'advisory-bff',
       lambdaFunctions: [eventListener, resolver],
-      dlqs: [ingress.dlq],
+      dlqs: [ingress.dlq, egress.dlq],
     });
   }
 }

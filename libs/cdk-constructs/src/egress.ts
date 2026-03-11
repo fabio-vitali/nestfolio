@@ -1,11 +1,12 @@
 import { join } from 'path';
 import { Construct } from 'constructs';
-import { Stack } from 'aws-cdk-lib';
+import { Duration, Stack } from 'aws-cdk-lib';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
+import { DynamoEventSource, SqsDlq } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { StartingPosition, FilterCriteria, FilterRule } from 'aws-cdk-lib/aws-lambda';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { defaultLambdaProps } from './default-lambda-props';
 
 export interface EgressProps {
@@ -17,8 +18,15 @@ export interface EgressProps {
 }
 
 export class Egress extends Construct {
+  readonly dlq: Queue;
+
   constructor(scope: Construct, id: string, props: EgressProps) {
     super(scope, id);
+
+    this.dlq = new Queue(this, 'DLQ', {
+      retentionPeriod: Duration.days(14),
+      encryption: QueueEncryption.KMS_MANAGED,
+    });
 
     const publisher = new NodejsFunction(this, 'Publisher', {
       ...defaultLambdaProps(this),
@@ -40,6 +48,7 @@ export class Egress extends Construct {
       startingPosition: StartingPosition.LATEST,
       bisectBatchOnError: true,
       retryAttempts: 3,
+      onFailure: new SqsDlq(this.dlq),
       filters: props.publishableTypes.flatMap(typeName => [
         FilterCriteria.filter({
           eventName: FilterRule.isEqual('INSERT'),

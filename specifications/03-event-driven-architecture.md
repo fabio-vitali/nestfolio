@@ -137,14 +137,16 @@ This pattern decouples event production from consumption, provides back-pressure
 
 ## Service Infrastructure Envelope
 
-Each service has a fixed, minimal infrastructure footprint:
+Each service has a fixed, minimal infrastructure footprint consisting of **at most two Lambda functions** and their supporting infrastructure:
 
-- **One ingress path**: A single EventBridge rule → SQS queue → Lambda handler. All event types the service consumes arrive through this single queue and are dispatched inside the handler via code (`switch`/`case` or `Set.has()`). Event type multiplexing is a code concern, not an infrastructure concern -- creating additional queues or Lambdas for different event types is not permitted.
-- **One egress path**: A single change-data-capture channel (DynamoDB Streams or S3 Event Notifications) that publishes state changes to the domain EventBridge bus.
+- **One event-listener Lambda (ingress)**: A single EventBridge rule → SQS queue (with dead-letter queue) → Lambda handler. All event types the service consumes arrive through this single queue and are dispatched inside the handler via code (`switch`/`case` or `Set.has()`). Event type multiplexing is a code concern, not an infrastructure concern -- creating additional queues or Lambdas for different event types is not permitted.
+- **One event-publisher Lambda (egress)** *(when the service publishes domain events)*: A single change-data-capture trigger (DynamoDB Streams or S3 Event Notifications) → Lambda handler that publishes state changes as domain events to the EventBridge bus. This Lambda is provided by the Egress construct and is not written per-service.
 
-This constraint keeps the infrastructure footprint predictable and ensures that cross-cutting concerns (middleware, metrics, tracing, idempotency) are applied uniformly in a single handler rather than duplicated across multiple Lambdas.
+Not every service requires both paths. A BFF that serves as a **pure read-model** -- materializing incoming events into query-optimized projections without producing domain events -- has an ingress path but no egress path. It receives events, updates its projections, and exposes them via its API surface. Since it does not publish state changes, no Egress construct or event-publisher Lambda is needed.
 
-**Scoped exceptions**: Specific runtime integrations (e.g., Bedrock AgentCore tool targets, Step Functions task callbacks) may require additional Lambda functions. These are not general event processing paths -- they do not receive events from the bus and do not publish events directly to the bus. They exist solely to serve the runtime that invokes them and must be explicitly justified in the service's design.
+This means each service owns **at most one SQS queue, two DLQs** (one for the ingress SQS queue, one for the egress stream consumer when present), **and two Lambdas**. This constraint keeps the infrastructure footprint predictable and ensures that cross-cutting concerns (middleware, metrics, tracing, idempotency) are applied uniformly in a single handler rather than duplicated across multiple Lambdas.
+
+**Scoped exceptions**: Specific runtime integrations (e.g., Bedrock AgentCore tool targets, Step Functions task callbacks, DynamoDB Stream reducers for event-sourced aggregates) may require additional Lambda functions. These are not general event processing paths -- they do not receive events from the bus and do not publish events directly to the bus. They exist solely to serve the runtime that invokes them and must be explicitly justified in the service's design.
 
 ---
 

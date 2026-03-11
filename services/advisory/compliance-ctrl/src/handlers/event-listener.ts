@@ -17,9 +17,21 @@ export interface EventListenerDeps {
   readonly bus: Bus;
 }
 
-const HANDLED_EVENT_TYPES = new Set([
+const DECISION_EVENT_TYPES = new Set([
   'DECISION_PACKET_CREATED',
   'DECISION_PACKET_ENRICHED',
+]);
+
+const MANDATE_EVENT_TYPES = new Set([
+  'MANDATE_GRANTED',
+  'MANDATE_UPDATED',
+  'MANDATE_REVOKED',
+  'OPERATING_MODE_CHANGED',
+]);
+
+const HANDLED_EVENT_TYPES = new Set([
+  ...DECISION_EVENT_TYPES,
+  ...MANDATE_EVENT_TYPES,
 ]);
 
 export const createHandler = (deps: EventListenerDeps) =>
@@ -45,14 +57,18 @@ export const createHandler = (deps: EventListenerDeps) =>
           continue;
         }
 
-        const subject = uow.event.subject as Record<string, unknown>;
-        const requiredFields = ['proposedTrades', 'portfolioValue', 'riskScore', 'currentPositions'];
-        const missingFields = requiredFields.filter((f) => !(f in subject));
-        if (missingFields.length) {
-          throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
+        if (DECISION_EVENT_TYPES.has(eventType)) {
+          const subject = uow.event.subject as Record<string, unknown>;
+          const requiredFields = ['proposedTrades', 'portfolioValue', 'riskScore', 'currentPositions'];
+          const missingFields = requiredFields.filter((f) => !(f in subject));
+          if (missingFields.length) {
+            throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
+          }
+          await processDecisionPacket(deps, uow.event);
+        } else if (MANDATE_EVENT_TYPES.has(eventType)) {
+          await processMandateEvent(deps, uow.event, eventType);
         }
 
-        await processDecisionPacket(deps, uow.event);
         deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
       } catch (error) {
         logger.error('Failed to process record', {
@@ -161,6 +177,54 @@ async function processDecisionPacket(
     authorityLevel: output.authorityLevel,
     violationCount: output.violations.length,
   });
+}
+
+async function processMandateEvent(
+  deps: EventListenerDeps,
+  event: Record<string, unknown>,
+  eventType: string,
+): Promise<void> {
+  const subject = event.subject as Record<string, unknown>;
+  const context = event.context as Record<string, unknown>;
+  const tenantId = ((context?.tenantId ?? subject?.tenantId) as string);
+  const userId = ((subject?.userId ?? tenantId) as string);
+
+  switch (eventType) {
+    case 'MANDATE_GRANTED':
+    case 'MANDATE_UPDATED':
+      if (!subject.mandateId || !subject.level) {
+        throw new NotRetryableError(`Missing required mandate fields: mandateId=${subject.mandateId}, level=${subject.level}`);
+      }
+      await deps.repository.putMandateSnapshot(tenantId, userId, {
+        mandateId: subject.mandateId,
+        level: subject.level,
+        monthlyTurnoverCapPercent: subject.monthlyTurnoverCapPercent,
+        maxSingleTradePercent: subject.maxSingleTradePercent,
+        effectiveDate: subject.effectiveDate,
+        revokedAt: null,
+      });
+      logger.info('Mandate snapshot created/updated', { tenantId, userId, eventType });
+      break;
+
+    case 'MANDATE_REVOKED':
+      await deps.repository.putMandateSnapshot(tenantId, userId, {
+        mandateId: subject.mandateId,
+        level: subject.level ?? 'ADVISORY',
+        monthlyTurnoverCapPercent: subject.monthlyTurnoverCapPercent ?? 0,
+        maxSingleTradePercent: subject.maxSingleTradePercent ?? 0,
+        effectiveDate: subject.effectiveDate ?? new Date().toISOString(),
+        revokedAt: subject.revokedAt ?? new Date().toISOString(),
+      });
+      logger.info('Mandate snapshot revoked', { tenantId, userId });
+      break;
+
+    case 'OPERATING_MODE_CHANGED':
+      logger.info('Operating mode changed, noted', { tenantId, userId, mode: subject.mode });
+      break;
+
+    default:
+      logger.info('No handler for mandate event type, skipping', { eventType });
+  }
 }
 
 // Production wiring

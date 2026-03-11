@@ -17,6 +17,13 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
+const mockQuotePrices: Record<string, number> = {
+  VTI: 250.50, VXUS: 58.75, BND: 72.30, VNQ: 85.40, GLD: 195.80,
+  SPY: 520.15, QQQ: 445.60, IWM: 210.25, EFA: 78.90, EEM: 42.15,
+  TLT: 92.50, AGG: 98.75, VIG: 178.30, SCHD: 82.45, VOO: 480.20,
+  VGSH: 58.10, VCIT: 80.55, VWO: 43.20, IEMG: 52.80, XLF: 42.90,
+};
+
 jest.mock('@nestfolio/platform-core', () => ({
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
@@ -47,6 +54,14 @@ jest.mock('@nestfolio/platform-core', () => ({
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+  StaticMarketDataProvider: jest.fn().mockImplementation(() => ({})),
+  CachedMarketDataProvider: jest.fn().mockImplementation(() => ({
+    getQuote: jest.fn().mockImplementation(async (symbol: string) => {
+      const price = mockQuotePrices[symbol];
+      if (!price) return null;
+      return { symbol, price, change: 0, changePercent: 0, volume: 1000, timestamp: '2026-01-01' };
+    }),
+  })),
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
@@ -82,6 +97,7 @@ jest.mock('@nestfolio/command-core', () => ({}));
 import { SQSEvent } from 'aws-lambda';
 import { createHandler } from '../src/handlers/event-listener';
 import { LedgerRepository } from '../src/repositories/ledger.repository';
+import { ShadowFillService } from '../src/services/shadow-fill.service';
 import { IdempotencyGuard } from '@nestfolio/lambda-utils';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
@@ -110,6 +126,7 @@ describe('order-ledger event-listener handler', () => {
   };
 
   const repository = new LedgerRepository('test-table');
+  const shadowFill = new ShadowFillService();
 
   let handler: (event: SQSEvent) => Promise<any>;
 
@@ -123,6 +140,7 @@ describe('order-ledger event-listener handler', () => {
       idempotencyGuard: new IdempotencyGuard({} as any, 'test-table'),
       bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: mockMetrics as any,
+      shadowFill,
     });
   });
 
@@ -130,6 +148,7 @@ describe('order-ledger event-listener handler', () => {
     process.env = ORIGINAL_ENV;
   });
 
+  // Actual stream tests
   it('should process ORDER_FILLED event', async () => {
     const sqsEvent = buildSqsEvent([
       {
@@ -278,5 +297,94 @@ describe('order-ledger event-listener handler', () => {
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
     expect(isRetryable).toHaveBeenCalled();
+  });
+
+  // Simulation tests (merged from simulation-listener.test.ts)
+  describe('simulation events (DECISION_PACKET_CREATED)', () => {
+    it('should process DECISION_PACKET_CREATED and write simulated LedgerEntries', async () => {
+      const sqsEvent = buildSqsEvent([
+        {
+          messageId: 'msg-sim-1',
+          body: {
+            detail: {
+              id: 'evt-sim-1',
+              type: 'DECISION_PACKET_CREATED',
+              timestamp: '2025-01-01T00:00:00.000Z',
+              subject: {
+                tenantId: 't1',
+                decisionPacketId: 'dp-1',
+                proposedTrades: [
+                  { symbol: 'VTI', side: 'BUY', quantity: 10 },
+                  { symbol: 'SPY', side: 'BUY', quantity: 5 },
+                ],
+              },
+              context: { tenantId: 't1' },
+            },
+          },
+        },
+      ]);
+
+      const result = await handler(sqsEvent);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(mockMetrics.addMetric).toHaveBeenCalledWith('SimulationProcessed', 'Count', 1);
+      const putCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'Put');
+      expect(putCalls.length).toBe(2);
+    });
+
+    it('should skip decision packets with no proposed trades', async () => {
+      const sqsEvent = buildSqsEvent([
+        {
+          messageId: 'msg-sim-empty',
+          body: {
+            detail: {
+              id: 'evt-sim-empty',
+              type: 'DECISION_PACKET_CREATED',
+              timestamp: '2025-01-01T00:00:00.000Z',
+              subject: {
+                tenantId: 't1',
+                decisionPacketId: 'dp-empty',
+                proposedTrades: [],
+              },
+              context: { tenantId: 't1' },
+            },
+          },
+        },
+      ]);
+
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(mockMetrics.addMetric).not.toHaveBeenCalledWith('SimulationProcessed', 'Count', 1);
+    });
+
+    it('should use shadow fill prices for simulated entries', async () => {
+      const sqsEvent = buildSqsEvent([
+        {
+          messageId: 'msg-sim-price',
+          body: {
+            detail: {
+              id: 'evt-sim-price',
+              type: 'DECISION_PACKET_CREATED',
+              timestamp: '2025-01-01T00:00:00.000Z',
+              subject: {
+                tenantId: 't1',
+                decisionPacketId: 'dp-price',
+                proposedTrades: [{ symbol: 'QQQ', side: 'BUY', quantity: 2 }],
+              },
+              context: { tenantId: 't1' },
+            },
+          },
+        },
+      ]);
+
+      await handler(sqsEvent);
+
+      const putCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'Put');
+      expect(putCalls.length).toBe(1);
+      const putItem = putCalls[0][0].input.Item;
+      expect(putItem.payload.fillPrice).toBe(445.60);
+      expect(putItem.streamType).toBe('simulated');
+      expect(putItem.orderId).toBe('sim-dp-price-QQQ');
+    });
   });
 });

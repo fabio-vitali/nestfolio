@@ -51,7 +51,7 @@ export class PortfolioCtrlStack extends Stack {
     });
 
     // Egress: DynamoDB Streams -> EventBridge
-    new Egress(this, 'Egress', {
+    const egress = new Egress(this, 'Egress', {
       table: state.table,
       busName: naming.eventBusName(),
       serviceName: 'portfolio-ctrl',
@@ -61,14 +61,14 @@ export class PortfolioCtrlStack extends Stack {
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
       lambdaFunctions: [eventListener],
-      dlqs: [ingress.dlq],
+      dlqs: [ingress.dlq, egress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'portfolio-ctrl',
       lambdaFunctions: [eventListener],
-      dlqs: [ingress.dlq],
+      dlqs: [ingress.dlq, egress.dlq],
     });
   }
 }

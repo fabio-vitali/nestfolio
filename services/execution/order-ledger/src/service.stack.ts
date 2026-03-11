@@ -36,7 +36,7 @@ export class OrderLedgerStack extends Stack {
     // State: DynamoDB table
     const state = new State(this, 'State');
 
-    // Event listener Lambda (actual stream)
+    // Event listener Lambda (actual + simulation events)
     const eventListener = new NodejsFunction(this, 'EventListener', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'event-listener.ts'),
@@ -45,7 +45,7 @@ export class OrderLedgerStack extends Stack {
     state.table.grantReadWriteData(eventListener);
     eventListener.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
 
-    // Ingress: Actual events from execution bus
+    // Ingress: All events from execution bus (actual + simulation)
     const executionBus = EventBus.fromEventBusName(this, 'ExecutionBus', naming.eventBusName());
     const ingress = new Ingress(this, 'Ingress', {
       eventBus: executionBus,
@@ -56,24 +56,9 @@ export class OrderLedgerStack extends Stack {
         'ORDER_CANCELLED',
         'DEPOSIT_DETECTED',
         'WITHDRAWAL_COMPLETED',
+        'DECISION_PACKET_CREATED',
       ],
       handler: eventListener,
-    });
-
-    // Simulation listener Lambda (DECISION_PACKET_CREATED → shadow fills → simulated stream)
-    const simulationListener = new NodejsFunction(this, 'SimulationListener', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'simulation-listener.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'order-ledger' },
-    });
-    state.table.grantReadWriteData(simulationListener);
-    simulationListener.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
-
-    // Ingress: DECISION_PACKET_CREATED from execution bus (forwarded by advisory-hub)
-    const simulationIngress = new Ingress(this, 'SimulationIngress', {
-      eventBus: executionBus,
-      eventTypes: ['DECISION_PACKET_CREATED'],
-      handler: simulationListener,
     });
 
     // Reducer Lambda: DDB Stream → rebuild portfolio/position snapshots
@@ -104,7 +89,7 @@ export class OrderLedgerStack extends Stack {
     }));
 
     // Egress: publishes PositionSnapshot and PortfolioSnapshot to EventBridge
-    new Egress(this, 'Egress', {
+    const egress = new Egress(this, 'Egress', {
       table: state.table,
       busName: naming.eventBusName(),
       serviceName: 'order-ledger',
@@ -136,15 +121,15 @@ export class OrderLedgerStack extends Stack {
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener, simulationListener, reducerFn, resolver],
-      dlqs: [ingress.dlq, simulationIngress.dlq],
+      lambdaFunctions: [eventListener, reducerFn, resolver],
+      dlqs: [ingress.dlq, egress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'order-ledger',
-      lambdaFunctions: [eventListener, simulationListener, reducerFn, resolver],
-      dlqs: [ingress.dlq, simulationIngress.dlq],
+      lambdaFunctions: [eventListener, reducerFn, resolver],
+      dlqs: [ingress.dlq, egress.dlq],
     });
   }
 }

@@ -33,7 +33,7 @@ export class AdvisoryCtrlStack extends Stack {
     // State: DynamoDB table
     const state = new State(this, 'State');
 
-    // Event listener Lambda (trigger events)
+    // Event listener Lambda (all event types)
     const eventListener = new NodejsFunction(this, 'EventListener', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'event-listener.ts'),
@@ -43,7 +43,7 @@ export class AdvisoryCtrlStack extends Stack {
     eventListener.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
 
     // Ingress: advisory EventBridge bus -> SQS -> event-listener
-    const triggerIngress = new Ingress(this, 'TriggerIngress', {
+    const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus', naming.eventBusName()),
       eventTypes: [
         'MANDATE_GRANTED',
@@ -55,42 +55,16 @@ export class AdvisoryCtrlStack extends Stack {
         'ORDER_REJECTED',
         'ORDER_CANCELLED',
         'DEPOSIT_DETECTED',
+        'DECISION_APPROVED',
+        'DECISION_BLOCKED',
+        'USER_CONFIRMED',
+        'USER_REJECTED',
       ],
       handler: eventListener,
     });
 
-    // Compliance callback Lambda
-    const complianceCallback = new NodejsFunction(this, 'ComplianceCallback', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'compliance-callback.ts'),
-      environment: { TABLE_NAME: state.table.tableName },
-    });
-    state.table.grantReadWriteData(complianceCallback);
-
-    // Compliance ingress
-    const complianceIngress = new Ingress(this, 'ComplianceIngress', {
-      eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus2', naming.eventBusName()),
-      eventTypes: ['DECISION_APPROVED', 'DECISION_BLOCKED'],
-      handler: complianceCallback,
-    });
-
-    // User response Lambda
-    const userResponse = new NodejsFunction(this, 'UserResponse', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'user-response.ts'),
-      environment: { TABLE_NAME: state.table.tableName },
-    });
-    state.table.grantReadWriteData(userResponse);
-
-    // User response ingress
-    const userResponseIngress = new Ingress(this, 'UserResponseIngress', {
-      eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus3', naming.eventBusName()),
-      eventTypes: ['USER_CONFIRMED', 'USER_REJECTED'],
-      handler: userResponse,
-    });
-
     // Egress: DynamoDB Streams -> EventBridge
-    new Egress(this, 'Egress', {
+    const egress = new Egress(this, 'Egress', {
       table: state.table,
       busName: naming.eventBusName(),
       serviceName: 'advisory-ctrl',
@@ -190,8 +164,8 @@ export class AdvisoryCtrlStack extends Stack {
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth, Bedrock errors
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener, complianceCallback, userResponse, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
-      dlqs: [triggerIngress.dlq, complianceIngress.dlq, userResponseIngress.dlq],
+      lambdaFunctions: [eventListener, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
+      dlqs: [ingress.dlq, egress.dlq],
       monitorBedrock: true,
       bedrockModelIds: [modelOpusId, modelSonnetId, modelHaikuId],
     });
@@ -199,8 +173,8 @@ export class AdvisoryCtrlStack extends Stack {
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'advisory-ctrl',
-      lambdaFunctions: [eventListener, complianceCallback, userResponse, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
-      dlqs: [triggerIngress.dlq, complianceIngress.dlq, userResponseIngress.dlq],
+      lambdaFunctions: [eventListener, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
+      dlqs: [ingress.dlq, egress.dlq],
     });
   }
 }

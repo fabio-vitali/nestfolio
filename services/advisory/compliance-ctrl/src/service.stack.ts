@@ -31,7 +31,7 @@ export class ComplianceCtrlStack extends Stack {
     // State: DynamoDB table
     const state = new State(this, 'State');
 
-    // Event listener Lambda — handles DECISION_PACKET_CREATED / ENRICHED
+    // Event listener Lambda — handles all event types
     const eventListener = new NodejsFunction(this, 'EventListener', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'event-listener.ts'),
@@ -40,36 +40,22 @@ export class ComplianceCtrlStack extends Stack {
     state.table.grantReadWriteData(eventListener);
     eventListener.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
 
-    // Decision ingress: EventBridge -> SQS -> event-listener
-    const decisionIngress = new Ingress(this, 'DecisionIngress', {
+    // Ingress: EventBridge -> SQS -> event-listener (all event types)
+    const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus', naming.eventBusName()),
-      eventTypes: ['DECISION_PACKET_CREATED', 'DECISION_PACKET_ENRICHED'],
-      handler: eventListener,
-    });
-
-    // Mandate listener Lambda — handles mandate lifecycle events
-    const mandateListener = new NodejsFunction(this, 'MandateListener', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'mandate-listener.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'compliance-ctrl' },
-    });
-    state.table.grantReadWriteData(mandateListener);
-    mandateListener.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
-
-    // Mandate ingress: EventBridge -> SQS -> mandate-listener
-    const mandateIngress = new Ingress(this, 'MandateIngress', {
-      eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus2', naming.eventBusName()),
       eventTypes: [
+        'DECISION_PACKET_CREATED',
+        'DECISION_PACKET_ENRICHED',
         'MANDATE_GRANTED',
         'MANDATE_UPDATED',
         'MANDATE_REVOKED',
         'OPERATING_MODE_CHANGED',
       ],
-      handler: mandateListener,
+      handler: eventListener,
     });
 
     // Egress: DynamoDB Streams -> EventBridge publisher
-    new Egress(this, 'Egress', {
+    const egress = new Egress(this, 'Egress', {
       table: state.table,
       busName: naming.eventBusName(),
       serviceName: 'compliance-ctrl',
@@ -78,15 +64,15 @@ export class ComplianceCtrlStack extends Stack {
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener, mandateListener],
-      dlqs: [decisionIngress.dlq, mandateIngress.dlq],
+      lambdaFunctions: [eventListener],
+      dlqs: [ingress.dlq, egress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'compliance-ctrl',
-      lambdaFunctions: [eventListener, mandateListener],
-      dlqs: [decisionIngress.dlq, mandateIngress.dlq],
+      lambdaFunctions: [eventListener],
+      dlqs: [ingress.dlq, egress.dlq],
     });
   }
 }
