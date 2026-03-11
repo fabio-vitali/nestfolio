@@ -16,10 +16,6 @@ jest.mock('aws-amplify/auth', () => ({
   signOut: jest.fn(),
 }));
 
-jest.mock('aws-amplify/api', () => ({
-  generateClient: jest.fn(() => ({ graphql: jest.fn() })),
-}));
-
 import { TestBed } from '@angular/core/testing';
 import { RuntimeConfigService } from '../../src/app/runtime-config.service';
 
@@ -53,8 +49,8 @@ describe('RuntimeConfigService', () => {
     expect(config.appsync.advisoryBff.endpoint).toBeTruthy();
     expect(config.appsync.dashboardBff).toBeDefined();
     expect(config.appsync.dashboardBff.endpoint).toBeTruthy();
-    expect(config.appsync.orderLedger).toBeDefined();
-    expect(config.appsync.orderLedger.endpoint).toBeTruthy();
+    expect(config.appsync.orderLedgerBff).toBeDefined();
+    expect(config.appsync.orderLedgerBff.endpoint).toBeTruthy();
   });
 
   it('should expose auth shortcut', () => {
@@ -76,6 +72,6 @@ describe('RuntimeConfigService', () => {
     expect(config.appsync).toHaveProperty('advisoryBff');
     expect(config.appsync).toHaveProperty('portfolioBff');
     expect(config.appsync).toHaveProperty('dashboardBff');
-    expect(config.appsync).toHaveProperty('orderLedger');
+    expect(config.appsync).toHaveProperty('orderLedgerBff');
   });
 });

@@ -35,6 +35,9 @@ importers:
       '@angular/service-worker':
         specifier: ^21.2.0
         version: 21.2.1(@angular/core@21.2.1(@angular/compiler@21.2.1)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
+      '@apollo/client':
+        specifier: ^4.1.6
+        version: 4.1.6(graphql@16.13.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(rxjs@7.8.2)
       '@aws-cdk/aws-bedrock-agentcore-alpha':
         specifier: 2.241.0-alpha.0
         version: 2.241.0-alpha.0(@aws-cdk/aws-bedrock-alpha@2.241.0-alpha.0(aws-cdk-lib@2.241.0(constructs@10.5.1))(constructs@10.5.1))(aws-cdk-lib@2.241.0(constructs@10.5.1))(constructs@10.5.1)
@@ -98,6 +101,12 @@ importers:
       aws-amplify:
         specifier: ^6.14.0
         version: 6.16.2
+      aws-appsync-auth-link:
+        specifier: 4.0.1
+        version: 4.0.1(@apollo/client@4.1.6(graphql@16.13.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(rxjs@7.8.2))(graphql@16.13.1)(rxjs@7.8.2)
+      aws-appsync-subscription-link:
+        specifier: 4.0.1
+        version: 4.0.1(@apollo/client@4.1.6(graphql@16.13.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(rxjs@7.8.2))(graphql@16.13.1)(rxjs@7.8.2)(uuid@13.0.0)
       aws-cdk-lib:
         specifier: ^2.188.0
         version: 2.241.0(constructs@10.5.1)
@@ -125,9 +134,6 @@ importers:
       zod:
         specifier: ^3.24.0
         version: 3.25.76
-      zone.js:
-        specifier: ^0.15.0
-        version: 0.15.1
     devDependencies:
       '@angular-architects/native-federation':
         specifier: ^21.2.0
@@ -605,6 +611,25 @@ packages:
       '@angular/core': 21.2.1
       rxjs: ^6.5.3 || ^7.4.0
 
+  '@apollo/client@4.1.6':
+    resolution: {integrity: sha512-ak8uzqmKeX3u9BziGf83RRyODAJKFkPG72hTNvEj4WjMWFmuKW2gGN1i3OfajKT6yuGjvo+n23ES2zqWDKFCZg==}
+    peerDependencies:
+      graphql: ^16.0.0
+      graphql-ws: ^5.5.5 || ^6.0.3
+      react: ^17.0.0 || ^18.0.0 || >=19.0.0-rc
+      react-dom: ^17.0.0 || ^18.0.0 || >=19.0.0-rc
+      rxjs: ^7.3.0
+      subscriptions-transport-ws: ^0.9.0 || ^0.11.0
+    peerDependenciesMeta:
+      graphql-ws:
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      subscriptions-transport-ws:
+        optional: true
+
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
 
@@ -700,12 +725,18 @@ packages:
   '@aws-crypto/sha256-browser@5.2.0':
     resolution: {integrity: sha512-AXfN/lGotSQwu6HNcEsIASo7kWXZ5HYWvfOmSNKDsEqC4OashTp8alTmaz+F7TC2L083SFv5RdB+qU3Vs1kZqw==}
 
+  '@aws-crypto/sha256-js@1.2.2':
+    resolution: {integrity: sha512-Nr1QJIbW/afYYGzYvrF70LtaHrIRtd4TNAglX8BvlfxJLZ45SAmueIKYl5tWoNBPzp65ymXGFK0Bb1vZUpuc9g==}
+
   '@aws-crypto/sha256-js@5.2.0':
     resolution: {integrity: sha512-FFQQyu7edu4ufvIZ+OadFpHHOt+eSTBaYaki44c+akjg7qZg9oOQeLlk77F6tSYqjDAFClrHJk9tMf0HdVyOvA==}
     engines: {node: '>=16.0.0'}
 
   '@aws-crypto/supports-web-crypto@5.2.0':
     resolution: {integrity: sha512-iAvUotm021kM33eCdNfwIN//F77/IADDSs58i+MDaOqFrVjZo9bAal0NK7HurRuWLLpF1iLX7gbWrjHjeo+YFg==}
+
+  '@aws-crypto/util@1.2.2':
+    resolution: {integrity: sha512-H8PjG5WJ4wz0UXAFXeJjWCW1vkvIJ3qUUD+rGRwJ2/hj+xT58Qle2MTql/2MGzkU+1JLAFuR6aJpLAjHwhmwwg==}
 
   '@aws-crypto/util@5.2.0':
     resolution: {integrity: sha512-4RkU9EsI6ZpBve5fseQlGNUWKMa1RLPQ1dnjnQoe07ldfIzcsGb5hC5W0Dm7u423KWzawlrpbjXBrXCEv9zazQ==}
@@ -944,6 +975,11 @@ packages:
     resolution: {integrity: sha512-V+PbnWfUl93GuFwsOHsAq7hY/fnm9kElRqR8IexIJr5Rvif9e614X5sGSyz3mVSf1YAZ+VTy63W1/pGdA55zyA==}
     engines: {node: '>=20.0.0'}
 
+  '@aws-sdk/util-hex-encoding@3.374.0':
+    resolution: {integrity: sha512-14X7MDYCFle2Cuq0/Hvz2CHQoYVeoKKBY2Uf+wn0lKnKU+f0K81xRObUM/A7bLmZX4jFRk83gyE8Rj3BOqBdfA==}
+    engines: {node: '>=14.0.0'}
+    deprecated: This package has moved to @smithy/util-hex-encoding
+
   '@aws-sdk/util-locate-window@3.965.5':
     resolution: {integrity: sha512-WhlJNNINQB+9qtLtZJcpQdgZw3SCDCpXdUJP7cToGwHbCWCnRckGlc6Bx/OhWwIYFNAn+FIydY8SZ0QmVu3xTQ==}
     engines: {node: '>=20.0.0'}
@@ -959,6 +995,9 @@ packages:
     peerDependenciesMeta:
       aws-crt:
         optional: true
+
+  '@aws-sdk/util-utf8-browser@3.259.0':
+    resolution: {integrity: sha512-UvFa/vR+e19XookZF8RzFZBrw2EUkQWxiBW0yYQAhvk3C+QVGl0H3ouca8LDBlBfQKXwmW3huo/59H8rwb1wJw==}
 
   '@aws-sdk/xml-builder@3.972.10':
     resolution: {integrity: sha512-OnejAIVD+CxzyAUrVic7lG+3QRltyja9LoNqCE/1YVs8ichoTbJlVSaZ9iSMcnHLyzrSNtvaOGjSDRP+d/ouFA==}
@@ -2013,6 +2052,11 @@ packages:
   '@gar/promise-retry@1.0.2':
     resolution: {integrity: sha512-Lm/ZLhDZcBECta3TmCQSngiQykFdfw+QtI1/GYMsZd4l3nG+P8WLB16XuS7WaBGLQ+9E+cOcWQsth9cayuGt8g==}
     engines: {node: ^20.17.0 || >=22.9.0}
+
+  '@graphql-typed-document-node/core@3.2.0':
+    resolution: {integrity: sha512-mB9oAsNCm9aM3/SOv4YtBMqZbYj10R7dkq8byBqxGY/ncFwhf2oQzMV+LCRlWoDSEBJ3COiR1yeDvMtsoOsuFQ==}
+    peerDependencies:
+      graphql: ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
 
   '@harperfast/extended-iterable@1.0.3':
     resolution: {integrity: sha512-sSAYhQca3rDWtQUHSAPeO7axFIUJOI6hn1gjRC5APVE1a90tuyT8f5WIgRsFhhWA7htNkju2veB9eWL6YHi/Lw==}
@@ -4022,6 +4066,10 @@ packages:
     resolution: {integrity: sha512-+4HFLpE5u29AbFlTdlKIT7jfOzZ8PDYZKTb3e+AgLz986OYwqTourQ5H+jg79/66DB69Un1+qKecLnkZdAsYcA==}
     engines: {node: '>=18.0.0'}
 
+  '@smithy/util-hex-encoding@1.1.0':
+    resolution: {integrity: sha512-7UtIE9eH0u41zpB60Jzr0oNCQ3hMJUabMcKRUVjmyHTXiWDE4vjSqN6qlih7rCNeKGbioS7f/y2Jgym4QZcKFg==}
+    engines: {node: '>=14.0.0'}
+
   '@smithy/util-hex-encoding@2.0.0':
     resolution: {integrity: sha512-c5xY+NUnFqG6d7HFh1IFfrm3mGl29lC+vF+geHv4ToiuJCBmIfzx6IeHLg+OgRdPFKDXIw6pvi+p3CsscaMcMA==}
     engines: {node: '>=14.0.0'}
@@ -4560,6 +4608,22 @@ packages:
   '@webassemblyjs/wast-printer@1.14.1':
     resolution: {integrity: sha512-kPSSXE6De1XOR820C90RIo2ogvZG+c3KiHzqUoO/F34Y2shGzesfqv7o57xrxovZJH/MetF5UjroJ/R/3isoiw==}
 
+  '@wry/caches@1.0.1':
+    resolution: {integrity: sha512-bXuaUNLVVkD20wcGBWRyo7j9N3TxePEWFZj2Y+r9OoUzfqmavM84+mFykRicNsBqatba5JLay1t48wxaXaWnlA==}
+    engines: {node: '>=8'}
+
+  '@wry/context@0.7.4':
+    resolution: {integrity: sha512-jmT7Sb4ZQWI5iyu3lobQxICu2nC/vbUhP0vIdd6tHC9PTfenmRmuIFqktc6GH9cgi+ZHnsLWPvfSvc4DrYmKiQ==}
+    engines: {node: '>=8'}
+
+  '@wry/equality@0.5.7':
+    resolution: {integrity: sha512-BRFORjsTuQv5gxcXsuDXx6oGRhuVsEGwZy6LOzRRfgu+eSfxbhUQ9L9YtSEIuIjY/o7g3iWFjrc5eSY1GXP2Dw==}
+    engines: {node: '>=8'}
+
+  '@wry/trie@0.5.0':
+    resolution: {integrity: sha512-FNoYzHawTMk/6KMQoEG5O4PuioX19UbwdQKF44yw0nLfOypfQdjtfZzo/UIJWAJ23sNIFbD1Ug9lbaDGMwbqQA==}
+    engines: {node: '>=8'}
+
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
 
@@ -4767,6 +4831,21 @@ packages:
 
   aws-amplify@6.16.2:
     resolution: {integrity: sha512-7CHwfH5QxZ0rzCws/DNy5VLVcIIZWd9iUTtV1Oj6kPzpkFhCJ2I8gTvhFdh61HLhrg2lShcPQ8cecBIQS/ZJ0A==}
+
+  aws-appsync-auth-link@4.0.1:
+    resolution: {integrity: sha512-fLUbbOXJiVy/jHrOEqWuP2kEcTfICDsRigv38PTiQCAq0jqvW6QtbFbMAieouZMQgMpopTw30DnZuB5VYQ3eWw==}
+    peerDependencies:
+      '@apollo/client': 4.x
+      graphql: ^15.0.0 || ^16.0.0
+      rxjs: ^7.0.0
+
+  aws-appsync-subscription-link@4.0.1:
+    resolution: {integrity: sha512-yODRac6AVL8qlk+tl4QWiUsFh5fBt15+hgFFqflmw3zvaGJVt16zF8lCfzY7AEXZYbWJMVSDLvcq6/Lw+LbofQ==}
+    peerDependencies:
+      '@apollo/client': 4.x
+      graphql: ^15.0.0 || ^16.0.0
+      rxjs: ^7.0.0
+      uuid: ^8.0.0 || ^9.0.0 || ^10.0.0
 
   aws-cdk-lib@2.241.0:
     resolution: {integrity: sha512-v0uDNDqJt6oJ/ZHRp+KIn4xzhF518uKpZxY8fi12bO+dt505t6fCqCaqXuadznokrAyWwIae6q3ByWJfmZzQjA==}
@@ -6089,6 +6168,12 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
+  graphql-tag@2.12.6:
+    resolution: {integrity: sha512-FdSNcu2QQcWnM2VNvSCCDCVS5PpPqpzgFT8+GXzqJuoDd0CBncxCY278u4mhRO7tMgo2JjgJA5aZ+nWSQ/Z+xg==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      graphql: ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0
+
   graphql@15.8.0:
     resolution: {integrity: sha512-5gghUc24tP9HRznNpV2+FIoq3xKkj5dTQqf4v0CpdPbFVwFkWoxOM+o+2OC9ZSvjEMTjfmG9QT+gcvggTwW1zw==}
     engines: {node: '>= 10.x'}
@@ -7327,6 +7412,9 @@ packages:
     resolution: {integrity: sha512-ur5UIdyw5Y7yEj9wLzhqXiy6GZ3Mwx0yGI+5sMn2r0N0v3cKJvUmFH5yPP+WXh9e0xfyzyJX95D8l088DNFj7A==}
     hasBin: true
 
+  optimism@0.18.1:
+    resolution: {integrity: sha512-mLXNwWPa9dgFyDqkNi54sjDyNJ9/fTI6WGBLgnXku1vdKY/jovHfZT5r+aiVeFFLOz+foPNOm5YJ4mqgld2GBQ==}
+
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
@@ -7879,6 +7967,9 @@ packages:
 
   prr@1.0.1:
     resolution: {integrity: sha512-yPw4Sng1gWghHQWj0B3ZggWUm4qVbPwPFcRG8KyxiU7J2OHFSoEHKS+EZ3fv5l1t9CyCiop6l/ZYeWbrgoQejw==}
+
+  punycode@1.4.1:
+    resolution: {integrity: sha512-jmYNElW7yvO7TV33CjSmvSiE2yco3bV2czu/OzDKdMNVZQWfxCblURLhf+47syQRBntjfLdd/H0egrzIG+oaFQ==}
 
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
@@ -8890,6 +8981,10 @@ packages:
   url-join@4.0.1:
     resolution: {integrity: sha512-jk1+QP6ZJqyOiuEI9AEWQfju/nB2Pw466kbA0LEZljHwKeMgd9WrAEgEGxjPDD2+TNbbb37rTyhEfrCXfuKXnA==}
 
+  url@0.11.4:
+    resolution: {integrity: sha512-oCwdVC7mTuWiPyjLUz/COz5TLk6wgp0RCsN+wHZ2Ekneac9w8uuV0njcbbie2ME+Vs+d6duwmYuR3HgQXs1fOg==}
+    engines: {node: '>= 0.4'}
+
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
@@ -9239,6 +9334,12 @@ packages:
   yoctocolors@2.1.2:
     resolution: {integrity: sha512-CzhO+pFNo8ajLM2d2IW/R93ipy99LWjtwblvC1RsoSUMZgyLbYFr221TnSNT7GjGdYui6P459mw9JH/g/zW2ug==}
     engines: {node: '>=18'}
+
+  zen-observable-ts@1.2.5:
+    resolution: {integrity: sha512-QZWQekv6iB72Naeake9hS1KxHlotfRpe+WGNbNx5/ta+R3DNjVO2bswf63gXlWDcs+EMd7XY8HfVQyP1X6T4Zg==}
+
+  zen-observable@0.8.15:
+    resolution: {integrity: sha512-PQ2PC7R9rslx84ndNBZB/Dkv8V8fZEpk83RLgXtYd0fwUgEjseMn1Dgajh2x6S8QbZAFa9p2qVCEuYZNgve0dQ==}
 
   zod-to-json-schema@3.25.1:
     resolution: {integrity: sha512-pM/SU9d3YAggzi6MtR4h7ruuQlqKtad8e9S0fmxcMi+ueAK5Korys/aWcV9LIIHTVbj01NdzxcnXSN+O74ZIVA==}
@@ -9830,6 +9931,21 @@ snapshots:
       rxjs: 7.8.2
       tslib: 2.8.1
 
+  '@apollo/client@4.1.6(graphql@16.13.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(rxjs@7.8.2)':
+    dependencies:
+      '@graphql-typed-document-node/core': 3.2.0(graphql@16.13.1)
+      '@wry/caches': 1.0.1
+      '@wry/equality': 0.5.7
+      '@wry/trie': 0.5.0
+      graphql: 16.13.1
+      graphql-tag: 2.12.6(graphql@16.13.1)
+      optimism: 0.18.1
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    optionalDependencies:
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+
   '@asamuzakjp/css-color@3.2.0':
     dependencies:
       '@csstools/css-calc': 2.1.4(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
@@ -9981,6 +10097,12 @@ snapshots:
       '@smithy/util-utf8': 2.3.0
       tslib: 2.8.1
 
+  '@aws-crypto/sha256-js@1.2.2':
+    dependencies:
+      '@aws-crypto/util': 1.2.2
+      '@aws-sdk/types': 3.973.5
+      tslib: 1.14.1
+
   '@aws-crypto/sha256-js@5.2.0':
     dependencies:
       '@aws-crypto/util': 5.2.0
@@ -9990,6 +10112,12 @@ snapshots:
   '@aws-crypto/supports-web-crypto@5.2.0':
     dependencies:
       tslib: 2.8.1
+
+  '@aws-crypto/util@1.2.2':
+    dependencies:
+      '@aws-sdk/types': 3.973.5
+      '@aws-sdk/util-utf8-browser': 3.259.0
+      tslib: 1.14.1
 
   '@aws-crypto/util@5.2.0':
     dependencies:
@@ -10941,6 +11069,11 @@ snapshots:
       '@smithy/types': 4.13.0
       tslib: 2.8.1
 
+  '@aws-sdk/util-hex-encoding@3.374.0':
+    dependencies:
+      '@smithy/util-hex-encoding': 1.1.0
+      tslib: 2.8.1
+
   '@aws-sdk/util-locate-window@3.965.5':
     dependencies:
       tslib: 2.8.1
@@ -10958,6 +11091,10 @@ snapshots:
       '@aws-sdk/types': 3.973.5
       '@smithy/node-config-provider': 4.3.11
       '@smithy/types': 4.13.0
+      tslib: 2.8.1
+
+  '@aws-sdk/util-utf8-browser@3.259.0':
+    dependencies:
       tslib: 2.8.1
 
   '@aws-sdk/xml-builder@3.972.10':
@@ -12030,6 +12167,10 @@ snapshots:
   '@gar/promise-retry@1.0.2':
     dependencies:
       retry: 0.13.1
+
+  '@graphql-typed-document-node/core@3.2.0(graphql@16.13.1)':
+    dependencies:
+      graphql: 16.13.1
 
   '@harperfast/extended-iterable@1.0.3':
     optional: true
@@ -14576,6 +14717,10 @@ snapshots:
       '@smithy/types': 4.13.0
       tslib: 2.8.1
 
+  '@smithy/util-hex-encoding@1.1.0':
+    dependencies:
+      tslib: 2.8.1
+
   '@smithy/util-hex-encoding@2.0.0':
     dependencies:
       tslib: 2.8.1
@@ -15167,6 +15312,22 @@ snapshots:
       '@webassemblyjs/ast': 1.14.1
       '@xtuc/long': 4.2.2
 
+  '@wry/caches@1.0.1':
+    dependencies:
+      tslib: 2.8.1
+
+  '@wry/context@0.7.4':
+    dependencies:
+      tslib: 2.8.1
+
+  '@wry/equality@0.5.7':
+    dependencies:
+      tslib: 2.8.1
+
+  '@wry/trie@0.5.0':
+    dependencies:
+      tslib: 2.8.1
+
   '@xtuc/ieee754@1.2.0': {}
 
   '@xtuc/long@4.2.2': {}
@@ -15385,6 +15546,31 @@ snapshots:
     transitivePeerDependencies:
       - '@aws-amplify/react-native'
       - aws-crt
+
+  aws-appsync-auth-link@4.0.1(@apollo/client@4.1.6(graphql@16.13.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(rxjs@7.8.2))(graphql@16.13.1)(rxjs@7.8.2):
+    dependencies:
+      '@apollo/client': 4.1.6(graphql@16.13.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(rxjs@7.8.2)
+      '@aws-crypto/sha256-js': 1.2.2
+      '@aws-sdk/types': 3.973.5
+      '@aws-sdk/util-hex-encoding': 3.374.0
+      debug: 2.6.9
+      graphql: 16.13.1
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - supports-color
+
+  aws-appsync-subscription-link@4.0.1(@apollo/client@4.1.6(graphql@16.13.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(rxjs@7.8.2))(graphql@16.13.1)(rxjs@7.8.2)(uuid@13.0.0):
+    dependencies:
+      '@apollo/client': 4.1.6(graphql@16.13.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(rxjs@7.8.2)
+      aws-appsync-auth-link: 4.0.1(@apollo/client@4.1.6(graphql@16.13.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(rxjs@7.8.2))(graphql@16.13.1)(rxjs@7.8.2)
+      debug: 2.6.9
+      graphql: 16.13.1
+      rxjs: 7.8.2
+      url: 0.11.4
+      uuid: 13.0.0
+      zen-observable-ts: 1.2.5
+    transitivePeerDependencies:
+      - supports-color
 
   aws-cdk-lib@2.241.0(constructs@10.5.1):
     dependencies:
@@ -16871,6 +17057,11 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
+
+  graphql-tag@2.12.6(graphql@16.13.1):
+    dependencies:
+      graphql: 16.13.1
+      tslib: 2.8.1
 
   graphql@15.8.0: {}
 
@@ -18383,6 +18574,13 @@ snapshots:
 
   opener@1.5.2: {}
 
+  optimism@0.18.1:
+    dependencies:
+      '@wry/caches': 1.0.1
+      '@wry/context': 0.7.4
+      '@wry/trie': 0.5.0
+      tslib: 2.8.1
+
   optionator@0.9.4:
     dependencies:
       deep-is: 0.1.4
@@ -18961,6 +19159,8 @@ snapshots:
 
   prr@1.0.1:
     optional: true
+
+  punycode@1.4.1: {}
 
   punycode@2.3.1: {}
 
@@ -20049,6 +20249,11 @@ snapshots:
 
   url-join@4.0.1: {}
 
+  url@0.11.4:
+    dependencies:
+      punycode: 1.4.1
+      qs: 6.15.0
+
   util-deprecate@1.0.2: {}
 
   utils-merge@1.0.1: {}
@@ -20433,6 +20638,12 @@ snapshots:
 
   yoctocolors@2.1.2: {}
 
+  zen-observable-ts@1.2.5:
+    dependencies:
+      zen-observable: 0.8.15
+
+  zen-observable@0.8.15: {}
+
   zod-to-json-schema@3.25.1(zod@3.25.76):
     dependencies:
       zod: 3.25.76
@@ -20446,4 +20657,5 @@ snapshots:
 
   zod@4.3.6: {}
 
-  zone.js@0.15.1: {}
+  zone.js@0.15.1:
+    optional: true

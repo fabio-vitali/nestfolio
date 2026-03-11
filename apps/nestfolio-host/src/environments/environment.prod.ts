@@ -22,7 +22,7 @@ export const environment = {
       endpoint: '',
       region: 'us-east-1',
     },
-    orderLedger: {
+    orderLedgerBff: {
       endpoint: '',
       region: 'us-east-1',
     },

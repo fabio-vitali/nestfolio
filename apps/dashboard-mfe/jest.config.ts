@@ -22,7 +22,7 @@ export default {
       },
     ],
   },
-  transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$|primeng|@primeng|@ngrx|@ngx-translate)'],
+  transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$|primeng|@primeng|@ngrx|@ngx-translate|.*uuid)'],
   snapshotSerializers: [
     'jest-preset-angular/build/serializers/no-ng-attributes',
     'jest-preset-angular/build/serializers/ng-snapshot',

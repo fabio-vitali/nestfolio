@@ -5,7 +5,6 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { provideAuth, authInterceptor, getAuthUser } from '@nestfolio/auth';
 import { provideI18n } from '@nestfolio/i18n';
 import { provideNestfolioTheme } from '@nestfolio/ui-components';
-import { provideAppSync } from '@nestfolio/appsync-client';
 import { AuthStore, GlobalErrorHandler } from '@nestfolio/shared-state';
 import { appRoutes } from './app.routes';
 import { environment } from '../environments/environment';
@@ -17,7 +16,7 @@ export interface RuntimeConfig {
     portfolioBff: { endpoint: string; region: string };
     advisoryBff: { endpoint: string; region: string };
     dashboardBff: { endpoint: string; region: string };
-    orderLedger: { endpoint: string; region: string };
+    orderLedgerBff: { endpoint: string; region: string };
   };
 }
 
@@ -33,7 +32,7 @@ export function validateEndpoints(config: RuntimeConfig): void {
     config.appsync.portfolioBff.endpoint,
     config.appsync.advisoryBff.endpoint,
     config.appsync.dashboardBff.endpoint,
-    config.appsync.orderLedger.endpoint,
+    config.appsync.orderLedgerBff.endpoint,
   ];
 
   for (const url of endpoints) {
@@ -91,7 +90,6 @@ export const appConfig: ApplicationConfig = {
     provideAuth(environment.auth),
     provideI18n('it-IT'),
     provideNestfolioTheme('light'),
-    provideAppSync(environment.appsync.investorBff),
     {
       provide: APP_INITIALIZER,
       useFactory: loadRuntimeConfig,
