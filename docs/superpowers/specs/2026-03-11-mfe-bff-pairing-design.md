@@ -26,7 +26,7 @@ Additionally, `dashboard-mfe` directly queries `order-ledger` for time-travel an
 | `/identity` | identity-mfe | investorBff | Investor |
 | `/notifications` | notification-mfe | investorBff | Investor |
 | `/dashboard` | dashboard-mfe | dashboardBff | Dashboard |
-| `/advisory/:id` | advisory-mfe | advisoryBff | Advisory |
+| `/advisory` | advisory-mfe | advisoryBff | Advisory |
 | `/ledger` | ledger-mfe (new) | orderLedgerBff | Execution |
 
 Each BFF has its own AppSync API, schema.graphql, resolver Lambda, and DynamoDB table. Each team owns both sides of the contract.
@@ -92,6 +92,8 @@ export function provideGraphqlFor(bffName: keyof RuntimeConfig['appsync']): Prov
 
 Angular creates a new `GraphqlService` instance per route scope because the provider is declared at the route level. The `APPSYNC_CONFIG` token is also route-scoped, so each instance gets the correct endpoint. Services inside the MFE that call `inject(GraphqlService)` resolve to this route-scoped instance.
 
+**Timing dependency:** `getRuntimeConfig()` must return synchronously at route resolution time. This is guaranteed because the shell's `APP_INITIALIZER` (which calls `loadRuntimeConfig()`) completes before any route navigation occurs — Angular blocks bootstrapping until all `APP_INITIALIZER` factories resolve.
+
 #### Shell Route Configuration
 
 ```typescript
@@ -103,7 +105,7 @@ Angular creates a new `GraphqlService` instance per route scope because the prov
   canActivate: [authGuard],
 },
 {
-  path: 'advisory/:id',
+  path: 'advisory',
   providers: [provideGraphqlFor('advisoryBff')],
   loadChildren: () => loadRemoteModule('advisory-mfe', './routes'),
   canActivate: [authGuard],
@@ -136,7 +138,7 @@ MFE services continue to `inject(GraphqlService)` unchanged — they get the rou
 
 ### Legacy appsync-client.ts Removal
 
-The file `libs/appsync-client/src/appsync-client.ts` contains bare `query()`, `mutate()`, `subscribe()`, `resetClient()` functions that use `generateClient()` from `aws-amplify/api`. This file is **deleted entirely**. The `GraphQLResult<T>` type it exports is moved to `graphql.service.ts` (or inlined, since Apollo provides its own result types). The re-export in `index.ts` is removed.
+The file `libs/appsync-client/src/appsync-client.ts` contains bare `query()`, `mutate()`, `subscribe()`, `resetClient()` functions that use `generateClient()` from `aws-amplify/api`. This file is **deleted entirely**. The `GraphQLResult<T>` type it exports is **not migrated** — Apollo provides `ApolloQueryResult<T>` and `FetchResult<T>`, but `GraphqlService` abstracts these away (its `query<T>()` returns `Promise<T>`, not a wrapped result). No consumer should import `GraphQLResult<T>` directly — if any do, they must be updated to use `GraphqlService`'s return types instead. The re-export in `index.ts` is removed.
 
 ## New MFE: ledger-mfe
 
@@ -218,7 +220,7 @@ Add `ledger-mfe` to `apps/nestfolio-host/public/assets/federation.manifest.json`
 
 ### Modified
 
-- `comparison-card.component.ts`: routerLink changed from `['comparison']` → `['/ledger/simulation']` (absolute path, crosses MFE boundary — verify this resolves correctly in the federated shell router)
+- `comparison-card.component.ts`: routerLink changed from `['comparison']` → `['/ledger/simulation']` (absolute path, crosses MFE boundary — this works because the shell owns the Angular Router and all MFE routes are registered as lazy children of the shell's route config; absolute paths resolve against the shell's router, not the MFE's)
 - `app.routes.ts`: remove `/time-travel` and `/comparison` routes
 
 ## Dependencies
@@ -268,7 +270,7 @@ MFE services (e.g., `DashboardService`) create `CachedQuery` instances that refe
 
 ### LogoutOrchestrator Cleanup
 
-Each route-scoped `GraphqlService` registers with `LogoutOrchestrator` in its constructor. `LogoutOrchestrator.register()` accumulates callbacks. On logout, all registered callbacks fire (resetting all active Apollo clients). On `OnDestroy`, `GraphqlService` should deregister its callback to avoid calling `resetClient()` on a destroyed instance. Add a `deregister` return value to `LogoutOrchestrator.register()` if not already present.
+Each route-scoped `GraphqlService` registers with `LogoutOrchestrator` in its constructor. `LogoutOrchestrator.register()` accumulates callbacks. On logout, all registered callbacks fire (resetting all active Apollo clients). On `OnDestroy`, `GraphqlService` calls `LogoutOrchestrator.unregister()` (already exists) to remove its callback, avoiding calls to `resetClient()` on a destroyed instance.
 
 ### MFE Service providedIn
 
