@@ -135,13 +135,28 @@ This pattern decouples event production from consumption, provides back-pressure
 
 ---
 
+## Service Infrastructure Envelope
+
+Each service has a fixed, minimal infrastructure footprint:
+
+- **One ingress path**: A single EventBridge rule → SQS queue → Lambda handler. All event types the service consumes arrive through this single queue and are dispatched inside the handler via code (`switch`/`case` or `Set.has()`). Event type multiplexing is a code concern, not an infrastructure concern -- creating additional queues or Lambdas for different event types is not permitted.
+- **One egress path**: A single change-data-capture channel (DynamoDB Streams or S3 Event Notifications) that publishes state changes to the domain EventBridge bus.
+
+This constraint keeps the infrastructure footprint predictable and ensures that cross-cutting concerns (middleware, metrics, tracing, idempotency) are applied uniformly in a single handler rather than duplicated across multiple Lambdas.
+
+**Scoped exceptions**: Specific runtime integrations (e.g., Bedrock AgentCore tool targets, Step Functions task callbacks) may require additional Lambda functions. These are not general event processing paths -- they do not receive events from the bus and do not publish events directly to the bus. They exist solely to serve the runtime that invokes them and must be explicitly justified in the service's design.
+
+---
+
 ## CQRS and Event Sourcing
 
-The system applies event sourcing and CQRS in two distinct contexts: **BFF context** (user-facing mutations) and **CTRL context** (domain event processing). Both follow the same foundational principle: state is derived from an ordered sequence of immutable events, never mutated directly.
+Event sourcing is an **optional architectural pattern**, not a universal requirement. Most services use straightforward CRUD persistence -- they receive events, update state directly, and publish state changes via the egress path. Event sourcing is adopted only when the domain explicitly benefits from it: when an audit trail, point-in-time reconstruction, undo/redo, or replay capability is a concrete requirement.
+
+When event sourcing is adopted, it applies in two distinct contexts: **BFF context** (user-facing mutations) and **CTRL context** (domain event processing). Both follow the same foundational principle: state is derived from an ordered sequence of immutable events, never mutated directly.
 
 ### BFF Context -- Command Side
 
-In BFF services that own a mutable aggregate, the write path follows this flow:
+In BFF services that own a mutable aggregate and where event sourcing is warranted, the write path follows this flow:
 
 1. **Command acceptance**: The BFF receives a mutation and stores it as an immutable event record in an append-only store. The event contains the delta (e.g., a JSON Patch), not the resulting state.
 2. **Change data capture**: A database stream detects the new event record.
@@ -174,9 +189,15 @@ Real-time subscriptions complement the CQRS/event sourcing model within BFF serv
 
 ---
 
-## Single-Table Design
+## State Ownership
 
-Stateful services use a single-table database design where event records and aggregate metadata coexist in the same table, differentiated by sort key patterns. This keeps related data co-located for efficient single-query access and enables transactional writes across event and metadata records.
+Each service owns at most **one primary stateful resource**: either a single DynamoDB table (single-table design with PK/SK partitioning) or a single S3 bucket (prefix-based partitioning). The choice is driven by access pattern: DynamoDB for transactional, key-based access; S3 for large objects, binary data, or archive storage.
+
+A service may own a **secondary stateful resource** only when a concrete technical requirement demands it -- for example, a DynamoDB table for transactional state combined with an S3 bucket for large event payloads that exceed EventBridge's size limits. The secondary resource must be explicitly justified; convenience or speculative future needs are not sufficient reasons.
+
+### Single-Table Design
+
+When a service uses DynamoDB, it follows a single-table design where event records and aggregate metadata coexist in the same table, differentiated by sort key patterns. This keeps related data co-located for efficient single-query access and enables transactional writes across event and metadata records.
 
 ---
 
@@ -229,7 +250,7 @@ After decomposing each bounded context into services, map how domains communicat
 
 1. **Events-only communication**: Services communicate exclusively through events on the bus. No synchronous inter-service calls, no RPC, no shared databases. This is an absolute constraint.
 
-2. **Event sourcing as the source of truth**: All state mutations are stored as immutable, ordered events. Current state is always a derivation of the event log.
+2. **Event sourcing where warranted**: When the domain requires audit trails, point-in-time reconstruction, undo/redo, or replay, state mutations are stored as immutable, ordered events with current state derived from the event log. Services without these requirements use straightforward CRUD persistence.
 
 3. **Tenant isolation at every layer**: Every operation, event, subscription, and database key is scoped by tenant. Tenant isolation is embedded in the data model, event contract, subscription keys, and infrastructure.
 
