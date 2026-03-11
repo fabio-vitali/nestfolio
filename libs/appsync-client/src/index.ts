@@ -1,4 +1,4 @@
-export type { AppSyncConfig } from './appsync.config';
+export { AppSyncConfig, APPSYNC_CONFIG } from './appsync.config';
 export type { GraphQLResult } from './appsync-client';
 export { provideAppSync } from './appsync.provider';
 export { GraphqlService } from './graphql.service';
