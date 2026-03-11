@@ -61,7 +61,10 @@ export class OrderLedgerStack extends Stack {
       handler: eventListener,
     });
 
-    // Reducer Lambda: DDB Stream → rebuild portfolio/position snapshots
+    // Scoped exception per spec §4: The reducer is a 3rd Lambda (beyond the 2-Lambda maximum)
+    // required by the CQRS/Event Sourcing pattern. It is a DynamoDB Stream consumer that
+    // materializes portfolio/position snapshots from LedgerEntry records. It does not receive
+    // events from the bus and does not publish events directly — Egress handles outbound publication.
     const reducerFn = new NodejsFunction(this, 'ReducerFn', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'reducer.ts'),

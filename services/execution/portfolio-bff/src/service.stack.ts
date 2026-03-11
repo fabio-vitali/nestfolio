@@ -9,7 +9,6 @@ import { join } from 'path';
 import {
   State,
   Ingress,
-  Egress,
   Facade,
   Monitoring,
   ServiceDashboard,
@@ -56,18 +55,8 @@ export class PortfolioBffStack extends Stack {
       handler: eventListener,
     });
 
-    // Egress: DynamoDB Streams -> EventBridge publisher
-    const egress = new Egress(this, 'Egress', {
-      table: state.table,
-      busName: naming.eventBusName(),
-      serviceName: 'portfolio-bff',
-      publishableTypes: [
-        'Portfolio',
-        'Position',
-        'CashBalance',
-        'PerformanceMetric',
-      ],
-    });
+    // No Egress — portfolio-bff is a pure read-model BFF. Portfolio/Position/CashBalance/PerformanceMetric
+    // publication is owned by portfolio-ctrl (the domain controller).
 
     // GraphQL resolver Lambda
     const resolver = new NodejsFunction(this, 'GraphqlResolver', {
@@ -95,14 +84,14 @@ export class PortfolioBffStack extends Stack {
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
       lambdaFunctions: [eventListener, resolver],
-      dlqs: [ingress.dlq, egress.dlq],
+      dlqs: [ingress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'portfolio-bff',
       lambdaFunctions: [eventListener, resolver],
-      dlqs: [ingress.dlq, egress.dlq],
+      dlqs: [ingress.dlq],
     });
   }
 }

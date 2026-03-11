@@ -12,6 +12,7 @@ export async function confirmDecision(
     confirmedAt: now,
     confirmedBy: userId,
   });
+  await repository.putUserConfirmation(tenantId, decisionId, userId, now);
   const decision = await repository.getDecision(tenantId, decisionId);
   return decision ?? { decisionId, tenantId, status: 'CONFIRMED', confirmedAt: now };
 }
@@ -29,6 +30,7 @@ export async function rejectDecision(
     rejectionReason: reason,
     rejectedBy: userId,
   });
+  await repository.putUserRejection(tenantId, decisionId, userId, now, reason);
   const decision = await repository.getDecision(tenantId, decisionId);
   return decision ?? { decisionId, tenantId, status: 'REJECTED', rejectedAt: now, rejectionReason: reason };
 }

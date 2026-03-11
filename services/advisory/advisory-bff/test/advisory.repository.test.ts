@@ -229,4 +229,45 @@ describe('AdvisoryRepository', () => {
       });
     });
   });
+
+  describe('putUserConfirmation', () => {
+    it('should store a UserConfirmation record for Egress CDC', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await repo.putUserConfirmation('t1', 'd1', 'u1', '2025-01-01T00:00:00.000Z');
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call.input.Item).toMatchObject({
+        pk: 'Decision#t1#d1',
+        sk: 'UserConfirmation#test-uuid',
+        __typename: 'UserConfirmation',
+        tenantId: 't1',
+        decisionId: 'd1',
+        userId: 'u1',
+        confirmedAt: '2025-01-01T00:00:00.000Z',
+      });
+    });
+  });
+
+  describe('putUserRejection', () => {
+    it('should store a UserRejection record for Egress CDC', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await repo.putUserRejection('t1', 'd1', 'u1', '2025-01-01T00:00:00.000Z', 'Too risky');
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call.input.Item).toMatchObject({
+        pk: 'Decision#t1#d1',
+        sk: 'UserRejection#test-uuid',
+        __typename: 'UserRejection',
+        tenantId: 't1',
+        decisionId: 'd1',
+        userId: 'u1',
+        rejectedAt: '2025-01-01T00:00:00.000Z',
+        rejectionReason: 'Too risky',
+      });
+    });
+  });
 });

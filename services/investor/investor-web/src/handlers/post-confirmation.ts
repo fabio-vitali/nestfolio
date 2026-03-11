@@ -1,3 +1,7 @@
+// Cognito PostConfirmation trigger — synchronous with 5s timeout.
+// Publishes USER_REGISTERED directly to EventBridge (not via 3-tier ingestion)
+// because Cognito requires a synchronous response to complete the signup flow.
+// See service.stack.ts for the scoped exception rationale.
 import { PostConfirmationTriggerEvent, Context } from 'aws-lambda';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { CognitoIdentityProviderClient, AdminUpdateUserAttributesCommand } from '@aws-sdk/client-cognito-identity-provider';

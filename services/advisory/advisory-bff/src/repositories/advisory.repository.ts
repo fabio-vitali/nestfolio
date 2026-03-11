@@ -216,4 +216,44 @@ export class AdvisoryRepository extends TableRepository {
     };
     await this.put(item);
   });
+
+  readonly putUserConfirmation = this.log('putUserConfirmation', async (
+    tenantId: string,
+    decisionId: string,
+    userId: string,
+    confirmedAt: string,
+  ): Promise<void> => {
+    const item: TableEntry = {
+      pk: decisionPk(tenantId, decisionId),
+      sk: `UserConfirmation#${getUUID()}`,
+      __typename: 'UserConfirmation',
+      tenantId,
+      timestamp: confirmedAt,
+      decisionId,
+      userId,
+      confirmedAt,
+    };
+    await this.put(item);
+  });
+
+  readonly putUserRejection = this.log('putUserRejection', async (
+    tenantId: string,
+    decisionId: string,
+    userId: string,
+    rejectedAt: string,
+    rejectionReason: string,
+  ): Promise<void> => {
+    const item: TableEntry = {
+      pk: decisionPk(tenantId, decisionId),
+      sk: `UserRejection#${getUUID()}`,
+      __typename: 'UserRejection',
+      tenantId,
+      timestamp: rejectedAt,
+      decisionId,
+      userId,
+      rejectedAt,
+      rejectionReason,
+    };
+    await this.put(item);
+  });
 }

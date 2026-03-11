@@ -15,6 +15,9 @@ interface EventListenerDeps {
 const TRIGGER_EVENT_TYPES = new Set([
   'PORTFOLIO_SNAPSHOT_IMPORTED',
   'ORDER_FILLED',
+  'ORDER_PARTIALLY_FILLED',
+  'CORPORATE_ACTION_APPLIED',
+  'RECONCILIATION_COMPLETED',
 ]);
 
 export const createHandler = (deps: EventListenerDeps) =>

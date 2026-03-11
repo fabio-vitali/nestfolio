@@ -1,3 +1,7 @@
+// Cognito PostAuthentication trigger — synchronous with 5s timeout.
+// Publishes USER_AUTHENTICATED directly to EventBridge (not via 3-tier ingestion)
+// because Cognito requires a synchronous response to complete the login flow.
+// See service.stack.ts for the scoped exception rationale.
 import { PostAuthenticationTriggerEvent, Context } from 'aws-lambda';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { randomUUID } from 'crypto';

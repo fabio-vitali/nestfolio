@@ -46,6 +46,9 @@ export class PortfolioCtrlStack extends Stack {
       eventTypes: [
         'PORTFOLIO_SNAPSHOT_IMPORTED',
         'ORDER_FILLED',
+        'ORDER_PARTIALLY_FILLED',
+        'CORPORATE_ACTION_APPLIED',
+        'RECONCILIATION_COMPLETED',
       ],
       handler: eventListener,
     });
@@ -55,7 +58,7 @@ export class PortfolioCtrlStack extends Stack {
       table: state.table,
       busName: naming.eventBusName(),
       serviceName: 'portfolio-ctrl',
-      publishableTypes: ['Reconciliation', 'DriftRecord'],
+      publishableTypes: ['Reconciliation', 'DriftRecord', 'Portfolio', 'Position', 'CashBalance', 'PerformanceMetric'],
     });
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth

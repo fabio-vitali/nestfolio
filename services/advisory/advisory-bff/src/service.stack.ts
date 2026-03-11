@@ -61,7 +61,7 @@ export class AdvisoryBffStack extends Stack {
       table: state.table,
       busName: naming.eventBusName(),
       serviceName: 'advisory-bff',
-      publishableTypes: ['DecisionReadModel', 'UserInteraction'],
+      publishableTypes: ['DecisionReadModel', 'UserInteraction', 'UserConfirmation', 'UserRejection'],
     });
 
     // GraphQL resolver Lambda

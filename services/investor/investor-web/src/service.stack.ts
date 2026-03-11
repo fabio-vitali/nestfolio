@@ -23,6 +23,11 @@ export class InvestorWebStack extends Stack {
 
     applyStandardTags(this, { service: 'investor-web', domain: 'investor', environment: prefix });
 
+    // Scoped exception per spec §4: Cognito triggers are synchronous (5s timeout) and must
+    // return to Cognito to complete the auth flow. The 3-tier ingestion pattern (EventBridge Rule
+    // → SQS → Lambda) cannot apply because these Lambdas are invoked BY Cognito, not by EventBridge.
+    // If PutEvents fails, the handler throws, failing the Cognito trigger atomically.
+
     // PostConfirmation Lambda
     const postConfirmation = new NodejsFunction(this, 'PostConfirmation', {
       ...defaultLambdaProps(this),

@@ -166,6 +166,8 @@ describe('graphql-resolver handler', () => {
   it('should resolve confirmDecision', async () => {
     // transactWrite for updateDecisionStatus
     mockSend.mockResolvedValueOnce({});
+    // put for putUserConfirmation
+    mockSend.mockResolvedValueOnce({});
     // queryByPk for getDecision
     const confirmed = {
       decisionId: 'd1',
@@ -179,10 +181,20 @@ describe('graphql-resolver handler', () => {
 
     const result = await handler(event);
     expect(result).toMatchObject({ status: 'CONFIRMED' });
+
+    // Verify UserConfirmation record was written for Egress CDC
+    const putCall = mockSend.mock.calls[1][0];
+    expect(putCall.input.Item).toMatchObject({
+      __typename: 'UserConfirmation',
+      decisionId: 'd1',
+      userId: 'user-1',
+    });
   });
 
   it('should resolve rejectDecision', async () => {
     // transactWrite for updateDecisionStatus
+    mockSend.mockResolvedValueOnce({});
+    // put for putUserRejection
     mockSend.mockResolvedValueOnce({});
     // queryByPk for getDecision
     const rejected = {
@@ -198,6 +210,15 @@ describe('graphql-resolver handler', () => {
 
     const result = await handler(event);
     expect(result).toMatchObject({ status: 'REJECTED', rejectionReason: 'Too risky' });
+
+    // Verify UserRejection record was written for Egress CDC
+    const putCall = mockSend.mock.calls[1][0];
+    expect(putCall.input.Item).toMatchObject({
+      __typename: 'UserRejection',
+      decisionId: 'd1',
+      userId: 'user-1',
+      rejectionReason: 'Too risky',
+    });
   });
 
   it('should resolve recordExplanationView', async () => {

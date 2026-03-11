@@ -76,7 +76,7 @@ export class DashboardBffStack extends Stack {
 
     // No Egress — dashboard-bff is a pure read-model, does not publish domain events
 
-    // GraphQL resolver Lambda — serves dashboard queries
+    // GraphQL resolver Lambda — serves dashboard queries (pure read-model, PutEvents needed for withErrorPublishing)
     const resolver = new NodejsFunction(this, 'GraphqlResolver', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'graphql-resolver.ts'),
