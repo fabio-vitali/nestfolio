@@ -13,7 +13,7 @@ export default {
       },
     ],
   },
-  transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$|primeng|@primeng|@ngrx|@ngx-translate)'],
+  transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$|primeng|@primeng|@ngrx|@ngx-translate|.*uuid)'],
   moduleNameMapper: {
     '^@nestfolio/auth$': '<rootDir>/../../libs/auth/src/index.ts',
     '^@nestfolio/appsync-client$': '<rootDir>/../../libs/appsync-client/src/index.ts',

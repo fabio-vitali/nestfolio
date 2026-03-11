@@ -1,9 +1,9 @@
 export default {
-  displayName: 'notification-mfe',
+  displayName: 'investor-mfe',
   preset: '../../jest.preset.js',
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/test/test-setup.ts'],
-  coverageDirectory: '../../coverage/apps/notification-mfe',
+  coverageDirectory: '../../coverage/apps/investor-mfe',
   moduleNameMapper: {
     '^@nestfolio/appsync-client$': '<rootDir>/../../libs/appsync-client/src/index.ts',
     '^@nestfolio/domain-core$': '<rootDir>/../../libs/domain-core/src/index.ts',
