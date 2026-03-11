@@ -12,9 +12,7 @@ describe('ComparisonCardComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ComparisonCardComponent, RouterTestingModule],
-      providers: [
-        { provide: I18nService, useValue: createMockI18nService() },
-      ],
+      providers: [{ provide: I18nService, useValue: createMockI18nService() }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ComparisonCardComponent);
@@ -27,7 +25,7 @@ describe('ComparisonCardComponent', () => {
   });
 
   it('should render summary data when provided', () => {
-    const summary: SimulationSummary = {
+    component.summary = {
       actualTotalValueCents: 10500000,
       simulatedTotalValueCents: 10800000,
       actualReturnPercent: 5.0,
@@ -35,7 +33,6 @@ describe('ComparisonCardComponent', () => {
       returnDifferencePercent: 3.0,
       updatedAt: '2026-03-01T00:00:00Z',
     };
-    component.summary = summary;
     fixture.detectChanges();
 
     const el = fixture.nativeElement as HTMLElement;
