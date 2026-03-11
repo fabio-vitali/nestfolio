@@ -1,7 +1,7 @@
 const preset = require('../../../jest.preset');
 module.exports = {
   ...preset,
-  displayName: 'order-ledger',
+  displayName: 'order-ledger-bff',
   testEnvironment: 'node',
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {

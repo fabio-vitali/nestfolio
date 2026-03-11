@@ -76,7 +76,7 @@ export class RuntimeConfig extends Construct {
         portfolioBff: { endpoint: portfolioBffEndpoint, region },
         advisoryBff: { endpoint: advisoryBffEndpoint, region },
         dashboardBff: { endpoint: dashboardBffEndpoint, region },
-        orderLedger: { endpoint: orderLedgerEndpoint, region },
+        orderLedgerBff: { endpoint: orderLedgerEndpoint, region },
       },
     });
 

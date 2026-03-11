@@ -206,7 +206,7 @@ export const createResolver = (deps: ResolverDeps) =>
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
-const bus = new EventBridgeBus(requireEnv('BUS_NAME'), 'order-ledger');
+const bus = new EventBridgeBus(requireEnv('BUS_NAME'), 'order-ledger-bff');
 const repository = new LedgerRepository(TABLE_NAME, new DynamoDBClient({}));
 
 const timeTravelService = new TimeTravelService(repository);

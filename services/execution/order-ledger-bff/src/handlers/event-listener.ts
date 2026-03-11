@@ -194,8 +194,8 @@ const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 const deps: EventListenerDeps = {
   repository,
   idempotencyGuard,
-  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'order-ledger'),
-  metrics: createServiceMetrics('order-ledger'),
+  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'order-ledger-bff'),
+  metrics: createServiceMetrics('order-ledger-bff'),
   shadowFill: new ShadowFillService(),
 };
 

@@ -168,7 +168,7 @@ export const createReducer = (deps: ReducerDeps) =>
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const repository = new LedgerRepository(TABLE_NAME, new DynamoDBClient({}));
-const metrics = createServiceMetrics('order-ledger');
+const metrics = createServiceMetrics('order-ledger-bff');
 
 const deps: ReducerDeps = { repository, metrics };
 

@@ -116,7 +116,7 @@ function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, 
   };
 }
 
-describe('order-ledger event-listener handler', () => {
+describe('order-ledger-bff event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
 
   const mockMetrics = {

@@ -122,7 +122,7 @@ function buildStreamEvent(records: Array<{
   };
 }
 
-describe('order-ledger reducer handler', () => {
+describe('order-ledger-bff reducer handler', () => {
   const ORIGINAL_ENV = process.env;
 
   const mockMetrics = {

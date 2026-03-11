@@ -1,11 +1,11 @@
 import { App } from 'aws-cdk-lib';
-import { OrderLedgerStack } from './service.stack';
+import { OrderLedgerBffStack } from './service.stack';
 
 const app = new App();
 const prefix = app.node.tryGetContext('prefix');
 if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
 
-new OrderLedgerStack(app, `${prefix}-order-ledger`, {
+new OrderLedgerBffStack(app, `${prefix}-order-ledger-bff`, {
   env: {
     account: process.env['CDK_DEFAULT_ACCOUNT'],
     region: process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',

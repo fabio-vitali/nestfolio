@@ -110,7 +110,7 @@ function buildEvent(
   } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
 }
 
-describe('order-ledger graphql-resolver handler', () => {
+describe('order-ledger-bff graphql-resolver handler', () => {
   const ORIGINAL_ENV = process.env;
 
   const repository = new LedgerRepository('test-table');

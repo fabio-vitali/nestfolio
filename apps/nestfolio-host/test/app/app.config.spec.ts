@@ -30,7 +30,7 @@ jest.mock('@angular/core', () => ({
 
 import { validateEndpoints, RuntimeConfig } from '../../src/app/app.config';
 
-function makeConfig(overrides?: Partial<Record<'investorBff' | 'portfolioBff' | 'advisoryBff' | 'dashboardBff' | 'orderLedger', { endpoint: string; region: string }>>): RuntimeConfig {
+function makeConfig(overrides?: Partial<Record<'investorBff' | 'portfolioBff' | 'advisoryBff' | 'dashboardBff' | 'orderLedgerBff', { endpoint: string; region: string }>>): RuntimeConfig {
   return {
     auth: { userPoolId: 'pool', clientId: 'client', region: 'us-east-1' },
     appsync: {
@@ -38,7 +38,7 @@ function makeConfig(overrides?: Partial<Record<'investorBff' | 'portfolioBff' | 
       portfolioBff: { endpoint: 'https://portfolio.appsync-api.us-east-1.amazonaws.com/graphql', region: 'us-east-1' },
       advisoryBff: { endpoint: 'https://advisory.appsync-api.us-east-1.amazonaws.com/graphql', region: 'us-east-1' },
       dashboardBff: { endpoint: 'https://dashboard.appsync-api.us-east-1.amazonaws.com/graphql', region: 'us-east-1' },
-      orderLedger: { endpoint: 'https://order-ledger.appsync-api.us-east-1.amazonaws.com/graphql', region: 'us-east-1' },
+      orderLedgerBff: { endpoint: 'https://order-ledger.appsync-api.us-east-1.amazonaws.com/graphql', region: 'us-east-1' },
       ...overrides,
     },
   };

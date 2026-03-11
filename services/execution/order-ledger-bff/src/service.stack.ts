@@ -20,18 +20,18 @@ import {
   applyStandardTags,
 } from '@nestfolio/cdk-constructs';
 
-export class OrderLedgerStack extends Stack {
+export class OrderLedgerBffStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
     const naming = createNamingService(this, {
       subsystem: 'execution',
-      service: 'order-ledger',
+      service: 'order-ledger-bff',
     });
 
     const prefix = this.node.tryGetContext('prefix');
     if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
-    applyStandardTags(this, { service: 'order-ledger', domain: 'execution', environment: prefix });
+    applyStandardTags(this, { service: 'order-ledger-bff', domain: 'execution', environment: prefix });
 
     // State: DynamoDB table
     const state = new State(this, 'State');
@@ -40,7 +40,7 @@ export class OrderLedgerStack extends Stack {
     const eventListener = new NodejsFunction(this, 'EventListener', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'order-ledger' },
+      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'order-ledger-bff' },
     });
     state.table.grantReadWriteData(eventListener);
     eventListener.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
@@ -68,7 +68,7 @@ export class OrderLedgerStack extends Stack {
     const reducerFn = new NodejsFunction(this, 'ReducerFn', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'reducer.ts'),
-      environment: { TABLE_NAME: state.table.tableName, SERVICE_NAME: 'order-ledger' },
+      environment: { TABLE_NAME: state.table.tableName, SERVICE_NAME: 'order-ledger-bff' },
     });
     state.table.grantReadWriteData(reducerFn);
 
@@ -95,7 +95,7 @@ export class OrderLedgerStack extends Stack {
     const egress = new Egress(this, 'Egress', {
       table: state.table,
       busName: naming.eventBusName(),
-      serviceName: 'order-ledger',
+      serviceName: 'order-ledger-bff',
       publishableTypes: ['PositionSnapshot', 'PortfolioSnapshot'],
     });
 
@@ -103,7 +103,7 @@ export class OrderLedgerStack extends Stack {
     const resolver = new NodejsFunction(this, 'GraphqlResolver', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'graphql-resolver.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'order-ledger' },
+      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'order-ledger-bff' },
     });
     state.table.grantReadWriteData(resolver);
     resolver.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
@@ -130,7 +130,7 @@ export class OrderLedgerStack extends Stack {
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
-      serviceName: 'order-ledger',
+      serviceName: 'order-ledger-bff',
       lambdaFunctions: [eventListener, reducerFn, resolver],
       dlqs: [ingress.dlq, egress.dlq],
     });
