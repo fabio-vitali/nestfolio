@@ -28,3 +28,14 @@ export { type Result, ok, err, isOk, isErr, mapResult, flatMapResult, tryCatch }
 
 // Branded types
 export { type TenantId, type UserId, type EventId, asTenantId, asUserId, asEventId } from './types/branded';
+
+// Market data
+export {
+  type Quote,
+  type IndexData,
+  type RateData,
+  type MarketDataProvider,
+  StaticMarketDataProvider,
+  CachedMarketDataProvider,
+  KNOWN_SYMBOLS,
+} from './market-data';

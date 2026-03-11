@@ -50,7 +50,7 @@ describe('SimulationEngineService', () => {
 
   describe('processOrderSubmitted', () => {
     it('should fill a BUY order when sufficient cash is available', async () => {
-      mockMarketData.getPrice.mockReturnValue(250.50);
+      mockMarketData.getPrice.mockResolvedValue(250.50);
       mockRepo.getCashBalance.mockResolvedValue({ balance: 100000 });
       mockRepo.getPosition.mockResolvedValue(null);
       mockRepo.executeTrade.mockResolvedValue(undefined);
@@ -79,7 +79,7 @@ describe('SimulationEngineService', () => {
     });
 
     it('should reject a BUY order when insufficient cash', async () => {
-      mockMarketData.getPrice.mockReturnValue(250.50);
+      mockMarketData.getPrice.mockResolvedValue(250.50);
       mockRepo.getCashBalance.mockResolvedValue({ balance: 1000 });
       mockRepo.getPosition.mockResolvedValue(null);
 
@@ -95,7 +95,7 @@ describe('SimulationEngineService', () => {
     });
 
     it('should fill a SELL order when sufficient position exists', async () => {
-      mockMarketData.getPrice.mockReturnValue(250.50);
+      mockMarketData.getPrice.mockResolvedValue(250.50);
       mockRepo.getCashBalance.mockResolvedValue({ balance: 50000 });
       mockRepo.getPosition.mockResolvedValue({ quantity: 20 });
       mockRepo.executeTrade.mockResolvedValue(undefined);
@@ -116,7 +116,7 @@ describe('SimulationEngineService', () => {
     });
 
     it('should reject a SELL order when insufficient position', async () => {
-      mockMarketData.getPrice.mockReturnValue(250.50);
+      mockMarketData.getPrice.mockResolvedValue(250.50);
       mockRepo.getCashBalance.mockResolvedValue({ balance: 50000 });
       mockRepo.getPosition.mockResolvedValue({ quantity: 3 });
 
@@ -132,7 +132,7 @@ describe('SimulationEngineService', () => {
     });
 
     it('should reject a SELL order when no position exists', async () => {
-      mockMarketData.getPrice.mockReturnValue(250.50);
+      mockMarketData.getPrice.mockResolvedValue(250.50);
       mockRepo.getCashBalance.mockResolvedValue({ balance: 50000 });
       mockRepo.getPosition.mockResolvedValue(null);
 
@@ -146,7 +146,7 @@ describe('SimulationEngineService', () => {
     });
 
     it('should reject order for unknown symbol', async () => {
-      mockMarketData.getPrice.mockReturnValue(null);
+      mockMarketData.getPrice.mockResolvedValue(null);
 
       const result = await engine.processOrderSubmitted(
         't-1', 'u-1', 'order-1', 'UNKNOWN', 'BUY', 10,
@@ -177,7 +177,7 @@ describe('SimulationEngineService', () => {
     });
 
     it('should handle BUY with no existing cash balance (defaults to 0)', async () => {
-      mockMarketData.getPrice.mockReturnValue(10);
+      mockMarketData.getPrice.mockResolvedValue(10);
       mockRepo.getCashBalance.mockResolvedValue(null);
       mockRepo.getPosition.mockResolvedValue(null);
 

@@ -26,6 +26,9 @@ export class WithdrawalCompletedPipe implements Pipe<UnitOfWork<BusEvent<Withdra
       relatedEntityId: payload.withdrawalId,
     });
 
+    // Update cash balance (withdrawal decreases balance)
+    await this.repository.updateCashBalance(payload.tenantId, payload.userId, -payload.amountCents);
+
     logger.info('Processed withdrawal completed event', {
       tenantId: payload.tenantId,
       withdrawalId: payload.withdrawalId,

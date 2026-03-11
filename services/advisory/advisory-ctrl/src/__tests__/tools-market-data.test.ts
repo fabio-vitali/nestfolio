@@ -1,5 +1,20 @@
 jest.mock('@nestfolio/platform-core', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  StaticMarketDataProvider: jest.fn().mockImplementation(() => ({})),
+  CachedMarketDataProvider: jest.fn().mockImplementation(() => ({
+    getIndices: jest.fn().mockResolvedValue([
+      { name: 'S&P 500', ticker: 'SPX', value: 5200, change: 0.003 },
+      { name: 'NASDAQ', ticker: 'NDX', value: 18500, change: 0.005 },
+      { name: 'Russell 2000', ticker: 'RUT', value: 2100, change: -0.001 },
+      { name: 'Dow Jones', ticker: 'DJI', value: 39200, change: 0.002 },
+    ]),
+    getRates: jest.fn().mockResolvedValue([
+      { rateType: 'fed', value: 4.25, asOf: '2026-03-01' },
+      { rateType: 'treasury10Y', value: 4.10, asOf: '2026-03-01' },
+      { rateType: 'treasury2Y', value: 3.95, asOf: '2026-03-01' },
+      { rateType: 'treasury30Y', value: 4.30, asOf: '2026-03-01' },
+    ]),
+  })),
 }));
 
 import { handler } from '../handlers/tools/market-data';

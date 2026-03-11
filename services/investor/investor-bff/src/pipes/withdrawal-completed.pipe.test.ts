@@ -22,7 +22,8 @@ type WithdrawalCompletedPayload = {
 
 describe('WithdrawalCompletedPipe', () => {
   const mockAddNotification = jest.fn().mockResolvedValue(undefined);
-  const mockRepository = { addNotification: mockAddNotification } as any;
+  const mockUpdateCashBalance = jest.fn().mockResolvedValue(undefined);
+  const mockRepository = { addNotification: mockAddNotification, updateCashBalance: mockUpdateCashBalance } as any;
 
   let pipe: WithdrawalCompletedPipe;
 

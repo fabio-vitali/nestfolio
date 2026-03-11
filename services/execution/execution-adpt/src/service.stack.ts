@@ -43,7 +43,7 @@ export class ExecutionAdptStack extends Stack {
     // Ingress: EventBridge -> SQS -> event-listener
     const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'ExecutionBus', naming.eventBusName()),
-      eventTypes: ['ORDER_SUBMITTED', 'WITHDRAWAL_REQUESTED'],
+      eventTypes: ['ORDER_SUBMITTED', 'WITHDRAWAL_REQUESTED', 'DEPOSIT_INITIATED'],
       handler: eventListener,
     });
 

@@ -24,6 +24,7 @@ const TRIGGER_EVENT_TYPES = new Set([
   'NOTIFICATION_CREATED',
   'DEPOSIT_DETECTED',
   'WITHDRAWAL_COMPLETED',
+  'ORDER_FILLED',
 ]);
 
 export const createHandler = (deps: EventListenerDeps) =>
@@ -89,7 +90,30 @@ async function processEvent(
     case 'WITHDRAWAL_COMPLETED':
       await deps.withdrawalCompletedPipe.process(uow as any);
       break;
+    case 'ORDER_FILLED':
+      await updateCashBalanceFromFill(deps, uow);
+      break;
   }
+}
+
+async function updateCashBalanceFromFill(
+  deps: EventListenerDeps,
+  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
+): Promise<void> {
+  const payload = uow.event.subject as Record<string, unknown>;
+  const tenantId = (payload?.tenantId as string) ?? (uow.event.context as Record<string, unknown>)?.tenantId as string;
+  const userId = payload?.userId as string;
+  const side = payload?.side as string;
+  const totalValue = payload?.totalValue as number;
+
+  if (!tenantId || !userId || !side || totalValue == null) {
+    logger.warn('ORDER_FILLED event missing required fields for cash update', { tenantId, userId, side, totalValue });
+    return;
+  }
+
+  // BUY decreases cash, SELL increases cash
+  const deltaCents = side === 'BUY' ? -Math.round(totalValue * 100) : Math.round(totalValue * 100);
+  await deps.repository.updateCashBalance(tenantId, userId, deltaCents);
 }
 
 // Production wiring

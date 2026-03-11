@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getTime, type TableEntry } from '@nestfolio/platform-core';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 
@@ -103,6 +103,27 @@ export class VirtualLedgerRepository extends TableRepository {
           ConditionExpression: '#v = :expectedVersion',
           ExpressionAttributeNames: { '#v': 'version' },
           ExpressionAttributeValues: { ':expectedVersion': expectedVersion },
+        }),
+      );
+    },
+  );
+
+  readonly addToCashBalance = this.log('addToCashBalance',
+    async (
+      tenantId: string,
+      userId: string,
+      currency: string,
+      amount: number,
+    ): Promise<void> => {
+      const now = getTime();
+      const pk = ledgerPk(tenantId, userId);
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: `CashBalance#${currency}` },
+          UpdateExpression: 'ADD balance :amount SET #ts = :ts, updatedAt = :now',
+          ExpressionAttributeNames: { '#ts': 'timestamp' },
+          ExpressionAttributeValues: { ':amount': amount, ':ts': now, ':now': now },
         }),
       );
     },

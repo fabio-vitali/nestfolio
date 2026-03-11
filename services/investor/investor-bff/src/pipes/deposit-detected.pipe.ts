@@ -26,6 +26,9 @@ export class DepositDetectedPipe implements Pipe<UnitOfWork<BusEvent<DepositDete
       relatedEntityId: payload.depositId,
     });
 
+    // Update cash balance
+    await this.repository.updateCashBalance(payload.tenantId, payload.userId, payload.amountCents);
+
     logger.info('Processed deposit detected event', {
       tenantId: payload.tenantId,
       depositId: payload.depositId,

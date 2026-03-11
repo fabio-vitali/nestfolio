@@ -108,6 +108,7 @@ import { SQSEvent } from 'aws-lambda';
 import { createHandler, EventListenerDeps } from '../handlers/event-listener';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationLifecycleService } from '../services/notification-lifecycle.service';
+import { NotificationDeliveryService } from '../services/notification-delivery.service';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
@@ -138,7 +139,8 @@ describe('event-listener handler', () => {
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
 
     const repository = new NotificationRepository('test-table');
-    const lifecycleService = new NotificationLifecycleService(repository);
+    const delivery = new NotificationDeliveryService();
+    const lifecycleService = new NotificationLifecycleService(repository, delivery);
 
     mockDeps = {
       idempotencyGuard: { ensureOnce: mockEnsureOnce } as any,

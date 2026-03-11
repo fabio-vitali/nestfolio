@@ -86,7 +86,7 @@ export class InvestorHubStack extends Stack {
     new Rule(this, 'ToExecution', {
       eventBus: this.bus,
       eventPattern: {
-        detailType: ['WITHDRAWAL_REQUESTED', 'ACCOUNT_CLOSURE_REQUESTED'],
+        detailType: ['DEPOSIT_INITIATED', 'WITHDRAWAL_REQUESTED', 'ACCOUNT_CLOSURE_REQUESTED'],
       },
       targets: [new EventBusTarget(executionBus, { deadLetterQueue: toExecutionDlq })],
     });

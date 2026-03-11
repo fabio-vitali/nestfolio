@@ -4,6 +4,7 @@ import { logger } from '@nestfolio/platform-core';
 import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationLifecycleService } from '../services/notification-lifecycle.service';
+import { NotificationDeliveryService } from '../services/notification-delivery.service';
 
 export interface EventListenerDeps {
   readonly idempotencyGuard: IdempotencyGuard;
@@ -80,7 +81,7 @@ const repository = new NotificationRepository(TABLE_NAME, dynamoClient);
 
 const deps: EventListenerDeps = {
   idempotencyGuard: new IdempotencyGuard(dynamoClient, TABLE_NAME),
-  lifecycleService: new NotificationLifecycleService(repository),
+  lifecycleService: new NotificationLifecycleService(repository, new NotificationDeliveryService()),
   bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'investor-ctrl'),
   metrics: createServiceMetrics('investor-ctrl'),
 };

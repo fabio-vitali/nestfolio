@@ -1,8 +1,11 @@
 import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MessageModule } from 'primeng/message';
+import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
 import {
   ExpandableComponent,
   AgentBadgeComponent,
@@ -21,8 +24,11 @@ import { TradesTableComponent } from './trades-table.component';
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     TranslateModule,
     MessageModule,
+    ButtonModule,
+    DialogModule,
     ExpandableComponent,
     AgentBadgeComponent,
     StatusBadgeComponent,
@@ -35,6 +41,10 @@ import { TradesTableComponent } from './trades-table.component';
       <nf-loading-skeleton [count]="10" />
     } @else {
       <div class="decision-detail">
+        @if (store.successMessage()) {
+          <p-message severity="success" [text]="store.successMessage()" styleClass="w-full" />
+        }
+
         @if (store.error()) {
           <p-message severity="error" [text]="i18n.t(store.error()!)" styleClass="w-full" />
         }
@@ -57,6 +67,57 @@ import { TradesTableComponent } from './trades-table.component';
               <p class="rationale">{{ decision.rationale }}</p>
             }
           </div>
+
+          <!-- Action Buttons -->
+          @if (store.canAct()) {
+            <div class="action-buttons">
+              <p-button
+                [label]="'advisory.detail.confirm' | translate"
+                severity="success"
+                [loading]="actionType === 'confirm' && store.loading()"
+                [disabled]="!store.canAct()"
+                (onClick)="onConfirm()"
+              />
+              <p-button
+                [label]="'advisory.detail.reject' | translate"
+                severity="danger"
+                [loading]="actionType === 'reject' && store.loading()"
+                [disabled]="!store.canAct()"
+                (onClick)="showRejectDialog = true"
+              />
+            </div>
+          }
+
+          <!-- Reject Dialog -->
+          <p-dialog
+            [header]="'advisory.detail.rejectTitle' | translate"
+            [(visible)]="showRejectDialog"
+            [modal]="true"
+            [style]="{ width: '24rem' }"
+          >
+            <div class="reject-form">
+              <textarea
+                class="reject-reason"
+                [(ngModel)]="rejectReason"
+                [placeholder]="'advisory.detail.rejectReasonPlaceholder' | translate"
+                rows="4"
+              ></textarea>
+            </div>
+            <ng-template pTemplate="footer">
+              <p-button
+                [label]="'common.cancel' | translate"
+                severity="secondary"
+                (onClick)="showRejectDialog = false"
+              />
+              <p-button
+                [label]="'advisory.detail.reject' | translate"
+                severity="danger"
+                [loading]="actionType === 'reject' && store.loading()"
+                [disabled]="!rejectReason.trim()"
+                (onClick)="onReject()"
+              />
+            </ng-template>
+          </p-dialog>
 
           <!-- Expandable: Proposed Trades -->
           @if (decision.proposedActions.length > 0) {
@@ -246,6 +307,26 @@ import { TradesTableComponent } from './trades-table.component';
       margin: 0.125rem 0 0;
     }
 
+    .action-buttons {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .reject-form {
+      padding: 0.5rem 0;
+    }
+
+    .reject-reason {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--p-surface-200);
+      border-radius: 0.375rem;
+      font-family: inherit;
+      font-size: 0.875rem;
+      resize: vertical;
+    }
+
     .w-full { width: 100%; }
   `],
 })
@@ -253,10 +334,15 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly advisoryService = inject(AdvisoryService);
+  private readonly translate = inject(TranslateService);
   readonly i18n = inject(I18nService);
   readonly store = inject(AdvisoryStore);
 
   private static readonly UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  actionType: 'confirm' | 'reject' | null = null;
+  showRejectDialog = false;
+  rejectReason = '';
 
   async ngOnInit(): Promise<void> {
     const decisionId = this.route.snapshot.paramMap.get('id');
@@ -272,6 +358,7 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.advisoryService.unsubscribeFromDecisionUpdates();
     this.store.reset();
   }
 
@@ -294,10 +381,53 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
       this.advisoryService.recordExplanationView(decisionId).catch((err) => {
         console.error('audit log failed', err);
       });
+
+      // Subscribe for real-time updates
+      this.advisoryService.subscribeToDecisionUpdates(decisionId, (updated) => {
+        this.store.setDecision(updated);
+      });
     } catch (e: unknown) {
       this.store.setError(parseError(e, 'errors.decision'));
     } finally {
       this.store.setLoading(false);
+    }
+  }
+
+  async onConfirm(): Promise<void> {
+    const decisionId = this.store.decision()?.decisionId;
+    if (!decisionId) return;
+
+    this.actionType = 'confirm';
+    this.store.setLoading(true);
+    try {
+      const updated = await this.advisoryService.confirmDecision(decisionId);
+      this.store.setDecision(updated);
+      this.store.setSuccess(this.translate.instant('advisory.detail.confirmSuccess'));
+    } catch (e: unknown) {
+      this.store.setError(parseError(e, 'errors.decision'));
+    } finally {
+      this.store.setLoading(false);
+      this.actionType = null;
+    }
+  }
+
+  async onReject(): Promise<void> {
+    const decisionId = this.store.decision()?.decisionId;
+    if (!decisionId) return;
+
+    this.actionType = 'reject';
+    this.store.setLoading(true);
+    try {
+      const updated = await this.advisoryService.rejectDecision(decisionId, this.rejectReason.trim());
+      this.store.setDecision(updated);
+      this.showRejectDialog = false;
+      this.rejectReason = '';
+      this.store.setSuccess(this.translate.instant('advisory.detail.rejectSuccess'));
+    } catch (e: unknown) {
+      this.store.setError(parseError(e, 'errors.decision'));
+    } finally {
+      this.store.setLoading(false);
+      this.actionType = null;
     }
   }
 

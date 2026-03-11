@@ -1,6 +1,7 @@
 import { getUUID, logger, type BusEvent } from '@nestfolio/platform-core';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 import { NotificationRepository } from '../repositories/notification.repository';
+import { NotificationDeliveryService, type DeliveryResult } from './notification-delivery.service';
 
 export interface NotificationContext {
   tenantId: string;
@@ -21,7 +22,10 @@ interface NotificationContent {
 export class NotificationLifecycleService {
   private readonly log = withMethodLogging('NotificationLifecycleService');
 
-  constructor(private readonly repository: NotificationRepository) {}
+  constructor(
+    private readonly repository: NotificationRepository,
+    private readonly delivery: NotificationDeliveryService,
+  ) {}
 
   readonly executeNotificationLifecycle = this.log('executeNotificationLifecycle',
     async (context: NotificationContext): Promise<NotificationResult> => {
@@ -37,21 +41,24 @@ export class NotificationLifecycleService {
         triggerEventId: context.triggerEvent.id,
       });
 
-      // 2. Update status to SENT (stub - in production would dispatch to SNS/SES)
-      await this.repository.updateNotificationStatus(
-        context.tenantId,
-        notificationId,
-        'SENT',
-        { sentAt: new Date().toISOString() },
-      );
+      // 2. Dispatch to channel
+      const deliveryResult = await this.dispatchToChannel(content.channel, {
+        title: content.title,
+        body: content.body,
+      });
 
-      // 3. Update status to DELIVERED (stub)
-      await this.repository.updateNotificationStatus(
-        context.tenantId,
-        notificationId,
-        'DELIVERED',
-        { deliveredAt: new Date().toISOString() },
-      );
+      // 3. Update status based on delivery result
+      if (deliveryResult.delivered) {
+        await this.repository.updateNotificationStatus(
+          context.tenantId, notificationId, 'DELIVERED',
+          { deliveredAt: deliveryResult.timestamp },
+        );
+      } else {
+        await this.repository.updateNotificationStatus(
+          context.tenantId, notificationId, 'FAILED',
+          { failedAt: deliveryResult.timestamp, failureReason: deliveryResult.error },
+        );
+      }
 
       // 4. For ORDER_FILLED events, also create monthly report
       if (context.triggerEvent.type === 'ORDER_FILLED') {
@@ -82,6 +89,21 @@ export class NotificationLifecycleService {
       };
     },
   );
+
+  private async dispatchToChannel(
+    channel: string,
+    notification: { title: string; body: string },
+  ): Promise<DeliveryResult> {
+    switch (channel) {
+      case 'push':
+        return this.delivery.deliverPush(notification, 'default-token');
+      case 'email':
+        return this.delivery.deliverEmail(notification, 'default@nestfolio.dev');
+      default:
+        // IN_APP: no external dispatch needed
+        return { delivered: true, channel: 'IN_APP', timestamp: new Date().toISOString() };
+    }
+  }
 
   private getNotificationContent(eventType: string): NotificationContent {
     const contentMap: Record<string, NotificationContent> = {

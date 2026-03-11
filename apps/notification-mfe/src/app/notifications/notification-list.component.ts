@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
@@ -117,7 +117,7 @@ const PAGE_SIZE = 20;
     .w-full { width: 100%; }
   `],
 })
-export class NotificationListComponent implements OnInit {
+export class NotificationListComponent implements OnInit, OnDestroy {
   private readonly notificationService = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly notificationCountStore = inject(NotificationCountStore);
@@ -126,6 +126,14 @@ export class NotificationListComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.loadNotifications();
+
+    this.notificationService.subscribeToNotifications((notification) => {
+      this.store.prependNotification(notification);
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.notificationService.unsubscribeFromNotifications();
   }
 
   async onMarkRead(notificationId: string): Promise<void> {

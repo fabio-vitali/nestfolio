@@ -37,6 +37,8 @@ describe('NotificationListComponent', () => {
       }),
       getUnreadCount: jest.fn().mockResolvedValue(2),
       markNotificationRead: jest.fn().mockResolvedValue(makeNotification('n-001', 'READ')),
+      subscribeToNotifications: jest.fn(),
+      unsubscribeFromNotifications: jest.fn(),
     } as unknown as jest.Mocked<NotificationService>;
 
     router = createMockRouter() as jest.Mocked<Router>;
@@ -224,6 +226,29 @@ describe('NotificationListComponent', () => {
 
     // Should not have been called a second time
     expect(notificationService.getNotifications).toHaveBeenCalledTimes(1);
+  });
+
+  it('should subscribe to notifications after loading', async () => {
+    await component.ngOnInit();
+
+    expect(notificationService.subscribeToNotifications).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it('should unsubscribe from notifications on destroy', async () => {
+    await component.ngOnInit();
+
+    component.ngOnDestroy();
+
+    expect(notificationService.unsubscribeFromNotifications).toHaveBeenCalled();
+  });
+
+  it('should not duplicate notification on prependNotification with existing ID', async () => {
+    await component.ngOnInit();
+    expect(store.notifications()).toHaveLength(2);
+
+    // Prepend a notification with an existing ID
+    store.prependNotification(makeNotification('n-001'));
+    expect(store.notifications()).toHaveLength(2); // should NOT be 3
   });
 
   it('should log error and reload on markRead failure during tap', async () => {

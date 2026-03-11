@@ -7,11 +7,16 @@ describe('NotificationService', () => {
   let graphql: jest.Mocked<GraphqlService>;
 
   beforeEach(() => {
+    jest.useFakeTimers();
     graphql = { query: jest.fn(), mutate: jest.fn(), subscribe: jest.fn(), resetClient: jest.fn() } as any;
     TestBed.configureTestingModule({
       providers: [{ provide: GraphqlService, useValue: graphql }],
     });
     service = TestBed.inject(NotificationService);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('should call getNotifications without params', async () => {
@@ -52,5 +57,116 @@ describe('NotificationService', () => {
     graphql.mutate.mockResolvedValue({ markNotificationRead: null });
 
     await expect(service.markNotificationRead('n-001')).rejects.toThrow('Failed to mark notification as read');
+  });
+
+  it('should subscribe to notifications', () => {
+    const mockUnsubscribe = jest.fn();
+    const mockSubscribe = jest.fn().mockReturnValue({ unsubscribe: mockUnsubscribe });
+    graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
+
+    service.subscribeToNotifications(jest.fn());
+
+    expect(graphql.subscribe).toHaveBeenCalledWith(expect.any(String));
+    expect(mockSubscribe).toHaveBeenCalled();
+  });
+
+  it('should unsubscribe from notifications', () => {
+    const mockUnsubscribe = jest.fn();
+    const mockSubscribe = jest.fn().mockReturnValue({ unsubscribe: mockUnsubscribe });
+    graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
+
+    service.subscribeToNotifications(jest.fn());
+    service.unsubscribeFromNotifications();
+
+    expect(mockUnsubscribe).toHaveBeenCalled();
+  });
+
+  it('should unsubscribe previous subscription when subscribing again', () => {
+    const mockUnsubscribe1 = jest.fn();
+    const mockUnsubscribe2 = jest.fn();
+    graphql.subscribe
+      .mockReturnValueOnce({ subscribe: jest.fn().mockReturnValue({ unsubscribe: mockUnsubscribe1 }) } as any)
+      .mockReturnValueOnce({ subscribe: jest.fn().mockReturnValue({ unsubscribe: mockUnsubscribe2 }) } as any);
+
+    service.subscribeToNotifications(jest.fn());
+    service.subscribeToNotifications(jest.fn());
+
+    expect(mockUnsubscribe1).toHaveBeenCalled();
+  });
+
+  it('should not throw when unsubscribing without active subscription', () => {
+    expect(() => service.unsubscribeFromNotifications()).not.toThrow();
+  });
+
+  it('should reconnect with exponential backoff after subscription error', () => {
+    let errorHandler!: (err: Error) => void;
+    const mockSubscribe = jest.fn().mockImplementation((handlers: any) => {
+      errorHandler = handlers.error;
+      return { unsubscribe: jest.fn() };
+    });
+    graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
+
+    service.subscribeToNotifications(jest.fn());
+    expect(graphql.subscribe).toHaveBeenCalledTimes(1);
+
+    // First error → reconnect after 5s
+    errorHandler(new Error('connection lost'));
+    expect(graphql.subscribe).toHaveBeenCalledTimes(1); // not yet
+    jest.advanceTimersByTime(5000);
+    expect(graphql.subscribe).toHaveBeenCalledTimes(2);
+
+    // Second error → reconnect after 10s
+    errorHandler(new Error('connection lost'));
+    jest.advanceTimersByTime(9999);
+    expect(graphql.subscribe).toHaveBeenCalledTimes(2);
+    jest.advanceTimersByTime(1);
+    expect(graphql.subscribe).toHaveBeenCalledTimes(3);
+  });
+
+  it('should stop reconnecting after MAX_RECONNECT_ATTEMPTS', () => {
+    let errorHandler!: (err: Error) => void;
+    const mockSubscribe = jest.fn().mockImplementation((handlers: any) => {
+      errorHandler = handlers.error;
+      return { unsubscribe: jest.fn() };
+    });
+    graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
+
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    service.subscribeToNotifications(jest.fn());
+
+    // Trigger 5 errors (max attempts)
+    for (let i = 0; i < 5; i++) {
+      errorHandler(new Error('connection lost'));
+      jest.advanceTimersByTime(30_000); // advance past max delay
+    }
+
+    const callCount = graphql.subscribe.mock.calls.length;
+
+    // 6th error should NOT trigger reconnect
+    errorHandler(new Error('connection lost'));
+    jest.advanceTimersByTime(60_000);
+    expect(graphql.subscribe).toHaveBeenCalledTimes(callCount);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should clear pending reconnect timeout on unsubscribe', () => {
+    let errorHandler!: (err: Error) => void;
+    const mockSubscribe = jest.fn().mockImplementation((handlers: any) => {
+      errorHandler = handlers.error;
+      return { unsubscribe: jest.fn() };
+    });
+    graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
+
+    service.subscribeToNotifications(jest.fn());
+    errorHandler(new Error('connection lost'));
+
+    // Unsubscribe before the timer fires
+    service.unsubscribeFromNotifications();
+    jest.advanceTimersByTime(30_000);
+
+    // Should still be just 1 subscribe call (no reconnect happened)
+    expect(graphql.subscribe).toHaveBeenCalledTimes(1);
   });
 });

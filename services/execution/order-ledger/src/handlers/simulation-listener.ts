@@ -69,7 +69,7 @@ export const createHandler = (deps: SimulationListenerDeps) =>
         const now = getTime();
 
         for (const trade of proposedTrades) {
-          const fillResult = deps.shadowFill.simulateFill(trade);
+          const fillResult = await deps.shadowFill.simulateFill(trade);
           const orderId = `sim-${decisionPacketId}-${trade.symbol}`;
           const sequenceNo = await deps.repository.nextSequence(tenantId, 'simulated', orderId);
 

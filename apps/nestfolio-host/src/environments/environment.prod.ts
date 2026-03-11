@@ -18,5 +18,13 @@ export const environment = {
       endpoint: '',
       region: 'us-east-1',
     },
+    dashboardBff: {
+      endpoint: '',
+      region: 'us-east-1',
+    },
+    orderLedger: {
+      endpoint: '',
+      region: 'us-east-1',
+    },
   },
 };

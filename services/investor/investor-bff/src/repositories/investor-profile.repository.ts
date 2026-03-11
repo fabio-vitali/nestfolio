@@ -400,6 +400,82 @@ export class InvestorProfileRepository extends TableRepository {
     },
   );
 
+  readonly persistDeposit = this.log('persistDeposit',
+    async (tenantId: string, userId: string, deposit: {
+      depositId: string; amountCents: number; currency: string; status: string; initiatedAt: string;
+    }): Promise<Record<string, unknown>> => {
+      const pk = profilePk(tenantId, userId);
+      const now = getTime();
+      const item: TableEntry = {
+        pk, sk: `Deposit#${deposit.depositId}`, __typename: 'Deposit',
+        tenantId, timestamp: now, userId,
+        ...deposit,
+      };
+      await this.put(item);
+      return item;
+    },
+  );
+
+  readonly persistWithdrawal = this.log('persistWithdrawal',
+    async (tenantId: string, userId: string, withdrawal: {
+      withdrawalId: string; amountCents: number; currency: string; status: string; requestedAt: string;
+    }): Promise<Record<string, unknown>> => {
+      const pk = profilePk(tenantId, userId);
+      const now = getTime();
+      const item: TableEntry = {
+        pk, sk: `Withdrawal#${withdrawal.withdrawalId}`, __typename: 'Withdrawal',
+        tenantId, timestamp: now, userId,
+        ...withdrawal,
+      };
+      await this.put(item);
+      return item;
+    },
+  );
+
+  readonly withdrawCashConditional = this.log('withdrawCashConditional',
+    async (tenantId: string, userId: string, amountCents: number): Promise<void> => {
+      await this.docClient.send(new UpdateCommand({
+        TableName: this.tableName,
+        Key: { pk: profilePk(tenantId, userId), sk: 'CashBalance' },
+        UpdateExpression: 'ADD balanceCents :negAmount',
+        ConditionExpression: 'attribute_exists(balanceCents) AND balanceCents >= :amount',
+        ExpressionAttributeValues: {
+          ':negAmount': -amountCents,
+          ':amount': amountCents,
+        },
+      }));
+    },
+  );
+
+  readonly getCashBalance = this.log('getCashBalance',
+    async (tenantId: string, userId: string): Promise<number> => {
+      const pk = profilePk(tenantId, userId);
+      const result = await this.docClient.send(
+        new GetCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: 'CashBalance' },
+        }),
+      );
+      return (result.Item?.balanceCents as number) ?? 0;
+    },
+  );
+
+  readonly updateCashBalance = this.log('updateCashBalance',
+    async (tenantId: string, userId: string, deltaCents: number): Promise<void> => {
+      const pk = profilePk(tenantId, userId);
+      const now = getTime();
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: 'CashBalance' },
+          UpdateExpression: 'SET balanceCents = if_not_exists(balanceCents, :zero) + :delta, #ts = :ts, updatedAt = :now, #tn = :tn, pk = if_not_exists(pk, :pk), tenantId = if_not_exists(tenantId, :tid)',
+          ExpressionAttributeNames: { '#ts': 'timestamp', '#tn': '__typename' },
+          ExpressionAttributeValues: { ':delta': deltaCents, ':ts': now, ':now': now, ':zero': 0, ':tn': 'CashBalance', ':pk': pk, ':tid': tenantId },
+        }),
+      );
+    },
+  );
+
   readonly addNotification = this.log('addNotification',
     async (
       tenantId: string,

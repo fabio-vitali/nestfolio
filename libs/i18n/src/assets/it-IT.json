@@ -143,7 +143,13 @@
       "auditDecisionId": "ID Decisione",
       "auditModels": "Modelli",
       "auditCreatedAt": "Creato il",
-      "auditVersion": "Versione"
+      "auditVersion": "Versione",
+      "confirm": "Approva Decisione",
+      "reject": "Rifiuta Decisione",
+      "rejectTitle": "Rifiuta Decisione",
+      "rejectReasonPlaceholder": "Inserisci il motivo del rifiuto...",
+      "confirmSuccess": "Decisione approvata con successo",
+      "rejectSuccess": "Decisione rifiutata con successo"
     }
   },
   "notifications": {

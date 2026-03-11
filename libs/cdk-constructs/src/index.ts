@@ -10,3 +10,4 @@ export { ServiceDashboard, ServiceDashboardProps } from './dashboard';
 export { defaultLambdaProps, agentLambdaProps } from './default-lambda-props';
 export { NamingService, NamingServiceConfig, createNamingService } from './naming-service';
 export { applyStandardTags, StandardTagsProps } from './tagging';
+export { RuntimeConfig, RuntimeConfigProps, RuntimeConfigSsmPaths } from './runtime-config';

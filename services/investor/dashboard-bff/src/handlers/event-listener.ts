@@ -113,6 +113,9 @@ const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
   RECONCILIATION_COMPLETED: [
     { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
   ],
+  DEPOSIT_INITIATED: [
+    { name: 'recentActivity', pipe: recentActivityPipe },
+  ],
   DEPOSIT_DETECTED: [
     { name: 'recentActivity', pipe: recentActivityPipe },
   ],

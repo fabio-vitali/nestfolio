@@ -112,7 +112,7 @@ export class DecisionRepository extends TableRepository {
       decisionId: dpId,
       step,
       agentName,
-      modelId: 'stub',
+      modelId: 'unknown',
       input,
       output,
       inputTokens: 0,

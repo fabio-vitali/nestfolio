@@ -20,6 +20,13 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
+const mockEventListenerQuotePrices: Record<string, number> = {
+  VTI: 250.50, VXUS: 58.75, BND: 72.30, VNQ: 85.40, GLD: 195.80,
+  SPY: 520.15, QQQ: 445.60, IWM: 210.25, EFA: 78.90, EEM: 42.15,
+  TLT: 92.50, AGG: 98.75, VIG: 178.30, SCHD: 82.45, VOO: 480.20,
+  VGSH: 58.10, VCIT: 80.55, VWO: 43.20, IEMG: 52.80, XLF: 42.90,
+};
+
 jest.mock('@nestfolio/platform-core', () => ({
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
@@ -68,6 +75,15 @@ jest.mock('@nestfolio/platform-core', () => ({
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+  StaticMarketDataProvider: jest.fn().mockImplementation(() => ({})),
+  CachedMarketDataProvider: jest.fn().mockImplementation(() => ({
+    getQuote: jest.fn().mockImplementation(async (symbol: string) => {
+      const price = mockEventListenerQuotePrices[symbol];
+      if (!price) return null;
+      return { symbol, price, change: 0, changePercent: 0, volume: 1000, timestamp: '2026-01-01' };
+    }),
+  })),
+  KNOWN_SYMBOLS: Object.keys(mockEventListenerQuotePrices),
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({
@@ -467,6 +483,41 @@ describe('event-listener handler', () => {
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
     expect(isRetryable).toHaveBeenCalled();
+  });
+
+  it('should process DEPOSIT_INITIATED using atomic addToCashBalance', async () => {
+    // getCashBalance (lazy init check) -> found
+    mockSend.mockResolvedValueOnce({ Item: { balance: 50000 } });
+    // addToCashBalance -> success
+    mockSend.mockResolvedValueOnce({});
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-deposit',
+        body: {
+          detail: {
+            id: 'evt-deposit',
+            type: 'DEPOSIT_INITIATED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              depositId: 'dep-1',
+              tenantId: 't-1',
+              userId: 'u-1',
+              amountCents: 10000,
+              currency: 'USD',
+            },
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+
+    // The second call should be the atomic ADD (UpdateCommand), not a conditional put
+    const secondCall = mockSend.mock.calls[1][0];
+    expect(secondCall._type).toBe('Update');
   });
 
   it('should initialize account on first ORDER_SUBMITTED if no cash balance exists', async () => {

@@ -55,6 +55,7 @@ export class InvestorBffStack extends Stack {
         'DEPOSIT_DETECTED',
         'WITHDRAWAL_COMPLETED',
         'WITHDRAWAL_REJECTED',
+        'ORDER_FILLED',
       ],
       handler: eventListener,
     });
@@ -70,6 +71,8 @@ export class InvestorBffStack extends Stack {
         'Mandate',
         'OperatingModeRecord',
         'InvestorProfile',
+        'Deposit',
+        'Withdrawal',
       ],
     });
 

@@ -1,20 +1,46 @@
-import { getUUID, getTime, logger } from '@nestfolio/platform-core';
+import { getUUID, getTime, logger, type Bus } from '@nestfolio/platform-core';
+import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 
-// TODO: implement persistence + event emission
 export async function initiateDeposit(
-  _tenantId: string,
-  _userId: string,
+  repository: InvestorProfileRepository,
+  bus: Bus,
+  tenantId: string,
+  userId: string,
   input: { amountCents: number; currency: string },
 ): Promise<Record<string, unknown>> {
-  logger.warn('Deposit not yet persisted — returning stub response', { amountCents: input.amountCents });
   const depositId = getUUID();
   const now = getTime();
 
-  return {
+  const deposit = {
     depositId,
     amountCents: input.amountCents,
     currency: input.currency,
     status: 'PENDING',
     initiatedAt: now,
   };
+
+  // NOTE: persist + publish is not atomic. If bus.publish fails after persist,
+  // the record exists without an event. Upstream IdempotencyGuard prevents
+  // duplicate processing on retry. Consider Outbox pattern for stronger guarantees.
+  const item = await repository.persistDeposit(tenantId, userId, deposit);
+
+  await bus.publish({
+    id: getUUID(),
+    type: 'DEPOSIT_INITIATED',
+    timestamp: now,
+    subject: {
+      depositId,
+      tenantId,
+      userId,
+      amountCents: input.amountCents,
+      currency: input.currency,
+      status: 'PENDING',
+      initiatedAt: now,
+    },
+    context: { tenantId },
+  });
+
+  logger.info('Deposit initiated', { depositId, tenantId, amountCents: input.amountCents });
+
+  return item;
 }

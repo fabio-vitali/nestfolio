@@ -46,6 +46,13 @@ export const NotificationStore = signalStore(
     isEmpty: computed(() => !store.loading() && store.notifications().length === 0),
   })),
   withMethods((store) => ({
+    prependNotification(notification: Notification): void {
+      if (store.notifications().some(n => n.notificationId === notification.notificationId)) return;
+      patchState(store, {
+        notifications: [notification, ...store.notifications()],
+        unreadCount: store.unreadCount() + 1,
+      });
+    },
     setNotifications(notifications: Notification[], nextCursor: string | null): void {
       patchState(store, { notifications, nextCursor });
     },

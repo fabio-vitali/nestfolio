@@ -1,6 +1,6 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger } from '@nestfolio/platform-core';
+import { logger, type Bus } from '@nestfolio/platform-core';
 import { requireEnv, authorizeUser, validateQueryDepth, applyMiddleware, withLambdaContext, withTiming, withErrorPublishing, EventBridgeBus } from '@nestfolio/lambda-utils';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { getProfile } from '../resolvers/profile.resolver';
@@ -31,6 +31,7 @@ import {
 
 interface ResolverDeps {
   readonly repository: InvestorProfileRepository;
+  readonly bus: Bus;
 }
 
 export const createResolver = (deps: ResolverDeps) =>
@@ -103,12 +104,12 @@ export const createResolver = (deps: ResolverDeps) =>
 
       case 'initiateDeposit': {
         const input = MoneyInputSchema.parse(args.input);
-        return initiateDeposit(tenantId, userId, input);
+        return initiateDeposit(deps.repository, deps.bus, tenantId, userId, input);
       }
 
       case 'requestWithdrawal': {
         const input = MoneyInputSchema.parse(args.input);
-        return requestWithdrawal(tenantId, userId, input);
+        return requestWithdrawal(deps.repository, deps.bus, tenantId, userId, input);
       }
 
       case 'markNotificationRead': {
@@ -138,6 +139,7 @@ const TABLE_NAME = requireEnv('TABLE_NAME');
 const bus = new EventBridgeBus(requireEnv('BUS_NAME'), 'investor-bff');
 const resolverDeps: ResolverDeps = {
   repository: new InvestorProfileRepository(TABLE_NAME, new DynamoDBClient({})),
+  bus,
 };
 
 export const handler = applyMiddleware(

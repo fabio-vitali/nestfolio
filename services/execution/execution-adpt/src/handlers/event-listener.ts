@@ -17,6 +17,7 @@ interface EventListenerDeps {
 const HANDLED_EVENT_TYPES = new Set([
   'ORDER_SUBMITTED',
   'WITHDRAWAL_REQUESTED',
+  'DEPOSIT_INITIATED',
 ]);
 
 export const createHandler = (deps: EventListenerDeps) =>
@@ -48,6 +49,9 @@ export const createHandler = (deps: EventListenerDeps) =>
             break;
           case 'WITHDRAWAL_REQUESTED':
             await processWithdrawalRequested(deps, uow.event);
+            break;
+          case 'DEPOSIT_INITIATED':
+            await processDepositInitiated(deps, uow.event);
             break;
         }
         deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
@@ -141,6 +145,39 @@ async function processWithdrawalRequested(
     status: result.status,
     reason: result.reason,
   });
+}
+
+async function processDepositInitiated(
+  deps: EventListenerDeps,
+  event: Record<string, unknown>,
+): Promise<void> {
+  const subject = event.subject as Record<string, unknown>;
+  if (!subject) {
+    throw new NotRetryableError(`Missing subject in DEPOSIT_INITIATED event ${event.id}`);
+  }
+  const tenantId = extractTenantId(event);
+  const userId = (subject.userId as string) ?? tenantId;
+  const depositId = subject.depositId as string;
+  const amountCents = subject.amountCents as number;
+  const currency = (subject.currency as string) ?? 'USD';
+
+  if (!depositId || amountCents === undefined) {
+    throw new NotRetryableError(`Missing required DEPOSIT_INITIATED fields: depositId=${depositId}, amountCents=${amountCents}`);
+  }
+
+  // Convert cents to dollars for virtual ledger
+  const amount = amountCents / 100;
+
+  // Ensure simulation account exists (lazy initialization)
+  const cashBalance = await deps.repository.getCashBalance(tenantId, userId, currency);
+  if (!cashBalance) {
+    await deps.simulationEngine.initializeAccount(tenantId, userId);
+  }
+
+  // Atomic credit — no conditional needed for deposits
+  await deps.repository.addToCashBalance(tenantId, userId, currency, amount);
+
+  logger.info('Deposit processed', { depositId, amount, tenantId });
 }
 
 // Production wiring

@@ -130,7 +130,8 @@ describe('graphql-resolver handler', () => {
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
 
     const repository = new InvestorProfileRepository('test-table');
-    handler = createResolver({ repository });
+    const mockBus = { publish: jest.fn().mockResolvedValue(undefined) };
+    handler = createResolver({ repository, bus: mockBus as any });
   });
 
   afterAll(() => {
@@ -271,6 +272,8 @@ describe('graphql-resolver handler', () => {
   });
 
   it('should resolve initiateDeposit', async () => {
+    mockSend.mockResolvedValueOnce({}); // put deposit
+
     const input = { amountCents: 50000, currency: 'EUR' };
 
     const event = buildEvent('initiateDeposit', { input });
@@ -284,6 +287,10 @@ describe('graphql-resolver handler', () => {
   });
 
   it('should resolve requestWithdrawal', async () => {
+    mockSend
+      .mockResolvedValueOnce({ Item: { balanceCents: 100000 } }) // getCashBalance
+      .mockResolvedValueOnce({}); // put withdrawal
+
     const input = { amountCents: 25000, currency: 'USD' };
 
     const event = buildEvent('requestWithdrawal', { input });

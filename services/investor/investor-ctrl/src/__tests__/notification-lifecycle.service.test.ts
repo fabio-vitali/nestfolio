@@ -68,6 +68,7 @@ jest.mock('@nestfolio/domain-core', () => ({}));
 
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationLifecycleService } from '../services/notification-lifecycle.service';
+import { NotificationDeliveryService } from '../services/notification-delivery.service';
 
 describe('NotificationLifecycleService', () => {
   let service: NotificationLifecycleService;
@@ -76,7 +77,8 @@ describe('NotificationLifecycleService', () => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
     const repository = new NotificationRepository('test-table');
-    service = new NotificationLifecycleService(repository);
+    const delivery = new NotificationDeliveryService();
+    service = new NotificationLifecycleService(repository, delivery);
   });
 
   describe('executeNotificationLifecycle', () => {
@@ -97,8 +99,8 @@ describe('NotificationLifecycleService', () => {
       expect(result.status).toBe('COMPLETED');
       expect(result.notificationId).toBe('test-uuid');
 
-      // 1 createNotification + 2 updateNotificationStatus (SENT, DELIVERED) = 3
-      expect(mockSend).toHaveBeenCalledTimes(3);
+      // 1 createNotification + 1 updateNotificationStatus (DELIVERED via delivery service) = 2
+      expect(mockSend).toHaveBeenCalledTimes(2);
 
       // Verify the first call is createNotification with welcome message
       const createCall = mockSend.mock.calls[0][0];
@@ -127,8 +129,8 @@ describe('NotificationLifecycleService', () => {
 
       expect(result.status).toBe('COMPLETED');
 
-      // 1 createNotification + 2 updateNotificationStatus + 1 createMonthlyReport = 4
-      expect(mockSend).toHaveBeenCalledTimes(4);
+      // 1 createNotification + 1 updateNotificationStatus (DELIVERED) + 1 createMonthlyReport = 3
+      expect(mockSend).toHaveBeenCalledTimes(3);
 
       // Verify the first call is createNotification
       const createCall = mockSend.mock.calls[0][0];
@@ -140,7 +142,7 @@ describe('NotificationLifecycleService', () => {
       });
 
       // Verify the last call is createMonthlyReport
-      const reportCall = mockSend.mock.calls[3][0];
+      const reportCall = mockSend.mock.calls[2][0];
       expect(reportCall.input.Item).toMatchObject({
         __typename: 'MonthlyReport',
         status: 'GENERATED',

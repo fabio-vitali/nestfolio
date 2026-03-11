@@ -59,12 +59,14 @@ interface AdvisoryState {
   decision: Decision | null;
   agentInvocations: AgentInvocation[];
   complianceChecks: ComplianceCheck[];
+  successMessage: string;
 }
 
 const initialState: AdvisoryState = {
   decision: null,
   agentInvocations: [],
   complianceChecks: [],
+  successMessage: '',
 };
 
 export const AdvisoryStore = signalStore(
@@ -116,6 +118,10 @@ export const AdvisoryStore = signalStore(
       const unique = new Set(invocations.map((i) => i.tier));
       return [...unique];
     }),
+    canAct: computed(() => {
+      const d = store.decision();
+      return d !== null && d.status === 'AWAITING_CONFIRMATION' && !store.loading();
+    }),
   })),
   withMethods((store) => ({
     setDecision(decision: Decision): void {
@@ -142,6 +148,13 @@ export const AdvisoryStore = signalStore(
       } else {
         patchState(store, { callError: null });
       }
+    },
+    setSuccess(message: string): void {
+      patchState(store, { successMessage: message });
+      setTimeout(() => patchState(store, { successMessage: '' }), 3000);
+    },
+    clearSuccess(): void {
+      patchState(store, { successMessage: '' });
     },
     reset(): void {
       patchState(store, { ...initialState, callState: 'init', callError: null });

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslateService } from '@ngx-translate/core';
 import { DecisionDetailComponent } from './decision-detail.component';
 import {
   AdvisoryStore,
@@ -74,6 +75,11 @@ describe('DecisionDetailComponent', () => {
       getAgentInvocations: jest.fn().mockResolvedValue(mockInvocations),
       getComplianceChecks: jest.fn().mockResolvedValue(mockChecks),
       recordExplanationView: jest.fn().mockResolvedValue(undefined),
+      confirmDecision: jest.fn().mockResolvedValue({ ...mockDecision, status: 'CONFIRMED' }),
+      rejectDecision: jest.fn().mockResolvedValue({ ...mockDecision, status: 'REJECTED' }),
+      invalidateCaches: jest.fn(),
+      subscribeToDecisionUpdates: jest.fn(),
+      unsubscribeFromDecisionUpdates: jest.fn(),
     } as unknown as jest.Mocked<AdvisoryService>;
 
     router = { navigate: jest.fn() } as unknown as jest.Mocked<Router>;
@@ -84,6 +90,7 @@ describe('DecisionDetailComponent', () => {
         { provide: AdvisoryService, useValue: advisoryService },
         { provide: Router, useValue: router },
         { provide: I18nService, useValue: { t: (k: string) => k } },
+        { provide: TranslateService, useValue: { instant: (k: string) => k } },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: { get: () => 'd0000000-0000-0000-0000-000000000001' } } },
@@ -147,6 +154,7 @@ describe('DecisionDetailComponent', () => {
         { provide: AdvisoryService, useValue: advisoryService },
         { provide: Router, useValue: router },
         { provide: I18nService, useValue: { t: (k: string) => k } },
+        { provide: TranslateService, useValue: { instant: (k: string) => k } },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: { get: () => null } } },
@@ -239,6 +247,7 @@ describe('DecisionDetailComponent', () => {
         { provide: AdvisoryService, useValue: advisoryService },
         { provide: Router, useValue: router },
         { provide: I18nService, useValue: { t: (k: string) => k } },
+        { provide: TranslateService, useValue: { instant: (k: string) => k } },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: { get: () => 'not-a-uuid' } } },
@@ -268,5 +277,85 @@ describe('DecisionDetailComponent', () => {
 
     expect(consoleSpy).toHaveBeenCalledWith('audit log failed', expect.any(Error));
     consoleSpy.mockRestore();
+  });
+
+  it('should call confirmDecision on confirm', async () => {
+    advisoryService.getDecision.mockResolvedValue({ ...mockDecision, status: 'AWAITING_CONFIRMATION' });
+    await component.ngOnInit();
+
+    await component.onConfirm();
+
+    expect(advisoryService.confirmDecision).toHaveBeenCalledWith('d0000000-0000-0000-0000-000000000001');
+    expect(store.decision()?.status).toBe('CONFIRMED');
+  });
+
+  it('should call rejectDecision on reject', async () => {
+    advisoryService.getDecision.mockResolvedValue({ ...mockDecision, status: 'AWAITING_CONFIRMATION' });
+    await component.ngOnInit();
+
+    component.rejectReason = 'Too risky';
+    await component.onReject();
+
+    expect(advisoryService.rejectDecision).toHaveBeenCalledWith(
+      'd0000000-0000-0000-0000-000000000001', 'Too risky',
+    );
+    expect(store.decision()?.status).toBe('REJECTED');
+  });
+
+  it('should handle confirm error', async () => {
+    advisoryService.getDecision.mockResolvedValue({ ...mockDecision, status: 'AWAITING_CONFIRMATION' });
+    advisoryService.confirmDecision.mockRejectedValue(new Error('Failed'));
+    await component.ngOnInit();
+
+    await component.onConfirm();
+
+    expect(store.error()).toBeTruthy();
+    expect(component.actionType).toBeNull();
+  });
+
+  it('should subscribe to decision updates after loading', async () => {
+    await component.ngOnInit();
+
+    expect(advisoryService.subscribeToDecisionUpdates).toHaveBeenCalledWith(
+      'd0000000-0000-0000-0000-000000000001',
+      expect.any(Function),
+    );
+  });
+
+  it('should unsubscribe from decision updates on destroy', async () => {
+    await component.ngOnInit();
+
+    component.ngOnDestroy();
+
+    expect(advisoryService.unsubscribeFromDecisionUpdates).toHaveBeenCalled();
+  });
+
+  it('should set store loading during confirm and show success message', async () => {
+    advisoryService.getDecision.mockResolvedValue({ ...mockDecision, status: 'AWAITING_CONFIRMATION' });
+    await component.ngOnInit();
+
+    const loadingStates: boolean[] = [];
+    const setLoadingSpy = jest.spyOn(store, 'setLoading').mockImplementation((v: boolean) => {
+      loadingStates.push(v);
+    });
+
+    await component.onConfirm();
+
+    expect(loadingStates[0]).toBe(true); // setLoading(true) called first
+    expect(store.successMessage()).toBeTruthy();
+
+    setLoadingSpy.mockRestore();
+  });
+
+  it('should close reject dialog on successful reject', async () => {
+    advisoryService.getDecision.mockResolvedValue({ ...mockDecision, status: 'AWAITING_CONFIRMATION' });
+    await component.ngOnInit();
+
+    component.showRejectDialog = true;
+    component.rejectReason = 'Reason';
+    await component.onReject();
+
+    expect(component.showRejectDialog).toBe(false);
+    expect(component.rejectReason).toBe('');
   });
 });

@@ -35,7 +35,7 @@ export class SimulationEngineService {
       }
 
       // 1. Get fill price
-      const fillPrice = this.marketData.getPrice(symbol);
+      const fillPrice = await this.marketData.getPrice(symbol);
       if (!fillPrice) {
         logger.info('Order rejected: unknown symbol', { orderId, symbol });
         return { orderId, status: 'REJECTED', rejectReason: `Unknown symbol: ${symbol}` };

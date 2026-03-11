@@ -17,6 +17,13 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
+const mockQuotePrices: Record<string, number> = {
+  VTI: 250.50, VXUS: 58.75, BND: 72.30, VNQ: 85.40, GLD: 195.80,
+  SPY: 520.15, QQQ: 445.60, IWM: 210.25, EFA: 78.90, EEM: 42.15,
+  TLT: 92.50, AGG: 98.75, VIG: 178.30, SCHD: 82.45, VOO: 480.20,
+  VGSH: 58.10, VCIT: 80.55, VWO: 43.20, IEMG: 52.80, XLF: 42.90,
+};
+
 jest.mock('@nestfolio/platform-core', () => ({
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
@@ -47,6 +54,14 @@ jest.mock('@nestfolio/platform-core', () => ({
   getUUID: jest.fn().mockReturnValue('sim-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+  StaticMarketDataProvider: jest.fn().mockImplementation(() => ({})),
+  CachedMarketDataProvider: jest.fn().mockImplementation(() => ({
+    getQuote: jest.fn().mockImplementation(async (symbol: string) => {
+      const price = mockQuotePrices[symbol];
+      if (!price) return null;
+      return { symbol, price, change: 0, changePercent: 0, volume: 1000, timestamp: '2026-01-01' };
+    }),
+  })),
 }));
 
 jest.mock('@nestfolio/lambda-utils', () => ({

@@ -16,6 +16,8 @@ export interface RuntimeConfig {
     investorBff: { endpoint: string; region: string };
     portfolioBff: { endpoint: string; region: string };
     advisoryBff: { endpoint: string; region: string };
+    dashboardBff: { endpoint: string; region: string };
+    orderLedger: { endpoint: string; region: string };
   };
 }
 
@@ -30,6 +32,8 @@ export function validateEndpoints(config: RuntimeConfig): void {
     config.appsync.investorBff.endpoint,
     config.appsync.portfolioBff.endpoint,
     config.appsync.advisoryBff.endpoint,
+    config.appsync.dashboardBff.endpoint,
+    config.appsync.orderLedger.endpoint,
   ];
 
   for (const url of endpoints) {

@@ -189,4 +189,20 @@ describe('AdvisoryStore', () => {
     store.setError('fail');
     expect(store.error()).toBe('fail');
   });
+
+  it('should compute canAct as true when AWAITING_CONFIRMATION and not loading', () => {
+    store.setDecision({ ...mockDecision, status: 'AWAITING_CONFIRMATION' });
+    expect(store.canAct()).toBe(true);
+  });
+
+  it('should compute canAct as false when loading', () => {
+    store.setDecision({ ...mockDecision, status: 'AWAITING_CONFIRMATION' });
+    store.setLoading(true);
+    expect(store.canAct()).toBe(false);
+  });
+
+  it('should compute canAct as false when status is not AWAITING_CONFIRMATION', () => {
+    store.setDecision({ ...mockDecision, status: 'APPROVED' });
+    expect(store.canAct()).toBe(false);
+  });
 });
