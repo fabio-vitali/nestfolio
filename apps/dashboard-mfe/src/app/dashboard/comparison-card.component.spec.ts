@@ -3,7 +3,6 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { I18nService } from '@nestfolio/i18n';
 import { createMockI18nService } from '@nestfolio/shared-state/testing';
 import { ComparisonCardComponent } from './comparison-card.component';
-import type { SimulationSummary } from '../stores/dashboard.store';
 
 describe('ComparisonCardComponent', () => {
   let component: ComparisonCardComponent;

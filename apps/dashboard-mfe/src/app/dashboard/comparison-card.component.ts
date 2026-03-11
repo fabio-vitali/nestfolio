@@ -1,10 +1,10 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, inject, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { I18nService } from '@nestfolio/i18n';
-import { PercentFormatPipe, CurrencyFormatPipe } from '@nestfolio/ui-components';
+import { PercentFormatPipe } from '@nestfolio/ui-components';
 import type { SimulationSummary } from '../stores/dashboard.store';
 
 @Component({
