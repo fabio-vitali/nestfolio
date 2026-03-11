@@ -11,7 +11,7 @@ export interface RuntimeConfigSsmPaths {
   readonly advisoryBffEndpoint: string;
   readonly portfolioBffEndpoint: string;
   readonly dashboardBffEndpoint: string;
-  readonly orderLedgerEndpoint: string;
+  readonly orderLedgerBffEndpoint: string;
 }
 
 export interface RuntimeConfigProps {
@@ -43,7 +43,7 @@ export interface RuntimeConfigProps {
  *     advisoryBffEndpoint: '/nestfolio/prod-advisory-bff/api/graphqlUrl',
  *     portfolioBffEndpoint: '/nestfolio/prod-portfolio-bff/api/graphqlUrl',
  *     dashboardBffEndpoint: '/nestfolio/prod-dashboard-bff/api/graphqlUrl',
- *     orderLedgerEndpoint: '/nestfolio/prod-order-ledger/api/graphqlUrl',
+ *     orderLedgerBffEndpoint: '/nestfolio/prod-order-ledger-bff/api/graphqlUrl',
  *   },
  * });
  * ```
@@ -62,7 +62,7 @@ export class RuntimeConfig extends Construct {
     const advisoryBffEndpoint = StringParameter.valueForStringParameter(this, props.ssmPaths.advisoryBffEndpoint);
     const portfolioBffEndpoint = StringParameter.valueForStringParameter(this, props.ssmPaths.portfolioBffEndpoint);
     const dashboardBffEndpoint = StringParameter.valueForStringParameter(this, props.ssmPaths.dashboardBffEndpoint);
-    const orderLedgerEndpoint = StringParameter.valueForStringParameter(this, props.ssmPaths.orderLedgerEndpoint);
+    const orderLedgerBffEndpoint = StringParameter.valueForStringParameter(this, props.ssmPaths.orderLedgerBffEndpoint);
 
     // Generate config.json content matching the frontend RuntimeConfig interface
     const configJson = JSON.stringify({
@@ -76,7 +76,7 @@ export class RuntimeConfig extends Construct {
         portfolioBff: { endpoint: portfolioBffEndpoint, region },
         advisoryBff: { endpoint: advisoryBffEndpoint, region },
         dashboardBff: { endpoint: dashboardBffEndpoint, region },
-        orderLedgerBff: { endpoint: orderLedgerEndpoint, region },
+        orderLedgerBff: { endpoint: orderLedgerBffEndpoint, region },
       },
     });
 

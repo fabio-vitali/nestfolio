@@ -16,10 +16,6 @@ jest.mock('aws-amplify/auth', () => ({
   signOut: jest.fn(),
 }));
 
-jest.mock('aws-amplify/api', () => ({
-  generateClient: jest.fn(() => ({ graphql: jest.fn() })),
-}));
-
 // Mock isDevMode
 let devMode = false;
 const originalCore = jest.requireActual('@angular/core');

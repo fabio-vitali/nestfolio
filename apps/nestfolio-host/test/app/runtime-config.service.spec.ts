@@ -16,10 +16,6 @@ jest.mock('aws-amplify/auth', () => ({
   signOut: jest.fn(),
 }));
 
-jest.mock('aws-amplify/api', () => ({
-  generateClient: jest.fn(() => ({ graphql: jest.fn() })),
-}));
-
 import { TestBed } from '@angular/core/testing';
 import { RuntimeConfigService } from '../../src/app/runtime-config.service';
 

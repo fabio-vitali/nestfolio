@@ -28,7 +28,6 @@ export class GraphqlService implements OnDestroy {
     const result = await this.client.query<T>({
       query: gql(statement),
       variables: variables ?? {},
-      fetchPolicy: 'no-cache',
     });
     return result.data as T;
   }

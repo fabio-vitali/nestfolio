@@ -117,7 +117,6 @@ describe('GraphqlService', () => {
       expect(mockApolloQuery).toHaveBeenCalledWith(
         expect.objectContaining({
           variables: { id: '1' },
-          fetchPolicy: 'no-cache',
         }),
       );
       expect(result).toEqual(data);
