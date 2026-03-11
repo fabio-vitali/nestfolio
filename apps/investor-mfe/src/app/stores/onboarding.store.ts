@@ -55,7 +55,6 @@ const initialState: OnboardingState = {
 };
 
 export const OnboardingStore = signalStore(
-  { providedIn: 'root' },
   withState(initialState),
   withCallState(),
   withComputed((store) => ({

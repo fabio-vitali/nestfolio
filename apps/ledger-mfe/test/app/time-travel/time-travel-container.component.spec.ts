@@ -35,6 +35,7 @@ describe('TimeTravelContainerComponent', () => {
 
     const fixture = await setupComponentTest(TimeTravelContainerComponent, {
       providers: [
+        TimeTravelStore,
         { provide: TimeTravelService, useValue: mockService },
         { provide: Router, useValue: mockRouter },
         { provide: I18nService, useValue: createMockI18nService() },

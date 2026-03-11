@@ -22,7 +22,9 @@ describe('NotificationStore', () => {
   let orchestrator: LogoutOrchestrator;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [NotificationStore],
+    });
     store = TestBed.inject(NotificationStore);
     orchestrator = TestBed.inject(LogoutOrchestrator);
     store.reset();

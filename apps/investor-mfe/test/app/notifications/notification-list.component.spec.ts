@@ -45,6 +45,7 @@ describe('NotificationListComponent', () => {
 
     const fixture = await setupComponentTest(NotificationListComponent, {
       providers: [
+        NotificationStore,
         { provide: NotificationService, useValue: notificationService },
         { provide: Router, useValue: router },
         { provide: I18nService, useValue: createMockI18nService() },

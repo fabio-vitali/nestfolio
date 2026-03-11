@@ -36,7 +36,7 @@ interface SimulationComparisonResponse {
   getSimulationComparison: SimulationComparison;
 }
 
-@Injectable({ providedIn: 'root' })
+@Injectable()
 export class ComparisonService {
   private readonly graphql = inject(GraphqlService);
 

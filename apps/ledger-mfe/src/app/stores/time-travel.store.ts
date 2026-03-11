@@ -42,7 +42,6 @@ const initialState: TimeTravelState = {
 };
 
 export const TimeTravelStore = signalStore(
-  { providedIn: 'root' },
   withState(initialState),
   withCallState(),
   withComputed((store) => ({

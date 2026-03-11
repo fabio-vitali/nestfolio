@@ -14,7 +14,7 @@ export interface NotificationPage {
   nextCursor: string | null;
 }
 
-@Injectable({ providedIn: 'root' })
+@Injectable()
 export class NotificationService {
   private readonly graphql = inject(GraphqlService);
   private subscription: Subscription | null = null;

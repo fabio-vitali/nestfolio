@@ -10,7 +10,7 @@ import {
 import type { Goal, Mandate, RiskProfile } from '@nestfolio/domain-core';
 import type { GoalInput, MandateInput, OperatingMode, RiskProfileInput } from '../stores/onboarding.store';
 
-@Injectable({ providedIn: 'root' })
+@Injectable()
 export class OnboardingService {
   private readonly graphql = inject(GraphqlService);
 

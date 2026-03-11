@@ -7,7 +7,9 @@ describe('TimeTravelStore', () => {
   let orchestrator: LogoutOrchestrator;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [TimeTravelStore],
+    });
     store = TestBed.inject(TimeTravelStore);
     orchestrator = TestBed.inject(LogoutOrchestrator);
     store.reset();

@@ -38,7 +38,6 @@ const initialState: NotificationState = {
 };
 
 export const NotificationStore = signalStore(
-  { providedIn: 'root' },
   withState(initialState),
   withCallState(),
   withComputed((store) => ({

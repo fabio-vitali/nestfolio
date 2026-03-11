@@ -10,6 +10,7 @@ describe('ComparisonService', () => {
     graphql = { query: jest.fn(), mutate: jest.fn(), subscribe: jest.fn(), resetClient: jest.fn() } as any;
     TestBed.configureTestingModule({
       providers: [
+        ComparisonService,
         { provide: GraphqlService, useValue: graphql },
       ],
     });

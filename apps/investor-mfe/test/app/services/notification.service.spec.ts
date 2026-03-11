@@ -10,7 +10,10 @@ describe('NotificationService', () => {
     jest.useFakeTimers();
     graphql = { query: jest.fn(), mutate: jest.fn(), subscribe: jest.fn(), resetClient: jest.fn() } as any;
     TestBed.configureTestingModule({
-      providers: [{ provide: GraphqlService, useValue: graphql }],
+      providers: [
+        NotificationService,
+        { provide: GraphqlService, useValue: graphql },
+      ],
     });
     service = TestBed.inject(NotificationService);
   });

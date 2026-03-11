@@ -18,7 +18,7 @@ interface PortfolioAtResponse {
   getPortfolioAt: LedgerPortfolio;
 }
 
-@Injectable({ providedIn: 'root' })
+@Injectable()
 export class TimeTravelService {
   private readonly graphql = inject(GraphqlService);
 

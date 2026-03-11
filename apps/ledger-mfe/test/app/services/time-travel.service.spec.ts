@@ -15,6 +15,7 @@ describe('TimeTravelService', () => {
     } as jest.Mocked<GraphqlService>;
     TestBed.configureTestingModule({
       providers: [
+        TimeTravelService,
         { provide: GraphqlService, useValue: graphql },
       ],
     });

@@ -7,7 +7,9 @@ describe('OnboardingStore', () => {
   let store: InstanceType<typeof OnboardingStore>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [OnboardingStore],
+    });
     store = TestBed.inject(OnboardingStore);
   });
 
