@@ -14,7 +14,7 @@ Additionally, `dashboard-mfe` directly queries `order-ledger` for time-travel an
 1. **Each MFE talks exclusively to its paired BFF** — no cross-BFF queries from any MFE.
 2. **Route-scoped `GraphqlService` instances** — the shell provides per-route `GraphqlService` via Angular DI; MFEs just `inject(GraphqlService)` with no awareness of endpoint routing.
 3. **Split dashboard-mfe** — time-travel, simulation comparison, and order history move to a new `ledger-mfe` paired with `order-ledger-bff`.
-4. **Keep identity-mfe and notification-mfe separate** — different lifecycles (transient onboarding vs persistent inbox), cross-domain nature of notifications, zero code overlap.
+4. **Merge identity-mfe + notification-mfe → investor-mfe** — both consume `investorBff`; merging gives a true 1:1 MFE-BFF pairing for the Investor team. Child routes: `/investor/onboarding` and `/investor/notifications`.
 5. **Replace Amplify API with Apollo Client** — Amplify v6's `generateClient()` is bound to a single global endpoint with no multi-API support. Apollo Client natively supports multiple instances with per-endpoint configuration.
 6. **Use AppSync-specific Apollo links** — `aws-appsync-auth-link` and `aws-appsync-subscription-link` handle Cognito auth and AppSync's custom WebSocket subscription protocol.
 7. **Rename `order-ledger` → `order-ledger-bff`** — it now serves a frontend MFE, so it follows the role-postfix naming convention.
@@ -23,13 +23,12 @@ Additionally, `dashboard-mfe` directly queries `order-ledger` for time-travel an
 
 | Route | MFE | BFF | Team |
 |-------|-----|-----|------|
-| `/identity` | identity-mfe | investorBff | Investor |
-| `/notifications` | notification-mfe | investorBff | Investor |
+| `/investor` | investor-mfe (new, merges identity + notification) | investorBff | Investor |
 | `/dashboard` | dashboard-mfe | dashboardBff | Dashboard |
 | `/advisory` | advisory-mfe | advisoryBff | Advisory |
 | `/ledger` | ledger-mfe (new) | orderLedgerBff | Execution |
 
-Each BFF has its own AppSync API, schema.graphql, resolver Lambda, and DynamoDB table. Each team owns both sides of the contract.
+Each BFF has its own AppSync API, schema.graphql, resolver Lambda, and DynamoDB table. Each team owns both sides of the contract. Every MFE has exactly one BFF — true 1:1 pairing.
 
 ### portfolioBff Disposition
 
@@ -99,6 +98,12 @@ Angular creates a new `GraphqlService` instance per route scope because the prov
 ```typescript
 // app.routes.ts
 {
+  path: 'investor',
+  providers: [provideGraphqlFor('investorBff')],
+  loadChildren: () => loadRemoteModule('investor-mfe', './routes'),
+  canActivate: [authGuard],
+},
+{
   path: 'dashboard',
   providers: [provideGraphqlFor('dashboardBff')],
   loadChildren: () => loadRemoteModule('dashboard-mfe', './routes'),
@@ -111,24 +116,18 @@ Angular creates a new `GraphqlService` instance per route scope because the prov
   canActivate: [authGuard],
 },
 {
-  path: 'notifications',
-  providers: [provideGraphqlFor('investorBff')],
-  loadChildren: () => loadRemoteModule('notification-mfe', './routes'),
-  canActivate: [authGuard],
-},
-{
-  path: 'identity',
-  providers: [provideGraphqlFor('investorBff')],
-  loadChildren: () => loadRemoteModule('identity-mfe', './routes'),
-  canActivate: [authGuard],
-},
-{
   path: 'ledger',
   providers: [provideGraphqlFor('orderLedgerBff')],
   loadChildren: () => loadRemoteModule('ledger-mfe', './routes'),
   canActivate: [authGuard],
 },
 ```
+
+Shell route changes:
+- `/identity` → removed (replaced by `/investor/onboarding`)
+- `/notifications` → removed (replaced by `/investor/notifications`)
+- `/investor` → new, loads `investor-mfe`
+- Existing redirects (e.g., post-login redirect, onboarding completion) must be updated to use `/investor/onboarding` and `/investor/notifications`
 
 MFE services continue to `inject(GraphqlService)` unchanged — they get the route-scoped instance automatically.
 
@@ -174,15 +173,68 @@ Same pattern as other MFEs: `bootstrap.ts` + `main.ts` + `federation.config.js` 
 
 ### Federation Manifest Update
 
-Add `ledger-mfe` to `apps/nestfolio-host/public/assets/federation.manifest.json`:
+Replace `identity-mfe` and `notification-mfe` with `investor-mfe` and add `ledger-mfe` in `apps/nestfolio-host/public/assets/federation.manifest.json`:
 ```json
 {
-  "dashboard-mfe": "http://localhost:4201/remoteEntry.json",
-  "advisory-mfe": "http://localhost:4202/remoteEntry.json",
-  "notification-mfe": "http://localhost:4203/remoteEntry.json",
-  "identity-mfe": "http://localhost:4204/remoteEntry.json",
-  "ledger-mfe": "http://localhost:4205/remoteEntry.json"
+  "investor-mfe": "http://localhost:4201/remoteEntry.json",
+  "dashboard-mfe": "http://localhost:4202/remoteEntry.json",
+  "advisory-mfe": "http://localhost:4203/remoteEntry.json",
+  "ledger-mfe": "http://localhost:4204/remoteEntry.json"
 }
+```
+
+## Merge: identity-mfe + notification-mfe → investor-mfe
+
+### Purpose
+
+Single MFE for the Investor domain — onboarding, notifications, and future profile management. True 1:1 pairing with `investorBff`.
+
+### Routes (child routes under `/investor`)
+
+| Path | Component | Description |
+|------|-----------|-------------|
+| `/investor/onboarding` | OnboardingContainerComponent | 6-step onboarding wizard (was `/identity`) |
+| `/investor/notifications` | NotificationListComponent | Paginated inbox with real-time subscription (was `/notifications`) |
+| `/investor/profile` | (future) | Investor profile view — natural home when needed |
+
+### New App: `apps/investor-mfe/`
+
+Created by merging code from `identity-mfe` and `notification-mfe`:
+
+| From | To (investor-mfe) |
+|------|-------------------|
+| `identity-mfe/src/app/services/onboarding.service.ts` | `services/onboarding.service.ts` |
+| `identity-mfe/src/app/stores/onboarding.store.ts` | `stores/onboarding.store.ts` |
+| `identity-mfe/src/app/onboarding/` (7 components) | `onboarding/` |
+| `notification-mfe/src/app/services/notification.service.ts` | `services/notification.service.ts` |
+| `notification-mfe/src/app/stores/notification.store.ts` | `stores/notification.store.ts` |
+| `notification-mfe/src/app/notifications/` (2 components) | `notifications/` |
+
+### Apps Deleted
+
+- `apps/identity-mfe/` — fully absorbed into investor-mfe
+- `apps/notification-mfe/` — fully absorbed into investor-mfe
+
+### Shell Navigation Updates
+
+- Sidebar/header links to notifications: `/notifications` → `/investor/notifications`
+- Post-login redirect for new users: `/identity` → `/investor/onboarding`
+- Onboarding completion redirect: stays `/dashboard` (no change)
+- Notification tap → advisory: stays `/advisory/:id` (no change)
+- `NotificationCountStore` (shell-level unread badge): unchanged, still in `shared-state`
+
+### Native Federation Configuration
+
+Same pattern as other MFEs: `bootstrap.ts` + `main.ts` + `federation.config.js` exposing `./routes`.
+
+### remote-routes.ts
+
+```typescript
+export const routes: Route[] = [
+  { path: 'onboarding', component: OnboardingContainerComponent },
+  { path: 'notifications', component: NotificationListComponent },
+  { path: '', redirectTo: 'notifications', pathMatch: 'full' },
+];
 ```
 
 ## Rename: order-ledger → order-ledger-bff
@@ -254,6 +306,7 @@ All peer dependencies align. `apollo-angular` is **not used** — `GraphqlServic
 - **GraphqlService unit tests**: mock `ApolloClient`, verify query/mutate/subscribe delegate correctly
 - **provideGraphqlFor tests**: verify correct `APPSYNC_CONFIG` injection per BFF name
 - **MFE service tests**: unchanged — they already mock `GraphqlService`
+- **investor-mfe tests**: merged from identity-mfe + notification-mfe test suites, updated imports
 - **ledger-mfe component tests**: moved from dashboard-mfe, updated imports
 - **Integration**: verify each MFE route gets the correct endpoint via route-scoped providers
 - **Shell route tests**: verify `providers` array on each route
@@ -274,11 +327,13 @@ Each route-scoped `GraphqlService` registers with `LogoutOrchestrator` in its co
 
 ### MFE Service providedIn
 
-Services moved to `ledger-mfe` (`TimeTravelService`, `ComparisonService`) and `TimeTravelStore` use `providedIn: 'root'`. In a lazy-loaded federated MFE, `providedIn: 'root'` resolves to the host's root injector. Since these services are only imported within the ledger-mfe chunk, Angular's tree-shaking ensures they only exist when ledger-mfe is loaded. However, for clarity and to prevent accidental injection from other MFEs, change them to `providedIn: 'any'` or remove `providedIn` and provide them explicitly in the ledger-mfe route providers.
+Services moved to new MFEs use `providedIn: 'root'`. In a lazy-loaded federated MFE, `providedIn: 'root'` resolves to the host's root injector. Since these services are only imported within their MFE chunk, Angular's tree-shaking ensures they only exist when that MFE is loaded. However, for clarity and to prevent accidental injection from other MFEs, change them to `providedIn: 'any'` or remove `providedIn` and provide them explicitly in the MFE's route providers. This applies to:
+- `ledger-mfe`: `TimeTravelService`, `ComparisonService`, `TimeTravelStore`
+- `investor-mfe`: `OnboardingService`, `OnboardingStore`, `NotificationService`, `NotificationStore`
 
 ## Non-Goals
 
 - Apollo normalized cache sharing between BFFs (each instance has its own `InMemoryCache`)
 - Replacing `CachedQuery` utility with Apollo cache policies (keep changes bounded)
 - Offline support (not available with standalone AppSync links)
-- Merging identity-mfe + notification-mfe (different lifecycles, cross-domain nature of notifications, zero code overlap)
+- Investor profile view (deferred — `/investor/profile` route placeholder only)
