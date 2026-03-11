@@ -58,7 +58,7 @@ import type { SimulationSummary } from '../stores/dashboard.store';
         </span>
         <p-button
           [label]="i18n.t('dashboard.comparison.viewDetails')"
-          [routerLink]="['comparison']"
+          [routerLink]="['/ledger/simulation']"
           icon="pi pi-arrow-right"
           iconPos="right"
           [text]="true"
