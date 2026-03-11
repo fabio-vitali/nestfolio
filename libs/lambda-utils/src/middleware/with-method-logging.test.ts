@@ -54,7 +54,7 @@ describe('withMethodLogging', () => {
   });
 
   it('should truncate long string arguments', async () => {
-    const method = log('search', async () => []);
+    const method = log('search', async (_q: string) => []);
     const longString = 'a'.repeat(200);
 
     await method(longString);
