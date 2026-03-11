@@ -5,7 +5,6 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { provideAuth, authInterceptor, getAuthUser } from '@nestfolio/auth';
 import { provideI18n } from '@nestfolio/i18n';
 import { provideNestfolioTheme } from '@nestfolio/ui-components';
-import { provideAppSync } from '@nestfolio/appsync-client';
 import { AuthStore, GlobalErrorHandler } from '@nestfolio/shared-state';
 import { appRoutes } from './app.routes';
 import { environment } from '../environments/environment';
@@ -91,7 +90,6 @@ export const appConfig: ApplicationConfig = {
     provideAuth(environment.auth),
     provideI18n('it-IT'),
     provideNestfolioTheme('light'),
-    provideAppSync(environment.appsync.investorBff),
     {
       provide: APP_INITIALIZER,
       useFactory: loadRuntimeConfig,
