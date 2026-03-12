@@ -44,7 +44,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'ledger',
-    providers: [provideGraphqlFor('orderLedgerBff')],
+    providers: [provideGraphqlFor('ledgerBff')],
     canActivate: [authGuard],
     loadChildren: loadMfe('ledger-mfe', './routes'),
   },

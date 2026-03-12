@@ -42,7 +42,7 @@ describe('provideGraphqlFor', () => {
         portfolioBff: { endpoint: 'https://portfolio.appsync.example.com/graphql', region: 'us-east-1' },
         advisoryBff: { endpoint: 'https://advisory.appsync.example.com/graphql', region: 'us-east-1' },
         dashboardBff: { endpoint: 'https://dashboard.appsync.example.com/graphql', region: 'us-east-1' },
-        orderLedgerBff: { endpoint: 'https://order-ledger.appsync.example.com/graphql', region: 'us-east-1' },
+        ledgerBff: { endpoint: 'https://ledger.appsync.example.com/graphql', region: 'us-east-1' },
       },
     });
   });

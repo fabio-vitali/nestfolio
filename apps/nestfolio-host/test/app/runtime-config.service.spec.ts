@@ -49,8 +49,8 @@ describe('RuntimeConfigService', () => {
     expect(config.appsync.advisoryBff.endpoint).toBeTruthy();
     expect(config.appsync.dashboardBff).toBeDefined();
     expect(config.appsync.dashboardBff.endpoint).toBeTruthy();
-    expect(config.appsync.orderLedgerBff).toBeDefined();
-    expect(config.appsync.orderLedgerBff.endpoint).toBeTruthy();
+    expect(config.appsync.ledgerBff).toBeDefined();
+    expect(config.appsync.ledgerBff.endpoint).toBeTruthy();
   });
 
   it('should expose auth shortcut', () => {
@@ -72,6 +72,6 @@ describe('RuntimeConfigService', () => {
     expect(config.appsync).toHaveProperty('advisoryBff');
     expect(config.appsync).toHaveProperty('portfolioBff');
     expect(config.appsync).toHaveProperty('dashboardBff');
-    expect(config.appsync).toHaveProperty('orderLedgerBff');
+    expect(config.appsync).toHaveProperty('ledgerBff');
   });
 });
