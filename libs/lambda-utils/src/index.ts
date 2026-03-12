@@ -28,3 +28,7 @@ export { withLambdaContext } from './middleware/with-lambda-context';
 export { withTiming } from './middleware/with-timing';
 export { withErrorPublishing } from './middleware/with-error-publishing';
 export { withMethodLogging } from './middleware/with-method-logging';
+
+// Test utilities
+export { evaluateResolver, createAuthContext } from './test-utils/evaluate-resolver';
+export type { EvalContext } from './test-utils/evaluate-resolver';
