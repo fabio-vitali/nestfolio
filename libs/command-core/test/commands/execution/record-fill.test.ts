@@ -1,5 +1,5 @@
 import { applyCommand } from '../../../src/command';
-import { INITIAL_PORTFOLIO_STATE, type PortfolioState } from '../../../src/state/portfolio-state';
+import { INITIAL_PORTFOLIO_STATE, type PortfolioState } from '../../../src/state/account-state';
 import { RecordFill } from '../../../src/commands/execution/record-fill';
 
 const validBuy = {

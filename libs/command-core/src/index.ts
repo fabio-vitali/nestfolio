@@ -10,12 +10,14 @@ export {
 // Reducer / Event replay
 export { type LedgerEntry, type EventReducer, replayEvents } from './reducer';
 
-// Portfolio state
+// Account state
 export {
   type PositionState,
-  type PortfolioState,
-  INITIAL_PORTFOLIO_STATE,
-} from './state/portfolio-state';
+  type AccountState,
+  type PortfolioState, // deprecated alias
+  INITIAL_ACCOUNT_STATE,
+  INITIAL_PORTFOLIO_STATE, // deprecated alias
+} from './state/account-state';
 
 // Execution domain commands
 export {

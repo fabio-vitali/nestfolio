@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineCommand } from '../../command';
-import { type PortfolioState } from '../../state/portfolio-state';
+import { type PortfolioState } from '../../state/account-state';
 
 export const RecordDepositSchema = z.object({
   depositId: z.string().min(1),

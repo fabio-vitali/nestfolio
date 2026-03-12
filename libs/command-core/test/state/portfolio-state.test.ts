@@ -1,4 +1,4 @@
-import { INITIAL_PORTFOLIO_STATE } from '../../src/state/portfolio-state';
+import { INITIAL_PORTFOLIO_STATE } from '../../src/state/account-state';
 
 describe('INITIAL_PORTFOLIO_STATE', () => {
   it('should have $100k starting balance in cents', () => {

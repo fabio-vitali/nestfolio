@@ -1,5 +1,5 @@
 import { applyCommand } from '../../../src/command';
-import { INITIAL_PORTFOLIO_STATE } from '../../../src/state/portfolio-state';
+import { INITIAL_PORTFOLIO_STATE } from '../../../src/state/account-state';
 import { RecordWithdrawal } from '../../../src/commands/execution/record-withdrawal';
 
 const validWithdrawal = {
