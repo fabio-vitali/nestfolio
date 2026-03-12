@@ -38,6 +38,12 @@ export {
   type RecordWithdrawalPayload,
 } from './commands/ledger/record-withdrawal';
 
+export {
+  RecordCorporateAction,
+  RecordCorporateActionSchema,
+  type RecordCorporateActionPayload,
+} from './commands/ledger/record-corporate-action';
+
 // Order lifecycle commands
 export {
   SubmitOrder,
