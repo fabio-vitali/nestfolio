@@ -29,6 +29,9 @@ export const RecordCorporateAction = defineCommand<RecordCorporateActionPayload,
       };
     }
 
+    // For splits/reverse splits, totalCostBasis is intentionally NOT recalculated.
+    // Total cost basis remains unchanged through splits — only quantity and per-share
+    // metrics (averageCostBasis, lastFillPrice) are adjusted by the multiplier/divisor.
     const multiplier = payload.quantityMultiplier ?? 1;
     const divisor = payload.costBasisDivisor ?? 1;
     const newQuantity = position.quantity * multiplier;

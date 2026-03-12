@@ -22,5 +22,5 @@
     },
     "lint": { "executor": "@nx/eslint:lint" }
   },
-  "tags": ["scope:ledger", "type:service"]
+  "tags": ["scope:ledger", "type:ctrl"]
 }
