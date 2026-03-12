@@ -5,32 +5,42 @@ import {
   SchemaFile,
   AuthorizationType,
   MappingTemplate,
+  AppsyncFunction,
+  Code,
+  FunctionRuntime,
+  Resolver,
+  BaseDataSource,
 } from 'aws-cdk-lib/aws-appsync';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { IUserPool } from 'aws-cdk-lib/aws-cognito';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { CfnWebACL, CfnWebACLAssociation } from 'aws-cdk-lib/aws-wafv2';
-import * as fs from 'fs';
 import { parse, visit } from 'graphql';
 
+export interface JsResolverConfig {
+  typeName: 'Query' | 'Mutation';
+  fieldName: string;
+  pipeline: string[];
+  dataSource?: 'dynamodb' | 'none';
+}
+
+export interface LambdaResolverConfig {
+  typeName: 'Query' | 'Mutation';
+  fieldName: string;
+  handler: IFunction;
+}
+
 export interface FacadeProps {
-  /** Path to GraphQL schema file (for BFF services) */
-  schemaPath?: string;
-  /** Cognito User Pool for authentication (AD-9) */
-  userPool?: IUserPool;
-  /** Lambda resolvers for AppSync */
-  resolverFunctions?: Record<string, IFunction>;
-  /** DynamoDB table for direct resolvers */
-  table?: ITable;
-  /** SSM parameter path prefix for outputs (e.g., /nestfolio/dev-advisory) */
-  ssmPrefix?: string;
-  /** Maximum query depth allowed (default 10) */
-  queryDepthLimit?: number;
-  /** Enable WAF rate limiting (default true) */
-  enableWaf?: boolean;
-  /** WAF rate limit: max requests per 5 min per IP (default 1000) */
-  wafRateLimit?: number;
+  readonly schemaPath?: string;
+  readonly userPool?: IUserPool;
+  readonly table?: ITable;
+  readonly jsResolvers?: JsResolverConfig[];
+  readonly lambdaResolvers?: LambdaResolverConfig[];
+  readonly ssmPrefix?: string;
+  readonly queryDepthLimit?: number;
+  readonly enableWaf?: boolean;
+  readonly wafRateLimit?: number;
 }
 
 export class Facade extends Construct {
@@ -101,14 +111,75 @@ export class Facade extends Construct {
         });
       }
 
-      // Wire resolver functions to all Query and Mutation fields
-      if (props.resolverFunctions?.default) {
-        const ds = this.api.addLambdaDataSource('DefaultDS', props.resolverFunctions.default);
-        const fieldNames = this.parseSchemaFields(props.schemaPath);
-        for (const { typeName, fieldName } of fieldNames) {
-          ds.createResolver(`${typeName}${fieldName}Resolver`, {
-            typeName,
-            fieldName,
+      // JS pipeline resolvers
+      if (props.jsResolvers?.length && props.table) {
+        const ddbDs = this.api.addDynamoDbDataSource('DynamoDS', props.table);
+        const noneDs = this.api.addNoneDataSource('NoneDS');
+
+        const checkAuthFns = new Map<string, AppsyncFunction>();
+
+        for (const resolver of props.jsResolvers) {
+          const pipelineFns: AppsyncFunction[] = [];
+
+          for (let i = 0; i < resolver.pipeline.length; i++) {
+            const fnPath = resolver.pipeline[i];
+            const fnName = `${resolver.typeName}${resolver.fieldName}Fn${i}`;
+            const isCheckAuth = fnPath.includes('check-auth');
+            const isNone = resolver.dataSource === 'none' || isCheckAuth;
+
+            // Reuse checkAuth function per unique path
+            if (isCheckAuth && checkAuthFns.has(fnPath)) {
+              pipelineFns.push(checkAuthFns.get(fnPath)!);
+              continue;
+            }
+
+            const fn = new AppsyncFunction(this, fnName, {
+              name: fnName,
+              api: this.api,
+              dataSource: isNone ? noneDs : ddbDs,
+              code: Code.fromAsset(fnPath),
+              runtime: FunctionRuntime.JS_1_0_0,
+            });
+
+            if (isCheckAuth) checkAuthFns.set(fnPath, fn);
+            pipelineFns.push(fn);
+          }
+
+          const tableName = props.table.tableName;
+          new Resolver(this, `${resolver.typeName}${resolver.fieldName}Resolver`, {
+            api: this.api,
+            typeName: resolver.typeName,
+            fieldName: resolver.fieldName,
+            code: Code.fromInline(`
+              export function request(ctx) {
+                ctx.stash.tableName = '${tableName}';
+                return {};
+              }
+              export function response(ctx) {
+                return ctx.prev.result;
+              }
+            `),
+            runtime: FunctionRuntime.JS_1_0_0,
+            pipelineConfig: pipelineFns,
+          });
+        }
+      }
+
+      // Lambda resolvers
+      if (props.lambdaResolvers?.length) {
+        const lambdaDsMap = new Map<string, BaseDataSource>();
+        for (const resolver of props.lambdaResolvers) {
+          const fnArn = resolver.handler.functionArn;
+          if (!lambdaDsMap.has(fnArn)) {
+            lambdaDsMap.set(
+              fnArn,
+              this.api.addLambdaDataSource(`LambdaDS${lambdaDsMap.size}`, resolver.handler),
+            );
+          }
+          const ds = lambdaDsMap.get(fnArn)!;
+          ds.createResolver(`${resolver.typeName}${resolver.fieldName}Resolver`, {
+            typeName: resolver.typeName,
+            fieldName: resolver.fieldName,
             requestMappingTemplate: MappingTemplate.lambdaRequest(),
             responseMappingTemplate: MappingTemplate.lambdaResult(),
           });
@@ -125,11 +196,6 @@ export class Facade extends Construct {
     }
   }
 
-  /** Parse Query and Mutation field names from a GraphQL schema file using the graphql parser */
-  private parseSchemaFields(schemaPath: string): Array<{ typeName: string; fieldName: string }> {
-    const schema = fs.readFileSync(schemaPath, 'utf-8');
-    return parseSchemaFields(schema);
-  }
 }
 
 /**

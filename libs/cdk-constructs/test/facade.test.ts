@@ -1,10 +1,12 @@
 import { App, Stack } from 'aws-cdk-lib';
 import { Annotations, Match, Template } from 'aws-cdk-lib/assertions';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
+import { Table, AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
 import { Facade, parseSchemaFields } from '../src/facade';
 import * as path from 'path';
 import * as fs from 'fs';
+import { join } from 'path';
 
 // Create a temporary schema file for tests
 const SCHEMA_DIR = path.join(__dirname, '__fixtures__');
@@ -27,7 +29,6 @@ type Mutation {
 
 afterAll(() => {
   if (fs.existsSync(SCHEMA_PATH)) fs.unlinkSync(SCHEMA_PATH);
-  if (fs.existsSync(SCHEMA_DIR)) fs.rmdirSync(SCHEMA_DIR);
 });
 
 describe('Facade construct', () => {
@@ -92,7 +93,7 @@ describe('Facade construct', () => {
     });
   });
 
-  it('wires default resolver function to all Query and Mutation fields', () => {
+  it('creates Lambda resolvers when lambdaResolvers provided', () => {
     const app = new App();
     const stack = new Stack(app, 'TestStack');
     const userPool = new UserPool(stack, 'Pool');
@@ -105,32 +106,21 @@ describe('Facade construct', () => {
     new Facade(stack, 'TestFacade', {
       schemaPath: SCHEMA_PATH,
       userPool,
-      resolverFunctions: { default: resolver },
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'hello', handler: resolver },
+        { typeName: 'Query', fieldName: 'items', handler: resolver },
+        { typeName: 'Mutation', fieldName: 'addItem', handler: resolver },
+      ],
     });
 
     const template = Template.fromStack(stack);
-
-    // Should create a Lambda data source
-    template.resourceCountIs('AWS::AppSync::DataSource', 1);
-
-    // Should create resolvers for hello, items (Query) and addItem (Mutation)
+    template.hasResourceProperties('AWS::AppSync::DataSource', {
+      Type: 'AWS_LAMBDA',
+    });
     template.resourceCountIs('AWS::AppSync::Resolver', 3);
-
-    template.hasResourceProperties('AWS::AppSync::Resolver', {
-      TypeName: 'Query',
-      FieldName: 'hello',
-    });
-    template.hasResourceProperties('AWS::AppSync::Resolver', {
-      TypeName: 'Query',
-      FieldName: 'items',
-    });
-    template.hasResourceProperties('AWS::AppSync::Resolver', {
-      TypeName: 'Mutation',
-      FieldName: 'addItem',
-    });
   });
 
-  it('creates no resolvers when resolverFunctions is not provided', () => {
+  it('creates no resolvers when neither jsResolvers nor lambdaResolvers provided', () => {
     const app = new App();
     const stack = new Stack(app, 'TestStack');
     const userPool = new UserPool(stack, 'Pool');
@@ -143,6 +133,70 @@ describe('Facade construct', () => {
     const template = Template.fromStack(stack);
     template.resourceCountIs('AWS::AppSync::DataSource', 0);
     template.resourceCountIs('AWS::AppSync::Resolver', 0);
+  });
+});
+
+describe('JS resolver support', () => {
+  it('creates DynamoDB data source when table and jsResolvers provided', () => {
+    const app = new App();
+    const stack = new Stack(app, 'TestStack');
+    const userPool = new UserPool(stack, 'Pool');
+    const table = new Table(stack, 'Table', {
+      partitionKey: { name: 'pk', type: AttributeType.STRING },
+      sortKey: { name: 'sk', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+    });
+
+    new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+      table,
+      jsResolvers: [
+        {
+          typeName: 'Query',
+          fieldName: 'hello',
+          pipeline: [join(__dirname, '__fixtures__', 'check-auth.fn.js'), join(__dirname, '__fixtures__', 'get-items.fn.js')],
+        },
+      ],
+    });
+
+    const template = Template.fromStack(stack);
+    template.hasResourceProperties('AWS::AppSync::DataSource', {
+      Type: 'AMAZON_DYNAMODB',
+    });
+    template.hasResourceProperties('AWS::AppSync::DataSource', {
+      Type: 'NONE',
+    });
+  });
+
+  it('creates pipeline resolvers with JS_1_0_0 runtime', () => {
+    const app = new App();
+    const stack = new Stack(app, 'TestStack');
+    const userPool = new UserPool(stack, 'Pool');
+    const table = new Table(stack, 'Table', {
+      partitionKey: { name: 'pk', type: AttributeType.STRING },
+      sortKey: { name: 'sk', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+    });
+
+    new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+      table,
+      jsResolvers: [
+        {
+          typeName: 'Query',
+          fieldName: 'hello',
+          pipeline: [join(__dirname, '__fixtures__', 'check-auth.fn.js'), join(__dirname, '__fixtures__', 'get-items.fn.js')],
+        },
+      ],
+    });
+
+    const template = Template.fromStack(stack);
+    template.hasResourceProperties('AWS::AppSync::Resolver', {
+      Kind: 'PIPELINE',
+      Runtime: { Name: 'APPSYNC_JS', RuntimeVersion: '1.0.0' },
+    });
   });
 });
 
