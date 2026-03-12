@@ -54,6 +54,7 @@ export class InvestorCtrlStack extends Stack {
         'OPERATING_MODE_CHANGED',
         'DECISION_APPROVED',
         'ORDER_FILLED',
+        'BALANCE_UPDATED',
       ],
       handler: eventListener,
     });
