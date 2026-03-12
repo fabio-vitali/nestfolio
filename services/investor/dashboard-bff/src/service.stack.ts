@@ -76,18 +76,6 @@ export class DashboardBffStack extends Stack {
 
     // No Egress — dashboard-bff is a pure read-model, does not publish domain events
 
-    // GraphQL resolver Lambda — serves dashboard queries (pure read-model, PutEvents needed for withErrorPublishing)
-    const resolver = new NodejsFunction(this, 'GraphqlResolver', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'graphql-resolver.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'dashboard-bff' },
-    });
-    state.table.grantReadData(resolver);
-    resolver.addToRolePolicy(new PolicyStatement({
-      actions: ['events:PutEvents'],
-      resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`],
-    }));
-
     // Read Cognito UserPool from SSM
     const userPoolId = StringParameter.valueForStringParameter(
       this,
@@ -95,23 +83,53 @@ export class DashboardBffStack extends Stack {
     );
     const userPool = UserPool.fromUserPoolId(this, 'UserPool', userPoolId);
 
-    // Facade: AppSync API
+    const JS_FN_PATH = join(__dirname, 'graphql', 'js-function');
+    const checkAuthPath = join(JS_FN_PATH, 'utils', 'check-auth.fn.js');
+
+    // Facade: AppSync API with JS pipeline resolvers
     new Facade(this, 'Facade', {
       schemaPath: join(__dirname, 'schema.graphql'),
       userPool,
-      resolverFunctions: { default: resolver },
+      table: state.table,
+      jsResolvers: [
+        {
+          typeName: 'Query',
+          fieldName: 'getDashboard',
+          pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-dashboard.fn.js')],
+        },
+        {
+          typeName: 'Query',
+          fieldName: 'getPositionSnapshots',
+          pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-position-snapshots.fn.js')],
+        },
+        {
+          typeName: 'Query',
+          fieldName: 'getRecentActivity',
+          pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-recent-activity.fn.js')],
+        },
+        {
+          typeName: 'Query',
+          fieldName: 'getTimeTravelAvailability',
+          pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-time-travel-availability.fn.js')],
+        },
+        {
+          typeName: 'Query',
+          fieldName: 'getSimulationSummary',
+          pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-simulation-summary.fn.js')],
+        },
+      ],
     });
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener, resolver],
+      lambdaFunctions: [eventListener],
       dlqs: [ingress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'dashboard-bff',
-      lambdaFunctions: [eventListener, resolver],
+      lambdaFunctions: [eventListener],
       dlqs: [ingress.dlq],
     });
   }
