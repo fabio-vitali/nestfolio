@@ -140,28 +140,17 @@ describe('dashboard-bff event-listener handler', () => {
     const simulationSummaryPipe = new SimulationSummaryPipe(repository);
 
     const eventPipeMap: Record<string, { name: string; pipe: any }[]> = {
-      ORDER_FILLED: [
+      BALANCE_UPDATED: [
+        { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+        { name: 'recentActivity', pipe: recentActivityPipe },
+      ],
+      PORTFOLIO_UPDATED: [
         { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
         { name: 'positionSnapshot', pipe: positionSnapshotPipe },
         { name: 'recentActivity', pipe: recentActivityPipe },
-      ],
-      ORDER_PARTIALLY_FILLED: [
-        { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
-        { name: 'positionSnapshot', pipe: positionSnapshotPipe },
-        { name: 'recentActivity', pipe: recentActivityPipe },
-      ],
-      CORPORATE_ACTION_APPLIED: [
-        { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
-        { name: 'positionSnapshot', pipe: positionSnapshotPipe },
       ],
       RECONCILIATION_COMPLETED: [
         { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
-      ],
-      DEPOSIT_DETECTED: [
-        { name: 'recentActivity', pipe: recentActivityPipe },
-      ],
-      WITHDRAWAL_COMPLETED: [
-        { name: 'recentActivity', pipe: recentActivityPipe },
       ],
       DECISION_PACKET_CREATED: [
         { name: 'advisoryStatus', pipe: advisoryStatusPipe },
@@ -208,22 +197,19 @@ describe('dashboard-bff event-listener handler', () => {
     handler = createHandler(mockDeps);
   });
 
-  it('should process ORDER_FILLED event through multiple pipes', async () => {
+  it('should process BALANCE_UPDATED event through multiple pipes', async () => {
     const sqsEvent = buildSqsEvent([
       {
         messageId: 'msg-1',
         body: {
           detail: {
             id: 'evt-1',
-            type: 'ORDER_FILLED',
+            type: 'BALANCE_UPDATED',
             timestamp: '2025-01-01T00:00:00.000Z',
             subject: {
-              orderId: 'o1',
-              brokerOrderId: 'bo1',
-              symbol: 'AAPL',
-              filledQuantity: 50,
-              averageFillPrice: 150.00,
-              filledAt: '2025-01-01T00:00:00.000Z',
+              tenantId: 't1',
+              balanceCents: 1050000,
+              deltaCents: 50000,
             },
             context: { tenantId: 't1' },
           },
@@ -234,9 +220,9 @@ describe('dashboard-bff event-listener handler', () => {
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
 
-    // ORDER_FILLED triggers 3 pipes: portfolioSummary (Update), positionSnapshot (Put), recentActivity (Put)
+    // BALANCE_UPDATED triggers 2 pipes: portfolioSummary (no-op without filledQuantity), recentActivity (Put)
     expect(mockSend).toHaveBeenCalled();
-    expect(mockSend.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(mockSend.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 
   it('should process DECISION_APPROVED through advisory and activity pipes', async () => {
@@ -323,13 +309,12 @@ describe('dashboard-bff event-listener handler', () => {
         body: {
           detail: {
             id: 'evt-dynamo',
-            type: 'ORDER_FILLED',
+            type: 'BALANCE_UPDATED',
             timestamp: '2025-01-01T00:00:00.000Z',
             subject: {
-              orderId: 'o1',
-              symbol: 'AAPL',
-              filledQuantity: 50,
-              averageFillPrice: 150.00,
+              tenantId: 't1',
+              balanceCents: 1050000,
+              deltaCents: 50000,
             },
             context: { tenantId: 't1' },
           },
@@ -371,7 +356,7 @@ describe('dashboard-bff event-listener handler', () => {
     const sqsEvent = buildSqsEvent([
       {
         messageId: 'msg-fail',
-        body: { detail: { id: 'evt-fail', type: 'ORDER_FILLED', subject: {} } },
+        body: { detail: { id: 'evt-fail', type: 'BALANCE_UPDATED', subject: {} } },
       },
     ]);
 
@@ -390,7 +375,7 @@ describe('dashboard-bff event-listener handler', () => {
     const sqsEvent = buildSqsEvent([
       {
         messageId: 'msg-non-retryable',
-        body: { detail: { id: 'evt-nr', type: 'ORDER_FILLED', subject: {} } },
+        body: { detail: { id: 'evt-nr', type: 'BALANCE_UPDATED', subject: {} } },
       },
     ]);
 
@@ -399,20 +384,19 @@ describe('dashboard-bff event-listener handler', () => {
     expect(isRetryable).toHaveBeenCalled();
   });
 
-  it('should process DEPOSIT_DETECTED as activity only', async () => {
+  it('should process PORTFOLIO_UPDATED through multiple pipes', async () => {
     const sqsEvent = buildSqsEvent([
       {
         messageId: 'msg-5',
         body: {
           detail: {
             id: 'evt-5',
-            type: 'DEPOSIT_DETECTED',
+            type: 'PORTFOLIO_UPDATED',
             timestamp: '2025-01-01T00:00:00.000Z',
             subject: {
-              depositId: 'dep-1',
-              amountCents: 500000,
-              currency: 'EUR',
-              detectedAt: '2025-01-01T00:00:00.000Z',
+              tenantId: 't1',
+              positionCount: 5,
+              totalValueCents: 10500000,
             },
             context: { tenantId: 't1' },
           },
@@ -422,7 +406,7 @@ describe('dashboard-bff event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-    // DEPOSIT_DETECTED triggers only recentActivityPipe (1 put)
+    // PORTFOLIO_UPDATED triggers 3 pipes: portfolioSummary (no-op without filledQuantity), positionSnapshot (no-op without symbol), recentActivity (Put)
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
@@ -461,13 +445,12 @@ describe('dashboard-bff event-listener handler', () => {
         body: {
           detail: {
             id: 'evt-dup',
-            type: 'ORDER_FILLED',
+            type: 'PORTFOLIO_UPDATED',
             timestamp: '2025-01-01T00:00:00.000Z',
             subject: {
-              orderId: 'o1',
-              symbol: 'AAPL',
-              filledQuantity: 50,
-              averageFillPrice: 150.00,
+              tenantId: 't1',
+              positionCount: 5,
+              totalValueCents: 10500000,
             },
             context: { tenantId: 't1' },
           },
@@ -477,7 +460,7 @@ describe('dashboard-bff event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-    // 3 idempotency checks for ORDER_FILLED (portfolioSummary, positionSnapshot, recentActivity)
+    // 3 idempotency checks for PORTFOLIO_UPDATED (portfolioSummary, positionSnapshot, recentActivity)
     expect(mockEnsureOnce).toHaveBeenCalledTimes(3);
     // No DynamoDB calls for pipe processing — only idempotency checks happened
     expect(mockSend).not.toHaveBeenCalled();

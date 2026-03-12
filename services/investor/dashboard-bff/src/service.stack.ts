@@ -50,19 +50,16 @@ export class DashboardBffStack extends Stack {
     const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'InvestorBus', naming.eventBusName()),
       eventTypes: [
-        // Execution domain (forwarded via execution-hub → investor-bus)
-        'ORDER_FILLED',
-        'ORDER_PARTIALLY_FILLED',
-        'CORPORATE_ACTION_APPLIED',
+        // Ledger domain (forwarded via ledger-hub → investor-bus)
+        'BALANCE_UPDATED',
+        'PORTFOLIO_UPDATED',
         'RECONCILIATION_COMPLETED',
-        'DEPOSIT_DETECTED',
-        'WITHDRAWAL_COMPLETED',
         // Advisory domain (forwarded via advisory-hub → investor-bus)
         'DECISION_PACKET_CREATED',
         'USER_CONFIRMATION_REQUESTED',
         'DECISION_APPROVED',
         'DECISION_BLOCKED',
-        // Order-ledger events (forwarded from execution-hub → investor-bus)
+        // Ledger events (forwarded from ledger-hub → investor-bus)
         'PORTFOLIO_SNAPSHOT_UPDATED',
         // Investor domain (native on investor-bus)
         'ONBOARDING_COMPLETED',
