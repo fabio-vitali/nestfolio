@@ -1,7 +1,5 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { join } from 'path';
@@ -12,7 +10,6 @@ import {
   Monitoring,
   ServiceDashboard,
   createNamingService,
-  defaultLambdaProps,
   applyStandardTags,
 } from '@nestfolio/cdk-constructs';
 
@@ -39,22 +36,6 @@ export class ReconciliationCtrlStack extends Stack {
     );
     const ledgerBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
 
-    // Event listener Lambda
-    const eventListener = new NodejsFunction(this, 'EventListener', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      environment: {
-        TABLE_NAME: state.table.tableName,
-        BUS_NAME: ledgerBus.eventBusName,
-        SERVICE_NAME: 'reconciliation-ctrl',
-      },
-    });
-    state.table.grantReadWriteData(eventListener);
-    eventListener.addToRolePolicy(new PolicyStatement({
-      actions: ['events:PutEvents'],
-      resources: [ledgerBusArn],
-    }));
-
     // Ingress: ledger EventBridge bus -> SQS -> event-listener
     const ingress = new Ingress(this, 'Ingress', {
       eventBus: ledgerBus,
@@ -63,12 +44,14 @@ export class ReconciliationCtrlStack extends Stack {
         'PORTFOLIO_SNAPSHOT_IMPORTED',
         'CORPORATE_ACTION_APPLIED',
       ],
-      handler: eventListener,
+      entry: join(__dirname, 'handlers', 'event-listener.ts'),
+      serviceName: 'reconciliation-ctrl',
+      state,
     });
 
     // Egress: DynamoDB Streams -> EventBridge
     const egress = new Egress(this, 'Egress', {
-      table: state.table,
+      table: state.getTable(),
       busName: ledgerBus.eventBusName,
       serviceName: 'reconciliation-ctrl',
       publishableTypes: ['ReconciliationResult', 'DriftRecord'],
@@ -80,14 +63,14 @@ export class ReconciliationCtrlStack extends Stack {
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener],
+      lambdaFunctions: [ingress.handler],
       dlqs: [ingress.dlq, egress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'reconciliation-ctrl',
-      lambdaFunctions: [eventListener],
+      lambdaFunctions: [ingress.handler],
       dlqs: [ingress.dlq, egress.dlq],
     });
   }

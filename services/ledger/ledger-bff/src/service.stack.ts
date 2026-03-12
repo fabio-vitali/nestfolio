@@ -40,22 +40,6 @@ export class LedgerBffStack extends Stack {
     );
     const ledgerBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
 
-    // Event listener Lambda
-    const eventListener = new NodejsFunction(this, 'EventListener', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      environment: {
-        TABLE_NAME: state.table.tableName,
-        BUS_NAME: ledgerBus.eventBusName,
-        SERVICE_NAME: 'ledger-bff',
-      },
-    });
-    state.table.grantReadWriteData(eventListener);
-    eventListener.addToRolePolicy(new PolicyStatement({
-      actions: ['events:PutEvents'],
-      resources: [ledgerBusArn],
-    }));
-
     // Ingress: Events from ledger-hub
     const ingress = new Ingress(this, 'Ingress', {
       eventBus: ledgerBus,
@@ -64,7 +48,9 @@ export class LedgerBffStack extends Stack {
         'PORTFOLIO_UPDATED',
         'LEDGER_ENTRY_RECORDED',
       ],
-      handler: eventListener,
+      entry: join(__dirname, 'handlers', 'event-listener.ts'),
+      serviceName: 'ledger-bff',
+      state,
     });
 
     // GraphQL resolver Lambda (handles getPortfolioAt + getSimulationComparison)
@@ -72,12 +58,12 @@ export class LedgerBffStack extends Stack {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'graphql-resolver.ts'),
       environment: {
-        TABLE_NAME: state.table.tableName,
+        TABLE_NAME: state.getTable().tableName,
         BUS_NAME: ledgerBus.eventBusName,
         SERVICE_NAME: 'ledger-bff',
       },
     });
-    state.table.grantReadWriteData(resolver);
+    state.getTable().grantReadWriteData(resolver);
     resolver.addToRolePolicy(new PolicyStatement({
       actions: ['events:PutEvents'],
       resources: [ledgerBusArn],
@@ -97,7 +83,7 @@ export class LedgerBffStack extends Stack {
     new Facade(this, 'Facade', {
       schemaPath: join(__dirname, 'schema.graphql'),
       userPool,
-      table: state.table,
+      table: state.getTable(),
       jsResolvers: [
         {
           typeName: 'Query',
@@ -138,14 +124,14 @@ export class LedgerBffStack extends Stack {
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener, resolver],
+      lambdaFunctions: [ingress.handler, resolver],
       dlqs: [ingress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'ledger-bff',
-      lambdaFunctions: [eventListener, resolver],
+      lambdaFunctions: [ingress.handler, resolver],
       dlqs: [ingress.dlq],
     });
   }

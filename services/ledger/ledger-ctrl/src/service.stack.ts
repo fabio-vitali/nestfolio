@@ -1,6 +1,5 @@
 import { Stack, StackProps, Duration } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { StartingPosition, FilterCriteria, FilterRule } from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
@@ -41,22 +40,6 @@ export class LedgerCtrlStack extends Stack {
     );
     const ledgerBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
 
-    // Event listener Lambda (actual + simulation events)
-    const eventListener = new NodejsFunction(this, 'EventListener', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      environment: {
-        TABLE_NAME: state.table.tableName,
-        BUS_NAME: ledgerBus.eventBusName,
-        SERVICE_NAME: 'ledger-ctrl',
-      },
-    });
-    state.table.grantReadWriteData(eventListener);
-    eventListener.addToRolePolicy(new PolicyStatement({
-      actions: ['events:PutEvents'],
-      resources: [ledgerBusArn],
-    }));
-
     // Ingress: All events from ledger-hub bus
     const ingress = new Ingress(this, 'Ingress', {
       eventBus: ledgerBus,
@@ -70,7 +53,9 @@ export class LedgerCtrlStack extends Stack {
         'CORPORATE_ACTION_PROCESSED',
         'DECISION_PACKET_CREATED',
       ],
-      handler: eventListener,
+      entry: join(__dirname, 'handlers', 'event-listener.ts'),
+      serviceName: 'ledger-ctrl',
+      state,
     });
 
     // Reducer: DDB Stream consumer that materializes account snapshots
@@ -78,14 +63,14 @@ export class LedgerCtrlStack extends Stack {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'reducer.ts'),
       environment: {
-        TABLE_NAME: state.table.tableName,
+        TABLE_NAME: state.getTable().tableName,
         SERVICE_NAME: 'ledger-ctrl',
       },
     });
-    state.table.grantReadWriteData(reducerFn);
+    state.getTable().grantReadWriteData(reducerFn);
 
     // DDB Stream event source: filtered to LedgerEntry __typename only
-    reducerFn.addEventSource(new DynamoEventSource(state.table, {
+    reducerFn.addEventSource(new DynamoEventSource(state.getTable(), {
       startingPosition: StartingPosition.LATEST,
       bisectBatchOnError: true,
       retryAttempts: 3,
@@ -105,7 +90,7 @@ export class LedgerCtrlStack extends Stack {
 
     // Egress: publishes BalanceEvent, PortfolioEvent, LedgerEntryEvent to EventBridge
     const egress = new Egress(this, 'Egress', {
-      table: state.table,
+      table: state.getTable(),
       busName: ledgerBus.eventBusName,
       serviceName: 'ledger-ctrl',
       publishableTypes: ['BalanceEvent', 'PortfolioEvent', 'LedgerEntryEvent'],
@@ -118,14 +103,14 @@ export class LedgerCtrlStack extends Stack {
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener, reducerFn],
+      lambdaFunctions: [ingress.handler, reducerFn],
       dlqs: [ingress.dlq, egress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'ledger-ctrl',
-      lambdaFunctions: [eventListener, reducerFn],
+      lambdaFunctions: [ingress.handler, reducerFn],
       dlqs: [ingress.dlq, egress.dlq],
     });
   }
