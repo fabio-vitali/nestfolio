@@ -4,7 +4,7 @@ import { InvestorProfileRepository } from '../repositories/investor-profile.repo
 type BalanceUpdatedPayload = {
   tenantId: string;
   userId: string;
-  balanceCents: number;
+  cashBalanceCents: number;
 };
 
 export class BalanceUpdatedPipe implements Pipe<UnitOfWork<BusEvent<BalanceUpdatedPayload>>> {
@@ -14,11 +14,11 @@ export class BalanceUpdatedPipe implements Pipe<UnitOfWork<BusEvent<BalanceUpdat
     const { event } = uow;
     const payload = event.subject;
 
-    await this.repository.upsertReadOnlyBalance(payload.tenantId, payload.userId, payload.balanceCents);
+    await this.repository.upsertReadOnlyBalance(payload.tenantId, payload.userId, payload.cashBalanceCents);
 
     logger.info('Processed balance updated event', {
       tenantId: payload.tenantId,
-      balanceCents: payload.balanceCents,
+      cashBalanceCents: payload.cashBalanceCents,
     });
   }
 }

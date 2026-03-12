@@ -60,7 +60,7 @@ export class DashboardBffStack extends Stack {
         'DECISION_APPROVED',
         'DECISION_BLOCKED',
         // Ledger events (forwarded from ledger-hub → investor-bus)
-        'PORTFOLIO_SNAPSHOT_UPDATED',
+        'LEDGER_ENTRY_RECORDED',
         // Investor domain (native on investor-bus)
         'ONBOARDING_COMPLETED',
         'GOAL_SET',

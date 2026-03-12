@@ -118,6 +118,8 @@ export const createReducer = (deps: ReducerDeps) =>
           0,
         );
 
+        const userId = ledgerEntries[0]?.payload?.['userId'] as string | undefined;
+
         await deps.repository.saveSnapshotWithEvents({
           tenantId: group.tenantId,
           streamType: group.streamType,
@@ -126,6 +128,7 @@ export const createReducer = (deps: ReducerDeps) =>
           version: newVersion,
           balanceChanged,
           positionsChanged,
+          userId,
         });
 
         // 6. Save daily checkpoint (if date changed)

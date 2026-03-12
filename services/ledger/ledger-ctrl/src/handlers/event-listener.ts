@@ -122,6 +122,8 @@ async function processActualEvent(
 ): Promise<void> {
   const tenantId = extractTenantId(event);
   const subject = (event.subject ?? {}) as Record<string, unknown>;
+  const context = (event.context ?? {}) as Record<string, unknown>;
+  const payload = { ...subject, userId: subject['userId'] ?? context['userId'] };
 
   const sequenceNo = await deps.repository.nextSequence(tenantId, 'actual');
 
@@ -130,7 +132,7 @@ async function processActualEvent(
     streamType: 'actual',
     eventId: event.id as string,
     eventType,
-    payload: subject,
+    payload,
     timestamp: event.timestamp as string,
     sequenceNo,
     decisionId: subject['decisionId'] as string | undefined,

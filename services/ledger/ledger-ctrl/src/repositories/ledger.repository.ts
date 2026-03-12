@@ -22,6 +22,7 @@ export interface SnapshotWithEvents {
   readonly version: number;
   readonly balanceChanged: boolean;
   readonly positionsChanged: boolean;
+  readonly userId?: string;
 }
 
 export class LedgerRepository extends TableRepository {
@@ -129,6 +130,7 @@ export class LedgerRepository extends TableRepository {
               streamType: data.streamType,
               cashBalanceCents: (data.state as any).cashBalanceCents ?? 0,
               totalValueCents,
+              userId: data.userId ?? 'system',
               version: data.version,
             },
           },
@@ -150,6 +152,7 @@ export class LedgerRepository extends TableRepository {
               positions: (data.state as any).positions ?? {},
               positionCount: Object.keys((data.state as any).positions ?? {}).length,
               totalValueCents,
+              userId: data.userId ?? 'system',
               version: data.version,
             },
           },
@@ -168,6 +171,7 @@ export class LedgerRepository extends TableRepository {
             timestamp: now,
             streamType: data.streamType,
             lastEventSequence: data.lastEventSequence,
+            userId: data.userId ?? 'system',
             version: data.version,
           },
         },

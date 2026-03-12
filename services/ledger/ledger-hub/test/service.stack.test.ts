@@ -33,6 +33,7 @@ describe('LedgerHubStack', () => {
         'detail-type': [
           'BALANCE_UPDATED',
           'PORTFOLIO_UPDATED',
+          'LEDGER_ENTRY_RECORDED',
           'RECONCILIATION_COMPLETED',
           'RECONCILIATION_FAILED',
           'LEDGER_PROCESSING_FAILED',

@@ -9,7 +9,6 @@ import { RecentActivityPipe } from '../pipes/recent-activity.pipe';
 import { AdvisoryStatusPipe } from '../pipes/advisory-status.pipe';
 import { InvestorSnapshotPipe } from '../pipes/investor-snapshot.pipe';
 import { TimeTravelAvailabilityPipe } from '../pipes/time-travel-availability.pipe';
-import { SimulationSummaryPipe } from '../pipes/simulation-summary.pipe';
 
 interface NamedPipe {
   name: string;
@@ -92,7 +91,6 @@ const recentActivityPipe = new RecentActivityPipe(repository);
 const advisoryStatusPipe = new AdvisoryStatusPipe(repository);
 const investorSnapshotPipe = new InvestorSnapshotPipe(repository);
 const timeTravelAvailabilityPipe = new TimeTravelAvailabilityPipe(repository);
-const simulationSummaryPipe = new SimulationSummaryPipe(repository);
 
 const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
   // Ledger events (forwarded from ledger-hub → investor-bus)
@@ -125,10 +123,9 @@ const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
     { name: 'recentActivity', pipe: recentActivityPipe },
   ],
 
-  // Order-ledger events (forwarded from ledger-hub → investor-bus)
-  PORTFOLIO_SNAPSHOT_UPDATED: [
+  // Ledger events (forwarded from ledger-hub → investor-bus)
+  LEDGER_ENTRY_RECORDED: [
     { name: 'timeTravelAvailability', pipe: timeTravelAvailabilityPipe },
-    { name: 'simulationSummary', pipe: simulationSummaryPipe },
   ],
 
   // Investor events (native on investor-bus)

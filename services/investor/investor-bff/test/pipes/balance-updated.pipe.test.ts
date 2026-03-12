@@ -14,7 +14,7 @@ import { BalanceUpdatedPipe } from '../../src/pipes/balance-updated.pipe';
 type BalanceUpdatedPayload = {
   tenantId: string;
   userId: string;
-  balanceCents: number;
+  cashBalanceCents: number;
 };
 
 describe('BalanceUpdatedPipe', () => {
@@ -37,7 +37,7 @@ describe('BalanceUpdatedPipe', () => {
         subject: {
           tenantId: 't1',
           userId: 'u1',
-          balanceCents: 1050000,
+          cashBalanceCents: 1050000,
         },
         context: { tenantId: 't1' },
       },
@@ -61,7 +61,7 @@ describe('BalanceUpdatedPipe', () => {
         subject: {
           tenantId: 't1',
           userId: 'u1',
-          balanceCents: 500000,
+          cashBalanceCents: 500000,
         },
         context: { tenantId: 't1' },
       },
