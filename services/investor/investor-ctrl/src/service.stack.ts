@@ -1,7 +1,5 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import {
@@ -11,7 +9,6 @@ import {
   Monitoring,
   ServiceDashboard,
   createNamingService,
-  defaultLambdaProps,
   applyStandardTags,
 } from '@nestfolio/cdk-constructs';
 
@@ -31,19 +28,7 @@ export class InvestorCtrlStack extends Stack {
     // State: DynamoDB table
     const state = new State(this, 'State');
 
-    // Event listener Lambda (trigger events)
-    const eventListener = new NodejsFunction(this, 'EventListener', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'investor-ctrl' },
-    });
-    state.table.grantReadWriteData(eventListener);
-    eventListener.addToRolePolicy(new PolicyStatement({
-      actions: ['events:PutEvents'],
-      resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`],
-    }));
-
-    // Ingress: investor EventBridge bus -> SQS -> event-listener
+    // Ingress: investor EventBridge bus -> SQS -> event-listener Lambda
     const triggerIngress = new Ingress(this, 'TriggerIngress', {
       eventBus: EventBus.fromEventBusName(this, 'InvestorBus', naming.eventBusName()),
       eventTypes: [
@@ -56,12 +41,14 @@ export class InvestorCtrlStack extends Stack {
         'ORDER_FILLED',
         'BALANCE_UPDATED',
       ],
-      handler: eventListener,
+      entry: join(__dirname, 'handlers', 'event-listener.ts'),
+      serviceName: 'investor-ctrl',
+      state,
     });
 
     // Egress: DynamoDB Streams -> EventBridge
     const egress = new Egress(this, 'Egress', {
-      table: state.table,
+      table: state.getTable(),
       busName: naming.eventBusName(),
       serviceName: 'investor-ctrl',
       publishableTypes: ['Notification', 'MonthlyReport'],
@@ -69,14 +56,14 @@ export class InvestorCtrlStack extends Stack {
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener],
+      lambdaFunctions: [triggerIngress.handler],
       dlqs: [triggerIngress.dlq, egress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'investor-ctrl',
-      lambdaFunctions: [eventListener],
+      lambdaFunctions: [triggerIngress.handler],
       dlqs: [triggerIngress.dlq, egress.dlq],
     });
   }

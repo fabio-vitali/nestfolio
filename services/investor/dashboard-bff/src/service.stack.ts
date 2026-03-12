@@ -1,7 +1,5 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
 import { Construct } from 'constructs';
@@ -13,7 +11,6 @@ import {
   Monitoring,
   ServiceDashboard,
   createNamingService,
-  defaultLambdaProps,
   applyStandardTags,
 } from '@nestfolio/cdk-constructs';
 
@@ -33,19 +30,7 @@ export class DashboardBffStack extends Stack {
     // State: DynamoDB table for all dashboard projections
     const state = new State(this, 'State');
 
-    // Event listener Lambda — processes cross-domain events into projections
-    const eventListener = new NodejsFunction(this, 'EventListener', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'dashboard-bff' },
-    });
-    state.table.grantReadWriteData(eventListener);
-    eventListener.addToRolePolicy(new PolicyStatement({
-      actions: ['events:PutEvents'],
-      resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`],
-    }));
-
-    // Ingress: investor-bus → SQS → event-listener
+    // Ingress: investor-bus → SQS → event-listener Lambda
     // investor-bus receives forwarded events from advisory-hub and execution-hub
     const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'InvestorBus', naming.eventBusName()),
@@ -68,7 +53,9 @@ export class DashboardBffStack extends Stack {
         'RISK_PROFILE_SET',
         'RISK_PROFILE_UPDATED',
       ],
-      handler: eventListener,
+      entry: join(__dirname, 'handlers', 'event-listener.ts'),
+      serviceName: 'dashboard-bff',
+      state,
     });
 
     // No Egress — dashboard-bff is a pure read-model, does not publish domain events
@@ -87,7 +74,7 @@ export class DashboardBffStack extends Stack {
     new Facade(this, 'Facade', {
       schemaPath: join(__dirname, 'schema.graphql'),
       userPool,
-      table: state.table,
+      table: state.getTable(),
       jsResolvers: [
         {
           typeName: 'Query',
@@ -119,14 +106,14 @@ export class DashboardBffStack extends Stack {
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener],
+      lambdaFunctions: [ingress.handler],
       dlqs: [ingress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'dashboard-bff',
-      lambdaFunctions: [eventListener],
+      lambdaFunctions: [ingress.handler],
       dlqs: [ingress.dlq],
     });
   }
