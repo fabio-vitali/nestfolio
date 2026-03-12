@@ -26,12 +26,11 @@ jest.mock('@angular/core', () => ({
 
 import { validateEndpoints, RuntimeConfig } from '../../src/app/app.config';
 
-function makeConfig(overrides?: Partial<Record<'investorBff' | 'portfolioBff' | 'advisoryBff' | 'dashboardBff' | 'ledgerBff', { endpoint: string; region: string }>>): RuntimeConfig {
+function makeConfig(overrides?: Partial<Record<'investorBff' | 'advisoryBff' | 'dashboardBff' | 'ledgerBff', { endpoint: string; region: string }>>): RuntimeConfig {
   return {
     auth: { userPoolId: 'pool', clientId: 'client', region: 'us-east-1' },
     appsync: {
       investorBff: { endpoint: 'https://investor.appsync-api.us-east-1.amazonaws.com/graphql', region: 'us-east-1' },
-      portfolioBff: { endpoint: 'https://portfolio.appsync-api.us-east-1.amazonaws.com/graphql', region: 'us-east-1' },
       advisoryBff: { endpoint: 'https://advisory.appsync-api.us-east-1.amazonaws.com/graphql', region: 'us-east-1' },
       dashboardBff: { endpoint: 'https://dashboard.appsync-api.us-east-1.amazonaws.com/graphql', region: 'us-east-1' },
       ledgerBff: { endpoint: 'https://ledger.appsync-api.us-east-1.amazonaws.com/graphql', region: 'us-east-1' },
@@ -65,7 +64,7 @@ describe('validateEndpoints', () => {
 
   it('should reject http://localhost in production', () => {
     const config = makeConfig({
-      portfolioBff: { endpoint: 'http://localhost:4200/graphql', region: 'us-east-1' },
+      ledgerBff: { endpoint: 'http://localhost:4200/graphql', region: 'us-east-1' },
     });
     expect(() => validateEndpoints(config)).toThrow('Invalid endpoint URL');
   });
@@ -73,7 +72,7 @@ describe('validateEndpoints', () => {
   it('should allow http://localhost in dev mode', () => {
     devMode = true;
     const config = makeConfig({
-      portfolioBff: { endpoint: 'http://localhost:4200/graphql', region: 'us-east-1' },
+      ledgerBff: { endpoint: 'http://localhost:4200/graphql', region: 'us-east-1' },
     });
     expect(() => validateEndpoints(config)).not.toThrow();
   });

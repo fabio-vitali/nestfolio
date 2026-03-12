@@ -39,7 +39,6 @@ describe('provideGraphqlFor', () => {
       auth: { userPoolId: 'pool', clientId: 'client', region: 'us-east-1' },
       appsync: {
         investorBff: { endpoint: 'https://investor.appsync.example.com/graphql', region: 'us-east-1' },
-        portfolioBff: { endpoint: 'https://portfolio.appsync.example.com/graphql', region: 'us-east-1' },
         advisoryBff: { endpoint: 'https://advisory.appsync.example.com/graphql', region: 'us-east-1' },
         dashboardBff: { endpoint: 'https://dashboard.appsync.example.com/graphql', region: 'us-east-1' },
         ledgerBff: { endpoint: 'https://ledger.appsync.example.com/graphql', region: 'us-east-1' },
@@ -69,12 +68,12 @@ describe('provideGraphqlFor', () => {
     });
   });
 
-  it('should have a useFactory that returns the correct endpoint config for portfolioBff', () => {
-    const providers = provideGraphqlFor('portfolioBff');
+  it('should have a useFactory that returns the correct endpoint config for ledgerBff', () => {
+    const providers = provideGraphqlFor('ledgerBff');
     const first = providers[0] as { provide: unknown; useFactory: () => unknown };
     const result = first.useFactory();
     expect(result).toEqual({
-      endpoint: 'https://portfolio.appsync.example.com/graphql',
+      endpoint: 'https://ledger.appsync.example.com/graphql',
       region: 'us-east-1',
     });
   });

@@ -13,7 +13,6 @@ export interface RuntimeConfig {
   auth: { userPoolId: string; clientId: string; region: string };
   appsync: {
     investorBff: { endpoint: string; region: string };
-    portfolioBff: { endpoint: string; region: string };
     advisoryBff: { endpoint: string; region: string };
     dashboardBff: { endpoint: string; region: string };
     ledgerBff: { endpoint: string; region: string };
@@ -29,7 +28,6 @@ export function getRuntimeConfig(): RuntimeConfig {
 export function validateEndpoints(config: RuntimeConfig): void {
   const endpoints = [
     config.appsync.investorBff.endpoint,
-    config.appsync.portfolioBff.endpoint,
     config.appsync.advisoryBff.endpoint,
     config.appsync.dashboardBff.endpoint,
     config.appsync.ledgerBff.endpoint,
