@@ -28,8 +28,8 @@ describe('ExecutionHubStack', () => {
   });
 
   it('creates cross-domain forwarding rules', () => {
-    // ToInvestor + ToAdvisory
-    template.resourceCountIs('AWS::Events::Rule', 2);
+    // ToInvestor + ToAdvisory + ToLedger
+    template.resourceCountIs('AWS::Events::Rule', 3);
   });
 
   it('creates DLQs for cross-domain forwarding rule targets', () => {
@@ -38,7 +38,7 @@ describe('ExecutionHubStack', () => {
         MessageRetentionPeriod: 1209600,
       },
     });
-    expect(Object.keys(queues).length).toBeGreaterThanOrEqual(2);
+    expect(Object.keys(queues).length).toBeGreaterThanOrEqual(3);
   });
 
   it('applies standard tags to taggable resources', () => {
