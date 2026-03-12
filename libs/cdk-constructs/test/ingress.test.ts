@@ -1,10 +1,22 @@
 import { App, Duration, Stack } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { EventBus } from 'aws-cdk-lib/aws-events';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { Ingress } from '../src/ingress';
 import { State } from '../src/state';
 
 describe('Ingress construct', () => {
+  const handlerPath = path.join(os.tmpdir(), 'ingress-test-handler.ts');
+
+  beforeAll(() => {
+    fs.writeFileSync(handlerPath, 'export const handler = async () => ({});');
+  });
+
+  afterAll(() => {
+    fs.unlinkSync(handlerPath);
+  });
   function createIngress(overrides: Record<string, unknown> = {}) {
     const app = new App();
     const stack = new Stack(app, 'TestStack');
@@ -17,7 +29,7 @@ describe('Ingress construct', () => {
     const ingress = new Ingress(stack, 'TestIngress', {
       eventBus: bus,
       eventTypes: ['TestEvent'],
-      entry: '/tmp/handler.ts',
+      entry: handlerPath,
       serviceName: 'test-svc',
       state,
       ...(overrides['ingressOverrides'] as Record<string, unknown> ?? {}),
