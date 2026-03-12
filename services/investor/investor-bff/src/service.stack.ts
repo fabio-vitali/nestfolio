@@ -74,19 +74,11 @@ export class InvestorBffStack extends Stack {
         'Deposit',
         'Withdrawal',
       ],
+      customEventTypeMap: {
+        'Deposit:INSERT': 'DEPOSIT_INITIATED',
+        'Withdrawal:INSERT': 'WITHDRAWAL_REQUESTED',
+      },
     });
-
-    // GraphQL resolver Lambda
-    const resolver = new NodejsFunction(this, 'GraphqlResolver', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'graphql-resolver.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'investor-bff' },
-    });
-    state.table.grantReadWriteData(resolver);
-    resolver.addToRolePolicy(new PolicyStatement({
-      actions: ['events:PutEvents'],
-      resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`],
-    }));
 
     // Read Cognito UserPool from SSM
     const userPoolId = StringParameter.valueForStringParameter(
@@ -95,23 +87,46 @@ export class InvestorBffStack extends Stack {
     );
     const userPool = UserPool.fromUserPoolId(this, 'UserPool', userPoolId);
 
-    // Facade: AppSync API
+    const JS_FN_PATH = join(__dirname, 'graphql', 'js-function');
+    const checkAuthPath = join(JS_FN_PATH, 'utils', 'check-auth.fn.js');
+
+    // Facade: AppSync API with JS pipeline resolvers
     new Facade(this, 'Facade', {
       schemaPath: join(__dirname, 'schema.graphql'),
       userPool,
-      resolverFunctions: { default: resolver },
+      table: state.table,
+      jsResolvers: [
+        // Queries
+        { typeName: 'Query', fieldName: 'getProfile', pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-profile.fn.js')] },
+        { typeName: 'Query', fieldName: 'getGoals', pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-goals.fn.js')] },
+        { typeName: 'Query', fieldName: 'getNotifications', pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-notifications.fn.js')] },
+        { typeName: 'Query', fieldName: 'getUnreadCount', pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-unread-count.fn.js')] },
+        // Mutations
+        { typeName: 'Mutation', fieldName: 'markNotificationRead', pipeline: [checkAuthPath, join(JS_FN_PATH, 'mark-notification-read.fn.js')] },
+        { typeName: 'Mutation', fieldName: 'recordOnboardingAnswer', pipeline: [checkAuthPath, join(JS_FN_PATH, 'record-onboarding-answer.fn.js')], dataSource: 'none' },
+        { typeName: 'Mutation', fieldName: 'requestAccountClosure', pipeline: [checkAuthPath, join(JS_FN_PATH, 'request-account-closure.fn.js')], dataSource: 'none' },
+        { typeName: 'Mutation', fieldName: 'initiateDeposit', pipeline: [checkAuthPath, join(JS_FN_PATH, 'initiate-deposit.fn.js')] },
+        { typeName: 'Mutation', fieldName: 'requestWithdrawal', pipeline: [checkAuthPath, join(JS_FN_PATH, 'request-withdrawal.fn.js')] },
+        { typeName: 'Mutation', fieldName: 'setGoal', pipeline: [checkAuthPath, join(JS_FN_PATH, 'set-goal.fn.js')] },
+        { typeName: 'Mutation', fieldName: 'updateGoal', pipeline: [checkAuthPath, join(JS_FN_PATH, 'update-goal.fn.js')] },
+        { typeName: 'Mutation', fieldName: 'setRiskProfile', pipeline: [checkAuthPath, join(JS_FN_PATH, 'set-risk-profile.fn.js')] },
+        { typeName: 'Mutation', fieldName: 'grantMandate', pipeline: [checkAuthPath, join(JS_FN_PATH, 'grant-mandate.fn.js')] },
+        { typeName: 'Mutation', fieldName: 'updateMandate', pipeline: [checkAuthPath, join(JS_FN_PATH, 'update-mandate.fn.js')] },
+        { typeName: 'Mutation', fieldName: 'revokeMandate', pipeline: [checkAuthPath, join(JS_FN_PATH, 'revoke-mandate.fn.js')] },
+        { typeName: 'Mutation', fieldName: 'selectOperatingMode', pipeline: [checkAuthPath, join(JS_FN_PATH, 'select-operating-mode.fn.js')] },
+      ],
     });
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener, resolver],
+      lambdaFunctions: [eventListener],
       dlqs: [ingress.dlq, egress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'investor-bff',
-      lambdaFunctions: [eventListener, resolver],
+      lambdaFunctions: [eventListener],
       dlqs: [ingress.dlq, egress.dlq],
     });
   }
