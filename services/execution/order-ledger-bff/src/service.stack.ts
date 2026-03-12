@@ -115,11 +115,43 @@ export class OrderLedgerBffStack extends Stack {
     );
     const userPool = UserPool.fromUserPoolId(this, 'UserPool', userPoolId);
 
-    // Facade: AppSync API
+    const JS_FN_PATH = join(__dirname, 'graphql', 'js-function');
+    const checkAuthPath = join(JS_FN_PATH, 'utils', 'check-auth.fn.js');
+
+    // Facade: AppSync API — hybrid JS + Lambda resolvers
     new Facade(this, 'Facade', {
       schemaPath: join(__dirname, 'schema.graphql'),
       userPool,
-      resolverFunctions: { default: resolver },
+      table: state.table,
+      jsResolvers: [
+        {
+          typeName: 'Query',
+          fieldName: 'getLedgerPortfolio',
+          pipeline: [
+            checkAuthPath,
+            join(JS_FN_PATH, 'get-ledger-portfolio-snapshot.fn.js'),
+            join(JS_FN_PATH, 'get-ledger-portfolio-positions.fn.js'),
+          ],
+        },
+        {
+          typeName: 'Query',
+          fieldName: 'getOrderHistory',
+          pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-order-history.fn.js')],
+        },
+        {
+          typeName: 'Query',
+          fieldName: 'getTimeTravelAvailability',
+          pipeline: [
+            checkAuthPath,
+            join(JS_FN_PATH, 'get-time-travel-earliest.fn.js'),
+            join(JS_FN_PATH, 'get-time-travel-latest.fn.js'),
+          ],
+        },
+      ],
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'getPortfolioAt', handler: resolver },
+        { typeName: 'Query', fieldName: 'getSimulationComparison', handler: resolver },
+      ],
     });
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth

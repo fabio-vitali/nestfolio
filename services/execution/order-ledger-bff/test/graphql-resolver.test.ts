@@ -129,46 +129,6 @@ describe('order-ledger-bff graphql-resolver handler', () => {
     process.env = ORIGINAL_ENV;
   });
 
-  describe('getLedgerPortfolio', () => {
-    it('should return initial state when no snapshot exists', async () => {
-      mockSend.mockResolvedValueOnce({ Items: [] }); // getLatestSnapshot → empty
-
-      const event = buildEvent('getLedgerPortfolio', { streamType: 'ACTUAL' });
-      const result = await resolver(event) as Record<string, unknown>;
-
-      expect(result['cashBalanceCents']).toBe(10_000_000);
-      expect(result['positionCount']).toBe(0);
-      expect(result['streamType']).toBe('ACTUAL');
-    });
-
-    it('should return snapshot data when snapshot exists', async () => {
-      mockSend
-        .mockResolvedValueOnce({
-          Items: [{
-            pk: 'Portfolio#tenant-1#actual',
-            sk: 'Latest',
-            cashBalanceCents: 8_000_000,
-            totalValueCents: 12_000_000,
-            positionCount: 3,
-            snapshotAt: '2025-01-01T00:00:00.000Z',
-          }],
-        }) // getLatestSnapshot
-        .mockResolvedValueOnce({
-          Items: [
-            { symbol: 'VTI', quantity: 10, averageCostBasis: 245.50 },
-            { symbol: 'SPY', quantity: 5, averageCostBasis: 512.30 },
-          ],
-        }); // getPositionSnapshots
-
-      const event = buildEvent('getLedgerPortfolio', { streamType: 'ACTUAL' });
-      const result = await resolver(event) as Record<string, unknown>;
-
-      expect(result['cashBalanceCents']).toBe(8_000_000);
-      expect(result['totalValueCents']).toBe(12_000_000);
-      expect((result['positions'] as unknown[]).length).toBe(2);
-    });
-  });
-
   describe('getSimulationComparison', () => {
     it('should return comparison with initial values when no snapshots exist', async () => {
       mockSend
@@ -262,23 +222,6 @@ describe('order-ledger-bff graphql-resolver handler', () => {
     });
   });
 
-  describe('getOrderHistory', () => {
-    it('should return order history entries', async () => {
-      mockSend.mockResolvedValueOnce({
-        Items: [
-          { eventId: 'evt-1', eventType: 'ORDER_FILLED', orderId: 'o1', sequenceNo: 1, timestamp: '2025-01-01T00:00:00.000Z' },
-          { eventId: 'evt-2', eventType: 'ORDER_FILLED', orderId: 'o1', sequenceNo: 2, timestamp: '2025-01-02T00:00:00.000Z' },
-        ],
-      });
-
-      const event = buildEvent('getOrderHistory', { streamType: 'ACTUAL', orderId: 'o1' });
-      const result = await resolver(event) as Record<string, unknown>;
-
-      expect((result['entries'] as unknown[]).length).toBe(2);
-      expect(result['hasMore']).toBe(false);
-    });
-  });
-
   describe('getPortfolioAt', () => {
     it('should return initial state when no checkpoints or entries exist', async () => {
       mockSend
@@ -334,57 +277,11 @@ describe('order-ledger-bff graphql-resolver handler', () => {
     });
   });
 
-  describe('getTimeTravelAvailability', () => {
-    it('should return available true with dates when checkpoints exist', async () => {
-      mockSend
-        .mockResolvedValueOnce({
-          Items: [{ pk: 'Portfolio#tenant-1#actual', sk: 'Checkpoint#2025-01-15' }],
-        }) // getEarliestCheckpoint
-        .mockResolvedValueOnce({
-          Items: [{ pk: 'Portfolio#tenant-1#actual', sk: 'Checkpoint#2025-06-10' }],
-        }); // getCheckpointBefore (latest)
-
-      const event = buildEvent('getTimeTravelAvailability');
-      const result = await resolver(event) as Record<string, unknown>;
-
-      expect(result['available']).toBe(true);
-      expect(result['oldestDate']).toBe('2025-01-15');
-      expect(result['latestDate']).toBe('2025-06-10');
-    });
-
-    it('should return available false when no checkpoints exist', async () => {
-      mockSend
-        .mockResolvedValueOnce({ Items: [] }) // getEarliestCheckpoint
-        .mockResolvedValueOnce({ Items: [] }); // getCheckpointBefore
-
-      const event = buildEvent('getTimeTravelAvailability');
-      const result = await resolver(event) as Record<string, unknown>;
-
-      expect(result['available']).toBe(false);
-      expect(result['oldestDate']).toBeNull();
-      expect(result['latestDate']).toBeNull();
-    });
-
-    it('should reject unauthorized tenant', async () => {
-      const event = {
-        info: { fieldName: 'getTimeTravelAvailability', parentTypeName: '', variables: {}, selectionSetList: [], selectionSetGraphQL: '' },
-        arguments: {},
-        identity: { claims: { sub: 'user-1' } },
-        source: null,
-        request: { headers: {} },
-        prev: null,
-        stash: {},
-      } as unknown as AppSyncResolverEvent<Record<string, unknown>>;
-
-      await expect(resolver(event)).rejects.toThrow('UNAUTHORIZED: missing tenantId');
-    });
-  });
-
   describe('authorization', () => {
     it('should throw when tenantId is missing from claims', async () => {
       const event = {
-        info: { fieldName: 'getLedgerPortfolio', parentTypeName: '', variables: {}, selectionSetList: [], selectionSetGraphQL: '' },
-        arguments: { streamType: 'ACTUAL' },
+        info: { fieldName: 'getPortfolioAt', parentTypeName: '', variables: {}, selectionSetList: [], selectionSetGraphQL: '' },
+        arguments: { streamType: 'ACTUAL', timestamp: '2025-06-15T00:00:00.000Z' },
         identity: { claims: { sub: 'user-1' } },
         source: null,
         request: { headers: {} },

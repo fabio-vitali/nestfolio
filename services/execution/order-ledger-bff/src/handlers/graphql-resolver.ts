@@ -14,7 +14,7 @@ import {
 import { INITIAL_PORTFOLIO_STATE } from '@nestfolio/command-core';
 import { LedgerRepository } from '../repositories/ledger.repository';
 import { TimeTravelService } from '../services/time-travel.service';
-import { StreamTypeSchema, TimestampSchema, OrderHistoryArgsSchema } from '../validation/schemas';
+import { StreamTypeSchema, TimestampSchema } from '../validation/schemas';
 
 interface ResolverDeps {
   readonly repository: LedgerRepository;
@@ -34,30 +34,6 @@ export const createResolver = (deps: ResolverDeps) =>
       logger.info('Resolving field', { fieldName, tenantId });
 
       switch (fieldName) {
-        case 'getLedgerPortfolio': {
-          const streamType = StreamTypeSchema.parse(args.streamType);
-          const snapshot = await deps.repository.getLatestSnapshot(tenantId, streamType);
-          if (!snapshot) {
-            return {
-              positions: [],
-              cashBalanceCents: INITIAL_PORTFOLIO_STATE.cashBalanceCents,
-              totalValueCents: INITIAL_PORTFOLIO_STATE.cashBalanceCents,
-              positionCount: 0,
-              snapshotAt: new Date().toISOString(),
-              streamType: streamType.toUpperCase(),
-            };
-          }
-          const positionSnapshots = await deps.repository.getPositionSnapshots(tenantId, streamType);
-          return {
-            positions: positionSnapshots,
-            cashBalanceCents: snapshot['cashBalanceCents'],
-            totalValueCents: snapshot['totalValueCents'],
-            positionCount: snapshot['positionCount'],
-            snapshotAt: snapshot['snapshotAt'],
-            streamType: streamType.toUpperCase(),
-          };
-        }
-
         case 'getPortfolioAt': {
           const streamType = StreamTypeSchema.parse(args.streamType);
           const timestamp = TimestampSchema.parse(args.timestamp);
@@ -164,34 +140,6 @@ export const createResolver = (deps: ResolverDeps) =>
               missedDecisions,
               totalDecisions,
             },
-          };
-        }
-
-        case 'getTimeTravelAvailability': {
-          const [earliest, latest] = await Promise.all([
-            deps.repository.getEarliestCheckpoint(tenantId, 'actual'),
-            deps.repository.getCheckpointBefore(tenantId, 'actual', '9999-12-31'),
-          ]);
-          if (!earliest || !latest) {
-            return { available: false, oldestDate: null, latestDate: null };
-          }
-          const oldestDate = (earliest['sk'] as string).replace('Checkpoint#', '');
-          const latestDate = (latest['sk'] as string).replace('Checkpoint#', '');
-          return { available: true, oldestDate, latestDate };
-        }
-
-        case 'getOrderHistory': {
-          const parsed = OrderHistoryArgsSchema.parse(args);
-          const streamType = parsed.streamType;
-          const result = await deps.repository.getOrderHistory(tenantId, streamType, {
-            orderId: parsed.orderId,
-            limit: parsed.limit,
-            cursor: parsed.cursor,
-          });
-          return {
-            entries: result.entries,
-            nextCursor: result.nextCursor ?? null,
-            hasMore: !!result.nextCursor,
           };
         }
 
