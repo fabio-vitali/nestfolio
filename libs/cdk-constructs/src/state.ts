@@ -14,6 +14,8 @@ export interface GsiConfig {
 }
 
 export interface StateProps {
+  /** Include DynamoDB table (default: true) */
+  withTable?: boolean;
   /** Include S3 bucket alongside DynamoDB table */
   withBucket?: boolean;
   /** Additional GSIs beyond the two default ones */
@@ -25,13 +27,27 @@ export interface StateProps {
 }
 
 export class State extends Construct {
-  readonly table: Table;
+  readonly table?: Table;
   readonly bucket?: Bucket;
 
   constructor(scope: Construct, id: string, props: StateProps = {}) {
     super(scope, id);
 
     const removalPolicy = props.removalPolicy ?? RemovalPolicy.RETAIN;
+    const withTable = props.withTable ?? true;
+
+    if (!withTable) {
+      if (props.withBucket) {
+        this.bucket = new Bucket(this, 'Bucket', {
+          encryption: BucketEncryption.S3_MANAGED,
+          blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+          versioned: true,
+          removalPolicy,
+          autoDeleteObjects: removalPolicy === RemovalPolicy.DESTROY,
+        });
+      }
+      return;
+    }
 
     this.table = new Table(this, 'Table', {
       partitionKey: { name: 'pk', type: AttributeType.STRING },
@@ -81,5 +97,21 @@ export class State extends Construct {
         autoDeleteObjects: removalPolicy === RemovalPolicy.DESTROY,
       });
     }
+  }
+
+  /** Returns the DynamoDB table. Throws if withTable was false. */
+  getTable(): Table {
+    if (!this.table) {
+      throw new Error('State was created without a table (withTable: false)');
+    }
+    return this.table;
+  }
+
+  /** Returns the S3 bucket. Throws if withBucket was false. */
+  getBucket(): Bucket {
+    if (!this.bucket) {
+      throw new Error('State was created without a bucket (withBucket: false)');
+    }
+    return this.bucket;
   }
 }
