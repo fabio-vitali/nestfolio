@@ -58,15 +58,6 @@ export class PortfolioBffStack extends Stack {
     // No Egress — portfolio-bff is a pure read-model BFF. Portfolio/Position/CashBalance/PerformanceMetric
     // publication is owned by portfolio-ctrl (the domain controller).
 
-    // GraphQL resolver Lambda
-    const resolver = new NodejsFunction(this, 'GraphqlResolver', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'graphql-resolver.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'portfolio-bff' },
-    });
-    state.table.grantReadWriteData(resolver);
-    resolver.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
-
     // Read Cognito UserPool from SSM (investor subsystem owns auth)
     const userPoolId = StringParameter.valueForStringParameter(
       this,
@@ -74,23 +65,49 @@ export class PortfolioBffStack extends Stack {
     );
     const userPool = UserPool.fromUserPoolId(this, 'UserPool', userPoolId);
 
-    // Facade: AppSync API
+    const JS_FN_PATH = join(__dirname, 'graphql', 'js-function');
+    const checkAuthPath = join(JS_FN_PATH, 'utils', 'check-auth.fn.js');
+
+    // Facade: AppSync API with JS pipeline resolvers
     new Facade(this, 'Facade', {
       schemaPath: join(__dirname, 'schema.graphql'),
       userPool,
-      resolverFunctions: { default: resolver },
+      table: state.table,
+      jsResolvers: [
+        {
+          typeName: 'Query',
+          fieldName: 'getPortfolio',
+          pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-portfolio.fn.js'), join(JS_FN_PATH, 'create-portfolio.fn.js')],
+        },
+        {
+          typeName: 'Query',
+          fieldName: 'getPositions',
+          pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-positions.fn.js')],
+        },
+        {
+          typeName: 'Query',
+          fieldName: 'getCashBalance',
+          pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-cash-balance.fn.js')],
+        },
+        {
+          typeName: 'Query',
+          fieldName: 'getPerformance',
+          pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-performance.fn.js')],
+          dataSource: 'none',
+        },
+      ],
     });
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener, resolver],
+      lambdaFunctions: [eventListener],
       dlqs: [ingress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'portfolio-bff',
-      lambdaFunctions: [eventListener, resolver],
+      lambdaFunctions: [eventListener],
       dlqs: [ingress.dlq],
     });
   }
