@@ -1,0 +1,26 @@
+{
+  "name": "reconciliation-ctrl",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "services/ledger/reconciliation-ctrl/src",
+  "projectType": "application",
+  "targets": {
+    "deploy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx cdk deploy --app 'npx ts-node -r ./tools/register-paths.js services/ledger/reconciliation-ctrl/src/main.ts' --require-approval never -c prefix={args.prefix}"
+      }
+    },
+    "destroy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx cdk destroy --app 'npx ts-node -r ./tools/register-paths.js services/ledger/reconciliation-ctrl/src/main.ts' --force -c prefix={args.prefix}"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": { "jestConfig": "services/ledger/reconciliation-ctrl/jest.config.js" }
+    },
+    "lint": { "executor": "@nx/eslint:lint" }
+  },
+  "tags": ["scope:ledger", "type:service"]
+}

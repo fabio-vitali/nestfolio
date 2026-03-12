@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../.pipeline-schema.json",
+  "service": "reconciliation-ctrl",
+  "subsystem": "ledger",
+  "deploymentPhase": 3,
+  "production": { "regions": ["us-east-1"], "parallelDeploy": true },
+  "dependencies": ["ledger-hub"]
+}
