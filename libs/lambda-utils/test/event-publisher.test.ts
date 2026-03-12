@@ -56,6 +56,40 @@ describe('toDetailType', () => {
   });
 });
 
+describe('toDetailType with customEventTypeMap', () => {
+  const ENV_BACKUP = process.env;
+
+  afterEach(() => {
+    process.env = ENV_BACKUP;
+  });
+
+  it('uses custom mapping when key matches', () => {
+    process.env.CUSTOM_EVENT_TYPE_MAP = JSON.stringify({
+      'Deposit:INSERT': 'DEPOSIT_INITIATED',
+      'Withdrawal:INSERT': 'WITHDRAWAL_REQUESTED',
+    });
+    expect(toDetailType('Deposit', 'INSERT')).toBe('DEPOSIT_INITIATED');
+  });
+
+  it('uses second custom mapping when key matches', () => {
+    process.env.CUSTOM_EVENT_TYPE_MAP = JSON.stringify({
+      'Deposit:INSERT': 'DEPOSIT_INITIATED',
+      'Withdrawal:INSERT': 'WITHDRAWAL_REQUESTED',
+    });
+    expect(toDetailType('Withdrawal', 'INSERT')).toBe('WITHDRAWAL_REQUESTED');
+  });
+
+  it('falls back to convention when no custom mapping', () => {
+    process.env.CUSTOM_EVENT_TYPE_MAP = '{}';
+    expect(toDetailType('Goal', 'INSERT')).toBe('GOAL_CREATED');
+  });
+
+  it('falls back to convention when env var is not set', () => {
+    delete process.env.CUSTOM_EVENT_TYPE_MAP;
+    expect(toDetailType('RiskProfile', 'MODIFY')).toBe('RISK_PROFILE_UPDATED');
+  });
+});
+
 describe('event-publisher handler', () => {
   const ENV_BACKUP = process.env;
 

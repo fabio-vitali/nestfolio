@@ -15,6 +15,12 @@ export interface EgressProps {
   serviceName: string;
   /** DynamoDB __typename values to publish events for */
   publishableTypes: string[];
+  /**
+   * Optional map of "__typename:eventName" → custom DetailType.
+   * e.g. { 'Deposit:INSERT': 'DEPOSIT_INITIATED' }
+   * Overrides the default convention-based naming for matched keys.
+   */
+  customEventTypeMap?: Record<string, string>;
 }
 
 export class Egress extends Construct {
@@ -34,6 +40,9 @@ export class Egress extends Construct {
       environment: {
         BUS_NAME: props.busName,
         SERVICE_NAME: props.serviceName,
+        ...(props.customEventTypeMap && {
+          CUSTOM_EVENT_TYPE_MAP: JSON.stringify(props.customEventTypeMap),
+        }),
       },
     });
 

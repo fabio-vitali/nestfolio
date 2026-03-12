@@ -26,9 +26,15 @@ function toScreamingSnake(name: string): string {
 
 /**
  * Derives an event type name from DDB __typename + stream eventName.
- * e.g. ('Goal', 'INSERT') → 'GOAL_CREATED', ('RiskProfile', 'MODIFY') → 'RISK_PROFILE_UPDATED'
+ * Checks CUSTOM_EVENT_TYPE_MAP env var first (format: '{"Deposit:INSERT":"DEPOSIT_INITIATED"}').
+ * Falls back to convention: e.g. ('Goal', 'INSERT') → 'GOAL_CREATED', ('RiskProfile', 'MODIFY') → 'RISK_PROFILE_UPDATED'
  */
 function toDetailType(typename: string, eventName: string): string {
+  const customMap: Record<string, string> = JSON.parse(
+    process.env.CUSTOM_EVENT_TYPE_MAP || '{}',
+  );
+  const customKey = `${typename}:${eventName}`;
+  if (customMap[customKey]) return customMap[customKey];
   const suffix = OPERATION_SUFFIX[eventName] ?? 'CHANGED';
   return `${toScreamingSnake(typename)}_${suffix}`;
 }
