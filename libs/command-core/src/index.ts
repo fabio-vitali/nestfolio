@@ -10,40 +10,47 @@ export {
 // Reducer / Event replay
 export { type LedgerEntry, type EventReducer, replayEvents } from './reducer';
 
-// Portfolio state
+// Account state
 export {
   type PositionState,
-  type PortfolioState,
-  INITIAL_PORTFOLIO_STATE,
-} from './state/portfolio-state';
+  type AccountState,
+  INITIAL_ACCOUNT_STATE,
+} from './state/account-state';
 
-// Execution domain commands
+// Ledger domain commands
 export {
   RecordFill,
   RecordFillSchema,
   type RecordFillPayload,
-} from './commands/execution/record-fill';
-
-export {
-  SubmitOrder,
-  SubmitOrderSchema,
-  type SubmitOrderPayload,
-} from './commands/execution/submit-order';
-
-export {
-  CancelOrder,
-  CancelOrderSchema,
-  type CancelOrderPayload,
-} from './commands/execution/cancel-order';
+} from './commands/ledger/record-fill';
 
 export {
   RecordDeposit,
   RecordDepositSchema,
   type RecordDepositPayload,
-} from './commands/execution/record-deposit';
+} from './commands/ledger/record-deposit';
 
 export {
   RecordWithdrawal,
   RecordWithdrawalSchema,
   type RecordWithdrawalPayload,
-} from './commands/execution/record-withdrawal';
+} from './commands/ledger/record-withdrawal';
+
+export {
+  RecordCorporateAction,
+  RecordCorporateActionSchema,
+  type RecordCorporateActionPayload,
+} from './commands/ledger/record-corporate-action';
+
+// Order lifecycle commands
+export {
+  SubmitOrder,
+  SubmitOrderSchema,
+  type SubmitOrderPayload,
+} from './commands/order/submit-order';
+
+export {
+  CancelOrder,
+  CancelOrderSchema,
+  type CancelOrderPayload,
+} from './commands/order/cancel-order';

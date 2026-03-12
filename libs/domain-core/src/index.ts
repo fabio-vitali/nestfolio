@@ -101,3 +101,7 @@ export type {
   OrderType,
   ReconciliationStatus,
 } from './execution/models';
+
+// ledger
+export { LedgerEventTypes } from './ledger/events';
+export type { LedgerEventType } from './ledger/events';

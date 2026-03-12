@@ -9,9 +9,8 @@ export interface RuntimeConfigSsmPaths {
   readonly cognitoClientId: string;
   readonly investorBffEndpoint: string;
   readonly advisoryBffEndpoint: string;
-  readonly portfolioBffEndpoint: string;
   readonly dashboardBffEndpoint: string;
-  readonly orderLedgerBffEndpoint: string;
+  readonly ledgerBffEndpoint: string;
 }
 
 export interface RuntimeConfigProps {
@@ -41,9 +40,8 @@ export interface RuntimeConfigProps {
  *     cognitoClientId: '/nestfolio/prod/cognito/clientId',
  *     investorBffEndpoint: '/nestfolio/prod-investor-bff/api/graphqlUrl',
  *     advisoryBffEndpoint: '/nestfolio/prod-advisory-bff/api/graphqlUrl',
- *     portfolioBffEndpoint: '/nestfolio/prod-portfolio-bff/api/graphqlUrl',
  *     dashboardBffEndpoint: '/nestfolio/prod-dashboard-bff/api/graphqlUrl',
- *     orderLedgerBffEndpoint: '/nestfolio/prod-order-ledger-bff/api/graphqlUrl',
+ *     ledgerBffEndpoint: '/nestfolio/prod-ledger-bff/api/graphqlUrl',
  *   },
  * });
  * ```
@@ -60,9 +58,8 @@ export class RuntimeConfig extends Construct {
     const cognitoClientId = StringParameter.valueForStringParameter(this, props.ssmPaths.cognitoClientId);
     const investorBffEndpoint = StringParameter.valueForStringParameter(this, props.ssmPaths.investorBffEndpoint);
     const advisoryBffEndpoint = StringParameter.valueForStringParameter(this, props.ssmPaths.advisoryBffEndpoint);
-    const portfolioBffEndpoint = StringParameter.valueForStringParameter(this, props.ssmPaths.portfolioBffEndpoint);
     const dashboardBffEndpoint = StringParameter.valueForStringParameter(this, props.ssmPaths.dashboardBffEndpoint);
-    const orderLedgerBffEndpoint = StringParameter.valueForStringParameter(this, props.ssmPaths.orderLedgerBffEndpoint);
+    const ledgerBffEndpoint = StringParameter.valueForStringParameter(this, props.ssmPaths.ledgerBffEndpoint);
 
     // Generate config.json content matching the frontend RuntimeConfig interface
     const configJson = JSON.stringify({
@@ -73,10 +70,9 @@ export class RuntimeConfig extends Construct {
       },
       appsync: {
         investorBff: { endpoint: investorBffEndpoint, region },
-        portfolioBff: { endpoint: portfolioBffEndpoint, region },
         advisoryBff: { endpoint: advisoryBffEndpoint, region },
         dashboardBff: { endpoint: dashboardBffEndpoint, region },
-        orderLedgerBff: { endpoint: orderLedgerBffEndpoint, region },
+        ledgerBff: { endpoint: ledgerBffEndpoint, region },
       },
     });
 

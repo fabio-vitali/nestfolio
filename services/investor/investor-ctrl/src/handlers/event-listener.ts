@@ -21,6 +21,7 @@ const TRIGGER_EVENT_TYPES = new Set([
   'OPERATING_MODE_CHANGED',
   'DECISION_APPROVED',
   'ORDER_FILLED',
+  'BALANCE_UPDATED',
 ]);
 
 export const createHandler = (deps: EventListenerDeps) =>

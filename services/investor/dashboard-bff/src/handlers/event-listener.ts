@@ -9,7 +9,6 @@ import { RecentActivityPipe } from '../pipes/recent-activity.pipe';
 import { AdvisoryStatusPipe } from '../pipes/advisory-status.pipe';
 import { InvestorSnapshotPipe } from '../pipes/investor-snapshot.pipe';
 import { TimeTravelAvailabilityPipe } from '../pipes/time-travel-availability.pipe';
-import { SimulationSummaryPipe } from '../pipes/simulation-summary.pipe';
 
 interface NamedPipe {
   name: string;
@@ -92,38 +91,23 @@ const recentActivityPipe = new RecentActivityPipe(repository);
 const advisoryStatusPipe = new AdvisoryStatusPipe(repository);
 const investorSnapshotPipe = new InvestorSnapshotPipe(repository);
 const timeTravelAvailabilityPipe = new TimeTravelAvailabilityPipe(repository);
-const simulationSummaryPipe = new SimulationSummaryPipe(repository);
 
 const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
-  // Execution events (forwarded from execution-hub -> investor-bus)
-  ORDER_FILLED: [
+  // Ledger events (forwarded from ledger-hub → investor-bus)
+  BALANCE_UPDATED: [
+    { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+    { name: 'recentActivity', pipe: recentActivityPipe },
+  ],
+  PORTFOLIO_UPDATED: [
     { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
     { name: 'positionSnapshot', pipe: positionSnapshotPipe },
     { name: 'recentActivity', pipe: recentActivityPipe },
-  ],
-  ORDER_PARTIALLY_FILLED: [
-    { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
-    { name: 'positionSnapshot', pipe: positionSnapshotPipe },
-    { name: 'recentActivity', pipe: recentActivityPipe },
-  ],
-  CORPORATE_ACTION_APPLIED: [
-    { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
-    { name: 'positionSnapshot', pipe: positionSnapshotPipe },
   ],
   RECONCILIATION_COMPLETED: [
     { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
   ],
-  DEPOSIT_INITIATED: [
-    { name: 'recentActivity', pipe: recentActivityPipe },
-  ],
-  DEPOSIT_DETECTED: [
-    { name: 'recentActivity', pipe: recentActivityPipe },
-  ],
-  WITHDRAWAL_COMPLETED: [
-    { name: 'recentActivity', pipe: recentActivityPipe },
-  ],
 
-  // Advisory events (forwarded from advisory-hub -> investor-bus)
+  // Advisory events (forwarded from advisory-hub → investor-bus)
   DECISION_PACKET_CREATED: [
     { name: 'advisoryStatus', pipe: advisoryStatusPipe },
   ],
@@ -139,10 +123,9 @@ const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
     { name: 'recentActivity', pipe: recentActivityPipe },
   ],
 
-  // Order-ledger events (forwarded from execution-hub → investor-bus)
-  PORTFOLIO_SNAPSHOT_UPDATED: [
+  // Ledger events (forwarded from ledger-hub → investor-bus)
+  LEDGER_ENTRY_RECORDED: [
     { name: 'timeTravelAvailability', pipe: timeTravelAvailabilityPipe },
-    { name: 'simulationSummary', pipe: simulationSummaryPipe },
   ],
 
   // Investor events (native on investor-bus)

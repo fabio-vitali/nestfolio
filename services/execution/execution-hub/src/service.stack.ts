@@ -55,20 +55,40 @@ export class ExecutionHubStack extends Stack {
       eventBus: this.bus,
       eventPattern: {
         detailType: [
+          'ORDER_STAGED',
+          'ORDER_REJECTED',
+          'ORDER_CANCELLED',
+          'WITHDRAWAL_REJECTED',
+        ],
+      },
+      targets: [new EventBusTarget(investorBus, { deadLetterQueue: toInvestorDlq })],
+    });
+
+    // Cross-domain forwarding: Execution --> Ledger
+    const ledgerBusArn = StringParameter.valueForStringParameter(
+      this,
+      `/nestfolio/${prefix}-ledger/event-hub/busArn`,
+    );
+    const ledgerBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
+    const toLedgerDlq = new Queue(this, 'ToLedgerDLQ', {
+      retentionPeriod: Duration.days(14),
+      encryption: QueueEncryption.KMS_MANAGED,
+    });
+    new Rule(this, 'ToLedger', {
+      eventBus: this.bus,
+      eventPattern: {
+        detailType: [
           'ORDER_FILLED',
           'ORDER_PARTIALLY_FILLED',
           'ORDER_REJECTED',
           'ORDER_CANCELLED',
-          'ORDER_STAGED',
           'DEPOSIT_DETECTED',
           'WITHDRAWAL_COMPLETED',
-          'WITHDRAWAL_REJECTED',
           'CORPORATE_ACTION_APPLIED',
-          'RECONCILIATION_COMPLETED',
-          'RECONCILIATION_FAILED',
+          'PORTFOLIO_SNAPSHOT_IMPORTED',
         ],
       },
-      targets: [new EventBusTarget(investorBus, { deadLetterQueue: toInvestorDlq })],
+      targets: [new EventBusTarget(ledgerBus, { deadLetterQueue: toLedgerDlq })],
     });
 
     // Cross-domain forwarding: Execution --> Advisory
@@ -100,7 +120,7 @@ export class ExecutionHubStack extends Stack {
 
     // Monitoring: CloudWatch alarms for EventBridge failures, forwarding DLQs
     new Monitoring(this, 'Monitoring', {
-      dlqs: [toInvestorDlq, toAdvisoryDlq],
+      dlqs: [toInvestorDlq, toAdvisoryDlq, toLedgerDlq],
       eventBusBusNames: [naming.eventBusName()],
     });
 
@@ -108,7 +128,7 @@ export class ExecutionHubStack extends Stack {
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'execution-hub',
       lambdaFunctions: [],
-      dlqs: [toInvestorDlq, toAdvisoryDlq],
+      dlqs: [toInvestorDlq, toAdvisoryDlq, toLedgerDlq],
       eventBusNames: [naming.eventBusName()],
     });
   }

@@ -67,8 +67,16 @@ export class Monitoring extends Construct {
     }
 
     // SQS DLQ alarms
+    const dlqIds = new Set<string>();
     for (const dlq of props.dlqs ?? []) {
-      new Alarm(this, `${dlq.node.id}MessagesVisible`, {
+      // Use parent path to disambiguate DLQs with the same node.id (e.g. Ingress/DLQ vs Egress/DLQ)
+      let alarmId = `${dlq.node.id}MessagesVisible`;
+      if (dlqIds.has(alarmId)) {
+        const parentId = dlq.node.scope?.node.id ?? 'Unknown';
+        alarmId = `${parentId}${dlq.node.id}MessagesVisible`;
+      }
+      dlqIds.add(alarmId);
+      new Alarm(this, alarmId, {
         alarmDescription: `DLQ ${dlq.node.id} has visible messages`,
         metric: dlq.metricApproximateNumberOfMessagesVisible({ period: Duration.minutes(5) }),
         threshold: 0,

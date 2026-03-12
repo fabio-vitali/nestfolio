@@ -5,16 +5,14 @@ import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMe
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { UserRegisteredPipe } from '../pipes/user-registered.pipe';
 import { NotificationCreatedPipe } from '../pipes/notification-created.pipe';
-import { DepositDetectedPipe } from '../pipes/deposit-detected.pipe';
-import { WithdrawalCompletedPipe } from '../pipes/withdrawal-completed.pipe';
+import { BalanceUpdatedPipe } from '../pipes/balance-updated.pipe';
 
 interface EventListenerDeps {
   readonly repository: InvestorProfileRepository;
   readonly idempotencyGuard: IdempotencyGuard;
   readonly userRegisteredPipe: UserRegisteredPipe;
   readonly notificationCreatedPipe: NotificationCreatedPipe;
-  readonly depositDetectedPipe: DepositDetectedPipe;
-  readonly withdrawalCompletedPipe: WithdrawalCompletedPipe;
+  readonly balanceUpdatedPipe: BalanceUpdatedPipe;
   readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
 }
@@ -22,9 +20,7 @@ interface EventListenerDeps {
 const TRIGGER_EVENT_TYPES = new Set([
   'USER_REGISTERED',
   'NOTIFICATION_CREATED',
-  'DEPOSIT_DETECTED',
-  'WITHDRAWAL_COMPLETED',
-  'ORDER_FILLED',
+  'BALANCE_UPDATED',
 ]);
 
 export const createHandler = (deps: EventListenerDeps) =>
@@ -84,36 +80,10 @@ async function processEvent(
     case 'NOTIFICATION_CREATED':
       await deps.notificationCreatedPipe.process(uow as any);
       break;
-    case 'DEPOSIT_DETECTED':
-      await deps.depositDetectedPipe.process(uow as any);
-      break;
-    case 'WITHDRAWAL_COMPLETED':
-      await deps.withdrawalCompletedPipe.process(uow as any);
-      break;
-    case 'ORDER_FILLED':
-      await updateCashBalanceFromFill(deps, uow);
+    case 'BALANCE_UPDATED':
+      await deps.balanceUpdatedPipe.process(uow as any);
       break;
   }
-}
-
-async function updateCashBalanceFromFill(
-  deps: EventListenerDeps,
-  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
-): Promise<void> {
-  const payload = uow.event.subject as Record<string, unknown>;
-  const tenantId = (payload?.tenantId as string) ?? (uow.event.context as Record<string, unknown>)?.tenantId as string;
-  const userId = payload?.userId as string;
-  const side = payload?.side as string;
-  const totalValue = payload?.totalValue as number;
-
-  if (!tenantId || !userId || !side || totalValue == null) {
-    logger.warn('ORDER_FILLED event missing required fields for cash update', { tenantId, userId, side, totalValue });
-    return;
-  }
-
-  // BUY decreases cash, SELL increases cash
-  const deltaCents = side === 'BUY' ? -Math.round(totalValue * 100) : Math.round(totalValue * 100);
-  await deps.repository.updateCashBalance(tenantId, userId, deltaCents);
 }
 
 // Production wiring
@@ -127,8 +97,7 @@ const deps: EventListenerDeps = {
   idempotencyGuard,
   userRegisteredPipe: new UserRegisteredPipe(repository, idempotencyGuard),
   notificationCreatedPipe: new NotificationCreatedPipe(repository),
-  depositDetectedPipe: new DepositDetectedPipe(repository),
-  withdrawalCompletedPipe: new WithdrawalCompletedPipe(repository),
+  balanceUpdatedPipe: new BalanceUpdatedPipe(repository),
   bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'investor-bff'),
   metrics: createServiceMetrics('investor-bff'),
 };

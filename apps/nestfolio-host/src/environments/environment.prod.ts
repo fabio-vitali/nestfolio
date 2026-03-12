@@ -10,10 +10,6 @@ export const environment = {
       endpoint: '',
       region: 'us-east-1',
     },
-    portfolioBff: {
-      endpoint: '',
-      region: 'us-east-1',
-    },
     advisoryBff: {
       endpoint: '',
       region: 'us-east-1',
@@ -22,7 +18,7 @@ export const environment = {
       endpoint: '',
       region: 'us-east-1',
     },
-    orderLedgerBff: {
+    ledgerBff: {
       endpoint: '',
       region: 'us-east-1',
     },

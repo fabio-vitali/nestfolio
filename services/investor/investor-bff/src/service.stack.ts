@@ -52,10 +52,7 @@ export class InvestorBffStack extends Stack {
       eventTypes: [
         'USER_REGISTERED',
         'NOTIFICATION_CREATED',
-        'DEPOSIT_DETECTED',
-        'WITHDRAWAL_COMPLETED',
-        'WITHDRAWAL_REJECTED',
-        'ORDER_FILLED',
+        'BALANCE_UPDATED',
       ],
       handler: eventListener,
     });

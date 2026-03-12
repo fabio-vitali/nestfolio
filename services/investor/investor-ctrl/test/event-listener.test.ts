@@ -312,6 +312,26 @@ describe('event-listener handler', () => {
     expect(isRetryable).toHaveBeenCalled();
   });
 
+  it('should process BALANCE_UPDATED event', async () => {
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-balance',
+        body: {
+          detail: {
+            id: 'evt-balance',
+            type: 'BALANCE_UPDATED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: { tenantId: 't1', balanceCents: 1050000, deltaCents: 50000 },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+  });
+
   it('should skip duplicate events via idempotency guard', async () => {
     mockEnsureOnce.mockResolvedValue(false);
 

@@ -432,45 +432,17 @@ export class InvestorProfileRepository extends TableRepository {
     },
   );
 
-  readonly withdrawCashConditional = this.log('withdrawCashConditional',
-    async (tenantId: string, userId: string, amountCents: number): Promise<void> => {
-      await this.docClient.send(new UpdateCommand({
-        TableName: this.tableName,
-        Key: { pk: profilePk(tenantId, userId), sk: 'CashBalance' },
-        UpdateExpression: 'ADD balanceCents :negAmount',
-        ConditionExpression: 'attribute_exists(balanceCents) AND balanceCents >= :amount',
-        ExpressionAttributeValues: {
-          ':negAmount': -amountCents,
-          ':amount': amountCents,
-        },
-      }));
-    },
-  );
-
-  readonly getCashBalance = this.log('getCashBalance',
-    async (tenantId: string, userId: string): Promise<number> => {
-      const pk = profilePk(tenantId, userId);
-      const result = await this.docClient.send(
-        new GetCommand({
-          TableName: this.tableName,
-          Key: { pk, sk: 'CashBalance' },
-        }),
-      );
-      return (result.Item?.balanceCents as number) ?? 0;
-    },
-  );
-
-  readonly updateCashBalance = this.log('updateCashBalance',
-    async (tenantId: string, userId: string, deltaCents: number): Promise<void> => {
+  readonly upsertReadOnlyBalance = this.log('upsertReadOnlyBalance',
+    async (tenantId: string, userId: string, balanceCents: number): Promise<void> => {
       const pk = profilePk(tenantId, userId);
       const now = getTime();
       await this.docClient.send(
         new UpdateCommand({
           TableName: this.tableName,
           Key: { pk, sk: 'CashBalance' },
-          UpdateExpression: 'SET balanceCents = if_not_exists(balanceCents, :zero) + :delta, #ts = :ts, updatedAt = :now, #tn = :tn, pk = if_not_exists(pk, :pk), tenantId = if_not_exists(tenantId, :tid)',
+          UpdateExpression: 'SET balanceCents = :balance, #ts = :ts, updatedAt = :now, #tn = :tn, pk = if_not_exists(pk, :pk), tenantId = if_not_exists(tenantId, :tid)',
           ExpressionAttributeNames: { '#ts': 'timestamp', '#tn': '__typename' },
-          ExpressionAttributeValues: { ':delta': deltaCents, ':ts': now, ':now': now, ':zero': 0, ':tn': 'CashBalance', ':pk': pk, ':tid': tenantId },
+          ExpressionAttributeValues: { ':balance': balanceCents, ':ts': now, ':now': now, ':tn': 'CashBalance', ':pk': pk, ':tid': tenantId },
         }),
       );
     },
