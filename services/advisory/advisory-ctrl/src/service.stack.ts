@@ -33,15 +33,6 @@ export class AdvisoryCtrlStack extends Stack {
     // State: DynamoDB table
     const state = new State(this, 'State');
 
-    // Event listener Lambda (all event types)
-    const eventListener = new NodejsFunction(this, 'EventListener', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'advisory-ctrl' },
-    });
-    state.table.grantReadWriteData(eventListener);
-    eventListener.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
-
     // Ingress: advisory EventBridge bus -> SQS -> event-listener
     const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus', naming.eventBusName()),
@@ -60,12 +51,14 @@ export class AdvisoryCtrlStack extends Stack {
         'USER_CONFIRMED',
         'USER_REJECTED',
       ],
-      handler: eventListener,
+      entry: join(__dirname, 'handlers', 'event-listener.ts'),
+      serviceName: 'advisory-ctrl',
+      state,
     });
 
     // Egress: DynamoDB Streams -> EventBridge
     const egress = new Egress(this, 'Egress', {
-      table: state.table,
+      table: state.getTable(),
       busName: naming.eventBusName(),
       serviceName: 'advisory-ctrl',
       publishableTypes: ['DecisionPacket', 'AgentInvocation', 'WorkflowState'],
@@ -90,17 +83,17 @@ export class AdvisoryCtrlStack extends Stack {
     );
 
     // Pass model SSM parameter names as env vars for runtime Lambda resolution
-    eventListener.addEnvironment('MODEL_OPUS_SSM', hubNaming.ssmParameterPath('models/opus'));
-    eventListener.addEnvironment('MODEL_SONNET_SSM', hubNaming.ssmParameterPath('models/sonnet'));
-    eventListener.addEnvironment('MODEL_HAIKU_SSM', hubNaming.ssmParameterPath('models/haiku'));
+    ingress.handler.addEnvironment('MODEL_OPUS_SSM', hubNaming.ssmParameterPath('models/opus'));
+    ingress.handler.addEnvironment('MODEL_SONNET_SSM', hubNaming.ssmParameterPath('models/sonnet'));
+    ingress.handler.addEnvironment('MODEL_HAIKU_SSM', hubNaming.ssmParameterPath('models/haiku'));
 
     // AgentCore Runtime for decision lifecycle agent
     const portfolioLookupFn = new NodejsFunction(this, 'PortfolioLookup', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'tools', 'portfolio-lookup.ts'),
-      environment: { TABLE_NAME: state.table.tableName },
+      environment: { TABLE_NAME: state.getTable().tableName },
     });
-    state.table.grantReadData(portfolioLookupFn);
+    state.getTable().grantReadData(portfolioLookupFn);
 
     const marketDataFn = new NodejsFunction(this, 'MarketData', {
       ...defaultLambdaProps(this),
@@ -132,7 +125,7 @@ export class AdvisoryCtrlStack extends Stack {
       runtimeName: 'advisory_ctrl_decision_lifecycle',
       agentCodePath: join(__dirname, '..', 'agents', 'decision-lifecycle'),
       description: 'Multi-agent decision lifecycle orchestrated via LangGraph.js',
-      tables: [state.table],
+      tables: [state.getTable()],
       modelIds: [modelOpusId, modelSonnetId, modelHaikuId],
       toolTargets: [
         {
@@ -164,7 +157,7 @@ export class AdvisoryCtrlStack extends Stack {
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth, Bedrock errors
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
+      lambdaFunctions: [ingress.handler, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
       dlqs: [ingress.dlq, egress.dlq],
       monitorBedrock: true,
       bedrockModelIds: [modelOpusId, modelSonnetId, modelHaikuId],
@@ -173,7 +166,7 @@ export class AdvisoryCtrlStack extends Stack {
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'advisory-ctrl',
-      lambdaFunctions: [eventListener, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
+      lambdaFunctions: [ingress.handler, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
       dlqs: [ingress.dlq, egress.dlq],
     });
   }

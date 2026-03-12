@@ -1,7 +1,5 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
 import { Construct } from 'constructs';
@@ -14,7 +12,6 @@ import {
   Monitoring,
   ServiceDashboard,
   createNamingService,
-  defaultLambdaProps,
   applyStandardTags,
 } from '@nestfolio/cdk-constructs';
 
@@ -34,15 +31,6 @@ export class AdvisoryBffStack extends Stack {
     // State: DynamoDB table
     const state = new State(this, 'State');
 
-    // Event listener Lambda
-    const eventListener = new NodejsFunction(this, 'EventListener', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'advisory-bff' },
-    });
-    state.table.grantReadWriteData(eventListener);
-    eventListener.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
-
     // Ingress: EventBridge -> SQS -> event-listener
     const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus', naming.eventBusName()),
@@ -53,12 +41,14 @@ export class AdvisoryBffStack extends Stack {
         'DECISION_BLOCKED',
         'USER_CONFIRMATION_REQUESTED',
       ],
-      handler: eventListener,
+      entry: join(__dirname, 'handlers', 'event-listener.ts'),
+      serviceName: 'advisory-bff',
+      state,
     });
 
     // Egress: DynamoDB Streams -> EventBridge publisher
     const egress = new Egress(this, 'Egress', {
-      table: state.table,
+      table: state.getTable(),
       busName: naming.eventBusName(),
       serviceName: 'advisory-bff',
       publishableTypes: ['DecisionReadModel', 'UserInteraction', 'UserConfirmation', 'UserRejection'],
@@ -79,7 +69,7 @@ export class AdvisoryBffStack extends Stack {
     new Facade(this, 'Facade', {
       schemaPath: join(__dirname, 'schema.graphql'),
       userPool,
-      table: state.table,
+      table: state.getTable(),
       jsResolvers: [
         { typeName: 'Query', fieldName: 'getDecision', pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-decision.fn.js')] },
         { typeName: 'Query', fieldName: 'getPendingDecisions', pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-pending-decisions.fn.js')] },
@@ -94,14 +84,14 @@ export class AdvisoryBffStack extends Stack {
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener],
+      lambdaFunctions: [ingress.handler],
       dlqs: [ingress.dlq, egress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'advisory-bff',
-      lambdaFunctions: [eventListener],
+      lambdaFunctions: [ingress.handler],
       dlqs: [ingress.dlq, egress.dlq],
     });
   }

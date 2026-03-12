@@ -1,7 +1,5 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import {
@@ -11,7 +9,6 @@ import {
   Monitoring,
   ServiceDashboard,
   createNamingService,
-  defaultLambdaProps,
   applyStandardTags,
 } from '@nestfolio/cdk-constructs';
 
@@ -31,15 +28,6 @@ export class ComplianceCtrlStack extends Stack {
     // State: DynamoDB table
     const state = new State(this, 'State');
 
-    // Event listener Lambda — handles all event types
-    const eventListener = new NodejsFunction(this, 'EventListener', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'compliance-ctrl' },
-    });
-    state.table.grantReadWriteData(eventListener);
-    eventListener.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
-
     // Ingress: EventBridge -> SQS -> event-listener (all event types)
     const ingress = new Ingress(this, 'Ingress', {
       eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus', naming.eventBusName()),
@@ -51,12 +39,14 @@ export class ComplianceCtrlStack extends Stack {
         'MANDATE_REVOKED',
         'OPERATING_MODE_CHANGED',
       ],
-      handler: eventListener,
+      entry: join(__dirname, 'handlers', 'event-listener.ts'),
+      serviceName: 'compliance-ctrl',
+      state,
     });
 
     // Egress: DynamoDB Streams -> EventBridge publisher
     const egress = new Egress(this, 'Egress', {
-      table: state.table,
+      table: state.getTable(),
       busName: naming.eventBusName(),
       serviceName: 'compliance-ctrl',
       publishableTypes: ['ComplianceCheck', 'AuditArtifact'],
@@ -64,14 +54,14 @@ export class ComplianceCtrlStack extends Stack {
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener],
+      lambdaFunctions: [ingress.handler],
       dlqs: [ingress.dlq, egress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'compliance-ctrl',
-      lambdaFunctions: [eventListener],
+      lambdaFunctions: [ingress.handler],
       dlqs: [ingress.dlq, egress.dlq],
     });
   }
