@@ -308,3 +308,61 @@ After decomposing each bounded context into services, map how domains communicat
 7. **Resilience by design**: Every event consumption path includes buffering, retry, and dead-letter capture. No event is silently lost. Non-retryable failures are published as typed failure events.
 
 8. **Type safety across service boundaries**: Event contracts are shared as typed definitions between producer and consumer services. Changes to event shapes are caught at compile time.
+
+---
+
+## Domain Inventory
+
+### Investor Domain
+Identity, onboarding, goals, risk profiles, mandates, notifications. The investor domain owns the user's identity and preferences.
+
+**Services:** investor-hub, investor-web, investor-bff, investor-ctrl, dashboard-bff
+
+### Advisory Domain
+Decision-making, compliance, agent-driven analysis. The advisory domain consumes investor preferences and market signals to produce investment decisions.
+
+**Services:** advisory-hub, advisory-ctrl, compliance-ctrl, advisory-bff
+
+### Execution Domain
+Order lifecycle, broker integration, market data streaming. The execution domain handles order routing, fill confirmation, and broker connectivity.
+
+**Services:** execution-hub, execution-ctrl, execution-adpt
+
+### Ledger Domain
+Financial truth — event-sourced account state, balance tracking, portfolio projections, time-travel, simulation comparison, reconciliation. The ledger domain is the single source of truth for all financial state.
+
+**Services:** ledger-hub, ledger-ctrl, ledger-bff, reconciliation-ctrl
+
+### Cross-Domain Event Routing
+
+| Source Hub | Target Hub | Event Types |
+|------------|------------|-------------|
+| investor-hub | advisory-hub | GOAL_UPDATED, RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED, MANDATE_GRANTED/UPDATED/REVOKED |
+| investor-hub | execution-hub | DEPOSIT_INITIATED, WITHDRAWAL_REQUESTED, ACCOUNT_CLOSURE_REQUESTED |
+| execution-hub | investor-hub | ORDER_STAGED, ORDER_REJECTED, ORDER_CANCELLED, WITHDRAWAL_REJECTED |
+| execution-hub | advisory-hub | ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED, PORTFOLIO_DRIFT_DETECTED, BROKER_SESSION_LOST, STREAM_DISCONNECTED, RECONCILIATION_FAILED |
+| execution-hub | ledger-hub | ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, CORPORATE_ACTION_APPLIED, PORTFOLIO_SNAPSHOT_IMPORTED |
+| ledger-hub | investor-hub | BALANCE_UPDATED, PORTFOLIO_UPDATED, RECONCILIATION_COMPLETED, RECONCILIATION_FAILED, LEDGER_PROCESSING_FAILED |
+| ledger-hub | advisory-hub | PORTFOLIO_UPDATED, PORTFOLIO_DRIFT_DETECTED, RECONCILIATION_FAILED |
+
+---
+
+## MFE-BFF Pairing Rule
+
+Each user-facing micro-frontend (MFE) communicates with exactly one backend-for-frontend (BFF)
+via a single AppSync endpoint. An MFE must never query multiple BFFs directly.
+
+If an MFE needs data owned by another domain, its paired BFF consumes events and maintains
+a read-only projection. This ensures:
+- Clear ownership boundaries
+- No cross-service state sharing
+- Single point of failure per user-facing feature
+
+### Current MFE-BFF Mapping
+
+| MFE | BFF | Domain |
+|-----|-----|--------|
+| investor-mfe | investor-bff | Investor |
+| dashboard-mfe | dashboard-bff | Investor |
+| advisory-mfe | advisory-bff | Advisory |
+| ledger-mfe | ledger-bff | Ledger |
