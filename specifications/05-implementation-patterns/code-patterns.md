@@ -456,11 +456,23 @@ export class PortfolioBffStack extends Stack {
       busName: process.env.BUS_NAME!,
     });
 
-    // 4. Facade - API layer
+    // 4. Facade - API layer (JS pipeline resolvers)
     const facade = new Facade(this, 'Facade', {
-      schemaPath: './graphql/schema.graphql',
-      resolvers: graphqlResolvers,
+      schemaPath: join(__dirname, 'schema.graphql'),
+      userPool,
       table: state.table,
+      jsResolvers: [
+        {
+          typeName: 'Query',
+          fieldName: 'getPortfolio',
+          pipeline: [checkAuthPath, getPortfolioPath, createPortfolioPath],
+        },
+        // ... one entry per GraphQL field
+      ],
+      // Lambda resolvers only for fields that cannot use JS (optional)
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'getComplexField', handler: resolverFn },
+      ],
     });
   }
 }

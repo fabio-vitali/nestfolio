@@ -137,16 +137,59 @@ This pattern decouples event production from consumption, provides back-pressure
 
 ## Service Infrastructure Envelope
 
-Each service has a fixed, minimal infrastructure footprint consisting of **at most two Lambda functions** and their supporting infrastructure:
+Each service has a fixed, minimal infrastructure footprint. For **BFF services**, the API surface is handled by AppSync JS pipeline resolvers (see *BFF API Layer* below), not by a dedicated Lambda function. The Lambda footprint consists of:
 
 - **One event-listener Lambda (ingress)**: A single EventBridge rule → SQS queue (with dead-letter queue) → Lambda handler. All event types the service consumes arrive through this single queue and are dispatched inside the handler via code (`switch`/`case` or `Set.has()`). Event type multiplexing is a code concern, not an infrastructure concern -- creating additional queues or Lambdas for different event types is not permitted.
 - **One event-publisher Lambda (egress)** *(when the service publishes domain events)*: A single change-data-capture trigger (DynamoDB Streams or S3 Event Notifications) → Lambda handler that publishes state changes as domain events to the EventBridge bus. This Lambda is provided by the Egress construct and is not written per-service.
 
-Not every service requires both paths. A BFF that serves as a **pure read-model** -- materializing incoming events into query-optimized projections without producing domain events -- has an ingress path but no egress path. It receives events, updates its projections, and exposes them via its API surface. Since it does not publish state changes, no Egress construct or event-publisher Lambda is needed.
+The BFF's GraphQL API is served by **AppSync JS pipeline resolvers** that execute directly within AppSync against a DynamoDB data source. No Lambda function is required for the API path unless specific operations demand it (see *BFF API Layer — When Lambda Resolvers Are Required*). When Lambda resolvers are needed for specific fields, a single resolver Lambda handles all Lambda-backed fields.
 
-This means each service owns **at most one SQS queue, two DLQs** (one for the ingress SQS queue, one for the egress stream consumer when present), **and two Lambdas**. This constraint keeps the infrastructure footprint predictable and ensures that cross-cutting concerns (middleware, metrics, tracing, idempotency) are applied uniformly in a single handler rather than duplicated across multiple Lambdas.
+Not every service requires both event paths. A BFF that serves as a **pure read-model** -- materializing incoming events into query-optimized projections without producing domain events -- has an ingress path but no egress path. It receives events, updates its projections, and exposes them via its API surface. Since it does not publish state changes, no Egress construct or event-publisher Lambda is needed.
 
-**Scoped exceptions**: Specific runtime integrations (e.g., Bedrock AgentCore tool targets, Step Functions task callbacks, DynamoDB Stream reducers for event-sourced aggregates) may require additional Lambda functions. These are not general event processing paths -- they do not receive events from the bus and do not publish events directly to the bus. They exist solely to serve the runtime that invokes them and must be explicitly justified in the service's design.
+This means each service owns **at most one SQS queue, two DLQs** (one for the ingress SQS queue, one for the egress stream consumer when present), **and at most two Lambdas** (event-listener + event-publisher). The GraphQL API path does not add to the Lambda count. This constraint keeps the infrastructure footprint predictable and ensures that cross-cutting concerns (middleware, metrics, tracing, idempotency) are applied uniformly in a single handler rather than duplicated across multiple Lambdas.
+
+**Scoped exceptions**: Specific runtime integrations (e.g., Bedrock AgentCore tool targets, Step Functions task callbacks, DynamoDB Stream reducers for event-sourced aggregates, BFF fields requiring Lambda resolvers) may require additional Lambda functions. These are not general event processing paths -- they do not receive events from the bus and do not publish events directly to the bus. They exist solely to serve the runtime that invokes them and must be explicitly justified in the service's design.
+
+---
+
+## BFF API Layer -- AppSync JS Pipeline Resolvers
+
+BFF services expose their API surface through AppSync GraphQL APIs. The default resolver implementation uses **AppSync JS pipeline resolvers** (APPSYNC_JS runtime), not Lambda resolvers. JS resolvers execute directly within the AppSync service, eliminating Lambda cold starts, invocation overhead, and runtime error surface.
+
+### Pipeline Pattern
+
+Every JS-resolved field follows a standardized pipeline:
+
+```
+Root resolver (inline) → checkAuth → businessLogic [→ readBack]
+```
+
+- **Root resolver**: Sets shared context (`ctx.stash.tableName`) and passes through the final result.
+- **checkAuth**: Extracts `tenantId` and `userId` from Cognito claims into `ctx.stash`. Rejects unauthorized requests.
+- **Business logic**: Performs the DynamoDB operation using `@aws-appsync/utils/dynamodb` helpers (`ddb.get`, `ddb.query`, `ddb.put`, `ddb.update`) or raw operations (`TransactWriteItems`, `BatchGetItem`). Validates inputs inline via `util.error()`.
+- **readBack** (optional): For mutations that use `TransactWriteItems` (which returns keys, not items), a follow-up `ddb.get()` fetches the updated item to return to the client.
+
+### When Lambda Resolvers Are Required
+
+Lambda resolvers are used only when the APPSYNC_JS runtime cannot support the operation:
+
+| Constraint | Example |
+|------------|---------|
+| **Parallel DynamoDB reads** | Operations requiring `Promise.all()` over multiple independent queries — JS pipeline functions execute sequentially |
+| **npm module dependencies** | Event sourcing replay requiring `portfolioReducer` from a shared lib — APPSYNC_JS cannot import npm modules |
+| **Complex computation** | Multi-step aggregation, comparison, or transformation logic that exceeds what is reasonable in a resolver function |
+
+When a BFF mixes JS and Lambda resolvers, the Facade construct wires both: `jsResolvers` for JS pipeline fields and `lambdaResolvers` for Lambda-backed fields, each with their own data source.
+
+### Event Publishing from JS Resolvers
+
+JS resolvers cannot publish directly to EventBridge. When a mutation must trigger a domain event (e.g., `DEPOSIT_INITIATED`), the write goes to DynamoDB and the **Egress construct** handles event publishing via DynamoDB Streams. The Egress supports a `customEventTypeMap` to publish intent-based event types (e.g., `Deposit:INSERT` → `DEPOSIT_INITIATED`) instead of the default convention-based names (`DEPOSIT_CREATED`).
+
+This is architecturally superior to the Lambda alternative: DynamoDB write + explicit EventBridge publish is non-atomic (if the publish fails, the event is lost). Stream-based publishing via Egress guarantees delivery with retry and DLQ.
+
+### Atomicity
+
+JS resolvers using `TransactWriteItems` can achieve atomicity that was previously difficult in Lambda. Multi-item writes (entity + audit event, conditional balance check + withdrawal record) execute as a single DynamoDB transaction within the resolver function.
 
 ---
 
