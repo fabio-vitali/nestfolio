@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { UpdateCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getTime, type TableEntry } from '@nestfolio/platform-core';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 
@@ -204,7 +204,7 @@ export class LedgerRepository extends TableRepository {
       };
       // Conditional write — only if checkpoint for this date doesn't exist yet
       await this.docClient.send(
-        new (await import('@aws-sdk/lib-dynamodb')).PutCommand({
+        new PutCommand({
           TableName: this.tableName,
           Item: item,
           ConditionExpression: 'attribute_not_exists(pk)',
@@ -220,8 +220,19 @@ export class LedgerRepository extends TableRepository {
       sinceSequence: number,
     ): Promise<Record<string, unknown>[]> => {
       const pk = `Account#${tenantId}#${streamType}`;
-      const items = await this.queryByPk(pk, 'Event#');
-      return items.filter((item) => (item['sequenceNo'] as number) > sinceSequence);
+      const skStart = `Event#${String(sinceSequence + 1).padStart(8, '0')}`;
+      const result = await this.docClient.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          KeyConditionExpression: 'pk = :pk AND sk BETWEEN :skStart AND :skEnd',
+          ExpressionAttributeValues: {
+            ':pk': pk,
+            ':skStart': skStart,
+            ':skEnd': 'Event#99999999~',
+          },
+        }),
+      );
+      return result.Items ?? [];
     },
   );
 

@@ -3,39 +3,6 @@
 export const POSITION_FIELDS = `
   fragment PositionFields on Position {
     symbol
-    assetClass
-    quantity
-    averageCostBasisCents
-    currentPriceCents
-    marketValueCents
-    weightPercent
-    targetWeightPercent
-    unrealizedPnlCents
-    lastUpdatedAt
-  }
-`;
-
-export const PORTFOLIO_FIELDS = `
-  fragment PortfolioFields on Portfolio {
-    portfolioId
-    tenantId
-    positions {
-      ...PositionFields
-    }
-    cashBalanceCents
-    totalValueCents
-    currency
-    driftPercent
-    lastSnapshotAt
-    createdAt
-    updatedAt
-  }
-  ${POSITION_FIELDS}
-`;
-
-export const LEDGER_POSITION_FIELDS = `
-  fragment LedgerPositionFields on LedgerPosition {
-    symbol
     quantity
     averageCostBasis
     totalCostBasis
@@ -43,21 +10,26 @@ export const LEDGER_POSITION_FIELDS = `
   }
 `;
 
-export const LEDGER_PORTFOLIO_FIELDS = `
-  fragment LedgerPortfolioFields on LedgerPortfolio {
-    positions {
-      ...LedgerPositionFields
-    }
+export const PORTFOLIO_FIELDS = `
+  fragment PortfolioFields on Portfolio {
     cashBalanceCents
     totalValueCents
-    positionCount
-    snapshotAt
-    streamType
+    positions {
+      ...PositionFields
+    }
   }
-  ${LEDGER_POSITION_FIELDS}
+  ${POSITION_FIELDS}
 `;
 
 // --- Queries ---
+
+export const GET_BALANCE = `
+  query GetBalance {
+    getBalance {
+      cashBalanceCents
+    }
+  }
+`;
 
 export const GET_PORTFOLIO = `
   query GetPortfolio {
@@ -69,85 +41,35 @@ export const GET_PORTFOLIO = `
 `;
 
 export const GET_POSITIONS = `
-  query GetPositions {
-    getPositions {
+  query GetPositions($symbol: String) {
+    getPositions(symbol: $symbol) {
       ...PositionFields
     }
   }
   ${POSITION_FIELDS}
 `;
 
-export const GET_CASH_BALANCE = `
-  query GetCashBalance($currency: String) {
-    getCashBalance(currency: $currency) {
-      currency
-      amount
-      updatedAt
-    }
-  }
-`;
-
 export const GET_PERFORMANCE = `
-  query GetPerformance($period: String!) {
-    getPerformance(period: $period) {
-      period
+  query GetPerformance {
+    getPerformance {
+      totalValueCents
+      cashBalanceCents
+      investedValueCents
       returnPercent
-      returnAbsolute
-      sharpeRatio
-      maxDrawdown
     }
   }
 `;
 
-export const GET_LEDGER_PORTFOLIO = `
-  query GetLedgerPortfolio($streamType: StreamType!) {
-    getLedgerPortfolio(streamType: $streamType) {
-      ...LedgerPortfolioFields
-    }
-  }
-  ${LEDGER_PORTFOLIO_FIELDS}
-`;
-
-export const GET_PORTFOLIO_AT = `
-  query GetPortfolioAt($streamType: StreamType!, $timestamp: String!) {
-    getPortfolioAt(streamType: $streamType, timestamp: $timestamp) {
-      ...LedgerPortfolioFields
-    }
-  }
-  ${LEDGER_PORTFOLIO_FIELDS}
-`;
-
-export const GET_SIMULATION_COMPARISON = `
-  query GetSimulationComparison {
-    getSimulationComparison {
-      actual {
-        totalValueCents
-        cashBalanceCents
-        positionCount
-        totalReturnPercent
-        totalReturnCents
+export const GET_ORDER_HISTORY = `
+  query GetOrderHistory($limit: Int, $nextToken: String) {
+    getOrderHistory(limit: $limit, nextToken: $nextToken) {
+      items {
+        eventType
+        payload
+        timestamp
+        sequenceNo
       }
-      simulated {
-        totalValueCents
-        cashBalanceCents
-        positionCount
-        totalReturnPercent
-        totalReturnCents
-      }
-      divergence {
-        returnDifferencePercent
-        returnDifferenceCents
-        positionDifferences {
-          symbol
-          actualQuantity
-          simulatedQuantity
-          quantityDifference
-          actualValueCents
-          simulatedValueCents
-        }
-        missedDecisions
-        totalDecisions
-      }
+      nextToken
     }
   }
 `;
@@ -155,29 +77,38 @@ export const GET_SIMULATION_COMPARISON = `
 export const GET_TIME_TRAVEL_AVAILABILITY = `
   query GetTimeTravelAvailability {
     getTimeTravelAvailability {
-      available
-      oldestDate
+      earliestDate
       latestDate
     }
   }
 `;
 
-// --- Subscriptions ---
-
-export const ON_PORTFOLIO_UPDATE = `
-  subscription OnPortfolioUpdate {
-    onPortfolioUpdate {
+export const GET_PORTFOLIO_AT = `
+  query GetPortfolioAt($timestamp: String!) {
+    getPortfolioAt(timestamp: $timestamp) {
       ...PortfolioFields
     }
   }
   ${PORTFOLIO_FIELDS}
 `;
 
-export const ON_POSITION_UPDATE = `
-  subscription OnPositionUpdate {
-    onPositionUpdate {
-      ...PositionFields
+export const GET_SIMULATION_COMPARISON = `
+  query GetSimulationComparison {
+    getSimulationComparison {
+      actual {
+        ...PortfolioFields
+      }
+      simulated {
+        ...PortfolioFields
+      }
+      cashDeltaCents
+      positionDiffs {
+        symbol
+        actualQuantity
+        simulatedQuantity
+        quantityDiff
+      }
     }
   }
-  ${POSITION_FIELDS}
+  ${PORTFOLIO_FIELDS}
 `;
