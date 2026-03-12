@@ -64,15 +64,6 @@ export class AdvisoryBffStack extends Stack {
       publishableTypes: ['DecisionReadModel', 'UserInteraction', 'UserConfirmation', 'UserRejection'],
     });
 
-    // GraphQL resolver Lambda
-    const resolver = new NodejsFunction(this, 'GraphqlResolver', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'graphql-resolver.ts'),
-      environment: { TABLE_NAME: state.table.tableName, BUS_NAME: naming.eventBusName(), SERVICE_NAME: 'advisory-bff' },
-    });
-    state.table.grantReadWriteData(resolver);
-    resolver.addToRolePolicy(new PolicyStatement({ actions: ['events:PutEvents'], resources: [`arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${naming.eventBusName()}`] }));
-
     // Read Cognito UserPool from SSM
     const userPoolId = StringParameter.valueForStringParameter(
       this,
@@ -80,23 +71,37 @@ export class AdvisoryBffStack extends Stack {
     );
     const userPool = UserPool.fromUserPoolId(this, 'UserPool', userPoolId);
 
-    // Facade: AppSync API
+    const JS_FN_PATH = join(__dirname, 'graphql', 'js-function');
+    const checkAuthPath = join(JS_FN_PATH, 'utils', 'check-auth.fn.js');
+    const readbackPath = join(JS_FN_PATH, 'get-decision-readback.fn.js');
+
+    // Facade: AppSync API with JS pipeline resolvers
     new Facade(this, 'Facade', {
       schemaPath: join(__dirname, 'schema.graphql'),
       userPool,
-      resolverFunctions: { default: resolver },
+      table: state.table,
+      jsResolvers: [
+        { typeName: 'Query', fieldName: 'getDecision', pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-decision.fn.js')] },
+        { typeName: 'Query', fieldName: 'getPendingDecisions', pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-pending-decisions.fn.js')] },
+        { typeName: 'Query', fieldName: 'getDecisionHistory', pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-decision-history.fn.js')] },
+        { typeName: 'Query', fieldName: 'getAgentInvocations', pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-agent-invocations.fn.js')] },
+        { typeName: 'Query', fieldName: 'getComplianceChecks', pipeline: [checkAuthPath, join(JS_FN_PATH, 'get-compliance-checks.fn.js')] },
+        { typeName: 'Mutation', fieldName: 'confirmDecision', pipeline: [checkAuthPath, join(JS_FN_PATH, 'transact-confirm-decision.fn.js'), readbackPath] },
+        { typeName: 'Mutation', fieldName: 'rejectDecision', pipeline: [checkAuthPath, join(JS_FN_PATH, 'transact-reject-decision.fn.js'), readbackPath] },
+        { typeName: 'Mutation', fieldName: 'recordExplanationView', pipeline: [checkAuthPath, join(JS_FN_PATH, 'record-explanation-view.fn.js')] },
+      ],
     });
 
     // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth
     new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [eventListener, resolver],
+      lambdaFunctions: [eventListener],
       dlqs: [ingress.dlq, egress.dlq],
     });
 
     // Dashboard: CloudWatch dashboard for service observability
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: 'advisory-bff',
-      lambdaFunctions: [eventListener, resolver],
+      lambdaFunctions: [eventListener],
       dlqs: [ingress.dlq, egress.dlq],
     });
   }
