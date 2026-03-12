@@ -1,0 +1,66 @@
+type Query {
+  getBalance: Balance
+  getPortfolio: Portfolio
+  getPositions(symbol: String): [Position]
+  getPerformance: Performance
+  getOrderHistory(limit: Int, nextToken: String): OrderHistoryPage
+  getTimeTravelAvailability: TimeTravelAvailability
+  getPortfolioAt(timestamp: String!): Portfolio
+  getSimulationComparison: SimulationComparison
+}
+
+type Balance {
+  cashBalanceCents: Int!
+}
+
+type Portfolio {
+  cashBalanceCents: Int!
+  positions: [Position!]!
+  totalValueCents: Int
+}
+
+type Position {
+  symbol: String!
+  quantity: Int!
+  averageCostBasis: Float!
+  totalCostBasis: Float!
+  lastFillPrice: Float!
+}
+
+type Performance {
+  totalValueCents: Int!
+  cashBalanceCents: Int!
+  investedValueCents: Int!
+  returnPercent: Float
+}
+
+type OrderHistoryPage {
+  items: [OrderHistoryEntry!]!
+  nextToken: String
+}
+
+type OrderHistoryEntry {
+  eventType: String!
+  payload: AWSJSON!
+  timestamp: String!
+  sequenceNo: Int!
+}
+
+type TimeTravelAvailability {
+  earliestDate: String
+  latestDate: String
+}
+
+type SimulationComparison {
+  actual: Portfolio!
+  simulated: Portfolio!
+  cashDeltaCents: Int!
+  positionDiffs: [PositionDiff!]!
+}
+
+type PositionDiff {
+  symbol: String!
+  actualQuantity: Int!
+  simulatedQuantity: Int!
+  quantityDiff: Int!
+}
