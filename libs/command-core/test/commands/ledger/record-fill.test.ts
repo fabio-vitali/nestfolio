@@ -1,5 +1,5 @@
 import { applyCommand } from '../../../src/command';
-import { INITIAL_PORTFOLIO_STATE, type PortfolioState } from '../../../src/state/account-state';
+import { INITIAL_ACCOUNT_STATE, type AccountState } from '../../../src/state/account-state';
 import { RecordFill } from '../../../src/commands/ledger/record-fill';
 
 const validBuy = {
@@ -27,7 +27,7 @@ describe('RecordFill', () => {
 
   describe('BUY', () => {
     it('should add a new position on first buy', () => {
-      const result = applyCommand(RecordFill, validBuy, INITIAL_PORTFOLIO_STATE);
+      const result = applyCommand(RecordFill, validBuy, INITIAL_ACCOUNT_STATE);
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       const pos = result.value.nextState.positions['VTI'];
@@ -38,7 +38,7 @@ describe('RecordFill', () => {
     });
 
     it('should compute weighted average cost on second buy', () => {
-      const firstResult = applyCommand(RecordFill, validBuy, INITIAL_PORTFOLIO_STATE);
+      const firstResult = applyCommand(RecordFill, validBuy, INITIAL_ACCOUNT_STATE);
       expect(firstResult.ok).toBe(true);
       if (!firstResult.ok) return;
 
@@ -54,7 +54,7 @@ describe('RecordFill', () => {
     });
 
     it('should decrease cash balance on buy', () => {
-      const result = applyCommand(RecordFill, validBuy, INITIAL_PORTFOLIO_STATE);
+      const result = applyCommand(RecordFill, validBuy, INITIAL_ACCOUNT_STATE);
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       // 10 * 250.5 * 100 = 250500 cents
@@ -63,8 +63,8 @@ describe('RecordFill', () => {
   });
 
   describe('SELL', () => {
-    const stateWithPosition: PortfolioState = {
-      ...INITIAL_PORTFOLIO_STATE,
+    const stateWithPosition: AccountState = {
+      ...INITIAL_ACCOUNT_STATE,
       positions: {
         VTI: {
           symbol: 'VTI',
@@ -129,7 +129,7 @@ describe('RecordFill', () => {
       const result = applyCommand(
         RecordFill,
         { ...validBuy, quantity: 0 },
-        INITIAL_PORTFOLIO_STATE,
+        INITIAL_ACCOUNT_STATE,
       );
       expect(result.ok).toBe(false);
     });
@@ -138,7 +138,7 @@ describe('RecordFill', () => {
       const result = applyCommand(
         RecordFill,
         { ...validBuy, fillPrice: -10 },
-        INITIAL_PORTFOLIO_STATE,
+        INITIAL_ACCOUNT_STATE,
       );
       expect(result.ok).toBe(false);
     });
@@ -147,7 +147,7 @@ describe('RecordFill', () => {
       const result = applyCommand(
         RecordFill,
         { ...validBuy, symbol: '' },
-        INITIAL_PORTFOLIO_STATE,
+        INITIAL_ACCOUNT_STATE,
       );
       expect(result.ok).toBe(false);
     });

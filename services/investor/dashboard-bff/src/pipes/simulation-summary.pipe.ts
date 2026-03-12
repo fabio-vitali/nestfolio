@@ -1,8 +1,8 @@
 import { type Pipe, type UnitOfWork, type BusEvent, logger } from '@nestfolio/platform-core';
-import { INITIAL_PORTFOLIO_STATE } from '@nestfolio/command-core';
+import { INITIAL_ACCOUNT_STATE } from '@nestfolio/command-core';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 
-const INITIAL_CAPITAL_CENTS = INITIAL_PORTFOLIO_STATE.cashBalanceCents;
+const INITIAL_CAPITAL_CENTS = INITIAL_ACCOUNT_STATE.cashBalanceCents;
 
 export class SimulationSummaryPipe
   implements Pipe<UnitOfWork<BusEvent<Record<string, unknown>>>>

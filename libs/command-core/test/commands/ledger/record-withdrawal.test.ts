@@ -1,5 +1,5 @@
 import { applyCommand } from '../../../src/command';
-import { INITIAL_PORTFOLIO_STATE } from '../../../src/state/account-state';
+import { INITIAL_ACCOUNT_STATE } from '../../../src/state/account-state';
 import { RecordWithdrawal } from '../../../src/commands/ledger/record-withdrawal';
 
 const validWithdrawal = {
@@ -14,14 +14,14 @@ describe('RecordWithdrawal', () => {
   });
 
   it('should decrease cash balance', () => {
-    const result = applyCommand(RecordWithdrawal, validWithdrawal, INITIAL_PORTFOLIO_STATE);
+    const result = applyCommand(RecordWithdrawal, validWithdrawal, INITIAL_ACCOUNT_STATE);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.nextState.cashBalanceCents).toBe(10_000_000 - 200_000);
   });
 
   it('should not affect positions', () => {
-    const result = applyCommand(RecordWithdrawal, validWithdrawal, INITIAL_PORTFOLIO_STATE);
+    const result = applyCommand(RecordWithdrawal, validWithdrawal, INITIAL_ACCOUNT_STATE);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.nextState.positions).toEqual({});
@@ -29,7 +29,7 @@ describe('RecordWithdrawal', () => {
 
   it('should return invariant error when withdrawing more than cash balance', () => {
     const overWithdraw = { ...validWithdrawal, amountCents: 20_000_000 };
-    const result = applyCommand(RecordWithdrawal, overWithdraw, INITIAL_PORTFOLIO_STATE);
+    const result = applyCommand(RecordWithdrawal, overWithdraw, INITIAL_ACCOUNT_STATE);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.type).toBe('invariant');
@@ -41,7 +41,7 @@ describe('RecordWithdrawal', () => {
     const result = applyCommand(
       RecordWithdrawal,
       { ...validWithdrawal, amountCents: 100.5 },
-      INITIAL_PORTFOLIO_STATE,
+      INITIAL_ACCOUNT_STATE,
     );
     expect(result.ok).toBe(false);
   });
@@ -50,7 +50,7 @@ describe('RecordWithdrawal', () => {
     const result = applyCommand(
       RecordWithdrawal,
       { ...validWithdrawal, amountCents: -100 },
-      INITIAL_PORTFOLIO_STATE,
+      INITIAL_ACCOUNT_STATE,
     );
     expect(result.ok).toBe(false);
   });

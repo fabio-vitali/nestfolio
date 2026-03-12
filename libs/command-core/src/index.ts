@@ -14,9 +14,7 @@ export { type LedgerEntry, type EventReducer, replayEvents } from './reducer';
 export {
   type PositionState,
   type AccountState,
-  type PortfolioState, // deprecated alias
   INITIAL_ACCOUNT_STATE,
-  INITIAL_PORTFOLIO_STATE, // deprecated alias
 } from './state/account-state';
 
 // Ledger domain commands

@@ -1,5 +1,5 @@
 import { applyCommand } from '../../../src/command';
-import { INITIAL_PORTFOLIO_STATE } from '../../../src/state/account-state';
+import { INITIAL_ACCOUNT_STATE } from '../../../src/state/account-state';
 import { SubmitOrder } from '../../../src/commands/order/submit-order';
 
 const validSubmission = {
@@ -16,17 +16,17 @@ describe('SubmitOrder', () => {
   });
 
   it('should not change portfolio state (lifecycle marker)', () => {
-    const result = applyCommand(SubmitOrder, validSubmission, INITIAL_PORTFOLIO_STATE);
+    const result = applyCommand(SubmitOrder, validSubmission, INITIAL_ACCOUNT_STATE);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.nextState).toEqual(INITIAL_PORTFOLIO_STATE);
+    expect(result.value.nextState).toEqual(INITIAL_ACCOUNT_STATE);
   });
 
   it('should accept optional limitPrice', () => {
     const result = applyCommand(
       SubmitOrder,
       { ...validSubmission, limitPrice: 250.0 },
-      INITIAL_PORTFOLIO_STATE,
+      INITIAL_ACCOUNT_STATE,
     );
     expect(result.ok).toBe(true);
   });
@@ -35,7 +35,7 @@ describe('SubmitOrder', () => {
     const result = applyCommand(
       SubmitOrder,
       { ...validSubmission, orderId: '' },
-      INITIAL_PORTFOLIO_STATE,
+      INITIAL_ACCOUNT_STATE,
     );
     expect(result.ok).toBe(false);
   });

@@ -1,5 +1,5 @@
 import { applyCommand } from '../../../src/command';
-import { INITIAL_PORTFOLIO_STATE } from '../../../src/state/account-state';
+import { INITIAL_ACCOUNT_STATE } from '../../../src/state/account-state';
 import { RecordDeposit } from '../../../src/commands/ledger/record-deposit';
 
 const validDeposit = {
@@ -14,14 +14,14 @@ describe('RecordDeposit', () => {
   });
 
   it('should increase cash balance', () => {
-    const result = applyCommand(RecordDeposit, validDeposit, INITIAL_PORTFOLIO_STATE);
+    const result = applyCommand(RecordDeposit, validDeposit, INITIAL_ACCOUNT_STATE);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.nextState.cashBalanceCents).toBe(10_000_000 + 500_000);
   });
 
   it('should not affect positions', () => {
-    const result = applyCommand(RecordDeposit, validDeposit, INITIAL_PORTFOLIO_STATE);
+    const result = applyCommand(RecordDeposit, validDeposit, INITIAL_ACCOUNT_STATE);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.nextState.positions).toEqual({});
@@ -31,7 +31,7 @@ describe('RecordDeposit', () => {
     const result = applyCommand(
       RecordDeposit,
       { ...validDeposit, amountCents: 100.5 },
-      INITIAL_PORTFOLIO_STATE,
+      INITIAL_ACCOUNT_STATE,
     );
     expect(result.ok).toBe(false);
   });
@@ -40,7 +40,7 @@ describe('RecordDeposit', () => {
     const result = applyCommand(
       RecordDeposit,
       { ...validDeposit, amountCents: 0 },
-      INITIAL_PORTFOLIO_STATE,
+      INITIAL_ACCOUNT_STATE,
     );
     expect(result.ok).toBe(false);
   });

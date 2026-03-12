@@ -1,5 +1,5 @@
 import { applyCommand } from '../../../src/command';
-import { INITIAL_PORTFOLIO_STATE } from '../../../src/state/account-state';
+import { INITIAL_ACCOUNT_STATE } from '../../../src/state/account-state';
 import { CancelOrder } from '../../../src/commands/order/cancel-order';
 
 const validCancel = {
@@ -14,17 +14,17 @@ describe('CancelOrder', () => {
   });
 
   it('should not change portfolio state (no fill occurred)', () => {
-    const result = applyCommand(CancelOrder, validCancel, INITIAL_PORTFOLIO_STATE);
+    const result = applyCommand(CancelOrder, validCancel, INITIAL_ACCOUNT_STATE);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.nextState).toEqual(INITIAL_PORTFOLIO_STATE);
+    expect(result.value.nextState).toEqual(INITIAL_ACCOUNT_STATE);
   });
 
   it('should accept optional reason', () => {
     const result = applyCommand(
       CancelOrder,
       { ...validCancel, reason: 'Market closed' },
-      INITIAL_PORTFOLIO_STATE,
+      INITIAL_ACCOUNT_STATE,
     );
     expect(result.ok).toBe(true);
   });
@@ -33,7 +33,7 @@ describe('CancelOrder', () => {
     const result = applyCommand(
       CancelOrder,
       { ...validCancel, orderId: '' },
-      INITIAL_PORTFOLIO_STATE,
+      INITIAL_ACCOUNT_STATE,
     );
     expect(result.ok).toBe(false);
   });
