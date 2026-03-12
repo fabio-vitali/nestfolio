@@ -1,6 +1,6 @@
 import { applyCommand } from '../../../src/command';
 import { INITIAL_PORTFOLIO_STATE } from '../../../src/state/account-state';
-import { RecordDeposit } from '../../../src/commands/execution/record-deposit';
+import { RecordDeposit } from '../../../src/commands/ledger/record-deposit';
 
 const validDeposit = {
   depositId: 'dep-1',

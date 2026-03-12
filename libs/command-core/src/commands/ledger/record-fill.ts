@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineCommand } from '../../command';
-import { type PortfolioState } from '../../state/account-state';
+import { type AccountState } from '../../state/account-state';
 
 export const RecordFillSchema = z.object({
   orderId: z.string().min(1),
@@ -13,7 +13,7 @@ export const RecordFillSchema = z.object({
 
 export type RecordFillPayload = z.infer<typeof RecordFillSchema>;
 
-export const RecordFill = defineCommand<RecordFillPayload, PortfolioState>({
+export const RecordFill = defineCommand<RecordFillPayload, AccountState>({
   type: 'RecordFill',
   schema: RecordFillSchema,
   apply: (state, payload) => {

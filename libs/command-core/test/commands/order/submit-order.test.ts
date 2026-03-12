@@ -1,6 +1,6 @@
 import { applyCommand } from '../../../src/command';
 import { INITIAL_PORTFOLIO_STATE } from '../../../src/state/account-state';
-import { SubmitOrder } from '../../../src/commands/execution/submit-order';
+import { SubmitOrder } from '../../../src/commands/order/submit-order';
 
 const validSubmission = {
   orderId: 'ord-1',

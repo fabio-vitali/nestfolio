@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineCommand } from '../../command';
-import { type PortfolioState } from '../../state/account-state';
+import { type AccountState } from '../../state/account-state';
 
 export const SubmitOrderSchema = z.object({
   orderId: z.string().min(1),
@@ -13,7 +13,7 @@ export const SubmitOrderSchema = z.object({
 
 export type SubmitOrderPayload = z.infer<typeof SubmitOrderSchema>;
 
-export const SubmitOrder = defineCommand<SubmitOrderPayload, PortfolioState>({
+export const SubmitOrder = defineCommand<SubmitOrderPayload, AccountState>({
   type: 'SubmitOrder',
   schema: SubmitOrderSchema,
   apply: (state, _payload) => {

@@ -1,6 +1,6 @@
 import { applyCommand } from '../../../src/command';
 import { INITIAL_PORTFOLIO_STATE, type PortfolioState } from '../../../src/state/account-state';
-import { RecordFill } from '../../../src/commands/execution/record-fill';
+import { RecordFill } from '../../../src/commands/ledger/record-fill';
 
 const validBuy = {
   orderId: 'ord-1',

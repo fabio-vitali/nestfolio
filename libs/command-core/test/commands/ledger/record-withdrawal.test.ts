@@ -1,6 +1,6 @@
 import { applyCommand } from '../../../src/command';
 import { INITIAL_PORTFOLIO_STATE } from '../../../src/state/account-state';
-import { RecordWithdrawal } from '../../../src/commands/execution/record-withdrawal';
+import { RecordWithdrawal } from '../../../src/commands/ledger/record-withdrawal';
 
 const validWithdrawal = {
   withdrawalId: 'wth-1',

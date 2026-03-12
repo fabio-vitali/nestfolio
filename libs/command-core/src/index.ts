@@ -19,33 +19,34 @@ export {
   INITIAL_PORTFOLIO_STATE, // deprecated alias
 } from './state/account-state';
 
-// Execution domain commands
+// Ledger domain commands
 export {
   RecordFill,
   RecordFillSchema,
   type RecordFillPayload,
-} from './commands/execution/record-fill';
-
-export {
-  SubmitOrder,
-  SubmitOrderSchema,
-  type SubmitOrderPayload,
-} from './commands/execution/submit-order';
-
-export {
-  CancelOrder,
-  CancelOrderSchema,
-  type CancelOrderPayload,
-} from './commands/execution/cancel-order';
+} from './commands/ledger/record-fill';
 
 export {
   RecordDeposit,
   RecordDepositSchema,
   type RecordDepositPayload,
-} from './commands/execution/record-deposit';
+} from './commands/ledger/record-deposit';
 
 export {
   RecordWithdrawal,
   RecordWithdrawalSchema,
   type RecordWithdrawalPayload,
-} from './commands/execution/record-withdrawal';
+} from './commands/ledger/record-withdrawal';
+
+// Order lifecycle commands
+export {
+  SubmitOrder,
+  SubmitOrderSchema,
+  type SubmitOrderPayload,
+} from './commands/order/submit-order';
+
+export {
+  CancelOrder,
+  CancelOrderSchema,
+  type CancelOrderPayload,
+} from './commands/order/cancel-order';
