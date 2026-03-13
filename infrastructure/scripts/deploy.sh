@@ -31,18 +31,47 @@ fi
 
 trap 'echo "ERROR: Deployment failed. Prefix: $PREFIX — manual cleanup may be required." >&2' ERR
 
+deploy_service() {
+  local svc="$1"
+  local region="${2:-$CDK_DEFAULT_REGION}"
+  region="${region:-us-east-1}"
+  echo "  Deploying $svc (${region})..."
+  CDK_DEFAULT_REGION="$region" pnpm nx run "$svc:deploy" -- \
+    --prefix="$PREFIX" $APPROVAL_FLAG \
+    -c observability="$OBSERVABILITY" \
+    -c region="$region"
+}
+
 verify_ssm_param() {
   local param_name="$1"
-  if ! aws ssm get-parameter --name "$param_name" --query 'Parameter.Value' --output text > /dev/null 2>&1; then
-    echo "ERROR: SSM parameter $param_name not found after deployment." >&2
+  local region="${2:-$CDK_DEFAULT_REGION}"
+  region="${region:-us-east-1}"
+  if ! aws ssm get-parameter --name "$param_name" --region "$region" --query 'Parameter.Value' --output text > /dev/null 2>&1; then
+    echo "ERROR: SSM parameter $param_name not found in $region after deployment." >&2
     exit 1
   fi
 }
 
-deploy_service() {
-  local svc="$1"
-  echo "  Deploying $svc..."
-  pnpm nx run "$svc:deploy" -- --prefix="$PREFIX" $APPROVAL_FLAG -c observability="$OBSERVABILITY"
+# Returns 0 if ALL hub bus-ARN SSM parameters exist (in all regions), 1 otherwise.
+# Used to gate Phase 4 — the re-deploy is only needed on first deploy.
+check_all_hub_params_exist() {
+  local entries="$1"
+  for ENTRY in $entries; do
+    local svc="${ENTRY%%:*}"
+    local region="${ENTRY##*:}"
+    # Find the subsystem for this service from pipeline.json
+    for FILE in $PIPELINE_FILES; do
+      if [ "$(jq -r '.service' "$FILE")" = "$svc" ]; then
+        local subsystem=$(jq -r '.subsystem' "$FILE")
+        local param="/nestfolio/${PREFIX}-${subsystem}/event-hub/busArn"
+        if ! aws ssm get-parameter --name "$param" --region "$region" --query 'Parameter.Value' --output text > /dev/null 2>&1; then
+          return 1
+        fi
+        break
+      fi
+    done
+  done
+  return 0
 }
 
 is_service_included() {
@@ -70,8 +99,8 @@ else
   echo "Service filter: (all)"
 fi
 
-# Collect hub services for re-deploy phase
-HUB_SERVICES=""
+# Collect hub entries (svc:region pairs) for re-deploy phase
+HUB_ENTRIES=""
 
 # Deploy by phase (1, 2, 3)
 for PHASE in 1 2 3; do
@@ -89,16 +118,21 @@ for PHASE in 1 2 3; do
       fi
 
       PARALLEL=$(jq -r '.production.parallelDeploy' "$FILE")
+      REGIONS=$(jq -r '.production.regions[]' "$FILE")
 
-      if [ "$PHASE" = "1" ]; then
-        HUB_SERVICES="$HUB_SERVICES $SVC"
-      fi
+      for REGION in $REGIONS; do
+        ENTRY="${SVC}:${REGION}"
 
-      if [ "$PARALLEL" = "true" ]; then
-        PARALLEL_SERVICES="$PARALLEL_SERVICES $SVC"
-      else
-        SERIAL_SERVICES="$SERIAL_SERVICES $SVC"
-      fi
+        if [ "$PHASE" = "1" ]; then
+          HUB_ENTRIES="$HUB_ENTRIES $ENTRY"
+        fi
+
+        if [ "$PARALLEL" = "true" ]; then
+          PARALLEL_SERVICES="$PARALLEL_SERVICES $ENTRY"
+        else
+          SERIAL_SERVICES="$SERIAL_SERVICES $ENTRY"
+        fi
+      done
     fi
   done
 
@@ -110,14 +144,18 @@ for PHASE in 1 2 3; do
   echo "Phase $PHASE:$SERIAL_SERVICES$PARALLEL_SERVICES"
 
   # Deploy serial services first
-  for SVC in $SERIAL_SERVICES; do
-    deploy_service "$SVC"
+  for ENTRY in $SERIAL_SERVICES; do
+    SVC="${ENTRY%%:*}"
+    REGION="${ENTRY##*:}"
+    deploy_service "$SVC" "$REGION"
   done
 
   # Deploy parallel services concurrently
   PIDS=""
-  for SVC in $PARALLEL_SERVICES; do
-    deploy_service "$SVC" &
+  for ENTRY in $PARALLEL_SERVICES; do
+    SVC="${ENTRY%%:*}"
+    REGION="${ENTRY##*:}"
+    deploy_service "$SVC" "$REGION" &
     PIDS="$PIDS $!"
   done
   FAIL=0
@@ -133,8 +171,12 @@ for PHASE in 1 2 3; do
       FILE_PHASE=$(jq -r '.deploymentPhase' "$FILE")
       if [ "$FILE_PHASE" = "1" ]; then
         SUBSYSTEM=$(jq -r '.subsystem' "$FILE")
-        if is_service_included "$(jq -r '.service' "$FILE")"; then
-          verify_ssm_param "/nestfolio/${PREFIX}-${SUBSYSTEM}/event-hub/busArn"
+        SVC=$(jq -r '.service' "$FILE")
+        if is_service_included "$SVC"; then
+          REGIONS=$(jq -r '.production.regions[]' "$FILE")
+          for REGION in $REGIONS; do
+            verify_ssm_param "/nestfolio/${PREFIX}-${SUBSYSTEM}/event-hub/busArn" "$REGION"
+          done
         fi
       fi
     done
@@ -147,20 +189,27 @@ for PHASE in 1 2 3; do
   fi
 done
 
-# Re-deploy hubs so cross-domain forwarding rules resolve
-if [ -n "$HUB_SERVICES" ]; then
-  echo ""
-  echo "Phase 4 (hub re-deploy):$HUB_SERVICES"
-  PIDS=""
-  for SVC in $HUB_SERVICES; do
-    deploy_service "$SVC" &
-    PIDS="$PIDS $!"
-  done
-  FAIL=0
-  for PID in $PIDS; do
-    wait "$PID" || FAIL=1
-  done
-  if [ "$FAIL" -ne 0 ]; then echo "ERROR: One or more hub re-deploys failed." >&2; exit 1; fi
+# Phase 4: Re-deploy hubs (only needed on first deploy when SSM params didn't exist yet)
+if [ -n "$HUB_ENTRIES" ]; then
+  if check_all_hub_params_exist "$HUB_ENTRIES"; then
+    echo ""
+    echo "Phase 4 (hub re-deploy): SKIPPED — all hub SSM parameters already exist."
+  else
+    echo ""
+    echo "Phase 4 (hub re-deploy — first deploy detected):$HUB_ENTRIES"
+    PIDS=""
+    for ENTRY in $HUB_ENTRIES; do
+      SVC="${ENTRY%%:*}"
+      REGION="${ENTRY##*:}"
+      deploy_service "$SVC" "$REGION" &
+      PIDS="$PIDS $!"
+    done
+    FAIL=0
+    for PID in $PIDS; do
+      wait "$PID" || FAIL=1
+    done
+    if [ "$FAIL" -ne 0 ]; then echo "ERROR: One or more hub re-deploys failed." >&2; exit 1; fi
+  fi
 fi
 
 echo ""
