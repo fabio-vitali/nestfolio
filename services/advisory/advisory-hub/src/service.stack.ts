@@ -19,6 +19,7 @@ export class AdvisoryHubStack extends Stack {
 
     const prefix = this.node.tryGetContext('prefix');
     if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
+    const observability = this.node.tryGetContext('observability') !== 'false';
     applyStandardTags(this, { service: 'advisory-hub', domain: 'advisory', environment: prefix });
 
     // Domain bus
@@ -113,18 +114,18 @@ export class AdvisoryHubStack extends Stack {
       targets: [new EventBusTarget(executionBus, { deadLetterQueue: toExecutionDlq })],
     });
 
-    // Monitoring: CloudWatch alarms for EventBridge failures, forwarding DLQs
-    new Monitoring(this, 'Monitoring', {
-      dlqs: [toInvestorDlq, toExecutionDlq],
-      eventBusBusNames: [naming.eventBusName()],
-    });
+    if (observability) {
+      new Monitoring(this, 'Monitoring', {
+        dlqs: [toInvestorDlq, toExecutionDlq],
+        eventBusBusNames: [naming.eventBusName()],
+      });
 
-    // Dashboard: CloudWatch dashboard for hub observability
-    new ServiceDashboard(this, 'Dashboard', {
-      serviceName: 'advisory-hub',
-      lambdaFunctions: [],
-      dlqs: [toInvestorDlq, toExecutionDlq],
-      eventBusNames: [naming.eventBusName()],
-    });
+      new ServiceDashboard(this, 'Dashboard', {
+        serviceName: 'advisory-hub',
+        lambdaFunctions: [],
+        dlqs: [toInvestorDlq, toExecutionDlq],
+        eventBusNames: [naming.eventBusName()],
+      });
+    }
   }
 }

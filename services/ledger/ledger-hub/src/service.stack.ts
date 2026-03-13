@@ -19,6 +19,7 @@ export class LedgerHubStack extends Stack {
 
     const prefix = this.node.tryGetContext('prefix');
     if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
+    const observability = this.node.tryGetContext('observability') !== 'false';
     applyStandardTags(this, { service: 'ledger-hub', domain: 'ledger', environment: prefix });
 
     // Domain bus
@@ -88,18 +89,18 @@ export class LedgerHubStack extends Stack {
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: toAdvisoryDlq })],
     });
 
-    // Monitoring
-    new Monitoring(this, 'Monitoring', {
-      dlqs: [toInvestorDlq, toAdvisoryDlq],
-      eventBusBusNames: [naming.eventBusName()],
-    });
+    if (observability) {
+      new Monitoring(this, 'Monitoring', {
+        dlqs: [toInvestorDlq, toAdvisoryDlq],
+        eventBusBusNames: [naming.eventBusName()],
+      });
 
-    // Dashboard
-    new ServiceDashboard(this, 'Dashboard', {
-      serviceName: 'ledger-hub',
-      lambdaFunctions: [],
-      dlqs: [toInvestorDlq, toAdvisoryDlq],
-      eventBusNames: [naming.eventBusName()],
-    });
+      new ServiceDashboard(this, 'Dashboard', {
+        serviceName: 'ledger-hub',
+        lambdaFunctions: [],
+        dlqs: [toInvestorDlq, toAdvisoryDlq],
+        eventBusNames: [naming.eventBusName()],
+      });
+    }
   }
 }
