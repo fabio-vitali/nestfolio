@@ -1,11 +1,12 @@
-import { App, Stack } from 'aws-cdk-lib';
-import { Annotations, Match, Template } from 'aws-cdk-lib/assertions';
+import { App } from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
-import { Table, AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
-import { Facade, parseSchemaFields } from '../src/facade';
+import { Facade, parseSchemaFields, discoverJsResolvers } from '../src/facade';
+import { ServiceStack } from '../src/service-stack';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { join } from 'path';
 
 // Create a temporary schema file for tests
@@ -31,27 +32,22 @@ afterAll(() => {
   if (fs.existsSync(SCHEMA_PATH)) fs.unlinkSync(SCHEMA_PATH);
 });
 
-describe('Facade construct', () => {
-  it('creates AppSync API when schemaPath and userPool are both provided', () => {
-    const app = new App();
-    const stack = new Stack(app, 'TestStack');
-    const userPool = new UserPool(stack, 'Pool');
-
-    const facade = new Facade(stack, 'TestFacade', {
-      schemaPath: SCHEMA_PATH,
-      userPool,
-    });
-
-    expect(facade.api).toBeDefined();
-    expect(facade.graphqlUrl).toBeDefined();
-
-    const template = Template.fromStack(stack);
-    template.resourceCountIs('AWS::AppSync::GraphQLApi', 1);
+function createFacadeStack() {
+  const app = new App({ context: { prefix: 'test' } });
+  const stack = new ServiceStack(app, 'TestStack', {
+    subsystem: 'test',
+    service: 'test-svc',
+    serviceDir: os.tmpdir(),
+    stateProps: {
+      withTable: true,
+    },
   });
+  return { app, stack };
+}
 
-  it('does not create AppSync API when schemaPath is not provided', () => {
-    const app = new App();
-    const stack = new Stack(app, 'TestStack');
+describe('Facade construct', () => {
+  it('does not create API when no resolvers provided', () => {
+    const { stack } = createFacadeStack();
 
     const facade = new Facade(stack, 'TestFacade', {});
 
@@ -62,40 +58,55 @@ describe('Facade construct', () => {
     template.resourceCountIs('AWS::AppSync::GraphQLApi', 0);
   });
 
-  it('adds CDK error annotation when schemaPath is set without userPool', () => {
-    const app = new App();
-    const stack = new Stack(app, 'TestStack');
+  it('creates AppSync API when lambdaResolvers provided with explicit userPool', () => {
+    const { stack } = createFacadeStack();
+    const userPool = new UserPool(stack, 'Pool');
+    const resolver = new Function(stack, 'Resolver', {
+      runtime: Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: Code.fromInline('exports.handler = async () => ({})'),
+    });
 
     const facade = new Facade(stack, 'TestFacade', {
       schemaPath: SCHEMA_PATH,
+      userPool,
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'hello', handler: resolver },
+      ],
     });
 
-    expect(facade.api).toBeUndefined();
+    expect(facade.api).toBeDefined();
+    expect(facade.graphqlUrl).toBeDefined();
 
-    const annotations = Annotations.fromStack(stack);
-    annotations.hasError('/TestStack/TestFacade', Match.stringLikeRegexp('schemaPath requires a userPool'));
+    const template = Template.fromStack(stack);
+    template.resourceCountIs('AWS::AppSync::GraphQLApi', 1);
   });
 
-  it('creates SSM parameter when ssmPrefix is provided', () => {
-    const app = new App();
-    const stack = new Stack(app, 'TestStack');
+  it('creates SSM parameter when API exists', () => {
+    const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
+    const resolver = new Function(stack, 'Resolver', {
+      runtime: Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: Code.fromInline('exports.handler = async () => ({})'),
+    });
 
     new Facade(stack, 'TestFacade', {
       schemaPath: SCHEMA_PATH,
       userPool,
-      ssmPrefix: '/nestfolio/dev-test',
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'hello', handler: resolver },
+      ],
     });
 
     const template = Template.fromStack(stack);
     template.hasResourceProperties('AWS::SSM::Parameter', {
-      Name: '/nestfolio/dev-test/api/graphqlUrl',
+      Name: '/nestfolio/test-test/api/graphqlUrl',
     });
   });
 
   it('creates Lambda resolvers when lambdaResolvers provided', () => {
-    const app = new App();
-    const stack = new Stack(app, 'TestStack');
+    const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
     const resolver = new Function(stack, 'Resolver', {
       runtime: Runtime.NODEJS_20_X,
@@ -121,36 +132,27 @@ describe('Facade construct', () => {
   });
 
   it('creates no resolvers when neither jsResolvers nor lambdaResolvers provided', () => {
-    const app = new App();
-    const stack = new Stack(app, 'TestStack');
-    const userPool = new UserPool(stack, 'Pool');
+    const { stack } = createFacadeStack();
 
     new Facade(stack, 'TestFacade', {
       schemaPath: SCHEMA_PATH,
-      userPool,
     });
 
     const template = Template.fromStack(stack);
+    template.resourceCountIs('AWS::AppSync::GraphQLApi', 0);
     template.resourceCountIs('AWS::AppSync::DataSource', 0);
     template.resourceCountIs('AWS::AppSync::Resolver', 0);
   });
 });
 
 describe('JS resolver support', () => {
-  it('creates DynamoDB data source when table and jsResolvers provided', () => {
-    const app = new App();
-    const stack = new Stack(app, 'TestStack');
+  it('creates DynamoDB data source when jsResolvers provided', () => {
+    const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
-    const table = new Table(stack, 'Table', {
-      partitionKey: { name: 'pk', type: AttributeType.STRING },
-      sortKey: { name: 'sk', type: AttributeType.STRING },
-      billingMode: BillingMode.PAY_PER_REQUEST,
-    });
 
     new Facade(stack, 'TestFacade', {
       schemaPath: SCHEMA_PATH,
       userPool,
-      table,
       jsResolvers: [
         {
           typeName: 'Query',
@@ -170,19 +172,12 @@ describe('JS resolver support', () => {
   });
 
   it('creates pipeline resolvers with JS_1_0_0 runtime', () => {
-    const app = new App();
-    const stack = new Stack(app, 'TestStack');
+    const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
-    const table = new Table(stack, 'Table', {
-      partitionKey: { name: 'pk', type: AttributeType.STRING },
-      sortKey: { name: 'sk', type: AttributeType.STRING },
-      billingMode: BillingMode.PAY_PER_REQUEST,
-    });
 
     new Facade(stack, 'TestFacade', {
       schemaPath: SCHEMA_PATH,
       userPool,
-      table,
       jsResolvers: [
         {
           typeName: 'Query',
@@ -197,6 +192,76 @@ describe('JS resolver support', () => {
       Kind: 'PIPELINE',
       Runtime: { Name: 'APPSYNC_JS', RuntimeVersion: '1.0.0' },
     });
+  });
+});
+
+describe('discoverJsResolvers', () => {
+  const tmpDir = path.join(os.tmpdir(), 'discover-test-' + Date.now());
+  const jsFnDir = path.join(tmpDir, 'graphql', 'js-function');
+  const utilsDir = path.join(jsFnDir, 'utils');
+  const schemaPath = path.join(tmpDir, 'schema.graphql');
+
+  beforeAll(() => {
+    fs.mkdirSync(utilsDir, { recursive: true });
+    // Create schema
+    fs.writeFileSync(schemaPath, `
+      type Query {
+        getProfile: Profile
+        getGoals: [Goal]
+      }
+      type Mutation {
+        setGoal(input: GoalInput!): Goal
+      }
+    `);
+    // Create JS function stubs
+    fs.writeFileSync(path.join(utilsDir, 'check-auth.fn.js'), 'export function request(ctx) { return {}; }');
+    fs.writeFileSync(path.join(jsFnDir, 'get-profile.fn.js'), 'export function request(ctx) { return {}; }');
+    fs.writeFileSync(path.join(jsFnDir, 'get-goals.fn.js'), 'export function request(ctx) { return {}; }');
+    fs.writeFileSync(path.join(jsFnDir, 'set-goal.fn.js'), 'export function request(ctx) { return {}; }');
+  });
+
+  afterAll(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('discovers all Query and Mutation fields', () => {
+    const resolvers = discoverJsResolvers(tmpDir);
+    expect(resolvers).toHaveLength(3);
+    expect(resolvers[0]).toEqual({
+      typeName: 'Query',
+      fieldName: 'getProfile',
+      pipeline: [
+        path.join(jsFnDir, 'utils', 'check-auth.fn.js'),
+        path.join(jsFnDir, 'get-profile.fn.js'),
+      ],
+    });
+  });
+
+  it('converts camelCase to kebab-case for file names', () => {
+    const resolvers = discoverJsResolvers(tmpDir);
+    const setGoal = resolvers.find(r => r.fieldName === 'setGoal');
+    expect(setGoal?.pipeline[1]).toContain('set-goal.fn.js');
+  });
+
+  it('excludes specified fields', () => {
+    const resolvers = discoverJsResolvers(tmpDir, { exclude: ['getGoals'] });
+    expect(resolvers).toHaveLength(2);
+    expect(resolvers.find(r => r.fieldName === 'getGoals')).toBeUndefined();
+  });
+
+  it('marks noneDataSource fields', () => {
+    const resolvers = discoverJsResolvers(tmpDir, { noneDataSource: ['setGoal'] });
+    const setGoal = resolvers.find(r => r.fieldName === 'setGoal');
+    expect(setGoal?.dataSource).toBe('none');
+  });
+
+  it('adds extra pipeline steps', () => {
+    const resolvers = discoverJsResolvers(tmpDir, {
+      extraSteps: { setGoal: ['readback.fn.js'] },
+    });
+    const setGoal = resolvers.find(r => r.fieldName === 'setGoal');
+    expect(setGoal?.pipeline).toHaveLength(3);
+    expect(setGoal?.pipeline[2]).toContain('readback.fn.js');
   });
 });
 
