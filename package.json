@@ -89,7 +89,6 @@
     "@typescript-eslint/utils": "^8.40.0",
     "angular-eslint": "^19.2.0",
     "aws-cdk": "^2.188.0",
-    "cdk-pipelines-github": "^0.4.133",
     "chart.js": "^4.5.1",
     "esbuild": "^0.25.0",
     "eslint": "^9.20.0",

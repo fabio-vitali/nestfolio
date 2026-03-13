@@ -56,4 +56,16 @@ Services are discovered from `pipeline.json` files. To add a new service to the 
 
 ## Dependencies
 
-The `cdk-pipelines-github` package is retained solely for the `GitHubActionRole` construct used in `github-role.stack.ts` (OIDC role bootstrap). The CI/CD workflows themselves are hand-written GitHub Actions.
+The GitHub OIDC role uses standard `aws-cdk-lib/aws-iam` constructs (`OpenIdConnectProvider`, `Role`). No additional CDK libraries are required.
+
+### Migration from cdk-pipelines-github
+
+If the `nestfolio-github-role` stack was previously deployed using `cdk-pipelines-github`, destroy the old stack before deploying the new one:
+
+```bash
+npx cdk destroy \
+  --app 'npx ts-node -r ./tools/register-paths.js infrastructure/pipeline/src/github-role.app.ts' \
+  nestfolio-github-role
+```
+
+Then re-deploy with the new constructs (see Quick Start above).
