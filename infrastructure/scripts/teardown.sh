@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# destroy-all.sh — Dynamic reverse-order teardown driven by pipeline.json
+# teardown.sh — Dynamic reverse-order teardown driven by pipeline.json
 set -euo pipefail
 
-PREFIX=${1:?Usage: destroy-all.sh <prefix>}
+PREFIX=${1:?Usage: teardown.sh <prefix>}
 
 APPROVAL_FLAG=""
 if [ -n "${CI:-}" ]; then
