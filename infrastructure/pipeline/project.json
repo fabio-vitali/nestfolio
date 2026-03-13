@@ -4,22 +4,10 @@
   "sourceRoot": "infrastructure/pipeline/src",
   "projectType": "application",
   "targets": {
-    "synth": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "TS_NODE_TRANSPILE_ONLY=1 npx cdk synth --app 'npx ts-node -r ./tools/register-paths.js infrastructure/pipeline/src/pipeline.app.ts'"
-      }
-    },
     "deploy-role": {
       "executor": "nx:run-commands",
       "options": {
         "command": "TS_NODE_TRANSPILE_ONLY=1 npx cdk deploy --app 'npx ts-node -r ./tools/register-paths.js infrastructure/pipeline/src/github-role.app.ts'"
-      }
-    },
-    "test": {
-      "executor": "@nx/jest:jest",
-      "options": {
-        "jestConfig": "infrastructure/pipeline/jest.config.ts"
       }
     }
   },
