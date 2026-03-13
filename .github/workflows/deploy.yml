@@ -1,0 +1,76 @@
+name: Deploy Pipeline
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      affected: ${{ steps.affected.outputs.services }}
+      skipped: ${{ steps.affected.outputs.skipped }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - uses: nrwl/nx-set-shas@v4
+        id: setSHAs
+      - id: affected
+        run: |
+          AFFECTED=$(bash .github/scripts/compute-affected-services.sh "${{ steps.setSHAs.outputs.base }}")
+          echo "services=$AFFECTED" >> $GITHUB_OUTPUT
+          if [ -z "$AFFECTED" ]; then
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            echo "No affected services — skipping staging deploy."
+          else
+            echo "skipped=false" >> $GITHUB_OUTPUT
+            echo "Affected services: $AFFECTED"
+          fi
+      - name: Lint and test affected
+        if: steps.affected.outputs.skipped == 'false'
+        run: |
+          pnpm nx affected -t lint --base=${{ steps.setSHAs.outputs.base }} --parallel=3
+          pnpm nx affected -t test --base=${{ steps.setSHAs.outputs.base }} --parallel=3
+      - name: Deploy to staging
+        if: steps.affected.outputs.skipped == 'false'
+        run: |
+          echo "Deploying affected services to staging: ${{ steps.affected.outputs.services }}"
+          # Uncomment when OIDC role is deployed and AWS_ROLE_ARN secret is set:
+          # aws-actions/configure-aws-credentials step should be added before this
+          # export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          # export CDK_DEFAULT_REGION=us-east-1
+          # bash deploy-all.sh staging --services="${{ steps.affected.outputs.services }}"
+
+  production:
+    needs: staging
+    if: needs.staging.outputs.skipped == 'false'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Deploy to production
+        run: |
+          echo "Deploying affected services to production: ${{ needs.staging.outputs.affected }}"
+          # Uncomment when OIDC role is deployed and AWS_ROLE_ARN secret is set:
+          # aws-actions/configure-aws-credentials step should be added before this
+          # export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          # export CDK_DEFAULT_REGION=us-east-1
+          # bash deploy-all.sh prod --services="${{ needs.staging.outputs.affected }}"
