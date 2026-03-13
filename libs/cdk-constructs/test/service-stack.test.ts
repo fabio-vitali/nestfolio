@@ -89,4 +89,19 @@ describe('ServiceStack', () => {
     // Verify the stack was created successfully (domain used internally for tags)
     expect(stack).toBeDefined();
   });
+
+  it('addObservability is a no-op when observability is false', () => {
+    const stack = createStack({ observability: false });
+    stack.addObservability({});
+    const template = Template.fromStack(stack);
+    template.resourceCountIs('AWS::CloudWatch::Alarm', 0);
+    template.resourceCountIs('AWS::CloudWatch::Dashboard', 0);
+  });
+
+  it('addObservability creates resources when observability is true (default)', () => {
+    const stack = createStack();
+    stack.addObservability({});
+    const template = Template.fromStack(stack);
+    template.resourceCountIs('AWS::CloudWatch::Dashboard', 1);
+  });
 });

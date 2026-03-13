@@ -18,6 +18,8 @@ export interface ServiceStackProps extends StackProps {
   domain?: string;
   stateProps?: StateProps;
   eventBus?: IEventBus;
+  /** Enable observability (Monitoring + Dashboard). Defaults to true. */
+  observability?: boolean;
 }
 
 export class ServiceStack extends Stack {
@@ -25,6 +27,7 @@ export class ServiceStack extends Stack {
   readonly state: State;
   readonly serviceName: string;
   readonly serviceDir: string;
+  readonly observability: boolean;
   private _eventBus?: IEventBus;
 
   get eventBus(): IEventBus {
@@ -51,6 +54,7 @@ export class ServiceStack extends Stack {
 
     this.serviceName = props.service;
     this.serviceDir = props.serviceDir;
+    this.observability = props.observability ?? true;
 
     this.naming = createNamingService(this, {
       subsystem: props.subsystem,
@@ -79,6 +83,8 @@ export class ServiceStack extends Stack {
     monitorBedrock?: boolean;
     bedrockModelIds?: string[];
   }): void {
+    if (!this.observability) return;
+
     const lambdaFunctions: IFunction[] = [];
     const dlqs: IQueue[] = [];
 
