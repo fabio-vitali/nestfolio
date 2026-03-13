@@ -1,33 +1,66 @@
 #!/usr/bin/env bash
-# destroy-all.sh — Reverse-order teardown (mirrors deploy-all.sh phases in reverse)
+# destroy-all.sh — Dynamic reverse-order teardown driven by pipeline.json
 set -euo pipefail
+
 PREFIX=${1:?Usage: destroy-all.sh <prefix>}
 
-echo "Phase 1: Adapter services..."
-pnpm nx run execution-adpt:destroy --prefix=$PREFIX
+APPROVAL_FLAG=""
+if [ -n "${CI:-}" ]; then
+  APPROVAL_FLAG="--force"
+fi
 
-echo "Phase 2: BFF services..."
-pnpm nx run investor-bff:destroy --prefix=$PREFIX &
-pnpm nx run advisory-bff:destroy --prefix=$PREFIX &
-pnpm nx run portfolio-bff:destroy --prefix=$PREFIX &
-pnpm nx run dashboard-bff:destroy --prefix=$PREFIX &
-wait
+trap 'echo "ERROR: Teardown failed. Prefix: $PREFIX — manual cleanup may be required." >&2' ERR
 
-echo "Phase 3: Controller services..."
-pnpm nx run investor-ctrl:destroy --prefix=$PREFIX &
-pnpm nx run advisory-ctrl:destroy --prefix=$PREFIX &
-pnpm nx run compliance-ctrl:destroy --prefix=$PREFIX &
-pnpm nx run execution-ctrl:destroy --prefix=$PREFIX &
-pnpm nx run portfolio-ctrl:destroy --prefix=$PREFIX &
-wait
+destroy_service() {
+  local svc="$1"
+  echo "  Destroying $svc..."
+  pnpm nx run "$svc:destroy" -- --prefix="$PREFIX" $APPROVAL_FLAG
+}
 
-echo "Phase 4: Investor-web (Cognito triggers)..."
-pnpm nx run investor-web:destroy --prefix=$PREFIX
+# Discover all services from pipeline.json files
+PIPELINE_FILES=$(find services -maxdepth 3 -name "pipeline.json" -not -path "*/node_modules/*" -type f)
 
-echo "Phase 5: Hub stacks (EventBridge buses + SSM params)..."
-pnpm nx run execution-hub:destroy --prefix=$PREFIX &
-pnpm nx run advisory-hub:destroy --prefix=$PREFIX &
-pnpm nx run investor-hub:destroy --prefix=$PREFIX &
-wait
+if [ -z "$PIPELINE_FILES" ]; then
+  echo "ERROR: No pipeline.json files found." >&2
+  exit 1
+fi
 
+# Teardown in reverse phase order (3, 2, 1)
+for PHASE in 3 2 1; do
+  PARALLEL_SERVICES=""
+  SERIAL_SERVICES=""
+
+  for FILE in $PIPELINE_FILES; do
+    FILE_PHASE=$(jq -r '.deploymentPhase' "$FILE")
+    if [ "$FILE_PHASE" = "$PHASE" ]; then
+      SVC=$(jq -r '.service' "$FILE")
+      PARALLEL=$(jq -r '.production.parallelDeploy' "$FILE")
+      if [ "$PARALLEL" = "true" ]; then
+        PARALLEL_SERVICES="$PARALLEL_SERVICES $SVC"
+      else
+        SERIAL_SERVICES="$SERIAL_SERVICES $SVC"
+      fi
+    fi
+  done
+
+  if [ -z "$PARALLEL_SERVICES$SERIAL_SERVICES" ]; then
+    continue
+  fi
+
+  echo ""
+  echo "Phase $PHASE (teardown):$SERIAL_SERVICES$PARALLEL_SERVICES"
+
+  # Destroy parallel services concurrently
+  for SVC in $PARALLEL_SERVICES; do
+    destroy_service "$SVC" &
+  done
+  wait
+
+  # Destroy serial services
+  for SVC in $SERIAL_SERVICES; do
+    destroy_service "$SVC"
+  done
+done
+
+echo ""
 echo "Teardown complete for prefix: $PREFIX"
