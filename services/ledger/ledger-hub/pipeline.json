@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../.pipeline-schema.json",
+  "service": "ledger-hub",
+  "subsystem": "ledger",
+  "deploymentPhase": 1,
+  "production": { "regions": ["us-east-1"], "parallelDeploy": true },
+  "dependencies": []
+}
