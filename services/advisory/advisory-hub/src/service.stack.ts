@@ -4,7 +4,7 @@ import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import { createNamingService, Monitoring, ServiceDashboard, applyStandardTags } from '@nestfolio/cdk-constructs';
+import { createNamingService, Monitoring, ServiceDashboard, applyStandardTags, getPrefix } from '@nestfolio/cdk-constructs';
 
 export class AdvisoryHubStack extends Stack {
   readonly bus: EventBus;
@@ -17,8 +17,7 @@ export class AdvisoryHubStack extends Stack {
       service: 'advisory-hub',
     });
 
-    const prefix = this.node.tryGetContext('prefix');
-    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
+    const prefix = getPrefix(this);
     const observability = this.node.tryGetContext('observability') !== 'false';
     applyStandardTags(this, { service: 'advisory-hub', domain: 'advisory', environment: prefix });
 

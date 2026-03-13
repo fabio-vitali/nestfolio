@@ -8,11 +8,10 @@ import { join } from 'path';
 import { ServiceStack, Ingress, Facade, discoverJsResolvers, defaultLambdaProps } from '@nestfolio/cdk-constructs';
 
 export class LedgerBffStack extends ServiceStack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, { ...props, subsystem: 'ledger', service: 'ledger-bff', serviceDir: __dirname });
+  constructor(scope: Construct, id: string, props: StackProps & { prefix: string }) {
+    super(scope, id, { ...props, prefix: props.prefix, subsystem: 'ledger', service: 'ledger-bff', serviceDir: __dirname });
 
-    const prefix = this.node.tryGetContext('prefix');
-    const ledgerBusArn = StringParameter.valueForStringParameter(this, `/nestfolio/${prefix}-ledger/event-hub/busArn`);
+    const ledgerBusArn = StringParameter.valueForStringParameter(this, `/nestfolio/${this.prefix}-ledger/event-hub/busArn`);
     this.eventBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
 
     const ingress = new Ingress(this, 'Ingress', {
@@ -40,7 +39,7 @@ export class LedgerBffStack extends ServiceStack {
     }));
 
     new Facade(this, 'Facade', {
-      userPoolSsmPath: `/nestfolio/${prefix}-investor/auth/userPoolId`,
+      userPoolSsmPath: `/nestfolio/${this.prefix}-investor/auth/userPoolId`,
       jsResolvers: discoverJsResolvers(__dirname, { exclude: ['getPortfolioAt', 'getSimulationComparison'] }),
       lambdaResolvers: [
         { typeName: 'Query', fieldName: 'getPortfolioAt', handler: resolver },

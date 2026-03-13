@@ -3,8 +3,8 @@ import { Construct } from 'constructs';
 import { ServiceStack, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs';
 
 export class DashboardBffStack extends ServiceStack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, { ...props, subsystem: 'investor', service: 'dashboard-bff', serviceDir: __dirname });
+  constructor(scope: Construct, id: string, props: StackProps & { prefix: string }) {
+    super(scope, id, { ...props, prefix: props.prefix, subsystem: 'investor', service: 'dashboard-bff', serviceDir: __dirname });
 
     const ingress = new Ingress(this, 'Ingress', {
       eventTypes: [

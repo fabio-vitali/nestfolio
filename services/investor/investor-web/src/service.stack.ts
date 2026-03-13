@@ -10,7 +10,7 @@ import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
-import { createNamingService, defaultLambdaProps, applyStandardTags } from '@nestfolio/cdk-constructs';
+import { createNamingService, defaultLambdaProps, applyStandardTags, getPrefix } from '@nestfolio/cdk-constructs';
 import { join } from 'path';
 
 export class InvestorWebStack extends Stack {
@@ -18,8 +18,7 @@ export class InvestorWebStack extends Stack {
     super(scope, id, props);
 
     const naming = createNamingService(this, { subsystem: 'investor', service: 'investor-web' });
-    const prefix = this.node.tryGetContext('prefix');
-    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
+    const prefix = getPrefix(this);
 
     applyStandardTags(this, { service: 'investor-web', domain: 'investor', environment: prefix });
 

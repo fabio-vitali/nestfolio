@@ -8,10 +8,11 @@ import { Ingress } from './ingress';
 import { Egress } from './egress';
 import { Monitoring } from './monitoring';
 import { ServiceDashboard } from './dashboard';
-import { NamingService, createNamingService } from './naming-service';
+import { NamingService } from './naming-service';
 import { applyStandardTags } from './tagging';
 
 export interface ServiceStackProps extends StackProps {
+  prefix: string;
   subsystem: string;
   service: string;
   serviceDir: string;
@@ -23,6 +24,7 @@ export interface ServiceStackProps extends StackProps {
 }
 
 export class ServiceStack extends Stack {
+  readonly prefix: string;
   readonly naming: NamingService;
   readonly state: State;
   readonly serviceName: string;
@@ -55,17 +57,18 @@ export class ServiceStack extends Stack {
     this.serviceName = props.service;
     this.serviceDir = props.serviceDir;
     this.observability = props.observability ?? true;
+    this.prefix = props.prefix;
 
-    this.naming = createNamingService(this, {
+    this.naming = new NamingService({
+      prefix: props.prefix,
       subsystem: props.subsystem,
       service: props.service,
     });
 
-    const prefix = this.node.tryGetContext('prefix');
     applyStandardTags(this, {
       service: props.service,
       domain: props.domain ?? props.subsystem,
-      environment: prefix,
+      environment: this.prefix,
     });
 
     this.state = new State(this, 'State', props.stateProps);

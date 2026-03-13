@@ -3,10 +3,8 @@ import { Construct } from 'constructs';
 import { ServiceStack, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs';
 
 export class AdvisoryBffStack extends ServiceStack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, { ...props, subsystem: 'advisory', service: 'advisory-bff', serviceDir: __dirname });
-
-    const prefix = this.node.tryGetContext('prefix');
+  constructor(scope: Construct, id: string, props: StackProps & { prefix: string }) {
+    super(scope, id, { ...props, prefix: props.prefix, subsystem: 'advisory', service: 'advisory-bff', serviceDir: __dirname });
 
     const ingress = new Ingress(this, 'Ingress', {
       eventTypes: [
@@ -23,7 +21,7 @@ export class AdvisoryBffStack extends ServiceStack {
     });
 
     new Facade(this, 'Facade', {
-      userPoolSsmPath: `/nestfolio/${prefix}-investor/auth/userPoolId`,
+      userPoolSsmPath: `/nestfolio/${this.prefix}-investor/auth/userPoolId`,
       jsResolvers: discoverJsResolvers(__dirname, {
         extraSteps: {
           confirmDecision: ['get-decision-readback.fn.js'],

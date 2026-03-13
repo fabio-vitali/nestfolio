@@ -14,8 +14,8 @@ import {
 } from '@nestfolio/cdk-constructs';
 
 export class AdvisoryCtrlStack extends ServiceStack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, { ...props, subsystem: 'advisory', service: 'advisory-ctrl', serviceDir: __dirname });
+  constructor(scope: Construct, id: string, props: StackProps & { prefix: string }) {
+    super(scope, id, { ...props, prefix: props.prefix, subsystem: 'advisory', service: 'advisory-ctrl', serviceDir: __dirname });
 
     const ingress = new Ingress(this, 'Ingress', {
       eventTypes: [

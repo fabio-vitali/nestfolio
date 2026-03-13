@@ -8,6 +8,7 @@ describe('Egress construct', () => {
   function createEgress(overrides: Record<string, unknown> = {}) {
     const app = new App({ context: { prefix: 'test' } });
     const stack = new ServiceStack(app, 'TestStack', {
+      prefix: 'test',
       subsystem: 'test',
       service: 'test-svc',
       serviceDir: os.tmpdir(),

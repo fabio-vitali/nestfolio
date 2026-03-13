@@ -59,6 +59,16 @@ export class NamingService {
 }
 
 /**
+ * Reads and validates the "prefix" CDK context value.
+ * Single source of truth for the context key name and validation.
+ */
+export function getPrefix(scope: Construct): string {
+  const prefix = scope.node.tryGetContext('prefix');
+  if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
+  return prefix;
+}
+
+/**
  * Factory function that creates a NamingService, reading the prefix from CDK context.
  * Usage: const naming = createNamingService(scope, { subsystem: 'investor', service: 'investor-bff' });
  */
@@ -66,7 +76,5 @@ export function createNamingService(
   scope: Construct,
   config: Omit<NamingServiceConfig, 'prefix'>,
 ): NamingService {
-  const prefix = scope.node.tryGetContext('prefix');
-  if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
-  return new NamingService({ ...config, prefix });
+  return new NamingService({ ...config, prefix: getPrefix(scope) });
 }

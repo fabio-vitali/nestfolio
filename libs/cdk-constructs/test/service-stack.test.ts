@@ -9,6 +9,7 @@ describe('ServiceStack', () => {
   function createStack(overrides: Record<string, unknown> = {}) {
     const app = new App({ context: { prefix: 'test' } });
     return new ServiceStack(app, 'TestStack', {
+      prefix: 'test',
       subsystem: 'investor',
       service: 'investor-bff',
       serviceDir: os.tmpdir(),
@@ -50,6 +51,7 @@ describe('ServiceStack', () => {
   it('accepts explicit eventBus in props', () => {
     const app = new App({ context: { prefix: 'test' } });
     const otherStack = new ServiceStack(app, 'OtherStack', {
+      prefix: 'test',
       subsystem: 'ledger',
       service: 'ledger-hub',
       serviceDir: os.tmpdir(),
@@ -57,6 +59,7 @@ describe('ServiceStack', () => {
     const bus = new EventBus(otherStack, 'CustomBus');
 
     const stack = new ServiceStack(app, 'TestStack', {
+      prefix: 'test',
       subsystem: 'ledger',
       service: 'ledger-ctrl',
       serviceDir: os.tmpdir(),

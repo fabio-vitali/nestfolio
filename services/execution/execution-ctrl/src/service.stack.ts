@@ -3,8 +3,8 @@ import { Construct } from 'constructs';
 import { ServiceStack, Ingress, Egress } from '@nestfolio/cdk-constructs';
 
 export class ExecutionCtrlStack extends ServiceStack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, { ...props, subsystem: 'execution', service: 'execution-ctrl', serviceDir: __dirname });
+  constructor(scope: Construct, id: string, props: StackProps & { prefix: string }) {
+    super(scope, id, { ...props, prefix: props.prefix, subsystem: 'execution', service: 'execution-ctrl', serviceDir: __dirname });
 
     const ingress = new Ingress(this, 'Ingress', {
       eventTypes: ['DECISION_APPROVED', 'USER_CONFIRMED', 'CIRCUIT_BREAKER_TRIGGERED', 'CIRCUIT_BREAKER_RESET', 'ACCOUNT_CLOSURE_REQUESTED'],

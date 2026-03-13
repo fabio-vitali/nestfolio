@@ -1,9 +1,9 @@
 import { App } from 'aws-cdk-lib';
+import { getPrefix } from '@nestfolio/cdk-constructs';
 import { InvestorWebStack } from './service.stack';
 
 const app = new App();
-const prefix = app.node.tryGetContext('prefix');
-if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
+const prefix = getPrefix(app);
 
 new InvestorWebStack(app, `${prefix}-investor-web`, {
   env: {
