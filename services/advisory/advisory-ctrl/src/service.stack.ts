@@ -1,41 +1,23 @@
-import { Stack, StackProps } from 'aws-cdk-lib';
-import { EventBus } from 'aws-cdk-lib/aws-events';
+import { StackProps } from 'aws-cdk-lib';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import {
-  State,
+  ServiceStack,
   Ingress,
   Egress,
   AgentRuntime,
-  Monitoring,
-  ServiceDashboard,
-  createNamingService,
   defaultLambdaProps,
-  applyStandardTags,
+  createNamingService,
 } from '@nestfolio/cdk-constructs';
 
-export class AdvisoryCtrlStack extends Stack {
+export class AdvisoryCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, props);
+    super(scope, id, { ...props, subsystem: 'advisory', service: 'advisory-ctrl', serviceDir: __dirname });
 
-    const naming = createNamingService(this, {
-      subsystem: 'advisory',
-      service: 'advisory-ctrl',
-    });
-
-    const prefix = this.node.tryGetContext('prefix');
-    if (!prefix) throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
-    applyStandardTags(this, { service: 'advisory-ctrl', domain: 'advisory', environment: prefix });
-
-    // State: DynamoDB table
-    const state = new State(this, 'State');
-
-    // Ingress: advisory EventBridge bus -> SQS -> event-listener
     const ingress = new Ingress(this, 'Ingress', {
-      eventBus: EventBus.fromEventBusName(this, 'AdvisoryBus', naming.eventBusName()),
       eventTypes: [
         'MANDATE_GRANTED',
         'GOAL_UPDATED',
@@ -51,49 +33,30 @@ export class AdvisoryCtrlStack extends Stack {
         'USER_CONFIRMED',
         'USER_REJECTED',
       ],
-      entry: join(__dirname, 'handlers', 'event-listener.ts'),
-      serviceName: 'advisory-ctrl',
-      state,
     });
 
-    // Egress: DynamoDB Streams -> EventBridge
     const egress = new Egress(this, 'Egress', {
-      table: state.getTable(),
-      busName: naming.eventBusName(),
-      serviceName: 'advisory-ctrl',
       publishableTypes: ['DecisionPacket', 'AgentInvocation', 'WorkflowState'],
     });
 
     // Read Bedrock model IDs from SSM (published by advisory-hub)
-    const hubNaming = createNamingService(this, {
-      subsystem: 'advisory',
-      service: 'advisory-hub',
-    });
-    const modelOpusId = StringParameter.valueForStringParameter(
-      this,
-      hubNaming.ssmParameterPath('models/opus'),
-    );
-    const modelSonnetId = StringParameter.valueForStringParameter(
-      this,
-      hubNaming.ssmParameterPath('models/sonnet'),
-    );
-    const modelHaikuId = StringParameter.valueForStringParameter(
-      this,
-      hubNaming.ssmParameterPath('models/haiku'),
-    );
+    const hubNaming = createNamingService(this, { subsystem: 'advisory', service: 'advisory-hub' });
+    const modelOpusId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/opus'));
+    const modelSonnetId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/sonnet'));
+    const modelHaikuId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/haiku'));
 
-    // Pass model SSM parameter names as env vars for runtime Lambda resolution
+    // Add model SSM paths to ingress handler
     ingress.handler.addEnvironment('MODEL_OPUS_SSM', hubNaming.ssmParameterPath('models/opus'));
     ingress.handler.addEnvironment('MODEL_SONNET_SSM', hubNaming.ssmParameterPath('models/sonnet'));
     ingress.handler.addEnvironment('MODEL_HAIKU_SSM', hubNaming.ssmParameterPath('models/haiku'));
 
-    // AgentCore Runtime for decision lifecycle agent
+    // Tool Lambdas
     const portfolioLookupFn = new NodejsFunction(this, 'PortfolioLookup', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'tools', 'portfolio-lookup.ts'),
-      environment: { TABLE_NAME: state.getTable().tableName },
+      environment: { TABLE_NAME: this.state.getTable().tableName },
     });
-    state.getTable().grantReadData(portfolioLookupFn);
+    this.state.getTable().grantReadData(portfolioLookupFn);
 
     const marketDataFn = new NodejsFunction(this, 'MarketData', {
       ...defaultLambdaProps(this),
@@ -108,24 +71,21 @@ export class AdvisoryCtrlStack extends Stack {
     const eventPublisherFn = new NodejsFunction(this, 'ToolEventPublisher', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'tools', 'event-publisher.ts'),
-      environment: { BUS_NAME: naming.eventBusName() },
+      environment: { BUS_NAME: this.naming.eventBusName() },
     });
     eventPublisherFn.addToRolePolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ['events:PutEvents'],
-        resources: [
-          EventBus.fromEventBusName(this, 'AdvisoryBusForIam', naming.eventBusName()).eventBusArn,
-        ],
+        resources: [this.eventBus.eventBusArn],
       }),
     );
 
     new AgentRuntime(this, 'AgentRuntime', {
-      // AgentCore runtimeName must match ^[a-zA-Z][a-zA-Z0-9_]{0,47}$
       runtimeName: 'advisory_ctrl_decision_lifecycle',
       agentCodePath: join(__dirname, '..', 'agents', 'decision-lifecycle'),
       description: 'Multi-agent decision lifecycle orchestrated via LangGraph.js',
-      tables: [state.getTable()],
+      tables: [this.state.getTable()],
       modelIds: [modelOpusId, modelSonnetId, modelHaikuId],
       toolTargets: [
         {
@@ -155,19 +115,12 @@ export class AdvisoryCtrlStack extends Stack {
       ],
     });
 
-    // Monitoring: CloudWatch alarms for Lambda errors, DLQ depth, Bedrock errors
-    new Monitoring(this, 'Monitoring', {
-      lambdaFunctions: [ingress.handler, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
-      dlqs: [ingress.dlq, egress.dlq],
+    this.addObservability({
+      ingress,
+      egress,
+      extraLambdas: [portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
       monitorBedrock: true,
       bedrockModelIds: [modelOpusId, modelSonnetId, modelHaikuId],
-    });
-
-    // Dashboard: CloudWatch dashboard for service observability
-    new ServiceDashboard(this, 'Dashboard', {
-      serviceName: 'advisory-ctrl',
-      lambdaFunctions: [ingress.handler, portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
-      dlqs: [ingress.dlq, egress.dlq],
     });
   }
 }
