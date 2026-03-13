@@ -1,6 +1,5 @@
 // @nestfolio/cdk-constructs -- Reusable CDK construct patterns
 export { ServiceStack, ServiceStackProps } from './service-stack';
-export { ServiceStage, ServiceStageProps, StageContext } from './service-stage';
 export { State, StateProps, GsiConfig } from './state';
 export { Ingress, IngressProps } from './ingress';
 export { Egress, EgressProps } from './egress';
