@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
-# deploy-all.sh — Phase-ordered deployment
+# deploy-all.sh — Dynamic phase-ordered deployment driven by pipeline.json
 set -euo pipefail
 
-PREFIX=${1:?Usage: deploy-all.sh <prefix>}
+PREFIX=${1:?Usage: deploy-all.sh <prefix> [--no-observability]}
+
+# Parse optional flags
+OBSERVABILITY="true"
+shift
+for arg in "$@"; do
+  case "$arg" in
+    --no-observability) OBSERVABILITY="false" ;;
+    *) echo "Unknown flag: $arg" >&2; exit 1 ;;
+  esac
+done
 
 # Determine approval mode: skip approval in CI, require locally
 APPROVAL_FLAG=""
@@ -10,65 +20,116 @@ if [ -n "${CI:-}" ]; then
   APPROVAL_FLAG="--require-approval never"
 fi
 
-# Trap for phase failure
-cleanup() {
-  local exit_code=$?
-  if [ $exit_code -ne 0 ]; then
-    echo "ERROR: Deployment failed at phase. Exit code: $exit_code"
-    echo "Prefix: $PREFIX — manual cleanup may be required."
-  fi
-  exit $exit_code
-}
-trap cleanup EXIT
+trap 'echo "ERROR: Deployment failed. Prefix: $PREFIX — manual cleanup may be required." >&2' ERR
 
 verify_ssm_param() {
   local param_name="$1"
   if ! aws ssm get-parameter --name "$param_name" --query 'Parameter.Value' --output text > /dev/null 2>&1; then
-    echo "ERROR: SSM parameter $param_name not found after deployment."
+    echo "ERROR: SSM parameter $param_name not found after deployment." >&2
     exit 1
   fi
 }
 
-echo "Phase 1: Hub stacks (EventBridge buses + SSM params)..."
-pnpm nx run investor-hub:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-pnpm nx run advisory-hub:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-pnpm nx run execution-hub:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-wait
+deploy_service() {
+  local svc="$1"
+  echo "  Deploying $svc..."
+  pnpm nx run "$svc:deploy" -- --prefix="$PREFIX" $APPROVAL_FLAG -c observability="$OBSERVABILITY"
+}
 
-echo "Verifying Phase 1 SSM parameters..."
-verify_ssm_param "/nestfolio/${PREFIX}-investor/event-hub/busArn"
-verify_ssm_param "/nestfolio/${PREFIX}-advisory/event-hub/busArn"
-verify_ssm_param "/nestfolio/${PREFIX}-execution/event-hub/busArn"
+# Discover all services from pipeline.json files
+PIPELINE_FILES=$(find services -maxdepth 3 -name "pipeline.json" -not -path "*/node_modules/*" -type f)
 
-echo "Phase 2: Investor-web (Cognito triggers)..."
-pnpm nx run investor-web:deploy --prefix=$PREFIX $APPROVAL_FLAG
+if [ -z "$PIPELINE_FILES" ]; then
+  echo "ERROR: No pipeline.json files found." >&2
+  exit 1
+fi
 
-echo "Verifying Phase 2 SSM parameters..."
-verify_ssm_param "/nestfolio/${PREFIX}-investor/auth/userPoolId"
-verify_ssm_param "/nestfolio/${PREFIX}-investor/auth/userPoolClientId"
+echo "Observability: $OBSERVABILITY"
 
-echo "Phase 3: Controller services..."
-pnpm nx run investor-ctrl:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-pnpm nx run advisory-ctrl:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-pnpm nx run compliance-ctrl:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-pnpm nx run execution-ctrl:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-pnpm nx run portfolio-ctrl:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-wait
+# Collect hub services for re-deploy phase
+HUB_SERVICES=""
 
-echo "Phase 4: BFF services..."
-pnpm nx run investor-bff:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-pnpm nx run advisory-bff:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-pnpm nx run portfolio-bff:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-pnpm nx run dashboard-bff:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-wait
+# Deploy by phase (1, 2, 3)
+for PHASE in 1 2 3; do
+  PARALLEL_SERVICES=""
+  SERIAL_SERVICES=""
 
-echo "Phase 5: Adapter services..."
-pnpm nx run execution-adpt:deploy --prefix=$PREFIX $APPROVAL_FLAG
+  for FILE in $PIPELINE_FILES; do
+    FILE_PHASE=$(jq -r '.deploymentPhase' "$FILE")
+    if [ "$FILE_PHASE" = "$PHASE" ]; then
+      SVC=$(jq -r '.service' "$FILE")
+      PARALLEL=$(jq -r '.production.parallelDeploy' "$FILE")
 
-echo "Phase 6: Re-deploy hubs (forwarding rules resolve after services exist)..."
-pnpm nx run investor-hub:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-pnpm nx run advisory-hub:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-pnpm nx run execution-hub:deploy --prefix=$PREFIX $APPROVAL_FLAG &
-wait
+      if [ "$PHASE" = "1" ]; then
+        HUB_SERVICES="$HUB_SERVICES $SVC"
+      fi
 
+      if [ "$PARALLEL" = "true" ]; then
+        PARALLEL_SERVICES="$PARALLEL_SERVICES $SVC"
+      else
+        SERIAL_SERVICES="$SERIAL_SERVICES $SVC"
+      fi
+    fi
+  done
+
+  if [ -z "$PARALLEL_SERVICES$SERIAL_SERVICES" ]; then
+    continue
+  fi
+
+  echo ""
+  echo "Phase $PHASE:$SERIAL_SERVICES$PARALLEL_SERVICES"
+
+  # Deploy serial services first
+  for SVC in $SERIAL_SERVICES; do
+    deploy_service "$SVC"
+  done
+
+  # Deploy parallel services concurrently
+  PIDS=""
+  for SVC in $PARALLEL_SERVICES; do
+    deploy_service "$SVC" &
+    PIDS="$PIDS $!"
+  done
+  FAIL=0
+  for PID in $PIDS; do
+    wait "$PID" || FAIL=1
+  done
+  if [ "$FAIL" -ne 0 ]; then echo "ERROR: One or more parallel deploys failed in Phase $PHASE." >&2; exit 1; fi
+
+  # Post-phase verification
+  if [ "$PHASE" = "1" ]; then
+    echo "Verifying Phase 1 SSM parameters..."
+    for FILE in $PIPELINE_FILES; do
+      FILE_PHASE=$(jq -r '.deploymentPhase' "$FILE")
+      if [ "$FILE_PHASE" = "1" ]; then
+        SUBSYSTEM=$(jq -r '.subsystem' "$FILE")
+        verify_ssm_param "/nestfolio/${PREFIX}-${SUBSYSTEM}/event-hub/busArn"
+      fi
+    done
+  fi
+
+  if [ "$PHASE" = "2" ]; then
+    echo "Verifying Phase 2 SSM parameters..."
+    verify_ssm_param "/nestfolio/${PREFIX}-investor/auth/userPoolId"
+    verify_ssm_param "/nestfolio/${PREFIX}-investor/auth/userPoolClientId"
+  fi
+done
+
+# Re-deploy hubs so cross-domain forwarding rules resolve
+if [ -n "$HUB_SERVICES" ]; then
+  echo ""
+  echo "Phase 4 (hub re-deploy):$HUB_SERVICES"
+  PIDS=""
+  for SVC in $HUB_SERVICES; do
+    deploy_service "$SVC" &
+    PIDS="$PIDS $!"
+  done
+  FAIL=0
+  for PID in $PIDS; do
+    wait "$PID" || FAIL=1
+  done
+  if [ "$FAIL" -ne 0 ]; then echo "ERROR: One or more hub re-deploys failed." >&2; exit 1; fi
+fi
+
+echo ""
 echo "Deployment complete for prefix: $PREFIX"
