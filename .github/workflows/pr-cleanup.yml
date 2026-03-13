@@ -34,4 +34,4 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
-      - run: echo "yes" | bash destroy-all.sh "sandbox-pr-${{ env.PR_NUMBER }}"
+      - run: echo "yes" | bash infrastructure/scripts/teardown.sh "sandbox-pr-${{ env.PR_NUMBER }}"

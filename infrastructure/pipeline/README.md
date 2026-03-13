@@ -24,46 +24,36 @@ In GitHub repo Settings > Environments:
 
 Each environment needs the `AWS_ROLE_ARN` secret.
 
-### 3. Synth and Commit the Pipeline
-
-```bash
-npx nx run pipeline:synth -- -c account=$(aws sts get-caller-identity --query Account --output text) -c region=us-east-1
-git add .github/workflows/deploy.yml
-git commit -m "ci: update generated pipeline workflow"
-git push
-```
-
 ## Deployment Paths
 
 | Path | Trigger | Mechanism | Observability |
 |------|---------|-----------|---------------|
-| Manual | `bash deploy-all.sh <prefix>` | Direct stack deploys | `--no-observability` flag to disable |
-| Sandbox (PR) | PR to main | `pr-deploy.yml` -> `deploy-all.sh` | Configurable per PR |
-| Staging | Push to main | CDK-generated `deploy.yml` | Enabled |
-| Production | After staging | GitHub Environment approval | Enabled |
+| Manual | `bash infrastructure/scripts/deploy.sh <prefix>` | Direct stack deploys | `--no-observability` flag to disable |
+| Sandbox (PR) | PR to main | `pr-deploy.yml` → `deploy.sh` | Configurable per PR |
+| Staging | Push to main | `deploy.yml` → NX affected → `deploy.sh` | Enabled |
+| Production | After staging | GitHub Environment approval → `deploy.sh` | Enabled |
+| Hotfix | Manual dispatch | `deploy.yml` workflow_dispatch with `--services` | Enabled |
 
 ## Manual Deployment
 
 ```bash
 # Deploy with observability (default)
-bash deploy-all.sh dev
+bash infrastructure/scripts/deploy.sh dev
 
 # Deploy without observability (lighter, cheaper)
-bash deploy-all.sh dev --no-observability
+bash infrastructure/scripts/deploy.sh dev --no-observability
+
+# Deploy specific services only
+bash infrastructure/scripts/deploy.sh dev --services="investor-bff,advisory-ctrl"
 
 # Tear down
-bash destroy-all.sh dev
-```
-
-## Re-generating the Pipeline
-
-After changing `pipeline.app.ts` or adding new services:
-
-```bash
-npx nx run pipeline:synth -- -c account=<ACCOUNT> -c region=us-east-1
-# Commit the regenerated deploy.yml
+bash infrastructure/scripts/teardown.sh dev
 ```
 
 ## Service Discovery
 
 Services are discovered from `pipeline.json` files. To add a new service to the pipeline, create a `pipeline.json` in its directory. See `.pipeline-schema.json` for the schema.
+
+## Dependencies
+
+The `cdk-pipelines-github` package is retained solely for the `GitHubActionRole` construct used in `github-role.stack.ts` (OIDC role bootstrap). The CI/CD workflows themselves are hand-written GitHub Actions.

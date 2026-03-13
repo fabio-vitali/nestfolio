@@ -2,6 +2,12 @@ name: Deploy Pipeline
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Comma-separated list of services to deploy (empty = affected only)'
+        required: false
+        default: ''
 
 concurrency:
   group: deploy-main
@@ -24,33 +30,46 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - run: bash .github/scripts/validate-pipeline-configs.sh
       - uses: nrwl/nx-set-shas@v4
         id: setSHAs
       - id: affected
         run: |
-          AFFECTED=$(bash .github/scripts/compute-affected-services.sh "${{ steps.setSHAs.outputs.base }}")
-          echo "services=$AFFECTED" >> $GITHUB_OUTPUT
-          if [ -z "$AFFECTED" ]; then
-            echo "skipped=true" >> $GITHUB_OUTPUT
-            echo "No affected services — skipping staging deploy."
-          else
+          # Use manual input if provided, otherwise compute affected
+          MANUAL="${{ github.event.inputs.services }}"
+          if [ -n "$MANUAL" ]; then
+            echo "services=$MANUAL" >> $GITHUB_OUTPUT
             echo "skipped=false" >> $GITHUB_OUTPUT
-            echo "Affected services: $AFFECTED"
+            echo "Manual deploy: $MANUAL"
+          else
+            AFFECTED=$(bash .github/scripts/compute-affected-services.sh "${{ steps.setSHAs.outputs.base }}")
+            echo "services=$AFFECTED" >> $GITHUB_OUTPUT
+            if [ -z "$AFFECTED" ]; then
+              echo "skipped=true" >> $GITHUB_OUTPUT
+              echo "No affected services — skipping staging deploy."
+            else
+              echo "skipped=false" >> $GITHUB_OUTPUT
+              echo "Affected services: $AFFECTED"
+            fi
           fi
       - name: Lint and test affected
         if: steps.affected.outputs.skipped == 'false'
         run: |
           pnpm nx affected -t lint --base=${{ steps.setSHAs.outputs.base }} --parallel=3
           pnpm nx affected -t test --base=${{ steps.setSHAs.outputs.base }} --parallel=3
+      # - uses: aws-actions/configure-aws-credentials@v4
+      #   if: steps.affected.outputs.skipped == 'false'
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      #     aws-region: us-east-1
       - name: Deploy to staging
         if: steps.affected.outputs.skipped == 'false'
         run: |
           echo "Deploying affected services to staging: ${{ steps.affected.outputs.services }}"
           # Uncomment when OIDC role is deployed and AWS_ROLE_ARN secret is set:
-          # aws-actions/configure-aws-credentials step should be added before this
           # export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
           # export CDK_DEFAULT_REGION=us-east-1
-          # bash deploy-all.sh staging --services="${{ steps.affected.outputs.services }}"
+          # bash infrastructure/scripts/deploy.sh staging --services="${{ steps.affected.outputs.services }}"
 
   production:
     needs: staging
@@ -66,11 +85,14 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # - uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      #     aws-region: us-east-1
       - name: Deploy to production
         run: |
           echo "Deploying affected services to production: ${{ needs.staging.outputs.affected }}"
           # Uncomment when OIDC role is deployed and AWS_ROLE_ARN secret is set:
-          # aws-actions/configure-aws-credentials step should be added before this
           # export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
           # export CDK_DEFAULT_REGION=us-east-1
-          # bash deploy-all.sh prod --services="${{ needs.staging.outputs.affected }}"
+          # bash infrastructure/scripts/deploy.sh prod --services="${{ needs.staging.outputs.affected }}"

@@ -31,8 +31,8 @@ jobs:
             echo "is_full_deploy=true" >> $GITHUB_OUTPUT
             echo "services=" >> $GITHUB_OUTPUT
           else
-            # synchronize — compute affected since last push
-            AFFECTED=$(bash .github/scripts/compute-affected-services.sh "${{ github.event.before }}")
+            # synchronize — compute affected against main for full transitivity
+            AFFECTED=$(bash .github/scripts/compute-affected-services.sh "origin/main")
             echo "is_full_deploy=false" >> $GITHUB_OUTPUT
             echo "services=$AFFECTED" >> $GITHUB_OUTPUT
           fi
@@ -93,7 +93,7 @@ jobs:
           IS_FULL="${{ needs.detect-affected.outputs.is_full_deploy }}"
           AFFECTED="${{ needs.detect-affected.outputs.affected }}"
           if [ "$IS_FULL" = "true" ]; then
-            bash deploy-all.sh "$PREFIX_SANDBOX"
+            bash infrastructure/scripts/deploy.sh "$PREFIX_SANDBOX"
           else
-            bash deploy-all.sh "$PREFIX_SANDBOX" --services="$AFFECTED"
+            bash infrastructure/scripts/deploy.sh "$PREFIX_SANDBOX" --services="$AFFECTED"
           fi

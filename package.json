@@ -13,8 +13,8 @@
     "build": "nx run-many -t build",
     "test": "nx run-many -t test",
     "lint": "nx run-many -t lint",
-    "deploy": "bash deploy-all.sh",
-    "destroy": "bash destroy-all.sh"
+    "deploy": "bash infrastructure/scripts/deploy.sh",
+    "destroy": "bash infrastructure/scripts/teardown.sh"
   },
   "dependencies": {
     "@angular/animations": "^21.2.0",
