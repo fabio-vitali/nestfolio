@@ -1,5 +1,6 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { Construct } from 'constructs';
-import { Annotations } from 'aws-cdk-lib';
 import {
   GraphqlApi,
   SchemaFile,
@@ -11,12 +12,12 @@ import {
   Resolver,
   BaseDataSource,
 } from 'aws-cdk-lib/aws-appsync';
-import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
-import { IUserPool } from 'aws-cdk-lib/aws-cognito';
+import { IUserPool, UserPool } from 'aws-cdk-lib/aws-cognito';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { CfnWebACL, CfnWebACLAssociation } from 'aws-cdk-lib/aws-wafv2';
 import { parse, visit } from 'graphql';
+import { ServiceStack } from './service-stack';
 
 export interface JsResolverConfig {
   typeName: 'Query' | 'Mutation';
@@ -34,10 +35,9 @@ export interface LambdaResolverConfig {
 export interface FacadeProps {
   readonly schemaPath?: string;
   readonly userPool?: IUserPool;
-  readonly table?: ITable;
+  readonly userPoolSsmPath?: string;
   readonly jsResolvers?: JsResolverConfig[];
   readonly lambdaResolvers?: LambdaResolverConfig[];
-  readonly ssmPrefix?: string;
   readonly queryDepthLimit?: number;
   readonly enableWaf?: boolean;
   readonly wafRateLimit?: number;
@@ -50,107 +50,117 @@ export class Facade extends Construct {
   constructor(scope: Construct, id: string, props: FacadeProps) {
     super(scope, id);
 
-    if (props.schemaPath && !props.userPool) {
-      Annotations.of(this).addError(
-        'Facade: schemaPath requires a userPool for AppSync authentication. Provide a userPool or remove schemaPath.',
-      );
+    const serviceStack = ServiceStack.of(this);
+    const { state, naming, serviceDir } = serviceStack;
+
+    // If no resolvers at all, skip API creation
+    if (!props.jsResolvers?.length && !props.lambdaResolvers?.length) {
       return;
     }
 
-    if (props.schemaPath && props.userPool) {
-      const depthLimit = props.queryDepthLimit ?? 10;
+    const schemaPath = props.schemaPath ?? join(serviceDir, 'schema.graphql');
 
-      this.api = new GraphqlApi(this, 'Api', {
-        name: `${id}-api`,
-        schema: SchemaFile.fromAsset(props.schemaPath),
-        authorizationConfig: {
-          defaultAuthorization: {
-            authorizationType: AuthorizationType.USER_POOL,
-            userPoolConfig: { userPool: props.userPool },
-          },
+    // Resolve user pool: explicit > SSM lookup > default SSM path
+    let userPool = props.userPool;
+    if (!userPool) {
+      const ssmPath = props.userPoolSsmPath ?? naming.ssmParameterPath('auth/userPoolId');
+      const userPoolId = StringParameter.valueForStringParameter(this, ssmPath);
+      userPool = UserPool.fromUserPoolId(this, 'UserPool', userPoolId);
+    }
+
+    const depthLimit = props.queryDepthLimit ?? 10;
+
+    this.api = new GraphqlApi(this, 'Api', {
+      name: `${id}-api`,
+      schema: SchemaFile.fromAsset(schemaPath),
+      authorizationConfig: {
+        defaultAuthorization: {
+          authorizationType: AuthorizationType.USER_POOL,
+          userPoolConfig: { userPool },
         },
-        queryDepthLimit: depthLimit,
-      });
-      this.graphqlUrl = this.api.graphqlUrl;
+      },
+      queryDepthLimit: depthLimit,
+    });
+    this.graphqlUrl = this.api.graphqlUrl;
 
-      // WAF rate limiting (S10)
-      if (props.enableWaf !== false) {
-        const rateLimit = props.wafRateLimit ?? 1000;
+    // WAF rate limiting (S10)
+    if (props.enableWaf !== false) {
+      const rateLimit = props.wafRateLimit ?? 1000;
 
-        const webAcl = new CfnWebACL(this, 'WebAcl', {
-          scope: 'REGIONAL',
-          defaultAction: { allow: {} },
-          visibilityConfig: {
-            cloudWatchMetricsEnabled: true,
-            metricName: `${id}-waf`,
-            sampledRequestsEnabled: true,
-          },
-          rules: [
-            {
-              name: 'RateLimitRule',
-              priority: 1,
-              action: { block: {} },
-              statement: {
-                rateBasedStatement: {
-                  limit: rateLimit,
-                  aggregateKeyType: 'IP',
-                },
-              },
-              visibilityConfig: {
-                cloudWatchMetricsEnabled: true,
-                metricName: `${id}-rate-limit`,
-                sampledRequestsEnabled: true,
+      const webAcl = new CfnWebACL(this, 'WebAcl', {
+        scope: 'REGIONAL',
+        defaultAction: { allow: {} },
+        visibilityConfig: {
+          cloudWatchMetricsEnabled: true,
+          metricName: `${id}-waf`,
+          sampledRequestsEnabled: true,
+        },
+        rules: [
+          {
+            name: 'RateLimitRule',
+            priority: 1,
+            action: { block: {} },
+            statement: {
+              rateBasedStatement: {
+                limit: rateLimit,
+                aggregateKeyType: 'IP',
               },
             },
-          ],
-        });
+            visibilityConfig: {
+              cloudWatchMetricsEnabled: true,
+              metricName: `${id}-rate-limit`,
+              sampledRequestsEnabled: true,
+            },
+          },
+        ],
+      });
 
-        new CfnWebACLAssociation(this, 'WebAclAssociation', {
-          resourceArn: this.api.arn,
-          webAclArn: webAcl.attrArn,
-        });
-      }
+      new CfnWebACLAssociation(this, 'WebAclAssociation', {
+        resourceArn: this.api.arn,
+        webAclArn: webAcl.attrArn,
+      });
+    }
 
-      // JS pipeline resolvers
-      if (props.jsResolvers?.length && props.table) {
-        const ddbDs = this.api.addDynamoDbDataSource('DynamoDS', props.table);
-        const noneDs = this.api.addNoneDataSource('NoneDS');
+    // JS pipeline resolvers
+    if (props.jsResolvers?.length && state.table) {
+      const ddbDs = this.api.addDynamoDbDataSource('DynamoDS', state.getTable());
+      const noneDs = this.api.addNoneDataSource('NoneDS');
 
-        const checkAuthFns = new Map<string, AppsyncFunction>();
+      const checkAuthFns = new Map<string, AppsyncFunction>();
 
-        for (const resolver of props.jsResolvers) {
-          const pipelineFns: AppsyncFunction[] = [];
+      for (const resolver of props.jsResolvers) {
+        const pipelineFns: AppsyncFunction[] = [];
 
-          for (let i = 0; i < resolver.pipeline.length; i++) {
-            const fnPath = resolver.pipeline[i];
-            const fnName = `${resolver.typeName}${resolver.fieldName}Fn${i}`;
-            const isCheckAuth = fnPath.includes('check-auth');
-            const isNone = resolver.dataSource === 'none' || isCheckAuth;
+        for (let i = 0; i < resolver.pipeline.length; i++) {
+          const fnPath = resolver.pipeline[i];
+          const fnName = `${resolver.typeName}${resolver.fieldName}Fn${i}`;
+          const isCheckAuth = fnPath.includes('check-auth');
+          const isNone = resolver.dataSource === 'none' || isCheckAuth;
 
-            // Reuse checkAuth function per unique path
-            if (isCheckAuth && checkAuthFns.has(fnPath)) {
-              pipelineFns.push(checkAuthFns.get(fnPath)!);
-              continue;
-            }
-
-            const fn = new AppsyncFunction(this, fnName, {
-              name: fnName,
-              api: this.api,
-              dataSource: isNone ? noneDs : ddbDs,
-              code: Code.fromAsset(fnPath),
-              runtime: FunctionRuntime.JS_1_0_0,
-            });
-
-            if (isCheckAuth) checkAuthFns.set(fnPath, fn);
-            pipelineFns.push(fn);
+          // Reuse checkAuth function per unique path
+          if (isCheckAuth && checkAuthFns.has(fnPath)) {
+            pipelineFns.push(checkAuthFns.get(fnPath)!);
+            continue;
           }
 
-          const tableName = props.table.tableName;
-          new Resolver(this, `${resolver.typeName}${resolver.fieldName}Resolver`, {
+          const fn = new AppsyncFunction(this, fnName, {
+            name: fnName,
             api: this.api,
-            typeName: resolver.typeName,
-            fieldName: resolver.fieldName,
-            code: Code.fromInline(`
+            dataSource: isNone ? noneDs : ddbDs,
+            code: Code.fromAsset(fnPath),
+            runtime: FunctionRuntime.JS_1_0_0,
+          });
+
+          if (isCheckAuth) checkAuthFns.set(fnPath, fn);
+          pipelineFns.push(fn);
+        }
+
+        const tableName = state.getTable().tableName;
+        new Resolver(this, `${resolver.typeName}${resolver.fieldName}Resolver`, {
+          api: this.api,
+          typeName: resolver.typeName,
+          fieldName: resolver.fieldName,
+          code: Code.fromInline(`
               export function request(ctx) {
                 ctx.stash.tableName = '${tableName}';
                 return {};
@@ -159,40 +169,40 @@ export class Facade extends Construct {
                 return ctx.prev.result;
               }
             `),
-            runtime: FunctionRuntime.JS_1_0_0,
-            pipelineConfig: pipelineFns,
-          });
-        }
-      }
-
-      // Lambda resolvers
-      if (props.lambdaResolvers?.length) {
-        const lambdaDsMap = new Map<string, BaseDataSource>();
-        for (const resolver of props.lambdaResolvers) {
-          const fnArn = resolver.handler.functionArn;
-          if (!lambdaDsMap.has(fnArn)) {
-            lambdaDsMap.set(
-              fnArn,
-              this.api.addLambdaDataSource(`LambdaDS${lambdaDsMap.size}`, resolver.handler),
-            );
-          }
-          const ds = lambdaDsMap.get(fnArn)!;
-          ds.createResolver(`${resolver.typeName}${resolver.fieldName}Resolver`, {
-            typeName: resolver.typeName,
-            fieldName: resolver.fieldName,
-            requestMappingTemplate: MappingTemplate.lambdaRequest(),
-            responseMappingTemplate: MappingTemplate.lambdaResult(),
-          });
-        }
-      }
-
-      if (props.ssmPrefix && this.api) {
-        new StringParameter(this, 'ApiUrlParam', {
-          parameterName: `${props.ssmPrefix}/api/graphqlUrl`,
-          stringValue: this.api.graphqlUrl,
-          description: `AppSync GraphQL URL for ${id}`,
+          runtime: FunctionRuntime.JS_1_0_0,
+          pipelineConfig: pipelineFns,
         });
       }
+    }
+
+    // Lambda resolvers
+    if (props.lambdaResolvers?.length) {
+      const lambdaDsMap = new Map<string, BaseDataSource>();
+      for (const resolver of props.lambdaResolvers) {
+        const fnArn = resolver.handler.functionArn;
+        if (!lambdaDsMap.has(fnArn)) {
+          lambdaDsMap.set(
+            fnArn,
+            this.api.addLambdaDataSource(`LambdaDS${lambdaDsMap.size}`, resolver.handler),
+          );
+        }
+        const ds = lambdaDsMap.get(fnArn)!;
+        ds.createResolver(`${resolver.typeName}${resolver.fieldName}Resolver`, {
+          typeName: resolver.typeName,
+          fieldName: resolver.fieldName,
+          requestMappingTemplate: MappingTemplate.lambdaRequest(),
+          responseMappingTemplate: MappingTemplate.lambdaResult(),
+        });
+      }
+    }
+
+    // Store API URL in SSM
+    if (this.api) {
+      new StringParameter(this, 'ApiUrlParam', {
+        parameterName: naming.ssmParameterPath('api/graphqlUrl'),
+        stringValue: this.api.graphqlUrl,
+        description: `AppSync GraphQL URL for ${id}`,
+      });
     }
   }
 
@@ -223,4 +233,50 @@ export function parseSchemaFields(schema: string): Array<{ typeName: string; fie
     },
   });
   return fields;
+}
+
+/**
+ * Auto-discover JS pipeline resolver configs from a GraphQL schema and service directory.
+ * Reads the schema at CDK synth time to enumerate Query/Mutation fields,
+ * then maps each field to a pipeline of JS function files.
+ */
+export function discoverJsResolvers(serviceDir: string, options?: {
+  /** Fields that use 'none' data source */
+  noneDataSource?: string[];
+  /** Fields with extra pipeline steps (e.g. readback) */
+  extraSteps?: Record<string, string[]>;
+  /** Fields handled by lambdaResolvers (excluded from JS resolvers) */
+  exclude?: string[];
+}): JsResolverConfig[] {
+  const schemaPath = join(serviceDir, 'schema.graphql');
+  const schemaContent = readFileSync(schemaPath, 'utf-8');
+  const fields = parseSchemaFields(schemaContent);
+
+  const excludeSet = new Set(options?.exclude ?? []);
+  const noneSet = new Set(options?.noneDataSource ?? []);
+  const jsFnPath = join(serviceDir, 'graphql', 'js-function');
+  const checkAuthPath = join(jsFnPath, 'utils', 'check-auth.fn.js');
+
+  return fields
+    .filter(f => !excludeSet.has(f.fieldName))
+    .map(f => {
+      const fnFileName = toKebabCase(f.fieldName) + '.fn.js';
+      const pipeline = [checkAuthPath, join(jsFnPath, fnFileName)];
+
+      // Add extra steps (e.g. readback)
+      if (options?.extraSteps?.[f.fieldName]) {
+        pipeline.push(...options.extraSteps[f.fieldName].map(step => join(jsFnPath, step)));
+      }
+
+      return {
+        typeName: f.typeName as 'Query' | 'Mutation',
+        fieldName: f.fieldName,
+        pipeline,
+        ...(noneSet.has(f.fieldName) ? { dataSource: 'none' as const } : {}),
+      };
+    });
+}
+
+function toKebabCase(str: string): string {
+  return str.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 }

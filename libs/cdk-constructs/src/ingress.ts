@@ -1,23 +1,19 @@
+import { join } from 'path';
 import { Construct } from 'constructs';
 import { Duration, Stack } from 'aws-cdk-lib';
-import { IEventBus, Rule } from 'aws-cdk-lib/aws-events';
+import { Rule } from 'aws-cdk-lib/aws-events';
 import { SqsQueue } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { NodejsFunction, NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
-import { State } from './state';
+import { ServiceStack } from './service-stack';
 import { defaultLambdaProps } from './default-lambda-props';
 
 export interface IngressProps {
-  eventBus: IEventBus;
   eventTypes: string[];
-  /** Path to the event listener handler file */
-  entry: string;
-  /** Service name — sets SERVICE_NAME env var */
-  serviceName: string;
-  /** State construct — auto-wires TABLE_NAME/BUCKET_NAME env vars and IAM grants */
-  state: State;
+  /** Path to the event listener handler file. Default: join(serviceDir, 'handlers', 'event-listener.ts') */
+  entry?: string;
   /** Extra environment variables merged into the Lambda */
   environment?: Record<string, string>;
   /** Override defaultLambdaProps (e.g. timeout, memorySize) */
@@ -41,16 +37,21 @@ export class Ingress extends Construct {
   constructor(scope: Construct, id: string, props: IngressProps) {
     super(scope, id);
 
+    const serviceStack = ServiceStack.of(this);
+    const { state, eventBus, serviceName, serviceDir } = serviceStack;
+
+    const entry = props.entry ?? join(serviceDir, 'handlers', 'event-listener.ts');
+
     // Build environment from State + bus + extras
     const env: Record<string, string> = {
-      SERVICE_NAME: props.serviceName,
-      BUS_NAME: props.eventBus.eventBusName,
+      SERVICE_NAME: serviceName,
+      BUS_NAME: eventBus.eventBusName,
     };
-    if (props.state.table) {
-      env['TABLE_NAME'] = props.state.getTable().tableName;
+    if (state.table) {
+      env['TABLE_NAME'] = state.getTable().tableName;
     }
-    if (props.state.bucket) {
-      env['BUCKET_NAME'] = props.state.getBucket().bucketName;
+    if (state.bucket) {
+      env['BUCKET_NAME'] = state.getBucket().bucketName;
     }
     if (props.environment) {
       Object.assign(env, props.environment);
@@ -60,23 +61,23 @@ export class Ingress extends Construct {
     this.handler = new NodejsFunction(this, 'Handler', {
       ...defaultLambdaProps(this),
       ...props.lambdaProps,
-      entry: props.entry,
+      entry,
       environment: env,
     });
 
     // IAM: State grants
-    if (props.state.table) {
-      props.state.getTable().grantReadWriteData(this.handler);
+    if (state.table) {
+      state.getTable().grantReadWriteData(this.handler);
     }
-    if (props.state.bucket) {
-      props.state.getBucket().grantReadWrite(this.handler);
+    if (state.bucket) {
+      state.getBucket().grantReadWrite(this.handler);
     }
 
     // IAM: PutEvents for publishErrorEvent
     this.handler.addToRolePolicy(new PolicyStatement({
       actions: ['events:PutEvents'],
       resources: [
-        `arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${props.eventBus.eventBusName}`,
+        `arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${eventBus.eventBusName}`,
       ],
     }));
 
@@ -100,14 +101,14 @@ export class Ingress extends Construct {
       },
     });
 
-    // EventBridge Rule → SQS
+    // EventBridge Rule -> SQS
     new Rule(this, 'Rule', {
-      eventBus: props.eventBus,
+      eventBus,
       eventPattern: { detailType: props.eventTypes },
       targets: [new SqsQueue(this.queue)],
     });
 
-    // SQS → Lambda
+    // SQS -> Lambda
     const batchingWindow = props.maxBatchingWindow
       ?? Duration.millis(props.maxBatchingWindowMs ?? 1000);
 

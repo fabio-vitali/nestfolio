@@ -1,4 +1,9 @@
 // @nestfolio/lambda-utils — Shared Lambda runtime utilities
+import { join } from 'path';
+
+/** Absolute path to the event-publisher Lambda entry point (for CDK Egress construct) */
+export const EVENT_PUBLISHER_ENTRY = join(__dirname, 'event-publisher.ts');
+
 // Re-export core types from platform-core for convenience
 export {
   type BusEvent,
