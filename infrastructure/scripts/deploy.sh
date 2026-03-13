@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# deploy-all.sh — Dynamic phase-ordered deployment driven by pipeline.json
+# deploy.sh — Dynamic phase-ordered deployment driven by pipeline.json
 set -euo pipefail
 
-PREFIX=${1:?Usage: deploy-all.sh <prefix> [--no-observability] [--services=svc1,svc2,...]}
+PREFIX=${1:?Usage: deploy.sh <prefix> [--no-observability] [--services=svc1,svc2,...]}
 
 # Parse optional flags
 OBSERVABILITY="true"
