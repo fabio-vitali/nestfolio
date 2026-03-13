@@ -14,7 +14,7 @@
     },
     "subsystem": {
       "type": "string",
-      "enum": ["investor", "advisory", "execution"],
+      "enum": ["investor", "advisory", "execution", "ledger"],
       "description": "The domain subsystem this service belongs to."
     },
     "deploymentPhase": {
