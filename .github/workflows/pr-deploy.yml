@@ -2,6 +2,7 @@ name: PR Deploy Pipeline
 on:
   pull_request:
     branches: [main]
+    types: [opened, reopened, synchronize]
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}
@@ -15,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       affected: ${{ steps.affected.outputs.services }}
+      is_full_deploy: ${{ steps.affected.outputs.is_full_deploy }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -24,12 +26,20 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - id: affected
         run: |
-          AFFECTED=$(pnpm nx show projects --affected --base=origin/main --type=app | tr '\n' ',')
-          echo "services=$AFFECTED" >> $GITHUB_OUTPUT
+          ACTION="${{ github.event.action }}"
+          if [ "$ACTION" = "opened" ] || [ "$ACTION" = "reopened" ]; then
+            echo "is_full_deploy=true" >> $GITHUB_OUTPUT
+            echo "services=" >> $GITHUB_OUTPUT
+          else
+            # synchronize — compute affected since last push
+            AFFECTED=$(bash .github/scripts/compute-affected-services.sh "${{ github.event.before }}")
+            echo "is_full_deploy=false" >> $GITHUB_OUTPUT
+            echo "services=$AFFECTED" >> $GITHUB_OUTPUT
+          fi
 
   security-scan:
     needs: detect-affected
-    if: needs.detect-affected.outputs.affected != ''
+    if: needs.detect-affected.outputs.is_full_deploy == 'true' || needs.detect-affected.outputs.affected != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +54,7 @@ jobs:
 
   build-and-test:
     needs: detect-affected
-    if: needs.detect-affected.outputs.affected != ''
+    if: needs.detect-affected.outputs.is_full_deploy == 'true' || needs.detect-affected.outputs.affected != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +68,7 @@ jobs:
       - run: pnpm nx affected -t test --base=origin/main --parallel=3
 
   sandbox-deploy:
-    needs: [build-and-test, security-scan]
+    needs: [detect-affected, build-and-test, security-scan]
     runs-on: ubuntu-latest
     environment: sandbox
     permissions:
@@ -76,7 +86,14 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
-      - run: |
+      - name: Deploy
+        run: |
           export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
           export CDK_DEFAULT_REGION=us-east-1
-          bash deploy-all.sh "$PREFIX_SANDBOX"
+          IS_FULL="${{ needs.detect-affected.outputs.is_full_deploy }}"
+          AFFECTED="${{ needs.detect-affected.outputs.affected }}"
+          if [ "$IS_FULL" = "true" ]; then
+            bash deploy-all.sh "$PREFIX_SANDBOX"
+          else
+            bash deploy-all.sh "$PREFIX_SANDBOX" --services="$AFFECTED"
+          fi
