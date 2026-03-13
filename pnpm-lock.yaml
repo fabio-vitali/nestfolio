@@ -219,6 +219,9 @@ importers:
       aws-cdk:
         specifier: ^2.188.0
         version: 2.1109.0
+      cdk-pipelines-github:
+        specifier: ^0.4.133
+        version: 0.4.133(aws-cdk-lib@2.241.0(constructs@10.5.1))(constructs@10.5.1)
       chart.js:
         specifier: ^4.5.1
         version: 4.5.1
@@ -5157,6 +5160,17 @@ packages:
 
   caniuse-lite@1.0.30001777:
     resolution: {integrity: sha512-tmN+fJxroPndC74efCdp12j+0rk0RHwV5Jwa1zWaFVyw2ZxAuPeG8ZgWC3Wz7uSjT3qMRQ5XHZ4COgQmsCMJAQ==}
+
+  cdk-pipelines-github@0.4.133:
+    resolution: {integrity: sha512-LfmjIEnuuE26ckX916XNccnsJGgyYLp1wLOsmyOp1VZKeMPMQGzTfpuW8804Lw6eT7RbnZHrO0xTI2wtltfTyQ==}
+    engines: {node: '>= 18.12.0'}
+    peerDependencies:
+      aws-cdk-lib: ^2.80.0
+      constructs: ^10.0.46
+    bundledDependencies:
+      - decamelize
+      - fast-json-patch
+      - yaml
 
   chalk@2.4.2:
     resolution: {integrity: sha512-Mti+f9lpJNcwF4tWV8/OrTTtF1gZi+f8FqlyAdouralcFWFQWF2+NgCHShjkCb+IFBLq9buZwE1xckQU4peSuQ==}
@@ -16192,6 +16206,11 @@ snapshots:
       lodash.uniq: 4.5.0
 
   caniuse-lite@1.0.30001777: {}
+
+  cdk-pipelines-github@0.4.133(aws-cdk-lib@2.241.0(constructs@10.5.1))(constructs@10.5.1):
+    dependencies:
+      aws-cdk-lib: 2.241.0(constructs@10.5.1)
+      constructs: 10.5.1
 
   chalk@2.4.2:
     dependencies:
