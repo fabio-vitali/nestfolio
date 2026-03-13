@@ -13,8 +13,12 @@ trap 'echo "ERROR: Teardown failed. Prefix: $PREFIX — manual cleanup may be re
 
 destroy_service() {
   local svc="$1"
-  echo "  Destroying $svc..."
-  pnpm nx run "$svc:destroy" -- --prefix="$PREFIX" $APPROVAL_FLAG
+  local region="${2:-$CDK_DEFAULT_REGION}"
+  region="${region:-us-east-1}"
+  echo "  Destroying $svc (${region})..."
+  CDK_DEFAULT_REGION="$region" pnpm nx run "$svc:destroy" -- \
+    --prefix="$PREFIX" $APPROVAL_FLAG \
+    -c region="$region"
 }
 
 # Discover all services from pipeline.json files
@@ -26,6 +30,7 @@ if [ -z "$PIPELINE_FILES" ]; then
 fi
 
 # Teardown in reverse phase order (3, 2, 1)
+TEARDOWN_FAIL=0
 for PHASE in 3 2 1; do
   PARALLEL_SERVICES=""
   SERIAL_SERVICES=""
@@ -35,11 +40,15 @@ for PHASE in 3 2 1; do
     if [ "$FILE_PHASE" = "$PHASE" ]; then
       SVC=$(jq -r '.service' "$FILE")
       PARALLEL=$(jq -r '.production.parallelDeploy' "$FILE")
-      if [ "$PARALLEL" = "true" ]; then
-        PARALLEL_SERVICES="$PARALLEL_SERVICES $SVC"
-      else
-        SERIAL_SERVICES="$SERIAL_SERVICES $SVC"
-      fi
+      REGIONS=$(jq -r '.production.regions[]' "$FILE")
+      for REGION in $REGIONS; do
+        ENTRY="${SVC}:${REGION}"
+        if [ "$PARALLEL" = "true" ]; then
+          PARALLEL_SERVICES="$PARALLEL_SERVICES $ENTRY"
+        else
+          SERIAL_SERVICES="$SERIAL_SERVICES $ENTRY"
+        fi
+      done
     fi
   done
 
@@ -51,16 +60,34 @@ for PHASE in 3 2 1; do
   echo "Phase $PHASE (teardown):$SERIAL_SERVICES$PARALLEL_SERVICES"
 
   # Destroy parallel services concurrently
-  for SVC in $PARALLEL_SERVICES; do
-    destroy_service "$SVC" &
+  PIDS=""
+  for ENTRY in $PARALLEL_SERVICES; do
+    SVC="${ENTRY%%:*}"
+    REGION="${ENTRY##*:}"
+    destroy_service "$SVC" "$REGION" &
+    PIDS="$PIDS $!"
   done
-  wait
+  FAIL=0
+  for PID in $PIDS; do
+    wait "$PID" || FAIL=1
+  done
+  if [ "$FAIL" -ne 0 ]; then
+    echo "WARNING: One or more parallel teardowns failed in Phase $PHASE. Continuing..." >&2
+    TEARDOWN_FAIL=1
+  fi
 
   # Destroy serial services
-  for SVC in $SERIAL_SERVICES; do
-    destroy_service "$SVC"
+  for ENTRY in $SERIAL_SERVICES; do
+    SVC="${ENTRY%%:*}"
+    REGION="${ENTRY##*:}"
+    destroy_service "$SVC" "$REGION" || { echo "WARNING: Teardown of $SVC ($REGION) failed. Continuing..." >&2; TEARDOWN_FAIL=1; }
   done
 done
 
 echo ""
-echo "Teardown complete for prefix: $PREFIX"
+if [ "$TEARDOWN_FAIL" -ne 0 ]; then
+  echo "Teardown completed with errors for prefix: $PREFIX — check logs above." >&2
+  exit 1
+else
+  echo "Teardown complete for prefix: $PREFIX"
+fi
