@@ -60,10 +60,19 @@ Resolution follows a 3-layer merge strategy. Later layers override earlier ones:
 | Service name ends with `-hub` | `deploymentPhase: 1` | Hub stacks deploy first (EventBridge buses, SSM params) |
 | Service name ends with `-web` or `-auth` | `deploymentPhase: 2` | Frontend and auth stacks deploy after hubs |
 | All other services | `deploymentPhase: 3` | BFFs, controllers, adapters deploy last |
-| Non-hub services | `dependencies: ["{subsystem}-hub"]` | Every service depends on its subsystem's hub |
+| Service name ends with `-bff` | `dependencies: ["{subsystem}-hub", "investor-web"]` | BFFs depend on their hub + auth/frontend (Cognito token validation) |
+| Non-hub, non-BFF services | `dependencies: ["{subsystem}-hub"]` | Controllers/adapters depend on their subsystem's hub |
 | Hub services | `dependencies: []` | Hubs have no intra-phase dependencies |
 
 **Discovery:** Services are discovered by scanning `services/*/*/src/main.ts` — any directory with a CDK entry point is a deployable service.
+
+**Services that still need a `pipeline.json` override after migration:**
+
+| Service | Reason | Override |
+|---------|--------|----------|
+| `investor-web` | `parallelDeploy: false` (serial deploy) | `{ "parallelDeploy": false }` |
+
+All other 15 services are fully inferrable and need no `pipeline.json`.
 
 ### Layer 2: `infrastructure/pipeline-defaults.json`
 
@@ -108,7 +117,11 @@ Defines default properties per environment tier. All properties are optional —
 | `account` | `undefined` (→ `CDK_DEFAULT_ACCOUNT`) |
 | `region` | `undefined` (→ `CDK_DEFAULT_REGION` → `us-east-1`) |
 
-**Tier detection from prefix:**
+**Tier passing:**
+
+The active tier is passed explicitly via CDK context (`-c tier=staging`). `deploy.sh` always passes the tier; `main.ts` reads it via `app.node.tryGetContext('tier')`.
+
+Fallback for local dev (no tier context): infer from prefix pattern:
 
 | Prefix pattern | Tier |
 |---------------|------|
@@ -236,8 +249,10 @@ deploy.sh <tier> [--prefix=<custom>] [--services=svc1,svc2]
 3. For each phase:
    - **Multi-target production**: iterate each `{account, region}` target, deploying all services in that phase to that target (parallel/serial as configured)
    - **Single-target (sandbox/staging or single-prod)**: deploy with `CDK_DEFAULT_ACCOUNT`/`CDK_DEFAULT_REGION` as today
-4. Pass resolved properties as CDK context: `-c observability=true -c logRetention=90 -c protectedResources=true`
-5. Phase verification (SSM param checks) unchanged
+4. Pass resolved properties as CDK context: `-c tier=prod -c prefix=prod -c observability=true -c logRetention=90 -c protectedResources=true`
+5. Phase verification unchanged:
+   - **Phase 1**: verify hub bus ARN SSM params exist (per-subsystem, per-region)
+   - **Phase 2**: verify auth SSM params (`userPoolId`, `userPoolClientId`) — these remain hardcoded checks since only `investor-web` publishes auth params
 
 ### Backwards compatibility
 
@@ -266,6 +281,8 @@ new AdvisoryCtrlStack(app, `${prefix}-advisory-ctrl`, {
 After:
 ```typescript
 const app = new App();
+// resolvePipelineConfig reads 'tier' and 'prefix' from CDK context,
+// infers subsystem/phase from service path, merges tier defaults + overrides
 const config = resolvePipelineConfig(app, 'advisory-ctrl');
 new AdvisoryCtrlStack(app, `${config.prefix}-advisory-ctrl`, {
   ...config,
@@ -275,6 +292,8 @@ new AdvisoryCtrlStack(app, `${config.prefix}-advisory-ctrl`, {
   },
 });
 ```
+
+`deploy.sh` passes tier via: `cdk deploy -c tier=staging -c prefix=staging ...`
 
 ### Stack props extension
 
@@ -462,6 +481,22 @@ Route alarms for a critical service to a specific SNS topic:
 | `alarmActions` | **Replace** (not append) |
 | `production` (when array in override) | Each entry inherits tier defaults, then applies its own scalar overrides |
 
+### Production Override Semantics: Object vs Array
+
+The `production` field in a per-service `pipeline.json` can be either an **object** or an **array**:
+
+- **Object** (`tierOverride`): applies scalar overrides to **all** production targets defined in `pipeline-defaults.json`. Use this when you want to change a property (e.g., `logRetention`) across all targets. The object form has no `account`/`region` — it inherits targets from the global defaults.
+
+  ```json
+  { "production": { "logRetention": 365 } }
+  ```
+
+- **Array** (`targetOverride[]`): **replaces** the global production targets entirely. Use this when a service should deploy to a subset of targets or needs per-target overrides. Each entry can specify `account`/`region` to select specific targets; entries without `account`/`region` inherit from `CDK_DEFAULT_*`.
+
+  ```json
+  { "production": [{ "region": "us-east-1" }] }
+  ```
+
 ---
 
 ## Adding a New Production Environment
@@ -511,7 +546,7 @@ Change `production` from object to array:
 }
 ```
 
-**Note:** When converting from object to array, move all existing properties into the first array entry. Properties shared across all entries can remain as tier-level defaults by using a `"_defaults"` key (see schema).
+**Note:** When converting from object to array, move all existing properties into each array entry (or factor them into a shared base that each entry spreads from — this is a code-level concern in `resolve-pipeline-config.ts`, not a schema feature).
 
 #### 4. Update GitHub Actions Workflow
 
@@ -538,7 +573,66 @@ Push to main. The staging job runs as usual. The production job now has two matr
 
 ---
 
-## Updated Schema: `.pipeline-schema.json`
+## Schemas
+
+### `infrastructure/pipeline-defaults-schema.json`
+
+Validates the global tier defaults file:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Nestfolio Pipeline Defaults",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "sandbox": { "$ref": "#/$defs/tierDefaults" },
+    "staging": { "$ref": "#/$defs/tierDefaults" },
+    "production": {
+      "oneOf": [
+        { "$ref": "#/$defs/tierDefaults" },
+        { "type": "array", "items": { "$ref": "#/$defs/targetDefaults" }, "minItems": 1 }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "tierDefaults": {
+      "type": "object",
+      "properties": {
+        "account": { "type": "string", "pattern": "^[0-9]{12}$" },
+        "region": { "type": "string" },
+        "environment": { "type": "string", "description": "GitHub Actions environment name for OIDC auth" },
+        "observability": { "type": "boolean" },
+        "parallelDeploy": { "type": "boolean" },
+        "logRetention": { "type": "integer", "minimum": 1 },
+        "protectedResources": { "type": "boolean" },
+        "alarmActions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "targetDefaults": {
+      "type": "object",
+      "required": ["account", "region", "environment"],
+      "properties": {
+        "account": { "type": "string", "pattern": "^[0-9]{12}$" },
+        "region": { "type": "string" },
+        "environment": { "type": "string", "description": "GitHub Actions environment name for OIDC auth" },
+        "observability": { "type": "boolean" },
+        "parallelDeploy": { "type": "boolean" },
+        "logRetention": { "type": "integer", "minimum": 1 },
+        "protectedResources": { "type": "boolean" },
+        "alarmActions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  }
+}
+```
+
+When `production` is an array of targets, each entry **must** specify `account`, `region`, and `environment` (the GitHub Actions environment name used for OIDC auth — e.g., `"prod-us"`, `"prod-eu"`). This `environment` field is the bridge between the repo config and GitHub's auth model: `resolve-all-configs.ts` includes it in its output, and the workflow uses it as `${{ matrix.target.environment }}`.
+
+### `.pipeline-schema.json` (per-service overrides)
 
 The per-service schema becomes permissive — all fields optional since everything has defaults:
 
@@ -576,6 +670,9 @@ The per-service schema becomes permissive — all fields optional since everythi
     "tierOverride": {
       "type": "object",
       "properties": {
+        "account": { "type": "string", "pattern": "^[0-9]{12}$" },
+        "region": { "type": "string" },
+        "environment": { "type": "string" },
         "observability": { "type": "boolean" },
         "parallelDeploy": { "type": "boolean" },
         "logRetention": { "type": "integer", "minimum": 1 },
@@ -589,6 +686,7 @@ The per-service schema becomes permissive — all fields optional since everythi
       "properties": {
         "account": { "type": "string", "pattern": "^[0-9]{12}$" },
         "region": { "type": "string" },
+        "environment": { "type": "string" },
         "observability": { "type": "boolean" },
         "parallelDeploy": { "type": "boolean" },
         "logRetention": { "type": "integer", "minimum": 1 },
@@ -607,8 +705,43 @@ The per-service schema becomes permissive — all fields optional since everythi
 
 1. **Unit tests for `resolve-pipeline-config.ts`**: test inference rules, merge logic, tier detection, edge cases (missing files, partial overrides, production array expansion)
 2. **Validation script tests**: ensure schema rejects invalid configs
-3. **Integration test for `resolve-all-configs.ts`**: run against actual service directories, verify output shape
+3. **Snapshot test for `resolve-all-configs.ts`**: resolve all 16 services for each tier, compare against a golden JSON file — provides a safety net during migration
 4. **deploy.sh dry-run**: add `--dry-run` flag that prints resolved configs and deployment plan without executing
+
+### `resolve-all-configs.ts` Output Shape
+
+The resolver outputs a JSON array consumed by `deploy.sh`:
+
+```json
+[
+  {
+    "service": "investor-hub",
+    "subsystem": "investor",
+    "deploymentPhase": 1,
+    "dependencies": [],
+    "observability": true,
+    "parallelDeploy": true,
+    "logRetention": 90,
+    "protectedResources": true,
+    "alarmActions": [],
+    "prefix": "prod"
+  },
+  {
+    "service": "advisory-ctrl",
+    "subsystem": "advisory",
+    "deploymentPhase": 3,
+    "dependencies": ["advisory-hub"],
+    "observability": true,
+    "parallelDeploy": true,
+    "logRetention": 90,
+    "protectedResources": true,
+    "alarmActions": [],
+    "prefix": "prod"
+  }
+]
+```
+
+When production has multiple targets, each service appears once per target with `account` and `region` populated. The `environment` field (GitHub Actions environment name) is included when defined in `pipeline-defaults.json`.
 
 ---
 
@@ -616,12 +749,12 @@ The per-service schema becomes permissive — all fields optional since everythi
 
 1. Create `infrastructure/pipeline-defaults.json` + `pipeline-defaults-schema.json`
 2. Implement `resolve-pipeline-config.ts` in `libs/cdk-constructs` with unit tests
-3. Create `infrastructure/scripts/resolve-all-configs.ts`
+3. Create `infrastructure/scripts/resolve-all-configs.ts` + snapshot golden files
 4. Update `.pipeline-schema.json` to new permissive schema
-5. Update `deploy.sh` to use resolver (new signature, CDK context passing)
+5. Update `deploy.sh` to use resolver (new signature, CDK context passing including `-c tier=`)
 6. Update all 16 `main.ts` files to use `resolvePipelineConfig()`
-7. Delete all 16 `pipeline.json` files
-8. Update `validate-pipeline-configs.sh`
+7. Delete 15 of 16 `pipeline.json` files; replace `investor-web/pipeline.json` with minimal override (`{ "parallelDeploy": false }`)
+8. Update `validate-pipeline-configs.sh` to validate both `pipeline-defaults.json` and per-service overrides
 9. Update GitHub Actions workflows (`deploy.yml`, `pr-deploy.yml`)
 10. Add `--dry-run` flag to deploy.sh
 11. End-to-end validation: `deploy.sh staging --dry-run`
