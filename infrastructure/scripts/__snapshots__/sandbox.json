@@ -1,0 +1,222 @@
+[
+  {
+    "service": "advisory-hub",
+    "subsystem": "advisory",
+    "deploymentPhase": 1,
+    "dependencies": [],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "execution-hub",
+    "subsystem": "execution",
+    "deploymentPhase": 1,
+    "dependencies": [],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "investor-hub",
+    "subsystem": "investor",
+    "deploymentPhase": 1,
+    "dependencies": [],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "ledger-hub",
+    "subsystem": "ledger",
+    "deploymentPhase": 1,
+    "dependencies": [],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "investor-web",
+    "subsystem": "investor",
+    "deploymentPhase": 2,
+    "dependencies": [
+      "investor-hub"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": false,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "advisory-bff",
+    "subsystem": "advisory",
+    "deploymentPhase": 3,
+    "dependencies": [
+      "advisory-hub",
+      "investor-web"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "advisory-ctrl",
+    "subsystem": "advisory",
+    "deploymentPhase": 3,
+    "dependencies": [
+      "advisory-hub"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "compliance-ctrl",
+    "subsystem": "advisory",
+    "deploymentPhase": 3,
+    "dependencies": [
+      "advisory-hub"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "dashboard-bff",
+    "subsystem": "investor",
+    "deploymentPhase": 3,
+    "dependencies": [
+      "investor-hub",
+      "investor-web"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "execution-adpt",
+    "subsystem": "execution",
+    "deploymentPhase": 3,
+    "dependencies": [
+      "execution-hub"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "execution-ctrl",
+    "subsystem": "execution",
+    "deploymentPhase": 3,
+    "dependencies": [
+      "execution-hub"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "investor-bff",
+    "subsystem": "investor",
+    "deploymentPhase": 3,
+    "dependencies": [
+      "investor-hub",
+      "investor-web"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "investor-ctrl",
+    "subsystem": "investor",
+    "deploymentPhase": 3,
+    "dependencies": [
+      "investor-hub"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "ledger-bff",
+    "subsystem": "ledger",
+    "deploymentPhase": 3,
+    "dependencies": [
+      "ledger-hub",
+      "investor-web"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "ledger-ctrl",
+    "subsystem": "ledger",
+    "deploymentPhase": 3,
+    "dependencies": [
+      "ledger-hub"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  },
+  {
+    "service": "reconciliation-ctrl",
+    "subsystem": "ledger",
+    "deploymentPhase": 3,
+    "dependencies": [
+      "ledger-hub"
+    ],
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": [],
+    "prefix": "sandbox"
+  }
+]
