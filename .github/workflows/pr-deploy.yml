@@ -93,7 +93,7 @@ jobs:
           IS_FULL="${{ needs.detect-affected.outputs.is_full_deploy }}"
           AFFECTED="${{ needs.detect-affected.outputs.affected }}"
           if [ "$IS_FULL" = "true" ]; then
-            bash infrastructure/scripts/deploy.sh "$PREFIX_SANDBOX"
+            bash infrastructure/scripts/deploy.sh sandbox --prefix="$PREFIX_SANDBOX"
           else
-            bash infrastructure/scripts/deploy.sh "$PREFIX_SANDBOX" --services="$AFFECTED"
+            bash infrastructure/scripts/deploy.sh sandbox --prefix="$PREFIX_SANDBOX" --services="$AFFECTED"
           fi

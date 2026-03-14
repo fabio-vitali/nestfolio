@@ -96,3 +96,22 @@ jobs:
           # export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
           # export CDK_DEFAULT_REGION=us-east-1
           # bash infrastructure/scripts/deploy.sh prod --services="${{ needs.staging.outputs.affected }}"
+
+  # ── Multi-target production (uncomment when multi-account is enabled) ──
+  # production-multi:
+  #   needs: staging
+  #   if: needs.staging.outputs.skipped == 'false'
+  #   strategy:
+  #     matrix:
+  #       target: ${{ fromJson(needs.staging.outputs.prod_targets) }}
+  #   runs-on: ubuntu-latest
+  #   environment: ${{ matrix.target.environment }}
+  #   steps:
+  #     - uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+  #         aws-region: ${{ matrix.target.region }}
+  #     - run: |
+  #         export CDK_DEFAULT_ACCOUNT=${{ matrix.target.account }}
+  #         export CDK_DEFAULT_REGION=${{ matrix.target.region }}
+  #         bash infrastructure/scripts/deploy.sh prod --services="${{ needs.staging.outputs.affected }}"
