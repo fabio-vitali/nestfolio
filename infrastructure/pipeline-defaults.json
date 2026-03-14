@@ -1,0 +1,24 @@
+{
+  "$schema": "./pipeline-defaults-schema.json",
+  "sandbox": {
+    "observability": false,
+    "logRetention": 7,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": []
+  },
+  "staging": {
+    "observability": true,
+    "logRetention": 30,
+    "protectedResources": false,
+    "parallelDeploy": true,
+    "alarmActions": []
+  },
+  "production": {
+    "observability": true,
+    "logRetention": 90,
+    "protectedResources": true,
+    "parallelDeploy": true,
+    "alarmActions": []
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Nestfolio Pipeline Defaults",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "sandbox": { "$ref": "#/$defs/tierDefaults" },
+    "staging": { "$ref": "#/$defs/tierDefaults" },
+    "production": {
+      "oneOf": [
+        { "$ref": "#/$defs/tierDefaults" },
+        { "type": "array", "items": { "$ref": "#/$defs/targetDefaults" }, "minItems": 1 }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "tierDefaults": {
+      "type": "object",
+      "properties": {
+        "account": { "type": "string", "pattern": "^[0-9]{12}$" },
+        "region": { "type": "string" },
+        "environment": { "type": "string", "description": "GitHub Actions environment name for OIDC auth" },
+        "observability": { "type": "boolean" },
+        "parallelDeploy": { "type": "boolean" },
+        "logRetention": { "type": "integer", "minimum": 1 },
+        "protectedResources": { "type": "boolean" },
+        "alarmActions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "targetDefaults": {
+      "type": "object",
+      "required": ["account", "region", "environment"],
+      "properties": {
+        "account": { "type": "string", "pattern": "^[0-9]{12}$" },
+        "region": { "type": "string" },
+        "environment": { "type": "string", "description": "GitHub Actions environment name for OIDC auth" },
+        "observability": { "type": "boolean" },
+        "parallelDeploy": { "type": "boolean" },
+        "logRetention": { "type": "integer", "minimum": 1 },
+        "protectedResources": { "type": "boolean" },
+        "alarmActions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  }
+}
