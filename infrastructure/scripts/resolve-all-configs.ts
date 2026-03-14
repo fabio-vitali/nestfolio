@@ -1,17 +1,16 @@
-#!/usr/bin/env ts-node
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 /**
  * resolve-all-configs.ts -- Resolves pipeline config for all discovered services.
  *
- * Usage: ts-node resolve-all-configs.ts <tier> [--prefix=<prefix>]
+ * Usage: node resolve-all-configs.ts <tier> [--prefix=<prefix>]
  * Output: JSON array of ResolvedPipelineConfig objects to stdout.
- *
- * When production tier has array-form targets in pipeline-defaults.json,
- * each service appears once per target with account/region/environment populated.
  */
-import * as fs from 'fs';
-import * as path from 'path';
 
-// Types (standalone -- avoids CDK dependency)
+const __filename_esm = fileURLToPath(import.meta.url);
+const __dirname_esm = path.dirname(__filename_esm);
 
 interface ResolvedConfig {
   service: string;
@@ -42,7 +41,6 @@ const HARDCODED_FALLBACKS = {
 const VALID_TIERS: Tier[] = ['sandbox', 'staging', 'production'];
 
 // CLI argument parsing
-
 const args = process.argv.slice(2);
 const tierArg = args[0];
 if (!tierArg || !VALID_TIERS.includes(tierArg as Tier)) {
@@ -60,8 +58,7 @@ for (const arg of args.slice(1)) {
 }
 
 // Discover services
-
-const rootDir = path.resolve(__dirname, '..', '..');
+const rootDir = path.resolve(__dirname_esm, '..', '..');
 const servicesDir = path.join(rootDir, 'services');
 
 interface ServiceEntry {
@@ -83,8 +80,6 @@ function discoverServices(): ServiceEntry[] {
   }
   return entries;
 }
-
-// Inference (same logic as resolve-pipeline-config.ts)
 
 function inferMetadata(serviceName: string, subsystem: string) {
   const isHub = serviceName.endsWith('-hub');
@@ -111,23 +106,17 @@ function inferMetadata(serviceName: string, subsystem: string) {
   return { service: serviceName, subsystem, deploymentPhase, dependencies };
 }
 
-// Load pipeline-defaults.json
-
 function loadDefaults(): Record<string, unknown> {
   const defaultsPath = path.join(rootDir, 'infrastructure', 'pipeline-defaults.json');
   if (!fs.existsSync(defaultsPath)) return {};
   return JSON.parse(fs.readFileSync(defaultsPath, 'utf-8'));
 }
 
-// Load per-service pipeline.json
-
 function loadServiceOverride(serviceName: string, subsystem: string): Record<string, unknown> {
   const overridePath = path.join(servicesDir, subsystem, serviceName, 'pipeline.json');
   if (!fs.existsSync(overridePath)) return {};
   return JSON.parse(fs.readFileSync(overridePath, 'utf-8'));
 }
-
-// Resolve
 
 function resolveAll(): ResolvedConfig[] {
   const services = discoverServices();
@@ -140,30 +129,24 @@ function resolveAll(): ResolvedConfig[] {
     const override = loadServiceOverride(service, subsystem);
     const { $schema, sandbox, staging, production, ...topOverrides } = override as any;
 
-    // Extract tier-scoped override
     const tierScopedOverride = tier === 'sandbox' ? sandbox
       : tier === 'staging' ? staging
       : production;
 
-    // Determine targets (for multi-target production)
     let targets: Array<Record<string, unknown>>;
 
     if (tier === 'production') {
-      // Check per-service production override first (array = replaces global targets)
       if (Array.isArray(tierScopedOverride)) {
         targets = tierScopedOverride;
       } else if (Array.isArray(tierData)) {
-        // Global multi-target production
         targets = (tierData as Array<Record<string, unknown>>).map((t) => ({
           ...t,
           ...(typeof tierScopedOverride === 'object' ? tierScopedOverride : {}),
         }));
       } else {
-        // Single-target production (object form)
         targets = [{ ...(typeof tierData === 'object' ? tierData : {}) }];
       }
     } else {
-      // Non-production: single target from tier defaults
       targets = [typeof tierData === 'object' ? tierData as Record<string, unknown> : {}];
     }
 
@@ -174,21 +157,18 @@ function resolveAll(): ResolvedConfig[] {
         prefix,
       };
 
-      // Apply tier-level defaults
       for (const [key, value] of Object.entries(target)) {
         if (value !== undefined && key !== '$schema') {
           (merged as any)[key] = value;
         }
       }
 
-      // Apply top-level per-service overrides
       for (const [key, value] of Object.entries(topOverrides)) {
         if (value !== undefined) {
           (merged as any)[key] = value;
         }
       }
 
-      // Apply tier-scoped per-service overrides (object form only, not array)
       if (tierScopedOverride && !Array.isArray(tierScopedOverride)) {
         for (const [key, value] of Object.entries(tierScopedOverride)) {
           if (value !== undefined) {
@@ -197,7 +177,6 @@ function resolveAll(): ResolvedConfig[] {
         }
       }
 
-      // Only include account/region/environment if they were explicitly set
       if (!merged.account) delete merged.account;
       if (!merged.region) delete merged.region;
       if (!merged.environment) delete merged.environment;
@@ -206,7 +185,6 @@ function resolveAll(): ResolvedConfig[] {
     }
   }
 
-  // Sort by phase then service name for deterministic output
   results.sort((a, b) =>
     a.deploymentPhase !== b.deploymentPhase
       ? a.deploymentPhase - b.deploymentPhase
@@ -217,6 +195,5 @@ function resolveAll(): ResolvedConfig[] {
 }
 
 // Main
-
 const configs = resolveAll();
 console.log(JSON.stringify(configs, null, 2));

@@ -58,7 +58,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 RESOLVER_ARGS="$RESOLVER_TIER --prefix=$PREFIX"
-CONFIGS=$(npx ts-node -r "$REPO_ROOT/tools/register-paths.js" "$SCRIPT_DIR/resolve-all-configs.ts" $RESOLVER_ARGS)
+CONFIGS=$(node --no-warnings "$SCRIPT_DIR/resolve-all-configs.ts" $RESOLVER_ARGS)
 
 # ── Helper functions ────────────────────────────────────────────────────────
 
@@ -145,7 +145,7 @@ if [ "$DRY_RUN" = "true" ]; then echo "Mode: DRY RUN"; fi
 HUB_CONFIGS="[]"
 
 # Get unique targets (for multi-target production)
-TARGETS=$(echo "$CONFIGS" | jq -c '[.[] | {account, region, environment}] | unique')
+TARGETS=$(echo "$CONFIGS" | jq -c '[.[] | {account: (.account // ""), region: (.region // ""), environment: (.environment // "")}] | unique')
 TARGET_COUNT=$(echo "$TARGETS" | jq 'length')
 
 # Deploy phases per target
@@ -164,8 +164,8 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     # Filter configs for this phase + target
     PHASE_CONFIGS=$(echo "$CONFIGS" | jq -c "[.[] | select(
       .deploymentPhase == $PHASE and
-      (.account // empty) == \"$TARGET_ACCOUNT\" and
-      (.region // empty) == \"$TARGET_REGION\"
+      ((.account // \"\") == \"$TARGET_ACCOUNT\") and
+      ((.region // \"\") == \"$TARGET_REGION\")
     )]")
 
     PHASE_COUNT=$(echo "$PHASE_CONFIGS" | jq 'length')
