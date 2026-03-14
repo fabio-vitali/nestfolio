@@ -1,49 +1,60 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Nestfolio Pipeline Configuration",
-  "description": "Defines deployment metadata for a Nestfolio service stack.",
+  "title": "Nestfolio Per-Service Pipeline Override",
   "type": "object",
-  "required": ["service", "subsystem", "deploymentPhase", "production"],
   "properties": {
-    "$schema": {
-      "type": "string"
-    },
-    "service": {
-      "type": "string",
-      "description": "The Nx project name (e.g. 'investor-hub', 'advisory-ctrl')."
-    },
-    "subsystem": {
-      "type": "string",
-      "enum": ["investor", "advisory", "execution", "ledger"],
-      "description": "The domain subsystem this service belongs to."
-    },
+    "$schema": { "type": "string" },
     "deploymentPhase": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 3,
-      "description": "Deployment phase ordering (1 = hubs, 2 = web/auth, 3 = BFFs/controllers/adapters)."
+      "type": "integer", "minimum": 1, "maximum": 3
     },
+    "parallelDeploy": { "type": "boolean" },
+    "dependencies": {
+      "type": "array", "items": { "type": "string" }
+    },
+    "observability": { "type": "boolean" },
+    "logRetention": { "type": "integer", "minimum": 1 },
+    "protectedResources": { "type": "boolean" },
+    "alarmActions": {
+      "type": "array", "items": { "type": "string" }
+    },
+    "sandbox": { "$ref": "#/$defs/tierOverride" },
+    "staging": { "$ref": "#/$defs/tierOverride" },
     "production": {
+      "oneOf": [
+        { "$ref": "#/$defs/tierOverride" },
+        { "type": "array", "items": { "$ref": "#/$defs/targetOverride" } }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "tierOverride": {
       "type": "object",
-      "required": ["regions", "parallelDeploy"],
       "properties": {
-        "regions": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "AWS regions to deploy to."
-        },
-        "parallelDeploy": {
-          "type": "boolean",
-          "description": "Whether this service can be deployed in parallel with others in the same phase."
-        }
+        "account": { "type": "string", "pattern": "^[0-9]{12}$" },
+        "region": { "type": "string" },
+        "environment": { "type": "string" },
+        "observability": { "type": "boolean" },
+        "parallelDeploy": { "type": "boolean" },
+        "logRetention": { "type": "integer", "minimum": 1 },
+        "protectedResources": { "type": "boolean" },
+        "alarmActions": { "type": "array", "items": { "type": "string" } }
       },
       "additionalProperties": false
     },
-    "dependencies": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "List of Nx project names this service depends on for deployment ordering."
+    "targetOverride": {
+      "type": "object",
+      "properties": {
+        "account": { "type": "string", "pattern": "^[0-9]{12}$" },
+        "region": { "type": "string" },
+        "environment": { "type": "string" },
+        "observability": { "type": "boolean" },
+        "parallelDeploy": { "type": "boolean" },
+        "logRetention": { "type": "integer", "minimum": 1 },
+        "protectedResources": { "type": "boolean" },
+        "alarmActions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
     }
-  },
-  "additionalProperties": false
+  }
 }
