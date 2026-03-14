@@ -1,15 +1,15 @@
 import { App } from 'aws-cdk-lib';
-import { getPrefix } from '@nestfolio/cdk-constructs';
+import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { LedgerCtrlStack } from './service.stack';
 
 const app = new App();
-const prefix = getPrefix(app);
+const config = resolvePipelineConfig(app, 'ledger-ctrl');
 
-new LedgerCtrlStack(app, `${prefix}-ledger-ctrl`, {
-  prefix,
+new LedgerCtrlStack(app, `${config.prefix}-ledger-ctrl`, {
+  prefix: config.prefix,
   env: {
-    account: process.env['CDK_DEFAULT_ACCOUNT'],
-    region: process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
+    account: config.account ?? process.env['CDK_DEFAULT_ACCOUNT'],
+    region: config.region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
   },
 });
 

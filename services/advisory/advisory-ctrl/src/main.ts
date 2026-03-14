@@ -1,15 +1,15 @@
 import { App } from 'aws-cdk-lib';
-import { getPrefix } from '@nestfolio/cdk-constructs';
+import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { AdvisoryCtrlStack } from './service.stack';
 
 const app = new App();
-const prefix = getPrefix(app);
+const config = resolvePipelineConfig(app, 'advisory-ctrl');
 
-new AdvisoryCtrlStack(app, `${prefix}-advisory-ctrl`, {
-  prefix,
+new AdvisoryCtrlStack(app, `${config.prefix}-advisory-ctrl`, {
+  prefix: config.prefix,
   env: {
-    account: process.env['CDK_DEFAULT_ACCOUNT'],
-    region: process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
+    account: config.account ?? process.env['CDK_DEFAULT_ACCOUNT'],
+    region: config.region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
   },
 });
 
