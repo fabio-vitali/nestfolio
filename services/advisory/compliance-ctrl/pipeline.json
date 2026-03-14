@@ -1,8 +1,0 @@
-{
-  "$schema": "../../../.pipeline-schema.json",
-  "service": "compliance-ctrl",
-  "subsystem": "advisory",
-  "deploymentPhase": 3,
-  "production": { "regions": ["us-east-1"], "parallelDeploy": true },
-  "dependencies": ["advisory-hub"]
-}

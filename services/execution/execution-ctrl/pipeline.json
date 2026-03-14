@@ -1,8 +1,0 @@
-{
-  "$schema": "../../../.pipeline-schema.json",
-  "service": "execution-ctrl",
-  "subsystem": "execution",
-  "deploymentPhase": 3,
-  "production": { "regions": ["us-east-1"], "parallelDeploy": true },
-  "dependencies": ["execution-hub"]
-}
