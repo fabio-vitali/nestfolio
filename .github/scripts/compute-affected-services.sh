@@ -6,7 +6,7 @@ set -euo pipefail
 
 BASE_SHA=${1:?Usage: compute-affected-services.sh <base-sha>}
 
-# Get NX affected app projects
+# Get NX affected app projects (one per line)
 AFFECTED=$(pnpm nx show projects --affected --base="$BASE_SHA" --type=app 2>/dev/null || true)
 
 if [ -z "$AFFECTED" ]; then
@@ -16,24 +16,13 @@ fi
 
 # Build set of deployable service names from pipeline.json files
 DEPLOYABLE=""
-for FILE in $(find services -maxdepth 3 -name "pipeline.json" -not -path "*/node_modules/*" -type f); do
+while IFS= read -r -d '' FILE; do
   SVC=$(jq -r '.service' "$FILE")
   DEPLOYABLE="$DEPLOYABLE $SVC"
-done
+done < <(find services -maxdepth 3 -name "pipeline.json" -not -path "*/node_modules/*" -type f -print0)
 
-# Intersect: only services that are both NX-affected AND have a pipeline.json
-RESULT=""
-for PROJECT in $AFFECTED; do
-  for SVC in $DEPLOYABLE; do
-    if [ "$PROJECT" = "$SVC" ]; then
-      if [ -n "$RESULT" ]; then
-        RESULT="$RESULT,$SVC"
-      else
-        RESULT="$SVC"
-      fi
-      break
-    fi
-  done
-done
+# Intersect using grep: keep only affected projects that appear in deployable set
+DEPLOYABLE_LIST=$(echo "$DEPLOYABLE" | tr ' ' '\n' | sed '/^$/d')
+RESULT=$(echo "$AFFECTED" | grep -Fxf <(echo "$DEPLOYABLE_LIST") | paste -sd, - || true)
 
 echo "$RESULT"
