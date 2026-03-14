@@ -130,6 +130,8 @@ Fallback for local dev (no tier context): infer from prefix pattern:
 | `prod` or `production` | `production` |
 | Anything else | `sandbox` (safe default) |
 
+During local dev, `prefix` comes from the `-c prefix=` CDK context flag (e.g., `cdk synth -c prefix=dev -c tier=sandbox`).
+
 ### Layer 3: Per-Service `pipeline.json` (Optional)
 
 Only created when a service deviates from convention. The schema supports any subset of properties.
@@ -191,11 +193,12 @@ interface ResolvedPipelineConfig {
   alarmActions: string[];
 
   // Target (from tier defaults or per-service override)
-  account?: string;   // undefined → CDK_DEFAULT_ACCOUNT
-  region?: string;    // undefined → CDK_DEFAULT_REGION ?? 'us-east-1'
+  account?: string;      // undefined → CDK_DEFAULT_ACCOUNT
+  region?: string;       // undefined → CDK_DEFAULT_REGION ?? 'us-east-1'
+  environment?: string;  // GitHub Actions environment name (e.g., 'production', 'prod-eu')
 
   // Derived
-  prefix: string;     // passed via CDK context or CLI arg
+  prefix: string;        // passed via CDK context or CLI arg
 }
 ```
 
@@ -485,7 +488,7 @@ Route alarms for a critical service to a specific SNS topic:
 
 The `production` field in a per-service `pipeline.json` can be either an **object** or an **array**:
 
-- **Object** (`tierOverride`): applies scalar overrides to **all** production targets defined in `pipeline-defaults.json`. Use this when you want to change a property (e.g., `logRetention`) across all targets. The object form has no `account`/`region` — it inherits targets from the global defaults.
+- **Object** (`tierOverride`): applies scalar overrides to **all** production targets defined in `pipeline-defaults.json`. Use this when you want to change a property (e.g., `logRetention`) across all targets. The object form typically does not specify `account`/`region` — it inherits targets from the global defaults (though the schema allows it for single-target overrides).
 
   ```json
   { "production": { "logRetention": 365 } }
@@ -712,6 +715,7 @@ The per-service schema becomes permissive — all fields optional since everythi
 
 The resolver outputs a JSON array consumed by `deploy.sh`:
 
+Single-target example (day 1 — no account/region in defaults):
 ```json
 [
   {
@@ -725,23 +729,47 @@ The resolver outputs a JSON array consumed by `deploy.sh`:
     "protectedResources": true,
     "alarmActions": [],
     "prefix": "prod"
-  },
+  }
+]
+```
+
+Multi-target example (after adding a second prod environment):
+```json
+[
   {
-    "service": "advisory-ctrl",
-    "subsystem": "advisory",
-    "deploymentPhase": 3,
-    "dependencies": ["advisory-hub"],
+    "service": "investor-hub",
+    "subsystem": "investor",
+    "deploymentPhase": 1,
+    "dependencies": [],
     "observability": true,
     "parallelDeploy": true,
     "logRetention": 90,
     "protectedResources": true,
     "alarmActions": [],
+    "account": "111111111111",
+    "region": "us-east-1",
+    "environment": "prod-us",
+    "prefix": "prod"
+  },
+  {
+    "service": "investor-hub",
+    "subsystem": "investor",
+    "deploymentPhase": 1,
+    "dependencies": [],
+    "observability": true,
+    "parallelDeploy": true,
+    "logRetention": 90,
+    "protectedResources": true,
+    "alarmActions": [],
+    "account": "222222222222",
+    "region": "eu-west-1",
+    "environment": "prod-eu",
     "prefix": "prod"
   }
 ]
 ```
 
-When production has multiple targets, each service appears once per target with `account` and `region` populated. The `environment` field (GitHub Actions environment name) is included when defined in `pipeline-defaults.json`.
+When production has multiple targets, each service appears **once per target** with `account`, `region`, and `environment` populated.
 
 ---
 
