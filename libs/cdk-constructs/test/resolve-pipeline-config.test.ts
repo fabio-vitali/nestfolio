@@ -1,16 +1,26 @@
 import { App } from 'aws-cdk-lib';
+import * as fs from 'fs';
+
+// Mock fs with real defaults — CDK App needs real fs for cloud assembly
+const realFs: typeof fs = jest.requireActual('fs');
+jest.mock('fs', () => {
+  const actual: typeof import('fs') = jest.requireActual('fs');
+  return {
+    ...actual,
+    existsSync: jest.fn((...args: Parameters<typeof actual.existsSync>) => actual.existsSync(...args)),
+    readFileSync: jest.fn((...args: Parameters<typeof actual.readFileSync>) => (actual.readFileSync as any)(...args)),
+    readdirSync: jest.fn((...args: Parameters<typeof actual.readdirSync>) => (actual.readdirSync as any)(...args)),
+    statSync: jest.fn((...args: Parameters<typeof actual.statSync>) => (actual.statSync as any)(...args)),
+  };
+});
+
 import {
   resolvePipelineConfig,
   inferServiceMetadata,
   loadTierDefaults,
   mergeConfigs,
   HARDCODED_FALLBACKS,
-  ResolvedPipelineConfig,
 } from '../src/resolve-pipeline-config';
-import * as fs from 'fs';
-import * as path from 'path';
-
-jest.mock('fs');
 
 const mockedFs = fs as jest.Mocked<typeof fs>;
 
@@ -18,124 +28,103 @@ const mockedFs = fs as jest.Mocked<typeof fs>;
 const createApp = (context: Record<string, string> = {}) =>
   new App({ context });
 
-// Helper: mock fs.existsSync and fs.readFileSync
+// Helper: mock fs for pipeline config file reads (delegates unknown paths to real fs)
 const mockFileSystem = (files: Record<string, unknown>) => {
   mockedFs.existsSync.mockImplementation((p: fs.PathLike) => {
     const filePath = typeof p === 'string' ? p : p.toString();
-    return Object.keys(files).some((f) => filePath.endsWith(f));
+    if (Object.keys(files).some((f) => filePath.endsWith(f))) return true;
+    return realFs.existsSync(p);
   });
-  mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor) => {
+  mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor, ...args: any[]) => {
     const filePath = typeof p === 'string' ? p : p.toString();
     for (const [key, value] of Object.entries(files)) {
       if (filePath.endsWith(key)) return JSON.stringify(value);
     }
-    throw new Error(`ENOENT: ${filePath}`);
+    return (realFs.readFileSync as any)(p, ...args);
   });
 };
 
 // Helper: mock discoverSubsystem for integration tests
 const mockDiscoverSubsystem = (map: Record<string, string>) => {
-  // Mock readdirSync + statSync for directory scanning
-  mockedFs.readdirSync.mockImplementation((p: fs.PathLike) => {
+  mockedFs.readdirSync.mockImplementation((p: fs.PathLike, ...args: any[]) => {
     const filePath = typeof p === 'string' ? p : p.toString();
     if (filePath.endsWith('services')) {
       return [...new Set(Object.values(map))] as any;
     }
-    // Return service names for a given subsystem dir
     const subsystem = filePath.split('/').pop();
-    return Object.entries(map)
+    const matching = Object.entries(map)
       .filter(([, sub]) => sub === subsystem)
-      .map(([svc]) => svc) as any;
+      .map(([svc]) => svc);
+    if (matching.length > 0) return matching as any;
+    return (realFs.readdirSync as any)(p, ...args);
   });
-  mockedFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
+  mockedFs.statSync.mockImplementation((p: fs.PathLike, ...args: any[]) => {
+    const filePath = typeof p === 'string' ? p : p.toString();
+    if (filePath.includes('services/')) return { isDirectory: () => true } as any;
+    return (realFs.statSync as any)(p, ...args);
+  });
+};
+
+// Reset mocks to real fs delegates between tests
+const resetFsMocks = () => {
+  mockedFs.existsSync.mockImplementation((...args) => realFs.existsSync(...args));
+  mockedFs.readFileSync.mockImplementation((...args: any[]) => (realFs.readFileSync as any)(...args));
+  mockedFs.readdirSync.mockImplementation((...args: any[]) => (realFs.readdirSync as any)(...args));
+  mockedFs.statSync.mockImplementation((...args: any[]) => (realFs.statSync as any)(...args));
 };
 
 describe('inferServiceMetadata', () => {
-  // inferServiceMetadata takes (serviceName, subsystem) — no fs needed
-
-  it('infers hub service → phase 1, no dependencies', () => {
-    const result = inferServiceMetadata('investor-hub', 'investor');
-    expect(result).toEqual({
-      service: 'investor-hub',
-      subsystem: 'investor',
-      deploymentPhase: 1,
-      dependencies: [],
+  it('infers hub service -> phase 1, no dependencies', () => {
+    expect(inferServiceMetadata('investor-hub', 'investor')).toEqual({
+      service: 'investor-hub', subsystem: 'investor', deploymentPhase: 1, dependencies: [],
     });
   });
 
-  it('infers -web service → phase 2, depends on hub', () => {
-    const result = inferServiceMetadata('investor-web', 'investor');
-    expect(result).toEqual({
-      service: 'investor-web',
-      subsystem: 'investor',
-      deploymentPhase: 2,
-      dependencies: ['investor-hub'],
+  it('infers -web service -> phase 2, depends on hub', () => {
+    expect(inferServiceMetadata('investor-web', 'investor')).toEqual({
+      service: 'investor-web', subsystem: 'investor', deploymentPhase: 2, dependencies: ['investor-hub'],
     });
   });
 
-  it('infers -bff service → phase 3, depends on hub + investor-web', () => {
-    const result = inferServiceMetadata('advisory-bff', 'advisory');
-    expect(result).toEqual({
-      service: 'advisory-bff',
-      subsystem: 'advisory',
-      deploymentPhase: 3,
-      dependencies: ['advisory-hub', 'investor-web'],
+  it('infers -bff service -> phase 3, depends on hub + investor-web', () => {
+    expect(inferServiceMetadata('advisory-bff', 'advisory')).toEqual({
+      service: 'advisory-bff', subsystem: 'advisory', deploymentPhase: 3, dependencies: ['advisory-hub', 'investor-web'],
     });
   });
 
-  it('infers -ctrl service → phase 3, depends on hub', () => {
-    const result = inferServiceMetadata('execution-ctrl', 'execution');
-    expect(result).toEqual({
-      service: 'execution-ctrl',
-      subsystem: 'execution',
-      deploymentPhase: 3,
-      dependencies: ['execution-hub'],
+  it('infers -ctrl service -> phase 3, depends on hub', () => {
+    expect(inferServiceMetadata('execution-ctrl', 'execution')).toEqual({
+      service: 'execution-ctrl', subsystem: 'execution', deploymentPhase: 3, dependencies: ['execution-hub'],
     });
   });
 
-  it('infers -adpt service → phase 3, depends on hub', () => {
-    const result = inferServiceMetadata('execution-adpt', 'execution');
-    expect(result).toEqual({
-      service: 'execution-adpt',
-      subsystem: 'execution',
-      deploymentPhase: 3,
-      dependencies: ['execution-hub'],
+  it('infers -adpt service -> phase 3, depends on hub', () => {
+    expect(inferServiceMetadata('execution-adpt', 'execution')).toEqual({
+      service: 'execution-adpt', subsystem: 'execution', deploymentPhase: 3, dependencies: ['execution-hub'],
     });
   });
 
   it('infers dashboard-bff subsystem as investor (passed by caller)', () => {
-    const result = inferServiceMetadata('dashboard-bff', 'investor');
-    expect(result).toEqual({
-      service: 'dashboard-bff',
-      subsystem: 'investor',
-      deploymentPhase: 3,
-      dependencies: ['investor-hub', 'investor-web'],
+    expect(inferServiceMetadata('dashboard-bff', 'investor')).toEqual({
+      service: 'dashboard-bff', subsystem: 'investor', deploymentPhase: 3, dependencies: ['investor-hub', 'investor-web'],
     });
   });
 
   it('infers reconciliation-ctrl subsystem as ledger (passed by caller)', () => {
-    const result = inferServiceMetadata('reconciliation-ctrl', 'ledger');
-    expect(result).toEqual({
-      service: 'reconciliation-ctrl',
-      subsystem: 'ledger',
-      deploymentPhase: 3,
-      dependencies: ['ledger-hub'],
+    expect(inferServiceMetadata('reconciliation-ctrl', 'ledger')).toEqual({
+      service: 'reconciliation-ctrl', subsystem: 'ledger', deploymentPhase: 3, dependencies: ['ledger-hub'],
     });
   });
 
   it('infers compliance-ctrl subsystem as advisory (passed by caller)', () => {
-    const result = inferServiceMetadata('compliance-ctrl', 'advisory');
-    expect(result).toEqual({
-      service: 'compliance-ctrl',
-      subsystem: 'advisory',
-      deploymentPhase: 3,
-      dependencies: ['advisory-hub'],
+    expect(inferServiceMetadata('compliance-ctrl', 'advisory')).toEqual({
+      service: 'compliance-ctrl', subsystem: 'advisory', deploymentPhase: 3, dependencies: ['advisory-hub'],
     });
   });
 });
 
 describe('loadTierDefaults', () => {
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => resetFsMocks());
 
   it('loads sandbox tier from pipeline-defaults.json', () => {
     mockFileSystem({
@@ -145,8 +134,7 @@ describe('loadTierDefaults', () => {
         production: { observability: true },
       },
     });
-    const result = loadTierDefaults('sandbox');
-    expect(result).toEqual({ observability: false, logRetention: 7 });
+    expect(loadTierDefaults('sandbox')).toEqual({ observability: false, logRetention: 7 });
   });
 
   it('loads production tier (object form)', () => {
@@ -155,22 +143,23 @@ describe('loadTierDefaults', () => {
         production: { observability: true, logRetention: 90, protectedResources: true },
       },
     });
-    const result = loadTierDefaults('production');
-    expect(result).toEqual({ observability: true, logRetention: 90, protectedResources: true });
+    expect(loadTierDefaults('production')).toEqual({ observability: true, logRetention: 90, protectedResources: true });
   });
 
   it('returns empty object when pipeline-defaults.json is missing', () => {
-    mockedFs.existsSync.mockReturnValue(false);
-    const result = loadTierDefaults('sandbox');
-    expect(result).toEqual({});
+    mockedFs.existsSync.mockImplementation((p: fs.PathLike) => {
+      const filePath = typeof p === 'string' ? p : p.toString();
+      if (filePath.includes('pipeline-defaults.json')) return false;
+      return realFs.existsSync(p);
+    });
+    expect(loadTierDefaults('sandbox')).toEqual({});
   });
 
   it('returns empty object when tier key is absent', () => {
     mockFileSystem({
       'pipeline-defaults.json': { sandbox: { observability: false } },
     });
-    const result = loadTierDefaults('staging');
-    expect(result).toEqual({});
+    expect(loadTierDefaults('staging')).toEqual({});
   });
 
   it('returns empty object when production is array form (multi-target)', () => {
@@ -182,94 +171,39 @@ describe('loadTierDefaults', () => {
         ],
       },
     });
-    const result = loadTierDefaults('production');
-    expect(result).toEqual({});
+    expect(loadTierDefaults('production')).toEqual({});
   });
 });
 
 describe('mergeConfigs', () => {
   it('applies hardcoded fallbacks when no tier defaults or overrides', () => {
-    const inferred = {
-      service: 'investor-hub',
-      subsystem: 'investor',
-      deploymentPhase: 1 as const,
-      dependencies: [],
-    };
-    const result = mergeConfigs(inferred, {}, {}, 'staging');
-    expect(result).toEqual({
-      ...inferred,
-      ...HARDCODED_FALLBACKS,
-      prefix: 'staging',
-    });
+    const inferred = { service: 'investor-hub', subsystem: 'investor', deploymentPhase: 1 as const, dependencies: [] };
+    expect(mergeConfigs(inferred, {}, {}, 'staging')).toEqual({ ...inferred, ...HARDCODED_FALLBACKS, prefix: 'staging' });
   });
 
   it('tier defaults override hardcoded fallbacks', () => {
-    const inferred = {
-      service: 'investor-hub',
-      subsystem: 'investor',
-      deploymentPhase: 1 as const,
-      dependencies: [],
-    };
-    const result = mergeConfigs(inferred, { logRetention: 30 }, {}, 'staging');
-    expect(result.logRetention).toBe(30);
+    const inferred = { service: 'investor-hub', subsystem: 'investor', deploymentPhase: 1 as const, dependencies: [] };
+    expect(mergeConfigs(inferred, { logRetention: 30 }, {}, 'staging').logRetention).toBe(30);
   });
 
   it('per-service overrides override tier defaults', () => {
-    const inferred = {
-      service: 'investor-web',
-      subsystem: 'investor',
-      deploymentPhase: 2 as const,
-      dependencies: ['investor-hub'],
-    };
-    const result = mergeConfigs(
-      inferred,
-      { parallelDeploy: true },
-      { parallelDeploy: false },
-      'staging',
-    );
-    expect(result.parallelDeploy).toBe(false);
+    const inferred = { service: 'investor-web', subsystem: 'investor', deploymentPhase: 2 as const, dependencies: ['investor-hub'] };
+    expect(mergeConfigs(inferred, { parallelDeploy: true }, { parallelDeploy: false }, 'staging').parallelDeploy).toBe(false);
   });
 
   it('per-service dependencies replace inferred (not concat)', () => {
-    const inferred = {
-      service: 'advisory-bff',
-      subsystem: 'advisory',
-      deploymentPhase: 3 as const,
-      dependencies: ['advisory-hub', 'investor-web'],
-    };
-    const result = mergeConfigs(
-      inferred,
-      {},
-      { dependencies: ['advisory-hub', 'investor-hub'] },
-      'staging',
-    );
-    expect(result.dependencies).toEqual(['advisory-hub', 'investor-hub']);
+    const inferred = { service: 'advisory-bff', subsystem: 'advisory', deploymentPhase: 3 as const, dependencies: ['advisory-hub', 'investor-web'] };
+    expect(mergeConfigs(inferred, {}, { dependencies: ['advisory-hub', 'investor-hub'] }, 'staging').dependencies).toEqual(['advisory-hub', 'investor-hub']);
   });
 
   it('per-service deploymentPhase override replaces inferred', () => {
-    const inferred = {
-      service: 'investor-bff',
-      subsystem: 'investor',
-      deploymentPhase: 3 as const,
-      dependencies: ['investor-hub', 'investor-web'],
-    };
-    const result = mergeConfigs(inferred, {}, { deploymentPhase: 2 }, 'staging');
-    expect(result.deploymentPhase).toBe(2);
+    const inferred = { service: 'investor-bff', subsystem: 'investor', deploymentPhase: 3 as const, dependencies: ['investor-hub', 'investor-web'] };
+    expect(mergeConfigs(inferred, {}, { deploymentPhase: 2 }, 'staging').deploymentPhase).toBe(2);
   });
 
   it('account and region pass through from tier defaults', () => {
-    const inferred = {
-      service: 'investor-hub',
-      subsystem: 'investor',
-      deploymentPhase: 1 as const,
-      dependencies: [],
-    };
-    const result = mergeConfigs(
-      inferred,
-      { account: '111111111111', region: 'eu-west-1' },
-      {},
-      'prod',
-    );
+    const inferred = { service: 'investor-hub', subsystem: 'investor', deploymentPhase: 1 as const, dependencies: [] };
+    const result = mergeConfigs(inferred, { account: '111111111111', region: 'eu-west-1' }, {}, 'prod');
     expect(result.account).toBe('111111111111');
     expect(result.region).toBe('eu-west-1');
   });
@@ -278,70 +212,65 @@ describe('mergeConfigs', () => {
 describe('HARDCODED_FALLBACKS', () => {
   it('has expected default values', () => {
     expect(HARDCODED_FALLBACKS).toEqual({
-      observability: false,
-      logRetention: 14,
-      protectedResources: false,
-      parallelDeploy: true,
-      alarmActions: [],
+      observability: false, logRetention: 14, protectedResources: false, parallelDeploy: true, alarmActions: [],
     });
   });
 });
 
 describe('resolvePipelineConfig (integration)', () => {
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => resetFsMocks());
 
   it('resolves a hub service with sandbox tier', () => {
     mockDiscoverSubsystem({ 'investor-hub': 'investor' });
-    mockFileSystem({
-      'pipeline-defaults.json': {
-        sandbox: { observability: false, logRetention: 7, protectedResources: false, parallelDeploy: true, alarmActions: [] },
-      },
-    });
-    // Override existsSync to also handle discoverSubsystem's main.ts check
-    const origExistsSync = mockedFs.existsSync.getMockImplementation()!;
     mockedFs.existsSync.mockImplementation((p: fs.PathLike) => {
       const filePath = typeof p === 'string' ? p : p.toString();
       if (filePath.includes('main.ts')) return true;
       if (filePath.includes('pipeline-defaults.json')) return true;
-      return false; // No per-service pipeline.json
+      if (filePath.includes('pipeline.json') && !filePath.includes('pipeline-defaults')) return false;
+      return realFs.existsSync(p);
+    });
+    mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor, ...args: any[]) => {
+      const filePath = typeof p === 'string' ? p : p.toString();
+      if (filePath.includes('pipeline-defaults.json')) {
+        return JSON.stringify({
+          sandbox: { observability: false, logRetention: 7, protectedResources: false, parallelDeploy: true, alarmActions: [] },
+        });
+      }
+      return (realFs.readFileSync as any)(p, ...args);
     });
 
     const app = createApp({ tier: 'sandbox', prefix: 'sandbox-pr-42' });
     const config = resolvePipelineConfig(app, 'investor-hub');
 
     expect(config).toEqual({
-      service: 'investor-hub',
-      subsystem: 'investor',
-      deploymentPhase: 1,
-      dependencies: [],
-      observability: false,
-      logRetention: 7,
-      protectedResources: false,
-      parallelDeploy: true,
-      alarmActions: [],
+      service: 'investor-hub', subsystem: 'investor', deploymentPhase: 1, dependencies: [],
+      observability: false, logRetention: 7, protectedResources: false, parallelDeploy: true, alarmActions: [],
       prefix: 'sandbox-pr-42',
     });
   });
 
   it('resolves investor-web with per-service override', () => {
     mockDiscoverSubsystem({ 'investor-web': 'investor' });
-    mockedFs.existsSync.mockReturnValue(true);
-    mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor) => {
+    mockedFs.existsSync.mockImplementation((p: fs.PathLike) => {
+      const filePath = typeof p === 'string' ? p : p.toString();
+      if (filePath.includes('main.ts')) return true;
+      if (filePath.includes('pipeline-defaults.json')) return true;
+      if (filePath.includes('pipeline.json') && !filePath.includes('pipeline-defaults')) return true;
+      return realFs.existsSync(p);
+    });
+    mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor, ...args: any[]) => {
       const filePath = typeof p === 'string' ? p : p.toString();
       if (filePath.includes('pipeline-defaults.json')) {
         return JSON.stringify({
           staging: { observability: true, logRetention: 30, protectedResources: false, parallelDeploy: true, alarmActions: [] },
         });
       }
-      if (filePath.includes('pipeline.json')) {
-        return JSON.stringify({ parallelDeploy: false });
-      }
-      throw new Error(`ENOENT: ${filePath}`);
+      if (filePath.includes('pipeline.json')) return JSON.stringify({ parallelDeploy: false });
+      return (realFs.readFileSync as any)(p, ...args);
     });
 
     const app = createApp({ tier: 'staging', prefix: 'staging' });
     const config = resolvePipelineConfig(app, 'investor-web');
-
     expect(config.parallelDeploy).toBe(false);
     expect(config.observability).toBe(true);
     expect(config.deploymentPhase).toBe(2);
@@ -349,110 +278,111 @@ describe('resolvePipelineConfig (integration)', () => {
 
   it('falls back to sandbox tier when no tier context and prefix is unknown', () => {
     mockDiscoverSubsystem({ 'investor-hub': 'investor' });
-    mockFileSystem({
-      'pipeline-defaults.json': {
-        sandbox: { logRetention: 7 },
-      },
-    });
     mockedFs.existsSync.mockImplementation((p: fs.PathLike) => {
       const filePath = typeof p === 'string' ? p : p.toString();
       if (filePath.includes('main.ts')) return true;
       if (filePath.includes('pipeline-defaults.json')) return true;
-      return false;
+      if (filePath.includes('pipeline.json') && !filePath.includes('pipeline-defaults')) return false;
+      return realFs.existsSync(p);
+    });
+    mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor, ...args: any[]) => {
+      const filePath = typeof p === 'string' ? p : p.toString();
+      if (filePath.includes('pipeline-defaults.json')) return JSON.stringify({ sandbox: { logRetention: 7 } });
+      return (realFs.readFileSync as any)(p, ...args);
     });
 
     const app = createApp({ prefix: 'my-custom' });
-    // No tier in context → infer from prefix → "my-custom" doesn't match any pattern → sandbox
-    const config = resolvePipelineConfig(app, 'investor-hub');
-    expect(config.logRetention).toBe(7);
+    expect(resolvePipelineConfig(app, 'investor-hub').logRetention).toBe(7);
   });
 
   it('infers staging tier from prefix when tier context is absent', () => {
     mockDiscoverSubsystem({ 'investor-hub': 'investor' });
-    mockFileSystem({
-      'pipeline-defaults.json': {
-        staging: { logRetention: 30 },
-      },
-    });
     mockedFs.existsSync.mockImplementation((p: fs.PathLike) => {
       const filePath = typeof p === 'string' ? p : p.toString();
       if (filePath.includes('main.ts')) return true;
       if (filePath.includes('pipeline-defaults.json')) return true;
-      return false;
+      if (filePath.includes('pipeline.json') && !filePath.includes('pipeline-defaults')) return false;
+      return realFs.existsSync(p);
+    });
+    mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor, ...args: any[]) => {
+      const filePath = typeof p === 'string' ? p : p.toString();
+      if (filePath.includes('pipeline-defaults.json')) return JSON.stringify({ staging: { logRetention: 30 } });
+      return (realFs.readFileSync as any)(p, ...args);
     });
 
     const app = createApp({ prefix: 'staging' });
-    const config = resolvePipelineConfig(app, 'investor-hub');
-    expect(config.logRetention).toBe(30);
+    expect(resolvePipelineConfig(app, 'investor-hub').logRetention).toBe(30);
   });
 
   it('infers production tier from "prod" prefix', () => {
     mockDiscoverSubsystem({ 'investor-hub': 'investor' });
-    mockFileSystem({
-      'pipeline-defaults.json': {
-        production: { logRetention: 90 },
-      },
-    });
     mockedFs.existsSync.mockImplementation((p: fs.PathLike) => {
       const filePath = typeof p === 'string' ? p : p.toString();
       if (filePath.includes('main.ts')) return true;
       if (filePath.includes('pipeline-defaults.json')) return true;
-      return false;
+      if (filePath.includes('pipeline.json') && !filePath.includes('pipeline-defaults')) return false;
+      return realFs.existsSync(p);
+    });
+    mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor, ...args: any[]) => {
+      const filePath = typeof p === 'string' ? p : p.toString();
+      if (filePath.includes('pipeline-defaults.json')) return JSON.stringify({ production: { logRetention: 90 } });
+      return (realFs.readFileSync as any)(p, ...args);
     });
 
     const app = createApp({ prefix: 'prod' });
-    const config = resolvePipelineConfig(app, 'investor-hub');
-    expect(config.logRetention).toBe(90);
+    expect(resolvePipelineConfig(app, 'investor-hub').logRetention).toBe(90);
   });
 
   it('applies per-service tier-scoped overrides for matching tier', () => {
-    // pipeline-defaults.json has observability: true for staging
-    // per-service pipeline.json has staging: { observability: false }
-    mockedFs.existsSync.mockReturnValue(true);
-    mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor) => {
+    mockDiscoverSubsystem({ 'investor-hub': 'investor' });
+    mockedFs.existsSync.mockImplementation((p: fs.PathLike) => {
+      const filePath = typeof p === 'string' ? p : p.toString();
+      if (filePath.includes('main.ts')) return true;
+      if (filePath.includes('pipeline-defaults.json')) return true;
+      if (filePath.includes('pipeline.json') && !filePath.includes('pipeline-defaults')) return true;
+      return realFs.existsSync(p);
+    });
+    mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor, ...args: any[]) => {
       const filePath = typeof p === 'string' ? p : p.toString();
       if (filePath.includes('pipeline-defaults.json')) {
         return JSON.stringify({
           staging: { observability: true, logRetention: 30, parallelDeploy: true, protectedResources: false, alarmActions: [] },
         });
       }
-      if (filePath.includes('pipeline.json')) {
-        return JSON.stringify({ staging: { observability: false } });
-      }
-      throw new Error(`ENOENT: ${filePath}`);
+      if (filePath.includes('pipeline.json')) return JSON.stringify({ staging: { observability: false } });
+      return (realFs.readFileSync as any)(p, ...args);
     });
-    mockDiscoverSubsystem({ 'investor-hub': 'investor' });
 
     const app = createApp({ tier: 'staging', prefix: 'staging' });
-    const config = resolvePipelineConfig(app, 'investor-hub');
-    expect(config.observability).toBe(false);
+    expect(resolvePipelineConfig(app, 'investor-hub').observability).toBe(false);
   });
 
   it('ignores per-service tier-scoped overrides for non-matching tier', () => {
-    mockedFs.existsSync.mockReturnValue(true);
-    mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor) => {
+    mockDiscoverSubsystem({ 'investor-hub': 'investor' });
+    mockedFs.existsSync.mockImplementation((p: fs.PathLike) => {
+      const filePath = typeof p === 'string' ? p : p.toString();
+      if (filePath.includes('main.ts')) return true;
+      if (filePath.includes('pipeline-defaults.json')) return true;
+      if (filePath.includes('pipeline.json') && !filePath.includes('pipeline-defaults')) return true;
+      return realFs.existsSync(p);
+    });
+    mockedFs.readFileSync.mockImplementation((p: fs.PathOrFileDescriptor, ...args: any[]) => {
       const filePath = typeof p === 'string' ? p : p.toString();
       if (filePath.includes('pipeline-defaults.json')) {
         return JSON.stringify({
           production: { observability: true, logRetention: 90, parallelDeploy: true, protectedResources: true, alarmActions: [] },
         });
       }
-      if (filePath.includes('pipeline.json')) {
-        return JSON.stringify({ staging: { observability: false } });
-      }
-      throw new Error(`ENOENT: ${filePath}`);
+      if (filePath.includes('pipeline.json')) return JSON.stringify({ staging: { observability: false } });
+      return (realFs.readFileSync as any)(p, ...args);
     });
-    mockDiscoverSubsystem({ 'investor-hub': 'investor' });
 
     const app = createApp({ tier: 'production', prefix: 'prod' });
-    const config = resolvePipelineConfig(app, 'investor-hub');
-    expect(config.observability).toBe(true);
+    expect(resolvePipelineConfig(app, 'investor-hub').observability).toBe(true);
   });
 
   it('throws when prefix is not in context', () => {
     const app = createApp({});
-    expect(() => resolvePipelineConfig(app, 'investor-hub')).toThrow(
-      'CDK context "prefix" is required',
-    );
+    expect(() => resolvePipelineConfig(app, 'investor-hub')).toThrow('CDK context "prefix" is required');
   });
 });
