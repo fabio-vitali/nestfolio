@@ -18,6 +18,7 @@ export {
 // lambda-utils own exports
 export { parseRecord } from './sqs-parser';
 export { IdempotencyGuard } from './idempotency';
+export { guardedWrite } from './guarded-write';
 export { buildContainer } from './container';
 export { requireEnv } from './require-env';
 export { authorizeTenant, authorizeUser, type AuthorizedIdentity } from './authorize-tenant';
