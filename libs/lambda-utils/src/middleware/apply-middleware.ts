@@ -4,9 +4,7 @@ import type { Context } from 'aws-lambda';
  * A middleware wraps a handler function with cross-cutting concerns.
  * Unlike pipe() (data transformation), middleware wraps behavior around a handler.
  */
-export type Middleware = <A extends unknown[], R>(
-  fn: (...args: A) => Promise<R>,
-) => (...args: A) => Promise<R>;
+export type Middleware = <A extends unknown[], R>(fn: (...args: A) => Promise<R>) => (...args: A) => Promise<R>;
 
 /**
  * Composes middleware around a handler. Declaration order = execution order:

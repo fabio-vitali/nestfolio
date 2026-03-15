@@ -7,7 +7,7 @@ import { type ErrorEvent, NotRetryableError } from './errors';
  * BusEvent — domain event published to EventBridge.
  * T = subject payload type, S = context type (cross-cutting concerns like tenantId)
  */
-export type BusEvent<T = object, S = object> = Event & {
+export type BusEvent<T = object, S = Record<string, unknown>> = Event & {
   subject: T;
   context: S;
 };

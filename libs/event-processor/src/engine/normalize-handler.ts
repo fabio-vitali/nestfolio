@@ -1,5 +1,5 @@
 import type { WriteIntent } from '../types/write-intent';
-import type { HandlerEntry, HandlerFn, EventPayload } from '../types/handler-config';
+import type { HandlerEntry, EventPayload } from '../types/handler-config';
 import type { EventContext } from '../types/event-context';
 
 type NormalizedHandler = (payload: EventPayload, ctx: EventContext) => Promise<WriteIntent[]>;

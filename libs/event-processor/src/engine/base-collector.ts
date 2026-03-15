@@ -14,7 +14,7 @@ export abstract class BaseCollector {
     this.metrics = { ...initialMetrics };
   }
 
-  recordSuccess(id: string): void {
+  recordSuccess(_id: string): void {
     // Subclasses increment their own metrics via incrementMetric
   }
 

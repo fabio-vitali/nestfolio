@@ -154,10 +154,11 @@ export function createStreamTestHarness(config: StreamTestConfig) {
         : parsed;
 
       if (config.groupBy && config.processGroup) {
-        const groups = groupByUtil(afterFilter, {
-          key: (p) => config.groupBy!.key(p.streamRecord),
-          pick: config.groupBy.pick ?? 'all',
-        });
+        const pick = config.groupBy.pick ?? 'all';
+        const groupConfig = { key: (p: typeof afterFilter[number]) => config.groupBy!.key(p.streamRecord), pick } as
+          | { key: (p: typeof afterFilter[number]) => string; pick: 'all' }
+          | { key: (p: typeof afterFilter[number]) => string; pick: 'first' | 'last' };
+        const groups = groupByUtil(afterFilter, groupConfig as { key: (p: typeof afterFilter[number]) => string; pick: 'all' });
 
         for (const [groupKey, items] of groups.entries()) {
           const recs = Array.isArray(items) ? items : [items];

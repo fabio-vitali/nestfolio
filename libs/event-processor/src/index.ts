@@ -1,11 +1,13 @@
 // @nestfolio/event-processor — public API
 
 // Types
-export type { WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent, S3PutIntent, SkipIntent, KeyOverrides } from './types/write-intent';
-export type { HandlerFn, HandlerEntry, EventPayload } from './types/handler-config';
-export type { EventContext } from './types/event-context';
-export type { StreamRecord, StreamContext } from './types/stream-types';
-export type { RecordResult, IntentResult, BatchResult, RecordOutcome } from './types/result-types';
+export type {
+  WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent, S3PutIntent, SkipIntent, KeyOverrides,
+  HandlerFn, HandlerEntry, EventPayload,
+  EventContext,
+  StreamRecord, StreamContext,
+  RecordResult, IntentResult, BatchResult, RecordOutcome,
+} from './types';
 
 // Intent helpers
 export { record } from './intents/record';

@@ -1,4 +1,4 @@
-import { NotRetryableError, isRetryable, handleClientError, handleErrors } from '../src/errors';
+import { NotRetryableError, isRetryable, handleClientError } from '../src/errors';
 
 // Create an error that looks like an AWS SDK ServiceException (duck-typed)
 class AwsClientError extends Error {
@@ -65,48 +65,4 @@ describe('errors', () => {
     });
   });
 
-  describe('handleErrors', () => {
-    let mockBus: { publish: jest.Mock };
-
-    beforeEach(() => {
-      mockBus = {
-        publish: jest.fn().mockResolvedValue(undefined),
-      };
-    });
-
-    it('should publish error event for NotRetryableError and push to stream', () => {
-      const handler = handleErrors(mockBus, 'SERVICE_FAILED');
-      const error = new NotRetryableError('bad data', { field: 'amount' });
-
-      const push = jest.fn();
-      handler(error, push);
-
-      expect(push).toHaveBeenCalledWith(null, expect.anything());
-    });
-
-    it('should re-push retryable errors', () => {
-      const handler = handleErrors(mockBus, 'SERVICE_FAILED');
-      const error = new Error('transient failure');
-
-      const push = jest.fn();
-      handler(error, push);
-
-      expect(push).toHaveBeenCalledWith(error);
-      expect(mockBus.publish).not.toHaveBeenCalled();
-    });
-
-    it('should log error when publish fails and still push event to stream', async () => {
-      const publishError = new Error('EventBridge down');
-      mockBus.publish.mockRejectedValueOnce(publishError);
-
-      const handler = handleErrors(mockBus, 'SERVICE_FAILED');
-      const error = new NotRetryableError('bad data', { field: 'amount' });
-
-      const push = jest.fn();
-      handler(error, push);
-
-      // push should still be called with the stream wrapping the catch result
-      expect(push).toHaveBeenCalledWith(null, expect.anything());
-    });
-  });
 });

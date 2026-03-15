@@ -22,13 +22,13 @@ export class ErrorCollector extends BaseCollector {
     });
   }
 
-  override recordSuccess(messageId: string, eventType?: string): void {
+  override recordSuccess(messageId: string, _eventType?: string): void {
     super.recordSuccess(messageId);
     this.incrementMetric('EventProcessed');
     this.incrementMetric('BatchSize');
   }
 
-  recordDeduplicated(messageId: string, eventType: string): void {
+  recordDeduplicated(_messageId: string, _eventType: string): void {
     this.incrementMetric('EventDeduplicated');
     this.incrementMetric('BatchSize');
   }
@@ -56,12 +56,12 @@ export class ErrorCollector extends BaseCollector {
     }
   }
 
-  recordPoisonPill(messageId: string): void {
+  recordPoisonPill(_messageId: string): void {
     this.incrementMetric('PoisonPillDetected');
     this.incrementMetric('BatchSize');
   }
 
-  recordSkipped(messageId: string): void {
+  recordSkipped(_messageId: string): void {
     this.incrementMetric('EventSkipped');
     this.incrementMetric('BatchSize');
   }

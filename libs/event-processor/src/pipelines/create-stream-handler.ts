@@ -1,6 +1,5 @@
 import type { DynamoDBStreamEvent } from 'aws-lambda';
 import type { EventBridgeClient } from '@aws-sdk/client-eventbridge';
-import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import type { StreamRecord, StreamContext } from '../types/stream-types';
 import { StreamEngine } from '../engine/stream-engine';
 
@@ -15,7 +14,6 @@ export interface StreamHandlerConfig {
   filter?: (record: StreamRecord) => boolean;
   concurrency?: number;
   bus?: string | { name: string; client: EventBridgeClient };
-  table?: string | { name: string; client: DynamoDBDocumentClient };
   errorEventType?: string;
 }
 

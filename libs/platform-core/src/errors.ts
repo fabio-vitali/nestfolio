@@ -1,10 +1,5 @@
-import { getUUID, getTime } from './core';
-import { logger } from './logger';
-
 /**
  * Error that should NOT be retried by the Lambda runtime.
- * When thrown inside a Highland stream, handleErrors publishes an error event
- * and drops the message (it goes to DLQ via SQS maxReceiveCount).
  */
 export class NotRetryableError extends Error {
   constructor(
@@ -67,36 +62,3 @@ export type ErrorEvent = {
   };
 };
 
-/**
- * Highland.js error handler for stream pipelines.
- * NotRetryableError → publishes error event to bus, drops the message.
- * All other errors → re-pushes the error to propagate (Lambda retries).
- */
-export const handleErrors =
-  (bus: { publish(event: ErrorEvent): Promise<void> }, errorEventType: string) =>
-  (
-    error: Error,
-    push: (error: Error | null, x?: Highland.Stream<ErrorEvent>) => void,
-  ): void => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const _ = require('highland') as HighlandStatic;
-
-    if (error instanceof NotRetryableError) {
-      const event: ErrorEvent = {
-        id: getUUID(),
-        timestamp: getTime(),
-        type: errorEventType,
-        error: {
-          name: error.name,
-          message: error.message,
-          details: error.details,
-        },
-      };
-      push(null, _(bus.publish(event).then(() => event).catch((publishErr) => {
-        logger.error('Failed to publish error event', { publishErr, originalEvent: event });
-        return event;
-      })));
-    } else {
-      push(error);
-    }
-  };

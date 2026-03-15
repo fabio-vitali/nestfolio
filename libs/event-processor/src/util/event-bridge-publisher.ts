@@ -9,8 +9,8 @@ export class EventBridgePublisher {
   private readonly client: EventBridgeClient;
 
   constructor(
-    private readonly busName: string,
-    private readonly source: string,
+    _busName: string,
+    _source: string,
     client?: EventBridgeClient,
   ) {
     this.client = client ?? new EventBridgeClient({});

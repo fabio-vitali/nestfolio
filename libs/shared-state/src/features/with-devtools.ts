@@ -4,7 +4,7 @@ import { signalStoreFeature, withHooks, getState } from '@ngrx/signals';
 export function withDevtools(name: string) {
   return signalStoreFeature(
     withHooks({
-      onInit(store: Record<string, unknown>) {
+      onInit(store) {
         if (typeof window === 'undefined') return;
         const devtools = (window as any).__REDUX_DEVTOOLS_EXTENSION__;
         if (!devtools) return;

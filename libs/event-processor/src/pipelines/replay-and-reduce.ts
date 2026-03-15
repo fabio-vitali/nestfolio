@@ -1,7 +1,7 @@
 import type { DynamoDBStreamEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { logger } from '@nestfolio/lambda-utils';
+import { logger } from '@nestfolio/platform-core';
 import type { StreamRecord, StreamContext } from '../types/stream-types';
 import { StreamEngine } from '../engine/stream-engine';
 

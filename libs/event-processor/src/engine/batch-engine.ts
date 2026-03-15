@@ -1,5 +1,5 @@
 import type { SQSEvent, SQSBatchResponse } from 'aws-lambda';
-import { parseRecord, isRetryable, traceEvent, extractTenantId, createServiceMetrics } from '@nestfolio/lambda-utils';
+import { parseRecord, isRetryable, traceEvent, extractTenantId } from '@nestfolio/lambda-utils';
 import type { HandlerEntry } from '../types/handler-config';
 import type { EventContext } from '../types/event-context';
 import { normalizeHandler } from './normalize-handler';

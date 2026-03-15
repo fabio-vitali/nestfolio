@@ -1,5 +1,5 @@
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
-import { logger, getUUID, getTime } from '@nestfolio/lambda-utils';
+import { logger, getUUID, getTime } from '@nestfolio/platform-core';
 
 export class ErrorEventPublisher {
   private readonly client: EventBridgeClient;

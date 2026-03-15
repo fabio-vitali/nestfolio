@@ -11,13 +11,12 @@ export {
   NotRetryableError,
   isRetryable,
   handleClientError,
-  handleErrors,
   type ErrorEvent,
 } from './errors';
 export { log, logger } from './logger';
 export { tracer } from './tracer';
 export { type TableEntry } from './table';
-export { validateIncomingEvent, withSchemaValidation, type ValidationResult } from './validation';
+export { validateIncomingEvent, type ValidationResult } from './validation';
 export { TableRepository } from './repositories/table.repository';
 export { EventRepository } from './repositories/event.repository';
 export { BucketRepository } from './repositories/bucket.repository';

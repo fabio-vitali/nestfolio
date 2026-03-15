@@ -65,7 +65,7 @@ export function changeDataCapture(
     await publisher.publish([entry]);
   };
 
-  const processGroup = async (groupKey: string, records: StreamRecord[], ctx: StreamContext): Promise<void> => {
+  const processGroup = async (_groupKey: string, records: StreamRecord[], ctx: StreamContext): Promise<void> => {
     const entries: PutEventsRequestEntry[] = [];
     for (const record of records) {
       const eventType = resolveEventType(record, record.eventName, config.eventTypeMap);

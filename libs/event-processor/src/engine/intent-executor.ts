@@ -1,6 +1,6 @@
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { guardedWrite, NotRetryableError } from '@nestfolio/lambda-utils';
+import { guardedWrite } from '@nestfolio/lambda-utils';
 import type { WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent } from '../types/write-intent';
 import type { EventContext } from '../types/event-context';
 import type { IntentResult } from '../types/result-types';
@@ -19,7 +19,7 @@ export class IntentExecutor {
       case 'project':   return this.executeProject(intent, ctx);
       case 'accumulate': return this.executeAccumulate(intent, ctx);
       case 'skip':      return { _tag: 'skip', success: true };
-      case 's3-put':    throw new NotRetryableError('S3 intents require an S3 executor — use materializeToBucket pipeline');
+      case 's3-put':    return { _tag: 's3-put', success: false };
       default:          return { _tag: 'unknown', success: false };
     }
   }

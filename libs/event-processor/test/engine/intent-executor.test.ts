@@ -137,10 +137,10 @@ describe('IntentExecutor', () => {
   });
 
   describe('s3-put intent', () => {
-    it('throws NotRetryableError (requires S3 executor)', async () => {
-      await expect(
-        executor.execute({ _tag: 's3-put', body: {}, format: 'json' }, fakeCtx),
-      ).rejects.toThrow('S3 intents require an S3 executor');
+    it('returns failure result (requires S3 executor pipeline)', async () => {
+      const result = await executor.execute({ _tag: 's3-put', body: {}, format: 'json' }, fakeCtx);
+      expect(result).toEqual({ _tag: 's3-put', success: false });
+      expect(mockDocClient.send).not.toHaveBeenCalled();
     });
   });
 });
