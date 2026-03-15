@@ -1,56 +1,74 @@
+import { BaseCollector } from './base-collector';
+
 export interface CollectorResults {
   metrics: Record<string, number>;
   batchItemFailures: string[];
-  droppedErrors: Array<{ messageId: string; eventType: string; error: Error }>;
+  droppedErrors: Array<{ messageId: string; eventType: string; error: Error; causedBy?: unknown }>;
 }
 
-export class ErrorCollector {
-  private readonly metrics: Record<string, number> = {
-    EventProcessed: 0,
-    EventFailed: 0,
-    EventDeduplicated: 0,
-    EventDropped: 0,
-    PoisonPillDetected: 0,
-    EventSkipped: 0,
-    BatchSize: 0,
-  };
+export class ErrorCollector extends BaseCollector {
   private readonly failures: string[] = [];
-  private readonly dropped: Array<{ messageId: string; eventType: string; error: Error }> = [];
+  private readonly dropped: Array<{ messageId: string; eventType: string; error: Error; causedBy?: unknown }> = [];
 
-  recordSuccess(messageId: string, eventType: string): void {
-    this.metrics.EventProcessed++;
-    this.metrics.BatchSize++;
+  constructor() {
+    super({
+      EventProcessed: 0,
+      EventFailed: 0,
+      EventDeduplicated: 0,
+      EventDropped: 0,
+      PoisonPillDetected: 0,
+      EventSkipped: 0,
+      BatchSize: 0,
+    });
+  }
+
+  override recordSuccess(messageId: string, eventType?: string): void {
+    super.recordSuccess(messageId);
+    this.incrementMetric('EventProcessed');
+    this.incrementMetric('BatchSize');
   }
 
   recordDeduplicated(messageId: string, eventType: string): void {
-    this.metrics.EventDeduplicated++;
-    this.metrics.BatchSize++;
+    this.incrementMetric('EventDeduplicated');
+    this.incrementMetric('BatchSize');
   }
 
-  recordError(messageId: string, eventType: string, error: Error, retryable: boolean): void {
-    this.metrics.BatchSize++;
+  override recordError(messageId: string, error: Error, retryable: boolean, causedBy?: unknown): void;
+  override recordError(messageId: string, eventType: string, error: Error, retryable: boolean): void;
+  override recordError(...args: unknown[]): void {
+    let messageId: string, eventType: string, error: Error, retryable: boolean, causedBy: unknown;
+    if (args[1] instanceof Error) {
+      [messageId, error, retryable, causedBy] = args as [string, Error, boolean, unknown];
+      eventType = 'UNKNOWN';
+    } else {
+      [messageId, eventType, error, retryable] = args as [string, string, Error, boolean];
+      causedBy = undefined;
+    }
+
+    super.recordError(messageId, error, retryable, causedBy);
+    this.incrementMetric('BatchSize');
     if (retryable) {
-      this.metrics.EventFailed++;
+      this.incrementMetric('EventFailed');
       this.failures.push(messageId);
     } else {
-      this.metrics.EventDropped++;
-      this.dropped.push({ messageId, eventType, error });
+      this.incrementMetric('EventDropped');
+      this.dropped.push({ messageId, eventType, error, causedBy });
     }
   }
 
   recordPoisonPill(messageId: string): void {
-    this.metrics.PoisonPillDetected++;
-    this.metrics.BatchSize++;
+    this.incrementMetric('PoisonPillDetected');
+    this.incrementMetric('BatchSize');
   }
 
   recordSkipped(messageId: string): void {
-    this.metrics.EventSkipped++;
-    this.metrics.BatchSize++;
+    this.incrementMetric('EventSkipped');
+    this.incrementMetric('BatchSize');
   }
 
   getResults(): CollectorResults {
     return {
-      metrics: { ...this.metrics },
+      metrics: this.getMetrics(),
       batchItemFailures: [...this.failures],
       droppedErrors: [...this.dropped],
     };
