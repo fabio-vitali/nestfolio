@@ -206,6 +206,7 @@ interface StreamRecord {
   readonly sk: string;
   readonly __typename: string;
   readonly tenantId: string;
+  readonly eventName: 'INSERT' | 'MODIFY' | 'REMOVE';  // carried per-record for CDC groupBy
   readonly sequenceNo?: number;        // Convention: monotonic sequence for ordering in replayAndReduce
   readonly [key: string]: unknown;     // remaining entity fields
 }
