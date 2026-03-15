@@ -27,6 +27,10 @@ export type { EventHandlerConfig } from './pipelines/create-event-handler';
 export { materializeToTable } from './pipelines/materialize-to-table';
 export type { MaterializeToTableConfig } from './pipelines/materialize-to-table';
 
+// Stream Pipelines
+export { createStreamHandler } from './pipelines/create-stream-handler';
+export type { StreamHandlerConfig } from './pipelines/create-stream-handler';
+
 // Engine (advanced)
 export { BatchEngine } from './engine/batch-engine';
 export { IntentExecutor } from './engine/intent-executor';
