@@ -5,6 +5,7 @@ export interface StreamRecord {
   readonly sk: string;
   readonly __typename: string;
   readonly tenantId: string;
+  readonly eventName: 'INSERT' | 'MODIFY' | 'REMOVE';
   readonly sequenceNo?: number;
   readonly [key: string]: unknown;
 }
