@@ -5,7 +5,6 @@ jest.mock('@nestfolio/platform-core', () => ({
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  IdempotencyGuard: jest.fn(),
 }));
 
 import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
@@ -23,7 +22,7 @@ type NotificationCreatedPayload = {
 };
 
 describe('NotificationCreatedPipe', () => {
-  const mockAddNotification = jest.fn().mockResolvedValue(undefined);
+  const mockAddNotification = jest.fn().mockResolvedValue(true);
   const mockRepository = { addNotification: mockAddNotification } as any;
 
   let pipe: NotificationCreatedPipe;
@@ -64,7 +63,7 @@ describe('NotificationCreatedPipe', () => {
       body: 'A new advisory decision is available.',
       relatedEntityType: 'AdvisoryDecision',
       relatedEntityId: 'adv-1',
-    });
+    }, 'evt-1');
   });
 
   it('should propagate repository errors', async () => {

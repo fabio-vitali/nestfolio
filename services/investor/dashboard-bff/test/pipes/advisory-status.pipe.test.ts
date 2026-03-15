@@ -5,17 +5,17 @@ jest.mock('@nestfolio/platform-core', () => ({
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  IdempotencyGuard: jest.fn(),
+  guardedWrite: jest.fn().mockResolvedValue(true),
 }));
 
 import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
 import { AdvisoryStatusPipe } from '../../src/pipes/advisory-status.pipe';
 
 describe('AdvisoryStatusPipe', () => {
-  const mockUpsertAdvisoryStatus = jest.fn().mockResolvedValue({});
+  const mockGuardedUpsertAdvisoryStatus = jest.fn().mockResolvedValue(true);
 
   const mockRepository = {
-    upsertAdvisoryStatus: mockUpsertAdvisoryStatus,
+    guardedUpsertAdvisoryStatus: mockGuardedUpsertAdvisoryStatus,
   } as any;
 
   let pipe: AdvisoryStatusPipe;
@@ -40,7 +40,7 @@ describe('AdvisoryStatusPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockUpsertAdvisoryStatus).toHaveBeenCalledWith('t1', {
+    expect(mockGuardedUpsertAdvisoryStatus).toHaveBeenCalledWith('t1', 'evt-1', 'advisoryStatus', {
       pendingDecisionsDelta: 1,
       lastRecommendationAt: '2025-01-01T12:00:00.000Z',
     });
@@ -61,7 +61,7 @@ describe('AdvisoryStatusPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockUpsertAdvisoryStatus).toHaveBeenCalledWith('t1', {
+    expect(mockGuardedUpsertAdvisoryStatus).toHaveBeenCalledWith('t1', 'evt-2', 'advisoryStatus', {
       pendingDecisionsDelta: 1,
       lastRecommendationAt: '2025-02-01T08:00:00.000Z',
     });
@@ -82,7 +82,7 @@ describe('AdvisoryStatusPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockUpsertAdvisoryStatus).toHaveBeenCalledWith('t1', {
+    expect(mockGuardedUpsertAdvisoryStatus).toHaveBeenCalledWith('t1', 'evt-3', 'advisoryStatus', {
       pendingDecisionsDelta: -1,
       lastDecisionStatus: 'APPROVED',
     });
@@ -103,13 +103,13 @@ describe('AdvisoryStatusPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockUpsertAdvisoryStatus).toHaveBeenCalledWith('t1', {
+    expect(mockGuardedUpsertAdvisoryStatus).toHaveBeenCalledWith('t1', 'evt-4', 'advisoryStatus', {
       pendingDecisionsDelta: -1,
       lastDecisionStatus: 'BLOCKED',
     });
   });
 
-  it('should not call upsertAdvisoryStatus for unknown event types', async () => {
+  it('should not call guardedUpsertAdvisoryStatus for unknown event types', async () => {
     const uow: UnitOfWork<BusEvent<any>> = {
       event: {
         id: 'evt-5',
@@ -124,6 +124,6 @@ describe('AdvisoryStatusPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockUpsertAdvisoryStatus).not.toHaveBeenCalled();
+    expect(mockGuardedUpsertAdvisoryStatus).not.toHaveBeenCalled();
   });
 });

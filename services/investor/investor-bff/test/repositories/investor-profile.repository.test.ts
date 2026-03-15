@@ -31,6 +31,15 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      try {
+        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+        return true;
+      } catch {
+        return false;
+      }
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -95,8 +104,9 @@ describe('InvestorProfileRepository', () => {
     it('should create an InvestorProfile with defaults', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.createProfile('tenant-1', 'user-1', 'test@example.com');
+      const created = await repo.createProfile('tenant-1', 'user-1', 'test@example.com', 'evt-1');
 
+      expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item).toMatchObject({
@@ -107,6 +117,7 @@ describe('InvestorProfileRepository', () => {
         email: 'test@example.com',
         operatingMode: 'BALANCED',
         currency: 'USD',
+        sourceEventId: 'evt-1',
       });
     });
   });

@@ -31,6 +31,16 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      try {
+        const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+        return true;
+      } catch (err: any) {
+        if (err.name === 'ConditionalCheckFailedException') return false;
+        throw err;
+      }
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -92,13 +102,14 @@ describe('AdvisoryRepository', () => {
     it('should store a decision read model', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.storeDecision('t1', 'd1', {
+      const result = await repo.storeDecision('t1', 'd1', {
         trigger: 'REBALANCE',
         explanation: 'Rebalance needed',
         proposedTrades: [],
         confirmationRequired: true,
       });
 
+      expect(result).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item).toMatchObject({
@@ -110,6 +121,7 @@ describe('AdvisoryRepository', () => {
         status: 'PROPOSED',
         trigger: 'REBALANCE',
       });
+      expect(call.input.ConditionExpression).toBe('attribute_not_exists(pk)');
     });
   });
 

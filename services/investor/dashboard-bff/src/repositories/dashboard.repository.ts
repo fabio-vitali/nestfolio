@@ -4,8 +4,8 @@ import {
   UpdateCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/platform-core';
-import { withMethodLogging } from '@nestfolio/lambda-utils';
+import { TableRepository, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { withMethodLogging, guardedWrite } from '@nestfolio/lambda-utils';
 
 function dashboardPk(tenantId: string): string {
   return `Dashboard#${tenantId}`;
@@ -113,6 +113,62 @@ export class DashboardRepository extends TableRepository {
     },
   );
 
+  readonly guardedAtomicIncrementTotalValue = this.log('guardedAtomicIncrementTotalValue',
+    async (
+      tenantId: string,
+      eventId: string,
+      pipeName: string,
+      deltaCents: number,
+      extraUpdates?: Record<string, number>,
+    ): Promise<boolean> => {
+      const pk = dashboardPk(tenantId);
+      const now = getTime();
+
+      const updateExpressions: string[] = [
+        '#ts = :ts',
+        'updatedAt = :now',
+        '__typename = :typename',
+        'tenantId = :tenantId',
+        'totalValueCents = if_not_exists(totalValueCents, :zero) + :delta',
+      ];
+      const expressionNames: Record<string, string> = { '#ts': 'timestamp' };
+      const expressionValues: Record<string, unknown> = {
+        ':ts': now,
+        ':now': now,
+        ':typename': 'PortfolioSummary',
+        ':tenantId': tenantId,
+        ':zero': 0,
+        ':delta': deltaCents,
+      };
+
+      if (extraUpdates) {
+        for (const [key, value] of Object.entries(extraUpdates)) {
+          if (value !== undefined) {
+            updateExpressions.push(`${key} = :${key}`);
+            expressionValues[`:${key}`] = value;
+          }
+        }
+      }
+
+      return guardedWrite(
+        this.docClient,
+        this.tableName,
+        { pk, sk: `ProcessedEvent#${eventId}#${pipeName}` },
+        [
+          {
+            Update: {
+              TableName: this.tableName,
+              Key: { pk, sk: 'PortfolioSummary' },
+              UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+              ExpressionAttributeNames: expressionNames,
+              ExpressionAttributeValues: expressionValues,
+            },
+          },
+        ],
+      );
+    },
+  );
+
   readonly getPortfolioSummary = this.log('getPortfolioSummary',
     async (tenantId: string): Promise<Record<string, unknown> | null> => {
       const pk = dashboardPk(tenantId);
@@ -178,32 +234,33 @@ export class DashboardRepository extends TableRepository {
   readonly addActivity = this.log('addActivity',
     async (
       tenantId: string,
+      eventId: string,
       activity: {
         activityType: string;
         description: string;
         metadata?: Record<string, unknown>;
       },
-    ): Promise<void> => {
+    ): Promise<boolean> => {
       const pk = dashboardPk(tenantId);
       const now = getTime();
-      const uuid = getUUID();
 
       const TTL_90_DAYS = 90 * 24 * 60 * 60;
       const expiresAt = Math.floor(Date.now() / 1000) + TTL_90_DAYS;
 
       const item: TableEntry = {
         pk,
-        sk: `Activity#${now}#${uuid}`,
+        sk: `Activity#${now}#${eventId}`,
         __typename: 'RecentActivity',
         tenantId,
         timestamp: now,
+        sourceEventId: eventId,
         activityType: activity.activityType,
         description: activity.description,
         metadata: activity.metadata ? JSON.stringify(activity.metadata) : null,
         ttl: expiresAt,
       };
 
-      await this.put(item);
+      return this.putIfNotExists(item);
     },
   );
 
@@ -281,6 +338,69 @@ export class DashboardRepository extends TableRepository {
           ExpressionAttributeNames: expressionNames,
           ExpressionAttributeValues: expressionValues,
         }),
+      );
+    },
+  );
+
+  readonly guardedUpsertAdvisoryStatus = this.log('guardedUpsertAdvisoryStatus',
+    async (
+      tenantId: string,
+      eventId: string,
+      pipeName: string,
+      updates: {
+        pendingDecisionsDelta?: number;
+        lastRecommendationAt?: string;
+        lastDecisionStatus?: string;
+      },
+    ): Promise<boolean> => {
+      const pk = dashboardPk(tenantId);
+      const now = getTime();
+
+      const updateExpressions: string[] = [
+        '#ts = :ts',
+        'updatedAt = :now',
+        '__typename = :typename',
+        'tenantId = :tenantId',
+      ];
+      const expressionNames: Record<string, string> = { '#ts': 'timestamp' };
+      const expressionValues: Record<string, unknown> = {
+        ':ts': now,
+        ':now': now,
+        ':typename': 'AdvisoryStatus',
+        ':tenantId': tenantId,
+      };
+
+      if (updates.pendingDecisionsDelta !== undefined) {
+        updateExpressions.push('pendingDecisionsCount = if_not_exists(pendingDecisionsCount, :zero) + :delta');
+        expressionValues[':delta'] = updates.pendingDecisionsDelta;
+        expressionValues[':zero'] = 0;
+      }
+
+      if (updates.lastRecommendationAt !== undefined) {
+        updateExpressions.push('lastRecommendationAt = :lastRecommendationAt');
+        expressionValues[':lastRecommendationAt'] = updates.lastRecommendationAt;
+      }
+
+      if (updates.lastDecisionStatus !== undefined) {
+        updateExpressions.push('lastDecisionStatus = :lastDecisionStatus');
+        expressionValues[':lastDecisionStatus'] = updates.lastDecisionStatus;
+      }
+
+      return guardedWrite(
+        this.docClient,
+        this.tableName,
+        { pk, sk: `ProcessedEvent#${eventId}#${pipeName}` },
+        [
+          {
+            Update: {
+              TableName: this.tableName,
+              Key: { pk, sk: 'AdvisoryStatus' },
+              UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+              ExpressionAttributeNames: expressionNames,
+              ExpressionAttributeValues: expressionValues,
+            },
+          },
+        ],
       );
     },
   );

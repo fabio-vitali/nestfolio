@@ -31,6 +31,11 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+      return true;
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -58,7 +63,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
-const mockEnsureOnce = jest.fn().mockResolvedValue(true);
+const mockGuardedWrite = jest.fn().mockResolvedValue(true);
 
 const mockParseRecord = jest.fn((record) => {
   const body = JSON.parse(record.body);
@@ -75,9 +80,7 @@ const mockMetrics = {
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   parseRecord: mockParseRecord,
-  IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: mockEnsureOnce,
-  })),
+  guardedWrite: mockGuardedWrite,
   createServiceMetrics: jest.fn().mockReturnValue(mockMetrics),
   isRetryable: jest.fn().mockReturnValue(true),
   traceEvent: jest.fn(),
@@ -126,7 +129,7 @@ describe('dashboard-bff event-listener handler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
-    mockEnsureOnce.mockResolvedValue(true);
+    mockGuardedWrite.mockResolvedValue(true);
 
     const repository = new DashboardRepository('test-table');
 
@@ -185,7 +188,6 @@ describe('dashboard-bff event-listener handler', () => {
     };
 
     const mockDeps: EventListenerDeps = {
-      idempotencyGuard: { ensureOnce: mockEnsureOnce } as any,
       eventPipeMap,
       bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: mockMetrics as any,
@@ -245,8 +247,10 @@ describe('dashboard-bff event-listener handler', () => {
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
 
-    // DECISION_APPROVED triggers advisoryStatusPipe (Update) + recentActivityPipe (Put)
-    expect(mockSend).toHaveBeenCalledTimes(2);
+    // DECISION_APPROVED triggers advisoryStatusPipe (guardedWrite) + recentActivityPipe (putIfNotExists)
+    // guardedWrite is mocked separately, only putIfNotExists goes through mockSend
+    expect(mockGuardedWrite).toHaveBeenCalledTimes(1);
+    expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   it('should process ONBOARDING_COMPLETED through investor snapshot pipe', async () => {
@@ -297,8 +301,8 @@ describe('dashboard-bff event-listener handler', () => {
     expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
   });
 
-  it('should report failure when idempotency guard throws DynamoDB error', async () => {
-    mockEnsureOnce.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
+  it('should report failure when DynamoDB throws error during pipe processing', async () => {
+    mockSend.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
 
     const sqsEvent = buildSqsEvent([
       {
@@ -433,8 +437,9 @@ describe('dashboard-bff event-listener handler', () => {
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
-  it('should skip all pipes when all per-pipe idempotency keys are duplicates', async () => {
-    mockEnsureOnce.mockResolvedValue(false);
+  it('should handle duplicate events gracefully via per-pipe idempotency (guardedWrite returns false)', async () => {
+    // guardedWrite returns false for advisory pipe (duplicate), recentActivity putIfNotExists also returns true
+    mockGuardedWrite.mockResolvedValueOnce(false);
 
     const sqsEvent = buildSqsEvent([
       {
@@ -442,6 +447,32 @@ describe('dashboard-bff event-listener handler', () => {
         body: {
           detail: {
             id: 'evt-dup',
+            type: 'DECISION_APPROVED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              decisionId: 'd1',
+              approvedAt: '2025-01-01T00:00:00.000Z',
+            },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+    // guardedWrite called for advisory pipe, putIfNotExists (via mockSend) for activity pipe
+    expect(mockGuardedWrite).toHaveBeenCalledTimes(1);
+    expect(mockSend).toHaveBeenCalled();
+  });
+
+  it('should call all pipes directly without external idempotency guard', async () => {
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-direct',
+        body: {
+          detail: {
+            id: 'evt-direct',
             type: 'PORTFOLIO_UPDATED',
             timestamp: '2025-01-01T00:00:00.000Z',
             subject: {
@@ -457,69 +488,9 @@ describe('dashboard-bff event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-    // 3 idempotency checks for PORTFOLIO_UPDATED (portfolioSummary, positionSnapshot, recentActivity)
-    expect(mockEnsureOnce).toHaveBeenCalledTimes(3);
-    // No DynamoDB calls for pipe processing — only idempotency checks happened
-    expect(mockSend).not.toHaveBeenCalled();
-  });
-
-  it('should use per-pipe idempotency keys with format eventType#eventId#pipeName', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-idem',
-        body: {
-          detail: {
-            id: 'evt-100',
-            type: 'DECISION_APPROVED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              decisionId: 'd1',
-              approvedAt: '2025-01-01T00:00:00.000Z',
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-
-    // DECISION_APPROVED has 2 pipes: advisoryStatus, recentActivity
-    expect(mockEnsureOnce).toHaveBeenCalledTimes(2);
-    expect(mockEnsureOnce).toHaveBeenCalledWith('DECISION_APPROVED', 'DECISION_APPROVED#evt-100#advisoryStatus');
-    expect(mockEnsureOnce).toHaveBeenCalledWith('DECISION_APPROVED', 'DECISION_APPROVED#evt-100#recentActivity');
-  });
-
-  it('should skip only already-processed pipes and run remaining pipes', async () => {
-    // First pipe (advisoryStatus) already processed, second (recentActivity) is new
-    mockEnsureOnce
-      .mockResolvedValueOnce(false)  // advisoryStatus — already processed
-      .mockResolvedValueOnce(true);  // recentActivity — new
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-partial',
-        body: {
-          detail: {
-            id: 'evt-partial',
-            type: 'DECISION_APPROVED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              decisionId: 'd1',
-              approvedAt: '2025-01-01T00:00:00.000Z',
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-
-    // Only 1 pipe should have run (recentActivity), not advisoryStatus
-    expect(mockSend).toHaveBeenCalledTimes(1);
+    // PORTFOLIO_UPDATED triggers 3 pipes directly (portfolioSummary, positionSnapshot, recentActivity)
+    // recentActivity calls putIfNotExists (mockSend)
+    expect(mockSend).toHaveBeenCalled();
   });
 
   it('should process LEDGER_ENTRY_RECORDED through time-travel availability pipe', async () => {
@@ -572,6 +543,7 @@ describe('dashboard-bff event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-    expect(mockSend).toHaveBeenCalledTimes(1);
+    // DECISION_PACKET_CREATED triggers advisoryStatusPipe which uses guardedWrite (not mockSend)
+    expect(mockGuardedWrite).toHaveBeenCalledTimes(1);
   });
 });

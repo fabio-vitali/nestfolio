@@ -19,14 +19,19 @@ export class NotificationCreatedPipe implements Pipe<UnitOfWork<BusEvent<Notific
     const { event } = uow;
     const payload = event.subject;
 
-    await this.repository.addNotification(payload.tenantId, payload.userId, {
+    const created = await this.repository.addNotification(payload.tenantId, payload.userId, {
       notificationId: payload.notificationId,
       channel: payload.channel,
       title: payload.title,
       body: payload.body,
       relatedEntityType: payload.relatedEntityType,
       relatedEntityId: payload.relatedEntityId,
-    });
+    }, event.id);
+
+    if (!created) {
+      logger.info('Notification already exists, skipping', { eventId: event.id });
+      return;
+    }
 
     logger.info('Materialized notification', {
       tenantId: payload.tenantId,

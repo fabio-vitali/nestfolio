@@ -57,9 +57,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     const event = body.detail ?? body;
     return { event, payload: event.subject ?? {}, record };
   }),
-  IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: jest.fn().mockResolvedValue(true),
-  })),
   createServiceMetrics: jest.fn().mockReturnValue({
     addMetric: jest.fn(),
     addDimension: jest.fn(),
@@ -84,8 +81,6 @@ import { PortfolioRepository } from '../../src/repositories/portfolio.repository
 import { BalanceUpdatedPipe } from '../../src/pipes/balance-updated.pipe';
 import { PortfolioUpdatedPipe } from '../../src/pipes/portfolio-updated.pipe';
 import { LedgerEntryRecordedPipe } from '../../src/pipes/ledger-entry-recorded.pipe';
-import { IdempotencyGuard } from '@nestfolio/lambda-utils';
-
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
     Records: records.map((r) => ({
@@ -124,7 +119,6 @@ describe('ledger-bff event-listener handler', () => {
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
 
     handler = createHandler({
-      idempotencyGuard: new IdempotencyGuard({} as any, 'test-table'),
       eventPipeMap: {
         BALANCE_UPDATED: [{ name: 'balanceUpdated', pipe: balanceUpdatedPipe }],
         PORTFOLIO_UPDATED: [{ name: 'portfolioUpdated', pipe: portfolioUpdatedPipe }],

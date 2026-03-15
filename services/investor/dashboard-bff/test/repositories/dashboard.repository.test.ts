@@ -31,6 +31,11 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+      return true;
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -62,6 +67,7 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn().mockImplementation(() =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
+  guardedWrite: jest.fn().mockResolvedValue(true),
 }));
 
 import { DashboardRepository } from '../../src/repositories/dashboard.repository';
@@ -166,7 +172,7 @@ describe('DashboardRepository', () => {
     it('should put an activity item with TTL', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repository.addActivity('tenant-1', {
+      await repository.addActivity('tenant-1', 'evt-123', {
         activityType: 'ORDER_FILLED',
         description: 'Order filled: AAPL',
         metadata: { orderId: 'o1' },

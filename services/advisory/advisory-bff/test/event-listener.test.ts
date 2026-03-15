@@ -32,6 +32,16 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      try {
+        const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+        return true;
+      } catch (err: any) {
+        if (err.name === 'ConditionalCheckFailedException') return false;
+        throw err;
+      }
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -69,9 +79,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     const event = body.detail ?? body;
     return { event, payload: event.subject ?? {}, record };
   }),
-  IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: jest.fn().mockResolvedValue(true),
-  })),
   createServiceMetrics: jest.fn().mockReturnValue({
     addMetric: jest.fn(),
     addDimension: jest.fn(),
@@ -122,11 +129,9 @@ describe('event-listener handler', () => {
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
 
     const repository = new AdvisoryRepository('test-table');
-    const mockIdempotencyGuard = { ensureOnce: jest.fn().mockResolvedValue(true) } as any;
 
     mockDeps = {
-      idempotencyGuard: mockIdempotencyGuard,
-      decisionPacketCreatedPipe: new DecisionPacketCreatedPipe(repository, mockIdempotencyGuard),
+      decisionPacketCreatedPipe: new DecisionPacketCreatedPipe(repository),
       decisionStatusChangedPipe: new DecisionStatusChangedPipe(repository),
       bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: {
@@ -144,8 +149,8 @@ describe('event-listener handler', () => {
   });
 
   it('should process DECISION_PACKET_CREATED event and store decision', async () => {
-    // IdempotencyGuard.ensureOnce -> true (mocked above), then storeDecision -> put
-    mockSend.mockResolvedValueOnce({}); // storeDecision put
+    // storeDecision -> putIfNotExists (succeeds = new item)
+    mockSend.mockResolvedValueOnce({}); // storeDecision putIfNotExists
 
     const sqsEvent = buildSqsEvent([
       {
@@ -219,9 +224,9 @@ describe('event-listener handler', () => {
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
-  it('should skip duplicate events via idempotency guard', async () => {
-    // Override IdempotencyGuard to return false (duplicate)
-    (mockDeps.idempotencyGuard.ensureOnce as jest.Mock).mockResolvedValue(false);
+  it('should handle duplicate DECISION_PACKET_CREATED gracefully via conditional write', async () => {
+    // putIfNotExists returns false for duplicate (ConditionalCheckFailedException handled internally)
+    mockSend.mockRejectedValueOnce(Object.assign(new Error('ConditionalCheckFailedException'), { name: 'ConditionalCheckFailedException' }));
 
     const sqsEvent = buildSqsEvent([
       {
@@ -231,7 +236,14 @@ describe('event-listener handler', () => {
             id: 'evt-dup',
             type: 'DECISION_PACKET_CREATED',
             timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1', decisionId: 'd1' },
+            subject: {
+              tenantId: 't1',
+              decisionId: 'd1',
+              trigger: 'REBALANCE',
+              proposedTrades: [],
+              explanation: 'Duplicate',
+              confirmationRequired: false,
+            },
             context: { tenantId: 't1' },
           },
         },
@@ -240,8 +252,6 @@ describe('event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-    // No DynamoDB calls for pipe processing since event is duplicate
-    expect(mockSend).not.toHaveBeenCalled();
   });
 
   it('should report failure for malformed event body (invalid JSON)', async () => {

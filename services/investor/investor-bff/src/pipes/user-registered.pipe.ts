@@ -1,5 +1,4 @@
 import { type Pipe, type UnitOfWork, type BusEvent, logger } from '@nestfolio/platform-core';
-import { IdempotencyGuard } from '@nestfolio/lambda-utils';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 
 type UserRegisteredPayload = {
@@ -9,22 +8,18 @@ type UserRegisteredPayload = {
 };
 
 export class UserRegisteredPipe implements Pipe<UnitOfWork<BusEvent<UserRegisteredPayload>>> {
-  constructor(
-    private readonly repository: InvestorProfileRepository,
-    private readonly idempotencyGuard: IdempotencyGuard,
-  ) {}
+  constructor(private readonly repository: InvestorProfileRepository) {}
 
   async process(uow: UnitOfWork<BusEvent<UserRegisteredPayload>>): Promise<void> {
     const { event } = uow;
     const { userId, tenantId, email } = event.subject;
 
-    const isNew = await this.idempotencyGuard.ensureOnce(event.type, event.id);
-    if (!isNew) {
-      logger.info('Skipping duplicate USER_REGISTERED event', { eventId: event.id });
+    const created = await this.repository.createProfile(tenantId, userId, email, event.id);
+    if (!created) {
+      logger.info('Profile already exists, skipping', { eventId: event.id });
       return;
     }
 
-    await this.repository.createProfile(tenantId, userId, email);
     logger.info('Created InvestorProfile skeleton', { tenantId, userId });
   }
 }

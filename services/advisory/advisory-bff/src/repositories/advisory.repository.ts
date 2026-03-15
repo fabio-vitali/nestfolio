@@ -18,7 +18,7 @@ export class AdvisoryRepository extends TableRepository {
     tenantId: string,
     decisionId: string,
     data: Record<string, unknown>,
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     const now = getTime();
     const item: TableEntry = {
       pk: decisionPk(tenantId, decisionId),
@@ -33,7 +33,7 @@ export class AdvisoryRepository extends TableRepository {
       updatedAt: now,
       ...data,
     };
-    await this.put(item);
+    return this.putIfNotExists(item);
   });
 
   readonly getDecision = this.log('getDecision', async (tenantId: string, decisionId: string): Promise<Record<string, unknown> | null> => {

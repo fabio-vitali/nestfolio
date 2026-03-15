@@ -1,5 +1,4 @@
 import { type Pipe, type UnitOfWork, type BusEvent, logger } from '@nestfolio/platform-core';
-import { IdempotencyGuard } from '@nestfolio/lambda-utils';
 import { AdvisoryRepository } from '../repositories/advisory.repository';
 
 type DecisionPacketCreatedPayload = {
@@ -14,10 +13,7 @@ type DecisionPacketCreatedPayload = {
 export class DecisionPacketCreatedPipe
   implements Pipe<UnitOfWork<BusEvent<DecisionPacketCreatedPayload>>>
 {
-  constructor(
-    private readonly repository: AdvisoryRepository,
-    private readonly idempotencyGuard: IdempotencyGuard,
-  ) {}
+  constructor(private readonly repository: AdvisoryRepository) {}
 
   async process(
     uow: UnitOfWork<BusEvent<DecisionPacketCreatedPayload>>,
@@ -25,22 +21,20 @@ export class DecisionPacketCreatedPipe
     const { event } = uow;
     const payload = event.subject;
 
-    const isNew = await this.idempotencyGuard.ensureOnce(event.type, event.id);
-    if (!isNew) {
-      logger.info('Skipping duplicate DECISION_PACKET_CREATED event', {
-        eventId: event.id,
-      });
-      return;
-    }
-
-    await this.repository.storeDecision(payload.tenantId, payload.decisionId, {
+    const created = await this.repository.storeDecision(payload.tenantId, payload.decisionId, {
       trigger: payload.trigger,
       proposedTrades: payload.proposedTrades,
       explanation: payload.explanation,
       confirmationRequired: payload.confirmationRequired,
       complianceChecks: [],
       agentInvocations: [],
+      sourceEventId: event.id,
     });
+
+    if (!created) {
+      logger.info('Decision already stored, skipping', { eventId: event.id, decisionId: payload.decisionId });
+      return;
+    }
 
     logger.info('Stored decision read model', {
       tenantId: payload.tenantId,

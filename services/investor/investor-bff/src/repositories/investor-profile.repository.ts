@@ -29,7 +29,7 @@ export class InvestorProfileRepository extends TableRepository {
   }
 
   readonly createProfile = this.log('createProfile',
-    async (tenantId: string, userId: string, email: string): Promise<void> => {
+    async (tenantId: string, userId: string, email: string, sourceEventId: string): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
         pk: profilePk(tenantId, userId),
@@ -48,8 +48,9 @@ export class InvestorProfileRepository extends TableRepository {
         onboardingCompletedAt: null,
         createdAt: now,
         updatedAt: now,
+        sourceEventId,
       };
-      await this.put(item);
+      return this.putIfNotExists(item);
     },
   );
 
@@ -460,7 +461,8 @@ export class InvestorProfileRepository extends TableRepository {
         relatedEntityType: string;
         relatedEntityId: string;
       },
-    ): Promise<void> => {
+      sourceEventId: string,
+    ): Promise<boolean> => {
       const pk = profilePk(tenantId, userId);
       const now = getTime();
 
@@ -481,9 +483,10 @@ export class InvestorProfileRepository extends TableRepository {
         sentAt: null,
         deliveredAt: null,
         readAt: null,
+        sourceEventId,
       };
 
-      await this.put(item);
+      return this.putIfNotExists(item);
     },
   );
 

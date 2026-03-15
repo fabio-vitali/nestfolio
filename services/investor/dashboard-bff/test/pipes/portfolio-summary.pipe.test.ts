@@ -5,7 +5,7 @@ jest.mock('@nestfolio/platform-core', () => ({
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  IdempotencyGuard: jest.fn(),
+  guardedWrite: jest.fn().mockResolvedValue(true),
 }));
 
 import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
@@ -14,12 +14,12 @@ import { PortfolioSummaryPipe } from '../../src/pipes/portfolio-summary.pipe';
 describe('PortfolioSummaryPipe', () => {
   const mockGetPortfolioSummary = jest.fn();
   const mockUpsertPortfolioSummary = jest.fn().mockResolvedValue({});
-  const mockAtomicIncrementTotalValue = jest.fn().mockResolvedValue(undefined);
+  const mockGuardedAtomicIncrementTotalValue = jest.fn().mockResolvedValue(true);
 
   const mockRepository = {
     getPortfolioSummary: mockGetPortfolioSummary,
     upsertPortfolioSummary: mockUpsertPortfolioSummary,
-    atomicIncrementTotalValue: mockAtomicIncrementTotalValue,
+    guardedAtomicIncrementTotalValue: mockGuardedAtomicIncrementTotalValue,
   } as any;
 
   let pipe: PortfolioSummaryPipe;
@@ -50,8 +50,8 @@ describe('PortfolioSummaryPipe', () => {
 
     await pipe.process(uow);
 
-    // 100 * 150 * 100 = 1_500_000 cents — atomic increment, no read needed
-    expect(mockAtomicIncrementTotalValue).toHaveBeenCalledWith('t1', 1_500_000, {});
+    // 100 * 150 * 100 = 1_500_000 cents — guarded atomic increment with event-keyed conditional write
+    expect(mockGuardedAtomicIncrementTotalValue).toHaveBeenCalledWith('t1', 'evt-1', 'portfolioSummary', 1_500_000, {});
     expect(mockGetPortfolioSummary).not.toHaveBeenCalled();
   });
 
@@ -76,7 +76,7 @@ describe('PortfolioSummaryPipe', () => {
 
     await pipe.process(uow);
 
-    // 50 * 200 * 100 = 1_000_000 cents — atomic increment handles accumulation
-    expect(mockAtomicIncrementTotalValue).toHaveBeenCalledWith('t1', 1_000_000, {});
+    // 50 * 200 * 100 = 1_000_000 cents — guarded atomic increment handles accumulation
+    expect(mockGuardedAtomicIncrementTotalValue).toHaveBeenCalledWith('t1', 'evt-2', 'portfolioSummary', 1_000_000, {});
   });
 });

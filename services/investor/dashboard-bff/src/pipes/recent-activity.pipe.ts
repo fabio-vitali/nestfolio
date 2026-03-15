@@ -23,11 +23,16 @@ export class RecentActivityPipe implements Pipe<UnitOfWork<BusEvent<Record<strin
       ? descriptionFn(payload)
       : `${event.type}: ${JSON.stringify(payload).slice(0, 100)}`;
 
-    await this.repository.addActivity(tenantId, {
+    const created = await this.repository.addActivity(tenantId, event.id, {
       activityType: event.type,
       description,
       metadata: payload,
     });
+
+    if (!created) {
+      logger.info('Activity already exists for this event, skipping', { eventId: event.id });
+      return;
+    }
 
     logger.info('Added activity entry', {
       tenantId,

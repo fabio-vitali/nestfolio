@@ -5,14 +5,14 @@ jest.mock('@nestfolio/platform-core', () => ({
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  IdempotencyGuard: jest.fn(),
+  guardedWrite: jest.fn().mockResolvedValue(true),
 }));
 
 import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
 import { RecentActivityPipe } from '../../src/pipes/recent-activity.pipe';
 
 describe('RecentActivityPipe', () => {
-  const mockAddActivity = jest.fn().mockResolvedValue({});
+  const mockAddActivity = jest.fn().mockResolvedValue(true);
 
   const mockRepository = {
     addActivity: mockAddActivity,
@@ -40,7 +40,7 @@ describe('RecentActivityPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockAddActivity).toHaveBeenCalledWith('t1', {
+    expect(mockAddActivity).toHaveBeenCalledWith('t1', 'evt-1', {
       activityType: 'ORDER_FILLED',
       description: 'Order filled: AAPL',
       metadata: { orderId: 'o1', symbol: 'AAPL' },
@@ -62,7 +62,7 @@ describe('RecentActivityPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockAddActivity).toHaveBeenCalledWith('t1', {
+    expect(mockAddActivity).toHaveBeenCalledWith('t1', 'evt-2', {
       activityType: 'DECISION_APPROVED',
       description: 'Decision approved: d1',
       metadata: { decisionId: 'd1' },
@@ -84,7 +84,7 @@ describe('RecentActivityPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockAddActivity).toHaveBeenCalledWith('t1', {
+    expect(mockAddActivity).toHaveBeenCalledWith('t1', 'evt-3', {
       activityType: 'DEPOSIT_DETECTED',
       description: 'Deposit detected: 500 EUR',
       metadata: { amountCents: 50000, currency: 'EUR' },
@@ -106,7 +106,7 @@ describe('RecentActivityPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockAddActivity).toHaveBeenCalledWith('t1', {
+    expect(mockAddActivity).toHaveBeenCalledWith('t1', 'evt-4', {
       activityType: 'SOME_UNKNOWN_EVENT',
       description: expect.stringContaining('SOME_UNKNOWN_EVENT'),
       metadata: { foo: 'bar' },
@@ -128,7 +128,7 @@ describe('RecentActivityPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockAddActivity).toHaveBeenCalledWith('t1', {
+    expect(mockAddActivity).toHaveBeenCalledWith('t1', 'evt-5', {
       activityType: 'DECISION_BLOCKED',
       description: 'Decision blocked: compliance violation',
       metadata: { reason: 'compliance violation', decisionId: 'd2' },

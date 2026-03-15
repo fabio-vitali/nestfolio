@@ -5,28 +5,25 @@ jest.mock('@nestfolio/platform-core', () => ({
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  IdempotencyGuard: jest.fn(),
 }));
 
 import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
 import { UserRegisteredPipe } from '../../src/pipes/user-registered.pipe';
 
 describe('UserRegisteredPipe', () => {
-  const mockCreateProfile = jest.fn().mockResolvedValue(undefined);
-  const mockEnsureOnce = jest.fn();
+  const mockCreateProfile = jest.fn();
 
   const mockRepository = { createProfile: mockCreateProfile } as any;
-  const mockIdempotencyGuard = { ensureOnce: mockEnsureOnce } as any;
 
   let pipe: UserRegisteredPipe;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    pipe = new UserRegisteredPipe(mockRepository, mockIdempotencyGuard);
+    pipe = new UserRegisteredPipe(mockRepository);
   });
 
   it('should create an investor profile for a new USER_REGISTERED event', async () => {
-    mockEnsureOnce.mockResolvedValue(true);
+    mockCreateProfile.mockResolvedValue(true);
 
     const uow: UnitOfWork<BusEvent<{ userId: string; tenantId: string; email: string }>> = {
       event: {
@@ -42,12 +39,11 @@ describe('UserRegisteredPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockEnsureOnce).toHaveBeenCalledWith('USER_REGISTERED', 'evt-1');
-    expect(mockCreateProfile).toHaveBeenCalledWith('t1', 'u1', 'test@example.com');
+    expect(mockCreateProfile).toHaveBeenCalledWith('t1', 'u1', 'test@example.com', 'evt-1');
   });
 
-  it('should skip duplicate events', async () => {
-    mockEnsureOnce.mockResolvedValue(false);
+  it('should skip duplicate events when createProfile returns false', async () => {
+    mockCreateProfile.mockResolvedValue(false);
 
     const uow: UnitOfWork<BusEvent<{ userId: string; tenantId: string; email: string }>> = {
       event: {
@@ -63,7 +59,7 @@ describe('UserRegisteredPipe', () => {
 
     await pipe.process(uow);
 
-    expect(mockEnsureOnce).toHaveBeenCalledWith('USER_REGISTERED', 'evt-dup');
-    expect(mockCreateProfile).not.toHaveBeenCalled();
+    expect(mockCreateProfile).toHaveBeenCalledWith('t1', 'u1', 'test@example.com', 'evt-dup');
+    // Should not throw — just returns early
   });
 });

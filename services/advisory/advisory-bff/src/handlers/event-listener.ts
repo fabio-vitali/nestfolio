@@ -1,13 +1,12 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
+import { parseRecord, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { AdvisoryRepository } from '../repositories/advisory.repository';
 import { DecisionPacketCreatedPipe } from '../pipes/decision-packet-created.pipe';
 import { DecisionStatusChangedPipe } from '../pipes/decision-status-changed.pipe';
 
 export interface EventListenerDeps {
-  readonly idempotencyGuard: IdempotencyGuard;
   readonly decisionPacketCreatedPipe: DecisionPacketCreatedPipe;
   readonly decisionStatusChangedPipe: DecisionStatusChangedPipe;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
@@ -36,12 +35,6 @@ export const createHandler = (deps: EventListenerDeps) =>
 
         if (!TRIGGER_EVENT_TYPES.has(eventType)) {
           logger.warn('No handler for event type, skipping', { eventType });
-          continue;
-        }
-
-        const isNew = await deps.idempotencyGuard.ensureOnce(eventType, uow.event.id);
-        if (!isNew) {
-          logger.info('Duplicate event, skipping', { eventId: uow.event.id });
           continue;
         }
 
@@ -89,11 +82,9 @@ async function processEvent(
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new AdvisoryRepository(TABLE_NAME, dynamoClient);
-const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 
 const deps: EventListenerDeps = {
-  idempotencyGuard,
-  decisionPacketCreatedPipe: new DecisionPacketCreatedPipe(repository, idempotencyGuard),
+  decisionPacketCreatedPipe: new DecisionPacketCreatedPipe(repository),
   decisionStatusChangedPipe: new DecisionStatusChangedPipe(repository),
   metrics: createServiceMetrics('advisory-bff'),
   bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'advisory-bff'),

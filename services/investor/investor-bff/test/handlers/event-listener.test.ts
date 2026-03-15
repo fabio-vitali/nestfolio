@@ -66,9 +66,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     const event = body.detail ?? body;
     return { event, payload: event.subject ?? {}, record };
   }),
-  IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: jest.fn().mockResolvedValue(true),
-  })),
   createServiceMetrics: jest.fn().mockReturnValue({
     addMetric: jest.fn(),
     addDimension: jest.fn(),
@@ -101,8 +98,6 @@ import { InvestorProfileRepository } from '../../src/repositories/investor-profi
 import { UserRegisteredPipe } from '../../src/pipes/user-registered.pipe';
 import { NotificationCreatedPipe } from '../../src/pipes/notification-created.pipe';
 import { BalanceUpdatedPipe } from '../../src/pipes/balance-updated.pipe';
-import { IdempotencyGuard } from '@nestfolio/lambda-utils';
-
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
     Records: records.map((r) => ({
@@ -129,7 +124,6 @@ describe('event-listener handler', () => {
   };
 
   const repository = new InvestorProfileRepository('test-table');
-  const idempotencyGuard = new IdempotencyGuard({} as any, 'test-table');
 
   const mockUserRegisteredPipe = { process: jest.fn().mockResolvedValue(undefined) };
   const mockNotificationCreatedPipe = { process: jest.fn().mockResolvedValue(undefined) };
@@ -145,7 +139,6 @@ describe('event-listener handler', () => {
 
     handler = createHandler({
       repository,
-      idempotencyGuard,
       userRegisteredPipe: mockUserRegisteredPipe as unknown as UserRegisteredPipe,
       notificationCreatedPipe: mockNotificationCreatedPipe as unknown as NotificationCreatedPipe,
       balanceUpdatedPipe: mockBalanceUpdatedPipe as unknown as BalanceUpdatedPipe,

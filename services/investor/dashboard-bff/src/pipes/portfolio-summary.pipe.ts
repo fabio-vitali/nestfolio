@@ -30,8 +30,13 @@ export class PortfolioSummaryPipe
         payload.filledQuantity * payload.averageFillPrice * 100,
       );
 
-      // Atomic increment — no read-modify-write race
-      await this.repository.atomicIncrementTotalValue(tenantId, tradeValueCents, extraUpdates);
+      const processed = await this.repository.guardedAtomicIncrementTotalValue(
+        tenantId, event.id, 'portfolioSummary', tradeValueCents, extraUpdates,
+      );
+      if (!processed) {
+        logger.info('Portfolio summary already updated for this event, skipping', { eventId: event.id });
+        return;
+      }
     } else if (Object.keys(extraUpdates).length > 0) {
       await this.repository.upsertPortfolioSummary(tenantId, extraUpdates);
     }

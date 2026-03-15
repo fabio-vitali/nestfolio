@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
+import { parseRecord, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { PortfolioSummaryPipe } from '../pipes/portfolio-summary.pipe';
 import { PositionSnapshotPipe } from '../pipes/position-snapshot.pipe';
@@ -16,7 +16,6 @@ interface NamedPipe {
 }
 
 export interface EventListenerDeps {
-  readonly idempotencyGuard: IdempotencyGuard;
   readonly eventPipeMap: Record<string, NamedPipe[]>;
   readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
@@ -68,14 +67,7 @@ async function processEvent(
     return;
   }
 
-  for (const { name: pipeName, pipe } of namedPipes) {
-    const pipeKey = `${eventType}#${uow.event.id}#${pipeName}`;
-    const isNew = await deps.idempotencyGuard.ensureOnce(eventType, pipeKey);
-    if (!isNew) {
-      logger.info('Pipe already processed, skipping', { eventType, pipeName, eventId: uow.event.id });
-      continue;
-    }
-
+  for (const { pipe } of namedPipes) {
     await pipe.process(uow);
   }
 }
@@ -147,7 +139,6 @@ const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
 };
 
 const deps: EventListenerDeps = {
-  idempotencyGuard: new IdempotencyGuard(dynamoClient, TABLE_NAME),
   eventPipeMap: EVENT_PIPE_MAP,
   bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'dashboard-bff'),
   metrics: createServiceMetrics('dashboard-bff'),

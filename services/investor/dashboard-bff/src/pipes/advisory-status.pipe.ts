@@ -7,32 +7,38 @@ export class AdvisoryStatusPipe implements Pipe<UnitOfWork<BusEvent<Record<strin
   async process(uow: UnitOfWork<BusEvent<Record<string, unknown>>>): Promise<void> {
     const { event } = uow;
     const tenantId = (event.context as Record<string, string>).tenantId;
+    let processed = true;
 
     switch (event.type) {
       case 'DECISION_PACKET_CREATED':
       case 'USER_CONFIRMATION_REQUESTED':
-        await this.repository.upsertAdvisoryStatus(tenantId, {
-          pendingDecisionsDelta: 1,
-          lastRecommendationAt: event.timestamp,
-        });
+        processed = await this.repository.guardedUpsertAdvisoryStatus(
+          tenantId, event.id, 'advisoryStatus',
+          { pendingDecisionsDelta: 1, lastRecommendationAt: event.timestamp },
+        );
         break;
 
       case 'DECISION_APPROVED':
-        await this.repository.upsertAdvisoryStatus(tenantId, {
-          pendingDecisionsDelta: -1,
-          lastDecisionStatus: 'APPROVED',
-        });
+        processed = await this.repository.guardedUpsertAdvisoryStatus(
+          tenantId, event.id, 'advisoryStatus',
+          { pendingDecisionsDelta: -1, lastDecisionStatus: 'APPROVED' },
+        );
         break;
 
       case 'DECISION_BLOCKED':
-        await this.repository.upsertAdvisoryStatus(tenantId, {
-          pendingDecisionsDelta: -1,
-          lastDecisionStatus: 'BLOCKED',
-        });
+        processed = await this.repository.guardedUpsertAdvisoryStatus(
+          tenantId, event.id, 'advisoryStatus',
+          { pendingDecisionsDelta: -1, lastDecisionStatus: 'BLOCKED' },
+        );
         break;
 
       default:
         break;
+    }
+
+    if (!processed) {
+      logger.info('Advisory status already updated for this event, skipping', { eventId: event.id });
+      return;
     }
 
     logger.info('Updated advisory status projection', {
