@@ -38,8 +38,20 @@ export function fakeSqsRecord(
 export function fakeDdbStreamRecord(
   eventName: 'INSERT' | 'MODIFY' | 'REMOVE',
   newImage: Record<string, unknown>,
-  opts?: { oldImage?: Record<string, unknown> },
+  opts?: {
+    oldImage?: Record<string, unknown>;
+    typename?: string;
+    tenantId?: string;
+    sequenceNo?: number;
+  },
 ): DynamoDBRecord {
+  const image = { ...newImage };
+  if (opts?.typename && !image.__typename) image.__typename = opts.typename;
+  if (opts?.tenantId && !image.tenantId) image.tenantId = opts.tenantId;
+  if (opts?.sequenceNo != null && image.sequenceNo == null) image.sequenceNo = opts.sequenceNo;
+  if (!image.pk) image.pk = `T#${image.tenantId ?? 'test-tenant'}`;
+  if (!image.sk) image.sk = `${image.__typename ?? 'Unknown'}#${randomUUID()}`;
+
   return {
     eventID: randomUUID(),
     eventName,
@@ -48,11 +60,11 @@ export function fakeDdbStreamRecord(
     awsRegion: 'us-east-1',
     dynamodb: {
       Keys: {
-        pk: { S: newImage.pk as string ?? 'pk-1' },
-        sk: { S: newImage.sk as string ?? 'sk-1' },
+        pk: { S: image.pk as string },
+        sk: { S: image.sk as string },
       },
-      NewImage: eventName !== 'REMOVE' ? toAttributeMap(newImage) : undefined,
-      OldImage: opts?.oldImage ? toAttributeMap(opts.oldImage) : (eventName === 'REMOVE' ? toAttributeMap(newImage) : undefined),
+      NewImage: eventName !== 'REMOVE' ? toAttributeMap(image) : undefined,
+      OldImage: opts?.oldImage ? toAttributeMap(opts.oldImage) : (eventName === 'REMOVE' ? toAttributeMap(image) : undefined),
       StreamViewType: 'NEW_AND_OLD_IMAGES',
       SequenceNumber: '1',
       SizeBytes: 100,
