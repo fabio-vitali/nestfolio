@@ -32,11 +32,14 @@ This library is a **core piece** of the nestfolio architecture. Every event-proc
 libs/event-processor/
 ├── src/
 │   ├── engine/
+│   │   ├── base-collector.ts        # Shared outcome collection (success, error, metrics)
 │   │   ├── batch-engine.ts          # Core SQS batch loop
 │   │   ├── stream-engine.ts         # Core DDB Stream loop
-│   │   ├── intent-executor.ts       # WriteIntent → AWS SDK calls
-│   │   ├── error-collector.ts       # Per-record error collection + classification
-│   │   └── async-pool.ts            # p-limit based concurrency utilities
+│   │   ├── error-collector.ts       # SQS-specific collector (extends BaseCollector)
+│   │   ├── stream-collector.ts      # DDB Stream-specific collector (extends BaseCollector)
+│   │   ├── error-event-publisher.ts # Shared fire-and-forget error event publishing
+│   │   ├── intent-executor.ts       # WriteIntent → AWS SDK calls (SQS only)
+│   │   └── normalize-handler.ts     # Handler normalization (SQS only)
 │   ├── intents/
 │   │   ├── record.ts                # record() helper
 │   │   ├── project.ts               # project() helper
@@ -45,19 +48,27 @@ libs/event-processor/
 │   │   ├── skip.ts                  # skip() helper
 │   │   └── types.ts                 # WriteIntent union type
 │   ├── pipelines/
+│   │   ├── create-event-handler.ts  # SQS universal factory
 │   │   ├── materialize-to-table.ts  # SQS → DDB preset
 │   │   ├── materialize-to-bucket.ts # SQS → S3 preset
+│   │   ├── create-stream-handler.ts # DDB Stream universal factory
 │   │   ├── change-data-capture.ts   # DDB Stream → EventBridge preset
 │   │   └── replay-and-reduce.ts     # DDB Stream → group → reduce → snapshot
-│   ├── context/
+│   ├── types/
+│   │   ├── write-intent.ts          # WriteIntent union type
+│   │   ├── handler-config.ts        # HandlerFn, HandlerEntry, EventPayload
 │   │   ├── event-context.ts         # EventContext for SQS handlers
-│   │   └── stream-context.ts        # StreamContext for DDB Stream handlers
+│   │   ├── stream-types.ts          # StreamRecord, StreamContext for DDB Stream handlers
+│   │   └── result-types.ts          # RecordResult, IntentResult, BatchResult
 │   ├── util/
+│   │   ├── async-pool.ts            # p-limit based concurrency
 │   │   ├── group-by.ts              # Batch grouping + pick strategy
 │   │   ├── fork-merge.ts            # Parallel branch execution
-│   │   └── csv-serializer.ts        # Array-of-objects → CSV
+│   │   ├── csv-serializer.ts        # Array-of-objects → CSV
+│   │   ├── event-bridge-publisher.ts # CDC batch publish with retry (internal)
+│   │   └── unmarshal-stream.ts      # DDB record → StreamRecord + StreamContext
 │   ├── testing/
-│   │   ├── test-harness.ts          # createTestHarness()
+│   │   ├── test-harness.ts          # createTestHarness(), createStreamTestHarness(), etc.
 │   │   └── fake-records.ts          # fakeSqsRecord(), fakeDdbStreamRecord()
 │   └── index.ts
 ├── jest.config.ts
