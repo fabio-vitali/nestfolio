@@ -36,6 +36,25 @@ export abstract class TableRepository {
   }
 
   @log()
+  protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+    try {
+      await this.docClient.send(
+        new PutCommand({
+          TableName: this.tableName,
+          Item: item,
+          ConditionExpression: 'attribute_not_exists(pk)',
+        }),
+      );
+      return true;
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'ConditionalCheckFailedException') {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  @log()
   protected async queryByPk(pk: string, skPrefix?: string): Promise<Record<string, unknown>[]> {
     const params: QueryCommandInput = {
       TableName: this.tableName,
