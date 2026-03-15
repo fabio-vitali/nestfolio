@@ -5,7 +5,6 @@ jest.mock('@nestfolio/platform-core', () => ({
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  IdempotencyGuard: jest.fn(),
 }));
 
 import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
