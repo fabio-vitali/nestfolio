@@ -1,11 +1,12 @@
 import type { SQSEvent, SQSBatchResponse } from 'aws-lambda';
-import { parseRecord, isRetryable, traceEvent, extractTenantId, createServiceMetrics, publishErrorEvent } from '@nestfolio/lambda-utils';
+import { parseRecord, isRetryable, traceEvent, extractTenantId, createServiceMetrics } from '@nestfolio/lambda-utils';
 import type { HandlerEntry } from '../types/handler-config';
 import type { EventContext } from '../types/event-context';
 import { normalizeHandler } from './normalize-handler';
 import { IntentExecutor } from './intent-executor';
 import { ErrorCollector } from './error-collector';
 import { asyncPool } from '../util/async-pool';
+import { ErrorEventPublisher } from './error-event-publisher';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 
 const DEFAULT_CONCURRENCY = 5;
@@ -25,11 +26,15 @@ export interface BatchEngineConfig {
 export class BatchEngine {
   private readonly normalizedHandlers: Map<string, ReturnType<typeof normalizeHandler>>;
   private readonly intentExecutor: IntentExecutor;
+  private readonly errorPublisher?: ErrorEventPublisher;
   private readonly config: BatchEngineConfig;
 
   constructor(config: BatchEngineConfig) {
     this.config = config;
     this.intentExecutor = new IntentExecutor({ docClient: config.docClient, tableName: config.tableName });
+    if (config.busName) {
+      this.errorPublisher = new ErrorEventPublisher(config.busName, config.serviceName);
+    }
     this.normalizedHandlers = new Map();
     for (const [eventType, entry] of Object.entries(config.handlers)) {
       this.normalizedHandlers.set(eventType, normalizeHandler(entry));
@@ -54,10 +59,12 @@ export class BatchEngine {
           return;
         }
 
+        let parsedPayload: unknown;
         try {
           // Parse
           const uow = parseRecord(sqsRecord);
           const eventType = uow.event.type;
+          parsedPayload = { type: uow.event.type, subject: uow.event.subject, id: uow.event.id };
 
           // Context
           const tenantId = extractTenantId(uow.event);
@@ -100,7 +107,7 @@ export class BatchEngine {
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
           const retryable = isRetryable(err);
-          collector.recordError(messageId, 'UNKNOWN', err, retryable);
+          collector.recordError(messageId, err, retryable, parsedPayload);
         }
       },
       { concurrency },
@@ -109,11 +116,12 @@ export class BatchEngine {
     const results = collector.getResults();
 
     // Publish non-retryable errors to bus
-    if (results.droppedErrors.length > 0 && this.config.busName) {
+    if (results.droppedErrors.length > 0 && this.errorPublisher) {
       const errorType = this.config.errorEventType ?? `${this.config.serviceName.toUpperCase().replace(/-/g, '_')}_FAILED`;
-      for (const { error } of results.droppedErrors) {
-        await publishErrorEvent({ name: this.config.busName } as any, errorType, error);
-      }
+      await this.errorPublisher.publishErrors(
+        results.droppedErrors.map(({ error, causedBy }) => ({ error, causedBy })),
+        errorType,
+      );
     }
 
     // BatchDuration metric

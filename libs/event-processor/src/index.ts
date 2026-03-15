@@ -31,6 +31,7 @@ export type { MaterializeToTableConfig } from './pipelines/materialize-to-table'
 export { BatchEngine } from './engine/batch-engine';
 export { IntentExecutor } from './engine/intent-executor';
 export { ErrorCollector } from './engine/error-collector';
+export { ErrorEventPublisher } from './engine/error-event-publisher';
 
 // Testing (re-exported from /testing subpath)
 export { createTestHarness } from './testing/test-harness';
