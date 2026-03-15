@@ -480,6 +480,7 @@ interface ReplayAndReduceConfig<S> {
     tableName: string;
   }) => Promise<Record<string, unknown>[]>;
   table?: string;                 // default: process.env.TABLE_NAME
+  bus?: string;                   // default: process.env.BUS_NAME (for error events)
   concurrency?: number;           // default: 3
 }
 
