@@ -42,8 +42,14 @@ export { BatchEngine } from './engine/batch-engine';
 export { IntentExecutor } from './engine/intent-executor';
 export { ErrorCollector } from './engine/error-collector';
 export { ErrorEventPublisher } from './engine/error-event-publisher';
+export { StreamEngine, StreamBatchError } from './engine/stream-engine';
+export { StreamCollector } from './engine/stream-collector';
+export { BaseCollector } from './engine/base-collector';
+export type { CollectedError } from './engine/base-collector';
 
 // Testing (re-exported from /testing subpath)
 export { createTestHarness } from './testing/test-harness';
 export type { TestHarnessConfig, TestResult } from './testing/test-harness';
+export { createStreamTestHarness, createCdcTestHarness, createReducerTestHarness } from './testing/test-harness';
+export type { StreamTestResult, CdcTestResult, ReducerTestResult } from './testing/test-harness';
 export { fakeSqsRecord, fakeDdbStreamRecord } from './testing/fake-records';
