@@ -1,8 +1,12 @@
 import type { WriteIntent } from '../types/write-intent';
 import type { EventPayload, HandlerEntry } from '../types/handler-config';
 import type { EventContext } from '../types/event-context';
-import type { SQSRecord } from 'aws-lambda';
+import type { StreamRecord, StreamContext } from '../types/stream-types';
+import type { SQSRecord, DynamoDBRecord } from 'aws-lambda';
 import { normalizeHandler } from '../engine/normalize-handler';
+import { unmarshalStream } from '../util/unmarshal-stream';
+import { groupBy as groupByUtil } from '../util/group-by';
+import { isRetryable } from '@nestfolio/lambda-utils';
 
 export interface TestHarnessConfig {
   serviceName: string;
@@ -94,6 +98,226 @@ export function createTestHarness(config: TestHarnessConfig) {
       }
 
       return { intents, metrics, errors, batchItemFailures, deduplicated, poisonPills, skipped };
+    },
+  };
+}
+
+// --- Stream Test Harnesses ---
+
+export interface StreamTestResult {
+  processed: number;
+  filtered: number;
+  errors: Array<{ groupKey?: string; error: Error; retryable: boolean }>;
+  thrown: boolean;
+  metrics: Record<string, number>;
+}
+
+export interface CdcTestResult extends StreamTestResult {
+  publishedEvents: Array<{
+    eventType: string;
+    subject: Record<string, unknown>;
+    context: Record<string, unknown>;
+  }>;
+}
+
+export interface ReducerTestResult<S> extends StreamTestResult {
+  snapshots: Map<string, { state: S; version: number; lastEventSequence: number }>;
+  dailyCheckpoints: Map<string, S>;
+  queriedGroups: string[];
+}
+
+interface StreamTestConfig {
+  serviceName: string;
+  processRecord?: (record: StreamRecord, ctx: StreamContext) => Promise<void>;
+  processGroup?: (groupKey: string, records: StreamRecord[], ctx: StreamContext) => Promise<void>;
+  groupBy?: { key: (record: StreamRecord) => string; pick?: 'first' | 'last' | 'all' };
+  filter?: (record: StreamRecord) => boolean;
+}
+
+export function createStreamTestHarness(config: StreamTestConfig) {
+  return {
+    async process(records: DynamoDBRecord[]): Promise<StreamTestResult> {
+      let processed = 0;
+      let filtered = 0;
+      const errors: StreamTestResult['errors'] = [];
+
+      const parsed = records
+        .map((r) => unmarshalStream(r, config.serviceName))
+        .filter((r): r is NonNullable<typeof r> => r !== null);
+
+      const afterFilter = config.filter
+        ? parsed.filter((p) => {
+            const pass = config.filter!(p.streamRecord);
+            if (!pass) filtered++;
+            return pass;
+          })
+        : parsed;
+
+      if (config.groupBy && config.processGroup) {
+        const groups = groupByUtil(afterFilter, {
+          key: (p) => config.groupBy!.key(p.streamRecord),
+          pick: config.groupBy.pick ?? 'all',
+        });
+
+        for (const [groupKey, items] of groups.entries()) {
+          const recs = Array.isArray(items) ? items : [items];
+          try {
+            await config.processGroup(groupKey, recs.map((r) => r.streamRecord), recs[0].ctx);
+            processed++;
+          } catch (error) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            errors.push({ groupKey, error: err, retryable: isRetryable(err) });
+          }
+        }
+      } else if (config.processRecord) {
+        for (const { streamRecord, ctx } of afterFilter) {
+          try {
+            await config.processRecord(streamRecord, ctx);
+            processed++;
+          } catch (error) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            errors.push({ error: err, retryable: isRetryable(err) });
+          }
+        }
+      }
+
+      const thrown = errors.some((e) => e.retryable);
+
+      return { processed, filtered, errors, thrown, metrics: {} };
+    },
+  };
+}
+
+export function createCdcTestHarness(config: {
+  serviceName: string;
+  eventTypeMap: Record<string, string | ((record: StreamRecord) => string)>;
+  groupBy?: { key: (record: StreamRecord) => string; pick?: 'first' | 'last' };
+  transform?: (record: StreamRecord, eventType: string) => Record<string, unknown>;
+}) {
+  return {
+    async process(records: DynamoDBRecord[]): Promise<CdcTestResult> {
+      const publishedEvents: CdcTestResult['publishedEvents'] = [];
+      let processed = 0;
+      let filtered = 0;
+      const errors: StreamTestResult['errors'] = [];
+
+      const parsed = records
+        .map((r) => unmarshalStream(r, config.serviceName))
+        .filter((r): r is NonNullable<typeof r> => r !== null);
+
+      // Group or process individually
+      const items = config.groupBy
+        ? (() => {
+            const groups = groupByUtil(parsed, {
+              key: (p) => config.groupBy!.key(p.streamRecord),
+              pick: config.groupBy.pick ?? 'last',
+            });
+            return Array.from(groups.values()).map((v) => (Array.isArray(v) ? v[v.length - 1] : v));
+          })()
+        : parsed;
+
+      for (const { streamRecord, ctx } of items) {
+        const key = `${streamRecord.__typename}:${ctx.eventName}`;
+        const resolver = config.eventTypeMap[key];
+        if (!resolver) continue;
+
+        const eventType = typeof resolver === 'function' ? resolver(streamRecord) : resolver;
+        const subject = config.transform ? config.transform(streamRecord, eventType) : (streamRecord as unknown as Record<string, unknown>);
+
+        publishedEvents.push({
+          eventType,
+          subject,
+          context: { tenantId: streamRecord.tenantId },
+        });
+        processed++;
+      }
+
+      return { processed, filtered, errors, thrown: false, metrics: {}, publishedEvents };
+    },
+  };
+}
+
+export function createReducerTestHarness<S>(config: {
+  serviceName: string;
+  filter?: (record: StreamRecord) => boolean;
+  groupBy: { key: (record: StreamRecord) => string };
+  reducer: (state: S, event: Record<string, unknown>) => S;
+  initialState: S | (() => S);
+  snapshot: { key: (groupKey: string) => { pk: string; sk: string }; daily?: boolean };
+}) {
+  const seededSnapshots = new Map<string, { state: S; version: number; lastSeq: number }>();
+  const seededEvents = new Map<string, Record<string, unknown>[]>();
+
+  return {
+    seedSnapshot(groupKey: string, state: S, version: number, lastSeq: number): void {
+      seededSnapshots.set(groupKey, { state, version, lastSeq });
+    },
+
+    seedEvents(groupKey: string, events: Record<string, unknown>[]): void {
+      seededEvents.set(groupKey, events);
+    },
+
+    async process(records: DynamoDBRecord[]): Promise<ReducerTestResult<S>> {
+      const snapshots = new Map<string, { state: S; version: number; lastEventSequence: number }>();
+      const dailyCheckpoints = new Map<string, S>();
+      const queriedGroups: string[] = [];
+      let processed = 0;
+      let filtered = 0;
+      const errors: StreamTestResult['errors'] = [];
+
+      const parsed = records
+        .map((r) => unmarshalStream(r, config.serviceName))
+        .filter((r): r is NonNullable<typeof r> => r !== null);
+
+      const afterFilter = config.filter
+        ? parsed.filter((p) => {
+            const pass = config.filter!(p.streamRecord);
+            if (!pass) filtered++;
+            return pass;
+          })
+        : parsed;
+
+      if (afterFilter.length === 0) {
+        return { processed, filtered, errors, thrown: false, metrics: {}, snapshots, dailyCheckpoints, queriedGroups };
+      }
+
+      const groups = groupByUtil(afterFilter, { key: (p) => config.groupBy.key(p.streamRecord) });
+
+      for (const [groupKey] of groups.entries()) {
+        try {
+          queriedGroups.push(groupKey);
+          const seeded = seededSnapshots.get(groupKey);
+          const currentState = seeded?.state
+            ?? (typeof config.initialState === 'function' ? (config.initialState as () => S)() : config.initialState);
+          const lastSeq = seeded?.lastSeq ?? 0;
+          const currentVersion = seeded?.version ?? 0;
+
+          const events = seededEvents.get(groupKey) ?? [];
+          const sorted = [...events].sort((a, b) => ((a.sequenceNo as number) ?? 0) - ((b.sequenceNo as number) ?? 0));
+
+          const nextState = sorted.reduce((s, e) => config.reducer(s, e), currentState);
+          const maxSeq = sorted.reduce((max, e) => Math.max(max, (e.sequenceNo as number) ?? 0), lastSeq);
+
+          snapshots.set(groupKey, {
+            state: nextState,
+            version: currentVersion + 1,
+            lastEventSequence: maxSeq,
+          });
+
+          if (config.snapshot.daily) {
+            const today = new Date().toISOString().slice(0, 10);
+            dailyCheckpoints.set(`${groupKey}#${today}`, nextState);
+          }
+
+          processed++;
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          errors.push({ groupKey, error: err, retryable: true });
+        }
+      }
+
+      const thrown = errors.some((e) => e.retryable);
+      return { processed, filtered, errors, thrown, metrics: {}, snapshots, dailyCheckpoints, queriedGroups };
     },
   };
 }
