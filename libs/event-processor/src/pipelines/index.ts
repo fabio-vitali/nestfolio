@@ -4,3 +4,5 @@ export { materializeToTable } from './materialize-to-table';
 export type { MaterializeToTableConfig } from './materialize-to-table';
 export { createStreamHandler } from './create-stream-handler';
 export type { StreamHandlerConfig } from './create-stream-handler';
+export { replayAndReduce } from './replay-and-reduce';
+export type { ReplayAndReduceConfig } from './replay-and-reduce';

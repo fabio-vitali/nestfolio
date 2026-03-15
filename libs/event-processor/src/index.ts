@@ -32,6 +32,8 @@ export { createStreamHandler } from './pipelines/create-stream-handler';
 export type { StreamHandlerConfig } from './pipelines/create-stream-handler';
 export { changeDataCapture } from './pipelines/change-data-capture';
 export type { ChangeDataCaptureConfig } from './pipelines/change-data-capture';
+export { replayAndReduce } from './pipelines/replay-and-reduce';
+export type { ReplayAndReduceConfig } from './pipelines/replay-and-reduce';
 
 // Engine (advanced)
 export { BatchEngine } from './engine/batch-engine';
