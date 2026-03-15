@@ -30,6 +30,8 @@ export type { MaterializeToTableConfig } from './pipelines/materialize-to-table'
 // Stream Pipelines
 export { createStreamHandler } from './pipelines/create-stream-handler';
 export type { StreamHandlerConfig } from './pipelines/create-stream-handler';
+export { changeDataCapture } from './pipelines/change-data-capture';
+export type { ChangeDataCaptureConfig } from './pipelines/change-data-capture';
 
 // Engine (advanced)
 export { BatchEngine } from './engine/batch-engine';
