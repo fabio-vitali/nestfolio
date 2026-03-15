@@ -30,6 +30,11 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+      return true;
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -94,15 +99,16 @@ describe('OrderRepository', () => {
   });
 
   describe('createOrder', () => {
-    it('should create an Order with status PENDING', async () => {
+    it('should create an Order with status PENDING using conditional write', async () => {
       mockSend.mockResolvedValueOnce({});
 
       const trades = [
         { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY' as const, quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy VTI' },
       ];
 
-      await repo.createOrder('t1', 'ord-1', 'dp-1', trades);
+      const result = await repo.createOrder('t1', 'ord-1', 'dp-1', trades, 'evt-1');
 
+      expect(result).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item).toMatchObject({
@@ -114,6 +120,7 @@ describe('OrderRepository', () => {
         decisionPacketId: 'dp-1',
         status: 'PENDING',
         proposedTrades: trades,
+        sourceEventId: 'evt-1',
       });
     });
   });

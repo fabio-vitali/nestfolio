@@ -31,6 +31,11 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      return true;
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -91,8 +96,9 @@ describe('ReconciliationRepository', () => {
     it('should create a Reconciliation with status STARTED', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.createReconciliation('t1', 'recon-1', 'MANUAL');
+      const created = await repo.createReconciliation('t1', 'recon-1', 'MANUAL');
 
+      expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item).toMatchObject({
@@ -101,6 +107,7 @@ describe('ReconciliationRepository', () => {
         __typename: 'Reconciliation',
         tenantId: 't1',
         reconciliationId: 'recon-1',
+        sourceEventId: 'recon-1',
         triggerType: 'MANUAL',
         status: 'STARTED',
       });
@@ -171,14 +178,16 @@ describe('ReconciliationRepository', () => {
     it('should create a DriftRecord', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.createDriftRecord('t1', 'recon-1', 'AAPL', 100, 95, 5);
+      const created = await repo.createDriftRecord('t1', 'recon-1', 'AAPL', 100, 95, 5);
 
+      expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item).toMatchObject({
         pk: 'Reconciliation#t1#recon-1',
         sk: 'DriftRecord#AAPL',
         __typename: 'DriftRecord',
+        sourceEventId: 'recon-1-AAPL',
         instrument: 'AAPL',
         intentQty: 100,
         settlementQty: 95,

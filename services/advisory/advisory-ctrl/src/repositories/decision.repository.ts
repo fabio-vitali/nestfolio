@@ -23,7 +23,7 @@ export class DecisionRepository extends TableRepository {
     dpId: string,
     triggerEvent: BusEvent,
     investorContext: Record<string, unknown>,
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     const now = getTime();
     const item: TableEntry = {
       pk: decisionPk(tenantId, dpId),
@@ -44,11 +44,12 @@ export class DecisionRepository extends TableRepository {
       confirmedAt: null,
       rejectedAt: null,
       rejectionReason: null,
+      sourceEventId: triggerEvent.id,
       createdAt: now,
       updatedAt: now,
       version: 1,
     };
-    await this.put(item);
+    return this.putIfNotExists(item);
   });
 
   readonly getDecisionPacket = this.log('getDecisionPacket', async (tenantId: string, dpId: string): Promise<Record<string, unknown> | null> => {

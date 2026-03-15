@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger, getUUID } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, NotRetryableError, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
+import { logger } from '@nestfolio/platform-core';
+import { parseRecord, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, NotRetryableError, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';
@@ -11,7 +11,6 @@ import { AuthorityResolver } from '../rules/authority-resolver';
 
 export interface EventListenerDeps {
   readonly repository: ComplianceRepository;
-  readonly idempotencyGuard: IdempotencyGuard;
   readonly ruleEngine: RuleEngine;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
   readonly bus: Bus;
@@ -48,12 +47,6 @@ export const createHandler = (deps: EventListenerDeps) =>
 
         if (!HANDLED_EVENT_TYPES.has(eventType)) {
           logger.warn('No handler for event type, skipping', { eventType });
-          continue;
-        }
-
-        const isNew = await deps.idempotencyGuard.ensureOnce(eventType, uow.event.id);
-        if (!isNew) {
-          logger.info('Duplicate event, skipping', { eventId: uow.event.id });
           continue;
         }
 
@@ -104,15 +97,19 @@ async function processDecisionPacket(
   if (!mandateRecord) {
     logger.error('No mandate snapshot found for user', { tenantId, userId });
     // Create a compliance check with BLOCKED result for missing mandate
-    const ccId = getUUID();
-    await deps.repository.createComplianceCheck(tenantId, ccId, decisionPacketId, {
+    const ccId = event.id as string;
+    const created = await deps.repository.createComplianceCheck(tenantId, ccId, decisionPacketId, {
       mandateId: 'NONE',
       level: 'ADVISORY',
       monthlyTurnoverCapPercent: 0,
       maxSingleTradePercent: 0,
       effectiveDate: new Date().toISOString(),
       revokedAt: null,
-    });
+    }, event.id as string);
+    if (!created) {
+      logger.info('Duplicate event, skipping', { eventId: event.id });
+      return;
+    }
     await deps.repository.updateCheckResult(tenantId, ccId, 'BLOCKED', [
       { rule: 'MANDATE_MISSING', description: 'No mandate found for user', severity: 'BLOCKING' },
     ], 'L2');
@@ -133,10 +130,14 @@ async function processDecisionPacket(
   const riskScore = (subject.riskScore as number) ?? 5;
   const currentPositions = (subject.currentPositions as ComplianceInput['currentPositions']) ?? [];
 
-  const ccId = getUUID();
+  const ccId = event.id as string;
 
-  // Create compliance check record
-  await deps.repository.createComplianceCheck(tenantId, ccId, decisionPacketId, mandate);
+  // Create compliance check record (idempotent — returns false if already exists)
+  const created = await deps.repository.createComplianceCheck(tenantId, ccId, decisionPacketId, mandate, event.id as string);
+  if (!created) {
+    logger.info('Duplicate event, skipping', { eventId: event.id });
+    return;
+  }
 
   // Run rule engine
   const complianceInput: ComplianceInput = {
@@ -162,12 +163,13 @@ async function processDecisionPacket(
   );
 
   // Create audit artifact
-  const artifactId = getUUID();
+  const artifactId = (event.id as string) + '-audit';
   await deps.repository.createAuditArtifact(tenantId, ccId, artifactId, {
     decisionPacketId,
     input: complianceInput,
     output,
     evaluatedAt: new Date().toISOString(),
+    sourceEventId: event.id,
   });
 
   logger.info('Compliance check completed', {
@@ -231,7 +233,6 @@ async function processMandateEvent(
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new ComplianceRepository(TABLE_NAME, dynamoClient);
-const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 
 const ruleEngine = new RuleEngine(
   new MandateValidator(),
@@ -242,7 +243,6 @@ const ruleEngine = new RuleEngine(
 
 const deps: EventListenerDeps = {
   repository,
-  idempotencyGuard,
   ruleEngine,
   metrics: createServiceMetrics('compliance-ctrl'),
   bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'compliance-ctrl'),

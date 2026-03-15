@@ -29,6 +29,11 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      return true;
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -97,7 +102,7 @@ describe('NotificationLifecycleService', () => {
       const result = await service.executeNotificationLifecycle(context);
 
       expect(result.status).toBe('COMPLETED');
-      expect(result.notificationId).toBe('test-uuid');
+      expect(result.notificationId).toBe('evt-1');
 
       // 1 createNotification + 1 updateNotificationStatus (DELIVERED via delivery service) = 2
       expect(mockSend).toHaveBeenCalledTimes(2);

@@ -31,6 +31,16 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      try {
+        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+        return true;
+      } catch (err: any) {
+        if (err.name === 'ConditionalCheckFailedException') return false;
+        throw err;
+      }
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -85,10 +95,10 @@ describe('ComplianceRepository', () => {
   });
 
   describe('createComplianceCheck', () => {
-    it('should create a ComplianceCheck with PENDING status', async () => {
+    it('should create a ComplianceCheck with PENDING status and return true', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.createComplianceCheck('t-1', 'cc-1', 'dp-1', {
+      const created = await repo.createComplianceCheck('t-1', 'cc-1', 'dp-1', {
         mandateId: 'm-1',
         level: 'DISCRETIONARY',
         monthlyTurnoverCapPercent: 10,
@@ -97,6 +107,7 @@ describe('ComplianceRepository', () => {
         revokedAt: null,
       });
 
+      expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item).toMatchObject({
@@ -108,6 +119,21 @@ describe('ComplianceRepository', () => {
         decisionPacketId: 'dp-1',
         status: 'PENDING',
       });
+    });
+
+    it('should return false when item already exists', async () => {
+      mockSend.mockRejectedValueOnce(Object.assign(new Error('ConditionalCheckFailedException'), { name: 'ConditionalCheckFailedException' }));
+
+      const created = await repo.createComplianceCheck('t-1', 'cc-1', 'dp-1', {
+        mandateId: 'm-1',
+        level: 'DISCRETIONARY',
+        monthlyTurnoverCapPercent: 10,
+        maxSingleTradePercent: 5,
+        effectiveDate: '2024-01-01T00:00:00.000Z',
+        revokedAt: null,
+      });
+
+      expect(created).toBe(false);
     });
   });
 
@@ -161,14 +187,15 @@ describe('ComplianceRepository', () => {
   });
 
   describe('createAuditArtifact', () => {
-    it('should create an AuditArtifact record', async () => {
+    it('should create an AuditArtifact record and return true', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.createAuditArtifact('t-1', 'cc-1', 'aa-1', {
+      const created = await repo.createAuditArtifact('t-1', 'cc-1', 'aa-1', {
         decisionPacketId: 'dp-1',
         evaluatedAt: '2025-01-01T00:00:00.000Z',
       });
 
+      expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item).toMatchObject({

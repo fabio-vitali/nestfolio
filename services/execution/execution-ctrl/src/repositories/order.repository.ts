@@ -29,7 +29,8 @@ export class OrderRepository extends TableRepository {
       orderId: string,
       decisionPacketId: string,
       trades: ProposedTrade[],
-    ): Promise<void> => {
+      sourceEventId?: string,
+    ): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
         pk: orderPk(tenantId, orderId),
@@ -43,8 +44,9 @@ export class OrderRepository extends TableRepository {
         status: 'PENDING',
         createdAt: now,
         updatedAt: now,
+        ...(sourceEventId ? { sourceEventId } : {}),
       };
-      await this.put(item);
+      return this.putIfNotExists(item);
     },
   );
 

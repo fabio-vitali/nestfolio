@@ -29,6 +29,11 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      return true;
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -81,7 +86,7 @@ describe('ReconciliationService', () => {
 
   describe('reconcile', () => {
     it('should return COMPLETED when no drift detected', async () => {
-      const result = await service.reconcile({
+      const result = await service.reconcile('test-reconciliation-id', {
         tenantId: 't1',
         portfolioId: 'p1',
         intentPositions: [
@@ -94,13 +99,13 @@ describe('ReconciliationService', () => {
         ],
       });
 
-      expect(result.reconciliationId).toBe('test-uuid');
+      expect(result.reconciliationId).toBe('test-reconciliation-id');
       expect(result.status).toBe('COMPLETED');
       expect(result.driftRecords).toHaveLength(0);
     });
 
     it('should return DRIFT_DETECTED when drift exists', async () => {
-      const result = await service.reconcile({
+      const result = await service.reconcile('test-reconciliation-id', {
         tenantId: 't1',
         portfolioId: 'p1',
         intentPositions: [
@@ -124,7 +129,7 @@ describe('ReconciliationService', () => {
     });
 
     it('should handle multiple instruments with drift', async () => {
-      const result = await service.reconcile({
+      const result = await service.reconcile('test-reconciliation-id', {
         tenantId: 't1',
         portfolioId: 'p1',
         intentPositions: [
@@ -150,7 +155,7 @@ describe('ReconciliationService', () => {
     });
 
     it('should handle instruments present only in intent', async () => {
-      const result = await service.reconcile({
+      const result = await service.reconcile('test-reconciliation-id', {
         tenantId: 't1',
         portfolioId: 'p1',
         intentPositions: [
@@ -173,7 +178,7 @@ describe('ReconciliationService', () => {
     });
 
     it('should create reconciliation record and update status', async () => {
-      await service.reconcile({
+      await service.reconcile('test-reconciliation-id', {
         tenantId: 't1',
         portfolioId: 'p1',
         intentPositions: [{ instrument: 'AAPL', quantity: 100 }],

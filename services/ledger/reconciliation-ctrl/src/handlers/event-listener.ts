@@ -1,12 +1,11 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
+import { parseRecord, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { ReconciliationRepository } from '../repositories/reconciliation.repository';
 import { ReconciliationService } from '../services/reconciliation.service';
 
 interface EventListenerDeps {
-  readonly idempotencyGuard: IdempotencyGuard;
   readonly reconciliationService: ReconciliationService;
   readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
@@ -35,12 +34,6 @@ export const createHandler = (deps: EventListenerDeps) =>
           continue;
         }
 
-        const isNew = await deps.idempotencyGuard.ensureOnce(eventType, uow.event.id);
-        if (!isNew) {
-          logger.info('Duplicate event, skipping', { eventType, eventId: uow.event.id });
-          continue;
-        }
-
         const tenantId = extractTenantId(uow.event as unknown as Record<string, unknown>);
 
         const subject = uow.event.subject as Record<string, unknown>;
@@ -50,7 +43,7 @@ export const createHandler = (deps: EventListenerDeps) =>
         const positions = (subject?.positions as Array<{ symbol: string; quantity: number }>) ?? [];
 
         try {
-          await deps.reconciliationService.reconcile({
+          await deps.reconciliationService.reconcile(uow.event.id, {
             tenantId,
             portfolioId,
             intentPositions: positions.map((p) => ({
@@ -98,11 +91,9 @@ export const createHandler = (deps: EventListenerDeps) =>
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new ReconciliationRepository(TABLE_NAME, dynamoClient);
-const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 const reconciliationService = new ReconciliationService(repository);
 
 const deps: EventListenerDeps = {
-  idempotencyGuard,
   reconciliationService,
   bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'reconciliation-ctrl'),
   metrics: createServiceMetrics('reconciliation-ctrl'),

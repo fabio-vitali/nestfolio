@@ -1,4 +1,4 @@
-import { getUUID, logger, type BusEvent } from '@nestfolio/platform-core';
+import { logger, type BusEvent } from '@nestfolio/platform-core';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 import type { ProposedTrade } from '@nestfolio/domain-core';
 import {
@@ -21,7 +21,7 @@ export interface DecisionContext {
 
 export interface DecisionResult {
   decisionPacketId: string;
-  status: 'COMPLETED' | 'FAILED';
+  status: 'COMPLETED' | 'FAILED' | 'DUPLICATE';
   agentOutputs: Record<string, unknown>;
   proposedTrades: ProposedTrade[];
   explanation: string;
@@ -33,15 +33,26 @@ export class DecisionLifecycleService {
   constructor(private readonly repository: DecisionRepository) {}
 
   readonly executeDecisionLifecycle = this.log('executeDecisionLifecycle', async (context: DecisionContext): Promise<DecisionResult> => {
-    const dpId = getUUID();
+    const dpId = context.triggerEvent.id;
 
-    // 1. Create decision packet
-    await this.repository.createDecisionPacket(
+    // 1. Create decision packet (conditional write — returns false if already exists)
+    const created = await this.repository.createDecisionPacket(
       context.tenantId,
       dpId,
       context.triggerEvent,
       context as unknown as Record<string, unknown>,
     );
+
+    if (!created) {
+      logger.info('Duplicate decision packet, skipping', { dpId, eventId: context.triggerEvent.id });
+      return {
+        decisionPacketId: dpId,
+        status: 'DUPLICATE',
+        agentOutputs: {},
+        proposedTrades: [],
+        explanation: '',
+      };
+    }
 
     // 2. Run agent pipeline
     const agentResult = await this.runAgentPipeline(context);

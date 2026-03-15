@@ -22,7 +22,7 @@ export class NotificationRepository extends TableRepository {
       tenantId: string,
       notificationId: string,
       data: Record<string, unknown>,
-    ): Promise<void> => {
+    ): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
         pk: notificationPk(tenantId, notificationId),
@@ -37,7 +37,7 @@ export class NotificationRepository extends TableRepository {
         updatedAt: now,
         version: 1,
       };
-      await this.put(item);
+      return this.putIfNotExists(item);
     },
   );
 
@@ -83,7 +83,7 @@ export class NotificationRepository extends TableRepository {
       tenantId: string,
       reportId: string,
       data: Record<string, unknown>,
-    ): Promise<void> => {
+    ): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
         pk: monthlyReportPk(tenantId, reportId),
@@ -97,7 +97,7 @@ export class NotificationRepository extends TableRepository {
         updatedAt: now,
         version: 1,
       };
-      await this.put(item);
+      return this.putIfNotExists(item);
     },
   );
 }

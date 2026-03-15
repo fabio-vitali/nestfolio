@@ -1,4 +1,4 @@
-import { getUUID, logger, type BusEvent } from '@nestfolio/platform-core';
+import { logger, type BusEvent } from '@nestfolio/platform-core';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationDeliveryService, type DeliveryResult } from './notification-delivery.service';
@@ -29,17 +29,25 @@ export class NotificationLifecycleService {
 
   readonly executeNotificationLifecycle = this.log('executeNotificationLifecycle',
     async (context: NotificationContext): Promise<NotificationResult> => {
-      const notificationId = getUUID();
+      const notificationId = context.triggerEvent.id;
       const content = this.getNotificationContent(context.triggerEvent.type);
 
-      // 1. Create notification
-      await this.repository.createNotification(context.tenantId, notificationId, {
+      // 1. Create notification (conditional write — returns false if already exists)
+      const created = await this.repository.createNotification(context.tenantId, notificationId, {
         title: content.title,
         body: content.body,
         channel: content.channel,
         triggerEventType: context.triggerEvent.type,
-        triggerEventId: context.triggerEvent.id,
+        sourceEventId: context.triggerEvent.id,
       });
+
+      if (!created) {
+        logger.info('Notification already exists, skipping duplicate', {
+          tenantId: context.tenantId,
+          notificationId,
+        });
+        return { notificationId, status: 'COMPLETED' };
+      }
 
       // 2. Dispatch to channel
       const deliveryResult = await this.dispatchToChannel(content.channel, {
@@ -62,19 +70,21 @@ export class NotificationLifecycleService {
 
       // 4. For ORDER_FILLED events, also create monthly report
       if (context.triggerEvent.type === 'ORDER_FILLED') {
-        const reportId = getUUID();
+        const reportId = context.triggerEvent.id + '-report';
         const subject = (context.triggerEvent.subject as Record<string, unknown>) ?? {};
-        await this.repository.createMonthlyReport(context.tenantId, reportId, {
+        const reportCreated = await this.repository.createMonthlyReport(context.tenantId, reportId, {
           period: this.getCurrentPeriod(),
           orderDetails: subject,
-          triggerEventId: context.triggerEvent.id,
+          sourceEventId: context.triggerEvent.id,
           status: 'GENERATED',
         });
 
-        logger.info('Monthly report generated for ORDER_FILLED', {
-          tenantId: context.tenantId,
-          reportId,
-        });
+        if (reportCreated) {
+          logger.info('Monthly report generated for ORDER_FILLED', {
+            tenantId: context.tenantId,
+            reportId,
+          });
+        }
       }
 
       logger.info('Notification lifecycle completed', {

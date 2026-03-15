@@ -30,6 +30,15 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      try {
+        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+        return true;
+      } catch {
+        return false;
+      }
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -65,9 +74,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     const event = body.detail ?? body;
     return { event, payload: event.subject ?? {}, record };
   }),
-  IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: jest.fn().mockResolvedValue(true),
-  })),
   extractTenantId: jest.fn((event: Record<string, unknown>) => {
     const context = event.context as Record<string, unknown> | undefined;
     const subject = event.subject as Record<string, unknown> | undefined;
@@ -139,7 +145,6 @@ describe('event-listener handler', () => {
     const lifecycleService = new DecisionLifecycleService(repository);
 
     mockDeps = {
-      idempotencyGuard: { ensureOnce: jest.fn().mockResolvedValue(true) } as any,
       lifecycleService,
       repository,
       bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
@@ -272,8 +277,10 @@ describe('event-listener handler', () => {
     expect(result.batchItemFailures.length).toBeLessThanOrEqual(1);
   });
 
-  it('should skip duplicate events via idempotency guard', async () => {
-    (mockDeps.idempotencyGuard.ensureOnce as jest.Mock).mockResolvedValue(false);
+  it('should handle duplicate events gracefully via conditional write', async () => {
+    // putIfNotExists returns false for duplicate (ConditionalCheckFailedException handled internally)
+    const { ConditionalCheckFailedException } = { ConditionalCheckFailedException: class extends Error { name = 'ConditionalCheckFailedException'; } };
+    mockSend.mockRejectedValueOnce(new ConditionalCheckFailedException('Condition not met'));
 
     const sqsEvent = buildSqsEvent([
       {

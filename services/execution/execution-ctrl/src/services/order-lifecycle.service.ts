@@ -1,4 +1,4 @@
-import { getUUID, logger, type BusEvent } from '@nestfolio/platform-core';
+import { logger, type BusEvent } from '@nestfolio/platform-core';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 import type { ProposedTrade } from '@nestfolio/domain-core';
 import { OrderRepository } from '../repositories/order.repository';
@@ -17,12 +17,16 @@ export class OrderLifecycleService {
   readonly processApprovedDecision = this.log('processApprovedDecision',
     async (event: BusEvent): Promise<void> => {
       const { tenantId, decisionPacketId, proposedTrades } = this.extractFromEvent(event);
-      const orderId = getUUID();
+      const orderId = event.id;
 
       logger.info('Processing approved decision', { tenantId, decisionPacketId, orderId, tradeCount: proposedTrades.length });
 
-      // 1. Create order record
-      await this.repository.createOrder(tenantId, orderId, decisionPacketId, proposedTrades);
+      // 1. Create order record (conditional write — returns false if duplicate)
+      const created = await this.repository.createOrder(tenantId, orderId, decisionPacketId, proposedTrades, event.id);
+      if (!created) {
+        logger.info('Duplicate event, order already exists', { orderId, eventId: event.id });
+        return;
+      }
 
       // 2. Run safety checks
       const safetyResult = await this.safetyChecks.runAllChecks(tenantId, proposedTrades);

@@ -29,6 +29,16 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      try {
+        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+        return true;
+      } catch (err: any) {
+        if (err.name === 'ConditionalCheckFailedException') return false;
+        throw err;
+      }
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -96,8 +106,9 @@ describe('DecisionRepository', () => {
         context: { tenantId: 't1' },
       };
 
-      await repo.createDecisionPacket('t1', 'dp-1', triggerEvent as any, { tenantId: 't1' });
+      const created = await repo.createDecisionPacket('t1', 'dp-1', triggerEvent as any, { tenantId: 't1' });
 
+      expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item).toMatchObject({
@@ -214,9 +225,26 @@ describe('DecisionRepository', () => {
     });
   });
 
-  describe('createDecisionPacket — error paths', () => {
-    it('should propagate DynamoDB errors with descriptive context', async () => {
-      mockSend.mockRejectedValueOnce(new Error('ConditionalCheckFailedException'));
+  describe('createDecisionPacket — duplicate handling', () => {
+    it('should return false when conditional write fails (duplicate)', async () => {
+      const condError = new Error('Condition not met');
+      condError.name = 'ConditionalCheckFailedException';
+      mockSend.mockRejectedValueOnce(condError);
+
+      const triggerEvent = {
+        id: 'evt-dup',
+        type: 'MANDATE_GRANTED',
+        timestamp: '2025-01-01T00:00:00.000Z',
+        subject: {},
+        context: { tenantId: 't1' },
+      };
+
+      const created = await repo.createDecisionPacket('t1', 'dp-dup', triggerEvent as any, { tenantId: 't1' });
+      expect(created).toBe(false);
+    });
+
+    it('should propagate non-conditional DynamoDB errors', async () => {
+      mockSend.mockRejectedValueOnce(new Error('InternalServerError'));
 
       const triggerEvent = {
         id: 'evt-err',
@@ -228,7 +256,7 @@ describe('DecisionRepository', () => {
 
       await expect(
         repo.createDecisionPacket('t1', 'dp-err', triggerEvent as any, { tenantId: 't1' }),
-      ).rejects.toThrow('ConditionalCheckFailedException');
+      ).rejects.toThrow('InternalServerError');
     });
   });
 

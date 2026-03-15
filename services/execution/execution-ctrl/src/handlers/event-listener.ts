@@ -1,7 +1,7 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
+import { parseRecord, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { OrderRepository } from '../repositories/order.repository';
 import { SafetyChecksService } from '../services/safety-checks.service';
 import { MarketHoursService } from '../services/market-hours.service';
@@ -9,7 +9,6 @@ import { OrderLifecycleService } from '../services/order-lifecycle.service';
 
 interface EventListenerDeps {
   readonly repository: OrderRepository;
-  readonly idempotencyGuard: IdempotencyGuard;
   readonly lifecycleService: OrderLifecycleService;
   readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
@@ -37,12 +36,6 @@ export const createHandler = (deps: EventListenerDeps) =>
 
         if (!HANDLED_EVENT_TYPES.has(eventType)) {
           logger.warn('No handler for event type, skipping', { eventType });
-          continue;
-        }
-
-        const isNew = await deps.idempotencyGuard.ensureOnce(eventType, uow.event.id);
-        if (!isNew) {
-          logger.info('Duplicate event, skipping', { eventType, eventId: uow.event.id });
           continue;
         }
 
@@ -87,14 +80,12 @@ export const createHandler = (deps: EventListenerDeps) =>
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new OrderRepository(TABLE_NAME, dynamoClient);
-const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 const safetyChecks = new SafetyChecksService(repository);
 const marketHours = new MarketHoursService();
 const lifecycleService = new OrderLifecycleService(repository, safetyChecks, marketHours);
 
 const deps: EventListenerDeps = {
   repository,
-  idempotencyGuard,
   lifecycleService,
   bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'execution-ctrl'),
   metrics: createServiceMetrics('execution-ctrl'),

@@ -32,6 +32,16 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      try {
+        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+        return true;
+      } catch (err: any) {
+        if (err.name === 'ConditionalCheckFailedException') return false;
+        throw err;
+      }
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -75,9 +85,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     const event = body.detail ?? body;
     return { event, payload: event.subject ?? {}, record };
   }),
-  IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: jest.fn().mockResolvedValue(true),
-  })),
   extractTenantId: jest.fn((event: Record<string, unknown>) => {
     const context = event.context as Record<string, unknown> | undefined;
     const subject = event.subject as Record<string, unknown> | undefined;
@@ -160,7 +167,6 @@ describe('event-listener handler', () => {
 
     mockDeps = {
       repository,
-      idempotencyGuard: { ensureOnce: jest.fn().mockResolvedValue(true) } as any,
       ruleEngine,
       bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: {
@@ -381,6 +387,60 @@ describe('event-listener handler', () => {
           error: expect.stringContaining('Missing fields'),
         }),
       );
+    });
+
+    it('should skip duplicate event when createComplianceCheck returns false', async () => {
+      // getMandateSnapshot -> found
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          mandateId: 'm-1',
+          level: 'DISCRETIONARY',
+          monthlyTurnoverCapPercent: 10,
+          maxSingleTradePercent: 5,
+          effectiveDate: '2024-01-01T00:00:00.000Z',
+          revokedAt: null,
+        },
+      });
+      // createComplianceCheck -> putIfNotExists returns ConditionalCheckFailedException (duplicate)
+      mockSend.mockRejectedValueOnce(Object.assign(new Error('ConditionalCheckFailedException'), { name: 'ConditionalCheckFailedException' }));
+
+      const sqsEvent = buildSqsEvent([
+        {
+          messageId: 'msg-dup',
+          body: {
+            detail: {
+              id: 'evt-dup',
+              type: 'DECISION_PACKET_CREATED',
+              timestamp: '2025-01-01T00:00:00.000Z',
+              subject: {
+                decisionId: 'dp-dup',
+                tenantId: 't-1',
+                userId: 'u-1',
+                proposedTrades: [
+                  {
+                    symbol: 'AAPL',
+                    assetClass: 'EQUITY',
+                    side: 'BUY',
+                    quantityOrAmountCents: 2_000_00,
+                    targetWeightPercent: 2,
+                    rationale: 'Good value',
+                  },
+                ],
+                portfolioValue: 100_000_00,
+                riskScore: 7,
+                currentPositions: [{ ticker: 'MSFT', weight: 10 }],
+              },
+              context: { tenantId: 't-1' },
+            },
+          },
+        },
+      ]);
+
+      const result = await handler(sqsEvent);
+      expect(result.batchItemFailures).toHaveLength(0);
+
+      // Should have called: getMandateSnapshot + createComplianceCheck (putIfNotExists failed) — no further calls
+      expect(mockSend).toHaveBeenCalledTimes(2);
     });
 
     it('should skip unknown event types gracefully', async () => {

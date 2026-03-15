@@ -25,7 +25,8 @@ export class ComplianceRepository extends TableRepository {
     ccId: string,
     decisionPacketId: string,
     mandateSnapshot: MandateSnapshot,
-  ): Promise<void> => {
+    sourceEventId?: string,
+  ): Promise<boolean> => {
     const now = getTime();
     const item: TableEntry = {
       pk: complianceCheckPk(tenantId, ccId),
@@ -36,6 +37,7 @@ export class ComplianceRepository extends TableRepository {
       ccId,
       decisionPacketId,
       mandateSnapshot,
+      sourceEventId: sourceEventId ?? null,
       status: 'PENDING',
       result: null,
       violations: [],
@@ -43,7 +45,7 @@ export class ComplianceRepository extends TableRepository {
       createdAt: now,
       updatedAt: now,
     };
-    await this.put(item);
+    return this.putIfNotExists(item);
   });
 
   readonly getComplianceCheck = this.log('getComplianceCheck', async (
@@ -124,7 +126,7 @@ export class ComplianceRepository extends TableRepository {
     ccId: string,
     artifactId: string,
     artifact: Record<string, unknown>,
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     const now = getTime();
     const item: TableEntry = {
       pk: complianceCheckPk(tenantId, ccId),
@@ -136,7 +138,7 @@ export class ComplianceRepository extends TableRepository {
       ...artifact,
       createdAt: now,
     };
-    await this.put(item);
+    return this.putIfNotExists(item);
   });
 
   readonly getGuardrailPolicy = this.log('getGuardrailPolicy', async (

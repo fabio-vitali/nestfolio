@@ -30,6 +30,11 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      return true;
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -64,9 +69,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     const event = body.detail ?? body;
     return { event, payload: event.subject ?? {}, record };
   }),
-  IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: jest.fn().mockResolvedValue(true),
-  })),
   extractTenantId: jest.fn((event: Record<string, unknown>) => {
     const context = event.context as Record<string, unknown> | undefined;
     const subject = event.subject as Record<string, unknown> | undefined;
@@ -96,7 +98,6 @@ import { SQSEvent } from 'aws-lambda';
 import { createHandler } from '../src/handlers/event-listener';
 import { ReconciliationRepository } from '../src/repositories/reconciliation.repository';
 import { ReconciliationService } from '../src/services/reconciliation.service';
-import { IdempotencyGuard } from '@nestfolio/lambda-utils';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
@@ -124,7 +125,6 @@ describe('event-listener handler', () => {
   };
 
   const repository = new ReconciliationRepository('test-table');
-  const idempotencyGuard = new IdempotencyGuard({} as any, 'test-table');
   const reconciliationService = new ReconciliationService(repository);
 
   let handler: (event: SQSEvent) => Promise<any>;
@@ -135,7 +135,6 @@ describe('event-listener handler', () => {
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
 
     handler = createHandler({
-      idempotencyGuard,
       reconciliationService,
       bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: mockMetrics as any,
@@ -298,11 +297,9 @@ describe('event-listener handler', () => {
     );
   });
 
-  it('should skip duplicate events via idempotency guard', async () => {
-    const guardInstance = (IdempotencyGuard as unknown as jest.Mock).mock.results[0]?.value;
-    if (guardInstance) {
-      guardInstance.ensureOnce.mockResolvedValue(false);
-    }
+  it('should skip duplicate events when createReconciliation returns false', async () => {
+    // Override putIfNotExists to return false (already exists)
+    jest.spyOn(repository, 'createReconciliation' as any).mockResolvedValueOnce(false);
 
     const sqsEvent = buildSqsEvent([
       {
@@ -312,7 +309,7 @@ describe('event-listener handler', () => {
             id: 'evt-dup',
             type: 'PORTFOLIO_UPDATED',
             timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1' },
+            subject: { tenantId: 't1', portfolioId: 'p1', positions: [] },
             context: { tenantId: 't1' },
           },
         },

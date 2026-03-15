@@ -27,7 +27,7 @@ export class ReconciliationRepository extends TableRepository {
       tenantId: string,
       reconciliationId: string,
       triggerType: string,
-    ): Promise<void> => {
+    ): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
         pk: reconciliationPk(tenantId, reconciliationId),
@@ -37,6 +37,7 @@ export class ReconciliationRepository extends TableRepository {
         timestamp: now,
         reconciliationId,
         triggerType,
+        sourceEventId: reconciliationId,
         status: 'STARTED',
         driftRecordCount: 0,
         startedAt: now,
@@ -46,7 +47,7 @@ export class ReconciliationRepository extends TableRepository {
         createdAt: now,
         updatedAt: now,
       };
-      await this.put(item);
+      return this.putIfNotExists(item);
     },
   );
 
@@ -108,7 +109,7 @@ export class ReconciliationRepository extends TableRepository {
       intentQty: number,
       settlementQty: number,
       drift: number,
-    ): Promise<void> => {
+    ): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
         pk: reconciliationPk(tenantId, reconciliationId),
@@ -117,13 +118,14 @@ export class ReconciliationRepository extends TableRepository {
         tenantId,
         timestamp: now,
         reconciliationId,
+        sourceEventId: `${reconciliationId}-${instrument}`,
         instrument,
         intentQty,
         settlementQty,
         drift,
         createdAt: now,
       };
-      await this.put(item);
+      return this.putIfNotExists(item);
     },
   );
 

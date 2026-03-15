@@ -1,4 +1,4 @@
-import { getUUID, logger } from '@nestfolio/platform-core';
+import { logger } from '@nestfolio/platform-core';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 import { ReconciliationRepository } from '../repositories/reconciliation.repository';
 
@@ -26,13 +26,17 @@ export class ReconciliationService {
   constructor(private readonly repository: ReconciliationRepository) {}
 
   readonly reconcile = this.log('reconcile',
-    async (input: ReconciliationInput): Promise<ReconciliationResult> => {
-      const reconciliationId = getUUID();
-      await this.repository.createReconciliation(
+    async (reconciliationId: string, input: ReconciliationInput): Promise<ReconciliationResult> => {
+      const created = await this.repository.createReconciliation(
         input.tenantId,
         reconciliationId,
         'MANUAL',
       );
+
+      if (!created) {
+        logger.info('Reconciliation already exists, skipping', { reconciliationId });
+        return { reconciliationId, status: 'COMPLETED', driftRecords: [] };
+      }
 
       const driftRecords: Array<{
         instrument: string;

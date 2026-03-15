@@ -30,6 +30,11 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      return true;
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -65,8 +70,6 @@ const mockParseRecord = jest.fn((record) => {
   return { event, payload: event.subject ?? {}, record };
 });
 
-const mockEnsureOnce = jest.fn().mockResolvedValue(true);
-
 const mockExtractTenantId = jest.fn((event: Record<string, unknown>) => {
   const context = event.context as Record<string, unknown> | undefined;
   const subject = event.subject as Record<string, unknown> | undefined;
@@ -84,9 +87,6 @@ const mockMetrics = {
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   parseRecord: mockParseRecord,
-  IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: mockEnsureOnce,
-  })),
   extractTenantId: mockExtractTenantId,
   createServiceMetrics: jest.fn().mockReturnValue(mockMetrics),
   isRetryable: jest.fn().mockReturnValue(true),
@@ -135,7 +135,6 @@ describe('event-listener handler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
-    mockEnsureOnce.mockResolvedValue(true);
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
 
     const repository = new NotificationRepository('test-table');
@@ -143,7 +142,6 @@ describe('event-listener handler', () => {
     const lifecycleService = new NotificationLifecycleService(repository, delivery);
 
     mockDeps = {
-      idempotencyGuard: { ensureOnce: mockEnsureOnce } as any,
       lifecycleService,
       bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: mockMetrics as any,
@@ -332,8 +330,11 @@ describe('event-listener handler', () => {
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
-  it('should skip duplicate events via idempotency guard', async () => {
-    mockEnsureOnce.mockResolvedValue(false);
+  it('should skip duplicate events via conditional write', async () => {
+    // Access private repository through the lifecycle service and mock createNotification to return false
+    const repo = (mockDeps.lifecycleService as any).repository;
+    const originalCreateNotification = repo.createNotification;
+    repo.createNotification = jest.fn().mockResolvedValue(false);
 
     const sqsEvent = buildSqsEvent([
       {
@@ -352,5 +353,8 @@ describe('event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
+    expect(repo.createNotification).toHaveBeenCalledWith('t1', 'evt-dup', expect.any(Object));
+
+    repo.createNotification = originalCreateNotification;
   });
 });

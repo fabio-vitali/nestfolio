@@ -31,6 +31,9 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(_item: Record<string, unknown>): Promise<boolean> {
+      return true;
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -70,9 +73,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     const event = body.detail ?? body;
     return { event, payload: event.subject ?? {}, record };
   }),
-  IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: jest.fn().mockResolvedValue(true),
-  })),
   createServiceMetrics: jest.fn().mockReturnValue({
     addMetric: jest.fn(),
     addDimension: jest.fn(),
@@ -99,8 +99,6 @@ import { OrderRepository } from '../src/repositories/order.repository';
 import { SafetyChecksService } from '../src/services/safety-checks.service';
 import { MarketHoursService } from '../src/services/market-hours.service';
 import { OrderLifecycleService } from '../src/services/order-lifecycle.service';
-import { IdempotencyGuard } from '@nestfolio/lambda-utils';
-
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
     Records: records.map((r) => ({
@@ -127,7 +125,6 @@ describe('event-listener handler', () => {
   };
 
   const repository = new OrderRepository('test-table');
-  const idempotencyGuard = new IdempotencyGuard({} as any, 'test-table');
   const safetyChecks = new SafetyChecksService(repository);
   const marketHours = new MarketHoursService();
   const lifecycleService = new OrderLifecycleService(repository, safetyChecks, marketHours);
@@ -141,7 +138,6 @@ describe('event-listener handler', () => {
 
     handler = createHandler({
       repository,
-      idempotencyGuard,
       lifecycleService,
       bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: mockMetrics as any,
@@ -240,11 +236,8 @@ describe('event-listener handler', () => {
     expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
   });
 
-  it('should skip duplicate events via idempotency guard', async () => {
-    const guardInstance = (IdempotencyGuard as unknown as jest.Mock).mock.results[0]?.value;
-    if (guardInstance) {
-      guardInstance.ensureOnce.mockResolvedValue(false);
-    }
+  it('should skip duplicate events when createOrder returns false', async () => {
+    jest.spyOn(repository, 'createOrder').mockResolvedValueOnce(false);
 
     const sqsEvent = buildSqsEvent([
       {
@@ -254,7 +247,11 @@ describe('event-listener handler', () => {
             id: 'evt-dup',
             type: 'DECISION_APPROVED',
             timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1' },
+            subject: {
+              tenantId: 't1',
+              decisionPacketId: 'dp-dup',
+              proposedTrades: [],
+            },
             context: { tenantId: 't1' },
           },
         },
@@ -263,6 +260,8 @@ describe('event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
+    // Safety checks should NOT have been called (early return on duplicate)
+    expect(mockSend).not.toHaveBeenCalled();
   });
 
   it('should report failure for malformed event body (invalid JSON)', async () => {

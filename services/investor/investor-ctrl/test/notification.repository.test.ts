@@ -29,6 +29,11 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      return true;
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -89,12 +94,13 @@ describe('NotificationRepository', () => {
     it('should create a Notification with status CREATED', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.createNotification('t1', 'notif-1', {
+      const created = await repo.createNotification('t1', 'notif-1', {
         title: 'Welcome to Nestfolio',
         body: 'Your account setup is complete.',
         channel: 'email',
       });
 
+      expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item).toMatchObject({
@@ -175,11 +181,12 @@ describe('NotificationRepository', () => {
     it('should create a MonthlyReport with correct pk and sk', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.createMonthlyReport('t1', 'report-1', {
+      const created = await repo.createMonthlyReport('t1', 'report-1', {
         period: '2025-01',
         status: 'GENERATED',
       });
 
+      expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item).toMatchObject({

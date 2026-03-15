@@ -1,12 +1,11 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
+import { parseRecord, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { DecisionRepository } from '../repositories/decision.repository';
 import { DecisionLifecycleService } from '../services/decision-lifecycle.service';
 
 export interface EventListenerDeps {
-  readonly idempotencyGuard: IdempotencyGuard;
   readonly lifecycleService: DecisionLifecycleService;
   readonly repository: DecisionRepository;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
@@ -55,12 +54,6 @@ export const createHandler = (deps: EventListenerDeps) =>
 
         if (!EVENT_TYPES.has(eventType)) {
           logger.warn('No handler for event type, skipping', { eventType });
-          continue;
-        }
-
-        const isNew = await deps.idempotencyGuard.ensureOnce(eventType, uow.event.id);
-        if (!isNew) {
-          logger.info('Duplicate event, skipping', { eventType, eventId: uow.event.id });
           continue;
         }
 
@@ -172,11 +165,9 @@ async function processUserResponse(
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new DecisionRepository(TABLE_NAME, dynamoClient);
-const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 const lifecycleService = new DecisionLifecycleService(repository);
 
 const deps: EventListenerDeps = {
-  idempotencyGuard,
   lifecycleService,
   repository,
   metrics: createServiceMetrics('advisory-ctrl'),

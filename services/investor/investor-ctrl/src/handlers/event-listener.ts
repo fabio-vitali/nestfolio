@@ -1,13 +1,12 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
+import { parseRecord, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationLifecycleService } from '../services/notification-lifecycle.service';
 import { NotificationDeliveryService } from '../services/notification-delivery.service';
 
 export interface EventListenerDeps {
-  readonly idempotencyGuard: IdempotencyGuard;
   readonly lifecycleService: NotificationLifecycleService;
   readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
@@ -38,12 +37,6 @@ export const createHandler = (deps: EventListenerDeps) =>
 
         if (!TRIGGER_EVENT_TYPES.has(eventType)) {
           logger.warn('No handler for event type, skipping', { eventType });
-          continue;
-        }
-
-        const isNew = await deps.idempotencyGuard.ensureOnce(eventType, uow.event.id);
-        if (!isNew) {
-          logger.info('Duplicate event, skipping', { eventType, eventId: uow.event.id });
           continue;
         }
 
@@ -81,7 +74,6 @@ const dynamoClient = new DynamoDBClient({});
 const repository = new NotificationRepository(TABLE_NAME, dynamoClient);
 
 const deps: EventListenerDeps = {
-  idempotencyGuard: new IdempotencyGuard(dynamoClient, TABLE_NAME),
   lifecycleService: new NotificationLifecycleService(repository, new NotificationDeliveryService()),
   bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'investor-ctrl'),
   metrics: createServiceMetrics('investor-ctrl'),

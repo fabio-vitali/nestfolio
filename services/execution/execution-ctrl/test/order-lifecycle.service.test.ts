@@ -1,5 +1,4 @@
 jest.mock('@nestfolio/platform-core', () => ({
-  getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }));
@@ -24,7 +23,7 @@ describe('OrderLifecycleService', () => {
     jest.clearAllMocks();
 
     mockRepository = {
-      createOrder: jest.fn().mockResolvedValue(undefined),
+      createOrder: jest.fn().mockResolvedValue(true),
       updateOrderStatus: jest.fn().mockResolvedValue(undefined),
       createStagedOrder: jest.fn().mockResolvedValue(undefined),
     };
@@ -62,10 +61,10 @@ describe('OrderLifecycleService', () => {
     it('should submit order immediately when market is open and safety checks pass', async () => {
       await service.processApprovedDecision(buildEvent() as any);
 
-      expect(mockRepository.createOrder).toHaveBeenCalledWith('t1', 'test-uuid', 'dp-1', expect.any(Array));
+      expect(mockRepository.createOrder).toHaveBeenCalledWith('t1', 'evt-1', 'dp-1', expect.any(Array), 'evt-1');
       expect(mockSafetyChecks.runAllChecks).toHaveBeenCalledWith('t1', expect.any(Array));
       expect(mockMarketHours.isMarketOpen).toHaveBeenCalled();
-      expect(mockRepository.updateOrderStatus).toHaveBeenCalledWith('t1', 'test-uuid', 'SUBMITTED');
+      expect(mockRepository.updateOrderStatus).toHaveBeenCalledWith('t1', 'evt-1', 'SUBMITTED');
     });
 
     it('should stage order when market is closed', async () => {
@@ -74,10 +73,10 @@ describe('OrderLifecycleService', () => {
       await service.processApprovedDecision(buildEvent() as any);
 
       expect(mockRepository.createOrder).toHaveBeenCalled();
-      expect(mockRepository.createStagedOrder).toHaveBeenCalledWith('t1', 'test-uuid', {
+      expect(mockRepository.createStagedOrder).toHaveBeenCalledWith('t1', 'evt-1', {
         proposedTrades: expect.any(Array),
       });
-      expect(mockRepository.updateOrderStatus).toHaveBeenCalledWith('t1', 'test-uuid', 'STAGED');
+      expect(mockRepository.updateOrderStatus).toHaveBeenCalledWith('t1', 'evt-1', 'STAGED');
     });
 
     it('should reject order when safety checks fail', async () => {
@@ -90,7 +89,7 @@ describe('OrderLifecycleService', () => {
       await service.processApprovedDecision(buildEvent() as any);
 
       expect(mockRepository.createOrder).toHaveBeenCalled();
-      expect(mockRepository.updateOrderStatus).toHaveBeenCalledWith('t1', 'test-uuid', 'REJECTED', {
+      expect(mockRepository.updateOrderStatus).toHaveBeenCalledWith('t1', 'evt-1', 'REJECTED', {
         reason: 'Conflicting staged orders exist for the same instruments',
       });
       expect(mockMarketHours.isMarketOpen).not.toHaveBeenCalled();
@@ -110,9 +109,10 @@ describe('OrderLifecycleService', () => {
 
       expect(mockRepository.createOrder).toHaveBeenCalledWith(
         'tenant-abc',
-        'test-uuid',
+        'evt-1',
         'dp-2',
         [],
+        'evt-1',
       );
     });
   });

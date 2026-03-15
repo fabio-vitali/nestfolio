@@ -29,6 +29,11 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      return true;
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -161,7 +166,7 @@ describe('DecisionLifecycleService', () => {
       const result = await service.executeDecisionLifecycle(context);
 
       expect(result.status).toBe('COMPLETED');
-      expect(result.decisionPacketId).toBe('test-uuid');
+      expect(result.decisionPacketId).toBe('evt-1');
       expect(result.agentOutputs).toBeDefined();
       expect(Object.keys(result.agentOutputs)).toHaveLength(6);
       expect(result.agentOutputs).toHaveProperty('user-goals');
