@@ -148,10 +148,27 @@ All helpers are pure functions that return data. They perform zero I/O.
 | Intent | pk | sk | Strategy |
 |--------|----|----|----------|
 | `record` | `T#${tenantId}` | `${typename}#${eventId}` | putIfNotExists |
-| `project` | `T#${tenantId}` | `${typename}` (singleton) | upsert (PUT) |
+| `project` | `T#${tenantId}` | `${typename}` (singleton, last-writer-wins) | upsert (PUT) |
 | `accumulate` | `T#${tenantId}` | `${typename}` (singleton) | guardedWrite (guard: pk + `ProcessedEvent#${eventId}`) |
 
 Overrides: pass `{ pk, sk }` to override any convention. The override is the full key value, not a template.
+
+**Intent executor contract:** The intent executor receives both the `WriteIntent` and the `EventContext`. It uses `ctx.eventId` and `ctx.tenantId` to derive conventional keys. The intent itself carries only business data and optional overrides — it does NOT carry `eventId` or `tenantId`. This keeps intents as pure, serializable data.
+
+```typescript
+// Intent executor signature (internal)
+async function executeIntent(
+  intent: WriteIntent,
+  ctx: EventContext,        // provides eventId, tenantId for key derivation
+  clients: { table: DocClient; s3?: S3Client },
+): Promise<IntentResult>;
+
+// Example: accumulate intent execution
+// Intent: { _tag: 'accumulate', typename: 'Stats', field: 'tradesCount', increment: 1 }
+// Derived: pk = `T#${ctx.tenantId}`, sk = 'Stats'
+// Guard:   pk = `T#${ctx.tenantId}`, sk = `ProcessedEvent#${ctx.eventId}`
+// → calls guardedWrite(docClient, tableName, guardKey, [{ Update: ... }])
+```
 
 ### EventContext
 
@@ -176,75 +193,107 @@ interface StreamContext {
   readonly record: DynamoDBRecord;  // escape hatch
   readonly eventName: 'INSERT' | 'MODIFY' | 'REMOVE';
   readonly keys: { pk: string; sk: string };
-  readonly typename: string;        // from NewImage.__typename
-  readonly tenantId: string;        // from NewImage.tenantId
+  readonly typename: string;        // from NewImage.__typename (INSERT/MODIFY) or OldImage.__typename (REMOVE)
+  readonly tenantId: string;        // from NewImage.tenantId (INSERT/MODIFY) or OldImage.tenantId (REMOVE)
+  readonly newImage?: Record<string, unknown>;   // undefined for REMOVE
+  readonly oldImage?: Record<string, unknown>;   // undefined for INSERT (unless stream is NEW_AND_OLD_IMAGES)
+}
+```
+
+### EventPayload
+
+The event envelope passed to handlers. Mirrors the EventBridge detail structure.
+
+```typescript
+interface EventPayload {
+  readonly subject: Record<string, unknown>;   // business data
+  readonly context?: Record<string, unknown>;  // optional domain context (tenantId, userId, etc.)
 }
 ```
 
 ### Handler Config
 
-A handler value can be one of three forms:
+#### HandlerFn
+
+Every handler entry is a function that receives the event payload and context, and returns intent(s).
 
 ```typescript
-// Form 1: Single intent (most common, declarative)
-type SingleIntent = WriteIntent;
-
-// Form 2: Array of intents (multi-write)
-type IntentArray = WriteIntent[];
-
-// Form 3: Async function (complex logic, returns intents)
-type AsyncHandler = (payload: { subject: unknown; context?: unknown }, ctx: EventContext) => Promise<WriteIntent | WriteIntent[]>;
-
-// Union
-type HandlerValue = SingleIntent | IntentArray | AsyncHandler;
-
-// But wait — Form 1 and 2 don't have access to payload/ctx.
-// For declarative intents, the mapper is embedded in the handler config:
-
-// Revised: handler config entries accept either:
-//   (a) A mapper function that receives (payload, ctx) and returns intent(s)
-//   (b) A pre-built intent (for static intents like skip())
-
-type HandlerEntry =
-  | ((payload: EventPayload, ctx: EventContext) => WriteIntent | WriteIntent[])
-  | ((payload: EventPayload, ctx: EventContext) => Promise<WriteIntent | WriteIntent[]>);
+type HandlerFn = (payload: EventPayload, ctx: EventContext) => WriteIntent | WriteIntent[] | Promise<WriteIntent | WriteIntent[]>;
 ```
 
-#### Ergonomic Sugar
+#### HandlerEntry
 
-The `record`, `project`, and `accumulate` helpers are used in two modes:
+A handler entry in the config map is one of:
 
-**Inline mode** (inside an async handler — intent is already computed):
+```typescript
+type HandlerEntry =
+  | HandlerFn                // single handler function (sync or async)
+  | HandlerFn[];             // array of handler functions (multi-write, results merged)
+```
+
+When `HandlerEntry` is an array of `HandlerFn`, the engine calls each function and flattens the returned intents into a single array. This is how multi-write events work:
+
+```typescript
+// Array of HandlerFn — each returns intent(s), results merged
+ORDER_FILLED: [
+  record('Activity', ({ subject }) => ({ description: `Filled ${subject.symbol}` })),
+  accumulate('Stats', { field: 'tradesCount', increment: 1 }),
+]
+// record(..., mapper) returns a HandlerFn, accumulate(..., static) returns a HandlerFn
+// Engine calls both, merges: [RecordIntent, AccumulateIntent]
+```
+
+#### Intent Helpers — Two Modes
+
+All intent helpers (`record`, `project`, `accumulate`) are overloaded to work in two contexts:
+
+**Mapper mode** (standalone — returns `HandlerFn`):
+
+Used as a direct handler entry. The mapper function is called by the engine with `(payload, ctx)`.
+
+```typescript
+DEPOSIT_DETECTED: record('LedgerEntry', ({ subject }) => ({
+  amount: subject.amount, currency: subject.currency,
+}))
+// record(typename, mapper) returns HandlerFn
+```
+
+**Inline mode** (inside an async handler — returns `WriteIntent` data):
+
+Used inside an async `HandlerFn` where the payload is already destructured.
+
 ```typescript
 ORDER_FILLED: async ({ subject }, ctx) => [
   record('LedgerEntry', { amount: subject.filledQty * subject.price }),
   accumulate('Stats', { field: 'tradesCount', increment: 1 }),
 ]
+// record(typename, fields) returns RecordIntent (plain data)
+// accumulate(typename, config) returns AccumulateIntent (plain data)
 ```
 
-**Mapper mode** (standalone — wraps a mapper function, returns a HandlerEntry):
-```typescript
-DEPOSIT_DETECTED: record('LedgerEntry', ({ subject }) => ({
-  amount: subject.amount, currency: subject.currency,
-}))
-```
-
-Implementation: `record()` is overloaded:
-- `record(typename, fields: Record)` → returns `RecordIntent` (data)
-- `record(typename, mapper: Function)` → returns `HandlerEntry` (function that calls mapper, then returns RecordIntent)
-
-Same pattern for `project()` and `accumulate()`.
+**Overloaded signatures:**
 
 ```typescript
-// Overloaded signatures
+// record: mapper mode → HandlerFn, inline mode → RecordIntent
+function record(typename: string, mapper: (payload: EventPayload, ctx: EventContext) => Record<string, unknown>, overrides?: KeyOverrides): HandlerFn;
 function record(typename: string, fields: Record<string, unknown>, overrides?: KeyOverrides): RecordIntent;
-function record(typename: string, mapper: (payload: EventPayload, ctx: EventContext) => Record<string, unknown>, overrides?: KeyOverrides): HandlerEntry;
 
+// project: same pattern
+function project(typename: string, mapper: (payload: EventPayload, ctx: EventContext) => Record<string, unknown>, overrides?: KeyOverrides): HandlerFn;
 function project(typename: string, fields: Record<string, unknown>, overrides?: KeyOverrides): ProjectIntent;
-function project(typename: string, mapper: (payload: EventPayload, ctx: EventContext) => Record<string, unknown>, overrides?: KeyOverrides): HandlerEntry;
 
+// accumulate: mapper mode wraps increment computation in HandlerFn
 function accumulate(typename: string, config: { field: string; increment: number; ttl?: number }): AccumulateIntent;
-function accumulate(typename: string, config: { field: string; mapper: (payload: EventPayload, ctx: EventContext) => number; ttl?: number }): HandlerEntry;
+```
+
+**Discrimination:** The second argument's type determines the mode. If it's a function → mapper mode (returns `HandlerFn`). If it's a plain object/record → inline mode (returns intent data). TypeScript discriminates via overloads at compile time.
+
+**Note on `accumulate`:** `accumulate` only has an inline mode (static `increment: number`). For dynamic increments, use the async handler form where you have access to `subject`:
+
+```typescript
+DEPOSIT_INITIATED: async ({ subject }, ctx) => [
+  accumulate('CashBalance', { field: 'balance', increment: subject.amount, ttl: 604800 }),
+]
 ```
 
 ---
@@ -264,7 +313,7 @@ interface EventHandlerConfig {
   bus?: string | { name: string; client: EventBridgeClient };
   s3?: { bucket: string; client?: S3Client };
   // Tuning
-  concurrency?: number;          // default: 5 (parallel records)
+  concurrency?: number;          // default: 5 (parallel records). Use 1 for services with ordering dependencies.
   poisonPill?: {
     maxReceiveCount: number;     // default: 5
   };
@@ -299,16 +348,17 @@ Convention: `table` defaults to `process.env.TABLE_NAME`, `bus` defaults to `pro
 
 ### `materializeToBucket` (preset)
 
-SQS → S3 writes.
+SQS → S3 writes. Handlers use `s3Put()` intents.
 
 ```typescript
 interface MaterializeToBucketConfig {
   serviceName: string;
-  handlers: Record<string, HandlerEntry>;
+  handlers: Record<string, HandlerEntry>;  // handlers return s3Put() intents
   bucket?: string;        // default: process.env.EXPORT_BUCKET
   bus?: string;           // default: process.env.BUS_NAME
   concurrency?: number;
   poisonPill?: { maxReceiveCount: number };
+  defaultFormat?: 'json' | 'csv';   // default: 'json'
 }
 
 function materializeToBucket(config: MaterializeToBucketConfig):
@@ -316,6 +366,14 @@ function materializeToBucket(config: MaterializeToBucketConfig):
 ```
 
 Key convention for S3: `{tenantId}/{typename}/{eventId}.{format}`
+
+Handlers return `s3Put()` intents, same as any other pipeline:
+```typescript
+// Handler returns s3Put intent — same HandlerEntry type as all pipelines
+PORTFOLIO_SNAPSHOT_REQUESTED: async ({ subject }, ctx) => [
+  s3Put({ positions: subject.positions, asOf: subject.timestamp }, { format: 'json' }),
+],
+```
 
 ---
 
@@ -394,14 +452,22 @@ interface ReplayAndReduceConfig<S> {
 function replayAndReduce<S>(config: ReplayAndReduceConfig<S>): (event: DynamoDBStreamEvent) => Promise<void>;
 ```
 
-**Implementation detail:** The framework:
+**Implementation detail — delta reduction (not full replay):**
+
+The DDB Stream batch contains only the **new** records that triggered the stream, not the full event history. The framework applies these as a **delta** on top of the current snapshot:
+
 1. Filters records by `filter`
-2. Groups by `groupBy.key` (all records in group, not pick-last)
-3. For each group, loads the current snapshot from DDB (or uses `initialState` if none)
-4. Sorts events by `sequenceNo` (convention: numeric field on the record)
-5. Applies `reducer(state, event)` sequentially
-6. Saves the new snapshot to `snapshot.key(groupKey)`
-7. If `daily: true`, also saves to `{pk}#Snapshot#{YYYY-MM-DD}`
+2. Groups by `groupBy.key` (all records in group, not pick-last — order matters for reduction)
+3. For each group:
+   a. **Loads the current snapshot** from DDB at `snapshot.key(groupKey)` — or uses `initialState` if none exists
+   b. **Sorts the batch records** by `sequenceNo` (convention: numeric field on the stream record)
+   c. **Applies `reducer(state, event)` sequentially** for each batch record (delta only)
+   d. **Updates the snapshot version** (increments `version` field on the snapshot)
+   e. **Saves the snapshot** with a conditional write: `version = expectedVersion` (optimistic concurrency)
+   f. If `daily: true`, also saves to `{pk}#Snapshot#{YYYY-MM-DD}`
+4. If the conditional write fails (concurrent update), the group is retried with a fresh snapshot read
+
+**Note:** This is a delta reducer, NOT a full event replay. For full replay (disaster recovery, schema migration), use a separate batch job that queries all events and reduces from `initialState`. The `reducer` function must be the same for both delta and full replay — it is a pure `(state, event) => state` function.
 
 ---
 
@@ -460,7 +526,7 @@ SQS Batch Engine (per Lambda invocation)
   8. CLASSIFY ERRORS
      retryable       → batchItemFailures (SQS retries)
      non-retryable   → error event to bus (SERVICE_X_FAILED)
-     poison pill     → skipped (SQS redrive to DLQ)
+     poison pill     → consumed (message deleted from queue, error event published to bus, NOT redriven)
 
   9. PUBLISH METRICS (single CloudWatch putMetricData call)
      EventProcessed | EventFailed | EventDeduplicated |
@@ -514,15 +580,10 @@ async function asyncPool<T, R>(
 Group items by key with optional pick strategy.
 
 ```typescript
-function groupBy<T>(
-  items: T[],
-  config: {
-    key: (item: T) => string;
-    pick?: 'first' | 'last' | 'all';  // default: 'all'
-  },
-): Map<string, T | T[]>;
-// pick 'first'/'last' → Map<string, T>
-// pick 'all' → Map<string, T[]>
+// Overloaded for type safety:
+function groupBy<T>(items: T[], config: { key: (item: T) => string; pick: 'first' | 'last' }): Map<string, T>;
+function groupBy<T>(items: T[], config: { key: (item: T) => string; pick?: 'all' }): Map<string, T[]>;
+function groupBy<T>(items: T[], config: { key: (item: T) => string; pick?: 'first' | 'last' | 'all' }): Map<string, T | T[]>;
 ```
 
 ### `forkMerge`
@@ -754,24 +815,17 @@ export const handler = replayAndReduce({
 ### Example 7: materializeToBucket (S3 export)
 
 ```typescript
-import { materializeToBucket } from '@nestfolio/event-processor';
+import { materializeToBucket, s3Put } from '@nestfolio/event-processor';
 
 export const handler = materializeToBucket({
   serviceName: 'reporting-ctrl',
   handlers: {
-    PORTFOLIO_SNAPSHOT_REQUESTED: {
-      format: 'json',
-      process: async ({ subject }, ctx) => ({
-        body: { positions: subject.positions, asOf: subject.timestamp },
-      }),
-    },
-    RECONCILIATION_EXPORT_REQUESTED: {
-      format: 'csv',
-      process: async ({ subject }) => ({
-        body: subject.entries,
-        key: `exports/${subject.tenantId}/reconciliation.csv`,
-      }),
-    },
+    PORTFOLIO_SNAPSHOT_REQUESTED: async ({ subject }, ctx) => [
+      s3Put({ positions: subject.positions, asOf: subject.timestamp }, { format: 'json' }),
+    ],
+    RECONCILIATION_EXPORT_REQUESTED: async ({ subject }) => [
+      s3Put(subject.entries, { format: 'csv', key: `exports/${subject.tenantId}/reconciliation.csv` }),
+    ],
   },
 });
 ```
@@ -872,3 +926,17 @@ No changes to CDK constructs are required. The event-processor is a handler-leve
 | `@nestfolio/lambda-utils` | Logger, metrics, traceEvent, isRetryable, NotRetryableError | workspace |
 
 No Highland. No RxJS. ~50 lines of custom async utilities (asyncPool, groupBy, forkMerge).
+
+---
+
+## Supersession Note
+
+This design supersedes the approach outlined in `2026-03-15-transparent-idempotency-analysis.md`, which proposed `createEventProcessor` in `lambda-utils` with a `deps: EventListenerDeps` dependency injection pattern. Key differences:
+
+- **Separate library** (`@nestfolio/event-processor`) instead of extending `lambda-utils`
+- **Convention-based client creation** from env vars instead of explicit dependency injection
+- **Intent helpers** instead of `WriteIntent[]` return with strategy enums
+- **Store-then-CDC** principle instead of allowing direct EventBridge publish from SQS handlers
+- **Named presets** instead of a single universal factory
+
+The analysis doc remains valid as a reference for the current codebase state (35 write methods, 3 strategies, high-risk operations).
