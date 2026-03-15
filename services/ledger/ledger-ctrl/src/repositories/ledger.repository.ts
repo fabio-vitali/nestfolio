@@ -33,21 +33,22 @@ export class LedgerRepository extends TableRepository {
   }
 
   readonly putLedgerEntry = this.log('putLedgerEntry',
-    async (entry: LedgerEntryItem): Promise<void> => {
+    async (entry: LedgerEntryItem): Promise<boolean> => {
       const item: TableEntry = {
         pk: `Account#${entry.tenantId}#${entry.streamType}`,
-        sk: `Event#${String(entry.sequenceNo).padStart(8, '0')}#${entry.eventId}`,
+        sk: `Event#${entry.eventId}`,
         __typename: 'LedgerEntry',
         tenantId: entry.tenantId,
         timestamp: entry.timestamp,
         streamType: entry.streamType,
+        sourceEventId: entry.eventId,
         eventId: entry.eventId,
         eventType: entry.eventType,
         payload: entry.payload,
         sequenceNo: entry.sequenceNo,
         decisionId: entry.decisionId,
       };
-      await this.put(item);
+      return this.putIfNotExists(item);
     },
   );
 
@@ -220,19 +221,20 @@ export class LedgerRepository extends TableRepository {
       sinceSequence: number,
     ): Promise<Record<string, unknown>[]> => {
       const pk = `Account#${tenantId}#${streamType}`;
-      const skStart = `Event#${String(sinceSequence + 1).padStart(8, '0')}`;
       const result = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
-          KeyConditionExpression: 'pk = :pk AND sk BETWEEN :skStart AND :skEnd',
+          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+          FilterExpression: 'sequenceNo > :sinceSeq',
           ExpressionAttributeValues: {
             ':pk': pk,
-            ':skStart': skStart,
-            ':skEnd': 'Event#99999999~',
+            ':sk': 'Event#',
+            ':sinceSeq': sinceSequence,
           },
         }),
       );
-      return result.Items ?? [];
+      const items = result.Items ?? [];
+      return items.sort((a, b) => ((a as any).sequenceNo ?? 0) - ((b as any).sequenceNo ?? 0));
     },
   );
 

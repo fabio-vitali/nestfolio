@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getTime, type TableEntry } from '@nestfolio/platform-core';
-import { withMethodLogging } from '@nestfolio/lambda-utils';
+import { withMethodLogging, guardedWrite } from '@nestfolio/lambda-utils';
 
 function ledgerPk(tenantId: string, userId: string): string {
   return `VirtualLedger#${tenantId}#${userId}`;
@@ -129,6 +129,36 @@ export class VirtualLedgerRepository extends TableRepository {
     },
   );
 
+  readonly guardedAddToCashBalance = this.log('guardedAddToCashBalance',
+    async (
+      tenantId: string,
+      userId: string,
+      currency: string,
+      amount: number,
+      eventId: string,
+    ): Promise<boolean> => {
+      const now = getTime();
+      const pk = ledgerPk(tenantId, userId);
+      return guardedWrite(
+        this.docClient,
+        this.tableName,
+        { pk, sk: `ProcessedEvent#${eventId}` },
+        [
+          {
+            Update: {
+              TableName: this.tableName,
+              Key: { pk, sk: `CashBalance#${currency}` },
+              UpdateExpression: 'ADD balance :amount SET #ts = :ts, updatedAt = :now',
+              ExpressionAttributeNames: { '#ts': 'timestamp' },
+              ExpressionAttributeValues: { ':amount': amount, ':ts': now, ':now': now },
+            },
+          },
+        ],
+        604800, // 7-day TTL for financial operations
+      );
+    },
+  );
+
   readonly getPosition = this.log('getPosition',
     async (
       tenantId: string,
@@ -238,9 +268,10 @@ export class VirtualLedgerRepository extends TableRepository {
       const tradeRecord = {
         Put: {
           TableName: this.tableName,
+          ConditionExpression: 'attribute_not_exists(pk)',
           Item: {
             pk,
-            sk: `Trade#${now}#${tradeId}`,
+            sk: `Trade#${tradeId}`,
             __typename: 'VirtualTrade',
             tenantId,
             timestamp: now,

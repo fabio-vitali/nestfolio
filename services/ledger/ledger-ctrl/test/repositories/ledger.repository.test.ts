@@ -48,6 +48,16 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new TransactWriteCommand(input));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      try {
+        const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+        return true;
+      } catch (error: unknown) {
+        if ((error as any).name === 'ConditionalCheckFailedException') return false;
+        throw error;
+      }
+    }
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
@@ -72,7 +82,7 @@ describe('LedgerRepository', () => {
   });
 
   it('putLedgerEntry writes correct pk/sk format', async () => {
-    await repo.putLedgerEntry({
+    const created = await repo.putLedgerEntry({
       tenantId: 't1',
       streamType: 'actual',
       eventId: 'e1',
@@ -82,12 +92,33 @@ describe('LedgerRepository', () => {
       sequenceNo: 1,
     });
 
+    expect(created).toBe(true);
     const putCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'Put');
     expect(putCalls).toHaveLength(1);
     const item = putCalls[0][0].input.Item;
     expect(item.pk).toBe('Account#t1#actual');
-    expect(item.sk).toBe('Event#00000001#e1');
+    expect(item.sk).toBe('Event#e1');
     expect(item.__typename).toBe('LedgerEntry');
+    expect(item.sourceEventId).toBe('e1');
+    expect(item.sequenceNo).toBe(1);
+  });
+
+  it('putLedgerEntry returns false for duplicate entry', async () => {
+    mockSend.mockRejectedValueOnce(
+      Object.assign(new Error('Conditional'), { name: 'ConditionalCheckFailedException' }),
+    );
+
+    const created = await repo.putLedgerEntry({
+      tenantId: 't1',
+      streamType: 'actual',
+      eventId: 'e1',
+      eventType: 'DEPOSIT_DETECTED',
+      payload: { amountCents: 50000 },
+      timestamp: '2025-01-01T00:00:00.000Z',
+      sequenceNo: 1,
+    });
+
+    expect(created).toBe(false);
   });
 
   it('nextSequence atomically increments', async () => {

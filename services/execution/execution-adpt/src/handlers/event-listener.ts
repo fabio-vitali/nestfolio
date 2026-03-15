@@ -1,14 +1,13 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, IdempotencyGuard, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, NotRetryableError, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
+import { parseRecord, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, NotRetryableError, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from '../services/market-data.service';
 import { SimulationEngineService } from '../services/simulation-engine.service';
 
 interface EventListenerDeps {
   readonly repository: VirtualLedgerRepository;
-  readonly idempotencyGuard: IdempotencyGuard;
   readonly simulationEngine: SimulationEngineService;
   readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
@@ -34,12 +33,6 @@ export const createHandler = (deps: EventListenerDeps) =>
 
         if (!HANDLED_EVENT_TYPES.has(eventType)) {
           logger.warn('No handler for event type, skipping', { eventType });
-          continue;
-        }
-
-        const isNew = await deps.idempotencyGuard.ensureOnce(eventType, uow.event.id);
-        if (!isNew) {
-          logger.info('Duplicate event, skipping', { eventId: uow.event.id });
           continue;
         }
 
@@ -99,21 +92,29 @@ async function processOrderSubmitted(
     await deps.simulationEngine.initializeAccount(tenantId, userId);
   }
 
-  const result = await deps.simulationEngine.processOrderSubmitted(
-    tenantId,
-    userId,
-    orderId,
-    symbol,
-    side,
-    quantity,
-  );
+  try {
+    const result = await deps.simulationEngine.processOrderSubmitted(
+      tenantId,
+      userId,
+      orderId,
+      symbol,
+      side,
+      quantity,
+    );
 
-  logger.info('Order simulation complete', {
-    orderId,
-    status: result.status,
-    fillPrice: result.fillPrice,
-    rejectReason: result.rejectReason,
-  });
+    logger.info('Order simulation complete', {
+      orderId,
+      status: result.status,
+      fillPrice: result.fillPrice,
+      rejectReason: result.rejectReason,
+    });
+  } catch (error) {
+    if ((error as Error).name === 'TransactionCanceledException') {
+      logger.info('Order already processed, skipping', { orderId, eventId: event.id });
+      return;
+    }
+    throw error;
+  }
 }
 
 async function processWithdrawalRequested(
@@ -133,18 +134,25 @@ async function processWithdrawalRequested(
     throw new NotRetryableError(`Missing required WITHDRAWAL_REQUESTED fields: withdrawalId=${withdrawalId}, amount=${amount}`);
   }
 
-  const result = await deps.simulationEngine.processWithdrawal(
-    tenantId,
-    userId,
-    withdrawalId,
-    amount,
-  );
+  // Check sufficient balance before guarded write
+  const cashBalance = await deps.repository.getCashBalance(tenantId, userId, 'USD');
+  const balance = (cashBalance?.balance as number) ?? 0;
 
-  logger.info('Withdrawal simulation complete', {
-    withdrawalId,
-    status: result.status,
-    reason: result.reason,
-  });
+  if (balance < amount) {
+    logger.info('Withdrawal rejected: insufficient cash', { withdrawalId, balance, amount });
+    return;
+  }
+
+  // Guarded atomic debit — idempotent via event-keyed guard marker
+  const processed = await deps.repository.guardedAddToCashBalance(
+    tenantId, userId, 'USD', -amount, event.id as string,
+  );
+  if (!processed) {
+    logger.info('Withdrawal already processed, skipping', { eventId: event.id });
+    return;
+  }
+
+  logger.info('Withdrawal completed', { withdrawalId, amount, newBalance: balance - amount });
 }
 
 async function processDepositInitiated(
@@ -174,8 +182,14 @@ async function processDepositInitiated(
     await deps.simulationEngine.initializeAccount(tenantId, userId);
   }
 
-  // Atomic credit — no conditional needed for deposits
-  await deps.repository.addToCashBalance(tenantId, userId, currency, amount);
+  // Guarded atomic credit — idempotent via event-keyed guard marker
+  const processed = await deps.repository.guardedAddToCashBalance(
+    tenantId, userId, currency, amount, event.id as string,
+  );
+  if (!processed) {
+    logger.info('Deposit already processed, skipping', { eventId: event.id });
+    return;
+  }
 
   logger.info('Deposit processed', { depositId, amount, tenantId });
 }
@@ -184,13 +198,11 @@ async function processDepositInitiated(
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new VirtualLedgerRepository(TABLE_NAME, dynamoClient);
-const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 const marketData = new MarketDataService();
 const simulationEngine = new SimulationEngineService(repository, marketData);
 
 const deps: EventListenerDeps = {
   repository,
-  idempotencyGuard,
   simulationEngine,
   bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'execution-adpt'),
   metrics: createServiceMetrics('execution-adpt'),

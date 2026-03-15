@@ -1,9 +1,8 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { getUUID, getTime, logger } from '@nestfolio/platform-core';
+import { getTime, logger } from '@nestfolio/platform-core';
 import {
   parseRecord,
-  IdempotencyGuard,
   requireEnv,
   isRetryable,
   createServiceMetrics,
@@ -21,7 +20,6 @@ import { ShadowFillService, type ProposedTrade } from '../services/shadow-fill.s
 
 interface EventListenerDeps {
   readonly repository: LedgerRepository;
-  readonly idempotencyGuard: IdempotencyGuard;
   readonly bus: Bus;
   readonly metrics: ReturnType<typeof createServiceMetrics>;
   readonly shadowFill: ShadowFillService;
@@ -73,18 +71,8 @@ export const createHandler = (deps: EventListenerDeps) =>
         isSimulation = SIMULATION_EVENT_TYPES.has(eventType);
 
         if (isSimulation) {
-          const isNew = await deps.idempotencyGuard.ensureOnce('SIM_' + eventType, uow.event.id);
-          if (!isNew) {
-            logger.info('Duplicate simulation event, skipping', { eventId: uow.event.id });
-            continue;
-          }
           await processSimulationEvent(deps, uow.event);
         } else {
-          const isNew = await deps.idempotencyGuard.ensureOnce(eventType, uow.event.id);
-          if (!isNew) {
-            logger.info('Duplicate event, skipping', { eventType, eventId: uow.event.id });
-            continue;
-          }
           await processActualEvent(deps, uow.event, eventType);
         }
       } catch (error) {
@@ -127,7 +115,7 @@ async function processActualEvent(
 
   const sequenceNo = await deps.repository.nextSequence(tenantId, 'actual');
 
-  await deps.repository.putLedgerEntry({
+  const created = await deps.repository.putLedgerEntry({
     tenantId,
     streamType: 'actual',
     eventId: event.id as string,
@@ -137,6 +125,11 @@ async function processActualEvent(
     sequenceNo,
     decisionId: subject['decisionId'] as string | undefined,
   });
+
+  if (!created) {
+    logger.info('Duplicate ledger entry, skipping', { eventType, eventId: event.id });
+    return;
+  }
 
   deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
 }
@@ -161,10 +154,10 @@ async function processSimulationEvent(
     const fillResult = await deps.shadowFill.simulateFill(trade);
     const sequenceNo = await deps.repository.nextSequence(tenantId, 'simulated');
 
-    await deps.repository.putLedgerEntry({
+    const created = await deps.repository.putLedgerEntry({
       tenantId,
       streamType: 'simulated',
-      eventId: getUUID(),
+      eventId: `${event.id}-sim-${trade.symbol}`,
       eventType: 'ORDER_FILLED',
       payload: {
         orderId: `sim-${decisionPacketId}-${trade.symbol}`,
@@ -178,6 +171,11 @@ async function processSimulationEvent(
       sequenceNo,
       decisionId: decisionPacketId,
     });
+
+    if (!created) {
+      logger.info('Duplicate simulation entry, skipping', { symbol: trade.symbol, eventId: event.id });
+      continue;
+    }
   }
 
   deps.metrics.addMetric('SimulationProcessed', MetricUnit.Count, 1);
@@ -187,11 +185,9 @@ async function processSimulationEvent(
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new LedgerRepository(TABLE_NAME, dynamoClient);
-const idempotencyGuard = new IdempotencyGuard(dynamoClient, TABLE_NAME);
 
 const deps: EventListenerDeps = {
   repository,
-  idempotencyGuard,
   bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'ledger-ctrl'),
   metrics: createServiceMetrics('ledger-ctrl'),
   shadowFill: new ShadowFillService(),

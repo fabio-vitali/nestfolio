@@ -36,6 +36,16 @@ jest.mock('@nestfolio/platform-core', () => ({
       const { PutCommand } = require('@aws-sdk/lib-dynamodb');
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
+    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
+      try {
+        const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+        return true;
+      } catch (error: unknown) {
+        if ((error as any).name === 'ConditionalCheckFailedException') return false;
+        throw error;
+      }
+    }
     protected async queryByPk(pk: string, skPrefix?: string) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand({
@@ -71,9 +81,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     const event = body.detail ?? body;
     return { event, payload: event.subject ?? {}, record };
   }),
-  IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: jest.fn().mockResolvedValue(true),
-  })),
   createServiceMetrics: jest.fn().mockReturnValue({
     addMetric: jest.fn(),
     addDimension: jest.fn(),
@@ -98,7 +105,6 @@ import { SQSEvent } from 'aws-lambda';
 import { createHandler } from '../../src/handlers/event-listener';
 import { LedgerRepository } from '../../src/repositories/ledger.repository';
 import { ShadowFillService } from '../../src/services/shadow-fill.service';
-import { IdempotencyGuard } from '@nestfolio/lambda-utils';
 
 function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
   return {
@@ -137,7 +143,6 @@ describe('ledger-ctrl event-listener handler', () => {
 
     handler = createHandler({
       repository,
-      idempotencyGuard: new IdempotencyGuard({} as any, 'test-table'),
       bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: mockMetrics as any,
       shadowFill,
@@ -218,11 +223,11 @@ describe('ledger-ctrl event-listener handler', () => {
     expect(mockMetrics.addMetric).toHaveBeenCalledWith('SimulationProcessed', 'Count', 1);
   });
 
-  it('should skip duplicate events', async () => {
-    const guardInstance = (IdempotencyGuard as unknown as jest.Mock).mock.results[0]?.value;
-    if (guardInstance) {
-      guardInstance.ensureOnce.mockResolvedValue(false);
-    }
+  it('should skip duplicate actual event when putLedgerEntry returns false', async () => {
+    // First call: nextSequence (UpdateCommand), Second call: putIfNotExists (PutCommand) → ConditionalCheckFailedException
+    mockSend
+      .mockResolvedValueOnce({ Attributes: { lastSequence: 1 } }) // nextSequence
+      .mockRejectedValueOnce(Object.assign(new Error('Conditional'), { name: 'ConditionalCheckFailedException' })); // putIfNotExists
 
     const sqsEvent = buildSqsEvent([
       {
@@ -242,6 +247,79 @@ describe('ledger-ctrl event-listener handler', () => {
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
     expect(mockMetrics.addMetric).not.toHaveBeenCalledWith('EventProcessed', expect.anything(), expect.anything());
+  });
+
+  it('should skip duplicate simulation entries per trade', async () => {
+    // For simulation: each trade calls nextSequence then putIfNotExists
+    // First trade succeeds, second trade is duplicate
+    mockSend
+      .mockResolvedValueOnce({ Attributes: { lastSequence: 1 } }) // nextSequence for trade 1
+      .mockResolvedValueOnce({}) // putIfNotExists for trade 1 — success
+      .mockResolvedValueOnce({ Attributes: { lastSequence: 2 } }) // nextSequence for trade 2
+      .mockRejectedValueOnce(Object.assign(new Error('Conditional'), { name: 'ConditionalCheckFailedException' })); // putIfNotExists for trade 2 — duplicate
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-sim-dup',
+        body: {
+          detail: {
+            id: 'evt-sim-dup',
+            type: 'DECISION_PACKET_CREATED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              tenantId: 't1',
+              decisionPacketId: 'dp-dup',
+              proposedTrades: [
+                { symbol: 'VTI', side: 'BUY', quantity: 10 },
+                { symbol: 'SPY', side: 'BUY', quantity: 5 },
+              ],
+            },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockMetrics.addMetric).toHaveBeenCalledWith('SimulationProcessed', 'Count', 1);
+  });
+
+  it('should use deterministic simulation event IDs', async () => {
+    mockSend.mockResolvedValue({ Items: [], Attributes: { lastSequence: 1 } });
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-det',
+        body: {
+          detail: {
+            id: 'evt-det-1',
+            type: 'DECISION_PACKET_CREATED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              tenantId: 't1',
+              decisionPacketId: 'dp-det',
+              proposedTrades: [
+                { symbol: 'VTI', side: 'BUY', quantity: 10 },
+              ],
+            },
+            context: { tenantId: 't1' },
+          },
+        },
+      },
+    ]);
+
+    await handler(sqsEvent);
+
+    // Check PutCommand was called with deterministic eventId and new sk format
+    const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+    const putCalls = (PutCommand as jest.Mock).mock.calls;
+    const ledgerPut = putCalls.find(
+      (c: any) => c[0]?.Item?.sk === 'Event#evt-det-1-sim-VTI',
+    );
+    expect(ledgerPut).toBeDefined();
+    expect(ledgerPut[0].Item.eventId).toBe('evt-det-1-sim-VTI');
+    expect(ledgerPut[0].Item.sourceEventId).toBe('evt-det-1-sim-VTI');
   });
 
   it('should skip unknown event types', async () => {

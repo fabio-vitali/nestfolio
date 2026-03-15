@@ -1,4 +1,4 @@
-import { getUUID, logger, NotRetryableError } from '@nestfolio/platform-core';
+import { logger, NotRetryableError } from '@nestfolio/platform-core';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from './market-data.service';
@@ -73,7 +73,7 @@ export class SimulationEngineService {
       // 4. Execute trade atomically
       const currentBalance = (cashBalance?.balance as number) ?? 0;
       await this.repository.executeTrade(tenantId, userId, {
-        tradeId: getUUID(),
+        tradeId: orderId,
         orderId,
         symbol,
         side,

@@ -66,7 +66,7 @@ describe('SimulationEngineService', () => {
       expect(result.totalValue).toBe(2505);
 
       expect(mockRepo.executeTrade).toHaveBeenCalledWith('t-1', 'u-1', {
-        tradeId: 'test-trade-id',
+        tradeId: 'order-1',
         orderId: 'order-1',
         symbol: 'VTI',
         side: 'BUY',

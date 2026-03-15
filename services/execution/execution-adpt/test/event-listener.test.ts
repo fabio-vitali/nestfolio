@@ -86,6 +86,8 @@ jest.mock('@nestfolio/platform-core', () => ({
   KNOWN_SYMBOLS: Object.keys(mockEventListenerQuotePrices),
 }));
 
+const mockGuardedWrite = jest.fn().mockResolvedValue(true);
+
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   parseRecord: jest.fn((record) => {
@@ -93,9 +95,6 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     const event = body.detail ?? body;
     return { event, payload: event.subject ?? {}, record };
   }),
-  IdempotencyGuard: jest.fn().mockImplementation(() => ({
-    ensureOnce: jest.fn().mockResolvedValue(true),
-  })),
   extractTenantId: jest.fn((event: Record<string, unknown>) => {
     const context = event.context as Record<string, unknown> | undefined;
     const subject = event.subject as Record<string, unknown> | undefined;
@@ -123,6 +122,7 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   ),
   publishErrorEvent: jest.fn().mockResolvedValue(undefined),
   EventBridgeBus: jest.fn(),
+  guardedWrite: (...args: unknown[]) => mockGuardedWrite(...args),
 }));
 
 import { SQSEvent } from 'aws-lambda';
@@ -130,7 +130,6 @@ import { createHandler } from '../src/handlers/event-listener';
 import { VirtualLedgerRepository } from '../src/repositories/virtual-ledger.repository';
 import { MarketDataService } from '../src/services/market-data.service';
 import { SimulationEngineService } from '../src/services/simulation-engine.service';
-import { IdempotencyGuard } from '@nestfolio/lambda-utils';
 
 function buildSqsEvent(
   records: Array<{ messageId: string; body: Record<string, unknown> }>,
@@ -160,7 +159,6 @@ describe('event-listener handler', () => {
   };
 
   const repository = new VirtualLedgerRepository('test-table');
-  const idempotencyGuard = new IdempotencyGuard({} as any, 'test-table');
   const marketData = new MarketDataService();
   const simulationEngine = new SimulationEngineService(repository, marketData);
 
@@ -169,11 +167,10 @@ describe('event-listener handler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
-    (idempotencyGuard.ensureOnce as jest.Mock).mockResolvedValue(true);
+    mockGuardedWrite.mockResolvedValue(true);
 
     handler = createHandler({
       repository,
-      idempotencyGuard,
       simulationEngine,
       bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
       metrics: mockMetrics as any,
@@ -227,12 +224,10 @@ describe('event-listener handler', () => {
   });
 
   it('should process WITHDRAWAL_REQUESTED and complete a valid withdrawal', async () => {
-    // getCashBalance -> found
+    // getCashBalance (balance check) -> found
     mockSend.mockResolvedValueOnce({
       Item: { balance: 100000 },
     });
-    // initializeCashBalance -> success
-    mockSend.mockResolvedValueOnce({});
 
     const sqsEvent = buildSqsEvent([
       {
@@ -256,6 +251,21 @@ describe('event-listener handler', () => {
 
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
+
+    // guardedWrite should have been called with negative amount
+    expect(mockGuardedWrite).toHaveBeenCalledWith(
+      expect.anything(),
+      'test-table',
+      { pk: 'VirtualLedger#t-1#u-1', sk: 'ProcessedEvent#evt-2' },
+      expect.arrayContaining([
+        expect.objectContaining({
+          Update: expect.objectContaining({
+            ExpressionAttributeValues: expect.objectContaining({ ':amount': -5000 }),
+          }),
+        }),
+      ]),
+      604800,
+    );
   });
 
   it('should report failure for malformed event body (invalid JSON)', async () => {
@@ -350,8 +360,19 @@ describe('event-listener handler', () => {
     expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
   });
 
-  it('should skip duplicate ORDER_SUBMITTED event', async () => {
-    (idempotencyGuard.ensureOnce as jest.Mock).mockResolvedValue(false);
+  it('should skip duplicate ORDER_SUBMITTED event (TransactionCanceledException)', async () => {
+    // getCashBalance (lazy init check) -> found
+    mockSend.mockResolvedValueOnce({ Item: { balance: 100000 } });
+    // getCashBalance (simulation engine) -> found
+    mockSend.mockResolvedValueOnce({ Item: { balance: 100000 } });
+    // getPosition -> not found
+    mockSend.mockResolvedValueOnce({ Item: undefined });
+    // getPosition (inside executeTrade) -> not found
+    mockSend.mockResolvedValueOnce({ Item: undefined });
+    // transactWrite -> duplicate (TransactionCanceledException)
+    const txError = new Error('Transaction cancelled');
+    txError.name = 'TransactionCanceledException';
+    mockSend.mockRejectedValueOnce(txError);
 
     const sqsEvent = buildSqsEvent([
       {
@@ -379,8 +400,11 @@ describe('event-listener handler', () => {
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
-  it('should skip duplicate WITHDRAWAL_REQUESTED event', async () => {
-    (idempotencyGuard.ensureOnce as jest.Mock).mockResolvedValue(false);
+  it('should skip duplicate WITHDRAWAL_REQUESTED event (guardedAddToCashBalance returns false)', async () => {
+    // getCashBalance -> found (balance check)
+    mockSend.mockResolvedValueOnce({ Item: { balance: 100000 } });
+    // guardedAddToCashBalance -> duplicate
+    mockGuardedWrite.mockResolvedValueOnce(false);
 
     const sqsEvent = buildSqsEvent([
       {
@@ -395,6 +419,37 @@ describe('event-listener handler', () => {
               tenantId: 't-1',
               userId: 'u-1',
               amount: 5000,
+            },
+            context: { tenantId: 't-1' },
+          },
+        },
+      },
+    ]);
+
+    const result = await handler(sqsEvent);
+    expect(result.batchItemFailures).toHaveLength(0);
+  });
+
+  it('should skip duplicate DEPOSIT_INITIATED event (guardedAddToCashBalance returns false)', async () => {
+    // getCashBalance (lazy init check) -> found
+    mockSend.mockResolvedValueOnce({ Item: { balance: 50000 } });
+    // guardedAddToCashBalance -> duplicate
+    mockGuardedWrite.mockResolvedValueOnce(false);
+
+    const sqsEvent = buildSqsEvent([
+      {
+        messageId: 'msg-dup-deposit',
+        body: {
+          detail: {
+            id: 'evt-dup-deposit',
+            type: 'DEPOSIT_INITIATED',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: {
+              depositId: 'dep-dup',
+              tenantId: 't-1',
+              userId: 'u-1',
+              amountCents: 10000,
+              currency: 'USD',
             },
             context: { tenantId: 't-1' },
           },
@@ -485,11 +540,9 @@ describe('event-listener handler', () => {
     expect(isRetryable).toHaveBeenCalled();
   });
 
-  it('should process DEPOSIT_INITIATED using atomic addToCashBalance', async () => {
+  it('should process DEPOSIT_INITIATED using guardedAddToCashBalance', async () => {
     // getCashBalance (lazy init check) -> found
     mockSend.mockResolvedValueOnce({ Item: { balance: 50000 } });
-    // addToCashBalance -> success
-    mockSend.mockResolvedValueOnce({});
 
     const sqsEvent = buildSqsEvent([
       {
@@ -515,9 +568,20 @@ describe('event-listener handler', () => {
     const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
 
-    // The second call should be the atomic ADD (UpdateCommand), not a conditional put
-    const secondCall = mockSend.mock.calls[1][0];
-    expect(secondCall._type).toBe('Update');
+    // guardedWrite should have been called for the deposit
+    expect(mockGuardedWrite).toHaveBeenCalledWith(
+      expect.anything(),
+      'test-table',
+      { pk: 'VirtualLedger#t-1#u-1', sk: 'ProcessedEvent#evt-deposit' },
+      expect.arrayContaining([
+        expect.objectContaining({
+          Update: expect.objectContaining({
+            UpdateExpression: 'ADD balance :amount SET #ts = :ts, updatedAt = :now',
+          }),
+        }),
+      ]),
+      604800,
+    );
   });
 
   it('should initialize account on first ORDER_SUBMITTED if no cash balance exists', async () => {
