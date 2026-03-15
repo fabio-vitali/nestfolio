@@ -185,6 +185,23 @@ interface EventContext {
 }
 ```
 
+### StreamRecord
+
+The unmarshalled DDB stream record image, with conventional fields.
+
+```typescript
+interface StreamRecord {
+  readonly pk: string;
+  readonly sk: string;
+  readonly __typename: string;
+  readonly tenantId: string;
+  readonly sequenceNo?: number;        // Convention: monotonic sequence for ordering in replayAndReduce
+  readonly [key: string]: unknown;     // remaining entity fields
+}
+```
+
+The framework unmarshals `NewImage` (or `OldImage` for REMOVE) into a `StreamRecord`. The `sequenceNo` field is a convention used by `replayAndReduce` to sort events within a group before applying the reducer. Services that use `replayAndReduce` must include `sequenceNo` on their DDB records.
+
 ### StreamContext
 
 ```typescript
@@ -288,11 +305,21 @@ function accumulate(typename: string, config: { field: string; increment: number
 
 **Discrimination:** The second argument's type determines the mode. If it's a function → mapper mode (returns `HandlerFn`). If it's a plain object/record → inline mode (returns intent data). TypeScript discriminates via overloads at compile time.
 
-**Note on `accumulate`:** `accumulate` only has an inline mode (static `increment: number`). For dynamic increments, use the async handler form where you have access to `subject`:
+**Note on `accumulate`:** `accumulate` only has an inline mode (returns `AccumulateIntent`). For dynamic increments, use the async handler form where you have access to `subject`:
 
 ```typescript
 DEPOSIT_INITIATED: async ({ subject }, ctx) => [
   accumulate('CashBalance', { field: 'balance', increment: subject.amount, ttl: 604800 }),
+]
+```
+
+**Note on mixing intents in `HandlerFn[]` arrays:** When a handler entry is an array (multi-write), the engine accepts both `HandlerFn` and `WriteIntent` elements. Mapper-mode helpers (e.g., `record(typename, mapper)`) return `HandlerFn`; inline-mode helpers (e.g., `accumulate(typename, config)`) return `WriteIntent`. The engine normalizes: if the element is a function, it calls it with `(payload, ctx)`; if it's a data object with `_tag`, it uses it directly.
+
+```typescript
+// Mixed array — engine handles both forms:
+ORDER_FILLED: [
+  record('Activity', ({ subject }) => ({ ... })),  // HandlerFn (mapper mode)
+  accumulate('Stats', { field: 'tradesCount', increment: 1 }),  // AccumulateIntent (inline mode)
 ]
 ```
 
