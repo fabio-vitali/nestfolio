@@ -413,9 +413,9 @@ The base factory for all DDB Stream handlers.
 ```typescript
 interface StreamHandlerConfig {
   serviceName: string;
-  processRecord?: (record: StreamRecord, ctx: StreamContext) => Promise<WriteIntent | WriteIntent[]>;
+  processRecord?: (record: StreamRecord, ctx: StreamContext) => Promise<void>;
   // OR
-  processGroup?: (groupKey: string, records: StreamRecord[], ctx: StreamContext) => Promise<WriteIntent | WriteIntent[]>;
+  processGroup?: (groupKey: string, records: StreamRecord[], ctx: StreamContext) => Promise<void>;
   groupBy?: {
     key: (record: StreamRecord) => string;
     pick?: 'first' | 'last' | 'all';  // default: 'all'
@@ -429,6 +429,8 @@ interface StreamHandlerConfig {
 
 function createStreamHandler(config: StreamHandlerConfig): (event: DynamoDBStreamEvent) => Promise<void>;
 ```
+
+Stream handlers return `void` and perform their own I/O (e.g., publish to EventBridge, write snapshots). They do NOT return `WriteIntent[]` — stream-specific patterns (CDC publish with batch retry, snapshot conditional writes) don't map cleanly to the SQS intent system.
 
 ### `changeDataCapture` (preset)
 
@@ -472,6 +474,11 @@ interface ReplayAndReduceConfig<S> {
     key: (groupKey: string) => { pk: string; sk: string };
     daily?: boolean;              // default: false — save daily checkpoint too
   };
+  // Convention-based query (default) or override for non-standard schemas
+  queryEvents?: (groupKey: string, lastSequence: number, clients: {
+    docClient: DynamoDBDocumentClient;
+    tableName: string;
+  }) => Promise<Record<string, unknown>[]>;
   table?: string;                 // default: process.env.TABLE_NAME
   concurrency?: number;           // default: 3
 }
@@ -479,22 +486,24 @@ interface ReplayAndReduceConfig<S> {
 function replayAndReduce<S>(config: ReplayAndReduceConfig<S>): (event: DynamoDBStreamEvent) => Promise<void>;
 ```
 
-**Implementation detail — delta reduction (not full replay):**
+**Implementation detail — query-since-checkpoint (not delta reduction):**
 
-The DDB Stream batch contains only the **new** records that triggered the stream, not the full event history. The framework applies these as a **delta** on top of the current snapshot:
+The DDB Stream batch is used as a **trigger**, not as the data source for reduction. The framework queries all events since the last snapshot checkpoint for resilience against out-of-order delivery and shard splits:
 
 1. Filters records by `filter`
-2. Groups by `groupBy.key` (all records in group, not pick-last — order matters for reduction)
+2. Groups by `groupBy.key` (all records in group — order matters for reduction)
 3. For each group:
-   a. **Loads the current snapshot** from DDB at `snapshot.key(groupKey)` — or uses `initialState` if none exists
-   b. **Sorts the batch records** by `sequenceNo` (convention: numeric field on the stream record)
-   c. **Applies `reducer(state, event)` sequentially** for each batch record (delta only)
-   d. **Updates the snapshot version** (increments `version` field on the snapshot)
-   e. **Saves the snapshot** with a conditional write: `version = expectedVersion` (optimistic concurrency)
-   f. If `daily: true`, also saves to `{pk}#Snapshot#{YYYY-MM-DD}`
-4. If the conditional write fails (concurrent update), the group is retried with a fresh snapshot read
+   a. **Loads the current snapshot** from DDB at `snapshot.key(groupKey)` — or uses `initialState` if none exists (initial `version` = 0)
+   b. **Queries all events since the last snapshot's `lastEventSequence`** using the convention-based query (pk from record, sk prefix from `__typename`, `sequenceNo > lastSeq`) or the `queryEvents` override
+   c. **Sorts queried events by `sequenceNo`** (ascending, defensive even if query uses ScanIndexForward)
+   d. **Applies `reducer(state, event)` sequentially** for each queried event
+   e. **Saves the snapshot** with a conditional write: `attribute_not_exists(pk) OR version = :expectedVersion` (optimistic concurrency)
+   f. If `daily: true`, also saves to `{pk}#Snapshot#{YYYY-MM-DD}` with `attribute_not_exists(pk)` condition
+4. If the conditional write fails (concurrent update), the group is classified as a retryable error
 
-**Note:** This is a delta reducer, NOT a full event replay. For full replay (disaster recovery, schema migration), use a separate batch job that queries all events and reduces from `initialState`. The `reducer` function must be the same for both delta and full replay — it is a pure `(state, event) => state` function.
+**Convention-based query** (default when `queryEvents` is omitted): derives pk from the stream record's `pk`, sk prefix from `__typename`, filters by `sequenceNo > lastSnapshotSequence`. Services with non-standard schemas (e.g., GSI queries) provide `queryEvents` override. Note: the convention query uses the `__typename` of the **first record in the group** — all records in a group should share the same typename. If a group contains mixed typenames, provide `queryEvents`.
+
+**Note:** The `reducer` function must be a pure `(state, event) => state` function. The same reducer is used for both stream-triggered delta updates and full replay (disaster recovery, schema migration via separate batch job).
 
 ---
 

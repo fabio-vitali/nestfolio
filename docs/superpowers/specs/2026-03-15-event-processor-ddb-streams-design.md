@@ -103,11 +103,15 @@ StreamEngine (per Lambda invocation)
 function unmarshalStream(record: DynamoDBRecord, serviceName: string): {
   streamRecord: StreamRecord;
   ctx: StreamContext;
-} {
+} | null {
   const eventName = record.eventName as 'INSERT' | 'MODIFY' | 'REMOVE';
   const image = eventName === 'REMOVE'
     ? record.dynamodb?.OldImage
     : record.dynamodb?.NewImage;
+
+  // Guard: skip records with no image (e.g., REMOVE on NEW_IMAGE-only streams)
+  if (!image) return null;
+
   const unmarshalled = unmarshall(image as Record<string, AttributeValue>);
 
   return {
@@ -133,6 +137,8 @@ function unmarshalStream(record: DynamoDBRecord, serviceName: string): {
   };
 }
 ```
+
+**Requirement:** DDB tables used with stream pipelines MUST use `NEW_AND_OLD_IMAGES` StreamViewType. Records with no image are skipped with a warning log (the function returns `null`).
 
 ---
 
@@ -195,9 +201,9 @@ function changeDataCapture(config: ChangeDataCaptureConfig): (event: DynamoDBStr
 
 ```typescript
 {
-  id: record.eventId ?? uuid(),
+  id: ctx.record.eventID ?? uuid(),    // from raw DynamoDBRecord (note: eventID, not eventId)
   type: resolvedEventType,
-  timestamp: record.timestamp ?? now(),
+  timestamp: new Date().toISOString(),  // stream records don't carry a business timestamp
   subject: transform ? transform(record, eventType) : record,
   context: { tenantId: record.tenantId },
 }
@@ -223,9 +229,11 @@ class EventBridgePublisher {
 
 Implementation:
 - Batch in chunks of 10 (EventBridge limit)
-- Per-chunk: up to 2 retries for `ThrottlingException` / `InternalException`
-- Non-retryable failures → throw `NotRetryableError`
-- Retryable failures after exhausting retries → throw `Error` (retryable, StreamEngine will retry batch)
+- Per-chunk: inspect `PutEvents` response for `FailedEntryCount > 0`
+  - Extract failed entries from the response by matching `ErrorCode`
+  - Retryable error codes: `ThrottlingException`, `InternalException` → retry only the failed entries (up to 2 retries)
+  - Non-retryable error codes (e.g., `ValidationException`) → throw `NotRetryableError` immediately
+- Retryable failures after exhausting 2 retries → throw `Error` (retryable, StreamEngine will retry batch)
 
 ~25 lines. Same logic as existing `event-publisher.ts` but encapsulated. Instantiated once per `changeDataCapture()` call (cold start), reused across invocations.
 
@@ -284,6 +292,7 @@ interface ReplayAndReduceConfig<S> {
     tableName: string;
   }) => Promise<Record<string, unknown>[]>;
   table?: string;                 // default: process.env.TABLE_NAME
+  bus?: string;                   // default: process.env.BUS_NAME (for error events)
   concurrency?: number;           // default: 3
 }
 
@@ -322,13 +331,13 @@ async function conventionQuery(
 }
 ```
 
-Convention documented: "pk from the stream record, sk prefix from `__typename`, sorted by `sequenceNo`." Services with non-standard schemas override via `queryEvents`.
+Convention documented: "pk from the stream record, sk prefix from `__typename`, sorted by `sequenceNo`." The convention query uses the `__typename` of the **first record in the group**. All records in a group should share the same typename. If a group contains mixed typenames (e.g., groupBy key is `tenantId` across multiple entity types), the convention query will miss records — use `queryEvents` override instead. Services with non-standard schemas (GSI queries, mixed types) override via `queryEvents`.
 
 ### Per-Group Processing Flow
 
 1. **Load current snapshot** from DDB at `snapshot.key(groupKey)`
-   - Not found → use `initialState` (or call `initialState()` if function)
-   - Extract `lastEventSequence` and `version` from snapshot
+   - Not found → use `initialState` (or call `initialState()` if function), with implicit `version = 0` and `lastEventSequence = 0`
+   - Found → extract `lastEventSequence` and `version` from snapshot
 
 2. **Query events since checkpoint** — convention query or `queryEvents` override
 
@@ -344,7 +353,7 @@ Convention documented: "pk from the stream record, sk prefix from `__typename`, 
 
 6. **Conditional write fails** (ConditionalCheckFailedException) → classified as **retryable** error. StreamEngine throws after processing all groups. On retry, snapshot is re-read with correct version.
 
-7. **Daily checkpoint** (if `daily: true`): save to `{ pk: snapshotKey.pk, sk: 'Snapshot#${YYYY-MM-DD}' }` with `attribute_not_exists(pk) AND attribute_not_exists(sk)` condition (skip if already exists for today).
+7. **Daily checkpoint** (if `daily: true`): save to `{ pk: snapshotKey.pk, sk: 'Snapshot#${YYYY-MM-DD}' }` with `attribute_not_exists(pk)` condition (item doesn't exist yet — skip if checkpoint already exists for today).
 
 ### Consumer Examples
 
@@ -412,7 +421,7 @@ function materializeToBucket(config: MaterializeToBucketConfig):
   (event: SQSEvent, context?: Context) => Promise<SQSBatchResponse>;
 ```
 
-Implementation: delegates to `createEventHandler` with `s3: { bucket: config.bucket ?? process.env.EXPORT_BUCKET }`. The `IntentExecutor` already handles `s3-put` intents. The `defaultFormat` is passed as fallback when an `s3Put()` intent doesn't specify format. ~20 lines.
+Implementation: delegates to `createEventHandler` with `s3: { bucket: config.bucket ?? process.env.EXPORT_BUCKET }`. The `IntentExecutor` already handles `s3-put` intents. The `defaultFormat` applies at the `materializeToBucket` level: the `s3Put()` helper's `format` parameter becomes optional (defaults to `'json'`), and `materializeToBucket` overrides that default with `config.defaultFormat` if provided. This requires making `S3PutIntent.format` optional in the type definition (currently required). ~20 lines.
 
 ---
 
@@ -508,7 +517,7 @@ interface ReducerTestResult<S> extends StreamTestResult {
 
 function createReducerTestHarness<S>(config: ReplayAndReduceConfig<S>): {
   seedSnapshot: (groupKey: string, state: S, version: number, lastSeq: number) => void;
-  seedEvents: (events: Record<string, unknown>[]) => void;
+  seedEvents: (groupKey: string, events: Record<string, unknown>[]) => void;  // scoped to group
   process: (records: DynamoDBRecord[]) => Promise<ReducerTestResult<S>>;
 };
 ```
@@ -582,7 +591,7 @@ describe('ledger-ctrl reducer', () => {
   });
 
   it('reduces from initial state when no snapshot exists', async () => {
-    harness.seedEvents([
+    harness.seedEvents('t1#actual', [
       { eventType: 'ORDER_FILLED', payload: { amount: 1500 }, sequenceNo: 1 },
     ]);
     const result = await harness.process([
@@ -596,7 +605,7 @@ describe('ledger-ctrl reducer', () => {
 
   it('applies delta on top of existing snapshot', async () => {
     harness.seedSnapshot('t1#actual', { cashBalanceCents: 5000, positions: {} }, 3, 10);
-    harness.seedEvents([
+    harness.seedEvents('t1#actual', [
       { eventType: 'DEPOSIT_DETECTED', payload: { amount: 2000 }, sequenceNo: 11 },
     ]);
     const result = await harness.process([
