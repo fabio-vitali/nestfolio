@@ -29,7 +29,7 @@ export interface AccumulateIntent {
 export interface S3PutIntent {
   readonly _tag: 's3-put';
   readonly body: unknown;
-  readonly format: 'json' | 'csv';
+  readonly format?: 'json' | 'csv';
   readonly key?: string;
 }
 

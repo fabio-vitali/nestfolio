@@ -10,6 +10,7 @@ export interface EventHandlerConfig {
   handlers: Record<string, HandlerEntry>;
   table?: string | { name: string; client: DynamoDBDocumentClient };
   bus?: string;
+  s3?: { bucket: string };
   concurrency?: number;
   poisonPill?: { maxReceiveCount: number };
   errorEventType?: string;
