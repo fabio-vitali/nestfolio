@@ -20,6 +20,8 @@ Companion spec to `2026-03-15-event-processor-design.md`. Covers the DDB Stream 
 | File | Purpose |
 |------|---------|
 | `engine/stream-engine.ts` | Core DDB Stream batch loop (parallels BatchEngine) |
+| `engine/base-collector.ts` | Shared outcome collection (success, error, metrics) used by both engines |
+| `engine/error-event-publisher.ts` | Shared fire-and-forget error event publishing with try/catch guard |
 | `pipelines/create-stream-handler.ts` | Universal stream factory |
 | `pipelines/change-data-capture.ts` | CDC preset (Stream -> EventBridge) |
 | `pipelines/replay-and-reduce.ts` | Event sourcing preset (Stream -> query -> reduce -> snapshot) |
@@ -32,8 +34,99 @@ Companion spec to `2026-03-15-event-processor-design.md`. Covers the DDB Stream 
 | File | Change |
 |------|--------|
 | `index.ts` | Export new pipelines, types, testing helpers |
+| `engine/error-collector.ts` | Refactor: extend `BaseCollector` with SQS-specific fields (batchItemFailures, dedup, poison) |
+| `engine/batch-engine.ts` | Refactor: use `ErrorEventPublisher` (fire-and-forget with guard), add `causedBy` to error events |
 | `testing/test-harness.ts` | Add `createStreamTestHarness()`, `createCdcTestHarness()`, `createReducerTestHarness()` |
 | `testing/fake-records.ts` | Enhance `fakeDdbStreamRecord()` with typename/tenantId/sequenceNo convenience opts |
+
+---
+
+## Engine Consistency (SQS ↔ DDB Stream)
+
+Both engines follow the same processing philosophy. Shared code is extracted to avoid drift.
+
+### Shared Infrastructure
+
+**`BaseCollector`** — abstract outcome tracking used by both engines:
+
+```typescript
+abstract class BaseCollector {
+  protected readonly metrics: Record<string, number> = {};
+  protected readonly errors: Array<{ id: string; error: Error; retryable: boolean; causedBy: unknown }> = [];
+
+  recordSuccess(id: string): void;
+  recordError(id: string, error: Error, retryable: boolean, causedBy: unknown): void;
+  getErrors(): { retryable: typeof this.errors; nonRetryable: typeof this.errors };
+  getMetrics(): Record<string, number>;
+}
+```
+
+- `ErrorCollector` (SQS) extends with: `batchItemFailures`, `recordDeduplicated()`, `recordPoisonPill()`, `recordSkipped()`, SQS-specific metric names (`EventProcessed`, `EventFailed`, etc.)
+- `StreamCollector` (DDB) extends with: `hasRetryableErrors()` (determines throw/no-throw), Stream-specific metric names (`StreamRecordProcessed`, `StreamRecordFailed`, etc.)
+
+**`ErrorEventPublisher`** — shared fire-and-forget error event publishing:
+
+```typescript
+class ErrorEventPublisher {
+  constructor(private busName: string, private serviceName: string) {}
+
+  async publishErrors(
+    errors: Array<{ error: Error; causedBy: unknown; groupKey?: string }>,
+    errorEventType: string,
+  ): Promise<void> {
+    for (const { error, causedBy, groupKey } of errors) {
+      try {
+        // Build EventBridge entry with causedBy field
+        await this.publish({
+          type: errorEventType,
+          subject: { error: error.message, stack: error.stack, causedBy, groupKey },
+          context: { serviceName: this.serviceName },
+        });
+      } catch (pubErr) {
+        // Fire-and-forget: log but never throw
+        logger.warn('Failed to publish error event', { pubErr, originalError: error.message });
+      }
+    }
+  }
+}
+```
+
+Both engines use `ErrorEventPublisher`. The try/catch guard is **per-error** — a failure to publish one error event does not prevent publishing the others, and never affects the batch outcome.
+
+### Side-by-Side Flow
+
+| Step | SQS BatchEngine | DDB StreamEngine |
+|------|----------------|-----------------|
+| 1. Parse | `parseRecord(sqsRecord)` | `unmarshalStream(ddbRecord)` |
+| 2. Pre-filter | Poison pill check | `filter` callback |
+| 3. Context | Build `EventContext` + `traceEvent` | `StreamContext` (from unmarshal) |
+| 4. Route/Group | Handler lookup by `eventType` | Optional `groupBy` + pick |
+| 5. Process | `handler()` → `WriteIntent[]` → `intentExecutor` | `processRecord/Group()` → void (own I/O) |
+| 6. Collect | `ErrorCollector` (extends `BaseCollector`) | `StreamCollector` (extends `BaseCollector`) |
+| 7. Error events | `ErrorEventPublisher` (fire-and-forget, with `causedBy`) | `ErrorEventPublisher` (same, with `causedBy`) |
+| 8. Metrics | Single `putMetricData` call | Single `putMetricData` call |
+| 9. Return | `{ batchItemFailures }` | void or throw `StreamBatchError` |
+
+### SQS Backfill (during implementation)
+
+The existing `BatchEngine` requires two fixes for consistency:
+
+1. **`causedBy` in error events** — include the parsed event payload in error events (currently only publishes the error message)
+2. **Error publish guard** — replace the unguarded `for` loop (lines 112-117) with `ErrorEventPublisher` (fire-and-forget with try/catch per error)
+
+---
+
+## Circular Error Event Prevention
+
+Error events (`_FAILED`, `_STREAM_FAILED`) are published to the same EventBridge bus as business events. This is safe because:
+
+1. **Ingress routes by explicit `detailType` list** — `eventPattern: { detailType: props.eventTypes }`. Error event types are only routed if a service explicitly lists them. No wildcard matching.
+
+2. **Error event publishing is fire-and-forget** — `ErrorEventPublisher` wraps each publish in try/catch. A publish failure is logged but never thrown. This prevents retry loops where: batch fails → error publish fails → batch retries → same failure.
+
+3. **Convention: `_FAILED` and `_STREAM_FAILED` suffixes are reserved.** These MUST NOT appear in any Ingress `eventTypes` array. This is a CDK-level convention documented here and enforced by code review.
+
+The error events are consumed by monitoring/alerting infrastructure (CloudWatch rules, SNS topics), not by service Ingress constructs.
 
 ---
 
