@@ -56,9 +56,11 @@
     "graphql": "^16.13.1",
     "highland": "^2.13.5",
     "mutative": "^1.2.0",
+    "p-limit": "^7.3.0",
     "primeicons": "^7.0.0",
     "primeng": "^21.1.0",
     "rxjs": "^7.8.0",
+    "yocto-queue": "^1.2.2",
     "zod": "^3.24.0"
   },
   "devDependencies": {

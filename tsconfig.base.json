@@ -37,7 +37,9 @@
       "@nestfolio/shared-state": ["libs/shared-state/src/index.ts"],
       "@nestfolio/shared-state/testing": ["libs/shared-state/test/testing/index.ts"],
       "@nestfolio/command-core": ["libs/command-core/src/index.ts"],
-      "@nestfolio/command-core/*": ["libs/command-core/src/*"]
+      "@nestfolio/command-core/*": ["libs/command-core/src/*"],
+      "@nestfolio/event-processor": ["libs/event-processor/src/index.ts"],
+      "@nestfolio/event-processor/*": ["libs/event-processor/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp", "dist"]
