@@ -7,7 +7,7 @@ describe('LedgerBffStack', () => {
 
   beforeAll(() => {
     const app = new App({ context: { prefix: 'test' } });
-    const stack = new LedgerBffStack(app, 'test-ledger-bff');
+    const stack = new LedgerBffStack(app, 'test-ledger-bff', { prefix: 'test' });
     template = Template.fromStack(stack);
   });
 

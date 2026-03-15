@@ -7,7 +7,7 @@ describe('LedgerCtrlStack', () => {
 
   beforeAll(() => {
     const app = new App({ context: { prefix: 'test' } });
-    const stack = new LedgerCtrlStack(app, 'test-ledger-ctrl');
+    const stack = new LedgerCtrlStack(app, 'test-ledger-ctrl', { prefix: 'test' });
     template = Template.fromStack(stack);
   });
 
