@@ -6,7 +6,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getUUID, getTime, NotRetryableError, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
-import { EntityNotFoundError } from '@nestfolio/domain-core';
+import { EntityNotFoundError } from '@nestfolio/event-processor';
 import type {
   Goal,
   RiskProfile,
@@ -15,7 +15,7 @@ import type {
   MandateLevel,
   RebalanceCadence,
   Notification,
-} from '@nestfolio/domain-core';
+} from '../domain/models';
 
 function profilePk(tenantId: string, userId: string): string {
   return `InvestorProfile#${tenantId}#${userId}`;

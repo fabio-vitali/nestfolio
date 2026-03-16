@@ -1,6 +1,6 @@
 import { logger, type BusEvent } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
-import type { ProposedTrade } from '@nestfolio/domain-core';
+import type { ProposedTrade } from '../domain/models';
 import {
   createAgentNode,
   invokeGraph,

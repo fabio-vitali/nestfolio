@@ -1,8 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getUUID, getTime, EntityNotFoundError, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
-import { EntityNotFoundError } from '@nestfolio/domain-core';
 import type { MandateSnapshot } from '../rules/rule-engine';
 
 function complianceCheckPk(tenantId: string, ccId: string): string {
