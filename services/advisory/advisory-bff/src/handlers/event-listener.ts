@@ -1,8 +1,8 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
-import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/domain';
-import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/domain';
+import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/service';
+import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/service';
 import { AdvisoryRepository } from '../repositories/advisory.repository';
 import { DecisionPacketCreatedPipe } from '../pipes/decision-packet-created.pipe';
 import { DecisionStatusChangedPipe } from '../pipes/decision-status-changed.pipe';

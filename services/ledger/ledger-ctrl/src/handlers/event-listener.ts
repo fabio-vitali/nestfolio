@@ -3,7 +3,7 @@ import { createEventHandler, skip, type EventPayload, type EventContext } from '
 import { requireEnv } from '@nestfolio/event-processor';
 import { getTime, logger } from '@nestfolio/event-processor';
 import { ExecutionAdptEventTypes } from '@nestfolio/broker-adpt/service';
-import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/domain';
+import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/service';
 import { LedgerRepository } from '../repositories/ledger.repository';
 import { ShadowFillService, type ProposedTrade } from '../services/shadow-fill.service';
 

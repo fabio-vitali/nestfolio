@@ -2,11 +2,11 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
-import { InvestorBffEventTypes } from '@nestfolio/investor-bff/domain';
-import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/domain';
-import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/domain';
+import { InvestorBffEventTypes } from '@nestfolio/investor-bff/service';
+import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/service';
+import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/service';
 import { ExecutionAdptEventTypes } from '@nestfolio/broker-adpt/service';
-import { ReconciliationEventTypes } from '@nestfolio/reconciliation-ctrl/domain';
+import { ReconciliationEventTypes } from '@nestfolio/reconciliation-ctrl/service';
 import { DecisionRepository } from '../repositories/decision.repository';
 import { DecisionLifecycleService } from '../services/decision-lifecycle.service';
 

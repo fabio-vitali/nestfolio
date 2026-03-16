@@ -1,9 +1,9 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
-import { InvestorBffEventTypes } from '../domain/events';
-import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/domain';
-import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/domain';
+import { InvestorBffEventTypes } from '../service-domain/events';
+import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/service';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/service';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { UserRegisteredPipe } from '../pipes/user-registered.pipe';
 import { NotificationCreatedPipe } from '../pipes/notification-created.pipe';

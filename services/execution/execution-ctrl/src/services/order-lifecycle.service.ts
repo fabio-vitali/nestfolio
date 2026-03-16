@@ -1,6 +1,6 @@
 import { logger, type BusEvent } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
-import type { ProposedTrade } from '@nestfolio/advisory-ctrl/domain';
+import type { ProposedTrade } from '@nestfolio/advisory-ctrl/service';
 import { OrderRepository } from '../repositories/order.repository';
 import { SafetyChecksService } from './safety-checks.service';
 import { MarketHoursService } from './market-hours.service';

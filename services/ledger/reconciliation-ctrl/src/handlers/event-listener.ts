@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
-import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/domain';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/service';
 import { ExecutionAdptEventTypes } from '@nestfolio/broker-adpt/service';
 import { ReconciliationRepository } from '../repositories/reconciliation.repository';
 import { ReconciliationService } from '../services/reconciliation.service';

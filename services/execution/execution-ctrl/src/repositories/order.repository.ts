@@ -2,7 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
-import type { ProposedTrade } from '@nestfolio/advisory-ctrl/domain';
+import type { ProposedTrade } from '@nestfolio/advisory-ctrl/service';
 
 function orderPk(tenantId: string, orderId: string): string {
   return `Order#${tenantId}#${orderId}`;

@@ -7,7 +7,7 @@ import {
   SELECT_OPERATING_MODE,
   GRANT_MANDATE,
 } from '@nestfolio/appsync-client';
-import type { Goal, Mandate, RiskProfile } from '@nestfolio/investor-bff/domain';
+import type { Goal, Mandate, RiskProfile } from '@nestfolio/investor-bff/service';
 import type { GoalInput, MandateInput, OperatingMode, RiskProfileInput } from '../stores/onboarding.store';
 
 @Injectable()
