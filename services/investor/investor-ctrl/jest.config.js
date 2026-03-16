@@ -9,7 +9,7 @@ module.exports = {
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
     '^@nestfolio/investor-bff/domain$': '<rootDir>/../../investor/investor-bff/src/domain/index.ts',
     '^@nestfolio/compliance-ctrl/domain$': '<rootDir>/../../advisory/compliance-ctrl/src/domain/index.ts',
-    '^@nestfolio/execution-adpt/domain$': '<rootDir>/../../execution/execution-adpt/src/domain/index.ts',
+    '^@nestfolio/broker-adpt/service$': '<rootDir>/../../execution/broker-adpt/src/domain/index.ts',
     '^@nestfolio/ledger-ctrl/domain$': '<rootDir>/../../ledger/ledger-ctrl/src/domain/index.ts',
   },
   transform: {

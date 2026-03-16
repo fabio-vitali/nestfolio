@@ -12,6 +12,6 @@ module.exports = {
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
     '^@nestfolio/ledger-ctrl/domain$': '<rootDir>/../../ledger/ledger-ctrl/src/domain/index.ts',
-    '^@nestfolio/execution-adpt/domain$': '<rootDir>/../../execution/execution-adpt/src/domain/index.ts',
+    '^@nestfolio/broker-adpt/service$': '<rootDir>/../../execution/broker-adpt/src/domain/index.ts',
   },
 };

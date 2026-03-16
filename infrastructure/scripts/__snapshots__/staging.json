@@ -120,7 +120,7 @@
     "prefix": "staging"
   },
   {
-    "service": "execution-adpt",
+    "service": "broker-adpt",
     "subsystem": "execution",
     "deploymentPhase": 3,
     "dependencies": [

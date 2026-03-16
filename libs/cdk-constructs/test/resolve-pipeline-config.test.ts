@@ -99,8 +99,8 @@ describe('inferServiceMetadata', () => {
   });
 
   it('infers -adpt service -> phase 3, depends on hub', () => {
-    expect(inferServiceMetadata('execution-adpt', 'execution')).toEqual({
-      service: 'execution-adpt', subsystem: 'execution', deploymentPhase: 3, dependencies: ['execution-hub'],
+    expect(inferServiceMetadata('broker-adpt', 'execution')).toEqual({
+      service: 'broker-adpt', subsystem: 'execution', deploymentPhase: 3, dependencies: ['execution-hub'],
     });
   });
 

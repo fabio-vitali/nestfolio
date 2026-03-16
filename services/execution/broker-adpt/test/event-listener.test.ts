@@ -115,7 +115,7 @@ describe('event-listener handler', () => {
   const simulationEngine = new SimulationEngineService(repository, marketData);
 
   const mockDeps: EventListenerDeps = { repository, simulationEngine };
-  const harness = createTestHarness({ serviceName: 'execution-adpt', handlers: createHandlers(mockDeps) });
+  const harness = createTestHarness({ serviceName: 'broker-adpt', handlers: createHandlers(mockDeps) });
 
   beforeEach(() => {
     jest.clearAllMocks();

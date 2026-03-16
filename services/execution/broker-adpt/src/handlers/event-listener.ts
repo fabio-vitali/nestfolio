@@ -153,7 +153,7 @@ const marketData = new MarketDataService();
 const simulationEngine = new SimulationEngineService(repository, marketData);
 
 export const handler = createEventHandler({
-  serviceName: 'execution-adpt',
+  serviceName: 'broker-adpt',
   handlers: createHandlers({ repository, simulationEngine }),
   table: TABLE_NAME,
   bus: requireEnv('BUS_NAME'),

@@ -2,8 +2,8 @@ import { createCdcTestHarness, fakeDdbStreamRecord, buildEventTypeMap } from '@n
 
 const eventTypeMap = buildEventTypeMap(['VirtualTrade', 'VirtualCashBalance', 'VirtualPosition']);
 
-describe('execution-adpt event-publisher', () => {
-  const harness = createCdcTestHarness({ serviceName: 'execution-adpt', eventTypeMap });
+describe('broker-adpt event-publisher', () => {
+  const harness = createCdcTestHarness({ serviceName: 'broker-adpt', eventTypeMap });
 
   it('publishes VIRTUAL_TRADE_CREATED for VirtualTrade INSERT', async () => {
     const result = await harness.process([

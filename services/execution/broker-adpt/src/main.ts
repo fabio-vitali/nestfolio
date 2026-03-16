@@ -1,11 +1,11 @@
 import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
-import { ExecutionAdptStack } from './service.stack';
+import { BrokerAdptStack } from './service.stack';
 
 const app = new App();
-const config = resolvePipelineConfig(app, 'execution-adpt');
+const config = resolvePipelineConfig(app, 'broker-adpt');
 
-new ExecutionAdptStack(app, `${config.prefix}-execution-adpt`, {
+new BrokerAdptStack(app, `${config.prefix}-broker-adpt`, {
   prefix: config.prefix,
   env: {
     account: config.account ?? process.env['CDK_DEFAULT_ACCOUNT'],

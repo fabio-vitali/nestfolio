@@ -12,7 +12,7 @@ module.exports = {
     '^@nestfolio/investor-bff/domain$': '<rootDir>/../../investor/investor-bff/src/domain/index.ts',
     '^@nestfolio/advisory-bff/domain$': '<rootDir>/../../advisory/advisory-bff/src/domain/index.ts',
     '^@nestfolio/compliance-ctrl/domain$': '<rootDir>/../../advisory/compliance-ctrl/src/domain/index.ts',
-    '^@nestfolio/execution-adpt/domain$': '<rootDir>/../../execution/execution-adpt/src/domain/index.ts',
+    '^@nestfolio/broker-adpt/service$': '<rootDir>/../../execution/broker-adpt/src/domain/index.ts',
     '^@nestfolio/reconciliation-ctrl/domain$': '<rootDir>/../../ledger/reconciliation-ctrl/src/domain/index.ts',
   },
   transform: {

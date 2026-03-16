@@ -40,7 +40,7 @@
       "@nestfolio/advisory-bff/domain": ["services/advisory/advisory-bff/src/domain/index.ts"],
       "@nestfolio/compliance-ctrl/domain": ["services/advisory/compliance-ctrl/src/domain/index.ts"],
       "@nestfolio/execution-ctrl/domain": ["services/execution/execution-ctrl/src/domain/index.ts"],
-      "@nestfolio/execution-adpt/domain": ["services/execution/execution-adpt/src/domain/index.ts"],
+      "@nestfolio/broker-adpt/service": ["services/execution/broker-adpt/src/domain/index.ts"],
       "@nestfolio/ledger-ctrl/domain": ["services/ledger/ledger-ctrl/src/domain/index.ts"],
       "@nestfolio/reconciliation-ctrl/domain": ["services/ledger/reconciliation-ctrl/src/domain/index.ts"]
     }

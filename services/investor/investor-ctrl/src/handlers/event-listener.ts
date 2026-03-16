@@ -3,7 +3,7 @@ import { createEventHandler, skip, type EventPayload, type EventContext } from '
 import { requireEnv } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/domain';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/domain';
-import { ExecutionAdptEventTypes } from '@nestfolio/execution-adpt/domain';
+import { ExecutionAdptEventTypes } from '@nestfolio/broker-adpt/service';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/domain';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationLifecycleService } from '../services/notification-lifecycle.service';

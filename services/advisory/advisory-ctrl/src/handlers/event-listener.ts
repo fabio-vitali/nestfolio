@@ -5,7 +5,7 @@ import { logger } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/domain';
 import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/domain';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/domain';
-import { ExecutionAdptEventTypes } from '@nestfolio/execution-adpt/domain';
+import { ExecutionAdptEventTypes } from '@nestfolio/broker-adpt/service';
 import { ReconciliationEventTypes } from '@nestfolio/reconciliation-ctrl/domain';
 import { DecisionRepository } from '../repositories/decision.repository';
 import { DecisionLifecycleService } from '../services/decision-lifecycle.service';

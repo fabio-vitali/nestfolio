@@ -2,7 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { getTime, logger } from '@nestfolio/event-processor';
-import { ExecutionAdptEventTypes } from '@nestfolio/execution-adpt/domain';
+import { ExecutionAdptEventTypes } from '@nestfolio/broker-adpt/service';
 import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/domain';
 import { LedgerRepository } from '../repositories/ledger.repository';
 import { ShadowFillService, type ProposedTrade } from '../services/shadow-fill.service';
