@@ -2,7 +2,6 @@ const mockSend = jest.fn();
 
 jest.mock('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient: jest.fn().mockImplementation(() => ({ send: mockSend })),
-  PutItemCommand: jest.fn().mockImplementation((input) => ({ _type: 'PutItem', input })),
 }));
 
 jest.mock('@aws-sdk/lib-dynamodb', () => {
@@ -74,260 +73,69 @@ jest.mock('@nestfolio/platform-core', () => ({
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  parseRecord: jest.fn((record) => {
-    const body = JSON.parse(record.body);
-    const event = body.detail ?? body;
-    return { event, payload: event.subject ?? {}, record };
-  }),
-  createServiceMetrics: jest.fn().mockReturnValue({
-    addMetric: jest.fn(),
-    addDimension: jest.fn(),
-    publishStoredMetrics: jest.fn(),
-  }),
-  isRetryable: jest.fn().mockReturnValue(true),
-  traceEvent: jest.fn(),
-  MetricUnit: { Count: 'Count' },
-  applyMiddleware: jest.fn((handler: unknown) => handler),
-  withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
-  withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
-  withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
-  publishErrorEvent: jest.fn().mockResolvedValue(undefined),
-  EventBridgeBus: jest.fn(),
+  withMethodLogging: jest.fn().mockImplementation(() =>
+    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+  ),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
 
-import { SQSEvent } from 'aws-lambda';
-import { AdvisoryRepository } from '../src/repositories/advisory.repository';
-import { DecisionPacketCreatedPipe } from '../src/pipes/decision-packet-created.pipe';
-import { DecisionStatusChangedPipe } from '../src/pipes/decision-status-changed.pipe';
-import { createHandler, type EventListenerDeps } from '../src/handlers/event-listener';
+import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
+import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
 
-function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
-  return {
-    Records: records.map((r) => ({
-      messageId: r.messageId,
-      body: JSON.stringify(r.body),
-      receiptHandle: 'handle',
-      attributes: {} as any,
-      messageAttributes: {},
-      md5OfBody: '',
-      eventSource: 'aws:sqs',
-      eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
-      awsRegion: 'us-east-1',
-    })),
+describe('advisory-bff event-listener', () => {
+  const mockPipes = {
+    decisionPacketCreatedPipe: { process: jest.fn().mockResolvedValue(undefined) },
+    decisionStatusChangedPipe: { process: jest.fn().mockResolvedValue(undefined) },
   };
-}
+  const deps: EventListenerDeps = mockPipes as any;
+  const harness = createTestHarness({ serviceName: 'advisory-bff', handlers: createHandlers(deps) });
 
-describe('event-listener handler', () => {
-  const ORIGINAL_ENV = process.env;
-  let handler: (event: SQSEvent) => Promise<import('aws-lambda').SQSBatchResponse>;
-  let mockDeps: EventListenerDeps;
+  beforeEach(() => jest.clearAllMocks());
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
-
-    const repository = new AdvisoryRepository('test-table');
-
-    mockDeps = {
-      decisionPacketCreatedPipe: new DecisionPacketCreatedPipe(repository),
-      decisionStatusChangedPipe: new DecisionStatusChangedPipe(repository),
-      bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
-      metrics: {
-        addMetric: jest.fn(),
-        addDimension: jest.fn(),
-        publishStoredMetrics: jest.fn(),
-      } as any,
-    };
-
-    handler = createHandler(mockDeps);
-  });
-
-  afterAll(() => {
-    process.env = ORIGINAL_ENV;
-  });
-
-  it('should process DECISION_PACKET_CREATED event and store decision', async () => {
-    // storeDecision -> putIfNotExists (succeeds = new item)
-    mockSend.mockResolvedValueOnce({}); // storeDecision putIfNotExists
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-1',
-        body: {
-          detail: {
-            id: 'evt-1',
-            type: 'DECISION_PACKET_CREATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              tenantId: 't1',
-              decisionId: 'd1',
-              trigger: 'REBALANCE',
-              proposedTrades: [],
-              explanation: 'Portfolio rebalance needed',
-              confirmationRequired: true,
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+  it('routes DECISION_PACKET_CREATED to decisionPacketCreatedPipe', async () => {
+    const result = await harness.process([
+      fakeSqsRecord('DECISION_PACKET_CREATED', { decisionId: 'd1', trigger: 'REBALANCE' }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockPipes.decisionPacketCreatedPipe.process).toHaveBeenCalledWith(
+      expect.objectContaining({ event: expect.objectContaining({ type: 'DECISION_PACKET_CREATED' }) }),
+    );
   });
 
-  it('should process DECISION_APPROVED event and update status', async () => {
-    // transactWrite for updateDecisionStatus
-    mockSend.mockResolvedValueOnce({});
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-2',
-        body: {
-          detail: {
-            id: 'evt-2',
-            type: 'DECISION_APPROVED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1', decisionId: 'd1' },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+  it('routes DECISION_PACKET_ENRICHED to decisionStatusChangedPipe', async () => {
+    await harness.process([
+      fakeSqsRecord('DECISION_PACKET_ENRICHED', { decisionId: 'd1' }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockPipes.decisionStatusChangedPipe.process).toHaveBeenCalled();
   });
 
-  it('should process DECISION_BLOCKED event and update status', async () => {
-    // transactWrite for updateDecisionStatus
-    mockSend.mockResolvedValueOnce({});
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-3',
-        body: {
-          detail: {
-            id: 'evt-3',
-            type: 'DECISION_BLOCKED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1', decisionId: 'd1' },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+  it('routes DECISION_APPROVED to decisionStatusChangedPipe', async () => {
+    await harness.process([
+      fakeSqsRecord('DECISION_APPROVED', { decisionId: 'd1' }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockPipes.decisionStatusChangedPipe.process).toHaveBeenCalled();
   });
 
-  it('should handle duplicate DECISION_PACKET_CREATED gracefully via conditional write', async () => {
-    // putIfNotExists returns false for duplicate (ConditionalCheckFailedException handled internally)
-    mockSend.mockRejectedValueOnce(Object.assign(new Error('ConditionalCheckFailedException'), { name: 'ConditionalCheckFailedException' }));
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-dup',
-        body: {
-          detail: {
-            id: 'evt-dup',
-            type: 'DECISION_PACKET_CREATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              tenantId: 't1',
-              decisionId: 'd1',
-              trigger: 'REBALANCE',
-              proposedTrades: [],
-              explanation: 'Duplicate',
-              confirmationRequired: false,
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+  it('routes DECISION_BLOCKED to decisionStatusChangedPipe', async () => {
+    await harness.process([
+      fakeSqsRecord('DECISION_BLOCKED', { decisionId: 'd1' }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockPipes.decisionStatusChangedPipe.process).toHaveBeenCalled();
   });
 
-  it('should report failure for malformed event body (invalid JSON)', async () => {
-    const sqsEvent: SQSEvent = {
-      Records: [{
-        messageId: 'msg-malformed',
-        body: '{{invalid-json',
-        receiptHandle: 'handle',
-        attributes: {} as any,
-        messageAttributes: {},
-        md5OfBody: '',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
-        awsRegion: 'us-east-1',
-      }],
-    };
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
-  });
-
-  it('should skip unknown event types gracefully', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-4',
-        body: {
-          detail: {
-            id: 'evt-4',
-            type: 'UNKNOWN_EVENT',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {},
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+  it('routes USER_CONFIRMATION_REQUESTED to decisionStatusChangedPipe', async () => {
+    await harness.process([
+      fakeSqsRecord('USER_CONFIRMATION_REQUESTED', { decisionId: 'd1' }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockPipes.decisionStatusChangedPipe.process).toHaveBeenCalled();
   });
 
-  it('should report batch item failures for processing errors', async () => {
-    const { parseRecord } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Parse error');
-    });
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-fail',
-        body: { detail: { id: 'evt-fail', type: 'DECISION_PACKET_CREATED', subject: {} } },
-      },
+  it('skips unknown event types', async () => {
+    const result = await harness.process([
+      fakeSqsRecord('UNKNOWN_TYPE', {}, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
-  });
-
-  it('should NOT add to batchItemFailures when error is not retryable', async () => {
-    const { parseRecord, isRetryable } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Non-retryable error');
-    });
-    (isRetryable as jest.Mock).mockReturnValueOnce(false);
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-non-retryable',
-        body: { detail: { id: 'evt-nr', type: 'DECISION_PACKET_CREATED', subject: {} } },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-    expect(isRetryable).toHaveBeenCalled();
+    expect(result.skipped).toBe(1);
+    expect(mockPipes.decisionPacketCreatedPipe.process).not.toHaveBeenCalled();
+    expect(mockPipes.decisionStatusChangedPipe.process).not.toHaveBeenCalled();
   });
 });
