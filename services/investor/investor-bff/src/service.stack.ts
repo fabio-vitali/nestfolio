@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { ServiceStack, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs';
@@ -16,10 +17,7 @@ export class InvestorBffStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       publishableTypes: ['Goal', 'RiskProfile', 'Mandate', 'OperatingModeRecord', 'InvestorProfile', 'Deposit', 'Withdrawal'],
-      customEventTypeMap: {
-        'Deposit:INSERT': 'DEPOSIT_INITIATED',
-        'Withdrawal:INSERT': 'WITHDRAWAL_REQUESTED',
-      },
+      handlerEntry: join(__dirname, 'handlers/event-publisher.ts'),
     });
 
     new Facade(this, 'Facade', {

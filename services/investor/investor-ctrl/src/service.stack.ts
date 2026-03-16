@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { ServiceStack, Ingress, Egress } from '@nestfolio/cdk-constructs';
@@ -21,6 +22,7 @@ export class InvestorCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       publishableTypes: ['Notification', 'MonthlyReport'],
+      handlerEntry: join(__dirname, 'handlers/event-publisher.ts'),
     });
 
     this.addObservability({ ingress: triggerIngress, egress });
