@@ -1,5 +1,5 @@
 import { logger } from '@nestfolio/event-processor';
-import { withMethodLogging } from '@nestfolio/lambda-utils';
+import { withMethodLogging } from '@nestfolio/event-processor';
 
 const US_MARKET_HOLIDAYS: Record<number, string[]> = {
   2024: [

@@ -5,7 +5,7 @@
 import { PostAuthenticationTriggerEvent, Context } from 'aws-lambda';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { randomUUID } from 'crypto';
-import { requireEnv } from '@nestfolio/lambda-utils';
+import { requireEnv } from '@nestfolio/event-processor';
 
 const ebClient = new EventBridgeClient({});
 const BUS_NAME = requireEnv('BUS_NAME');

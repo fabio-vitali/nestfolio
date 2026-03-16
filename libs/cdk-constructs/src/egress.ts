@@ -7,7 +7,7 @@ import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { ServiceStack } from './service-stack';
 import { defaultLambdaProps } from './default-lambda-props';
-import { EVENT_PUBLISHER_ENTRY } from '@nestfolio/lambda-utils';
+import { EVENT_PUBLISHER_ENTRY } from '@nestfolio/event-processor';
 
 export interface EgressProps {
   /** DynamoDB __typename values to publish events for */

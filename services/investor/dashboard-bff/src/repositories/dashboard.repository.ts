@@ -5,7 +5,7 @@ import {
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
-import { withMethodLogging, guardedWrite } from '@nestfolio/lambda-utils';
+import { withMethodLogging, guardedWrite } from '@nestfolio/event-processor';
 
 function dashboardPk(tenantId: string): string {
   return `Dashboard#${tenantId}`;

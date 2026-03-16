@@ -5,7 +5,7 @@ import {
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getUUID, getTime, NotRetryableError, type TableEntry } from '@nestfolio/event-processor';
-import { withMethodLogging } from '@nestfolio/lambda-utils';
+import { withMethodLogging } from '@nestfolio/event-processor';
 import { EntityNotFoundError } from '@nestfolio/domain-core';
 import type {
   Goal,

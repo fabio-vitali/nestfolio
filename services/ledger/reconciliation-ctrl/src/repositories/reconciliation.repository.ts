@@ -5,7 +5,7 @@ import {
   PutCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
-import { withMethodLogging } from '@nestfolio/lambda-utils';
+import { withMethodLogging } from '@nestfolio/event-processor';
 
 function reconciliationPk(tenantId: string, reconciliationId: string): string {
   return `Reconciliation#${tenantId}#${reconciliationId}`;

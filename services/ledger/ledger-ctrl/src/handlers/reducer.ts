@@ -9,7 +9,7 @@ import {
   applyMiddleware,
   withLambdaContext,
   withTiming,
-} from '@nestfolio/lambda-utils';
+} from '@nestfolio/event-processor';
 import {
   replayEvents,
   INITIAL_ACCOUNT_STATE,

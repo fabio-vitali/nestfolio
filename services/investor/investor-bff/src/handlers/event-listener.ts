@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
-import { requireEnv } from '@nestfolio/lambda-utils';
+import { requireEnv } from '@nestfolio/event-processor';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { UserRegisteredPipe } from '../pipes/user-registered.pipe';
 import { NotificationCreatedPipe } from '../pipes/notification-created.pipe';

@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { UpdateCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
-import { withMethodLogging } from '@nestfolio/lambda-utils';
+import { withMethodLogging } from '@nestfolio/event-processor';
 
 export interface LedgerEntryItem {
   readonly tenantId: string;

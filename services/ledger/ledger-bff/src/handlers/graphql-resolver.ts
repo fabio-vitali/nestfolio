@@ -10,7 +10,7 @@ import {
   withTiming,
   withErrorPublishing,
   EventBridgeBus,
-} from '@nestfolio/lambda-utils';
+} from '@nestfolio/event-processor';
 import { INITIAL_ACCOUNT_STATE } from '@nestfolio/command-core';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 import { TimeTravelService } from '../services/time-travel.service';

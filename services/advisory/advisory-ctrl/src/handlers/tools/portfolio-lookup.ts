@@ -3,7 +3,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { logger } from '@nestfolio/event-processor';
-import { requireEnv } from '@nestfolio/lambda-utils';
+import { requireEnv } from '@nestfolio/event-processor';
 
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));

@@ -6,7 +6,7 @@ import { PostConfirmationTriggerEvent, Context } from 'aws-lambda';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { CognitoIdentityProviderClient, AdminUpdateUserAttributesCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { randomUUID } from 'crypto';
-import { requireEnv } from '@nestfolio/lambda-utils';
+import { requireEnv } from '@nestfolio/event-processor';
 
 const ebClient = new EventBridgeClient({});
 const cognitoClient = new CognitoIdentityProviderClient({});

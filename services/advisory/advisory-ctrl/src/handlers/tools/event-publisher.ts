@@ -2,7 +2,7 @@
 // Publishes events to the advisory EventBridge bus
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { logger } from '@nestfolio/event-processor';
-import { requireEnv } from '@nestfolio/lambda-utils';
+import { requireEnv } from '@nestfolio/event-processor';
 
 const BUS_NAME = requireEnv('BUS_NAME');
 const client = new EventBridgeClient({});
