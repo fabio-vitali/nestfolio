@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 import { EntityNotFoundError } from '@nestfolio/domain-core';
 import type { MandateSnapshot } from '../rules/rule-engine';

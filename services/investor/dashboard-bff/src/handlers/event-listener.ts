@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/lambda-utils';
-import { type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/platform-core';
+import { type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/event-processor';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { PortfolioSummaryPipe } from '../pipes/portfolio-summary.pipe';
 import { PositionSnapshotPipe } from '../pipes/position-snapshot.pipe';

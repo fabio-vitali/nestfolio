@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
-import type { BusEvent } from '@nestfolio/platform-core';
+import type { BusEvent } from '@nestfolio/event-processor';
 
 function decisionPk(tenantId: string, dpId: string): string {
   return `DecisionPacket#${tenantId}#${dpId}`;

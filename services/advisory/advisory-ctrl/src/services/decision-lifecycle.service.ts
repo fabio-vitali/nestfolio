@@ -1,4 +1,4 @@
-import { logger, type BusEvent } from '@nestfolio/platform-core';
+import { logger, type BusEvent } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 import type { ProposedTrade } from '@nestfolio/domain-core';
 import {

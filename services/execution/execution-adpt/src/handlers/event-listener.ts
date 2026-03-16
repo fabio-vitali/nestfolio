@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger, NotRetryableError } from '@nestfolio/platform-core';
+import { logger, NotRetryableError } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/lambda-utils';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';

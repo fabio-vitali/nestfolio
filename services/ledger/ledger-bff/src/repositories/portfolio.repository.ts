@@ -5,7 +5,7 @@ import {
   QueryCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 
 export interface PositionRecord {

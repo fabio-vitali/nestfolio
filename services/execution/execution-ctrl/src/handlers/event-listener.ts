@@ -1,4 +1,4 @@
-import { logger } from '@nestfolio/platform-core';
+import { logger } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/lambda-utils';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';

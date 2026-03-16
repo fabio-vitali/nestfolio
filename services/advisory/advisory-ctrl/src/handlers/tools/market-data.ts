@@ -1,6 +1,6 @@
 // Handler for AgentCore Gateway tool: market-data
 // Uses shared MarketDataProvider for consistent data across services
-import { logger, StaticMarketDataProvider, CachedMarketDataProvider, type MarketDataProvider } from '@nestfolio/platform-core';
+import { logger, StaticMarketDataProvider, CachedMarketDataProvider, type MarketDataProvider } from '@nestfolio/event-processor';
 
 const provider: MarketDataProvider = new CachedMarketDataProvider(
   new StaticMarketDataProvider(),

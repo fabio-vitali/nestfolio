@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, NotRetryableError } from '@nestfolio/lambda-utils';
-import { logger } from '@nestfolio/platform-core';
+import { logger } from '@nestfolio/event-processor';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';

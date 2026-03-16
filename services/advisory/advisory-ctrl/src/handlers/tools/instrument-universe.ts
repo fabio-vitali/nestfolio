@@ -1,6 +1,6 @@
 // Handler for AgentCore Gateway tool: instrument-universe
 // Returns the approved instrument universe for portfolio construction
-import { logger } from '@nestfolio/platform-core';
+import { logger } from '@nestfolio/event-processor';
 
 const DEFAULT_UNIVERSE = [
   { ticker: 'VTI', name: 'Vanguard Total Stock Market', assetClass: 'EQUITY', region: 'US', expenseRatio: 0.03, riskCategory: 'MEDIUM' },

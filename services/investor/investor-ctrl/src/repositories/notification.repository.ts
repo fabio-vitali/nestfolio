@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 
 function notificationPk(tenantId: string, notificationId: string): string {

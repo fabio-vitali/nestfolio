@@ -1,4 +1,4 @@
-import { logger, type BusEvent } from '@nestfolio/platform-core';
+import { logger, type BusEvent } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationDeliveryService, type DeliveryResult } from './notification-delivery.service';

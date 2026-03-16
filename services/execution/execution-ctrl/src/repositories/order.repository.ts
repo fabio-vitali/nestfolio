@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 import type { ProposedTrade } from '@nestfolio/domain-core';
 

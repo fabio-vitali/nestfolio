@@ -1,7 +1,7 @@
 import { DynamoDBStreamEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
-import { logger } from '@nestfolio/platform-core';
+import { logger } from '@nestfolio/event-processor';
 import {
   requireEnv,
   createServiceMetrics,

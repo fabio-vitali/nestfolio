@@ -1,5 +1,5 @@
 import { type ZodType } from 'zod';
-import { type Result, ok, err } from '@nestfolio/platform-core';
+import { type Result, ok, err } from '@nestfolio/event-processor';
 
 export type Patches = ReadonlyArray<{
   readonly op: 'add' | 'replace' | 'remove';

@@ -1,6 +1,6 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger } from '@nestfolio/platform-core';
+import { logger } from '@nestfolio/event-processor';
 import {
   requireEnv,
   authorizeTenant,

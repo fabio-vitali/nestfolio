@@ -1,4 +1,4 @@
-import { logger, NotRetryableError } from '@nestfolio/platform-core';
+import { logger, NotRetryableError } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from './market-data.service';

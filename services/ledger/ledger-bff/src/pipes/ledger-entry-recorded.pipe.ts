@@ -1,4 +1,4 @@
-import { type Pipe, type UnitOfWork, type BusEvent, logger } from '@nestfolio/platform-core';
+import { type Pipe, type UnitOfWork, type BusEvent, logger } from '@nestfolio/event-processor';
 import { PortfolioRepository, type PositionRecord } from '../repositories/portfolio.repository';
 
 type LedgerEntryPayload = {

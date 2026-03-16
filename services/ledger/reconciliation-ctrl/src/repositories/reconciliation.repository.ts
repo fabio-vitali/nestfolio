@@ -4,7 +4,7 @@ import {
   DeleteCommand,
   PutCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/platform-core';
+import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/lambda-utils';
 
 function reconciliationPk(tenantId: string, reconciliationId: string): string {

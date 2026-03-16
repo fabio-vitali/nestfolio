@@ -1,4 +1,4 @@
-import { StaticMarketDataProvider, CachedMarketDataProvider, KNOWN_SYMBOLS, type MarketDataProvider } from '@nestfolio/platform-core';
+import { StaticMarketDataProvider, CachedMarketDataProvider, KNOWN_SYMBOLS, type MarketDataProvider } from '@nestfolio/event-processor';
 
 const provider: MarketDataProvider = new CachedMarketDataProvider(
   new StaticMarketDataProvider(),
