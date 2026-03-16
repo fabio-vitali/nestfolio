@@ -24,7 +24,8 @@ const mockQuotePrices: Record<string, number> = {
   VGSH: 58.10, VCIT: 80.55, VWO: 43.20, IEMG: 52.80, XLF: 42.90,
 };
 
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
+  ...jest.requireActual('@nestfolio/event-processor'),
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
@@ -72,15 +73,13 @@ jest.mock('@nestfolio/platform-core', () => ({
       return { symbol, price, change: 0, changePercent: 0, volume: 1000, timestamp: '2026-01-01' };
     }),
   })),
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-}));
 
+}));
 jest.mock('@nestfolio/command-core', () => ({}));
 
 process.env.TABLE_NAME = 'test-table';

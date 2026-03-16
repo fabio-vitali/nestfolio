@@ -1,16 +1,12 @@
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
+
 }));
-
-jest.mock('@nestfolio/domain-core', () => ({}));
-
-import { type BusEvent, type UnitOfWork, logger } from '@nestfolio/platform-core';
+import { type BusEvent, type UnitOfWork, logger } from '@nestfolio/event-processor';
 import { DecisionPacketCreatedPipe } from '../src/pipes/decision-packet-created.pipe';
 
 type Payload = {

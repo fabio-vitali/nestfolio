@@ -18,7 +18,7 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
@@ -48,16 +48,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
-}));
 
-class MockNotRetryableError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'NotRetryableError';
-  }
-}
-
-jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   authorizeTenant: (event: { identity?: Record<string, unknown> }) => {
     const claims = event.identity as Record<string, unknown> | undefined;
@@ -74,7 +65,14 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   ),
   withErrorPublishing: jest.fn().mockReturnValue((fn: unknown) => fn),
   EventBridgeBus: jest.fn(),
+
 }));
+class MockNotRetryableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotRetryableError';
+  }
+}
 
 jest.mock('@nestfolio/command-core', () => ({
   INITIAL_ACCOUNT_STATE: {

@@ -1,4 +1,4 @@
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
   StaticMarketDataProvider: jest.fn().mockImplementation(() => ({})),
   CachedMarketDataProvider: jest.fn().mockImplementation(() => ({
@@ -15,8 +15,8 @@ jest.mock('@nestfolio/platform-core', () => ({
       { rateType: 'treasury30Y', value: 4.30, asOf: '2026-03-01' },
     ]),
   })),
-}));
 
+}));
 import { handler } from '../src/handlers/tools/market-data';
 
 describe('market-data tool handler', () => {

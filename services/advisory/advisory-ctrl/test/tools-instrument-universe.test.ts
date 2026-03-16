@@ -1,7 +1,7 @@
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
-}));
 
+}));
 import { handler } from '../src/handlers/tools/instrument-universe';
 
 describe('instrument-universe tool handler', () => {

@@ -19,10 +19,10 @@ jest.mock('crypto', () => ({
     .mockReturnValueOnce('event-uuid-1'),
 }));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-}));
 
+}));
 const buildEvent = (overrides: Partial<PostConfirmationTriggerEvent> = {}): PostConfirmationTriggerEvent => ({
   version: '1',
   region: 'us-east-1',

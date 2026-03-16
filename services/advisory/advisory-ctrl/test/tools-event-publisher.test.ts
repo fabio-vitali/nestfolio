@@ -8,14 +8,12 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand: jest.fn().mockImplementation((input) => ({ _type: 'PutEvents', input })),
 }));
 
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-}));
 
+}));
 import { handler } from '../src/handlers/tools/event-publisher';
 
 describe('event-publisher tool handler', () => {

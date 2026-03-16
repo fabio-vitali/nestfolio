@@ -19,7 +19,8 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
+  ...jest.requireActual('@nestfolio/event-processor'),
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
@@ -69,17 +70,13 @@ jest.mock('@nestfolio/platform-core', () => ({
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   withMethodLogging: jest.fn().mockImplementation(() =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
+
 }));
-
-jest.mock('@nestfolio/domain-core', () => ({}));
-
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
 

@@ -19,7 +19,7 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
@@ -73,23 +73,19 @@ jest.mock('@nestfolio/platform-core', () => ({
       this.name = 'NotRetryableError';
     }
   },
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-}));
 
-jest.mock('@nestfolio/domain-core', () => ({
   EntityNotFoundError: class EntityNotFoundError extends Error {
     constructor(public entityType: string, public entityId: string) {
       super(`${entityType} with id '${entityId}' not found`);
       this.name = 'EntityNotFoundError';
     }
   },
-}));
 
+}));
 import { InvestorProfileRepository } from '../../src/repositories/investor-profile.repository';
 
 describe('InvestorProfileRepository', () => {

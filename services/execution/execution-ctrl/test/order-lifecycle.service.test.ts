@@ -1,16 +1,12 @@
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
+
 }));
-
-jest.mock('@nestfolio/domain-core', () => ({}));
-
 import { OrderLifecycleService } from '../src/services/order-lifecycle.service';
 
 describe('OrderLifecycleService', () => {

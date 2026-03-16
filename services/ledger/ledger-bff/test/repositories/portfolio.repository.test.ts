@@ -18,7 +18,7 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
@@ -48,14 +48,12 @@ jest.mock('@nestfolio/platform-core', () => ({
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-}));
 
+}));
 import { PortfolioRepository } from '../../src/repositories/portfolio.repository';
 
 describe('PortfolioRepository', () => {

@@ -20,7 +20,8 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
+  ...jest.requireActual('@nestfolio/event-processor'),
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
@@ -74,9 +75,7 @@ jest.mock('@nestfolio/platform-core', () => ({
       this.name = 'NotRetryableError';
     }
   },
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   NotRetryableError: class NotRetryableError extends Error {
     constructor(message: string) {
@@ -85,16 +84,14 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     }
   },
   withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
-}));
 
-jest.mock('@nestfolio/domain-core', () => ({
   EntityNotFoundError: class extends Error {
     constructor(public entityType: string, public entityId: string) {
       super(`${entityType} with id '${entityId}' not found`);
     }
   },
-}));
 
+}));
 process.env.TABLE_NAME = 'test-table';
 
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';

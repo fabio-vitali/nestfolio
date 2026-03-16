@@ -1,15 +1,11 @@
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
+
 }));
-
-jest.mock('@nestfolio/domain-core', () => ({}));
-
 import { SafetyChecksService } from '../src/services/safety-checks.service';
 
 describe('SafetyChecksService', () => {

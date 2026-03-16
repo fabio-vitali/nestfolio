@@ -1,13 +1,11 @@
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn() },
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-}));
 
+}));
 import { NotificationDeliveryService } from '../src/services/notification-delivery.service';
 
 describe('NotificationDeliveryService', () => {

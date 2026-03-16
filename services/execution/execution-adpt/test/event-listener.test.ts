@@ -27,7 +27,8 @@ const mockEventListenerQuotePrices: Record<string, number> = {
   VGSH: 58.10, VCIT: 80.55, VWO: 43.20, IEMG: 52.80, XLF: 42.90,
 };
 
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
+  ...jest.requireActual('@nestfolio/event-processor'),
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
@@ -84,11 +85,7 @@ jest.mock('@nestfolio/platform-core', () => ({
     }),
   })),
   KNOWN_SYMBOLS: Object.keys(mockEventListenerQuotePrices),
-}));
 
-const mockGuardedWrite = jest.fn().mockResolvedValue(true);
-
-jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   NotRetryableError: class NotRetryableError extends Error {
     constructor(message: string) {
@@ -100,7 +97,9 @@ jest.mock('@nestfolio/lambda-utils', () => ({
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
   guardedWrite: (...args: unknown[]) => mockGuardedWrite(...args),
+
 }));
+const mockGuardedWrite = jest.fn().mockResolvedValue(true);
 
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';

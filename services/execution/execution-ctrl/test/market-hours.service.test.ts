@@ -1,13 +1,11 @@
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-}));
 
+}));
 import { MarketHoursService } from '../src/services/market-hours.service';
 
 describe('MarketHoursService', () => {
@@ -164,7 +162,7 @@ describe('MarketHoursService', () => {
     });
 
     it('should log warning for year with no holiday calendar (2028)', async () => {
-      const { logger } = require('@nestfolio/platform-core');
+      const { logger } = require('@nestfolio/event-processor');
       jest.spyOn(Date.prototype, 'toLocaleString').mockReturnValue('1/15/2028, 10:00:00 AM');
       jest.spyOn(Date.prototype, 'getDay').mockReturnValue(6); // Saturday (simplest to get false)
       jest.spyOn(Date.prototype, 'getHours').mockReturnValue(10);

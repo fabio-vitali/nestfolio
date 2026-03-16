@@ -1,14 +1,12 @@
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   guardedWrite: jest.fn().mockResolvedValue(true),
-}));
 
-import { type BusEvent, type UnitOfWork } from '@nestfolio/platform-core';
+}));
+import { type BusEvent, type UnitOfWork } from '@nestfolio/event-processor';
 import { PortfolioSummaryPipe } from '../../src/pipes/portfolio-summary.pipe';
 
 describe('PortfolioSummaryPipe', () => {

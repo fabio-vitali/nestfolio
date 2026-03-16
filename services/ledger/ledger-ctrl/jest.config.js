@@ -22,5 +22,7 @@ module.exports = {
     '^@nestfolio/cdk-constructs$': '<rootDir>/../../../libs/cdk-constructs/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
+    '^@nestfolio/execution-adpt/domain$': '<rootDir>/../../execution/execution-adpt/src/domain/index.ts',
+    '^@nestfolio/advisory-ctrl/domain$': '<rootDir>/../../advisory/advisory-ctrl/src/domain/index.ts',
   },
 };

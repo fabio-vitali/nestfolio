@@ -31,7 +31,7 @@ jest.mock('@aws-sdk/util-dynamodb', () => ({
   }),
 }));
 
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   ok: <T>(value: T) => ({ ok: true, value }),
   err: <E>(error: E) => ({ ok: false, error }),
   TableRepository: class {
@@ -67,9 +67,7 @@ jest.mock('@nestfolio/platform-core', () => ({
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   createServiceMetrics: jest.fn().mockReturnValue({
     addMetric: jest.fn(),
@@ -83,8 +81,8 @@ jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-}));
 
+}));
 import { DynamoDBStreamEvent } from 'aws-lambda';
 import { createReducer } from '../../src/handlers/reducer';
 import { LedgerRepository } from '../../src/repositories/ledger.repository';

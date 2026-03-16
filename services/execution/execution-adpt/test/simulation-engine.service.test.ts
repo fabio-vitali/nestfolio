@@ -1,4 +1,4 @@
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   getUUID: jest.fn().mockReturnValue('test-trade-id'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
@@ -8,14 +8,12 @@ jest.mock('@nestfolio/platform-core', () => ({
       this.name = 'NotRetryableError';
     }
   },
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-}));
 
+}));
 import { SimulationEngineService } from '../src/services/simulation-engine.service';
 import { MarketDataService } from '../src/services/market-data.service';
 import { VirtualLedgerRepository } from '../src/repositories/virtual-ledger.repository';

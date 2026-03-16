@@ -1,6 +1,6 @@
 const mockGetQuote = jest.fn();
 
-jest.mock('@nestfolio/platform-core', () => ({
+jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
   StaticMarketDataProvider: jest.fn().mockImplementation(() => ({})),
   CachedMarketDataProvider: jest.fn().mockImplementation(() => ({
@@ -10,14 +10,12 @@ jest.mock('@nestfolio/platform-core', () => ({
     'VTI', 'VXUS', 'BND', 'VNQ', 'GLD', 'SPY', 'QQQ', 'IWM', 'EFA', 'EEM',
     'TLT', 'AGG', 'VIG', 'SCHD', 'VOO', 'VGSH', 'VCIT', 'VWO', 'IEMG', 'XLF',
   ],
-}));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-}));
 
+}));
 import { MarketDataService } from '../src/services/market-data.service';
 
 describe('MarketDataService', () => {
