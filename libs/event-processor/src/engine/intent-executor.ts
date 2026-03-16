@@ -1,6 +1,6 @@
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { guardedWrite } from '@nestfolio/lambda-utils';
+import { guardedWrite } from '../internal';
 import type { WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent } from '../types/write-intent';
 import type { EventContext } from '../types/event-context';
 import type { IntentResult } from '../types/result-types';

@@ -6,7 +6,7 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand: jest.fn(),
 }));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
+jest.mock('../../src/internal', () => ({
   isRetryable: jest.fn(() => true),
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));

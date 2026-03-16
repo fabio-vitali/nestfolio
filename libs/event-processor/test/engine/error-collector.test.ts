@@ -1,5 +1,5 @@
 import { ErrorCollector } from '../../src/engine/error-collector';
-import { NotRetryableError } from '@nestfolio/lambda-utils';
+import { NotRetryableError } from '../../src/internal';
 
 describe('ErrorCollector', () => {
   let collector: ErrorCollector;

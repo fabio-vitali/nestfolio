@@ -3,7 +3,7 @@ import type { PutEventsRequestEntry } from '@aws-sdk/client-eventbridge';
 import type { StreamRecord, StreamContext } from '../types/stream-types';
 import { StreamEngine } from '../engine/stream-engine';
 import { EventBridgePublisher } from '../util/event-bridge-publisher';
-import { getUUID } from '@nestfolio/platform-core';
+import { getUUID } from '../internal';
 
 export interface ChangeDataCaptureConfig {
   serviceName: string;

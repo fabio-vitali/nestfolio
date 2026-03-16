@@ -1,7 +1,7 @@
 import type { SQSEvent, SQSBatchResponse, Context } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { applyMiddleware, withLambdaContext, withTiming } from '@nestfolio/lambda-utils';
+import { applyMiddleware, withLambdaContext, withTiming } from '../internal';
 import type { HandlerEntry } from '../types/handler-config';
 import { BatchEngine } from '../engine/batch-engine';
 

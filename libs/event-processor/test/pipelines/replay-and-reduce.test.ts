@@ -1,8 +1,8 @@
 import { replayAndReduce, type ReplayAndReduceConfig } from '../../src/pipelines/replay-and-reduce';
 import { fakeDdbStreamRecord } from '../../src/testing/fake-records';
 
-jest.mock('@nestfolio/lambda-utils', () => {
-  const original = jest.requireActual('@nestfolio/lambda-utils');
+jest.mock('../../src/internal', () => {
+  const original = jest.requireActual('../../src/internal');
   return {
     ...original,
     logger: {

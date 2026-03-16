@@ -1,5 +1,5 @@
 import { EventBridgeClient, PutEventsCommand, type PutEventsRequestEntry } from '@aws-sdk/client-eventbridge';
-import { NotRetryableError } from '@nestfolio/lambda-utils';
+import { NotRetryableError } from '../internal';
 
 const BATCH_SIZE = 10;
 const MAX_RETRIES = 2;

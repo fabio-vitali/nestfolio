@@ -1,5 +1,5 @@
 import { EventBridgePublisher } from '../../src/util/event-bridge-publisher';
-import { NotRetryableError } from '@nestfolio/lambda-utils';
+import { NotRetryableError } from '../../src/internal';
 
 const mockSend = jest.fn();
 jest.mock('@aws-sdk/client-eventbridge', () => ({

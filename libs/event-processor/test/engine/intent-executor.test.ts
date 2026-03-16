@@ -2,10 +2,10 @@ import { IntentExecutor } from '../../src/engine/intent-executor';
 import type { EventContext } from '../../src/types/event-context';
 import type { RecordIntent, ProjectIntent, AccumulateIntent, SkipIntent } from '../../src/types/write-intent';
 
-// Mock guardedWrite from lambda-utils
+// Mock guardedWrite from internal
 const mockGuardedWrite = jest.fn().mockResolvedValue(true);
 
-jest.mock('@nestfolio/lambda-utils', () => ({
+jest.mock('../../src/internal', () => ({
   guardedWrite: (...args: unknown[]) => mockGuardedWrite(...args),
   NotRetryableError: class NotRetryableError extends Error {},
 }));

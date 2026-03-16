@@ -1,6 +1,5 @@
 import type { DynamoDBStreamEvent } from 'aws-lambda';
-import { isRetryable } from '@nestfolio/lambda-utils';
-import { logger } from '@nestfolio/platform-core';
+import { isRetryable, logger } from '../internal';
 import type { StreamRecord, StreamContext } from '../types/stream-types';
 import { unmarshalStream } from '../util/unmarshal-stream';
 import { StreamCollector } from './stream-collector';

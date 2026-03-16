@@ -7,7 +7,7 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand: jest.fn().mockImplementation((input) => input),
 }));
 
-jest.mock('@nestfolio/lambda-utils', () => ({
+jest.mock('../../src/internal', () => ({
   logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn() },
   getUUID: jest.fn(() => 'uuid-123'),
   getTime: jest.fn(() => '2026-01-01T00:00:00Z'),

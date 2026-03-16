@@ -6,7 +6,7 @@ import type { SQSRecord, DynamoDBRecord } from 'aws-lambda';
 import { normalizeHandler } from '../engine/normalize-handler';
 import { unmarshalStream } from '../util/unmarshal-stream';
 import { groupBy as groupByUtil } from '../util/group-by';
-import { isRetryable } from '@nestfolio/lambda-utils';
+import { isRetryable } from '../internal';
 
 export interface TestHarnessConfig {
   serviceName: string;

@@ -2,8 +2,8 @@ import { StreamEngine, type StreamEngineConfig } from '../../src/engine/stream-e
 import { fakeDdbStreamRecord } from '../../src/testing/fake-records';
 import type { DynamoDBStreamEvent } from 'aws-lambda';
 
-// Mock lambda-utils
-jest.mock('@nestfolio/lambda-utils', () => ({
+// Mock internal utilities
+jest.mock('../../src/internal', () => ({
   logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn(), debug: jest.fn() },
   isRetryable: jest.fn((err: unknown) => !(err as any).notRetryable),
   NotRetryableError: class NotRetryableError extends Error { notRetryable = true; },
@@ -103,7 +103,7 @@ describe('StreamEngine', () => {
   });
 
   it('does NOT throw for non-retryable errors (publishes to bus)', async () => {
-    const { NotRetryableError } = await import('@nestfolio/lambda-utils');
+    const { NotRetryableError } = await import('../../src/internal');
     const engine = new StreamEngine({
       serviceName: 'test',
       busName: 'test-bus',

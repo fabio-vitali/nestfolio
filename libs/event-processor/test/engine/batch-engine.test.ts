@@ -3,8 +3,8 @@ import { record } from '../../src/intents/record';
 import { skip } from '../../src/intents/skip';
 import type { SQSEvent } from 'aws-lambda';
 
-// Minimal mock of lambda-utils
-jest.mock('@nestfolio/lambda-utils', () => ({
+// Minimal mock of internal utilities
+jest.mock('../../src/internal', () => ({
   parseRecord: jest.fn((sqsRecord) => {
     const body = JSON.parse(sqsRecord.body);
     return { event: body.detail ?? body, payload: {}, record: sqsRecord };

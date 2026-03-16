@@ -1,7 +1,7 @@
 import { createEventHandler } from '../../src/pipelines/create-event-handler';
 import { record } from '../../src/intents/record';
 
-jest.mock('@nestfolio/lambda-utils', () => ({
+jest.mock('../../src/internal', () => ({
   parseRecord: jest.fn((sqsRecord) => {
     const body = JSON.parse(sqsRecord.body);
     return { event: body.detail ?? body, payload: {}, record: sqsRecord };
