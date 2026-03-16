@@ -64,278 +64,116 @@ jest.mock('@nestfolio/platform-core', () => ({
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  parseRecord: jest.fn((record) => {
-    const body = JSON.parse(record.body);
-    const event = body.detail ?? body;
-    return { event, payload: event.subject ?? {}, record };
-  }),
-  extractTenantId: jest.fn((event: Record<string, unknown>) => {
-    const context = event.context as Record<string, unknown> | undefined;
-    const subject = event.subject as Record<string, unknown> | undefined;
-    return (context?.tenantId ?? subject?.tenantId ?? 'unknown') as string;
-  }),
-  createServiceMetrics: jest.fn().mockReturnValue({
-    addMetric: jest.fn(),
-    addDimension: jest.fn(),
-    publishStoredMetrics: jest.fn(),
-  }),
-  isRetryable: jest.fn().mockReturnValue(true),
-  traceEvent: jest.fn(),
-  MetricUnit: { Count: 'Count' },
-  applyMiddleware: jest.fn((handler) => handler),
-  withLambdaContext: jest.fn(() => (next: unknown) => next),
-  withTiming: jest.fn(() => (next: unknown) => next),
-  withMethodLogging: jest.fn((_className: string) =>
+  withMethodLogging: jest.fn().mockImplementation(() =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-  publishErrorEvent: jest.fn().mockResolvedValue(undefined),
-  EventBridgeBus: jest.fn(),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
 
-import { SQSEvent } from 'aws-lambda';
-import { createHandler } from '../src/handlers/event-listener';
+import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
+import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
 import { ReconciliationRepository } from '../src/repositories/reconciliation.repository';
 import { ReconciliationService } from '../src/services/reconciliation.service';
 
-function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
-  return {
-    Records: records.map((r) => ({
-      messageId: r.messageId,
-      body: JSON.stringify(r.body),
-      receiptHandle: 'handle',
-      attributes: {} as any,
-      messageAttributes: {},
-      md5OfBody: '',
-      eventSource: 'aws:sqs',
-      eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
-      awsRegion: 'us-east-1',
-    })),
-  };
-}
-
-describe('event-listener handler', () => {
-  const ORIGINAL_ENV = process.env;
-
-  const mockMetrics = {
-    addMetric: jest.fn(),
-    addDimension: jest.fn(),
-    publishStoredMetrics: jest.fn(),
-  };
-
+describe('reconciliation-ctrl event-listener', () => {
   const repository = new ReconciliationRepository('test-table');
   const reconciliationService = new ReconciliationService(repository);
+  const reconcileSpy = jest.spyOn(reconciliationService, 'reconcile').mockResolvedValue(undefined as any);
 
-  let handler: (event: SQSEvent) => Promise<any>;
+  const mockDeps: EventListenerDeps = { reconciliationService };
+
+  const harness = createTestHarness({
+    serviceName: 'reconciliation-ctrl',
+    handlers: createHandlers(mockDeps),
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
-    process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
-
-    handler = createHandler({
-      reconciliationService,
-      bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
-      metrics: mockMetrics as any,
-    });
+    reconcileSpy.mockResolvedValue(undefined as any);
   });
 
-  afterAll(() => {
-    process.env = ORIGINAL_ENV;
-  });
-
-  it('should process PORTFOLIO_SNAPSHOT_IMPORTED event', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-1',
-        body: {
-          detail: {
-            id: 'evt-1',
-            type: 'PORTFOLIO_SNAPSHOT_IMPORTED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              tenantId: 't1',
-              portfolioId: 'p1',
-              positions: [
-                { symbol: 'AAPL', quantity: 100 },
-              ],
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+  it('routes PORTFOLIO_SNAPSHOT_IMPORTED to reconciliation service', async () => {
+    const result = await harness.process([
+      fakeSqsRecord('PORTFOLIO_SNAPSHOT_IMPORTED', {
+        tenantId: 't1', portfolioId: 'p1',
+        positions: [{ symbol: 'AAPL', quantity: 100 }],
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-  });
-
-  it('should process PORTFOLIO_UPDATED event and trigger reconciliation', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-2',
-        body: {
-          detail: {
-            id: 'evt-2',
-            type: 'PORTFOLIO_UPDATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              tenantId: 't1',
-              portfolioId: 'p1',
-              positions: [],
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-  });
-
-  it('should report failure for malformed event body (invalid JSON)', async () => {
-    const sqsEvent: SQSEvent = {
-      Records: [{
-        messageId: 'msg-malformed',
-        body: '{{invalid',
-        receiptHandle: 'handle',
-        attributes: {} as any,
-        messageAttributes: {},
-        md5OfBody: '',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
-        awsRegion: 'us-east-1',
-      }],
-    };
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
-  });
-
-  it('should skip unknown event types gracefully', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-3',
-        body: {
-          detail: {
-            id: 'evt-3',
-            type: 'UNKNOWN_EVENT',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {},
-            context: { tenantId: 't1' },
-          },
-        },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-  });
-
-  it('should report batch item failures for processing errors', async () => {
-    const { parseRecord } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Parse error');
-    });
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-fail',
-        body: { detail: { id: 'evt-fail', type: 'PORTFOLIO_UPDATED', subject: {} } },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
-  });
-
-  it('should log error with full context and re-throw when reconcile fails', async () => {
-    // Make reconcile throw an error
-    mockSend.mockRejectedValueOnce(new Error('DynamoDB timeout'));
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-reconcile-fail',
-        body: {
-          detail: {
-            id: 'evt-reconcile-fail',
-            type: 'PORTFOLIO_UPDATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              tenantId: 't1',
-              portfolioId: 'p1',
-              positions: [
-                { symbol: 'AAPL', quantity: 100 },
-              ],
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
-    ]);
-
-    const { logger: loggerMock } = require('@nestfolio/platform-core');
-    const result = await handler(sqsEvent);
-    // Should report as batch item failure for SQS retry
-    expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-reconcile-fail');
-    // Should log reconciliation-specific error with full context
-    expect(loggerMock.error).toHaveBeenCalledWith(
-      'Reconciliation failed',
+    expect(result.metrics.EventProcessed).toBe(1);
+    expect(reconcileSpy).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({
         tenantId: 't1',
         portfolioId: 'p1',
-        eventType: 'PORTFOLIO_UPDATED',
-        eventId: 'evt-reconcile-fail',
-        positionCount: 1,
-        error: 'DynamoDB timeout',
+        intentPositions: [{ instrument: 'AAPL', quantity: 100 }],
+        settlementPositions: [{ instrument: 'AAPL', quantity: 100 }],
       }),
     );
   });
 
-  it('should skip duplicate events when createReconciliation returns false', async () => {
-    // Override putIfNotExists to return false (already exists)
-    jest.spyOn(repository, 'createReconciliation' as any).mockResolvedValueOnce(false);
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-dup',
-        body: {
-          detail: {
-            id: 'evt-dup',
-            type: 'PORTFOLIO_UPDATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1', portfolioId: 'p1', positions: [] },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+  it('routes PORTFOLIO_UPDATED to reconciliation service', async () => {
+    await harness.process([
+      fakeSqsRecord('PORTFOLIO_UPDATED', {
+        tenantId: 't1', portfolioId: 'p1', positions: [],
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
+    expect(reconcileSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ tenantId: 't1', portfolioId: 'p1' }),
+    );
   });
 
-  it('should NOT add to batchItemFailures when error is not retryable', async () => {
-    const { parseRecord, isRetryable } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Non-retryable error');
-    });
-    (isRetryable as jest.Mock).mockReturnValueOnce(false);
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-non-retryable',
-        body: { detail: { id: 'evt-nr', type: 'PORTFOLIO_UPDATED', subject: {} } },
-      },
+  it('routes CORPORATE_ACTION_APPLIED to reconciliation service', async () => {
+    await harness.process([
+      fakeSqsRecord('CORPORATE_ACTION_APPLIED', {
+        tenantId: 't1', portfolioId: 'p1', positions: [],
+      }, { tenantId: 't1' }),
     ]);
+    expect(reconcileSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ tenantId: 't1', portfolioId: 'p1' }),
+    );
+  });
 
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-    expect(isRetryable).toHaveBeenCalled();
+  it('skips unknown event types', async () => {
+    const result = await harness.process([
+      fakeSqsRecord('UNKNOWN_EVENT', {}, { tenantId: 't1' }),
+    ]);
+    expect(result.skipped).toBe(1);
+    expect(reconcileSpy).not.toHaveBeenCalled();
+  });
+
+  it('reports failure when reconciliation service throws', async () => {
+    reconcileSpy.mockRejectedValueOnce(new Error('DynamoDB timeout'));
+    const result = await harness.process([
+      fakeSqsRecord('PORTFOLIO_UPDATED', {
+        tenantId: 't1', portfolioId: 'p1',
+        positions: [{ symbol: 'AAPL', quantity: 100 }],
+      }, { tenantId: 't1' }),
+    ]);
+    expect(result.errors).toHaveLength(1);
+    expect(result.batchItemFailures).toHaveLength(1);
+  });
+
+  it('defaults portfolioId to tenantId when not provided', async () => {
+    await harness.process([
+      fakeSqsRecord('PORTFOLIO_UPDATED', { positions: [] }, { tenantId: 't1' }),
+    ]);
+    expect(reconcileSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ tenantId: 't1', portfolioId: 't1' }),
+    );
+  });
+
+  it('defaults positions to empty array when not provided', async () => {
+    await harness.process([
+      fakeSqsRecord('PORTFOLIO_UPDATED', { portfolioId: 'p1' }, { tenantId: 't1' }),
+    ]);
+    expect(reconcileSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ intentPositions: [], settlementPositions: [] }),
+    );
   });
 });

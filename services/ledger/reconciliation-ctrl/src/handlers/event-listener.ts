@@ -1,106 +1,57 @@
-import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger } from '@nestfolio/platform-core';
-import { parseRecord, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
+import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { requireEnv } from '@nestfolio/lambda-utils';
 import { ReconciliationRepository } from '../repositories/reconciliation.repository';
 import { ReconciliationService } from '../services/reconciliation.service';
 
-interface EventListenerDeps {
+export interface EventListenerDeps {
   readonly reconciliationService: ReconciliationService;
-  readonly bus: Bus;
-  readonly metrics: ReturnType<typeof createServiceMetrics>;
 }
 
-const TRIGGER_EVENT_TYPES = new Set([
+const reconcileHandler = (deps: EventListenerDeps) =>
+  async (payload: EventPayload, ctx: EventContext) => {
+    const subject = payload.subject;
+    const portfolioId = (subject?.portfolioId as string) ?? ctx.tenantId;
+    const positions = (subject?.positions as Array<{ symbol: string; quantity: number }>) ?? [];
+
+    await deps.reconciliationService.reconcile(ctx.eventId, {
+      tenantId: ctx.tenantId,
+      portfolioId,
+      intentPositions: positions.map((p) => ({
+        instrument: p.symbol,
+        quantity: p.quantity,
+      })),
+      settlementPositions: positions.map((p) => ({
+        instrument: p.symbol,
+        quantity: p.quantity,
+      })),
+    });
+
+    return skip();
+  };
+
+const EVENT_TYPES = [
   'PORTFOLIO_UPDATED',
   'PORTFOLIO_SNAPSHOT_IMPORTED',
   'CORPORATE_ACTION_APPLIED',
-]);
+] as const;
 
-export const createHandler = (deps: EventListenerDeps) =>
-  async (event: SQSEvent): Promise<SQSBatchResponse> => {
-    const failures: string[] = [];
-
-    for (const record of event.Records) {
-      try {
-        const uow = parseRecord(record);
-        const eventType = uow.event.type;
-
-        logger.info('Processing event', { eventType, eventId: uow.event.id });
-        traceEvent(eventType, uow.event.id);
-
-        if (!TRIGGER_EVENT_TYPES.has(eventType)) {
-          logger.warn('No handler for event type, skipping', { eventType });
-          continue;
-        }
-
-        const tenantId = extractTenantId(uow.event as unknown as Record<string, unknown>);
-
-        const subject = uow.event.subject as Record<string, unknown>;
-        const portfolioId = (subject?.portfolioId as string) ?? tenantId;
-
-        // Phase 2: Virtual ledger is sole truth source -- reconciliation always succeeds with zero drift
-        const positions = (subject?.positions as Array<{ symbol: string; quantity: number }>) ?? [];
-
-        try {
-          await deps.reconciliationService.reconcile(uow.event.id, {
-            tenantId,
-            portfolioId,
-            intentPositions: positions.map((p) => ({
-              instrument: p.symbol,
-              quantity: p.quantity,
-            })),
-            settlementPositions: positions.map((p) => ({
-              instrument: p.symbol,
-              quantity: p.quantity,
-            })),
-          });
-        } catch (reconcileError) {
-          logger.error('Reconciliation failed', {
-            tenantId,
-            portfolioId,
-            eventType,
-            eventId: uow.event.id,
-            positionCount: positions.length,
-            error: reconcileError instanceof Error ? reconcileError.message : String(reconcileError),
-          });
-          throw reconcileError;
-        }
-
-        deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
-      } catch (error) {
-        logger.error('Failed to process record', {
-          messageId: record.messageId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await publishErrorEvent(deps.bus, 'RECONCILIATION_CTRL_FAILED', error);
-        deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
-        if (isRetryable(error)) {
-          failures.push(record.messageId);
-        }
-      }
-    }
-
-    deps.metrics.publishStoredMetrics();
-    return {
-      batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
-    };
-  };
+export const createHandlers = (deps: EventListenerDeps) =>
+  Object.fromEntries(
+    EVENT_TYPES.map((type) => [type, reconcileHandler(deps)]),
+  );
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new ReconciliationRepository(TABLE_NAME, dynamoClient);
 const reconciliationService = new ReconciliationService(repository);
+const deps: EventListenerDeps = { reconciliationService };
 
-const deps: EventListenerDeps = {
-  reconciliationService,
-  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'reconciliation-ctrl'),
-  metrics: createServiceMetrics('reconciliation-ctrl'),
-};
-
-export const handler = applyMiddleware(
-  createHandler(deps) as (event: unknown) => Promise<SQSBatchResponse>,
-  withLambdaContext(),
-  withTiming('reconciliation-ctrl-event-listener'),
-);
+export const handler = createEventHandler({
+  serviceName: 'reconciliation-ctrl',
+  handlers: createHandlers(deps),
+  table: TABLE_NAME,
+  bus: requireEnv('BUS_NAME'),
+  errorEventType: 'RECONCILIATION_CTRL_FAILED',
+});
