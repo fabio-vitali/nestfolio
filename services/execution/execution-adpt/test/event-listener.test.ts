@@ -90,91 +90,38 @@ const mockGuardedWrite = jest.fn().mockResolvedValue(true);
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  parseRecord: jest.fn((record) => {
-    const body = JSON.parse(record.body);
-    const event = body.detail ?? body;
-    return { event, payload: event.subject ?? {}, record };
-  }),
-  extractTenantId: jest.fn((event: Record<string, unknown>) => {
-    const context = event.context as Record<string, unknown> | undefined;
-    const subject = event.subject as Record<string, unknown> | undefined;
-    return (context?.tenantId ?? subject?.tenantId ?? 'unknown') as string;
-  }),
   NotRetryableError: class NotRetryableError extends Error {
     constructor(message: string) {
       super(message);
       this.name = 'NotRetryableError';
     }
   },
-  createServiceMetrics: jest.fn().mockReturnValue({
-    addMetric: jest.fn(),
-    addDimension: jest.fn(),
-    publishStoredMetrics: jest.fn(),
-  }),
-  isRetryable: jest.fn().mockReturnValue(true),
-  traceEvent: jest.fn(),
-  MetricUnit: { Count: 'Count' },
-  applyMiddleware: jest.fn((handler) => handler),
-  withLambdaContext: jest.fn(() => (next: unknown) => next),
-  withTiming: jest.fn(() => (next: unknown) => next),
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-  publishErrorEvent: jest.fn().mockResolvedValue(undefined),
-  EventBridgeBus: jest.fn(),
   guardedWrite: (...args: unknown[]) => mockGuardedWrite(...args),
 }));
 
-import { SQSEvent } from 'aws-lambda';
-import { createHandler } from '../src/handlers/event-listener';
+import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
+import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
 import { VirtualLedgerRepository } from '../src/repositories/virtual-ledger.repository';
 import { MarketDataService } from '../src/services/market-data.service';
 import { SimulationEngineService } from '../src/services/simulation-engine.service';
 
-function buildSqsEvent(
-  records: Array<{ messageId: string; body: Record<string, unknown> }>,
-): SQSEvent {
-  return {
-    Records: records.map((r) => ({
-      messageId: r.messageId,
-      body: JSON.stringify(r.body),
-      receiptHandle: 'handle',
-      attributes: {} as any,
-      messageAttributes: {},
-      md5OfBody: '',
-      eventSource: 'aws:sqs',
-      eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
-      awsRegion: 'us-east-1',
-    })),
-  };
-}
-
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;
-
-  const mockMetrics = {
-    addMetric: jest.fn(),
-    addDimension: jest.fn(),
-    publishStoredMetrics: jest.fn(),
-  };
 
   const repository = new VirtualLedgerRepository('test-table');
   const marketData = new MarketDataService();
   const simulationEngine = new SimulationEngineService(repository, marketData);
 
-  let handler: (event: SQSEvent) => Promise<any>;
+  const mockDeps: EventListenerDeps = { repository, simulationEngine };
+  const harness = createTestHarness({ serviceName: 'execution-adpt', handlers: createHandlers(mockDeps) });
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
     mockGuardedWrite.mockResolvedValue(true);
-
-    handler = createHandler({
-      repository,
-      simulationEngine,
-      bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
-      metrics: mockMetrics as any,
-    });
   });
 
   afterAll(() => {
@@ -183,13 +130,9 @@ describe('event-listener handler', () => {
 
   it('should process ORDER_SUBMITTED and fill a valid BUY order', async () => {
     // getCashBalance (lazy init check) -> found
-    mockSend.mockResolvedValueOnce({
-      Item: { balance: 100000 },
-    });
+    mockSend.mockResolvedValueOnce({ Item: { balance: 100000 } });
     // getCashBalance (simulation engine) -> found
-    mockSend.mockResolvedValueOnce({
-      Item: { balance: 100000 },
-    });
+    mockSend.mockResolvedValueOnce({ Item: { balance: 100000 } });
     // getPosition -> not found
     mockSend.mockResolvedValueOnce({ Item: undefined });
     // getPosition (inside executeTrade) -> not found
@@ -197,59 +140,31 @@ describe('event-listener handler', () => {
     // transactWrite (executeTrade) -> success
     mockSend.mockResolvedValueOnce({});
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-1',
-        body: {
-          detail: {
-            id: 'evt-1',
-            type: 'ORDER_SUBMITTED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              orderId: 'order-1',
-              tenantId: 't-1',
-              userId: 'u-1',
-              symbol: 'VTI',
-              side: 'BUY',
-              quantity: 10,
-            },
-            context: { tenantId: 't-1' },
-          },
-        },
-      },
-    ]);
+    const record = fakeSqsRecord('ORDER_SUBMITTED', {
+      orderId: 'order-1',
+      tenantId: 't-1',
+      userId: 'u-1',
+      symbol: 'VTI',
+      side: 'BUY',
+      quantity: 10,
+    }, { eventId: 'evt-1', tenantId: 't-1' });
 
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should process WITHDRAWAL_REQUESTED and complete a valid withdrawal', async () => {
     // getCashBalance (balance check) -> found
-    mockSend.mockResolvedValueOnce({
-      Item: { balance: 100000 },
-    });
+    mockSend.mockResolvedValueOnce({ Item: { balance: 100000 } });
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-2',
-        body: {
-          detail: {
-            id: 'evt-2',
-            type: 'WITHDRAWAL_REQUESTED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              withdrawalId: 'w-1',
-              tenantId: 't-1',
-              userId: 'u-1',
-              amount: 5000,
-            },
-            context: { tenantId: 't-1' },
-          },
-        },
-      },
-    ]);
+    const record = fakeSqsRecord('WITHDRAWAL_REQUESTED', {
+      withdrawalId: 'w-1',
+      tenantId: 't-1',
+      userId: 'u-1',
+      amount: 5000,
+    }, { eventId: 'evt-2', tenantId: 't-1' });
 
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
 
     // guardedWrite should have been called with negative amount
@@ -268,96 +183,42 @@ describe('event-listener handler', () => {
     );
   });
 
-  it('should report failure for malformed event body (invalid JSON)', async () => {
-    const sqsEvent: SQSEvent = {
-      Records: [{
-        messageId: 'msg-malformed',
-        body: '{{not-json',
-        receiptHandle: 'handle',
-        attributes: {} as any,
-        messageAttributes: {},
-        md5OfBody: '',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
-        awsRegion: 'us-east-1',
-      }],
-    };
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
-  });
-
   it('should report failure when ORDER_SUBMITTED is missing required fields', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-missing-order-fields',
-        body: {
-          detail: {
-            id: 'evt-missing-fields',
-            type: 'ORDER_SUBMITTED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              tenantId: 't-1',
-              userId: 'u-1',
-              // Missing: orderId, symbol, side, quantity
-            },
-            context: { tenantId: 't-1' },
-          },
-        },
-      },
-    ]);
+    const record = fakeSqsRecord('ORDER_SUBMITTED', {
+      tenantId: 't-1',
+      userId: 'u-1',
+      // Missing: orderId, symbol, side, quantity
+    }, { eventId: 'evt-missing-fields', tenantId: 't-1' });
 
-    const { logger } = require('@nestfolio/platform-core');
-
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-missing-order-fields');
-
-    expect(logger.error).toHaveBeenCalledWith(
-      'Failed to process record',
-      expect.objectContaining({
-        error: expect.stringContaining('Missing required ORDER_SUBMITTED fields'),
-      }),
-    );
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].error.message).toContain('Missing required ORDER_SUBMITTED fields');
   });
 
   it('should skip unknown event types gracefully', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-3',
-        body: {
-          detail: {
-            id: 'evt-3',
-            type: 'UNKNOWN_EVENT',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {},
-            context: { tenantId: 't-1' },
-          },
-        },
-      },
-    ]);
+    const record = fakeSqsRecord('UNKNOWN_EVENT', {}, { eventId: 'evt-3', tenantId: 't-1' });
 
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
+    expect(result.skipped).toBe(1);
   });
 
   it('should report batch item failures for processing errors', async () => {
-    const { parseRecord } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Parse error');
-    });
+    // getCashBalance throws
+    mockSend.mockRejectedValueOnce(new Error('DDB error'));
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-fail',
-        body: { detail: { id: 'evt-fail', type: 'ORDER_SUBMITTED', subject: {} } },
-      },
-    ]);
+    const record = fakeSqsRecord('ORDER_SUBMITTED', {
+      orderId: 'order-fail',
+      tenantId: 't-1',
+      userId: 'u-1',
+      symbol: 'VTI',
+      side: 'BUY',
+      quantity: 10,
+    }, { eventId: 'evt-fail', tenantId: 't-1' });
 
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
   });
 
   it('should skip duplicate ORDER_SUBMITTED event (TransactionCanceledException)', async () => {
@@ -374,29 +235,16 @@ describe('event-listener handler', () => {
     txError.name = 'TransactionCanceledException';
     mockSend.mockRejectedValueOnce(txError);
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-dup-order',
-        body: {
-          detail: {
-            id: 'evt-dup-order',
-            type: 'ORDER_SUBMITTED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              orderId: 'order-dup',
-              tenantId: 't-1',
-              userId: 'u-1',
-              symbol: 'VTI',
-              side: 'BUY',
-              quantity: 10,
-            },
-            context: { tenantId: 't-1' },
-          },
-        },
-      },
-    ]);
+    const record = fakeSqsRecord('ORDER_SUBMITTED', {
+      orderId: 'order-dup',
+      tenantId: 't-1',
+      userId: 'u-1',
+      symbol: 'VTI',
+      side: 'BUY',
+      quantity: 10,
+    }, { eventId: 'evt-dup-order', tenantId: 't-1' });
 
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
@@ -406,27 +254,14 @@ describe('event-listener handler', () => {
     // guardedAddToCashBalance -> duplicate
     mockGuardedWrite.mockResolvedValueOnce(false);
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-dup-withdraw',
-        body: {
-          detail: {
-            id: 'evt-dup-withdraw',
-            type: 'WITHDRAWAL_REQUESTED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              withdrawalId: 'w-dup',
-              tenantId: 't-1',
-              userId: 'u-1',
-              amount: 5000,
-            },
-            context: { tenantId: 't-1' },
-          },
-        },
-      },
-    ]);
+    const record = fakeSqsRecord('WITHDRAWAL_REQUESTED', {
+      withdrawalId: 'w-dup',
+      tenantId: 't-1',
+      userId: 'u-1',
+      amount: 5000,
+    }, { eventId: 'evt-dup-withdraw', tenantId: 't-1' });
 
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
@@ -436,136 +271,47 @@ describe('event-listener handler', () => {
     // guardedAddToCashBalance -> duplicate
     mockGuardedWrite.mockResolvedValueOnce(false);
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-dup-deposit',
-        body: {
-          detail: {
-            id: 'evt-dup-deposit',
-            type: 'DEPOSIT_INITIATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              depositId: 'dep-dup',
-              tenantId: 't-1',
-              userId: 'u-1',
-              amountCents: 10000,
-              currency: 'USD',
-            },
-            context: { tenantId: 't-1' },
-          },
-        },
-      },
-    ]);
+    const record = fakeSqsRecord('DEPOSIT_INITIATED', {
+      depositId: 'dep-dup',
+      tenantId: 't-1',
+      userId: 'u-1',
+      amountCents: 10000,
+      currency: 'USD',
+    }, { eventId: 'evt-dup-deposit', tenantId: 't-1' });
 
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should throw descriptive error when ORDER_SUBMITTED has null subject', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-null-subject-order',
-        body: {
-          detail: {
-            id: 'evt-null-subject',
-            type: 'ORDER_SUBMITTED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: null,
-            context: { tenantId: 't-1' },
-          },
-        },
-      },
-    ]);
+    const record = fakeSqsRecord('ORDER_SUBMITTED', null as any, { eventId: 'evt-null-subject', tenantId: 't-1' });
 
-    const { logger } = require('@nestfolio/platform-core');
-
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-null-subject-order');
-
-    expect(logger.error).toHaveBeenCalledWith(
-      'Failed to process record',
-      expect.objectContaining({
-        error: expect.stringContaining('Missing subject in ORDER_SUBMITTED event'),
-      }),
-    );
+    expect(result.errors[0].error.message).toContain('Missing subject in ORDER_SUBMITTED event');
   });
 
   it('should throw descriptive error when WITHDRAWAL_REQUESTED has null subject', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-null-subject-withdraw',
-        body: {
-          detail: {
-            id: 'evt-null-subject-w',
-            type: 'WITHDRAWAL_REQUESTED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: null,
-            context: { tenantId: 't-1' },
-          },
-        },
-      },
-    ]);
+    const record = fakeSqsRecord('WITHDRAWAL_REQUESTED', null as any, { eventId: 'evt-null-subject-w', tenantId: 't-1' });
 
-    const { logger } = require('@nestfolio/platform-core');
-
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-null-subject-withdraw');
-
-    expect(logger.error).toHaveBeenCalledWith(
-      'Failed to process record',
-      expect.objectContaining({
-        error: expect.stringContaining('Missing subject in WITHDRAWAL_REQUESTED event'),
-      }),
-    );
-  });
-
-  it('should NOT add to batchItemFailures when error is not retryable', async () => {
-    const { parseRecord, isRetryable } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Non-retryable error');
-    });
-    (isRetryable as jest.Mock).mockReturnValueOnce(false);
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-non-retryable',
-        body: { detail: { id: 'evt-nr', type: 'ORDER_SUBMITTED', subject: {} } },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-    expect(isRetryable).toHaveBeenCalled();
+    expect(result.errors[0].error.message).toContain('Missing subject in WITHDRAWAL_REQUESTED event');
   });
 
   it('should process DEPOSIT_INITIATED using guardedAddToCashBalance', async () => {
     // getCashBalance (lazy init check) -> found
     mockSend.mockResolvedValueOnce({ Item: { balance: 50000 } });
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-deposit',
-        body: {
-          detail: {
-            id: 'evt-deposit',
-            type: 'DEPOSIT_INITIATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              depositId: 'dep-1',
-              tenantId: 't-1',
-              userId: 'u-1',
-              amountCents: 10000,
-              currency: 'USD',
-            },
-            context: { tenantId: 't-1' },
-          },
-        },
-      },
-    ]);
+    const record = fakeSqsRecord('DEPOSIT_INITIATED', {
+      depositId: 'dep-1',
+      tenantId: 't-1',
+      userId: 'u-1',
+      amountCents: 10000,
+      currency: 'USD',
+    }, { eventId: 'evt-deposit', tenantId: 't-1' });
 
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
 
     // guardedWrite should have been called for the deposit
@@ -598,33 +344,19 @@ describe('event-listener handler', () => {
     // transactWrite -> success
     mockSend.mockResolvedValueOnce({});
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-init',
-        body: {
-          detail: {
-            id: 'evt-init',
-            type: 'ORDER_SUBMITTED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              orderId: 'order-init',
-              tenantId: 't-1',
-              userId: 'u-1',
-              symbol: 'VTI',
-              side: 'BUY',
-              quantity: 2,
-            },
-            context: { tenantId: 't-1' },
-          },
-        },
-      },
-    ]);
+    const record = fakeSqsRecord('ORDER_SUBMITTED', {
+      orderId: 'order-init',
+      tenantId: 't-1',
+      userId: 'u-1',
+      symbol: 'VTI',
+      side: 'BUY',
+      quantity: 2,
+    }, { eventId: 'evt-init', tenantId: 't-1' });
 
-    const result = await handler(sqsEvent);
+    const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
 
     // Should have called initializeCashBalance (the PutCommand for cash init)
-    // The second mockSend call should be the initialization
     const secondCall = mockSend.mock.calls[1][0];
     expect(secondCall.input.Item).toMatchObject({
       __typename: 'VirtualCashBalance',

@@ -1,80 +1,51 @@
-import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
+import { requireEnv } from '@nestfolio/lambda-utils';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { OrderRepository } from '../repositories/order.repository';
 import { SafetyChecksService } from '../services/safety-checks.service';
 import { MarketHoursService } from '../services/market-hours.service';
 import { OrderLifecycleService } from '../services/order-lifecycle.service';
 
-interface EventListenerDeps {
+export interface EventListenerDeps {
   readonly repository: OrderRepository;
   readonly lifecycleService: OrderLifecycleService;
-  readonly bus: Bus;
-  readonly metrics: ReturnType<typeof createServiceMetrics>;
 }
 
-const HANDLED_EVENT_TYPES = new Set([
-  'DECISION_APPROVED',
-  'USER_CONFIRMED',
-  'CIRCUIT_BREAKER_TRIGGERED',
-  'CIRCUIT_BREAKER_RESET',
-  'ACCOUNT_CLOSURE_REQUESTED',
-]);
-
-export const createHandler = (deps: EventListenerDeps) =>
-  async (event: SQSEvent): Promise<SQSBatchResponse> => {
-    const failures: string[] = [];
-
-    for (const record of event.Records) {
-      try {
-        const uow = parseRecord(record);
-        const eventType = uow.event.type;
-
-        logger.info('Processing event', { eventType, eventId: uow.event.id });
-        traceEvent(eventType, uow.event.id);
-
-        if (!HANDLED_EVENT_TYPES.has(eventType)) {
-          logger.warn('No handler for event type, skipping', { eventType });
-          continue;
-        }
-
-        switch (eventType) {
-          case 'DECISION_APPROVED':
-          case 'USER_CONFIRMED':
-            await deps.lifecycleService.processApprovedDecision(uow.event);
-            break;
-          case 'CIRCUIT_BREAKER_TRIGGERED':
-            logger.info('Circuit breaker triggered — execution paused', { eventId: uow.event.id });
-            break;
-          case 'CIRCUIT_BREAKER_RESET':
-            logger.info('Circuit breaker reset — execution resumed', { eventId: uow.event.id });
-            break;
-          case 'ACCOUNT_CLOSURE_REQUESTED':
-            logger.info('Account closure requested', { eventId: uow.event.id });
-            break;
-        }
-
-        deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
-      } catch (error) {
-        logger.error('Failed to process record', {
-          messageId: record.messageId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await publishErrorEvent(deps.bus, 'EXECUTION_CTRL_FAILED', error);
-        deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
-        if (isRetryable(error)) {
-          failures.push(record.messageId);
-        }
-      }
-    }
-
-    deps.metrics.publishStoredMetrics();
-
-    return {
-      batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
-    };
+function toEvent(payload: EventPayload, ctx: EventContext): Record<string, unknown> {
+  return {
+    id: ctx.eventId,
+    type: ctx.eventType,
+    timestamp: ctx.timestamp,
+    subject: payload.subject,
+    context: payload.context ?? { tenantId: ctx.tenantId },
   };
+}
+
+export function createHandlers(deps: EventListenerDeps): Record<string, (payload: EventPayload, ctx: EventContext) => Promise<ReturnType<typeof skip>>> {
+  return {
+    DECISION_APPROVED: async (payload, ctx) => {
+      await deps.lifecycleService.processApprovedDecision(toEvent(payload, ctx));
+      return skip();
+    },
+    USER_CONFIRMED: async (payload, ctx) => {
+      await deps.lifecycleService.processApprovedDecision(toEvent(payload, ctx));
+      return skip();
+    },
+    CIRCUIT_BREAKER_TRIGGERED: async (_payload, ctx) => {
+      logger.info('Circuit breaker triggered — execution paused', { eventId: ctx.eventId });
+      return skip();
+    },
+    CIRCUIT_BREAKER_RESET: async (_payload, ctx) => {
+      logger.info('Circuit breaker reset — execution resumed', { eventId: ctx.eventId });
+      return skip();
+    },
+    ACCOUNT_CLOSURE_REQUESTED: async (_payload, ctx) => {
+      logger.info('Account closure requested', { eventId: ctx.eventId });
+      return skip();
+    },
+  };
+}
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
@@ -84,15 +55,10 @@ const safetyChecks = new SafetyChecksService(repository);
 const marketHours = new MarketHoursService();
 const lifecycleService = new OrderLifecycleService(repository, safetyChecks, marketHours);
 
-const deps: EventListenerDeps = {
-  repository,
-  lifecycleService,
-  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'execution-ctrl'),
-  metrics: createServiceMetrics('execution-ctrl'),
-};
-
-export const handler = applyMiddleware(
-  createHandler(deps) as (event: unknown) => Promise<SQSBatchResponse>,
-  withLambdaContext(),
-  withTiming('execution-ctrl-event-listener'),
-);
+export const handler = createEventHandler({
+  serviceName: 'execution-ctrl',
+  handlers: createHandlers({ repository, lifecycleService }),
+  table: TABLE_NAME,
+  bus: requireEnv('BUS_NAME'),
+  errorEventType: 'EXECUTION_CTRL_FAILED',
+});
