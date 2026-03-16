@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { ServiceStack, Ingress, Egress } from '@nestfolio/cdk-constructs';
@@ -12,6 +13,7 @@ export class ExecutionAdptStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       publishableTypes: ['VirtualTrade', 'VirtualCashBalance', 'VirtualPosition'],
+      handlerEntry: join(__dirname, 'handlers/event-publisher.ts'),
     });
 
     this.addObservability({ ingress, egress });
