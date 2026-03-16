@@ -39,7 +39,16 @@
       "@nestfolio/command-core": ["libs/command-core/src/index.ts"],
       "@nestfolio/command-core/*": ["libs/command-core/src/*"],
       "@nestfolio/event-processor": ["libs/event-processor/src/index.ts"],
-      "@nestfolio/event-processor/*": ["libs/event-processor/src/*"]
+      "@nestfolio/event-processor/*": ["libs/event-processor/src/*"],
+      "@nestfolio/investor-bff/domain": ["services/investor/investor-bff/src/domain/index.ts"],
+      "@nestfolio/investor-ctrl/domain": ["services/investor/investor-ctrl/src/domain/index.ts"],
+      "@nestfolio/advisory-ctrl/domain": ["services/advisory/advisory-ctrl/src/domain/index.ts"],
+      "@nestfolio/advisory-bff/domain": ["services/advisory/advisory-bff/src/domain/index.ts"],
+      "@nestfolio/compliance-ctrl/domain": ["services/advisory/compliance-ctrl/src/domain/index.ts"],
+      "@nestfolio/execution-ctrl/domain": ["services/execution/execution-ctrl/src/domain/index.ts"],
+      "@nestfolio/execution-adpt/domain": ["services/execution/execution-adpt/src/domain/index.ts"],
+      "@nestfolio/ledger-ctrl/domain": ["services/ledger/ledger-ctrl/src/domain/index.ts"],
+      "@nestfolio/reconciliation-ctrl/domain": ["services/ledger/reconciliation-ctrl/src/domain/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp", "dist"]
