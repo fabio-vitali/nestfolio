@@ -58,3 +58,55 @@ export { fakeSqsRecord, fakeDdbStreamRecord } from './testing/fake-records';
 
 // Utilities (CDC)
 export { buildEventTypeMap } from './util/build-event-type-map';
+
+// Platform (from platform-core)
+export {
+  type Event, type Pipe, type UnitOfWork, envVar, getTime, getUUID,
+  type TableEntry,
+  type BusEvent, type Bus, EventBridgeBus,
+  NotRetryableError, isRetryable, handleClientError, type ErrorEvent,
+  log, logger, tracer,
+  validateIncomingEvent, type ValidationResult,
+  pipe,
+  type Result, ok, err, isOk, isErr, mapResult, flatMapResult, tryCatch,
+  type TenantId, type UserId, type EventId, asTenantId, asUserId, asEventId,
+  TableRepository, EventRepository, BucketRepository,
+  type Quote, type IndexData, type RateData, type MarketDataProvider,
+  StaticMarketDataProvider, CachedMarketDataProvider, KNOWN_SYMBOLS,
+} from './platform';
+
+// Lambda utilities (from lambda-utils)
+export {
+  EVENT_PUBLISHER_ENTRY,
+  requireEnv,
+  authorizeTenant, authorizeUser, type AuthorizedIdentity,
+  validateQueryDepth,
+  buildContainer,
+  createServiceMetrics, MetricUnit,
+  publishErrorEvent,
+  withErrorPublishing,
+  withMethodLogging,
+  applyMiddleware, withLambdaContext, withTiming,
+  type Middleware,
+  parseRecord, guardedWrite, extractTenantId, traceEvent,
+  evaluateResolver, createAuthContext, type EvalContext,
+} from './lambda';
+
+// Domain (shared infrastructure types & errors)
+export {
+  DomainError,
+  DomainValidationError,
+  EntityNotFoundError,
+  BusinessRuleViolationError,
+  TenantAccessDeniedError,
+  BusEventSchema,
+  TenantContextSchema,
+  EditEventSchema,
+  EditOperationSchema,
+} from './domain';
+export type {
+  BusEventType,
+  TenantContext,
+  EditEvent,
+  EditOperation,
+} from './domain';
