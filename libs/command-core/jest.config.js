@@ -5,7 +5,6 @@ module.exports = {
   displayName: 'command-core',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@nestfolio/platform-core$': '<rootDir>/../platform-core/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../event-processor/src/$1',
   },

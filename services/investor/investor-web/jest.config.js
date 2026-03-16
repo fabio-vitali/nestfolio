@@ -4,7 +4,6 @@ module.exports = {
   displayName: 'investor-web',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@nestfolio/lambda-utils$': '<rootDir>/../../../libs/lambda-utils/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
   },

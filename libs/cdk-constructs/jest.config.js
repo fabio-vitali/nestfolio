@@ -5,9 +5,6 @@ module.exports = {
   displayName: 'cdk-constructs',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@nestfolio/lambda-utils$': '<rootDir>/../lambda-utils/src/index.ts',
-    '^@nestfolio/platform-core$': '<rootDir>/../platform-core/src/index.ts',
-    '^@nestfolio/domain-core$': '<rootDir>/../domain-core/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../event-processor/src/$1',
   },

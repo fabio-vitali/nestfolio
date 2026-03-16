@@ -4,11 +4,7 @@ module.exports = {
   ...preset,
   displayName: 'event-processor',
   testEnvironment: 'node',
-  moduleNameMapper: {
-    '^@nestfolio/lambda-utils$': '<rootDir>/../lambda-utils/src/index.ts',
-    '^@nestfolio/lambda-utils/(.*)$': '<rootDir>/../lambda-utils/src/$1',
-    '^@nestfolio/platform-core$': '<rootDir>/../platform-core/src/index.ts',
-  },
+  moduleNameMapper: {},
   transform: {
     '^.+\\.[tj]sx?$': ['ts-jest', {
       tsconfig: '<rootDir>/tsconfig.spec.json',
