@@ -2,6 +2,8 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { getTime, logger } from '@nestfolio/event-processor';
+import { ExecutionAdptEventTypes } from '@nestfolio/execution-adpt/domain';
+import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/domain';
 import { LedgerRepository } from '../repositories/ledger.repository';
 import { ShadowFillService, type ProposedTrade } from '../services/shadow-fill.service';
 
@@ -89,17 +91,17 @@ async function processSimulationEvent(
 }
 
 const ACTUAL_EVENT_TYPES = [
-  'ORDER_FILLED',
-  'ORDER_PARTIALLY_FILLED',
-  'ORDER_REJECTED',
-  'ORDER_CANCELLED',
-  'DEPOSIT_DETECTED',
-  'WITHDRAWAL_COMPLETED',
+  ExecutionAdptEventTypes.ORDER_FILLED,
+  ExecutionAdptEventTypes.ORDER_PARTIALLY_FILLED,
+  ExecutionAdptEventTypes.ORDER_REJECTED,
+  ExecutionAdptEventTypes.ORDER_CANCELLED,
+  ExecutionAdptEventTypes.DEPOSIT_DETECTED,
+  ExecutionAdptEventTypes.WITHDRAWAL_COMPLETED,
   'CORPORATE_ACTION_PROCESSED',
 ] as const;
 
 const SIMULATION_EVENT_TYPES = [
-  'DECISION_PACKET_CREATED',
+  AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED,
 ] as const;
 
 export const createHandlers = (deps: EventListenerDeps) => {

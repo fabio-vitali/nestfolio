@@ -1,6 +1,10 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
+import { InvestorBffEventTypes } from '@nestfolio/investor-bff/domain';
+import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/domain';
+import { ExecutionAdptEventTypes } from '@nestfolio/execution-adpt/domain';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/domain';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationLifecycleService } from '../services/notification-lifecycle.service';
 import { NotificationDeliveryService } from '../services/notification-delivery.service';
@@ -10,8 +14,10 @@ export interface EventListenerDeps {
 }
 
 const EVENT_TYPES = [
-  'ONBOARDING_COMPLETED', 'MANDATE_GRANTED', 'GOAL_UPDATED', 'DEPOSIT_INITIATED',
-  'OPERATING_MODE_CHANGED', 'DECISION_APPROVED', 'ORDER_FILLED', 'BALANCE_UPDATED',
+  InvestorBffEventTypes.ONBOARDING_COMPLETED, InvestorBffEventTypes.MANDATE_GRANTED,
+  InvestorBffEventTypes.GOAL_UPDATED, InvestorBffEventTypes.DEPOSIT_INITIATED,
+  InvestorBffEventTypes.OPERATING_MODE_CHANGED, ComplianceEventTypes.DECISION_APPROVED,
+  ExecutionAdptEventTypes.ORDER_FILLED, LedgerCtrlEventTypes.BALANCE_UPDATED,
 ] as const;
 
 export const createHandlers = (deps: EventListenerDeps) =>

@@ -2,6 +2,8 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
+import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/domain';
+import { InvestorBffEventTypes } from '@nestfolio/investor-bff/domain';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';
@@ -176,12 +178,12 @@ export const createHandlers = (deps: EventListenerDeps) => {
   const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<ReturnType<typeof skip>>> = {};
 
   // Decision events
-  for (const type of ['DECISION_PACKET_CREATED', 'DECISION_PACKET_ENRICHED']) {
+  for (const type of [AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED, AdvisoryCtrlEventTypes.DECISION_PACKET_ENRICHED]) {
     handlers[type] = (payload, ctx) => processDecisionPacket(deps, payload, ctx);
   }
 
   // Mandate events
-  for (const type of ['MANDATE_GRANTED', 'MANDATE_UPDATED', 'MANDATE_REVOKED', 'OPERATING_MODE_CHANGED']) {
+  for (const type of [InvestorBffEventTypes.MANDATE_GRANTED, InvestorBffEventTypes.MANDATE_UPDATED, InvestorBffEventTypes.MANDATE_REVOKED, InvestorBffEventTypes.OPERATING_MODE_CHANGED]) {
     handlers[type] = (payload, ctx) => processMandateEvent(deps, payload, ctx);
   }
 

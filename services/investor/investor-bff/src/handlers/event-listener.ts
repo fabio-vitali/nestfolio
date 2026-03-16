@@ -1,6 +1,9 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
+import { InvestorBffEventTypes } from '../domain/events';
+import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/domain';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/domain';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { UserRegisteredPipe } from '../pipes/user-registered.pipe';
 import { NotificationCreatedPipe } from '../pipes/notification-created.pipe';
@@ -21,15 +24,15 @@ function toUow(payload: EventPayload, ctx: EventContext) {
 }
 
 export const createHandlers = (deps: EventListenerDeps) => ({
-  'USER_REGISTERED': async (payload: EventPayload, ctx: EventContext) => {
+  [InvestorBffEventTypes.USER_REGISTERED]: async (payload: EventPayload, ctx: EventContext) => {
     await deps.userRegisteredPipe.process(toUow(payload, ctx) as any);
     return skip();
   },
-  'NOTIFICATION_CREATED': async (payload: EventPayload, ctx: EventContext) => {
+  [InvestorCtrlEventTypes.NOTIFICATION_CREATED]: async (payload: EventPayload, ctx: EventContext) => {
     await deps.notificationCreatedPipe.process(toUow(payload, ctx) as any);
     return skip();
   },
-  'BALANCE_UPDATED': async (payload: EventPayload, ctx: EventContext) => {
+  [LedgerCtrlEventTypes.BALANCE_UPDATED]: async (payload: EventPayload, ctx: EventContext) => {
     await deps.balanceUpdatedPipe.process(toUow(payload, ctx) as any);
     return skip();
   },

@@ -2,6 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/event-processor';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/domain';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 import { BalanceUpdatedPipe } from '../pipes/balance-updated.pipe';
 import { PortfolioUpdatedPipe } from '../pipes/portfolio-updated.pipe';
@@ -57,13 +58,13 @@ const portfolioUpdatedPipe = new PortfolioUpdatedPipe(repository);
 const ledgerEntryRecordedPipe = new LedgerEntryRecordedPipe(repository);
 
 const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
-  BALANCE_UPDATED: [
+  [LedgerCtrlEventTypes.BALANCE_UPDATED]: [
     { name: 'balanceUpdated', pipe: balanceUpdatedPipe },
   ],
-  PORTFOLIO_UPDATED: [
+  [LedgerCtrlEventTypes.PORTFOLIO_UPDATED]: [
     { name: 'portfolioUpdated', pipe: portfolioUpdatedPipe },
   ],
-  LEDGER_ENTRY_RECORDED: [
+  [LedgerCtrlEventTypes.LEDGER_ENTRY_RECORDED]: [
     { name: 'ledgerEntryRecorded', pipe: ledgerEntryRecordedPipe },
   ],
 };

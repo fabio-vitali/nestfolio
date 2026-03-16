@@ -2,6 +2,11 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
+import { InvestorBffEventTypes } from '@nestfolio/investor-bff/domain';
+import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/domain';
+import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/domain';
+import { ExecutionAdptEventTypes } from '@nestfolio/execution-adpt/domain';
+import { ReconciliationEventTypes } from '@nestfolio/reconciliation-ctrl/domain';
 import { DecisionRepository } from '../repositories/decision.repository';
 import { DecisionLifecycleService } from '../services/decision-lifecycle.service';
 
@@ -104,25 +109,25 @@ async function processUserResponse(
 }
 
 const TRIGGER_EVENT_TYPES = [
-  'MANDATE_GRANTED',
-  'GOAL_UPDATED',
-  'RISK_PROFILE_UPDATED',
-  'OPERATING_MODE_CHANGED',
-  'PORTFOLIO_DRIFT_DETECTED',
-  'ORDER_FILLED',
-  'ORDER_REJECTED',
-  'ORDER_CANCELLED',
-  'DEPOSIT_DETECTED',
+  InvestorBffEventTypes.MANDATE_GRANTED,
+  InvestorBffEventTypes.GOAL_UPDATED,
+  InvestorBffEventTypes.RISK_PROFILE_UPDATED,
+  InvestorBffEventTypes.OPERATING_MODE_CHANGED,
+  ReconciliationEventTypes.PORTFOLIO_DRIFT_DETECTED,
+  ExecutionAdptEventTypes.ORDER_FILLED,
+  ExecutionAdptEventTypes.ORDER_REJECTED,
+  ExecutionAdptEventTypes.ORDER_CANCELLED,
+  ExecutionAdptEventTypes.DEPOSIT_DETECTED,
 ] as const;
 
 const COMPLIANCE_EVENT_TYPES = [
-  'DECISION_APPROVED',
-  'DECISION_BLOCKED',
+  ComplianceEventTypes.DECISION_APPROVED,
+  ComplianceEventTypes.DECISION_BLOCKED,
 ] as const;
 
 const USER_RESPONSE_EVENT_TYPES = [
-  'USER_CONFIRMED',
-  'USER_REJECTED',
+  AdvisoryBffEventTypes.USER_CONFIRMED,
+  AdvisoryBffEventTypes.USER_REJECTED,
 ] as const;
 
 export const createHandlers = (deps: EventListenerDeps) => {

@@ -2,6 +2,8 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, NotRetryableError } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { ExecutionCtrlEventTypes } from '@nestfolio/execution-ctrl/domain';
+import { InvestorBffEventTypes } from '@nestfolio/investor-bff/domain';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from '../services/market-data.service';
 import { SimulationEngineService } from '../services/simulation-engine.service';
@@ -13,7 +15,7 @@ export interface EventListenerDeps {
 
 export function createHandlers(deps: EventListenerDeps) {
   return {
-    ORDER_SUBMITTED: async (payload: EventPayload, ctx: EventContext) => {
+    [ExecutionCtrlEventTypes.ORDER_SUBMITTED]: async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject;
       if (!subject) {
         throw new NotRetryableError(`Missing subject in ORDER_SUBMITTED event ${ctx.eventId}`);
@@ -64,7 +66,7 @@ export function createHandlers(deps: EventListenerDeps) {
       return skip();
     },
 
-    WITHDRAWAL_REQUESTED: async (payload: EventPayload, ctx: EventContext) => {
+    [InvestorBffEventTypes.WITHDRAWAL_REQUESTED]: async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject;
       if (!subject) {
         throw new NotRetryableError(`Missing subject in WITHDRAWAL_REQUESTED event ${ctx.eventId}`);
@@ -102,7 +104,7 @@ export function createHandlers(deps: EventListenerDeps) {
       return skip();
     },
 
-    DEPOSIT_INITIATED: async (payload: EventPayload, ctx: EventContext) => {
+    [InvestorBffEventTypes.DEPOSIT_INITIATED]: async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject;
       if (!subject) {
         throw new NotRetryableError(`Missing subject in DEPOSIT_INITIATED event ${ctx.eventId}`);

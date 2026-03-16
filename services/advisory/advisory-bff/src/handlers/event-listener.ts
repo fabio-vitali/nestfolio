@@ -1,6 +1,8 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
+import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/domain';
+import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/domain';
 import { AdvisoryRepository } from '../repositories/advisory.repository';
 import { DecisionPacketCreatedPipe } from '../pipes/decision-packet-created.pipe';
 import { DecisionStatusChangedPipe } from '../pipes/decision-status-changed.pipe';
@@ -19,23 +21,23 @@ function toUow(payload: EventPayload, ctx: EventContext) {
 }
 
 export const createHandlers = (deps: EventListenerDeps) => ({
-  'DECISION_PACKET_CREATED': async (payload: EventPayload, ctx: EventContext) => {
+  [AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED]: async (payload: EventPayload, ctx: EventContext) => {
     await deps.decisionPacketCreatedPipe.process(toUow(payload, ctx) as any);
     return skip();
   },
-  'DECISION_PACKET_ENRICHED': async (payload: EventPayload, ctx: EventContext) => {
+  [AdvisoryCtrlEventTypes.DECISION_PACKET_ENRICHED]: async (payload: EventPayload, ctx: EventContext) => {
     await deps.decisionStatusChangedPipe.process(toUow(payload, ctx) as any);
     return skip();
   },
-  'DECISION_APPROVED': async (payload: EventPayload, ctx: EventContext) => {
+  [ComplianceEventTypes.DECISION_APPROVED]: async (payload: EventPayload, ctx: EventContext) => {
     await deps.decisionStatusChangedPipe.process(toUow(payload, ctx) as any);
     return skip();
   },
-  'DECISION_BLOCKED': async (payload: EventPayload, ctx: EventContext) => {
+  [ComplianceEventTypes.DECISION_BLOCKED]: async (payload: EventPayload, ctx: EventContext) => {
     await deps.decisionStatusChangedPipe.process(toUow(payload, ctx) as any);
     return skip();
   },
-  'USER_CONFIRMATION_REQUESTED': async (payload: EventPayload, ctx: EventContext) => {
+  [AdvisoryCtrlEventTypes.USER_CONFIRMATION_REQUESTED]: async (payload: EventPayload, ctx: EventContext) => {
     await deps.decisionStatusChangedPipe.process(toUow(payload, ctx) as any);
     return skip();
   },

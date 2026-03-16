@@ -1,6 +1,8 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/domain';
+import { ExecutionAdptEventTypes } from '@nestfolio/execution-adpt/domain';
 import { ReconciliationRepository } from '../repositories/reconciliation.repository';
 import { ReconciliationService } from '../services/reconciliation.service';
 
@@ -31,8 +33,8 @@ const reconcileHandler = (deps: EventListenerDeps) =>
   };
 
 const EVENT_TYPES = [
-  'PORTFOLIO_UPDATED',
-  'PORTFOLIO_SNAPSHOT_IMPORTED',
+  LedgerCtrlEventTypes.PORTFOLIO_UPDATED,
+  ExecutionAdptEventTypes.PORTFOLIO_SNAPSHOT_IMPORTED,
   'CORPORATE_ACTION_APPLIED',
 ] as const;
 
