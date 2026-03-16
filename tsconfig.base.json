@@ -21,12 +21,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@nestfolio/platform-core": ["libs/platform-core/src/index.ts"],
-      "@nestfolio/platform-core/*": ["libs/platform-core/src/*"],
-      "@nestfolio/domain-core": ["libs/domain-core/src/index.ts"],
-      "@nestfolio/domain-core/*": ["libs/domain-core/src/*"],
-      "@nestfolio/lambda-utils": ["libs/lambda-utils/src/index.ts"],
-      "@nestfolio/lambda-utils/*": ["libs/lambda-utils/src/*"],
       "@nestfolio/cdk-constructs": ["libs/cdk-constructs/src/index.ts"],
       "@nestfolio/agent-core": ["libs/agent-core/src/index.ts"],
       "@nestfolio/agent-core/*": ["libs/agent-core/src/*"],
