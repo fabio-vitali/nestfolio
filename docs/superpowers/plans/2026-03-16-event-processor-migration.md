@@ -10,14 +10,17 @@
 
 **Key constraint (compliance-ctrl):** Event-listener must ONLY persist state (via repository). Domain events are published exclusively by the CDC event-publisher reading the DDB stream. No `bus.publish()` calls in the listener.
 
+**Key constraint (event-processor):** `@nestfolio/event-processor` is a standalone, publishable library — NO `@nestfolio/*` workspace imports allowed. Task 0 internalizes all current workspace dependencies before the migration begins.
+
 ---
 
 ## Dependency Graph
 
 ```
-Tasks 1,2 ──────────────────┐
-                             ├──→ Tasks 3,4,5,6 (CDC handlers, need buildEventTypeMap + Egress update)
-Tasks 7,8,9,10,11,12,13 ────┘──→ (independent, can start immediately)
+Task 0 ─────────────────────┐
+                             ├──→ Tasks 1,2 (infrastructure)
+                             │         ├──→ Tasks 3,4,5,6 (CDC handlers)
+Tasks 7,8,9,10,11,12,13 ────┘─────────┘──→ (independent, can start after Task 0)
                              │
 All of 3-13 ─────────────────┼──→ Task 14 (cleanup)
 Task 14 ─────────────────────┼──→ Task 15 (verify)
@@ -124,6 +127,241 @@ export const handler = changeDataCapture({
     { 'TypeA:INSERT': 'CUSTOM_EVENT_NAME' },  // optional overrides
   ),
 });
+```
+
+---
+
+## Chunk 0: Internalize event-processor dependencies
+
+### Task 0: Remove all `@nestfolio/*` workspace imports from event-processor
+
+`@nestfolio/event-processor` must be a standalone, publishable library. Currently it imports 11 utilities from `@nestfolio/lambda-utils` and `@nestfolio/platform-core`. This task copies all needed utilities into `libs/event-processor/src/internal/` and rewires all imports.
+
+**Utilities to internalize (~413 LOC total):**
+
+| Utility | Source | NPM Deps | Notes |
+|---------|--------|----------|-------|
+| `parseRecord` | lambda-utils/sqs-parser.ts | aws-lambda | Returns parsed SQS record with BusEvent envelope |
+| `isRetryable` | platform-core/errors.ts | none | Checks error.retryable flag |
+| `NotRetryableError` | platform-core/errors.ts | none | Error subclass with retryable=false |
+| `traceEvent` | lambda-utils/trace-event.ts | none | X-Ray annotation helper (uses tracer) |
+| `extractTenantId` | lambda-utils/extract-tenant-id.ts | none | Extracts tenantId from event context/subject |
+| `applyMiddleware` | lambda-utils/middleware/apply-middleware.ts | aws-lambda | Composes middleware chain |
+| `withLambdaContext` | lambda-utils/middleware/with-lambda-context.ts | aws-lambda | Sets Lambda context + cold start detection |
+| `withTiming` | lambda-utils/middleware/with-timing.ts | none | Logs execution duration |
+| `guardedWrite` | lambda-utils/guarded-write.ts | @aws-sdk/lib-dynamodb | Idempotent DDB write with ProcessedEvent dedup |
+| `logger` | platform-core/logger.ts | @aws-lambda-powertools/logger | Logger singleton |
+| `tracer` | platform-core/tracer.ts | @aws-lambda-powertools/tracer | Tracer singleton |
+| `getUUID` | platform-core/core.ts | node:crypto | `() => randomUUID()` |
+| `getTime` | platform-core/core.ts | Date built-in | `() => new Date().toISOString()` |
+
+**Files to update (10 source + 2 test):**
+- `src/engine/batch-engine.ts` — uses parseRecord, isRetryable, traceEvent, extractTenantId
+- `src/engine/stream-engine.ts` — uses isRetryable, logger
+- `src/engine/intent-executor.ts` — uses guardedWrite
+- `src/engine/error-event-publisher.ts` — uses logger, getUUID, getTime
+- `src/pipelines/create-event-handler.ts` — uses applyMiddleware, withLambdaContext, withTiming
+- `src/pipelines/change-data-capture.ts` — uses getUUID
+- `src/pipelines/replay-and-reduce.ts` — uses logger
+- `src/testing/test-harness.ts` — uses isRetryable
+- `src/util/event-bridge-publisher.ts` — uses NotRetryableError
+- `test/engine/error-collector.test.ts` — uses NotRetryableError
+- `test/util/event-bridge-publisher.test.ts` — uses NotRetryableError
+
+**Files:**
+- Create: `libs/event-processor/src/internal/logger.ts`
+- Create: `libs/event-processor/src/internal/tracer.ts`
+- Create: `libs/event-processor/src/internal/errors.ts`
+- Create: `libs/event-processor/src/internal/core.ts`
+- Create: `libs/event-processor/src/internal/sqs-parser.ts`
+- Create: `libs/event-processor/src/internal/trace-event.ts`
+- Create: `libs/event-processor/src/internal/extract-tenant-id.ts`
+- Create: `libs/event-processor/src/internal/guarded-write.ts`
+- Create: `libs/event-processor/src/internal/middleware.ts` (applyMiddleware + withLambdaContext + withTiming combined)
+- Create: `libs/event-processor/src/internal/index.ts` (barrel export)
+- Modify: 10 source files + 2 test files (update imports)
+
+- [ ] **Step 1: Create `internal/errors.ts`**
+
+Copy `NotRetryableError` and `isRetryable` from `libs/platform-core/src/errors.ts`. These are pure functions with no deps.
+
+```typescript
+// libs/event-processor/src/internal/errors.ts
+export class NotRetryableError extends Error {
+  readonly retryable = false;
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotRetryableError';
+  }
+}
+
+export function isRetryable(error: unknown): boolean {
+  if (error instanceof Error && 'retryable' in error) {
+    return (error as { retryable: boolean }).retryable !== false;
+  }
+  return true;
+}
+```
+
+- [ ] **Step 2: Create `internal/core.ts`**
+
+```typescript
+// libs/event-processor/src/internal/core.ts
+import { randomUUID } from 'node:crypto';
+
+export function getUUID(): string { return randomUUID(); }
+export function getTime(): string { return new Date().toISOString(); }
+```
+
+- [ ] **Step 3: Create `internal/logger.ts` and `internal/tracer.ts`**
+
+Copy from platform-core. These are singleton initializations:
+
+```typescript
+// libs/event-processor/src/internal/logger.ts
+import { Logger } from '@aws-lambda-powertools/logger';
+export const logger = new Logger({ serviceName: process.env.SERVICE_NAME ?? 'event-processor' });
+```
+
+```typescript
+// libs/event-processor/src/internal/tracer.ts
+import { Tracer } from '@aws-lambda-powertools/tracer';
+export const tracer = new Tracer({ serviceName: process.env.SERVICE_NAME ?? 'event-processor' });
+```
+
+Note: Check the actual platform-core source for exact constructor args and copy faithfully. The logger may have additional config (logLevel, etc.).
+
+- [ ] **Step 4: Create `internal/sqs-parser.ts`**
+
+Copy `parseRecord` from `libs/lambda-utils/src/sqs-parser.ts`. Update its internal imports to use `./errors` and define the `BusEvent`/`UnitOfWork` types inline (or in a local types file) since they come from platform-core.
+
+Note: The `BusEvent` and `UnitOfWork` types used by `parseRecord` are simple interfaces. Copy the type definitions into the internal module rather than importing them.
+
+- [ ] **Step 5: Create `internal/trace-event.ts`**
+
+Copy from `libs/lambda-utils/src/trace-event.ts`. Update `tracer` import to `./tracer`.
+
+- [ ] **Step 6: Create `internal/extract-tenant-id.ts`**
+
+Copy from `libs/lambda-utils/src/extract-tenant-id.ts`. Update `NotRetryableError` import to `./errors`.
+
+- [ ] **Step 7: Create `internal/guarded-write.ts`**
+
+Copy from `libs/lambda-utils/src/guarded-write.ts`. No `@nestfolio/*` deps — only uses `@aws-sdk/lib-dynamodb`.
+
+- [ ] **Step 8: Create `internal/middleware.ts`**
+
+Combine all three middleware utilities into one file:
+
+```typescript
+// libs/event-processor/src/internal/middleware.ts
+import type { Context } from 'aws-lambda';
+import { logger } from './logger';
+
+// Copy applyMiddleware from lambda-utils/src/middleware/apply-middleware.ts
+// Copy withLambdaContext from lambda-utils/src/middleware/with-lambda-context.ts
+// Copy withTiming from lambda-utils/src/middleware/with-timing.ts
+// Update logger import to ./logger
+```
+
+- [ ] **Step 9: Create `internal/index.ts` barrel**
+
+```typescript
+// libs/event-processor/src/internal/index.ts
+export { NotRetryableError, isRetryable } from './errors';
+export { getUUID, getTime } from './core';
+export { logger } from './logger';
+export { tracer } from './tracer';
+export { parseRecord } from './sqs-parser';
+export { traceEvent } from './trace-event';
+export { extractTenantId } from './extract-tenant-id';
+export { guardedWrite } from './guarded-write';
+export { applyMiddleware, withLambdaContext, withTiming } from './middleware';
+```
+
+- [ ] **Step 10: Update all imports in event-processor source files**
+
+Replace all `@nestfolio/lambda-utils` and `@nestfolio/platform-core` imports with `../internal` (or appropriate relative path):
+
+```
+src/engine/batch-engine.ts:
+  - from '@nestfolio/lambda-utils' → from '../internal'
+
+src/engine/stream-engine.ts:
+  - from '@nestfolio/lambda-utils' → from '../internal'
+  - from '@nestfolio/platform-core' → from '../internal'
+
+src/engine/intent-executor.ts:
+  - from '@nestfolio/lambda-utils' → from '../internal'
+
+src/engine/error-event-publisher.ts:
+  - from '@nestfolio/platform-core' → from '../internal'
+
+src/pipelines/create-event-handler.ts:
+  - from '@nestfolio/lambda-utils' → from '../internal'
+
+src/pipelines/change-data-capture.ts:
+  - from '@nestfolio/platform-core' → from '../internal'
+
+src/pipelines/replay-and-reduce.ts:
+  - from '@nestfolio/platform-core' → from '../internal'
+
+src/testing/test-harness.ts:
+  - from '@nestfolio/lambda-utils' → from '../internal'
+
+src/util/event-bridge-publisher.ts:
+  - from '@nestfolio/lambda-utils' → from '../internal'
+```
+
+- [ ] **Step 11: Update test imports**
+
+```
+test/engine/error-collector.test.ts:
+  - from '@nestfolio/lambda-utils' → from '../../src/internal'
+
+test/util/event-bridge-publisher.test.ts:
+  - from '@nestfolio/lambda-utils' → from '../../src/internal'
+```
+
+- [ ] **Step 12: Verify zero @nestfolio/* imports remain**
+
+```bash
+grep -r "from '@nestfolio/" libs/event-processor/src/ libs/event-processor/test/
+```
+Expected: No matches
+
+- [ ] **Step 13: Run all event-processor tests**
+
+Run: `npx nx test event-processor`
+Expected: ALL tests pass
+
+- [ ] **Step 14: Add @aws-lambda-powertools deps to event-processor package.json**
+
+Check if `@aws-lambda-powertools/logger` and `@aws-lambda-powertools/tracer` need to be listed in `libs/event-processor/package.json` dependencies (they may already be available from the workspace root). If event-processor is publishable, they must be in its `package.json`:
+
+```json
+{
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.x",
+    "@aws-lambda-powertools/tracer": "^2.x",
+    "@aws-sdk/client-dynamodb": "^3.x",
+    "@aws-sdk/lib-dynamodb": "^3.x",
+    "@aws-sdk/client-eventbridge": "^3.x",
+    "@aws-sdk/util-dynamodb": "^3.x"
+  },
+  "peerDependencies": {
+    "aws-lambda": "^1.x"
+  }
+}
+```
+
+Note: Match the exact versions used in the root `package.json`.
+
+- [ ] **Step 15: Commit**
+
+```bash
+git add libs/event-processor/
+git commit -m "refactor(event-processor): internalize all @nestfolio/* dependencies for standalone publishability"
 ```
 
 ---
