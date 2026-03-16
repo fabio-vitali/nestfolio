@@ -1,7 +1,7 @@
-import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger, type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/platform-core';
-import { parseRecord, requireEnv, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
+import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { requireEnv } from '@nestfolio/lambda-utils';
+import { type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/platform-core';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { PortfolioSummaryPipe } from '../pipes/portfolio-summary.pipe';
 import { PositionSnapshotPipe } from '../pipes/position-snapshot.pipe';
@@ -10,67 +10,45 @@ import { AdvisoryStatusPipe } from '../pipes/advisory-status.pipe';
 import { InvestorSnapshotPipe } from '../pipes/investor-snapshot.pipe';
 import { TimeTravelAvailabilityPipe } from '../pipes/time-travel-availability.pipe';
 
-interface NamedPipe {
+export interface NamedPipe {
   name: string;
   pipe: Pipe<UnitOfWork<BusEvent<Record<string, unknown>>>>;
 }
 
 export interface EventListenerDeps {
   readonly eventPipeMap: Record<string, NamedPipe[]>;
-  readonly bus: Bus;
-  readonly metrics: ReturnType<typeof createServiceMetrics>;
 }
 
-export const createHandler = (deps: EventListenerDeps) =>
-  async (event: SQSEvent): Promise<SQSBatchResponse> => {
-    const failures: string[] = [];
-
-    for (const record of event.Records) {
-      try {
-        const uow = parseRecord(record);
-        const eventType = uow.event.type;
-
-        logger.info('Processing event', { eventType, eventId: uow.event.id });
-        traceEvent(eventType, uow.event.id);
-
-        await processEvent(deps, eventType, uow);
-        deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
-      } catch (error) {
-        logger.error('Failed to process record', {
-          messageId: record.messageId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await publishErrorEvent(deps.bus, 'DASHBOARD_BFF_FAILED', error);
-        deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
-        if (isRetryable(error)) {
-          failures.push(record.messageId);
-        }
-      }
-    }
-
-    deps.metrics.publishStoredMetrics();
-
-    return {
-      batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
-    };
+function toUow(payload: EventPayload, ctx: EventContext) {
+  const event = {
+    id: ctx.eventId,
+    type: ctx.eventType,
+    timestamp: ctx.timestamp,
+    subject: payload.subject,
+    context: payload.context ?? { tenantId: ctx.tenantId },
   };
-
-async function processEvent(
-  deps: EventListenerDeps,
-  eventType: string,
-  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
-): Promise<void> {
-  const namedPipes = deps.eventPipeMap[eventType];
-
-  if (!namedPipes || namedPipes.length === 0) {
-    logger.info('No pipes for event type, skipping', { eventType });
-    return;
-  }
-
-  for (const { pipe } of namedPipes) {
-    await pipe.process(uow);
-  }
+  return { event, payload: payload.subject as Record<string, unknown>, record: {} };
 }
+
+export const createHandlers = (deps: EventListenerDeps) => {
+  const allEventTypes = Object.keys(deps.eventPipeMap);
+
+  return Object.fromEntries(
+    allEventTypes.map((type) => [
+      type,
+      async (payload: EventPayload, ctx: EventContext) => {
+        const namedPipes = deps.eventPipeMap[type];
+        if (!namedPipes || namedPipes.length === 0) return skip();
+
+        const uow = toUow(payload, ctx);
+        for (const { pipe } of namedPipes) {
+          await pipe.process(uow);
+        }
+        return skip();
+      },
+    ]),
+  );
+};
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
@@ -85,7 +63,6 @@ const investorSnapshotPipe = new InvestorSnapshotPipe(repository);
 const timeTravelAvailabilityPipe = new TimeTravelAvailabilityPipe(repository);
 
 const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
-  // Ledger events (forwarded from ledger-hub → investor-bus)
   BALANCE_UPDATED: [
     { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
     { name: 'recentActivity', pipe: recentActivityPipe },
@@ -98,8 +75,6 @@ const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
   RECONCILIATION_COMPLETED: [
     { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
   ],
-
-  // Advisory events (forwarded from advisory-hub → investor-bus)
   DECISION_PACKET_CREATED: [
     { name: 'advisoryStatus', pipe: advisoryStatusPipe },
   ],
@@ -114,13 +89,9 @@ const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
     { name: 'advisoryStatus', pipe: advisoryStatusPipe },
     { name: 'recentActivity', pipe: recentActivityPipe },
   ],
-
-  // Ledger events (forwarded from ledger-hub → investor-bus)
   LEDGER_ENTRY_RECORDED: [
     { name: 'timeTravelAvailability', pipe: timeTravelAvailabilityPipe },
   ],
-
-  // Investor events (native on investor-bus)
   ONBOARDING_COMPLETED: [
     { name: 'investorSnapshot', pipe: investorSnapshotPipe },
   ],
@@ -140,12 +111,12 @@ const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
 
 const deps: EventListenerDeps = {
   eventPipeMap: EVENT_PIPE_MAP,
-  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'dashboard-bff'),
-  metrics: createServiceMetrics('dashboard-bff'),
 };
 
-export const handler = applyMiddleware(
-  createHandler(deps) as (event: unknown) => Promise<SQSBatchResponse>,
-  withLambdaContext(),
-  withTiming('dashboard-bff-event-listener'),
-);
+export const handler = createEventHandler({
+  serviceName: 'dashboard-bff',
+  handlers: createHandlers(deps),
+  table: TABLE_NAME,
+  bus: requireEnv('BUS_NAME'),
+  errorEventType: 'DASHBOARD_BFF_FAILED',
+});

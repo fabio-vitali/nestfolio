@@ -1,151 +1,58 @@
-import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { requireEnv } from '@nestfolio/lambda-utils';
 import { getTime, logger } from '@nestfolio/platform-core';
-import {
-  parseRecord,
-  requireEnv,
-  isRetryable,
-  createServiceMetrics,
-  MetricUnit,
-  traceEvent,
-  applyMiddleware,
-  withLambdaContext,
-  withTiming,
-  publishErrorEvent,
-  EventBridgeBus,
-  type Bus,
-} from '@nestfolio/lambda-utils';
 import { LedgerRepository } from '../repositories/ledger.repository';
 import { ShadowFillService, type ProposedTrade } from '../services/shadow-fill.service';
 
-interface EventListenerDeps {
+export interface EventListenerDeps {
   readonly repository: LedgerRepository;
-  readonly bus: Bus;
-  readonly metrics: ReturnType<typeof createServiceMetrics>;
   readonly shadowFill: ShadowFillService;
 }
 
-const ACTUAL_EVENT_TYPES = new Set([
-  'ORDER_FILLED',
-  'ORDER_PARTIALLY_FILLED',
-  'ORDER_REJECTED',
-  'ORDER_CANCELLED',
-  'DEPOSIT_DETECTED',
-  'WITHDRAWAL_COMPLETED',
-  'CORPORATE_ACTION_PROCESSED',
-]);
-
-const SIMULATION_EVENT_TYPES = new Set([
-  'DECISION_PACKET_CREATED',
-]);
-
-const HANDLED_EVENT_TYPES = new Set([
-  ...ACTUAL_EVENT_TYPES,
-  ...SIMULATION_EVENT_TYPES,
-]);
-
-function extractTenantId(event: Record<string, unknown>): string {
-  const context = (event['context'] ?? {}) as Record<string, unknown>;
-  const subject = (event['subject'] ?? {}) as Record<string, unknown>;
-  return (context['tenantId'] as string) ?? (subject['tenantId'] as string) ?? 'unknown';
-}
-
-export const createHandler = (deps: EventListenerDeps) =>
-  async (event: SQSEvent): Promise<SQSBatchResponse> => {
-    const failures: string[] = [];
-
-    for (const record of event.Records) {
-      let isSimulation = false;
-      try {
-        const uow = parseRecord(record);
-        const eventType = uow.event.type;
-
-        logger.info('Processing event', { eventType, eventId: uow.event.id });
-        traceEvent(eventType, uow.event.id);
-
-        if (!HANDLED_EVENT_TYPES.has(eventType)) {
-          logger.warn('No handler for event type, skipping', { eventType });
-          continue;
-        }
-
-        isSimulation = SIMULATION_EVENT_TYPES.has(eventType);
-
-        if (isSimulation) {
-          await processSimulationEvent(deps, uow.event);
-        } else {
-          await processActualEvent(deps, uow.event, eventType);
-        }
-      } catch (error) {
-        logger.error('Failed to process record', {
-          messageId: record.messageId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await publishErrorEvent(
-          deps.bus,
-          isSimulation ? 'LEDGER_SIMULATION_FAILED' : 'LEDGER_PROCESSING_FAILED',
-          error,
-        );
-        deps.metrics.addMetric(
-          isSimulation ? 'SimulationFailed' : 'EventFailed',
-          MetricUnit.Count,
-          1,
-        );
-        if (isRetryable(error)) {
-          failures.push(record.messageId);
-        }
-      }
-    }
-
-    deps.metrics.publishStoredMetrics();
-
-    return {
-      batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
-    };
-  };
-
 async function processActualEvent(
   deps: EventListenerDeps,
-  event: Record<string, unknown>,
-  eventType: string,
-): Promise<void> {
-  const tenantId = extractTenantId(event);
-  const subject = (event.subject ?? {}) as Record<string, unknown>;
-  const context = (event.context ?? {}) as Record<string, unknown>;
-  const payload = { ...subject, userId: subject['userId'] ?? context['userId'] };
+  payload: EventPayload,
+  ctx: EventContext,
+) {
+  const tenantId = ctx.tenantId;
+  const subject = payload.subject ?? {};
+  const context = payload.context ?? {};
+  const eventPayload = { ...subject, userId: subject['userId'] ?? context['userId'] };
 
   const sequenceNo = await deps.repository.nextSequence(tenantId, 'actual');
 
   const created = await deps.repository.putLedgerEntry({
     tenantId,
     streamType: 'actual',
-    eventId: event.id as string,
-    eventType,
-    payload,
-    timestamp: event.timestamp as string,
+    eventId: ctx.eventId,
+    eventType: ctx.eventType,
+    payload: eventPayload,
+    timestamp: ctx.timestamp,
     sequenceNo,
     decisionId: subject['decisionId'] as string | undefined,
   });
 
   if (!created) {
-    logger.info('Duplicate ledger entry, skipping', { eventType, eventId: event.id });
-    return;
+    logger.info('Duplicate ledger entry, skipping', { eventType: ctx.eventType, eventId: ctx.eventId });
   }
 
-  deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
+  return skip();
 }
 
 async function processSimulationEvent(
   deps: EventListenerDeps,
-  event: Record<string, unknown>,
-): Promise<void> {
-  const tenantId = extractTenantId(event);
-  const subject = (event.subject ?? {}) as Record<string, unknown>;
-  const decisionPacketId = (subject['decisionPacketId'] as string) ?? (event.id as string);
+  payload: EventPayload,
+  ctx: EventContext,
+) {
+  const tenantId = ctx.tenantId;
+  const subject = payload.subject ?? {};
+  const decisionPacketId = (subject['decisionPacketId'] as string) ?? ctx.eventId;
   const proposedTrades = (subject['proposedTrades'] ?? []) as ProposedTrade[];
 
   if (proposedTrades.length === 0) {
     logger.info('No proposed trades in decision packet, skipping', { decisionPacketId });
-    return;
+    return skip();
   }
 
   const now = getTime();
@@ -157,7 +64,7 @@ async function processSimulationEvent(
     const created = await deps.repository.putLedgerEntry({
       tenantId,
       streamType: 'simulated',
-      eventId: `${event.id}-sim-${trade.symbol}`,
+      eventId: `${ctx.eventId}-sim-${trade.symbol}`,
       eventType: 'ORDER_FILLED',
       payload: {
         orderId: `sim-${decisionPacketId}-${trade.symbol}`,
@@ -173,13 +80,41 @@ async function processSimulationEvent(
     });
 
     if (!created) {
-      logger.info('Duplicate simulation entry, skipping', { symbol: trade.symbol, eventId: event.id });
+      logger.info('Duplicate simulation entry, skipping', { symbol: trade.symbol, eventId: ctx.eventId });
       continue;
     }
   }
 
-  deps.metrics.addMetric('SimulationProcessed', MetricUnit.Count, 1);
+  return skip();
 }
+
+const ACTUAL_EVENT_TYPES = [
+  'ORDER_FILLED',
+  'ORDER_PARTIALLY_FILLED',
+  'ORDER_REJECTED',
+  'ORDER_CANCELLED',
+  'DEPOSIT_DETECTED',
+  'WITHDRAWAL_COMPLETED',
+  'CORPORATE_ACTION_PROCESSED',
+] as const;
+
+const SIMULATION_EVENT_TYPES = [
+  'DECISION_PACKET_CREATED',
+] as const;
+
+export const createHandlers = (deps: EventListenerDeps) => {
+  const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<ReturnType<typeof skip>>> = {};
+
+  for (const type of ACTUAL_EVENT_TYPES) {
+    handlers[type] = (payload, ctx) => processActualEvent(deps, payload, ctx);
+  }
+
+  for (const type of SIMULATION_EVENT_TYPES) {
+    handlers[type] = (payload, ctx) => processSimulationEvent(deps, payload, ctx);
+  }
+
+  return handlers;
+};
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
@@ -188,13 +123,13 @@ const repository = new LedgerRepository(TABLE_NAME, dynamoClient);
 
 const deps: EventListenerDeps = {
   repository,
-  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'ledger-ctrl'),
-  metrics: createServiceMetrics('ledger-ctrl'),
   shadowFill: new ShadowFillService(),
 };
 
-export const handler = applyMiddleware(
-  createHandler(deps) as (event: unknown) => Promise<SQSBatchResponse>,
-  withLambdaContext(),
-  withTiming('ledger-ctrl-event-listener'),
-);
+export const handler = createEventHandler({
+  serviceName: 'ledger-ctrl',
+  handlers: createHandlers(deps),
+  table: TABLE_NAME,
+  bus: requireEnv('BUS_NAME'),
+  errorEventType: 'LEDGER_PROCESSING_FAILED',
+});

@@ -4,7 +4,7 @@ module.exports = {
   displayName: 'ledger-bff',
   testEnvironment: 'node',
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
+    '^.+\\.[tj]sx?$': ['ts-jest', {
       tsconfig: '<rootDir>/tsconfig.spec.json',
       diagnostics: false,
     }],
@@ -19,5 +19,8 @@ module.exports = {
     '^@nestfolio/command-core$': '<rootDir>/../../../libs/command-core/src/index.ts',
     '^@nestfolio/command-core/(.*)$': '<rootDir>/../../../libs/command-core/src/$1',
     '^@nestfolio/cdk-constructs$': '<rootDir>/../../../libs/cdk-constructs/src/index.ts',
+    '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
+    '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
   },
+  transformIgnorePatterns: ['node_modules/(?!.*p-limit/|.*yocto-queue/)'],
 };

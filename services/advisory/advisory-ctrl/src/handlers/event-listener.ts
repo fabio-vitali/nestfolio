@@ -1,108 +1,46 @@
-import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { requireEnv } from '@nestfolio/lambda-utils';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { DecisionRepository } from '../repositories/decision.repository';
 import { DecisionLifecycleService } from '../services/decision-lifecycle.service';
 
 export interface EventListenerDeps {
   readonly lifecycleService: DecisionLifecycleService;
   readonly repository: DecisionRepository;
-  readonly metrics: ReturnType<typeof createServiceMetrics>;
-  readonly bus: Bus;
 }
 
-const TRIGGER_EVENT_TYPES = new Set([
-  'MANDATE_GRANTED',
-  'GOAL_UPDATED',
-  'RISK_PROFILE_UPDATED',
-  'OPERATING_MODE_CHANGED',
-  'PORTFOLIO_DRIFT_DETECTED',
-  'ORDER_FILLED',
-  'ORDER_REJECTED',
-  'ORDER_CANCELLED',
-  'DEPOSIT_DETECTED',
-]);
-
-const COMPLIANCE_EVENT_TYPES = new Set([
-  'DECISION_APPROVED',
-  'DECISION_BLOCKED',
-]);
-
-const USER_RESPONSE_EVENT_TYPES = new Set([
-  'USER_CONFIRMED',
-  'USER_REJECTED',
-]);
-
-const EVENT_TYPES = new Set([
-  ...TRIGGER_EVENT_TYPES,
-  ...COMPLIANCE_EVENT_TYPES,
-  ...USER_RESPONSE_EVENT_TYPES,
-]);
-
-export const createHandler = (deps: EventListenerDeps) =>
-  async (event: SQSEvent): Promise<SQSBatchResponse> => {
-    const failures: string[] = [];
-
-    for (const record of event.Records) {
-      try {
-        const uow = parseRecord(record);
-        const eventType = uow.event.type;
-
-        logger.info('Processing event', { eventType, eventId: uow.event.id });
-        traceEvent(eventType, uow.event.id);
-
-        if (!EVENT_TYPES.has(eventType)) {
-          logger.warn('No handler for event type, skipping', { eventType });
-          continue;
-        }
-
-        if (TRIGGER_EVENT_TYPES.has(eventType)) {
-          const tenantId = extractTenantId(uow.event as unknown as Record<string, unknown>);
-          await deps.lifecycleService.executeDecisionLifecycle({
-            tenantId,
-            triggerEvent: uow.event,
-            investorProfile: (uow.event.subject as Record<string, unknown>) ?? {},
-            portfolioState: {},
-          });
-        } else if (COMPLIANCE_EVENT_TYPES.has(eventType)) {
-          await processComplianceCallback(deps, uow.event, eventType);
-        } else if (USER_RESPONSE_EVENT_TYPES.has(eventType)) {
-          await processUserResponse(deps, uow.event, eventType);
-        }
-
-        deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
-      } catch (error) {
-        logger.error('Failed to process record', {
-          messageId: record.messageId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await publishErrorEvent(deps.bus, 'ADVISORY_CTRL_FAILED', error);
-        deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
-        if (isRetryable(error)) {
-          failures.push(record.messageId);
-        }
-      }
-    }
-
-    deps.metrics.publishStoredMetrics();
-
-    return {
-      batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
-    };
+function toEvent(payload: EventPayload, ctx: EventContext): Record<string, unknown> {
+  return {
+    id: ctx.eventId,
+    type: ctx.eventType,
+    timestamp: ctx.timestamp,
+    subject: payload.subject,
+    context: payload.context ?? { tenantId: ctx.tenantId },
   };
+}
+
+async function handleTriggerEvent(deps: EventListenerDeps, payload: EventPayload, ctx: EventContext) {
+  await deps.lifecycleService.executeDecisionLifecycle({
+    tenantId: ctx.tenantId,
+    triggerEvent: toEvent(payload, ctx),
+    investorProfile: payload.subject ?? {},
+    portfolioState: {},
+  });
+  return skip();
+}
 
 async function processComplianceCallback(
   deps: EventListenerDeps,
-  event: Record<string, unknown>,
-  eventType: string,
-): Promise<void> {
-  const subject = event.subject as Record<string, unknown>;
-  const tenantId = (subject?.tenantId as string) ?? 'unknown';
+  payload: EventPayload,
+  ctx: EventContext,
+) {
+  const subject = payload.subject;
+  const tenantId = (subject?.tenantId as string) ?? ctx.tenantId;
   const dpId = subject?.decisionId as string;
   const authorityLevel = (subject?.authorityLevel as string) ?? 'L2';
 
-  if (eventType === 'DECISION_APPROVED') {
+  if (ctx.eventType === 'DECISION_APPROVED') {
     if (!dpId) {
       throw new Error('Missing decisionId in compliance callback event subject');
     }
@@ -119,7 +57,7 @@ async function processComplianceCallback(
       });
       logger.info('Decision requires user confirmation (L2)', { dpId, tenantId });
     }
-  } else if (eventType === 'DECISION_BLOCKED') {
+  } else if (ctx.eventType === 'DECISION_BLOCKED') {
     if (!dpId) {
       throw new Error('Missing decisionId in compliance callback event subject');
     }
@@ -129,18 +67,20 @@ async function processComplianceCallback(
     });
     logger.info('Decision blocked', { dpId, tenantId });
   }
+
+  return skip();
 }
 
 async function processUserResponse(
   deps: EventListenerDeps,
-  event: Record<string, unknown>,
-  eventType: string,
-): Promise<void> {
-  const subject = event.subject as Record<string, unknown>;
-  const tenantId = (subject?.tenantId as string) ?? 'unknown';
+  payload: EventPayload,
+  ctx: EventContext,
+) {
+  const subject = payload.subject;
+  const tenantId = (subject?.tenantId as string) ?? ctx.tenantId;
   const dpId = subject?.decisionId as string;
 
-  if (eventType === 'USER_CONFIRMED') {
+  if (ctx.eventType === 'USER_CONFIRMED') {
     if (!dpId) {
       throw new Error('Missing decisionId in user response event subject');
     }
@@ -148,7 +88,7 @@ async function processUserResponse(
       confirmedAt: new Date().toISOString(),
     });
     logger.info('Decision confirmed by user', { dpId, tenantId });
-  } else if (eventType === 'USER_REJECTED') {
+  } else if (ctx.eventType === 'USER_REJECTED') {
     if (!dpId) {
       throw new Error('Missing decisionId in user response event subject');
     }
@@ -159,7 +99,49 @@ async function processUserResponse(
     });
     logger.info('Decision rejected by user', { dpId, tenantId, reason });
   }
+
+  return skip();
 }
+
+const TRIGGER_EVENT_TYPES = [
+  'MANDATE_GRANTED',
+  'GOAL_UPDATED',
+  'RISK_PROFILE_UPDATED',
+  'OPERATING_MODE_CHANGED',
+  'PORTFOLIO_DRIFT_DETECTED',
+  'ORDER_FILLED',
+  'ORDER_REJECTED',
+  'ORDER_CANCELLED',
+  'DEPOSIT_DETECTED',
+] as const;
+
+const COMPLIANCE_EVENT_TYPES = [
+  'DECISION_APPROVED',
+  'DECISION_BLOCKED',
+] as const;
+
+const USER_RESPONSE_EVENT_TYPES = [
+  'USER_CONFIRMED',
+  'USER_REJECTED',
+] as const;
+
+export const createHandlers = (deps: EventListenerDeps) => {
+  const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<ReturnType<typeof skip>>> = {};
+
+  for (const type of TRIGGER_EVENT_TYPES) {
+    handlers[type] = (payload, ctx) => handleTriggerEvent(deps, payload, ctx);
+  }
+
+  for (const type of COMPLIANCE_EVENT_TYPES) {
+    handlers[type] = (payload, ctx) => processComplianceCallback(deps, payload, ctx);
+  }
+
+  for (const type of USER_RESPONSE_EVENT_TYPES) {
+    handlers[type] = (payload, ctx) => processUserResponse(deps, payload, ctx);
+  }
+
+  return handlers;
+};
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
@@ -170,12 +152,12 @@ const lifecycleService = new DecisionLifecycleService(repository);
 const deps: EventListenerDeps = {
   lifecycleService,
   repository,
-  metrics: createServiceMetrics('advisory-ctrl'),
-  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'advisory-ctrl'),
 };
 
-export const handler = applyMiddleware(
-  createHandler(deps) as (event: unknown) => Promise<SQSBatchResponse>,
-  withLambdaContext(),
-  withTiming('advisory-ctrl-event-listener'),
-);
+export const handler = createEventHandler({
+  serviceName: 'advisory-ctrl',
+  handlers: createHandlers(deps),
+  table: TABLE_NAME,
+  bus: requireEnv('BUS_NAME'),
+  errorEventType: 'ADVISORY_CTRL_FAILED',
+});

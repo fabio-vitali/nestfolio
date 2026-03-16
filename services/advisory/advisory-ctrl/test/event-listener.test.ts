@@ -69,56 +69,17 @@ jest.mock('@nestfolio/platform-core', () => ({
 
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  parseRecord: jest.fn((record) => {
-    const body = JSON.parse(record.body);
-    const event = body.detail ?? body;
-    return { event, payload: event.subject ?? {}, record };
-  }),
-  extractTenantId: jest.fn((event: Record<string, unknown>) => {
-    const context = event.context as Record<string, unknown> | undefined;
-    const subject = event.subject as Record<string, unknown> | undefined;
-    const id = context?.tenantId ?? subject?.tenantId;
-    if (!id || typeof id !== 'string') throw new Error('Missing tenantId');
-    return id;
-  }),
-  createServiceMetrics: jest.fn().mockReturnValue({
-    addMetric: jest.fn(),
-    addDimension: jest.fn(),
-    publishStoredMetrics: jest.fn(),
-  }),
-  isRetryable: jest.fn().mockReturnValue(true),
-  traceEvent: jest.fn(),
-  MetricUnit: { Count: 'Count' },
-  applyMiddleware: jest.fn((handler: unknown) => handler),
-  withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
-  withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
   withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
-  publishErrorEvent: jest.fn().mockResolvedValue(undefined),
-  EventBridgeBus: jest.fn(),
 }));
 
 jest.mock('@nestfolio/domain-core', () => ({}));
 
-import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
+process.env.TABLE_NAME = 'test-table';
+
+import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { DecisionRepository } from '../src/repositories/decision.repository';
 import { DecisionLifecycleService } from '../src/services/decision-lifecycle.service';
-import { createHandler, type EventListenerDeps } from '../src/handlers/event-listener';
-
-function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
-  return {
-    Records: records.map((r) => ({
-      messageId: r.messageId,
-      body: JSON.stringify(r.body),
-      receiptHandle: 'handle',
-      attributes: {} as any,
-      messageAttributes: {},
-      md5OfBody: '',
-      eventSource: 'aws:sqs',
-      eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
-      awsRegion: 'us-east-1',
-    })),
-  };
-}
+import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
 
 function extractUpdateAttrs(update: any): Record<string, unknown> {
   const names = update.ExpressionAttributeNames;
@@ -132,213 +93,83 @@ function extractUpdateAttrs(update: any): Record<string, unknown> {
 }
 
 describe('event-listener handler', () => {
-  const ORIGINAL_ENV = process.env;
-  let handler: (event: SQSEvent) => Promise<SQSBatchResponse>;
-  let mockDeps: EventListenerDeps;
+  const repository = new DecisionRepository('test-table');
+  const lifecycleService = new DecisionLifecycleService(repository);
+
+  const mockDeps: EventListenerDeps = {
+    lifecycleService,
+    repository,
+  };
+
+  const harness = createTestHarness({
+    serviceName: 'advisory-ctrl',
+    handlers: createHandlers(mockDeps),
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
-    process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
-
-    const repository = new DecisionRepository('test-table');
-    const lifecycleService = new DecisionLifecycleService(repository);
-
-    mockDeps = {
-      lifecycleService,
-      repository,
-      bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
-      metrics: {
-        addMetric: jest.fn(),
-        addDimension: jest.fn(),
-        publishStoredMetrics: jest.fn(),
-      } as any,
-    };
-
-    handler = createHandler(mockDeps);
-  });
-
-  afterAll(() => {
-    process.env = ORIGINAL_ENV;
   });
 
   it('should process MANDATE_GRANTED trigger event', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-1',
-        body: {
-          detail: {
-            id: 'evt-1',
-            type: 'MANDATE_GRANTED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1', userId: 'u1' },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('MANDATE_GRANTED', {
+        tenantId: 't1', userId: 'u1',
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should process GOAL_UPDATED trigger event', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-2',
-        body: {
-          detail: {
-            id: 'evt-2',
-            type: 'GOAL_UPDATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1' },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('GOAL_UPDATED', {
+        tenantId: 't1',
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should skip unknown event types gracefully', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-3',
-        body: {
-          detail: {
-            id: 'evt-3',
-            type: 'UNKNOWN_EVENT',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {},
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('UNKNOWN_EVENT', {}, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
+    expect(result.skipped).toBe(1);
   });
 
   it('should report batch item failures for processing errors', async () => {
-    const { parseRecord } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Parse error');
-    });
+    // Trigger an error by causing the lifecycle service to throw
+    const lifecycleSpy = jest.spyOn(lifecycleService, 'executeDecisionLifecycle')
+      .mockRejectedValueOnce(new Error('Lifecycle failed'));
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-fail',
-        body: { detail: { id: 'evt-fail', type: 'MANDATE_GRANTED', subject: {} } },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('MANDATE_GRANTED', {
+        tenantId: 't1', userId: 'u1',
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
-  });
-
-  it('should report failure for malformed event body (invalid JSON)', async () => {
-    const sqsEvent: SQSEvent = {
-      Records: [{
-        messageId: 'msg-malformed',
-        body: '{{invalid-json',
-        receiptHandle: 'handle',
-        attributes: {} as any,
-        messageAttributes: {},
-        md5OfBody: '',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
-        awsRegion: 'us-east-1',
-      }],
-    };
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
-  });
-
-  it('should report failure when event detail is missing required fields', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-missing-fields',
-        body: {
-          detail: {
-            // Missing id, type, timestamp, subject
-          },
-        },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    // Handler should either skip or fail gracefully
-    expect(result.batchItemFailures.length).toBeLessThanOrEqual(1);
+    lifecycleSpy.mockRestore();
   });
 
   it('should handle duplicate events gracefully via conditional write', async () => {
-    // putIfNotExists returns false for duplicate (ConditionalCheckFailedException handled internally)
     const { ConditionalCheckFailedException } = { ConditionalCheckFailedException: class extends Error { name = 'ConditionalCheckFailedException'; } };
     mockSend.mockRejectedValueOnce(new ConditionalCheckFailedException('Condition not met'));
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-dup',
-        body: {
-          detail: {
-            id: 'evt-dup',
-            type: 'MANDATE_GRANTED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: { tenantId: 't1' },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('MANDATE_GRANTED', {
+        tenantId: 't1',
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
-  it('should NOT add to batchItemFailures when error is not retryable', async () => {
-    const { parseRecord, isRetryable } = require('@nestfolio/lambda-utils');
-    (parseRecord as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('Non-retryable error');
-    });
-    (isRetryable as jest.Mock).mockReturnValueOnce(false);
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-non-retryable',
-        body: { detail: { id: 'evt-nr', type: 'MANDATE_GRANTED', subject: {} } },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-    expect(isRetryable).toHaveBeenCalled();
-  });
-
-  // Compliance callback tests (merged from compliance-callback.test.ts)
+  // Compliance callback tests
   describe('compliance callback events', () => {
     it('should handle DECISION_APPROVED with L1 authority (autonomous)', async () => {
-      const sqsEvent = buildSqsEvent([
-        {
-          messageId: 'msg-c1',
-          body: {
-            detail: {
-              id: 'evt-c1',
-              type: 'DECISION_APPROVED',
-              timestamp: '2025-01-01T00:00:00.000Z',
-              subject: { tenantId: 't1', decisionId: 'dp-1', authorityLevel: 'L1' },
-              context: { tenantId: 't1' },
-            },
-          },
-        },
+      const result = await harness.process([
+        fakeSqsRecord('DECISION_APPROVED', {
+          tenantId: 't1', decisionId: 'dp-1', authorityLevel: 'L1',
+        }, { tenantId: 't1' }),
       ]);
-
-      const result = await handler(sqsEvent);
       expect(result.batchItemFailures).toHaveLength(0);
 
       const transactCalls = mockSend.mock.calls.filter(
@@ -354,22 +185,11 @@ describe('event-listener handler', () => {
     });
 
     it('should handle DECISION_APPROVED with L2 authority (needs confirmation)', async () => {
-      const sqsEvent = buildSqsEvent([
-        {
-          messageId: 'msg-c2',
-          body: {
-            detail: {
-              id: 'evt-c2',
-              type: 'DECISION_APPROVED',
-              timestamp: '2025-01-01T00:00:00.000Z',
-              subject: { tenantId: 't1', decisionId: 'dp-2', authorityLevel: 'L2' },
-              context: { tenantId: 't1' },
-            },
-          },
-        },
+      const result = await harness.process([
+        fakeSqsRecord('DECISION_APPROVED', {
+          tenantId: 't1', decisionId: 'dp-2', authorityLevel: 'L2',
+        }, { tenantId: 't1' }),
       ]);
-
-      const result = await handler(sqsEvent);
       expect(result.batchItemFailures).toHaveLength(0);
 
       const transactCalls = mockSend.mock.calls.filter(
@@ -385,22 +205,11 @@ describe('event-listener handler', () => {
     });
 
     it('should handle DECISION_BLOCKED', async () => {
-      const sqsEvent = buildSqsEvent([
-        {
-          messageId: 'msg-c3',
-          body: {
-            detail: {
-              id: 'evt-c3',
-              type: 'DECISION_BLOCKED',
-              timestamp: '2025-01-01T00:00:00.000Z',
-              subject: { tenantId: 't1', decisionId: 'dp-3', reason: 'Exceeds risk limits' },
-              context: { tenantId: 't1' },
-            },
-          },
-        },
+      const result = await harness.process([
+        fakeSqsRecord('DECISION_BLOCKED', {
+          tenantId: 't1', decisionId: 'dp-3', reason: 'Exceeds risk limits',
+        }, { tenantId: 't1' }),
       ]);
-
-      const result = await handler(sqsEvent);
       expect(result.batchItemFailures).toHaveLength(0);
 
       const transactCalls = mockSend.mock.calls.filter(
@@ -416,25 +225,14 @@ describe('event-listener handler', () => {
     });
   });
 
-  // User response tests (merged from user-response.test.ts)
+  // User response tests
   describe('user response events', () => {
     it('should handle USER_CONFIRMED and update status to CONFIRMED', async () => {
-      const sqsEvent = buildSqsEvent([
-        {
-          messageId: 'msg-u1',
-          body: {
-            detail: {
-              id: 'evt-u1',
-              type: 'USER_CONFIRMED',
-              timestamp: '2025-01-01T00:00:00.000Z',
-              subject: { tenantId: 't1', decisionId: 'dp-1' },
-              context: { tenantId: 't1' },
-            },
-          },
-        },
+      const result = await harness.process([
+        fakeSqsRecord('USER_CONFIRMED', {
+          tenantId: 't1', decisionId: 'dp-1',
+        }, { tenantId: 't1' }),
       ]);
-
-      const result = await handler(sqsEvent);
       expect(result.batchItemFailures).toHaveLength(0);
 
       const transactCalls = mockSend.mock.calls.filter(
@@ -449,26 +247,13 @@ describe('event-listener handler', () => {
     });
 
     it('should handle USER_REJECTED and update status to REJECTED', async () => {
-      const sqsEvent = buildSqsEvent([
-        {
-          messageId: 'msg-u2',
-          body: {
-            detail: {
-              id: 'evt-u2',
-              type: 'USER_REJECTED',
-              timestamp: '2025-01-01T00:00:00.000Z',
-              subject: {
-                tenantId: 't1',
-                decisionId: 'dp-2',
-                reason: 'Too risky',
-              },
-              context: { tenantId: 't1' },
-            },
-          },
-        },
+      const result = await harness.process([
+        fakeSqsRecord('USER_REJECTED', {
+          tenantId: 't1',
+          decisionId: 'dp-2',
+          reason: 'Too risky',
+        }, { tenantId: 't1' }),
       ]);
-
-      const result = await handler(sqsEvent);
       expect(result.batchItemFailures).toHaveLength(0);
 
       const transactCalls = mockSend.mock.calls.filter(

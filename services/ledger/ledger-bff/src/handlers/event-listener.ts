@@ -1,86 +1,51 @@
-import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger, type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/platform-core';
-import {
-  parseRecord,
-  requireEnv,
-  isRetryable,
-  createServiceMetrics,
-  MetricUnit,
-  traceEvent,
-  applyMiddleware,
-  withLambdaContext,
-  withTiming,
-  publishErrorEvent,
-  EventBridgeBus,
-  type Bus,
-} from '@nestfolio/lambda-utils';
+import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { requireEnv } from '@nestfolio/lambda-utils';
+import { type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/platform-core';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 import { BalanceUpdatedPipe } from '../pipes/balance-updated.pipe';
 import { PortfolioUpdatedPipe } from '../pipes/portfolio-updated.pipe';
 import { LedgerEntryRecordedPipe } from '../pipes/ledger-entry-recorded.pipe';
 
-interface NamedPipe {
+export interface NamedPipe {
   name: string;
   pipe: Pipe<UnitOfWork<BusEvent<Record<string, unknown>>>>;
 }
 
 export interface EventListenerDeps {
   readonly eventPipeMap: Record<string, NamedPipe[]>;
-  readonly bus: Bus;
-  readonly metrics: ReturnType<typeof createServiceMetrics>;
 }
 
-export const createHandler = (deps: EventListenerDeps) =>
-  async (event: SQSEvent): Promise<SQSBatchResponse> => {
-    const failures: string[] = [];
-
-    for (const record of event.Records) {
-      try {
-        const uow = parseRecord(record);
-        const eventType = uow.event.type;
-
-        logger.info('Processing event', { eventType, eventId: uow.event.id });
-        traceEvent(eventType, uow.event.id);
-
-        await processEvent(deps, eventType, uow);
-        deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
-      } catch (error) {
-        logger.error('Failed to process record', {
-          messageId: record.messageId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await publishErrorEvent(deps.bus, 'LEDGER_BFF_FAILED', error);
-        deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
-        if (isRetryable(error)) {
-          failures.push(record.messageId);
-        }
-      }
-    }
-
-    deps.metrics.publishStoredMetrics();
-
-    return {
-      batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
-    };
+function toUow(payload: EventPayload, ctx: EventContext) {
+  const event = {
+    id: ctx.eventId,
+    type: ctx.eventType,
+    timestamp: ctx.timestamp,
+    subject: payload.subject,
+    context: payload.context ?? { tenantId: ctx.tenantId },
   };
-
-async function processEvent(
-  deps: EventListenerDeps,
-  eventType: string,
-  uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
-): Promise<void> {
-  const namedPipes = deps.eventPipeMap[eventType];
-
-  if (!namedPipes || namedPipes.length === 0) {
-    logger.info('No pipes for event type, skipping', { eventType });
-    return;
-  }
-
-  for (const { pipe } of namedPipes) {
-    await pipe.process(uow);
-  }
+  return { event, payload: payload.subject as Record<string, unknown>, record: {} };
 }
+
+export const createHandlers = (deps: EventListenerDeps) => {
+  const allEventTypes = Object.keys(deps.eventPipeMap);
+
+  return Object.fromEntries(
+    allEventTypes.map((type) => [
+      type,
+      async (payload: EventPayload, ctx: EventContext) => {
+        const namedPipes = deps.eventPipeMap[type];
+        if (!namedPipes || namedPipes.length === 0) return skip();
+
+        const uow = toUow(payload, ctx);
+        for (const { pipe } of namedPipes) {
+          await pipe.process(uow);
+        }
+        return skip();
+      },
+    ]),
+  );
+};
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
@@ -105,12 +70,12 @@ const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
 
 const deps: EventListenerDeps = {
   eventPipeMap: EVENT_PIPE_MAP,
-  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'ledger-bff'),
-  metrics: createServiceMetrics('ledger-bff'),
 };
 
-export const handler = applyMiddleware(
-  createHandler(deps) as (event: unknown) => Promise<SQSBatchResponse>,
-  withLambdaContext(),
-  withTiming('ledger-bff-event-listener'),
-);
+export const handler = createEventHandler({
+  serviceName: 'ledger-bff',
+  handlers: createHandlers(deps),
+  table: TABLE_NAME,
+  bus: requireEnv('BUS_NAME'),
+  errorEventType: 'LEDGER_BFF_FAILED',
+});

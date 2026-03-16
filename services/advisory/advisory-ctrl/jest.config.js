@@ -14,6 +14,7 @@ module.exports = {
     '^@nestfolio/agent-core$': '<rootDir>/../../../libs/agent-core/src/index.ts',
     '^@nestfolio/agent-core/(.*)$': '<rootDir>/../../../libs/agent-core/src/$1',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
+    '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
   },
   transform: {
     '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json', diagnostics: false }],

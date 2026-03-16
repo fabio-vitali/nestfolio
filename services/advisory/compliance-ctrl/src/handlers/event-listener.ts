@@ -1,7 +1,7 @@
-import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { requireEnv, NotRetryableError } from '@nestfolio/lambda-utils';
 import { logger } from '@nestfolio/platform-core';
-import { parseRecord, requireEnv, extractTenantId, isRetryable, createServiceMetrics, MetricUnit, NotRetryableError, traceEvent, applyMiddleware, withLambdaContext, withTiming, publishErrorEvent, EventBridgeBus, type Bus } from '@nestfolio/lambda-utils';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';
@@ -12,92 +12,31 @@ import { AuthorityResolver } from '../rules/authority-resolver';
 export interface EventListenerDeps {
   readonly repository: ComplianceRepository;
   readonly ruleEngine: RuleEngine;
-  readonly metrics: ReturnType<typeof createServiceMetrics>;
-  readonly bus: Bus;
 }
-
-const DECISION_EVENT_TYPES = new Set([
-  'DECISION_PACKET_CREATED',
-  'DECISION_PACKET_ENRICHED',
-]);
-
-const MANDATE_EVENT_TYPES = new Set([
-  'MANDATE_GRANTED',
-  'MANDATE_UPDATED',
-  'MANDATE_REVOKED',
-  'OPERATING_MODE_CHANGED',
-]);
-
-const HANDLED_EVENT_TYPES = new Set([
-  ...DECISION_EVENT_TYPES,
-  ...MANDATE_EVENT_TYPES,
-]);
-
-export const createHandler = (deps: EventListenerDeps) =>
-  async (event: SQSEvent): Promise<SQSBatchResponse> => {
-    const failures: string[] = [];
-
-    for (const record of event.Records) {
-      try {
-        const uow = parseRecord(record);
-        const eventType = uow.event.type;
-
-        logger.info('Processing event', { eventType, eventId: uow.event.id });
-        traceEvent(eventType, uow.event.id);
-
-        if (!HANDLED_EVENT_TYPES.has(eventType)) {
-          logger.warn('No handler for event type, skipping', { eventType });
-          continue;
-        }
-
-        if (DECISION_EVENT_TYPES.has(eventType)) {
-          const subject = uow.event.subject as Record<string, unknown>;
-          const requiredFields = ['proposedTrades', 'portfolioValue', 'riskScore', 'currentPositions'];
-          const missingFields = requiredFields.filter((f) => !(f in subject));
-          if (missingFields.length) {
-            throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
-          }
-          await processDecisionPacket(deps, uow.event);
-        } else if (MANDATE_EVENT_TYPES.has(eventType)) {
-          await processMandateEvent(deps, uow.event, eventType);
-        }
-
-        deps.metrics.addMetric('EventProcessed', MetricUnit.Count, 1);
-      } catch (error) {
-        logger.error('Failed to process record', {
-          messageId: record.messageId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await publishErrorEvent(deps.bus, 'COMPLIANCE_CTRL_FAILED', error);
-        deps.metrics.addMetric('EventFailed', MetricUnit.Count, 1);
-        if (isRetryable(error)) {
-          failures.push(record.messageId);
-        }
-      }
-    }
-
-    deps.metrics.publishStoredMetrics();
-
-    return {
-      batchItemFailures: failures.map((id) => ({ itemIdentifier: id })),
-    };
-  };
 
 async function processDecisionPacket(
   deps: EventListenerDeps,
-  event: Record<string, unknown>,
-): Promise<void> {
-  const subject = event.subject as Record<string, unknown>;
-  const tenantId = extractTenantId(event);
+  payload: EventPayload,
+  ctx: EventContext,
+) {
+  const subject = payload.subject;
+  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
   const userId = (subject.userId as string) ?? tenantId;
   const decisionPacketId = subject.decisionId as string;
+
+  // Validate required fields
+  const requiredFields = ['proposedTrades', 'portfolioValue', 'riskScore', 'currentPositions'];
+  const missingFields = requiredFields.filter((f) => !(f in subject));
+  if (missingFields.length) {
+    throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
+  }
 
   // Load mandate snapshot from DynamoDB
   const mandateRecord = await deps.repository.getMandateSnapshot(tenantId, userId);
   if (!mandateRecord) {
     logger.error('No mandate snapshot found for user', { tenantId, userId });
     // Create a compliance check with BLOCKED result for missing mandate
-    const ccId = event.id as string;
+    const ccId = ctx.eventId;
     const created = await deps.repository.createComplianceCheck(tenantId, ccId, decisionPacketId, {
       mandateId: 'NONE',
       level: 'ADVISORY',
@@ -105,15 +44,15 @@ async function processDecisionPacket(
       maxSingleTradePercent: 0,
       effectiveDate: new Date().toISOString(),
       revokedAt: null,
-    }, event.id as string);
+    }, ctx.eventId);
     if (!created) {
-      logger.info('Duplicate event, skipping', { eventId: event.id });
-      return;
+      logger.info('Duplicate event, skipping', { eventId: ctx.eventId });
+      return skip();
     }
     await deps.repository.updateCheckResult(tenantId, ccId, 'BLOCKED', [
       { rule: 'MANDATE_MISSING', description: 'No mandate found for user', severity: 'BLOCKING' },
     ], 'L2');
-    return;
+    return skip();
   }
 
   const mandate: MandateSnapshot = {
@@ -130,13 +69,13 @@ async function processDecisionPacket(
   const riskScore = (subject.riskScore as number) ?? 5;
   const currentPositions = (subject.currentPositions as ComplianceInput['currentPositions']) ?? [];
 
-  const ccId = event.id as string;
+  const ccId = ctx.eventId;
 
   // Create compliance check record (idempotent — returns false if already exists)
-  const created = await deps.repository.createComplianceCheck(tenantId, ccId, decisionPacketId, mandate, event.id as string);
+  const created = await deps.repository.createComplianceCheck(tenantId, ccId, decisionPacketId, mandate, ctx.eventId);
   if (!created) {
-    logger.info('Duplicate event, skipping', { eventId: event.id });
-    return;
+    logger.info('Duplicate event, skipping', { eventId: ctx.eventId });
+    return skip();
   }
 
   // Run rule engine
@@ -163,13 +102,13 @@ async function processDecisionPacket(
   );
 
   // Create audit artifact
-  const artifactId = (event.id as string) + '-audit';
+  const artifactId = ctx.eventId + '-audit';
   await deps.repository.createAuditArtifact(tenantId, ccId, artifactId, {
     decisionPacketId,
     input: complianceInput,
     output,
     evaluatedAt: new Date().toISOString(),
-    sourceEventId: event.id,
+    sourceEventId: ctx.eventId,
   });
 
   logger.info('Compliance check completed', {
@@ -179,19 +118,21 @@ async function processDecisionPacket(
     authorityLevel: output.authorityLevel,
     violationCount: output.violations.length,
   });
+
+  return skip();
 }
 
 async function processMandateEvent(
   deps: EventListenerDeps,
-  event: Record<string, unknown>,
-  eventType: string,
-): Promise<void> {
-  const subject = event.subject as Record<string, unknown>;
-  const context = event.context as Record<string, unknown>;
-  const tenantId = ((context?.tenantId ?? subject?.tenantId) as string);
+  payload: EventPayload,
+  ctx: EventContext,
+) {
+  const subject = payload.subject;
+  const context = payload.context ?? {};
+  const tenantId = ((context.tenantId ?? subject?.tenantId) as string) ?? ctx.tenantId;
   const userId = ((subject?.userId ?? tenantId) as string);
 
-  switch (eventType) {
+  switch (ctx.eventType) {
     case 'MANDATE_GRANTED':
     case 'MANDATE_UPDATED':
       if (!subject.mandateId || !subject.level) {
@@ -205,7 +146,7 @@ async function processMandateEvent(
         effectiveDate: subject.effectiveDate,
         revokedAt: null,
       });
-      logger.info('Mandate snapshot created/updated', { tenantId, userId, eventType });
+      logger.info('Mandate snapshot created/updated', { tenantId, userId, eventType: ctx.eventType });
       break;
 
     case 'MANDATE_REVOKED':
@@ -225,9 +166,27 @@ async function processMandateEvent(
       break;
 
     default:
-      logger.info('No handler for mandate event type, skipping', { eventType });
+      logger.info('No handler for mandate event type, skipping', { eventType: ctx.eventType });
   }
+
+  return skip();
 }
+
+export const createHandlers = (deps: EventListenerDeps) => {
+  const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<ReturnType<typeof skip>>> = {};
+
+  // Decision events
+  for (const type of ['DECISION_PACKET_CREATED', 'DECISION_PACKET_ENRICHED']) {
+    handlers[type] = (payload, ctx) => processDecisionPacket(deps, payload, ctx);
+  }
+
+  // Mandate events
+  for (const type of ['MANDATE_GRANTED', 'MANDATE_UPDATED', 'MANDATE_REVOKED', 'OPERATING_MODE_CHANGED']) {
+    handlers[type] = (payload, ctx) => processMandateEvent(deps, payload, ctx);
+  }
+
+  return handlers;
+};
 
 // Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
@@ -244,12 +203,12 @@ const ruleEngine = new RuleEngine(
 const deps: EventListenerDeps = {
   repository,
   ruleEngine,
-  metrics: createServiceMetrics('compliance-ctrl'),
-  bus: new EventBridgeBus(requireEnv('BUS_NAME'), 'compliance-ctrl'),
 };
 
-export const handler = applyMiddleware(
-  createHandler(deps) as (event: unknown) => Promise<SQSBatchResponse>,
-  withLambdaContext(),
-  withTiming('compliance-ctrl-event-listener'),
-);
+export const handler = createEventHandler({
+  serviceName: 'compliance-ctrl',
+  handlers: createHandlers(deps),
+  table: TABLE_NAME,
+  bus: requireEnv('BUS_NAME'),
+  errorEventType: 'COMPLIANCE_CTRL_FAILED',
+});

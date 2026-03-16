@@ -65,40 +65,18 @@ jest.mock('@nestfolio/platform-core', () => ({
 
 const mockGuardedWrite = jest.fn().mockResolvedValue(true);
 
-const mockParseRecord = jest.fn((record) => {
-  const body = JSON.parse(record.body);
-  const event = body.detail ?? body;
-  return { event, payload: event.subject ?? {}, record };
-});
-
-const mockMetrics = {
-  addMetric: jest.fn(),
-  addDimension: jest.fn(),
-  publishStoredMetrics: jest.fn(),
-};
-
 jest.mock('@nestfolio/lambda-utils', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
-  parseRecord: mockParseRecord,
   guardedWrite: mockGuardedWrite,
-  createServiceMetrics: jest.fn().mockReturnValue(mockMetrics),
-  isRetryable: jest.fn().mockReturnValue(true),
-  traceEvent: jest.fn(),
-  MetricUnit: { Count: 'Count' },
-  applyMiddleware: jest.fn((handler: unknown) => handler),
-  withLambdaContext: jest.fn().mockReturnValue((fn: unknown) => fn),
-  withTiming: jest.fn().mockReturnValue((fn: unknown) => fn),
   withMethodLogging: jest.fn().mockImplementation(() =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-  publishErrorEvent: jest.fn().mockResolvedValue(undefined),
-  EventBridgeBus: jest.fn(),
 }));
 
 process.env.TABLE_NAME = 'test-table';
 
-import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
-import { createHandler, EventListenerDeps } from '../../src/handlers/event-listener';
+import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
+import { createHandlers, type EventListenerDeps } from '../../src/handlers/event-listener';
 import { DashboardRepository } from '../../src/repositories/dashboard.repository';
 import { PortfolioSummaryPipe } from '../../src/pipes/portfolio-summary.pipe';
 import { PositionSnapshotPipe } from '../../src/pipes/position-snapshot.pipe';
@@ -107,443 +85,210 @@ import { AdvisoryStatusPipe } from '../../src/pipes/advisory-status.pipe';
 import { InvestorSnapshotPipe } from '../../src/pipes/investor-snapshot.pipe';
 import { TimeTravelAvailabilityPipe } from '../../src/pipes/time-travel-availability.pipe';
 
-function buildSqsEvent(records: Array<{ messageId: string; body: Record<string, unknown> }>): SQSEvent {
-  return {
-    Records: records.map((r) => ({
-      messageId: r.messageId,
-      body: JSON.stringify(r.body),
-      receiptHandle: 'handle',
-      attributes: {} as any,
-      messageAttributes: {},
-      md5OfBody: '',
-      eventSource: 'aws:sqs',
-      eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
-      awsRegion: 'us-east-1',
-    })),
-  };
-}
-
 describe('dashboard-bff event-listener handler', () => {
-  let handler: (event: SQSEvent) => Promise<SQSBatchResponse>;
+  const repository = new DashboardRepository('test-table');
+
+  const portfolioSummaryPipe = new PortfolioSummaryPipe(repository);
+  const positionSnapshotPipe = new PositionSnapshotPipe(repository);
+  const recentActivityPipe = new RecentActivityPipe(repository);
+  const advisoryStatusPipe = new AdvisoryStatusPipe(repository);
+  const investorSnapshotPipe = new InvestorSnapshotPipe(repository);
+  const timeTravelAvailabilityPipe = new TimeTravelAvailabilityPipe(repository);
+
+  const eventPipeMap: Record<string, { name: string; pipe: any }[]> = {
+    BALANCE_UPDATED: [
+      { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+      { name: 'recentActivity', pipe: recentActivityPipe },
+    ],
+    PORTFOLIO_UPDATED: [
+      { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+      { name: 'positionSnapshot', pipe: positionSnapshotPipe },
+      { name: 'recentActivity', pipe: recentActivityPipe },
+    ],
+    RECONCILIATION_COMPLETED: [
+      { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
+    ],
+    DECISION_PACKET_CREATED: [
+      { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+    ],
+    USER_CONFIRMATION_REQUESTED: [
+      { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+    ],
+    DECISION_APPROVED: [
+      { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+      { name: 'recentActivity', pipe: recentActivityPipe },
+    ],
+    DECISION_BLOCKED: [
+      { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+      { name: 'recentActivity', pipe: recentActivityPipe },
+    ],
+    LEDGER_ENTRY_RECORDED: [
+      { name: 'timeTravelAvailability', pipe: timeTravelAvailabilityPipe },
+    ],
+    ONBOARDING_COMPLETED: [
+      { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+    ],
+    GOAL_SET: [
+      { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+    ],
+    GOAL_UPDATED: [
+      { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+    ],
+    RISK_PROFILE_SET: [
+      { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+    ],
+    RISK_PROFILE_UPDATED: [
+      { name: 'investorSnapshot', pipe: investorSnapshotPipe },
+    ],
+  };
+
+  const mockDeps: EventListenerDeps = { eventPipeMap };
+
+  const harness = createTestHarness({
+    serviceName: 'dashboard-bff',
+    handlers: createHandlers(mockDeps),
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
     mockGuardedWrite.mockResolvedValue(true);
-
-    const repository = new DashboardRepository('test-table');
-
-    const portfolioSummaryPipe = new PortfolioSummaryPipe(repository);
-    const positionSnapshotPipe = new PositionSnapshotPipe(repository);
-    const recentActivityPipe = new RecentActivityPipe(repository);
-    const advisoryStatusPipe = new AdvisoryStatusPipe(repository);
-    const investorSnapshotPipe = new InvestorSnapshotPipe(repository);
-    const timeTravelAvailabilityPipe = new TimeTravelAvailabilityPipe(repository);
-
-    const eventPipeMap: Record<string, { name: string; pipe: any }[]> = {
-      BALANCE_UPDATED: [
-        { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
-        { name: 'recentActivity', pipe: recentActivityPipe },
-      ],
-      PORTFOLIO_UPDATED: [
-        { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
-        { name: 'positionSnapshot', pipe: positionSnapshotPipe },
-        { name: 'recentActivity', pipe: recentActivityPipe },
-      ],
-      RECONCILIATION_COMPLETED: [
-        { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
-      ],
-      DECISION_PACKET_CREATED: [
-        { name: 'advisoryStatus', pipe: advisoryStatusPipe },
-      ],
-      USER_CONFIRMATION_REQUESTED: [
-        { name: 'advisoryStatus', pipe: advisoryStatusPipe },
-      ],
-      DECISION_APPROVED: [
-        { name: 'advisoryStatus', pipe: advisoryStatusPipe },
-        { name: 'recentActivity', pipe: recentActivityPipe },
-      ],
-      DECISION_BLOCKED: [
-        { name: 'advisoryStatus', pipe: advisoryStatusPipe },
-        { name: 'recentActivity', pipe: recentActivityPipe },
-      ],
-      LEDGER_ENTRY_RECORDED: [
-        { name: 'timeTravelAvailability', pipe: timeTravelAvailabilityPipe },
-      ],
-      ONBOARDING_COMPLETED: [
-        { name: 'investorSnapshot', pipe: investorSnapshotPipe },
-      ],
-      GOAL_SET: [
-        { name: 'investorSnapshot', pipe: investorSnapshotPipe },
-      ],
-      GOAL_UPDATED: [
-        { name: 'investorSnapshot', pipe: investorSnapshotPipe },
-      ],
-      RISK_PROFILE_SET: [
-        { name: 'investorSnapshot', pipe: investorSnapshotPipe },
-      ],
-      RISK_PROFILE_UPDATED: [
-        { name: 'investorSnapshot', pipe: investorSnapshotPipe },
-      ],
-    };
-
-    const mockDeps: EventListenerDeps = {
-      eventPipeMap,
-      bus: { publish: jest.fn().mockResolvedValue(undefined) } as any,
-      metrics: mockMetrics as any,
-    };
-
-    handler = createHandler(mockDeps);
   });
 
   it('should process BALANCE_UPDATED event through multiple pipes', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-1',
-        body: {
-          detail: {
-            id: 'evt-1',
-            type: 'BALANCE_UPDATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              tenantId: 't1',
-              balanceCents: 1050000,
-              deltaCents: 50000,
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('BALANCE_UPDATED', {
+        tenantId: 't1',
+        balanceCents: 1050000,
+        deltaCents: 50000,
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-
-    // BALANCE_UPDATED triggers 2 pipes: portfolioSummary (no-op without filledQuantity), recentActivity (Put)
     expect(mockSend).toHaveBeenCalled();
     expect(mockSend.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 
   it('should process DECISION_APPROVED through advisory and activity pipes', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-2',
-        body: {
-          detail: {
-            id: 'evt-2',
-            type: 'DECISION_APPROVED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              decisionId: 'd1',
-              complianceLevel: 'L1',
-              approvedAt: '2025-01-01T00:00:00.000Z',
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('DECISION_APPROVED', {
+        decisionId: 'd1',
+        complianceLevel: 'L1',
+        approvedAt: '2025-01-01T00:00:00.000Z',
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-
-    // DECISION_APPROVED triggers advisoryStatusPipe (guardedWrite) + recentActivityPipe (putIfNotExists)
-    // guardedWrite is mocked separately, only putIfNotExists goes through mockSend
     expect(mockGuardedWrite).toHaveBeenCalledTimes(1);
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   it('should process ONBOARDING_COMPLETED through investor snapshot pipe', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-3',
-        body: {
-          detail: {
-            id: 'evt-3',
-            type: 'ONBOARDING_COMPLETED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              tenantId: 't1',
-              operatingMode: 'BALANCED',
-              riskScore: 7,
-              goalId: 'g1',
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('ONBOARDING_COMPLETED', {
+        tenantId: 't1',
+        operatingMode: 'BALANCED',
+        riskScore: 7,
+        goalId: 'g1',
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-
-    // ONBOARDING_COMPLETED triggers investorSnapshotPipe (Update)
     expect(mockSend).toHaveBeenCalledTimes(1);
-  });
-
-  it('should report failure for malformed event body (invalid JSON)', async () => {
-    const sqsEvent: SQSEvent = {
-      Records: [{
-        messageId: 'msg-malformed',
-        body: '{{not-json',
-        receiptHandle: 'handle',
-        attributes: {} as any,
-        messageAttributes: {},
-        md5OfBody: '',
-        eventSource: 'aws:sqs',
-        eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:test',
-        awsRegion: 'us-east-1',
-      }],
-    };
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-malformed');
   });
 
   it('should report failure when DynamoDB throws error during pipe processing', async () => {
     mockSend.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-dynamo-err',
-        body: {
-          detail: {
-            id: 'evt-dynamo',
-            type: 'BALANCE_UPDATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              tenantId: 't1',
-              balanceCents: 1050000,
-              deltaCents: 50000,
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('BALANCE_UPDATED', {
+        tenantId: 't1',
+        balanceCents: 1050000,
+        deltaCents: 50000,
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-dynamo-err');
   });
 
   it('should skip unknown event types gracefully', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-4',
-        body: {
-          detail: {
-            id: 'evt-4',
-            type: 'UNKNOWN_EVENT',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {},
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('UNKNOWN_EVENT', {}, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
+    expect(result.skipped).toBe(1);
     expect(mockSend).not.toHaveBeenCalled();
   });
 
-  it('should report batch item failures for processing errors', async () => {
-    mockParseRecord.mockImplementationOnce(() => {
-      throw new Error('Parse error');
-    });
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-fail',
-        body: { detail: { id: 'evt-fail', type: 'BALANCE_UPDATED', subject: {} } },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(1);
-    expect(result.batchItemFailures[0].itemIdentifier).toBe('msg-fail');
-  });
-
-  it('should NOT add to batchItemFailures when error is not retryable', async () => {
-    const { isRetryable } = require('@nestfolio/lambda-utils');
-    mockParseRecord.mockImplementationOnce(() => {
-      throw new Error('Non-retryable error');
-    });
-    (isRetryable as jest.Mock).mockReturnValueOnce(false);
-
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-non-retryable',
-        body: { detail: { id: 'evt-nr', type: 'BALANCE_UPDATED', subject: {} } },
-      },
-    ]);
-
-    const result = await handler(sqsEvent);
-    expect(result.batchItemFailures).toHaveLength(0);
-    expect(isRetryable).toHaveBeenCalled();
-  });
-
   it('should process PORTFOLIO_UPDATED through multiple pipes', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-5',
-        body: {
-          detail: {
-            id: 'evt-5',
-            type: 'PORTFOLIO_UPDATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              tenantId: 't1',
-              positionCount: 5,
-              totalValueCents: 10500000,
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('PORTFOLIO_UPDATED', {
+        tenantId: 't1',
+        positionCount: 5,
+        totalValueCents: 10500000,
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-    // PORTFOLIO_UPDATED triggers 3 pipes: portfolioSummary (no-op without filledQuantity), positionSnapshot (no-op without symbol), recentActivity (Put)
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   it('should process GOAL_UPDATED through investor snapshot pipe', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-6',
-        body: {
-          detail: {
-            id: 'evt-6',
-            type: 'GOAL_UPDATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              goalId: 'g1',
-              objective: 'Retirement',
-              timeHorizonMonths: 360,
-              targetReturn: 0.07,
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('GOAL_UPDATED', {
+        goalId: 'g1',
+        objective: 'Retirement',
+        timeHorizonMonths: 360,
+        targetReturn: 0.07,
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   it('should handle duplicate events gracefully via per-pipe idempotency (guardedWrite returns false)', async () => {
-    // guardedWrite returns false for advisory pipe (duplicate), recentActivity putIfNotExists also returns true
     mockGuardedWrite.mockResolvedValueOnce(false);
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-dup',
-        body: {
-          detail: {
-            id: 'evt-dup',
-            type: 'DECISION_APPROVED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              decisionId: 'd1',
-              approvedAt: '2025-01-01T00:00:00.000Z',
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('DECISION_APPROVED', {
+        decisionId: 'd1',
+        approvedAt: '2025-01-01T00:00:00.000Z',
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-    // guardedWrite called for advisory pipe, putIfNotExists (via mockSend) for activity pipe
     expect(mockGuardedWrite).toHaveBeenCalledTimes(1);
     expect(mockSend).toHaveBeenCalled();
   });
 
   it('should call all pipes directly without external idempotency guard', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-direct',
-        body: {
-          detail: {
-            id: 'evt-direct',
-            type: 'PORTFOLIO_UPDATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              tenantId: 't1',
-              positionCount: 5,
-              totalValueCents: 10500000,
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('PORTFOLIO_UPDATED', {
+        tenantId: 't1',
+        positionCount: 5,
+        totalValueCents: 10500000,
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-    // PORTFOLIO_UPDATED triggers 3 pipes directly (portfolioSummary, positionSnapshot, recentActivity)
-    // recentActivity calls putIfNotExists (mockSend)
     expect(mockSend).toHaveBeenCalled();
   });
 
   it('should process LEDGER_ENTRY_RECORDED through time-travel availability pipe', async () => {
-    mockSend.mockResolvedValueOnce({});  // timeTravelAvailability Update
+    mockSend.mockResolvedValueOnce({});
 
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-tt',
-        body: {
-          detail: {
-            id: 'evt-tt',
-            type: 'LEDGER_ENTRY_RECORDED',
-            timestamp: '2025-06-15T12:00:00.000Z',
-            subject: {
-              tenantId: 't1',
-              lastEventSequence: 42,
-              version: 5,
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('LEDGER_ENTRY_RECORDED', {
+        tenantId: 't1',
+        lastEventSequence: 42,
+        version: 5,
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-    // LEDGER_ENTRY_RECORDED triggers only timeTravelAvailability pipe (1 call)
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   it('should process DECISION_PACKET_CREATED through advisory pipe', async () => {
-    const sqsEvent = buildSqsEvent([
-      {
-        messageId: 'msg-7',
-        body: {
-          detail: {
-            id: 'evt-7',
-            type: 'DECISION_PACKET_CREATED',
-            timestamp: '2025-01-01T00:00:00.000Z',
-            subject: {
-              decisionId: 'd1',
-              trigger: 'DRIFT',
-              tenantId: 't1',
-            },
-            context: { tenantId: 't1' },
-          },
-        },
-      },
+    const result = await harness.process([
+      fakeSqsRecord('DECISION_PACKET_CREATED', {
+        decisionId: 'd1',
+        trigger: 'DRIFT',
+        tenantId: 't1',
+      }, { tenantId: 't1' }),
     ]);
-
-    const result = await handler(sqsEvent);
     expect(result.batchItemFailures).toHaveLength(0);
-    // DECISION_PACKET_CREATED triggers advisoryStatusPipe which uses guardedWrite (not mockSend)
     expect(mockGuardedWrite).toHaveBeenCalledTimes(1);
   });
 });
