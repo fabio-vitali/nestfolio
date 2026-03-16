@@ -37,6 +37,7 @@ export class AdvisoryCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       publishableTypes: ['DecisionPacket', 'AgentInvocation', 'WorkflowState'],
+      handlerEntry: join(__dirname, 'handlers/event-publisher-cdc.ts'),
     });
 
     // Read Bedrock model IDs from SSM (published by advisory-hub)

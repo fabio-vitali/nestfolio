@@ -1,5 +1,6 @@
 import { StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import { join } from 'path';
 import { ServiceStack, Ingress, Egress } from '@nestfolio/cdk-constructs';
 
 export class ComplianceCtrlStack extends ServiceStack {
@@ -19,6 +20,7 @@ export class ComplianceCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       publishableTypes: ['ComplianceCheck', 'AuditArtifact'],
+      handlerEntry: join(__dirname, 'handlers/event-publisher.ts'),
     });
 
     this.addObservability({ ingress, egress });

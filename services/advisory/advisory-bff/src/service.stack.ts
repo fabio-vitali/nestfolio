@@ -1,5 +1,6 @@
 import { StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import { join } from 'path';
 import { ServiceStack, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs';
 
 export class AdvisoryBffStack extends ServiceStack {
@@ -18,6 +19,7 @@ export class AdvisoryBffStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       publishableTypes: ['DecisionReadModel', 'UserInteraction', 'UserConfirmation', 'UserRejection'],
+      handlerEntry: join(__dirname, 'handlers/event-publisher.ts'),
     });
 
     new Facade(this, 'Facade', {
