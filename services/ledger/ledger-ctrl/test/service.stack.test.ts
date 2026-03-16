@@ -40,15 +40,22 @@ describe('LedgerCtrlStack', () => {
     });
   });
 
-  it('creates Egress for BalanceEvent, PortfolioEvent, LedgerEntryEvent', () => {
-    // Egress creates a Lambda with CUSTOM_EVENT_TYPE_MAP containing intent-based event names
+  it('creates Egress for BalanceEvent, PortfolioEvent, LedgerEntryEvent (custom handler)', () => {
+    // Egress now uses a custom handlerEntry — no CUSTOM_EVENT_TYPE_MAP env var
     template.hasResourceProperties('AWS::Lambda::Function', {
       Environment: {
         Variables: Match.objectLike({
-          CUSTOM_EVENT_TYPE_MAP: Match.anyValue(),
+          BUS_NAME: Match.anyValue(),
+          SERVICE_NAME: 'ledger-ctrl',
         }),
       },
     });
+    // Verify CUSTOM_EVENT_TYPE_MAP is absent from all Lambda functions
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    for (const [, resource] of Object.entries(lambdas)) {
+      const vars = (resource as any).Properties?.Environment?.Variables ?? {};
+      expect(vars).not.toHaveProperty('CUSTOM_EVENT_TYPE_MAP');
+    }
   });
 
   it('creates Ingress from ledger-hub bus', () => {

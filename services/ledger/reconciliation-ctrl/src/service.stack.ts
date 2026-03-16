@@ -2,6 +2,7 @@ import { StackProps } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
+import { join } from 'path';
 import { ServiceStack, Ingress, Egress } from '@nestfolio/cdk-constructs';
 
 export class ReconciliationCtrlStack extends ServiceStack {
@@ -21,10 +22,7 @@ export class ReconciliationCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       publishableTypes: ['ReconciliationResult', 'DriftRecord'],
-      customEventTypeMap: {
-        'ReconciliationResult:INSERT': 'RECONCILIATION_COMPLETED',
-        'DriftRecord:INSERT': 'PORTFOLIO_DRIFT_DETECTED',
-      },
+      handlerEntry: join(__dirname, 'handlers/event-publisher.ts'),
     });
 
     this.addObservability({ ingress, egress });
