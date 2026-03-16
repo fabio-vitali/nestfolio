@@ -55,3 +55,6 @@ export type { TestHarnessConfig, TestResult } from './testing/test-harness';
 export { createStreamTestHarness, createCdcTestHarness, createReducerTestHarness } from './testing/test-harness';
 export type { StreamTestResult, CdcTestResult, ReducerTestResult } from './testing/test-harness';
 export { fakeSqsRecord, fakeDdbStreamRecord } from './testing/fake-records';
+
+// Utilities (CDC)
+export { buildEventTypeMap } from './util/build-event-type-map';

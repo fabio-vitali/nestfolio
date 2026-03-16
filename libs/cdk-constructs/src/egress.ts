@@ -13,11 +13,12 @@ export interface EgressProps {
   /** DynamoDB __typename values to publish events for */
   publishableTypes: string[];
   /**
-   * Optional map of "__typename:eventName" -> custom DetailType.
-   * e.g. { 'Deposit:INSERT': 'DEPOSIT_INITIATED' }
-   * Overrides the default convention-based naming for matched keys.
+   * Optional map of "__typename:eventName" -> custom DetailType (legacy handler only).
+   * Ignored when handlerEntry is provided — define the map in the handler code instead.
    */
   customEventTypeMap?: Record<string, string>;
+  /** Path to a custom CDC handler file. When provided, uses this instead of the shared lambda-utils handler. */
+  handlerEntry?: string;
 }
 
 export class Egress extends Construct {
@@ -36,11 +37,11 @@ export class Egress extends Construct {
 
     const publisher = new NodejsFunction(this, 'Publisher', {
       ...defaultLambdaProps(this),
-      entry: EVENT_PUBLISHER_ENTRY,
+      entry: props.handlerEntry ?? EVENT_PUBLISHER_ENTRY,
       environment: {
         BUS_NAME: eventBus.eventBusName,
         SERVICE_NAME: serviceName,
-        ...(props.customEventTypeMap && {
+        ...(!props.handlerEntry && props.customEventTypeMap && {
           CUSTOM_EVENT_TYPE_MAP: JSON.stringify(props.customEventTypeMap),
         }),
       },

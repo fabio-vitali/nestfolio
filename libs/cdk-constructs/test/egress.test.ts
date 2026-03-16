@@ -1,10 +1,22 @@
 import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import * as os from 'os';
+import * as fs from 'fs';
+import * as path from 'path';
 import { ServiceStack } from '../src/service-stack';
 import { Egress } from '../src/egress';
 
 describe('Egress construct', () => {
+  const tmpHandler = path.join(os.tmpdir(), 'test-cdc-handler.ts');
+
+  beforeAll(() => {
+    fs.writeFileSync(tmpHandler, 'export const handler = async () => {};');
+  });
+
+  afterAll(() => {
+    try { fs.unlinkSync(tmpHandler); } catch { /* ignore */ }
+  });
+
   function createEgress(overrides: Record<string, unknown> = {}) {
     const app = new App({ context: { prefix: 'test' } });
     const stack = new ServiceStack(app, 'TestStack', {
@@ -65,6 +77,43 @@ describe('Egress construct', () => {
         }),
       },
     });
+  });
+
+  it('uses custom handlerEntry when provided', () => {
+    const { template } = createEgress({
+      handlerEntry: tmpHandler,
+    });
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: {
+        Variables: Match.objectLike({
+          BUS_NAME: Match.anyValue(),
+          SERVICE_NAME: 'test-svc',
+        }),
+      },
+    });
+  });
+
+  it('omits CUSTOM_EVENT_TYPE_MAP when handlerEntry is provided', () => {
+    const { template } = createEgress({
+      handlerEntry: tmpHandler,
+      customEventTypeMap: { 'Order:INSERT': 'ORDER_CREATED' },
+    });
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: {
+        Variables: Match.objectLike({
+          BUS_NAME: Match.anyValue(),
+          SERVICE_NAME: 'test-svc',
+        }),
+      },
+    });
+    // Verify CUSTOM_EVENT_TYPE_MAP is NOT present — no Lambda should have it
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    for (const logicalId of Object.keys(lambdas)) {
+      const envVars = lambdas[logicalId]?.Properties?.Environment?.Variables ?? {};
+      if (envVars.SERVICE_NAME === 'test-svc') {
+        expect(envVars.CUSTOM_EVENT_TYPE_MAP).toBeUndefined();
+      }
+    }
   });
 
   it('exposes dlq property', () => {
