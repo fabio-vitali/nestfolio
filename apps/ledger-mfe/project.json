@@ -4,7 +4,7 @@
   "projectType": "application",
   "prefix": "app",
   "sourceRoot": "apps/ledger-mfe/src",
-  "tags": ["scope:execution", "type:mfe"],
+  "tags": ["scope:ledger", "type:mfe"],
   "targets": {
     "esbuild": {
       "executor": "@angular-devkit/build-angular:application",

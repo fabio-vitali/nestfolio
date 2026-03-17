@@ -4,7 +4,7 @@
   "projectType": "application",
   "prefix": "app",
   "sourceRoot": "apps/dashboard-mfe/src",
-  "tags": ["scope:dashboard", "type:mfe"],
+  "tags": ["scope:investor", "type:mfe"],
   "targets": {
     "esbuild": {
       "executor": "@angular-devkit/build-angular:application",
