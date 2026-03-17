@@ -46,7 +46,9 @@
       "@nestfolio/investor-adpt/domain": ["services/investor/investor-adpt/src/domain/index.ts"],
       "@nestfolio/advisory-adpt/domain": ["services/advisory/advisory-adpt/src/domain/index.ts"],
       "@nestfolio/execution-adpt/domain": ["services/execution/execution-adpt/src/domain/index.ts"],
-      "@nestfolio/ledger-adpt/domain": ["services/ledger/ledger-adpt/src/domain/index.ts"]
+      "@nestfolio/ledger-adpt/domain": ["services/ledger/ledger-adpt/src/domain/index.ts"],
+      "@nestfolio/decision-workflow-ctrl/service": ["services/advisory/decision-workflow-ctrl/src/service-domain/index.ts"],
+      "@nestfolio/decision-workflow-ctrl/domain": ["services/advisory/decision-workflow-ctrl/src/service-domain/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp", "dist"]
