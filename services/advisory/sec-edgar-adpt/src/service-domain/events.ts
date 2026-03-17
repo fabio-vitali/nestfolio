@@ -1,0 +1,5 @@
+export const SecEdgarAdptEventTypes = {
+  SEC_8K_FILED: 'SEC_8K_FILED',
+  SEC_PROSPECTUS_UPDATED: 'SEC_PROSPECTUS_UPDATED',
+  SEC_10K_UPDATED: 'SEC_10K_UPDATED',
+} as const;

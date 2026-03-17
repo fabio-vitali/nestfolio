@@ -1,0 +1,1 @@
+export { SecEdgarAdptEventTypes } from './events';
