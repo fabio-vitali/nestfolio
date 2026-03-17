@@ -52,6 +52,11 @@ export class NamingService {
     return suffix ? `${base}-${suffix}-queue` : `${base}-queue`;
   }
 
+  /** Knowledge Base S3 bucket name: "{account}-{prefix}-nestfolio-kb-{kbName}" */
+  kbBucketName(kbName: string, account: string): string {
+    return `${account}-${this.prefix}-nestfolio-kb-${kbName}`;
+  }
+
   /** Lambda function name: "{prefix}-{service}-{functionSuffix}" */
   functionName(functionSuffix: string): string {
     return `${this.prefix}-${this.service}-${functionSuffix}`;

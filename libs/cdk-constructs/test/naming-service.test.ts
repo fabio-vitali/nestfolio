@@ -61,6 +61,12 @@ describe('NamingService', () => {
   });
 });
 
+  it('generates KB bucket name with account, prefix, and KB name', () => {
+    const naming = new NamingService({ prefix: 'dev', subsystem: 'advisory', service: 'advisory-ctrl' });
+    expect(naming.kbBucketName('regulatory', '123456789012')).toBe('123456789012-dev-nestfolio-kb-regulatory');
+  });
+});
+
 describe('createNamingService', () => {
   it('reads prefix from CDK context', () => {
     const app = new App({ context: { prefix: 'staging' } });
