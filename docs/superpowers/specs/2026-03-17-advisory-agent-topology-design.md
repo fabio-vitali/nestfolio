@@ -44,7 +44,21 @@ The current in-process LangGraph wave execution becomes cross-service coordinati
 
 **Role:** Orchestrates the decision lifecycle via AWS Step Functions. Owns the DecisionPacket aggregate. Handles compliance callbacks and user responses.
 
-**Task token pattern:** Each `waitForTaskToken` step stores the task token in DDB keyed by `decisionId + stepName`. Agent services publish completion events with `decisionId` only — they never see the token. The orchestrator's event-listener Lambda looks up the token from DDB by `decisionId` and calls `SendTaskSuccess(token, output)` to resume the state machine.
+**Task token pattern:** Each `waitForTaskToken` step uses the Step Functions → EventBridge PutEvents integration, which automatically injects the `taskToken` into the event payload. The agent service receives the token in the trigger event, propagates it through processing, and includes it in the completion event. The orchestrator's event-listener Lambda extracts the token from the completion event payload and calls `SendTaskSuccess(taskToken, outputs)` to resume the state machine. No DDB storage of tokens is needed.
+
+```
+SF task state (waitForTaskToken)
+  → PutEvents(ANALYZE_MARKET, { decisionId, context, taskToken })
+  → State machine PAUSES
+
+Agent service event-listener receives { decisionId, context, taskToken }
+  → Runs agent pipeline (LangGraph + RAG)
+  → PutEvents(MARKET_ANALYSIS_COMPLETED, { decisionId, outputs, taskToken })
+
+Orchestrator event-listener receives { decisionId, outputs, taskToken }
+  → SendTaskSuccess(taskToken, outputs)
+  → State machine RESUMES with outputs
+```
 
 **Step Functions State Machine:**
 
@@ -108,7 +122,7 @@ START (9 trigger events)
 | Event | Description |
 |---|---|
 | DECISION_PACKET_CREATED | New decision lifecycle started |
-| ANALYZE_INVESTOR_PROFILE | Triggers investor-profile-ctrl (carries decisionId + context) |
+| ANALYZE_INVESTOR_PROFILE | Triggers investor-profile-ctrl (carries taskToken + decisionId + context) |
 | ANALYZE_MARKET | Triggers market-intelligence-ctrl (carries task token + upstream outputs) |
 | CONSTRUCT_PORTFOLIO | Triggers portfolio-engine-ctrl (carries task token + upstream outputs) |
 | GENERATE_NARRATIVE | Triggers advisory-narrative-ctrl (carries task token + all outputs) |
@@ -151,7 +165,7 @@ The current advisory-ctrl publishes 35 event types including operational events 
 **Output events:**
 | Event | Description |
 |---|---|
-| INVESTOR_PROFILE_COMPLETED | Agent outputs (goals + risk assessment) + decisionId for orchestrator token lookup |
+| INVESTOR_PROFILE_COMPLETED | Agent outputs (goals + risk assessment) + taskToken for orchestrator SendTaskSuccess |
 | GOAL_INTERPRETATION_PRODUCED | CDC: goal agent output recorded |
 | RISK_EVALUATION_PRODUCED | CDC: risk agent output recorded |
 
