@@ -1,56 +1,62 @@
-import { createAgentNode } from '../src/agent-factory';
-import { AGENT_TYPES } from '../src/model-config';
+// libs/agent-core/test/agent-factory.test.ts
+import { z } from 'zod';
+import type { AgentConfig } from '../src/types';
 
-// Mock ChatBedrockConverse
-const mockInvoke = jest.fn();
-const mockWithStructuredOutput = jest.fn(() => ({
-  invoke: mockInvoke,
+const mockWithStructuredOutput = jest.fn().mockReturnValue({
+  invoke: jest.fn().mockResolvedValue({ value: 'test-output' }),
+});
+const MockChatBedrockConverse = jest.fn().mockImplementation(() => ({
+  withStructuredOutput: mockWithStructuredOutput,
 }));
-
 jest.mock('@langchain/aws', () => ({
-  ChatBedrockConverse: jest.fn().mockImplementation(() => ({
-    withStructuredOutput: mockWithStructuredOutput,
-  })),
+  ChatBedrockConverse: MockChatBedrockConverse,
 }));
 
-describe('createAgentNode', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+import { createAgentNode } from '../src/agent-factory';
 
-  it.each(AGENT_TYPES)('returns a function for agent type "%s"', (agentType) => {
-    const nodeFn = createAgentNode(agentType);
-    expect(typeof nodeFn).toBe('function');
-  });
+describe('createAgentNode (generic)', () => {
+  const testSchema = z.object({ value: z.string() });
 
-  it('invokes the structured model with system and human messages', async () => {
-    const mockResult = { goalId: 'g1', interpretedObjective: 'Growth' };
-    mockInvoke.mockResolvedValue(mockResult);
+  const config: AgentConfig<typeof testSchema> = {
+    modelId: 'anthropic.claude-3-haiku-20240307-v1:0',
+    maxTokens: 1024,
+    temperature: 0.0,
+    schema: testSchema,
+    promptTemplate: 'You are a test agent. Analyze: {input}',
+  };
 
-    const nodeFn = createAgentNode('user-goals');
-    const state = { input: 'I want to grow my savings' };
+  beforeEach(() => jest.clearAllMocks());
 
-    const result = await nodeFn(state);
-
-    expect(mockInvoke).toHaveBeenCalledTimes(1);
-    const messages = mockInvoke.mock.calls[0][0];
-    expect(messages).toHaveLength(2);
-    expect(result).toEqual({ 'user-goals': mockResult });
-  });
-
-  it('passes the region option to ChatBedrockConverse', () => {
-    const { ChatBedrockConverse } = jest.requireMock('@langchain/aws');
-
-    createAgentNode('risk-assessment', { region: 'eu-west-1' });
-
-    expect(ChatBedrockConverse).toHaveBeenCalledWith(
-      expect.objectContaining({ region: 'eu-west-1' }),
+  it('creates ChatBedrockConverse with correct model params', async () => {
+    const node = createAgentNode(config);
+    await node({ input: 'test' });
+    expect(MockChatBedrockConverse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'anthropic.claude-3-haiku-20240307-v1:0',
+        maxTokens: 1024,
+        temperature: 0.0,
+      }),
     );
   });
 
-  it('uses withStructuredOutput with the correct schema', () => {
-    createAgentNode('market-research');
-    expect(mockWithStructuredOutput).toHaveBeenCalledTimes(1);
-    expect(mockWithStructuredOutput).toHaveBeenCalledWith(expect.anything());
+  it('calls withStructuredOutput with the provided schema', async () => {
+    const node = createAgentNode(config);
+    await node({ input: 'test' });
+    expect(mockWithStructuredOutput).toHaveBeenCalledWith(testSchema);
+  });
+
+  it('returns a callable node function', async () => {
+    const node = createAgentNode(config);
+    expect(typeof node).toBe('function');
+  });
+
+  it('uses __escalationTier to override model when present in state', async () => {
+    const node = createAgentNode(config);
+    await node({ input: 'test', __escalationTier: 'opus' });
+    expect(MockChatBedrockConverse).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        model: 'anthropic.claude-3-opus-20240229-v1:0',
+      }),
+    );
   });
 });

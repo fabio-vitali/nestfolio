@@ -1,63 +1,33 @@
 import { ChatBedrockConverse } from '@langchain/aws';
-import { SystemMessage, HumanMessage, BaseMessage } from '@langchain/core/messages';
+import type { z } from 'zod';
+import type { AgentConfig } from './types';
+import type { AgentNodeFn } from './with-validation';
 
-import { AgentType, getModelConfig } from './model-config';
-import { loadPromptTemplate } from './prompt-templates';
-import { getOutputSchema } from './output-schemas';
+const MODEL_ID_MAP: Record<string, string> = {
+  haiku: 'anthropic.claude-3-haiku-20240307-v1:0',
+  sonnet: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+  opus: 'anthropic.claude-3-opus-20240229-v1:0',
+};
 
-/**
- * The shape of a LangGraph node function produced by the factory.
- * Accepts the current graph state and returns a partial state update.
- */
-export type AgentNodeFn = (state: Record<string, unknown>) => Promise<Record<string, unknown>>;
-
-export interface CreateAgentNodeOptions {
-  /** AWS region for Bedrock. Defaults to AWS_REGION env var or 'us-east-1'. */
-  region?: string;
-}
-
-/**
- * Creates a LangGraph-compatible node function for the given agent type.
- *
- * The returned function:
- * 1. Reads the system prompt for the agent type
- * 2. Instantiates a ChatBedrockConverse model with structured output
- * 3. Invokes the model with the state context
- * 4. Returns the parsed, schema-validated output under the agent type key
- */
-export function createAgentNode(
-  type: AgentType,
-  options?: CreateAgentNodeOptions,
-): AgentNodeFn {
-  const modelConfig = getModelConfig(type);
-  const systemPrompt = loadPromptTemplate(type);
-  const outputSchema = getOutputSchema(type);
-
-  const model = new ChatBedrockConverse({
-    model: modelConfig.modelId,
-    region: options?.region ?? process.env['AWS_REGION'] ?? 'us-east-1',
-    maxTokens: modelConfig.maxTokens,
-    temperature: modelConfig.temperature,
-  });
-
-  // Cast model to a simplified interface to work around LangGraph's
-  // excessively deep generic type instantiation (TS2589) in withStructuredOutput
-  interface StructuredInvokable {
-    invoke(messages: BaseMessage[]): Promise<Record<string, unknown>>;
-  }
-  interface WithStructuredOutput {
-    withStructuredOutput(schema: unknown): StructuredInvokable;
-  }
-  const structuredModel = (model as unknown as WithStructuredOutput).withStructuredOutput(outputSchema);
+export function createAgentNode<T extends z.ZodType>(config: AgentConfig<T>): AgentNodeFn {
+  const { modelId, maxTokens, temperature, schema, promptTemplate } = config;
 
   return async (state: Record<string, unknown>): Promise<Record<string, unknown>> => {
-    const messages: BaseMessage[] = [
-      new SystemMessage(systemPrompt),
-      new HumanMessage(JSON.stringify(state)),
-    ];
+    const effectiveModelId = state.__escalationTier
+      ? MODEL_ID_MAP[state.__escalationTier as string] ?? modelId
+      : modelId;
 
-    const result = await structuredModel.invoke(messages);
+    const llm = new ChatBedrockConverse({
+      model: effectiveModelId,
+      maxTokens,
+      temperature,
+      region: 'us-east-1',
+    });
 
-    return { [type]: result };
+    const structured = llm.withStructuredOutput(schema as any);
+    const input = typeof state.input === 'string' ? state.input : JSON.stringify(state);
+    const prompt = promptTemplate.replace('{input}', input);
+    const result = await structured.invoke(prompt);
+    return result as Record<string, unknown>;
   };
 }
