@@ -4,6 +4,11 @@ import * as path from 'path';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
+export interface ScheduleConfig {
+  enabled: boolean;
+  rate: string;
+}
+
 export interface ResolvedPipelineConfig {
   service: string;
   subsystem: string;
@@ -18,6 +23,7 @@ export interface ResolvedPipelineConfig {
   region?: string;
   environment?: string;
   prefix: string;
+  schedule?: ScheduleConfig;
 }
 
 interface InferredMetadata {
@@ -32,7 +38,7 @@ type Tier = 'sandbox' | 'staging' | 'production';
 type TierDefaults = Partial<
   Pick<
     ResolvedPipelineConfig,
-    'observability' | 'parallelDeploy' | 'logRetention' | 'protectedResources' | 'alarmActions' | 'account' | 'region' | 'environment'
+    'observability' | 'parallelDeploy' | 'logRetention' | 'protectedResources' | 'alarmActions' | 'account' | 'region' | 'environment' | 'schedule'
   >
 >;
 

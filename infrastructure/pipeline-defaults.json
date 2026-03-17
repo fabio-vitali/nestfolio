@@ -5,20 +5,23 @@
     "logRetention": 7,
     "protectedResources": false,
     "parallelDeploy": true,
-    "alarmActions": []
+    "alarmActions": [],
+    "schedule": { "enabled": false, "rate": "rate(24 hours)" }
   },
   "staging": {
     "observability": true,
     "logRetention": 30,
     "protectedResources": false,
     "parallelDeploy": true,
-    "alarmActions": []
+    "alarmActions": [],
+    "schedule": { "enabled": true, "rate": "rate(24 hours)" }
   },
   "production": {
     "observability": true,
     "logRetention": 90,
     "protectedResources": true,
     "parallelDeploy": true,
-    "alarmActions": []
+    "alarmActions": [],
+    "schedule": { "enabled": true, "rate": "rate(6 hours)" }
   }
 }
