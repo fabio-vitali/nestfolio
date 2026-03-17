@@ -19,4 +19,5 @@ export { withValidation } from './with-validation';
 export { withRetry } from './with-retry';
 export { withFallback } from './with-fallback';
 export { buildEscalationPath } from './tier-escalation';
-// createOrchestrator and invokeOrchestrator will be added in Chunk 2
+export { createOrchestrator, type CompiledGraph } from './create-orchestrator';
+export { invokeOrchestrator } from './invoke-orchestrator';
