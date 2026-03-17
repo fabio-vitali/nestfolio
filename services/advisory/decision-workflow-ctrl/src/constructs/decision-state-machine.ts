@@ -2,6 +2,7 @@ import { Construct } from 'constructs';
 import { Duration, Stack } from 'aws-cdk-lib';
 import { IEventBus } from 'aws-cdk-lib/aws-events';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 
 export interface DecisionStateMachineProps {
@@ -242,7 +243,7 @@ export class DecisionStateMachine extends Construct {
 
     // Grant PutEvents to the state machine execution role
     this.stateMachine.addToRolePolicy(
-      new (require('aws-cdk-lib/aws-iam').PolicyStatement)({
+      new PolicyStatement({
         actions: ['events:PutEvents'],
         resources: [busArn],
       }),

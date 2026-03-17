@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any */
 const mockSend = jest.fn();
 const mockSfnSend = jest.fn();
 
