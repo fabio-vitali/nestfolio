@@ -174,6 +174,9 @@ importers:
       '@nx/angular':
         specifier: 22.5.4
         version: 22.5.4(21e51d45a0754620afc21791a1bfab3b)
+      '@nx/devkit':
+        specifier: 22.5.4
+        version: 22.5.4(nx@22.5.4(@swc-node/register@1.11.1(@swc/core@1.15.18(@swc/helpers@0.5.19))(@swc/types@0.1.25)(typescript@5.9.3))(@swc/core@1.15.18(@swc/helpers@0.5.19)))
       '@nx/eslint':
         specifier: 22.5.4
         version: 22.5.4(@babel/traverse@7.29.0)(@swc-node/register@1.11.1(@swc/core@1.15.18(@swc/helpers@0.5.19))(@swc/types@0.1.25)(typescript@5.9.3))(@swc/core@1.15.18(@swc/helpers@0.5.19))(@zkochan/js-yaml@0.0.7)(eslint@9.39.3(jiti@2.6.1))(nx@22.5.4(@swc-node/register@1.11.1(@swc/core@1.15.18(@swc/helpers@0.5.19))(@swc/types@0.1.25)(typescript@5.9.3))(@swc/core@1.15.18(@swc/helpers@0.5.19)))
