@@ -1,0 +1,23 @@
+/**
+ * Cross-domain event types published by the advisory domain.
+ * These are the events that other domains may consume.
+ */
+export const AdvisoryCrossDomainEventTypes = {
+  // → Investor + Execution
+  DECISION_PACKET_CREATED: 'DECISION_PACKET_CREATED',
+  DECISION_APPROVED: 'DECISION_APPROVED',
+  CIRCUIT_BREAKER_TRIGGERED: 'CIRCUIT_BREAKER_TRIGGERED',
+  CIRCUIT_BREAKER_RESET: 'CIRCUIT_BREAKER_RESET',
+  // → Investor only
+  USER_CONFIRMATION_REQUESTED: 'USER_CONFIRMATION_REQUESTED',
+  EXPLANATION_GENERATED: 'EXPLANATION_GENERATED',
+  DECISION_BLOCKED: 'DECISION_BLOCKED',
+  ESCALATION_TRIGGERED: 'ESCALATION_TRIGGERED',
+  INCIDENT_DETECTED: 'INCIDENT_DETECTED',
+  INCIDENT_RESOLVED: 'INCIDENT_RESOLVED',
+  // → Execution only
+  USER_CONFIRMED: 'USER_CONFIRMED',
+} as const;
+
+export type AdvisoryCrossDomainEventType =
+  (typeof AdvisoryCrossDomainEventTypes)[keyof typeof AdvisoryCrossDomainEventTypes];

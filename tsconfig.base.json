@@ -42,7 +42,11 @@
       "@nestfolio/execution-ctrl/service": ["services/execution/execution-ctrl/src/service-domain/index.ts"],
       "@nestfolio/broker-adpt/service": ["services/execution/broker-adpt/src/service-domain/index.ts"],
       "@nestfolio/ledger-ctrl/service": ["services/ledger/ledger-ctrl/src/service-domain/index.ts"],
-      "@nestfolio/reconciliation-ctrl/service": ["services/ledger/reconciliation-ctrl/src/service-domain/index.ts"]
+      "@nestfolio/reconciliation-ctrl/service": ["services/ledger/reconciliation-ctrl/src/service-domain/index.ts"],
+      "@nestfolio/investor-adpt/domain": ["services/investor/investor-adpt/src/domain/index.ts"],
+      "@nestfolio/advisory-adpt/domain": ["services/advisory/advisory-adpt/src/domain/index.ts"],
+      "@nestfolio/execution-adpt/domain": ["services/execution/execution-adpt/src/domain/index.ts"],
+      "@nestfolio/ledger-adpt/domain": ["services/ledger/ledger-adpt/src/domain/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp", "dist"]

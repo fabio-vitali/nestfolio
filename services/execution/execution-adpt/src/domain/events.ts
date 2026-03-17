@@ -1,0 +1,26 @@
+/**
+ * Cross-domain event types published by the execution domain.
+ * These are the events that other domains may consume.
+ */
+export const ExecutionCrossDomainEventTypes = {
+  // → Investor
+  ORDER_STAGED: 'ORDER_STAGED',
+  ORDER_REJECTED: 'ORDER_REJECTED',
+  ORDER_CANCELLED: 'ORDER_CANCELLED',
+  WITHDRAWAL_REJECTED: 'WITHDRAWAL_REJECTED',
+  // → Ledger
+  ORDER_FILLED: 'ORDER_FILLED',
+  ORDER_PARTIALLY_FILLED: 'ORDER_PARTIALLY_FILLED',
+  DEPOSIT_DETECTED: 'DEPOSIT_DETECTED',
+  WITHDRAWAL_COMPLETED: 'WITHDRAWAL_COMPLETED',
+  CORPORATE_ACTION_APPLIED: 'CORPORATE_ACTION_APPLIED',
+  PORTFOLIO_SNAPSHOT_IMPORTED: 'PORTFOLIO_SNAPSHOT_IMPORTED',
+  // → Advisory
+  PORTFOLIO_DRIFT_DETECTED: 'PORTFOLIO_DRIFT_DETECTED',
+  BROKER_SESSION_LOST: 'BROKER_SESSION_LOST',
+  STREAM_DISCONNECTED: 'STREAM_DISCONNECTED',
+  RECONCILIATION_FAILED: 'RECONCILIATION_FAILED',
+} as const;
+
+export type ExecutionCrossDomainEventType =
+  (typeof ExecutionCrossDomainEventTypes)[keyof typeof ExecutionCrossDomainEventTypes];
