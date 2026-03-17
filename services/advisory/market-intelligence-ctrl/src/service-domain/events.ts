@@ -1,0 +1,17 @@
+export const MarketIntelligenceEventTypes = {
+  MARKET_ANALYSIS_COMPLETED: 'MARKET_ANALYSIS_COMPLETED',
+  MARKET_SIGNAL_DETECTED: 'MARKET_SIGNAL_DETECTED',
+} as const;
+
+export type MarketIntelligenceEventType =
+  (typeof MarketIntelligenceEventTypes)[keyof typeof MarketIntelligenceEventTypes];
+
+export const HANDLED_EVENT_TYPES = new Set(['ANALYZE_MARKET']);
+
+export const FEED_INGESTION_EVENT_TYPES = new Set([
+  'YAHOO_FINANCE_UPDATED',
+  'MARKETWATCH_UPDATED',
+  'SEC_8K_FILED',
+  'FRED_INDICATORS_UPDATED',
+  'ALPHA_VANTAGE_NEWS_UPDATED',
+]);
