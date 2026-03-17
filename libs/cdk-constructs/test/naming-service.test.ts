@@ -59,7 +59,6 @@ describe('NamingService', () => {
         .toBe('/nestfolio/sandbox-pr-42-advisory/config/apiUrl');
     });
   });
-});
 
   it('generates KB bucket name with account, prefix, and KB name', () => {
     const naming = new NamingService({ prefix: 'dev', subsystem: 'advisory', service: 'advisory-ctrl' });
