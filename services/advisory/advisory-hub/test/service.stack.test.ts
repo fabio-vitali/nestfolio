@@ -27,28 +27,21 @@ describe('AdvisoryHubStack', () => {
     });
   });
 
-  it('creates cross-domain forwarding rules', () => {
-    // ToInvestor + ToExecution
-    template.resourceCountIs('AWS::Events::Rule', 2);
+  it('does not create cross-domain forwarding rules (moved to adapter)', () => {
+    template.resourceCountIs('AWS::Events::Rule', 0);
   });
 
-  it('creates DLQs for cross-domain forwarding rule targets', () => {
-    const queues = template.findResources('AWS::SQS::Queue', {
-      Properties: {
-        MessageRetentionPeriod: 1209600,
-      },
-    });
-    expect(Object.keys(queues).length).toBeGreaterThanOrEqual(2);
+  it('does not create DLQs (moved to adapter)', () => {
+    template.resourceCountIs('AWS::SQS::Queue', 0);
   });
 
   it('applies standard tags to taggable resources', () => {
-    // Verify individual tags exist on at least one SQS queue
-    template.hasResourceProperties('AWS::SQS::Queue', {
+    template.hasResourceProperties('AWS::Events::EventBus', {
       Tags: Match.arrayWith([
         Match.objectLike({ Key: 'Service', Value: 'advisory-hub' }),
       ]),
     });
-    template.hasResourceProperties('AWS::SQS::Queue', {
+    template.hasResourceProperties('AWS::Events::EventBus', {
       Tags: Match.arrayWith([
         Match.objectLike({ Key: 'Project', Value: 'nestfolio' }),
       ]),

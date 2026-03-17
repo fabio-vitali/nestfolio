@@ -1,7 +1,5 @@
 import { Stack, StackProps, Duration } from 'aws-cdk-lib';
-import { EventBus, Archive, Rule } from 'aws-cdk-lib/aws-events';
-import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
-import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
+import { EventBus, Archive } from 'aws-cdk-lib/aws-events';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { createNamingService, CostControls, Monitoring, ServiceDashboard, applyStandardTags, getPrefix } from '@nestfolio/cdk-constructs';
@@ -48,59 +46,16 @@ export class InvestorHubStack extends Stack {
       monthlyBudgetUsd: 200,
     });
 
-    // Cross-domain forwarding: Investor --> Advisory
-    const advisoryBusArn = StringParameter.valueForStringParameter(
-      this,
-      `/nestfolio/${prefix}-advisory/event-hub/busArn`,
-    );
-    const advisoryBus = EventBus.fromEventBusArn(this, 'AdvisoryBus', advisoryBusArn);
-    const toAdvisoryDlq = new Queue(this, 'ToAdvisoryDLQ', {
-      retentionPeriod: Duration.days(14),
-      encryption: QueueEncryption.KMS_MANAGED,
-    });
-    new Rule(this, 'ToAdvisory', {
-      eventBus: this.bus,
-      eventPattern: {
-        detailType: [
-          'GOAL_UPDATED',
-          'RISK_PROFILE_UPDATED',
-          'OPERATING_MODE_CHANGED',
-          'MANDATE_GRANTED',
-          'MANDATE_UPDATED',
-          'MANDATE_REVOKED',
-        ],
-      },
-      targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: toAdvisoryDlq })],
-    });
-
-    // Cross-domain forwarding: Investor --> Execution
-    const executionBusArn = StringParameter.valueForStringParameter(
-      this,
-      `/nestfolio/${prefix}-execution/event-hub/busArn`,
-    );
-    const executionBus = EventBus.fromEventBusArn(this, 'ExecutionBus', executionBusArn);
-    const toExecutionDlq = new Queue(this, 'ToExecutionDLQ', {
-      retentionPeriod: Duration.days(14),
-      encryption: QueueEncryption.KMS_MANAGED,
-    });
-    new Rule(this, 'ToExecution', {
-      eventBus: this.bus,
-      eventPattern: {
-        detailType: ['DEPOSIT_INITIATED', 'WITHDRAWAL_REQUESTED', 'ACCOUNT_CLOSURE_REQUESTED'],
-      },
-      targets: [new EventBusTarget(executionBus, { deadLetterQueue: toExecutionDlq })],
-    });
-
     if (observability) {
       new Monitoring(this, 'Monitoring', {
-        dlqs: [toAdvisoryDlq, toExecutionDlq],
+        dlqs: [],
         eventBusBusNames: [naming.eventBusName()],
       });
 
       new ServiceDashboard(this, 'Dashboard', {
         serviceName: 'investor-hub',
         lambdaFunctions: [],
-        dlqs: [toAdvisoryDlq, toExecutionDlq],
+        dlqs: [],
         eventBusNames: [naming.eventBusName()],
       });
     }

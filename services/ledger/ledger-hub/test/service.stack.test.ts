@@ -27,44 +27,16 @@ describe('LedgerHubStack', () => {
     });
   });
 
-  it('creates forwarding rule to investor-hub', () => {
-    template.hasResourceProperties('AWS::Events::Rule', {
-      EventPattern: {
-        'detail-type': [
-          'BALANCE_UPDATED',
-          'PORTFOLIO_UPDATED',
-          'LEDGER_ENTRY_RECORDED',
-          'RECONCILIATION_COMPLETED',
-          'RECONCILIATION_FAILED',
-          'LEDGER_PROCESSING_FAILED',
-        ],
-      },
-    });
+  it('does not create cross-domain forwarding rules (moved to adapter)', () => {
+    template.resourceCountIs('AWS::Events::Rule', 0);
   });
 
-  it('creates forwarding rule to advisory-hub', () => {
-    template.hasResourceProperties('AWS::Events::Rule', {
-      EventPattern: {
-        'detail-type': [
-          'PORTFOLIO_UPDATED',
-          'PORTFOLIO_DRIFT_DETECTED',
-          'RECONCILIATION_FAILED',
-        ],
-      },
-    });
-  });
-
-  it('creates DLQs for forwarding targets', () => {
-    const queues = template.findResources('AWS::SQS::Queue', {
-      Properties: {
-        MessageRetentionPeriod: 1209600,
-      },
-    });
-    expect(Object.keys(queues).length).toBeGreaterThanOrEqual(2);
+  it('does not create DLQs (moved to adapter)', () => {
+    template.resourceCountIs('AWS::SQS::Queue', 0);
   });
 
   it('applies standard tags to taggable resources', () => {
-    template.hasResourceProperties('AWS::SQS::Queue', {
+    template.hasResourceProperties('AWS::Events::EventBus', {
       Tags: Match.arrayWith([
         Match.objectLike({ Key: 'Service', Value: 'ledger-hub' }),
       ]),
