@@ -1,83 +1,22 @@
 // @nestfolio/agent-core — LangGraph.js agent orchestration
 
 export {
-  type AgentType,
-  type ModelConfig,
-  getModelConfig,
-  AGENT_TYPES,
-} from './model-config';
-
-export {
-  createAgentNode,
-  type AgentNodeFn,
-  type CreateAgentNodeOptions,
-} from './agent-factory';
-
-export {
-  buildDecisionGraph,
-  DecisionState,
-  type DecisionStateType,
-  type AgentNodeMap,
-} from './graph-orchestrator';
-
-export {
-  invokeGraph,
-  type InvokeGraphOptions,
-  type ServiceUnavailableResponse,
-} from './agent-invoker';
-
-export { loadPromptTemplate, clearTemplateCache } from './prompt-templates';
-
-export {
-  getOutputSchema,
-  GoalInterpretationSchema,
-  type GoalInterpretation,
-  RiskAssessmentSchema,
-  type RiskAssessment,
-  MarketResearchSchema,
-  type MarketResearch,
-  PortfolioConstructionSchema,
-  type PortfolioConstruction,
-  RebalancePlanSchema,
-  type RebalancePlan,
-  ExplanationSchema,
-  type Explanation,
-} from './output-schemas';
-
-export {
-  createFallbackNode,
-  createFallbackNodeMap,
-  getFallbackAllocationConfig,
-  type FallbackInvestorContext,
-  type FallbackAllocationConfig,
-} from './fallback-agents';
-
-export {
-  validateAgentOutput,
-  validateGoalInterpretation,
-  validateRiskAssessment,
-  validateMarketResearch,
-  validatePortfolioConstruction,
-  validateRebalancePlan,
-  validateExplanation,
-  AGENT_VALIDATORS,
-  getValidationConfig,
-  isValidTicker,
+  type AgentConfig,
+  type ModelTier,
+  type RetryOptions,
   type ValidationResult,
-  type ValidationConfig,
-  type ValidationRiskProfile,
-} from './output-validation';
+  type ValidationRule,
+  type WaveDefinition,
+  type OrchestratorConfig,
+  type ServiceUnavailableResponse,
+  type InvokeOptions,
+  ValidationError,
+} from './types';
 
-export {
-  getEscalationPath,
-  getNextEscalation,
-  type EscalationStep,
-  HAIKU_ID,
-  SONNET_ID,
-  OPUS_ID,
-} from './tier-escalation';
-
-export {
-  createRetryableAgentNode,
-  type InvokeWithRetryOptions,
-} from './invoke-with-retry';
+export { type AgentNodeFn } from './with-validation';
+export { createAgentNode } from './agent-factory';
+export { withValidation } from './with-validation';
+export { withRetry } from './with-retry';
+export { withFallback } from './with-fallback';
+export { buildEscalationPath } from './tier-escalation';
+// createOrchestrator and invokeOrchestrator will be added in Chunk 2
