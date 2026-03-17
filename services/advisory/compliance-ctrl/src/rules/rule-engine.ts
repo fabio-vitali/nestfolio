@@ -1,4 +1,4 @@
-import type { MandateLevel } from '@nestfolio/investor-bff/service';
+import type { MandateLevel } from '@nestfolio/investor-adpt/domain';
 import { MandateValidator } from './mandate-validator';
 import { GuardrailEvaluator } from './guardrail-evaluator';
 import { SuitabilityChecker } from './suitability-checker';

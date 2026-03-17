@@ -3,7 +3,7 @@ import { logger, NotRetryableError } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { ExecutionCtrlEventTypes } from '@nestfolio/execution-ctrl/service';
-import { InvestorBffEventTypes } from '@nestfolio/investor-bff/service';
+import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from '../services/market-data.service';
 import { SimulationEngineService } from '../services/simulation-engine.service';
@@ -66,7 +66,7 @@ export function createHandlers(deps: EventListenerDeps) {
       return skip();
     },
 
-    [InvestorBffEventTypes.WITHDRAWAL_REQUESTED]: async (payload: EventPayload, ctx: EventContext) => {
+    [InvestorCrossDomainEventTypes.WITHDRAWAL_REQUESTED]: async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject;
       if (!subject) {
         throw new NotRetryableError(`Missing subject in WITHDRAWAL_REQUESTED event ${ctx.eventId}`);
@@ -104,7 +104,7 @@ export function createHandlers(deps: EventListenerDeps) {
       return skip();
     },
 
-    [InvestorBffEventTypes.DEPOSIT_INITIATED]: async (payload: EventPayload, ctx: EventContext) => {
+    [InvestorCrossDomainEventTypes.DEPOSIT_INITIATED]: async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject;
       if (!subject) {
         throw new NotRetryableError(`Missing subject in DEPOSIT_INITIATED event ${ctx.eventId}`);

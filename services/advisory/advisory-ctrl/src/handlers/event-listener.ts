@@ -2,11 +2,11 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
-import { InvestorBffEventTypes } from '@nestfolio/investor-bff/service';
+import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/service';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/service';
-import { ExecutionAdptEventTypes } from '@nestfolio/broker-adpt/service';
-import { ReconciliationEventTypes } from '@nestfolio/reconciliation-ctrl/service';
+import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
+import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
 import { DecisionRepository } from '../repositories/decision.repository';
 import { DecisionLifecycleService } from '../services/decision-lifecycle.service';
 
@@ -109,15 +109,15 @@ async function processUserResponse(
 }
 
 const TRIGGER_EVENT_TYPES = [
-  InvestorBffEventTypes.MANDATE_GRANTED,
-  InvestorBffEventTypes.GOAL_UPDATED,
-  InvestorBffEventTypes.RISK_PROFILE_UPDATED,
-  InvestorBffEventTypes.OPERATING_MODE_CHANGED,
-  ReconciliationEventTypes.PORTFOLIO_DRIFT_DETECTED,
-  ExecutionAdptEventTypes.ORDER_FILLED,
-  ExecutionAdptEventTypes.ORDER_REJECTED,
-  ExecutionAdptEventTypes.ORDER_CANCELLED,
-  ExecutionAdptEventTypes.DEPOSIT_DETECTED,
+  InvestorCrossDomainEventTypes.MANDATE_GRANTED,
+  InvestorCrossDomainEventTypes.GOAL_UPDATED,
+  InvestorCrossDomainEventTypes.RISK_PROFILE_UPDATED,
+  InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED,
+  LedgerCrossDomainEventTypes.PORTFOLIO_DRIFT_DETECTED,
+  ExecutionCrossDomainEventTypes.ORDER_FILLED,
+  ExecutionCrossDomainEventTypes.ORDER_REJECTED,
+  ExecutionCrossDomainEventTypes.ORDER_CANCELLED,
+  ExecutionCrossDomainEventTypes.DEPOSIT_DETECTED,
 ] as const;
 
 const COMPLIANCE_EVENT_TYPES = [

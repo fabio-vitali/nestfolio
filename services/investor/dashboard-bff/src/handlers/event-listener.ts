@@ -2,10 +2,8 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/event-processor';
-import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/service';
-import { ReconciliationEventTypes } from '@nestfolio/reconciliation-ctrl/service';
-import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/service';
-import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/service';
+import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
+import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/service';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { PortfolioSummaryPipe } from '../pipes/portfolio-summary.pipe';
@@ -68,33 +66,33 @@ const investorSnapshotPipe = new InvestorSnapshotPipe(repository);
 const timeTravelAvailabilityPipe = new TimeTravelAvailabilityPipe(repository);
 
 const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
-  [LedgerCtrlEventTypes.BALANCE_UPDATED]: [
+  [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: [
     { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
     { name: 'recentActivity', pipe: recentActivityPipe },
   ],
-  [LedgerCtrlEventTypes.PORTFOLIO_UPDATED]: [
+  [LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED]: [
     { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
     { name: 'positionSnapshot', pipe: positionSnapshotPipe },
     { name: 'recentActivity', pipe: recentActivityPipe },
   ],
-  [ReconciliationEventTypes.RECONCILIATION_COMPLETED]: [
+  [LedgerCrossDomainEventTypes.RECONCILIATION_COMPLETED]: [
     { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
   ],
-  [AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED]: [
+  [AdvisoryCrossDomainEventTypes.DECISION_PACKET_CREATED]: [
     { name: 'advisoryStatus', pipe: advisoryStatusPipe },
   ],
-  [AdvisoryCtrlEventTypes.USER_CONFIRMATION_REQUESTED]: [
+  [AdvisoryCrossDomainEventTypes.USER_CONFIRMATION_REQUESTED]: [
     { name: 'advisoryStatus', pipe: advisoryStatusPipe },
   ],
-  [ComplianceEventTypes.DECISION_APPROVED]: [
-    { name: 'advisoryStatus', pipe: advisoryStatusPipe },
-    { name: 'recentActivity', pipe: recentActivityPipe },
-  ],
-  [ComplianceEventTypes.DECISION_BLOCKED]: [
+  [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: [
     { name: 'advisoryStatus', pipe: advisoryStatusPipe },
     { name: 'recentActivity', pipe: recentActivityPipe },
   ],
-  [LedgerCtrlEventTypes.LEDGER_ENTRY_RECORDED]: [
+  [AdvisoryCrossDomainEventTypes.DECISION_BLOCKED]: [
+    { name: 'advisoryStatus', pipe: advisoryStatusPipe },
+    { name: 'recentActivity', pipe: recentActivityPipe },
+  ],
+  [LedgerCrossDomainEventTypes.LEDGER_ENTRY_RECORDED]: [
     { name: 'timeTravelAvailability', pipe: timeTravelAvailabilityPipe },
   ],
   [InvestorBffEventTypes.ONBOARDING_COMPLETED]: [

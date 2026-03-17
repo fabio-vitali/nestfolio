@@ -8,7 +8,7 @@ module.exports = {
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
     '^@nestfolio/investor-ctrl/service$': '<rootDir>/../../investor/investor-ctrl/src/service-domain/index.ts',
-    '^@nestfolio/ledger-ctrl/service$': '<rootDir>/../../ledger/ledger-ctrl/src/service-domain/index.ts',
+    '^@nestfolio/ledger-adpt/domain$': '<rootDir>/../../ledger/ledger-adpt/src/domain/index.ts',
   },
   transform: {
     '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json', diagnostics: false }],

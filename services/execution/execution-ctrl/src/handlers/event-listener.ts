@@ -2,10 +2,8 @@ import { logger } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
-import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/service';
-import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/service';
-import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/service';
-import { InvestorBffEventTypes } from '@nestfolio/investor-bff/service';
+import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
+import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import { OrderRepository } from '../repositories/order.repository';
 import { SafetyChecksService } from '../services/safety-checks.service';
 import { MarketHoursService } from '../services/market-hours.service';
@@ -28,23 +26,23 @@ function toEvent(payload: EventPayload, ctx: EventContext): Record<string, unkno
 
 export function createHandlers(deps: EventListenerDeps): Record<string, (payload: EventPayload, ctx: EventContext) => Promise<ReturnType<typeof skip>>> {
   return {
-    [ComplianceEventTypes.DECISION_APPROVED]: async (payload, ctx) => {
+    [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: async (payload, ctx) => {
       await deps.lifecycleService.processApprovedDecision(toEvent(payload, ctx));
       return skip();
     },
-    [AdvisoryBffEventTypes.USER_CONFIRMED]: async (payload, ctx) => {
+    [AdvisoryCrossDomainEventTypes.USER_CONFIRMED]: async (payload, ctx) => {
       await deps.lifecycleService.processApprovedDecision(toEvent(payload, ctx));
       return skip();
     },
-    [AdvisoryCtrlEventTypes.CIRCUIT_BREAKER_TRIGGERED]: async (_payload, ctx) => {
+    [AdvisoryCrossDomainEventTypes.CIRCUIT_BREAKER_TRIGGERED]: async (_payload, ctx) => {
       logger.info('Circuit breaker triggered — execution paused', { eventId: ctx.eventId });
       return skip();
     },
-    [AdvisoryCtrlEventTypes.CIRCUIT_BREAKER_RESET]: async (_payload, ctx) => {
+    [AdvisoryCrossDomainEventTypes.CIRCUIT_BREAKER_RESET]: async (_payload, ctx) => {
       logger.info('Circuit breaker reset — execution resumed', { eventId: ctx.eventId });
       return skip();
     },
-    [InvestorBffEventTypes.ACCOUNT_CLOSURE_REQUESTED]: async (_payload, ctx) => {
+    [InvestorCrossDomainEventTypes.ACCOUNT_CLOSURE_REQUESTED]: async (_payload, ctx) => {
       logger.info('Account closure requested', { eventId: ctx.eventId });
       return skip();
     },

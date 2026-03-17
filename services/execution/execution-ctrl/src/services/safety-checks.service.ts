@@ -1,6 +1,6 @@
 import { logger } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
-import type { ProposedTrade } from '@nestfolio/advisory-ctrl/service';
+import type { ProposedTrade } from '@nestfolio/advisory-adpt/domain';
 import { OrderRepository } from '../repositories/order.repository';
 
 export interface SafetyCheckResult {

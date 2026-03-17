@@ -8,10 +8,9 @@ module.exports = {
     '^@nestfolio/cdk-constructs$': '<rootDir>/../../../libs/cdk-constructs/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
-    '^@nestfolio/ledger-ctrl/service$': '<rootDir>/../../ledger/ledger-ctrl/src/service-domain/index.ts',
-    '^@nestfolio/reconciliation-ctrl/service$': '<rootDir>/../../ledger/reconciliation-ctrl/src/service-domain/index.ts',
+    '^@nestfolio/ledger-adpt/domain$': '<rootDir>/../../ledger/ledger-adpt/src/domain/index.ts',
+    '^@nestfolio/advisory-adpt/domain$': '<rootDir>/../../advisory/advisory-adpt/src/domain/index.ts',
     '^@nestfolio/advisory-ctrl/service$': '<rootDir>/../../advisory/advisory-ctrl/src/service-domain/index.ts',
-    '^@nestfolio/compliance-ctrl/service$': '<rootDir>/../../advisory/compliance-ctrl/src/service-domain/index.ts',
     '^@nestfolio/investor-bff/service$': '<rootDir>/../../investor/investor-bff/src/service-domain/index.ts',
   },
   transform: {

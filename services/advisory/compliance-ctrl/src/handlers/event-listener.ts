@@ -3,7 +3,7 @@ import { createEventHandler, skip, type EventPayload, type EventContext } from '
 import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/service';
-import { InvestorBffEventTypes } from '@nestfolio/investor-bff/service';
+import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';
@@ -183,7 +183,7 @@ export const createHandlers = (deps: EventListenerDeps) => {
   }
 
   // Mandate events
-  for (const type of [InvestorBffEventTypes.MANDATE_GRANTED, InvestorBffEventTypes.MANDATE_UPDATED, InvestorBffEventTypes.MANDATE_REVOKED, InvestorBffEventTypes.OPERATING_MODE_CHANGED]) {
+  for (const type of [InvestorCrossDomainEventTypes.MANDATE_GRANTED, InvestorCrossDomainEventTypes.MANDATE_UPDATED, InvestorCrossDomainEventTypes.MANDATE_REVOKED, InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED]) {
     handlers[type] = (payload, ctx) => processMandateEvent(deps, payload, ctx);
   }
 

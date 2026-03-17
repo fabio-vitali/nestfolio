@@ -3,7 +3,7 @@ import { createEventHandler, skip, type EventPayload, type EventContext } from '
 import { requireEnv } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '../service-domain/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/service';
-import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/service';
+import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { UserRegisteredPipe } from '../pipes/user-registered.pipe';
 import { NotificationCreatedPipe } from '../pipes/notification-created.pipe';
@@ -32,7 +32,7 @@ export const createHandlers = (deps: EventListenerDeps) => ({
     await deps.notificationCreatedPipe.process(toUow(payload, ctx) as any);
     return skip();
   },
-  [LedgerCtrlEventTypes.BALANCE_UPDATED]: async (payload: EventPayload, ctx: EventContext) => {
+  [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: async (payload: EventPayload, ctx: EventContext) => {
     await deps.balanceUpdatedPipe.process(toUow(payload, ctx) as any);
     return skip();
   },
