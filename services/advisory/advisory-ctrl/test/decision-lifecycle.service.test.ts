@@ -66,7 +66,64 @@ jest.mock('@nestfolio/event-processor', () => ({
   withMethodLogging: () => (_name: string, fn: (...args: unknown[]) => unknown) => fn,
 
 }));
+const mockInvokeOrchestrator = jest.fn().mockResolvedValue({
+  'user-goals': {
+    goalId: 'g1',
+    interpretedObjective: 'Growth',
+    timeHorizonMonths: 120,
+    targetReturn: 0.08,
+    riskBudget: 0.15,
+    constraints: [],
+    confidence: 0.85,
+  },
+  'risk-assessment': {
+    riskScore: 50,
+    riskCategory: 'moderate',
+    maxDrawdown: 0.2,
+    volatilityBudget: 0.15,
+    concentrationLimits: {},
+    rationale: 'Moderate',
+  },
+  'market-research': {
+    signals: [
+      { ticker: 'VTI', signal: 'buy', strength: 0.7, rationale: 'Core' },
+    ],
+    marketRegime: 'risk-on',
+    sectorRotation: {},
+  },
+  'portfolio-construction': {
+    allocations: [
+      { ticker: 'VTI', weight: 0.6, rationale: 'Core' },
+      { ticker: 'BND', weight: 0.4, rationale: 'Ballast' },
+    ],
+    expectedReturn: 0.07,
+    expectedVolatility: 0.1,
+    sharpeRatio: 0.7,
+  },
+  'rebalance-planner': {
+    trades: [
+      { ticker: 'VTI', action: 'buy', quantity: 10, urgency: 'next-session' },
+      { ticker: 'BND', action: 'buy', quantity: 8, urgency: 'next-session' },
+    ],
+    estimatedCost: 5,
+    rebalanceReason: 'Initial construction',
+  },
+  'explainability': {
+    summary: 'A balanced portfolio with 60% equities and 40% bonds.',
+    keyFactors: ['Risk: moderate'],
+    riskWarnings: [],
+    confidence: 0.8,
+    humanReadableRationale: 'Diversified approach',
+  },
+  input: JSON.stringify({}),
+});
+
 jest.mock('@nestfolio/agent-core', () => ({
+  createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
+  invokeOrchestrator: mockInvokeOrchestrator,
+}));
+
+jest.mock('../src/agents/config', () => ({
   AGENT_TYPES: [
     'user-goals',
     'risk-assessment',
@@ -75,59 +132,20 @@ jest.mock('@nestfolio/agent-core', () => ({
     'rebalance-planner',
     'explainability',
   ],
-  createAgentNode: jest.fn().mockReturnValue(jest.fn()),
-  invokeGraph: jest.fn().mockResolvedValue({
-    'user-goals': {
-      goalId: 'g1',
-      interpretedObjective: 'Growth',
-      timeHorizonMonths: 120,
-      targetReturn: 0.08,
-      riskBudget: 0.15,
-      constraints: [],
-      confidence: 0.85,
-    },
-    'risk-assessment': {
-      riskScore: 50,
-      riskCategory: 'moderate',
-      maxDrawdown: 0.2,
-      volatilityBudget: 0.15,
-      concentrationLimits: {},
-      rationale: 'Moderate',
-    },
-    'market-research': {
-      signals: [
-        { ticker: 'VTI', signal: 'buy', strength: 0.7, rationale: 'Core' },
-      ],
-      marketRegime: 'risk-on',
-      sectorRotation: {},
-    },
-    'portfolio-construction': {
-      allocations: [
-        { ticker: 'VTI', weight: 0.6, rationale: 'Core' },
-        { ticker: 'BND', weight: 0.4, rationale: 'Ballast' },
-      ],
-      expectedReturn: 0.07,
-      expectedVolatility: 0.1,
-      sharpeRatio: 0.7,
-    },
-    'rebalance-planner': {
-      trades: [
-        { ticker: 'VTI', action: 'buy', quantity: 10, urgency: 'next-session' },
-        { ticker: 'BND', action: 'buy', quantity: 8, urgency: 'next-session' },
-      ],
-      estimatedCost: 5,
-      rebalanceReason: 'Initial construction',
-    },
-    'explainability': {
-      summary: 'A balanced portfolio with 60% equities and 40% bonds.',
-      keyFactors: ['Risk: moderate'],
-      riskWarnings: [],
-      confidence: 0.8,
-      humanReadableRationale: 'Diversified approach',
-    },
-    input: JSON.stringify({}),
-  }),
-  createFallbackNodeMap: jest.fn().mockReturnValue({}),
+  AGENT_CONFIGS: {},
+  DECISION_LIFECYCLE_WAVES: [],
+}));
+
+jest.mock('../src/agents/state', () => ({
+  DecisionLifecycleState: {},
+}));
+
+jest.mock('../src/agents/fallbacks', () => ({
+  FALLBACK_MAP: {},
+}));
+
+jest.mock('../src/agents/validation', () => ({
+  VALIDATION_RULES: {},
 }));
 
 import { DecisionRepository } from '../src/repositories/decision.repository';
@@ -237,8 +255,7 @@ describe('DecisionLifecycleService', () => {
     });
 
     it('should propagate error when agent pipeline throws', async () => {
-      const { invokeGraph } = require('@nestfolio/agent-core');
-      (invokeGraph as jest.Mock).mockRejectedValueOnce(new Error('Agent pipeline timeout'));
+      mockInvokeOrchestrator.mockRejectedValueOnce(new Error('Agent pipeline timeout'));
 
       const context = {
         tenantId: 't1',
@@ -258,8 +275,7 @@ describe('DecisionLifecycleService', () => {
     });
 
     it('should throw when agent pipeline returns ServiceUnavailableResponse', async () => {
-      const { invokeGraph } = require('@nestfolio/agent-core');
-      (invokeGraph as jest.Mock).mockResolvedValueOnce({
+      mockInvokeOrchestrator.mockResolvedValueOnce({
         serviceUnavailable: true,
         reason: 'Bedrock throttled',
       });

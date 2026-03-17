@@ -1,15 +1,11 @@
 import { logger, type BusEvent } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import type { ProposedTrade } from '../service-domain/models';
-import {
-  createAgentNode,
-  invokeGraph,
-  createFallbackNodeMap,
-  AGENT_TYPES,
-  type AgentNodeMap,
-  type DecisionStateType,
-  type ServiceUnavailableResponse,
-} from '@nestfolio/agent-core';
+import { createOrchestrator, invokeOrchestrator, type ServiceUnavailableResponse } from '@nestfolio/agent-core';
+import { AGENT_CONFIGS, DECISION_LIFECYCLE_WAVES, AGENT_TYPES, type AgentType } from '../agents/config';
+import { DecisionLifecycleState, type DecisionLifecycleStateType } from '../agents/state';
+import { FALLBACK_MAP } from '../agents/fallbacks';
+import { VALIDATION_RULES } from '../agents/validation';
 import { DecisionRepository } from '../repositories/decision.repository';
 
 export interface DecisionContext {
@@ -29,6 +25,14 @@ export interface DecisionResult {
 
 export class DecisionLifecycleService {
   private readonly log = withMethodLogging('DecisionLifecycleService');
+
+  private readonly graph = createOrchestrator({
+    waves: DECISION_LIFECYCLE_WAVES,
+    stateAnnotation: DecisionLifecycleState,
+    agents: AGENT_CONFIGS,
+    fallbacks: FALLBACK_MAP,
+    validationRules: VALIDATION_RULES,
+  });
 
   constructor(private readonly repository: DecisionRepository) {}
 
@@ -96,27 +100,18 @@ export class DecisionLifecycleService {
     };
   });
 
-  private async runAgentPipeline(context: DecisionContext): Promise<DecisionStateType> {
-    const nodeMap = {} as AgentNodeMap;
-    for (const type of AGENT_TYPES) {
-      nodeMap[type] = createAgentNode(type);
-    }
+  private async runAgentPipeline(context: DecisionContext): Promise<DecisionLifecycleStateType> {
+    const result = await invokeOrchestrator(this.graph, { input: JSON.stringify(context) });
 
-    const result = await invokeGraph(
-      { input: JSON.stringify(context) },
-      { nodeMap, fallbackNodeMap: createFallbackNodeMap() },
-    );
-
-    // Handle structured "service unavailable" response from agent-core
     if ('serviceUnavailable' in result && (result as ServiceUnavailableResponse).serviceUnavailable) {
       const unavailable = result as ServiceUnavailableResponse;
       throw new Error(`Agent pipeline unavailable: ${unavailable.reason}`);
     }
 
-    return result as DecisionStateType;
+    return result as DecisionLifecycleStateType;
   }
 
-  private extractTrades(result: DecisionStateType): ProposedTrade[] {
+  private extractTrades(result: DecisionLifecycleStateType): ProposedTrade[] {
     const rebalance = result['rebalance-planner'] as {
       trades?: Array<{ ticker: string; action: string; quantity: number }>;
     };
@@ -130,7 +125,7 @@ export class DecisionLifecycleService {
     }));
   }
 
-  private composeExplanation(result: DecisionStateType): string {
+  private composeExplanation(result: DecisionLifecycleStateType): string {
     const explain = result['explainability'] as { summary?: string };
     return explain?.summary ?? 'No explanation available.';
   }
