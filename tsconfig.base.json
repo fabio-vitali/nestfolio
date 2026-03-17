@@ -54,7 +54,9 @@
       "@nestfolio/market-intelligence-ctrl/service": ["services/advisory/market-intelligence-ctrl/src/service-domain/index.ts"],
       "@nestfolio/market-intelligence-ctrl/domain": ["services/advisory/market-intelligence-ctrl/src/service-domain/index.ts"],
       "@nestfolio/portfolio-engine-ctrl/service": ["services/advisory/portfolio-engine-ctrl/src/service-domain/index.ts"],
-      "@nestfolio/portfolio-engine-ctrl/domain": ["services/advisory/portfolio-engine-ctrl/src/service-domain/index.ts"]
+      "@nestfolio/portfolio-engine-ctrl/domain": ["services/advisory/portfolio-engine-ctrl/src/service-domain/index.ts"],
+      "@nestfolio/advisory-narrative-ctrl/service": ["services/advisory/advisory-narrative-ctrl/src/service-domain/index.ts"],
+      "@nestfolio/advisory-narrative-ctrl/domain": ["services/advisory/advisory-narrative-ctrl/src/service-domain/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp", "dist"]

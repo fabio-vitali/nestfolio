@@ -1,0 +1,95 @@
+import { createAgentNode, withRetry, withFallback } from '@nestfolio/agent-core';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { randomUUID } from 'crypto';
+import { explainabilityConfig } from './agents/explainability.config';
+
+export interface AgentServiceDeps {
+  readonly docClient: DynamoDBDocumentClient;
+  readonly tableName: string;
+}
+
+export const createAgentService = (deps: AgentServiceDeps) => {
+  const agentNode = withFallback(
+    withRetry(
+      createAgentNode(explainabilityConfig),
+      { maxAttempts: 2, escalationPath: ['sonnet', 'opus'] },
+    ),
+    () => ({
+      summary: 'We were unable to generate a personalized explanation at this time.',
+      rationale: 'Service temporarily unavailable',
+      keyFactors: [],
+      tone: 'neutral',
+      wordCount: 0,
+      confidence: 0,
+    }),
+  );
+
+  return {
+    runPipeline: async (event: Record<string, unknown>): Promise<Record<string, unknown>> => {
+      const invocationId = randomUUID();
+      const startedAt = new Date().toISOString();
+      const subject = (event.subject ?? event) as Record<string, unknown>;
+      const decisionId = subject.decisionId as string;
+      const tenantId = subject.tenantId as string;
+
+      await deps.docClient.send(new PutCommand({
+        TableName: deps.tableName,
+        Item: {
+          pk: `DECISION#${decisionId}`,
+          sk: `INV#${invocationId}`,
+          __typename: 'AgentInvocation',
+          invocationId,
+          decisionId,
+          tenantId,
+          agentName: 'explainability',
+          status: 'IN_PROGRESS',
+          startedAt,
+        },
+      }));
+
+      const result = await agentNode({
+        tenantId,
+        decisionId,
+        upstreamOutputs: subject.context ?? subject.upstreamOutputs ?? {},
+      });
+
+      const completedAt = new Date().toISOString();
+      const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+
+      // Record reasoning output
+      await deps.docClient.send(new PutCommand({
+        TableName: deps.tableName,
+        Item: {
+          pk: `DECISION#${decisionId}`,
+          sk: `REASONING#${invocationId}`,
+          __typename: 'ReasoningOutput',
+          invocationId,
+          decisionId,
+          tenantId,
+          ...result,
+          createdAt: completedAt,
+        },
+      }));
+
+      // Update invocation status
+      await deps.docClient.send(new PutCommand({
+        TableName: deps.tableName,
+        Item: {
+          pk: `DECISION#${decisionId}`,
+          sk: `INV#${invocationId}`,
+          __typename: 'AgentInvocation',
+          invocationId,
+          decisionId,
+          tenantId,
+          agentName: 'explainability',
+          status: 'COMPLETED',
+          startedAt,
+          completedAt,
+          durationMs,
+        },
+      }));
+
+      return { decisionId, ...result, metadata: { durationMs, modelTier: 'sonnet' } };
+    },
+  };
+};
