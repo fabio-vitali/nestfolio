@@ -1,0 +1,1 @@
+export { MarketwatchAdptEventTypes } from './events';
