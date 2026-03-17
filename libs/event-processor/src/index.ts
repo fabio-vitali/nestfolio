@@ -75,6 +75,10 @@ export {
   StaticMarketDataProvider, CachedMarketDataProvider, KNOWN_SYMBOLS,
 } from './platform';
 
+// Adapter utilities
+export { publishOrUpload, type PublishOrUploadParams } from './lambda/publish-or-upload';
+export { parseRssFeed, type RssArticle } from './lambda/rss-parser';
+
 // Lambda utilities (from lambda-utils)
 export {
   EVENT_PUBLISHER_ENTRY,
