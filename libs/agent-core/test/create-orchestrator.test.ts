@@ -25,7 +25,7 @@ describe('createOrchestrator', () => {
   type TestAgentKey = 'alpha' | 'beta';
 
   const makeConfig = (overrides?: Partial<AgentConfig<typeof testSchema>>): AgentConfig<typeof testSchema> => ({
-    modelId: 'anthropic.claude-3-haiku-20240307-v1:0',
+    modelId: 'anthropic.claude-haiku-4-5-20251001-v1:0',
     maxTokens: 1024,
     temperature: 0.0,
     schema: testSchema,

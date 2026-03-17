@@ -4,9 +4,9 @@ import type { AgentConfig } from './types';
 import type { AgentNodeFn } from './with-validation';
 
 const MODEL_ID_MAP: Record<string, string> = {
-  haiku: 'anthropic.claude-3-haiku-20240307-v1:0',
-  sonnet: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-  opus: 'anthropic.claude-3-opus-20240229-v1:0',
+  haiku: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+  sonnet: 'anthropic.claude-sonnet-4-6-20250514-v1:0',
+  opus: 'anthropic.claude-opus-4-6-20250501-v1:0',
 };
 
 export function createAgentNode<T extends z.ZodType>(config: AgentConfig<T>): AgentNodeFn {
