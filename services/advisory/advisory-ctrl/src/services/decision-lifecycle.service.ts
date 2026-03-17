@@ -2,7 +2,7 @@ import { logger, type BusEvent } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import type { ProposedTrade } from '../service-domain/models';
 import { createOrchestrator, invokeOrchestrator, type ServiceUnavailableResponse } from '@nestfolio/agent-core';
-import { AGENT_CONFIGS, DECISION_LIFECYCLE_WAVES, AGENT_TYPES, type AgentType } from '../agents/config';
+import { AGENT_CONFIGS, DECISION_LIFECYCLE_WAVES, AGENT_TYPES } from '../agents/config';
 import { DecisionLifecycleState, type DecisionLifecycleStateType } from '../agents/state';
 import { FALLBACK_MAP } from '../agents/fallbacks';
 import { VALIDATION_RULES } from '../agents/validation';
