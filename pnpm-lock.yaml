@@ -287,8 +287,6 @@ importers:
 
   libs/command-core: {}
 
-  libs/domain-core: {}
-
   libs/event-processor:
     dependencies:
       '@aws-lambda-powertools/logger':
@@ -314,10 +312,6 @@ importers:
         version: 1.0.7
 
   libs/i18n: {}
-
-  libs/lambda-utils: {}
-
-  libs/platform-core: {}
 
   libs/shared-state: {}
 
