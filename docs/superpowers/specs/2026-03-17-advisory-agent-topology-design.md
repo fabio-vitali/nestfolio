@@ -289,7 +289,7 @@ The current advisory-ctrl publishes 35 event types including operational events 
 ## Data Source Adapter Services
 
 All adapters live in the advisory domain (`services/advisory/<name>`). Each follows the same pattern:
-1. EventBridge scheduled rule triggers the event-publisher Lambda
+1. EventBridge Scheduler rule triggers the event-publisher Lambda
 2. Lambda fetches data from external source
 3. If payload fits EventBridge size limit (256 KB): publish event with inline content
 4. If payload exceeds limit: write content to the target KB's S3 bucket, publish event with short-lived pre-signed URL (1h TTL)
@@ -298,11 +298,69 @@ The consumer service's kb-ingestion-handler Lambda receives the event and either
 - Extracts inline content → writes to S3 bucket → triggers KB sync
 - Fetches content from pre-signed URL → writes to S3 bucket → triggers KB sync
 
+### Schedule Configuration
+
+Adapter schedules follow the existing `resolvePipelineConfig` convention — 3-layer merge of hardcoded fallbacks → tier defaults → per-service overrides.
+
+**Tier defaults** (added to `infrastructure/pipeline-defaults.json`):
+
+```json
+{
+  "sandbox": {
+    "schedule": { "enabled": false, "rate": "rate(24 hours)" }
+  },
+  "staging": {
+    "schedule": { "enabled": true, "rate": "rate(24 hours)" }
+  },
+  "production": {
+    "schedule": { "enabled": true, "rate": "rate(6 hours)" }
+  }
+}
+```
+
+- **sandbox** (PR-based environments, manual deploys): schedule deployed in **DISABLED** state. No invocations, zero cost. KB sync triggered manually from AWS console (Bedrock → Knowledge bases → Data source → Sync) or CLI (`aws bedrock-agent start-ingestion-job`).
+- **staging**: enabled but conservative rate (24h) to limit API calls.
+- **production**: full cadence per adapter.
+
+**Per-adapter `pipeline.json` overrides** (where the adapter needs a different rate than the tier default):
+
+```json
+// services/advisory/alpha-vantage-adpt/pipeline.json
+{
+  "production": {
+    "schedule": { "rate": "rate(12 hours)" }
+  }
+}
+```
+
+**In the adapter stack:**
+
+```ts
+const config = resolvePipelineConfig(this, 'yahoo-finance-adpt');
+const scheduleConfig = config.schedule ?? { enabled: false, rate: 'rate(24 hours)' };
+
+new Schedule(this, 'FetchSchedule', {
+  schedule: ScheduleExpression.expression(scheduleConfig.rate),
+  target: new LambdaInvoke(fetchLambda),
+  enabled: scheduleConfig.enabled,
+});
+```
+
+**Production schedule rates per adapter:**
+
+| Adapter | Production Rate | Rationale |
+|---|---|---|
+| yahoo-finance-adpt | `rate(6 hours)` | News cycle — 4x/day captures market open/close/overnight |
+| marketwatch-adpt | `rate(6 hours)` | Same cadence as Yahoo for headline freshness |
+| sec-edgar-adpt | `rate(24 hours)` | Filings don't update intra-day |
+| fred-adpt | `rate(24 hours)` | Macro indicators update daily at most |
+| alpha-vantage-adpt | `rate(12 hours)` | Conservative — 25 req/day free tier budget |
+
 ### 6. yahoo-finance-adpt
 
 **Role:** Fetches financial news from Yahoo Finance RSS feeds for tickers in the investable universe.
 
-**Schedule:** Every 6 hours
+**Schedule:** Per-tier config (production: `rate(6 hours)`, staging: `rate(24 hours)`, sandbox: disabled)
 
 **Source:** `feeds.finance.yahoo.com/rss/2.0/headline?s={TICKER}` (RSS/XML, free, no auth)
 
@@ -320,7 +378,7 @@ The consumer service's kb-ingestion-handler Lambda receives the event and either
 
 **Role:** Fetches market headlines and market pulse from MarketWatch RSS feeds.
 
-**Schedule:** Every 6 hours
+**Schedule:** Per-tier config (production: `rate(6 hours)`, staging: `rate(24 hours)`, sandbox: disabled)
 
 **Source:**
 - `feeds.marketwatch.com/marketwatch/topstories` (RSS)
@@ -338,7 +396,7 @@ The consumer service's kb-ingestion-handler Lambda receives the event and either
 
 **Role:** Fetches SEC filings for ETF issuers and major holdings. Serves multiple consumers with different filing types.
 
-**Schedule:** Daily (filings don't update intra-day)
+**Schedule:** Per-tier config (production: `rate(24 hours)`, staging: `rate(24 hours)`, sandbox: disabled)
 
 **Source:** `efts.sec.gov/LATEST/search-index` and `data.sec.gov/submissions/CIK{cik}.json` (REST JSON, free, 10 req/sec, User-Agent required)
 
@@ -364,7 +422,7 @@ The consumer service's kb-ingestion-handler Lambda receives the event and either
 
 **Role:** Fetches macroeconomic indicators from the Federal Reserve FRED API.
 
-**Schedule:** Daily
+**Schedule:** Per-tier config (production: `rate(24 hours)`, staging: `rate(24 hours)`, sandbox: disabled)
 
 **Source:** `api.stlouisfed.org/fred/series/observations` (REST JSON, free, 120 req/min, API key required but free)
 
@@ -393,7 +451,7 @@ The consumer service's kb-ingestion-handler Lambda receives the event and either
 
 **Role:** Fetches news sentiment and earnings data from Alpha Vantage free tier.
 
-**Schedule:** Every 12 hours (conservative — free tier allows 25 requests/day total)
+**Schedule:** Per-tier config (production: `rate(12 hours)` via pipeline.json override, staging: `rate(24 hours)`, sandbox: disabled). Conservative due to 25 req/day free tier limit.
 
 **Source:** `alphavantage.co/query` (REST JSON, free tier, 25 req/day, API key required but free)
 
