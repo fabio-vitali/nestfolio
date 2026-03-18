@@ -21,3 +21,12 @@ export { withFallback } from './with-fallback';
 export { buildEscalationPath } from './tier-escalation';
 export { createOrchestrator, type CompiledGraph } from './create-orchestrator';
 export { invokeOrchestrator } from './invoke-orchestrator';
+
+export {
+  createMemoryClient,
+  createNoOpMemoryClient,
+  type MemoryClient,
+  type MemoryClientConfig,
+  type DecisionSession,
+  type MemoryRecord,
+} from './memory';
