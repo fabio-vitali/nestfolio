@@ -1,6 +1,6 @@
-// --- Fragments ---
+// --- Fragments (internal — used via template interpolation) ---
 
-export const PORTFOLIO_SUMMARY_FIELDS = `
+const PORTFOLIO_SUMMARY_FIELDS = `
   fragment PortfolioSummaryFields on PortfolioSummary {
     totalValueCents
     cashBalanceCents
@@ -10,7 +10,7 @@ export const PORTFOLIO_SUMMARY_FIELDS = `
   }
 `;
 
-export const POSITION_SNAPSHOT_FIELDS = `
+const POSITION_SNAPSHOT_FIELDS = `
   fragment PositionSnapshotFields on PositionSnapshot {
     symbol
     assetClass
@@ -24,7 +24,7 @@ export const POSITION_SNAPSHOT_FIELDS = `
   }
 `;
 
-export const ACTIVITY_ENTRY_FIELDS = `
+const ACTIVITY_ENTRY_FIELDS = `
   fragment ActivityEntryFields on ActivityEntry {
     activityType
     description
@@ -33,7 +33,7 @@ export const ACTIVITY_ENTRY_FIELDS = `
   }
 `;
 
-export const ADVISORY_STATUS_FIELDS = `
+const ADVISORY_STATUS_FIELDS = `
   fragment AdvisoryStatusFields on AdvisoryStatus {
     pendingDecisionsCount
     lastRecommendationAt
@@ -42,7 +42,7 @@ export const ADVISORY_STATUS_FIELDS = `
   }
 `;
 
-export const INVESTOR_SNAPSHOT_FIELDS = `
+const INVESTOR_SNAPSHOT_FIELDS = `
   fragment InvestorSnapshotFields on InvestorSnapshot {
     goalType
     riskLevel
@@ -53,7 +53,7 @@ export const INVESTOR_SNAPSHOT_FIELDS = `
   }
 `;
 
-export const DASHBOARD_FIELDS = `
+const DASHBOARD_FIELDS = `
   fragment DashboardFields on Dashboard {
     portfolioSummary {
       ...PortfolioSummaryFields
@@ -110,15 +110,4 @@ export const GET_SIMULATION_SUMMARY = `
       updatedAt
     }
   }
-`;
-
-// --- Subscriptions ---
-
-export const ON_DASHBOARD_UPDATE = `
-  subscription OnDashboardUpdate {
-    onDashboardUpdate {
-      ...DashboardFields
-    }
-  }
-  ${DASHBOARD_FIELDS}
 `;

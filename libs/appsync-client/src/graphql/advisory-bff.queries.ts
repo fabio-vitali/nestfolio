@@ -1,6 +1,6 @@
-// --- Fragments ---
+// --- Fragments (internal — used via template interpolation) ---
 
-export const DECISION_FIELDS = `
+const DECISION_FIELDS = `
   fragment DecisionFields on Decision {
     decisionId
     tenantId
@@ -26,7 +26,7 @@ export const DECISION_FIELDS = `
   }
 `;
 
-export const AGENT_INVOCATION_FIELDS = `
+const AGENT_INVOCATION_FIELDS = `
   fragment AgentInvocationFields on AgentInvocation {
     invocationId
     decisionId
@@ -40,7 +40,7 @@ export const AGENT_INVOCATION_FIELDS = `
   }
 `;
 
-export const COMPLIANCE_CHECK_FIELDS = `
+const COMPLIANCE_CHECK_FIELDS = `
   fragment ComplianceCheckFields on ComplianceCheck {
     checkId
     decisionId
@@ -57,30 +57,6 @@ export const GET_DECISION = `
   query GetDecision($decisionId: ID!) {
     getDecision(decisionId: $decisionId) {
       ...DecisionFields
-    }
-  }
-  ${DECISION_FIELDS}
-`;
-
-export const GET_PENDING_DECISIONS = `
-  query GetPendingDecisions($limit: Int, $cursor: String) {
-    getPendingDecisions(limit: $limit, cursor: $cursor) {
-      items {
-        ...DecisionFields
-      }
-      nextCursor
-    }
-  }
-  ${DECISION_FIELDS}
-`;
-
-export const GET_DECISION_HISTORY = `
-  query GetDecisionHistory($limit: Int, $cursor: String) {
-    getDecisionHistory(limit: $limit, cursor: $cursor) {
-      items {
-        ...DecisionFields
-      }
-      nextCursor
     }
   }
   ${DECISION_FIELDS}

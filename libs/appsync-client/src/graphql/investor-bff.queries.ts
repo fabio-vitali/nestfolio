@@ -1,53 +1,6 @@
-// --- Fragments ---
+// --- Fragments (internal — used via template interpolation) ---
 
-export const PROFILE_FIELDS = `
-  fragment ProfileFields on InvestorProfile {
-    tenantId
-    name
-    email
-    age
-    locale
-    operatingMode
-    riskProfile {
-      profileId
-      tenantId
-      score
-      band { minEquity maxEquity }
-      assessedAt
-      version
-    }
-    goals {
-      goalId
-      tenantId
-      objective
-      targetAmountCents
-      currency
-      timeHorizonMonths
-      targetReturn
-      createdAt
-      updatedAt
-    }
-    mandate {
-      mandateId
-      tenantId
-      level
-      monthlyTurnoverCapPercent
-      maxSingleTradePercent
-      coolDownDays
-      rebalanceCadence
-      effectiveDate
-      revokedAt
-      version
-    }
-    monthlyContributionCents
-    currency
-    onboardingCompletedAt
-    createdAt
-    updatedAt
-  }
-`;
-
-export const GOAL_FIELDS = `
+const GOAL_FIELDS = `
   fragment GoalFields on Goal {
     goalId
     tenantId
@@ -61,7 +14,7 @@ export const GOAL_FIELDS = `
   }
 `;
 
-export const NOTIFICATION_FIELDS = `
+const NOTIFICATION_FIELDS = `
   fragment NotificationFields on Notification {
     notificationId
     tenantId
@@ -78,7 +31,7 @@ export const NOTIFICATION_FIELDS = `
   }
 `;
 
-export const MANDATE_FIELDS = `
+const MANDATE_FIELDS = `
   fragment MandateFields on Mandate {
     mandateId
     tenantId
@@ -94,24 +47,6 @@ export const MANDATE_FIELDS = `
 `;
 
 // --- Queries ---
-
-export const GET_PROFILE = `
-  query GetProfile {
-    getProfile {
-      ...ProfileFields
-    }
-  }
-  ${PROFILE_FIELDS}
-`;
-
-export const GET_GOALS = `
-  query GetGoals {
-    getGoals {
-      ...GoalFields
-    }
-  }
-  ${GOAL_FIELDS}
-`;
 
 export const GET_NOTIFICATIONS = `
   query GetNotifications($limit: Int, $cursor: String) {
@@ -151,15 +86,6 @@ export const SET_GOAL = `
   ${GOAL_FIELDS}
 `;
 
-export const UPDATE_GOAL = `
-  mutation UpdateGoal($goalId: ID!, $input: GoalInput!) {
-    updateGoal(goalId: $goalId, input: $input) {
-      ...GoalFields
-    }
-  }
-  ${GOAL_FIELDS}
-`;
-
 export const SET_RISK_PROFILE = `
   mutation SetRiskProfile($input: RiskProfileInput!) {
     setRiskProfile(input: $input) {
@@ -173,33 +99,6 @@ export const SET_RISK_PROFILE = `
   }
 `;
 
-export const GRANT_MANDATE = `
-  mutation GrantMandate($input: MandateInput!) {
-    grantMandate(input: $input) {
-      ...MandateFields
-    }
-  }
-  ${MANDATE_FIELDS}
-`;
-
-export const UPDATE_MANDATE = `
-  mutation UpdateMandate($input: MandateInput!) {
-    updateMandate(input: $input) {
-      ...MandateFields
-    }
-  }
-  ${MANDATE_FIELDS}
-`;
-
-export const REVOKE_MANDATE = `
-  mutation RevokeMandate {
-    revokeMandate {
-      ...MandateFields
-    }
-  }
-  ${MANDATE_FIELDS}
-`;
-
 export const SELECT_OPERATING_MODE = `
   mutation SelectOperatingMode($mode: OperatingMode!) {
     selectOperatingMode(mode: $mode) {
@@ -209,38 +108,13 @@ export const SELECT_OPERATING_MODE = `
   }
 `;
 
-export const INITIATE_DEPOSIT = `
-  mutation InitiateDeposit($input: DepositInput!) {
-    initiateDeposit(input: $input) {
-      depositId
-      amountCents
-      currency
-      status
-      initiatedAt
+export const GRANT_MANDATE = `
+  mutation GrantMandate($input: MandateInput!) {
+    grantMandate(input: $input) {
+      ...MandateFields
     }
   }
-`;
-
-export const REQUEST_WITHDRAWAL = `
-  mutation RequestWithdrawal($input: WithdrawalInput!) {
-    requestWithdrawal(input: $input) {
-      withdrawalId
-      amountCents
-      currency
-      status
-      requestedAt
-    }
-  }
-`;
-
-export const REQUEST_ACCOUNT_CLOSURE = `
-  mutation RequestAccountClosure {
-    requestAccountClosure {
-      closureId
-      status
-      requestedAt
-    }
-  }
+  ${MANDATE_FIELDS}
 `;
 
 export const MARK_NOTIFICATION_READ = `
