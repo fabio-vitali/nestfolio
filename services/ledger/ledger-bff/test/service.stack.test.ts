@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { App } from 'aws-cdk-lib';
 import { Template, Match } from 'aws-cdk-lib/assertions';
 import { LedgerBffStack } from '../src/service.stack';
@@ -7,7 +8,7 @@ describe('LedgerBffStack', () => {
 
   beforeAll(() => {
     const app = new App({ context: { prefix: 'test' } });
-    const stack = new LedgerBffStack(app, 'test-ledger-bff', { prefix: 'test' });
+    const stack = new LedgerBffStack(app, 'test-ledger-bff', { prefix: 'test', service: 'ledger-bff', subsystem: 'ledger', serviceDir: join(__dirname, '..', 'src') });
     template = Template.fromStack(stack);
   });
 

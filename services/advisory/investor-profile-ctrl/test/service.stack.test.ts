@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { join } from 'path';
 import { App } from 'aws-cdk-lib';
 import { Template, Match } from 'aws-cdk-lib/assertions';
 import { InvestorProfileCtrlStack } from '../src/service.stack';
@@ -8,7 +9,7 @@ describe('InvestorProfileCtrlStack', () => {
 
   beforeAll(() => {
     const app = new App();
-    const stack = new InvestorProfileCtrlStack(app, 'TestStack', { prefix: 'test' });
+    const stack = new InvestorProfileCtrlStack(app, 'TestStack', { prefix: 'test', service: 'investor-profile-ctrl', subsystem: 'advisory', serviceDir: join(__dirname, '..', 'src') });
     template = Template.fromStack(stack);
   });
 
