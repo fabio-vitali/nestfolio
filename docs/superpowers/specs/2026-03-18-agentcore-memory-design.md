@@ -19,7 +19,7 @@ One Memory resource per environment, provisioned in decision-workflow-ctrl stack
 ```
 Memory: "nestfolio-{env}-agent-memory"  (in decision-workflow-ctrl stack)
 │
-├── Short-term (per-decision, expires after 7 days)
+├── Short-term (per-decision, expires after 90 days via expirationDuration)
 │   ├── /investor-profile/{tenantId}/decisions/{decisionId}
 │   ├── /market-intelligence/{tenantId}/decisions/{decisionId}
 │   ├── /portfolio-engine/{tenantId}/decisions/{decisionId}
@@ -63,37 +63,46 @@ SF → CONSTRUCT_PORTFOLIO { ..., upstreamOutputs: { investorProfile, marketAnal
 
 ### New flow (Memory-based)
 
-```
-SF → creates decision session (actorId=tenantId, sessionId=decisionId)
-SF → ANALYZE_INVESTOR_PROFILE { decisionId, tenantId, taskToken }
-  → investor-profile-ctrl reads investorProfile from DDB State table
-  → searches long-term memory: /investor-profile/{tenantId}/preferences
-  → runs agents with enriched context
-  → writes output to Memory: /investor-profile/{tenantId}/decisions/{decisionId}
-  → publishes INVESTOR_PROFILE_COMPLETED { decisionId, taskToken }
+The state machine execution order is preserved from the current implementation. Investor-profile and market-intelligence run **in parallel** (they are independent — market-intelligence does NOT need investor-profile output). Portfolio-engine runs after both complete (it needs both outputs). Advisory-narrative runs last (it needs all 3).
 
-SF → ANALYZE_MARKET { decisionId, tenantId, taskToken }
-  → market-intelligence-ctrl searches Memory: /investor-profile/{tenantId}/decisions/{decisionId}
-  → searches long-term memory: /market-intelligence/{tenantId}/signals
-  → runs agent
-  → writes output to Memory: /market-intelligence/{tenantId}/decisions/{decisionId}
-  → publishes MARKET_ANALYSIS_COMPLETED { decisionId, taskToken }
+```
+SF → Parallel:
+  ├── ANALYZE_INVESTOR_PROFILE { decisionId, tenantId, taskToken }
+  │     → investor-profile-ctrl reads investorProfile from DDB State table
+  │     → searches long-term memory: /investor-profile/{tenantId}/preferences
+  │     → runs agents with enriched context
+  │     → writes output to Memory: /investor-profile/{tenantId}/decisions/{decisionId}
+  │     → publishes INVESTOR_PROFILE_COMPLETED { decisionId, taskToken }
+  │
+  └── ANALYZE_MARKET { decisionId, tenantId, taskToken }
+        → market-intelligence-ctrl searches long-term memory only: /market-intelligence/{tenantId}/signals
+        → runs agent (no upstream dependency — uses its own KB + long-term memory)
+        → writes output to Memory: /market-intelligence/{tenantId}/decisions/{decisionId}
+        → publishes MARKET_ANALYSIS_COMPLETED { decisionId, taskToken }
 
 SF → CONSTRUCT_PORTFOLIO { decisionId, tenantId, taskToken }
-  → portfolio-engine-ctrl searches Memory for both upstream outputs
-  → ... same pattern
+  → portfolio-engine-ctrl reads from Memory:
+      /investor-profile/{tenantId}/decisions/{decisionId}  (investor profile output)
+      /market-intelligence/{tenantId}/decisions/{decisionId}  (market analysis output)
+  → searches long-term: /portfolio-engine/{tenantId}/rationale
+  → runs agents, writes output to Memory
+  → publishes PORTFOLIO_COMPLETED { decisionId, taskToken }
 
 SF → GENERATE_NARRATIVE { decisionId, tenantId, taskToken }
-  → advisory-narrative-ctrl searches Memory for all 3 upstream outputs
+  → advisory-narrative-ctrl reads all 3 upstream outputs from Memory
   → searches long-term: preferences + sessions
-  → ... same pattern
+  → runs agent, writes output to Memory
+  → publishes NARRATIVE_COMPLETED { decisionId, taskToken }
 
-SF → AssembleDecisionPacket
-  → decision-workflow-ctrl reads all 4 outputs from Memory namespaces
-  → assembles final DecisionPacket
+SF → AssembleDecisionPacket (Lambda-backed Task state)
+  → Lambda reads all 4 outputs from Memory namespaces
+  → writes assembled DecisionPacket to DDB
+  → returns assembled packet to SF state
 ```
 
-**Key change:** SF payloads shrink to 3 fields. No output accumulation. Each agent pulls exactly what it needs from Memory.
+**Note on AssembleDecisionPacket:** Currently a Pass state that merges SF state. Must become a **Lambda-backed Task state** because it needs to call the Memory API to read outputs. This Lambda is a new addition (see Code Added table).
+
+**Key change:** SF payloads shrink to 3 fields. No output accumulation. Each agent pulls exactly what it needs from Memory. The parallel execution of investor-profile + market-intelligence is preserved because they are independent.
 
 ## Long-term Memory Strategies
 
@@ -158,7 +167,7 @@ import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
 const memory = new agentcore.Memory(this, 'AgentMemory', {
   memoryName: `nestfolio-${props.prefix}-agent-memory`,
   description: 'Shared agent memory for cross-decision learning',
-  expirationDuration: Duration.days(7),
+  expirationDuration: Duration.days(90),  // short-term event TTL; long-term records persist independently via strategies
   strategies: [
     MemoryStrategy.usingUserPreference({
       name: 'InvestorPreferenceLearner',
@@ -205,12 +214,12 @@ const memoryId = StringParameter.valueForStringParameter(
 ingress.handler.addEnvironment('MEMORY_ID', memoryId);
 
 // IAM grants for Memory API
+// NOTE: exact IAM action names are TBD — AgentCore is alpha. Verify at implementation
+// time against the actual service authorization reference. Likely under `bedrock-agentcore:*`
+// or `bedrock:*` namespace. Use broad grant initially, scope down once actions are confirmed.
 ingress.handler.addToRolePolicy(new PolicyStatement({
-  actions: [
-    'bedrock-agentcore:CreateEvent',
-    'bedrock-agentcore:RetrieveMemoryRecords',
-  ],
-  resources: ['*'],  // scoped to memory ARN when available via SSM
+  actions: ['bedrock-agentcore:*'],
+  resources: ['*'],  // scope to memory ARN once format is confirmed
 }));
 ```
 
@@ -229,6 +238,28 @@ Fields: agentName, status, startedAt, completedAt, durationMs, modelTier, errorI
 ```
 
 `input` and `output` fields (the bulkiest part) move to Memory as conversation events. DDB stays fast and cheap for operational queries. Memory is searchable for semantic retrieval.
+
+### DecisionPacketRepository changes
+
+The `DecisionPacketRepository` in decision-workflow-ctrl also stores agent outputs on the DecisionPacket model:
+
+**Fields to remove from `DecisionPacket` model:**
+- `investorProfileOutput` — read from Memory at assembly time
+- `marketAnalysisOutput` — read from Memory at assembly time
+- `portfolioOutput` — read from Memory at assembly time
+- `narrativeOutput` — read from Memory at assembly time
+
+**Method to update:**
+- `storeAgentOutput(decisionId, agentStep, output)` — currently writes full output to DDB under `AgentOutput#{agentStep}`. This method is removed; the AssembleDecisionPacket Lambda reads outputs from Memory instead.
+
+### Completion event payload changes
+
+Agent completion events currently carry `outputs` in the payload. With Memory, these shrink:
+
+**Before:** `MARKET_ANALYSIS_COMPLETED { decisionId, taskToken, outputs: { signals, tickers, outlook, ... } }`
+**After:** `MARKET_ANALYSIS_COMPLETED { decisionId, taskToken }`
+
+The decision-workflow-ctrl event-listener that processes completions and calls `SendTaskSuccess(taskToken, outputs)` changes: it calls `SendTaskSuccess(taskToken, { decisionId })` — the actual outputs are in Memory, read later at assembly time.
 
 ## Simplifications Summary
 
@@ -249,6 +280,7 @@ Fields: agentName, status, startedAt, completedAt, durationMs, modelTier, errorI
 | `agentcore.Memory` construct + SSM export | decision-workflow-ctrl stack | ~30 lines |
 | `MEMORY_ID` env var + IAM grants | 5 service stacks | ~10 lines each |
 | Memory read/write calls | Each agent service handler | ~15 lines each |
+| `AssembleDecisionPacket` Lambda | decision-workflow-ctrl (replaces Pass state) | ~40 lines + test |
 
 ### What stays unchanged
 
@@ -272,3 +304,5 @@ Fields: agentName, status, startedAt, completedAt, durationMs, modelTier, errorI
 | Memory API latency adds to agent invocation time | Parallel: search Memory + fetch DDB state concurrently |
 | Memory unavailable | Graceful degradation — no-op client, agents work without |
 | Long-term extraction lag (async, ~60s) | Acceptable — long-term memory is for *next* decision, not current |
+| Session creation semantics | Memory sessions are implicit — first `createEvent` call with a sessionId creates the session. No explicit creation step needed in the state machine |
+| Agent retry writes duplicate events | Memory events are append-only. On tier escalation retry, both attempts are recorded. The last write wins for downstream readers (they search by recency). Long-term strategies deduplicate via extraction |
