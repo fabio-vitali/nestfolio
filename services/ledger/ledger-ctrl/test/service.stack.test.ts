@@ -47,7 +47,7 @@ describe('LedgerCtrlStack', () => {
   });
 
   it('creates Egress for BalanceEvent, PortfolioEvent, LedgerEntryEvent (custom handler)', () => {
-    // Egress now uses a custom handlerEntry — no CUSTOM_EVENT_TYPE_MAP env var
+    // Egress now uses a custom entry — no CUSTOM_EVENT_TYPE_MAP env var
     template.hasResourceProperties('AWS::Lambda::Function', {
       Environment: {
         Variables: Match.objectLike({

@@ -1,4 +1,3 @@
-import { join } from 'path';
 import { Construct } from 'constructs';
 import {
   discoverJsResolvers,
@@ -27,7 +26,6 @@ export class InvestorBffStack extends ServiceStack {
         'Deposit',
         'Withdrawal',
       ],
-      handlerEntry: join(__dirname, 'handlers/event-publisher.ts'),
     });
 
     new Facade(this, 'Facade', {

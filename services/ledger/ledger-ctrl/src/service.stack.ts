@@ -59,7 +59,6 @@ export class LedgerCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       publishableTypes: ['BalanceEvent', 'PortfolioEvent', 'LedgerEntryEvent'],
-      handlerEntry: join(__dirname, 'handlers/event-publisher.ts'),
     });
 
     this.addObservability({ ingress, egress, extraLambdas: [reducerFn] });

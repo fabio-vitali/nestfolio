@@ -7,14 +7,16 @@ import { ServiceStack } from '../src/service-stack';
 import { Egress } from '../src/egress';
 
 describe('Egress construct', () => {
-  const tmpHandler = path.join(os.tmpdir(), 'test-cdc-handler.ts');
+  const handlersDir = path.join(os.tmpdir(), 'handlers');
+  const defaultHandler = path.join(handlersDir, 'event-publisher.ts');
 
   beforeAll(() => {
-    fs.writeFileSync(tmpHandler, 'export const handler = async () => {};');
+    fs.mkdirSync(handlersDir, { recursive: true });
+    fs.writeFileSync(defaultHandler, 'export const handler = async () => {};');
   });
 
   afterAll(() => {
-    try { fs.unlinkSync(tmpHandler); } catch { /* ignore */ }
+    try { fs.unlinkSync(defaultHandler); } catch { /* ignore */ }
   });
 
   function createEgress(overrides: Record<string, unknown> = {}) {
@@ -24,51 +26,141 @@ describe('Egress construct', () => {
       subsystem: 'test',
       service: 'test-svc',
       serviceDir: os.tmpdir(),
+      stateProps: {
+        withBucket: (overrides['withBucket'] as boolean) ?? false,
+        withTable: (overrides['withTable'] as boolean) ?? true,
+      },
     });
 
     const egress = new Egress(stack, 'TestEgress', {
       publishableTypes: ['Order', 'StagedOrder'],
-      handlerEntry: tmpHandler,
-      ...(overrides as any),
+      ...(overrides['egressOverrides'] as Record<string, unknown> ?? {}),
     });
 
-    return { stack, egress, template: Template.fromStack(stack) };
+    return { stack, state: stack.state, egress, template: Template.fromStack(stack) };
   }
 
-  it('creates DLQ with 14-day retention', () => {
-    const { template } = createEgress();
-    template.hasResourceProperties('AWS::SQS::Queue', {
-      MessageRetentionPeriod: 1209600,
-    });
-  });
-
-  it('creates publisher Lambda with BUS_NAME and SERVICE_NAME', () => {
-    const { template } = createEgress();
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      Environment: {
-        Variables: Match.objectLike({
-          BUS_NAME: Match.anyValue(),
-          SERVICE_NAME: 'test-svc',
-        }),
-      },
-    });
-  });
-
-  it('grants PutEvents on the event bus', () => {
-    const { template } = createEgress();
-    template.hasResourceProperties('AWS::IAM::Policy', {
-      PolicyDocument: {
-        Statement: Match.arrayWith([
-          Match.objectLike({
-            Action: 'events:PutEvents',
+  describe('Lambda creation', () => {
+    it('creates publisher Lambda with SERVICE_NAME and BUS_NAME', () => {
+      const { template } = createEgress();
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Environment: {
+          Variables: Match.objectLike({
+            BUS_NAME: Match.anyValue(),
+            SERVICE_NAME: 'test-svc',
           }),
-        ]),
-      },
+        },
+      });
+    });
+
+    it('sets TABLE_NAME when state has a table', () => {
+      const { template } = createEgress();
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Environment: {
+          Variables: Match.objectLike({ TABLE_NAME: Match.anyValue() }),
+        },
+      });
+    });
+
+    it('sets BUCKET_NAME when state has a bucket', () => {
+      const { template } = createEgress({ withBucket: true });
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Environment: {
+          Variables: Match.objectLike({ BUCKET_NAME: Match.anyValue() }),
+        },
+      });
+    });
+
+    it('merges extra environment variables', () => {
+      const { template } = createEgress({
+        egressOverrides: { environment: { CUSTOM_VAR: 'custom-value' } },
+      });
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Environment: {
+          Variables: Match.objectLike({ CUSTOM_VAR: 'custom-value' }),
+        },
+      });
+    });
+
+    it('applies lambdaProps overrides', () => {
+      const { template } = createEgress({
+        egressOverrides: { lambdaProps: { memorySize: 512 } },
+      });
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        MemorySize: 512,
+      });
+    });
+
+    it('exposes handler property', () => {
+      const { egress } = createEgress();
+      expect(egress.handler).toBeDefined();
     });
   });
 
-  it('exposes dlq property', () => {
-    const { egress } = createEgress();
-    expect(egress.dlq).toBeDefined();
+  describe('IAM grants', () => {
+    it('grants DynamoDB read/write when state has table', () => {
+      const { template } = createEgress();
+      template.hasResourceProperties('AWS::IAM::Policy', {
+        PolicyDocument: {
+          Statement: Match.arrayWith([
+            Match.objectLike({
+              Action: Match.arrayWith(['dynamodb:BatchGetItem']),
+            }),
+          ]),
+        },
+      });
+    });
+
+    it('grants PutEvents on the event bus', () => {
+      const { template } = createEgress();
+      template.hasResourceProperties('AWS::IAM::Policy', {
+        PolicyDocument: {
+          Statement: Match.arrayWith([
+            Match.objectLike({
+              Action: 'events:PutEvents',
+            }),
+          ]),
+        },
+      });
+    });
+  });
+
+  describe('DynamoDB Streams config', () => {
+    it('creates DLQ with 14-day retention', () => {
+      const { template } = createEgress();
+      template.hasResourceProperties('AWS::SQS::Queue', {
+        MessageRetentionPeriod: 1209600,
+      });
+    });
+
+    it('exposes dlq property', () => {
+      const { egress } = createEgress();
+      expect(egress.dlq).toBeDefined();
+    });
+
+    it('uses custom retryAttempts', () => {
+      const { template } = createEgress({
+        egressOverrides: { retryAttempts: 5 },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        MaximumRetryAttempts: 5,
+      });
+    });
+
+    it('defaults retryAttempts to 3', () => {
+      const { template } = createEgress();
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        MaximumRetryAttempts: 3,
+      });
+    });
+
+    it('uses custom batchSize', () => {
+      const { template } = createEgress({
+        egressOverrides: { batchSize: 50 },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        BatchSize: 50,
+      });
+    });
   });
 });

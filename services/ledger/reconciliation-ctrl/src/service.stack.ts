@@ -1,6 +1,5 @@
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { Construct } from 'constructs';
-import { join } from 'path';
 import { ServiceStack, ServiceStackProps, Ingress, Egress, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs';
 
 export class ReconciliationCtrlStack extends ServiceStack {
@@ -21,7 +20,6 @@ export class ReconciliationCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       publishableTypes: ['ReconciliationResult', 'DriftRecord'],
-      handlerEntry: join(__dirname, 'handlers/event-publisher.ts'),
     });
 
     this.addObservability({ ingress, egress });

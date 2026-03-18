@@ -1,4 +1,3 @@
-import { join } from 'path';
 import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs';
 
@@ -21,7 +20,6 @@ export class InvestorCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       publishableTypes: ['Notification', 'MonthlyReport'],
-      handlerEntry: join(__dirname, 'handlers/event-publisher.ts'),
     });
 
     this.addObservability({ ingress: triggerIngress, egress });
