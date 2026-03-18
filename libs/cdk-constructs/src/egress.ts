@@ -7,18 +7,12 @@ import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { ServiceStack } from './service-stack';
 import { defaultLambdaProps } from './default-lambda-props';
-import { EVENT_PUBLISHER_ENTRY } from '@nestfolio/event-processor';
 
 export interface EgressProps {
   /** DynamoDB __typename values to publish events for */
   publishableTypes: string[];
-  /**
-   * Optional map of "__typename:eventName" -> custom DetailType (legacy handler only).
-   * Ignored when handlerEntry is provided — define the map in the handler code instead.
-   */
-  customEventTypeMap?: Record<string, string>;
-  /** Path to a custom CDC handler file. When provided, uses this instead of the shared lambda-utils handler. */
-  handlerEntry?: string;
+  /** Path to the CDC handler file (uses changeDataCapture from event-processor) */
+  handlerEntry: string;
 }
 
 export class Egress extends Construct {
@@ -37,13 +31,10 @@ export class Egress extends Construct {
 
     const publisher = new NodejsFunction(this, 'Publisher', {
       ...defaultLambdaProps(this),
-      entry: props.handlerEntry ?? EVENT_PUBLISHER_ENTRY,
+      entry: props.handlerEntry,
       environment: {
         BUS_NAME: eventBus.eventBusName,
         SERVICE_NAME: serviceName,
-        ...(!props.handlerEntry && props.customEventTypeMap && {
-          CUSTOM_EVENT_TYPE_MAP: JSON.stringify(props.customEventTypeMap),
-        }),
       },
     });
 

@@ -1,8 +1,3 @@
-import { join } from 'path';
-
-/** Absolute path to the event-publisher Lambda entry point (for CDK Egress construct) */
-export const EVENT_PUBLISHER_ENTRY = join(__dirname, 'event-publisher.ts');
-
 export { requireEnv } from './require-env';
 export { authorizeTenant, authorizeUser, type AuthorizedIdentity } from './authorize-tenant';
 export { validateQueryDepth } from './validate-query-depth';

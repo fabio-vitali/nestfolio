@@ -28,6 +28,7 @@ describe('Egress construct', () => {
 
     const egress = new Egress(stack, 'TestEgress', {
       publishableTypes: ['Order', 'StagedOrder'],
+      handlerEntry: tmpHandler,
       ...(overrides as any),
     });
 
@@ -64,56 +65,6 @@ describe('Egress construct', () => {
         ]),
       },
     });
-  });
-
-  it('sets CUSTOM_EVENT_TYPE_MAP env var when customEventTypeMap provided', () => {
-    const { template } = createEgress({
-      customEventTypeMap: { 'Order:INSERT': 'ORDER_CREATED' },
-    });
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      Environment: {
-        Variables: Match.objectLike({
-          CUSTOM_EVENT_TYPE_MAP: Match.anyValue(),
-        }),
-      },
-    });
-  });
-
-  it('uses custom handlerEntry when provided', () => {
-    const { template } = createEgress({
-      handlerEntry: tmpHandler,
-    });
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      Environment: {
-        Variables: Match.objectLike({
-          BUS_NAME: Match.anyValue(),
-          SERVICE_NAME: 'test-svc',
-        }),
-      },
-    });
-  });
-
-  it('omits CUSTOM_EVENT_TYPE_MAP when handlerEntry is provided', () => {
-    const { template } = createEgress({
-      handlerEntry: tmpHandler,
-      customEventTypeMap: { 'Order:INSERT': 'ORDER_CREATED' },
-    });
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      Environment: {
-        Variables: Match.objectLike({
-          BUS_NAME: Match.anyValue(),
-          SERVICE_NAME: 'test-svc',
-        }),
-      },
-    });
-    // Verify CUSTOM_EVENT_TYPE_MAP is NOT present — no Lambda should have it
-    const lambdas = template.findResources('AWS::Lambda::Function');
-    for (const logicalId of Object.keys(lambdas)) {
-      const envVars = lambdas[logicalId]?.Properties?.Environment?.Variables ?? {};
-      if (envVars.SERVICE_NAME === 'test-svc') {
-        expect(envVars.CUSTOM_EVENT_TYPE_MAP).toBeUndefined();
-      }
-    }
   });
 
   it('exposes dlq property', () => {

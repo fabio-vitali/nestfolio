@@ -28,7 +28,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     // --- Egress: CDC from DDB Streams ---
     const egress = new Egress(this, 'Egress', {
       publishableTypes: ['DecisionPacket', 'AgentOutput', 'EditEvent'],
-      handlerEntry: join(__dirname, 'handlers/event-publisher-cdc.ts'),
+      handlerEntry: join(__dirname, 'handlers/event-publisher.ts'),
     });
 
     // --- Observability ---

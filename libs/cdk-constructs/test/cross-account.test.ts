@@ -117,13 +117,17 @@ describe('getDomainAccounts', () => {
 describe('getConsumerAccountIds', () => {
   it('returns empty array when no domain accounts', () => {
     const app = new App();
-    const stack = new Stack(app, 'TestStack', { env: { account: '111111111111', region: 'us-east-1' } });
+    const stack = new Stack(app, 'TestStack', {
+      env: { account: '111111111111', region: 'us-east-1' },
+    });
     expect(getConsumerAccountIds(stack, undefined)).toEqual([]);
   });
 
   it('returns unique account IDs excluding current stack account', () => {
     const app = new App();
-    const stack = new Stack(app, 'TestStack', { env: { account: '111111111111', region: 'us-east-1' } });
+    const stack = new Stack(app, 'TestStack', {
+      env: { account: '111111111111', region: 'us-east-1' },
+    });
     const domainAccounts = {
       investor: '111111111111',
       advisory: '222222222222',
@@ -142,7 +146,7 @@ describe('resolveBusArn', () => {
     const app = new App();
     const stack = new Stack(app, 'TestStack');
 
-    const arn = resolveBusArn(stack, 'InvestorBus', 'dev', 'investor');
+    resolveBusArn(stack, 'InvestorBus', 'dev', 'investor');
 
     // In single-account mode, creates a CFN parameter (SSM dynamic reference)
     const template = Template.fromStack(stack);
@@ -156,7 +160,9 @@ describe('resolveBusArn', () => {
 
   it('uses AwsCustomResource for cross-account resolution', () => {
     const app = new App();
-    const stack = new Stack(app, 'TestStack', { env: { account: '111111111111', region: 'us-east-1' } });
+    const stack = new Stack(app, 'TestStack', {
+      env: { account: '111111111111', region: 'us-east-1' },
+    });
 
     const domainAccounts = {
       investor: '111111111111',
@@ -169,17 +175,21 @@ describe('resolveBusArn', () => {
     // Cross-account creates a custom resource
     template.hasResource('Custom::AWS', {
       Properties: Match.objectLike({
-        Update: Match.serializedJson(Match.objectLike({
-          service: 'SSM',
-          action: 'getParameter',
-        })),
+        Update: Match.serializedJson(
+          Match.objectLike({
+            service: 'SSM',
+            action: 'getParameter',
+          }),
+        ),
       }),
     });
   });
 
   it('uses valueForStringParameter when domain account matches stack account', () => {
     const app = new App();
-    const stack = new Stack(app, 'TestStack', { env: { account: '111111111111', region: 'us-east-1' } });
+    const stack = new Stack(app, 'TestStack', {
+      env: { account: '111111111111', region: 'us-east-1' },
+    });
 
     const domainAccounts = {
       investor: '111111111111',

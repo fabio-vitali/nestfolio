@@ -81,7 +81,6 @@ export { parseRssFeed, type RssArticle } from './lambda/rss-parser';
 
 // Lambda utilities (from lambda-utils)
 export {
-  EVENT_PUBLISHER_ENTRY,
   requireEnv,
   authorizeTenant, authorizeUser, type AuthorizedIdentity,
   validateQueryDepth,
