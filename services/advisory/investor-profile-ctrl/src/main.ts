@@ -2,14 +2,20 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { InvestorProfileCtrlStack } from './service.stack';
 
-const app = new App();
-const config = resolvePipelineConfig(app, 'investor-profile-ctrl');
+const subsystem = 'advisory';
+const service = 'investor-profile-ctrl';
 
-new InvestorProfileCtrlStack(app, `${config.prefix}-investor-profile-ctrl`, {
-  prefix: config.prefix,
+const app = new App();
+const { prefix, account, region } = resolvePipelineConfig(app, service);
+
+new InvestorProfileCtrlStack(app, `${prefix}-investor-profile-ctrl`, {
+  serviceDir: __dirname,
+  subsystem,
+  service,
+  prefix,
   env: {
-    account: config.account ?? process.env['CDK_DEFAULT_ACCOUNT'],
-    region: config.region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
+    account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],
+    region: region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
   },
 });
 

@@ -1,4 +1,4 @@
-import { StackProps, Duration } from 'aws-cdk-lib';
+import { Duration } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { StartingPosition, FilterCriteria, FilterRule } from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
@@ -6,11 +6,11 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, Ingress, Egress, defaultLambdaProps } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Ingress, Egress, defaultLambdaProps } from '@nestfolio/cdk-constructs';
 
 export class LedgerCtrlStack extends ServiceStack {
-  constructor(scope: Construct, id: string, props: StackProps & { prefix: string }) {
-    super(scope, id, { ...props, prefix: props.prefix, subsystem: 'ledger', service: 'ledger-ctrl', serviceDir: __dirname });
+  constructor(scope: Construct, id: string, props: ServiceStackProps) {
+    super(scope, id, props);
 
     const ledgerBusArn = StringParameter.valueForStringParameter(this, `/nestfolio/${this.prefix}-ledger/event-hub/busArn`);
     this.eventBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);

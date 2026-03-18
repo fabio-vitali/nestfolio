@@ -2,14 +2,20 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { InvestorBffStack } from './service.stack';
 
-const app = new App();
-const config = resolvePipelineConfig(app, 'investor-bff');
+const subsystem = 'investor';
+const service = 'investor-bff';
 
-new InvestorBffStack(app, `${config.prefix}-investor-bff`, {
-  prefix: config.prefix,
+const app = new App();
+const { prefix, account, region } = resolvePipelineConfig(app, service);
+
+new InvestorBffStack(app, `${prefix}-investor-bff`, {
+  serviceDir: __dirname,
+  prefix,
+  subsystem,
+  service,
   env: {
-    account: config.account ?? process.env['CDK_DEFAULT_ACCOUNT'],
-    region: config.region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
+    account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],
+    region: region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
   },
 });
 

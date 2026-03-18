@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { createEventHandler, skip, type EventPayload, type EventContext, type BusEvent } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
@@ -15,12 +15,12 @@ export interface EventListenerDeps {
   readonly repository: DecisionRepository;
 }
 
-function toEvent(payload: EventPayload, ctx: EventContext): Record<string, unknown> {
+function toEvent(payload: EventPayload, ctx: EventContext): BusEvent {
   return {
     id: ctx.eventId,
     type: ctx.eventType,
     timestamp: ctx.timestamp,
-    subject: payload.subject,
+    subject: payload.subject ?? {},
     context: payload.context ?? { tenantId: ctx.tenantId },
   };
 }

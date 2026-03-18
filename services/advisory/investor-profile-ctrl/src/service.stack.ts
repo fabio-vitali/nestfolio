@@ -1,4 +1,4 @@
-import { StackProps, RemovalPolicy } from 'aws-cdk-lib';
+import { RemovalPolicy } from 'aws-cdk-lib';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
@@ -7,6 +7,7 @@ import { Construct } from 'constructs';
 import { join } from 'path';
 import {
   ServiceStack,
+  ServiceStackProps,
   Ingress,
   Egress,
   AgentRuntime,
@@ -15,14 +16,8 @@ import {
 } from '@nestfolio/cdk-constructs';
 
 export class InvestorProfileCtrlStack extends ServiceStack {
-  constructor(scope: Construct, id: string, props: StackProps & { prefix: string }) {
-    super(scope, id, {
-      ...props,
-      prefix: props.prefix,
-      subsystem: 'advisory',
-      service: 'investor-profile-ctrl',
-      serviceDir: __dirname,
-    });
+  constructor(scope: Construct, id: string, props: ServiceStackProps) {
+    super(scope, id, props);
 
     // KB S3 bucket (Regulatory & Compliance)
     const kbBucket = new Bucket(this, 'KbBucket', {

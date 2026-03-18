@@ -38,7 +38,15 @@ type Tier = 'sandbox' | 'staging' | 'production';
 type TierDefaults = Partial<
   Pick<
     ResolvedPipelineConfig,
-    'observability' | 'parallelDeploy' | 'logRetention' | 'protectedResources' | 'alarmActions' | 'account' | 'region' | 'environment' | 'schedule'
+    | 'observability'
+    | 'parallelDeploy'
+    | 'logRetention'
+    | 'protectedResources'
+    | 'alarmActions'
+    | 'account'
+    | 'region'
+    | 'environment'
+    | 'schedule'
   >
 >;
 
@@ -71,7 +79,7 @@ export function discoverSubsystem(serviceName: string): string {
 
   throw new Error(
     `Cannot discover subsystem for "${serviceName}". ` +
-    `Expected a directory at services/{subsystem}/${serviceName}/src/main.ts`,
+      `Expected a directory at services/{subsystem}/${serviceName}/src/main.ts`,
   );
 }
 
@@ -110,7 +118,12 @@ export function inferServiceMetadata(serviceName: string, subsystem: string): In
 
 export function loadTierDefaults(tier: Tier): TierDefaults {
   const defaultsPath = path.resolve(
-    __dirname, '..', '..', '..', 'infrastructure', 'pipeline-defaults.json',
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'infrastructure',
+    'pipeline-defaults.json',
   );
   if (!fs.existsSync(defaultsPath)) return {};
 
@@ -134,7 +147,14 @@ function loadServiceOverrides(
   tier: Tier,
 ): Record<string, unknown> {
   const overridePath = path.resolve(
-    __dirname, '..', '..', '..', 'services', subsystem, serviceName, 'pipeline.json',
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'services',
+    subsystem,
+    serviceName,
+    'pipeline.json',
   );
   if (!fs.existsSync(overridePath)) return {};
 
@@ -142,9 +162,7 @@ function loadServiceOverrides(
 
   // Extract tier-scoped overrides and merge with top-level overrides
   const { sandbox, staging, production, $schema, ...topLevel } = raw;
-  const tierScoped = tier === 'sandbox' ? sandbox
-    : tier === 'staging' ? staging
-    : production;
+  const tierScoped = tier === 'sandbox' ? sandbox : tier === 'staging' ? staging : production;
 
   // If tier-scoped is an array (multi-target production), ignore here
   if (Array.isArray(tierScoped)) return topLevel;
@@ -185,7 +203,13 @@ export function mergeConfigs(
 
   // Layer 3: per-service overrides (scalars last-wins, arrays replace)
   for (const [key, value] of Object.entries(overrides)) {
-    if (value !== undefined && key !== '$schema' && key !== 'sandbox' && key !== 'staging' && key !== 'production') {
+    if (
+      value !== undefined &&
+      key !== '$schema' &&
+      key !== 'sandbox' &&
+      key !== 'staging' &&
+      key !== 'production'
+    ) {
       (base as any)[key] = value;
     }
   }
@@ -200,12 +224,9 @@ export function mergeConfigs(
  * Reads 'tier' and 'prefix' from CDK context.
  *
  * @param scope CDK construct scope (usually the App)
- * @param serviceName The Nx project name (e.g. 'advisory-ctrl')
+ * @param service The Nx project name (e.g. 'advisory-ctrl')
  */
-export function resolvePipelineConfig(
-  scope: Construct,
-  serviceName: string,
-): ResolvedPipelineConfig {
+export function resolvePipelineConfig(scope: Construct, service: string): ResolvedPipelineConfig {
   const prefix = scope.node.tryGetContext('prefix');
   if (!prefix) {
     throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
@@ -214,10 +235,10 @@ export function resolvePipelineConfig(
   const tierContext = scope.node.tryGetContext('tier') as Tier | undefined;
   const tier: Tier = tierContext ?? detectTier(prefix);
 
-  const subsystem = discoverSubsystem(serviceName);
-  const inferred = inferServiceMetadata(serviceName, subsystem);
+  const subsystem = discoverSubsystem(service);
+  const inferred = inferServiceMetadata(service, subsystem);
   const tierDefaults = loadTierDefaults(tier);
-  const overrides = loadServiceOverrides(serviceName, subsystem, tier);
+  const overrides = loadServiceOverrides(service, subsystem, tier);
 
   return mergeConfigs(inferred, tierDefaults, overrides, prefix);
 }

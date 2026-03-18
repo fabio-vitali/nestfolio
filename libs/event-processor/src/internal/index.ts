@@ -7,4 +7,4 @@ export { traceEvent } from './trace-event';
 export { extractTenantId } from './extract-tenant-id';
 export { guardedWrite } from './guarded-write';
 export { applyMiddleware, withLambdaContext, withTiming } from './middleware';
-export type { Middleware } from './middleware';
+export type { Middleware, LambdaHandler } from './middleware';

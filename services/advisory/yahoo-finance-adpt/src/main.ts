@@ -2,17 +2,23 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { YahooFinanceAdptStack } from './service.stack';
 
-const app = new App();
-const config = resolvePipelineConfig(app, 'yahoo-finance-adpt');
+const subsystem = 'advisory';
+const service = 'yahoo-finance-adpt';
 
+const app = new App();
+const config = resolvePipelineConfig(app, service);
+const { prefix, account, region } = config;
 const schedule = (config as any).schedule ?? { enabled: false, rate: 'rate(24 hours)' };
 
-new YahooFinanceAdptStack(app, `${config.prefix}-yahoo-finance-adpt`, {
-  prefix: config.prefix,
+new YahooFinanceAdptStack(app, `${prefix}-yahoo-finance-adpt`, {
+  serviceDir: __dirname,
+  prefix,
+  subsystem,
+  service,
   schedule,
   env: {
-    account: config.account ?? process.env['CDK_DEFAULT_ACCOUNT'],
-    region: config.region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
+    account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],
+    region: region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
   },
 });
 

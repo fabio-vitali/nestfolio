@@ -2,17 +2,23 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { SecEdgarAdptStack } from './service.stack';
 
-const app = new App();
-const config = resolvePipelineConfig(app, 'sec-edgar-adpt');
+const subsystem = 'advisory';
+const service = 'sec-edgar-adpt';
 
+const app = new App();
+const config = resolvePipelineConfig(app, service);
+const { prefix, account, region } = config;
 const schedule = (config as any).schedule ?? { enabled: false, rate: 'rate(24 hours)' };
 
-new SecEdgarAdptStack(app, `${config.prefix}-sec-edgar-adpt`, {
-  prefix: config.prefix,
+new SecEdgarAdptStack(app, `${prefix}-sec-edgar-adpt`, {
+  serviceDir: __dirname,
+  prefix,
+  subsystem,
+  service,
   schedule,
   env: {
-    account: config.account ?? process.env['CDK_DEFAULT_ACCOUNT'],
-    region: config.region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
+    account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],
+    region: region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
   },
 });
 

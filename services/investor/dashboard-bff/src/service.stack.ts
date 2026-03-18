@@ -1,10 +1,9 @@
-import { StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { ServiceStack, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs';
 
 export class DashboardBffStack extends ServiceStack {
-  constructor(scope: Construct, id: string, props: StackProps & { prefix: string }) {
-    super(scope, id, { ...props, prefix: props.prefix, subsystem: 'investor', service: 'dashboard-bff', serviceDir: __dirname });
+  constructor(scope: Construct, id: string, props: ServiceStackProps) {
+    super(scope, id, props);
 
     const ingress = new Ingress(this, 'Ingress', {
       eventTypes: [

@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { Duration, StackProps } from 'aws-cdk-lib';
+import { Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { EventBus } from 'aws-cdk-lib/aws-events';
@@ -7,6 +7,7 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import {
   ServiceStack,
+  ServiceStackProps,
   defaultLambdaProps,
   Monitoring,
   ServiceDashboard,
@@ -17,18 +18,9 @@ export class FredAdptStack extends ServiceStack {
   constructor(
     scope: Construct,
     id: string,
-    props: StackProps & {
-      prefix: string;
-      schedule?: { enabled: boolean; rate: string };
-    },
+    props: ServiceStackProps & { schedule?: { enabled: boolean; rate: string } },
   ) {
-    super(scope, id, {
-      ...props,
-      prefix: props.prefix,
-      subsystem: 'advisory',
-      service: 'fred-adpt',
-      serviceDir: __dirname,
-    });
+    super(scope, id, props);
 
     const scheduleConfig = props.schedule ?? { enabled: false, rate: 'rate(24 hours)' };
 

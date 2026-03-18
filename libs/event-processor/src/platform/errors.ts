@@ -7,10 +7,6 @@ interface AwsSdkError extends Error {
   $retryable?: { throttling?: boolean };
 }
 
-function isAwsSdkError(error: unknown): error is AwsSdkError {
-  return error instanceof Error && '$fault' in error;
-}
-
 export function handleClientError(error: unknown): never {
   if (!isRetryable(error)) {
     const err = error as AwsSdkError;

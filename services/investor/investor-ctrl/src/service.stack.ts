@@ -1,11 +1,10 @@
 import { join } from 'path';
-import { StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { ServiceStack, Ingress, Egress } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs';
 
 export class InvestorCtrlStack extends ServiceStack {
-  constructor(scope: Construct, id: string, props: StackProps & { prefix: string }) {
-    super(scope, id, { ...props, prefix: props.prefix, subsystem: 'investor', service: 'investor-ctrl', serviceDir: __dirname });
+  constructor(scope: Construct, id: string, props: ServiceStackProps) {
+    super(scope, id, props);
 
     const triggerIngress = new Ingress(this, 'TriggerIngress', {
       eventTypes: [

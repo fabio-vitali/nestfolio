@@ -1,11 +1,10 @@
 import { join } from 'path';
-import { StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { ServiceStack, Ingress, Egress } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs';
 
 export class BrokerAdptStack extends ServiceStack {
-  constructor(scope: Construct, id: string, props: StackProps & { prefix: string }) {
-    super(scope, id, { ...props, prefix: props.prefix, subsystem: 'execution', service: 'broker-adpt', serviceDir: __dirname });
+  constructor(scope: Construct, id: string, props: ServiceStackProps) {
+    super(scope, id, props);
 
     const ingress = new Ingress(this, 'Ingress', {
       eventTypes: ['ORDER_SUBMITTED', 'WITHDRAWAL_REQUESTED', 'DEPOSIT_INITIATED'],

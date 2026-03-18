@@ -1,4 +1,4 @@
-import { StackProps, RemovalPolicy } from 'aws-cdk-lib';
+import { RemovalPolicy } from 'aws-cdk-lib';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Bucket, BlockPublicAccess, BucketEncryption } from 'aws-cdk-lib/aws-s3';
@@ -6,6 +6,7 @@ import { Construct } from 'constructs';
 import { join } from 'path';
 import {
   ServiceStack,
+  ServiceStackProps,
   Ingress,
   Egress,
   AgentRuntime,
@@ -13,14 +14,8 @@ import {
 } from '@nestfolio/cdk-constructs';
 
 export class AdvisoryNarrativeCtrlStack extends ServiceStack {
-  constructor(scope: Construct, id: string, props: StackProps & { prefix: string }) {
-    super(scope, id, {
-      ...props,
-      prefix: props.prefix,
-      subsystem: 'advisory',
-      service: 'advisory-narrative-ctrl',
-      serviceDir: __dirname,
-    });
+  constructor(scope: Construct, id: string, props: ServiceStackProps) {
+    super(scope, id, props);
 
     // KB S3 bucket (Explainability Feedback)
     const kbBucket = new Bucket(this, 'KbBucket', {

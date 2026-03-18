@@ -1,11 +1,14 @@
 import type { Context } from 'aws-lambda';
 import { logger } from './logger';
 
+/** Lambda handler signature used across all middleware. */
+export type LambdaHandler<R = unknown> = (event: unknown, context?: Context) => Promise<R>;
+
 /**
  * A middleware wraps a handler function with cross-cutting concerns.
  * Unlike pipe() (data transformation), middleware wraps behavior around a handler.
  */
-export type Middleware = <A extends unknown[], R>(fn: (...args: A) => Promise<R>) => (...args: A) => Promise<R>;
+export type Middleware = <R>(fn: LambdaHandler<R>) => LambdaHandler<R>;
 
 /**
  * Composes middleware around a handler. Declaration order = execution order:
@@ -35,7 +38,7 @@ function isColdStart(): boolean {
  * Enriches the logger with Lambda context (request ID, function name, cold start).
  */
 export const withLambdaContext = (): Middleware =>
-  (fn) =>
+  <R>(fn: LambdaHandler<R>): LambdaHandler<R> =>
     async (event: unknown, context?: Context) => {
       if (context) {
         logger.addContext(context);
@@ -53,11 +56,11 @@ export function _resetColdStart(): void {
  * Logs handler duration on success and failure.
  */
 export const withTiming = (name: string): Middleware =>
-  (fn) =>
-    async (...args: unknown[]) => {
+  <R>(fn: LambdaHandler<R>): LambdaHandler<R> =>
+    async (event: unknown, context?: Context) => {
       const start = Date.now();
       try {
-        const result = await fn(...args);
+        const result = await fn(event, context);
         logger.info(`${name} completed`, { durationMs: Date.now() - start });
         return result;
       } catch (error) {

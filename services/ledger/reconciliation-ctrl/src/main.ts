@@ -2,14 +2,20 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { ReconciliationCtrlStack } from './service.stack';
 
-const app = new App();
-const config = resolvePipelineConfig(app, 'reconciliation-ctrl');
+const subsystem = 'ledger';
+const service = 'reconciliation-ctrl';
 
-new ReconciliationCtrlStack(app, `${config.prefix}-reconciliation-ctrl`, {
-  prefix: config.prefix,
+const app = new App();
+const { prefix, account, region } = resolvePipelineConfig(app, service);
+
+new ReconciliationCtrlStack(app, `${prefix}-reconciliation-ctrl`, {
+  serviceDir: __dirname,
+  subsystem,
+  service,
+  prefix,
   env: {
-    account: config.account ?? process.env['CDK_DEFAULT_ACCOUNT'],
-    region: config.region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
+    account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],
+    region: region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
   },
 });
 
