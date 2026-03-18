@@ -8,8 +8,7 @@ const service = 'market-intelligence-ctrl';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new MarketIntelligenceCtrlStack(app, `${prefix}-market-intelligence-ctrl`, {
-  serviceDir: __dirname,
+new MarketIntelligenceCtrlStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

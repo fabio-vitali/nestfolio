@@ -8,7 +8,12 @@ describe('LedgerCtrlStack', () => {
 
   beforeAll(() => {
     const app = new App({ context: { prefix: 'test' } });
-    const stack = new LedgerCtrlStack(app, 'test-ledger-ctrl', { prefix: 'test', service: 'ledger-ctrl', subsystem: 'ledger', serviceDir: join(__dirname, '..', 'src') });
+    const stack = new LedgerCtrlStack(app, 'test-ledger-ctrl', {
+      prefix: 'test',
+      service: 'ledger-ctrl',
+      subsystem: 'ledger',
+      serviceDir: join(__dirname, '..', 'src'),
+    });
     template = Template.fromStack(stack);
   });
 
@@ -75,9 +80,7 @@ describe('LedgerCtrlStack', () => {
 
   it('applies standard tags', () => {
     template.hasResourceProperties('AWS::Lambda::Function', {
-      Tags: Match.arrayWith([
-        Match.objectLike({ Key: 'Service', Value: 'ledger-ctrl' }),
-      ]),
+      Tags: Match.arrayWith([Match.objectLike({ Key: 'Service', Value: 'ledger-ctrl' })]),
     });
   });
 });

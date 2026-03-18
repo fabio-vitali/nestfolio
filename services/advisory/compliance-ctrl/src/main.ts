@@ -8,8 +8,7 @@ const service = 'compliance-ctrl';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new ComplianceCtrlStack(app, `${prefix}-compliance-ctrl`, {
-  serviceDir: __dirname,
+new ComplianceCtrlStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

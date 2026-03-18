@@ -9,7 +9,12 @@ describe('DecisionWorkflowCtrlStack', () => {
 
   beforeAll(() => {
     const app = new App();
-    const stack = new DecisionWorkflowCtrlStack(app, 'TestStack', { prefix: 'test', service: 'decision-workflow-ctrl', subsystem: 'advisory', serviceDir: join(__dirname, '..', 'src') });
+    const stack = new DecisionWorkflowCtrlStack(app, 'TestStack', {
+      prefix: 'test',
+      service: 'decision-workflow-ctrl',
+      subsystem: 'advisory',
+      serviceDir: join(__dirname, '..', 'src'),
+    });
     template = Template.fromStack(stack);
   });
 

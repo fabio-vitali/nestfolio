@@ -8,8 +8,7 @@ const service = 'reconciliation-ctrl';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new ReconciliationCtrlStack(app, `${prefix}-reconciliation-ctrl`, {
-  serviceDir: __dirname,
+new ReconciliationCtrlStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

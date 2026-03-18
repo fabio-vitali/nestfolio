@@ -8,8 +8,7 @@ const service = 'investor-profile-ctrl';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new InvestorProfileCtrlStack(app, `${prefix}-investor-profile-ctrl`, {
-  serviceDir: __dirname,
+new InvestorProfileCtrlStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

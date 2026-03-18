@@ -4,7 +4,7 @@ import { ServiceStack, ServiceStackProps, Ingress, Egress, Facade, discoverJsRes
 
 export class AdvisoryBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
-    super(scope, id, props);
+    super(scope, id, { ...props, serviceDir: __dirname });
 
     const ingress = new Ingress(this, 'Ingress', {
       eventTypes: [

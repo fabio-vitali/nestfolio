@@ -8,7 +8,7 @@ import { ServiceStack, ServiceStackProps, Ingress, Facade, discoverJsResolvers, 
 
 export class LedgerBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
-    super(scope, id, props);
+    super(scope, id, { ...props, serviceDir: __dirname });
 
     const ledgerBusArn = StringParameter.valueForStringParameter(this, `/nestfolio/${this.prefix}-ledger/event-hub/busArn`);
     this.eventBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);

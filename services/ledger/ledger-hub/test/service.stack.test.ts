@@ -7,7 +7,11 @@ describe('LedgerHubStack', () => {
 
   beforeAll(() => {
     const app = new App({ context: { prefix: 'test' } });
-    const stack = new LedgerHubStack(app, 'test-ledger-hub');
+    const stack = new LedgerHubStack(app, 'test-ledger-hub', {
+      prefix: 'test',
+      subsystem: 'ledger',
+      service: 'ledger-hub',
+    });
     template = Template.fromStack(stack);
   });
 

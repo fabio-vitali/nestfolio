@@ -8,8 +8,7 @@ const service = 'advisory-narrative-ctrl';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new AdvisoryNarrativeCtrlStack(app, `${prefix}-advisory-narrative-ctrl`, {
-  serviceDir: __dirname,
+new AdvisoryNarrativeCtrlStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

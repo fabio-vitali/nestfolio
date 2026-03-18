@@ -8,8 +8,7 @@ const service = 'investor-bff';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new InvestorBffStack(app, `${prefix}-investor-bff`, {
-  serviceDir: __dirname,
+new InvestorBffStack(app, `${prefix}-${service}`, {
   prefix,
   subsystem,
   service,

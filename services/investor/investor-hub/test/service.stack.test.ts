@@ -7,7 +7,11 @@ describe('InvestorHubStack', () => {
 
   beforeAll(() => {
     const app = new App({ context: { prefix: 'test' } });
-    const stack = new InvestorHubStack(app, 'test-investor-hub');
+    const stack = new InvestorHubStack(app, 'test-investor-hub', {
+      prefix: 'test',
+      subsystem: 'investor',
+      service: 'investor-hub',
+    });
     template = Template.fromStack(stack);
   });
 

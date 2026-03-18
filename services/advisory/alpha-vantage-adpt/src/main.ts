@@ -10,8 +10,7 @@ const config = resolvePipelineConfig(app, service);
 const { prefix, account, region } = config;
 const schedule = (config as any).schedule ?? { enabled: false, rate: 'rate(24 hours)' };
 
-new AlphaVantageAdptStack(app, `${prefix}-alpha-vantage-adpt`, {
-  serviceDir: __dirname,
+new AlphaVantageAdptStack(app, `${prefix}-${service}`, {
   prefix,
   subsystem,
   service,

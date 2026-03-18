@@ -6,7 +6,7 @@ import { ALL_INBOUND_EVENT_TYPES } from './service-domain/events';
 
 export class DecisionWorkflowCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
-    super(scope, id, props);
+    super(scope, id, { ...props, serviceDir: __dirname });
 
     // --- State machine ---
     const { stateMachine } = new DecisionStateMachine(this, 'DecisionStateMachine', {

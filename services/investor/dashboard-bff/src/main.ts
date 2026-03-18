@@ -8,8 +8,7 @@ const service = 'dashboard-bff';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new DashboardBffStack(app, `${prefix}-dashboard-bff`, {
-  serviceDir: __dirname,
+new DashboardBffStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

@@ -8,7 +8,12 @@ describe('LedgerBffStack', () => {
 
   beforeAll(() => {
     const app = new App({ context: { prefix: 'test' } });
-    const stack = new LedgerBffStack(app, 'test-ledger-bff', { prefix: 'test', service: 'ledger-bff', subsystem: 'ledger', serviceDir: join(__dirname, '..', 'src') });
+    const stack = new LedgerBffStack(app, 'test-ledger-bff', {
+      prefix: 'test',
+      service: 'ledger-bff',
+      subsystem: 'ledger',
+      serviceDir: join(__dirname, '..', 'src'),
+    });
     template = Template.fromStack(stack);
   });
 
@@ -86,9 +91,7 @@ describe('LedgerBffStack', () => {
 
   it('applies standard tags', () => {
     template.hasResourceProperties('AWS::Lambda::Function', {
-      Tags: Match.arrayWith([
-        Match.objectLike({ Key: 'Service', Value: 'ledger-bff' }),
-      ]),
+      Tags: Match.arrayWith([Match.objectLike({ Key: 'Service', Value: 'ledger-bff' })]),
     });
   });
 });

@@ -8,8 +8,7 @@ const service = 'portfolio-engine-ctrl';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new PortfolioEngineCtrlStack(app, `${prefix}-portfolio-engine-ctrl`, {
-  serviceDir: __dirname,
+new PortfolioEngineCtrlStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

@@ -8,8 +8,7 @@ const service = 'execution-ctrl';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new ExecutionCtrlStack(app, `${prefix}-execution-ctrl`, {
-  serviceDir: __dirname,
+new ExecutionCtrlStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

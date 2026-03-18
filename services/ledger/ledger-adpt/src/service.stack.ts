@@ -1,24 +1,17 @@
-import { Stack, StackProps, Duration } from 'aws-cdk-lib';
+import { Duration } from 'aws-cdk-lib';
 import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import { createNamingService, Monitoring, ServiceDashboard, applyStandardTags, getPrefix } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Monitoring, ServiceDashboard } from '@nestfolio/cdk-constructs';
 import { LedgerCrossDomainEventTypes } from './domain/events';
 
-export class LedgerAdptStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, props);
+export class LedgerAdptStack extends ServiceStack {
+  constructor(scope: Construct, id: string, props: ServiceStackProps) {
+    super(scope, id, { ...props, stateProps: false });
 
-    const naming = createNamingService(this, {
-      subsystem: 'ledger',
-      service: 'ledger-adpt',
-    });
-
-    const prefix = getPrefix(this);
-    const observability = this.node.tryGetContext('observability') !== 'false';
-    applyStandardTags(this, { service: 'ledger-adpt', domain: 'ledger', environment: prefix });
+    const prefix = this.prefix;
 
     // Resolve ledger domain bus
     const ledgerBusArn = StringParameter.valueForStringParameter(
@@ -77,17 +70,17 @@ export class LedgerAdptStack extends Stack {
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: toAdvisoryDlq })],
     });
 
-    if (observability) {
+    if (this.observability) {
       new Monitoring(this, 'Monitoring', {
         dlqs: [toInvestorDlq, toAdvisoryDlq],
-        eventBusBusNames: [naming.eventBusName()],
+        eventBusBusNames: [this.naming.eventBusName()],
       });
 
       new ServiceDashboard(this, 'Dashboard', {
         serviceName: 'ledger-adpt',
         lambdaFunctions: [],
         dlqs: [toInvestorDlq, toAdvisoryDlq],
-        eventBusNames: [naming.eventBusName()],
+        eventBusNames: [this.naming.eventBusName()],
       });
     }
   }

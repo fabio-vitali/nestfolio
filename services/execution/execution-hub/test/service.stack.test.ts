@@ -7,7 +7,11 @@ describe('ExecutionHubStack', () => {
 
   beforeAll(() => {
     const app = new App({ context: { prefix: 'test' } });
-    const stack = new ExecutionHubStack(app, 'test-execution-hub');
+    const stack = new ExecutionHubStack(app, 'test-execution-hub', {
+      prefix: 'test',
+      subsystem: 'execution',
+      service: 'execution-hub',
+    });
     template = Template.fromStack(stack);
   });
 

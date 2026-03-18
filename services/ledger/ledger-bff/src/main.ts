@@ -8,8 +8,7 @@ const service = 'ledger-bff';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new LedgerBffStack(app, `${prefix}-ledger-bff`, {
-  serviceDir: __dirname,
+new LedgerBffStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

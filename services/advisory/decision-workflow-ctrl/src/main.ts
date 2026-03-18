@@ -8,8 +8,7 @@ const service = 'decision-workflow-ctrl';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new DecisionWorkflowCtrlStack(app, `${prefix}-decision-workflow-ctrl`, {
-  serviceDir: __dirname,
+new DecisionWorkflowCtrlStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

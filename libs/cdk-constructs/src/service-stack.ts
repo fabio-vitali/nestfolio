@@ -15,9 +15,9 @@ export interface ServiceStackProps extends StackProps {
   prefix: string;
   subsystem: string;
   service: string;
-  serviceDir: string;
+  serviceDir?: string;
   domain?: string;
-  stateProps?: StateProps;
+  stateProps?: StateProps | false;
   eventBus?: IEventBus;
   /** Enable observability (Monitoring + Dashboard). Defaults to true. */
   observability?: boolean;
@@ -26,7 +26,7 @@ export interface ServiceStackProps extends StackProps {
 export class ServiceStack extends Stack {
   readonly prefix: string;
   readonly naming: NamingService;
-  readonly state: State;
+  readonly state!: State;
   readonly serviceName: string;
   readonly serviceDir: string;
   readonly observability: boolean;
@@ -55,7 +55,7 @@ export class ServiceStack extends Stack {
     super(scope, id, props);
 
     this.serviceName = props.service;
-    this.serviceDir = props.serviceDir;
+    this.serviceDir = props.serviceDir ?? '';
     this.observability = props.observability ?? true;
     this.prefix = props.prefix;
 
@@ -71,7 +71,9 @@ export class ServiceStack extends Stack {
       environment: this.prefix,
     });
 
-    this.state = new State(this, 'State', props.stateProps);
+    if (props.stateProps !== false) {
+      this.state = new State(this, 'State', props.stateProps);
+    }
 
     if (props.eventBus) {
       this._eventBus = props.eventBus;

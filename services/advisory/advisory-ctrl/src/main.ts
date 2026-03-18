@@ -8,8 +8,7 @@ const service = 'advisory-ctrl';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new AdvisoryCtrlStack(app, `${prefix}-advisory-ctrl`, {
-  serviceDir: __dirname,
+new AdvisoryCtrlStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

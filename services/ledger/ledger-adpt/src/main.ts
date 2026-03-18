@@ -2,13 +2,19 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { LedgerAdptStack } from './service.stack';
 
+const subsystem = 'ledger';
+const service = 'ledger-adpt';
 const app = new App();
-const config = resolvePipelineConfig(app, 'ledger-adpt');
+const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new LedgerAdptStack(app, `${config.prefix}-ledger-adpt`, {
+new LedgerAdptStack(app, `${prefix}-${service}`, {
+  prefix,
+  subsystem,
+  service,
+
   env: {
-    account: config.account ?? process.env['CDK_DEFAULT_ACCOUNT'],
-    region: config.region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
+    account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],
+    region: region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
   },
 });
 

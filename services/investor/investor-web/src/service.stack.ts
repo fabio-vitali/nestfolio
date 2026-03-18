@@ -1,4 +1,4 @@
-import { Stack, StackProps, RemovalPolicy, Duration } from 'aws-cdk-lib';
+import { RemovalPolicy, Duration } from 'aws-cdk-lib';
 import { UserPool, AccountRecovery, Mfa, StringAttribute } from 'aws-cdk-lib/aws-cognito';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
@@ -10,17 +10,12 @@ import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
-import { createNamingService, defaultLambdaProps, applyStandardTags, getPrefix } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, defaultLambdaProps } from '@nestfolio/cdk-constructs';
 import { join } from 'path';
 
-export class InvestorWebStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, props);
-
-    const naming = createNamingService(this, { subsystem: 'investor', service: 'investor-web' });
-    const prefix = getPrefix(this);
-
-    applyStandardTags(this, { service: 'investor-web', domain: 'investor', environment: prefix });
+export class InvestorWebStack extends ServiceStack {
+  constructor(scope: Construct, id: string, props: ServiceStackProps) {
+    super(scope, id, { ...props, stateProps: false });
 
     // Scoped exception per spec §4: Cognito triggers are synchronous (5s timeout) and must
     // return to Cognito to complete the auth flow. The 3-tier ingestion pattern (EventBridge Rule
@@ -32,13 +27,13 @@ export class InvestorWebStack extends Stack {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'post-confirmation.ts'),
       environment: {
-        BUS_NAME: naming.eventBusName(),
+        BUS_NAME: this.naming.eventBusName(),
         SERVICE_NAME: 'investor-web',
       },
     });
     postConfirmation.addToRolePolicy(new PolicyStatement({
       actions: ['events:PutEvents'],
-      resources: [`arn:aws:events:${this.region}:${this.account}:event-bus/${naming.eventBusName()}`],
+      resources: [`arn:aws:events:${this.region}:${this.account}:event-bus/${this.naming.eventBusName()}`],
     }));
 
     // PostAuthentication Lambda
@@ -46,18 +41,18 @@ export class InvestorWebStack extends Stack {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'post-authentication.ts'),
       environment: {
-        BUS_NAME: naming.eventBusName(),
+        BUS_NAME: this.naming.eventBusName(),
         SERVICE_NAME: 'investor-web',
       },
     });
     postAuthentication.addToRolePolicy(new PolicyStatement({
       actions: ['events:PutEvents'],
-      resources: [`arn:aws:events:${this.region}:${this.account}:event-bus/${naming.eventBusName()}`],
+      resources: [`arn:aws:events:${this.region}:${this.account}:event-bus/${this.naming.eventBusName()}`],
     }));
 
     // Cognito User Pool
     const userPool = new UserPool(this, 'UserPool', {
-      userPoolName: `${prefix}-investor-user-pool`,
+      userPoolName: `${this.prefix}-investor-user-pool`,
       selfSignUpEnabled: true,
       signInAliases: { email: true },
       autoVerify: { email: true },
@@ -77,7 +72,7 @@ export class InvestorWebStack extends Stack {
         postConfirmation,
         postAuthentication,
       },
-      removalPolicy: prefix === 'prod' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
+      removalPolicy: this.prefix === 'prod' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
     });
 
     const client = userPool.addClient('WebClient', {
@@ -129,15 +124,15 @@ export class InvestorWebStack extends Stack {
 
     // SSM Parameters for cross-service discovery
     new StringParameter(this, 'UserPoolIdParam', {
-      parameterName: naming.ssmParameterPath('auth/userPoolId'),
+      parameterName: this.naming.ssmParameterPath('auth/userPoolId'),
       stringValue: userPool.userPoolId,
     });
     new StringParameter(this, 'UserPoolClientIdParam', {
-      parameterName: naming.ssmParameterPath('auth/userPoolClientId'),
+      parameterName: this.naming.ssmParameterPath('auth/userPoolClientId'),
       stringValue: client.userPoolClientId,
     });
     new StringParameter(this, 'DistributionUrlParam', {
-      parameterName: naming.ssmParameterPath('web/distributionUrl'),
+      parameterName: this.naming.ssmParameterPath('web/distributionUrl'),
       stringValue: `https://${distribution.distributionDomainName}`,
     });
   }

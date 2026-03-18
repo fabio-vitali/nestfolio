@@ -8,8 +8,7 @@ const service = 'broker-adpt';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new BrokerAdptStack(app, `${prefix}-broker-adpt`, {
-  serviceDir: __dirname,
+new BrokerAdptStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

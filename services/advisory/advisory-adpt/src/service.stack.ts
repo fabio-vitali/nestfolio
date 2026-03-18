@@ -1,24 +1,22 @@
-import { Stack, StackProps, Duration } from 'aws-cdk-lib';
+import { Duration } from 'aws-cdk-lib';
 import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import { createNamingService, Monitoring, ServiceDashboard, applyStandardTags, getPrefix } from '@nestfolio/cdk-constructs';
+import {
+  ServiceStack,
+  ServiceStackProps,
+  Monitoring,
+  ServiceDashboard,
+} from '@nestfolio/cdk-constructs';
 import { AdvisoryCrossDomainEventTypes } from './domain/events';
 
-export class AdvisoryAdptStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, props);
+export class AdvisoryAdptStack extends ServiceStack {
+  constructor(scope: Construct, id: string, props: ServiceStackProps) {
+    super(scope, id, { ...props, stateProps: false });
 
-    const naming = createNamingService(this, {
-      subsystem: 'advisory',
-      service: 'advisory-adpt',
-    });
-
-    const prefix = getPrefix(this);
-    const observability = this.node.tryGetContext('observability') !== 'false';
-    applyStandardTags(this, { service: 'advisory-adpt', domain: 'advisory', environment: prefix });
+    const prefix = this.prefix;
 
     // Resolve advisory domain bus
     const advisoryBusArn = StringParameter.valueForStringParameter(
@@ -40,11 +38,11 @@ export class AdvisoryAdptStack extends Stack {
     );
     const executionBus = EventBus.fromEventBusArn(this, 'ExecutionBus', executionBusArn);
 
-    // Cross-domain forwarding: Advisory → Investor
     const toInvestorDlq = new Queue(this, 'ToInvestorDLQ', {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
+
     new Rule(this, 'ToInvestor', {
       eventBus: advisoryBus,
       eventPattern: {
@@ -64,11 +62,11 @@ export class AdvisoryAdptStack extends Stack {
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: toInvestorDlq })],
     });
 
-    // Cross-domain forwarding: Advisory → Execution
     const toExecutionDlq = new Queue(this, 'ToExecutionDLQ', {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
+
     new Rule(this, 'ToExecution', {
       eventBus: advisoryBus,
       eventPattern: {
@@ -83,17 +81,17 @@ export class AdvisoryAdptStack extends Stack {
       targets: [new EventBusTarget(executionBus, { deadLetterQueue: toExecutionDlq })],
     });
 
-    if (observability) {
+    if (this.observability) {
       new Monitoring(this, 'Monitoring', {
         dlqs: [toInvestorDlq, toExecutionDlq],
-        eventBusBusNames: [naming.eventBusName()],
+        eventBusBusNames: [this.naming.eventBusName()],
       });
 
       new ServiceDashboard(this, 'Dashboard', {
         serviceName: 'advisory-adpt',
         lambdaFunctions: [],
         dlqs: [toInvestorDlq, toExecutionDlq],
-        eventBusNames: [naming.eventBusName()],
+        eventBusNames: [this.naming.eventBusName()],
       });
     }
   }

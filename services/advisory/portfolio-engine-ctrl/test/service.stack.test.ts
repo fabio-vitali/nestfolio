@@ -9,7 +9,12 @@ describe('PortfolioEngineCtrlStack', () => {
 
   beforeAll(() => {
     const app = new App();
-    const stack = new PortfolioEngineCtrlStack(app, 'TestStack', { prefix: 'test', service: 'portfolio-engine-ctrl', subsystem: 'advisory', serviceDir: join(__dirname, '..', 'src') });
+    const stack = new PortfolioEngineCtrlStack(app, 'TestStack', {
+      prefix: 'test',
+      service: 'portfolio-engine-ctrl',
+      subsystem: 'advisory',
+      serviceDir: join(__dirname, '..', 'src'),
+    });
     template = Template.fromStack(stack);
   });
 
@@ -36,8 +41,10 @@ describe('PortfolioEngineCtrlStack', () => {
   it('creates an S3 bucket for KB content', () => {
     template.hasResourceProperties('AWS::S3::Bucket', {
       PublicAccessBlockConfiguration: {
-        BlockPublicAcls: true, BlockPublicPolicy: true,
-        IgnorePublicAcls: true, RestrictPublicBuckets: true,
+        BlockPublicAcls: true,
+        BlockPublicPolicy: true,
+        IgnorePublicAcls: true,
+        RestrictPublicBuckets: true,
       },
     });
   });

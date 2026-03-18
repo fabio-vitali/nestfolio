@@ -8,8 +8,7 @@ const service = 'ledger-ctrl';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new LedgerCtrlStack(app, `${prefix}-ledger-ctrl`, {
-  serviceDir: __dirname,
+new LedgerCtrlStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

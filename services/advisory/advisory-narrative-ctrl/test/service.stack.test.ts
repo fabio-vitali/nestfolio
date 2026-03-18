@@ -9,7 +9,12 @@ describe('AdvisoryNarrativeCtrlStack', () => {
 
   beforeAll(() => {
     const app = new App();
-    const stack = new AdvisoryNarrativeCtrlStack(app, 'TestStack', { prefix: 'test', service: 'advisory-narrative-ctrl', subsystem: 'advisory', serviceDir: join(__dirname, '..', 'src') });
+    const stack = new AdvisoryNarrativeCtrlStack(app, 'TestStack', {
+      prefix: 'test',
+      service: 'advisory-narrative-ctrl',
+      subsystem: 'advisory',
+      serviceDir: join(__dirname, '..', 'src'),
+    });
     template = Template.fromStack(stack);
   });
 
@@ -36,8 +41,10 @@ describe('AdvisoryNarrativeCtrlStack', () => {
   it('creates an S3 bucket for KB content', () => {
     template.hasResourceProperties('AWS::S3::Bucket', {
       PublicAccessBlockConfiguration: {
-        BlockPublicAcls: true, BlockPublicPolicy: true,
-        IgnorePublicAcls: true, RestrictPublicBuckets: true,
+        BlockPublicAcls: true,
+        BlockPublicPolicy: true,
+        IgnorePublicAcls: true,
+        RestrictPublicBuckets: true,
       },
     });
   });

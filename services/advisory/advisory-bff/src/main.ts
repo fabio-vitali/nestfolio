@@ -8,8 +8,7 @@ const service = 'advisory-bff';
 const app = new App();
 const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new AdvisoryBffStack(app, `${prefix}-advisory-bff`, {
-  serviceDir: __dirname,
+new AdvisoryBffStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

@@ -2,13 +2,19 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { ExecutionAdptStack } from './service.stack';
 
+const subsystem = 'execution';
+const service = 'execution-adpt';
 const app = new App();
-const config = resolvePipelineConfig(app, 'execution-adpt');
+const { prefix, account, region } = resolvePipelineConfig(app, service);
 
-new ExecutionAdptStack(app, `${config.prefix}-execution-adpt`, {
+new ExecutionAdptStack(app, `${prefix}-${service}`, {
+  prefix,
+  subsystem,
+  service,
+
   env: {
-    account: config.account ?? process.env['CDK_DEFAULT_ACCOUNT'],
-    region: config.region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
+    account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],
+    region: region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
   },
 });
 

@@ -4,7 +4,7 @@ import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk
 
 export class BrokerAdptStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
-    super(scope, id, props);
+    super(scope, id, { ...props, serviceDir: __dirname });
 
     const ingress = new Ingress(this, 'Ingress', {
       eventTypes: ['ORDER_SUBMITTED', 'WITHDRAWAL_REQUESTED', 'DEPOSIT_INITIATED'],

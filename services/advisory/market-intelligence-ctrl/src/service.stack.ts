@@ -17,7 +17,7 @@ import {
 
 export class MarketIntelligenceCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
-    super(scope, id, props);
+    super(scope, id, { ...props, serviceDir: __dirname });
 
     // KB S3 bucket (Market feeds)
     const kbBucket = new Bucket(this, 'KbBucket', {
