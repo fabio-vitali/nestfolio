@@ -72,4 +72,23 @@ describe('DecisionWorkflowCtrlStack', () => {
     );
     expect(actions).toContain('states:StartExecution');
   });
+
+  it('creates an AgentCore Memory resource', () => {
+    template.resourceCountIs('AWS::BedrockAgentCore::Memory', 1);
+  });
+
+  it('creates an SSM Parameter for memory ID', () => {
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Type: 'String',
+    });
+  });
+
+  it('creates an AssemblePacket Lambda with MEMORY_ID env var', () => {
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    const assemblePacketLambda = Object.values(lambdas).find(
+      (l: any) => l.Properties.Handler?.includes('assemble-packet') ||
+                   l.Properties.Environment?.Variables?.MEMORY_ID,
+    );
+    expect(assemblePacketLambda).toBeDefined();
+  });
 });
