@@ -2,11 +2,11 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { ComplianceCtrlStack } from './service.stack';
 
-const subsystem = 'advisory';
-const service = 'compliance-ctrl';
-
 const app = new App();
-const { prefix, account, region } = resolvePipelineConfig(app, service);
+const { prefix, account, region, service, subsystem } = resolvePipelineConfig(
+  app,
+  'compliance-ctrl',
+);
 
 new ComplianceCtrlStack(app, `${prefix}-${service}`, {
   subsystem,

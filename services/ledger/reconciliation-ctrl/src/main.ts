@@ -2,11 +2,11 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { ReconciliationCtrlStack } from './service.stack';
 
-const subsystem = 'ledger';
-const service = 'reconciliation-ctrl';
-
 const app = new App();
-const { prefix, account, region } = resolvePipelineConfig(app, service);
+const { prefix, account, region, service, subsystem } = resolvePipelineConfig(
+  app,
+  'reconciliation-ctrl',
+);
 
 new ReconciliationCtrlStack(app, `${prefix}-${service}`, {
   subsystem,

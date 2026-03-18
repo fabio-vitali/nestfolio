@@ -2,11 +2,8 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { DashboardBffStack } from './service.stack';
 
-const subsystem = 'investor';
-const service = 'dashboard-bff';
-
 const app = new App();
-const { prefix, account, region } = resolvePipelineConfig(app, service);
+const { prefix, account, region, service, subsystem } = resolvePipelineConfig(app, 'dashboard-bff');
 
 new DashboardBffStack(app, `${prefix}-${service}`, {
   subsystem,

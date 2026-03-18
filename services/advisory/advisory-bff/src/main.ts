@@ -2,11 +2,8 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { AdvisoryBffStack } from './service.stack';
 
-const subsystem = 'advisory';
-const service = 'advisory-bff';
-
 const app = new App();
-const { prefix, account, region } = resolvePipelineConfig(app, service);
+const { prefix, account, region, service, subsystem } = resolvePipelineConfig(app, 'advisory-bff');
 
 new AdvisoryBffStack(app, `${prefix}-${service}`, {
   subsystem,

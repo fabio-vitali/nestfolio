@@ -1,6 +1,7 @@
 import { Construct } from 'constructs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getPrefix, discoverSubsystem } from './naming-service';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -62,26 +63,6 @@ export const HARDCODED_FALLBACKS: Pick<
   parallelDeploy: true,
   alarmActions: [],
 };
-
-/** Discovers the subsystem for a service by scanning the services directory. */
-export function discoverSubsystem(serviceName: string): string {
-  const servicesDir = path.resolve(__dirname, '..', '..', '..', 'services');
-  if (!fs.existsSync(servicesDir)) {
-    throw new Error(`Services directory not found: ${servicesDir}`);
-  }
-
-  for (const subsystem of fs.readdirSync(servicesDir)) {
-    const subsystemDir = path.join(servicesDir, subsystem);
-    if (!fs.statSync(subsystemDir).isDirectory()) continue;
-    const mainTs = path.join(subsystemDir, serviceName, 'src', 'main.ts');
-    if (fs.existsSync(mainTs)) return subsystem;
-  }
-
-  throw new Error(
-    `Cannot discover subsystem for "${serviceName}". ` +
-      `Expected a directory at services/{subsystem}/${serviceName}/src/main.ts`,
-  );
-}
 
 // ── Layer 1: Inference ─────────────────────────────────────────────────────
 
@@ -227,10 +208,7 @@ export function mergeConfigs(
  * @param service The Nx project name (e.g. 'advisory-ctrl')
  */
 export function resolvePipelineConfig(scope: Construct, service: string): ResolvedPipelineConfig {
-  const prefix = scope.node.tryGetContext('prefix');
-  if (!prefix) {
-    throw new Error('CDK context "prefix" is required. Pass -c prefix=dev|staging|prod');
-  }
+  const prefix = getPrefix(scope);
 
   const tierContext = scope.node.tryGetContext('tier') as Tier | undefined;
   const tier: Tier = tierContext ?? detectTier(prefix);

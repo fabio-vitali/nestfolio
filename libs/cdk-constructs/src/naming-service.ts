@@ -1,4 +1,6 @@
 import { Construct } from 'constructs';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface NamingServiceConfig {
   /** Environment prefix (e.g. 'dev', 'staging', 'sandbox-pr-42') */
@@ -7,6 +9,26 @@ export interface NamingServiceConfig {
   subsystem: string;
   /** Service name (e.g. 'investor-bff', 'advisory-ctrl') */
   service: string;
+}
+
+/** Discovers the subsystem for a service by scanning the services directory. */
+export function discoverSubsystem(serviceName: string): string {
+  const servicesDir = path.resolve(__dirname, '..', '..', '..', 'services');
+  if (!fs.existsSync(servicesDir)) {
+    throw new Error(`Services directory not found: ${servicesDir}`);
+  }
+
+  for (const subsystem of fs.readdirSync(servicesDir)) {
+    const subsystemDir = path.join(servicesDir, subsystem);
+    if (!fs.statSync(subsystemDir).isDirectory()) continue;
+    const mainTs = path.join(subsystemDir, serviceName, 'src', 'main.ts');
+    if (fs.existsSync(mainTs)) return subsystem;
+  }
+
+  throw new Error(
+    `Cannot discover subsystem for "${serviceName}". ` +
+      `Expected a directory at services/{subsystem}/${serviceName}/src/main.ts`,
+  );
 }
 
 /**
@@ -21,9 +43,9 @@ export interface NamingServiceConfig {
  *   ssmParameterPath('event-hub/busArn') -> "/nestfolio/dev-investor/event-hub/busArn"
  */
 export class NamingService {
-  private readonly prefix: string;
-  private readonly subsystem: string;
-  private readonly service: string;
+  readonly prefix: string;
+  readonly subsystem: string;
+  readonly service: string;
 
   constructor(config: NamingServiceConfig) {
     this.prefix = config.prefix;

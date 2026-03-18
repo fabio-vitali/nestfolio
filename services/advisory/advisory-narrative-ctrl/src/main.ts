@@ -2,11 +2,11 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { AdvisoryNarrativeCtrlStack } from './service.stack';
 
-const subsystem = 'advisory';
-const service = 'advisory-narrative-ctrl';
-
 const app = new App();
-const { prefix, account, region } = resolvePipelineConfig(app, service);
+const { prefix, account, region, service, subsystem } = resolvePipelineConfig(
+  app,
+  'advisory-narrative-ctrl',
+);
 
 new AdvisoryNarrativeCtrlStack(app, `${prefix}-${service}`, {
   subsystem,

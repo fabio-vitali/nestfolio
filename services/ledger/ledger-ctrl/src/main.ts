@@ -2,11 +2,8 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { LedgerCtrlStack } from './service.stack';
 
-const subsystem = 'ledger';
-const service = 'ledger-ctrl';
-
 const app = new App();
-const { prefix, account, region } = resolvePipelineConfig(app, service);
+const { prefix, account, region, service, subsystem } = resolvePipelineConfig(app, 'ledger-ctrl');
 
 new LedgerCtrlStack(app, `${prefix}-${service}`, {
   subsystem,

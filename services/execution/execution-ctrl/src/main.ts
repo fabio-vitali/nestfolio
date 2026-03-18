@@ -2,11 +2,11 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { ExecutionCtrlStack } from './service.stack';
 
-const subsystem = 'execution';
-const service = 'execution-ctrl';
-
 const app = new App();
-const { prefix, account, region } = resolvePipelineConfig(app, service);
+const { prefix, account, region, service, subsystem } = resolvePipelineConfig(
+  app,
+  'execution-ctrl',
+);
 
 new ExecutionCtrlStack(app, `${prefix}-${service}`, {
   subsystem,

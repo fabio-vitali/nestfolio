@@ -2,11 +2,11 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { MarketIntelligenceCtrlStack } from './service.stack';
 
-const subsystem = 'advisory';
-const service = 'market-intelligence-ctrl';
-
 const app = new App();
-const { prefix, account, region } = resolvePipelineConfig(app, service);
+const { prefix, account, region, service, subsystem } = resolvePipelineConfig(
+  app,
+  'market-intelligence-ctrl',
+);
 
 new MarketIntelligenceCtrlStack(app, `${prefix}-${service}`, {
   subsystem,

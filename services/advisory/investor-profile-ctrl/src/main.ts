@@ -2,11 +2,11 @@ import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
 import { InvestorProfileCtrlStack } from './service.stack';
 
-const subsystem = 'advisory';
-const service = 'investor-profile-ctrl';
-
 const app = new App();
-const { prefix, account, region } = resolvePipelineConfig(app, service);
+const { prefix, account, region, service, subsystem } = resolvePipelineConfig(
+  app,
+  'investor-profile-ctrl',
+);
 
 new InvestorProfileCtrlStack(app, `${prefix}-${service}`, {
   subsystem,

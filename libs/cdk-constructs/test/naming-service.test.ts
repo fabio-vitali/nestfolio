@@ -12,6 +12,12 @@ describe('NamingService', () => {
     });
   });
 
+  it('exposes identity fields as readonly', () => {
+    expect(naming.prefix).toBe('dev');
+    expect(naming.subsystem).toBe('investor');
+    expect(naming.service).toBe('investor-bff');
+  });
+
   it('generates correct eventBusName', () => {
     expect(naming.eventBusName()).toBe('dev-investor-event-bus');
   });

@@ -4,8 +4,12 @@ import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import {
-  ServiceStack, ServiceStackProps, Monitoring, ServiceDashboard,
-  getDomainAccounts, resolveBusArn,
+  ServiceStack,
+  ServiceStackProps,
+  Monitoring,
+  ServiceDashboard,
+  getDomainAccounts,
+  resolveBusArn,
 } from '@nestfolio/cdk-constructs';
 import { AdvisoryCrossDomainEventTypes } from './domain/events';
 
@@ -13,18 +17,33 @@ export class AdvisoryAdptStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, stateProps: false });
 
-    const prefix = this.prefix;
     const domainAccounts = getDomainAccounts(this);
 
-    // Resolve advisory domain bus
-    const advisoryBusArn = resolveBusArn(this, 'AdvisoryBus', prefix, 'advisory', domainAccounts);
+    const advisoryBusArn = resolveBusArn(
+      this,
+      'AdvisoryBus',
+      this.prefix,
+      'advisory',
+      domainAccounts,
+    );
     const advisoryBus = EventBus.fromEventBusArn(this, 'AdvisoryBus', advisoryBusArn);
 
-    // Resolve target buses
-    const investorBusArn = resolveBusArn(this, 'InvestorBus', prefix, 'investor', domainAccounts);
+    const investorBusArn = resolveBusArn(
+      this,
+      'InvestorBus',
+      this.prefix,
+      'investor',
+      domainAccounts,
+    );
     const investorBus = EventBus.fromEventBusArn(this, 'InvestorBus', investorBusArn);
 
-    const executionBusArn = resolveBusArn(this, 'ExecutionBus', prefix, 'execution', domainAccounts);
+    const executionBusArn = resolveBusArn(
+      this,
+      'ExecutionBus',
+      this.prefix,
+      'execution',
+      domainAccounts,
+    );
     const executionBus = EventBus.fromEventBusArn(this, 'ExecutionBus', executionBusArn);
 
     const toInvestorDlq = new Queue(this, 'ToInvestorDLQ', {
