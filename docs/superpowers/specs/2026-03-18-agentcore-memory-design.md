@@ -269,6 +269,10 @@ The decision-workflow-ctrl event-listener that processes completions and calls `
 |------|-------|--------|
 | `upstreamOutputs` field | SF trigger payloads, all 4 agent event schemas | Removed — agents read from Memory |
 | Output accumulation logic | decision-workflow-ctrl state machine | Removed — no threading outputs through SF state |
+| `MergeParallelOutputs` Pass state | decision-state-machine.ts | Simplified — no longer merges outputs, passes through `decisionId`/`tenantId` only |
+| `createAgentInvocationState` upstream threading | decision-state-machine.ts | Simplified — no longer threads `upstreamOutputs`/`context` in event detail |
+| `storeAgentOutput` method | DecisionPacketRepository | Removed — outputs stored in Memory |
+| `investorProfileOutput`, `marketAnalysisOutput`, `portfolioOutput`, `narrativeOutput` fields | DecisionPacket model | Removed — read from Memory at assembly time |
 | `input`/`output` fields in DDB writes | All 4 agent service repositories | Removed — semantic content in Memory |
 | `AssembleDecisionPacket` payload merge | decision-workflow-ctrl | Reads 4 namespaces from Memory |
 
