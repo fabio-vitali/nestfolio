@@ -41,6 +41,9 @@ describe('createMemoryClient', () => {
       expect(cmd.input.actorId).toBe('tenant-1');
       expect(cmd.input.sessionId).toBe('dec-42');
       expect(cmd.input.payload[0].conversational.role).toBe('ASSISTANT');
+      expect(cmd.input.payload[0].conversational.content.text).toBe(
+        JSON.stringify({ goals: 'conservative' })
+      );
     });
 
     it('readUpstreamOutput queries correct upstream namespace', async () => {

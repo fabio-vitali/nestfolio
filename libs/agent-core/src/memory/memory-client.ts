@@ -92,8 +92,13 @@ export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapRecord(r: any): MemoryRecord {
+interface MemoryRecordSummaryLike {
+  memoryRecordId?: string;
+  content?: { text?: string };
+  score?: number;
+}
+
+function mapRecord(r: MemoryRecordSummaryLike): MemoryRecord {
   return {
     content: r.content?.text ?? '',
     score: r.score ?? 0,
