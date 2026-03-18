@@ -50,6 +50,30 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
 
     ingress.handler.addEnvironment('MODEL_SONNET_SSM', hubNaming.ssmParameterPath('models/sonnet'));
 
+    // Memory ID from decision-workflow-ctrl SSM
+    const workflowNaming = new NamingService({
+      prefix: props.prefix, subsystem: 'advisory', service: 'decision-workflow-ctrl',
+    });
+    const memoryId = StringParameter.valueForStringParameter(
+      this, workflowNaming.ssmParameterPath('memory/id'),
+    );
+    ingress.handler.addEnvironment('MEMORY_ID', memoryId);
+
+    // IAM grants for Memory API
+    ingress.handler.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        'bedrock-agentcore:CreateEvent',
+        'bedrock-agentcore:RetrieveMemoryRecords',
+        'bedrock-agentcore:GetMemoryRecord',
+        'bedrock-agentcore:ListMemoryRecords',
+        'bedrock-agentcore:ListEvents',
+        'bedrock-agentcore:ListActors',
+        'bedrock-agentcore:ListSessions',
+      ],
+      resources: ['*'],
+    }));
+
     // AgentRuntime (no tool Lambdas — all context arrives in event payload)
     new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'advisory_narrative_agents',
