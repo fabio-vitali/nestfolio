@@ -1,14 +1,19 @@
 import { Duration } from 'aws-cdk-lib';
 import { EventBus, Archive } from 'aws-cdk-lib/aws-events';
-import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import { ServiceStack, ServiceStackProps, Monitoring, ServiceDashboard } from '@nestfolio/cdk-constructs';
+import {
+  ServiceStack, ServiceStackProps, Monitoring, ServiceDashboard,
+  SharedParameter, CrossAccountBusPolicy, getDomainAccounts, getConsumerAccountIds,
+} from '@nestfolio/cdk-constructs';
 
 export class ExecutionHubStack extends ServiceStack {
   readonly bus: EventBus;
 
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, stateProps: false });
+
+    const domainAccounts = getDomainAccounts(this);
+    const consumerAccountIds = getConsumerAccountIds(this, domainAccounts);
 
     // Domain bus
     this.bus = new EventBus(this, 'ExecutionBus', {
@@ -23,12 +28,21 @@ export class ExecutionHubStack extends ServiceStack {
       eventPattern: { source: [{ prefix: '' }] as any },
     });
 
-    // Publish bus ARN to SSM for cross-domain discovery
-    new StringParameter(this, 'BusArnParam', {
+    // Publish bus ARN to SSM (Advanced tier + RAM share when cross-account)
+    new SharedParameter(this, 'BusArnParam', {
       parameterName: this.naming.ssmParameterPath('event-hub/busArn'),
       stringValue: this.bus.eventBusArn,
       description: 'Execution event hub bus ARN',
+      consumerAccountIds,
     });
+
+    // Allow cross-account PutEvents when multi-account
+    if (consumerAccountIds.length > 0) {
+      new CrossAccountBusPolicy(this, 'CrossAccountPolicy', {
+        eventBus: this.bus,
+        consumerAccountIds,
+      });
+    }
 
     if (this.observability) {
       new Monitoring(this, 'Monitoring', {

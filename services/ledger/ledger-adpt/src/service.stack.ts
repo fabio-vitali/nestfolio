@@ -2,9 +2,11 @@ import { Duration } from 'aws-cdk-lib';
 import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
-import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import { ServiceStack, ServiceStackProps, Monitoring, ServiceDashboard } from '@nestfolio/cdk-constructs';
+import {
+  ServiceStack, ServiceStackProps, Monitoring, ServiceDashboard,
+  getDomainAccounts, resolveBusArn,
+} from '@nestfolio/cdk-constructs';
 import { LedgerCrossDomainEventTypes } from './domain/events';
 
 export class LedgerAdptStack extends ServiceStack {
@@ -12,25 +14,17 @@ export class LedgerAdptStack extends ServiceStack {
     super(scope, id, { ...props, stateProps: false });
 
     const prefix = this.prefix;
+    const domainAccounts = getDomainAccounts(this);
 
     // Resolve ledger domain bus
-    const ledgerBusArn = StringParameter.valueForStringParameter(
-      this,
-      `/nestfolio/${prefix}-ledger/event-hub/busArn`,
-    );
+    const ledgerBusArn = resolveBusArn(this, 'LedgerBus', prefix, 'ledger', domainAccounts);
     const ledgerBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
 
     // Resolve target buses
-    const investorBusArn = StringParameter.valueForStringParameter(
-      this,
-      `/nestfolio/${prefix}-investor/event-hub/busArn`,
-    );
+    const investorBusArn = resolveBusArn(this, 'InvestorBus', prefix, 'investor', domainAccounts);
     const investorBus = EventBus.fromEventBusArn(this, 'InvestorBus', investorBusArn);
 
-    const advisoryBusArn = StringParameter.valueForStringParameter(
-      this,
-      `/nestfolio/${prefix}-advisory/event-hub/busArn`,
-    );
+    const advisoryBusArn = resolveBusArn(this, 'AdvisoryBus', prefix, 'advisory', domainAccounts);
     const advisoryBus = EventBus.fromEventBusArn(this, 'AdvisoryBus', advisoryBusArn);
 
     // Cross-domain forwarding: Ledger → Investor
@@ -79,7 +73,7 @@ export class LedgerAdptStack extends ServiceStack {
       new ServiceDashboard(this, 'Dashboard', {
         serviceName: 'ledger-adpt',
         lambdaFunctions: [],
-        dlqs: [toInvestorDlq, toAdvisoryDlq],
+        dlqs: [toAdvisoryDlq, toAdvisoryDlq],
         eventBusNames: [this.naming.eventBusName()],
       });
     }

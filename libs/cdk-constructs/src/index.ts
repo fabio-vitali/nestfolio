@@ -15,3 +15,9 @@ export { RuntimeConfig, RuntimeConfigProps, RuntimeConfigSsmPaths } from './runt
 export { resolvePipelineConfig, ResolvedPipelineConfig, ScheduleConfig, inferServiceMetadata, discoverSubsystem, loadTierDefaults, mergeConfigs, HARDCODED_FALLBACKS } from './resolve-pipeline-config';
 export { KnowledgeBase, KnowledgeBaseProps } from './knowledge-base';
 export { AdapterSchedule, AdapterScheduleProps } from './adapter-schedule';
+export {
+  SharedParameter, SharedParameterProps,
+  CrossAccountBusPolicy, CrossAccountBusPolicyProps,
+  DomainAccountMap, getDomainAccounts, getConsumerAccountIds,
+  resolveBusArn, resolveSsmValue,
+} from './cross-account';

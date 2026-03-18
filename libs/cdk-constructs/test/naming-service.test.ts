@@ -60,6 +60,11 @@ describe('NamingService', () => {
     });
   });
 
+  it('generates correct ssmParameterArn for cross-account references', () => {
+    expect(naming.ssmParameterArn('111111111111', 'us-east-1', 'event-hub/busArn'))
+      .toBe('arn:aws:ssm:us-east-1:111111111111:parameter/nestfolio/dev-investor/event-hub/busArn');
+  });
+
   it('generates KB bucket name with account, prefix, and KB name', () => {
     const naming = new NamingService({ prefix: 'dev', subsystem: 'advisory', service: 'advisory-ctrl' });
     expect(naming.kbBucketName('regulatory', '123456789012')).toBe('123456789012-dev-nestfolio-kb-regulatory');

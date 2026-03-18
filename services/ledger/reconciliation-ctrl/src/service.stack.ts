@@ -1,14 +1,14 @@
 import { EventBus } from 'aws-cdk-lib/aws-events';
-import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Ingress, Egress, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs';
 
 export class ReconciliationCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
-    const ledgerBusArn = StringParameter.valueForStringParameter(this, `/nestfolio/${this.prefix}-ledger/event-hub/busArn`);
+    const domainAccounts = getDomainAccounts(this);
+    const ledgerBusArn = resolveBusArn(this, 'LedgerBus', this.prefix, 'ledger', domainAccounts);
     this.eventBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
 
     const ingress = new Ingress(this, 'Ingress', {

@@ -12,6 +12,8 @@ import {
   Monitoring,
   ServiceDashboard,
   AdapterSchedule,
+  getDomainAccounts,
+  resolveBusArn,
 } from '@nestfolio/cdk-constructs';
 
 export class AlphaVantageAdptStack extends ServiceStack {
@@ -24,10 +26,8 @@ export class AlphaVantageAdptStack extends ServiceStack {
 
     const scheduleConfig = props.schedule ?? { enabled: false, rate: 'rate(24 hours)' };
 
-    const advisoryBusArn = StringParameter.valueForStringParameter(
-      this,
-      `/nestfolio/${props.prefix}-advisory/event-hub/busArn`,
-    );
+    const domainAccounts = getDomainAccounts(this);
+    const advisoryBusArn = resolveBusArn(this, 'AdvisoryBus', props.prefix, 'advisory', domainAccounts);
     const advisoryBus = EventBus.fromEventBusArn(this, 'AdvisoryBus', advisoryBusArn);
 
     const kbBucketName = StringParameter.valueForStringParameter(

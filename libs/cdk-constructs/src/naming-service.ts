@@ -61,6 +61,11 @@ export class NamingService {
   functionName(functionSuffix: string): string {
     return `${this.prefix}-${this.service}-${functionSuffix}`;
   }
+
+  /** Full SSM parameter ARN for cross-account references */
+  ssmParameterArn(accountId: string, region: string, resourcePath: string): string {
+    return `arn:aws:ssm:${region}:${accountId}:parameter${this.ssmParameterPath(resourcePath)}`;
+  }
 }
 
 /**
