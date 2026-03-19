@@ -15,6 +15,8 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
 jest.mock('@nestfolio/agent-core', () => ({
   createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
   invokeOrchestrator: jest.fn(),
+  createMemoryClient: jest.fn(),
+  createNoOpMemoryClient: jest.fn(),
 }));
 jest.mock('@nestfolio/event-processor', () => ({
   ...jest.requireActual('@nestfolio/event-processor'),
@@ -23,6 +25,7 @@ jest.mock('@nestfolio/event-processor', () => ({
 }));
 process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
+process.env.MEMORY_ID = 'mem-test';
 
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
@@ -31,11 +34,22 @@ describe('portfolio-engine-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
   const mockPublish = jest.fn();
   const mockIngest = jest.fn();
+  const mockWriteAgentOutput = jest.fn().mockResolvedValue(undefined);
+  const mockReadUpstreamOutput = jest.fn().mockResolvedValue([]);
+  const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
   const mockDeps: EventListenerDeps = {
     agentService: { runPipeline: mockRunPipeline },
     bus: { publish: mockPublish },
     kbIngestionHandler: { ingest: mockIngest },
+    memoryClient: {
+      openDecisionSession: jest.fn().mockReturnValue({
+        writeAgentOutput: mockWriteAgentOutput,
+        readUpstreamOutput: mockReadUpstreamOutput,
+        searchLongTermMemory: mockSearchLongTermMemory,
+      }),
+      searchTenantMemory: jest.fn().mockResolvedValue([]),
+    } as any,
   };
 
   const harness = createTestHarness({
@@ -65,10 +79,18 @@ describe('portfolio-engine-ctrl event-listener', () => {
       }, { tenantId: 't1' }),
     ]);
     expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockReadUpstreamOutput).toHaveBeenCalledWith('investor-profile');
+    expect(mockReadUpstreamOutput).toHaveBeenCalledWith('market-intelligence');
+    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('allocation rationale decisions');
     expect(mockRunPipeline).toHaveBeenCalled();
+    expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
     expect(mockPublish).toHaveBeenCalledWith([expect.objectContaining({
       type: 'PORTFOLIO_COMPLETED',
     })]);
+
+    // Completion event should NOT carry outputs
+    const publishedSubject = mockPublish.mock.calls[0][0][0].subject;
+    expect(publishedSubject).not.toHaveProperty('outputs');
   });
 
   it('should route SEC_PROSPECTUS_UPDATED to KB ingestion', async () => {

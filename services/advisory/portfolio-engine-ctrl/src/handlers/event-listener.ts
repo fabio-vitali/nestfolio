@@ -7,6 +7,7 @@ import {
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-core';
 import { HANDLED_EVENT_TYPES, KB_INGESTION_EVENT_TYPES } from '../service-domain';
 import { createAgentService } from '../agent-service';
 
@@ -14,6 +15,7 @@ export interface EventListenerDeps {
   readonly agentService: { runPipeline: (event: Record<string, unknown>) => Promise<Record<string, unknown>> };
   readonly kbIngestionHandler: { ingest: (event: Record<string, unknown>, eventType: string) => Promise<void> };
   readonly bus: { publish: (events: Array<{ type: string; subject: Record<string, unknown> }>) => Promise<void> };
+  readonly memoryClient: MemoryClient;
 }
 
 export const createHandlers = (deps: EventListenerDeps) => {
@@ -27,12 +29,24 @@ export const createHandlers = (deps: EventListenerDeps) => {
 
     logger.info('Processing CONSTRUCT_PORTFOLIO', { decisionId, tenantId });
 
+    const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
+
+    const [investorRecords, marketRecords, pastRationale] = await Promise.all([
+      session.readUpstreamOutput('investor-profile'),
+      session.readUpstreamOutput('market-intelligence'),
+      session.searchLongTermMemory('allocation rationale decisions'),
+    ]);
+
     const result = await deps.agentService.runPipeline({
       tenantId,
       decisionId,
       taskToken,
-      context: subject.context ?? subject.upstreamOutputs ?? {},
+      investorProfile: investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {},
+      marketAnalysis: marketRecords[0]?.content ? JSON.parse(marketRecords[0].content) : {},
+      pastRationale: pastRationale.map(r => r.content),
     });
+
+    await session.writeAgentOutput(result);
 
     await deps.bus.publish([{
       type: 'PORTFOLIO_COMPLETED',
@@ -40,7 +54,6 @@ export const createHandlers = (deps: EventListenerDeps) => {
         decisionId,
         tenantId,
         taskToken,
-        outputs: result,
       },
     }]);
 
@@ -92,7 +105,11 @@ const kbIngestionHandler = {
   },
 };
 
-const deps: EventListenerDeps = { agentService, bus, kbIngestionHandler };
+const memoryClient = process.env.MEMORY_ID
+  ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: 'portfolio-engine' })
+  : createNoOpMemoryClient();
+
+const deps: EventListenerDeps = { agentService, bus, kbIngestionHandler, memoryClient };
 
 export const handler = createEventHandler({
   serviceName: 'portfolio-engine-ctrl',
