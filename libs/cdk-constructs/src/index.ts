@@ -14,6 +14,7 @@ export { applyStandardTags, StandardTagsProps } from './tagging';
 export { RuntimeConfig, RuntimeConfigProps, RuntimeConfigSsmPaths } from './runtime-config';
 export { resolvePipelineConfig, ResolvedPipelineConfig, ScheduleConfig, inferServiceMetadata, loadTierDefaults, mergeConfigs, HARDCODED_FALLBACKS } from './resolve-pipeline-config';
 export { AdapterSchedule, AdapterScheduleProps } from './adapter-schedule';
+export { KnowledgeBase, KnowledgeBaseProps } from './knowledge-base';
 export {
   SharedParameter, SharedParameterProps,
   CrossAccountBusPolicy, CrossAccountBusPolicyProps,
