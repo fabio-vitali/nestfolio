@@ -1,6 +1,6 @@
 import { StateGraph } from '@langchain/langgraph';
 import { ChatBedrockConverse } from '@langchain/aws';
-import { OnboardingAnnotation, PHASE_ORDER, MAX_TURNS } from './state';
+import { OnboardingAnnotation, PHASE_ORDER } from './state';
 import { routeToPhase } from './router';
 import { createPhaseNode } from './phase-node';
 import { RENDER_TOOLS } from './tools/render-ui';

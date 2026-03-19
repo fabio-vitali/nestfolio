@@ -58,6 +58,7 @@ export function createApp() {
 if (process.env['AGENT_RUNTIME'] === 'true') {
   const app = createApp();
   const port = parseInt(process.env['PORT'] ?? '8080', 10);
+  // eslint-disable-next-line no-console
   console.log(`Onboarding agent runtime listening on port ${port}`);
   if (typeof Bun !== 'undefined' && Bun?.serve) {
     Bun.serve({ fetch: app.fetch, port });

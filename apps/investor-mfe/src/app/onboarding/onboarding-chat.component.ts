@@ -323,6 +323,7 @@ export class OnboardingChatComponent implements OnInit {
         }
       },
       error: (err: unknown) => {
+        // eslint-disable-next-line no-console
         console.error('[OnboardingChat] SSE error:', err);
         this.errorMessage.set('Connessione interrotta. Controlla la tua rete e riprova.');
         this.finishStream();

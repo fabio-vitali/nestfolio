@@ -18,6 +18,7 @@ jest.mock('@aws-sdk/lib-dynamodb', () => ({
 }));
 
 jest.mock('@nestfolio/event-processor', () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
   const { DynamoDBDocumentClient } = require('@aws-sdk/lib-dynamodb');
   const { PutCommand, QueryCommand, UpdateCommand, TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
 
@@ -76,7 +77,7 @@ jest.mock('@nestfolio/event-processor', () => {
     }
   }
 
-  const getUUID = () => require('crypto').randomUUID();
+  const getUUID = () => require('crypto').randomUUID(); // eslint-disable-line @typescript-eslint/no-require-imports
   const getTime = () => new Date().toISOString();
 
   const withMethodLogging = (_className: string) =>
