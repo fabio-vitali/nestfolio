@@ -16,6 +16,8 @@ jest.mock('@nestfolio/agent-core', () => ({
   createAgentNode: jest.fn().mockReturnValue(jest.fn()),
   withRetry: jest.fn().mockImplementation((node) => node),
   withFallback: jest.fn().mockImplementation((node) => node),
+  createMemoryClient: jest.fn(),
+  createNoOpMemoryClient: jest.fn(),
 }));
 jest.mock('@nestfolio/event-processor', () => ({
   ...jest.requireActual('@nestfolio/event-processor'),
@@ -24,6 +26,7 @@ jest.mock('@nestfolio/event-processor', () => ({
 }));
 process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
+process.env.MEMORY_ID = 'mem-test';
 
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
@@ -32,11 +35,22 @@ describe('advisory-narrative-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
   const mockPublish = jest.fn();
   const mockProcess = jest.fn();
+  const mockWriteAgentOutput = jest.fn().mockResolvedValue(undefined);
+  const mockReadUpstreamOutput = jest.fn().mockResolvedValue([]);
+  const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
   const mockDeps: EventListenerDeps = {
     agentService: { runPipeline: mockRunPipeline },
     bus: { publish: mockPublish },
     feedbackCorrelator: { process: mockProcess },
+    memoryClient: {
+      openDecisionSession: jest.fn().mockReturnValue({
+        writeAgentOutput: mockWriteAgentOutput,
+        readUpstreamOutput: mockReadUpstreamOutput,
+        searchLongTermMemory: mockSearchLongTermMemory,
+      }),
+      searchTenantMemory: jest.fn().mockResolvedValue([]),
+    } as any,
   };
 
   const harness = createTestHarness({
@@ -67,10 +81,20 @@ describe('advisory-narrative-ctrl event-listener', () => {
       }, { tenantId: 't1' }),
     ]);
     expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockReadUpstreamOutput).toHaveBeenCalledWith('investor-profile');
+    expect(mockReadUpstreamOutput).toHaveBeenCalledWith('market-intelligence');
+    expect(mockReadUpstreamOutput).toHaveBeenCalledWith('portfolio-engine');
+    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('narrative preferences communication style');
+    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('session summaries');
     expect(mockRunPipeline).toHaveBeenCalled();
+    expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
     expect(mockPublish).toHaveBeenCalledWith([expect.objectContaining({
       type: 'NARRATIVE_COMPLETED',
     })]);
+
+    // Completion event should NOT carry outputs
+    const publishedSubject = mockPublish.mock.calls[0][0][0].subject;
+    expect(publishedSubject).not.toHaveProperty('outputs');
   });
 
   it('should route DECISION_FEEDBACK to feedback correlator', async () => {

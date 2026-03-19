@@ -7,6 +7,7 @@ import {
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-core';
 import { FEEDBACK_EVENT_TYPES } from '../service-domain';
 import { createAgentService } from '../agent-service';
 
@@ -14,6 +15,7 @@ export interface EventListenerDeps {
   readonly agentService: { runPipeline: (event: Record<string, unknown>) => Promise<Record<string, unknown>> };
   readonly feedbackCorrelator: { process: (event: Record<string, unknown>) => Promise<void> };
   readonly bus: { publish: (events: Array<{ type: string; subject: Record<string, unknown> }>) => Promise<void> };
+  readonly memoryClient: MemoryClient;
 }
 
 export const createHandlers = (deps: EventListenerDeps) => {
@@ -27,12 +29,28 @@ export const createHandlers = (deps: EventListenerDeps) => {
 
     logger.info('Processing GENERATE_NARRATIVE', { decisionId, tenantId });
 
+    const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
+
+    const [investorRecords, marketRecords, portfolioRecords, preferences, sessionHistory] = await Promise.all([
+      session.readUpstreamOutput('investor-profile'),
+      session.readUpstreamOutput('market-intelligence'),
+      session.readUpstreamOutput('portfolio-engine'),
+      session.searchLongTermMemory('narrative preferences communication style'),
+      session.searchLongTermMemory('session summaries'),
+    ]);
+
     const result = await deps.agentService.runPipeline({
       tenantId,
       decisionId,
       taskToken,
-      context: subject.context ?? subject.upstreamOutputs ?? {},
+      investorProfile: investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {},
+      marketAnalysis: marketRecords[0]?.content ? JSON.parse(marketRecords[0].content) : {},
+      portfolio: portfolioRecords[0]?.content ? JSON.parse(portfolioRecords[0].content) : {},
+      preferences: preferences.map(r => r.content),
+      sessionHistory: sessionHistory.map(r => r.content),
     });
+
+    await session.writeAgentOutput(result);
 
     await deps.bus.publish([{
       type: 'NARRATIVE_COMPLETED',
@@ -40,7 +58,6 @@ export const createHandlers = (deps: EventListenerDeps) => {
         decisionId,
         tenantId,
         taskToken,
-        outputs: result,
       },
     }]);
 
@@ -91,7 +108,11 @@ const feedbackCorrelator = {
   },
 };
 
-const deps: EventListenerDeps = { agentService, bus, feedbackCorrelator };
+const memoryClient = process.env.MEMORY_ID
+  ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: 'advisory-narrative' })
+  : createNoOpMemoryClient();
+
+const deps: EventListenerDeps = { agentService, bus, feedbackCorrelator, memoryClient };
 
 export const handler = createEventHandler({
   serviceName: 'advisory-narrative-ctrl',
