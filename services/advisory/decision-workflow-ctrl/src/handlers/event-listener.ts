@@ -20,14 +20,6 @@ export interface EventListenerDeps {
   readonly stateMachineArn: string;
 }
 
-/** Map agent completion event types to agent step names */
-const AGENT_STEP_MAP: Record<string, string> = {
-  INVESTOR_PROFILE_COMPLETED: 'investor-profile',
-  MARKET_ANALYSIS_COMPLETED: 'market-intelligence',
-  PORTFOLIO_COMPLETED: 'portfolio-engine',
-  NARRATIVE_COMPLETED: 'advisory-narrative',
-};
-
 // --- Handler functions ---
 
 async function handleTriggerEvent(
@@ -74,28 +66,19 @@ async function handleAgentCompletion(
   const subject = payload.subject ?? {};
   const taskToken = subject.taskToken as string;
   const decisionId = subject.decisionId as string;
-  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-  const outputs = (subject.outputs as Record<string, unknown>) ?? {};
 
   if (!taskToken) {
     throw new Error(`Missing taskToken in ${ctx.eventType} event`);
   }
 
-  const agentStep = AGENT_STEP_MAP[ctx.eventType];
-
-  // Store agent output in DDB
-  if (agentStep && decisionId) {
-    await deps.repository.storeAgentOutput(tenantId, decisionId, agentStep as any, outputs);
-  }
-
-  // Resume Step Functions
+  // Resume Step Functions — outputs are now read from Memory by AssembleDecisionPacket
   const sendCmd = new SendTaskSuccessCommand({
     taskToken,
-    output: JSON.stringify(outputs),
+    output: JSON.stringify({ decisionId }),
   });
   await deps.sfnSend(sendCmd);
 
-  logger.info('Resumed workflow after agent completion', { agentStep, decisionId });
+  logger.info('Resumed workflow after agent completion', { decisionId });
   return skip();
 }
 

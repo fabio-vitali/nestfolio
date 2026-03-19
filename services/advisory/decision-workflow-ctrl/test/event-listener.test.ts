@@ -166,7 +166,6 @@ describe('decision-workflow-ctrl event-listener', () => {
           decisionId: 'dp-1',
           tenantId: 't1',
           taskToken: 'token-abc',
-          outputs: { riskScore: 0.45 },
         }, { tenantId: 't1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
@@ -174,6 +173,7 @@ describe('decision-workflow-ctrl event-listener', () => {
       const call = mockSfnSend.mock.calls[0][0];
       expect(call._type).toBe('SendTaskSuccess');
       expect(call.input.taskToken).toBe('token-abc');
+      expect(JSON.parse(call.input.output)).toEqual({ decisionId: 'dp-1' });
     });
 
     it('should call SendTaskSuccess for MARKET_ANALYSIS_COMPLETED', async () => {
@@ -182,7 +182,6 @@ describe('decision-workflow-ctrl event-listener', () => {
           decisionId: 'dp-1',
           tenantId: 't1',
           taskToken: 'token-def',
-          outputs: { sentiment: 'bullish' },
         }, { tenantId: 't1' }),
       ]);
       expect(mockSfnSend).toHaveBeenCalledTimes(1);
@@ -197,7 +196,6 @@ describe('decision-workflow-ctrl event-listener', () => {
           decisionId: 'dp-1',
           tenantId: 't1',
           taskToken: 'token-ghi',
-          outputs: { allocations: [] },
         }, { tenantId: 't1' }),
       ]);
       const call = mockSfnSend.mock.calls[0][0];
@@ -210,24 +208,10 @@ describe('decision-workflow-ctrl event-listener', () => {
           decisionId: 'dp-1',
           tenantId: 't1',
           taskToken: 'token-jkl',
-          outputs: { narrative: 'Based on...' },
         }, { tenantId: 't1' }),
       ]);
       const call = mockSfnSend.mock.calls[0][0];
       expect(call._type).toBe('SendTaskSuccess');
-    });
-
-    it('should store agent output in DDB', async () => {
-      await harness.process([
-        fakeSqsRecord('INVESTOR_PROFILE_COMPLETED', {
-          decisionId: 'dp-1',
-          tenantId: 't1',
-          taskToken: 'token-abc',
-          outputs: { riskScore: 0.45 },
-        }, { tenantId: 't1' }),
-      ]);
-      const putCalls = mockSend.mock.calls.filter((c) => c[0]._type === 'Put');
-      expect(putCalls.length).toBeGreaterThanOrEqual(1);
     });
   });
 
