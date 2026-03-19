@@ -4,7 +4,8 @@ import { Duration } from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
-import { ServiceStack, ServiceStackProps, Ingress, Egress, defaultLambdaProps } from '@nestfolio/cdk-constructs';
+import { BedrockFoundationModel } from '@aws-cdk/aws-bedrock-alpha';
+import { ServiceStack, ServiceStackProps, NamingService, Ingress, Egress, defaultLambdaProps } from '@nestfolio/cdk-constructs';
 import { DecisionStateMachine } from './constructs/decision-state-machine';
 import { ALL_INBOUND_EVENT_TYPES } from './service-domain/events';
 
@@ -13,6 +14,10 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     super(scope, id, { ...props, serviceDir: __dirname });
 
     // --- AgentCore Memory ---
+    const hubNaming = new NamingService({ prefix: props.prefix, subsystem: 'advisory', service: 'advisory-hub' });
+    const modelSonnetId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/sonnet'));
+    const sonnetModel = new BedrockFoundationModel(modelSonnetId);
+
     const memory = new agentcore.Memory(this, 'AgentMemory', {
       memoryName: `nestfolio_${props.prefix}_agent_memory`,
       description: 'Shared agent memory for cross-decision learning',
@@ -21,6 +26,14 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
         agentcore.MemoryStrategy.usingUserPreference({
           name: 'InvestorPreferenceLearner',
           namespaces: ['/investor-profile/{actorId}/preferences'],
+          customExtraction: {
+            model: sonnetModel,
+            appendToPrompt: 'Extract investment preferences: risk tolerance level, asset class preferences, ESG constraints, liquidity needs, time horizon, and any stated return targets. Ignore conversational filler.',
+          },
+          customConsolidation: {
+            model: sonnetModel,
+            appendToPrompt: 'When consolidating investor preferences, newer statements override older ones for the same dimension. Flag contradictions (e.g., high growth vs conservative).',
+          },
         }),
         agentcore.MemoryStrategy.usingSemantic({
           name: 'MarketSignalExtractor',
@@ -29,10 +42,26 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
         agentcore.MemoryStrategy.usingSemantic({
           name: 'AllocationRationaleExtractor',
           namespaces: ['/portfolio-engine/{actorId}/rationale'],
+          customExtraction: {
+            model: sonnetModel,
+            appendToPrompt: 'Extract portfolio allocation rationale: why each asset class was weighted, which constraints were binding, what trade-offs were made, and confidence level of each recommendation.',
+          },
+          customConsolidation: {
+            model: sonnetModel,
+            appendToPrompt: 'Consolidate allocation rationale chronologically. Preserve the reasoning chain — don\'t collapse distinct decisions into a summary.',
+          },
         }),
         agentcore.MemoryStrategy.usingUserPreference({
           name: 'NarrativePreferenceLearner',
           namespaces: ['/advisory-narrative/{actorId}/preferences'],
+          customExtraction: {
+            model: sonnetModel,
+            appendToPrompt: 'Extract communication preferences: preferred explanation depth (simple/detailed), terminology level (retail/professional), format preferences (bullet points/prose), and topics the investor engages with most.',
+          },
+          customConsolidation: {
+            model: sonnetModel,
+            appendToPrompt: 'Consolidate communication preferences using most recent signals. Weight explicit feedback (I prefer simpler explanations) higher than inferred patterns.',
+          },
         }),
         agentcore.MemoryStrategy.usingSummarization({
           name: 'NarrativeSessionSummarizer',
