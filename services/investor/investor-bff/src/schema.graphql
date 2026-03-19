@@ -6,14 +6,9 @@ type Query {
 }
 
 type Mutation {
-  recordOnboardingAnswer(input: OnboardingAnswerInput!): OnboardingStep!
-  setGoal(input: GoalInput!): Goal!
   updateGoal(goalId: ID!, input: GoalInput!): Goal!
-  setRiskProfile(input: RiskProfileInput!): RiskProfile!
-  grantMandate(input: MandateInput!): Mandate!
   updateMandate(input: MandateInput!): Mandate!
   revokeMandate: Mandate!
-  selectOperatingMode(mode: OperatingMode!): OperatingModeResult!
   initiateDeposit(input: DepositInput!): DepositIntent!
   requestWithdrawal(input: WithdrawalInput!): WithdrawalRequest!
   requestAccountClosure: ClosureRequest!
@@ -87,20 +82,6 @@ type Goal {
   updatedAt: String!
 }
 
-type RiskProfile {
-  profileId: ID!
-  tenantId: ID!
-  score: Int!
-  band: RiskBand!
-  assessedAt: String!
-  version: Int!
-}
-
-type RiskBand {
-  minEquity: Float!
-  maxEquity: Float!
-}
-
 type Mandate {
   mandateId: ID!
   tenantId: ID!
@@ -112,11 +93,6 @@ type Mandate {
   effectiveDate: String!
   revokedAt: String
   version: Int!
-}
-
-type OperatingModeResult {
-  mode: OperatingMode!
-  selectedAt: String!
 }
 
 type DepositIntent {
@@ -161,17 +137,7 @@ type NotificationConnection {
   nextCursor: String
 }
 
-type OnboardingStep {
-  step: String!
-  answeredAt: String!
-}
-
 # --- Inputs ---
-
-input OnboardingAnswerInput {
-  questionId: String!
-  answer: String!
-}
 
 input GoalInput {
   objective: String!
@@ -179,16 +145,6 @@ input GoalInput {
   currency: String!
   timeHorizonMonths: Int!
   targetReturn: Float!
-}
-
-input RiskProfileInput {
-  score: Int!
-  band: RiskBandInput!
-}
-
-input RiskBandInput {
-  minEquity: Float!
-  maxEquity: Float!
 }
 
 input MandateInput {

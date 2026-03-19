@@ -30,7 +30,7 @@ export class InvestorBffStack extends ServiceStack {
 
     new Facade(this, 'Facade', {
       jsResolvers: discoverJsResolvers(__dirname, {
-        noneDataSource: ['recordOnboardingAnswer', 'requestAccountClosure'],
+        noneDataSource: ['requestAccountClosure'],
       }),
     });
 
