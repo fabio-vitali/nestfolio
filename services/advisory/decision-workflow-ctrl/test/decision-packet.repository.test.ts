@@ -193,21 +193,4 @@ describe('DecisionPacketRepository', () => {
     });
   });
 
-  describe('storeAgentOutput', () => {
-    it('should store agent output as a sub-item', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      await repo.storeAgentOutput('t1', 'dp-1', 'investor-profile', { riskScore: 0.45 });
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const call = mockSend.mock.calls[0][0];
-      expect(call.input.Item).toMatchObject({
-        pk: 'DecisionPacket#t1#dp-1',
-        sk: 'AgentOutput#investor-profile',
-        __typename: 'AgentOutput',
-        agentStep: 'investor-profile',
-        output: { riskScore: 0.45 },
-      });
-    });
-  });
 });

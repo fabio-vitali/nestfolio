@@ -2,7 +2,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
-import type { WorkflowStatus, AgentStep } from '../service-domain/models';
+import type { WorkflowStatus } from '../service-domain/models';
 
 function decisionPk(tenantId: string, dpId: string): string {
   return `DecisionPacket#${tenantId}#${dpId}`;
@@ -39,10 +39,6 @@ export class DecisionPacketRepository extends TableRepository {
       triggerEventId: input.triggerEventId,
       executionArn: input.executionArn,
       status: 'INITIATED' as WorkflowStatus,
-      investorProfileOutput: null,
-      marketAnalysisOutput: null,
-      portfolioOutput: null,
-      narrativeOutput: null,
       complianceResult: null,
       authorityLevel: null,
       userDecision: null,
@@ -99,24 +95,4 @@ export class DecisionPacketRepository extends TableRepository {
     });
   });
 
-  /** Store agent output as a sub-item under the DecisionPacket partition. */
-  readonly storeAgentOutput = this.log('storeAgentOutput', async (
-    tenantId: string,
-    dpId: string,
-    agentStep: AgentStep,
-    output: Record<string, unknown>,
-  ): Promise<void> => {
-    const now = getTime();
-    const item: TableEntry = {
-      pk: decisionPk(tenantId, dpId),
-      sk: `AgentOutput#${agentStep}`,
-      __typename: 'AgentOutput',
-      tenantId,
-      timestamp: now,
-      decisionId: dpId,
-      agentStep,
-      output,
-    };
-    await this.put(item);
-  });
 }
