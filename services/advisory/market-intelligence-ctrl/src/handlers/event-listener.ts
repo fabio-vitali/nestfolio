@@ -7,12 +7,14 @@ import {
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-core';
 import { HANDLED_EVENT_TYPES } from '../service-domain';
 import { createAgentService } from '../agent-service';
 
 export interface EventListenerDeps {
   readonly agentService: { runPipeline: (event: Record<string, unknown>) => Promise<Record<string, unknown>> };
   readonly bus: { publish: (events: Array<{ type: string; subject: Record<string, unknown> }>) => Promise<void> };
+  readonly memoryClient: MemoryClient;
 }
 
 export const createHandlers = (deps: EventListenerDeps) => {
@@ -26,12 +28,17 @@ export const createHandlers = (deps: EventListenerDeps) => {
 
     logger.info('Processing ANALYZE_MARKET', { decisionId, tenantId });
 
+    const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
+    const tenantHistory = await session.searchLongTermMemory('market signals sector trends');
+
     const result = await deps.agentService.runPipeline({
       tenantId,
       decisionId,
       taskToken,
-      upstreamOutputs: subject.upstreamOutputs ?? {},
+      tenantHistory: tenantHistory.map(r => r.content),
     });
+
+    await session.writeAgentOutput(result);
 
     await deps.bus.publish([{
       type: 'MARKET_ANALYSIS_COMPLETED',
@@ -39,7 +46,6 @@ export const createHandlers = (deps: EventListenerDeps) => {
         decisionId,
         tenantId,
         taskToken,
-        outputs: result,
       },
     }]);
 
@@ -74,7 +80,11 @@ const bus = {
   },
 };
 
-const deps: EventListenerDeps = { agentService, bus };
+const memoryClient = process.env.MEMORY_ID
+  ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: 'market-intelligence' })
+  : createNoOpMemoryClient();
+
+const deps: EventListenerDeps = { agentService, bus, memoryClient };
 
 export const handler = createEventHandler({
   serviceName: 'market-intelligence-ctrl',

@@ -24,6 +24,8 @@ jest.mock('@nestfolio/agent-core', () => ({
   createAgentNode: jest.fn().mockReturnValue(jest.fn()),
   withRetry: jest.fn().mockImplementation((node) => node),
   withFallback: jest.fn().mockImplementation((node) => node),
+  createMemoryClient: jest.fn(),
+  createNoOpMemoryClient: jest.fn(),
 }));
 
 jest.mock('@nestfolio/event-processor', () => ({
@@ -34,6 +36,7 @@ jest.mock('@nestfolio/event-processor', () => ({
 
 process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
+process.env.MEMORY_ID = 'mem-test';
 
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
@@ -41,10 +44,21 @@ import { createHandlers, type EventListenerDeps } from '../src/handlers/event-li
 describe('market-intelligence-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
   const mockPublish = jest.fn();
+  const mockWriteAgentOutput = jest.fn().mockResolvedValue(undefined);
+  const mockReadUpstreamOutput = jest.fn().mockResolvedValue([]);
+  const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
   const mockDeps: EventListenerDeps = {
     agentService: { runPipeline: mockRunPipeline },
     bus: { publish: mockPublish },
+    memoryClient: {
+      openDecisionSession: jest.fn().mockReturnValue({
+        writeAgentOutput: mockWriteAgentOutput,
+        readUpstreamOutput: mockReadUpstreamOutput,
+        searchLongTermMemory: mockSearchLongTermMemory,
+      }),
+      searchTenantMemory: jest.fn().mockResolvedValue([]),
+    } as any,
   };
 
   const harness = createTestHarness({
@@ -82,6 +96,9 @@ describe('market-intelligence-ctrl event-listener', () => {
       decisionId: 'dp-1',
       taskToken: 'token-123',
     }));
+
+    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('market signals sector trends');
+    expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
     expect(mockPublish).toHaveBeenCalledWith([expect.objectContaining({
       type: 'MARKET_ANALYSIS_COMPLETED',
       subject: expect.objectContaining({
@@ -89,6 +106,10 @@ describe('market-intelligence-ctrl event-listener', () => {
         taskToken: 'token-123',
       }),
     })]);
+
+    // Completion event should NOT carry outputs
+    const publishedSubject = mockPublish.mock.calls[0][0][0].subject;
+    expect(publishedSubject).not.toHaveProperty('outputs');
   });
 
   it('should skip unknown event types gracefully', async () => {
