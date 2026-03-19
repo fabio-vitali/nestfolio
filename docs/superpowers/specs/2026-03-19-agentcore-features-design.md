@@ -38,22 +38,20 @@ Enable portfolio-engine and market-intelligence agents to run sandboxed Python c
 
 ```typescript
 export interface AgentCodeInterpreterProps {
-  /** Name for the CodeInterpreter (e.g. 'portfolio_engine_sandbox') */
+  /** Name for the CodeInterpreter (e.g. 'portfolio_engine_sandbox'). Maps to codeInterpreterCustomName. */
   readonly interpreterName: string;
   /** Human-readable description */
   readonly description?: string;
-  /** Network mode: PUBLIC (internet access for pip install) or SANDBOX (isolated). Default: PUBLIC */
-  readonly networkMode?: 'PUBLIC' | 'SANDBOX';
-  /** Tags to apply */
-  readonly tags?: Record<string, string>;
 }
 ```
 
 **What it provisions:**
-- `agentcore.CodeInterpreterCustom` with configurable network mode (default PUBLIC)
-- Standard tags via `applyStandardTags()`
-- Exposes `grantInvoke(grantee)` for easy IAM wiring
+- `agentcore.CodeInterpreterCustom` with public network mode (`CodeInterpreterNetworkConfiguration.usingPublicNetwork()`)
+- Standard tags via `applyStandardTags()` (follows existing construct pattern, not CDK `tags` prop)
+- Exposes `grantUse(grantee)` for IAM wiring (grants Invoke + Start + Stop)
 - Exposes the underlying `codeInterpreter` resource for advanced access
+
+**Prop mapping:** `interpreterName` → `codeInterpreterCustomName` (wrapper simplifies the verbose CDK name).
 
 **What it does NOT do:**
 - No VPC support (public network is fine)
@@ -73,7 +71,7 @@ const codeInterpreter = new AgentCodeInterpreter(this, 'CodeInterpreter', {
   interpreterName: 'portfolio_engine_sandbox',
   description: 'Sandboxed Python for portfolio math and simulations',
 });
-codeInterpreter.grantInvoke(this.agentRuntime.runtime);
+codeInterpreter.grantUse(this.agentRuntime.runtime);
 ```
 
 The Runtime's agent code (LangGraph.js) calls the CodeInterpreter SDK at invocation time. The CDK construct provisions infrastructure and grants permissions.
@@ -99,26 +97,29 @@ Enable market-intelligence agents to browse live web sources — regulatory fili
 **Props:**
 
 ```typescript
+import { BrowserSigning } from '@aws-cdk/aws-bedrock-agentcore-alpha';
+import { IBucket } from 'aws-cdk-lib/aws-s3';
+
 export interface AgentBrowserProps {
-  /** Name for the Browser (e.g. 'market_intelligence_browser') */
+  /** Name for the Browser (e.g. 'market_intelligence_browser'). Maps to browserCustomName. */
   readonly browserName: string;
   /** Human-readable description */
   readonly description?: string;
-  /** Browser signing: identifies as AI agent to bot-control vendors. Default: ENABLED */
-  readonly signing?: 'ENABLED' | 'DISABLED';
-  /** Optional S3 bucket for session recordings (audit/compliance) */
+  /** Browser signing: identifies as AI agent to bot-control vendors. Default: ENABLED (overrides CDK default of DISABLED) */
+  readonly signing?: BrowserSigning;
+  /** Optional S3 bucket for session recordings (audit/compliance). Translated to RecordingConfig internally. */
   readonly recordingBucket?: IBucket;
-  /** Tags to apply */
-  readonly tags?: Record<string, string>;
 }
 ```
 
 **What it provisions:**
-- `agentcore.BrowserCustom` with public network mode
-- Browser signing enabled by default (ethical AI identification — important for a financial platform scraping regulatory sites)
-- Optional S3 recording configuration for compliance audit trail
-- Standard tags via `applyStandardTags()`
-- Exposes `grantUse(grantee)` for IAM wiring
+- `agentcore.BrowserCustom` with public network mode (`BrowserNetworkConfiguration.usingPublicNetwork()`)
+- Browser signing set to `BrowserSigning.ENABLED` by default — intentional override of the CDK default (`DISABLED`), appropriate for a financial platform that should ethically identify as an AI agent to bot-control vendors
+- Optional S3 recording: when `recordingBucket` is provided, translates to `recordingConfig: { enabled: true, s3Location: { bucketName: bucket.bucketName, objectKeyPrefix: 'browser-recordings/' } }`
+- Standard tags via `applyStandardTags()` (follows existing construct pattern)
+- Exposes `grantUse(grantee)` for IAM wiring (grants Start + Update + Stop browser sessions)
+
+**Prop mapping:** `browserName` → `browserCustomName`, `recordingBucket` → `recordingConfig`.
 
 **What it does NOT do:**
 - No VPC support
@@ -161,20 +162,27 @@ Add cross-cutting guardrails to all MCP Gateway tool invocations: tenant isolati
 
 Interceptors are tightly coupled to the Gateway they attach to. Rather than standalone constructs, interceptor support is added to the existing `AgentRuntime` construct via new optional props.
 
+### API Constraint: 1 REQUEST + 1 RESPONSE Interceptor per Gateway
+
+The AgentCore Gateway supports **at most one REQUEST interceptor and one RESPONSE interceptor**. This means the three request-side concerns (tenant scope, input validation, rate limiting) must be consolidated into a **single composite REQUEST interceptor Lambda**.
+
 ### Changes to `AgentRuntimeProps`
 
 ```typescript
 export interface InterceptorConfig {
-  /** Inject tenantId into tool requests, reject requests without tenant context */
-  tenantScope?: boolean;
-  /** Validate/sanitize tool request payloads before they hit targets */
-  inputValidation?: boolean;
-  /** Throttle tool invocations per tenant per minute */
-  rateLimiting?: {
-    maxInvocationsPerMinute: number;
-    table: ITable; // DDB table for rate counters (with TTL)
+  /** Enable the composite REQUEST interceptor (tenant-scope + input-validation + rate-limiting) */
+  requestGuard?: {
+    /** Inject tenantId into tool requests, reject requests without tenant context */
+    tenantScope: boolean;
+    /** Validate/sanitize tool request payloads before they hit targets */
+    inputValidation: boolean;
+    /** Throttle tool invocations per tenant per minute. Omit to disable. */
+    rateLimiting?: {
+      maxInvocationsPerMinute: number;
+      table: ITable; // DDB table for rate counters (with TTL)
+    };
   };
-  /** Log all tool invocations in structured JSON for compliance */
+  /** Enable the RESPONSE interceptor (audit trail logging) */
   auditTrail?: boolean;
 }
 
@@ -185,31 +193,33 @@ export interface AgentRuntimeProps {
 }
 ```
 
-### Interceptor Details
+### Interceptor Architecture
 
-| Interceptor | Point | Lambda File | Behavior |
+| Lambda | Interception Point | Concerns (sequential) | API |
 |---|---|---|---|
-| **Tenant scope** | `REQUEST` | `interceptors/tenant-scope.ts` | Extracts `tenantId` from caller's identity/session, injects into tool request payload. Rejects requests without valid tenant context. |
-| **Input validator** | `REQUEST` | `interceptors/input-validator.ts` | Validates tool request payloads against expected shapes, sanitizes strings, rejects oversized payloads. Runs after tenant-scope. |
-| **Rate limiter** | `REQUEST` | `interceptors/rate-limiter.ts` | Increments per-tenant counter in DDB (with TTL). Rejects if over threshold. Prevents runaway agent loops from burning budget. |
-| **Audit trail** | `RESPONSE` | `interceptors/audit-trail.ts` | Logs tool name, tenant, input summary, output summary, latency, status to CloudWatch Logs in structured JSON. Post-response to capture outcome. |
+| **Request guard** | `REQUEST` | 1. Extract `tenantId` from caller identity → 2. Validate payload shape/size → 3. Check rate limit (DDB counter with TTL) | `LambdaInterceptor.forRequest(fn, { passRequestHeaders: true })` |
+| **Audit trail** | `RESPONSE` | Log tool name, tenant, input summary, output summary, latency, status as structured JSON to CloudWatch | `LambdaInterceptor.forResponse(fn)` |
+
+**`passRequestHeaders: true`** is required on the request guard because it needs to extract tenant context from the caller's identity headers.
 
 ### New Files
 
 ```
 libs/cdk-constructs/src/interceptors/
-  tenant-scope.ts        — REQUEST interceptor Lambda handler
-  input-validator.ts     — REQUEST interceptor Lambda handler
-  rate-limiter.ts        — REQUEST interceptor Lambda handler
+  request-guard.ts       — Composite REQUEST interceptor Lambda handler
+                           (tenant-scope → input-validation → rate-limiting, sequential)
   audit-trail.ts         — RESPONSE interceptor Lambda handler
 ```
 
-### Request Interceptor Ordering
+### Request Guard Internal Flow
 
-REQUEST interceptors fire in order: **tenant-scope → input-validator → rate-limiter**. This ensures:
-1. Tenant context is established first
-2. Payload is validated before rate-counting
-3. Rate limiting uses the resolved tenantId
+The composite Lambda runs three checks sequentially. If any check fails, it returns an error response and short-circuits:
+
+1. **Tenant scope** — extracts `tenantId` from request headers/identity context. Returns 403 if no valid tenant context found. Injects `tenantId` into the tool request payload.
+2. **Input validation** — validates the (now tenant-scoped) tool request payload against expected shapes. Sanitizes strings. Returns 400 if payload is malformed or oversized.
+3. **Rate limiting** — increments a per-tenant counter in DDB (key: `tenantId#minute`, TTL: 120s). Returns 429 if counter exceeds `maxInvocationsPerMinute`.
+
+Each check is a pure function called from the handler — testable in isolation despite being deployed as a single Lambda.
 
 ### Interceptor Lambda Placement
 
@@ -217,7 +227,7 @@ Interceptor Lambdas live in `cdk-constructs` (not individual services) because t
 
 ### Wiring
 
-Interceptors are created inside the `AgentRuntime` construct when their flags are enabled. Each is a `NodejsFunction` bundled from `cdk-constructs/src/interceptors/` and attached to the Gateway via `agentcore.Interceptor.fromLambdaFunction()`.
+Interceptors are created inside the `AgentRuntime` construct when configured. Each is a `NodejsFunction` bundled from `cdk-constructs/src/interceptors/` and attached to the Gateway via `LambdaInterceptor.forRequest()` / `LambdaInterceptor.forResponse()`.
 
 ```typescript
 new AgentRuntime(this, 'AgentRuntime', {
@@ -225,22 +235,25 @@ new AgentRuntime(this, 'AgentRuntime', {
   agentCodePath: join(__dirname, '..', 'agents'),
   // ... existing props ...
   interceptors: {
-    tenantScope: true,
-    auditTrail: true,
-    inputValidation: true,
-    rateLimiting: {
-      maxInvocationsPerMinute: 100,
-      table: rateLimitTable,
+    requestGuard: {
+      tenantScope: true,
+      inputValidation: true,
+      rateLimiting: {
+        maxInvocationsPerMinute: 100,
+        table: rateLimitTable,
+      },
     },
+    auditTrail: true,
   },
 });
 ```
 
 ### Testing
 
-- CDK assertion tests: verify interceptor Lambdas are created only when flags are enabled, correct `InterceptionPoint`, proper IAM grants
-- Unit tests for each interceptor Lambda handler: mock Gateway event shape, verify behavior
-- Files: `libs/cdk-constructs/test/interceptors/tenant-scope.test.ts`, etc.
+- CDK assertion tests: verify interceptor Lambdas are created only when configured, correct `InterceptionPoint`, proper IAM grants (DDB for rate limiter)
+- Unit tests for request-guard Lambda: test each check function in isolation (tenant extraction, validation, rate limiting) and the composite handler
+- Unit tests for audit-trail Lambda: verify structured log output format
+- Files: `libs/cdk-constructs/test/interceptors/request-guard.test.ts`, `libs/cdk-constructs/test/interceptors/audit-trail.test.ts`
 
 ---
 
@@ -263,7 +276,7 @@ const memoryKey = new kms.Key(this, 'AgentMemoryKey', {
 
 const memory = new agentcore.Memory(this, 'AgentMemory', {
   // ... existing props ...
-  encryptionKmsKey: memoryKey,
+  kmsKey: memoryKey,
 });
 ```
 
@@ -275,19 +288,26 @@ const memory = new agentcore.Memory(this, 'AgentMemory', {
 
 Override default LTM extraction prompts on 3 of the 5 strategies to be domain-specific.
 
-| Strategy | Custom Extraction Prompt | Custom Consolidation Prompt |
-|---|---|---|
-| `InvestorPreferenceLearner` | "Extract investment preferences: risk tolerance level, asset class preferences, ESG constraints, liquidity needs, time horizon, and any stated return targets. Ignore conversational filler." | "When consolidating investor preferences, newer statements override older ones for the same dimension. Flag contradictions (e.g., 'high growth' vs 'conservative')." |
-| `AllocationRationaleExtractor` | "Extract portfolio allocation rationale: why each asset class was weighted, which constraints were binding, what trade-offs were made, and confidence level of each recommendation." | "Consolidate allocation rationale chronologically. Preserve the reasoning chain — don't collapse distinct decisions into a summary." |
-| `NarrativePreferenceLearner` | "Extract communication preferences: preferred explanation depth (simple/detailed), terminology level (retail/professional), format preferences (bullet points/prose), and topics the investor engages with most." | "Consolidate communication preferences using most recent signals. Weight explicit feedback ('I prefer simpler explanations') higher than inferred patterns." |
+**Important:** `OverrideConfig` requires both `model: IBedrockInvokable` and `appendToPrompt: string` — neither is optional. Each custom prompt must specify a model. We use Sonnet for all extraction/consolidation — it balances cost and quality for metadata extraction tasks.
 
-**Unchanged strategies:**
-- `MarketSignalExtractor` (semantic) — default extraction works well for market signals
-- `NarrativeSessionSummarizer` (summarization) — default summarization is appropriate
+All 5 strategies use `ManagedStrategy` (the `usingUserPreference`, `usingSemantic`, `usingSummarization` factory methods). No `SelfManagedStrategy` is used.
+
+| Strategy | Type | Model for Override | Custom Extraction Prompt | Custom Consolidation Prompt |
+|---|---|---|---|---|
+| `InvestorPreferenceLearner` | `usingUserPreference` | Sonnet | "Extract investment preferences: risk tolerance level, asset class preferences, ESG constraints, liquidity needs, time horizon, and any stated return targets. Ignore conversational filler." | "When consolidating investor preferences, newer statements override older ones for the same dimension. Flag contradictions (e.g., 'high growth' vs 'conservative')." |
+| `AllocationRationaleExtractor` | `usingSemantic` | Sonnet | "Extract portfolio allocation rationale: why each asset class was weighted, which constraints were binding, what trade-offs were made, and confidence level of each recommendation." | "Consolidate allocation rationale chronologically. Preserve the reasoning chain — don't collapse distinct decisions into a summary." |
+| `NarrativePreferenceLearner` | `usingUserPreference` | Sonnet | "Extract communication preferences: preferred explanation depth (simple/detailed), terminology level (retail/professional), format preferences (bullet points/prose), and topics the investor engages with most." | "Consolidate communication preferences using most recent signals. Weight explicit feedback ('I prefer simpler explanations') higher than inferred patterns." |
+
+**Unchanged strategies (no custom overrides):**
+
+| Strategy | Type | Reason |
+|---|---|---|
+| `MarketSignalExtractor` | `usingSemantic` | Default extraction works well for market signals |
+| `NarrativeSessionSummarizer` | `usingSummarization` | Default summarization is appropriate |
+
+**Model reference:** The Sonnet model ID is resolved from the advisory-hub SSM parameter (`models/sonnet`), which is already used throughout the advisory domain. The `OverrideConfig.model` field accepts `IBedrockInvokable` — use `BedrockFoundationModel.fromFoundationModelId()` with the SSM-resolved model ID.
 
 **Prompt location:** Inline in the stack file. They're short, tightly coupled to the strategy, and don't change frequently. Can be extracted to a `prompts/` directory later if needed.
-
-**Model override:** Uses the default model provided by AgentCore. No need to override with a specific model.
 
 ### Testing
 
@@ -324,5 +344,5 @@ The only shared touchpoint is that Track C modifies `AgentRuntime` (which Tracks
 |---|---|---|
 | A | `cdk-constructs/src/code-interpreter.ts`, `cdk-constructs/test/code-interpreter.test.ts` | `cdk-constructs/src/index.ts`, `portfolio-engine-ctrl/src/service.stack.ts`, `market-intelligence-ctrl/src/service.stack.ts` |
 | B | `cdk-constructs/src/agent-browser.ts`, `cdk-constructs/test/agent-browser.test.ts` | `cdk-constructs/src/index.ts`, `market-intelligence-ctrl/src/service.stack.ts` |
-| C | `cdk-constructs/src/interceptors/tenant-scope.ts`, `cdk-constructs/src/interceptors/input-validator.ts`, `cdk-constructs/src/interceptors/rate-limiter.ts`, `cdk-constructs/src/interceptors/audit-trail.ts`, `cdk-constructs/test/interceptors/*.test.ts` | `cdk-constructs/src/agent-runtime.ts` |
+| C | `cdk-constructs/src/interceptors/request-guard.ts`, `cdk-constructs/src/interceptors/audit-trail.ts`, `cdk-constructs/test/interceptors/request-guard.test.ts`, `cdk-constructs/test/interceptors/audit-trail.test.ts` | `cdk-constructs/src/agent-runtime.ts` |
 | D | (none) | `decision-workflow-ctrl/src/service.stack.ts`, `decision-workflow-ctrl/test/*.test.ts` |
