@@ -12,23 +12,6 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
-    // --- State machine ---
-    const { stateMachine } = new DecisionStateMachine(this, 'DecisionStateMachine', {
-      eventBus: this.eventBus,
-      table: this.state.getTable(),
-      serviceName: this.serviceName,
-    });
-
-    // --- Ingress: 17 inbound event types ---
-    const ingress = new Ingress(this, 'Ingress', {
-      eventTypes: [...ALL_INBOUND_EVENT_TYPES],
-    });
-
-    // Grant the event-listener Lambda permissions to start executions and send task tokens
-    ingress.handler.addEnvironment('STATE_MACHINE_ARN', stateMachine.stateMachineArn);
-    stateMachine.grantStartExecution(ingress.handler);
-    stateMachine.grantTaskResponse(ingress.handler);
-
     // --- AgentCore Memory ---
     const memory = new agentcore.Memory(this, 'AgentMemory', {
       memoryName: `nestfolio_${props.prefix}_agent_memory`,
@@ -75,6 +58,28 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     });
     memory.grantRead(assemblePacketFn);
     this.state.getTable().grantWriteData(assemblePacketFn);
+
+    // --- State machine ---
+    const decisionSm = new DecisionStateMachine(this, 'DecisionStateMachine', {
+      eventBus: this.eventBus,
+      table: this.state.getTable(),
+      serviceName: this.serviceName,
+      assemblePacketFnArn: assemblePacketFn.functionArn,
+    });
+    const { stateMachine } = decisionSm;
+
+    // Grant the state machine permission to invoke the AssemblePacket Lambda
+    assemblePacketFn.grantInvoke(stateMachine);
+
+    // --- Ingress: 17 inbound event types ---
+    const ingress = new Ingress(this, 'Ingress', {
+      eventTypes: [...ALL_INBOUND_EVENT_TYPES],
+    });
+
+    // Grant the event-listener Lambda permissions to start executions and send task tokens
+    ingress.handler.addEnvironment('STATE_MACHINE_ARN', stateMachine.stateMachineArn);
+    stateMachine.grantStartExecution(ingress.handler);
+    stateMachine.grantTaskResponse(ingress.handler);
 
     // Grant Memory access to ingress handler
     ingress.handler.addEnvironment('MEMORY_ID', memory.memoryId);

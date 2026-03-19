@@ -9,6 +9,7 @@ export interface DecisionStateMachineProps {
   readonly eventBus: IEventBus;
   readonly table: ITable;
   readonly serviceName: string;
+  readonly assemblePacketFnArn: string;
 }
 
 /**
@@ -18,7 +19,7 @@ export interface DecisionStateMachineProps {
  * 1. Parallel: InvestorProfile + MarketIntelligence (waitForTaskToken)
  * 2. Sequential: PortfolioEngine (waitForTaskToken)
  * 3. Sequential: AdvisoryNarrative (waitForTaskToken)
- * 4. AssemblePacket (Pass state — merges outputs)
+ * 4. AssemblePacket (Lambda Task state — reads outputs from Memory)
  * 5. WaitForCompliance (waitForTaskToken)
  * 6. Choice: APPROVED L1 → end, BLOCKED → end, L2 → user confirmation
  * 7. WaitForUserResponse (waitForTaskToken)
@@ -55,8 +56,6 @@ export class DecisionStateMachine extends Construct {
                   'decisionId.$': '$.decisionId',
                   'tenantId.$': '$.tenantId',
                   'taskToken.$': '$$.Task.Token',
-                  'context.$': '$.context',
-                  'upstreamOutputs.$': '$.upstreamOutputs',
                 },
               },
             ],
@@ -103,18 +102,28 @@ export class DecisionStateMachine extends Construct {
       parameters: {
         'decisionId.$': '$.decisionId',
         'tenantId.$': '$.tenantId',
-        'context.$': '$.context',
-        'upstreamOutputs': {
-          'investorProfile.$': '$.parallelResults[0].agentResults.InvokeInvestorProfile',
-          'marketAnalysis.$': '$.parallelResults[1].agentResults.InvokeMarketIntelligence',
-        },
       },
     });
 
     // --- Merge all outputs before compliance ---
 
-    const assemblePacket = new sfn.Pass(this, 'AssembleDecisionPacket', {
-      comment: 'Merge all agent outputs into a single decision packet payload',
+    const assemblePacket = new sfn.CustomState(this, 'AssembleDecisionPacket', {
+      stateJson: {
+        Type: 'Task',
+        Resource: 'arn:aws:states:::lambda:invoke',
+        Parameters: {
+          FunctionName: props.assemblePacketFnArn,
+          Payload: {
+            'decisionId.$': '$.decisionId',
+            'tenantId.$': '$.tenantId',
+          },
+        },
+        ResultSelector: {
+          'decisionId.$': '$.Payload.decisionId',
+          'tenantId.$': '$.Payload.tenantId',
+        },
+        ResultPath: '$',
+      },
     });
 
     // --- Compliance wait ---
