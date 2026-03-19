@@ -246,9 +246,20 @@ Each maps to an agent tool call. When the agent calls a render tool, CopilotKit 
 
 CopilotKit's CoAgent pattern syncs `OnboardingState` between agent and frontend via AG-UI state events. The progress bar reads `phaseIndex` / `totalPhases` directly from the shared state.
 
-### Styling
+### Styling & Theme Consistency
 
-Renderers reuse the demo's CSS: chat bubbles with fade-in animations, card grids, typing indicator, full-height flex column layout with scrollable chat area. Agent messages left-aligned with avatar, user messages right-aligned.
+CopilotKit ships its own `styles.css` for the chat shell (message bubbles, input bar, typing indicator, scroll area). To avoid visual inconsistency with the rest of the app (PrimeNG + `ui-components` lib), we override CopilotKit's default styles with the project's design tokens:
+
+```
+apps/investor-mfe/src/app/onboarding/
+├── onboarding-theme.css         ← CopilotKit CSS overrides using app design tokens
+```
+
+**Override targets**: font-family, font sizes, border-radius, colors (--primary, --n800, --white, etc.), shadows, spacing, input styling, scrollbar appearance. The goal is that the chat shell feels native to the app, not like an embedded third-party widget.
+
+**Renderers** (cards, sliders, summaries, etc.) use the project's own components and design tokens directly — no CopilotKit styling involved.
+
+**Demo CSS reuse**: Layout structure (full-height flex column, scrollable chat area), animations (fade-in on message groups), and message alignment (agent left with avatar, user right) are ported from `demo/index.html` into the theme override.
 
 ---
 
