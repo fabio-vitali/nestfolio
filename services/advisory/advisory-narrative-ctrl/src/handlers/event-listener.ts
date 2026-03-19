@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
@@ -8,7 +7,6 @@ import {
   requireEnv, logger,
 } from '@nestfolio/event-processor';
 import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-core';
-import { FEEDBACK_EVENT_TYPES } from '../service-domain';
 import { createAgentService } from '../agent-service';
 
 export interface EventListenerDeps {
