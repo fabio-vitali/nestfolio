@@ -115,7 +115,7 @@ export interface AgentBrowserProps {
 **What it provisions:**
 - `agentcore.BrowserCustom` with public network mode (`BrowserNetworkConfiguration.usingPublicNetwork()`)
 - Browser signing set to `BrowserSigning.ENABLED` by default — intentional override of the CDK default (`DISABLED`), appropriate for a financial platform that should ethically identify as an AI agent to bot-control vendors
-- Optional S3 recording: when `recordingBucket` is provided, translates to `recordingConfig: { enabled: true, s3Location: { bucketName: bucket.bucketName, objectKeyPrefix: 'browser-recordings/' } }`
+- Optional S3 recording: when `recordingBucket` is provided, translates to `recordingConfig: { enabled: true, s3Location: { bucketName: bucket.bucketName, objectKey: 'browser-recordings/' } }`
 - Standard tags via `applyStandardTags()` (follows existing construct pattern)
 - Exposes `grantUse(grantee)` for IAM wiring (grants Start + Update + Stop browser sessions)
 
