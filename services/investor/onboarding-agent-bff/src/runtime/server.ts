@@ -15,6 +15,33 @@ export function createApp() {
 
   app.get('/health', (c) => c.json({ status: 'ok' }));
 
+  app.get('/session', async (c) => {
+    // TODO: Extract tenantId + userId from auth context
+    const tenantId = c.req.header('x-tenant-id') ?? '';
+    const userId = c.req.header('x-user-id') ?? '';
+
+    if (!tenantId || !userId) {
+      return c.json({ newSession: true });
+    }
+
+    const tableName = process.env['TABLE_NAME'] ?? '';
+    const repo = new OnboardingRepository(tableName);
+    const session = await repo.getActiveSession(tenantId, userId);
+
+    if (!session) {
+      return c.json({ newSession: true });
+    }
+
+    if (session.currentPhase === 'completed') {
+      return c.json({ completed: true });
+    }
+
+    // Rehydrate state from committed DDB records
+    const { rehydrateState } = await import('../agent/session');
+    const state = rehydrateState(session as any, {});
+    return c.json({ activeSession: true, state });
+  });
+
   app.post('/copilotkit', async (c) => {
     const tableName = process.env['TABLE_NAME'] ?? '';
     const repo = new OnboardingRepository(tableName);
