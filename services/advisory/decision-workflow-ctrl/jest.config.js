@@ -4,6 +4,7 @@ module.exports = {
   displayName: 'decision-workflow-ctrl',
   testEnvironment: 'node',
   moduleNameMapper: {
+    '^@nestfolio/agent-core$': '<rootDir>/../../../libs/agent-core/src/index.ts',
     '^@nestfolio/cdk-constructs$': '<rootDir>/../../../libs/cdk-constructs/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
