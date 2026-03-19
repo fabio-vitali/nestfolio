@@ -66,9 +66,9 @@ Replace the existing 6-step stepper wizard in `investor-mfe` with a fully dynami
           EventBridge (investor-hub)
 ```
 
-- CopilotKit Runtime runs inside the AgentRuntime container (Hono HTTP server)
+- CopilotKit Runtime runs inside the AgentRuntime container (Hono HTTP server), exposed via the AgentRuntime's ALB/API Gateway endpoint with CORS configured for the investor-mfe origin
 - Agent uses Claude Sonnet for conversation (fast enough for real-time, smart enough for Italian fluency)
-- Phase persistence writes directly to DynamoDB using investor-bff's table and key schema
+- Phase persistence writes directly to DynamoDB using investor-bff's table and key schema. Repository logic is extracted into a shared module (`src/repositories/`) that both services can import, to avoid duplicating the key schema, TransactWrite patterns, and EditEvent logic
 - Domain events (GOAL_SET, RISK_PROFILE_SET, MANDATE_GRANTED, etc.) fire via DDB Streams CDC — downstream services unchanged
 - Bedrock Knowledge Base provides RAG for product documentation questions
 
@@ -323,6 +323,14 @@ const knowledgeBase = new KnowledgeBase(this, 'OnboardingKB', {
   description: 'Nestfolio product documentation for onboarding agent',
 });
 
+const searchKbFn = new NodejsFunction(this, 'SearchKbFn', {
+  entry: path.join(__dirname, '../agent/tools/search-kb.ts'),
+  handler: 'handler',
+  environment: {
+    KNOWLEDGE_BASE_ID: knowledgeBase.knowledgeBaseId,
+  },
+});
+
 new AgentRuntime(this, 'OnboardingAgent', {
   runtimeName: 'onboarding-agent',
   agentCodePath: path.join(__dirname, '../agent'),
@@ -332,7 +340,7 @@ new AgentRuntime(this, 'OnboardingAgent', {
   toolTargets: [{
     name: 'search_knowledge_base',
     description: 'Search Nestfolio documentation to answer user questions',
-    handler: 'tools/search-kb.handler',
+    handler: searchKbFn,  // IFunction reference, not a string
     schemaPath: 'tools/search-kb.schema.json',
   }],
   environmentVariables: {
@@ -402,8 +410,8 @@ Two new events from onboarding-agent-bff:
 
 | Event | Trigger | Payload |
 |---|---|---|
-| `ONBOARDING_STARTED` | First phase committed | `{ tenantId, userId, sessionId, accountMode }` |
-| `ONBOARDING_COMPLETED` | Mandate accepted | `{ tenantId, userId, sessionId, riskCategory, operatingMode, goal }` |
+| `ONBOARDING_STARTED` | First phase (goal) committed | `{ tenantId, userId, sessionId }` |
+| `ONBOARDING_COMPLETED` | Mandate accepted | `{ tenantId, userId, sessionId, riskCategory, operatingMode, goal, accountMode }` |
 
 Existing events (`GOAL_SET`, `RISK_PROFILE_SET`, `MANDATE_GRANTED`, etc.) continue to fire via DDB Streams CDC — no downstream changes needed.
 
@@ -459,7 +467,7 @@ User opens /investor/onboarding
 - Agent never gives financial advice during onboarding (only collects preferences)
 - Agent always confirms before committing a phase ("Ho capito bene: il tuo obiettivo è far crescere il capitale. Confermi?")
 - Italian language enforced in system prompt
-- Max conversation length: 50 turns (safety cap — normal flow is ~15-20 turns)
+- Max conversation length: 50 turns (safety cap — normal flow is ~15-20 turns). On cap: agent commits all collected data so far, shows a summary of progress, and presents a "Riprendi più tardi" CTA. User can resume from the last committed phase in a new session.
 
 ### RAG — Nestfolio Documentation
 
@@ -521,6 +529,8 @@ docs/knowledge-base/
 
 ## 8. Removal from investor-bff
 
+The mutations removed are **onboarding-only** — they collect initial data during the wizard flow. Post-onboarding profile editing (e.g., updating goals, changing operating mode) is a separate concern not currently implemented. If needed in the future, it would be a new feature in investor-bff with its own mutations, not a reuse of the onboarding flow.
+
 The following are removed from `investor-bff` once onboarding-agent-bff is deployed:
 
 ### GraphQL Schema
@@ -529,7 +539,7 @@ Remove mutations: `recordOnboardingAnswer`, `setGoal`, `setRiskProfile`, `select
 
 ### JS Resolvers
 
-Delete: `record-onboarding-answer.fn.js`, `set-goal.fn.js`, `set-risk-profile.fn.js`, `select-operating-mode.fn.js`, `grant-mandate.fn.js`
+Delete: `record-onboarding-answer.fn.js` (NoneDataSource resolver), `set-goal.fn.js`, `set-risk-profile.fn.js`, `select-operating-mode.fn.js`, `grant-mandate.fn.js`
 
 ### Validation Schemas
 
@@ -537,7 +547,7 @@ Remove onboarding-related Zod schemas from `src/validation/schemas.ts`
 
 ### Facade Construct
 
-Remove the deleted resolvers from the Facade `jsResolvers[]` configuration.
+Remove the deleted resolvers from the Facade `jsResolvers[]` and `noneDataSource` configuration.
 
 **Retained in investor-bff**: `getProfile`, `getGoals`, `getNotifications`, `getUnreadCount` queries + notification/balance event pipes + deposit/withdrawal mutations.
 
