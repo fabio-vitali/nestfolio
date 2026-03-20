@@ -1,12 +1,12 @@
 import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import type { ProposedAction } from '../stores/advisory.store';
 
 @Component({
   selector: 'app-trades-table',
   standalone: true,
-  imports: [CommonModule, TranslateModule],
+  imports: [CommonModule, TranslatePipe],
   template: `
     <table class="trades-table" aria-label="Trades summary">
       <thead>

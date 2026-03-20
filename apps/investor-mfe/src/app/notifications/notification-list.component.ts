@@ -1,7 +1,7 @@
 import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { MessageModule } from 'primeng/message';
 import { ButtonModule } from 'primeng/button';
 import { LoadingSkeletonComponent, EmptyStateComponent } from '@nestfolio/ui-components';
@@ -18,7 +18,7 @@ const PAGE_SIZE = 20;
   standalone: true,
   imports: [
     CommonModule,
-    TranslateModule,
+    TranslatePipe,
     MessageModule,
     ButtonModule,
     LoadingSkeletonComponent,

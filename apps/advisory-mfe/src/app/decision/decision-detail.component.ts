@@ -2,7 +2,8 @@ import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { SharedModule } from 'primeng/api';
 import { MessageModule } from 'primeng/message';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -25,7 +26,8 @@ import { TradesTableComponent } from './trades-table.component';
   imports: [
     CommonModule,
     FormsModule,
-    TranslateModule,
+    TranslatePipe,
+    SharedModule,
     MessageModule,
     ButtonModule,
     DialogModule,
