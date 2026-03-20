@@ -1,5 +1,5 @@
 import { type Pipe, type UnitOfWork, type BusEvent, logger } from '@nestfolio/event-processor';
-import { INITIAL_ACCOUNT_STATE } from '@nestfolio/command-core';
+import { INITIAL_ACCOUNT_STATE } from '@nestfolio/ledger-core';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 
 const INITIAL_CAPITAL_CENTS = INITIAL_ACCOUNT_STATE.cashBalanceCents;
