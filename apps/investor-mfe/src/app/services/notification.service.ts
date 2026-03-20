@@ -1,12 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { Subscription } from 'rxjs';
+import { GraphqlService } from '@nestfolio/appsync-client';
 import {
-  GraphqlService,
   GET_NOTIFICATIONS,
   GET_UNREAD_COUNT,
   MARK_NOTIFICATION_READ,
   ON_NOTIFICATION,
-} from '@nestfolio/appsync-client';
+} from '../graphql/investor-bff.queries';
 import type { Notification } from '../stores/notification.store';
 
 export interface NotificationPage {

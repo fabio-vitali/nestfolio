@@ -1,7 +1,4 @@
-import { RemovalPolicy } from 'aws-cdk-lib';
-import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { Bucket, BlockPublicAccess, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import {
@@ -10,6 +7,7 @@ import {
   Ingress,
   Egress,
   AgentRuntime,
+  KnowledgeBase,
   NamingService,
 } from '@nestfolio/cdk-constructs';
 
@@ -17,12 +15,10 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
-    // KB S3 bucket (Explainability Feedback)
-    const kbBucket = new Bucket(this, 'KbBucket', {
-      bucketName: `${this.account}-${props.prefix}-nestfolio-kb-explainability`,
-      encryption: BucketEncryption.S3_MANAGED,
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: RemovalPolicy.RETAIN,
+    // Knowledge Base: Explainability Feedback (S3 Vectors — managed by Bedrock)
+    const kb = new KnowledgeBase(this, 'ExplainabilityKB', {
+      kbName: 'explainability',
+      description: 'Financial literacy content, communication templates, feedback-driven corpus',
     });
 
     // Ingress: trigger + feedback events
@@ -30,14 +26,12 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       eventTypes: ['GENERATE_NARRATIVE', 'DECISION_FEEDBACK'],
     });
 
-    // Grant KB bucket access to the ingress handler (for feedback-correlator inline)
-    kbBucket.grantReadWrite(ingress.handler);
-    ingress.handler.addToRolePolicy(new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ['bedrock:StartIngestionJob'],
-      resources: ['*'],
-    }));
-    ingress.handler.addEnvironment('KB_BUCKET', kbBucket.bucketName);
+    // Grant KB access to the ingress handler (feedback-correlator runs inline)
+    kb.bucket.grantReadWrite(ingress.handler);
+    ingress.handler.addToRolePolicy(kb.triggerSyncPolicy());
+    ingress.handler.addEnvironment('KB_BUCKET', kb.bucket.bucketName);
+    ingress.handler.addEnvironment('KB_ID', kb.knowledgeBaseId);
+    ingress.handler.addEnvironment('KB_DATA_SOURCE_ID', kb.dataSourceId);
 
     // Egress: CDC events
     const egress = new Egress(this, 'Egress', {

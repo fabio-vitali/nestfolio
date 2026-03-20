@@ -1,9 +1,9 @@
 import { Injectable, inject } from '@angular/core';
+import { GraphqlService } from '@nestfolio/appsync-client';
 import {
-  GraphqlService,
   GET_PORTFOLIO_AT,
   GET_TIME_TRAVEL_AVAILABILITY,
-} from '@nestfolio/appsync-client';
+} from '../graphql/ledger-bff.queries';
 import type { LedgerPortfolio } from '../stores/time-travel.store';
 
 interface TimeTravelAvailabilityResponse {

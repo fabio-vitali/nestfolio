@@ -1,8 +1,5 @@
-import { RemovalPolicy } from 'aws-cdk-lib';
-import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { Bucket, BlockPublicAccess, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import {
@@ -11,6 +8,7 @@ import {
   Ingress,
   Egress,
   AgentRuntime,
+  KnowledgeBase,
   defaultLambdaProps,
   NamingService,
 } from '@nestfolio/cdk-constructs';
@@ -19,12 +17,10 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
-    // KB S3 bucket (Market feeds)
-    const kbBucket = new Bucket(this, 'KbBucket', {
-      bucketName: `${this.account}-${props.prefix}-nestfolio-kb-market`,
-      encryption: BucketEncryption.S3_MANAGED,
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: RemovalPolicy.RETAIN,
+    // Knowledge Base: Market Intelligence (S3 Vectors — managed by Bedrock)
+    const kb = new KnowledgeBase(this, 'MarketKB', {
+      kbName: 'market',
+      description: 'Market news, sentiment, macro indicators from 5 feed sources',
     });
 
     // Ingress: trigger event + 5 feed ingestion events
@@ -49,17 +45,15 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'kb-ingestion-handler.ts'),
       environment: {
-        KB_BUCKET: kbBucket.bucketName,
+        KB_BUCKET: kb.bucket.bucketName,
+        KB_ID: kb.knowledgeBaseId,
+        KB_DATA_SOURCE_ID: kb.dataSourceId,
         TABLE_NAME: this.state.getTable().tableName,
         BUS_NAME: this.eventBus.eventBusName,
       },
     });
-    kbBucket.grantWrite(kbIngestionFn);
-    kbIngestionFn.addToRolePolicy(new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ['bedrock:StartIngestionJob'],
-      resources: ['*'],
-    }));
+    kb.bucket.grantWrite(kbIngestionFn);
+    kbIngestionFn.addToRolePolicy(kb.triggerSyncPolicy());
 
     // Tool Lambdas
     const marketDataFn = new NodejsFunction(this, 'MarketDataTool', {

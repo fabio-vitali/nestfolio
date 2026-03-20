@@ -1,8 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Subscription } from 'rxjs';
+import { GraphqlService, CachedQuery } from '@nestfolio/appsync-client';
 import {
-  GraphqlService,
-  CachedQuery,
   GET_DECISION,
   GET_AGENT_INVOCATIONS,
   GET_COMPLIANCE_CHECKS,
@@ -10,7 +9,7 @@ import {
   CONFIRM_DECISION,
   REJECT_DECISION,
   ON_DECISION_UPDATE,
-} from '@nestfolio/appsync-client';
+} from '../graphql/advisory-bff.queries';
 import { LogoutOrchestrator } from '@nestfolio/shared-state';
 import type {
   Decision,

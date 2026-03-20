@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { GraphqlService, GET_SIMULATION_COMPARISON } from '@nestfolio/appsync-client';
+import { GraphqlService } from '@nestfolio/appsync-client';
+import { GET_SIMULATION_COMPARISON } from '../graphql/ledger-bff.queries';
 
 export interface PortfolioReturnSummary {
   totalValueCents: number;
