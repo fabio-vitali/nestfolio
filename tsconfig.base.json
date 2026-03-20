@@ -38,7 +38,7 @@
       "@nestfolio/investor-events": ["libs/investor-events/src/index.ts"],
       "@nestfolio/advisory-events": ["libs/advisory-events/src/index.ts"],
       "@nestfolio/execution-events": ["libs/execution-events/src/index.ts"],
-      "@nestfolio/ledger-events": ["libs/ledger-events/src/index.ts"],
+      "@nestfolio/ledger-events": ["services/ledger/ledger-ctrl/src/domain/index.ts"],
       "@nestfolio/investor-adpt/domain": ["services/investor/investor-adpt/src/domain/index.ts"],
       "@nestfolio/advisory-adpt/domain": ["services/advisory/advisory-adpt/src/domain/index.ts"],
       "@nestfolio/execution-adpt/domain": ["services/execution/execution-adpt/src/domain/index.ts"],

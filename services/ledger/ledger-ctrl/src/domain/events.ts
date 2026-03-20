@@ -1,2 +1,10 @@
-export { LedgerCtrlEventTypes } from '@nestfolio/ledger-events';
-export type { LedgerCtrlEventType } from '@nestfolio/ledger-events';
+export const LedgerCtrlEventTypes = {
+  BALANCE_UPDATED: 'BALANCE_UPDATED',
+  PORTFOLIO_UPDATED: 'PORTFOLIO_UPDATED',
+  LEDGER_ENTRY_RECORDED: 'LEDGER_ENTRY_RECORDED',
+  LEDGER_PROCESSING_FAILED: 'LEDGER_PROCESSING_FAILED',
+  LEDGER_SIMULATION_FAILED: 'LEDGER_SIMULATION_FAILED',
+} as const;
+
+export type LedgerCtrlEventType =
+  (typeof LedgerCtrlEventTypes)[keyof typeof LedgerCtrlEventTypes];
