@@ -32,6 +32,8 @@
       "@nestfolio/shared-state/testing": ["libs/shared-state/test/testing/index.ts"],
       "@nestfolio/command-core": ["libs/command-core/src/index.ts"],
       "@nestfolio/command-core/*": ["libs/command-core/src/*"],
+      "@nestfolio/ledger-core": ["libs/ledger-core/src/index.ts"],
+      "@nestfolio/ledger-core/*": ["libs/ledger-core/src/*"],
       "@nestfolio/event-processor": ["libs/event-processor/src/index.ts"],
       "@nestfolio/event-processor/*": ["libs/event-processor/src/*"],
       "@nestfolio/investor-bff/service": ["services/investor/investor-bff/src/service-domain/index.ts"],
