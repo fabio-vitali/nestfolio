@@ -3,7 +3,8 @@ import { createEventHandler, skip, type EventPayload, type EventContext, type Bu
 import { requireEnv } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
-import { AdvisoryBffEventTypes, ComplianceEventTypes } from '@nestfolio/advisory-events';
+import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/domain';
+import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/domain';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
 import { DecisionRepository } from '../repositories/decision.repository';

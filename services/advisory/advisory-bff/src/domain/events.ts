@@ -1,2 +1,8 @@
-export { AdvisoryBffEventTypes } from '@nestfolio/advisory-events';
-export type { AdvisoryBffEventType } from '@nestfolio/advisory-events';
+export const AdvisoryBffEventTypes = {
+  USER_CONFIRMED: 'USER_CONFIRMED',
+  USER_REJECTED: 'USER_REJECTED',
+  USER_VIEWED_EXPLANATION: 'USER_VIEWED_EXPLANATION',
+} as const;
+
+export type AdvisoryBffEventType =
+  (typeof AdvisoryBffEventTypes)[keyof typeof AdvisoryBffEventTypes];

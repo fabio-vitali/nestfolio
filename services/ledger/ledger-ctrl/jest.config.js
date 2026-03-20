@@ -19,6 +19,5 @@ module.exports = {
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
     '^@nestfolio/execution-adpt/domain$': '<rootDir>/../../execution/execution-adpt/src/domain/index.ts',
     '^@nestfolio/advisory-adpt/domain$': '<rootDir>/../../advisory/advisory-adpt/src/domain/index.ts',
-    '^@nestfolio/advisory-events$': '<rootDir>/../../../libs/advisory-events/src/index.ts',
   },
 };
