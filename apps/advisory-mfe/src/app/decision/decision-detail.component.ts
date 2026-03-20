@@ -379,6 +379,7 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
 
       // Record that user viewed the explanation (fire-and-forget, but log errors)
       this.advisoryService.recordExplanationView(decisionId).catch((err) => {
+        // eslint-disable-next-line no-console
         console.error('audit log failed', err);
       });
 

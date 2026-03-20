@@ -91,7 +91,7 @@ describe('advisory-bff event-listener', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('routes DECISION_PACKET_CREATED to decisionPacketCreatedPipe', async () => {
-    const result = await harness.process([
+    await harness.process([
       fakeSqsRecord('DECISION_PACKET_CREATED', { decisionId: 'd1', trigger: 'REBALANCE' }, { tenantId: 't1' }),
     ]);
     expect(mockPipes.decisionPacketCreatedPipe.process).toHaveBeenCalledWith(

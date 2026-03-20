@@ -53,6 +53,7 @@ export class AdvisoryService {
         }
       },
       error: (err) => {
+        // eslint-disable-next-line no-console
         console.error('Decision subscription error', err);
         if (this.reconnectAttempts < AdvisoryService.MAX_RECONNECT_ATTEMPTS) {
           this.reconnectAttempts++;

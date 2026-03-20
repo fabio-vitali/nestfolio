@@ -114,6 +114,8 @@
     "jest-util": "^30.0.0",
     "nx": "22.5.4",
     "prettier": "~3.6.2",
+    "relay-runtime": "^20.1.1",
+    "subscriptions-transport-ws": "^0.11.0",
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
     "tsconfig-paths": "^4.2.0",
@@ -134,7 +136,9 @@
     "overrides": {
       "@copilotkitnext/angular>@angular/core": "21.x",
       "@copilotkitnext/angular>@angular/common": "21.x",
-      "@copilotkitnext/angular>@angular/cdk": "21.x"
+      "@copilotkitnext/angular>@angular/cdk": "21.x",
+      "@smithy/types": "4.13.1",
+      "rxjs": "7.8.2"
     }
   }
 }

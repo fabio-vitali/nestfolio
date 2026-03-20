@@ -1,7 +1,6 @@
 import { createTestHarness } from '../../src/testing/test-harness';
 import { fakeSqsRecord } from '../../src/testing/fake-records';
 import { record } from '../../src/intents/record';
-import { project } from '../../src/intents/project';
 import { accumulate } from '../../src/intents/accumulate';
 
 describe('createTestHarness()', () => {

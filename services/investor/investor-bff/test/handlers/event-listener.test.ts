@@ -85,7 +85,7 @@ describe('investor-bff event-listener', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('routes USER_REGISTERED to userRegisteredPipe', async () => {
-    const result = await harness.process([
+    await harness.process([
       fakeSqsRecord('USER_REGISTERED', { email: 'a@b.com' }, { tenantId: 't1' }),
     ]);
     expect(mockPipes.userRegisteredPipe.process).toHaveBeenCalledWith(

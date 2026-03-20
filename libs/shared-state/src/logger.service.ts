@@ -62,12 +62,14 @@ export class LoggerService {
     if (this.breadcrumbs.length > 0) {
       entry.breadcrumbs = [...this.breadcrumbs];
     }
+    // eslint-disable-next-line no-console
     console.error(JSON.stringify(entry));
   }
 
   private log(level: LogLevel, message: string, context?: Record<string, unknown>): void {
     const entry = this.buildEntry(level, message, context);
     const method = level === 'debug' ? 'debug' : level === 'warn' ? 'warn' : 'log';
+    // eslint-disable-next-line no-console
     console[method](JSON.stringify(entry));
   }
 

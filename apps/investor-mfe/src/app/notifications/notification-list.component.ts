@@ -152,6 +152,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
       this.store.markRead(notification.notificationId);
       this.notificationCountStore.decrementUnread();
       this.notificationService.markNotificationRead(notification.notificationId).catch((err) => {
+        // eslint-disable-next-line no-console
         console.error('markRead failed', err);
         // Revert optimistic update by reloading
         this.loadNotifications();

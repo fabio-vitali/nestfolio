@@ -142,7 +142,7 @@ function loadServiceOverrides(
   const raw = JSON.parse(fs.readFileSync(overridePath, 'utf-8'));
 
   // Extract tier-scoped overrides and merge with top-level overrides
-  const { sandbox, staging, production, $schema, ...topLevel } = raw;
+  const { sandbox, staging, production, $schema: _schema, ...topLevel } = raw;
   const tierScoped = tier === 'sandbox' ? sandbox : tier === 'staging' ? staging : production;
 
   // If tier-scoped is an array (multi-target production), ignore here

@@ -37,7 +37,7 @@ export function createTestHarness(config: TestHarnessConfig) {
       const batchItemFailures: string[] = [];
       let poisonPills = 0;
       let skipped = 0;
-      let deduplicated = 0;
+      const deduplicated = 0;
       const metrics: Record<string, number> = {
         EventProcessed: 0,
         EventFailed: 0,
@@ -199,7 +199,7 @@ export function createCdcTestHarness(config: {
     async process(records: DynamoDBRecord[]): Promise<CdcTestResult> {
       const publishedEvents: CdcTestResult['publishedEvents'] = [];
       let processed = 0;
-      let filtered = 0;
+      const filtered = 0;
       const errors: StreamTestResult['errors'] = [];
 
       const parsed = records

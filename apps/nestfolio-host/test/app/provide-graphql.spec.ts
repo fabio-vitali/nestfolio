@@ -16,7 +16,6 @@ jest.mock('aws-amplify/auth', () => ({
   signOut: jest.fn(),
 }));
 
-const mockAppsyncConfig = { endpoint: 'https://investor.appsync.example.com/graphql', region: 'us-east-1' };
 const MockGraphqlService = class {};
 const mockAPPSYNC_CONFIG = 'APPSYNC_CONFIG_TOKEN';
 

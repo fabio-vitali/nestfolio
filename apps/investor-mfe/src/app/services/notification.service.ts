@@ -42,6 +42,7 @@ export class NotificationService {
         }
       },
       error: (err) => {
+        // eslint-disable-next-line no-console
         console.error('Notification subscription error', err);
         if (this.reconnectAttempts < NotificationService.MAX_RECONNECT_ATTEMPTS) {
           this.reconnectAttempts++;

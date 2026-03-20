@@ -1,4 +1,4 @@
-import { StreamEngine, type StreamEngineConfig } from '../../src/engine/stream-engine';
+import { StreamEngine } from '../../src/engine/stream-engine';
 import { fakeDdbStreamRecord } from '../../src/testing/fake-records';
 import type { DynamoDBStreamEvent } from 'aws-lambda';
 

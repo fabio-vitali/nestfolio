@@ -8,18 +8,15 @@ jest.mock('aws-amplify/auth', () => ({
 }));
 
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router, UrlTree } from '@angular/router';
+import { provideRouter, UrlTree } from '@angular/router';
 import { authGuard } from '../src/auth.guard';
 import * as authService from '../src/auth.service';
 
 describe('authGuard', () => {
-  let router: Router;
-
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [provideRouter([])],
     });
-    router = TestBed.inject(Router);
     jest.restoreAllMocks();
   });
 

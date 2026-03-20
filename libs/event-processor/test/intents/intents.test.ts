@@ -27,14 +27,14 @@ describe('record()', () => {
   it('mapper mode HandlerFn returns RecordIntent when called', async () => {
     const fn = record('LedgerEntry', ({ subject }) => ({ amount: subject.amount }));
     const payload: EventPayload = { subject: { amount: 500 } };
-    const result = await (fn as Function)(payload, fakeCtx);
+    const result = await (fn as (...args: unknown[]) => unknown)(payload, fakeCtx);
     expect(result).toEqual({ _tag: 'record', typename: 'LedgerEntry', fields: { amount: 500 }, overrides: undefined });
   });
 
   it('mapper mode with overrides', async () => {
     const fn = record('LedgerEntry', ({ subject }) => ({ amount: subject.amount }), { sk: 'custom-sk' });
     const payload: EventPayload = { subject: { amount: 500 } };
-    const result = await (fn as Function)(payload, fakeCtx);
+    const result = await (fn as (...args: unknown[]) => unknown)(payload, fakeCtx);
     expect(result).toEqual({ _tag: 'record', typename: 'LedgerEntry', fields: { amount: 500 }, overrides: { sk: 'custom-sk' } });
   });
 });
@@ -47,7 +47,7 @@ describe('project()', () => {
 
   it('mapper mode returns HandlerFn that produces ProjectIntent', async () => {
     const fn = project('Summary', ({ subject }) => ({ total: subject.total }));
-    const result = await (fn as Function)({ subject: { total: 42 } }, fakeCtx);
+    const result = await (fn as (...args: unknown[]) => unknown)({ subject: { total: 42 } }, fakeCtx);
     expect(result).toEqual({ _tag: 'project', typename: 'Summary', fields: { total: 42 }, overrides: undefined });
   });
 });

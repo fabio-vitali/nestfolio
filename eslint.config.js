@@ -16,7 +16,7 @@ module.exports = [
     files: ['**/*.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
       'no-console': 'error',
       '@nx/enforce-module-boundaries': [
         'error',
@@ -42,6 +42,13 @@ module.exports = [
     },
   },
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/tmp/**', '**/*.js', '!eslint.config.js'],
+    files: ['**/*.test.ts', '**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      'no-console': 'off',
+    },
+  },
+  {
+    ignores: ['**/dist/**', '**/node_modules/**', '**/tmp/**', '**/*.js', '**/*.cjs', '**/*.mjs', '!eslint.config.js'],
   },
 ];

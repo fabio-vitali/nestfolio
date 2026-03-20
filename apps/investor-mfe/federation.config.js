@@ -22,7 +22,6 @@ const sharedFrontendDeps = share({
   'primeicons': { singleton: true, strictVersion: true, requiredVersion: 'auto' },
   'primeng': { singleton: true, strictVersion: true, requiredVersion: 'auto' },
   'rxjs': { singleton: true, strictVersion: true, requiredVersion: 'auto' },
-  'zone.js': { singleton: true, strictVersion: true, requiredVersion: 'auto' },
   '@ag-ui/client': { singleton: true, strictVersion: true, requiredVersion: 'auto' },
   '@copilotkitnext/angular': { singleton: true, strictVersion: true, requiredVersion: 'auto' },
 });

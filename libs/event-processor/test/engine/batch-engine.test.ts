@@ -1,6 +1,5 @@
 import { BatchEngine } from '../../src/engine/batch-engine';
 import { record } from '../../src/intents/record';
-import { skip } from '../../src/intents/skip';
 import type { SQSEvent } from 'aws-lambda';
 
 // Minimal mock of internal utilities
