@@ -9,8 +9,8 @@ const mockConfig = { endpoint: 'https://example.appsync.com/graphql', region: 'u
 const mockLogoutOrchestrator = { register: mockRegister, unregister: mockUnregister };
 
 jest.mock('@angular/core', () => ({
-  Injectable: () => (target: any) => target,
-  inject: (token: any) => {
+  Injectable: () => (target: unknown) => target,
+  inject: (token: { toString?: () => string }) => {
     // APPSYNC_CONFIG token is identified by description
     if (token && token.toString && token.toString().includes('APPSYNC_CONFIG')) {
       return mockConfig;
@@ -23,16 +23,14 @@ jest.mock('@angular/core', () => ({
   },
 }));
 
-const mockApolloClientInstance = {
-  query: mockApolloQuery,
-  mutate: mockApolloMutate,
-  subscribe: mockApolloSubscribe,
-  stop: mockStop,
-};
-
 // Track constructor calls to return fresh instances for resetClient tests
-let apolloInstanceCount = 0;
-const apolloInstances: typeof mockApolloClientInstance[] = [];
+interface MockApolloInstance {
+  query: jest.Mock;
+  mutate: jest.Mock;
+  subscribe: jest.Mock;
+  stop: jest.Mock;
+}
+const apolloInstances: MockApolloInstance[] = [];
 
 jest.mock('@apollo/client/core', () => {
   const actualGql = (strings: TemplateStringsArray | string) => {
@@ -50,7 +48,6 @@ jest.mock('@apollo/client/core', () => {
         stop: mockStop,
       };
       apolloInstances.push(instance);
-      apolloInstanceCount++;
       return instance;
     }),
     InMemoryCache: jest.fn().mockImplementation(() => ({})),
@@ -92,7 +89,6 @@ describe('GraphqlService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    apolloInstanceCount = 0;
     apolloInstances.length = 0;
     service = new GraphqlService();
   });
@@ -170,16 +166,16 @@ describe('GraphqlService', () => {
   describe('subscribe', () => {
     it('returns an Observable that wraps ApolloClient.subscribe', () => {
       const mockUnsub = jest.fn();
-      let capturedNext: any;
+      let capturedNext!: (result: { data: Record<string, unknown> | null }) => void;
 
       mockApolloSubscribe.mockReturnValue({
-        subscribe: (handlers: any) => {
+        subscribe: (handlers: { next: typeof capturedNext }) => {
           capturedNext = handlers.next;
           return { unsubscribe: mockUnsub };
         },
       });
 
-      const values: any[] = [];
+      const values: unknown[] = [];
 
       const sub = service.subscribe('subscription S { onUpdate { id } }').subscribe({
         next: (v) => values.push(v),
@@ -198,16 +194,16 @@ describe('GraphqlService', () => {
 
     it('forwards errors from ApolloClient.subscribe', () => {
       const mockUnsub = jest.fn();
-      let capturedError: any;
+      let capturedError!: (err: Error) => void;
 
       mockApolloSubscribe.mockReturnValue({
-        subscribe: (handlers: any) => {
+        subscribe: (handlers: { error: typeof capturedError }) => {
           capturedError = handlers.error;
           return { unsubscribe: mockUnsub };
         },
       });
 
-      const errors: any[] = [];
+      const errors: unknown[] = [];
       service.subscribe('subscription S { onUpdate }').subscribe({
         next: () => {},
         error: (e) => errors.push(e),
