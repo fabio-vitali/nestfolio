@@ -6,7 +6,7 @@ export default {
   coverageDirectory: '../../coverage/apps/investor-mfe',
   moduleNameMapper: {
     '^@nestfolio/appsync-client$': '<rootDir>/../../libs/appsync-client/src/index.ts',
-    '^@nestfolio/investor-bff/service$': '<rootDir>/../../services/investor/investor-bff/src/service-domain/index.ts',
+    '^@nestfolio/investor-events$': '<rootDir>/../../libs/investor-events/src/index.ts',
     '^@nestfolio/shared-state$': '<rootDir>/../../libs/shared-state/src/index.ts',
     '^@nestfolio/shared-state/testing$': '<rootDir>/../../libs/shared-state/test/testing/index.ts',
     '^@nestfolio/auth$': '<rootDir>/../../libs/auth/src/index.ts',

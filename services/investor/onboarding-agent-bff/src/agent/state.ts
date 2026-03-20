@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Annotation } from '@langchain/langgraph';
 import { BaseMessage } from '@langchain/core/messages';
-import { RiskProfileDataSchema } from '../service-domain/schemas';
+import { RiskProfileDataSchema } from '../domain/schemas';
 
 export const PHASE_ORDER = ['goal', 'horizon', 'mode', 'capital', 'risk', 'operating_mode', 'mandate'] as const;
 export type Phase = (typeof PHASE_ORDER)[number];

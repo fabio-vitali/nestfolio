@@ -15,7 +15,7 @@ import type {
   MandateLevel,
   RebalanceCadence,
   Notification,
-} from '../service-domain/models';
+} from '../domain/models';
 
 function profilePk(tenantId: string, userId: string): string {
   return `InvestorProfile#${tenantId}#${userId}`;

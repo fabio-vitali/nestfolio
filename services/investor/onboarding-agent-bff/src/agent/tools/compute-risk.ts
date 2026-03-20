@@ -1,4 +1,4 @@
-import type { RiskProfileData } from '../../service-domain/schemas';
+import type { RiskProfileData } from '../../domain/schemas';
 
 const TOLERANCE_LABELS = ['hold', 'cautious', 'selective', 'aggressive'] as const;
 const EXPERIENCE_LABELS = ['novice', 'beginner', 'intermediate', 'expert'] as const;

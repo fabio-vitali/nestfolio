@@ -5,7 +5,7 @@ import {
   publishOrUpload,
   parseRssFeed,
 } from '@nestfolio/event-processor';
-import { YahooFinanceAdptEventTypes } from '../service-domain/events';
+import { YahooFinanceAdptEventTypes } from '../domain/events';
 
 const FETCH_TIMEOUT_MS = 10_000;
 const BASE_URL = 'https://feeds.finance.yahoo.com/rss/2.0/headline';

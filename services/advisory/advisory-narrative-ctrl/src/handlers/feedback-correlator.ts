@@ -2,7 +2,7 @@ import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { BedrockAgentClient, StartIngestionJobCommand } from '@aws-sdk/client-bedrock-agent';
 import { logger } from '@nestfolio/event-processor';
-import type { FeedbackAnnotation } from '../service-domain';
+import type { FeedbackAnnotation } from '../domain';
 
 export interface FeedbackCorrelatorDeps {
   readonly docClient: DynamoDBDocumentClient;

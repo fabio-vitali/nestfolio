@@ -4,7 +4,7 @@ import {
   logger,
   publishOrUpload,
 } from '@nestfolio/event-processor';
-import { AlphaVantageAdptEventTypes } from '../service-domain/events';
+import { AlphaVantageAdptEventTypes } from '../domain/events';
 
 const AV_BASE_URL = 'https://www.alphavantage.co/query';
 const FETCH_TIMEOUT_MS = 15_000;

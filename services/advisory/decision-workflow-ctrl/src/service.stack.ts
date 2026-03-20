@@ -7,7 +7,7 @@ import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
 import { BedrockFoundationModel } from '@aws-cdk/aws-bedrock-alpha';
 import { ServiceStack, ServiceStackProps, NamingService, Ingress, Egress, defaultLambdaProps } from '@nestfolio/cdk-constructs';
 import { DecisionStateMachine } from './constructs/decision-state-machine';
-import { ALL_INBOUND_EVENT_TYPES } from './service-domain/events';
+import { ALL_INBOUND_EVENT_TYPES } from './domain/events';
 
 export class DecisionWorkflowCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {

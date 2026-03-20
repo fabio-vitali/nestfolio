@@ -5,7 +5,7 @@ import {
   publishOrUpload,
 } from '@nestfolio/event-processor';
 import { fetchSubmissions, filterRecentFilings, buildFilingUrl } from '../clients/edgar-api';
-import { SecEdgarAdptEventTypes } from '../service-domain/events';
+import { SecEdgarAdptEventTypes } from '../domain/events';
 
 const TARGET_FORMS = ['8-K', '485BPOS', 'N-1A', '10-K', '10-Q'];
 

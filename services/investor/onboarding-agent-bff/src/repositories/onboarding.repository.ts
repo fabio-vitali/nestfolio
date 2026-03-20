@@ -2,7 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
-import type { RiskProfileData, OnboardingSession } from '../service-domain/schemas';
+import type { RiskProfileData, OnboardingSession } from '../domain/schemas';
 
 function profilePk(tenantId: string, userId: string): string {
   return `InvestorProfile#${tenantId}#${userId}`;

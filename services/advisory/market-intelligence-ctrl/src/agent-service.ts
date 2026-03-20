@@ -2,7 +2,7 @@ import { createAgentNode, withRetry, withFallback } from '@nestfolio/agent-core'
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { marketResearchConfig } from './agents/market-research.config';
-import type { MarketAnalysisResult } from './service-domain';
+import type { MarketAnalysisResult } from './domain';
 
 export interface AgentServiceDeps {
   readonly docClient: DynamoDBDocumentClient;

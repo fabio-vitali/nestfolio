@@ -2,7 +2,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
-import type { WorkflowStatus } from '../service-domain/models';
+import type { WorkflowStatus } from '../domain/models';
 
 function decisionPk(tenantId: string, dpId: string): string {
   return `DecisionPacket#${tenantId}#${dpId}`;

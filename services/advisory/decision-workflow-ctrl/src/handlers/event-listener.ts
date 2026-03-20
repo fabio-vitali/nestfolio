@@ -12,7 +12,7 @@ import {
   AGENT_COMPLETION_EVENT_TYPES,
   COMPLIANCE_EVENT_TYPES,
   USER_RESPONSE_EVENT_TYPES,
-} from '../service-domain/events';
+} from '../domain/events';
 
 export interface EventListenerDeps {
   readonly repository: DecisionPacketRepository;

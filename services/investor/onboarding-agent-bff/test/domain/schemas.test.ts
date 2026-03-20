@@ -3,7 +3,7 @@ import {
   OnboardingSessionSchema,
   OnboardingPhaseSchema,
   RiskProfileDataSchema,
-} from '../../src/service-domain/schemas';
+} from '../../src/domain/schemas';
 
 describe('AccountModeSchema', () => {
   it('accepts valid simulation mode', () => {

@@ -4,7 +4,7 @@ import {
   logger,
   publishOrUpload,
 } from '@nestfolio/event-processor';
-import { FredAdptEventTypes } from '../service-domain/events';
+import { FredAdptEventTypes } from '../domain/events';
 
 const FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/observations';
 const FETCH_TIMEOUT_MS = 10_000;

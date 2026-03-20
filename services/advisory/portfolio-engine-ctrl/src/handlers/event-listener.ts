@@ -7,7 +7,7 @@ import {
   requireEnv, logger,
 } from '@nestfolio/event-processor';
 import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-core';
-import { KB_INGESTION_EVENT_TYPES } from '../service-domain';
+import { KB_INGESTION_EVENT_TYPES } from '../domain';
 import { createAgentService } from '../agent-service';
 
 export interface EventListenerDeps {

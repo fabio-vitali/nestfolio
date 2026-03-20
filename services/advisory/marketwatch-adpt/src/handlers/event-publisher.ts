@@ -5,7 +5,7 @@ import {
   publishOrUpload,
   parseRssFeed,
 } from '@nestfolio/event-processor';
-import { MarketwatchAdptEventTypes } from '../service-domain/events';
+import { MarketwatchAdptEventTypes } from '../domain/events';
 
 const FETCH_TIMEOUT_MS = 10_000;
 
