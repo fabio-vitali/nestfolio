@@ -23,6 +23,7 @@ module.exports = [
         {
           enforceBuildableLibDependency: false,
           allow: [
+            '@nestfolio/.+/events',
             '@nestfolio/.+-adpt/domain',
             '@nestfolio/event-processor',
             '@nestfolio/agent-core',

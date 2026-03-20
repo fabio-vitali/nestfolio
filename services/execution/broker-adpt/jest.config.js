@@ -7,7 +7,7 @@ module.exports = {
     '^@nestfolio/cdk-constructs$': '<rootDir>/../../../libs/cdk-constructs/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
-    '^@nestfolio/execution-ctrl/domain$': '<rootDir>/../../execution/execution-ctrl/src/domain/index.ts',
+    '^@nestfolio/execution-ctrl/events$': '<rootDir>/../../execution/execution-ctrl/src/domain/events.ts',
     '^@nestfolio/investor-adpt/domain$': '<rootDir>/../../investor/investor-adpt/src/domain/index.ts',
   },
   transform: {

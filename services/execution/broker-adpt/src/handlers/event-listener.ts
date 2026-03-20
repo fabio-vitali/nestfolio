@@ -2,7 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, NotRetryableError } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
-import { ExecutionCtrlEventTypes } from '@nestfolio/execution-ctrl/domain';
+import { ExecutionCtrlEventTypes } from '@nestfolio/execution-ctrl/events';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from '../services/market-data.service';
