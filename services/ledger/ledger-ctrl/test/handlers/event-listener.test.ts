@@ -81,6 +81,14 @@ jest.mock('@nestfolio/event-processor', () => ({
 
 }));
 jest.mock('@nestfolio/command-core', () => ({}));
+jest.mock('@nestfolio/ledger-core', () => ({
+  INITIAL_ACCOUNT_STATE: {
+    positions: {},
+    cashBalanceCents: 10_000_000,
+    lastEventSequence: 0,
+  },
+  accountReducer: jest.fn((state) => state),
+}));
 
 process.env.TABLE_NAME = 'test-table';
 

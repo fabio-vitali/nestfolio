@@ -10,14 +10,9 @@ import {
   withLambdaContext,
   withTiming,
 } from '@nestfolio/event-processor';
-import {
-  replayEvents,
-  INITIAL_ACCOUNT_STATE,
-  type LedgerEntry,
-  type AccountState,
-} from '@nestfolio/command-core';
+import { replayEvents, type LedgerEntry } from '@nestfolio/command-core';
+import { INITIAL_ACCOUNT_STATE, type AccountState, accountReducer } from '@nestfolio/ledger-core';
 import { LedgerRepository } from '../repositories/ledger.repository';
-import { accountReducer } from '../reducers/account.reducer';
 
 interface ReducerDeps {
   readonly repository: LedgerRepository;
