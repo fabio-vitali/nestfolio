@@ -19,7 +19,11 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@nestfolio/event-processor', () => ({
+jest.mock('@nestfolio/event-processor', () => {
+  const ddb = jest.requireMock('@aws-sdk/lib-dynamodb') as {
+    PutCommand: jest.Mock; QueryCommand: jest.Mock; TransactWriteCommand: jest.Mock;
+  };
+  return {
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
@@ -28,17 +32,14 @@ jest.mock('@nestfolio/event-processor', () => ({
       this.docClient = { send: mockSend };
     }
     protected async put(item: Record<string, unknown>) {
-      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      await this.docClient.send(new ddb.PutCommand({ TableName: this.tableName, Item: item }));
     }
     protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
-      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+      await this.docClient.send(new ddb.PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
       return true;
     }
     protected async queryByPk(pk: string, skPrefix?: string) {
-      const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-      const result = await this.docClient.send(new QueryCommand({
+      const result = await this.docClient.send(new ddb.QueryCommand({
         TableName: this.tableName,
         KeyConditionExpression: skPrefix ? 'pk = :pk AND begins_with(sk, :sk)' : 'pk = :pk',
         ExpressionAttributeValues: { ':pk': pk, ...(skPrefix ? { ':sk': skPrefix } : {}) },
@@ -46,8 +47,7 @@ jest.mock('@nestfolio/event-processor', () => ({
       return result.Items ?? [];
     }
     protected async transactWrite(input: unknown) {
-      const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new TransactWriteCommand(input));
+      await this.docClient.send(new ddb.TransactWriteCommand(input));
     }
     protected buildTransactUpdate(pk: string, sk: string, attrs: Record<string, unknown>) {
       const entries = Object.entries(attrs);
@@ -67,7 +67,8 @@ jest.mock('@nestfolio/event-processor', () => ({
   ),
   guardedWrite: jest.fn().mockResolvedValue(true),
 
-}));
+  };
+});
 import { DashboardRepository } from '../../src/repositories/dashboard.repository';
 
 describe('DashboardRepository', () => {

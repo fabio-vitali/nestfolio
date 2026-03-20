@@ -31,7 +31,11 @@ jest.mock('@aws-sdk/util-dynamodb', () => ({
   }),
 }));
 
-jest.mock('@nestfolio/event-processor', () => ({
+jest.mock('@nestfolio/event-processor', () => {
+  const ddb = jest.requireMock('@aws-sdk/lib-dynamodb') as {
+    PutCommand: jest.Mock; QueryCommand: jest.Mock; TransactWriteCommand: jest.Mock;
+  };
+  return {
   ok: <T>(value: T) => ({ ok: true, value }),
   err: <E>(error: E) => ({ ok: false, error }),
   TableRepository: class {
@@ -42,12 +46,10 @@ jest.mock('@nestfolio/event-processor', () => ({
       this.docClient = { send: mockSend };
     }
     protected async put(item: Record<string, unknown>) {
-      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      await this.docClient.send(new ddb.PutCommand({ TableName: this.tableName, Item: item }));
     }
     protected async queryByPk(pk: string, skPrefix?: string) {
-      const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-      const result = await this.docClient.send(new QueryCommand({
+      const result = await this.docClient.send(new ddb.QueryCommand({
         TableName: this.tableName,
         KeyConditionExpression: skPrefix ? 'pk = :pk AND begins_with(sk, :sk)' : 'pk = :pk',
         ExpressionAttributeValues: { ':pk': pk, ...(skPrefix ? { ':sk': skPrefix } : {}) },
@@ -55,13 +57,11 @@ jest.mock('@nestfolio/event-processor', () => ({
       return result.Items ?? [];
     }
     protected async queryAll(input: unknown) {
-      const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-      const result = await this.docClient.send(new QueryCommand(input));
+      const result = await this.docClient.send(new ddb.QueryCommand(input));
       return result.Items ?? [];
     }
     protected async transactWrite(input: unknown) {
-      const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new TransactWriteCommand(input));
+      await this.docClient.send(new ddb.TransactWriteCommand(input));
     }
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
@@ -82,7 +82,8 @@ jest.mock('@nestfolio/event-processor', () => ({
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
 
-}));
+  };
+});
 import { DynamoDBStreamEvent } from 'aws-lambda';
 import { createReducer } from '../../src/handlers/reducer';
 import { LedgerRepository } from '../../src/repositories/ledger.repository';

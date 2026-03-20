@@ -24,7 +24,11 @@ const mockQuotePrices: Record<string, number> = {
   VGSH: 58.10, VCIT: 80.55, VWO: 43.20, IEMG: 52.80, XLF: 42.90,
 };
 
-jest.mock('@nestfolio/event-processor', () => ({
+jest.mock('@nestfolio/event-processor', () => {
+  const ddb = jest.requireMock('@aws-sdk/lib-dynamodb') as {
+    PutCommand: jest.Mock; QueryCommand: jest.Mock;
+  };
+  return {
   ...jest.requireActual('@nestfolio/event-processor'),
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
@@ -34,22 +38,19 @@ jest.mock('@nestfolio/event-processor', () => ({
       this.docClient = { send: mockSend };
     }
     protected async put(item: Record<string, unknown>) {
-      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      await this.docClient.send(new ddb.PutCommand({ TableName: this.tableName, Item: item }));
     }
     protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
       try {
-        const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+        await this.docClient.send(new ddb.PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
         return true;
       } catch (error: unknown) {
-        if ((error as any).name === 'ConditionalCheckFailedException') return false;
+        if ((error as { name?: string }).name === 'ConditionalCheckFailedException') return false;
         throw error;
       }
     }
     protected async queryByPk(pk: string, skPrefix?: string) {
-      const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-      const result = await this.docClient.send(new QueryCommand({
+      const result = await this.docClient.send(new ddb.QueryCommand({
         TableName: this.tableName,
         KeyConditionExpression: skPrefix ? 'pk = :pk AND begins_with(sk, :sk)' : 'pk = :pk',
         ExpressionAttributeValues: { ':pk': pk, ...(skPrefix ? { ':sk': skPrefix } : {}) },
@@ -57,8 +58,7 @@ jest.mock('@nestfolio/event-processor', () => ({
       return result.Items ?? [];
     }
     protected async queryAll(input: unknown) {
-      const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-      const result = await this.docClient.send(new QueryCommand(input));
+      const result = await this.docClient.send(new ddb.QueryCommand(input));
       return result.Items ?? [];
     }
   },
@@ -79,7 +79,8 @@ jest.mock('@nestfolio/event-processor', () => ({
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
 
-}));
+  };
+});
 jest.mock('@nestfolio/command-core', () => ({}));
 jest.mock('@nestfolio/ledger-core', () => ({
   INITIAL_ACCOUNT_STATE: {
@@ -198,14 +199,15 @@ describe('ledger-ctrl event-listener handler', () => {
     ]);
 
     // Check PutCommand was called with deterministic eventId
-    const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-    const putCalls = (PutCommand as jest.Mock).mock.calls;
+    const { PutCommand } = jest.requireMock('@aws-sdk/lib-dynamodb') as { PutCommand: jest.Mock };
+    const putCalls = PutCommand.mock.calls;
     const ledgerPut = putCalls.find(
-      (c: any) => c[0]?.Item?.sk === 'Event#evt-det-1-sim-VTI',
+      (c: Array<Record<string, unknown>>) => (c[0] as Record<string, Record<string, string>>)?.['Item']?.['sk'] === 'Event#evt-det-1-sim-VTI',
     );
     expect(ledgerPut).toBeDefined();
-    expect(ledgerPut[0].Item.eventId).toBe('evt-det-1-sim-VTI');
-    expect(ledgerPut[0].Item.sourceEventId).toBe('evt-det-1-sim-VTI');
+    const item = (ledgerPut as Array<Record<string, Record<string, string>>>)[0]['Item'];
+    expect(item['eventId']).toBe('evt-det-1-sim-VTI');
+    expect(item['sourceEventId']).toBe('evt-det-1-sim-VTI');
   });
 
   it('should skip unknown event types', async () => {

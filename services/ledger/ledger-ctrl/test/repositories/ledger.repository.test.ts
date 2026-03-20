@@ -18,7 +18,12 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@nestfolio/event-processor', () => ({
+jest.mock('@nestfolio/event-processor', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const ddb = jest.requireMock('@aws-sdk/lib-dynamodb') as {
+    PutCommand: jest.Mock; QueryCommand: jest.Mock; TransactWriteCommand: jest.Mock;
+  };
+  return {
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
@@ -27,12 +32,10 @@ jest.mock('@nestfolio/event-processor', () => ({
       this.docClient = { send: mockSend };
     }
     protected async put(item: Record<string, unknown>) {
-      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      await this.docClient.send(new ddb.PutCommand({ TableName: this.tableName, Item: item }));
     }
     protected async queryByPk(pk: string, skPrefix?: string) {
-      const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-      const result = await this.docClient.send(new QueryCommand({
+      const result = await this.docClient.send(new ddb.QueryCommand({
         TableName: this.tableName,
         KeyConditionExpression: skPrefix ? 'pk = :pk AND begins_with(sk, :sk)' : 'pk = :pk',
         ExpressionAttributeValues: { ':pk': pk, ...(skPrefix ? { ':sk': skPrefix } : {}) },
@@ -40,21 +43,18 @@ jest.mock('@nestfolio/event-processor', () => ({
       return result.Items ?? [];
     }
     protected async queryAll(input: unknown) {
-      const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-      const result = await this.docClient.send(new QueryCommand(input));
+      const result = await this.docClient.send(new ddb.QueryCommand(input));
       return result.Items ?? [];
     }
     protected async transactWrite(input: unknown) {
-      const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new TransactWriteCommand(input));
+      await this.docClient.send(new ddb.TransactWriteCommand(input));
     }
     protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
       try {
-        const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+        await this.docClient.send(new ddb.PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
         return true;
       } catch (error: unknown) {
-        if ((error as any).name === 'ConditionalCheckFailedException') return false;
+        if ((error as { name?: string }).name === 'ConditionalCheckFailedException') return false;
         throw error;
       }
     }
@@ -67,7 +67,8 @@ jest.mock('@nestfolio/event-processor', () => ({
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
 
-}));
+  };
+});
 import { LedgerRepository } from '../../src/repositories/ledger.repository';
 
 describe('LedgerRepository', () => {

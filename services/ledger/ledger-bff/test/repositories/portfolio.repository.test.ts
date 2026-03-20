@@ -18,7 +18,9 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@nestfolio/event-processor', () => ({
+jest.mock('@nestfolio/event-processor', () => {
+  const ddb = jest.requireMock('@aws-sdk/lib-dynamodb') as { PutCommand: jest.Mock; QueryCommand: jest.Mock };
+  return {
   TableRepository: class {
     protected readonly docClient: { send: jest.Mock };
     protected readonly tableName: string;
@@ -27,12 +29,10 @@ jest.mock('@nestfolio/event-processor', () => ({
       this.docClient = { send: mockSend };
     }
     protected async put(item: Record<string, unknown>) {
-      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      await this.docClient.send(new ddb.PutCommand({ TableName: this.tableName, Item: item }));
     }
     protected async queryByPk(pk: string, skPrefix?: string) {
-      const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-      const result = await this.docClient.send(new QueryCommand({
+      const result = await this.docClient.send(new ddb.QueryCommand({
         TableName: this.tableName,
         KeyConditionExpression: skPrefix ? 'pk = :pk AND begins_with(sk, :sk)' : 'pk = :pk',
         ExpressionAttributeValues: { ':pk': pk, ...(skPrefix ? { ':sk': skPrefix } : {}) },
@@ -40,8 +40,7 @@ jest.mock('@nestfolio/event-processor', () => ({
       return result.Items ?? [];
     }
     protected async queryAll(input: unknown) {
-      const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-      const result = await this.docClient.send(new QueryCommand(input));
+      const result = await this.docClient.send(new ddb.QueryCommand(input));
       return result.Items ?? [];
     }
   },
@@ -53,7 +52,8 @@ jest.mock('@nestfolio/event-processor', () => ({
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
 
-}));
+  };
+});
 import { PortfolioRepository } from '../../src/repositories/portfolio.repository';
 
 describe('PortfolioRepository', () => {

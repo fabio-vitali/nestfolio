@@ -139,7 +139,7 @@ export const createReducer = (deps: ReducerDeps) =>
               today,
               nextState as unknown as Record<string, unknown>,
             );
-          } catch (err) {
+          } catch {
             // Conditional write failure is expected if checkpoint already exists for today
             logger.info('Checkpoint already exists for today', { streamKey, today });
           }

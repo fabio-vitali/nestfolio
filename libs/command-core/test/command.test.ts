@@ -84,7 +84,7 @@ describe('applyCommand', () => {
       type: 'BadCommand',
       schema: IncrementSchema,
       apply: () => {
-        throw 'string-error'; // eslint-disable-line no-throw-literal
+        throw 'string-error'; // eslint-disable-line @typescript-eslint/only-throw-error
       },
     });
     const result = applyCommand(BadCommand, { amount: 1 }, { count: 0 });
