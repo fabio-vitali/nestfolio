@@ -75,12 +75,16 @@ class MockNotRetryableError extends Error {
 }
 
 jest.mock('@nestfolio/command-core', () => ({
+  replayEvents: jest.fn((_init, _entries, _reducer) => _init),
+}));
+
+jest.mock('@nestfolio/ledger-core', () => ({
   INITIAL_ACCOUNT_STATE: {
     positions: {},
     cashBalanceCents: 10_000_000,
     lastEventSequence: 0,
   },
-  replayEvents: jest.fn((_init, _entries, _reducer) => _init),
+  accountReducer: jest.fn((state) => state),
 }));
 
 import { AppSyncResolverEvent } from 'aws-lambda';

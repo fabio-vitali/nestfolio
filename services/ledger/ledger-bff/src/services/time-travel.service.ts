@@ -1,6 +1,6 @@
-import { type AccountState, INITIAL_ACCOUNT_STATE, replayEvents, type LedgerEntry } from '@nestfolio/command-core';
+import { replayEvents, type LedgerEntry } from '@nestfolio/command-core';
+import { type AccountState, INITIAL_ACCOUNT_STATE, accountReducer } from '@nestfolio/ledger-core';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
-import { accountReducer } from '../reducers/account.reducer';
 
 export class TimeTravelService {
   constructor(private readonly repository: PortfolioRepository) {}

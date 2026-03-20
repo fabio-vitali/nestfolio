@@ -11,7 +11,7 @@ import {
   withErrorPublishing,
   EventBridgeBus,
 } from '@nestfolio/event-processor';
-import { INITIAL_ACCOUNT_STATE } from '@nestfolio/command-core';
+import { INITIAL_ACCOUNT_STATE } from '@nestfolio/ledger-core';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 import { TimeTravelService } from '../services/time-travel.service';
 import { TimestampSchema } from '../validation/schemas';
