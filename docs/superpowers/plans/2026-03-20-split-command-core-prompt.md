@@ -1,0 +1,1 @@
+Execute the implementation plan at `docs/superpowers/plans/2026-03-20-split-command-core.md` using subagent-driven development. The plan splits `libs/command-core` into two libs: `command-core` (generic event-sourcing infrastructure) and `ledger-core` (ledger domain: AccountState, commands, accountReducer). 8 tasks, 5 chunks. All code is in the plan — follow it exactly.

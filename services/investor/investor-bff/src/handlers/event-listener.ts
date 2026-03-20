@@ -2,7 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '../service-domain/events';
-import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/service';
+import { InvestorCtrlEventTypes } from '@nestfolio/investor-events';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { UserRegisteredPipe } from '../pipes/user-registered.pipe';

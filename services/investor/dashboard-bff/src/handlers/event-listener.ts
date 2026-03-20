@@ -4,7 +4,7 @@ import { requireEnv } from '@nestfolio/event-processor';
 import { type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/event-processor';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
-import { InvestorBffEventTypes } from '@nestfolio/investor-bff/service';
+import { InvestorBffEventTypes } from '@nestfolio/investor-events';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { PortfolioSummaryPipe } from '../pipes/portfolio-summary.pipe';
 import { PositionSnapshotPipe } from '../pipes/position-snapshot.pipe';

@@ -24,7 +24,6 @@ module.exports = [
           enforceBuildableLibDependency: false,
           allow: [
             '@nestfolio/.+-adpt/domain',
-            '@nestfolio/.+/service',
             '@nestfolio/event-processor',
             '@nestfolio/agent-core',
           ],

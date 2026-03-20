@@ -1,9 +1,2 @@
-export const InvestorCtrlEventTypes = {
-  NOTIFICATION_CREATED: 'NOTIFICATION_CREATED',
-  NOTIFICATION_SENT: 'NOTIFICATION_SENT',
-  NOTIFICATION_DELIVERED: 'NOTIFICATION_DELIVERED',
-  MONTHLY_REPORT_GENERATED: 'MONTHLY_REPORT_GENERATED',
-} as const;
-
-export type InvestorCtrlEventType =
-  (typeof InvestorCtrlEventTypes)[keyof typeof InvestorCtrlEventTypes];
+export { InvestorCtrlEventTypes } from '@nestfolio/investor-events';
+export type { InvestorCtrlEventType } from '@nestfolio/investor-events';
