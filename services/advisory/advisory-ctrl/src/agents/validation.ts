@@ -1,4 +1,4 @@
-import type { ValidationRule, ValidationResult } from '@nestfolio/agent-core';
+import type { ValidationRule, ValidationResult } from '@nestfolio/agent-orchestrator';
 import type { GoalInterpretation } from './schemas';
 import type { RiskAssessment } from './schemas';
 import type { MarketResearch } from './schemas';

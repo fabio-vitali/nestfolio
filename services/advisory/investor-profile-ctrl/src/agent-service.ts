@@ -1,4 +1,4 @@
-import { createOrchestrator, invokeOrchestrator } from '@nestfolio/agent-core';
+import { createOrchestrator, invokeOrchestrator } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { userGoalsConfig } from './agents/user-goals.config';

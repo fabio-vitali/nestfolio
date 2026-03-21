@@ -20,7 +20,7 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand: jest.fn(),
 }));
 
-jest.mock('@nestfolio/agent-core', () => ({
+jest.mock('@nestfolio/agent-orchestrator', () => ({
   createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
   invokeOrchestrator: jest.fn(),
   createMemoryClient: jest.fn(),

@@ -1,4 +1,4 @@
-import { createMemoryClient, type MemoryClient } from '@nestfolio/agent-core';
+import { createMemoryClient, type MemoryClient } from '@nestfolio/agent-orchestrator';
 import { requireEnv } from '@nestfolio/event-processor';
 
 const UPSTREAM_SERVICES = [

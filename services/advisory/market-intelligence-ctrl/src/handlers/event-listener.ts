@@ -6,7 +6,7 @@ import {
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-core';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-orchestrator';
 import { createAgentService } from '../agent-service';
 
 export interface EventListenerDeps {

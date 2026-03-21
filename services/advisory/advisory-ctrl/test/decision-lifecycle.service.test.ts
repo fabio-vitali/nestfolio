@@ -118,7 +118,7 @@ const mockInvokeOrchestrator = jest.fn().mockResolvedValue({
   input: JSON.stringify({}),
 });
 
-jest.mock('@nestfolio/agent-core', () => ({
+jest.mock('@nestfolio/agent-orchestrator', () => ({
   createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
   invokeOrchestrator: mockInvokeOrchestrator,
 }));

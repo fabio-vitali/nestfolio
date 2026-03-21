@@ -16,7 +16,7 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@nestfolio/agent-core', () => ({
+jest.mock('@nestfolio/agent-orchestrator', () => ({
   createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
   invokeOrchestrator: mockInvokeOrchestrator,
 }));

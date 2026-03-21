@@ -1,4 +1,4 @@
-import type { AgentConfig } from '@nestfolio/agent-core';
+import type { AgentConfig } from '@nestfolio/agent-orchestrator';
 import { RebalancePlanSchema } from './schemas';
 import { rebalancePlannerPrompt } from './prompts';
 

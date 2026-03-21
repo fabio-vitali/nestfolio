@@ -1,4 +1,4 @@
-import type { AgentConfig } from '@nestfolio/agent-core';
+import type { AgentConfig } from '@nestfolio/agent-orchestrator';
 import { RiskEvaluationSchema } from './schemas';
 import { riskAssessmentPrompt } from './prompts';
 

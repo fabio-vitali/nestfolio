@@ -1,4 +1,4 @@
-import { createAgentNode, withRetry, withFallback } from '@nestfolio/agent-core';
+import { createAgentNode, withRetry, withFallback } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { marketResearchConfig } from './agents/market-research.config';

@@ -12,7 +12,7 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
   EventBridgeClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
   PutEventsCommand: jest.fn(),
 }));
-jest.mock('@nestfolio/agent-core', () => ({
+jest.mock('@nestfolio/agent-orchestrator', () => ({
   createAgentNode: jest.fn().mockReturnValue(jest.fn()),
   withRetry: jest.fn().mockImplementation((node) => node),
   withFallback: jest.fn().mockImplementation((node) => node),

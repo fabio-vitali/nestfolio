@@ -1,4 +1,4 @@
-import type { AgentConfig, WaveDefinition } from '@nestfolio/agent-core';
+import type { AgentConfig, WaveDefinition } from '@nestfolio/agent-orchestrator';
 import {
   GoalInterpretationSchema,
   RiskAssessmentSchema,

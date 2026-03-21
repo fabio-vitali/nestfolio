@@ -1,4 +1,4 @@
-import type { AgentConfig } from '@nestfolio/agent-core';
+import type { AgentConfig } from '@nestfolio/agent-orchestrator';
 import { ExplainabilitySchema } from './schemas';
 import { explainabilityPrompt } from './prompts';
 

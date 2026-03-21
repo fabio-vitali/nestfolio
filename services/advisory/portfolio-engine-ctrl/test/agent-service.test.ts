@@ -9,7 +9,7 @@ jest.mock('@aws-sdk/lib-dynamodb', () => ({
   DynamoDBDocumentClient: { from: jest.fn().mockImplementation(() => ({ send: mockSend })) },
   PutCommand: jest.fn().mockImplementation((input) => ({ _type: 'Put', input })),
 }));
-jest.mock('@nestfolio/agent-core', () => ({
+jest.mock('@nestfolio/agent-orchestrator', () => ({
   createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
   invokeOrchestrator: mockInvokeOrchestrator,
 }));

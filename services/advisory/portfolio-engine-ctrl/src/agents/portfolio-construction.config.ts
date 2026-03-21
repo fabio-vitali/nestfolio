@@ -1,4 +1,4 @@
-import type { AgentConfig } from '@nestfolio/agent-core';
+import type { AgentConfig } from '@nestfolio/agent-orchestrator';
 import { PortfolioConstructionSchema } from './schemas';
 import { portfolioConstructionPrompt } from './prompts';
 

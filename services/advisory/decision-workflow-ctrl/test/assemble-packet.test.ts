@@ -4,7 +4,7 @@ jest.mock('@aws-sdk/client-bedrock-agentcore', () => ({
   RetrieveMemoryRecordsCommand: jest.fn(),
 }));
 
-jest.mock('@nestfolio/agent-core', () => ({
+jest.mock('@nestfolio/agent-orchestrator', () => ({
   createMemoryClient: jest.fn(),
   createNoOpMemoryClient: jest.fn(),
 }));
