@@ -1,5 +1,5 @@
 import { App } from 'aws-cdk-lib';
-import { resolvePipelineConfig } from '@nestfolio/cdk-constructs';
+import { resolvePipelineConfig } from '@nestfolio/cdk-constructs/utils';
 import { DashboardBffStack } from './service.stack';
 
 const app = new App();

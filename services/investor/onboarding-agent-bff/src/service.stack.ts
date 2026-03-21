@@ -5,12 +5,8 @@ import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Duration } from 'aws-cdk-lib';
-import {
-  AgentRuntime,
-  KnowledgeBase,
-  ServiceStack,
-  ServiceStackProps,
-} from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
+import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 
 export class OnboardingAgentBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {

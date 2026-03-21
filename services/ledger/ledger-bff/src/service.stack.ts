@@ -3,7 +3,9 @@ import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, Ingress, Facade, discoverJsResolvers, defaultLambdaProps, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
+import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
 export class LedgerBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {

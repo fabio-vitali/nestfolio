@@ -1,5 +1,5 @@
 import { Construct } from 'constructs';
-import { ServiceStack, ServiceStackProps, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 
 export class AdvisoryBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
