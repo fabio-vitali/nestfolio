@@ -6,7 +6,7 @@ import {
   withCallState,
   withDevtools,
   withLogoutReset,
-} from '@nestfolio/shared-state';
+} from '@nestfolio/shell';
 
 export interface LedgerPosition {
   symbol: string;

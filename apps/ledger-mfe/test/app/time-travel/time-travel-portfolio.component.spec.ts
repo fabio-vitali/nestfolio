@@ -1,5 +1,5 @@
-import { I18nService } from '@nestfolio/i18n';
-import { setupComponentTest, createMockI18nService } from '@nestfolio/shared-state/testing';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { setupComponentTest, createMockI18nService } from '@nestfolio/shell/testing';
 import { TimeTravelPortfolioComponent } from '../../../src/app/time-travel/time-travel-portfolio.component';
 
 describe('TimeTravelPortfolioComponent', () => {

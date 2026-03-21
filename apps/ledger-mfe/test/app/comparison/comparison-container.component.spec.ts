@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
-import { I18nService } from '@nestfolio/i18n';
-import { createMockI18nService } from '@nestfolio/shared-state/testing';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { createMockI18nService } from '@nestfolio/shell/testing';
 import { ComparisonContainerComponent } from '../../../src/app/comparison/comparison-container.component';
 import { ComparisonService } from '../../../src/app/services/comparison.service';
 

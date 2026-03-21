@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { GraphqlService } from '@nestfolio/appsync-client';
+import { GraphqlService } from '@nestfolio/shell/graphql';
 import { TimeTravelService } from '../../../src/app/services/time-travel.service';
 
 describe('TimeTravelService', () => {

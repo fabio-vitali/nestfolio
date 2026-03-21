@@ -1,8 +1,8 @@
 import { Component, inject, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
-import { I18nService } from '@nestfolio/i18n';
-import { CurrencyFormatPipe } from '@nestfolio/ui-components';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { CurrencyFormatPipe } from '@nestfolio/ui';
 import type { ComparisonDivergence } from '../services/comparison.service';
 
 @Component({

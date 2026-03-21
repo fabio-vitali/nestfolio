@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { I18nService } from '@nestfolio/i18n';
-import { createMockI18nService } from '@nestfolio/shared-state/testing';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { createMockI18nService } from '@nestfolio/shell/testing';
 import { ComparisonDivergenceTableComponent } from '../../../src/app/comparison/comparison-divergence-table.component';
 
 describe('ComparisonDivergenceTableComponent', () => {

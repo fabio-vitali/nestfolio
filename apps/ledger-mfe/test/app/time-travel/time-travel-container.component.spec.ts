@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { I18nService } from '@nestfolio/i18n';
-import { setupComponentTest, createMockI18nService } from '@nestfolio/shared-state/testing';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { setupComponentTest, createMockI18nService } from '@nestfolio/shell/testing';
 import { TimeTravelContainerComponent } from '../../../src/app/time-travel/time-travel-container.component';
 import { TimeTravelService } from '../../../src/app/services/time-travel.service';
 import { TimeTravelStore } from '../../../src/app/stores/time-travel.store';

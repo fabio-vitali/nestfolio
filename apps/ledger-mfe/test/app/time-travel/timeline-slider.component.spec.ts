@@ -1,4 +1,4 @@
-import { setupComponentTest } from '@nestfolio/shared-state/testing';
+import { setupComponentTest } from '@nestfolio/shell/testing';
 import { TimelineSliderComponent } from '../../../src/app/time-travel/timeline-slider.component';
 
 describe('TimelineSliderComponent', () => {

@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { TableModule } from 'primeng/table';
-import { I18nService } from '@nestfolio/i18n';
+import { I18nService } from '@nestfolio/shell/i18n';
 import type { LedgerPosition } from '../stores/time-travel.store';
 
 @Component({

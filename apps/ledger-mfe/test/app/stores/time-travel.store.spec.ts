@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { TimeTravelStore, LedgerPortfolio } from '../../../src/app/stores/time-travel.store';
-import { LogoutOrchestrator } from '@nestfolio/shared-state';
+import { LogoutOrchestrator } from '@nestfolio/shell';
 
 describe('TimeTravelStore', () => {
   let store: InstanceType<typeof TimeTravelStore>;

@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { GraphqlService } from '@nestfolio/appsync-client';
+import { GraphqlService } from '@nestfolio/shell/graphql';
 import {
   GET_PORTFOLIO_AT,
   GET_TIME_TRAVEL_AVAILABILITY,

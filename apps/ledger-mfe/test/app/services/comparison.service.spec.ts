@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { GraphqlService } from '@nestfolio/appsync-client';
+import { GraphqlService } from '@nestfolio/shell/graphql';
 import { ComparisonService } from '../../../src/app/services/comparison.service';
 
 describe('ComparisonService', () => {
