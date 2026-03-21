@@ -24,7 +24,6 @@
       "@nestfolio/cdk-constructs": ["libs/cdk-constructs/src/index.ts"],
       "@nestfolio/agent-orchestrator": ["libs/agent-orchestrator/src/index.ts"],
       "@nestfolio/agent-orchestrator/*": ["libs/agent-orchestrator/src/*"],
-      "@nestfolio/command-core": ["libs/command-core/src/index.ts"],
 "@nestfolio/event-processor": ["libs/event-processor/src/index.ts"],
       "@nestfolio/event-processor/*": ["libs/event-processor/src/*"],
       "@nestfolio/investor-bff/events": ["services/investor/investor-bff/src/domain/events.ts"],

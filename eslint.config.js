@@ -26,7 +26,6 @@ module.exports = [
             '@nestfolio/.+/events',
             '@nestfolio/.+-adpt/domain',
             '@nestfolio/event-processor',
-            '@nestfolio/agent-core',
           ],
           depConstraints: [
             { sourceTag: 'scope:platform', onlyDependOnLibsWithTags: ['scope:platform'] },
