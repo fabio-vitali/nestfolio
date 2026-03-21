@@ -6,10 +6,10 @@ import { IQueue } from 'aws-cdk-lib/aws-sqs';
 import { State, StateProps } from './state';
 import { Ingress } from './ingress';
 import { Egress } from './egress';
-import { Monitoring } from './monitoring';
-import { ServiceDashboard } from './dashboard';
-import { NamingService } from './naming-service';
-import { applyStandardTags } from './tagging';
+import { Monitoring } from '../observability/monitoring';
+import { ServiceDashboard } from '../observability/dashboard';
+import { NamingService } from '../utils/naming-service';
+import { applyStandardTags } from '../utils/tagging';
 
 export interface ServiceStackProps extends StackProps {
   prefix: string;

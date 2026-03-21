@@ -8,7 +8,7 @@ import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { NodejsFunction, NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { ServiceStack } from './service-stack';
-import { defaultLambdaProps } from './default-lambda-props';
+import { defaultLambdaProps } from '../utils/default-lambda-props';
 
 export interface IngressProps {
   eventTypes: string[];

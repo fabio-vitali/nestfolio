@@ -7,7 +7,7 @@ import { StartingPosition, FilterCriteria, FilterRule } from 'aws-cdk-lib/aws-la
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { ServiceStack } from './service-stack';
-import { defaultLambdaProps } from './default-lambda-props';
+import { defaultLambdaProps } from '../utils/default-lambda-props';
 
 export interface EgressProps {
   /** DynamoDB __typename values to publish events for */
