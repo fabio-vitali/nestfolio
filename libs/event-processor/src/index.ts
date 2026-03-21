@@ -113,3 +113,10 @@ export type {
   EditEvent,
   EditOperation,
 } from './domain';
+
+// Sourcing (command + event replay)
+export {
+  type CommandDef, type CommandError, type Patches,
+  defineCommand, applyCommand,
+  type LedgerEntry, type EventReducer, replayEvents,
+} from './sourcing';
