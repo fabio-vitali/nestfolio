@@ -74,18 +74,6 @@ class MockNotRetryableError extends Error {
   }
 }
 
-jest.mock('@nestfolio/command-core', () => ({
-  replayEvents: jest.fn((_init, _entries, _reducer) => _init),
-}));
-
-jest.mock('@nestfolio/ledger-core', () => ({
-  INITIAL_ACCOUNT_STATE: {
-    positions: {},
-    cashBalanceCents: 10_000_000,
-    lastEventSequence: 0,
-  },
-  accountReducer: jest.fn((state) => state),
-}));
 
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { createResolver } from '../../src/handlers/graphql-resolver';
@@ -133,10 +121,9 @@ describe('ledger-bff graphql-resolver handler', () => {
   });
 
   describe('getPortfolioAt', () => {
-    it('should return initial state when no checkpoints or entries exist', async () => {
+    it('should return default state when no snapshot exists', async () => {
       mockSend
-        .mockResolvedValueOnce({ Items: [] }) // getCheckpointBefore
-        .mockResolvedValueOnce({ Items: [] }); // getEntriesSince
+        .mockResolvedValueOnce({ Items: [] }); // getSnapshotAt → empty
 
       const event = buildEvent('getPortfolioAt', { timestamp: '2025-06-15T00:00:00.000Z' });
       const result = await resolver(event) as Record<string, unknown>;
@@ -145,22 +132,17 @@ describe('ledger-bff graphql-resolver handler', () => {
       expect(result['positions']).toEqual([]);
     });
 
-    it('should replay from checkpoint when checkpoint exists', async () => {
-      const checkpointState = {
-        positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 250 } },
-        cashBalanceCents: 7_500_000,
-      };
+    it('should return snapshot state when snapshot exists', async () => {
       mockSend
         .mockResolvedValueOnce({
           Items: [{
-            pk: 'Checkpoint#tenant-1',
-            sk: '2025-06-10',
-            positions: checkpointState.positions,
-            cashBalanceCents: checkpointState.cashBalanceCents,
-            snapshotAt: '2025-06-10T23:59:59.000Z',
+            pk: 'SnapshotAt#tenant-1#actual',
+            sk: '2025-06-14T23:00:00.000Z',
+            positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 250 } },
+            cashBalanceCents: 7_500_000,
+            lastEventSequence: 5,
           }],
-        }) // getCheckpointBefore
-        .mockResolvedValueOnce({ Items: [] }); // getEntriesSince
+        }); // getSnapshotAt
 
       const event = buildEvent('getPortfolioAt', { timestamp: '2025-06-15T00:00:00.000Z' });
       const result = await resolver(event) as Record<string, unknown>;

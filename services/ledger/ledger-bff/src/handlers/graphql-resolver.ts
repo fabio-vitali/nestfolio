@@ -11,8 +11,9 @@ import {
   withErrorPublishing,
   EventBridgeBus,
 } from '@nestfolio/event-processor';
-import { INITIAL_ACCOUNT_STATE } from '@nestfolio/ledger-core';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
+
+const DEFAULT_CASH_BALANCE_CENTS = 10_000_000;
 import { TimeTravelService } from '../services/time-travel.service';
 import { TimestampSchema } from '../validation/schemas';
 
@@ -38,15 +39,18 @@ export const createResolver = (deps: ResolverDeps) =>
           const timestamp = TimestampSchema.parse(args.timestamp);
 
           const state = await deps.timeTravelService.getPortfolioAt(tenantId, timestamp);
-          const positions = Object.entries(state.positions).map(([symbol, pos]) => ({
-            symbol,
-            quantity: pos.quantity,
-            averageCostBasis: pos.averageCostBasis,
-            totalCostBasis: pos.totalCostBasis,
-            lastFillPrice: pos.lastFillPrice,
-          }));
+          const positions = Object.entries(state.positions).map(([symbol, pos]) => {
+            const p = pos as Record<string, unknown>;
+            return {
+              symbol,
+              quantity: (p['quantity'] as number) ?? 0,
+              averageCostBasis: (p['averageCostBasis'] as number) ?? 0,
+              totalCostBasis: (p['totalCostBasis'] as number) ?? 0,
+              lastFillPrice: (p['lastFillPrice'] as number) ?? 0,
+            };
+          });
           let totalValueCents = state.cashBalanceCents;
-          for (const pos of Object.values(state.positions)) {
+          for (const pos of positions) {
             totalValueCents += Math.round(pos.quantity * pos.lastFillPrice * 100);
           }
 
@@ -66,8 +70,8 @@ export const createResolver = (deps: ResolverDeps) =>
               deps.repository.getSimulationPositions(tenantId),
             ]);
 
-          const actualCash = (actualLatest?.['cashBalanceCents'] as number) ?? INITIAL_ACCOUNT_STATE.cashBalanceCents;
-          const simulatedCash = (simulatedLatest?.['cashBalanceCents'] as number) ?? INITIAL_ACCOUNT_STATE.cashBalanceCents;
+          const actualCash = (actualLatest?.['cashBalanceCents'] as number) ?? DEFAULT_CASH_BALANCE_CENTS;
+          const simulatedCash = (simulatedLatest?.['cashBalanceCents'] as number) ?? DEFAULT_CASH_BALANCE_CENTS;
 
           // Build actual portfolio
           const actualPositionsList = actualPositions.map((p) => ({
