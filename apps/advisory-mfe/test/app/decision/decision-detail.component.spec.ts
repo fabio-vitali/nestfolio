@@ -9,7 +9,7 @@ import {
   Decision,
 } from '../../../src/app/stores/advisory.store';
 import { AdvisoryService } from '../../../src/app/services/advisory.service';
-import { I18nService } from '@nestfolio/i18n';
+import { I18nService } from '@nestfolio/shell/i18n';
 
 const mockDecision: Decision = {
   decisionId: 'd0000000-0000-0000-0000-000000000001',

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { AdvisoryStore, Decision, AgentInvocation, ComplianceCheck } from '../../../src/app/stores/advisory.store';
-import { LogoutOrchestrator } from '@nestfolio/shared-state';
+import { LogoutOrchestrator } from '@nestfolio/shell';
 
 const mockDecision: Decision = {
   decisionId: 'dec-001',

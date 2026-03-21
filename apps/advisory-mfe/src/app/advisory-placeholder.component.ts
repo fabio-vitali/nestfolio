@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { I18nService } from '@nestfolio/i18n';
-import { EmptyStateComponent } from '@nestfolio/ui-components';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { EmptyStateComponent } from '@nestfolio/ui';
 
 @Component({
   selector: 'app-advisory-placeholder',

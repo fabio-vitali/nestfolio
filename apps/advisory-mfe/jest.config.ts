@@ -5,12 +5,10 @@ export default {
   setupFilesAfterEnv: ['<rootDir>/test/test-setup.ts'],
   coverageDirectory: '../../coverage/apps/advisory-mfe',
   moduleNameMapper: {
-    '^@nestfolio/appsync-client$': '<rootDir>/../../libs/appsync-client/src/index.ts',
-    '^@nestfolio/shared-state$': '<rootDir>/../../libs/shared-state/src/index.ts',
-    '^@nestfolio/shared-state/testing$': '<rootDir>/../../libs/shared-state/test/testing/index.ts',
-    '^@nestfolio/auth$': '<rootDir>/../../libs/auth/src/index.ts',
-    '^@nestfolio/i18n$': '<rootDir>/../../libs/i18n/src/index.ts',
-    '^@nestfolio/ui-components$': '<rootDir>/../../libs/ui-components/src/index.ts',
+    '^@nestfolio/shell$': '<rootDir>/../../libs/shell/src/index.ts',
+    '^@nestfolio/shell/testing$': '<rootDir>/../../libs/shell/test/testing/index.ts',
+    '^@nestfolio/shell/(.+)$': '<rootDir>/../../libs/shell/src/$1/index.ts',
+    '^@nestfolio/ui$': '<rootDir>/../../libs/ui/src/index.ts',
   },
   transform: {
     '^.+\\.(ts|mjs|js|html)$': [

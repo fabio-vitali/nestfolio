@@ -12,9 +12,9 @@ import {
   AgentBadgeComponent,
   StatusBadgeComponent,
   LoadingSkeletonComponent,
-} from '@nestfolio/ui-components';
-import { I18nService } from '@nestfolio/i18n';
-import { parseError } from '@nestfolio/shared-state';
+} from '@nestfolio/ui';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { parseError } from '@nestfolio/shell';
 import { AdvisoryStore } from '../stores/advisory.store';
 import { AdvisoryService } from '../services/advisory.service';
 import { AuditFooterComponent } from './audit-footer.component';

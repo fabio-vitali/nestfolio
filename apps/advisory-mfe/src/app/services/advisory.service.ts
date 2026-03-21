@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { GraphqlService, CachedQuery } from '@nestfolio/appsync-client';
+import { GraphqlService, CachedQuery } from '@nestfolio/shell/graphql';
 import {
   GET_DECISION,
   GET_AGENT_INVOCATIONS,
@@ -10,7 +10,7 @@ import {
   REJECT_DECISION,
   ON_DECISION_UPDATE,
 } from '../graphql/advisory-bff.queries';
-import { LogoutOrchestrator } from '@nestfolio/shared-state';
+import { LogoutOrchestrator } from '@nestfolio/shell';
 import type {
   Decision,
   AgentInvocation,
