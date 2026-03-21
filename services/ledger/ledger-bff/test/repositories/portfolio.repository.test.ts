@@ -190,4 +190,53 @@ describe('PortfolioRepository', () => {
       expect(cmd.input.Item.sk).toBe('Latest');
     });
   });
+
+  describe('saveSnapshotAt', () => {
+    it('should write a SnapshotAt item with TTL', async () => {
+      mockSend.mockResolvedValueOnce({}); // put
+
+      await repo.saveSnapshotAt('t1', 'actual', '2025-06-15T12:00:00.000Z', {
+        cashBalanceCents: 7_500_000,
+        positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 250 } },
+      }, 365);
+
+      const { PutCommand } = jest.requireMock('@aws-sdk/lib-dynamodb') as { PutCommand: jest.Mock };
+      const putCall = PutCommand.mock.calls[0][0];
+      expect(putCall.Item.pk).toBe('SnapshotAt#t1#actual');
+      expect(putCall.Item.sk).toBe('2025-06-15T12:00:00.000Z');
+      expect(putCall.Item.__typename).toBe('SnapshotAt');
+      expect(putCall.Item.cashBalanceCents).toBe(7_500_000);
+      expect(putCall.Item.ttl).toBeGreaterThan(0);
+    });
+  });
+
+  describe('getSnapshotAt', () => {
+    it('should return the most recent snapshot at or before timestamp', async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [{
+          pk: 'SnapshotAt#t1#actual',
+          sk: '2025-06-14T23:59:00.000Z',
+          cashBalanceCents: 7_500_000,
+          positions: {},
+        }],
+      });
+
+      const result = await repo.getSnapshotAt('t1', '2025-06-15T12:00:00.000Z');
+      expect(result).toBeDefined();
+      expect(result!['cashBalanceCents']).toBe(7_500_000);
+
+      const { QueryCommand } = jest.requireMock('@aws-sdk/lib-dynamodb') as { QueryCommand: jest.Mock };
+      const queryInput = QueryCommand.mock.calls[0][0];
+      expect(queryInput.ExpressionAttributeValues[':pk']).toBe('SnapshotAt#t1#actual');
+      expect(queryInput.ScanIndexForward).toBe(false);
+      expect(queryInput.Limit).toBe(1);
+    });
+
+    it('should return null when no snapshot exists', async () => {
+      mockSend.mockResolvedValueOnce({ Items: [] });
+
+      const result = await repo.getSnapshotAt('t1', '2025-01-01T00:00:00.000Z');
+      expect(result).toBeNull();
+    });
+  });
 });

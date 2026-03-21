@@ -277,4 +277,48 @@ export class PortfolioRepository extends TableRepository {
       return this.queryByPk(`Simulation#${tenantId}`, 'Position#');
     },
   );
+
+  // --- Snapshot-at operations (for time-travel without ledger-core) ---
+
+  readonly saveSnapshotAt = this.log('saveSnapshotAt',
+    async (
+      tenantId: string,
+      streamType: string,
+      timestamp: string,
+      snapshot: CheckpointState,
+      ttlDays: number,
+    ): Promise<void> => {
+      const ttl = Math.floor(Date.now() / 1000) + (ttlDays * 86400);
+      await this.put({
+        pk: `SnapshotAt#${tenantId}#${streamType}`,
+        sk: timestamp,
+        __typename: 'SnapshotAt',
+        tenantId,
+        streamType,
+        timestamp,
+        positions: snapshot.positions,
+        cashBalanceCents: snapshot.cashBalanceCents,
+        ttl,
+      });
+    },
+  );
+
+  readonly getSnapshotAt = this.log('getSnapshotAt',
+    async (tenantId: string, timestamp: string): Promise<Record<string, unknown> | null> => {
+      const result = await this.docClient.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          KeyConditionExpression: 'pk = :pk AND sk <= :ts',
+          ExpressionAttributeValues: {
+            ':pk': `SnapshotAt#${tenantId}#actual`,
+            ':ts': timestamp,
+          },
+          ScanIndexForward: false,
+          Limit: 1,
+        }),
+      );
+      const items = result.Items ?? [];
+      return items.length > 0 ? (items[0] as Record<string, unknown>) : null;
+    },
+  );
 }
