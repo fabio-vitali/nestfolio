@@ -1,0 +1,12 @@
+// @nestfolio/cdk-constructs/extensions — Specialized, optional constructs
+export { AgentRuntime, AgentRuntimeProps } from './agent-runtime';
+export { KnowledgeBase, KnowledgeBaseProps } from './knowledge-base';
+export {
+  SharedParameter, SharedParameterProps,
+  CrossAccountBusPolicy, CrossAccountBusPolicyProps,
+  DomainAccountMap, getDomainAccounts, getConsumerAccountIds,
+  resolveBusArn, resolveSsmValue,
+} from './cross-account';
+export { CostControls, CostControlsProps } from './cost-controls';
+export { AdapterSchedule, AdapterScheduleProps } from './adapter-schedule';
+export { RuntimeConfig, RuntimeConfigProps, RuntimeConfigSsmPaths } from './runtime-config';
