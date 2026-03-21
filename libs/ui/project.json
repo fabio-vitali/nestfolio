@@ -1,0 +1,28 @@
+{
+  "name": "ui",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ui/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/ui",
+        "main": "libs/ui/src/index.ts",
+        "tsConfig": "libs/ui/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/ui"],
+      "options": {
+        "jestConfig": "libs/ui/jest.config.js"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": ["scope:shared", "type:lib"]
+}

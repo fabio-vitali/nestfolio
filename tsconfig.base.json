@@ -46,7 +46,8 @@
       "@nestfolio/ledger-adpt/domain": ["services/ledger/ledger-adpt/src/domain/index.ts"],
       "@nestfolio/shell": ["libs/shell/src/index.ts"],
       "@nestfolio/shell/testing": ["libs/shell/test/testing/index.ts"],
-      "@nestfolio/shell/*": ["libs/shell/src/*/index.ts"]
+      "@nestfolio/shell/*": ["libs/shell/src/*/index.ts"],
+      "@nestfolio/ui": ["libs/ui/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp", "dist"]
