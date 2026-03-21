@@ -3,16 +3,9 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import {
-  ServiceStack,
-  ServiceStackProps,
-  Ingress,
-  Egress,
-  AgentRuntime,
-  KnowledgeBase,
-  defaultLambdaProps,
-  NamingService,
-} from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
+import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 
 export class PortfolioEngineCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {

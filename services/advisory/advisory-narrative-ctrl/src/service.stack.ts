@@ -2,15 +2,9 @@ import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import {
-  ServiceStack,
-  ServiceStackProps,
-  Ingress,
-  Egress,
-  AgentRuntime,
-  KnowledgeBase,
-  NamingService,
-} from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
+import { NamingService } from '@nestfolio/cdk-constructs/utils';
 
 export class AdvisoryNarrativeCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {

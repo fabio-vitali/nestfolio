@@ -5,16 +5,10 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
-import {
-  ServiceStack,
-  ServiceStackProps,
-  defaultLambdaProps,
-  Monitoring,
-  ServiceDashboard,
-  AdapterSchedule,
-  getDomainAccounts,
-  resolveBusArn,
-} from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
+import { Monitoring, ServiceDashboard } from '@nestfolio/cdk-constructs/observability';
+import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
+import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
 export class YahooFinanceAdptStack extends ServiceStack {
   constructor(
