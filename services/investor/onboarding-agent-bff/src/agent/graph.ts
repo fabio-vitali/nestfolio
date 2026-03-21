@@ -10,7 +10,7 @@ import { computeRiskProfile } from './tools/compute-risk';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 
-export interface GraphDeps {
+interface GraphDeps {
   modelId?: string;
   region?: string;
   repo: OnboardingRepository;

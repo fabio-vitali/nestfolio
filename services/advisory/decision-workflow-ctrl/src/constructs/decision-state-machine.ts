@@ -5,7 +5,7 @@ import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 
-export interface DecisionStateMachineProps {
+interface DecisionStateMachineProps {
   readonly eventBus: IEventBus;
   readonly table: ITable;
   readonly serviceName: string;

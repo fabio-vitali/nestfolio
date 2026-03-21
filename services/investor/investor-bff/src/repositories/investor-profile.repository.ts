@@ -401,38 +401,6 @@ export class InvestorProfileRepository extends TableRepository {
     },
   );
 
-  readonly persistDeposit = this.log('persistDeposit',
-    async (tenantId: string, userId: string, deposit: {
-      depositId: string; amountCents: number; currency: string; status: string; initiatedAt: string;
-    }): Promise<Record<string, unknown>> => {
-      const pk = profilePk(tenantId, userId);
-      const now = getTime();
-      const item: TableEntry = {
-        pk, sk: `Deposit#${deposit.depositId}`, __typename: 'Deposit',
-        tenantId, timestamp: now, userId,
-        ...deposit,
-      };
-      await this.put(item);
-      return item;
-    },
-  );
-
-  readonly persistWithdrawal = this.log('persistWithdrawal',
-    async (tenantId: string, userId: string, withdrawal: {
-      withdrawalId: string; amountCents: number; currency: string; status: string; requestedAt: string;
-    }): Promise<Record<string, unknown>> => {
-      const pk = profilePk(tenantId, userId);
-      const now = getTime();
-      const item: TableEntry = {
-        pk, sk: `Withdrawal#${withdrawal.withdrawalId}`, __typename: 'Withdrawal',
-        tenantId, timestamp: now, userId,
-        ...withdrawal,
-      };
-      await this.put(item);
-      return item;
-    },
-  );
-
   readonly upsertReadOnlyBalance = this.log('upsertReadOnlyBalance',
     async (tenantId: string, userId: string, balanceCents: number): Promise<void> => {
       const pk = profilePk(tenantId, userId);

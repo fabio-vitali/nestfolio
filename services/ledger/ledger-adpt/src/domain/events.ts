@@ -13,6 +13,3 @@ export const LedgerCrossDomainEventTypes = {
   // → Advisory
   PORTFOLIO_DRIFT_DETECTED: 'PORTFOLIO_DRIFT_DETECTED',
 } as const;
-
-export type LedgerCrossDomainEventType =
-  (typeof LedgerCrossDomainEventTypes)[keyof typeof LedgerCrossDomainEventTypes];

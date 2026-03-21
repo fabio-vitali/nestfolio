@@ -1,5 +1,4 @@
 export { LedgerCtrlEventTypes } from './events';
-export type { LedgerCtrlEventType } from './events';
 
 // Account state
 export {

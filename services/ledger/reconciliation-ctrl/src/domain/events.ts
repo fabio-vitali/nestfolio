@@ -9,6 +9,3 @@ export const ReconciliationEventTypes = {
   PROJECTION_REBUILT: 'PROJECTION_REBUILT',
   CORPORATE_ACTION_APPLIED: 'CORPORATE_ACTION_APPLIED',
 } as const;
-
-export type ReconciliationEventType =
-  (typeof ReconciliationEventTypes)[keyof typeof ReconciliationEventTypes];

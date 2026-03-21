@@ -8,6 +8,3 @@ export const ComplianceEventTypes = {
   SUITABILITY_CHECK_PASSED: 'SUITABILITY_CHECK_PASSED',
   SUITABILITY_CHECK_FAILED: 'SUITABILITY_CHECK_FAILED',
 } as const;
-
-export type ComplianceEventType =
-  (typeof ComplianceEventTypes)[keyof typeof ComplianceEventTypes];

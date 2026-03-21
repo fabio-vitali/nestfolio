@@ -9,7 +9,7 @@ export interface EdgarFiling {
   readonly primaryDocument: string;
 }
 
-export interface EdgarSubmissions {
+interface EdgarSubmissions {
   readonly cik: string;
   readonly entityType: string;
   readonly name: string;

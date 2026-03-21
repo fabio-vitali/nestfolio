@@ -3,7 +3,7 @@ import { SystemMessage } from '@langchain/core/messages';
 import { SYSTEM_PROMPT } from './prompts/system';
 import { PHASE_INSTRUCTIONS } from './prompts/phase-instructions';
 
-export interface PhaseNodeDeps {
+interface PhaseNodeDeps {
   model: ChatBedrockConverse;
   tools: readonly any[];
 }

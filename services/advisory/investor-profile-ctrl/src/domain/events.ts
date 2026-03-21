@@ -5,9 +5,6 @@ export const InvestorProfileEventTypes = {
   RISK_EVALUATION_PRODUCED: 'RISK_EVALUATION_PRODUCED',
 } as const;
 
-export type InvestorProfileEventType =
-  (typeof InvestorProfileEventTypes)[keyof typeof InvestorProfileEventTypes];
-
 /** Inbound event types consumed by investor-profile-ctrl */
 export const HANDLED_EVENT_TYPES = new Set([
   'ANALYZE_INVESTOR_PROFILE',

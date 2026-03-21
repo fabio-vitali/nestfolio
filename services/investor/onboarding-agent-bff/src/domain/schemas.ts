@@ -3,7 +3,6 @@ import { z } from 'zod';
 export const OnboardingPhaseSchema = z.enum([
   'goal', 'horizon', 'mode', 'capital', 'risk', 'operating_mode', 'mandate', 'completed',
 ]);
-export type OnboardingPhase = z.infer<typeof OnboardingPhaseSchema>;
 
 export const AccountModeSchema = z.object({
   mode: z.enum(['simulation', 'live']),

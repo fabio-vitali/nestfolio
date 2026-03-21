@@ -4,9 +4,6 @@ export const NarrativeEventTypes = {
   EXPLANATION_GENERATED: 'EXPLANATION_GENERATED',
 } as const;
 
-export type NarrativeEventType =
-  (typeof NarrativeEventTypes)[keyof typeof NarrativeEventTypes];
-
 /** Inbound event types consumed by advisory-narrative-ctrl */
 export const HANDLED_EVENT_TYPES = new Set([
   'GENERATE_NARRATIVE',

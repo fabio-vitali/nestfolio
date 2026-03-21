@@ -8,7 +8,7 @@ const UPSTREAM_SERVICES = [
   'advisory-narrative',
 ] as const;
 
-export interface AssemblePacketDeps {
+interface AssemblePacketDeps {
   memoryClient: MemoryClient;
 }
 

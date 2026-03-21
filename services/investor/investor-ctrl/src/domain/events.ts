@@ -4,6 +4,3 @@ export const InvestorCtrlEventTypes = {
   NOTIFICATION_DELIVERED: 'NOTIFICATION_DELIVERED',
   MONTHLY_REPORT_GENERATED: 'MONTHLY_REPORT_GENERATED',
 } as const;
-
-export type InvestorCtrlEventType =
-  (typeof InvestorCtrlEventTypes)[keyof typeof InvestorCtrlEventTypes];

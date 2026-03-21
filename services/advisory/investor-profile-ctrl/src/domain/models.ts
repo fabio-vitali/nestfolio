@@ -1,11 +1,3 @@
-export interface InvestorProfileInput {
-  readonly tenantId: string;
-  readonly decisionId: string;
-  readonly taskToken: string;
-  readonly investorProfile: Record<string, unknown>;
-  readonly portfolioState: Record<string, unknown>;
-}
-
 export interface GoalInterpretation {
   readonly goals: ReadonlyArray<string>;
   readonly timeHorizon: string;
@@ -19,15 +11,6 @@ export interface RiskEvaluation {
   readonly regulatoryFlags: ReadonlyArray<string>;
   readonly suitabilityAssessment: string;
   readonly confidence: number;
-}
-
-export interface InvestorProfileResult {
-  readonly goals: GoalInterpretation;
-  readonly risk: RiskEvaluation;
-  readonly metadata: {
-    readonly durationMs: number;
-    readonly modelTiers: ReadonlyArray<string>;
-  };
 }
 
 export interface AgentInvocation {

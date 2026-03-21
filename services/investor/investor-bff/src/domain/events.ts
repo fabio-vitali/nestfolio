@@ -23,6 +23,3 @@ export const InvestorBffEventTypes = {
   BROKER_AUTHORIZATION_REVOKED: 'BROKER_AUTHORIZATION_REVOKED',
   NOTIFICATION_READ: 'NOTIFICATION_READ',
 } as const;
-
-export type InvestorBffEventType =
-  (typeof InvestorBffEventTypes)[keyof typeof InvestorBffEventTypes];

@@ -29,17 +29,3 @@ export interface DecisionPacket {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
-
-/** Payload shape for agent trigger events published by Step Functions. */
-export interface AgentTriggerPayload {
-  readonly decisionId: string;
-  readonly tenantId: string;
-  readonly taskToken: string;
-}
-
-/** Payload shape for agent completion events received by the orchestrator. */
-export interface AgentCompletionPayload {
-  readonly decisionId: string;
-  readonly tenantId: string;
-  readonly taskToken: string;
-}

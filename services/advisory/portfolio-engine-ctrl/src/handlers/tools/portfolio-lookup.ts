@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
 
-export interface PortfolioLookupDeps {
+interface PortfolioLookupDeps {
   readonly docClient: DynamoDBDocumentClient;
   readonly tableName: string;
 }

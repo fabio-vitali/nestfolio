@@ -1,5 +1,4 @@
 export { AdvisoryCrossDomainEventTypes } from './events';
-export type { AdvisoryCrossDomainEventType } from './events';
 
 /** A proposed trade within a decision packet. */
 export interface ProposedTrade {

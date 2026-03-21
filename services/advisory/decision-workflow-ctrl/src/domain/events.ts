@@ -21,9 +21,6 @@ export const DecisionWorkflowEventTypes = {
   DECISION_WORKFLOW_FAILED: 'DECISION_WORKFLOW_FAILED',
 } as const;
 
-export type DecisionWorkflowEventType =
-  (typeof DecisionWorkflowEventTypes)[keyof typeof DecisionWorkflowEventTypes];
-
 /**
  * Inbound event types consumed by decision-workflow-ctrl (17 total).
  * Grouped by routing action in the event-listener.

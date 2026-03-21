@@ -33,6 +33,3 @@ export const AdvisoryCtrlEventTypes = {
   EVENT_DELIVERY_FAILED: 'EVENT_DELIVERY_FAILED',
   EVENT_REPLAYED: 'EVENT_REPLAYED',
 } as const;
-
-export type AdvisoryCtrlEventType =
-  (typeof AdvisoryCtrlEventTypes)[keyof typeof AdvisoryCtrlEventTypes];

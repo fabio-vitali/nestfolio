@@ -15,6 +15,3 @@ export const InvestorCrossDomainEventTypes = {
   WITHDRAWAL_REQUESTED: 'WITHDRAWAL_REQUESTED',
   ACCOUNT_CLOSURE_REQUESTED: 'ACCOUNT_CLOSURE_REQUESTED',
 } as const;
-
-export type InvestorCrossDomainEventType =
-  (typeof InvestorCrossDomainEventTypes)[keyof typeof InvestorCrossDomainEventTypes];

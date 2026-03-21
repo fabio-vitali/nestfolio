@@ -21,6 +21,3 @@ export const ExecutionCrossDomainEventTypes = {
   STREAM_DISCONNECTED: 'STREAM_DISCONNECTED',
   RECONCILIATION_FAILED: 'RECONCILIATION_FAILED',
 } as const;
-
-export type ExecutionCrossDomainEventType =
-  (typeof ExecutionCrossDomainEventTypes)[keyof typeof ExecutionCrossDomainEventTypes];

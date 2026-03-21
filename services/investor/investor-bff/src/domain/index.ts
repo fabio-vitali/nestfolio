@@ -1,5 +1,4 @@
 export { InvestorBffEventTypes } from './events';
-export type { InvestorBffEventType } from './events';
 
 export {
   MandateGrantedSchema, GoalUpdatedSchema, RiskProfileUpdatedSchema,

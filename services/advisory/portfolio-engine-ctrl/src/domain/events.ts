@@ -5,9 +5,6 @@ export const PortfolioEngineEventTypes = {
   REBALANCE_PLAN_PRODUCED: 'REBALANCE_PLAN_PRODUCED',
 } as const;
 
-export type PortfolioEngineEventType =
-  (typeof PortfolioEngineEventTypes)[keyof typeof PortfolioEngineEventTypes];
-
 /** Inbound event types consumed by portfolio-engine-ctrl */
 export const HANDLED_EVENT_TYPES = new Set([
   'CONSTRUCT_PORTFOLIO',

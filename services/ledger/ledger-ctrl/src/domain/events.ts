@@ -5,6 +5,3 @@ export const LedgerCtrlEventTypes = {
   LEDGER_PROCESSING_FAILED: 'LEDGER_PROCESSING_FAILED',
   LEDGER_SIMULATION_FAILED: 'LEDGER_SIMULATION_FAILED',
 } as const;
-
-export type LedgerCtrlEventType =
-  (typeof LedgerCtrlEventTypes)[keyof typeof LedgerCtrlEventTypes];

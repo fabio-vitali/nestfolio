@@ -1,10 +1,3 @@
-export interface MarketAnalysisInput {
-  readonly tenantId: string;
-  readonly decisionId: string;
-  readonly taskToken: string;
-  readonly upstreamOutputs: Record<string, unknown>;
-}
-
 export interface MarketSignal {
   readonly type: string;
   readonly ticker: string;
@@ -19,11 +12,6 @@ export interface MarketAnalysisResult {
   readonly marketOutlook: string;
   readonly confidenceScore: number;
   readonly metadata: { readonly durationMs: number; readonly modelTier: string };
-}
-
-export interface FeedContent {
-  readonly source: string;
-  readonly articles: ReadonlyArray<{ title: string; link?: string; pubDate?: string; description?: string }>;
 }
 
 export interface AgentInvocation {

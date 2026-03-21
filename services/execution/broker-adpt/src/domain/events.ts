@@ -15,6 +15,3 @@ export const ExecutionAdptEventTypes = {
   WITHDRAWAL_COMPLETED: 'WITHDRAWAL_COMPLETED',
   WITHDRAWAL_REJECTED: 'WITHDRAWAL_REJECTED',
 } as const;
-
-export type ExecutionAdptEventType =
-  (typeof ExecutionAdptEventTypes)[keyof typeof ExecutionAdptEventTypes];

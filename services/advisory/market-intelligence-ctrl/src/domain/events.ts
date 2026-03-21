@@ -3,9 +3,6 @@ export const MarketIntelligenceEventTypes = {
   MARKET_SIGNAL_DETECTED: 'MARKET_SIGNAL_DETECTED',
 } as const;
 
-export type MarketIntelligenceEventType =
-  (typeof MarketIntelligenceEventTypes)[keyof typeof MarketIntelligenceEventTypes];
-
 export const HANDLED_EVENT_TYPES = new Set(['ANALYZE_MARKET']);
 
 export const FEED_INGESTION_EVENT_TYPES = new Set([

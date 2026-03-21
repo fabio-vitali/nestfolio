@@ -3,6 +3,3 @@ export const AdvisoryBffEventTypes = {
   USER_REJECTED: 'USER_REJECTED',
   USER_VIEWED_EXPLANATION: 'USER_VIEWED_EXPLANATION',
 } as const;
-
-export type AdvisoryBffEventType =
-  (typeof AdvisoryBffEventTypes)[keyof typeof AdvisoryBffEventTypes];

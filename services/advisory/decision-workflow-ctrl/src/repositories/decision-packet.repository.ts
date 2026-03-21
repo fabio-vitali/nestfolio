@@ -8,7 +8,7 @@ function decisionPk(tenantId: string, dpId: string): string {
   return `DecisionPacket#${tenantId}#${dpId}`;
 }
 
-export interface CreateDecisionPacketInput {
+interface CreateDecisionPacketInput {
   readonly tenantId: string;
   readonly decisionId: string;
   readonly trigger: string;

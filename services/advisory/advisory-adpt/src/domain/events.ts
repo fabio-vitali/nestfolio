@@ -18,6 +18,3 @@ export const AdvisoryCrossDomainEventTypes = {
   // → Execution only
   USER_CONFIRMED: 'USER_CONFIRMED',
 } as const;
-
-export type AdvisoryCrossDomainEventType =
-  (typeof AdvisoryCrossDomainEventTypes)[keyof typeof AdvisoryCrossDomainEventTypes];
