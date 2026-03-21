@@ -11,7 +11,7 @@ import {
   withTiming,
 } from '@nestfolio/event-processor';
 import { replayEvents, type LedgerEntry } from '@nestfolio/command-core';
-import { INITIAL_ACCOUNT_STATE, type AccountState, accountReducer } from '@nestfolio/ledger-core';
+import { INITIAL_ACCOUNT_STATE, type AccountState, accountReducer } from '../domain';
 import { LedgerRepository } from '../repositories/ledger.repository';
 
 interface ReducerDeps {
