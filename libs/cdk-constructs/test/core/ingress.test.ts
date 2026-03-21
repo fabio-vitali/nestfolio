@@ -3,8 +3,8 @@ import { Match, Template } from 'aws-cdk-lib/assertions';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { Ingress } from '../src/ingress';
-import { ServiceStack } from '../src/service-stack';
+import { Ingress } from '../../src/core/ingress';
+import { ServiceStack } from '../../src/core/service-stack';
 
 describe('Ingress construct', () => {
   const handlerPath = path.join(os.tmpdir(), 'ingress-test-handler.ts');

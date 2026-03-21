@@ -7,7 +7,7 @@ import {
   getDomainAccounts,
   getConsumerAccountIds,
   resolveBusArn,
-} from '../src/cross-account';
+} from '../../src/extensions/cross-account';
 
 describe('SharedParameter', () => {
   it('creates Standard tier parameter when no consumer accounts', () => {

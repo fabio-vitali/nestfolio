@@ -1,7 +1,7 @@
 import { Template, Match } from 'aws-cdk-lib/assertions';
 import { App, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { AttributeType, ProjectionType, TableEncryption } from 'aws-cdk-lib/aws-dynamodb';
-import { State } from '../src/state';
+import { State } from '../../src/core/state';
 
 describe('State construct', () => {
   let template: Template;

@@ -1,7 +1,7 @@
 import { App, Stack } from 'aws-cdk-lib';
 import { Table, AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import { Template, Match } from 'aws-cdk-lib/assertions';
-import { applyStandardTags } from '../src/tagging';
+import { applyStandardTags } from '../../src/utils/tagging';
 
 describe('applyStandardTags', () => {
   let template: Template;

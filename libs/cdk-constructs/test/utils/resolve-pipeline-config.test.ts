@@ -20,7 +20,7 @@ import {
   loadTierDefaults,
   mergeConfigs,
   HARDCODED_FALLBACKS,
-} from '../src/resolve-pipeline-config';
+} from '../../src/utils/resolve-pipeline-config';
 
 const mockedFs = fs as jest.Mocked<typeof fs>;
 

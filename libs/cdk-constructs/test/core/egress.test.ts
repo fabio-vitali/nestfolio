@@ -3,8 +3,8 @@ import { Match, Template } from 'aws-cdk-lib/assertions';
 import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ServiceStack } from '../src/service-stack';
-import { Egress } from '../src/egress';
+import { ServiceStack } from '../../src/core/service-stack';
+import { Egress } from '../../src/core/egress';
 
 describe('Egress construct', () => {
   const handlersDir = path.join(os.tmpdir(), 'handlers');

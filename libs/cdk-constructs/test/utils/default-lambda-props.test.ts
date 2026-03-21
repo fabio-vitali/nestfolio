@@ -1,6 +1,6 @@
 import { App, Stack, Duration } from 'aws-cdk-lib';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
-import { defaultLambdaProps, agentLambdaProps } from '../src/default-lambda-props';
+import { defaultLambdaProps, agentLambdaProps } from '../../src/utils/default-lambda-props';
 
 describe('defaultLambdaProps', () => {
   let stack: Stack;

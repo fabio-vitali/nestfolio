@@ -13,7 +13,7 @@ export interface NamingServiceConfig {
 
 /** Discovers the subsystem for a service by scanning the services directory. */
 export function discoverSubsystem(serviceName: string): string {
-  const servicesDir = path.resolve(__dirname, '..', '..', '..', 'services');
+  const servicesDir = path.resolve(__dirname, '..', '..', '..', '..', 'services');
   if (!fs.existsSync(servicesDir)) {
     throw new Error(`Services directory not found: ${servicesDir}`);
   }

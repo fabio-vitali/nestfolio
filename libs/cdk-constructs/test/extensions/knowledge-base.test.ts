@@ -1,8 +1,8 @@
 import { Template, Match } from 'aws-cdk-lib/assertions';
 import { App, Stack } from 'aws-cdk-lib';
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
-import { KnowledgeBase } from '../src/knowledge-base';
-import { AdapterSchedule } from '../src/adapter-schedule';
+import { KnowledgeBase } from '../../src/extensions/knowledge-base';
+import { AdapterSchedule } from '../../src/extensions/adapter-schedule';
 
 describe('KnowledgeBase construct', () => {
   let template: Template;

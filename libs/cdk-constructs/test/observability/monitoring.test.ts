@@ -3,7 +3,7 @@ import { App, Stack, Duration } from 'aws-cdk-lib';
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { Topic } from 'aws-cdk-lib/aws-sns';
-import { Monitoring } from '../src/monitoring';
+import { Monitoring } from '../../src/observability/monitoring';
 
 describe('Monitoring construct', () => {
   describe('with Lambda functions', () => {

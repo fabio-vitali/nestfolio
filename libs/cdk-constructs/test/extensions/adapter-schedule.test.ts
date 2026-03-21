@@ -1,7 +1,7 @@
 import { Template, Match } from 'aws-cdk-lib/assertions';
 import { App, Stack, Duration } from 'aws-cdk-lib';
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
-import { AdapterSchedule } from '../src/adapter-schedule';
+import { AdapterSchedule } from '../../src/extensions/adapter-schedule';
 
 describe('AdapterSchedule construct', () => {
   describe('with enabled schedule', () => {

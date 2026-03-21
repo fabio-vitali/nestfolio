@@ -1,5 +1,5 @@
 import { App, Stack } from 'aws-cdk-lib';
-import { NamingService, createNamingService } from '../src/naming-service';
+import { NamingService, createNamingService } from '../../src/utils/naming-service';
 
 describe('NamingService', () => {
   let naming: NamingService;

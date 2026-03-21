@@ -3,7 +3,7 @@ import { Template } from 'aws-cdk-lib/assertions';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { Construct } from 'constructs';
 import * as os from 'os';
-import { ServiceStack } from '../src/service-stack';
+import { ServiceStack } from '../../src/core/service-stack';
 
 describe('ServiceStack', () => {
   function createStack(overrides: Record<string, unknown> = {}) {
