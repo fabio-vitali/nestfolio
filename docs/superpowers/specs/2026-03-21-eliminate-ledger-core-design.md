@@ -65,40 +65,32 @@ All test files from `libs/ledger-core/test/` → `services/ledger/ledger-ctrl/te
 
 ## ledger-ctrl Changes
 
-### Repository: `saveSnapshotHistory`
+### Repository: snapshot history as part of the existing transaction
 
-New method on `LedgerRepository`:
+The snapshot history entry is added as an additional `Put` item inside the existing `saveSnapshotWithEvents` transaction (which already contains 2-4 items, well under DDB's 100-item limit). This ensures atomicity — no snapshot without its history entry.
 
 ```ts
-readonly saveSnapshotHistory = this.log('saveSnapshotHistory',
-  async (
-    tenantId: string,
-    streamType: string,
-    seq: number,
-    state: Record<string, unknown>,
-    ttlDays: number,
-  ): Promise<void> => {
-    const now = getTime();
-    const ttl = Math.floor(Date.now() / 1000) + (ttlDays * 86400);
-    await this.put({
-      pk: `Account#${tenantId}#${streamType}`,
+// Inside saveSnapshotWithEvents transactItems array, add:
+{
+  Put: {
+    TableName: this.tableName,
+    Item: {
+      pk,
       sk: `SnapshotAt#${now}`,
       __typename: 'SnapshotHistory',
-      tenantId,
-      streamType,
+      tenantId: data.tenantId,
+      streamType: data.streamType,
       timestamp: now,
-      positions: (state as any).positions ?? {},
-      cashBalanceCents: (state as any).cashBalanceCents ?? 0,
-      lastEventSequence: seq,
-      ttl,
-    });
+      positions: (data.state as any).positions ?? {},
+      cashBalanceCents: (data.state as any).cashBalanceCents ?? 0,
+      lastEventSequence: data.lastEventSequence,
+      ttl: Math.floor(Date.now() / 1000) + (ttlDays * 86400),
+    },
   },
-);
+},
 ```
 
-### Reducer: append snapshot history
-
-After `saveSnapshotWithEvents`, call `saveSnapshotHistory` with the computed `nextState` and `maxSeq`. Same data, additional append.
+Note: `ttlDays` is sourced from `SNAPSHOT_HISTORY_TTL_DAYS` env var (default: 365).
 
 ### Event enrichment
 
@@ -119,36 +111,43 @@ Published events (BALANCE_UPDATED, PORTFOLIO_UPDATED) include the full snapshot 
 
 ### Repository: `getSnapshotAt` and `saveSnapshotAt`
 
+Time-travel only applies to the `actual` stream (the simulated stream has its own `getSimulationComparison` query that reads latest state directly). The BFF PK includes `actual` explicitly:
+
 ```ts
 readonly getSnapshotAt = this.log('getSnapshotAt',
   async (tenantId: string, timestamp: string): Promise<Record<string, unknown> | null> => {
-    const items = await this.queryAll({
-      TableName: this.tableName,
-      KeyConditionExpression: 'pk = :pk AND sk <= :ts',
-      ExpressionAttributeValues: {
-        ':pk': `SnapshotAt#${tenantId}`,
-        ':ts': timestamp,
-      },
-      ScanIndexForward: false,
-      Limit: 1,
-    });
-    return items[0] ?? null;
+    const result = await this.docClient.send(
+      new QueryCommand({
+        TableName: this.tableName,
+        KeyConditionExpression: 'pk = :pk AND sk <= :ts',
+        ExpressionAttributeValues: {
+          ':pk': `SnapshotAt#${tenantId}#actual`,
+          ':ts': timestamp,
+        },
+        ScanIndexForward: false,
+        Limit: 1,
+      }),
+    );
+    const items = result.Items ?? [];
+    return items.length > 0 ? (items[0] as Record<string, unknown>) : null;
   },
 );
 
 readonly saveSnapshotAt = this.log('saveSnapshotAt',
   async (
     tenantId: string,
+    streamType: string,
     timestamp: string,
     snapshot: CheckpointState,
     ttlDays: number,
   ): Promise<void> => {
     const ttl = Math.floor(Date.now() / 1000) + (ttlDays * 86400);
     await this.put({
-      pk: `SnapshotAt#${tenantId}`,
+      pk: `SnapshotAt#${tenantId}#${streamType}`,
       sk: timestamp,
       __typename: 'SnapshotAt',
       tenantId,
+      streamType,
       timestamp,
       positions: snapshot.positions,
       cashBalanceCents: snapshot.cashBalanceCents,
@@ -157,6 +156,8 @@ readonly saveSnapshotAt = this.log('saveSnapshotAt',
   },
 );
 ```
+
+Note: `saveSnapshotAt` accepts `streamType` so the pipe can store snapshots for both streams. `getSnapshotAt` hardcodes `actual` since time-travel is only for the actual portfolio.
 
 ### TimeTravelService rewrite
 
@@ -206,7 +207,7 @@ The existing `portfolio-updated` and `balance-updated` pipes extract the `snapsh
 |--------|---------|----------|
 | Time-travel query latency | O(n) — grows with event count | O(1) — single DDB query |
 | Time-travel Lambda memory | Higher (holds event list + replay state) | Lower (reads one snapshot row) |
-| Write-side cost per batch | 1 transaction (snapshot + events) | 1 transaction + 1 PutItem (snapshot history) |
+| Write-side cost per batch | 1 transaction (snapshot + events) | 1 transaction (snapshot + events + snapshot history — same transaction, +1 item) |
 | DDB storage | Events + 1 snapshot + daily checkpoints | Events + 1 snapshot + daily checkpoints + N snapshot history items (TTL-bounded) |
 | BFF bundle size | Includes reducer + command-core | Smaller (no domain logic) |
 
@@ -217,4 +218,7 @@ After migration:
 - Remove `@nestfolio/ledger-core` from root `tsconfig.base.json` paths
 - Remove `ledger-core` from `nx.json` / workspace project references
 - Remove `@nestfolio/command-core` import from `ledger-bff` (no longer needed)
+- Remove `@nestfolio/ledger-core` moduleNameMapper from `dashboard-bff/jest.config.js`
+- Update `ledger-ctrl/test/handlers/event-listener.test.ts` — remove `jest.mock('@nestfolio/ledger-core', ...)`, update imports to `../src/domain/`
+- Update all `ledger-bff` test files — remove `jest.mock('@nestfolio/ledger-core', ...)` references
 - Daily checkpoint logic in both services can optionally be removed (snapshot history supersedes it) — but can also be kept as a coarser-grained safety net
