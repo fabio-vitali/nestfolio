@@ -19,6 +19,9 @@ export class LedgerBffStack extends ServiceStack {
         'PORTFOLIO_UPDATED',
         'LEDGER_ENTRY_RECORDED',
       ],
+      environment: {
+        SNAPSHOT_HISTORY_TTL_DAYS: '365',
+      },
     });
 
     // GraphQL resolver Lambda (handles getPortfolioAt + getSimulationComparison)

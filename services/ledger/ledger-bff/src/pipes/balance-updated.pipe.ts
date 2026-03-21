@@ -1,9 +1,15 @@
 import { type Pipe, type UnitOfWork, type BusEvent, logger } from '@nestfolio/event-processor';
-import { PortfolioRepository } from '../repositories/portfolio.repository';
+import { PortfolioRepository, type PositionRecord } from '../repositories/portfolio.repository';
 
 type BalancePayload = {
   cashBalanceCents: number;
   deltaCents: number;
+  streamType?: string;
+  snapshot?: {
+    positions: Record<string, PositionRecord>;
+    cashBalanceCents: number;
+    lastEventSequence: number;
+  };
 };
 
 export class BalanceUpdatedPipe
@@ -20,6 +26,16 @@ export class BalanceUpdatedPipe
     const deltaCents = payload.deltaCents ?? 0;
 
     await this.repository.upsertBalance(tenantId, balanceCents, deltaCents);
+
+    // Store snapshot-at for time-travel queries
+    if (payload.snapshot) {
+      const ttlDays = Number(process.env['SNAPSHOT_HISTORY_TTL_DAYS'] ?? '365');
+      const streamType = payload.streamType ?? 'actual';
+      await this.repository.saveSnapshotAt(tenantId, streamType, event.timestamp, {
+        cashBalanceCents: payload.snapshot.cashBalanceCents,
+        positions: payload.snapshot.positions,
+      }, ttlDays);
+    }
 
     logger.info('Updated balance projection', {
       tenantId,

@@ -3,6 +3,12 @@ import { PortfolioRepository, type PositionRecord } from '../repositories/portfo
 
 type PortfolioPayload = {
   positions: Record<string, PositionRecord>;
+  streamType?: string;
+  snapshot?: {
+    positions: Record<string, PositionRecord>;
+    cashBalanceCents: number;
+    lastEventSequence: number;
+  };
 };
 
 export class PortfolioUpdatedPipe
@@ -25,6 +31,16 @@ export class PortfolioUpdatedPipe
         totalCostBasis: position.totalCostBasis ?? 0,
         lastFillPrice: position.lastFillPrice ?? 0,
       });
+    }
+
+    // Store snapshot-at for time-travel queries
+    if (payload.snapshot) {
+      const ttlDays = Number(process.env['SNAPSHOT_HISTORY_TTL_DAYS'] ?? '365');
+      const streamType = payload.streamType ?? 'actual';
+      await this.repository.saveSnapshotAt(tenantId, streamType, event.timestamp, {
+        cashBalanceCents: payload.snapshot.cashBalanceCents,
+        positions: payload.snapshot.positions,
+      }, ttlDays);
     }
 
     logger.info('Updated portfolio positions projection', {

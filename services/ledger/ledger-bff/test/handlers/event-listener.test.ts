@@ -153,6 +153,52 @@ describe('ledger-bff event-listener handler', () => {
     expect(result.batchItemFailures).toHaveLength(1);
   });
 
+  it('should store snapshot-at on BALANCE_UPDATED when snapshot data is present', async () => {
+    const result = await harness.process([
+      fakeSqsRecord('BALANCE_UPDATED', {
+        cashBalanceCents: 950_000,
+        deltaCents: -50_000,
+        streamType: 'actual',
+        snapshot: {
+          positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 250 } },
+          cashBalanceCents: 950_000,
+          lastEventSequence: 5,
+        },
+      }, { tenantId: 't1' }),
+    ]);
+    expect(result.batchItemFailures).toHaveLength(0);
+
+    // Update call for upsertBalance + Put call for saveSnapshotAt
+    const putCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'Put');
+    expect(putCalls.length).toBe(1);
+    expect(putCalls[0][0].input.Item.pk).toBe('SnapshotAt#t1#actual');
+    expect(putCalls[0][0].input.Item.__typename).toBe('SnapshotAt');
+  });
+
+  it('should store snapshot-at on PORTFOLIO_UPDATED when snapshot data is present', async () => {
+    const result = await harness.process([
+      fakeSqsRecord('PORTFOLIO_UPDATED', {
+        positions: {
+          VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 251 },
+        },
+        streamType: 'actual',
+        snapshot: {
+          positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 251 } },
+          cashBalanceCents: 9_500_000,
+          lastEventSequence: 6,
+        },
+      }, { tenantId: 't1' }),
+    ]);
+    expect(result.batchItemFailures).toHaveLength(0);
+
+    const putCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'Put');
+    // 1 put for position upsert + 1 put for saveSnapshotAt
+    expect(putCalls.length).toBe(2);
+    const snapshotPut = putCalls.find((c: any) => c[0].input.Item.__typename === 'SnapshotAt');
+    expect(snapshotPut).toBeDefined();
+    expect(snapshotPut![0].input.Item.pk).toBe('SnapshotAt#t1#actual');
+  });
+
   it('should handle simulated LEDGER_ENTRY_RECORDED with simulation upserts', async () => {
     const result = await harness.process([
       fakeSqsRecord('LEDGER_ENTRY_RECORDED', {
