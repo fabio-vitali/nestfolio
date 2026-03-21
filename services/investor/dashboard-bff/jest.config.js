@@ -4,7 +4,6 @@ module.exports = {
   displayName: 'dashboard-bff',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@nestfolio/ledger-core$': '<rootDir>/../../../libs/ledger-core/src/index.ts',
     '^@nestfolio/cdk-constructs$': '<rootDir>/../../../libs/cdk-constructs/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
