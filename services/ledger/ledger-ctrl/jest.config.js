@@ -11,8 +11,7 @@ module.exports = {
   },
   transformIgnorePatterns: ['node_modules/(?!.*p-limit/|.*yocto-queue/)'],
   moduleNameMapper: {
-    '^@nestfolio/command-core$': '<rootDir>/../../../libs/command-core/src/index.ts',
-    '^@nestfolio/cdk-constructs$': '<rootDir>/../../../libs/cdk-constructs/src/index.ts',
+'^@nestfolio/cdk-constructs$': '<rootDir>/../../../libs/cdk-constructs/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
     '^@nestfolio/execution-adpt/domain$': '<rootDir>/../../execution/execution-adpt/src/domain/index.ts',

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { defineCommand } from '@nestfolio/command-core';
+import { defineCommand } from '@nestfolio/event-processor/sourcing';
 import { type AccountState } from './account-state';
 
 export const RecordFillSchema = z.object({

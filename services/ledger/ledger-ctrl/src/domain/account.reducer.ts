@@ -1,7 +1,7 @@
 import {
   type EventReducer,
   applyCommand,
-} from '@nestfolio/command-core';
+} from '@nestfolio/event-processor/sourcing';
 import { type AccountState } from './account-state';
 import { RecordDeposit } from './record-deposit';
 import { RecordWithdrawal } from './record-withdrawal';

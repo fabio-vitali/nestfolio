@@ -1,4 +1,4 @@
-import { applyCommand } from '@nestfolio/command-core';
+import { applyCommand } from '@nestfolio/event-processor/sourcing';
 import { INITIAL_ACCOUNT_STATE, type AccountState } from '../../src/domain/account-state';
 import { RecordFill } from '../../src/domain/record-fill';
 
