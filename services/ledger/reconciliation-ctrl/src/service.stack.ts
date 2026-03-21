@@ -1,6 +1,7 @@
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { Construct } from 'constructs';
-import { ServiceStack, ServiceStackProps, Ingress, Egress, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 
 export class ReconciliationCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {

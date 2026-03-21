@@ -10,7 +10,8 @@ import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
-import { ServiceStack, ServiceStackProps, defaultLambdaProps } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
+import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { join } from 'path';
 
 export class InvestorWebStack extends ServiceStack {

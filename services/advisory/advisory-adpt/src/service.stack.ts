@@ -3,14 +3,9 @@ import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
-import {
-  ServiceStack,
-  ServiceStackProps,
-  Monitoring,
-  ServiceDashboard,
-  getDomainAccounts,
-  resolveBusArn,
-} from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
+import { Monitoring, ServiceDashboard } from '@nestfolio/cdk-constructs/observability';
+import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { AdvisoryCrossDomainEventTypes } from './domain/events';
 
 export class AdvisoryAdptStack extends ServiceStack {

@@ -5,7 +5,8 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
 import { BedrockFoundationModel } from '@aws-cdk/aws-bedrock-alpha';
-import { ServiceStack, ServiceStackProps, NamingService, Ingress, Egress, defaultLambdaProps } from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { NamingService, defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { DecisionStateMachine } from './constructs/decision-state-machine';
 import { ALL_INBOUND_EVENT_TYPES } from './domain/events';
 
