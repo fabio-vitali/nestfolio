@@ -1,10 +1,9 @@
 import { Duration } from 'aws-cdk-lib';
 import { EventBus, Archive } from 'aws-cdk-lib/aws-events';
 import { Construct } from 'constructs';
-import {
-  ServiceStack, ServiceStackProps, CostControls, Monitoring, ServiceDashboard,
-  SharedParameter, CrossAccountBusPolicy, getDomainAccounts, getConsumerAccountIds,
-} from '@nestfolio/cdk-constructs';
+import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
+import { Monitoring, ServiceDashboard } from '@nestfolio/cdk-constructs/observability';
+import { CostControls, SharedParameter, CrossAccountBusPolicy, getDomainAccounts, getConsumerAccountIds } from '@nestfolio/cdk-constructs/extensions';
 
 export class InvestorHubStack extends ServiceStack {
   readonly bus: EventBus;
