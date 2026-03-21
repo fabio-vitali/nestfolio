@@ -364,6 +364,49 @@ describe('ledger-ctrl reducer handler', () => {
     expect(snapshotHistory.Put.Item.ttl).toBeGreaterThan(0);
   });
 
+  it('should include snapshot data in BalanceEvent and PortfolioEvent items', async () => {
+    mockSend
+      .mockResolvedValueOnce({ Items: [] }) // getLatestSnapshot
+      .mockResolvedValueOnce({
+        Items: [{
+          eventId: 'evt-1',
+          eventType: 'ORDER_FILLED',
+          payload: { orderId: 'o1', symbol: 'VTI', side: 'BUY', quantity: 10, fillPrice: 245.50, filledAt: '2025-01-01T00:00:00.000Z' },
+          timestamp: '2025-01-01T00:00:00.000Z',
+          sequenceNo: 1,
+          streamType: 'actual',
+        }],
+      }) // queryEntriesSince
+      .mockResolvedValue({}); // transactWrite + checkpoint
+
+    const event = buildStreamEvent([{
+      eventType: 'ORDER_FILLED',
+      tenantId: 't1',
+      streamType: 'actual',
+      sequenceNo: 1,
+      payload: { orderId: 'o1', symbol: 'VTI', side: 'BUY', quantity: 10, fillPrice: 245.50, filledAt: '2025-01-01T00:00:00.000Z' },
+    }]);
+
+    await reducer(event);
+
+    const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
+    const transactItems = txCalls[0][0].input.TransactItems;
+
+    const balanceItem = transactItems.find(
+      (t: any) => t.Put.Item.__typename === 'BalanceEvent',
+    );
+    expect(balanceItem.Put.Item.snapshot).toBeDefined();
+    expect(balanceItem.Put.Item.snapshot.positions).toBeDefined();
+    expect(balanceItem.Put.Item.snapshot.cashBalanceCents).toBeDefined();
+    expect(balanceItem.Put.Item.snapshot.lastEventSequence).toBe(1);
+
+    const portfolioItem = transactItems.find(
+      (t: any) => t.Put.Item.__typename === 'PortfolioEvent',
+    );
+    expect(portfolioItem.Put.Item.snapshot).toBeDefined();
+    expect(portfolioItem.Put.Item.snapshot.positions).toBeDefined();
+  });
+
   it('should throw and record failure on unexpected errors', async () => {
     mockSend
       .mockResolvedValueOnce({ Items: [] }) // getLatestSnapshot

@@ -94,6 +94,12 @@ export class LedgerRepository extends TableRepository {
       const pk = `Account#${data.tenantId}#${data.streamType}`;
       const totalValueCents = this.computeTotalValue(data.state);
 
+      const snapshot = {
+        positions: (data.state as any).positions ?? {},
+        cashBalanceCents: (data.state as any).cashBalanceCents ?? 0,
+        lastEventSequence: data.lastEventSequence,
+      };
+
       const transactItems: Record<string, unknown>[] = [
         // Snapshot item
         {
@@ -134,6 +140,7 @@ export class LedgerRepository extends TableRepository {
               totalValueCents,
               userId: data.userId ?? 'system',
               version: data.version,
+              snapshot,
             },
           },
         });
@@ -156,6 +163,7 @@ export class LedgerRepository extends TableRepository {
               totalValueCents,
               userId: data.userId ?? 'system',
               version: data.version,
+              snapshot,
             },
           },
         });
@@ -175,6 +183,7 @@ export class LedgerRepository extends TableRepository {
             lastEventSequence: data.lastEventSequence,
             userId: data.userId ?? 'system',
             version: data.version,
+            snapshot,
           },
         },
       });
