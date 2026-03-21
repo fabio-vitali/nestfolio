@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { CachedQuery } from '../src/cached-query';
+import { CachedQuery } from '../../src/graphql/cached-query';
 
 describe('CachedQuery', () => {
   let loader: jest.Mock;

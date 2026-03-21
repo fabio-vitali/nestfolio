@@ -6,7 +6,7 @@ import {
   getAuthSession,
   getAuthUser,
   isAuthenticated,
-} from '../src/auth.service';
+} from '../../src/auth/auth.service';
 
 const mockSignIn = jest.fn();
 const mockSignUp = jest.fn();

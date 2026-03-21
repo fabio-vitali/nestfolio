@@ -19,9 +19,9 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
-import { authInterceptor } from '../src/auth.interceptor';
-import { AuthInterceptorState } from '../src/auth-interceptor-state.service';
-import * as authService from '../src/auth.service';
+import { authInterceptor } from '../../src/auth/auth.interceptor';
+import { AuthInterceptorState } from '../../src/auth/auth-interceptor-state.service';
+import * as authService from '../../src/auth/auth.service';
 
 describe('authInterceptor', () => {
   let http: HttpClient;

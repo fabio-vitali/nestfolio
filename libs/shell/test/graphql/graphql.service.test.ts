@@ -78,7 +78,7 @@ jest.mock('aws-amplify/auth', () => ({
   }),
 }));
 
-import { GraphqlService } from '../src/graphql.service';
+import { GraphqlService } from '../../src/graphql/graphql.service';
 import { ApolloClient } from '@apollo/client/core';
 
 describe('GraphqlService', () => {

@@ -6,7 +6,7 @@ jest.mock('@angular/core', () => ({
   },
 }));
 
-import { APPSYNC_CONFIG } from '../src/appsync.config';
+import { APPSYNC_CONFIG } from '../../src/graphql/appsync.config';
 
 describe('APPSYNC_CONFIG', () => {
   it('is an InjectionToken with description', () => {

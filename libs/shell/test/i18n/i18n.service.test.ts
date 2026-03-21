@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { TranslateService, TranslateModule } from '@ngx-translate/core';
-import { I18nService } from '../src/i18n.service';
+import { I18nService } from '../../src/i18n/i18n.service';
 
 describe('I18nService', () => {
   let service: I18nService;

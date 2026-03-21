@@ -43,7 +43,10 @@
       "@nestfolio/investor-adpt/domain": ["services/investor/investor-adpt/src/domain/index.ts"],
       "@nestfolio/advisory-adpt/domain": ["services/advisory/advisory-adpt/src/domain/index.ts"],
       "@nestfolio/execution-adpt/domain": ["services/execution/execution-adpt/src/domain/index.ts"],
-      "@nestfolio/ledger-adpt/domain": ["services/ledger/ledger-adpt/src/domain/index.ts"]
+      "@nestfolio/ledger-adpt/domain": ["services/ledger/ledger-adpt/src/domain/index.ts"],
+      "@nestfolio/shell": ["libs/shell/src/index.ts"],
+      "@nestfolio/shell/testing": ["libs/shell/test/testing/index.ts"],
+      "@nestfolio/shell/*": ["libs/shell/src/*/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp", "dist"]
