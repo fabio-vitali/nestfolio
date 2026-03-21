@@ -4,7 +4,7 @@ import { ApolloClient, InMemoryCache, HttpLink, gql, ApolloLink } from '@apollo/
 import { createAuthLink, AUTH_TYPE, AuthOptions } from 'aws-appsync-auth-link';
 import { createSubscriptionHandshakeLink } from 'aws-appsync-subscription-link';
 import { fetchAuthSession } from 'aws-amplify/auth';
-import { LogoutOrchestrator } from '@nestfolio/shared-state';
+import { LogoutOrchestrator } from '@nestfolio/shell';
 import { APPSYNC_CONFIG } from './appsync.config';
 
 @Injectable()

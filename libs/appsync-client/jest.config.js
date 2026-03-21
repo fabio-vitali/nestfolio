@@ -5,6 +5,6 @@ module.exports = {
   displayName: 'appsync-client',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@nestfolio/shared-state$': '<rootDir>/../shared-state/src/index.ts',
+    '^@nestfolio/shell$': '<rootDir>/../shell/src/index.ts',
   },
 };

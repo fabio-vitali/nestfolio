@@ -77,7 +77,7 @@ jest.mock('aws-amplify/auth', () => ({
   }),
 }));
 
-jest.mock('@nestfolio/shared-state', () => ({
+jest.mock('@nestfolio/shell', () => ({
   LogoutOrchestrator: class {},
 }));
 
