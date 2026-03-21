@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { ShellLayoutComponent } from '@nestfolio/ui-components';
-import { AuthStore } from '@nestfolio/shared-state';
+import { ShellLayoutComponent } from '@nestfolio/ui';
+import { AuthStore } from '@nestfolio/shell';
 
 @Component({
   selector: 'app-root',

@@ -19,7 +19,7 @@ jest.mock('aws-amplify/auth', () => ({
 const MockGraphqlService = class {};
 const mockAPPSYNC_CONFIG = 'APPSYNC_CONFIG_TOKEN';
 
-jest.mock('@nestfolio/appsync-client', () => ({
+jest.mock('@nestfolio/shell/graphql', () => ({
   APPSYNC_CONFIG: mockAPPSYNC_CONFIG,
   GraphqlService: MockGraphqlService,
 }));

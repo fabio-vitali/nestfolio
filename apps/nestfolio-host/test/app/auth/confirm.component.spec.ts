@@ -5,13 +5,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { ConfirmComponent } from '../../../src/app/auth/confirm.component';
-import { AuthStore } from '@nestfolio/shared-state';
+import { AuthStore } from '@nestfolio/shell';
 
-jest.mock('@nestfolio/auth', () => ({
+jest.mock('@nestfolio/shell/auth', () => ({
   authConfirmSignUp: jest.fn(),
 }));
 
-import { authConfirmSignUp } from '@nestfolio/auth';
+import { authConfirmSignUp } from '@nestfolio/shell/auth';
 
 describe('ConfirmComponent', () => {
   let fixture: ComponentFixture<ConfirmComponent>;

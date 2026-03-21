@@ -2,10 +2,10 @@ import { ApplicationConfig, provideZonelessChangeDetection, APP_INITIALIZER, Err
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { provideAuth, authInterceptor, getAuthUser } from '@nestfolio/auth';
-import { provideI18n } from '@nestfolio/i18n';
-import { provideNestfolioTheme } from '@nestfolio/ui-components';
-import { AuthStore, GlobalErrorHandler } from '@nestfolio/shared-state';
+import { provideAuth, authInterceptor, getAuthUser } from '@nestfolio/shell/auth';
+import { provideI18n } from '@nestfolio/shell/i18n';
+import { provideNestfolioTheme } from '@nestfolio/ui';
+import { AuthStore, GlobalErrorHandler } from '@nestfolio/shell';
 import { appRoutes } from './app.routes';
 import { environment } from '../environments/environment';
 

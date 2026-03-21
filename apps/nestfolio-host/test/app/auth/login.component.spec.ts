@@ -5,11 +5,11 @@ import { CommonModule } from '@angular/common';
 import { TranslateModule } from '@ngx-translate/core';
 import { LoginComponent } from '../../../src/app/auth/login.component';
 
-jest.mock('@nestfolio/auth', () => ({
+jest.mock('@nestfolio/shell/auth', () => ({
   authSignIn: jest.fn(),
 }));
 
-import { authSignIn } from '@nestfolio/auth';
+import { authSignIn } from '@nestfolio/shell/auth';
 
 describe('LoginComponent', () => {
   let fixture: ComponentFixture<LoginComponent>;

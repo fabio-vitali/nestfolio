@@ -1,6 +1,6 @@
 import { Route } from '@angular/router';
 import { loadRemoteModule } from '@angular-architects/native-federation';
-import { authGuard } from '@nestfolio/auth';
+import { authGuard } from '@nestfolio/shell/auth';
 import { MfeErrorComponent } from './mfe-error.component';
 import { provideGraphqlFor } from './provide-graphql';
 

@@ -7,9 +7,9 @@ import { PasswordModule } from 'primeng/password';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { CardModule } from 'primeng/card';
-import { authSignIn, getAuthUser } from '@nestfolio/auth';
-import { I18nService } from '@nestfolio/i18n';
-import { AuthStore } from '@nestfolio/shared-state';
+import { authSignIn, getAuthUser } from '@nestfolio/shell/auth';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { AuthStore } from '@nestfolio/shell';
 
 @Component({
   selector: 'app-login',

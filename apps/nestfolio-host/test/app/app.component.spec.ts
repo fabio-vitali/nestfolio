@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { AppComponent } from '../../src/app/app.component';
 
-jest.mock('@nestfolio/auth', () => ({
+jest.mock('@nestfolio/shell/auth', () => ({
   getAuthUser: jest.fn().mockResolvedValue(null),
   authGuard: () => true,
 }));
