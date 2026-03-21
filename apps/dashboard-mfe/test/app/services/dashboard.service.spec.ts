@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { GraphqlService } from '@nestfolio/appsync-client';
-import { LogoutOrchestrator } from '@nestfolio/shared-state';
+import { GraphqlService } from '@nestfolio/shell/graphql';
+import { LogoutOrchestrator } from '@nestfolio/shell';
 import { DashboardService } from '../../../src/app/services/dashboard.service';
 
 describe('DashboardService', () => {

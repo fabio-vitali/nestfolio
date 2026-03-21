@@ -2,7 +2,7 @@ import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
-import { I18nService } from '@nestfolio/i18n';
+import { I18nService } from '@nestfolio/shell/i18n';
 import type { AdvisoryStatus } from '../stores/dashboard.store';
 
 @Component({

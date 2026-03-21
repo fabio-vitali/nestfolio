@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivityFeedComponent } from '../../../src/app/dashboard/activity-feed.component';
-import { I18nService } from '@nestfolio/i18n';
+import { I18nService } from '@nestfolio/shell/i18n';
 
 describe('ActivityFeedComponent', () => {
   let component: ActivityFeedComponent;

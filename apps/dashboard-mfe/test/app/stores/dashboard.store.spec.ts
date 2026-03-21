@@ -8,7 +8,7 @@ import {
   DashboardData,
   SimulationSummary,
 } from '../../../src/app/stores/dashboard.store';
-import { LogoutOrchestrator } from '@nestfolio/shared-state';
+import { LogoutOrchestrator } from '@nestfolio/shell';
 
 describe('DashboardStore', () => {
   let store: InstanceType<typeof DashboardStore>;

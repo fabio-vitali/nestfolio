@@ -1,12 +1,12 @@
 import { Injectable, inject } from '@angular/core';
-import { GraphqlService, CachedQuery } from '@nestfolio/appsync-client';
+import { GraphqlService, CachedQuery } from '@nestfolio/shell/graphql';
 import {
   GET_DASHBOARD,
   GET_POSITION_SNAPSHOTS,
   GET_RECENT_ACTIVITY,
   GET_SIMULATION_SUMMARY,
 } from '../graphql/dashboard-bff.queries';
-import { LogoutOrchestrator } from '@nestfolio/shared-state';
+import { LogoutOrchestrator } from '@nestfolio/shell';
 import type {
   DashboardData,
   PositionSnapshot,

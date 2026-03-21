@@ -2,8 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { DashboardContainerComponent } from '../../../src/app/dashboard/dashboard-container.component';
 import { DashboardStore } from '../../../src/app/stores/dashboard.store';
 import { DashboardService } from '../../../src/app/services/dashboard.service';
-import { I18nService } from '@nestfolio/i18n';
-import { setupComponentTest, createMockI18nService } from '@nestfolio/shared-state/testing';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { setupComponentTest, createMockI18nService } from '@nestfolio/shell/testing';
 
 describe('DashboardContainerComponent', () => {
   let component: DashboardContainerComponent;

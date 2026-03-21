@@ -1,9 +1,9 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MessageModule } from 'primeng/message';
-import { I18nService } from '@nestfolio/i18n';
-import { parseError } from '@nestfolio/shared-state';
-import { LoadingSkeletonComponent } from '@nestfolio/ui-components';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { parseError } from '@nestfolio/shell';
+import { LoadingSkeletonComponent } from '@nestfolio/ui';
 import { DashboardStore } from '../stores/dashboard.store';
 import { DashboardService } from '../services/dashboard.service';
 import { KpiCardsComponent } from './kpi-cards.component';

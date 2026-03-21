@@ -3,8 +3,8 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
-import { I18nService } from '@nestfolio/i18n';
-import { PercentFormatPipe } from '@nestfolio/ui-components';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { PercentFormatPipe } from '@nestfolio/ui';
 import type { SimulationSummary } from '../stores/dashboard.store';
 
 @Component({

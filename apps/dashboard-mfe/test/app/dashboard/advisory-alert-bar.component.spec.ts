@@ -1,7 +1,7 @@
 import { ComponentFixture } from '@angular/core/testing';
 import { AdvisoryAlertBarComponent } from '../../../src/app/dashboard/advisory-alert-bar.component';
-import { I18nService } from '@nestfolio/i18n';
-import { setupComponentTest, createMockI18nService } from '@nestfolio/shared-state/testing';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { setupComponentTest, createMockI18nService } from '@nestfolio/shell/testing';
 
 describe('AdvisoryAlertBarComponent', () => {
   let component: AdvisoryAlertBarComponent;

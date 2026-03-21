@@ -1,8 +1,8 @@
 import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CardModule } from 'primeng/card';
-import { I18nService } from '@nestfolio/i18n';
-import { RelativeTimePipe } from '@nestfolio/ui-components';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { RelativeTimePipe } from '@nestfolio/ui';
 import type { ActivityEntry } from '../stores/dashboard.store';
 
 @Component({
