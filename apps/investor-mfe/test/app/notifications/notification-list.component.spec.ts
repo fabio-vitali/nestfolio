@@ -3,9 +3,9 @@ import { Router } from '@angular/router';
 import { NotificationListComponent } from '../../../src/app/notifications/notification-list.component';
 import { NotificationStore, Notification } from '../../../src/app/stores/notification.store';
 import { NotificationService } from '../../../src/app/services/notification.service';
-import { I18nService } from '@nestfolio/i18n';
-import { NotificationStore as NotificationCountStore } from '@nestfolio/shared-state';
-import { setupComponentTest, createMockI18nService, createMockRouter } from '@nestfolio/shared-state/testing';
+import { I18nService } from '@nestfolio/shell/i18n';
+import { NotificationStore as NotificationCountStore } from '@nestfolio/shell';
+import { setupComponentTest, createMockI18nService, createMockRouter } from '@nestfolio/shell/testing';
 
 const makeNotification = (id: string, status = 'CREATED'): Notification => ({
   notificationId: id,

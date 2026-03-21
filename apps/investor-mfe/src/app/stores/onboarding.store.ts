@@ -1,6 +1,6 @@
 import { computed } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
-import { withCallState, withDevtools, withLogoutReset } from '@nestfolio/shared-state';
+import { withCallState, withDevtools, withLogoutReset } from '@nestfolio/shell';
 
 interface OnboardingChatState {
   phaseIndex: number;

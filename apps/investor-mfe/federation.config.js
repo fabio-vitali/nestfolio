@@ -34,6 +34,6 @@ module.exports = withNativeFederation({
   shared: {
     ...sharedFrontendDeps,
   },
-  sharedMappings: ['@nestfolio/ui-components', '@nestfolio/auth', '@nestfolio/i18n', '@nestfolio/shared-state', '@nestfolio/appsync-client'],
+  sharedMappings: ['@nestfolio/ui', '@nestfolio/shell'],
   skip: [],
 });

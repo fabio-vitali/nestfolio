@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { GraphqlService } from '@nestfolio/appsync-client';
+import { GraphqlService } from '@nestfolio/shell/graphql';
 import {
   GET_NOTIFICATIONS,
   GET_UNREAD_COUNT,

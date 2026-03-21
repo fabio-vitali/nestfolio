@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { NotificationStore, Notification } from '../../../src/app/stores/notification.store';
-import { LogoutOrchestrator } from '@nestfolio/shared-state';
+import { LogoutOrchestrator } from '@nestfolio/shell';
 
 const makeNotification = (id: string, status = 'CREATED'): Notification => ({
   notificationId: id,

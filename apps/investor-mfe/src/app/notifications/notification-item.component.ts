@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RelativeTimePipe } from '@nestfolio/ui-components';
+import { RelativeTimePipe } from '@nestfolio/ui';
 import type { Notification } from '../stores/notification.store';
 
 @Component({
