@@ -35,6 +35,7 @@ export class LedgerCtrlStack extends ServiceStack {
       environment: {
         TABLE_NAME: this.state.getTable().tableName,
         SERVICE_NAME: 'ledger-ctrl',
+        SNAPSHOT_HISTORY_TTL_DAYS: '365',
       },
     });
     this.state.getTable().grantReadWriteData(reducerFn);

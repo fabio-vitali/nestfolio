@@ -23,6 +23,7 @@ export interface SnapshotWithEvents {
   readonly balanceChanged: boolean;
   readonly positionsChanged: boolean;
   readonly userId?: string;
+  readonly ttlDays: number;
 }
 
 export class LedgerRepository extends TableRepository {
@@ -174,6 +175,25 @@ export class LedgerRepository extends TableRepository {
             lastEventSequence: data.lastEventSequence,
             userId: data.userId ?? 'system',
             version: data.version,
+          },
+        },
+      });
+
+      // SnapshotHistory — append-only, TTL-bounded
+      transactItems.push({
+        Put: {
+          TableName: this.tableName,
+          Item: {
+            pk,
+            sk: `SnapshotAt#${now}`,
+            __typename: 'SnapshotHistory',
+            tenantId: data.tenantId,
+            streamType: data.streamType,
+            timestamp: now,
+            positions: (data.state as any).positions ?? {},
+            cashBalanceCents: (data.state as any).cashBalanceCents ?? 0,
+            lastEventSequence: data.lastEventSequence,
+            ttl: Math.floor(Date.now() / 1000) + (data.ttlDays * 86400),
           },
         },
       });

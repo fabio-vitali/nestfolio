@@ -54,6 +54,8 @@ function groupByStream(records: DynamoDBStreamEvent['Records']): Map<string, Str
   return groups;
 }
 
+const SNAPSHOT_TTL_DAYS = Number(process.env['SNAPSHOT_HISTORY_TTL_DAYS'] ?? '365');
+
 export const createReducer = (deps: ReducerDeps) =>
   async (event: DynamoDBStreamEvent): Promise<void> => {
     const groups = groupByStream(event.Records);
@@ -124,6 +126,7 @@ export const createReducer = (deps: ReducerDeps) =>
           balanceChanged,
           positionsChanged,
           userId,
+          ttlDays: SNAPSHOT_TTL_DAYS,
         });
 
         // 6. Save daily checkpoint (if date changed)

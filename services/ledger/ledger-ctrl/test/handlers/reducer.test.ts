@@ -276,9 +276,9 @@ describe('ledger-ctrl reducer handler', () => {
     const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
     expect(txCalls).toHaveLength(1);
     const transactItems = txCalls[0][0].input.TransactItems;
-    // Should have Snapshot + BalanceEvent + PortfolioEvent + LedgerEntryEvent = 4
+    // Should have Snapshot + BalanceEvent + PortfolioEvent + LedgerEntryEvent + SnapshotHistory = 5
     // because both balance and positions changed
-    expect(transactItems).toHaveLength(4);
+    expect(transactItems).toHaveLength(5);
   });
 
   it('should increment version when existing snapshot exists', async () => {
@@ -320,6 +320,48 @@ describe('ledger-ctrl reducer handler', () => {
       (t: any) => t.Put.Item.__typename === 'AccountSnapshot',
     );
     expect(snapshotItem.Put.Item.version).toBe(4);
+  });
+
+  it('should include SnapshotHistory item in the transaction', async () => {
+    mockSend
+      .mockResolvedValueOnce({ Items: [] }) // getLatestSnapshot
+      .mockResolvedValueOnce({
+        Items: [{
+          eventId: 'evt-1',
+          eventType: 'DEPOSIT_DETECTED',
+          payload: { depositId: 'd1', amountCents: 500000, depositedAt: '2025-01-01T00:00:00.000Z' },
+          timestamp: '2025-01-01T00:00:00.000Z',
+          sequenceNo: 1,
+          streamType: 'actual',
+        }],
+      }) // queryEntriesSince
+      .mockResolvedValue({}); // transactWrite + checkpoint
+
+    const event = buildStreamEvent([{
+      eventType: 'DEPOSIT_DETECTED',
+      tenantId: 't1',
+      streamType: 'actual',
+      sequenceNo: 1,
+      payload: { depositId: 'd1', amountCents: 500000, depositedAt: '2025-01-01T00:00:00.000Z' },
+    }]);
+
+    await reducer(event);
+
+    const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
+    expect(txCalls).toHaveLength(1);
+    const transactItems = txCalls[0][0].input.TransactItems;
+
+    // Find the SnapshotHistory item
+    const snapshotHistory = transactItems.find(
+      (t: any) => t.Put.Item.__typename === 'SnapshotHistory',
+    );
+    expect(snapshotHistory).toBeDefined();
+    expect(snapshotHistory.Put.Item.pk).toBe('Account#t1#actual');
+    expect(snapshotHistory.Put.Item.sk).toMatch(/^SnapshotAt#/);
+    expect(snapshotHistory.Put.Item.cashBalanceCents).toBeDefined();
+    expect(snapshotHistory.Put.Item.positions).toBeDefined();
+    expect(snapshotHistory.Put.Item.lastEventSequence).toBe(1);
+    expect(snapshotHistory.Put.Item.ttl).toBeGreaterThan(0);
   });
 
   it('should throw and record failure on unexpected errors', async () => {

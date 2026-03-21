@@ -165,19 +165,21 @@ describe('LedgerRepository', () => {
       version: 2,
       balanceChanged: true,
       positionsChanged: true,
+      ttlDays: 365,
     });
 
     const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
     expect(txCalls).toHaveLength(1);
     const transactItems = txCalls[0][0].input.TransactItems;
-    // Should have: Snapshot + BalanceEvent + PortfolioEvent + LedgerEntryEvent = 4
-    expect(transactItems).toHaveLength(4);
+    // Should have: Snapshot + BalanceEvent + PortfolioEvent + LedgerEntryEvent + SnapshotHistory = 5
+    expect(transactItems).toHaveLength(5);
 
     const typeNames = transactItems.map((t: any) => t.Put.Item.__typename);
     expect(typeNames).toContain('AccountSnapshot');
     expect(typeNames).toContain('BalanceEvent');
     expect(typeNames).toContain('PortfolioEvent');
     expect(typeNames).toContain('LedgerEntryEvent');
+    expect(typeNames).toContain('SnapshotHistory');
   });
 
   it('saveSnapshotWithEvents omits BalanceEvent when balance unchanged', async () => {
@@ -191,12 +193,13 @@ describe('LedgerRepository', () => {
       version: 1,
       balanceChanged: false,
       positionsChanged: true,
+      ttlDays: 365,
     });
 
     const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
     const transactItems = txCalls[0][0].input.TransactItems;
-    // Snapshot + PortfolioEvent + LedgerEntryEvent = 3 (no BalanceEvent)
-    expect(transactItems).toHaveLength(3);
+    // Snapshot + PortfolioEvent + LedgerEntryEvent + SnapshotHistory = 4 (no BalanceEvent)
+    expect(transactItems).toHaveLength(4);
     const typeNames = transactItems.map((t: any) => t.Put.Item.__typename);
     expect(typeNames).not.toContain('BalanceEvent');
   });
