@@ -21,7 +21,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@nestfolio/cdk-constructs": ["libs/cdk-constructs/src/index.ts"],
+      "@nestfolio/cdk-constructs/core": ["libs/cdk-constructs/src/core/index.ts"],
+      "@nestfolio/cdk-constructs/observability": ["libs/cdk-constructs/src/observability/index.ts"],
+      "@nestfolio/cdk-constructs/extensions": ["libs/cdk-constructs/src/extensions/index.ts"],
+      "@nestfolio/cdk-constructs/utils": ["libs/cdk-constructs/src/utils/index.ts"],
       "@nestfolio/agent-orchestrator": ["libs/agent-orchestrator/src/index.ts"],
       "@nestfolio/agent-orchestrator/*": ["libs/agent-orchestrator/src/*"],
 "@nestfolio/event-processor": ["libs/event-processor/src/index.ts"],
