@@ -1,125 +1,52 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
-import { requireEnv } from '@nestfolio/event-processor';
-import { type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/event-processor';
+import { materializeToTable, toUow } from '@nestfolio/event-processor';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
-import { DashboardRepository } from '../repositories/dashboard.repository';
-import { PortfolioSummaryPipe } from '../pipes/portfolio-summary.pipe';
-import { PositionSnapshotPipe } from '../pipes/position-snapshot.pipe';
-import { RecentActivityPipe } from '../pipes/recent-activity.pipe';
-import { AdvisoryStatusPipe } from '../pipes/advisory-status.pipe';
-import { InvestorSnapshotPipe } from '../pipes/investor-snapshot.pipe';
-import { TimeTravelAvailabilityPipe } from '../pipes/time-travel-availability.pipe';
+import { portfolioSummary } from '../transforms/portfolio-summary';
+import { positionSnapshot } from '../transforms/position-snapshot';
+import { recentActivity } from '../transforms/recent-activity';
+import { advisoryStatus } from '../transforms/advisory-status';
+import { investorSnapshot } from '../transforms/investor-snapshot';
+import { timeTravelAvailability } from '../transforms/time-travel-availability';
 
-export interface NamedPipe {
-  name: string;
-  pipe: Pipe<UnitOfWork<BusEvent<Record<string, unknown>>>>;
-}
-
-export interface EventListenerDeps {
-  readonly eventPipeMap: Record<string, NamedPipe[]>;
-}
-
-function toUow(payload: EventPayload, ctx: EventContext) {
-  const event = {
-    id: ctx.eventId,
-    type: ctx.eventType,
-    timestamp: ctx.timestamp,
-    subject: payload.subject,
-    context: payload.context ?? { tenantId: ctx.tenantId },
-  };
-  return { event, payload: payload.subject as Record<string, unknown>, record: {} };
-}
-
-export const createHandlers = (deps: EventListenerDeps) => {
-  const allEventTypes = Object.keys(deps.eventPipeMap);
-
-  return Object.fromEntries(
-    allEventTypes.map((type) => [
-      type,
-      async (payload: EventPayload, ctx: EventContext) => {
-        const namedPipes = deps.eventPipeMap[type];
-        if (!namedPipes || namedPipes.length === 0) return skip();
-
-        const uow = toUow(payload, ctx);
-        for (const { pipe } of namedPipes) {
-          await pipe.process(uow);
-        }
-        return skip();
-      },
-    ]),
-  );
-};
-
-// Production wiring
-const TABLE_NAME = requireEnv('TABLE_NAME');
-const dynamoClient = new DynamoDBClient({});
-const repository = new DashboardRepository(TABLE_NAME, dynamoClient);
-
-const portfolioSummaryPipe = new PortfolioSummaryPipe(repository);
-const positionSnapshotPipe = new PositionSnapshotPipe(repository);
-const recentActivityPipe = new RecentActivityPipe(repository);
-const advisoryStatusPipe = new AdvisoryStatusPipe(repository);
-const investorSnapshotPipe = new InvestorSnapshotPipe(repository);
-const timeTravelAvailabilityPipe = new TimeTravelAvailabilityPipe(repository);
-
-const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
-  [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: [
-    { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
-    { name: 'recentActivity', pipe: recentActivityPipe },
-  ],
-  [LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED]: [
-    { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
-    { name: 'positionSnapshot', pipe: positionSnapshotPipe },
-    { name: 'recentActivity', pipe: recentActivityPipe },
-  ],
-  [LedgerCrossDomainEventTypes.RECONCILIATION_COMPLETED]: [
-    { name: 'portfolioSummary', pipe: portfolioSummaryPipe },
-  ],
-  [AdvisoryCrossDomainEventTypes.DECISION_PACKET_CREATED]: [
-    { name: 'advisoryStatus', pipe: advisoryStatusPipe },
-  ],
-  [AdvisoryCrossDomainEventTypes.USER_CONFIRMATION_REQUESTED]: [
-    { name: 'advisoryStatus', pipe: advisoryStatusPipe },
-  ],
-  [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: [
-    { name: 'advisoryStatus', pipe: advisoryStatusPipe },
-    { name: 'recentActivity', pipe: recentActivityPipe },
-  ],
-  [AdvisoryCrossDomainEventTypes.DECISION_BLOCKED]: [
-    { name: 'advisoryStatus', pipe: advisoryStatusPipe },
-    { name: 'recentActivity', pipe: recentActivityPipe },
-  ],
-  [LedgerCrossDomainEventTypes.LEDGER_ENTRY_RECORDED]: [
-    { name: 'timeTravelAvailability', pipe: timeTravelAvailabilityPipe },
-  ],
-  [InvestorBffEventTypes.ONBOARDING_COMPLETED]: [
-    { name: 'investorSnapshot', pipe: investorSnapshotPipe },
-  ],
-  [InvestorBffEventTypes.GOAL_SET]: [
-    { name: 'investorSnapshot', pipe: investorSnapshotPipe },
-  ],
-  [InvestorBffEventTypes.GOAL_UPDATED]: [
-    { name: 'investorSnapshot', pipe: investorSnapshotPipe },
-  ],
-  [InvestorBffEventTypes.RISK_PROFILE_SET]: [
-    { name: 'investorSnapshot', pipe: investorSnapshotPipe },
-  ],
-  [InvestorBffEventTypes.RISK_PROFILE_UPDATED]: [
-    { name: 'investorSnapshot', pipe: investorSnapshotPipe },
-  ],
-};
-
-const deps: EventListenerDeps = {
-  eventPipeMap: EVENT_PIPE_MAP,
-};
-
-export const handler = createEventHandler({
+export const handler = materializeToTable({
   serviceName: 'dashboard-bff',
-  handlers: createHandlers(deps),
-  table: TABLE_NAME,
-  bus: requireEnv('BUS_NAME'),
+  handlers: {
+    [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: (payload, ctx) => [
+      portfolioSummary(toUow(payload, ctx)),
+      recentActivity(toUow(payload, ctx)),
+    ],
+    [LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED]: (payload, ctx) => [
+      portfolioSummary(toUow(payload, ctx)),
+      positionSnapshot(toUow(payload, ctx)),
+      recentActivity(toUow(payload, ctx)),
+    ],
+    [LedgerCrossDomainEventTypes.RECONCILIATION_COMPLETED]: (payload, ctx) =>
+      portfolioSummary(toUow(payload, ctx)),
+    [AdvisoryCrossDomainEventTypes.DECISION_PACKET_CREATED]: (payload, ctx) =>
+      advisoryStatus(toUow(payload, ctx)),
+    [AdvisoryCrossDomainEventTypes.USER_CONFIRMATION_REQUESTED]: (payload, ctx) =>
+      advisoryStatus(toUow(payload, ctx)),
+    [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: (payload, ctx) => [
+      advisoryStatus(toUow(payload, ctx)),
+      recentActivity(toUow(payload, ctx)),
+    ],
+    [AdvisoryCrossDomainEventTypes.DECISION_BLOCKED]: (payload, ctx) => [
+      advisoryStatus(toUow(payload, ctx)),
+      recentActivity(toUow(payload, ctx)),
+    ],
+    [LedgerCrossDomainEventTypes.LEDGER_ENTRY_RECORDED]: (payload, ctx) =>
+      timeTravelAvailability(toUow(payload, ctx)),
+    [InvestorBffEventTypes.ONBOARDING_COMPLETED]: (payload, ctx) =>
+      investorSnapshot(toUow(payload, ctx)),
+    [InvestorBffEventTypes.GOAL_SET]: (payload, ctx) =>
+      investorSnapshot(toUow(payload, ctx)),
+    [InvestorBffEventTypes.GOAL_UPDATED]: (payload, ctx) =>
+      investorSnapshot(toUow(payload, ctx)),
+    [InvestorBffEventTypes.RISK_PROFILE_SET]: (payload, ctx) =>
+      investorSnapshot(toUow(payload, ctx)),
+    [InvestorBffEventTypes.RISK_PROFILE_UPDATED]: (payload, ctx) =>
+      investorSnapshot(toUow(payload, ctx)),
+  },
   errorEventType: 'DASHBOARD_BFF_FAILED',
 });

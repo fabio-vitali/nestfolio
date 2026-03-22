@@ -1,82 +1,18 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
-import { requireEnv } from '@nestfolio/event-processor';
-import { type BusEvent, type Pipe, type UnitOfWork } from '@nestfolio/event-processor';
+import { materializeToTable, toUow } from '@nestfolio/event-processor';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
-import { PortfolioRepository } from '../repositories/portfolio.repository';
-import { BalanceUpdatedPipe } from '../pipes/balance-updated.pipe';
-import { PortfolioUpdatedPipe } from '../pipes/portfolio-updated.pipe';
-import { LedgerEntryRecordedPipe } from '../pipes/ledger-entry-recorded.pipe';
+import { balanceUpdated } from '../transforms/balance-updated';
+import { portfolioUpdated } from '../transforms/portfolio-updated';
+import { ledgerEntryRecorded } from '../transforms/ledger-entry-recorded';
 
-export interface NamedPipe {
-  name: string;
-  pipe: Pipe<UnitOfWork<BusEvent<Record<string, unknown>>>>;
-}
-
-export interface EventListenerDeps {
-  readonly eventPipeMap: Record<string, NamedPipe[]>;
-}
-
-function toUow(payload: EventPayload, ctx: EventContext) {
-  const event = {
-    id: ctx.eventId,
-    type: ctx.eventType,
-    timestamp: ctx.timestamp,
-    subject: payload.subject,
-    context: payload.context ?? { tenantId: ctx.tenantId },
-  };
-  return { event, payload: payload.subject as Record<string, unknown>, record: {} };
-}
-
-export const createHandlers = (deps: EventListenerDeps) => {
-  const allEventTypes = Object.keys(deps.eventPipeMap);
-
-  return Object.fromEntries(
-    allEventTypes.map((type) => [
-      type,
-      async (payload: EventPayload, ctx: EventContext) => {
-        const namedPipes = deps.eventPipeMap[type];
-        if (!namedPipes || namedPipes.length === 0) return skip();
-
-        const uow = toUow(payload, ctx);
-        for (const { pipe } of namedPipes) {
-          await pipe.process(uow);
-        }
-        return skip();
-      },
-    ]),
-  );
-};
-
-// Production wiring
-const TABLE_NAME = requireEnv('TABLE_NAME');
-const dynamoClient = new DynamoDBClient({});
-const repository = new PortfolioRepository(TABLE_NAME, dynamoClient);
-
-const balanceUpdatedPipe = new BalanceUpdatedPipe(repository);
-const portfolioUpdatedPipe = new PortfolioUpdatedPipe(repository);
-const ledgerEntryRecordedPipe = new LedgerEntryRecordedPipe(repository);
-
-const EVENT_PIPE_MAP: Record<string, NamedPipe[]> = {
-  [LedgerCtrlEventTypes.BALANCE_UPDATED]: [
-    { name: 'balanceUpdated', pipe: balanceUpdatedPipe },
-  ],
-  [LedgerCtrlEventTypes.PORTFOLIO_UPDATED]: [
-    { name: 'portfolioUpdated', pipe: portfolioUpdatedPipe },
-  ],
-  [LedgerCtrlEventTypes.LEDGER_ENTRY_RECORDED]: [
-    { name: 'ledgerEntryRecorded', pipe: ledgerEntryRecordedPipe },
-  ],
-};
-
-const deps: EventListenerDeps = {
-  eventPipeMap: EVENT_PIPE_MAP,
-};
-
-export const handler = createEventHandler({
+export const handler = materializeToTable({
   serviceName: 'ledger-bff',
-  handlers: createHandlers(deps),
-  table: TABLE_NAME,
-  bus: requireEnv('BUS_NAME'),
+  handlers: {
+    [LedgerCtrlEventTypes.BALANCE_UPDATED]: (payload, ctx) =>
+      balanceUpdated(toUow(payload, ctx)),
+    [LedgerCtrlEventTypes.PORTFOLIO_UPDATED]: (payload, ctx) =>
+      portfolioUpdated(toUow(payload, ctx)),
+    [LedgerCtrlEventTypes.LEDGER_ENTRY_RECORDED]: (payload, ctx) =>
+      ledgerEntryRecorded(toUow(payload, ctx)),
+  },
   errorEventType: 'LEDGER_BFF_FAILED',
 });

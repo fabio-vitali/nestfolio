@@ -1,71 +1,20 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import {
-  createEventHandler,
-  skip,
-  type EventPayload,
-  type EventContext,
-} from '@nestfolio/event-processor';
-import { requireEnv } from '@nestfolio/event-processor';
+import { materializeToTable, toUow } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '../domain/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
-import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
-import { UserRegisteredPipe } from '../pipes/user-registered.pipe';
-import { NotificationCreatedPipe } from '../pipes/notification-created.pipe';
-import { BalanceUpdatedPipe } from '../pipes/balance-updated.pipe';
+import { userRegistered } from '../transforms/user-registered';
+import { notificationCreated } from '../transforms/notification-created';
+import { balanceUpdated } from '../transforms/balance-updated';
 
-export interface EventListenerDeps {
-  readonly userRegisteredPipe: UserRegisteredPipe;
-  readonly notificationCreatedPipe: NotificationCreatedPipe;
-  readonly balanceUpdatedPipe: BalanceUpdatedPipe;
-}
-
-function toUow(payload: EventPayload, ctx: EventContext) {
-  const event = {
-    id: ctx.eventId,
-    type: ctx.eventType,
-    timestamp: ctx.timestamp,
-    subject: payload.subject,
-    context: payload.context ?? { tenantId: ctx.tenantId },
-  };
-  return { event, payload: payload.subject as Record<string, unknown>, record: {} };
-}
-
-export const createHandlers = (deps: EventListenerDeps) => ({
-  [InvestorBffEventTypes.USER_REGISTERED]: async (payload: EventPayload, ctx: EventContext) => {
-    await deps.userRegisteredPipe.process(toUow(payload, ctx) as any);
-    return skip();
-  },
-  [InvestorCtrlEventTypes.NOTIFICATION_CREATED]: async (
-    payload: EventPayload,
-    ctx: EventContext,
-  ) => {
-    await deps.notificationCreatedPipe.process(toUow(payload, ctx) as any);
-    return skip();
-  },
-  [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: async (
-    payload: EventPayload,
-    ctx: EventContext,
-  ) => {
-    await deps.balanceUpdatedPipe.process(toUow(payload, ctx) as any);
-    return skip();
-  },
-});
-
-const TABLE_NAME = requireEnv('TABLE_NAME');
-const dynamoClient = new DynamoDBClient({});
-const repository = new InvestorProfileRepository(TABLE_NAME, dynamoClient);
-
-const deps: EventListenerDeps = {
-  userRegisteredPipe: new UserRegisteredPipe(repository),
-  notificationCreatedPipe: new NotificationCreatedPipe(repository),
-  balanceUpdatedPipe: new BalanceUpdatedPipe(repository),
-};
-
-export const handler = createEventHandler({
+export const handler = materializeToTable({
   serviceName: 'investor-bff',
-  handlers: createHandlers(deps),
-  table: TABLE_NAME,
-  bus: requireEnv('BUS_NAME'),
+  handlers: {
+    [InvestorBffEventTypes.USER_REGISTERED]: (payload, ctx) =>
+      userRegistered(toUow(payload, ctx) as any),
+    [InvestorCtrlEventTypes.NOTIFICATION_CREATED]: (payload, ctx) =>
+      notificationCreated(toUow(payload, ctx) as any),
+    [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: (payload, ctx) =>
+      balanceUpdated(toUow(payload, ctx) as any),
+  },
   errorEventType: 'INVESTOR_BFF_FAILED',
 });
