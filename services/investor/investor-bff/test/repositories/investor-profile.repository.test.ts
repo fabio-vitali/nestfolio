@@ -142,7 +142,7 @@ describe('InvestorProfileRepository', () => {
   });
 
   describe('setGoal', () => {
-    it('should create goal and edit event in transaction', async () => {
+    it('should create goal with a single put', async () => {
       mockSend.mockResolvedValueOnce({});
 
       const goal = {
@@ -157,16 +157,11 @@ describe('InvestorProfileRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems).toHaveLength(2);
-      expect(call.input.TransactItems[0].Put.Item).toMatchObject({
+      expect(call.input.Item).toMatchObject({
         pk: 'InvestorProfile#t1#u1',
         sk: 'Goal#test-uuid',
         __typename: 'Goal',
         objective: 'Retirement',
-      });
-      expect(call.input.TransactItems[1].Put.Item).toMatchObject({
-        __typename: 'EditEvent',
-        operation: 'add',
       });
       expect(result).toMatchObject({ goalId: 'test-uuid', objective: 'Retirement' });
     });
@@ -195,9 +190,7 @@ describe('InvestorProfileRepository', () => {
         objective: 'Retirement Updated',
         currency: 'EUR',
       };
-      // UpdateCommand returns attributes, then put for edit event
       mockSend.mockResolvedValueOnce({ Attributes: updatedGoal });
-      mockSend.mockResolvedValueOnce({});
 
       const result = await repo.updateGoal('t1', 'u1', 'g1', {
         objective: 'Retirement Updated',
@@ -226,7 +219,7 @@ describe('InvestorProfileRepository', () => {
   });
 
   describe('grantMandate', () => {
-    it('should create mandate and edit event in transaction', async () => {
+    it('should create mandate with a single put', async () => {
       mockSend.mockResolvedValueOnce({});
 
       const mandate = {
@@ -241,35 +234,11 @@ describe('InvestorProfileRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems).toHaveLength(2);
-      expect(call.input.TransactItems[0].Put.Item).toMatchObject({
+      expect(call.input.Item).toMatchObject({
         __typename: 'Mandate',
         level: 'DISCRETIONARY',
       });
       expect(result).toMatchObject({ mandateId: 'test-uuid', level: 'DISCRETIONARY' });
-    });
-
-    it('should record editedBy in the EditEvent when granting mandate', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      const mandate = {
-        level: 'DISCRETIONARY' as const,
-        monthlyTurnoverCapPercent: 10,
-        maxSingleTradePercent: 5,
-        coolDownDays: 7,
-        rebalanceCadence: 'MONTHLY' as const,
-      };
-
-      await repo.grantMandate('t1', 'u1', mandate, 'admin-user');
-
-      const call = mockSend.mock.calls[0][0];
-      const editEvent = call.input.TransactItems[1].Put.Item;
-      expect(editEvent).toMatchObject({
-        __typename: 'EditEvent',
-        editedBy: 'admin-user',
-        action: 'GRANT_MANDATE',
-      });
-      expect(editEvent.editedAt).toBeDefined();
     });
   });
 
@@ -281,62 +250,34 @@ describe('InvestorProfileRepository', () => {
         __typename: 'Mandate',
         revokedAt: '2025-01-01T00:00:00.000Z',
       };
-      // UpdateCommand returns attributes, then put for edit event
       mockSend.mockResolvedValueOnce({ Attributes: updatedMandate });
-      mockSend.mockResolvedValueOnce({});
 
       const result = await repo.revokeMandate('t1', 'u1');
 
+      expect(mockSend).toHaveBeenCalledTimes(1);
       expect(result).toMatchObject({ revokedAt: '2025-01-01T00:00:00.000Z' });
-    });
-
-    it('should record editedBy in the EditEvent when revoking mandate', async () => {
-      const updatedMandate = {
-        pk: 'InvestorProfile#t1#u1',
-        sk: 'Mandate',
-        __typename: 'Mandate',
-        revokedAt: '2025-01-01T00:00:00.000Z',
-      };
-      mockSend.mockResolvedValueOnce({ Attributes: updatedMandate });
-      mockSend.mockResolvedValueOnce({});
-
-      await repo.revokeMandate('t1', 'u1', 'admin-user');
-
-      // Second call is the put for the EditEvent
-      const editEventCall = mockSend.mock.calls[1][0];
-      expect(editEventCall.input.Item).toMatchObject({
-        __typename: 'EditEvent',
-        editedBy: 'admin-user',
-        action: 'REVOKE_MANDATE',
-      });
-      expect(editEventCall.input.Item.editedAt).toBeDefined();
     });
   });
 
   describe('setOperatingMode', () => {
-    it('should merge profile update into single transaction with 3 items', async () => {
+    it('should write OperatingMode + update InvestorProfile in transaction with 2 items', async () => {
       mockSend.mockResolvedValueOnce({});
 
       const result = await repo.setOperatingMode('t1', 'u1', 'AGGRESSIVE' as any);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems).toHaveLength(3);
+      expect(call.input.TransactItems).toHaveLength(2);
       // Item 0: OperatingMode record
       expect(call.input.TransactItems[0].Put.Item).toMatchObject({
         __typename: 'OperatingModeRecord',
         mode: 'AGGRESSIVE',
       });
-      // Item 1: EditEvent
-      expect(call.input.TransactItems[1].Put.Item).toMatchObject({
-        __typename: 'EditEvent',
-        operation: 'replace',
-      });
-      // Item 2: Update InvestorProfile
-      expect(call.input.TransactItems[2].Update).toMatchObject({
+      // Item 1: Update InvestorProfile
+      expect(call.input.TransactItems[1].Update).toMatchObject({
         Key: { pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile' },
       });
-      expect(call.input.TransactItems[2].Update.ExpressionAttributeValues[':mode']).toBe('AGGRESSIVE');
+      expect(call.input.TransactItems[1].Update.ExpressionAttributeValues[':mode']).toBe('AGGRESSIVE');
       expect(result).toMatchObject({ mode: 'AGGRESSIVE' });
     });
   });

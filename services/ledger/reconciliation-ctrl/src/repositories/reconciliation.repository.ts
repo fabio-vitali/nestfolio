@@ -4,7 +4,7 @@ import {
   DeleteCommand,
   PutCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 
 function reconciliationPk(tenantId: string, reconciliationId: string): string {
@@ -72,19 +72,6 @@ export class ReconciliationRepository extends TableRepository {
       const pk = reconciliationPk(tenantId, reconciliationId);
       const now = getTime();
 
-      const editEvent: TableEntry = {
-        pk,
-        sk: `EditEvent#${now}#${getUUID()}`,
-        __typename: 'EditEvent',
-        tenantId,
-        timestamp: now,
-        operation: 'replace',
-        path: `/reconciliation/${reconciliationId}/status`,
-        value: { status, ...(details ?? {}) },
-        editedBy: 'system',
-        editedAt: now,
-      };
-
       await this.transactWrite({
         TransactItems: [
           this.buildTransactUpdate(pk, 'Reconciliation', {
@@ -95,7 +82,6 @@ export class ReconciliationRepository extends TableRepository {
             ...(status === 'FAILED' ? { failedAt: now } : {}),
             ...(details ?? {}),
           }) as any,
-          { Put: { TableName: this.tableName, Item: editEvent } },
         ],
       });
     },

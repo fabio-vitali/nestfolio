@@ -103,25 +103,7 @@ export class InvestorProfileRepository extends TableRepository {
         updatedAt: now,
       };
 
-      const editEvent: TableEntry = {
-        pk,
-        sk: `EditEvent#${now}#${getUUID()}`,
-        __typename: 'EditEvent',
-        tenantId,
-        timestamp: now,
-        operation: 'add',
-        path: `/goals/${goalId}`,
-        value: goal,
-        editedBy: userId,
-        editedAt: now,
-      };
-
-      await this.transactWrite({
-        TransactItems: [
-          { Put: { TableName: this.tableName, Item: goalItem } },
-          { Put: { TableName: this.tableName, Item: editEvent } },
-        ],
-      });
+      await this.put(goalItem);
 
       return goalItem as unknown as Goal;
     },
@@ -172,20 +154,6 @@ export class InvestorProfileRepository extends TableRepository {
         throw new EntityNotFoundError('Goal', goalId);
       }
 
-      const editEvent: TableEntry = {
-        pk,
-        sk: `EditEvent#${now}#${getUUID()}`,
-        __typename: 'EditEvent',
-        tenantId,
-        timestamp: now,
-        operation: 'replace',
-        path: `/goals/${goalId}`,
-        value: updates,
-        editedBy: userId,
-        editedAt: now,
-      };
-      await this.put(editEvent);
-
       return result.Attributes as unknown as Goal;
     },
   );
@@ -221,25 +189,7 @@ export class InvestorProfileRepository extends TableRepository {
         version: 1,
       };
 
-      const editEvent: TableEntry = {
-        pk,
-        sk: `EditEvent#${now}#${getUUID()}`,
-        __typename: 'EditEvent',
-        tenantId,
-        timestamp: now,
-        operation: 'add',
-        path: '/riskProfile',
-        value: riskProfile,
-        editedBy: userId,
-        editedAt: now,
-      };
-
-      await this.transactWrite({
-        TransactItems: [
-          { Put: { TableName: this.tableName, Item: item } },
-          { Put: { TableName: this.tableName, Item: editEvent } },
-        ],
-      });
+      await this.put(item);
 
       return item as unknown as RiskProfile;
     },
@@ -288,26 +238,7 @@ export class InvestorProfileRepository extends TableRepository {
         version: 1,
       };
 
-      const editEvent: TableEntry = {
-        pk,
-        sk: `EditEvent#${now}#${getUUID()}`,
-        __typename: 'EditEvent',
-        tenantId,
-        timestamp: now,
-        operation: 'add',
-        path: '/mandate',
-        value: mandate,
-        editedBy: editedBy ?? userId,
-        editedAt: now,
-        action: 'GRANT_MANDATE',
-      };
-
-      await this.transactWrite({
-        TransactItems: [
-          { Put: { TableName: this.tableName, Item: item } },
-          { Put: { TableName: this.tableName, Item: editEvent } },
-        ],
-      });
+      await this.put(item);
 
       return item as unknown as Mandate;
     },
@@ -334,21 +265,6 @@ export class InvestorProfileRepository extends TableRepository {
         throw new EntityNotFoundError('Mandate', `${tenantId}#${userId}`);
       }
 
-      const editEvent: TableEntry = {
-        pk,
-        sk: `EditEvent#${now}#${getUUID()}`,
-        __typename: 'EditEvent',
-        tenantId,
-        timestamp: now,
-        operation: 'replace',
-        path: '/mandate/revokedAt',
-        value: now,
-        editedBy: editedBy ?? userId,
-        editedAt: now,
-        action: 'REVOKE_MANDATE',
-      };
-      await this.put(editEvent);
-
       return result.Attributes as unknown as Mandate;
     },
   );
@@ -368,23 +284,9 @@ export class InvestorProfileRepository extends TableRepository {
         selectedAt: now,
       };
 
-      const editEvent: TableEntry = {
-        pk,
-        sk: `EditEvent#${now}#${getUUID()}`,
-        __typename: 'EditEvent',
-        tenantId,
-        timestamp: now,
-        operation: 'replace',
-        path: '/operatingMode',
-        value: mode,
-        editedBy: userId,
-        editedAt: now,
-      };
-
       await this.transactWrite({
         TransactItems: [
           { Put: { TableName: this.tableName, Item: item } },
-          { Put: { TableName: this.tableName, Item: editEvent } },
           {
             Update: {
               TableName: this.tableName,

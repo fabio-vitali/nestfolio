@@ -8,31 +8,6 @@ function profilePk(tenantId: string, userId: string): string {
   return `InvestorProfile#${tenantId}#${userId}`;
 }
 
-function editEvent(
-  pk: string,
-  tenantId: string,
-  userId: string,
-  operation: string,
-  path: string,
-  value: unknown,
-  action?: string,
-): TableEntry {
-  const now = getTime();
-  return {
-    pk,
-    sk: `EditEvent#${now}#${getUUID()}`,
-    __typename: 'EditEvent',
-    tenantId,
-    timestamp: now,
-    operation,
-    path,
-    value,
-    editedBy: userId,
-    editedAt: now,
-    ...(action ? { action } : {}),
-  };
-}
-
 export class OnboardingRepository extends TableRepository {
   private readonly log = withMethodLogging('OnboardingRepository');
 
@@ -60,12 +35,7 @@ export class OnboardingRepository extends TableRepository {
         ttl: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
       };
 
-      await this.transactWrite({
-        TransactItems: [
-          { Put: { TableName: this.tableName, Item: sessionItem } },
-          { Put: { TableName: this.tableName, Item: editEvent(pk, tenantId, userId, 'add', '/onboardingSession', { sessionId }, 'ONBOARDING_STARTED') } },
-        ],
-      });
+      await this.put(sessionItem);
 
       return { sessionId, currentPhase: 'goal' as const, phaseIndex: 0, startedAt: now, agentMemorySessionId };
     },
@@ -93,12 +63,7 @@ export class OnboardingRepository extends TableRepository {
         updatedAt: now,
       };
 
-      await this.transactWrite({
-        TransactItems: [
-          { Put: { TableName: this.tableName, Item: goalItem } },
-          { Put: { TableName: this.tableName, Item: editEvent(pk, tenantId, userId, 'add', `/goals/${goalId}`, { objective }) } },
-        ],
-      });
+      await this.put(goalItem);
     },
   );
 
@@ -118,8 +83,6 @@ export class OnboardingRepository extends TableRepository {
         ExpressionAttributeValues: { ':months': horizonYears * 12, ':ts': now, ':now': now },
         ConditionExpression: 'attribute_exists(pk)',
       }));
-
-      await this.put(editEvent(pk, tenantId, userId, 'replace', '/goals/horizonYears', { horizonYears }));
     },
   );
 
@@ -141,12 +104,7 @@ export class OnboardingRepository extends TableRepository {
         updatedAt: now,
       };
 
-      await this.transactWrite({
-        TransactItems: [
-          { Put: { TableName: this.tableName, Item: item } },
-          { Put: { TableName: this.tableName, Item: editEvent(pk, tenantId, userId, 'add', '/accountMode', { mode, capitalAmount }) } },
-        ],
-      });
+      await this.put(item);
     },
   );
 
@@ -171,12 +129,7 @@ export class OnboardingRepository extends TableRepository {
         version: 1,
       };
 
-      await this.transactWrite({
-        TransactItems: [
-          { Put: { TableName: this.tableName, Item: item } },
-          { Put: { TableName: this.tableName, Item: editEvent(pk, tenantId, userId, 'add', '/riskProfile', risk) } },
-        ],
-      });
+      await this.put(item);
     },
   );
 
@@ -208,7 +161,6 @@ export class OnboardingRepository extends TableRepository {
               ExpressionAttributeValues: { ':mode': modeUpper, ':now': now, ':ts': now },
             },
           },
-          { Put: { TableName: this.tableName, Item: editEvent(pk, tenantId, userId, 'replace', '/operatingMode', modeUpper) } },
         ],
       });
     },
@@ -237,12 +189,7 @@ export class OnboardingRepository extends TableRepository {
         version: 1,
       };
 
-      await this.transactWrite({
-        TransactItems: [
-          { Put: { TableName: this.tableName, Item: item } },
-          { Put: { TableName: this.tableName, Item: editEvent(pk, tenantId, userId, 'add', '/mandate', { mandateId }, 'GRANT_MANDATE') } },
-        ],
-      });
+      await this.put(item);
     },
   );
 

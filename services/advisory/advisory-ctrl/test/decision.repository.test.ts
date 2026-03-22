@@ -148,7 +148,7 @@ describe('DecisionRepository', () => {
   });
 
   describe('updateDecisionStatus', () => {
-    it('should update status with edit event in transaction', async () => {
+    it('should update status via transactWrite without EditEvent', async () => {
       mockSend.mockResolvedValueOnce({});
 
       await repo.updateDecisionStatus('t1', 'dp-1', 'AGENTS_COMPLETED', {
@@ -157,15 +157,11 @@ describe('DecisionRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems).toHaveLength(2);
+      expect(call.input.TransactItems).toHaveLength(1);
       const updateItem = call.input.TransactItems[0].Update;
       expect(updateItem.Key).toEqual({ pk: 'DecisionPacket#t1#dp-1', sk: 'DecisionPacket' });
       const attrs = extractUpdateAttrs(updateItem);
       expect(attrs).toMatchObject({ status: 'AGENTS_COMPLETED', agentOutputs: { test: true } });
-      expect(call.input.TransactItems[1].Put.Item).toMatchObject({
-        __typename: 'EditEvent',
-        operation: 'replace',
-      });
     });
 
     it('should use Update (not Put) to preserve existing attributes', async () => {

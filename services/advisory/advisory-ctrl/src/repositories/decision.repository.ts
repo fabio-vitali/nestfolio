@@ -67,19 +67,6 @@ export class DecisionRepository extends TableRepository {
     const pk = decisionPk(tenantId, dpId);
     const now = getTime();
 
-    const editEvent: TableEntry = {
-      pk,
-      sk: `EditEvent#${now}#${getUUID()}`,
-      __typename: 'EditEvent',
-      tenantId,
-      timestamp: now,
-      operation: 'replace',
-      path: `/decisionPacket/${dpId}/status`,
-      value: { status, ...(details ?? {}) },
-      editedBy: 'system',
-      editedAt: now,
-    };
-
     await this.transactWrite({
       TransactItems: [
         this.buildTransactUpdate(pk, 'DecisionPacket', {
@@ -88,7 +75,6 @@ export class DecisionRepository extends TableRepository {
           timestamp: now,
           ...(details ?? {}),
         }) as any,
-        { Put: { TableName: this.tableName, Item: editEvent } },
       ],
     });
   });

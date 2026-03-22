@@ -100,15 +100,13 @@ describe('OnboardingRepository', () => {
   });
 
   describe('createSession', () => {
-    it('writes OnboardingSession + EditEvent in transaction', async () => {
+    it('writes OnboardingSession with a single put', async () => {
       mockSend.mockResolvedValueOnce({});
       const result = await repo.createSession('tenant-1', 'user-1', 'mem-session-1');
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems).toHaveLength(2);
-      expect(call.input.TransactItems[0].Put.Item.sk).toMatch(/^OnboardingSession#/);
-      expect(call.input.TransactItems[0].Put.Item.currentPhase).toBe('goal');
-      expect(call.input.TransactItems[1].Put.Item.__typename).toBe('EditEvent');
+      expect(call.input.Item.sk).toMatch(/^OnboardingSession#/);
+      expect(call.input.Item.currentPhase).toBe('goal');
       expect(result.sessionId).toBeDefined();
       expect(result.currentPhase).toBe('goal');
     });
@@ -118,9 +116,8 @@ describe('OnboardingRepository', () => {
     it('queries existing goal and updates timeHorizonMonths', async () => {
       mockSend.mockResolvedValueOnce({ Items: [{ pk: 'InvestorProfile#tenant-1#user-1', sk: 'Goal#g1' }] });
       mockSend.mockResolvedValueOnce({});
-      mockSend.mockResolvedValueOnce({});
       await repo.commitHorizon('tenant-1', 'user-1', 10);
-      expect(mockSend).toHaveBeenCalledTimes(3);
+      expect(mockSend).toHaveBeenCalledTimes(2);
     });
 
     it('does nothing when no goal exists', async () => {
@@ -131,31 +128,30 @@ describe('OnboardingRepository', () => {
   });
 
   describe('commitGoal', () => {
-    it('writes Goal record + EditEvent', async () => {
+    it('writes Goal record with a single put', async () => {
       mockSend.mockResolvedValueOnce({});
       await repo.commitGoal('tenant-1', 'user-1', 'Far crescere il capitale');
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems).toHaveLength(2);
-      expect(call.input.TransactItems[0].Put.Item.__typename).toBe('Goal');
-      expect(call.input.TransactItems[0].Put.Item.objective).toBe('Far crescere il capitale');
+      expect(call.input.Item.__typename).toBe('Goal');
+      expect(call.input.Item.objective).toBe('Far crescere il capitale');
     });
   });
 
   describe('commitAccountMode', () => {
-    it('writes AccountMode record + EditEvent', async () => {
+    it('writes AccountMode record with a single put', async () => {
       mockSend.mockResolvedValueOnce({});
       await repo.commitAccountMode('tenant-1', 'user-1', 'simulation', 10000);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems[0].Put.Item.sk).toBe('AccountMode');
-      expect(call.input.TransactItems[0].Put.Item.mode).toBe('simulation');
-      expect(call.input.TransactItems[0].Put.Item.capitalAmount).toBe(10000);
+      expect(call.input.Item.sk).toBe('AccountMode');
+      expect(call.input.Item.mode).toBe('simulation');
+      expect(call.input.Item.capitalAmount).toBe(10000);
     });
   });
 
   describe('commitRiskProfile', () => {
-    it('writes RiskProfile record + EditEvent', async () => {
+    it('writes RiskProfile record with a single put', async () => {
       mockSend.mockResolvedValueOnce({});
       await repo.commitRiskProfile('tenant-1', 'user-1', {
         tolerance: 'hold',
@@ -165,28 +161,30 @@ describe('OnboardingRepository', () => {
       });
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems[0].Put.Item.__typename).toBe('RiskProfile');
-      expect(call.input.TransactItems[0].Put.Item.score).toBe(25);
+      expect(call.input.Item.__typename).toBe('RiskProfile');
+      expect(call.input.Item.score).toBe(25);
     });
   });
 
   describe('commitOperatingMode', () => {
-    it('writes OperatingMode + updates InvestorProfile + EditEvent', async () => {
+    it('writes OperatingMode + updates InvestorProfile in transaction with 2 items', async () => {
       mockSend.mockResolvedValueOnce({});
       await repo.commitOperatingMode('tenant-1', 'user-1', 'balanced');
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems).toHaveLength(3);
+      expect(call.input.TransactItems).toHaveLength(2);
+      expect(call.input.TransactItems[0].Put.Item.__typename).toBe('OperatingModeRecord');
+      expect(call.input.TransactItems[1].Update).toBeDefined();
     });
   });
 
   describe('commitMandate', () => {
-    it('writes Mandate record + EditEvent', async () => {
+    it('writes Mandate record with a single put', async () => {
       mockSend.mockResolvedValueOnce({});
       await repo.commitMandate('tenant-1', 'user-1');
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems[0].Put.Item.__typename).toBe('Mandate');
+      expect(call.input.Item.__typename).toBe('Mandate');
     });
   });
 

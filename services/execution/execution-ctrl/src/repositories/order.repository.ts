@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import type { ProposedTrade } from '@nestfolio/advisory-adpt/domain';
 
@@ -68,19 +68,6 @@ export class OrderRepository extends TableRepository {
       const pk = orderPk(tenantId, orderId);
       const now = getTime();
 
-      const editEvent: TableEntry = {
-        pk,
-        sk: `EditEvent#${now}#${getUUID()}`,
-        __typename: 'EditEvent',
-        tenantId,
-        timestamp: now,
-        operation: 'replace',
-        path: `/order/${orderId}/status`,
-        value: { status, ...(details ?? {}) },
-        editedBy: 'system',
-        editedAt: now,
-      };
-
       await this.transactWrite({
         TransactItems: [
           this.buildTransactUpdate(pk, 'Order', {
@@ -89,7 +76,6 @@ export class OrderRepository extends TableRepository {
             timestamp: now,
             ...(details ?? {}),
           }) as any,
-          { Put: { TableName: this.tableName, Item: editEvent } },
         ],
       });
     },

@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, EntityNotFoundError, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getTime, EntityNotFoundError, type TableEntry } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import type { MandateSnapshot } from '../rules/rule-engine';
 
@@ -101,21 +101,6 @@ export class ComplianceRepository extends TableRepository {
     if (!updateResult.Attributes) {
       throw new EntityNotFoundError('ComplianceCheck', `${tenantId}#${ccId}`);
     }
-
-    // Create edit event
-    const editEvent: TableEntry = {
-      pk,
-      sk: `EditEvent#${now}#${getUUID()}`,
-      __typename: 'EditEvent',
-      tenantId,
-      timestamp: now,
-      operation: 'replace',
-      path: `/complianceCheck/${ccId}/result`,
-      value: { result: checkResult, authorityLevel, violations },
-      editedBy: 'compliance-ctrl',
-      editedAt: now,
-    };
-    await this.put(editEvent);
 
     return updateResult.Attributes;
   });

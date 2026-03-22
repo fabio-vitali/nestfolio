@@ -157,20 +157,19 @@ describe('ComplianceRepository', () => {
   });
 
   describe('updateCheckResult', () => {
-    it('should update check with result and create edit event', async () => {
+    it('should update check with result without EditEvent', async () => {
       const updated = {
         pk: 'ComplianceCheck#t-1#cc-1',
         sk: 'ComplianceCheck',
         status: 'COMPLETED',
         result: 'APPROVED',
       };
-      mockSend.mockResolvedValueOnce({ Attributes: updated }); // UpdateCommand
-      mockSend.mockResolvedValueOnce({}); // EditEvent put
+      mockSend.mockResolvedValueOnce({ Attributes: updated });
 
       const result = await repo.updateCheckResult('t-1', 'cc-1', 'APPROVED', [], 'L1');
 
       expect(result).toMatchObject({ result: 'APPROVED' });
-      expect(mockSend).toHaveBeenCalledTimes(2);
+      expect(mockSend).toHaveBeenCalledTimes(1);
     });
 
     it('should throw when check not found on update', async () => {

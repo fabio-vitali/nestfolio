@@ -154,15 +154,11 @@ describe('AdvisoryRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems).toHaveLength(2);
+      expect(call.input.TransactItems).toHaveLength(1);
       const updateItem = call.input.TransactItems[0].Update;
       expect(updateItem.Key).toEqual({ pk: 'Decision#t1#d1', sk: 'DecisionReadModel' });
       const attrs = extractUpdateAttrs(updateItem);
       expect(attrs).toMatchObject({ status: 'APPROVED' });
-      expect(call.input.TransactItems[1].Put.Item).toMatchObject({
-        __typename: 'EditEvent',
-        operation: 'replace',
-      });
     });
 
     it('should use Update (not Put) to preserve existing attributes', async () => {

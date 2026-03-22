@@ -159,20 +159,16 @@ describe('DecisionPacketRepository', () => {
   });
 
   describe('updateStatus', () => {
-    it('should update status with edit event in transaction', async () => {
+    it('should update status via transactWrite without EditEvent', async () => {
       mockSend.mockResolvedValueOnce({});
 
       await repo.updateStatus('t1', 'dp-1', 'PROFILING');
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems).toHaveLength(2);
+      expect(call.input.TransactItems).toHaveLength(1);
       const attrs = extractUpdateAttrs(call.input.TransactItems[0].Update);
       expect(attrs).toMatchObject({ status: 'PROFILING' });
-      expect(call.input.TransactItems[1].Put.Item).toMatchObject({
-        __typename: 'EditEvent',
-        operation: 'replace',
-      });
     });
 
     it('should merge extra details into the update', async () => {

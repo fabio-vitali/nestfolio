@@ -148,22 +148,18 @@ describe('OrderRepository', () => {
   });
 
   describe('updateOrderStatus', () => {
-    it('should update status with edit event in transaction', async () => {
+    it('should update status via transactWrite without EditEvent', async () => {
       mockSend.mockResolvedValueOnce({});
 
       await repo.updateOrderStatus('t1', 'ord-1', 'SUBMITTED');
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems).toHaveLength(2);
+      expect(call.input.TransactItems).toHaveLength(1);
       const updateItem = call.input.TransactItems[0].Update;
       expect(updateItem.Key).toEqual({ pk: 'Order#t1#ord-1', sk: 'Order' });
       const attrs = extractUpdateAttrs(updateItem);
       expect(attrs).toMatchObject({ status: 'SUBMITTED' });
-      expect(call.input.TransactItems[1].Put.Item).toMatchObject({
-        __typename: 'EditEvent',
-        operation: 'replace',
-      });
     });
 
     it('should include details when rejecting', async () => {
