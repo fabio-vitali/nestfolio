@@ -130,14 +130,38 @@ The `IntentExecutor` uses `S3Client.putObject`. JSON bodies are `JSON.stringify`
 ### Intent Helpers
 
 ```ts
-// New
-export const update = (typename: string, updates: Record<string, unknown>, overrides?: KeyOverrides): UpdateIntent =>
-  ({ _tag: 'update', typename, updates, overrides });
+// New — full signature with optional removes/condition
+export const update = (
+  typename: string,
+  updates: Record<string, unknown>,
+  options?: { removes?: string[]; condition?: string; overrides?: KeyOverrides },
+): UpdateIntent =>
+  ({ _tag: 'update', typename, updates, ...options });
 
 // Renamed
 export const store = (body: unknown, options?: { key?: string; format?: 'json' | 'csv' }): StoreIntent =>
   ({ _tag: 'store', body, ...options });
 ```
+
+---
+
+## Updated Pipeline: `materializeToBucket`
+
+### Config
+
+```ts
+export interface MaterializeToBucketConfig {
+  serviceName: string;
+  handlers: Record<string, HandlerEntry>;
+  bucket?: string;      // defaults to process.env.EXPORT_BUCKET
+  bus?: string;
+  concurrency?: number;
+  poisonPill?: { maxReceiveCount: number };
+  defaultFormat?: 'json' | 'csv';
+}
+```
+
+Internally passes `s3: { bucket }` to `createEventHandler`. Handlers return `store()` intents; the `IntentExecutor` writes to S3. The `defaultFormat` applies when a `store()` intent omits its `format` field.
 
 ---
 
