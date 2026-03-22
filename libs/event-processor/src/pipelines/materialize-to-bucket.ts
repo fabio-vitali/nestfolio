@@ -1,5 +1,5 @@
 import type { SQSEvent, SQSBatchResponse, Context } from 'aws-lambda';
-import { createEventHandler } from './create-event-handler';
+import { createEventHandler } from '../engine/create-event-handler';
 import type { HandlerEntry } from '../types/handler-config';
 
 export interface MaterializeToBucketConfig {

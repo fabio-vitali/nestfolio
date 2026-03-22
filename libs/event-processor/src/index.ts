@@ -25,16 +25,12 @@ export type { Branch, BranchResult } from './util/fork-merge';
 export { toCsv } from './util/csv-serializer';
 
 // SQS Pipelines
-export { createEventHandler } from './pipelines/create-event-handler';
-export type { EventHandlerConfig } from './pipelines/create-event-handler';
 export { materializeToTable } from './pipelines/materialize-to-table';
 export type { MaterializeToTableConfig } from './pipelines/materialize-to-table';
 export { materializeToBucket } from './pipelines/materialize-to-bucket';
 export type { MaterializeToBucketConfig } from './pipelines/materialize-to-bucket';
 
 // Stream Pipelines
-export { createStreamHandler } from './pipelines/create-stream-handler';
-export type { StreamHandlerConfig } from './pipelines/create-stream-handler';
 export { changeDataCapture } from './pipelines/change-data-capture';
 export type { ChangeDataCaptureConfig } from './pipelines/change-data-capture';
 export { replayAndReduce } from './pipelines/replay-and-reduce';

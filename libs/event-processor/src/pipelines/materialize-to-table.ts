@@ -1,6 +1,6 @@
 import type { SQSEvent, SQSBatchResponse, Context } from 'aws-lambda';
 import type { HandlerEntry } from '../types/handler-config';
-import { createEventHandler } from './create-event-handler';
+import { createEventHandler } from '../engine/create-event-handler';
 
 export interface MaterializeToTableConfig {
   serviceName: string;

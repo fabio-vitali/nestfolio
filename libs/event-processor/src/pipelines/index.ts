@@ -1,8 +1,8 @@
-export { createEventHandler } from './create-event-handler';
-export type { EventHandlerConfig } from './create-event-handler';
 export { materializeToTable } from './materialize-to-table';
 export type { MaterializeToTableConfig } from './materialize-to-table';
-export { createStreamHandler } from './create-stream-handler';
-export type { StreamHandlerConfig } from './create-stream-handler';
+export { materializeToBucket } from './materialize-to-bucket';
+export type { MaterializeToBucketConfig } from './materialize-to-bucket';
+export { changeDataCapture } from './change-data-capture';
+export type { ChangeDataCaptureConfig } from './change-data-capture';
 export { replayAndReduce } from './replay-and-reduce';
 export type { ReplayAndReduceConfig } from './replay-and-reduce';
