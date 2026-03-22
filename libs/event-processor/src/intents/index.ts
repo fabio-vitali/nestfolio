@@ -2,5 +2,5 @@ export { record } from './record';
 export { project } from './project';
 export { accumulate } from './accumulate';
 export { update } from './update';
-export { s3Put } from './s3-put';
+export { store } from './store';
 export { skip } from './skip';

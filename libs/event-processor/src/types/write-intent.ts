@@ -35,8 +35,8 @@ export interface UpdateIntent {
   readonly overrides?: KeyOverrides;
 }
 
-export interface S3PutIntent {
-  readonly _tag: 's3-put';
+export interface StoreIntent {
+  readonly _tag: 'store';
   readonly body: unknown;
   readonly format?: 'json' | 'csv';
   readonly key?: string;
@@ -46,4 +46,4 @@ export interface SkipIntent {
   readonly _tag: 'skip';
 }
 
-export type WriteIntent = RecordIntent | ProjectIntent | AccumulateIntent | UpdateIntent | S3PutIntent | SkipIntent;
+export type WriteIntent = RecordIntent | ProjectIntent | AccumulateIntent | UpdateIntent | StoreIntent | SkipIntent;

@@ -1,7 +1,7 @@
 import { IntentExecutor } from '../../src/engine/intent-executor';
 import { update } from '../../src/intents/update';
 import type { EventContext } from '../../src/types/event-context';
-import type { RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent, SkipIntent } from '../../src/types/write-intent';
+import type { RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent, SkipIntent, StoreIntent } from '../../src/types/write-intent';
 
 // Mock guardedWrite from internal
 const mockGuardedWrite = jest.fn().mockResolvedValue(true);
@@ -137,11 +137,46 @@ describe('IntentExecutor', () => {
     });
   });
 
-  describe('s3-put intent', () => {
-    it('returns failure result (requires S3 executor pipeline)', async () => {
-      const result = await executor.execute({ _tag: 's3-put', body: {}, format: 'json' }, fakeCtx);
-      expect(result).toEqual({ _tag: 's3-put', success: false });
+  describe('store intent', () => {
+    it('returns failure result when no s3Client configured', async () => {
+      const result = await executor.execute({ _tag: 'store', body: {}, format: 'json' } as StoreIntent, fakeCtx);
+      expect(result).toEqual({ _tag: 'store', success: false });
       expect(mockDocClient.send).not.toHaveBeenCalled();
+    });
+
+    it('writes to S3 when s3Client and bucket are provided', async () => {
+      const mockS3Send = jest.fn().mockResolvedValue({});
+      const mockS3Client = { send: mockS3Send } as any;
+      const executorWithS3 = new IntentExecutor({
+        docClient: mockDocClient,
+        tableName: 'TestTable',
+        s3Client: mockS3Client,
+        bucket: 'my-bucket',
+      });
+
+      const result = await executorWithS3.execute({ _tag: 'store', body: { data: 1 }, format: 'json' } as StoreIntent, fakeCtx);
+      expect(result).toEqual({ _tag: 'store', success: true });
+      expect(mockS3Send).toHaveBeenCalledTimes(1);
+      const cmd = mockS3Send.mock.calls[0][0].input;
+      expect(cmd.Bucket).toBe('my-bucket');
+      expect(cmd.Key).toBe('test-svc/ORDER_FILLED/evt-1.json');
+      expect(cmd.ContentType).toBe('application/json');
+    });
+
+    it('uses custom key override when provided', async () => {
+      const mockS3Send = jest.fn().mockResolvedValue({});
+      const mockS3Client = { send: mockS3Send } as any;
+      const executorWithS3 = new IntentExecutor({
+        docClient: mockDocClient,
+        tableName: 'TestTable',
+        s3Client: mockS3Client,
+        bucket: 'my-bucket',
+      });
+
+      await executorWithS3.execute({ _tag: 'store', body: [{ a: 1 }], format: 'csv', key: 'exports/data.csv' } as StoreIntent, fakeCtx);
+      const cmd = mockS3Send.mock.calls[0][0].input;
+      expect(cmd.Key).toBe('exports/data.csv');
+      expect(cmd.ContentType).toBe('text/csv');
     });
   });
 

@@ -1,7 +1,7 @@
 import { record } from '../../src/intents/record';
 import { project } from '../../src/intents/project';
 import { accumulate } from '../../src/intents/accumulate';
-import { s3Put } from '../../src/intents/s3-put';
+import { store } from '../../src/intents/store';
 import { skip } from '../../src/intents/skip';
 import { update } from '../../src/intents/update';
 import type { EventPayload } from '../../src/types/handler-config';
@@ -65,15 +65,15 @@ describe('accumulate()', () => {
   });
 });
 
-describe('s3Put()', () => {
-  it('returns S3PutIntent with defaults', () => {
-    const intent = s3Put({ data: 1 });
-    expect(intent).toEqual({ _tag: 's3-put', body: { data: 1 }, format: 'json', key: undefined });
+describe('store()', () => {
+  it('returns StoreIntent with defaults', () => {
+    const intent = store({ data: 1 });
+    expect(intent).toEqual({ _tag: 'store', body: { data: 1 }, format: 'json', key: undefined });
   });
 
   it('with format and key override', () => {
-    const intent = s3Put([{ a: 1 }], { format: 'csv', key: 'exports/data.csv' });
-    expect(intent).toEqual({ _tag: 's3-put', body: [{ a: 1 }], format: 'csv', key: 'exports/data.csv' });
+    const intent = store([{ a: 1 }], { format: 'csv', key: 'exports/data.csv' });
+    expect(intent).toEqual({ _tag: 'store', body: [{ a: 1 }], format: 'csv', key: 'exports/data.csv' });
   });
 });
 

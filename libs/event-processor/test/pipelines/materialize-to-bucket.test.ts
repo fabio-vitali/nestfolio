@@ -1,5 +1,5 @@
 import { materializeToBucket } from '../../src/pipelines/materialize-to-bucket';
-import { s3Put } from '../../src/intents/s3-put';
+import { store } from '../../src/intents/store';
 
 jest.mock('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient: jest.fn().mockImplementation(() => ({})),
@@ -22,7 +22,7 @@ describe('materializeToBucket', () => {
   it('returns a handler function', () => {
     const handler = materializeToBucket({
       serviceName: 'test',
-      handlers: { TEST: async () => [s3Put({ data: 1 })] },
+      handlers: { TEST: async () => [store({ data: 1 })] },
     });
     expect(typeof handler).toBe('function');
   });

@@ -2,7 +2,7 @@
 
 // Types
 export type {
-  WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent, S3PutIntent, SkipIntent, KeyOverrides,
+  WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent, StoreIntent, SkipIntent, KeyOverrides,
   HandlerFn, HandlerEntry, EventPayload,
   EventContext,
   StreamRecord, StreamContext,
@@ -14,7 +14,7 @@ export { record } from './intents/record';
 export { project } from './intents/project';
 export { accumulate } from './intents/accumulate';
 export { update } from './intents/update';
-export { s3Put } from './intents/s3-put';
+export { store } from './intents/store';
 export { skip } from './intents/skip';
 
 // Utilities

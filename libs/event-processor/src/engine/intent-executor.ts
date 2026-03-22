@@ -1,13 +1,17 @@
 import { PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { guardedWrite } from '../internal';
-import type { WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent } from '../types/write-intent';
+import type { WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent, StoreIntent } from '../types/write-intent';
 import type { EventContext } from '../types/event-context';
 import type { IntentResult } from '../types/result-types';
+import { toCsv } from '../util/csv-serializer';
 
 interface ExecutorDeps {
   docClient: DynamoDBDocumentClient;
   tableName: string;
+  s3Client?: S3Client;
+  bucket?: string;
 }
 
 export class IntentExecutor {
@@ -20,7 +24,7 @@ export class IntentExecutor {
       case 'accumulate': return this.executeAccumulate(intent, ctx);
       case 'update':    return this.executeUpdate(intent, ctx);
       case 'skip':      return { _tag: 'skip', success: true };
-      case 's3-put':    return { _tag: 's3-put', success: false };
+      case 'store':     return this.executeStore(intent, ctx);
       default:          return { _tag: 'unknown', success: false };
     }
   }
@@ -121,5 +125,22 @@ export class IntentExecutor {
     }));
 
     return { _tag: 'update', success: true };
+  }
+
+  private async executeStore(intent: StoreIntent, ctx: EventContext): Promise<IntentResult> {
+    if (!this.deps.s3Client || !this.deps.bucket) {
+      return { _tag: 'store', success: false };
+    }
+    const key = intent.key ?? `${ctx.serviceName}/${ctx.eventType}/${ctx.eventId}.${intent.format ?? 'json'}`;
+    const body = intent.format === 'csv' && typeof intent.body !== 'string'
+      ? toCsv(intent.body as Record<string, unknown>[])
+      : JSON.stringify(intent.body);
+    await this.deps.s3Client.send(new PutObjectCommand({
+      Bucket: this.deps.bucket,
+      Key: key,
+      Body: body,
+      ContentType: intent.format === 'csv' ? 'text/csv' : 'application/json',
+    }));
+    return { _tag: 'store', success: true };
   }
 }

@@ -8,6 +8,7 @@ import { ErrorCollector } from './error-collector';
 import { asyncPool } from '../util/async-pool';
 import { ErrorEventPublisher } from './error-event-publisher';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import type { S3Client } from '@aws-sdk/client-s3';
 
 const DEFAULT_CONCURRENCY = 5;
 const DEFAULT_POISON_PILL_MAX = 5;
@@ -21,6 +22,8 @@ export interface BatchEngineConfig {
   concurrency?: number;
   poisonPillMaxReceiveCount?: number;
   errorEventType?: string;
+  s3Client?: S3Client;
+  bucket?: string;
 }
 
 export class BatchEngine {
@@ -31,7 +34,7 @@ export class BatchEngine {
 
   constructor(config: BatchEngineConfig) {
     this.config = config;
-    this.intentExecutor = new IntentExecutor({ docClient: config.docClient, tableName: config.tableName });
+    this.intentExecutor = new IntentExecutor({ docClient: config.docClient, tableName: config.tableName, s3Client: config.s3Client, bucket: config.bucket });
     if (config.busName) {
       this.errorPublisher = new ErrorEventPublisher(config.busName, config.serviceName);
     }

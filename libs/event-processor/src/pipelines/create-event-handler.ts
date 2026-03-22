@@ -1,6 +1,7 @@
 import type { SQSEvent, SQSBatchResponse, Context } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { S3Client } from '@aws-sdk/client-s3';
 import { applyMiddleware, withLambdaContext, withTiming } from '../internal';
 import type { HandlerEntry } from '../types/handler-config';
 import { BatchEngine } from '../engine/batch-engine';
@@ -27,6 +28,8 @@ export function createEventHandler(
     ? config.table.client
     : DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
+  const s3Client = config.s3 ? new S3Client({}) : undefined;
+
   const engine = new BatchEngine({
     serviceName: config.serviceName,
     handlers: config.handlers,
@@ -36,6 +39,8 @@ export function createEventHandler(
     concurrency: config.concurrency,
     poisonPillMaxReceiveCount: config.poisonPill?.maxReceiveCount,
     errorEventType: config.errorEventType,
+    s3Client,
+    bucket: config.s3?.bucket,
   });
 
   const handler = async (event: unknown): Promise<SQSBatchResponse> => {
