@@ -33,18 +33,24 @@ export class AdvisoryCtrlStack extends ServiceStack {
       publishableTypes: ['DecisionPacket', 'AgentInvocation', 'WorkflowState'],
     });
 
-    // Read Bedrock model IDs from SSM (published by advisory-hub)
     const hubNaming = createNamingService(this, { subsystem: 'advisory', service: 'advisory-hub' });
-    const modelOpusId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/opus'));
-    const modelSonnetId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/sonnet'));
-    const modelHaikuId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/haiku'));
+    const modelOpusId = StringParameter.valueForStringParameter(
+      this,
+      hubNaming.ssmParameterPath('models/opus'),
+    );
+    const modelSonnetId = StringParameter.valueForStringParameter(
+      this,
+      hubNaming.ssmParameterPath('models/sonnet'),
+    );
+    const modelHaikuId = StringParameter.valueForStringParameter(
+      this,
+      hubNaming.ssmParameterPath('models/haiku'),
+    );
 
-    // Add model SSM paths to ingress handler
     ingress.handler.addEnvironment('MODEL_OPUS_SSM', hubNaming.ssmParameterPath('models/opus'));
     ingress.handler.addEnvironment('MODEL_SONNET_SSM', hubNaming.ssmParameterPath('models/sonnet'));
     ingress.handler.addEnvironment('MODEL_HAIKU_SSM', hubNaming.ssmParameterPath('models/haiku'));
 
-    // Tool Lambdas
     const portfolioLookupFn = new NodejsFunction(this, 'PortfolioLookup', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'tools', 'portfolio-lookup.ts'),
