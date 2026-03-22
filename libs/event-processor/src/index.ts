@@ -84,7 +84,6 @@ export {
   requireEnv,
   authorizeTenant, authorizeUser, type AuthorizedIdentity,
   validateQueryDepth,
-  buildContainer,
   createServiceMetrics, MetricUnit,
   publishErrorEvent,
   withErrorPublishing,
