@@ -26,6 +26,15 @@ export interface AccumulateIntent {
   readonly overrides?: KeyOverrides;
 }
 
+export interface UpdateIntent {
+  readonly _tag: 'update';
+  readonly typename: string;
+  readonly updates: Record<string, unknown>;
+  readonly removes?: string[];
+  readonly condition?: string;
+  readonly overrides?: KeyOverrides;
+}
+
 export interface S3PutIntent {
   readonly _tag: 's3-put';
   readonly body: unknown;
@@ -37,4 +46,4 @@ export interface SkipIntent {
   readonly _tag: 'skip';
 }
 
-export type WriteIntent = RecordIntent | ProjectIntent | AccumulateIntent | S3PutIntent | SkipIntent;
+export type WriteIntent = RecordIntent | ProjectIntent | AccumulateIntent | UpdateIntent | S3PutIntent | SkipIntent;

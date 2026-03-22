@@ -3,6 +3,7 @@ import { project } from '../../src/intents/project';
 import { accumulate } from '../../src/intents/accumulate';
 import { s3Put } from '../../src/intents/s3-put';
 import { skip } from '../../src/intents/skip';
+import { update } from '../../src/intents/update';
 import type { EventPayload } from '../../src/types/handler-config';
 import type { EventContext } from '../../src/types/event-context';
 
@@ -79,5 +80,32 @@ describe('s3Put()', () => {
 describe('skip()', () => {
   it('returns SkipIntent', () => {
     expect(skip()).toEqual({ _tag: 'skip' });
+  });
+});
+
+describe('update()', () => {
+  it('should create UpdateIntent with updates only', () => {
+    const intent = update('DecisionPacket', { status: 'APPROVED' });
+    expect(intent).toEqual({
+      _tag: 'update',
+      typename: 'DecisionPacket',
+      updates: { status: 'APPROVED' },
+    });
+  });
+
+  it('should create UpdateIntent with removes and condition', () => {
+    const intent = update('DecisionPacket', { status: 'BLOCKED' }, {
+      removes: ['tempField'],
+      condition: 'attribute_exists(pk)',
+      overrides: { pk: 'custom-pk', sk: 'custom-sk' },
+    });
+    expect(intent).toEqual({
+      _tag: 'update',
+      typename: 'DecisionPacket',
+      updates: { status: 'BLOCKED' },
+      removes: ['tempField'],
+      condition: 'attribute_exists(pk)',
+      overrides: { pk: 'custom-pk', sk: 'custom-sk' },
+    });
   });
 });
