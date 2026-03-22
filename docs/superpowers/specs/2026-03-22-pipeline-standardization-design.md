@@ -470,8 +470,8 @@ reducerFn.addEventSource(new DynamoEventSource(ledgerTable, {
 | What | Count | Services |
 |---|---|---|
 | Pipe class files (`.pipe.ts`) | 14 files | investor-bff (3), advisory-bff (2), dashboard-bff (6), ledger-bff (3) |
-| `editEvent()` helper functions | 4 repositories | advisory-ctrl, execution-ctrl, reconciliation-ctrl, onboarding-agent-bff (repository-only cleanup — onboarding-agent-bff has no event-listener to migrate) |
-| `transactWrite` calls for EditEvents | ~10 calls | Same 4 services (repository-only — the transactWrite calls that atomically wrote data + EditEvent become single writes) |
+| `editEvent()` helper functions | 9 repositories | advisory-bff, advisory-ctrl, compliance-ctrl, decision-workflow-ctrl, execution-ctrl, investor-bff, investor-ctrl, onboarding-agent-bff, reconciliation-ctrl (onboarding-agent-bff is repository-only cleanup — no event-listener to migrate) |
+| `transactWrite` calls for EditEvents | ~18 calls | Same 9 services (the transactWrite calls that atomically wrote data + EditEvent become single writes) |
 | `EventListenerDeps` interfaces (pure handlers) | 10 services | All `materializeToTable` services |
 | `createHandlers(deps)` factories (pure handlers) | 10 services | Same |
 | Production wiring sections (DynamoDBClient, repo instantiation) | 10 services | Same |
@@ -536,6 +536,6 @@ Use existing `createReducerTestHarness` to test `replayAndReduce` with the `acco
 | New exports | `toUow` from event-processor |
 | Handlers migrated | 16 event-listeners + 3 kb-ingestion-handlers = 19 total |
 | Pipe files deleted | 14 |
-| EditEvent removal | 4 repositories cleaned (including onboarding-agent-bff which has no event-listener — repository-only cleanup) |
+| EditEvent removal | 9 repositories cleaned (including onboarding-agent-bff which has no event-listener — repository-only cleanup) |
 | CDK changes | 1 EventBridge rule (decision-workflow-ctrl), 1 new Lambda (ledger-ctrl reducer) |
 | New tests | ~16 transform function tests (replacing ~14 pipe tests), ~3 kb-ingestion transform tests, intent executor tests for `update` + `store`, `resumeStateMachine` pipeline tests, `materializeToBucket` pipeline tests |
