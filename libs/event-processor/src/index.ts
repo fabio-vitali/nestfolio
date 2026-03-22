@@ -23,6 +23,7 @@ export { groupBy } from './util/group-by';
 export { forkMerge } from './util/fork-merge';
 export type { Branch, BranchResult } from './util/fork-merge';
 export { toCsv } from './util/csv-serializer';
+export { toUow } from './util/to-uow';
 
 // SQS Pipelines
 export { materializeToTable } from './pipelines/materialize-to-table';
