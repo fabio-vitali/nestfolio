@@ -132,9 +132,6 @@ importers:
       '@smithy/smithy-client':
         specifier: ^4.12.6
         version: 4.12.6
-      awilix:
-        specifier: ^12.0.0
-        version: 12.1.1
       aws-amplify:
         specifier: ^6.14.0
         version: 6.16.2
@@ -326,15 +323,9 @@ importers:
         specifier: ^8.25.0
         version: 8.56.1(eslint@9.39.3(jiti@2.6.1))(typescript@5.9.3)
 
-  libs/agent-core: {}
-
-  libs/appsync-client: {}
-
-  libs/auth: {}
+  libs/agent-orchestrator: {}
 
   libs/cdk-constructs: {}
-
-  libs/command-core: {}
 
   libs/event-processor:
     dependencies:
@@ -359,12 +350,6 @@ importers:
       aws-lambda:
         specifier: ^1.0.7
         version: 1.0.7
-
-  libs/i18n: {}
-
-  libs/shared-state: {}
-
-  libs/ui-components: {}
 
 packages:
 
@@ -5580,10 +5565,6 @@ packages:
   available-typed-arrays@1.0.7:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
-
-  awilix@12.1.1:
-    resolution: {integrity: sha512-A93ak7Ypot8YlkfulCBL4GCkZozuwdfwOJs+4l8+svJYCfXKuokLxWe/usTiatN1dlPOdT5HO0MBpNNTzZSWug==}
-    engines: {node: '>=16.3.0'}
 
   aws-amplify@6.16.2:
     resolution: {integrity: sha512-7CHwfH5QxZ0rzCws/DNy5VLVcIIZWd9iUTtV1Oj6kPzpkFhCJ2I8gTvhFdh61HLhrg2lShcPQ8cecBIQS/ZJ0A==}
@@ -18273,10 +18254,6 @@ snapshots:
   available-typed-arrays@1.0.7:
     dependencies:
       possible-typed-array-names: 1.1.0
-
-  awilix@12.1.1:
-    dependencies:
-      fast-glob: 3.3.3
 
   aws-amplify@6.16.2:
     dependencies:

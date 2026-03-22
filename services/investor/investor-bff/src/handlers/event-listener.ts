@@ -1,5 +1,10 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import {
+  createEventHandler,
+  skip,
+  type EventPayload,
+  type EventContext,
+} from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '../domain/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
@@ -17,8 +22,11 @@ export interface EventListenerDeps {
 
 function toUow(payload: EventPayload, ctx: EventContext) {
   const event = {
-    id: ctx.eventId, type: ctx.eventType, timestamp: ctx.timestamp,
-    subject: payload.subject, context: payload.context ?? { tenantId: ctx.tenantId },
+    id: ctx.eventId,
+    type: ctx.eventType,
+    timestamp: ctx.timestamp,
+    subject: payload.subject,
+    context: payload.context ?? { tenantId: ctx.tenantId },
   };
   return { event, payload: payload.subject as Record<string, unknown>, record: {} };
 }
@@ -28,17 +36,22 @@ export const createHandlers = (deps: EventListenerDeps) => ({
     await deps.userRegisteredPipe.process(toUow(payload, ctx) as any);
     return skip();
   },
-  [InvestorCtrlEventTypes.NOTIFICATION_CREATED]: async (payload: EventPayload, ctx: EventContext) => {
+  [InvestorCtrlEventTypes.NOTIFICATION_CREATED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ) => {
     await deps.notificationCreatedPipe.process(toUow(payload, ctx) as any);
     return skip();
   },
-  [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: async (payload: EventPayload, ctx: EventContext) => {
+  [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: async (
+    payload: EventPayload,
+    ctx: EventContext,
+  ) => {
     await deps.balanceUpdatedPipe.process(toUow(payload, ctx) as any);
     return skip();
   },
 });
 
-// Production wiring
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const repository = new InvestorProfileRepository(TABLE_NAME, dynamoClient);

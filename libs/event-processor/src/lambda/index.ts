@@ -1,7 +1,6 @@
 export { requireEnv } from './require-env';
 export { authorizeTenant, authorizeUser, type AuthorizedIdentity } from './authorize-tenant';
 export { validateQueryDepth } from './validate-query-depth';
-export { buildContainer } from './container';
 export { createServiceMetrics, MetricUnit } from './service-metrics';
 export { publishErrorEvent } from './publish-error-event';
 
