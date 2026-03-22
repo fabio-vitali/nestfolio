@@ -1,7 +1,7 @@
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { guardedWrite } from '../internal';
-import type { WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent } from '../types/write-intent';
+import type { WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent } from '../types/write-intent';
 import type { EventContext } from '../types/event-context';
 import type { IntentResult } from '../types/result-types';
 
@@ -18,6 +18,7 @@ export class IntentExecutor {
       case 'record':    return this.executeRecord(intent, ctx);
       case 'project':   return this.executeProject(intent, ctx);
       case 'accumulate': return this.executeAccumulate(intent, ctx);
+      case 'update':    return this.executeUpdate(intent, ctx);
       case 'skip':      return { _tag: 'skip', success: true };
       case 's3-put':    return { _tag: 's3-put', success: false };
       default:          return { _tag: 'unknown', success: false };
@@ -76,5 +77,49 @@ export class IntentExecutor {
     );
 
     return { _tag: 'accumulate', success: true, deduplicated: !written };
+  }
+
+  private async executeUpdate(intent: UpdateIntent, ctx: EventContext): Promise<IntentResult> {
+    const pk = intent.overrides?.pk ?? `T#${ctx.tenantId}`;
+    const sk = intent.overrides?.sk ?? intent.typename;
+
+    const names: Record<string, string> = {};
+    const values: Record<string, unknown> = {};
+    const setParts: string[] = [];
+
+    // Always add updatedAt
+    const allUpdates = { ...intent.updates, updatedAt: ctx.timestamp };
+
+    let i = 0;
+    for (const [field, value] of Object.entries(allUpdates)) {
+      const nameKey = `#f${i}`;
+      const valKey = `:v${i}`;
+      names[nameKey] = field;
+      values[valKey] = value;
+      setParts.push(`${nameKey} = ${valKey}`);
+      i++;
+    }
+
+    let updateExpr = `SET ${setParts.join(', ')}`;
+
+    if (intent.removes && intent.removes.length > 0) {
+      const removeParts = intent.removes.map((field, j) => {
+        const nameKey = `#r${j}`;
+        names[nameKey] = field;
+        return nameKey;
+      });
+      updateExpr += ` REMOVE ${removeParts.join(', ')}`;
+    }
+
+    await this.deps.docClient.send(new UpdateCommand({
+      TableName: this.deps.tableName,
+      Key: { pk, sk },
+      UpdateExpression: updateExpr,
+      ExpressionAttributeNames: names,
+      ExpressionAttributeValues: values,
+      ...(intent.condition ? { ConditionExpression: intent.condition } : {}),
+    }));
+
+    return { _tag: 'update', success: true };
   }
 }

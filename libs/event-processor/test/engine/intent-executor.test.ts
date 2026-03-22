@@ -1,6 +1,7 @@
 import { IntentExecutor } from '../../src/engine/intent-executor';
+import { update } from '../../src/intents/update';
 import type { EventContext } from '../../src/types/event-context';
-import type { RecordIntent, ProjectIntent, AccumulateIntent, SkipIntent } from '../../src/types/write-intent';
+import type { RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent, SkipIntent } from '../../src/types/write-intent';
 
 // Mock guardedWrite from internal
 const mockGuardedWrite = jest.fn().mockResolvedValue(true);
@@ -141,6 +142,52 @@ describe('IntentExecutor', () => {
       const result = await executor.execute({ _tag: 's3-put', body: {}, format: 'json' }, fakeCtx);
       expect(result).toEqual({ _tag: 's3-put', success: false });
       expect(mockDocClient.send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('update intent', () => {
+    it('should build UpdateCommand with SET expression', async () => {
+      const intent = update('DecisionPacket', { status: 'APPROVED', authorityLevel: 'L1' });
+      const result = await executor.execute(intent, fakeCtx);
+      expect(result).toEqual({ _tag: 'update', success: true });
+      expect(mockDocClient.send).toHaveBeenCalledTimes(1);
+
+      const cmd = mockDocClient.send.mock.calls[0][0].input;
+      expect(cmd.TableName).toBe('TestTable');
+      expect(cmd.Key).toEqual({ pk: 'T#tenant-1', sk: 'DecisionPacket' });
+      // Should have SET expression with updatedAt added automatically
+      expect(cmd.UpdateExpression).toContain('SET');
+      expect(cmd.ExpressionAttributeValues).toBeDefined();
+    });
+
+    it('should include REMOVE expression when removes specified', async () => {
+      const intent = update('DecisionPacket', { status: 'BLOCKED' }, { removes: ['tempField'] });
+      const result = await executor.execute(intent, fakeCtx);
+      expect(result).toEqual({ _tag: 'update', success: true });
+
+      const cmd = mockDocClient.send.mock.calls[0][0].input;
+      expect(cmd.UpdateExpression).toContain('REMOVE');
+    });
+
+    it('should use key overrides when provided', async () => {
+      const intent = update('DecisionPacket', { status: 'APPROVED' }, {
+        overrides: { pk: 'custom-pk', sk: 'custom-sk' },
+      });
+      const result = await executor.execute(intent, fakeCtx);
+      expect(result).toEqual({ _tag: 'update', success: true });
+
+      const cmd = mockDocClient.send.mock.calls[0][0].input;
+      expect(cmd.Key).toEqual({ pk: 'custom-pk', sk: 'custom-sk' });
+    });
+
+    it('should include condition expression when provided', async () => {
+      const intent = update('DecisionPacket', { status: 'APPROVED' }, {
+        condition: 'attribute_exists(pk)',
+      });
+      await executor.execute(intent, fakeCtx);
+
+      const cmd = mockDocClient.send.mock.calls[0][0].input;
+      expect(cmd.ConditionExpression).toBe('attribute_exists(pk)');
     });
   });
 });
