@@ -2,13 +2,13 @@
 
 ## Problem
 
-The `@nestfolio/event-processor` library provides 6 pipeline abstractions, but services bypass them entirely. All 16 event-listeners call `createEventHandler` directly (a low-level foundation), return `skip()` from every handler, and perform manual DDB writes via repository classes. The intent system (`record`, `project`, `accumulate`) is unused. Three pipelines (`materializeToTable`, `materializeToBucket`, `replayAndReduce`) have zero consumers. The `s3Put` intent executor is unimplemented.
+The `@nestfolio/event-processor` library provides 6 pipeline abstractions, but services bypass them entirely. All 19 handler files (16 event-listeners + 3 kb-ingestion-handlers) call `createEventHandler` directly (a low-level foundation), return `skip()` from every handler, and perform manual writes via repository classes or raw S3 calls. The intent system (`record`, `project`, `accumulate`) is unused. Three pipelines (`materializeToTable`, `materializeToBucket`, `replayAndReduce`) have zero consumers. The `s3Put` intent executor is unimplemented.
 
 Additionally, event-listener code style is inconsistent: 8 of 16 use imperative `for`-loop or `handlers[x] = ...` handler map construction, 2 use custom `toEvent()` helpers with fallback defaults, and services mix inline business logic with repository calls instead of using declarative patterns.
 
 ## Goals
 
-1. Every event-listener uses a **named pipeline** (`materializeToTable`, `resumeStateMachine`) instead of `createEventHandler` directly
+1. Every handler uses a **named pipeline** (`materializeToTable`, `materializeToBucket`, `resumeStateMachine`) instead of `createEventHandler` directly
 2. Handlers return **intents** (`record`, `project`, `update`, `accumulate`, `store`) instead of manual DDB writes + `skip()`
 3. Pipe classes replaced by **pure transform functions** returning intents
 4. EditEvent audit trail removed — CDC stream serves as the change log
@@ -56,7 +56,7 @@ Engine
 | `resumeStateMachine` | decision-workflow-ctrl (resume handlers), investor-profile-ctrl, portfolio-engine-ctrl, advisory-narrative-ctrl, market-intelligence-ctrl |
 | `changeDataCapture` | All 14 services with DDB streams (already used, no change) |
 | `replayAndReduce` | ledger-ctrl (new stream Lambda, replaces manual `reducer.ts`) |
-| `materializeToBucket` | No current service (available for future use) |
+| `materializeToBucket` | investor-profile-ctrl (kb-ingestion), portfolio-engine-ctrl (kb-ingestion), market-intelligence-ctrl (kb-ingestion) — 3 kb-ingestion-handler Lambdas that write to S3 + trigger Bedrock KB sync |
 
 ### decision-workflow-ctrl Split
 
@@ -350,6 +350,47 @@ export const handler = replayAndReduce({
 });
 ```
 
+### Pattern D: KB ingestion handlers (`materializeToBucket`)
+
+3 agent services have a secondary `kb-ingestion-handler.ts` Lambda that consumes SQS events, writes content to S3, and triggers Bedrock KB sync (`StartIngestionJobCommand`). These are the natural consumers for `materializeToBucket`.
+
+| Service | Handler | Events consumed |
+|---|---|---|
+| investor-profile-ctrl | kb-ingestion-handler | DECISION_BLOCKED, DECISION_APPROVED |
+| portfolio-engine-ctrl | kb-ingestion-handler | SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED |
+| market-intelligence-ctrl | kb-ingestion-handler | YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED |
+
+Handlers return `store()` intents for the S3 write. The Bedrock `StartIngestionJobCommand` is a side effect — handlers call it imperatively after building the content, similar to how `resumeStateMachine` handlers call agent pipelines imperatively.
+
+```ts
+import { materializeToBucket, store } from '@nestfolio/event-processor';
+
+export interface KbIngestionDeps {
+  readonly bedrockAgent: { startIngestionJob: (kbId: string, dsId: string) => Promise<void> };
+  readonly knowledgeBaseId: string;
+  readonly dataSourceId: string;
+}
+
+export const createHandlers = (deps: KbIngestionDeps) => ({
+  DECISION_BLOCKED: async (payload: EventPayload, ctx: EventContext) => {
+    const content = buildNarrative(payload.subject, ctx.eventType);
+    await deps.bedrockAgent.startIngestionJob(deps.knowledgeBaseId, deps.dataSourceId);
+    return store(content, {
+      key: `compliance/${ctx.eventType}/${payload.subject.decisionId}-${ctx.timestamp}.txt`,
+    });
+  },
+});
+
+export const handler = materializeToBucket({
+  serviceName: 'investor-profile-ctrl',
+  handlers: createHandlers(deps),
+  bucket: requireEnv('KB_BUCKET'),
+  errorEventType: 'INVESTOR_PROFILE_KB_FAILED',
+});
+```
+
+The `createHandlers(deps)` pattern stays for these handlers because they have real deps (Bedrock client, KB IDs).
+
 ### `toUow` Helper
 
 Standardized in event-processor, used by all `materializeToTable` handlers:
@@ -429,8 +470,8 @@ reducerFn.addEventSource(new DynamoEventSource(ledgerTable, {
 | What | Count | Services |
 |---|---|---|
 | Pipe class files (`.pipe.ts`) | 14 files | investor-bff (3), advisory-bff (2), dashboard-bff (6), ledger-bff (3) |
-| `editEvent()` helper functions | 4 repositories | advisory-ctrl, execution-ctrl, reconciliation-ctrl, onboarding-agent-bff |
-| `transactWrite` calls for EditEvents | ~10 calls | Same 4 services |
+| `editEvent()` helper functions | 4 repositories | advisory-ctrl, execution-ctrl, reconciliation-ctrl, onboarding-agent-bff (repository-only cleanup — onboarding-agent-bff has no event-listener to migrate) |
+| `transactWrite` calls for EditEvents | ~10 calls | Same 4 services (repository-only — the transactWrite calls that atomically wrote data + EditEvent become single writes) |
 | `EventListenerDeps` interfaces (pure handlers) | 10 services | All `materializeToTable` services |
 | `createHandlers(deps)` factories (pure handlers) | 10 services | Same |
 | Production wiring sections (DynamoDBClient, repo instantiation) | 10 services | Same |
@@ -442,7 +483,7 @@ reducerFn.addEventSource(new DynamoEventSource(ledgerTable, {
 ### Kept
 
 - **Repository classes** — still used by GraphQL resolvers (BFF query/mutation handlers), just no longer imported by event-listeners
-- **`createHandlers(deps)` pattern** — only for 5 `resumeStateMachine` services (agent/workflow handlers with real deps)
+- **`createHandlers(deps)` pattern** — only for 5 `resumeStateMachine` services and 3 `materializeToBucket` kb-ingestion handlers (services with real side-effect deps)
 - **`transactWrite` calls unrelated to EditEvents** — any transactional write that serves a business purpose (not audit) stays. Each surviving call must be reviewed during implementation.
 
 ---
@@ -493,8 +534,8 @@ Use existing `createReducerTestHarness` to test `replayAndReduce` with the `acco
 | New pipelines | `resumeStateMachine` |
 | File moves | `createEventHandler`, `createStreamHandler` → `engine/` |
 | New exports | `toUow` from event-processor |
-| Services migrated | 16 event-listeners |
+| Handlers migrated | 16 event-listeners + 3 kb-ingestion-handlers = 19 total |
 | Pipe files deleted | 14 |
-| EditEvent removal | 4 repositories cleaned |
+| EditEvent removal | 4 repositories cleaned (including onboarding-agent-bff which has no event-listener — repository-only cleanup) |
 | CDK changes | 1 EventBridge rule (decision-workflow-ctrl), 1 new Lambda (ledger-ctrl reducer) |
-| New tests | ~16 transform function tests (replacing ~14 pipe tests), intent executor tests for `update` + `store`, `resumeStateMachine` pipeline tests |
+| New tests | ~16 transform function tests (replacing ~14 pipe tests), ~3 kb-ingestion transform tests, intent executor tests for `update` + `store`, `resumeStateMachine` pipeline tests, `materializeToBucket` pipeline tests |
