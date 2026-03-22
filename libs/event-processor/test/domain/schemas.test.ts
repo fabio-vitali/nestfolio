@@ -1,4 +1,4 @@
-import { BusEventSchema, EditEventSchema, TenantContextSchema } from '../../src/domain/schemas';
+import { BusEventSchema, TenantContextSchema } from '../../src/domain/schemas';
 import { randomUUID } from 'crypto';
 
 describe('BusEventSchema', () => {
@@ -70,40 +70,6 @@ describe('TenantContextSchema', () => {
 
   it('should reject missing tenantId', () => {
     const result = TenantContextSchema.safeParse({});
-    expect(result.success).toBe(false);
-  });
-});
-
-describe('EditEventSchema', () => {
-  it('should parse a valid edit event', () => {
-    const result = EditEventSchema.safeParse({
-      operation: 'replace',
-      path: '/name',
-      value: 'New Name',
-      previousValue: 'Old Name',
-      editedBy: 'user-123',
-      editedAt: '2026-01-15T10:30:00.000Z',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should parse an edit event without optional fields', () => {
-    const result = EditEventSchema.safeParse({
-      operation: 'remove',
-      path: '/obsoleteField',
-      editedBy: 'system',
-      editedAt: '2026-01-15T10:30:00.000Z',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should reject an invalid operation', () => {
-    const result = EditEventSchema.safeParse({
-      operation: 'invalid',
-      path: '/name',
-      editedBy: 'user-123',
-      editedAt: '2026-01-15T10:30:00.000Z',
-    });
     expect(result.success).toBe(false);
   });
 });

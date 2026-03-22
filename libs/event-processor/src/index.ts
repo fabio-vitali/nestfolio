@@ -30,6 +30,8 @@ export { materializeToTable } from './pipelines/materialize-to-table';
 export type { MaterializeToTableConfig } from './pipelines/materialize-to-table';
 export { materializeToBucket } from './pipelines/materialize-to-bucket';
 export type { MaterializeToBucketConfig } from './pipelines/materialize-to-bucket';
+export { resumeStateMachine } from './pipelines/resume-state-machine';
+export type { ResumeStateMachineConfig, ResumeHandler } from './pipelines/resume-state-machine';
 
 // Stream Pipelines
 export { changeDataCapture } from './pipelines/change-data-capture';
@@ -102,14 +104,10 @@ export {
   TenantAccessDeniedError,
   BusEventSchema,
   TenantContextSchema,
-  EditEventSchema,
-  EditOperationSchema,
 } from './domain';
 export type {
   BusEventType,
   TenantContext,
-  EditEvent,
-  EditOperation,
 } from './domain';
 
 // Sourcing (command + event replay)

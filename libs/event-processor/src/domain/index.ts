@@ -9,13 +9,9 @@ export {
 export {
   BusEventSchema,
   TenantContextSchema,
-  EditEventSchema,
-  EditOperationSchema,
 } from './schemas';
 
 export type {
   BusEvent as BusEventType,
   TenantContext,
-  EditEvent,
-  EditOperation,
 } from './schemas';
