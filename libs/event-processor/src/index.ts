@@ -39,12 +39,28 @@ export type { ChangeDataCaptureConfig } from './pipelines/change-data-capture';
 export { replayAndReduce } from './pipelines/replay-and-reduce';
 export type { ReplayAndReduceConfig } from './pipelines/replay-and-reduce';
 
-// Engine (advanced)
-export { BatchEngine } from './engine/batch-engine';
+// Engine (advanced) — Ingestion
+export { IngestionEngine } from './engine/ingestion-engine';
+export type { IngestionEngineConfig } from './engine/ingestion-engine';
+export type { IngestionRecord, IngestionResult, IngestionAdapter } from './engine/ingestion-types';
+export { SqsIngestionAdapter } from './engine/sqs-adapter';
+export { KinesisIngestionAdapter } from './engine/kinesis-adapter';
+export { createIngestionHandler } from './engine/create-ingestion-handler';
+export type { IngestionHandlerConfig } from './engine/create-ingestion-handler';
+export { parseSqsRecord } from './engine/parse-sqs-record';
+export { parseKinesisRecord } from './engine/parse-kinesis-record';
+
+// Engine (advanced) — Egestion
+export { EgestionEngine, EgestionBatchError } from './engine/egestion-engine';
+export { EgestionBatchError as StreamBatchError } from './engine/egestion-engine';
+export type { EgestionEngineConfig } from './engine/egestion-engine';
+export { createEgestionHandler } from './engine/create-egestion-handler';
+export type { EgestionHandlerConfig } from './engine/create-egestion-handler';
+
+// Engine (advanced) — Shared
 export { IntentExecutor } from './engine/intent-executor';
 export { ErrorCollector } from './engine/error-collector';
 export { ErrorEventPublisher } from './engine/error-event-publisher';
-export { StreamEngine, StreamBatchError } from './engine/stream-engine';
 export { StreamCollector } from './engine/stream-collector';
 export { BaseCollector } from './engine/base-collector';
 export type { CollectedError } from './engine/base-collector';
@@ -90,7 +106,7 @@ export {
   withMethodLogging,
   applyMiddleware, withLambdaContext, withTiming,
   type Middleware,
-  parseRecord, guardedWrite, extractTenantId, traceEvent,
+  guardedWrite, extractTenantId, traceEvent,
   evaluateResolver, createAuthContext, type EvalContext,
 } from './lambda';
 

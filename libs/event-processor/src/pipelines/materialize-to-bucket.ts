@@ -1,5 +1,5 @@
 import type { SQSEvent, SQSBatchResponse, Context } from 'aws-lambda';
-import { createEventHandler } from '../engine/create-event-handler';
+import { createIngestionHandler } from '../engine/create-ingestion-handler';
 import type { HandlerEntry } from '../types/handler-config';
 
 export interface MaterializeToBucketConfig {
@@ -15,7 +15,7 @@ export interface MaterializeToBucketConfig {
 export function materializeToBucket(
   config: MaterializeToBucketConfig,
 ): (event: SQSEvent, context?: Context) => Promise<SQSBatchResponse> {
-  return createEventHandler({
+  return createIngestionHandler({
     serviceName: config.serviceName,
     handlers: config.handlers,
     bus: config.bus,

@@ -11,7 +11,6 @@ export { withMethodLogging } from './middleware/with-method-logging';
 // Re-export internal middleware + utilities (already in event-processor's internal/)
 export { applyMiddleware, withLambdaContext, withTiming } from '../internal';
 export type { Middleware } from '../internal';
-export { parseRecord } from '../internal';
 export { guardedWrite } from '../internal';
 export { extractTenantId } from '../internal';
 export { traceEvent } from '../internal';

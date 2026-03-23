@@ -1,6 +1,6 @@
 import type { SQSEvent, SQSBatchResponse, Context } from 'aws-lambda';
 import { SFNClient, SendTaskSuccessCommand, SendTaskFailureCommand } from '@aws-sdk/client-sfn';
-import { createEventHandler } from '../engine/create-event-handler';
+import { createIngestionHandler } from '../engine/create-ingestion-handler';
 import { NotRetryableError, logger } from '../internal';
 import type { EventPayload } from '../types/handler-config';
 import type { EventContext } from '../types/event-context';
@@ -69,7 +69,7 @@ export function resumeStateMachine(
     };
   }
 
-  return createEventHandler({
+  return createIngestionHandler({
     serviceName: config.serviceName,
     handlers: wrappedHandlers,
     table: config.table ?? process.env.TABLE_NAME,
