@@ -113,6 +113,17 @@ export class OrderRepository extends TableRepository {
     },
   );
 
+  readonly getAllStagedOrders = this.log('getAllStagedOrders',
+    async (): Promise<Record<string, unknown>[]> => {
+      return this.scanAll({
+        TableName: this.tableName,
+        FilterExpression: '#typ = :typ',
+        ExpressionAttributeNames: { '#typ': '__typename' },
+        ExpressionAttributeValues: { ':typ': 'StagedOrder' },
+      });
+    },
+  );
+
   readonly deleteStagedOrder = this.log('deleteStagedOrder',
     async (tenantId: string, orderId: string): Promise<void> => {
       await this.docClient.send(
