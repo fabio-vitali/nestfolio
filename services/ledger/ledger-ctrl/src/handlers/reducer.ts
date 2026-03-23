@@ -1,183 +1,28 @@
-import { DynamoDBStreamEvent } from 'aws-lambda';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { unmarshall } from '@aws-sdk/util-dynamodb';
-import { logger } from '@nestfolio/event-processor';
-import {
-  requireEnv,
-  createServiceMetrics,
-  MetricUnit,
-  applyMiddleware,
-  withLambdaContext,
-  withTiming,
-} from '@nestfolio/event-processor';
-import { replayEvents, type LedgerEntry } from '@nestfolio/event-processor/sourcing';
-import { INITIAL_ACCOUNT_STATE, type AccountState, accountReducer } from '../domain';
-import { LedgerRepository } from '../repositories/ledger.repository';
+import { replayAndReduce } from '@nestfolio/event-processor';
+import { type LedgerEntry } from '@nestfolio/event-processor/sourcing';
+import { accountReducer, INITIAL_ACCOUNT_STATE, type AccountState } from '../domain';
 
-interface ReducerDeps {
-  readonly repository: LedgerRepository;
-  readonly metrics: ReturnType<typeof createServiceMetrics>;
+/**
+ * Adapts accountReducer (which expects LedgerEntry) to the replayAndReduce
+ * pipeline contract (which passes Record<string, unknown> from DDB items).
+ */
+function adaptReducer(state: AccountState, event: Record<string, unknown>): AccountState {
+  return accountReducer(state, event as unknown as LedgerEntry);
 }
 
-interface StreamGroup {
-  tenantId: string;
-  streamType: string;
-  entries: LedgerEntry[];
-}
-
-function groupByStream(records: DynamoDBStreamEvent['Records']): Map<string, StreamGroup> {
-  const groups = new Map<string, StreamGroup>();
-
-  for (const record of records) {
-    if (record.eventName !== 'INSERT' || !record.dynamodb?.NewImage) continue;
-
-    const image = unmarshall(record.dynamodb.NewImage as Record<string, any>);
-    if (image['__typename'] !== 'LedgerEntry') continue;
-
-    const tenantId = image['tenantId'] as string;
-    const streamType = image['streamType'] as string;
-    const key = `${tenantId}#${streamType}`;
-
-    if (!groups.has(key)) {
-      groups.set(key, { tenantId, streamType, entries: [] });
-    }
-
-    groups.get(key)!.entries.push({
-      eventId: image['eventId'] as string,
-      eventType: image['eventType'] as string,
-      payload: image['payload'] as Record<string, unknown>,
-      timestamp: image['timestamp'] as string,
-      sequenceNo: image['sequenceNo'] as number,
-    });
-  }
-
-  return groups;
-}
-
-const SNAPSHOT_TTL_DAYS = Number(process.env['SNAPSHOT_HISTORY_TTL_DAYS'] ?? '365');
-
-export const createReducer = (deps: ReducerDeps) =>
-  async (event: DynamoDBStreamEvent): Promise<void> => {
-    const groups = groupByStream(event.Records);
-
-    for (const [streamKey, group] of groups) {
-      try {
-        logger.info('Processing stream group', {
-          streamKey,
-          entryCount: group.entries.length,
-        });
-
-        // 1. Get current account snapshot
-        const snapshot = await deps.repository.getLatestSnapshot(
-          group.tenantId,
-          group.streamType,
-        );
-        const currentState = snapshot
-          ? ({
-              positions: snapshot['positions'] as Record<string, unknown>,
-              cashBalanceCents: snapshot['cashBalanceCents'] as number,
-              lastEventSequence: snapshot['lastEventSequence'] as number,
-            } as unknown as AccountState)
-          : INITIAL_ACCOUNT_STATE;
-
-        // 2. Query all LedgerEntries since last snapshot sequence
-        const lastSeq = snapshot ? (snapshot['lastEventSequence'] as number) : 0;
-        const newEntries = await deps.repository.queryEntriesSince(
-          group.tenantId,
-          group.streamType,
-          lastSeq,
-        );
-
-        if (newEntries.length === 0) {
-          logger.info('No new entries to process', { streamKey });
-          continue;
-        }
-
-        // 3. Convert to LedgerEntry format and replay
-        const ledgerEntries: LedgerEntry[] = newEntries.map((e) => ({
-          eventId: e['eventId'] as string,
-          eventType: e['eventType'] as string,
-          payload: e['payload'] as Record<string, unknown>,
-          timestamp: e['timestamp'] as string,
-          sequenceNo: e['sequenceNo'] as number,
-        }));
-
-        const nextState = replayEvents(currentState, ledgerEntries, accountReducer);
-
-        // 4. Detect what changed
-        const balanceChanged = nextState.cashBalanceCents !== currentState.cashBalanceCents;
-        const positionsChanged = JSON.stringify(nextState.positions) !== JSON.stringify(currentState.positions);
-
-        // 5. Save snapshot with events in a transaction
-        const newVersion = (snapshot ? (snapshot['version'] as number) : 0) + 1;
-        const maxSeq = ledgerEntries.reduce(
-          (max, e) => Math.max(max, e.sequenceNo),
-          0,
-        );
-
-        const userId = ledgerEntries[0]?.payload?.['userId'] as string | undefined;
-
-        await deps.repository.saveSnapshotWithEvents({
-          tenantId: group.tenantId,
-          streamType: group.streamType,
-          state: nextState as unknown as Record<string, unknown>,
-          lastEventSequence: maxSeq,
-          version: newVersion,
-          balanceChanged,
-          positionsChanged,
-          userId,
-          ttlDays: SNAPSHOT_TTL_DAYS,
-        });
-
-        // 6. Save daily checkpoint (if date changed)
-        const today = new Date().toISOString().slice(0, 10);
-        const lastCheckpointDate = snapshot
-          ? (snapshot['snapshotAt'] as string)?.slice(0, 10)
-          : undefined;
-        if (today !== lastCheckpointDate) {
-          try {
-            await deps.repository.saveCheckpoint(
-              group.tenantId,
-              group.streamType,
-              today,
-              nextState as unknown as Record<string, unknown>,
-            );
-          } catch {
-            // Conditional write failure is expected if checkpoint already exists for today
-            logger.info('Checkpoint already exists for today', { streamKey, today });
-          }
-        }
-
-        deps.metrics.addMetric('SnapshotUpdated', MetricUnit.Count, 1);
-        logger.info('Stream group processed', {
-          streamKey,
-          newVersion,
-          positionCount: Object.keys(nextState.positions).length,
-          balanceChanged,
-          positionsChanged,
-        });
-      } catch (error) {
-        logger.error('Failed to process stream group', {
-          streamKey,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        deps.metrics.addMetric('ReducerFailed', MetricUnit.Count, 1);
-        throw error;
-      }
-    }
-
-    deps.metrics.publishStoredMetrics();
-  };
-
-// Production wiring
-const TABLE_NAME = requireEnv('TABLE_NAME');
-const repository = new LedgerRepository(TABLE_NAME, new DynamoDBClient({}));
-const metrics = createServiceMetrics('ledger-ctrl');
-
-const deps: ReducerDeps = { repository, metrics };
-
-export const handler = applyMiddleware(
-  createReducer(deps) as (event: unknown) => Promise<void>,
-  withLambdaContext(),
-  withTiming('ledger-ctrl-reducer'),
-);
+export const handler = replayAndReduce<AccountState>({
+  serviceName: 'ledger-ctrl',
+  filter: (record) => record.__typename === 'LedgerEntry',
+  groupBy: {
+    key: (record) => `${record.tenantId as string}#${record.streamType as string}`,
+  },
+  reducer: adaptReducer,
+  initialState: INITIAL_ACCOUNT_STATE,
+  snapshot: {
+    key: (groupKey) => {
+      const [tenantId, streamType] = groupKey.split('#');
+      return { pk: `Account#${tenantId}#${streamType}`, sk: 'Snapshot#latest' };
+    },
+    daily: true,
+  },
+});

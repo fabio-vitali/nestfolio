@@ -1,426 +1,141 @@
-const mockSend = jest.fn();
+/**
+ * Tests for ledger-ctrl reducer handler.
+ *
+ * Strategy: mock replayAndReduce and capture the config passed to it,
+ * then test the config callbacks (filter, groupBy.key, reducer, snapshot.key)
+ * and verify that handler = the return value of replayAndReduce(config).
+ */
 
-jest.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: jest.fn().mockImplementation(() => ({ send: mockSend })),
-}));
+let capturedConfig: any;
+const mockHandler = jest.fn();
 
-jest.mock('@aws-sdk/lib-dynamodb', () => {
-  const actual = jest.requireActual('@aws-sdk/lib-dynamodb');
-  return {
-    ...actual,
-    DynamoDBDocumentClient: {
-      from: jest.fn().mockImplementation(() => ({ send: mockSend })),
-    },
-    PutCommand: jest.fn().mockImplementation((input) => ({ _type: 'Put', input })),
-    QueryCommand: jest.fn().mockImplementation((input) => ({ _type: 'Query', input })),
-    UpdateCommand: jest.fn().mockImplementation((input) => ({ _type: 'Update', input })),
-    TransactWriteCommand: jest.fn().mockImplementation((input) => ({ _type: 'TransactWrite', input })),
-  };
-});
-
-jest.mock('@aws-sdk/util-dynamodb', () => ({
-  unmarshall: jest.fn((image) => {
-    const result: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(image as Record<string, any>)) {
-      if (val.S) result[key] = val.S;
-      else if (val.N) result[key] = Number(val.N);
-      else if (val.M) result[key] = val.M;
-      else result[key] = val;
-    }
-    return result;
+jest.mock('@nestfolio/event-processor', () => ({
+  ...jest.requireActual('@nestfolio/event-processor'),
+  replayAndReduce: jest.fn((config) => {
+    capturedConfig = config;
+    return mockHandler;
   }),
-}));
-
-jest.mock('@nestfolio/event-processor', () => {
-  const ddb = jest.requireMock('@aws-sdk/lib-dynamodb') as {
-    PutCommand: jest.Mock; QueryCommand: jest.Mock; TransactWriteCommand: jest.Mock;
-  };
-  return {
-  ok: <T>(value: T) => ({ ok: true, value }),
-  err: <E>(error: E) => ({ ok: false, error }),
-  TableRepository: class {
-    protected readonly docClient: { send: jest.Mock };
-    protected readonly tableName: string;
-    constructor(tableName: string) {
-      this.tableName = tableName;
-      this.docClient = { send: mockSend };
-    }
-    protected async put(item: Record<string, unknown>) {
-      await this.docClient.send(new ddb.PutCommand({ TableName: this.tableName, Item: item }));
-    }
-    protected async queryByPk(pk: string, skPrefix?: string) {
-      const result = await this.docClient.send(new ddb.QueryCommand({
-        TableName: this.tableName,
-        KeyConditionExpression: skPrefix ? 'pk = :pk AND begins_with(sk, :sk)' : 'pk = :pk',
-        ExpressionAttributeValues: { ':pk': pk, ...(skPrefix ? { ':sk': skPrefix } : {}) },
-      }));
-      return result.Items ?? [];
-    }
-    protected async queryAll(input: unknown) {
-      const result = await this.docClient.send(new ddb.QueryCommand(input));
-      return result.Items ?? [];
-    }
-    protected async transactWrite(input: unknown) {
-      await this.docClient.send(new ddb.TransactWriteCommand(input));
-    }
-  },
-  getUUID: jest.fn().mockReturnValue('test-uuid'),
-  getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+}));
 
-  requireEnv: (name: string) => process.env[name] ?? name,
-  createServiceMetrics: jest.fn().mockReturnValue({
-    addMetric: jest.fn(),
-    addDimension: jest.fn(),
-    publishStoredMetrics: jest.fn(),
-  }),
-  MetricUnit: { Count: 'Count' },
-  applyMiddleware: jest.fn((handler) => handler),
-  withLambdaContext: jest.fn(() => (next: unknown) => next),
-  withTiming: jest.fn(() => (next: unknown) => next),
-  withMethodLogging: jest.fn((_className: string) =>
-    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
-  ),
+process.env['TABLE_NAME'] = 'test-table';
 
-  };
-});
-import { DynamoDBStreamEvent } from 'aws-lambda';
-import { createReducer } from '../../src/handlers/reducer';
-import { LedgerRepository } from '../../src/repositories/ledger.repository';
+import { replayAndReduce } from '@nestfolio/event-processor';
+import { handler } from '../../src/handlers/reducer';
+import { INITIAL_ACCOUNT_STATE } from '../../src/domain';
 
-function buildStreamEvent(records: Array<{
-  eventType: string;
-  tenantId: string;
-  streamType: string;
-  sequenceNo: number;
-  payload: Record<string, unknown>;
-}>): DynamoDBStreamEvent {
-  return {
-    Records: records.map((r) => ({
-      eventID: 'test-event-id',
-      eventName: 'INSERT' as const,
-      eventVersion: '1.1',
-      eventSource: 'aws:dynamodb',
-      awsRegion: 'us-east-1',
-      dynamodb: {
-        NewImage: {
-          __typename: { S: 'LedgerEntry' },
-          tenantId: { S: r.tenantId },
-          streamType: { S: r.streamType },
-          eventId: { S: 'evt-1' },
-          eventType: { S: r.eventType },
-          payload: r.payload as any,
-          timestamp: { S: '2025-01-01T00:00:00.000Z' },
-          sequenceNo: { N: String(r.sequenceNo) },
-        },
-        Keys: {
-          pk: { S: `Account#${r.tenantId}#${r.streamType}` },
-          sk: { S: `Event#${String(r.sequenceNo).padStart(8, '0')}#evt-1` },
-        },
-        StreamViewType: 'NEW_AND_OLD_IMAGES' as const,
-      },
-      eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789012:table/test/stream/2025-01-01T00:00:00.000',
-    })),
-  };
-}
+describe('ledger-ctrl reducer handler (replayAndReduce)', () => {
+  it('should call replayAndReduce with correct config', () => {
+    expect(replayAndReduce).toHaveBeenCalledTimes(1);
+    expect(capturedConfig.serviceName).toBe('ledger-ctrl');
+    expect(capturedConfig.filter).toBeDefined();
+    expect(capturedConfig.groupBy?.key).toBeDefined();
+    expect(capturedConfig.reducer).toBeDefined();
+    expect(capturedConfig.initialState).toEqual(INITIAL_ACCOUNT_STATE);
+    expect(capturedConfig.snapshot?.key).toBeDefined();
+    expect(capturedConfig.snapshot?.daily).toBe(true);
+  });
 
-describe('ledger-ctrl reducer handler', () => {
-  const ORIGINAL_ENV = process.env;
+  it('handler should be the result of replayAndReduce', () => {
+    expect(handler).toBe(mockHandler);
+  });
 
-  const mockMetrics = {
-    addMetric: jest.fn(),
-    addDimension: jest.fn(),
-    publishStoredMetrics: jest.fn(),
-  };
+  describe('filter', () => {
+    it('should accept records with __typename LedgerEntry', () => {
+      const record = { __typename: 'LedgerEntry', tenantId: 't1', streamType: 'actual' };
+      expect(capturedConfig.filter(record)).toBe(true);
+    });
 
-  const repository = new LedgerRepository('test-table');
+    it('should reject records with other __typename', () => {
+      const record = { __typename: 'AccountSnapshot', tenantId: 't1', streamType: 'actual' };
+      expect(capturedConfig.filter(record)).toBe(false);
+    });
 
-  let reducer: (event: DynamoDBStreamEvent) => Promise<void>;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
-
-    mockSend.mockResolvedValue({ Items: [] });
-
-    reducer = createReducer({
-      repository,
-      metrics: mockMetrics as any,
+    it('should reject records with no __typename', () => {
+      const record = { tenantId: 't1', streamType: 'actual' };
+      expect(capturedConfig.filter(record)).toBe(false);
     });
   });
 
-  afterAll(() => {
-    process.env = ORIGINAL_ENV;
+  describe('groupBy.key', () => {
+    it('should group by tenantId#streamType', () => {
+      const record = { __typename: 'LedgerEntry', tenantId: 'tenant-1', streamType: 'actual' };
+      expect(capturedConfig.groupBy.key(record)).toBe('tenant-1#actual');
+    });
+
+    it('should produce distinct keys for different tenants', () => {
+      const r1 = { tenantId: 'a', streamType: 'actual' };
+      const r2 = { tenantId: 'b', streamType: 'actual' };
+      expect(capturedConfig.groupBy.key(r1)).not.toBe(capturedConfig.groupBy.key(r2));
+    });
+
+    it('should produce distinct keys for different stream types', () => {
+      const r1 = { tenantId: 'a', streamType: 'actual' };
+      const r2 = { tenantId: 'a', streamType: 'simulated' };
+      expect(capturedConfig.groupBy.key(r1)).not.toBe(capturedConfig.groupBy.key(r2));
+    });
   });
 
-  it('should process INSERT records with __typename LedgerEntry', async () => {
-    mockSend
-      .mockResolvedValueOnce({ Items: [] }) // getLatestSnapshot
-      .mockResolvedValueOnce({
-        Items: [{
-          eventId: 'evt-1',
-          eventType: 'DEPOSIT_DETECTED',
-          payload: { depositId: 'd1', amountCents: 500000, depositedAt: '2025-01-01T00:00:00.000Z' },
-          timestamp: '2025-01-01T00:00:00.000Z',
-          sequenceNo: 1,
-          streamType: 'actual',
-        }],
-      }) // queryEntriesSince
-      .mockResolvedValue({}); // transactWrite + checkpoint
+  describe('snapshot.key', () => {
+    it('should produce pk=Account#tenantId#streamType, sk=Snapshot#latest', () => {
+      const key = capturedConfig.snapshot.key('tenant-1#actual');
+      expect(key).toEqual({ pk: 'Account#tenant-1#actual', sk: 'Snapshot#latest' });
+    });
 
-    const event = buildStreamEvent([{
-      eventType: 'DEPOSIT_DETECTED',
-      tenantId: 't1',
-      streamType: 'actual',
-      sequenceNo: 1,
-      payload: { depositId: 'd1', amountCents: 500000, depositedAt: '2025-01-01T00:00:00.000Z' },
-    }]);
-
-    await reducer(event);
-    expect(mockMetrics.addMetric).toHaveBeenCalledWith('SnapshotUpdated', 'Count', 1);
+    it('should handle different stream types', () => {
+      const key = capturedConfig.snapshot.key('tenant-2#simulated');
+      expect(key).toEqual({ pk: 'Account#tenant-2#simulated', sk: 'Snapshot#latest' });
+    });
   });
 
-  it('should skip non-INSERT records', async () => {
-    const event: DynamoDBStreamEvent = {
-      Records: [{
-        eventID: 'test-id',
-        eventName: 'MODIFY',
-        eventVersion: '1.1',
-        eventSource: 'aws:dynamodb',
-        awsRegion: 'us-east-1',
-        dynamodb: {
-          NewImage: {
-            __typename: { S: 'LedgerEntry' },
-            tenantId: { S: 't1' },
-            streamType: { S: 'actual' },
-          } as any,
-          Keys: { pk: { S: 'test' }, sk: { S: 'test' } },
-          StreamViewType: 'NEW_AND_OLD_IMAGES',
+  describe('reducer', () => {
+    it('should return initial state for unknown event types', () => {
+      const state = INITIAL_ACCOUNT_STATE;
+      const event = {
+        eventId: 'e1', eventType: 'UNKNOWN_EVENT',
+        payload: {}, timestamp: '2025-01-01T00:00:00.000Z', sequenceNo: 1,
+      };
+      const next = capturedConfig.reducer(state, event);
+      expect(next).toEqual(state);
+    });
+
+    it('should apply DEPOSIT_DETECTED to increase cash balance', () => {
+      const state = INITIAL_ACCOUNT_STATE;
+      const event = {
+        eventId: 'e1', eventType: 'DEPOSIT_DETECTED',
+        payload: { depositId: 'd1', amountCents: 500000, depositedAt: '2025-01-01T00:00:00.000Z' },
+        timestamp: '2025-01-01T00:00:00.000Z', sequenceNo: 1,
+      };
+      const next = capturedConfig.reducer(state, event);
+      // DEPOSIT_DETECTED increases cashBalanceCents
+      expect(next.cashBalanceCents).toBeGreaterThan(state.cashBalanceCents);
+    });
+
+    it('should apply ORDER_FILLED to update positions', () => {
+      const state = INITIAL_ACCOUNT_STATE;
+      const event = {
+        eventId: 'e1', eventType: 'ORDER_FILLED',
+        payload: {
+          orderId: 'o1', symbol: 'VTI', side: 'BUY',
+          quantity: 10, fillPrice: 245.50, filledAt: '2025-01-01T00:00:00.000Z',
         },
-        eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789012:table/test/stream/2025-01-01T00:00:00.000',
-      }],
-    };
+        timestamp: '2025-01-01T00:00:00.000Z', sequenceNo: 1,
+      };
+      const next = capturedConfig.reducer(state, event);
+      // BUY order should create a position for VTI
+      expect(next.positions['VTI']).toBeDefined();
+      expect(next.positions['VTI'].quantity).toBe(10);
+    });
 
-    await reducer(event);
-    expect(mockMetrics.addMetric).not.toHaveBeenCalledWith('SnapshotUpdated', expect.anything(), expect.anything());
-  });
-
-  it('should skip records that are not LedgerEntry typename', async () => {
-    const event: DynamoDBStreamEvent = {
-      Records: [{
-        eventID: 'test-id',
-        eventName: 'INSERT',
-        eventVersion: '1.1',
-        eventSource: 'aws:dynamodb',
-        awsRegion: 'us-east-1',
-        dynamodb: {
-          NewImage: {
-            __typename: { S: 'AccountSnapshot' },
-            tenantId: { S: 't1' },
-            streamType: { S: 'actual' },
-          } as any,
-          Keys: { pk: { S: 'test' }, sk: { S: 'test' } },
-          StreamViewType: 'NEW_AND_OLD_IMAGES',
-        },
-        eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789012:table/test/stream/2025-01-01T00:00:00.000',
-      }],
-    };
-
-    await reducer(event);
-    expect(mockMetrics.addMetric).not.toHaveBeenCalledWith('SnapshotUpdated', expect.anything(), expect.anything());
-  });
-
-  it('should skip when no new entries found', async () => {
-    mockSend
-      .mockResolvedValueOnce({ Items: [] }) // getLatestSnapshot
-      .mockResolvedValueOnce({ Items: [] }); // queryEntriesSince → empty
-
-    const event = buildStreamEvent([{
-      eventType: 'ORDER_FILLED',
-      tenantId: 't1',
-      streamType: 'actual',
-      sequenceNo: 1,
-      payload: { symbol: 'VTI', side: 'BUY', quantity: 10, fillPrice: 245.50 },
-    }]);
-
-    await reducer(event);
-    expect(mockMetrics.addMetric).not.toHaveBeenCalledWith('SnapshotUpdated', expect.anything(), expect.anything());
-  });
-
-  it('should detect balance and position changes', async () => {
-    mockSend
-      .mockResolvedValueOnce({ Items: [] }) // getLatestSnapshot
-      .mockResolvedValueOnce({
-        Items: [{
-          eventId: 'evt-1',
-          eventType: 'ORDER_FILLED',
-          payload: { orderId: 'o1', symbol: 'VTI', side: 'BUY', quantity: 10, fillPrice: 245.50, filledAt: '2025-01-01T00:00:00.000Z' },
-          timestamp: '2025-01-01T00:00:00.000Z',
-          sequenceNo: 1,
-          streamType: 'actual',
-        }],
-      }) // queryEntriesSince
-      .mockResolvedValue({}); // transactWrite + checkpoint
-
-    const event = buildStreamEvent([{
-      eventType: 'ORDER_FILLED',
-      tenantId: 't1',
-      streamType: 'actual',
-      sequenceNo: 1,
-      payload: { orderId: 'o1', symbol: 'VTI', side: 'BUY', quantity: 10, fillPrice: 245.50, filledAt: '2025-01-01T00:00:00.000Z' },
-    }]);
-
-    await reducer(event);
-
-    // Check that saveSnapshotWithEvents was called (via transactWrite)
-    const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
-    expect(txCalls).toHaveLength(1);
-    const transactItems = txCalls[0][0].input.TransactItems;
-    // Should have Snapshot + BalanceEvent + PortfolioEvent + LedgerEntryEvent + SnapshotHistory = 5
-    // because both balance and positions changed
-    expect(transactItems).toHaveLength(5);
-  });
-
-  it('should increment version when existing snapshot exists', async () => {
-    mockSend
-      .mockResolvedValueOnce({
-        Items: [{
-          pk: 'Account#t1#actual',
-          sk: 'Snapshot#latest',
-          version: 3,
-          lastEventSequence: 5,
-          positions: {},
-          cashBalanceCents: 10_000_000,
-          snapshotAt: '2025-01-01T00:00:00.000Z',
-        }],
-      }) // getLatestSnapshot → existing snapshot
-      .mockResolvedValueOnce({
-        Items: [{
-          eventId: 'evt-6', eventType: 'DEPOSIT_DETECTED',
-          payload: { depositId: 'd1', amountCents: 100000, depositedAt: '2025-01-01T00:00:00.000Z' },
-          timestamp: '2025-01-01T00:00:00.000Z', sequenceNo: 6, streamType: 'actual',
-        }],
-      }) // queryEntriesSince
-      .mockResolvedValue({}); // transactWrite + checkpoint
-
-    const event = buildStreamEvent([{
-      eventType: 'DEPOSIT_DETECTED',
-      tenantId: 't1',
-      streamType: 'actual',
-      sequenceNo: 6,
-      payload: { depositId: 'd1', amountCents: 100000 },
-    }]);
-
-    await reducer(event);
-    expect(mockMetrics.addMetric).toHaveBeenCalledWith('SnapshotUpdated', 'Count', 1);
-
-    // Verify version is 4 in the snapshot
-    const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
-    const snapshotItem = txCalls[0][0].input.TransactItems.find(
-      (t: any) => t.Put.Item.__typename === 'AccountSnapshot',
-    );
-    expect(snapshotItem.Put.Item.version).toBe(4);
-  });
-
-  it('should include SnapshotHistory item in the transaction', async () => {
-    mockSend
-      .mockResolvedValueOnce({ Items: [] }) // getLatestSnapshot
-      .mockResolvedValueOnce({
-        Items: [{
-          eventId: 'evt-1',
-          eventType: 'DEPOSIT_DETECTED',
-          payload: { depositId: 'd1', amountCents: 500000, depositedAt: '2025-01-01T00:00:00.000Z' },
-          timestamp: '2025-01-01T00:00:00.000Z',
-          sequenceNo: 1,
-          streamType: 'actual',
-        }],
-      }) // queryEntriesSince
-      .mockResolvedValue({}); // transactWrite + checkpoint
-
-    const event = buildStreamEvent([{
-      eventType: 'DEPOSIT_DETECTED',
-      tenantId: 't1',
-      streamType: 'actual',
-      sequenceNo: 1,
-      payload: { depositId: 'd1', amountCents: 500000, depositedAt: '2025-01-01T00:00:00.000Z' },
-    }]);
-
-    await reducer(event);
-
-    const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
-    expect(txCalls).toHaveLength(1);
-    const transactItems = txCalls[0][0].input.TransactItems;
-
-    // Find the SnapshotHistory item
-    const snapshotHistory = transactItems.find(
-      (t: any) => t.Put.Item.__typename === 'SnapshotHistory',
-    );
-    expect(snapshotHistory).toBeDefined();
-    expect(snapshotHistory.Put.Item.pk).toBe('Account#t1#actual');
-    expect(snapshotHistory.Put.Item.sk).toMatch(/^SnapshotAt#/);
-    expect(snapshotHistory.Put.Item.cashBalanceCents).toBeDefined();
-    expect(snapshotHistory.Put.Item.positions).toBeDefined();
-    expect(snapshotHistory.Put.Item.lastEventSequence).toBe(1);
-    expect(snapshotHistory.Put.Item.ttl).toBeGreaterThan(0);
-  });
-
-  it('should include snapshot data in BalanceEvent and PortfolioEvent items', async () => {
-    mockSend
-      .mockResolvedValueOnce({ Items: [] }) // getLatestSnapshot
-      .mockResolvedValueOnce({
-        Items: [{
-          eventId: 'evt-1',
-          eventType: 'ORDER_FILLED',
-          payload: { orderId: 'o1', symbol: 'VTI', side: 'BUY', quantity: 10, fillPrice: 245.50, filledAt: '2025-01-01T00:00:00.000Z' },
-          timestamp: '2025-01-01T00:00:00.000Z',
-          sequenceNo: 1,
-          streamType: 'actual',
-        }],
-      }) // queryEntriesSince
-      .mockResolvedValue({}); // transactWrite + checkpoint
-
-    const event = buildStreamEvent([{
-      eventType: 'ORDER_FILLED',
-      tenantId: 't1',
-      streamType: 'actual',
-      sequenceNo: 1,
-      payload: { orderId: 'o1', symbol: 'VTI', side: 'BUY', quantity: 10, fillPrice: 245.50, filledAt: '2025-01-01T00:00:00.000Z' },
-    }]);
-
-    await reducer(event);
-
-    const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
-    const transactItems = txCalls[0][0].input.TransactItems;
-
-    const balanceItem = transactItems.find(
-      (t: any) => t.Put.Item.__typename === 'BalanceEvent',
-    );
-    expect(balanceItem.Put.Item.snapshot).toBeDefined();
-    expect(balanceItem.Put.Item.snapshot.positions).toBeDefined();
-    expect(balanceItem.Put.Item.snapshot.cashBalanceCents).toBeDefined();
-    expect(balanceItem.Put.Item.snapshot.lastEventSequence).toBe(1);
-
-    const portfolioItem = transactItems.find(
-      (t: any) => t.Put.Item.__typename === 'PortfolioEvent',
-    );
-    expect(portfolioItem.Put.Item.snapshot).toBeDefined();
-    expect(portfolioItem.Put.Item.snapshot.positions).toBeDefined();
-  });
-
-  it('should throw and record failure on unexpected errors', async () => {
-    mockSend
-      .mockResolvedValueOnce({ Items: [] }) // getLatestSnapshot
-      .mockRejectedValueOnce(new Error('DDB failure')); // queryEntriesSince fails
-
-    const event = buildStreamEvent([{
-      eventType: 'ORDER_FILLED',
-      tenantId: 't1',
-      streamType: 'actual',
-      sequenceNo: 1,
-      payload: {},
-    }]);
-
-    await expect(reducer(event)).rejects.toThrow('DDB failure');
-    expect(mockMetrics.addMetric).toHaveBeenCalledWith('ReducerFailed', 'Count', 1);
+    it('should return unchanged state for ORDER_REJECTED', () => {
+      const state = INITIAL_ACCOUNT_STATE;
+      const event = {
+        eventId: 'e1', eventType: 'ORDER_REJECTED',
+        payload: { orderId: 'o1' },
+        timestamp: '2025-01-01T00:00:00.000Z', sequenceNo: 1,
+      };
+      const next = capturedConfig.reducer(state, event);
+      expect(next).toEqual(state);
+    });
   });
 });
