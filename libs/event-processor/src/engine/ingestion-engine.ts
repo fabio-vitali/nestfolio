@@ -1,0 +1,133 @@
+import { isRetryable, traceEvent, extractTenantId } from '../internal';
+import type { HandlerEntry } from '../types/handler-config';
+import type { EventContext } from '../types/event-context';
+import { normalizeHandler } from './normalize-handler';
+import { IntentExecutor } from './intent-executor';
+import { ErrorCollector } from './error-collector';
+import { asyncPool } from '../util/async-pool';
+import { ErrorEventPublisher } from './error-event-publisher';
+import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import type { S3Client } from '@aws-sdk/client-s3';
+import type { IngestionRecord, IngestionResult } from './ingestion-types';
+
+const DEFAULT_CONCURRENCY = 5;
+
+export interface IngestionEngineConfig {
+  serviceName: string;
+  handlers: Record<string, HandlerEntry>;
+  docClient: DynamoDBDocumentClient;
+  tableName: string;
+  busName?: string;
+  concurrency?: number;
+  errorEventType?: string;
+  s3Client?: S3Client;
+  bucket?: string;
+}
+
+export class IngestionEngine {
+  private readonly normalizedHandlers: Map<string, ReturnType<typeof normalizeHandler>>;
+  private readonly intentExecutor: IntentExecutor;
+  private readonly errorPublisher?: ErrorEventPublisher;
+  private readonly config: IngestionEngineConfig;
+
+  constructor(config: IngestionEngineConfig) {
+    this.config = config;
+    this.intentExecutor = new IntentExecutor({
+      docClient: config.docClient,
+      tableName: config.tableName,
+      s3Client: config.s3Client,
+      bucket: config.bucket,
+    });
+    if (config.busName) {
+      this.errorPublisher = new ErrorEventPublisher(config.busName, config.serviceName);
+    }
+    this.normalizedHandlers = new Map();
+    for (const [eventType, entry] of Object.entries(config.handlers)) {
+      this.normalizedHandlers.set(eventType, normalizeHandler(entry));
+    }
+  }
+
+  async process(records: IngestionRecord[]): Promise<IngestionResult> {
+    const startedAt = Date.now();
+    const collector = new ErrorCollector();
+    const concurrency = this.config.concurrency ?? DEFAULT_CONCURRENCY;
+
+    await asyncPool(
+      records,
+      async (ingestionRecord) => {
+        const { id, event, metadata } = ingestionRecord;
+        let parsedPayload: unknown;
+
+        try {
+          const eventType = event.type;
+          parsedPayload = { type: event.type, subject: event.subject, id: event.id };
+
+          const tenantId = extractTenantId(event);
+          traceEvent(eventType, event.id, tenantId);
+
+          // Route
+          const handler = this.normalizedHandlers.get(eventType);
+          if (!handler) {
+            collector.recordSkipped(id);
+            return;
+          }
+
+          // Build context
+          const ctx: EventContext = {
+            eventId: event.id,
+            eventType,
+            tenantId,
+            userId: event.context?.userId as string | undefined,
+            timestamp: event.timestamp,
+            receiveCount: metadata.receiveCount,
+            serviceName: this.config.serviceName,
+            record: ingestionRecord,
+          };
+
+          // Execute handler → intents
+          const intents = await handler({ subject: event.subject, context: event.context }, ctx);
+
+          // Execute intents
+          let anyDeduplicated = false;
+          for (const intent of intents) {
+            const result = await this.intentExecutor.execute(intent, ctx);
+            if (result.deduplicated) anyDeduplicated = true;
+          }
+
+          if (anyDeduplicated) {
+            collector.recordDeduplicated(id, eventType);
+          } else {
+            collector.recordSuccess(id, eventType);
+          }
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          const retryable = isRetryable(err);
+          collector.recordError(id, err, retryable, parsedPayload);
+        }
+      },
+      { concurrency },
+    );
+
+    const results = collector.getResults();
+
+    // Publish non-retryable errors to bus
+    if (results.droppedErrors.length > 0 && this.errorPublisher) {
+      const errorType =
+        this.config.errorEventType ??
+        `${this.config.serviceName.toUpperCase().replace(/-/g, '_')}_FAILED`;
+      await this.errorPublisher.publishErrors(
+        results.droppedErrors.map(({ error, causedBy }) => ({ error, causedBy })),
+        errorType,
+      );
+    }
+
+    // BatchDuration metric
+    results.metrics.BatchDuration = Date.now() - startedAt;
+
+    return {
+      failures: results.batchItemFailures,
+      metrics: results.metrics,
+      droppedErrors: results.droppedErrors,
+    };
+  }
+}
