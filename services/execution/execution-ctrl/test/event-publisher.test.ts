@@ -11,6 +11,13 @@ const eventTypeMap = {
       default:          return 'ORDER_CREATED';
     }
   },
+  'Order:MODIFY': (record: StreamRecord) => {
+    switch (record['status']) {
+      case 'SUBMITTED': return 'ORDER_SUBMITTED';
+      case 'REJECTED':  return 'ORDER_REJECTED';
+      default:          return 'ORDER_UPDATED';
+    }
+  },
 };
 
 describe('execution-ctrl event-publisher', () => {
@@ -44,7 +51,21 @@ describe('execution-ctrl event-publisher', () => {
     expect(result.publishedEvents[0].eventType).toBe('ORDER_CREATED');
   });
 
-  it('publishes ORDER_UPDATED for Order MODIFY', async () => {
+  it('publishes ORDER_SUBMITTED for Order MODIFY with status=SUBMITTED', async () => {
+    const result = await harness.process([
+      fakeDdbStreamRecord('MODIFY', { __typename: 'Order', tenantId: 't1', status: 'SUBMITTED' }),
+    ]);
+    expect(result.publishedEvents[0].eventType).toBe('ORDER_SUBMITTED');
+  });
+
+  it('publishes ORDER_REJECTED for Order MODIFY with status=REJECTED', async () => {
+    const result = await harness.process([
+      fakeDdbStreamRecord('MODIFY', { __typename: 'Order', tenantId: 't1', status: 'REJECTED' }),
+    ]);
+    expect(result.publishedEvents[0].eventType).toBe('ORDER_REJECTED');
+  });
+
+  it('publishes ORDER_UPDATED for Order MODIFY with other status', async () => {
     const result = await harness.process([
       fakeDdbStreamRecord('MODIFY', { __typename: 'Order', tenantId: 't1', status: 'FILLED' }),
     ]);

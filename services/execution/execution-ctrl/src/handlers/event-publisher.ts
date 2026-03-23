@@ -13,5 +13,12 @@ export const handler = changeDataCapture({
         default:          return 'ORDER_CREATED';
       }
     },
+    'Order:MODIFY': (record: StreamRecord) => {
+      switch (record['status']) {
+        case 'SUBMITTED': return 'ORDER_SUBMITTED';
+        case 'REJECTED':  return 'ORDER_REJECTED';
+        default:          return 'ORDER_UPDATED';
+      }
+    },
   },
 });
