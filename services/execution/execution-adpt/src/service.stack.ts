@@ -42,6 +42,7 @@ export class ExecutionAdptStack extends ServiceStack {
           ExecutionCrossDomainEventTypes.ORDER_REJECTED,
           ExecutionCrossDomainEventTypes.ORDER_CANCELLED,
           ExecutionCrossDomainEventTypes.WITHDRAWAL_REJECTED,
+          ExecutionCrossDomainEventTypes.WITHDRAWAL_COMPLETED,
         ],
       },
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: toInvestorDlq })],
