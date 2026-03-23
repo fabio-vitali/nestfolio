@@ -27,62 +27,21 @@ jest.mock('@nestfolio/event-processor', () => ({
       this.tableName = tableName;
       this.docClient = { send: mockSend };
     }
-    protected async put(item: Record<string, unknown>) {
-      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
-    }
-    protected async putIfNotExists(item: Record<string, unknown>): Promise<boolean> {
-      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
-      return true;
-    }
-    protected async queryByPk(pk: string, skPrefix?: string) {
-      const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-      const result = await this.docClient.send(new QueryCommand({
-        TableName: this.tableName,
-        KeyConditionExpression: skPrefix
-          ? 'pk = :pk AND begins_with(sk, :sk)'
-          : 'pk = :pk',
-        ExpressionAttributeValues: { ':pk': pk, ...(skPrefix ? { ':sk': skPrefix } : {}) },
-      }));
-      return result.Items ?? [];
-    }
-    protected async transactWrite(input: unknown) {
-      const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new TransactWriteCommand(input));
-    }
-    protected buildTransactUpdate(pk: string, sk: string, attrs: Record<string, unknown>) {
-      const entries = Object.entries(attrs);
-      const names: Record<string, string> = {};
-      const values: Record<string, unknown> = {};
-      const sets: string[] = [];
-      entries.forEach(([k, v], i) => { names[`#a${i}`] = k; values[`:v${i}`] = v; sets.push(`#a${i} = :v${i}`); });
-      return { Update: { TableName: this.tableName, Key: { pk, sk }, UpdateExpression: `SET ${sets.join(', ')}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values } };
-    }
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
-
   requireEnv: (name: string) => process.env[name] ?? name,
   withMethodLogging: jest.fn().mockImplementation(() =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
   ),
-
 }));
+
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
-import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
-import { NotificationRepository } from '../src/repositories/notification.repository';
-import { NotificationLifecycleService } from '../src/services/notification-lifecycle.service';
-import { NotificationDeliveryService } from '../src/services/notification-delivery.service';
+import { createHandlers, getNotificationTemplate, type EventListenerDeps } from '../src/handlers/event-listener';
 
 describe('investor-ctrl event-listener', () => {
-  const repository = new NotificationRepository('test-table');
-  const delivery = new NotificationDeliveryService();
-  const lifecycleService = new NotificationLifecycleService(repository, delivery);
-  const executeSpy = jest.spyOn(lifecycleService, 'executeNotificationLifecycle').mockResolvedValue(undefined as any);
-
-  const mockDeps: EventListenerDeps = { lifecycleService };
+  const mockDeps: EventListenerDeps = {};
 
   const harness = createTestHarness({
     serviceName: 'investor-ctrl',
@@ -92,67 +51,148 @@ describe('investor-ctrl event-listener', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
-    executeSpy.mockResolvedValue(undefined as any);
   });
 
-  it('routes ONBOARDING_COMPLETED to lifecycle service', async () => {
-    const result = await harness.process([
-      fakeSqsRecord('ONBOARDING_COMPLETED', { userId: 'u1' }, { tenantId: 't1' }),
-    ]);
-    expect(result.skipped).toBe(0);
-    expect(executeSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 't1' }),
-    );
+  describe('getNotificationTemplate', () => {
+    it('returns correct template for ONBOARDING_COMPLETED', () => {
+      const t = getNotificationTemplate('ONBOARDING_COMPLETED');
+      expect(t.title).toBe('Welcome to Nestfolio');
+      expect(t.channel).toBe('email');
+    });
+
+    it('returns correct template for ORDER_FILLED', () => {
+      const t = getNotificationTemplate('ORDER_FILLED');
+      expect(t.title).toBe('Order Executed');
+      expect(t.channel).toBe('email');
+    });
+
+    it('returns fallback template for unknown event type', () => {
+      const t = getNotificationTemplate('UNKNOWN_TYPE');
+      expect(t.title).toBe('Notification');
+      expect(t.body).toContain('UNKNOWN_TYPE');
+      expect(t.channel).toBe('push');
+    });
   });
 
-  it('routes ORDER_FILLED to lifecycle service', async () => {
-    await harness.process([
-      fakeSqsRecord('ORDER_FILLED', { orderId: 'o1' }, { tenantId: 't1' }),
-    ]);
-    expect(executeSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 't1' }),
-    );
-  });
-
-  it('handles all 8 event types', async () => {
-    const types = [
-      'ONBOARDING_COMPLETED', 'MANDATE_GRANTED', 'GOAL_UPDATED', 'DEPOSIT_INITIATED',
-      'OPERATING_MODE_CHANGED', 'DECISION_APPROVED', 'ORDER_FILLED', 'BALANCE_UPDATED',
+  describe('WriteIntents — non-ORDER_FILLED events', () => {
+    const testCases = [
+      { type: 'ONBOARDING_COMPLETED', expectedChannel: 'email' },
+      { type: 'MANDATE_GRANTED', expectedChannel: 'push' },
+      { type: 'GOAL_UPDATED', expectedChannel: 'push' },
+      { type: 'DEPOSIT_INITIATED', expectedChannel: 'push' },
+      { type: 'OPERATING_MODE_CHANGED', expectedChannel: 'push' },
+      { type: 'DECISION_APPROVED', expectedChannel: 'push' },
+      { type: 'BALANCE_UPDATED', expectedChannel: 'push' },
     ];
-    for (const type of types) {
-      jest.clearAllMocks();
-      executeSpy.mockResolvedValue(undefined as any);
-      await harness.process([fakeSqsRecord(type, {}, { tenantId: 't1' })]);
-      expect(executeSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: 't1' }),
-      );
+
+    for (const { type, expectedChannel } of testCases) {
+      it(`returns record('Notification') for ${type}`, async () => {
+        const result = await harness.process([
+          fakeSqsRecord(type, { userId: 'u1' }, { tenantId: 't1' }),
+        ]);
+        expect(result.errors).toHaveLength(0);
+        expect(result.intents).toHaveLength(1);
+        expect(result.intents[0]).toMatchObject({
+          _tag: 'record',
+          typename: 'Notification',
+          fields: expect.objectContaining({
+            __typename: 'Notification',
+            status: 'DELIVERED',
+            channel: expectedChannel,
+            tenantId: 't1',
+          }),
+        });
+      });
     }
   });
 
-  it('skips unknown event types', async () => {
-    const result = await harness.process([
-      fakeSqsRecord('UNKNOWN_EVENT', {}, { tenantId: 't1' }),
-    ]);
-    expect(result.skipped).toBe(1);
-    expect(executeSpy).not.toHaveBeenCalled();
+  describe('WriteIntents — ORDER_FILLED', () => {
+    it('returns [record(Notification), record(MonthlyReport)] for ORDER_FILLED', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_FILLED', { orderId: 'o1', symbol: 'AAPL' }, { tenantId: 't2' }),
+      ]);
+      expect(result.errors).toHaveLength(0);
+      expect(result.intents).toHaveLength(2);
+      expect(result.intents[0]).toMatchObject({ _tag: 'record', typename: 'Notification' });
+      expect(result.intents[1]).toMatchObject({ _tag: 'record', typename: 'MonthlyReport' });
+    });
+
+    it('Notification for ORDER_FILLED has status DELIVERED and channel email', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_FILLED', { orderId: 'o1' }, { tenantId: 't2' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'Notification',
+        fields: expect.objectContaining({
+          status: 'DELIVERED',
+          channel: 'email',
+          tenantId: 't2',
+        }),
+      });
+    });
+
+    it('MonthlyReport has correct fields for ORDER_FILLED', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_FILLED', { orderId: 'o2' }, { tenantId: 't3', eventId: 'evt-3' }),
+      ]);
+      expect(result.intents[1]).toMatchObject({
+        _tag: 'record',
+        typename: 'MonthlyReport',
+        fields: expect.objectContaining({
+          __typename: 'MonthlyReport',
+          status: 'GENERATED',
+          tenantId: 't3',
+        }),
+      });
+      const reportFields = (result.intents[1] as { fields: Record<string, unknown> }).fields;
+      expect(typeof reportFields['period']).toBe('string');
+      expect((reportFields['period'] as string)).toMatch(/^\d{4}-\d{2}$/);
+    });
   });
 
-  it('reports failure when lifecycle service throws', async () => {
-    executeSpy.mockRejectedValueOnce(new Error('Lifecycle failed'));
-    const result = await harness.process([
-      fakeSqsRecord('ONBOARDING_COMPLETED', { userId: 'u1' }, { tenantId: 't1' }),
-    ]);
-    expect(result.errors).toHaveLength(1);
-    expect(result.batchItemFailures).toHaveLength(1);
+  describe('key layout', () => {
+    it('Notification overrides pk to Notification#tenantId#notificationId', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('MANDATE_GRANTED', {}, { tenantId: 'tenant-x', eventId: 'evt-x' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        overrides: expect.objectContaining({
+          pk: 'Notification#tenant-x#evt-x',
+          sk: 'Notification',
+        }),
+      });
+    });
+
+    it('MonthlyReport overrides pk to MonthlyReport#tenantId#reportId', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_FILLED', {}, { tenantId: 'tenant-y', eventId: 'evt-y' }),
+      ]);
+      expect(result.intents[1]).toMatchObject({
+        overrides: expect.objectContaining({
+          pk: 'MonthlyReport#tenant-y#evt-y-report',
+          sk: 'MonthlyReport',
+        }),
+      });
+    });
   });
 
-  it('processes multiple records in a batch', async () => {
-    const result = await harness.process([
-      fakeSqsRecord('ONBOARDING_COMPLETED', { userId: 'u1' }, { tenantId: 't1' }),
-      fakeSqsRecord('MANDATE_GRANTED', { userId: 'u2' }, { tenantId: 't2' }),
-      fakeSqsRecord('ORDER_FILLED', { orderId: 'o1' }, { tenantId: 't3' }),
-    ]);
-    expect(result.metrics.EventProcessed).toBe(3);
-    expect(executeSpy).toHaveBeenCalledTimes(3);
+  describe('batch processing', () => {
+    it('processes multiple records in a batch', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ONBOARDING_COMPLETED', { userId: 'u1' }, { tenantId: 't1' }),
+        fakeSqsRecord('MANDATE_GRANTED', { userId: 'u2' }, { tenantId: 't2' }),
+        fakeSqsRecord('ORDER_FILLED', { orderId: 'o1' }, { tenantId: 't3' }),
+      ]);
+      expect(result.metrics.EventProcessed).toBe(3);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('skips unknown event types', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('UNKNOWN_EVENT', {}, { tenantId: 't1' }),
+      ]);
+      expect(result.skipped).toBe(1);
+    });
   });
 });
