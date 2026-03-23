@@ -98,9 +98,11 @@ Owns:
 - Handler execution → WriteIntents
 - IntentExecutor (record, project, accumulate, update, skip, store)
 - ErrorCollector (success, skipped, deduplicated, failed, dropped)
-- ErrorEventPublisher (non-retryable errors → EventBridge)
+- **Error publishing** (non-retryable errors → EventBridge via `ErrorEventPublisher`). The engine publishes errors internally when `busName` is configured — this stays in the core, not in adapters, because error semantics are transport-independent.
 - Metrics (EventProcessed, EventFailed, EventDeduplicated, EventDropped, EventSkipped, BatchSize, BatchDuration)
 - asyncPool concurrency
+
+**Note:** The engine core does NOT perform poison pill detection. That is an SQS-adapter-only concern. The core only performs event-type routing (skipping unknown types).
 
 ```typescript
 export interface IngestionEngineConfig {
@@ -152,19 +154,45 @@ export class KinesisIngestionAdapter implements IngestionAdapter<KinesisStreamEv
 }
 ```
 
-### 5. Record Parsers (`parse-sqs-record.ts`, `parse-kinesis-record.ts`)
+### 5. EventContext Changes
+
+The current `EventContext` type is SQS-specific:
+```typescript
+// BEFORE
+export interface EventContext {
+  readonly receiveCount: number;   // required — breaks for Kinesis
+  readonly record: SQSRecord;      // typed to SQS — leaks transport
+}
+```
+
+Updated to be transport-agnostic:
+```typescript
+// AFTER
+export interface EventContext {
+  readonly receiveCount?: number;  // optional — undefined for Kinesis
+  readonly record: unknown;        // raw transport record, opaque to handlers
+}
+```
+
+- `receiveCount` becomes optional. SQS adapter sets it from `ApproximateReceiveCount`; Kinesis adapter leaves it `undefined`.
+- `record` becomes `unknown`. Handlers that need the raw record (none currently do) must narrow the type themselves.
+- All other fields (`eventId`, `eventType`, `tenantId`, `userId`, `timestamp`, `serviceName`) remain unchanged.
+
+### 6. Record Parsers (`parse-sqs-record.ts`, `parse-kinesis-record.ts`)
 
 Extracted as standalone functions used by their respective adapters:
 
 ```typescript
-// parse-sqs-record.ts — extracted from existing parseRecord
+// parse-sqs-record.ts — replaces the existing parseRecord from internal.ts (no alias kept)
 export function parseSqsRecord(record: SQSRecord): BusEvent;
 
 // parse-kinesis-record.ts — new
 export function parseKinesisRecord(record: KinesisStreamRecord): BusEvent;
 ```
 
-### 6. Unified Factory (`create-ingestion-handler.ts`)
+### 7. Unified Factory (`create-ingestion-handler.ts`)
+
+Uses function overloads for type-safe return types keyed on `transport`:
 
 ```typescript
 export interface IngestionHandlerConfig {
@@ -180,9 +208,14 @@ export interface IngestionHandlerConfig {
   s3?: { bucket: string };
 }
 
-export function createIngestionHandler(config: IngestionHandlerConfig):
-  | ((event: SQSEvent, context?: Context) => Promise<SQSBatchResponse>)
-  | ((event: KinesisStreamEvent) => Promise<KinesisStreamBatchResponse>);
+// Overloads — callers get exact return type without assertions
+export function createIngestionHandler(
+  config: IngestionHandlerConfig & { transport?: 'sqs' },
+): (event: SQSEvent, context?: Context) => Promise<SQSBatchResponse>;
+
+export function createIngestionHandler(
+  config: IngestionHandlerConfig & { transport: 'kinesis' },
+): (event: KinesisStreamEvent) => Promise<KinesisStreamBatchResponse>;
 ```
 
 Internally:
@@ -192,22 +225,24 @@ Internally:
 4. Returns a Lambda handler that: calls `adapter.toRecords(event)` → `engine.process(records)` → `adapter.toResponse(result)`
 5. Wraps with `applyMiddleware(withLambdaContext(), withTiming(...))`
 
-### 7. Pipeline Changes
+### 8. Pipeline Changes
 
-**`materializeToTable`** — gains optional `transport` field:
+**`materializeToTable`** — gains optional `transport` field with overloads:
 ```typescript
 export function materializeToTable(
-  config: MaterializeToTableConfig & { transport?: 'sqs' | 'kinesis' },
-) {
-  return createIngestionHandler({ ...config, transport: config.transport ?? 'sqs' });
-}
+  config: MaterializeToTableConfig & { transport?: 'sqs' },
+): (event: SQSEvent, context?: Context) => Promise<SQSBatchResponse>;
+
+export function materializeToTable(
+  config: MaterializeToTableConfig & { transport: 'kinesis' },
+): (event: KinesisStreamEvent) => Promise<KinesisStreamBatchResponse>;
 ```
 
 **`changeDataCapture`** — import rename only (`StreamEngine` → `EgestionEngine`).
 
 **`replayAndReduce`** — import rename only (`StreamEngine` → `EgestionEngine`).
 
-### 8. Egestion Side (Rename Only)
+### 9. Egestion Side (Rename Only)
 
 | Current | Proposed |
 |---------|----------|
@@ -245,6 +280,8 @@ libs/event-processor/src/engine/
   intent-executor.ts
   error-collector.ts
   error-event-publisher.ts
+  base-collector.ts
+  stream-collector.ts
 ```
 
 ## Public API Changes (`index.ts`)
@@ -284,6 +321,9 @@ libs/event-processor/src/engine/
 ### Renamed tests:
 - `stream-engine.test.ts` → `egestion-engine.test.ts`
 - `create-stream-handler.test.ts` → `create-egestion-handler.test.ts`
+
+### Integration tests:
+- `create-ingestion-handler.test.ts` includes round-trip tests: real SQS/Kinesis event fixtures → factory → adapter → engine → mock DDB client → verify intents executed and response formatted correctly. Tests both transport paths end-to-end.
 
 ### Service tests:
 - No changes — services test against pipeline APIs which retain the same signatures.
