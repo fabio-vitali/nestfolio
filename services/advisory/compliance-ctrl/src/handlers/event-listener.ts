@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { materializeToTable, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, skip, record, project, update, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
@@ -12,15 +12,25 @@ import { SuitabilityChecker } from '../rules/suitability-checker';
 import { AuthorityResolver } from '../rules/authority-resolver';
 
 export interface EventListenerDeps {
-  readonly repository: ComplianceRepository;
+  readonly repository: {
+    getMandateSnapshot: (tenantId: string, userId: string) => Promise<Record<string, unknown> | null>;
+  };
   readonly ruleEngine: RuleEngine;
+}
+
+function complianceCheckPk(tenantId: string, ccId: string): string {
+  return `ComplianceCheck#${tenantId}#${ccId}`;
+}
+
+function guardrailPolicyPk(tenantId: string, userId: string): string {
+  return `GuardrailPolicy#${tenantId}#${userId}`;
 }
 
 async function processDecisionPacket(
   deps: EventListenerDeps,
   payload: EventPayload,
   ctx: EventContext,
-) {
+): Promise<WriteIntent | WriteIntent[]> {
   const subject = payload.subject;
   const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
   const userId = (subject.userId as string) ?? tenantId;
@@ -33,28 +43,30 @@ async function processDecisionPacket(
     throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
   }
 
-  // Load mandate snapshot from DynamoDB
+  const ccId = ctx.eventId;
+
+  // Load mandate snapshot from DynamoDB (read-only — repository kept for reads)
   const mandateRecord = await deps.repository.getMandateSnapshot(tenantId, userId);
   if (!mandateRecord) {
     logger.error('No mandate snapshot found for user', { tenantId, userId });
-    // Create a compliance check with BLOCKED result for missing mandate
-    const ccId = ctx.eventId;
-    const created = await deps.repository.createComplianceCheck(tenantId, ccId, decisionPacketId, {
-      mandateId: 'NONE',
-      level: 'ADVISORY',
-      monthlyTurnoverCapPercent: 0,
-      maxSingleTradePercent: 0,
-      effectiveDate: new Date().toISOString(),
-      revokedAt: null,
-    }, ctx.eventId);
-    if (!created) {
-      logger.info('Duplicate event, skipping', { eventId: ctx.eventId });
-      return skip();
-    }
-    await deps.repository.updateCheckResult(tenantId, ccId, 'BLOCKED', [
-      { rule: 'MANDATE_MISSING', description: 'No mandate found for user', severity: 'BLOCKING' },
-    ], 'L2');
-    return skip();
+    return record('ComplianceCheck', {
+      tenantId,
+      ccId,
+      decisionPacketId,
+      mandateSnapshot: {
+        mandateId: 'NONE',
+        level: 'ADVISORY',
+        monthlyTurnoverCapPercent: 0,
+        maxSingleTradePercent: 0,
+        effectiveDate: new Date().toISOString(),
+        revokedAt: null,
+      },
+      status: 'BLOCKED',
+      result: 'BLOCKED',
+      violations: [{ rule: 'MANDATE_MISSING', description: 'No mandate found for user', severity: 'BLOCKING' }],
+      authorityLevel: 'L2',
+      sourceEventId: ctx.eventId,
+    }, { pk: complianceCheckPk(tenantId, ccId), sk: 'ComplianceCheck' });
   }
 
   const mandate: MandateSnapshot = {
@@ -71,16 +83,6 @@ async function processDecisionPacket(
   const riskScore = (subject.riskScore as number) ?? 5;
   const currentPositions = (subject.currentPositions as ComplianceInput['currentPositions']) ?? [];
 
-  const ccId = ctx.eventId;
-
-  // Create compliance check record (idempotent — returns false if already exists)
-  const created = await deps.repository.createComplianceCheck(tenantId, ccId, decisionPacketId, mandate, ctx.eventId);
-  if (!created) {
-    logger.info('Duplicate event, skipping', { eventId: ctx.eventId });
-    return skip();
-  }
-
-  // Run rule engine
   const complianceInput: ComplianceInput = {
     decisionPacketId,
     tenantId,
@@ -94,24 +96,7 @@ async function processDecisionPacket(
 
   const output = deps.ruleEngine.evaluate(complianceInput);
 
-  // Persist result
-  await deps.repository.updateCheckResult(
-    tenantId,
-    ccId,
-    output.result,
-    output.violations,
-    output.authorityLevel,
-  );
-
-  // Create audit artifact
   const artifactId = ctx.eventId + '-audit';
-  await deps.repository.createAuditArtifact(tenantId, ccId, artifactId, {
-    decisionPacketId,
-    input: complianceInput,
-    output,
-    evaluatedAt: new Date().toISOString(),
-    sourceEventId: ctx.eventId,
-  });
 
   logger.info('Compliance check completed', {
     ccId,
@@ -121,14 +106,35 @@ async function processDecisionPacket(
     violationCount: output.violations.length,
   });
 
-  return skip();
+  return [
+    record('ComplianceCheck', {
+      tenantId,
+      ccId,
+      decisionPacketId,
+      mandateSnapshot: mandate,
+      status: 'COMPLETED',
+      result: output.result,
+      violations: output.violations,
+      authorityLevel: output.authorityLevel,
+      sourceEventId: ctx.eventId,
+    }, { pk: complianceCheckPk(tenantId, ccId), sk: 'ComplianceCheck' }),
+    record('AuditArtifact', {
+      tenantId,
+      ccId,
+      artifactId,
+      decisionPacketId,
+      input: complianceInput,
+      output,
+      evaluatedAt: new Date().toISOString(),
+      sourceEventId: ctx.eventId,
+    }, { pk: complianceCheckPk(tenantId, ccId), sk: `AuditArtifact#${artifactId}` }),
+  ];
 }
 
-async function processMandateEvent(
-  deps: EventListenerDeps,
+function processMandateEvent(
   payload: EventPayload,
   ctx: EventContext,
-) {
+): WriteIntent {
   const subject = payload.subject;
   const context = payload.context ?? {};
   const tenantId = ((context.tenantId ?? subject?.tenantId) as string) ?? ctx.tenantId;
@@ -140,42 +146,37 @@ async function processMandateEvent(
       if (!subject.mandateId || !subject.level) {
         throw new NotRetryableError(`Missing required mandate fields: mandateId=${subject.mandateId}, level=${subject.level}`);
       }
-      await deps.repository.putMandateSnapshot(tenantId, userId, {
+      logger.info('Mandate snapshot created/updated', { tenantId, userId, eventType: ctx.eventType });
+      return project('MandateSnapshot', {
+        tenantId,
+        userId,
         mandateId: subject.mandateId,
         level: subject.level,
         monthlyTurnoverCapPercent: subject.monthlyTurnoverCapPercent,
         maxSingleTradePercent: subject.maxSingleTradePercent,
         effectiveDate: subject.effectiveDate,
         revokedAt: null,
-      });
-      logger.info('Mandate snapshot created/updated', { tenantId, userId, eventType: ctx.eventType });
-      break;
+      }, { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' });
 
     case 'MANDATE_REVOKED':
-      await deps.repository.putMandateSnapshot(tenantId, userId, {
-        mandateId: subject.mandateId,
-        level: subject.level ?? 'ADVISORY',
-        monthlyTurnoverCapPercent: subject.monthlyTurnoverCapPercent ?? 0,
-        maxSingleTradePercent: subject.maxSingleTradePercent ?? 0,
-        effectiveDate: subject.effectiveDate ?? new Date().toISOString(),
-        revokedAt: subject.revokedAt ?? new Date().toISOString(),
-      });
       logger.info('Mandate snapshot revoked', { tenantId, userId });
-      break;
+      return update('MandateSnapshot', {
+        status: 'REVOKED',
+        revokedAt: subject.revokedAt ?? new Date().toISOString(),
+      }, { overrides: { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' } });
 
     case 'OPERATING_MODE_CHANGED':
       logger.info('Operating mode changed, noted', { tenantId, userId, mode: subject.mode });
-      break;
+      return skip();
 
     default:
       logger.info('No handler for mandate event type, skipping', { eventType: ctx.eventType });
+      return skip();
   }
-
-  return skip();
 }
 
 export const createHandlers = (deps: EventListenerDeps) => {
-  const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<ReturnType<typeof skip>>> = {};
+  const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<WriteIntent | WriteIntent[]> | WriteIntent | WriteIntent[]> = {};
 
   // Decision events
   for (const type of [AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED, AdvisoryCtrlEventTypes.DECISION_PACKET_ENRICHED]) {
@@ -184,7 +185,7 @@ export const createHandlers = (deps: EventListenerDeps) => {
 
   // Mandate events
   for (const type of [InvestorCrossDomainEventTypes.MANDATE_GRANTED, InvestorCrossDomainEventTypes.MANDATE_UPDATED, InvestorCrossDomainEventTypes.MANDATE_REVOKED, InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED]) {
-    handlers[type] = (payload, ctx) => processMandateEvent(deps, payload, ctx);
+    handlers[type] = (payload, ctx) => processMandateEvent(payload, ctx);
   }
 
   return handlers;

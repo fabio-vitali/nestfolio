@@ -75,27 +75,17 @@ jest.mock('@nestfolio/event-processor', () => ({
       this.name = 'NotRetryableError';
     }
   },
-
   requireEnv: (name: string) => process.env[name] ?? name,
-  NotRetryableError: class NotRetryableError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = 'NotRetryableError';
-    }
-  },
   withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
-
   EntityNotFoundError: class extends Error {
     constructor(public entityType: string, public entityId: string) {
       super(`${entityType} with id '${entityId}' not found`);
     }
   },
-
 }));
 process.env.TABLE_NAME = 'test-table';
 
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
-import { ComplianceRepository } from '../src/repositories/compliance.repository';
 import { RuleEngine } from '../src/rules/rule-engine';
 import { MandateValidator } from '../src/rules/mandate-validator';
 import { GuardrailEvaluator } from '../src/rules/guardrail-evaluator';
@@ -103,8 +93,20 @@ import { SuitabilityChecker } from '../src/rules/suitability-checker';
 import { AuthorityResolver } from '../src/rules/authority-resolver';
 import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
 
+const mandate = {
+  mandateId: 'm-1',
+  level: 'DISCRETIONARY',
+  monthlyTurnoverCapPercent: 10,
+  maxSingleTradePercent: 5,
+  effectiveDate: '2024-01-01T00:00:00.000Z',
+  revokedAt: null,
+};
+
 describe('event-listener handler', () => {
-  const repository = new ComplianceRepository('test-table');
+  let getMandateSnapshot: jest.Mock;
+  let evaluateSpy: jest.SpyInstance;
+  let mockDeps: EventListenerDeps;
+
   const ruleEngine = new RuleEngine(
     new MandateValidator(),
     new GuardrailEvaluator(),
@@ -112,88 +114,129 @@ describe('event-listener handler', () => {
     new AuthorityResolver(),
   );
 
-  const mockDeps: EventListenerDeps = {
-    repository,
-    ruleEngine,
-  };
-
-  const harness = createTestHarness({
-    serviceName: 'compliance-ctrl',
-    handlers: createHandlers(mockDeps),
-  });
-
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSend.mockResolvedValue({});
+    getMandateSnapshot = jest.fn();
+    evaluateSpy = jest.spyOn(ruleEngine, 'evaluate');
+    mockDeps = {
+      repository: { getMandateSnapshot },
+      ruleEngine,
+    };
   });
 
-  describe('decision events', () => {
-    it('should process DECISION_PACKET_CREATED and persist compliance check', async () => {
-      // getMandateSnapshot -> found
-      mockSend.mockResolvedValueOnce({
-        Item: {
-          mandateId: 'm-1',
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 10,
-          maxSingleTradePercent: 5,
-          effectiveDate: '2024-01-01T00:00:00.000Z',
-          revokedAt: null,
-        },
-      });
-      // createComplianceCheck -> put
-      mockSend.mockResolvedValueOnce({});
-      // updateCheckResult -> update
-      mockSend.mockResolvedValueOnce({ Attributes: { status: 'COMPLETED', result: 'APPROVED' } });
-      // createAuditArtifact -> put
-      mockSend.mockResolvedValueOnce({});
-
-      const result = await harness.process([
-        fakeSqsRecord('DECISION_PACKET_CREATED', {
-          decisionId: 'dp-1',
-          tenantId: 't-1',
-          userId: 'u-1',
-          proposedTrades: [
-            {
-              symbol: 'AAPL',
-              assetClass: 'EQUITY',
-              side: 'BUY',
-              quantityOrAmountCents: 2_000_00,
-              targetWeightPercent: 2,
-              rationale: 'Good value',
-            },
-          ],
-          portfolioValue: 100_000_00,
-          riskScore: 7,
-          currentPositions: [{ ticker: 'MSFT', weight: 10 }],
-        }, { tenantId: 't-1' }),
-      ]);
-      expect(result.batchItemFailures).toHaveLength(0);
-      expect(mockSend).toHaveBeenCalledTimes(4);
+  const makeHarness = () =>
+    createTestHarness({
+      serviceName: 'compliance-ctrl',
+      handlers: createHandlers(mockDeps),
     });
 
-    it('should handle missing mandate by creating BLOCKED result', async () => {
-      // getMandateSnapshot -> not found
-      mockSend.mockResolvedValueOnce({ Item: undefined });
-      // createComplianceCheck -> put
-      mockSend.mockResolvedValueOnce({});
-      // updateCheckResult -> update
-      mockSend.mockResolvedValueOnce({ Attributes: { status: 'COMPLETED', result: 'BLOCKED' } });
+  const decisionPayload = {
+    decisionId: 'dp-1',
+    tenantId: 't-1',
+    userId: 'u-1',
+    proposedTrades: [
+      {
+        symbol: 'AAPL',
+        assetClass: 'EQUITY',
+        side: 'BUY',
+        quantityOrAmountCents: 200_000,
+        targetWeightPercent: 2,
+        rationale: 'Good value',
+      },
+    ],
+    portfolioValue: 10_000_000,
+    riskScore: 7,
+    currentPositions: [{ ticker: 'MSFT', weight: 10 }],
+  };
 
+  describe('decision events', () => {
+    it('should return [record(ComplianceCheck), record(AuditArtifact)] when mandate is found and result is APPROVED', async () => {
+      getMandateSnapshot.mockResolvedValue(mandate);
+      evaluateSpy.mockReturnValue({
+        result: 'APPROVED',
+        violations: [],
+        authorityLevel: 'L1',
+      });
+
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord('DECISION_PACKET_CREATED', decisionPayload, { tenantId: 't-1' }),
+      ]);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(result.intents).toHaveLength(2);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'ComplianceCheck',
+        fields: expect.objectContaining({
+          result: 'APPROVED',
+          status: 'COMPLETED',
+          violations: [],
+          authorityLevel: 'L1',
+          tenantId: 't-1',
+          decisionPacketId: 'dp-1',
+        }),
+      });
+      expect(result.intents[1]).toMatchObject({
+        _tag: 'record',
+        typename: 'AuditArtifact',
+        fields: expect.objectContaining({
+          decisionPacketId: 'dp-1',
+        }),
+      });
+      // No DynamoDB calls — all writes are intents
+      expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it('should return record(ComplianceCheck) with BLOCKED result when mandate is found and engine returns BLOCKED', async () => {
+      getMandateSnapshot.mockResolvedValue(mandate);
+      evaluateSpy.mockReturnValue({
+        result: 'BLOCKED',
+        violations: [{ rule: 'MANDATE_VIOLATION', description: 'Over cap', severity: 'BLOCKING' }],
+        authorityLevel: 'L2',
+      });
+
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord('DECISION_PACKET_CREATED', decisionPayload, { tenantId: 't-1' }),
+      ]);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(result.intents).toHaveLength(2);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'ComplianceCheck',
+        fields: expect.objectContaining({ result: 'BLOCKED', status: 'COMPLETED' }),
+      });
+    });
+
+    it('should return record(ComplianceCheck, { status: BLOCKED, reason: No mandate }) when no mandate found', async () => {
+      getMandateSnapshot.mockResolvedValue(null);
+
+      const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord('DECISION_PACKET_CREATED', {
-          decisionId: 'dp-2',
-          tenantId: 't-1',
-          userId: 'u-1',
-          proposedTrades: [],
-          portfolioValue: 0,
-          riskScore: 5,
-          currentPositions: [],
+          ...decisionPayload,
+          decisionId: 'dp-nomandante',
         }, { tenantId: 't-1' }),
       ]);
+
       expect(result.batchItemFailures).toHaveLength(0);
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'ComplianceCheck',
+        fields: expect.objectContaining({
+          status: 'BLOCKED',
+          result: 'BLOCKED',
+        }),
+      });
+      expect(evaluateSpy).not.toHaveBeenCalled();
+      expect(mockSend).not.toHaveBeenCalled();
     });
 
     it('should report failure when DECISION_PACKET_CREATED is missing required fields', async () => {
+      const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord('DECISION_PACKET_CREATED', {
           decisionId: 'dp-missing',
@@ -203,123 +246,46 @@ describe('event-listener handler', () => {
         }, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(1);
-      // Should NOT have called any DynamoDB operations (validation rejects before processing)
+      expect(getMandateSnapshot).not.toHaveBeenCalled();
       expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('should skip duplicate event when createComplianceCheck returns false', async () => {
-      // getMandateSnapshot -> found
-      mockSend.mockResolvedValueOnce({
-        Item: {
-          mandateId: 'm-1',
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 10,
-          maxSingleTradePercent: 5,
-          effectiveDate: '2024-01-01T00:00:00.000Z',
-          revokedAt: null,
-        },
-      });
-      // createComplianceCheck -> putIfNotExists returns ConditionalCheckFailedException (duplicate)
-      mockSend.mockRejectedValueOnce(Object.assign(new Error('ConditionalCheckFailedException'), { name: 'ConditionalCheckFailedException' }));
-
-      const result = await harness.process([
-        fakeSqsRecord('DECISION_PACKET_CREATED', {
-          decisionId: 'dp-dup',
-          tenantId: 't-1',
-          userId: 'u-1',
-          proposedTrades: [
-            {
-              symbol: 'AAPL',
-              assetClass: 'EQUITY',
-              side: 'BUY',
-              quantityOrAmountCents: 2_000_00,
-              targetWeightPercent: 2,
-              rationale: 'Good value',
-            },
-          ],
-          portfolioValue: 100_000_00,
-          riskScore: 7,
-          currentPositions: [{ ticker: 'MSFT', weight: 10 }],
-        }, { tenantId: 't-1' }),
-      ]);
-      expect(result.batchItemFailures).toHaveLength(0);
-      // Should have called: getMandateSnapshot + createComplianceCheck (putIfNotExists failed) — no further calls
-      expect(mockSend).toHaveBeenCalledTimes(2);
-    });
-
     it('should skip unknown event types gracefully', async () => {
+      const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord('UNKNOWN_EVENT', {}, { tenantId: 't-1' }),
       ]);
       expect(result.skipped).toBe(1);
     });
 
-    it('should report batch item failures for processing errors', async () => {
-      // getMandateSnapshot throws
-      mockSend.mockRejectedValueOnce(new Error('DDB error'));
+    it('should propagate errors from getMandateSnapshot as batch item failures', async () => {
+      getMandateSnapshot.mockRejectedValue(new Error('DDB error'));
 
+      const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('DECISION_PACKET_CREATED', {
-          decisionId: 'dp-fail',
-          tenantId: 't-1',
-          userId: 'u-1',
-          proposedTrades: [],
-          portfolioValue: 100_000_00,
-          riskScore: 7,
-          currentPositions: [],
-        }, { tenantId: 't-1' }),
+        fakeSqsRecord('DECISION_PACKET_CREATED', decisionPayload, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(1);
     });
 
-    it('should proceed when DECISION_PACKET_CREATED has all required fields', async () => {
-      // getMandateSnapshot -> found
-      mockSend.mockResolvedValueOnce({
-        Item: {
-          mandateId: 'm-1',
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 10,
-          maxSingleTradePercent: 5,
-          effectiveDate: '2024-01-01T00:00:00.000Z',
-          revokedAt: null,
-        },
-      });
-      // createComplianceCheck -> put
-      mockSend.mockResolvedValueOnce({});
-      // updateCheckResult -> update
-      mockSend.mockResolvedValueOnce({ Attributes: { status: 'COMPLETED', result: 'APPROVED' } });
-      // createAuditArtifact -> put
-      mockSend.mockResolvedValueOnce({});
+    it('should process DECISION_PACKET_ENRICHED the same way as DECISION_PACKET_CREATED', async () => {
+      getMandateSnapshot.mockResolvedValue(mandate);
+      evaluateSpy.mockReturnValue({ result: 'APPROVED', violations: [], authorityLevel: 'L1' });
 
+      const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('DECISION_PACKET_CREATED', {
-          decisionId: 'dp-valid',
-          tenantId: 't-1',
-          userId: 'u-1',
-          proposedTrades: [
-            {
-              symbol: 'AAPL',
-              assetClass: 'EQUITY',
-              side: 'BUY',
-              quantityOrAmountCents: 2_000_00,
-              targetWeightPercent: 2,
-              rationale: 'Good value',
-            },
-          ],
-          portfolioValue: 100_000_00,
-          riskScore: 7,
-          currentPositions: [{ ticker: 'MSFT', weight: 10 }],
-        }, { tenantId: 't-1' }),
+        fakeSqsRecord('DECISION_PACKET_ENRICHED', decisionPayload, { tenantId: 't-1' }),
       ]);
+
       expect(result.batchItemFailures).toHaveLength(0);
-      expect(mockSend).toHaveBeenCalledTimes(4);
+      expect(result.intents).toHaveLength(2);
+      expect(result.intents[0]._tag).toBe('record');
     });
   });
 
   describe('mandate events', () => {
-    it('should process MANDATE_GRANTED event and persist snapshot', async () => {
-      mockSend.mockResolvedValueOnce({});
-
+    it('MANDATE_GRANTED → project(MandateSnapshot) with mandate fields', async () => {
+      const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord('MANDATE_GRANTED', {
           tenantId: 't-1',
@@ -332,30 +298,38 @@ describe('event-listener handler', () => {
         }, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
-      expect(mockSend).toHaveBeenCalledTimes(1);
-    });
-
-    it('should push retryable errors to failures', async () => {
-      // Make the putMandateSnapshot fail
-      mockSend.mockRejectedValueOnce(new Error('ServiceUnavailable'));
-
-      const result = await harness.process([
-        fakeSqsRecord('MANDATE_GRANTED', {
-          tenantId: 't-1',
-          userId: 'u-1',
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'project',
+        typename: 'MandateSnapshot',
+        fields: expect.objectContaining({
           mandateId: 'm-1',
           level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 10,
-          maxSingleTradePercent: 5,
-          effectiveDate: '2025-01-01T00:00:00.000Z',
-        }, { tenantId: 't-1' }),
-      ]);
-      expect(result.batchItemFailures).toHaveLength(1);
+          revokedAt: null,
+        }),
+      });
+      expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('should process MANDATE_REVOKED event', async () => {
-      mockSend.mockResolvedValueOnce({});
+    it('MANDATE_UPDATED → project(MandateSnapshot) with updated fields', async () => {
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord('MANDATE_UPDATED', {
+          tenantId: 't-1',
+          userId: 'u-1',
+          mandateId: 'm-2',
+          level: 'ADVISORY',
+          monthlyTurnoverCapPercent: 5,
+          maxSingleTradePercent: 3,
+          effectiveDate: '2025-06-01T00:00:00.000Z',
+        }, { tenantId: 't-1' }),
+      ]);
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(result.intents[0]).toMatchObject({ _tag: 'project', typename: 'MandateSnapshot' });
+    });
 
+    it('MANDATE_REVOKED → update(MandateSnapshot, { status: REVOKED, revokedAt })', async () => {
+      const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord('MANDATE_REVOKED', {
           tenantId: 't-1',
@@ -365,21 +339,32 @@ describe('event-listener handler', () => {
         }, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
-      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'update',
+        typename: 'MandateSnapshot',
+        updates: expect.objectContaining({
+          status: 'REVOKED',
+        }),
+      });
+      expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('should skip OPERATING_MODE_CHANGED gracefully (log only)', async () => {
+    it('OPERATING_MODE_CHANGED → skip (no intents, no DDB calls)', async () => {
+      const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord('OPERATING_MODE_CHANGED', {
           tenantId: 't-1', mode: 'AUTONOMOUS',
         }, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
-      // No DynamoDB calls for OPERATING_MODE_CHANGED
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({ _tag: 'skip' });
       expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('should throw on MANDATE_GRANTED with missing required fields', async () => {
+    it('should throw NotRetryableError on MANDATE_GRANTED with missing mandateId/level', async () => {
+      const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord('MANDATE_GRANTED', {
           tenantId: 't-1',
