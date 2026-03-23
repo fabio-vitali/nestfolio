@@ -76,7 +76,7 @@ import { ReconciliationService } from '../src/services/reconciliation.service';
 describe('reconciliation-ctrl event-listener', () => {
   const repository = new ReconciliationRepository('test-table');
   const reconciliationService = new ReconciliationService(repository);
-  const reconcileSpy = jest.spyOn(reconciliationService, 'reconcile').mockResolvedValue(undefined as any);
+  const reconcileSpy = jest.spyOn(reconciliationService, 'reconcile');
 
   const mockDeps: EventListenerDeps = { reconciliationService };
 
@@ -88,10 +88,10 @@ describe('reconciliation-ctrl event-listener', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
-    reconcileSpy.mockResolvedValue(undefined as any);
   });
 
   it('routes PORTFOLIO_SNAPSHOT_IMPORTED to reconciliation service', async () => {
+    reconcileSpy.mockReturnValueOnce({ status: 'COMPLETED', drifts: [] });
     const result = await harness.process([
       fakeSqsRecord('PORTFOLIO_SNAPSHOT_IMPORTED', {
         tenantId: 't1', portfolioId: 'p1',
@@ -111,6 +111,7 @@ describe('reconciliation-ctrl event-listener', () => {
   });
 
   it('routes PORTFOLIO_UPDATED to reconciliation service', async () => {
+    reconcileSpy.mockReturnValueOnce({ status: 'COMPLETED', drifts: [] });
     await harness.process([
       fakeSqsRecord('PORTFOLIO_UPDATED', {
         tenantId: 't1', portfolioId: 'p1', positions: [],
@@ -123,6 +124,7 @@ describe('reconciliation-ctrl event-listener', () => {
   });
 
   it('routes CORPORATE_ACTION_APPLIED to reconciliation service', async () => {
+    reconcileSpy.mockReturnValueOnce({ status: 'COMPLETED', drifts: [] });
     await harness.process([
       fakeSqsRecord('CORPORATE_ACTION_APPLIED', {
         tenantId: 't1', portfolioId: 'p1', positions: [],
@@ -143,7 +145,7 @@ describe('reconciliation-ctrl event-listener', () => {
   });
 
   it('reports failure when reconciliation service throws', async () => {
-    reconcileSpy.mockRejectedValueOnce(new Error('DynamoDB timeout'));
+    reconcileSpy.mockImplementationOnce(() => { throw new Error('Compute failure'); });
     const result = await harness.process([
       fakeSqsRecord('PORTFOLIO_UPDATED', {
         tenantId: 't1', portfolioId: 'p1',
@@ -155,6 +157,7 @@ describe('reconciliation-ctrl event-listener', () => {
   });
 
   it('defaults portfolioId to tenantId when not provided', async () => {
+    reconcileSpy.mockReturnValueOnce({ status: 'COMPLETED', drifts: [] });
     await harness.process([
       fakeSqsRecord('PORTFOLIO_UPDATED', { positions: [] }, { tenantId: 't1' }),
     ]);
@@ -165,6 +168,7 @@ describe('reconciliation-ctrl event-listener', () => {
   });
 
   it('defaults positions to empty array when not provided', async () => {
+    reconcileSpy.mockReturnValueOnce({ status: 'COMPLETED', drifts: [] });
     await harness.process([
       fakeSqsRecord('PORTFOLIO_UPDATED', { portfolioId: 'p1' }, { tenantId: 't1' }),
     ]);
@@ -172,5 +176,76 @@ describe('reconciliation-ctrl event-listener', () => {
       expect.any(String),
       expect.objectContaining({ intentPositions: [], settlementPositions: [] }),
     );
+  });
+
+  it('returns ReconciliationResult record with COMPLETED status and no drifts', async () => {
+    reconcileSpy.mockReturnValueOnce({ status: 'COMPLETED', drifts: [] });
+    const result = await harness.process([
+      fakeSqsRecord('PORTFOLIO_UPDATED', {
+        tenantId: 't1', portfolioId: 'p1', positions: [],
+      }, { tenantId: 't1', eventId: 'evt-1' }),
+    ]);
+    expect(result.intents).toHaveLength(1);
+    expect(result.intents[0]).toMatchObject({
+      _tag: 'record',
+      typename: 'ReconciliationResult',
+      fields: expect.objectContaining({
+        tenantId: 't1',
+        reconciliationId: 'evt-1',
+        status: 'COMPLETED',
+        driftCount: 0,
+      }),
+    });
+  });
+
+  it('returns ReconciliationResult + DriftRecord intents when drift is detected', async () => {
+    reconcileSpy.mockReturnValueOnce({
+      status: 'DRIFT_DETECTED',
+      drifts: [
+        { instrument: 'AAPL', intentQty: 100, settlementQty: 90, drift: 10 },
+        { instrument: 'TSLA', intentQty: 50, settlementQty: 55, drift: -5 },
+      ],
+    });
+    const result = await harness.process([
+      fakeSqsRecord('PORTFOLIO_UPDATED', {
+        tenantId: 't1', portfolioId: 'p1',
+        positions: [{ symbol: 'AAPL', quantity: 100 }, { symbol: 'TSLA', quantity: 50 }],
+      }, { tenantId: 't1', eventId: 'evt-2' }),
+    ]);
+    expect(result.intents).toHaveLength(3);
+    expect(result.intents[0]).toMatchObject({
+      _tag: 'record',
+      typename: 'ReconciliationResult',
+      fields: expect.objectContaining({
+        tenantId: 't1',
+        reconciliationId: 'evt-2',
+        status: 'DRIFT_DETECTED',
+        driftCount: 2,
+      }),
+    });
+    expect(result.intents[1]).toMatchObject({
+      _tag: 'record',
+      typename: 'DriftRecord',
+      fields: expect.objectContaining({
+        tenantId: 't1',
+        reconciliationId: 'evt-2',
+        instrument: 'AAPL',
+        intentQty: 100,
+        settlementQty: 90,
+        drift: 10,
+      }),
+    });
+    expect(result.intents[2]).toMatchObject({
+      _tag: 'record',
+      typename: 'DriftRecord',
+      fields: expect.objectContaining({
+        tenantId: 't1',
+        reconciliationId: 'evt-2',
+        instrument: 'TSLA',
+        intentQty: 50,
+        settlementQty: 55,
+        drift: -5,
+      }),
+    });
   });
 });

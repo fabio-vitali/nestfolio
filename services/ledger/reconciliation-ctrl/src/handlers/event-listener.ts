@@ -1,9 +1,7 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { materializeToTable, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, record, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
-import { ReconciliationRepository } from '../repositories/reconciliation.repository';
 import { ReconciliationService } from '../services/reconciliation.service';
 
 export interface EventListenerDeps {
@@ -11,13 +9,15 @@ export interface EventListenerDeps {
 }
 
 const reconcileHandler = (deps: EventListenerDeps) =>
-  async (payload: EventPayload, ctx: EventContext) => {
+  (payload: EventPayload, ctx: EventContext): WriteIntent[] => {
     const subject = payload.subject;
-    const portfolioId = (subject?.portfolioId as string) ?? ctx.tenantId;
+    const tenantId = ctx.tenantId;
+    const reconciliationId = ctx.eventId;
+    const portfolioId = (subject?.portfolioId as string) ?? tenantId;
     const positions = (subject?.positions as Array<{ symbol: string; quantity: number }>) ?? [];
 
-    await deps.reconciliationService.reconcile(ctx.eventId, {
-      tenantId: ctx.tenantId,
+    const result = deps.reconciliationService.reconcile(reconciliationId, {
+      tenantId,
       portfolioId,
       intentPositions: positions.map((p) => ({
         instrument: p.symbol,
@@ -29,7 +29,24 @@ const reconcileHandler = (deps: EventListenerDeps) =>
       })),
     });
 
-    return skip();
+    return [
+      record('ReconciliationResult', {
+        tenantId,
+        reconciliationId,
+        status: result.status,
+        driftCount: result.drifts.length,
+      }),
+      ...result.drifts.map((d) =>
+        record('DriftRecord', {
+          tenantId,
+          reconciliationId,
+          instrument: d.instrument,
+          intentQty: d.intentQty,
+          settlementQty: d.settlementQty,
+          drift: d.drift,
+        }),
+      ),
+    ];
   };
 
 const EVENT_TYPES = [
@@ -44,10 +61,8 @@ export const createHandlers = (deps: EventListenerDeps) =>
   );
 
 // Production wiring
-const TABLE_NAME = requireEnv('TABLE_NAME');
-const dynamoClient = new DynamoDBClient({});
-const repository = new ReconciliationRepository(TABLE_NAME, dynamoClient);
-const reconciliationService = new ReconciliationService(repository);
+requireEnv('TABLE_NAME'); // kept for environment validation
+const reconciliationService = new ReconciliationService();
 const deps: EventListenerDeps = { reconciliationService };
 
 export const handler = materializeToTable({
