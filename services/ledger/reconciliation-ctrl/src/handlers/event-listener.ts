@@ -29,13 +29,15 @@ const reconcileHandler = (deps: EventListenerDeps) =>
       })),
     });
 
+    const pk = `Reconciliation#${tenantId}#${reconciliationId}`;
+
     return [
       record('ReconciliationResult', {
         tenantId,
         reconciliationId,
         status: result.status,
         driftCount: result.drifts.length,
-      }),
+      }, { pk, sk: 'Reconciliation' }),
       ...result.drifts.map((d) =>
         record('DriftRecord', {
           tenantId,
@@ -44,7 +46,7 @@ const reconcileHandler = (deps: EventListenerDeps) =>
           intentQty: d.intentQty,
           settlementQty: d.settlementQty,
           drift: d.drift,
-        }),
+        }, { pk, sk: `DriftRecord#${d.instrument}` }),
       ),
     ];
   };

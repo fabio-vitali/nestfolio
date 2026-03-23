@@ -70,12 +70,10 @@ jest.mock('@nestfolio/event-processor', () => ({
 }));
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
-import { ReconciliationRepository } from '../src/repositories/reconciliation.repository';
 import { ReconciliationService } from '../src/services/reconciliation.service';
 
 describe('reconciliation-ctrl event-listener', () => {
-  const repository = new ReconciliationRepository('test-table');
-  const reconciliationService = new ReconciliationService(repository);
+  const reconciliationService = new ReconciliationService();
   const reconcileSpy = jest.spyOn(reconciliationService, 'reconcile');
 
   const mockDeps: EventListenerDeps = { reconciliationService };
@@ -195,6 +193,7 @@ describe('reconciliation-ctrl event-listener', () => {
         status: 'COMPLETED',
         driftCount: 0,
       }),
+      overrides: { pk: 'Reconciliation#t1#evt-1', sk: 'Reconciliation' },
     });
   });
 
@@ -222,6 +221,7 @@ describe('reconciliation-ctrl event-listener', () => {
         status: 'DRIFT_DETECTED',
         driftCount: 2,
       }),
+      overrides: { pk: 'Reconciliation#t1#evt-2', sk: 'Reconciliation' },
     });
     expect(result.intents[1]).toMatchObject({
       _tag: 'record',
@@ -234,6 +234,7 @@ describe('reconciliation-ctrl event-listener', () => {
         settlementQty: 90,
         drift: 10,
       }),
+      overrides: { pk: 'Reconciliation#t1#evt-2', sk: 'DriftRecord#AAPL' },
     });
     expect(result.intents[2]).toMatchObject({
       _tag: 'record',
@@ -246,6 +247,7 @@ describe('reconciliation-ctrl event-listener', () => {
         settlementQty: 55,
         drift: -5,
       }),
+      overrides: { pk: 'Reconciliation#t1#evt-2', sk: 'DriftRecord#TSLA' },
     });
   });
 });
