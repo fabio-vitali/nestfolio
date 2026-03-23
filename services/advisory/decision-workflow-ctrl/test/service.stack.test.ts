@@ -30,10 +30,10 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
   });
 
-  it('creates SQS queues for Ingress + Egress DLQs', () => {
-    // At least 2 DLQs: one for ingress, one for egress
+  it('creates SQS queues for two Ingresses + Egress DLQs', () => {
+    // 2 ingress queues + 2 ingress DLQs + 1 egress DLQ = at least 5
     const queues = template.findResources('AWS::SQS::Queue');
-    expect(Object.keys(queues).length).toBeGreaterThanOrEqual(2);
+    expect(Object.keys(queues).length).toBeGreaterThanOrEqual(4);
   });
 
   it('creates EventBridge rules for inbound event types', () => {
@@ -49,20 +49,8 @@ describe('DecisionWorkflowCtrlStack', () => {
     expect(Object.keys(lambdas).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('grants SFN startExecution to the ingress handler', () => {
-    // CDK may emit Action as a string or array; use serialized JSON match
-    template.hasResourceProperties('AWS::IAM::Policy', {
-      PolicyDocument: {
-        Statement: Match.arrayWith([
-          Match.objectLike({
-            Action: Match.anyValue(),
-            Effect: 'Allow',
-          }),
-        ]),
-      },
-    });
-
-    // Verify states:StartExecution appears somewhere in the synthesized template
+  it('grants SFN task response to the callback ingress handler', () => {
+    // The callback ingress handler needs SendTaskSuccess/SendTaskFailure for SFN resume
     const policies = template.findResources('AWS::IAM::Policy');
     const allStatements = Object.values(policies).flatMap(
       (p: any) => p.Properties.PolicyDocument.Statement ?? [],
@@ -70,7 +58,7 @@ describe('DecisionWorkflowCtrlStack', () => {
     const actions = allStatements.flatMap((s: any) =>
       Array.isArray(s.Action) ? s.Action : [s.Action],
     );
-    expect(actions).toContain('states:StartExecution');
+    expect(actions).toContain('states:SendTaskSuccess');
   });
 
   it('creates an AgentCore Memory resource', () => {

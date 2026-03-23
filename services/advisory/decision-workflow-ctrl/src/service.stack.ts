@@ -8,7 +8,12 @@ import { BedrockFoundationModel } from '@aws-cdk/aws-bedrock-alpha';
 import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { NamingService, defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { DecisionStateMachine } from './constructs/decision-state-machine';
-import { ALL_INBOUND_EVENT_TYPES } from './domain/events';
+import {
+  TRIGGER_EVENT_TYPES,
+  AGENT_COMPLETION_EVENT_TYPES,
+  COMPLIANCE_EVENT_TYPES,
+  USER_RESPONSE_EVENT_TYPES,
+} from './domain/events';
 
 export class DecisionWorkflowCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -101,27 +106,31 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     // Grant the state machine permission to invoke the AssemblePacket Lambda
     assemblePacketFn.grantInvoke(stateMachine);
 
-    // --- Ingress: 17 inbound event types ---
-    const ingress = new Ingress(this, 'Ingress', {
-      eventTypes: [...ALL_INBOUND_EVENT_TYPES],
+    // --- Ingress 1: Trigger events → materializeToTable (event-listener.ts) ---
+    const triggerIngress = new Ingress(this, 'TriggerIngress', {
+      eventTypes: [...TRIGGER_EVENT_TYPES],
     });
 
-    // Grant the event-listener Lambda permissions to start executions and send task tokens
-    ingress.handler.addEnvironment('STATE_MACHINE_ARN', stateMachine.stateMachineArn);
-    stateMachine.grantStartExecution(ingress.handler);
-    stateMachine.grantTaskResponse(ingress.handler);
+    // --- Ingress 2: Callback events → resumeStateMachine (sfn-callback.ts) ---
+    const callbackEventTypes = [
+      ...AGENT_COMPLETION_EVENT_TYPES,
+      ...COMPLIANCE_EVENT_TYPES,
+      ...USER_RESPONSE_EVENT_TYPES,
+    ];
+    const callbackIngress = new Ingress(this, 'CallbackIngress', {
+      eventTypes: callbackEventTypes,
+      entry: join(__dirname, 'handlers', 'sfn-callback.ts'),
+    });
 
-    // Grant Memory access to ingress handler
-    ingress.handler.addEnvironment('MEMORY_ID', memory.memoryId);
-    memory.grantWrite(ingress.handler);
-    memory.grantRead(ingress.handler);
+    // Grant callback Lambda permissions to send task tokens to Step Functions
+    stateMachine.grantTaskResponse(callbackIngress.handler);
 
     // --- Egress: CDC from DDB Streams ---
     const egress = new Egress(this, 'Egress', {
-      publishableTypes: ['DecisionPacket', 'AgentOutput', 'EditEvent'],
+      publishableTypes: ['WorkflowTrigger', 'DecisionPacket', 'AgentOutput'],
     });
 
     // --- Observability ---
-    this.addObservability({ ingress, egress });
+    this.addObservability({ ingress: triggerIngress, egress });
   }
 }

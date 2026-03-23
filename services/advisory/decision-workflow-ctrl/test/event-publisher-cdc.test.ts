@@ -1,6 +1,6 @@
 import { createCdcTestHarness, fakeDdbStreamRecord, buildEventTypeMap } from '@nestfolio/event-processor';
 
-const eventTypeMap = buildEventTypeMap(['DecisionPacket', 'AgentOutput', 'EditEvent']);
+const eventTypeMap = buildEventTypeMap(['DecisionPacket', 'AgentOutput', 'WorkflowTrigger']);
 
 describe('decision-workflow-ctrl CDC event-publisher', () => {
   const harness = createCdcTestHarness({ serviceName: 'decision-workflow-ctrl', eventTypeMap });
