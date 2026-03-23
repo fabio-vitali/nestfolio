@@ -4,11 +4,10 @@ import { Construct } from 'constructs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { Bucket } from 'aws-cdk-lib/aws-s3';
-import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
-import { Monitoring, ServiceDashboard } from '@nestfolio/cdk-constructs/observability';
+import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
+import { FredAdptEventTypes } from './domain/events';
 
 export class FredAdptStack extends ServiceStack {
   constructor(
@@ -16,7 +15,7 @@ export class FredAdptStack extends ServiceStack {
     id: string,
     props: ServiceStackProps & { schedule?: { enabled: boolean; rate: string } },
   ) {
-    super(scope, id, props);
+    super(scope, id, { ...props, serviceDir: __dirname });
 
     const scheduleConfig = props.schedule ?? { enabled: false, rate: 'rate(24 hours)' };
 
@@ -24,42 +23,52 @@ export class FredAdptStack extends ServiceStack {
     const advisoryBusArn = resolveBusArn(this, 'AdvisoryBus', props.prefix, 'advisory', domainAccounts);
     const advisoryBus = EventBus.fromEventBusArn(this, 'AdvisoryBus', advisoryBusArn);
 
-    const kbBucketName = StringParameter.valueForStringParameter(
-      this,
-      `/nestfolio/${props.prefix}-advisory/kb-market/bucketName`,
-    );
-    const kbBucket = Bucket.fromBucketName(this, 'KbBucket', kbBucketName);
+    // Override the default event bus to the advisory bus
+    this.eventBus = advisoryBus;
 
     const fredApiKey = StringParameter.valueForStringParameter(
       this,
       `/nestfolio/${props.prefix}-advisory/fred-api-key`,
     );
 
-    const eventPublisher = new NodejsFunction(this, 'EventPublisher', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers/event-publisher.ts'),
-      handler: 'handler',
-      timeout: Duration.seconds(60),
+    // Ingress: subscribes to FETCH_REQUESTED, materializes FredIndicator records into DDB
+    const ingress = new Ingress(this, 'Ingress', {
+      eventTypes: [FredAdptEventTypes.FETCH_REQUESTED],
+      lambdaTimeout: Duration.seconds(90),
       environment: {
-        BUS_NAME: advisoryBus.eventBusName,
-        SERVICE_NAME: 'fred-adpt',
-        KB_BUCKET: kbBucketName,
         FRED_API_KEY: fredApiKey,
       },
     });
 
-    advisoryBus.grantPutEventsTo(eventPublisher);
-    kbBucket.grantReadWrite(eventPublisher);
+    // Egress: DDB Stream → CDC → EventBridge
+    const egress = new Egress(this, 'Egress', {
+      publishableTypes: ['FredIndicator'],
+    });
+
+    // Trigger Lambda: invoked by EventBridge Scheduler, publishes FETCH_REQUESTED to bus
+    const fetchTrigger = new NodejsFunction(this, 'FetchTrigger', {
+      ...defaultLambdaProps(this),
+      entry: join(__dirname, 'handlers', 'fetch-trigger.ts'),
+      handler: 'handler',
+      timeout: Duration.seconds(10),
+      environment: {
+        BUS_NAME: advisoryBus.eventBusName,
+        SERVICE_NAME: 'fred-adpt',
+      },
+    });
+
+    advisoryBus.grantPutEventsTo(fetchTrigger);
 
     new AdapterSchedule(this, 'FetchSchedule', {
-      target: eventPublisher,
+      target: fetchTrigger,
       scheduleExpression: scheduleConfig.rate,
       enabled: scheduleConfig.enabled,
     });
 
-    if (this.observability) {
-      new Monitoring(this, 'Monitoring', { lambdaFunctions: [eventPublisher] });
-      new ServiceDashboard(this, 'Dashboard', { lambdaFunctions: [eventPublisher] });
-    }
+    this.addObservability({
+      ingress: ingress.handler,
+      egress: egress.handler,
+      extra: [fetchTrigger],
+    });
   }
 }
