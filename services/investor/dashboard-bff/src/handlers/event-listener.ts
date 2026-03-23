@@ -9,44 +9,48 @@ import { advisoryStatus } from '../transforms/advisory-status';
 import { investorSnapshot } from '../transforms/investor-snapshot';
 import { timeTravelAvailability } from '../transforms/time-travel-availability';
 
-export const handler = materializeToTable({
-  serviceName: 'dashboard-bff',
-  handlers: {
-    [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: (payload, ctx) => [
+export function createHandlers() {
+  return {
+    [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: (payload: any, ctx: any) => [
       portfolioSummary(toUow(payload, ctx)),
       recentActivity(toUow(payload, ctx)),
     ],
-    [LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED]: (payload, ctx) => [
+    [LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED]: (payload: any, ctx: any) => [
       portfolioSummary(toUow(payload, ctx)),
       positionSnapshot(toUow(payload, ctx)),
       recentActivity(toUow(payload, ctx)),
     ],
-    [LedgerCrossDomainEventTypes.RECONCILIATION_COMPLETED]: (payload, ctx) =>
+    [LedgerCrossDomainEventTypes.RECONCILIATION_COMPLETED]: (payload: any, ctx: any) =>
       portfolioSummary(toUow(payload, ctx)),
-    [AdvisoryCrossDomainEventTypes.DECISION_PACKET_CREATED]: (payload, ctx) =>
+    [AdvisoryCrossDomainEventTypes.DECISION_PACKET_CREATED]: (payload: any, ctx: any) =>
       advisoryStatus(toUow(payload, ctx)),
-    [AdvisoryCrossDomainEventTypes.USER_CONFIRMATION_REQUESTED]: (payload, ctx) =>
+    [AdvisoryCrossDomainEventTypes.USER_CONFIRMATION_REQUESTED]: (payload: any, ctx: any) =>
       advisoryStatus(toUow(payload, ctx)),
-    [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: (payload, ctx) => [
-      advisoryStatus(toUow(payload, ctx)),
-      recentActivity(toUow(payload, ctx)),
-    ],
-    [AdvisoryCrossDomainEventTypes.DECISION_BLOCKED]: (payload, ctx) => [
+    [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: (payload: any, ctx: any) => [
       advisoryStatus(toUow(payload, ctx)),
       recentActivity(toUow(payload, ctx)),
     ],
-    [LedgerCrossDomainEventTypes.LEDGER_ENTRY_RECORDED]: (payload, ctx) =>
+    [AdvisoryCrossDomainEventTypes.DECISION_BLOCKED]: (payload: any, ctx: any) => [
+      advisoryStatus(toUow(payload, ctx)),
+      recentActivity(toUow(payload, ctx)),
+    ],
+    [LedgerCrossDomainEventTypes.LEDGER_ENTRY_RECORDED]: (payload: any, ctx: any) =>
       timeTravelAvailability(toUow(payload, ctx)),
-    [InvestorBffEventTypes.ONBOARDING_COMPLETED]: (payload, ctx) =>
+    [InvestorBffEventTypes.ONBOARDING_COMPLETED]: (payload: any, ctx: any) =>
       investorSnapshot(toUow(payload, ctx)),
-    [InvestorBffEventTypes.GOAL_SET]: (payload, ctx) =>
+    [InvestorBffEventTypes.GOAL_SET]: (payload: any, ctx: any) =>
       investorSnapshot(toUow(payload, ctx)),
-    [InvestorBffEventTypes.GOAL_UPDATED]: (payload, ctx) =>
+    [InvestorBffEventTypes.GOAL_UPDATED]: (payload: any, ctx: any) =>
       investorSnapshot(toUow(payload, ctx)),
-    [InvestorBffEventTypes.RISK_PROFILE_SET]: (payload, ctx) =>
+    [InvestorBffEventTypes.RISK_PROFILE_SET]: (payload: any, ctx: any) =>
       investorSnapshot(toUow(payload, ctx)),
-    [InvestorBffEventTypes.RISK_PROFILE_UPDATED]: (payload, ctx) =>
+    [InvestorBffEventTypes.RISK_PROFILE_UPDATED]: (payload: any, ctx: any) =>
       investorSnapshot(toUow(payload, ctx)),
-  },
+  };
+}
+
+export const handler = materializeToTable({
+  serviceName: 'dashboard-bff',
+  handlers: createHandlers(),
   errorEventType: 'DASHBOARD_BFF_FAILED',
 });
