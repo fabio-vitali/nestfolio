@@ -1,1 +1,1 @@
-export { YahooFinanceAdptEventTypes } from './events';
+export { YahooFinanceAdptEventTypes, YahooFinanceEntityTypes, type YahooFinanceArticle } from './events';
