@@ -6,15 +6,19 @@ import { userRegistered } from '../transforms/user-registered';
 import { notificationCreated } from '../transforms/notification-created';
 import { balanceUpdated } from '../transforms/balance-updated';
 
+export function createHandlers() {
+  return {
+    [InvestorBffEventTypes.USER_REGISTERED]: (payload: any, ctx: any) =>
+      userRegistered(toUow(payload, ctx) as any),
+    [InvestorCtrlEventTypes.NOTIFICATION_CREATED]: (payload: any, ctx: any) =>
+      notificationCreated(toUow(payload, ctx) as any),
+    [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: (payload: any, ctx: any) =>
+      balanceUpdated(toUow(payload, ctx) as any),
+  };
+}
+
 export const handler = materializeToTable({
   serviceName: 'investor-bff',
-  handlers: {
-    [InvestorBffEventTypes.USER_REGISTERED]: (payload, ctx) =>
-      userRegistered(toUow(payload, ctx) as any),
-    [InvestorCtrlEventTypes.NOTIFICATION_CREATED]: (payload, ctx) =>
-      notificationCreated(toUow(payload, ctx) as any),
-    [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: (payload, ctx) =>
-      balanceUpdated(toUow(payload, ctx) as any),
-  },
+  handlers: createHandlers(),
   errorEventType: 'INVESTOR_BFF_FAILED',
 });
