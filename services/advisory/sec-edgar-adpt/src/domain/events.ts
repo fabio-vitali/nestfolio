@@ -1,5 +1,23 @@
 export const SecEdgarAdptEventTypes = {
+  FETCH_REQUESTED: 'FETCH_SEC_EDGAR_REQUESTED',
   SEC_8K_FILED: 'SEC_8K_FILED',
   SEC_PROSPECTUS_UPDATED: 'SEC_PROSPECTUS_UPDATED',
   SEC_10K_UPDATED: 'SEC_10K_UPDATED',
 } as const;
+
+export const SecEdgarEntityTypes = ['SecFiling'] as const;
+export type SecEdgarEntityType = (typeof SecEdgarEntityTypes)[number];
+
+export interface SecFiling {
+  readonly pk: string;
+  readonly sk: string;
+  readonly __typename: 'SecFiling';
+  readonly cik: string;
+  readonly issuer: string;
+  readonly formType: string;
+  readonly filingDate: string;
+  readonly accessionNumber: string;
+  readonly body: string;
+  readonly source: 'sec-edgar';
+  readonly fetchedAt: string;
+}

@@ -1,14 +1,12 @@
 import { join } from 'path';
 import { Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { Bucket } from 'aws-cdk-lib/aws-s3';
-import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
-import { Monitoring, ServiceDashboard } from '@nestfolio/cdk-constructs/observability';
+import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
+import { SecEdgarAdptEventTypes } from './domain/events';
 
 export class SecEdgarAdptStack extends ServiceStack {
   constructor(
@@ -16,7 +14,7 @@ export class SecEdgarAdptStack extends ServiceStack {
     id: string,
     props: ServiceStackProps & { schedule?: { enabled: boolean; rate: string } },
   ) {
-    super(scope, id, props);
+    super(scope, id, { ...props, serviceDir: __dirname });
 
     const scheduleConfig = props.schedule ?? { enabled: false, rate: 'rate(24 hours)' };
 
@@ -24,38 +22,48 @@ export class SecEdgarAdptStack extends ServiceStack {
     const advisoryBusArn = resolveBusArn(this, 'AdvisoryBus', props.prefix, 'advisory', domainAccounts);
     const advisoryBus = EventBus.fromEventBusArn(this, 'AdvisoryBus', advisoryBusArn);
 
-    const kbBucketName = StringParameter.valueForStringParameter(
-      this,
-      `/nestfolio/${props.prefix}-advisory/kb-market/bucketName`,
-    );
-    const kbBucket = Bucket.fromBucketName(this, 'KbBucket', kbBucketName);
+    // Override the default event bus to the advisory bus
+    this.eventBus = advisoryBus;
 
-    const eventPublisher = new NodejsFunction(this, 'EventPublisher', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers/event-publisher.ts'),
-      handler: 'handler',
-      timeout: Duration.seconds(120),
-      memorySize: 512,
+    // Ingress: subscribes to FETCH_SEC_EDGAR_REQUESTED, fetches EDGAR filings, materializes SecFiling records into DDB
+    const ingress = new Ingress(this, 'Ingress', {
+      eventTypes: [SecEdgarAdptEventTypes.FETCH_REQUESTED],
+      lambdaTimeout: Duration.seconds(120),
+      lambdaProps: { memorySize: 512 },
       environment: {
-        BUS_NAME: advisoryBus.eventBusName,
-        SERVICE_NAME: 'sec-edgar-adpt',
-        KB_BUCKET: kbBucketName,
         TRACKED_CIKS: '0000102909,0000088053,0000914208',
       },
     });
 
-    advisoryBus.grantPutEventsTo(eventPublisher);
-    kbBucket.grantReadWrite(eventPublisher);
+    // Egress: DDB Stream → CDC → EventBridge (form-type-based event routing)
+    const egress = new Egress(this, 'Egress', {
+      publishableTypes: ['SecFiling'],
+    });
+
+    // Trigger Lambda: invoked by EventBridge Scheduler, publishes FETCH_SEC_EDGAR_REQUESTED to bus
+    const fetchTrigger = new NodejsFunction(this, 'FetchTrigger', {
+      ...defaultLambdaProps(this),
+      entry: join(__dirname, 'handlers', 'fetch-trigger.ts'),
+      handler: 'handler',
+      timeout: Duration.seconds(10),
+      environment: {
+        BUS_NAME: advisoryBus.eventBusName,
+        SERVICE_NAME: 'sec-edgar-adpt',
+      },
+    });
+
+    advisoryBus.grantPutEventsTo(fetchTrigger);
 
     new AdapterSchedule(this, 'FetchSchedule', {
-      target: eventPublisher,
+      target: fetchTrigger,
       scheduleExpression: scheduleConfig.rate,
       enabled: scheduleConfig.enabled,
     });
 
-    if (this.observability) {
-      new Monitoring(this, 'Monitoring', { lambdaFunctions: [eventPublisher] });
-      new ServiceDashboard(this, 'Dashboard', { lambdaFunctions: [eventPublisher] });
-    }
+    this.addObservability({
+      ingress: ingress.handler,
+      egress: egress.handler,
+      extra: [fetchTrigger],
+    });
   }
 }

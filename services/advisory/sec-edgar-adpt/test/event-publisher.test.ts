@@ -1,114 +1,110 @@
-const mockPublishOrUpload = jest.fn().mockResolvedValue(undefined);
-const mockFetchSubmissions = jest.fn();
-const mockFilterRecentFilings = jest.fn();
+const mockChangeDataCapture = jest.fn().mockReturnValue(jest.fn());
 
 jest.mock('@nestfolio/event-processor', () => ({
   ...jest.requireActual('@nestfolio/event-processor'),
-  EventBridgeBus: jest.fn().mockImplementation(() => ({ publish: jest.fn() })),
-  publishOrUpload: mockPublishOrUpload,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
-  envVar: jest.fn().mockImplementation((name: string) => {
-    const vars: Record<string, string> = {
-      BUS_NAME: 'test-bus',
-      SERVICE_NAME: 'sec-edgar-adpt',
-      KB_BUCKET: 'test-kb-bucket',
-      TRACKED_CIKS: '0000102909,0000088053',
-    };
-    return vars[name] ?? '';
-  }),
+  changeDataCapture: mockChangeDataCapture,
 }));
 
-jest.mock('../src/clients/edgar-api', () => ({
-  fetchSubmissions: (...args: unknown[]) => mockFetchSubmissions(...args),
-  filterRecentFilings: (...args: unknown[]) => mockFilterRecentFilings(...args),
-  buildFilingUrl: jest.fn().mockReturnValue('https://sec.gov/filing.htm'),
-}));
+import { buildEventTypeMap } from '@nestfolio/event-processor';
+import { SecEdgarEntityTypes, SecEdgarAdptEventTypes } from '../src/domain/events';
+import type { StreamRecord } from '@nestfolio/event-processor';
 
-const mockFetch = jest.fn();
-global.fetch = mockFetch as any;
+describe('sec-edgar-adpt event-publisher (CDC)', () => {
+  it('SecEdgarEntityTypes contains SecFiling', () => {
+    expect(SecEdgarEntityTypes).toContain('SecFiling');
+  });
 
-import { createHandler } from '../src/handlers/event-publisher';
+  it('buildEventTypeMap produces INSERT/MODIFY entries for SecFiling', () => {
+    const map = buildEventTypeMap([...SecEdgarEntityTypes]);
+    expect(map).toHaveProperty('SecFiling:INSERT');
+    expect(map).toHaveProperty('SecFiling:MODIFY');
+  });
 
-describe('sec-edgar-adpt event-publisher', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockFetchSubmissions.mockResolvedValue({
-      cik: '0000102909',
-      name: 'Vanguard',
-      recentFilings: { filings: [] },
+  it('handler is exported and is a function', async () => {
+    const { handler } = await import('../src/handlers/event-publisher');
+    expect(typeof handler).toBe('function');
+  });
+
+  it('changeDataCapture is called with sec-edgar-adpt serviceName', async () => {
+    await import('../src/handlers/event-publisher');
+    expect(mockChangeDataCapture).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceName: 'sec-edgar-adpt' }),
+    );
+  });
+
+  it('changeDataCapture is called with eventTypeMap covering INSERT/MODIFY for SecFiling', async () => {
+    await import('../src/handlers/event-publisher');
+    const callArg = mockChangeDataCapture.mock.calls[0]?.[0];
+    expect(callArg).toBeDefined();
+    expect(callArg.eventTypeMap).toHaveProperty('SecFiling:INSERT');
+    expect(callArg.eventTypeMap).toHaveProperty('SecFiling:MODIFY');
+  });
+
+  describe('form-type-based event routing via eventTypeMap resolvers', () => {
+    function makeStreamRecord(formType: string): StreamRecord {
+      return {
+        __typename: 'SecFiling',
+        pk: 'SecFiling#0000102909',
+        sk: `Filing#acc-${formType}`,
+        tenantId: 'SYSTEM',
+        formType,
+        cik: '0000102909',
+        issuer: 'Vanguard',
+        filingDate: '2026-03-17',
+        accessionNumber: `acc-${formType}`,
+        body: '',
+        source: 'sec-edgar',
+        fetchedAt: new Date().toISOString(),
+        eventName: 'INSERT',
+      } as unknown as StreamRecord;
+    }
+
+    function getResolver(): (record: StreamRecord) => string {
+      const callArg = mockChangeDataCapture.mock.calls[0]?.[0];
+      const resolver = callArg?.eventTypeMap?.['SecFiling:INSERT'];
+      if (typeof resolver !== 'function') throw new Error('Resolver is not a function');
+      return resolver;
+    }
+
+    beforeEach(async () => {
+      mockChangeDataCapture.mockClear();
+      jest.resetModules();
+      // Re-mock after resetModules
+      jest.mock('@nestfolio/event-processor', () => ({
+        ...jest.requireActual('@nestfolio/event-processor'),
+        changeDataCapture: mockChangeDataCapture,
+      }));
+      await import('../src/handlers/event-publisher');
     });
-    mockFilterRecentFilings.mockReturnValue([]);
-    mockFetch.mockResolvedValue({
-      ok: true,
-      text: () => Promise.resolve('<html>Filing content</html>'),
+
+    it('routes 8-K → SEC_8K_FILED', () => {
+      const resolver = getResolver();
+      expect(resolver(makeStreamRecord('8-K'))).toBe(SecEdgarAdptEventTypes.SEC_8K_FILED);
     });
-  });
 
-  it('fetches submissions for each tracked CIK', async () => {
-    const handler = createHandler();
-    await handler();
+    it('routes 485BPOS → SEC_PROSPECTUS_UPDATED', () => {
+      const resolver = getResolver();
+      expect(resolver(makeStreamRecord('485BPOS'))).toBe(SecEdgarAdptEventTypes.SEC_PROSPECTUS_UPDATED);
+    });
 
-    expect(mockFetchSubmissions).toHaveBeenCalledTimes(2);
-    expect(mockFetchSubmissions).toHaveBeenCalledWith('0000102909');
-    expect(mockFetchSubmissions).toHaveBeenCalledWith('0000088053');
-  });
+    it('routes N-1A → SEC_PROSPECTUS_UPDATED', () => {
+      const resolver = getResolver();
+      expect(resolver(makeStreamRecord('N-1A'))).toBe(SecEdgarAdptEventTypes.SEC_PROSPECTUS_UPDATED);
+    });
 
-  it('publishes SEC_8K_FILED for 8-K filings', async () => {
-    mockFilterRecentFilings.mockReturnValue([
-      { accessionNumber: '0001-23-456', form: '8-K', filingDate: '2026-03-17', primaryDocument: 'doc.htm' },
-    ]);
+    it('routes 10-K → SEC_10K_UPDATED', () => {
+      const resolver = getResolver();
+      expect(resolver(makeStreamRecord('10-K'))).toBe(SecEdgarAdptEventTypes.SEC_10K_UPDATED);
+    });
 
-    const handler = createHandler();
-    await handler();
+    it('routes 10-Q → SEC_10K_UPDATED', () => {
+      const resolver = getResolver();
+      expect(resolver(makeStreamRecord('10-Q'))).toBe(SecEdgarAdptEventTypes.SEC_10K_UPDATED);
+    });
 
-    const call8k = mockPublishOrUpload.mock.calls.find(
-      (c: any) => c[0].eventType === 'SEC_8K_FILED',
-    );
-    expect(call8k).toBeDefined();
-    expect(call8k![0].content.source).toBe('sec-edgar');
-    expect(call8k![0].content.form).toBe('8-K');
-  });
-
-  it('publishes SEC_PROSPECTUS_UPDATED for 485BPOS filings', async () => {
-    mockFilterRecentFilings.mockReturnValue([
-      { accessionNumber: '0001-23-457', form: '485BPOS', filingDate: '2026-03-16', primaryDocument: 'prospectus.htm' },
-    ]);
-
-    const handler = createHandler();
-    await handler();
-
-    const callProspectus = mockPublishOrUpload.mock.calls.find(
-      (c: any) => c[0].eventType === 'SEC_PROSPECTUS_UPDATED',
-    );
-    expect(callProspectus).toBeDefined();
-  });
-
-  it('publishes SEC_10K_UPDATED for 10-K filings', async () => {
-    mockFilterRecentFilings.mockReturnValue([
-      { accessionNumber: '0001-23-458', form: '10-K', filingDate: '2026-03-15', primaryDocument: 'annual.htm' },
-    ]);
-
-    const handler = createHandler();
-    await handler();
-
-    const call10k = mockPublishOrUpload.mock.calls.find(
-      (c: any) => c[0].eventType === 'SEC_10K_UPDATED',
-    );
-    expect(call10k).toBeDefined();
-  });
-
-  it('continues processing remaining CIKs when one fails', async () => {
-    mockFetchSubmissions
-      .mockRejectedValueOnce(new Error('EDGAR API error'))
-      .mockResolvedValueOnce({
-        cik: '0000088053',
-        name: 'BlackRock',
-        recentFilings: { filings: [] },
-      });
-
-    const handler = createHandler();
-    await handler();
-
-    expect(mockFetchSubmissions).toHaveBeenCalledTimes(2);
+    it('falls back to SEC_8K_FILED for unknown form type', () => {
+      const resolver = getResolver();
+      expect(resolver(makeStreamRecord('UNKNOWN'))).toBe(SecEdgarAdptEventTypes.SEC_8K_FILED);
+    });
   });
 });
