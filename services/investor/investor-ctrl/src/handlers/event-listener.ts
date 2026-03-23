@@ -51,6 +51,21 @@ const NOTIFICATION_TEMPLATES: Record<string, NotificationTemplate> = {
     body: 'A trade order has been filled in your portfolio.',
     channel: 'email',
   },
+  ORDER_REJECTED: {
+    title: 'Order Rejected',
+    body: 'A trade order has been rejected. Check your dashboard for details.',
+    channel: 'push',
+  },
+  DECISION_BLOCKED: {
+    title: 'Decision Blocked',
+    body: 'An investment decision was blocked by compliance. Review required.',
+    channel: 'push',
+  },
+  WITHDRAWAL_COMPLETED: {
+    title: 'Withdrawal Completed',
+    body: 'Your withdrawal has been processed successfully.',
+    channel: 'email',
+  },
 };
 
 export function getNotificationTemplate(eventType: string): NotificationTemplate {
@@ -71,6 +86,8 @@ const EVENT_TYPES = [
   InvestorBffEventTypes.GOAL_UPDATED, InvestorBffEventTypes.DEPOSIT_INITIATED,
   InvestorBffEventTypes.OPERATING_MODE_CHANGED, AdvisoryCrossDomainEventTypes.DECISION_APPROVED,
   ExecutionCrossDomainEventTypes.ORDER_FILLED, LedgerCrossDomainEventTypes.BALANCE_UPDATED,
+  ExecutionCrossDomainEventTypes.ORDER_REJECTED, ExecutionCrossDomainEventTypes.WITHDRAWAL_COMPLETED,
+  AdvisoryCrossDomainEventTypes.DECISION_BLOCKED,
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

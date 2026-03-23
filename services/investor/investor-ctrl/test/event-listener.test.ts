@@ -177,6 +177,50 @@ describe('investor-ctrl event-listener', () => {
     });
   });
 
+  describe('WriteIntents — ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED', () => {
+    it('should create notification for ORDER_REJECTED', async () => {
+      const record = fakeSqsRecord('ORDER_REJECTED', {
+        orderId: 'o1', reason: 'Safety check failed',
+      }, { tenantId: 'tenant-1' });
+      const result = await harness.process([record]);
+      expect(result.intents[0]).toMatchObject({
+        typename: 'Notification',
+        fields: expect.objectContaining({
+          title: 'Order Rejected',
+          channel: 'push',
+        }),
+      });
+    });
+
+    it('should create notification for DECISION_BLOCKED', async () => {
+      const record = fakeSqsRecord('DECISION_BLOCKED', {
+        decisionId: 'd1', reason: 'Guardrail violation',
+      }, { tenantId: 'tenant-1' });
+      const result = await harness.process([record]);
+      expect(result.intents[0]).toMatchObject({
+        typename: 'Notification',
+        fields: expect.objectContaining({
+          title: 'Decision Blocked',
+          channel: 'push',
+        }),
+      });
+    });
+
+    it('should create notification for WITHDRAWAL_COMPLETED', async () => {
+      const record = fakeSqsRecord('WITHDRAWAL_COMPLETED', {
+        withdrawalId: 'w1', amount: 500,
+      }, { tenantId: 'tenant-1' });
+      const result = await harness.process([record]);
+      expect(result.intents[0]).toMatchObject({
+        typename: 'Notification',
+        fields: expect.objectContaining({
+          title: 'Withdrawal Completed',
+          channel: 'email',
+        }),
+      });
+    });
+  });
+
   describe('batch processing', () => {
     it('processes multiple records in a batch', async () => {
       const result = await harness.process([

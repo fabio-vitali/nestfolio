@@ -15,6 +15,9 @@ export class InvestorCtrlStack extends ServiceStack {
         'DECISION_APPROVED',
         'ORDER_FILLED',
         'BALANCE_UPDATED',
+        'ORDER_REJECTED',
+        'DECISION_BLOCKED',
+        'WITHDRAWAL_COMPLETED',
       ],
     });
 
