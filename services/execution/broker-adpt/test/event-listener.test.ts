@@ -329,6 +329,67 @@ describe('event-listener handler', () => {
     );
   });
 
+  it('should return record(DepositDetected) intent after processing DEPOSIT_INITIATED', async () => {
+    // getCashBalance (lazy init check) -> found
+    mockSend.mockResolvedValueOnce({ Item: { balance: 50000 } });
+
+    const sqsRecord = fakeSqsRecord('DEPOSIT_INITIATED', {
+      depositId: 'dep-2',
+      tenantId: 't-1',
+      userId: 'u-1',
+      amountCents: 20000,
+      currency: 'USD',
+    }, { eventId: 'evt-deposit-record', tenantId: 't-1' });
+
+    const result = await harness.process([sqsRecord]);
+    expect(result.batchItemFailures).toHaveLength(0);
+
+    const intent = result.intents.find((i) => i._tag === 'record');
+    expect(intent).toBeDefined();
+    expect(intent).toMatchObject({
+      _tag: 'record',
+      typename: 'DepositDetected',
+      fields: expect.objectContaining({
+        __typename: 'DepositDetected',
+        depositId: 'dep-2',
+        amountCents: 20000,
+        currency: 'USD',
+        tenantId: 't-1',
+        userId: 'u-1',
+        sourceEventId: 'evt-deposit-record',
+      }),
+    });
+  });
+
+  it('should return record(DepositDetected) intent even for duplicate deposit (idempotent)', async () => {
+    // getCashBalance (lazy init check) -> found
+    mockSend.mockResolvedValueOnce({ Item: { balance: 50000 } });
+    // guardedAddToCashBalance -> duplicate
+    mockGuardedWrite.mockResolvedValueOnce(false);
+
+    const sqsRecord = fakeSqsRecord('DEPOSIT_INITIATED', {
+      depositId: 'dep-dup2',
+      tenantId: 't-1',
+      userId: 'u-1',
+      amountCents: 10000,
+      currency: 'USD',
+    }, { eventId: 'evt-dup-deposit2', tenantId: 't-1' });
+
+    const result = await harness.process([sqsRecord]);
+    expect(result.batchItemFailures).toHaveLength(0);
+
+    const intent = result.intents.find((i) => i._tag === 'record');
+    expect(intent).toBeDefined();
+    expect(intent).toMatchObject({
+      _tag: 'record',
+      typename: 'DepositDetected',
+      fields: expect.objectContaining({
+        __typename: 'DepositDetected',
+        depositId: 'dep-dup2',
+      }),
+    });
+  });
+
   it('should initialize account on first ORDER_SUBMITTED if no cash balance exists', async () => {
     // getCashBalance (lazy init check) -> not found
     mockSend.mockResolvedValueOnce({ Item: undefined });

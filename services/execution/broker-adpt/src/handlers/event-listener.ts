@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, NotRetryableError } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
-import { createIngestionHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { createIngestionHandler, skip, record, getTime, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { ExecutionCtrlEventTypes } from '@nestfolio/execution-ctrl/events';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
@@ -136,11 +136,22 @@ export function createHandlers(deps: EventListenerDeps) {
       );
       if (!processed) {
         logger.info('Deposit already processed, skipping', { eventId: ctx.eventId });
-        return skip();
+      } else {
+        logger.info('Deposit processed', { depositId, amount, tenantId });
       }
 
-      logger.info('Deposit processed', { depositId, amount, tenantId });
-      return skip();
+      // Always emit DepositDetected so CDC can publish DEPOSIT_DETECTED to EventBridge
+      // DDB PutItem on same pk/sk is idempotent — safe to re-emit on duplicate
+      return record('DepositDetected', {
+        __typename: 'DepositDetected',
+        tenantId,
+        depositId,
+        amountCents,
+        currency,
+        userId,
+        sourceEventId: ctx.eventId,
+        timestamp: getTime(),
+      }, { pk: `DepositDetected#${tenantId}#${ctx.eventId}`, sk: 'DepositDetected' });
     },
   };
 }
