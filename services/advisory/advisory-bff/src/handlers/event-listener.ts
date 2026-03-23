@@ -4,19 +4,23 @@ import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
 import { decisionPacketCreated } from '../transforms/decision-packet-created';
 import { decisionStatusChanged } from '../transforms/decision-status-changed';
 
+export function createHandlers() {
+  return {
+    [AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED]: (payload: any, ctx: any) =>
+      decisionPacketCreated(toUow(payload, ctx) as any),
+    [AdvisoryCtrlEventTypes.DECISION_PACKET_ENRICHED]: (payload: any, ctx: any) =>
+      decisionStatusChanged(toUow(payload, ctx) as any),
+    [ComplianceEventTypes.DECISION_APPROVED]: (payload: any, ctx: any) =>
+      decisionStatusChanged(toUow(payload, ctx) as any),
+    [ComplianceEventTypes.DECISION_BLOCKED]: (payload: any, ctx: any) =>
+      decisionStatusChanged(toUow(payload, ctx) as any),
+    [AdvisoryCtrlEventTypes.USER_CONFIRMATION_REQUESTED]: (payload: any, ctx: any) =>
+      decisionStatusChanged(toUow(payload, ctx) as any),
+  };
+}
+
 export const handler = materializeToTable({
   serviceName: 'advisory-bff',
-  handlers: {
-    [AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED]: (payload, ctx) =>
-      decisionPacketCreated(toUow(payload, ctx) as any),
-    [AdvisoryCtrlEventTypes.DECISION_PACKET_ENRICHED]: (payload, ctx) =>
-      decisionStatusChanged(toUow(payload, ctx) as any),
-    [ComplianceEventTypes.DECISION_APPROVED]: (payload, ctx) =>
-      decisionStatusChanged(toUow(payload, ctx) as any),
-    [ComplianceEventTypes.DECISION_BLOCKED]: (payload, ctx) =>
-      decisionStatusChanged(toUow(payload, ctx) as any),
-    [AdvisoryCtrlEventTypes.USER_CONFIRMATION_REQUESTED]: (payload, ctx) =>
-      decisionStatusChanged(toUow(payload, ctx) as any),
-  },
+  handlers: createHandlers(),
   errorEventType: 'ADVISORY_BFF_FAILED',
 });
