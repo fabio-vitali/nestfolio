@@ -1,7 +1,7 @@
 import type { DynamoDBStreamEvent } from 'aws-lambda';
 import type { PutEventsRequestEntry } from '@aws-sdk/client-eventbridge';
 import type { StreamRecord, StreamContext } from '../types/stream-types';
-import { StreamEngine } from '../engine/stream-engine';
+import { EgestionEngine } from '../engine/egestion-engine';
 import { EventBridgePublisher } from '../util/event-bridge-publisher';
 import { getUUID } from '../internal';
 
@@ -78,7 +78,7 @@ export function changeDataCapture(
   };
 
   if (config.groupBy) {
-    const engine = new StreamEngine({
+    const engine = new EgestionEngine({
       serviceName: config.serviceName,
       groupBy: config.groupBy,
       processGroup,
@@ -88,7 +88,7 @@ export function changeDataCapture(
     return (event: DynamoDBStreamEvent) => engine.process(event);
   }
 
-  const engine = new StreamEngine({
+  const engine = new EgestionEngine({
     serviceName: config.serviceName,
     processRecord,
     concurrency: config.concurrency,

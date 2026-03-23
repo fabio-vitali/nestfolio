@@ -1,4 +1,4 @@
-import { StreamEngine } from '../../src/engine/stream-engine';
+import { EgestionEngine } from '../../src/engine/egestion-engine';
 import { fakeDdbStreamRecord } from '../../src/testing/fake-records';
 import type { DynamoDBStreamEvent } from 'aws-lambda';
 
@@ -20,10 +20,10 @@ function makeEvent(records: ReturnType<typeof fakeDdbStreamRecord>[]): DynamoDBS
   return { Records: records };
 }
 
-describe('StreamEngine', () => {
+describe('EgestionEngine', () => {
   it('calls processRecord for each unmarshalled record', async () => {
     const processRecord = jest.fn().mockResolvedValue(undefined);
-    const engine = new StreamEngine({
+    const engine = new EgestionEngine({
       serviceName: 'test',
       processRecord,
     });
@@ -36,7 +36,7 @@ describe('StreamEngine', () => {
 
   it('applies filter — skips non-matching records', async () => {
     const processRecord = jest.fn().mockResolvedValue(undefined);
-    const engine = new StreamEngine({
+    const engine = new EgestionEngine({
       serviceName: 'test',
       filter: (r) => r.__typename === 'Order',
       processRecord,
@@ -50,7 +50,7 @@ describe('StreamEngine', () => {
 
   it('groups records and calls processGroup', async () => {
     const processGroup = jest.fn().mockResolvedValue(undefined);
-    const engine = new StreamEngine({
+    const engine = new EgestionEngine({
       serviceName: 'test',
       groupBy: { key: (r) => r.tenantId },
       processGroup,
@@ -67,7 +67,7 @@ describe('StreamEngine', () => {
 
   it('applies groupBy pick:last', async () => {
     const processGroup = jest.fn().mockResolvedValue(undefined);
-    const engine = new StreamEngine({
+    const engine = new EgestionEngine({
       serviceName: 'test',
       groupBy: { key: (r) => r.tenantId, pick: 'last' },
       processGroup,
@@ -83,7 +83,7 @@ describe('StreamEngine', () => {
   });
 
   it('does not throw when all records process successfully', async () => {
-    const engine = new StreamEngine({
+    const engine = new EgestionEngine({
       serviceName: 'test',
       processRecord: jest.fn().mockResolvedValue(undefined),
     });
@@ -92,19 +92,19 @@ describe('StreamEngine', () => {
     ]))).resolves.toBeUndefined();
   });
 
-  it('throws StreamBatchError when retryable error occurs', async () => {
-    const engine = new StreamEngine({
+  it('throws EgestionBatchError when retryable error occurs', async () => {
+    const engine = new EgestionEngine({
       serviceName: 'test',
       processRecord: jest.fn().mockRejectedValue(new Error('timeout')),
     });
     await expect(engine.process(makeEvent([
       fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'A#1', __typename: 'A', tenantId: 't1' }),
-    ]))).rejects.toThrow('StreamBatchError');
+    ]))).rejects.toThrow('EgestionBatchError');
   });
 
   it('does NOT throw for non-retryable errors (publishes to bus)', async () => {
     const { NotRetryableError } = await import('../../src/internal');
-    const engine = new StreamEngine({
+    const engine = new EgestionEngine({
       serviceName: 'test',
       busName: 'test-bus',
       processRecord: jest.fn().mockRejectedValue(new NotRetryableError('bad data')),
@@ -116,7 +116,7 @@ describe('StreamEngine', () => {
 
   it('skips records with no image (null from unmarshal)', async () => {
     const processRecord = jest.fn().mockResolvedValue(undefined);
-    const engine = new StreamEngine({
+    const engine = new EgestionEngine({
       serviceName: 'test',
       processRecord,
     });

@@ -1,4 +1,4 @@
-import { createStreamHandler } from '../../src/engine/create-stream-handler';
+import { createEgestionHandler } from '../../src/engine/create-egestion-handler';
 import { fakeDdbStreamRecord } from '../../src/testing/fake-records';
 
 jest.mock('@aws-sdk/client-eventbridge', () => ({
@@ -11,9 +11,9 @@ jest.mock('../../src/internal', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-describe('createStreamHandler', () => {
+describe('createEgestionHandler', () => {
   it('returns a Lambda handler function', () => {
-    const handler = createStreamHandler({
+    const handler = createEgestionHandler({
       serviceName: 'test',
       processRecord: jest.fn().mockResolvedValue(undefined),
     });
@@ -22,7 +22,7 @@ describe('createStreamHandler', () => {
 
   it('processes records through processRecord', async () => {
     const processRecord = jest.fn().mockResolvedValue(undefined);
-    const handler = createStreamHandler({
+    const handler = createEgestionHandler({
       serviceName: 'test',
       processRecord,
     });
@@ -36,7 +36,7 @@ describe('createStreamHandler', () => {
 
   it('processes records through processGroup with groupBy', async () => {
     const processGroup = jest.fn().mockResolvedValue(undefined);
-    const handler = createStreamHandler({
+    const handler = createEgestionHandler({
       serviceName: 'test',
       groupBy: { key: (r) => r.tenantId },
       processGroup,

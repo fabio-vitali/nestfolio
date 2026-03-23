@@ -9,14 +9,14 @@ import { groupBy as groupByUtil } from '../util/group-by';
 
 const DEFAULT_CONCURRENCY = 3;
 
-export class StreamBatchError extends Error {
+export class EgestionBatchError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'StreamBatchError';
+    this.name = 'EgestionBatchError';
   }
 }
 
-export interface StreamEngineConfig {
+export interface EgestionEngineConfig {
   serviceName: string;
   filter?: (record: StreamRecord) => boolean;
   groupBy?: {
@@ -30,11 +30,11 @@ export interface StreamEngineConfig {
   errorEventType?: string;
 }
 
-export class StreamEngine {
-  private readonly config: StreamEngineConfig;
+export class EgestionEngine {
+  private readonly config: EgestionEngineConfig;
   private readonly errorPublisher?: ErrorEventPublisher;
 
-  constructor(config: StreamEngineConfig) {
+  constructor(config: EgestionEngineConfig) {
     this.config = config;
     if (config.busName) {
       this.errorPublisher = new ErrorEventPublisher(config.busName, config.serviceName);
@@ -144,9 +144,12 @@ export class StreamEngine {
     // 6. Throw if retryable errors exist
     if (collector.hasRetryableErrors()) {
       const retryCount = collector.getErrors().retryable.length;
-      throw new StreamBatchError(
-        `StreamBatchError: ${retryCount} retryable error(s) in stream batch — DDB Stream will retry`,
+      throw new EgestionBatchError(
+        `EgestionBatchError: ${retryCount} retryable error(s) in stream batch — DDB Stream will retry`,
       );
     }
   }
 }
+
+/** @deprecated Use EgestionBatchError */
+export { EgestionBatchError as StreamBatchError };

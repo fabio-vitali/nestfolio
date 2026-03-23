@@ -151,7 +151,7 @@ describe('replayAndReduce', () => {
           pk: 'T#t1', sk: 'Event#1', __typename: 'Event', tenantId: 't1', sequenceNo: 1,
         }),
       ],
-    })).rejects.toThrow('StreamBatchError');
+    })).rejects.toThrow('EgestionBatchError');
   });
 
   it('filters non-matching records', async () => {

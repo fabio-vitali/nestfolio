@@ -3,7 +3,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { logger } from '../internal';
 import type { StreamRecord, StreamContext } from '../types/stream-types';
-import { StreamEngine } from '../engine/stream-engine';
+import { EgestionEngine } from '../engine/egestion-engine';
 
 export interface ReplayAndReduceConfig<S> {
   serviceName: string;
@@ -158,7 +158,7 @@ export function replayAndReduce<S>(
 
   const busName = config.bus ?? process.env.BUS_NAME;
 
-  const engine = new StreamEngine({
+  const engine = new EgestionEngine({
     serviceName: config.serviceName,
     filter: config.filter,
     groupBy: { key: config.groupBy.key },
