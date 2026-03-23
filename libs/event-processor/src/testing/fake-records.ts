@@ -1,4 +1,4 @@
-import type { SQSRecord, DynamoDBRecord } from 'aws-lambda';
+import type { SQSRecord, DynamoDBRecord, KinesisStreamRecord } from 'aws-lambda';
 import { randomUUID } from 'crypto';
 
 export function fakeSqsRecord(
@@ -70,6 +70,40 @@ export function fakeDdbStreamRecord(
       SizeBytes: 100,
     },
     eventSourceARN: 'arn:aws:dynamodb:us-east-1:000000000000:table/test/stream/2026-01-01',
+  };
+}
+
+export function fakeKinesisRecord(
+  eventType: string,
+  payload: Record<string, unknown>,
+  opts?: { eventId?: string; tenantId?: string; sequenceNumber?: string },
+): KinesisStreamRecord {
+  const eventId = opts?.eventId ?? randomUUID();
+  const tenantId = opts?.tenantId ?? 'test-tenant';
+  const event = {
+    id: eventId,
+    type: eventType,
+    timestamp: new Date().toISOString(),
+    subject: payload,
+    context: { tenantId },
+  };
+  const data = Buffer.from(JSON.stringify(event)).toString('base64');
+
+  return {
+    kinesis: {
+      kinesisSchemaVersion: '1.0',
+      partitionKey: `T#${tenantId}`,
+      sequenceNumber: opts?.sequenceNumber ?? randomUUID(),
+      data,
+      approximateArrivalTimestamp: Date.now() / 1000,
+    },
+    eventSource: 'aws:kinesis',
+    eventVersion: '1.0',
+    eventID: `shardId-000:${randomUUID()}`,
+    eventName: 'aws:kinesis:record',
+    invokeIdentityArn: 'arn:aws:iam::role/test',
+    awsRegion: 'us-east-1',
+    eventSourceARN: 'arn:aws:kinesis:us-east-1:000000000000:stream/test',
   };
 }
 
