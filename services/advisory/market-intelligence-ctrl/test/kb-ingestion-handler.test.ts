@@ -1,10 +1,4 @@
-const mockS3Send = jest.fn();
 const mockBedrockSend = jest.fn();
-
-jest.mock('@aws-sdk/client-s3', () => ({
-  S3Client: jest.fn().mockImplementation(() => ({ send: mockS3Send })),
-  PutObjectCommand: jest.fn().mockImplementation((input) => ({ _type: 'PutObject', input })),
-}));
 
 jest.mock('@aws-sdk/client-bedrock-agent', () => ({
   BedrockAgentClient: jest.fn().mockImplementation(() => ({ send: mockBedrockSend })),
@@ -26,8 +20,6 @@ jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
-process.env.TABLE_NAME = 'test-table';
-process.env.BUS_NAME = 'test-bus';
 process.env.KB_BUCKET = 'test-kb-bucket';
 process.env.KB_ID = 'test-kb-id';
 process.env.KB_DATA_SOURCE_ID = 'test-ds-id';
@@ -37,9 +29,7 @@ import { createKbIngestionHandlers, type KbIngestionDeps } from '../src/handlers
 
 describe('market-intelligence-ctrl kb-ingestion-handler', () => {
   const mockDeps: KbIngestionDeps = {
-    s3: { send: mockS3Send } as any,
     bedrockAgent: { send: mockBedrockSend } as any,
-    kbBucket: 'test-kb-bucket',
     kbId: 'test-kb-id',
     kbDataSourceId: 'test-ds-id',
   };
@@ -51,11 +41,10 @@ describe('market-intelligence-ctrl kb-ingestion-handler', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockS3Send.mockResolvedValue({});
     mockBedrockSend.mockResolvedValue({});
   });
 
-  it('should write YAHOO_FINANCE_UPDATED feed to S3 with correct prefix and trigger KB sync', async () => {
+  it('should return store intent for YAHOO_FINANCE_UPDATED with correct key prefix and trigger KB sync', async () => {
     const result = await harness.process([
       fakeSqsRecord('YAHOO_FINANCE_UPDATED', {
         id: 'yf-001',
@@ -65,16 +54,11 @@ describe('market-intelligence-ctrl kb-ingestion-handler', () => {
     ]);
 
     expect(result.batchItemFailures).toHaveLength(0);
-    expect(mockS3Send).toHaveBeenCalledWith(expect.objectContaining({
-      _type: 'PutObject',
-      input: expect.objectContaining({
-        Bucket: 'test-kb-bucket',
-        ContentType: 'text/plain',
-      }),
-    }));
-    // Verify key prefix
-    const putCall = mockS3Send.mock.calls[0][0];
-    expect(putCall.input.Key).toMatch(/^feeds\/yahoo-finance\//);
+    expect(result.intents).toHaveLength(1);
+    expect(result.intents[0]).toMatchObject({
+      _tag: 'store',
+      key: expect.stringMatching(/^feeds\/yahoo-finance\//),
+    });
     expect(mockBedrockSend).toHaveBeenCalledWith(expect.objectContaining({
       _type: 'StartIngestionJob',
       input: expect.objectContaining({
@@ -84,7 +68,7 @@ describe('market-intelligence-ctrl kb-ingestion-handler', () => {
     }));
   });
 
-  it('should write SEC_8K_FILED feed to S3 with correct prefix and trigger KB sync', async () => {
+  it('should return store intent for SEC_8K_FILED with correct key prefix and trigger KB sync', async () => {
     const result = await harness.process([
       fakeSqsRecord('SEC_8K_FILED', {
         id: 'sec-001',
@@ -94,13 +78,16 @@ describe('market-intelligence-ctrl kb-ingestion-handler', () => {
     ]);
 
     expect(result.batchItemFailures).toHaveLength(0);
-    const putCall = mockS3Send.mock.calls[0][0];
-    expect(putCall.input.Key).toMatch(/^feeds\/sec-8k\//);
+    expect(result.intents).toHaveLength(1);
+    expect(result.intents[0]).toMatchObject({
+      _tag: 'store',
+      key: expect.stringMatching(/^feeds\/sec-8k\//),
+    });
     expect(mockBedrockSend).toHaveBeenCalled();
   });
 
-  it('should report failure on S3 write error', async () => {
-    mockS3Send.mockRejectedValueOnce(new Error('S3 write failed'));
+  it('should report failure when Bedrock sync throws', async () => {
+    mockBedrockSend.mockRejectedValueOnce(new Error('Bedrock sync failed'));
 
     const result = await harness.process([
       fakeSqsRecord('YAHOO_FINANCE_UPDATED', {

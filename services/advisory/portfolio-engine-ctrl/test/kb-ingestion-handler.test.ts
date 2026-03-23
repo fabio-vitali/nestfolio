@@ -1,10 +1,5 @@
-const mockS3Send = jest.fn();
 const mockBedrockSend = jest.fn();
 
-jest.mock('@aws-sdk/client-s3', () => ({
-  S3Client: jest.fn().mockImplementation(() => ({ send: mockS3Send })),
-  PutObjectCommand: jest.fn().mockImplementation((input) => ({ _type: 'PutObject', input })),
-}));
 jest.mock('@aws-sdk/client-bedrock-agent', () => ({
   BedrockAgentClient: jest.fn().mockImplementation(() => ({ send: mockBedrockSend })),
   StartIngestionJobCommand: jest.fn().mockImplementation((input) => ({ _type: 'StartIngestionJob', input })),
@@ -21,8 +16,6 @@ jest.mock('@nestfolio/event-processor', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
-process.env.TABLE_NAME = 'test-table';
-process.env.BUS_NAME = 'test-bus';
 process.env.KB_BUCKET = 'test-kb-bucket';
 process.env.KB_ID = 'test-kb-id';
 process.env.KB_DATA_SOURCE_ID = 'test-ds-id';
@@ -32,9 +25,7 @@ import { createKbIngestionHandlers, type KbIngestionDeps } from '../src/handlers
 
 describe('portfolio-engine-ctrl kb-ingestion-handler', () => {
   const mockDeps: KbIngestionDeps = {
-    s3: { send: mockS3Send } as any,
     bedrockAgent: { send: mockBedrockSend } as any,
-    kbBucket: 'test-kb-bucket',
     kbId: 'test-kb-id',
     kbDataSourceId: 'test-ds-id',
   };
@@ -46,11 +37,10 @@ describe('portfolio-engine-ctrl kb-ingestion-handler', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockS3Send.mockResolvedValue({});
     mockBedrockSend.mockResolvedValue({});
   });
 
-  it('should write SEC_PROSPECTUS_UPDATED inline content to S3 and trigger KB sync', async () => {
+  it('should return store intent for SEC_PROSPECTUS_UPDATED inline content and trigger KB sync', async () => {
     const result = await harness.process([
       fakeSqsRecord('SEC_PROSPECTUS_UPDATED', {
         filingId: 'f-1',
@@ -58,14 +48,15 @@ describe('portfolio-engine-ctrl kb-ingestion-handler', () => {
       }, { tenantId: 't1' }),
     ]);
     expect(result.batchItemFailures).toHaveLength(0);
-    expect(mockS3Send).toHaveBeenCalledWith(expect.objectContaining({
-      _type: 'PutObject',
-      input: expect.objectContaining({ Bucket: 'test-kb-bucket' }),
-    }));
+    expect(result.intents).toHaveLength(1);
+    expect(result.intents[0]).toMatchObject({
+      _tag: 'store',
+      key: expect.stringMatching(/^sec_prospectus_updated\//),
+    });
     expect(mockBedrockSend).toHaveBeenCalled();
   });
 
-  it('should write SEC_10K_UPDATED content to S3', async () => {
+  it('should return store intent for SEC_10K_UPDATED content', async () => {
     const result = await harness.process([
       fakeSqsRecord('SEC_10K_UPDATED', {
         filingId: 'f-2',
@@ -73,7 +64,8 @@ describe('portfolio-engine-ctrl kb-ingestion-handler', () => {
       }, { tenantId: 't1' }),
     ]);
     expect(result.batchItemFailures).toHaveLength(0);
-    expect(mockS3Send).toHaveBeenCalled();
+    expect(result.intents).toHaveLength(1);
+    expect(result.intents[0]).toMatchObject({ _tag: 'store' });
   });
 
   it('should fail when no content or preSignedUrl provided', async () => {

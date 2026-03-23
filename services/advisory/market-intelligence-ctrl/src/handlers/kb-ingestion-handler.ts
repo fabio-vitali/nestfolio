@@ -1,9 +1,10 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { BedrockAgentClient, StartIngestionJobCommand } from '@aws-sdk/client-bedrock-agent';
 import {
-  createEventHandler, skip,
+  materializeToBucket, store,
   type EventPayload, type EventContext,
   requireEnv, logger,
+  skip,
 } from '@nestfolio/event-processor';
 
 const SOURCE_PREFIX_MAP: Record<string, string> = {
@@ -15,9 +16,7 @@ const SOURCE_PREFIX_MAP: Record<string, string> = {
 };
 
 export interface KbIngestionDeps {
-  readonly s3: S3Client;
   readonly bedrockAgent: BedrockAgentClient;
-  readonly kbBucket: string;
   readonly kbId: string;
   readonly kbDataSourceId: string;
 }
@@ -38,27 +37,21 @@ export const createKbIngestionHandlers = (deps: KbIngestionDeps) => {
       return skip();
     }
 
-    const date = new Date().toISOString().slice(0, 10);
-    const id = (subject.id as string) ?? `${Date.now()}`;
-    const key = `${prefix}/${date}/${id}.txt`;
     const content = buildFeedContent(ctx.eventType, subject as Record<string, unknown>);
 
-    logger.info('Writing KB feed content to S3', { key, eventType: ctx.eventType });
-
-    await deps.s3.send(new PutObjectCommand({
-      Bucket: deps.kbBucket,
-      Key: key,
-      Body: content,
-      ContentType: 'text/plain',
-    }));
-
+    // Trigger KB sync (side effect)
     await deps.bedrockAgent.send(new StartIngestionJobCommand({
       knowledgeBaseId: deps.kbId,
       dataSourceId: deps.kbDataSourceId,
     }));
 
     logger.info('KB sync triggered', { kbId: deps.kbId });
-    return skip();
+
+    // S3 write handled by the pipeline via store() intent
+    const date = new Date().toISOString().slice(0, 10);
+    const id = (subject.id as string) ?? `${Date.now()}`;
+    const key = `${prefix}/${date}/${id}.txt`;
+    return store(content, { key });
   };
 
   return {
@@ -72,21 +65,15 @@ export const createKbIngestionHandlers = (deps: KbIngestionDeps) => {
 
 // --- Production wiring ---
 
-const KB_BUCKET = requireEnv('KB_BUCKET');
 const KB_ID = requireEnv('KB_ID');
 const KB_DATA_SOURCE_ID = requireEnv('KB_DATA_SOURCE_ID');
-const TABLE_NAME = requireEnv('TABLE_NAME');
-const BUS_NAME = requireEnv('BUS_NAME');
 
-const s3 = new S3Client({});
 const bedrockAgent = new BedrockAgentClient({});
 
-const deps: KbIngestionDeps = { s3, bedrockAgent, kbBucket: KB_BUCKET, kbId: KB_ID, kbDataSourceId: KB_DATA_SOURCE_ID };
+const deps: KbIngestionDeps = { bedrockAgent, kbId: KB_ID, kbDataSourceId: KB_DATA_SOURCE_ID };
 
-export const handler = createEventHandler({
+export const handler = materializeToBucket({
   serviceName: 'market-intelligence-ctrl-kb',
   handlers: createKbIngestionHandlers(deps),
-  table: TABLE_NAME,
-  bus: BUS_NAME,
-  errorEventType: 'MARKET_INTELLIGENCE_KB_INGESTION_FAILED',
+  bucket: requireEnv('KB_BUCKET'),
 });
