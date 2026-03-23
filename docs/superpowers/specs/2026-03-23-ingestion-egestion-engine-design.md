@@ -102,7 +102,7 @@ Owns:
 - Metrics (EventProcessed, EventFailed, EventDeduplicated, EventDropped, EventSkipped, BatchSize, BatchDuration)
 - asyncPool concurrency
 
-**Note:** The engine core does NOT perform poison pill detection. That is an SQS-adapter-only concern. The core only performs event-type routing (skipping unknown types).
+**Note:** The engine core does NOT perform poison pill detection. That is an SQS-adapter-only concern. The core only performs event-type routing (skipping unknown types). However, `ErrorCollector` remains in the core — the SQS adapter calls `collector.recordPoisonPill()` before passing records to the engine, so poison pill metrics are tracked alongside other metrics in a single collector instance. The adapter owns the detection logic; the collector owns the bookkeeping.
 
 ```typescript
 export interface IngestionEngineConfig {
@@ -215,7 +215,7 @@ export function createIngestionHandler(
 
 export function createIngestionHandler(
   config: IngestionHandlerConfig & { transport: 'kinesis' },
-): (event: KinesisStreamEvent) => Promise<KinesisStreamBatchResponse>;
+): (event: KinesisStreamEvent, context?: Context) => Promise<KinesisStreamBatchResponse>;
 ```
 
 Internally:
@@ -235,7 +235,7 @@ export function materializeToTable(
 
 export function materializeToTable(
   config: MaterializeToTableConfig & { transport: 'kinesis' },
-): (event: KinesisStreamEvent) => Promise<KinesisStreamBatchResponse>;
+): (event: KinesisStreamEvent, context?: Context) => Promise<KinesisStreamBatchResponse>;
 ```
 
 **`changeDataCapture`** — import rename only (`StreamEngine` → `EgestionEngine`).
