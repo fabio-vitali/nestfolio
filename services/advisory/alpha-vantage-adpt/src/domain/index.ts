@@ -1,1 +1,1 @@
-export { AlphaVantageAdptEventTypes } from './events';
+export { AlphaVantageAdptEventTypes, AlphaVantageEntityTypes } from './events';
