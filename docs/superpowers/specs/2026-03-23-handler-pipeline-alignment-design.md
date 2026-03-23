@@ -67,16 +67,21 @@ handlers return `WriteIntent`s and let the pipeline own persistence.
 Handlers that need to **read** state (e.g., compliance-ctrl loading mandate snapshots)
 keep their DI deps for reads but delegate writes to the intent system.
 
-**1. advisory-ctrl**
+**1. advisory-ctrl** (PARTIAL refactoring)
 
 Current: `skip()` after `lifecycleService.processDecisionPacket()` / `repository.updateDecisionStatus()`
 
-Proposed:
-- TRIGGER events (9 types) → handler computes DecisionPacket fields → `record('DecisionPacket', { tenantId, decisionId, trigger, context, status: 'PENDING' })`
-- COMPLIANCE events (DECISION_APPROVED, DECISION_BLOCKED) → `update('DecisionPacket', { status, complianceResult, authorityLevel, blockReason }, { overrides })`
-- USER events (USER_CONFIRMED, USER_REJECTED) → `update('DecisionPacket', { status, userDecision, rejectionReason }, { overrides })`
+The TRIGGER handler calls `invokeOrchestrator()` (Bedrock agent pipeline via
+`@nestfolio/agent-orchestrator`) — an external side-effect with conditional
+control flow (duplicate DecisionPacket check → early return). This cannot be
+expressed as WriteIntents.
 
-DI deps: `lifecycleService` logic (event enrichment, context assembly) moves into the handler or a pure compute function. Repository write calls are eliminated.
+Proposed:
+- TRIGGER events (9 types) → **stays imperative** with `skip()`. Handler calls lifecycle service (agent orchestration + DDB writes). This handler group is the only one that justifies imperative writes.
+- COMPLIANCE events (DECISION_APPROVED, DECISION_BLOCKED) → **migrates to WriteIntents**: `update('DecisionPacket', { status, complianceResult, authorityLevel, blockReason }, { overrides })`
+- USER events (USER_CONFIRMED, USER_REJECTED) → **migrates to WriteIntents**: `update('DecisionPacket', { status, userDecision, rejectionReason }, { overrides })`
+
+DI deps: keeps `lifecycleService` for TRIGGER handlers. COMPLIANCE/USER handlers become pure functions (no deps needed).
 
 **2. execution-ctrl**
 
@@ -279,7 +284,7 @@ None. All required intents (`record`, `project`, `update`, `accumulate`, `skip`,
 
 | Service | Change | Type |
 |---------|--------|------|
-| advisory-ctrl | Refactor handlers to return WriteIntents | Controller → WriteIntents |
+| advisory-ctrl | Partial: COMPLIANCE/USER handlers → WriteIntents; TRIGGER stays imperative | Controller → WriteIntents (partial) |
 | execution-ctrl | Refactor handlers to return WriteIntents | Controller → WriteIntents |
 | investor-ctrl | Refactor handlers to return WriteIntents | Controller → WriteIntents |
 | compliance-ctrl | Refactor handlers to return WriteIntents (keep read deps) | Controller → WriteIntents |
@@ -305,23 +310,40 @@ None. All required intents (`record`, `project`, `update`, `accumulate`, `skip`,
 - decision-workflow-ctrl/sfn-callback — already correct
 - Non-pipeline handlers (assemble-packet, graphql-resolver, Cognito triggers) — already correct
 
-## Risks and Mitigations
+## Risks and Mitigations (Verified)
 
-### Lifecycle service decomposition
-advisory-ctrl's `executeDecisionLifecycle()`, investor-ctrl's `executeNotificationLifecycle()`,
-and execution-ctrl's `processApprovedDecision()` may contain hidden side-effects beyond
-DDB writes (e.g., publishing events, calling external services). Before refactoring each
-handler, **read the lifecycle service implementation** to inventory all side-effects. If a
-lifecycle service does more than compute + write, the handler may need to keep some
-imperative calls alongside WriteIntents.
+All lifecycle services have been read. Findings:
 
-### compliance-ctrl two-phase write
-compliance-ctrl currently creates a ComplianceCheck record first, then updates it with
-the rule engine result. Converting to WriteIntents means the handler returns a single
-`record('ComplianceCheck', { ...fullResult })` — one write instead of two. This changes
-idempotency semantics: the current two-phase approach allows partial state (check created
-but not yet evaluated). The single-write approach is actually **better** (atomic, no
-partial state), but tests must be updated to reflect the new single-write behavior.
+### advisory-ctrl — external side-effect confirmed
+`executeDecisionLifecycle()` calls `invokeOrchestrator()` (Bedrock agent pipeline via
+`@nestfolio/agent-orchestrator`). This is an expensive external call with conditional
+control flow (duplicate DecisionPacket check → early return). The TRIGGER handler group
+stays imperative. COMPLIANCE and USER handler groups are simple status updates that
+CAN migrate to WriteIntents. **Mitigation: partial refactoring (2 of 3 handler groups).**
+
+### execution-ctrl — pure, fully migratable
+`processApprovedDecision()` does: conditional createOrder + safetyChecks (pure computation)
++ updateOrderStatus + optional createStagedOrder. `isMarketOpen()` is a local time check.
+No external calls. All writes can become intents with different return paths based on
+safety/market conditions.
+
+### investor-ctrl — pure today, future risk
+`executeNotificationLifecycle()` does: createNotification + stubbed SNS/SES delivery
+(currently just logs) + updateNotificationStatus + optional createMonthlyReport. When
+real push/email delivery is implemented, the handler will need imperative calls for
+those channels. **Mitigation: refactor to WriteIntents now; reassess when delivery is
+implemented.**
+
+### compliance-ctrl — two-phase write improvement
+Currently creates a ComplianceCheck then updates it with the rule engine result.
+Converting to WriteIntents means a single `record('ComplianceCheck', { ...fullResult })`
+— one write instead of two. This is **better** (atomic, no partial state). The rule
+engine is purely synchronous with no I/O.
+
+### reconciliation-ctrl — fully migratable
+`reconcile()` does: conditional createReconciliation (idempotent) + drift computation
+(pure) + createDriftRecord per drift (idempotent) + updateReconciliationStatus. All
+writes have `PutIfNotExists` guards making retry-safe intent execution possible.
 
 ## Testing Strategy
 
