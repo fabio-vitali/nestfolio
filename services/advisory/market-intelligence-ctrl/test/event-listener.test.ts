@@ -15,9 +15,10 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@aws-sdk/client-eventbridge', () => ({
-  EventBridgeClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
-  PutEventsCommand: jest.fn(),
+jest.mock('@aws-sdk/client-sfn', () => ({
+  SFNClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
+  SendTaskSuccessCommand: jest.fn(),
+  SendTaskFailureCommand: jest.fn(),
 }));
 
 jest.mock('@nestfolio/agent-orchestrator', () => ({
@@ -38,19 +39,17 @@ process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
 process.env.MEMORY_ID = 'mem-test';
 
-import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
-import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
+import type { EventPayload, EventContext } from '@nestfolio/event-processor';
+import { createHandlers, type SfnCallbackDeps } from '../src/handlers/event-listener';
 
 describe('market-intelligence-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
-  const mockPublish = jest.fn();
   const mockWriteAgentOutput = jest.fn().mockResolvedValue(undefined);
   const mockReadUpstreamOutput = jest.fn().mockResolvedValue([]);
   const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
-  const mockDeps: EventListenerDeps = {
+  const mockDeps: SfnCallbackDeps = {
     agentService: { runPipeline: mockRunPipeline },
-    bus: { publish: mockPublish },
     memoryClient: {
       openDecisionSession: jest.fn().mockReturnValue({
         writeAgentOutput: mockWriteAgentOutput,
@@ -61,10 +60,17 @@ describe('market-intelligence-ctrl event-listener', () => {
     } as any,
   };
 
-  const harness = createTestHarness({
+  const handlers = createHandlers(mockDeps);
+
+  const baseCtx: EventContext = {
+    eventId: 'evt-1',
+    eventType: 'ANALYZE_MARKET',
+    tenantId: 't1',
+    timestamp: new Date().toISOString(),
+    receiveCount: 1,
     serviceName: 'market-intelligence-ctrl',
-    handlers: createHandlers(mockDeps),
-  });
+    record: {} as any,
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -77,60 +83,43 @@ describe('market-intelligence-ctrl event-listener', () => {
       confidenceScore: 0.85,
       metadata: { durationMs: 900, modelTier: 'sonnet' },
     });
-    mockPublish.mockResolvedValue(undefined);
   });
 
-  it('should route ANALYZE_MARKET to agent pipeline and publish completion', async () => {
-    const result = await harness.process([
-      fakeSqsRecord('ANALYZE_MARKET', {
+  it('should run agent pipeline and return output with intents', async () => {
+    const payload: EventPayload = {
+      subject: {
         tenantId: 't1',
         decisionId: 'dp-1',
         taskToken: 'token-123',
         upstreamOutputs: { investorProfile: { riskScore: 45 } },
-      }, { tenantId: 't1' }),
-    ]);
+      },
+    };
 
-    expect(result.batchItemFailures).toHaveLength(0);
+    const result = await handlers.ANALYZE_MARKET(payload, baseCtx);
+
+    expect(result.output).toEqual({ decisionId: 'dp-1', tenantId: 't1' });
+    expect(result.intents).toHaveLength(1);
+
     expect(mockRunPipeline).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: 't1',
       decisionId: 'dp-1',
-      taskToken: 'token-123',
     }));
 
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('market signals sector trends');
     expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
-    expect(mockPublish).toHaveBeenCalledWith([expect.objectContaining({
-      type: 'MARKET_ANALYSIS_COMPLETED',
-      subject: expect.objectContaining({
-        decisionId: 'dp-1',
-        taskToken: 'token-123',
-      }),
-    })]);
-
-    // Completion event should NOT carry outputs
-    const publishedSubject = mockPublish.mock.calls[0][0][0].subject;
-    expect(publishedSubject).not.toHaveProperty('outputs');
   });
 
-  it('should skip unknown event types gracefully', async () => {
-    const result = await harness.process([
-      fakeSqsRecord('UNKNOWN_EVENT', {}, { tenantId: 't1' }),
-    ]);
-    expect(result.skipped).toBe(1);
-    expect(mockRunPipeline).not.toHaveBeenCalled();
-  });
-
-  it('should report batch item failures on agent error', async () => {
+  it('should propagate agent errors', async () => {
     mockRunPipeline.mockRejectedValueOnce(new Error('Agent pipeline failed'));
 
-    const result = await harness.process([
-      fakeSqsRecord('ANALYZE_MARKET', {
+    const payload: EventPayload = {
+      subject: {
         tenantId: 't1',
         decisionId: 'dp-1',
         taskToken: 'token-123',
-      }, { tenantId: 't1' }),
-    ]);
+      },
+    };
 
-    expect(result.batchItemFailures).toHaveLength(1);
+    await expect(handlers.ANALYZE_MARKET(payload, baseCtx)).rejects.toThrow('Agent pipeline failed');
   });
 });

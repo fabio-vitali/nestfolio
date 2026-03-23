@@ -144,8 +144,6 @@ describe('event-listener handler', () => {
       mockSend.mockResolvedValueOnce({});
       // updateCheckResult -> update
       mockSend.mockResolvedValueOnce({ Attributes: { status: 'COMPLETED', result: 'APPROVED' } });
-      // updateCheckResult -> edit event put
-      mockSend.mockResolvedValueOnce({});
       // createAuditArtifact -> put
       mockSend.mockResolvedValueOnce({});
 
@@ -170,7 +168,7 @@ describe('event-listener handler', () => {
         }, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
-      expect(mockSend).toHaveBeenCalledTimes(5);
+      expect(mockSend).toHaveBeenCalledTimes(4);
     });
 
     it('should handle missing mandate by creating BLOCKED result', async () => {
@@ -180,8 +178,6 @@ describe('event-listener handler', () => {
       mockSend.mockResolvedValueOnce({});
       // updateCheckResult -> update
       mockSend.mockResolvedValueOnce({ Attributes: { status: 'COMPLETED', result: 'BLOCKED' } });
-      // updateCheckResult -> edit event put
-      mockSend.mockResolvedValueOnce({});
 
       const result = await harness.process([
         fakeSqsRecord('DECISION_PACKET_CREATED', {
@@ -292,8 +288,6 @@ describe('event-listener handler', () => {
       mockSend.mockResolvedValueOnce({});
       // updateCheckResult -> update
       mockSend.mockResolvedValueOnce({ Attributes: { status: 'COMPLETED', result: 'APPROVED' } });
-      // updateCheckResult -> edit event put
-      mockSend.mockResolvedValueOnce({});
       // createAuditArtifact -> put
       mockSend.mockResolvedValueOnce({});
 
@@ -318,7 +312,7 @@ describe('event-listener handler', () => {
         }, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
-      expect(mockSend).toHaveBeenCalledTimes(5);
+      expect(mockSend).toHaveBeenCalledTimes(4);
     });
   });
 

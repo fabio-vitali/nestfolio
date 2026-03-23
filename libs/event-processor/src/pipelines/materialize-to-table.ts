@@ -9,6 +9,7 @@ export interface MaterializeToTableConfig {
   bus?: string;
   concurrency?: number;
   poisonPill?: { maxReceiveCount: number };
+  errorEventType?: string;
 }
 
 export function materializeToTable(
@@ -21,5 +22,6 @@ export function materializeToTable(
     bus: config.bus ?? process.env.BUS_NAME,
     concurrency: config.concurrency,
     poisonPill: config.poisonPill,
+    errorEventType: config.errorEventType,
   });
 }

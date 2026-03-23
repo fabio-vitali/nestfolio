@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
@@ -44,10 +44,8 @@ const repository = new NotificationRepository(TABLE_NAME, dynamoClient);
 const lifecycleService = new NotificationLifecycleService(repository, new NotificationDeliveryService());
 const deps: EventListenerDeps = { lifecycleService };
 
-export const handler = createEventHandler({
+export const handler = materializeToTable({
   serviceName: 'investor-ctrl',
   handlers: createHandlers(deps),
-  table: TABLE_NAME,
-  bus: requireEnv('BUS_NAME'),
   errorEventType: 'INVESTOR_CTRL_FAILED',
 });

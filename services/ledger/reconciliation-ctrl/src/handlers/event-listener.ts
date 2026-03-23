@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
@@ -50,10 +50,8 @@ const repository = new ReconciliationRepository(TABLE_NAME, dynamoClient);
 const reconciliationService = new ReconciliationService(repository);
 const deps: EventListenerDeps = { reconciliationService };
 
-export const handler = createEventHandler({
+export const handler = materializeToTable({
   serviceName: 'reconciliation-ctrl',
   handlers: createHandlers(deps),
-  table: TABLE_NAME,
-  bus: requireEnv('BUS_NAME'),
   errorEventType: 'RECONCILIATION_CTRL_FAILED',
 });

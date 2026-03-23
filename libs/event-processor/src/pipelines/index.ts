@@ -6,3 +6,5 @@ export { changeDataCapture } from './change-data-capture';
 export type { ChangeDataCaptureConfig } from './change-data-capture';
 export { replayAndReduce } from './replay-and-reduce';
 export type { ReplayAndReduceConfig } from './replay-and-reduce';
+export { resumeStateMachine } from './resume-state-machine';
+export type { ResumeStateMachineConfig, ResumeHandler } from './resume-state-machine';

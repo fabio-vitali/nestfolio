@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, NotRetryableError } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
-import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { ExecutionCtrlEventTypes } from '@nestfolio/execution-ctrl/events';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
@@ -152,10 +152,8 @@ const repository = new VirtualLedgerRepository(TABLE_NAME, dynamoClient);
 const marketData = new MarketDataService();
 const simulationEngine = new SimulationEngineService(repository, marketData);
 
-export const handler = createEventHandler({
+export const handler = materializeToTable({
   serviceName: 'broker-adpt',
   handlers: createHandlers({ repository, simulationEngine }),
-  table: TABLE_NAME,
-  bus: requireEnv('BUS_NAME'),
   errorEventType: 'EXECUTION_ADPT_FAILED',
 });

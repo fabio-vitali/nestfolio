@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
@@ -207,10 +207,8 @@ const deps: EventListenerDeps = {
   ruleEngine,
 };
 
-export const handler = createEventHandler({
+export const handler = materializeToTable({
   serviceName: 'compliance-ctrl',
   handlers: createHandlers(deps),
-  table: TABLE_NAME,
-  bus: requireEnv('BUS_NAME'),
   errorEventType: 'COMPLIANCE_CTRL_FAILED',
 });

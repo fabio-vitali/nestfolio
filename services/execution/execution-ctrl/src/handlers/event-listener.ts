@@ -1,7 +1,7 @@
 import { logger } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { createEventHandler, skip, type EventPayload, type EventContext, type BusEvent } from '@nestfolio/event-processor';
+import { materializeToTable, skip, type EventPayload, type EventContext, type BusEvent } from '@nestfolio/event-processor';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 import { OrderRepository } from '../repositories/order.repository';
@@ -57,10 +57,8 @@ const safetyChecks = new SafetyChecksService(repository);
 const marketHours = new MarketHoursService();
 const lifecycleService = new OrderLifecycleService(repository, safetyChecks, marketHours);
 
-export const handler = createEventHandler({
+export const handler = materializeToTable({
   serviceName: 'execution-ctrl',
   handlers: createHandlers({ repository, lifecycleService }),
-  table: TABLE_NAME,
-  bus: requireEnv('BUS_NAME'),
   errorEventType: 'EXECUTION_CTRL_FAILED',
 });

@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { createEventHandler, skip, type EventPayload, type EventContext, type BusEvent } from '@nestfolio/event-processor';
+import { materializeToTable, skip, type EventPayload, type EventContext, type BusEvent } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
@@ -159,10 +159,8 @@ const deps: EventListenerDeps = {
   repository,
 };
 
-export const handler = createEventHandler({
+export const handler = materializeToTable({
   serviceName: 'advisory-ctrl',
   handlers: createHandlers(deps),
-  table: TABLE_NAME,
-  bus: requireEnv('BUS_NAME'),
   errorEventType: 'ADVISORY_CTRL_FAILED',
 });

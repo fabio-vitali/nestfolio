@@ -1,29 +1,24 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import {
-  createEventHandler, skip,
+  resumeStateMachine, record,
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
 import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-orchestrator';
 import { createAgentService } from '../agent-service';
 
-export interface EventListenerDeps {
+export interface SfnCallbackDeps {
   readonly agentService: { runPipeline: (event: Record<string, unknown>) => Promise<Record<string, unknown>> };
   readonly feedbackCorrelator: { process: (event: Record<string, unknown>) => Promise<void> };
-  readonly bus: { publish: (events: Array<{ type: string; subject: Record<string, unknown> }>) => Promise<void> };
   readonly memoryClient: MemoryClient;
 }
 
-export const createHandlers = (deps: EventListenerDeps) => {
-  const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<ReturnType<typeof skip>>> = {};
-
-  handlers['GENERATE_NARRATIVE'] = async (payload, ctx) => {
+export const createHandlers = (deps: SfnCallbackDeps) => ({
+  GENERATE_NARRATIVE: async (payload: EventPayload, ctx: EventContext) => {
     const subject = payload.subject ?? {};
     const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
     const decisionId = subject.decisionId as string;
-    const taskToken = subject.taskToken as string;
 
     logger.info('Processing GENERATE_NARRATIVE', { decisionId, tenantId });
 
@@ -40,7 +35,6 @@ export const createHandlers = (deps: EventListenerDeps) => {
     const result = await deps.agentService.runPipeline({
       tenantId,
       decisionId,
-      taskToken,
       investorProfile: investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {},
       marketAnalysis: marketRecords[0]?.content ? JSON.parse(marketRecords[0].content) : {},
       portfolio: portfolioRecords[0]?.content ? JSON.parse(portfolioRecords[0].content) : {},
@@ -50,54 +44,30 @@ export const createHandlers = (deps: EventListenerDeps) => {
 
     await session.writeAgentOutput(result);
 
-    await deps.bus.publish([{
-      type: 'NARRATIVE_COMPLETED',
-      subject: {
-        decisionId,
-        tenantId,
-        taskToken,
-      },
-    }]);
+    return {
+      output: { decisionId, tenantId },
+      intents: [record('AgentInvocation', { decisionId, tenantId, agentName: 'advisory-narrative' })],
+    };
+  },
 
-    logger.info('Published NARRATIVE_COMPLETED', { decisionId });
-    return skip();
-  };
-
-  handlers['DECISION_FEEDBACK'] = async (payload, ctx) => {
+  DECISION_FEEDBACK: async (payload: EventPayload, ctx: EventContext) => {
     logger.info('Processing DECISION_FEEDBACK', { eventType: ctx.eventType });
     await deps.feedbackCorrelator.process({
       type: ctx.eventType,
       subject: payload.subject,
     } as Record<string, unknown>);
-    return skip();
-  };
-
-  return handlers;
-};
+    return { output: { eventType: ctx.eventType, status: 'processed' } };
+  },
+});
 
 // --- Production wiring ---
 
 const TABLE_NAME = requireEnv('TABLE_NAME');
-const BUS_NAME = requireEnv('BUS_NAME');
 
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
-const ebClient = new EventBridgeClient({});
 
 const agentService = createAgentService({ docClient, tableName: TABLE_NAME });
-
-const bus = {
-  publish: async (events: Array<{ type: string; subject: Record<string, unknown> }>) => {
-    await ebClient.send(new PutEventsCommand({
-      Entries: events.map((e) => ({
-        EventBusName: BUS_NAME,
-        Source: 'nestfolio.advisory-narrative-ctrl',
-        DetailType: e.type,
-        Detail: JSON.stringify({ type: e.type, subject: e.subject }),
-      })),
-    }));
-  },
-};
 
 const feedbackCorrelator = {
   process: async (_event: Record<string, unknown>) => {
@@ -110,12 +80,10 @@ const memoryClient = process.env.MEMORY_ID
   ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: 'advisory-narrative' })
   : createNoOpMemoryClient();
 
-const deps: EventListenerDeps = { agentService, bus, feedbackCorrelator, memoryClient };
+const deps: SfnCallbackDeps = { agentService, feedbackCorrelator, memoryClient };
 
-export const handler = createEventHandler({
+export const handler = resumeStateMachine({
   serviceName: 'advisory-narrative-ctrl',
   handlers: createHandlers(deps),
-  table: TABLE_NAME,
-  bus: BUS_NAME,
   errorEventType: 'ADVISORY_NARRATIVE_CTRL_FAILED',
 });
