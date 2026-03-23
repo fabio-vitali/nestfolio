@@ -97,11 +97,21 @@ export function createHandlers(deps: EventListenerDeps) {
       );
       if (!processed) {
         logger.info('Withdrawal already processed, skipping', { eventId: ctx.eventId });
-        return skip();
+      } else {
+        logger.info('Withdrawal completed', { withdrawalId, amount, newBalance: balance - amount });
       }
 
-      logger.info('Withdrawal completed', { withdrawalId, amount, newBalance: balance - amount });
-      return skip();
+      // Always emit WithdrawalCompleted so CDC can publish WITHDRAWAL_COMPLETED to EventBridge
+      // DDB PutItem on same pk/sk is idempotent — safe to re-emit on duplicate
+      return record('WithdrawalCompleted', {
+        __typename: 'WithdrawalCompleted',
+        tenantId,
+        withdrawalId,
+        amount,
+        userId,
+        sourceEventId: ctx.eventId,
+        timestamp: getTime(),
+      }, { pk: `WithdrawalCompleted#${tenantId}#${ctx.eventId}`, sk: 'WithdrawalCompleted' });
     },
 
     [InvestorCrossDomainEventTypes.DEPOSIT_INITIATED]: async (payload: EventPayload, ctx: EventContext) => {

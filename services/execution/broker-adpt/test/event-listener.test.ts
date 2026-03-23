@@ -390,6 +390,79 @@ describe('event-listener handler', () => {
     });
   });
 
+  describe('WITHDRAWAL_REQUESTED handler', () => {
+    it('should return WithdrawalCompleted record after processing', async () => {
+      // getCashBalance (balance check) -> found with sufficient balance
+      mockSend.mockResolvedValueOnce({ Item: { balance: 100000 } });
+
+      const sqsRecord = fakeSqsRecord('WITHDRAWAL_REQUESTED', {
+        withdrawalId: 'wth-1',
+        amount: 50,
+        userId: 'user-1',
+      }, { eventId: 'evt-withdrawal-record', tenantId: 'tenant-1' });
+
+      const result = await harness.process([sqsRecord]);
+
+      expect(result.skipped).toBe(0);
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'WithdrawalCompleted',
+        fields: expect.objectContaining({
+          __typename: 'WithdrawalCompleted',
+          withdrawalId: 'wth-1',
+          tenantId: 'tenant-1',
+          amount: 50,
+          userId: 'user-1',
+          sourceEventId: 'evt-withdrawal-record',
+        }),
+      });
+    });
+
+    it('should emit no record intent when balance is insufficient', async () => {
+      // getCashBalance (balance check) -> found with low balance
+      mockSend.mockResolvedValueOnce({ Item: { balance: 10 } });
+
+      const sqsRecord = fakeSqsRecord('WITHDRAWAL_REQUESTED', {
+        withdrawalId: 'wth-2',
+        amount: 99999,
+        userId: 'user-1',
+      }, { eventId: 'evt-withdrawal-insufficient', tenantId: 'tenant-1' });
+
+      const result = await harness.process([sqsRecord]);
+      // Handler returns skip() — no record intent emitted, no failure
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(result.intents.filter((i) => i._tag === 'record')).toHaveLength(0);
+    });
+
+    it('should return WithdrawalCompleted record even for duplicate (idempotent — guardedAddToCashBalance returns false)', async () => {
+      // getCashBalance (balance check) -> found
+      mockSend.mockResolvedValueOnce({ Item: { balance: 100000 } });
+      // guardedAddToCashBalance -> duplicate
+      mockGuardedWrite.mockResolvedValueOnce(false);
+
+      const sqsRecord = fakeSqsRecord('WITHDRAWAL_REQUESTED', {
+        withdrawalId: 'wth-dup',
+        amount: 100,
+        userId: 'user-1',
+      }, { eventId: 'evt-withdrawal-dup', tenantId: 'tenant-1' });
+
+      const result = await harness.process([sqsRecord]);
+      expect(result.batchItemFailures).toHaveLength(0);
+
+      const intent = result.intents.find((i) => i._tag === 'record');
+      expect(intent).toBeDefined();
+      expect(intent).toMatchObject({
+        _tag: 'record',
+        typename: 'WithdrawalCompleted',
+        fields: expect.objectContaining({
+          __typename: 'WithdrawalCompleted',
+          withdrawalId: 'wth-dup',
+        }),
+      });
+    });
+  });
+
   it('should initialize account on first ORDER_SUBMITTED if no cash balance exists', async () => {
     // getCashBalance (lazy init check) -> not found
     mockSend.mockResolvedValueOnce({ Item: undefined });
