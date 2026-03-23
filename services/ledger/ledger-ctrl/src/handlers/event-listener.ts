@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { createEventHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { getTime, logger } from '@nestfolio/event-processor';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
@@ -128,10 +128,8 @@ const deps: EventListenerDeps = {
   shadowFill: new ShadowFillService(),
 };
 
-export const handler = createEventHandler({
+export const handler = materializeToTable({
   serviceName: 'ledger-ctrl',
   handlers: createHandlers(deps),
-  table: TABLE_NAME,
-  bus: requireEnv('BUS_NAME'),
   errorEventType: 'LEDGER_PROCESSING_FAILED',
 });
