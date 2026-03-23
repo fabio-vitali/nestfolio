@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { materializeToTable, skip, type EventPayload, type EventContext, type BusEvent } from '@nestfolio/event-processor';
+import { materializeToTable, skip, update, type WriteIntent, type EventPayload, type EventContext, type BusEvent } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
@@ -12,7 +12,10 @@ import { DecisionLifecycleService } from '../services/decision-lifecycle.service
 
 export interface EventListenerDeps {
   readonly lifecycleService: DecisionLifecycleService;
-  readonly repository: DecisionRepository;
+}
+
+function decisionPk(tenantId: string, dpId: string): string {
+  return `DecisionPacket#${tenantId}#${dpId}`;
 }
 
 function toEvent(payload: EventPayload, ctx: EventContext): BusEvent {
@@ -35,77 +38,75 @@ async function handleTriggerEvent(deps: EventListenerDeps, payload: EventPayload
   return skip();
 }
 
-async function processComplianceCallback(
-  deps: EventListenerDeps,
+function processComplianceCallback(
   payload: EventPayload,
   ctx: EventContext,
-) {
+): WriteIntent {
   const subject = payload.subject;
   const tenantId = (subject?.tenantId as string) ?? ctx.tenantId;
   const dpId = subject?.decisionId as string;
   const authorityLevel = (subject?.authorityLevel as string) ?? 'L2';
 
-  if (ctx.eventType === 'DECISION_APPROVED') {
-    if (!dpId) {
-      throw new Error('Missing decisionId in compliance callback event subject');
-    }
-    if (authorityLevel === 'L1') {
-      await deps.repository.updateDecisionStatus(tenantId, dpId, 'APPROVED', {
-        authorityLevel,
-        approvedAt: new Date().toISOString(),
-      });
-      logger.info('Decision approved (L1 autonomous)', { dpId, tenantId });
-    } else {
-      await deps.repository.updateDecisionStatus(tenantId, dpId, 'AWAITING_CONFIRMATION', {
-        authorityLevel,
-        confirmationRequired: true,
-      });
-      logger.info('Decision requires user confirmation (L2)', { dpId, tenantId });
-    }
-  } else if (ctx.eventType === 'DECISION_BLOCKED') {
-    if (!dpId) {
-      throw new Error('Missing decisionId in compliance callback event subject');
-    }
-    await deps.repository.updateDecisionStatus(tenantId, dpId, 'BLOCKED', {
-      blockedAt: new Date().toISOString(),
-      blockReason: (subject?.reason as string) ?? 'Compliance check failed',
-    });
-    logger.info('Decision blocked', { dpId, tenantId });
+  if (!dpId) {
+    throw new Error('Missing decisionId in compliance callback event subject');
   }
 
-  return skip();
+  if (ctx.eventType === 'DECISION_APPROVED') {
+    if (authorityLevel === 'L1') {
+      logger.info('Decision approved (L1 autonomous)', { dpId, tenantId });
+      return update('DecisionPacket', {
+        status: 'APPROVED',
+        complianceResult: 'APPROVED',
+        authorityLevel,
+      }, { overrides: { pk: decisionPk(tenantId, dpId), sk: 'DecisionPacket' } });
+    } else {
+      logger.info('Decision requires user confirmation (L2)', { dpId, tenantId });
+      return update('DecisionPacket', {
+        status: 'AWAITING_CONFIRMATION',
+        complianceResult: 'APPROVED',
+        authorityLevel,
+      }, { overrides: { pk: decisionPk(tenantId, dpId), sk: 'DecisionPacket' } });
+    }
+  } else {
+    // DECISION_BLOCKED
+    const blockReason = (subject?.reason as string) ?? 'Compliance check failed';
+    logger.info('Decision blocked', { dpId, tenantId });
+    return update('DecisionPacket', {
+      status: 'BLOCKED',
+      complianceResult: 'BLOCKED',
+      blockReason,
+    }, { overrides: { pk: decisionPk(tenantId, dpId), sk: 'DecisionPacket' } });
+  }
 }
 
-async function processUserResponse(
-  deps: EventListenerDeps,
+function processUserResponse(
   payload: EventPayload,
   ctx: EventContext,
-) {
+): WriteIntent {
   const subject = payload.subject;
   const tenantId = (subject?.tenantId as string) ?? ctx.tenantId;
   const dpId = subject?.decisionId as string;
 
-  if (ctx.eventType === 'USER_CONFIRMED') {
-    if (!dpId) {
-      throw new Error('Missing decisionId in user response event subject');
-    }
-    await deps.repository.updateDecisionStatus(tenantId, dpId, 'CONFIRMED', {
-      confirmedAt: new Date().toISOString(),
-    });
-    logger.info('Decision confirmed by user', { dpId, tenantId });
-  } else if (ctx.eventType === 'USER_REJECTED') {
-    if (!dpId) {
-      throw new Error('Missing decisionId in user response event subject');
-    }
-    const reason = (subject?.reason as string) ?? 'User rejected decision';
-    await deps.repository.updateDecisionStatus(tenantId, dpId, 'REJECTED', {
-      rejectedAt: new Date().toISOString(),
-      rejectionReason: reason,
-    });
-    logger.info('Decision rejected by user', { dpId, tenantId, reason });
+  if (!dpId) {
+    throw new Error('Missing decisionId in user response event subject');
   }
 
-  return skip();
+  if (ctx.eventType === 'USER_CONFIRMED') {
+    logger.info('Decision confirmed by user', { dpId, tenantId });
+    return update('DecisionPacket', {
+      status: 'CONFIRMED',
+      userDecision: 'CONFIRMED',
+    }, { overrides: { pk: decisionPk(tenantId, dpId), sk: 'DecisionPacket' } });
+  } else {
+    // USER_REJECTED
+    const rejectionReason = (subject?.reason as string) ?? 'User rejected decision';
+    logger.info('Decision rejected by user', { dpId, tenantId, reason: rejectionReason });
+    return update('DecisionPacket', {
+      status: 'REJECTED',
+      userDecision: 'REJECTED',
+      rejectionReason,
+    }, { overrides: { pk: decisionPk(tenantId, dpId), sk: 'DecisionPacket' } });
+  }
 }
 
 const TRIGGER_EVENT_TYPES = [
@@ -131,18 +132,18 @@ const USER_RESPONSE_EVENT_TYPES = [
 ] as const;
 
 export const createHandlers = (deps: EventListenerDeps) => {
-  const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<ReturnType<typeof skip>>> = {};
+  const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<WriteIntent> | WriteIntent> = {};
 
   for (const type of TRIGGER_EVENT_TYPES) {
     handlers[type] = (payload, ctx) => handleTriggerEvent(deps, payload, ctx);
   }
 
   for (const type of COMPLIANCE_EVENT_TYPES) {
-    handlers[type] = (payload, ctx) => processComplianceCallback(deps, payload, ctx);
+    handlers[type] = (payload, ctx) => processComplianceCallback(payload, ctx);
   }
 
   for (const type of USER_RESPONSE_EVENT_TYPES) {
-    handlers[type] = (payload, ctx) => processUserResponse(deps, payload, ctx);
+    handlers[type] = (payload, ctx) => processUserResponse(payload, ctx);
   }
 
   return handlers;
@@ -156,7 +157,6 @@ const lifecycleService = new DecisionLifecycleService(repository);
 
 const deps: EventListenerDeps = {
   lifecycleService,
-  repository,
 };
 
 export const handler = materializeToTable({
