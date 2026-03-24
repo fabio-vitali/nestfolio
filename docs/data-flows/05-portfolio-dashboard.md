@@ -61,7 +61,7 @@ flowchart TB
 
 | Step | Component | Domain | Input Event | Action | Output Event | Target Bus |
 |------|-----------|--------|-------------|--------|-------------|------------|
-| 1 | dashboard-bff | Investor | ONBOARDING_COMPLETED, GOAL_SET, RISK_PROFILE_SET | Materialize investor snapshot | _(terminal)_ | — |
+| 1 | dashboard-bff | Investor | ONBOARDING_COMPLETED, GOAL_SET, GOAL_UPDATED, RISK_PROFILE_SET, RISK_PROFILE_UPDATED, OPERATING_MODE_SELECTED, OPERATING_MODE_CHANGED | Materialize investor snapshot | _(terminal)_ | — |
 | 2 | dashboard-bff | Investor | BALANCE_UPDATED, PORTFOLIO_UPDATED, RECONCILIATION_COMPLETED | Materialize portfolio summary | _(terminal)_ | — |
 | 3 | dashboard-bff | Investor | BALANCE_UPDATED, PORTFOLIO_UPDATED, DECISION_APPROVED | Materialize recent activity | _(terminal)_ | — |
 | 4 | dashboard-bff | Investor | DECISION_PACKET_CREATED, DECISION_APPROVED, DECISION_BLOCKED | Materialize advisory status | _(terminal)_ | — |
@@ -73,7 +73,7 @@ flowchart TB
 
 | Materialized View | Source Events | Original Domain |
 |-------------------|--------------|-----------------|
-| investorSnapshot | ONBOARDING_COMPLETED, GOAL_SET, GOAL_UPDATED, RISK_PROFILE_SET, RISK_PROFILE_UPDATED | Investor (local) |
+| investorSnapshot | ONBOARDING_COMPLETED, GOAL_SET, GOAL_UPDATED, RISK_PROFILE_SET, RISK_PROFILE_UPDATED, OPERATING_MODE_SELECTED, OPERATING_MODE_CHANGED | Investor (local) |
 | portfolioSummary | BALANCE_UPDATED, PORTFOLIO_UPDATED, RECONCILIATION_COMPLETED | Ledger (via ledger-adpt) |
 | recentActivity | BALANCE_UPDATED, PORTFOLIO_UPDATED, DECISION_APPROVED, DECISION_BLOCKED | Ledger + Advisory (via adapters) |
 | advisoryStatus | DECISION_PACKET_CREATED, USER_CONFIRMATION_REQUESTED, DECISION_APPROVED, DECISION_BLOCKED | Advisory (via advisory-adpt) |

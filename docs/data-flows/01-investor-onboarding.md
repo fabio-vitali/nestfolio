@@ -1,8 +1,8 @@
 # Feature #1 — Investor Onboarding (Happy Path)
 
-The onboarding flow is a conversational AI-guided experience. The investor-mfe connects to onboarding-agent-bff — a LangGraph state machine powered by Claude Sonnet via CopilotKit — that walks the user through 7 phases: goal, horizon, account mode, capital, risk profile, operating mode, and mandate. The agent renders rich UI components (sliders, option cards, amount pickers) via tool calls, persists each phase to DynamoDB (shared table with investor-bff), and uses a Bedrock Knowledge Base for product questions (RAG). Once committed, CDC events on InvestorBus trigger downstream processing: investor-ctrl generates welcome notifications, dashboard-bff materializes the investor snapshot, and investor-adpt forwards the mandate to AdvisoryBus — kicking off the first advisory decision cycle.
+The onboarding flow is a conversational AI-guided experience. The onboarding-mfe connects to onboarding-bff — a LangGraph state machine powered by Claude Sonnet via CopilotKit — that walks the user through 7 phases: goal, horizon, account mode, capital, risk profile, operating mode, and mandate. The agent renders rich UI components (sliders, option cards, amount pickers) via tool calls, persists each phase to DynamoDB (shared table with investor-bff), and uses a Bedrock Knowledge Base for product questions (RAG). Once committed, CDC events on InvestorBus trigger downstream processing: investor-ctrl generates welcome notifications, dashboard-bff materializes the investor snapshot, and investor-adpt forwards the mandate to AdvisoryBus — kicking off the first advisory decision cycle.
 
-**Trigger**: User starts the onboarding wizard in investor-mfe.
+**Trigger**: User starts the onboarding wizard in onboarding-mfe (guarded by `onboardingPendingGuard` in shell).
 
 ---
 
@@ -11,7 +11,7 @@ The onboarding flow is a conversational AI-guided experience. The investor-mfe c
 ```mermaid
 flowchart TB
     subgraph subGraph0["Investor Domain"]
-        subgraph agent["onboarding-agent-bff (LangGraph + CopilotKit)"]
+        subgraph agent["onboarding-bff (LangGraph + CopilotKit)"]
             A0["Conversational Agent (Claude Sonnet)"]
             A1["Phase 1: Goal"]
             A1b["Phase 2: Horizon"]
@@ -77,9 +77,9 @@ flowchart TB
 
 | Step | Component | Domain | Input Event | Action | Output Event | Target Bus |
 |------|-----------|--------|-------------|--------|-------------|------------|
-| 1 | onboarding-agent-bff | Investor | User conversation (CopilotKit) | LangGraph 7-phase state machine (Claude Sonnet), render UI tools, RAG via Bedrock KB | _(commit_phase per step)_ | — |
-| 2 | onboarding-agent-bff | Investor | commit_phase tool call | DDB persist per phase (shared table with investor-bff) | GOAL_SET, RISK_PROFILE_SET, MANDATE_GRANTED (CDC) | InvestorBus |
-| 3 | onboarding-agent-bff | Investor | Final mandate consent | DDB insert InvestorProfile | ONBOARDING_COMPLETED (CDC) | InvestorBus |
+| 1 | onboarding-bff | Investor | User conversation (CopilotKit) | LangGraph 7-phase state machine (Claude Sonnet), render UI tools, RAG via Bedrock KB | _(commit_phase per step)_ | — |
+| 2 | onboarding-bff | Investor | commit_phase tool call | DDB persist per phase (shared table with investor-bff) | GOAL_SET, RISK_PROFILE_SET, MANDATE_GRANTED (CDC) | InvestorBus |
+| 3 | onboarding-bff | Investor | Final mandate consent | DDB insert InvestorProfile | ONBOARDING_COMPLETED (CDC) | InvestorBus |
 | 4 | investor-ctrl | Investor | ONBOARDING_COMPLETED | Create notification "Welcome to Nestfolio" | NOTIFICATION_CREATED | InvestorBus |
 | 5 | investor-ctrl | Investor | MANDATE_GRANTED | Create notification "Investment Mandate Activated" | NOTIFICATION_CREATED | InvestorBus |
 | 6 | dashboard-bff | Investor | ONBOARDING_COMPLETED, GOAL_SET, GOAL_UPDATED, RISK_PROFILE_SET, RISK_PROFILE_UPDATED | Materialize investor snapshot | _(terminal)_ | — |
