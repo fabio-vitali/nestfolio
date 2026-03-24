@@ -36,8 +36,6 @@ export function createHandlers() {
     ],
     [LedgerCrossDomainEventTypes.LEDGER_ENTRY_RECORDED]: (payload: any, ctx: any) =>
       timeTravelAvailability(toUow(payload, ctx)),
-    [InvestorBffEventTypes.ONBOARDING_COMPLETED]: (payload: any, ctx: any) =>
-      investorSnapshot(toUow(payload, ctx)),
     [InvestorBffEventTypes.GOAL_SET]: (payload: any, ctx: any) =>
       investorSnapshot(toUow(payload, ctx)),
     [InvestorBffEventTypes.GOAL_UPDATED]: (payload: any, ctx: any) =>
@@ -45,6 +43,10 @@ export function createHandlers() {
     [InvestorBffEventTypes.RISK_PROFILE_SET]: (payload: any, ctx: any) =>
       investorSnapshot(toUow(payload, ctx)),
     [InvestorBffEventTypes.RISK_PROFILE_UPDATED]: (payload: any, ctx: any) =>
+      investorSnapshot(toUow(payload, ctx)),
+    [InvestorBffEventTypes.OPERATING_MODE_SELECTED]: (payload: any, ctx: any) =>
+      investorSnapshot(toUow(payload, ctx)),
+    [InvestorBffEventTypes.OPERATING_MODE_CHANGED]: (payload: any, ctx: any) =>
       investorSnapshot(toUow(payload, ctx)),
   };
 }

@@ -15,11 +15,12 @@ export class DashboardBffStack extends ServiceStack {
         'DECISION_APPROVED',
         'DECISION_BLOCKED',
         'LEDGER_ENTRY_RECORDED',
-        'ONBOARDING_COMPLETED',
         'GOAL_SET',
         'GOAL_UPDATED',
         'RISK_PROFILE_SET',
         'RISK_PROFILE_UPDATED',
+        'OPERATING_MODE_SELECTED',
+        'OPERATING_MODE_CHANGED',
       ],
     });
 

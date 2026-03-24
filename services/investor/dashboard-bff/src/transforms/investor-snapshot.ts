@@ -11,21 +11,20 @@ export const investorSnapshot = (
   const updates: Record<string, unknown> = { tenantId };
 
   switch (event.type) {
-    case 'ONBOARDING_COMPLETED':
-      updates.operatingMode = payload.operatingMode;
-      updates.riskLevel = String(payload.riskScore ?? '');
-      updates.goalType = payload.goalId;
-      updates.onboardedAt = event.timestamp;
-      break;
-
     case 'GOAL_SET':
     case 'GOAL_UPDATED':
       updates.goalType = payload.objective;
+      if (event.type === 'GOAL_SET') updates.onboardedAt = event.timestamp;
       break;
 
     case 'RISK_PROFILE_SET':
     case 'RISK_PROFILE_UPDATED':
       updates.riskLevel = String(payload.score ?? '');
+      break;
+
+    case 'OPERATING_MODE_SELECTED':
+    case 'OPERATING_MODE_CHANGED':
+      updates.operatingMode = payload.mode;
       break;
 
     default:
