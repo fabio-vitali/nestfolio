@@ -23,7 +23,7 @@ export const portfolioUpdated = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent | WriteIntent[] => {
   const { event } = uow;
-  const tenantId = (event.context as Record<string, string>).tenantId;
+  const { tenantId, userId, region } = event.context;
   const payload = event.subject as PortfolioPayload & Record<string, unknown>;
 
   const positions = payload.positions ?? {};
@@ -33,6 +33,8 @@ export const portfolioUpdated = (
     intents.push(
       project('Position', {
         tenantId,
+        userId,
+        region,
         symbol,
         quantity: position.quantity ?? 0,
         averageCostBasis: position.averageCostBasis ?? 0,
@@ -50,6 +52,8 @@ export const portfolioUpdated = (
     intents.push(
       project('SnapshotAt', {
         tenantId,
+        userId,
+        region,
         streamType,
         snapshotAt: event.timestamp,
         cashBalanceCents: payload.snapshot.cashBalanceCents,

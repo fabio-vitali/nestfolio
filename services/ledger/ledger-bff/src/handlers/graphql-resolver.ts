@@ -3,13 +3,14 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger } from '@nestfolio/event-processor';
 import {
   requireEnv,
-  authorizeTenant,
+  authorizeRequest,
   validateQueryDepth,
   applyMiddleware,
   withLambdaContext,
   withTiming,
   withErrorPublishing,
   EventBridgeBus,
+  type RequestContext,
 } from '@nestfolio/event-processor';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
 
@@ -20,6 +21,7 @@ import { TimestampSchema } from '../validation/schemas';
 interface ResolverDeps {
   readonly repository: PortfolioRepository;
   readonly timeTravelService: TimeTravelService;
+  readonly region: string;
 }
 
 export const createResolver = (deps: ResolverDeps) =>
@@ -28,7 +30,8 @@ export const createResolver = (deps: ResolverDeps) =>
   ): Promise<unknown> => {
     try {
       validateQueryDepth(event.info.selectionSetGraphQL);
-      const tenantId = authorizeTenant(event);
+      const ctx = authorizeRequest(event, deps.region);
+      const { tenantId } = ctx;
       const fieldName = event.info.fieldName;
       const args = event.arguments ?? {};
 
@@ -152,12 +155,12 @@ export const createResolver = (deps: ResolverDeps) =>
   };
 
 // Production wiring
+const REGION = requireEnv('AWS_REGION');
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const bus = new EventBridgeBus(requireEnv('BUS_NAME'), 'ledger-bff');
 const repository = new PortfolioRepository(TABLE_NAME, new DynamoDBClient({}));
-
 const timeTravelService = new TimeTravelService(repository);
-const deps: ResolverDeps = { repository, timeTravelService };
+const deps: ResolverDeps = { repository, timeTravelService, region: REGION };
 
 export const handler = applyMiddleware(
   createResolver(deps) as (event: unknown) => Promise<unknown>,

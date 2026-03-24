@@ -2,11 +2,11 @@ import { util } from '@aws-appsync/utils';
 
 export function request(ctx) {
   const tenantId = ctx.identity?.claims?.['custom:tenantId'];
-  const username = ctx.identity?.username;
-  if (!tenantId || !username) { util.unauthorized(); }
-  const userId = username.split('@')[0];
+  const userId = ctx.identity?.claims?.['sub'];
+  if (!tenantId || !userId) { util.unauthorized(); }
   ctx.stash.tenantId = tenantId;
   ctx.stash.userId = userId;
+  ctx.stash.region = ctx.env?.AWS_REGION ?? 'us-east-1';
   return {};
 }
 

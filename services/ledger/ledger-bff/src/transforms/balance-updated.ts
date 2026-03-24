@@ -16,7 +16,7 @@ export const balanceUpdated = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent | WriteIntent[] => {
   const { event } = uow;
-  const tenantId = (event.context as Record<string, string>).tenantId;
+  const { tenantId, userId, region } = event.context;
   const payload = event.subject as BalancePayload & Record<string, unknown>;
 
   const balanceCents = payload.cashBalanceCents ?? 0;
@@ -24,6 +24,8 @@ export const balanceUpdated = (
   const intents: WriteIntent[] = [
     project('PortfolioBalance', {
       tenantId,
+      userId,
+      region,
       cashBalanceCents: balanceCents,
     }, {
       pk: `Portfolio#${tenantId}`,
@@ -36,6 +38,8 @@ export const balanceUpdated = (
     intents.push(
       project('SnapshotAt', {
         tenantId,
+        userId,
+        region,
         streamType,
         snapshotAt: event.timestamp,
         cashBalanceCents: payload.snapshot.cashBalanceCents,

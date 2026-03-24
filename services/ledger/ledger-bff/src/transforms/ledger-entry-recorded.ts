@@ -26,12 +26,14 @@ export const ledgerEntryRecorded = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent | WriteIntent[] => {
   const { event } = uow;
-  const tenantId = (event.context as Record<string, string>).tenantId;
+  const { tenantId, userId, region } = event.context;
   const payload = event.subject as LedgerEntryPayload & Record<string, unknown>;
 
   const intents: WriteIntent[] = [
     record('HistoryEntry', {
       tenantId,
+      userId,
+      region,
       eventId: payload.eventId,
       eventType: payload.eventType,
       payload: payload.payload ?? {},
@@ -52,6 +54,8 @@ export const ledgerEntryRecorded = (
     intents.push(
       project('Simulation', {
         tenantId,
+        userId,
+        region,
         cashBalanceCents,
         positions,
       }, {
@@ -64,6 +68,8 @@ export const ledgerEntryRecorded = (
       intents.push(
         project('SimulationPosition', {
           tenantId,
+          userId,
+          region,
           symbol,
           quantity: position.quantity ?? 0,
           averageCostBasis: position.averageCostBasis ?? 0,
@@ -83,6 +89,8 @@ export const ledgerEntryRecorded = (
     intents.push(
       record('Checkpoint', {
         tenantId,
+        userId,
+        region,
         date,
         cashBalanceCents: payload.cashBalanceCents ?? 0,
         positions: payload.positions ?? {},

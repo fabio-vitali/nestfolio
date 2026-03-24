@@ -49,11 +49,14 @@ jest.mock('@nestfolio/event-processor', () => {
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 
   requireEnv: (name: string) => process.env[name] ?? name,
-  authorizeTenant: (event: { identity?: Record<string, unknown> }) => {
+  authorizeRequest: (event: { identity?: Record<string, unknown> }, region: string) => {
     const claims = event.identity as Record<string, unknown> | undefined;
-    const tenantId = (claims?.['claims'] as Record<string, string>)?.['custom:tenant_id'];
+    const claimsMap = claims?.['claims'] as Record<string, string> | undefined;
+    const tenantId = claimsMap?.['custom:tenantId'];
+    const userId = claimsMap?.['sub'];
     if (!tenantId) throw new MockNotRetryableError('UNAUTHORIZED: missing tenantId');
-    return tenantId;
+    if (!userId) throw new MockNotRetryableError('UNAUTHORIZED: missing userId');
+    return { tenantId, userId, region };
   },
   validateQueryDepth: jest.fn(),
   applyMiddleware: jest.fn((handler) => handler),
@@ -90,7 +93,7 @@ function buildEvent(
     arguments: args,
     identity: {
       claims: {
-        'custom:tenant_id': tenantId,
+        'custom:tenantId': tenantId,
         sub: 'user-1',
       },
     },
@@ -113,7 +116,7 @@ describe('ledger-bff graphql-resolver handler', () => {
     mockSend.mockResolvedValue({ Items: [] });
     process.env = { ...ORIGINAL_ENV, TABLE_NAME: 'test-table' };
 
-    resolver = createResolver({ repository, timeTravelService });
+    resolver = createResolver({ repository, timeTravelService, region: 'us-east-1' });
   });
 
   afterAll(() => {
