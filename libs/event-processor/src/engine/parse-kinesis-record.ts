@@ -37,6 +37,20 @@ export function parseKinesisRecord(kinesisRecord: KinesisStreamRecord): Ingestio
     );
   }
 
+  if (!(event.context as Record<string, unknown>)?.userId) {
+    throw new NotRetryableError(
+      'Invalid event: missing "context.userId" field',
+      { sequenceNumber: kinesisRecord.kinesis.sequenceNumber },
+    );
+  }
+
+  if (!(event.context as Record<string, unknown>)?.region) {
+    throw new NotRetryableError(
+      'Invalid event: missing "context.region" field',
+      { sequenceNumber: kinesisRecord.kinesis.sequenceNumber },
+    );
+  }
+
   return {
     id: kinesisRecord.kinesis.sequenceNumber,
     event: event as any,

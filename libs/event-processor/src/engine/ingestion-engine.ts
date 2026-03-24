@@ -1,4 +1,4 @@
-import { isRetryable, traceEvent, extractTenantId } from '../internal';
+import { isRetryable, traceEvent, extractRequestContext } from '../internal';
 import type { HandlerEntry } from '../types/handler-config';
 import type { EventContext } from '../types/event-context';
 import { normalizeHandler } from './normalize-handler';
@@ -62,8 +62,8 @@ export class IngestionEngine {
           const eventType = event.type;
           parsedPayload = { type: event.type, subject: event.subject, id: event.id };
 
-          const tenantId = extractTenantId(event);
-          traceEvent(eventType, event.id, tenantId);
+          const reqCtx = extractRequestContext(event);
+          traceEvent(eventType, event.id, reqCtx.tenantId, reqCtx.userId);
 
           // Route
           const handler = this.normalizedHandlers.get(eventType);
@@ -76,8 +76,9 @@ export class IngestionEngine {
           const ctx: EventContext = {
             eventId: event.id,
             eventType,
-            tenantId,
-            userId: event.context?.userId as string | undefined,
+            tenantId: reqCtx.tenantId,
+            userId: reqCtx.userId,
+            region: reqCtx.region,
             timestamp: event.timestamp,
             receiveCount: metadata.receiveCount,
             serviceName: this.config.serviceName,

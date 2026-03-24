@@ -8,7 +8,11 @@ export function toUow(payload: EventPayload, ctx: EventContext): UnitOfWork<BusE
     type: ctx.eventType,
     timestamp: ctx.timestamp,
     subject: payload.subject as Record<string, unknown>,
-    context: payload.context ?? { tenantId: ctx.tenantId },
+    context: payload.context ?? {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      region: ctx.region,
+    },
   };
   return { event, payload: payload.subject as Record<string, unknown>, record: {} };
 }

@@ -36,6 +36,20 @@ export function parseSqsRecord(sqsRecord: SQSRecord): IngestionRecord {
     );
   }
 
+  if (!(event.context as Record<string, unknown>)?.userId) {
+    throw new NotRetryableError(
+      'Invalid event: missing "context.userId" field',
+      { messageId: sqsRecord.messageId },
+    );
+  }
+
+  if (!(event.context as Record<string, unknown>)?.region) {
+    throw new NotRetryableError(
+      'Invalid event: missing "context.region" field',
+      { messageId: sqsRecord.messageId },
+    );
+  }
+
   const receiveCount = parseInt(sqsRecord.attributes?.ApproximateReceiveCount ?? '1', 10) || 1;
 
   return {
