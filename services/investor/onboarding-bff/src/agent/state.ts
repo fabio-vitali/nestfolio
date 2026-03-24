@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { Annotation } from '@langchain/langgraph';
 import { BaseMessage } from '@langchain/core/messages';
-import { RiskProfileDataSchema } from '../domain/schemas';
 
 export const PHASE_ORDER = ['goal', 'horizon', 'mode', 'capital', 'risk', 'operating_mode', 'mandate'] as const;
 export type Phase = (typeof PHASE_ORDER)[number];
@@ -23,7 +22,10 @@ export const OnboardingStateSchema = z.object({
   horizonYears: z.number().int().min(1).max(30).optional(),
   accountMode: z.enum(['simulation', 'live']).optional(),
   capitalAmount: z.number().nonnegative().optional(),
-  riskProfile: RiskProfileDataSchema.optional(),
+  riskProfile: z.object({
+    toleranceIdx: z.number(), experienceIdx: z.number(),
+    score: z.number(), category: z.string(),
+  }).optional(),
   operatingMode: z.enum(['conservative', 'balanced', 'aggressive']).optional(),
   mandateAccepted: z.boolean().optional(),
   turnCount: z.number().int().min(0).default(0),

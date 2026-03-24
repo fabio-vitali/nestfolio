@@ -5,29 +5,21 @@ interface SessionRecord {
   phaseIndex: number;
   sessionId: string;
   agentMemorySessionId: string;
+  phases: Record<string, unknown>;
 }
 
-interface CommittedData {
-  goal?: { objective: string };
-  horizonYears?: number;
-  accountMode?: { mode: 'simulation' | 'live'; capitalAmount?: number };
-  riskProfile?: Record<string, unknown>;
-  operatingMode?: string;
-}
-
-export function rehydrateState(
-  session: SessionRecord | null,
-  committed: CommittedData,
-): Record<string, unknown> {
+export function rehydrateState(session: SessionRecord | null): Record<string, unknown> {
   if (!session) {
-    return {
-      phase: 'goal' as Phase,
-      phaseIndex: 0,
-      totalPhases: 7,
-      turnCount: 0,
-      messages: [],
-    };
+    return { phase: 'goal' as Phase, phaseIndex: 0, totalPhases: 7, turnCount: 0, messages: [] };
   }
+
+  const p = session.phases ?? {};
+  const goal = p.goal as { objective: string } | undefined;
+  const horizon = p.horizon as { years: number } | undefined;
+  const mode = p.mode as { accountMode: string } | undefined;
+  const capital = p.capital as { amount: number } | undefined;
+  const risk = p.risk as Record<string, unknown> | undefined;
+  const opMode = p.operatingMode as { mode: string } | undefined;
 
   return {
     phase: session.currentPhase as Phase,
@@ -35,12 +27,12 @@ export function rehydrateState(
     totalPhases: 7,
     turnCount: 0,
     sessionId: session.sessionId,
-    goal: committed.goal?.objective,
-    horizonYears: committed.horizonYears,
-    accountMode: committed.accountMode?.mode,
-    capitalAmount: committed.accountMode?.capitalAmount,
-    riskProfile: committed.riskProfile,
-    operatingMode: committed.operatingMode,
+    goal: goal?.objective,
+    horizonYears: horizon?.years,
+    accountMode: mode?.accountMode,
+    capitalAmount: capital?.amount,
+    riskProfile: risk,
+    operatingMode: opMode?.mode,
     messages: [],
   };
 }

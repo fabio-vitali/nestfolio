@@ -90,7 +90,7 @@ export class OnboardingRepository extends TableRepository {
         currency: phases.capital!.currency,
         riskTolerance: phases.risk!.toleranceIdx,
         riskExperience: phases.risk!.experienceIdx,
-        operatingMode: phases.operatingMode!.mode,
+        operatingMode: phases.operatingMode!.mode.toUpperCase(),
         mandateAccepted: true,
         ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30-day cleanup
       };

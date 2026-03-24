@@ -20,7 +20,7 @@ describe('OnboardingStateSchema', () => {
       horizonYears: 10,
       accountMode: 'simulation',
       capitalAmount: 25000,
-      riskProfile: { tolerance: 'hold', experienceLevel: 'novice', score: 25, category: 'conservative' },
+      riskProfile: { toleranceIdx: 0, experienceIdx: 0, score: 25, category: 'conservative' },
       operatingMode: 'balanced',
       mandateAccepted: false,
       messages: [],

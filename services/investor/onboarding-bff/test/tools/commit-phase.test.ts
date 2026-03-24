@@ -2,13 +2,8 @@ import { createCommitPhaseTool } from '../../src/agent/tools/commit-phase';
 
 describe('createCommitPhaseTool', () => {
   const mockRepo = {
-    commitGoal: jest.fn(),
-    commitHorizon: jest.fn(),
-    commitAccountMode: jest.fn(),
-    commitRiskProfile: jest.fn(),
-    commitOperatingMode: jest.fn(),
-    commitMandate: jest.fn(),
-    advanceSession: jest.fn(),
+    updatePhase: jest.fn(),
+    completeSession: jest.fn(),
   };
 
   const tool = createCommitPhaseTool(mockRepo as any);
@@ -19,39 +14,40 @@ describe('createCommitPhaseTool', () => {
     expect(tool.name).toBe('commit_phase');
   });
 
-  it('commits goal phase and advances session', async () => {
+  it('calls updatePhase for non-mandate phases', async () => {
     const result = await tool.invoke({
       tenantId: 't1', userId: 'u1', sessionId: 's1',
-      phase: 'goal', data: { goal: 'Crescita' },
+      phase: 'goal', data: { objective: 'Growth' },
     });
-    expect(mockRepo.commitGoal).toHaveBeenCalledWith('t1', 'u1', 'Crescita');
-    expect(mockRepo.advanceSession).toHaveBeenCalledWith('t1', 'u1', 's1', 'horizon', 1);
+    expect(mockRepo.updatePhase).toHaveBeenCalledWith('t1', 'u1', 's1', 'goal', { objective: 'Growth' }, 'horizon', 1);
+    expect(mockRepo.completeSession).not.toHaveBeenCalled();
     expect(result).toContain('committed');
   });
 
-  it('commits horizon phase', async () => {
-    await tool.invoke({
+  it('calls completeSession for mandate phase with allPhases', async () => {
+    const allPhases = {
+      goal: { objective: 'Growth' },
+      horizon: { years: 5 },
+      mode: { accountMode: 'simulation' },
+      capital: { amount: 10000, currency: 'EUR' },
+      risk: { toleranceIdx: 2, experienceIdx: 1, score: 50, category: 'moderate' },
+      operatingMode: { mode: 'BALANCED' },
+      mandate: { accepted: true },
+    };
+    const result = await tool.invoke({
       tenantId: 't1', userId: 'u1', sessionId: 's1',
-      phase: 'horizon', data: { horizonYears: 10 },
+      phase: 'mandate', data: { mandateAccepted: true }, allPhases,
     });
-    expect(mockRepo.commitHorizon).toHaveBeenCalledWith('t1', 'u1', 10);
-    expect(mockRepo.advanceSession).toHaveBeenCalledWith('t1', 'u1', 's1', 'mode', 2);
+    expect(mockRepo.completeSession).toHaveBeenCalledWith('t1', 'u1', 's1', allPhases);
+    expect(mockRepo.updatePhase).not.toHaveBeenCalled();
+    expect(result).toContain('completed');
   });
 
-  it('commits mode + capital as single phase', async () => {
-    await tool.invoke({
+  it('returns next phase name in result message', async () => {
+    const result = await tool.invoke({
       tenantId: 't1', userId: 'u1', sessionId: 's1',
-      phase: 'mode', data: { accountMode: 'simulation' },
+      phase: 'horizon', data: { years: 10 },
     });
-    expect(mockRepo.commitAccountMode).toHaveBeenCalled();
-  });
-
-  it('commits mandate and advances to completed', async () => {
-    await tool.invoke({
-      tenantId: 't1', userId: 'u1', sessionId: 's1',
-      phase: 'mandate', data: { mandateAccepted: true },
-    });
-    expect(mockRepo.commitMandate).toHaveBeenCalledWith('t1', 'u1');
-    expect(mockRepo.advanceSession).toHaveBeenCalledWith('t1', 'u1', 's1', 'completed', 7);
+    expect(result).toContain('Next: "mode"');
   });
 });
