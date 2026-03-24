@@ -4,6 +4,7 @@ export interface UserProfile {
   email: string;
   tenantId: string;
   name?: string;
+  onboardingCompletedAt?: string | null;
 }
 
 export interface TenantContext {
