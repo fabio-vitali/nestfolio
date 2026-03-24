@@ -1,22 +1,21 @@
 import * as path from 'path';
 import { Construct } from 'constructs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
-import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Duration } from 'aws-cdk-lib';
-import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, Egress } from '@nestfolio/cdk-constructs/core';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 
 export class OnboardingBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
+    // Own table created by default State construct
 
-    // Reuse investor-bff's DDB table (looked up via SSM)
-    const tableName = StringParameter.valueForStringParameter(
-      this, `/${props.prefix}/investor-hub/table-name`,
-    );
-    const investorTable = Table.fromTableName(this, 'InvestorTable', tableName);
+    // Egress — CDC for ONBOARDING_COMPLETED
+    new Egress(this, 'Egress', {
+      publishableTypes: ['OnboardingCompleted'],
+    });
 
     // Model IDs from SSM (shared with advisory services)
     const sonnetModelId = StringParameter.valueForStringParameter(
@@ -40,16 +39,15 @@ export class OnboardingBffStack extends ServiceStack {
       },
     });
 
-    // Grant KB access to the Lambda
     searchKbFn.addToRolePolicy(knowledgeBase.triggerSyncPolicy());
 
-    // AgentCore Runtime
+    // AgentRuntime — uses own table
     new AgentRuntime(this, 'OnboardingAgent', {
       runtimeName: 'onboarding-agent',
       agentCodePath: path.join(__dirname, '..'),
       description: 'Conversational onboarding agent for investor onboarding',
       modelIds: [sonnetModelId],
-      tables: [investorTable],
+      tables: [this.state.table],
       toolTargets: [{
         name: 'search_knowledge_base',
         description: 'Search Nestfolio documentation to answer user questions',
@@ -57,7 +55,7 @@ export class OnboardingBffStack extends ServiceStack {
         schemaPath: path.join(__dirname, 'agent/tools/search-kb.schema.json'),
       }],
       environmentVariables: {
-        TABLE_NAME: tableName,
+        TABLE_NAME: this.state.table.tableName,
         KNOWLEDGE_BASE_ID: knowledgeBase.knowledgeBaseId,
         AGENT_RUNTIME: 'true',
       },
