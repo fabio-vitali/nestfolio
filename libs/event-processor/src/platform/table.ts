@@ -1,9 +1,9 @@
-export type TableEntry = {
+import type { RequestContext } from '../domain/schemas';
+
+export type TableEntry<T = Record<string, unknown>, S = RequestContext> = T & {
   pk: string;
   sk: string;
   __typename: string;
-  tenantId: string;
   timestamp: string;
   ttl?: number;
-  [key: string]: unknown;
-};
+} & S;

@@ -8,10 +8,11 @@ export {
 
 export {
   BusEventSchema,
-  TenantContextSchema,
+  RequestContextSchema,
+  parseRequestContext,
 } from './schemas';
 
 export type {
-  BusEvent as BusEventType,
-  TenantContext,
+  BusEventPayload,
+  RequestContext,
 } from './schemas';

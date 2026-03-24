@@ -118,11 +118,12 @@ export {
   BusinessRuleViolationError,
   TenantAccessDeniedError,
   BusEventSchema,
-  TenantContextSchema,
+  RequestContextSchema,
+  parseRequestContext,
 } from './domain';
 export type {
-  BusEventType,
-  TenantContext,
+  BusEventPayload,
+  RequestContext,
 } from './domain';
 
 // Sourcing (command + event replay)

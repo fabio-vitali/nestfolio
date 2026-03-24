@@ -1,4 +1,5 @@
 import { NotRetryableError, isRetryable } from '../internal';
+import type { RequestContext } from '../domain/schemas';
 
 export { NotRetryableError, isRetryable };
 
@@ -22,6 +23,7 @@ export type ErrorEvent = {
   id: string;
   type: string;
   timestamp: string;
+  context?: RequestContext;
   error: {
     name: string;
     message: string;
