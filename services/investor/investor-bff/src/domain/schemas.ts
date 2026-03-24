@@ -42,9 +42,16 @@ export const OnboardingCompletedSchema = BusEventSchema.extend({
   type: z.literal('ONBOARDING_COMPLETED'),
   subject: z.object({
     tenantId: z.string().uuid(),
+    userId: z.string().min(1),
+    goal: z.object({ objective: z.string() }),
+    horizonYears: z.number().int().min(1).max(30),
+    accountMode: z.enum(['simulation', 'live']),
+    capitalAmount: z.number().nonnegative(),
+    currency: z.string().length(3),
+    riskTolerance: z.number().int().min(0).max(3),
+    riskExperience: z.number().int().min(0).max(3),
     operatingMode: z.enum(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']),
-    riskScore: z.number().int().min(1).max(10),
-    goalId: z.string(),
+    mandateAccepted: z.literal(true),
   }),
 });
 

@@ -7,9 +7,10 @@ describe('investor-bff event-listener', () => {
   it('should export handlers for all event types', () => {
     const handlers = createHandlers();
 
-    expect(Object.keys(handlers)).toHaveLength(3);
+    expect(Object.keys(handlers)).toHaveLength(4);
     expect(handlers).toHaveProperty(InvestorBffEventTypes.USER_REGISTERED);
     expect(handlers).toHaveProperty(InvestorCtrlEventTypes.NOTIFICATION_CREATED);
     expect(handlers).toHaveProperty(LedgerCrossDomainEventTypes.BALANCE_UPDATED);
+    expect(handlers).toHaveProperty(InvestorBffEventTypes.ONBOARDING_COMPLETED);
   });
 });

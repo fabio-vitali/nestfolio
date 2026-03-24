@@ -6,7 +6,7 @@ export class InvestorBffStack extends ServiceStack {
     super(scope, id, { ...props, serviceDir: __dirname });
 
     const ingress = new Ingress(this, 'Ingress', {
-      eventTypes: ['USER_REGISTERED', 'NOTIFICATION_CREATED', 'BALANCE_UPDATED'],
+      eventTypes: ['USER_REGISTERED', 'NOTIFICATION_CREATED', 'BALANCE_UPDATED', 'ONBOARDING_COMPLETED'],
     });
 
     const egress = new Egress(this, 'Egress', {
