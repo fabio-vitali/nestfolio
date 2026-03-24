@@ -1,0 +1,118 @@
+{
+  "name": "onboarding-mfe",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "app",
+  "sourceRoot": "apps/onboarding-mfe/src",
+  "tags": ["scope:onboarding", "type:mfe"],
+  "targets": {
+    "esbuild": {
+      "executor": "@angular-devkit/build-angular:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/onboarding-mfe",
+        "index": "apps/onboarding-mfe/src/index.html",
+        "browser": "apps/onboarding-mfe/src/main.ts",
+        "polyfills": [],
+        "tsConfig": "apps/onboarding-mfe/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/onboarding-mfe/public"
+          }
+        ],
+        "styles": ["apps/onboarding-mfe/src/styles.scss"]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "500kb",
+              "maximumError": "1mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "build": {
+      "executor": "@angular-architects/native-federation:build",
+      "options": {},
+      "configurations": {
+        "production": {
+          "target": "onboarding-mfe:esbuild:production"
+        },
+        "development": {
+          "target": "onboarding-mfe:esbuild:development",
+          "dev": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve-original": {
+      "continuous": true,
+      "executor": "@angular-devkit/build-angular:dev-server",
+      "options": {
+        "port": 4205
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "onboarding-mfe:esbuild:production"
+        },
+        "development": {
+          "buildTarget": "onboarding-mfe:esbuild:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "serve": {
+      "executor": "@angular-architects/native-federation:build",
+      "options": {
+        "target": "onboarding-mfe:serve-original:development",
+        "rebuildDelay": 0,
+        "dev": true,
+        "port": 0
+      }
+    },
+    "extract-i18n": {
+      "executor": "@angular-devkit/build-angular:extract-i18n",
+      "options": {
+        "buildTarget": "onboarding-mfe:esbuild"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/onboarding-mfe/jest.config.ts",
+        "tsConfig": "apps/onboarding-mfe/tsconfig.spec.json"
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "onboarding-mfe:build",
+        "port": 4205,
+        "staticFilePath": "dist/apps/onboarding-mfe/browser",
+        "spa": true
+      }
+    }
+  }
+}
