@@ -25,7 +25,7 @@ export async function publishOrUpload(params: PublishOrUploadParams): Promise<vo
   const timestamp = getTime();
 
   if (sizeBytes <= MAX_EVENT_SIZE) {
-    const event: BusEvent = {
+    const event: BusEvent<Record<string, unknown>, Record<string, unknown>> = {
       id: eventId,
       type: eventType,
       timestamp,
@@ -50,7 +50,7 @@ export async function publishOrUpload(params: PublishOrUploadParams): Promise<vo
       { expiresIn: PRESIGNED_URL_TTL },
     );
 
-    const event: BusEvent = {
+    const event: BusEvent<Record<string, unknown>, Record<string, unknown>> = {
       id: eventId,
       type: eventType,
       timestamp,

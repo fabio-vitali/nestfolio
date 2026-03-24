@@ -1,5 +1,6 @@
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { logger, getUUID, getTime } from '../internal';
+import type { RequestContext } from '../domain/schemas';
 
 export class ErrorEventPublisher {
   private readonly client: EventBridgeClient;
@@ -13,10 +14,10 @@ export class ErrorEventPublisher {
   }
 
   async publishErrors(
-    errors: Array<{ error: Error; causedBy: unknown; groupKey?: string }>,
+    errors: Array<{ error: Error; causedBy: unknown; groupKey?: string; context?: RequestContext }>,
     errorEventType: string,
   ): Promise<void> {
-    for (const { error, causedBy, groupKey } of errors) {
+    for (const { error, causedBy, groupKey, context } of errors) {
       try {
         const detail = {
           id: getUUID(),
@@ -28,7 +29,7 @@ export class ErrorEventPublisher {
             causedBy,
             ...(groupKey && { groupKey }),
           },
-          context: { serviceName: this.serviceName },
+          ...(context && { context }),
         };
 
         await this.client.send(new PutEventsCommand({
