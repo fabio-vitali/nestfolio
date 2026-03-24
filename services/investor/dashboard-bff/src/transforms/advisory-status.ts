@@ -5,7 +5,7 @@ export const advisoryStatus = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent | undefined => {
   const { event } = uow;
-  const tenantId = (event.context as Record<string, string>).tenantId;
+  const { tenantId, userId, region } = event.context;
   const overrides = { pk: `T#${tenantId}`, sk: 'AdvisoryStatus' };
 
   switch (event.type) {

@@ -14,7 +14,7 @@ export const recentActivity = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent => {
   const { event } = uow;
-  const tenantId = (event.context as Record<string, string>).tenantId;
+  const { tenantId, userId, region } = event.context;
   const payload = event.subject as Record<string, unknown>;
 
   const descriptionFn = ACTIVITY_DESCRIPTIONS[event.type];
@@ -24,6 +24,8 @@ export const recentActivity = (
 
   return record('Activity', {
     tenantId,
+    userId,
+    region,
     activityId: event.id,
     activityType: event.type,
     description,

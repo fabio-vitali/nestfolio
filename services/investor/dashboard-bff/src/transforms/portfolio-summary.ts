@@ -14,7 +14,7 @@ export const portfolioSummary = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent | undefined => {
   const { event } = uow;
-  const tenantId = (event.context as Record<string, string>).tenantId;
+  const { tenantId, userId, region } = event.context;
   const payload = event.subject as OrderFilledPayload & Record<string, unknown>;
   const overrides = { pk: `T#${tenantId}`, sk: 'PortfolioSummary' };
 
@@ -32,6 +32,8 @@ export const portfolioSummary = (
   if (payload.driftPercent !== undefined) {
     return project('PortfolioSummary', {
       tenantId,
+      userId,
+      region,
       driftPercent: payload.driftPercent,
     }, overrides);
   }

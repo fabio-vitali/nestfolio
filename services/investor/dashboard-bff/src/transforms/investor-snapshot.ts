@@ -5,10 +5,10 @@ export const investorSnapshot = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent => {
   const { event } = uow;
-  const tenantId = (event.context as Record<string, string>).tenantId;
+  const { tenantId, userId, region } = event.context;
   const payload = event.subject as Record<string, unknown>;
 
-  const updates: Record<string, unknown> = { tenantId };
+  const updates: Record<string, unknown> = { tenantId, userId, region };
 
   switch (event.type) {
     case 'GOAL_SET':

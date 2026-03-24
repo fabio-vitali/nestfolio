@@ -20,7 +20,7 @@ export const positionSnapshot = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent | undefined => {
   const { event } = uow;
-  const tenantId = (event.context as Record<string, string>).tenantId;
+  const { tenantId, userId, region } = event.context;
   const payload = event.subject as PositionPayload;
 
   const symbol = payload.symbol ?? payload.instrument;
@@ -42,6 +42,8 @@ export const positionSnapshot = (
 
   return project('PositionSnapshot', {
     tenantId,
+    userId,
+    region,
     symbol,
     assetClass: payload.assetClass,
     quantity,
