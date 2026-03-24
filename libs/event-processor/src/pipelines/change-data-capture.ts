@@ -41,7 +41,11 @@ function buildEntry(
     type: eventType,
     timestamp: new Date().toISOString(),
     subject: transform ? transform(record, eventType) : record,
-    context: { tenantId: record.tenantId },
+    context: {
+      tenantId: record.tenantId,
+      userId: record.userId,
+      region: record.region,
+    },
   };
 
   return {
