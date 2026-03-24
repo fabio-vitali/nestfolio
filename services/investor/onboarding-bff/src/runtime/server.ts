@@ -32,13 +32,13 @@ export function createApp() {
       return c.json({ newSession: true });
     }
 
-    if (session.currentPhase === 'completed') {
+    if (session.currentPhase === 'completed' || session.status === 'completed') {
       return c.json({ completed: true });
     }
 
     // Rehydrate state from committed DDB records
     const { rehydrateState } = await import('../agent/session');
-    const state = rehydrateState(session as any, {});
+    const state = rehydrateState(session as any);
     return c.json({ activeSession: true, state });
   });
 

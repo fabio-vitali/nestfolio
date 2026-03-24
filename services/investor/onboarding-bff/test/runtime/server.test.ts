@@ -12,7 +12,13 @@ jest.mock('../../src/agent/graph', () => ({
 }));
 
 jest.mock('../../src/repositories/onboarding.repository', () => ({
-  OnboardingRepository: jest.fn().mockImplementation(() => ({})),
+  OnboardingRepository: jest.fn().mockImplementation(() => ({
+    getActiveSession: jest.fn().mockResolvedValue(null),
+  })),
+}));
+
+jest.mock('../../src/agent/session', () => ({
+  rehydrateState: jest.fn().mockReturnValue({ phase: 'personal-info' }),
 }));
 
 describe('CopilotKit Runtime Server', () => {
@@ -36,5 +42,40 @@ describe('CopilotKit Runtime Server', () => {
       body: JSON.stringify({}),
     });
     expect(res.status).not.toBe(404);
+  });
+});
+
+describe('/session endpoint', () => {
+  it('returns newSession when no headers', async () => {
+    const app = createApp();
+    const res = await app.request('/session');
+    const json = await res.json();
+    expect(json.newSession).toBe(true);
+  });
+
+  it('returns newSession when no active session', async () => {
+    const { OnboardingRepository } = require('../../src/repositories/onboarding.repository');
+    OnboardingRepository.mockImplementation(() => ({
+      getActiveSession: jest.fn().mockResolvedValue(null),
+    }));
+    const app = createApp();
+    const res = await app.request('/session', {
+      headers: { 'x-tenant-id': 't1', 'x-user-id': 'u1' },
+    });
+    const json = await res.json();
+    expect(json.newSession).toBe(true);
+  });
+
+  it('returns completed when session status is completed', async () => {
+    const { OnboardingRepository } = require('../../src/repositories/onboarding.repository');
+    OnboardingRepository.mockImplementation(() => ({
+      getActiveSession: jest.fn().mockResolvedValue({ status: 'completed', currentPhase: 'completed' }),
+    }));
+    const app = createApp();
+    const res = await app.request('/session', {
+      headers: { 'x-tenant-id': 't1', 'x-user-id': 'u1' },
+    });
+    const json = await res.json();
+    expect(json.completed).toBe(true);
   });
 });
