@@ -37,7 +37,6 @@ jest.mock('../../src/internal', () => {
     createServiceMetrics: jest.fn(() => ({ addMetric: jest.fn(), publishStoredMetrics: jest.fn() })),
     traceEvent: jest.fn(),
     publishErrorEvent: jest.fn(),
-    extractTenantId: jest.fn(() => 'tenant-1'),
     extractRequestContext: jest.fn(() => ({ tenantId: 'tenant-1', userId: 'test-user', region: 'us-east-1' })),
     logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
     applyMiddleware: jest.fn((handler: unknown) => handler),

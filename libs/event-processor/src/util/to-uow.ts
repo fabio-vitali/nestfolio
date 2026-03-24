@@ -2,8 +2,8 @@ import type { EventPayload } from '../types/handler-config';
 import type { EventContext } from '../types/event-context';
 import type { UnitOfWork, BusEvent } from '../platform';
 
-export function toUow(payload: EventPayload, ctx: EventContext): UnitOfWork<BusEvent<Record<string, unknown>>> {
-  const event: BusEvent<Record<string, unknown>> = {
+export function toUow(payload: EventPayload, ctx: EventContext): UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>> {
+  const event: BusEvent<Record<string, unknown>, Record<string, unknown>> = {
     id: ctx.eventId,
     type: ctx.eventType,
     timestamp: ctx.timestamp,

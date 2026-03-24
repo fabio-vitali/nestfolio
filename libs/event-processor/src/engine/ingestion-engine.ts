@@ -86,7 +86,7 @@ export class IngestionEngine {
           };
 
           // Execute handler → intents
-          const intents = await handler({ subject: event.subject, context: event.context }, ctx);
+          const intents = await handler({ subject: event.subject as Record<string, unknown>, context: event.context as Record<string, unknown> }, ctx);
 
           // Execute intents
           let anyDeduplicated = false;
