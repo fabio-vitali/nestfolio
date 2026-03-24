@@ -1,5 +1,7 @@
 # Feature #3 — Withdrawal (Happy Path)
 
+A withdrawal request flows from the Investor domain into Execution, where safety checks and market-hours logic determine whether the order is submitted immediately or staged for the next market open. Once filled, the event is forwarded to the Ledger domain for event-sourced recording and dashboard materialization.
+
 **Trigger**: User requests a withdrawal via the investor-mfe.
 
 ---

@@ -1,14 +1,14 @@
 import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs/utils';
-import { OnboardingAgentBffStack } from './service.stack';
+import { OnboardingBffStack } from './service.stack';
 
 const app = new App();
 const { prefix, account, region, service, subsystem } = resolvePipelineConfig(
   app,
-  'onboarding-agent-bff',
+  'onboarding-bff',
 );
 
-new OnboardingAgentBffStack(app, `${prefix}-${service}`, {
+new OnboardingBffStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

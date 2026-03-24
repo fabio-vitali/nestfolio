@@ -1,5 +1,7 @@
 # Feature #14 — Reconciliation (Happy Path)
 
+Reconciliation ensures consistency between intent (what the system thinks the portfolio looks like) and settlement (what the broker reports). When a portfolio update or broker snapshot arrives, reconciliation-ctrl extracts both position sets, compares them symbol by symbol, and records any drifts. The result is materialized as a RECONCILIATION_COMPLETED event — feeding the dashboard and potentially triggering portfolio rebalancing (Feature #13) if drift exceeds thresholds.
+
 **Trigger**: Portfolio update or broker snapshot triggers reconciliation check.
 
 ---

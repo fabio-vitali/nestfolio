@@ -1,5 +1,7 @@
 # Feature #6 — Advisory Decision Cycle (Happy Path)
 
+The advisory decision cycle is the core AI-driven workflow, orchestrated by decision-workflow-ctrl via AWS Step Functions. Any of 9 trigger events writes a WorkflowTrigger record whose CDC starts a state machine execution. The state machine invokes 4 LangGraph agents — investor-profile-ctrl and market-intelligence-ctrl in parallel, then portfolio-engine-ctrl, then advisory-narrative-ctrl sequentially — using EventBridge `waitForTaskToken` callbacks. Each agent reads/writes to a shared AgentCore Memory session. After narrative generation, the assembled recommendation is published and compliance-ctrl validates it (mandate, guardrails, suitability), resolving authority level L1 (autonomous) or L2 (user confirmation). advisory-adpt forwards approved decisions to ExecutionBus.
+
 **Trigger**: One of 9 domain events triggers the advisory decision lifecycle.
 
 ---
@@ -8,51 +10,64 @@
 
 ```mermaid
 flowchart TB
-    subgraph subGraph0["Trigger Events"]
+    subgraph subGraph0["Trigger Events (9)"]
         T1["MANDATE_GRANTED"]
-        T2["GOAL_UPDATED"]
+        T2["GOAL_UPDATED / RISK_PROFILE_UPDATED / OPERATING_MODE_CHANGED"]
         T3["DEPOSIT_DETECTED"]
         T4["PORTFOLIO_DRIFT_DETECTED"]
         T5["ORDER_FILLED / REJECTED / CANCELLED"]
     end
-    subgraph subGraph1["Advisory Domain"]
+    subgraph subGraph1["Advisory Domain — Orchestration"]
         AB{{"AdvisoryBus"}}
-        A1["Create Decision Packet"]
-        A2["Analyze Investor Profile"]
-        A3["Analyze Market"]
-        A4["Construct Portfolio"]
-        A5["Generate Narrative"]
+        DW["decision-workflow-ctrl: Write WorkflowTrigger"]
+        CDC1["CDC: WORKFLOW_TRIGGER_CREATED"]
+        SF["Step Functions Execution"]
     end
-    subgraph subGraph2["Compliance"]
-        C1["Validate Mandate + Guardrails"]
+    subgraph subGraph2["Parallel Agents (waitForTaskToken)"]
+        A1["investor-profile-ctrl (LangGraph)"]
+        A2["market-intelligence-ctrl (LangGraph)"]
+    end
+    subgraph subGraph3["Sequential Agents (waitForTaskToken)"]
+        A3["portfolio-engine-ctrl (LangGraph)"]
+        A4["advisory-narrative-ctrl (LangGraph)"]
+    end
+    subgraph subGraph4["Assembly + Compliance"]
+        A5["Assemble Decision Packet"]
+        A6["Publish RECOMMENDATION_PROPOSED"]
+        C1["compliance-ctrl: Validate"]
         C2{"Approved?"}
-        C3["Set Authority Level"]
-        C4{"Level?"}
+        C3{"Authority Level?"}
     end
-    subgraph subGraph3["User Confirmation"]
-        U1["Request User Confirmation"]
-        U2["User Confirms"]
+    subgraph subGraph5["User Confirmation"]
+        U1["USER_CONFIRMATION_REQUESTED"]
+        U2["advisory-bff: User Confirms"]
     end
-    subgraph subGraph4["Execution Domain"]
+    subgraph subGraph6["Execution Domain"]
         EB{{"ExecutionBus"}}
-        E1["Execute Order"]
+        E1["advisory-adpt: Forward"]
     end
     T1 & T2 & T3 & T4 & T5 --> AB
-    AB --> A1
-    A1 --> A2
-    A2 --> A3
-    A3 --> A4
-    A4 --> A5
-    A5 --> A6["Propose Recommendation"]
+    AB --> DW
+    DW --> CDC1
+    CDC1 --> SF
+    SF --> A1 & A2
+    A1 -->|INVESTOR_PROFILE_COMPLETED| SF
+    A2 -->|MARKET_ANALYSIS_COMPLETED| SF
+    SF --> A3
+    A3 -->|PORTFOLIO_COMPLETED| SF
+    SF --> A4
+    A4 -->|NARRATIVE_COMPLETED| SF
+    SF --> A5
+    A5 --> A6
     A6 --> C1
     C1 --> C2
     C2 -- Yes --> C3
-    C3 --> C4
-    C4 -- "L1: Autonomous" --> EB
-    C4 -- "L2: Escalate" --> U1
+    C2 -- No/BLOCKED --> END1["End"]
+    C3 -- "L1: Autonomous" --> E1
+    C3 -- "L2: Escalate" --> U1
     U1 --> U2
-    U2 --> EB
-    EB --> E1
+    U2 --> E1
+    E1 --> EB
 
     T1:::investor
     T2:::investor
@@ -60,20 +75,23 @@ flowchart TB
     T4:::ledger
     T5:::execution
     AB:::bus
-    A1:::advisory
-    A2:::advisory
-    A3:::advisory
-    A4:::advisory
+    DW:::advisory
+    CDC1:::advisory
+    SF:::orchestrator
+    A1:::agent
+    A2:::agent
+    A3:::agent
+    A4:::agent
     A5:::advisory
     A6:::advisory
     C1:::compliance
     C2:::decision
-    C3:::compliance
-    C4:::decision
+    C3:::decision
     U1:::advisory
     U2:::user
     EB:::bus
-    E1:::execution
+    E1:::advisory
+    END1:::decision
     classDef investor fill:#D6E4FF,stroke:#3A6FB0,color:#000
     classDef execution fill:#FFE2D6,stroke:#B05A3A,color:#000
     classDef advisory fill:#D6FFD9,stroke:#3AB05A,color:#000
@@ -82,6 +100,8 @@ flowchart TB
     classDef bus fill:#F5F5F5,stroke:#999,stroke-dasharray:5 5
     classDef decision fill:#FFF0AA,stroke:#C9A000,color:#000
     classDef user fill:#FFF,stroke:#333,color:#000
+    classDef orchestrator fill:#E8D6FF,stroke:#6A3AB0,color:#000
+    classDef agent fill:#C6F0C6,stroke:#2A8A2A,color:#000
 ```
 
 ---
@@ -90,16 +110,17 @@ flowchart TB
 
 | Step | Component | Domain | Input Event | Action | Output Event | Target Bus |
 |------|-----------|--------|-------------|--------|-------------|------------|
-| 1 | advisory-ctrl | Advisory | Trigger event (1 of 9) | Create decision packet (idempotent) | DECISION_PACKET_CREATED | AdvisoryBus |
-| 2 | advisory-ctrl | Advisory | DECISION_PACKET_CREATED | Analyze investor profile agent (Haiku) | INVESTOR_PROFILE_ANALYZED | AdvisoryBus |
-| 3 | advisory-ctrl | Advisory | INVESTOR_PROFILE_ANALYZED | Analyze market agent (Haiku) | MARKET_ANALYZED | AdvisoryBus |
-| 4 | advisory-ctrl | Advisory | MARKET_ANALYZED | Construct portfolio agent (Sonnet) | PORTFOLIO_CONSTRUCTED | AdvisoryBus |
-| 5 | advisory-ctrl | Advisory | PORTFOLIO_CONSTRUCTED | Generate narrative agent (Haiku) | NARRATIVE_GENERATED | AdvisoryBus |
-| 6 | advisory-ctrl | Advisory | NARRATIVE_GENERATED | Propose recommendation | RECOMMENDATION_PROPOSED | AdvisoryBus |
-| 7 | compliance-ctrl | Advisory | DECISION_PACKET_CREATED / DECISION_PACKET_ENRICHED | Validate mandate, guardrails, suitability | DECISION_APPROVED or DECISION_BLOCKED | AdvisoryBus |
-| 8a | advisory-ctrl | Advisory | DECISION_APPROVED (L1) | Auto-approve, forward to execution | DECISION_APPROVED | ExecutionBus |
-| 8b | advisory-ctrl | Advisory | DECISION_APPROVED (L2) | Request user confirmation | USER_CONFIRMATION_REQUESTED | AdvisoryBus |
-| 9 | advisory-bff | Advisory | GraphQL `confirmDecision` | User confirms recommendation | USER_CONFIRMED | AdvisoryBus |
+| 1 | decision-workflow-ctrl | Advisory | Trigger event (1 of 9) | Write WorkflowTrigger record to DDB | WORKFLOW_TRIGGER_CREATED (CDC) | AdvisoryBus |
+| 2 | Step Functions | Advisory | WORKFLOW_TRIGGER_CREATED | Start state machine execution | ANALYZE_INVESTOR_PROFILE + ANALYZE_MARKET (parallel, waitForTaskToken) | AdvisoryBus |
+| 3a | investor-profile-ctrl | Advisory | ANALYZE_INVESTOR_PROFILE | LangGraph agent: analyze profile, read/write AgentCore Memory | INVESTOR_PROFILE_COMPLETED (SendTaskSuccess) | AdvisoryBus |
+| 3b | market-intelligence-ctrl | Advisory | ANALYZE_MARKET | LangGraph agent: analyze market signals + data feeds, read/write Memory | MARKET_ANALYSIS_COMPLETED (SendTaskSuccess) | AdvisoryBus |
+| 4 | portfolio-engine-ctrl | Advisory | CONSTRUCT_PORTFOLIO (after 3a+3b) | LangGraph agent: construct portfolio using upstream agent outputs from Memory | PORTFOLIO_COMPLETED (SendTaskSuccess) | AdvisoryBus |
+| 5 | advisory-narrative-ctrl | Advisory | GENERATE_NARRATIVE (after 4) | LangGraph agent: generate investor narrative using all upstream outputs | NARRATIVE_COMPLETED (SendTaskSuccess) | AdvisoryBus |
+| 6 | decision-workflow-ctrl | Advisory | All agents completed | Assemble decision packet from AgentCore Memory, publish recommendation | RECOMMENDATION_PROPOSED | AdvisoryBus |
+| 7 | compliance-ctrl | Advisory | DECISION_PACKET_CREATED / DECISION_PACKET_ENRICHED | MandateValidator → GuardrailEvaluator → SuitabilityChecker → AuthorityResolver | DECISION_APPROVED or DECISION_BLOCKED | AdvisoryBus |
+| 8a | decision-workflow-ctrl | Advisory | DECISION_APPROVED (L1) | State machine ends — autonomous execution | _(terminal)_ | — |
+| 8b | decision-workflow-ctrl | Advisory | DECISION_APPROVED (L2) | Request user confirmation (72h timeout) | USER_CONFIRMATION_REQUESTED | AdvisoryBus |
+| 9 | advisory-bff | Advisory | GraphQL `confirmDecision` | User confirms recommendation | USER_CONFIRMED (CDC) | AdvisoryBus |
 | 10 | advisory-adpt | Advisory | DECISION_APPROVED / USER_CONFIRMED | Cross-domain forward | Same events | ExecutionBus |
 
 **Trigger events (9 total):**
@@ -116,4 +137,10 @@ flowchart TB
 | ORDER_CANCELLED | Execution |
 | PORTFOLIO_DRIFT_DETECTED | Ledger |
 
+**Agent invocation pattern**: Step Functions publishes event with embedded `$.Task.Token` → agent service processes → callback Lambda calls `SendTaskSuccess` to resume state machine.
+
+**Memory sharing**: All 4 agents read/write to a shared AgentCore Memory session keyed by `tenantId + decisionId`. Sequential agents read upstream outputs from Memory.
+
 **Agent tier escalation**: Haiku → Sonnet → Opus (on failure/insufficient quality).
+
+**Compliance events**: compliance-ctrl also emits `GUARDRAIL_VIOLATION_DETECTED`, `ESCALATION_TRIGGERED`, `AUDIT_ARTIFACT_CREATED` for traceability.

@@ -55,7 +55,7 @@ const TOOL_RENDERER_MAP: Partial<Record<RendererType, Type<unknown>>> = {
 
 const LOADING_DELAY_MS = 3_000;
 const TIMEOUT_MS = 15_000;
-const BFF_URL = '/api/copilotkit'; // proxied to onboarding-agent-bff
+const BFF_URL = '/api/copilotkit'; // proxied to onboarding-bff
 
 // ── Component ─────────────────────────────────────────────────────────────────
 

@@ -1,6 +1,8 @@
 # Feature #1 — Investor Onboarding (Happy Path)
 
-**Trigger**: User completes the onboarding wizard in investor-mfe.
+The onboarding flow is a conversational AI-guided experience. The investor-mfe connects to onboarding-agent-bff — a LangGraph state machine powered by Claude Sonnet via CopilotKit — that walks the user through 7 phases: goal, horizon, account mode, capital, risk profile, operating mode, and mandate. The agent renders rich UI components (sliders, option cards, amount pickers) via tool calls, persists each phase to DynamoDB (shared table with investor-bff), and uses a Bedrock Knowledge Base for product questions (RAG). Once committed, CDC events on InvestorBus trigger downstream processing: investor-ctrl generates welcome notifications, dashboard-bff materializes the investor snapshot, and investor-adpt forwards the mandate to AdvisoryBus — kicking off the first advisory decision cycle.
+
+**Trigger**: User starts the onboarding wizard in investor-mfe.
 
 ---
 
@@ -9,10 +11,18 @@
 ```mermaid
 flowchart TB
     subgraph subGraph0["Investor Domain"]
-        A1["Set Goal"]
-        A2["Set Risk Profile"]
-        A3["Grant Mandate"]
-        A4["BFF: Validate + Persist"]
+        subgraph agent["onboarding-agent-bff (LangGraph + CopilotKit)"]
+            A0["Conversational Agent (Claude Sonnet)"]
+            A1["Phase 1: Goal"]
+            A1b["Phase 2: Horizon"]
+            A1c["Phase 3: Account Mode"]
+            A1d["Phase 4: Capital"]
+            A2["Phase 5: Risk Profile"]
+            A2b["Phase 6: Operating Mode"]
+            A3["Phase 7: Mandate + Consent"]
+            KB[("Bedrock Knowledge Base")]
+        end
+        A4["DDB Persist (shared table with investor-bff)"]
         IB{{"InvestorBus"}}
         A5["Notify User"]
         A6["Update Investor Snapshot"]
@@ -22,18 +32,30 @@ flowchart TB
         AB{{"AdvisoryBus"}}
         B1["Start Decision Cycle"]
     end
-    U(("User")) --> A1
-    A1 --> A2
-    A2 --> A3
-    A3 --> A4
+    U(("User")) --> A0
+    A0 --> A1
+    A1 --> A1b
+    A1b --> A1c
+    A1c --> A1d
+    A1d --> A2
+    A2 --> A2b
+    A2b --> A3
+    A0 -.->|RAG| KB
+    A1 & A1b & A1c & A1d & A2 & A2b & A3 -->|commit_phase| A4
     A4 --> IB
     IB --> A5 & A6 & A7
     A7 --> AB
     AB --> B1
 
+    A0:::agent_style
     A1:::investor
+    A1b:::investor
+    A1c:::investor
+    A1d:::investor
     A2:::investor
+    A2b:::investor
     A3:::investor
+    KB:::kb
     A4:::investor
     IB:::bus
     A5:::investor
@@ -45,6 +67,8 @@ flowchart TB
     classDef advisory fill:#D6FFD9,stroke:#3AB05A,color:#000
     classDef read fill:#E6E6FF,stroke:#6A6AB0,color:#000
     classDef bus fill:#F5F5F5,stroke:#999,stroke-dasharray:5 5
+    classDef agent_style fill:#E8D6FF,stroke:#6A3AB0,color:#000
+    classDef kb fill:#F0E6FF,stroke:#8A6AB0,color:#000
 ```
 
 ---
@@ -53,10 +77,11 @@ flowchart TB
 
 | Step | Component | Domain | Input Event | Action | Output Event | Target Bus |
 |------|-----------|--------|-------------|--------|-------------|------------|
-| 1 | investor-bff | Investor | GraphQL mutations (updateGoal, updateMandate) | Zod validate + DDB insert per step | GOAL_SET, RISK_PROFILE_SET, MANDATE_GRANTED (CDC) | InvestorBus |
-| 2 | investor-bff | Investor | Final wizard step | DDB insert InvestorProfile | ONBOARDING_COMPLETED (CDC) | InvestorBus |
-| 3 | investor-ctrl | Investor | ONBOARDING_COMPLETED | Create notification "Welcome to Nestfolio" | NOTIFICATION_CREATED | InvestorBus |
-| 4 | investor-ctrl | Investor | MANDATE_GRANTED | Create notification "Investment Mandate Activated" | NOTIFICATION_CREATED | InvestorBus |
-| 5 | dashboard-bff | Investor | ONBOARDING_COMPLETED, GOAL_SET, GOAL_UPDATED, RISK_PROFILE_SET, RISK_PROFILE_UPDATED | Materialize investor snapshot | _(terminal)_ | — |
-| 6 | investor-adpt | Investor | MANDATE_GRANTED, GOAL_UPDATED, RISK_PROFILE_UPDATED | Cross-domain forward | Same events | AdvisoryBus |
-| 7 | advisory-ctrl | Advisory | MANDATE_GRANTED | Start advisory decision cycle (see Feature #6) | DECISION_PACKET_CREATED | AdvisoryBus |
+| 1 | onboarding-agent-bff | Investor | User conversation (CopilotKit) | LangGraph 7-phase state machine (Claude Sonnet), render UI tools, RAG via Bedrock KB | _(commit_phase per step)_ | — |
+| 2 | onboarding-agent-bff | Investor | commit_phase tool call | DDB persist per phase (shared table with investor-bff) | GOAL_SET, RISK_PROFILE_SET, MANDATE_GRANTED (CDC) | InvestorBus |
+| 3 | onboarding-agent-bff | Investor | Final mandate consent | DDB insert InvestorProfile | ONBOARDING_COMPLETED (CDC) | InvestorBus |
+| 4 | investor-ctrl | Investor | ONBOARDING_COMPLETED | Create notification "Welcome to Nestfolio" | NOTIFICATION_CREATED | InvestorBus |
+| 5 | investor-ctrl | Investor | MANDATE_GRANTED | Create notification "Investment Mandate Activated" | NOTIFICATION_CREATED | InvestorBus |
+| 6 | dashboard-bff | Investor | ONBOARDING_COMPLETED, GOAL_SET, GOAL_UPDATED, RISK_PROFILE_SET, RISK_PROFILE_UPDATED | Materialize investor snapshot | _(terminal)_ | — |
+| 7 | investor-adpt | Investor | MANDATE_GRANTED, GOAL_UPDATED, RISK_PROFILE_UPDATED | Cross-domain forward | Same events | AdvisoryBus |
+| 8 | advisory-ctrl | Advisory | MANDATE_GRANTED | Start advisory decision cycle (see Feature #6) | DECISION_PACKET_CREATED | AdvisoryBus |

@@ -1,5 +1,7 @@
 # Feature #13 — Portfolio Rebalancing (Happy Path)
 
+Portfolio rebalancing is a composite flow that chains three existing features. It begins in the Ledger domain when reconciliation-ctrl detects drift between actual and target allocations. The drift event is forwarded to AdvisoryBus, triggering a full advisory decision cycle (Feature #6) with the rebalance planner agent. After compliance approval and optional user confirmation, the resulting trade orders flow through order execution (Feature #8) and back into the ledger (Feature #9) to rebuild the portfolio snapshot.
+
 **Trigger**: Drift detected between actual and target portfolio allocations.
 
 ---

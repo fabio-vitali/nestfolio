@@ -1,5 +1,7 @@
 # Feature #5 — Portfolio Dashboard (Happy Path)
 
+The dashboard is a read-model aggregation layer. dashboard-bff listens to events from all four domains and materializes six views: investor snapshot, portfolio summary, recent activity, advisory status, position snapshot, and time-travel availability. The dashboard-mfe queries these pre-computed views via GraphQL for near-instant rendering.
+
 **Trigger**: User opens the dashboard-mfe to view portfolio status.
 
 ---

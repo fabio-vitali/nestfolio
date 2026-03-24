@@ -1,5 +1,7 @@
 # Feature #4 — Notification Delivery (Happy Path)
 
+Notifications are a cross-cutting concern handled entirely within the Investor domain. investor-ctrl listens for key events from all domains (onboarding, deposits, decisions, order fills) and creates notification records in DynamoDB. investor-bff serves them via GraphQL queries and pushes real-time updates through AppSync subscriptions.
+
 **Trigger**: A domain event occurs that requires user notification.
 
 ---

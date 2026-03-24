@@ -21,3 +21,10 @@
 - The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
 
 <!-- nx configuration end-->
+
+# Codebase is the Source of Truth
+
+- **Memory and specs go stale fast.** This project evolves rapidly — services get decomposed, renamed, consolidated, and deleted across phases. Never trust memory, old specs, or plan documents as authoritative. The code is the only source of truth.
+- **Before any task that references architecture** (documentation, diagrams, refactoring plans, migration scripts, dependency analysis): audit the actual codebase first. Run `ls services/*/`, read the relevant source files, check `project.json` configs. If memory disagrees with code, the code wins.
+- **Before writing or updating documentation**: read the services you're documenting. Don't infer — verify.
+- **Before planning a refactor or migration**: confirm the starting state from code, not from memory or prior conversation context.

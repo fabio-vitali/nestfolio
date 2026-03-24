@@ -1,5 +1,7 @@
 # Feature #12 — Compliance Check (Happy Path)
 
+The compliance check is a multi-gate validation pipeline within the Advisory domain. When a decision packet is created or enriched, compliance-ctrl runs four sequential checks: mandate validation (effective dates, type, revocation), guardrail evaluation (turnover caps, concentration limits), suitability assessment (risk profile alignment), and authority resolution. The outcome is either L1 (autonomous execution) or L2 (user confirmation required), with an audit artifact recorded for every decision.
+
 **Trigger**: Advisory decision packet is created or enriched, triggering compliance validation.
 
 ---

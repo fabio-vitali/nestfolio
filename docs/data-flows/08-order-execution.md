@@ -1,5 +1,7 @@
 # Feature #8 — Order Execution (Happy Path)
 
+Order execution bridges the Advisory and Execution domains. Once a decision is approved, execution-ctrl runs safety checks and evaluates market hours — submitting the order immediately or staging it for the next open. broker-adpt processes the trade via CDC, and execution-adpt fans the fill event out to LedgerBus (for event-sourced recording) and InvestorBus (for user notification).
+
 **Trigger**: Advisory decision approved (L1 autonomous or L2 user-confirmed).
 
 ---
