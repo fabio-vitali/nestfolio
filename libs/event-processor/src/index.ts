@@ -98,7 +98,7 @@ export { parseRssFeed, type RssArticle } from './lambda/rss-parser';
 // Lambda utilities (from lambda-utils)
 export {
   requireEnv,
-  authorizeTenant, authorizeUser, type AuthorizedIdentity,
+  authorizeRequest,
   validateQueryDepth,
   createServiceMetrics, MetricUnit,
   publishErrorEvent,
@@ -106,7 +106,7 @@ export {
   withMethodLogging,
   applyMiddleware, withLambdaContext, withTiming,
   type Middleware,
-  guardedWrite, extractTenantId, traceEvent,
+  guardedWrite, extractRequestContext, traceEvent,
   evaluateResolver, createAuthContext, type EvalContext,
 } from './lambda';
 

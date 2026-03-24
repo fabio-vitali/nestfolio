@@ -1,5 +1,5 @@
 export { requireEnv } from './require-env';
-export { authorizeTenant, authorizeUser, type AuthorizedIdentity } from './authorize-tenant';
+export { authorizeRequest } from './authorize-request';
 export { validateQueryDepth } from './validate-query-depth';
 export { createServiceMetrics, MetricUnit } from './service-metrics';
 export { publishErrorEvent } from './publish-error-event';
@@ -8,11 +8,11 @@ export { publishErrorEvent } from './publish-error-event';
 export { withErrorPublishing } from './middleware/with-error-publishing';
 export { withMethodLogging } from './middleware/with-method-logging';
 
-// Re-export internal middleware + utilities (already in event-processor's internal/)
+// Re-export internal middleware + utilities
 export { applyMiddleware, withLambdaContext, withTiming } from '../internal';
 export type { Middleware } from '../internal';
 export { guardedWrite } from '../internal';
-export { extractTenantId } from '../internal';
+export { extractRequestContext } from '../internal';
 export { traceEvent } from '../internal';
 
 // Test utilities
