@@ -73,7 +73,7 @@ sk: OnboardingSession#{sessionId}
     horizon?: { years: number },
     mode?: { accountMode: 'simulation' | 'live' },
     capital?: { amount: number, currency: string },
-    risk?: { toleranceIdx: number, experienceIdx: number, score: number, category: string },
+    risk?: { toleranceIdx: number, experienceIdx: number, score: number, category: string },  // score/category are display-only cached values for the conversation UI
     operatingMode?: { mode: 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE' },
     mandate?: { accepted: boolean }
   },
@@ -262,7 +262,7 @@ export class OnboardingBffStack extends ServiceStack {
 
 ### Investor Hub Stack Cleanup
 
-- Remove SSM export of `/${prefix}/investor-hub/table-name` — no service should expose internal DynamoDB resources
+- Locate and remove the SSM parameter `/${prefix}/investor-hub/table-name` — this parameter is consumed by onboarding-agent-bff but is not created by the `State` construct or the hub stack directly. Check deploy scripts, CDK custom resources, or manual SSM entries. Once found, remove it — no service should expose internal DynamoDB resources via SSM.
 
 ### Service Rename
 
@@ -284,6 +284,14 @@ apps/onboarding-mfe/
         stores/
           onboarding.store.ts          # moved from investor-mfe
         renderers/                     # moved from investor-mfe
+          options-renderer/
+          mode-cards-renderer/
+          slider-renderer/
+          amount-renderer/
+          summary-renderer/
+          consent-renderer/
+          cta-renderer/
+        onboarding-theme.css           # moved from investor-mfe
 ```
 
 - Federation config: exposes `./routes`, shares same deps as other MFEs
@@ -332,7 +340,7 @@ The `authStore` is enriched at login with the user's profile (includes `onboardi
 
 | What | Where | Why |
 |------|-------|-----|
-| SSM `/${prefix}/investor-hub/table-name` | investor hub stack | No service exposes internal resources |
+| SSM `/${prefix}/investor-hub/table-name` | locate source (not in hub stack — check deploy scripts/manual entries) | No service exposes internal resources |
 | SSM table lookup + `Table.fromTableName` | onboarding-bff stack | Uses own table now |
 | `onboarding/` directory | investor-mfe | Moved to onboarding-mfe |
 | `/investor/onboarding` route | investor-mfe remote-routes.ts | Route lives in onboarding-mfe |
