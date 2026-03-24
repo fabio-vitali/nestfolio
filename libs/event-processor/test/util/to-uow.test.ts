@@ -4,13 +4,13 @@ import type { EventContext } from '../../src/types/event-context';
 
 describe('toUow', () => {
   const ctx = {
-    eventId: 'e1', eventType: 'TEST', tenantId: 't1',
+    eventId: 'e1', eventType: 'TEST', tenantId: 't1', userId: 'test-user', region: 'us-east-1',
     timestamp: '2026-01-01T00:00:00.000Z', receiveCount: 1, serviceName: 'test',
     record: {} as any,
   } as EventContext;
 
   it('should build UoW from payload and context', () => {
-    const payload: EventPayload = { subject: { foo: 'bar' }, context: { tenantId: 't1' } };
+    const payload: EventPayload = { subject: { foo: 'bar' }, context: { tenantId: 't1', userId: 'test-user', region: 'us-east-1' } };
     const uow = toUow(payload, ctx);
     expect(uow.event.id).toBe('e1');
     expect(uow.event.type).toBe('TEST');
@@ -21,6 +21,6 @@ describe('toUow', () => {
   it('should default context.tenantId from ctx when payload.context missing', () => {
     const payload: EventPayload = { subject: { foo: 'bar' } };
     const uow = toUow(payload, ctx);
-    expect(uow.event.context).toEqual({ tenantId: 't1' });
+    expect(uow.event.context).toEqual({ tenantId: 't1', userId: 'test-user', region: 'us-east-1' });
   });
 });

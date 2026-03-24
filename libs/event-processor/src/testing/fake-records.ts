@@ -4,10 +4,12 @@ import { randomUUID } from 'crypto';
 export function fakeSqsRecord(
   eventType: string,
   payload: Record<string, unknown>,
-  opts?: { eventId?: string; tenantId?: string; receiveCount?: number },
+  opts?: { eventId?: string; tenantId?: string; userId?: string; region?: string; receiveCount?: number },
 ): SQSRecord {
   const eventId = opts?.eventId ?? randomUUID();
   const tenantId = opts?.tenantId ?? 'test-tenant';
+  const userId = opts?.userId ?? 'test-user';
+  const region = opts?.region ?? 'us-east-1';
 
   return {
     messageId: randomUUID(),
@@ -18,7 +20,7 @@ export function fakeSqsRecord(
         type: eventType,
         timestamp: new Date().toISOString(),
         subject: payload,
-        context: { tenantId },
+        context: { tenantId, userId, region },
       },
     }),
     attributes: {
@@ -42,6 +44,8 @@ export function fakeDdbStreamRecord(
     oldImage?: Record<string, unknown>;
     typename?: string;
     tenantId?: string;
+    userId?: string;
+    region?: string;
     sequenceNo?: number;
   },
 ): DynamoDBRecord {
@@ -49,6 +53,10 @@ export function fakeDdbStreamRecord(
   if (opts?.typename && !image.__typename) image.__typename = opts.typename;
   if (opts?.tenantId && !image.tenantId) image.tenantId = opts.tenantId;
   if (opts?.sequenceNo != null && image.sequenceNo == null) image.sequenceNo = opts.sequenceNo;
+  if (opts?.userId && !image.userId) image.userId = opts.userId;
+  if (!image.userId) image.userId = 'test-user';
+  if (opts?.region && !image.region) image.region = opts.region;
+  if (!image.region) image.region = 'us-east-1';
   if (!image.pk) image.pk = `T#${image.tenantId ?? 'test-tenant'}`;
   if (!image.sk) image.sk = `${image.__typename ?? 'Unknown'}#${randomUUID()}`;
 
@@ -76,16 +84,18 @@ export function fakeDdbStreamRecord(
 export function fakeKinesisRecord(
   eventType: string,
   payload: Record<string, unknown>,
-  opts?: { eventId?: string; tenantId?: string; sequenceNumber?: string },
+  opts?: { eventId?: string; tenantId?: string; userId?: string; region?: string; sequenceNumber?: string },
 ): KinesisStreamRecord {
   const eventId = opts?.eventId ?? randomUUID();
   const tenantId = opts?.tenantId ?? 'test-tenant';
+  const userId = opts?.userId ?? 'test-user';
+  const region = opts?.region ?? 'us-east-1';
   const event = {
     id: eventId,
     type: eventType,
     timestamp: new Date().toISOString(),
     subject: payload,
-    context: { tenantId },
+    context: { tenantId, userId, region },
   };
   const data = Buffer.from(JSON.stringify(event)).toString('base64');
 

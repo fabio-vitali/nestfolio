@@ -22,6 +22,7 @@ jest.mock('../../src/internal', () => ({
   traceEvent: jest.fn(),
   publishErrorEvent: jest.fn(),
   extractTenantId: jest.fn(() => 'tenant-1'),
+  extractRequestContext: jest.fn(() => ({ tenantId: 'tenant-1', userId: 'test-user', region: 'us-east-1' })),
   logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn() },
   getUUID: jest.fn(() => 'test-uuid'),
   getTime: jest.fn(() => '2026-01-01T00:00:00Z'),
@@ -40,7 +41,7 @@ function makeRecord(
       type,
       timestamp: '2026-01-01T00:00:00Z',
       subject: payload,
-      context: { tenantId: 'tenant-1' },
+      context: { tenantId: 'tenant-1', userId: 'test-user', region: 'us-east-1' },
     } as any,
     metadata: { receiveCount: opts?.receiveCount },
   };

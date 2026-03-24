@@ -13,6 +13,7 @@ jest.mock('../../src/internal', () => ({
   traceEvent: jest.fn(),
   publishErrorEvent: jest.fn(),
   extractTenantId: jest.fn(() => 'tenant-1'),
+  extractRequestContext: jest.fn(() => ({ tenantId: 'tenant-1', userId: 'test-user', region: 'us-east-1' })),
   applyMiddleware: jest.fn((handler) => handler),
   withLambdaContext: jest.fn(() => (next: any) => next),
   withTiming: jest.fn(() => (next: any) => next),

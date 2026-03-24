@@ -23,7 +23,7 @@ function fakeKinesisRecord(event: Record<string, unknown>, opts?: { sequenceNumb
 
 describe('parseKinesisRecord', () => {
   it('decodes base64 data into an IngestionRecord', () => {
-    const busEvent = { id: 'evt-1', type: 'ORDER_FILLED', timestamp: '2026-01-01T00:00:00Z', subject: { amount: 100 }, context: { tenantId: 't1' } };
+    const busEvent = { id: 'evt-1', type: 'ORDER_FILLED', timestamp: '2026-01-01T00:00:00Z', subject: { amount: 100 }, context: { tenantId: 't1', userId: 'test-user', region: 'us-east-1' } };
     const record = fakeKinesisRecord(busEvent, { sequenceNumber: 'seq-99' });
     const result = parseKinesisRecord(record);
 
@@ -34,7 +34,7 @@ describe('parseKinesisRecord', () => {
   });
 
   it('handles EventBridge-wrapped events (detail field)', () => {
-    const wrapped = { detail: { id: 'evt-1', type: 'TEST', timestamp: 'now', subject: { a: 1 }, context: { tenantId: 't1' } } };
+    const wrapped = { detail: { id: 'evt-1', type: 'TEST', timestamp: 'now', subject: { a: 1 }, context: { tenantId: 't1', userId: 'test-user', region: 'us-east-1' } } };
     const record = fakeKinesisRecord(wrapped);
     const result = parseKinesisRecord(record);
 
@@ -50,12 +50,12 @@ describe('parseKinesisRecord', () => {
   });
 
   it('throws NotRetryableError when subject is missing', () => {
-    const record = fakeKinesisRecord({ id: '1', type: 'T', timestamp: 'now', context: { tenantId: 't1' } });
+    const record = fakeKinesisRecord({ id: '1', type: 'T', timestamp: 'now', context: { tenantId: 't1', userId: 'test-user', region: 'us-east-1' } });
     expect(() => parseKinesisRecord(record)).toThrow('missing "subject"');
   });
 
   it('throws NotRetryableError when type is missing', () => {
-    const record = fakeKinesisRecord({ id: '1', timestamp: 'now', subject: {}, context: { tenantId: 't1' } });
+    const record = fakeKinesisRecord({ id: '1', timestamp: 'now', subject: {}, context: { tenantId: 't1', userId: 'test-user', region: 'us-east-1' } });
     expect(() => parseKinesisRecord(record)).toThrow('missing "type"');
   });
 });
