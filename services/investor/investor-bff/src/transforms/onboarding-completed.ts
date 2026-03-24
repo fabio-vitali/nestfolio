@@ -23,7 +23,7 @@ interface OnboardingCompletedSubject {
  */
 export async function onboardingCompleted(
   payload: EventPayload,
-  ctx: EventContext,
+  _ctx: EventContext,
 ): Promise<WriteIntent> {
   const s = payload.subject as unknown as OnboardingCompletedSubject;
   const tableName = process.env['TABLE_NAME']!;

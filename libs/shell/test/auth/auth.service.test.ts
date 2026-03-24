@@ -149,6 +149,7 @@ describe('getAuthUser', () => {
       username: 'testuser',
       email: 'test@example.com',
       tenantId: 'tenant-abc',
+      onboardingCompletedAt: null,
     });
   });
 

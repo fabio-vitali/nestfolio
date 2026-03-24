@@ -1,4 +1,4 @@
-import { OnboardingSessionSchema, OnboardingCompletedRecordSchema, PhasesSchema } from '../../src/domain/schemas';
+import { OnboardingSessionSchema, OnboardingCompletedRecordSchema } from '../../src/domain/schemas';
 
 describe('OnboardingSessionSchema', () => {
   it('validates a valid in-progress session', () => {
