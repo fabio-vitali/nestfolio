@@ -3,7 +3,7 @@ export { getUUID, getTime } from './core';
 export { logger } from './logger';
 export { tracer } from './tracer';
 export { traceEvent } from './trace-event';
-export { extractTenantId } from './extract-tenant-id';
+export { extractRequestContext } from './extract-request-context';
 export { guardedWrite } from './guarded-write';
 export { applyMiddleware, withLambdaContext, withTiming } from './middleware';
 export type { Middleware, LambdaHandler } from './middleware';
