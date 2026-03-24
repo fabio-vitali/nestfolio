@@ -5,6 +5,8 @@ export interface StreamRecord {
   readonly sk: string;
   readonly __typename: string;
   readonly tenantId: string;
+  readonly userId: string;
+  readonly region: string;
   readonly eventName: 'INSERT' | 'MODIFY' | 'REMOVE';
   readonly sequenceNo?: number;
   readonly [key: string]: unknown;
@@ -17,6 +19,8 @@ export interface StreamContext {
   readonly keys: { pk: string; sk: string };
   readonly typename: string;
   readonly tenantId: string;
+  readonly userId: string;
+  readonly region: string;
   readonly newImage?: Record<string, unknown>;
   readonly oldImage?: Record<string, unknown>;
 }
