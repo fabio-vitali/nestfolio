@@ -45,7 +45,7 @@ export function createAuthContext(
   return {
     arguments: {},
     identity: {
-      claims: { 'custom:tenant_id': tenantId, 'sub': userId },
+      claims: { 'custom:tenantId': tenantId, 'sub': userId },
       username: `${userId}@example.com`,
     },
     stash: {},
