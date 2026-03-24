@@ -71,6 +71,7 @@ function initializeAuth(): () => Promise<void> {
         username: user.username,
         email: user.email ?? '',
         tenantId: user.tenantId ?? '',
+        onboardingCompletedAt: user.onboardingCompletedAt ?? null,
       });
     } else {
       authStore.setUnauthenticated();

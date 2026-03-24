@@ -10,6 +10,7 @@ export interface AuthUser {
   username: string;
   email?: string;
   tenantId?: string;
+  onboardingCompletedAt?: string | null;
 }
 
 export interface SignUpInput {
@@ -89,6 +90,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       username: user.username,
       email: claims?.['email'] as string | undefined,
       tenantId: claims?.['custom:tenant_id'] as string | undefined,
+      onboardingCompletedAt: (claims?.['custom:onboarding_completed_at'] as string) || null,
     };
   } catch {
     return null;

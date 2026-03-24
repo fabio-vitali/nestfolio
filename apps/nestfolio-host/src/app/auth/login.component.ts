@@ -118,9 +118,11 @@ export class LoginComponent {
             username: user.username,
             email: user.email ?? '',
             tenantId: user.tenantId ?? '',
+            onboardingCompletedAt: user.onboardingCompletedAt ?? null,
           });
+          const target = user.onboardingCompletedAt ? '/dashboard' : '/onboarding';
+          await this.router.navigate([target]);
         }
-        await this.router.navigate(['/dashboard']);
       } else if (result.nextStep === 'CONFIRM_SIGN_UP') {
         this.authStore.setPendingEmail(this.email);
         await this.router.navigate(['/confirm']);
