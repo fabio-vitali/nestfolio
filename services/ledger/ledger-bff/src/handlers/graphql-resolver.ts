@@ -1,22 +1,21 @@
 import { AppSyncResolverEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { logger } from '@nestfolio/event-processor';
 import {
-  requireEnv,
-  authorizeRequest,
-  validateQueryDepth,
   applyMiddleware,
+  authorizeRequest,
+  EventBridgeBus,
+  logger,
+  requireEnv,
+  validateQueryDepth,
+  withErrorPublishing,
   withLambdaContext,
   withTiming,
-  withErrorPublishing,
-  EventBridgeBus,
-  type RequestContext,
 } from '@nestfolio/event-processor';
 import { PortfolioRepository } from '../repositories/portfolio.repository';
-
-const DEFAULT_CASH_BALANCE_CENTS = 10_000_000;
 import { TimeTravelService } from '../services/time-travel.service';
 import { TimestampSchema } from '../validation/schemas';
+
+const DEFAULT_CASH_BALANCE_CENTS = 10_000_000;
 
 interface ResolverDeps {
   readonly repository: PortfolioRepository;
@@ -24,10 +23,9 @@ interface ResolverDeps {
   readonly region: string;
 }
 
-export const createResolver = (deps: ResolverDeps) =>
-  async (
-    event: AppSyncResolverEvent<Record<string, unknown>>,
-  ): Promise<unknown> => {
+export const createResolver =
+  (deps: ResolverDeps) =>
+  async (event: AppSyncResolverEvent<Record<string, unknown>>): Promise<unknown> => {
     try {
       validateQueryDepth(event.info.selectionSetGraphQL);
       const ctx = authorizeRequest(event, deps.region);
@@ -73,8 +71,10 @@ export const createResolver = (deps: ResolverDeps) =>
               deps.repository.getSimulationPositions(tenantId),
             ]);
 
-          const actualCash = (actualLatest?.['cashBalanceCents'] as number) ?? DEFAULT_CASH_BALANCE_CENTS;
-          const simulatedCash = (simulatedLatest?.['cashBalanceCents'] as number) ?? DEFAULT_CASH_BALANCE_CENTS;
+          const actualCash =
+            (actualLatest?.['cashBalanceCents'] as number) ?? DEFAULT_CASH_BALANCE_CENTS;
+          const simulatedCash =
+            (simulatedLatest?.['cashBalanceCents'] as number) ?? DEFAULT_CASH_BALANCE_CENTS;
 
           // Build actual portfolio
           const actualPositionsList = actualPositions.map((p) => ({
@@ -106,8 +106,8 @@ export const createResolver = (deps: ResolverDeps) =>
 
           // Build position diffs
           const allSymbols = new Set<string>();
-          const actualBySymbol = new Map<string, typeof actualPositionsList[0]>();
-          const simulatedBySymbol = new Map<string, typeof simulatedPositionsList[0]>();
+          const actualBySymbol = new Map<string, (typeof actualPositionsList)[0]>();
+          const simulatedBySymbol = new Map<string, (typeof simulatedPositionsList)[0]>();
 
           for (const pos of actualPositionsList) {
             allSymbols.add(pos.symbol);

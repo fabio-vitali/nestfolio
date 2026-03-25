@@ -18,7 +18,7 @@ interface OnboardingCompletedSubject {
 }
 
 /**
- * Custom handler -- uses transactWrite for 6 entities atomically.
+ * Custom handler -- uses transactWrite for 7 entities atomically.
  * Returns skip() because it handles its own persistence.
  */
 export async function onboardingCompleted(
@@ -33,6 +33,7 @@ export async function onboardingCompleted(
   const risk = computeRiskProfile(s.riskTolerance, s.riskExperience);
   const goalId = getUUID();
   const mandateId = getUUID();
+  const depositId = getUUID();
 
   await repo.transactWrite({
     TransactItems: [
@@ -113,6 +114,19 @@ export async function onboardingCompleted(
           } satisfies TableEntry,
         },
       },
+      // 7. Put initial Deposit (CDC emits DEPOSIT_INITIATED automatically)
+      ...(s.capitalAmount > 0 ? [{
+        Put: {
+          TableName: tableName,
+          Item: {
+            pk, sk: `Deposit#${depositId}`, __typename: 'Deposit',
+            tenantId: s.tenantId, timestamp: now,
+            userId: s.userId, depositId,
+            amountCents: s.capitalAmount, currency: s.currency,
+            status: 'INITIATED', initiatedAt: now,
+          } satisfies TableEntry,
+        },
+      }] : []),
     ],
   });
 

@@ -2,7 +2,7 @@
 
 A deposit starts in the Investor domain and ripples across all four domains. The investor-bff validates and persists the request, investor-adpt forwards it to ExecutionBus where broker-adpt updates the cash balance. execution-adpt then fans the event out to AdvisoryBus (which may trigger a rebalance decision) and LedgerBus (which appends an event-sourced entry and updates the portfolio snapshot).
 
-**Trigger**: User initiates a deposit via the Investor MFE onboarding wizard.
+**Trigger**: User initiates a deposit via investor-mfe (either during onboarding or as a subsequent top-up).
 
 ---
 
