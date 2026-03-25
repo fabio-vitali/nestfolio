@@ -27,6 +27,8 @@ flowchart TB
         A5["Notify User"]
         A6["Update Investor Snapshot"]
         A7["Forward to Advisory"]
+        A8["investor-bff: Create Profile + Initial Deposit"]
+        A9["Deposit Flow (Feature #2)"]
     end
     subgraph subGraph1["Advisory Domain"]
         AB{{"AdvisoryBus"}}
@@ -43,7 +45,8 @@ flowchart TB
     A0 -.->|RAG| KB
     A1 & A1b & A1c & A1d & A2 & A2b & A3 -->|commit_phase| A4
     A4 --> IB
-    IB --> A5 & A6 & A7
+    IB --> A5 & A6 & A7 & A8
+    A8 -->|DEPOSIT_INITIATED| A9
     A7 --> AB
     AB --> B1
 
@@ -61,10 +64,13 @@ flowchart TB
     A5:::investor
     A6:::read
     A7:::investor
+    A8:::investor
+    A9:::execution
     AB:::bus
     B1:::advisory
     classDef investor fill:#D6E4FF,stroke:#3A6FB0,color:#000
     classDef advisory fill:#D6FFD9,stroke:#3AB05A,color:#000
+    classDef execution fill:#FFE2D6,stroke:#B05A3A,color:#000
     classDef read fill:#E6E6FF,stroke:#6A6AB0,color:#000
     classDef bus fill:#F5F5F5,stroke:#999,stroke-dasharray:5 5
     classDef agent_style fill:#E8D6FF,stroke:#6A3AB0,color:#000
