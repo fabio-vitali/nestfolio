@@ -39,8 +39,12 @@ Nestfolio currently operates in simulation-only mode. Orders are submitted throu
 ### Current flow (simulation only)
 
 ```
-execution-ctrl → CDC: ORDER_SUBMITTED → broker-adpt (simulates) → CDC: ORDER_FILLED → execution-adpt → ledger/investor
+execution-ctrl → CDC: ORDER_SUBMITTED → broker-adpt (simulates)
+  → CDC: VIRTUAL_TRADE_CREATED (convention) → event-publisher transforms → ORDER_FILLED on ExecutionBus
+  → execution-adpt → ledger/investor
 ```
+
+> **Note**: broker-adpt's CDC uses `buildEventTypeMap` convention (`VirtualTrade:INSERT` → `VIRTUAL_TRADE_CREATED`), with custom overrides for `DepositDetected:INSERT` → `DEPOSIT_DETECTED` and `WithdrawalCompleted:INSERT` → `WITHDRAWAL_COMPLETED`. The event-publisher handler transforms and publishes as canonical `ORDER_FILLED` to ExecutionBus.
 
 ### New flow
 
@@ -72,11 +76,11 @@ execution-ctrl → CDC: ORDER_SUBMITTED
 ### Deposit/withdrawal flow (same pattern)
 
 ```
-investor-bff → CDC: DEPOSIT_REQUESTED / WITHDRAWAL_REQUESTED
+investor-bff → CDC: DEPOSIT_INITIATED / WITHDRAWAL_REQUESTED
                         |
                    broker-ctrl
                    /          \
-  SIM_DEPOSIT_REQUESTED    ALPACA_TRANSFER_REQUESTED
+  SIM_DEPOSIT_INITIATED    ALPACA_TRANSFER_REQUESTED
         |                         |
   broker-sim-adpt           broker-alpaca-adpt
   (credits virtual cash)    (initiates ACH via Alpaca API)
@@ -96,17 +100,20 @@ All three services (`broker-ctrl`, `broker-sim-adpt`, `broker-alpaca-adpt`) live
 ### Service inventory
 
 **New services:**
-- `broker-ctrl` — Execution domain. Routes orders, normalizes broker events, failure classification, circuit breaker, order state machine
+- `broker-ctrl` — Execution domain. Routes orders, normalizes broker events, failure classification, circuit breaker, order state machine. **Deliberate exception to the stateless-controller convention**: broker-ctrl requires its own DynamoDB table for order state machine, circuit breaker state, and execution mode cache. This is justified — it is an orchestration service with state machine semantics, not a typical event processor. The `-ctrl` suffix is retained for consistency with the execution domain naming, but this service owns state.
 - `broker-alpaca-adpt` — Execution domain. Thin Alpaca API wrapper + internal event polling
 
 **Modified services:**
 - `broker-adpt` → `broker-sim-adpt` — Rename, emit sim-specific events instead of canonical ones
-- `investor-bff` — Add `executionMode` field to `InvestorProfile`
+- `investor-bff` — Add `executionMode` field to `InvestorProfile` (default: `'simulation'` for existing profiles)
 - `ledger-ctrl` — Add `TaxLotManager` (FIFO lot tracking)
 - `onboarding-bff` — "Go Live" re-onboarding flow (`flowType: 'initial' | 'go-live'`)
+- `execution-adpt` — Add forwarding rules for `ORDER_ESCALATED` and `BROKER_CIRCUIT_OPEN` (ExecutionBus → InvestorBus)
+- `investor-adpt` — Add forwarding rule for `ALPACA_CREDENTIALS_PROVIDED` (InvestorBus → ExecutionBus)
+- `reconciliation-ctrl` — Add subscription to `ALPACA_ACCOUNT_SNAPSHOT` for broker-reported position verification
 
 **Unchanged services:**
-- `execution-ctrl`, `execution-adpt`, `compliance-ctrl`, `decision-workflow-ctrl`, `portfolio-engine-ctrl`, `reconciliation-ctrl`, `ledger-bff`, `dashboard-bff`, `investor-ctrl`, all hubs, all market data adapters
+- `execution-ctrl`, `compliance-ctrl`, `decision-workflow-ctrl`, `portfolio-engine-ctrl`, `ledger-bff`, `dashboard-bff`, `investor-ctrl`, all hubs, all market data adapters
 
 ---
 
@@ -124,22 +131,31 @@ Every order tracked by `broker-ctrl` goes through a state machine persisted in i
                   emit SIM_* or ALPACA_*
                             |
                     [AWAITING_FILL]
-                     /      |        \
-              FILLED   PARTIAL   REJECTED/FAILED
-                |        |              |
-           normalize  update qty    classify failure
-                |      & wait          |
-          ORDER_FILLED    |     [RETRYABLE?]
-                          |       /       \
-                          |     yes        no
-                          |      |          |
-                          |   re-emit    [ESCALATED]
-                          |   (max 3)       |
-                          |      |      notify user
-                          |      |
-                     ORDER_PARTIALLY_FILLED
-                     (when remainder times out
-                      or final fill arrives)
+                            |
+              +-------------+--- ALPACA_ORDER_PLACED received?
+              |                  -> update alpacaOrderId on record (stay in AWAITING_FILL)
+              |
+              +------+------+----------+
+              |      |      |          |
+           FILLED  PARTIAL  REJECTED   CANCEL_REQUESTED
+              |      |      /FAILED       |
+         normalize  update    |      emit ALPACA_ORDER_CANCEL_REQUESTED
+              |    qty & wait |      or SIM cancel
+              |      |        |           |
+       ORDER_FILLED  |   classify     CANCELLED / CANCEL_FAILED
+              |      |   failure         |           |
+              |      |      |        normalize    normalize
+              |      |  [RETRYABLE?]     |           |
+              |      |    /     \   ORDER_CANCELLED  ORDER_REJECTED
+              |      |  yes      no
+              |      |   |        |
+              |      | re-emit [ESCALATED]
+              |      | (max 3)    |
+              |      |   |    notify user
+              |      |   |
+              | ORDER_PARTIALLY_FILLED
+              | (emitted for each partial fill;
+              |  ORDER_FILLED when full qty reached)
 ```
 
 ### DynamoDB entities
@@ -150,9 +166,10 @@ sk: BrokerOrder
 
 {
   tenantId, orderId, executionMode,
-  state: ROUTING | AWAITING_FILL | FILLED | PARTIALLY_FILLED | REJECTED | FAILED | ESCALATED,
+  state: ROUTING | AWAITING_FILL | FILLED | PARTIALLY_FILLED | REJECTED | FAILED | ESCALATED | CANCEL_REQUESTED | CANCELLED,
   routedTo: 'sim' | 'alpaca',
   routedEventId: string,
+  alpacaOrderId: string | null,   // set when ALPACA_ORDER_PLACED received
 
   // fill tracking
   requestedQty, filledQty, remainingQty,
@@ -205,17 +222,17 @@ sk: Instrument#{symbol} | Global
 - **OPEN**: new orders for that instrument (or all if global) held in `pendingOrderIds`
 - **Auto-close conditions:**
   - Instrument breaker: fill or rejection received for the stuck order
-  - Global breaker: successful health check to Alpaca (polled by Step Functions)
+  - Global breaker: Step Functions Express Workflow started on `BROKER_CIRCUIT_OPEN`, polls `ALPACA_ACCOUNT_CHECK` every 60s via broker-alpaca-adpt. Closes breaker on successful `ALPACA_ACCOUNT_SNAPSHOT` response. Escalates to user after 10 consecutive failures.
 - **On close:** pending orders re-routed automatically
 
 ### Retry Mechanism
 
-Retries use **Step Functions wait states** — no polling loops:
+Retries use **Step Functions Express Workflow wait states** (sub-minute waits are free on Express, expensive on Standard) — no polling loops:
 
 ```
 broker-ctrl classifies as retryable
   -> writes retryCount + 1 to DDB
-  -> starts Step Functions execution: Wait(backoff) -> emit SIM_*/ALPACA_* again
+  -> starts SF Express execution: Wait(backoff) -> emit SIM_*/ALPACA_* again
 ```
 
 ### Order Timeout Detection
@@ -265,7 +282,7 @@ Thin Alpaca API wrapper + internal event polling. No failure classification, no 
 | Trigger | Action | Outbound (CDC) |
 |---------|--------|----------------|
 | EventBridge Scheduler (every 15-30s while orders in-flight) | `GET /v2/events/trades?since=X` | `ALPACA_ORDER_FILLED` / `ALPACA_ORDER_PARTIALLY_FILLED` / `ALPACA_ORDER_REJECTED` |
-| EventBridge Scheduler (every 5min while transfers pending) | `GET /v2/ach/transfers/{id}` | `ALPACA_TRANSFER_COMPLETED` / `ALPACA_TRANSFER_FAILED` / `ALPACA_TRANSFER_STILL_PENDING` |
+| EventBridge Scheduler (every 5min while transfers pending) | `GET /v2/ach/transfers/{id}` | `ALPACA_TRANSFER_COMPLETED` / `ALPACA_TRANSFER_FAILED` (no event emitted if still pending — polling continues) |
 
 ### Polling Mechanism
 
@@ -349,7 +366,7 @@ Rename + event type swap. Simulation engine logic stays as-is.
 |--------|----------------------|------------------------|
 | Service name | `broker-adpt` | `broker-sim-adpt` |
 | Subscribes to | `ORDER_SUBMITTED` | `SIM_ORDER_REQUESTED` |
-| Emits (CDC) | `ORDER_FILLED`, `ORDER_REJECTED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED` | `SIM_ORDER_FILLED`, `SIM_ORDER_REJECTED`, `SIM_DEPOSIT_COMPLETED`, `SIM_WITHDRAWAL_COMPLETED` |
+| Emits (CDC) | `VIRTUAL_TRADE_CREATED` (transformed to `ORDER_FILLED` by event-publisher), `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED` | `SIM_ORDER_FILLED`, `SIM_ORDER_REJECTED`, `SIM_DEPOSIT_COMPLETED`, `SIM_WITHDRAWAL_COMPLETED` |
 | Business logic | SimulationEngineService | **Unchanged** |
 | Virtual ledger | VirtualLedgerRepository | **Unchanged** |
 | Market data | CachedMarketDataProvider | **Unchanged** |
@@ -359,17 +376,21 @@ Rename + event type swap. Simulation engine logic stays as-is.
 | Event | Action | Outbound (CDC) |
 |-------|--------|----------------|
 | `SIM_ORDER_REQUESTED` | Run SimulationEngineService (validate balance/position, simulate fill) | `SIM_ORDER_FILLED` or `SIM_ORDER_REJECTED` |
-| `SIM_DEPOSIT_REQUESTED` | Credit virtual cash balance | `SIM_DEPOSIT_COMPLETED` |
+| `SIM_DEPOSIT_INITIATED` | Credit virtual cash balance | `SIM_DEPOSIT_COMPLETED` |
 | `SIM_WITHDRAWAL_REQUESTED` | Debit virtual cash balance | `SIM_WITHDRAWAL_COMPLETED` |
 
 ### CDC Event Type Mapping Update
 
+Current broker-adpt uses `buildEventTypeMap` convention + custom overrides. broker-sim-adpt replaces with explicit `customEventTypeMap`:
+
 ```
-INSERT status=FILLED      -> SIM_ORDER_FILLED       (was ORDER_FILLED)
-INSERT status=REJECTED    -> SIM_ORDER_REJECTED      (was ORDER_REJECTED)
-INSERT type=DEPOSIT       -> SIM_DEPOSIT_COMPLETED   (was DEPOSIT_DETECTED)
-INSERT type=WITHDRAWAL    -> SIM_WITHDRAWAL_COMPLETED (was WITHDRAWAL_COMPLETED)
+VirtualTrade:INSERT    -> SIM_ORDER_FILLED       (was VIRTUAL_TRADE_CREATED, transformed to ORDER_FILLED)
+VirtualTrade:INSERT    -> SIM_ORDER_REJECTED     (new — rejected trades need explicit status-based mapping)
+DepositDetected:INSERT -> SIM_DEPOSIT_COMPLETED  (was DEPOSIT_DETECTED)
+WithdrawalCompleted:INSERT -> SIM_WITHDRAWAL_COMPLETED (was WITHDRAWAL_COMPLETED)
 ```
+
+> **Migration note**: The current event-publisher handler in broker-adpt transforms `VIRTUAL_TRADE_CREATED` → `ORDER_FILLED`. broker-sim-adpt replaces this with a direct `customEventTypeMap` that emits `SIM_ORDER_FILLED` without the intermediate transformation.
 
 ### Migration Risk
 
@@ -544,7 +565,7 @@ ORDER_FILLED received by ledger-ctrl
   -> taxLotManager.openLot/closeLots   // lot tracking (new)
 ```
 
-Tax lots only apply to actual stream (real fills). Simulated fills skip `TaxLotManager`.
+Tax lots only apply to live fills. `broker-ctrl` includes `executionMode` in the normalized `ORDER_FILLED` payload. `ledger-ctrl` reads this field: if `executionMode === 'live'`, invoke `TaxLotManager`; if `'simulation'`, skip. This is the only field `broker-ctrl` adds to the canonical event schema beyond the existing fields.
 
 ---
 
@@ -603,7 +624,7 @@ Settings page in `investor-mfe` with a "Switch to Live Trading" CTA. Only visibl
 | `SIM_ORDER_REQUESTED` | broker-ctrl | broker-sim-adpt |
 | `SIM_ORDER_FILLED` | broker-sim-adpt (CDC) | broker-ctrl |
 | `SIM_ORDER_REJECTED` | broker-sim-adpt (CDC) | broker-ctrl |
-| `SIM_DEPOSIT_REQUESTED` | broker-ctrl | broker-sim-adpt |
+| `SIM_DEPOSIT_INITIATED` | broker-ctrl | broker-sim-adpt |
 | `SIM_DEPOSIT_COMPLETED` | broker-sim-adpt (CDC) | broker-ctrl |
 | `SIM_WITHDRAWAL_REQUESTED` | broker-ctrl | broker-sim-adpt |
 | `SIM_WITHDRAWAL_COMPLETED` | broker-sim-adpt (CDC) | broker-ctrl |
@@ -619,27 +640,28 @@ Settings page in `investor-mfe` with a "Switch to Live Trading" CTA. Only visibl
 | `ALPACA_TRANSFER_INITIATED` | broker-alpaca-adpt (CDC) | broker-ctrl |
 | `ALPACA_TRANSFER_COMPLETED` | broker-alpaca-adpt (CDC) | broker-ctrl |
 | `ALPACA_TRANSFER_FAILED` | broker-alpaca-adpt (CDC) | broker-ctrl |
-| `ALPACA_TRANSFER_STILL_PENDING` | broker-alpaca-adpt (CDC) | broker-ctrl |
 | `ALPACA_ACCOUNT_CHECK` | broker-ctrl | broker-alpaca-adpt |
 | `ALPACA_ACCOUNT_SNAPSHOT` | broker-alpaca-adpt (CDC) | broker-ctrl, reconciliation-ctrl |
-| `ALPACA_CREDENTIALS_PROVIDED` | onboarding-bff | broker-alpaca-adpt |
-| `ALPACA_ACCOUNT_VERIFIED` | broker-alpaca-adpt (CDC) | onboarding-bff |
-| `ALPACA_ACCOUNT_VERIFICATION_FAILED` | broker-alpaca-adpt (CDC) | onboarding-bff |
 
 ### New Events (Cross-Domain)
 
-| Event | Source | Bus | Consumer |
-|-------|--------|-----|----------|
-| `EXECUTION_MODE_CHANGED` | investor-bff (CDC) | InvestorBus | broker-ctrl, dashboard-bff |
+| Event | Source | Bus Route | Consumer |
+|-------|--------|-----------|----------|
+| `EXECUTION_MODE_CHANGED` | investor-bff (CDC) | InvestorBus → ExecutionBus (via investor-adpt) | broker-ctrl, dashboard-bff |
 | `GO_LIVE_CONFIRMED` | onboarding-bff (CDC) | InvestorBus | investor-bff |
-| `ORDER_ESCALATED` | broker-ctrl (CDC) | InvestorBus (via execution-adpt) | investor-ctrl (notification) |
-| `BROKER_CIRCUIT_OPEN` | broker-ctrl (CDC) | InvestorBus (via execution-adpt) | investor-ctrl (notification) |
+| `ORDER_ESCALATED` | broker-ctrl (CDC) | ExecutionBus → InvestorBus (via execution-adpt) | investor-ctrl (notification) |
+| `BROKER_CIRCUIT_OPEN` | broker-ctrl (CDC) | ExecutionBus → InvestorBus (via execution-adpt) | investor-ctrl (notification) |
+| `ALPACA_CREDENTIALS_PROVIDED` | onboarding-bff (CDC) | InvestorBus → ExecutionBus (via investor-adpt) | broker-alpaca-adpt |
+| `ALPACA_ACCOUNT_VERIFIED` | broker-alpaca-adpt (CDC) | ExecutionBus → InvestorBus (via execution-adpt) | onboarding-bff |
+| `ALPACA_ACCOUNT_VERIFICATION_FAILED` | broker-alpaca-adpt (CDC) | ExecutionBus → InvestorBus (via execution-adpt) | onboarding-bff |
 
 ### Modified Events
 
 | Event | Change |
 |-------|--------|
-| `ORDER_FILLED` | Now emitted by broker-ctrl (was broker-adpt). Same schema. |
+| `ORDER_FILLED` | Now emitted by broker-ctrl (was broker-adpt). Schema adds `executionMode` field. |
+| `ORDER_PARTIALLY_FILLED` | Now emitted by broker-ctrl (was broker-adpt). Emitted for each partial fill as it arrives. Schema adds `executionMode` field. |
 | `ORDER_REJECTED` | Now emitted by broker-ctrl (was broker-adpt). Same schema. |
+| `ORDER_CANCELLED` | Now emitted by broker-ctrl (normalizes from `ALPACA_ORDER_CANCELLED` or sim cancel). Same schema. |
 | `DEPOSIT_DETECTED` | Now emitted by broker-ctrl (was broker-adpt). Same schema. |
 | `WITHDRAWAL_COMPLETED` | Now emitted by broker-ctrl (was broker-adpt). Same schema. |
