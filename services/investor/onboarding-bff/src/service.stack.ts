@@ -12,9 +12,9 @@ export class OnboardingBffStack extends ServiceStack {
     super(scope, id, { ...props, serviceDir: __dirname });
     // Own table created by default State construct
 
-    // Egress — CDC for ONBOARDING_COMPLETED
+    // Egress — CDC for ONBOARDING_COMPLETED and GO_LIVE_CONFIRMED
     new Egress(this, 'Egress', {
-      publishableTypes: ['OnboardingCompleted'],
+      publishableTypes: ['OnboardingCompleted', 'GoLiveConfirmed'],
     });
 
     // Model IDs from SSM (shared with advisory services)
