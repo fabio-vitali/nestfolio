@@ -1,15 +1,21 @@
 /**
- * Integration tests: Order Lifecycle through the broker-ctrl handler chain.
+ * Integration tests: broker-ctrl handler chain.
  *
- * These tests call the actual handler functions in sequence to verify the
- * end-to-end handler chain that the Step Functions state machine orchestrates.
- * AWS SDK clients (DDB, EventBridge, SFN) are mocked at the module level.
+ * These tests call the actual handler functions to verify the end-to-end
+ * handler chain. AWS SDK clients (DDB, EventBridge, SFN) are mocked at the
+ * module level; createIngestionHandler/materializeToTable are patched to inject
+ * the mocked DDB client (jest.requireActual bypasses AWS SDK mocks for
+ * transitive dependencies loaded by the event-processor library).
  *
- * Scenarios:
+ * Order Lifecycle Scenarios:
  * 1. Happy path: ORDER_SUBMITTED → RouteOrder → SIM_ORDER_FILLED callback → FILLED
  * 2. Transient failure: RouteOrder → transient rejection → retry → eventual fill
  * 3. Deterministic rejection: RouteOrder → deterministic rejection → REJECTED
  * 4. Timeout / escalation: RouteOrder → no callback → taskToken already cleared
+ *
+ * Mode Listener: EXECUTION_MODE_CHANGED → ExecutionMode record in DDB
+ * Deposit/Withdrawal Router: DEPOSIT_INITIATED / WITHDRAWAL_REQUESTED → routed by mode
+ * Deposit/Withdrawal Normalizer: adapter results → NormalizedEvent records in DDB
  */
 
 // ── Mock setup (BEFORE any imports) ─────────────────────────────────────────
@@ -47,37 +53,63 @@ jest.mock('@aws-sdk/client-sfn', () => ({
 process.env.TABLE_NAME = 'broker-ctrl-table';
 process.env.BUS_NAME = 'execution-bus';
 
-jest.mock('@nestfolio/event-processor', () => ({
-  ...jest.requireActual('@nestfolio/event-processor'),
-  TableRepository: class {
-    protected readonly docClient: { send: jest.Mock };
-    protected readonly tableName: string;
-    constructor(tableName: string) {
-      this.tableName = tableName;
-      this.docClient = { send: mockDdbSend };
-    }
-    protected async put(item: Record<string, unknown>) {
-      const { PutCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
-    }
-    protected async update(pk: string, sk: string, updates: Record<string, unknown>) {
-      const { UpdateCommand } = require('@aws-sdk/lib-dynamodb');
-      await this.docClient.send(
-        new UpdateCommand({ TableName: this.tableName, Key: { pk, sk }, ...updates }),
-      );
-    }
-  },
-  requireEnv: (name: string) => process.env[name] ?? name,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
-  getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  withMethodLogging: jest.fn((_className: string) =>
-    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
-  ),
-}));
+jest.mock('@nestfolio/event-processor', () => {
+  const actual = jest.requireActual('@nestfolio/event-processor');
+
+  // Override createIngestionHandler to inject the mocked DDB client
+  const originalCreateIngestionHandler = actual.createIngestionHandler;
+  const patchedCreateIngestionHandler = (config: Record<string, unknown>) =>
+    originalCreateIngestionHandler({
+      ...config,
+      table: { name: process.env.TABLE_NAME ?? 'broker-ctrl-table', client: { send: mockDdbSend } },
+    });
+
+  // Override materializeToTable to use the patched createIngestionHandler
+  const patchedMaterializeToTable = (config: Record<string, unknown>) =>
+    patchedCreateIngestionHandler({
+      ...config,
+      table: config.table ?? process.env.TABLE_NAME,
+      bus: config.bus ?? process.env.BUS_NAME,
+    });
+
+  return {
+    ...actual,
+    createIngestionHandler: patchedCreateIngestionHandler,
+    materializeToTable: patchedMaterializeToTable,
+    TableRepository: class {
+      protected readonly docClient: { send: jest.Mock };
+      protected readonly tableName: string;
+      constructor(tableName: string) {
+        this.tableName = tableName;
+        this.docClient = { send: mockDdbSend };
+      }
+      protected async put(item: Record<string, unknown>) {
+        const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+        await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
+      }
+      protected async update(pk: string, sk: string, updates: Record<string, unknown>) {
+        const { UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+        await this.docClient.send(
+          new UpdateCommand({ TableName: this.tableName, Key: { pk, sk }, ...updates }),
+        );
+      }
+    },
+    requireEnv: (name: string) => process.env[name] ?? name,
+    logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+    getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
+    withMethodLogging: jest.fn((_className: string) =>
+      (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
+    ),
+  };
+});
 
 // ── Imports (after mocks) ───────────────────────────────────────────────────
 import { handler as routeOrder, type RouteOrderEvent } from '../../src/handlers/route-order';
 import { handler as callbackResolver } from '../../src/handlers/callback-resolver';
+import { handler as modeListener } from '../../src/handlers/mode-listener';
+import { handler as depositWithdrawalRouter } from '../../src/handlers/deposit-withdrawal-router';
+import { handler as depositWithdrawalNormalizer } from '../../src/handlers/deposit-withdrawal-normalizer';
+import { fakeSqsRecord } from '@nestfolio/event-processor';
 import type { SQSEvent } from 'aws-lambda';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -116,6 +148,29 @@ function getPutItem(callIndex: number): Record<string, unknown> {
   const call = mockDdbSend.mock.calls[callIndex][0];
   expect(call._type).toBe('Put');
   return call.input.Item;
+}
+
+/**
+ * Find a DDB PutCommand call that wrote an item with the given __typename.
+ * Works with both mocked PutCommand (_type='Put') and real PutCommand (constructor.name='PutCommand').
+ */
+function findPutItemByTypename(typename: string): Record<string, unknown> | undefined {
+  for (const call of mockDdbSend.mock.calls) {
+    const cmd = call[0];
+    const item = cmd?.input?.Item;
+    if (item && item.__typename === typename) return item;
+  }
+  return undefined;
+}
+
+/** Find the first DDB PutCommand call that wrote an Item (any command format). */
+function findFirstPutItem(): Record<string, unknown> | undefined {
+  for (const call of mockDdbSend.mock.calls) {
+    const cmd = call[0];
+    const item = cmd?.input?.Item;
+    if (item) return item;
+  }
+  return undefined;
 }
 
 /** Extract the EventBridge entry from the Nth EB call (0-indexed) */
@@ -451,5 +506,346 @@ describe('Order Lifecycle Integration', () => {
       // No taskToken means callback resolver skips SFN call
       expect(mockSfnSend).not.toHaveBeenCalled();
     });
+  });
+});
+
+// ── Mode Listener Integration ─────────────────────────────────────────────
+describe('Mode Listener Integration', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockDdbSend.mockResolvedValue({});
+  });
+
+  it('should materialize ExecutionMode record on EXECUTION_MODE_CHANGED (live)', async () => {
+    const event: SQSEvent = {
+      Records: [
+        fakeSqsRecord('EXECUTION_MODE_CHANGED', { mode: 'live' }, { tenantId: 't-1' }),
+      ],
+    };
+
+    const result = await modeListener(event);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    expect(mockDdbSend).toHaveBeenCalled();
+    const item = findPutItemByTypename('ExecutionMode');
+    expect(item).toBeDefined();
+    expect(item).toMatchObject({
+      __typename: 'ExecutionMode',
+      tenantId: 't-1',
+      mode: 'live',
+      pk: 'ExecutionMode#t-1',
+      sk: 'ExecutionMode',
+    });
+  });
+
+  it('should materialize ExecutionMode record on EXECUTION_MODE_CHANGED (simulation)', async () => {
+    const event: SQSEvent = {
+      Records: [
+        fakeSqsRecord('EXECUTION_MODE_CHANGED', { mode: 'simulation' }, { tenantId: 't-2' }),
+      ],
+    };
+
+    const result = await modeListener(event);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    const item = findPutItemByTypename('ExecutionMode');
+    expect(item).toBeDefined();
+    expect(item).toMatchObject({
+      __typename: 'ExecutionMode',
+      tenantId: 't-2',
+      mode: 'simulation',
+      pk: 'ExecutionMode#t-2',
+      sk: 'ExecutionMode',
+    });
+  });
+});
+
+// ── Deposit/Withdrawal Router Integration ─────────────────────────────────
+describe('Deposit/Withdrawal Router Integration', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockDdbSend.mockResolvedValue({});
+    mockEbSend.mockResolvedValue({});
+  });
+
+  describe('DEPOSIT_INITIATED routing', () => {
+    it('should route deposit to SIM_DEPOSIT_INITIATED when mode=simulation', async () => {
+      // ExecutionModeRepository.getMode reads from DDB — return simulation mode
+      mockDdbSend.mockResolvedValueOnce({ Item: { mode: 'simulation' } });
+
+      const event: SQSEvent = {
+        Records: [
+          fakeSqsRecord('DEPOSIT_INITIATED', { amount: 1000, currency: 'USD' }, { tenantId: 't-1' }),
+        ],
+      };
+
+      const result = await depositWithdrawalRouter(event);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(mockEbSend).toHaveBeenCalledTimes(1);
+      const ebCall = mockEbSend.mock.calls[0][0];
+      expect(ebCall.input.Entries[0]).toMatchObject({
+        EventBusName: 'execution-bus',
+        Source: 'broker-ctrl',
+        DetailType: 'SIM_DEPOSIT_INITIATED',
+      });
+      const detail = JSON.parse(ebCall.input.Entries[0].Detail);
+      expect(detail.tenantId).toBe('t-1');
+      expect(detail.subject.direction).toBe('INCOMING');
+      expect(detail.subject.amount).toBe(1000);
+    });
+
+    it('should route deposit to ALPACA_TRANSFER_REQUESTED when mode=live', async () => {
+      mockDdbSend.mockResolvedValueOnce({ Item: { mode: 'live' } });
+
+      const event: SQSEvent = {
+        Records: [
+          fakeSqsRecord('DEPOSIT_INITIATED', { amount: 5000, currency: 'USD' }, { tenantId: 't-2' }),
+        ],
+      };
+
+      const result = await depositWithdrawalRouter(event);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(mockEbSend).toHaveBeenCalledTimes(1);
+      const ebCall = mockEbSend.mock.calls[0][0];
+      expect(ebCall.input.Entries[0]).toMatchObject({
+        EventBusName: 'execution-bus',
+        Source: 'broker-ctrl',
+        DetailType: 'ALPACA_TRANSFER_REQUESTED',
+      });
+      const detail = JSON.parse(ebCall.input.Entries[0].Detail);
+      expect(detail.tenantId).toBe('t-2');
+      expect(detail.subject.direction).toBe('INCOMING');
+    });
+  });
+
+  describe('WITHDRAWAL_REQUESTED routing', () => {
+    it('should route withdrawal to SIM_WITHDRAWAL_REQUESTED when mode=simulation', async () => {
+      mockDdbSend.mockResolvedValueOnce({ Item: { mode: 'simulation' } });
+
+      const event: SQSEvent = {
+        Records: [
+          fakeSqsRecord('WITHDRAWAL_REQUESTED', { amount: 500, currency: 'USD' }, { tenantId: 't-3' }),
+        ],
+      };
+
+      const result = await depositWithdrawalRouter(event);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(mockEbSend).toHaveBeenCalledTimes(1);
+      const ebCall = mockEbSend.mock.calls[0][0];
+      expect(ebCall.input.Entries[0]).toMatchObject({
+        EventBusName: 'execution-bus',
+        Source: 'broker-ctrl',
+        DetailType: 'SIM_WITHDRAWAL_REQUESTED',
+      });
+      const detail = JSON.parse(ebCall.input.Entries[0].Detail);
+      expect(detail.tenantId).toBe('t-3');
+      expect(detail.subject.direction).toBe('OUTGOING');
+    });
+
+    it('should route withdrawal to ALPACA_TRANSFER_REQUESTED when mode=live', async () => {
+      mockDdbSend.mockResolvedValueOnce({ Item: { mode: 'live' } });
+
+      const event: SQSEvent = {
+        Records: [
+          fakeSqsRecord('WITHDRAWAL_REQUESTED', { amount: 2000, currency: 'USD' }, { tenantId: 't-4' }),
+        ],
+      };
+
+      const result = await depositWithdrawalRouter(event);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(mockEbSend).toHaveBeenCalledTimes(1);
+      const ebCall = mockEbSend.mock.calls[0][0];
+      expect(ebCall.input.Entries[0]).toMatchObject({
+        EventBusName: 'execution-bus',
+        Source: 'broker-ctrl',
+        DetailType: 'ALPACA_TRANSFER_REQUESTED',
+      });
+      const detail = JSON.parse(ebCall.input.Entries[0].Detail);
+      expect(detail.tenantId).toBe('t-4');
+      expect(detail.subject.direction).toBe('OUTGOING');
+    });
+  });
+
+  describe('default mode fallback', () => {
+    it('should default to simulation when no ExecutionMode record exists', async () => {
+      // getMode returns undefined Item — defaults to 'simulation'
+      mockDdbSend.mockResolvedValueOnce({ Item: undefined });
+
+      const event: SQSEvent = {
+        Records: [
+          fakeSqsRecord('DEPOSIT_INITIATED', { amount: 100, currency: 'USD' }, { tenantId: 't-new' }),
+        ],
+      };
+
+      const result = await depositWithdrawalRouter(event);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(mockEbSend).toHaveBeenCalledTimes(1);
+      const ebCall = mockEbSend.mock.calls[0][0];
+      expect(ebCall.input.Entries[0].DetailType).toBe('SIM_DEPOSIT_INITIATED');
+    });
+  });
+});
+
+// ── Deposit/Withdrawal Normalizer Integration ─────────────────────────────
+describe('Deposit/Withdrawal Normalizer Integration', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockDdbSend.mockResolvedValue({});
+  });
+
+  it('should normalize SIM_DEPOSIT_COMPLETED to NormalizedEvent with sk=DEPOSIT_DETECTED', async () => {
+    const event: SQSEvent = {
+      Records: [
+        fakeSqsRecord('SIM_DEPOSIT_COMPLETED', {
+          depositId: 'dep-1',
+          amountCents: 10000,
+          currency: 'USD',
+        }, { tenantId: 't-1' }),
+      ],
+    };
+
+    const result = await depositWithdrawalNormalizer(event);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    const item = findFirstPutItem();
+    expect(item).toBeDefined();
+    expect(item).toMatchObject({
+      __typename: 'NormalizedEvent',
+      tenantId: 't-1',
+      amount: 10000,
+      currency: 'USD',
+      executionMode: 'simulation',
+      pk: 'NormalizedEvent#t-1#dep-1',
+      sk: 'DEPOSIT_DETECTED',
+    });
+  });
+
+  it('should normalize SIM_WITHDRAWAL_COMPLETED to NormalizedEvent with sk=WITHDRAWAL_COMPLETED', async () => {
+    const event: SQSEvent = {
+      Records: [
+        fakeSqsRecord('SIM_WITHDRAWAL_COMPLETED', {
+          withdrawalId: 'wdl-1',
+          amount: 20000,
+          currency: 'USD',
+        }, { tenantId: 't-1' }),
+      ],
+    };
+
+    const result = await depositWithdrawalNormalizer(event);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    const item = findFirstPutItem();
+    expect(item).toBeDefined();
+    expect(item).toMatchObject({
+      __typename: 'NormalizedEvent',
+      tenantId: 't-1',
+      amount: 20000,
+      currency: 'USD',
+      executionMode: 'simulation',
+      pk: 'NormalizedEvent#t-1#wdl-1',
+      sk: 'WITHDRAWAL_COMPLETED',
+    });
+  });
+
+  it('should normalize ALPACA_TRANSFER_COMPLETED INCOMING to sk=DEPOSIT_DETECTED', async () => {
+    const event: SQSEvent = {
+      Records: [
+        fakeSqsRecord('ALPACA_TRANSFER_COMPLETED', {
+          transferId: 'xfr-1',
+          amount: 50000,
+          direction: 'INCOMING',
+        }, { tenantId: 't-2' }),
+      ],
+    };
+
+    const result = await depositWithdrawalNormalizer(event);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    const item = findFirstPutItem();
+    expect(item).toBeDefined();
+    expect(item).toMatchObject({
+      __typename: 'NormalizedEvent',
+      tenantId: 't-2',
+      amount: 50000,
+      executionMode: 'live',
+      pk: 'NormalizedEvent#t-2#xfr-1',
+      sk: 'DEPOSIT_DETECTED',
+    });
+  });
+
+  it('should normalize ALPACA_TRANSFER_COMPLETED OUTGOING to sk=WITHDRAWAL_COMPLETED', async () => {
+    const event: SQSEvent = {
+      Records: [
+        fakeSqsRecord('ALPACA_TRANSFER_COMPLETED', {
+          transferId: 'xfr-2',
+          amount: 30000,
+          direction: 'OUTGOING',
+        }, { tenantId: 't-2' }),
+      ],
+    };
+
+    const result = await depositWithdrawalNormalizer(event);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    const item = findFirstPutItem();
+    expect(item).toBeDefined();
+    expect(item).toMatchObject({
+      __typename: 'NormalizedEvent',
+      tenantId: 't-2',
+      amount: 30000,
+      executionMode: 'live',
+      pk: 'NormalizedEvent#t-2#xfr-2',
+      sk: 'WITHDRAWAL_COMPLETED',
+    });
+  });
+
+  it('should normalize ALPACA_TRANSFER_FAILED to sk=TRANSFER_FAILED with failureReason', async () => {
+    const event: SQSEvent = {
+      Records: [
+        fakeSqsRecord('ALPACA_TRANSFER_FAILED', {
+          transferId: 'xfr-fail-1',
+          amount: 15000,
+          failureReason: 'Insufficient funds',
+        }, { tenantId: 't-3' }),
+      ],
+    };
+
+    const result = await depositWithdrawalNormalizer(event);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    const item = findFirstPutItem();
+    expect(item).toBeDefined();
+    expect(item).toMatchObject({
+      __typename: 'NormalizedEvent',
+      tenantId: 't-3',
+      amount: 15000,
+      executionMode: 'live',
+      failureReason: 'Insufficient funds',
+      pk: 'NormalizedEvent#t-3#xfr-fail-1',
+      sk: 'TRANSFER_FAILED',
+    });
+  });
+
+  it('should default failureReason on ALPACA_TRANSFER_FAILED when missing', async () => {
+    const event: SQSEvent = {
+      Records: [
+        fakeSqsRecord('ALPACA_TRANSFER_FAILED', {
+          transferId: 'xfr-fail-2',
+          amount: 10000,
+        }, { tenantId: 't-3' }),
+      ],
+    };
+
+    const result = await depositWithdrawalNormalizer(event);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    const item = findFirstPutItem();
+    expect(item).toBeDefined();
+    expect(item!.failureReason).toBe('Transfer failed');
   });
 });
