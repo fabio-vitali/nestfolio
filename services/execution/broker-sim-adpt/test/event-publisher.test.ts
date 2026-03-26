@@ -1,24 +1,37 @@
-import { createCdcTestHarness, fakeDdbStreamRecord, buildEventTypeMap } from '@nestfolio/event-processor';
+import { createCdcTestHarness, fakeDdbStreamRecord, StreamRecord } from '@nestfolio/event-processor';
+import { BrokerSimEventTypes } from '../src/domain/events';
 
-const eventTypeMap = buildEventTypeMap(
-  ['VirtualTrade', 'VirtualCashBalance', 'VirtualPosition', 'DepositDetected', 'WithdrawalCompleted'],
-  {
-    'DepositDetected:INSERT': 'DEPOSIT_DETECTED',
-    'WithdrawalCompleted:INSERT': 'WITHDRAWAL_COMPLETED',
-  },
-);
+const eventTypeMap = {
+  'VirtualTrade:INSERT': (record: StreamRecord) =>
+    record.status === 'REJECTED'
+      ? BrokerSimEventTypes.SIM_ORDER_REJECTED
+      : BrokerSimEventTypes.SIM_ORDER_FILLED,
+  'VirtualTrade:MODIFY': (record: StreamRecord) =>
+    record.status === 'REJECTED'
+      ? BrokerSimEventTypes.SIM_ORDER_REJECTED
+      : BrokerSimEventTypes.SIM_ORDER_FILLED,
+  'DepositDetected:INSERT': BrokerSimEventTypes.SIM_DEPOSIT_COMPLETED,
+  'WithdrawalCompleted:INSERT': BrokerSimEventTypes.SIM_WITHDRAWAL_COMPLETED,
+};
 
 describe('broker-sim-adpt event-publisher', () => {
   const harness = createCdcTestHarness({ serviceName: 'broker-sim-adpt', eventTypeMap });
 
-  it('publishes VIRTUAL_TRADE_CREATED for VirtualTrade INSERT', async () => {
+  it('publishes SIM_ORDER_FILLED for VirtualTrade INSERT', async () => {
     const result = await harness.process([
-      fakeDdbStreamRecord('INSERT', { __typename: 'VirtualTrade', tenantId: 't1' }),
+      fakeDdbStreamRecord('INSERT', { __typename: 'VirtualTrade', tenantId: 't1', status: 'FILLED' }),
     ]);
-    expect(result.publishedEvents[0].eventType).toBe('VIRTUAL_TRADE_CREATED');
+    expect(result.publishedEvents[0].eventType).toBe('SIM_ORDER_FILLED');
   });
 
-  it('should map DepositDetected:INSERT to DEPOSIT_DETECTED', async () => {
+  it('publishes SIM_ORDER_REJECTED for VirtualTrade INSERT with status=REJECTED', async () => {
+    const result = await harness.process([
+      fakeDdbStreamRecord('INSERT', { __typename: 'VirtualTrade', tenantId: 't1', status: 'REJECTED' }),
+    ]);
+    expect(result.publishedEvents[0].eventType).toBe('SIM_ORDER_REJECTED');
+  });
+
+  it('should map DepositDetected:INSERT to SIM_DEPOSIT_COMPLETED', async () => {
     const result = await harness.process([
       fakeDdbStreamRecord('INSERT', {
         __typename: 'DepositDetected',
@@ -29,10 +42,10 @@ describe('broker-sim-adpt event-publisher', () => {
       }),
     ]);
     expect(result.publishedEvents).toHaveLength(1);
-    expect(result.publishedEvents[0].eventType).toBe('DEPOSIT_DETECTED');
+    expect(result.publishedEvents[0].eventType).toBe('SIM_DEPOSIT_COMPLETED');
   });
 
-  it('should map WithdrawalCompleted:INSERT to WITHDRAWAL_COMPLETED', async () => {
+  it('should map WithdrawalCompleted:INSERT to SIM_WITHDRAWAL_COMPLETED', async () => {
     const result = await harness.process([
       fakeDdbStreamRecord('INSERT', {
         __typename: 'WithdrawalCompleted',
@@ -41,6 +54,6 @@ describe('broker-sim-adpt event-publisher', () => {
       }),
     ]);
     expect(result.publishedEvents).toHaveLength(1);
-    expect(result.publishedEvents[0].eventType).toBe('WITHDRAWAL_COMPLETED');
+    expect(result.publishedEvents[0].eventType).toBe('SIM_WITHDRAWAL_COMPLETED');
   });
 });

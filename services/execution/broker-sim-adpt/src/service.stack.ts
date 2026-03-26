@@ -15,7 +15,7 @@ export class BrokerSimAdptStack extends ServiceStack {
     });
 
     const egress = new Egress(this, 'Egress', {
-      publishableTypes: ['VirtualTrade', 'VirtualCashBalance', 'VirtualPosition', 'DepositDetected', 'WithdrawalCompleted'],
+      publishableTypes: ['VirtualTrade', 'DepositDetected', 'WithdrawalCompleted'],
     });
 
     this.addObservability({ ingress, egress });
