@@ -40,3 +40,6 @@ pnpm-debug.log*
 
 .angular
 .worktrees/
+
+.claude/worktrees
+.claude/settings.local.json

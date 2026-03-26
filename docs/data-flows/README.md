@@ -48,6 +48,7 @@ Nestfolio is organized into **4 domains** communicating asynchronously via **Eve
 |---|------|---------|-----------------|
 | 08 | [Order Execution](./08-order-execution.md) | Advisory decision approved | Advisory, Execution, Ledger, Investor |
 | 13 | [Portfolio Rebalancing](./13-portfolio-rebalancing.md) | Drift detected between actual and target allocations | Ledger, Advisory, Execution |
+| 15 | [Go Live Flow](./15-go-live-flow.md) | User completes Go Live re-onboarding wizard | Investor, Execution |
 
 ## Reading the Flows
 
