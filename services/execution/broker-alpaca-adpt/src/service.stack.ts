@@ -1,6 +1,5 @@
-import { join } from 'path';
 import { Construct } from 'constructs';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { Egress, Ingress, ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
 import { AlpacaAdptEventTypes } from './domain/events';
 
 export class BrokerAlpacaAdptStack extends ServiceStack {
@@ -14,7 +13,6 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
         AlpacaAdptEventTypes.ALPACA_TRANSFER_REQUESTED,
         AlpacaAdptEventTypes.ALPACA_ACCOUNT_CHECK,
       ],
-      entry: join(__dirname, 'handlers', 'event-listener.ts'),
     });
 
     const egress = new Egress(this, 'Egress', {
