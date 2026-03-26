@@ -13,7 +13,10 @@ Nestfolio currently operates in simulation-only mode. Orders are submitted throu
 | Topic | Decision | Rationale |
 |-------|----------|-----------|
 | Broker | Alpaca first, broker-agnostic architecture | API-first, commission-free, developer-friendly |
-| Funding | Programmatic ACH via Alpaca's API | Single integration point for trading + funding |
+| Alpaca API | **Trading API** (`api.alpaca.markets`) — not Broker API | Personal use: one account, no broker-dealer partnership needed. Broker API migration path documented (Section 8) |
+| Credentials | System-level (AWS Secrets Manager + SSM), not per-tenant | One Alpaca account, one set of API keys. Admin configures once at deploy time. No credential exchange through EventBridge |
+| Bank linking | Done once on Alpaca dashboard (manual) | User links bank directly on Alpaca's website. Nestfolio only initiates ACH transfers via API |
+| Funding | Programmatic ACH via Alpaca's Trading API | Single integration point for trading + funding |
 | Simulation | Keep Nestfolio's simulation engine (`broker-sim-adpt`) | Broker-agnostic testing; Alpaca paper trading would couple sim to broker |
 | Service architecture | `broker-ctrl` (router/normalizer) + `broker-sim-adpt` + `broker-alpaca-adpt` | Anti-Corruption Layer: adapters speak native broker language, ctrl normalizes |
 | Routing | `broker-ctrl` routes per-tenant based on `executionMode` | Both sim and live active simultaneously; per-tenant mode stored in investor profile |
@@ -109,7 +112,7 @@ All three services (`broker-ctrl`, `broker-sim-adpt`, `broker-alpaca-adpt`) live
 - `ledger-ctrl` — Add `TaxLotManager` (FIFO lot tracking)
 - `onboarding-bff` — "Go Live" re-onboarding flow (`flowType: 'initial' | 'go-live'`)
 - `execution-adpt` — Add forwarding rules for `ORDER_ESCALATED` and `BROKER_CIRCUIT_OPEN` (ExecutionBus → InvestorBus)
-- `investor-adpt` — Add forwarding rules for `ALPACA_CREDENTIALS_PROVIDED` and `EXECUTION_MODE_CHANGED` (InvestorBus → ExecutionBus)
+- `investor-adpt` — Add forwarding rule for `EXECUTION_MODE_CHANGED` (InvestorBus → ExecutionBus)
 - `reconciliation-ctrl` — Add subscription to `ALPACA_ACCOUNT_SNAPSHOT` for broker-reported position verification
 
 **Unchanged services:**
@@ -268,7 +271,6 @@ Thin Alpaca API wrapper + internal event polling. No failure classification, no 
 | `GET /v2/events/trades?since=X&until=Y` | Batch poll all trade events | Internal scheduled poll |
 | `GET /v2/account` | Account balance/status | Reconciliation, health check |
 | `GET /v2/positions` | Current positions | Reconciliation |
-| `POST /v2/ach/relationships` | Link bank account | "Go Live" onboarding |
 | `POST /v2/ach/transfers` | Initiate ACH transfer | `ALPACA_TRANSFER_REQUESTED` |
 | `GET /v2/ach/transfers/{id}` | Transfer status | Internal scheduled poll |
 
@@ -310,13 +312,17 @@ Transfer polling: same pattern but slower cadence (ACH transfers take hours/days
 
 ### Alpaca Authentication
 
-Two static headers per request:
-- `APCA-API-KEY-ID`: API key ID
-- `APCA-API-SECRET-KEY`: API key secret
+**System-level credentials** — not per-tenant. Configured once at deploy time.
 
-Alpaca endpoints:
+Two static headers per request:
+- `APCA-API-KEY-ID`: from SSM Parameter Store (`/nestfolio/alpaca/api-key-id`)
+- `APCA-API-SECRET-KEY`: from AWS Secrets Manager (`nestfolio/alpaca/api-key-secret`)
+
+Alpaca endpoints (from SSM Parameter Store):
 - Paper: `https://paper-api.alpaca.markets`
 - Live: `https://api.alpaca.markets`
+
+`alpaca.client.ts` reads credentials from environment variables injected by CDK at deploy time (SSM/Secrets Manager → Lambda env vars). No runtime secret fetching, no per-tenant credential lookup.
 
 ### DynamoDB Entities
 
@@ -325,16 +331,12 @@ pk: OrderMapping#{tenantId}#{nestfolioOrderId}
 sk: OrderMapping
 { nestfolioOrderId, alpacaOrderId, symbol, side, status, submittedAt }
 
-pk: AlpacaCredentials#{tenantId}
-sk: AlpacaCredentials
-{ apiKeyId, secretManagerArn, environment, baseUrl, achRelationshipId }
-
 pk: PollingState#{tenantId}
 sk: PollingState
 { lastCheckedAt, openOrderCount, schedulerRuleArn }
 ```
 
-Note: `apiKeySecret` stored in AWS Secrets Manager — table holds ARN only. Full credential security design deferred to security pass.
+> **No AlpacaCredentials entity** — credentials are system-level infrastructure config, not application state. Full credential security design deferred to security pass.
 
 ### Service Structure
 
@@ -351,9 +353,8 @@ broker-alpaca-adpt/
       alpaca-transfers.service.ts
       alpaca-account.service.ts
     clients/
-      alpaca.client.ts             # HTTP client: auth headers, base URL, raw error passthrough
+      alpaca.client.ts             # HTTP client: auth headers (from env vars), base URL, raw error passthrough
     repositories/
-      credentials.repository.ts
       order-mapping.repository.ts
       polling-state.repository.ts
   test/
@@ -443,12 +444,17 @@ User taps "Switch to Live Trading" in investor-mfe. Triggers re-onboarding:
 
 | Phase | Description | Reuses existing? |
 |-------|-------------|-----------------|
-| 1. Connect Alpaca | OAuth or API key entry. Verify connection via `ALPACA_ACCOUNT_CHECK` | New |
-| 2. Review risk profile | Show current, let user adjust. Real money may change tolerance | Existing onboarding phase |
-| 3. Review investment goals | Show current, let user adjust | Existing onboarding phase |
-| 4. Review mandate & guardrails | Advisory vs. discretionary, concentration limits, turnover caps | Existing onboarding phase |
-| 5. Fund account | Link bank via Alpaca ACH, initiate transfer, wait for confirmation | New |
-| 6. Confirm switch | Summary screen, user confirms | New |
+| 1. Review risk profile | Show current, let user adjust. Real money may change tolerance | Existing onboarding phase |
+| 2. Review investment goals | Show current, let user adjust | Existing onboarding phase |
+| 3. Review mandate & guardrails | Advisory vs. discretionary, concentration limits, turnover caps | Existing onboarding phase |
+| 4. Fund account | Initiate ACH transfer to Alpaca (bank already linked on Alpaca dashboard) | New |
+| 5. Confirm switch | Summary screen, user confirms | New |
+
+> **Prerequisites** (admin, one-time, outside Nestfolio):
+> 1. Create Alpaca account at alpaca.com
+> 2. Generate API keys, store in AWS Secrets Manager / SSM Parameter Store
+> 3. Link bank account on Alpaca dashboard
+> 4. Deploy Nestfolio with Alpaca credentials configured
 
 **Step 2 — Mode switch (investor-bff)**
 
@@ -476,7 +482,7 @@ No cleanup. Live starts with a fresh ledger stream (sequence 0, empty positions)
 
 `onboarding-bff` gains a `flowType: 'initial' | 'go-live'` parameter:
 - **`initial`**: Full 7-phase wizard (existing behavior)
-- **`go-live`**: Phases 1-6 above (skip account creation/identity, pre-fill from current profile, add Alpaca/funding phases)
+- **`go-live`**: Phases 1-5 above (skip account creation/identity, pre-fill from current profile, add funding + confirmation phases)
 
 Entry point: investor-mfe settings page, not signup flow.
 
@@ -583,41 +589,74 @@ Settings page in `investor-mfe` with a "Switch to Live Trading" CTA. Only visibl
 
 ### Flow (onboarding-mfe, flowType: 'go-live')
 
-**Screen 1 — Connect Broker**
-- Alpaca API key input (or OAuth if supported)
-- "Test Connection" button -> verifies via `ALPACA_ACCOUNT_CHECK`
-- Success: show account status, buying power
-- Failure: show error, let user retry
-
-**Screen 2 — Review Risk Profile**
+**Screen 1 — Review Risk Profile**
 - Pre-filled with current simulation risk profile
 - Highlight: "You set this during simulation. Now that real money is involved, would you like to adjust?"
 - Same risk assessment UI as initial onboarding
 
-**Screen 3 — Review Goals**
+**Screen 2 — Review Goals**
 - Pre-filled current goals
 - Same goal-setting UI as initial onboarding
 
-**Screen 4 — Review Mandate & Guardrails**
+**Screen 3 — Review Mandate & Guardrails**
 - Pre-filled current mandate (advisory vs. discretionary)
 - Pre-filled guardrails (concentration limits, turnover caps)
 - Highlight: "These guardrails control what the system can do autonomously with real money"
 
-**Screen 5 — Fund Account**
-- Link bank account (Alpaca ACH relationship)
+**Screen 4 — Fund Account**
+- Verify Alpaca connection (system calls `ALPACA_ACCOUNT_CHECK` to confirm credentials are valid)
+- Show current Alpaca account status and buying power
 - Enter transfer amount
-- Initiate transfer
+- Initiate ACH transfer (bank already linked on Alpaca dashboard)
 - Show transfer status (polling via `broker-alpaca-adpt`)
 - Wait for funding confirmation before proceeding
 
-**Screen 6 — Confirmation**
-- Summary: broker connected, amount funded, risk profile, mandate, guardrails
+**Screen 5 — Confirmation**
+- Summary: amount funded, risk profile, mandate, guardrails
 - Clear warning: "From this point, all trades will use real money"
 - Confirm button -> emits `GO_LIVE_CONFIRMED`
 
 ### Post-Switch Dashboard
 
 `dashboard-bff` materializes a "LIVE" badge. Portfolio view shows empty state with advisory recommendations loading.
+
+---
+
+## 8. Broker API Migration Path
+
+This section documents what changes when transitioning from Alpaca's Trading API (personal use) to Broker API (multi-user embedded brokerage). The architecture is designed so this transition is **additive** — no service restructuring required.
+
+### What stays the same
+- `broker-ctrl` — unchanged. Routes by `executionMode`, normalizes events, manages state machine. Doesn't know which Alpaca API is being used.
+- `broker-sim-adpt` — unchanged. Simulation is broker-independent.
+- All downstream services — unchanged. They consume canonical events (`ORDER_FILLED`, etc.) regardless of the Alpaca API type.
+- Event flow and bus topology — unchanged.
+
+### What changes in `broker-alpaca-adpt`
+
+| Concern | Trading API (current) | Broker API (future) |
+|---------|----------------------|---------------------|
+| Base URL | `api.alpaca.markets` | `broker-api.alpaca.markets` |
+| Credentials | System-level (one set of API keys in Secrets Manager) | System-level broker keys + per-tenant sub-account IDs |
+| Account creation | Manual on alpaca.com | Programmatic: `POST /v1/accounts` with KYC data |
+| Bank linking | Manual on Alpaca dashboard | Programmatic: `POST /v1/accounts/{id}/ach/relationships` |
+| Order submission | `POST /v2/orders` | `POST /v1/trading/accounts/{id}/orders` |
+| ACH transfers | `POST /v2/ach/transfers` | `POST /v1/accounts/{id}/transfers` |
+| Account/positions | `GET /v2/account`, `GET /v2/positions` | `GET /v1/trading/accounts/{id}/account`, `GET /v1/trading/accounts/{id}/positions` |
+
+### Migration steps
+
+1. **`alpaca.client.ts`** — Switch base URL and API path patterns. All Broker API endpoints are scoped by `account_id`. The client gains an `accountId` parameter per request.
+2. **Add `AlpacaAccount` entity** to broker-alpaca-adpt's DDB — maps tenantId to Alpaca sub-account ID.
+3. **Add account management service** — `alpaca-accounts.service.ts` for `POST /v1/accounts` (KYC), account status polling.
+4. **Re-introduce credential events** — `ALPACA_CREDENTIALS_PROVIDED`, `ALPACA_ACCOUNT_VERIFIED` for the "Connect Alpaca" onboarding phase (per-tenant account creation).
+5. **Re-onboarding gains Phase 1** — "Connect Alpaca" (account creation + KYC) returns to the Go Live flow.
+6. **`investor-adpt`** — Add forwarding rule for credential events (InvestorBus → ExecutionBus).
+7. **`execution-adpt`** — Add forwarding rule for verification events (ExecutionBus → InvestorBus).
+
+### Design principle
+
+`alpaca.client.ts` is the **single isolation point**. Today it reads system-level credentials from env vars and calls Trading API endpoints. Tomorrow it reads broker-level credentials + per-tenant account IDs and calls Broker API endpoints. Nothing above the client layer changes.
 
 ---
 
@@ -657,9 +696,6 @@ Settings page in `investor-mfe` with a "Switch to Live Trading" CTA. Only visibl
 | `GO_LIVE_CONFIRMED` | onboarding-bff (CDC) | InvestorBus | investor-bff |
 | `ORDER_ESCALATED` | broker-ctrl (CDC) | ExecutionBus → InvestorBus (via execution-adpt) | investor-ctrl (notification) |
 | `BROKER_CIRCUIT_OPEN` | broker-ctrl (CDC) | ExecutionBus → InvestorBus (via execution-adpt) | investor-ctrl (notification) |
-| `ALPACA_CREDENTIALS_PROVIDED` | onboarding-bff (CDC) | InvestorBus → ExecutionBus (via investor-adpt) | broker-alpaca-adpt |
-| `ALPACA_ACCOUNT_VERIFIED` | broker-alpaca-adpt (CDC) | ExecutionBus → InvestorBus (via execution-adpt) | onboarding-bff |
-| `ALPACA_ACCOUNT_VERIFICATION_FAILED` | broker-alpaca-adpt (CDC) | ExecutionBus → InvestorBus (via execution-adpt) | onboarding-bff |
 
 ### Modified Events
 
