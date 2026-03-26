@@ -12,6 +12,7 @@ import { AllocationChartComponent } from './allocation-chart.component';
 import { ActivityFeedComponent } from './activity-feed.component';
 import { AdvisoryAlertBarComponent } from './advisory-alert-bar.component';
 import { ComparisonCardComponent } from './comparison-card.component';
+import { ExecutionModeBadgeComponent } from './execution-mode-badge.component';
 
 @Component({
   selector: 'app-dashboard-container',
@@ -26,6 +27,7 @@ import { ComparisonCardComponent } from './comparison-card.component';
     ActivityFeedComponent,
     AdvisoryAlertBarComponent,
     ComparisonCardComponent,
+    ExecutionModeBadgeComponent,
   ],
   template: `
     @if (store.loading() && !store.isLoaded()) {
@@ -39,6 +41,11 @@ import { ComparisonCardComponent } from './comparison-card.component';
         }
 
         <div class="kpi-row">
+          <div class="kpi-row-header">
+            <app-execution-mode-badge
+              [executionMode]="store.investorSnapshot()?.operatingMode ?? null"
+            />
+          </div>
           <app-kpi-cards
             [portfolioSummary]="store.portfolioSummary()"
             [totalPnl]="store.totalPnl()"
@@ -88,6 +95,12 @@ import { ComparisonCardComponent } from './comparison-card.component';
 
     .kpi-row {
       grid-column: 1 / -1;
+    }
+
+    .kpi-row-header {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 0.5rem;
     }
 
     .main-content {
