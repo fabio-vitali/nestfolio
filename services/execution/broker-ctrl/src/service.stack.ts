@@ -6,8 +6,9 @@ import { RuleTargetInput } from 'aws-cdk-lib/aws-events';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
-import { BrokerCtrlInboundEventTypes } from './domain/events';
+import { BrokerCtrlInboundEventTypes, BrokerCtrlEventTypes } from './domain/events';
 import { OrderStateMachine } from './state-machine/order-state-machine';
+import { CircuitBreakerHealStateMachine } from './state-machine/circuit-breaker-heal';
 
 export class BrokerCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -85,6 +86,45 @@ export class BrokerCtrlStack extends ServiceStack {
       ],
     });
 
+    // --- EmitHealthCheck Lambda — invoked by heal SF, not via Ingress ---
+    const emitHealthCheckFn = new NodejsFunction(this, 'EmitHealthCheckFn', {
+      ...defaultLambdaProps(this),
+      entry: join(__dirname, 'handlers', 'emit-health-check.ts'),
+      environment: {
+        TABLE_NAME: table.tableName,
+        BUS_NAME: this.eventBus.eventBusName,
+      },
+    });
+    table.grantReadWriteData(emitHealthCheckFn);
+    this.eventBus.grantPutEventsTo(emitHealthCheckFn);
+
+    // --- Circuit breaker heal state machine ---
+    const healStateMachine = new CircuitBreakerHealStateMachine(this, 'HealStateMachine', {
+      eventBus: this.eventBus,
+      table,
+      emitHealthCheckFn,
+    });
+
+    // Grant CallbackResolver permission to respond to heal SF task tokens
+    callbackIngress.handler.addEnvironment(
+      'HEAL_STATE_MACHINE_ARN',
+      healStateMachine.stateMachine.stateMachineArn,
+    );
+    healStateMachine.stateMachine.grantTaskResponse(callbackIngress.handler);
+
+    // --- EventBridge rule: BROKER_CIRCUIT_OPEN → start heal SF execution ---
+    new Rule(this, 'BreakerOpenTrigger', {
+      eventBus: this.eventBus,
+      eventPattern: {
+        detailType: [BrokerCtrlEventTypes.BROKER_CIRCUIT_OPEN],
+      },
+      targets: [
+        new SfnStateMachine(healStateMachine.stateMachine, {
+          input: RuleTargetInput.fromEventPath('$.detail'),
+        }),
+      ],
+    });
+
     // --- Ingress 3: Deposit/Withdrawal routing ---
     const depositWithdrawalIngress = new Ingress(this, 'DepositWithdrawalIngress', {
       eventTypes: [
@@ -112,6 +152,7 @@ export class BrokerCtrlStack extends ServiceStack {
       extraLambdas: [
         callbackIngress.handler,
         routeOrderFn,
+        emitHealthCheckFn,
         depositWithdrawalIngress.handler,
         depositWithdrawalNormalizerIngress.handler,
       ],

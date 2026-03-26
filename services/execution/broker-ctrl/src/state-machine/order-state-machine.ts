@@ -490,6 +490,29 @@ export class OrderStateMachine extends Construct {
               },
             },
           },
+          // 4th branch: Emit BROKER_CIRCUIT_OPEN NormalizedEvent for CDC → triggers heal SF
+          {
+            StartAt: 'HandleTimeoutCircuitBreakerEvent',
+            States: {
+              HandleTimeoutCircuitBreakerEvent: {
+                Type: 'Task',
+                Resource: 'arn:aws:states:::dynamodb:putItem',
+                Parameters: {
+                  TableName: tableName,
+                  Item: {
+                    pk: { 'S.$': "States.Format('NormalizedEvent#{}#CIRCUIT_BREAKER', $.tenantId)" },
+                    sk: { 'S.$': "States.Format('BROKER_CIRCUIT_OPEN#{}', $$.State.EnteredTime)" },
+                    __typename: { S: 'NormalizedEvent' },
+                    tenantId: { 'S.$': '$.tenantId' },
+                    symbol: { 'S.$': '$.symbol' },
+                    timestamp: { 'S.$': '$$.State.EnteredTime' },
+                  },
+                  ResultPath: null,
+                },
+                End: true,
+              },
+            },
+          },
         ],
       },
     });
