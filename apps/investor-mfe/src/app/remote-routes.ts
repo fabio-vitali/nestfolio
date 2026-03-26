@@ -14,6 +14,13 @@ export const remoteRoutes: Routes = [
             (m) => m.NotificationListComponent,
           ),
       },
+      {
+        path: 'settings/go-live',
+        loadComponent: () =>
+          import('./settings/go-live/go-live-wizard.component').then(
+            (m) => m.GoLiveWizardComponent,
+          ),
+      },
       { path: '', redirectTo: 'notifications', pathMatch: 'full' },
     ],
   },
