@@ -12,13 +12,15 @@
 **SF Native Design:** `docs/superpowers/specs/2026-03-26-broker-ctrl-sf-native-design.md`
 
 **Key conventions:**
-- All Lambda handlers use event-processor pipelines (`materializeToTable`, `changeDataCapture`, `buildEventTypeMap`)
+- Lambda handlers use event-processor pipelines: `materializeToTable` (writes DDB), `createIngestionHandler` (side-effects without DDB writes), `changeDataCapture` (CDC). Choose the right one per handler's purpose.
+- Use `createIngestionHandler` for handlers that call external SDKs (e.g., SFN SendTaskSuccess, EventBridge PutEvents) instead of writing DDB records
 - Tests in `test/` directory (NOT `src/__tests__/`)
 - DDB items require `__typename` field for CDC filtering
 - Repositories extend `TableRepository` from `@nestfolio/event-processor`
 - Services extend `ServiceStack` from `@nestfolio/cdk-constructs`
 - `stateProps: false` for stateless adapters
 - All inter-service communication via EventBridge (no API calls between services)
+- When creating new services, add `tsconfig.base.json` path aliases (e.g., `@nestfolio/broker-ctrl/events`) so other services can import event types cleanly
 
 ---
 
@@ -79,7 +81,7 @@ pnpm nx run broker-sim-adpt:test
 - [ ] **Step 7: Commit**
 
 ```bash
-git add -A && git commit -m "refactor: rename broker-adpt to broker-sim-adpt"
+git add services/ apps/ && git commit -m "refactor: rename broker-adpt to broker-sim-adpt"
 ```
 
 ### Task 1.2: Define new sim-specific event types
@@ -144,9 +146,11 @@ Replace `ORDER_SUBMITTED` handler with `SIM_ORDER_REQUESTED` handler.
 Replace `DEPOSIT_INITIATED` with `SIM_DEPOSIT_INITIATED`.
 Replace `WITHDRAWAL_REQUESTED` with `SIM_WITHDRAWAL_REQUESTED`.
 
-Use `materializeToTable` pipeline with the new event type keys:
+Keep the existing `createIngestionHandler` pattern (the current broker-adpt handler uses `skip()` returns which are not compatible with `materializeToTable`). Only change the event type keys:
+
 ```typescript
-export const handler = materializeToTable({
+export const handler = createIngestionHandler({
+  serviceName: 'broker-sim-adpt',
   handlers: {
     [BrokerSimEventTypes.SIM_ORDER_REQUESTED]: processSimOrder,
     [BrokerSimEventTypes.SIM_DEPOSIT_INITIATED]: processSimDeposit,
@@ -154,6 +158,8 @@ export const handler = materializeToTable({
   },
 });
 ```
+
+Also update imports: replace `@nestfolio/investor-adpt/domain` references with local `BrokerSimEventTypes`.
 
 - [ ] **Step 4: Update Ingress eventTypes in service.stack.ts**
 
@@ -619,11 +625,38 @@ function classifyFailure(eventType: string, payload: Record<string, unknown>): F
 
 - [ ] **Step 4: Implement CallbackResolver handler**
 
-Use `materializeToTable` pipeline pattern. On each adapter result event:
-1. Extract orderId from payload
-2. Read taskToken from BrokerOrderRepository
-3. Classify failure
-4. Call SFN SendTaskSuccess with classified result
+Use a raw Lambda handler (NOT `materializeToTable` — this handler reads DDB and calls SFN SDK, it does not write DDB records):
+
+```typescript
+import { SFNClient, SendTaskSuccessCommand } from '@aws-sdk/client-sfn';
+
+export async function handler(event: SQSEvent) {
+  const sfn = new SFNClient({});
+  const repo = new BrokerOrderRepository(process.env.TABLE_NAME!);
+
+  for (const record of event.Records) {
+    const body = JSON.parse(record.body);
+    const detail = JSON.parse(body.detail ?? body.Detail ?? '{}');
+    const { tenantId, orderId } = detail;
+
+    const taskToken = await repo.getTaskToken(tenantId, orderId);
+    if (!taskToken) { logger.warn('No active taskToken for order', { orderId }); continue; }
+
+    const failureClass = classifyFailure(body.detailType ?? body['detail-type'], detail);
+
+    await sfn.send(new SendTaskSuccessCommand({
+      taskToken,
+      output: JSON.stringify({
+        status: mapEventToStatus(body.detailType ?? body['detail-type']),
+        filledQty: detail.filledQuantity,
+        averageFillPrice: detail.averageFillPrice,
+        failureClass,
+        failureReason: detail.rejectionReason,
+      }),
+    }));
+  }
+}
+```
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -745,13 +778,20 @@ const modeIngress = new Ingress(this, 'ModeIngress', {
 - [ ] **Step 4: Configure Ingress for CallbackResolver**
 
 ```typescript
+// Explicit list — all adapter result events that need callback resolution
+const CALLBACK_EVENT_TYPES = [
+  // Sim adapter results
+  'SIM_ORDER_FILLED', 'SIM_ORDER_REJECTED',
+  'SIM_DEPOSIT_COMPLETED', 'SIM_WITHDRAWAL_COMPLETED',
+  // Alpaca adapter results
+  'ALPACA_ORDER_PLACED', 'ALPACA_ORDER_FILLED', 'ALPACA_ORDER_PARTIALLY_FILLED',
+  'ALPACA_ORDER_REJECTED', 'ALPACA_ORDER_CANCELLED', 'ALPACA_ORDER_CANCEL_FAILED',
+  'ALPACA_TRANSFER_COMPLETED', 'ALPACA_TRANSFER_FAILED',
+  'ALPACA_ACCOUNT_SNAPSHOT',
+];
+
 const callbackIngress = new Ingress(this, 'CallbackIngress', {
-  eventTypes: [
-    ...Object.values(BrokerSimEventTypes).filter(e => e.startsWith('SIM_ORDER') || e.startsWith('SIM_DEPOSIT') || e.startsWith('SIM_WITHDRAWAL')),
-    'ALPACA_ORDER_PLACED', 'ALPACA_ORDER_FILLED', 'ALPACA_ORDER_PARTIALLY_FILLED',
-    'ALPACA_ORDER_REJECTED', 'ALPACA_ORDER_CANCELLED', 'ALPACA_ORDER_CANCEL_FAILED',
-    'ALPACA_TRANSFER_COMPLETED', 'ALPACA_TRANSFER_FAILED',
-  ],
+  eventTypes: CALLBACK_EVENT_TYPES,
   entry: join(__dirname, 'handlers', 'callback-resolver.ts'),
 });
 ```
@@ -805,6 +845,120 @@ pnpm nx run broker-ctrl:test
 
 ```bash
 git add services/execution/broker-ctrl/test/ && git commit -m "test(broker-ctrl): add order lifecycle integration tests"
+```
+
+### Task 2.11: Implement deposit/withdrawal routing handler
+
+**Files:**
+- Create: `services/execution/broker-ctrl/src/handlers/deposit-withdrawal-router.ts`
+- Create: `services/execution/broker-ctrl/test/deposit-withdrawal-router.test.ts`
+
+Deposits and withdrawals don't need the full SF state machine (no retry/circuit-breaker logic). A simple Lambda handler routes them by reading executionMode and emitting the appropriate routed event.
+
+- [ ] **Step 1: Add DEPOSIT_INITIATED and WITHDRAWAL_REQUESTED to BrokerCtrlInboundEventTypes**
+
+In `services/execution/broker-ctrl/src/domain/events.ts`:
+```typescript
+DEPOSIT_INITIATED: 'DEPOSIT_INITIATED',
+WITHDRAWAL_REQUESTED: 'WITHDRAWAL_REQUESTED',
+```
+
+- [ ] **Step 2: Write failing tests**
+
+Test cases:
+- DEPOSIT_INITIATED + mode=simulation → emits SIM_DEPOSIT_INITIATED
+- DEPOSIT_INITIATED + mode=live → emits ALPACA_TRANSFER_REQUESTED
+- WITHDRAWAL_REQUESTED + mode=simulation → emits SIM_WITHDRAWAL_REQUESTED
+- WITHDRAWAL_REQUESTED + mode=live → emits ALPACA_TRANSFER_REQUESTED (with direction: OUTGOING)
+
+- [ ] **Step 3: Implement handler**
+
+Use `createIngestionHandler` (reads DDB for mode, calls EventBridge PutEvents — no DDB writes):
+
+```typescript
+export const handler = createIngestionHandler({
+  serviceName: 'broker-ctrl',
+  handlers: {
+    DEPOSIT_INITIATED: routeDeposit,
+    WITHDRAWAL_REQUESTED: routeWithdrawal,
+  },
+});
+
+async function routeDeposit(payload: EventPayload, ctx: EventContext) {
+  const mode = await executionModeRepo.getMode(ctx.tenantId);
+  const detailType = mode === 'live'
+    ? BrokerCtrlRoutedEventTypes.ALPACA_TRANSFER_REQUESTED
+    : BrokerCtrlRoutedEventTypes.SIM_DEPOSIT_INITIATED;
+  await emitToEventBridge(detailType, { ...payload, direction: 'INCOMING' });
+  return skip();
+}
+```
+
+- [ ] **Step 4: Add Ingress for deposit/withdrawal events in service.stack.ts**
+
+```typescript
+const depositWithdrawalIngress = new Ingress(this, 'DepositWithdrawalIngress', {
+  eventTypes: ['DEPOSIT_INITIATED', 'WITHDRAWAL_REQUESTED'],
+  entry: join(__dirname, 'handlers', 'deposit-withdrawal-router.ts'),
+});
+```
+
+- [ ] **Step 5: Run tests, commit**
+
+```bash
+pnpm nx run broker-ctrl:test && git add services/execution/broker-ctrl/ && git commit -m "feat(broker-ctrl): implement deposit/withdrawal routing handler"
+```
+
+### Task 2.12: Implement circuit breaker auto-close SF workflow
+
+**Files:**
+- Create: `services/execution/broker-ctrl/src/state-machine/circuit-breaker-heal.ts`
+- Create: `services/execution/broker-ctrl/test/circuit-breaker-heal.test.ts`
+- Modify: `services/execution/broker-ctrl/src/service.stack.ts`
+
+Separate SF Standard Workflow that polls Alpaca health every 60s when the global circuit breaker is open.
+
+- [ ] **Step 1: Define the healing SF workflow in CDK**
+
+States:
+1. EventBridge PutEvents: emit `ALPACA_ACCOUNT_CHECK` (direct integration)
+2. WaitForTaskCallback (timeout: 90s)
+3. On success (ALPACA_ACCOUNT_SNAPSHOT received): DynamoDB UpdateItem (close breaker)
+4. On timeout/failure: increment attempt counter → Choice (attempts < 10?) → Wait 60s → loop OR escalate
+
+- [ ] **Step 2: Wire trigger**
+
+Add EventBridge rule: when `NormalizedEvent:INSERT` with sk=`BROKER_CIRCUIT_OPEN` is emitted via CDC, start the healing SF.
+
+- [ ] **Step 3: Update CallbackResolver to also handle ALPACA_ACCOUNT_SNAPSHOT**
+
+The healing SF's WaitForTaskCallback needs the same callback mechanism. Store a separate `healTaskToken` on the CircuitBreaker DDB record.
+
+- [ ] **Step 4: Write tests, run, commit**
+
+```bash
+pnpm nx run broker-ctrl:test && git add services/execution/broker-ctrl/ && git commit -m "feat(broker-ctrl): implement circuit breaker auto-close SF workflow"
+```
+
+### Task 2.13: CDK snapshot test for broker-ctrl
+
+**Files:**
+- Create: `services/execution/broker-ctrl/test/service.stack.test.ts`
+
+- [ ] **Step 1: Write CDK snapshot test**
+
+```typescript
+import { Template } from 'aws-cdk-lib/assertions';
+const template = Template.fromStack(stack);
+template.hasResourceProperties('AWS::StepFunctions::StateMachine', { /* ... */ });
+template.hasResourceProperties('AWS::Events::Rule', { /* ORDER_SUBMITTED trigger */ });
+template.resourceCountIs('AWS::Lambda::Function', 3); // RouteOrder + CallbackResolver + ModeListener
+```
+
+- [ ] **Step 2: Run, commit**
+
+```bash
+pnpm nx run broker-ctrl:test && git add services/execution/broker-ctrl/ && git commit -m "test(broker-ctrl): add CDK snapshot test"
 ```
 
 ---
@@ -1057,7 +1211,48 @@ export async function handler() {
 pnpm nx run broker-alpaca-adpt:test && git add services/execution/broker-alpaca-adpt/ && git commit -m "feat(broker-alpaca-adpt): implement trade event poller"
 ```
 
-### Task 3.7: Implement CDC event-publisher and wire service stack
+### Task 3.7: Implement transfer status poller
+
+**Files:**
+- Create: `services/execution/broker-alpaca-adpt/src/handlers/transfer-status-poller.ts`
+- Create: `services/execution/broker-alpaca-adpt/test/transfer-status-poller.test.ts`
+
+This Lambda is triggered by EventBridge Scheduler (every 5min) while ACH transfers are pending.
+
+- [ ] **Step 1: Write failing tests**
+
+Test cases:
+- Polls pending transfer IDs → calls AlpacaClient.getTransfer for each → writes ALPACA_TRANSFER_COMPLETED record when done
+- Transfer still pending → no record written, continues polling
+- Transfer failed → writes ALPACA_TRANSFER_FAILED record
+- No pending transfers → no-op
+
+- [ ] **Step 2: Implement poller**
+
+```typescript
+export async function handler() {
+  const pendingTransfers = await transferRepo.getPendingTransfers(tenantId);
+  if (pendingTransfers.length === 0) return;
+
+  for (const transfer of pendingTransfers) {
+    const result = await alpacaClient.getTransfer(transfer.alpacaTransferId);
+    if (result.data.status === 'COMPLETE') {
+      await writeTransferResult(transfer, 'COMPLETED', result.data);
+    } else if (result.data.status === 'REJECTED' || result.data.status === 'RETURNED') {
+      await writeTransferResult(transfer, 'FAILED', result.data);
+    }
+    // else still pending — do nothing, next poll will check again
+  }
+}
+```
+
+- [ ] **Step 3: Run tests, commit**
+
+```bash
+pnpm nx run broker-alpaca-adpt:test && git add services/execution/broker-alpaca-adpt/ && git commit -m "feat(broker-alpaca-adpt): implement transfer status poller"
+```
+
+### Task 3.8: Implement CDC event-publisher and wire service stack
 
 **Files:**
 - Create: `services/execution/broker-alpaca-adpt/src/handlers/event-publisher.ts`
@@ -1110,11 +1305,15 @@ pnpm nx run broker-alpaca-adpt:test && git add services/execution/broker-alpaca-
 
 - [ ] **Step 1: Add new event types to ExecutionCrossDomainEventTypes**
 
-Add: `ORDER_ESCALATED`, `BROKER_CIRCUIT_OPEN`, `ALPACA_ACCOUNT_VERIFIED`, `ALPACA_ACCOUNT_VERIFICATION_FAILED`
+Add: `ORDER_ESCALATED`, `BROKER_CIRCUIT_OPEN`
 
 - [ ] **Step 2: Add forwarding rules to InvestorBus**
 
 Add `ORDER_ESCALATED` and `BROKER_CIRCUIT_OPEN` to the ToInvestor rule.
+
+- [ ] **Step 2b: Add ALPACA_ACCOUNT_SNAPSHOT to ToLedger rule**
+
+Add `ALPACA_ACCOUNT_SNAPSHOT` to the existing ToLedger forwarding rule so reconciliation-ctrl (on LedgerBus) can receive it.
 
 - [ ] **Step 3: Run existing tests to verify no regressions**
 
@@ -1170,9 +1369,23 @@ executionMode: 'simulation' | 'live';  // default: 'simulation'
 
 - [ ] **Step 2: Update repository to include executionMode in createProfile (default: 'simulation')**
 
-- [ ] **Step 3: Add CDC mapping for EXECUTION_MODE_CHANGED**
+- [ ] **Step 3: Create ExecutionModeChange entity for CDC**
 
-When `InvestorProfile` is modified and `executionMode` field changed → emit `EXECUTION_MODE_CHANGED`.
+CDC `buildEventTypeMap` on `InvestorProfile` emits `INVESTOR_PROFILE_UPDATED`, not `EXECUTION_MODE_CHANGED`. To emit a distinct event, follow the existing `OperatingModeRecord` pattern:
+
+1. Create an `ExecutionModeChange` record type (written to DDB when mode changes)
+2. Add `'ExecutionModeChange:INSERT': 'EXECUTION_MODE_CHANGED'` to the CDC custom overrides in event-publisher.ts
+3. Add `'ExecutionModeChange'` to the Egress `publishableTypes` in service.stack.ts
+
+In the GO_LIVE_CONFIRMED handler (Task 7.2), when updating executionMode, also write an `ExecutionModeChange` record:
+```typescript
+{
+  pk: `ExecutionModeChange#${tenantId}`,
+  sk: `ExecutionModeChange#${timestamp}`,
+  __typename: 'ExecutionModeChange',
+  tenantId, mode: 'live', previousMode: 'simulation', timestamp,
+}
+```
 
 - [ ] **Step 4: Run tests, commit**
 
@@ -1318,10 +1531,22 @@ pnpm nx run reconciliation-ctrl:test && git add services/ledger/reconciliation-c
 - Modify: `services/investor/onboarding-bff/src/services/` (onboarding session/wizard logic)
 - Modify relevant test files
 
-- [ ] **Step 1: Add flowType field to OnboardingSession**
+- [ ] **Step 1: Add flowType field and new phases to OnboardingSession schema**
 
+In `services/investor/onboarding-bff/src/domain/schemas.ts`:
+
+Update `OnboardingPhaseSchema` to include new phases:
 ```typescript
-flowType: 'initial' | 'go-live';  // default: 'initial'
+z.enum([
+  'goal', 'horizon', 'mode', 'capital', 'risk', 'operating_mode', 'mandate', 'completed',
+  // New Go Live phases
+  'review_risk', 'review_goals', 'review_mandate', 'fund_account', 'go_live_confirmation',
+])
+```
+
+Add `flowType` to `OnboardingSessionSchema`:
+```typescript
+flowType: z.enum(['initial', 'go-live']).default('initial'),
 ```
 
 - [ ] **Step 2: Implement go-live phase definitions**
@@ -1438,7 +1663,7 @@ pnpm nx run-many -t lint -p broker-sim-adpt,broker-ctrl,broker-alpaca-adpt,execu
 - [ ] **Step 4: Final commit**
 
 ```bash
-git add -A && git commit -m "chore: fix lint and test issues across real money ops services"
+git add services/ apps/ && git commit -m "chore: fix lint and test issues across real money ops services"
 ```
 
 ### Task 8.2: CDK synth verification
