@@ -2,6 +2,7 @@ import { createHandlers } from '../../src/handlers/event-listener';
 import { InvestorBffEventTypes } from '../../src/domain/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
+import type { InvestorProfileRepository } from '../../src/repositories/investor-profile.repository';
 
 describe('investor-bff event-listener', () => {
   it('should export handlers for all event types', () => {
@@ -17,7 +18,7 @@ describe('investor-bff event-listener', () => {
 
   it('GO_LIVE_CONFIRMED handler calls setExecutionMode with simulation→live and returns skip', async () => {
     const setExecutionMode = jest.fn().mockResolvedValue({});
-    const profileRepo = { setExecutionMode } as any;
+    const profileRepo = { setExecutionMode } as unknown as InvestorProfileRepository;
     const handlers = createHandlers({ profileRepo });
 
     const payload = { subject: { tenantId: 'tenant-1', userId: 'user-1' } };

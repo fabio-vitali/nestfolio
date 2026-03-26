@@ -1,9 +1,12 @@
 import { project } from '@nestfolio/event-processor';
+import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { balanceUpdated } from '../../src/transforms/balance-updated';
+
+type TestUow = UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>;
 
 describe('balanceUpdated transform', () => {
   it('should return project intent for CashBalance with custom key overrides', () => {
-    const uow = {
+    const uow: TestUow = {
       event: {
         id: 'e1',
         type: 'BALANCE_UPDATED',
@@ -15,7 +18,7 @@ describe('balanceUpdated transform', () => {
       record: {},
     };
 
-    expect(balanceUpdated(uow as any)).toEqual(
+    expect(balanceUpdated(uow)).toEqual(
       project('CashBalance', {
         tenantId: 't1',
         userId: 'u1',

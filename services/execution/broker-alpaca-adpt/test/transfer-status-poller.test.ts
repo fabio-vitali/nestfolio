@@ -56,8 +56,8 @@ jest.mock('@nestfolio/event-processor', () => {
         }));
       }
       protected async queryAll(params: Record<string, unknown>): Promise<Record<string, unknown>[]> {
-        const result = await this.docClient.send(new ddb.QueryCommand(params));
-        return (result as any)?.Items ?? [];
+        const result = await this.docClient.send(new ddb.QueryCommand(params)) as { Items?: Record<string, unknown>[] };
+        return result?.Items ?? [];
       }
     },
     requireEnv: (name: string) => process.env[name] ?? name,
@@ -80,6 +80,11 @@ process.env.TABLE_NAME = 'test-table';
 
 import { processTransfersForTenant } from '../src/handlers/transfer-status-poller';
 
+interface MockDdbCommand {
+  _type: string;
+  input?: { Key?: { pk?: string }; UpdateExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
+}
+
 describe('transfer-status-poller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -94,7 +99,7 @@ describe('transfer-status-poller', () => {
   });
 
   it('COMPLETE → updates status to COMPLETED', async () => {
-    mockSend.mockImplementation((cmd: { _type: string; input: any }) => {
+    mockSend.mockImplementation((cmd: MockDdbCommand) => {
       if (cmd._type === 'Query') {
         return {
           Items: [
@@ -116,18 +121,18 @@ describe('transfer-status-poller', () => {
     await processTransfersForTenant('tenant-1');
 
     expect(mockGetTransfer).toHaveBeenCalledWith('alpaca-transfer-abc');
-    const updateCalls = mockSend.mock.calls.filter((c: any[]) => c[0]?._type === 'Update');
-    const statusUpdate = updateCalls.find((c: any[]) =>
+    const updateCalls = mockSend.mock.calls.filter((c: [MockDdbCommand]) => c[0]?._type === 'Update');
+    const statusUpdate = updateCalls.find((c: [MockDdbCommand]) =>
       c[0].input?.Key?.pk === 'TransferMapping#tenant-1#nf-transfer-1',
     );
     expect(statusUpdate).toBeDefined();
-    expect(statusUpdate[0].input.ExpressionAttributeValues).toMatchObject(
+    expect(statusUpdate![0].input!.ExpressionAttributeValues).toMatchObject(
       expect.objectContaining({ ':v0': 'COMPLETED' }),
     );
   });
 
   it('REJECTED → updates status to FAILED with failureReason', async () => {
-    mockSend.mockImplementation((cmd: { _type: string; input: any }) => {
+    mockSend.mockImplementation((cmd: MockDdbCommand) => {
       if (cmd._type === 'Query') {
         return {
           Items: [
@@ -149,15 +154,15 @@ describe('transfer-status-poller', () => {
     await processTransfersForTenant('tenant-1');
 
     expect(mockGetTransfer).toHaveBeenCalledWith('alpaca-transfer-xyz');
-    const updateCalls = mockSend.mock.calls.filter((c: any[]) => c[0]?._type === 'Update');
-    const statusUpdate = updateCalls.find((c: any[]) =>
+    const updateCalls = mockSend.mock.calls.filter((c: [MockDdbCommand]) => c[0]?._type === 'Update');
+    const statusUpdate = updateCalls.find((c: [MockDdbCommand]) =>
       c[0].input?.Key?.pk === 'TransferMapping#tenant-1#nf-transfer-2',
     );
     expect(statusUpdate).toBeDefined();
-    expect(statusUpdate[0].input.ExpressionAttributeValues).toMatchObject(
+    expect(statusUpdate![0].input!.ExpressionAttributeValues).toMatchObject(
       expect.objectContaining({ ':v0': 'FAILED' }),
     );
-    const values = statusUpdate[0].input.ExpressionAttributeValues as Record<string, unknown>;
+    const values = statusUpdate![0].input!.ExpressionAttributeValues as Record<string, unknown>;
     const failureReason = Object.values(values).find(
       (v) => typeof v === 'string' && (v as string).includes('REJECTED'),
     );
@@ -165,7 +170,7 @@ describe('transfer-status-poller', () => {
   });
 
   it('PENDING status → no update', async () => {
-    mockSend.mockImplementation((cmd: { _type: string; input: any }) => {
+    mockSend.mockImplementation((cmd: MockDdbCommand) => {
       if (cmd._type === 'Query') {
         return {
           Items: [
@@ -187,7 +192,7 @@ describe('transfer-status-poller', () => {
     await processTransfersForTenant('tenant-1');
 
     expect(mockGetTransfer).toHaveBeenCalledWith('alpaca-transfer-pending');
-    const updateCalls = mockSend.mock.calls.filter((c: any[]) => c[0]?._type === 'Update');
+    const updateCalls = mockSend.mock.calls.filter((c: [MockDdbCommand]) => c[0]?._type === 'Update');
     expect(updateCalls).toHaveLength(0);
   });
 });

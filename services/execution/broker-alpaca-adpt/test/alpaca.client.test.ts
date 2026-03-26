@@ -4,8 +4,8 @@ jest.mock('@nestfolio/event-processor', () => ({
 
 import { AlpacaClient, type AlpacaOrderParams } from '../src/clients/alpaca.client';
 
-const mockFetch = jest.fn();
-global.fetch = mockFetch as any;
+const mockFetch = jest.fn() as jest.Mock & typeof fetch;
+global.fetch = mockFetch;
 
 describe('AlpacaClient', () => {
   const client = new AlpacaClient({

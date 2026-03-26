@@ -263,7 +263,7 @@ describe('InvestorProfileRepository', () => {
     it('should write OperatingMode + update InvestorProfile in transaction with 2 items', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      const result = await repo.setOperatingMode('t1', 'u1', 'AGGRESSIVE' as any);
+      const result = await repo.setOperatingMode('t1', 'u1', 'AGGRESSIVE');
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];

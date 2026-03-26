@@ -15,7 +15,7 @@ export async function processTransfersForTenant(tenantId: string) {
     const nestfolioTransferId = transfer.nestfolioTransferId as string;
 
     const result = await client.getTransfer(alpacaTransferId);
-    const alpacaStatus = (result.data as any).status;
+    const alpacaStatus = result.data.status;
 
     if (alpacaStatus === 'COMPLETE') {
       await transferRepo.updateStatus(tenantId, nestfolioTransferId, 'COMPLETED', {

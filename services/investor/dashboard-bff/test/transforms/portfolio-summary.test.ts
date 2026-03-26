@@ -1,8 +1,11 @@
 import { accumulate, project } from '@nestfolio/event-processor';
+import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { portfolioSummary } from '../../src/transforms/portfolio-summary';
 
+type TestUow = UnitOfWork<BusEvent<Record<string, unknown>>>;
+
 describe('portfolioSummary transform', () => {
-  const makeUow = (subject: Record<string, unknown>) => ({
+  const makeUow = (subject: Record<string, unknown>): TestUow => ({
     event: {
       id: 'e1',
       type: 'PORTFOLIO_UPDATED',
@@ -12,13 +15,13 @@ describe('portfolioSummary transform', () => {
     },
     payload: {},
     record: {},
-  });
+  }) as unknown as TestUow;
 
   it('should return accumulate intent when filledQuantity and averageFillPrice exist', () => {
     expect(portfolioSummary(makeUow({
       filledQuantity: 10,
       averageFillPrice: 250,
-    }) as any)).toEqual(
+    }))).toEqual(
       accumulate('PortfolioSummary', {
         field: 'totalValueCents',
         increment: 250_000,
@@ -30,7 +33,7 @@ describe('portfolioSummary transform', () => {
   it('should return project intent when only driftPercent exists', () => {
     expect(portfolioSummary(makeUow({
       driftPercent: 3.5,
-    }) as any)).toEqual(
+    }))).toEqual(
       project('PortfolioSummary', {
         tenantId: 't1',
         driftPercent: 3.5,
@@ -39,6 +42,6 @@ describe('portfolioSummary transform', () => {
   });
 
   it('should return undefined when no relevant fields', () => {
-    expect(portfolioSummary(makeUow({}) as any)).toBeUndefined();
+    expect(portfolioSummary(makeUow({}))).toBeUndefined();
   });
 });

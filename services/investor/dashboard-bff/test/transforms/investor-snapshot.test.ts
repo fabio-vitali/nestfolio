@@ -1,8 +1,11 @@
 import { project } from '@nestfolio/event-processor';
+import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { investorSnapshot } from '../../src/transforms/investor-snapshot';
 
+type TestUow = UnitOfWork<BusEvent<Record<string, unknown>>>;
+
 describe('investorSnapshot transform', () => {
-  const makeUow = (eventType: string, subject: Record<string, unknown> = {}) => ({
+  const makeUow = (eventType: string, subject: Record<string, unknown> = {}): TestUow => ({
     event: {
       id: 'e1',
       type: eventType,
@@ -12,10 +15,10 @@ describe('investorSnapshot transform', () => {
     },
     payload: {},
     record: {},
-  });
+  }) as unknown as TestUow;
 
   it('should project goalType and onboardedAt for GOAL_SET', () => {
-    expect(investorSnapshot(makeUow('GOAL_SET', { objective: 'income' }) as any)).toEqual(
+    expect(investorSnapshot(makeUow('GOAL_SET', { objective: 'income' }))).toEqual(
       project('InvestorSnapshot', {
         tenantId: 't1',
         goalType: 'income',
@@ -25,7 +28,7 @@ describe('investorSnapshot transform', () => {
   });
 
   it('should project goalType only for GOAL_UPDATED (no onboardedAt)', () => {
-    expect(investorSnapshot(makeUow('GOAL_UPDATED', { objective: 'growth' }) as any)).toEqual(
+    expect(investorSnapshot(makeUow('GOAL_UPDATED', { objective: 'growth' }))).toEqual(
       project('InvestorSnapshot', {
         tenantId: 't1',
         goalType: 'growth',
@@ -34,7 +37,7 @@ describe('investorSnapshot transform', () => {
   });
 
   it('should project riskLevel for RISK_PROFILE_SET', () => {
-    expect(investorSnapshot(makeUow('RISK_PROFILE_SET', { score: 5 }) as any)).toEqual(
+    expect(investorSnapshot(makeUow('RISK_PROFILE_SET', { score: 5 }))).toEqual(
       project('InvestorSnapshot', {
         tenantId: 't1',
         riskLevel: '5',
@@ -43,7 +46,7 @@ describe('investorSnapshot transform', () => {
   });
 
   it('should project operatingMode for OPERATING_MODE_SELECTED', () => {
-    expect(investorSnapshot(makeUow('OPERATING_MODE_SELECTED', { mode: 'AUTO' }) as any)).toEqual(
+    expect(investorSnapshot(makeUow('OPERATING_MODE_SELECTED', { mode: 'AUTO' }))).toEqual(
       project('InvestorSnapshot', {
         tenantId: 't1',
         operatingMode: 'AUTO',
@@ -52,7 +55,7 @@ describe('investorSnapshot transform', () => {
   });
 
   it('should project operatingMode for OPERATING_MODE_CHANGED', () => {
-    expect(investorSnapshot(makeUow('OPERATING_MODE_CHANGED', { mode: 'MANUAL' }) as any)).toEqual(
+    expect(investorSnapshot(makeUow('OPERATING_MODE_CHANGED', { mode: 'MANUAL' }))).toEqual(
       project('InvestorSnapshot', {
         tenantId: 't1',
         operatingMode: 'MANUAL',

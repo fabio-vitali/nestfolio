@@ -1,11 +1,11 @@
-import { accumulate, update, type WriteIntent } from '@nestfolio/event-processor';
+import { accumulate, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
 export const advisoryStatus = (
   uow: UnitOfWork<BusEvent<Record<string, unknown>>>,
 ): WriteIntent | undefined => {
   const { event } = uow;
-  const { tenantId, userId, region } = event.context;
+  const { tenantId } = event.context;
   const overrides = { pk: `T#${tenantId}`, sk: 'AdvisoryStatus' };
 
   switch (event.type) {

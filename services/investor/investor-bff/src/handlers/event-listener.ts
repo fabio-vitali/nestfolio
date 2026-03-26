@@ -1,4 +1,4 @@
-import { materializeToTable, toUow, skip } from '@nestfolio/event-processor';
+import { materializeToTable, toUow, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '../domain/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
@@ -10,15 +10,15 @@ import { InvestorProfileRepository } from '../repositories/investor-profile.repo
 
 export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository }) {
   return {
-    [InvestorBffEventTypes.USER_REGISTERED]: (payload: any, ctx: any) =>
-      userRegistered(toUow(payload, ctx) as any),
-    [InvestorCtrlEventTypes.NOTIFICATION_CREATED]: (payload: any, ctx: any) =>
-      notificationCreated(toUow(payload, ctx) as any),
-    [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: (payload: any, ctx: any) =>
-      balanceUpdated(toUow(payload, ctx) as any),
-    [InvestorBffEventTypes.ONBOARDING_COMPLETED]: async (payload: any, ctx: any) =>
+    [InvestorBffEventTypes.USER_REGISTERED]: (payload: EventPayload, ctx: EventContext) =>
+      userRegistered(toUow(payload, ctx)),
+    [InvestorCtrlEventTypes.NOTIFICATION_CREATED]: (payload: EventPayload, ctx: EventContext) =>
+      notificationCreated(toUow(payload, ctx)),
+    [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
+      balanceUpdated(toUow(payload, ctx)),
+    [InvestorBffEventTypes.ONBOARDING_COMPLETED]: async (payload: EventPayload, ctx: EventContext) =>
       onboardingCompleted(payload, ctx),
-    ['GO_LIVE_CONFIRMED']: async (payload: any, ctx: any) => {
+    ['GO_LIVE_CONFIRMED']: async (_payload: EventPayload, ctx: EventContext) => {
       const profileRepo = deps?.profileRepo ?? new InvestorProfileRepository(process.env['TABLE_NAME']!);
       await profileRepo.setExecutionMode(ctx.tenantId, ctx.userId, 'simulation', 'live');
       return skip();

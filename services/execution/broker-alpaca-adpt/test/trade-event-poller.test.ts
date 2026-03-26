@@ -77,6 +77,11 @@ import { processTradeEventsForTenant } from '../src/handlers/trade-event-poller'
 import { OrderMappingRepository } from '../src/repositories/order-mapping.repository';
 import { PollingStateRepository } from '../src/repositories/polling-state.repository';
 
+interface MockDdbCommand {
+  _type: string;
+  input?: { Key?: { pk?: string }; UpdateExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
+}
+
 describe('trade-event-poller', () => {
   let _orderRepo: OrderMappingRepository;
   let _pollingRepo: PollingStateRepository;
@@ -89,7 +94,7 @@ describe('trade-event-poller', () => {
 
   it('polls events, matches to order mapping, updates status to FILLED', async () => {
     // pollingState: 1 open order, lastCheckedAt set
-    mockSend.mockImplementation((cmd: { _type: string; input: any }) => {
+    mockSend.mockImplementation((cmd: MockDdbCommand) => {
       if (cmd._type === 'Get') {
         const pk: string = cmd.input?.Key?.pk ?? '';
         if (pk.startsWith('PollingState#')) {
@@ -113,29 +118,29 @@ describe('trade-event-poller', () => {
 
     expect(mockGetTradeEvents).toHaveBeenCalledWith('2025-01-01T11:00:00.000Z', '2025-01-01T12:00:00.000Z');
     // updateStatus called for the order (UPDATE command)
-    const updateCalls = mockSend.mock.calls.filter((c: any[]) => c[0]?._type === 'Update');
-    const orderUpdate = updateCalls.find((c: any[]) =>
+    const updateCalls = mockSend.mock.calls.filter((c: [MockDdbCommand]) => c[0]?._type === 'Update');
+    const orderUpdate = updateCalls.find((c: [MockDdbCommand]) =>
       c[0].input?.Key?.pk === 'OrderMapping#tenant-1#nf-order-1',
     );
     expect(orderUpdate).toBeDefined();
-    expect(orderUpdate[0].input.ExpressionAttributeValues).toMatchObject(
+    expect(orderUpdate![0].input!.ExpressionAttributeValues).toMatchObject(
       expect.objectContaining({ ':v0': 'FILLED' }),
     );
     // decrementOpenOrderCount called (UpdateCommand with ADD)
-    const decrementCall = mockSend.mock.calls.find((c: any[]) =>
+    const decrementCall = mockSend.mock.calls.find((c: [MockDdbCommand]) =>
       c[0]?.input?.Key?.pk === 'PollingState#tenant-1' &&
       c[0]?.input?.UpdateExpression?.includes('ADD'),
     );
     expect(decrementCall).toBeDefined();
     // updateLastCheckedAt called
-    const lastCheckedUpdate = updateCalls.find((c: any[]) =>
+    const lastCheckedUpdate = updateCalls.find((c: [MockDdbCommand]) =>
       c[0].input?.Key?.pk === 'PollingState#tenant-1',
     );
     expect(lastCheckedUpdate).toBeDefined();
   });
 
   it('no new events → only updates lastCheckedAt', async () => {
-    mockSend.mockImplementation((cmd: { _type: string; input: any }) => {
+    mockSend.mockImplementation((cmd: MockDdbCommand) => {
       if (cmd._type === 'Get') {
         const pk: string = cmd.input?.Key?.pk ?? '';
         if (pk.startsWith('PollingState#')) {
@@ -151,19 +156,19 @@ describe('trade-event-poller', () => {
 
     expect(mockGetTradeEvents).toHaveBeenCalled();
     // Only updateLastCheckedAt should fire — no order update commands
-    const updateCalls = mockSend.mock.calls.filter((c: any[]) => c[0]?._type === 'Update');
-    const orderUpdate = updateCalls.find((c: any[]) =>
+    const updateCalls = mockSend.mock.calls.filter((c: [MockDdbCommand]) => c[0]?._type === 'Update');
+    const orderUpdate = updateCalls.find((c: [MockDdbCommand]) =>
       c[0].input?.Key?.pk?.startsWith('OrderMapping#'),
     );
     expect(orderUpdate).toBeUndefined();
-    const lastCheckedUpdate = updateCalls.find((c: any[]) =>
+    const lastCheckedUpdate = updateCalls.find((c: [MockDdbCommand]) =>
       c[0].input?.Key?.pk === 'PollingState#tenant-1',
     );
     expect(lastCheckedUpdate).toBeDefined();
   });
 
   it('zero open orders → returns early without calling getTradeEvents', async () => {
-    mockSend.mockImplementation((cmd: { _type: string; input: any }) => {
+    mockSend.mockImplementation((cmd: MockDdbCommand) => {
       if (cmd._type === 'Get') {
         const pk: string = cmd.input?.Key?.pk ?? '';
         if (pk.startsWith('PollingState#')) {

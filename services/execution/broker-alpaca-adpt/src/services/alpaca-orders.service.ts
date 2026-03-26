@@ -20,7 +20,7 @@ export class AlpacaOrdersService {
     });
 
     if (result.status >= 200 && result.status < 300) {
-      const alpacaOrderId = (result.data as any).id;
+      const alpacaOrderId = result.data.id;
       await this.orderRepo.createMapping(tenantId, orderId, alpacaOrderId, symbol, side, quantity);
       await this.pollingRepo.incrementOpenOrderCount(tenantId);
       logger.info('Order placed', { orderId, alpacaOrderId });

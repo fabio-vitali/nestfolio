@@ -37,7 +37,7 @@ export async function processTradeEventsForTenant(tenantId: string) {
   const since = (pollingState.lastCheckedAt as string) ?? new Date(Date.now() - 60000).toISOString();
 
   const result = await client.getTradeEvents(since, now);
-  const events = (result.data as any[]) ?? [];
+  const events = result.data ?? [];
 
   for (const event of events) {
     const alpacaOrderId = event.order?.id;

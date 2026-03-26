@@ -1,8 +1,11 @@
 import { project } from '@nestfolio/event-processor';
+import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { positionSnapshot } from '../../src/transforms/position-snapshot';
 
+type TestUow = UnitOfWork<BusEvent<Record<string, unknown>>>;
+
 describe('positionSnapshot transform', () => {
-  const makeUow = (subject: Record<string, unknown>) => ({
+  const makeUow = (subject: Record<string, unknown>): TestUow => ({
     event: {
       id: 'e1',
       type: 'PORTFOLIO_UPDATED',
@@ -12,7 +15,7 @@ describe('positionSnapshot transform', () => {
     },
     payload: {},
     record: {},
-  });
+  }) as unknown as TestUow;
 
   it('should return project intent for a position with symbol', () => {
     const result = positionSnapshot(makeUow({
@@ -20,7 +23,7 @@ describe('positionSnapshot transform', () => {
       symbol: 'VTI',
       filledQuantity: 10,
       averageFillPrice: 250,
-    }) as any);
+    }));
 
     expect(result).toEqual(
       project('PositionSnapshot', {
@@ -42,7 +45,7 @@ describe('positionSnapshot transform', () => {
       orderId: 'o1',
       filledQuantity: 10,
       averageFillPrice: 250,
-    }) as any)).toBeUndefined();
+    }))).toBeUndefined();
   });
 
   it('should use instrument as fallback for symbol', () => {
@@ -51,7 +54,7 @@ describe('positionSnapshot transform', () => {
       instrument: 'BND',
       filledQuantity: 5,
       averageFillPrice: 80,
-    }) as any);
+    }));
 
     expect(result).toEqual(
       project('PositionSnapshot', expect.objectContaining({

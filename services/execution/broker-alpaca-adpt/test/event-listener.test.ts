@@ -90,6 +90,7 @@ import { PollingStateRepository } from '../src/repositories/polling-state.reposi
 import { AlpacaClient } from '../src/clients/alpaca.client';
 import { record } from '@nestfolio/event-processor';
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
+import type { AlpacaAccountApiResponse, AlpacaPositionApiResponse, AlpacaTransferApiResponse } from '../src/domain/schemas';
 
 // Build the same handlers as the event-listener module, but with injectable mocks
 function createHandlers(deps: {
@@ -133,7 +134,7 @@ function createHandlers(deps: {
         amount: String(s.amount),
         relationship_id: (s.relationshipId as string) ?? '',
       });
-      const alpacaTransferId = result.status < 300 ? (result.data as any).id : '';
+      const alpacaTransferId = result.status < 300 ? (result.data as AlpacaTransferApiResponse).id : '';
       const status = result.status < 300 ? 'INITIATED' : 'FAILED';
       return record('AlpacaTransferResult', {
         __typename: 'AlpacaTransferResult', tenantId: ctx.tenantId,
@@ -146,8 +147,9 @@ function createHandlers(deps: {
       const [account, positions] = await Promise.all([client.getAccount(), client.getPositions()]);
       return record('AlpacaAccountSnapshot', {
         __typename: 'AlpacaAccountSnapshot', tenantId: ctx.tenantId,
-        equity: (account.data as any).equity, buyingPower: (account.data as any).buying_power,
-        positions: ((positions.data as any[]) ?? []).map((p: any) => ({
+        equity: (account.data as AlpacaAccountApiResponse).equity,
+        buyingPower: (account.data as AlpacaAccountApiResponse).buying_power,
+        positions: ((positions.data as AlpacaPositionApiResponse[]) ?? []).map((p) => ({
           symbol: p.symbol, qty: Number(p.qty), marketValue: Number(p.market_value),
         })),
       }, { pk: `AccountSnapshot#${ctx.tenantId}`, sk: `Snapshot#${ctx.timestamp}` });

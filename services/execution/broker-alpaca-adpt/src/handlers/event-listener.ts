@@ -56,7 +56,7 @@ async function processTransferRequested(payload: EventPayload, ctx: EventContext
     relationship_id: (s.relationshipId as string) ?? '',
   });
 
-  const alpacaTransferId = result.status < 300 ? (result.data as any).id : '';
+  const alpacaTransferId = result.status < 300 ? result.data.id : '';
   const status = result.status < 300 ? 'INITIATED' : 'FAILED';
 
   return record('AlpacaTransferResult', {
@@ -83,9 +83,9 @@ async function processAccountCheck(payload: EventPayload, ctx: EventContext) {
   return record('AlpacaAccountSnapshot', {
     __typename: 'AlpacaAccountSnapshot',
     tenantId: ctx.tenantId,
-    equity: (account.data as any).equity,
-    buyingPower: (account.data as any).buying_power,
-    positions: ((positions.data as any[]) ?? []).map((p: any) => ({
+    equity: account.data.equity,
+    buyingPower: account.data.buying_power,
+    positions: (positions.data ?? []).map((p) => ({
       symbol: p.symbol, qty: Number(p.qty), marketValue: Number(p.market_value),
     })),
   }, {

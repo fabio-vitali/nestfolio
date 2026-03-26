@@ -1,4 +1,11 @@
 import { logger } from '@nestfolio/event-processor';
+import type {
+  AlpacaOrderApiResponse,
+  AlpacaAccountApiResponse,
+  AlpacaPositionApiResponse,
+  AlpacaTransferApiResponse,
+  AlpacaTradeEvent,
+} from '../domain/schemas';
 
 export interface AlpacaOrderParams {
   symbol: string;
@@ -52,31 +59,31 @@ export class AlpacaClient {
     return { status: response.status, data };
   }
 
-  async submitOrder(params: AlpacaOrderParams): Promise<AlpacaResponse> {
-    return this.request('POST', '/v2/orders', params);
+  async submitOrder(params: AlpacaOrderParams): Promise<AlpacaResponse<AlpacaOrderApiResponse>> {
+    return this.request<AlpacaOrderApiResponse>('POST', '/v2/orders', params);
   }
 
-  async cancelOrder(alpacaOrderId: string): Promise<AlpacaResponse> {
-    return this.request('DELETE', `/v2/orders/${alpacaOrderId}`);
+  async cancelOrder(alpacaOrderId: string): Promise<AlpacaResponse<AlpacaOrderApiResponse>> {
+    return this.request<AlpacaOrderApiResponse>('DELETE', `/v2/orders/${alpacaOrderId}`);
   }
 
-  async getTradeEvents(since: string, until: string): Promise<AlpacaResponse> {
-    return this.request('GET', `/v2/events/trades?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}`);
+  async getTradeEvents(since: string, until: string): Promise<AlpacaResponse<AlpacaTradeEvent[]>> {
+    return this.request<AlpacaTradeEvent[]>('GET', `/v2/events/trades?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}`);
   }
 
-  async getAccount(): Promise<AlpacaResponse> {
-    return this.request('GET', '/v2/account');
+  async getAccount(): Promise<AlpacaResponse<AlpacaAccountApiResponse>> {
+    return this.request<AlpacaAccountApiResponse>('GET', '/v2/account');
   }
 
-  async getPositions(): Promise<AlpacaResponse> {
-    return this.request('GET', '/v2/positions');
+  async getPositions(): Promise<AlpacaResponse<AlpacaPositionApiResponse[]>> {
+    return this.request<AlpacaPositionApiResponse[]>('GET', '/v2/positions');
   }
 
-  async initiateTransfer(params: AlpacaTransferParams): Promise<AlpacaResponse> {
-    return this.request('POST', '/v2/ach/transfers', params);
+  async initiateTransfer(params: AlpacaTransferParams): Promise<AlpacaResponse<AlpacaTransferApiResponse>> {
+    return this.request<AlpacaTransferApiResponse>('POST', '/v2/ach/transfers', params);
   }
 
-  async getTransfer(transferId: string): Promise<AlpacaResponse> {
-    return this.request('GET', `/v2/ach/transfers/${transferId}`);
+  async getTransfer(transferId: string): Promise<AlpacaResponse<AlpacaTransferApiResponse>> {
+    return this.request<AlpacaTransferApiResponse>('GET', `/v2/ach/transfers/${transferId}`);
   }
 }

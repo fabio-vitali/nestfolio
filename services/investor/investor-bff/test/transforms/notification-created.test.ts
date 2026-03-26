@@ -1,9 +1,12 @@
 import { record } from '@nestfolio/event-processor';
+import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { notificationCreated } from '../../src/transforms/notification-created';
+
+type TestUow = UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>;
 
 describe('notificationCreated transform', () => {
   it('should return record intent for Notification', () => {
-    const uow = {
+    const uow: TestUow = {
       event: {
         id: 'e1',
         type: 'NOTIFICATION_CREATED',
@@ -24,7 +27,7 @@ describe('notificationCreated transform', () => {
       record: {},
     };
 
-    expect(notificationCreated(uow as any)).toEqual(
+    expect(notificationCreated(uow)).toEqual(
       record('Notification', {
         tenantId: 't1',
         userId: 'u1',
