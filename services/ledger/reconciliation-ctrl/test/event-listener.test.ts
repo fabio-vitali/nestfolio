@@ -134,6 +134,26 @@ describe('reconciliation-ctrl event-listener', () => {
     );
   });
 
+  it('routes ALPACA_ACCOUNT_SNAPSHOT to reconciliation service mapping qty to quantity', async () => {
+    reconcileSpy.mockReturnValueOnce({ status: 'COMPLETED', drifts: [] });
+    const result = await harness.process([
+      fakeSqsRecord('ALPACA_ACCOUNT_SNAPSHOT', {
+        tenantId: 't1', portfolioId: 'p1',
+        positions: [{ symbol: 'AAPL', qty: 50, marketValue: 5000 }],
+      }, { tenantId: 't1' }),
+    ]);
+    expect(result.metrics.EventProcessed).toBe(1);
+    expect(reconcileSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        tenantId: 't1',
+        portfolioId: 'p1',
+        intentPositions: [{ instrument: 'AAPL', quantity: 50 }],
+        settlementPositions: [{ instrument: 'AAPL', quantity: 50 }],
+      }),
+    );
+  });
+
   it('skips unknown event types', async () => {
     const result = await harness.process([
       fakeSqsRecord('UNKNOWN_EVENT', {}, { tenantId: 't1' }),
