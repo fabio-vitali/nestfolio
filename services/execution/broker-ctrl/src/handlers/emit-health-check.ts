@@ -33,7 +33,7 @@ export async function handler(event: EmitHealthCheckEvent) {
   await circuitBreakerRepo.storeHealTaskToken(tenantId, symbol, taskToken);
 
   // 2. Emit ALPACA_ACCOUNT_CHECK
-  await eb.send(new PutEventsCommand({
+  const response = await eb.send(new PutEventsCommand({
     Entries: [{
       EventBusName: BUS_NAME,
       Source: 'broker-ctrl',
@@ -44,6 +44,10 @@ export async function handler(event: EmitHealthCheckEvent) {
       }),
     }],
   }));
+
+  if (response.FailedEntryCount && response.FailedEntryCount > 0) {
+    throw new Error(`Failed to emit ALPACA_ACCOUNT_CHECK: ${JSON.stringify(response.Entries)}`);
+  }
 
   logger.info('Health check emitted', { tenantId, symbol });
 }

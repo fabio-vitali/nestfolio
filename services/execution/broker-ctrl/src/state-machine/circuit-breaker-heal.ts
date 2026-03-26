@@ -1,12 +1,10 @@
 import { Construct } from 'constructs';
-import { Duration, Stack } from 'aws-cdk-lib';
-import { IEventBus } from 'aws-cdk-lib/aws-events';
+import { Duration } from 'aws-cdk-lib';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 
 export interface CircuitBreakerHealProps {
-  readonly eventBus: IEventBus;
   readonly table: ITable;
   readonly emitHealthCheckFn: IFunction;
 }
@@ -51,7 +49,7 @@ export class CircuitBreakerHealStateMachine extends Construct {
             'attemptCount.$': '$.attemptCount',
           },
         },
-        TimeoutSeconds: 90,
+        TimeoutSeconds: 300,
         ResultPath: '$.healthCheckResult',
         Catch: [
           {
@@ -157,7 +155,10 @@ export class CircuitBreakerHealStateMachine extends Construct {
       },
     });
 
-    const endEscalated = new sfn.Succeed(this, 'EndEscalated');
+    const endEscalated = new sfn.Fail(this, 'EndEscalated', {
+      error: 'HealAttemptsExhausted',
+      cause: 'Circuit breaker healing failed after 10 attempts',
+    });
 
     // ---------------------------------------------------------------
     // 8. InitAttemptCount — Pass state to initialize counter if absent

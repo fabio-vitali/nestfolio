@@ -100,7 +100,6 @@ export class BrokerCtrlStack extends ServiceStack {
 
     // --- Circuit breaker heal state machine ---
     const healStateMachine = new CircuitBreakerHealStateMachine(this, 'HealStateMachine', {
-      eventBus: this.eventBus,
       table,
       emitHealthCheckFn,
     });
