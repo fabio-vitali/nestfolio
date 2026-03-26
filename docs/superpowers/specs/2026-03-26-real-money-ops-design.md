@@ -109,11 +109,17 @@ All three services (`broker-ctrl`, `broker-sim-adpt`, `broker-alpaca-adpt`) live
 - `ledger-ctrl` — Add `TaxLotManager` (FIFO lot tracking)
 - `onboarding-bff` — "Go Live" re-onboarding flow (`flowType: 'initial' | 'go-live'`)
 - `execution-adpt` — Add forwarding rules for `ORDER_ESCALATED` and `BROKER_CIRCUIT_OPEN` (ExecutionBus → InvestorBus)
-- `investor-adpt` — Add forwarding rule for `ALPACA_CREDENTIALS_PROVIDED` (InvestorBus → ExecutionBus)
+- `investor-adpt` — Add forwarding rules for `ALPACA_CREDENTIALS_PROVIDED` and `EXECUTION_MODE_CHANGED` (InvestorBus → ExecutionBus)
 - `reconciliation-ctrl` — Add subscription to `ALPACA_ACCOUNT_SNAPSHOT` for broker-reported position verification
 
 **Unchanged services:**
-- `execution-ctrl`, `compliance-ctrl`, `decision-workflow-ctrl`, `portfolio-engine-ctrl`, `ledger-bff`, `dashboard-bff`, `investor-ctrl`, all hubs, all market data adapters
+- Execution: `execution-ctrl`
+- Advisory: `compliance-ctrl`, `decision-workflow-ctrl`, `portfolio-engine-ctrl`
+- Ledger: `ledger-bff`
+- Investor: `dashboard-bff`, `investor-ctrl`
+- All hubs, all market data adapters
+
+> **Naming note**: `EXECUTION_MODE_CHANGED` (sim vs. live trading mode) is distinct from the existing `OPERATING_MODE_CHANGED` (conservative/balanced/aggressive advisory style). They are semantically different — execution mode controls order routing, operating mode controls advisory behavior.
 
 ---
 
