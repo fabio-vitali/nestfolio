@@ -12,75 +12,74 @@ One SF execution per order. Started when `ORDER_SUBMITTED` arrives. The SF orche
 stateDiagram-v2
     [*] --> LookupExecutionMode
 
-    LookupExecutionMode: Read ExecutionMode from DDB
+    LookupExecutionMode : Read ExecutionMode from DDB
     LookupExecutionMode --> CheckCircuitBreaker
 
-    CheckCircuitBreaker: Read CircuitBreaker state
-    CheckCircuitBreaker --> CircuitBreakerOpen: OPEN
-    CheckCircuitBreaker --> RouteOrder: CLOSED
+    CheckCircuitBreaker : Read CircuitBreaker state
+    CheckCircuitBreaker --> CircuitBreakerOpen : OPEN
+    CheckCircuitBreaker --> RouteOrder : CLOSED
 
-    CircuitBreakerOpen: Wait until breaker closes
+    CircuitBreakerOpen : Wait until breaker closes
     CircuitBreakerOpen --> QueuedWait
-    QueuedWait: Wait(30s) then re-check
+    QueuedWait : Wait 30s then re‑check
     QueuedWait --> CheckCircuitBreaker
 
     state RouteOrder <<choice>>
-    RouteOrder --> EmitSimOrder: mode = simulation
-    RouteOrder --> EmitAlpacaOrder: mode = live
+    RouteOrder --> EmitSimOrder : mode = simulation
+    RouteOrder --> EmitAlpacaOrder : mode = live
 
-    EmitSimOrder: Emit SIM_ORDER_REQUESTED\n(Lambda: publish to EventBridge)
+    EmitSimOrder : Lambda ‑ emit SIM_ORDER_REQUESTED
     EmitSimOrder --> WriteDDB_Routing
 
-    EmitAlpacaOrder: Emit ALPACA_ORDER_REQUESTED\n(Lambda: publish to EventBridge)
+    EmitAlpacaOrder : Lambda ‑ emit ALPACA_ORDER_REQUESTED
     EmitAlpacaOrder --> WriteDDB_Routing
 
-    WriteDDB_Routing: Write BrokerOrder\nstate=AWAITING_FILL\n(Lambda: DDB put)
+    WriteDDB_Routing : Lambda ‑ write BrokerOrder AWAITING_FILL
     WriteDDB_Routing --> WaitForResult
 
     state WaitForResult {
         [*] --> WaitForCallback
-        WaitForCallback: WaitForTaskCallback\nHeartbeatTimeout: 30s\nTimeout: 5min (configurable)
+        WaitForCallback : WaitForTaskCallback (timeout 5min)
 
-        WaitForCallback --> ProcessResult: callback received
-        WaitForCallback --> OrderTimedOut: timeout
-        WaitForCallback --> HeartbeatReceived: heartbeat (partial updates)
-
+        WaitForCallback --> ProcessResult : callback received
+        WaitForCallback --> OrderTimedOut : timeout
+        WaitForCallback --> HeartbeatReceived : heartbeat
         HeartbeatReceived --> WaitForCallback
     }
 
-    ProcessResult: Parse adapter result\n(from SendTaskSuccess payload)
+    ProcessResult : Parse adapter result
     ProcessResult --> ClassifyResult
 
     state ClassifyResult <<choice>>
-    ClassifyResult --> HandleFilled: FILLED
-    ClassifyResult --> HandlePartialFill: PARTIALLY_FILLED
-    ClassifyResult --> HandleRejected: REJECTED (deterministic)
-    ClassifyResult --> HandleTransientError: REJECTED (transient)
+    ClassifyResult --> HandleFilled : FILLED
+    ClassifyResult --> HandlePartialFill : PARTIALLY_FILLED
+    ClassifyResult --> HandleRejected : REJECTED deterministic
+    ClassifyResult --> HandleTransientError : REJECTED transient
 
-    HandleFilled: Lambda: Write BrokerOrder\nstate=FILLED
+    HandleFilled : Lambda ‑ write BrokerOrder FILLED
     HandleFilled --> NormalizeFilled
 
-    NormalizeFilled: Lambda: Write normalized\nORDER_FILLED to DDB → CDC
+    NormalizeFilled : Lambda ‑ write ORDER_FILLED to DDB (CDC)
     NormalizeFilled --> [*]
 
-    HandlePartialFill: Lambda: Update BrokerOrder\nfilledQty, remainingQty
+    HandlePartialFill : Lambda ‑ update filledQty remainingQty
     HandlePartialFill --> NormalizePartialFill
 
-    NormalizePartialFill: Lambda: Write normalized\nORDER_PARTIALLY_FILLED to DDB → CDC
+    NormalizePartialFill : Lambda ‑ write ORDER_PARTIALLY_FILLED (CDC)
     NormalizePartialFill --> WaitForRemainder
 
     state WaitForRemainder {
         [*] --> WaitForNextFill
-        WaitForNextFill: WaitForTaskCallback\nTimeout: 15min
+        WaitForNextFill : WaitForTaskCallback (timeout 15min)
 
-        WaitForNextFill --> ProcessRemainderResult: callback
-        WaitForNextFill --> RemainderTimedOut: timeout
+        WaitForNextFill --> ProcessRemainderResult : callback
+        WaitForNextFill --> RemainderTimedOut : timeout
 
-        ProcessRemainderResult --> RemainderFilled: FILLED (full qty reached)
-        ProcessRemainderResult --> AnotherPartial: PARTIALLY_FILLED
-        ProcessRemainderResult --> RemainderRejected: REJECTED
+        ProcessRemainderResult --> RemainderFilled : full qty reached
+        ProcessRemainderResult --> AnotherPartial : PARTIALLY_FILLED
+        ProcessRemainderResult --> RemainderRejected : REJECTED
 
-        AnotherPartial: Update qty, emit\nORDER_PARTIALLY_FILLED
+        AnotherPartial : Update qty and emit partial fill
         AnotherPartial --> WaitForNextFill
 
         RemainderFilled --> [*]
@@ -91,53 +90,53 @@ stateDiagram-v2
     WaitForRemainder --> HandleRemainderOutcome
 
     state HandleRemainderOutcome <<choice>>
-    HandleRemainderOutcome --> NormalizeFilled: all filled
-    HandleRemainderOutcome --> EscalatePartial: timed out or rejected
+    HandleRemainderOutcome --> NormalizeFilled : all filled
+    HandleRemainderOutcome --> EscalatePartial : timed out or rejected
 
-    EscalatePartial: Lambda: Write BrokerOrder\nstate=ESCALATED\nEmit ORDER_ESCALATED → CDC
+    EscalatePartial : Lambda ‑ write ESCALATED and emit ORDER_ESCALATED
     EscalatePartial --> [*]
 
     state RetryLoop {
         [*] --> IncrementRetry
-        IncrementRetry: Lambda: retryCount + 1\nUpdate BrokerOrder
+        IncrementRetry : Lambda ‑ increment retryCount
         IncrementRetry --> RetryWait
-        RetryWait: Wait(exponential backoff)\n5s → 15s → 45s
+        RetryWait : Wait exponential backoff (5s 15s 45s)
         RetryWait --> ReEmitOrder
-        ReEmitOrder: Lambda: Re-emit\nSIM_*/ALPACA_* to EventBridge
+        ReEmitOrder : Lambda ‑ re‑emit routed event
         ReEmitOrder --> WaitForRetryResult
-        WaitForRetryResult: WaitForTaskCallback\nTimeout: 5min
-        WaitForRetryResult --> RetryResultReceived: callback
-        WaitForRetryResult --> RetryTimedOut: timeout
+        WaitForRetryResult : WaitForTaskCallback (timeout 5min)
+        WaitForRetryResult --> RetryResultReceived : callback
+        WaitForRetryResult --> RetryTimedOut : timeout
     }
 
     HandleTransientError --> CheckRetryCount
 
     state CheckRetryCount <<choice>>
-    CheckRetryCount --> RetryLoop: retryCount < 3
-    CheckRetryCount --> MaxRetriesExhausted: retryCount >= 3
+    CheckRetryCount --> RetryLoop : retryCount < 3
+    CheckRetryCount --> MaxRetriesExhausted : retryCount >= 3
 
     RetryLoop --> RetryOutcome
 
     state RetryOutcome <<choice>>
-    RetryOutcome --> HandleFilled: FILLED
-    RetryOutcome --> HandlePartialFill: PARTIALLY_FILLED
-    RetryOutcome --> HandleTransientError: transient again
-    RetryOutcome --> HandleRejected: deterministic
-    RetryOutcome --> OrderTimedOut: timed out
+    RetryOutcome --> HandleFilled : FILLED
+    RetryOutcome --> HandlePartialFill : PARTIALLY_FILLED
+    RetryOutcome --> HandleTransientError : transient again
+    RetryOutcome --> HandleRejected : deterministic
+    RetryOutcome --> OrderTimedOut : timed out
 
-    MaxRetriesExhausted: Lambda: Write BrokerOrder\nstate=FAILED
+    MaxRetriesExhausted : Lambda ‑ write BrokerOrder FAILED
     MaxRetriesExhausted --> NormalizeRejected
 
-    HandleRejected: Lambda: Write BrokerOrder\nstate=REJECTED
+    HandleRejected : Lambda ‑ write BrokerOrder REJECTED
     HandleRejected --> NormalizeRejected
 
-    NormalizeRejected: Lambda: Write normalized\nORDER_REJECTED to DDB → CDC
+    NormalizeRejected : Lambda ‑ write ORDER_REJECTED to DDB (CDC)
     NormalizeRejected --> [*]
 
-    OrderTimedOut: Lambda: Open circuit breaker\n(instrument-level)\nWrite BrokerOrder state=ESCALATED
+    OrderTimedOut : Lambda ‑ open circuit breaker and escalate
     OrderTimedOut --> NormalizeEscalated
 
-    NormalizeEscalated: Lambda: Write\nORDER_ESCALATED to DDB → CDC
+    NormalizeEscalated : Lambda ‑ write ORDER_ESCALATED to DDB (CDC)
     NormalizeEscalated --> [*]
 ```
 
@@ -194,13 +193,13 @@ stateDiagram-v2
         }
         state CancelListener {
             [*] --> WaitForCancelRequest
-            WaitForCancelRequest: WaitForTaskCallback\n(separate taskToken for cancel)
-            WaitForCancelRequest --> EmitCancel: cancel requested
-            EmitCancel: Emit ALPACA_ORDER_CANCEL_REQUESTED
+            WaitForCancelRequest : WaitForTaskCallback (separate taskToken)
+            WaitForCancelRequest --> EmitCancel : cancel requested
+            EmitCancel : Emit ALPACA_ORDER_CANCEL_REQUESTED
             EmitCancel --> WaitForCancelResult
-            WaitForCancelResult: WaitForTaskCallback
-            WaitForCancelResult --> CancelSucceeded: CANCELLED
-            WaitForCancelResult --> CancelFailed: CANCEL_FAILED
+            WaitForCancelResult : WaitForTaskCallback
+            WaitForCancelResult --> CancelSucceeded : CANCELLED
+            WaitForCancelResult --> CancelFailed : CANCEL_FAILED
         }
     }
 ```
