@@ -103,7 +103,7 @@ All three services (`broker-ctrl`, `broker-sim-adpt`, `broker-alpaca-adpt`) live
 ### Service inventory
 
 **New services:**
-- `broker-ctrl` — Execution domain. Routes orders, normalizes broker events, failure classification, circuit breaker, order state machine. **Deliberate exception to the stateless-controller convention**: broker-ctrl requires its own DynamoDB table for order state machine, circuit breaker state, and execution mode cache. This is justified — it is an orchestration service with state machine semantics, not a typical event processor. The `-ctrl` suffix is retained for consistency with the execution domain naming, but this service owns state.
+- `broker-ctrl` — Execution domain. Order state machine implemented as **AWS-native Step Functions Standard Workflow** with direct service integrations (DynamoDB, EventBridge). Only 2 Lambdas: RouteOrder + CallbackResolver. Routes orders, normalizes broker events via CDC, failure classification, circuit breaker. **Deliberate exception to the stateless-controller convention**: broker-ctrl requires its own DynamoDB table for order state tracking, circuit breaker state, and execution mode cache, plus a SF Standard Workflow definition. This is justified — it is an orchestration service, not a typical event processor. The `-ctrl` suffix is retained for consistency with the execution domain naming.
 - `broker-alpaca-adpt` — Execution domain. Thin Alpaca API wrapper + internal event polling
 
 **Modified services:**
@@ -128,46 +128,81 @@ All three services (`broker-ctrl`, `broker-sim-adpt`, `broker-alpaca-adpt`) live
 
 ## 2. broker-ctrl Internals
 
+### Implementation: AWS-Native Step Functions
+
+The order state machine is implemented as a **Step Functions Standard Workflow** using direct service integrations (DynamoDB, EventBridge) for most steps. Only **2 Lambdas** needed:
+
+1. **RouteOrder Lambda** — stores taskToken in DDB + emits routed event to EventBridge
+2. **CallbackResolver Lambda** — receives adapter result events, looks up taskToken from DDB, calls `SendTaskSuccess` to resume SF
+
+Everything else (DDB reads/writes, retries, timeouts, circuit breaker checks) uses SF direct integrations — no Lambda.
+
+> Full ASL snippets and sequence diagrams: see `docs/superpowers/specs/2026-03-26-broker-ctrl-sf-native-design.md`
+
+### SF Trigger (no Lambda)
+
+```
+EventBridge Rule on ExecutionBus:
+  detailType: ORDER_SUBMITTED
+  target: Step Functions StartExecution
+  inputTransformer: maps event detail to SF input
+```
+
 ### Order State Machine
 
-Every order tracked by `broker-ctrl` goes through a state machine persisted in its DynamoDB table.
-
 ```
-                    ORDER_SUBMITTED received
-                            |
-                       [ROUTING] (determine sim or live)
-                            |
-                  emit SIM_* or ALPACA_*
-                            |
-                    [AWAITING_FILL]
-                            |
-              +-------------+--- ALPACA_ORDER_PLACED received?
-              |                  -> update alpacaOrderId on record (stay in AWAITING_FILL)
-              |
-              +------+------+----------+
-              |      |      |          |
-           FILLED  PARTIAL  REJECTED   CANCEL_REQUESTED
-              |      |      /FAILED       |
-         normalize  update    |      emit ALPACA_ORDER_CANCEL_REQUESTED
-              |    qty & wait |      or SIM cancel
-              |      |        |           |
-       ORDER_FILLED  |   classify     CANCELLED / CANCEL_FAILED
-              |      |   failure         |           |
-              |      |      |        normalize    normalize
-              |      |  [RETRYABLE?]     |           |
-              |      |    /     \   ORDER_CANCELLED  ORDER_REJECTED
-              |      |  yes      no
-              |      |   |        |
-              |      | re-emit [ESCALATED]
-              |      | (max 3)    |
-              |      |   |    notify user
-              |      |   |
-              | ORDER_PARTIALLY_FILLED
-              | (emitted for each partial fill;
-              |  ORDER_FILLED when full qty reached)
+[EventBridge: ORDER_SUBMITTED] ──triggers──> SF Standard Workflow
+
+  1. DynamoDB GetItem ── read ExecutionMode (direct, no Lambda)
+  2. DynamoDB GetItem ── read CircuitBreaker (direct, no Lambda)
+  3. Choice ── breaker OPEN? → Wait 30s → re-check (loop)
+  4. Choice ── sim or live?
+  5. Lambda: RouteOrder ── write BrokerOrder + taskToken to DDB, emit routed event
+  6. WaitForTaskCallback (timeout: 5min) ── SF pauses until callback
+     │
+     ├─ [CallbackResolver Lambda receives adapter result, calls SendTaskSuccess]
+     │
+  7. Choice ── classify result: FILLED / PARTIAL / REJECTED / transient
+     │
+     ├─ FILLED: DynamoDB UpdateItem (state=FILLED) + PutItem (NormalizedEvent) → CDC emits ORDER_FILLED
+     │
+     ├─ PARTIALLY_FILLED: DynamoDB UpdateItem (qty) + PutItem (NormalizedEvent) → CDC emits ORDER_PARTIALLY_FILLED
+     │   └─ WaitForTaskCallback (timeout: 15min) → loop until full qty or timeout
+     │
+     ├─ transient: Choice (retryCount < 3?)
+     │   ├─ yes: DynamoDB UpdateItem (retryCount++) → Wait (5s/15s/45s) → EventBridge PutEvents (re-emit) → WaitForTaskCallback
+     │   └─ no: DynamoDB UpdateItem (state=FAILED) + PutItem (NormalizedEvent) → CDC emits ORDER_REJECTED
+     │
+     ├─ deterministic: DynamoDB UpdateItem (state=REJECTED) + PutItem (NormalizedEvent) → CDC emits ORDER_REJECTED
+     │
+     └─ timeout: DynamoDB UpdateItem (open circuit breaker + state=ESCALATED) + PutItem (NormalizedEvent) → CDC emits ORDER_ESCALATED
 ```
 
-### DynamoDB entities
+### Normalization via CDC (no Lambda)
+
+SF writes a `NormalizedEvent` record to broker-ctrl's DynamoDB table. CDC picks it up and emits the canonical event (`ORDER_FILLED`, `ORDER_REJECTED`, etc.) to ExecutionBus. This is consistent with the CDC-first architecture — no direct EventBridge PutEvents for outbound canonical events.
+
+```
+pk: NormalizedEvent#{tenantId}#{orderId}
+sk: ORDER_FILLED | ORDER_REJECTED | ORDER_ESCALATED | ...
+{ __typename: 'NormalizedEvent', tenantId, orderId, symbol, side, executionMode, ... }
+```
+
+### Callback Resolver Lambda
+
+Single EventBridge rule catches ALL adapter result events:
+
+```
+EventBridge Rule on ExecutionBus:
+  detailType: SIM_ORDER_FILLED | SIM_ORDER_REJECTED | ALPACA_ORDER_FILLED |
+              ALPACA_ORDER_PARTIALLY_FILLED | ALPACA_ORDER_REJECTED |
+              ALPACA_ORDER_PLACED | ALPACA_ORDER_CANCELLED | ALPACA_ORDER_CANCEL_FAILED
+  target: CallbackResolver Lambda
+```
+
+The Lambda reads `fillTaskToken` from the `BrokerOrder` DDB record by orderId, then calls `SendTaskSuccess(taskToken, result)` to resume the SF execution. ~25 lines of code.
+
+### DynamoDB Entities
 
 ```
 pk: BrokerOrder#{tenantId}#{orderId}
@@ -177,8 +212,9 @@ sk: BrokerOrder
   tenantId, orderId, executionMode,
   state: ROUTING | AWAITING_FILL | FILLED | PARTIALLY_FILLED | REJECTED | FAILED | ESCALATED | CANCEL_REQUESTED | CANCELLED,
   routedTo: 'sim' | 'alpaca',
-  routedEventId: string,
-  alpacaOrderId: string | null,   // set when ALPACA_ORDER_PLACED received
+  alpacaOrderId: string | null,
+  sfExecutionArn: string,
+  fillTaskToken: string | null,
 
   // fill tracking
   requestedQty, filledQty, remainingQty,
@@ -189,70 +225,60 @@ sk: BrokerOrder
   lastFailureReason: string,
   failureClass: 'transient' | 'deterministic' | 'ambiguous',
 
-  // circuit breaker reference
   instrumentId: string,
-
-  // timing
   routedAt, lastUpdateAt, timeoutAt
 }
+
+pk: NormalizedEvent#{tenantId}#{orderId}
+sk: ORDER_FILLED | ORDER_REJECTED | ...
+{ __typename: 'NormalizedEvent', ... }  // CDC emits canonical events
+
+pk: CircuitBreaker#{tenantId}
+sk: Instrument#{symbol} | Global
+{ state: CLOSED | OPEN, openedAt, reason, openedByOrderId }
+
+pk: ExecutionMode#{tenantId}
+sk: ExecutionMode
+{ mode: 'simulation' | 'live', updatedAt }
 ```
 
 ### Failure Classification
 
-When `broker-ctrl` receives a rejected/failed event from any adapter:
+Implemented as SF **Choice states** after the callback result. The adapter returns its raw error; the Choice state classifies:
 
-| Failure | Class | Action |
-|---------|-------|--------|
-| API timeout, 5xx, rate limit | **transient** | Re-emit routed event, max 3 retries with exponential backoff (5s, 15s, 45s) |
-| Insufficient buying power | **deterministic** | No retry. Normalize to `ORDER_REJECTED` with human-readable reason |
-| Symbol halted / delisted | **deterministic** | No retry. Normalize to `ORDER_REJECTED` with reason |
-| Invalid order params | **deterministic** | No retry. Normalize to `ORDER_REJECTED` |
-| No response within timeout | **ambiguous** | Circuit breaker on instrument. State -> `ESCALATED`. Emit `ORDER_ESCALATED` to InvestorBus |
-| Broker unreachable | **ambiguous** | Global circuit breaker. All pending routings paused. Emit `BROKER_CIRCUIT_OPEN` to InvestorBus |
+| Failure | Class | SF Action |
+|---------|-------|-----------|
+| API timeout, 5xx, rate limit | **transient** | DynamoDB UpdateItem (retryCount++) → Wait (backoff) → EventBridge PutEvents (re-emit) → WaitForTaskCallback |
+| Insufficient buying power | **deterministic** | DynamoDB UpdateItem (REJECTED) + PutItem (NormalizedEvent ORDER_REJECTED) |
+| Symbol halted / delisted | **deterministic** | Same as above |
+| Invalid order params | **deterministic** | Same as above |
+| No response within timeout | **ambiguous** | DynamoDB UpdateItem (open breaker + ESCALATED) + PutItem (NormalizedEvent ORDER_ESCALATED) |
+| Broker unreachable | **ambiguous** | DynamoDB UpdateItem (global breaker) + PutItem (NormalizedEvent BROKER_CIRCUIT_OPEN) |
 
-Failure reason mapping lives in `broker-ctrl` — each broker adapter returns its raw error, `broker-ctrl` classifies. Adding a new broker doesn't require reimplementing failure classification.
+Failure classification mapping lives in the **CallbackResolver Lambda** — it maps adapter-specific error codes to `failureClass: 'transient' | 'deterministic' | 'ambiguous'` before calling `SendTaskSuccess`. The SF Choice state branches on `failureClass`.
 
 ### Circuit Breaker
 
-```
-pk: CircuitBreaker#{tenantId}
-sk: Instrument#{symbol} | Global
+SF checks the circuit breaker via DynamoDB GetItem at the start of each execution. If OPEN, the SF enters a Wait(30s) → re-check loop until the breaker closes.
 
-{
-  state: CLOSED | OPEN,
-  openedAt, reason,
-  openedByOrderId,
-  pendingOrderIds: []   // orders queued while breaker is open
-}
-```
-
-**Behavior:**
-- **CLOSED** (normal): orders route normally
-- **OPEN**: new orders for that instrument (or all if global) held in `pendingOrderIds`
-- **Auto-close conditions:**
-  - Instrument breaker: fill or rejection received for the stuck order
-  - Global breaker: Step Functions Express Workflow started on `BROKER_CIRCUIT_OPEN`, polls `ALPACA_ACCOUNT_CHECK` every 60s via broker-alpaca-adpt. Closes breaker on successful `ALPACA_ACCOUNT_SNAPSHOT` response. Escalates to user after 10 consecutive failures.
-- **On close:** pending orders re-routed automatically
+Circuit breaker auto-close for global breaker: a **separate SF Standard Workflow** started when `BROKER_CIRCUIT_OPEN` is written. It polls `ALPACA_ACCOUNT_CHECK` every 60s (EventBridge PutEvents → WaitForTaskCallback), closes the breaker on success (DynamoDB UpdateItem), escalates to user after 10 failures.
 
 ### Retry Mechanism
 
-Retries use **Step Functions Express Workflow wait states** (sub-minute waits are free on Express, expensive on Standard) — no polling loops:
+Entirely Lambda-free within the SF:
 
 ```
-broker-ctrl classifies as retryable
-  -> writes retryCount + 1 to DDB
-  -> starts SF Express execution: Wait(backoff) -> emit SIM_*/ALPACA_* again
+Choice (retryCount < 3?) → DynamoDB UpdateItem (increment) → Wait (5s/15s/45s) → EventBridge PutEvents (re-emit routed event) → WaitForTaskCallback
 ```
 
-### Order Timeout Detection
+Wait states, DynamoDB updates, and EventBridge puts are all direct SF integrations. No separate SF Express Workflow needed — retries are part of the main execution flow.
 
-For live orders, `broker-ctrl` starts a Step Functions execution when it routes:
+### Lambda Summary
 
-```
-Route order -> Start SF: Wait(configurable, e.g. 5min) -> Check order state in DDB
-  -> if still AWAITING_FILL -> classify as ambiguous -> circuit breaker
-  -> if resolved -> no-op (SF terminates)
-```
+| Lambda | Purpose | Lines of code |
+|--------|---------|---------------|
+| `RouteOrder` | Store taskToken + emit routed event | ~30 |
+| `CallbackResolver` | Lookup taskToken, classify error, call SendTaskSuccess | ~40 |
 
 ---
 
