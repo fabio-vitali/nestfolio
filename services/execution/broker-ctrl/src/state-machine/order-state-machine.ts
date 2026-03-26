@@ -406,76 +406,93 @@ export class OrderStateMachine extends Construct {
 
     // ---------------------------------------------------------------
     // 15. HandleTimeout — Parallel: open breaker + escalate order + write NormalizedEvent
+    //
+    // Implemented as CustomState with inline ASL branches because CDK Parallel.branch()
+    // requires the branches to be reachable via the CDK chain graph. Since HandleTimeout
+    // is only referenced via raw Catch[].Next in other CustomStates (not via .next()),
+    // CDK cannot bind the Parallel branches to the graph and would fail validation.
+    // Using a single CustomState with inline Parallel ASL avoids this limitation.
     // ---------------------------------------------------------------
-    const handleTimeoutOpenBreaker = new sfn.CustomState(this, 'HandleTimeoutOpenBreaker', {
+    const handleTimeout = new sfn.CustomState(this, 'HandleTimeout', {
       stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::dynamodb:updateItem',
-        Parameters: {
-          TableName: tableName,
-          Key: {
-            pk: { 'S.$': "States.Format('CircuitBreaker#{}#{}', $.tenantId, $.symbol)" },
-            sk: { S: 'CircuitBreaker' },
+        Type: 'Parallel',
+        ResultPath: null,
+        Branches: [
+          {
+            StartAt: 'HandleTimeoutOpenBreaker',
+            States: {
+              HandleTimeoutOpenBreaker: {
+                Type: 'Task',
+                Resource: 'arn:aws:states:::dynamodb:updateItem',
+                Parameters: {
+                  TableName: tableName,
+                  Key: {
+                    pk: { 'S.$': "States.Format('CircuitBreaker#{}#{}', $.tenantId, $.symbol)" },
+                    sk: { S: 'CircuitBreaker' },
+                  },
+                  UpdateExpression: 'SET #st = :st, openedAt = :oa, reason = :r',
+                  ExpressionAttributeNames: { '#st': 'state' },
+                  ExpressionAttributeValues: {
+                    ':st': { S: 'OPEN' },
+                    ':oa': { 'S.$': '$$.State.EnteredTime' },
+                    ':r': { S: 'Adapter timeout' },
+                  },
+                  ResultPath: null,
+                },
+                End: true,
+              },
+            },
           },
-          UpdateExpression: 'SET #st = :st, openedAt = :oa, reason = :r',
-          ExpressionAttributeNames: { '#st': 'state' },
-          ExpressionAttributeValues: {
-            ':st': { S: 'OPEN' },
-            ':oa': { 'S.$': '$$.State.EnteredTime' },
-            ':r': { S: 'Adapter timeout' },
+          {
+            StartAt: 'HandleTimeoutEscalateOrder',
+            States: {
+              HandleTimeoutEscalateOrder: {
+                Type: 'Task',
+                Resource: 'arn:aws:states:::dynamodb:updateItem',
+                Parameters: {
+                  TableName: tableName,
+                  Key: {
+                    pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.tenantId, $.orderId)" },
+                    sk: { S: 'BrokerOrder' },
+                  },
+                  UpdateExpression: 'SET #st = :st',
+                  ExpressionAttributeNames: { '#st': 'state' },
+                  ExpressionAttributeValues: {
+                    ':st': { S: 'ESCALATED' },
+                  },
+                  ResultPath: null,
+                },
+                End: true,
+              },
+            },
           },
-        },
-        ResultPath: sfn.JsonPath.DISCARD,
+          {
+            StartAt: 'HandleTimeoutNormalizedEvent',
+            States: {
+              HandleTimeoutNormalizedEvent: {
+                Type: 'Task',
+                Resource: 'arn:aws:states:::dynamodb:putItem',
+                Parameters: {
+                  TableName: tableName,
+                  Item: {
+                    pk: { 'S.$': "States.Format('NormalizedEvent#{}#{}', $.tenantId, $.orderId)" },
+                    sk: { 'S.$': "States.Format('ORDER_ESCALATED#{}', $$.State.EnteredTime)" },
+                    __typename: { S: 'NormalizedEvent' },
+                    tenantId: { 'S.$': '$.tenantId' },
+                    orderId: { 'S.$': '$.orderId' },
+                    executionMode: { 'S.$': '$.executionMode.Item.mode.S' },
+                    failureReason: { S: 'Adapter timeout — escalated' },
+                    timestamp: { 'S.$': '$$.State.EnteredTime' },
+                  },
+                  ResultPath: null,
+                },
+                End: true,
+              },
+            },
+          },
+        ],
       },
     });
-
-    const handleTimeoutEscalateOrder = new sfn.CustomState(this, 'HandleTimeoutEscalateOrder', {
-      stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::dynamodb:updateItem',
-        Parameters: {
-          TableName: tableName,
-          Key: {
-            pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.tenantId, $.orderId)" },
-            sk: { S: 'BrokerOrder' },
-          },
-          UpdateExpression: 'SET #st = :st',
-          ExpressionAttributeNames: { '#st': 'state' },
-          ExpressionAttributeValues: {
-            ':st': { S: 'ESCALATED' },
-          },
-        },
-        ResultPath: sfn.JsonPath.DISCARD,
-      },
-    });
-
-    const handleTimeoutNormalizedEvent = new sfn.CustomState(this, 'HandleTimeoutNormalizedEvent', {
-      stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::dynamodb:putItem',
-        Parameters: {
-          TableName: tableName,
-          Item: {
-            pk: { 'S.$': "States.Format('NormalizedEvent#{}#{}', $.tenantId, $.orderId)" },
-            sk: { 'S.$': "States.Format('ORDER_ESCALATED#{}', $$.State.EnteredTime)" },
-            __typename: { S: 'NormalizedEvent' },
-            tenantId: { 'S.$': '$.tenantId' },
-            orderId: { 'S.$': '$.orderId' },
-            executionMode: { 'S.$': '$.executionMode.Item.mode.S' },
-            failureReason: { S: 'Adapter timeout — escalated' },
-            timestamp: { 'S.$': '$$.State.EnteredTime' },
-          },
-        },
-        ResultPath: sfn.JsonPath.DISCARD,
-      },
-    });
-
-    const handleTimeout = new sfn.Parallel(this, 'HandleTimeout', {
-      resultPath: sfn.JsonPath.DISCARD,
-    });
-    handleTimeout.branch(handleTimeoutOpenBreaker);
-    handleTimeout.branch(handleTimeoutEscalateOrder);
-    handleTimeout.branch(handleTimeoutNormalizedEvent);
 
     const endEscalated = new sfn.Succeed(this, 'EndEscalated');
 
