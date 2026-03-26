@@ -18,6 +18,7 @@ export class InvestorBffStack extends ServiceStack {
         'InvestorProfile',
         'Deposit',
         'Withdrawal',
+        'ExecutionModeChange',
       ],
     });
 
