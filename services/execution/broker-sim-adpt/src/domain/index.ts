@@ -1,3 +1,3 @@
-export { ExecutionAdptEventTypes } from './events';
-export { OrderFilledSchema, DepositDetectedSchema } from './schemas';
-export type { OrderFilledEvent, DepositDetectedEvent } from './schemas';
+export { ExecutionAdptEventTypes, BrokerSimEventTypes } from './events';
+export { OrderFilledSchema, DepositDetectedSchema, SimOrderRequestedSchema, SimDepositInitiatedSchema, SimWithdrawalRequestedSchema } from './schemas';
+export type { OrderFilledEvent, DepositDetectedEvent, SimOrderRequestedEvent, SimDepositInitiatedEvent, SimWithdrawalRequestedEvent } from './schemas';
