@@ -87,14 +87,21 @@ import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { createHandlers, type EventListenerDeps } from '../../src/handlers/event-listener';
 import { LedgerRepository } from '../../src/repositories/ledger.repository';
 import { ShadowFillService } from '../../src/services/shadow-fill.service';
+import { TaxLotManager } from '../../src/services/tax-lot-manager';
 
 describe('ledger-ctrl event-listener handler', () => {
   const repository = new LedgerRepository('test-table');
   const shadowFill = new ShadowFillService();
+  const taxLotManager = new TaxLotManager(repository);
+
+  // Spy on TaxLotManager methods
+  const openLotSpy = jest.spyOn(taxLotManager, 'openLot' as any).mockResolvedValue(undefined) as unknown as jest.SpyInstance;
+  const closeLotsSpy = jest.spyOn(taxLotManager, 'closeLots' as any).mockResolvedValue([]) as unknown as jest.SpyInstance;
 
   const mockDeps: EventListenerDeps = {
     repository,
     shadowFill,
+    taxLotManager,
   };
 
   const harness = createTestHarness({
@@ -217,5 +224,92 @@ describe('ledger-ctrl event-listener handler', () => {
       }, { tenantId: 't1' }),
     ]);
     expect(result.batchItemFailures).toHaveLength(1);
+  });
+
+  describe('TaxLotManager integration', () => {
+    it('should call openLot for live BUY ORDER_FILLED', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_FILLED', {
+          tenantId: 't1',
+          orderId: 'ord-buy-1',
+          symbol: 'VTI',
+          side: 'BUY',
+          filledQuantity: 50,
+          averageFillPrice: 250.00,
+          executionMode: 'live',
+        }, { tenantId: 't1' }),
+      ]);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(openLotSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: 't1',
+          orderId: 'ord-buy-1',
+          symbol: 'VTI',
+          quantity: 50,
+          costBasisPerShare: 250.00,
+        }),
+      );
+    });
+
+    it('should call closeLots for live SELL ORDER_FILLED', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_FILLED', {
+          tenantId: 't1',
+          orderId: 'ord-sell-1',
+          symbol: 'VTI',
+          side: 'SELL',
+          filledQuantity: 30,
+          averageFillPrice: 260.00,
+          executionMode: 'live',
+        }, { tenantId: 't1' }),
+      ]);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(closeLotsSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: 't1',
+          symbol: 'VTI',
+          quantity: 30,
+          salePrice: 260.00,
+          orderId: 'ord-sell-1',
+        }),
+      );
+    });
+
+    it('should NOT call TaxLotManager for simulation ORDER_FILLED', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_FILLED', {
+          tenantId: 't1',
+          orderId: 'ord-sim-1',
+          symbol: 'VTI',
+          side: 'BUY',
+          filledQuantity: 50,
+          averageFillPrice: 250.00,
+          executionMode: 'simulation',
+        }, { tenantId: 't1' }),
+      ]);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(openLotSpy).not.toHaveBeenCalled();
+      expect(closeLotsSpy).not.toHaveBeenCalled();
+    });
+
+    it('should NOT call TaxLotManager when executionMode is not present', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('ORDER_FILLED', {
+          tenantId: 't1',
+          orderId: 'ord-no-mode',
+          symbol: 'VTI',
+          side: 'BUY',
+          filledQuantity: 50,
+          averageFillPrice: 250.00,
+        }, { tenantId: 't1' }),
+      ]);
+
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(openLotSpy).not.toHaveBeenCalled();
+      expect(closeLotsSpy).not.toHaveBeenCalled();
+    });
   });
 });
