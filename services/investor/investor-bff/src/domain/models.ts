@@ -1,6 +1,9 @@
 /** Operating mode determines the advisory style and risk parameters. */
 export type OperatingMode = 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
 
+/** Execution mode determines whether trades are simulated or sent to a live broker. */
+export type ExecutionMode = 'simulation' | 'live';
+
 /** Mandate level determines whether user confirmation is required. */
 export type MandateLevel = 'ADVISORY' | 'DISCRETIONARY';
 
@@ -65,6 +68,7 @@ export interface InvestorProfile {
   readonly age: number;
   readonly locale: string;
   readonly operatingMode: OperatingMode;
+  readonly executionMode: ExecutionMode;
   readonly riskProfile: RiskProfile;
   readonly goals: ReadonlyArray<Goal>;
   readonly mandate: Mandate | null;
@@ -73,6 +77,15 @@ export interface InvestorProfile {
   readonly onboardingCompletedAt: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+/** Written to DDB when the investor switches execution mode; triggers EXECUTION_MODE_CHANGED via CDC. */
+export interface ExecutionModeChange {
+  readonly changeId: string;
+  readonly tenantId: string;
+  readonly fromMode: ExecutionMode;
+  readonly toMode: ExecutionMode;
+  readonly changedAt: string;
 }
 
 /** Notification sent to the investor. */

@@ -16,6 +16,7 @@ export class ReconciliationCtrlStack extends ServiceStack {
         'PORTFOLIO_UPDATED',
         'PORTFOLIO_SNAPSHOT_IMPORTED',
         'CORPORATE_ACTION_APPLIED',
+        'ALPACA_ACCOUNT_SNAPSHOT',
       ],
     });
 

@@ -61,7 +61,7 @@ export class LedgerCtrlStack extends ServiceStack {
     }));
 
     const egress = new Egress(this, 'Egress', {
-      publishableTypes: ['BalanceEvent', 'PortfolioEvent', 'LedgerEntryEvent'],
+      publishableTypes: ['BalanceEvent', 'PortfolioEvent', 'LedgerEntryEvent', 'TaxLot', 'DispositionRecord'],
     });
 
     this.addObservability({ ingress, egress, extraLambdas: [reducerFn] });

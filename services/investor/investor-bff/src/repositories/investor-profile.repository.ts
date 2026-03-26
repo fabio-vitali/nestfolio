@@ -12,6 +12,7 @@ import type {
   RiskProfile,
   Mandate,
   OperatingMode,
+  ExecutionMode,
   MandateLevel,
   RebalanceCadence,
   Notification,
@@ -43,6 +44,7 @@ export class InvestorProfileRepository extends TableRepository {
         age: 0,
         locale: 'en',
         operatingMode: 'BALANCED',
+        executionMode: 'simulation',
         monthlyContributionCents: 0,
         currency: 'USD',
         onboardingCompletedAt: null,
@@ -206,7 +208,7 @@ export class InvestorProfileRepository extends TableRepository {
         coolDownDays: number;
         rebalanceCadence: RebalanceCadence;
       },
-      editedBy?: string,
+      _editedBy?: string,
     ): Promise<Mandate> => {
       if (mandate.monthlyTurnoverCapPercent < 0 || mandate.monthlyTurnoverCapPercent > 100) {
         throw new NotRetryableError('monthlyTurnoverCapPercent must be between 0 and 100');
@@ -245,7 +247,7 @@ export class InvestorProfileRepository extends TableRepository {
   );
 
   readonly revokeMandate = this.log('revokeMandate',
-    async (tenantId: string, userId: string, editedBy?: string): Promise<Mandate> => {
+    async (tenantId: string, userId: string, _editedBy?: string): Promise<Mandate> => {
       const pk = profilePk(tenantId, userId);
       const now = getTime();
 
@@ -300,6 +302,43 @@ export class InvestorProfileRepository extends TableRepository {
       });
 
       return item;
+    },
+  );
+
+  readonly setExecutionMode = this.log('setExecutionMode',
+    async (tenantId: string, userId: string, fromMode: ExecutionMode, toMode: ExecutionMode): Promise<Record<string, unknown>> => {
+      const pk = profilePk(tenantId, userId);
+      const now = getTime();
+      const changeId = getUUID();
+
+      const changeItem: TableEntry = {
+        pk,
+        sk: `ExecutionModeChange#${changeId}`,
+        __typename: 'ExecutionModeChange',
+        tenantId,
+        timestamp: now,
+        changeId,
+        fromMode,
+        toMode,
+        changedAt: now,
+      };
+
+      await this.transactWrite({
+        TransactItems: [
+          { Put: { TableName: this.tableName, Item: changeItem } },
+          {
+            Update: {
+              TableName: this.tableName,
+              Key: { pk, sk: 'InvestorProfile' },
+              UpdateExpression: 'SET executionMode = :mode, updatedAt = :now, #ts = :ts',
+              ExpressionAttributeNames: { '#ts': 'timestamp' },
+              ExpressionAttributeValues: { ':mode': toMode, ':now': now, ':ts': now },
+            },
+          },
+        ],
+      });
+
+      return changeItem;
     },
   );
 

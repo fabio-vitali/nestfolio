@@ -34,9 +34,18 @@ export class Monitoring extends Construct {
     this.alarmTopic = props.alarmTopic ?? new Topic(this, 'AlarmTopic');
 
     // Lambda alarms
+    const lambdaIds = new Set<string>();
     for (const fn of props.lambdaFunctions ?? []) {
+      // Disambiguate handlers that share the same node.id (e.g. multiple Ingress/Handler constructs)
+      let baseId = fn.node.id;
+      if (lambdaIds.has(baseId)) {
+        const parentId = fn.node.scope?.node.id ?? 'Unknown';
+        baseId = `${parentId}${fn.node.id}`;
+      }
+      lambdaIds.add(baseId);
+
       // Errors > 0
-      new Alarm(this, `${fn.node.id}Errors`, {
+      new Alarm(this, `${baseId}Errors`, {
         alarmDescription: `Lambda ${fn.node.id} errors > 0`,
         metric: fn.metricErrors({ period: Duration.minutes(5) }),
         threshold: 0,
@@ -46,7 +55,7 @@ export class Monitoring extends Construct {
       }).addAlarmAction(new SnsAction(this.alarmTopic));
 
       // Duration > 80% of timeout (default 30s -> 24s)
-      new Alarm(this, `${fn.node.id}Duration`, {
+      new Alarm(this, `${baseId}Duration`, {
         alarmDescription: `Lambda ${fn.node.id} duration > 80% timeout`,
         metric: fn.metricDuration({ period: Duration.minutes(5), statistic: 'Maximum' }),
         threshold: 24_000, // 80% of 30s default
@@ -56,7 +65,7 @@ export class Monitoring extends Construct {
       }).addAlarmAction(new SnsAction(this.alarmTopic));
 
       // Throttles > 0
-      new Alarm(this, `${fn.node.id}Throttles`, {
+      new Alarm(this, `${baseId}Throttles`, {
         alarmDescription: `Lambda ${fn.node.id} throttles > 0`,
         metric: fn.metricThrottles({ period: Duration.minutes(5) }),
         threshold: 0,

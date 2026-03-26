@@ -267,6 +267,67 @@ export class LedgerRepository extends TableRepository {
     },
   );
 
+  readonly putTaxLot = this.log('putTaxLot',
+    async (lot: Record<string, unknown>): Promise<void> => {
+      await this.put(lot);
+    },
+  );
+
+  readonly getOpenLotsBySymbol = this.log('getOpenLotsBySymbol',
+    async (tenantId: string, symbol: string): Promise<Record<string, unknown>[]> => {
+      return this.queryAll({
+        TableName: this.tableName,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+        FilterExpression: '#status = :open',
+        ExpressionAttributeNames: { '#status': 'status' },
+        ExpressionAttributeValues: {
+          ':pk': `TaxLot#${tenantId}#${symbol}`,
+          ':skPrefix': 'Lot#',
+          ':open': 'open',
+        },
+      });
+    },
+  );
+
+  readonly closeTaxLot = this.log('closeTaxLot',
+    async (pk: string, sk: string): Promise<void> => {
+      await this.update(pk, sk, { status: 'closed', closedAt: getTime() });
+    },
+  );
+
+  readonly updateTaxLotQuantity = this.log('updateTaxLotQuantity',
+    async (pk: string, sk: string, newQuantity: number): Promise<void> => {
+      await this.update(pk, sk, { quantity: newQuantity });
+    },
+  );
+
+  readonly putDisposition = this.log('putDisposition',
+    async (tenantId: string, disposition: Record<string, unknown>): Promise<void> => {
+      await this.put({
+        pk: `Disposition#${tenantId}#${disposition.symbol}`,
+        sk: `Disp#${disposition.soldAt}#${disposition.lotId}`,
+        __typename: 'DispositionRecord',
+        tenantId,
+        ...disposition,
+        timestamp: getTime(),
+      });
+    },
+  );
+
+  readonly getDispositions = this.log('getDispositions',
+    async (tenantId: string, symbol: string, year?: string): Promise<Record<string, unknown>[]> => {
+      const params: any = {
+        TableName: this.tableName,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+        ExpressionAttributeValues: {
+          ':pk': `Disposition#${tenantId}#${symbol}`,
+          ':skPrefix': year ? `Disp#${year}` : 'Disp#',
+        },
+      };
+      return this.queryAll(params);
+    },
+  );
+
   private computeTotalValue(state: Record<string, unknown>): number {
     const positions = (state as any).positions ?? {};
     let total = (state as any).cashBalanceCents ?? 0;

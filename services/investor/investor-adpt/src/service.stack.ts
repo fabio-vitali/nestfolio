@@ -58,6 +58,7 @@ export class InvestorAdptStack extends ServiceStack {
           InvestorCrossDomainEventTypes.DEPOSIT_INITIATED,
           InvestorCrossDomainEventTypes.WITHDRAWAL_REQUESTED,
           InvestorCrossDomainEventTypes.ACCOUNT_CLOSURE_REQUESTED,
+          InvestorCrossDomainEventTypes.EXECUTION_MODE_CHANGED,
         ],
       },
       targets: [new EventBusTarget(executionBus, { deadLetterQueue: toExecutionDlq })],

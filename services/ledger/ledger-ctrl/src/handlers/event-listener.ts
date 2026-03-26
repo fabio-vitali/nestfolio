@@ -6,10 +6,12 @@ import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { LedgerRepository } from '../repositories/ledger.repository';
 import { ShadowFillService, type ProposedTrade } from '../services/shadow-fill.service';
+import { TaxLotManager } from '../services/tax-lot-manager';
 
 export interface EventListenerDeps {
   readonly repository: LedgerRepository;
   readonly shadowFill: ShadowFillService;
+  readonly taxLotManager: TaxLotManager;
 }
 
 async function processActualEvent(
@@ -37,6 +39,30 @@ async function processActualEvent(
 
   if (!created) {
     logger.info('Duplicate ledger entry, skipping', { eventType: ctx.eventType, eventId: ctx.eventId });
+  }
+
+  // Tax lot tracking for live fills
+  if (ctx.eventType === 'ORDER_FILLED' && eventPayload.executionMode === 'live') {
+    const side = eventPayload.side as string;
+    if (side === 'BUY') {
+      await deps.taxLotManager.openLot({
+        tenantId,
+        orderId: eventPayload.orderId as string,
+        symbol: eventPayload.symbol as string,
+        quantity: eventPayload.filledQuantity as number ?? eventPayload.quantity as number,
+        costBasisPerShare: eventPayload.averageFillPrice as number ?? eventPayload.fillPrice as number,
+        acquiredAt: ctx.timestamp,
+      });
+    } else if (side === 'SELL') {
+      await deps.taxLotManager.closeLots({
+        tenantId,
+        symbol: eventPayload.symbol as string,
+        quantity: eventPayload.filledQuantity as number ?? eventPayload.quantity as number,
+        salePrice: eventPayload.averageFillPrice as number ?? eventPayload.fillPrice as number,
+        soldAt: ctx.timestamp,
+        orderId: eventPayload.orderId as string,
+      });
+    }
   }
 
   return skip();
@@ -126,6 +152,7 @@ const repository = new LedgerRepository(TABLE_NAME, dynamoClient);
 const deps: EventListenerDeps = {
   repository,
   shadowFill: new ShadowFillService(),
+  taxLotManager: new TaxLotManager(repository),
 };
 
 export const handler = createIngestionHandler({

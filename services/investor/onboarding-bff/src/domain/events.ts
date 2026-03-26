@@ -1,2 +1,3 @@
 export const ONBOARDING_STARTED = 'ONBOARDING_STARTED' as const;
 export const ONBOARDING_COMPLETED = 'ONBOARDING_COMPLETED' as const;
+export const GO_LIVE_CONFIRMED = 'GO_LIVE_CONFIRMED' as const;

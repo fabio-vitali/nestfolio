@@ -156,6 +156,26 @@ describe('OnboardingRepository', () => {
     });
   });
 
+  describe('confirmGoLive', () => {
+    it('updates session to completed and writes GoLiveConfirmed CDC record in transactWrite', async () => {
+      mockSend.mockResolvedValueOnce({});
+      await repo.confirmGoLive('tenant-1', 'user-1', 'sess-1');
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call.input.TransactItems).toHaveLength(2);
+      // Item 1: Update session status
+      expect(call.input.TransactItems[0].Update.ExpressionAttributeValues[':status']).toBe('completed');
+      expect(call.input.TransactItems[0].Update.ExpressionAttributeValues[':phase']).toBe('go_live_confirmation');
+      // Item 2: Put CDC record
+      const cdcItem = call.input.TransactItems[1].Put.Item;
+      expect(cdcItem.__typename).toBe('GoLiveConfirmed');
+      expect(cdcItem.pk).toMatch(/^GoLiveConfirmed#/);
+      expect(cdcItem.sk).toMatch(/^GoLiveConfirmed#/);
+      expect(cdcItem.tenantId).toBe('tenant-1');
+      expect(cdcItem.userId).toBe('user-1');
+    });
+  });
+
   describe('getActiveSession', () => {
     it('returns session if exists and not completed', async () => {
       mockSend.mockResolvedValueOnce({

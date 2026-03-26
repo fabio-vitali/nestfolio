@@ -120,7 +120,7 @@
     "prefix": "sandbox"
   },
   {
-    "service": "broker-adpt",
+    "service": "broker-sim-adpt",
     "subsystem": "execution",
     "deploymentPhase": 3,
     "dependencies": [
