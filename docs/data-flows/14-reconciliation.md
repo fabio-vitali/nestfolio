@@ -70,3 +70,14 @@ flowchart TB
 |------------|---------|---------|
 | ReconciliationResult | `Reconciliation#${tenantId}#${id}` / `Reconciliation` | status, driftCount, timestamp |
 | DriftRecord | `Reconciliation#${tenantId}#${id}` / `DriftRecord#${symbol}` | instrument, intentQty, settlementQty, drift |
+
+---
+
+## Execution Mode Impact
+
+Reconciliation behavior depends on the tenant's **execution mode**:
+
+- **Simulation mode**: Settlement positions come from the simulation engine's internal state (`broker-sim-adpt`). Since the sim engine is deterministic and instant, drifts in simulation mode typically indicate bugs rather than real market discrepancies.
+- **Live mode**: Settlement positions come from real Alpaca account snapshots (`ALPACA_ACCOUNT_SNAPSHOT` events processed by `broker-ctrl/callback-resolver`). Live mode reconciliation may detect genuine drifts caused by partial fills, corporate actions, or timing differences between intent and settlement.
+
+In both modes, the reconciliation logic and downstream flow (drift detection, dashboard flagging, potential rebalancing trigger) remain the same. The difference is solely in the source of settlement position data.

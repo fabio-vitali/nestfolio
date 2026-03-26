@@ -85,7 +85,10 @@ flowchart TB
 | 5 | compliance-ctrl | Advisory | DECISION_PACKET_ENRICHED | Validate rebalance plan against guardrails | DECISION_APPROVED | AdvisoryBus |
 | 6 | advisory-bff | Advisory | USER_CONFIRMATION_REQUESTED | User reviews and confirms rebalance trades | USER_CONFIRMED | AdvisoryBus |
 | 7 | execution-ctrl | Execution | DECISION_APPROVED / USER_CONFIRMED | Create orders for each rebalance trade | ORDER_SUBMITTED | ExecutionBus |
-| 8 | broker-adpt | Execution | ORDER_SUBMITTED | Simulation engine processes trades via CDC | ORDER_FILLED (per trade) | ExecutionBus |
-| 9 | ledger-ctrl | Ledger | ORDER_FILLED (multiple) | Record each fill, rebuild portfolio snapshot | BALANCE_UPDATED, PORTFOLIO_UPDATED | LedgerBus |
+| 8 | broker-ctrl SF | Execution | ORDER_SUBMITTED | Order State Machine routes each order by execution mode (see Feature #8) | SIM_ORDER_REQUESTED or ALPACA_ORDER_REQUESTED | ExecutionBus |
+| 9 | broker-sim-adpt / broker-alpaca-adpt | Execution | Routed order event | Adapter processes trade, callback-resolver resolves SF task token | ORDER_FILLED (CDC via NormalizedEvent) | ExecutionBus |
+| 10 | ledger-ctrl | Ledger | ORDER_FILLED (multiple) | Record each fill, rebuild portfolio snapshot | BALANCE_UPDATED, PORTFOLIO_UPDATED | LedgerBus |
 
 **Note**: This flow composes Features #6 (advisory decision cycle), #8 (order execution), and #9 (order ledger). The drift detection is the unique entry point; the rest follows established patterns.
+
+**Execution mode awareness**: At step 8, `broker-ctrl`'s Order State Machine reads the tenant's execution mode and routes each rebalance order to the appropriate adapter. In **simulation** mode, orders go to `broker-sim-adpt`; in **live** mode, orders go to `broker-alpaca-adpt` for real market execution. The downstream flow (ledger recording, notifications) is identical regardless of execution mode — both paths normalize through `broker-ctrl`'s NormalizedEvent materialization before CDC emission.
