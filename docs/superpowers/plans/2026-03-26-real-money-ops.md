@@ -298,6 +298,9 @@ export const BrokerCtrlRoutedEventTypes = {
   ALPACA_ORDER_CANCEL_REQUESTED: 'ALPACA_ORDER_CANCEL_REQUESTED',
   ALPACA_TRANSFER_REQUESTED: 'ALPACA_TRANSFER_REQUESTED',
   ALPACA_ACCOUNT_CHECK: 'ALPACA_ACCOUNT_CHECK',
+  // Note: ALPACA_TRANSFER_INITIATED is intentionally NOT consumed by broker-ctrl.
+  // Transfer completion is tracked by broker-alpaca-adpt's transfer-status-poller.
+  // If UI needs "transfer in progress" status, dashboard-bff can subscribe directly.
 } as const;
 
 // Events this service subscribes to (adapter results)
@@ -639,8 +642,18 @@ export async function handler(event: SQSEvent) {
     const detail = JSON.parse(body.detail ?? body.Detail ?? '{}');
     const { tenantId, orderId } = detail;
 
-    const taskToken = await repo.getTaskToken(tenantId, orderId);
-    if (!taskToken) { logger.warn('No active taskToken for order', { orderId }); continue; }
+    // Branch: order events look up fillTaskToken from BrokerOrder; account snapshot looks up healTaskToken from CircuitBreaker
+    const eventType = body.detailType ?? body['detail-type'];
+    let taskToken: string | null;
+
+    if (eventType === 'ALPACA_ACCOUNT_SNAPSHOT') {
+      const breaker = await circuitBreakerRepo.getBreaker(tenantId, 'Global');
+      taskToken = breaker?.healTaskToken ?? null;
+    } else {
+      taskToken = await repo.getTaskToken(tenantId, orderId);
+    }
+
+    if (!taskToken) { logger.warn('No active taskToken', { orderId, eventType }); continue; }
 
     const failureClass = classifyFailure(body.detailType ?? body['detail-type'], detail);
 
@@ -909,7 +922,88 @@ const depositWithdrawalIngress = new Ingress(this, 'DepositWithdrawalIngress', {
 pnpm nx run broker-ctrl:test && git add services/execution/broker-ctrl/ && git commit -m "feat(broker-ctrl): implement deposit/withdrawal routing handler"
 ```
 
-### Task 2.12: Implement circuit breaker auto-close SF workflow
+### Task 2.12: Implement deposit/withdrawal normalizer handler
+
+**Files:**
+- Create: `services/execution/broker-ctrl/src/handlers/deposit-withdrawal-normalizer.ts`
+- Create: `services/execution/broker-ctrl/test/deposit-withdrawal-normalizer.test.ts`
+- Modify: `services/execution/broker-ctrl/src/service.stack.ts`
+
+Deposit/withdrawal adapter results don't go through the SF (no taskToken). They need their own normalizer that writes NormalizedEvent records for CDC.
+
+- [ ] **Step 1: Remove deposit/withdrawal events from CALLBACK_EVENT_TYPES**
+
+Remove from the CALLBACK_EVENT_TYPES array:
+`SIM_DEPOSIT_COMPLETED`, `SIM_WITHDRAWAL_COMPLETED`, `ALPACA_TRANSFER_COMPLETED`, `ALPACA_TRANSFER_FAILED`
+
+- [ ] **Step 2: Write failing tests**
+
+Test cases:
+- SIM_DEPOSIT_COMPLETED → writes NormalizedEvent with sk=DEPOSIT_DETECTED
+- SIM_WITHDRAWAL_COMPLETED → writes NormalizedEvent with sk=WITHDRAWAL_COMPLETED
+- ALPACA_TRANSFER_COMPLETED (direction=INCOMING) → NormalizedEvent DEPOSIT_DETECTED
+- ALPACA_TRANSFER_COMPLETED (direction=OUTGOING) → NormalizedEvent WITHDRAWAL_COMPLETED
+- ALPACA_TRANSFER_FAILED → NormalizedEvent with appropriate error type
+
+- [ ] **Step 3: Implement normalizer using materializeToTable**
+
+```typescript
+export const handler = materializeToTable({
+  handlers: {
+    SIM_DEPOSIT_COMPLETED: (payload, ctx) => ({
+      pk: `NormalizedEvent#${ctx.tenantId}#${payload.depositId}`,
+      sk: 'DEPOSIT_DETECTED',
+      __typename: 'NormalizedEvent',
+      tenantId: ctx.tenantId,
+      amount: payload.amount,
+      currency: payload.currency,
+      executionMode: 'simulation',
+      timestamp: ctx.timestamp,
+    }),
+    SIM_WITHDRAWAL_COMPLETED: (payload, ctx) => ({
+      pk: `NormalizedEvent#${ctx.tenantId}#${payload.withdrawalId}`,
+      sk: 'WITHDRAWAL_COMPLETED',
+      __typename: 'NormalizedEvent',
+      // ... similar fields
+    }),
+    ALPACA_TRANSFER_COMPLETED: (payload, ctx) => ({
+      pk: `NormalizedEvent#${ctx.tenantId}#${payload.transferId}`,
+      sk: payload.direction === 'INCOMING' ? 'DEPOSIT_DETECTED' : 'WITHDRAWAL_COMPLETED',
+      __typename: 'NormalizedEvent',
+      tenantId: ctx.tenantId,
+      amount: payload.amount,
+      executionMode: 'live',
+      timestamp: ctx.timestamp,
+    }),
+    ALPACA_TRANSFER_FAILED: (payload, ctx) => ({
+      pk: `NormalizedEvent#${ctx.tenantId}#${payload.transferId}`,
+      sk: 'TRANSFER_FAILED',
+      __typename: 'NormalizedEvent',
+      // ... error details
+    }),
+  },
+});
+```
+
+- [ ] **Step 4: Add Ingress in service.stack.ts**
+
+```typescript
+const depositWithdrawalNormalizerIngress = new Ingress(this, 'DepositWithdrawalNormalizerIngress', {
+  eventTypes: [
+    'SIM_DEPOSIT_COMPLETED', 'SIM_WITHDRAWAL_COMPLETED',
+    'ALPACA_TRANSFER_COMPLETED', 'ALPACA_TRANSFER_FAILED',
+  ],
+  entry: join(__dirname, 'handlers', 'deposit-withdrawal-normalizer.ts'),
+});
+```
+
+- [ ] **Step 5: Run tests, commit**
+
+```bash
+pnpm nx run broker-ctrl:test && git add services/execution/broker-ctrl/ && git commit -m "feat(broker-ctrl): implement deposit/withdrawal normalizer"
+```
+
+### Task 2.13: Implement circuit breaker auto-close SF workflow
 
 **Files:**
 - Create: `services/execution/broker-ctrl/src/state-machine/circuit-breaker-heal.ts`
@@ -952,7 +1046,7 @@ import { Template } from 'aws-cdk-lib/assertions';
 const template = Template.fromStack(stack);
 template.hasResourceProperties('AWS::StepFunctions::StateMachine', { /* ... */ });
 template.hasResourceProperties('AWS::Events::Rule', { /* ORDER_SUBMITTED trigger */ });
-template.resourceCountIs('AWS::Lambda::Function', 3); // RouteOrder + CallbackResolver + ModeListener
+template.resourceCountIs('AWS::Lambda::Function', 5); // RouteOrder + CallbackResolver + ModeListener + DepositWithdrawalRouter + DepositWithdrawalNormalizer
 ```
 
 - [ ] **Step 2: Run, commit**
@@ -1087,19 +1181,29 @@ export class AlpacaClient {
 git add services/execution/broker-alpaca-adpt/ && git commit -m "feat(broker-alpaca-adpt): implement Alpaca HTTP client"
 ```
 
-### Task 3.3: Implement OrderMapping and PollingState repositories
+### Task 3.3: Implement OrderMapping, TransferMapping, and PollingState repositories
 
 **Files:**
 - Create: `services/execution/broker-alpaca-adpt/src/repositories/order-mapping.repository.ts`
+- Create: `services/execution/broker-alpaca-adpt/src/repositories/transfer-mapping.repository.ts`
 - Create: `services/execution/broker-alpaca-adpt/src/repositories/polling-state.repository.ts`
 - Create: `services/execution/broker-alpaca-adpt/test/order-mapping.repository.test.ts`
+- Create: `services/execution/broker-alpaca-adpt/test/transfer-mapping.repository.test.ts`
 - Create: `services/execution/broker-alpaca-adpt/test/polling-state.repository.test.ts`
 
 - [ ] **Step 1: Write tests and implement OrderMappingRepository**
 
 Methods: `createMapping(nestfolioOrderId, alpacaOrderId)`, `getByNestfolioOrderId`, `getByAlpacaOrderId`, `updateStatus`
 
-- [ ] **Step 2: Write tests and implement PollingStateRepository**
+Entity: `pk: OrderMapping#{tenantId}#{nestfolioOrderId}`, `sk: OrderMapping`, `__typename: 'AlpacaOrderResult'`
+
+- [ ] **Step 2: Write tests and implement TransferMappingRepository**
+
+Methods: `createMapping(nestfolioTransferId, alpacaTransferId, direction, amount)`, `getPendingTransfers(tenantId)`, `updateStatus`
+
+Entity: `pk: TransferMapping#{tenantId}#{nestfolioTransferId}`, `sk: TransferMapping`, `__typename: 'AlpacaTransferResult'`
+
+- [ ] **Step 3: Write tests and implement PollingStateRepository**
 
 Methods: `getState(tenantId)`, `updateLastCheckedAt`, `incrementOpenOrderCount`, `decrementOpenOrderCount`
 
