@@ -1,7 +1,7 @@
 const preset = require('../../../jest.preset');
 module.exports = {
   ...preset,
-  displayName: 'broker-adpt',
+  displayName: 'broker-sim-adpt',
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@nestfolio/cdk-constructs/(.*)$': '<rootDir>/../../../libs/cdk-constructs/src/$1/index.ts',

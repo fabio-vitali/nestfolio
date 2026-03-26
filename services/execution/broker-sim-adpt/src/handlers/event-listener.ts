@@ -174,7 +174,7 @@ const marketData = new MarketDataService();
 const simulationEngine = new SimulationEngineService(repository, marketData);
 
 export const handler = createIngestionHandler({
-  serviceName: 'broker-adpt',
+  serviceName: 'broker-sim-adpt',
   handlers: createHandlers({ repository, simulationEngine }),
   errorEventType: 'EXECUTION_ADPT_FAILED',
 });

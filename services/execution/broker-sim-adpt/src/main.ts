@@ -1,11 +1,11 @@
 import { App } from 'aws-cdk-lib';
 import { resolvePipelineConfig } from '@nestfolio/cdk-constructs/utils';
-import { BrokerAdptStack } from './service.stack';
+import { BrokerSimAdptStack } from './service.stack';
 
 const app = new App();
-const { prefix, account, region, service, subsystem } = resolvePipelineConfig(app, 'broker-adpt');
+const { prefix, account, region, service, subsystem } = resolvePipelineConfig(app, 'broker-sim-adpt');
 
-new BrokerAdptStack(app, `${prefix}-${service}`, {
+new BrokerSimAdptStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,

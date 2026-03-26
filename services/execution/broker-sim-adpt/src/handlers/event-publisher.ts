@@ -1,7 +1,7 @@
 import { changeDataCapture, buildEventTypeMap } from '@nestfolio/event-processor';
 
 export const handler = changeDataCapture({
-  serviceName: 'broker-adpt',
+  serviceName: 'broker-sim-adpt',
   eventTypeMap: buildEventTypeMap(
     ['VirtualTrade', 'VirtualCashBalance', 'VirtualPosition', 'DepositDetected', 'WithdrawalCompleted'],
     {

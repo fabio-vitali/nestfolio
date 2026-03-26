@@ -8,8 +8,8 @@ const eventTypeMap = buildEventTypeMap(
   },
 );
 
-describe('broker-adpt event-publisher', () => {
-  const harness = createCdcTestHarness({ serviceName: 'broker-adpt', eventTypeMap });
+describe('broker-sim-adpt event-publisher', () => {
+  const harness = createCdcTestHarness({ serviceName: 'broker-sim-adpt', eventTypeMap });
 
   it('publishes VIRTUAL_TRADE_CREATED for VirtualTrade INSERT', async () => {
     const result = await harness.process([
