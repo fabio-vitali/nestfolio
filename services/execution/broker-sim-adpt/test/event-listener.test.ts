@@ -139,7 +139,7 @@ describe('event-listener handler', () => {
     // transactWrite (executeTrade) -> success
     mockSend.mockResolvedValueOnce({});
 
-    const record = fakeSqsRecord('ORDER_SUBMITTED', {
+    const record = fakeSqsRecord('SIM_ORDER_REQUESTED', {
       orderId: 'order-1',
       tenantId: 't-1',
       userId: 'u-1',
@@ -156,7 +156,7 @@ describe('event-listener handler', () => {
     // getCashBalance (balance check) -> found
     mockSend.mockResolvedValueOnce({ Item: { balance: 100000 } });
 
-    const record = fakeSqsRecord('WITHDRAWAL_REQUESTED', {
+    const record = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', {
       withdrawalId: 'w-1',
       tenantId: 't-1',
       userId: 'u-1',
@@ -183,7 +183,7 @@ describe('event-listener handler', () => {
   });
 
   it('should report failure when ORDER_SUBMITTED is missing required fields', async () => {
-    const record = fakeSqsRecord('ORDER_SUBMITTED', {
+    const record = fakeSqsRecord('SIM_ORDER_REQUESTED', {
       tenantId: 't-1',
       userId: 'u-1',
       // Missing: orderId, symbol, side, quantity
@@ -207,7 +207,7 @@ describe('event-listener handler', () => {
     // getCashBalance throws
     mockSend.mockRejectedValueOnce(new Error('DDB error'));
 
-    const record = fakeSqsRecord('ORDER_SUBMITTED', {
+    const record = fakeSqsRecord('SIM_ORDER_REQUESTED', {
       orderId: 'order-fail',
       tenantId: 't-1',
       userId: 'u-1',
@@ -234,7 +234,7 @@ describe('event-listener handler', () => {
     txError.name = 'TransactionCanceledException';
     mockSend.mockRejectedValueOnce(txError);
 
-    const record = fakeSqsRecord('ORDER_SUBMITTED', {
+    const record = fakeSqsRecord('SIM_ORDER_REQUESTED', {
       orderId: 'order-dup',
       tenantId: 't-1',
       userId: 'u-1',
@@ -253,7 +253,7 @@ describe('event-listener handler', () => {
     // guardedAddToCashBalance -> duplicate
     mockGuardedWrite.mockResolvedValueOnce(false);
 
-    const record = fakeSqsRecord('WITHDRAWAL_REQUESTED', {
+    const record = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', {
       withdrawalId: 'w-dup',
       tenantId: 't-1',
       userId: 'u-1',
@@ -270,7 +270,7 @@ describe('event-listener handler', () => {
     // guardedAddToCashBalance -> duplicate
     mockGuardedWrite.mockResolvedValueOnce(false);
 
-    const record = fakeSqsRecord('DEPOSIT_INITIATED', {
+    const record = fakeSqsRecord('SIM_DEPOSIT_INITIATED', {
       depositId: 'dep-dup',
       tenantId: 't-1',
       userId: 'u-1',
@@ -283,7 +283,7 @@ describe('event-listener handler', () => {
   });
 
   it('should throw descriptive error when ORDER_SUBMITTED has null subject', async () => {
-    const record = fakeSqsRecord('ORDER_SUBMITTED', null as any, { eventId: 'evt-null-subject', tenantId: 't-1' });
+    const record = fakeSqsRecord('SIM_ORDER_REQUESTED', null as any, { eventId: 'evt-null-subject', tenantId: 't-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
@@ -291,7 +291,7 @@ describe('event-listener handler', () => {
   });
 
   it('should throw descriptive error when WITHDRAWAL_REQUESTED has null subject', async () => {
-    const record = fakeSqsRecord('WITHDRAWAL_REQUESTED', null as any, { eventId: 'evt-null-subject-w', tenantId: 't-1' });
+    const record = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', null as any, { eventId: 'evt-null-subject-w', tenantId: 't-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
@@ -302,7 +302,7 @@ describe('event-listener handler', () => {
     // getCashBalance (lazy init check) -> found
     mockSend.mockResolvedValueOnce({ Item: { balance: 50000 } });
 
-    const record = fakeSqsRecord('DEPOSIT_INITIATED', {
+    const record = fakeSqsRecord('SIM_DEPOSIT_INITIATED', {
       depositId: 'dep-1',
       tenantId: 't-1',
       userId: 'u-1',
@@ -333,7 +333,7 @@ describe('event-listener handler', () => {
     // getCashBalance (lazy init check) -> found
     mockSend.mockResolvedValueOnce({ Item: { balance: 50000 } });
 
-    const sqsRecord = fakeSqsRecord('DEPOSIT_INITIATED', {
+    const sqsRecord = fakeSqsRecord('SIM_DEPOSIT_INITIATED', {
       depositId: 'dep-2',
       tenantId: 't-1',
       userId: 'u-1',
@@ -367,7 +367,7 @@ describe('event-listener handler', () => {
     // guardedAddToCashBalance -> duplicate
     mockGuardedWrite.mockResolvedValueOnce(false);
 
-    const sqsRecord = fakeSqsRecord('DEPOSIT_INITIATED', {
+    const sqsRecord = fakeSqsRecord('SIM_DEPOSIT_INITIATED', {
       depositId: 'dep-dup2',
       tenantId: 't-1',
       userId: 'u-1',
@@ -395,7 +395,7 @@ describe('event-listener handler', () => {
       // getCashBalance (balance check) -> found with sufficient balance
       mockSend.mockResolvedValueOnce({ Item: { balance: 100000 } });
 
-      const sqsRecord = fakeSqsRecord('WITHDRAWAL_REQUESTED', {
+      const sqsRecord = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', {
         withdrawalId: 'wth-1',
         amount: 50,
         userId: 'user-1',
@@ -423,7 +423,7 @@ describe('event-listener handler', () => {
       // getCashBalance (balance check) -> found with low balance
       mockSend.mockResolvedValueOnce({ Item: { balance: 10 } });
 
-      const sqsRecord = fakeSqsRecord('WITHDRAWAL_REQUESTED', {
+      const sqsRecord = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', {
         withdrawalId: 'wth-2',
         amount: 99999,
         userId: 'user-1',
@@ -441,7 +441,7 @@ describe('event-listener handler', () => {
       // guardedAddToCashBalance -> duplicate
       mockGuardedWrite.mockResolvedValueOnce(false);
 
-      const sqsRecord = fakeSqsRecord('WITHDRAWAL_REQUESTED', {
+      const sqsRecord = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', {
         withdrawalId: 'wth-dup',
         amount: 100,
         userId: 'user-1',
@@ -477,7 +477,7 @@ describe('event-listener handler', () => {
     // transactWrite -> success
     mockSend.mockResolvedValueOnce({});
 
-    const record = fakeSqsRecord('ORDER_SUBMITTED', {
+    const record = fakeSqsRecord('SIM_ORDER_REQUESTED', {
       orderId: 'order-init',
       tenantId: 't-1',
       userId: 'u-1',

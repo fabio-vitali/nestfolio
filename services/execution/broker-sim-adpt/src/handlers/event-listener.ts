@@ -2,8 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, NotRetryableError } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { createIngestionHandler, skip, record, getTime, type EventPayload, type EventContext } from '@nestfolio/event-processor';
-import { ExecutionCtrlEventTypes } from '@nestfolio/execution-ctrl/events';
-import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
+import { BrokerSimEventTypes } from '../domain/events';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from '../services/market-data.service';
 import { SimulationEngineService } from '../services/simulation-engine.service';
@@ -15,7 +14,7 @@ export interface EventListenerDeps {
 
 export function createHandlers(deps: EventListenerDeps) {
   return {
-    [ExecutionCtrlEventTypes.ORDER_SUBMITTED]: async (payload: EventPayload, ctx: EventContext) => {
+    [BrokerSimEventTypes.SIM_ORDER_REQUESTED]: async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject;
       if (!subject) {
         throw new NotRetryableError(`Missing subject in ORDER_SUBMITTED event ${ctx.eventId}`);
@@ -66,7 +65,7 @@ export function createHandlers(deps: EventListenerDeps) {
       return skip();
     },
 
-    [InvestorCrossDomainEventTypes.WITHDRAWAL_REQUESTED]: async (payload: EventPayload, ctx: EventContext) => {
+    [BrokerSimEventTypes.SIM_WITHDRAWAL_REQUESTED]: async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject;
       if (!subject) {
         throw new NotRetryableError(`Missing subject in WITHDRAWAL_REQUESTED event ${ctx.eventId}`);
@@ -114,7 +113,7 @@ export function createHandlers(deps: EventListenerDeps) {
       }, { pk: `WithdrawalCompleted#${tenantId}#${ctx.eventId}`, sk: 'WithdrawalCompleted' });
     },
 
-    [InvestorCrossDomainEventTypes.DEPOSIT_INITIATED]: async (payload: EventPayload, ctx: EventContext) => {
+    [BrokerSimEventTypes.SIM_DEPOSIT_INITIATED]: async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject;
       if (!subject) {
         throw new NotRetryableError(`Missing subject in DEPOSIT_INITIATED event ${ctx.eventId}`);
