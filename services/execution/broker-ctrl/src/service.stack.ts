@@ -94,12 +94,32 @@ export class BrokerCtrlStack extends ServiceStack {
       entry: join(__dirname, 'handlers', 'deposit-withdrawal-router.ts'),
     });
 
+    // --- Ingress 4: Deposit/Withdrawal normalizer — writes NormalizedEvent for CDC ---
+    const depositWithdrawalNormalizerIngress = new Ingress(this, 'DepositWithdrawalNormalizerIngress', {
+      eventTypes: [
+        BrokerCtrlInboundEventTypes.SIM_DEPOSIT_COMPLETED,
+        BrokerCtrlInboundEventTypes.SIM_WITHDRAWAL_COMPLETED,
+        BrokerCtrlInboundEventTypes.ALPACA_TRANSFER_COMPLETED,
+        BrokerCtrlInboundEventTypes.ALPACA_TRANSFER_FAILED,
+      ],
+      entry: join(__dirname, 'handlers', 'deposit-withdrawal-normalizer.ts'),
+    });
+
     // --- Observability ---
     this.addObservability({
       ingress: modeIngress,
       egress,
-      extraLambdas: [callbackIngress.handler, routeOrderFn, depositWithdrawalIngress.handler],
-      extraDlqs: [callbackIngress.dlq, depositWithdrawalIngress.dlq],
+      extraLambdas: [
+        callbackIngress.handler,
+        routeOrderFn,
+        depositWithdrawalIngress.handler,
+        depositWithdrawalNormalizerIngress.handler,
+      ],
+      extraDlqs: [
+        callbackIngress.dlq,
+        depositWithdrawalIngress.dlq,
+        depositWithdrawalNormalizerIngress.dlq,
+      ],
     });
   }
 }
