@@ -796,8 +796,10 @@ const CALLBACK_EVENT_TYPES = [
   // Sim adapter results
   'SIM_ORDER_FILLED', 'SIM_ORDER_REJECTED',
   'SIM_DEPOSIT_COMPLETED', 'SIM_WITHDRAWAL_COMPLETED',
-  // Alpaca adapter results
-  'ALPACA_ORDER_PLACED', 'ALPACA_ORDER_FILLED', 'ALPACA_ORDER_PARTIALLY_FILLED',
+  // Alpaca adapter results (ALPACA_ORDER_PLACED is intentionally excluded — it is an
+  // intermediate ack, not a terminal state. Including it would resume the SF prematurely
+  // before the actual FILLED/REJECTED event arrives.)
+  'ALPACA_ORDER_FILLED', 'ALPACA_ORDER_PARTIALLY_FILLED',
   'ALPACA_ORDER_REJECTED', 'ALPACA_ORDER_CANCELLED', 'ALPACA_ORDER_CANCEL_FAILED',
   'ALPACA_TRANSFER_COMPLETED', 'ALPACA_TRANSFER_FAILED',
   'ALPACA_ACCOUNT_SNAPSHOT',
