@@ -208,7 +208,7 @@ export class InvestorProfileRepository extends TableRepository {
         coolDownDays: number;
         rebalanceCadence: RebalanceCadence;
       },
-      editedBy?: string,
+      _editedBy?: string,
     ): Promise<Mandate> => {
       if (mandate.monthlyTurnoverCapPercent < 0 || mandate.monthlyTurnoverCapPercent > 100) {
         throw new NotRetryableError('monthlyTurnoverCapPercent must be between 0 and 100');
@@ -247,7 +247,7 @@ export class InvestorProfileRepository extends TableRepository {
   );
 
   readonly revokeMandate = this.log('revokeMandate',
-    async (tenantId: string, userId: string, editedBy?: string): Promise<Mandate> => {
+    async (tenantId: string, userId: string, _editedBy?: string): Promise<Mandate> => {
       const pk = profilePk(tenantId, userId);
       const now = getTime();
 
