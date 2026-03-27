@@ -1,0 +1,419 @@
+---
+name: event-processor-patterns
+description: Reference for event-processor pipeline types, handler signatures, WriteIntent types, and testing utilities. Use when implementing or reviewing Lambda handlers that use the event-processor library.
+---
+
+# Event-Processor Patterns
+
+## When This Skill Applies
+
+Use this skill whenever you are:
+- Implementing a Lambda handler that processes SQS, DynamoDB Stream, or Kinesis events
+- Writing ingestion (materialize) or egestion (CDC / replay) pipelines
+- Choosing the right pipeline type for a new handler
+- Writing tests for event-processor-based handlers
+
+All Lambda handlers in this project MUST use event-processor pipelines (except Step Functions task handlers, which use `resumeStateMachine`).
+
+---
+
+## Pipeline Types
+
+There are 5 pipeline factory functions. Import from `@nestfolio/event-processor`.
+
+### 1. `materializeToTable` — SQS/Kinesis → DynamoDB
+
+Ingestion pipeline. Reads domain events from SQS (or Kinesis) and writes items to DynamoDB via WriteIntents.
+
+**Import:**
+```ts
+import { materializeToTable } from '@nestfolio/event-processor';
+```
+
+**Config shape:**
+```ts
+interface MaterializeToTableConfig {
+  serviceName: string;
+  handlers: Record<string, HandlerEntry>;
+  table?: string;          // default: process.env.TABLE_NAME
+  bus?: string;            // default: process.env.BUS_NAME
+  concurrency?: number;
+  poisonPill?: { maxReceiveCount: number };
+  errorEventType?: string;
+  transport?: 'sqs' | 'kinesis';  // default: 'sqs'
+}
+```
+
+**Usage:**
+```ts
+export const handler = materializeToTable({
+  serviceName: 'execution-ctrl',
+  handlers: {
+    'Order.Created': async (payload, ctx) => {
+      return record('Order', { ...payload.subject, tenantId: ctx.tenantId });
+    },
+  },
+});
+// Returns: (event: SQSEvent, context?: Context) => Promise<SQSBatchResponse>
+// With transport: 'kinesis' → (event: KinesisStreamEvent) => Promise<KinesisStreamBatchResponse>
+```
+
+**Source:** `libs/event-processor/src/pipelines/materialize-to-table.ts`
+
+---
+
+### 2. `materializeToBucket` — SQS → S3
+
+Ingestion pipeline for export/archival use cases. Writes to S3 via `StoreIntent`.
+
+**Import:**
+```ts
+import { materializeToBucket } from '@nestfolio/event-processor';
+```
+
+**Config shape:**
+```ts
+interface MaterializeToBucketConfig {
+  serviceName: string;
+  handlers: Record<string, HandlerEntry>;
+  bucket?: string;           // default: process.env.EXPORT_BUCKET
+  bus?: string;
+  concurrency?: number;
+  poisonPill?: { maxReceiveCount: number };
+  defaultFormat?: 'json' | 'csv';
+}
+```
+
+**Usage:**
+```ts
+export const handler = materializeToBucket({
+  serviceName: 'reporting-svc',
+  handlers: {
+    'Report.Generated': async (payload) => {
+      return store(payload.subject, { format: 'json' });
+    },
+  },
+});
+// Returns: (event: SQSEvent, context?: Context) => Promise<SQSBatchResponse>
+```
+
+**Source:** `libs/event-processor/src/pipelines/materialize-to-bucket.ts`
+
+---
+
+### 3. `changeDataCapture` — DynamoDB Stream → EventBridge
+
+Egestion pipeline. Reads DynamoDB Stream records, maps them to event types, and publishes to EventBridge.
+
+**Import:**
+```ts
+import { changeDataCapture } from '@nestfolio/event-processor';
+```
+
+**Config shape:**
+```ts
+interface ChangeDataCaptureConfig {
+  serviceName: string;
+  eventTypeMap: Record<string, string | ((record: StreamRecord) => string)>;
+  // Key format: '<Typename>:<INSERT|MODIFY|REMOVE>'
+  groupBy?: {
+    key: (record: StreamRecord) => string;
+    pick?: 'first' | 'last';
+  };
+  bus?: string;              // default: process.env.BUS_NAME
+  concurrency?: number;
+  transform?: (record: StreamRecord, eventType: string) => Record<string, unknown>;
+}
+```
+
+**Usage:**
+```ts
+export const handler = changeDataCapture({
+  serviceName: 'execution-ctrl',
+  eventTypeMap: {
+    'Order:INSERT': 'Order.Created',
+    'Order:MODIFY': (record) => record.status === 'filled' ? 'Order.Filled' : 'Order.Updated',
+    'Order:REMOVE': 'Order.Deleted',
+  },
+});
+// Returns: (event: DynamoDBStreamEvent) => Promise<void>
+```
+
+**Source:** `libs/event-processor/src/pipelines/change-data-capture.ts`
+
+---
+
+### 4. `resumeStateMachine` — SQS → Step Functions task token
+
+Ingestion pipeline for events that carry a Step Functions task token. Automatically calls `SendTaskSuccess` or `SendTaskFailure`.
+
+**Import:**
+```ts
+import { resumeStateMachine } from '@nestfolio/event-processor';
+```
+
+**Config shape:**
+```ts
+interface ResumeStateMachineConfig {
+  serviceName: string;
+  handlers: Record<string, ResumeHandler>;
+  table?: string;
+  bus?: string;
+  errorEventType?: string;
+}
+
+type ResumeHandler = (
+  payload: EventPayload,
+  ctx: EventContext,
+) => Promise<{ output: Record<string, unknown>; intents?: WriteIntent[] }>;
+```
+
+**Usage:**
+```ts
+export const handler = resumeStateMachine({
+  serviceName: 'broker-ctrl',
+  handlers: {
+    'BrokerOrder.Filled': async (payload, ctx) => {
+      return {
+        output: { fillPrice: payload.subject.fillPrice },
+        intents: [
+          update('BrokerOrder', { status: 'filled' }, { overrides: { pk: ctx.tenantId } }),
+        ],
+      };
+    },
+  },
+});
+// Returns: (event: SQSEvent, context?: Context) => Promise<SQSBatchResponse>
+// The task token is read from payload.subject.taskToken automatically.
+```
+
+**Source:** `libs/event-processor/src/pipelines/resume-state-machine.ts`
+
+---
+
+### 5. `replayAndReduce` — DynamoDB Stream → Snapshot
+
+Egestion pipeline. On each stream trigger, queries all events for a group since last checkpoint, reduces them into a snapshot, and persists with optimistic concurrency. Supports optional daily snapshots.
+
+**Import:**
+```ts
+import { replayAndReduce } from '@nestfolio/event-processor';
+```
+
+**Config shape:**
+```ts
+interface ReplayAndReduceConfig<S> {
+  serviceName: string;
+  filter?: (record: StreamRecord) => boolean;
+  groupBy: {
+    key: (record: StreamRecord) => string;
+  };
+  reducer: (state: S, event: Record<string, unknown>) => S;
+  initialState: S | (() => S);
+  snapshot: {
+    key: (groupKey: string) => { pk: string; sk: string };
+    daily?: boolean;
+  };
+  queryEvents?: (
+    groupKey: string,
+    lastSequence: number,
+    clients: { docClient: DynamoDBDocumentClient; tableName: string },
+  ) => Promise<Record<string, unknown>[]>;
+  table?: string;
+  bus?: string;
+  concurrency?: number;
+}
+```
+
+**Usage:**
+```ts
+export const handler = replayAndReduce<PortfolioState>({
+  serviceName: 'portfolio-svc',
+  groupBy: { key: (r) => r.pk },
+  reducer: (state, event) => applyEvent(state, event),
+  initialState: () => ({ positions: {}, cash: 0 }),
+  snapshot: {
+    key: (groupKey) => ({ pk: groupKey, sk: 'Snapshot#current' }),
+    daily: true,
+  },
+});
+// Returns: (event: DynamoDBStreamEvent) => Promise<void>
+```
+
+**Source:** `libs/event-processor/src/pipelines/replay-and-reduce.ts`
+
+---
+
+## Handler Signature
+
+All `materializeToTable` and `materializeToBucket` handlers use `HandlerEntry`:
+
+```ts
+// From: libs/event-processor/src/types/handler-config.ts
+
+export interface EventPayload {
+  readonly subject: Record<string, unknown>;
+  readonly context?: Record<string, unknown>;
+}
+
+export type HandlerFn = (
+  payload: EventPayload,
+  ctx: EventContext,
+) => WriteIntent | WriteIntent[] | Promise<WriteIntent | WriteIntent[]>;
+
+// A HandlerEntry is either a single function or an array of functions/intents (multi-write)
+export type HandlerEntry = HandlerFn | Array<HandlerFn | WriteIntent>;
+```
+
+`EventContext` carries: `eventId`, `eventType`, `tenantId`, `userId`, `region`, `timestamp`, `receiveCount`, `serviceName`, `record` (raw SQS record).
+
+---
+
+## WriteIntent Types
+
+Returned from handlers to declare what the engine should write. Import builder functions from `@nestfolio/event-processor`.
+
+| Intent | Tag | Builder | Key Fields |
+|--------|-----|---------|------------|
+| `RecordIntent` | `'record'` | `record(typename, fields, overrides?)` | `typename`, `fields`, `overrides?` |
+| `ProjectIntent` | `'project'` | `project(typename, fields, overrides?)` | `typename`, `fields`, `overrides?` |
+| `AccumulateIntent` | `'accumulate'` | `accumulate(typename, field, increment, opts?)` | `typename`, `field`, `increment`, `ttl?`, `overrides?` |
+| `UpdateIntent` | `'update'` | `update(typename, updates, opts?)` | `typename`, `updates`, `removes?`, `condition?`, `overrides?` |
+| `StoreIntent` | `'store'` | `store(body, opts?)` | `body`, `format?` (`'json'\|'csv'`), `key?` |
+| `SkipIntent` | `'skip'` | `skip()` | — |
+
+**KeyOverrides** (`overrides` param): `{ pk?: string; sk?: string }` — override the computed DynamoDB key.
+
+**`record` builder overloads:**
+```ts
+// Static fields → returns RecordIntent directly
+record('Order', { orderId: '123', status: 'open' })
+
+// Dynamic fields → returns HandlerFn (called with payload+ctx)
+record('Order', (payload, ctx) => ({ ...payload.subject, tenantId: ctx.tenantId }))
+```
+
+**`update` builder:**
+```ts
+update('Order', { status: 'filled', filledAt: new Date().toISOString() }, {
+  removes: ['pendingField'],
+  condition: 'attribute_exists(pk)',
+  overrides: { pk: `T#${tenantId}` },
+})
+```
+
+**Source:** `libs/event-processor/src/types/write-intent.ts`, `libs/event-processor/src/intents/`
+
+---
+
+## Testing
+
+### SQS Pipeline Tests — `createTestHarness`
+
+```ts
+import {
+  createTestHarness,
+  fakeSqsRecord,
+} from '@nestfolio/event-processor/testing';
+import { myHandlers } from '../src/handlers';
+
+const harness = createTestHarness({
+  serviceName: 'execution-ctrl',
+  handlers: myHandlers,
+});
+
+it('records an order on Order.Created', async () => {
+  const record = fakeSqsRecord('Order.Created', {
+    orderId: 'order-1',
+    symbol: 'AAPL',
+    quantity: 10,
+  });
+
+  const result = await harness.process([record]);
+
+  expect(result.intents).toEqual([
+    expect.objectContaining({ _tag: 'record', typename: 'Order' }),
+  ]);
+  expect(result.errors).toHaveLength(0);
+});
+```
+
+`TestResult` fields: `intents`, `metrics`, `errors`, `batchItemFailures`, `deduplicated`, `poisonPills`, `skipped`.
+
+---
+
+### DynamoDB Stream Tests — `createCdcTestHarness` / `createReducerTestHarness`
+
+```ts
+import {
+  createCdcTestHarness,
+  createReducerTestHarness,
+  fakeDdbStreamRecord,
+} from '@nestfolio/event-processor/testing';
+
+// CDC test
+const cdcHarness = createCdcTestHarness({
+  serviceName: 'execution-ctrl',
+  eventTypeMap: { 'Order:INSERT': 'Order.Created' },
+});
+
+it('publishes Order.Created on INSERT', async () => {
+  const ddbRecord = fakeDdbStreamRecord('INSERT', {
+    __typename: 'Order',
+    pk: 'T#tenant-1',
+    sk: 'Order#order-1',
+    tenantId: 'tenant-1',
+    orderId: 'order-1',
+  });
+
+  const result = await cdcHarness.process([ddbRecord]);
+
+  expect(result.publishedEvents).toEqual([
+    expect.objectContaining({ eventType: 'Order.Created' }),
+  ]);
+});
+```
+
+`fakeDdbStreamRecord(eventName, newImage, opts?)` — opts: `oldImage`, `typename`, `tenantId`, `userId`, `region`, `sequenceNo`.
+
+**Reducer test with seeding:**
+```ts
+const reducerHarness = createReducerTestHarness<MyState>({
+  serviceName: 'portfolio-svc',
+  groupBy: { key: (r) => r.pk },
+  reducer: myReducer,
+  initialState: () => ({ positions: {} }),
+  snapshot: { key: (gk) => ({ pk: gk, sk: 'Snapshot#current' }) },
+});
+
+reducerHarness.seedSnapshot('T#tenant-1', { positions: {} }, 0, 0);
+reducerHarness.seedEvents('T#tenant-1', [{ sequenceNo: 1, symbol: 'AAPL', quantity: 10 }]);
+
+const result = await reducerHarness.process([fakeDdbStreamRecord('INSERT', { pk: 'T#tenant-1', sk: 'Trade#1', __typename: 'Trade', tenantId: 'tenant-1' })]);
+
+expect(result.snapshots.get('T#tenant-1')?.version).toBe(1);
+```
+
+---
+
+### Kinesis Records
+
+```ts
+import { fakeKinesisRecord } from '@nestfolio/event-processor/testing';
+
+const kRecord = fakeKinesisRecord('Order.Created', { orderId: '123' }, {
+  tenantId: 'tenant-1',
+});
+```
+
+---
+
+## Anti-Patterns
+
+- **Never** call another service's API from a handler — use events only.
+- **Never** use raw `DynamoDBClient` or `SQSClient` inside a `HandlerFn` — return WriteIntents and let the engine write.
+- **Never** import `aws-lambda` handler types directly into the service — the pipeline factory returns the correctly typed Lambda handler.
+- **Never** return `undefined` from a handler — return `skip()` if there is nothing to write.
+- **Never** put a handler directly on a `materializeToTable` config that should be using `resumeStateMachine` — task token handling requires the dedicated pipeline.
+- **Never** write tests against the live Lambda handler function — use `createTestHarness` / `createCdcTestHarness` / `createReducerTestHarness` to isolate handler logic.
+- **Avoid** `HandlerEntry` arrays unless you genuinely need multi-write fan-out; prefer returning `WriteIntent[]` from a single `HandlerFn` instead.
