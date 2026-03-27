@@ -42,7 +42,7 @@ steps:
     via: LedgerBus -> ledger-adpt ToInvestor rule
     forwards_to: InvestorBus
     emits: RECONCILIATION_COMPLETED
-    # TODO: verify RECONCILIATION_COMPLETED is in ledger-adpt forwarding rules - not explicitly listed in LedgerCrossDomainEventTypes
+    # Verified: RECONCILIATION_COMPLETED is in LedgerCrossDomainEventTypes and ledger-adpt ToInvestor forwarding rules
 
   - service: dashboard-bff
     receives: RECONCILIATION_COMPLETED
@@ -51,11 +51,12 @@ steps:
     idempotent: true
 
   # Drift triggers rebalance (see portfolio-rebalance.flow.yaml)
-  - service: execution-adpt
+  - service: ledger-adpt
     receives: PORTFOLIO_DRIFT_DETECTED
-    via: ExecutionBus -> execution-adpt ToAdvisory rule
+    via: LedgerBus -> ledger-adpt ToAdvisory rule
     forwards_to: AdvisoryBus
     emits: PORTFOLIO_DRIFT_DETECTED
+    # Verified: PORTFOLIO_DRIFT_DETECTED emitted by reconciliation-ctrl CDC on LedgerBus; forwarded by ledger-adpt ToAdvisory (not execution-adpt)
 
 success_criteria:
   - Intent and settlement positions compared for all instruments
@@ -66,5 +67,5 @@ success_criteria:
 failure_modes:
   - step 1-4 fails: reconciliation-ctrl ingress DLQ; reconciliation not triggered
   - step 5 fails: CDC event not emitted; downstream not notified
-  - step 6 fails: ledger-adpt forwarding DLQ; dashboard not updated
-  - step 8 fails: execution-adpt ToAdvisoryDLQ; rebalance not triggered
+  - step 6 fails: ledger-adpt ToInvestorDLQ; dashboard not updated
+  - step 8 fails: ledger-adpt ToAdvisoryDLQ; rebalance not triggered

@@ -54,11 +54,9 @@ steps:
     emits: NOTIFICATION_CREATED (CDC)
     idempotent: true
 
-  - service: investor-ctrl
-    receives: ORDER_FILLED
-    via: InvestorBus -> SQS -> investor-ctrl-ingress
-    state_change: Updates order status in investor view
-    idempotent: true
+  # Note: ORDER_FILLED is NOT forwarded to InvestorBus by execution-adpt (routes to LedgerBus + AdvisoryBus only)
+  # investor-ctrl receives ORDER_REJECTED via InvestorBus for notification; ORDER_FILLED status is visible via BALANCE_UPDATED + PORTFOLIO_UPDATED
+  # TODO: verify if investor-ctrl subscribes to ORDER_FILLED on InvestorBus via a separate forwarding rule not in execution-adpt
 
   # Dashboard read model
   - service: dashboard-bff

@@ -12,11 +12,12 @@ steps:
     emits: PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord:INSERT)
     idempotent: true
 
-  - service: execution-adpt
+  - service: ledger-adpt
     receives: PORTFOLIO_DRIFT_DETECTED
-    via: ExecutionBus -> execution-adpt ToAdvisory rule
+    via: LedgerBus -> ledger-adpt ToAdvisory rule
     forwards_to: AdvisoryBus
     emits: PORTFOLIO_DRIFT_DETECTED
+    # Verified: PORTFOLIO_DRIFT_DETECTED emitted by reconciliation-ctrl CDC on LedgerBus; forwarded by ledger-adpt (not execution-adpt)
 
   # Advisory decision cycle triggered by drift
   - service: decision-workflow-ctrl
@@ -59,7 +60,7 @@ success_criteria:
 
 failure_modes:
   - step 1 fails: reconciliation-ctrl ingress DLQ; drift not detected
-  - step 2 fails: execution-adpt ToAdvisoryDLQ; advisory not notified of drift
+  - step 2 fails: ledger-adpt ToAdvisoryDLQ; advisory not notified of drift
   - step 3 fails: decision-workflow-ctrl TriggerIngress DLQ; rebalance cycle not started
   - step 4 fails: portfolio-engine-ctrl agent failure; SF task token times out
   - step 6 fails: execution-ctrl ingress DLQ; rebalance orders not created

@@ -42,8 +42,10 @@ steps:
   - service: market-intelligence-ctrl
     receives: ALPHA_VANTAGE_NEWS_UPDATED | FRED_INDICATORS_UPDATED | MARKETWATCH_UPDATED | SEC_8K_FILED
     via: AdvisoryBus -> SQS -> market-intelligence-ctrl-ingress
-    state_change: Ingests feed data into Bedrock Knowledge Base (S3 + vector store), updates market intelligence records
-    emits: MARKET_DATA_REFRESHED (CDC) # TODO: verify exact CDC event name - inferred from KB ingestion pattern
+    state_change: Ingests feed data into Bedrock Knowledge Base (S3 + vector store), updates market intelligence records; when triggered as ANALYZE_MARKET agent, emits MARKET_ANALYSIS_COMPLETED
+    emits: none (KB ingestion path only; CDC emits AgentInvocation, ReasoningOutput on agent path)
+    # Note: MARKET_DATA_REFRESHED does not exist in code. MarketIntelligenceEventTypes: MARKET_ANALYSIS_COMPLETED, MARKET_SIGNAL_DETECTED
+    # The feed ingestion path (FEED_INGESTION_EVENT_TYPES) does not produce a downstream event - KB is refreshed silently
     idempotent: true
 
   # Portfolio Engine KB ingestion for SEC filings
