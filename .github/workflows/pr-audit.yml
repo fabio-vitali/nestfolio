@@ -1,0 +1,66 @@
+name: PR Audit
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: pr-audit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Get affected projects
+        id: affected
+        run: |
+          AFFECTED=$(pnpm nx affected --base=origin/main --head=HEAD --select=projects 2>/dev/null || echo "")
+          echo "projects=$AFFECTED" >> $GITHUB_OUTPUT
+          if [ -z "$AFFECTED" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run CI audit
+        if: steps.affected.outputs.skip != 'true'
+        id: audit
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          AFFECTED="${{ steps.affected.outputs.projects }}"
+          claude -p "Audit PR for Nestfolio. Affected: $AFFECTED. Per service: check structure, handlers, tests, imports, card, naming. Per flow spec: validate. Output: ## PR Audit Results with Hard Failures / Warnings / Auto-Fixed sections." --model claude-sonnet-4-6 --output-format text > audit-results.txt 2>&1
+
+      - name: Post results
+        if: steps.affected.outputs.skip != 'true' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body;
+            try { body = fs.readFileSync('audit-results.txt', 'utf8'); }
+            catch { body = '⚠️ Audit skipped — Claude API unavailable'; }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body.substring(0, 65000),
+            });
