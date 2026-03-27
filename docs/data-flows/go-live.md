@@ -6,7 +6,29 @@
 
 **Trigger:** onboarding-bff emits GO_LIVE_CONFIRMED (CDC from GoLiveConfirmed:INSERT)
 
-## Flow Diagram
+## Flowchart
+
+```mermaid
+flowchart TD
+    subgraph investor["Investor Domain"]
+        onboarding_bff["onboarding-bff"]
+        investor_bff["investor-bff"]
+        investor_adpt["investor-adpt"]
+    end
+    subgraph execution["Execution Domain"]
+        broker_ctrl["broker-ctrl"]
+    end
+    subgraph advisory["Advisory Domain"]
+        advisory_ctrl["advisory-ctrl"]
+        decision_workflow_ctrl["decision-workflow-ctrl"]
+    end
+    onboarding_bff -->|"GO_LIVE_CONFIRMED"| investor_bff
+    investor_bff -->|"EXECUTION_MODE_CHANGED"| investor_adpt
+    investor_adpt -.->|"EXECUTION_MODE_CHANGED"| broker_ctrl
+    investor_adpt -.->|"OPERATING_MODE_CHANGED"| advisory_ctrl
+```
+
+## Sequence Diagram
 
 ```mermaid
 sequenceDiagram

@@ -6,7 +6,38 @@
 
 **Trigger:** investor-bff emits DEPOSIT_INITIATED (CDC from Deposit:INSERT)
 
-## Flow Diagram
+## Flowchart
+
+```mermaid
+flowchart TD
+    subgraph investor["Investor Domain"]
+        investor_bff["investor-bff"]
+        investor_adpt["investor-adpt"]
+        investor_ctrl["investor-ctrl"]
+    end
+    subgraph execution["Execution Domain"]
+        broker_ctrl["broker-ctrl"]
+        broker_sim_adpt["broker-sim-adpt"]
+        broker_alpaca_adpt["broker-alpaca-adpt"]
+        execution_adpt["execution-adpt"]
+    end
+    subgraph ledger["Ledger Domain"]
+        ledger_ctrl["ledger-ctrl"]
+        ledger_adpt["ledger-adpt"]
+    end
+    investor_bff -->|"DEPOSIT_INITIATED"| investor_adpt
+    investor_adpt -.->|"DEPOSIT_INITIATED"| broker_ctrl
+    broker_ctrl -->|"SIM_DEPOSIT_INITIATED"| broker_sim_adpt
+    broker_ctrl -->|"ALPACA_TRANSFER_REQUESTED"| broker_alpaca_adpt
+    broker_sim_adpt -->|"SIM_DEPOSIT_COMPLETED"| broker_ctrl
+    broker_alpaca_adpt -->|"ALPACA_TRANSFER_COMPLETED"| broker_ctrl
+    broker_ctrl -->|"DEPOSIT_DETECTED"| execution_adpt
+    execution_adpt -.->|"DEPOSIT_DETECTED"| ledger_ctrl
+    ledger_ctrl -->|"BALANCE_UPDATED"| ledger_adpt
+    ledger_adpt -.->|"BALANCE_UPDATED"| investor_ctrl
+```
+
+## Sequence Diagram
 
 ```mermaid
 sequenceDiagram

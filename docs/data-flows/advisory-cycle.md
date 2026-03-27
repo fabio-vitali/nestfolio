@@ -6,7 +6,38 @@
 
 **Trigger:** decision-workflow-ctrl receives trigger event (MANDATE_GRANTED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED)
 
-## Flow Diagram
+## Flowchart
+
+```mermaid
+flowchart TD
+    subgraph advisory["Advisory Domain"]
+        decision_workflow_ctrl["decision-workflow-ctrl"]
+        advisory_ctrl["advisory-ctrl"]
+        market_intelligence_ctrl["market-intelligence-ctrl"]
+        portfolio_engine_ctrl["portfolio-engine-ctrl"]
+        advisory_narrative_ctrl["advisory-narrative-ctrl"]
+        compliance_ctrl["compliance-ctrl"]
+        advisory_adpt["advisory-adpt"]
+    end
+    decision_workflow_ctrl -->|"DECISION_PACKET_CREATED"| compliance_ctrl
+    decision_workflow_ctrl -->|"ANALYZE_INVESTOR_PROFILE"| advisory_ctrl
+    decision_workflow_ctrl -->|"ANALYZE_MARKET"| market_intelligence_ctrl
+    decision_workflow_ctrl -->|"CONSTRUCT_PORTFOLIO"| portfolio_engine_ctrl
+    decision_workflow_ctrl -->|"GENERATE_NARRATIVE"| advisory_narrative_ctrl
+    advisory_ctrl -->|"INVESTOR_PROFILE_COMPLETED"| decision_workflow_ctrl
+    market_intelligence_ctrl -->|"MARKET_ANALYSIS_COMPLETED"| decision_workflow_ctrl
+    portfolio_engine_ctrl -->|"PORTFOLIO_COMPLETED"| decision_workflow_ctrl
+    advisory_narrative_ctrl -->|"NARRATIVE_COMPLETED"| decision_workflow_ctrl
+    decision_workflow_ctrl -->|"DECISION_PACKET_ENRICHED"| compliance_ctrl
+    compliance_ctrl -->|"DECISION_APPROVED"| decision_workflow_ctrl
+    compliance_ctrl -->|"DECISION_BLOCKED"| decision_workflow_ctrl
+    decision_workflow_ctrl -->|"USER_CONFIRMATION_REQUESTED"| advisory_adpt
+    advisory_adpt -.->|"USER_CONFIRMED"| decision_workflow_ctrl
+    decision_workflow_ctrl -->|"DECISION_APPROVED"| advisory_adpt
+    advisory_adpt -.->|"DECISION_APPROVED"| advisory_adpt
+```
+
+## Sequence Diagram
 
 ```mermaid
 sequenceDiagram

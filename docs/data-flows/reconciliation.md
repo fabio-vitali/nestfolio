@@ -6,7 +6,23 @@
 
 **Trigger:** ledger-ctrl emits PORTFOLIO_UPDATED (CDC from PortfolioEvent:INSERT) or execution domain emits PORTFOLIO_SNAPSHOT_IMPORTED / ALPACA_ACCOUNT_SNAPSHOT
 
-## Flow Diagram
+## Flowchart
+
+```mermaid
+flowchart TD
+    subgraph ledger["Ledger Domain"]
+        reconciliation_ctrl["reconciliation-ctrl"]
+        ledger_adpt["ledger-adpt"]
+    end
+    subgraph investor["Investor Domain"]
+        dashboard_bff["dashboard-bff"]
+    end
+    reconciliation_ctrl -->|"RECONCILIATION_COMPLETED"| ledger_adpt
+    reconciliation_ctrl -->|"PORTFOLIO_DRIFT_DETECTED"| ledger_adpt
+    ledger_adpt -.->|"RECONCILIATION_COMPLETED"| dashboard_bff
+```
+
+## Sequence Diagram
 
 ```mermaid
 sequenceDiagram

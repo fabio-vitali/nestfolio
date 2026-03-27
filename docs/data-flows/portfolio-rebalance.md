@@ -6,7 +6,28 @@
 
 **Trigger:** reconciliation-ctrl emits PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord:INSERT)
 
-## Flow Diagram
+## Flowchart
+
+```mermaid
+flowchart TD
+    subgraph ledger["Ledger Domain"]
+        reconciliation_ctrl["reconciliation-ctrl"]
+        ledger_adpt["ledger-adpt"]
+    end
+    subgraph advisory["Advisory Domain"]
+        decision_workflow_ctrl["decision-workflow-ctrl"]
+        portfolio_engine_ctrl["portfolio-engine-ctrl"]
+        advisory_adpt["advisory-adpt"]
+    end
+    subgraph execution["Execution Domain"]
+        execution_ctrl["execution-ctrl"]
+    end
+    reconciliation_ctrl -->|"PORTFOLIO_DRIFT_DETECTED"| ledger_adpt
+    ledger_adpt -.->|"PORTFOLIO_DRIFT_DETECTED"| decision_workflow_ctrl
+    advisory_adpt -.->|"DECISION_APPROVED"| execution_ctrl
+```
+
+## Sequence Diagram
 
 ```mermaid
 sequenceDiagram

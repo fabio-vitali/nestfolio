@@ -67,6 +67,78 @@ function sanitizeId(name) {
   return name.replace(/[^a-zA-Z0-9]/g, '_');
 }
 
+function parseEvents(str) {
+  return str
+    .replace(/\s*\(.*?\)/g, '')
+    .split(/\s*(?:,|\bor\b|\|)\s*/i)
+    .map(e => e.trim())
+    .filter(Boolean);
+}
+
+// ── Flowchart diagram generation ─────────────────────────────────────────────
+
+function buildFlowchart(flow) {
+  const steps = flow.steps || [];
+  const domains = flow.domains || [];
+  const lines = ['flowchart TD'];
+
+  // Collect unique services preserving order
+  const seen = new Set();
+  const services = [];
+  for (const step of steps) {
+    if (step.service && !seen.has(step.service)) {
+      seen.add(step.service);
+      services.push(step.service);
+    }
+  }
+
+  // Group by domain for subgraphs
+  const byDomain = new Map();
+  for (const svc of services) {
+    const d = serviceDomain(svc, domains);
+    if (!byDomain.has(d)) byDomain.set(d, []);
+    byDomain.get(d).push(svc);
+  }
+
+  // Domain subgraphs with nodes
+  for (const [domain, svcs] of byDomain) {
+    lines.push(`    subgraph ${domain}["${titleCase(domain)} Domain"]`);
+    for (const svc of svcs) {
+      lines.push(`        ${sanitizeId(svc)}["${svc}"]`);
+    }
+    lines.push(`    end`);
+  }
+
+  // Build edges: for each emitted event, find the closest receiver
+  const edgeSet = new Set();
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    if (!step.emits || !step.service) continue;
+
+    const emittedEvents = parseEvents(step.emits);
+    for (const evt of emittedEvents) {
+      for (let j = i + 1; j < steps.length; j++) {
+        const receiver = steps[j];
+        if (!receiver.receives || !receiver.service) continue;
+        const receivedEvents = parseEvents(receiver.receives);
+        if (receivedEvents.includes(evt)) {
+          const key = `${step.service}|${receiver.service}|${evt}`;
+          if (!edgeSet.has(key)) {
+            edgeSet.add(key);
+            const arrow = step.forwards_to ? '-.->' : '-->';
+            lines.push(`    ${sanitizeId(step.service)} ${arrow}|"${truncate(evt, 40)}"| ${sanitizeId(receiver.service)}`);
+          }
+          break; // only the first (closest) receiver
+        }
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// ── Sequence diagram generation ──────────────────────────────────────────────
+
 function buildMermaid(flow) {
   const steps = flow.steps || [];
   const domains = flow.domains || [];
@@ -96,14 +168,6 @@ function buildMermaid(flow) {
       lines.push(`        participant ${sanitizeId(svc)} as ${svc}`);
     }
     lines.push(`    end`);
-  }
-
-  function parseEvents(str) {
-    return str
-      .replace(/\s*\(.*?\)/g, '')
-      .split(/\s*(?:,|\bor\b|\|)\s*/i)
-      .map(e => e.trim())
-      .filter(Boolean);
   }
 
   /** Find the service that emitted one of the received events, looking only at prior steps */
@@ -184,8 +248,16 @@ function generateMarkdown(flow) {
   lines.push(`**Trigger:** ${flow.trigger}`);
   lines.push('');
 
-  // Mermaid diagram
-  lines.push('## Flow Diagram');
+  // Flowchart diagram
+  lines.push('## Flowchart');
+  lines.push('');
+  lines.push('```mermaid');
+  lines.push(buildFlowchart(flow));
+  lines.push('```');
+  lines.push('');
+
+  // Sequence diagram
+  lines.push('## Sequence Diagram');
   lines.push('');
   lines.push('```mermaid');
   lines.push(buildMermaid(flow));

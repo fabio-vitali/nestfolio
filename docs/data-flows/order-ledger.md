@@ -6,7 +6,32 @@
 
 **Trigger:** broker-ctrl emits ORDER_FILLED (CDC from NormalizedEvent:INSERT)
 
-## Flow Diagram
+## Flowchart
+
+```mermaid
+flowchart TD
+    subgraph execution["Execution Domain"]
+        execution_adpt["execution-adpt"]
+    end
+    subgraph ledger["Ledger Domain"]
+        ledger_ctrl["ledger-ctrl"]
+        ledger_adpt["ledger-adpt"]
+        reconciliation_ctrl["reconciliation-ctrl"]
+    end
+    subgraph investor["Investor Domain"]
+        investor_ctrl["investor-ctrl"]
+        dashboard_bff["dashboard-bff"]
+    end
+    execution_adpt -.->|"ORDER_FILLED"| ledger_ctrl
+    ledger_ctrl -->|"BALANCE_UPDATED"| ledger_adpt
+    ledger_ctrl -->|"PORTFOLIO_UPDATED"| ledger_adpt
+    ledger_ctrl -->|"LEDGER_ENTRY_RECORDED"| ledger_adpt
+    ledger_adpt -.->|"BALANCE_UPDATED"| investor_ctrl
+    ledger_adpt -.->|"PORTFOLIO_UPDATED"| dashboard_bff
+    ledger_adpt -.->|"LEDGER_ENTRY_RECORDED"| dashboard_bff
+```
+
+## Sequence Diagram
 
 ```mermaid
 sequenceDiagram

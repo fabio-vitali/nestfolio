@@ -6,7 +6,28 @@
 
 **Trigger:** onboarding-bff emits ONBOARDING_COMPLETED (CDC from OnboardingCompleted:INSERT)
 
-## Flow Diagram
+## Flowchart
+
+```mermaid
+flowchart TD
+    subgraph investor["Investor Domain"]
+        onboarding_bff["onboarding-bff"]
+        investor_bff["investor-bff"]
+        investor_adpt["investor-adpt"]
+        investor_ctrl["investor-ctrl"]
+    end
+    subgraph advisory["Advisory Domain"]
+        decision_workflow_ctrl["decision-workflow-ctrl"]
+    end
+    onboarding_bff -->|"ONBOARDING_COMPLETED"| investor_bff
+    investor_bff -->|"GOAL_UPDATED"| investor_adpt
+    investor_bff -->|"RISK_PROFILE_UPDATED"| investor_adpt
+    investor_bff -->|"MANDATE_GRANTED"| investor_adpt
+    investor_bff -->|"OPERATING_MODE_CHANGED"| investor_adpt
+    investor_adpt -.->|"MANDATE_GRANTED"| decision_workflow_ctrl
+```
+
+## Sequence Diagram
 
 ```mermaid
 sequenceDiagram

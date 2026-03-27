@@ -6,7 +6,36 @@
 
 **Trigger:** investor-bff emits WITHDRAWAL_REQUESTED (CDC from Withdrawal:INSERT)
 
-## Flow Diagram
+## Flowchart
+
+```mermaid
+flowchart TD
+    subgraph investor["Investor Domain"]
+        investor_bff["investor-bff"]
+        investor_adpt["investor-adpt"]
+        investor_ctrl["investor-ctrl"]
+    end
+    subgraph execution["Execution Domain"]
+        broker_ctrl["broker-ctrl"]
+        broker_sim_adpt["broker-sim-adpt"]
+        broker_alpaca_adpt["broker-alpaca-adpt"]
+        execution_adpt["execution-adpt"]
+    end
+    subgraph ledger["Ledger Domain"]
+        ledger_ctrl["ledger-ctrl"]
+    end
+    investor_bff -->|"WITHDRAWAL_REQUESTED"| investor_adpt
+    investor_adpt -.->|"WITHDRAWAL_REQUESTED"| broker_ctrl
+    broker_ctrl -->|"SIM_WITHDRAWAL_REQUESTED"| broker_sim_adpt
+    broker_ctrl -->|"ALPACA_TRANSFER_REQUESTED"| broker_alpaca_adpt
+    broker_sim_adpt -->|"SIM_WITHDRAWAL_COMPLETED"| broker_ctrl
+    broker_alpaca_adpt -->|"ALPACA_TRANSFER_COMPLETED"| broker_ctrl
+    broker_ctrl -->|"WITHDRAWAL_COMPLETED"| execution_adpt
+    execution_adpt -.->|"WITHDRAWAL_COMPLETED"| execution_adpt
+    execution_adpt -.->|"WITHDRAWAL_COMPLETED"| ledger_ctrl
+```
+
+## Sequence Diagram
 
 ```mermaid
 sequenceDiagram

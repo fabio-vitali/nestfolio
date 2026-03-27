@@ -6,7 +6,29 @@
 
 **Trigger:** AdapterSchedule (EventBridge Scheduler) emits FETCH_REQUESTED to each adapter on a configurable cron (default rate(24 hours))
 
-## Flow Diagram
+## Flowchart
+
+```mermaid
+flowchart TD
+    subgraph execution["Execution Domain"]
+        alpha_vantage_adpt["alpha-vantage-adpt"]
+        fred_adpt["fred-adpt"]
+        marketwatch_adpt["marketwatch-adpt"]
+        sec_edgar_adpt["sec-edgar-adpt"]
+    end
+    subgraph advisory["Advisory Domain"]
+        market_intelligence_ctrl["market-intelligence-ctrl"]
+        portfolio_engine_ctrl["portfolio-engine-ctrl"]
+    end
+    alpha_vantage_adpt -->|"ALPHA_VANTAGE_NEWS_UPDATED"| market_intelligence_ctrl
+    fred_adpt -->|"FRED_INDICATORS_UPDATED"| market_intelligence_ctrl
+    marketwatch_adpt -->|"MARKETWATCH_UPDATED"| market_intelligence_ctrl
+    sec_edgar_adpt -->|"SEC_8K_FILED"| market_intelligence_ctrl
+    sec_edgar_adpt -->|"SEC_PROSPECTUS_UPDATED"| portfolio_engine_ctrl
+    sec_edgar_adpt -->|"SEC_10K_UPDATED"| portfolio_engine_ctrl
+```
+
+## Sequence Diagram
 
 ```mermaid
 sequenceDiagram
