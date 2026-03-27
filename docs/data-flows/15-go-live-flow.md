@@ -1,3 +1,5 @@
+> **Deprecated:** This document has been superseded by `flows/go-live.flow.yaml` and the agent documentation system. See `docs/agent-system.md` for details.
+
 # Feature #15 — Go Live Flow
 
 The Go Live flow transitions a tenant from **simulation** to **live** execution mode. The investor completes a re-onboarding wizard in the investor-mfe, which triggers a cross-domain event chain: onboarding-bff writes a CDC record, investor-bff updates the profile's execution mode (producing its own CDC record), and broker-ctrl materializes the new mode for use in deposit/withdrawal/order routing.

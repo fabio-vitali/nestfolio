@@ -1,3 +1,5 @@
+> **Deprecated:** This document has been superseded by `flows/withdrawal.flow.yaml` and the agent documentation system. See `docs/agent-system.md` for details.
+
 # Feature #3 — Withdrawal (Happy Path)
 
 A withdrawal request flows from the Investor domain into Execution, where `broker-ctrl` routes it based on the tenant's **execution mode** — either to the simulation engine (`broker-sim-adpt`) or to the live broker (`broker-alpaca-adpt`). Both paths normalize back to a common `NormalizedEvent` via `deposit-withdrawal-normalizer`. execution-adpt then fans the event to InvestorBus (notification) and LedgerBus (event-sourced recording and dashboard materialization).

@@ -1,3 +1,5 @@
+> **Deprecated:** This document has been superseded by `flows/order-execution.flow.yaml` and the agent documentation system. See `docs/agent-system.md` for details.
+
 # Feature #8 — Order Execution (Happy Path)
 
 Order execution bridges the Advisory and Execution domains. Once a decision is approved, execution-ctrl runs safety checks and evaluates market hours — submitting the order immediately or staging it for the next open. The order then enters the `broker-ctrl` **Order State Machine** (Step Functions), which reads the tenant's **execution mode**, checks the **circuit breaker**, and routes to either the simulation engine or Alpaca. A callback-based pattern (`waitForTaskToken`) pauses the state machine until the adapter reports a fill, rejection, or timeout.

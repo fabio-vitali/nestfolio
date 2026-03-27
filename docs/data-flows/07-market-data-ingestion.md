@@ -1,3 +1,5 @@
+> **Deprecated:** This document has been superseded by `flows/market-data-ingestion.flow.yaml` and the agent documentation system. See `docs/agent-system.md` for details.
+
 # Feature #7 — Market Data Ingestion (Happy Path)
 
 Market data ingestion is a scheduled, multi-source pipeline within the Advisory domain. Five specialized adapters fetch external data daily, persist to DynamoDB, and publish CDC events on AdvisoryBus. These events are consumed by two agent services: market-intelligence-ctrl ingests news and economic feeds into its knowledge base, while portfolio-engine-ctrl ingests SEC filings (prospectuses, 10-K/10-Q). Both agents use this data as context during decision cycle invocations (Feature #6).

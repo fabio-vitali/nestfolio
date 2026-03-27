@@ -1,3 +1,5 @@
+> **Deprecated:** This document has been superseded by `flows/advisory-cycle.flow.yaml` and the agent documentation system. See `docs/agent-system.md` for details.
+
 # Feature #6 — Advisory Decision Cycle (Happy Path)
 
 The advisory decision cycle is the core AI-driven workflow, orchestrated by decision-workflow-ctrl via AWS Step Functions. Any of 9 trigger events writes a WorkflowTrigger record whose CDC starts a state machine execution. The state machine invokes 4 LangGraph agents — investor-profile-ctrl and market-intelligence-ctrl in parallel, then portfolio-engine-ctrl, then advisory-narrative-ctrl sequentially — using EventBridge `waitForTaskToken` callbacks. Each agent reads/writes to a shared AgentCore Memory session. After narrative generation, the assembled recommendation is published and compliance-ctrl validates it (mandate, guardrails, suitability), resolving authority level L1 (autonomous) or L2 (user confirmation). advisory-adpt forwards approved decisions to ExecutionBus.

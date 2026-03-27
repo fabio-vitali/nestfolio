@@ -1,3 +1,5 @@
+> **Deprecated:** This document has been superseded by `flows/deposit.flow.yaml` and the agent documentation system. See `docs/agent-system.md` for details.
+
 # Feature #2 — Deposit (Happy Path)
 
 A deposit starts in the Investor domain and ripples across all four domains. The investor-bff validates and persists the request, investor-adpt forwards it to ExecutionBus. In the Execution domain, `broker-ctrl` routes the deposit based on the tenant's **execution mode** — either to the simulation engine (`broker-sim-adpt`) or to the live broker (`broker-alpaca-adpt`). Both paths normalize back to a common `NormalizedEvent` via `deposit-withdrawal-normalizer`. execution-adpt then fans the event out to AdvisoryBus (which may trigger a rebalance decision) and LedgerBus (which appends an event-sourced entry and updates the portfolio snapshot).
