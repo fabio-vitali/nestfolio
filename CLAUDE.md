@@ -22,9 +22,39 @@
 
 <!-- nx configuration end-->
 
-# Codebase is the Source of Truth
+## System Model
+- Monorepo: 4 DDD domains (Investor, Advisory, Execution, Ledger)
+- Each domain: EventBridge bus + services ({domain}-ctrl, -bff, -hub, -adpt)
+- Communication: async events only (DynamoDB CDC → EventBridge). No inter-service API calls.
+- Frontend: Angular PWA, investor-web via Native Federation
+- IaC: CDK with 5-construct pattern (State, Ingress, Egress, Facade, AgentRuntime)
+- Shared libs: event-processor, cdk-constructs, agent-orchestrator, shell, ui
 
-- **Memory and specs go stale fast.** This project evolves rapidly — services get decomposed, renamed, consolidated, and deleted across phases. Never trust memory, old specs, or plan documents as authoritative. The code is the only source of truth.
-- **Before any task that references architecture** (documentation, diagrams, refactoring plans, migration scripts, dependency analysis): audit the actual codebase first. Run `ls services/*/`, read the relevant source files, check `project.json` configs. If memory disagrees with code, the code wins.
-- **Before writing or updating documentation**: read the services you're documenting. Don't infer — verify.
-- **Before planning a refactor or migration**: confirm the starting state from code, not from memory or prior conversation context.
+## Skill Routing (MANDATORY)
+Before starting any task below, invoke the corresponding skill FIRST:
+
+| Task | Skill |
+|------|-------|
+| Understand the system or a domain | `orient` or `domains` |
+| Create a new service | `create-service` |
+| Add a feature to a service | `create-feature` |
+| Add/modify an event | `create-event` |
+| Wire a cross-domain data flow | `create-data-flow` |
+| Add an MFE feature/route | `create-mfe` |
+| Write CDK infrastructure | `cdk-patterns` |
+| Write event-processor handlers | `event-processor-patterns` |
+| Write or modify tests | `testing-patterns` |
+| Design a new service/flow | `design-service` or `design-data-flow` |
+| Verify consistency | `audit-service`, `audit-domain`, or `audit-system` |
+| Validate a business flow | `validate-flow` |
+| Assess impact of a change | `impact-analysis` |
+| Document a flow from code | `generate-flow-spec` |
+| Rebuild all docs from code | `init-docs` |
+
+## Hard Constraints
+- Services NEVER call each other via API — events only
+- ALL Lambda handlers use event-processor pipelines (no raw Lambda handlers)
+- Tests live in `test/` directory, NOT `src/__tests__/`
+- Codebase is source of truth — verify before documenting or planning
+- Run tasks through `pnpm nx`, never the underlying tool directly
+- Always use AskUserQuestion widget for architectural decisions
