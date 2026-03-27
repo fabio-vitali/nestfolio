@@ -27,32 +27,46 @@ function loadFlow(filePath) {
 // ── Mermaid diagram generation ────────────────────────────────────────────────
 
 const DOMAIN_STYLES = {
-  investor:  { fill: '#dbeafe', stroke: '#3b82f6' },
-  advisory:  { fill: '#fef3c7', stroke: '#f59e0b' },
+  investor: { fill: '#dbeafe', stroke: '#3b82f6' },
+  advisory: { fill: '#fef3c7', stroke: '#f59e0b' },
   execution: { fill: '#d1fae5', stroke: '#10b981' },
-  ledger:    { fill: '#ede9fe', stroke: '#8b5cf6' },
+  ledger: { fill: '#ede9fe', stroke: '#8b5cf6' },
 };
 
 const BUS_LABELS = {
-  InvestorBus:  'InvestorBus',
-  AdvisoryBus:  'AdvisoryBus',
+  InvestorBus: 'InvestorBus',
+  AdvisoryBus: 'AdvisoryBus',
   ExecutionBus: 'ExecutionBus',
-  LedgerBus:    'LedgerBus',
+  LedgerBus: 'LedgerBus',
 };
 
 function serviceDomain(serviceName, domains) {
   const mapping = {
-    'investor-bff': 'investor', 'investor-ctrl': 'investor', 'investor-adpt': 'investor',
-    'investor-mfe': 'investor', 'onboarding-bff': 'investor', 'dashboard-bff': 'investor',
-    'advisory-ctrl': 'advisory', 'advisory-adpt': 'advisory',
-    'decision-workflow-ctrl': 'advisory', 'compliance-ctrl': 'advisory',
-    'market-intelligence-ctrl': 'advisory', 'portfolio-engine-ctrl': 'advisory',
+    'investor-bff': 'investor',
+    'investor-ctrl': 'investor',
+    'investor-adpt': 'investor',
+    'investor-mfe': 'investor',
+    'onboarding-bff': 'investor',
+    'dashboard-bff': 'investor',
+    'advisory-ctrl': 'advisory',
+    'advisory-adpt': 'advisory',
+    'decision-workflow-ctrl': 'advisory',
+    'compliance-ctrl': 'advisory',
+    'market-intelligence-ctrl': 'advisory',
+    'portfolio-engine-ctrl': 'advisory',
     'advisory-narrative-ctrl': 'advisory',
-    'execution-ctrl': 'execution', 'execution-adpt': 'execution', 'execution-hub': 'execution',
-    'broker-ctrl': 'execution', 'broker-sim-adpt': 'execution', 'broker-alpaca-adpt': 'execution',
-    'alpha-vantage-adpt': 'execution', 'fred-adpt': 'execution',
-    'marketwatch-adpt': 'execution', 'sec-edgar-adpt': 'execution',
-    'ledger-ctrl': 'ledger', 'ledger-adpt': 'ledger',
+    'execution-ctrl': 'execution',
+    'execution-adpt': 'execution',
+    'execution-hub': 'execution',
+    'broker-ctrl': 'execution',
+    'broker-sim-adpt': 'execution',
+    'broker-alpaca-adpt': 'execution',
+    'alpha-vantage-adpt': 'execution',
+    'fred-adpt': 'execution',
+    'marketwatch-adpt': 'execution',
+    'sec-edgar-adpt': 'execution',
+    'ledger-ctrl': 'ledger',
+    'ledger-adpt': 'ledger',
     'reconciliation-ctrl': 'ledger',
   };
   if (mapping[serviceName]) return mapping[serviceName];
@@ -71,7 +85,7 @@ function parseEvents(str) {
   return str
     .replace(/\s*\(.*?\)/g, '')
     .split(/\s*(?:,|\bor\b|\|)\s*/i)
-    .map(e => e.trim())
+    .map((e) => e.trim())
     .filter(Boolean);
 }
 
@@ -110,7 +124,8 @@ function buildFlowchart(flow) {
   }
 
   // Build edges: for each emitted event, find the closest receiver
-  const edgeSet = new Set();
+  // Collect raw edges first, then deduplicate by service pair
+  const rawEdges = []; // { from, to, label, dashed }
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
     if (!step.emits || !step.service) continue;
@@ -120,18 +135,38 @@ function buildFlowchart(flow) {
       for (let j = i + 1; j < steps.length; j++) {
         const receiver = steps[j];
         if (!receiver.receives || !receiver.service) continue;
+        if (receiver.service === step.service) continue; // skip self-edges
         const receivedEvents = parseEvents(receiver.receives);
         if (receivedEvents.includes(evt)) {
-          const key = `${step.service}|${receiver.service}|${evt}`;
-          if (!edgeSet.has(key)) {
-            edgeSet.add(key);
-            const arrow = step.forwards_to ? '-.->' : '-->';
-            lines.push(`    ${sanitizeId(step.service)} ${arrow}|"${truncate(evt, 40)}"| ${sanitizeId(receiver.service)}`);
-          }
+          rawEdges.push({
+            from: step.service,
+            to: receiver.service,
+            label: evt,
+            dashed: !!step.forwards_to,
+          });
           break; // only the first (closest) receiver
         }
       }
     }
+  }
+
+  // Deduplicate: merge edges between the same service pair into one label
+  const pairMap = new Map(); // "from|to" -> { from, to, labels[], dashed }
+  for (const e of rawEdges) {
+    const key = `${e.from}|${e.to}`;
+    if (!pairMap.has(key)) {
+      pairMap.set(key, { from: e.from, to: e.to, labels: [], dashed: e.dashed });
+    }
+    pairMap.get(key).labels.push(e.label);
+  }
+
+  for (const edge of pairMap.values()) {
+    const arrow = edge.dashed ? '-.->' : '-->';
+    const label =
+      edge.labels.length > 2 ? edge.labels.slice(0, 2).join(', ') + ' ...' : edge.labels.join(', ');
+    lines.push(
+      `    ${sanitizeId(edge.from)} ${arrow}|"${truncate(label, 45)}"| ${sanitizeId(edge.to)}`,
+    );
   }
 
   return lines.join('\n');
@@ -201,8 +236,12 @@ function buildMermaid(flow) {
       // Find correct source from prior steps, fall back to prevService
       const source = findSource(step.receives, i) ?? prevService;
       if (source && source !== svc) {
-        const events = step.receives.split(/\s*[|,]\s*/).map(e => e.trim()).filter(Boolean);
-        const label = events.length > 2 ? events.slice(0, 2).join(' | ') + ' ...' : events.join(' | ');
+        const events = step.receives
+          .split(/\s*[|,]\s*/)
+          .map((e) => e.trim())
+          .filter(Boolean);
+        const label =
+          events.length > 2 ? events.slice(0, 2).join(' | ') + ' ...' : events.join(' | ');
         lines.push(`    ${sanitizeId(source)}->>+${svcId}: ${label}`);
       }
     } else if (step.action && !step.receives) {
@@ -233,7 +272,7 @@ function truncate(s, max) {
 // ── Markdown generation ───────────────────────────────────────────────────────
 
 function titleCase(slug) {
-  return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function generateMarkdown(flow) {
@@ -320,9 +359,13 @@ function generateReadme(flows) {
   const lines = [];
   lines.push('# Data Flow Documentation');
   lines.push('');
-  lines.push('End-to-end business flow specifications for Nestfolio, generated from `flows/*.flow.yaml`.');
+  lines.push(
+    'End-to-end business flow specifications for Nestfolio, generated from `flows/*.flow.yaml`.',
+  );
   lines.push('');
-  lines.push('> **Auto-generated** — do not edit manually. Run `node tools/generate-flow-docs.mjs` to regenerate.');
+  lines.push(
+    '> **Auto-generated** — do not edit manually. Run `node tools/generate-flow-docs.mjs` to regenerate.',
+  );
   lines.push('');
   lines.push('## Flows');
   lines.push('');
@@ -333,7 +376,7 @@ function generateReadme(flows) {
   sorted.forEach((f, i) => {
     const num = String(i + 1).padStart(2, '0');
     const link = `[${titleCase(f.flow)}](./${f.flow}.md)`;
-    const domains = (f.domains || []).map(d => `\`${d}\``).join(', ');
+    const domains = (f.domains || []).map((d) => `\`${d}\``).join(', ');
     lines.push(`| ${num} | ${link} | ${domains} | ${f.description} |`);
   });
 
@@ -388,16 +431,18 @@ function main() {
 
   // Discover flow files
   const allFiles = readdirSync(FLOWS_DIR)
-    .filter(f => f.endsWith('.flow.yaml'))
+    .filter((f) => f.endsWith('.flow.yaml'))
     .sort();
 
   const filesToProcess = targetFlow
-    ? allFiles.filter(f => f === `${targetFlow}.flow.yaml`)
+    ? allFiles.filter((f) => f === `${targetFlow}.flow.yaml`)
     : allFiles;
 
   if (targetFlow && filesToProcess.length === 0) {
     console.error(`Flow not found: ${targetFlow}`);
-    console.error(`Available flows: ${allFiles.map(f => f.replace('.flow.yaml', '')).join(', ')}`);
+    console.error(
+      `Available flows: ${allFiles.map((f) => f.replace('.flow.yaml', '')).join(', ')}`,
+    );
     process.exit(1);
   }
 
@@ -416,7 +461,7 @@ function main() {
   // Generate README only when processing all flows
   if (!targetFlow) {
     // Load all flows for README even if we only processed some
-    const allFlowsForReadme = allFiles.map(f => loadFlow(join(FLOWS_DIR, f)));
+    const allFlowsForReadme = allFiles.map((f) => loadFlow(join(FLOWS_DIR, f)));
     const readme = generateReadme(allFlowsForReadme);
     writeFileSync(join(OUT_DIR, 'README.md'), readme);
     console.log(`  ✓ README.md`);

@@ -21,17 +21,12 @@ flowchart TD
         execution_adpt["execution-adpt"]
     end
     advisory_adpt -.->|"DECISION_APPROVED"| execution_ctrl
-    execution_ctrl -->|"ORDER_SUBMITTED"| broker_ctrl
+    execution_ctrl -->|"ORDER_SUBMITTED, ORDER_SUBMITTED"| broker_ctrl
     broker_ctrl -->|"SIM_ORDER_REQUESTED"| broker_sim_adpt
     broker_ctrl -->|"ALPACA_ORDER_REQUESTED"| broker_alpaca_adpt
-    broker_sim_adpt -->|"SIM_ORDER_FILLED"| broker_ctrl
-    broker_sim_adpt -->|"SIM_ORDER_REJECTED"| broker_ctrl
-    broker_alpaca_adpt -->|"ALPACA_ORDER_FILLED"| broker_ctrl
-    broker_alpaca_adpt -->|"ALPACA_ORDER_REJECTED"| broker_ctrl
-    broker_ctrl -->|"ORDER_FILLED"| execution_adpt
-    broker_ctrl -->|"ORDER_REJECTED"| execution_adpt
-    execution_adpt -.->|"ORDER_FILLED"| execution_adpt
-    execution_adpt -.->|"ORDER_REJECTED"| execution_adpt
+    broker_sim_adpt -->|"SIM_ORDER_FILLED, SIM_ORDER_REJECTED"| broker_ctrl
+    broker_alpaca_adpt -->|"ALPACA_ORDER_FILLED, ALPACA_ORDER_REJECTED"| broker_ctrl
+    broker_ctrl -->|"ORDER_FILLED, ORDER_REJECTED"| execution_adpt
 ```
 
 ## Sequence Diagram

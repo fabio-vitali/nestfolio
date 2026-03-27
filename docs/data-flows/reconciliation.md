@@ -17,8 +17,7 @@ flowchart TD
     subgraph investor["Investor Domain"]
         dashboard_bff["dashboard-bff"]
     end
-    reconciliation_ctrl -->|"RECONCILIATION_COMPLETED"| ledger_adpt
-    reconciliation_ctrl -->|"PORTFOLIO_DRIFT_DETECTED"| ledger_adpt
+    reconciliation_ctrl -->|"RECONCILIATION_COMPLETED, PORTFOLIO_DRIFT_DE…"| ledger_adpt
     ledger_adpt -.->|"RECONCILIATION_COMPLETED"| dashboard_bff
 ```
 

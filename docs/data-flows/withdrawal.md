@@ -31,8 +31,7 @@ flowchart TD
     broker_sim_adpt -->|"SIM_WITHDRAWAL_COMPLETED"| broker_ctrl
     broker_alpaca_adpt -->|"ALPACA_TRANSFER_COMPLETED"| broker_ctrl
     broker_ctrl -->|"WITHDRAWAL_COMPLETED"| execution_adpt
-    execution_adpt -.->|"WITHDRAWAL_COMPLETED"| execution_adpt
-    execution_adpt -.->|"WITHDRAWAL_COMPLETED"| ledger_ctrl
+    execution_adpt -.->|"WITHDRAWAL_COMPLETED, WITHDRAWAL_COMPLETED"| ledger_ctrl
 ```
 
 ## Sequence Diagram

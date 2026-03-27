@@ -23,12 +23,9 @@ flowchart TD
         dashboard_bff["dashboard-bff"]
     end
     execution_adpt -.->|"ORDER_FILLED"| ledger_ctrl
-    ledger_ctrl -->|"BALANCE_UPDATED"| ledger_adpt
-    ledger_ctrl -->|"PORTFOLIO_UPDATED"| ledger_adpt
-    ledger_ctrl -->|"LEDGER_ENTRY_RECORDED"| ledger_adpt
+    ledger_ctrl -->|"BALANCE_UPDATED, PORTFOLIO_UPDATED ..."| ledger_adpt
     ledger_adpt -.->|"BALANCE_UPDATED"| investor_ctrl
-    ledger_adpt -.->|"PORTFOLIO_UPDATED"| dashboard_bff
-    ledger_adpt -.->|"LEDGER_ENTRY_RECORDED"| dashboard_bff
+    ledger_adpt -.->|"PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED"| dashboard_bff
 ```
 
 ## Sequence Diagram

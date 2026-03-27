@@ -19,7 +19,7 @@ flowchart TD
         compliance_ctrl["compliance-ctrl"]
         advisory_adpt["advisory-adpt"]
     end
-    decision_workflow_ctrl -->|"DECISION_PACKET_CREATED"| compliance_ctrl
+    decision_workflow_ctrl -->|"DECISION_PACKET_CREATED, DECISION_PACKET_ENR…"| compliance_ctrl
     decision_workflow_ctrl -->|"ANALYZE_INVESTOR_PROFILE"| advisory_ctrl
     decision_workflow_ctrl -->|"ANALYZE_MARKET"| market_intelligence_ctrl
     decision_workflow_ctrl -->|"CONSTRUCT_PORTFOLIO"| portfolio_engine_ctrl
@@ -28,13 +28,9 @@ flowchart TD
     market_intelligence_ctrl -->|"MARKET_ANALYSIS_COMPLETED"| decision_workflow_ctrl
     portfolio_engine_ctrl -->|"PORTFOLIO_COMPLETED"| decision_workflow_ctrl
     advisory_narrative_ctrl -->|"NARRATIVE_COMPLETED"| decision_workflow_ctrl
-    decision_workflow_ctrl -->|"DECISION_PACKET_ENRICHED"| compliance_ctrl
-    compliance_ctrl -->|"DECISION_APPROVED"| decision_workflow_ctrl
-    compliance_ctrl -->|"DECISION_BLOCKED"| decision_workflow_ctrl
-    decision_workflow_ctrl -->|"USER_CONFIRMATION_REQUESTED"| advisory_adpt
+    compliance_ctrl -->|"DECISION_APPROVED, DECISION_BLOCKED"| decision_workflow_ctrl
+    decision_workflow_ctrl -->|"USER_CONFIRMATION_REQUESTED, DECISION_APPROV…"| advisory_adpt
     advisory_adpt -.->|"USER_CONFIRMED"| decision_workflow_ctrl
-    decision_workflow_ctrl -->|"DECISION_APPROVED"| advisory_adpt
-    advisory_adpt -.->|"DECISION_APPROVED"| advisory_adpt
 ```
 
 ## Sequence Diagram

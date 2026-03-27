@@ -20,10 +20,7 @@ flowchart TD
         decision_workflow_ctrl["decision-workflow-ctrl"]
     end
     onboarding_bff -->|"ONBOARDING_COMPLETED"| investor_bff
-    investor_bff -->|"GOAL_UPDATED"| investor_adpt
-    investor_bff -->|"RISK_PROFILE_UPDATED"| investor_adpt
-    investor_bff -->|"MANDATE_GRANTED"| investor_adpt
-    investor_bff -->|"OPERATING_MODE_CHANGED"| investor_adpt
+    investor_bff -->|"GOAL_UPDATED, RISK_PROFILE_UPDATED ..."| investor_adpt
     investor_adpt -.->|"MANDATE_GRANTED"| decision_workflow_ctrl
 ```
 

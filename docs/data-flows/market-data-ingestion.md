@@ -24,8 +24,7 @@ flowchart TD
     fred_adpt -->|"FRED_INDICATORS_UPDATED"| market_intelligence_ctrl
     marketwatch_adpt -->|"MARKETWATCH_UPDATED"| market_intelligence_ctrl
     sec_edgar_adpt -->|"SEC_8K_FILED"| market_intelligence_ctrl
-    sec_edgar_adpt -->|"SEC_PROSPECTUS_UPDATED"| portfolio_engine_ctrl
-    sec_edgar_adpt -->|"SEC_10K_UPDATED"| portfolio_engine_ctrl
+    sec_edgar_adpt -->|"SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED"| portfolio_engine_ctrl
 ```
 
 ## Sequence Diagram
