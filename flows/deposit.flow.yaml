@@ -1,0 +1,88 @@
+schema_version: 1
+flow: deposit
+description: Investor initiates a deposit, routed through broker-ctrl to sim or Alpaca adapter, normalized back to canonical events
+domains: [investor, execution, ledger]
+
+trigger: investor-bff emits DEPOSIT_INITIATED (CDC from Deposit:INSERT)
+
+steps:
+  - service: investor-bff
+    action: User initiates deposit via GraphQL mutation
+    state_change: Writes Deposit record to DDB
+    emits: DEPOSIT_INITIATED (CDC)
+    idempotent: true
+
+  - service: investor-adpt
+    receives: DEPOSIT_INITIATED
+    via: InvestorBus -> investor-adpt ToExecution rule
+    forwards_to: ExecutionBus
+    emits: DEPOSIT_INITIATED
+
+  - service: broker-ctrl
+    receives: DEPOSIT_INITIATED
+    via: ExecutionBus -> SQS -> broker-ctrl-DepositWithdrawalIngress
+    state_change: deposit-withdrawal-router reads ExecutionMode and routes to SIM_DEPOSIT_INITIATED or ALPACA_TRANSFER_REQUESTED
+    emits: SIM_DEPOSIT_INITIATED or ALPACA_TRANSFER_REQUESTED (explicit publish)
+    idempotent: true
+
+  # Simulation path
+  - service: broker-sim-adpt
+    receives: SIM_DEPOSIT_INITIATED
+    via: ExecutionBus -> SQS -> broker-sim-adpt-ingress
+    state_change: Simulates deposit, writes DepositDetected record
+    emits: SIM_DEPOSIT_COMPLETED (CDC)
+    idempotent: true
+
+  # Live path (alternative)
+  - service: broker-alpaca-adpt
+    receives: ALPACA_TRANSFER_REQUESTED
+    via: ExecutionBus -> SQS -> broker-alpaca-adpt-ingress
+    state_change: Submits ACH transfer to Alpaca API, writes AlpacaTransferResult
+    emits: ALPACA_TRANSFER_COMPLETED or ALPACA_TRANSFER_FAILED (CDC)
+    idempotent: true
+
+  - service: broker-ctrl
+    receives: SIM_DEPOSIT_COMPLETED | ALPACA_TRANSFER_COMPLETED
+    via: ExecutionBus -> SQS -> broker-ctrl-DepositWithdrawalNormalizerIngress
+    state_change: Writes NormalizedEvent record (sk = DEPOSIT_DETECTED)
+    emits: DEPOSIT_DETECTED (CDC from NormalizedEvent:INSERT, sk is event type)
+    idempotent: true
+
+  - service: execution-adpt
+    receives: DEPOSIT_DETECTED
+    via: ExecutionBus -> execution-adpt ToLedger rule
+    forwards_to: LedgerBus
+    emits: DEPOSIT_DETECTED
+
+  - service: ledger-ctrl
+    receives: DEPOSIT_DETECTED
+    via: LedgerBus -> SQS -> ledger-ctrl-ingress
+    state_change: Records BalanceEvent (credit) and LedgerEntryEvent in DDB; reducer materializes account snapshot
+    emits: BALANCE_UPDATED, LEDGER_ENTRY_RECORDED (CDC)
+    idempotent: true
+
+  - service: ledger-adpt
+    receives: BALANCE_UPDATED
+    via: LedgerBus -> ledger-adpt ToInvestor rule
+    forwards_to: InvestorBus
+    emits: BALANCE_UPDATED
+
+  - service: investor-ctrl
+    receives: BALANCE_UPDATED
+    via: InvestorBus -> SQS -> investor-ctrl-ingress
+    state_change: Updates investor balance view, may trigger notification
+    emits: NOTIFICATION_CREATED (CDC)
+    idempotent: true
+
+success_criteria:
+  - Deposit amount credited in ledger-ctrl balance
+  - BALANCE_UPDATED event reaches investor domain
+  - LEDGER_ENTRY_RECORDED event persists audit trail
+
+failure_modes:
+  - step 2 fails: investor-adpt ToExecutionDLQ; deposit not routed to execution domain
+  - step 3 fails: broker-ctrl DepositWithdrawalIngress DLQ; deposit not routed to adapter
+  - step 4 fails: broker-sim-adpt ingress DLQ; simulated deposit not completed
+  - step 5 fails: broker-alpaca-adpt ingress DLQ; Alpaca transfer not submitted
+  - step 6 fails: broker-ctrl DepositWithdrawalNormalizerIngress DLQ; normalized event not created
+  - step 8 fails: ledger-ctrl ingress DLQ; balance not updated

@@ -1,0 +1,70 @@
+schema_version: 1
+flow: reconciliation
+description: Reconciliation-ctrl compares intent positions (from portfolio events) against settlement positions (from broker snapshots), producing drift records and completion events
+domains: [ledger, execution, investor]
+
+trigger: ledger-ctrl emits PORTFOLIO_UPDATED (CDC from PortfolioEvent:INSERT) or execution domain emits PORTFOLIO_SNAPSHOT_IMPORTED / ALPACA_ACCOUNT_SNAPSHOT
+
+steps:
+  - service: reconciliation-ctrl
+    receives: PORTFOLIO_UPDATED
+    via: LedgerBus -> SQS -> reconciliation-ctrl-ingress
+    state_change: Updates intent-side position snapshot from portfolio event
+    idempotent: true
+
+  - service: reconciliation-ctrl
+    receives: PORTFOLIO_SNAPSHOT_IMPORTED
+    via: LedgerBus -> SQS -> reconciliation-ctrl-ingress
+    state_change: Updates settlement-side position snapshot from broker portfolio import
+    idempotent: true
+
+  - service: reconciliation-ctrl
+    receives: CORPORATE_ACTION_APPLIED
+    via: LedgerBus -> SQS -> reconciliation-ctrl-ingress
+    state_change: Adjusts positions for corporate actions (splits, dividends)
+    idempotent: true
+
+  - service: reconciliation-ctrl
+    receives: ALPACA_ACCOUNT_SNAPSHOT
+    via: LedgerBus -> SQS -> reconciliation-ctrl-ingress
+    state_change: Updates settlement-side positions from Alpaca account snapshot
+    idempotent: true
+
+  - service: reconciliation-ctrl
+    action: Compares intent vs settlement quantities per symbol
+    state_change: Writes DriftRecord for each mismatch; writes ReconciliationResult (status, driftCount)
+    emits: RECONCILIATION_COMPLETED (CDC from ReconciliationResult:INSERT), PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord:INSERT)
+    idempotent: true
+
+  # Reconciliation results forwarded cross-domain
+  - service: ledger-adpt
+    receives: RECONCILIATION_COMPLETED
+    via: LedgerBus -> ledger-adpt ToInvestor rule
+    forwards_to: InvestorBus
+    emits: RECONCILIATION_COMPLETED
+    # TODO: verify RECONCILIATION_COMPLETED is in ledger-adpt forwarding rules - not explicitly listed in LedgerCrossDomainEventTypes
+
+  - service: dashboard-bff
+    receives: RECONCILIATION_COMPLETED
+    via: InvestorBus -> SQS -> dashboard-bff-ingress
+    state_change: Updates portfolio summary with reconciliation status (flags if drifts found)
+    idempotent: true
+
+  # Drift triggers rebalance (see portfolio-rebalance.flow.yaml)
+  - service: execution-adpt
+    receives: PORTFOLIO_DRIFT_DETECTED
+    via: ExecutionBus -> execution-adpt ToAdvisory rule
+    forwards_to: AdvisoryBus
+    emits: PORTFOLIO_DRIFT_DETECTED
+
+success_criteria:
+  - Intent and settlement positions compared for all instruments
+  - DriftRecords created for each mismatch
+  - RECONCILIATION_COMPLETED event reaches dashboard for display
+  - PORTFOLIO_DRIFT_DETECTED triggers rebalance cycle if drift exceeds threshold
+
+failure_modes:
+  - step 1-4 fails: reconciliation-ctrl ingress DLQ; reconciliation not triggered
+  - step 5 fails: CDC event not emitted; downstream not notified
+  - step 6 fails: ledger-adpt forwarding DLQ; dashboard not updated
+  - step 8 fails: execution-adpt ToAdvisoryDLQ; rebalance not triggered

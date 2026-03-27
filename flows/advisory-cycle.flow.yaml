@@ -1,0 +1,124 @@
+schema_version: 1
+flow: advisory-cycle
+description: Advisory decision cycle orchestrated by decision-workflow-ctrl Step Functions, invoking 4 LangGraph agents in parallel, compliance check, and user confirmation
+domains: [advisory, investor, execution]
+
+trigger: decision-workflow-ctrl receives trigger event (MANDATE_GRANTED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED)
+
+steps:
+  # Phase 1: Trigger ingestion
+  - service: decision-workflow-ctrl
+    receives: MANDATE_GRANTED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED
+    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
+    state_change: Materializes WorkflowTrigger record to DDB; CDC emits DECISION_PACKET_CREATED; starts new SF execution
+    emits: DECISION_PACKET_CREATED (CDC from DecisionPacket:INSERT)
+    idempotent: true
+
+  # Phase 2: SF dispatches 4 agent tasks in parallel via EventBridge integration
+  - service: decision-workflow-ctrl
+    action: Step Functions emits agent trigger events via EventBridge
+    emits: ANALYZE_INVESTOR_PROFILE, ANALYZE_MARKET, CONSTRUCT_PORTFOLIO, GENERATE_NARRATIVE (SF EventBridge integration)
+
+  # Phase 2a: Investor Profile Agent
+  - service: advisory-ctrl
+    receives: ANALYZE_INVESTOR_PROFILE
+    via: AdvisoryBus -> SQS -> advisory-ctrl-ingress
+    state_change: LangGraph agent analyzes investor profile using portfolio-lookup and instrument-universe tools
+    emits: INVESTOR_PROFILE_COMPLETED (explicit via event-publisher tool)
+    idempotent: false
+
+  # Phase 2b: Market Intelligence Agent
+  - service: market-intelligence-ctrl
+    receives: ANALYZE_MARKET
+    via: AdvisoryBus -> SQS -> market-intelligence-ctrl-ingress
+    state_change: LangGraph agent retrieves market data from KB, produces market analysis
+    emits: MARKET_ANALYSIS_COMPLETED (explicit via event-publisher)
+    idempotent: false
+
+  # Phase 2c: Portfolio Construction Agent
+  - service: portfolio-engine-ctrl
+    receives: CONSTRUCT_PORTFOLIO
+    via: AdvisoryBus -> SQS -> portfolio-engine-ctrl-ingress
+    state_change: LangGraph agent constructs optimal portfolio allocation
+    emits: PORTFOLIO_COMPLETED (explicit via event-publisher)
+    idempotent: false
+
+  # Phase 2d: Narrative Agent
+  - service: advisory-narrative-ctrl
+    receives: GENERATE_NARRATIVE
+    via: AdvisoryBus -> SQS -> advisory-narrative-ctrl-ingress
+    state_change: LangGraph agent generates human-readable narrative explanation
+    emits: NARRATIVE_COMPLETED (explicit via event-publisher)
+    idempotent: false
+
+  # Phase 3: Callback resolution - agent completions resume SF
+  - service: decision-workflow-ctrl
+    receives: INVESTOR_PROFILE_COMPLETED, MARKET_ANALYSIS_COMPLETED, PORTFOLIO_COMPLETED, NARRATIVE_COMPLETED
+    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-CallbackIngress
+    state_change: SendTaskSuccess resumes SF execution; merges agent outputs into DecisionPacket
+    emits: DECISION_PACKET_ENRICHED (CDC from DecisionPacket:MODIFY)
+    idempotent: true
+
+  # Phase 4: Compliance check
+  - service: compliance-ctrl
+    receives: DECISION_PACKET_CREATED | DECISION_PACKET_ENRICHED
+    via: AdvisoryBus -> SQS -> compliance-ctrl-ingress
+    state_change: Runs compliance rules against mandate and operating mode; writes ComplianceCheck record
+    emits: DECISION_APPROVED or DECISION_BLOCKED (CDC from ComplianceCheck:INSERT)
+    idempotent: true
+
+  # Phase 5: Compliance callback to SF
+  - service: decision-workflow-ctrl
+    receives: DECISION_APPROVED | DECISION_BLOCKED
+    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-CallbackIngress
+    state_change: SendTaskSuccess resumes SF; if approved, emits USER_CONFIRMATION_REQUESTED; if blocked, terminates
+    emits: USER_CONFIRMATION_REQUESTED (CDC)
+    idempotent: true
+
+  # Phase 6: Cross-domain forwarding to investor for user confirmation
+  - service: advisory-adpt
+    receives: USER_CONFIRMATION_REQUESTED
+    via: AdvisoryBus -> advisory-adpt ToInvestor rule
+    forwards_to: InvestorBus
+    emits: USER_CONFIRMATION_REQUESTED
+
+  # Phase 7: User responds (confirmed or rejected)
+  - service: advisory-adpt
+    receives: USER_CONFIRMED
+    via: AdvisoryBus -> advisory-adpt ToExecution rule
+    forwards_to: ExecutionBus
+    emits: USER_CONFIRMED
+
+  # Phase 8: User response callback to SF
+  - service: decision-workflow-ctrl
+    receives: USER_CONFIRMED | USER_REJECTED
+    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-CallbackIngress
+    state_change: SendTaskSuccess completes SF; if confirmed, emits DECISION_APPROVED cross-domain
+    emits: DECISION_APPROVED (CDC)
+    idempotent: true
+
+  # Phase 9: Cross-domain to execution
+  - service: advisory-adpt
+    receives: DECISION_APPROVED
+    via: AdvisoryBus -> advisory-adpt ToExecution rule
+    forwards_to: ExecutionBus
+    emits: DECISION_APPROVED
+
+  - service: advisory-adpt
+    receives: DECISION_APPROVED
+    via: AdvisoryBus -> advisory-adpt ToInvestor rule
+    forwards_to: InvestorBus
+    emits: DECISION_APPROVED
+
+success_criteria:
+  - All 4 agent tasks complete and DecisionPacket is enriched
+  - Compliance check passes and DECISION_APPROVED reaches execution domain
+  - User confirmation is requested and response is captured
+  - Final DECISION_APPROVED event triggers order execution
+
+failure_modes:
+  - step 1 fails: decision-workflow-ctrl TriggerIngress DLQ; SF execution not started
+  - step 3-6 fails: Agent Lambda fails; SF task token times out; DECISION_WORKFLOW_FAILED emitted
+  - step 7 fails: CallbackIngress DLQ; SF stuck waiting for agent completion
+  - step 8 fails: compliance-ctrl ingress DLQ; decision not checked
+  - step 10 fails: advisory-adpt ToInvestorDLQ; user not notified of confirmation request

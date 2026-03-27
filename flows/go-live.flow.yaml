@@ -1,0 +1,66 @@
+schema_version: 1
+flow: go-live
+description: Investor transitions from simulation to live trading by completing Go Live wizard, switching execution mode from simulation to live
+domains: [investor, execution]
+
+trigger: onboarding-bff emits GO_LIVE_CONFIRMED (CDC from GoLiveConfirmed:INSERT)
+
+steps:
+  - service: onboarding-bff
+    action: Investor completes Go Live wizard in investor-mfe, calls confirmGoLive() resolver
+    state_change: TransactWrite updates OnboardingSession status and writes GoLiveConfirmed record to DDB
+    emits: GO_LIVE_CONFIRMED (CDC from GoLiveConfirmed:INSERT)
+    idempotent: true
+
+  - service: investor-bff
+    receives: GO_LIVE_CONFIRMED
+    via: InvestorBus -> SQS -> investor-bff-ingress
+    state_change: event-listener calls setExecutionMode('simulation' -> 'live'), writes ExecutionModeChange record to DDB
+    emits: EXECUTION_MODE_CHANGED (CDC from ExecutionModeChange:INSERT)
+    idempotent: true
+
+  - service: investor-adpt
+    receives: EXECUTION_MODE_CHANGED
+    via: InvestorBus -> investor-adpt ToExecution rule
+    forwards_to: ExecutionBus
+    emits: EXECUTION_MODE_CHANGED
+
+  - service: broker-ctrl
+    receives: EXECUTION_MODE_CHANGED
+    via: ExecutionBus -> SQS -> broker-ctrl-ModeIngress
+    state_change: mode-listener materializes ExecutionMode record (mode='live') in DDB; future deposit/withdrawal/order routing uses Alpaca instead of simulator
+    idempotent: true
+
+  # Also forwarded to advisory for operating mode awareness
+  - service: investor-adpt
+    receives: OPERATING_MODE_CHANGED
+    via: InvestorBus -> investor-adpt ToAdvisory rule
+    forwards_to: AdvisoryBus
+    emits: OPERATING_MODE_CHANGED
+    # Note: OPERATING_MODE_CHANGED is a separate event from EXECUTION_MODE_CHANGED
+    # investor-bff may also emit OPERATING_MODE_CHANGED via OperatingModeRecord CDC
+
+  - service: advisory-ctrl
+    receives: OPERATING_MODE_CHANGED
+    via: AdvisoryBus -> SQS -> advisory-ctrl-ingress
+    state_change: Updates operating mode context for future advisory decisions
+    idempotent: true
+
+  - service: decision-workflow-ctrl
+    receives: OPERATING_MODE_CHANGED
+    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
+    state_change: May trigger new advisory decision cycle for live mode portfolio review
+    emits: DECISION_PACKET_CREATED (CDC)
+    idempotent: true
+
+success_criteria:
+  - ExecutionMode record materialized in broker-ctrl with mode='live'
+  - Future orders routed to broker-alpaca-adpt instead of broker-sim-adpt
+  - Future deposits/withdrawals routed to Alpaca ACH instead of simulator
+  - Advisory domain aware of operating mode change
+
+failure_modes:
+  - step 1 fails: onboarding-bff CDC not emitted; go-live not triggered
+  - step 2 fails: investor-bff ingress DLQ; execution mode not changed
+  - step 3 fails: investor-adpt ToExecutionDLQ; broker-ctrl not notified
+  - step 4 fails: broker-ctrl ModeIngress DLQ; mode not materialized, orders still route to simulator

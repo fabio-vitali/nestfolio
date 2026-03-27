@@ -1,0 +1,88 @@
+schema_version: 1
+flow: order-ledger
+description: Order fill events from execution domain are recorded as ledger entries, balance and portfolio snapshots are materialized and forwarded cross-domain
+domains: [execution, ledger, investor, advisory]
+
+trigger: broker-ctrl emits ORDER_FILLED (CDC from NormalizedEvent:INSERT)
+
+steps:
+  - service: execution-adpt
+    receives: ORDER_FILLED
+    via: ExecutionBus -> execution-adpt ToLedger rule
+    forwards_to: LedgerBus
+    emits: ORDER_FILLED
+
+  - service: ledger-ctrl
+    receives: ORDER_FILLED
+    via: LedgerBus -> SQS -> ledger-ctrl-ingress
+    state_change: Records LedgerEntryEvent (trade journal entry), BalanceEvent (cash debit/credit), PortfolioEvent (position update); reducer materializes account snapshots
+    emits: BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED (CDC)
+    idempotent: true
+
+  # Also handles partial fills
+  - service: ledger-ctrl
+    receives: ORDER_PARTIALLY_FILLED
+    via: LedgerBus -> SQS -> ledger-ctrl-ingress
+    state_change: Records partial fill as LedgerEntryEvent and PortfolioEvent (partial position update)
+    emits: PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED (CDC)
+    idempotent: true
+
+  # Cross-domain forwarding of ledger events
+  - service: ledger-adpt
+    receives: BALANCE_UPDATED
+    via: LedgerBus -> ledger-adpt ToInvestor rule
+    forwards_to: InvestorBus
+    emits: BALANCE_UPDATED
+
+  - service: ledger-adpt
+    receives: PORTFOLIO_UPDATED
+    via: LedgerBus -> ledger-adpt ToAdvisory rule
+    forwards_to: AdvisoryBus
+    emits: PORTFOLIO_UPDATED
+
+  - service: ledger-adpt
+    receives: LEDGER_ENTRY_RECORDED
+    via: LedgerBus -> ledger-adpt ToInvestor rule
+    forwards_to: InvestorBus
+    emits: LEDGER_ENTRY_RECORDED
+
+  # Investor domain consumption
+  - service: investor-ctrl
+    receives: BALANCE_UPDATED
+    via: InvestorBus -> SQS -> investor-ctrl-ingress
+    state_change: Updates investor balance view
+    emits: NOTIFICATION_CREATED (CDC)
+    idempotent: true
+
+  - service: investor-ctrl
+    receives: ORDER_FILLED
+    via: InvestorBus -> SQS -> investor-ctrl-ingress
+    state_change: Updates order status in investor view
+    idempotent: true
+
+  # Dashboard read model
+  - service: dashboard-bff
+    receives: BALANCE_UPDATED | PORTFOLIO_UPDATED | LEDGER_ENTRY_RECORDED
+    via: InvestorBus -> SQS -> dashboard-bff-ingress
+    state_change: Updates portfolio dashboard read model
+    idempotent: true
+
+  # Reconciliation trigger
+  - service: reconciliation-ctrl
+    receives: PORTFOLIO_UPDATED
+    via: LedgerBus -> SQS -> reconciliation-ctrl-ingress
+    state_change: Triggers reconciliation check comparing intent vs settlement positions
+    emits: RECONCILIATION_COMPLETED or PORTFOLIO_DRIFT_DETECTED (CDC)
+    idempotent: true
+
+success_criteria:
+  - Trade recorded as LedgerEntryEvent with correct debit/credit
+  - Balance and portfolio snapshots materialized by reducer
+  - BALANCE_UPDATED reaches investor domain for dashboard update
+  - PORTFOLIO_UPDATED reaches advisory domain for drift monitoring
+
+failure_modes:
+  - step 1 fails: execution-adpt ToLedgerDLQ; ledger not notified of fill
+  - step 2 fails: ledger-ctrl ingress DLQ; trade not recorded
+  - step 4-6 fails: ledger-adpt forwarding DLQs; downstream domains not notified
+  - step 10 fails: reconciliation-ctrl ingress DLQ; drift not detected

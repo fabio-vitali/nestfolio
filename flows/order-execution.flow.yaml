@@ -1,0 +1,98 @@
+schema_version: 1
+flow: order-execution
+description: Approved decision triggers order creation in execution-ctrl, routed through broker-ctrl state machine to sim or Alpaca adapter, normalized back to canonical fill/reject events
+domains: [advisory, execution]
+
+trigger: advisory-adpt forwards DECISION_APPROVED to ExecutionBus
+
+steps:
+  - service: advisory-adpt
+    receives: DECISION_APPROVED
+    via: AdvisoryBus -> advisory-adpt ToExecution rule
+    forwards_to: ExecutionBus
+    emits: DECISION_APPROVED
+
+  - service: execution-ctrl
+    receives: DECISION_APPROVED
+    via: ExecutionBus -> SQS -> execution-ctrl-ingress
+    state_change: Creates Order records (one per instrument in decision packet) in DDB; status depends on operating mode (STAGED for simulation staging, SUBMITTED for live)
+    emits: ORDER_SUBMITTED or ORDER_STAGED (CDC from Order:INSERT, status-based mapping)
+    idempotent: true
+
+  # For staged orders in simulation mode
+  - service: execution-ctrl
+    action: StagedOrderProcessor Lambda runs on US market open schedule (AdapterSchedule)
+    state_change: Submits staged orders, updates Order status to SUBMITTED
+    emits: ORDER_SUBMITTED (CDC from Order:MODIFY)
+    idempotent: true
+
+  # Order state machine in broker-ctrl
+  - service: broker-ctrl
+    receives: ORDER_SUBMITTED
+    via: ExecutionBus -> broker-ctrl OrderIngress (EventBridge rule -> SF OrderStateMachine)
+    state_change: Order state machine starts; routes to SIM_ORDER_REQUESTED or ALPACA_ORDER_REQUESTED based on ExecutionMode
+    emits: SIM_ORDER_REQUESTED or ALPACA_ORDER_REQUESTED (SF EventBridge integration)
+    idempotent: true
+
+  # Simulation path
+  - service: broker-sim-adpt
+    receives: SIM_ORDER_REQUESTED
+    via: ExecutionBus -> SQS -> broker-sim-adpt-ingress
+    state_change: Simulates order execution, writes VirtualTrade record with fill price
+    emits: SIM_ORDER_FILLED or SIM_ORDER_REJECTED (CDC)
+    idempotent: true
+
+  # Live path (alternative)
+  - service: broker-alpaca-adpt
+    receives: ALPACA_ORDER_REQUESTED
+    via: ExecutionBus -> SQS -> broker-alpaca-adpt-ingress
+    state_change: Submits order to Alpaca API, writes AlpacaOrderResult record
+    emits: ALPACA_ORDER_FILLED or ALPACA_ORDER_REJECTED (CDC)
+    idempotent: true
+
+  # Callback resolution
+  - service: broker-ctrl
+    receives: SIM_ORDER_FILLED | ALPACA_ORDER_FILLED | SIM_ORDER_REJECTED | ALPACA_ORDER_REJECTED
+    via: ExecutionBus -> SQS -> broker-ctrl-CallbackIngress
+    state_change: Writes NormalizedEvent record (sk = ORDER_FILLED or ORDER_REJECTED)
+    emits: ORDER_FILLED or ORDER_REJECTED (CDC from NormalizedEvent:INSERT, sk is event type)
+    idempotent: true
+
+  # Cross-domain forwarding
+  - service: execution-adpt
+    receives: ORDER_FILLED
+    via: ExecutionBus -> execution-adpt ToLedger rule
+    forwards_to: LedgerBus
+    emits: ORDER_FILLED
+
+  - service: execution-adpt
+    receives: ORDER_FILLED
+    via: ExecutionBus -> execution-adpt ToAdvisory rule
+    forwards_to: AdvisoryBus
+    emits: ORDER_FILLED
+
+  - service: execution-adpt
+    receives: ORDER_REJECTED
+    via: ExecutionBus -> execution-adpt ToInvestor rule
+    forwards_to: InvestorBus
+    emits: ORDER_REJECTED
+
+  - service: execution-adpt
+    receives: ORDER_REJECTED
+    via: ExecutionBus -> execution-adpt ToAdvisory rule
+    forwards_to: AdvisoryBus
+    emits: ORDER_REJECTED
+
+success_criteria:
+  - Orders created from decision packet trades
+  - Orders routed to correct broker adapter (sim or Alpaca)
+  - ORDER_FILLED events reach ledger domain for recording
+  - ORDER_REJECTED events reach investor domain for notification
+
+failure_modes:
+  - step 2 fails: execution-ctrl ingress DLQ; orders not created
+  - step 4 fails: broker-ctrl OrderStateMachine stuck; circuit breaker may trigger BROKER_CIRCUIT_OPEN
+  - step 5 fails: broker-sim-adpt ingress DLQ; simulated fill not produced
+  - step 6 fails: broker-alpaca-adpt ingress DLQ; live order not submitted
+  - step 7 fails: broker-ctrl CallbackIngress DLQ; normalized event not created, SF task token times out
+  - step 8-11 fails: execution-adpt forwarding DLQs; downstream domains not notified

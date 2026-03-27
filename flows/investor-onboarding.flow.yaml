@@ -1,0 +1,69 @@
+schema_version: 1
+flow: investor-onboarding
+description: New investor completes onboarding wizard, goals/risk/mandate are persisted and forwarded to advisory domain
+domains: [investor, advisory]
+
+trigger: onboarding-bff emits ONBOARDING_COMPLETED (CDC from OnboardingCompleted:INSERT)
+
+steps:
+  - service: onboarding-bff
+    action: User completes 7-phase onboarding wizard via CopilotKit UI
+    state_change: Writes OnboardingCompleted record to DDB
+    emits: ONBOARDING_COMPLETED (CDC)
+    idempotent: true
+
+  - service: investor-bff
+    receives: ONBOARDING_COMPLETED
+    via: InvestorBus -> SQS -> investor-bff-ingress
+    state_change: Materializes Goal, RiskProfile, Mandate, InvestorProfile, OperatingModeRecord records
+    emits: GOAL_UPDATED, RISK_PROFILE_UPDATED, MANDATE_GRANTED, OPERATING_MODE_CHANGED (CDC)
+    idempotent: true
+
+  - service: investor-adpt
+    receives: GOAL_UPDATED
+    via: InvestorBus -> investor-adpt ToAdvisory rule
+    forwards_to: AdvisoryBus
+    emits: GOAL_UPDATED
+
+  - service: investor-adpt
+    receives: RISK_PROFILE_UPDATED
+    via: InvestorBus -> investor-adpt ToAdvisory rule
+    forwards_to: AdvisoryBus
+    emits: RISK_PROFILE_UPDATED
+
+  - service: investor-adpt
+    receives: MANDATE_GRANTED
+    via: InvestorBus -> investor-adpt ToAdvisory rule
+    forwards_to: AdvisoryBus
+    emits: MANDATE_GRANTED
+
+  - service: investor-adpt
+    receives: OPERATING_MODE_CHANGED
+    via: InvestorBus -> investor-adpt ToAdvisory rule
+    forwards_to: AdvisoryBus
+    emits: OPERATING_MODE_CHANGED
+
+  - service: investor-ctrl
+    receives: ONBOARDING_COMPLETED
+    via: InvestorBus -> SQS -> investor-ctrl-ingress
+    state_change: Updates investor lifecycle state
+    emits: NOTIFICATION_CREATED (CDC)
+    idempotent: true
+
+  - service: decision-workflow-ctrl
+    receives: MANDATE_GRANTED
+    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
+    state_change: Starts new Step Functions execution for initial advisory decision cycle
+    emits: DECISION_PACKET_CREATED (CDC)
+    idempotent: true
+
+success_criteria:
+  - Investor profile, goals, risk profile, and mandate are persisted in investor-bff DDB table
+  - Advisory domain receives MANDATE_GRANTED and triggers first decision cycle
+  - Execution domain receives OPERATING_MODE_CHANGED (forwarded via investor-adpt ToExecution)
+
+failure_modes:
+  - step 1 fails: Onboarding session incomplete; user can retry wizard. DLQ on onboarding-bff ingress
+  - step 2 fails: investor-bff ingress DLQ captures event; CDC events not emitted until replay
+  - step 3-6 fails: investor-adpt forwarding DLQ (ToAdvisoryDLQ); advisory domain does not receive events
+  - step 8 fails: decision-workflow-ctrl ingress DLQ; initial advisory cycle not started
