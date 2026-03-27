@@ -23,7 +23,8 @@ description: Generate a .flow.yaml by tracing event subscriptions, CDC configs, 
 - [ ] 3. **For cross-domain hops**, read adapter stacks
 - [ ] 4. **Write YAML** to `flows/{flow-name}.flow.yaml` per schema
 - [ ] 5. **Validate** — invoke `validate-flow`
-- [ ] 6. **Present for human review**
+- [ ] 6. **Regenerate docs** — run `node tools/generate-flow-docs.mjs` to update `docs/data-flows/` Markdown + Mermaid diagrams from all `flows/*.flow.yaml`
+- [ ] 7. **Present for human review**
 
 ## Reference Files
 - Data flow narratives: `docs/data-flows/` (context only, not source of truth)
