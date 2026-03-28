@@ -10,7 +10,7 @@ export class AdvisoryHubStack extends ServiceStack {
   readonly bus: EventBus;
 
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
-    super(scope, id, { ...props, stateProps: false });
+    super(scope, id, { ...props });
 
     const domainAccounts = getDomainAccounts(this);
     const consumerAccountIds = getConsumerAccountIds(this, domainAccounts);

@@ -16,7 +16,7 @@ import { join } from 'path';
 
 export class InvestorWebStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
-    super(scope, id, { ...props, stateProps: false });
+    super(scope, id, { ...props });
 
     // Scoped exception per spec §4: Cognito triggers are synchronous (5s timeout) and must
     // return to Cognito to complete the auth flow. The 3-tier ingestion pattern (EventBridge Rule

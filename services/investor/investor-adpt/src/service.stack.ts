@@ -10,7 +10,7 @@ import { InvestorCrossDomainEventTypes } from './domain/events';
 
 export class InvestorAdptStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
-    super(scope, id, { ...props, stateProps: false });
+    super(scope, id, { ...props });
 
     const prefix = this.prefix;
     const domainAccounts = getDomainAccounts(this);

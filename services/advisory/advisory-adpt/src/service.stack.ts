@@ -10,7 +10,7 @@ import { AdvisoryCrossDomainEventTypes } from './domain/events';
 
 export class AdvisoryAdptStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
-    super(scope, id, { ...props, stateProps: false });
+    super(scope, id, { ...props });
 
     const domainAccounts = getDomainAccounts(this);
 
