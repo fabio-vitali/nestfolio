@@ -3,7 +3,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AgentRuntime } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps, createNamingService } from '@nestfolio/cdk-constructs/utils';
 
@@ -11,7 +11,10 @@ export class AdvisoryCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
+    const state = new State(this, 'State');
+
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: [
         'MANDATE_GRANTED',
         'GOAL_UPDATED',
@@ -30,6 +33,7 @@ export class AdvisoryCtrlStack extends ServiceStack {
     });
 
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['DecisionPacket', 'AgentInvocation', 'WorkflowState'],
     });
 
@@ -54,9 +58,9 @@ export class AdvisoryCtrlStack extends ServiceStack {
     const portfolioLookupFn = new NodejsFunction(this, 'PortfolioLookup', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'tools', 'portfolio-lookup.ts'),
-      environment: { TABLE_NAME: this.state.getTable().tableName },
+      environment: { TABLE_NAME: state.getTable().tableName },
     });
-    this.state.getTable().grantReadData(portfolioLookupFn);
+    state.getTable().grantReadData(portfolioLookupFn);
 
     const marketDataFn = new NodejsFunction(this, 'MarketData', {
       ...defaultLambdaProps(this),
@@ -85,7 +89,7 @@ export class AdvisoryCtrlStack extends ServiceStack {
       runtimeName: 'advisory_ctrl_decision_lifecycle',
       agentCodePath: join(__dirname, '..', 'agents', 'decision-lifecycle'),
       description: 'Multi-agent decision lifecycle orchestrated via LangGraph.js',
-      tables: [this.state.getTable()],
+      state,
       modelIds: [modelOpusId, modelSonnetId, modelHaikuId],
       toolTargets: [
         {
