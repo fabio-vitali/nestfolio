@@ -1,8 +1,8 @@
 import { Construct } from 'constructs';
 import { Duration } from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
+import { State } from '../core/state';
 import { IUserPool, IUserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
 
@@ -28,8 +28,8 @@ export interface AgentRuntimeProps {
   environmentVariables?: Record<string, string>;
   /** Tool targets for the Gateway (MCP protocol) */
   toolTargets?: ToolTarget[];
-  /** DynamoDB tables to grant access to */
-  tables?: ITable[];
+  /** State construct for DynamoDB/S3 grants. Optional — not all agents need state access. */
+  state?: State;
   /** Bedrock model IDs to grant invoke access */
   modelIds?: string[];
   /** Idle timeout for runtime sessions */
@@ -81,9 +81,12 @@ export class AgentRuntime extends Construct {
       );
     }
 
-    // Grant DynamoDB table access
-    for (const table of props.tables ?? []) {
-      table.grantReadWriteData(this.runtime);
+    // Grant State access (DynamoDB + S3)
+    if (props.state?.table) {
+      props.state.getTable().grantReadWriteData(this.runtime);
+    }
+    if (props.state?.bucket) {
+      props.state.getBucket().grantReadWrite(this.runtime);
     }
 
     // Create Gateway with tool targets
