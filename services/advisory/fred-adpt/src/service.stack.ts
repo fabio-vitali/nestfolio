@@ -4,7 +4,7 @@ import { Construct } from 'constructs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { FredAdptEventTypes } from './domain/events';
@@ -16,6 +16,8 @@ export class FredAdptStack extends ServiceStack {
     props: ServiceStackProps & { schedule?: { enabled: boolean; rate: string } },
   ) {
     super(scope, id, { ...props, serviceDir: __dirname });
+
+    const state = new State(this, 'State');
 
     const scheduleConfig = props.schedule ?? { enabled: false, rate: 'rate(24 hours)' };
 
@@ -33,6 +35,7 @@ export class FredAdptStack extends ServiceStack {
 
     // Ingress: subscribes to FETCH_REQUESTED, materializes FredIndicator records into DDB
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: [FredAdptEventTypes.FETCH_REQUESTED],
       lambdaTimeout: Duration.seconds(90),
       environment: {
@@ -42,6 +45,7 @@ export class FredAdptStack extends ServiceStack {
 
     // Egress: DDB Stream → CDC → EventBridge
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['FredIndicator'],
     });
 

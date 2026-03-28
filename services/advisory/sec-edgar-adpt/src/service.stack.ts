@@ -3,7 +3,7 @@ import { Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { SecEdgarAdptEventTypes } from './domain/events';
@@ -16,6 +16,8 @@ export class SecEdgarAdptStack extends ServiceStack {
   ) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
+    const state = new State(this, 'State');
+
     const scheduleConfig = props.schedule ?? { enabled: false, rate: 'rate(24 hours)' };
 
     const domainAccounts = getDomainAccounts(this);
@@ -27,6 +29,7 @@ export class SecEdgarAdptStack extends ServiceStack {
 
     // Ingress: subscribes to FETCH_SEC_EDGAR_REQUESTED, fetches EDGAR filings, materializes SecFiling records into DDB
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: [SecEdgarAdptEventTypes.FETCH_REQUESTED],
       lambdaTimeout: Duration.seconds(120),
       lambdaProps: { memorySize: 512 },
@@ -37,6 +40,7 @@ export class SecEdgarAdptStack extends ServiceStack {
 
     // Egress: DDB Stream → CDC → EventBridge (form-type-based event routing)
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['SecFiling'],
     });
 
