@@ -6,6 +6,11 @@ import { Topic, ITopic } from 'aws-cdk-lib/aws-sns';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
 
+export interface StepFunctionsConfig {
+  stateMachineArn: string;
+  stateMachineName: string;
+}
+
 export interface MonitoringProps {
   /** SNS topic for alarm notifications. If not provided, a new topic is created. */
   alarmTopic?: ITopic;
@@ -19,6 +24,8 @@ export interface MonitoringProps {
   monitorBedrock?: boolean;
   /** Bedrock model IDs to monitor */
   bedrockModelIds?: string[];
+  /** Step Functions state machine to monitor */
+  stepFunctions?: StepFunctionsConfig;
 }
 
 /**
@@ -133,6 +140,34 @@ export class Monitoring extends Construct {
           treatMissingData: TreatMissingData.NOT_BREACHING,
         }).addAlarmAction(new SnsAction(this.alarmTopic));
       }
+    }
+
+    // Step Functions alarms
+    if (props.stepFunctions) {
+      const sfMetric = (metricName: string) =>
+        new Metric({
+          namespace: 'AWS/States',
+          metricName,
+          dimensionsMap: { StateMachineArn: props.stepFunctions!.stateMachineArn },
+          statistic: 'Sum',
+          period: Duration.minutes(5),
+        });
+
+      new Alarm(this, 'SfExecutionsFailedAlarm', {
+        metric: sfMetric('ExecutionsFailed'),
+        threshold: 1,
+        evaluationPeriods: 1,
+        comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        alarmDescription: `Step Functions executions failed for ${props.stepFunctions.stateMachineName}`,
+      }).addAlarmAction(new SnsAction(this.alarmTopic));
+
+      new Alarm(this, 'SfExecutionsTimedOutAlarm', {
+        metric: sfMetric('ExecutionsTimedOut'),
+        threshold: 1,
+        evaluationPeriods: 1,
+        comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        alarmDescription: `Step Functions executions timed out for ${props.stepFunctions.stateMachineName}`,
+      }).addAlarmAction(new SnsAction(this.alarmTopic));
     }
   }
 }

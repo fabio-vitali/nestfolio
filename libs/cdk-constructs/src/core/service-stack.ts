@@ -105,17 +105,24 @@ export class ServiceStack extends Stack {
       dlqs.push(...opts.extraDlqs);
     }
 
+    const sfAlarmConfig = opts.orchestration ? {
+      stateMachineArn: opts.orchestration.stateMachine.stateMachineArn,
+      stateMachineName: opts.orchestration.stateMachine.stateMachineName,
+    } : undefined;
+
     new Monitoring(this, 'Monitoring', {
       lambdaFunctions,
       dlqs,
       monitorBedrock: opts.monitorBedrock,
       bedrockModelIds: opts.bedrockModelIds,
+      stepFunctions: sfAlarmConfig,
     });
 
     new ServiceDashboard(this, 'Dashboard', {
       serviceName: this.serviceName,
       lambdaFunctions,
       dlqs,
+      stepFunctions: sfAlarmConfig,
     });
   }
 }

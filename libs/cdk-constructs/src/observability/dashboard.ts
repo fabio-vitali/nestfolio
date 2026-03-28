@@ -9,6 +9,7 @@ import {
 } from 'aws-cdk-lib/aws-cloudwatch';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
+import { StepFunctionsConfig } from './monitoring';
 
 export interface ServiceDashboardProps {
   /** Dashboard name suffix (e.g. 'investor-bff'). Full name: Nestfolio-{serviceName} */
@@ -19,6 +20,8 @@ export interface ServiceDashboardProps {
   dlqs?: IQueue[];
   /** EventBridge bus names to show failed invocations for */
   eventBusNames?: string[];
+  /** Step Functions state machine to display metrics for */
+  stepFunctions?: StepFunctionsConfig;
 }
 
 /**
@@ -131,6 +134,43 @@ export class ServiceDashboard extends Construct {
                 }),
             ),
             width: 12,
+          }),
+        ),
+      );
+    }
+
+    // Step Functions widgets
+    if (props.stepFunctions) {
+      const sfMetric = (metricName: string, stat = 'Sum') =>
+        new Metric({
+          namespace: 'AWS/States',
+          metricName,
+          dimensionsMap: { StateMachineArn: props.stepFunctions!.stateMachineArn },
+          statistic: stat,
+          period,
+        });
+
+      this.dashboard.addWidgets(
+        new Row(
+          new GraphWidget({
+            title: 'SF Executions Started',
+            left: [sfMetric('ExecutionsStarted')],
+            width: 6,
+          }),
+          new GraphWidget({
+            title: 'SF Executions Succeeded',
+            left: [sfMetric('ExecutionsSucceeded')],
+            width: 6,
+          }),
+          new GraphWidget({
+            title: 'SF Executions Failed',
+            left: [sfMetric('ExecutionsFailed')],
+            width: 6,
+          }),
+          new GraphWidget({
+            title: 'SF Execution Time',
+            left: [sfMetric('ExecutionTime', 'Average')],
+            width: 6,
           }),
         ),
       );
