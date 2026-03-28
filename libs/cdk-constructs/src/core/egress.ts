@@ -7,9 +7,12 @@ import { StartingPosition, FilterCriteria, FilterRule } from 'aws-cdk-lib/aws-la
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { ServiceStack } from './service-stack';
+import { State } from './state';
 import { defaultLambdaProps } from '../utils/default-lambda-props';
 
 export interface EgressProps {
+  /** State construct — required for DynamoDB Streams CDC */
+  state: State;
   /** DynamoDB __typename values to publish events for */
   publishableTypes: string[];
   /** Path to the CDC handler file. Default: join(serviceDir, 'handlers', 'event-publisher.ts') */
@@ -32,7 +35,8 @@ export class Egress extends Construct {
     super(scope, id);
 
     const serviceStack = ServiceStack.of(this);
-    const { state, eventBus, serviceName, serviceDir } = serviceStack;
+    const { eventBus, serviceName, serviceDir } = serviceStack;
+    const state = props.state;
 
     const entry = props.entry ?? join(serviceDir, 'handlers', 'event-publisher.ts');
 

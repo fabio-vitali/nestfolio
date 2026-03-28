@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ServiceStack } from '../../src/core/service-stack';
+import { State } from '../../src/core/state';
 import { Egress } from '../../src/core/egress';
 
 describe('Egress construct', () => {
@@ -26,18 +27,19 @@ describe('Egress construct', () => {
       subsystem: 'test',
       service: 'test-svc',
       serviceDir: os.tmpdir(),
-      stateProps: {
-        withBucket: (overrides['withBucket'] as boolean) ?? false,
-        withTable: (overrides['withTable'] as boolean) ?? true,
-      },
     });
 
+    const withTable = (overrides['withTable'] as boolean) ?? true;
+    const withBucket = (overrides['withBucket'] as boolean) ?? false;
+    const state = new State(stack, 'State', { withTable, withBucket });
+
     const egress = new Egress(stack, 'TestEgress', {
+      state,
       publishableTypes: ['Order', 'StagedOrder'],
       ...(overrides['egressOverrides'] as Record<string, unknown> ?? {}),
     });
 
-    return { stack, state: stack.state, egress, template: Template.fromStack(stack) };
+    return { stack, state, egress, template: Template.fromStack(stack) };
   }
 
   describe('Lambda creation', () => {
