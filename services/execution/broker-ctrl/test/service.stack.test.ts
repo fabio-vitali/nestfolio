@@ -24,24 +24,24 @@ describe('BrokerCtrlStack', () => {
     template.resourceCountIs('AWS::StepFunctions::StateMachine', 2);
   });
 
-  it('creates the order state machine with correct comment', () => {
+  it('creates the order state machine with expected states', () => {
     // DefinitionString is a Fn::Join token, so we inspect the raw resource
     const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
     const definitions = Object.values(stateMachines).map((sm: any) => {
       const defStr = sm.Properties?.DefinitionString;
-      // Fn::Join produces ["", [...parts...]] — comment is a literal string fragment
+      // Fn::Join produces ["", [...parts...]] — state names are literal string fragments
       if (defStr?.['Fn::Join']) {
         return defStr['Fn::Join'][1].join('');
       }
       return typeof defStr === 'string' ? defStr : JSON.stringify(defStr);
     });
     const orderSM = definitions.find((d: string) =>
-      d.includes('Order routing and lifecycle'),
+      d.includes('ReadExecutionMode'),
     );
     expect(orderSM).toBeDefined();
   });
 
-  it('creates the circuit breaker heal state machine with correct comment', () => {
+  it('creates the circuit breaker heal state machine with expected states', () => {
     const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
     const definitions = Object.values(stateMachines).map((sm: any) => {
       const defStr = sm.Properties?.DefinitionString;
@@ -51,7 +51,7 @@ describe('BrokerCtrlStack', () => {
       return typeof defStr === 'string' ? defStr : JSON.stringify(defStr);
     });
     const healSM = definitions.find((d: string) =>
-      d.includes('Circuit breaker auto-heal'),
+      d.includes('InitAttemptCount'),
     );
     expect(healSM).toBeDefined();
   });

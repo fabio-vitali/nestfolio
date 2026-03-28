@@ -1,28 +1,29 @@
 import { join } from 'path';
+import { Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { Rule } from 'aws-cdk-lib/aws-events';
-import { SfnStateMachine } from 'aws-cdk-lib/aws-events-targets';
-import { RuleTargetInput } from 'aws-cdk-lib/aws-events';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Orchestration } from '@nestfolio/cdk-constructs/core';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { BrokerCtrlInboundEventTypes, BrokerCtrlEventTypes } from './domain/events';
-import { OrderStateMachine } from './state-machine/order-state-machine';
-import { CircuitBreakerHealStateMachine } from './state-machine/circuit-breaker-heal';
+import { OrderWorkflowDefinition } from './state-machine/order-state-machine';
+import { HealWorkflowDefinition } from './state-machine/circuit-breaker-heal';
 
 export class BrokerCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
-    const table = this.state.getTable();
+    const state = new State(this, 'State');
+    const table = state.getTable();
 
     // --- Egress: CDC for NormalizedEvent → canonical events ---
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['NormalizedEvent'],
     });
 
     // --- Ingress 1: ExecutionMode cache listener ---
     const modeIngress = new Ingress(this, 'ModeIngress', {
+      state,
       eventTypes: [BrokerCtrlInboundEventTypes.EXECUTION_MODE_CHANGED],
       entry: join(__dirname, 'handlers', 'mode-listener.ts'),
     });
@@ -43,6 +44,7 @@ export class BrokerCtrlStack extends ServiceStack {
     ];
 
     const callbackIngress = new Ingress(this, 'CallbackIngress', {
+      state,
       eventTypes: CALLBACK_EVENT_TYPES,
       entry: join(__dirname, 'handlers', 'callback-resolver.ts'),
     });
@@ -59,32 +61,24 @@ export class BrokerCtrlStack extends ServiceStack {
     table.grantReadWriteData(routeOrderFn);
     this.eventBus.grantPutEventsTo(routeOrderFn);
 
-    // --- Step Functions state machine ---
-    const orderStateMachine = new OrderStateMachine(this, 'OrderStateMachine', {
+    // --- Order Orchestration ---
+    const orderWorkflow = new OrderWorkflowDefinition(this, 'OrderWorkflow', {
       eventBus: this.eventBus,
       table,
       routeOrderFn,
     });
-
-    // Grant CallbackResolver permission to SendTaskSuccess/SendTaskFailure
-    callbackIngress.handler.addEnvironment(
-      'STATE_MACHINE_ARN',
-      orderStateMachine.stateMachine.stateMachineArn,
-    );
-    orderStateMachine.stateMachine.grantTaskResponse(callbackIngress.handler);
-
-    // --- EventBridge rule: ORDER_SUBMITTED → start SF execution ---
-    new Rule(this, 'OrderSubmittedTrigger', {
-      eventBus: this.eventBus,
-      eventPattern: {
-        detailType: [BrokerCtrlInboundEventTypes.ORDER_SUBMITTED],
-      },
-      targets: [
-        new SfnStateMachine(orderStateMachine.stateMachine, {
-          input: RuleTargetInput.fromEventPath('$.detail'),
-        }),
-      ],
+    const orderOrchestration = new Orchestration(this, 'OrderStateMachine', {
+      state,
+      definitionBody: orderWorkflow.definitionBody,
+      triggers: [BrokerCtrlInboundEventTypes.ORDER_SUBMITTED],
+      timeout: Duration.hours(1),
     });
+    // Grant SF execution role permissions
+    this.eventBus.grantPutEventsTo(orderOrchestration.stateMachine);
+    routeOrderFn.grantInvoke(orderOrchestration.stateMachine);
+
+    // --- Callback Ingress — grant SF task response ---
+    orderOrchestration.grantCallbackAccess(callbackIngress.handler);
 
     // --- EmitHealthCheck Lambda — invoked by heal SF, not via Ingress ---
     const emitHealthCheckFn = new NodejsFunction(this, 'EmitHealthCheckFn', {
@@ -98,34 +92,23 @@ export class BrokerCtrlStack extends ServiceStack {
     table.grantReadWriteData(emitHealthCheckFn);
     this.eventBus.grantPutEventsTo(emitHealthCheckFn);
 
-    // --- Circuit breaker heal state machine ---
-    const healStateMachine = new CircuitBreakerHealStateMachine(this, 'HealStateMachine', {
+    // --- Heal Orchestration ---
+    const healWorkflow = new HealWorkflowDefinition(this, 'HealWorkflow', {
       table,
       emitHealthCheckFn,
     });
-
-    // Grant CallbackResolver permission to respond to heal SF task tokens
-    callbackIngress.handler.addEnvironment(
-      'HEAL_STATE_MACHINE_ARN',
-      healStateMachine.stateMachine.stateMachineArn,
-    );
-    healStateMachine.stateMachine.grantTaskResponse(callbackIngress.handler);
-
-    // --- EventBridge rule: BROKER_CIRCUIT_OPEN → start heal SF execution ---
-    new Rule(this, 'BreakerOpenTrigger', {
-      eventBus: this.eventBus,
-      eventPattern: {
-        detailType: [BrokerCtrlEventTypes.BROKER_CIRCUIT_OPEN],
-      },
-      targets: [
-        new SfnStateMachine(healStateMachine.stateMachine, {
-          input: RuleTargetInput.fromEventPath('$.detail'),
-        }),
-      ],
+    const healOrchestration = new Orchestration(this, 'HealStateMachine', {
+      state,
+      definitionBody: healWorkflow.definitionBody,
+      triggers: [BrokerCtrlEventTypes.BROKER_CIRCUIT_OPEN],
+      timeout: Duration.hours(2),
     });
+    emitHealthCheckFn.grantInvoke(healOrchestration.stateMachine);
+    healOrchestration.grantCallbackAccess(callbackIngress.handler, 'HEAL_STATE_MACHINE_ARN');
 
     // --- Ingress 3: Deposit/Withdrawal routing ---
     const depositWithdrawalIngress = new Ingress(this, 'DepositWithdrawalIngress', {
+      state,
       eventTypes: [
         BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED,
         BrokerCtrlInboundEventTypes.WITHDRAWAL_REQUESTED,
@@ -135,6 +118,7 @@ export class BrokerCtrlStack extends ServiceStack {
 
     // --- Ingress 4: Deposit/Withdrawal normalizer — writes NormalizedEvent for CDC ---
     const depositWithdrawalNormalizerIngress = new Ingress(this, 'DepositWithdrawalNormalizerIngress', {
+      state,
       eventTypes: [
         BrokerCtrlInboundEventTypes.SIM_DEPOSIT_COMPLETED,
         BrokerCtrlInboundEventTypes.SIM_WITHDRAWAL_COMPLETED,
@@ -148,6 +132,7 @@ export class BrokerCtrlStack extends ServiceStack {
     this.addObservability({
       ingress: modeIngress,
       egress,
+      orchestration: orderOrchestration,
       extraLambdas: [
         callbackIngress.handler,
         routeOrderFn,
@@ -157,6 +142,7 @@ export class BrokerCtrlStack extends ServiceStack {
       ],
       extraDlqs: [
         callbackIngress.dlq,
+        healOrchestration.dlq,
         depositWithdrawalIngress.dlq,
         depositWithdrawalNormalizerIngress.dlq,
       ],

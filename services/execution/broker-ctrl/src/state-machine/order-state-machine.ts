@@ -1,19 +1,20 @@
 import { Construct } from 'constructs';
-import { Duration, Stack } from 'aws-cdk-lib';
+import { Duration } from 'aws-cdk-lib';
 import { IEventBus } from 'aws-cdk-lib/aws-events';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 
-export interface OrderStateMachineProps {
+export interface OrderWorkflowDefinitionProps {
   readonly eventBus: IEventBus;
   readonly table: ITable;
   readonly routeOrderFn: IFunction;
 }
 
 /**
- * Step Functions state machine for the order routing and lifecycle.
+ * Step Functions workflow definition for the order routing and lifecycle.
+ * Builds the state machine chain but does NOT create the StateMachine resource.
+ * Use with the Orchestration construct which manages the StateMachine, triggers, and DLQ.
  *
  * Flow:
  * 1. ReadExecutionMode (DDB GetItem)
@@ -27,15 +28,14 @@ export interface OrderStateMachineProps {
  *    - default -> MarkRejected -> End
  * 6. HandleTimeout -> open breaker + escalate -> End
  */
-export class OrderStateMachine extends Construct {
-  readonly stateMachine: sfn.StateMachine;
+export class OrderWorkflowDefinition extends Construct {
+  readonly definitionBody: sfn.DefinitionBody;
 
-  constructor(scope: Construct, id: string, props: OrderStateMachineProps) {
+  constructor(scope: Construct, id: string, props: OrderWorkflowDefinitionProps) {
     super(scope, id);
 
-    const { eventBus, table, routeOrderFn } = props;
+    const { table, routeOrderFn } = props;
     const tableName = table.tableName;
-    const busArn = `arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${eventBus.eventBusName}`;
 
     // ---------------------------------------------------------------
     // 1. ReadExecutionMode — DDB GetItem (direct)
@@ -576,26 +576,8 @@ export class OrderStateMachine extends Construct {
     waitForRetryResult.next(classifyResult);
 
     // ---------------------------------------------------------------
-    // State Machine
+    // Definition Body — consumed by Orchestration construct
     // ---------------------------------------------------------------
-    this.stateMachine = new sfn.StateMachine(this, 'StateMachine', {
-      definitionBody: sfn.DefinitionBody.fromChainable(definition),
-      timeout: Duration.hours(1),
-      tracingEnabled: true,
-      stateMachineType: sfn.StateMachineType.STANDARD,
-      comment: 'Order routing and lifecycle — broker-ctrl',
-    });
-
-    // ---------------------------------------------------------------
-    // IAM permissions
-    // ---------------------------------------------------------------
-    table.grantReadWriteData(this.stateMachine);
-    routeOrderFn.grantInvoke(this.stateMachine);
-    this.stateMachine.addToRolePolicy(
-      new PolicyStatement({
-        actions: ['events:PutEvents'],
-        resources: [busArn],
-      }),
-    );
+    this.definitionBody = sfn.DefinitionBody.fromChainable(definition);
   }
 }

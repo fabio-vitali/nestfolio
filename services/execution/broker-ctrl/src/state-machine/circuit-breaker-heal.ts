@@ -4,13 +4,15 @@ import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 
-export interface CircuitBreakerHealProps {
+export interface HealWorkflowDefinitionProps {
   readonly table: ITable;
   readonly emitHealthCheckFn: IFunction;
 }
 
 /**
- * Step Functions Standard Workflow that auto-heals an open circuit breaker.
+ * Step Functions workflow definition for auto-healing an open circuit breaker.
+ * Builds the state machine chain but does NOT create the StateMachine resource.
+ * Use with the Orchestration construct which manages the StateMachine, triggers, and DLQ.
  *
  * Triggered when a BROKER_CIRCUIT_OPEN NormalizedEvent is emitted via CDC.
  *
@@ -21,10 +23,10 @@ export interface CircuitBreakerHealProps {
  *    - attempts < 10 → WaitForRetry (60s) → loop back to EmitHealthCheck
  *    - attempts >= 10 → EscalateHealFailure (terminal)
  */
-export class CircuitBreakerHealStateMachine extends Construct {
-  readonly stateMachine: sfn.StateMachine;
+export class HealWorkflowDefinition extends Construct {
+  readonly definitionBody: sfn.DefinitionBody;
 
-  constructor(scope: Construct, id: string, props: CircuitBreakerHealProps) {
+  constructor(scope: Construct, id: string, props: HealWorkflowDefinitionProps) {
     super(scope, id);
 
     const { table, emitHealthCheckFn } = props;
@@ -195,20 +197,8 @@ export class CircuitBreakerHealStateMachine extends Construct {
     const definition = initAttemptCount.next(emitHealthCheck);
 
     // ---------------------------------------------------------------
-    // State Machine
+    // Definition Body — consumed by Orchestration construct
     // ---------------------------------------------------------------
-    this.stateMachine = new sfn.StateMachine(this, 'StateMachine', {
-      definitionBody: sfn.DefinitionBody.fromChainable(definition),
-      timeout: Duration.hours(2),
-      tracingEnabled: true,
-      stateMachineType: sfn.StateMachineType.STANDARD,
-      comment: 'Circuit breaker auto-heal — broker-ctrl',
-    });
-
-    // ---------------------------------------------------------------
-    // IAM permissions
-    // ---------------------------------------------------------------
-    table.grantReadWriteData(this.stateMachine);
-    emitHealthCheckFn.grantInvoke(this.stateMachine);
+    this.definitionBody = sfn.DefinitionBody.fromChainable(definition);
   }
 }
