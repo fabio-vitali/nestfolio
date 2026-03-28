@@ -8,7 +8,7 @@ description: Regenerate C4 architecture SVG diagrams from D2 source. Use after m
 - After modifying `docs/architecture/nestfolio.d2`
 - After creating a new service (new C3 diagram needed)
 - After renaming/removing services
-- After changing CDK stack constructs (State/Ingress/Egress/Facade/AgentRuntime)
+- After changing CDK stack constructs (State/Ingress/Egress/Facade/AgentRuntime/Orchestration)
 - User invokes `/generate-c4-diagrams`
 
 ## What It Does
@@ -16,7 +16,7 @@ description: Regenerate C4 architecture SVG diagrams from D2 source. Use after m
 Compiles the D2 C4 architecture source into navigable SVG diagrams with:
 - Clickable C1 → C2 → C3 drill-down navigation
 - Embedded AWS service icons (Lambda, DynamoDB, SQS, EventBridge, etc.)
-- Per-service C3 diagrams showing the 5-construct CDK pattern
+- Per-service C3 diagrams showing the 6-construct CDK pattern
 
 ## Checklist
 
@@ -57,7 +57,7 @@ docs/architecture/
 
 ## C3 Diagram Template
 
-Each C3 file follows the 5-construct CDK pattern. Use this template for new services:
+Each C3 file follows the 6-construct CDK pattern. State is always a first-class construct visible in C3 (not hidden inside ServiceStack). DynamoDB tables are always explicitly shown. For orchestrated services, add an Orchestration group with Step Functions state machine and EventBridge trigger connections. Use this template for new services:
 
 ```d2
 direction: down
@@ -90,10 +90,29 @@ egress: "Egress" {
   processor -> bus: "Publish events" {style.font-size: 22}
 }
 
+# Orchestration (only for orchestrated services — broker-ctrl, decision-workflow-ctrl)
+# orchestration: "Orchestration" {
+#   style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
+#   state-machine: "Step Functions\n[{StateMachineName}]" { class: aws-stepfunctions }
+# }
+
 # Flows — connect constructs to show data path
 ingress.handler-fn -> state.table: "Read/Write" {style.font-size: 22}
 state.stream -> egress.processor: "CDC trigger" {style.font-size: 22}
+
+# Orchestration flows (if present):
+# ingress.handler-fn -> orchestration.state-machine: "Start execution" {style.font-size: 22}
+# orchestration.state-machine -> state.table: "Read/Write" {style.font-size: 22}
+# EventBridge trigger: bus -> orchestration.state-machine (via EventBridge rule)
 ```
+
+### C3 Detection Notes
+
+When generating C3 diagrams from CDK code:
+- **State:** Detect `new State(this, ...)` as a first-class construct — always render the State group with DynamoDB table
+- **Orchestration:** Detect `new Orchestration(this, ...)` — render the Orchestration group with Step Functions state machine
+- **EventBridge triggers:** If `OrchestrationProps.triggers` is defined, show EventBridge rule connections from the domain bus to the state machine
+- **DynamoDB tables** are now always visible in C3 as part of the State construct (not hidden inside ServiceStack)
 
 ## Anti-Patterns
 - NEVER edit SVGs directly — they are generated artifacts
