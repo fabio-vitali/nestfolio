@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { Ingress } from '../../src/core/ingress';
 import { ServiceStack } from '../../src/core/service-stack';
+import { State } from '../../src/core/state';
 
 describe('Ingress construct', () => {
   const handlerPath = path.join(os.tmpdir(), 'ingress-test-handler.ts');
@@ -24,19 +25,21 @@ describe('Ingress construct', () => {
       subsystem: 'test',
       service: 'test-svc',
       serviceDir: os.tmpdir(),
-      stateProps: {
-        withBucket: (overrides['withBucket'] as boolean) ?? false,
-        withTable: (overrides['withTable'] as boolean) ?? true,
-      },
     });
+
+    const withTable = (overrides['withTable'] as boolean) ?? true;
+    const withBucket = (overrides['withBucket'] as boolean) ?? false;
+    const noState = overrides['noState'] as boolean ?? false;
+    const state = noState ? undefined : new State(stack, 'State', { withTable, withBucket });
 
     const ingress = new Ingress(stack, 'TestIngress', {
       eventTypes: ['TestEvent'],
       entry: handlerPath,
+      state,
       ...(overrides['ingressOverrides'] as Record<string, unknown> ?? {}),
     });
 
-    return { stack, state: stack.state, ingress, template: Template.fromStack(stack) };
+    return { stack, state, ingress, template: Template.fromStack(stack) };
   }
 
   describe('Lambda creation', () => {
@@ -116,6 +119,18 @@ describe('Ingress construct', () => {
     it('exposes handler property', () => {
       const { ingress } = createIngress();
       expect(ingress.handler).toBeDefined();
+    });
+
+    it('works without state (stateless adapter pattern)', () => {
+      const { template } = createIngress({ noState: true });
+      // Should have SERVICE_NAME but no TABLE_NAME
+      const fns = template.findResources('AWS::Lambda::Function');
+      const fnKey = Object.keys(fns).find(k =>
+        fns[k].Properties?.Environment?.Variables?.SERVICE_NAME === 'test-svc',
+      );
+      expect(fnKey).toBeDefined();
+      expect(fns[fnKey!].Properties.Environment.Variables.TABLE_NAME).toBeUndefined();
+      expect(fns[fnKey!].Properties.Environment.Variables.BUCKET_NAME).toBeUndefined();
     });
   });
 

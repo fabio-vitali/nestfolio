@@ -8,10 +8,13 @@ import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { NodejsFunction, NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { ServiceStack } from './service-stack';
+import { State } from './state';
 import { defaultLambdaProps } from '../utils/default-lambda-props';
 
 export interface IngressProps {
   eventTypes: string[];
+  /** State construct for DynamoDB/S3 grants. Optional — stateless adapters have no state. */
+  state?: State;
   /** Path to the event listener handler file. Default: join(serviceDir, 'handlers', 'event-listener.ts') */
   entry?: string;
   /** Extra environment variables merged into the Lambda */
@@ -38,7 +41,8 @@ export class Ingress extends Construct {
     super(scope, id);
 
     const serviceStack = ServiceStack.of(this);
-    const { state, eventBus, serviceName, serviceDir } = serviceStack;
+    const { eventBus, serviceName, serviceDir } = serviceStack;
+    const state = props.state;
 
     const entry = props.entry ?? join(serviceDir, 'handlers', 'event-listener.ts');
 
@@ -47,10 +51,10 @@ export class Ingress extends Construct {
       SERVICE_NAME: serviceName,
       BUS_NAME: eventBus.eventBusName,
     };
-    if (state.table) {
+    if (state?.table) {
       env['TABLE_NAME'] = state.getTable().tableName;
     }
-    if (state.bucket) {
+    if (state?.bucket) {
       env['BUCKET_NAME'] = state.getBucket().bucketName;
     }
     if (props.environment) {
@@ -66,10 +70,10 @@ export class Ingress extends Construct {
     });
 
     // IAM: State grants
-    if (state.table) {
+    if (state?.table) {
       state.getTable().grantReadWriteData(this.handler);
     }
-    if (state.bucket) {
+    if (state?.bucket) {
       state.getBucket().grantReadWrite(this.handler);
     }
 
