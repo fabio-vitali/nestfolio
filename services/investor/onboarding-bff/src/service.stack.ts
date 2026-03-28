@@ -4,16 +4,18 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Duration } from 'aws-cdk-lib';
-import { ServiceStack, ServiceStackProps, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Egress } from '@nestfolio/cdk-constructs/core';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 
 export class OnboardingBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
-    // Own table created by default State construct
+
+    const state = new State(this, 'State');
 
     // Egress — CDC for ONBOARDING_COMPLETED and GO_LIVE_CONFIRMED
     new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['OnboardingCompleted', 'GoLiveConfirmed'],
     });
 
@@ -47,7 +49,7 @@ export class OnboardingBffStack extends ServiceStack {
       agentCodePath: path.join(__dirname, '..'),
       description: 'Conversational onboarding agent for investor onboarding',
       modelIds: [sonnetModelId],
-      tables: [this.state.table],
+      state,
       toolTargets: [{
         name: 'search_knowledge_base',
         description: 'Search Nestfolio documentation to answer user questions',
@@ -55,7 +57,7 @@ export class OnboardingBffStack extends ServiceStack {
         schemaPath: path.join(__dirname, 'agent/tools/search-kb.schema.json'),
       }],
       environmentVariables: {
-        TABLE_NAME: this.state.table.tableName,
+        TABLE_NAME: state.getTable().tableName,
         KNOWLEDGE_BASE_ID: knowledgeBase.knowledgeBaseId,
         AGENT_RUNTIME: 'true',
       },
