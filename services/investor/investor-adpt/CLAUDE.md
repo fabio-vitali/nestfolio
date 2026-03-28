@@ -4,7 +4,7 @@ Domain: investor | Bus: InvestorBus
 Stack: services/investor/investor-adpt/src/service.stack.ts
 
 ## State
-None (stateless adapter, stateProps: false)
+None (stateless adapter)
 
 ## Cross-Domain Forwarding Rules
 - InvestorBus → AdvisoryBus:

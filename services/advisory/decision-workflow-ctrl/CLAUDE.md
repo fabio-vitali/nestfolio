@@ -4,7 +4,7 @@ Domain: advisory | Bus: AdvisoryBus
 Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 
 ## State
-- DynamoDB table (streams enabled)
+- DynamoDB table (streams enabled, consumer-instantiated)
 
 ## Ingress
 - AdvisoryBus -> decision-workflow-ctrl-trigger-ingress (SQS -> Lambda)
@@ -17,8 +17,8 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 - CDC: DynamoDB Streams -> decision-workflow-ctrl-egress (Lambda)
   Emits: WorkflowTrigger, DecisionPacket, AgentOutput
 
-## Step Functions
-- DecisionStateMachine: Decision lifecycle orchestrator
+## Orchestration
+- DecisionStateMachine: Decision lifecycle orchestrator (via Orchestration construct)
   1. Parallel: InvestorProfile + MarketIntelligence (waitForTaskToken)
   2. Sequential: PortfolioEngine (waitForTaskToken)
   3. Sequential: AdvisoryNarrative (waitForTaskToken)

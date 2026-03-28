@@ -4,7 +4,7 @@ Domain: execution | Bus: ExecutionBus
 Stack: services/execution/broker-ctrl/src/service.stack.ts
 
 ## State
-- Table (DynamoDB, streams enabled)
+- Table (DynamoDB, streams enabled, consumer-instantiated)
 
 ## Ingress
 - ExecutionBus → broker-ctrl-mode-ingress (SQS → Lambda)
@@ -27,12 +27,11 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - CDC: DynamoDB Streams → broker-ctrl-egress (Lambda)
   Emits: NormalizedEvent
 
-## Step Functions
+## Orchestration
 - OrderStateMachine: orchestrates order lifecycle (validate → route → wait for callback)
-- CircuitBreakerHealStateMachine: automatic circuit breaker recovery (emit health check → wait for adapter response)
-
-## EventBridge Rules
-- BreakerOpenTrigger: BROKER_CIRCUIT_OPEN → starts HealStateMachine
+  - Triggers: ORDER_SUBMITTED (via Orchestration construct EventBridge rule)
+- HealStateMachine: automatic circuit breaker recovery (emit health check → wait for adapter response)
+  - Triggers: BROKER_CIRCUIT_OPEN (via Orchestration construct EventBridge rule)
 
 ## Standalone Lambdas
 - RouteOrderFn: invoked by OrderStateMachine (not via Ingress)

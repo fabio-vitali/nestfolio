@@ -4,7 +4,7 @@ Domain: ledger | Bus: LedgerBus
 Stack: services/ledger/ledger-adpt/src/service.stack.ts
 
 ## State
-None (stateless adapter, stateProps: false)
+None (stateless adapter)
 
 ## Cross-Domain Forwarding Rules
 - LedgerBus → InvestorBus:

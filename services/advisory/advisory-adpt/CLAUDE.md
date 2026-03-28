@@ -4,7 +4,7 @@ Domain: advisory | Bus: AdvisoryBus (cross-domain adapter)
 Stack: services/advisory/advisory-adpt/src/service.stack.ts
 
 ## State
-None (stateless adapter, stateProps: false)
+None (stateless adapter)
 
 ## Cross-Domain Routing Rules
 - ToInvestor: AdvisoryBus -> InvestorBus (with DLQ)

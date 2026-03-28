@@ -4,7 +4,7 @@ Domain: investor | Bus: InvestorBus
 Stack: services/investor/investor-web/src/service.stack.ts
 
 ## State
-None (stateProps: false)
+None (frontend app)
 
 ## Infrastructure
 - Cognito UserPool: investor authentication (email sign-in, MFA optional, custom tenant_id attribute)

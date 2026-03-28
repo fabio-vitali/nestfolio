@@ -4,7 +4,7 @@ Domain: investor | Bus: InvestorBus
 Stack: services/investor/investor-hub/src/service.stack.ts
 
 ## State
-None (stateProps: false)
+None (stateless hub)
 
 ## Infrastructure
 - InvestorBus (EventBridge) — domain event bus

@@ -4,7 +4,7 @@ Domain: advisory | Bus: AdvisoryBus
 Stack: services/advisory/advisory-hub/src/service.stack.ts
 
 ## State
-None (stateProps: false)
+None (stateless hub)
 
 ## Infrastructure
 - EventBridge bus: AdvisoryBus (domain event hub)

@@ -4,7 +4,7 @@ Domain: ledger | Bus: LedgerBus
 Stack: services/ledger/ledger-hub/src/service.stack.ts
 
 ## State
-None (stateProps: false)
+None (stateless hub)
 
 ## Infrastructure
 - LedgerBus (EventBridge) — domain event bus

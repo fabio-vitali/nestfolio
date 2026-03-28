@@ -4,7 +4,7 @@ Domain: execution | Bus: ExecutionBus
 Stack: services/execution/execution-adpt/src/service.stack.ts
 
 ## State
-None (stateless adapter, stateProps: false)
+None (stateless adapter)
 
 ## Cross-Domain Forwarding Rules
 - ExecutionBus → InvestorBus:

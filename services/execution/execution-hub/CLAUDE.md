@@ -4,7 +4,7 @@ Domain: execution | Bus: ExecutionBus
 Stack: services/execution/execution-hub/src/service.stack.ts
 
 ## State
-None (stateProps: false)
+None (stateless hub)
 
 ## Infrastructure
 - ExecutionBus (EventBridge) — domain event bus
