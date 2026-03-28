@@ -1,0 +1,73 @@
+direction: down
+
+title: "decision-workflow-ctrl\n[Step Functions Orchestrator — Advisory Decision Cycle]" {
+  style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
+}
+
+ingress: "Ingress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+
+  trigger-rule: "EventBridge Rule\n[DECISION_REQUESTED]" { class: aws-eventbridge }
+  trigger-sqs: "SQS Queue" { class: aws-sqs }
+  trigger-fn: "Lambda\n[DecisionTrigger]" { class: aws-lambda }
+  trigger-dlq: "DLQ" { class: aws-dlq }
+
+  trigger-rule -> trigger-sqs -> trigger-fn
+  trigger-sqs -> trigger-dlq: "On failure" {style.font-size: 22}
+}
+
+orchestration: "Orchestration" {
+  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
+
+  state-machine: "Step Functions\n[DecisionStateMachine]" { class: aws-stepfunctions }
+  memory: "Bedrock AgentCore\n[Multi-Agent Memory]" { class: aws-bedrock }
+
+  namespaces: "Memory Namespaces" {
+    style: { fill: transparent; stroke: "#A5D6A7"; stroke-dash: 5; border-radius: 8; font-size: 24 }
+    profile-ns: "investor-profile"
+    market-ns: "market-intelligence"
+    portfolio-ns: "portfolio-engine"
+    compliance-ns: "compliance"
+  }
+
+  state-machine -> memory: "Read/Write state" {style.font-size: 22}
+  memory -> namespaces: "Scoped access" {style.font-size: 22}
+}
+
+tasks: "Agent Task Tokens" {
+  style: { fill: "#FFF3E0"; stroke: "#FF9800"; border-radius: 12; font-size: 28 }
+
+  profile-task: "→ investor-profile-ctrl\n[Task Token]" { class: aws-lambda }
+  market-task: "→ market-intelligence-ctrl\n[Task Token]" { class: aws-lambda }
+  portfolio-task: "→ portfolio-engine-ctrl\n[Task Token]" { class: aws-lambda }
+  compliance-task: "→ compliance-ctrl\n[Task Token]" { class: aws-lambda }
+  narrative-task: "→ advisory-narrative-ctrl\n[Task Token]" { class: aws-lambda }
+}
+
+state: "State" {
+  style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
+
+  table: "DynamoDB Table\n[DecisionWorkflowTable]" { class: aws-dynamodb }
+  stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
+
+  table -> stream
+}
+
+egress: "Egress" {
+  style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
+
+  processor: "Lambda\n[StreamProcessor]" { class: aws-lambda }
+  bus: "EventBridge\n[advisory-bus]" { class: aws-eventbridge }
+
+  processor -> bus: "Publish events" {style.font-size: 22}
+}
+
+# Flows
+ingress.trigger-fn -> orchestration.state-machine: "Start execution" {style.font-size: 22}
+orchestration.state-machine -> tasks.profile-task: "Parallel branch" {style.font-size: 22}
+orchestration.state-machine -> tasks.market-task: "Parallel branch" {style.font-size: 22}
+orchestration.state-machine -> tasks.portfolio-task: "Sequential" {style.font-size: 22}
+orchestration.state-machine -> tasks.compliance-task: "Sequential" {style.font-size: 22}
+orchestration.state-machine -> tasks.narrative-task: "Final step" {style.font-size: 22}
+orchestration.state-machine -> state.table: "Save decision" {style.font-size: 22}
+state.stream -> egress.processor: "CDC trigger" {style.font-size: 22}

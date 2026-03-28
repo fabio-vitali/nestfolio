@@ -1,0 +1,65 @@
+direction: down
+
+title: "ledger-ctrl\n[Ledger Aggregate — Reducer Pattern]" {
+  style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
+}
+
+ingress: "Ingress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+
+  position: "Lambda\n[PositionHandler]" { class: aws-lambda }
+  position-sqs: "SQS Queue" { class: aws-sqs }
+  position-dlq: "DLQ" { class: aws-dlq }
+  position-rule: "EventBridge Rule\n[POSITION_* events]" { class: aws-eventbridge }
+
+  position-rule -> position-sqs -> position
+  position-sqs -> position-dlq: "On failure" {style.font-size: 22}
+
+  transaction: "Lambda\n[TransactionHandler]" { class: aws-lambda }
+  transaction-sqs: "SQS Queue" { class: aws-sqs }
+  transaction-dlq: "DLQ" { class: aws-dlq }
+  transaction-rule: "EventBridge Rule\n[TRANSACTION_* events]" { class: aws-eventbridge }
+
+  transaction-rule -> transaction-sqs -> transaction
+  transaction-sqs -> transaction-dlq: "On failure" {style.font-size: 22}
+
+  balance: "Lambda\n[BalanceHandler]" { class: aws-lambda }
+  balance-sqs: "SQS Queue" { class: aws-sqs }
+  balance-dlq: "DLQ" { class: aws-dlq }
+  balance-rule: "EventBridge Rule\n[BALANCE_* events]" { class: aws-eventbridge }
+
+  balance-rule -> balance-sqs -> balance
+  balance-sqs -> balance-dlq: "On failure" {style.font-size: 22}
+}
+
+state: "State (Reducer)" {
+  style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
+
+  table: "DynamoDB Table\n[LedgerTable]" { class: aws-dynamodb }
+  stream: "DynamoDB Stream\n[CDC — batch 100, 5s window]" { class: aws-ddb-stream }
+  reducer: "Lambda\n[ReducerFn — batch processor]" { class: aws-lambda }
+
+  table -> stream -> reducer
+}
+
+egress: "Egress" {
+  style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
+
+  processor: "Lambda\n[StreamProcessor]" { class: aws-lambda }
+  bus: "EventBridge\n[ledger-bus]" { class: aws-eventbridge }
+
+  processor -> bus: "Publish events" {style.font-size: 22}
+}
+
+facade: "Facade" {
+  style: { fill: "#F3E5F5"; stroke: "#9C27B0"; border-radius: 12; font-size: 28 }
+
+  ssm: "SSM Parameters\n[Table ARN, Stream ARN]" { class: aws-ssm }
+}
+
+# Flows
+ingress.position -> state.table: "Write positions" {style.font-size: 22}
+ingress.transaction -> state.table: "Write transactions" {style.font-size: 22}
+ingress.balance -> state.table: "Write balances" {style.font-size: 22}
+state.reducer -> egress.bus: "Batched CDC events" {style.font-size: 22}
+state.table -- facade.ssm: "Exports ARNs"

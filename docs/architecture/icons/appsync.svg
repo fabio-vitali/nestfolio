@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="asBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#AC67EA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9650D0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="8" ry="8" fill="url(#asBg)" />
+  <!-- API/Sync symbol: circular arrows around a central node -->
+  <!-- Central circle -->
+  <circle cx="32" cy="32" r="6" fill="white" />
+  <!-- Outer ring with sync arrows -->
+  <path d="M32 14 A18 18 0 0 1 50 32" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+  <polygon points="50,28 50,35 44,31" fill="white" />
+  <path d="M50 32 A18 18 0 0 1 32 50" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+  <polygon points="36,50 29,50 33,44" fill="white" />
+  <path d="M32 50 A18 18 0 0 1 14 32" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+  <polygon points="14,36 14,29 20,33" fill="white" />
+  <path d="M14 32 A18 18 0 0 1 32 14" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+  <polygon points="28,14 35,14 31,20" fill="white" />
+</svg>

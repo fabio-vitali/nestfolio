@@ -49,6 +49,7 @@ Before starting any task below, invoke the corresponding skill FIRST:
 | Validate a business flow | `validate-flow` |
 | Assess impact of a change | `impact-analysis` |
 | Document a flow from code | `generate-flow-spec` |
+| Regenerate C4 architecture diagrams | `generate-c4-diagrams` |
 | Rebuild all docs from code | `init-docs` |
 
 ## Hard Constraints

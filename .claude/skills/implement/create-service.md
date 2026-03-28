@@ -39,8 +39,9 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
 - [ ] 6. **Write tests** per `testing-patterns`
 - [ ] 7. **Run tests** — `pnpm nx test {service-name}`
 - [ ] 8. **Generate service card** — invoke `audit-service`
-- [ ] 9. **Wire adapter forwarding** if cross-domain events
-- [ ] 10. **Commit**
+- [ ] 9. **Create C3 diagram** — add `docs/architecture/c3/{service-name}.d2` and wire layer import in `nestfolio.d2`, then invoke `generate-c4-diagrams`
+- [ ] 10. **Wire adapter forwarding** if cross-domain events
+- [ ] 11. **Commit**
 
 ## Reference Files
 - Example ctrl: `services/execution/broker-ctrl/`

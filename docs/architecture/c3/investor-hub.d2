@@ -1,0 +1,32 @@
+direction: down
+
+title: "investor-hub\n[Event Hub — Fan-out & Routing]" {
+  style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
+}
+
+bus: "EventBridge Bus" {
+  style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
+
+  domain-bus: "investor-bus\n[EventBridge]" { class: aws-eventbridge }
+  archive: "Event Archive\n[365 days]" { class: aws-s3 }
+
+  domain-bus -> archive: "Archive all" {style.font-size: 22}
+}
+
+ingress: "Ingress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+
+  router-rule: "EventBridge Rule\n[investor domain events]" { class: aws-eventbridge }
+  router-sqs: "SQS Queue" { class: aws-sqs }
+  router-fn: "Lambda\n[RouterHandler]" { class: aws-lambda }
+  router-dlq: "DLQ" { class: aws-dlq }
+
+  router-rule -> router-sqs -> router-fn
+  router-sqs -> router-dlq: "On failure" {style.font-size: 22}
+}
+
+
+
+# Flows
+bus.domain-bus -> ingress.router-rule: "Routes events" {style.font-size: 22}
+ingress.router-fn -> bus.domain-bus: "Fan-out / re-publish" {style.font-size: 22}

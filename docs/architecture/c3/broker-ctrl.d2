@@ -1,0 +1,76 @@
+direction: down
+
+title: "broker-ctrl\n[Broker Orchestration — Order + Circuit Breaker]" {
+  style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
+}
+
+ingress: "Ingress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+
+  order: "Lambda\n[OrderHandler]" { class: aws-lambda }
+  order-sqs: "SQS Queue" { class: aws-sqs }
+  order-dlq: "DLQ" { class: aws-dlq }
+  order-rule: "EventBridge Rule\n[ORDER_PLACED]" { class: aws-eventbridge }
+
+  order-rule -> order-sqs -> order
+  order-sqs -> order-dlq: "On failure" {style.font-size: 22}
+
+  fill-fn: "Lambda\n[FillHandler]" { class: aws-lambda }
+  fill-sqs: "SQS Queue" { class: aws-sqs }
+  fill-dlq: "DLQ" { class: aws-dlq }
+  fill-rule: "EventBridge Rule\n[ORDER_FILLED / REJECTED]" { class: aws-eventbridge }
+
+  fill-rule -> fill-sqs -> fill-fn
+  fill-sqs -> fill-dlq: "On failure" {style.font-size: 22}
+
+  circuit: "Lambda\n[CircuitBreakerHandler]" { class: aws-lambda }
+  circuit-sqs: "SQS Queue" { class: aws-sqs }
+  circuit-dlq: "DLQ" { class: aws-dlq }
+  circuit-rule: "EventBridge Rule\n[BROKER_CIRCUIT_OPEN]" { class: aws-eventbridge }
+
+  circuit-rule -> circuit-sqs -> circuit
+  circuit-sqs -> circuit-dlq: "On failure" {style.font-size: 22}
+
+  status: "Lambda\n[StatusHandler]" { class: aws-lambda }
+  status-sqs: "SQS Queue" { class: aws-sqs }
+  status-dlq: "DLQ" { class: aws-dlq }
+  status-rule: "EventBridge Rule\n[ORDER_STATUS_CHECK]" { class: aws-eventbridge }
+
+  status-rule -> status-sqs -> status
+  status-sqs -> status-dlq: "On failure" {style.font-size: 22}
+}
+
+orchestration: "Orchestration" {
+  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
+
+  order-sf: "Step Functions\n[OrderStateMachine]" { class: aws-stepfunctions }
+  heal-sf: "Step Functions\n[CircuitBreakerHeal]" { class: aws-stepfunctions }
+
+  order-sf -> heal-sf: "On circuit open" {style.font-size: 22}
+}
+
+state: "State" {
+  style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
+
+  table: "DynamoDB Table\n[BrokerTable]" { class: aws-dynamodb }
+  stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
+
+  table -> stream
+}
+
+egress: "Egress" {
+  style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
+
+  processor: "Lambda\n[StreamProcessor]" { class: aws-lambda }
+  bus: "EventBridge\n[execution-bus]" { class: aws-eventbridge }
+
+  processor -> bus: "Publish events" {style.font-size: 22}
+}
+
+# Flows
+ingress.order -> orchestration.order-sf: "Start order flow" {style.font-size: 22}
+ingress.fill-fn -> orchestration.order-sf: "Resume with fill" {style.font-size: 22}
+ingress.circuit -> orchestration.heal-sf: "Trigger healing" {style.font-size: 22}
+ingress.status -> state.table: "Check status" {style.font-size: 22}
+orchestration.order-sf -> state.table: "Update order state" {style.font-size: 22}
+state.stream -> egress.processor: "CDC trigger" {style.font-size: 22}

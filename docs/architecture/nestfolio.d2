@@ -1,0 +1,617 @@
+# Nestfolio C4 Architecture — Interactive Layers
+# Render: d2 --pad 80 nestfolio.d2 nestfolio.svg
+#
+# Navigation: C1 → click domain → C2 → click service → C3 (AWS resources)
+
+# ---------------------------------------------------------------------------
+# GLOBAL STYLES
+# ---------------------------------------------------------------------------
+direction: down
+
+style: {
+  font-size: 34
+  stroke-width: 2
+}
+
+classes: {
+  # --- C1/C2 Classes ---
+  person: {
+    shape: person
+    style: {
+      fill: "#08427B"
+      stroke: "#052E56"
+      font-color: "#ffffff"
+      font-size: 30
+      stroke-width: 2
+    }
+  }
+  system: {
+    shape: rectangle
+    style: {
+      fill: "#D6E4F0"
+      stroke: "#1168BD"
+      font-color: "#0B4884"
+      font-size: 30
+      border-radius: 12
+      stroke-width: 2
+      shadow: true
+    }
+  }
+  external: {
+    shape: rectangle
+    style: {
+      fill: "#8B8B8B"
+      stroke: "#666666"
+      font-color: "#ffffff"
+      font-size: 26
+      border-radius: 10
+      stroke-width: 1
+      stroke-dash: 5
+    }
+  }
+  domain: {
+    shape: rectangle
+    style: {
+      fill: "#438DD5"
+      stroke: "#2E6295"
+      font-color: "#ffffff"
+      font-size: 34
+      bold: true
+      border-radius: 14
+      stroke-width: 3
+      shadow: true
+    }
+  }
+  service: {
+    shape: rectangle
+    style: {
+      fill: "#85BBF0"
+      stroke: "#4A90D9"
+      font-color: "#1A1A1A"
+      font-size: 26
+      border-radius: 10
+      stroke-width: 2
+    }
+  }
+  adapter: {
+    shape: hexagon
+    style: {
+      fill: "#FFB74D"
+      stroke: "#E09530"
+      font-color: "#1A1A1A"
+      font-size: 26
+      stroke-width: 2
+    }
+  }
+  frontend: {
+    shape: rectangle
+    style: {
+      fill: "#81C784"
+      stroke: "#4CAF50"
+      font-color: "#ffffff"
+      font-size: 26
+      border-radius: 12
+      stroke-width: 2
+    }
+  }
+  bus: {
+    shape: queue
+    style: {
+      fill: "#FF7043"
+      stroke: "#D84315"
+      font-color: "#ffffff"
+      font-size: 24
+      stroke-width: 2
+    }
+  }
+
+  # --- AWS Resource Classes (C3) ---
+  aws-lambda: {
+    shape: rectangle
+    icon: ./icons/lambda.svg
+    style: {
+      fill: "#FFF3E0"
+      stroke: "#FF9800"
+      font-size: 24
+      border-radius: 8
+      stroke-width: 2
+    }
+  }
+  aws-dynamodb: {
+    shape: rectangle
+    icon: ./icons/dynamodb.svg
+    style: {
+      fill: "#E3F2FD"
+      stroke: "#1565C0"
+      font-size: 24
+      border-radius: 8
+      stroke-width: 2
+    }
+  }
+  aws-sqs: {
+    shape: rectangle
+    icon: ./icons/sqs.svg
+    style: {
+      fill: "#FFF3E0"
+      stroke: "#E65100"
+      font-size: 24
+      border-radius: 8
+      stroke-width: 2
+    }
+  }
+  aws-eventbridge: {
+    shape: rectangle
+    icon: ./icons/eventbridge.svg
+    style: {
+      fill: "#FCE4EC"
+      stroke: "#C62828"
+      font-size: 24
+      border-radius: 8
+      stroke-width: 2
+    }
+  }
+  aws-appsync: {
+    shape: rectangle
+    icon: ./icons/appsync.svg
+    style: {
+      fill: "#F3E5F5"
+      stroke: "#7B1FA2"
+      font-size: 24
+      border-radius: 8
+      stroke-width: 2
+    }
+  }
+  aws-stepfunctions: {
+    shape: rectangle
+    icon: ./icons/stepfunctions.svg
+    style: {
+      fill: "#FCE4EC"
+      stroke: "#AD1457"
+      font-size: 24
+      border-radius: 8
+      stroke-width: 2
+    }
+  }
+  aws-s3: {
+    shape: rectangle
+    icon: ./icons/s3.svg
+    style: {
+      fill: "#E8F5E9"
+      stroke: "#2E7D32"
+      font-size: 24
+      border-radius: 8
+      stroke-width: 2
+    }
+  }
+  aws-ssm: {
+    shape: rectangle
+    icon: ./icons/ssm.svg
+    style: {
+      fill: "#E3F2FD"
+      stroke: "#1565C0"
+      font-size: 24
+      border-radius: 8
+      stroke-width: 2
+    }
+  }
+  aws-cloudwatch: {
+    shape: rectangle
+    icon: ./icons/cloudwatch.svg
+    style: {
+      fill: "#FCE4EC"
+      stroke: "#C62828"
+      font-size: 24
+      border-radius: 8
+      stroke-width: 2
+    }
+  }
+  aws-bedrock: {
+    shape: rectangle
+    icon: ./icons/bedrock.svg
+    style: {
+      fill: "#E0F2F1"
+      stroke: "#00695C"
+      font-size: 24
+      border-radius: 8
+      stroke-width: 2
+    }
+  }
+  aws-cognito: {
+    shape: rectangle
+    icon: ./icons/cognito.svg
+    style: {
+      fill: "#FBE9E7"
+      stroke: "#BF360C"
+      font-size: 24
+      border-radius: 8
+      stroke-width: 2
+    }
+  }
+  aws-ddb-stream: {
+    shape: parallelogram
+    style: {
+      fill: "#E3F2FD"
+      stroke: "#1565C0"
+      font-size: 24
+      stroke-width: 2
+    }
+  }
+  aws-dlq: {
+    shape: rectangle
+    icon: ./icons/sqs.svg
+    style: {
+      fill: "#FFCDD2"
+      stroke: "#B71C1C"
+      font-size: 22
+      border-radius: 8
+      stroke-width: 2
+      stroke-dash: 4
+    }
+  }
+}
+
+# ===========================================================================
+# LAYER: C1 — System Context
+# ===========================================================================
+
+# Actors
+investor: "Investor" {
+  class: person
+}
+
+# Nestfolio System Boundary
+nestfolio: "Nestfolio\n[Robo-Advisory Platform]" {
+  class: system
+
+  investor-domain: "Investor Domain\n[Onboarding, Portfolio View, Dashboard]" {
+    class: domain
+    link: layers.c2-investor
+  }
+  advisory-domain: "Advisory Domain\n[AI-Driven Investment Decisions]" {
+    class: domain
+    link: layers.c2-advisory
+  }
+  execution-domain: "Execution Domain\n[Order Routing & Broker Integration]" {
+    class: domain
+    link: layers.c2-execution
+  }
+  ledger-domain: "Ledger Domain\n[Positions, Transactions, Reconciliation]" {
+    class: domain
+    link: layers.c2-ledger
+  }
+
+  investor-web: "investor-web\n[Angular PWA + Native Federation]" {
+    class: frontend
+  }
+
+  investor-web -> investor-domain: "GraphQL" {style.font-size: 28}
+  investor-domain -> advisory-domain: "Events" {style.stroke: "#999999"; style.font-size: 28}
+  advisory-domain -> execution-domain: "Events" {style.stroke: "#999999"; style.font-size: 28}
+  execution-domain -> ledger-domain: "Events" {style.stroke: "#999999"; style.font-size: 28}
+  ledger-domain -> investor-domain: "Events" {style.stroke: "#999999"; style.font-size: 28}
+}
+
+# External Systems
+alpaca: "Alpaca\n[Brokerage API]" {class: external}
+bedrock: "AWS Bedrock\n[LLM / AI]" {class: external}
+cognito: "Amazon Cognito\n[Authentication]" {class: external}
+market-data: "Market Data Providers\n[Alpha Vantage, FRED, Yahoo, SEC]" {class: external}
+
+# Relationships
+investor -> nestfolio.investor-web: "Uses" {style.stroke: "#08427B"; style.stroke-width: 3; style.font-size: 28}
+nestfolio.execution-domain -> alpaca: "Places orders" {style.font-size: 28}
+nestfolio.advisory-domain -> bedrock: "AI inference" {style.font-size: 28}
+nestfolio.advisory-domain -> market-data: "Fetches data" {style.font-size: 28}
+nestfolio.investor-web -> cognito: "Authenticates" {style.font-size: 28}
+
+# ===========================================================================
+# LAYERS
+# ===========================================================================
+layers: {
+
+  # =========================================================================
+  # C2 — Investor Domain
+  # =========================================================================
+  c2-investor: {
+    direction: down
+
+    title: "Investor Domain — Container View" {
+      style: { font-size: 42; bold: true; fill: transparent; stroke: transparent }
+    }
+
+    investor-web: "investor-web\n[Angular PWA Shell]" {class: frontend}
+    cognito: "Amazon Cognito" {class: external}
+
+    mfe-group: "Frontend (Native Federation)" {
+      direction: down
+      style: { fill: "#E8F5E9"; stroke: "#A5D6A7"; border-radius: 12; font-size: 28 }
+      investor-mfe: "investor-mfe\n[Angular MFE]" {class: frontend}
+      dashboard-mfe: "dashboard-mfe\n[Angular MFE]" {class: frontend}
+      onboarding-mfe: "onboarding-mfe\n[Angular MFE]" {class: frontend}
+    }
+
+    bff-group: "Backend for Frontend" {
+      direction: down
+      style: { fill: "#E3F2FD"; stroke: "#90CAF9"; border-radius: 12; font-size: 28 }
+      investor-bff: "investor-bff\n[AppSync GraphQL]" {
+        class: service
+        link: layers.c3-investor-bff
+      }
+      dashboard-bff: "dashboard-bff\n[AppSync GraphQL]" {
+        class: service
+        link: layers.c3-dashboard-bff
+      }
+      onboarding-bff: "onboarding-bff\n[LangGraph + CopilotKit]" {
+        class: service
+        link: layers.c3-onboarding-bff
+      }
+    }
+
+    investor-ctrl: "investor-ctrl\n[Investor Aggregate]" {
+      class: service
+      link: layers.c3-investor-ctrl
+    }
+
+    investor-bus: "investor-bus\n[EventBridge]" {class: bus}
+
+    investor-hub: "investor-hub\n[Event Fan-out]" {
+      class: service
+      link: layers.c3-investor-hub
+    }
+
+    investor-adpt: "investor-adpt\n[Cross-Domain Adapter]" {
+      class: adapter
+      link: layers.c3-investor-adpt
+    }
+
+    advisory-bus: "advisory-bus\n[EventBridge]" {class: bus}
+
+    # Flows — linear vertical chain
+    investor-web -> cognito: "Auth" {style.font-size: 26}
+    investor-web -> mfe-group: "Loads MFEs" {style.font-size: 26}
+    mfe-group -> bff-group: "GraphQL" {style.font-size: 26}
+    bff-group -> investor-ctrl: "Commands / Queries" {style.font-size: 26}
+    investor-ctrl -> investor-bus: "CDC Events" {style.font-size: 26}
+    investor-bus -> investor-hub: "Routes events" {style.font-size: 26}
+    investor-hub -> investor-bus: "Fan-out" {style.font-size: 26}
+    investor-bus -> investor-adpt: "Cross-domain" {style.font-size: 26}
+    investor-adpt -> advisory-bus: "Publishes to Advisory" {style.font-size: 26}
+
+    layers: {
+      c3-investor-ctrl: { ...@./c3/investor-ctrl.d2 }
+      c3-investor-bff: { ...@./c3/investor-bff.d2 }
+      c3-dashboard-bff: { ...@./c3/dashboard-bff.d2 }
+      c3-onboarding-bff: { ...@./c3/onboarding-bff.d2 }
+      c3-investor-hub: { ...@./c3/investor-hub.d2 }
+      c3-investor-adpt: { ...@./c3/investor-adpt.d2 }
+    }
+  }
+
+  # =========================================================================
+  # C2 — Advisory Domain
+  # =========================================================================
+  c2-advisory: {
+    direction: down
+
+    title: "Advisory Domain — Container View" {
+      style: { font-size: 42; bold: true; fill: transparent; stroke: transparent }
+    }
+
+    advisory-mfe: "advisory-mfe\n[Angular MFE]" {class: frontend}
+
+    advisory-bff: "advisory-bff\n[AppSync GraphQL]" {
+      class: service
+      link: layers.c3-advisory-bff
+    }
+
+    advisory-ctrl: "advisory-ctrl\n[Advisory Aggregate]" {
+      class: service
+      link: layers.c3-advisory-ctrl
+    }
+
+    advisory-bus: "advisory-bus\n[EventBridge]" {class: bus}
+
+    decision-workflow-ctrl: "decision-workflow-ctrl\n[Step Functions Orchestrator]" {
+      class: service
+      link: layers.c3-decision-workflow-ctrl
+    }
+
+    agents: "Decision Agents (LangGraph via Task Tokens)" {
+      direction: down
+      style: { fill: "#E8F5E9"; stroke: "#81C784"; border-radius: 12; font-size: 28; bold: true }
+      investor-profile-ctrl: "investor-profile-ctrl\n[Risk Profile Analysis]" {
+        class: service
+        link: layers.c3-investor-profile-ctrl
+      }
+      market-intelligence-ctrl: "market-intelligence-ctrl\n[Market Analysis]" {
+        class: service
+        link: layers.c3-market-intelligence-ctrl
+      }
+      portfolio-engine-ctrl: "portfolio-engine-ctrl\n[Portfolio Optimization]" {
+        class: service
+        link: layers.c3-portfolio-engine-ctrl
+      }
+      compliance-ctrl: "compliance-ctrl\n[Compliance Checks]" {
+        class: service
+        link: layers.c3-compliance-ctrl
+      }
+      advisory-narrative-ctrl: "advisory-narrative-ctrl\n[Report Generation]" {
+        class: service
+        link: layers.c3-advisory-narrative-ctrl
+      }
+    }
+
+    ext: "External Dependencies" {
+      direction: down
+      style: { fill: "#F5F5F5"; stroke: "#BDBDBD"; border-radius: 12; font-size: 28 }
+      bedrock: "AWS Bedrock\n[LLM]" {class: external}
+      data-adapters: "Market Data Adapters\n[Alpha Vantage, FRED, Yahoo,\nSEC EDGAR, MarketWatch]" {class: external}
+    }
+
+    advisory-hub: "advisory-hub\n[Event Fan-out]" {
+      class: service
+      link: layers.c3-advisory-hub
+    }
+
+    advisory-adpt: "advisory-adpt\n[Cross-Domain Adapter]" {
+      class: adapter
+      link: layers.c3-advisory-adpt
+    }
+
+    execution-bus: "execution-bus\n[EventBridge]" {class: bus}
+
+    # Flows — vertical chain
+    advisory-mfe -> advisory-bff: "GraphQL" {style.font-size: 26}
+    advisory-bff -> advisory-ctrl: "Commands" {style.font-size: 26}
+    advisory-ctrl -> advisory-bus: "CDC Events" {style.font-size: 26}
+    advisory-bus -> decision-workflow-ctrl: "Triggers decision cycle" {style.font-size: 26}
+    decision-workflow-ctrl -> agents: "Task tokens" {style.font-size: 26}
+    agents -> ext: "AI inference\n& market data" {style.font-size: 26}
+    advisory-bus -> advisory-hub: "Routes events" {style.font-size: 26}
+    advisory-hub -> advisory-bus: "Fan-out" {style.font-size: 26}
+    advisory-bus -> advisory-adpt: "Cross-domain" {style.font-size: 26}
+    advisory-adpt -> execution-bus: "Publishes to Execution" {style.font-size: 26}
+
+    layers: {
+      c3-advisory-ctrl: { ...@./c3/advisory-ctrl.d2 }
+      c3-advisory-bff: { ...@./c3/advisory-bff.d2 }
+      c3-advisory-hub: { ...@./c3/advisory-hub.d2 }
+      c3-advisory-adpt: { ...@./c3/advisory-adpt.d2 }
+      c3-decision-workflow-ctrl: { ...@./c3/decision-workflow-ctrl.d2 }
+      c3-investor-profile-ctrl: { ...@./c3/investor-profile-ctrl.d2 }
+      c3-market-intelligence-ctrl: { ...@./c3/market-intelligence-ctrl.d2 }
+      c3-portfolio-engine-ctrl: { ...@./c3/portfolio-engine-ctrl.d2 }
+      c3-compliance-ctrl: { ...@./c3/compliance-ctrl.d2 }
+      c3-advisory-narrative-ctrl: { ...@./c3/advisory-narrative-ctrl.d2 }
+    }
+  }
+
+  # =========================================================================
+  # C2 — Execution Domain
+  # =========================================================================
+  c2-execution: {
+    direction: down
+
+    title: "Execution Domain — Container View" {
+      style: { font-size: 42; bold: true; fill: transparent; stroke: transparent }
+    }
+
+    execution-ctrl: "execution-ctrl\n[Order Aggregate]" {
+      class: service
+      link: layers.c3-execution-ctrl
+    }
+
+    execution-bus: "execution-bus\n[EventBridge]" {class: bus}
+
+    broker-ctrl: "broker-ctrl\n[Broker Orchestration SF]" {
+      class: service
+      link: layers.c3-broker-ctrl
+    }
+
+    brokers: "Broker Adapters" {
+      direction: down
+      style: { fill: "#FFF3E0"; stroke: "#FFB74D"; border-radius: 12; font-size: 28; bold: true }
+      broker-sim-adpt: "broker-sim-adpt\n[Simulated Broker]" {
+        class: adapter
+        link: layers.c3-broker-sim-adpt
+      }
+      broker-alpaca-adpt: "broker-alpaca-adpt\n[Alpaca Integration]" {
+        class: adapter
+        link: layers.c3-broker-alpaca-adpt
+      }
+    }
+
+    alpaca: "Alpaca\n[Brokerage API]" {class: external}
+
+    execution-hub: "execution-hub\n[Event Fan-out]" {
+      class: service
+      link: layers.c3-execution-hub
+    }
+
+    execution-adpt: "execution-adpt\n[Cross-Domain Adapter]" {
+      class: adapter
+      link: layers.c3-execution-adpt
+    }
+
+    ledger-bus: "ledger-bus\n[EventBridge]" {class: bus}
+
+    # Flows — vertical chain
+    execution-ctrl -> execution-bus: "CDC Events" {style.font-size: 26}
+    execution-bus -> broker-ctrl: "Order placed" {style.font-size: 26}
+    broker-ctrl -> brokers: "Routes to broker" {style.font-size: 26}
+    brokers.broker-alpaca-adpt -> alpaca: "REST API" {style.font-size: 26}
+    execution-bus -> execution-hub: "Routes events" {style.font-size: 26}
+    execution-hub -> execution-bus: "Fan-out" {style.font-size: 26}
+    execution-bus -> execution-adpt: "Cross-domain" {style.font-size: 26}
+    execution-adpt -> ledger-bus: "Publishes to Ledger" {style.font-size: 26}
+
+    layers: {
+      c3-execution-ctrl: { ...@./c3/execution-ctrl.d2 }
+      c3-execution-hub: { ...@./c3/execution-hub.d2 }
+      c3-execution-adpt: { ...@./c3/execution-adpt.d2 }
+      c3-broker-ctrl: { ...@./c3/broker-ctrl.d2 }
+      c3-broker-sim-adpt: { ...@./c3/broker-sim-adpt.d2 }
+      c3-broker-alpaca-adpt: { ...@./c3/broker-alpaca-adpt.d2 }
+    }
+  }
+
+  # =========================================================================
+  # C2 — Ledger Domain
+  # =========================================================================
+  c2-ledger: {
+    direction: down
+
+    title: "Ledger Domain — Container View" {
+      style: { font-size: 42; bold: true; fill: transparent; stroke: transparent }
+    }
+
+    ledger-mfe: "ledger-mfe\n[Angular MFE]" {class: frontend}
+
+    ledger-bff: "ledger-bff\n[AppSync GraphQL]" {
+      class: service
+      link: layers.c3-ledger-bff
+    }
+
+    ledger-ctrl: "ledger-ctrl\n[Ledger Aggregate]" {
+      class: service
+      link: layers.c3-ledger-ctrl
+    }
+
+    ledger-bus: "ledger-bus\n[EventBridge]" {class: bus}
+
+    reconciliation-ctrl: "reconciliation-ctrl\n[Position Reconciliation]" {
+      class: service
+      link: layers.c3-reconciliation-ctrl
+    }
+
+    ledger-hub: "ledger-hub\n[Event Fan-out]" {
+      class: service
+      link: layers.c3-ledger-hub
+    }
+
+    ledger-adpt: "ledger-adpt\n[Cross-Domain Adapter]" {
+      class: adapter
+      link: layers.c3-ledger-adpt
+    }
+
+    investor-bus: "investor-bus\n[EventBridge]" {class: bus}
+
+    # Flows — vertical chain
+    ledger-mfe -> ledger-bff: "GraphQL" {style.font-size: 26}
+    ledger-bff -> ledger-ctrl: "Commands / Queries" {style.font-size: 26}
+    ledger-ctrl -> ledger-bus: "CDC Events" {style.font-size: 26}
+    ledger-bus -> reconciliation-ctrl: "Reconcile trigger" {style.font-size: 26}
+    ledger-bus -> ledger-hub: "Routes events" {style.font-size: 26}
+    ledger-hub -> ledger-bus: "Fan-out" {style.font-size: 26}
+    ledger-bus -> ledger-adpt: "Cross-domain" {style.font-size: 26}
+    ledger-adpt -> investor-bus: "Publishes to Investor" {style.font-size: 26}
+
+    layers: {
+      c3-ledger-ctrl: { ...@./c3/ledger-ctrl.d2 }
+      c3-ledger-bff: { ...@./c3/ledger-bff.d2 }
+      c3-ledger-hub: { ...@./c3/ledger-hub.d2 }
+      c3-ledger-adpt: { ...@./c3/ledger-adpt.d2 }
+      c3-reconciliation-ctrl: { ...@./c3/reconciliation-ctrl.d2 }
+    }
+  }
+}

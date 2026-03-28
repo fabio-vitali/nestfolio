@@ -84,7 +84,7 @@ loaded explicitly by the skill checklists.
 
 ## Skills
 
-All 20 skills are in `.claude/skills/`, grouped into 5 categories. The routing table in the
+All 21 skills are in `.claude/skills/`, grouped into 5 categories. The routing table in the
 root CLAUDE.md maps task types to skills — agents invoke them automatically based on what
 they're doing.
 
@@ -132,6 +132,7 @@ they're doing.
 |-------|-------------|
 | `design-service` | Structured framework for designing a new service: domain ownership, boundaries, events, state shape |
 | `design-data-flow` | Framework for designing a cross-domain flow: trigger, hops, failure modes, idempotency |
+| `generate-c4-diagrams` | Compiles D2 source into navigable C4 SVG diagrams with AWS icons and drill-down links |
 
 Both architect skills invoke the `superpowers:brainstorming` skill as their first step, then
 layer Nestfolio-specific questions on top. After a design is approved they hand off to
@@ -247,6 +248,47 @@ cases that need manual annotation.
 /validate-flow {flow-name}
 ```
 This checks every step against real code and reports broken links with `file:line` references.
+
+---
+
+## C4 Architecture Diagrams
+
+The repo includes a D2-based C4 model that renders navigable SVG diagrams with clickable
+drill-down: C1 (system) → C2 (domain) → C3 (AWS resources per service).
+
+**Source files:**
+- `docs/architecture/nestfolio.d2` — root file with global classes (AWS icons), C1/C2 layers, and layer imports
+- `docs/architecture/c3/{service-name}.d2` — one C3 diagram per service (5-construct CDK pattern)
+- `docs/architecture/icons/` — AWS service SVG icons referenced by D2 classes
+
+**Generated output:**
+- `docs/architecture/nestfolio/` — navigable SVGs (never edit directly)
+
+**Generation script:** `tools/generate-c4-diagrams.mjs`
+
+The script does three things in one pass:
+1. Compiles `nestfolio.d2` via the d2 CLI (renders all layers including C3 sub-diagrams)
+2. Adds `.svg` extensions to the extensionless files d2 produces
+3. Patches navigation hrefs so drill-down links resolve to `.svg` files
+
+Run it with:
+```bash
+node tools/generate-c4-diagrams.mjs
+```
+
+**When to regenerate:**
+- After modifying any `.d2` file in `docs/architecture/`
+- After creating a new service (add a C3 file + wire the layer import in `nestfolio.d2`)
+- As part of `/init-docs` (full rebuild)
+
+**Adding a C3 diagram for a new service:**
+1. Create `docs/architecture/c3/{service-name}.d2` following the 5-construct template in the `generate-c4-diagrams` skill
+2. Add `c3-{service-name}: { ...@./c3/{service-name}.d2 }` to the domain's `layers:` block in `nestfolio.d2`
+3. Add `link: layers.c3-{service-name}` to the service node in the C2 layer
+4. Run `node tools/generate-c4-diagrams.mjs`
+
+**Important:** Never render C3 files standalone (`d2 c3/foo.d2`) — the AWS icon classes are
+defined in the parent `nestfolio.d2` and won't be available. Always render from the root file.
 
 ---
 
@@ -367,8 +409,9 @@ conventions — all service cards and flow specs will be stale. Use:
 This runs a nuclear rebuild:
 1. Regenerates service cards for all services
 2. Re-runs `generate-flow-spec` for all flows (producing diffs against current specs)
-3. Runs `audit-system` to verify everything
-4. Reports any issues that require manual resolution
+3. Regenerates C4 architecture diagrams from D2 source
+4. Runs `audit-system` to verify everything
+5. Reports any issues that require manual resolution
 
 Plan for it to take a few minutes and require a review pass before committing.
 

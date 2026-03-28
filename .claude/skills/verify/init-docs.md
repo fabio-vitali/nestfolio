@@ -36,10 +36,16 @@ This is the "nuclear rebuild" — regenerates ALL derived artifacts from code, t
 - [ ] 4. **Validate all flow specs**
   For each regenerated spec, run the `validate-flow` procedure.
 
-- [ ] 5. **Run full system audit**
+- [ ] 5. **Regenerate C4 architecture diagrams**
+  ```bash
+  node tools/generate-c4-diagrams.mjs
+  ```
+  This compiles `docs/architecture/nestfolio.d2` into navigable SVGs with AWS icons.
+
+- [ ] 6. **Run full system audit**
   Invoke the `audit-system` procedure — 4 parallel domain audits + system-level checks.
 
-- [ ] 6. **Report summary**
+- [ ] 7. **Report summary**
   ```
   ## /init-docs Results
 
@@ -61,10 +67,10 @@ This is the "nuclear rebuild" — regenerates ALL derived artifacts from code, t
   [list of created/modified files]
   ```
 
-- [ ] 7. **Commit all auto-generated artifacts**
+- [ ] 8. **Commit all auto-generated artifacts**
   ```bash
-  git add services/*/CLAUDE.md flows/*.flow.yaml
-  git commit -m "docs: regenerate all service cards and flow specs via /init-docs"
+  git add services/*/CLAUDE.md flows/*.flow.yaml docs/architecture/nestfolio/
+  git commit -m "docs: regenerate all service cards, flow specs, and C4 diagrams via /init-docs"
   ```
 
 ## Anti-Patterns

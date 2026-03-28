@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="sfBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF4F8B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E0407A;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="8" ry="8" fill="url(#sfBg)" />
+  <!-- Workflow: connected state nodes -->
+  <!-- Top circle (start) -->
+  <circle cx="32" cy="14" r="5" fill="white" />
+  <!-- Line down -->
+  <line x1="32" y1="19" x2="32" y2="24" stroke="white" stroke-width="2" />
+  <!-- Middle diamond (choice) -->
+  <polygon points="32,24 40,32 32,40 24,32" fill="none" stroke="white" stroke-width="2.5" />
+  <!-- Branch left -->
+  <line x1="24" y1="32" x2="16" y2="32" stroke="white" stroke-width="2" />
+  <rect x="10" y="28" width="6" height="8" rx="1.5" fill="white" opacity="0.8" />
+  <!-- Branch right -->
+  <line x1="40" y1="32" x2="48" y2="32" stroke="white" stroke-width="2" />
+  <rect x="48" y="28" width="6" height="8" rx="1.5" fill="white" opacity="0.8" />
+  <!-- Line down from diamond -->
+  <line x1="32" y1="40" x2="32" y2="45" stroke="white" stroke-width="2" />
+  <!-- Bottom circle (end) -->
+  <circle cx="32" cy="50" r="5" fill="none" stroke="white" stroke-width="2.5" />
+  <circle cx="32" cy="50" r="2.5" fill="white" />
+</svg>

@@ -1,0 +1,28 @@
+direction: right
+
+title: "investor-adpt\n[Cross-Domain Adapter — investor → advisory]" {
+  style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
+}
+
+source: "investor-bus\n[Source]" { class: aws-eventbridge }
+
+ingress: "Ingress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+
+  transformer-rule: "EventBridge Rule\n[investor events]" { class: aws-eventbridge }
+  transformer-sqs: "SQS Queue" { class: aws-sqs }
+  transformer-fn: "Lambda\n[TransformHandler]" { class: aws-lambda }
+  transformer-dlq: "DLQ" { class: aws-dlq }
+
+  transformer-rule -> transformer-sqs -> transformer-fn
+  transformer-sqs -> transformer-dlq: "On failure" {style.font-size: 22}
+}
+
+target: "advisory-bus\n[Target]" { class: aws-eventbridge }
+
+dlq: "Transform DLQ" { class: aws-dlq }
+
+# Flows
+source -> ingress.transformer-rule: "Subscribed events" {style.font-size: 22}
+ingress.transformer-fn -> target: "Transformed events" {style.font-size: 22}
+ingress.transformer-fn -> dlq: "Failed transforms" {style.font-size: 22}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="dynamoBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3334CC;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2525A0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="8" ry="8" fill="url(#dynamoBg)" />
+  <!-- Table/database icon with three stacked ellipses -->
+  <ellipse cx="32" cy="20" rx="16" ry="6" fill="none" stroke="white" stroke-width="2.5" />
+  <path d="M16 20 L16 32" stroke="white" stroke-width="2.5" fill="none" />
+  <path d="M48 20 L48 32" stroke="white" stroke-width="2.5" fill="none" />
+  <ellipse cx="32" cy="32" rx="16" ry="6" fill="none" stroke="white" stroke-width="2.5" />
+  <path d="M16 32 L16 44" stroke="white" stroke-width="2.5" fill="none" />
+  <path d="M48 32 L48 44" stroke="white" stroke-width="2.5" fill="none" />
+  <ellipse cx="32" cy="44" rx="16" ry="6" fill="none" stroke="white" stroke-width="2.5" />
+</svg>

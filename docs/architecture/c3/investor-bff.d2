@@ -1,0 +1,67 @@
+direction: down
+
+title: "investor-bff\n[BFF — AppSync GraphQL]" {
+  style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
+}
+
+facade: "Facade" {
+  style: { fill: "#F3E5F5"; stroke: "#9C27B0"; border-radius: 12; font-size: 28 }
+
+  appsync: "AppSync API\n[investor-bff]" { class: aws-appsync }
+  resolvers: "JS Resolvers\n[VTL-free]" { class: aws-lambda }
+  ssm: "SSM Parameters" { class: aws-ssm }
+
+  appsync -> resolvers: "Pipeline resolvers" {style.font-size: 22}
+}
+
+ingress: "Ingress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+
+  query: "Lambda\n[QueryHandler]" { class: aws-lambda }
+  query-sqs: "SQS Queue" { class: aws-sqs }
+  query-dlq: "DLQ" { class: aws-dlq }
+  query-rule: "EventBridge Rule\n[GraphQL queries]" { class: aws-eventbridge }
+
+  query-rule -> query-sqs -> query
+  query-sqs -> query-dlq: "On failure" {style.font-size: 22}
+
+  mutation: "Lambda\n[MutationHandler]" { class: aws-lambda }
+  mutation-sqs: "SQS Queue" { class: aws-sqs }
+  mutation-dlq: "DLQ" { class: aws-dlq }
+  mutation-rule: "EventBridge Rule\n[GraphQL mutations]" { class: aws-eventbridge }
+
+  mutation-rule -> mutation-sqs -> mutation
+  mutation-sqs -> mutation-dlq: "On failure" {style.font-size: 22}
+
+  subscription: "Lambda\n[SubscriptionHandler]" { class: aws-lambda }
+  subscription-sqs: "SQS Queue" { class: aws-sqs }
+  subscription-dlq: "DLQ" { class: aws-dlq }
+  subscription-rule: "EventBridge Rule\n[Subscriptions]" { class: aws-eventbridge }
+
+  subscription-rule -> subscription-sqs -> subscription
+  subscription-sqs -> subscription-dlq: "On failure" {style.font-size: 22}
+}
+
+state: "State" {
+  style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
+
+  table: "DynamoDB Table\n[InvestorBffTable]" { class: aws-dynamodb }
+  stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
+
+  table -> stream
+}
+
+egress: "Egress" {
+  style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
+
+  processor: "Lambda\n[StreamProcessor]" { class: aws-lambda }
+  bus: "EventBridge\n[investor-bus]" { class: aws-eventbridge }
+
+  processor -> bus: "Publish events" {style.font-size: 22}
+}
+
+# Flows
+facade.appsync -> state.table: "JS Resolver reads/writes" {style.font-size: 22}
+ingress.query -> state.table: "Materialize events" {style.font-size: 22}
+ingress.mutation -> state.table: "Write commands" {style.font-size: 22}
+state.stream -> egress.processor: "CDC trigger" {style.font-size: 22}

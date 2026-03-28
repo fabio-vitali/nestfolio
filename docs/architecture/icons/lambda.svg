@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="lambdaBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF9900;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E88B00;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="8" ry="8" fill="url(#lambdaBg)" />
+  <!-- Lambda symbol -->
+  <path d="M20 48 L32 16 L37 16 L28 38 L40 38 L44 48 L38 48 L35 42 L25 42 L22 48 Z" fill="white" />
+  <path d="M30 16 L25 28" stroke="white" stroke-width="0" fill="none" />
+  <!-- Simplified lambda glyph -->
+  <g transform="translate(32,32)">
+    <text x="-9" y="12" font-family="Georgia, serif" font-size="36" font-weight="bold" font-style="italic" fill="white">&#955;</text>
+  </g>
+  <!-- Overlay to hide the path, use only the text -->
+  <rect x="2" y="2" width="60" height="60" rx="8" ry="8" fill="url(#lambdaBg)" />
+  <text x="32" y="44" font-family="Georgia, serif" font-size="38" font-weight="bold" font-style="italic" fill="white" text-anchor="middle">&#955;</text>
+</svg>

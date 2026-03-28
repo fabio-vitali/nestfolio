@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="cwBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF4F8B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E0407A;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="8" ry="8" fill="url(#cwBg)" />
+  <!-- Monitor/graph icon -->
+  <!-- Chart area background -->
+  <rect x="10" y="14" width="44" height="30" rx="3" ry="3" fill="white" opacity="0.15" />
+  <!-- Axes -->
+  <line x1="14" y1="40" x2="50" y2="40" stroke="white" stroke-width="2" />
+  <line x1="14" y1="18" x2="14" y2="40" stroke="white" stroke-width="2" />
+  <!-- Metric line (graph) -->
+  <polyline points="18,36 24,30 28,33 32,22 38,28 42,20 48,24" fill="none" stroke="white" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+  <!-- Dots on the line -->
+  <circle cx="32" cy="22" r="2" fill="white" />
+  <circle cx="42" cy="20" r="2" fill="white" />
+  <!-- Alarm bell below -->
+  <path d="M28 50 Q32 46 36 50" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" />
+  <circle cx="32" cy="52" r="1.5" fill="white" />
+</svg>
