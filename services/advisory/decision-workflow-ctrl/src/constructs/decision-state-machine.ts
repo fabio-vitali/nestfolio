@@ -1,11 +1,10 @@
 import { Construct } from 'constructs';
-import { Duration, Stack } from 'aws-cdk-lib';
+import { Duration } from 'aws-cdk-lib';
 import { IEventBus } from 'aws-cdk-lib/aws-events';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 
-interface DecisionStateMachineProps {
+interface DecisionWorkflowDefinitionProps {
   readonly eventBus: IEventBus;
   readonly table: ITable;
   readonly serviceName: string;
@@ -25,14 +24,13 @@ interface DecisionStateMachineProps {
  * 7. WaitForUserResponse (waitForTaskToken)
  * 8. End
  */
-export class DecisionStateMachine extends Construct {
-  readonly stateMachine: sfn.StateMachine;
+export class DecisionWorkflowDefinition extends Construct {
+  readonly definitionBody: sfn.DefinitionBody;
 
-  constructor(scope: Construct, id: string, props: DecisionStateMachineProps) {
+  constructor(scope: Construct, id: string, props: DecisionWorkflowDefinitionProps) {
     super(scope, id);
 
     const { eventBus, serviceName } = props;
-    const busArn = `arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${eventBus.eventBusName}`;
 
     // Helper: create a waitForTaskToken state that publishes an event to EventBridge
     const createAgentInvocationState = (
@@ -242,20 +240,6 @@ export class DecisionStateMachine extends Construct {
           ),
       );
 
-    this.stateMachine = new sfn.StateMachine(this, 'StateMachine', {
-      definitionBody: sfn.DefinitionBody.fromChainable(definition),
-      timeout: Duration.hours(72),
-      tracingEnabled: true,
-      stateMachineType: sfn.StateMachineType.STANDARD,
-      comment: 'Decision lifecycle orchestration — advisory agent topology',
-    });
-
-    // Grant PutEvents to the state machine execution role
-    this.stateMachine.addToRolePolicy(
-      new PolicyStatement({
-        actions: ['events:PutEvents'],
-        resources: [busArn],
-      }),
-    );
+    this.definitionBody = sfn.DefinitionBody.fromChainable(definition);
   }
 }

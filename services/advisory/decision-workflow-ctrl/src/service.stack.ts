@@ -5,9 +5,9 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
 import { BedrockFoundationModel } from '@aws-cdk/aws-bedrock-alpha';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Orchestration } from '@nestfolio/cdk-constructs/core';
 import { NamingService, defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
-import { DecisionStateMachine } from './constructs/decision-state-machine';
+import { DecisionWorkflowDefinition } from './constructs/decision-state-machine';
 import {
   TRIGGER_EVENT_TYPES,
   AGENT_COMPLETION_EVENT_TYPES,
@@ -18,6 +18,8 @@ import {
 export class DecisionWorkflowCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
+
+    const state = new State(this, 'State');
 
     // --- AgentCore Memory ---
     const hubNaming = new NamingService({ prefix: props.prefix, subsystem: 'advisory', service: 'advisory-hub' });
@@ -88,49 +90,58 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
       entry: join(__dirname, 'handlers', 'assemble-packet.ts'),
       environment: {
         MEMORY_ID: memory.memoryId,
-        TABLE_NAME: this.state.getTable().tableName,
+        TABLE_NAME: state.getTable().tableName,
       },
     });
     memory.grantRead(assemblePacketFn);
-    this.state.getTable().grantWriteData(assemblePacketFn);
+    state.getTable().grantWriteData(assemblePacketFn);
 
-    // --- State machine ---
-    const decisionSm = new DecisionStateMachine(this, 'DecisionStateMachine', {
+    // --- Decision Orchestration ---
+    // IMPORTANT: Use id 'DecisionStateMachine' to preserve CloudFormation logical IDs
+    const decisionWorkflow = new DecisionWorkflowDefinition(this, 'DecisionWorkflow', {
       eventBus: this.eventBus,
-      table: this.state.getTable(),
+      table: state.getTable(),
       serviceName: this.serviceName,
       assemblePacketFnArn: assemblePacketFn.functionArn,
     });
-    const { stateMachine } = decisionSm;
-
-    // Grant the state machine permission to invoke the AssemblePacket Lambda
-    assemblePacketFn.grantInvoke(stateMachine);
+    const orchestration = new Orchestration(this, 'DecisionStateMachine', {
+      state,
+      definitionBody: decisionWorkflow.definitionBody,
+      triggers: [],  // No direct EB trigger — SF started via CDC chain
+      timeout: Duration.hours(72),
+    });
+    assemblePacketFn.grantInvoke(orchestration.stateMachine);
+    this.eventBus.grantPutEventsTo(orchestration.stateMachine);
 
     // --- Ingress 1: Trigger events → materializeToTable (event-listener.ts) ---
     const triggerIngress = new Ingress(this, 'TriggerIngress', {
+      state,
       eventTypes: [...TRIGGER_EVENT_TYPES],
     });
 
     // --- Ingress 2: Callback events → resumeStateMachine (sfn-callback.ts) ---
-    const callbackEventTypes = [
-      ...AGENT_COMPLETION_EVENT_TYPES,
-      ...COMPLIANCE_EVENT_TYPES,
-      ...USER_RESPONSE_EVENT_TYPES,
-    ];
     const callbackIngress = new Ingress(this, 'CallbackIngress', {
-      eventTypes: callbackEventTypes,
+      state,
+      eventTypes: [
+        ...AGENT_COMPLETION_EVENT_TYPES,
+        ...COMPLIANCE_EVENT_TYPES,
+        ...USER_RESPONSE_EVENT_TYPES,
+      ],
       entry: join(__dirname, 'handlers', 'sfn-callback.ts'),
     });
-
-    // Grant callback Lambda permissions to send task tokens to Step Functions
-    stateMachine.grantTaskResponse(callbackIngress.handler);
+    orchestration.grantCallbackAccess(callbackIngress.handler);
 
     // --- Egress: CDC from DDB Streams ---
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['WorkflowTrigger', 'DecisionPacket', 'AgentOutput'],
     });
 
     // --- Observability ---
-    this.addObservability({ ingress: triggerIngress, egress });
+    this.addObservability({
+      ingress: triggerIngress,
+      egress,
+      orchestration,
+    });
   }
 }
