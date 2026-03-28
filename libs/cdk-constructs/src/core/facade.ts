@@ -18,6 +18,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { CfnWebACL, CfnWebACLAssociation } from 'aws-cdk-lib/aws-wafv2';
 import { parse, visit } from 'graphql';
 import { ServiceStack } from './service-stack';
+import { State } from './state';
 
 export interface JsResolverConfig {
   typeName: 'Query' | 'Mutation';
@@ -33,6 +34,8 @@ export interface LambdaResolverConfig {
 }
 
 export interface FacadeProps {
+  /** State construct for DynamoDB data source. Optional — Facades with only Lambda resolvers don't need it. */
+  readonly state?: State;
   readonly schemaPath?: string;
   readonly userPool?: IUserPool;
   readonly userPoolSsmPath?: string;
@@ -51,7 +54,8 @@ export class Facade extends Construct {
     super(scope, id);
 
     const serviceStack = ServiceStack.of(this);
-    const { state, naming, serviceDir } = serviceStack;
+    const { naming, serviceDir } = serviceStack;
+    const state = props.state;
 
     // If no resolvers at all, skip API creation
     if (!props.jsResolvers?.length && !props.lambdaResolvers?.length) {
@@ -122,7 +126,7 @@ export class Facade extends Construct {
     }
 
     // JS pipeline resolvers
-    if (props.jsResolvers?.length && state.table) {
+    if (props.jsResolvers?.length && state?.table) {
       const ddbDs = this.api.addDynamoDbDataSource('DynamoDS', state.getTable());
       const noneDs = this.api.addNoneDataSource('NoneDS');
 

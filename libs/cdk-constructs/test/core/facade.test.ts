@@ -4,6 +4,7 @@ import { UserPool } from 'aws-cdk-lib/aws-cognito';
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
 import { Facade, parseSchemaFields, discoverJsResolvers } from '../../src/core/facade';
 import { ServiceStack } from '../../src/core/service-stack';
+import { State } from '../../src/core/state';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -32,18 +33,17 @@ afterAll(() => {
   if (fs.existsSync(SCHEMA_PATH)) fs.unlinkSync(SCHEMA_PATH);
 });
 
-function createFacadeStack() {
+function createFacadeStack(opts?: { withState?: boolean }) {
   const app = new App({ context: { prefix: 'test' } });
   const stack = new ServiceStack(app, 'TestStack', {
     prefix: 'test',
     subsystem: 'test',
     service: 'test-svc',
     serviceDir: os.tmpdir(),
-    stateProps: {
-      withTable: true,
-    },
   });
-  return { app, stack };
+  const withState = opts?.withState ?? true;
+  const state = withState ? new State(stack, 'State', { withTable: true }) : undefined;
+  return { app, stack, state };
 }
 
 describe('Facade construct', () => {
@@ -148,10 +148,11 @@ describe('Facade construct', () => {
 
 describe('JS resolver support', () => {
   it('creates DynamoDB data source when jsResolvers provided', () => {
-    const { stack } = createFacadeStack();
+    const { stack, state } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
 
     new Facade(stack, 'TestFacade', {
+      state,
       schemaPath: SCHEMA_PATH,
       userPool,
       jsResolvers: [
@@ -173,10 +174,11 @@ describe('JS resolver support', () => {
   });
 
   it('creates pipeline resolvers with JS_1_0_0 runtime', () => {
-    const { stack } = createFacadeStack();
+    const { stack, state } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
 
     new Facade(stack, 'TestFacade', {
+      state,
       schemaPath: SCHEMA_PATH,
       userPool,
       jsResolvers: [
@@ -193,6 +195,39 @@ describe('JS resolver support', () => {
       Kind: 'PIPELINE',
       Runtime: { Name: 'APPSYNC_JS', RuntimeVersion: '1.0.0' },
     });
+  });
+
+  it('Facade without state skips jsResolvers (noneDataSource pattern)', () => {
+    const { stack } = createFacadeStack({ withState: false });
+    const userPool = new UserPool(stack, 'Pool');
+    const resolver = new Function(stack, 'Resolver', {
+      runtime: Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: Code.fromInline('exports.handler = async () => ({})'),
+    });
+
+    const facade = new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'hello', handler: resolver },
+      ],
+      jsResolvers: [
+        {
+          typeName: 'Query',
+          fieldName: 'items',
+          pipeline: [join(__dirname, '__fixtures__', 'check-auth.fn.js'), join(__dirname, '__fixtures__', 'get-items.fn.js')],
+        },
+      ],
+    });
+
+    expect(facade.api).toBeDefined();
+    const template = Template.fromStack(stack);
+    // Lambda resolvers should work, but DynamoDB data source should not be created
+    template.hasResourceProperties('AWS::AppSync::DataSource', {
+      Type: 'AWS_LAMBDA',
+    });
+    template.resourceCountIs('AWS::AppSync::Resolver', 1); // only the lambda resolver
   });
 });
 
