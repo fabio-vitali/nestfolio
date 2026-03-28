@@ -1,11 +1,14 @@
 import { Construct } from 'constructs';
-import { ServiceStack, ServiceStackProps, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 
 export class AdvisoryBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
+    const state = new State(this, 'State');
+
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: [
         'DECISION_PACKET_CREATED',
         'DECISION_PACKET_ENRICHED',
@@ -16,10 +19,12 @@ export class AdvisoryBffStack extends ServiceStack {
     });
 
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['DecisionReadModel', 'UserInteraction', 'UserConfirmation', 'UserRejection'],
     });
 
     new Facade(this, 'Facade', {
+      state,
       userPoolSsmPath: `/nestfolio/${this.prefix}-investor/auth/userPoolId`,
       jsResolvers: discoverJsResolvers(__dirname, {
         extraSteps: {

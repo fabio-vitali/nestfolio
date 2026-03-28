@@ -3,7 +3,7 @@ import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
@@ -11,11 +11,14 @@ export class LedgerBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
+    const state = new State(this, 'State');
+
     const domainAccounts = getDomainAccounts(this);
     const ledgerBusArn = resolveBusArn(this, 'LedgerBus', this.prefix, 'ledger', domainAccounts);
     this.eventBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
 
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: [
         'BALANCE_UPDATED',
         'PORTFOLIO_UPDATED',
@@ -31,18 +34,19 @@ export class LedgerBffStack extends ServiceStack {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'graphql-resolver.ts'),
       environment: {
-        TABLE_NAME: this.state.getTable().tableName,
+        TABLE_NAME: state.getTable().tableName,
         BUS_NAME: this.eventBus.eventBusName,
         SERVICE_NAME: 'ledger-bff',
       },
     });
-    this.state.getTable().grantReadWriteData(resolver);
+    state.getTable().grantReadWriteData(resolver);
     resolver.addToRolePolicy(new PolicyStatement({
       actions: ['events:PutEvents'],
       resources: [ledgerBusArn],
     }));
 
     new Facade(this, 'Facade', {
+      state,
       userPoolSsmPath: `/nestfolio/${this.prefix}-investor/auth/userPoolId`,
       jsResolvers: discoverJsResolvers(__dirname, { exclude: ['getPortfolioAt', 'getSimulationComparison'] }),
       lambdaResolvers: [

@@ -1,11 +1,14 @@
 import { Construct } from 'constructs';
-import { ServiceStack, ServiceStackProps, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 
 export class DashboardBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
+    const state = new State(this, 'State');
+
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: [
         'BALANCE_UPDATED',
         'PORTFOLIO_UPDATED',
@@ -25,6 +28,7 @@ export class DashboardBffStack extends ServiceStack {
     });
 
     new Facade(this, 'Facade', {
+      state,
       jsResolvers: discoverJsResolvers(__dirname),
     });
 
