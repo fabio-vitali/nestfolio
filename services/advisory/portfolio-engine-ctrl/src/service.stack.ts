@@ -3,13 +3,15 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 
 export class PortfolioEngineCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
+
+    const state = new State(this, 'State');
 
     // Knowledge Base: Fund & Instrument (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'FundKB', {
@@ -19,11 +21,13 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
 
     // Ingress: trigger + KB ingestion events
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: ['CONSTRUCT_PORTFOLIO', 'SEC_PROSPECTUS_UPDATED', 'SEC_10K_UPDATED'],
     });
 
     // Egress: CDC events
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['AgentInvocation', 'ReasoningOutput'],
     });
 
@@ -31,9 +35,9 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     const portfolioLookupFn = new NodejsFunction(this, 'PortfolioLookup', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'tools', 'portfolio-lookup.ts'),
-      environment: { TABLE_NAME: this.state.getTable().tableName },
+      environment: { TABLE_NAME: state.getTable().tableName },
     });
-    this.state.getTable().grantReadData(portfolioLookupFn);
+    state.getTable().grantReadData(portfolioLookupFn);
 
     // KB ingestion Lambda
     const kbIngestionFn = new NodejsFunction(this, 'KBIngestion', {
@@ -43,7 +47,7 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
         KB_BUCKET: kb.bucket.bucketName,
         KB_ID: kb.knowledgeBaseId,
         KB_DATA_SOURCE_ID: kb.dataSourceId,
-        TABLE_NAME: this.state.getTable().tableName,
+        TABLE_NAME: state.getTable().tableName,
         BUS_NAME: this.eventBus.eventBusName,
       },
     });
@@ -87,7 +91,7 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       runtimeName: 'portfolio_engine_agents',
       agentCodePath: join(__dirname, '..', 'agents'),
       description: 'portfolio-construction (Opus) + rebalance-planner (Sonnet) parallel orchestration',
-      tables: [this.state.getTable()],
+      state,
       modelIds: [modelOpusId, modelSonnetId],
       toolTargets: [],
     });

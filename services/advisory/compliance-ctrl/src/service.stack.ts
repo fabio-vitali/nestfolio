@@ -1,11 +1,14 @@
 import { Construct } from 'constructs';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 
 export class ComplianceCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
+    const state = new State(this, 'State');
+
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: [
         'DECISION_PACKET_CREATED',
         'DECISION_PACKET_ENRICHED',
@@ -17,6 +20,7 @@ export class ComplianceCtrlStack extends ServiceStack {
     });
 
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['ComplianceCheck', 'AuditArtifact'],
     });
 

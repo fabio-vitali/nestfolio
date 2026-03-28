@@ -2,7 +2,7 @@ import { join } from 'path';
 import { Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AdapterSchedule } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
@@ -10,11 +10,15 @@ export class ExecutionCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
+    const state = new State(this, 'State');
+
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: ['DECISION_APPROVED', 'USER_CONFIRMED', 'CIRCUIT_BREAKER_TRIGGERED', 'CIRCUIT_BREAKER_RESET', 'ACCOUNT_CLOSURE_REQUESTED'],
     });
 
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['Order', 'StagedOrder'],
     });
 
@@ -25,12 +29,12 @@ export class ExecutionCtrlStack extends ServiceStack {
       handler: 'handler',
       timeout: Duration.minutes(5),
       environment: {
-        TABLE_NAME: this.state.getTable().tableName,
+        TABLE_NAME: state.getTable().tableName,
         SERVICE_NAME: 'execution-ctrl',
       },
     });
 
-    this.state.getTable().grantReadWriteData(stagedOrderProcessor);
+    state.getTable().grantReadWriteData(stagedOrderProcessor);
 
     new AdapterSchedule(this, 'MarketOpenSchedule', {
       target: stagedOrderProcessor,

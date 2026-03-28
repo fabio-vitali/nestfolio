@@ -3,13 +3,15 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 
 export class MarketIntelligenceCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
+
+    const state = new State(this, 'State');
 
     // Knowledge Base: Market Intelligence (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'MarketKB', {
@@ -19,6 +21,7 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
 
     // Ingress: trigger event + 5 feed ingestion events
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: [
         'ANALYZE_MARKET',
         'YAHOO_FINANCE_UPDATED',
@@ -31,6 +34,7 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
 
     // Egress: CDC events
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['AgentInvocation', 'ReasoningOutput'],
     });
 
@@ -42,7 +46,7 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
         KB_BUCKET: kb.bucket.bucketName,
         KB_ID: kb.knowledgeBaseId,
         KB_DATA_SOURCE_ID: kb.dataSourceId,
-        TABLE_NAME: this.state.getTable().tableName,
+        TABLE_NAME: state.getTable().tableName,
         BUS_NAME: this.eventBus.eventBusName,
       },
     });
@@ -54,19 +58,19 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'tools', 'market-data.handler.ts'),
       environment: {
-        TABLE_NAME: this.state.getTable().tableName,
+        TABLE_NAME: state.getTable().tableName,
       },
     });
-    this.state.getTable().grantReadData(marketDataFn);
+    state.getTable().grantReadData(marketDataFn);
 
     const instrumentUniverseFn = new NodejsFunction(this, 'InstrumentUniverseTool', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'tools', 'instrument-universe.handler.ts'),
       environment: {
-        TABLE_NAME: this.state.getTable().tableName,
+        TABLE_NAME: state.getTable().tableName,
       },
     });
-    this.state.getTable().grantReadData(instrumentUniverseFn);
+    state.getTable().grantReadData(instrumentUniverseFn);
 
     // Model SSM params from advisory-hub (Sonnet only)
     const hubNaming = new NamingService({ prefix: props.prefix, subsystem: 'advisory', service: 'advisory-hub' });
@@ -103,7 +107,7 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
       runtimeName: 'market_intelligence_agents',
       agentCodePath: join(__dirname, '..', 'agents'),
       description: 'market-research (Sonnet) single agent with tool access',
-      tables: [this.state.getTable()],
+      state,
       modelIds: [modelSonnetId],
       toolTargets: [],
     });

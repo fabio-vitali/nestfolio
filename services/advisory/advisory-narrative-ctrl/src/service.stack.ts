@@ -2,13 +2,15 @@ import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 import { NamingService } from '@nestfolio/cdk-constructs/utils';
 
 export class AdvisoryNarrativeCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
+
+    const state = new State(this, 'State');
 
     // Knowledge Base: Explainability Feedback (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'ExplainabilityKB', {
@@ -18,6 +20,7 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
 
     // Ingress: trigger + feedback events
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: ['GENERATE_NARRATIVE', 'DECISION_FEEDBACK'],
     });
 
@@ -30,6 +33,7 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
 
     // Egress: CDC events
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['AgentInvocation', 'ReasoningOutput'],
     });
 
@@ -68,7 +72,7 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       runtimeName: 'advisory_narrative_agents',
       agentCodePath: join(__dirname, '..', 'agents'),
       description: 'explainability (Sonnet, 8192 tokens) agent with feedback loop KB',
-      tables: [this.state.getTable()],
+      state,
       modelIds: [modelSonnetId],
       toolTargets: [],
     });

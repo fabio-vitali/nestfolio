@@ -5,7 +5,7 @@ import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
@@ -13,11 +13,14 @@ export class LedgerCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
+    const state = new State(this, 'State');
+
     const domainAccounts = getDomainAccounts(this);
     const ledgerBusArn = resolveBusArn(this, 'LedgerBus', this.prefix, 'ledger', domainAccounts);
     this.eventBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
 
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: [
         'ORDER_FILLED',
         'ORDER_PARTIALLY_FILLED',
@@ -35,14 +38,14 @@ export class LedgerCtrlStack extends ServiceStack {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'reducer.ts'),
       environment: {
-        TABLE_NAME: this.state.getTable().tableName,
+        TABLE_NAME: state.getTable().tableName,
         SERVICE_NAME: 'ledger-ctrl',
         SNAPSHOT_HISTORY_TTL_DAYS: '365',
       },
     });
-    this.state.getTable().grantReadWriteData(reducerFn);
+    state.getTable().grantReadWriteData(reducerFn);
 
-    reducerFn.addEventSource(new DynamoEventSource(this.state.getTable(), {
+    reducerFn.addEventSource(new DynamoEventSource(state.getTable(), {
       startingPosition: StartingPosition.LATEST,
       bisectBatchOnError: true,
       retryAttempts: 3,
@@ -61,6 +64,7 @@ export class LedgerCtrlStack extends ServiceStack {
     }));
 
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['BalanceEvent', 'PortfolioEvent', 'LedgerEntryEvent', 'TaxLot', 'DispositionRecord'],
     });
 

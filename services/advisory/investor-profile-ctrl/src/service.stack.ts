@@ -3,13 +3,15 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
-import { ServiceStack, ServiceStackProps, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 
 export class InvestorProfileCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
+
+    const state = new State(this, 'State');
 
     // Knowledge Base: Regulatory & Compliance (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'RegulatoryKB', {
@@ -19,11 +21,13 @@ export class InvestorProfileCtrlStack extends ServiceStack {
 
     // Ingress: trigger event + KB ingestion events
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: ['ANALYZE_INVESTOR_PROFILE', 'DECISION_BLOCKED', 'DECISION_APPROVED'],
     });
 
     // Egress: CDC events
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['AgentInvocation', 'ReasoningOutput'],
     });
 
@@ -35,7 +39,7 @@ export class InvestorProfileCtrlStack extends ServiceStack {
         KB_BUCKET: kb.bucket.bucketName,
         KB_ID: kb.knowledgeBaseId,
         KB_DATA_SOURCE_ID: kb.dataSourceId,
-        TABLE_NAME: this.state.getTable().tableName,
+        TABLE_NAME: state.getTable().tableName,
         BUS_NAME: this.eventBus.eventBusName,
       },
     });
@@ -79,7 +83,7 @@ export class InvestorProfileCtrlStack extends ServiceStack {
       runtimeName: 'investor_profile_agents',
       agentCodePath: join(__dirname, '..', 'agents'),
       description: 'user-goals (Haiku) + risk-assessment (Opus) parallel orchestration',
-      tables: [this.state.getTable()],
+      state,
       modelIds: [modelOpusId, modelHaikuId],
       toolTargets: [],
     });
