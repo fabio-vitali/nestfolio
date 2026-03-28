@@ -3,9 +3,9 @@ import { Construct } from 'constructs';
 import { EventBus, IEventBus } from 'aws-cdk-lib/aws-events';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { IQueue } from 'aws-cdk-lib/aws-sqs';
-import { State, StateProps } from './state';
 import { Ingress } from './ingress';
 import { Egress } from './egress';
+import { Orchestration } from './orchestration';
 import { Monitoring } from '../observability/monitoring';
 import { ServiceDashboard } from '../observability/dashboard';
 import { NamingService } from '../utils/naming-service';
@@ -17,7 +17,6 @@ export interface ServiceStackProps extends StackProps {
   service: string;
   serviceDir?: string;
   domain?: string;
-  stateProps?: StateProps | false;
   eventBus?: IEventBus;
   /** Enable observability (Monitoring + Dashboard). Defaults to true. */
   observability?: boolean;
@@ -26,7 +25,6 @@ export interface ServiceStackProps extends StackProps {
 export class ServiceStack extends Stack {
   readonly prefix: string;
   readonly naming: NamingService;
-  readonly state!: State;
   readonly serviceName: string;
   readonly serviceDir: string;
   readonly observability: boolean;
@@ -71,10 +69,6 @@ export class ServiceStack extends Stack {
       environment: this.prefix,
     });
 
-    if (props.stateProps !== false) {
-      this.state = new State(this, 'State', props.stateProps);
-    }
-
     if (props.eventBus) {
       this._eventBus = props.eventBus;
     }
@@ -83,6 +77,7 @@ export class ServiceStack extends Stack {
   addObservability(opts: {
     ingress?: Ingress;
     egress?: Egress;
+    orchestration?: Orchestration;
     extraLambdas?: IFunction[];
     extraDlqs?: IQueue[];
     monitorBedrock?: boolean;
@@ -99,6 +94,9 @@ export class ServiceStack extends Stack {
     }
     if (opts.egress) {
       dlqs.push(opts.egress.dlq);
+    }
+    if (opts.orchestration) {
+      dlqs.push(opts.orchestration.dlq);
     }
     if (opts.extraLambdas) {
       lambdaFunctions.push(...opts.extraLambdas);

@@ -22,17 +22,17 @@ describe('ServiceStack', () => {
     expect(stack.naming.eventBusName()).toBe('test-investor-event-bus');
   });
 
-  it('creates State with DynamoDB table by default', () => {
+  it('does not create State automatically', () => {
     const stack = createStack();
+    expect((stack as any).state).toBeUndefined();
     const template = Template.fromStack(stack);
-    template.resourceCountIs('AWS::DynamoDB::Table', 1);
+    template.resourceCountIs('AWS::DynamoDB::Table', 0);
   });
 
-  it('creates State with custom props', () => {
-    const stack = createStack({ stateProps: { withBucket: true } });
-    const template = Template.fromStack(stack);
-    template.resourceCountIs('AWS::DynamoDB::Table', 1);
-    template.resourceCountIs('AWS::S3::Bucket', 1);
+  it('no longer accepts stateProps — works without it', () => {
+    const stack = createStack();
+    expect(stack).toBeDefined();
+    expect(stack.serviceName).toBe('investor-bff');
   });
 
   it('applies standard tags', () => {
