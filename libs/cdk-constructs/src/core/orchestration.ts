@@ -6,7 +6,7 @@ import { Rule } from 'aws-cdk-lib/aws-events';
 import { SfnStateMachine } from 'aws-cdk-lib/aws-events-targets';
 import { RuleTargetInput } from 'aws-cdk-lib/aws-events';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
-import { IFunction } from 'aws-cdk-lib/aws-lambda';
+import { Function as LambdaFunction } from 'aws-cdk-lib/aws-lambda';
 import { ServiceStack } from './service-stack';
 import { State } from './state';
 
@@ -87,7 +87,7 @@ export class Orchestration extends Construct {
    * @param envVarName - Name of the env var for the SF ARN (default: STATE_MACHINE_ARN).
    *   Use a custom name when a Lambda needs callback access to multiple state machines.
    */
-  grantCallbackAccess(handler: IFunction, envVarName = 'STATE_MACHINE_ARN'): void {
+  grantCallbackAccess(handler: LambdaFunction, envVarName = 'STATE_MACHINE_ARN'): void {
     this.stateMachine.grantTaskResponse(handler);
     handler.addEnvironment(envVarName, this.stateMachine.stateMachineArn);
   }
