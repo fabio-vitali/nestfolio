@@ -33,7 +33,10 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
     project.json
   ```
 
-- [ ] 3. **Write CDK stack** — extend ServiceStack, add State/Ingress/Egress per `cdk-patterns`
+- [ ] 3. **Write CDK stack** — extend ServiceStack, create State explicitly (if needed), add Ingress/Egress/Orchestration per `cdk-patterns` (6-construct model)
+  - All services that need DynamoDB: `const state = new State(this, 'State', {}); this.state = state;`
+  - Pass `state` to Ingress, Egress, Facade, AgentRuntime as needed
+  - For orchestrated services (-ctrl with Step Functions): add `new Orchestration(this, 'MyStateMachine', { state, definitionBody, triggers })`
 - [ ] 4. **Write first handler** per `event-processor-patterns`
 - [ ] 5. **Define event types** per `create-event`
 - [ ] 6. **Write tests** per `testing-patterns`

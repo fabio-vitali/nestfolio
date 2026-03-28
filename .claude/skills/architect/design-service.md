@@ -20,7 +20,7 @@ After brainstorming, work through:
 **Responsibility:** Single responsibility? Explicit exclusions?
 **State:** DDB table(s), key schema, streams needed? S3?
 **Events:** Consumed from which buses? Produced via CDC/explicit? Cross-domain?
-**Infrastructure:** Which CDK constructs? Step Functions? IAM?
+**Infrastructure:** Which of the 6 CDK constructs (State, Ingress, Egress, Facade, AgentRuntime, Orchestration)? Does this service need orchestration (Step Functions)?
 **Flows:** Which existing flows affected? New flows?
 
 ### Step 3: Implementation Plan
