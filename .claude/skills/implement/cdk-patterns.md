@@ -1,14 +1,14 @@
 ---
 name: cdk-patterns
-description: CDK 5-construct pattern reference for Nestfolio services. Use when creating or modifying service stacks, adding constructs, wiring observability, or understanding the ServiceStack API.
+description: CDK 6-construct pattern reference for Nestfolio services. Use when creating or modifying service stacks, adding constructs, wiring observability, or understanding the ServiceStack API.
 ---
 
-# CDK 5-Construct Pattern Reference
+# CDK 6-Construct Pattern Reference
 
 ## When This Skill Applies
 
 - Creating a new service stack (`service.stack.ts`)
-- Adding Ingress, Egress, Facade, or AgentRuntime constructs
+- Adding Ingress, Egress, Facade, AgentRuntime, or Orchestration constructs
 - Wiring observability via `addObservability()`
 - Adapting a service that has no state (adapter pattern)
 - Connecting EventBridge → Step Functions
@@ -27,11 +27,12 @@ export interface ServiceStackProps extends StackProps {
   service: string;       // service name: 'ledger-ctrl', 'broker-sim-adpt', etc.
   serviceDir?: string;   // path to handlers dir — pass __dirname from stack file
   domain?: string;       // tagging override; defaults to subsystem
-  stateProps?: StateProps | false;  // false = no DynamoDB table provisioned
   eventBus?: IEventBus;  // inject explicit bus (e.g. from SSM ARN lookup)
   observability?: boolean; // enable Monitoring+Dashboard, default true
 }
 ```
+
+> **Important:** State is now consumer-instantiated, NOT auto-created by ServiceStack. Each service that needs state must create `new State(this, 'State', { ... })` explicitly in its constructor.
 
 ### Public API
 
@@ -40,7 +41,7 @@ export interface ServiceStackProps extends StackProps {
 | `this.prefix` | `string` | Environment prefix (e.g. `'dev'`) |
 | `this.serviceName` | `string` | From `props.service` |
 | `this.serviceDir` | `string` | From `props.serviceDir ?? ''` |
-| `this.state` | `State` | DynamoDB table + optional S3 bucket. Only present when `stateProps !== false` |
+| `this.state` | `State \| undefined` | Consumer-set via `this.state = state`. Only present when the service creates and assigns a State construct |
 | `this.eventBus` | `IEventBus` | Lazy-resolved from `naming.eventBusName()` unless injected. **Settable by subclasses** |
 | `this.naming` | `NamingService` | Resource naming helper |
 | `this.observability` | `boolean` | Whether Monitoring/Dashboard are wired |
@@ -68,7 +69,7 @@ this.addObservability({
 
 ---
 
-## 5-Construct Pattern
+## 6-Construct Pattern
 
 ### 1. State
 
@@ -95,7 +96,7 @@ export interface GsiConfig {
 }
 ```
 
-State is created automatically by ServiceStack unless `stateProps: false` is passed.
+State is consumer-instantiated: each service creates `new State(this, 'State', { ... })` explicitly and assigns it to `this.state`. Services that don't need state simply skip this step. Other constructs (Ingress, Egress, Facade, AgentRuntime) accept `state` as a prop for explicit wiring.
 
 **Accessors (throw if resource absent):**
 ```ts
@@ -117,12 +118,13 @@ this.state.bucket   // Bucket | undefined
 
 Wires: EventBridge Rule → SQS Queue (with DLQ) → Lambda handler.
 
-Auto-injects env vars: `SERVICE_NAME`, `BUS_NAME`, `TABLE_NAME` (if table exists), `BUCKET_NAME` (if bucket exists).
-Auto-grants: `table.grantReadWriteData`, `bucket.grantReadWrite`, `events:PutEvents`.
+Auto-injects env vars: `SERVICE_NAME`, `BUS_NAME`, `TABLE_NAME` (if state with table passed), `BUCKET_NAME` (if state with bucket passed).
+Auto-grants: `table.grantReadWriteData`, `bucket.grantReadWrite`, `events:PutEvents` — only when state is provided.
 
 ```ts
 export interface IngressProps {
   eventTypes: string[];            // EventBridge detail-type filter list
+  state?: State;                   // optional — when provided, auto-injects TABLE_NAME/BUCKET_NAME and grants
   entry?: string;                  // default: join(serviceDir, 'handlers', 'event-listener.ts')
   environment?: Record<string, string>; // extra env vars merged in
   lambdaProps?: Partial<NodejsFunctionProps>; // override timeout, memorySize, etc.
@@ -155,6 +157,7 @@ Auto-grants: `table.grantReadWriteData`, `bucket.grantReadWrite`, `events:PutEve
 
 ```ts
 export interface EgressProps {
+  state: State;                      // required — Egress reads DynamoDB Streams from state.getTable()
   publishableTypes: string[];        // __typename values to publish CDC events for
   entry?: string;                    // default: join(serviceDir, 'handlers', 'event-publisher.ts')
   environment?: Record<string, string>;
@@ -183,6 +186,7 @@ Supports JS pipeline resolvers (from compiled `.fn.js` files) and Lambda resolve
 
 ```ts
 export interface FacadeProps {
+  state?: State;                  // optional — when provided, JS resolvers get DynamoDB data source
   schemaPath?: string;            // default: join(serviceDir, 'schema.graphql')
   userPool?: IUserPool;           // explicit pool; else resolved from SSM
   userPoolSsmPath?: string;       // SSM path override; default: naming.ssmParameterPath('auth/userPoolId')
@@ -240,11 +244,11 @@ export interface AgentRuntimeProps {
   runtimeName: string;                    // AgentCore runtime name
   agentCodePath: string;                  // directory with Dockerfile
   description?: string;
+  state?: State;                          // optional — replaces `tables`; auto-grants R/W on state.table
   userPool?: IUserPool;
   userPoolClients?: IUserPoolClient[];
   environmentVariables?: Record<string, string>;
   toolTargets?: ToolTarget[];             // MCP Gateway tool definitions
-  tables?: ITable[];                      // DynamoDB tables to grant R/W
   modelIds?: string[];                    // Bedrock model IDs for InvokeModel grants
   idleTimeout?: Duration;                 // default 15 minutes
   maxLifetime?: Duration;                 // default 4 hours
@@ -266,20 +270,66 @@ agentRuntime.gateway   // agentcore.Gateway | undefined (present if toolTargets 
 
 ---
 
+### 6. Orchestration
+
+**File:** `libs/cdk-constructs/src/core/orchestration.ts`
+
+Wraps a Step Functions state machine with EventBridge trigger rules and task-token callback wiring.
+
+```ts
+export interface OrchestrationProps {
+  state: State;                         // required — grants R/W to state machine role
+  definitionBody: sfn.DefinitionBody;   // state machine definition (fromChainable or fromFile)
+  triggers?: OrchestrationTrigger[];    // EventBridge rules that auto-start the state machine
+  timeout?: Duration;                   // state machine execution timeout, default 1 hour
+}
+
+export interface OrchestrationTrigger {
+  id: string;                           // construct ID for the EventBridge rule
+  eventTypes: string[];                 // detail-type filter list
+}
+```
+
+**Public members:**
+```ts
+orchestration.stateMachine   // sfn.StateMachine
+```
+
+**Task token wiring:**
+```ts
+orchestration.grantCallbackAccess(handler);
+// Grants sfn:SendTaskSuccess + sfn:SendTaskFailure
+// Injects STATE_MACHINE_ARN env var to the handler
+```
+
+Optional `envVarName` parameter overrides the default `STATE_MACHINE_ARN` env var name:
+```ts
+orchestration.grantCallbackAccess(handler, 'DECISION_SM_ARN');
+```
+
+**Migration note:** When migrating an existing Step Functions state machine to the Orchestration construct, use the same construct ID to preserve CloudFormation logical IDs and avoid resource replacement.
+
+---
+
 ## Common Patterns
 
-### Standard Service Stack (Ingress + Egress)
+### Standard Service Stack (State + Ingress + Egress)
 
 ```ts
 export class MyServiceStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
+    const state = new State(this, 'State', {});
+    this.state = state;
+
     const ingress = new Ingress(this, 'Ingress', {
+      state,
       eventTypes: ['MY_EVENT_TYPE', 'OTHER_EVENT'],
     });
 
     const egress = new Egress(this, 'Egress', {
+      state,
       publishableTypes: ['MyAggregate', 'MyProjection'],
     });
 
@@ -311,20 +361,25 @@ this.addObservability({
 
 Note: CDK alarm IDs are disambiguated by the Ingress construct ID when multiple exist.
 
-### EventBridge → Step Functions
+### EventBridge → Step Functions (Orchestration Construct)
 
-For orchestration services (e.g. broker-ctrl), use a custom Ingress with `lambdaProps` and wire the Step Functions state machine manually:
+For orchestration services (e.g. broker-ctrl), use the Orchestration construct with `triggers` for EventBridge-driven state machine execution:
 
 ```ts
-const ingress = new Ingress(this, 'Ingress', {
-  eventTypes: ['ORDER_SUBMITTED'],
-  lambdaProps: { timeout: Duration.seconds(30) },
-  lambdaTimeout: Duration.seconds(30),  // sets visibilityTimeout = 180s
+const state = new State(this, 'State', {});
+this.state = state;
+
+const orchestration = new Orchestration(this, 'OrderStateMachine', {
+  state,
+  definitionBody: sfn.DefinitionBody.fromChainable(definition),
+  triggers: [
+    { id: 'OrderSubmittedTrigger', eventTypes: ['ORDER_SUBMITTED'] },
+  ],
+  timeout: Duration.hours(1),
 });
 
-// Grant sfn:StartExecution to ingress.handler
-stateMachine.grantStartExecution(ingress.handler);
-ingress.handler.addEnvironment('STATE_MACHINE_ARN', stateMachine.stateMachineArn);
+// Grant callback access to Ingress handlers
+orchestration.grantCallbackAccess(callbackIngress.handler);
 ```
 
 ### Cross-Domain Bus Lookup (Hub Stacks)
@@ -343,13 +398,17 @@ Use `valueForStringParameter` (deploy-time), never `valueFromLookup` (synth-time
 
 ### Adapter Pattern (No State)
 
-Adapters that translate events and have no domain state pass `stateProps: false`:
+Adapters that translate events and have no domain state simply omit the State construct:
 
 ```ts
-super(scope, id, { ...props, serviceDir: __dirname, stateProps: false });
+super(scope, id, { ...props, serviceDir: __dirname });
+// No State created — Ingress works without state prop
+const ingress = new Ingress(this, 'Ingress', {
+  eventTypes: ['SOME_EVENT'],
+});
 ```
 
-Ingress and Egress handle the absence of `state.table` gracefully — they skip env vars and grants when `state.table` is falsy.
+Ingress handles the absence of state gracefully — it skips env vars and grants when no state prop is provided.
 
 ### Extra State-Only Lambda (e.g. Reducer)
 
@@ -391,6 +450,19 @@ this.naming.ssmParameterPath('api/url') // "/nestfolio/dev-investor/api/url"
 
 ---
 
+## Service Archetypes
+
+| Archetype | Constructs | Example |
+|---|---|---|
+| **BFF** | State + Ingress + Egress + Facade | `investor-bff` |
+| **Hub** | Ingress (cross-domain bus lookup, no state) | `execution-hub` |
+| **Adapter** | Ingress (no state) | `broker-sim-adpt` |
+| **Standard Ctrl** | State + Ingress + Egress | `ledger-ctrl` |
+| **Orchestrated Ctrl** | State + Ingress + Egress + Orchestration | `broker-ctrl` |
+| **AgentRuntime Ctrl** | State + Ingress + Egress + AgentRuntime | `advisory-ctrl` |
+
+---
+
 ## Reference Files
 
 - `libs/cdk-constructs/src/core/service-stack.ts` — ServiceStack base class
@@ -399,9 +471,11 @@ this.naming.ssmParameterPath('api/url') // "/nestfolio/dev-investor/api/url"
 - `libs/cdk-constructs/src/core/egress.ts` — Egress (DDB Streams → Lambda → EB)
 - `libs/cdk-constructs/src/core/facade.ts` — Facade (AppSync GraphQL + WAF)
 - `libs/cdk-constructs/src/extensions/agent-runtime.ts` — AgentRuntime (Bedrock AgentCore)
+- `libs/cdk-constructs/src/core/orchestration.ts` — Orchestration (Step Functions + EventBridge triggers)
 - `libs/cdk-constructs/src/utils/naming-service.ts` — NamingService, getPrefix, discoverSubsystem
-- `services/ledger/ledger-ctrl/src/service.stack.ts` — Full example: Ingress + Egress + extra DDB stream consumer
-- `services/execution/broker-sim-adpt/src/service.stack.ts` — Minimal adapter example
+- `services/ledger/ledger-ctrl/src/service.stack.ts` — Full example: State + Ingress + Egress + extra DDB stream consumer
+- `services/execution/broker-sim-adpt/src/service.stack.ts` — Minimal adapter example (no state)
+- `services/execution/broker-ctrl/src/service.stack.ts` — Orchestrated service example (State + Orchestration)
 
 ---
 
@@ -410,7 +484,8 @@ this.naming.ssmParameterPath('api/url') // "/nestfolio/dev-investor/api/url"
 - **Never** call `valueFromLookup` in hub stacks — use `valueForStringParameter` for deploy-time SSM resolution
 - **Never** hardcode table/bus names — always use `this.naming.*` or the env vars injected by Ingress/Egress
 - **Never** call `addObservability()` more than once — it creates duplicate Monitoring and Dashboard constructs
-- **Never** pass `stateProps: false` if Egress is used — Egress calls `state.getTable()` which throws
+- **Never** use Egress without passing a State with a table — Egress calls `state.getTable()` which throws
 - **Never** create Lambda handlers outside the event-processor pipeline pattern (exception: SF task token callbacks)
 - **Do not** use `ServiceStack.of(construct)` from outside a `ServiceStack` subtree — it throws
 - **Do not** manually add `TABLE_NAME`/`BUS_NAME` env vars — Ingress/Egress inject them automatically
+- **Do not** use `stateProps` on ServiceStack — State is now consumer-instantiated (stateProps has been removed)
