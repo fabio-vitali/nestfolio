@@ -27,7 +27,8 @@
 - Each domain: EventBridge bus + services ({domain}-ctrl, -bff, -hub, -adpt)
 - Communication: async events only (DynamoDB CDC → EventBridge). No inter-service API calls.
 - Frontend: Angular PWA, investor-web via Native Federation
-- IaC: CDK with 5-construct pattern (State, Ingress, Egress, Facade, AgentRuntime)
+- IaC: CDK with 6-construct pattern (State, Ingress, Egress, Facade, AgentRuntime, Orchestration)
+- All 6 constructs are consumer-instantiated and explicitly wired via props
 - Shared libs: event-processor, cdk-constructs, agent-orchestrator, shell, ui
 
 ## Skill Routing (MANDATORY)
