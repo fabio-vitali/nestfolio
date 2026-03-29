@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { discoverServices, parseStack, generateC3, generateC2, generateC1, generateGlobalStyles, serviceLabel, serviceSubtitle } from '../../tools/generate-c4-sources.mjs';
+import { discoverServices, parseStack, generateC3, generateC2, generateC1, generateGlobalStyles, serviceLabel, serviceSubtitle, domainSubtitle } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -316,6 +316,60 @@ describe('serviceSubtitle', () => {
       raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
     };
     assert.equal(serviceSubtitle(parsed), 'Event-Driven Service');
+  });
+});
+
+describe('domainSubtitle', () => {
+  it('aggregates and deduplicates tags across domain services', () => {
+    const parsedStacks = new Map([
+      ['advisory-ctrl', {
+        constructs: {
+          state: [{ id: 'State', withTable: true, withBucket: false }],
+          ingress: [{ id: 'Ingress', eventTypes: [] }],
+          egress: [{ id: 'Egress', publishableTypes: [] }],
+          facade: [], orchestration: [{ id: 'SM', triggers: [] }],
+          agentRuntime: [], knowledgeBase: [], agentMemory: [],
+        },
+        raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+      }],
+      ['advisory-bff', {
+        constructs: {
+          state: [{ id: 'State', withTable: true, withBucket: false }],
+          ingress: [], egress: [],
+          facade: [{ id: 'Facade', hasJsResolvers: true, hasLambdaResolvers: false }],
+          orchestration: [],
+          agentRuntime: [{ id: 'Agent', hasToolTargets: false }],
+          knowledgeBase: [], agentMemory: [],
+        },
+        raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+      }],
+    ]);
+    const services = [
+      { service: 'advisory-ctrl', domain: 'advisory' },
+      { service: 'advisory-bff', domain: 'advisory' },
+    ];
+    const subtitle = domainSubtitle(services, parsedStacks);
+    assert.ok(subtitle.includes('Step Functions'));
+    assert.ok(subtitle.includes('AppSync GraphQL'));
+    assert.ok(subtitle.includes('LangGraph Agent'));
+  });
+
+  it('returns empty string when no notable constructs', () => {
+    const parsedStacks = new Map([
+      ['ledger-ctrl', {
+        constructs: {
+          state: [{ id: 'State', withTable: true, withBucket: false }],
+          ingress: [{ id: 'Ingress', eventTypes: [] }],
+          egress: [{ id: 'Egress', publishableTypes: [] }],
+          facade: [], orchestration: [],
+          agentRuntime: [], knowledgeBase: [], agentMemory: [],
+        },
+        raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+      }],
+    ]);
+    const services = [{ service: 'ledger-ctrl', domain: 'ledger' }];
+    const subtitle = domainSubtitle(services, parsedStacks);
+    assert.equal(subtitle, '');
   });
 });
 

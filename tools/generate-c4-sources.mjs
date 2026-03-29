@@ -316,6 +316,25 @@ export function serviceSubtitle(parsed) {
   return tags.length > 0 ? tags.join(' · ') : 'Event-Driven Service';
 }
 
+/**
+ * Aggregate construct tags across all services in a domain, deduplicated.
+ * Returns tags joined with ' · ', or '' if no notable constructs.
+ */
+export function domainSubtitle(services, parsedStacks) {
+  const allTags = new Set();
+  for (const svc of services) {
+    const parsed = parsedStacks.get(svc.service);
+    if (!parsed) continue;
+    const sub = serviceSubtitle(parsed);
+    if (sub !== 'Event-Driven Service') {
+      for (const tag of sub.split(' · ')) {
+        allTags.add(tag);
+      }
+    }
+  }
+  return [...allTags].join(' · ');
+}
+
 function stateBlock(st) {
   const lines = ['state: "State" {', groupStyle('state')];
   if (st.withTable !== false) {
