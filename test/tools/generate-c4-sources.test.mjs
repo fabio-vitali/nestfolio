@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { discoverServices, parseStack, generateC3, generateC2 } from '../../tools/generate-c4-sources.mjs';
+import { discoverServices, parseStack, generateC3, generateC2, generateC1, generateGlobalStyles } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -358,6 +358,43 @@ describe('generateC3 — raw resources', () => {
     const d2 = generateC3('investor-web', 'investor', parsed);
     assert.ok(d2.includes('class: aws-cognito'));
     assert.ok(d2.includes('class: aws-s3'));
+  });
+});
+
+describe('generateC1', () => {
+  it('generates system context with 4 domains', () => {
+    const domains = ['investor', 'advisory', 'execution', 'ledger'];
+    const d2 = generateC1(domains);
+    assert.ok(d2.includes('nestfolio:'));
+    assert.ok(d2.includes('investor-domain'));
+    assert.ok(d2.includes('advisory-domain'));
+    assert.ok(d2.includes('execution-domain'));
+    assert.ok(d2.includes('ledger-domain'));
+    assert.ok(d2.includes('link: layers.c2-investor'));
+  });
+
+  it('generates inter-domain event flows', () => {
+    const domains = ['investor', 'advisory', 'execution', 'ledger'];
+    const d2 = generateC1(domains);
+    assert.ok(d2.includes('investor-domain -> advisory-domain'));
+    assert.ok(d2.includes('advisory-domain -> execution-domain'));
+    assert.ok(d2.includes('execution-domain -> ledger-domain'));
+    assert.ok(d2.includes('ledger-domain -> investor-domain'));
+  });
+});
+
+describe('generateGlobalStyles', () => {
+  it('includes all C1/C2 and AWS resource classes', () => {
+    const d2 = generateGlobalStyles();
+    assert.ok(d2.includes('person:'));
+    assert.ok(d2.includes('system:'));
+    assert.ok(d2.includes('domain:'));
+    assert.ok(d2.includes('service:'));
+    assert.ok(d2.includes('adapter:'));
+    assert.ok(d2.includes('bus:'));
+    assert.ok(d2.includes('aws-lambda:'));
+    assert.ok(d2.includes('aws-dynamodb:'));
+    assert.ok(d2.includes('aws-stepfunctions:'));
   });
 });
 
