@@ -1,6 +1,6 @@
 direction: down
 
-title: "advisory-narrative-ctrl" {
+title: "Advisory Narrative Controller\n[LangGraph Agent · Bedrock RAG]" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
@@ -11,15 +11,16 @@ ingress: "Ingress" {
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
 
-  rule -> sqs -> handler
-  sqs -> dlq
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
 }
 
 state: "State" {
   style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
   table: "DynamoDB Table" { class: aws-dynamodb }
   stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
-  table -> stream
+  table -> stream: CDC
 }
 
 egress: "Egress" {
@@ -28,7 +29,7 @@ egress: "Egress" {
   bus: "EventBridge\n[advisory-bus]" { class: aws-eventbridge }
   dlq: "DLQ" { class: aws-dlq }
 
-  processor -> bus
+  processor -> bus: Publish
 }
 
 agent-runtime: "AgentRuntime" {
@@ -46,7 +47,7 @@ knowledge-base: "KnowledgeBase" {
 }
 
 # Flows
-ingress.handler -> state.table
-state.stream -> egress.processor
-agent-runtime.runtime -> knowledge-base.kb
-agent-runtime.runtime -> state.table
+ingress.handler -> state.table: Read/Write
+state.stream -> egress.processor: Trigger
+agent-runtime.runtime -> knowledge-base.kb: RAG Query
+agent-runtime.runtime -> state.table: Read/Write

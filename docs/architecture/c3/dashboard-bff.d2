@@ -1,6 +1,6 @@
 direction: down
 
-title: "dashboard-bff" {
+title: "Dashboard BFF\n[AppSync GraphQL]" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
@@ -8,7 +8,7 @@ facade: "Facade" {
   style: { fill: "#F3E5F5"; stroke: "#9C27B0"; border-radius: 12; font-size: 28 }
   appsync: "AppSync API" { class: aws-appsync }
   resolvers: "JS Resolvers" { class: aws-lambda }
-  appsync -> resolvers
+  appsync -> resolvers: JS Resolve
   ssm: "SSM Parameters" { class: aws-ssm }
 }
 
@@ -19,17 +19,18 @@ ingress: "Ingress" {
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
 
-  rule -> sqs -> handler
-  sqs -> dlq
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
 }
 
 state: "State" {
   style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
   table: "DynamoDB Table" { class: aws-dynamodb }
   stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
-  table -> stream
+  table -> stream: CDC
 }
 
 # Flows
-facade.resolvers -> state.table
-ingress.handler -> state.table
+facade.resolvers -> state.table: Read/Write
+ingress.handler -> state.table: Read/Write

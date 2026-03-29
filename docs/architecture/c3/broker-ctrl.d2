@@ -1,6 +1,6 @@
 direction: down
 
-title: "broker-ctrl" {
+title: "Broker Controller\n[Step Functions]" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
@@ -11,8 +11,9 @@ mode-ingress: "ModeIngress" {
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
 
-  rule -> sqs -> handler
-  sqs -> dlq
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
 }
 
 callback-ingress: "CallbackIngress" {
@@ -22,8 +23,9 @@ callback-ingress: "CallbackIngress" {
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
 
-  rule -> sqs -> handler
-  sqs -> dlq
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
 }
 
 deposit-withdrawal-ingress: "DepositWithdrawalIngress" {
@@ -33,8 +35,9 @@ deposit-withdrawal-ingress: "DepositWithdrawalIngress" {
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
 
-  rule -> sqs -> handler
-  sqs -> dlq
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
 }
 
 deposit-withdrawal-normalizer-ingress: "DepositWithdrawalNormalizerIngress" {
@@ -44,15 +47,16 @@ deposit-withdrawal-normalizer-ingress: "DepositWithdrawalNormalizerIngress" {
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
 
-  rule -> sqs -> handler
-  sqs -> dlq
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
 }
 
 state: "State" {
   style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
   table: "DynamoDB Table" { class: aws-dynamodb }
   stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
-  table -> stream
+  table -> stream: CDC
 }
 
 egress: "Egress" {
@@ -61,7 +65,7 @@ egress: "Egress" {
   bus: "EventBridge\n[execution-bus]" { class: aws-eventbridge }
   dlq: "DLQ" { class: aws-dlq }
 
-  processor -> bus
+  processor -> bus: Publish
 }
 
 order-state-machine: "Orchestration" {
@@ -80,12 +84,12 @@ route-order-fn: "Lambda\n[RouteOrderFn]" { class: aws-lambda }
 emit-health-check-fn: "Lambda\n[EmitHealthCheckFn]" { class: aws-lambda }
 
 # Flows
-mode-ingress.handler -> state.table
-callback-ingress.handler -> state.table
-deposit-withdrawal-ingress.handler -> state.table
-deposit-withdrawal-normalizer-ingress.handler -> state.table
-state.stream -> egress.processor
-mode-ingress.handler -> order-state-machine.state-machine
-order-state-machine.state-machine -> state.table
-mode-ingress.handler -> heal-state-machine.state-machine
-heal-state-machine.state-machine -> state.table
+mode-ingress.handler -> state.table: Read/Write
+callback-ingress.handler -> state.table: Read/Write
+deposit-withdrawal-ingress.handler -> state.table: Read/Write
+deposit-withdrawal-normalizer-ingress.handler -> state.table: Read/Write
+state.stream -> egress.processor: Trigger
+mode-ingress.handler -> order-state-machine.state-machine: Execute
+order-state-machine.state-machine -> state.table: Read/Write
+mode-ingress.handler -> heal-state-machine.state-machine: Execute
+heal-state-machine.state-machine -> state.table: Read/Write

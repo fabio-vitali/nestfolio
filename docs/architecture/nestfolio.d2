@@ -177,22 +177,22 @@ classes: {
 # ===========================================================================
 
 # Nestfolio System Boundary
-nestfolio: "Nestfolio" {
+nestfolio: "Nestfolio\n[Robo-Advisory Platform]" {
   class: system
 
-  advisory-domain: "Advisory Domain" {
+  advisory-domain: "Advisory Domain\n[Cross-Domain Bridge · AppSync GraphQL · LangGraph Agent · Bedrock RAG · Step Functions · Agent Memory]" {
     class: domain
     link: layers.c2-advisory
   }
-  execution-domain: "Execution Domain" {
+  execution-domain: "Execution Domain\n[Step Functions · Cross-Domain Bridge]" {
     class: domain
     link: layers.c2-execution
   }
-  investor-domain: "Investor Domain" {
+  investor-domain: "Investor Domain\n[AppSync GraphQL · Cross-Domain Bridge · LangGraph Agent · Bedrock RAG]" {
     class: domain
     link: layers.c2-investor
   }
-  ledger-domain: "Ledger Domain" {
+  ledger-domain: "Ledger Domain\n[Cross-Domain Bridge · AppSync GraphQL]" {
     class: domain
     link: layers.c2-ledger
   }
@@ -200,10 +200,10 @@ nestfolio: "Nestfolio" {
   investor-web: "investor-web\n[Angular PWA]" {class: frontend}
 
   investor-web -> investor-domain {style.font-size: 28}
-  investor-domain -> advisory-domain {style.stroke: "#999999"; style.font-size: 28}
-  advisory-domain -> execution-domain {style.stroke: "#999999"; style.font-size: 28}
-  execution-domain -> ledger-domain {style.stroke: "#999999"; style.font-size: 28}
-  ledger-domain -> investor-domain {style.stroke: "#999999"; style.font-size: 28}
+  investor-domain -> advisory-domain: Events {style.stroke: "#999999"; style.font-size: 28}
+  advisory-domain -> execution-domain: Events {style.stroke: "#999999"; style.font-size: 28}
+  execution-domain -> ledger-domain: Events {style.stroke: "#999999"; style.font-size: 28}
+  ledger-domain -> investor-domain: Events {style.stroke: "#999999"; style.font-size: 28}
 }
 
 # ===========================================================================
@@ -221,54 +221,54 @@ layers: {
       style: { font-size: 42; bold: true; fill: transparent; stroke: transparent }
     }
 
-    advisory-bff: "advisory-bff" {
+    advisory-bff: "Advisory BFF\n[AppSync GraphQL]" {
       class: service
       link: layers.c3-advisory-bff
     }
 
-    advisory-ctrl: "advisory-ctrl" {
+    advisory-ctrl: "Advisory Controller\n[LangGraph Agent]" {
       class: service
       link: layers.c3-advisory-ctrl
     }
 
-    advisory-narrative-ctrl: "advisory-narrative-ctrl" {
+    advisory-narrative-ctrl: "Advisory Narrative Controller\n[LangGraph Agent · Bedrock RAG]" {
       class: service
       link: layers.c3-advisory-narrative-ctrl
     }
 
-    compliance-ctrl: "compliance-ctrl" {
+    compliance-ctrl: "Compliance Controller\n[Event-Driven Service]" {
       class: service
       link: layers.c3-compliance-ctrl
     }
 
-    decision-workflow-ctrl: "decision-workflow-ctrl" {
+    decision-workflow-ctrl: "Decision Workflow Controller\n[Step Functions · Agent Memory]" {
       class: service
       link: layers.c3-decision-workflow-ctrl
     }
 
-    investor-profile-ctrl: "investor-profile-ctrl" {
+    investor-profile-ctrl: "Investor Profile Controller\n[LangGraph Agent · Bedrock RAG]" {
       class: service
       link: layers.c3-investor-profile-ctrl
     }
 
-    market-intelligence-ctrl: "market-intelligence-ctrl" {
+    market-intelligence-ctrl: "Market Intelligence Controller\n[LangGraph Agent · Bedrock RAG]" {
       class: service
       link: layers.c3-market-intelligence-ctrl
     }
 
-    portfolio-engine-ctrl: "portfolio-engine-ctrl" {
+    portfolio-engine-ctrl: "Portfolio Engine Controller\n[LangGraph Agent · Bedrock RAG]" {
       class: service
       link: layers.c3-portfolio-engine-ctrl
     }
 
     advisory-bus: "advisory-bus\n[EventBridge]" {class: bus}
 
-    advisory-hub: "advisory-hub" {
+    advisory-hub: "Advisory Hub\n[Event-Driven Service]" {
       class: service
       link: layers.c3-advisory-hub
     }
 
-    advisory-adpt: "advisory-adpt" {
+    advisory-adpt: "Advisory Adapter\n[Cross-Domain Bridge]" {
       class: adapter
       link: layers.c3-advisory-adpt
     }
@@ -277,48 +277,73 @@ layers: {
 
     execution-bus: "execution-bus\n[EventBridge]" {class: bus}
 
-    alpha-vantage-adpt: "alpha-vantage-adpt" {
+    alpha-vantage-adpt: "Alpha Vantage Adapter\n[Event-Driven Service]" {
       class: adapter
       link: layers.c3-alpha-vantage-adpt
     }
 
-    fred-adpt: "fred-adpt" {
+    fred-adpt: "Fred Adapter\n[Event-Driven Service]" {
       class: adapter
       link: layers.c3-fred-adpt
     }
 
-    marketwatch-adpt: "marketwatch-adpt" {
+    marketwatch-adpt: "Marketwatch Adapter\n[Event-Driven Service]" {
       class: adapter
       link: layers.c3-marketwatch-adpt
     }
 
-    sec-edgar-adpt: "sec-edgar-adpt" {
+    sec-edgar-adpt: "Sec Edgar Adapter\n[Event-Driven Service]" {
       class: adapter
       link: layers.c3-sec-edgar-adpt
     }
 
-    yahoo-finance-adpt: "yahoo-finance-adpt" {
+    yahoo-finance-adpt: "Yahoo Finance Adapter\n[Event-Driven Service]" {
       class: adapter
       link: layers.c3-yahoo-finance-adpt
     }
 
-    advisory-bff -> advisory-bus
-    advisory-ctrl -> advisory-bus
-    advisory-narrative-ctrl -> advisory-bus
-    compliance-ctrl -> advisory-bus
-    decision-workflow-ctrl -> advisory-bus
-    investor-profile-ctrl -> advisory-bus
-    market-intelligence-ctrl -> advisory-bus
-    portfolio-engine-ctrl -> advisory-bus
-    advisory-bus -> advisory-hub
-    advisory-bus -> advisory-adpt
-    advisory-adpt -> investor-bus
-    advisory-adpt -> execution-bus
-    advisory-bus -> alpha-vantage-adpt
-    advisory-bus -> fred-adpt
-    advisory-bus -> marketwatch-adpt
-    advisory-bus -> sec-edgar-adpt
-    advisory-bus -> yahoo-finance-adpt
+    advisory-bff -> advisory-bus: Events
+    advisory-ctrl -> advisory-bus: Events
+    advisory-narrative-ctrl -> advisory-bus: Events
+    compliance-ctrl -> advisory-bus: Events
+    decision-workflow-ctrl -> advisory-bus: Events
+    investor-profile-ctrl -> advisory-bus: Events
+    market-intelligence-ctrl -> advisory-bus: Events
+    portfolio-engine-ctrl -> advisory-bus: Events
+    advisory-bus -> advisory-hub: Events
+    advisory-bus -> advisory-adpt: Events
+    advisory-adpt -> investor-bus: Bridge
+    advisory-adpt -> execution-bus: Bridge
+    advisory-bus -> alpha-vantage-adpt: Events
+    advisory-bus -> fred-adpt: Events
+    advisory-bus -> marketwatch-adpt: Events
+    advisory-bus -> sec-edgar-adpt: Events
+    advisory-bus -> yahoo-finance-adpt: Events
+    ext-vantage: "Vantage" {
+      class: external
+    }
+    alpha-vantage-adpt -> ext-vantage
+
+    ext-fred: "Fred" {
+      class: external
+    }
+    fred-adpt -> ext-fred
+
+    ext-marketwatch: "Marketwatch" {
+      class: external
+    }
+    marketwatch-adpt -> ext-marketwatch
+
+    ext-edgar: "Edgar" {
+      class: external
+    }
+    sec-edgar-adpt -> ext-edgar
+
+    ext-finance: "Finance" {
+      class: external
+    }
+    yahoo-finance-adpt -> ext-finance
+
 
     layers: {
       c3-advisory-adpt: { ...@./c3/advisory-adpt.d2 }
@@ -349,29 +374,29 @@ layers: {
       style: { font-size: 42; bold: true; fill: transparent; stroke: transparent }
     }
 
-    broker-ctrl: "broker-ctrl" {
+    broker-ctrl: "Broker Controller\n[Step Functions]" {
       class: service
       link: layers.c3-broker-ctrl
     }
 
     execution-bus: "execution-bus\n[EventBridge]" {class: bus}
 
-    execution-hub: "execution-hub" {
+    execution-hub: "Execution Hub\n[Event-Driven Service]" {
       class: service
       link: layers.c3-execution-hub
     }
 
-    broker-alpaca-adpt: "broker-alpaca-adpt" {
+    broker-alpaca-adpt: "Broker Alpaca Adapter\n[Event-Driven Service]" {
       class: adapter
       link: layers.c3-broker-alpaca-adpt
     }
 
-    broker-sim-adpt: "broker-sim-adpt" {
+    broker-sim-adpt: "Broker Sim Adapter\n[Event-Driven Service]" {
       class: adapter
       link: layers.c3-broker-sim-adpt
     }
 
-    execution-adpt: "execution-adpt" {
+    execution-adpt: "Execution Adapter\n[Cross-Domain Bridge]" {
       class: adapter
       link: layers.c3-execution-adpt
     }
@@ -382,20 +407,30 @@ layers: {
 
     advisory-bus: "advisory-bus\n[EventBridge]" {class: bus}
 
-    execution-ctrl: "execution-ctrl" {
+    execution-ctrl: "Execution Controller\n[Event-Driven Service]" {
       class: adapter
       link: layers.c3-execution-ctrl
     }
 
-    broker-ctrl -> execution-bus
-    execution-bus -> execution-hub
-    execution-bus -> broker-alpaca-adpt
-    execution-bus -> broker-sim-adpt
-    execution-bus -> execution-adpt
-    execution-adpt -> investor-bus
-    execution-adpt -> ledger-bus
-    execution-adpt -> advisory-bus
-    execution-bus -> execution-ctrl
+    broker-ctrl -> execution-bus: Events
+    execution-bus -> execution-hub: Events
+    execution-bus -> broker-alpaca-adpt: Events
+    execution-bus -> broker-sim-adpt: Events
+    execution-bus -> execution-adpt: Events
+    execution-adpt -> investor-bus: Bridge
+    execution-adpt -> ledger-bus: Bridge
+    execution-adpt -> advisory-bus: Bridge
+    execution-bus -> execution-ctrl: Events
+    ext-alpaca: "Alpaca" {
+      class: external
+    }
+    broker-alpaca-adpt -> ext-alpaca
+
+    ext-sim: "Sim" {
+      class: external
+    }
+    broker-sim-adpt -> ext-sim
+
 
     layers: {
       c3-broker-alpaca-adpt: { ...@./c3/broker-alpaca-adpt.d2 }
@@ -417,39 +452,39 @@ layers: {
       style: { font-size: 42; bold: true; fill: transparent; stroke: transparent }
     }
 
-    investor-web: "investor-web" {
+    investor-web: "Investor Web\n[Event-Driven Service]" {
       class: frontend
       link: layers.c3-investor-web
     }
 
-    dashboard-bff: "dashboard-bff" {
+    dashboard-bff: "Dashboard BFF\n[AppSync GraphQL]" {
       class: service
       link: layers.c3-dashboard-bff
     }
 
-    investor-bff: "investor-bff" {
+    investor-bff: "Investor BFF\n[AppSync GraphQL]" {
       class: service
       link: layers.c3-investor-bff
     }
 
-    investor-ctrl: "investor-ctrl" {
+    investor-ctrl: "Investor Controller\n[Event-Driven Service]" {
       class: service
       link: layers.c3-investor-ctrl
     }
 
-    onboarding-bff: "onboarding-bff" {
+    onboarding-bff: "Onboarding BFF\n[LangGraph Agent · Bedrock RAG]" {
       class: service
       link: layers.c3-onboarding-bff
     }
 
     investor-bus: "investor-bus\n[EventBridge]" {class: bus}
 
-    investor-hub: "investor-hub" {
+    investor-hub: "Investor Hub\n[Event-Driven Service]" {
       class: service
       link: layers.c3-investor-hub
     }
 
-    investor-adpt: "investor-adpt" {
+    investor-adpt: "Investor Adapter\n[Cross-Domain Bridge]" {
       class: adapter
       link: layers.c3-investor-adpt
     }
@@ -458,13 +493,13 @@ layers: {
 
     execution-bus: "execution-bus\n[EventBridge]" {class: bus}
 
-    investor-bff -> investor-bus
-    investor-ctrl -> investor-bus
-    onboarding-bff -> investor-bus
-    investor-bus -> investor-hub
-    investor-bus -> investor-adpt
-    investor-adpt -> advisory-bus
-    investor-adpt -> execution-bus
+    investor-bff -> investor-bus: Events
+    investor-ctrl -> investor-bus: Events
+    onboarding-bff -> investor-bus: Events
+    investor-bus -> investor-hub: Events
+    investor-bus -> investor-adpt: Events
+    investor-adpt -> advisory-bus: Bridge
+    investor-adpt -> execution-bus: Bridge
 
     layers: {
       c3-dashboard-bff: { ...@./c3/dashboard-bff.d2 }
@@ -487,29 +522,29 @@ layers: {
       style: { font-size: 42; bold: true; fill: transparent; stroke: transparent }
     }
 
-    ledger-bff: "ledger-bff" {
+    ledger-bff: "Ledger BFF\n[AppSync GraphQL]" {
       class: service
       link: layers.c3-ledger-bff
     }
 
-    ledger-ctrl: "ledger-ctrl" {
+    ledger-ctrl: "Ledger Controller\n[Event-Driven Service]" {
       class: service
       link: layers.c3-ledger-ctrl
     }
 
-    reconciliation-ctrl: "reconciliation-ctrl" {
+    reconciliation-ctrl: "Reconciliation Controller\n[Event-Driven Service]" {
       class: service
       link: layers.c3-reconciliation-ctrl
     }
 
     ledger-bus: "ledger-bus\n[EventBridge]" {class: bus}
 
-    ledger-hub: "ledger-hub" {
+    ledger-hub: "Ledger Hub\n[Event-Driven Service]" {
       class: service
       link: layers.c3-ledger-hub
     }
 
-    ledger-adpt: "ledger-adpt" {
+    ledger-adpt: "Ledger Adapter\n[Cross-Domain Bridge]" {
       class: adapter
       link: layers.c3-ledger-adpt
     }
@@ -518,12 +553,12 @@ layers: {
 
     advisory-bus: "advisory-bus\n[EventBridge]" {class: bus}
 
-    ledger-ctrl -> ledger-bus
-    reconciliation-ctrl -> ledger-bus
-    ledger-bus -> ledger-hub
-    ledger-bus -> ledger-adpt
-    ledger-adpt -> investor-bus
-    ledger-adpt -> advisory-bus
+    ledger-ctrl -> ledger-bus: Events
+    reconciliation-ctrl -> ledger-bus: Events
+    ledger-bus -> ledger-hub: Events
+    ledger-bus -> ledger-adpt: Events
+    ledger-adpt -> investor-bus: Bridge
+    ledger-adpt -> advisory-bus: Bridge
 
     layers: {
       c3-ledger-adpt: { ...@./c3/ledger-adpt.d2 }

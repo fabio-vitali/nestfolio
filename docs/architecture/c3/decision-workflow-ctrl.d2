@@ -1,6 +1,6 @@
 direction: down
 
-title: "decision-workflow-ctrl" {
+title: "Decision Workflow Controller\n[Step Functions · Agent Memory]" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
@@ -11,8 +11,9 @@ trigger-ingress: "TriggerIngress" {
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
 
-  rule -> sqs -> handler
-  sqs -> dlq
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
 }
 
 callback-ingress: "CallbackIngress" {
@@ -22,15 +23,16 @@ callback-ingress: "CallbackIngress" {
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
 
-  rule -> sqs -> handler
-  sqs -> dlq
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
 }
 
 state: "State" {
   style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
   table: "DynamoDB Table" { class: aws-dynamodb }
   stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
-  table -> stream
+  table -> stream: CDC
 }
 
 egress: "Egress" {
@@ -39,7 +41,7 @@ egress: "Egress" {
   bus: "EventBridge\n[advisory-bus]" { class: aws-eventbridge }
   dlq: "DLQ" { class: aws-dlq }
 
-  processor -> bus
+  processor -> bus: Publish
 }
 
 decision-state-machine: "Orchestration" {
@@ -56,9 +58,9 @@ agent-memory: "AgentCore Memory" {
 assemble-packet: "Lambda\n[AssemblePacket]" { class: aws-lambda }
 
 # Flows
-trigger-ingress.handler -> state.table
-callback-ingress.handler -> state.table
-state.stream -> egress.processor
-trigger-ingress.handler -> decision-state-machine.state-machine
-decision-state-machine.state-machine -> state.table
-decision-state-machine.state-machine -> agent-memory.memory
+trigger-ingress.handler -> state.table: Read/Write
+callback-ingress.handler -> state.table: Read/Write
+state.stream -> egress.processor: Trigger
+trigger-ingress.handler -> decision-state-machine.state-machine: Execute
+decision-state-machine.state-machine -> state.table: Read/Write
+decision-state-machine.state-machine -> agent-memory.memory: Store
