@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { discoverServices, parseStack, generateC3, generateC2, generateC1, generateGlobalStyles, serviceLabel } from '../../tools/generate-c4-sources.mjs';
+import { discoverServices, parseStack, generateC3, generateC2, generateC1, generateGlobalStyles, serviceLabel, serviceSubtitle } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -228,6 +228,94 @@ describe('serviceLabel', () => {
 
   it('title-cases multi-segment names without known suffix', () => {
     assert.equal(serviceLabel('investor-web'), 'Investor Web');
+  });
+});
+
+describe('serviceSubtitle', () => {
+  it('returns tags for Facade with JS resolvers', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withTable: true, withBucket: false }],
+        ingress: [{ id: 'Ingress', eventTypes: [] }],
+        egress: [{ id: 'Egress', publishableTypes: [] }],
+        facade: [{ id: 'Facade', hasJsResolvers: true, hasLambdaResolvers: false }],
+        orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    assert.equal(serviceSubtitle(parsed), 'AppSync GraphQL');
+  });
+
+  it('returns multiple tags joined with dot separator', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withTable: true, withBucket: false }],
+        ingress: [],
+        egress: [],
+        facade: [{ id: 'Facade', hasJsResolvers: true, hasLambdaResolvers: false }],
+        orchestration: [],
+        agentRuntime: [{ id: 'Agent', hasToolTargets: false }],
+        knowledgeBase: [{ id: 'KB' }],
+        agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    assert.equal(serviceSubtitle(parsed), 'AppSync GraphQL \u00b7 LangGraph Agent \u00b7 Bedrock RAG');
+  });
+
+  it('returns Step Functions tag for orchestration', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withTable: true, withBucket: false }],
+        ingress: [{ id: 'Ingress', eventTypes: [] }],
+        egress: [{ id: 'Egress', publishableTypes: [] }],
+        facade: [],
+        orchestration: [{ id: 'SM', triggers: [] }],
+        agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    assert.equal(serviceSubtitle(parsed), 'Step Functions');
+  });
+
+  it('returns S3 Storage tag for State with bucket', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withTable: true, withBucket: true }],
+        ingress: [{ id: 'Ingress', eventTypes: [] }],
+        egress: [{ id: 'Egress', publishableTypes: [] }],
+        facade: [],
+        orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    assert.equal(serviceSubtitle(parsed), 'S3 Storage');
+  });
+
+  it('returns Cross-Domain Bridge for cross-domain ingress', () => {
+    const parsed = {
+      constructs: {
+        state: [], ingress: [{ id: 'Ingress', eventTypes: [] }],
+        egress: [], facade: [], orchestration: [],
+        agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [{ isCrossDomain: true }], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    assert.equal(serviceSubtitle(parsed), 'Cross-Domain Bridge');
+  });
+
+  it('returns Event-Driven Service fallback for basic services', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withTable: true, withBucket: false }],
+        ingress: [{ id: 'Ingress', eventTypes: [] }],
+        egress: [{ id: 'Egress', publishableTypes: [] }],
+        facade: [], orchestration: [],
+        agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    assert.equal(serviceSubtitle(parsed), 'Event-Driven Service');
   });
 });
 

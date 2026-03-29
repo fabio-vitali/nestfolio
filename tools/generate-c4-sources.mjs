@@ -279,6 +279,43 @@ export function serviceLabel(serviceName) {
   return parts.join(' ');
 }
 
+/**
+ * Build a subtitle from the constructs a service uses.
+ * Returns tags joined with ' · ', or 'Event-Driven Service' as fallback.
+ */
+export function serviceSubtitle(parsed) {
+  const tags = [];
+  const c = parsed.constructs;
+  const r = parsed.raw;
+
+  // Facade
+  for (const f of c.facade) {
+    if (f.hasJsResolvers) tags.push('AppSync GraphQL');
+    else if (f.hasLambdaResolvers) tags.push('AppSync (Lambda)');
+    else tags.push('AppSync GraphQL');
+  }
+
+  // Orchestration
+  if (c.orchestration.length > 0) tags.push('Step Functions');
+
+  // AgentRuntime
+  if (c.agentRuntime.length > 0) tags.push('LangGraph Agent');
+
+  // KnowledgeBase
+  if (c.knowledgeBase.length > 0) tags.push('Bedrock RAG');
+
+  // AgentMemory
+  if (c.agentMemory.length > 0) tags.push('Agent Memory');
+
+  // Cross-domain bridge
+  if (r.rules.some(rule => rule.isCrossDomain)) tags.push('Cross-Domain Bridge');
+
+  // State with bucket (notable — DynamoDB alone is too common to tag)
+  if (c.state.some(s => s.withBucket)) tags.push('S3 Storage');
+
+  return tags.length > 0 ? tags.join(' · ') : 'Event-Driven Service';
+}
+
 function stateBlock(st) {
   const lines = ['state: "State" {', groupStyle('state')];
   if (st.withTable !== false) {
