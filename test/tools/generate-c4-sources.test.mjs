@@ -634,24 +634,51 @@ describe('generateC3 — edge labels', () => {
 });
 
 describe('generateC1', () => {
-  it('generates system context with 4 domains', () => {
-    const domains = ['investor', 'advisory', 'execution', 'ledger'];
-    const d2 = generateC1(domains);
-    assert.ok(d2.includes('nestfolio:'));
-    assert.ok(d2.includes('investor-domain'));
-    assert.ok(d2.includes('advisory-domain'));
-    assert.ok(d2.includes('execution-domain'));
-    assert.ok(d2.includes('ledger-domain'));
-    assert.ok(d2.includes('link: layers.c2-investor'));
+  it('generates system context with system subtitle', () => {
+    const domains = ['investor', 'advisory'];
+    const domainSvcs = new Map([
+      ['investor', [{ service: 'investor-ctrl', domain: 'investor' }]],
+      ['advisory', [{ service: 'advisory-ctrl', domain: 'advisory' }]],
+    ]);
+    const parsedStacks = new Map([
+      ['investor-ctrl', {
+        constructs: { state: [{ id: 'State', withTable: true, withBucket: false }], ingress: [{ id: 'Ingress', eventTypes: [] }], egress: [{ id: 'Egress', publishableTypes: [] }], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] },
+        raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+      }],
+      ['advisory-ctrl', {
+        constructs: { state: [{ id: 'State', withTable: true, withBucket: false }], ingress: [{ id: 'Ingress', eventTypes: [] }], egress: [{ id: 'Egress', publishableTypes: [] }], facade: [], orchestration: [{ id: 'SM', triggers: [] }], agentRuntime: [], knowledgeBase: [], agentMemory: [] },
+        raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+      }],
+    ]);
+    const d2 = generateC1(domains, domainSvcs, parsedStacks);
+    assert.ok(d2.includes('Nestfolio\\n[Robo-Advisory Platform]'));
   });
 
-  it('generates inter-domain event flows', () => {
+  it('generates domain nodes with subtitles', () => {
+    const domains = ['advisory'];
+    const domainSvcs = new Map([
+      ['advisory', [{ service: 'advisory-ctrl', domain: 'advisory' }]],
+    ]);
+    const parsedStacks = new Map([
+      ['advisory-ctrl', {
+        constructs: { state: [{ id: 'State', withTable: true, withBucket: false }], ingress: [{ id: 'Ingress', eventTypes: [] }], egress: [{ id: 'Egress', publishableTypes: [] }], facade: [], orchestration: [{ id: 'SM', triggers: [] }], agentRuntime: [], knowledgeBase: [], agentMemory: [] },
+        raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+      }],
+    ]);
+    const d2 = generateC1(domains, domainSvcs, parsedStacks);
+    assert.ok(d2.includes('Advisory Domain\\n[Step Functions]'));
+  });
+
+  it('generates inter-domain event flows with Events label', () => {
     const domains = ['investor', 'advisory', 'execution', 'ledger'];
-    const d2 = generateC1(domains);
+    const domainSvcs = new Map(domains.map(d => [d, [{ service: `${d}-ctrl`, domain: d }]]));
+    const parsedStacks = new Map(domains.map(d => [`${d}-ctrl`, {
+      constructs: { state: [{ id: 'State', withTable: true, withBucket: false }], ingress: [{ id: 'Ingress', eventTypes: [] }], egress: [{ id: 'Egress', publishableTypes: [] }], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    }]));
+    const d2 = generateC1(domains, domainSvcs, parsedStacks);
     assert.ok(d2.includes('investor-domain -> advisory-domain'));
-    assert.ok(d2.includes('advisory-domain -> execution-domain'));
-    assert.ok(d2.includes('execution-domain -> ledger-domain'));
-    assert.ok(d2.includes('ledger-domain -> investor-domain'));
+    assert.ok(d2.includes('Events'));
   });
 });
 

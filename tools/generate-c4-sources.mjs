@@ -667,6 +667,8 @@ export function generateC3(service, domain, parsed) {
 
 // --- C1 D2 Generator ---
 
+const SYSTEM_SUBTITLE = 'Robo-Advisory Platform';
+
 const DOMAIN_FLOW = [
   ['investor', 'advisory'],
   ['advisory', 'execution'],
@@ -677,19 +679,24 @@ const DOMAIN_FLOW = [
 /**
  * Generate C1 D2 content — system context with domains and inter-domain flows.
  * @param {string[]} domains - List of domain names
+ * @param {Map<string, Array>} [domainServices] - Map of domain → services
+ * @param {Map<string, object>} [parsedStacks] - Map of service → parsed stack
  * @returns {string} D2 source
  */
-export function generateC1(domains) {
+export function generateC1(domains, domainServices, parsedStacks) {
   const lines = [];
 
   lines.push('# Nestfolio System Boundary');
-  lines.push('nestfolio: "Nestfolio" {');
+  lines.push(`nestfolio: "Nestfolio\\n[${SYSTEM_SUBTITLE}]" {`);
   lines.push('  class: system');
   lines.push('');
 
   for (const d of domains) {
     const title = d.charAt(0).toUpperCase() + d.slice(1);
-    lines.push(`  ${d}-domain: "${title} Domain" {`);
+    const svcs = domainServices?.get(d) || [];
+    const sub = parsedStacks ? domainSubtitle(svcs, parsedStacks) : '';
+    const label = sub ? `${title} Domain\\n[${sub}]` : `${title} Domain`;
+    lines.push(`  ${d}-domain: "${label}" {`);
     lines.push('    class: domain');
     lines.push(`    link: layers.c2-${d}`);
     lines.push('  }');
@@ -702,7 +709,7 @@ export function generateC1(domains) {
   // Internal flows
   lines.push('  investor-web -> investor-domain {style.font-size: 28}');
   for (const [from, to] of DOMAIN_FLOW) {
-    lines.push(`  ${from}-domain -> ${to}-domain {style.stroke: "#999999"; style.font-size: 28}`);
+    lines.push(`  ${from}-domain -> ${to}-domain: Events {style.stroke: "#999999"; style.font-size: 28}`);
   }
   lines.push('}');
 
@@ -1058,7 +1065,7 @@ function main() {
     '# LAYER: C1 — System Context',
     '# ===========================================================================',
     '',
-    generateC1(domains),
+    generateC1(domains, domainServices, parsedStacks),
     '',
     '# ===========================================================================',
     '# LAYERS',
