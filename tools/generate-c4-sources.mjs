@@ -542,7 +542,9 @@ export function generateC3(service, domain, parsed) {
   lines.push('');
 
   // Title
-  lines.push(`title: "${service}" {`);
+  const label = serviceLabel(service);
+  const subtitle = serviceSubtitle(parsed);
+  lines.push(`title: "${label}\\n[${subtitle}]" {`);
   lines.push('  style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }');
   lines.push('}');
   lines.push('');

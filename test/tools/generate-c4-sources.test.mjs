@@ -732,3 +732,35 @@ describe('integration', () => {
     assert.ok(!investorAdpt.includes('state: "State"')); // Adapters have no state
   });
 });
+
+describe('generateC3 — service title', () => {
+  it('emits human-readable label and subtitle in title block', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withTable: true, withBucket: false }],
+        ingress: [{ id: 'Ingress', eventTypes: [] }],
+        egress: [{ id: 'Egress', publishableTypes: [] }],
+        facade: [], orchestration: [{ id: 'SM', triggers: [] }],
+        agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    const d2 = generateC3('broker-ctrl', 'execution', parsed);
+    assert.ok(d2.includes('title: "Broker Controller\\n[Step Functions]"'));
+  });
+
+  it('emits fallback subtitle for basic service', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withTable: true, withBucket: false }],
+        ingress: [{ id: 'Ingress', eventTypes: [] }],
+        egress: [{ id: 'Egress', publishableTypes: [] }],
+        facade: [], orchestration: [],
+        agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    const d2 = generateC3('investor-ctrl', 'investor', parsed);
+    assert.ok(d2.includes('title: "Investor Controller\\n[Event-Driven Service]"'));
+  });
+});
