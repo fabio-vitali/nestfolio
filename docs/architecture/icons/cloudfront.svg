@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="cfBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8C4FFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7B1FA2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="8" ry="8" fill="url(#cfBg)" />
+  <!-- Globe outline -->
+  <circle cx="32" cy="30" r="16" fill="none" stroke="white" stroke-width="2" />
+  <!-- Globe horizontal lines -->
+  <ellipse cx="32" cy="30" rx="16" ry="6" fill="none" stroke="white" stroke-width="1.2" opacity="0.6" />
+  <ellipse cx="32" cy="30" rx="16" ry="12" fill="none" stroke="white" stroke-width="1.2" opacity="0.6" />
+  <!-- Globe vertical meridian -->
+  <ellipse cx="32" cy="30" rx="6" ry="16" fill="none" stroke="white" stroke-width="1.2" opacity="0.6" />
+  <!-- Lightning bolt (CDN speed) -->
+  <polygon points="38,42 34,48 36,48 33,54 42,46 38,46 42,42" fill="white" opacity="0.9" />
+  <!-- CF text -->
+  <text x="32" y="56" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="white" text-anchor="middle" opacity="0.7">CF</text>
+</svg>
