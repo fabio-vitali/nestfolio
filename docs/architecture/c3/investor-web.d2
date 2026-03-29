@@ -1,0 +1,16 @@
+direction: down
+
+title: "investor-web" {
+  style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
+}
+
+cognito: "Cognito UserPool" { class: aws-cognito }
+cdn: "CloudFront" { class: aws-cloudfront }
+assets: "S3 Bucket" { class: aws-s3 }
+post-confirmation: "Lambda\n[PostConfirmation]" { class: aws-lambda }
+post-authentication: "Lambda\n[PostAuthentication]" { class: aws-lambda }
+
+cdn -> assets
+cognito -> post-confirmation
+cognito -> post-authentication
+# Flows

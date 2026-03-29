@@ -299,10 +299,10 @@ There are three layers of verification:
 **Pre-commit hook** (`scripts/verify-structure.sh`). Runs in ~3-8 seconds with no API calls.
 Scoped to services with staged changes. Checks:
 - `project.json` exists with required targets
-- `cdk/service.stack.ts` exists
+- `src/service.stack.ts` exists
 - `test/` directory exists
 - No imports from `services/` (only `libs/`)
-- Service name follows `-ctrl`, `-bff`, `-hub`, or `-adpt` suffix convention
+- Service name follows `-ctrl`, `-bff`, `-hub`, `-adpt`, or `-web` suffix convention
 - Service card (CLAUDE.md) exists (warning only, non-blocking)
 - Shows `nx affected` blast radius for the staged changes
 

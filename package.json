@@ -10,6 +10,7 @@
   },
   "packageManager": "pnpm@10.30.3",
   "scripts": {
+    "prepare": "test -d .git/hooks && cp scripts/verify-structure.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit || true",
     "build": "nx run-many -t build",
     "test": "nx run-many -t test",
     "lint": "nx run-many -t lint",
