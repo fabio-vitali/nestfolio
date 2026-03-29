@@ -558,3 +558,129 @@ export function generateC3(service, domain, parsed) {
 
   return lines.join('\n');
 }
+
+/**
+ * Generate C2 D2 layer for a domain.
+ * @param {string} domain - Domain name
+ * @param {Array} services - Services in this domain
+ * @param {Map} parsedStacks - Map of serviceName → parsed stack
+ * @returns {string} D2 layer content
+ */
+export function generateC2(domain, services, parsedStacks) {
+  const lines = [];
+  const title = domain.charAt(0).toUpperCase() + domain.slice(1);
+
+  lines.push(`  c2-${domain}: {`);
+  lines.push('    direction: down');
+  lines.push('');
+  lines.push(`    title: "${title} Domain" {`);
+  lines.push('      style: { font-size: 42; bold: true; fill: transparent; stroke: transparent }');
+  lines.push('    }');
+  lines.push('');
+
+  // Classify services
+  const hubs = [];
+  const adapters = [];
+  const frontends = [];
+  const regular = [];
+
+  for (const svc of services) {
+    const parsed = parsedStacks.get(svc.service);
+    if (!parsed) continue;
+
+    const isHub = parsed.raw.eventBuses.length > 0;
+    const isCrossDomainAdapter = parsed.raw.rules.some(r => r.isCrossDomain);
+    const isDataAdapter = parsed.raw.schedules.length > 0 || (svc.service.endsWith('-adpt') && parsed.constructs.state.length > 0);
+    const isFrontend = parsed.raw.distributions.length > 0 || svc.service.endsWith('-web');
+
+    if (isHub) hubs.push(svc);
+    else if (isCrossDomainAdapter) adapters.push(svc);
+    else if (isDataAdapter) adapters.push(svc);
+    else if (isFrontend) frontends.push(svc);
+    else regular.push(svc);
+  }
+
+  // Frontends
+  for (const svc of frontends) {
+    lines.push(`    ${svc.service}: "${svc.service}" {`);
+    lines.push('      class: frontend');
+    lines.push(`      link: layers.c3-${svc.service}`);
+    lines.push('    }');
+    lines.push('');
+  }
+
+  // Regular services
+  for (const svc of regular) {
+    lines.push(`    ${svc.service}: "${svc.service}" {`);
+    lines.push('      class: service');
+    lines.push(`      link: layers.c3-${svc.service}`);
+    lines.push('    }');
+    lines.push('');
+  }
+
+  // Domain bus
+  lines.push(`    ${domain}-bus: "${domain}-bus\\n[EventBridge]" {class: bus}`);
+  lines.push('');
+
+  // Hub
+  for (const svc of hubs) {
+    lines.push(`    ${svc.service}: "${svc.service}" {`);
+    lines.push('      class: service');
+    lines.push(`      link: layers.c3-${svc.service}`);
+    lines.push('    }');
+    lines.push('');
+  }
+
+  // Adapters
+  for (const svc of adapters) {
+    lines.push(`    ${svc.service}: "${svc.service}" {`);
+    lines.push('      class: adapter');
+    lines.push(`      link: layers.c3-${svc.service}`);
+    lines.push('    }');
+    lines.push('');
+    const parsed = parsedStacks.get(svc.service);
+    if (parsed) {
+      for (const targetDomain of parsed.raw.resolvedBuses) {
+        if (targetDomain !== domain) {
+          lines.push(`    ${targetDomain}-bus: "${targetDomain}-bus\\n[EventBridge]" {class: bus}`);
+          lines.push('');
+        }
+      }
+    }
+  }
+
+  // Flows
+  for (const svc of regular) {
+    const parsed = parsedStacks.get(svc.service);
+    if (!parsed) continue;
+    if (parsed.constructs.egress.length > 0) {
+      lines.push(`    ${svc.service} -> ${domain}-bus`);
+    }
+  }
+  for (const svc of hubs) {
+    lines.push(`    ${domain}-bus -> ${svc.service}`);
+  }
+  for (const svc of adapters) {
+    lines.push(`    ${domain}-bus -> ${svc.service}`);
+    const parsed = parsedStacks.get(svc.service);
+    if (parsed) {
+      for (const targetDomain of parsed.raw.resolvedBuses) {
+        if (targetDomain !== domain) {
+          lines.push(`    ${svc.service} -> ${targetDomain}-bus`);
+        }
+      }
+    }
+  }
+
+  lines.push('');
+
+  // Layer imports
+  lines.push('    layers: {');
+  for (const svc of services) {
+    lines.push(`      c3-${svc.service}: { ...@./c3/${svc.service}.d2 }`);
+  }
+  lines.push('    }');
+  lines.push('  }');
+
+  return lines.join('\n');
+}

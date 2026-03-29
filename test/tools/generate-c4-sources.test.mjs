@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { discoverServices, parseStack, generateC3 } from '../../tools/generate-c4-sources.mjs';
+import { discoverServices, parseStack, generateC3, generateC2 } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -358,5 +358,32 @@ describe('generateC3 — raw resources', () => {
     const d2 = generateC3('investor-web', 'investor', parsed);
     assert.ok(d2.includes('class: aws-cognito'));
     assert.ok(d2.includes('class: aws-s3'));
+  });
+});
+
+describe('generateC2', () => {
+  it('generates domain container with services and bus', () => {
+    const services = [
+      { service: 'investor-ctrl', domain: 'investor' },
+      { service: 'investor-bff', domain: 'investor' },
+      { service: 'investor-hub', domain: 'investor' },
+      { service: 'investor-adpt', domain: 'investor' },
+    ];
+    const parsedStacks = new Map([
+      ['investor-ctrl', { constructs: { state: [{ id: 'State' }], ingress: [{}], egress: [{}], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] }, raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] } }],
+      ['investor-bff', { constructs: { state: [{ id: 'State' }], ingress: [], egress: [], facade: [{ id: 'Facade' }], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] }, raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] } }],
+      ['investor-hub', { constructs: { state: [], ingress: [], egress: [], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] }, raw: { eventBuses: [{ id: 'InvestorBus' }], archives: [{}], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] } }],
+      ['investor-adpt', { constructs: { state: [], ingress: [], egress: [], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] }, raw: { eventBuses: [], archives: [], rules: [{ isCrossDomain: true }], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: ['advisory'] } }],
+    ]);
+    const d2 = generateC2('investor', services, parsedStacks);
+    assert.ok(d2.includes('Investor Domain'));
+    assert.ok(d2.includes('investor-ctrl'));
+    assert.ok(d2.includes('class: service'));
+    assert.ok(d2.includes('investor-bus'));
+    assert.ok(d2.includes('class: bus'));
+    assert.ok(d2.includes('investor-adpt'));
+    assert.ok(d2.includes('class: adapter'));
+    assert.ok(d2.includes('link: layers.c3-investor-ctrl'));
+    assert.ok(d2.includes('...@./c3/investor-ctrl.d2'));
   });
 });
