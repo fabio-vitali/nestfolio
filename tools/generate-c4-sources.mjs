@@ -335,6 +335,29 @@ export function domainSubtitle(services, parsedStacks) {
   return [...allTags].join(' · ');
 }
 
+const KNOWN_DOMAINS = ['investor', 'advisory', 'execution', 'ledger'];
+
+/**
+ * Detect external systems from adapter service names.
+ * Convention: {role}-{external}-adpt where the last segment before -adpt
+ * identifies the external system if it isn't a known domain name.
+ * Cross-domain adapters like execution-adpt (where the only segment is a domain) are skipped.
+ * Returns [{ name: 'Alpaca', service: 'broker-alpaca-adpt' }, ...]
+ */
+export function detectExternalSystems(services) {
+  const externals = [];
+  for (const svc of services) {
+    if (!svc.service.endsWith('-adpt')) continue;
+    const parts = svc.service.replace(/-adpt$/, '').split('-');
+    const lastPart = parts[parts.length - 1];
+    if (!KNOWN_DOMAINS.includes(lastPart)) {
+      const name = lastPart.charAt(0).toUpperCase() + lastPart.slice(1);
+      externals.push({ name, service: svc.service });
+    }
+  }
+  return externals;
+}
+
 function stateBlock(st) {
   const lines = ['state: "State" {', groupStyle('state')];
   if (st.withTable !== false) {

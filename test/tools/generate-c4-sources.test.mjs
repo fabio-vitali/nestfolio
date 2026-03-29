@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { discoverServices, parseStack, generateC3, generateC2, generateC1, generateGlobalStyles, serviceLabel, serviceSubtitle, domainSubtitle } from '../../tools/generate-c4-sources.mjs';
+import { discoverServices, parseStack, generateC3, generateC2, generateC1, generateGlobalStyles, serviceLabel, serviceSubtitle, domainSubtitle, detectExternalSystems } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -370,6 +370,38 @@ describe('domainSubtitle', () => {
     const services = [{ service: 'ledger-ctrl', domain: 'ledger' }];
     const subtitle = domainSubtitle(services, parsedStacks);
     assert.equal(subtitle, '');
+  });
+});
+
+describe('detectExternalSystems', () => {
+  it('detects external system from adapter name with non-domain segment', () => {
+    const services = [
+      { service: 'broker-alpaca-adpt', domain: 'execution' },
+      { service: 'broker-sim-adpt', domain: 'execution' },
+      { service: 'execution-adpt', domain: 'execution' },
+    ];
+    const externals = detectExternalSystems(services);
+    assert.ok(externals.some(e => e.name === 'Alpaca'));
+    assert.ok(externals.some(e => e.name === 'Sim'));
+    assert.ok(!externals.some(e => e.service === 'execution-adpt'));
+  });
+
+  it('returns empty array when all adapters are cross-domain', () => {
+    const services = [
+      { service: 'investor-adpt', domain: 'investor' },
+      { service: 'ledger-adpt', domain: 'ledger' },
+    ];
+    const externals = detectExternalSystems(services);
+    assert.equal(externals.length, 0);
+  });
+
+  it('ignores non-adapter services', () => {
+    const services = [
+      { service: 'investor-ctrl', domain: 'investor' },
+      { service: 'investor-bff', domain: 'investor' },
+    ];
+    const externals = detectExternalSystems(services);
+    assert.equal(externals.length, 0);
   });
 });
 
