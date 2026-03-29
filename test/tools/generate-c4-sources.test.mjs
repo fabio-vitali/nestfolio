@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { discoverServices, parseStack } from '../../tools/generate-c4-sources.mjs';
+import { discoverServices, parseStack, generateC3 } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -205,5 +205,97 @@ describe('parseStack — raw resources', () => {
     const src = `new AdapterSchedule(this, 'FetchSchedule', { target: fetchTrigger });`;
     const result = parseStack(src);
     assert.equal(result.raw.schedules.length, 1);
+  });
+});
+
+describe('generateC3', () => {
+  it('generates State group with DynamoDB + stream', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withBucket: false, withTable: true }],
+        ingress: [], egress: [], facade: [], orchestration: [],
+        agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [],
+             buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    const d2 = generateC3('investor-ctrl', 'investor', parsed);
+    assert.ok(d2.includes('state: "State"'));
+    assert.ok(d2.includes('class: aws-dynamodb'));
+    assert.ok(d2.includes('class: aws-ddb-stream'));
+    assert.ok(d2.includes('table -> stream'));
+  });
+
+  it('generates Ingress group with EB Rule + SQS + Lambda + DLQ', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withBucket: false, withTable: true }],
+        ingress: [{ id: 'Ingress', eventTypes: ['EVT_A', 'EVT_B'] }],
+        egress: [], facade: [], orchestration: [],
+        agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [],
+             buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    const d2 = generateC3('investor-ctrl', 'investor', parsed);
+    assert.ok(d2.includes('ingress: "Ingress"'));
+    assert.ok(d2.includes('class: aws-eventbridge'));
+    assert.ok(d2.includes('class: aws-sqs'));
+    assert.ok(d2.includes('class: aws-lambda'));
+    assert.ok(d2.includes('class: aws-dlq'));
+    assert.ok(d2.includes('2 events'));
+  });
+
+  it('generates multiple Ingress groups with unique names', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withBucket: false, withTable: true }],
+        ingress: [
+          { id: 'ModeIngress', eventTypes: ['MODE_CHANGED'] },
+          { id: 'CallbackIngress', eventTypes: ['FILLED', 'REJECTED'] },
+        ],
+        egress: [], facade: [], orchestration: [],
+        agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [],
+             buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    const d2 = generateC3('broker-ctrl', 'execution', parsed);
+    assert.ok(d2.includes('mode-ingress: "ModeIngress"'));
+    assert.ok(d2.includes('callback-ingress: "CallbackIngress"'));
+  });
+
+  it('generates Facade group with AppSync', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withBucket: false, withTable: true }],
+        ingress: [],
+        egress: [],
+        facade: [{ id: 'Facade', hasJsResolvers: true, hasLambdaResolvers: false }],
+        orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [],
+             buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    const d2 = generateC3('investor-bff', 'investor', parsed);
+    assert.ok(d2.includes('facade: "Facade"'));
+    assert.ok(d2.includes('class: aws-appsync'));
+    assert.ok(d2.includes('class: aws-ssm'));
+  });
+
+  it('generates Orchestration group with Step Functions', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withBucket: false, withTable: true }],
+        ingress: [], egress: [],  facade: [],
+        orchestration: [{ id: 'OrderStateMachine', triggers: ['ORDER_SUBMITTED'] }],
+        agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [],
+             buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    const d2 = generateC3('broker-ctrl', 'execution', parsed);
+    assert.ok(d2.includes('order-state-machine: "Orchestration"'));
+    assert.ok(d2.includes('class: aws-stepfunctions'));
   });
 });

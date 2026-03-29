@@ -232,3 +232,264 @@ export function parseStack(src) {
 
   return result;
 }
+
+// --- C3 D2 Generator ---
+
+const COLORS = {
+  facade:        { fill: '#F3E5F5', stroke: '#9C27B0' },
+  ingress:       { fill: '#FFF8E1', stroke: '#FFC107' },
+  state:         { fill: '#E3F2FD', stroke: '#2196F3' },
+  egress:        { fill: '#FBE9E7', stroke: '#FF5722' },
+  orchestration: { fill: '#E8F5E9', stroke: '#4CAF50' },
+  agentRuntime:  { fill: '#E8F5E9', stroke: '#4CAF50' },
+  knowledgeBase: { fill: '#FFF3E0', stroke: '#FF9800' },
+  agentMemory:   { fill: '#E0F2F1', stroke: '#00695C' },
+};
+
+function groupStyle(type) {
+  const c = COLORS[type];
+  return `  style: { fill: "${c.fill}"; stroke: "${c.stroke}"; border-radius: 12; font-size: 28 }`;
+}
+
+function toD2Id(id) {
+  return id.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+}
+
+function stateBlock(st) {
+  const lines = ['state: "State" {', groupStyle('state')];
+  if (st.withTable !== false) {
+    lines.push('  table: "DynamoDB Table" { class: aws-dynamodb }');
+    lines.push('  stream: "DynamoDB Stream\\n[CDC]" { class: aws-ddb-stream }');
+    lines.push('  table -> stream');
+  }
+  if (st.withBucket) {
+    lines.push('  bucket: "S3 Bucket" { class: aws-s3 }');
+  }
+  lines.push('}', '');
+  return lines;
+}
+
+function ingressBlock(blockId, ing) {
+  const evtLabel = ing.eventTypes.length > 0 ? `\\n[${ing.eventTypes.length} events]` : '';
+  return [
+    `${blockId}: "${ing.id}" {`,
+    groupStyle('ingress'),
+    `  rule: "EventBridge Rule${evtLabel}" { class: aws-eventbridge }`,
+    '  sqs: "SQS Queue" { class: aws-sqs }',
+    '  dlq: "DLQ" { class: aws-dlq }',
+    '  handler: "Lambda" { class: aws-lambda }',
+    '',
+    '  rule -> sqs -> handler',
+    '  sqs -> dlq',
+    '}',
+    '',
+  ];
+}
+
+function egressBlock(eg, domain) {
+  return [
+    'egress: "Egress" {',
+    groupStyle('egress'),
+    '  processor: "Lambda" { class: aws-lambda }',
+    `  bus: "EventBridge\\n[${domain}-bus]" { class: aws-eventbridge }`,
+    '  dlq: "DLQ" { class: aws-dlq }',
+    '',
+    '  processor -> bus',
+    '}',
+    '',
+  ];
+}
+
+function facadeBlock(f) {
+  const lines = [
+    'facade: "Facade" {',
+    groupStyle('facade'),
+    '  appsync: "AppSync API" { class: aws-appsync }',
+  ];
+  if (f.hasJsResolvers) {
+    lines.push('  resolvers: "JS Resolvers" { class: aws-lambda }');
+    lines.push('  appsync -> resolvers');
+  }
+  lines.push('  ssm: "SSM Parameters" { class: aws-ssm }');
+  lines.push('}', '');
+  return lines;
+}
+
+function orchestrationBlock(blockId, orch) {
+  return [
+    `${blockId}: "Orchestration" {`,
+    groupStyle('orchestration'),
+    `  state-machine: "Step Functions\\n[${orch.id}]" { class: aws-stepfunctions }`,
+    '  dlq: "DLQ" { class: aws-dlq }',
+    '}',
+    '',
+  ];
+}
+
+function agentRuntimeBlock(ar) {
+  const lines = [
+    'agent-runtime: "AgentRuntime" {',
+    groupStyle('agentRuntime'),
+    '  runtime: "Bedrock AgentCore" { class: aws-bedrock }',
+  ];
+  if (ar.hasToolTargets) {
+    lines.push('  gateway: "MCP Gateway" { class: aws-lambda }');
+    lines.push('  runtime -> gateway');
+  }
+  lines.push('}', '');
+  return lines;
+}
+
+function knowledgeBaseBlock(kb) {
+  return [
+    'knowledge-base: "KnowledgeBase" {',
+    groupStyle('knowledgeBase'),
+    '  kb: "Bedrock Knowledge Base" { class: aws-bedrock }',
+    '  s3: "S3 Bucket" { class: aws-s3 }',
+    '  s3 -> kb',
+    '}',
+    '',
+  ];
+}
+
+function agentMemoryBlock(mem) {
+  return [
+    'agent-memory: "AgentCore Memory" {',
+    groupStyle('agentMemory'),
+    '  memory: "Bedrock AgentCore\\n[Memory]" { class: aws-bedrock }',
+    '}',
+    '',
+  ];
+}
+
+function generateC3Flows(c, r, domain) {
+  const flows = [];
+  const hasState = c.state.length > 0 && c.state[0].withTable !== false;
+
+  // Facade → State
+  if (c.facade.length > 0 && hasState) {
+    const f = c.facade[0];
+    const facadeNode = (f.hasJsResolvers || f.hasLambdaResolvers) ? 'facade.resolvers' : 'facade.appsync';
+    flows.push(`${facadeNode} -> state.table`);
+  }
+
+  // Ingress → State
+  for (const ing of c.ingress) {
+    const blockId = c.ingress.length === 1 ? 'ingress' : toD2Id(ing.id);
+    if (hasState) {
+      flows.push(`${blockId}.handler -> state.table`);
+    }
+  }
+
+  // State.stream → Egress
+  if (hasState && c.egress.length > 0) {
+    flows.push('state.stream -> egress.processor');
+  }
+
+  // Ingress → Orchestration
+  for (const orch of c.orchestration) {
+    const orchId = toD2Id(orch.id);
+    if (c.ingress.length > 0) {
+      const ingId = c.ingress.length === 1 ? 'ingress' : toD2Id(c.ingress[0].id);
+      flows.push(`${ingId}.handler -> ${orchId}.state-machine`);
+    }
+    if (hasState) {
+      flows.push(`${orchId}.state-machine -> state.table`);
+    }
+  }
+
+  // AgentMemory → Orchestration
+  if (c.agentMemory.length > 0 && c.orchestration.length > 0) {
+    const orchId = toD2Id(c.orchestration[0].id);
+    flows.push(`${orchId}.state-machine -> agent-memory.memory`);
+  }
+
+  // AgentRuntime flows
+  if (c.agentRuntime.length > 0) {
+    if (c.facade.length > 0) {
+      flows.push('facade.appsync -> agent-runtime.runtime');
+    }
+    if (c.knowledgeBase.length > 0) {
+      flows.push('agent-runtime.runtime -> knowledge-base.kb');
+    }
+    if (hasState) {
+      flows.push('agent-runtime.runtime -> state.table');
+    }
+  }
+
+  return flows;
+}
+
+/**
+ * Generate C3 D2 content for a single service.
+ * @param {string} service - Service name
+ * @param {string} domain - Domain name
+ * @param {object} parsed - Output of parseStack()
+ * @returns {string} D2 source
+ */
+export function generateC3(service, domain, parsed) {
+  const lines = [];
+  const c = parsed.constructs;
+  const r = parsed.raw;
+
+  // Direction
+  const isAdapter = r.rules.some(rule => rule.isCrossDomain);
+  lines.push(`direction: ${isAdapter ? 'right' : 'down'}`);
+  lines.push('');
+
+  // Title
+  lines.push(`title: "${service}" {`);
+  lines.push('  style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }');
+  lines.push('}');
+  lines.push('');
+
+  // Facade
+  for (const f of c.facade) {
+    lines.push(...facadeBlock(f));
+  }
+
+  // Ingress(es)
+  for (const ing of c.ingress) {
+    const blockId = c.ingress.length === 1 ? 'ingress' : toD2Id(ing.id);
+    lines.push(...ingressBlock(blockId, ing));
+  }
+
+  // State
+  for (const st of c.state) {
+    lines.push(...stateBlock(st));
+  }
+
+  // Egress
+  for (const eg of c.egress) {
+    lines.push(...egressBlock(eg, domain));
+  }
+
+  // Orchestration (always use id-derived blockId — names are meaningful)
+  for (const orch of c.orchestration) {
+    const blockId = toD2Id(orch.id);
+    lines.push(...orchestrationBlock(blockId, orch));
+  }
+
+  // AgentRuntime
+  for (const ar of c.agentRuntime) {
+    lines.push(...agentRuntimeBlock(ar));
+  }
+
+  // KnowledgeBase
+  for (const kb of c.knowledgeBase) {
+    lines.push(...knowledgeBaseBlock(kb));
+  }
+
+  // AgentCore Memory
+  for (const mem of c.agentMemory) {
+    lines.push(...agentMemoryBlock(mem));
+  }
+
+  // --- Raw resources (Task 5) ---
+
+  // --- Flows ---
+  lines.push('# Flows');
+  lines.push(...generateC3Flows(c, r, domain));
+
+  return lines.join('\n');
+}
