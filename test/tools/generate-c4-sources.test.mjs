@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { discoverServices, parseStack, generateC3, generateC2, generateC1, generateGlobalStyles } from '../../tools/generate-c4-sources.mjs';
+import { discoverServices, parseStack, generateC3, generateC2, generateC1, generateGlobalStyles, serviceLabel } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -206,6 +206,28 @@ describe('parseStack — raw resources', () => {
     const src = `new AdapterSchedule(this, 'FetchSchedule', { target: fetchTrigger });`;
     const result = parseStack(src);
     assert.equal(result.raw.schedules.length, 1);
+  });
+});
+
+describe('serviceLabel', () => {
+  it('expands -ctrl suffix', () => {
+    assert.equal(serviceLabel('investor-ctrl'), 'Investor Controller');
+  });
+
+  it('expands -bff suffix', () => {
+    assert.equal(serviceLabel('onboarding-bff'), 'Onboarding BFF');
+  });
+
+  it('expands -hub suffix', () => {
+    assert.equal(serviceLabel('investor-hub'), 'Investor Hub');
+  });
+
+  it('expands -adpt suffix', () => {
+    assert.equal(serviceLabel('broker-alpaca-adpt'), 'Broker Alpaca Adapter');
+  });
+
+  it('title-cases multi-segment names without known suffix', () => {
+    assert.equal(serviceLabel('investor-web'), 'Investor Web');
   });
 });
 

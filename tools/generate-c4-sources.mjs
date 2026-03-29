@@ -258,6 +258,27 @@ function toD2Id(id) {
   return id.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
+const SUFFIX_EXPANSIONS = {
+  ctrl: 'Controller',
+  bff: 'BFF',
+  hub: 'Hub',
+  adpt: 'Adapter',
+};
+
+export function serviceLabel(serviceName) {
+  const parts = serviceName.split('-');
+  const last = parts[parts.length - 1];
+  if (SUFFIX_EXPANSIONS[last]) {
+    parts[parts.length - 1] = SUFFIX_EXPANSIONS[last];
+  } else {
+    parts[parts.length - 1] = last.charAt(0).toUpperCase() + last.slice(1);
+  }
+  for (let i = 0; i < parts.length - 1; i++) {
+    parts[i] = parts[i].charAt(0).toUpperCase() + parts[i].slice(1);
+  }
+  return parts.join(' ');
+}
+
 function stateBlock(st) {
   const lines = ['state: "State" {', groupStyle('state')];
   if (st.withTable !== false) {
