@@ -1,58 +1,45 @@
 direction: down
 
-title: "advisory-bff\n[BFF — AppSync GraphQL]" {
+title: "advisory-bff" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
 facade: "Facade" {
   style: { fill: "#F3E5F5"; stroke: "#9C27B0"; border-radius: 12; font-size: 28 }
-
-  appsync: "AppSync API\n[advisory-bff]" { class: aws-appsync }
-  resolvers: "JS Resolvers\n[VTL-free]" { class: aws-lambda }
+  appsync: "AppSync API" { class: aws-appsync }
+  resolvers: "JS Resolvers" { class: aws-lambda }
+  appsync -> resolvers
   ssm: "SSM Parameters" { class: aws-ssm }
-
-  appsync -> resolvers: "Pipeline resolvers" {style.font-size: 22}
 }
 
 ingress: "Ingress" {
   style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+  rule: "EventBridge Rule\n[5 events]" { class: aws-eventbridge }
+  sqs: "SQS Queue" { class: aws-sqs }
+  dlq: "DLQ" { class: aws-dlq }
+  handler: "Lambda" { class: aws-lambda }
 
-  query: "Lambda\n[QueryHandler]" { class: aws-lambda }
-  query-sqs: "SQS Queue" { class: aws-sqs }
-  query-dlq: "DLQ" { class: aws-dlq }
-  query-rule: "EventBridge Rule\n[GraphQL queries]" { class: aws-eventbridge }
+  rule -> sqs -> handler
+  sqs -> dlq
+}
 
-  query-rule -> query-sqs -> query
-  query-sqs -> query-dlq: "On failure" {style.font-size: 22}
-
-  mutation: "Lambda\n[MutationHandler]" { class: aws-lambda }
-  mutation-sqs: "SQS Queue" { class: aws-sqs }
-  mutation-dlq: "DLQ" { class: aws-dlq }
-  mutation-rule: "EventBridge Rule\n[GraphQL mutations]" { class: aws-eventbridge }
-
-  mutation-rule -> mutation-sqs -> mutation
-  mutation-sqs -> mutation-dlq: "On failure" {style.font-size: 22}
-
-  subscription: "Lambda\n[SubscriptionHandler]" { class: aws-lambda }
-  subscription-sqs: "SQS Queue" { class: aws-sqs }
-  subscription-dlq: "DLQ" { class: aws-dlq }
-  subscription-rule: "EventBridge Rule\n[Subscriptions]" { class: aws-eventbridge }
-
-  subscription-rule -> subscription-sqs -> subscription
-  subscription-sqs -> subscription-dlq: "On failure" {style.font-size: 22}
+state: "State" {
+  style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
+  table: "DynamoDB Table" { class: aws-dynamodb }
+  stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
+  table -> stream
 }
 
 egress: "Egress" {
   style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
-
-  processor: "Lambda\n[StreamProcessor]" { class: aws-lambda }
+  processor: "Lambda" { class: aws-lambda }
   bus: "EventBridge\n[advisory-bus]" { class: aws-eventbridge }
+  dlq: "DLQ" { class: aws-dlq }
 
-  processor -> bus: "Publish events" {style.font-size: 22}
+  processor -> bus
 }
 
 # Flows
-facade.appsync -> ingress.query: "Queries" {style.font-size: 22}
-facade.appsync -> ingress.mutation: "Mutations" {style.font-size: 22}
-ingress.query -> egress.bus: "Read from domain" {style.font-size: 22}
-ingress.mutation -> egress.bus: "Commands to domain" {style.font-size: 22}
+facade.resolvers -> state.table
+ingress.handler -> state.table
+state.stream -> egress.processor

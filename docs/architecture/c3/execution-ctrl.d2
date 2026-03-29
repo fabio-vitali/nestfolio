@@ -1,46 +1,41 @@
 direction: down
 
-title: "execution-ctrl\n[Order Aggregate]" {
+title: "execution-ctrl" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
 ingress: "Ingress" {
   style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+  rule: "EventBridge Rule\n[5 events]" { class: aws-eventbridge }
+  sqs: "SQS Queue" { class: aws-sqs }
+  dlq: "DLQ" { class: aws-dlq }
+  handler: "Lambda" { class: aws-lambda }
 
-  handler-rule: "EventBridge Rule\n[ORDER_* events]" { class: aws-eventbridge }
-  handler-sqs: "SQS Queue" { class: aws-sqs }
-  handler-fn: "Lambda\n[IngressHandler]" { class: aws-lambda }
-  handler-dlq: "DLQ" { class: aws-dlq }
-
-  handler-rule -> handler-sqs -> handler-fn
-  handler-sqs -> handler-dlq: "On failure" {style.font-size: 22}
+  rule -> sqs -> handler
+  sqs -> dlq
 }
 
 state: "State" {
   style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
-
-  table: "DynamoDB Table\n[ExecutionTable]" { class: aws-dynamodb }
+  table: "DynamoDB Table" { class: aws-dynamodb }
   stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
-
   table -> stream
 }
 
 egress: "Egress" {
   style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
-
-  processor: "Lambda\n[StreamProcessor]" { class: aws-lambda }
+  processor: "Lambda" { class: aws-lambda }
   bus: "EventBridge\n[execution-bus]" { class: aws-eventbridge }
+  dlq: "DLQ" { class: aws-dlq }
 
-  processor -> bus: "Publish events" {style.font-size: 22}
+  processor -> bus
 }
 
-facade: "Facade" {
-  style: { fill: "#F3E5F5"; stroke: "#9C27B0"; border-radius: 12; font-size: 28 }
+staged-order-processor: "Lambda\n[StagedOrderProcessor]" { class: aws-lambda }
 
-  ssm: "SSM Parameters\n[Table ARN, Stream ARN]" { class: aws-ssm }
-}
+schedule: "EventBridge Scheduler" { class: aws-eventbridge }
+schedule -> staged-order-processor
 
 # Flows
-ingress.handler-fn -> state.table: "Read/Write" {style.font-size: 22}
-state.stream -> egress.processor: "CDC trigger" {style.font-size: 22}
-state.table -- facade.ssm: "Exports ARNs"
+ingress.handler -> state.table
+state.stream -> egress.processor

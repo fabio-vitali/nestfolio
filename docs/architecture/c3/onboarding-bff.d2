@@ -1,59 +1,42 @@
 direction: down
 
-title: "onboarding-bff\n[LangGraph + CopilotKit — AI Onboarding Wizard]" {
+title: "onboarding-bff" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
-}
-
-facade: "Facade" {
-  style: { fill: "#F3E5F5"; stroke: "#9C27B0"; border-radius: 12; font-size: 28 }
-
-  appsync: "AppSync API\n[onboarding-bff]" { class: aws-appsync }
-  resolvers: "JS Resolvers\n[VTL-free]" { class: aws-lambda }
-  ssm: "SSM Parameters" { class: aws-ssm }
-
-  appsync -> resolvers: "Pipeline resolvers" {style.font-size: 22}
-}
-
-agent: "AgentRuntime" {
-  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
-
-  langgraph: "Lambda\n[LangGraph Agent]" { class: aws-lambda }
-  copilotkit: "CopilotKit\n[UI Integration]" { class: aws-lambda }
-  rag-tool: "Lambda\n[RAG Tool]" { class: aws-lambda }
-
-  langgraph -> rag-tool: "Tool call" {style.font-size: 22}
-}
-
-knowledge: "Knowledge Base" {
-  style: { fill: "#FFF3E0"; stroke: "#FF9800"; border-radius: 12; font-size: 28 }
-
-  kb: "Bedrock Knowledge Base\n[Onboarding Docs]" { class: aws-bedrock }
-  s3: "S3 Bucket\n[KB Source Documents]" { class: aws-s3 }
-
-  s3 -> kb: "Indexed" {style.font-size: 22}
 }
 
 state: "State" {
   style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
-
-  table: "DynamoDB Table\n[OnboardingSessionTable]" { class: aws-dynamodb }
+  table: "DynamoDB Table" { class: aws-dynamodb }
   stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
-
   table -> stream
 }
 
 egress: "Egress" {
   style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
-
-  processor: "Lambda\n[StreamProcessor]" { class: aws-lambda }
+  processor: "Lambda" { class: aws-lambda }
   bus: "EventBridge\n[investor-bus]" { class: aws-eventbridge }
+  dlq: "DLQ" { class: aws-dlq }
 
-  processor -> bus: "Publish events" {style.font-size: 22}
+  processor -> bus
 }
 
+agent-runtime: "AgentRuntime" {
+  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
+  runtime: "Bedrock AgentCore" { class: aws-bedrock }
+  gateway: "MCP Gateway" { class: aws-lambda }
+  runtime -> gateway
+}
+
+knowledge-base: "KnowledgeBase" {
+  style: { fill: "#FFF3E0"; stroke: "#FF9800"; border-radius: 12; font-size: 28 }
+  kb: "Bedrock Knowledge Base" { class: aws-bedrock }
+  s3: "S3 Bucket" { class: aws-s3 }
+  s3 -> kb
+}
+
+search-kb-fn: "Lambda\n[SearchKbFn]" { class: aws-lambda }
+
 # Flows
-facade.appsync -> agent.langgraph: "Conversation turns" {style.font-size: 22}
-agent.langgraph -> agent.copilotkit: "UI suggestions" {style.font-size: 22}
-agent.rag-tool -> knowledge.kb: "RAG queries" {style.font-size: 22}
-agent.langgraph -> state.table: "Save session state" {style.font-size: 22}
-state.stream -> egress.processor: "CDC trigger" {style.font-size: 22}
+state.stream -> egress.processor
+agent-runtime.runtime -> knowledge-base.kb
+agent-runtime.runtime -> state.table

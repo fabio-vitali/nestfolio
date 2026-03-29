@@ -1,46 +1,36 @@
-direction: right
+direction: down
 
-title: "broker-sim-adpt\n[Simulated Broker Adapter]" {
+title: "broker-sim-adpt" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
 ingress: "Ingress" {
   style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+  rule: "EventBridge Rule\n[3 events]" { class: aws-eventbridge }
+  sqs: "SQS Queue" { class: aws-sqs }
+  dlq: "DLQ" { class: aws-dlq }
+  handler: "Lambda" { class: aws-lambda }
 
-  sim-rule: "EventBridge Rule\n[BROKER_ORDER_SUBMIT (sim)]" { class: aws-eventbridge }
-  sim-sqs: "SQS Queue" { class: aws-sqs }
-  sim-fn: "Lambda\n[SimulationHandler]" { class: aws-lambda }
-  sim-dlq: "DLQ" { class: aws-dlq }
-
-  sim-rule -> sim-sqs -> sim-fn
-  sim-sqs -> sim-dlq: "On failure" {style.font-size: 22}
-}
-
-sim-engine: "Simulation Engine" {
-  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
-
-  simulator: "Lambda\n[MarketSimulator]" { class: aws-lambda }
+  rule -> sqs -> handler
+  sqs -> dlq
 }
 
 state: "State" {
   style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
-
-  table: "DynamoDB Table\n[SimulationTable]" { class: aws-dynamodb }
+  table: "DynamoDB Table" { class: aws-dynamodb }
   stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
-
   table -> stream
 }
 
 egress: "Egress" {
   style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
-
-  processor: "Lambda\n[StreamProcessor]" { class: aws-lambda }
+  processor: "Lambda" { class: aws-lambda }
   bus: "EventBridge\n[execution-bus]" { class: aws-eventbridge }
+  dlq: "DLQ" { class: aws-dlq }
 
-  processor -> bus: "Publish events" {style.font-size: 22}
+  processor -> bus
 }
 
 # Flows
-ingress.sim-fn -> sim-engine.simulator: "Simulate fill" {style.font-size: 22}
-sim-engine.simulator -> state.table: "Record sim result" {style.font-size: 22}
-state.stream -> egress.processor: "CDC trigger" {style.font-size: 22}
+ingress.handler -> state.table
+state.stream -> egress.processor

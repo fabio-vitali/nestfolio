@@ -1,65 +1,36 @@
 direction: down
 
-title: "broker-alpaca-adpt\n[Alpaca Brokerage Integration]" {
+title: "broker-alpaca-adpt" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
 ingress: "Ingress" {
   style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+  rule: "EventBridge Rule\n[4 events]" { class: aws-eventbridge }
+  sqs: "SQS Queue" { class: aws-sqs }
+  dlq: "DLQ" { class: aws-dlq }
+  handler: "Lambda" { class: aws-lambda }
 
-  submit: "Lambda\n[SubmitOrderHandler]" { class: aws-lambda }
-  submit-sqs: "SQS Queue" { class: aws-sqs }
-  submit-dlq: "DLQ" { class: aws-dlq }
-  submit-rule: "EventBridge Rule\n[BROKER_ORDER_SUBMIT (live)]" { class: aws-eventbridge }
-
-  submit-rule -> submit-sqs -> submit
-  submit-sqs -> submit-dlq: "On failure" {style.font-size: 22}
-
-  poll-order: "Lambda\n[OrderPoller]" { class: aws-lambda }
-  poll-order-sqs: "SQS Queue" { class: aws-sqs }
-  poll-order-dlq: "DLQ" { class: aws-dlq }
-  poll-order-rule: "EventBridge Rule\n[Scheduled / EventBridge]" { class: aws-eventbridge }
-
-  poll-order-rule -> poll-order-sqs -> poll-order
-  poll-order-sqs -> poll-order-dlq: "On failure" {style.font-size: 22}
-
-  poll-position: "Lambda\n[PositionPoller]" { class: aws-lambda }
-  poll-position-sqs: "SQS Queue" { class: aws-sqs }
-  poll-position-dlq: "DLQ" { class: aws-dlq }
-  poll-position-rule: "EventBridge Rule\n[Scheduled / EventBridge]" { class: aws-eventbridge }
-
-  poll-position-rule -> poll-position-sqs -> poll-position
-  poll-position-sqs -> poll-position-dlq: "On failure" {style.font-size: 22}
+  rule -> sqs -> handler
+  sqs -> dlq
 }
 
 state: "State" {
   style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
-
-  table: "DynamoDB Table\n[AlpacaOrderTable]" { class: aws-dynamodb }
+  table: "DynamoDB Table" { class: aws-dynamodb }
   stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
-
   table -> stream
-}
-
-external: "Alpaca API" {
-  style: { fill: "#FFF3E0"; stroke: "#FF9800"; border-radius: 12; font-size: 28 }
-
-  api: "Alpaca REST API\n[api.alpaca.markets]" { class: external }
 }
 
 egress: "Egress" {
   style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
-
-  processor: "Lambda\n[StreamProcessor]" { class: aws-lambda }
+  processor: "Lambda" { class: aws-lambda }
   bus: "EventBridge\n[execution-bus]" { class: aws-eventbridge }
+  dlq: "DLQ" { class: aws-dlq }
 
-  processor -> bus: "Publish events" {style.font-size: 22}
+  processor -> bus
 }
 
 # Flows
-ingress.submit -> external.api: "POST /orders" {style.font-size: 22}
-ingress.poll-order -> external.api: "GET /orders" {style.font-size: 22}
-ingress.poll-position -> external.api: "GET /positions" {style.font-size: 22}
-ingress.submit -> state.table: "Track order" {style.font-size: 22}
-ingress.poll-order -> state.table: "Update status" {style.font-size: 22}
-state.stream -> egress.processor: "CDC trigger" {style.font-size: 22}
+ingress.handler -> state.table
+state.stream -> egress.processor
