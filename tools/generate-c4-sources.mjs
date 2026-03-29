@@ -1,8 +1,11 @@
-import { readdirSync, existsSync } from 'node:fs';
+import { readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const SERVICES_DIR = join(ROOT, 'services');
+const ARCH_DIR = join(ROOT, 'docs', 'architecture');
+const D2_SOURCE = join(ARCH_DIR, 'nestfolio.d2');
+const C3_DIR = join(ARCH_DIR, 'c3');
 
 /**
  * Scan services/{domain}/{service}/src/service.stack.ts
@@ -910,3 +913,73 @@ export function generateC2(domain, services, parsedStacks) {
 
   return lines.join('\n');
 }
+
+function main() {
+  console.log('Generating C4 D2 sources from CDK stacks...');
+
+  // 1. Discover
+  const services = discoverServices();
+  console.log(`  found: ${services.length} services in ${[...new Set(services.map(s => s.domain))].length} domains`);
+
+  // 2. Parse all stacks
+  const parsedStacks = new Map();
+  for (const svc of services) {
+    const src = readFileSync(svc.stackPath, 'utf-8');
+    parsedStacks.set(svc.service, parseStack(src));
+  }
+  console.log(`  parsed: ${parsedStacks.size} service stacks`);
+
+  // 3. Generate C3 files
+  mkdirSync(C3_DIR, { recursive: true });
+  let c3Count = 0;
+  for (const svc of services) {
+    const parsed = parsedStacks.get(svc.service);
+    if (!parsed) continue;
+    const d2 = generateC3(svc.service, svc.domain, parsed);
+    writeFileSync(join(C3_DIR, `${svc.service}.d2`), d2 + '\n');
+    c3Count++;
+  }
+  console.log(`  wrote: ${c3Count} C3 files to ${C3_DIR}/`);
+
+  // 4. Generate root nestfolio.d2
+  const domains = [...new Set(services.map(s => s.domain))].sort();
+  const domainServices = new Map();
+  for (const d of domains) {
+    domainServices.set(d, services.filter(s => s.domain === d));
+  }
+
+  const parts = [
+    generateGlobalStyles(),
+    '',
+    '# ===========================================================================',
+    '# LAYER: C1 — System Context',
+    '# ===========================================================================',
+    '',
+    generateC1(domains),
+    '',
+    '# ===========================================================================',
+    '# LAYERS',
+    '# ===========================================================================',
+    'layers: {',
+    '',
+  ];
+
+  for (const d of domains) {
+    parts.push('  # =========================================================================');
+    parts.push(`  # C2 — ${d.charAt(0).toUpperCase() + d.slice(1)} Domain`);
+    parts.push('  # =========================================================================');
+    parts.push(generateC2(d, domainServices.get(d), parsedStacks));
+    parts.push('');
+  }
+
+  parts.push('}');
+
+  writeFileSync(D2_SOURCE, parts.join('\n') + '\n');
+  console.log(`  wrote: ${D2_SOURCE}`);
+  console.log('Done. Run `node tools/generate-c4-diagrams.mjs` to compile SVGs.');
+}
+
+// Run if invoked directly
+const isMain = process.argv[1] && new URL(process.argv[1], 'file://').pathname
+  === new URL(import.meta.url).pathname;
+if (isMain) main();
