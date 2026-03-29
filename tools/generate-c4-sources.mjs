@@ -289,20 +289,16 @@ export function serviceSubtitle(parsed) {
   const r = parsed.raw;
 
   // Facade
-  for (const f of c.facade) {
-    if (f.hasJsResolvers) tags.push('AppSync GraphQL');
-    else if (f.hasLambdaResolvers) tags.push('AppSync (Lambda)');
-    else tags.push('AppSync GraphQL');
-  }
+  if (c.facade.length > 0) tags.push('GraphQL API');
 
   // Orchestration
-  if (c.orchestration.length > 0) tags.push('Step Functions');
+  if (c.orchestration.length > 0) tags.push('State Machine');
 
   // AgentRuntime
-  if (c.agentRuntime.length > 0) tags.push('LangGraph Agent');
+  if (c.agentRuntime.length > 0) tags.push('AI Agent');
 
   // KnowledgeBase
-  if (c.knowledgeBase.length > 0) tags.push('Bedrock RAG');
+  if (c.knowledgeBase.length > 0) tags.push('RAG');
 
   // AgentMemory
   if (c.agentMemory.length > 0) tags.push('Agent Memory');
@@ -332,25 +328,26 @@ export function domainSubtitle(services, parsedStacks) {
       }
     }
   }
+  allTags.delete('Cross-Domain Bridge');
   return [...allTags].join(' · ');
 }
-
-const KNOWN_DOMAINS = ['investor', 'advisory', 'execution', 'ledger'];
 
 /**
  * Detect external systems from adapter service names.
  * Convention: {role}-{external}-adpt where the last segment before -adpt
  * identifies the external system if it isn't a known domain name.
  * Cross-domain adapters like execution-adpt (where the only segment is a domain) are skipped.
+ * Domains are derived from the services list itself — no hardcoded list.
  * Returns [{ name: 'Alpaca', service: 'broker-alpaca-adpt' }, ...]
  */
 export function detectExternalSystems(services) {
+  const knownDomains = new Set(services.map(s => s.domain));
   const externals = [];
   for (const svc of services) {
     if (!svc.service.endsWith('-adpt')) continue;
     const parts = svc.service.replace(/-adpt$/, '').split('-');
     const lastPart = parts[parts.length - 1];
-    if (!KNOWN_DOMAINS.includes(lastPart)) {
+    if (!knownDomains.has(lastPart)) {
       const name = lastPart.charAt(0).toUpperCase() + lastPart.slice(1);
       externals.push({ name, service: svc.service });
     }
@@ -941,10 +938,8 @@ export function generateC2(domain, services, parsedStacks) {
 
   // Frontends
   for (const svc of frontends) {
-    const parsed = parsedStacks.get(svc.service);
     const label = serviceLabel(svc.service);
-    const subtitle = parsed ? serviceSubtitle(parsed) : '';
-    lines.push(`    ${svc.service}: "${label}\\n[${subtitle}]" {`);
+    lines.push(`    ${svc.service}: "${label}" {`);
     lines.push('      class: frontend');
     lines.push(`      link: layers.c3-${svc.service}`);
     lines.push('    }');
@@ -953,10 +948,8 @@ export function generateC2(domain, services, parsedStacks) {
 
   // Regular services
   for (const svc of regular) {
-    const parsed = parsedStacks.get(svc.service);
     const label = serviceLabel(svc.service);
-    const subtitle = parsed ? serviceSubtitle(parsed) : '';
-    lines.push(`    ${svc.service}: "${label}\\n[${subtitle}]" {`);
+    lines.push(`    ${svc.service}: "${label}" {`);
     lines.push('      class: service');
     lines.push(`      link: layers.c3-${svc.service}`);
     lines.push('    }');
@@ -969,10 +962,8 @@ export function generateC2(domain, services, parsedStacks) {
 
   // Hub
   for (const svc of hubs) {
-    const parsed = parsedStacks.get(svc.service);
     const label = serviceLabel(svc.service);
-    const subtitle = parsed ? serviceSubtitle(parsed) : '';
-    lines.push(`    ${svc.service}: "${label}\\n[${subtitle}]" {`);
+    lines.push(`    ${svc.service}: "${label}" {`);
     lines.push('      class: service');
     lines.push(`      link: layers.c3-${svc.service}`);
     lines.push('    }');
@@ -981,14 +972,13 @@ export function generateC2(domain, services, parsedStacks) {
 
   // Adapters
   for (const svc of adapters) {
-    const parsed = parsedStacks.get(svc.service);
     const label = serviceLabel(svc.service);
-    const subtitle = parsed ? serviceSubtitle(parsed) : '';
-    lines.push(`    ${svc.service}: "${label}\\n[${subtitle}]" {`);
+    lines.push(`    ${svc.service}: "${label}" {`);
     lines.push('      class: adapter');
     lines.push(`      link: layers.c3-${svc.service}`);
     lines.push('    }');
     lines.push('');
+    const parsed = parsedStacks.get(svc.service);
     if (parsed) {
       for (const targetDomain of parsed.raw.resolvedBuses) {
         if (targetDomain !== domain) {
