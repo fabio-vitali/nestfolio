@@ -55,7 +55,7 @@ for SERVICE_PATH in $CHANGED_SERVICES; do
   fi
 
   # Check 5: Service name convention
-  if ! echo "$SERVICE_NAME" | grep -qE '-(ctrl|bff|hub|adpt|web)$'; then
+  if ! echo "$SERVICE_NAME" | grep -qE -- '-(ctrl|bff|hub|adpt|web)$'; then
     echo -e "${RED}FAIL${NC} [$SERVICE_NAME] Name must end with -ctrl, -bff, -hub, -adpt, or -web"
     ERRORS=$((ERRORS + 1))
   fi
@@ -68,7 +68,7 @@ for SERVICE_PATH in $CHANGED_SERVICES; do
 done
 
 # Check 7: nx affected blast radius (non-blocking)
-AFFECTED=$(pnpm nx affected --select=projects 2>/dev/null | tr ',' '\n' | wc -l | tr -d ' ')
+AFFECTED=$(pnpm nx affected -t build --select=projects 2>/dev/null | tr ',' '\n' | wc -l | tr -d ' ' || echo "0")
 if [ "$AFFECTED" -gt 5 ]; then
   echo ""
   echo -e "${YELLOW}WARNING: $AFFECTED projects affected by these changes${NC}"

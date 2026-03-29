@@ -1,6 +1,12 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { materializeToTable, record, skip, getTime, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
-import { requireEnv } from '@nestfolio/event-processor';
+import {
+  type EventContext,
+  type EventPayload,
+  getTime,
+  materializeToTable,
+  record,
+  requireEnv,
+  type WriteIntent,
+} from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
@@ -69,11 +75,13 @@ const NOTIFICATION_TEMPLATES: Record<string, NotificationTemplate> = {
 };
 
 export function getNotificationTemplate(eventType: string): NotificationTemplate {
-  return NOTIFICATION_TEMPLATES[eventType] ?? {
-    title: 'Notification',
-    body: `Event ${eventType} occurred.`,
-    channel: 'push',
-  };
+  return (
+    NOTIFICATION_TEMPLATES[eventType] ?? {
+      title: 'Notification',
+      body: `Event ${eventType} occurred.`,
+      channel: 'push',
+    }
+  );
 }
 
 function getCurrentPeriod(): string {
@@ -82,11 +90,16 @@ function getCurrentPeriod(): string {
 }
 
 const EVENT_TYPES = [
-  InvestorBffEventTypes.ONBOARDING_COMPLETED, InvestorBffEventTypes.MANDATE_GRANTED,
-  InvestorBffEventTypes.GOAL_UPDATED, InvestorBffEventTypes.DEPOSIT_INITIATED,
-  InvestorBffEventTypes.OPERATING_MODE_CHANGED, AdvisoryCrossDomainEventTypes.DECISION_APPROVED,
-  ExecutionCrossDomainEventTypes.ORDER_FILLED, LedgerCrossDomainEventTypes.BALANCE_UPDATED,
-  ExecutionCrossDomainEventTypes.ORDER_REJECTED, ExecutionCrossDomainEventTypes.WITHDRAWAL_COMPLETED,
+  InvestorBffEventTypes.ONBOARDING_COMPLETED,
+  InvestorBffEventTypes.MANDATE_GRANTED,
+  InvestorBffEventTypes.GOAL_UPDATED,
+  InvestorBffEventTypes.DEPOSIT_INITIATED,
+  InvestorBffEventTypes.OPERATING_MODE_CHANGED,
+  AdvisoryCrossDomainEventTypes.DECISION_APPROVED,
+  ExecutionCrossDomainEventTypes.ORDER_FILLED,
+  LedgerCrossDomainEventTypes.BALANCE_UPDATED,
+  ExecutionCrossDomainEventTypes.ORDER_REJECTED,
+  ExecutionCrossDomainEventTypes.WITHDRAWAL_COMPLETED,
   AdvisoryCrossDomainEventTypes.DECISION_BLOCKED,
 ] as const;
 
@@ -101,37 +114,45 @@ export const createHandlers = (_deps: EventListenerDeps) =>
         const now = getTime();
         const template = getNotificationTemplate(ctx.eventType);
 
-        const notification = record('Notification', {
-          __typename: 'Notification',
-          tenantId,
-          notificationId,
-          type: ctx.eventType,
-          title: template.title,
-          body: template.body,
-          channel: template.channel,
-          status: 'DELIVERED',
-          sourceEventId: ctx.eventId,
-          timestamp: now,
-          createdAt: now,
-          updatedAt: now,
-        }, { pk: `Notification#${tenantId}#${notificationId}`, sk: 'Notification' });
+        const notification = record(
+          'Notification',
+          {
+            __typename: 'Notification',
+            tenantId,
+            notificationId,
+            type: ctx.eventType,
+            title: template.title,
+            body: template.body,
+            channel: template.channel,
+            status: 'DELIVERED',
+            sourceEventId: ctx.eventId,
+            timestamp: now,
+            createdAt: now,
+            updatedAt: now,
+          },
+          { pk: `Notification#${tenantId}#${notificationId}`, sk: 'Notification' },
+        );
 
         if (ctx.eventType === ExecutionCrossDomainEventTypes.ORDER_FILLED) {
           const reportId = `${ctx.eventId}-report`;
           const subject = (payload.subject ?? {}) as Record<string, unknown>;
 
-          const monthlyReport = record('MonthlyReport', {
-            __typename: 'MonthlyReport',
-            tenantId,
-            reportId,
-            period: getCurrentPeriod(),
-            orderDetails: subject,
-            sourceEventId: ctx.eventId,
-            status: 'GENERATED',
-            timestamp: now,
-            createdAt: now,
-            updatedAt: now,
-          }, { pk: `MonthlyReport#${tenantId}#${reportId}`, sk: 'MonthlyReport' });
+          const monthlyReport = record(
+            'MonthlyReport',
+            {
+              __typename: 'MonthlyReport',
+              tenantId,
+              reportId,
+              period: getCurrentPeriod(),
+              orderDetails: subject,
+              sourceEventId: ctx.eventId,
+              status: 'GENERATED',
+              timestamp: now,
+              createdAt: now,
+              updatedAt: now,
+            },
+            { pk: `MonthlyReport#${tenantId}#${reportId}`, sk: 'MonthlyReport' },
+          );
 
           return [notification, monthlyReport];
         }
