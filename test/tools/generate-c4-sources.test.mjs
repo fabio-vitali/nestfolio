@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { discoverServices, parseStack, generateC3, generateC2, generateC1, generateGlobalStyles } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
@@ -422,5 +423,41 @@ describe('generateC2', () => {
     assert.ok(d2.includes('class: adapter'));
     assert.ok(d2.includes('link: layers.c3-investor-ctrl'));
     assert.ok(d2.includes('...@./c3/investor-ctrl.d2'));
+  });
+});
+
+describe('integration', () => {
+  it('generates valid D2 that covers key services', () => {
+    const services = discoverServices();
+    const parsedStacks = new Map();
+    for (const svc of services) {
+      const src = readFileSync(svc.stackPath, 'utf-8');
+      parsedStacks.set(svc.service, parseStack(src));
+    }
+
+    // Verify all services were parsed
+    assert.equal(parsedStacks.size, services.length);
+
+    // Verify dashboard-bff now has State (the bug that started this)
+    const dashboardBff = parsedStacks.get('dashboard-bff');
+    assert.ok(dashboardBff);
+    assert.equal(dashboardBff.constructs.state.length, 1);
+
+    // Generate C3 for a few key services and verify structure
+    const investorCtrl = generateC3('investor-ctrl', 'investor', parsedStacks.get('investor-ctrl'));
+    assert.ok(investorCtrl.includes('state: "State"'));
+    assert.ok(investorCtrl.includes('ingress'));
+    assert.ok(investorCtrl.includes('egress'));
+
+    const brokerCtrl = generateC3('broker-ctrl', 'execution', parsedStacks.get('broker-ctrl'));
+    assert.ok(brokerCtrl.includes('state: "State"'));
+
+    const investorHub = generateC3('investor-hub', 'investor', parsedStacks.get('investor-hub'));
+    assert.ok(investorHub.includes('class: aws-eventbridge'));
+    assert.ok(!investorHub.includes('state: "State"')); // Hubs have no state
+
+    const investorAdpt = generateC3('investor-adpt', 'investor', parsedStacks.get('investor-adpt'));
+    assert.ok(investorAdpt.includes('source'));
+    assert.ok(!investorAdpt.includes('state: "State"')); // Adapters have no state
   });
 });
