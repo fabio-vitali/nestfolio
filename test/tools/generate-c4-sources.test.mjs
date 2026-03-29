@@ -698,27 +698,93 @@ describe('generateGlobalStyles', () => {
 });
 
 describe('generateC2', () => {
-  it('generates domain container with services and bus', () => {
+  const baseParsed = (overrides = {}) => ({
+    constructs: {
+      state: [{ id: 'State', withTable: true, withBucket: false }],
+      ingress: [{ id: 'Ingress', eventTypes: [] }],
+      egress: [{ id: 'Egress', publishableTypes: [] }],
+      facade: [], orchestration: [],
+      agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      ...overrides,
+    },
+    raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+  });
+
+  it('emits service nodes with human-readable label and subtitle', () => {
+    const services = [{ service: 'investor-ctrl', domain: 'investor' }];
+    const parsedStacks = new Map([['investor-ctrl', baseParsed()]]);
+    const d2 = generateC2('investor', services, parsedStacks);
+    assert.ok(d2.includes('"Investor Controller\\n[Event-Driven Service]"'));
+  });
+
+  it('emits edge label Events for service → bus', () => {
+    const services = [{ service: 'investor-ctrl', domain: 'investor' }];
+    const parsedStacks = new Map([['investor-ctrl', baseParsed()]]);
+    const d2 = generateC2('investor', services, parsedStacks);
+    assert.ok(d2.includes('investor-ctrl -> investor-bus: Events'));
+  });
+
+  it('emits edge label Events for bus → hub', () => {
     const services = [
-      { service: 'investor-ctrl', domain: 'investor' },
-      { service: 'investor-bff', domain: 'investor' },
       { service: 'investor-hub', domain: 'investor' },
+    ];
+    const parsedStacks = new Map([
+      ['investor-hub', {
+        constructs: { state: [], ingress: [], egress: [], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] },
+        raw: { eventBuses: [{ id: 'InvestorBus' }], archives: [{}], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+      }],
+    ]);
+    const d2 = generateC2('investor', services, parsedStacks);
+    assert.ok(d2.includes('investor-bus -> investor-hub: Events'));
+  });
+
+  it('emits edge label Bridge for adapter → target bus', () => {
+    const services = [
       { service: 'investor-adpt', domain: 'investor' },
     ];
     const parsedStacks = new Map([
-      ['investor-ctrl', { constructs: { state: [{ id: 'State' }], ingress: [{}], egress: [{}], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] }, raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] } }],
-      ['investor-bff', { constructs: { state: [{ id: 'State' }], ingress: [], egress: [], facade: [{ id: 'Facade' }], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] }, raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] } }],
-      ['investor-hub', { constructs: { state: [], ingress: [], egress: [], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] }, raw: { eventBuses: [{ id: 'InvestorBus' }], archives: [{}], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] } }],
-      ['investor-adpt', { constructs: { state: [], ingress: [], egress: [], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] }, raw: { eventBuses: [], archives: [], rules: [{ isCrossDomain: true }], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: ['advisory'] } }],
+      ['investor-adpt', {
+        constructs: { state: [], ingress: [], egress: [], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] },
+        raw: { eventBuses: [], archives: [], rules: [{ isCrossDomain: true }], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: ['advisory'] },
+      }],
+    ]);
+    const d2 = generateC2('investor', services, parsedStacks);
+    assert.ok(d2.includes('investor-bus -> investor-adpt: Events'));
+    assert.ok(d2.includes('investor-adpt -> advisory-bus: Bridge'));
+  });
+
+  it('emits external system node for non-domain adapter', () => {
+    const services = [
+      { service: 'broker-alpaca-adpt', domain: 'execution' },
+    ];
+    const parsedStacks = new Map([
+      ['broker-alpaca-adpt', {
+        constructs: { state: [{ id: 'State', withTable: true, withBucket: false }], ingress: [], egress: [], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] },
+        raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [{ id: 'FetchSchedule' }], resolvedBuses: [] },
+      }],
+    ]);
+    const d2 = generateC2('execution', services, parsedStacks);
+    assert.ok(d2.includes('"Alpaca"'));
+    assert.ok(d2.includes('class: external'));
+    assert.ok(d2.includes('broker-alpaca-adpt -> ext-alpaca'));
+  });
+
+  it('generates domain container with services and bus', () => {
+    const services = [
+      { service: 'investor-ctrl', domain: 'investor' },
+      { service: 'investor-hub', domain: 'investor' },
+    ];
+    const parsedStacks = new Map([
+      ['investor-ctrl', baseParsed()],
+      ['investor-hub', {
+        constructs: { state: [], ingress: [], egress: [], facade: [], orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] },
+        raw: { eventBuses: [{ id: 'InvestorBus' }], archives: [{}], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+      }],
     ]);
     const d2 = generateC2('investor', services, parsedStacks);
     assert.ok(d2.includes('Investor Domain'));
-    assert.ok(d2.includes('investor-ctrl'));
-    assert.ok(d2.includes('class: service'));
     assert.ok(d2.includes('investor-bus'));
     assert.ok(d2.includes('class: bus'));
-    assert.ok(d2.includes('investor-adpt'));
-    assert.ok(d2.includes('class: adapter'));
     assert.ok(d2.includes('link: layers.c3-investor-ctrl'));
     assert.ok(d2.includes('...@./c3/investor-ctrl.d2'));
   });

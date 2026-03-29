@@ -941,7 +941,10 @@ export function generateC2(domain, services, parsedStacks) {
 
   // Frontends
   for (const svc of frontends) {
-    lines.push(`    ${svc.service}: "${svc.service}" {`);
+    const parsed = parsedStacks.get(svc.service);
+    const label = serviceLabel(svc.service);
+    const subtitle = parsed ? serviceSubtitle(parsed) : '';
+    lines.push(`    ${svc.service}: "${label}\\n[${subtitle}]" {`);
     lines.push('      class: frontend');
     lines.push(`      link: layers.c3-${svc.service}`);
     lines.push('    }');
@@ -950,7 +953,10 @@ export function generateC2(domain, services, parsedStacks) {
 
   // Regular services
   for (const svc of regular) {
-    lines.push(`    ${svc.service}: "${svc.service}" {`);
+    const parsed = parsedStacks.get(svc.service);
+    const label = serviceLabel(svc.service);
+    const subtitle = parsed ? serviceSubtitle(parsed) : '';
+    lines.push(`    ${svc.service}: "${label}\\n[${subtitle}]" {`);
     lines.push('      class: service');
     lines.push(`      link: layers.c3-${svc.service}`);
     lines.push('    }');
@@ -963,7 +969,10 @@ export function generateC2(domain, services, parsedStacks) {
 
   // Hub
   for (const svc of hubs) {
-    lines.push(`    ${svc.service}: "${svc.service}" {`);
+    const parsed = parsedStacks.get(svc.service);
+    const label = serviceLabel(svc.service);
+    const subtitle = parsed ? serviceSubtitle(parsed) : '';
+    lines.push(`    ${svc.service}: "${label}\\n[${subtitle}]" {`);
     lines.push('      class: service');
     lines.push(`      link: layers.c3-${svc.service}`);
     lines.push('    }');
@@ -972,12 +981,14 @@ export function generateC2(domain, services, parsedStacks) {
 
   // Adapters
   for (const svc of adapters) {
-    lines.push(`    ${svc.service}: "${svc.service}" {`);
+    const parsed = parsedStacks.get(svc.service);
+    const label = serviceLabel(svc.service);
+    const subtitle = parsed ? serviceSubtitle(parsed) : '';
+    lines.push(`    ${svc.service}: "${label}\\n[${subtitle}]" {`);
     lines.push('      class: adapter');
     lines.push(`      link: layers.c3-${svc.service}`);
     lines.push('    }');
     lines.push('');
-    const parsed = parsedStacks.get(svc.service);
     if (parsed) {
       for (const targetDomain of parsed.raw.resolvedBuses) {
         if (targetDomain !== domain) {
@@ -993,22 +1004,33 @@ export function generateC2(domain, services, parsedStacks) {
     const parsed = parsedStacks.get(svc.service);
     if (!parsed) continue;
     if (parsed.constructs.egress.length > 0) {
-      lines.push(`    ${svc.service} -> ${domain}-bus`);
+      lines.push(`    ${svc.service} -> ${domain}-bus: Events`);
     }
   }
   for (const svc of hubs) {
-    lines.push(`    ${domain}-bus -> ${svc.service}`);
+    lines.push(`    ${domain}-bus -> ${svc.service}: Events`);
   }
   for (const svc of adapters) {
-    lines.push(`    ${domain}-bus -> ${svc.service}`);
+    lines.push(`    ${domain}-bus -> ${svc.service}: Events`);
     const parsed = parsedStacks.get(svc.service);
     if (parsed) {
       for (const targetDomain of parsed.raw.resolvedBuses) {
         if (targetDomain !== domain) {
-          lines.push(`    ${svc.service} -> ${targetDomain}-bus`);
+          lines.push(`    ${svc.service} -> ${targetDomain}-bus: Bridge`);
         }
       }
     }
+  }
+
+  // External systems
+  const externals = detectExternalSystems(services);
+  for (const ext of externals) {
+    const extId = `ext-${ext.name.toLowerCase().replace(/\s+/g, '-')}`;
+    lines.push(`    ${extId}: "${ext.name}" {`);
+    lines.push('      class: external');
+    lines.push('    }');
+    lines.push(`    ${ext.service} -> ${extId}`);
+    lines.push('');
   }
 
   lines.push('');
