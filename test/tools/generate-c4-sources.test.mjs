@@ -299,3 +299,64 @@ describe('generateC3', () => {
     assert.ok(d2.includes('class: aws-stepfunctions'));
   });
 });
+
+describe('generateC3 — raw resources', () => {
+  it('generates hub pattern (EventBus + Archive)', () => {
+    const parsed = {
+      constructs: { state: [], ingress: [], egress: [], facade: [],
+                    orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] },
+      raw: {
+        eventBuses: [{ id: 'InvestorBus' }],
+        archives: [{ id: 'Archive' }],
+        rules: [], lambdas: [], buckets: [], userPools: [],
+        distributions: [], schedules: [], resolvedBuses: [],
+      },
+    };
+    const d2 = generateC3('investor-hub', 'investor', parsed);
+    assert.ok(d2.includes('class: aws-eventbridge'));
+    assert.ok(d2.includes('class: aws-s3'));
+    assert.ok(d2.includes('archive'));
+  });
+
+  it('generates cross-domain adapter pattern', () => {
+    const parsed = {
+      constructs: { state: [], ingress: [], egress: [], facade: [],
+                    orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] },
+      raw: {
+        eventBuses: [],
+        archives: [],
+        rules: [
+          { id: 'ToAdvisory', isCrossDomain: true, eventTypes: [], targetBusVar: 'advisoryBus' },
+          { id: 'ToExecution', isCrossDomain: true, eventTypes: [], targetBusVar: 'executionBus' },
+        ],
+        lambdas: [], buckets: [], userPools: [],
+        distributions: [], schedules: [],
+        resolvedBuses: ['investor', 'advisory', 'execution'],
+      },
+    };
+    const d2 = generateC3('investor-adpt', 'investor', parsed);
+    assert.ok(d2.includes('source'));
+    assert.ok(d2.includes('to-advisory'));
+    assert.ok(d2.includes('to-execution'));
+  });
+
+  it('generates web frontend pattern (Cognito + S3 + CloudFront)', () => {
+    const parsed = {
+      constructs: { state: [], ingress: [], egress: [], facade: [],
+                    orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [] },
+      raw: {
+        eventBuses: [],
+        archives: [],
+        rules: [],
+        lambdas: [{ id: 'PostConfirmation', varName: 'postConfirmation' }],
+        buckets: [{ id: 'AssetsBucket' }],
+        userPools: [{ id: 'UserPool' }],
+        distributions: [{ id: 'Distribution' }],
+        schedules: [], resolvedBuses: [],
+      },
+    };
+    const d2 = generateC3('investor-web', 'investor', parsed);
+    assert.ok(d2.includes('class: aws-cognito'));
+    assert.ok(d2.includes('class: aws-s3'));
+  });
+});

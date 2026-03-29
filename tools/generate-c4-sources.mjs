@@ -485,7 +485,72 @@ export function generateC3(service, domain, parsed) {
     lines.push(...agentMemoryBlock(mem));
   }
 
-  // --- Raw resources (Task 5) ---
+  // --- Raw resources (no wrapper box) ---
+
+  // Hub pattern: EventBus + Archive
+  if (r.eventBuses.length > 0) {
+    for (const bus of r.eventBuses) {
+      const busId = toD2Id(bus.id);
+      lines.push(`${busId}: "EventBridge\\n[${domain}-bus]" { class: aws-eventbridge }`);
+    }
+    for (const arch of r.archives) {
+      lines.push(`archive: "Event Archive\\n[365 days]" { class: aws-s3 }`);
+    }
+    if (r.eventBuses.length > 0 && r.archives.length > 0) {
+      const busId = toD2Id(r.eventBuses[0].id);
+      lines.push(`${busId} -> archive`);
+    }
+    lines.push('');
+  }
+
+  // Cross-domain adapter pattern
+  const crossDomainRules = r.rules.filter(rule => rule.isCrossDomain);
+  if (crossDomainRules.length > 0) {
+    lines.push(`source: "${domain}-bus\\n[Source]" { class: aws-eventbridge }`);
+    lines.push('');
+    for (const rule of crossDomainRules) {
+      const ruleId = toD2Id(rule.id);
+      const targetDomain = rule.targetBusVar?.replace(/Bus$/, '') || 'target';
+      lines.push(`${ruleId}: "${targetDomain}-bus\\n[Target]" { class: aws-eventbridge }`);
+      lines.push(`${ruleId}-dlq: "DLQ" { class: aws-dlq }`);
+      lines.push(`source -> ${ruleId}`);
+      lines.push('');
+    }
+  }
+
+  // Web frontend pattern
+  if (r.userPools.length > 0) {
+    lines.push('cognito: "Cognito UserPool" { class: aws-cognito }');
+  }
+  if (r.distributions.length > 0) {
+    lines.push('cdn: "CloudFront" { class: aws-cloudfront }');
+  }
+  if (r.buckets.length > 0 && c.state.length === 0) {
+    lines.push('assets: "S3 Bucket" { class: aws-s3 }');
+  }
+  for (const fn of r.lambdas) {
+    lines.push(`${toD2Id(fn.id)}: "Lambda\\n[${fn.id}]" { class: aws-lambda }`);
+  }
+  if (r.userPools.length > 0 || r.distributions.length > 0 || r.lambdas.length > 0) {
+    lines.push('');
+    if (r.distributions.length > 0 && r.buckets.length > 0) {
+      lines.push('cdn -> assets');
+    }
+    if (r.userPools.length > 0 && r.lambdas.length > 0) {
+      for (const fn of r.lambdas) {
+        lines.push(`cognito -> ${toD2Id(fn.id)}`);
+      }
+    }
+  }
+
+  // Data adapter: schedule
+  if (r.schedules.length > 0) {
+    lines.push('schedule: "EventBridge Scheduler" { class: aws-eventbridge }');
+    if (r.lambdas.length > 0) {
+      lines.push(`schedule -> ${toD2Id(r.lambdas[0].id)}`);
+    }
+    lines.push('');
+  }
 
   // --- Flows ---
   lines.push('# Flows');
