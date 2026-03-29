@@ -363,7 +363,7 @@ function stateBlock(st) {
   if (st.withTable !== false) {
     lines.push('  table: "DynamoDB Table" { class: aws-dynamodb }');
     lines.push('  stream: "DynamoDB Stream\\n[CDC]" { class: aws-ddb-stream }');
-    lines.push('  table -> stream');
+    lines.push('  table -> stream: CDC');
   }
   if (st.withBucket) {
     lines.push('  bucket: "S3 Bucket" { class: aws-s3 }');
@@ -382,8 +382,9 @@ function ingressBlock(blockId, ing) {
     '  dlq: "DLQ" { class: aws-dlq }',
     '  handler: "Lambda" { class: aws-lambda }',
     '',
-    '  rule -> sqs -> handler',
-    '  sqs -> dlq',
+    '  rule -> sqs: Subscribe',
+    '  sqs -> handler: Invoke',
+    '  sqs -> dlq: On failure',
     '}',
     '',
   ];
@@ -397,7 +398,7 @@ function egressBlock(eg, domain) {
     `  bus: "EventBridge\\n[${domain}-bus]" { class: aws-eventbridge }`,
     '  dlq: "DLQ" { class: aws-dlq }',
     '',
-    '  processor -> bus',
+    '  processor -> bus: Publish',
     '}',
     '',
   ];
@@ -411,7 +412,7 @@ function facadeBlock(f) {
   ];
   if (f.hasJsResolvers) {
     lines.push('  resolvers: "JS Resolvers" { class: aws-lambda }');
-    lines.push('  appsync -> resolvers');
+    lines.push('  appsync -> resolvers: JS Resolve');
   }
   lines.push('  ssm: "SSM Parameters" { class: aws-ssm }');
   lines.push('}', '');
@@ -473,20 +474,20 @@ function generateC3Flows(c, r, domain) {
   if (c.facade.length > 0 && hasState) {
     const f = c.facade[0];
     const facadeNode = (f.hasJsResolvers || f.hasLambdaResolvers) ? 'facade.resolvers' : 'facade.appsync';
-    flows.push(`${facadeNode} -> state.table`);
+    flows.push(`${facadeNode} -> state.table: Read/Write`);
   }
 
   // Ingress → State
   for (const ing of c.ingress) {
     const blockId = c.ingress.length === 1 ? 'ingress' : toD2Id(ing.id);
     if (hasState) {
-      flows.push(`${blockId}.handler -> state.table`);
+      flows.push(`${blockId}.handler -> state.table: Read/Write`);
     }
   }
 
   // State.stream → Egress
   if (hasState && c.egress.length > 0) {
-    flows.push('state.stream -> egress.processor');
+    flows.push('state.stream -> egress.processor: Trigger');
   }
 
   // Ingress → Orchestration
@@ -494,29 +495,29 @@ function generateC3Flows(c, r, domain) {
     const orchId = toD2Id(orch.id);
     if (c.ingress.length > 0) {
       const ingId = c.ingress.length === 1 ? 'ingress' : toD2Id(c.ingress[0].id);
-      flows.push(`${ingId}.handler -> ${orchId}.state-machine`);
+      flows.push(`${ingId}.handler -> ${orchId}.state-machine: Execute`);
     }
     if (hasState) {
-      flows.push(`${orchId}.state-machine -> state.table`);
+      flows.push(`${orchId}.state-machine -> state.table: Read/Write`);
     }
   }
 
   // AgentMemory → Orchestration
   if (c.agentMemory.length > 0 && c.orchestration.length > 0) {
     const orchId = toD2Id(c.orchestration[0].id);
-    flows.push(`${orchId}.state-machine -> agent-memory.memory`);
+    flows.push(`${orchId}.state-machine -> agent-memory.memory: Store`);
   }
 
   // AgentRuntime flows
   if (c.agentRuntime.length > 0) {
     if (c.facade.length > 0) {
-      flows.push('facade.appsync -> agent-runtime.runtime');
+      flows.push('facade.appsync -> agent-runtime.runtime: Invoke');
     }
     if (c.knowledgeBase.length > 0) {
-      flows.push('agent-runtime.runtime -> knowledge-base.kb');
+      flows.push('agent-runtime.runtime -> knowledge-base.kb: RAG Query');
     }
     if (hasState) {
-      flows.push('agent-runtime.runtime -> state.table');
+      flows.push('agent-runtime.runtime -> state.table: Read/Write');
     }
   }
 

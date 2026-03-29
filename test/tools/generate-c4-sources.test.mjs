@@ -558,6 +558,81 @@ describe('generateC3 — raw resources', () => {
   });
 });
 
+describe('generateC3 — edge labels', () => {
+  it('emits edge labels for standard Ingress→State→Egress flow', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withTable: true, withBucket: false }],
+        ingress: [{ id: 'Ingress', eventTypes: ['EVT_A'] }],
+        egress: [{ id: 'Egress', publishableTypes: [] }],
+        facade: [], orchestration: [],
+        agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    const d2 = generateC3('investor-ctrl', 'investor', parsed);
+    // Intra-block edges
+    assert.ok(d2.includes('rule -> sqs: Subscribe'));
+    assert.ok(d2.includes('sqs -> handler: Invoke'));
+    assert.ok(d2.includes('sqs -> dlq: On failure'));
+    assert.ok(d2.includes('table -> stream: CDC'));
+    assert.ok(d2.includes('processor -> bus: Publish'));
+    // Flow edges
+    assert.ok(d2.includes('ingress.handler -> state.table: Read/Write'));
+    assert.ok(d2.includes('state.stream -> egress.processor: Trigger'));
+  });
+
+  it('emits edge labels for Facade→State flow', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withTable: true, withBucket: false }],
+        ingress: [], egress: [],
+        facade: [{ id: 'Facade', hasJsResolvers: true, hasLambdaResolvers: false }],
+        orchestration: [], agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    const d2 = generateC3('investor-bff', 'investor', parsed);
+    assert.ok(d2.includes('appsync -> resolvers: JS Resolve'));
+    assert.ok(d2.includes('facade.resolvers -> state.table: Read/Write'));
+  });
+
+  it('emits edge labels for Orchestration flows', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withTable: true, withBucket: false }],
+        ingress: [{ id: 'Ingress', eventTypes: [] }],
+        egress: [], facade: [],
+        orchestration: [{ id: 'OrderSM', triggers: [] }],
+        agentRuntime: [], knowledgeBase: [], agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    const d2 = generateC3('broker-ctrl', 'execution', parsed);
+    assert.ok(d2.includes('ingress.handler -> order-sm.state-machine: Execute'));
+    assert.ok(d2.includes('order-sm.state-machine -> state.table: Read/Write'));
+  });
+
+  it('emits edge label for AgentRuntime→KnowledgeBase', () => {
+    const parsed = {
+      constructs: {
+        state: [{ id: 'State', withTable: true, withBucket: false }],
+        ingress: [], egress: [],
+        facade: [{ id: 'Facade', hasJsResolvers: true, hasLambdaResolvers: false }],
+        orchestration: [],
+        agentRuntime: [{ id: 'Agent', hasToolTargets: false }],
+        knowledgeBase: [{ id: 'KB' }],
+        agentMemory: [],
+      },
+      raw: { eventBuses: [], archives: [], rules: [], lambdas: [], buckets: [], userPools: [], distributions: [], schedules: [], resolvedBuses: [] },
+    };
+    const d2 = generateC3('onboarding-bff', 'investor', parsed);
+    assert.ok(d2.includes('facade.appsync -> agent-runtime.runtime: Invoke'));
+    assert.ok(d2.includes('agent-runtime.runtime -> knowledge-base.kb: RAG Query'));
+    assert.ok(d2.includes('agent-runtime.runtime -> state.table: Read/Write'));
+  });
+});
+
 describe('generateC1', () => {
   it('generates system context with 4 domains', () => {
     const domains = ['investor', 'advisory', 'execution', 'ledger'];
