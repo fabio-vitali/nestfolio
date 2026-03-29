@@ -126,3 +126,84 @@ describe('parseStack', () => {
     assert.equal(result.constructs.agentMemory[0].id, 'AgentMemory');
   });
 });
+
+describe('parseStack — raw resources', () => {
+  it('detects EventBus creation (hub pattern)', () => {
+    const src = `this.bus = new EventBus(this, 'InvestorBus', { eventBusName: name });`;
+    const result = parseStack(src);
+    assert.equal(result.raw.eventBuses.length, 1);
+    assert.equal(result.raw.eventBuses[0].id, 'InvestorBus');
+  });
+
+  it('detects Archive (hub pattern)', () => {
+    const src = `new Archive(this, 'Archive', { sourceEventBus: this.bus, retention: Duration.days(365) });`;
+    const result = parseStack(src);
+    assert.equal(result.raw.archives.length, 1);
+  });
+
+  it('detects cross-domain rules with EventBusTarget', () => {
+    const src = `
+      new Rule(this, 'ToAdvisory', {
+        eventBus: investorBus,
+        eventPattern: { detailType: ['GOAL_UPDATED', 'RISK_PROFILE_UPDATED'] },
+        targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: toAdvisoryDlq })],
+      });
+    `;
+    const result = parseStack(src);
+    assert.equal(result.raw.rules.length, 1);
+    assert.equal(result.raw.rules[0].id, 'ToAdvisory');
+    assert.ok(result.raw.rules[0].isCrossDomain);
+  });
+
+  it('detects resolveBusArn calls (adapter bus references)', () => {
+    const src = `
+      const advisoryBusArn = resolveBusArn(this, 'AdvisoryBus', prefix, 'advisory', domainAccounts);
+      const executionBusArn = resolveBusArn(this, 'ExecutionBus', prefix, 'execution', domainAccounts);
+    `;
+    const result = parseStack(src);
+    assert.deepEqual(result.raw.resolvedBuses, ['advisory', 'execution']);
+  });
+
+  it('detects resolveBusArn with multiline calls and this.prefix', () => {
+    const src = `
+      const advisoryBusArn = resolveBusArn(
+        this,
+        'AdvisoryBus',
+        this.prefix,
+        'advisory',
+        domainAccounts,
+      );
+    `;
+    const result = parseStack(src);
+    assert.deepEqual(result.raw.resolvedBuses, ['advisory']);
+  });
+
+  it('detects UserPool (web pattern)', () => {
+    const src = `const userPool = new UserPool(this, 'UserPool', { userPoolName: 'pool' });`;
+    const result = parseStack(src);
+    assert.equal(result.raw.userPools.length, 1);
+  });
+
+  it('detects Distribution (web pattern)', () => {
+    const src = `const dist = new Distribution(this, 'Distribution', {});`;
+    const result = parseStack(src);
+    assert.equal(result.raw.distributions.length, 1);
+  });
+
+  it('detects standalone NodejsFunction', () => {
+    const src = `
+      const routeOrderFn = new NodejsFunction(this, 'RouteOrderFn', {
+        entry: join(__dirname, 'handlers', 'route-order.ts'),
+      });
+    `;
+    const result = parseStack(src);
+    assert.equal(result.raw.lambdas.length, 1);
+    assert.equal(result.raw.lambdas[0].id, 'RouteOrderFn');
+  });
+
+  it('detects AdapterSchedule', () => {
+    const src = `new AdapterSchedule(this, 'FetchSchedule', { target: fetchTrigger });`;
+    const result = parseStack(src);
+    assert.equal(result.raw.schedules.length, 1);
+  });
+});

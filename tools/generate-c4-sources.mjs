@@ -53,6 +53,7 @@ export function parseStack(src) {
       userPools: [],
       distributions: [],
       schedules: [],
+      resolvedBuses: [],
     },
   };
 
@@ -164,6 +165,69 @@ export function parseStack(src) {
   // AgentCore Memory (agentcore.Memory)
   for (const m of src.matchAll(/new\s+agentcore\.Memory\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
     result.constructs.agentMemory.push({ id: m[1] });
+  }
+
+  // --- Raw CDK resources (for hubs, adapters, web) ---
+
+  // EventBus creation
+  for (const m of src.matchAll(/new\s+EventBus\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
+    result.raw.eventBuses.push({ id: m[1] });
+  }
+
+  // Archive
+  for (const m of src.matchAll(/new\s+Archive\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
+    result.raw.archives.push({ id: m[1] });
+  }
+
+  // Cross-domain rules (Rule with EventBusTarget)
+  for (const m of src.matchAll(/new\s+Rule\s*\(\s*this\s*,\s*['"](\w+)['"]\s*,/g)) {
+    const after = src.slice(m.index, m.index + 600);
+    const isCrossDomain = /EventBusTarget/.test(after);
+    const eventTypes = [];
+    const dtMatch = after.match(/detailType\s*:\s*\[([\s\S]*?)\]/);
+    if (dtMatch) {
+      eventTypes.push(...[...dtMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]));
+      if (eventTypes.length === 0) {
+        eventTypes.push(...[...dtMatch[1].matchAll(/\.(\w+)/g)].map(x => x[1]));
+      }
+    }
+    const targetMatch = after.match(/new\s+EventBusTarget\s*\(\s*(\w+)/);
+    result.raw.rules.push({
+      id: m[1],
+      isCrossDomain,
+      eventTypes,
+      targetBusVar: targetMatch?.[1] || null,
+    });
+  }
+
+  // resolveBusArn calls — extract domain name (4th string argument is the domain)
+  for (const m of src.matchAll(/resolveBusArn\s*\([\s\S]*?['"](\w+)['"]\s*,\s*\w+\s*,?\s*\)/gs)) {
+    result.raw.resolvedBuses.push(m[1]);
+  }
+
+  // UserPool
+  for (const m of src.matchAll(/new\s+UserPool\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
+    result.raw.userPools.push({ id: m[1] });
+  }
+
+  // Distribution (CloudFront)
+  for (const m of src.matchAll(/new\s+Distribution\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
+    result.raw.distributions.push({ id: m[1] });
+  }
+
+  // Standalone NodejsFunction
+  for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*new\s+NodejsFunction\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
+    result.raw.lambdas.push({ id: m[2], varName: m[1] });
+  }
+
+  // Bucket (standalone, outside State)
+  for (const m of src.matchAll(/(?:const|let)\s+\w+\s*=\s*new\s+Bucket\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
+    result.raw.buckets.push({ id: m[1] });
+  }
+
+  // AdapterSchedule
+  for (const m of src.matchAll(/new\s+AdapterSchedule\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
+    result.raw.schedules.push({ id: m[1] });
   }
 
   return result;
