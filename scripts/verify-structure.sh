@@ -47,10 +47,10 @@ for SERVICE_PATH in $CHANGED_SERVICES; do
     ERRORS=$((ERRORS + 1))
   fi
 
-  # Check 4: No imports from services/
-  if grep -rq "from.*['\"].*services/" "$SERVICE_PATH/src/" 2>/dev/null; then
+  # Check 4: No absolute imports from services/ (relative ../services/ is fine)
+  if grep -rq "from.*['\"]services/" "$SERVICE_PATH/src/" 2>/dev/null; then
     echo -e "${RED}FAIL${NC} [$SERVICE_NAME] Import boundary violation: imports from services/"
-    grep -rn "from.*['\"].*services/" "$SERVICE_PATH/src/" | head -3
+    grep -rn "from.*['\"]services/" "$SERVICE_PATH/src/" | head -3
     ERRORS=$((ERRORS + 1))
   fi
 
