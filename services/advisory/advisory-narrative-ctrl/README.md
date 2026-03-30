@@ -1,0 +1,1 @@
+Generates plain-language explanations of advisory decisions using a knowledge base of regulatory and financial concepts. It produces investor-friendly narratives that explain why specific recommendations were made.

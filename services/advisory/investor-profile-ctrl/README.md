@@ -1,0 +1,1 @@
+Maintains enriched investor profiles for advisory decisions by combining regulatory suitability data with behavioral signals. It builds a comprehensive understanding of each investor's risk tolerance, goals, and preferences.

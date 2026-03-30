@@ -344,6 +344,84 @@ export function readDomainDescriptions(servicesDir) {
 }
 
 /**
+ * Read service descriptions from services/{domain}/{service}/README.md files.
+ * Returns a Map of serviceName → description string.
+ */
+export function readServiceDescriptions(servicesDir) {
+  const descriptions = new Map();
+  for (const domain of readdirSync(servicesDir, { withFileTypes: true })) {
+    if (!domain.isDirectory()) continue;
+    const domainDir = join(servicesDir, domain.name);
+    for (const svc of readdirSync(domainDir, { withFileTypes: true })) {
+      if (!svc.isDirectory()) continue;
+      const readmePath = join(domainDir, svc.name, 'README.md');
+      if (existsSync(readmePath)) {
+        descriptions.set(svc.name, readFileSync(readmePath, 'utf-8').trim());
+      }
+    }
+  }
+  return descriptions;
+}
+
+/**
+ * Build a map of events routed INTO each domain from external cross-domain adapters.
+ * Returns Map<targetDomain, [{from: sourceDomain, events: string[]}]>
+ */
+export function buildInboundEventMap(allServices, parsedStacks) {
+  const inbound = new Map();
+  for (const svc of allServices) {
+    if (!svc.service.endsWith('-adpt')) continue;
+    const parsed = parsedStacks.get(svc.service);
+    if (!parsed) continue;
+    for (const rule of parsed.raw.rules) {
+      if (!rule.isCrossDomain || !rule.targetBusVar) continue;
+      const target = rule.targetBusVar.replace(/Bus$/, '').toLowerCase();
+      if (!inbound.has(target)) inbound.set(target, []);
+      inbound.get(target).push({ from: svc.domain, events: [...rule.eventTypes] });
+    }
+  }
+  return inbound;
+}
+
+function toScreamingSnake(s) {
+  return s.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase();
+}
+
+/**
+ * Fuzzy-match intra-domain producer→consumer event flows.
+ * Converts Egress publishableTypes to SCREAMING_SNAKE prefixes and matches against Ingress eventTypes.
+ * Returns [{from, to, events}]
+ */
+export function matchIntraDomainFlows(domainServices, parsedStacks) {
+  const producers = [];
+  const consumers = [];
+  for (const svc of domainServices) {
+    const p = parsedStacks.get(svc.service);
+    if (!p) continue;
+    if (p.raw.eventBuses.length > 0 || p.raw.rules.some(r => r.isCrossDomain)) continue;
+    const pubTypes = p.constructs.egress.flatMap(e => e.publishableTypes);
+    if (pubTypes.length) {
+      producers.push({ service: svc.service, prefixes: pubTypes.map(toScreamingSnake) });
+    }
+    const subTypes = p.constructs.ingress.flatMap(i => i.eventTypes);
+    if (subTypes.length) {
+      consumers.push({ service: svc.service, events: subTypes });
+    }
+  }
+  const flows = [];
+  for (const prod of producers) {
+    for (const cons of consumers) {
+      if (prod.service === cons.service) continue;
+      const matched = cons.events.filter(et => prod.prefixes.some(p => et.startsWith(p)));
+      if (matched.length) {
+        flows.push({ from: prod.service, to: cons.service, events: matched });
+      }
+    }
+  }
+  return flows;
+}
+
+/**
  * Detect external systems from adapter service names.
  * Convention: {role}-{external}-adpt where the last segment before -adpt
  * identifies the external system if it isn't a known domain name.
@@ -1015,127 +1093,129 @@ classes: {
  * @param {Map} parsedStacks - Map of serviceName → parsed stack
  * @returns {string} D2 layer content
  */
-export function generateC2(domain, services, parsedStacks) {
+// Inline styles for C2 layers (D2 root classes don't cascade into layers)
+const C2_STYLES = {
+  system: 'fill: "#D6E4F0"; stroke: "#1168BD"; font-color: "#0B4884"; font-size: 30; border-radius: 12; stroke-width: 2; shadow: true',
+  domain: 'fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true',
+  external: 'fill: "#8B8B8B"; stroke: "#666666"; font-color: "#ffffff"; font-size: 26; border-radius: 10; stroke-width: 1; stroke-dash: 5',
+  flowLabel: 'fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1',
+};
+const EDGE_STYLE = 'style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3';
+
+export function generateC2(domain, services, parsedStacks, { serviceDescriptions, inboundEventMap }) {
   const lines = [];
   const title = domain.charAt(0).toUpperCase() + domain.slice(1);
 
   lines.push(`  c2-${domain}: {`);
-  lines.push('    direction: down');
-  lines.push('');
-  lines.push(`    title: "${title} Domain" {`);
-  lines.push('      style: { font-size: 42; bold: true; fill: transparent; stroke: transparent }');
-  lines.push('    }');
+  lines.push(`    style: { ${C2_STYLES.system} }`);
   lines.push('');
 
-  // Classify services
-  const hubs = [];
-  const adapters = [];
+  // Classify services — skip hubs entirely
+  const crossDomainAdapters = [];
+  const dataAdapters = [];
   const frontends = [];
   const regular = [];
 
   for (const svc of services) {
     const parsed = parsedStacks.get(svc.service);
     if (!parsed) continue;
-
-    const isHub = parsed.raw.eventBuses.length > 0;
-    const isCrossDomainAdapter = parsed.raw.rules.some((r) => r.isCrossDomain);
-    const isDataAdapter =
-      parsed.raw.schedules.length > 0 ||
+    if (parsed.raw.eventBuses.length > 0) continue; // skip hubs
+    const isCrossDomain = parsed.raw.rules.some(r => r.isCrossDomain);
+    const isDataAdapter = parsed.raw.schedules.length > 0 ||
       (svc.service.endsWith('-adpt') && parsed.constructs.state.length > 0);
     const isFrontend = parsed.raw.distributions.length > 0 || svc.service.endsWith('-web');
 
-    if (isHub) hubs.push(svc);
-    else if (isCrossDomainAdapter) adapters.push(svc);
-    else if (isDataAdapter) adapters.push(svc);
+    if (isCrossDomain) crossDomainAdapters.push(svc);
+    else if (isDataAdapter) dataAdapters.push(svc);
     else if (isFrontend) frontends.push(svc);
     else regular.push(svc);
   }
 
-  // Frontends
-  for (const svc of frontends) {
+  // Render service boxes with README tooltips
+  const I = '    '; // indent for layer children
+  const renderBox = (svc) => {
     const label = serviceLabel(svc.service);
-    lines.push(`    ${svc.service}: "${label}" {`);
-    lines.push('      class: frontend');
-    lines.push(`      link: layers.c3-${svc.service}`);
-    lines.push('    }');
-    lines.push('');
-  }
+    lines.push(`${I}${svc.service}: "${label}" {`);
+    lines.push(`${I}  style: { ${C2_STYLES.domain} }`);
+    lines.push(`${I}  link: layers.c3-${svc.service}`);
+    const desc = serviceDescriptions?.get(svc.service);
+    if (desc) lines.push(`${I}  tooltip: "${desc.replace(/"/g, '\\"')}"`);
+    lines.push(`${I}}`);
+  };
 
-  // Regular services
-  for (const svc of regular) {
-    const label = serviceLabel(svc.service);
-    lines.push(`    ${svc.service}: "${label}" {`);
-    lines.push('      class: service');
-    lines.push(`      link: layers.c3-${svc.service}`);
-    lines.push('    }');
-    lines.push('');
-  }
-
-  // Domain bus
-  lines.push(`    ${domain}-bus: "${domain}-bus\\n[EventBridge]" {class: bus}`);
+  for (const svc of frontends) renderBox(svc);
+  for (const svc of regular) renderBox(svc);
+  for (const svc of dataAdapters) renderBox(svc);
+  for (const svc of crossDomainAdapters) renderBox(svc);
   lines.push('');
 
-  // Hub
-  for (const svc of hubs) {
-    const label = serviceLabel(svc.service);
-    lines.push(`    ${svc.service}: "${label}" {`);
-    lines.push('      class: service');
-    lines.push(`      link: layers.c3-${svc.service}`);
-    lines.push('    }');
-    lines.push('');
-  }
-
-  // Adapters
-  for (const svc of adapters) {
-    const label = serviceLabel(svc.service);
-    lines.push(`    ${svc.service}: "${label}" {`);
-    lines.push('      class: adapter');
-    lines.push(`      link: layers.c3-${svc.service}`);
-    lines.push('    }');
-    lines.push('');
-    const parsed = parsedStacks.get(svc.service);
-    if (parsed) {
-      for (const targetDomain of parsed.raw.resolvedBuses) {
-        if (targetDomain !== domain) {
-          lines.push(`    ${targetDomain}-bus: "${targetDomain}-bus\\n[EventBridge]" {class: bus}`);
-          lines.push('');
-        }
-      }
-    }
-  }
-
-  // Flows
-  for (const svc of regular) {
+  // External domain boxes for cross-domain adapter outgoing
+  const externalDomainIds = new Set();
+  for (const svc of crossDomainAdapters) {
     const parsed = parsedStacks.get(svc.service);
     if (!parsed) continue;
-    if (parsed.constructs.egress.length > 0) {
-      lines.push(`    ${svc.service} -> ${domain}-bus: Events`);
-    }
-  }
-  for (const svc of hubs) {
-    lines.push(`    ${domain}-bus -> ${svc.service}: Events`);
-  }
-  for (const svc of adapters) {
-    lines.push(`    ${domain}-bus -> ${svc.service}: Events`);
-    const parsed = parsedStacks.get(svc.service);
-    if (parsed) {
-      for (const targetDomain of parsed.raw.resolvedBuses) {
-        if (targetDomain !== domain) {
-          lines.push(`    ${svc.service} -> ${targetDomain}-bus: Bridge`);
-        }
+    for (const rule of parsed.raw.rules) {
+      if (!rule.isCrossDomain || !rule.targetBusVar) continue;
+      const targetDomain = rule.targetBusVar.replace(/Bus$/, '').toLowerCase();
+      const targetTitle = targetDomain.charAt(0).toUpperCase() + targetDomain.slice(1);
+      const extId = `ext-${targetDomain}`;
+      if (!externalDomainIds.has(extId)) {
+        externalDomainIds.add(extId);
+        lines.push(`${I}${extId}: "${targetTitle} Domain" {style: { ${C2_STYLES.external} }}`);
       }
+      const eventList = rule.eventTypes.join('\\n');
+      const pillId = `${svc.service}-to-${targetDomain}`;
+      lines.push(`${I}${pillId}: "${rule.eventTypes.length} Events" {style: { ${C2_STYLES.flowLabel} }; tooltip: "${eventList}"}`);
+      lines.push(`${I}${svc.service} -> ${pillId} {${EDGE_STYLE}}`);
+      lines.push(`${I}${pillId} -> ${extId} {${EDGE_STYLE}}`);
     }
   }
 
-  // External systems
+  // External domain boxes for inbound events (from other domains' adapters)
+  const inbound = inboundEventMap?.get(domain) || [];
+  for (const entry of inbound) {
+    const srcTitle = entry.from.charAt(0).toUpperCase() + entry.from.slice(1);
+    const extId = `ext-${entry.from}`;
+    if (!externalDomainIds.has(extId)) {
+      externalDomainIds.add(extId);
+      lines.push(`${I}${extId}: "${srcTitle} Domain" {style: { ${C2_STYLES.external} }}`);
+    }
+    const internalConsumers = [];
+    for (const svc of [...regular, ...dataAdapters, ...frontends]) {
+      const parsed = parsedStacks.get(svc.service);
+      if (!parsed) continue;
+      const subTypes = parsed.constructs.ingress.flatMap(i => i.eventTypes);
+      const matched = entry.events.filter(e => subTypes.includes(e));
+      if (matched.length) internalConsumers.push({ service: svc.service, events: matched });
+    }
+    for (const cons of internalConsumers) {
+      const eventList = cons.events.join('\\n');
+      const pillId = `${entry.from}-to-${cons.service}`;
+      lines.push(`${I}${pillId}: "${cons.events.length} Events" {style: { ${C2_STYLES.flowLabel} }; tooltip: "${eventList}"}`);
+      lines.push(`${I}${extId} -> ${pillId} {${EDGE_STYLE}}`);
+      lines.push(`${I}${pillId} -> ${cons.service} {${EDGE_STYLE}}`);
+    }
+  }
+
+  // Intra-domain event flows (fuzzy matched)
+  const intraFlows = matchIntraDomainFlows(
+    [...regular, ...dataAdapters, ...frontends],
+    parsedStacks,
+  );
+  for (const flow of intraFlows) {
+    const eventList = flow.events.join('\\n');
+    const pillId = `${flow.from}-to-${flow.to}`;
+    lines.push(`${I}${pillId}: "${flow.events.length} Events" {style: { ${C2_STYLES.flowLabel} }; tooltip: "${eventList}"}`);
+    lines.push(`${I}${flow.from} -> ${pillId} {${EDGE_STYLE}}`);
+    lines.push(`${I}${pillId} -> ${flow.to} {${EDGE_STYLE}}`);
+  }
+
+  // External systems (data adapters → third-party APIs)
   const externals = detectExternalSystems(services);
   for (const ext of externals) {
     const extId = `ext-${ext.name.toLowerCase().replace(/\s+/g, '-')}`;
-    lines.push(`    ${extId}: "${ext.name}" {`);
-    lines.push('      class: external');
-    lines.push('    }');
-    lines.push(`    ${ext.service} -> ${extId}`);
-    lines.push('');
+    lines.push(`${I}${extId}: "${ext.name}" {style: { ${C2_STYLES.external} }}`);
+    lines.push(`${I}${ext.service} -> ${extId} {style.stroke-width: 2}`);
   }
 
   lines.push('');
@@ -1143,6 +1223,8 @@ export function generateC2(domain, services, parsedStacks) {
   // Layer imports
   lines.push('    layers: {');
   for (const svc of services) {
+    const parsed = parsedStacks.get(svc.service);
+    if (parsed && parsed.raw.eventBuses.length > 0) continue;
     lines.push(`      c3-${svc.service}: { ...@./c3/${svc.service}.d2 }`);
   }
   lines.push('    }');
@@ -1191,13 +1273,16 @@ function main() {
   }
 
   const domainDescriptions = readDomainDescriptions(SERVICES_DIR);
+  const serviceDescriptions = readServiceDescriptions(SERVICES_DIR);
   const crossDomainFlows = extractCrossDomainFlows(services, parsedStacks);
+  const inboundEventMap = buildInboundEventMap(services, parsedStacks);
   const frontends = detectFrontends(services, parsedStacks);
   const systemMeta = readSystemMeta(ROOT);
   console.log(
     `  flows: ${crossDomainFlows.length} cross-domain event flows (${crossDomainFlows.reduce((n, f) => n + f.events.length, 0)} events)`,
   );
   console.log(`  frontends: ${frontends.map((f) => f.service).join(', ') || 'none'}`);
+  console.log(`  service descriptions: ${serviceDescriptions.size}`);
 
   const parts = [
     generateGlobalStyles(),
@@ -1215,11 +1300,12 @@ function main() {
     '',
   ];
 
+  const c2Opts = { serviceDescriptions, inboundEventMap };
   for (const d of domains) {
     parts.push('  # =========================================================================');
     parts.push(`  # C2 — ${d.charAt(0).toUpperCase() + d.slice(1)} Domain`);
     parts.push('  # =========================================================================');
-    parts.push(generateC2(d, domainServices.get(d), parsedStacks));
+    parts.push(generateC2(d, domainServices.get(d), parsedStacks, c2Opts));
     parts.push('');
   }
 

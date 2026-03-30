@@ -1,0 +1,1 @@
+Orchestrates the multi-step advisory decision cycle by coordinating parallel AI agents for portfolio analysis, market intelligence, compliance checking, and allocation through a state machine. It aggregates their outputs into a decision packet and learns investor preferences over time.

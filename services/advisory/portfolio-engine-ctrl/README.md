@@ -1,0 +1,1 @@
+Analyzes portfolio composition and fund characteristics, evaluating holdings against target allocations and screening the investment universe for rebalancing candidates. It provides portfolio analytics to the decision workflow.

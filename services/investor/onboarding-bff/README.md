@@ -1,0 +1,1 @@
+Guides new investors through the onboarding process using a conversational AI agent with a regulatory knowledge base to collect suitability information, risk preferences, and account details across a multi-phase wizard.

@@ -1,0 +1,1 @@
+Validates advisory decisions against regulatory and mandate constraints, checking that proposed trades comply with investor mandates, concentration limits, and regulatory requirements before execution.

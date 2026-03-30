@@ -1,0 +1,1 @@
+Monitors and analyzes market conditions by aggregating signals from multiple data sources including economic indicators, news, filings, and prices. It assesses market sentiment and identifies conditions relevant to portfolio decisions.
