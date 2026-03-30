@@ -212,10 +212,6 @@ nestfolio: "Nestfolio\n[AI-managed investment platform — reference architectur
     tooltip: "The Ledger domain maintains the authoritative record of all portfolio positions, transactions, and valuations. It reconciles broker-reported activity with internal records and provides the financial source of truth for the entire platform."
   }
 
-  investor-web: "Investor Web" {class: frontend}
-
-  investor-web -> investor-domain {style.font-size: 28; style.stroke-width: 3}
-
   advisory-to-investor: "10 Events" {
     class: flow-label
     tooltip: "DECISION_PACKET_CREATED\nUSER_CONFIRMATION_REQUESTED\nEXPLANATION_GENERATED\nDECISION_APPROVED\nDECISION_BLOCKED\nESCALATION_TRIGGERED\nCIRCUIT_BREAKER_TRIGGERED\nCIRCUIT_BREAKER_RESET\nINCIDENT_DETECTED\nINCIDENT_RESOLVED"
@@ -271,6 +267,9 @@ nestfolio: "Nestfolio\n[AI-managed investment platform — reference architectur
   ledger-domain -> ledger-to-advisory {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
   ledger-to-advisory -> advisory-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
 }
+
+investor-user: "Investor User" {class: person}
+nestfolio.investor-domain <-> investor-user {style.stroke-width: 3}
 
 # ===========================================================================
 # LAYERS

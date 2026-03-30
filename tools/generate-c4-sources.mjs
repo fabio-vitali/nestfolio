@@ -771,18 +771,6 @@ export function generateC1({ domains, domainDescriptions, crossDomainFlows, fron
     lines.push('  }');
   }
 
-  // Frontends
-  if (frontends?.length) {
-    lines.push('');
-    for (const fe of frontends) {
-      lines.push(`  ${fe.service}: "${fe.label}" {class: frontend}`);
-    }
-    lines.push('');
-    for (const fe of frontends) {
-      lines.push(`  ${fe.service} -> ${fe.domain}-domain {style.font-size: 28; style.stroke-width: 3}`);
-    }
-  }
-
   // Cross-domain flow pills
   if (crossDomainFlows?.length) {
     lines.push('');
@@ -802,6 +790,18 @@ export function generateC1({ domains, domainDescriptions, crossDomainFlows, fron
     }
   }
   lines.push('}');
+
+  // Actor for each domain that has a frontend
+  const sys = sysName.toLowerCase();
+  if (frontends?.length) {
+    const domainsWithFrontend = [...new Set(frontends.map(fe => fe.domain))];
+    for (const d of domainsWithFrontend) {
+      const title = d.charAt(0).toUpperCase() + d.slice(1);
+      lines.push('');
+      lines.push(`${d}-user: "${title} User" {class: person}`);
+      lines.push(`${sys}.${d}-domain <-> ${d}-user {style.stroke-width: 3}`);
+    }
+  }
 
   return lines.join('\n');
 }
