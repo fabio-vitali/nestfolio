@@ -1,0 +1,1 @@
+The Execution domain handles the lifecycle of trade orders. It translates advisory recommendations into broker-ready orders, manages order execution through broker integrations, tracks order status, and ensures reliable settlement reporting.

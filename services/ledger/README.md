@@ -1,0 +1,1 @@
+The Ledger domain maintains the authoritative record of all portfolio positions, transactions, and valuations. It reconciles broker-reported activity with internal records and provides the financial source of truth for the entire platform.

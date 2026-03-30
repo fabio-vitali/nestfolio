@@ -44,6 +44,17 @@ classes: {
       stroke-dash: 5
     }
   }
+  flow-label: {
+    shape: rectangle
+    style: {
+      fill: "#F5F5F5"
+      stroke: "#999999"
+      font-color: "#666666"
+      font-size: 22
+      border-radius: 20
+      stroke-width: 1
+    }
+  }
   domain: {
     shape: rectangle
     style: {
@@ -176,34 +187,88 @@ classes: {
 # LAYER: C1 — System Context
 # ===========================================================================
 
-# Nestfolio System Boundary
-nestfolio: "Nestfolio\n[Robo-Advisory Platform]" {
+# System Boundary
+nestfolio: "Nestfolio\n[AI-managed investment platform — reference architecture]" {
   class: system
 
-  advisory-domain: "Advisory Domain\n[GraphQL API · AI Agent · RAG · State Machine · Agent Memory]" {
+  advisory-domain: "Advisory Domain" {
     class: domain
     link: layers.c2-advisory
+    tooltip: "The Advisory domain generates and manages investment recommendations. It orchestrates market intelligence gathering, portfolio analysis, compliance checking, and decision workflows to produce actionable investment advice tailored to each investor's profile and goals. Each recommendation includes a plain-language explanation of the reasoning behind it, so investors understand why a specific action was proposed."
   }
-  execution-domain: "Execution Domain\n[State Machine]" {
+  execution-domain: "Execution Domain" {
     class: domain
     link: layers.c2-execution
+    tooltip: "The Execution domain handles the lifecycle of trade orders. It translates advisory recommendations into broker-ready orders, manages order execution through broker integrations, tracks order status, and ensures reliable settlement reporting."
   }
-  investor-domain: "Investor Domain\n[GraphQL API · AI Agent · RAG]" {
+  investor-domain: "Investor Domain" {
     class: domain
     link: layers.c2-investor
+    tooltip: "The Investor domain manages investor profiles, preferences, and the investor-facing experience. It handles onboarding new investors, maintaining their risk tolerances and financial goals, and providing dashboards for portfolio visibility and account management."
   }
-  ledger-domain: "Ledger Domain\n[GraphQL API]" {
+  ledger-domain: "Ledger Domain" {
     class: domain
     link: layers.c2-ledger
+    tooltip: "The Ledger domain maintains the authoritative record of all portfolio positions, transactions, and valuations. It reconciles broker-reported activity with internal records and provides the financial source of truth for the entire platform."
   }
 
-  investor-web: "investor-web\n[Angular PWA]" {class: frontend}
+  investor-web: "Investor Web" {class: frontend}
 
-  investor-web -> investor-domain {style.font-size: 28}
-  investor-domain -> advisory-domain: Events {style.stroke: "#999999"; style.font-size: 28}
-  advisory-domain -> execution-domain: Events {style.stroke: "#999999"; style.font-size: 28}
-  execution-domain -> ledger-domain: Events {style.stroke: "#999999"; style.font-size: 28}
-  ledger-domain -> investor-domain: Events {style.stroke: "#999999"; style.font-size: 28}
+  investor-web -> investor-domain {style.font-size: 28; style.stroke-width: 3}
+  advisory-to-investor: "10 Events" {
+    class: flow-label
+    tooltip: "DECISION_PACKET_CREATED\nUSER_CONFIRMATION_REQUESTED\nEXPLANATION_GENERATED\nDECISION_APPROVED\nDECISION_BLOCKED\nESCALATION_TRIGGERED\nCIRCUIT_BREAKER_TRIGGERED\nCIRCUIT_BREAKER_RESET\nINCIDENT_DETECTED\nINCIDENT_RESOLVED"
+  }
+  advisory-domain -> advisory-to-investor {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  advisory-to-investor -> investor-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  advisory-to-execution: "5 Events" {
+    class: flow-label
+    tooltip: "DECISION_APPROVED\nDECISION_PACKET_CREATED\nUSER_CONFIRMED\nCIRCUIT_BREAKER_TRIGGERED\nCIRCUIT_BREAKER_RESET"
+  }
+  advisory-domain -> advisory-to-execution {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  advisory-to-execution -> execution-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  execution-to-investor: "7 Events" {
+    class: flow-label
+    tooltip: "ORDER_STAGED\nORDER_REJECTED\nORDER_CANCELLED\nWITHDRAWAL_REJECTED\nWITHDRAWAL_COMPLETED\nORDER_ESCALATED\nBROKER_CIRCUIT_OPEN"
+  }
+  execution-domain -> execution-to-investor {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  execution-to-investor -> investor-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  execution-to-ledger: "9 Events" {
+    class: flow-label
+    tooltip: "ORDER_FILLED\nORDER_PARTIALLY_FILLED\nORDER_REJECTED\nORDER_CANCELLED\nDEPOSIT_DETECTED\nWITHDRAWAL_COMPLETED\nCORPORATE_ACTION_APPLIED\nPORTFOLIO_SNAPSHOT_IMPORTED\nALPACA_ACCOUNT_SNAPSHOT"
+  }
+  execution-domain -> execution-to-ledger {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  execution-to-ledger -> ledger-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  execution-to-advisory: "8 Events" {
+    class: flow-label
+    tooltip: "ORDER_FILLED\nORDER_REJECTED\nORDER_CANCELLED\nDEPOSIT_DETECTED\nPORTFOLIO_DRIFT_DETECTED\nBROKER_SESSION_LOST\nSTREAM_DISCONNECTED\nRECONCILIATION_FAILED"
+  }
+  execution-domain -> execution-to-advisory {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  execution-to-advisory -> advisory-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  investor-to-advisory: "6 Events" {
+    class: flow-label
+    tooltip: "GOAL_UPDATED\nRISK_PROFILE_UPDATED\nOPERATING_MODE_CHANGED\nMANDATE_GRANTED\nMANDATE_UPDATED\nMANDATE_REVOKED"
+  }
+  investor-domain -> investor-to-advisory {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  investor-to-advisory -> advisory-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  investor-to-execution: "4 Events" {
+    class: flow-label
+    tooltip: "DEPOSIT_INITIATED\nWITHDRAWAL_REQUESTED\nACCOUNT_CLOSURE_REQUESTED\nEXECUTION_MODE_CHANGED"
+  }
+  investor-domain -> investor-to-execution {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  investor-to-execution -> execution-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  ledger-to-investor: "6 Events" {
+    class: flow-label
+    tooltip: "BALANCE_UPDATED\nPORTFOLIO_UPDATED\nLEDGER_ENTRY_RECORDED\nRECONCILIATION_COMPLETED\nRECONCILIATION_FAILED\nLEDGER_PROCESSING_FAILED"
+  }
+  ledger-domain -> ledger-to-investor {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  ledger-to-investor -> investor-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  ledger-to-advisory: "3 Events" {
+    class: flow-label
+    tooltip: "PORTFOLIO_UPDATED\nPORTFOLIO_DRIFT_DETECTED\nRECONCILIATION_FAILED"
+  }
+  ledger-domain -> ledger-to-advisory {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  ledger-to-advisory -> advisory-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
 }
 
 # ===========================================================================

@@ -61,7 +61,9 @@ export function parseStack(src) {
   };
 
   // State: new State(this, 'Id') or new State(this, 'Id', { ... })
-  for (const m of src.matchAll(/new\s+State\s*\(\s*this\s*,\s*['"](\w+)['"]\s*(?:,\s*(\{[^)]*\}))?\s*\)/gs)) {
+  for (const m of src.matchAll(
+    /new\s+State\s*\(\s*this\s*,\s*['"](\w+)['"]\s*(?:,\s*(\{[^)]*\}))?\s*\)/gs,
+  )) {
     const entry = { id: m[1], withBucket: false, withTable: true };
     const propsBlock = m[2] || '';
     if (/withBucket\s*:\s*true/.test(propsBlock)) entry.withBucket = true;
@@ -76,42 +78,51 @@ export function parseStack(src) {
     const etMatch = after.match(/eventTypes\s*:\s*\[([\s\S]*?)\]/);
     if (etMatch) {
       // 1. Try string literals: ['EVT_A', 'EVT_B']
-      entry.eventTypes = [...etMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]);
+      entry.eventTypes = [...etMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
       // 2. Try spread variables: [...VAR_NAME] (must check before enum refs since ... contains dots)
       if (entry.eventTypes.length === 0) {
-        const spreads = [...etMatch[1].matchAll(/\.\.\.(\w+)/g)].map(x => x[1]);
+        const spreads = [...etMatch[1].matchAll(/\.\.\.(\w+)/g)].map((x) => x[1]);
         if (spreads.length > 0) {
           for (const constName of spreads) {
-            const constMatch = src.match(new RegExp(`(?:const|let|export\\s+const)\\s+${constName}\\s*(?::\\s*\\w+(?:\\[\\])?)?\\s*=\\s*\\[([\\s\\S]*?)\\]`));
+            const constMatch = src.match(
+              new RegExp(
+                `(?:const|let|export\\s+const)\\s+${constName}\\s*(?::\\s*\\w+(?:\\[\\])?)?\\s*=\\s*\\[([\\s\\S]*?)\\]`,
+              ),
+            );
             if (constMatch) {
-              const literals = [...constMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]);
+              const literals = [...constMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
               if (literals.length > 0) entry.eventTypes.push(...literals);
-              else entry.eventTypes.push(...[...constMatch[1].matchAll(/\.(\w+)/g)].map(x => x[1]));
+              else
+                entry.eventTypes.push(...[...constMatch[1].matchAll(/\.(\w+)/g)].map((x) => x[1]));
             }
           }
         }
       }
       // 3. Try enum references: EnumType.MEMBER
       if (entry.eventTypes.length === 0) {
-        entry.eventTypes = [...etMatch[1].matchAll(/\w+\.(\w+)/g)].map(x => x[1]);
+        entry.eventTypes = [...etMatch[1].matchAll(/\w+\.(\w+)/g)].map((x) => x[1]);
       }
       // 4. Try single variable reference: eventTypes: VAR_NAME
       if (entry.eventTypes.length === 0) {
         const refMatch = after.match(/eventTypes\s*:\s*(\w+)\s*[,\n}]/);
         if (refMatch) {
           const constName = refMatch[1];
-          const constMatch = src.match(new RegExp(`(?:const|let)\\s+${constName}\\s*=\\s*\\[([\\s\\S]*?)\\]`));
+          const constMatch = src.match(
+            new RegExp(`(?:const|let)\\s+${constName}\\s*=\\s*\\[([\\s\\S]*?)\\]`),
+          );
           if (constMatch) {
-            entry.eventTypes = [...constMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]);
+            entry.eventTypes = [...constMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
             if (entry.eventTypes.length === 0) {
-              entry.eventTypes = [...constMatch[1].matchAll(/\.(\w+)/g)].map(x => x[1]);
+              entry.eventTypes = [...constMatch[1].matchAll(/\.(\w+)/g)].map((x) => x[1]);
             }
           }
         }
       }
     }
     // Detect custom entry (handler file)
-    const entryMatch = after.match(/entry\s*:\s*(?:join\s*\([^)]*['"]([^'"]+)['"]\s*\)|['"]([^'"]+)['"])/);
+    const entryMatch = after.match(
+      /entry\s*:\s*(?:join\s*\([^)]*['"]([^'"]+)['"]\s*\)|['"]([^'"]+)['"])/,
+    );
     if (entryMatch) {
       entry.handlerFile = entryMatch[1] || entryMatch[2];
     }
@@ -124,7 +135,7 @@ export function parseStack(src) {
     const after = src.slice(m.index);
     const ptMatch = after.match(/publishableTypes\s*:\s*\[([\s\S]*?)\]/);
     if (ptMatch) {
-      entry.publishableTypes = [...ptMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]);
+      entry.publishableTypes = [...ptMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
     }
     result.constructs.egress.push(entry);
   }
@@ -144,9 +155,9 @@ export function parseStack(src) {
     const after = src.slice(m.index);
     const trMatch = after.match(/triggers\s*:\s*\[([\s\S]*?)\]/);
     if (trMatch) {
-      entry.triggers = [...trMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]);
+      entry.triggers = [...trMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
       if (entry.triggers.length === 0) {
-        entry.triggers = [...trMatch[1].matchAll(/\.(\w+)/g)].map(x => x[1]);
+        entry.triggers = [...trMatch[1].matchAll(/\.(\w+)/g)].map((x) => x[1]);
       }
     }
     result.constructs.orchestration.push(entry);
@@ -184,14 +195,14 @@ export function parseStack(src) {
 
   // Cross-domain rules (Rule with EventBusTarget)
   for (const m of src.matchAll(/new\s+Rule\s*\(\s*this\s*,\s*['"](\w+)['"]\s*,/g)) {
-    const after = src.slice(m.index, m.index + 600);
+    const after = src.slice(m.index, m.index + 1200);
     const isCrossDomain = /EventBusTarget/.test(after);
     const eventTypes = [];
     const dtMatch = after.match(/detailType\s*:\s*\[([\s\S]*?)\]/);
     if (dtMatch) {
-      eventTypes.push(...[...dtMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]));
+      eventTypes.push(...[...dtMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]));
       if (eventTypes.length === 0) {
-        eventTypes.push(...[...dtMatch[1].matchAll(/\.(\w+)/g)].map(x => x[1]));
+        eventTypes.push(...[...dtMatch[1].matchAll(/\.(\w+)/g)].map((x) => x[1]));
       }
     }
     const targetMatch = after.match(/new\s+EventBusTarget\s*\(\s*(\w+)/);
@@ -219,12 +230,16 @@ export function parseStack(src) {
   }
 
   // Standalone NodejsFunction
-  for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*new\s+NodejsFunction\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
+  for (const m of src.matchAll(
+    /(?:const|let)\s+(\w+)\s*=\s*new\s+NodejsFunction\s*\(\s*this\s*,\s*['"](\w+)['"]/g,
+  )) {
     result.raw.lambdas.push({ id: m[2], varName: m[1] });
   }
 
   // Bucket (standalone, outside State)
-  for (const m of src.matchAll(/(?:const|let)\s+\w+\s*=\s*new\s+Bucket\s*\(\s*this\s*,\s*['"](\w+)['"]/g)) {
+  for (const m of src.matchAll(
+    /(?:const|let)\s+\w+\s*=\s*new\s+Bucket\s*\(\s*this\s*,\s*['"](\w+)['"]/g,
+  )) {
     result.raw.buckets.push({ id: m[1] });
   }
 
@@ -239,14 +254,14 @@ export function parseStack(src) {
 // --- C3 D2 Generator ---
 
 const COLORS = {
-  facade:        { fill: '#F3E5F5', stroke: '#9C27B0' },
-  ingress:       { fill: '#FFF8E1', stroke: '#FFC107' },
-  state:         { fill: '#E3F2FD', stroke: '#2196F3' },
-  egress:        { fill: '#FBE9E7', stroke: '#FF5722' },
+  facade: { fill: '#F3E5F5', stroke: '#9C27B0' },
+  ingress: { fill: '#FFF8E1', stroke: '#FFC107' },
+  state: { fill: '#E3F2FD', stroke: '#2196F3' },
+  egress: { fill: '#FBE9E7', stroke: '#FF5722' },
   orchestration: { fill: '#E8F5E9', stroke: '#4CAF50' },
-  agentRuntime:  { fill: '#E8F5E9', stroke: '#4CAF50' },
+  agentRuntime: { fill: '#E8F5E9', stroke: '#4CAF50' },
   knowledgeBase: { fill: '#FFF3E0', stroke: '#FF9800' },
-  agentMemory:   { fill: '#E0F2F1', stroke: '#00695C' },
+  agentMemory: { fill: '#E0F2F1', stroke: '#00695C' },
 };
 
 function groupStyle(type) {
@@ -304,32 +319,28 @@ export function serviceSubtitle(parsed) {
   if (c.agentMemory.length > 0) tags.push('Agent Memory');
 
   // Cross-domain bridge
-  if (r.rules.some(rule => rule.isCrossDomain)) tags.push('Cross-Domain Bridge');
+  if (r.rules.some((rule) => rule.isCrossDomain)) tags.push('Cross-Domain Bridge');
 
   // State with bucket (notable — DynamoDB alone is too common to tag)
-  if (c.state.some(s => s.withBucket)) tags.push('S3 Storage');
+  if (c.state.some((s) => s.withBucket)) tags.push('S3 Storage');
 
   return tags.length > 0 ? tags.join(' · ') : 'Event-Driven Service';
 }
 
 /**
- * Aggregate construct tags across all services in a domain, deduplicated.
- * Returns tags joined with ' · ', or '' if no notable constructs.
+ * Read domain descriptions from services/{domain}/README.md files.
+ * Returns a Map of domain → description string (trimmed, single line).
  */
-export function domainSubtitle(services, parsedStacks) {
-  const allTags = new Set();
-  for (const svc of services) {
-    const parsed = parsedStacks.get(svc.service);
-    if (!parsed) continue;
-    const sub = serviceSubtitle(parsed);
-    if (sub !== 'Event-Driven Service') {
-      for (const tag of sub.split(' · ')) {
-        allTags.add(tag);
-      }
+export function readDomainDescriptions(servicesDir) {
+  const descriptions = new Map();
+  for (const entry of readdirSync(servicesDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const readmePath = join(servicesDir, entry.name, 'README.md');
+    if (existsSync(readmePath)) {
+      descriptions.set(entry.name, readFileSync(readmePath, 'utf-8').trim());
     }
   }
-  allTags.delete('Cross-Domain Bridge');
-  return [...allTags].join(' · ');
+  return descriptions;
 }
 
 /**
@@ -341,7 +352,7 @@ export function domainSubtitle(services, parsedStacks) {
  * Returns [{ name: 'Alpaca', service: 'broker-alpaca-adpt' }, ...]
  */
 export function detectExternalSystems(services) {
-  const knownDomains = new Set(services.map(s => s.domain));
+  const knownDomains = new Set(services.map((s) => s.domain));
   const externals = [];
   for (const svc of services) {
     if (!svc.service.endsWith('-adpt')) continue;
@@ -470,7 +481,8 @@ function generateC3Flows(c, r, domain) {
   // Facade → State
   if (c.facade.length > 0 && hasState) {
     const f = c.facade[0];
-    const facadeNode = (f.hasJsResolvers || f.hasLambdaResolvers) ? 'facade.resolvers' : 'facade.appsync';
+    const facadeNode =
+      f.hasJsResolvers || f.hasLambdaResolvers ? 'facade.resolvers' : 'facade.appsync';
     flows.push(`${facadeNode} -> state.table: Read/Write`);
   }
 
@@ -534,7 +546,7 @@ export function generateC3(service, domain, parsed) {
   const r = parsed.raw;
 
   // Direction
-  const isAdapter = r.rules.some(rule => rule.isCrossDomain);
+  const isAdapter = r.rules.some((rule) => rule.isCrossDomain);
   lines.push(`direction: ${isAdapter ? 'right' : 'down'}`);
   lines.push('');
 
@@ -607,7 +619,7 @@ export function generateC3(service, domain, parsed) {
   }
 
   // Cross-domain adapter pattern
-  const crossDomainRules = r.rules.filter(rule => rule.isCrossDomain);
+  const crossDomainRules = r.rules.filter((rule) => rule.isCrossDomain);
   if (crossDomainRules.length > 0) {
     lines.push(`source: "${domain}-bus\\n[Source]" { class: aws-eventbridge }`);
     lines.push('');
@@ -662,51 +674,131 @@ export function generateC3(service, domain, parsed) {
   return lines.join('\n');
 }
 
+// --- Cross-domain flow extraction ---
+
+/**
+ * Extract cross-domain event flows from adapter service stacks.
+ * Returns an array of { from, to, events[] } objects.
+ */
+export function extractCrossDomainFlows(services, parsedStacks) {
+  const flowMap = new Map(); // "from→to" → events[]
+  for (const svc of services) {
+    if (!svc.service.endsWith('-adpt')) continue;
+    const parsed = parsedStacks.get(svc.service);
+    if (!parsed) continue;
+    for (const rule of parsed.raw.rules) {
+      if (!rule.isCrossDomain || !rule.targetBusVar) continue;
+      const targetDomain = rule.targetBusVar.replace(/Bus$/, '').toLowerCase();
+      const key = `${svc.domain}→${targetDomain}`;
+      if (!flowMap.has(key)) flowMap.set(key, []);
+      flowMap.get(key).push(...rule.eventTypes);
+    }
+  }
+  const flows = [];
+  for (const [key, events] of flowMap) {
+    const [from, to] = key.split('→');
+    flows.push({ from, to, events: [...new Set(events)] });
+  }
+  return flows;
+}
+
+// --- Frontend detection ---
+
+/**
+ * Detect frontend services from parsed stacks.
+ * Returns [{ service, domain, label }] for services with CloudFront distributions or *-web suffix.
+ */
+export function detectFrontends(services, parsedStacks) {
+  const frontends = [];
+  for (const svc of services) {
+    const parsed = parsedStacks.get(svc.service);
+    if (!parsed) continue;
+    const isFrontend = parsed.raw.distributions.length > 0 || svc.service.endsWith('-web');
+    if (isFrontend) {
+      frontends.push({ service: svc.service, domain: svc.domain, label: serviceLabel(svc.service) });
+    }
+  }
+  return frontends;
+}
+
+/**
+ * Read system name and description from root package.json.
+ * Returns { name, description }.
+ */
+export function readSystemMeta(rootDir) {
+  const pkgPath = join(rootDir, 'package.json');
+  if (!existsSync(pkgPath)) return { name: 'System', description: '' };
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+  // Derive display name: prefer scope name (@nestfolio/source → Nestfolio)
+  const scopeMatch = (pkg.name || '').match(/^@([^/]+)\//);
+  const raw = scopeMatch ? scopeMatch[1] : (pkg.name || 'system').replace(/^@[^/]+\//, '');
+  const name = raw.charAt(0).toUpperCase() + raw.slice(1);
+  return { name, description: pkg.description || '' };
+}
+
 // --- C1 D2 Generator ---
-
-const SYSTEM_SUBTITLE = 'Robo-Advisory Platform';
-
-const DOMAIN_FLOW = [
-  ['investor', 'advisory'],
-  ['advisory', 'execution'],
-  ['execution', 'ledger'],
-  ['ledger', 'investor'],
-];
 
 /**
  * Generate C1 D2 content — system context with domains and inter-domain flows.
- * @param {string[]} domains - List of domain names
- * @param {Map<string, Array>} [domainServices] - Map of domain → services
- * @param {Map<string, object>} [parsedStacks] - Map of service → parsed stack
+ * @param {object} opts
+ * @param {string[]} opts.domains - List of domain names
+ * @param {Map<string, string>} [opts.domainDescriptions] - Map of domain → README description
+ * @param {Array<{from, to, events}>} [opts.crossDomainFlows] - Cross-domain event flows
+ * @param {Array<{service, domain, label}>} [opts.frontends] - Frontend services
+ * @param {{ name, description }} [opts.systemMeta] - System name and description
  * @returns {string} D2 source
  */
-export function generateC1(domains, domainServices, parsedStacks) {
+export function generateC1({ domains, domainDescriptions, crossDomainFlows, frontends, systemMeta }) {
   const lines = [];
+  const sysName = systemMeta?.name || 'System';
+  const sysDesc = systemMeta?.description;
+  const sysLabel = sysDesc ? `${sysName}\\n[${sysDesc}]` : sysName;
 
-  lines.push('# Nestfolio System Boundary');
-  lines.push(`nestfolio: "Nestfolio\\n[${SYSTEM_SUBTITLE}]" {`);
+  lines.push('# System Boundary');
+  lines.push(`${sysName.toLowerCase()}: "${sysLabel}" {`);
   lines.push('  class: system');
   lines.push('');
 
   for (const d of domains) {
     const title = d.charAt(0).toUpperCase() + d.slice(1);
-    const svcs = domainServices?.get(d) || [];
-    const sub = parsedStacks ? domainSubtitle(svcs, parsedStacks) : '';
-    const label = sub ? `${title} Domain\\n[${sub}]` : `${title} Domain`;
-    lines.push(`  ${d}-domain: "${label}" {`);
+    lines.push(`  ${d}-domain: "${title} Domain" {`);
     lines.push('    class: domain');
     lines.push(`    link: layers.c2-${d}`);
+    const desc = domainDescriptions?.get(d);
+    if (desc) {
+      lines.push(`    tooltip: "${desc.replace(/"/g, '\\"')}"`);
+    }
     lines.push('  }');
   }
 
-  lines.push('');
-  lines.push('  investor-web: "investor-web\\n[Angular PWA]" {class: frontend}');
-  lines.push('');
+  // Frontends
+  if (frontends?.length) {
+    lines.push('');
+    for (const fe of frontends) {
+      lines.push(`  ${fe.service}: "${fe.label}" {class: frontend}`);
+    }
+    lines.push('');
+    for (const fe of frontends) {
+      lines.push(`  ${fe.service} -> ${fe.domain}-domain {style.font-size: 28; style.stroke-width: 3}`);
+    }
+  }
 
-  // Internal flows
-  lines.push('  investor-web -> investor-domain {style.font-size: 28}');
-  for (const [from, to] of DOMAIN_FLOW) {
-    lines.push(`  ${from}-domain -> ${to}-domain: Events {style.stroke: "#999999"; style.font-size: 28}`);
+  // Cross-domain flows
+  if (crossDomainFlows?.length) {
+    for (const flow of crossDomainFlows) {
+      const eventList = flow.events.join('\\n');
+      const nodeId = `${flow.from}-to-${flow.to}`;
+      lines.push(`  ${nodeId}: "${flow.events.length} Events" {`);
+      lines.push('    class: flow-label');
+      lines.push(`    tooltip: "${eventList}"`);
+      lines.push('  }');
+      lines.push(
+        `  ${flow.from}-domain -> ${nodeId} {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}`,
+      );
+      lines.push(
+        `  ${nodeId} -> ${flow.to}-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}`,
+      );
+    }
   }
   lines.push('}');
 
@@ -764,6 +856,17 @@ classes: {
       border-radius: 10
       stroke-width: 1
       stroke-dash: 5
+    }
+  }
+  flow-label: {
+    shape: rectangle
+    style: {
+      fill: "#F5F5F5"
+      stroke: "#999999"
+      font-color: "#666666"
+      font-size: 22
+      border-radius: 20
+      stroke-width: 1
     }
   }
   domain: {
@@ -925,8 +1028,10 @@ export function generateC2(domain, services, parsedStacks) {
     if (!parsed) continue;
 
     const isHub = parsed.raw.eventBuses.length > 0;
-    const isCrossDomainAdapter = parsed.raw.rules.some(r => r.isCrossDomain);
-    const isDataAdapter = parsed.raw.schedules.length > 0 || (svc.service.endsWith('-adpt') && parsed.constructs.state.length > 0);
+    const isCrossDomainAdapter = parsed.raw.rules.some((r) => r.isCrossDomain);
+    const isDataAdapter =
+      parsed.raw.schedules.length > 0 ||
+      (svc.service.endsWith('-adpt') && parsed.constructs.state.length > 0);
     const isFrontend = parsed.raw.distributions.length > 0 || svc.service.endsWith('-web');
 
     if (isHub) hubs.push(svc);
@@ -1041,7 +1146,9 @@ function main() {
 
   // 1. Discover
   const services = discoverServices();
-  console.log(`  found: ${services.length} services in ${[...new Set(services.map(s => s.domain))].length} domains`);
+  console.log(
+    `  found: ${services.length} services in ${[...new Set(services.map((s) => s.domain))].length} domains`,
+  );
 
   // 2. Parse all stacks
   const parsedStacks = new Map();
@@ -1064,11 +1171,23 @@ function main() {
   console.log(`  wrote: ${c3Count} C3 files to ${C3_DIR}/`);
 
   // 4. Generate root nestfolio.d2
-  const domains = [...new Set(services.map(s => s.domain))].sort();
+  const domains = [...new Set(services.map((s) => s.domain))].sort();
   const domainServices = new Map();
   for (const d of domains) {
-    domainServices.set(d, services.filter(s => s.domain === d));
+    domainServices.set(
+      d,
+      services.filter((s) => s.domain === d),
+    );
   }
+
+  const domainDescriptions = readDomainDescriptions(SERVICES_DIR);
+  const crossDomainFlows = extractCrossDomainFlows(services, parsedStacks);
+  const frontends = detectFrontends(services, parsedStacks);
+  const systemMeta = readSystemMeta(ROOT);
+  console.log(
+    `  flows: ${crossDomainFlows.length} cross-domain event flows (${crossDomainFlows.reduce((n, f) => n + f.events.length, 0)} events)`,
+  );
+  console.log(`  frontends: ${frontends.map(f => f.service).join(', ') || 'none'}`);
 
   const parts = [
     generateGlobalStyles(),
@@ -1077,7 +1196,7 @@ function main() {
     '# LAYER: C1 — System Context',
     '# ===========================================================================',
     '',
-    generateC1(domains, domainServices, parsedStacks),
+    generateC1({ domains, domainDescriptions, crossDomainFlows, frontends, systemMeta }),
     '',
     '# ===========================================================================',
     '# LAYERS',
@@ -1102,6 +1221,7 @@ function main() {
 }
 
 // Run if invoked directly
-const isMain = process.argv[1] && new URL(process.argv[1], 'file://').pathname
-  === new URL(import.meta.url).pathname;
+const isMain =
+  process.argv[1] &&
+  new URL(process.argv[1], 'file://').pathname === new URL(import.meta.url).pathname;
 if (isMain) main();

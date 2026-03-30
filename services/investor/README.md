@@ -1,0 +1,1 @@
+The Investor domain manages investor profiles, preferences, and the investor-facing experience. It handles onboarding new investors, maintaining their risk tolerances and financial goals, and providing dashboards for portfolio visibility and account management.

@@ -10,4 +10,12 @@ to-investor: "investor-bus\n[Target]" { class: aws-eventbridge }
 to-investor-dlq: "DLQ" { class: aws-dlq }
 source -> to-investor
 
+to-ledger: "ledger-bus\n[Target]" { class: aws-eventbridge }
+to-ledger-dlq: "DLQ" { class: aws-dlq }
+source -> to-ledger
+
+to-advisory: "advisory-bus\n[Target]" { class: aws-eventbridge }
+to-advisory-dlq: "DLQ" { class: aws-dlq }
+source -> to-advisory
+
 # Flows

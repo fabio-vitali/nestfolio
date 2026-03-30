@@ -6,6 +6,10 @@ title: "Advisory Adapter\n[Cross-Domain Bridge]" {
 
 source: "advisory-bus\n[Source]" { class: aws-eventbridge }
 
+to-investor: "investor-bus\n[Target]" { class: aws-eventbridge }
+to-investor-dlq: "DLQ" { class: aws-dlq }
+source -> to-investor
+
 to-execution: "execution-bus\n[Target]" { class: aws-eventbridge }
 to-execution-dlq: "DLQ" { class: aws-dlq }
 source -> to-execution
