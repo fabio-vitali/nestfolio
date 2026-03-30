@@ -98,7 +98,7 @@ console.log(`  source: ${D2_SOURCE}`);
 console.log(`  output: ${OUT_DIR}/`);
 
 try {
-  execSync(`${d2} --pad 80 "${D2_SOURCE}" "${OUT_DIR}/"`, {
+  execSync(`${d2} --layout elk --pad 80 "${D2_SOURCE}" "${OUT_DIR}/"`, {
     cwd: ARCH_DIR,
     stdio: 'pipe',
     encoding: 'utf-8',

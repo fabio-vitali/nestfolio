@@ -783,8 +783,9 @@ export function generateC1({ domains, domainDescriptions, crossDomainFlows, fron
     }
   }
 
-  // Cross-domain flows
+  // Cross-domain flow pills
   if (crossDomainFlows?.length) {
+    lines.push('');
     for (const flow of crossDomainFlows) {
       const eventList = flow.events.join('\\n');
       const nodeId = `${flow.from}-to-${flow.to}`;
