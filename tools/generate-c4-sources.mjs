@@ -715,7 +715,11 @@ export function detectFrontends(services, parsedStacks) {
     if (!parsed) continue;
     const isFrontend = parsed.raw.distributions.length > 0 || svc.service.endsWith('-web');
     if (isFrontend) {
-      frontends.push({ service: svc.service, domain: svc.domain, label: serviceLabel(svc.service) });
+      frontends.push({
+        service: svc.service,
+        domain: svc.domain,
+        label: serviceLabel(svc.service),
+      });
     }
   }
   return frontends;
@@ -748,14 +752,17 @@ export function readSystemMeta(rootDir) {
  * @param {{ name, description }} [opts.systemMeta] - System name and description
  * @returns {string} D2 source
  */
-export function generateC1({ domains, domainDescriptions, crossDomainFlows, frontends, systemMeta }) {
+export function generateC1({
+  domains,
+  domainDescriptions,
+  crossDomainFlows,
+  frontends,
+  systemMeta,
+}) {
   const lines = [];
   const sysName = systemMeta?.name || 'System';
-  const sysDesc = systemMeta?.description;
-  const sysLabel = sysDesc ? `${sysName}\\n[${sysDesc}]` : sysName;
-
   lines.push('# System Boundary');
-  lines.push(`${sysName.toLowerCase()}: "${sysLabel}" {`);
+  lines.push(`${sysName.toLowerCase()}: "" {`);
   lines.push('  class: system');
   lines.push('');
 
@@ -794,7 +801,7 @@ export function generateC1({ domains, domainDescriptions, crossDomainFlows, fron
   // Actor for each domain that has a frontend
   const sys = sysName.toLowerCase();
   if (frontends?.length) {
-    const domainsWithFrontend = [...new Set(frontends.map(fe => fe.domain))];
+    const domainsWithFrontend = [...new Set(frontends.map((fe) => fe.domain))];
     for (const d of domainsWithFrontend) {
       const title = d.charAt(0).toUpperCase() + d.slice(1);
       lines.push('');
@@ -827,6 +834,8 @@ style: {
 classes: {
   person: {
     shape: person
+    width: 100
+    height: 120
     style: {
       fill: "#08427B"
       stroke: "#052E56"
@@ -1188,7 +1197,7 @@ function main() {
   console.log(
     `  flows: ${crossDomainFlows.length} cross-domain event flows (${crossDomainFlows.reduce((n, f) => n + f.events.length, 0)} events)`,
   );
-  console.log(`  frontends: ${frontends.map(f => f.service).join(', ') || 'none'}`);
+  console.log(`  frontends: ${frontends.map((f) => f.service).join(', ') || 'none'}`);
 
   const parts = [
     generateGlobalStyles(),
