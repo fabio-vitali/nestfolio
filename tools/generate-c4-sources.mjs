@@ -841,7 +841,7 @@ export function generateC1({
   const sysName = systemMeta?.name || 'System';
   lines.push('# System Boundary');
   lines.push(`${sysName.toLowerCase()}: "" {`);
-  lines.push('  class: system');
+  lines.push('  style: { fill: "#FFFFFF"; stroke: "#FFFFFF" }');
   lines.push('');
 
   for (const d of domains) {
@@ -952,7 +952,7 @@ classes: {
       fill: "#F5F5F5"
       stroke: "#999999"
       font-color: "#666666"
-      font-size: 22
+      font-size: 30
       border-radius: 20
       stroke-width: 1
     }
@@ -963,7 +963,7 @@ classes: {
       fill: "#438DD5"
       stroke: "#2E6295"
       font-color: "#ffffff"
-      font-size: 34
+      font-size: 44
       bold: true
       border-radius: 14
       stroke-width: 3
@@ -1107,7 +1107,7 @@ export function generateC2(domain, services, parsedStacks, { serviceDescriptions
   const title = domain.charAt(0).toUpperCase() + domain.slice(1);
 
   lines.push(`  c2-${domain}: {`);
-  lines.push(`    style: { ${C2_STYLES.system} }`);
+  lines.push(`    style: { fill: "#FFFFFF"; stroke: "#FFFFFF" }`);
   lines.push('');
 
   // Classify services — skip hubs entirely

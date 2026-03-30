@@ -75,16 +75,83 @@ function patchNavigationLinks(dir) {
 }
 
 /**
- * Post-process C2 layer SVGs to add:
- *  - Inner padding (shrink the background rect)
- *  - Title above the box (insert SVG text element)
- *  - Expand viewBox to fit title + padding
+ * Title sizing constants.
+ * Font ascent (~0.75 * fontSize) determines how far above the baseline the text extends.
+ * TITLE_GAP must be large enough to contain the full ascent + a top margin.
+ */
+const TITLE_FONT_SIZE = 48;
+const TITLE_ASCENT = Math.ceil(TITLE_FONT_SIZE * 0.75); // ~36px
+const TITLE_TOP_MARGIN = 24;
+const TITLE_GAP = TITLE_ASCENT + TITLE_TOP_MARGIN + 16; // 76px — shared by C1 and C2
+const BOTTOM_PAD = 10; // D2 layers lack consistent bottom padding — add explicitly
+
+/**
+ * Insert a title into an SVG and expand both viewBoxes to fit it.
  *
- * D2 layers don't support inner padding or external labels, so we patch the SVG.
+ * The inner SVG viewBox is expanded upward (new coordinate space for the title).
+ * The inner SVG physical height grows to match.
+ * The outer SVG viewBox height grows to show the taller inner SVG — its origin
+ * stays fixed so the original bottom padding is preserved.
+ */
+function insertSvgTitle(svg, title) {
+  // Parse inner SVG viewBox for title positioning
+  const innerVbMatch = svg.match(/<svg class="[^"]*d2-svg[^"]*"[^>]*viewBox="([^"]+)"/);
+  if (!innerVbMatch) return null;
+  const [ix, iy] = innerVbMatch[1].split(/\s+/).map(Number);
+
+  // Place baseline so the full ascent + margin fits within the expanded viewBox
+  // New inner viewBox top = iy - TITLE_GAP, baseline = newTop + margin + ascent
+  const titleX = ix + 10;
+  const titleY = (iy - TITLE_GAP) + TITLE_TOP_MARGIN + TITLE_ASCENT;
+  const titleEl = `<text x="${titleX}" y="${titleY}" font-family="Source Sans Pro, sans-serif" font-size="${TITLE_FONT_SIZE}" font-weight="700" fill="#000000">${title}</text>`;
+
+  // Insert after last </style> closing tag (within inner SVG, before content)
+  const lastStyleEnd = svg.lastIndexOf(']]></style>');
+  if (lastStyleEnd === -1) return null;
+  const insertIdx = lastStyleEnd + 11; // right after </style>
+  svg = svg.slice(0, insertIdx) + titleEl + svg.slice(insertIdx);
+
+  const totalExpand = TITLE_GAP + BOTTOM_PAD;
+
+  // Expand inner SVG viewBox: upward for title, downward for bottom padding
+  svg = svg.replace(
+    /(<svg class="[^"]*d2-svg[^"]*") width="(\d+)" height="(\d+)" viewBox="([^"]+)"/,
+    (m, pre, w, h, vb) => {
+      const [vx, vy, vw, vh] = vb.split(/\s+/).map(Number);
+      return `${pre} width="${w}" height="${Number(h) + totalExpand}" viewBox="${vx} ${vy - TITLE_GAP} ${vw} ${vh + totalExpand}"`;
+    },
+  );
+
+  // Expand outer SVG viewBox height (origin stays fixed → bottom padding preserved)
+  svg = svg.replace(
+    /(preserveAspectRatio="[^"]*" viewBox=")([^"]+)(")/,
+    (_, pre, vb, post) => {
+      const [ox, oy, ow, oh] = vb.split(/\s+/).map(Number);
+      return `${pre}${ox} ${oy} ${ow} ${oh + totalExpand}${post}`;
+    },
+  );
+
+  return svg;
+}
+
+/**
+ * Post-process C1 root SVG to add title "Nestfolio System" above the content.
+ */
+function patchC1Layer(dir) {
+  const svgPath = join(dir, 'index.svg');
+  let svg;
+  try { svg = readFileSync(svgPath, 'utf-8'); } catch { return 0; }
+
+  const result = insertSvgTitle(svg, 'Nestfolio System');
+  if (!result) return 0;
+  writeFileSync(svgPath, result);
+  return 1;
+}
+
+/**
+ * Post-process C2 layer SVGs to add domain titles and expand viewBox.
  */
 function patchC2Layers(dir) {
-  const PAD = 60;       // inner margin between box border and content
-  const TITLE_GAP = 70; // space for the title above the box
   let count = 0;
 
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -96,44 +163,9 @@ function patchC2Layers(dir) {
     const domain = entry.name.replace('c2-', '');
     const title = domain.charAt(0).toUpperCase() + domain.slice(1) + ' Domain';
 
-    // Match the background rect: first <rect .../> in the SVG
-    const bgMatch = svg.match(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" rx="([^"]+)" ([^/]*)\/>/);
-    if (!bgMatch) continue;
-    const [fullRect, bx, by, bw, bh, brx, bAttrs] = bgMatch;
-    const rx = Number(bx), ry = Number(by), rw = Number(bw), rh = Number(bh);
-
-    // Shrink the background rect by PAD on each side
-    const newRx = rx + PAD, newRy = ry + PAD;
-    const newRw = rw - 2 * PAD, newRh = rh - 2 * PAD;
-    const newRect = `<rect x="${newRx}" y="${newRy}" width="${newRw}" height="${newRh}" rx="${brx}" ${bAttrs}/>`;
-
-    // Title text above the box
-    const titleX = newRx;
-    const titleY = newRy - 16;
-    const titleEl = `<text x="${titleX}" y="${titleY}" font-family="Source Sans Pro, sans-serif" font-size="48" font-weight="700" fill="#000000">${title}</text>`;
-
-    svg = svg.replace(fullRect, newRect + titleEl);
-
-    // Expand outer SVG viewBox to fit title
-    svg = svg.replace(
-      /(preserveAspectRatio="[^"]*" viewBox=")([^"]+)(")/,
-      (_, pre, vb, post) => {
-        const [ox, oy, ow, oh] = vb.split(/\s+/).map(Number);
-        return `${pre}${ox} ${oy - TITLE_GAP} ${ow} ${oh + TITLE_GAP}${post}`;
-      },
-    );
-    // Update outer SVG width/height attributes
-    svg = svg.replace(
-      /(<svg[^>]*) width="(\d+)" height="(\d+)"/,
-      (m, pre, w, h) => `${pre} width="${w}" height="${Number(h) + TITLE_GAP}"`,
-    );
-    // Update inner SVG height
-    svg = svg.replace(
-      /(<svg class="[^"]*d2-svg[^"]*") width="(\d+)" height="(\d+)"/,
-      (m, pre, w, h) => `${pre} width="${w}" height="${Number(h) + TITLE_GAP}"`,
-    );
-
-    writeFileSync(svgPath, svg);
+    const result = insertSvgTitle(svg, title);
+    if (!result) continue;
+    writeFileSync(svgPath, result);
     count++;
   }
   return count;
@@ -163,7 +195,7 @@ console.log(`  source: ${D2_SOURCE}`);
 console.log(`  output: ${OUT_DIR}/`);
 
 try {
-  execSync(`${d2} --layout elk --elk-padding "[top=120,left=100,bottom=100,right=100]" --elk-nodeNodeBetweenLayers 100 --pad 80 "${D2_SOURCE}" "${OUT_DIR}/"`, {
+  execSync(`${d2} --layout elk --elk-padding "[top=40,left=40,bottom=40,right=40]" --elk-nodeNodeBetweenLayers 40 --pad 60 "${D2_SOURCE}" "${OUT_DIR}/"`, {
     cwd: ARCH_DIR,
     stdio: 'pipe',
     encoding: 'utf-8',
@@ -182,8 +214,12 @@ console.log(`  renamed: ${renamed} files → .svg`);
 const patched = patchNavigationLinks(OUT_DIR);
 console.log(`  patched: ${patched} files (navigation links → .svg)`);
 
-// Post-process C2 SVGs: add title + inner padding (D2 layers don't support these)
+// Post-process C1 SVG: add "Nestfolio System" title
+const c1Patched = patchC1Layer(OUT_DIR);
+console.log(`  c1-patched: ${c1Patched} files (title)`);
+
+// Post-process C2 SVGs: add domain titles
 const c2Patched = patchC2Layers(OUT_DIR);
-console.log(`  c2-patched: ${c2Patched} files (title + margins)`);
+console.log(`  c2-patched: ${c2Patched} files (title)`);
 
 console.log('Done.');
