@@ -367,15 +367,6 @@ layers: {
     ledger-to-advisory-adpt: "3 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "PORTFOLIO_UPDATED\nLEDGER_PORTFOLIO_DRIFT_DETECTED\nLEDGER_RECONCILIATION_FAILED"}
     ext-ledger -> ledger-to-advisory-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     ledger-to-advisory-adpt -> advisory-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    investor-to-advisory-ctrl: "4 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "GOAL_UPDATED\nRISK_PROFILE_UPDATED\nOPERATING_MODE_CHANGED\nMANDATE_GRANTED"}
-    ext-investor -> investor-to-advisory-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    investor-to-advisory-ctrl -> advisory-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    investor-to-compliance-ctrl: "4 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "OPERATING_MODE_CHANGED\nMANDATE_GRANTED\nMANDATE_UPDATED\nMANDATE_REVOKED"}
-    ext-investor -> investor-to-compliance-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    investor-to-compliance-ctrl -> compliance-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    execution-to-advisory-ctrl: "5 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "ORDER_FILLED\nORDER_REJECTED\nORDER_CANCELLED\nDEPOSIT_DETECTED\nPORTFOLIO_DRIFT_DETECTED"}
-    ext-execution -> execution-to-advisory-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    execution-to-advisory-ctrl -> advisory-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     advisory-ctrl-to-advisory-bff: "2 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_PACKET_CREATED\nDECISION_PACKET_ENRICHED"}
     advisory-ctrl -> advisory-ctrl-to-advisory-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     advisory-ctrl-to-advisory-bff -> advisory-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
@@ -460,15 +451,6 @@ layers: {
     investor-to-execution-adpt: "4 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DEPOSIT_INITIATED\nWITHDRAWAL_REQUESTED\nACCOUNT_CLOSURE_REQUESTED\nEXECUTION_MODE_CHANGED"}
     ext-investor -> investor-to-execution-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     investor-to-execution-adpt -> execution-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    advisory-to-execution-ctrl: "4 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_APPROVED\nUSER_CONFIRMED\nCIRCUIT_BREAKER_TRIGGERED\nCIRCUIT_BREAKER_RESET"}
-    ext-advisory -> advisory-to-execution-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    advisory-to-execution-ctrl -> execution-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    investor-to-broker-ctrl: "3 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DEPOSIT_INITIATED\nWITHDRAWAL_REQUESTED\nEXECUTION_MODE_CHANGED"}
-    ext-investor -> investor-to-broker-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    investor-to-broker-ctrl -> broker-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    investor-to-execution-ctrl: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "ACCOUNT_CLOSURE_REQUESTED"}
-    ext-investor -> investor-to-execution-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    investor-to-execution-ctrl -> execution-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     ext-alpaca: "Alpaca" {style: { fill: "#8B8B8B"; stroke: "#666666"; font-color: "#ffffff"; font-size: 26; border-radius: 10; stroke-width: 1; stroke-dash: 5 }}
     broker-alpaca-adpt -> ext-alpaca {style.stroke-width: 2}
     ext-sim: "Sim" {style: { fill: "#8B8B8B"; stroke: "#666666"; font-color: "#ffffff"; font-size: 26; border-radius: 10; stroke-width: 1; stroke-dash: 5 }}
@@ -532,24 +514,6 @@ layers: {
     ledger-to-investor-adpt: "6 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "BALANCE_UPDATED\nPORTFOLIO_UPDATED\nLEDGER_ENTRY_RECORDED\nRECONCILIATION_COMPLETED\nRECONCILIATION_FAILED\nLEDGER_PROCESSING_FAILED"}
     ext-ledger -> ledger-to-investor-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     ledger-to-investor-adpt -> investor-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    advisory-to-dashboard-bff: "4 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_PACKET_CREATED\nUSER_CONFIRMATION_REQUESTED\nDECISION_APPROVED\nDECISION_BLOCKED"}
-    ext-advisory -> advisory-to-dashboard-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    advisory-to-dashboard-bff -> dashboard-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    advisory-to-investor-ctrl: "2 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_APPROVED\nDECISION_BLOCKED"}
-    ext-advisory -> advisory-to-investor-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    advisory-to-investor-ctrl -> investor-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    execution-to-investor-ctrl: "2 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "ORDER_REJECTED\nWITHDRAWAL_COMPLETED"}
-    ext-execution -> execution-to-investor-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    execution-to-investor-ctrl -> investor-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    ledger-to-dashboard-bff: "4 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "BALANCE_UPDATED\nPORTFOLIO_UPDATED\nLEDGER_ENTRY_RECORDED\nRECONCILIATION_COMPLETED"}
-    ext-ledger -> ledger-to-dashboard-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    ledger-to-dashboard-bff -> dashboard-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    ledger-to-investor-bff: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "BALANCE_UPDATED"}
-    ext-ledger -> ledger-to-investor-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    ledger-to-investor-bff -> investor-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    ledger-to-investor-ctrl: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "BALANCE_UPDATED"}
-    ext-ledger -> ledger-to-investor-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    ledger-to-investor-ctrl -> investor-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     investor-bff-to-dashboard-bff: "4 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "GOAL_SET\nGOAL_UPDATED\nRISK_PROFILE_SET\nRISK_PROFILE_UPDATED"}
     investor-bff -> investor-bff-to-dashboard-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     investor-bff-to-dashboard-bff -> dashboard-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
@@ -607,12 +571,6 @@ layers: {
     execution-to-ledger-adpt: "9 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "ORDER_FILLED\nORDER_PARTIALLY_FILLED\nORDER_REJECTED\nORDER_CANCELLED\nDEPOSIT_DETECTED\nWITHDRAWAL_COMPLETED\nCORPORATE_ACTION_APPLIED\nPORTFOLIO_SNAPSHOT_IMPORTED\nALPACA_ACCOUNT_SNAPSHOT"}
     ext-execution -> execution-to-ledger-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     execution-to-ledger-adpt -> ledger-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    execution-to-ledger-ctrl: "6 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "ORDER_FILLED\nORDER_PARTIALLY_FILLED\nORDER_REJECTED\nORDER_CANCELLED\nDEPOSIT_DETECTED\nWITHDRAWAL_COMPLETED"}
-    ext-execution -> execution-to-ledger-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    execution-to-ledger-ctrl -> ledger-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    execution-to-reconciliation-ctrl: "3 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "CORPORATE_ACTION_APPLIED\nPORTFOLIO_SNAPSHOT_IMPORTED\nALPACA_ACCOUNT_SNAPSHOT"}
-    ext-execution -> execution-to-reconciliation-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    execution-to-reconciliation-ctrl -> reconciliation-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
 
     layers: {
       c3-ledger-adpt: { ...@./c3/ledger-adpt.d2 }

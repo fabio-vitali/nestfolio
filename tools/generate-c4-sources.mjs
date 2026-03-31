@@ -1189,31 +1189,9 @@ export function generateC2(domain, services, parsedStacks, { serviceDescriptions
     }
   }
 
-  // External domain boxes for inbound events (from other domains' adapters)
-  const inbound = inboundEventMap?.get(domain) || [];
-  for (const entry of inbound) {
-    const srcTitle = entry.from.charAt(0).toUpperCase() + entry.from.slice(1);
-    const extId = `ext-${entry.from}`;
-    if (!externalDomainIds.has(extId)) {
-      externalDomainIds.add(extId);
-      lines.push(`${I}${extId}: "${srcTitle} Domain" {style: { ${C2_STYLES.external} }}`);
-    }
-    const internalConsumers = [];
-    for (const svc of [...regular, ...dataAdapters, ...frontends]) {
-      const parsed = parsedStacks.get(svc.service);
-      if (!parsed) continue;
-      const subTypes = parsed.constructs.ingress.flatMap(i => i.eventTypes);
-      const matched = entry.events.filter(e => subTypes.includes(e));
-      if (matched.length) internalConsumers.push({ service: svc.service, events: matched });
-    }
-    for (const cons of internalConsumers) {
-      const eventList = cons.events.join('\\n');
-      const pillId = `${entry.from}-to-${cons.service}`;
-      lines.push(`${I}${pillId}: "${cons.events.length} Events" {style: { ${C2_STYLES.flowLabel} }; tooltip: "${eventList}"}`);
-      lines.push(`${I}${extId} -> ${pillId} {${EDGE_STYLE}}`);
-      lines.push(`${I}${pillId} -> ${cons.service} {${EDGE_STYLE}}`);
-    }
-  }
+  // Note: in pull model, cross-domain events arrive via the adapter's ingestion rules
+  // (rendered above). Internal services consume from the domain bus, not directly from
+  // external domains, so no external→internal-consumer arrows are drawn here.
 
   // Intra-domain event flows (fuzzy matched)
   const intraFlows = matchIntraDomainFlows(
