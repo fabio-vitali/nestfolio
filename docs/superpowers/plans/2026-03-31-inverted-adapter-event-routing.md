@@ -46,6 +46,10 @@
 - `services/advisory/advisory-adpt/CLAUDE.md`
 - `services/execution/execution-adpt/CLAUDE.md`
 - `services/ledger/ledger-adpt/CLAUDE.md`
+- `services/investor/investor-adpt/README.md`
+- `services/advisory/advisory-adpt/README.md`
+- `services/execution/execution-adpt/README.md`
+- `services/ledger/ledger-adpt/README.md`
 
 ### Skills (modify)
 - `.claude/skills/system/domains.md` — update "Adapter Forwarding" sections and "Cross-Domain Event Topology" to reflect pull model
@@ -1142,11 +1146,33 @@ None (stateless adapter)
 - libs: cdk-constructs/core, cdk-constructs/observability, cdk-constructs/extensions
 ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Update adapter README.md files**
+
+Replace `services/investor/investor-adpt/README.md`:
+```
+Ingests cross-domain events from the advisory, execution, and ledger buses into the investor domain bus, subscribing to decision packets, order status, balance updates, and reconciliation signals.
+```
+
+Replace `services/advisory/advisory-adpt/README.md`:
+```
+Ingests cross-domain events from the investor, execution, and ledger buses into the advisory domain bus, subscribing to goal updates, mandate changes, order status, portfolio updates, and reconciliation signals.
+```
+
+Replace `services/execution/execution-adpt/README.md`:
+```
+Ingests cross-domain events from the advisory and investor buses into the execution domain bus, subscribing to decision approvals, circuit breaker signals, deposit and withdrawal requests.
+```
+
+Replace `services/ledger/ledger-adpt/README.md`:
+```
+Ingests cross-domain events from the execution bus into the ledger domain bus, subscribing to order fills, deposit and withdrawal completions, corporate actions, and portfolio snapshots.
+```
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add services/investor/investor-adpt/CLAUDE.md services/advisory/advisory-adpt/CLAUDE.md services/execution/execution-adpt/CLAUDE.md services/ledger/ledger-adpt/CLAUDE.md
-git commit -m "docs: update adapter service cards for pull model"
+git add services/investor/investor-adpt/CLAUDE.md services/advisory/advisory-adpt/CLAUDE.md services/execution/execution-adpt/CLAUDE.md services/ledger/ledger-adpt/CLAUDE.md services/investor/investor-adpt/README.md services/advisory/advisory-adpt/README.md services/execution/execution-adpt/README.md services/ledger/ledger-adpt/README.md
+git commit -m "docs: update adapter service cards and READMEs for pull model"
 ```
 
 ---
