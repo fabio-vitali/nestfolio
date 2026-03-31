@@ -422,30 +422,30 @@ function collectEventTypesFromBlock(block) {
   const types = [];
 
   // (a) Base name: 'PascalCaseKey': 'SCREAMING_VALUE'
-  for (const m of block.matchAll(/['"]([A-Z][a-z]\w*)['"]\s*:\s*['"]([A-Z][A-Z_]+)['"]/g)) {
+  for (const m of block.matchAll(/['"]([A-Z][a-z]\w*)['"]\s*:\s*['"]([A-Z][A-Z0-9_]+)['"]/g)) {
     types.push(`${m[2]}_CREATED`, `${m[2]}_UPDATED`);
   }
 
   // (b) Action-level string: insert: 'EVENT' / modify: 'EVENT' / remove: 'EVENT'
-  for (const m of block.matchAll(/(?:insert|modify|remove)\s*:\s*['"]([A-Z][A-Z_]+)['"]/g)) {
+  for (const m of block.matchAll(/(?:insert|modify|remove)\s*:\s*['"]([A-Z][A-Z0-9_]+)['"]/g)) {
     types.push(m[1]);
   }
 
   // (c) Map values: map: { KEY: 'EVENT', ... }
   for (const mapM of block.matchAll(/map\s*:\s*\{([^}]*)\}/g)) {
-    for (const m of mapM[1].matchAll(/:\s*['"]([A-Z][A-Z_]+)['"]/g)) {
+    for (const m of mapM[1].matchAll(/:\s*['"]([A-Z][A-Z0-9_]+)['"]/g)) {
       types.push(m[1]);
     }
   }
 
   // (d) Default value: default: 'EVENT'
-  for (const m of block.matchAll(/default\s*:\s*['"]([A-Z][A-Z_]+)['"]/g)) {
+  for (const m of block.matchAll(/default\s*:\s*['"]([A-Z][A-Z0-9_]+)['"]/g)) {
     types.push(m[1]);
   }
 
   // (e) Emits array: emits: ['EVENT', ...]
   for (const emitsM of block.matchAll(/emits\s*:\s*\[([^\]]*)\]/g)) {
-    for (const m of emitsM[1].matchAll(/['"]([A-Z][A-Z_]+)['"]/g)) {
+    for (const m of emitsM[1].matchAll(/['"]([A-Z][A-Z0-9_]+)['"]/g)) {
       types.push(m[1]);
     }
   }

@@ -22,7 +22,7 @@ Audit the service {service} in domain {domain}. Read these files:
 2. services/{domain}/{service}/src/service.stack.ts — extract:
    - State: DynamoDB table(s), S3 bucket(s), streams enabled?
    - Ingress: each Ingress construct → event types subscribed, handler path
-   - Egress: CDC config → publishableTypes / eventTypeMap
+   - Egress: CDC config → eventTypes map (record type → event config)
    - Step Functions: state machine names and purposes
    - Facade: GraphQL/REST endpoints if present
    - AgentRuntime: Bedrock agent if present

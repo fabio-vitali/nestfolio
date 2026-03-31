@@ -98,6 +98,12 @@ describe('parseStack', () => {
     assert.deepEqual(result.constructs.egress[0].allEventTypes.sort(), ['CHECK_FAILED', 'CHECK_PASSED', 'CHECK_UNKNOWN']);
   });
 
+  it('detects Egress with eventTypes containing digits', () => {
+    const src = `new Egress(this, 'Egress', { state, eventTypes: { 'SecFiling': { insert: { field: 'formType', map: { '8-K': 'SEC_8K_FILED', '10-K': 'SEC_10K_UPDATED' }, default: 'SEC_8K_FILED' } } } });`;
+    const result = parseStack(src);
+    assert.deepEqual(result.constructs.egress[0].allEventTypes.sort(), ['SEC_10K_UPDATED', 'SEC_8K_FILED']);
+  });
+
   it('detects Egress with eventTypes passthrough emits', () => {
     const src = `new Egress(this, 'Egress', { state, eventTypes: { 'NormalizedEvent': { insert: { field: 'sk', passthrough: true, emits: ['ORDER_FILLED', 'ORDER_REJECTED'] } } } });`;
     const result = parseStack(src);

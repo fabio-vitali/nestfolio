@@ -158,7 +158,7 @@ Auto-grants: `table.grantReadWriteData`, `bucket.grantReadWrite`, `events:PutEve
 ```ts
 export interface EgressProps {
   state: State;                      // required — Egress reads DynamoDB Streams from state.getTable()
-  publishableTypes: string[];        // __typename values to publish CDC events for
+  eventTypes: EventTypesMap;         // declarative event type mapping: record type → event config
   entry?: string;                    // default: join(serviceDir, 'handlers', 'event-publisher.ts')
   environment?: Record<string, string>;
   lambdaProps?: Partial<NodejsFunctionProps>;
@@ -330,7 +330,10 @@ export class MyServiceStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['MyAggregate', 'MyProjection'],
+      eventTypes: {
+        'MyAggregate': 'MY_AGGREGATE',
+        'MyProjection': 'MY_PROJECTION',
+      },
     });
 
     this.addObservability({ ingress, egress });
