@@ -5,9 +5,21 @@ import { EgestionEngine } from '../engine/egestion-engine';
 import { EventBridgePublisher } from '../util/event-bridge-publisher';
 import { getUUID } from '../internal';
 
+type RuntimeFieldDispatch = {
+  field: string;
+  map: Record<string, string>;
+  default?: string;
+};
+
+type RuntimePassthrough = {
+  field: string;
+  passthrough: true;
+};
+
+type RuntimeMapping = string | RuntimeFieldDispatch | RuntimePassthrough;
+type RuntimeConfig = Record<string, RuntimeMapping>;
+
 export interface ChangeDataCaptureConfig {
-  serviceName: string;
-  eventTypeMap: Record<string, string | ((record: StreamRecord) => string)>;
   groupBy?: {
     key: (record: StreamRecord) => string;
     pick?: 'first' | 'last';
@@ -20,12 +32,21 @@ export interface ChangeDataCaptureConfig {
 function resolveEventType(
   record: StreamRecord,
   eventName: string,
-  eventTypeMap: ChangeDataCaptureConfig['eventTypeMap'],
+  config: RuntimeConfig,
 ): string | null {
   const key = `${record.__typename}:${eventName}`;
-  const resolver = eventTypeMap[key];
-  if (!resolver) return null;
-  return typeof resolver === 'function' ? resolver(record) : resolver;
+  const mapping = config[key];
+  if (!mapping) return null;
+
+  if (typeof mapping === 'string') return mapping;
+
+  if ('passthrough' in mapping && mapping.passthrough) {
+    return (record as Record<string, unknown>)[mapping.field] as string ?? null;
+  }
+
+  // Field dispatch
+  const value = (record as Record<string, unknown>)[mapping.field] as string;
+  return mapping.map[value] ?? mapping.default ?? null;
 }
 
 function buildEntry(
@@ -57,24 +78,26 @@ function buildEntry(
 }
 
 export function changeDataCapture(
-  config: ChangeDataCaptureConfig,
+  config: ChangeDataCaptureConfig = {},
 ): (event: DynamoDBStreamEvent) => Promise<void> {
+  const runtimeConfig: RuntimeConfig = JSON.parse(process.env.EVENT_TYPE_MAP!);
+  const serviceName = process.env.SERVICE_NAME!;
   const busName = config.bus ?? process.env.BUS_NAME!;
-  const publisher = new EventBridgePublisher(busName, `${busName}@${config.serviceName}`);
+  const publisher = new EventBridgePublisher(busName, `${busName}@${serviceName}`);
 
   const processRecord = async (record: StreamRecord, ctx: StreamContext): Promise<void> => {
-    const eventType = resolveEventType(record, record.eventName, config.eventTypeMap);
+    const eventType = resolveEventType(record, record.eventName, runtimeConfig);
     if (!eventType) return;
-    const entry = buildEntry(record, ctx, eventType, busName, config.serviceName, config.transform);
+    const entry = buildEntry(record, ctx, eventType, busName, serviceName, config.transform);
     await publisher.publish([entry]);
   };
 
   const processGroup = async (_groupKey: string, records: StreamRecord[], ctx: StreamContext): Promise<void> => {
     const entries: PutEventsRequestEntry[] = [];
     for (const record of records) {
-      const eventType = resolveEventType(record, record.eventName, config.eventTypeMap);
+      const eventType = resolveEventType(record, record.eventName, runtimeConfig);
       if (!eventType) continue;
-      entries.push(buildEntry(record, ctx, eventType, busName, config.serviceName, config.transform));
+      entries.push(buildEntry(record, ctx, eventType, busName, serviceName, config.transform));
     }
     if (entries.length > 0) {
       await publisher.publish(entries);
@@ -83,7 +106,7 @@ export function changeDataCapture(
 
   if (config.groupBy) {
     const engine = new EgestionEngine({
-      serviceName: config.serviceName,
+      serviceName,
       groupBy: config.groupBy,
       processGroup,
       concurrency: config.concurrency,
@@ -93,7 +116,7 @@ export function changeDataCapture(
   }
 
   const engine = new EgestionEngine({
-    serviceName: config.serviceName,
+    serviceName,
     processRecord,
     concurrency: config.concurrency,
     busName,

@@ -18,90 +18,150 @@ describe('changeDataCapture', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.BUS_NAME = 'test-bus';
+    process.env.SERVICE_NAME = 'test-svc';
   });
 
   afterEach(() => {
     delete process.env.BUS_NAME;
+    delete process.env.SERVICE_NAME;
+    delete process.env.EVENT_TYPE_MAP;
   });
 
-  it('publishes events matching eventTypeMap', async () => {
-    const handler = changeDataCapture({
-      serviceName: 'test',
-      eventTypeMap: { 'Order:INSERT': 'ORDER_CREATED' },
+  describe('static string mapping', () => {
+    it('publishes events for matching string mapping', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Order:INSERT': 'ORDER_CREATED',
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Order#1', __typename: 'Order', tenantId: 't1' }),
+        ],
+      });
+      expect(mockPublish).toHaveBeenCalledTimes(1);
+      const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
+      expect(detail.type).toBe('ORDER_CREATED');
+      expect(detail.context.tenantId).toBe('t1');
     });
-    await handler({
-      Records: [
-        fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Order#1', __typename: 'Order', tenantId: 't1' }),
-      ],
+
+    it('skips records not in the map', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Order:INSERT': 'ORDER_CREATED',
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Guard#1', __typename: 'Guard', tenantId: 't1' }),
+        ],
+      });
+      expect(mockPublish).not.toHaveBeenCalled();
     });
-    expect(mockPublish).toHaveBeenCalledTimes(1);
-    const entries = mockPublish.mock.calls[0][0];
-    expect(entries).toHaveLength(1);
-    const detail = JSON.parse(entries[0].Detail);
-    expect(detail.type).toBe('ORDER_CREATED');
-    expect(detail.context.tenantId).toBe('t1');
   });
 
-  it('skips records not in eventTypeMap', async () => {
-    const handler = changeDataCapture({
-      serviceName: 'test',
-      eventTypeMap: { 'Order:INSERT': 'ORDER_CREATED' },
+  describe('field dispatch mapping', () => {
+    it('resolves event type from record field via map', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Result:INSERT': {
+          field: 'status',
+          map: { PASSED: 'CHECK_PASSED', FAILED: 'CHECK_FAILED' },
+        },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Result#1', __typename: 'Result', tenantId: 't1', status: 'PASSED' }),
+        ],
+      });
+      const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
+      expect(detail.type).toBe('CHECK_PASSED');
     });
-    await handler({
-      Records: [
-        fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Guard#1', __typename: 'Guard', tenantId: 't1' }),
-      ],
+
+    it('falls back to default when field value not in map', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Result:INSERT': {
+          field: 'status',
+          map: { PASSED: 'CHECK_PASSED' },
+          default: 'CHECK_UNKNOWN',
+        },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Result#1', __typename: 'Result', tenantId: 't1', status: 'PENDING' }),
+        ],
+      });
+      const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
+      expect(detail.type).toBe('CHECK_UNKNOWN');
     });
-    expect(mockPublish).not.toHaveBeenCalled();
+
+    it('returns null when field value not in map and no default', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Result:INSERT': {
+          field: 'status',
+          map: { PASSED: 'CHECK_PASSED' },
+        },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Result#1', __typename: 'Result', tenantId: 't1', status: 'UNKNOWN' }),
+        ],
+      });
+      expect(mockPublish).not.toHaveBeenCalled();
+    });
   });
 
-  it('resolves event type from function', async () => {
-    const handler = changeDataCapture({
-      serviceName: 'test',
-      eventTypeMap: {
-        'Result:INSERT': (r) => (r.passed ? 'ENRICHED' : 'BLOCKED'),
-      },
+  describe('passthrough mapping', () => {
+    it('uses record field value as the event type', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'NormalizedEvent:INSERT': { field: 'sk', passthrough: true },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'ORDER_FILLED', __typename: 'NormalizedEvent', tenantId: 't1' }),
+        ],
+      });
+      const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
+      expect(detail.type).toBe('ORDER_FILLED');
     });
-    await handler({
-      Records: [
-        fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Result#1', __typename: 'Result', tenantId: 't1', passed: true }),
-      ],
-    });
-    const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
-    expect(detail.type).toBe('ENRICHED');
   });
 
-  it('applies transform when provided', async () => {
-    const handler = changeDataCapture({
-      serviceName: 'test',
-      eventTypeMap: { 'Order:INSERT': 'ORDER_CREATED' },
-      transform: (r) => ({ orderId: r.sk, total: r.amount }),
+  describe('advanced features', () => {
+    it('applies transform when provided', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Order:INSERT': 'ORDER_CREATED',
+      });
+      const handler = changeDataCapture({
+        transform: (r) => ({ orderId: r.sk, total: r.amount }),
+      });
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Order#1', __typename: 'Order', tenantId: 't1', amount: 500 }),
+        ],
+      });
+      const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
+      expect(detail.subject).toEqual({ orderId: 'Order#1', total: 500 });
     });
-    await handler({
-      Records: [
-        fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Order#1', __typename: 'Order', tenantId: 't1', amount: 500 }),
-      ],
-    });
-    const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
-    expect(detail.subject).toEqual({ orderId: 'Order#1', total: 500 });
-  });
 
-  it('deduplicates with groupBy pick:last', async () => {
-    const handler = changeDataCapture({
-      serviceName: 'test',
-      eventTypeMap: { 'Order:INSERT': 'ORDER_CREATED' },
-      groupBy: { key: (r) => `${r.tenantId}#${r.sk}`, pick: 'last' },
+    it('deduplicates with groupBy pick:last', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'Order:INSERT': 'ORDER_CREATED',
+      });
+      const handler = changeDataCapture({
+        groupBy: { key: (r) => `${r.tenantId}#${r.sk}`, pick: 'last' },
+      });
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Order#1', __typename: 'Order', tenantId: 't1', v: 1 }),
+          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Order#1', __typename: 'Order', tenantId: 't1', v: 2 }),
+        ],
+      });
+      expect(mockPublish).toHaveBeenCalledTimes(1);
+      const entries = mockPublish.mock.calls[0][0];
+      expect(entries).toHaveLength(1);
+      const detail = JSON.parse(entries[0].Detail);
+      expect(detail.subject.v).toBe(2);
     });
-    await handler({
-      Records: [
-        fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Order#1', __typename: 'Order', tenantId: 't1', v: 1 }),
-        fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Order#1', __typename: 'Order', tenantId: 't1', v: 2 }),
-      ],
-    });
-    expect(mockPublish).toHaveBeenCalledTimes(1);
-    const entries = mockPublish.mock.calls[0][0];
-    expect(entries).toHaveLength(1);
-    const detail = JSON.parse(entries[0].Detail);
-    expect(detail.subject.v).toBe(2);
   });
 });
