@@ -128,6 +128,28 @@ function buildFlowchart(flow) {
   const rawEdges = []; // { from, to, label, dashed }
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
+
+    // cross_domain step: connect previous service emitter to next service receiver
+    if (step.cross_domain) {
+      const eventName = step.cross_domain;
+      // Find the last service-based step before this one
+      let fromSvc = null;
+      for (let j = i - 1; j >= 0; j--) {
+        if (steps[j].service) { fromSvc = steps[j].service; break; }
+      }
+      // Find the first service-based step after this one that receives this event
+      for (let j = i + 1; j < steps.length; j++) {
+        const receiver = steps[j];
+        if (!receiver.receives || !receiver.service) continue;
+        const receivedEvents = parseEvents(receiver.receives);
+        if (receivedEvents.includes(eventName) && fromSvc && receiver.service !== fromSvc) {
+          rawEdges.push({ from: fromSvc, to: receiver.service, label: eventName, dashed: true });
+          break;
+        }
+      }
+      continue;
+    }
+
     if (!step.emits || !step.service) continue;
 
     const emittedEvents = parseEvents(step.emits);
@@ -142,7 +164,7 @@ function buildFlowchart(flow) {
             from: step.service,
             to: receiver.service,
             label: evt,
-            dashed: !!step.forwards_to,
+            dashed: false,
           });
           break; // only the first (closest) receiver
         }
@@ -225,6 +247,20 @@ function buildMermaid(flow) {
   let skipNextReceive = false;
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
+
+    // cross_domain step: draw a dashed async arrow from prev service to next service
+    if (step.cross_domain) {
+      const eventName = truncate(step.cross_domain, 60);
+      const hopLabel = `${eventName} (${step.from} → ${step.to})`;
+      // Find next service-based step
+      const next = steps.slice(i + 1).find((s) => s.service);
+      if (prevService && next?.service) {
+        lines.push(`    ${sanitizeId(prevService)}-)${sanitizeId(next.service)}: ${hopLabel}`);
+        skipNextReceive = true;
+      }
+      continue;
+    }
+
     const svc = step.service;
     if (!svc) continue;
 
@@ -246,16 +282,6 @@ function buildMermaid(flow) {
       }
     } else if (step.action && !step.receives) {
       lines.push(`    Note over ${svcId}: ${truncate(step.action, 50)}`);
-    }
-
-    // Emit — adapter forwarding draws async arrow to next service
-    if (step.emits && step.forwards_to) {
-      const emitLabel = truncate(step.emits.replace(/\s*\(.*?\)/g, ''), 60);
-      const next = steps[i + 1];
-      if (next?.service) {
-        lines.push(`    ${svcId}-)${sanitizeId(next.service)}: ${emitLabel}`);
-        skipNextReceive = true;
-      }
     }
 
     prevService = svc;
@@ -310,6 +336,18 @@ function generateMarkdown(flow) {
   for (let i = 0; i < steps.length; i++) {
     const s = steps[i];
     const num = i + 1;
+
+    if (s.cross_domain) {
+      lines.push(`### Step ${num}: Cross-domain hop`);
+      lines.push('');
+      lines.push(`- **Event:** \`${s.cross_domain}\``);
+      lines.push(`- **From:** ${s.from}`);
+      lines.push(`- **To:** ${s.to}`);
+      lines.push(`- **Via:** ${s.via}`);
+      lines.push('');
+      continue;
+    }
+
     lines.push(`### Step ${num}: ${s.service}`);
     lines.push('');
 
@@ -317,7 +355,6 @@ function generateMarkdown(flow) {
     if (s.action) lines.push(`- **Action:** ${s.action}`);
     if (s.via) lines.push(`- **Via:** ${s.via}`);
     if (s.state_change) lines.push(`- **State change:** ${s.state_change}`);
-    if (s.forwards_to) lines.push(`- **Forwards to:** ${s.forwards_to}`);
     if (s.emits) lines.push(`- **Emits:** \`${s.emits}\``);
     if (s.idempotent !== undefined) lines.push(`- **Idempotent:** ${s.idempotent ? 'yes' : 'no'}`);
     lines.push('');

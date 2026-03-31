@@ -3,14 +3,13 @@ flow: order-execution
 description: Approved decision triggers order creation in execution-ctrl, routed through broker-ctrl state machine to sim or Alpaca adapter, normalized back to canonical fill/reject events
 domains: [advisory, execution]
 
-trigger: advisory-adpt forwards DECISION_APPROVED to ExecutionBus
+trigger: DECISION_APPROVED crosses AdvisoryBus → ExecutionBus via execution-adpt EB rule
 
 steps:
-  - service: advisory-adpt
-    receives: DECISION_APPROVED
-    via: AdvisoryBus -> advisory-adpt ToExecution rule
-    forwards_to: ExecutionBus
-    emits: DECISION_APPROVED
+  - cross_domain: DECISION_APPROVED
+    from: AdvisoryBus
+    to: ExecutionBus
+    via: execution-adpt EB rule
 
   - service: execution-ctrl
     receives: DECISION_APPROVED
@@ -59,29 +58,25 @@ steps:
     idempotent: true
 
   # Cross-domain forwarding
-  - service: execution-adpt
-    receives: ORDER_FILLED
-    via: ExecutionBus -> execution-adpt ToLedger rule
-    forwards_to: LedgerBus
-    emits: ORDER_FILLED
+  - cross_domain: ORDER_FILLED
+    from: ExecutionBus
+    to: LedgerBus
+    via: ledger-adpt EB rule
 
-  - service: execution-adpt
-    receives: ORDER_FILLED
-    via: ExecutionBus -> execution-adpt ToAdvisory rule
-    forwards_to: AdvisoryBus
-    emits: ORDER_FILLED
+  - cross_domain: ORDER_FILLED
+    from: ExecutionBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule
 
-  - service: execution-adpt
-    receives: ORDER_REJECTED
-    via: ExecutionBus -> execution-adpt ToInvestor rule
-    forwards_to: InvestorBus
-    emits: ORDER_REJECTED
+  - cross_domain: ORDER_REJECTED
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule
 
-  - service: execution-adpt
-    receives: ORDER_REJECTED
-    via: ExecutionBus -> execution-adpt ToAdvisory rule
-    forwards_to: AdvisoryBus
-    emits: ORDER_REJECTED
+  - cross_domain: ORDER_REJECTED
+    from: ExecutionBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule
 
 success_criteria:
   - Orders created from decision packet trades

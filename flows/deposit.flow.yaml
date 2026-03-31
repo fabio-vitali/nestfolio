@@ -12,11 +12,10 @@ steps:
     emits: DEPOSIT_INITIATED (CDC)
     idempotent: true
 
-  - service: investor-adpt
-    receives: DEPOSIT_INITIATED
-    via: InvestorBus -> investor-adpt ToExecution rule
-    forwards_to: ExecutionBus
-    emits: DEPOSIT_INITIATED
+  - cross_domain: DEPOSIT_INITIATED
+    from: InvestorBus
+    to: ExecutionBus
+    via: execution-adpt EB rule
 
   - service: broker-ctrl
     receives: DEPOSIT_INITIATED
@@ -48,11 +47,10 @@ steps:
     emits: DEPOSIT_DETECTED (CDC from NormalizedEvent:INSERT, sk is event type)
     idempotent: true
 
-  - service: execution-adpt
-    receives: DEPOSIT_DETECTED
-    via: ExecutionBus -> execution-adpt ToLedger rule
-    forwards_to: LedgerBus
-    emits: DEPOSIT_DETECTED
+  - cross_domain: DEPOSIT_DETECTED
+    from: ExecutionBus
+    to: LedgerBus
+    via: ledger-adpt EB rule
 
   - service: ledger-ctrl
     receives: DEPOSIT_DETECTED
@@ -61,11 +59,10 @@ steps:
     emits: BALANCE_UPDATED, LEDGER_ENTRY_RECORDED (CDC)
     idempotent: true
 
-  - service: ledger-adpt
-    receives: BALANCE_UPDATED
-    via: LedgerBus -> ledger-adpt ToInvestor rule
-    forwards_to: InvestorBus
-    emits: BALANCE_UPDATED
+  - cross_domain: BALANCE_UPDATED
+    from: LedgerBus
+    to: InvestorBus
+    via: investor-adpt EB rule
 
   - service: investor-ctrl
     receives: BALANCE_UPDATED

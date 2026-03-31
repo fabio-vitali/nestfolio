@@ -12,26 +12,22 @@
 flowchart TD
     subgraph investor["Investor Domain"]
         investor_bff["investor-bff"]
-        investor_adpt["investor-adpt"]
         investor_ctrl["investor-ctrl"]
     end
     subgraph execution["Execution Domain"]
         broker_ctrl["broker-ctrl"]
         broker_sim_adpt["broker-sim-adpt"]
         broker_alpaca_adpt["broker-alpaca-adpt"]
-        execution_adpt["execution-adpt"]
     end
     subgraph ledger["Ledger Domain"]
         ledger_ctrl["ledger-ctrl"]
     end
-    investor_bff -->|"WITHDRAWAL_REQUESTED"| investor_adpt
-    investor_adpt -.->|"WITHDRAWAL_REQUESTED"| broker_ctrl
+    investor_bff -->|"WITHDRAWAL_REQUESTED, WITHDRAWAL_REQUESTED"| broker_ctrl
     broker_ctrl -->|"SIM_WITHDRAWAL_REQUESTED"| broker_sim_adpt
     broker_ctrl -->|"ALPACA_TRANSFER_REQUESTED"| broker_alpaca_adpt
     broker_sim_adpt -->|"SIM_WITHDRAWAL_COMPLETED"| broker_ctrl
     broker_alpaca_adpt -->|"ALPACA_TRANSFER_COMPLETED"| broker_ctrl
-    broker_ctrl -->|"WITHDRAWAL_COMPLETED"| execution_adpt
-    execution_adpt -.->|"WITHDRAWAL_COMPLETED, WITHDRAWAL_COMPLETED"| ledger_ctrl
+    broker_ctrl -->|"WITHDRAWAL_COMPLETED, WITHDRAWAL_COMPLETED .…"| ledger_ctrl
 ```
 
 ## Sequence Diagram
@@ -40,28 +36,24 @@ flowchart TD
 sequenceDiagram
     box investor domain
         participant investor_bff as investor-bff
-        participant investor_adpt as investor-adpt
         participant investor_ctrl as investor-ctrl
     end
     box execution domain
         participant broker_ctrl as broker-ctrl
         participant broker_sim_adpt as broker-sim-adpt
         participant broker_alpaca_adpt as broker-alpaca-adpt
-        participant execution_adpt as execution-adpt
     end
     box ledger domain
         participant ledger_ctrl as ledger-ctrl
     end
     Note over investor_bff: User requests withdrawal via GraphQL mutation
-    investor_bff->>+investor_adpt: WITHDRAWAL_REQUESTED
-    investor_adpt-)broker_ctrl: WITHDRAWAL_REQUESTED
+    investor_bff-)broker_ctrl: WITHDRAWAL_REQUESTED (InvestorBus → ExecutionBus)
     broker_ctrl->>+broker_sim_adpt: SIM_WITHDRAWAL_REQUESTED
     broker_ctrl->>+broker_alpaca_adpt: ALPACA_TRANSFER_REQUESTED
     broker_alpaca_adpt->>+broker_ctrl: SIM_WITHDRAWAL_COMPLETED | ALPACA_TRANSFER_COMPLETED
-    broker_ctrl->>+execution_adpt: WITHDRAWAL_COMPLETED
-    execution_adpt-)execution_adpt: WITHDRAWAL_COMPLETED
-    execution_adpt-)ledger_ctrl: WITHDRAWAL_COMPLETED
-    execution_adpt->>+investor_ctrl: WITHDRAWAL_COMPLETED
+    broker_ctrl-)ledger_ctrl: WITHDRAWAL_COMPLETED (ExecutionBus → InvestorBus)
+    broker_ctrl-)ledger_ctrl: WITHDRAWAL_COMPLETED (ExecutionBus → LedgerBus)
+    broker_ctrl->>+investor_ctrl: WITHDRAWAL_COMPLETED
 ```
 
 ## Steps
@@ -73,12 +65,12 @@ sequenceDiagram
 - **Emits:** `WITHDRAWAL_REQUESTED (CDC)`
 - **Idempotent:** yes
 
-### Step 2: investor-adpt
+### Step 2: Cross-domain hop
 
-- **Receives:** `WITHDRAWAL_REQUESTED`
-- **Via:** InvestorBus -> investor-adpt ToExecution rule
-- **Forwards to:** ExecutionBus
-- **Emits:** `WITHDRAWAL_REQUESTED`
+- **Event:** `WITHDRAWAL_REQUESTED`
+- **From:** InvestorBus
+- **To:** ExecutionBus
+- **Via:** execution-adpt EB rule
 
 ### Step 3: broker-ctrl
 
@@ -112,19 +104,19 @@ sequenceDiagram
 - **Emits:** `WITHDRAWAL_COMPLETED (CDC from NormalizedEvent:INSERT, sk is event type)`
 - **Idempotent:** yes
 
-### Step 7: execution-adpt
+### Step 7: Cross-domain hop
 
-- **Receives:** `WITHDRAWAL_COMPLETED`
-- **Via:** ExecutionBus -> execution-adpt ToInvestor rule
-- **Forwards to:** InvestorBus
-- **Emits:** `WITHDRAWAL_COMPLETED`
+- **Event:** `WITHDRAWAL_COMPLETED`
+- **From:** ExecutionBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule
 
-### Step 8: execution-adpt
+### Step 8: Cross-domain hop
 
-- **Receives:** `WITHDRAWAL_COMPLETED`
-- **Via:** ExecutionBus -> execution-adpt ToLedger rule
-- **Forwards to:** LedgerBus
-- **Emits:** `WITHDRAWAL_COMPLETED`
+- **Event:** `WITHDRAWAL_COMPLETED`
+- **From:** ExecutionBus
+- **To:** LedgerBus
+- **Via:** ledger-adpt EB rule
 
 ### Step 9: ledger-ctrl
 

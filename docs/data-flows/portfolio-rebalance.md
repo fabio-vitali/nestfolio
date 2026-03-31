@@ -12,19 +12,16 @@
 flowchart TD
     subgraph ledger["Ledger Domain"]
         reconciliation_ctrl["reconciliation-ctrl"]
-        ledger_adpt["ledger-adpt"]
     end
     subgraph advisory["Advisory Domain"]
         decision_workflow_ctrl["decision-workflow-ctrl"]
         portfolio_engine_ctrl["portfolio-engine-ctrl"]
-        advisory_adpt["advisory-adpt"]
     end
     subgraph execution["Execution Domain"]
         execution_ctrl["execution-ctrl"]
     end
-    reconciliation_ctrl -->|"PORTFOLIO_DRIFT_DETECTED"| ledger_adpt
-    ledger_adpt -.->|"PORTFOLIO_DRIFT_DETECTED"| decision_workflow_ctrl
-    advisory_adpt -.->|"DECISION_APPROVED"| execution_ctrl
+    reconciliation_ctrl -->|"PORTFOLIO_DRIFT_DETECTED, PORTFOLIO_DRIFT_DE…"| decision_workflow_ctrl
+    portfolio_engine_ctrl -.->|"DECISION_APPROVED"| execution_ctrl
 ```
 
 ## Sequence Diagram
@@ -33,22 +30,18 @@ flowchart TD
 sequenceDiagram
     box ledger domain
         participant reconciliation_ctrl as reconciliation-ctrl
-        participant ledger_adpt as ledger-adpt
     end
     box advisory domain
         participant decision_workflow_ctrl as decision-workflow-ctrl
         participant portfolio_engine_ctrl as portfolio-engine-ctrl
-        participant advisory_adpt as advisory-adpt
     end
     box execution domain
         participant execution_ctrl as execution-ctrl
     end
     Note over reconciliation_ctrl: Reconciliation check detects position drift excee…
-    reconciliation_ctrl->>+ledger_adpt: PORTFOLIO_DRIFT_DETECTED
-    ledger_adpt-)decision_workflow_ctrl: PORTFOLIO_DRIFT_DETECTED
+    reconciliation_ctrl-)decision_workflow_ctrl: PORTFOLIO_DRIFT_DETECTED (LedgerBus → AdvisoryBus)
     decision_workflow_ctrl->>+portfolio_engine_ctrl: CONSTRUCT_PORTFOLIO
-    portfolio_engine_ctrl->>+advisory_adpt: DECISION_APPROVED
-    advisory_adpt-)execution_ctrl: DECISION_APPROVED
+    portfolio_engine_ctrl-)execution_ctrl: DECISION_APPROVED (AdvisoryBus → ExecutionBus)
 ```
 
 ## Steps
@@ -60,12 +53,12 @@ sequenceDiagram
 - **Emits:** `PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord:INSERT)`
 - **Idempotent:** yes
 
-### Step 2: ledger-adpt
+### Step 2: Cross-domain hop
 
-- **Receives:** `PORTFOLIO_DRIFT_DETECTED`
-- **Via:** LedgerBus -> ledger-adpt ToAdvisory rule
-- **Forwards to:** AdvisoryBus
-- **Emits:** `PORTFOLIO_DRIFT_DETECTED`
+- **Event:** `PORTFOLIO_DRIFT_DETECTED`
+- **From:** LedgerBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule
 
 ### Step 3: decision-workflow-ctrl
 
@@ -83,12 +76,12 @@ sequenceDiagram
 - **Emits:** `PORTFOLIO_COMPLETED (explicit via event-publisher)`
 - **Idempotent:** no
 
-### Step 5: advisory-adpt
+### Step 5: Cross-domain hop
 
-- **Receives:** `DECISION_APPROVED`
-- **Via:** AdvisoryBus -> advisory-adpt ToExecution rule
-- **Forwards to:** ExecutionBus
-- **Emits:** `DECISION_APPROVED`
+- **Event:** `DECISION_APPROVED`
+- **From:** AdvisoryBus
+- **To:** ExecutionBus
+- **Via:** execution-adpt EB rule
 
 ### Step 6: execution-ctrl
 

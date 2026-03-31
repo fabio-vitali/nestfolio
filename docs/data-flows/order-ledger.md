@@ -10,57 +10,45 @@
 
 ```mermaid
 flowchart TD
-    subgraph execution["Execution Domain"]
-        execution_adpt["execution-adpt"]
-    end
     subgraph ledger["Ledger Domain"]
         ledger_ctrl["ledger-ctrl"]
-        ledger_adpt["ledger-adpt"]
         reconciliation_ctrl["reconciliation-ctrl"]
     end
     subgraph investor["Investor Domain"]
         investor_ctrl["investor-ctrl"]
         dashboard_bff["dashboard-bff"]
     end
-    execution_adpt -.->|"ORDER_FILLED"| ledger_ctrl
-    ledger_ctrl -->|"BALANCE_UPDATED, PORTFOLIO_UPDATED ..."| ledger_adpt
-    ledger_adpt -.->|"BALANCE_UPDATED"| investor_ctrl
-    ledger_adpt -.->|"PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED"| dashboard_bff
+    ledger_ctrl -->|"BALANCE_UPDATED, BALANCE_UPDATED"| investor_ctrl
+    ledger_ctrl -->|"PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED ..."| dashboard_bff
 ```
 
 ## Sequence Diagram
 
 ```mermaid
 sequenceDiagram
-    box execution domain
-        participant execution_adpt as execution-adpt
-    end
     box ledger domain
         participant ledger_ctrl as ledger-ctrl
-        participant ledger_adpt as ledger-adpt
         participant reconciliation_ctrl as reconciliation-ctrl
     end
     box investor domain
         participant investor_ctrl as investor-ctrl
         participant dashboard_bff as dashboard-bff
     end
-    execution_adpt-)ledger_ctrl: ORDER_FILLED
-    ledger_ctrl->>+ledger_adpt: BALANCE_UPDATED
-    ledger_adpt-)ledger_adpt: BALANCE_UPDATED
-    ledger_adpt-)ledger_adpt: PORTFOLIO_UPDATED
-    ledger_adpt-)investor_ctrl: LEDGER_ENTRY_RECORDED
-    ledger_adpt->>+dashboard_bff: BALANCE_UPDATED | PORTFOLIO_UPDATED ...
-    ledger_adpt->>+reconciliation_ctrl: PORTFOLIO_UPDATED
+    ledger_ctrl-)investor_ctrl: BALANCE_UPDATED (LedgerBus → InvestorBus)
+    ledger_ctrl-)investor_ctrl: PORTFOLIO_UPDATED (LedgerBus → AdvisoryBus)
+    ledger_ctrl-)investor_ctrl: LEDGER_ENTRY_RECORDED (LedgerBus → InvestorBus)
+    ledger_ctrl->>+dashboard_bff: BALANCE_UPDATED | PORTFOLIO_UPDATED ...
+    ledger_ctrl->>+reconciliation_ctrl: PORTFOLIO_UPDATED
 ```
 
 ## Steps
 
-### Step 1: execution-adpt
+### Step 1: Cross-domain hop
 
-- **Receives:** `ORDER_FILLED`
-- **Via:** ExecutionBus -> execution-adpt ToLedger rule
-- **Forwards to:** LedgerBus
-- **Emits:** `ORDER_FILLED`
+- **Event:** `ORDER_FILLED`
+- **From:** ExecutionBus
+- **To:** LedgerBus
+- **Via:** ledger-adpt EB rule
 
 ### Step 2: ledger-ctrl
 
@@ -78,26 +66,26 @@ sequenceDiagram
 - **Emits:** `PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED (CDC)`
 - **Idempotent:** yes
 
-### Step 4: ledger-adpt
+### Step 4: Cross-domain hop
 
-- **Receives:** `BALANCE_UPDATED`
-- **Via:** LedgerBus -> ledger-adpt ToInvestor rule
-- **Forwards to:** InvestorBus
-- **Emits:** `BALANCE_UPDATED`
+- **Event:** `BALANCE_UPDATED`
+- **From:** LedgerBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule
 
-### Step 5: ledger-adpt
+### Step 5: Cross-domain hop
 
-- **Receives:** `PORTFOLIO_UPDATED`
-- **Via:** LedgerBus -> ledger-adpt ToAdvisory rule
-- **Forwards to:** AdvisoryBus
-- **Emits:** `PORTFOLIO_UPDATED`
+- **Event:** `PORTFOLIO_UPDATED`
+- **From:** LedgerBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule
 
-### Step 6: ledger-adpt
+### Step 6: Cross-domain hop
 
-- **Receives:** `LEDGER_ENTRY_RECORDED`
-- **Via:** LedgerBus -> ledger-adpt ToInvestor rule
-- **Forwards to:** InvestorBus
-- **Emits:** `LEDGER_ENTRY_RECORDED`
+- **Event:** `LEDGER_ENTRY_RECORDED`
+- **From:** LedgerBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule
 
 ### Step 7: investor-ctrl
 

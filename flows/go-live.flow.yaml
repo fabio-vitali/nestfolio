@@ -19,11 +19,10 @@ steps:
     emits: EXECUTION_MODE_CHANGED (CDC from ExecutionModeChange:INSERT)
     idempotent: true
 
-  - service: investor-adpt
-    receives: EXECUTION_MODE_CHANGED
-    via: InvestorBus -> investor-adpt ToExecution rule
-    forwards_to: ExecutionBus
-    emits: EXECUTION_MODE_CHANGED
+  - cross_domain: EXECUTION_MODE_CHANGED
+    from: InvestorBus
+    to: ExecutionBus
+    via: execution-adpt EB rule
 
   - service: broker-ctrl
     receives: EXECUTION_MODE_CHANGED
@@ -32,11 +31,10 @@ steps:
     idempotent: true
 
   # Also forwarded to advisory for operating mode awareness
-  - service: investor-adpt
-    receives: OPERATING_MODE_CHANGED
-    via: InvestorBus -> investor-adpt ToAdvisory rule
-    forwards_to: AdvisoryBus
-    emits: OPERATING_MODE_CHANGED
+  - cross_domain: OPERATING_MODE_CHANGED
+    from: InvestorBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule
     # Note: OPERATING_MODE_CHANGED is a separate event from EXECUTION_MODE_CHANGED
     # investor-bff may also emit OPERATING_MODE_CHANGED via OperatingModeRecord CDC
 

@@ -12,29 +12,23 @@
 flowchart TD
     subgraph investor["Investor Domain"]
         investor_bff["investor-bff"]
-        investor_adpt["investor-adpt"]
         investor_ctrl["investor-ctrl"]
     end
     subgraph execution["Execution Domain"]
         broker_ctrl["broker-ctrl"]
         broker_sim_adpt["broker-sim-adpt"]
         broker_alpaca_adpt["broker-alpaca-adpt"]
-        execution_adpt["execution-adpt"]
     end
     subgraph ledger["Ledger Domain"]
         ledger_ctrl["ledger-ctrl"]
-        ledger_adpt["ledger-adpt"]
     end
-    investor_bff -->|"DEPOSIT_INITIATED"| investor_adpt
-    investor_adpt -.->|"DEPOSIT_INITIATED"| broker_ctrl
+    investor_bff -->|"DEPOSIT_INITIATED, DEPOSIT_INITIATED"| broker_ctrl
     broker_ctrl -->|"SIM_DEPOSIT_INITIATED"| broker_sim_adpt
     broker_ctrl -->|"ALPACA_TRANSFER_REQUESTED"| broker_alpaca_adpt
     broker_sim_adpt -->|"SIM_DEPOSIT_COMPLETED"| broker_ctrl
     broker_alpaca_adpt -->|"ALPACA_TRANSFER_COMPLETED"| broker_ctrl
-    broker_ctrl -->|"DEPOSIT_DETECTED"| execution_adpt
-    execution_adpt -.->|"DEPOSIT_DETECTED"| ledger_ctrl
-    ledger_ctrl -->|"BALANCE_UPDATED"| ledger_adpt
-    ledger_adpt -.->|"BALANCE_UPDATED"| investor_ctrl
+    broker_ctrl -->|"DEPOSIT_DETECTED, DEPOSIT_DETECTED"| ledger_ctrl
+    ledger_ctrl -->|"BALANCE_UPDATED, BALANCE_UPDATED"| investor_ctrl
 ```
 
 ## Sequence Diagram
@@ -43,29 +37,23 @@ flowchart TD
 sequenceDiagram
     box investor domain
         participant investor_bff as investor-bff
-        participant investor_adpt as investor-adpt
         participant investor_ctrl as investor-ctrl
     end
     box execution domain
         participant broker_ctrl as broker-ctrl
         participant broker_sim_adpt as broker-sim-adpt
         participant broker_alpaca_adpt as broker-alpaca-adpt
-        participant execution_adpt as execution-adpt
     end
     box ledger domain
         participant ledger_ctrl as ledger-ctrl
-        participant ledger_adpt as ledger-adpt
     end
     Note over investor_bff: User initiates deposit via GraphQL mutation
-    investor_bff->>+investor_adpt: DEPOSIT_INITIATED
-    investor_adpt-)broker_ctrl: DEPOSIT_INITIATED
+    investor_bff-)broker_ctrl: DEPOSIT_INITIATED (InvestorBus → ExecutionBus)
     broker_ctrl->>+broker_sim_adpt: SIM_DEPOSIT_INITIATED
     broker_ctrl->>+broker_alpaca_adpt: ALPACA_TRANSFER_REQUESTED
     broker_alpaca_adpt->>+broker_ctrl: SIM_DEPOSIT_COMPLETED | ALPACA_TRANSFER_COMPLETED
-    broker_ctrl->>+execution_adpt: DEPOSIT_DETECTED
-    execution_adpt-)ledger_ctrl: DEPOSIT_DETECTED
-    ledger_ctrl->>+ledger_adpt: BALANCE_UPDATED
-    ledger_adpt-)investor_ctrl: BALANCE_UPDATED
+    broker_ctrl-)ledger_ctrl: DEPOSIT_DETECTED (ExecutionBus → LedgerBus)
+    ledger_ctrl-)investor_ctrl: BALANCE_UPDATED (LedgerBus → InvestorBus)
 ```
 
 ## Steps
@@ -77,12 +65,12 @@ sequenceDiagram
 - **Emits:** `DEPOSIT_INITIATED (CDC)`
 - **Idempotent:** yes
 
-### Step 2: investor-adpt
+### Step 2: Cross-domain hop
 
-- **Receives:** `DEPOSIT_INITIATED`
-- **Via:** InvestorBus -> investor-adpt ToExecution rule
-- **Forwards to:** ExecutionBus
-- **Emits:** `DEPOSIT_INITIATED`
+- **Event:** `DEPOSIT_INITIATED`
+- **From:** InvestorBus
+- **To:** ExecutionBus
+- **Via:** execution-adpt EB rule
 
 ### Step 3: broker-ctrl
 
@@ -116,12 +104,12 @@ sequenceDiagram
 - **Emits:** `DEPOSIT_DETECTED (CDC from NormalizedEvent:INSERT, sk is event type)`
 - **Idempotent:** yes
 
-### Step 7: execution-adpt
+### Step 7: Cross-domain hop
 
-- **Receives:** `DEPOSIT_DETECTED`
-- **Via:** ExecutionBus -> execution-adpt ToLedger rule
-- **Forwards to:** LedgerBus
-- **Emits:** `DEPOSIT_DETECTED`
+- **Event:** `DEPOSIT_DETECTED`
+- **From:** ExecutionBus
+- **To:** LedgerBus
+- **Via:** ledger-adpt EB rule
 
 ### Step 8: ledger-ctrl
 
@@ -131,12 +119,12 @@ sequenceDiagram
 - **Emits:** `BALANCE_UPDATED, LEDGER_ENTRY_RECORDED (CDC)`
 - **Idempotent:** yes
 
-### Step 9: ledger-adpt
+### Step 9: Cross-domain hop
 
-- **Receives:** `BALANCE_UPDATED`
-- **Via:** LedgerBus -> ledger-adpt ToInvestor rule
-- **Forwards to:** InvestorBus
-- **Emits:** `BALANCE_UPDATED`
+- **Event:** `BALANCE_UPDATED`
+- **From:** LedgerBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule
 
 ### Step 10: investor-ctrl
 

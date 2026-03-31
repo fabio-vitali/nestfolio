@@ -12,13 +12,11 @@
 flowchart TD
     subgraph ledger["Ledger Domain"]
         reconciliation_ctrl["reconciliation-ctrl"]
-        ledger_adpt["ledger-adpt"]
     end
     subgraph investor["Investor Domain"]
         dashboard_bff["dashboard-bff"]
     end
-    reconciliation_ctrl -->|"RECONCILIATION_COMPLETED, PORTFOLIO_DRIFT_DE…"| ledger_adpt
-    ledger_adpt -.->|"RECONCILIATION_COMPLETED"| dashboard_bff
+    reconciliation_ctrl -->|"RECONCILIATION_COMPLETED, RECONCILIATION_COM…"| dashboard_bff
 ```
 
 ## Sequence Diagram
@@ -27,15 +25,12 @@ flowchart TD
 sequenceDiagram
     box ledger domain
         participant reconciliation_ctrl as reconciliation-ctrl
-        participant ledger_adpt as ledger-adpt
     end
     box investor domain
         participant dashboard_bff as dashboard-bff
     end
     Note over reconciliation_ctrl: Compares intent vs settlement quantities per symb…
-    reconciliation_ctrl->>+ledger_adpt: RECONCILIATION_COMPLETED
-    ledger_adpt-)dashboard_bff: RECONCILIATION_COMPLETED
-    reconciliation_ctrl->>+ledger_adpt: PORTFOLIO_DRIFT_DETECTED
+    reconciliation_ctrl-)dashboard_bff: RECONCILIATION_COMPLETED (LedgerBus → InvestorBus)
 ```
 
 ## Steps
@@ -75,12 +70,12 @@ sequenceDiagram
 - **Emits:** `RECONCILIATION_COMPLETED (CDC from ReconciliationResult:INSERT), PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord:INSERT)`
 - **Idempotent:** yes
 
-### Step 6: ledger-adpt
+### Step 6: Cross-domain hop
 
-- **Receives:** `RECONCILIATION_COMPLETED`
-- **Via:** LedgerBus -> ledger-adpt ToInvestor rule
-- **Forwards to:** InvestorBus
-- **Emits:** `RECONCILIATION_COMPLETED`
+- **Event:** `RECONCILIATION_COMPLETED`
+- **From:** LedgerBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule
 
 ### Step 7: dashboard-bff
 
@@ -89,12 +84,12 @@ sequenceDiagram
 - **State change:** Updates portfolio summary with reconciliation status (flags if drifts found)
 - **Idempotent:** yes
 
-### Step 8: ledger-adpt
+### Step 8: Cross-domain hop
 
-- **Receives:** `PORTFOLIO_DRIFT_DETECTED`
-- **Via:** LedgerBus -> ledger-adpt ToAdvisory rule
-- **Forwards to:** AdvisoryBus
-- **Emits:** `PORTFOLIO_DRIFT_DETECTED`
+- **Event:** `PORTFOLIO_DRIFT_DETECTED`
+- **From:** LedgerBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule
 
 ## Success Criteria
 

@@ -4,65 +4,50 @@
 
 **Domains:** advisory, execution
 
-**Trigger:** advisory-adpt forwards DECISION_APPROVED to ExecutionBus
+**Trigger:** DECISION_APPROVED crosses AdvisoryBus → ExecutionBus via execution-adpt EB rule
 
 ## Flowchart
 
 ```mermaid
 flowchart TD
-    subgraph advisory["Advisory Domain"]
-        advisory_adpt["advisory-adpt"]
-    end
     subgraph execution["Execution Domain"]
         execution_ctrl["execution-ctrl"]
         broker_ctrl["broker-ctrl"]
         broker_sim_adpt["broker-sim-adpt"]
         broker_alpaca_adpt["broker-alpaca-adpt"]
-        execution_adpt["execution-adpt"]
     end
-    advisory_adpt -.->|"DECISION_APPROVED"| execution_ctrl
     execution_ctrl -->|"ORDER_SUBMITTED, ORDER_SUBMITTED"| broker_ctrl
     broker_ctrl -->|"SIM_ORDER_REQUESTED"| broker_sim_adpt
     broker_ctrl -->|"ALPACA_ORDER_REQUESTED"| broker_alpaca_adpt
     broker_sim_adpt -->|"SIM_ORDER_FILLED, SIM_ORDER_REJECTED"| broker_ctrl
     broker_alpaca_adpt -->|"ALPACA_ORDER_FILLED, ALPACA_ORDER_REJECTED"| broker_ctrl
-    broker_ctrl -->|"ORDER_FILLED, ORDER_REJECTED"| execution_adpt
 ```
 
 ## Sequence Diagram
 
 ```mermaid
 sequenceDiagram
-    box advisory domain
-        participant advisory_adpt as advisory-adpt
-    end
     box execution domain
         participant execution_ctrl as execution-ctrl
         participant broker_ctrl as broker-ctrl
         participant broker_sim_adpt as broker-sim-adpt
         participant broker_alpaca_adpt as broker-alpaca-adpt
-        participant execution_adpt as execution-adpt
     end
-    advisory_adpt-)execution_ctrl: DECISION_APPROVED
     Note over execution_ctrl: StagedOrderProcessor Lambda runs on US market ope…
     execution_ctrl->>+broker_ctrl: ORDER_SUBMITTED
     broker_ctrl->>+broker_sim_adpt: SIM_ORDER_REQUESTED
     broker_ctrl->>+broker_alpaca_adpt: ALPACA_ORDER_REQUESTED
     broker_alpaca_adpt->>+broker_ctrl: SIM_ORDER_FILLED | ALPACA_ORDER_FILLED ...
-    broker_ctrl->>+execution_adpt: ORDER_FILLED
-    execution_adpt-)execution_adpt: ORDER_FILLED
-    execution_adpt-)execution_adpt: ORDER_FILLED
-    execution_adpt-)execution_adpt: ORDER_REJECTED
 ```
 
 ## Steps
 
-### Step 1: advisory-adpt
+### Step 1: Cross-domain hop
 
-- **Receives:** `DECISION_APPROVED`
-- **Via:** AdvisoryBus -> advisory-adpt ToExecution rule
-- **Forwards to:** ExecutionBus
-- **Emits:** `DECISION_APPROVED`
+- **Event:** `DECISION_APPROVED`
+- **From:** AdvisoryBus
+- **To:** ExecutionBus
+- **Via:** execution-adpt EB rule
 
 ### Step 2: execution-ctrl
 
@@ -111,33 +96,33 @@ sequenceDiagram
 - **Emits:** `ORDER_FILLED or ORDER_REJECTED (CDC from NormalizedEvent:INSERT, sk is event type)`
 - **Idempotent:** yes
 
-### Step 8: execution-adpt
+### Step 8: Cross-domain hop
 
-- **Receives:** `ORDER_FILLED`
-- **Via:** ExecutionBus -> execution-adpt ToLedger rule
-- **Forwards to:** LedgerBus
-- **Emits:** `ORDER_FILLED`
+- **Event:** `ORDER_FILLED`
+- **From:** ExecutionBus
+- **To:** LedgerBus
+- **Via:** ledger-adpt EB rule
 
-### Step 9: execution-adpt
+### Step 9: Cross-domain hop
 
-- **Receives:** `ORDER_FILLED`
-- **Via:** ExecutionBus -> execution-adpt ToAdvisory rule
-- **Forwards to:** AdvisoryBus
-- **Emits:** `ORDER_FILLED`
+- **Event:** `ORDER_FILLED`
+- **From:** ExecutionBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule
 
-### Step 10: execution-adpt
+### Step 10: Cross-domain hop
 
-- **Receives:** `ORDER_REJECTED`
-- **Via:** ExecutionBus -> execution-adpt ToInvestor rule
-- **Forwards to:** InvestorBus
-- **Emits:** `ORDER_REJECTED`
+- **Event:** `ORDER_REJECTED`
+- **From:** ExecutionBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule
 
-### Step 11: execution-adpt
+### Step 11: Cross-domain hop
 
-- **Receives:** `ORDER_REJECTED`
-- **Via:** ExecutionBus -> execution-adpt ToAdvisory rule
-- **Forwards to:** AdvisoryBus
-- **Emits:** `ORDER_REJECTED`
+- **Event:** `ORDER_REJECTED`
+- **From:** ExecutionBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule
 
 ## Success Criteria
 

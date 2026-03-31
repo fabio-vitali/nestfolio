@@ -12,11 +12,10 @@ steps:
     emits: WITHDRAWAL_REQUESTED (CDC)
     idempotent: true
 
-  - service: investor-adpt
-    receives: WITHDRAWAL_REQUESTED
-    via: InvestorBus -> investor-adpt ToExecution rule
-    forwards_to: ExecutionBus
-    emits: WITHDRAWAL_REQUESTED
+  - cross_domain: WITHDRAWAL_REQUESTED
+    from: InvestorBus
+    to: ExecutionBus
+    via: execution-adpt EB rule
 
   - service: broker-ctrl
     receives: WITHDRAWAL_REQUESTED
@@ -48,17 +47,15 @@ steps:
     emits: WITHDRAWAL_COMPLETED (CDC from NormalizedEvent:INSERT, sk is event type)
     idempotent: true
 
-  - service: execution-adpt
-    receives: WITHDRAWAL_COMPLETED
-    via: ExecutionBus -> execution-adpt ToInvestor rule
-    forwards_to: InvestorBus
-    emits: WITHDRAWAL_COMPLETED
+  - cross_domain: WITHDRAWAL_COMPLETED
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule
 
-  - service: execution-adpt
-    receives: WITHDRAWAL_COMPLETED
-    via: ExecutionBus -> execution-adpt ToLedger rule
-    forwards_to: LedgerBus
-    emits: WITHDRAWAL_COMPLETED
+  - cross_domain: WITHDRAWAL_COMPLETED
+    from: ExecutionBus
+    to: LedgerBus
+    via: ledger-adpt EB rule
 
   - service: ledger-ctrl
     receives: WITHDRAWAL_COMPLETED

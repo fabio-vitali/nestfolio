@@ -21,11 +21,10 @@ steps:
     emits: {EVENT_NAME} ({CDC|explicit})
     idempotent: true|false
 
-  - service: {adapter-name}               # cross-domain hop
-    receives: {EVENT_NAME}
-    via: {SourceBus} → SQS → {adapter}-ingress
-    forwards_to: {TargetBus}
-    emits: {EVENT_NAME}
+  - cross_domain: {EVENT_NAME}            # cross-domain hop (pull model)
+    from: {SourceBus}
+    to: {TargetBus}
+    via: {consumer-domain}-adpt EB rule
 
 success_criteria:
   - {observable outcome}

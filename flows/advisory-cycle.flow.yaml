@@ -76,18 +76,16 @@ steps:
     idempotent: true
 
   # Phase 6: Cross-domain forwarding to investor for user confirmation
-  - service: advisory-adpt
-    receives: USER_CONFIRMATION_REQUESTED
-    via: AdvisoryBus -> advisory-adpt ToInvestor rule
-    forwards_to: InvestorBus
-    emits: USER_CONFIRMATION_REQUESTED
+  - cross_domain: USER_CONFIRMATION_REQUESTED
+    from: AdvisoryBus
+    to: InvestorBus
+    via: investor-adpt EB rule
 
   # Phase 7: User responds (confirmed or rejected)
-  - service: advisory-adpt
-    receives: USER_CONFIRMED
-    via: AdvisoryBus -> advisory-adpt ToExecution rule
-    forwards_to: ExecutionBus
-    emits: USER_CONFIRMED
+  - cross_domain: USER_CONFIRMED
+    from: AdvisoryBus
+    to: ExecutionBus
+    via: execution-adpt EB rule
 
   # Phase 8: User response callback to SF
   - service: decision-workflow-ctrl
@@ -98,17 +96,15 @@ steps:
     idempotent: true
 
   # Phase 9: Cross-domain to execution
-  - service: advisory-adpt
-    receives: DECISION_APPROVED
-    via: AdvisoryBus -> advisory-adpt ToExecution rule
-    forwards_to: ExecutionBus
-    emits: DECISION_APPROVED
+  - cross_domain: DECISION_APPROVED
+    from: AdvisoryBus
+    to: ExecutionBus
+    via: execution-adpt EB rule
 
-  - service: advisory-adpt
-    receives: DECISION_APPROVED
-    via: AdvisoryBus -> advisory-adpt ToInvestor rule
-    forwards_to: InvestorBus
-    emits: DECISION_APPROVED
+  - cross_domain: DECISION_APPROVED
+    from: AdvisoryBus
+    to: InvestorBus
+    via: investor-adpt EB rule
 
 success_criteria:
   - All 4 agent tasks complete and DecisionPacket is enriched

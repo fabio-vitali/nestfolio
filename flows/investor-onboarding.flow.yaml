@@ -19,29 +19,25 @@ steps:
     emits: GOAL_UPDATED, RISK_PROFILE_UPDATED, MANDATE_GRANTED, OPERATING_MODE_CHANGED (CDC)
     idempotent: true
 
-  - service: investor-adpt
-    receives: GOAL_UPDATED
-    via: InvestorBus -> investor-adpt ToAdvisory rule
-    forwards_to: AdvisoryBus
-    emits: GOAL_UPDATED
+  - cross_domain: GOAL_UPDATED
+    from: InvestorBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule
 
-  - service: investor-adpt
-    receives: RISK_PROFILE_UPDATED
-    via: InvestorBus -> investor-adpt ToAdvisory rule
-    forwards_to: AdvisoryBus
-    emits: RISK_PROFILE_UPDATED
+  - cross_domain: RISK_PROFILE_UPDATED
+    from: InvestorBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule
 
-  - service: investor-adpt
-    receives: MANDATE_GRANTED
-    via: InvestorBus -> investor-adpt ToAdvisory rule
-    forwards_to: AdvisoryBus
-    emits: MANDATE_GRANTED
+  - cross_domain: MANDATE_GRANTED
+    from: InvestorBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule
 
-  - service: investor-adpt
-    receives: OPERATING_MODE_CHANGED
-    via: InvestorBus -> investor-adpt ToAdvisory rule
-    forwards_to: AdvisoryBus
-    emits: OPERATING_MODE_CHANGED
+  - cross_domain: OPERATING_MODE_CHANGED
+    from: InvestorBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule
 
   - service: investor-ctrl
     receives: ONBOARDING_COMPLETED

@@ -37,11 +37,10 @@ steps:
     idempotent: true
 
   # Reconciliation results forwarded cross-domain
-  - service: ledger-adpt
-    receives: RECONCILIATION_COMPLETED
-    via: LedgerBus -> ledger-adpt ToInvestor rule
-    forwards_to: InvestorBus
-    emits: RECONCILIATION_COMPLETED
+  - cross_domain: RECONCILIATION_COMPLETED
+    from: LedgerBus
+    to: InvestorBus
+    via: investor-adpt EB rule
     # Verified: RECONCILIATION_COMPLETED is in LedgerCrossDomainEventTypes and ledger-adpt ToInvestor forwarding rules
 
   - service: dashboard-bff
@@ -51,11 +50,10 @@ steps:
     idempotent: true
 
   # Drift triggers rebalance (see portfolio-rebalance.flow.yaml)
-  - service: ledger-adpt
-    receives: PORTFOLIO_DRIFT_DETECTED
-    via: LedgerBus -> ledger-adpt ToAdvisory rule
-    forwards_to: AdvisoryBus
-    emits: PORTFOLIO_DRIFT_DETECTED
+  - cross_domain: PORTFOLIO_DRIFT_DETECTED
+    from: LedgerBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule
     # Verified: PORTFOLIO_DRIFT_DETECTED emitted by reconciliation-ctrl CDC on LedgerBus; forwarded by ledger-adpt ToAdvisory (not execution-adpt)
 
 success_criteria:

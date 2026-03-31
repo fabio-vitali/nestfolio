@@ -13,7 +13,6 @@ flowchart TD
     subgraph investor["Investor Domain"]
         onboarding_bff["onboarding-bff"]
         investor_bff["investor-bff"]
-        investor_adpt["investor-adpt"]
     end
     subgraph execution["Execution Domain"]
         broker_ctrl["broker-ctrl"]
@@ -23,9 +22,8 @@ flowchart TD
         decision_workflow_ctrl["decision-workflow-ctrl"]
     end
     onboarding_bff -->|"GO_LIVE_CONFIRMED"| investor_bff
-    investor_bff -->|"EXECUTION_MODE_CHANGED"| investor_adpt
-    investor_adpt -.->|"EXECUTION_MODE_CHANGED"| broker_ctrl
-    investor_adpt -.->|"OPERATING_MODE_CHANGED"| advisory_ctrl
+    investor_bff -->|"EXECUTION_MODE_CHANGED, EXECUTION_MODE_CHANG…"| broker_ctrl
+    broker_ctrl -.->|"OPERATING_MODE_CHANGED"| advisory_ctrl
 ```
 
 ## Sequence Diagram
@@ -35,7 +33,6 @@ sequenceDiagram
     box investor domain
         participant onboarding_bff as onboarding-bff
         participant investor_bff as investor-bff
-        participant investor_adpt as investor-adpt
     end
     box execution domain
         participant broker_ctrl as broker-ctrl
@@ -46,11 +43,9 @@ sequenceDiagram
     end
     Note over onboarding_bff: Investor completes Go Live wizard in investor-mfe…
     onboarding_bff->>+investor_bff: GO_LIVE_CONFIRMED
-    investor_bff->>+investor_adpt: EXECUTION_MODE_CHANGED
-    investor_adpt-)broker_ctrl: EXECUTION_MODE_CHANGED
-    broker_ctrl->>+investor_adpt: OPERATING_MODE_CHANGED
-    investor_adpt-)advisory_ctrl: OPERATING_MODE_CHANGED
-    investor_adpt->>+decision_workflow_ctrl: OPERATING_MODE_CHANGED
+    investor_bff-)broker_ctrl: EXECUTION_MODE_CHANGED (InvestorBus → ExecutionBus)
+    broker_ctrl-)advisory_ctrl: OPERATING_MODE_CHANGED (InvestorBus → AdvisoryBus)
+    advisory_ctrl->>+decision_workflow_ctrl: OPERATING_MODE_CHANGED
 ```
 
 ## Steps
@@ -70,12 +65,12 @@ sequenceDiagram
 - **Emits:** `EXECUTION_MODE_CHANGED (CDC from ExecutionModeChange:INSERT)`
 - **Idempotent:** yes
 
-### Step 3: investor-adpt
+### Step 3: Cross-domain hop
 
-- **Receives:** `EXECUTION_MODE_CHANGED`
-- **Via:** InvestorBus -> investor-adpt ToExecution rule
-- **Forwards to:** ExecutionBus
-- **Emits:** `EXECUTION_MODE_CHANGED`
+- **Event:** `EXECUTION_MODE_CHANGED`
+- **From:** InvestorBus
+- **To:** ExecutionBus
+- **Via:** execution-adpt EB rule
 
 ### Step 4: broker-ctrl
 
@@ -84,12 +79,12 @@ sequenceDiagram
 - **State change:** mode-listener materializes ExecutionMode record (mode='live') in DDB; future deposit/withdrawal/order routing uses Alpaca instead of simulator
 - **Idempotent:** yes
 
-### Step 5: investor-adpt
+### Step 5: Cross-domain hop
 
-- **Receives:** `OPERATING_MODE_CHANGED`
-- **Via:** InvestorBus -> investor-adpt ToAdvisory rule
-- **Forwards to:** AdvisoryBus
-- **Emits:** `OPERATING_MODE_CHANGED`
+- **Event:** `OPERATING_MODE_CHANGED`
+- **From:** InvestorBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule
 
 ### Step 6: advisory-ctrl
 

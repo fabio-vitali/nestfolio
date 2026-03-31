@@ -17,7 +17,6 @@ flowchart TD
         portfolio_engine_ctrl["portfolio-engine-ctrl"]
         advisory_narrative_ctrl["advisory-narrative-ctrl"]
         compliance_ctrl["compliance-ctrl"]
-        advisory_adpt["advisory-adpt"]
     end
     decision_workflow_ctrl -->|"DECISION_PACKET_CREATED, DECISION_PACKET_ENR…"| compliance_ctrl
     decision_workflow_ctrl -->|"ANALYZE_INVESTOR_PROFILE"| advisory_ctrl
@@ -29,8 +28,6 @@ flowchart TD
     portfolio_engine_ctrl -->|"PORTFOLIO_COMPLETED"| decision_workflow_ctrl
     advisory_narrative_ctrl -->|"NARRATIVE_COMPLETED"| decision_workflow_ctrl
     compliance_ctrl -->|"DECISION_APPROVED, DECISION_BLOCKED"| decision_workflow_ctrl
-    decision_workflow_ctrl -->|"USER_CONFIRMATION_REQUESTED, DECISION_APPROV…"| advisory_adpt
-    advisory_adpt -.->|"USER_CONFIRMED"| decision_workflow_ctrl
 ```
 
 ## Sequence Diagram
@@ -44,7 +41,6 @@ sequenceDiagram
         participant portfolio_engine_ctrl as portfolio-engine-ctrl
         participant advisory_narrative_ctrl as advisory-narrative-ctrl
         participant compliance_ctrl as compliance-ctrl
-        participant advisory_adpt as advisory-adpt
     end
     Note over decision_workflow_ctrl: Step Functions emits agent trigger events via Eve…
     decision_workflow_ctrl->>+advisory_ctrl: ANALYZE_INVESTOR_PROFILE
@@ -54,11 +50,8 @@ sequenceDiagram
     advisory_narrative_ctrl->>+decision_workflow_ctrl: INVESTOR_PROFILE_COMPLETED | MARKET_ANALYSIS_COMPLETED ...
     decision_workflow_ctrl->>+compliance_ctrl: DECISION_PACKET_CREATED | DECISION_PACKET_ENRICHED
     compliance_ctrl->>+decision_workflow_ctrl: DECISION_APPROVED | DECISION_BLOCKED
-    decision_workflow_ctrl->>+advisory_adpt: USER_CONFIRMATION_REQUESTED
-    advisory_adpt-)advisory_adpt: USER_CONFIRMATION_REQUESTED
-    advisory_adpt-)decision_workflow_ctrl: USER_CONFIRMED
-    decision_workflow_ctrl->>+advisory_adpt: DECISION_APPROVED
-    advisory_adpt-)advisory_adpt: DECISION_APPROVED
+    decision_workflow_ctrl-)decision_workflow_ctrl: USER_CONFIRMATION_REQUESTED (AdvisoryBus → InvestorBus)
+    decision_workflow_ctrl-)decision_workflow_ctrl: USER_CONFIRMED (AdvisoryBus → ExecutionBus)
 ```
 
 ## Steps
@@ -132,19 +125,19 @@ sequenceDiagram
 - **Emits:** `USER_CONFIRMATION_REQUESTED (CDC)`
 - **Idempotent:** yes
 
-### Step 10: advisory-adpt
+### Step 10: Cross-domain hop
 
-- **Receives:** `USER_CONFIRMATION_REQUESTED`
-- **Via:** AdvisoryBus -> advisory-adpt ToInvestor rule
-- **Forwards to:** InvestorBus
-- **Emits:** `USER_CONFIRMATION_REQUESTED`
+- **Event:** `USER_CONFIRMATION_REQUESTED`
+- **From:** AdvisoryBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule
 
-### Step 11: advisory-adpt
+### Step 11: Cross-domain hop
 
-- **Receives:** `USER_CONFIRMED`
-- **Via:** AdvisoryBus -> advisory-adpt ToExecution rule
-- **Forwards to:** ExecutionBus
-- **Emits:** `USER_CONFIRMED`
+- **Event:** `USER_CONFIRMED`
+- **From:** AdvisoryBus
+- **To:** ExecutionBus
+- **Via:** execution-adpt EB rule
 
 ### Step 12: decision-workflow-ctrl
 
@@ -154,19 +147,19 @@ sequenceDiagram
 - **Emits:** `DECISION_APPROVED (CDC)`
 - **Idempotent:** yes
 
-### Step 13: advisory-adpt
+### Step 13: Cross-domain hop
 
-- **Receives:** `DECISION_APPROVED`
-- **Via:** AdvisoryBus -> advisory-adpt ToExecution rule
-- **Forwards to:** ExecutionBus
-- **Emits:** `DECISION_APPROVED`
+- **Event:** `DECISION_APPROVED`
+- **From:** AdvisoryBus
+- **To:** ExecutionBus
+- **Via:** execution-adpt EB rule
 
-### Step 14: advisory-adpt
+### Step 14: Cross-domain hop
 
-- **Receives:** `DECISION_APPROVED`
-- **Via:** AdvisoryBus -> advisory-adpt ToInvestor rule
-- **Forwards to:** InvestorBus
-- **Emits:** `DECISION_APPROVED`
+- **Event:** `DECISION_APPROVED`
+- **From:** AdvisoryBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule
 
 ## Success Criteria
 

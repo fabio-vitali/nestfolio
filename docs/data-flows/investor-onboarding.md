@@ -13,15 +13,13 @@ flowchart TD
     subgraph investor["Investor Domain"]
         onboarding_bff["onboarding-bff"]
         investor_bff["investor-bff"]
-        investor_adpt["investor-adpt"]
         investor_ctrl["investor-ctrl"]
     end
     subgraph advisory["Advisory Domain"]
         decision_workflow_ctrl["decision-workflow-ctrl"]
     end
     onboarding_bff -->|"ONBOARDING_COMPLETED"| investor_bff
-    investor_bff -->|"GOAL_UPDATED, RISK_PROFILE_UPDATED ..."| investor_adpt
-    investor_adpt -.->|"MANDATE_GRANTED"| decision_workflow_ctrl
+    investor_bff -->|"MANDATE_GRANTED, MANDATE_GRANTED"| decision_workflow_ctrl
 ```
 
 ## Sequence Diagram
@@ -31,7 +29,6 @@ sequenceDiagram
     box investor domain
         participant onboarding_bff as onboarding-bff
         participant investor_bff as investor-bff
-        participant investor_adpt as investor-adpt
         participant investor_ctrl as investor-ctrl
     end
     box advisory domain
@@ -39,12 +36,11 @@ sequenceDiagram
     end
     Note over onboarding_bff: User completes 7-phase onboarding wizard via Copi…
     onboarding_bff->>+investor_bff: ONBOARDING_COMPLETED
-    investor_bff->>+investor_adpt: GOAL_UPDATED
-    investor_adpt-)investor_adpt: GOAL_UPDATED
-    investor_adpt-)investor_adpt: RISK_PROFILE_UPDATED
-    investor_adpt-)investor_adpt: MANDATE_GRANTED
-    investor_adpt-)investor_ctrl: OPERATING_MODE_CHANGED
-    investor_adpt->>+decision_workflow_ctrl: MANDATE_GRANTED
+    investor_bff-)investor_ctrl: GOAL_UPDATED (InvestorBus → AdvisoryBus)
+    investor_bff-)investor_ctrl: RISK_PROFILE_UPDATED (InvestorBus → AdvisoryBus)
+    investor_bff-)investor_ctrl: MANDATE_GRANTED (InvestorBus → AdvisoryBus)
+    investor_bff-)investor_ctrl: OPERATING_MODE_CHANGED (InvestorBus → AdvisoryBus)
+    investor_bff->>+decision_workflow_ctrl: MANDATE_GRANTED
 ```
 
 ## Steps
@@ -64,33 +60,33 @@ sequenceDiagram
 - **Emits:** `GOAL_UPDATED, RISK_PROFILE_UPDATED, MANDATE_GRANTED, OPERATING_MODE_CHANGED (CDC)`
 - **Idempotent:** yes
 
-### Step 3: investor-adpt
+### Step 3: Cross-domain hop
 
-- **Receives:** `GOAL_UPDATED`
-- **Via:** InvestorBus -> investor-adpt ToAdvisory rule
-- **Forwards to:** AdvisoryBus
-- **Emits:** `GOAL_UPDATED`
+- **Event:** `GOAL_UPDATED`
+- **From:** InvestorBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule
 
-### Step 4: investor-adpt
+### Step 4: Cross-domain hop
 
-- **Receives:** `RISK_PROFILE_UPDATED`
-- **Via:** InvestorBus -> investor-adpt ToAdvisory rule
-- **Forwards to:** AdvisoryBus
-- **Emits:** `RISK_PROFILE_UPDATED`
+- **Event:** `RISK_PROFILE_UPDATED`
+- **From:** InvestorBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule
 
-### Step 5: investor-adpt
+### Step 5: Cross-domain hop
 
-- **Receives:** `MANDATE_GRANTED`
-- **Via:** InvestorBus -> investor-adpt ToAdvisory rule
-- **Forwards to:** AdvisoryBus
-- **Emits:** `MANDATE_GRANTED`
+- **Event:** `MANDATE_GRANTED`
+- **From:** InvestorBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule
 
-### Step 6: investor-adpt
+### Step 6: Cross-domain hop
 
-- **Receives:** `OPERATING_MODE_CHANGED`
-- **Via:** InvestorBus -> investor-adpt ToAdvisory rule
-- **Forwards to:** AdvisoryBus
-- **Emits:** `OPERATING_MODE_CHANGED`
+- **Event:** `OPERATING_MODE_CHANGED`
+- **From:** InvestorBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule
 
 ### Step 7: investor-ctrl
 

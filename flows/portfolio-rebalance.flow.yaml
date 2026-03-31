@@ -12,11 +12,10 @@ steps:
     emits: PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord:INSERT)
     idempotent: true
 
-  - service: ledger-adpt
-    receives: PORTFOLIO_DRIFT_DETECTED
-    via: LedgerBus -> ledger-adpt ToAdvisory rule
-    forwards_to: AdvisoryBus
-    emits: PORTFOLIO_DRIFT_DETECTED
+  - cross_domain: PORTFOLIO_DRIFT_DETECTED
+    from: LedgerBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule
     # Verified: PORTFOLIO_DRIFT_DETECTED emitted by reconciliation-ctrl CDC on LedgerBus; forwarded by ledger-adpt (not execution-adpt)
 
   # Advisory decision cycle triggered by drift
@@ -37,11 +36,10 @@ steps:
     idempotent: false
 
   # After advisory cycle completes with DECISION_APPROVED
-  - service: advisory-adpt
-    receives: DECISION_APPROVED
-    via: AdvisoryBus -> advisory-adpt ToExecution rule
-    forwards_to: ExecutionBus
-    emits: DECISION_APPROVED
+  - cross_domain: DECISION_APPROVED
+    from: AdvisoryBus
+    to: ExecutionBus
+    via: execution-adpt EB rule
 
   - service: execution-ctrl
     receives: DECISION_APPROVED

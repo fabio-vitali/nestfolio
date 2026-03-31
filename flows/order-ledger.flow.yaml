@@ -6,11 +6,10 @@ domains: [execution, ledger, investor, advisory]
 trigger: broker-ctrl emits ORDER_FILLED (CDC from NormalizedEvent:INSERT)
 
 steps:
-  - service: execution-adpt
-    receives: ORDER_FILLED
-    via: ExecutionBus -> execution-adpt ToLedger rule
-    forwards_to: LedgerBus
-    emits: ORDER_FILLED
+  - cross_domain: ORDER_FILLED
+    from: ExecutionBus
+    to: LedgerBus
+    via: ledger-adpt EB rule
 
   - service: ledger-ctrl
     receives: ORDER_FILLED
@@ -28,23 +27,20 @@ steps:
     idempotent: true
 
   # Cross-domain forwarding of ledger events
-  - service: ledger-adpt
-    receives: BALANCE_UPDATED
-    via: LedgerBus -> ledger-adpt ToInvestor rule
-    forwards_to: InvestorBus
-    emits: BALANCE_UPDATED
+  - cross_domain: BALANCE_UPDATED
+    from: LedgerBus
+    to: InvestorBus
+    via: investor-adpt EB rule
 
-  - service: ledger-adpt
-    receives: PORTFOLIO_UPDATED
-    via: LedgerBus -> ledger-adpt ToAdvisory rule
-    forwards_to: AdvisoryBus
-    emits: PORTFOLIO_UPDATED
+  - cross_domain: PORTFOLIO_UPDATED
+    from: LedgerBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule
 
-  - service: ledger-adpt
-    receives: LEDGER_ENTRY_RECORDED
-    via: LedgerBus -> ledger-adpt ToInvestor rule
-    forwards_to: InvestorBus
-    emits: LEDGER_ENTRY_RECORDED
+  - cross_domain: LEDGER_ENTRY_RECORDED
+    from: LedgerBus
+    to: InvestorBus
+    via: investor-adpt EB rule
 
   # Investor domain consumption
   - service: investor-ctrl
