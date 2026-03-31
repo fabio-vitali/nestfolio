@@ -35,7 +35,7 @@ describe('Egress construct', () => {
 
     const egress = new Egress(stack, 'TestEgress', {
       state,
-      publishableTypes: ['Order', 'StagedOrder'],
+      eventTypes: { 'Order': 'ORDER', 'StagedOrder': 'STAGED_ORDER' },
       ...(overrides['egressOverrides'] as Record<string, unknown> ?? {}),
     });
 
@@ -50,6 +50,22 @@ describe('Egress construct', () => {
           Variables: Match.objectLike({
             BUS_NAME: Match.anyValue(),
             SERVICE_NAME: 'test-svc',
+          }),
+        },
+      });
+    });
+
+    it('sets EVENT_TYPE_MAP env var with serialized config', () => {
+      const { template } = createEgress();
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Environment: {
+          Variables: Match.objectLike({
+            EVENT_TYPE_MAP: JSON.stringify({
+              'Order:INSERT': 'ORDER_CREATED',
+              'Order:MODIFY': 'ORDER_UPDATED',
+              'StagedOrder:INSERT': 'STAGED_ORDER_CREATED',
+              'StagedOrder:MODIFY': 'STAGED_ORDER_UPDATED',
+            }),
           }),
         },
       });
@@ -96,6 +112,25 @@ describe('Egress construct', () => {
     it('exposes handler property', () => {
       const { egress } = createEgress();
       expect(egress.handler).toBeDefined();
+    });
+  });
+
+  describe('allEventTypes()', () => {
+    it('returns expanded event types for base names', () => {
+      const { egress } = createEgress();
+      expect(egress.allEventTypes()).toEqual(expect.arrayContaining([
+        'ORDER_CREATED', 'ORDER_UPDATED',
+        'STAGED_ORDER_CREATED', 'STAGED_ORDER_UPDATED',
+      ]));
+    });
+
+    it('returns explicit event types for per-action config', () => {
+      const { egress } = createEgress({
+        egressOverrides: {
+          eventTypes: { 'Payment': { insert: 'PAYMENT_RECEIVED' } },
+        },
+      });
+      expect(egress.allEventTypes()).toEqual(['PAYMENT_RECEIVED']);
     });
   });
 

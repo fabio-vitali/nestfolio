@@ -9,12 +9,14 @@ import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { ServiceStack } from './service-stack';
 import { State } from './state';
 import { defaultLambdaProps } from '../utils/default-lambda-props';
+import type { EventTypesMap } from './event-types';
+import { buildRuntimeConfig, collectAllEventTypes, extractFilters } from './event-types';
 
 export interface EgressProps {
   /** State construct — required for DynamoDB Streams CDC */
   state: State;
-  /** DynamoDB __typename values to publish events for */
-  publishableTypes: string[];
+  /** Declarative event type mapping: record type → event config */
+  eventTypes: EventTypesMap;
   /** Path to the CDC handler file. Default: join(serviceDir, 'handlers', 'event-publisher.ts') */
   entry?: string;
   /** Extra environment variables merged into the Lambda */
@@ -30,20 +32,23 @@ export interface EgressProps {
 export class Egress extends Construct {
   readonly handler: NodejsFunction;
   readonly dlq: Queue;
+  private readonly _eventTypes: EventTypesMap;
 
   constructor(scope: Construct, id: string, props: EgressProps) {
     super(scope, id);
 
+    this._eventTypes = props.eventTypes;
     const serviceStack = ServiceStack.of(this);
     const { eventBus, serviceName, serviceDir } = serviceStack;
     const state = props.state;
 
     const entry = props.entry ?? join(serviceDir, 'handlers', 'event-publisher.ts');
 
-    // Build environment from State + bus + extras
+    // Build environment from State + bus + event type config
     const env: Record<string, string> = {
       SERVICE_NAME: serviceName,
       BUS_NAME: eventBus.eventBusName,
+      EVENT_TYPE_MAP: JSON.stringify(buildRuntimeConfig(props.eventTypes)),
     };
     if (state.table) {
       env['TABLE_NAME'] = state.getTable().tableName;
@@ -83,30 +88,30 @@ export class Egress extends Construct {
       ],
     }));
 
+    // DynamoDB Streams event source with per-action filters
+    const filters = extractFilters(props.eventTypes);
     this.handler.addEventSource(new DynamoEventSource(state.getTable(), {
       startingPosition: StartingPosition.LATEST,
       bisectBatchOnError: true,
       retryAttempts: props.retryAttempts ?? 3,
       batchSize: props.batchSize,
       onFailure: new SqsDlq(this.dlq),
-      filters: props.publishableTypes.flatMap(typeName => [
-        FilterCriteria.filter({
-          eventName: FilterRule.isEqual('INSERT'),
+      filters: filters.map(({ typeName, action }) => {
+        const imageKey = action === 'REMOVE' ? 'OldImage' : 'NewImage';
+        return FilterCriteria.filter({
+          eventName: FilterRule.isEqual(action),
           dynamodb: {
-            NewImage: {
+            [imageKey]: {
               __typename: { S: FilterRule.isEqual(typeName) },
             },
           },
-        }),
-        FilterCriteria.filter({
-          eventName: FilterRule.isEqual('MODIFY'),
-          dynamodb: {
-            NewImage: {
-              __typename: { S: FilterRule.isEqual(typeName) },
-            },
-          },
-        }),
-      ]),
+        });
+      }),
     }));
+  }
+
+  /** Returns every possible event type string this service can emit. */
+  allEventTypes(): string[] {
+    return collectAllEventTypes(this._eventTypes);
   }
 }

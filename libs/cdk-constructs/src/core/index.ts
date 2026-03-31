@@ -3,5 +3,6 @@ export { ServiceStack, ServiceStackProps } from './service-stack';
 export { State, StateProps, GsiConfig } from './state';
 export { Ingress, IngressProps } from './ingress';
 export { Egress, EgressProps } from './egress';
+export type { EventTypesMap, RecordTypeConfig, ActionMapping, FieldDispatch, Passthrough } from './event-types';
 export { Facade, FacadeProps, JsResolverConfig, LambdaResolverConfig, parseSchemaFields, discoverJsResolvers } from './facade';
 export { Orchestration, OrchestrationProps } from './orchestration';
