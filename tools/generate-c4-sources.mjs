@@ -1,5 +1,5 @@
 import { readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const SERVICES_DIR = join(ROOT, 'services');
@@ -197,7 +197,7 @@ export function parseStack(src) {
 
   // Orchestration: new Orchestration(this, 'Id', { triggers: [...] })
   for (const m of src.matchAll(/new\s+Orchestration\s*\(\s*this\s*,\s*['"](\w+)['"]\s*,/g)) {
-    const entry = { id: m[1], triggers: [] };
+    const entry = { id: m[1], triggers: [], publishedEvents: [] };
     const after = src.slice(m.index);
     const trMatch = after.match(/triggers\s*:\s*\[([\s\S]*?)\]/);
     if (trMatch) {
@@ -323,10 +323,10 @@ function toD2Id(id) {
 }
 
 const SUFFIX_EXPANSIONS = {
-  ctrl: 'Controller',
+  ctrl: 'CTRL',
   bff: 'BFF',
-  hub: 'Hub',
-  adpt: 'Adapter',
+  hub: 'HUB',
+  adpt: 'ADPT',
   mfe: 'MFE',
 };
 
@@ -498,6 +498,47 @@ function collectEventTypesFromBlock(block) {
 }
 
 /**
+ * Scan a service's src/ directory for Step Functions PutEvents DetailType strings.
+ * Discovers events published by state machines without requiring manual annotation.
+ * Matches both direct `DetailType: 'EVENT'` and parameterised helpers where the
+ * DetailType value is passed as a string argument (e.g. createState('id', 'EVENT')).
+ * @param {string} srcDir - The src/ directory of the service (dirname of service.stack.ts)
+ * @returns {string[]} Array of event type names published via SF PutEvents
+ */
+export function discoverSfPublishedEvents(srcDir) {
+  const events = new Set();
+  const scanDir = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        scanDir(join(dir, entry.name));
+      } else if (entry.name.endsWith('.ts') && entry.name !== 'service.stack.ts') {
+        const content = readFileSync(join(dir, entry.name), 'utf-8');
+        // 1. Direct DetailType literals: DetailType: 'EVENT_NAME'
+        for (const m of content.matchAll(/DetailType\s*:\s*['"]([A-Z][A-Z0-9_]+)['"]/g)) {
+          events.add(m[1]);
+        }
+        // 2. Parameterised: DetailType uses a variable — trace back to call sites.
+        //    Match helper calls where the detailType arg is a string literal:
+        //    createXxxState('StateId', 'EVENT_NAME', ...)
+        if (/DetailType\s*:\s*\w+[^'"]/.test(content)) {
+          // Find the helper function name(s) that use `DetailType: <variable>`
+          for (const fm of content.matchAll(/const\s+(\w+)\s*=\s*\(\s*[\s\S]*?DetailType\s*:/g)) {
+            const fnName = fm[1];
+            // Find all call sites: fnName('id', 'EVENT_NAME')  or  fnName(\n  'id', 'EVENT_NAME')
+            const callPattern = new RegExp(`${fnName}\\s*\\([\\s\\S]*?['"][^'"]+['"]\\s*,\\s*['"]([A-Z][A-Z0-9_]+)['"]`, 'g');
+            for (const cm of content.matchAll(callPattern)) {
+              events.add(cm[1]);
+            }
+          }
+        }
+      }
+    }
+  };
+  scanDir(srcDir);
+  return [...events];
+}
+
+/**
  * Exact-match intra-domain producer→consumer event flows.
  * Uses egress allEventTypes (exact strings) intersected with ingress eventTypes.
  */
@@ -508,7 +549,10 @@ export function matchIntraDomainFlows(domainServices, parsedStacks) {
     const p = parsedStacks.get(svc.service);
     if (!p) continue;
     if (p.raw.eventBuses.length > 0 || p.raw.rules.some(r => r.isCrossDomain)) continue;
-    const emitted = p.constructs.egress.flatMap(e => e.allEventTypes);
+    const emitted = [
+      ...p.constructs.egress.flatMap(e => e.allEventTypes),
+      ...p.constructs.orchestration.flatMap(o => o.publishedEvents || []),
+    ];
     if (emitted.length) {
       producers.push({ service: svc.service, events: emitted });
     }
@@ -1400,6 +1444,21 @@ function main() {
     parsedStacks.set(svc.service, parseStack(src));
   }
   console.log(`  parsed: ${parsedStacks.size} service stacks`);
+
+  // 2b. Discover SF-published events for services with Orchestration constructs
+  let sfEventCount = 0;
+  for (const svc of services) {
+    const parsed = parsedStacks.get(svc.service);
+    if (!parsed?.constructs.orchestration.length) continue;
+    const sfEvents = discoverSfPublishedEvents(dirname(svc.stackPath));
+    if (sfEvents.length) {
+      for (const orch of parsed.constructs.orchestration) {
+        orch.publishedEvents = sfEvents;
+      }
+      sfEventCount += sfEvents.length;
+    }
+  }
+  if (sfEventCount) console.log(`  sf-events: ${sfEventCount} published events discovered`);
 
   // 3. Generate C3 files
   mkdirSync(C3_DIR, { recursive: true });

@@ -296,67 +296,67 @@ layers: {
       link: layers.c3-advisory-bff
       tooltip: "Backend-for-frontend that provides a GraphQL API for the advisory domain, serving decision read models, recommendations, and advisory status to the investor-facing application."
     }
-    advisory-ctrl: "Advisory Controller" {
+    advisory-ctrl: "Advisory CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-advisory-ctrl
       tooltip: "Core decision lifecycle orchestrator that evaluates portfolios against market conditions and investor profiles to determine if rebalancing is needed. It uses AI tools for portfolio analysis, market assessment, and universe screening to drive the advisory decision cycle."
     }
-    advisory-narrative-ctrl: "Advisory Narrative Controller" {
+    advisory-narrative-ctrl: "Advisory Narrative CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-advisory-narrative-ctrl
       tooltip: "Generates plain-language explanations of advisory decisions using a knowledge base of regulatory and financial concepts. It produces investor-friendly narratives that explain why specific recommendations were made."
     }
-    compliance-ctrl: "Compliance Controller" {
+    compliance-ctrl: "Compliance CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-compliance-ctrl
       tooltip: "Validates advisory decisions against regulatory and mandate constraints, checking that proposed trades comply with investor mandates, concentration limits, and regulatory requirements before execution."
     }
-    decision-workflow-ctrl: "Decision Workflow Controller" {
+    decision-workflow-ctrl: "Decision Workflow CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-decision-workflow-ctrl
       tooltip: "Orchestrates the multi-step advisory decision cycle by coordinating parallel AI agents for portfolio analysis, market intelligence, compliance checking, and allocation through a state machine. It aggregates their outputs into a decision packet and learns investor preferences over time."
     }
-    investor-profile-ctrl: "Investor Profile Controller" {
+    investor-profile-ctrl: "Investor Profile CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-investor-profile-ctrl
       tooltip: "Maintains enriched investor profiles for advisory decisions by combining regulatory suitability data with behavioral signals. It builds a comprehensive understanding of each investor's risk tolerance, goals, and preferences."
     }
-    market-intelligence-ctrl: "Market Intelligence Controller" {
+    market-intelligence-ctrl: "Market Intelligence CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-market-intelligence-ctrl
       tooltip: "Monitors and analyzes market conditions by aggregating signals from multiple data sources including economic indicators, news, filings, and prices. It assesses market sentiment and identifies conditions relevant to portfolio decisions."
     }
-    portfolio-engine-ctrl: "Portfolio Engine Controller" {
+    portfolio-engine-ctrl: "Portfolio Engine CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-portfolio-engine-ctrl
       tooltip: "Analyzes portfolio composition and fund characteristics, evaluating holdings against target allocations and screening the investment universe for rebalancing candidates. It provides portfolio analytics to the decision workflow."
     }
-    alpha-vantage-adpt: "Alpha Vantage Adapter" {
+    alpha-vantage-adpt: "Alpha Vantage ADPT" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-alpha-vantage-adpt
       tooltip: "Fetches economic indicators and market articles from the Alpha Vantage API on a scheduled basis, normalizing them into domain events for consumption by the market intelligence pipeline."
     }
-    fred-adpt: "Fred Adapter" {
+    fred-adpt: "Fred ADPT" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-fred-adpt
       tooltip: "Fetches Federal Reserve economic data including interest rates, inflation, and employment figures on a scheduled basis, normalizing them into domain events for the market intelligence pipeline."
     }
-    marketwatch-adpt: "Marketwatch Adapter" {
+    marketwatch-adpt: "Marketwatch ADPT" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-marketwatch-adpt
       tooltip: "Ingests market commentary and news summaries, normalizing editorial content into domain events for market sentiment analysis."
     }
-    sec-edgar-adpt: "Sec Edgar Adapter" {
+    sec-edgar-adpt: "Sec Edgar ADPT" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-sec-edgar-adpt
       tooltip: "Ingests SEC filing data for funds and companies, normalizing regulatory disclosures into domain events for compliance and market intelligence analysis."
     }
-    yahoo-finance-adpt: "Yahoo Finance Adapter" {
+    yahoo-finance-adpt: "Yahoo Finance ADPT" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-yahoo-finance-adpt
       tooltip: "Fetches real-time price quotes and dividend data, normalizing market prices into domain events for portfolio valuation and drift detection."
     }
-    advisory-adpt: "Advisory Adapter" {
+    advisory-adpt: "Advisory ADPT" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-advisory-adpt
       tooltip: "Ingests cross-domain events from the investor, execution, and ledger buses into the advisory domain bus, subscribing to goal updates, mandate changes, order status, portfolio updates, and reconciliation signals."
@@ -391,12 +391,24 @@ layers: {
     advisory-ctrl-to-compliance-ctrl: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_PACKET_CREATED"}
     advisory-ctrl -> advisory-ctrl-to-compliance-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     advisory-ctrl-to-compliance-ctrl -> compliance-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
-    decision-workflow-ctrl-to-advisory-bff: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_PACKET_CREATED"}
+    decision-workflow-ctrl-to-advisory-bff: "2 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_PACKET_CREATED\nUSER_CONFIRMATION_REQUESTED"}
     decision-workflow-ctrl -> decision-workflow-ctrl-to-advisory-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     decision-workflow-ctrl-to-advisory-bff -> advisory-bff {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+    decision-workflow-ctrl-to-advisory-narrative-ctrl: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "GENERATE_NARRATIVE"}
+    decision-workflow-ctrl -> decision-workflow-ctrl-to-advisory-narrative-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+    decision-workflow-ctrl-to-advisory-narrative-ctrl -> advisory-narrative-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     decision-workflow-ctrl-to-compliance-ctrl: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_PACKET_CREATED"}
     decision-workflow-ctrl -> decision-workflow-ctrl-to-compliance-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     decision-workflow-ctrl-to-compliance-ctrl -> compliance-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+    decision-workflow-ctrl-to-investor-profile-ctrl: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "ANALYZE_INVESTOR_PROFILE"}
+    decision-workflow-ctrl -> decision-workflow-ctrl-to-investor-profile-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+    decision-workflow-ctrl-to-investor-profile-ctrl -> investor-profile-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+    decision-workflow-ctrl-to-market-intelligence-ctrl: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "ANALYZE_MARKET"}
+    decision-workflow-ctrl -> decision-workflow-ctrl-to-market-intelligence-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+    decision-workflow-ctrl-to-market-intelligence-ctrl -> market-intelligence-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+    decision-workflow-ctrl-to-portfolio-engine-ctrl: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "CONSTRUCT_PORTFOLIO"}
+    decision-workflow-ctrl -> decision-workflow-ctrl-to-portfolio-engine-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+    decision-workflow-ctrl-to-portfolio-engine-ctrl -> portfolio-engine-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     alpha-vantage-adpt-to-market-intelligence-ctrl: "1 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "ALPHA_VANTAGE_NEWS_UPDATED"}
     alpha-vantage-adpt -> alpha-vantage-adpt-to-market-intelligence-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     alpha-vantage-adpt-to-market-intelligence-ctrl -> market-intelligence-ctrl {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
@@ -450,27 +462,27 @@ layers: {
   c2-execution: {
     style: { fill: "#FFFFFF"; stroke: "#FFFFFF" }
 
-    broker-ctrl: "Broker Controller" {
+    broker-ctrl: "Broker CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-broker-ctrl
       tooltip: "Controls broker connections and order routing by managing the active broker session, dispatching orders to the appropriate broker adapter, and handling execution callbacks and circuit breaker logic."
     }
-    broker-alpaca-adpt: "Broker Alpaca Adapter" {
+    broker-alpaca-adpt: "Broker Alpaca ADPT" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-broker-alpaca-adpt
       tooltip: "Integrates with the Alpaca brokerage API for live trading, submitting orders, streaming execution updates, and reconciling account positions with the Alpaca platform."
     }
-    broker-sim-adpt: "Broker Sim Adapter" {
+    broker-sim-adpt: "Broker Sim ADPT" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-broker-sim-adpt
       tooltip: "Simulates broker order execution for paper trading, accepting orders and generating realistic fill, reject, and partial-fill events without connecting to a real brokerage."
     }
-    execution-ctrl: "Execution Controller" {
+    execution-ctrl: "Execution CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-execution-ctrl
       tooltip: "Manages the order staging lifecycle by receiving approved decisions, staging orders for market-open execution, and coordinating with broker services for order submission and status tracking."
     }
-    execution-adpt: "Execution Adapter" {
+    execution-adpt: "Execution ADPT" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-execution-adpt
       tooltip: "Ingests cross-domain events from the advisory and investor buses into the execution domain bus, subscribing to decision approvals, circuit breaker signals, deposit and withdrawal requests."
@@ -526,7 +538,7 @@ layers: {
       link: layers.c3-investor-bff
       tooltip: "Backend-for-frontend that provides a GraphQL API for the investor domain, serving portfolio summaries, account balances, and investor profile data to the investor-facing application."
     }
-    investor-ctrl: "Investor Controller" {
+    investor-ctrl: "Investor CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-investor-ctrl
       tooltip: "Manages investor state by processing profile updates, risk tolerance changes, mandate grants, and operating mode transitions, maintaining the canonical investor record."
@@ -536,7 +548,7 @@ layers: {
       link: layers.c3-onboarding-bff
       tooltip: "Guides new investors through the onboarding process using a conversational AI agent with a regulatory knowledge base to collect suitability information, risk preferences, and account details across a multi-phase wizard."
     }
-    investor-adpt: "Investor Adapter" {
+    investor-adpt: "Investor ADPT" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-investor-adpt
       tooltip: "Ingests cross-domain events from the advisory, execution, and ledger buses into the investor domain bus, subscribing to decision packets, order status, balance updates, and reconciliation signals."
@@ -612,17 +624,17 @@ layers: {
       link: layers.c3-ledger-bff
       tooltip: "Backend-for-frontend that provides a GraphQL API for historical portfolio queries, supporting point-in-time portfolio snapshots, transaction history, and balance lookups."
     }
-    ledger-ctrl: "Ledger Controller" {
+    ledger-ctrl: "Ledger CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-ledger-ctrl
       tooltip: "The immutable financial ledger that records every transaction, position change, and valuation as append-only entries, serving as the single source of truth for portfolio accounting."
     }
-    reconciliation-ctrl: "Reconciliation Controller" {
+    reconciliation-ctrl: "Reconciliation CTRL" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-reconciliation-ctrl
       tooltip: "Reconciles broker-reported positions and transactions against the internal ledger, detecting discrepancies, flagging mismatches, and emitting reconciliation status events for cross-domain visibility."
     }
-    ledger-adpt: "Ledger Adapter" {
+    ledger-adpt: "Ledger ADPT" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-ledger-adpt
       tooltip: "Ingests cross-domain events from the execution bus into the ledger domain bus, subscribing to order fills, deposit and withdrawal completions, corporate actions, and portfolio snapshots."

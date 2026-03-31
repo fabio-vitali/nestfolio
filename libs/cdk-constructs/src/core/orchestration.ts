@@ -17,7 +17,7 @@ export interface OrchestrationProps {
   definitionBody: sfn.DefinitionBody;
   /** Event types that trigger new state machine executions */
   triggers: string[];
-  /** State machine execution timeout (default: 5 minutes) */
+/** State machine execution timeout (default: 5 minutes) */
   timeout?: Duration;
 }
 
