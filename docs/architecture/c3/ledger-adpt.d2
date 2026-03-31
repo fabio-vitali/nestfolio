@@ -4,14 +4,10 @@ title: "Ledger Adapter\n[Cross-Domain Bridge]" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
-source: "ledger-bus\n[Source]" { class: aws-eventbridge }
+target: "ledger-bus\n[Target]" { class: aws-eventbridge }
 
-to-investor: "investor-bus\n[Target]" { class: aws-eventbridge }
-to-investor-dlq: "DLQ" { class: aws-dlq }
-source -> to-investor
-
-to-advisory: "advisory-bus\n[Target]" { class: aws-eventbridge }
-to-advisory-dlq: "DLQ" { class: aws-dlq }
-source -> to-advisory
+ledger-ingress-from-execution: "execution-bus\n[Source]" { class: aws-eventbridge }
+ledger-ingress-from-execution-dlq: "DLQ" { class: aws-dlq }
+ledger-ingress-from-execution -> target
 
 # Flows

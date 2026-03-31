@@ -194,7 +194,7 @@ export function parseStack(src) {
   }
 
   // Cross-domain rules (Rule with EventBusTarget)
-  for (const m of src.matchAll(/new\s+Rule\s*\(\s*this\s*,\s*['"](\w+)['"]\s*,/g)) {
+  for (const m of src.matchAll(/new\s+Rule\s*\(\s*this\s*,\s*['"]([^'"]+)['"]\s*,/g)) {
     const after = src.slice(m.index, m.index + 1200);
     const isCrossDomain = /EventBusTarget/.test(after);
     const eventTypes = [];
@@ -206,11 +206,14 @@ export function parseStack(src) {
       }
     }
     const targetMatch = after.match(/new\s+EventBusTarget\s*\(\s*(\w+)/);
+    // Pull model: eventBus property references the foreign (source) bus
+    const sourceBusMatch = after.match(/eventBus\s*:\s*(\w+)/);
     result.raw.rules.push({
       id: m[1],
       isCrossDomain,
       eventTypes,
       targetBusVar: targetMatch?.[1] || null,
+      sourceBusVar: sourceBusMatch?.[1] || null,
     });
   }
 
@@ -365,6 +368,7 @@ export function readServiceDescriptions(servicesDir) {
 
 /**
  * Build a map of events routed INTO each domain from external cross-domain adapters.
+ * Supports both push model (target = foreign bus) and pull model (source = foreign bus, target = own bus).
  * Returns Map<targetDomain, [{from: sourceDomain, events: string[]}]>
  */
 export function buildInboundEventMap(allServices, parsedStacks) {
@@ -376,8 +380,14 @@ export function buildInboundEventMap(allServices, parsedStacks) {
     for (const rule of parsed.raw.rules) {
       if (!rule.isCrossDomain || !rule.targetBusVar) continue;
       const target = rule.targetBusVar.replace(/Bus$/, '').toLowerCase();
+      // Pull model: sourceBusVar is the foreign bus (where events come from)
+      // Push model: the adapter's own domain is the source
+      const from = rule.sourceBusVar
+        ? rule.sourceBusVar.replace(/Bus$/, '').toLowerCase()
+        : svc.domain;
+      if (from === target) continue; // skip if source equals target
       if (!inbound.has(target)) inbound.set(target, []);
-      inbound.get(target).push({ from: svc.domain, events: [...rule.eventTypes] });
+      inbound.get(target).push({ from, events: [...rule.eventTypes] });
     }
   }
   return inbound;
@@ -696,17 +706,17 @@ export function generateC3(service, domain, parsed) {
     lines.push('');
   }
 
-  // Cross-domain adapter pattern
+  // Cross-domain adapter pattern (pull model: source = foreign bus, target = own bus)
   const crossDomainRules = r.rules.filter((rule) => rule.isCrossDomain);
   if (crossDomainRules.length > 0) {
-    lines.push(`source: "${domain}-bus\\n[Source]" { class: aws-eventbridge }`);
+    lines.push(`target: "${domain}-bus\\n[Target]" { class: aws-eventbridge }`);
     lines.push('');
     for (const rule of crossDomainRules) {
       const ruleId = toD2Id(rule.id);
-      const targetDomain = rule.targetBusVar?.replace(/Bus$/, '') || 'target';
-      lines.push(`${ruleId}: "${targetDomain}-bus\\n[Target]" { class: aws-eventbridge }`);
+      const sourceDomain = rule.sourceBusVar?.replace(/Bus$/, '') || 'source';
+      lines.push(`${ruleId}: "${sourceDomain}-bus\\n[Source]" { class: aws-eventbridge }`);
       lines.push(`${ruleId}-dlq: "DLQ" { class: aws-dlq }`);
-      lines.push(`source -> ${ruleId}`);
+      lines.push(`${ruleId} -> target`);
       lines.push('');
     }
   }
@@ -756,6 +766,7 @@ export function generateC3(service, domain, parsed) {
 
 /**
  * Extract cross-domain event flows from adapter service stacks.
+ * Supports both push model (target = foreign bus) and pull model (source = foreign bus, target = own bus).
  * Returns an array of { from, to, events[] } objects.
  */
 export function extractCrossDomainFlows(services, parsedStacks) {
@@ -767,7 +778,12 @@ export function extractCrossDomainFlows(services, parsedStacks) {
     for (const rule of parsed.raw.rules) {
       if (!rule.isCrossDomain || !rule.targetBusVar) continue;
       const targetDomain = rule.targetBusVar.replace(/Bus$/, '').toLowerCase();
-      const key = `${svc.domain}→${targetDomain}`;
+      // Pull model: sourceBusVar is the foreign bus, targetBusVar is the adapter's own bus
+      // Push model: sourceBusVar is the adapter's own bus, targetBusVar is the foreign bus
+      const sourceDomain = rule.sourceBusVar
+        ? rule.sourceBusVar.replace(/Bus$/, '').toLowerCase()
+        : svc.domain;
+      const key = `${sourceDomain}→${targetDomain}`;
       if (!flowMap.has(key)) flowMap.set(key, []);
       flowMap.get(key).push(...rule.eventTypes);
     }
@@ -775,6 +791,7 @@ export function extractCrossDomainFlows(services, parsedStacks) {
   const flows = [];
   for (const [key, events] of flowMap) {
     const [from, to] = key.split('→');
+    if (from === to) continue; // skip self-referencing (shouldn't happen but safety)
     flows.push({ from, to, events: [...new Set(events)] });
   }
   return flows;
@@ -1149,25 +1166,26 @@ export function generateC2(domain, services, parsedStacks, { serviceDescriptions
   for (const svc of crossDomainAdapters) renderBox(svc);
   lines.push('');
 
-  // External domain boxes for cross-domain adapter outgoing
+  // External domain boxes for cross-domain adapter ingestion (pull model)
   const externalDomainIds = new Set();
   for (const svc of crossDomainAdapters) {
     const parsed = parsedStacks.get(svc.service);
     if (!parsed) continue;
     for (const rule of parsed.raw.rules) {
-      if (!rule.isCrossDomain || !rule.targetBusVar) continue;
-      const targetDomain = rule.targetBusVar.replace(/Bus$/, '').toLowerCase();
-      const targetTitle = targetDomain.charAt(0).toUpperCase() + targetDomain.slice(1);
-      const extId = `ext-${targetDomain}`;
+      if (!rule.isCrossDomain || !rule.sourceBusVar) continue;
+      const sourceDomain = rule.sourceBusVar.replace(/Bus$/, '').toLowerCase();
+      if (sourceDomain === domain) continue; // skip own-domain rules
+      const sourceTitle = sourceDomain.charAt(0).toUpperCase() + sourceDomain.slice(1);
+      const extId = `ext-${sourceDomain}`;
       if (!externalDomainIds.has(extId)) {
         externalDomainIds.add(extId);
-        lines.push(`${I}${extId}: "${targetTitle} Domain" {style: { ${C2_STYLES.external} }}`);
+        lines.push(`${I}${extId}: "${sourceTitle} Domain" {style: { ${C2_STYLES.external} }}`);
       }
       const eventList = rule.eventTypes.join('\\n');
-      const pillId = `${svc.service}-to-${targetDomain}`;
+      const pillId = `${sourceDomain}-to-${svc.service}`;
       lines.push(`${I}${pillId}: "${rule.eventTypes.length} Events" {style: { ${C2_STYLES.flowLabel} }; tooltip: "${eventList}"}`);
-      lines.push(`${I}${svc.service} -> ${pillId} {${EDGE_STYLE}}`);
-      lines.push(`${I}${pillId} -> ${extId} {${EDGE_STYLE}}`);
+      lines.push(`${I}${extId} -> ${pillId} {${EDGE_STYLE}}`);
+      lines.push(`${I}${pillId} -> ${svc.service} {${EDGE_STYLE}}`);
     }
   }
 

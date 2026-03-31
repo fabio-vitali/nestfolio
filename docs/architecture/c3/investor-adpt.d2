@@ -4,14 +4,18 @@ title: "Investor Adapter\n[Cross-Domain Bridge]" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
-source: "investor-bus\n[Source]" { class: aws-eventbridge }
+target: "investor-bus\n[Target]" { class: aws-eventbridge }
 
-to-advisory: "advisory-bus\n[Target]" { class: aws-eventbridge }
-to-advisory-dlq: "DLQ" { class: aws-dlq }
-source -> to-advisory
+investor-ingress-from-advisory: "advisory-bus\n[Source]" { class: aws-eventbridge }
+investor-ingress-from-advisory-dlq: "DLQ" { class: aws-dlq }
+investor-ingress-from-advisory -> target
 
-to-execution: "execution-bus\n[Target]" { class: aws-eventbridge }
-to-execution-dlq: "DLQ" { class: aws-dlq }
-source -> to-execution
+investor-ingress-from-execution: "execution-bus\n[Source]" { class: aws-eventbridge }
+investor-ingress-from-execution-dlq: "DLQ" { class: aws-dlq }
+investor-ingress-from-execution -> target
+
+investor-ingress-from-ledger: "ledger-bus\n[Source]" { class: aws-eventbridge }
+investor-ingress-from-ledger-dlq: "DLQ" { class: aws-dlq }
+investor-ingress-from-ledger -> target
 
 # Flows
