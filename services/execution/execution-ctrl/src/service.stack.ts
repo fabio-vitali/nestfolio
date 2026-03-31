@@ -19,7 +19,20 @@ export class ExecutionCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['Order', 'StagedOrder'],
+      eventTypes: {
+        'Order': {
+          insert: { field: 'status', map: {
+            SUBMITTED: 'ORDER_SUBMITTED',
+            STAGED: 'ORDER_STAGED',
+            REJECTED: 'ORDER_REJECTED',
+          }, default: 'ORDER_CREATED' },
+          modify: { field: 'status', map: {
+            SUBMITTED: 'ORDER_SUBMITTED',
+            REJECTED: 'ORDER_REJECTED',
+          }, default: 'ORDER_UPDATED' },
+        },
+        'StagedOrder': 'STAGED_ORDER',
+      },
     });
 
     // Staged-order processor: runs at US market open (9:30 AM ET = 14:30 UTC, weekdays)

@@ -20,7 +20,36 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['AlpacaOrderResult', 'AlpacaTransferResult', 'AlpacaAccountSnapshot'],
+      eventTypes: {
+        'AlpacaOrderResult': {
+          insert: { field: 'status', map: {
+            PLACED: 'ALPACA_ORDER_PLACED',
+            FILLED: 'ALPACA_ORDER_FILLED',
+            PARTIALLY_FILLED: 'ALPACA_ORDER_PARTIALLY_FILLED',
+            REJECTED: 'ALPACA_ORDER_REJECTED',
+            CANCELLED: 'ALPACA_ORDER_CANCELLED',
+            CANCEL_FAILED: 'ALPACA_ORDER_CANCEL_FAILED',
+          }},
+          modify: { field: 'status', map: {
+            FILLED: 'ALPACA_ORDER_FILLED',
+            PARTIALLY_FILLED: 'ALPACA_ORDER_PARTIALLY_FILLED',
+            REJECTED: 'ALPACA_ORDER_REJECTED',
+            CANCELLED: 'ALPACA_ORDER_CANCELLED',
+          }},
+        },
+        'AlpacaTransferResult': {
+          insert: { field: 'status', map: {
+            INITIATED: 'ALPACA_TRANSFER_INITIATED',
+            COMPLETED: 'ALPACA_TRANSFER_COMPLETED',
+            FAILED: 'ALPACA_TRANSFER_FAILED',
+          }},
+          modify: { field: 'status', map: {
+            COMPLETED: 'ALPACA_TRANSFER_COMPLETED',
+            FAILED: 'ALPACA_TRANSFER_FAILED',
+          }},
+        },
+        'AlpacaAccountSnapshot': { insert: 'ALPACA_ACCOUNT_SNAPSHOT' },
+      },
     });
 
     this.addObservability({ ingress, egress });

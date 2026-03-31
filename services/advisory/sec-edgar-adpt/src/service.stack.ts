@@ -41,7 +41,24 @@ export class SecEdgarAdptStack extends ServiceStack {
     // Egress: DDB Stream → CDC → EventBridge (form-type-based event routing)
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['SecFiling'],
+      eventTypes: {
+        'SecFiling': {
+          insert: { field: 'formType', map: {
+            '8-K': 'SEC_8K_FILED',
+            '485BPOS': 'SEC_PROSPECTUS_UPDATED',
+            'N-1A': 'SEC_PROSPECTUS_UPDATED',
+            '10-K': 'SEC_10K_UPDATED',
+            '10-Q': 'SEC_10K_UPDATED',
+          }, default: 'SEC_8K_FILED' },
+          modify: { field: 'formType', map: {
+            '8-K': 'SEC_8K_FILED',
+            '485BPOS': 'SEC_PROSPECTUS_UPDATED',
+            'N-1A': 'SEC_PROSPECTUS_UPDATED',
+            '10-K': 'SEC_10K_UPDATED',
+            '10-Q': 'SEC_10K_UPDATED',
+          }, default: 'SEC_8K_FILED' },
+        },
+      },
     });
 
     // Trigger Lambda: invoked by EventBridge Scheduler, publishes FETCH_SEC_EDGAR_REQUESTED to bus

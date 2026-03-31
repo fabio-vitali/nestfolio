@@ -19,7 +19,18 @@ export class BrokerSimAdptStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['VirtualTrade', 'DepositDetected', 'WithdrawalCompleted'],
+      eventTypes: {
+        'VirtualTrade': {
+          insert: { field: 'status', map: {
+            REJECTED: 'SIM_ORDER_REJECTED',
+          }, default: 'SIM_ORDER_FILLED' },
+          modify: { field: 'status', map: {
+            REJECTED: 'SIM_ORDER_REJECTED',
+          }, default: 'SIM_ORDER_FILLED' },
+        },
+        'DepositDetected': { insert: 'SIM_DEPOSIT_COMPLETED' },
+        'WithdrawalCompleted': { insert: 'SIM_WITHDRAWAL_COMPLETED' },
+      },
     });
 
     this.addObservability({ ingress, egress });

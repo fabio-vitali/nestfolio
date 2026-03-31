@@ -18,7 +18,15 @@ export class BrokerCtrlStack extends ServiceStack {
     // --- Egress: CDC for NormalizedEvent → canonical events ---
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['NormalizedEvent'],
+      eventTypes: {
+        'NormalizedEvent': {
+          insert: { field: 'sk', passthrough: true, emits: [
+            'ORDER_FILLED', 'ORDER_PARTIALLY_FILLED', 'ORDER_REJECTED', 'ORDER_CANCELLED',
+            'ORDER_ESCALATED', 'DEPOSIT_DETECTED', 'WITHDRAWAL_COMPLETED',
+            'BROKER_CIRCUIT_OPEN', 'BROKER_CIRCUIT_CLOSED', 'BROKER_HEAL_ESCALATED',
+          ]},
+        },
+      },
     });
 
     // --- Ingress 1: ExecutionMode cache listener ---
