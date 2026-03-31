@@ -47,6 +47,15 @@
 - `services/execution/execution-adpt/CLAUDE.md`
 - `services/ledger/ledger-adpt/CLAUDE.md`
 
+### Skills (modify)
+- `.claude/skills/system/domains.md` — update "Adapter Forwarding" sections and "Cross-Domain Event Topology" to reflect pull model
+- `.claude/skills/system/orient.md` — update adapter descriptions and communication pattern diagram
+
+### Flow Spec Schema (modify)
+- `flows/SCHEMA.md` — update adapter step schema: `forwards_to` becomes `ingests_from`
+- `flows/*.flow.yaml` (10 files) — update adapter steps from `forwards_to: {TargetBus}` to `ingests_from: {SourceBus}`
+- `tools/generate-flow-docs.mjs` — update `forwards_to` references to `ingests_from`
+
 ---
 
 ## Task 1: Expand CrossAccountBusPolicy
@@ -1142,7 +1151,337 @@ git commit -m "docs: update adapter service cards for pull model"
 
 ---
 
-## Task 7: Run All Adapter Tests
+## Task 7: Update `domains.md` Skill
+
+**Files:**
+- Modify: `.claude/skills/system/domains.md`
+
+The "Adapter Forwarding" sections and "Cross-Domain Event Topology" block describe the push model. Update them to describe the pull model.
+
+- [ ] **Step 1: Update all 4 "Adapter Forwarding" sections**
+
+In `.claude/skills/system/domains.md`, replace each domain's "Adapter Forwarding" section. The section title changes from **"Adapter Forwarding"** to **"Adapter Ingestion"**, and the direction description flips.
+
+For **Advisory** (around line 55-57), replace:
+
+```markdown
+**Adapter Forwarding (advisory-adpt):**
+- Advisory → Investor: `DECISION_PACKET_CREATED`, `USER_CONFIRMATION_REQUESTED`, `EXPLANATION_GENERATED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `ESCALATION_TRIGGERED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`, `INCIDENT_DETECTED`, `INCIDENT_RESOLVED`
+- Advisory → Execution: `DECISION_APPROVED`, `DECISION_PACKET_CREATED`, `USER_CONFIRMED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`
+```
+
+With:
+
+```markdown
+**Adapter Ingestion (advisory-adpt — pull model):**
+- InvestorBus → AdvisoryBus: `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`
+- ExecutionBus → AdvisoryBus: `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `PORTFOLIO_DRIFT_DETECTED`, `BROKER_SESSION_LOST`, `STREAM_DISCONNECTED`, `RECONCILIATION_FAILED`
+- LedgerBus → AdvisoryBus: `PORTFOLIO_UPDATED`, `PORTFOLIO_DRIFT_DETECTED`, `RECONCILIATION_FAILED`
+```
+
+For **Execution** (around line 103-106), replace:
+
+```markdown
+**Adapter Forwarding (execution-adpt):**
+- Execution → Investor: `ORDER_STAGED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `WITHDRAWAL_REJECTED`, `WITHDRAWAL_COMPLETED`, `ORDER_ESCALATED`, `BROKER_CIRCUIT_OPEN`
+- Execution → Ledger: `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `CORPORATE_ACTION_APPLIED`, `PORTFOLIO_SNAPSHOT_IMPORTED`, `ALPACA_ACCOUNT_SNAPSHOT`
+- Execution → Advisory: `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `PORTFOLIO_DRIFT_DETECTED`, `BROKER_SESSION_LOST`, `STREAM_DISCONNECTED`, `RECONCILIATION_FAILED`
+```
+
+With:
+
+```markdown
+**Adapter Ingestion (execution-adpt — pull model):**
+- AdvisoryBus → ExecutionBus: `DECISION_APPROVED`, `DECISION_PACKET_CREATED`, `USER_CONFIRMED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`
+- InvestorBus → ExecutionBus: `DEPOSIT_INITIATED`, `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `EXECUTION_MODE_CHANGED`
+```
+
+For **Investor** (around line 130-132), replace:
+
+```markdown
+**Adapter Forwarding (investor-adpt):**
+- Investor → Advisory: `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`
+- Investor → Execution: `DEPOSIT_INITIATED`, `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `EXECUTION_MODE_CHANGED`
+```
+
+With:
+
+```markdown
+**Adapter Ingestion (investor-adpt — pull model):**
+- AdvisoryBus → InvestorBus: `DECISION_PACKET_CREATED`, `USER_CONFIRMATION_REQUESTED`, `EXPLANATION_GENERATED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `ESCALATION_TRIGGERED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`, `INCIDENT_DETECTED`, `INCIDENT_RESOLVED`
+- ExecutionBus → InvestorBus: `ORDER_STAGED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `WITHDRAWAL_REJECTED`, `WITHDRAWAL_COMPLETED`, `ORDER_ESCALATED`, `BROKER_CIRCUIT_OPEN`
+- LedgerBus → InvestorBus: `BALANCE_UPDATED`, `PORTFOLIO_UPDATED`, `LEDGER_ENTRY_RECORDED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED`, `LEDGER_PROCESSING_FAILED`
+```
+
+For **Ledger** (around line 153-155), replace:
+
+```markdown
+**Adapter Forwarding (ledger-adpt):**
+- Ledger → Investor: `BALANCE_UPDATED`, `PORTFOLIO_UPDATED`, `LEDGER_ENTRY_RECORDED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED`, `LEDGER_PROCESSING_FAILED`
+- Ledger → Advisory: `PORTFOLIO_UPDATED`, `PORTFOLIO_DRIFT_DETECTED`, `RECONCILIATION_FAILED`
+```
+
+With:
+
+```markdown
+**Adapter Ingestion (ledger-adpt — pull model):**
+- ExecutionBus → LedgerBus: `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `CORPORATE_ACTION_APPLIED`, `PORTFOLIO_SNAPSHOT_IMPORTED`, `ALPACA_ACCOUNT_SNAPSHOT`
+```
+
+- [ ] **Step 2: Update the Cross-Domain Event Topology block**
+
+Replace the full "Cross-Domain Event Topology" code block (lines 159-197) with the consumer-perspective view:
+
+````markdown
+## Cross-Domain Event Topology (Pull Model)
+
+Each adapter deploys EB rules on **foreign** domain buses to ingest events into its own bus.
+
+```
+investor-adpt ingests:
+  From AdvisoryBus → InvestorBus:
+    DECISION_PACKET_CREATED, USER_CONFIRMATION_REQUESTED, EXPLANATION_GENERATED,
+    DECISION_APPROVED, DECISION_BLOCKED, ESCALATION_TRIGGERED,
+    CIRCUIT_BREAKER_TRIGGERED, CIRCUIT_BREAKER_RESET, INCIDENT_DETECTED, INCIDENT_RESOLVED
+  From ExecutionBus → InvestorBus:
+    ORDER_STAGED, ORDER_REJECTED, ORDER_CANCELLED, WITHDRAWAL_REJECTED,
+    WITHDRAWAL_COMPLETED, ORDER_ESCALATED, BROKER_CIRCUIT_OPEN
+  From LedgerBus → InvestorBus:
+    BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED,
+    RECONCILIATION_COMPLETED, RECONCILIATION_FAILED, LEDGER_PROCESSING_FAILED
+
+advisory-adpt ingests:
+  From InvestorBus → AdvisoryBus:
+    GOAL_UPDATED, RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED,
+    MANDATE_GRANTED, MANDATE_UPDATED, MANDATE_REVOKED
+  From ExecutionBus → AdvisoryBus:
+    ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED,
+    PORTFOLIO_DRIFT_DETECTED, BROKER_SESSION_LOST, STREAM_DISCONNECTED, RECONCILIATION_FAILED
+  From LedgerBus → AdvisoryBus:
+    PORTFOLIO_UPDATED, PORTFOLIO_DRIFT_DETECTED, RECONCILIATION_FAILED
+
+execution-adpt ingests:
+  From AdvisoryBus → ExecutionBus:
+    DECISION_APPROVED, DECISION_PACKET_CREATED, USER_CONFIRMED,
+    CIRCUIT_BREAKER_TRIGGERED, CIRCUIT_BREAKER_RESET
+  From InvestorBus → ExecutionBus:
+    DEPOSIT_INITIATED, WITHDRAWAL_REQUESTED, ACCOUNT_CLOSURE_REQUESTED, EXECUTION_MODE_CHANGED
+
+ledger-adpt ingests:
+  From ExecutionBus → LedgerBus:
+    ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED,
+    DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, CORPORATE_ACTION_APPLIED,
+    PORTFOLIO_SNAPSHOT_IMPORTED, ALPACA_ACCOUNT_SNAPSHOT
+```
+````
+
+- [ ] **Step 3: Update the Anti-Patterns section**
+
+Replace:
+
+```markdown
+- NEVER add forwarding rules to a non-adapter service
+```
+
+With:
+
+```markdown
+- NEVER add ingestion rules to a non-adapter service
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add .claude/skills/system/domains.md
+git commit -m "docs(skills): update domains.md for pull model event routing"
+```
+
+---
+
+## Task 8: Update `orient.md` Skill
+
+**Files:**
+- Modify: `.claude/skills/system/orient.md`
+
+- [ ] **Step 1: Update adapter descriptions**
+
+In `.claude/skills/system/orient.md`, update the 4 lines that describe adapter services:
+
+Replace (line 22):
+```
+- `advisory-adpt` — Cross-domain event forwarding (Advisory → Investor, Advisory → Execution)
+```
+With:
+```
+- `advisory-adpt` — Cross-domain event ingestion (Investor, Execution, Ledger → Advisory)
+```
+
+Replace (line 38):
+```
+- `execution-adpt` — Cross-domain event forwarding
+```
+With:
+```
+- `execution-adpt` — Cross-domain event ingestion (Advisory, Investor → Execution)
+```
+
+Replace (line 46):
+```
+- `investor-adpt` — Cross-domain event forwarding
+```
+With:
+```
+- `investor-adpt` — Cross-domain event ingestion (Advisory, Execution, Ledger → Investor)
+```
+
+Replace (line 54):
+```
+- `ledger-adpt` — Cross-domain event forwarding
+```
+With:
+```
+- `ledger-adpt` — Cross-domain event ingestion (Execution → Ledger)
+```
+
+- [ ] **Step 2: Update the communication pattern diagram**
+
+Replace the communication pattern block (lines 74-78):
+
+```markdown
+### Communication Pattern
+```
+Producer service → DynamoDB write → DDB Stream (CDC) → Egress Lambda → EventBridge
+  → [same domain] SQS → Ingress Lambda → Consumer service
+  → [cross domain] Adapter SQS → Adapter Lambda → Target domain EventBridge → ...
+```
+```
+
+With:
+
+```markdown
+### Communication Pattern
+```
+Producer service → DynamoDB write → DDB Stream (CDC) → Egress Lambda → EventBridge
+  → [same domain] SQS → Ingress Lambda → Consumer service
+  → [cross domain] Consumer adapter deploys EB rule on producer's bus → Consumer's EventBridge → SQS → Ingress Lambda
+```
+```
+
+- [ ] **Step 3: Update the service naming convention table**
+
+Replace (line 71):
+```
+| `-adpt` | Cross-domain forwarding OR external integration | No (forwarding) / Yes (external) |
+```
+With:
+```
+| `-adpt` | Cross-domain event ingestion OR external integration | No (ingestion) / Yes (external) |
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add .claude/skills/system/orient.md
+git commit -m "docs(skills): update orient.md for pull model event routing"
+```
+
+---
+
+## Task 9: Update Flow Spec Schema and Flow YAML Files
+
+**Files:**
+- Modify: `flows/SCHEMA.md`
+- Modify: `flows/*.flow.yaml` (10 flow files)
+- Modify: `tools/generate-flow-docs.mjs`
+
+In the pull model, the adapter step in a flow spec no longer "forwards to" a target bus. Instead, the consuming adapter "ingests from" a source bus. The semantic change:
+- Old: adapter receives event on its own domain bus and forwards to a target bus
+- New: adapter has already set up an EB rule on the source bus; the event arrives directly on the consumer's bus
+
+Since the adapter is no longer an active participant in the flow (it's just routing infrastructure), the flow steps should reflect that the event crosses domains transparently.
+
+- [ ] **Step 1: Update flows/SCHEMA.md**
+
+In `flows/SCHEMA.md`, replace the adapter step example (lines 24-28):
+
+```yaml
+  - service: {adapter-name}               # cross-domain hop
+    receives: {EVENT_NAME}
+    via: {SourceBus} → SQS → {adapter}-ingress
+    forwards_to: {TargetBus}
+    emits: {EVENT_NAME}
+```
+
+With:
+
+```yaml
+  - cross_domain: {EVENT_NAME}            # cross-domain hop (pull model)
+    from: {SourceBus}
+    to: {TargetBus}
+    via: {consumer-domain}-adpt EB rule
+```
+
+- [ ] **Step 2: Update each flow YAML file**
+
+For each of the 10 flow files, replace adapter steps that use `forwards_to` with the new `cross_domain` syntax. The event name, source bus, and target bus stay the same — only the step structure changes.
+
+Example — in `flows/deposit.flow.yaml`, replace:
+
+```yaml
+  - service: investor-adpt
+    receives: DEPOSIT_INITIATED
+    via: InvestorBus → SQS → investor-adpt-ingress
+    forwards_to: ExecutionBus
+    emits: DEPOSIT_INITIATED
+```
+
+With:
+
+```yaml
+  - cross_domain: DEPOSIT_INITIATED
+    from: InvestorBus
+    to: ExecutionBus
+    via: execution-adpt EB rule
+```
+
+Note: the `via` now names the **consuming** adapter (execution-adpt), not the producing adapter (investor-adpt).
+
+Apply this transformation to all `forwards_to` steps in:
+- `flows/advisory-cycle.flow.yaml` (4 adapter steps)
+- `flows/deposit.flow.yaml` (3 adapter steps)
+- `flows/go-live.flow.yaml` (2 adapter steps)
+- `flows/investor-onboarding.flow.yaml` (4 adapter steps)
+- `flows/order-execution.flow.yaml` (4 adapter steps)
+- `flows/order-ledger.flow.yaml` (4 adapter steps)
+- `flows/portfolio-rebalance.flow.yaml` (2 adapter steps)
+- `flows/reconciliation.flow.yaml` (2 adapter steps)
+- `flows/withdrawal.flow.yaml` (3 adapter steps)
+
+- [ ] **Step 3: Update tools/generate-flow-docs.mjs**
+
+In `tools/generate-flow-docs.mjs`:
+
+Replace all references to `forwards_to` with `cross_domain` / `from` / `to` handling. Key changes:
+
+1. Replace `step.forwards_to` checks (line 145, 252, 320) with `step.cross_domain` checks
+2. Update the mermaid diagram generation to show `cross_domain` steps
+3. Update the README generation at lines 400-405 — the bidirectional arrows remain (the topology doesn't change, only the mechanism)
+
+- [ ] **Step 4: Run the flow doc generator to verify**
+
+Run: `node tools/generate-flow-docs.mjs`
+Expected: Generates updated docs without errors
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add flows/ tools/generate-flow-docs.mjs
+git commit -m "docs(flows): update flow specs and schema for pull model adapter routing"
+```
+
+---
+
+## Task 10: Run All Adapter Tests and Lint
 
 - [ ] **Step 1: Run all 4 adapter test suites**
 
@@ -1153,3 +1492,8 @@ Expected: ALL TESTS PASS across all 4 projects
 
 Run: `pnpm nx run-many -t lint -p investor-adpt advisory-adpt execution-adpt ledger-adpt`
 Expected: NO LINT ERRORS
+
+- [ ] **Step 3: Run the pre-commit structure verification**
+
+Run: `bash scripts/verify-structure.sh`
+Expected: All structural checks pass
