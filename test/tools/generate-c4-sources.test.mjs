@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { discoverServices, discoverMfes, parseStack } from '../../tools/generate-c4-sources.mjs';
+import { discoverServices, discoverMfes, parseStack, serviceLabel } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -282,5 +282,13 @@ describe('parseStack — raw resources', () => {
     const src = `new AdapterSchedule(this, 'FetchSchedule', { target: fetchTrigger });`;
     const result = parseStack(src);
     assert.equal(result.raw.schedules.length, 1);
+  });
+});
+
+describe('serviceLabel', () => {
+  it('expands -mfe suffix to MFE', () => {
+    assert.equal(serviceLabel('investor-mfe'), 'Investor MFE');
+    assert.equal(serviceLabel('dashboard-mfe'), 'Dashboard MFE');
+    assert.equal(serviceLabel('onboarding-mfe'), 'Onboarding MFE');
   });
 });

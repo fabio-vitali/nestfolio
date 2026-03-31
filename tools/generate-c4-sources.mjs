@@ -327,6 +327,7 @@ const SUFFIX_EXPANSIONS = {
   bff: 'BFF',
   hub: 'Hub',
   adpt: 'Adapter',
+  mfe: 'MFE',
 };
 
 export function serviceLabel(serviceName) {
