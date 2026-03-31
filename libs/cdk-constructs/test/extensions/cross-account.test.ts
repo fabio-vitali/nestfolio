@@ -84,9 +84,16 @@ describe('CrossAccountBusPolicy', () => {
     const policyKey = Object.keys(policies)[0];
     expect(policyKey).toBeDefined();
     const props = policies[policyKey].Properties;
-    expect(props.StatementId).toBe('AllowCrossAccountPutEvents');
+    expect(props.StatementId).toBe('AllowCrossAccountEventRouting');
     expect(props.Statement.Effect).toBe('Allow');
-    expect(props.Statement.Action).toBe('events:PutEvents');
+    expect(props.Statement.Action).toEqual([
+      'events:PutEvents',
+      'events:PutRule',
+      'events:DeleteRule',
+      'events:PutTargets',
+      'events:RemoveTargets',
+      'events:DescribeRule',
+    ]);
     expect(props.Statement.Principal.AWS).toEqual([
       'arn:aws:iam::222222222222:root',
       'arn:aws:iam::333333333333:root',
