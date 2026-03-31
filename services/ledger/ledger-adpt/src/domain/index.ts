@@ -1,1 +1,1 @@
-export { LedgerCrossDomainEventTypes } from './events';
+export { LedgerCrossDomainEventTypes, LedgerIngestEventTypes } from './events';

@@ -15,28 +15,20 @@ describe('LedgerAdptStack', () => {
     template = Template.fromStack(stack);
   });
 
-  it('creates cross-domain forwarding rules', () => {
-    template.resourceCountIs('AWS::Events::Rule', 2);
+  it('creates 1 ingestion rule (from execution)', () => {
+    template.resourceCountIs('AWS::Events::Rule', 1);
   });
 
-  it('forwards to investor bus', () => {
+  it('ingests from execution bus', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({
-        'detail-type': Match.arrayWith(['BALANCE_UPDATED']),
+        'detail-type': Match.arrayWith(['ORDER_FILLED']),
       }),
     });
   });
 
-  it('forwards to advisory bus', () => {
-    template.hasResourceProperties('AWS::Events::Rule', {
-      EventPattern: Match.objectLike({
-        'detail-type': Match.arrayWith(['PORTFOLIO_DRIFT_DETECTED']),
-      }),
-    });
-  });
-
-  it('creates DLQs with 14-day retention', () => {
-    template.resourceCountIs('AWS::SQS::Queue', 2);
+  it('creates DLQ with 14-day retention', () => {
+    template.resourceCountIs('AWS::SQS::Queue', 1);
     template.hasResourceProperties('AWS::SQS::Queue', {
       MessageRetentionPeriod: 1209600,
     });
