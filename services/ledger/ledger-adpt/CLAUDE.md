@@ -6,17 +6,16 @@ Stack: services/ledger/ledger-adpt/src/service.stack.ts
 ## State
 None (stateless adapter)
 
-## Cross-Domain Forwarding Rules
-- LedgerBus → InvestorBus:
-  BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED, RECONCILIATION_COMPLETED, RECONCILIATION_FAILED, LEDGER_PROCESSING_FAILED
-- LedgerBus → AdvisoryBus:
-  PORTFOLIO_UPDATED, PORTFOLIO_DRIFT_DETECTED, RECONCILIATION_FAILED
+## Cross-Domain Ingestion Rules (Pull Model)
+- ExecutionBus → LedgerBus:
+  ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, CORPORATE_ACTION_APPLIED, PORTFOLIO_SNAPSHOT_IMPORTED, ALPACA_ACCOUNT_SNAPSHOT
 
 ## DLQs
-- ToInvestorDLQ, ToAdvisoryDLQ (14-day retention, KMS encrypted)
+- FromExecutionDLQ (14-day retention, KMS encrypted)
 
 ## Event Types (domain/events.ts)
-- LedgerCrossDomainEventTypes: BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED, LEDGER_PROCESSING_FAILED, RECONCILIATION_COMPLETED, RECONCILIATION_FAILED, PORTFOLIO_DRIFT_DETECTED
+- LedgerCrossDomainEventTypes: events published by ledger domain (used by same-domain services)
+- LedgerIngestEventTypes: events consumed from external domain buses
 
 ## Dependencies
 - libs: cdk-constructs/core, cdk-constructs/observability, cdk-constructs/extensions

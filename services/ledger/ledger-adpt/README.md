@@ -1,1 +1,1 @@
-Routes ledger domain events to the investor and advisory domains, forwarding balance updates, portfolio changes, and reconciliation results across domain boundaries.
+Ingests cross-domain events from the execution bus into the ledger domain bus, subscribing to order fills, deposit and withdrawal completions, corporate actions, and portfolio snapshots.

@@ -1,1 +1,1 @@
-Routes advisory domain events to the investor and execution domains, forwarding decision packets, confirmations, and circuit breaker signals across domain boundaries.
+Ingests cross-domain events from the investor, execution, and ledger buses into the advisory domain bus, subscribing to goal updates, mandate changes, order status, portfolio updates, and reconciliation signals.

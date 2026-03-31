@@ -1,21 +1,25 @@
 # advisory-adpt
 
-Domain: advisory | Bus: AdvisoryBus (cross-domain adapter)
+Domain: advisory | Bus: AdvisoryBus
 Stack: services/advisory/advisory-adpt/src/service.stack.ts
 
 ## State
 None (stateless adapter)
 
-## Cross-Domain Routing Rules
-- ToInvestor: AdvisoryBus -> InvestorBus (with DLQ)
-  Routes: DECISION_PACKET_CREATED, USER_CONFIRMATION_REQUESTED, EXPLANATION_GENERATED, DECISION_APPROVED, DECISION_BLOCKED, ESCALATION_TRIGGERED, CIRCUIT_BREAKER_TRIGGERED, CIRCUIT_BREAKER_RESET, INCIDENT_DETECTED, INCIDENT_RESOLVED
+## Cross-Domain Ingestion Rules (Pull Model)
+- InvestorBus → AdvisoryBus:
+  GOAL_UPDATED, RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED, MANDATE_GRANTED, MANDATE_UPDATED, MANDATE_REVOKED
+- ExecutionBus → AdvisoryBus:
+  ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED, PORTFOLIO_DRIFT_DETECTED, BROKER_SESSION_LOST, STREAM_DISCONNECTED, RECONCILIATION_FAILED
+- LedgerBus → AdvisoryBus:
+  PORTFOLIO_UPDATED, PORTFOLIO_DRIFT_DETECTED, RECONCILIATION_FAILED
 
-- ToExecution: AdvisoryBus -> ExecutionBus (with DLQ)
-  Routes: DECISION_APPROVED, DECISION_PACKET_CREATED, USER_CONFIRMED, CIRCUIT_BREAKER_TRIGGERED, CIRCUIT_BREAKER_RESET
+## DLQs
+- FromInvestorDLQ, FromExecutionDLQ, FromLedgerDLQ (14-day retention, KMS encrypted)
 
-## Tests
-- service.stack.test.ts
+## Event Types (domain/events.ts)
+- AdvisoryCrossDomainEventTypes: events published by advisory domain (used by same-domain services)
+- AdvisoryIngestEventTypes: events consumed from external domain buses
 
 ## Dependencies
-- libs: cdk-constructs (core, observability, extensions)
-- Buses: AdvisoryBus, InvestorBus, ExecutionBus
+- libs: cdk-constructs/core, cdk-constructs/observability, cdk-constructs/extensions
