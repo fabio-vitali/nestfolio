@@ -20,7 +20,12 @@ export class AdvisoryBffStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['DecisionReadModel', 'UserInteraction', 'UserConfirmation', 'UserRejection'],
+      eventTypes: {
+        'DecisionReadModel': 'DECISION_READ_MODEL',
+        'UserInteraction': 'USER_INTERACTION',
+        'UserConfirmation': 'USER_CONFIRMATION',
+        'UserRejection': 'USER_REJECTION',
+      },
     });
 
     new Facade(this, 'Facade', {

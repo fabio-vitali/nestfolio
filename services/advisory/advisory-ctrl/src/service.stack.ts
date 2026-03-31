@@ -34,7 +34,11 @@ export class AdvisoryCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['DecisionPacket', 'AgentInvocation', 'WorkflowState'],
+      eventTypes: {
+        'DecisionPacket': 'DECISION_PACKET',
+        'AgentInvocation': 'AGENT_INVOCATION',
+        'WorkflowState': 'WORKFLOW_STATE',
+      },
     });
 
     const hubNaming = createNamingService(this, { subsystem: 'advisory', service: 'advisory-hub' });

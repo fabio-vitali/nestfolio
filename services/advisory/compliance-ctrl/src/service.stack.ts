@@ -21,7 +21,10 @@ export class ComplianceCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['ComplianceCheck', 'AuditArtifact'],
+      eventTypes: {
+        'ComplianceCheck': 'COMPLIANCE_CHECK',
+        'AuditArtifact': 'AUDIT_ARTIFACT',
+      },
     });
 
     this.addObservability({ ingress, egress });

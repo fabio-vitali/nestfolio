@@ -26,7 +26,10 @@ export class InvestorCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['Notification', 'MonthlyReport'],
+      eventTypes: {
+        'Notification': 'NOTIFICATION',
+        'MonthlyReport': 'MONTHLY_REPORT',
+      },
     });
 
     this.addObservability({ ingress: triggerIngress, egress });
