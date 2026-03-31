@@ -3,6 +3,8 @@ import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const SERVICES_DIR = join(ROOT, 'services');
+const APPS_DIR = join(ROOT, 'apps');
+const HOST_APP = 'nestfolio-host';
 const ARCH_DIR = join(ROOT, 'docs', 'architecture');
 const D2_SOURCE = join(ARCH_DIR, 'nestfolio.d2');
 const C3_DIR = join(ARCH_DIR, 'c3');
@@ -29,6 +31,45 @@ export function discoverServices() {
     }
   }
   return results;
+}
+
+/**
+ * Discover micro-frontend apps from the host app's routes file.
+ * Parses loadMfe() calls and provideGraphqlFor() bindings.
+ * @param {Array<{domain, service}>} services - Output of discoverServices()
+ * @returns {Array<{mfe, bff, domain, route}>}
+ */
+export function discoverMfes(services) {
+  const routesPath = join(APPS_DIR, HOST_APP, 'src', 'app', 'app.routes.ts');
+  if (!existsSync(routesPath)) return [];
+  const routesSrc = readFileSync(routesPath, 'utf-8');
+
+  const serviceDomainMap = new Map();
+  for (const svc of services) serviceDomainMap.set(svc.service, svc.domain);
+
+  // Each route object is ~150 chars; 300 covers one full route plus margin.
+  // Using .at(-1) ensures we pick the closest match (not a previous route's).
+  const LOOKBACK = 300;
+
+  const mfes = [];
+  for (const m of routesSrc.matchAll(/loadMfe\s*\(\s*'([^']+)'/g)) {
+    const mfeName = m[1];
+    const before = routesSrc.slice(Math.max(0, m.index - LOOKBACK), m.index);
+
+    // Path: last occurrence in lookback window
+    const pathMatches = [...before.matchAll(/path\s*:\s*'([^']+)'/g)];
+    const route = pathMatches.length ? `/${pathMatches.at(-1)[1]}` : '';
+
+    // provideGraphqlFor() uses camelCase keys ('investorBff') — convert to kebab service name
+    const bffMatches = [...before.matchAll(/provideGraphqlFor\s*\(\s*'([^']+)'/g)];
+    const bff = bffMatches.length
+      ? bffMatches.at(-1)[1].replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
+      : `${mfeName.replace(/-mfe$/, '')}-bff`;
+
+    const domain = serviceDomainMap.get(bff) || '';
+    mfes.push({ mfe: mfeName, bff, domain, route });
+  }
+  return mfes;
 }
 
 /**

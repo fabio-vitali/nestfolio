@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { discoverServices, parseStack } from '../../tools/generate-c4-sources.mjs';
+import { discoverServices, discoverMfes, parseStack } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -20,6 +20,59 @@ describe('discoverServices', () => {
     for (const s of services) {
       assert.ok(s.stackPath.endsWith('service.stack.ts'));
     }
+  });
+});
+
+describe('discoverMfes', () => {
+  it('discovers 5 MFEs from host routes', () => {
+    const services = discoverServices();
+    const mfes = discoverMfes(services);
+    assert.equal(mfes.length, 5);
+    const names = mfes.map(m => m.mfe);
+    assert.ok(names.includes('investor-mfe'));
+    assert.ok(names.includes('dashboard-mfe'));
+    assert.ok(names.includes('onboarding-mfe'));
+    assert.ok(names.includes('advisory-mfe'));
+    assert.ok(names.includes('ledger-mfe'));
+  });
+
+  it('maps each MFE to its BFF', () => {
+    const services = discoverServices();
+    const mfes = discoverMfes(services);
+    const byName = Object.fromEntries(mfes.map(m => [m.mfe, m]));
+    assert.equal(byName['investor-mfe'].bff, 'investor-bff');
+    assert.equal(byName['dashboard-mfe'].bff, 'dashboard-bff');
+    assert.equal(byName['onboarding-mfe'].bff, 'onboarding-bff');
+    assert.equal(byName['advisory-mfe'].bff, 'advisory-bff');
+    assert.equal(byName['ledger-mfe'].bff, 'ledger-bff');
+  });
+
+  it('resolves domain from BFF service location', () => {
+    const services = discoverServices();
+    const mfes = discoverMfes(services);
+    const byName = Object.fromEntries(mfes.map(m => [m.mfe, m]));
+    assert.equal(byName['investor-mfe'].domain, 'investor');
+    assert.equal(byName['dashboard-mfe'].domain, 'investor');
+    assert.equal(byName['onboarding-mfe'].domain, 'investor');
+    assert.equal(byName['advisory-mfe'].domain, 'advisory');
+    assert.equal(byName['ledger-mfe'].domain, 'ledger');
+  });
+
+  it('extracts route paths', () => {
+    const services = discoverServices();
+    const mfes = discoverMfes(services);
+    const byName = Object.fromEntries(mfes.map(m => [m.mfe, m]));
+    assert.equal(byName['investor-mfe'].route, '/investor');
+    assert.equal(byName['onboarding-mfe'].route, '/onboarding');
+    assert.equal(byName['advisory-mfe'].route, '/advisory');
+  });
+
+  it('handles MFE without provideGraphqlFor (onboarding)', () => {
+    const services = discoverServices();
+    const mfes = discoverMfes(services);
+    const onboarding = mfes.find(m => m.mfe === 'onboarding-mfe');
+    assert.equal(onboarding.bff, 'onboarding-bff');
+    assert.equal(onboarding.domain, 'investor');
   });
 });
 
