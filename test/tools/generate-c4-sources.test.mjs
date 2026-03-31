@@ -1,6 +1,7 @@
-import { describe, it } from 'node:test';
+import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { discoverServices, discoverMfes, parseStack, serviceLabel, generateC1 } from '../../tools/generate-c4-sources.mjs';
+import { readFileSync } from 'node:fs';
+import { discoverServices, discoverMfes, parseStack, serviceLabel, generateC1, generateC2 } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -331,5 +332,82 @@ describe('generateC1 with mfes', () => {
   it('does NOT include old direct user ↔ domain edge', () => {
     const d2 = generateC1({ domains: baseDomains, mfes, systemMeta });
     assert.ok(!d2.includes('<-> investor-user'));
+  });
+});
+
+describe('generateC2 with mfes', () => {
+  let investorServices, parsedStacks, mfes;
+
+  before(() => {
+    const allServices = discoverServices();
+    mfes = discoverMfes(allServices);
+    investorServices = allServices.filter(s => s.domain === 'investor');
+    parsedStacks = new Map();
+    for (const svc of investorServices) {
+      parsedStacks.set(svc.service, parseStack(readFileSync(svc.stackPath, 'utf-8')));
+    }
+  });
+
+  it('includes MFE nodes for investor domain', () => {
+    const d2 = generateC2('investor', investorServices, parsedStacks, {
+      mfes: mfes.filter(m => m.domain === 'investor'),
+    });
+    assert.ok(d2.includes('investor-mfe:'));
+    assert.ok(d2.includes('Dashboard MFE'));
+    assert.ok(d2.includes('Onboarding MFE'));
+    assert.ok(d2.includes('class: frontend'));
+  });
+
+  it('adds GraphQL edges from MFEs to BFFs', () => {
+    const d2 = generateC2('investor', investorServices, parsedStacks, {
+      mfes: mfes.filter(m => m.domain === 'investor'),
+    });
+    assert.ok(d2.includes('investor-mfe -> investor-bff'));
+    assert.ok(d2.includes('dashboard-mfe -> dashboard-bff'));
+    assert.ok(d2.includes('onboarding-mfe -> onboarding-bff'));
+    assert.ok(d2.includes('GraphQL'));
+  });
+
+  it('excludes investor-web from C2', () => {
+    const d2 = generateC2('investor', investorServices, parsedStacks, {
+      mfes: mfes.filter(m => m.domain === 'investor'),
+    });
+    assert.ok(!d2.includes('investor-web:'));
+    assert.ok(!d2.includes('Investor Web'));
+  });
+
+  it('excludes investor-web C3 layer import', () => {
+    const d2 = generateC2('investor', investorServices, parsedStacks, {
+      mfes: mfes.filter(m => m.domain === 'investor'),
+    });
+    assert.ok(!d2.includes('c3-investor-web'));
+  });
+
+  it('includes 1 MFE for advisory domain', () => {
+    const allServices = discoverServices();
+    const advisoryServices = allServices.filter(s => s.domain === 'advisory');
+    const advStacks = new Map();
+    for (const svc of advisoryServices) {
+      advStacks.set(svc.service, parseStack(readFileSync(svc.stackPath, 'utf-8')));
+    }
+    const d2 = generateC2('advisory', advisoryServices, advStacks, {
+      mfes: mfes.filter(m => m.domain === 'advisory'),
+    });
+    assert.ok(d2.includes('advisory-mfe:'));
+    assert.ok(d2.includes('advisory-mfe -> advisory-bff'));
+  });
+
+  it('includes 0 MFEs for execution domain', () => {
+    const allServices = discoverServices();
+    const execServices = allServices.filter(s => s.domain === 'execution');
+    const execStacks = new Map();
+    for (const svc of execServices) {
+      execStacks.set(svc.service, parseStack(readFileSync(svc.stackPath, 'utf-8')));
+    }
+    const d2 = generateC2('execution', execServices, execStacks, {
+      mfes: mfes.filter(m => m.domain === 'execution'),
+    });
+    assert.ok(!d2.includes('-mfe:'));
+    assert.ok(!d2.includes('class: frontend'));
   });
 });

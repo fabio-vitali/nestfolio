@@ -1236,7 +1236,7 @@ const C2_STYLES = {
 };
 const EDGE_STYLE = 'style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3';
 
-export function generateC2(domain, services, parsedStacks, { serviceDescriptions, inboundEventMap }) {
+export function generateC2(domain, services, parsedStacks, { serviceDescriptions, inboundEventMap, mfes }) {
   const lines = [];
   const title = domain.charAt(0).toUpperCase() + domain.slice(1);
 
@@ -1261,7 +1261,9 @@ export function generateC2(domain, services, parsedStacks, { serviceDescriptions
 
     if (isCrossDomain) crossDomainAdapters.push(svc);
     else if (isDataAdapter) dataAdapters.push(svc);
-    else if (isFrontend) frontends.push(svc);
+    else if (isFrontend) {
+      if (!mfes?.length) frontends.push(svc); // suppress CDK frontends when MFEs are present
+    }
     else regular.push(svc);
   }
 
@@ -1282,6 +1284,17 @@ export function generateC2(domain, services, parsedStacks, { serviceDescriptions
   for (const svc of dataAdapters) renderBox(svc);
   for (const svc of crossDomainAdapters) renderBox(svc);
   lines.push('');
+
+  // MFE nodes + GraphQL edges
+  const domainMfes = mfes?.filter(m => m.domain === domain) || [];
+  for (const mfe of domainMfes) {
+    const label = serviceLabel(mfe.mfe);
+    lines.push(`${I}${mfe.mfe}: "${label}\\n[Micro-Frontend]" {`);
+    lines.push(`${I}  class: frontend`);
+    lines.push(`${I}}`);
+    lines.push(`${I}${mfe.mfe} -> ${mfe.bff}: "GraphQL" {style.stroke: "#4CAF50"; style.stroke-width: 2}`);
+  }
+  if (domainMfes.length) lines.push('');
 
   // External domain boxes for cross-domain adapter ingestion (pull model)
   const externalDomainIds = new Set();
@@ -1356,6 +1369,9 @@ export function generateC2(domain, services, parsedStacks, { serviceDescriptions
   for (const svc of services) {
     const parsed = parsedStacks.get(svc.service);
     if (parsed && parsed.raw.eventBuses.length > 0) continue;
+    // Skip CDK frontends when MFEs replace them
+    const isCdkFrontend = parsed && (parsed.raw.distributions.length > 0 || svc.service.endsWith('-web'));
+    if (mfes?.length && isCdkFrontend) continue;
     lines.push(`      c3-${svc.service}: { ...@./c3/${svc.service}.d2 }`);
   }
   lines.push('    }');
