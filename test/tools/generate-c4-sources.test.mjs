@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { discoverServices, discoverMfes, parseStack, serviceLabel } from '../../tools/generate-c4-sources.mjs';
+import { discoverServices, discoverMfes, parseStack, serviceLabel, generateC1 } from '../../tools/generate-c4-sources.mjs';
 
 describe('discoverServices', () => {
   it('returns services grouped by domain', () => {
@@ -290,5 +290,46 @@ describe('serviceLabel', () => {
     assert.equal(serviceLabel('investor-mfe'), 'Investor MFE');
     assert.equal(serviceLabel('dashboard-mfe'), 'Dashboard MFE');
     assert.equal(serviceLabel('onboarding-mfe'), 'Onboarding MFE');
+  });
+});
+
+describe('generateC1 with mfes', () => {
+  const baseDomains = ['advisory', 'execution', 'investor', 'ledger'];
+  const mfes = [
+    { mfe: 'investor-mfe', bff: 'investor-bff', domain: 'investor', route: '/investor' },
+    { mfe: 'dashboard-mfe', bff: 'dashboard-bff', domain: 'investor', route: '/dashboard' },
+    { mfe: 'onboarding-mfe', bff: 'onboarding-bff', domain: 'investor', route: '/onboarding' },
+    { mfe: 'advisory-mfe', bff: 'advisory-bff', domain: 'advisory', route: '/advisory' },
+    { mfe: 'ledger-mfe', bff: 'ledger-bff', domain: 'ledger', route: '/ledger' },
+  ];
+  const systemMeta = { name: 'Nestfolio', description: '' };
+
+  it('includes web-app node inside system boundary', () => {
+    const d2 = generateC1({ domains: baseDomains, mfes, systemMeta });
+    assert.ok(d2.includes('web-app:'));
+    assert.ok(d2.includes('Nestfolio Web App'));
+    assert.ok(d2.includes('class: frontend'));
+  });
+
+  it('adds user → web-app edge', () => {
+    const d2 = generateC1({ domains: baseDomains, mfes, systemMeta });
+    assert.ok(d2.includes('investor-user -> nestfolio.web-app'));
+  });
+
+  it('adds web-app → domain edges for domains with MFEs', () => {
+    const d2 = generateC1({ domains: baseDomains, mfes, systemMeta });
+    assert.ok(d2.includes('nestfolio.web-app -> nestfolio.investor-domain'));
+    assert.ok(d2.includes('nestfolio.web-app -> nestfolio.advisory-domain'));
+    assert.ok(d2.includes('nestfolio.web-app -> nestfolio.ledger-domain'));
+  });
+
+  it('does NOT add web-app → execution-domain edge', () => {
+    const d2 = generateC1({ domains: baseDomains, mfes, systemMeta });
+    assert.ok(!d2.includes('nestfolio.web-app -> nestfolio.execution-domain'));
+  });
+
+  it('does NOT include old direct user ↔ domain edge', () => {
+    const d2 = generateC1({ domains: baseDomains, mfes, systemMeta });
+    assert.ok(!d2.includes('<-> investor-user'));
   });
 });

@@ -952,6 +952,7 @@ export function generateC1({
   crossDomainFlows,
   frontends,
   systemMeta,
+  mfes,
 }) {
   const lines = [];
   const sysName = systemMeta?.name || 'System';
@@ -959,6 +960,14 @@ export function generateC1({
   lines.push(`${sysName.toLowerCase()}: "" {`);
   lines.push('  style: { fill: "#FFFFFF"; stroke: "#FFFFFF" }');
   lines.push('');
+
+  // Web App node (when MFEs are discovered)
+  if (mfes?.length) {
+    lines.push('  web-app: "Nestfolio Web App\\n[Angular PWA / Native Federation]" {');
+    lines.push('    class: frontend');
+    lines.push('  }');
+    lines.push('');
+  }
 
   for (const d of domains) {
     const title = d.charAt(0).toUpperCase() + d.slice(1);
@@ -992,9 +1001,18 @@ export function generateC1({
   }
   lines.push('}');
 
-  // Actor for each domain that has a frontend
+  // Investor User → Web App → domains with frontends
   const sys = sysName.toLowerCase();
-  if (frontends?.length) {
+  if (mfes?.length) {
+    const domainsWithMfe = [...new Set(mfes.map(m => m.domain))].sort();
+    lines.push('');
+    lines.push('investor-user: "Investor User" {class: person}');
+    lines.push(`investor-user -> ${sys}.web-app {style.stroke-width: 3}`);
+    for (const d of domainsWithMfe) {
+      lines.push(`${sys}.web-app -> ${sys}.${d}-domain {style.stroke-width: 2; style.stroke: "#4CAF50"}`);
+    }
+  } else if (frontends?.length) {
+    // Fallback: old per-domain actor pattern (no MFEs discovered)
     const domainsWithFrontend = [...new Set(frontends.map((fe) => fe.domain))];
     for (const d of domainsWithFrontend) {
       const title = d.charAt(0).toUpperCase() + d.slice(1);
