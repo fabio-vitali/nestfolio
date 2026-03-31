@@ -35,7 +35,9 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     // Egress: CDC events
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['AgentInvocation', 'ReasoningOutput'],
+      eventTypes: {
+        'AgentInvocation': { insert: 'MARKET_SIGNAL_DETECTED' },
+      },
     });
 
     // KB ingestion Lambda (separate from event-listener)

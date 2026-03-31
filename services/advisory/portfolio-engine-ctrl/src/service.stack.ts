@@ -28,7 +28,10 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     // Egress: CDC events
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['AgentInvocation', 'ReasoningOutput'],
+      eventTypes: {
+        'AgentInvocation': { insert: 'PORTFOLIO_CONSTRUCTION_PROPOSED' },
+        'ReasoningOutput': { insert: 'REBALANCE_PLAN_PRODUCED' },
+      },
     });
 
     // Tool Lambda: portfolio-lookup

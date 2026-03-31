@@ -28,7 +28,10 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     // Egress: CDC events
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['AgentInvocation', 'ReasoningOutput'],
+      eventTypes: {
+        'AgentInvocation': { insert: 'GOAL_INTERPRETATION_PRODUCED' },
+        'ReasoningOutput': { insert: 'RISK_EVALUATION_PRODUCED' },
+      },
     });
 
     // KB ingestion Lambda (separate from event-listener)

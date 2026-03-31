@@ -34,7 +34,9 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
     // Egress: CDC events
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['AgentInvocation', 'ReasoningOutput'],
+      eventTypes: {
+        'ReasoningOutput': { insert: 'EXPLANATION_GENERATED' },
+      },
     });
 
     // Model SSM params from advisory-hub
