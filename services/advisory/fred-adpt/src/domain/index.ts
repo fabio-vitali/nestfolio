@@ -1,1 +1,1 @@
-export { FredAdptEventTypes, FredEntityTypes, type FredIndicator } from './events';
+export { FredAdptEventTypes, type FredIndicator } from './events';

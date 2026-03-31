@@ -72,9 +72,6 @@ export { createStreamTestHarness, createCdcTestHarness, createReducerTestHarness
 export type { StreamTestResult, CdcTestResult, ReducerTestResult } from './testing/test-harness';
 export { fakeSqsRecord, fakeDdbStreamRecord } from './testing/fake-records';
 
-// Utilities (CDC)
-export { buildEventTypeMap } from './util/build-event-type-map';
-
 // Platform (from platform-core)
 export {
   type Event, type Pipe, type UnitOfWork, envVar, getTime, getUUID,

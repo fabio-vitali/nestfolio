@@ -81,7 +81,7 @@ libs/event-processor/src/
 ├── lambda/          # Auth, metrics, middleware (applyMiddleware, withTiming, withLambdaContext)
 ├── domain/          # DomainError hierarchy, BusEventSchema, TenantContextSchema
 ├── sourcing/        # Event sourcing: defineCommand, applyCommand, replayEvents
-├── util/            # asyncPool, groupBy, forkMerge, toCsv, buildEventTypeMap
+├── util/            # asyncPool, groupBy, forkMerge, toCsv
 ├── internal/        # Cross-cutting: middleware, tracer, logger, branded types
 └── testing/         # Test harness, fake records (fakeSqsRecord, fakeDdbStreamRecord)
 ```
@@ -266,15 +266,14 @@ update('Order', { status: 'FILLED', filledAt: new Date().toISOString() }, {
 Publishes DynamoDB stream changes to EventBridge as domain events.
 
 ```typescript
-import { changeDataCapture, buildEventTypeMap } from '@nestfolio/event-processor';
+import { changeDataCapture } from '@nestfolio/event-processor';
 
-// Simple: auto-generates event types from entity names
-// Notification:INSERT → NOTIFICATION_CREATED
-// Notification:MODIFY → NOTIFICATION_UPDATED
-// MonthlyReport:INSERT → MONTHLY_REPORT_CREATED
+// Event type mapping is now declarative — defined in the Egress construct's
+// eventTypes prop and resolved automatically at runtime.
+// Convention: EntityName:INSERT → ENTITY_NAME_CREATED, EntityName:MODIFY → ENTITY_NAME_UPDATED
+// Custom overrides and dynamic resolvers are supported via eventTypes entries.
 export const handler = changeDataCapture({
   serviceName: 'investor-ctrl',
-  eventTypeMap: buildEventTypeMap(['Notification', 'MonthlyReport']),
 });
 
 // Custom: explicit mapping with optional transform
@@ -520,7 +519,7 @@ const finalState = replayEvents(initialState, ledgerEntries, (state, event) => {
 ## Utility Functions
 
 ```typescript
-import { asyncPool, groupBy, forkMerge, toCsv, toUow, buildEventTypeMap } from '@nestfolio/event-processor';
+import { asyncPool, groupBy, forkMerge, toCsv, toUow } from '@nestfolio/event-processor';
 
 // Controlled concurrency
 await asyncPool(items, processItem, { concurrency: 5 });
@@ -539,10 +538,6 @@ const csv = toCsv(rows, ['col1', 'col2', 'col3']);
 
 // Convert event payload to UnitOfWork
 const uow = toUow(payload);
-
-// Auto-generate CDC event type map from entity names
-const map = buildEventTypeMap(['Order', 'Trade']);
-// → { 'Order:INSERT': 'ORDER_CREATED', 'Order:MODIFY': 'ORDER_UPDATED', 'Trade:INSERT': 'TRADE_CREATED', ... }
 ```
 
 ---

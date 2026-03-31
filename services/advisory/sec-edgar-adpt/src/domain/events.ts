@@ -5,9 +5,6 @@ export const SecEdgarAdptEventTypes = {
   SEC_10K_UPDATED: 'SEC_10K_UPDATED',
 } as const;
 
-export const SecEdgarEntityTypes = ['SecFiling'] as const;
-export type SecEdgarEntityType = (typeof SecEdgarEntityTypes)[number];
-
 export interface SecFiling {
   readonly pk: string;
   readonly sk: string;

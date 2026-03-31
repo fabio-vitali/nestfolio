@@ -1,1 +1,1 @@
-export { MarketwatchAdptEventTypes, MarketwatchEntityTypes, type MarketWatchArticle } from './events';
+export { MarketwatchAdptEventTypes, type MarketWatchArticle } from './events';
