@@ -16,7 +16,10 @@ export class OnboardingBffStack extends ServiceStack {
     // Egress — CDC for ONBOARDING_COMPLETED and GO_LIVE_CONFIRMED
     new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['OnboardingCompleted', 'GoLiveConfirmed'],
+      eventTypes: {
+        'OnboardingCompleted': { insert: 'ONBOARDING_COMPLETED' },
+        'GoLiveConfirmed': { insert: 'GO_LIVE_CONFIRMED' },
+      },
     });
 
     // Model IDs from SSM (shared with advisory services)

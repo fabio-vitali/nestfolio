@@ -25,7 +25,10 @@ export class ReconciliationCtrlStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['ReconciliationResult', 'DriftRecord'],
+      eventTypes: {
+        'ReconciliationResult': { insert: 'RECONCILIATION_COMPLETED', modify: 'RECONCILIATION_RESULT_UPDATED' },
+        'DriftRecord': { insert: 'PORTFOLIO_DRIFT_DETECTED', modify: 'DRIFT_RECORD_UPDATED' },
+      },
     });
 
     this.addObservability({ ingress, egress });

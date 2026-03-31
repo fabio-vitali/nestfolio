@@ -14,16 +14,16 @@ export class InvestorBffStack extends ServiceStack {
 
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: [
-        'Goal',
-        'RiskProfile',
-        'Mandate',
-        'OperatingModeRecord',
-        'InvestorProfile',
-        'Deposit',
-        'Withdrawal',
-        'ExecutionModeChange',
-      ],
+      eventTypes: {
+        'Goal': 'GOAL',
+        'RiskProfile': 'RISK_PROFILE',
+        'Mandate': 'MANDATE',
+        'OperatingModeRecord': { insert: 'OPERATING_MODE_SELECTED', modify: 'OPERATING_MODE_CHANGED' },
+        'InvestorProfile': 'INVESTOR_PROFILE',
+        'Deposit': { insert: 'DEPOSIT_INITIATED', modify: 'DEPOSIT_UPDATED' },
+        'Withdrawal': { insert: 'WITHDRAWAL_REQUESTED', modify: 'WITHDRAWAL_UPDATED' },
+        'ExecutionModeChange': { insert: 'EXECUTION_MODE_CHANGED', modify: 'EXECUTION_MODE_CHANGE_UPDATED' },
+      },
     });
 
     new Facade(this, 'Facade', {
