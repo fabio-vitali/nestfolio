@@ -83,22 +83,31 @@ export interface CrossAccountBusPolicyProps {
 }
 
 /**
- * Adds a resource policy to an EventBridge bus allowing cross-account PutEvents.
+ * Adds a resource policy to an EventBridge bus allowing cross-account event routing
+ * (PutEvents and rule management).
  */
 export class CrossAccountBusPolicy extends Construct {
   constructor(scope: Construct, id: string, props: CrossAccountBusPolicyProps) {
     super(scope, id);
 
     const stack = Stack.of(this);
+    const busArn = `arn:aws:events:${stack.region}:${stack.account}:event-bus/${props.eventBus.eventBusName}`;
 
     new CfnEventBusPolicy(this, 'Policy', {
       eventBusName: props.eventBus.eventBusName,
-      statementId: 'AllowCrossAccountPutEvents',
+      statementId: 'AllowCrossAccountEventRouting',
       statement: {
         Effect: 'Allow',
         Principal: { AWS: props.consumerAccountIds.map(id => `arn:aws:iam::${id}:root`) },
-        Action: 'events:PutEvents',
-        Resource: `arn:aws:events:${stack.region}:${stack.account}:event-bus/${props.eventBus.eventBusName}`,
+        Action: [
+          'events:PutEvents',
+          'events:PutRule',
+          'events:DeleteRule',
+          'events:PutTargets',
+          'events:RemoveTargets',
+          'events:DescribeRule',
+        ],
+        Resource: busArn,
       },
     });
   }
