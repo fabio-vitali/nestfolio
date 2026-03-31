@@ -75,13 +75,31 @@ export function parseStack(src) {
   for (const m of src.matchAll(/new\s+Ingress\s*\(\s*this\s*,\s*['"](\w+)['"]\s*,/g)) {
     const entry = { id: m[1], eventTypes: [] };
     const after = src.slice(m.index);
-    const etMatch = after.match(/eventTypes\s*:\s*\[([\s\S]*?)\]/);
-    if (etMatch) {
+    // Try both variable reference and inline array patterns; use whichever appears
+    // first in the text so we don't accidentally pick up the next Ingress's eventTypes.
+    const varRefMatch = after.match(/eventTypes\s*:\s*([A-Z_]\w*)\s*[,\n}]/);
+    const inlineMatch = after.match(/eventTypes\s*:\s*\[([\s\S]*?)\]/);
+    const useVarRef = varRefMatch && (!inlineMatch || varRefMatch.index < inlineMatch.index);
+
+    if (useVarRef) {
+      // Variable reference: eventTypes: SOME_CONST
+      const constName = varRefMatch[1];
+      const constMatch = src.match(
+        new RegExp(`(?:const|let|export\\s+const)\\s+${constName}\\s*(?::\\s*\\w+(?:\\[\\])?)?\\s*=\\s*\\[([\\s\\S]*?)\\]`),
+      );
+      if (constMatch) {
+        entry.eventTypes = [...constMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
+        if (entry.eventTypes.length === 0) {
+          entry.eventTypes = [...constMatch[1].matchAll(/\.(\w+)/g)].map((x) => x[1]);
+        }
+      }
+    } else if (inlineMatch) {
+      // Inline array: eventTypes: [...]
       // 1. Try string literals: ['EVT_A', 'EVT_B']
-      entry.eventTypes = [...etMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
-      // 2. Try spread variables: [...VAR_NAME] (must check before enum refs since ... contains dots)
+      entry.eventTypes = [...inlineMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
+      // 2. Try spread variables: [...VAR_NAME]
       if (entry.eventTypes.length === 0) {
-        const spreads = [...etMatch[1].matchAll(/\.\.\.(\w+)/g)].map((x) => x[1]);
+        const spreads = [...inlineMatch[1].matchAll(/\.\.\.(\w+)/g)].map((x) => x[1]);
         if (spreads.length > 0) {
           for (const constName of spreads) {
             const constMatch = src.match(
@@ -100,23 +118,7 @@ export function parseStack(src) {
       }
       // 3. Try enum references: EnumType.MEMBER
       if (entry.eventTypes.length === 0) {
-        entry.eventTypes = [...etMatch[1].matchAll(/\w+\.(\w+)/g)].map((x) => x[1]);
-      }
-      // 4. Try single variable reference: eventTypes: VAR_NAME
-      if (entry.eventTypes.length === 0) {
-        const refMatch = after.match(/eventTypes\s*:\s*(\w+)\s*[,\n}]/);
-        if (refMatch) {
-          const constName = refMatch[1];
-          const constMatch = src.match(
-            new RegExp(`(?:const|let)\\s+${constName}\\s*=\\s*\\[([\\s\\S]*?)\\]`),
-          );
-          if (constMatch) {
-            entry.eventTypes = [...constMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
-            if (entry.eventTypes.length === 0) {
-              entry.eventTypes = [...constMatch[1].matchAll(/\.(\w+)/g)].map((x) => x[1]);
-            }
-          }
-        }
+        entry.eventTypes = [...inlineMatch[1].matchAll(/\w+\.(\w+)/g)].map((x) => x[1]);
       }
     }
     // Detect custom entry (handler file)
