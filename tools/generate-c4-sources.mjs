@@ -129,13 +129,16 @@ export function parseStack(src) {
     result.constructs.ingress.push(entry);
   }
 
-  // Egress: new Egress(this, 'Id', { state, publishableTypes: [...] })
+  // Egress: new Egress(this, 'Id', { state, eventTypes: { ... } })
   for (const m of src.matchAll(/new\s+Egress\s*\(\s*this\s*,\s*['"](\w+)['"]\s*,/g)) {
-    const entry = { id: m[1], publishableTypes: [] };
+    const entry = { id: m[1], allEventTypes: [] };
     const after = src.slice(m.index);
-    const ptMatch = after.match(/publishableTypes\s*:\s*\[([\s\S]*?)\]/);
-    if (ptMatch) {
-      entry.publishableTypes = [...ptMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
+    const etMatch = after.match(/eventTypes\s*:/);
+    if (etMatch) {
+      const block = extractBalancedBlock(after, etMatch.index + etMatch[0].length);
+      if (block) {
+        entry.allEventTypes = collectEventTypesFromBlock(block);
+      }
     }
     result.constructs.egress.push(entry);
   }
@@ -393,14 +396,66 @@ export function buildInboundEventMap(allServices, parsedStacks) {
   return inbound;
 }
 
-function toScreamingSnake(s) {
-  return s.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase();
+/**
+ * Extract balanced brace block starting at or after fromIdx.
+ */
+function extractBalancedBlock(src, fromIdx) {
+  let depth = 0;
+  let start = -1;
+  for (let i = fromIdx; i < src.length; i++) {
+    if (src[i] === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (src[i] === '}') {
+      depth--;
+      if (depth === 0) return src.slice(start, i + 1);
+    }
+  }
+  return '';
 }
 
 /**
- * Fuzzy-match intra-domain producer→consumer event flows.
- * Converts Egress publishableTypes to SCREAMING_SNAKE prefixes and matches against Ingress eventTypes.
- * Returns [{from, to, events}]
+ * Collect all event type strings from an eventTypes block.
+ * Handles all 4 value shapes: base name, explicit string, field dispatch, passthrough.
+ */
+function collectEventTypesFromBlock(block) {
+  const types = [];
+
+  // (a) Base name: 'PascalCaseKey': 'SCREAMING_VALUE'
+  for (const m of block.matchAll(/['"]([A-Z][a-z]\w*)['"]\s*:\s*['"]([A-Z][A-Z_]+)['"]/g)) {
+    types.push(`${m[2]}_CREATED`, `${m[2]}_UPDATED`);
+  }
+
+  // (b) Action-level string: insert: 'EVENT' / modify: 'EVENT' / remove: 'EVENT'
+  for (const m of block.matchAll(/(?:insert|modify|remove)\s*:\s*['"]([A-Z][A-Z_]+)['"]/g)) {
+    types.push(m[1]);
+  }
+
+  // (c) Map values: map: { KEY: 'EVENT', ... }
+  for (const mapM of block.matchAll(/map\s*:\s*\{([^}]*)\}/g)) {
+    for (const m of mapM[1].matchAll(/:\s*['"]([A-Z][A-Z_]+)['"]/g)) {
+      types.push(m[1]);
+    }
+  }
+
+  // (d) Default value: default: 'EVENT'
+  for (const m of block.matchAll(/default\s*:\s*['"]([A-Z][A-Z_]+)['"]/g)) {
+    types.push(m[1]);
+  }
+
+  // (e) Emits array: emits: ['EVENT', ...]
+  for (const emitsM of block.matchAll(/emits\s*:\s*\[([^\]]*)\]/g)) {
+    for (const m of emitsM[1].matchAll(/['"]([A-Z][A-Z_]+)['"]/g)) {
+      types.push(m[1]);
+    }
+  }
+
+  return [...new Set(types)];
+}
+
+/**
+ * Exact-match intra-domain producer→consumer event flows.
+ * Uses egress allEventTypes (exact strings) intersected with ingress eventTypes.
  */
 export function matchIntraDomainFlows(domainServices, parsedStacks) {
   const producers = [];
@@ -409,20 +464,20 @@ export function matchIntraDomainFlows(domainServices, parsedStacks) {
     const p = parsedStacks.get(svc.service);
     if (!p) continue;
     if (p.raw.eventBuses.length > 0 || p.raw.rules.some(r => r.isCrossDomain)) continue;
-    const pubTypes = p.constructs.egress.flatMap(e => e.publishableTypes);
-    if (pubTypes.length) {
-      producers.push({ service: svc.service, prefixes: pubTypes.map(toScreamingSnake) });
+    const emitted = p.constructs.egress.flatMap(e => e.allEventTypes);
+    if (emitted.length) {
+      producers.push({ service: svc.service, events: emitted });
     }
-    const subTypes = p.constructs.ingress.flatMap(i => i.eventTypes);
-    if (subTypes.length) {
-      consumers.push({ service: svc.service, events: subTypes });
+    const subscribed = p.constructs.ingress.flatMap(i => i.eventTypes);
+    if (subscribed.length) {
+      consumers.push({ service: svc.service, events: subscribed });
     }
   }
   const flows = [];
   for (const prod of producers) {
     for (const cons of consumers) {
       if (prod.service === cons.service) continue;
-      const matched = cons.events.filter(et => prod.prefixes.some(p => et.startsWith(p)));
+      const matched = cons.events.filter(e => prod.events.includes(e));
       if (matched.length) {
         flows.push({ from: prod.service, to: cons.service, events: matched });
       }

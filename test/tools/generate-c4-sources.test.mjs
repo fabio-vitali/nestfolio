@@ -79,11 +79,29 @@ describe('parseStack', () => {
     assert.deepEqual(result.constructs.ingress[0].eventTypes, ['MANDATE_GRANTED', 'GOAL_UPDATED']);
   });
 
-  it('detects Egress with publishableTypes', () => {
-    const src = `new Egress(this, 'Egress', { state, publishableTypes: ['NormalizedEvent'] });`;
+  it('detects Egress with eventTypes base name and expands', () => {
+    const src = `new Egress(this, 'Egress', { state, eventTypes: { 'Order': 'ORDER' } });`;
     const result = parseStack(src);
     assert.equal(result.constructs.egress.length, 1);
-    assert.deepEqual(result.constructs.egress[0].publishableTypes, ['NormalizedEvent']);
+    assert.deepEqual(result.constructs.egress[0].allEventTypes.sort(), ['ORDER_CREATED', 'ORDER_UPDATED']);
+  });
+
+  it('detects Egress with eventTypes explicit per-action', () => {
+    const src = `new Egress(this, 'Egress', { state, eventTypes: { 'Payment': { insert: 'PAYMENT_RECEIVED' } } });`;
+    const result = parseStack(src);
+    assert.deepEqual(result.constructs.egress[0].allEventTypes, ['PAYMENT_RECEIVED']);
+  });
+
+  it('detects Egress with eventTypes field dispatch', () => {
+    const src = `new Egress(this, 'Egress', { state, eventTypes: { 'Result': { insert: { field: 'status', map: { OK: 'CHECK_PASSED', FAIL: 'CHECK_FAILED' }, default: 'CHECK_UNKNOWN' } } } });`;
+    const result = parseStack(src);
+    assert.deepEqual(result.constructs.egress[0].allEventTypes.sort(), ['CHECK_FAILED', 'CHECK_PASSED', 'CHECK_UNKNOWN']);
+  });
+
+  it('detects Egress with eventTypes passthrough emits', () => {
+    const src = `new Egress(this, 'Egress', { state, eventTypes: { 'NormalizedEvent': { insert: { field: 'sk', passthrough: true, emits: ['ORDER_FILLED', 'ORDER_REJECTED'] } } } });`;
+    const result = parseStack(src);
+    assert.deepEqual(result.constructs.egress[0].allEventTypes.sort(), ['ORDER_FILLED', 'ORDER_REJECTED']);
   });
 
   it('detects Facade with jsResolvers', () => {
