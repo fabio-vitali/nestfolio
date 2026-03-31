@@ -1,1 +1,1 @@
-export { ExecutionCrossDomainEventTypes } from './events';
+export { ExecutionCrossDomainEventTypes, ExecutionIngestEventTypes } from './events';

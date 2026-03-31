@@ -24,3 +24,21 @@ export const ExecutionCrossDomainEventTypes = {
   STREAM_DISCONNECTED: 'STREAM_DISCONNECTED',
   RECONCILIATION_FAILED: 'RECONCILIATION_FAILED',
 } as const;
+
+/**
+ * Events ingested by the execution domain from external domain buses.
+ * The execution adapter deploys EB rules on these foreign buses to pull events into ExecutionBus.
+ */
+export const ExecutionIngestEventTypes = {
+  // From Advisory
+  DECISION_APPROVED: 'DECISION_APPROVED',
+  DECISION_PACKET_CREATED: 'DECISION_PACKET_CREATED',
+  USER_CONFIRMED: 'USER_CONFIRMED',
+  CIRCUIT_BREAKER_TRIGGERED: 'CIRCUIT_BREAKER_TRIGGERED',
+  CIRCUIT_BREAKER_RESET: 'CIRCUIT_BREAKER_RESET',
+  // From Investor
+  DEPOSIT_INITIATED: 'DEPOSIT_INITIATED',
+  WITHDRAWAL_REQUESTED: 'WITHDRAWAL_REQUESTED',
+  ACCOUNT_CLOSURE_REQUESTED: 'ACCOUNT_CLOSURE_REQUESTED',
+  EXECUTION_MODE_CHANGED: 'EXECUTION_MODE_CHANGED',
+} as const;

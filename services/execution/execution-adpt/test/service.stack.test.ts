@@ -15,36 +15,28 @@ describe('ExecutionAdptStack', () => {
     template = Template.fromStack(stack);
   });
 
-  it('creates cross-domain forwarding rules', () => {
-    template.resourceCountIs('AWS::Events::Rule', 3);
+  it('creates 2 ingestion rules (one per source domain)', () => {
+    template.resourceCountIs('AWS::Events::Rule', 2);
   });
 
-  it('forwards to investor bus', () => {
+  it('ingests from advisory bus', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({
-        'detail-type': Match.arrayWith(['ORDER_STAGED']),
+        'detail-type': Match.arrayWith(['DECISION_APPROVED']),
       }),
     });
   });
 
-  it('forwards to ledger bus', () => {
+  it('ingests from investor bus', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({
-        'detail-type': Match.arrayWith(['ORDER_FILLED']),
-      }),
-    });
-  });
-
-  it('forwards to advisory bus', () => {
-    template.hasResourceProperties('AWS::Events::Rule', {
-      EventPattern: Match.objectLike({
-        'detail-type': Match.arrayWith(['PORTFOLIO_DRIFT_DETECTED']),
+        'detail-type': Match.arrayWith(['DEPOSIT_INITIATED']),
       }),
     });
   });
 
   it('creates DLQs with 14-day retention', () => {
-    template.resourceCountIs('AWS::SQS::Queue', 3);
+    template.resourceCountIs('AWS::SQS::Queue', 2);
     template.hasResourceProperties('AWS::SQS::Queue', {
       MessageRetentionPeriod: 1209600,
     });
