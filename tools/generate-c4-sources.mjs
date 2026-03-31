@@ -1389,6 +1389,10 @@ function main() {
     `  found: ${services.length} services in ${[...new Set(services.map((s) => s.domain))].length} domains`,
   );
 
+  // 1b. Discover MFEs
+  const mfes = discoverMfes(services);
+  console.log(`  mfes: ${mfes.length} (${mfes.map(m => m.mfe).join(', ')})`);
+
   // 2. Parse all stacks
   const parsedStacks = new Map();
   for (const svc of services) {
@@ -1399,8 +1403,22 @@ function main() {
 
   // 3. Generate C3 files
   mkdirSync(C3_DIR, { recursive: true });
+
+  // Build set of CDK frontends to suppress when MFEs are present
+  const suppressedFrontends = new Set();
+  if (mfes.length) {
+    for (const svc of services) {
+      const parsed = parsedStacks.get(svc.service);
+      if (!parsed) continue;
+      if (parsed.raw.distributions.length > 0 || svc.service.endsWith('-web')) {
+        suppressedFrontends.add(svc.service);
+      }
+    }
+  }
+
   let c3Count = 0;
   for (const svc of services) {
+    if (suppressedFrontends.has(svc.service)) continue;
     const parsed = parsedStacks.get(svc.service);
     if (!parsed) continue;
     const d2 = generateC3(svc.service, svc.domain, parsed);
@@ -1438,7 +1456,7 @@ function main() {
     '# LAYER: C1 — System Context',
     '# ===========================================================================',
     '',
-    generateC1({ domains, domainDescriptions, crossDomainFlows, frontends, systemMeta }),
+    generateC1({ domains, domainDescriptions, crossDomainFlows, frontends, systemMeta, mfes }),
     '',
     '# ===========================================================================',
     '# LAYERS',
@@ -1447,7 +1465,7 @@ function main() {
     '',
   ];
 
-  const c2Opts = { serviceDescriptions, inboundEventMap };
+  const c2Opts = { serviceDescriptions, inboundEventMap, mfes };
   for (const d of domains) {
     parts.push('  # =========================================================================');
     parts.push(`  # C2 — ${d.charAt(0).toUpperCase() + d.slice(1)} Domain`);
