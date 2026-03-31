@@ -1189,9 +1189,27 @@ export function generateC2(domain, services, parsedStacks, { serviceDescriptions
     }
   }
 
-  // Note: in pull model, cross-domain events arrive via the adapter's ingestion rules
-  // (rendered above). Internal services consume from the domain bus, not directly from
-  // external domains, so no external→internal-consumer arrows are drawn here.
+  // Adapter → internal consumer flows: ingested cross-domain events consumed via domain bus
+  for (const svc of crossDomainAdapters) {
+    const parsed = parsedStacks.get(svc.service);
+    if (!parsed) continue;
+    const ingestedEvents = parsed.raw.rules
+      .filter(r => r.isCrossDomain)
+      .flatMap(r => r.eventTypes);
+    if (!ingestedEvents.length) continue;
+    for (const consumer of [...regular, ...dataAdapters, ...frontends]) {
+      const cp = parsedStacks.get(consumer.service);
+      if (!cp) continue;
+      const subTypes = cp.constructs.ingress.flatMap(i => i.eventTypes);
+      const matched = [...new Set(ingestedEvents.filter(e => subTypes.includes(e)))];
+      if (!matched.length) continue;
+      const eventList = matched.join('\\n');
+      const pillId = `${svc.service}-to-${consumer.service}`;
+      lines.push(`${I}${pillId}: "${matched.length} Events" {style: { ${C2_STYLES.flowLabel} }; tooltip: "${eventList}"}`);
+      lines.push(`${I}${svc.service} -> ${pillId} {${EDGE_STYLE}}`);
+      lines.push(`${I}${pillId} -> ${consumer.service} {${EDGE_STYLE}}`);
+    }
+  }
 
   // Intra-domain event flows (fuzzy matched)
   const intraFlows = matchIntraDomainFlows(

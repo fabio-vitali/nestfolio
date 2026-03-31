@@ -1,12 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 5613 746"><svg class="d2-628723214 d2-svg" width="5613" height="746" viewBox="-50 -143 5613 746"><rect x="-50.000000" y="-67.000000" width="5613.000000" height="660.000000" rx="0.000000" stroke="#FFFFFF" fill="#FFFFFF" stroke-width="0" /><style type="text/css"><![CDATA[
+<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 4833 1298"><svg class="d2-2719411930 d2-svg" width="4833" height="1298" viewBox="-50 -143 4833 1298"><rect x="-50.000000" y="-67.000000" width="4833.000000" height="1212.000000" rx="0.000000" stroke="#FFFFFF" fill="#FFFFFF" stroke-width="0" /><style type="text/css"><![CDATA[
 .appendix-icon {
 	filter: drop-shadow(0px 0px 32px rgba(31, 36, 58, 0.1));
 }
-.d2-628723214 .text-bold {
-	font-family: "d2-628723214-font-bold";
+.d2-2719411930 .text-bold {
+	font-family: "d2-2719411930-font-bold";
 }
 @font-face {
-	font-family: d2-628723214-font-bold;
+	font-family: d2-2719411930-font-bold;
 	src: url("data:application/font-woff;base64,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");
 }]]></style><style type="text/css"><![CDATA[.shape {
   shape-rendering: geometricPrecision;
@@ -21,78 +21,78 @@
   opacity: 0.5;
 }
 
-		.d2-628723214 .fill-N1{fill:#0A0F25;}
-		.d2-628723214 .fill-N2{fill:#676C7E;}
-		.d2-628723214 .fill-N3{fill:#9499AB;}
-		.d2-628723214 .fill-N4{fill:#CFD2DD;}
-		.d2-628723214 .fill-N5{fill:#DEE1EB;}
-		.d2-628723214 .fill-N6{fill:#EEF1F8;}
-		.d2-628723214 .fill-N7{fill:#FFFFFF;}
-		.d2-628723214 .fill-B1{fill:#0D32B2;}
-		.d2-628723214 .fill-B2{fill:#0D32B2;}
-		.d2-628723214 .fill-B3{fill:#E3E9FD;}
-		.d2-628723214 .fill-B4{fill:#E3E9FD;}
-		.d2-628723214 .fill-B5{fill:#EDF0FD;}
-		.d2-628723214 .fill-B6{fill:#F7F8FE;}
-		.d2-628723214 .fill-AA2{fill:#4A6FF3;}
-		.d2-628723214 .fill-AA4{fill:#EDF0FD;}
-		.d2-628723214 .fill-AA5{fill:#F7F8FE;}
-		.d2-628723214 .fill-AB4{fill:#EDF0FD;}
-		.d2-628723214 .fill-AB5{fill:#F7F8FE;}
-		.d2-628723214 .stroke-N1{stroke:#0A0F25;}
-		.d2-628723214 .stroke-N2{stroke:#676C7E;}
-		.d2-628723214 .stroke-N3{stroke:#9499AB;}
-		.d2-628723214 .stroke-N4{stroke:#CFD2DD;}
-		.d2-628723214 .stroke-N5{stroke:#DEE1EB;}
-		.d2-628723214 .stroke-N6{stroke:#EEF1F8;}
-		.d2-628723214 .stroke-N7{stroke:#FFFFFF;}
-		.d2-628723214 .stroke-B1{stroke:#0D32B2;}
-		.d2-628723214 .stroke-B2{stroke:#0D32B2;}
-		.d2-628723214 .stroke-B3{stroke:#E3E9FD;}
-		.d2-628723214 .stroke-B4{stroke:#E3E9FD;}
-		.d2-628723214 .stroke-B5{stroke:#EDF0FD;}
-		.d2-628723214 .stroke-B6{stroke:#F7F8FE;}
-		.d2-628723214 .stroke-AA2{stroke:#4A6FF3;}
-		.d2-628723214 .stroke-AA4{stroke:#EDF0FD;}
-		.d2-628723214 .stroke-AA5{stroke:#F7F8FE;}
-		.d2-628723214 .stroke-AB4{stroke:#EDF0FD;}
-		.d2-628723214 .stroke-AB5{stroke:#F7F8FE;}
-		.d2-628723214 .background-color-N1{background-color:#0A0F25;}
-		.d2-628723214 .background-color-N2{background-color:#676C7E;}
-		.d2-628723214 .background-color-N3{background-color:#9499AB;}
-		.d2-628723214 .background-color-N4{background-color:#CFD2DD;}
-		.d2-628723214 .background-color-N5{background-color:#DEE1EB;}
-		.d2-628723214 .background-color-N6{background-color:#EEF1F8;}
-		.d2-628723214 .background-color-N7{background-color:#FFFFFF;}
-		.d2-628723214 .background-color-B1{background-color:#0D32B2;}
-		.d2-628723214 .background-color-B2{background-color:#0D32B2;}
-		.d2-628723214 .background-color-B3{background-color:#E3E9FD;}
-		.d2-628723214 .background-color-B4{background-color:#E3E9FD;}
-		.d2-628723214 .background-color-B5{background-color:#EDF0FD;}
-		.d2-628723214 .background-color-B6{background-color:#F7F8FE;}
-		.d2-628723214 .background-color-AA2{background-color:#4A6FF3;}
-		.d2-628723214 .background-color-AA4{background-color:#EDF0FD;}
-		.d2-628723214 .background-color-AA5{background-color:#F7F8FE;}
-		.d2-628723214 .background-color-AB4{background-color:#EDF0FD;}
-		.d2-628723214 .background-color-AB5{background-color:#F7F8FE;}
-		.d2-628723214 .color-N1{color:#0A0F25;}
-		.d2-628723214 .color-N2{color:#676C7E;}
-		.d2-628723214 .color-N3{color:#9499AB;}
-		.d2-628723214 .color-N4{color:#CFD2DD;}
-		.d2-628723214 .color-N5{color:#DEE1EB;}
-		.d2-628723214 .color-N6{color:#EEF1F8;}
-		.d2-628723214 .color-N7{color:#FFFFFF;}
-		.d2-628723214 .color-B1{color:#0D32B2;}
-		.d2-628723214 .color-B2{color:#0D32B2;}
-		.d2-628723214 .color-B3{color:#E3E9FD;}
-		.d2-628723214 .color-B4{color:#E3E9FD;}
-		.d2-628723214 .color-B5{color:#EDF0FD;}
-		.d2-628723214 .color-B6{color:#F7F8FE;}
-		.d2-628723214 .color-AA2{color:#4A6FF3;}
-		.d2-628723214 .color-AA4{color:#EDF0FD;}
-		.d2-628723214 .color-AA5{color:#F7F8FE;}
-		.d2-628723214 .color-AB4{color:#EDF0FD;}
-		.d2-628723214 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-628723214);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-628723214);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-628723214);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-628723214);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-628723214);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-628723214);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-628723214);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-628723214);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-628723214);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-628723214);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-628723214);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-628723214);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-628723214);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-628723214);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-628723214);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-628723214);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-628723214);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-628723214);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><text x="-40" y="-83" font-family="Source Sans Pro, sans-serif" font-size="48" font-weight="700" fill="#000000">Advisory Domain</text><defs>
+		.d2-2719411930 .fill-N1{fill:#0A0F25;}
+		.d2-2719411930 .fill-N2{fill:#676C7E;}
+		.d2-2719411930 .fill-N3{fill:#9499AB;}
+		.d2-2719411930 .fill-N4{fill:#CFD2DD;}
+		.d2-2719411930 .fill-N5{fill:#DEE1EB;}
+		.d2-2719411930 .fill-N6{fill:#EEF1F8;}
+		.d2-2719411930 .fill-N7{fill:#FFFFFF;}
+		.d2-2719411930 .fill-B1{fill:#0D32B2;}
+		.d2-2719411930 .fill-B2{fill:#0D32B2;}
+		.d2-2719411930 .fill-B3{fill:#E3E9FD;}
+		.d2-2719411930 .fill-B4{fill:#E3E9FD;}
+		.d2-2719411930 .fill-B5{fill:#EDF0FD;}
+		.d2-2719411930 .fill-B6{fill:#F7F8FE;}
+		.d2-2719411930 .fill-AA2{fill:#4A6FF3;}
+		.d2-2719411930 .fill-AA4{fill:#EDF0FD;}
+		.d2-2719411930 .fill-AA5{fill:#F7F8FE;}
+		.d2-2719411930 .fill-AB4{fill:#EDF0FD;}
+		.d2-2719411930 .fill-AB5{fill:#F7F8FE;}
+		.d2-2719411930 .stroke-N1{stroke:#0A0F25;}
+		.d2-2719411930 .stroke-N2{stroke:#676C7E;}
+		.d2-2719411930 .stroke-N3{stroke:#9499AB;}
+		.d2-2719411930 .stroke-N4{stroke:#CFD2DD;}
+		.d2-2719411930 .stroke-N5{stroke:#DEE1EB;}
+		.d2-2719411930 .stroke-N6{stroke:#EEF1F8;}
+		.d2-2719411930 .stroke-N7{stroke:#FFFFFF;}
+		.d2-2719411930 .stroke-B1{stroke:#0D32B2;}
+		.d2-2719411930 .stroke-B2{stroke:#0D32B2;}
+		.d2-2719411930 .stroke-B3{stroke:#E3E9FD;}
+		.d2-2719411930 .stroke-B4{stroke:#E3E9FD;}
+		.d2-2719411930 .stroke-B5{stroke:#EDF0FD;}
+		.d2-2719411930 .stroke-B6{stroke:#F7F8FE;}
+		.d2-2719411930 .stroke-AA2{stroke:#4A6FF3;}
+		.d2-2719411930 .stroke-AA4{stroke:#EDF0FD;}
+		.d2-2719411930 .stroke-AA5{stroke:#F7F8FE;}
+		.d2-2719411930 .stroke-AB4{stroke:#EDF0FD;}
+		.d2-2719411930 .stroke-AB5{stroke:#F7F8FE;}
+		.d2-2719411930 .background-color-N1{background-color:#0A0F25;}
+		.d2-2719411930 .background-color-N2{background-color:#676C7E;}
+		.d2-2719411930 .background-color-N3{background-color:#9499AB;}
+		.d2-2719411930 .background-color-N4{background-color:#CFD2DD;}
+		.d2-2719411930 .background-color-N5{background-color:#DEE1EB;}
+		.d2-2719411930 .background-color-N6{background-color:#EEF1F8;}
+		.d2-2719411930 .background-color-N7{background-color:#FFFFFF;}
+		.d2-2719411930 .background-color-B1{background-color:#0D32B2;}
+		.d2-2719411930 .background-color-B2{background-color:#0D32B2;}
+		.d2-2719411930 .background-color-B3{background-color:#E3E9FD;}
+		.d2-2719411930 .background-color-B4{background-color:#E3E9FD;}
+		.d2-2719411930 .background-color-B5{background-color:#EDF0FD;}
+		.d2-2719411930 .background-color-B6{background-color:#F7F8FE;}
+		.d2-2719411930 .background-color-AA2{background-color:#4A6FF3;}
+		.d2-2719411930 .background-color-AA4{background-color:#EDF0FD;}
+		.d2-2719411930 .background-color-AA5{background-color:#F7F8FE;}
+		.d2-2719411930 .background-color-AB4{background-color:#EDF0FD;}
+		.d2-2719411930 .background-color-AB5{background-color:#F7F8FE;}
+		.d2-2719411930 .color-N1{color:#0A0F25;}
+		.d2-2719411930 .color-N2{color:#676C7E;}
+		.d2-2719411930 .color-N3{color:#9499AB;}
+		.d2-2719411930 .color-N4{color:#CFD2DD;}
+		.d2-2719411930 .color-N5{color:#DEE1EB;}
+		.d2-2719411930 .color-N6{color:#EEF1F8;}
+		.d2-2719411930 .color-N7{color:#FFFFFF;}
+		.d2-2719411930 .color-B1{color:#0D32B2;}
+		.d2-2719411930 .color-B2{color:#0D32B2;}
+		.d2-2719411930 .color-B3{color:#E3E9FD;}
+		.d2-2719411930 .color-B4{color:#E3E9FD;}
+		.d2-2719411930 .color-B5{color:#EDF0FD;}
+		.d2-2719411930 .color-B6{color:#F7F8FE;}
+		.d2-2719411930 .color-AA2{color:#4A6FF3;}
+		.d2-2719411930 .color-AA4{color:#EDF0FD;}
+		.d2-2719411930 .color-AA5{color:#F7F8FE;}
+		.d2-2719411930 .color-AB4{color:#EDF0FD;}
+		.d2-2719411930 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-2719411930);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-2719411930);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-2719411930);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-2719411930);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-2719411930);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-2719411930);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-2719411930);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-2719411930);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-2719411930);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-2719411930);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-2719411930);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-2719411930);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-2719411930);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-2719411930);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-2719411930);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-2719411930);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-2719411930);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-2719411930);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><text x="-40" y="-83" font-family="Source Sans Pro, sans-serif" font-size="48" font-weight="700" fill="#000000">Advisory Domain</text><defs>
 	<filter id="shadow-filter" width="200%" height="200%" x="-50%" y="-50%">
 		<feGaussianBlur stdDeviation="1.7 " in="SourceGraphic"></feGaussianBlur>
 		<feFlood flood-color="#3d4574" flood-opacity="0.4" result="ShadowFeFlood" in="SourceGraphic"></feFlood>
@@ -100,461 +100,487 @@
 		<feOffset dx="3" dy="5" result="ShadowFeOffset" in="ShadowFeComposite"></feOffset>
 		<feBlend in="SourceGraphic" in2="ShadowFeOffset" mode="normal" result="ShadowFeBlend"></feBlend>
 	</filter>
-</defs><a href="c3-advisory-bff.svg" xlink:href="c3-advisory-bff.svg"><g class="YWR2aXNvcnktYmZm"><g class="shape" filter="url(#shadow-filter)" ><rect x="398.000000" y="438.000000" width="304.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="550.000000" y="494.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Advisory BFF</text><title>Backend-for-frontend that provides a GraphQL API for the advisory domain, serving decision read models, recommendations, and advisory status to the investor-facing application.</title></g></a><a href="c3-advisory-ctrl.svg" xlink:href="c3-advisory-ctrl.svg"><g class="YWR2aXNvcnktY3RybA=="><g class="shape" filter="url(#shadow-filter)" ><rect x="12.000000" y="12.000000" width="403.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="213.500000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Advisory Controller</text><title>Core decision lifecycle orchestrator that evaluates portfolios against market conditions and investor profiles to determine if rebalancing is needed. It uses AI tools for portfolio analysis, market assessment, and universe screening to drive the advisory decision cycle.</title></g></a><a href="c3-advisory-narrative-ctrl.svg" xlink:href="c3-advisory-narrative-ctrl.svg"><g class="YWR2aXNvcnktbmFycmF0aXZlLWN0cmw="><g class="shape" filter="url(#shadow-filter)" ><rect x="435.000000" y="12.000000" width="553.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="711.500000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Advisory Narrative Controller</text><title>Generates plain-language explanations of advisory decisions using a knowledge base of regulatory and financial concepts. It produces investor-friendly narratives that explain why specific recommendations were made.</title></g></a><a href="c3-compliance-ctrl.svg" xlink:href="c3-compliance-ctrl.svg"><g class="Y29tcGxpYW5jZS1jdHJs"><g class="shape" filter="url(#shadow-filter)" ><rect x="722.000000" y="438.000000" width="447.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="945.500000" y="494.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Compliance Controller</text><title>Validates advisory decisions against regulatory and mandate constraints, checking that proposed trades comply with investor mandates, concentration limits, and regulatory requirements before execution.</title></g></a><a href="c3-decision-workflow-ctrl.svg" xlink:href="c3-decision-workflow-ctrl.svg"><g class="ZGVjaXNpb24td29ya2Zsb3ctY3RybA=="><g class="shape" filter="url(#shadow-filter)" ><rect x="1008.000000" y="12.000000" width="548.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="1282.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Decision Workflow Controller</text><title>Orchestrates the multi-step advisory decision cycle by coordinating parallel AI agents for portfolio analysis, market intelligence, compliance checking, and allocation through a state machine. It aggregates their outputs into a decision packet and learns investor preferences over time.</title></g></a><a href="c3-investor-profile-ctrl.svg" xlink:href="c3-investor-profile-ctrl.svg"><g class="aW52ZXN0b3ItcHJvZmlsZS1jdHJs"><g class="shape" filter="url(#shadow-filter)" ><rect x="1576.000000" y="12.000000" width="502.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="1827.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Investor Profile Controller</text><title>Maintains enriched investor profiles for advisory decisions by combining regulatory suitability data with behavioral signals. It builds a comprehensive understanding of each investor&#39;s risk tolerance, goals, and preferences.</title></g></a><a href="c3-market-intelligence-ctrl.svg" xlink:href="c3-market-intelligence-ctrl.svg"><g class="bWFya2V0LWludGVsbGlnZW5jZS1jdHJs"><g class="shape" filter="url(#shadow-filter)" ><rect x="2910.000000" y="438.000000" width="560.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="3190.000000" y="494.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Market Intelligence Controller</text><title>Monitors and analyzes market conditions by aggregating signals from multiple data sources including economic indicators, news, filings, and prices. It assesses market sentiment and identifies conditions relevant to portfolio decisions.</title></g></a><a href="c3-portfolio-engine-ctrl.svg" xlink:href="c3-portfolio-engine-ctrl.svg"><g class="cG9ydGZvbGlvLWVuZ2luZS1jdHJs"><g class="shape" filter="url(#shadow-filter)" ><rect x="2098.000000" y="12.000000" width="512.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="2354.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Portfolio Engine Controller</text><title>Analyzes portfolio composition and fund characteristics, evaluating holdings against target allocations and screening the investment universe for rebalancing candidates. It provides portfolio analytics to the decision workflow.</title></g></a><a href="c3-alpha-vantage-adpt.svg" xlink:href="c3-alpha-vantage-adpt.svg"><g class="YWxwaGEtdmFudGFnZS1hZHB0"><g class="shape" filter="url(#shadow-filter)" ><rect x="2630.000000" y="12.000000" width="454.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="2857.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Alpha Vantage Adapter</text><title>Fetches economic indicators and market articles from the Alpha Vantage API on a scheduled basis, normalizing them into domain events for consumption by the market intelligence pipeline.</title></g></a><a href="c3-fred-adpt.svg" xlink:href="c3-fred-adpt.svg"><g class="ZnJlZC1hZHB0"><g class="shape" filter="url(#shadow-filter)" ><rect x="3104.000000" y="12.000000" width="304.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="3256.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Fred Adapter</text><title>Fetches Federal Reserve economic data including interest rates, inflation, and employment figures on a scheduled basis, normalizing them into domain events for the market intelligence pipeline.</title></g></a><a href="c3-marketwatch-adpt.svg" xlink:href="c3-marketwatch-adpt.svg"><g class="bWFya2V0d2F0Y2gtYWRwdA=="><g class="shape" filter="url(#shadow-filter)" ><rect x="3428.000000" y="12.000000" width="435.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="3645.500000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Marketwatch Adapter</text><title>Ingests market commentary and news summaries, normalizing editorial content into domain events for market sentiment analysis.</title></g></a><a href="c3-sec-edgar-adpt.svg" xlink:href="c3-sec-edgar-adpt.svg"><g class="c2VjLWVkZ2FyLWFkcHQ="><g class="shape" filter="url(#shadow-filter)" ><rect x="3883.000000" y="12.000000" width="383.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="4074.500000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Sec Edgar Adapter</text><title>Ingests SEC filing data for funds and companies, normalizing regulatory disclosures into domain events for compliance and market intelligence analysis.</title></g></a><a href="c3-yahoo-finance-adpt.svg" xlink:href="c3-yahoo-finance-adpt.svg"><g class="eWFob28tZmluYW5jZS1hZHB0"><g class="shape" filter="url(#shadow-filter)" ><rect x="4286.000000" y="12.000000" width="456.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="4514.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Yahoo Finance Adapter</text><title>Fetches real-time price quotes and dividend data, normalizing market prices into domain events for portfolio valuation and drift detection.</title></g></a><a href="c3-advisory-adpt.svg" xlink:href="c3-advisory-adpt.svg"><g class="YWR2aXNvcnktYWRwdA=="><g class="shape" filter="url(#shadow-filter)" ><rect x="4955.000000" y="438.000000" width="370.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="5140.000000" y="494.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Advisory Adapter</text><title>Ingests cross-domain events from the investor, execution, and ledger buses into the advisory domain bus, subscribing to goal updates, mandate changes, order status, portfolio updates, and reconciliation signals.</title></g></a><g class="ZXh0LWludmVzdG9y"><g class="shape" ><rect x="4762.000000" y="22.000000" width="233.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="4878.500000" y="70.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Investor Domain</text></g><g class="aW52ZXN0b3ItdG8tYWR2aXNvcnktYWRwdA=="><g class="shape" ><rect x="4815.000000" y="182.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="4878.500000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">6 Events</text><title>GOAL_UPDATED&#xA;RISK_PROFILE_UPDATED&#xA;OPERATING_MODE_CHANGED&#xA;MANDATE_GRANTED&#xA;MANDATE_UPDATED&#xA;MANDATE_REVOKED</title></g><g class="ZXh0LWV4ZWN1dGlvbg=="><g class="shape" ><rect x="5015.000000" y="22.000000" width="251.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="5140.500000" y="70.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Execution Domain</text></g><g class="ZXhlY3V0aW9uLXRvLWFkdmlzb3J5LWFkcHQ="><g class="shape" ><rect x="5077.000000" y="182.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="5140.500000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">8 Events</text><title>ORDER_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;PORTFOLIO_DRIFT_DETECTED&#xA;BROKER_SESSION_LOST&#xA;STREAM_DISCONNECTED&#xA;RECONCILIATION_FAILED</title></g><g class="ZXh0LWxlZGdlcg=="><g class="shape" ><rect x="5286.000000" y="22.000000" width="216.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="5394.000000" y="70.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Ledger Domain</text></g><g class="bGVkZ2VyLXRvLWFkdmlzb3J5LWFkcHQ="><g class="shape" ><rect x="5330.000000" y="182.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="5393.500000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">3 Events</text><title>PORTFOLIO_UPDATED&#xA;LEDGER_PORTFOLIO_DRIFT_DETECTED&#xA;LEDGER_RECONCILIATION_FAILED</title></g><g class="YWR2aXNvcnktY3RybC10by1hZHZpc29yeS1iZmY="><g class="shape" ><rect x="76.000000" y="182.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="139.500000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">2 Events</text><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title></g><g class="YWR2aXNvcnktY3RybC10by1jb21wbGlhbmNlLWN0cmw="><g class="shape" ><rect x="335.000000" y="182.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="398.500000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">2 Events</text><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title></g><g class="ZGVjaXNpb24td29ya2Zsb3ctY3RybC10by1hZHZpc29yeS1iZmY="><g class="shape" ><rect x="1008.000000" y="182.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="1071.500000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">2 Events</text><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title></g><g class="ZGVjaXNpb24td29ya2Zsb3ctY3RybC10by1jb21wbGlhbmNlLWN0cmw="><g class="shape" ><rect x="1309.000000" y="182.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="1372.500000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">2 Events</text><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title></g><g class="ZnJlZC1hZHB0LXRvLW1hcmtldC1pbnRlbGxpZ2VuY2UtY3RybA=="><g class="shape" ><rect x="3127.000000" y="182.000000" width="126.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="3190.000000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">1 Events</text><title>FRED_INDICATORS_UPDATED</title></g><g class="ZXh0LXZhbnRhZ2U="><g class="shape" ><rect x="2787.000000" y="180.000000" width="140.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="2857.000000" y="228.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Vantage</text></g><g class="ZXh0LWZyZWQ="><g class="shape" ><rect x="3273.000000" y="180.000000" width="95.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="3320.500000" y="228.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Fred</text></g><g class="ZXh0LW1hcmtldHdhdGNo"><g class="shape" ><rect x="3548.000000" y="180.000000" width="195.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="3645.500000" y="228.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Marketwatch</text></g><g class="ZXh0LWVkZ2Fy"><g class="shape" ><rect x="4019.000000" y="180.000000" width="111.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="4074.500000" y="228.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Edgar</text></g><g class="ZXh0LWZpbmFuY2U="><g class="shape" ><rect x="4447.000000" y="180.000000" width="133.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="4513.500000" y="228.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Finance</text></g><g class="KGV4dC1pbnZlc3RvciAtJmd0OyBpbnZlc3Rvci10by1hZHZpc29yeS1hZHB0KVswXQ=="><marker id="mk-d2-628723214-2749698431" markerWidth="13.000000" markerHeight="16.000000" refX="8.500000" refY="8.000000" viewBox="0.000000 0.000000 13.000000 16.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 13.000000,8.000000 0.000000,16.000000" fill="#999999" class="connection" stroke-width="3" /> </marker><path d="M 4878.500000 101.500000 L 4878.500000 177.500000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGludmVzdG9yLXRvLWFkdmlzb3J5LWFkcHQgLSZndDsgYWR2aXNvcnktYWRwdClbMF0="><path d="M 4878.500000 257.000000 L 4878.500000 288.000000 S 4878.500000 298.000000 4888.500000 298.000000 L 5038.000000 298.000000 S 5048.000000 298.000000 5048.000000 308.000000 L 5048.000000 432.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGV4dC1leGVjdXRpb24gLSZndDsgZXhlY3V0aW9uLXRvLWFkdmlzb3J5LWFkcHQpWzBd"><path d="M 5140.500000 101.500000 L 5140.500000 177.500000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGV4ZWN1dGlvbi10by1hZHZpc29yeS1hZHB0IC0mZ3Q7IGFkdmlzb3J5LWFkcHQpWzBd"><path d="M 5140.500000 257.000000 L 5140.500000 432.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGV4dC1sZWRnZXIgLSZndDsgbGVkZ2VyLXRvLWFkdmlzb3J5LWFkcHQpWzBd"><path d="M 5394.000000 101.500000 L 5394.000000 177.500000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGxlZGdlci10by1hZHZpc29yeS1hZHB0IC0mZ3Q7IGFkdmlzb3J5LWFkcHQpWzBd"><path d="M 5394.000000 257.000000 L 5394.000000 288.000000 S 5394.000000 298.000000 5384.000000 298.000000 L 5243.000000 298.000000 S 5233.000000 298.000000 5233.000000 308.000000 L 5233.000000 432.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGFkdmlzb3J5LWN0cmwgLSZndDsgYWR2aXNvcnktY3RybC10by1hZHZpc29yeS1iZmYpWzBd"><path d="M 140.000000 103.000000 L 140.000000 178.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGFkdmlzb3J5LWN0cmwtdG8tYWR2aXNvcnktYmZmIC0mZ3Q7IGFkdmlzb3J5LWJmZilbMF0="><path d="M 140.000000 257.000000 L 140.000000 338.000000 S 140.000000 348.000000 150.000000 348.000000 L 489.498993 348.000000 S 499.498993 348.000000 499.498993 358.000000 L 499.498993 432.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGFkdmlzb3J5LWN0cmwgLSZndDsgYWR2aXNvcnktY3RybC10by1jb21wbGlhbmNlLWN0cmwpWzBd"><path d="M 280.665985 103.000000 L 280.665985 130.000000 S 280.665985 140.000000 290.665985 140.000000 L 389.333008 140.000000 S 399.333008 140.000000 399.333008 150.000000 L 399.333008 178.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGFkdmlzb3J5LWN0cmwtdG8tY29tcGxpYW5jZS1jdHJsIC0mZ3Q7IGNvbXBsaWFuY2UtY3RybClbMF0="><path d="M 399.333008 257.000000 L 399.333008 288.000000 S 399.333008 298.000000 409.333008 298.000000 L 861.166016 298.000000 S 871.166016 298.000000 871.166016 308.000000 L 871.166016 432.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGRlY2lzaW9uLXdvcmtmbG93LWN0cmwgLSZndDsgZGVjaXNpb24td29ya2Zsb3ctY3RybC10by1hZHZpc29yeS1iZmYpWzBd"><path d="M 1072.333008 103.000000 L 1072.333008 178.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGRlY2lzaW9uLXdvcmtmbG93LWN0cmwtdG8tYWR2aXNvcnktYmZmIC0mZ3Q7IGFkdmlzb3J5LWJmZilbMF0="><path d="M 1072.333008 257.000000 L 1072.333008 338.000000 S 1072.333008 348.000000 1062.333008 348.000000 L 610.833008 348.000000 S 600.833008 348.000000 600.833008 358.000000 L 600.833008 432.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGRlY2lzaW9uLXdvcmtmbG93LWN0cmwgLSZndDsgZGVjaXNpb24td29ya2Zsb3ctY3RybC10by1jb21wbGlhbmNlLWN0cmwpWzBd"><path d="M 1373.333008 102.500000 L 1373.333008 177.500000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGRlY2lzaW9uLXdvcmtmbG93LWN0cmwtdG8tY29tcGxpYW5jZS1jdHJsIC0mZ3Q7IGNvbXBsaWFuY2UtY3RybClbMF0="><path d="M 1373.333008 257.000000 L 1373.333008 388.000000 S 1373.333008 398.000000 1363.333008 398.000000 L 1030.166016 398.000000 S 1020.166016 398.000000 1020.166016 408.000000 L 1020.166016 432.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGZyZWQtYWRwdCAtJmd0OyBmcmVkLWFkcHQtdG8tbWFya2V0LWludGVsbGlnZW5jZS1jdHJsKVswXQ=="><path d="M 3190.750000 103.000000 L 3190.750000 178.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGZyZWQtYWRwdC10by1tYXJrZXQtaW50ZWxsaWdlbmNlLWN0cmwgLSZndDsgbWFya2V0LWludGVsbGlnZW5jZS1jdHJsKVswXQ=="><path d="M 3190.750000 257.000000 L 3190.750000 432.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-628723214-2749698431)" mask="url(#d2-628723214)" /></g><g class="KGFscGhhLXZhbnRhZ2UtYWRwdCAtJmd0OyBleHQtdmFudGFnZSlbMF0="><marker id="mk-d2-628723214-3488378134" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#0D32B2" class="connection fill-B1" stroke-width="2" /> </marker><path d="M 2857.000000 102.500000 L 2857.000000 176.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-628723214-3488378134)" mask="url(#d2-628723214)" /></g><g class="KGZyZWQtYWRwdCAtJmd0OyBleHQtZnJlZClbMF0="><path d="M 3321.250000 102.500000 L 3321.250000 176.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-628723214-3488378134)" mask="url(#d2-628723214)" /></g><g class="KG1hcmtldHdhdGNoLWFkcHQgLSZndDsgZXh0LW1hcmtldHdhdGNoKVswXQ=="><path d="M 3645.500000 102.500000 L 3645.500000 176.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-628723214-3488378134)" mask="url(#d2-628723214)" /></g><g class="KHNlYy1lZGdhci1hZHB0IC0mZ3Q7IGV4dC1lZGdhcilbMF0="><path d="M 4074.500000 102.500000 L 4074.500000 176.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-628723214-3488378134)" mask="url(#d2-628723214)" /></g><g class="KHlhaG9vLWZpbmFuY2UtYWRwdCAtJmd0OyBleHQtZmluYW5jZSlbMF0="><path d="M 4514.000000 102.500000 L 4514.000000 176.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-628723214-3488378134)" mask="url(#d2-628723214)" /></g><g transform="translate(686 422)" class="appendix-icon"><title>Backend-for-frontend that provides a GraphQL API for the advisory domain, serving decision read models, recommendations, and advisory status to the investor-facing application.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLCMZTA)">
+</defs><a href="c3-advisory-bff.svg" xlink:href="c3-advisory-bff.svg"><g class="YWR2aXNvcnktYmZm"><g class="shape" filter="url(#shadow-filter)" ><rect x="1945.000000" y="990.000000" width="304.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="2097.000000" y="1046.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Advisory BFF</text><title>Backend-for-frontend that provides a GraphQL API for the advisory domain, serving decision read models, recommendations, and advisory status to the investor-facing application.</title></g></a><a href="c3-advisory-ctrl.svg" xlink:href="c3-advisory-ctrl.svg"><g class="YWR2aXNvcnktY3RybA=="><g class="shape" filter="url(#shadow-filter)" ><rect x="2026.000000" y="619.000000" width="403.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="2227.500000" y="675.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Advisory Controller</text><title>Core decision lifecycle orchestrator that evaluates portfolios against market conditions and investor profiles to determine if rebalancing is needed. It uses AI tools for portfolio analysis, market assessment, and universe screening to drive the advisory decision cycle.</title></g></a><a href="c3-advisory-narrative-ctrl.svg" xlink:href="c3-advisory-narrative-ctrl.svg"><g class="YWR2aXNvcnktbmFycmF0aXZlLWN0cmw="><g class="shape" filter="url(#shadow-filter)" ><rect x="3272.000000" y="12.000000" width="553.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="3548.500000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Advisory Narrative Controller</text><title>Generates plain-language explanations of advisory decisions using a knowledge base of regulatory and financial concepts. It produces investor-friendly narratives that explain why specific recommendations were made.</title></g></a><a href="c3-compliance-ctrl.svg" xlink:href="c3-compliance-ctrl.svg"><g class="Y29tcGxpYW5jZS1jdHJs"><g class="shape" filter="url(#shadow-filter)" ><rect x="2646.000000" y="990.000000" width="447.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="2869.500000" y="1046.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Compliance Controller</text><title>Validates advisory decisions against regulatory and mandate constraints, checking that proposed trades comply with investor mandates, concentration limits, and regulatory requirements before execution.</title></g></a><a href="c3-decision-workflow-ctrl.svg" xlink:href="c3-decision-workflow-ctrl.svg"><g class="ZGVjaXNpb24td29ya2Zsb3ctY3RybA=="><g class="shape" filter="url(#shadow-filter)" ><rect x="2449.000000" y="619.000000" width="548.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="2723.000000" y="675.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Decision Workflow Controller</text><title>Orchestrates the multi-step advisory decision cycle by coordinating parallel AI agents for portfolio analysis, market intelligence, compliance checking, and allocation through a state machine. It aggregates their outputs into a decision packet and learns investor preferences over time.</title></g></a><a href="c3-investor-profile-ctrl.svg" xlink:href="c3-investor-profile-ctrl.svg"><g class="aW52ZXN0b3ItcHJvZmlsZS1jdHJs"><g class="shape" filter="url(#shadow-filter)" ><rect x="2261.000000" y="12.000000" width="502.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="2512.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Investor Profile Controller</text><title>Maintains enriched investor profiles for advisory decisions by combining regulatory suitability data with behavioral signals. It builds a comprehensive understanding of each investor&#39;s risk tolerance, goals, and preferences.</title></g></a><a href="c3-market-intelligence-ctrl.svg" xlink:href="c3-market-intelligence-ctrl.svg"><g class="bWFya2V0LWludGVsbGlnZW5jZS1jdHJs"><g class="shape" filter="url(#shadow-filter)" ><rect x="12.000000" y="338.000000" width="560.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="292.000000" y="394.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Market Intelligence Controller</text><title>Monitors and analyzes market conditions by aggregating signals from multiple data sources including economic indicators, news, filings, and prices. It assesses market sentiment and identifies conditions relevant to portfolio decisions.</title></g></a><a href="c3-portfolio-engine-ctrl.svg" xlink:href="c3-portfolio-engine-ctrl.svg"><g class="cG9ydGZvbGlvLWVuZ2luZS1jdHJs"><g class="shape" filter="url(#shadow-filter)" ><rect x="1729.000000" y="12.000000" width="512.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="1985.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Portfolio Engine Controller</text><title>Analyzes portfolio composition and fund characteristics, evaluating holdings against target allocations and screening the investment universe for rebalancing candidates. It provides portfolio analytics to the decision workflow.</title></g></a><a href="c3-alpha-vantage-adpt.svg" xlink:href="c3-alpha-vantage-adpt.svg"><g class="YWxwaGEtdmFudGFnZS1hZHB0"><g class="shape" filter="url(#shadow-filter)" ><rect x="1255.000000" y="12.000000" width="454.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="1482.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Alpha Vantage Adapter</text><title>Fetches economic indicators and market articles from the Alpha Vantage API on a scheduled basis, normalizing them into domain events for consumption by the market intelligence pipeline.</title></g></a><a href="c3-fred-adpt.svg" xlink:href="c3-fred-adpt.svg"><g class="ZnJlZC1hZHB0"><g class="shape" filter="url(#shadow-filter)" ><rect x="205.000000" y="12.000000" width="304.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="357.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Fred Adapter</text><title>Fetches Federal Reserve economic data including interest rates, inflation, and employment figures on a scheduled basis, normalizing them into domain events for the market intelligence pipeline.</title></g></a><a href="c3-marketwatch-adpt.svg" xlink:href="c3-marketwatch-adpt.svg"><g class="bWFya2V0d2F0Y2gtYWRwdA=="><g class="shape" filter="url(#shadow-filter)" ><rect x="800.000000" y="12.000000" width="435.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="1017.500000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Marketwatch Adapter</text><title>Ingests market commentary and news summaries, normalizing editorial content into domain events for market sentiment analysis.</title></g></a><a href="c3-sec-edgar-adpt.svg" xlink:href="c3-sec-edgar-adpt.svg"><g class="c2VjLWVkZ2FyLWFkcHQ="><g class="shape" filter="url(#shadow-filter)" ><rect x="4321.000000" y="12.000000" width="383.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="4512.500000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Sec Edgar Adapter</text><title>Ingests SEC filing data for funds and companies, normalizing regulatory disclosures into domain events for compliance and market intelligence analysis.</title></g></a><a href="c3-yahoo-finance-adpt.svg" xlink:href="c3-yahoo-finance-adpt.svg"><g class="eWFob28tZmluYW5jZS1hZHB0"><g class="shape" filter="url(#shadow-filter)" ><rect x="3845.000000" y="12.000000" width="456.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="4073.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Yahoo Finance Adapter</text><title>Fetches real-time price quotes and dividend data, normalizing market prices into domain events for portfolio valuation and drift detection.</title></g></a><a href="c3-advisory-adpt.svg" xlink:href="c3-advisory-adpt.svg"><g class="YWR2aXNvcnktYWRwdA=="><g class="shape" filter="url(#shadow-filter)" ><rect x="2714.000000" y="338.000000" width="370.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="2899.000000" y="394.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Advisory Adapter</text><title>Ingests cross-domain events from the investor, execution, and ledger buses into the advisory domain bus, subscribing to goal updates, mandate changes, order status, portfolio updates, and reconciliation signals.</title></g></a><g class="ZXh0LWludmVzdG9y"><g class="shape" ><rect x="2783.000000" y="22.000000" width="233.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="2899.500000" y="70.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Investor Domain</text></g><g class="aW52ZXN0b3ItdG8tYWR2aXNvcnktYWRwdA=="><g class="shape" ><rect x="2836.000000" y="182.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="2899.500000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">6 Events</text><title>GOAL_UPDATED&#xA;RISK_PROFILE_UPDATED&#xA;OPERATING_MODE_CHANGED&#xA;MANDATE_GRANTED&#xA;MANDATE_UPDATED&#xA;MANDATE_REVOKED</title></g><g class="ZXh0LWV4ZWN1dGlvbg=="><g class="shape" ><rect x="529.000000" y="22.000000" width="251.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="654.500000" y="70.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Execution Domain</text></g><g class="ZXhlY3V0aW9uLXRvLWFkdmlzb3J5LWFkcHQ="><g class="shape" ><rect x="591.000000" y="182.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="654.500000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">8 Events</text><title>ORDER_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;PORTFOLIO_DRIFT_DETECTED&#xA;BROKER_SESSION_LOST&#xA;STREAM_DISCONNECTED&#xA;RECONCILIATION_FAILED</title></g><g class="ZXh0LWxlZGdlcg=="><g class="shape" ><rect x="3036.000000" y="22.000000" width="216.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="3144.000000" y="70.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Ledger Domain</text></g><g class="bGVkZ2VyLXRvLWFkdmlzb3J5LWFkcHQ="><g class="shape" ><rect x="3080.000000" y="182.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="3143.500000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">3 Events</text><title>PORTFOLIO_UPDATED&#xA;LEDGER_PORTFOLIO_DRIFT_DETECTED&#xA;LEDGER_RECONCILIATION_FAILED</title></g><g class="YWR2aXNvcnktYWRwdC10by1hZHZpc29yeS1jdHJs"><g class="shape" ><rect x="2164.000000" y="506.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="2227.500000" y="550.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">9 Events</text><title>GOAL_UPDATED&#xA;RISK_PROFILE_UPDATED&#xA;OPERATING_MODE_CHANGED&#xA;MANDATE_GRANTED&#xA;ORDER_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;PORTFOLIO_DRIFT_DETECTED</title></g><g class="YWR2aXNvcnktYWRwdC10by1jb21wbGlhbmNlLWN0cmw="><g class="shape" ><rect x="2973.000000" y="506.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="3036.500000" y="550.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">4 Events</text><title>OPERATING_MODE_CHANGED&#xA;MANDATE_GRANTED&#xA;MANDATE_UPDATED&#xA;MANDATE_REVOKED</title></g><g class="YWR2aXNvcnktY3RybC10by1hZHZpc29yeS1iZmY="><g class="shape" ><rect x="1937.000000" y="837.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="2000.500000" y="881.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">2 Events</text><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title></g><g class="YWR2aXNvcnktY3RybC10by1jb21wbGlhbmNlLWN0cmw="><g class="shape" ><rect x="2231.000000" y="837.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="2294.500000" y="881.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">2 Events</text><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title></g><g class="ZGVjaXNpb24td29ya2Zsb3ctY3RybC10by1hZHZpc29yeS1iZmY="><g class="shape" ><rect x="2084.000000" y="837.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="2147.500000" y="881.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">2 Events</text><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title></g><g class="ZGVjaXNpb24td29ya2Zsb3ctY3RybC10by1jb21wbGlhbmNlLWN0cmw="><g class="shape" ><rect x="2751.000000" y="837.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="2814.500000" y="881.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">2 Events</text><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title></g><g class="ZnJlZC1hZHB0LXRvLW1hcmtldC1pbnRlbGxpZ2VuY2UtY3RybA=="><g class="shape" ><rect x="229.000000" y="182.000000" width="126.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="292.000000" y="226.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">1 Events</text><title>FRED_INDICATORS_UPDATED</title></g><g class="ZXh0LXZhbnRhZ2U="><g class="shape" ><rect x="1412.000000" y="180.000000" width="140.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="1482.000000" y="228.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Vantage</text></g><g class="ZXh0LWZyZWQ="><g class="shape" ><rect x="375.000000" y="180.000000" width="95.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="422.500000" y="228.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Fred</text></g><g class="ZXh0LW1hcmtldHdhdGNo"><g class="shape" ><rect x="920.000000" y="180.000000" width="195.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="1017.500000" y="228.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Marketwatch</text></g><g class="ZXh0LWVkZ2Fy"><g class="shape" ><rect x="4457.000000" y="180.000000" width="111.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="4512.500000" y="228.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Edgar</text></g><g class="ZXh0LWZpbmFuY2U="><g class="shape" ><rect x="4006.000000" y="180.000000" width="133.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="4072.500000" y="228.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Finance</text></g><g class="KGV4dC1pbnZlc3RvciAtJmd0OyBpbnZlc3Rvci10by1hZHZpc29yeS1hZHB0KVswXQ=="><marker id="mk-d2-2719411930-2749698431" markerWidth="13.000000" markerHeight="16.000000" refX="8.500000" refY="8.000000" viewBox="0.000000 0.000000 13.000000 16.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 13.000000,8.000000 0.000000,16.000000" fill="#999999" class="connection" stroke-width="3" /> </marker><path d="M 2899.750000 101.500000 L 2899.750000 177.500000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGludmVzdG9yLXRvLWFkdmlzb3J5LWFkcHQgLSZndDsgYWR2aXNvcnktYWRwdClbMF0="><path d="M 2899.750000 257.000000 L 2899.750000 332.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGV4dC1leGVjdXRpb24gLSZndDsgZXhlY3V0aW9uLXRvLWFkdmlzb3J5LWFkcHQpWzBd"><path d="M 654.750000 101.500000 L 654.750000 177.500000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGV4ZWN1dGlvbi10by1hZHZpc29yeS1hZHB0IC0mZ3Q7IGFkdmlzb3J5LWFkcHQpWzBd"><path d="M 654.750000 257.000000 L 654.750000 288.000000 S 654.750000 298.000000 664.750000 298.000000 L 2797.250000 298.000000 S 2807.250000 298.000000 2807.250000 308.000000 L 2807.250000 332.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGV4dC1sZWRnZXIgLSZndDsgbGVkZ2VyLXRvLWFkdmlzb3J5LWFkcHQpWzBd"><path d="M 3144.250000 101.500000 L 3144.250000 177.500000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGxlZGdlci10by1hZHZpc29yeS1hZHB0IC0mZ3Q7IGFkdmlzb3J5LWFkcHQpWzBd"><path d="M 3144.250000 257.000000 L 3144.250000 288.000000 S 3144.250000 298.000000 3134.250000 298.000000 L 3002.250000 298.000000 S 2992.250000 298.000000 2992.250000 308.000000 L 2992.250000 332.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGFkdmlzb3J5LWFkcHQgLSZndDsgYWR2aXNvcnktYWRwdC10by1hZHZpc29yeS1jdHJsKVswXQ=="><path d="M 2838.083008 429.000000 L 2838.083008 456.000000 S 2838.083008 466.000000 2828.083008 466.000000 L 2237.916016 466.000000 S 2227.916016 466.000000 2227.916016 476.000000 L 2227.916016 501.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGFkdmlzb3J5LWFkcHQtdG8tYWR2aXNvcnktY3RybCAtJmd0OyBhZHZpc29yeS1jdHJsKVswXQ=="><path d="M 2227.916016 581.000000 L 2227.916016 613.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGFkdmlzb3J5LWFkcHQgLSZndDsgYWR2aXNvcnktYWRwdC10by1jb21wbGlhbmNlLWN0cmwpWzBd"><path d="M 3037.416016 429.000000 L 3037.416016 501.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGFkdmlzb3J5LWFkcHQtdG8tY29tcGxpYW5jZS1jdHJsIC0mZ3Q7IGNvbXBsaWFuY2UtY3RybClbMF0="><path d="M 3037.416016 581.000000 L 3037.416016 984.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGFkdmlzb3J5LWN0cmwgLSZndDsgYWR2aXNvcnktY3RybC10by1hZHZpc29yeS1iZmYpWzBd"><path d="M 2160.750000 710.000000 L 2160.750000 737.000000 S 2160.750000 747.000000 2150.750000 747.000000 L 2011.083008 747.000000 S 2001.083008 747.000000 2001.083008 757.000000 L 2001.083008 832.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGFkdmlzb3J5LWN0cmwtdG8tYWR2aXNvcnktYmZmIC0mZ3Q7IGFkdmlzb3J5LWJmZilbMF0="><path d="M 2001.083008 912.000000 L 2001.083008 984.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGFkdmlzb3J5LWN0cmwgLSZndDsgYWR2aXNvcnktY3RybC10by1jb21wbGlhbmNlLWN0cmwpWzBd"><path d="M 2295.083008 710.000000 L 2295.083008 832.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGFkdmlzb3J5LWN0cmwtdG8tY29tcGxpYW5jZS1jdHJsIC0mZ3Q7IGNvbXBsaWFuY2UtY3RybClbMF0="><path d="M 2295.083008 912.000000 L 2295.083008 940.000000 S 2295.083008 950.000000 2305.083008 950.000000 L 2748.458008 950.000000 S 2758.458008 950.000000 2758.458008 960.000000 L 2758.458008 984.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGRlY2lzaW9uLXdvcmtmbG93LWN0cmwgLSZndDsgZGVjaXNpb24td29ya2Zsb3ctY3RybC10by1hZHZpc29yeS1iZmYpWzBd"><path d="M 2632.083008 710.000000 L 2632.083008 787.000000 S 2632.083008 797.000000 2622.083008 797.000000 L 2158.083008 797.000000 S 2148.083008 797.000000 2148.083008 807.000000 L 2148.083008 832.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGRlY2lzaW9uLXdvcmtmbG93LWN0cmwtdG8tYWR2aXNvcnktYmZmIC0mZ3Q7IGFkdmlzb3J5LWJmZilbMF0="><path d="M 2148.083008 912.000000 L 2148.083008 984.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGRlY2lzaW9uLXdvcmtmbG93LWN0cmwgLSZndDsgZGVjaXNpb24td29ya2Zsb3ctY3RybC10by1jb21wbGlhbmNlLWN0cmwpWzBd"><path d="M 2814.750000 710.000000 L 2814.750000 832.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGRlY2lzaW9uLXdvcmtmbG93LWN0cmwtdG8tY29tcGxpYW5jZS1jdHJsIC0mZ3Q7IGNvbXBsaWFuY2UtY3RybClbMF0="><path d="M 2814.750000 912.000000 L 2814.750000 984.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGZyZWQtYWRwdCAtJmd0OyBmcmVkLWFkcHQtdG8tbWFya2V0LWludGVsbGlnZW5jZS1jdHJsKVswXQ=="><path d="M 292.000000 103.000000 L 292.000000 178.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGZyZWQtYWRwdC10by1tYXJrZXQtaW50ZWxsaWdlbmNlLWN0cmwgLSZndDsgbWFya2V0LWludGVsbGlnZW5jZS1jdHJsKVswXQ=="><path d="M 292.000000 257.000000 L 292.000000 332.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-2719411930-2749698431)" mask="url(#d2-2719411930)" /></g><g class="KGFscGhhLXZhbnRhZ2UtYWRwdCAtJmd0OyBleHQtdmFudGFnZSlbMF0="><marker id="mk-d2-2719411930-3488378134" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#0D32B2" class="connection fill-B1" stroke-width="2" /> </marker><path d="M 1482.250000 102.500000 L 1482.250000 176.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2719411930-3488378134)" mask="url(#d2-2719411930)" /></g><g class="KGZyZWQtYWRwdCAtJmd0OyBleHQtZnJlZClbMF0="><path d="M 422.500000 102.500000 L 422.500000 176.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2719411930-3488378134)" mask="url(#d2-2719411930)" /></g><g class="KG1hcmtldHdhdGNoLWFkcHQgLSZndDsgZXh0LW1hcmtldHdhdGNoKVswXQ=="><path d="M 1017.750000 102.500000 L 1017.750000 176.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2719411930-3488378134)" mask="url(#d2-2719411930)" /></g><g class="KHNlYy1lZGdhci1hZHB0IC0mZ3Q7IGV4dC1lZGdhcilbMF0="><path d="M 4512.750000 102.500000 L 4512.750000 176.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2719411930-3488378134)" mask="url(#d2-2719411930)" /></g><g class="KHlhaG9vLWZpbmFuY2UtYWRwdCAtJmd0OyBleHQtZmluYW5jZSlbMF0="><path d="M 4073.250000 102.500000 L 4073.250000 176.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2719411930-3488378134)" mask="url(#d2-2719411930)" /></g><g transform="translate(2233 974)" class="appendix-icon"><title>Backend-for-frontend that provides a GraphQL API for the advisory domain, serving decision read models, recommendations, and advisory status to the investor-facing application.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLCMZTA)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLCMZTA">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLCMZTA">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(654 422)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-MFSHM2LTN5ZHSLLCMZTA)">
+</g><g transform="translate(2201 974)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-MFSHM2LTN5ZHSLLCMZTA)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-MFSHM2LTN5ZHSLLCMZTA">
+<clipPath id="clip0_3440_35088111-d2-2719411930-MFSHM2LTN5ZHSLLCMZTA">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(399 -4)" class="appendix-icon"><title>Core decision lifecycle orchestrator that evaluates portfolios against market conditions and investor profiles to determine if rebalancing is needed. It uses AI tools for portfolio analysis, market assessment, and universe screening to drive the advisory decision cycle.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLDORZGY)">
+</g><g transform="translate(2413 603)" class="appendix-icon"><title>Core decision lifecycle orchestrator that evaluates portfolios against market conditions and investor profiles to determine if rebalancing is needed. It uses AI tools for portfolio analysis, market assessment, and universe screening to drive the advisory decision cycle.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLDORZGY)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLDORZGY">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLDORZGY">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(367 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-MFSHM2LTN5ZHSLLDORZGY)">
+</g><g transform="translate(2381 603)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-MFSHM2LTN5ZHSLLDORZGY)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-MFSHM2LTN5ZHSLLDORZGY">
+<clipPath id="clip0_3440_35088111-d2-2719411930-MFSHM2LTN5ZHSLLDORZGY">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(972 -4)" class="appendix-icon"><title>Generates plain-language explanations of advisory decisions using a knowledge base of regulatory and financial concepts. It produces investor-friendly narratives that explain why specific recommendations were made.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLOMFZHEYLUNF3GKLLDORZGY)">
+</g><g transform="translate(3809 -4)" class="appendix-icon"><title>Generates plain-language explanations of advisory decisions using a knowledge base of regulatory and financial concepts. It produces investor-friendly narratives that explain why specific recommendations were made.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLOMFZHEYLUNF3GKLLDORZGY)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLOMFZHEYLUNF3GKLLDORZGY">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLOMFZHEYLUNF3GKLLDORZGY">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(940 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-MFSHM2LTN5ZHSLLOMFZHEYLUNF3GKLLDORZGY)">
+</g><g transform="translate(3777 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-MFSHM2LTN5ZHSLLOMFZHEYLUNF3GKLLDORZGY)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-MFSHM2LTN5ZHSLLOMFZHEYLUNF3GKLLDORZGY">
+<clipPath id="clip0_3440_35088111-d2-2719411930-MFSHM2LTN5ZHSLLOMFZHEYLUNF3GKLLDORZGY">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1153 422)" class="appendix-icon"><title>Validates advisory decisions against regulatory and mandate constraints, checking that proposed trades comply with investor mandates, concentration limits, and regulatory requirements before execution.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MNXW24DMNFQW4Y3FFVRXI4TM)">
+</g><g transform="translate(3077 974)" class="appendix-icon"><title>Validates advisory decisions against regulatory and mandate constraints, checking that proposed trades comply with investor mandates, concentration limits, and regulatory requirements before execution.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MNXW24DMNFQW4Y3FFVRXI4TM)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MNXW24DMNFQW4Y3FFVRXI4TM">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MNXW24DMNFQW4Y3FFVRXI4TM">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1121 422)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-MNXW24DMNFQW4Y3FFVRXI4TM)">
+</g><g transform="translate(3045 974)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-MNXW24DMNFQW4Y3FFVRXI4TM)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-MNXW24DMNFQW4Y3FFVRXI4TM">
+<clipPath id="clip0_3440_35088111-d2-2719411930-MNXW24DMNFQW4Y3FFVRXI4TM">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1540 -4)" class="appendix-icon"><title>Orchestrates the multi-step advisory decision cycle by coordinating parallel AI agents for portfolio analysis, market intelligence, compliance checking, and allocation through a state machine. It aggregates their outputs into a decision packet and learns investor preferences over time.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWA)">
+</g><g transform="translate(2981 603)" class="appendix-icon"><title>Orchestrates the multi-step advisory decision cycle by coordinating parallel AI agents for portfolio analysis, market intelligence, compliance checking, and allocation through a state machine. It aggregates their outputs into a decision packet and learns investor preferences over time.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWA)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWA">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWA">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1508 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWA)">
+</g><g transform="translate(2949 603)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWA)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWA">
+<clipPath id="clip0_3440_35088111-d2-2719411930-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWA">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(2062 -4)" class="appendix-icon"><title>Maintains enriched investor profiles for advisory decisions by combining regulatory suitability data with behavioral signals. It builds a comprehensive understanding of each investor&#39;s risk tolerance, goals, and preferences.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-NFXHMZLTORXXELLQOJXWM2LMMUWWG5DSNQ)">
+</g><g transform="translate(2747 -4)" class="appendix-icon"><title>Maintains enriched investor profiles for advisory decisions by combining regulatory suitability data with behavioral signals. It builds a comprehensive understanding of each investor&#39;s risk tolerance, goals, and preferences.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-NFXHMZLTORXXELLQOJXWM2LMMUWWG5DSNQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-NFXHMZLTORXXELLQOJXWM2LMMUWWG5DSNQ">
+<clipPath id="clip0_3427_35082111-d2-2719411930-NFXHMZLTORXXELLQOJXWM2LMMUWWG5DSNQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(2030 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-NFXHMZLTORXXELLQOJXWM2LMMUWWG5DSNQ)">
+</g><g transform="translate(2715 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-NFXHMZLTORXXELLQOJXWM2LMMUWWG5DSNQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-NFXHMZLTORXXELLQOJXWM2LMMUWWG5DSNQ">
+<clipPath id="clip0_3440_35088111-d2-2719411930-NFXHMZLTORXXELLQOJXWM2LMMUWWG5DSNQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(3454 422)" class="appendix-icon"><title>Monitors and analyzes market conditions by aggregating signals from multiple data sources including economic indicators, news, filings, and prices. It assesses market sentiment and identifies conditions relevant to portfolio decisions.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-NVQXE23FOQWWS3TUMVWGY2LHMVXGGZJNMN2HE3A)">
+</g><g transform="translate(556 322)" class="appendix-icon"><title>Monitors and analyzes market conditions by aggregating signals from multiple data sources including economic indicators, news, filings, and prices. It assesses market sentiment and identifies conditions relevant to portfolio decisions.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-NVQXE23FOQWWS3TUMVWGY2LHMVXGGZJNMN2HE3A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-NVQXE23FOQWWS3TUMVWGY2LHMVXGGZJNMN2HE3A">
+<clipPath id="clip0_3427_35082111-d2-2719411930-NVQXE23FOQWWS3TUMVWGY2LHMVXGGZJNMN2HE3A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(3422 422)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-NVQXE23FOQWWS3TUMVWGY2LHMVXGGZJNMN2HE3A)">
+</g><g transform="translate(524 322)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-NVQXE23FOQWWS3TUMVWGY2LHMVXGGZJNMN2HE3A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-NVQXE23FOQWWS3TUMVWGY2LHMVXGGZJNMN2HE3A">
+<clipPath id="clip0_3440_35088111-d2-2719411930-NVQXE23FOQWWS3TUMVWGY2LHMVXGGZJNMN2HE3A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(2594 -4)" class="appendix-icon"><title>Analyzes portfolio composition and fund characteristics, evaluating holdings against target allocations and screening the investment universe for rebalancing candidates. It provides portfolio analytics to the decision workflow.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-OBXXE5DGN5WGS3ZNMVXGO2LOMUWWG5DSNQ)">
+</g><g transform="translate(2225 -4)" class="appendix-icon"><title>Analyzes portfolio composition and fund characteristics, evaluating holdings against target allocations and screening the investment universe for rebalancing candidates. It provides portfolio analytics to the decision workflow.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-OBXXE5DGN5WGS3ZNMVXGO2LOMUWWG5DSNQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-OBXXE5DGN5WGS3ZNMVXGO2LOMUWWG5DSNQ">
+<clipPath id="clip0_3427_35082111-d2-2719411930-OBXXE5DGN5WGS3ZNMVXGO2LOMUWWG5DSNQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(2562 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-OBXXE5DGN5WGS3ZNMVXGO2LOMUWWG5DSNQ)">
+</g><g transform="translate(2193 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-OBXXE5DGN5WGS3ZNMVXGO2LOMUWWG5DSNQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-OBXXE5DGN5WGS3ZNMVXGO2LOMUWWG5DSNQ">
+<clipPath id="clip0_3440_35088111-d2-2719411930-OBXXE5DGN5WGS3ZNMVXGO2LOMUWWG5DSNQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(3068 -4)" class="appendix-icon"><title>Fetches economic indicators and market articles from the Alpha Vantage API on a scheduled basis, normalizing them into domain events for consumption by the market intelligence pipeline.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MFWHA2DBFV3GC3TUMFTWKLLBMRYHI)">
+</g><g transform="translate(1693 -4)" class="appendix-icon"><title>Fetches economic indicators and market articles from the Alpha Vantage API on a scheduled basis, normalizing them into domain events for consumption by the market intelligence pipeline.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MFWHA2DBFV3GC3TUMFTWKLLBMRYHI)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MFWHA2DBFV3GC3TUMFTWKLLBMRYHI">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MFWHA2DBFV3GC3TUMFTWKLLBMRYHI">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(3036 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-MFWHA2DBFV3GC3TUMFTWKLLBMRYHI)">
+</g><g transform="translate(1661 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-MFWHA2DBFV3GC3TUMFTWKLLBMRYHI)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-MFWHA2DBFV3GC3TUMFTWKLLBMRYHI">
+<clipPath id="clip0_3440_35088111-d2-2719411930-MFWHA2DBFV3GC3TUMFTWKLLBMRYHI">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(3392 -4)" class="appendix-icon"><title>Fetches Federal Reserve economic data including interest rates, inflation, and employment figures on a scheduled basis, normalizing them into domain events for the market intelligence pipeline.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MZZGKZBNMFSHA5A)">
+</g><g transform="translate(493 -4)" class="appendix-icon"><title>Fetches Federal Reserve economic data including interest rates, inflation, and employment figures on a scheduled basis, normalizing them into domain events for the market intelligence pipeline.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MZZGKZBNMFSHA5A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MZZGKZBNMFSHA5A">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MZZGKZBNMFSHA5A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(3360 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-MZZGKZBNMFSHA5A)">
+</g><g transform="translate(461 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-MZZGKZBNMFSHA5A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-MZZGKZBNMFSHA5A">
+<clipPath id="clip0_3440_35088111-d2-2719411930-MZZGKZBNMFSHA5A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(3847 -4)" class="appendix-icon"><title>Ingests market commentary and news summaries, normalizing editorial content into domain events for market sentiment analysis.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-NVQXE23FOR3WC5DDNAWWCZDQOQ)">
+</g><g transform="translate(1219 -4)" class="appendix-icon"><title>Ingests market commentary and news summaries, normalizing editorial content into domain events for market sentiment analysis.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-NVQXE23FOR3WC5DDNAWWCZDQOQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-NVQXE23FOR3WC5DDNAWWCZDQOQ">
+<clipPath id="clip0_3427_35082111-d2-2719411930-NVQXE23FOR3WC5DDNAWWCZDQOQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(3815 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-NVQXE23FOR3WC5DDNAWWCZDQOQ)">
+</g><g transform="translate(1187 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-NVQXE23FOR3WC5DDNAWWCZDQOQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-NVQXE23FOR3WC5DDNAWWCZDQOQ">
+<clipPath id="clip0_3440_35088111-d2-2719411930-NVQXE23FOR3WC5DDNAWWCZDQOQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(4250 -4)" class="appendix-icon"><title>Ingests SEC filing data for funds and companies, normalizing regulatory disclosures into domain events for compliance and market intelligence analysis.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-ONSWGLLFMRTWC4RNMFSHA5A)">
+</g><g transform="translate(4688 -4)" class="appendix-icon"><title>Ingests SEC filing data for funds and companies, normalizing regulatory disclosures into domain events for compliance and market intelligence analysis.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-ONSWGLLFMRTWC4RNMFSHA5A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-ONSWGLLFMRTWC4RNMFSHA5A">
+<clipPath id="clip0_3427_35082111-d2-2719411930-ONSWGLLFMRTWC4RNMFSHA5A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(4218 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-ONSWGLLFMRTWC4RNMFSHA5A)">
+</g><g transform="translate(4656 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-ONSWGLLFMRTWC4RNMFSHA5A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-ONSWGLLFMRTWC4RNMFSHA5A">
+<clipPath id="clip0_3440_35088111-d2-2719411930-ONSWGLLFMRTWC4RNMFSHA5A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(4726 -4)" class="appendix-icon"><title>Fetches real-time price quotes and dividend data, normalizing market prices into domain events for portfolio valuation and drift detection.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-PFQWQ33PFVTGS3TBNZRWKLLBMRYHI)">
+</g><g transform="translate(4285 -4)" class="appendix-icon"><title>Fetches real-time price quotes and dividend data, normalizing market prices into domain events for portfolio valuation and drift detection.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-PFQWQ33PFVTGS3TBNZRWKLLBMRYHI)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-PFQWQ33PFVTGS3TBNZRWKLLBMRYHI">
+<clipPath id="clip0_3427_35082111-d2-2719411930-PFQWQ33PFVTGS3TBNZRWKLLBMRYHI">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(4694 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-PFQWQ33PFVTGS3TBNZRWKLLBMRYHI)">
+</g><g transform="translate(4253 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-PFQWQ33PFVTGS3TBNZRWKLLBMRYHI)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-PFQWQ33PFVTGS3TBNZRWKLLBMRYHI">
+<clipPath id="clip0_3440_35088111-d2-2719411930-PFQWQ33PFVTGS3TBNZRWKLLBMRYHI">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(5309 422)" class="appendix-icon"><title>Ingests cross-domain events from the investor, execution, and ledger buses into the advisory domain bus, subscribing to goal updates, mandate changes, order status, portfolio updates, and reconciliation signals.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLBMRYHI)">
+</g><g transform="translate(3068 322)" class="appendix-icon"><title>Ingests cross-domain events from the investor, execution, and ledger buses into the advisory domain bus, subscribing to goal updates, mandate changes, order status, portfolio updates, and reconciliation signals.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLBMRYHI)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLBMRYHI">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLBMRYHI">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(5277 422)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-628723214-MFSHM2LTN5ZHSLLBMRYHI)">
+</g><g transform="translate(3036 322)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2719411930-MFSHM2LTN5ZHSLLBMRYHI)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-628723214-MFSHM2LTN5ZHSLLBMRYHI">
+<clipPath id="clip0_3440_35088111-d2-2719411930-MFSHM2LTN5ZHSLLBMRYHI">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(4926 166)" class="appendix-icon"><title>GOAL_UPDATED&#xA;RISK_PROFILE_UPDATED&#xA;OPERATING_MODE_CHANGED&#xA;MANDATE_GRANTED&#xA;MANDATE_UPDATED&#xA;MANDATE_REVOKED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-NFXHMZLTORXXELLUN4WWCZDWNFZW64TZFVQWI4DU)">
+</g><g transform="translate(2947 166)" class="appendix-icon"><title>GOAL_UPDATED&#xA;RISK_PROFILE_UPDATED&#xA;OPERATING_MODE_CHANGED&#xA;MANDATE_GRANTED&#xA;MANDATE_UPDATED&#xA;MANDATE_REVOKED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-NFXHMZLTORXXELLUN4WWCZDWNFZW64TZFVQWI4DU)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-NFXHMZLTORXXELLUN4WWCZDWNFZW64TZFVQWI4DU">
+<clipPath id="clip0_3427_35082111-d2-2719411930-NFXHMZLTORXXELLUN4WWCZDWNFZW64TZFVQWI4DU">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(5188 166)" class="appendix-icon"><title>ORDER_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;PORTFOLIO_DRIFT_DETECTED&#xA;BROKER_SESSION_LOST&#xA;STREAM_DISCONNECTED&#xA;RECONCILIATION_FAILED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MV4GKY3VORUW63RNORXS2YLEOZUXG33SPEWWCZDQOQ)">
+</g><g transform="translate(702 166)" class="appendix-icon"><title>ORDER_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;PORTFOLIO_DRIFT_DETECTED&#xA;BROKER_SESSION_LOST&#xA;STREAM_DISCONNECTED&#xA;RECONCILIATION_FAILED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MV4GKY3VORUW63RNORXS2YLEOZUXG33SPEWWCZDQOQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MV4GKY3VORUW63RNORXS2YLEOZUXG33SPEWWCZDQOQ">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MV4GKY3VORUW63RNORXS2YLEOZUXG33SPEWWCZDQOQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(5441 166)" class="appendix-icon"><title>PORTFOLIO_UPDATED&#xA;LEDGER_PORTFOLIO_DRIFT_DETECTED&#xA;LEDGER_RECONCILIATION_FAILED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-NRSWIZ3FOIWXI3ZNMFSHM2LTN5ZHSLLBMRYHI)">
+</g><g transform="translate(3191 166)" class="appendix-icon"><title>PORTFOLIO_UPDATED&#xA;LEDGER_PORTFOLIO_DRIFT_DETECTED&#xA;LEDGER_RECONCILIATION_FAILED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-NRSWIZ3FOIWXI3ZNMFSHM2LTN5ZHSLLBMRYHI)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-NRSWIZ3FOIWXI3ZNMFSHM2LTN5ZHSLLBMRYHI">
+<clipPath id="clip0_3427_35082111-d2-2719411930-NRSWIZ3FOIWXI3ZNMFSHM2LTN5ZHSLLBMRYHI">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(187 166)" class="appendix-icon"><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLDORZGYLLUN4WWCZDWNFZW64TZFVRGMZQ)">
+</g><g transform="translate(2275 490)" class="appendix-icon"><title>GOAL_UPDATED&#xA;RISK_PROFILE_UPDATED&#xA;OPERATING_MODE_CHANGED&#xA;MANDATE_GRANTED&#xA;ORDER_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;PORTFOLIO_DRIFT_DETECTED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLBMRYHILLUN4WWCZDWNFZW64TZFVRXI4TM)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLDORZGYLLUN4WWCZDWNFZW64TZFVRGMZQ">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLBMRYHILLUN4WWCZDWNFZW64TZFVRXI4TM">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(446 166)" class="appendix-icon"><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLDORZGYLLUN4WWG33NOBWGSYLOMNSS2Y3UOJWA)">
+</g><g transform="translate(3084 490)" class="appendix-icon"><title>OPERATING_MODE_CHANGED&#xA;MANDATE_GRANTED&#xA;MANDATE_UPDATED&#xA;MANDATE_REVOKED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLBMRYHILLUN4WWG33NOBWGSYLOMNSS2Y3UOJWA)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MFSHM2LTN5ZHSLLDORZGYLLUN4WWG33NOBWGSYLOMNSS2Y3UOJWA">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLBMRYHILLUN4WWG33NOBWGSYLOMNSS2Y3UOJWA">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1119 166)" class="appendix-icon"><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWC25DPFVQWI5TJONXXE6JNMJTGM)">
+</g><g transform="translate(2048 821)" class="appendix-icon"><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLDORZGYLLUN4WWCZDWNFZW64TZFVRGMZQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWC25DPFVQWI5TJONXXE6JNMJTGM">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLDORZGYLLUN4WWCZDWNFZW64TZFVRGMZQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1420 166)" class="appendix-icon"><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWC25DPFVRW63LQNRUWC3TDMUWWG5DSNQ)">
+</g><g transform="translate(2342 821)" class="appendix-icon"><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLDORZGYLLUN4WWG33NOBWGSYLOMNSS2Y3UOJWA)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWC25DPFVRW63LQNRUWC3TDMUWWG5DSNQ">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MFSHM2LTN5ZHSLLDORZGYLLUN4WWG33NOBWGSYLOMNSS2Y3UOJWA">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(3237 166)" class="appendix-icon"><title>FRED_INDICATORS_UPDATED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-628723214-MZZGKZBNMFSHA5BNORXS23LBOJVWK5BNNFXHIZLMNRUWOZLOMNSS2Y3UOJWA)">
+</g><g transform="translate(2195 821)" class="appendix-icon"><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWC25DPFVQWI5TJONXXE6JNMJTGM)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-628723214-MZZGKZBNMFSHA5BNORXS23LBOJVWK5BNNFXHIZLMNRUWOZLOMNSS2Y3UOJWA">
+<clipPath id="clip0_3427_35082111-d2-2719411930-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWC25DPFVQWI5TJONXXE6JNMJTGM">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><mask id="d2-628723214" maskUnits="userSpaceOnUse" x="-50" y="-67" width="5613" height="660">
-<rect x="-50" y="-67" width="5613" height="660" fill="white"></rect>
+</g><g transform="translate(2862 821)" class="appendix-icon"><title>DECISION_PACKET_CREATED&#xA;DECISION_PACKET_ENRICHED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWC25DPFVRW63LQNRUWC3TDMUWWG5DSNQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2719411930-MRSWG2LTNFXW4LLXN5ZGWZTMN53S2Y3UOJWC25DPFVRW63LQNRUWC3TDMUWWG5DSNQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(339 166)" class="appendix-icon"><title>FRED_INDICATORS_UPDATED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2719411930-MZZGKZBNMFSHA5BNORXS23LBOJVWK5BNNFXHIZLMNRUWOZLOMNSS2Y3UOJWA)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2719411930-MZZGKZBNMFSHA5BNORXS23LBOJVWK5BNNFXHIZLMNRUWOZLOMNSS2Y3UOJWA">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><mask id="d2-2719411930" maskUnits="userSpaceOnUse" x="-50" y="-67" width="4833" height="1212">
+<rect x="-50" y="-67" width="4833" height="1212" fill="white"></rect>
 
 </mask></svg></svg>

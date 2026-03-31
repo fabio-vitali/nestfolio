@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1628 561"><svg class="d2-1170934828 d2-svg" width="1628" height="561" viewBox="-50 -143 1628 561"><rect x="-50.000000" y="-67.000000" width="1628.000000" height="475.000000" rx="0.000000" stroke="#FFFFFF" fill="#FFFFFF" stroke-width="0" /><style type="text/css"><![CDATA[
+<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1027 842"><svg class="d2-4245348617 d2-svg" width="1027" height="842" viewBox="-50 -143 1027 842"><rect x="-50.000000" y="-67.000000" width="1027.000000" height="756.000000" rx="0.000000" stroke="#FFFFFF" fill="#FFFFFF" stroke-width="0" /><style type="text/css"><![CDATA[
 .appendix-icon {
 	filter: drop-shadow(0px 0px 32px rgba(31, 36, 58, 0.1));
 }
-.d2-1170934828 .text-bold {
-	font-family: "d2-1170934828-font-bold";
+.d2-4245348617 .text-bold {
+	font-family: "d2-4245348617-font-bold";
 }
 @font-face {
-	font-family: d2-1170934828-font-bold;
-	src: url("data:application/font-woff;base64,d09GRgABAAAAABUEAAoAAAAAH4QAAguFAAAAAAAAAAAAAAAAAAAAAAAAAABPUy8yAAAA9AAAAGAAAABgXxHXrmNtYXAAAAFUAAAAtgAAAPYFwgcyZ2x5ZgAAAgwAAA3cAAATPCh4+mpoZWFkAAAP6AAAADYAAAA2G38e1GhoZWEAABAgAAAAJAAAACQKfwX+aG10eAAAEEQAAADXAAAA/IEZCr5sb2NhAAARHAAAAIAAAACAlOCZoG1heHAAABGcAAAAIAAAACAAVwD3bmFtZQAAEbwAAAMoAAAIKgjwVkFwb3N0AAAU5AAAAB0AAAAg/9EAMgADAioCvAAFAAACigJYAAAASwKKAlgAAAFeADIBKQAAAgsHAwMEAwICBGAAAvcAAAADAAAAAAAAAABBREJPACAAIP//Au7/BgAAA9gBESAAAZ8AAAAAAfAClAAAACAAA3icbM+5LgQBHIDx35jFsmute93jvtYy7kGjFa2ISpTiCbwYneNBFFov8ZdMlPu1X/IlHxKpBHUVv2hpSlVldnUUrt26c+/Bk5cIZNo6cldu/s2j54j40VCLiK/4jI94j+94i9ey3Z3EuQuFfbkDh44cO3HqTI9URa8+/aoGDKqpG9IwrGnEqDHjJkyacqll2oxZc+YtWJRZsmzFqjXrNmzasm1Huzza4w8AAP//AQAA//98iSLlAAB4nIRYa3Ab13n97sUSK4LgA48FCBDvxe4CIAESWCxAgiBBkCD4EMCnRVIWKSocKaJEiWIkyqQsysqMH2plKFJMRaas1nYzzsRt7cy4amcct2qnmXFcTTTjH7abTifxKx5VjduYTTmpY5OLzi7Al9KZ/hBWw7m499zznXO+bwElMACAp/B1UEApVIIWKABe49QwPMfRZJSPRmmjIsohDTmAteIPXuG8hNdL+Bwr9scnJ1H2IL6+ceJAdmrqd5PNzeKLP35LvILOvAWA818B4A6cg1LQAOhInmNZjlYqFTpeR3M0eb/q2crymnJCbfrq3hv3/sTzjgf1xuPBWT58Unwa5zbmb90CAFBAFgDHcQ40YAaXhI0PGQyUXklS8kNJK/hQRAizNK3hQ/Iz+1HqRJvfE+pIne6a7IwEQ+H08Ll4yzDOWdOJ2uFKonxvsuMRL7rko1mHODZWywAgCOTXcANegRqAEhfLCuFIhA8ZjCTL0i6lktIb+FAkalSiiaHLw/uuDCUOO/tMUbqup3ak25Oo7htSZ7538sTNQd510GgNHWw/POc2jR8CLOPP4ByoCswW0Stpjg9FJNwS4DcPPzc4cPWQ39I4HAgMN1pwLnV1bu65rgXPeF/ffgYkfFkA9AXOQZlcH8pJ8RRNOaksWhG//vBDVIlzS0+ev7G0tfaBzP2OtVl0S/zy009xbun5pQ2AzTun8ArY/687F68s0AKvUSrRyf3f3Td6bbTrm46sqdGXOTR+QM+qT/zG9a3ixcPOgwbb3NThOZVqblF83xko4MD7NjHzFC/wGlpDa7LLn1y//gnOff31xjyqElc3McPHOAcKea0muyyJABBU5dfQbZyDKgCji+WiBgmVoOE1eqXy095vug5rG0we73LdhLq5udfpCCbRD8VsYrp1k4dPcQ5KCns6qewywji3sboEm2fi13FOuj+v4XUGg5GPRKI6XkNLVERpkqQ5jrZhisr+2TGVVkWoNKqjLz9DlioIYWJwIkwQe0icEz+0tNpsrRbk2pj/wtE/YL/1+9/fsg/0O77YPEOqv65whpFnWUHiQcHRBgNFZZ//izaCqMhJj5JynBP/7lr427H7G/Oo8zuRpdi/AQCW6/QEXoHKh9QpK4kryF8uGBoZe3rv3qfHCp8dfX0dHX196qGbx2e+199/4/jxm0MX56emZmenpuahqM0GnAM16Hdpk6a2vPRx99l0er5zsHuxLZ7COW68PzNV/0s0NM37oIitF7+MV6AMWABmJxYXy+1CShqKHlKikSI0ZD56jZ6+UEA8N2ns91JMhVnbfOLstIRy+qz44ZGM4UeXC/Cf/Msal40kZkrLi9iHcQ4qwLgzFaRwkdAXIiH7eefpVEK4/oMLg5lYS0ssg3PMWF/3hFH8+vPP0aFgQwMr1YjOr2EVXgGfzO6mxsIsxwXwH5jCaCywhPRtF0OP0COegJ+v3eeMs83HUo1zvr2ONo71N/keaU7HZtUNgSM21mW1W7Xuivp0fWQsXOebMNXYLTabxlX9SGdkvBEQmACwDueAlG5CC06K1ty7jb66jauWljZWC1rtya/hfjkHJYyyAbadgPouPnM9Fo3Gv/Ok+sYr6KC4fCiTOYROit9/5QYgqABQOHAOnAC8YofOt/+noBWFfCYVl84971dWKAmVTpW+kFbpVARZTvqvzP+4bU95CaEs39OCc+K7/NFw+CiPguK7wWlBOBpCwY155GGzbneWFf8FUP5LAEzhHFQC8IKCNxaPivIK6s7bL8YqzOVEhaW8+YW3H6BXbjCdLNvJ3BDHH8ia8uXX0PtoHUxAy64XwpGoTD/JycWgNLSENSrFk5zNf58aeGoZ0157m1uon4lNfnNRRdi79pgYXV/crh5N9I1VOrlq6htW9+xp8TPeQp826kZVtdZqo3xeMr+GDfgO6ItJyNEkreEp8iGT0S6p6aBOZ4eVUJ9ZJqwpV3ysPj45xkZG6rx6j9rpEPCd1zJma+u3MvvOJRbTmWf8P9NWyPVz59fQHbQO5oezdjtqJWeYOk8lux9LBbosnbRDSCQaqgO6GDOibjk7NDzfYjNOWjPJtixVechRU/Afl19D6/gO6MCxyZW8MSeFzBZLm+L97fip5smwt9GkXF5UEeY0rua0ulo9HalXP3tu8GyrpTrz5xsdQTO9qDf9TFvR0dXTCVjG/glah+qHOoXsOKfkFgm7gpetj+xdp9s7TjR3TdQTWPy5Kh0UIkH24Au3uTpXRN06PzQ4n0jMpHRMaYR37jfbUMwr1Bc0Xg2A5vFd6Sn5IPqQ96Q2pnm0vd090GEPV9WUm9U1tv370YWTJTXCSFitPFFS4mRtZ8QnpbnBlfdjEq1DPTRDr8wMK4QlIiQxCZtXMPIUXQw9FyfXQZKXXqlU7EgyXTFNXKy85Lexg41duhpHtdkbOyjUOf+mnywNj0Wtdq3LOzD+jdRSr5XjrFaO84baOIY3OdU1Le+ZG+viHqLcY68JVRHaVG2836OeKXPpm3rdqkqDTtvcwQ8G0F2fl/N6PF6fuOw2GasUimqTxVrgJikVW9ao3EvJTSNoZJSkJrlMWvaGBnuWrQ6LpxrfeW2/qXZmQryHnBGPySi+Afk8RAHgl/g9zEILAJDQCpe39rbhO6Au9Ek+yks5SlLJq8Sfvvyjv31pLoHviLNv3xN/8Y9dj0vr82tIi+9I3jbuyCJJBP+UaV7WlJaQSq2aUR/Yi+mNnxu1CJ0sIQvnKKxoXc4hDS/lgVTdXTcht55JycPpoJDUOXuDA3uXrQ6mQfqoR6ttdn+txxXcvF6D+EbxsckTWi/yVDxjJ0+LKsKR3SIKrSZs/l08FfQua+f/77eGxKlU6lQiMZtKzSb8gYA/4PcXvdoyPzx0tmUh25bMSJYt5Ew3NqB10IENwLiNTpYfyxkp3XbMSDitPdyj0/HJiCNuLulnIyO1Pr3nTfxq0Ez/8Zl9i4kaU/93kXsrZKQs6Ebr8v4OgBIhKm+7aSI+ymsUO7MAHVOa2l2FQGiVEu2zrTB48/lMtV0OBKsjuDGG3NtpUNQLuorWQburjgWXFhiuybCURVVdbqqytOjR6mgoWFJykSC8IfFjQEDl19BLaB24XTNdmGUL/XZrM6nb2jClV74XPMq2uxJ2p80aMNuaPcf2NY3a281hc1MT62jxTqtZ+7ipxqjTGHQqtbvJ2znCVY/pDVy1qaKMbgp0TBQ8pMmvoVk8L00MUg8VaCEa5eXheDuAYbw/ldE8vrBAW9UmlVEXVR8fuXtS+dRTZ97xMUpiRqku7BXPr6Ev0aqks10e0BRj958He5ZtDgtrWF4sU9h71TMTKCx+JHjNVtQtVnUydYAkv6E8WoVyuS/vaJG3f3i9Teq8pTpV8sr30eqvmSzHZZlfi1WbOYlX0Wqxn29/b8cOdPF9iySvLz3XoFQpCbK8NHqxsbSSJMhSsv6PFl7zk+UkQZaRdWj1PtPNsr30ffnZzdwXq35Kpz2eNP1T+bwKALSGVqU5hddxO44hjdvnVKxcfbFOZVARe7R7XCvXbr7YoDaqiVJ9KYfwbwaoWoqqpQby/zVE1VFUrWFI2ledb0UbaFVy2bYOotFdVFTgRYOz0kxq9zAeFfkP17vKtCpij6Y0fuU1Y2P/T5TEHCpxW83oVx+40gzdRX8glrXu8xVqlAZA/4rPy7kmtUMhEolK4Zm+vBDudp1YWECnDqgs+o31hcJ6GwD6DF8Ci7S+FRdsXpw5ZJdKqctTzOCFdNDrilYP1E+lEgeF5vFwddzw7UeyF47564OcuT/Ehw60CKdORRQlS9K+hvwa+ghfAu/DeqeFzTDZnGy2X2z/O3uSTlnTnvpGS2/nSJuHdUVtvXVTsalzUT7alZxRhzwTFjfntngN0/Wsk7GZH2VrDwwH0waiKtvaPFxbmA90AOhLfB5KJaXqeKn7SeXSCU5BJ3FBUy8/U4IItbkiJP7ng7/u6UF7jtoHbeZIjTi7cgQ9IV6ZW5HuYMyvoY/xeWkC2HUHGbvOSdHkFkv/03eCbbemPMFYY52FsbZr0fS/lznZ6IHG5HF1mJkwM6FgQ6hC60PJpYVK32gqfTgsY/Xm19B/4EtQBh4A5Cq+MQhhVvGHb+TkVnQinYnXqxqdzvp6W8tsZ8/ZjsS4LVsVtdAxWmHqsQ7NxCYRY3XtbQpGQj7x3eSzpxZWevz2MW0NM9rroCePtE+G5frXAaD7+Lzsx1YcdQpOqkJBvqR0pePir9Bb0Q6mijj+6gvDS492PHb+2oT8+4Q0qz6QNcNBeKtbbE8YO0uqeHimYDl5fEVk4nAs4WcawuPNo8dDzkBb4xEL53VbfXE10+CKeyhLTF3Xz8d6qwlLdyjS75vsD3QZCFNfIjQQQE/4Gxi/m+HqxA84j4WxanSC1VcPGFz5NXRf5tMLoCvkk8yebquCkUKT2NXhXm1wm3idKupyNLQkJmx9VRGLu8mNTT3WyL5Q7FBTq0Qy+quQT+ZUVAdsBSrtbt9oR/shPnl57rGbPYCgJb8GX8Dr0vt/YTIt0HGD5XmW5Xm1wHkEwcMJhd8iWhHA61JPMXKRCOdy0Tu+krE1xhAmMB2JsKHw+E/69Emm1sMGepNDiwXv1sJd5ERBUABEBZ6q/d3d6elCxsyjB/l3pL8bBSelRr/IDQ8Xehi8j1Y3f29ILqNVsQpQ/nXcBMP4PQmzZgcAJhBgmEAAN/lo2if9g/8FAAD//wEAAP//5CAMMAABAAAAAguFAN3yNV8PPPUAAQPoAAAAANhdoIQAAAAA3WYvNv43/sQIbQPxAAEAAwACAAAAAAAAAAEAAAPY/u8AAAiY/jf+NwhtAAEAAAAAAAAAAAAAAAAAAAA/eJwsyjFKA1EUhtHv/gNBcYxXjDE2KeKAmLxMq2CmeE1A8IKFFhaWrkLQHdintdbG1g3YuxULGZARxeo0R69c8A5qulY3hJbUuiNUESoJ3VPribA5Yd+4eoRaQitCz9S6/PeWUOJAiX2tOCvm9LXZfWmLqRqyfVCp4VA9KrtipCETnZJtwLEqso3JxTVZC7Jmfzf/fnsk2xu79sC2Tlhog7JYYyTR1zqlnKWcsZyhnB05e3KO5CQ5UzkTSzSWqO2cmX1S2oAM3csPAAAA//8BAAD//za+I0EAAAAALAAsAFAAhACwANQA6gD+AS4BRAFQAW4BfgGwAdIB/gIgAlwCggLCAtQC8gMsA0oDggO0A+AEEgRGBGwE1AT2BQIFGgU2BWgFigW2BeYGGgY6BnYGnAa+BtoHEgc+B24HhgeyB/AIFAhGCIYIoAjuCS4JRAlkCXAJfAmICZ4AAQAAAD8AkAAMAGMABwABAAAAAAAAAAAAAAAAAAQAA3icnJTPbhtVFMZ/TmzTCsECRVW6ie6CRZHo2FRJ1TYrh9SKRRQHjwtCQkgTz/iPMp4ZeSYO4QlY8xa8RVc8BM+BWKP5fOzYBdEmipJ8d+75851zvnOBHf5mm0r1IfBHPTFcYa9+bniLB/UTw9u061uGqzyp/Wm4RlibG67zea1n+CPeVn8z/ID96k+GH7JbbRv+mGfVHcOfbDv+Mvwp+7xd4Aq84FfDFXbJDG+xw4+Gt3mExaxUeUTTcI3P2DNcZw/oM6EgZkLCCMeQCSOumBGR4xMxY8KQiBBHhxYxhb4mBEKO0X9+DfApmBEo4pgCR4xPTEDO2CL+Iq+Uc2Uc6jSzuxYFYwIu5HFJQIIjZURKQsSl4hQUZLyiQYOcgfhmFOR45EyI8UiZMaJBlzan9BkzIcfRVqSSmU/KkIJrAuV3ZlF2ZkBEQm6srkgIxdOJXyTvDqc4umSyXY98uhHhSxzfybvklsr2Kzz9ujVmm3mXbALm6mesrsS6udYEx7ot87b4VrjgFe5e/dlk8v4ehfpfKPIFV5p/qEklYpLg3C4tfCnId49xHOncwVdHvqdDnxO6vKGvc4sePVqc0afDa/l26eH4mi5nHMujI7y4a0sxZ/yA4xs6siljR9afxcQifiYzdefiOFMdUzL1vGTuqdZIFd59wuUOpRvqyOUz0B6Vlk7zS7RnASNTRSaGU/VyqY3c+heaIqaqpZzt7X25DXPbveUW35Bqh0u1LjiVk1swet9UvXc0c60fj4CQlAtZDEiZ0qDgRrzPCbgixnGs7p1oSwpaK58yz41UEjEVgw6J4szI9Dcw3fjGfbChe2dvSSj/kunlqqr7ZHHq1e2M3qh7yzvfuhytTaBhU03X1DQQ18S0H2mn1vn78s31uqU85YiUmPBfL8AzPJrsc8AhY2UY6GZur0NTL0STlxyq+ksiWQ2l58giHODxnAMOeMnzd/q4ZOKMi1txWc/d4pgjuhx+UBUL+y5HvF59+/+sv4tpU7U4nq5OL+49xSd3UOsX2rPb97KniZWTmFu02604I2BacnG76zW5x3j/AAAA//8BAAD///S3T1F4nGJgZgCD/+cYjBiwAAAAAAD//wEAAP//LwECAwAAAA==");
+	font-family: d2-4245348617-font-bold;
+	src: url("data:application/font-woff;base64,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");
 }]]></style><style type="text/css"><![CDATA[.shape {
   shape-rendering: geometricPrecision;
   stroke-linejoin: round;
@@ -21,78 +21,78 @@
   opacity: 0.5;
 }
 
-		.d2-1170934828 .fill-N1{fill:#0A0F25;}
-		.d2-1170934828 .fill-N2{fill:#676C7E;}
-		.d2-1170934828 .fill-N3{fill:#9499AB;}
-		.d2-1170934828 .fill-N4{fill:#CFD2DD;}
-		.d2-1170934828 .fill-N5{fill:#DEE1EB;}
-		.d2-1170934828 .fill-N6{fill:#EEF1F8;}
-		.d2-1170934828 .fill-N7{fill:#FFFFFF;}
-		.d2-1170934828 .fill-B1{fill:#0D32B2;}
-		.d2-1170934828 .fill-B2{fill:#0D32B2;}
-		.d2-1170934828 .fill-B3{fill:#E3E9FD;}
-		.d2-1170934828 .fill-B4{fill:#E3E9FD;}
-		.d2-1170934828 .fill-B5{fill:#EDF0FD;}
-		.d2-1170934828 .fill-B6{fill:#F7F8FE;}
-		.d2-1170934828 .fill-AA2{fill:#4A6FF3;}
-		.d2-1170934828 .fill-AA4{fill:#EDF0FD;}
-		.d2-1170934828 .fill-AA5{fill:#F7F8FE;}
-		.d2-1170934828 .fill-AB4{fill:#EDF0FD;}
-		.d2-1170934828 .fill-AB5{fill:#F7F8FE;}
-		.d2-1170934828 .stroke-N1{stroke:#0A0F25;}
-		.d2-1170934828 .stroke-N2{stroke:#676C7E;}
-		.d2-1170934828 .stroke-N3{stroke:#9499AB;}
-		.d2-1170934828 .stroke-N4{stroke:#CFD2DD;}
-		.d2-1170934828 .stroke-N5{stroke:#DEE1EB;}
-		.d2-1170934828 .stroke-N6{stroke:#EEF1F8;}
-		.d2-1170934828 .stroke-N7{stroke:#FFFFFF;}
-		.d2-1170934828 .stroke-B1{stroke:#0D32B2;}
-		.d2-1170934828 .stroke-B2{stroke:#0D32B2;}
-		.d2-1170934828 .stroke-B3{stroke:#E3E9FD;}
-		.d2-1170934828 .stroke-B4{stroke:#E3E9FD;}
-		.d2-1170934828 .stroke-B5{stroke:#EDF0FD;}
-		.d2-1170934828 .stroke-B6{stroke:#F7F8FE;}
-		.d2-1170934828 .stroke-AA2{stroke:#4A6FF3;}
-		.d2-1170934828 .stroke-AA4{stroke:#EDF0FD;}
-		.d2-1170934828 .stroke-AA5{stroke:#F7F8FE;}
-		.d2-1170934828 .stroke-AB4{stroke:#EDF0FD;}
-		.d2-1170934828 .stroke-AB5{stroke:#F7F8FE;}
-		.d2-1170934828 .background-color-N1{background-color:#0A0F25;}
-		.d2-1170934828 .background-color-N2{background-color:#676C7E;}
-		.d2-1170934828 .background-color-N3{background-color:#9499AB;}
-		.d2-1170934828 .background-color-N4{background-color:#CFD2DD;}
-		.d2-1170934828 .background-color-N5{background-color:#DEE1EB;}
-		.d2-1170934828 .background-color-N6{background-color:#EEF1F8;}
-		.d2-1170934828 .background-color-N7{background-color:#FFFFFF;}
-		.d2-1170934828 .background-color-B1{background-color:#0D32B2;}
-		.d2-1170934828 .background-color-B2{background-color:#0D32B2;}
-		.d2-1170934828 .background-color-B3{background-color:#E3E9FD;}
-		.d2-1170934828 .background-color-B4{background-color:#E3E9FD;}
-		.d2-1170934828 .background-color-B5{background-color:#EDF0FD;}
-		.d2-1170934828 .background-color-B6{background-color:#F7F8FE;}
-		.d2-1170934828 .background-color-AA2{background-color:#4A6FF3;}
-		.d2-1170934828 .background-color-AA4{background-color:#EDF0FD;}
-		.d2-1170934828 .background-color-AA5{background-color:#F7F8FE;}
-		.d2-1170934828 .background-color-AB4{background-color:#EDF0FD;}
-		.d2-1170934828 .background-color-AB5{background-color:#F7F8FE;}
-		.d2-1170934828 .color-N1{color:#0A0F25;}
-		.d2-1170934828 .color-N2{color:#676C7E;}
-		.d2-1170934828 .color-N3{color:#9499AB;}
-		.d2-1170934828 .color-N4{color:#CFD2DD;}
-		.d2-1170934828 .color-N5{color:#DEE1EB;}
-		.d2-1170934828 .color-N6{color:#EEF1F8;}
-		.d2-1170934828 .color-N7{color:#FFFFFF;}
-		.d2-1170934828 .color-B1{color:#0D32B2;}
-		.d2-1170934828 .color-B2{color:#0D32B2;}
-		.d2-1170934828 .color-B3{color:#E3E9FD;}
-		.d2-1170934828 .color-B4{color:#E3E9FD;}
-		.d2-1170934828 .color-B5{color:#EDF0FD;}
-		.d2-1170934828 .color-B6{color:#F7F8FE;}
-		.d2-1170934828 .color-AA2{color:#4A6FF3;}
-		.d2-1170934828 .color-AA4{color:#EDF0FD;}
-		.d2-1170934828 .color-AA5{color:#F7F8FE;}
-		.d2-1170934828 .color-AB4{color:#EDF0FD;}
-		.d2-1170934828 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-1170934828);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-1170934828);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-1170934828);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-1170934828);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-1170934828);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-1170934828);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-1170934828);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-1170934828);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-1170934828);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-1170934828);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-1170934828);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-1170934828);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-1170934828);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-1170934828);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-1170934828);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-1170934828);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-1170934828);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-1170934828);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><text x="-40" y="-83" font-family="Source Sans Pro, sans-serif" font-size="48" font-weight="700" fill="#000000">Ledger Domain</text><defs>
+		.d2-4245348617 .fill-N1{fill:#0A0F25;}
+		.d2-4245348617 .fill-N2{fill:#676C7E;}
+		.d2-4245348617 .fill-N3{fill:#9499AB;}
+		.d2-4245348617 .fill-N4{fill:#CFD2DD;}
+		.d2-4245348617 .fill-N5{fill:#DEE1EB;}
+		.d2-4245348617 .fill-N6{fill:#EEF1F8;}
+		.d2-4245348617 .fill-N7{fill:#FFFFFF;}
+		.d2-4245348617 .fill-B1{fill:#0D32B2;}
+		.d2-4245348617 .fill-B2{fill:#0D32B2;}
+		.d2-4245348617 .fill-B3{fill:#E3E9FD;}
+		.d2-4245348617 .fill-B4{fill:#E3E9FD;}
+		.d2-4245348617 .fill-B5{fill:#EDF0FD;}
+		.d2-4245348617 .fill-B6{fill:#F7F8FE;}
+		.d2-4245348617 .fill-AA2{fill:#4A6FF3;}
+		.d2-4245348617 .fill-AA4{fill:#EDF0FD;}
+		.d2-4245348617 .fill-AA5{fill:#F7F8FE;}
+		.d2-4245348617 .fill-AB4{fill:#EDF0FD;}
+		.d2-4245348617 .fill-AB5{fill:#F7F8FE;}
+		.d2-4245348617 .stroke-N1{stroke:#0A0F25;}
+		.d2-4245348617 .stroke-N2{stroke:#676C7E;}
+		.d2-4245348617 .stroke-N3{stroke:#9499AB;}
+		.d2-4245348617 .stroke-N4{stroke:#CFD2DD;}
+		.d2-4245348617 .stroke-N5{stroke:#DEE1EB;}
+		.d2-4245348617 .stroke-N6{stroke:#EEF1F8;}
+		.d2-4245348617 .stroke-N7{stroke:#FFFFFF;}
+		.d2-4245348617 .stroke-B1{stroke:#0D32B2;}
+		.d2-4245348617 .stroke-B2{stroke:#0D32B2;}
+		.d2-4245348617 .stroke-B3{stroke:#E3E9FD;}
+		.d2-4245348617 .stroke-B4{stroke:#E3E9FD;}
+		.d2-4245348617 .stroke-B5{stroke:#EDF0FD;}
+		.d2-4245348617 .stroke-B6{stroke:#F7F8FE;}
+		.d2-4245348617 .stroke-AA2{stroke:#4A6FF3;}
+		.d2-4245348617 .stroke-AA4{stroke:#EDF0FD;}
+		.d2-4245348617 .stroke-AA5{stroke:#F7F8FE;}
+		.d2-4245348617 .stroke-AB4{stroke:#EDF0FD;}
+		.d2-4245348617 .stroke-AB5{stroke:#F7F8FE;}
+		.d2-4245348617 .background-color-N1{background-color:#0A0F25;}
+		.d2-4245348617 .background-color-N2{background-color:#676C7E;}
+		.d2-4245348617 .background-color-N3{background-color:#9499AB;}
+		.d2-4245348617 .background-color-N4{background-color:#CFD2DD;}
+		.d2-4245348617 .background-color-N5{background-color:#DEE1EB;}
+		.d2-4245348617 .background-color-N6{background-color:#EEF1F8;}
+		.d2-4245348617 .background-color-N7{background-color:#FFFFFF;}
+		.d2-4245348617 .background-color-B1{background-color:#0D32B2;}
+		.d2-4245348617 .background-color-B2{background-color:#0D32B2;}
+		.d2-4245348617 .background-color-B3{background-color:#E3E9FD;}
+		.d2-4245348617 .background-color-B4{background-color:#E3E9FD;}
+		.d2-4245348617 .background-color-B5{background-color:#EDF0FD;}
+		.d2-4245348617 .background-color-B6{background-color:#F7F8FE;}
+		.d2-4245348617 .background-color-AA2{background-color:#4A6FF3;}
+		.d2-4245348617 .background-color-AA4{background-color:#EDF0FD;}
+		.d2-4245348617 .background-color-AA5{background-color:#F7F8FE;}
+		.d2-4245348617 .background-color-AB4{background-color:#EDF0FD;}
+		.d2-4245348617 .background-color-AB5{background-color:#F7F8FE;}
+		.d2-4245348617 .color-N1{color:#0A0F25;}
+		.d2-4245348617 .color-N2{color:#676C7E;}
+		.d2-4245348617 .color-N3{color:#9499AB;}
+		.d2-4245348617 .color-N4{color:#CFD2DD;}
+		.d2-4245348617 .color-N5{color:#DEE1EB;}
+		.d2-4245348617 .color-N6{color:#EEF1F8;}
+		.d2-4245348617 .color-N7{color:#FFFFFF;}
+		.d2-4245348617 .color-B1{color:#0D32B2;}
+		.d2-4245348617 .color-B2{color:#0D32B2;}
+		.d2-4245348617 .color-B3{color:#E3E9FD;}
+		.d2-4245348617 .color-B4{color:#E3E9FD;}
+		.d2-4245348617 .color-B5{color:#EDF0FD;}
+		.d2-4245348617 .color-B6{color:#F7F8FE;}
+		.d2-4245348617 .color-AA2{color:#4A6FF3;}
+		.d2-4245348617 .color-AA4{color:#EDF0FD;}
+		.d2-4245348617 .color-AA5{color:#F7F8FE;}
+		.d2-4245348617 .color-AB4{color:#EDF0FD;}
+		.d2-4245348617 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-4245348617);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-4245348617);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-4245348617);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-4245348617);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-4245348617);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-4245348617);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-4245348617);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-4245348617);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-4245348617);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-4245348617);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-4245348617);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-4245348617);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-4245348617);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-4245348617);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-4245348617);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-4245348617);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-4245348617);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-4245348617);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><text x="-40" y="-83" font-family="Source Sans Pro, sans-serif" font-size="48" font-weight="700" fill="#000000">Ledger Domain</text><defs>
 	<filter id="shadow-filter" width="200%" height="200%" x="-50%" y="-50%">
 		<feGaussianBlur stdDeviation="1.7 " in="SourceGraphic"></feGaussianBlur>
 		<feFlood flood-color="#3d4574" flood-opacity="0.4" result="ShadowFeFlood" in="SourceGraphic"></feFlood>
@@ -100,120 +100,146 @@
 		<feOffset dx="3" dy="5" result="ShadowFeOffset" in="ShadowFeComposite"></feOffset>
 		<feBlend in="SourceGraphic" in2="ShadowFeOffset" mode="normal" result="ShadowFeBlend"></feBlend>
 	</filter>
-</defs><a href="c3-ledger-bff.svg" xlink:href="c3-ledger-bff.svg"><g class="bGVkZ2VyLWJmZg=="><g class="shape" filter="url(#shadow-filter)" ><rect x="12.000000" y="12.000000" width="274.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="149.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Ledger BFF</text><title>Backend-for-frontend that provides a GraphQL API for historical portfolio queries, supporting point-in-time portfolio snapshots, transaction history, and balance lookups.</title></g></a><a href="c3-ledger-ctrl.svg" xlink:href="c3-ledger-ctrl.svg"><g class="bGVkZ2VyLWN0cmw="><g class="shape" filter="url(#shadow-filter)" ><rect x="306.000000" y="12.000000" width="373.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="492.500000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Ledger Controller</text><title>The immutable financial ledger that records every transaction, position change, and valuation as append-only entries, serving as the single source of truth for portfolio accounting.</title></g></a><a href="c3-reconciliation-ctrl.svg" xlink:href="c3-reconciliation-ctrl.svg"><g class="cmVjb25jaWxpYXRpb24tY3RybA=="><g class="shape" filter="url(#shadow-filter)" ><rect x="699.000000" y="12.000000" width="485.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="941.500000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Reconciliation Controller</text><title>Reconciles broker-reported positions and transactions against the internal ledger, detecting discrepancies, flagging mismatches, and emitting reconciliation status events for cross-domain visibility.</title></g></a><a href="c3-ledger-adpt.svg" xlink:href="c3-ledger-adpt.svg"><g class="bGVkZ2VyLWFkcHQ="><g class="shape" filter="url(#shadow-filter)" ><rect x="1160.000000" y="253.000000" width="339.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="1329.500000" y="309.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Ledger Adapter</text><title>Ingests cross-domain events from the execution bus into the ledger domain bus, subscribing to order fills, deposit and withdrawal completions, corporate actions, and portfolio snapshots.</title></g></a><g class="ZXh0LWV4ZWN1dGlvbg=="><g class="shape" ><rect x="1204.000000" y="22.000000" width="251.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="1329.500000" y="70.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Execution Domain</text></g><g class="ZXhlY3V0aW9uLXRvLWxlZGdlci1hZHB0"><g class="shape" ><rect x="1266.000000" y="140.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="1329.500000" y="184.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">9 Events</text><title>ORDER_FILLED&#xA;ORDER_PARTIALLY_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;WITHDRAWAL_COMPLETED&#xA;CORPORATE_ACTION_APPLIED&#xA;PORTFOLIO_SNAPSHOT_IMPORTED&#xA;ALPACA_ACCOUNT_SNAPSHOT</title></g><g class="KGV4dC1leGVjdXRpb24gLSZndDsgZXhlY3V0aW9uLXRvLWxlZGdlci1hZHB0KVswXQ=="><marker id="mk-d2-1170934828-2749698431" markerWidth="13.000000" markerHeight="16.000000" refX="8.500000" refY="8.000000" viewBox="0.000000 0.000000 13.000000 16.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 13.000000,8.000000 0.000000,16.000000" fill="#999999" class="connection" stroke-width="3" /> </marker><path d="M 1329.500000 102.000000 L 1329.500000 135.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-1170934828-2749698431)" mask="url(#d2-1170934828)" /></g><g class="KGV4ZWN1dGlvbi10by1sZWRnZXItYWRwdCAtJmd0OyBsZWRnZXItYWRwdClbMF0="><path d="M 1329.500000 215.000000 L 1329.500000 247.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-1170934828-2749698431)" mask="url(#d2-1170934828)" /></g><g transform="translate(270 -4)" class="appendix-icon"><title>Backend-for-frontend that provides a GraphQL API for historical portfolio queries, supporting point-in-time portfolio snapshots, transaction history, and balance lookups.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-1170934828-NRSWIZ3FOIWWEZTG)">
+</defs><a href="c3-ledger-bff.svg" xlink:href="c3-ledger-bff.svg"><g class="bGVkZ2VyLWJmZg=="><g class="shape" filter="url(#shadow-filter)" ><rect x="12.000000" y="12.000000" width="274.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="149.000000" y="68.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Ledger BFF</text><title>Backend-for-frontend that provides a GraphQL API for historical portfolio queries, supporting point-in-time portfolio snapshots, transaction history, and balance lookups.</title></g></a><a href="c3-ledger-ctrl.svg" xlink:href="c3-ledger-ctrl.svg"><g class="bGVkZ2VyLWN0cmw="><g class="shape" filter="url(#shadow-filter)" ><rect x="20.000000" y="534.000000" width="373.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="206.500000" y="590.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Ledger Controller</text><title>The immutable financial ledger that records every transaction, position change, and valuation as append-only entries, serving as the single source of truth for portfolio accounting.</title></g></a><a href="c3-reconciliation-ctrl.svg" xlink:href="c3-reconciliation-ctrl.svg"><g class="cmVjb25jaWxpYXRpb24tY3RybA=="><g class="shape" filter="url(#shadow-filter)" ><rect x="413.000000" y="534.000000" width="485.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="655.500000" y="590.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Reconciliation Controller</text><title>Reconciles broker-reported positions and transactions against the internal ledger, detecting discrepancies, flagging mismatches, and emitting reconciliation status events for cross-domain visibility.</title></g></a><a href="c3-ledger-adpt.svg" xlink:href="c3-ledger-adpt.svg"><g class="bGVkZ2VyLWFkcHQ="><g class="shape" filter="url(#shadow-filter)" ><rect x="262.000000" y="253.000000" width="339.000000" height="88.000000" rx="14.000000" stroke="#2E6295" fill="#438DD5" style="stroke-width:3;" /></g><text x="431.500000" y="309.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:34px">Ledger Adapter</text><title>Ingests cross-domain events from the execution bus into the ledger domain bus, subscribing to order fills, deposit and withdrawal completions, corporate actions, and portfolio snapshots.</title></g></a><g class="ZXh0LWV4ZWN1dGlvbg=="><g class="shape" ><rect x="306.000000" y="22.000000" width="251.000000" height="78.000000" rx="10.000000" stroke="#666666" fill="#8B8B8B" style="stroke-width:1;stroke-dasharray:5.000000,5.000000;" /></g><text x="431.500000" y="70.500000" fill="#ffffff" class="text-bold" style="text-anchor:middle;font-size:26px">Execution Domain</text></g><g class="ZXhlY3V0aW9uLXRvLWxlZGdlci1hZHB0"><g class="shape" ><rect x="368.000000" y="140.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="431.500000" y="184.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">9 Events</text><title>ORDER_FILLED&#xA;ORDER_PARTIALLY_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;WITHDRAWAL_COMPLETED&#xA;CORPORATE_ACTION_APPLIED&#xA;PORTFOLIO_SNAPSHOT_IMPORTED&#xA;ALPACA_ACCOUNT_SNAPSHOT</title></g><g class="bGVkZ2VyLWFkcHQtdG8tbGVkZ2VyLWN0cmw="><g class="shape" ><rect x="143.000000" y="421.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="206.500000" y="465.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">6 Events</text><title>ORDER_FILLED&#xA;ORDER_PARTIALLY_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;WITHDRAWAL_COMPLETED</title></g><g class="bGVkZ2VyLWFkcHQtdG8tcmVjb25jaWxpYXRpb24tY3RybA=="><g class="shape" ><rect x="592.000000" y="421.000000" width="127.000000" height="73.000000" rx="20.000000" stroke="#999999" fill="#F5F5F5" style="stroke-width:1;" /></g><text x="655.500000" y="465.500000" fill="#666666" class="text-bold" style="text-anchor:middle;font-size:22px">3 Events</text><title>CORPORATE_ACTION_APPLIED&#xA;PORTFOLIO_SNAPSHOT_IMPORTED&#xA;ALPACA_ACCOUNT_SNAPSHOT</title></g><g class="KGV4dC1leGVjdXRpb24gLSZndDsgZXhlY3V0aW9uLXRvLWxlZGdlci1hZHB0KVswXQ=="><marker id="mk-d2-4245348617-2749698431" markerWidth="13.000000" markerHeight="16.000000" refX="8.500000" refY="8.000000" viewBox="0.000000 0.000000 13.000000 16.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 13.000000,8.000000 0.000000,16.000000" fill="#999999" class="connection" stroke-width="3" /> </marker><path d="M 431.500000 102.000000 L 431.500000 135.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-4245348617-2749698431)" mask="url(#d2-4245348617)" /></g><g class="KGV4ZWN1dGlvbi10by1sZWRnZXItYWRwdCAtJmd0OyBsZWRnZXItYWRwdClbMF0="><path d="M 431.500000 215.000000 L 431.500000 247.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-4245348617-2749698431)" mask="url(#d2-4245348617)" /></g><g class="KGxlZGdlci1hZHB0IC0mZ3Q7IGxlZGdlci1hZHB0LXRvLWxlZGdlci1jdHJsKVswXQ=="><path d="M 375.000000 344.000000 L 375.000000 371.000000 S 375.000000 381.000000 365.000000 381.000000 L 217.000000 381.000000 S 207.000000 381.000000 207.000000 391.000000 L 207.000000 416.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-4245348617-2749698431)" mask="url(#d2-4245348617)" /></g><g class="KGxlZGdlci1hZHB0LXRvLWxlZGdlci1jdHJsIC0mZ3Q7IGxlZGdlci1jdHJsKVswXQ=="><path d="M 207.000000 496.000000 L 207.000000 528.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-4245348617-2749698431)" mask="url(#d2-4245348617)" /></g><g class="KGxlZGdlci1hZHB0IC0mZ3Q7IGxlZGdlci1hZHB0LXRvLXJlY29uY2lsaWF0aW9uLWN0cmwpWzBd"><path d="M 488.000000 344.000000 L 488.000000 371.000000 S 488.000000 381.000000 498.000000 381.000000 L 646.000000 381.000000 S 656.000000 381.000000 656.000000 391.000000 L 656.000000 416.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-4245348617-2749698431)" mask="url(#d2-4245348617)" /></g><g class="KGxlZGdlci1hZHB0LXRvLXJlY29uY2lsaWF0aW9uLWN0cmwgLSZndDsgcmVjb25jaWxpYXRpb24tY3RybClbMF0="><path d="M 656.000000 496.000000 L 656.000000 528.000000" stroke="#999999" fill="none" class="connection" style="stroke-width:3;stroke-dasharray:9.000000,8.750172;" marker-end="url(#mk-d2-4245348617-2749698431)" mask="url(#d2-4245348617)" /></g><g transform="translate(270 -4)" class="appendix-icon"><title>Backend-for-frontend that provides a GraphQL API for historical portfolio queries, supporting point-in-time portfolio snapshots, transaction history, and balance lookups.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-4245348617-NRSWIZ3FOIWWEZTG)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-1170934828-NRSWIZ3FOIWWEZTG">
+<clipPath id="clip0_3427_35082111-d2-4245348617-NRSWIZ3FOIWWEZTG">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
 </g><g transform="translate(238 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-1170934828-NRSWIZ3FOIWWEZTG)">
+<g clip-path="url(#clip0_3440_35088111-d2-4245348617-NRSWIZ3FOIWWEZTG)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-1170934828-NRSWIZ3FOIWWEZTG">
+<clipPath id="clip0_3440_35088111-d2-4245348617-NRSWIZ3FOIWWEZTG">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(663 -4)" class="appendix-icon"><title>The immutable financial ledger that records every transaction, position change, and valuation as append-only entries, serving as the single source of truth for portfolio accounting.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-1170934828-NRSWIZ3FOIWWG5DSNQ)">
+</g><g transform="translate(377 518)" class="appendix-icon"><title>The immutable financial ledger that records every transaction, position change, and valuation as append-only entries, serving as the single source of truth for portfolio accounting.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-4245348617-NRSWIZ3FOIWWG5DSNQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-1170934828-NRSWIZ3FOIWWG5DSNQ">
+<clipPath id="clip0_3427_35082111-d2-4245348617-NRSWIZ3FOIWWG5DSNQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(631 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-1170934828-NRSWIZ3FOIWWG5DSNQ)">
+</g><g transform="translate(345 518)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-4245348617-NRSWIZ3FOIWWG5DSNQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-1170934828-NRSWIZ3FOIWWG5DSNQ">
+<clipPath id="clip0_3440_35088111-d2-4245348617-NRSWIZ3FOIWWG5DSNQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1168 -4)" class="appendix-icon"><title>Reconciles broker-reported positions and transactions against the internal ledger, detecting discrepancies, flagging mismatches, and emitting reconciliation status events for cross-domain visibility.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-1170934828-OJSWG33OMNUWY2LBORUW63RNMN2HE3A)">
+</g><g transform="translate(882 518)" class="appendix-icon"><title>Reconciles broker-reported positions and transactions against the internal ledger, detecting discrepancies, flagging mismatches, and emitting reconciliation status events for cross-domain visibility.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-4245348617-OJSWG33OMNUWY2LBORUW63RNMN2HE3A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-1170934828-OJSWG33OMNUWY2LBORUW63RNMN2HE3A">
+<clipPath id="clip0_3427_35082111-d2-4245348617-OJSWG33OMNUWY2LBORUW63RNMN2HE3A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1136 -4)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-1170934828-OJSWG33OMNUWY2LBORUW63RNMN2HE3A)">
+</g><g transform="translate(850 518)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-4245348617-OJSWG33OMNUWY2LBORUW63RNMN2HE3A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-1170934828-OJSWG33OMNUWY2LBORUW63RNMN2HE3A">
+<clipPath id="clip0_3440_35088111-d2-4245348617-OJSWG33OMNUWY2LBORUW63RNMN2HE3A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1483 237)" class="appendix-icon"><title>Ingests cross-domain events from the execution bus into the ledger domain bus, subscribing to order fills, deposit and withdrawal completions, corporate actions, and portfolio snapshots.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-1170934828-NRSWIZ3FOIWWCZDQOQ)">
+</g><g transform="translate(585 237)" class="appendix-icon"><title>Ingests cross-domain events from the execution bus into the ledger domain bus, subscribing to order fills, deposit and withdrawal completions, corporate actions, and portfolio snapshots.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-4245348617-NRSWIZ3FOIWWCZDQOQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-1170934828-NRSWIZ3FOIWWCZDQOQ">
+<clipPath id="clip0_3427_35082111-d2-4245348617-NRSWIZ3FOIWWCZDQOQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1451 237)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3440_35088111-d2-1170934828-NRSWIZ3FOIWWCZDQOQ)">
+</g><g transform="translate(553 237)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-4245348617-NRSWIZ3FOIWWCZDQOQ)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3440_35088111-d2-1170934828-NRSWIZ3FOIWWCZDQOQ">
+<clipPath id="clip0_3440_35088111-d2-4245348617-NRSWIZ3FOIWWCZDQOQ">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><g transform="translate(1377 124)" class="appendix-icon"><title>ORDER_FILLED&#xA;ORDER_PARTIALLY_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;WITHDRAWAL_COMPLETED&#xA;CORPORATE_ACTION_APPLIED&#xA;PORTFOLIO_SNAPSHOT_IMPORTED&#xA;ALPACA_ACCOUNT_SNAPSHOT</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3427_35082111-d2-1170934828-MV4GKY3VORUW63RNORXS23DFMRTWK4RNMFSHA5A)">
+</g><g transform="translate(479 124)" class="appendix-icon"><title>ORDER_FILLED&#xA;ORDER_PARTIALLY_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;WITHDRAWAL_COMPLETED&#xA;CORPORATE_ACTION_APPLIED&#xA;PORTFOLIO_SNAPSHOT_IMPORTED&#xA;ALPACA_ACCOUNT_SNAPSHOT</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-4245348617-MV4GKY3VORUW63RNORXS23DFMRTWK4RNMFSHA5A)">
 <path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
 <path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <defs>
-<clipPath id="clip0_3427_35082111-d2-1170934828-MV4GKY3VORUW63RNORXS23DFMRTWK4RNMFSHA5A">
+<clipPath id="clip0_3427_35082111-d2-4245348617-MV4GKY3VORUW63RNORXS23DFMRTWK4RNMFSHA5A">
 <rect width="32" height="32" fill="white"/>
 </clipPath>
 </defs>
 </svg>
-</g><mask id="d2-1170934828" maskUnits="userSpaceOnUse" x="-50" y="-67" width="1628" height="475">
-<rect x="-50" y="-67" width="1628" height="475" fill="white"></rect>
+</g><g transform="translate(254 405)" class="appendix-icon"><title>ORDER_FILLED&#xA;ORDER_PARTIALLY_FILLED&#xA;ORDER_REJECTED&#xA;ORDER_CANCELLED&#xA;DEPOSIT_DETECTED&#xA;WITHDRAWAL_COMPLETED</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-4245348617-NRSWIZ3FOIWWCZDQOQWXI3ZNNRSWIZ3FOIWWG5DSNQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-4245348617-NRSWIZ3FOIWWCZDQOQWXI3ZNNRSWIZ3FOIWWG5DSNQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(703 405)" class="appendix-icon"><title>CORPORATE_ACTION_APPLIED&#xA;PORTFOLIO_SNAPSHOT_IMPORTED&#xA;ALPACA_ACCOUNT_SNAPSHOT</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-4245348617-NRSWIZ3FOIWWCZDQOQWXI3ZNOJSWG33OMNUWY2LBORUW63RNMN2HE3A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-4245348617-NRSWIZ3FOIWWCZDQOQWXI3ZNOJSWG33OMNUWY2LBORUW63RNMN2HE3A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><mask id="d2-4245348617" maskUnits="userSpaceOnUse" x="-50" y="-67" width="1027" height="756">
+<rect x="-50" y="-67" width="1027" height="756" fill="white"></rect>
 
 </mask></svg></svg>
