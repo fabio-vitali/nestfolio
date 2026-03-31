@@ -18,7 +18,7 @@ Nestfolio is a robo-advisory investment platform. 4 DDD domains, 33 services, ev
 - `advisory-ctrl` — Domain orchestrator
 - `advisory-bff` — BFF for advisory UI features
 - `advisory-hub` — Event aggregation/projection store
-- `advisory-adpt` — Cross-domain event forwarding (Advisory → Investor, Advisory → Execution)
+- `advisory-adpt` — Cross-domain event ingestion (Investor, Execution, Ledger → Advisory)
 - `decision-workflow-ctrl` — 5-phase decision cycle orchestrator (Step Functions + LangGraph agents)
 - `advisory-narrative-ctrl` — Decision narrative generation
 - `compliance-ctrl` — Compliance rule checking
@@ -34,7 +34,7 @@ Nestfolio is a robo-advisory investment platform. 4 DDD domains, 33 services, ev
 **Execution** (6 services) — Order routing and lifecycle
 - `execution-ctrl` — Execution orchestrator
 - `execution-hub` — Event aggregation/projection store
-- `execution-adpt` — Cross-domain event forwarding
+- `execution-adpt` — Cross-domain event ingestion (Advisory, Investor → Execution)
 - `broker-ctrl` — Broker routing state machine + circuit breaker
 - `broker-sim-adpt` — Simulated broker (paper trading)
 - `broker-alpaca-adpt` — Alpaca live broker integration
@@ -43,7 +43,7 @@ Nestfolio is a robo-advisory investment platform. 4 DDD domains, 33 services, ev
 - `investor-ctrl` — Investor entity management
 - `investor-bff` — Investor portal BFF
 - `investor-hub` — Event aggregation/projection store
-- `investor-adpt` — Cross-domain event forwarding
+- `investor-adpt` — Cross-domain event ingestion (Advisory, Execution, Ledger → Investor)
 - `dashboard-bff` — Dashboard BFF
 - `onboarding-bff` — Onboarding wizard (LangGraph + CopilotKit, 7-phase)
 - `investor-web` — Angular PWA frontend (Native Federation host)
@@ -52,7 +52,7 @@ Nestfolio is a robo-advisory investment platform. 4 DDD domains, 33 services, ev
 - `ledger-ctrl` — Financial ledger management
 - `ledger-bff` — Ledger reporting BFF
 - `ledger-hub` — Event aggregation/projection store
-- `ledger-adpt` — Cross-domain event forwarding
+- `ledger-adpt` — Cross-domain event ingestion (Execution → Ledger)
 - `reconciliation-ctrl` — Balance reconciliation
 
 ### Shared Libraries
@@ -68,13 +68,13 @@ Nestfolio is a robo-advisory investment platform. 4 DDD domains, 33 services, ev
 | `-ctrl` | Domain logic, orchestration | Yes |
 | `-bff` | Backend-for-Frontend (GraphQL/REST) | Yes |
 | `-hub` | Event aggregation, projection store | Yes |
-| `-adpt` | Cross-domain forwarding OR external integration | No (forwarding) / Yes (external) |
+| `-adpt` | Cross-domain event ingestion OR external integration | No (ingestion) / Yes (external) |
 
 ### Communication Pattern
 ```
 Producer service → DynamoDB write → DDB Stream (CDC) → Egress Lambda → EventBridge
   → [same domain] SQS → Ingress Lambda → Consumer service
-  → [cross domain] Adapter SQS → Adapter Lambda → Target domain EventBridge → ...
+  → [cross domain] Consumer adapter deploys EB rule on producer's bus → Consumer's EventBridge → SQS → Ingress Lambda
 ```
 
 ### Key File Paths
