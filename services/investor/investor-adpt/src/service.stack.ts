@@ -6,7 +6,7 @@ import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
 import { Monitoring, ServiceDashboard } from '@nestfolio/cdk-constructs/observability';
 import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
-import { InvestorCrossDomainEventTypes } from './domain/events';
+import { InvestorIngestEventTypes } from './domain/events';
 
 export class InvestorAdptStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -15,65 +15,95 @@ export class InvestorAdptStack extends ServiceStack {
     const prefix = this.prefix;
     const domainAccounts = getDomainAccounts(this);
 
-    // Resolve investor domain bus
+    // Consumer's own domain bus (target for all ingested events)
     const investorBusArn = resolveBusArn(this, 'InvestorBus', prefix, 'investor', domainAccounts);
     const investorBus = EventBus.fromEventBusArn(this, 'InvestorBus', investorBusArn);
 
-    // Resolve target buses
+    // External source buses
     const advisoryBusArn = resolveBusArn(this, 'AdvisoryBus', prefix, 'advisory', domainAccounts);
     const advisoryBus = EventBus.fromEventBusArn(this, 'AdvisoryBus', advisoryBusArn);
 
     const executionBusArn = resolveBusArn(this, 'ExecutionBus', prefix, 'execution', domainAccounts);
     const executionBus = EventBus.fromEventBusArn(this, 'ExecutionBus', executionBusArn);
 
-    // Cross-domain forwarding: Investor → Advisory
-    const toAdvisoryDlq = new Queue(this, 'ToAdvisoryDLQ', {
+    const ledgerBusArn = resolveBusArn(this, 'LedgerBus', prefix, 'ledger', domainAccounts);
+    const ledgerBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
+
+    // Ingest: Advisory → Investor
+    const fromAdvisoryDlq = new Queue(this, 'FromAdvisoryDLQ', {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
-    new Rule(this, 'ToAdvisory', {
-      eventBus: investorBus,
+    new Rule(this, 'InvestorIngress-FromAdvisory', {
+      eventBus: advisoryBus,
       eventPattern: {
         detailType: [
-          InvestorCrossDomainEventTypes.GOAL_UPDATED,
-          InvestorCrossDomainEventTypes.RISK_PROFILE_UPDATED,
-          InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED,
-          InvestorCrossDomainEventTypes.MANDATE_GRANTED,
-          InvestorCrossDomainEventTypes.MANDATE_UPDATED,
-          InvestorCrossDomainEventTypes.MANDATE_REVOKED,
+          InvestorIngestEventTypes.DECISION_PACKET_CREATED,
+          InvestorIngestEventTypes.USER_CONFIRMATION_REQUESTED,
+          InvestorIngestEventTypes.EXPLANATION_GENERATED,
+          InvestorIngestEventTypes.DECISION_APPROVED,
+          InvestorIngestEventTypes.DECISION_BLOCKED,
+          InvestorIngestEventTypes.ESCALATION_TRIGGERED,
+          InvestorIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
+          InvestorIngestEventTypes.CIRCUIT_BREAKER_RESET,
+          InvestorIngestEventTypes.INCIDENT_DETECTED,
+          InvestorIngestEventTypes.INCIDENT_RESOLVED,
         ],
       },
-      targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: toAdvisoryDlq })],
+      targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromAdvisoryDlq })],
     });
 
-    // Cross-domain forwarding: Investor → Execution
-    const toExecutionDlq = new Queue(this, 'ToExecutionDLQ', {
+    // Ingest: Execution → Investor
+    const fromExecutionDlq = new Queue(this, 'FromExecutionDLQ', {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
-    new Rule(this, 'ToExecution', {
-      eventBus: investorBus,
+    new Rule(this, 'InvestorIngress-FromExecution', {
+      eventBus: executionBus,
       eventPattern: {
         detailType: [
-          InvestorCrossDomainEventTypes.DEPOSIT_INITIATED,
-          InvestorCrossDomainEventTypes.WITHDRAWAL_REQUESTED,
-          InvestorCrossDomainEventTypes.ACCOUNT_CLOSURE_REQUESTED,
-          InvestorCrossDomainEventTypes.EXECUTION_MODE_CHANGED,
+          InvestorIngestEventTypes.ORDER_STAGED,
+          InvestorIngestEventTypes.ORDER_REJECTED,
+          InvestorIngestEventTypes.ORDER_CANCELLED,
+          InvestorIngestEventTypes.WITHDRAWAL_REJECTED,
+          InvestorIngestEventTypes.WITHDRAWAL_COMPLETED,
+          InvestorIngestEventTypes.ORDER_ESCALATED,
+          InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
         ],
       },
-      targets: [new EventBusTarget(executionBus, { deadLetterQueue: toExecutionDlq })],
+      targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromExecutionDlq })],
+    });
+
+    // Ingest: Ledger → Investor
+    const fromLedgerDlq = new Queue(this, 'FromLedgerDLQ', {
+      retentionPeriod: Duration.days(14),
+      encryption: QueueEncryption.KMS_MANAGED,
+    });
+    new Rule(this, 'InvestorIngress-FromLedger', {
+      eventBus: ledgerBus,
+      eventPattern: {
+        detailType: [
+          InvestorIngestEventTypes.BALANCE_UPDATED,
+          InvestorIngestEventTypes.PORTFOLIO_UPDATED,
+          InvestorIngestEventTypes.LEDGER_ENTRY_RECORDED,
+          InvestorIngestEventTypes.RECONCILIATION_COMPLETED,
+          InvestorIngestEventTypes.RECONCILIATION_FAILED,
+          InvestorIngestEventTypes.LEDGER_PROCESSING_FAILED,
+        ],
+      },
+      targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromLedgerDlq })],
     });
 
     if (this.observability) {
       new Monitoring(this, 'Monitoring', {
-        dlqs: [toAdvisoryDlq, toExecutionDlq],
+        dlqs: [fromAdvisoryDlq, fromExecutionDlq, fromLedgerDlq],
         eventBusBusNames: [this.naming.eventBusName()],
       });
 
       new ServiceDashboard(this, 'Dashboard', {
         serviceName: 'investor-adpt',
         lambdaFunctions: [],
-        dlqs: [toAdvisoryDlq, toExecutionDlq],
+        dlqs: [fromAdvisoryDlq, fromExecutionDlq, fromLedgerDlq],
         eventBusNames: [this.naming.eventBusName()],
       });
     }
