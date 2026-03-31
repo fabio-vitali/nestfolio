@@ -37,7 +37,9 @@ export class MarketwatchAdptStack extends ServiceStack {
     // Egress: DDB Stream → CDC → EventBridge
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['MarketWatchArticle'],
+      eventTypes: {
+        'MarketWatchArticle': { insert: 'MARKETWATCH_UPDATED' },
+      },
     });
 
     // Trigger Lambda: invoked by EventBridge Scheduler, publishes FETCH_REQUESTED to bus

@@ -46,7 +46,9 @@ export class FredAdptStack extends ServiceStack {
     // Egress: DDB Stream → CDC → EventBridge
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['FredIndicator'],
+      eventTypes: {
+        'FredIndicator': { insert: 'FRED_INDICATORS_UPDATED' },
+      },
     });
 
     // Trigger Lambda: invoked by EventBridge Scheduler, publishes FETCH_REQUESTED to bus

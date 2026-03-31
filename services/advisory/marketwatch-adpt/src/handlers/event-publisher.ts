@@ -1,7 +1,3 @@
-import { changeDataCapture, buildEventTypeMap } from '@nestfolio/event-processor';
-import { MarketwatchEntityTypes } from '../domain/events';
+import { changeDataCapture } from '@nestfolio/event-processor';
 
-export const handler = changeDataCapture({
-  serviceName: 'marketwatch-adpt',
-  eventTypeMap: buildEventTypeMap([...MarketwatchEntityTypes]),
-});
+export const handler = changeDataCapture();

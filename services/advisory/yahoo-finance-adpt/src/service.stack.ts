@@ -41,7 +41,9 @@ export class YahooFinanceAdptStack extends ServiceStack {
     // Egress: DDB Stream → CDC → EventBridge
     const egress = new Egress(this, 'Egress', {
       state,
-      publishableTypes: ['YahooFinanceArticle'],
+      eventTypes: {
+        'YahooFinanceArticle': { insert: 'YAHOO_FINANCE_UPDATED' },
+      },
     });
 
     // Trigger Lambda: invoked by EventBridge Scheduler, publishes FETCH_REQUESTED to bus

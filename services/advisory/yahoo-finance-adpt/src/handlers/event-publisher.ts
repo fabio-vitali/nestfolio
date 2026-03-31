@@ -1,7 +1,3 @@
-import { changeDataCapture, buildEventTypeMap } from '@nestfolio/event-processor';
-import { YahooFinanceEntityTypes } from '../domain/events';
+import { changeDataCapture } from '@nestfolio/event-processor';
 
-export const handler = changeDataCapture({
-  serviceName: 'yahoo-finance-adpt',
-  eventTypeMap: buildEventTypeMap([...YahooFinanceEntityTypes]),
-});
+export const handler = changeDataCapture();

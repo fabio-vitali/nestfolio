@@ -1,7 +1,3 @@
-import { changeDataCapture, buildEventTypeMap } from '@nestfolio/event-processor';
-import { FredEntityTypes } from '../domain/events';
+import { changeDataCapture } from '@nestfolio/event-processor';
 
-export const handler = changeDataCapture({
-  serviceName: 'fred-adpt',
-  eventTypeMap: buildEventTypeMap([...FredEntityTypes]),
-});
+export const handler = changeDataCapture();

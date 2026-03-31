@@ -1,7 +1,3 @@
-import { changeDataCapture, buildEventTypeMap } from '@nestfolio/event-processor';
-import { AlphaVantageEntityTypes } from '../domain/events';
+import { changeDataCapture } from '@nestfolio/event-processor';
 
-export const handler = changeDataCapture({
-  serviceName: 'alpha-vantage-adpt',
-  eventTypeMap: buildEventTypeMap([...AlphaVantageEntityTypes]),
-});
+export const handler = changeDataCapture();

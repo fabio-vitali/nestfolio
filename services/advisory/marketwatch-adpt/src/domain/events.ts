@@ -3,8 +3,6 @@ export const MarketwatchAdptEventTypes = {
   MARKETWATCH_UPDATED: 'MARKETWATCH_UPDATED',
 } as const;
 
-export const MarketwatchEntityTypes = ['MarketWatchArticle'] as const;
-
 export interface MarketWatchArticle {
   feed: string;
   source: string;
