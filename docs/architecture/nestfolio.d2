@@ -193,6 +193,10 @@ classes: {
 nestfolio: "" {
   style: { fill: "#FFFFFF"; stroke: "#FFFFFF" }
 
+  web-app: "Nestfolio Web App\n[Angular PWA / Native Federation]" {
+    class: frontend
+  }
+
   advisory-domain: "Advisory Domain" {
     class: domain
     link: layers.c2-advisory
@@ -271,7 +275,10 @@ nestfolio: "" {
 }
 
 investor-user: "Investor User" {class: person}
-nestfolio.investor-domain <-> investor-user {style.stroke-width: 3}
+investor-user -> nestfolio.web-app {style.stroke-width: 3}
+nestfolio.web-app -> nestfolio.advisory-domain {style.stroke-width: 2; style.stroke: "#4CAF50"}
+nestfolio.web-app -> nestfolio.investor-domain {style.stroke-width: 2; style.stroke: "#4CAF50"}
+nestfolio.web-app -> nestfolio.ledger-domain {style.stroke-width: 2; style.stroke: "#4CAF50"}
 
 # ===========================================================================
 # LAYERS
@@ -354,6 +361,11 @@ layers: {
       link: layers.c3-advisory-adpt
       tooltip: "Ingests cross-domain events from the investor, execution, and ledger buses into the advisory domain bus, subscribing to goal updates, mandate changes, order status, portfolio updates, and reconciliation signals."
     }
+
+    advisory-mfe: "Advisory MFE\n[Micro-Frontend]" {
+      class: frontend
+    }
+    advisory-mfe -> advisory-bff: "GraphQL" {style.stroke: "#4CAF50"; style.stroke-width: 2}
 
     ext-investor: "Investor Domain" {style: { fill: "#8B8B8B"; stroke: "#666666"; font-color: "#ffffff"; font-size: 26; border-radius: 10; stroke-width: 1; stroke-dash: 5 }}
     investor-to-advisory-adpt: "6 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "GOAL_UPDATED\nRISK_PROFILE_UPDATED\nOPERATING_MODE_CHANGED\nMANDATE_GRANTED\nMANDATE_UPDATED\nMANDATE_REVOKED"}
@@ -504,11 +516,6 @@ layers: {
   c2-investor: {
     style: { fill: "#FFFFFF"; stroke: "#FFFFFF" }
 
-    investor-web: "Investor Web" {
-      style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
-      link: layers.c3-investor-web
-      tooltip: "The investor-facing single-page application, an Angular PWA served via CDN with Cognito authentication that provides the UI for portfolio management, onboarding, and advisory interactions."
-    }
     dashboard-bff: "Dashboard BFF" {
       style: { fill: "#438DD5"; stroke: "#2E6295"; font-color: "#ffffff"; font-size: 34; bold: true; border-radius: 14; stroke-width: 3; shadow: true }
       link: layers.c3-dashboard-bff
@@ -534,6 +541,19 @@ layers: {
       link: layers.c3-investor-adpt
       tooltip: "Ingests cross-domain events from the advisory, execution, and ledger buses into the investor domain bus, subscribing to decision packets, order status, balance updates, and reconciliation signals."
     }
+
+    onboarding-mfe: "Onboarding MFE\n[Micro-Frontend]" {
+      class: frontend
+    }
+    onboarding-mfe -> onboarding-bff: "GraphQL" {style.stroke: "#4CAF50"; style.stroke-width: 2}
+    investor-mfe: "Investor MFE\n[Micro-Frontend]" {
+      class: frontend
+    }
+    investor-mfe -> investor-bff: "GraphQL" {style.stroke: "#4CAF50"; style.stroke-width: 2}
+    dashboard-mfe: "Dashboard MFE\n[Micro-Frontend]" {
+      class: frontend
+    }
+    dashboard-mfe -> dashboard-bff: "GraphQL" {style.stroke: "#4CAF50"; style.stroke-width: 2}
 
     ext-advisory: "Advisory Domain" {style: { fill: "#8B8B8B"; stroke: "#666666"; font-color: "#ffffff"; font-size: 26; border-radius: 10; stroke-width: 1; stroke-dash: 5 }}
     advisory-to-investor-adpt: "10 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "DECISION_PACKET_CREATED\nUSER_CONFIRMATION_REQUESTED\nEXPLANATION_GENERATED\nDECISION_APPROVED\nDECISION_BLOCKED\nESCALATION_TRIGGERED\nCIRCUIT_BREAKER_TRIGGERED\nCIRCUIT_BREAKER_RESET\nINCIDENT_DETECTED\nINCIDENT_RESOLVED"}
@@ -577,7 +597,6 @@ layers: {
       c3-investor-adpt: { ...@./c3/investor-adpt.d2 }
       c3-investor-bff: { ...@./c3/investor-bff.d2 }
       c3-investor-ctrl: { ...@./c3/investor-ctrl.d2 }
-      c3-investor-web: { ...@./c3/investor-web.d2 }
       c3-onboarding-bff: { ...@./c3/onboarding-bff.d2 }
     }
   }
@@ -608,6 +627,11 @@ layers: {
       link: layers.c3-ledger-adpt
       tooltip: "Ingests cross-domain events from the execution bus into the ledger domain bus, subscribing to order fills, deposit and withdrawal completions, corporate actions, and portfolio snapshots."
     }
+
+    ledger-mfe: "Ledger MFE\n[Micro-Frontend]" {
+      class: frontend
+    }
+    ledger-mfe -> ledger-bff: "GraphQL" {style.stroke: "#4CAF50"; style.stroke-width: 2}
 
     ext-execution: "Execution Domain" {style: { fill: "#8B8B8B"; stroke: "#666666"; font-color: "#ffffff"; font-size: 26; border-radius: 10; stroke-width: 1; stroke-dash: 5 }}
     execution-to-ledger-adpt: "9 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: "ORDER_FILLED\nORDER_PARTIALLY_FILLED\nORDER_REJECTED\nORDER_CANCELLED\nDEPOSIT_DETECTED\nWITHDRAWAL_COMPLETED\nCORPORATE_ACTION_APPLIED\nPORTFOLIO_SNAPSHOT_IMPORTED\nALPACA_ACCOUNT_SNAPSHOT"}
