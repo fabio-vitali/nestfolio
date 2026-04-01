@@ -30,10 +30,11 @@ It stays under ~2KB and does exactly three things: gives a compact system mental
 every task type to the correct skill, and states the hard constraints agents must never violate
 (no inter-service API calls, event-processor pipelines on all Lambda handlers, tests in `test/`).
 
-**Skills (on demand).** Skills live in `.claude/skills/` and are loaded by the agent when the
-routing table in CLAUDE.md matches the current task. A skill is a Markdown file with a
-checklist, reference file paths, and anti-patterns. Skills reference code — they don't duplicate
-it. When you invoke a skill it tells you what to read, not what to paste.
+**Skills (on demand).** Skills live in `.claude/skills/` as directories with a `SKILL.md` file
+each. Claude Code auto-discovers them and loads them on demand — either when you invoke them
+directly (`/skill-name`) or when Claude determines they match the current task based on the
+skill's `description` frontmatter. Skills reference code — they don't duplicate it. When a skill
+loads, it tells the agent what to read, not what to paste.
 
 **Sub-agents (verification).** The `verify/` skills dispatch isolated sub-agents using Claude
 Code's `Agent` tool. This keeps audit work out of your main conversation context. A sub-agent
@@ -84,9 +85,9 @@ loaded explicitly by the skill checklists.
 
 ## Skills
 
-All 21 skills are in `.claude/skills/`, grouped into 5 categories. The routing table in the
-root CLAUDE.md maps task types to skills — agents invoke them automatically based on what
-they're doing.
+All 21 skills are in `.claude/skills/`, each in its own directory with a `SKILL.md` file.
+Claude Code auto-discovers them and lists their descriptions in the system prompt so it can
+invoke them automatically when a task matches. The routing table in CLAUDE.md reinforces this.
 
 ### system/ — Orientation
 
@@ -333,13 +334,13 @@ sub-agents for their services.
 
 ## How to Add a Skill
 
-1. Create a Markdown file in `.claude/skills/{category}/your-skill-name.md`
+1. Create a directory in `.claude/skills/your-skill-name/` with a `SKILL.md` file
 
 2. Add the required frontmatter:
    ```markdown
    ---
    name: your-skill-name
-   description: One-line description used for skill matching
+   description: One-line description — Claude uses this to decide when to load the skill automatically
    ---
    ```
 

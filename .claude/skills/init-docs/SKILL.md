@@ -17,9 +17,10 @@ This is the "nuclear rebuild" — regenerates ALL derived artifacts from code, t
 
 - [ ] 1. **Verify skill infrastructure exists**
   ```bash
-  ls -d .claude/skills/{system,implement,verify,flows,architect} flows
+  ls .claude/skills/*/SKILL.md | wc -l  # should be 21
+  ls flows/
   ```
-  If missing, create the directories first.
+  If missing, create the skill directories first.
 
 - [ ] 2. **Regenerate ALL service cards (33 services)**
   Dispatch parallel sub-agents by domain using the `audit-service` generation procedure:
