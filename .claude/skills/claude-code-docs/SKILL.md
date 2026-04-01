@@ -1,10 +1,6 @@
 ---
 name: claude-code-docs
-description: >
-  Fetch current Claude Code documentation before answering questions or making decisions
-  about Claude Code features. Use when working with skills, commands, hooks, settings,
-  agents, subagents, MCP servers, plugins, permissions, CLAUDE.md, or any .claude/ configuration.
-  Also use when setting up or restructuring project configuration for Claude Code.
+description: Fetch Claude Code docs before answering questions about skills, hooks, settings, subagents, MCP, plugins, permissions, or .claude/ config.
 user-invocable: false
 ---
 
