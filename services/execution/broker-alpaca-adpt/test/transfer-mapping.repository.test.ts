@@ -141,5 +141,27 @@ describe('TransferMappingRepository', () => {
       const values = Object.values(updateCalls[0][0].input.ExpressionAttributeValues as Record<string, unknown>);
       expect(values).toContain('Insufficient funds');
     });
+
+    it('includes ConditionExpression to prevent duplicate status writes', async () => {
+      mockSend.mockResolvedValueOnce({});
+
+      await repo.updateStatus('tenant-1', 'nf-transfer-1', 'COMPLETED', {});
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({
+            ConditionExpression: expect.stringContaining('#status'),
+          }),
+        }),
+      );
+    });
+
+    it('does not throw on ConditionalCheckFailedException (treats as no-op)', async () => {
+      const error = new Error('ConditionalCheckFailedException');
+      error.name = 'ConditionalCheckFailedException';
+      mockSend.mockRejectedValueOnce(error);
+
+      await expect(repo.updateStatus('tenant-1', 'nf-transfer-1', 'COMPLETED')).resolves.not.toThrow();
+    });
   });
 });

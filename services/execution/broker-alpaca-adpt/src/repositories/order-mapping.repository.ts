@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { GetCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getTime, withMethodLogging } from '@nestfolio/event-processor';
 
 export class OrderMappingRepository extends TableRepository {
@@ -57,11 +57,32 @@ export class OrderMappingRepository extends TableRepository {
 
   readonly updateStatus = this.log('updateStatus',
     async (tenantId: string, nestfolioOrderId: string, status: string, updates: Record<string, unknown> = {}): Promise<void> => {
-      await this.update(
-        `OrderMapping#${tenantId}#${nestfolioOrderId}`,
-        'OrderMapping',
-        { status, ...updates, updatedAt: getTime() },
-      );
+      const attrs = { status, ...updates, updatedAt: getTime() };
+      const entries = Object.entries(attrs);
+      const names: Record<string, string> = {};
+      const values: Record<string, unknown> = {};
+      const sets: string[] = [];
+      entries.forEach(([k, v], i) => {
+        names[`#a${i}`] = k;
+        values[`:v${i}`] = v;
+        sets.push(`#a${i} = :v${i}`);
+      });
+      names['#status'] = 'status';
+      values[':newStatus'] = status;
+
+      try {
+        await this.docClient.send(new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk: `OrderMapping#${tenantId}#${nestfolioOrderId}`, sk: 'OrderMapping' },
+          UpdateExpression: `SET ${sets.join(', ')}`,
+          ConditionExpression: 'attribute_not_exists(#status) OR #status <> :newStatus',
+          ExpressionAttributeNames: names,
+          ExpressionAttributeValues: values,
+        }));
+      } catch (err) {
+        if ((err as Error).name === 'ConditionalCheckFailedException') return;
+        throw err;
+      }
     },
   );
 }
