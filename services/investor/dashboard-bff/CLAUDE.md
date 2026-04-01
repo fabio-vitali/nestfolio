@@ -12,12 +12,21 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
 
 ## Facade
 - AppSync GraphQL API with JS resolvers (discoverJsResolvers)
+  - get-dashboard, get-position-snapshots, get-simulation-summary, get-time-travel-availability, get-recent-activity
 
 ## Handlers
-- event-listener.ts
+- event-listener.ts — materializes dashboard projections via transforms: portfolioSummary, positionSnapshot, recentActivity, advisoryStatus, investorSnapshot, timeTravelAvailability
 
 ## Tests
-- (test directory exists with test files)
+- handlers/event-listener.test.ts
+- repositories/dashboard.repository.test.ts
+- transforms/advisory-status.test.ts
+- transforms/investor-snapshot.test.ts
+- transforms/portfolio-summary.test.ts
+- transforms/position-snapshot.test.ts
+- transforms/recent-activity.test.ts
+- transforms/time-travel-availability.test.ts
 
 ## Dependencies
-- libs: cdk-constructs/core
+- libs: cdk-constructs/core, event-processor
+- cross-domain imports: ledger-adpt/domain, advisory-adpt/domain, investor-bff/events

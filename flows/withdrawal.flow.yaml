@@ -1,85 +1,126 @@
 schema_version: 1
 flow: withdrawal
-description: Investor requests a withdrawal, routed through broker-ctrl to sim or Alpaca adapter, normalized back to canonical events
+description: Investor requests a withdrawal, routed through broker-ctrl to sim or Alpaca adapter, normalized back to canonical events, ledger debited, investor notified
 domains: [investor, execution, ledger]
 
 trigger: investor-bff emits WITHDRAWAL_REQUESTED (CDC from Withdrawal:INSERT)
 
 steps:
   - service: investor-bff
-    action: User requests withdrawal via GraphQL mutation
-    state_change: Writes Withdrawal record to DDB
-    emits: WITHDRAWAL_REQUESTED (CDC)
+    action: User requests withdrawal via GraphQL mutation (request-withdrawal.fn.js)
+    state_change: Transact — deducts CashBalance optimistically and writes Withdrawal record (status REQUESTED) to DDB
+    emits: WITHDRAWAL_REQUESTED (CDC from Withdrawal INSERT)
     idempotent: true
 
   - cross_domain: WITHDRAWAL_REQUESTED
     from: InvestorBus
     to: ExecutionBus
-    via: execution-adpt EB rule
+    via: execution-adpt EB rule (ExecutionIngress-FromInvestor)
 
   - service: broker-ctrl
     receives: WITHDRAWAL_REQUESTED
     via: ExecutionBus -> SQS -> broker-ctrl-DepositWithdrawalIngress
-    state_change: deposit-withdrawal-router reads ExecutionMode and routes to SIM_WITHDRAWAL_REQUESTED or ALPACA_TRANSFER_REQUESTED
-    emits: SIM_WITHDRAWAL_REQUESTED or ALPACA_TRANSFER_REQUESTED (explicit publish)
+    state_change: deposit-withdrawal-router reads ExecutionMode and routes to SIM_WITHDRAWAL_REQUESTED or ALPACA_TRANSFER_REQUESTED (with direction OUTGOING)
+    emits: SIM_WITHDRAWAL_REQUESTED or ALPACA_TRANSFER_REQUESTED (explicit publish to ExecutionBus)
     idempotent: true
 
-  # Simulation path
+  # --- Simulation path ---
   - service: broker-sim-adpt
     receives: SIM_WITHDRAWAL_REQUESTED
     via: ExecutionBus -> SQS -> broker-sim-adpt-ingress
-    state_change: Simulates withdrawal, writes WithdrawalCompleted record
-    emits: SIM_WITHDRAWAL_COMPLETED (CDC)
+    state_change: Validates sufficient virtual cash, performs guarded atomic debit on VirtualLedger, writes WithdrawalCompleted record
+    emits: SIM_WITHDRAWAL_COMPLETED (CDC from WithdrawalCompleted INSERT)
     idempotent: true
 
-  # Live path (alternative)
+  # --- Live path (alternative) ---
   - service: broker-alpaca-adpt
     receives: ALPACA_TRANSFER_REQUESTED
     via: ExecutionBus -> SQS -> broker-alpaca-adpt-ingress
-    state_change: Submits ACH withdrawal to Alpaca API, writes AlpacaTransferResult
-    emits: ALPACA_TRANSFER_COMPLETED or ALPACA_TRANSFER_FAILED (CDC)
+    state_change: Submits ACH transfer to Alpaca API (direction OUTGOING), writes AlpacaTransferResult record (status INITIATED or FAILED)
+    emits: ALPACA_TRANSFER_INITIATED or ALPACA_TRANSFER_FAILED (CDC from AlpacaTransferResult INSERT)
     idempotent: true
 
+  - service: broker-alpaca-adpt
+    receives: ALPACA_TRANSFER_INITIATED (triggers TransferPollingStateMachine)
+    via: ExecutionBus -> Orchestration trigger
+    state_change: TransferPollingStateMachine polls Alpaca API for transfer status; TransferPollFn updates AlpacaTransferResult to COMPLETED or FAILED
+    emits: ALPACA_TRANSFER_COMPLETED or ALPACA_TRANSFER_FAILED (CDC from AlpacaTransferResult modify)
+    idempotent: true
+
+  # --- Normalization (both paths converge) ---
   - service: broker-ctrl
     receives: SIM_WITHDRAWAL_COMPLETED | ALPACA_TRANSFER_COMPLETED
     via: ExecutionBus -> SQS -> broker-ctrl-DepositWithdrawalNormalizerIngress
     state_change: Writes NormalizedEvent record (sk = WITHDRAWAL_COMPLETED)
-    emits: WITHDRAWAL_COMPLETED (CDC from NormalizedEvent:INSERT, sk is event type)
+    emits: WITHDRAWAL_COMPLETED (CDC from NormalizedEvent INSERT, sk passthrough determines event type)
     idempotent: true
 
-  - cross_domain: WITHDRAWAL_COMPLETED
-    from: ExecutionBus
-    to: InvestorBus
-    via: investor-adpt EB rule
-
+  # --- Cross-domain: Execution -> Ledger ---
   - cross_domain: WITHDRAWAL_COMPLETED
     from: ExecutionBus
     to: LedgerBus
-    via: ledger-adpt EB rule
+    via: ledger-adpt EB rule (LedgerIngress-FromExecution)
 
   - service: ledger-ctrl
     receives: WITHDRAWAL_COMPLETED
     via: LedgerBus -> SQS -> ledger-ctrl-ingress
-    state_change: Records BalanceEvent (debit) and LedgerEntryEvent; reducer materializes account snapshot
-    emits: BALANCE_UPDATED, LEDGER_ENTRY_RECORDED (CDC)
+    state_change: Records LedgerEntry (actual stream); reducer applies RecordWithdrawal command — debits cashBalanceCents; writes BalanceEvent and LedgerEntryEvent
+    emits: BALANCE_UPDATED, LEDGER_ENTRY_RECORDED (CDC from BalanceEvent INSERT, LedgerEntryEvent INSERT)
     idempotent: true
+
+  # --- Cross-domain: Ledger -> Investor (balance update) ---
+  - cross_domain: BALANCE_UPDATED
+    from: LedgerBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromLedger)
+
+  # --- Cross-domain: Execution -> Investor (withdrawal notification) ---
+  - cross_domain: WITHDRAWAL_COMPLETED
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromExecution)
 
   - service: investor-ctrl
     receives: WITHDRAWAL_COMPLETED
-    via: InvestorBus -> SQS -> investor-ctrl-ingress
-    state_change: Updates investor lifecycle state
-    emits: NOTIFICATION_CREATED (CDC)
+    via: InvestorBus -> SQS -> investor-ctrl-trigger-ingress
+    state_change: Creates Notification record (title "Withdrawal Completed", channel email)
+    emits: NOTIFICATION (CDC from Notification INSERT)
     idempotent: true
 
+  - service: investor-ctrl
+    receives: BALANCE_UPDATED
+    via: InvestorBus -> SQS -> investor-ctrl-trigger-ingress
+    state_change: Creates Notification record for balance update
+    emits: NOTIFICATION (CDC from Notification INSERT)
+    idempotent: true
+
+  # --- Failure path: ALPACA_TRANSFER_FAILED ---
+  - service: broker-ctrl
+    receives: ALPACA_TRANSFER_FAILED
+    via: ExecutionBus -> SQS -> broker-ctrl-DepositWithdrawalNormalizerIngress
+    state_change: Writes NormalizedEvent record (sk = TRANSFER_FAILED)
+    emits: NONE — TRANSFER_FAILED is NOT in Egress passthrough emits list; NormalizedEvent is written but CDC will not publish it to EventBridge
+    idempotent: true
+    # WARNING: TRANSFER_FAILED is missing from broker-ctrl Egress NormalizedEvent emits array.
+    # The normalizer writes sk=TRANSFER_FAILED but CDC passthrough only allows:
+    # ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED,
+    # ORDER_ESCALATED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, BROKER_CIRCUIT_OPEN,
+    # BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED.
+    # This means transfer failures are silently dropped — no downstream notification.
+
 success_criteria:
-  - Withdrawal amount debited in ledger-ctrl balance
+  - Withdrawal amount debited in ledger-ctrl cash balance
+  - WITHDRAWAL_COMPLETED event reaches both ledger and investor domains
   - BALANCE_UPDATED event reaches investor domain
-  - WITHDRAWAL_COMPLETED event reaches investor-ctrl for notification
+  - LEDGER_ENTRY_RECORDED event persists audit trail
+  - Investor receives withdrawal completion notification via investor-ctrl
 
 failure_modes:
-  - step 2 fails: investor-adpt ToExecutionDLQ; withdrawal not routed to execution domain
+  - step 2 fails: execution-adpt FromInvestorDLQ; withdrawal not routed to execution domain
   - step 3 fails: broker-ctrl DepositWithdrawalIngress DLQ; withdrawal not routed to adapter
-  - step 4 fails: broker-sim-adpt ingress DLQ; simulated withdrawal stuck
-  - step 5 fails: broker-alpaca-adpt ingress DLQ; Alpaca withdrawal not submitted
-  - step 6 fails: broker-ctrl DepositWithdrawalNormalizerIngress DLQ; normalized event not created
+  - step 4 fails (sim): broker-sim-adpt ingress DLQ; simulated withdrawal not completed
+  - step 5 fails (live): broker-alpaca-adpt ingress DLQ; Alpaca transfer not submitted
+  - step 6 fails (live): TransferPollingStateMachine timeout (7 days); transfer status unknown, marked FAILED
+  - step 7 fails: broker-ctrl DepositWithdrawalNormalizerIngress DLQ; normalized event not created
   - step 9 fails: ledger-ctrl ingress DLQ; balance not updated
+  - step 5 Alpaca transfer fails: ALPACA_TRANSFER_FAILED flows to normalizer, writes TRANSFER_FAILED NormalizedEvent

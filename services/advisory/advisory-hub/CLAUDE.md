@@ -1,16 +1,16 @@
 # advisory-hub
 
-Domain: advisory | Bus: AdvisoryBus
+Domain: advisory | Bus: advisoryBus
 Stack: services/advisory/advisory-hub/src/service.stack.ts
 
 ## State
-None (stateless hub)
+None (hub — manages shared infrastructure only)
 
 ## Infrastructure
-- EventBridge bus: AdvisoryBus (domain event hub)
-- Event archive: 365-day retention, all events
-- SharedParameter: bus ARN published to SSM (cross-account via RAM)
-- CrossAccountBusPolicy: allows cross-account PutEvents
+- AdvisoryBus: EventBridge domain bus (eventBusName from naming service)
+- Archive: 365-day event archive for replay (all events)
+- SharedParameter: Bus ARN published to SSM (cross-account via RAM when multi-account)
+- CrossAccountBusPolicy: Allows cross-account PutEvents when multi-account
 
 ## SSM Parameters (source of truth for advisory domain)
 - models/opus: anthropic.claude-opus-4-6-20250501-v1:0

@@ -1,70 +1,85 @@
 schema_version: 1
 flow: market-data-ingestion
-description: Scheduled market data adapters fetch external data, materialize records, and emit feed-updated events consumed by market-intelligence-ctrl
+description: Scheduled market data adapters fetch external data, materialize records, and emit feed-updated events consumed by market-intelligence-ctrl and portfolio-engine-ctrl
 domains: [advisory]
 
-trigger: AdapterSchedule (EventBridge Scheduler) emits FETCH_REQUESTED to each adapter on a configurable cron (default rate(24 hours))
+trigger: EventBridge Scheduler invokes each adapter's FetchTrigger Lambda, which publishes a FETCH_*_REQUESTED event to AdvisoryBus
 
 steps:
-  # Alpha Vantage feed
+  # ── Alpha Vantage feed ──────────────────────────────────────────────
   - service: alpha-vantage-adpt
-    receives: FETCH_REQUESTED (AlphaVantageAdptEventTypes.FETCH_REQUESTED)
-    via: AdvisoryBus -> SQS -> alpha-vantage-adpt-ingress (also triggered by AdapterSchedule)
-    state_change: Fetches market news from Alpha Vantage API, writes records to DDB
-    emits: ALPHA_VANTAGE_NEWS_UPDATED (CDC)
+    receives: FETCH_ALPHA_VANTAGE_REQUESTED
+    via: AdvisoryBus → SQS → alpha-vantage-adpt-ingress
+    state_change: Fetches market news and economic indicators from Alpha Vantage API, writes AlphaVantageArticle and EconomicIndicator records to DDB
+    emits: ALPHA_VANTAGE_NEWS_UPDATED (CDC, AlphaVantageArticle insert), ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED (CDC, EconomicIndicator insert)
     idempotent: true
 
-  # FRED feed
+  # ── FRED feed ───────────────────────────────────────────────────────
   - service: fred-adpt
-    receives: FETCH_REQUESTED (FredAdptEventTypes.FETCH_REQUESTED)
-    via: AdvisoryBus -> SQS -> fred-adpt-ingress (also triggered by AdapterSchedule)
-    state_change: Fetches macro indicators from FRED API, writes records to DDB
-    emits: FRED_INDICATORS_UPDATED (CDC)
+    receives: FETCH_FRED_REQUESTED
+    via: AdvisoryBus → SQS → fred-adpt-ingress
+    state_change: Fetches macro indicators from FRED API, writes FredIndicator records to DDB
+    emits: FRED_INDICATORS_UPDATED (CDC, FredIndicator insert)
     idempotent: true
 
-  # MarketWatch feed
+  # ── MarketWatch feed ────────────────────────────────────────────────
   - service: marketwatch-adpt
-    receives: FETCH_REQUESTED (MarketwatchAdptEventTypes.FETCH_REQUESTED)
-    via: AdvisoryBus -> SQS -> marketwatch-adpt-ingress (also triggered by AdapterSchedule)
+    receives: FETCH_MARKETWATCH_REQUESTED
+    via: AdvisoryBus → SQS → marketwatch-adpt-ingress
     state_change: Scrapes MarketWatch articles, writes MarketWatchArticle records to DDB
-    emits: MARKETWATCH_UPDATED (CDC)
+    emits: MARKETWATCH_UPDATED (CDC, MarketWatchArticle insert)
     idempotent: true
 
-  # SEC EDGAR feed
+  # ── SEC EDGAR feed ──────────────────────────────────────────────────
   - service: sec-edgar-adpt
-    receives: FETCH_REQUESTED (SecEdgarAdptEventTypes.FETCH_REQUESTED)
-    via: AdvisoryBus -> SQS -> sec-edgar-adpt-ingress (also triggered by AdapterSchedule)
-    state_change: Fetches EDGAR filings (8-K, 10-K, prospectuses), writes SecFiling records to DDB
-    emits: SEC_8K_FILED, SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED (CDC)
+    receives: FETCH_SEC_EDGAR_REQUESTED
+    via: AdvisoryBus → SQS → sec-edgar-adpt-ingress
+    state_change: Fetches EDGAR filings for tracked CIKs, writes SecFiling records to DDB
+    emits: SEC_8K_FILED, SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED (CDC, SecFiling insert+modify, form-type-based routing)
     idempotent: true
 
-  # Market Intelligence aggregation
+  # ── Yahoo Finance feed ─────────────────────────────────────────────
+  - service: yahoo-finance-adpt
+    receives: FETCH_YAHOO_FINANCE_REQUESTED
+    via: AdvisoryBus → SQS → yahoo-finance-adpt-ingress
+    state_change: Fetches Yahoo Finance articles for tracked tickers, writes YahooFinanceArticle records to DDB
+    emits: YAHOO_FINANCE_UPDATED (CDC, YahooFinanceArticle insert)
+    idempotent: true
+
+  # ── Market Intelligence aggregation (5 feed events) ────────────────
   - service: market-intelligence-ctrl
-    receives: ALPHA_VANTAGE_NEWS_UPDATED | FRED_INDICATORS_UPDATED | MARKETWATCH_UPDATED | SEC_8K_FILED
-    via: AdvisoryBus -> SQS -> market-intelligence-ctrl-ingress
-    state_change: Ingests feed data into Bedrock Knowledge Base (S3 + vector store), updates market intelligence records; when triggered as ANALYZE_MARKET agent, emits MARKET_ANALYSIS_COMPLETED
-    emits: none (KB ingestion path only; CDC emits AgentInvocation, ReasoningOutput on agent path)
-    # Note: MARKET_DATA_REFRESHED does not exist in code. MarketIntelligenceEventTypes: MARKET_ANALYSIS_COMPLETED, MARKET_SIGNAL_DETECTED
-    # The feed ingestion path (FEED_INGESTION_EVENT_TYPES) does not produce a downstream event - KB is refreshed silently
+    receives: ALPHA_VANTAGE_NEWS_UPDATED | FRED_INDICATORS_UPDATED | MARKETWATCH_UPDATED | SEC_8K_FILED | YAHOO_FINANCE_UPDATED
+    via: AdvisoryBus → SQS → market-intelligence-ctrl-ingress
+    state_change: Ingests feed data into Bedrock Knowledge Base (S3 vector store), refreshes market intelligence
+    emits: MARKET_SIGNAL_DETECTED (CDC, AgentInvocation insert)
     idempotent: true
 
-  # Portfolio Engine KB ingestion for SEC filings
+  # ── Portfolio Engine KB ingestion (SEC filing events) ───────────────
   - service: portfolio-engine-ctrl
     receives: SEC_PROSPECTUS_UPDATED | SEC_10K_UPDATED
-    via: AdvisoryBus -> SQS -> portfolio-engine-ctrl-ingress
-    state_change: Ingests fund prospectuses and 10-K filings into Fund Knowledge Base
-    emits: none (KB ingestion only, no CDC)
+    via: AdvisoryBus → SQS → portfolio-engine-ctrl-ingress
+    state_change: Ingests fund prospectuses and 10-K/10-Q filings into Fund Knowledge Base
+    emits: none (KB ingestion path only, no CDC on this path)
     idempotent: true
 
 success_criteria:
-  - All 4 feed adapters fetch data on schedule and emit updated events
-  - market-intelligence-ctrl Knowledge Base is refreshed with latest market data
-  - portfolio-engine-ctrl Fund KB is refreshed with latest SEC filings
+  - All 5 feed adapters fetch data on schedule and emit CDC events to AdvisoryBus
+  - market-intelligence-ctrl Knowledge Base is refreshed with latest market data from 5 sources
+  - portfolio-engine-ctrl Fund KB is refreshed with SEC prospectus and 10-K filings
+  - MARKET_SIGNAL_DETECTED event emitted when agent invocation completes
 
 failure_modes:
-  - step 1 fails: alpha-vantage-adpt ingress DLQ; stale market news data
+  - step 1 fails: alpha-vantage-adpt ingress DLQ; stale market news and economic indicator data
   - step 2 fails: fred-adpt ingress DLQ; stale macro indicators
-  - step 3 fails: marketwatch-adpt ingress DLQ; stale article data
-  - step 4 fails: sec-edgar-adpt ingress DLQ; stale filing data
-  - step 5 fails: market-intelligence-ctrl ingress DLQ; KB not updated
-  - step 6 fails: portfolio-engine-ctrl ingress DLQ; fund KB not updated
+  - step 3 fails: marketwatch-adpt ingress DLQ; stale MarketWatch article data
+  - step 4 fails: sec-edgar-adpt ingress DLQ; stale SEC filing data
+  - step 5 fails: yahoo-finance-adpt ingress DLQ; stale Yahoo Finance article data
+  - step 6 fails: market-intelligence-ctrl ingress DLQ; Market KB not updated
+  - step 7 fails: portfolio-engine-ctrl ingress DLQ; Fund KB not updated
+
+notes:
+  - ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED is emitted by alpha-vantage-adpt but has no consumer in current code
+  - SEC form-type routing maps 8-K→SEC_8K_FILED, 485BPOS/N-1A→SEC_PROSPECTUS_UPDATED, 10-K/10-Q→SEC_10K_UPDATED (default→SEC_8K_FILED)
+  - market-intelligence-ctrl also subscribes to ANALYZE_MARKET (explicit trigger, not part of this scheduled ingestion flow)
+  - All adapters use AdapterSchedule with default rate(24 hours), disabled by default
+  - All services are intra-domain (advisory) — no cross-domain hops in this flow

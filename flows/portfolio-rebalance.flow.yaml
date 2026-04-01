@@ -3,62 +3,155 @@ flow: portfolio-rebalance
 description: Portfolio drift detected by reconciliation-ctrl triggers advisory decision cycle which produces rebalance orders
 domains: [ledger, advisory, execution]
 
-trigger: reconciliation-ctrl emits PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord:INSERT)
+trigger: reconciliation-ctrl emits PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord insert)
 
 steps:
+  # Step 1: Drift detection — reconciliation-ctrl writes DriftRecord to DDB
+  # Source: services/ledger/reconciliation-ctrl/src/service.stack.ts (Egress eventTypes)
+  # DriftRecord insert -> PORTFOLIO_DRIFT_DETECTED, modify -> DRIFT_RECORD_UPDATED
   - service: reconciliation-ctrl
-    action: Reconciliation check detects position drift exceeding threshold
-    state_change: Writes DriftRecord to DDB with instrument, intentQty, settlementQty, drift values
-    emits: PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord:INSERT)
+    action: Reconciliation detects position drift exceeding threshold
+    state_change: Writes DriftRecord to DDB (tenantId, instrument, intentQty, settlementQty, drift)
+    emits: PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord insert)
     idempotent: true
 
+  # Step 2: Cross-domain hop — advisory-adpt pulls PORTFOLIO_DRIFT_DETECTED from LedgerBus
+  # Source: services/advisory/advisory-adpt/src/service.stack.ts (AdvisoryIngress-FromLedger rule)
+  # Note: LEDGER_PORTFOLIO_DRIFT_DETECTED maps to wire name 'PORTFOLIO_DRIFT_DETECTED'
   - cross_domain: PORTFOLIO_DRIFT_DETECTED
     from: LedgerBus
     to: AdvisoryBus
-    via: advisory-adpt EB rule
-    # Verified: PORTFOLIO_DRIFT_DETECTED emitted by reconciliation-ctrl CDC on LedgerBus; forwarded by ledger-adpt (not execution-adpt)
+    via: advisory-adpt EB rule (AdvisoryIngress-FromLedger, DLQ FromLedgerDLQ 14d)
 
-  # Advisory decision cycle triggered by drift
+  # Step 3: decision-workflow-ctrl materializes trigger to DDB
+  # Source: services/advisory/decision-workflow-ctrl/src/handlers/event-listener.ts
+  # All TRIGGER_EVENT_TYPES (including PORTFOLIO_DRIFT_DETECTED) -> triggerHandler -> record('WorkflowTrigger')
+  # Source: services/advisory/decision-workflow-ctrl/src/service.stack.ts (TriggerIngress + Egress)
   - service: decision-workflow-ctrl
     receives: PORTFOLIO_DRIFT_DETECTED
-    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
-    state_change: Starts new SF execution for rebalance decision cycle (same as advisory-cycle flow)
-    emits: DECISION_PACKET_CREATED (CDC)
+    via: AdvisoryBus → SQS → decision-workflow-ctrl-trigger-ingress
+    state_change: Writes WorkflowTrigger record (tenantId, decisionId, trigger, triggerEventId, context)
+    emits: WORKFLOW_TRIGGER (CDC from WorkflowTrigger insert)
     idempotent: true
 
-  # Phase 2-8: Full advisory decision cycle runs (see advisory-cycle.flow.yaml)
-  # Agents analyze drift, construct rebalance plan, compliance checks, user confirmation
-  - service: portfolio-engine-ctrl
-    receives: CONSTRUCT_PORTFOLIO
-    via: AdvisoryBus -> SQS -> portfolio-engine-ctrl-ingress
-    state_change: Constructs rebalance plan (buy/sell orders to correct drift); produces REBALANCE_PLAN_PRODUCED
-    emits: PORTFOLIO_COMPLETED (explicit via event-publisher)
+  # Step 3b: advisory-ctrl also receives drift event and runs inline agent lifecycle
+  # Source: services/advisory/advisory-ctrl/src/handlers/event-listener.ts
+  # handleTriggerEvent -> lifecycleService.executeDecisionLifecycle -> skip()
+  # Writes DecisionPacket + AgentInvocation + ReasoningOutput to DDB via repository
+  # Source: services/advisory/advisory-ctrl/src/service.stack.ts (Egress)
+  - service: advisory-ctrl
+    receives: PORTFOLIO_DRIFT_DETECTED
+    via: AdvisoryBus → SQS → advisory-ctrl-ingress
+    state_change: Runs inline LangGraph agent pipeline (4 agents), writes DecisionPacket + AgentInvocation records
+    emits: DECISION_PACKET (CDC from DecisionPacket insert)
+    idempotent: true
+
+  # Step 4: SF orchestration — WORKFLOW_TRIGGER CDC starts Step Functions
+  # Source: services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
+  # SF flow: ParallelProfiling (InvokeInvestorProfile || InvokeMarketIntelligence)
+  #        → InvokePortfolioEngine → InvokeAdvisoryNarrative → AssembleDecisionPacket
+  #        → PublishRecommendation → WaitForCompliance → ComplianceChoice
+  # Each agent invocation publishes detailType to AdvisoryBus with waitForTaskToken
+
+  # Step 4a: Parallel — investor-profile-ctrl + market-intelligence-ctrl
+  # Source: decision-state-machine.ts (InvokeInvestorProfile emits ANALYZE_INVESTOR_PROFILE)
+  # Source: services/advisory/investor-profile-ctrl/src/service.stack.ts (Ingress: ANALYZE_INVESTOR_PROFILE)
+  - service: investor-profile-ctrl
+    receives: ANALYZE_INVESTOR_PROFILE
+    via: AdvisoryBus → SQS → investor-profile-ctrl-ingress
+    state_change: Runs user-goals (Haiku) + risk-assessment (Opus) agents; writes AgentInvocation to DDB
+    emits: GOAL_INTERPRETATION_PRODUCED (CDC from AgentInvocation insert)
     idempotent: false
 
-  # After advisory cycle completes with DECISION_APPROVED
+  # Source: decision-state-machine.ts (InvokeMarketIntelligence emits ANALYZE_MARKET)
+  # Source: services/advisory/market-intelligence-ctrl/src/service.stack.ts (Ingress: ANALYZE_MARKET)
+  - service: market-intelligence-ctrl
+    receives: ANALYZE_MARKET
+    via: AdvisoryBus → SQS → market-intelligence-ctrl-ingress
+    state_change: Runs market-research (Sonnet) agent; writes AgentInvocation to DDB
+    emits: MARKET_SIGNAL_DETECTED (CDC from AgentInvocation insert)
+    idempotent: false
+
+  # Step 4b: Sequential — portfolio-engine-ctrl
+  # Source: decision-state-machine.ts (InvokePortfolioEngine emits CONSTRUCT_PORTFOLIO)
+  # Source: services/advisory/portfolio-engine-ctrl/src/service.stack.ts (Ingress: CONSTRUCT_PORTFOLIO)
+  - service: portfolio-engine-ctrl
+    receives: CONSTRUCT_PORTFOLIO
+    via: AdvisoryBus → SQS → portfolio-engine-ctrl-ingress
+    state_change: Runs portfolio-construction (Opus) + rebalance-planner (Sonnet) agents; writes AgentInvocation + ReasoningOutput
+    emits: PORTFOLIO_CONSTRUCTION_PROPOSED (CDC from AgentInvocation insert), REBALANCE_PLAN_PRODUCED (CDC from ReasoningOutput insert)
+    idempotent: false
+
+  # Step 4c: Sequential — advisory-narrative-ctrl
+  # Source: decision-state-machine.ts (InvokeAdvisoryNarrative emits GENERATE_NARRATIVE)
+  # Source: services/advisory/advisory-narrative-ctrl/src/service.stack.ts (Ingress: GENERATE_NARRATIVE)
+  - service: advisory-narrative-ctrl
+    receives: GENERATE_NARRATIVE
+    via: AdvisoryBus → SQS → advisory-narrative-ctrl-ingress
+    state_change: Runs explainability (Sonnet) agent; writes ReasoningOutput to DDB
+    emits: EXPLANATION_GENERATED (CDC from ReasoningOutput insert)
+    idempotent: false
+
+  # Step 5: AssemblePacket Lambda reads agent outputs from Memory, writes DecisionPacket to DDB
+  # Source: decision-state-machine.ts (AssembleDecisionPacket state, Lambda invoke)
+  # Source: decision-workflow-ctrl/src/service.stack.ts (Egress: DecisionPacket -> DECISION_PACKET)
+
+  # Step 6: SF publishes RECOMMENDATION_PROPOSED, then WaitForCompliance (task token)
+  # Source: decision-state-machine.ts (PublishRecommendation + WaitForCompliance)
+
+  # Step 7: compliance-ctrl evaluates decision packet
+  # Source: services/advisory/compliance-ctrl/src/service.stack.ts (Ingress: DECISION_PACKET_CREATED)
+  # Source: services/advisory/compliance-ctrl/src/handlers/event-listener.ts (processDecisionPacket)
+  - service: compliance-ctrl
+    receives: DECISION_PACKET_CREATED
+    via: AdvisoryBus → SQS → compliance-ctrl-ingress
+    state_change: Evaluates mandate, guardrails, suitability; writes ComplianceCheck + AuditArtifact to DDB
+    emits: COMPLIANCE_CHECK (CDC from ComplianceCheck insert), AUDIT_ARTIFACT (CDC from AuditArtifact insert)
+    idempotent: true
+
+  # Step 8: Compliance result resumes SF via callback
+  # SF ComplianceChoice: BLOCKED → EndBlocked, APPROVED L1 → EndApprovedL1, L2 → RequestUserConfirmation
+  # Source: decision-state-machine.ts (ComplianceChoice)
+
+  # Step 9: Cross-domain hop — execution-adpt pulls DECISION_APPROVED from AdvisoryBus
+  # Source: services/execution/execution-adpt/src/service.stack.ts (ExecutionIngress-FromAdvisory rule)
   - cross_domain: DECISION_APPROVED
     from: AdvisoryBus
     to: ExecutionBus
-    via: execution-adpt EB rule
+    via: execution-adpt EB rule (ExecutionIngress-FromAdvisory, DLQ FromAdvisoryDLQ 14d)
 
+  # Step 10: execution-ctrl creates rebalance orders
+  # Source: services/execution/execution-ctrl/src/service.stack.ts (Ingress: DECISION_APPROVED)
+  # Source: services/execution/execution-ctrl/src/handlers/event-listener.ts (processApprovedDecision)
+  # Runs safety checks, then: market open → SUBMITTED, market closed → STAGED + StagedOrder
   - service: execution-ctrl
     receives: DECISION_APPROVED
-    via: ExecutionBus -> SQS -> execution-ctrl-ingress
-    state_change: Creates rebalance orders (buy/sell) from decision packet
-    emits: ORDER_SUBMITTED or ORDER_STAGED (CDC)
+    via: ExecutionBus → SQS → execution-ctrl-ingress
+    state_change: Safety checks → writes Order (SUBMITTED|STAGED|REJECTED) + optional StagedOrder to DDB
+    emits: ORDER_SUBMITTED or ORDER_STAGED or ORDER_REJECTED (CDC from Order insert, status-based mapping)
     idempotent: true
 
-  # Orders execute through order-execution flow (see order-execution.flow.yaml)
+  # Staged orders are processed at US market open (cron 14:30 UTC MON-FRI)
+  # Source: services/execution/execution-ctrl/src/service.stack.ts (MarketOpenSchedule → StagedOrderProcessor)
+
+  # ORDER_SUBMITTED continues through order-execution.flow.yaml
 
 success_criteria:
-  - Portfolio drift detected and quantified in DriftRecords
-  - Advisory decision cycle produces rebalance plan
-  - Rebalance orders created and executed
-  - Post-execution, reconciliation confirms drift is resolved
+  - Drift quantified in DriftRecord by reconciliation-ctrl
+  - Advisory decision cycle (4 LangGraph agents) produces rebalance plan with proposed trades
+  - Compliance-ctrl evaluates and approves decision packet
+  - Rebalance orders created in execution-ctrl (SUBMITTED or STAGED)
+  - Staged orders processed at next market open
 
 failure_modes:
-  - step 1 fails: reconciliation-ctrl ingress DLQ; drift not detected
-  - step 2 fails: ledger-adpt ToAdvisoryDLQ; advisory not notified of drift
-  - step 3 fails: decision-workflow-ctrl TriggerIngress DLQ; rebalance cycle not started
-  - step 4 fails: portfolio-engine-ctrl agent failure; SF task token times out
-  - step 6 fails: execution-ctrl ingress DLQ; rebalance orders not created
+  - step 1 fails: reconciliation-ctrl ingress DLQ; drift remains undetected
+  - step 2 fails: advisory-adpt FromLedgerDLQ (14d retention); advisory domain not notified
+  - step 3 fails: decision-workflow-ctrl TriggerIngress DLQ; decision cycle not started
+  - step 4a fails: agent invocation timeout (10 min); SF task token expires, workflow fails
+  - step 4b fails: portfolio-engine-ctrl agent failure; SF task token expires
+  - step 4c fails: advisory-narrative-ctrl agent failure; SF task token expires
+  - step 7 fails: compliance-ctrl ingress DLQ; compliance evaluation not performed
+  - step 8 fails: compliance callback fails; SF WaitForCompliance times out (24h)
+  - step 9 fails: execution-adpt FromAdvisoryDLQ (14d retention); execution not notified
+  - step 10 fails: execution-ctrl ingress DLQ; rebalance orders not created
+  - safety checks fail: Order written with status REJECTED; no broker submission

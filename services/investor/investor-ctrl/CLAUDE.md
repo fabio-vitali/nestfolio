@@ -12,19 +12,21 @@ Stack: services/investor/investor-ctrl/src/service.stack.ts
 
 ## Egress
 - CDC: DynamoDB Streams → investor-ctrl-egress (Lambda)
-  Emits: Notification, MonthlyReport
+  Emits: Notification → NOTIFICATION, MonthlyReport → MONTHLY_REPORT
 
 ## Handlers
-- event-listener.ts
-- event-publisher.ts
+- event-listener.ts — creates Notification records for all subscribed events; creates MonthlyReport on ORDER_FILLED
+- event-publisher.ts — CDC (changeDataCapture)
 
 ## Event Types (domain/events.ts)
 - InvestorCtrlEventTypes: NOTIFICATION_CREATED, NOTIFICATION_SENT, NOTIFICATION_DELIVERED, MONTHLY_REPORT_GENERATED
 
 ## Tests
 - event-listener.test.ts
-- notification.service.test.ts
+- notification-delivery.service.test.ts
+- notification-lifecycle.service.test.ts
 - notification.repository.test.ts
 
 ## Dependencies
-- libs: cdk-constructs/core
+- libs: cdk-constructs/core, event-processor
+- cross-domain imports: investor-bff/events, advisory-adpt/domain, execution-adpt/domain, ledger-adpt/domain

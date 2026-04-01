@@ -17,13 +17,8 @@ flowchart TD
     subgraph execution["Execution Domain"]
         broker_ctrl["broker-ctrl"]
     end
-    subgraph advisory["Advisory Domain"]
-        advisory_ctrl["advisory-ctrl"]
-        decision_workflow_ctrl["decision-workflow-ctrl"]
-    end
     onboarding_bff -->|"GO_LIVE_CONFIRMED"| investor_bff
     investor_bff -->|"EXECUTION_MODE_CHANGED, EXECUTION_MODE_CHANG…"| broker_ctrl
-    broker_ctrl -.->|"OPERATING_MODE_CHANGED"| advisory_ctrl
 ```
 
 ## Sequence Diagram
@@ -37,31 +32,25 @@ sequenceDiagram
     box execution domain
         participant broker_ctrl as broker-ctrl
     end
-    box advisory domain
-        participant advisory_ctrl as advisory-ctrl
-        participant decision_workflow_ctrl as decision-workflow-ctrl
-    end
-    Note over onboarding_bff: Investor completes Go Live wizard in investor-mfe…
+    Note over onboarding_bff: Investor completes Go Live wizard (flowType='go-l…
     onboarding_bff->>+investor_bff: GO_LIVE_CONFIRMED
     investor_bff-)broker_ctrl: EXECUTION_MODE_CHANGED (InvestorBus → ExecutionBus)
-    broker_ctrl-)advisory_ctrl: OPERATING_MODE_CHANGED (InvestorBus → AdvisoryBus)
-    advisory_ctrl->>+decision_workflow_ctrl: OPERATING_MODE_CHANGED
 ```
 
 ## Steps
 
 ### Step 1: onboarding-bff
 
-- **Action:** Investor completes Go Live wizard in investor-mfe, calls confirmGoLive() resolver
-- **State change:** TransactWrite updates OnboardingSession status and writes GoLiveConfirmed record to DDB
+- **Action:** Investor completes Go Live wizard (flowType='go-live', phases review_risk -> review_goals -> review_mandate -> fund_account -> go_live_confirmation)
+- **State change:** confirmGoLive() TransactWrite updates OnboardingSession (status='completed', currentPhase='go_live_confirmation') and puts GoLiveConfirmed CDC record (__typename='GoLiveConfirmed')
 - **Emits:** `GO_LIVE_CONFIRMED (CDC from GoLiveConfirmed:INSERT)`
 - **Idempotent:** yes
 
 ### Step 2: investor-bff
 
 - **Receives:** `GO_LIVE_CONFIRMED`
-- **Via:** InvestorBus -> SQS -> investor-bff-ingress
-- **State change:** event-listener calls setExecutionMode('simulation' -> 'live'), writes ExecutionModeChange record to DDB
+- **Via:** InvestorBus -> SQS -> investor-bff-Ingress
+- **State change:** event-listener calls profileRepo.setExecutionMode(tenantId, userId, 'simulation', 'live') which TransactWrites ExecutionModeChange record (__typename='ExecutionModeChange', fromMode='simulation', toMode='live') and updates InvestorProfile (executionMode='live')
 - **Emits:** `EXECUTION_MODE_CHANGED (CDC from ExecutionModeChange:INSERT)`
 - **Idempotent:** yes
 
@@ -70,47 +59,25 @@ sequenceDiagram
 - **Event:** `EXECUTION_MODE_CHANGED`
 - **From:** InvestorBus
 - **To:** ExecutionBus
-- **Via:** execution-adpt EB rule
+- **Via:** execution-adpt EB rule (ExecutionIngress-FromInvestor)
 
 ### Step 4: broker-ctrl
 
 - **Receives:** `EXECUTION_MODE_CHANGED`
 - **Via:** ExecutionBus -> SQS -> broker-ctrl-ModeIngress
-- **State change:** mode-listener materializes ExecutionMode record (mode='live') in DDB; future deposit/withdrawal/order routing uses Alpaca instead of simulator
-- **Idempotent:** yes
-
-### Step 5: Cross-domain hop
-
-- **Event:** `OPERATING_MODE_CHANGED`
-- **From:** InvestorBus
-- **To:** AdvisoryBus
-- **Via:** advisory-adpt EB rule
-
-### Step 6: advisory-ctrl
-
-- **Receives:** `OPERATING_MODE_CHANGED`
-- **Via:** AdvisoryBus -> SQS -> advisory-ctrl-ingress
-- **State change:** Updates operating mode context for future advisory decisions
-- **Idempotent:** yes
-
-### Step 7: decision-workflow-ctrl
-
-- **Receives:** `OPERATING_MODE_CHANGED`
-- **Via:** AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
-- **State change:** May trigger new advisory decision cycle for live mode portfolio review
-- **Emits:** `DECISION_PACKET_CREATED (CDC)`
+- **State change:** mode-listener records ExecutionMode (__typename='ExecutionMode', pk='ExecutionMode#{tenantId}', mode='live'); future deposit/withdrawal/order routing uses Alpaca adapters instead of simulators
 - **Idempotent:** yes
 
 ## Success Criteria
 
 - ExecutionMode record materialized in broker-ctrl with mode='live'
-- Future orders routed to broker-alpaca-adpt instead of broker-sim-adpt
-- Future deposits/withdrawals routed to Alpaca ACH instead of simulator
-- Advisory domain aware of operating mode change
+- Future ORDER_SUBMITTED events routed to broker-alpaca-adpt instead of broker-sim-adpt
+- Future DEPOSIT_INITIATED events routed to ALPACA_TRANSFER_REQUESTED instead of SIM_DEPOSIT_INITIATED
+- Future WITHDRAWAL_REQUESTED events routed to ALPACA_TRANSFER_REQUESTED instead of SIM_WITHDRAWAL_REQUESTED
 
 ## Failure Modes
 
 - **step 1 fails:** onboarding-bff CDC not emitted; go-live not triggered
-- **step 2 fails:** investor-bff ingress DLQ; execution mode not changed
-- **step 3 fails:** investor-adpt ToExecutionDLQ; broker-ctrl not notified
-- **step 4 fails:** broker-ctrl ModeIngress DLQ; mode not materialized, orders still route to simulator
+- **step 2 fails:** investor-bff Ingress DLQ; ExecutionModeChange not written, execution mode unchanged
+- **step 3 fails:** execution-adpt FromInvestorDLQ; EXECUTION_MODE_CHANGED not forwarded to ExecutionBus
+- **step 4 fails:** broker-ctrl ModeIngress DLQ; ExecutionMode not materialized, orders still route to simulator adapters

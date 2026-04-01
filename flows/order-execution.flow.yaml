@@ -1,63 +1,98 @@
 schema_version: 1
 flow: order-execution
 description: Approved decision triggers order creation in execution-ctrl, routed through broker-ctrl state machine to sim or Alpaca adapter, normalized back to canonical fill/reject events
-domains: [advisory, execution]
+domains: [advisory, execution, ledger, investor]
 
-trigger: DECISION_APPROVED crosses AdvisoryBus → ExecutionBus via execution-adpt EB rule
+trigger: DECISION_APPROVED crosses AdvisoryBus -> ExecutionBus via execution-adpt EB rule
 
 steps:
+  # Phase 1: Cross-domain entry — advisory decision reaches execution domain
   - cross_domain: DECISION_APPROVED
     from: AdvisoryBus
     to: ExecutionBus
     via: execution-adpt EB rule
 
+  # Phase 2: Order creation with safety checks
   - service: execution-ctrl
     receives: DECISION_APPROVED
     via: ExecutionBus -> SQS -> execution-ctrl-ingress
-    state_change: Creates Order records (one per instrument in decision packet) in DDB; status depends on operating mode (STAGED for simulation staging, SUBMITTED for live)
-    emits: ORDER_SUBMITTED or ORDER_STAGED (CDC from Order:INSERT, status-based mapping)
+    state_change: Runs safety checks on proposed trades; creates Order record in DDB with status SUBMITTED (market open), STAGED (market closed), or REJECTED (safety check failure)
+    emits: ORDER_SUBMITTED, ORDER_STAGED, or ORDER_REJECTED (CDC from Order:INSERT, status-based mapping; default ORDER_CREATED)
     idempotent: true
 
-  # For staged orders in simulation mode
+  # Phase 2b: USER_CONFIRMED also triggers order creation (same handler)
   - service: execution-ctrl
-    action: StagedOrderProcessor Lambda runs on US market open schedule (AdapterSchedule)
-    state_change: Submits staged orders, updates Order status to SUBMITTED
-    emits: ORDER_SUBMITTED (CDC from Order:MODIFY)
+    receives: USER_CONFIRMED
+    via: ExecutionBus -> SQS -> execution-ctrl-ingress
+    state_change: Same as DECISION_APPROVED — runs safety checks, creates Order record
+    emits: ORDER_SUBMITTED, ORDER_STAGED, or ORDER_REJECTED (CDC from Order:INSERT)
     idempotent: true
 
-  # Order state machine in broker-ctrl
+  # Phase 2c: Staged order processing at market open
+  - service: execution-ctrl
+    action: StagedOrderProcessor Lambda runs at US market open (cron 14:30 UTC, MON-FRI via AdapterSchedule)
+    state_change: Re-runs safety checks on staged orders; updates Order status to SUBMITTED or REJECTED; deletes StagedOrder record
+    emits: ORDER_SUBMITTED or ORDER_REJECTED (CDC from Order:MODIFY, status-based mapping)
+    idempotent: true
+
+  # Phase 3: Order state machine — broker-ctrl orchestrates routing
   - service: broker-ctrl
     receives: ORDER_SUBMITTED
-    via: ExecutionBus -> broker-ctrl OrderIngress (EventBridge rule -> SF OrderStateMachine)
-    state_change: Order state machine starts; routes to SIM_ORDER_REQUESTED or ALPACA_ORDER_REQUESTED based on ExecutionMode
-    emits: SIM_ORDER_REQUESTED or ALPACA_ORDER_REQUESTED (SF EventBridge integration)
+    via: ExecutionBus -> Orchestration EB rule -> broker-ctrl OrderStateMachine
+    state_change: |
+      SF starts; reads ExecutionMode and CircuitBreaker from DDB.
+      If circuit breaker OPEN, waits 30s and re-checks (loop).
+      If clear, invokes RouteOrder Lambda (waitForTaskToken).
+      RouteOrder writes BrokerOrder record with taskToken, emits SIM_ORDER_REQUESTED (sim mode) or ALPACA_ORDER_REQUESTED (live mode) to ExecutionBus via PutEvents.
+    emits: SIM_ORDER_REQUESTED or ALPACA_ORDER_REQUESTED (explicit PutEvents from RouteOrder Lambda)
     idempotent: true
 
-  # Simulation path
+  # Phase 4a: Simulation path
   - service: broker-sim-adpt
     receives: SIM_ORDER_REQUESTED
     via: ExecutionBus -> SQS -> broker-sim-adpt-ingress
-    state_change: Simulates order execution, writes VirtualTrade record with fill price
-    emits: SIM_ORDER_FILLED or SIM_ORDER_REJECTED (CDC)
+    state_change: Fetches market price, validates cash/position balance, executes atomic trade via VirtualLedger (writes VirtualTrade record with status FILLED or REJECTED)
+    emits: SIM_ORDER_FILLED or SIM_ORDER_REJECTED (CDC from VirtualTrade:INSERT, status-based mapping)
     idempotent: true
 
-  # Live path (alternative)
+  # Phase 4b: Live path (alternative to 4a)
   - service: broker-alpaca-adpt
     receives: ALPACA_ORDER_REQUESTED
     via: ExecutionBus -> SQS -> broker-alpaca-adpt-ingress
-    state_change: Submits order to Alpaca API, writes AlpacaOrderResult record
-    emits: ALPACA_ORDER_FILLED or ALPACA_ORDER_REJECTED (CDC)
+    state_change: Submits order to Alpaca API via AlpacaClient, writes AlpacaOrderResult record (status PLACED initially)
+    emits: ALPACA_ORDER_PLACED (CDC from AlpacaOrderResult:INSERT, status=PLACED)
     idempotent: true
 
-  # Callback resolution
+  # Phase 4b-poll: Alpaca order polling for terminal status
+  - service: broker-alpaca-adpt
+    receives: ALPACA_ORDER_PLACED
+    via: Orchestration EB rule -> broker-alpaca-adpt OrderPollingStateMachine (24h timeout)
+    state_change: Polls Alpaca API for order status updates; updates AlpacaOrderResult record to FILLED, PARTIALLY_FILLED, REJECTED, or CANCELLED
+    emits: ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, or ALPACA_ORDER_CANCELLED (CDC from AlpacaOrderResult:MODIFY)
+    idempotent: true
+
+  # Phase 5: Callback resolution — adapter results return to broker-ctrl SF
   - service: broker-ctrl
-    receives: SIM_ORDER_FILLED | ALPACA_ORDER_FILLED | SIM_ORDER_REJECTED | ALPACA_ORDER_REJECTED
+    receives: SIM_ORDER_FILLED | SIM_ORDER_REJECTED | ALPACA_ORDER_FILLED | ALPACA_ORDER_PARTIALLY_FILLED | ALPACA_ORDER_REJECTED | ALPACA_ORDER_CANCELLED | ALPACA_ORDER_CANCEL_FAILED
     via: ExecutionBus -> SQS -> broker-ctrl-CallbackIngress
-    state_change: Writes NormalizedEvent record (sk = ORDER_FILLED or ORDER_REJECTED)
-    emits: ORDER_FILLED or ORDER_REJECTED (CDC from NormalizedEvent:INSERT, sk is event type)
+    state_change: Looks up BrokerOrder taskToken; calls SF SendTaskSuccess with mapped status (FILLED, PARTIALLY_FILLED, REJECTED, CANCELLED) and failureClass (none, deterministic, transient). No DDB write — callback flows back to SF.
+    emits: none (callback resolves SF waitForTaskToken)
     idempotent: true
 
-  # Cross-domain forwarding
+  # Phase 6: SF state machine writes NormalizedEvent based on callback result
+  - service: broker-ctrl
+    action: OrderStateMachine ClassifyResult processes adapter callback
+    state_change: |
+      SF classifies adapterResult.status:
+      - FILLED: Parallel writes BrokerOrder state=FILLED + NormalizedEvent sk=ORDER_FILLED#{timestamp}
+      - PARTIALLY_FILLED: Updates BrokerOrder state=PARTIALLY_FILLED, re-invokes RouteOrder (waitForTaskToken) for more fills
+      - transient failure: CheckRetryCount (< 3 retries -> IncrementRetry + exponential backoff 5s/15s/45s -> re-invoke RouteOrder; >= 3 -> MarkFailed with NormalizedEvent sk=ORDER_REJECTED)
+      - default: Parallel writes BrokerOrder state=REJECTED + NormalizedEvent sk=ORDER_REJECTED#{timestamp}
+      - Timeout (300s): HandleTimeout parallel opens circuit breaker, escalates order, writes NormalizedEvent sk=ORDER_ESCALATED + BROKER_CIRCUIT_OPEN
+    emits: ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_ESCALATED, or BROKER_CIRCUIT_OPEN (CDC from NormalizedEvent:INSERT, sk passthrough)
+    idempotent: true
+
+  # Phase 7: Cross-domain forwarding of canonical events
   - cross_domain: ORDER_FILLED
     from: ExecutionBus
     to: LedgerBus
@@ -68,26 +103,53 @@ steps:
     to: AdvisoryBus
     via: advisory-adpt EB rule
 
+  - cross_domain: ORDER_PARTIALLY_FILLED
+    from: ExecutionBus
+    to: LedgerBus
+    via: ledger-adpt EB rule
+
   - cross_domain: ORDER_REJECTED
     from: ExecutionBus
-    to: InvestorBus
-    via: investor-adpt EB rule
+    to: LedgerBus
+    via: ledger-adpt EB rule
 
   - cross_domain: ORDER_REJECTED
     from: ExecutionBus
     to: AdvisoryBus
     via: advisory-adpt EB rule
 
+  - cross_domain: ORDER_REJECTED
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule
+
+  - cross_domain: ORDER_CANCELLED
+    from: ExecutionBus
+    to: LedgerBus
+    via: ledger-adpt EB rule
+
+  - cross_domain: ORDER_CANCELLED
+    from: ExecutionBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule
+
 success_criteria:
-  - Orders created from decision packet trades
-  - Orders routed to correct broker adapter (sim or Alpaca)
-  - ORDER_FILLED events reach ledger domain for recording
-  - ORDER_REJECTED events reach investor domain for notification
+  - Order record created from DECISION_APPROVED with correct status (SUBMITTED, STAGED, or REJECTED)
+  - Staged orders promoted to SUBMITTED at US market open via scheduled processor
+  - ORDER_SUBMITTED triggers broker-ctrl OrderStateMachine
+  - RouteOrder Lambda routes to correct adapter based on ExecutionMode (sim vs live)
+  - Adapter produces fill/reject result and callback resolves SF task token
+  - SF writes NormalizedEvent triggering CDC emission of canonical ORDER_FILLED or ORDER_REJECTED
+  - ORDER_FILLED reaches LedgerBus and AdvisoryBus for downstream processing
+  - ORDER_REJECTED reaches LedgerBus, AdvisoryBus, and InvestorBus for notification
 
 failure_modes:
-  - step 2 fails: execution-ctrl ingress DLQ; orders not created
-  - step 4 fails: broker-ctrl OrderStateMachine stuck; circuit breaker may trigger BROKER_CIRCUIT_OPEN
-  - step 5 fails: broker-sim-adpt ingress DLQ; simulated fill not produced
-  - step 6 fails: broker-alpaca-adpt ingress DLQ; live order not submitted
-  - step 7 fails: broker-ctrl CallbackIngress DLQ; normalized event not created, SF task token times out
-  - step 8-11 fails: execution-adpt forwarding DLQs; downstream domains not notified
+  - step 2 fails: execution-ctrl ingress DLQ; orders not created from decision
+  - step 4 fails: broker-ctrl OrderStateMachine circuit breaker loop or RouteOrder Lambda failure; SF stuck until 1h timeout triggers HandleTimeout (opens circuit breaker, writes ORDER_ESCALATED)
+  - step 5a fails: broker-sim-adpt ingress DLQ; simulated fill not produced, SF task token times out (300s) triggering HandleTimeout
+  - step 5b fails: broker-alpaca-adpt ingress DLQ or Alpaca API error; live order not submitted, SF task token times out
+  - step 5b-poll fails: OrderPollingStateMachine timeout (24h); AlpacaOrderResult stuck in PLACED status
+  - step 6 fails: broker-ctrl CallbackIngress DLQ; SF task token not resolved, times out triggering HandleTimeout
+  - step 7 fails: SF transient retry exhausted (3 retries with 5s/15s/45s backoff); MarkFailed writes NormalizedEvent ORDER_REJECTED
+  - step 7 timeout: 300s adapter timeout triggers HandleTimeout — parallel: open circuit breaker, escalate order (ORDER_ESCALATED + BROKER_CIRCUIT_OPEN via CDC)
+  - step 8+ fails: cross-domain adapter DLQs (ledger-adpt, advisory-adpt, investor-adpt); downstream domains not notified

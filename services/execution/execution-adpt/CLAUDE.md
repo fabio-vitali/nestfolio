@@ -13,11 +13,15 @@ None (stateless adapter)
   DEPOSIT_INITIATED, WITHDRAWAL_REQUESTED, ACCOUNT_CLOSURE_REQUESTED, EXECUTION_MODE_CHANGED
 
 ## DLQs
-- FromAdvisoryDLQ, FromInvestorDLQ (14-day retention, KMS encrypted)
+- FromAdvisoryDLQ (14-day retention, KMS encrypted)
+- FromInvestorDLQ (14-day retention, KMS encrypted)
 
 ## Event Types (domain/events.ts)
-- ExecutionCrossDomainEventTypes: events published by execution domain (used by same-domain services)
-- ExecutionIngestEventTypes: events consumed from external domain buses
+- ExecutionCrossDomainEventTypes: ORDER_STAGED, ORDER_REJECTED, ORDER_CANCELLED, WITHDRAWAL_REJECTED, ORDER_ESCALATED, BROKER_CIRCUIT_OPEN, ORDER_FILLED, ORDER_PARTIALLY_FILLED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, CORPORATE_ACTION_APPLIED, PORTFOLIO_SNAPSHOT_IMPORTED, ALPACA_ACCOUNT_SNAPSHOT, PORTFOLIO_DRIFT_DETECTED, BROKER_SESSION_LOST, STREAM_DISCONNECTED, RECONCILIATION_FAILED
+- ExecutionIngestEventTypes: DECISION_APPROVED, DECISION_PACKET_CREATED, USER_CONFIRMED, CIRCUIT_BREAKER_TRIGGERED, CIRCUIT_BREAKER_RESET, DEPOSIT_INITIATED, WITHDRAWAL_REQUESTED, ACCOUNT_CLOSURE_REQUESTED, EXECUTION_MODE_CHANGED
+
+## Tests
+- service.stack.test.ts
 
 ## Dependencies
-- libs: cdk-constructs/core, cdk-constructs/observability, cdk-constructs/extensions
+- libs: cdk-constructs/core, cdk-constructs/observability, cdk-constructs/extensions, cdk-constructs/utils

@@ -1,10 +1,10 @@
 # Reconciliation
 
-> Reconciliation-ctrl compares intent positions (from portfolio events) against settlement positions (from broker snapshots), producing drift records and completion events
+> reconciliation-ctrl compares intent positions against settlement positions per instrument, producing DriftRecord items for mismatches and a ReconciliationResult summary. CDC emits RECONCILIATION_COMPLETED and PORTFOLIO_DRIFT_DETECTED, which cross domains to update the investor dashboard and trigger the advisory rebalance cycle.
 
-**Domains:** ledger, execution, investor
+**Domains:** ledger, investor, advisory, execution
 
-**Trigger:** ledger-ctrl emits PORTFOLIO_UPDATED (CDC from PortfolioEvent:INSERT) or execution domain emits PORTFOLIO_SNAPSHOT_IMPORTED / ALPACA_ACCOUNT_SNAPSHOT
+**Trigger:** Any of four events arriving on LedgerBus: PORTFOLIO_UPDATED (CDC from ledger-ctrl PortfolioEvent:INSERT), PORTFOLIO_SNAPSHOT_IMPORTED (execution cross-domain, pulled by ledger-adpt from ExecutionBus), CORPORATE_ACTION_APPLIED (execution cross-domain, pulled by ledger-adpt from ExecutionBus), ALPACA_ACCOUNT_SNAPSHOT (CDC from broker-alpaca-adpt AlpacaAccountSnapshot:INSERT, pulled by ledger-adpt from ExecutionBus)
 
 ## Flowchart
 
@@ -16,7 +16,11 @@ flowchart TD
     subgraph investor["Investor Domain"]
         dashboard_bff["dashboard-bff"]
     end
-    reconciliation_ctrl -->|"RECONCILIATION_COMPLETED, RECONCILIATION_COM…"| dashboard_bff
+    subgraph advisory["Advisory Domain"]
+        advisory_ctrl["advisory-ctrl"]
+    end
+    reconciliation_ctrl -.->|"RECONCILIATION_COMPLETED"| dashboard_bff
+    dashboard_bff -.->|"PORTFOLIO_DRIFT_DETECTED"| advisory_ctrl
 ```
 
 ## Sequence Diagram
@@ -29,78 +33,99 @@ sequenceDiagram
     box investor domain
         participant dashboard_bff as dashboard-bff
     end
-    Note over reconciliation_ctrl: Compares intent vs settlement quantities per symb…
+    box advisory domain
+        participant advisory_ctrl as advisory-ctrl
+    end
+    Note over reconciliation_ctrl: CDC (Egress) processes DynamoDB Stream changes
     reconciliation_ctrl-)dashboard_bff: RECONCILIATION_COMPLETED (LedgerBus → InvestorBus)
+    dashboard_bff-)advisory_ctrl: PORTFOLIO_DRIFT_DETECTED (LedgerBus → AdvisoryBus)
 ```
 
 ## Steps
 
-### Step 1: reconciliation-ctrl
+### Step 1: Cross-domain hop
 
-- **Receives:** `PORTFOLIO_UPDATED`
-- **Via:** LedgerBus -> SQS -> reconciliation-ctrl-ingress
-- **State change:** Updates intent-side position snapshot from portfolio event
-- **Idempotent:** yes
+- **Event:** `PORTFOLIO_SNAPSHOT_IMPORTED`
+- **From:** ExecutionBus
+- **To:** LedgerBus
+- **Via:** ledger-adpt EB rule (LedgerIngress-FromExecution)
 
-### Step 2: reconciliation-ctrl
+### Step 2: Cross-domain hop
 
-- **Receives:** `PORTFOLIO_SNAPSHOT_IMPORTED`
-- **Via:** LedgerBus -> SQS -> reconciliation-ctrl-ingress
-- **State change:** Updates settlement-side position snapshot from broker portfolio import
-- **Idempotent:** yes
+- **Event:** `CORPORATE_ACTION_APPLIED`
+- **From:** ExecutionBus
+- **To:** LedgerBus
+- **Via:** ledger-adpt EB rule (LedgerIngress-FromExecution)
 
-### Step 3: reconciliation-ctrl
+### Step 3: Cross-domain hop
 
-- **Receives:** `CORPORATE_ACTION_APPLIED`
-- **Via:** LedgerBus -> SQS -> reconciliation-ctrl-ingress
-- **State change:** Adjusts positions for corporate actions (splits, dividends)
-- **Idempotent:** yes
+- **Event:** `ALPACA_ACCOUNT_SNAPSHOT`
+- **From:** ExecutionBus
+- **To:** LedgerBus
+- **Via:** ledger-adpt EB rule (LedgerIngress-FromExecution)
 
 ### Step 4: reconciliation-ctrl
 
-- **Receives:** `ALPACA_ACCOUNT_SNAPSHOT`
+- **Receives:** `PORTFOLIO_UPDATED | PORTFOLIO_SNAPSHOT_IMPORTED | CORPORATE_ACTION_APPLIED`
+- **Action:** Calls ReconciliationService.reconcile() which builds intent and settlement position maps from the event payload, iterates all instruments, and computes drift (intentQty - settlementQty) for each. Instruments with abs(drift) > 0.001 produce DriftEntry items. Status is DRIFT_DETECTED if any drifts exist, otherwise COMPLETED.
 - **Via:** LedgerBus -> SQS -> reconciliation-ctrl-ingress
-- **State change:** Updates settlement-side positions from Alpaca account snapshot
+- **State change:** Writes ReconciliationResult record (pk=Reconciliation#tenantId#reconciliationId, sk=Reconciliation) with status and driftCount. Writes one DriftRecord per mismatched instrument (sk=DriftRecord#instrument) with intentQty, settlementQty, and drift.
 - **Idempotent:** yes
 
 ### Step 5: reconciliation-ctrl
 
-- **Action:** Compares intent vs settlement quantities per symbol
-- **State change:** Writes DriftRecord for each mismatch; writes ReconciliationResult (status, driftCount)
-- **Emits:** `RECONCILIATION_COMPLETED (CDC from ReconciliationResult:INSERT), PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord:INSERT)`
+- **Receives:** `ALPACA_ACCOUNT_SNAPSHOT`
+- **Action:** Same reconciliation logic as reconcileHandler but reads positions from Alpaca-format payload (qty field instead of quantity). Calls ReconciliationService.reconcile().
+- **Via:** LedgerBus -> SQS -> reconciliation-ctrl-ingress
+- **State change:** Writes ReconciliationResult and DriftRecord items (same schema as reconcileHandler).
 - **Idempotent:** yes
 
-### Step 6: Cross-domain hop
+### Step 6: reconciliation-ctrl
+
+- **Action:** CDC (Egress) processes DynamoDB Stream changes
+
+### Step 7: Cross-domain hop
 
 - **Event:** `RECONCILIATION_COMPLETED`
 - **From:** LedgerBus
 - **To:** InvestorBus
-- **Via:** investor-adpt EB rule
+- **Via:** investor-adpt EB rule (InvestorIngress-FromLedger)
 
-### Step 7: dashboard-bff
+### Step 8: dashboard-bff
 
 - **Receives:** `RECONCILIATION_COMPLETED`
 - **Via:** InvestorBus -> SQS -> dashboard-bff-ingress
-- **State change:** Updates portfolio summary with reconciliation status (flags if drifts found)
+- **State change:** Updates PortfolioSummary projection via portfolioSummary transform
 - **Idempotent:** yes
 
-### Step 8: Cross-domain hop
+### Step 9: Cross-domain hop
 
 - **Event:** `PORTFOLIO_DRIFT_DETECTED`
 - **From:** LedgerBus
 - **To:** AdvisoryBus
-- **Via:** advisory-adpt EB rule
+- **Via:** advisory-adpt EB rule (AdvisoryIngress-FromLedger)
+
+### Step 10: advisory-ctrl
+
+- **Receives:** `PORTFOLIO_DRIFT_DETECTED`
+- **Action:** PORTFOLIO_DRIFT_DETECTED is one of the TRIGGER_EVENT_TYPES that invokes DecisionLifecycleService.executeDecisionLifecycle(), kicking off the advisory decision cycle (see advisory-cycle.flow.yaml).
+- **Via:** AdvisoryBus -> SQS -> advisory-ctrl-ingress
+- **State change:** Decision lifecycle creates DecisionPacket via agent orchestration
+- **Idempotent:** yes
 
 ## Success Criteria
 
-- Intent and settlement positions compared for all instruments
-- DriftRecords created for each mismatch
-- RECONCILIATION_COMPLETED event reaches dashboard for display
-- PORTFOLIO_DRIFT_DETECTED triggers rebalance cycle if drift exceeds threshold
+- Intent and settlement positions compared for all instruments in the event payload
+- DriftRecord created per instrument where abs(drift) > 0.001
+- ReconciliationResult written with status COMPLETED or DRIFT_DETECTED and accurate driftCount
+- RECONCILIATION_COMPLETED reaches dashboard-bff and updates PortfolioSummary projection
+- PORTFOLIO_DRIFT_DETECTED reaches advisory-ctrl and triggers decision lifecycle (rebalance)
 
 ## Failure Modes
 
-- **step 1-4 fails:** reconciliation-ctrl ingress DLQ; reconciliation not triggered
-- **step 5 fails:** CDC event not emitted; downstream not notified
-- **step 6 fails:** ledger-adpt ToInvestorDLQ; dashboard not updated
-- **step 8 fails:** ledger-adpt ToAdvisoryDLQ; rebalance not triggered
+- **step 4-5 fails:** reconciliation-ctrl ingress DLQ; reconciliation not executed
+- **step 6 fails:** CDC not emitted; downstream domains not notified
+- **step 7 fails:** investor-adpt FromLedgerDLQ; dashboard not updated with reconciliation status
+- **step 8 fails:** dashboard-bff ingress DLQ; portfolio summary stale
+- **step 9 fails:** advisory-adpt FromLedgerDLQ; rebalance not triggered
+- **step 10 fails:** advisory-ctrl ingress DLQ; decision lifecycle not started

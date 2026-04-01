@@ -4,7 +4,7 @@ Domain: execution | Bus: ExecutionBus
 Stack: services/execution/broker-ctrl/src/service.stack.ts
 
 ## State
-- Table (DynamoDB, streams enabled, consumer-instantiated)
+- Table (DynamoDB, streams enabled)
 
 ## Ingress
 - ExecutionBus → broker-ctrl-mode-ingress (SQS → Lambda)
@@ -25,26 +25,34 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 
 ## Egress
 - CDC: DynamoDB Streams → broker-ctrl-egress (Lambda)
-  Emits: NormalizedEvent
+  Emits:
+  - NormalizedEvent (insert): passthrough on `sk` field — ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, ORDER_ESCALATED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED
 
 ## Orchestration
 - OrderStateMachine: orchestrates order lifecycle (validate → route → wait for callback)
-  - Triggers: ORDER_SUBMITTED (via Orchestration construct EventBridge rule)
+  - Triggers: ORDER_SUBMITTED
+  - Timeout: 1 hour
+  - grantCallbackAccess → CallbackIngress handler
+  - SF role grants: eventBus PutEvents, routeOrderFn Invoke
+
 - HealStateMachine: automatic circuit breaker recovery (emit health check → wait for adapter response)
-  - Triggers: BROKER_CIRCUIT_OPEN (via Orchestration construct EventBridge rule)
+  - Triggers: BROKER_CIRCUIT_OPEN
+  - Timeout: 2 hours
+  - grantCallbackAccess → CallbackIngress handler (env: HEAL_STATE_MACHINE_ARN)
+  - SF role grants: emitHealthCheckFn Invoke
 
 ## Standalone Lambdas
-- RouteOrderFn: invoked by OrderStateMachine (not via Ingress)
-- EmitHealthCheckFn: invoked by HealStateMachine (not via Ingress)
+- RouteOrderFn: routes order to sim or alpaca adapter (invoked by OrderStateMachine, not via Ingress)
+- EmitHealthCheckFn: emits health check event to bus (invoked by HealStateMachine, not via Ingress)
 
 ## Handlers
-- callback-resolver.ts
-- deposit-withdrawal-normalizer.ts
-- deposit-withdrawal-router.ts
-- emit-health-check.ts
-- event-publisher.ts
-- mode-listener.ts
-- route-order.ts
+- callback-resolver.ts — resolves SF task token callbacks from adapter results
+- deposit-withdrawal-normalizer.ts — normalizes deposit/withdrawal results to NormalizedEvent for CDC
+- deposit-withdrawal-router.ts — routes deposit/withdrawal to correct adapter
+- emit-health-check.ts — emits health check event (standalone, SF-invoked)
+- event-publisher.ts — CDC Egress handler (event-processor pipeline)
+- mode-listener.ts — caches execution mode changes to DynamoDB
+- route-order.ts — routes order to correct adapter (standalone, SF-invoked)
 
 ## Event Types (domain/events.ts)
 - BrokerCtrlEventTypes (outbound/CDC): ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED, ORDER_ESCALATED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED
@@ -52,15 +60,17 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - BrokerCtrlInboundEventTypes (subscribed): ORDER_SUBMITTED, EXECUTION_MODE_CHANGED, DEPOSIT_INITIATED, WITHDRAWAL_REQUESTED, SIM_ORDER_FILLED, SIM_ORDER_REJECTED, SIM_DEPOSIT_COMPLETED, SIM_WITHDRAWAL_COMPLETED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED, ALPACA_ACCOUNT_SNAPSHOT
 
 ## Tests
+- broker-order.repository.test.ts
 - callback-resolver.test.ts
-- circuit-breaker-heal.test.ts
+- circuit-breaker.repository.test.ts
 - deposit-withdrawal-normalizer.test.ts
 - deposit-withdrawal-router.test.ts
+- emit-health-check.test.ts
+- execution-mode.repository.test.ts
 - mode-listener.test.ts
-- order-normalizer.service.test.ts
-- order-state-machine.test.ts
 - route-order.test.ts
 - service.stack.test.ts
+- integration/order-lifecycle.test.ts
 
 ## Dependencies
-- libs: cdk-constructs/core, cdk-constructs/utils, cdk-constructs/extensions
+- libs: cdk-constructs/core, cdk-constructs/utils, event-processor

@@ -1,82 +1,77 @@
 schema_version: 1
 flow: order-ledger
-description: Order fill events from execution domain are recorded as ledger entries, balance and portfolio snapshots are materialized and forwarded cross-domain
+description: Order fill events from execution domain recorded as ledger entries, balance and portfolio snapshots materialized via event-sourced reducer, forwarded cross-domain to investor and advisory
 domains: [execution, ledger, investor, advisory]
 
-trigger: broker-ctrl emits ORDER_FILLED (CDC from NormalizedEvent:INSERT)
+trigger: ORDER_FILLED (or ORDER_PARTIALLY_FILLED) emitted by execution domain on ExecutionBus
 
 steps:
+  # Cross-domain ingestion: execution events pulled into ledger
   - cross_domain: ORDER_FILLED
     from: ExecutionBus
     to: LedgerBus
-    via: ledger-adpt EB rule
+    via: ledger-adpt EB rule (LedgerIngress-FromExecution)
 
+  - cross_domain: ORDER_PARTIALLY_FILLED
+    from: ExecutionBus
+    to: LedgerBus
+    via: ledger-adpt EB rule (LedgerIngress-FromExecution)
+
+  - cross_domain: ORDER_REJECTED
+    from: ExecutionBus
+    to: LedgerBus
+    via: ledger-adpt EB rule (LedgerIngress-FromExecution)
+
+  - cross_domain: ORDER_CANCELLED
+    from: ExecutionBus
+    to: LedgerBus
+    via: ledger-adpt EB rule (LedgerIngress-FromExecution)
+
+  # ledger-ctrl ingestion handler records ledger entries
   - service: ledger-ctrl
-    receives: ORDER_FILLED
+    receives: ORDER_FILLED | ORDER_PARTIALLY_FILLED | ORDER_REJECTED | ORDER_CANCELLED
     via: LedgerBus -> SQS -> ledger-ctrl-ingress
-    state_change: Records LedgerEntryEvent (trade journal entry), BalanceEvent (cash debit/credit), PortfolioEvent (position update); reducer materializes account snapshots
-    emits: BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED (CDC)
+    state_change: Writes LedgerEntry record (__typename LedgerEntry) to DDB with sequenceNo; for ORDER_FILLED with live executionMode also opens/closes tax lots via TaxLotManager
+    emits: none (state change only; LedgerEntry:INSERT triggers reducer via DDB Stream)
     idempotent: true
 
-  # Also handles partial fills
+  # Reducer materializes account snapshots from LedgerEntry stream
   - service: ledger-ctrl
-    receives: ORDER_PARTIALLY_FILLED
-    via: LedgerBus -> SQS -> ledger-ctrl-ingress
-    state_change: Records partial fill as LedgerEntryEvent and PortfolioEvent (partial position update)
-    emits: PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED (CDC)
+    action: ReducerFn (DDB Stream consumer, filtered on INSERT where __typename = LedgerEntry)
+    state_change: Replays events since last checkpoint via accountReducer (RecordFill updates positions + cashBalanceCents); transactionally writes AccountSnapshot, BalanceEvent (if cash changed), PortfolioEvent (if positions changed), LedgerEntryEvent (always), and daily SnapshotHistory
+    emits: BALANCE_UPDATED (CDC from BalanceEvent:INSERT), PORTFOLIO_UPDATED (CDC from PortfolioEvent:INSERT), LEDGER_ENTRY_RECORDED (CDC from LedgerEntryEvent:INSERT)
     idempotent: true
 
-  # Cross-domain forwarding of ledger events
+  # Cross-domain forwarding to investor
   - cross_domain: BALANCE_UPDATED
     from: LedgerBus
     to: InvestorBus
-    via: investor-adpt EB rule
+    via: investor-adpt EB rule (InvestorIngress-FromLedger)
 
   - cross_domain: PORTFOLIO_UPDATED
     from: LedgerBus
-    to: AdvisoryBus
-    via: advisory-adpt EB rule
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromLedger)
 
   - cross_domain: LEDGER_ENTRY_RECORDED
     from: LedgerBus
     to: InvestorBus
-    via: investor-adpt EB rule
+    via: investor-adpt EB rule (InvestorIngress-FromLedger)
 
-  # Investor domain consumption
-  - service: investor-ctrl
-    receives: BALANCE_UPDATED
-    via: InvestorBus -> SQS -> investor-ctrl-ingress
-    state_change: Updates investor balance view
-    emits: NOTIFICATION_CREATED (CDC)
-    idempotent: true
-
-  # Note: ORDER_FILLED is NOT forwarded to InvestorBus by execution-adpt (routes to LedgerBus + AdvisoryBus only)
-  # investor-ctrl receives ORDER_REJECTED via InvestorBus for notification; ORDER_FILLED status is visible via BALANCE_UPDATED + PORTFOLIO_UPDATED
-  # TODO: verify if investor-ctrl subscribes to ORDER_FILLED on InvestorBus via a separate forwarding rule not in execution-adpt
-
-  # Dashboard read model
-  - service: dashboard-bff
-    receives: BALANCE_UPDATED | PORTFOLIO_UPDATED | LEDGER_ENTRY_RECORDED
-    via: InvestorBus -> SQS -> dashboard-bff-ingress
-    state_change: Updates portfolio dashboard read model
-    idempotent: true
-
-  # Reconciliation trigger
-  - service: reconciliation-ctrl
-    receives: PORTFOLIO_UPDATED
-    via: LedgerBus -> SQS -> reconciliation-ctrl-ingress
-    state_change: Triggers reconciliation check comparing intent vs settlement positions
-    emits: RECONCILIATION_COMPLETED or PORTFOLIO_DRIFT_DETECTED (CDC)
-    idempotent: true
+  # Cross-domain forwarding to advisory
+  - cross_domain: PORTFOLIO_UPDATED
+    from: LedgerBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule (AdvisoryIngress-FromLedger)
 
 success_criteria:
-  - Trade recorded as LedgerEntryEvent with correct debit/credit
-  - Balance and portfolio snapshots materialized by reducer
-  - BALANCE_UPDATED reaches investor domain for dashboard update
-  - PORTFOLIO_UPDATED reaches advisory domain for drift monitoring
+  - Every ORDER_FILLED event produces a LedgerEntry, which triggers reducer to update AccountSnapshot
+  - Balance changes emit BALANCE_UPDATED; position changes emit PORTFOLIO_UPDATED; all entries emit LEDGER_ENTRY_RECORDED
+  - Investor domain receives BALANCE_UPDATED, PORTFOLIO_UPDATED, and LEDGER_ENTRY_RECORDED for portfolio display
+  - Advisory domain receives PORTFOLIO_UPDATED for drift detection and rebalancing triggers
 
 failure_modes:
-  - step 1 fails: execution-adpt ToLedgerDLQ; ledger not notified of fill
-  - step 2 fails: ledger-ctrl ingress DLQ; trade not recorded
-  - step 4-6 fails: ledger-adpt forwarding DLQs; downstream domains not notified
-  - step 10 fails: reconciliation-ctrl ingress DLQ; drift not detected
+  - Ingestion handler fails: LEDGER_PROCESSING_FAILED error event emitted to LedgerBus; SQS retries + DLQ
+  - Reducer snapshot conflict: optimistic concurrency on snapshot version; DDB Stream retries (bisectBatchOnError, 3 retries)
+  - CDC Egress fails: DLQ on Egress Lambda; BalanceEvent/PortfolioEvent/LedgerEntryEvent records persist regardless
+  - Cross-domain forwarding fails: adapter DLQs (FromExecutionDLQ on ledger-adpt, FromLedgerDLQ on investor-adpt and advisory-adpt) with 14-day retention

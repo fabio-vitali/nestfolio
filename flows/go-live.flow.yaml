@@ -6,59 +6,42 @@ domains: [investor, execution]
 trigger: onboarding-bff emits GO_LIVE_CONFIRMED (CDC from GoLiveConfirmed:INSERT)
 
 steps:
+  # Phase 1: Onboarding agent completes go-live wizard
   - service: onboarding-bff
-    action: Investor completes Go Live wizard in investor-mfe, calls confirmGoLive() resolver
-    state_change: TransactWrite updates OnboardingSession status and writes GoLiveConfirmed record to DDB
+    action: Investor completes Go Live wizard (flowType='go-live', phases review_risk -> review_goals -> review_mandate -> fund_account -> go_live_confirmation)
+    state_change: confirmGoLive() TransactWrite updates OnboardingSession (status='completed', currentPhase='go_live_confirmation') and puts GoLiveConfirmed CDC record (__typename='GoLiveConfirmed')
     emits: GO_LIVE_CONFIRMED (CDC from GoLiveConfirmed:INSERT)
     idempotent: true
 
+  # Phase 2: investor-bff materializes execution mode change
   - service: investor-bff
     receives: GO_LIVE_CONFIRMED
-    via: InvestorBus -> SQS -> investor-bff-ingress
-    state_change: event-listener calls setExecutionMode('simulation' -> 'live'), writes ExecutionModeChange record to DDB
+    via: InvestorBus -> SQS -> investor-bff-Ingress
+    state_change: event-listener calls profileRepo.setExecutionMode(tenantId, userId, 'simulation', 'live') which TransactWrites ExecutionModeChange record (__typename='ExecutionModeChange', fromMode='simulation', toMode='live') and updates InvestorProfile (executionMode='live')
     emits: EXECUTION_MODE_CHANGED (CDC from ExecutionModeChange:INSERT)
     idempotent: true
 
+  # Phase 3: Cross-domain forwarding to execution
   - cross_domain: EXECUTION_MODE_CHANGED
     from: InvestorBus
     to: ExecutionBus
-    via: execution-adpt EB rule
+    via: execution-adpt EB rule (ExecutionIngress-FromInvestor)
 
+  # Phase 4: broker-ctrl caches execution mode for future routing decisions
   - service: broker-ctrl
     receives: EXECUTION_MODE_CHANGED
     via: ExecutionBus -> SQS -> broker-ctrl-ModeIngress
-    state_change: mode-listener materializes ExecutionMode record (mode='live') in DDB; future deposit/withdrawal/order routing uses Alpaca instead of simulator
-    idempotent: true
-
-  # Also forwarded to advisory for operating mode awareness
-  - cross_domain: OPERATING_MODE_CHANGED
-    from: InvestorBus
-    to: AdvisoryBus
-    via: advisory-adpt EB rule
-    # Note: OPERATING_MODE_CHANGED is a separate event from EXECUTION_MODE_CHANGED
-    # investor-bff may also emit OPERATING_MODE_CHANGED via OperatingModeRecord CDC
-
-  - service: advisory-ctrl
-    receives: OPERATING_MODE_CHANGED
-    via: AdvisoryBus -> SQS -> advisory-ctrl-ingress
-    state_change: Updates operating mode context for future advisory decisions
-    idempotent: true
-
-  - service: decision-workflow-ctrl
-    receives: OPERATING_MODE_CHANGED
-    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
-    state_change: May trigger new advisory decision cycle for live mode portfolio review
-    emits: DECISION_PACKET_CREATED (CDC)
+    state_change: mode-listener records ExecutionMode (__typename='ExecutionMode', pk='ExecutionMode#{tenantId}', mode='live'); future deposit/withdrawal/order routing uses Alpaca adapters instead of simulators
     idempotent: true
 
 success_criteria:
   - ExecutionMode record materialized in broker-ctrl with mode='live'
-  - Future orders routed to broker-alpaca-adpt instead of broker-sim-adpt
-  - Future deposits/withdrawals routed to Alpaca ACH instead of simulator
-  - Advisory domain aware of operating mode change
+  - Future ORDER_SUBMITTED events routed to broker-alpaca-adpt instead of broker-sim-adpt
+  - Future DEPOSIT_INITIATED events routed to ALPACA_TRANSFER_REQUESTED instead of SIM_DEPOSIT_INITIATED
+  - Future WITHDRAWAL_REQUESTED events routed to ALPACA_TRANSFER_REQUESTED instead of SIM_WITHDRAWAL_REQUESTED
 
 failure_modes:
   - step 1 fails: onboarding-bff CDC not emitted; go-live not triggered
-  - step 2 fails: investor-bff ingress DLQ; execution mode not changed
-  - step 3 fails: investor-adpt ToExecutionDLQ; broker-ctrl not notified
-  - step 4 fails: broker-ctrl ModeIngress DLQ; mode not materialized, orders still route to simulator
+  - step 2 fails: investor-bff Ingress DLQ; ExecutionModeChange not written, execution mode unchanged
+  - step 3 fails: execution-adpt FromInvestorDLQ; EXECUTION_MODE_CHANGED not forwarded to ExecutionBus
+  - step 4 fails: broker-ctrl ModeIngress DLQ; ExecutionMode not materialized, orders still route to simulator adapters

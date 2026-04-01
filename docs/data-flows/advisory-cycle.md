@@ -1,10 +1,10 @@
 # Advisory Cycle
 
-> Advisory decision cycle orchestrated by decision-workflow-ctrl Step Functions, invoking 4 LangGraph agents in parallel, compliance check, and user confirmation
+> Advisory decision cycle — Step Functions orchestrates 4 LangGraph agents (2 parallel + 2 sequential), assembles outputs via AgentCore Memory, runs compliance check, then optionally requests user confirmation before forwarding to execution
 
 **Domains:** advisory, investor, execution
 
-**Trigger:** decision-workflow-ctrl receives trigger event (MANDATE_GRANTED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED)
+**Trigger:** decision-workflow-ctrl TriggerIngress receives one of 9 trigger events (cross-domain via advisory-adpt)
 
 ## Flowchart
 
@@ -12,22 +12,20 @@
 flowchart TD
     subgraph advisory["Advisory Domain"]
         decision_workflow_ctrl["decision-workflow-ctrl"]
-        advisory_ctrl["advisory-ctrl"]
         market_intelligence_ctrl["market-intelligence-ctrl"]
         portfolio_engine_ctrl["portfolio-engine-ctrl"]
         advisory_narrative_ctrl["advisory-narrative-ctrl"]
         compliance_ctrl["compliance-ctrl"]
+        advisory_bff["advisory-bff"]
     end
-    decision_workflow_ctrl -->|"DECISION_PACKET_CREATED, DECISION_PACKET_ENR…"| compliance_ctrl
-    decision_workflow_ctrl -->|"ANALYZE_INVESTOR_PROFILE"| advisory_ctrl
+    subgraph investor["Investor Domain"]
+        investor_profile_ctrl["investor-profile-ctrl"]
+    end
+    decision_workflow_ctrl -->|"ANALYZE_INVESTOR_PROFILE"| investor_profile_ctrl
     decision_workflow_ctrl -->|"ANALYZE_MARKET"| market_intelligence_ctrl
     decision_workflow_ctrl -->|"CONSTRUCT_PORTFOLIO"| portfolio_engine_ctrl
     decision_workflow_ctrl -->|"GENERATE_NARRATIVE"| advisory_narrative_ctrl
-    advisory_ctrl -->|"INVESTOR_PROFILE_COMPLETED"| decision_workflow_ctrl
-    market_intelligence_ctrl -->|"MARKET_ANALYSIS_COMPLETED"| decision_workflow_ctrl
-    portfolio_engine_ctrl -->|"PORTFOLIO_COMPLETED"| decision_workflow_ctrl
-    advisory_narrative_ctrl -->|"NARRATIVE_COMPLETED"| decision_workflow_ctrl
-    compliance_ctrl -->|"DECISION_APPROVED, DECISION_BLOCKED"| decision_workflow_ctrl
+    decision_workflow_ctrl -->|"USER_CONFIRMATION_REQUESTED, USER_CONFIRMATI…"| advisory_bff
 ```
 
 ## Sequence Diagram
@@ -36,142 +34,253 @@ flowchart TD
 sequenceDiagram
     box advisory domain
         participant decision_workflow_ctrl as decision-workflow-ctrl
-        participant advisory_ctrl as advisory-ctrl
         participant market_intelligence_ctrl as market-intelligence-ctrl
         participant portfolio_engine_ctrl as portfolio-engine-ctrl
         participant advisory_narrative_ctrl as advisory-narrative-ctrl
         participant compliance_ctrl as compliance-ctrl
+        participant advisory_bff as advisory-bff
     end
-    Note over decision_workflow_ctrl: Step Functions emits agent trigger events via Eve…
-    decision_workflow_ctrl->>+advisory_ctrl: ANALYZE_INVESTOR_PROFILE
+    box investor domain
+        participant investor_profile_ctrl as investor-profile-ctrl
+    end
+    Note over decision_workflow_ctrl: SF emits ANALYZE_INVESTOR_PROFILE via EventBridge…
+    decision_workflow_ctrl->>+investor_profile_ctrl: ANALYZE_INVESTOR_PROFILE
+    Note over decision_workflow_ctrl: SF emits ANALYZE_MARKET via EventBridge putEvents…
     decision_workflow_ctrl->>+market_intelligence_ctrl: ANALYZE_MARKET
+    Note over decision_workflow_ctrl: SF emits CONSTRUCT_PORTFOLIO via EventBridge putE…
     decision_workflow_ctrl->>+portfolio_engine_ctrl: CONSTRUCT_PORTFOLIO
+    Note over decision_workflow_ctrl: SF emits GENERATE_NARRATIVE via EventBridge putEv…
     decision_workflow_ctrl->>+advisory_narrative_ctrl: GENERATE_NARRATIVE
     advisory_narrative_ctrl->>+decision_workflow_ctrl: INVESTOR_PROFILE_COMPLETED | MARKET_ANALYSIS_COMPLETED ...
+    Note over decision_workflow_ctrl: SF invokes AssemblePacket Lambda (lambda:invoke, …
+    Note over decision_workflow_ctrl: SF emits RECOMMENDATION_PROPOSED via EventBridge …
+    Note over decision_workflow_ctrl: SF emits RECOMMENDATION_PROPOSED with awaitingCom…
     decision_workflow_ctrl->>+compliance_ctrl: DECISION_PACKET_CREATED | DECISION_PACKET_ENRICHED
     compliance_ctrl->>+decision_workflow_ctrl: DECISION_APPROVED | DECISION_BLOCKED
-    decision_workflow_ctrl-)decision_workflow_ctrl: USER_CONFIRMATION_REQUESTED (AdvisoryBus → InvestorBus)
-    decision_workflow_ctrl-)decision_workflow_ctrl: USER_CONFIRMED (AdvisoryBus → ExecutionBus)
+    Note over decision_workflow_ctrl: SF emits USER_CONFIRMATION_REQUESTED via EventBri…
+    decision_workflow_ctrl-)advisory_bff: USER_CONFIRMATION_REQUESTED (AdvisoryBus → InvestorBus)
+    Note over advisory_bff: User calls confirmDecision or rejectDecision Grap…
+    advisory_bff->>+decision_workflow_ctrl: USER_CONFIRMED | USER_REJECTED
 ```
 
 ## Steps
 
-### Step 1: decision-workflow-ctrl
+### Step 1: Cross-domain hop
+
+- **Event:** `MANDATE_GRANTED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED`
+- **From:** InvestorBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
+
+### Step 2: Cross-domain hop
+
+- **Event:** `ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED | PORTFOLIO_DRIFT_DETECTED`
+- **From:** ExecutionBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule (AdvisoryIngress-FromExecution)
+
+### Step 3: decision-workflow-ctrl
 
 - **Receives:** `MANDATE_GRANTED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED`
 - **Via:** AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
-- **State change:** Materializes WorkflowTrigger record to DDB; CDC emits DECISION_PACKET_CREATED; starts new SF execution
-- **Emits:** `DECISION_PACKET_CREATED (CDC from DecisionPacket:INSERT)`
+- **State change:** Creates WorkflowTrigger record in DDB with new decisionId; CDC fires on WorkflowTrigger:INSERT
+- **Emits:** `WORKFLOW_TRIGGER_CREATED (CDC, WorkflowTrigger:INSERT auto-expand)`
 - **Idempotent:** yes
 
-### Step 2: decision-workflow-ctrl
+### Step 4: decision-workflow-ctrl
 
-- **Action:** Step Functions emits agent trigger events via EventBridge
-- **Emits:** `ANALYZE_INVESTOR_PROFILE, ANALYZE_MARKET, CONSTRUCT_PORTFOLIO, GENERATE_NARRATIVE (SF EventBridge integration)`
+- **Action:** SF emits ANALYZE_INVESTOR_PROFILE via EventBridge putEvents.waitForTaskToken
+- **Emits:** `ANALYZE_INVESTOR_PROFILE (SF EventBridge integration with taskToken)`
 
-### Step 3: advisory-ctrl
+### Step 5: investor-profile-ctrl
 
 - **Receives:** `ANALYZE_INVESTOR_PROFILE`
-- **Via:** AdvisoryBus -> SQS -> advisory-ctrl-ingress
-- **State change:** LangGraph agent analyzes investor profile using portfolio-lookup and instrument-universe tools
-- **Emits:** `INVESTOR_PROFILE_COMPLETED (explicit via event-publisher tool)`
+- **Via:** AdvisoryBus -> SQS -> investor-profile-ctrl-Ingress
+- **State change:** LangGraph agent (Opus model) analyzes investor profile using Regulatory KB; writes AgentInvocation and ReasoningOutput records; stores output to AgentCore Memory
+- **Emits:** `GOAL_INTERPRETATION_PRODUCED (CDC, AgentInvocation:INSERT), RISK_EVALUATION_PRODUCED (CDC, ReasoningOutput:INSERT)`
 - **Idempotent:** no
 
-### Step 4: market-intelligence-ctrl
+### Step 6: decision-workflow-ctrl
+
+- **Action:** SF emits ANALYZE_MARKET via EventBridge putEvents.waitForTaskToken (parallel with 2a)
+- **Emits:** `ANALYZE_MARKET (SF EventBridge integration with taskToken)`
+
+### Step 7: market-intelligence-ctrl
 
 - **Receives:** `ANALYZE_MARKET`
-- **Via:** AdvisoryBus -> SQS -> market-intelligence-ctrl-ingress
-- **State change:** LangGraph agent retrieves market data from KB, produces market analysis
-- **Emits:** `MARKET_ANALYSIS_COMPLETED (explicit via event-publisher)`
+- **Via:** AdvisoryBus -> SQS -> market-intelligence-ctrl-Ingress
+- **State change:** LangGraph agent (Sonnet model) retrieves market data from Market KB (5 feed sources); writes AgentInvocation record; stores output to AgentCore Memory
+- **Emits:** `MARKET_SIGNAL_DETECTED (CDC, AgentInvocation:INSERT)`
 - **Idempotent:** no
 
-### Step 5: portfolio-engine-ctrl
+### Step 8: decision-workflow-ctrl
+
+- **Action:** SF emits CONSTRUCT_PORTFOLIO via EventBridge putEvents.waitForTaskToken (after parallel branches complete)
+- **Emits:** `CONSTRUCT_PORTFOLIO (SF EventBridge integration with taskToken)`
+
+### Step 9: portfolio-engine-ctrl
 
 - **Receives:** `CONSTRUCT_PORTFOLIO`
-- **Via:** AdvisoryBus -> SQS -> portfolio-engine-ctrl-ingress
-- **State change:** LangGraph agent constructs optimal portfolio allocation
-- **Emits:** `PORTFOLIO_COMPLETED (explicit via event-publisher)`
+- **Via:** AdvisoryBus -> SQS -> portfolio-engine-ctrl-Ingress
+- **State change:** LangGraph agent (Opus model) constructs optimal portfolio using Fund KB, portfolio-lookup tool; writes AgentInvocation and ReasoningOutput records; stores output to AgentCore Memory
+- **Emits:** `PORTFOLIO_CONSTRUCTION_PROPOSED (CDC, AgentInvocation:INSERT), REBALANCE_PLAN_PRODUCED (CDC, ReasoningOutput:INSERT)`
 - **Idempotent:** no
 
-### Step 6: advisory-narrative-ctrl
+### Step 10: decision-workflow-ctrl
+
+- **Action:** SF emits GENERATE_NARRATIVE via EventBridge putEvents.waitForTaskToken
+- **Emits:** `GENERATE_NARRATIVE (SF EventBridge integration with taskToken)`
+
+### Step 11: advisory-narrative-ctrl
 
 - **Receives:** `GENERATE_NARRATIVE`
-- **Via:** AdvisoryBus -> SQS -> advisory-narrative-ctrl-ingress
-- **State change:** LangGraph agent generates human-readable narrative explanation
-- **Emits:** `NARRATIVE_COMPLETED (explicit via event-publisher)`
+- **Via:** AdvisoryBus -> SQS -> advisory-narrative-ctrl-Ingress
+- **State change:** LangGraph agent (Sonnet model) generates human-readable explanation using Explainability KB; writes ReasoningOutput record; stores output to AgentCore Memory
+- **Emits:** `EXPLANATION_GENERATED (CDC, ReasoningOutput:INSERT)`
 - **Idempotent:** no
 
-### Step 7: decision-workflow-ctrl
+### Step 12: decision-workflow-ctrl
 
-- **Receives:** `INVESTOR_PROFILE_COMPLETED, MARKET_ANALYSIS_COMPLETED, PORTFOLIO_COMPLETED, NARRATIVE_COMPLETED`
+- **Receives:** `INVESTOR_PROFILE_COMPLETED | MARKET_ANALYSIS_COMPLETED | PORTFOLIO_COMPLETED | NARRATIVE_COMPLETED`
 - **Via:** AdvisoryBus -> SQS -> decision-workflow-ctrl-CallbackIngress
-- **State change:** SendTaskSuccess resumes SF execution; merges agent outputs into DecisionPacket
-- **Emits:** `DECISION_PACKET_ENRICHED (CDC from DecisionPacket:MODIFY)`
+- **State change:** SendTaskSuccess resumes SF; writes AgentOutput record to DDB per agent completion
+- **Emits:** `AGENT_OUTPUT_CREATED (CDC, AgentOutput:INSERT auto-expand)`
 - **Idempotent:** yes
 
-### Step 8: compliance-ctrl
+### Step 13: decision-workflow-ctrl
+
+- **Action:** SF invokes AssemblePacket Lambda (lambda:invoke, not waitForTaskToken)
+- **State change:** Reads all 4 agent outputs from AgentCore Memory (investor-profile, market-intelligence, portfolio-engine, advisory-narrative); returns assembled packet to SF state
+
+### Step 14: decision-workflow-ctrl
+
+- **Action:** SF emits RECOMMENDATION_PROPOSED via EventBridge putEvents (fire-and-forget, NOT waitForTaskToken)
+- **Emits:** `RECOMMENDATION_PROPOSED (SF EventBridge integration)`
+
+### Step 15: decision-workflow-ctrl
+
+- **Action:** SF emits RECOMMENDATION_PROPOSED with awaitingCompliance=true via EventBridge putEvents.waitForTaskToken; waits up to 24h for compliance result
+- **Emits:** `RECOMMENDATION_PROPOSED (SF EventBridge integration with taskToken)`
+
+### Step 16: compliance-ctrl
 
 - **Receives:** `DECISION_PACKET_CREATED | DECISION_PACKET_ENRICHED`
-- **Via:** AdvisoryBus -> SQS -> compliance-ctrl-ingress
-- **State change:** Runs compliance rules against mandate and operating mode; writes ComplianceCheck record
-- **Emits:** `DECISION_APPROVED or DECISION_BLOCKED (CDC from ComplianceCheck:INSERT)`
+- **Via:** AdvisoryBus -> SQS -> compliance-ctrl-Ingress
+- **State change:** Loads mandate snapshot from DDB; runs MandateValidator -> GuardrailEvaluator -> SuitabilityChecker -> AuthorityResolver; writes ComplianceCheck + AuditArtifact records to DDB
+- **Emits:** `COMPLIANCE_CHECK (CDC, ComplianceCheck:INSERT), AUDIT_ARTIFACT (CDC, AuditArtifact:INSERT)`
 - **Idempotent:** yes
 
-### Step 9: decision-workflow-ctrl
+### Step 17: decision-workflow-ctrl
 
 - **Receives:** `DECISION_APPROVED | DECISION_BLOCKED`
 - **Via:** AdvisoryBus -> SQS -> decision-workflow-ctrl-CallbackIngress
-- **State change:** SendTaskSuccess resumes SF; if approved, emits USER_CONFIRMATION_REQUESTED; if blocked, terminates
-- **Emits:** `USER_CONFIRMATION_REQUESTED (CDC)`
+- **State change:** SendTaskSuccess resumes SF with {decision, authorityLevel}. If DECISION_APPROVED: updates DecisionPacket status to APPROVED (L1) or AWAITING_CONFIRMATION (L2). If DECISION_BLOCKED: updates DecisionPacket status to BLOCKED.
+
+- **Emits:** `DECISION_PACKET_UPDATED (CDC, DecisionPacket:MODIFY auto-expand)`
 - **Idempotent:** yes
 
-### Step 10: Cross-domain hop
+### Step 18: decision-workflow-ctrl
+
+- **Action:** SF emits USER_CONFIRMATION_REQUESTED via EventBridge putEvents.waitForTaskToken; waits up to 72h for user response
+- **Emits:** `USER_CONFIRMATION_REQUESTED (SF EventBridge integration with taskToken)`
+
+### Step 19: Cross-domain hop
 
 - **Event:** `USER_CONFIRMATION_REQUESTED`
 - **From:** AdvisoryBus
 - **To:** InvestorBus
-- **Via:** investor-adpt EB rule
+- **Via:** investor-adpt EB rule (InvestorIngress-FromAdvisory)
 
-### Step 11: Cross-domain hop
+### Step 20: advisory-bff
 
-- **Event:** `USER_CONFIRMED`
-- **From:** AdvisoryBus
-- **To:** ExecutionBus
-- **Via:** execution-adpt EB rule
+- **Receives:** `USER_CONFIRMATION_REQUESTED | DECISION_PACKET_CREATED | DECISION_APPROVED | DECISION_BLOCKED`
+- **Via:** AdvisoryBus -> SQS -> advisory-bff-Ingress
+- **State change:** Materialises DecisionReadModel for GraphQL queries; user sees decision in UI
+- **Emits:** `DECISION_READ_MODEL (CDC, DecisionReadModel) | USER_INTERACTION (CDC, UserInteraction)`
+- **Idempotent:** yes
 
-### Step 12: decision-workflow-ctrl
+### Step 21: advisory-bff
+
+- **Action:** User calls confirmDecision or rejectDecision GraphQL mutation; BFF writes UserConfirmation or UserRejection record to DDB
+- **State change:** Writes UserConfirmation or UserRejection record
+- **Emits:** `USER_CONFIRMATION_CREATED or USER_REJECTION_CREATED (CDC auto-expand)`
+
+### Step 22: decision-workflow-ctrl
 
 - **Receives:** `USER_CONFIRMED | USER_REJECTED`
 - **Via:** AdvisoryBus -> SQS -> decision-workflow-ctrl-CallbackIngress
-- **State change:** SendTaskSuccess completes SF; if confirmed, emits DECISION_APPROVED cross-domain
-- **Emits:** `DECISION_APPROVED (CDC)`
+- **State change:** SendTaskSuccess resumes SF with {decision}. If USER_CONFIRMED: updates DecisionPacket status to CONFIRMED. If USER_REJECTED: updates DecisionPacket status to REJECTED with rejectionReason.
+
+- **Emits:** `DECISION_PACKET_UPDATED (CDC, DecisionPacket:MODIFY auto-expand)`
 - **Idempotent:** yes
 
-### Step 13: Cross-domain hop
+### Step 23: Cross-domain hop
 
 - **Event:** `DECISION_APPROVED`
 - **From:** AdvisoryBus
 - **To:** ExecutionBus
-- **Via:** execution-adpt EB rule
+- **Via:** execution-adpt EB rule (ExecutionIngress-FromAdvisory)
 
-### Step 14: Cross-domain hop
+### Step 24: Cross-domain hop
 
 - **Event:** `DECISION_APPROVED`
 - **From:** AdvisoryBus
 - **To:** InvestorBus
-- **Via:** investor-adpt EB rule
+- **Via:** investor-adpt EB rule (InvestorIngress-FromAdvisory)
+
+### Step 25: Cross-domain hop
+
+- **Event:** `DECISION_PACKET_CREATED`
+- **From:** AdvisoryBus
+- **To:** ExecutionBus
+- **Via:** execution-adpt EB rule (ExecutionIngress-FromAdvisory)
+
+### Step 26: Cross-domain hop
+
+- **Event:** `DECISION_PACKET_CREATED`
+- **From:** AdvisoryBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule (InvestorIngress-FromAdvisory)
+
+### Step 27: Cross-domain hop
+
+- **Event:** `DECISION_BLOCKED`
+- **From:** AdvisoryBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule (InvestorIngress-FromAdvisory)
+
+### Step 28: Cross-domain hop
+
+- **Event:** `EXPLANATION_GENERATED`
+- **From:** AdvisoryBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule (InvestorIngress-FromAdvisory)
+
+### Step 29: Cross-domain hop
+
+- **Event:** `USER_CONFIRMED`
+- **From:** AdvisoryBus
+- **To:** ExecutionBus
+- **Via:** execution-adpt EB rule (ExecutionIngress-FromAdvisory)
 
 ## Success Criteria
 
-- All 4 agent tasks complete and DecisionPacket is enriched
-- Compliance check passes and DECISION_APPROVED reaches execution domain
-- User confirmation is requested and response is captured
-- Final DECISION_APPROVED event triggers order execution
+- All 4 agent tasks complete and agent outputs stored to AgentCore Memory
+- AssemblePacket Lambda successfully reads all 4 outputs from Memory
+- RECOMMENDATION_PROPOSED emitted and compliance check runs
+- Compliance check produces DECISION_APPROVED (L1 auto-approve) or routes to user confirmation (L2)
+- [object Object]
+- DECISION_APPROVED reaches execution domain via execution-adpt for order execution
 
 ## Failure Modes
 
-- **step 1 fails:** decision-workflow-ctrl TriggerIngress DLQ; SF execution not started
-- **step 3-6 fails:** Agent Lambda fails; SF task token times out; DECISION_WORKFLOW_FAILED emitted
-- **step 7 fails:** CallbackIngress DLQ; SF stuck waiting for agent completion
-- **step 8 fails:** compliance-ctrl ingress DLQ; decision not checked
-- **step 10 fails:** advisory-adpt ToInvestorDLQ; user not notified of confirmation request
+- **step 1 (trigger ingestion) fails:** TriggerIngress DLQ; WorkflowTrigger not created; SF not started
+- **step 2a/2b (parallel agents) fails:** Agent Lambda fails or times out (10min default); SF task token expires; branch fails
+- **step 2c (portfolio engine) fails:** SF task token timeout; PortfolioEngine branch fails
+- **step 2d (narrative agent) fails:** SF task token timeout; AdvisoryNarrative branch fails
+- **step 3 (agent callbacks) fails:** CallbackIngress DLQ; SF stuck waiting; eventually times out (72h SF timeout)
+- **step 4 (assemble packet) fails:** Lambda invocation fails; SF catches error
+- **step 6 (compliance) fails:** compliance-ctrl Ingress DLQ; WaitForCompliance times out (24h)
+- **step 7 (compliance callback) fails:** CallbackIngress DLQ; SF stuck waiting
+- **step 9 (user confirmation) fails:** USER_CONFIRMATION_REQUESTED not forwarded (investor-adpt FromAdvisoryDLQ); user never sees request; SF times out (72h)
+- **step 11 (user callback) fails:** CallbackIngress DLQ; SF stuck waiting

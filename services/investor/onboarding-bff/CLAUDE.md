@@ -8,16 +8,22 @@ Stack: services/investor/onboarding-bff/src/service.stack.ts
 
 ## Egress
 - CDC: DynamoDB Streams → onboarding-bff-egress (Lambda)
-  Emits: OnboardingCompleted, GoLiveConfirmed
+  Emits:
+  - OnboardingCompleted → insert: ONBOARDING_COMPLETED
+  - GoLiveConfirmed → insert: GO_LIVE_CONFIRMED
 
 ## AgentRuntime
-- OnboardingAgent (Bedrock): conversational onboarding agent for investor onboarding
+- OnboardingAgent (Bedrock): conversational onboarding agent
   - Model: Claude Sonnet (via SSM parameter from advisory-hub)
   - KnowledgeBase: nestfolio-docs (product documentation RAG)
-  - Tool: search_knowledge_base — search Nestfolio documentation
+  - Tool: search_knowledge_base — search Nestfolio documentation (backed by SearchKbFn Lambda, 15s timeout)
+  - Environment: TABLE_NAME, KNOWLEDGE_BASE_ID, AGENT_RUNTIME=true
+
+## Standalone Lambdas
+- SearchKbFn: RAG search over knowledge base (invoked by AgentRuntime tool, not via Ingress)
 
 ## Handlers
-- event-publisher.ts
+- event-publisher.ts — CDC (changeDataCapture)
 
 ## Event Types (domain/events.ts)
 - ONBOARDING_STARTED, ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED
@@ -36,4 +42,4 @@ Stack: services/investor/onboarding-bff/src/service.stack.ts
 - tools/render-ui.test.ts
 
 ## Dependencies
-- libs: cdk-constructs/core, cdk-constructs/extensions
+- libs: cdk-constructs/core, cdk-constructs/extensions, event-processor

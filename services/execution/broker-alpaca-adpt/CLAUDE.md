@@ -20,14 +20,25 @@ Stack: services/execution/broker-alpaca-adpt/src/service.stack.ts
   - AlpacaAccountSnapshot (insert): ALPACA_ACCOUNT_SNAPSHOT
 
 ## Orchestration
-- OrderPollingStateMachine — Step Functions state machine; triggered by ALPACA_ORDER_PLACED; timeout 24h; invokes OrderPollFn on each poll cycle
-- TransferPollingStateMachine — Step Functions state machine; triggered by ALPACA_TRANSFER_INITIATED; timeout 7d; invokes TransferPollFn on each poll cycle
+- OrderPollingStateMachine: polls Alpaca API for order status updates
+  - Triggers: ALPACA_ORDER_PLACED
+  - Timeout: 24 hours
+  - Invokes: OrderPollFn on each poll cycle
+
+- TransferPollingStateMachine: polls Alpaca API for transfer status updates
+  - Triggers: ALPACA_TRANSFER_INITIATED
+  - Timeout: 7 days
+  - Invokes: TransferPollFn on each poll cycle
+
+## Standalone Lambdas
+- OrderPollFn: polls Alpaca order status (invoked by OrderPollingStateMachine, not via Ingress)
+- TransferPollFn: polls Alpaca transfer status (invoked by TransferPollingStateMachine, not via Ingress)
 
 ## Handlers
 - event-listener.ts — SQS Ingress handler (event-processor pipeline)
 - event-publisher.ts — CDC Egress handler (event-processor pipeline)
-- order-poll-handler.ts — invoked directly by OrderPollingStateMachine (SF task)
-- transfer-poll-handler.ts — invoked directly by TransferPollingStateMachine (SF task)
+- order-poll-handler.ts — polls Alpaca API for order status (standalone, SF-invoked)
+- transfer-poll-handler.ts — polls Alpaca API for transfer status (standalone, SF-invoked)
 
 ## Constructs
 - src/constructs/order-polling-definition.ts — SF state machine definition for order polling
@@ -47,4 +58,4 @@ Stack: services/execution/broker-alpaca-adpt/src/service.stack.ts
 - transfer-poll-handler.test.ts
 
 ## Dependencies
-- libs: cdk-constructs/core
+- libs: cdk-constructs/core, cdk-constructs/utils, event-processor

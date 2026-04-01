@@ -1,31 +1,38 @@
 # fred-adpt
 
-Domain: advisory | Bus: AdvisoryBus (data feed adapter)
+Domain: advisory | Bus: advisoryBus (data feed adapter)
 Stack: services/advisory/fred-adpt/src/service.stack.ts
 
 ## State
 - DynamoDB table (streams enabled)
 
 ## Ingress
-- AdvisoryBus -> fred-adpt-ingress (SQS -> Lambda, 90s timeout)
+- advisoryBus → fred-adpt-ingress (SQS → Lambda, 90s timeout)
   Subscriptions: FETCH_FRED_REQUESTED
+  Environment: FRED_API_KEY (from SSM)
 
 ## Egress
-- CDC: DynamoDB Streams -> fred-adpt-egress (Lambda)
-  Emits: FredIndicator
+- CDC: DynamoDB Streams → fred-adpt-egress (Lambda)
+  Emits: FRED_INDICATORS_UPDATED (FredIndicator, insert only)
 
 ## Schedule
-- AdapterSchedule: EventBridge Scheduler -> FetchTrigger Lambda -> publishes FETCH_FRED_REQUESTED
+- AdapterSchedule: EventBridge Scheduler → FetchTrigger Lambda → publishes FETCH_FRED_REQUESTED
   Default rate: rate(24 hours), disabled by default
 
+## Standalone Lambdas
+- FetchTrigger: Publishes FETCH_FRED_REQUESTED to advisoryBus (invoked by EventBridge Scheduler)
+
 ## Handlers
-- event-listener.ts
-- event-publisher.ts
-- fetch-trigger.ts
+- event-listener.ts — Ingress event handler (fetches FRED data, materializes to DDB)
+- event-publisher.ts — Egress CDC publisher
+- fetch-trigger.ts — Scheduler trigger Lambda
+
+## Event Types (domain/events.ts)
+- FredAdptEventTypes: FETCH_REQUESTED (FETCH_FRED_REQUESTED), FRED_INDICATORS_UPDATED
 
 ## Tests
-- handlers/
+- handlers/event-listener.test.ts
 
 ## Dependencies
-- libs: cdk-constructs (core, extensions, utils)
+- libs: cdk-constructs (core, extensions, utils), event-processor
 - SSM: advisory/fred-api-key

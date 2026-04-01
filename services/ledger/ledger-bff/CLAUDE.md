@@ -11,25 +11,33 @@ Stack: services/ledger/ledger-bff/src/service.stack.ts
   Subscriptions: BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED
 
 ## Facade
-- AppSync GraphQL API with JS resolvers (discoverJsResolvers)
-  - Excludes from JS: getPortfolioAt, getSimulationComparison (handled by Lambda resolver)
+- AppSync GraphQL API
+  - JS resolvers (discoverJsResolvers, excludes getPortfolioAt and getSimulationComparison):
+    - get-balance.fn.js
+    - get-order-history.fn.js
+    - get-performance.fn.js
+    - get-portfolio.fn.js
+    - get-positions.fn.js
+    - get-time-travel-availability.fn.js
+    - utils/check-auth.fn.js
   - Lambda resolvers:
     - Query.getPortfolioAt → GraphqlResolver Lambda
     - Query.getSimulationComparison → GraphqlResolver Lambda
-  - Auth: Cognito UserPool (referenced via SSM)
+  - Auth: Cognito UserPool (SSM: /nestfolio/{prefix}-investor/auth/userPoolId)
 
 ## Handlers
-- event-listener.ts
-- graphql-resolver.ts
+- event-listener.ts — materializeToTable pipeline; handles BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED via transform functions
+- graphql-resolver.ts — AppSync Lambda resolver; handles getPortfolioAt (time-travel via snapshot replay) and getSimulationComparison (actual vs simulated portfolio diff)
 
 ## Tests
 - service.stack.test.ts
-- repositories/portfolio.repository.test.ts
-- transforms/portfolio-updated.test.ts
-- transforms/balance-updated.test.ts
-- transforms/ledger-entry-recorded.test.ts
 - handlers/event-listener.test.ts
 - handlers/graphql-resolver.test.ts
+- repositories/portfolio.repository.test.ts
+- transforms/balance-updated.test.ts
+- transforms/ledger-entry-recorded.test.ts
+- transforms/portfolio-updated.test.ts
 
 ## Dependencies
-- libs: cdk-constructs/core, cdk-constructs/extensions, cdk-constructs/utils
+- libs: cdk-constructs/core, cdk-constructs/extensions, cdk-constructs/utils, event-processor
+- cross-domain: @nestfolio/ledger-ctrl/events
