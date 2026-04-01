@@ -67,6 +67,10 @@ export class AlpacaClient {
     return this.request<AlpacaOrderApiResponse>('DELETE', `/v2/orders/${alpacaOrderId}`);
   }
 
+  async getOrder(orderId: string): Promise<AlpacaResponse<AlpacaOrderApiResponse>> {
+    return this.request<AlpacaOrderApiResponse>('GET', `/v2/orders/${orderId}`);
+  }
+
   async getTradeEvents(since: string, until: string): Promise<AlpacaResponse<AlpacaTradeEvent[]>> {
     return this.request<AlpacaTradeEvent[]>('GET', `/v2/events/trades?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}`);
   }

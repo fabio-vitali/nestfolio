@@ -119,4 +119,22 @@ describe('AlpacaClient', () => {
     expect(headers['APCA-API-KEY-ID']).toBe('test-key-id');
     expect(headers['APCA-API-SECRET-KEY']).toBe('test-key-secret');
   });
+
+  describe('getOrder', () => {
+    it('calls GET /v2/orders/{id} and returns response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        json: async () => ({ id: 'alpaca-order-abc', status: 'filled', filled_qty: '10', filled_avg_price: '150.25' }),
+        status: 200,
+      });
+
+      const result = await client.getOrder('alpaca-order-abc');
+
+      expect(result.status).toBe(200);
+      expect(result.data.id).toBe('alpaca-order-abc');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://paper-api.alpaca.markets/v2/orders/alpaca-order-abc',
+        expect.objectContaining({ method: 'GET' }),
+      );
+    });
+  });
 });
