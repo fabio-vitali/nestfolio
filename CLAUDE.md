@@ -53,7 +53,7 @@ Before starting any task below, invoke the corresponding skill FIRST:
 | Assess impact of a change           | `impact-analysis`                                  |
 | Document a flow from code           | `generate-flow-spec`                               |
 | Regenerate C4 architecture diagrams | `generate-c4-diagrams`                             |
-| Rebuild all docs from code          | `init-docs`                                        |
+| Rebuild all docs from code          | `/init-docs` (user command only)                   |
 
 ## Hard Constraints
 

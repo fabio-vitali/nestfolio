@@ -1,6 +1,7 @@
 ---
 name: init-docs
-description: Initialize/rebuild all agent documentation from code — regenerates all 33 service cards, regenerates flow specs, runs full system audit, commits auto-fixed artifacts. Run after major refactors, branch merges, or first-time setup.
+description: Initialize/rebuild all agent documentation from code — regenerates all service cards, flow specs, C4 diagrams, and runs full system audit. Run after major refactors or first-time setup.
+disable-model-invocation: true
 ---
 
 ## When This Skill Applies

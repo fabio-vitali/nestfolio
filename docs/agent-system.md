@@ -40,6 +40,10 @@ loads, it tells the agent what to read, not what to paste.
 Code's `Agent` tool. This keeps audit work out of your main conversation context. A sub-agent
 audits a service, writes its report, and returns — your conversation only sees the summary.
 
+**User commands.** Skills with `disable-model-invocation: true` in their frontmatter act as
+user-only commands. Claude never triggers them automatically — you invoke them via `/name`.
+Use this for expensive or destructive workflows like `/init-docs` (full doc rebuild).
+
 ---
 
 ## Cognitive Layers
@@ -85,9 +89,11 @@ loaded explicitly by the skill checklists.
 
 ## Skills
 
-All 21 skills are in `.claude/skills/`, each in its own directory with a `SKILL.md` file.
+All 22 skills are in `.claude/skills/`, each in its own directory with a `SKILL.md` file.
 Claude Code auto-discovers them and lists their descriptions in the system prompt so it can
 invoke them automatically when a task matches. The routing table in CLAUDE.md reinforces this.
+One skill (`init-docs`) has `disable-model-invocation: true` — it functions as a user-only
+command invoked via `/init-docs` and Claude will never trigger it automatically.
 
 ### system/ — Orientation
 
@@ -105,7 +111,7 @@ invoke them automatically when a task matches. The routing table in CLAUDE.md re
 | `create-event` | Define TypeScript schema → register → CDC or explicit emit → adapter rules → consumer updates |
 | `create-data-flow` | Design, implement, and document a cross-domain event flow |
 | `create-mfe` | MFE conventions, routing, BFF integration, shared UI components |
-| `cdk-patterns` | 5-construct pattern reference: State, Ingress, Egress, Facade, AgentRuntime |
+| `cdk-patterns` | 6-construct pattern reference: State, Ingress, Egress, Facade, AgentRuntime, Orchestration |
 | `event-processor-patterns` | Pipeline types, handler structure, DLQ config, test harnesses |
 | `testing-patterns` | Directory convention, unit vs integration, harnesses, naming |
 
@@ -117,7 +123,15 @@ invoke them automatically when a task matches. The routing table in CLAUDE.md re
 | `audit-domain` | Verifies a full domain: service completeness, adapter forwarding, event contract consistency |
 | `audit-system` | Full system sweep via parallel sub-agents; produces a dashboard |
 | `ci-audit` | CI-optimized audit scoped to `nx affected` projects; structured output for PR comments |
-| `init-docs` | Nuclear rebuild — regenerates all service cards, validates all flows, full audit sweep |
+
+### commands/ — User-Only Commands
+
+These skills have `disable-model-invocation: true` — Claude never triggers them automatically.
+They are invoked explicitly by the user via `/command-name`.
+
+| Command | What it does |
+|---------|-------------|
+| `/init-docs` | Nuclear rebuild — regenerates all service cards, validates all flows, regenerates C4 diagrams, full audit sweep |
 
 ### flows/ — Flow Specifications
 
