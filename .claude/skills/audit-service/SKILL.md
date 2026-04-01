@@ -23,7 +23,7 @@ Audit the service {service} in domain {domain}. Read these files:
    - State: DynamoDB table(s), S3 bucket(s), streams enabled?
    - Ingress: each Ingress construct → event types subscribed, handler path
    - Egress: CDC config → eventTypes map (record type → event config)
-   - Step Functions: state machine names and purposes
+   - Orchestration: construct IDs, triggers, timeouts, grantCallbackAccess
    - Facade: GraphQL/REST endpoints if present
    - AgentRuntime: Bedrock agent if present
 3. services/{domain}/{service}/src/handlers/ — list all handler files
@@ -51,13 +51,30 @@ Stack: services/{domain}/{service}/src/service.stack.ts
   Emits: {EVENT_1}, {EVENT_2}, ...
 [Only if Egress construct exists]
 
-## Step Functions
-- {SFName}: {one-line description}
-[Only if state machines exist]
+## Orchestration
+- {ConstructId}: {description} (triggered by {events}, timeout {duration})
+  - grantCallbackAccess → {handler} (if task token wiring)
+[Only if Orchestration constructs exist]
+
+## Standalone Lambdas
+- {FnName}: {purpose} (invoked by {StateMachine}, not via Ingress)
+[Only if Lambdas exist outside Ingress — e.g. SF-invoked functions]
 
 ## Facade
 - {type}: {endpoint description}
 [Only if Facade construct exists]
+
+## Handlers
+- {filename} — {purpose}
+[List all handler files from src/handlers/]
+
+## Event Types (domain/events.ts)
+- {ConstGroupName}: {event1}, {event2}, ...
+[Group by direction: inbound (subscribed), outbound (emitted via CDC), routed]
+
+## Tests
+- {filename}
+[List all test files from test/]
 
 ## Dependencies
 - libs: {lib1}, {lib2}, ...

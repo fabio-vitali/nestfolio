@@ -360,9 +360,9 @@ this.addObservability({
 
 Note: CDK alarm IDs are disambiguated by the Ingress construct ID when multiple exist.
 
-### EventBridge → Step Functions (Orchestration Construct)
+### Orchestration Pattern (EventBridge → Step Functions)
 
-For orchestration services (e.g. broker-ctrl), use the Orchestration construct with `triggers` for EventBridge-driven state machine execution:
+For orchestration services (e.g. broker-ctrl, broker-alpaca-adpt), use the Orchestration construct with `triggers` for EventBridge-driven state machine execution:
 
 ```ts
 const state = new State(this, 'State', {});
