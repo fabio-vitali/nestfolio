@@ -28,7 +28,6 @@ Stack: services/execution/broker-alpaca-adpt/src/service.stack.ts
 - alpaca-orders.service.test.ts
 - alpaca.client.test.ts
 - event-listener.test.ts
-- event-publisher.test.ts
 - order-mapping.repository.test.ts
 - polling-state.repository.test.ts
 - trade-event-poller.test.ts

@@ -26,7 +26,6 @@ Stack: services/advisory/sec-edgar-adpt/src/service.stack.ts
 
 ## Tests
 - event-listener.test.ts
-- event-publisher.test.ts
 - handlers/
 
 ## Dependencies

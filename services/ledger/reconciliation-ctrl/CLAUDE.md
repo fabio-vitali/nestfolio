@@ -23,7 +23,6 @@ Stack: services/ledger/reconciliation-ctrl/src/service.stack.ts
 
 ## Tests
 - event-listener.test.ts
-- event-publisher.test.ts
 - reconciliation.repository.test.ts
 - reconciliation.service.test.ts
 

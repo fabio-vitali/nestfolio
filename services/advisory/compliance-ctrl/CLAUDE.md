@@ -22,7 +22,6 @@ Stack: services/advisory/compliance-ctrl/src/service.stack.ts
 - authority-resolver.test.ts
 - compliance.repository.test.ts
 - event-listener.test.ts
-- event-publisher.test.ts
 - guardrail-evaluator.test.ts
 - mandate-validator.test.ts
 - rule-engine.test.ts

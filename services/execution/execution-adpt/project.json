@@ -16,6 +16,10 @@
         "command": "npx cdk destroy --app 'npx ts-node -r ./tools/register-paths.js services/execution/execution-adpt/src/main.ts' --force -c prefix={args.prefix}"
       }
     },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": { "jestConfig": "services/execution/execution-adpt/jest.config.js" }
+    },
     "lint": { "executor": "@nx/eslint:lint" }
   },
   "tags": ["scope:execution", "type:adpt"]

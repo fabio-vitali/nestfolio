@@ -12,7 +12,7 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
 
 ## Egress
 - CDC: DynamoDB Streams → ledger-ctrl-egress (Lambda)
-  Emits: BalanceEvent, PortfolioEvent, LedgerEntryEvent, TaxLot, DispositionRecord
+  Emits: BalanceEvent, PortfolioEvent, LedgerEntryEvent
 
 ## Reducer
 - ReducerFn: DynamoDB Streams consumer that materializes account snapshots
@@ -31,7 +31,6 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
 - service.stack.test.ts
 - repositories/ledger.repository.test.ts
 - tax-lot-manager.test.ts
-- event-publisher.test.ts
 - domain/cancel-order.test.ts
 - domain/account.reducer.test.ts
 - domain/record-deposit.test.ts

@@ -27,7 +27,6 @@ Stack: services/investor/investor-bff/src/service.stack.ts
 
 ## Tests
 - handlers/event-listener.test.ts
-- handlers/event-publisher.test.ts
 - repositories/investor-profile.repository.test.ts
 - transforms/balance-updated.test.ts
 - transforms/user-registered.test.ts

@@ -24,7 +24,6 @@ Stack: services/advisory/alpha-vantage-adpt/src/service.stack.ts
 - fetch-trigger.ts
 
 ## Tests
-- event-publisher.test.ts
 - handlers/
 
 ## Dependencies

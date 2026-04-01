@@ -1,4 +1,3 @@
-// Set env vars BEFORE any imports
 process.env.TABLE_NAME = 'test-table';
 
 const mockDdbSend = jest.fn();
@@ -40,53 +39,29 @@ jest.mock('@nestfolio/event-processor', () => ({
       await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
     }
   },
-  requireEnv: (name: string) => process.env[name] ?? name,
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
-  getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
-  withMethodLogging: jest.fn((_className: string) =>
-    (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
-  ),
 }));
 
 import { handler } from '../src/handlers/callback-resolver';
+import { fakeSqsRecord } from '@nestfolio/event-processor';
 import type { SQSEvent } from 'aws-lambda';
-
-function makeSqsEvent(records: Array<{ detailType: string; detail: Record<string, unknown> }>): SQSEvent {
-  return {
-    Records: records.map((r, i) => ({
-      messageId: `msg-${i}`,
-      receiptHandle: `handle-${i}`,
-      body: JSON.stringify({
-        'detail-type': r.detailType,
-        detail: JSON.stringify(r.detail),
-      }),
-      attributes: {} as any,
-      messageAttributes: {},
-      md5OfBody: '',
-      eventSource: 'aws:sqs',
-      eventSourceARN: '',
-      awsRegion: 'us-east-1',
-    })),
-  };
-}
 
 describe('callback-resolver handler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSfnSend.mockResolvedValue({});
+    mockDdbSend.mockResolvedValue({});
   });
 
   it('SIM_ORDER_FILLED → looks up taskToken → SendTaskSuccess with FILLED', async () => {
-    // getOrder returns record with fillTaskToken
     mockDdbSend.mockResolvedValueOnce({ Item: { fillTaskToken: 'token-abc' } });
 
-    const event = makeSqsEvent([{
-      detailType: 'SIM_ORDER_FILLED',
-      detail: { tenantId: 't-1', subject: { orderId: 'order-1', filledQuantity: 10, averageFillPrice: 250.50 } },
-    }]);
+    const record = fakeSqsRecord('SIM_ORDER_FILLED', {
+      orderId: 'order-1', filledQuantity: 10, averageFillPrice: 250.50,
+    }, { eventId: 'evt-1', tenantId: 't-1' });
 
-    await handler(event);
+    const result = await handler({ Records: [record] });
 
+    expect(result.batchItemFailures).toHaveLength(0);
     expect(mockSfnSend).toHaveBeenCalledTimes(1);
     const sfnCall = mockSfnSend.mock.calls[0][0];
     const output = JSON.parse(sfnCall.input.output);
@@ -99,13 +74,13 @@ describe('callback-resolver handler', () => {
   it('ALPACA_ORDER_REJECTED with insufficient funds → deterministic failure', async () => {
     mockDdbSend.mockResolvedValueOnce({ Item: { fillTaskToken: 'token-def' } });
 
-    const event = makeSqsEvent([{
-      detailType: 'ALPACA_ORDER_REJECTED',
-      detail: { tenantId: 't-1', subject: { orderId: 'order-2', rejectionReason: 'insufficient buying power' } },
-    }]);
+    const record = fakeSqsRecord('ALPACA_ORDER_REJECTED', {
+      orderId: 'order-2', rejectionReason: 'insufficient buying power',
+    }, { eventId: 'evt-2', tenantId: 't-1' });
 
-    await handler(event);
+    const result = await handler({ Records: [record] });
 
+    expect(result.batchItemFailures).toHaveLength(0);
     const sfnCall = mockSfnSend.mock.calls[0][0];
     const output = JSON.parse(sfnCall.input.output);
     expect(output.status).toBe('REJECTED');
@@ -115,13 +90,13 @@ describe('callback-resolver handler', () => {
   it('ALPACA_ORDER_REJECTED with 5xx error → transient failure', async () => {
     mockDdbSend.mockResolvedValueOnce({ Item: { fillTaskToken: 'token-ghi' } });
 
-    const event = makeSqsEvent([{
-      detailType: 'ALPACA_ORDER_REJECTED',
-      detail: { tenantId: 't-1', subject: { orderId: 'order-3', rejectionReason: '503 service unavailable' } },
-    }]);
+    const record = fakeSqsRecord('ALPACA_ORDER_REJECTED', {
+      orderId: 'order-3', rejectionReason: '503 service unavailable',
+    }, { eventId: 'evt-3', tenantId: 't-1' });
 
-    await handler(event);
+    const result = await handler({ Records: [record] });
 
+    expect(result.batchItemFailures).toHaveLength(0);
     const sfnCall = mockSfnSend.mock.calls[0][0];
     const output = JSON.parse(sfnCall.input.output);
     expect(output.failureClass).toBe('transient');
@@ -130,13 +105,13 @@ describe('callback-resolver handler', () => {
   it('ALPACA_ORDER_PARTIALLY_FILLED → PARTIALLY_FILLED status', async () => {
     mockDdbSend.mockResolvedValueOnce({ Item: { fillTaskToken: 'token-jkl' } });
 
-    const event = makeSqsEvent([{
-      detailType: 'ALPACA_ORDER_PARTIALLY_FILLED',
-      detail: { tenantId: 't-1', subject: { orderId: 'order-4', filledQuantity: 5 } },
-    }]);
+    const record = fakeSqsRecord('ALPACA_ORDER_PARTIALLY_FILLED', {
+      orderId: 'order-4', filledQuantity: 5,
+    }, { eventId: 'evt-4', tenantId: 't-1' });
 
-    await handler(event);
+    const result = await handler({ Records: [record] });
 
+    expect(result.batchItemFailures).toHaveLength(0);
     const sfnCall = mockSfnSend.mock.calls[0][0];
     const output = JSON.parse(sfnCall.input.output);
     expect(output.status).toBe('PARTIALLY_FILLED');
@@ -144,30 +119,28 @@ describe('callback-resolver handler', () => {
   });
 
   it('No taskToken found → logs warning, does not call SFN', async () => {
-    // getOrder returns no fillTaskToken
     mockDdbSend.mockResolvedValueOnce({ Item: null });
 
-    const event = makeSqsEvent([{
-      detailType: 'SIM_ORDER_FILLED',
-      detail: { tenantId: 't-1', subject: { orderId: 'order-missing' } },
-    }]);
+    const record = fakeSqsRecord('SIM_ORDER_FILLED', {
+      orderId: 'order-missing',
+    }, { eventId: 'evt-5', tenantId: 't-1' });
 
-    await handler(event);
+    const result = await handler({ Records: [record] });
 
+    expect(result.batchItemFailures).toHaveLength(0);
     expect(mockSfnSend).not.toHaveBeenCalled();
   });
 
   it('ALPACA_ACCOUNT_SNAPSHOT → looks up healTaskToken from CircuitBreaker', async () => {
-    // getBreaker returns record with healTaskToken
     mockDdbSend.mockResolvedValueOnce({ Item: { healTaskToken: 'heal-token-xyz' } });
 
-    const event = makeSqsEvent([{
-      detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
-      detail: { tenantId: 't-1', subject: { equity: 50000, positions: [] } },
-    }]);
+    const record = fakeSqsRecord('ALPACA_ACCOUNT_SNAPSHOT', {
+      equity: 50000, positions: [],
+    }, { eventId: 'evt-6', tenantId: 't-1' });
 
-    await handler(event);
+    const result = await handler({ Records: [record] });
 
+    expect(result.batchItemFailures).toHaveLength(0);
     expect(mockSfnSend).toHaveBeenCalledTimes(1);
     const sfnCall = mockSfnSend.mock.calls[0][0];
     expect(sfnCall.input.taskToken).toBe('heal-token-xyz');

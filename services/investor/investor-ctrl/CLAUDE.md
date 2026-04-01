@@ -23,7 +23,6 @@ Stack: services/investor/investor-ctrl/src/service.stack.ts
 
 ## Tests
 - event-listener.test.ts
-- event-publisher.test.ts
 - notification.service.test.ts
 - notification.repository.test.ts
 

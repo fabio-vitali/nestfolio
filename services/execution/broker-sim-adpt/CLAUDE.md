@@ -24,7 +24,6 @@ Stack: services/execution/broker-sim-adpt/src/service.stack.ts
 
 ## Tests
 - event-listener.test.ts
-- event-publisher.test.ts
 - market-data.service.test.ts
 - simulation-engine.service.test.ts
 - virtual-ledger.repository.test.ts

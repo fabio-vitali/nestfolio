@@ -24,7 +24,6 @@ Stack: services/execution/execution-ctrl/src/service.stack.ts
 
 ## Tests
 - event-listener.test.ts
-- event-publisher.test.ts
 - staged-order-processor.test.ts
 
 ## Dependencies

@@ -56,7 +56,6 @@ Stack: services/execution/broker-ctrl/src/service.stack.ts
 - circuit-breaker-heal.test.ts
 - deposit-withdrawal-normalizer.test.ts
 - deposit-withdrawal-router.test.ts
-- event-publisher.test.ts
 - mode-listener.test.ts
 - order-normalizer.service.test.ts
 - order-state-machine.test.ts
