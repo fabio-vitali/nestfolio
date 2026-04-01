@@ -60,6 +60,7 @@ Call **once** at the end of the constructor after building Ingress/Egress:
 this.addObservability({
   ingress,            // optional — exposes handler + dlq
   egress,             // optional — exposes dlq
+  orchestration,      // optional — exposes state machine metrics
   extraLambdas: [],   // additional Lambda functions to monitor
   extraDlqs: [],      // additional DLQs
   monitorBedrock: false,
@@ -278,15 +279,10 @@ Wraps a Step Functions state machine with EventBridge trigger rules and task-tok
 
 ```ts
 export interface OrchestrationProps {
-  state: State;                         // required — grants R/W to state machine role
+  state?: State;                        // optional — grants R/W to state machine role when provided
   definitionBody: sfn.DefinitionBody;   // state machine definition (fromChainable or fromFile)
-  triggers?: OrchestrationTrigger[];    // EventBridge rules that auto-start the state machine
-  timeout?: Duration;                   // state machine execution timeout, default 1 hour
-}
-
-export interface OrchestrationTrigger {
-  id: string;                           // construct ID for the EventBridge rule
-  eventTypes: string[];                 // detail-type filter list
+  triggers: string[];                   // event types that trigger new state machine executions (EB rules created per type)
+  timeout?: Duration;                   // state machine execution timeout, default 5 minutes
 }
 ```
 
@@ -375,10 +371,8 @@ this.state = state;
 const orchestration = new Orchestration(this, 'OrderStateMachine', {
   state,
   definitionBody: sfn.DefinitionBody.fromChainable(definition),
-  triggers: [
-    { id: 'OrderSubmittedTrigger', eventTypes: ['ORDER_SUBMITTED'] },
-  ],
-  timeout: Duration.hours(1),
+  triggers: ['ORDER_SUBMITTED'],
+  timeout: Duration.minutes(5),
 });
 
 // Grant callback access to Ingress handlers
@@ -399,9 +393,9 @@ this.eventBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
 
 Use `valueForStringParameter` (deploy-time), never `valueFromLookup` (synth-time) for hub stacks.
 
-### Adapter Pattern (No State)
+### Stateless Adapter Pattern (Cross-Domain Ingestion)
 
-Adapters that translate events and have no domain state simply omit the State construct:
+Cross-domain ingestion adapters (e.g. `advisory-adpt`) that forward events between buses omit the State construct:
 
 ```ts
 super(scope, id, { ...props, serviceDir: __dirname });
@@ -412,6 +406,8 @@ const ingress = new Ingress(this, 'Ingress', {
 ```
 
 Ingress handles the absence of state gracefully — it skips env vars and grants when no state prop is provided.
+
+Note: Broker adapters (e.g. `broker-sim-adpt`) are NOT stateless — they manage external integration state with State + Ingress + Egress.
 
 ### Extra State-Only Lambda (e.g. Reducer)
 
@@ -459,7 +455,8 @@ this.naming.ssmParameterPath('api/url') // "/nestfolio/dev-investor/api/url"
 |---|---|---|
 | **BFF** | State + Ingress + Egress + Facade | `investor-bff` |
 | **Hub** | Ingress (cross-domain bus lookup, no state) | `execution-hub` |
-| **Adapter** | Ingress (no state) | `broker-sim-adpt` |
+| **Broker Adapter** | State + Ingress + Egress | `broker-sim-adpt` |
+| **Ingestion Adapter** | Ingress (no state) | `advisory-adpt` |
 | **Standard Ctrl** | State + Ingress + Egress | `ledger-ctrl` |
 | **Orchestrated Ctrl** | State + Ingress + Egress + Orchestration | `broker-ctrl` |
 | **AgentRuntime Ctrl** | State + Ingress + Egress + AgentRuntime | `advisory-ctrl` |

@@ -18,7 +18,7 @@ This is the "nuclear rebuild" — regenerates ALL derived artifacts from code, t
 
 - [ ] 1. **Verify skill infrastructure exists**
   ```bash
-  ls .claude/skills/*/SKILL.md | wc -l  # should be 21
+  ls .claude/skills/*/SKILL.md | wc -l  # should be 22
   ls flows/
   ```
   If missing, create the skill directories first.
@@ -38,11 +38,12 @@ This is the "nuclear rebuild" — regenerates ALL derived artifacts from code, t
 - [ ] 4. **Validate all flow specs**
   For each regenerated spec, run the `validate-flow` procedure.
 
-- [ ] 5. **Regenerate C4 architecture diagrams**
+- [ ] 5. **Regenerate C4 architecture diagrams** (both stages)
   ```bash
-  node tools/generate-c4-diagrams.mjs
+  node tools/generate-c4-sources.mjs    # Stage 1: generate D2 sources from CDK stacks
+  node tools/generate-c4-diagrams.mjs   # Stage 2: compile D2 → navigable SVGs
   ```
-  This compiles `docs/architecture/nestfolio.d2` into navigable SVGs with AWS icons.
+  Stage 1 scans service stacks and generates C3 D2 files + root `nestfolio.d2`. Stage 2 compiles them into SVGs. **Never skip Stage 1** — running only Stage 2 after CDK changes produces stale diagrams.
 
 - [ ] 6. **Run full system audit**
   Invoke the `audit-system` procedure — 4 parallel domain audits + system-level checks.
@@ -71,7 +72,7 @@ This is the "nuclear rebuild" — regenerates ALL derived artifacts from code, t
 
 - [ ] 8. **Commit all auto-generated artifacts**
   ```bash
-  git add services/*/CLAUDE.md flows/*.flow.yaml docs/architecture/nestfolio/
+  git add services/*/*/CLAUDE.md flows/*.flow.yaml docs/architecture/nestfolio/
   git commit -m "docs: regenerate all service cards, flow specs, and C4 diagrams via /init-docs"
   ```
 

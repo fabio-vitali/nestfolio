@@ -17,7 +17,7 @@ description: Verify domain-level consistency — service completeness, adapter f
 | Check | Severity |
 |-------|----------|
 | Service completeness: has ctrl + hub + adpt minimum | Warning |
-| Adapter forwarding: all cross-domain events forwarded | Hard fail |
+| Adapter subscriptions: consuming adapters subscribe to all required cross-domain events (pull model) | Hard fail |
 | Event contract consistency: producer types match consumer | Hard fail |
 | Flow validation: all domain flows pass validate-flow | Hard fail |
 | Bus configuration: rules match subscriptions | Warning |

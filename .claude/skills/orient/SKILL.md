@@ -57,7 +57,7 @@ Nestfolio is a robo-advisory investment platform. 4 DDD domains, 33 services, ev
 
 ### Shared Libraries
 - `libs/event-processor` — SQS ingestion + DDB Stream CDC pipelines, test harnesses
-- `libs/cdk-constructs` — ServiceStack base class + State/Ingress/Egress/Facade/AgentRuntime constructs
+- `libs/cdk-constructs` — ServiceStack base class + 6 constructs (State/Ingress/Egress/Facade/Orchestration in core/, AgentRuntime in extensions/)
 - `libs/agent-orchestrator` — Bedrock agent orchestration
 - `libs/shell` — Angular shell for MFE host
 - `libs/ui` — Shared UI component library

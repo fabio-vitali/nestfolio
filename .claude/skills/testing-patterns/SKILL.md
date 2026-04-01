@@ -19,7 +19,7 @@ services/{domain}/{service}/
 ## Handler Tests
 
 ```typescript
-import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor/testing';
+import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { handlers } from '../src/handlers/my-handler';
 
 describe('my-handler', () => {
@@ -27,19 +27,20 @@ describe('my-handler', () => {
 
   it('processes EVENT_TYPE_A', async () => {
     const result = await harness.process([
-      fakeSqsRecord({
-        detailType: 'EVENT_TYPE_A',
-        detail: { subject: { id: '123', tenantId: 't1', status: 'ACTIVE' } },
-      }),
+      fakeSqsRecord('EVENT_TYPE_A', { id: '123', tenantId: 't1', status: 'ACTIVE' }),
     ]);
     expect(result.intents).toHaveLength(1);
-    expect(result.intents[0]).toMatchObject({ type: 'record', item: expect.objectContaining({ pk: '123' }) });
+    expect(result.intents[0]).toMatchObject({
+      _tag: 'record',
+      typename: expect.any(String),
+      fields: expect.objectContaining({ id: '123' }),
+    });
     expect(result.errors).toHaveLength(0);
   });
 
   it('skips unknown events', async () => {
     const result = await harness.process([
-      fakeSqsRecord({ detailType: 'UNKNOWN', detail: { subject: {} } }),
+      fakeSqsRecord('UNKNOWN', {}),
     ]);
     expect(result.skipped).toBe(1);
   });

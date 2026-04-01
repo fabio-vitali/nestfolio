@@ -113,9 +113,6 @@ import { changeDataCapture } from '@nestfolio/event-processor';
 **Config shape:**
 ```ts
 interface ChangeDataCaptureConfig {
-  serviceName: string;
-  eventTypeMap: Record<string, string | ((record: StreamRecord) => string)>;
-  // Key format: '<Typename>:<INSERT|MODIFY|REMOVE>'
   groupBy?: {
     key: (record: StreamRecord) => string;
     pick?: 'first' | 'last';
@@ -126,18 +123,32 @@ interface ChangeDataCaptureConfig {
 }
 ```
 
+> **Note:** `serviceName` and event-type mapping are NOT passed in config — they are read from environment variables (`SERVICE_NAME`, `EVENT_TYPE_MAP`) injected by the CDK Egress construct. The `eventTypes` map is defined declaratively on the Egress construct in `service.stack.ts`, not in the handler.
+
 **Usage:**
 ```ts
+// Handler is a thin 2-line stub — all config comes from CDK Egress construct
+export const handler = changeDataCapture();
+// Returns: (event: DynamoDBStreamEvent) => Promise<void>
+
+// Optional: with groupBy deduplication
 export const handler = changeDataCapture({
-  serviceName: 'execution-ctrl',
-  eventTypeMap: {
-    'Order:INSERT': 'Order.Created',
-    'Order:MODIFY': (record) => record.status === 'filled' ? 'Order.Filled' : 'Order.Updated',
-    'Order:REMOVE': 'Order.Deleted',
+  groupBy: { key: (r) => r.pk, pick: 'last' },
+});
+```
+
+**CDK side (service.stack.ts) — this is where event types are configured:**
+```ts
+const egress = new Egress(this, 'Egress', {
+  state,
+  eventTypes: {
+    'Order': { insert: 'ORDER_CREATED', modify: 'ORDER_UPDATED' },
+    'Trade': { insert: 'TRADE_EXECUTED' },
   },
 });
-// Returns: (event: DynamoDBStreamEvent) => Promise<void>
 ```
+
+The Egress construct serializes `eventTypes` into the `EVENT_TYPE_MAP` env var, which the CDC pipeline reads at runtime.
 
 **Source:** `libs/event-processor/src/pipelines/change-data-capture.ts`
 
@@ -351,10 +362,9 @@ import {
   fakeDdbStreamRecord,
 } from '@nestfolio/event-processor/testing';
 
-// CDC test
+// CDC test — eventTypeMap is injected via process.env.EVENT_TYPE_MAP
 const cdcHarness = createCdcTestHarness({
   serviceName: 'execution-ctrl',
-  eventTypeMap: { 'Order:INSERT': 'Order.Created' },
 });
 
 it('publishes Order.Created on INSERT', async () => {
@@ -398,13 +408,17 @@ expect(result.snapshots.get('T#tenant-1')?.version).toBe(1);
 
 ### Kinesis Records
 
+`fakeKinesisRecord` exists in `libs/event-processor/src/testing/fake-records.ts` but is **not publicly exported**. If needed for Kinesis pipeline tests, import it directly:
+
 ```ts
-import { fakeKinesisRecord } from '@nestfolio/event-processor/testing';
+import { fakeKinesisRecord } from '@nestfolio/event-processor/testing/fake-records';
 
 const kRecord = fakeKinesisRecord('Order.Created', { orderId: '123' }, {
   tenantId: 'tenant-1',
 });
 ```
+
+> **Public testing exports** from `@nestfolio/event-processor`: `createTestHarness`, `fakeSqsRecord`, `fakeDdbStreamRecord`.
 
 ---
 

@@ -15,8 +15,8 @@ description: Validate a .flow.yaml against actual code — checks subscriptions,
   a. **Subscription exists:** grep Ingress `eventTypes` for the event
   b. **Handler exists:** check `src/handlers/` for matching handler
   c. **State change occurs:** read handler, verify WriteIntent matches
-  d. **Output event emitted:** verify CDC `eventTypeMap` or explicit emit
-  e. **Adapter forwarding:** verify Rule `detailType` array for cross-domain steps
+  d. **Output event emitted:** verify declarative `eventTypes` on Egress construct in `service.stack.ts`, or explicit emit
+  e. **Adapter subscription:** verify consuming adapter's EB Rule `detailType` array on source bus for cross-domain steps
 - [ ] 3. **Report results:**
   ```
   ✓ Step 1: {service} receives {EVENT} — {file}:{line}

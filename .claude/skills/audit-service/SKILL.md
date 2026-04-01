@@ -66,7 +66,7 @@ RULES:
 - No prose. Structured facts only.
 - Omit sections with no content.
 - Use actual event type constant names from code.
-- If stateProps: false (adapters), State section: "None (stateless adapter)"
+- If no State construct is created (e.g. cross-domain ingestion adapters), State section: "None (stateless adapter)"
 
 Write the result to: services/{domain}/{service}/CLAUDE.md
 ```
@@ -90,7 +90,7 @@ Write the result to: services/{domain}/{service}/CLAUDE.md
 
 ## Reference Files
 - CDK base: `libs/cdk-constructs/src/core/service-stack.ts`
-- Constructs: `libs/cdk-constructs/src/core/{state,ingress,egress}.ts`
+- Constructs: `libs/cdk-constructs/src/core/{state,ingress,egress,facade,orchestration}.ts`, `libs/cdk-constructs/src/extensions/agent-runtime.ts`
 - Pipelines: `libs/event-processor/src/pipelines/`
 
 ## Anti-Patterns

@@ -7,7 +7,7 @@ description: Assess change blast radius — scans flow specs and code for everyt
 - Renaming or removing an event type
 - Modifying event subscriptions
 - Removing a handler
-- Modifying adapter forwarding
+- Modifying adapter subscriptions
 
 ## Checklist
 
@@ -22,7 +22,7 @@ description: Assess change blast radius — scans flow specs and code for everyt
   ```
 - [ ] 4. **Check transitive impact:**
   ```bash
-  pnpm nx affected --select=projects
+  pnpm nx show projects --affected
   ```
 - [ ] 5. **Report blast radius:**
   ```

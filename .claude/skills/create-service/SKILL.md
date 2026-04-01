@@ -13,16 +13,17 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
 
 ## Checklist
 
-- [ ] 1. **Create Nx project**
+- [ ] 1. **Create Nx project** — services use `projectType: "application"` (not library)
   ```bash
   pnpm nx g @nx/js:library services/{domain}/{service-name} --unitTestRunner=jest --bundler=none
   ```
-  Verify flags with `--help` first.
+  Then manually update `project.json`: set `"projectType": "application"`, add `deploy`/`destroy` targets pointing to `main.ts`. Verify flags with `--help` first.
 
 - [ ] 2. **Set up file structure:**
   ```
   services/{domain}/{service-name}/
     src/
+      main.ts                      <- CDK app entry point (App + resolvePipelineConfig)
       service.stack.ts
       handlers/{first-handler}.ts
       domain/events.ts
@@ -30,20 +31,28 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
     test/
       service.stack.test.ts
       {first-handler}.test.ts
-    project.json
+    project.json                   <- projectType: "application", deploy/destroy/test/lint targets
+    jest.config.js                 <- extends jest.preset, moduleNameMapper for @nestfolio/*
+    tsconfig.json
+    tsconfig.lib.json
+    tsconfig.spec.json
   ```
 
-- [ ] 3. **Write CDK stack** — extend ServiceStack, create State explicitly (if needed), add Ingress/Egress/Orchestration per `cdk-patterns` (6-construct model)
-  - All services that need DynamoDB: `const state = new State(this, 'State', {}); this.state = state;`
+- [ ] 3. **Write CDK stack** — extend ServiceStack with `serviceDir: __dirname`, create State explicitly (if needed), add Ingress/Egress/Orchestration per `cdk-patterns` (6-construct model)
+  ```ts
+  super(scope, id, { ...props, serviceDir: __dirname });
+  ```
+  - All services that need DynamoDB: `const state = new State(this, 'State'); this.state = state;`
   - Pass `state` to Ingress, Egress, Facade, AgentRuntime as needed
   - For orchestrated services (-ctrl with Step Functions): add `new Orchestration(this, 'MyStateMachine', { state, definitionBody, triggers })`
+  - Call `this.addObservability({ ingress, egress })` at end of constructor
 - [ ] 4. **Write first handler** per `event-processor-patterns`
 - [ ] 5. **Define event types** per `create-event`
 - [ ] 6. **Write tests** per `testing-patterns`
 - [ ] 7. **Run tests** — `pnpm nx test {service-name}`
 - [ ] 8. **Generate service card** — invoke `audit-service`
 - [ ] 9. **Create C3 diagram** — add `docs/architecture/c3/{service-name}.d2` and wire layer import in `nestfolio.d2`, then invoke `generate-c4-diagrams`
-- [ ] 10. **Wire adapter forwarding** if cross-domain events
+- [ ] 10. **Wire adapter subscription** if cross-domain events (consuming adapter deploys EB rule on source bus)
 - [ ] 11. **Commit**
 
 ## Reference Files

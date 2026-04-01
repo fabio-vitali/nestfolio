@@ -16,7 +16,7 @@ description: Generate a .flow.yaml by tracing event subscriptions, CDC configs, 
 - [ ] 1. **Identify flow trigger** — read data flow doc or user description
 - [ ] 2. **Trace the event chain through code:**
   For each step:
-  a. **Find producer:** check CDC `eventTypeMap` or explicit emit
+  a. **Find producer:** check declarative `eventTypes` on Egress construct in `service.stack.ts`, or explicit emit
   b. **Find bus:** same domain → domain bus; cross domain → check adapter
   c. **Find consumer:** `grep -r "EVENT_NAME" services/*/src/service.stack.ts`
   d. **Find handler:** read consumer handler for state_change + emitted events

@@ -16,7 +16,7 @@ description: Full system sweep — dispatches audit-domain per domain in paralle
 | Check | Severity |
 |-------|----------|
 | All domains pass | Aggregated |
-| Cross-domain adapter symmetry | Hard fail |
+| Cross-domain adapter subscription coverage (adapters subscribe to all required events on source buses) | Hard fail |
 | Orphan services (outside domains) | Warning |
 | Flow spec coverage | Warning |
 | Skill freshness (referenced paths exist) | Warning |

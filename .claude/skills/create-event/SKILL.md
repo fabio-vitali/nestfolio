@@ -1,6 +1,6 @@
 ---
 name: create-event
-description: Add a new event type — TypeScript schema, producer registration, CDC/explicit emission, adapter forwarding, consumer subscriptions. Use when adding or modifying events.
+description: Add a new event type — TypeScript schema, producer registration, declarative CDC emission, adapter subscriptions, consumer subscriptions. Use when adding or modifying events.
 ---
 
 ## When This Skill Applies
@@ -16,7 +16,11 @@ description: Add a new event type — TypeScript schema, producer registration, 
 
 - [ ] 1. **Define event type constant** — `services/{domain}/{service}/src/domain/events.ts`
   ```typescript
-  export const MY_NEW_EVENT = 'MY_NEW_EVENT';
+  // Use grouped const objects (actual codebase pattern):
+  export const MyServiceEventTypes = {
+    MY_NEW_EVENT: 'MY_NEW_EVENT',
+    MY_OTHER_EVENT: 'MY_OTHER_EVENT',
+  } as const;
   ```
 
 - [ ] 2. **Define event payload type** (same file or adjacent)
@@ -25,11 +29,11 @@ description: Add a new event type — TypeScript schema, producer registration, 
   ```
 
 - [ ] 3. **Register emission** — either:
-  - **CDC (preferred):** Add to `eventTypeMap` in CDC handler
-  - **Explicit:** Emit via EventBridge SDK in handler
+  - **CDC (preferred):** Add to declarative `eventTypes` map on Egress construct in `service.stack.ts`
+  - **Explicit:** Emit via EventBridge SDK in handler (rare)
 
-- [ ] 4. **Wire adapter forwarding** (if cross-domain)
-  Add event type to adapter Rule's `detailType` array
+- [ ] 4. **Wire adapter subscription** (if cross-domain)
+  Add event type to consuming adapter's EB Rule `detailType` array on the source bus (pull model)
 
 - [ ] 5. **Wire consumer subscriptions**
   Add to consumer Ingress `eventTypes` array
@@ -50,5 +54,5 @@ description: Add a new event type — TypeScript schema, producer registration, 
 ## Anti-Patterns
 - NEVER use string literals for event types — always typed constants
 - NEVER forward events without a DLQ
-- NEVER skip adapter forwarding for cross-domain events
+- NEVER skip adapter subscriptions for cross-domain events
 - NEVER skip flow spec updates for tracked flows
