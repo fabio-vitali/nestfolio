@@ -12,13 +12,26 @@ Stack: services/execution/broker-alpaca-adpt/src/service.stack.ts
 
 ## Egress
 - CDC: DynamoDB Streams → broker-alpaca-adpt-egress (Lambda)
-  Emits: AlpacaOrderResult, AlpacaTransferResult, AlpacaAccountSnapshot
+  Emits:
+  - AlpacaOrderResult (insert): ALPACA_ORDER_PLACED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED
+  - AlpacaOrderResult (modify): ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_CANCELLED
+  - AlpacaTransferResult (insert): ALPACA_TRANSFER_INITIATED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED
+  - AlpacaTransferResult (modify): ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED
+  - AlpacaAccountSnapshot (insert): ALPACA_ACCOUNT_SNAPSHOT
+
+## Orchestration
+- OrderPollingStateMachine — Step Functions state machine; triggered by ALPACA_ORDER_PLACED; timeout 24h; invokes OrderPollFn on each poll cycle
+- TransferPollingStateMachine — Step Functions state machine; triggered by ALPACA_TRANSFER_INITIATED; timeout 7d; invokes TransferPollFn on each poll cycle
 
 ## Handlers
-- event-listener.ts
-- event-publisher.ts
-- trade-event-poller.ts
-- transfer-status-poller.ts
+- event-listener.ts — SQS Ingress handler (event-processor pipeline)
+- event-publisher.ts — CDC Egress handler (event-processor pipeline)
+- order-poll-handler.ts — invoked directly by OrderPollingStateMachine (SF task)
+- transfer-poll-handler.ts — invoked directly by TransferPollingStateMachine (SF task)
+
+## Constructs
+- src/constructs/order-polling-definition.ts — SF state machine definition for order polling
+- src/constructs/transfer-polling-definition.ts — SF state machine definition for transfer polling
 
 ## Event Types (domain/events.ts)
 - AlpacaAdptEventTypes (inbound): ALPACA_ORDER_REQUESTED, ALPACA_ORDER_CANCEL_REQUESTED, ALPACA_TRANSFER_REQUESTED, ALPACA_ACCOUNT_CHECK
@@ -29,10 +42,9 @@ Stack: services/execution/broker-alpaca-adpt/src/service.stack.ts
 - alpaca.client.test.ts
 - event-listener.test.ts
 - order-mapping.repository.test.ts
-- polling-state.repository.test.ts
-- trade-event-poller.test.ts
+- order-poll-handler.test.ts
 - transfer-mapping.repository.test.ts
-- transfer-status-poller.test.ts
+- transfer-poll-handler.test.ts
 
 ## Dependencies
 - libs: cdk-constructs/core
