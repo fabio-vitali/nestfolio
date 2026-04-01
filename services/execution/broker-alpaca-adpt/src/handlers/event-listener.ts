@@ -1,15 +1,13 @@
 import { materializeToTable, requireEnv, record, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { AlpacaClient } from '../clients/alpaca.client';
 import { OrderMappingRepository } from '../repositories/order-mapping.repository';
-import { PollingStateRepository } from '../repositories/polling-state.repository';
 import { AlpacaOrdersService } from '../services/alpaca-orders.service';
 import { AlpacaAdptEventTypes } from '../domain/events';
 
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const orderRepo = new OrderMappingRepository(TABLE_NAME);
-const pollingRepo = new PollingStateRepository(TABLE_NAME);
 const client = new AlpacaClient();
-const ordersService = new AlpacaOrdersService(client, orderRepo, pollingRepo);
+const ordersService = new AlpacaOrdersService(client, orderRepo);
 
 async function processOrderRequested(payload: EventPayload, ctx: EventContext) {
   const s = payload.subject;

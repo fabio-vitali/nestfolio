@@ -5,7 +5,6 @@ jest.mock('@nestfolio/event-processor', () => ({
 import { AlpacaOrdersService } from '../src/services/alpaca-orders.service';
 import type { AlpacaClient } from '../src/clients/alpaca.client';
 import type { OrderMappingRepository } from '../src/repositories/order-mapping.repository';
-import type { PollingStateRepository } from '../src/repositories/polling-state.repository';
 
 const mockClient = {
   submitOrder: jest.fn(),
@@ -15,10 +14,6 @@ const mockOrderRepo = {
   createMapping: jest.fn(),
   getByNestfolioOrderId: jest.fn(),
 } as unknown as OrderMappingRepository;
-
-const mockPollingRepo = {
-  incrementOpenOrderCount: jest.fn(),
-} as unknown as PollingStateRepository;
 
 const TENANT_ID = 'tenant-1';
 const ORDER_ID = 'order-123';
@@ -32,8 +27,7 @@ describe('AlpacaOrdersService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (mockOrderRepo.createMapping as jest.Mock).mockResolvedValue(undefined);
-    (mockPollingRepo.incrementOpenOrderCount as jest.Mock).mockResolvedValue(undefined);
-    service = new AlpacaOrdersService(mockClient, mockOrderRepo, mockPollingRepo);
+    service = new AlpacaOrdersService(mockClient, mockOrderRepo);
   });
 
   describe('submitOrder — success (2xx)', () => {
@@ -65,17 +59,6 @@ describe('AlpacaOrdersService', () => {
       expect(mockOrderRepo.createMapping).toHaveBeenCalledWith(
         TENANT_ID, ORDER_ID, 'alpaca-order-789', SYMBOL, SIDE, QUANTITY,
       );
-    });
-
-    it('increments open order count', async () => {
-      (mockClient.submitOrder as jest.Mock).mockResolvedValueOnce({
-        status: 200,
-        data: { id: 'alpaca-order-789' },
-      });
-
-      await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, QUANTITY);
-
-      expect(mockPollingRepo.incrementOpenOrderCount).toHaveBeenCalledWith(TENANT_ID);
     });
 
     it('returns AlpacaOrderResult with PLACED status', async () => {
@@ -111,7 +94,6 @@ describe('AlpacaOrdersService', () => {
       await service.submitOrder(TENANT_ID, ORDER_ID, SYMBOL, SIDE, QUANTITY);
 
       expect(mockOrderRepo.createMapping).not.toHaveBeenCalled();
-      expect(mockPollingRepo.incrementOpenOrderCount).not.toHaveBeenCalled();
     });
 
     it('returns AlpacaOrderResult with REJECTED status and rejectionReason', async () => {

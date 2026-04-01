@@ -86,7 +86,6 @@ import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { AlpacaAdptEventTypes } from '../src/domain/events';
 import { AlpacaOrdersService } from '../src/services/alpaca-orders.service';
 import { OrderMappingRepository } from '../src/repositories/order-mapping.repository';
-import { PollingStateRepository } from '../src/repositories/polling-state.repository';
 import { AlpacaClient } from '../src/clients/alpaca.client';
 import { record } from '@nestfolio/event-processor';
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
@@ -96,7 +95,6 @@ import type { AlpacaAccountApiResponse, AlpacaPositionApiResponse, AlpacaTransfe
 function createHandlers(deps: {
   client: AlpacaClient;
   orderRepo: OrderMappingRepository;
-  pollingRepo: PollingStateRepository;
   ordersService: AlpacaOrdersService;
 }) {
   const { client, orderRepo, ordersService } = deps;
@@ -167,12 +165,11 @@ describe('broker-alpaca-adpt event-listener handler', () => {
   } as unknown as AlpacaClient;
 
   const orderRepo = new OrderMappingRepository('test-table');
-  const pollingRepo = new PollingStateRepository('test-table');
-  const ordersService = new AlpacaOrdersService(mockClientInstance, orderRepo, pollingRepo);
+  const ordersService = new AlpacaOrdersService(mockClientInstance, orderRepo);
 
   const harness = createTestHarness({
     serviceName: 'broker-alpaca-adpt',
-    handlers: createHandlers({ client: mockClientInstance, orderRepo, pollingRepo, ordersService }),
+    handlers: createHandlers({ client: mockClientInstance, orderRepo, ordersService }),
   });
 
   beforeEach(() => {

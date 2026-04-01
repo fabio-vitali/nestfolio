@@ -1,13 +1,11 @@
 import { logger } from '@nestfolio/event-processor';
 import { AlpacaClient } from '../clients/alpaca.client';
 import { OrderMappingRepository } from '../repositories/order-mapping.repository';
-import { PollingStateRepository } from '../repositories/polling-state.repository';
 
 export class AlpacaOrdersService {
   constructor(
     private readonly client: AlpacaClient,
     private readonly orderRepo: OrderMappingRepository,
-    private readonly pollingRepo: PollingStateRepository,
   ) {}
 
   async submitOrder(tenantId: string, orderId: string, symbol: string, side: string, quantity: number) {
@@ -22,7 +20,6 @@ export class AlpacaOrdersService {
     if (result.status >= 200 && result.status < 300) {
       const alpacaOrderId = result.data.id;
       await this.orderRepo.createMapping(tenantId, orderId, alpacaOrderId, symbol, side, quantity);
-      await this.pollingRepo.incrementOpenOrderCount(tenantId);
       logger.info('Order placed', { orderId, alpacaOrderId });
 
       return {
