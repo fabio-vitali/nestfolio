@@ -341,7 +341,9 @@ export function serviceLabel(serviceName) {
   for (let i = 0; i < parts.length - 1; i++) {
     parts[i] = parts[i].charAt(0).toUpperCase() + parts[i].slice(1);
   }
-  return parts.join(' ');
+  const prefix = parts.slice(0, -1).join(' ');
+  const suffix = parts[parts.length - 1];
+  return prefix ? `${prefix}\\n${suffix}` : suffix;
 }
 
 /**
@@ -1007,7 +1009,7 @@ export function generateC1({
 
   // Web App node (when MFEs are discovered)
   if (mfes?.length) {
-    lines.push('  web-app: "Nestfolio Web App\\n[Angular PWA / Native Federation]" {');
+    lines.push('  web-app: "Nestfolio Web App" {');
     lines.push('    class: frontend');
     lines.push('  }');
     lines.push('');
@@ -1333,7 +1335,7 @@ export function generateC2(domain, services, parsedStacks, { serviceDescriptions
   const domainMfes = mfes?.filter(m => m.domain === domain) || [];
   for (const mfe of domainMfes) {
     const label = serviceLabel(mfe.mfe);
-    lines.push(`${I}${mfe.mfe}: "${label}\\n[Micro-Frontend]" {`);
+    lines.push(`${I}${mfe.mfe}: "${label}" {`);
     lines.push(`${I}  class: frontend`);
     lines.push(`${I}}`);
     lines.push(`${I}${mfe.mfe} -> ${mfe.bff}: "GraphQL" {style.stroke: "#4CAF50"; style.stroke-width: 2}`);
