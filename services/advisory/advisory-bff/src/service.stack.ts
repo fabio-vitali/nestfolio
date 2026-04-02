@@ -11,7 +11,7 @@ export class AdvisoryBffStack extends ServiceStack {
       state,
       eventTypes: [
         'DECISION_PACKET_CREATED',
-        'DECISION_PACKET_ENRICHED',
+        'DECISION_PACKET_UPDATED',
         'DECISION_APPROVED',
         'DECISION_BLOCKED',
         'USER_CONFIRMATION_REQUESTED',

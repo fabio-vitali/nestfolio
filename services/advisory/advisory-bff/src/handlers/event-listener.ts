@@ -8,7 +8,7 @@ export function createHandlers() {
   return {
     [AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED]: (payload: any, ctx: any) =>
       decisionPacketCreated(toUow(payload, ctx) as any),
-    [AdvisoryCtrlEventTypes.DECISION_PACKET_ENRICHED]: (payload: any, ctx: any) =>
+    [AdvisoryCtrlEventTypes.DECISION_PACKET_UPDATED]: (payload: any, ctx: any) =>
       decisionStatusChanged(toUow(payload, ctx) as any),
     [ComplianceEventTypes.DECISION_APPROVED]: (payload: any, ctx: any) =>
       decisionStatusChanged(toUow(payload, ctx) as any),

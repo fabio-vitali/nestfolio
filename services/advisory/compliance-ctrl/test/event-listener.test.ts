@@ -268,13 +268,13 @@ describe('event-listener handler', () => {
       expect(result.batchItemFailures).toHaveLength(1);
     });
 
-    it('should process DECISION_PACKET_ENRICHED the same way as DECISION_PACKET_CREATED', async () => {
+    it('should process DECISION_PACKET_UPDATED the same way as DECISION_PACKET_CREATED', async () => {
       getMandateSnapshot.mockResolvedValue(mandate);
       evaluateSpy.mockReturnValue({ result: 'APPROVED', violations: [], authorityLevel: 'L1' });
 
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('DECISION_PACKET_ENRICHED', decisionPayload, { tenantId: 't-1' }),
+        fakeSqsRecord('DECISION_PACKET_UPDATED', decisionPayload, { tenantId: 't-1' }),
       ]);
 
       expect(result.batchItemFailures).toHaveLength(0);

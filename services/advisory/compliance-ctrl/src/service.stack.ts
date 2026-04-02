@@ -11,7 +11,7 @@ export class ComplianceCtrlStack extends ServiceStack {
       state,
       eventTypes: [
         'DECISION_PACKET_CREATED',
-        'DECISION_PACKET_ENRICHED',
+        'DECISION_PACKET_UPDATED',
         'MANDATE_CREATED',
         'MANDATE_UPDATED',
         'OPERATING_MODE_CHANGED',

@@ -14,8 +14,8 @@ describe('decisionStatusChanged transform', () => {
     record: {},
   });
 
-  it('should map DECISION_PACKET_ENRICHED to COMPLIANCE_REVIEW status', () => {
-    expect(decisionStatusChanged(makeUow('DECISION_PACKET_ENRICHED') as any)).toEqual(
+  it('should map DECISION_PACKET_UPDATED to COMPLIANCE_REVIEW status', () => {
+    expect(decisionStatusChanged(makeUow('DECISION_PACKET_UPDATED') as any)).toEqual(
       update('DecisionSummary', { status: 'COMPLIANCE_REVIEW' }, {
         overrides: { pk: 'T#t1', sk: 'DecisionSummary#d1' },
       }),

@@ -2,7 +2,7 @@
 export const DecisionWorkflowEventTypes = {
   // Lifecycle events (CDC from DDB)
   DECISION_PACKET_CREATED: 'DECISION_PACKET_CREATED',
-  DECISION_PACKET_ENRICHED: 'DECISION_PACKET_ENRICHED',
+  DECISION_PACKET_UPDATED: 'DECISION_PACKET_UPDATED',
 
   // Agent trigger events (published by Step Functions via EventBridge integration)
   ANALYZE_INVESTOR_PROFILE: 'ANALYZE_INVESTOR_PROFILE',

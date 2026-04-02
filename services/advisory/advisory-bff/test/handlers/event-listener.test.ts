@@ -8,7 +8,7 @@ describe('advisory-bff event-listener', () => {
 
     expect(Object.keys(handlers)).toHaveLength(5);
     expect(handlers).toHaveProperty(AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED);
-    expect(handlers).toHaveProperty(AdvisoryCtrlEventTypes.DECISION_PACKET_ENRICHED);
+    expect(handlers).toHaveProperty(AdvisoryCtrlEventTypes.DECISION_PACKET_UPDATED);
     expect(handlers).toHaveProperty(ComplianceEventTypes.DECISION_APPROVED);
     expect(handlers).toHaveProperty(ComplianceEventTypes.DECISION_BLOCKED);
     expect(handlers).toHaveProperty(AdvisoryCtrlEventTypes.USER_CONFIRMATION_REQUESTED);

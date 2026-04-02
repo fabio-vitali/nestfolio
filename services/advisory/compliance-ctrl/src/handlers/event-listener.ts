@@ -172,7 +172,7 @@ export const createHandlers = (deps: EventListenerDeps) => {
   const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<WriteIntent | WriteIntent[]> | WriteIntent | WriteIntent[]> = {};
 
   // Decision events
-  for (const type of [AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED, AdvisoryCtrlEventTypes.DECISION_PACKET_ENRICHED]) {
+  for (const type of [AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED, AdvisoryCtrlEventTypes.DECISION_PACKET_UPDATED]) {
     handlers[type] = (payload, ctx) => processDecisionPacket(deps, payload, ctx);
   }
 
