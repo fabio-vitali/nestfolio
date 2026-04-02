@@ -1,21 +1,20 @@
 # dashboard-bff
 
-Domain: investor | Bus: InvestorBus
+Domain: investor | Bus: investorBus
 Stack: services/investor/dashboard-bff/src/service.stack.ts
 
 ## State
-- Table (DynamoDB, streams enabled)
+- DynamoDB table (streams enabled)
 
 ## Ingress
-- InvestorBus → dashboard-bff-ingress (SQS → Lambda)
+- investorBus → dashboard-bff-ingress (SQS → Lambda)
   Subscriptions: BALANCE_UPDATED, PORTFOLIO_UPDATED, RECONCILIATION_COMPLETED, DECISION_PACKET_CREATED, USER_CONFIRMATION_REQUESTED, DECISION_APPROVED, DECISION_BLOCKED, LEDGER_ENTRY_RECORDED, GOAL_CREATED, GOAL_UPDATED, RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED, OPERATING_MODE_SELECTED, OPERATING_MODE_CHANGED
 
 ## Facade
-- AppSync GraphQL API with JS resolvers (discoverJsResolvers)
-  - get-dashboard, get-position-snapshots, get-simulation-summary, get-time-travel-availability, get-recent-activity
+- AppSync GraphQL API (JS Resolvers via discoverJsResolvers)
 
 ## Handlers
-- event-listener.ts — materializes dashboard projections via transforms: portfolioSummary, positionSnapshot, recentActivity, advisoryStatus, investorSnapshot, timeTravelAvailability
+- event-listener.ts — Ingress event handler
 
 ## Tests
 - handlers/event-listener.test.ts
@@ -28,5 +27,4 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
 - transforms/time-travel-availability.test.ts
 
 ## Dependencies
-- libs: cdk-constructs/core, event-processor
-- cross-domain imports: ledger-adpt/domain, advisory-adpt/domain, investor-bff/events
+- libs: cdk-constructs (core), event-processor

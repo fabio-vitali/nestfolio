@@ -22,11 +22,11 @@ export const DecisionWorkflowEventTypes = {
 } as const;
 
 /**
- * Inbound event types consumed by decision-workflow-ctrl (17 total).
+ * Inbound event types consumed by decision-workflow-ctrl (19 total).
  * Grouped by routing action in the event-listener.
  */
 
-/** 9 trigger events → start new Step Functions execution */
+/** 11 trigger events → start new Step Functions execution */
 export const TRIGGER_EVENT_TYPES = [
   'MANDATE_CREATED',
   'GOAL_CREATED',

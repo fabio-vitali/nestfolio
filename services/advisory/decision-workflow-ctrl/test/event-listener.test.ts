@@ -89,7 +89,7 @@ describe('decision-workflow-ctrl event-listener (materializeToTable)', () => {
   });
 
   it('should map all TRIGGER_EVENT_TYPES', () => {
-    expect(TRIGGER_EVENT_TYPES).toHaveLength(9);
+    expect(TRIGGER_EVENT_TYPES).toHaveLength(11);
     for (const type of TRIGGER_EVENT_TYPES) {
       const payload: EventPayload = { subject: { tenantId: 't1' } };
       const result = triggerHandler(payload, baseCtx(type));

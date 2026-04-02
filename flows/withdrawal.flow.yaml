@@ -102,6 +102,18 @@ steps:
     emits: TRANSFER_FAILED (CDC from NormalizedEvent INSERT, sk passthrough determines event type)
     idempotent: true
 
+  # --- Cross-domain: TRANSFER_FAILED -> Investor ---
+  - cross_domain: TRANSFER_FAILED
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromExecution)
+
+  # --- Cross-domain: TRANSFER_FAILED -> Ledger ---
+  - cross_domain: TRANSFER_FAILED
+    from: ExecutionBus
+    to: LedgerBus
+    via: ledger-adpt EB rule (LedgerIngress-FromExecution)
+
 success_criteria:
   - Withdrawal amount debited in ledger-ctrl cash balance
   - WITHDRAWAL_COMPLETED event reaches both ledger and investor domains

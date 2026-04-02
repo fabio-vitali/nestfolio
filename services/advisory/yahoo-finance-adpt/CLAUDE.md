@@ -9,11 +9,12 @@ Stack: services/advisory/yahoo-finance-adpt/src/service.stack.ts
 ## Ingress
 - advisoryBus → yahoo-finance-adpt-ingress (SQS → Lambda, 60s timeout)
   Subscriptions: FETCH_YAHOO_FINANCE_REQUESTED
-  Environment: TICKERS (default: VTI, BND, QQQ, VTIP, SPY)
+  Environment: TICKERS (default: VTI,BND,QQQ,VTIP,SPY)
 
 ## Egress
 - CDC: DynamoDB Streams → yahoo-finance-adpt-egress (Lambda)
-  Emits: YAHOO_FINANCE_UPDATED (YahooFinanceArticle, insert only)
+  Emits:
+  - YahooFinanceArticle → insert: YAHOO_FINANCE_UPDATED
 
 ## Schedule
 - AdapterSchedule: EventBridge Scheduler → FetchTrigger Lambda → publishes FETCH_YAHOO_FINANCE_REQUESTED
@@ -23,7 +24,7 @@ Stack: services/advisory/yahoo-finance-adpt/src/service.stack.ts
 - FetchTrigger: Publishes FETCH_YAHOO_FINANCE_REQUESTED to advisoryBus (invoked by EventBridge Scheduler)
 
 ## Handlers
-- event-listener.ts — Ingress event handler (fetches Yahoo Finance data, materializes to DDB)
+- event-listener.ts — Ingress event handler (fetches Yahoo Finance articles, materializes to DDB)
 - event-publisher.ts — Egress CDC publisher
 - fetch-trigger.ts — Scheduler trigger Lambda
 

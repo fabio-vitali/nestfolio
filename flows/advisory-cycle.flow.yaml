@@ -112,7 +112,7 @@ steps:
     emits: RECOMMENDATION_PROPOSED (SF EventBridge integration with taskToken)
 
   - service: compliance-ctrl
-    receives: DECISION_PACKET_CREATED | DECISION_PACKET_ENRICHED
+    receives: DECISION_PACKET_CREATED | DECISION_PACKET_UPDATED
     via: AdvisoryBus -> SQS -> compliance-ctrl-Ingress
     handler: event-listener.ts (materializeToTable, processDecisionPacket)
     state_change: Loads mandate snapshot from DDB; runs MandateValidator -> GuardrailEvaluator -> SuitabilityChecker -> AuthorityResolver; writes ComplianceCheck + AuditArtifact records to DDB

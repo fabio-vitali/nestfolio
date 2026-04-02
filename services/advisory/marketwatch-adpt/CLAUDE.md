@@ -12,7 +12,8 @@ Stack: services/advisory/marketwatch-adpt/src/service.stack.ts
 
 ## Egress
 - CDC: DynamoDB Streams → marketwatch-adpt-egress (Lambda)
-  Emits: MARKETWATCH_UPDATED (MarketWatchArticle, insert only)
+  Emits:
+  - MarketWatchArticle → insert: MARKETWATCH_UPDATED
 
 ## Schedule
 - AdapterSchedule: EventBridge Scheduler → FetchTrigger Lambda → publishes FETCH_MARKETWATCH_REQUESTED
@@ -22,7 +23,7 @@ Stack: services/advisory/marketwatch-adpt/src/service.stack.ts
 - FetchTrigger: Publishes FETCH_MARKETWATCH_REQUESTED to advisoryBus (invoked by EventBridge Scheduler)
 
 ## Handlers
-- event-listener.ts — Ingress event handler (fetches MarketWatch data, materializes to DDB)
+- event-listener.ts — Ingress event handler (fetches MarketWatch articles, materializes to DDB)
 - event-publisher.ts — Egress CDC publisher
 - fetch-trigger.ts — Scheduler trigger Lambda
 
