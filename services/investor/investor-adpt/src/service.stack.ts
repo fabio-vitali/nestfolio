@@ -63,11 +63,13 @@ export class InvestorAdptStack extends ServiceStack {
       eventPattern: {
         detailType: [
           InvestorIngestEventTypes.ORDER_STAGED,
+          InvestorIngestEventTypes.ORDER_FILLED,
           InvestorIngestEventTypes.ORDER_REJECTED,
           InvestorIngestEventTypes.ORDER_CANCELLED,
           InvestorIngestEventTypes.WITHDRAWAL_COMPLETED,
           InvestorIngestEventTypes.ORDER_ESCALATED,
           InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
+          InvestorIngestEventTypes.TRANSFER_FAILED,
         ],
       },
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromExecutionDlq })],
