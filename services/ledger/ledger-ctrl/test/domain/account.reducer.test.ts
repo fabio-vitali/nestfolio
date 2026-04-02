@@ -45,13 +45,13 @@ describe('accountReducer', () => {
     expect(next.cashBalanceCents).toBe(stateWithPosition.cashBalanceCents + 5 * 160_00 * 100);
   });
 
-  it('applies CORPORATE_ACTION_PROCESSED (stock split)', () => {
+  it('applies CORPORATE_ACTION_APPLIED (stock split)', () => {
     const stateWithPosition = {
       ...INITIAL_ACCOUNT_STATE,
       positions: { AAPL: { symbol: 'AAPL', quantity: 100, averageCostBasis: 150, totalCostBasis: 15000, lastFillPrice: 150 } },
     };
     const next = accountReducer(stateWithPosition, {
-      eventId: 'e5', eventType: 'CORPORATE_ACTION_PROCESSED', sequenceNo: 1,
+      eventId: 'e5', eventType: 'CORPORATE_ACTION_APPLIED', sequenceNo: 1,
       timestamp: '2026-03-12T00:00:00Z',
       payload: { actionId: 'ca1', symbol: 'AAPL', actionType: 'STOCK_SPLIT', quantityMultiplier: 2, costBasisDivisor: 2, appliedAt: '2026-03-12T00:00:00Z' },
     });

@@ -28,7 +28,7 @@ export class LedgerCtrlStack extends ServiceStack {
         'ORDER_CANCELLED',
         'DEPOSIT_DETECTED',
         'WITHDRAWAL_COMPLETED',
-        'CORPORATE_ACTION_PROCESSED',
+        'CORPORATE_ACTION_APPLIED',
         'DECISION_PACKET_CREATED',
       ],
     });

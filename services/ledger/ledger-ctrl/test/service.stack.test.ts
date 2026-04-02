@@ -71,7 +71,7 @@ describe('LedgerCtrlStack', () => {
         'detail-type': Match.arrayWith([
           'ORDER_FILLED',
           'DEPOSIT_DETECTED',
-          'CORPORATE_ACTION_PROCESSED',
+          'CORPORATE_ACTION_APPLIED',
           'DECISION_PACKET_CREATED',
         ]),
       },

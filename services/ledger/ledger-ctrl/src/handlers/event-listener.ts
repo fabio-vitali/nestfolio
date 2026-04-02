@@ -123,7 +123,7 @@ const ACTUAL_EVENT_TYPES = [
   ExecutionCrossDomainEventTypes.ORDER_CANCELLED,
   ExecutionCrossDomainEventTypes.DEPOSIT_DETECTED,
   ExecutionCrossDomainEventTypes.WITHDRAWAL_COMPLETED,
-  'CORPORATE_ACTION_PROCESSED',
+  ExecutionCrossDomainEventTypes.CORPORATE_ACTION_APPLIED,
 ] as const;
 
 const SIMULATION_EVENT_TYPES = [

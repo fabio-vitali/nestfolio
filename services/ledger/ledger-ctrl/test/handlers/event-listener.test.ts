@@ -123,9 +123,9 @@ describe('ledger-ctrl event-listener handler', () => {
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
-  it('should process CORPORATE_ACTION_PROCESSED event', async () => {
+  it('should process CORPORATE_ACTION_APPLIED event', async () => {
     const result = await harness.process([
-      fakeSqsRecord('CORPORATE_ACTION_PROCESSED', {
+      fakeSqsRecord('CORPORATE_ACTION_APPLIED', {
         tenantId: 't1', actionId: 'ca1', symbol: 'AAPL', actionType: 'STOCK_SPLIT',
         quantityMultiplier: 2, costBasisDivisor: 2, appliedAt: '2025-01-01T00:00:00.000Z',
       }, { tenantId: 't1' }),

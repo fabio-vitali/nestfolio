@@ -40,7 +40,7 @@ export const accountReducer: EventReducer<AccountState> = (state, entry) => {
       }, state);
       return result.ok ? result.value.nextState : state;
     }
-    case 'CORPORATE_ACTION_PROCESSED': {
+    case 'CORPORATE_ACTION_APPLIED': {
       const result = applyCommand(RecordCorporateAction, {
         actionId: p['actionId'] as string,
         symbol: p['symbol'] as string,
