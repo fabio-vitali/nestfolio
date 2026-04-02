@@ -1,8 +1,8 @@
 # Investor Onboarding
 
-> New investor completes onboarding wizard; investor-bff materializes profile records; investor-ctrl sends welcome notification; conditional deposit triggers execution domain
+> New investor completes onboarding wizard; investor-bff materializes profile records; investor-ctrl sends welcome notification; conditional deposit triggers execution domain; initial advisory decision cycle triggered via advisory-adpt
 
-**Domains:** investor, execution
+**Domains:** investor, execution, advisory
 
 **Trigger:** onboarding-bff emits ONBOARDING_COMPLETED (CDC from OnboardingCompleted:INSERT)
 
@@ -19,9 +19,13 @@ flowchart TD
     subgraph execution["Execution Domain"]
         broker_ctrl["broker-ctrl"]
     end
+    subgraph advisory["Advisory Domain"]
+        decision_workflow_ctrl["decision-workflow-ctrl"]
+    end
     onboarding_bff -->|"ONBOARDING_COMPLETED"| investor_bff
     investor_ctrl -->|"NOTIFICATION_CREATED"| investor_bff
     investor_ctrl -.->|"DEPOSIT_INITIATED"| broker_ctrl
+    broker_ctrl -.->|"MANDATE_CREATED"| decision_workflow_ctrl
 ```
 
 ## Sequence Diagram
@@ -37,6 +41,9 @@ sequenceDiagram
     box execution domain
         participant broker_ctrl as broker-ctrl
     end
+    box advisory domain
+        participant decision_workflow_ctrl as decision-workflow-ctrl
+    end
     Note over onboarding_bff: User completes 7-phase onboarding wizard (Copilot…
     onboarding_bff->>+investor_bff: ONBOARDING_COMPLETED
     onboarding_bff->>+investor_ctrl: ONBOARDING_COMPLETED
@@ -44,7 +51,10 @@ sequenceDiagram
     investor_bff->>+dashboard_bff: OPERATING_MODE_SELECTED
     dashboard_bff->>+investor_ctrl: DEPOSIT_INITIATED
     investor_ctrl-)broker_ctrl: DEPOSIT_INITIATED (InvestorBus → ExecutionBus)
-    broker_ctrl->>+investor_bff: GO_LIVE_CONFIRMED
+    broker_ctrl-)decision_workflow_ctrl: GOAL_CREATED (InvestorBus → AdvisoryBus)
+    broker_ctrl-)decision_workflow_ctrl: RISK_PROFILE_CREATED (InvestorBus → AdvisoryBus)
+    broker_ctrl-)decision_workflow_ctrl: MANDATE_CREATED (InvestorBus → AdvisoryBus)
+    decision_workflow_ctrl->>+investor_bff: GO_LIVE_CONFIRMED
 ```
 
 ## Steps
@@ -62,7 +72,7 @@ sequenceDiagram
 - **Via:** InvestorBus -> SQS -> investor-bff-ingress
 - **State change:** transactWrite creates/updates 6-7 records atomically: 1. InvestorProfile (UPDATE -- sets operatingMode, onboardingCompletedAt) 2. Goal (PUT -- objective, timeHorizonMonths, currency) 3. RiskProfile (PUT -- score, band, toleranceResponse, experienceLevel) 4. OperatingModeRecord (PUT -- mode, selectedAt) 5. AccountMode (PUT -- mode, capitalAmount, currency) 6. Mandate (PUT -- level=ADVISORY, turnover/trade caps, rebalanceCadence) 7. Deposit (PUT, conditional if capitalAmount > 0 -- depositId, amountCents, currency)
 
-- **Emits:** `CDC events from DDB Streams (all INSERTs except InvestorProfile which is MODIFY): - INVESTOR_PROFILE_UPDATED (InvestorProfile:MODIFY) -- NO SUBSCRIBERS - GOAL_CREATED (Goal:INSERT) -- NO SUBSCRIBERS - RISK_PROFILE_CREATED (RiskProfile:INSERT) -- NO SUBSCRIBERS - OPERATING_MODE_SELECTED (OperatingModeRecord:INSERT) -- dashboard-bff subscribes - MANDATE_CREATED (Mandate:INSERT) -- NO SUBSCRIBERS - DEPOSIT_INITIATED (Deposit:INSERT, conditional) -- investor-ctrl + execution-adpt subscribe Note: AccountMode has no Egress mapping, so no CDC event fires for it
+- **Emits:** `CDC events from DDB Streams (all INSERTs except InvestorProfile which is MODIFY): - INVESTOR_PROFILE_UPDATED (InvestorProfile:MODIFY) - GOAL_CREATED (Goal:INSERT) -- advisory-adpt subscribes - RISK_PROFILE_CREATED (RiskProfile:INSERT) -- advisory-adpt subscribes - OPERATING_MODE_SELECTED (OperatingModeRecord:INSERT) -- dashboard-bff subscribes - MANDATE_CREATED (Mandate:INSERT) -- advisory-adpt subscribes - DEPOSIT_INITIATED (Deposit:INSERT, conditional) -- investor-ctrl + execution-adpt subscribe Note: AccountMode has no Egress mapping, so no CDC event fires for it
 `
 - **Idempotent:** yes
 
@@ -114,7 +124,36 @@ sequenceDiagram
 - **Emits:** `broker-specific events (depends on broker adapter)`
 - **Idempotent:** yes
 
-### Step 9: investor-bff
+### Step 9: Cross-domain hop
+
+- **Event:** `GOAL_CREATED`
+- **From:** InvestorBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
+
+### Step 10: Cross-domain hop
+
+- **Event:** `RISK_PROFILE_CREATED`
+- **From:** InvestorBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
+
+### Step 11: Cross-domain hop
+
+- **Event:** `MANDATE_CREATED`
+- **From:** InvestorBus
+- **To:** AdvisoryBus
+- **Via:** advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
+
+### Step 12: decision-workflow-ctrl
+
+- **Receives:** `MANDATE_CREATED`
+- **Via:** AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
+- **State change:** Creates WorkflowTrigger record; starts initial advisory decision cycle
+- **Emits:** `WORKFLOW_TRIGGER_CREATED (CDC from WorkflowTrigger:INSERT)`
+- **Idempotent:** yes
+
+### Step 13: investor-bff
 
 - **Receives:** `GO_LIVE_CONFIRMED`
 - **Via:** InvestorBus -> SQS -> investor-bff-ingress
@@ -128,6 +167,8 @@ sequenceDiagram
 - Welcome notification delivered via investor-ctrl -> investor-bff materialization
 - Dashboard snapshot updated with operating mode via dashboard-bff
 - If capitalAmount > 0, deposit routed to execution domain via execution-adpt
+- GOAL_CREATED, RISK_PROFILE_CREATED, MANDATE_CREATED forwarded to advisory domain via advisory-adpt
+- decision-workflow-ctrl starts initial advisory decision cycle on MANDATE_CREATED
 
 ## Failure Modes
 
@@ -137,3 +178,4 @@ sequenceDiagram
 - **step 3 fails:** investor-bff ingress DLQ captures NOTIFICATION_CREATED; notification not visible in frontend
 - **step 4 fails:** dashboard-bff ingress DLQ captures OPERATING_MODE_SELECTED; dashboard stale until replay
 - **step 5 fails (conditional):** execution-adpt FromInvestorDLQ captures DEPOSIT_INITIATED; deposit not processed
+- **step 6 fails:** advisory-adpt FromInvestorDLQ captures GOAL_CREATED/RISK_PROFILE_CREATED/MANDATE_CREATED; advisory cycle not started until replay

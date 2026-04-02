@@ -1,11 +1,11 @@
 export { InvestorBffEventTypes } from './events';
 
 export {
-  MandateGrantedSchema, GoalUpdatedSchema, RiskProfileUpdatedSchema,
+  MandateCreatedSchema, GoalUpdatedSchema, RiskProfileUpdatedSchema,
   OnboardingCompletedSchema, DepositInitiatedSchema,
 } from './schemas';
 export type {
-  MandateGrantedEvent, GoalUpdatedEvent, RiskProfileUpdatedEvent,
+  MandateCreatedEvent, GoalUpdatedEvent, RiskProfileUpdatedEvent,
   OnboardingCompletedEvent, DepositInitiatedEvent,
 } from './schemas';
 

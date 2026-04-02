@@ -141,7 +141,7 @@ function processMandateEvent(
   const userId = ((subject?.userId ?? tenantId) as string);
 
   switch (ctx.eventType) {
-    case 'MANDATE_GRANTED':
+    case 'MANDATE_CREATED':
     case 'MANDATE_UPDATED':
       if (!subject.mandateId || !subject.level) {
         throw new NotRetryableError(`Missing required mandate fields: mandateId=${subject.mandateId}, level=${subject.level}`);
@@ -184,7 +184,7 @@ export const createHandlers = (deps: EventListenerDeps) => {
   }
 
   // Mandate events
-  for (const type of [InvestorCrossDomainEventTypes.MANDATE_GRANTED, InvestorCrossDomainEventTypes.MANDATE_UPDATED, InvestorCrossDomainEventTypes.MANDATE_REVOKED, InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED]) {
+  for (const type of [InvestorCrossDomainEventTypes.MANDATE_CREATED, InvestorCrossDomainEventTypes.MANDATE_UPDATED, InvestorCrossDomainEventTypes.MANDATE_REVOKED, InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED]) {
     handlers[type] = (payload, ctx) => processMandateEvent(payload, ctx);
   }
 

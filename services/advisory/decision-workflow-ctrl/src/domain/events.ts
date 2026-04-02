@@ -28,8 +28,10 @@ export const DecisionWorkflowEventTypes = {
 
 /** 9 trigger events → start new Step Functions execution */
 export const TRIGGER_EVENT_TYPES = [
-  'MANDATE_GRANTED',
+  'MANDATE_CREATED',
+  'GOAL_CREATED',
   'GOAL_UPDATED',
+  'RISK_PROFILE_CREATED',
   'RISK_PROFILE_UPDATED',
   'OPERATING_MODE_CHANGED',
   'PORTFOLIO_DRIFT_DETECTED',

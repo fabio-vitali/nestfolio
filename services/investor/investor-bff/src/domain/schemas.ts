@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { BusEventSchema } from '@nestfolio/event-processor';
 
-export const MandateGrantedSchema = BusEventSchema.extend({
-  type: z.literal('MANDATE_GRANTED'),
+export const MandateCreatedSchema = BusEventSchema.extend({
+  type: z.literal('MANDATE_CREATED'),
   subject: z.object({
     mandateId: z.string(),
     level: z.enum(['ADVISORY', 'DISCRETIONARY']),
@@ -10,7 +10,7 @@ export const MandateGrantedSchema = BusEventSchema.extend({
   }),
 });
 
-export type MandateGrantedEvent = z.infer<typeof MandateGrantedSchema>;
+export type MandateCreatedEvent = z.infer<typeof MandateCreatedSchema>;
 
 export const GoalUpdatedSchema = BusEventSchema.extend({
   type: z.literal('GOAL_UPDATED'),

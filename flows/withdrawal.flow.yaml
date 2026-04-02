@@ -99,14 +99,8 @@ steps:
     receives: ALPACA_TRANSFER_FAILED
     via: ExecutionBus -> SQS -> broker-ctrl-DepositWithdrawalNormalizerIngress
     state_change: Writes NormalizedEvent record (sk = TRANSFER_FAILED)
-    emits: NONE — TRANSFER_FAILED is NOT in Egress passthrough emits list; NormalizedEvent is written but CDC will not publish it to EventBridge
+    emits: TRANSFER_FAILED (CDC from NormalizedEvent INSERT, sk passthrough determines event type)
     idempotent: true
-    # WARNING: TRANSFER_FAILED is missing from broker-ctrl Egress NormalizedEvent emits array.
-    # The normalizer writes sk=TRANSFER_FAILED but CDC passthrough only allows:
-    # ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED,
-    # ORDER_ESCALATED, DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, BROKER_CIRCUIT_OPEN,
-    # BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED.
-    # This means transfer failures are silently dropped — no downstream notification.
 
 success_criteria:
   - Withdrawal amount debited in ledger-ctrl cash balance
@@ -123,4 +117,4 @@ failure_modes:
   - step 6 fails (live): TransferPollingStateMachine timeout (7 days); transfer status unknown, marked FAILED
   - step 7 fails: broker-ctrl DepositWithdrawalNormalizerIngress DLQ; normalized event not created
   - step 9 fails: ledger-ctrl ingress DLQ; balance not updated
-  - step 5 Alpaca transfer fails: ALPACA_TRANSFER_FAILED flows to normalizer, writes TRANSFER_FAILED NormalizedEvent
+  - step 5 Alpaca transfer fails: ALPACA_TRANSFER_FAILED flows to normalizer, writes TRANSFER_FAILED NormalizedEvent, emitted via CDC passthrough

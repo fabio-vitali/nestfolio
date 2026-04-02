@@ -38,10 +38,12 @@ export class AdvisoryAdptStack extends ServiceStack {
       eventBus: investorBus,
       eventPattern: {
         detailType: [
+          AdvisoryIngestEventTypes.GOAL_CREATED,
           AdvisoryIngestEventTypes.GOAL_UPDATED,
+          AdvisoryIngestEventTypes.RISK_PROFILE_CREATED,
           AdvisoryIngestEventTypes.RISK_PROFILE_UPDATED,
           AdvisoryIngestEventTypes.OPERATING_MODE_CHANGED,
-          AdvisoryIngestEventTypes.MANDATE_GRANTED,
+          AdvisoryIngestEventTypes.MANDATE_CREATED,
           AdvisoryIngestEventTypes.MANDATE_UPDATED,
           AdvisoryIngestEventTypes.MANDATE_REVOKED,
         ],

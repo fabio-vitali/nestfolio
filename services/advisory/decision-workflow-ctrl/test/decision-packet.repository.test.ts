@@ -98,7 +98,7 @@ describe('DecisionPacketRepository', () => {
       const created = await repo.createDecisionPacket({
         tenantId: 't1',
         decisionId: 'dp-1',
-        trigger: 'MANDATE_GRANTED',
+        trigger: 'MANDATE_CREATED',
         triggerEventId: 'evt-1',
         executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
       });
@@ -113,7 +113,7 @@ describe('DecisionPacketRepository', () => {
         tenantId: 't1',
         decisionId: 'dp-1',
         status: 'INITIATED',
-        trigger: 'MANDATE_GRANTED',
+        trigger: 'MANDATE_CREATED',
         triggerEventId: 'evt-1',
         executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
       });
@@ -127,7 +127,7 @@ describe('DecisionPacketRepository', () => {
       const created = await repo.createDecisionPacket({
         tenantId: 't1',
         decisionId: 'dp-dup',
-        trigger: 'MANDATE_GRANTED',
+        trigger: 'MANDATE_CREATED',
         triggerEventId: 'evt-dup',
         executionArn: null,
       });

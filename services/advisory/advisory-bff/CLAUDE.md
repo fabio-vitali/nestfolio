@@ -12,7 +12,11 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 
 ## Egress
 - CDC: DynamoDB Streams → advisory-bff-egress (Lambda)
-  Emits: DECISION_READ_MODEL (DecisionReadModel), USER_INTERACTION (UserInteraction), USER_CONFIRMATION (UserConfirmation), USER_REJECTION (UserRejection)
+  Emits:
+  - DecisionReadModel → DECISION_READ_MODEL
+  - UserInteraction → USER_INTERACTION
+  - UserConfirmation → insert: USER_CONFIRMED
+  - UserRejection → insert: USER_REJECTED
 
 ## Facade
 - AppSync GraphQL API (Cognito auth via investor user pool)

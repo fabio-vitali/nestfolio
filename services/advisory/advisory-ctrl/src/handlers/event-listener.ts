@@ -110,8 +110,10 @@ function processUserResponse(
 }
 
 const TRIGGER_EVENT_TYPES = [
-  InvestorCrossDomainEventTypes.MANDATE_GRANTED,
+  InvestorCrossDomainEventTypes.MANDATE_CREATED,
+  InvestorCrossDomainEventTypes.GOAL_CREATED,
   InvestorCrossDomainEventTypes.GOAL_UPDATED,
+  InvestorCrossDomainEventTypes.RISK_PROFILE_CREATED,
   InvestorCrossDomainEventTypes.RISK_PROFILE_UPDATED,
   InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED,
   LedgerCrossDomainEventTypes.PORTFOLIO_DRIFT_DETECTED,

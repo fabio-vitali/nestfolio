@@ -16,8 +16,10 @@ export class AdvisoryCtrlStack extends ServiceStack {
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
-        'MANDATE_GRANTED',
+        'MANDATE_CREATED',
+        'GOAL_CREATED',
         'GOAL_UPDATED',
+        'RISK_PROFILE_CREATED',
         'RISK_PROFILE_UPDATED',
         'OPERATING_MODE_CHANGED',
         'PORTFOLIO_DRIFT_DETECTED',

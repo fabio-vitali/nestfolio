@@ -165,7 +165,7 @@ sequenceDiagram
 - **Receives:** `ALPACA_TRANSFER_FAILED`
 - **Via:** ExecutionBus -> SQS -> broker-ctrl-DepositWithdrawalNormalizerIngress
 - **State change:** Writes NormalizedEvent record (sk = TRANSFER_FAILED)
-- **Emits:** `NONE — TRANSFER_FAILED is NOT in Egress passthrough emits list; NormalizedEvent is written but CDC will not publish it to EventBridge`
+- **Emits:** `TRANSFER_FAILED (CDC from NormalizedEvent INSERT, sk passthrough determines event type)`
 - **Idempotent:** yes
 
 ## Success Criteria
@@ -185,4 +185,4 @@ sequenceDiagram
 - **step 6 fails (live):** TransferPollingStateMachine timeout (7 days); transfer status unknown, marked FAILED
 - **step 7 fails:** broker-ctrl DepositWithdrawalNormalizerIngress DLQ; normalized event not created
 - **step 9 fails:** ledger-ctrl ingress DLQ; balance not updated
-- **step 5 Alpaca transfer fails:** ALPACA_TRANSFER_FAILED flows to normalizer, writes TRANSFER_FAILED NormalizedEvent
+- **step 5 Alpaca transfer fails:** ALPACA_TRANSFER_FAILED flows to normalizer, writes TRANSFER_FAILED NormalizedEvent, emitted via CDC passthrough

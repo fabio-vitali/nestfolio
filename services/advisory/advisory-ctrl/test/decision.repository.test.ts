@@ -98,7 +98,7 @@ describe('DecisionRepository', () => {
 
       const triggerEvent = {
         id: 'evt-1',
-        type: 'MANDATE_GRANTED',
+        type: 'MANDATE_CREATED',
         timestamp: '2025-01-01T00:00:00.000Z',
         subject: {},
         context: { tenantId: 't1' },
@@ -116,7 +116,7 @@ describe('DecisionRepository', () => {
         tenantId: 't1',
         decisionId: 'dp-1',
         status: 'DRAFT',
-        trigger: 'MANDATE_GRANTED',
+        trigger: 'MANDATE_CREATED',
       });
     });
   });
@@ -227,7 +227,7 @@ describe('DecisionRepository', () => {
 
       const triggerEvent = {
         id: 'evt-dup',
-        type: 'MANDATE_GRANTED',
+        type: 'MANDATE_CREATED',
         timestamp: '2025-01-01T00:00:00.000Z',
         subject: {},
         context: { tenantId: 't1' },
@@ -242,7 +242,7 @@ describe('DecisionRepository', () => {
 
       const triggerEvent = {
         id: 'evt-err',
-        type: 'MANDATE_GRANTED',
+        type: 'MANDATE_CREATED',
         timestamp: '2025-01-01T00:00:00.000Z',
         subject: {},
         context: { tenantId: 't1' },

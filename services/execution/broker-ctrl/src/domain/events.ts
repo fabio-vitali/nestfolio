@@ -10,6 +10,7 @@ export const BrokerCtrlEventTypes = {
   BROKER_CIRCUIT_OPEN: 'BROKER_CIRCUIT_OPEN',
   BROKER_CIRCUIT_CLOSED: 'BROKER_CIRCUIT_CLOSED',
   BROKER_HEAL_ESCALATED: 'BROKER_HEAL_ESCALATED',
+  TRANSFER_FAILED: 'TRANSFER_FAILED',
 } as const;
 
 // Events this service routes (emits to ExecutionBus for adapters)

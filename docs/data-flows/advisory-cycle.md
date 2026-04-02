@@ -25,7 +25,9 @@ flowchart TD
     decision_workflow_ctrl -->|"ANALYZE_MARKET"| market_intelligence_ctrl
     decision_workflow_ctrl -->|"CONSTRUCT_PORTFOLIO"| portfolio_engine_ctrl
     decision_workflow_ctrl -->|"GENERATE_NARRATIVE"| advisory_narrative_ctrl
+    compliance_ctrl -->|"DECISION_APPROVED, DECISION_BLOCKED"| decision_workflow_ctrl
     decision_workflow_ctrl -->|"USER_CONFIRMATION_REQUESTED, USER_CONFIRMATI…"| advisory_bff
+    advisory_bff -->|"USER_CONFIRMED, USER_REJECTED"| decision_workflow_ctrl
 ```
 
 ## Sequence Diagram
@@ -67,7 +69,7 @@ sequenceDiagram
 
 ### Step 1: Cross-domain hop
 
-- **Event:** `MANDATE_GRANTED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED`
+- **Event:** `MANDATE_CREATED | GOAL_CREATED | RISK_PROFILE_CREATED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED`
 - **From:** InvestorBus
 - **To:** AdvisoryBus
 - **Via:** advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
@@ -81,7 +83,7 @@ sequenceDiagram
 
 ### Step 3: decision-workflow-ctrl
 
-- **Receives:** `MANDATE_GRANTED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED`
+- **Receives:** `MANDATE_CREATED | GOAL_CREATED | RISK_PROFILE_CREATED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED`
 - **Via:** AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
 - **State change:** Creates WorkflowTrigger record in DDB with new decisionId; CDC fires on WorkflowTrigger:INSERT
 - **Emits:** `WORKFLOW_TRIGGER_CREATED (CDC, WorkflowTrigger:INSERT auto-expand)`
@@ -167,7 +169,7 @@ sequenceDiagram
 - **Receives:** `DECISION_PACKET_CREATED | DECISION_PACKET_ENRICHED`
 - **Via:** AdvisoryBus -> SQS -> compliance-ctrl-Ingress
 - **State change:** Loads mandate snapshot from DDB; runs MandateValidator -> GuardrailEvaluator -> SuitabilityChecker -> AuthorityResolver; writes ComplianceCheck + AuditArtifact records to DDB
-- **Emits:** `COMPLIANCE_CHECK (CDC, ComplianceCheck:INSERT), AUDIT_ARTIFACT (CDC, AuditArtifact:INSERT)`
+- **Emits:** `DECISION_APPROVED or DECISION_BLOCKED (CDC, field dispatch on ComplianceCheck.result — APPROVED->DECISION_APPROVED, BLOCKED->DECISION_BLOCKED), AUDIT_ARTIFACT (CDC, AuditArtifact:INSERT)`
 - **Idempotent:** yes
 
 ### Step 17: decision-workflow-ctrl
@@ -203,7 +205,7 @@ sequenceDiagram
 
 - **Action:** User calls confirmDecision or rejectDecision GraphQL mutation; BFF writes UserConfirmation or UserRejection record to DDB
 - **State change:** Writes UserConfirmation or UserRejection record
-- **Emits:** `USER_CONFIRMATION_CREATED or USER_REJECTION_CREATED (CDC auto-expand)`
+- **Emits:** `USER_CONFIRMED (CDC, UserConfirmation:INSERT) or USER_REJECTED (CDC, UserRejection:INSERT)`
 
 ### Step 22: decision-workflow-ctrl
 

@@ -77,7 +77,7 @@ describe('investor-ctrl event-listener', () => {
   describe('WriteIntents — non-ORDER_FILLED events', () => {
     const testCases = [
       { type: 'ONBOARDING_COMPLETED', expectedChannel: 'email' },
-      { type: 'MANDATE_GRANTED', expectedChannel: 'push' },
+      { type: 'MANDATE_CREATED', expectedChannel: 'push' },
       { type: 'GOAL_UPDATED', expectedChannel: 'push' },
       { type: 'DEPOSIT_INITIATED', expectedChannel: 'push' },
       { type: 'OPERATING_MODE_CHANGED', expectedChannel: 'push' },
@@ -154,7 +154,7 @@ describe('investor-ctrl event-listener', () => {
   describe('key layout', () => {
     it('Notification overrides pk to Notification#tenantId#notificationId', async () => {
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_GRANTED', {}, { tenantId: 'tenant-x', eventId: 'evt-x' }),
+        fakeSqsRecord('MANDATE_CREATED', {}, { tenantId: 'tenant-x', eventId: 'evt-x' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         overrides: expect.objectContaining({
@@ -225,7 +225,7 @@ describe('investor-ctrl event-listener', () => {
     it('processes multiple records in a batch', async () => {
       const result = await harness.process([
         fakeSqsRecord('ONBOARDING_COMPLETED', { userId: 'u1' }, { tenantId: 't1' }),
-        fakeSqsRecord('MANDATE_GRANTED', { userId: 'u2' }, { tenantId: 't2' }),
+        fakeSqsRecord('MANDATE_CREATED', { userId: 'u2' }, { tenantId: 't2' }),
         fakeSqsRecord('ORDER_FILLED', { orderId: 'o1' }, { tenantId: 't3' }),
       ]);
       expect(result.metrics.EventProcessed).toBe(3);

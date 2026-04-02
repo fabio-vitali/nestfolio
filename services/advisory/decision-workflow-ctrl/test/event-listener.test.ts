@@ -44,7 +44,7 @@ describe('decision-workflow-ctrl event-listener (materializeToTable)', () => {
     const payload: EventPayload = {
       subject: { tenantId: 't1', userId: 'u1' },
     };
-    const result = triggerHandler(payload, baseCtx('MANDATE_GRANTED'));
+    const result = triggerHandler(payload, baseCtx('MANDATE_CREATED'));
 
     expect(result).toEqual({
       _tag: 'record',
@@ -52,7 +52,7 @@ describe('decision-workflow-ctrl event-listener (materializeToTable)', () => {
       fields: {
         tenantId: 't1',
         decisionId: 'test-uuid',
-        trigger: 'MANDATE_GRANTED',
+        trigger: 'MANDATE_CREATED',
         triggerEventId: 'evt-1',
         context: { tenantId: 't1', userId: 'u1' },
       },

@@ -96,9 +96,9 @@ describe('event-listener handler', () => {
     mockSend.mockResolvedValue({});
   });
 
-  it('should process MANDATE_GRANTED trigger event and return skip()', async () => {
+  it('should process MANDATE_CREATED trigger event and return skip()', async () => {
     const result = await harness.process([
-      fakeSqsRecord('MANDATE_GRANTED', {
+      fakeSqsRecord('MANDATE_CREATED', {
         tenantId: 't1', userId: 'u1',
       }, { tenantId: 't1' }),
     ]);
@@ -131,7 +131,7 @@ describe('event-listener handler', () => {
       .mockRejectedValueOnce(new Error('Lifecycle failed'));
 
     const result = await harness.process([
-      fakeSqsRecord('MANDATE_GRANTED', {
+      fakeSqsRecord('MANDATE_CREATED', {
         tenantId: 't1', userId: 'u1',
       }, { tenantId: 't1' }),
     ]);
@@ -144,7 +144,7 @@ describe('event-listener handler', () => {
     mockSend.mockRejectedValueOnce(new ConditionalCheckFailedException('Condition not met'));
 
     const result = await harness.process([
-      fakeSqsRecord('MANDATE_GRANTED', {
+      fakeSqsRecord('MANDATE_CREATED', {
         tenantId: 't1',
       }, { tenantId: 't1' }),
     ]);

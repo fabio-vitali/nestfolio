@@ -1,20 +1,9 @@
 schema_version: 1
 flow: investor-onboarding
-description: New investor completes onboarding wizard; investor-bff materializes profile records; investor-ctrl sends welcome notification; conditional deposit triggers execution domain
-domains: [investor, execution]
+description: New investor completes onboarding wizard; investor-bff materializes profile records; investor-ctrl sends welcome notification; conditional deposit triggers execution domain; initial advisory decision cycle triggered via advisory-adpt
+domains: [investor, execution, advisory]
 
 trigger: onboarding-bff emits ONBOARDING_COMPLETED (CDC from OnboardingCompleted:INSERT)
-
-# NOTE: The old spec claimed cross-domain hops to advisory (MANDATE_GRANTED, GOAL_UPDATED,
-# RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED). Code shows investor-bff Egress maps
-# Goal/RiskProfile/Mandate with simple string prefixes ('GOAL','RISK_PROFILE','MANDATE'),
-# which produce _CREATED/_UPDATED suffixes via buildRuntimeConfig. Since onboarding INSERTs
-# these records, the actual CDC events are GOAL_CREATED, RISK_PROFILE_CREATED, MANDATE_CREATED.
-# advisory-adpt subscribes to GOAL_UPDATED, RISK_PROFILE_UPDATED, MANDATE_GRANTED -- NOT the
-# _CREATED variants. Zero services subscribe to GOAL_CREATED, RISK_PROFILE_CREATED, or
-# MANDATE_CREATED. This is a wiring gap: the initial onboarding does NOT trigger the advisory
-# decision cycle. Only subsequent MODIFY operations on these records would produce the events
-# advisory-adpt forwards.
 
 steps:
   # --- Phase 1: onboarding-bff writes OnboardingCompleted record ---
@@ -39,11 +28,11 @@ steps:
       7. Deposit (PUT, conditional if capitalAmount > 0 -- depositId, amountCents, currency)
     emits: >
       CDC events from DDB Streams (all INSERTs except InvestorProfile which is MODIFY):
-      - INVESTOR_PROFILE_UPDATED (InvestorProfile:MODIFY) -- NO SUBSCRIBERS
-      - GOAL_CREATED (Goal:INSERT) -- NO SUBSCRIBERS
-      - RISK_PROFILE_CREATED (RiskProfile:INSERT) -- NO SUBSCRIBERS
+      - INVESTOR_PROFILE_UPDATED (InvestorProfile:MODIFY)
+      - GOAL_CREATED (Goal:INSERT) -- advisory-adpt subscribes
+      - RISK_PROFILE_CREATED (RiskProfile:INSERT) -- advisory-adpt subscribes
       - OPERATING_MODE_SELECTED (OperatingModeRecord:INSERT) -- dashboard-bff subscribes
-      - MANDATE_CREATED (Mandate:INSERT) -- NO SUBSCRIBERS
+      - MANDATE_CREATED (Mandate:INSERT) -- advisory-adpt subscribes
       - DEPOSIT_INITIATED (Deposit:INSERT, conditional) -- investor-ctrl + execution-adpt subscribe
       Note: AccountMode has no Egress mapping, so no CDC event fires for it
     idempotent: true
@@ -97,7 +86,30 @@ steps:
     emits: broker-specific events (depends on broker adapter)
     idempotent: true
 
-  # --- Phase 6 (separate trigger): GO_LIVE_CONFIRMED ---
+  # --- Phase 6: Cross-domain to advisory (initial decision cycle) ---
+  - cross_domain: GOAL_CREATED
+    from: InvestorBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
+
+  - cross_domain: RISK_PROFILE_CREATED
+    from: InvestorBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
+
+  - cross_domain: MANDATE_CREATED
+    from: InvestorBus
+    to: AdvisoryBus
+    via: advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
+
+  - service: decision-workflow-ctrl
+    receives: MANDATE_CREATED
+    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
+    state_change: Creates WorkflowTrigger record; starts initial advisory decision cycle
+    emits: WORKFLOW_TRIGGER_CREATED (CDC from WorkflowTrigger:INSERT)
+    idempotent: true
+
+  # --- Phase 7 (separate trigger): GO_LIVE_CONFIRMED ---
   # Emitted by onboarding-bff when user confirms going live (GoLiveConfirmed:INSERT)
   # This is a separate user action AFTER onboarding completion
 
@@ -113,6 +125,8 @@ success_criteria:
   - Welcome notification delivered via investor-ctrl -> investor-bff materialization
   - Dashboard snapshot updated with operating mode via dashboard-bff
   - If capitalAmount > 0, deposit routed to execution domain via execution-adpt
+  - GOAL_CREATED, RISK_PROFILE_CREATED, MANDATE_CREATED forwarded to advisory domain via advisory-adpt
+  - decision-workflow-ctrl starts initial advisory decision cycle on MANDATE_CREATED
 
 failure_modes:
   - step 1 fails: Onboarding wizard incomplete; user can retry. No DDB write, no CDC
@@ -121,14 +135,4 @@ failure_modes:
   - step 3 fails: investor-bff ingress DLQ captures NOTIFICATION_CREATED; notification not visible in frontend
   - step 4 fails: dashboard-bff ingress DLQ captures OPERATING_MODE_SELECTED; dashboard stale until replay
   - step 5 fails (conditional): execution-adpt FromInvestorDLQ captures DEPOSIT_INITIATED; deposit not processed
-
-# WIRING GAP IDENTIFIED:
-# The advisory domain is NOT triggered by onboarding completion.
-# advisory-adpt subscribes to GOAL_UPDATED, RISK_PROFILE_UPDATED, MANDATE_GRANTED on InvestorBus.
-# But investor-bff CDC emits GOAL_CREATED, RISK_PROFILE_CREATED, MANDATE_CREATED (INSERT events).
-# No service subscribes to these _CREATED events.
-# The advisory decision cycle (decision-workflow-ctrl) can only start when these records are
-# subsequently MODIFIED, producing GOAL_UPDATED, RISK_PROFILE_UPDATED, MANDATE_UPDATED.
-# Even then, MANDATE_GRANTED never fires -- there is no Egress mapping that produces it.
-# The advisory-adpt subscribes to MANDATE_GRANTED but investor-bff Egress maps Mandate as
-# 'MANDATE' -> MANDATE_CREATED (INSERT) / MANDATE_UPDATED (MODIFY). MANDATE_GRANTED is orphaned.
+  - step 6 fails: advisory-adpt FromInvestorDLQ captures GOAL_CREATED/RISK_PROFILE_CREATED/MANDATE_CREATED; advisory cycle not started until replay

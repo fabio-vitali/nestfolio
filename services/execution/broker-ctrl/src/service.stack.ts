@@ -24,6 +24,7 @@ export class BrokerCtrlStack extends ServiceStack {
             'ORDER_FILLED', 'ORDER_PARTIALLY_FILLED', 'ORDER_REJECTED', 'ORDER_CANCELLED',
             'ORDER_ESCALATED', 'DEPOSIT_DETECTED', 'WITHDRAWAL_COMPLETED',
             'BROKER_CIRCUIT_OPEN', 'BROKER_CIRCUIT_CLOSED', 'BROKER_HEAL_ESCALATED',
+            'TRANSFER_FAILED',
           ]},
         },
       },

@@ -23,8 +23,8 @@ export class AdvisoryBffStack extends ServiceStack {
       eventTypes: {
         'DecisionReadModel': 'DECISION_READ_MODEL',
         'UserInteraction': 'USER_INTERACTION',
-        'UserConfirmation': 'USER_CONFIRMATION',
-        'UserRejection': 'USER_REJECTION',
+        'UserConfirmation': { insert: 'USER_CONFIRMED' },
+        'UserRejection': { insert: 'USER_REJECTED' },
       },
     });
 

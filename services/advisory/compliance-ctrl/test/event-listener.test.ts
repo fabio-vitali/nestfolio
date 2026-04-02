@@ -284,10 +284,10 @@ describe('event-listener handler', () => {
   });
 
   describe('mandate events', () => {
-    it('MANDATE_GRANTED → project(MandateSnapshot) with mandate fields', async () => {
+    it('MANDATE_CREATED → project(MandateSnapshot) with mandate fields', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_GRANTED', {
+        fakeSqsRecord('MANDATE_CREATED', {
           tenantId: 't-1',
           userId: 'u-1',
           mandateId: 'm-1',
@@ -363,10 +363,10 @@ describe('event-listener handler', () => {
       expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('should throw NotRetryableError on MANDATE_GRANTED with missing mandateId/level', async () => {
+    it('should throw NotRetryableError on MANDATE_CREATED with missing mandateId/level', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_GRANTED', {
+        fakeSqsRecord('MANDATE_CREATED', {
           tenantId: 't-1',
           userId: 'u-1',
           // mandateId and level are missing

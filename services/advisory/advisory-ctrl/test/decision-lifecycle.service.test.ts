@@ -168,7 +168,7 @@ describe('DecisionLifecycleService', () => {
         tenantId: 't1',
         triggerEvent: {
           id: 'evt-1',
-          type: 'MANDATE_GRANTED',
+          type: 'MANDATE_CREATED',
           timestamp: '2025-01-01T00:00:00.000Z',
           subject: { tenantId: 't1' },
           context: { tenantId: 't1' },
@@ -241,7 +241,7 @@ describe('DecisionLifecycleService', () => {
         tenantId: 't1',
         triggerEvent: {
           id: 'evt-4',
-          type: 'MANDATE_GRANTED',
+          type: 'MANDATE_CREATED',
           timestamp: '2025-01-01T00:00:00.000Z',
           subject: {},
           context: { tenantId: 't1' },
@@ -261,7 +261,7 @@ describe('DecisionLifecycleService', () => {
         tenantId: 't1',
         triggerEvent: {
           id: 'evt-err',
-          type: 'MANDATE_GRANTED',
+          type: 'MANDATE_CREATED',
           timestamp: '2025-01-01T00:00:00.000Z',
           subject: {},
           context: { tenantId: 't1' },
@@ -284,7 +284,7 @@ describe('DecisionLifecycleService', () => {
         tenantId: 't1',
         triggerEvent: {
           id: 'evt-unavail',
-          type: 'MANDATE_GRANTED',
+          type: 'MANDATE_CREATED',
           timestamp: '2025-01-01T00:00:00.000Z',
           subject: {},
           context: { tenantId: 't1' },

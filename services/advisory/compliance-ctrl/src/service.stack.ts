@@ -12,7 +12,7 @@ export class ComplianceCtrlStack extends ServiceStack {
       eventTypes: [
         'DECISION_PACKET_CREATED',
         'DECISION_PACKET_ENRICHED',
-        'MANDATE_GRANTED',
+        'MANDATE_CREATED',
         'MANDATE_UPDATED',
         'MANDATE_REVOKED',
         'OPERATING_MODE_CHANGED',
@@ -22,7 +22,12 @@ export class ComplianceCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'ComplianceCheck': 'COMPLIANCE_CHECK',
+        'ComplianceCheck': {
+          insert: { field: 'result', map: {
+            APPROVED: 'DECISION_APPROVED',
+            BLOCKED: 'DECISION_BLOCKED',
+          }},
+        },
         'AuditArtifact': 'AUDIT_ARTIFACT',
       },
     });
