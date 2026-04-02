@@ -23,6 +23,10 @@ Audit the service {service} in domain {domain}. Read these files:
    - State: DynamoDB table(s), S3 bucket(s), streams enabled?
    - Ingress: each Ingress construct → event types subscribed, handler path
    - Egress: CDC config → eventTypes map (record type → event config)
+   - errorEventType: check createIngestionHandler/materializeToTable calls for errorEventType parameter
+   - Agent PutEvents: check for grantPutEventsTo in CDK stack (indicates Lambda publishes events directly)
+   - Facade noneDataSource: check for noneDataSource resolvers that publish events via EventBridge
+   - Orchestration triggers: check triggers in Orchestration construct config
    - Orchestration: construct IDs, triggers, timeouts, grantCallbackAccess
    - Facade: GraphQL/REST endpoints if present
    - AgentRuntime: Bedrock agent if present
@@ -99,6 +103,7 @@ Write the result to: services/{domain}/{service}/CLAUDE.md
 | 5 | CDK pattern: extends ServiceStack | Warning | Read service.stack.ts imports |
 | 6 | Card freshness: CLAUDE.md matches code | Auto-fix | Regenerate and compare |
 | 7 | Import boundaries: no imports from `services/` | Hard fail | `grep -r "from.*services/" src/` |
+| 8 | Event emission completeness: all emission paths documented in card | Warning | Check CDC Egress, errorEventType, grantPutEventsTo, noneDataSource resolvers, SF PutEvents integrations |
 
 ### Self-Healing
 - **Card stale/missing** → Auto-fix: regenerate silently

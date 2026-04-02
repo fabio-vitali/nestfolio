@@ -18,9 +18,10 @@ description: Verify domain-level consistency — service completeness, adapter f
 |-------|----------|
 | Service completeness: has ctrl + hub + adpt minimum | Warning |
 | Adapter subscriptions: consuming adapters subscribe to all required cross-domain events (pull model) | Hard fail |
-| Event contract consistency: producer types match consumer | Hard fail |
+| Event contract consistency: producer types match consumer. Check ALL emission paths: CDC Egress eventTypes, errorEventType in pipelines, grantPutEventsTo (agent tools), Facade noneDataSource resolvers, SF EventBridge PutEvents integrations, Orchestration triggers | Hard fail |
 | Flow validation: all domain flows pass validate-flow | Hard fail |
 | Bus configuration: rules match subscriptions | Warning |
+| Infinite loop detection: flag cycles where Service A subscribes to Event X → writes Entity Y → CDC emits Event Z → Event Z reaches Service A's subscription (directly or via adapter). Must trace COMPLETE cycle. A service emitting an event that other services consume is normal — only flag if the chain loops back to the originating service's subscription. | Warning |
 
 - [ ] 4. **Aggregate results** into domain report
 - [ ] 5. **Auto-fix:** regenerate stale service cards
