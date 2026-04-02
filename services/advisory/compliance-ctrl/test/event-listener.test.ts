@@ -328,23 +328,28 @@ describe('event-listener handler', () => {
       expect(result.intents[0]).toMatchObject({ _tag: 'project', typename: 'MandateSnapshot' });
     });
 
-    it('MANDATE_REVOKED → update(MandateSnapshot, { status: REVOKED, revokedAt })', async () => {
+    it('MANDATE_UPDATED with revokedAt → project(MandateSnapshot) preserving revokedAt', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_REVOKED', {
+        fakeSqsRecord('MANDATE_UPDATED', {
           tenantId: 't-1',
           userId: 'u-1',
           mandateId: 'm-1',
+          level: 'DISCRETIONARY',
+          monthlyTurnoverCapPercent: 10,
+          maxSingleTradePercent: 5,
+          effectiveDate: '2025-01-01T00:00:00.000Z',
           revokedAt: '2025-01-01T00:00:00.000Z',
         }, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(1);
       expect(result.intents[0]).toMatchObject({
-        _tag: 'update',
+        _tag: 'project',
         typename: 'MandateSnapshot',
-        updates: expect.objectContaining({
-          status: 'REVOKED',
+        fields: expect.objectContaining({
+          mandateId: 'm-1',
+          revokedAt: '2025-01-01T00:00:00.000Z',
         }),
       });
       expect(mockSend).not.toHaveBeenCalled();

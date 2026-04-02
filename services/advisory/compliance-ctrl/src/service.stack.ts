@@ -14,7 +14,6 @@ export class ComplianceCtrlStack extends ServiceStack {
         'DECISION_PACKET_ENRICHED',
         'MANDATE_CREATED',
         'MANDATE_UPDATED',
-        'MANDATE_REVOKED',
         'OPERATING_MODE_CHANGED',
       ],
     });

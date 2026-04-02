@@ -155,15 +155,8 @@ function processMandateEvent(
         monthlyTurnoverCapPercent: subject.monthlyTurnoverCapPercent,
         maxSingleTradePercent: subject.maxSingleTradePercent,
         effectiveDate: subject.effectiveDate,
-        revokedAt: null,
+        revokedAt: (subject.revokedAt as string) ?? null,
       }, { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' });
-
-    case 'MANDATE_REVOKED':
-      logger.info('Mandate snapshot revoked', { tenantId, userId });
-      return update('MandateSnapshot', {
-        status: 'REVOKED',
-        revokedAt: subject.revokedAt ?? new Date().toISOString(),
-      }, { overrides: { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' } });
 
     case 'OPERATING_MODE_CHANGED':
       logger.info('Operating mode changed, noted', { tenantId, userId, mode: subject.mode });
@@ -184,7 +177,7 @@ export const createHandlers = (deps: EventListenerDeps) => {
   }
 
   // Mandate events
-  for (const type of [InvestorCrossDomainEventTypes.MANDATE_CREATED, InvestorCrossDomainEventTypes.MANDATE_UPDATED, InvestorCrossDomainEventTypes.MANDATE_REVOKED, InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED]) {
+  for (const type of [InvestorCrossDomainEventTypes.MANDATE_CREATED, InvestorCrossDomainEventTypes.MANDATE_UPDATED, InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED]) {
     handlers[type] = (payload, ctx) => processMandateEvent(payload, ctx);
   }
 
