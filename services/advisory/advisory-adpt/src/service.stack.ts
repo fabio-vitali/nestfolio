@@ -45,7 +45,6 @@ export class AdvisoryAdptStack extends ServiceStack {
           AdvisoryIngestEventTypes.OPERATING_MODE_CHANGED,
           AdvisoryIngestEventTypes.MANDATE_CREATED,
           AdvisoryIngestEventTypes.MANDATE_UPDATED,
-          AdvisoryIngestEventTypes.MANDATE_REVOKED,
         ],
       },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromInvestorDlq })],
@@ -64,10 +63,6 @@ export class AdvisoryAdptStack extends ServiceStack {
           AdvisoryIngestEventTypes.ORDER_REJECTED,
           AdvisoryIngestEventTypes.ORDER_CANCELLED,
           AdvisoryIngestEventTypes.DEPOSIT_DETECTED,
-          AdvisoryIngestEventTypes.PORTFOLIO_DRIFT_DETECTED,
-          AdvisoryIngestEventTypes.BROKER_SESSION_LOST,
-          AdvisoryIngestEventTypes.STREAM_DISCONNECTED,
-          AdvisoryIngestEventTypes.RECONCILIATION_FAILED,
         ],
       },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromExecutionDlq })],
@@ -83,8 +78,7 @@ export class AdvisoryAdptStack extends ServiceStack {
       eventPattern: {
         detailType: [
           AdvisoryIngestEventTypes.PORTFOLIO_UPDATED,
-          AdvisoryIngestEventTypes.LEDGER_PORTFOLIO_DRIFT_DETECTED,
-          AdvisoryIngestEventTypes.LEDGER_RECONCILIATION_FAILED,
+          AdvisoryIngestEventTypes.PORTFOLIO_DRIFT_DETECTED,
         ],
       },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromLedgerDlq })],
