@@ -63,9 +63,9 @@ export class MarketwatchAdptStack extends ServiceStack {
     });
 
     this.addObservability({
-      ingress: ingress.handler,
-      egress: egress.handler,
-      extra: [fetchTrigger],
+      ingress,
+      egress,
+      extraLambdas: [fetchTrigger],
     });
   }
 }
