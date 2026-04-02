@@ -37,11 +37,11 @@ export function createHandlers() {
     ],
     [LedgerCrossDomainEventTypes.LEDGER_ENTRY_RECORDED]: (payload: EventPayload, ctx: EventContext) =>
       timeTravelAvailability(toUow(payload, ctx)),
-    [InvestorBffEventTypes.GOAL_SET]: (payload: EventPayload, ctx: EventContext) =>
+    [InvestorBffEventTypes.GOAL_CREATED]: (payload: EventPayload, ctx: EventContext) =>
       investorSnapshot(toUow(payload, ctx)),
     [InvestorBffEventTypes.GOAL_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
       investorSnapshot(toUow(payload, ctx)),
-    [InvestorBffEventTypes.RISK_PROFILE_SET]: (payload: EventPayload, ctx: EventContext) =>
+    [InvestorBffEventTypes.RISK_PROFILE_CREATED]: (payload: EventPayload, ctx: EventContext) =>
       investorSnapshot(toUow(payload, ctx)),
     [InvestorBffEventTypes.RISK_PROFILE_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
       investorSnapshot(toUow(payload, ctx)),

@@ -17,8 +17,8 @@ describe('investorSnapshot transform', () => {
     record: {},
   }) as unknown as TestUow;
 
-  it('should project goalType and onboardedAt for GOAL_SET', () => {
-    expect(investorSnapshot(makeUow('GOAL_SET', { objective: 'income' }))).toEqual(
+  it('should project goalType and onboardedAt for GOAL_CREATED', () => {
+    expect(investorSnapshot(makeUow('GOAL_CREATED', { objective: 'income' }))).toEqual(
       project('InvestorSnapshot', {
         tenantId: 't1',
         goalType: 'income',
@@ -36,8 +36,8 @@ describe('investorSnapshot transform', () => {
     );
   });
 
-  it('should project riskLevel for RISK_PROFILE_SET', () => {
-    expect(investorSnapshot(makeUow('RISK_PROFILE_SET', { score: 5 }))).toEqual(
+  it('should project riskLevel for RISK_PROFILE_CREATED', () => {
+    expect(investorSnapshot(makeUow('RISK_PROFILE_CREATED', { score: 5 }))).toEqual(
       project('InvestorSnapshot', {
         tenantId: 't1',
         riskLevel: '5',

@@ -11,13 +11,13 @@ export const investorSnapshot = (
   const updates: Record<string, unknown> = { tenantId, userId, region };
 
   switch (event.type) {
-    case 'GOAL_SET':
+    case 'GOAL_CREATED':
     case 'GOAL_UPDATED':
       updates.goalType = payload.objective;
-      if (event.type === 'GOAL_SET') updates.onboardedAt = event.timestamp;
+      if (event.type === 'GOAL_CREATED') updates.onboardedAt = event.timestamp;
       break;
 
-    case 'RISK_PROFILE_SET':
+    case 'RISK_PROFILE_CREATED':
     case 'RISK_PROFILE_UPDATED':
       updates.riskLevel = String(payload.score ?? '');
       break;

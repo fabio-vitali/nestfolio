@@ -22,9 +22,9 @@ describe('dashboard-bff event-listener', () => {
     expect(handlers).toHaveProperty(AdvisoryCrossDomainEventTypes.DECISION_BLOCKED);
 
     // Investor-bff events
-    expect(handlers).toHaveProperty(InvestorBffEventTypes.GOAL_SET);
+    expect(handlers).toHaveProperty(InvestorBffEventTypes.GOAL_CREATED);
     expect(handlers).toHaveProperty(InvestorBffEventTypes.GOAL_UPDATED);
-    expect(handlers).toHaveProperty(InvestorBffEventTypes.RISK_PROFILE_SET);
+    expect(handlers).toHaveProperty(InvestorBffEventTypes.RISK_PROFILE_CREATED);
     expect(handlers).toHaveProperty(InvestorBffEventTypes.RISK_PROFILE_UPDATED);
     expect(handlers).toHaveProperty(InvestorBffEventTypes.OPERATING_MODE_SELECTED);
     expect(handlers).toHaveProperty(InvestorBffEventTypes.OPERATING_MODE_CHANGED);
