@@ -89,6 +89,11 @@ export class InvestorProfileCtrlStack extends ServiceStack {
       state,
       modelIds: [modelOpusId, modelHaikuId],
       toolTargets: [],
+      environmentVariables: {
+        MODEL_OPUS_ID: modelOpusId,
+        MODEL_HAIKU_ID: modelHaikuId,
+        TABLE_NAME: state.getTable().tableName,
+      },
     });
 
     this.addObservability({

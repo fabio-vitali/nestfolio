@@ -77,6 +77,10 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       state,
       modelIds: [modelSonnetId],
       toolTargets: [],
+      environmentVariables: {
+        MODEL_SONNET_ID: modelSonnetId,
+        TABLE_NAME: state.getTable().tableName,
+      },
     });
 
     this.addObservability({

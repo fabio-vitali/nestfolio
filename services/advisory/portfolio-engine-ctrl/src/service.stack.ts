@@ -97,6 +97,11 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       state,
       modelIds: [modelOpusId, modelSonnetId],
       toolTargets: [],
+      environmentVariables: {
+        MODEL_OPUS_ID: modelOpusId,
+        MODEL_SONNET_ID: modelSonnetId,
+        TABLE_NAME: state.getTable().tableName,
+      },
     });
 
     this.addObservability({

@@ -97,6 +97,12 @@ export class AdvisoryCtrlStack extends ServiceStack {
       description: 'Multi-agent decision lifecycle orchestrated via LangGraph.js',
       state,
       modelIds: [modelOpusId, modelSonnetId, modelHaikuId],
+      environmentVariables: {
+        MODEL_OPUS_ID: modelOpusId,
+        MODEL_SONNET_ID: modelSonnetId,
+        MODEL_HAIKU_ID: modelHaikuId,
+        TABLE_NAME: state.getTable().tableName,
+      },
       toolTargets: [
         {
           name: 'portfolio-lookup',
