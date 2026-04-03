@@ -110,7 +110,8 @@ deploy_service() {
     -c observability="$observability" \
     -c logRetention="$log_retention" \
     -c protectedResources="$protected_resources" \
-    -c region="$region_flag"
+    -c region="$region_flag" \
+    -c kbEnabled=false
 }
 
 verify_ssm_param() {
