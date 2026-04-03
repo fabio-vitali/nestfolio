@@ -4,7 +4,7 @@ jest.mock('@copilotkit/runtime', () => ({
   CopilotRuntime: jest.fn().mockImplementation(() => ({
     process: jest.fn().mockResolvedValue(new Response('ok')),
   })),
-  LangGraphAdapter: jest.fn(),
+  LangGraphAgent: jest.fn(),
 }));
 
 jest.mock('../../src/agent/graph', () => ({
