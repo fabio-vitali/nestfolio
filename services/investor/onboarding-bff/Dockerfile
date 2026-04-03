@@ -1,15 +1,7 @@
-FROM node:20-slim
-
+FROM --platform=linux/arm64 node:20-slim
 WORKDIR /app
-
-COPY package.json pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile
-
-COPY dist/ ./dist/
-
+COPY dist/bundle.js ./bundle.js
 ENV AGENT_RUNTIME=true
 ENV PORT=8080
-
 EXPOSE 8080
-
-CMD ["node", "dist/runtime/server.js"]
+CMD ["node", "bundle.js"]

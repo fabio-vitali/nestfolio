@@ -20,7 +20,13 @@
       "executor": "@nx/jest:jest",
       "options": { "jestConfig": "services/investor/onboarding-bff/jest.config.js" }
     },
-    "lint": { "executor": "@nx/eslint:lint" }
+    "lint": { "executor": "@nx/eslint:lint" },
+    "build-agent": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx esbuild services/investor/onboarding-bff/src/runtime/server.ts --bundle --platform=node --outfile=services/investor/onboarding-bff/dist/bundle.js --format=cjs --target=node20"
+      }
+    }
   },
   "tags": ["scope:investor", "type:bff"]
 }

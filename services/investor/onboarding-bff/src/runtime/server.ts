@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { CopilotRuntime, LangGraphAdapter } from '@copilotkit/runtime';
+import { CopilotRuntime, LangGraphAgent } from '@copilotkit/runtime';
 import { buildOnboardingGraph } from '../agent/graph';
 import { OnboardingRepository } from '../repositories/onboarding.repository';
 
@@ -48,7 +48,7 @@ export function createApp() {
     const graph = buildOnboardingGraph({ repo });
 
     const runtime = new CopilotRuntime();
-    const adapter = new LangGraphAdapter({ graph });
+    const adapter = new LangGraphAgent({ graph });
     return runtime.process(c.req.raw, adapter);
   });
 
