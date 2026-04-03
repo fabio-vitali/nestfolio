@@ -30,3 +30,5 @@ export {
   type DecisionSession,
   type MemoryRecord,
 } from './memory';
+
+export { createAgentServer, type AgentHandler } from './agent-server';
