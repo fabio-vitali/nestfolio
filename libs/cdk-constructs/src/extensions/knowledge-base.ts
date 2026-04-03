@@ -29,7 +29,11 @@ export class KnowledgeBase extends Construct {
     const removalPolicy = props.removalPolicy ?? RemovalPolicy.RETAIN;
     const embeddingModelId = props.embeddingModelId ?? 'amazon.titan-embed-text-v2:0';
 
-    // ── S3 Bucket (document source) ────────────────────────────────────────
+    // Check if KB creation is disabled via CDK context
+    // S3_VECTORS storage requires S3 Vector Buckets (no CF resource type yet)
+    const kbEnabled = this.node.tryGetContext('kbEnabled') !== 'false';
+
+    // ── S3 Bucket (document source — always created) ───────────────────────
     this.bucket = new Bucket(this, 'Bucket', {
       bucketName: props.bucketName,
       encryption: BucketEncryption.S3_MANAGED,
@@ -38,6 +42,14 @@ export class KnowledgeBase extends Construct {
       removalPolicy,
       autoDeleteObjects: removalPolicy === RemovalPolicy.DESTROY,
     });
+
+    if (!kbEnabled) {
+      // KB disabled — provide placeholder values so stacks compile
+      this.knowledgeBaseId = 'KB_DISABLED';
+      this.knowledgeBaseArn = `arn:aws:bedrock:${Stack.of(this).region}:${Stack.of(this).account}:knowledge-base/KB_DISABLED`;
+      this.dataSourceId = 'DS_DISABLED';
+      return;
+    }
 
     // ── IAM Role for Bedrock KB ────────────────────────────────────────────
     const kbRole = new Role(this, 'KBRole', {
@@ -61,10 +73,11 @@ export class KnowledgeBase extends Construct {
       resources: [embeddingModelArn],
     }));
 
-    // ── Bedrock Knowledge Base (L1) — managed vector storage ───────────────
-    // Omit storageConfiguration to let Bedrock use default managed storage.
-    // S3_VECTORS requires S3 Vector Buckets (a separate resource type from standard S3)
-    // which have no CloudFormation resource type yet.
+    // ── Bedrock Knowledge Base (L1) ────────────────────────────────────────
+    // TODO: S3_VECTORS requires S3 Vector Buckets (AWS::S3::VectorBucket)
+    // which have no CloudFormation resource type yet. Once CF supports them,
+    // add storageConfiguration with S3_VECTORS type back.
+    // For now, omit to use Bedrock's default managed storage.
     const cfnKb = new CfnKnowledgeBase(this, 'KB', {
       name: `${id}-${props.kbName}`,
       description: props.description,
