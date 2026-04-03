@@ -1,6 +1,7 @@
 import { join } from 'path';
 import { Construct } from 'constructs';
 import { Duration } from 'aws-cdk-lib';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
@@ -73,10 +74,19 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
         }),
         agentcore.MemoryStrategy.usingSummarization({
           name: 'NarrativeSessionSummarizer',
-          namespaces: ['/advisory-narrative/{actorId}/sessions'],
+          namespaces: ['/advisory-narrative/{actorId}/sessions/{sessionId}'],
         }),
       ],
     });
+
+    // Grant Memory execution role broad Bedrock access for inference profile models
+    // BedrockFoundationModel.grantInvoke() uses foundation-model/ ARN but inference profiles need inference-profile/ ARN
+    if (memory.executionRole) {
+      memory.executionRole.addToPrincipalPolicy(new PolicyStatement({
+        actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream', 'bedrock:GetFoundationModel', 'bedrock:GetInferenceProfile'],
+        resources: ['*'],
+      }));
+    }
 
     // Export memoryId via SSM for agent service stacks
     new StringParameter(this, 'MemoryIdParam', {

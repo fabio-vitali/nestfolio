@@ -102,13 +102,6 @@ export class OrderWorkflowDefinition extends Construct {
         },
         TimeoutSeconds: 300,
         ResultPath: '$.adapterResult',
-        Catch: [
-          {
-            ErrorEquals: ['States.Timeout'],
-            Next: 'HandleTimeout',
-            ResultPath: '$.error',
-          },
-        ],
       },
     });
 
@@ -213,13 +206,6 @@ export class OrderWorkflowDefinition extends Construct {
         },
         TimeoutSeconds: Duration.minutes(15).toSeconds(),
         ResultPath: '$.adapterResult',
-        Catch: [
-          {
-            ErrorEquals: ['States.Timeout'],
-            Next: 'HandleTimeout',
-            ResultPath: '$.error',
-          },
-        ],
       },
     });
 
@@ -341,13 +327,6 @@ export class OrderWorkflowDefinition extends Construct {
         },
         TimeoutSeconds: 300,
         ResultPath: '$.adapterResult',
-        Catch: [
-          {
-            ErrorEquals: ['States.Timeout'],
-            Next: 'HandleTimeout',
-            ResultPath: '$.error',
-          },
-        ],
       },
     });
 
@@ -407,11 +386,8 @@ export class OrderWorkflowDefinition extends Construct {
     // ---------------------------------------------------------------
     // 15. HandleTimeout — Parallel: open breaker + escalate order + write NormalizedEvent
     //
-    // Implemented as CustomState with inline ASL branches because CDK Parallel.branch()
-    // requires the branches to be reachable via the CDK chain graph. Since HandleTimeout
-    // is only referenced via raw Catch[].Next in other CustomStates (not via .next()),
-    // CDK cannot bind the Parallel branches to the graph and would fail validation.
-    // Using a single CustomState with inline Parallel ASL avoids this limitation.
+    // Implemented as CustomState with inline ASL Parallel branches.
+    // Connected to the graph via .addCatch() on RouteOrder, WaitForMoreFills, WaitForRetryResult.
     // ---------------------------------------------------------------
     const handleTimeout = new sfn.CustomState(this, 'HandleTimeout', {
       stateJson: {
@@ -437,8 +413,8 @@ export class OrderWorkflowDefinition extends Construct {
                     ':oa': { 'S.$': '$$.State.EnteredTime' },
                     ':r': { S: 'Adapter timeout' },
                   },
-                  ResultPath: null,
                 },
+                ResultPath: null,
                 End: true,
               },
             },
@@ -460,8 +436,8 @@ export class OrderWorkflowDefinition extends Construct {
                   ExpressionAttributeValues: {
                     ':st': { S: 'ESCALATED' },
                   },
-                  ResultPath: null,
                 },
+                ResultPath: null,
                 End: true,
               },
             },
@@ -484,8 +460,8 @@ export class OrderWorkflowDefinition extends Construct {
                     failureReason: { S: 'Adapter timeout — escalated' },
                     timestamp: { 'S.$': '$$.State.EnteredTime' },
                   },
-                  ResultPath: null,
                 },
+                ResultPath: null,
                 End: true,
               },
             },
@@ -507,8 +483,8 @@ export class OrderWorkflowDefinition extends Construct {
                     symbol: { 'S.$': '$.symbol' },
                     timestamp: { 'S.$': '$$.State.EnteredTime' },
                   },
-                  ResultPath: null,
                 },
+                ResultPath: null,
                 End: true,
               },
             },
@@ -556,6 +532,11 @@ export class OrderWorkflowDefinition extends Construct {
     markFilled.next(endFilled);
     markRejected.next(endRejected);
     handleTimeout.next(endEscalated);
+
+    // CDK addCatch registers HandleTimeout in the state graph (raw JSON Catch is opaque to CDK)
+    routeOrder.addCatch(handleTimeout, { errors: ['States.Timeout'], resultPath: '$.error' });
+    waitForMoreFills.addCatch(handleTimeout, { errors: ['States.Timeout'], resultPath: '$.error' });
+    waitForRetryResult.addCatch(handleTimeout, { errors: ['States.Timeout'], resultPath: '$.error' });
 
     // ClassifyResult choice
     classifyResult

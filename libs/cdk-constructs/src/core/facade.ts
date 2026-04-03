@@ -203,7 +203,7 @@ export class Facade extends Construct {
     // Store API URL in SSM
     if (this.api) {
       new StringParameter(this, 'ApiUrlParam', {
-        parameterName: naming.ssmParameterPath('api/graphqlUrl'),
+        parameterName: naming.ssmServicePath('api/graphqlUrl'),
         stringValue: this.api.graphqlUrl,
         description: `AppSync GraphQL URL for ${id}`,
       });

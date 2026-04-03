@@ -3,12 +3,13 @@ import { resolvePipelineConfig } from '@nestfolio/cdk-constructs/utils';
 import { BrokerSimAdptStack } from './service.stack';
 
 const app = new App();
-const { prefix, account, region, service, subsystem } = resolvePipelineConfig(app, 'broker-sim-adpt');
+const { prefix, account, region, service, subsystem, observability } = resolvePipelineConfig(app, 'broker-sim-adpt');
 
 new BrokerSimAdptStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,
+  observability,
   env: {
     account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],
     region: region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',

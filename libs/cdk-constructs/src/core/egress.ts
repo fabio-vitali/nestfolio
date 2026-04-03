@@ -81,33 +81,45 @@ export class Egress extends Construct {
     }
 
     // IAM: PutEvents
-    this.handler.addToRolePolicy(new PolicyStatement({
-      actions: ['events:PutEvents'],
-      resources: [
-        `arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${eventBus.eventBusName}`,
-      ],
-    }));
-
-    // DynamoDB Streams event source with per-action filters
-    const filters = extractFilters(props.eventTypes);
-    this.handler.addEventSource(new DynamoEventSource(state.getTable(), {
-      startingPosition: StartingPosition.LATEST,
-      bisectBatchOnError: true,
-      retryAttempts: props.retryAttempts ?? 3,
-      batchSize: props.batchSize,
-      onFailure: new SqsDlq(this.dlq),
-      filters: filters.map(({ typeName, action }) => {
-        const imageKey = action === 'REMOVE' ? 'OldImage' : 'NewImage';
-        return FilterCriteria.filter({
-          eventName: FilterRule.isEqual(action),
-          dynamodb: {
-            [imageKey]: {
-              __typename: { S: FilterRule.isEqual(typeName) },
-            },
-          },
-        });
+    this.handler.addToRolePolicy(
+      new PolicyStatement({
+        actions: ['events:PutEvents'],
+        resources: [
+          `arn:aws:events:${Stack.of(this).region}:${Stack.of(this).account}:event-bus/${eventBus.eventBusName}`,
+        ],
       }),
-    }));
+    );
+
+    // DynamoDB Streams event source — group filters by action, OR __typename values
+    // AWS limits filters to 5 per event source mapping; grouping gives max 3 (INSERT/MODIFY/REMOVE)
+    const filters = extractFilters(props.eventTypes);
+    const grouped = new Map<string, string[]>();
+    for (const { typeName, action } of filters) {
+      const list = grouped.get(action) ?? [];
+      list.push(typeName);
+      grouped.set(action, list);
+    }
+    const filterCriteria = [...grouped.entries()].map(([action, typeNames]) => {
+      const imageKey = action === 'REMOVE' ? 'OldImage' : 'NewImage';
+      return FilterCriteria.filter({
+        eventName: FilterRule.isEqual(action),
+        dynamodb: {
+          [imageKey]: {
+            __typename: { S: typeNames },
+          },
+        },
+      });
+    });
+    this.handler.addEventSource(
+      new DynamoEventSource(state.getTable(), {
+        startingPosition: StartingPosition.LATEST,
+        bisectBatchOnError: true,
+        retryAttempts: props.retryAttempts ?? 3,
+        batchSize: props.batchSize,
+        onFailure: new SqsDlq(this.dlq),
+        filters: filterCriteria,
+      }),
+    );
   }
 
   /** Returns every possible event type string this service can emit. */

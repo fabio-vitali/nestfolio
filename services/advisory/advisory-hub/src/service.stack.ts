@@ -39,19 +39,19 @@ export class AdvisoryHubStack extends ServiceStack {
     // Bedrock model IDs — single source of truth for all advisory services (same-domain only)
     new StringParameter(this, 'ModelOpusParam', {
       parameterName: this.naming.ssmParameterPath('models/opus'),
-      stringValue: 'anthropic.claude-opus-4-6-20250501-v1:0',
+      stringValue: 'us.anthropic.claude-opus-4-6-v1',
       description: 'Bedrock model ID for Opus tier',
     });
 
     new StringParameter(this, 'ModelSonnetParam', {
       parameterName: this.naming.ssmParameterPath('models/sonnet'),
-      stringValue: 'anthropic.claude-sonnet-4-6-20250514-v1:0',
+      stringValue: 'us.anthropic.claude-sonnet-4-6',
       description: 'Bedrock model ID for Sonnet tier',
     });
 
     new StringParameter(this, 'ModelHaikuParam', {
       parameterName: this.naming.ssmParameterPath('models/haiku'),
-      stringValue: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+      stringValue: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
       description: 'Bedrock model ID for Haiku tier',
     });
 

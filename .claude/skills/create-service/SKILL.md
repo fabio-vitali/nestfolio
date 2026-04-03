@@ -38,6 +38,30 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
     tsconfig.spec.json
   ```
 
+- [ ] 2b. **Write `main.ts`** — CDK app entry point using `resolvePipelineConfig`:
+  ```ts
+  import { App } from 'aws-cdk-lib';
+  import { resolvePipelineConfig } from '@nestfolio/cdk-constructs/utils';
+  import { MyServiceStack } from './service.stack';
+
+  const app = new App();
+  const { prefix, account, region, service, subsystem, observability } = resolvePipelineConfig(app, 'my-service');
+
+  new MyServiceStack(app, `${prefix}-${service}`, {
+    subsystem,
+    service,
+    prefix,
+    observability,
+    env: {
+      account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],
+      region: region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',
+    },
+  });
+
+  app.synth();
+  ```
+  **IMPORTANT:** `observability` must be destructured from `resolvePipelineConfig()` AND passed to the stack constructor.
+
 - [ ] 3. **Write CDK stack** — extend ServiceStack with `serviceDir: __dirname`, create State explicitly (if needed), add Ingress/Egress/Orchestration per `cdk-patterns` (6-construct model)
   ```ts
   super(scope, id, { ...props, serviceDir: __dirname });

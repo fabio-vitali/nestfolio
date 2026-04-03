@@ -431,3 +431,14 @@ const kRecord = fakeKinesisRecord('Order.Created', { orderId: '123' }, {
 - **Never** put a handler directly on a `materializeToTable` config that should be using `resumeStateMachine` — task token handling requires the dedicated pipeline.
 - **Never** write tests against the live Lambda handler function — use `createTestHarness` / `createCdcTestHarness` / `createReducerTestHarness` to isolate handler logic.
 - **Avoid** `HandlerEntry` arrays unless you genuinely need multi-write fan-out; prefer returning `WriteIntent[]` from a single `HandlerFn` instead.
+
+---
+
+## Step Functions — CDK CustomState Error Handling
+
+When building Step Functions with `CustomState`, always use `.addCatch()` for error handling. Never use raw JSON `Catch` with `Next` string references in `stateJson`. CDK cannot resolve raw string references to state graph nodes — catch targets will be excluded from the rendered ASL by `DefinitionBody.fromChainable()`.
+
+```typescript
+// CORRECT
+myTask.addCatch(errorHandler, { errors: ['States.Timeout'], resultPath: '$.error' });
+```

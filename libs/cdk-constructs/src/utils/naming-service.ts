@@ -63,9 +63,14 @@ export class NamingService {
     return `${this.prefix}-${this.service}-table`;
   }
 
-  /** SSM parameter path: "/nestfolio/{prefix}-{subsystem}/{resourcePath}" */
+  /** SSM parameter path (subsystem-scoped): "/nestfolio/{prefix}-{subsystem}/{resourcePath}" */
   ssmParameterPath(resourcePath: string): string {
     return `/nestfolio/${this.prefix}-${this.subsystem}/${resourcePath}`;
+  }
+
+  /** SSM parameter path (service-scoped): "/nestfolio/{prefix}-{service}/{resourcePath}" */
+  ssmServicePath(resourcePath: string): string {
+    return `/nestfolio/${this.prefix}-${this.service}/${resourcePath}`;
   }
 
   /** SQS queue name for the service: "{prefix}-{service}-queue" or "{prefix}-{service}-{suffix}-queue" */

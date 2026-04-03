@@ -3,13 +3,14 @@ import { resolvePipelineConfig } from '@nestfolio/cdk-constructs/utils';
 import { YahooFinanceAdptStack } from './service.stack';
 
 const app = new App();
-const { prefix, account, region, service, subsystem, schedule } = resolvePipelineConfig(
+const { prefix, account, region, service, subsystem, schedule, observability } = resolvePipelineConfig(
   app,
   'yahoo-finance-adpt',
 );
 
 new YahooFinanceAdptStack(app, `${prefix}-${service}`, {
   prefix,
+  observability,
   subsystem,
   service,
   schedule: schedule ?? { enabled: false, rate: 'rate(24 hours)' },

@@ -3,13 +3,14 @@ import { resolvePipelineConfig } from '@nestfolio/cdk-constructs/utils';
 import { FredAdptStack } from './service.stack';
 
 const app = new App();
-const { prefix, account, region, service, subsystem, schedule } = resolvePipelineConfig(
+const { prefix, account, region, service, subsystem, schedule, observability } = resolvePipelineConfig(
   app,
   'fred-adpt',
 );
 
 new FredAdptStack(app, `${prefix}-${service}`, {
   prefix,
+  observability,
   subsystem,
   service,
   schedule: schedule ?? { enabled: false, rate: 'rate(24 hours)' },

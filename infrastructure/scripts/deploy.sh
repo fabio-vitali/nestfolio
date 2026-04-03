@@ -94,7 +94,7 @@ deploy_service() {
 
   env $env_vars pnpm nx run "$svc:deploy" -- \
     $APPROVAL_FLAG \
-    -c prefix="$PREFIX" \
+    --prefix="$PREFIX" \
     -c tier="$RESOLVER_TIER" \
     -c observability="$observability" \
     -c logRetention="$log_retention" \
@@ -118,7 +118,7 @@ verify_ssm_param() {
 check_all_hub_params_exist() {
   if [ "$DRY_RUN" = "true" ]; then return 1; fi
   local hub_configs="$1"
-  for cfg in $(echo "$hub_configs" | jq -c '.[]'); do
+  while IFS= read -r cfg; do
     local subsystem=$(echo "$cfg" | jq -r '.subsystem')
     local region=$(echo "$cfg" | jq -r '.region // empty')
     region="${region:-${CDK_DEFAULT_REGION:-us-east-1}}"
@@ -126,7 +126,7 @@ check_all_hub_params_exist() {
     if ! aws ssm get-parameter --name "$param" --region "$region" --query 'Parameter.Value' --output text > /dev/null 2>&1; then
       return 1
     fi
-  done
+  done < <(echo "$hub_configs" | jq -c '.[]')
   return 0
 }
 
@@ -184,22 +184,22 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     PARALLEL_CONFIGS=$(echo "$PHASE_CONFIGS" | jq -c '[.[] | select(.parallelDeploy == true)]')
 
     # Deploy serial services first
-    for cfg in $(echo "$SERIAL_CONFIGS" | jq -c '.[]'); do
+    while IFS= read -r cfg; do
       SVC=$(echo "$cfg" | jq -r '.service')
       if is_service_included "$SVC"; then
         deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg"
       fi
-    done
+    done < <(echo "$SERIAL_CONFIGS" | jq -c '.[]')
 
     # Deploy parallel services concurrently
     PIDS=""
-    for cfg in $(echo "$PARALLEL_CONFIGS" | jq -c '.[]'); do
+    while IFS= read -r cfg; do
       SVC=$(echo "$cfg" | jq -r '.service')
       if is_service_included "$SVC"; then
         deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" &
         PIDS="$PIDS $!"
       fi
-    done
+    done < <(echo "$PARALLEL_CONFIGS" | jq -c '.[]')
     FAIL=0
     for PID in $PIDS; do
       wait "$PID" || FAIL=1
@@ -209,14 +209,14 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     # Post-phase verification
     if [ "$PHASE" = "1" ]; then
       echo "Verifying Phase 1 SSM parameters..."
-      for cfg in $(echo "$PHASE_CONFIGS" | jq -c '.[]'); do
+      while IFS= read -r cfg; do
         SVC=$(echo "$cfg" | jq -r '.service')
         if is_service_included "$SVC"; then
           SUBSYSTEM=$(echo "$cfg" | jq -r '.subsystem')
           REGION=$(echo "$cfg" | jq -r '.region // empty')
           verify_ssm_param "/nestfolio/${PREFIX}-${SUBSYSTEM}/event-hub/busArn" "${REGION:-${CDK_DEFAULT_REGION:-us-east-1}}"
         fi
-      done
+      done < <(echo "$PHASE_CONFIGS" | jq -c '.[]')
     fi
 
     if [ "$PHASE" = "2" ]; then
@@ -236,13 +236,13 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
       echo ""
       echo "Phase 4 (hub re-deploy — first deploy detected):"
       PIDS=""
-      for cfg in $(echo "$HUB_CONFIGS" | jq -c '.[]'); do
+      while IFS= read -r cfg; do
         SVC=$(echo "$cfg" | jq -r '.service')
         if is_service_included "$SVC"; then
           deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" &
           PIDS="$PIDS $!"
         fi
-      done
+      done < <(echo "$HUB_CONFIGS" | jq -c '.[]')
       FAIL=0
       for PID in $PIDS; do
         wait "$PID" || FAIL=1

@@ -3,7 +3,7 @@ import { resolvePipelineConfig } from '@nestfolio/cdk-constructs/utils';
 import { MarketwatchAdptStack } from './service.stack';
 
 const app = new App();
-const { prefix, account, region, service, subsystem, schedule } = resolvePipelineConfig(
+const { prefix, account, region, service, subsystem, schedule, observability } = resolvePipelineConfig(
   app,
   'marketwatch-adpt',
 );
@@ -12,6 +12,7 @@ new MarketwatchAdptStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,
+  observability,
   schedule: schedule ?? { enabled: false, rate: 'rate(24 hours)' },
   env: {
     account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],

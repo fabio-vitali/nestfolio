@@ -92,7 +92,7 @@ export class AgentRuntime extends Construct {
     // Create Gateway with tool targets
     if (props.toolTargets && props.toolTargets.length > 0) {
       this.gateway = new agentcore.Gateway(this, 'Gateway', {
-        gatewayName: `${props.runtimeName}-tools`,
+        gatewayName: `${props.runtimeName.replace(/_/g, '-')}-tools`,
         protocolConfiguration: new agentcore.McpProtocolConfiguration({
           instructions: `Tools for ${props.runtimeName}`,
           searchType: agentcore.McpGatewaySearchType.SEMANTIC,
@@ -101,8 +101,9 @@ export class AgentRuntime extends Construct {
       });
 
       for (const tool of props.toolTargets) {
-        this.gateway.addLambdaTarget(tool.name, {
-          gatewayTargetName: tool.name,
+        const sanitizedName = tool.name.replace(/_/g, '-');
+        this.gateway.addLambdaTarget(sanitizedName, {
+          gatewayTargetName: sanitizedName,
           description: tool.description,
           lambdaFunction: tool.handler,
           toolSchema: agentcore.ToolSchema.fromLocalAsset(tool.schemaPath),

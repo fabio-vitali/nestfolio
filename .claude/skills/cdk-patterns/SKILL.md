@@ -68,6 +68,16 @@ this.addObservability({
 });
 ```
 
+**Important:** Pass the construct objects (`Ingress`, `Egress`, `Orchestration`) directly — NOT their `.handler` properties. The method extracts handlers and DLQs internally. The property name for additional Lambda functions is `extraLambdas` (not `extra`).
+
+```ts
+// WRONG — passes a Lambda function instead of the construct
+this.addObservability({ ingress: ingress.handler, egress: egress.handler });
+
+// CORRECT — passes construct objects
+this.addObservability({ ingress, egress, orchestration });
+```
+
 ---
 
 ## 6-Construct Pattern
@@ -176,6 +186,8 @@ egress.dlq      // Queue
 
 Egress filters INSERT and MODIFY events for each `publishableType`. `StartingPosition.LATEST`, `bisectBatchOnError: true`.
 
+**Filter grouping:** Filter criteria are auto-grouped by DynamoDB Stream action (INSERT / MODIFY / REMOVE) with OR'd `__typename` values. This means the actual number of filters is at most 3 (one per action), regardless of how many event types are declared. **Warning:** Never create multiple `DynamoEventSource` instances on the same table — DynamoDB Streams enforces a 2-reader-per-shard throttling limit. If a service needs a second Stream consumer (e.g. a reducer), coordinate carefully with Egress to stay within the limit.
+
 ---
 
 ### 4. Facade
@@ -219,6 +231,8 @@ facade.graphqlUrl   // string | undefined
 ```
 
 API URL is auto-stored in SSM at `naming.ssmParameterPath('api/graphqlUrl')`.
+
+**SSM path for Facade exports:** Use `this.naming.ssmServicePath('api/endpoint')` (per-service path), NOT `this.naming.ssmParameterPath(...)` (per-subsystem path). `ssmServicePath` scopes the parameter to the individual service, avoiding collisions when multiple services in the same subsystem export API endpoints.
 
 **Auto-discovery helper:**
 ```ts
@@ -269,6 +283,12 @@ agentRuntime.runtime   // agentcore.Runtime
 agentRuntime.gateway   // agentcore.Gateway | undefined (present if toolTargets provided)
 ```
 
+**Naming rules:** Runtime names must match `[a-zA-Z0-9_]` (underscores OK, no hyphens). Gateway and target names must match `[a-zA-Z0-9-]` (hyphens only, no underscores). NamingService sanitizes these automatically: `runtimeName` substitutes underscores, while gateway/target IDs substitute hyphens. Always use the NamingService output rather than hand-crafting names.
+
+**Memory namespace `{sessionId}`:** `MemoryStrategy.usingSummarization()` requires a `{sessionId}` placeholder in the namespace string — the runtime replaces it at invocation time. Other strategy types (`UserPreference`, `Semantic`) do NOT require it. Example: `namespaces: ['/my-scope/{actorId}/sessions/{sessionId}']`.
+
+**Bedrock model IDs — inference profiles:** Newer Claude models (4.5, 4.6) require US inference profile IDs, not base model IDs. Use `us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-opus-4-6-v1`, `us.anthropic.claude-haiku-4-5-20251001-v1:0`. `BedrockFoundationModel.grantInvoke()` generates `foundation-model/` ARN which doesn't match inference profiles — add a manual IAM grant for `inference-profile/*` when using `Memory` or other constructs that internally call `model.grantInvoke()`.
+
 ---
 
 ### 6. Orchestration
@@ -304,6 +324,19 @@ orchestration.grantCallbackAccess(handler, 'DECISION_SM_ARN');
 ```
 
 **Migration note:** When migrating an existing Step Functions state machine to the Orchestration construct, use the same construct ID to preserve CloudFormation logical IDs and avoid resource replacement.
+
+**CustomState `addCatch` requirement:** When using `sfn.CustomState`, Catch targets MUST be wired via the `.addCatch()` API, NOT via raw JSON `Catch[].Next` strings in `stateJson`. Raw JSON Catch blocks are opaque to CDK's graph traversal — catch-target states won't be discovered by `DefinitionBody.fromChainable()` and will be silently excluded from the rendered ASL.
+
+```ts
+// WRONG: handleError state not discoverable by CDK — omitted from ASL
+new sfn.CustomState(this, 'MyTask', {
+  stateJson: { ..., Catch: [{ ErrorEquals: ['States.Timeout'], Next: 'HandleError' }] },
+});
+
+// CORRECT: handleError registered in CDK state graph
+const myTask = new sfn.CustomState(this, 'MyTask', { stateJson: { ... } });
+myTask.addCatch(handleError, { errors: ['States.Timeout'], resultPath: '$.error' });
+```
 
 ---
 
@@ -444,7 +477,8 @@ this.naming.tableName()                 // "dev-investor-bff-table"
 this.naming.queueName()                 // "dev-investor-bff-queue"
 this.naming.queueName('dlq')            // "dev-investor-bff-dlq-queue"
 this.naming.functionName('handler')     // "dev-investor-bff-handler"
-this.naming.ssmParameterPath('api/url') // "/nestfolio/dev-investor/api/url"
+this.naming.ssmParameterPath('api/url') // "/nestfolio/dev-investor/api/url"         (per-subsystem)
+this.naming.ssmServicePath('api/endpoint') // "/nestfolio/dev-investor-bff/api/endpoint" (per-service — use for Facade exports)
 ```
 
 ---
