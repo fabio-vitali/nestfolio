@@ -39,12 +39,21 @@ export class KnowledgeBase extends Construct {
       autoDeleteObjects: removalPolicy === RemovalPolicy.DESTROY,
     });
 
+    // ── S3 Bucket (vector index storage) ──────────────────────────────────
+    const vectorBucket = new Bucket(this, 'VectorBucket', {
+      encryption: BucketEncryption.S3_MANAGED,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      removalPolicy,
+      autoDeleteObjects: removalPolicy === RemovalPolicy.DESTROY,
+    });
+
     // ── IAM Role for Bedrock KB ────────────────────────────────────────────
     const kbRole = new Role(this, 'KBRole', {
       assumedBy: new ServicePrincipal('bedrock.amazonaws.com'),
     });
 
     this.bucket.grantRead(kbRole);
+    vectorBucket.grantReadWrite(kbRole);
 
     const embeddingModelArn = Arn.format({
       partition: 'aws',
@@ -74,7 +83,10 @@ export class KnowledgeBase extends Construct {
       },
       storageConfiguration: {
         type: 'S3_VECTORS',
-        s3VectorsConfiguration: {},
+        s3VectorsConfiguration: {
+          indexName: `${id}-${props.kbName}-index`,
+          vectorBucketArn: vectorBucket.bucketArn,
+        },
       },
     });
 
