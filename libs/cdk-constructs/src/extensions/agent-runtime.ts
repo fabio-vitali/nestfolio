@@ -5,6 +5,7 @@ import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { State } from '../core/state';
 import { IUserPool, IUserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
+import * as fs from 'fs';
 
 export interface ToolTarget {
   name: string;
@@ -102,11 +103,17 @@ export class AgentRuntime extends Construct {
 
       for (const tool of props.toolTargets) {
         const sanitizedName = tool.name.replace(/_/g, '-');
+        // Read schema file and wrap in MCP ToolDefinition format
+        const inputSchema = JSON.parse(fs.readFileSync(tool.schemaPath, 'utf-8'));
         this.gateway.addLambdaTarget(sanitizedName, {
           gatewayTargetName: sanitizedName,
           description: tool.description,
           lambdaFunction: tool.handler,
-          toolSchema: agentcore.ToolSchema.fromLocalAsset(tool.schemaPath),
+          toolSchema: agentcore.ToolSchema.fromInline([{
+            name: tool.name,
+            description: tool.description,
+            inputSchema,
+          }]),
         });
       }
 

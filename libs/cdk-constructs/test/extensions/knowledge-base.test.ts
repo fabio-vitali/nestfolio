@@ -37,8 +37,8 @@ describe('KnowledgeBase construct', () => {
     });
   });
 
-  it('creates 2 S3 buckets (data source + vector index)', () => {
-    template.resourceCountIs('AWS::S3::Bucket', 2);
+  it('creates exactly 1 S3 bucket (data source)', () => {
+    template.resourceCountIs('AWS::S3::Bucket', 1);
   });
 
   it('creates a Bedrock Knowledge Base', () => {
@@ -49,13 +49,6 @@ describe('KnowledgeBase construct', () => {
         Type: 'VECTOR',
         VectorKnowledgeBaseConfiguration: {
           EmbeddingModelArn: Match.stringLikeRegexp('amazon\\.titan-embed-text-v2'),
-        },
-      },
-      StorageConfiguration: {
-        Type: 'S3_VECTORS',
-        S3VectorsConfiguration: {
-          IndexName: Match.stringLikeRegexp('regulatory-index'),
-          VectorBucketArn: Match.anyValue(),
         },
       },
     });
@@ -118,8 +111,8 @@ describe('KnowledgeBase + AdapterSchedule integration', () => {
     template = Template.fromStack(stack);
   });
 
-  it('creates S3 buckets and a Scheduler schedule', () => {
-    template.resourceCountIs('AWS::S3::Bucket', 2);
+  it('creates an S3 bucket and a Scheduler schedule', () => {
+    template.resourceCountIs('AWS::S3::Bucket', 1);
     template.resourceCountIs('AWS::Scheduler::Schedule', 1);
   });
 

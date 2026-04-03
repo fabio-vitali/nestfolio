@@ -39,21 +39,12 @@ export class KnowledgeBase extends Construct {
       autoDeleteObjects: removalPolicy === RemovalPolicy.DESTROY,
     });
 
-    // ── S3 Bucket (vector index storage) ──────────────────────────────────
-    const vectorBucket = new Bucket(this, 'VectorBucket', {
-      encryption: BucketEncryption.S3_MANAGED,
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      removalPolicy,
-      autoDeleteObjects: removalPolicy === RemovalPolicy.DESTROY,
-    });
-
     // ── IAM Role for Bedrock KB ────────────────────────────────────────────
     const kbRole = new Role(this, 'KBRole', {
       assumedBy: new ServicePrincipal('bedrock.amazonaws.com'),
     });
 
     this.bucket.grantRead(kbRole);
-    vectorBucket.grantReadWrite(kbRole);
 
     const embeddingModelArn = Arn.format({
       partition: 'aws',
@@ -70,7 +61,10 @@ export class KnowledgeBase extends Construct {
       resources: [embeddingModelArn],
     }));
 
-    // ── Bedrock Knowledge Base (L1) — S3 Vectors (managed, no external DB) ─
+    // ── Bedrock Knowledge Base (L1) — managed vector storage ───────────────
+    // Omit storageConfiguration to let Bedrock use default managed storage.
+    // S3_VECTORS requires S3 Vector Buckets (a separate resource type from standard S3)
+    // which have no CloudFormation resource type yet.
     const cfnKb = new CfnKnowledgeBase(this, 'KB', {
       name: `${id}-${props.kbName}`,
       description: props.description,
@@ -79,13 +73,6 @@ export class KnowledgeBase extends Construct {
         type: 'VECTOR',
         vectorKnowledgeBaseConfiguration: {
           embeddingModelArn,
-        },
-      },
-      storageConfiguration: {
-        type: 'S3_VECTORS',
-        s3VectorsConfiguration: {
-          indexName: `${id}-${props.kbName}-index`,
-          vectorBucketArn: vectorBucket.bucketArn,
         },
       },
     });
