@@ -60,6 +60,17 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 RESOLVER_ARGS="$RESOLVER_TIER --prefix=$PREFIX"
 CONFIGS=$(node --no-warnings "$SCRIPT_DIR/resolve-all-configs.ts" $RESOLVER_ARGS)
 
+# ── Build agent bundles ────────────────────────────────────────────────────
+echo "Building agent bundles..."
+if [ "$DRY_RUN" = "true" ]; then
+  echo "  [DRY RUN] Would run: pnpm nx run-many -t build-agent --projects=tag:has-agent-runtime"
+else
+  pnpm nx run-many -t build-agent --projects=tag:has-agent-runtime --parallel=5 || {
+    echo "ERROR: Agent bundle build failed." >&2
+    exit 1
+  }
+fi
+
 # ── Helper functions ────────────────────────────────────────────────────────
 
 is_service_included() {
