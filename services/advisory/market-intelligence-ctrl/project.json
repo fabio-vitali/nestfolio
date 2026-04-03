@@ -20,7 +20,13 @@
       "executor": "@nx/jest:jest",
       "options": { "jestConfig": "services/advisory/market-intelligence-ctrl/jest.config.js" }
     },
-    "lint": { "executor": "@nx/eslint:lint" }
+    "lint": { "executor": "@nx/eslint:lint" },
+    "build-agent": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx esbuild services/advisory/market-intelligence-ctrl/agents/server.ts --bundle --platform=node --outfile=services/advisory/market-intelligence-ctrl/agents/dist/bundle.js --format=cjs --target=node20"
+      }
+    }
   },
   "tags": ["scope:advisory", "type:ctrl"]
 }
