@@ -1,5 +1,5 @@
 import { Construct } from 'constructs';
-import { RemovalPolicy, Arn, ArnFormat } from 'aws-cdk-lib';
+import { RemovalPolicy, Arn, ArnFormat, Stack } from 'aws-cdk-lib';
 import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
 import { Role, ServicePrincipal, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { CfnKnowledgeBase, CfnDataSource } from 'aws-cdk-lib/aws-bedrock';
@@ -49,7 +49,7 @@ export class KnowledgeBase extends Construct {
     const embeddingModelArn = Arn.format({
       partition: 'aws',
       service: 'bedrock',
-      region: '*',
+      region: Stack.of(this).region,
       account: '',
       resource: 'foundation-model',
       resourceName: embeddingModelId,
