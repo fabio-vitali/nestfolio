@@ -1,29 +1,38 @@
 # onboarding-bff
 
-Domain: investor | Bus: InvestorBus
+Domain: investor | Bus: investorBus
 Stack: services/investor/onboarding-bff/src/service.stack.ts
 
 ## State
-- Table (DynamoDB, streams enabled)
+- DynamoDB table (streams enabled)
+
+## KnowledgeBase
+- OnboardingKB (nestfolio-docs): Nestfolio product documentation for onboarding agent
+  Storage: S3 Vector Bucket (CfnVectorBucket + CfnIndex, float32/1024d/cosine)
+  Embedding: amazon.titan-embed-text-v2:0
+  Data source: S3 bucket (versioned)
 
 ## Egress
-- CDC: DynamoDB Streams → onboarding-bff-egress (Lambda)
+- CDC: DynamoDB Streams -> onboarding-bff-egress (Lambda)
   Emits:
-  - OnboardingCompleted → insert: ONBOARDING_COMPLETED
-  - GoLiveConfirmed → insert: GO_LIVE_CONFIRMED
+  - OnboardingCompleted -> ONBOARDING_COMPLETED (insert only)
+  - GoLiveConfirmed -> GO_LIVE_CONFIRMED (insert only)
 
 ## AgentRuntime
-- OnboardingAgent (Bedrock): conversational onboarding agent
-  - Model: Claude Sonnet (via SSM parameter from advisory-hub)
-  - KnowledgeBase: nestfolio-docs (product documentation RAG)
-  - Tool: search_knowledge_base — search Nestfolio documentation (backed by SearchKbFn Lambda, 15s timeout)
-  - Environment: TABLE_NAME, KNOWLEDGE_BASE_ID, AGENT_RUNTIME=true
+- onboarding_agent: Conversational onboarding agent for investor onboarding
+  Models: Sonnet (SSM from advisory-hub)
+  Tools: search_knowledge_base (SearchKbFn Lambda, search-kb.schema.json, 15s timeout)
+  Environment: TABLE_NAME, KNOWLEDGE_BASE_ID, AGENT_RUNTIME=true
 
 ## Standalone Lambdas
 - SearchKbFn: RAG search over knowledge base (invoked by AgentRuntime tool, not via Ingress)
 
 ## Handlers
-- event-publisher.ts — CDC (changeDataCapture)
+- event-publisher.ts -- Egress CDC publisher
+- agent/tools/search-kb.handler.ts -- KB search tool for AgentRuntime
+- agent/tools/commit-phase.ts -- Commit onboarding phase
+- agent/tools/compute-risk.ts -- Compute risk profile
+- agent/tools/render-ui.ts -- Render UI components
 
 ## Event Types (domain/events.ts)
 - ONBOARDING_STARTED, ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED
@@ -42,4 +51,5 @@ Stack: services/investor/onboarding-bff/src/service.stack.ts
 - tools/render-ui.test.ts
 
 ## Dependencies
-- libs: cdk-constructs/core, cdk-constructs/extensions, event-processor
+- libs: cdk-constructs (core, extensions, utils), event-processor
+- SSM: advisory-hub (models/sonnet)

@@ -5,16 +5,23 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
 
 ## State
 - DynamoDB table (streams enabled)
-- FundKB (S3 + Bedrock Knowledge Base): ETF prospectuses, risk factors, instrument data, allocation history
+
+## KnowledgeBase
+- FundKB: ETF prospectuses, risk factors, instrument data, allocation history
+  Storage: S3 Vector Bucket (CfnVectorBucket + CfnIndex, float32/1024d/cosine)
+  Embedding: amazon.titan-embed-text-v2:0
+  Data source: S3 bucket (versioned)
 
 ## Ingress
-- advisoryBus → portfolio-engine-ctrl-ingress (SQS → Lambda)
+- advisoryBus -> portfolio-engine-ctrl-ingress (SQS -> Lambda)
   Subscriptions: CONSTRUCT_PORTFOLIO, SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
   Grants: AgentCore Memory API
 
 ## Egress
-- CDC: DynamoDB Streams → portfolio-engine-ctrl-egress (Lambda)
-  Emits: PORTFOLIO_CONSTRUCTION_PROPOSED (AgentInvocation, insert only), REBALANCE_PLAN_PRODUCED (ReasoningOutput, insert only)
+- CDC: DynamoDB Streams -> portfolio-engine-ctrl-egress (Lambda)
+  Emits:
+  - AgentInvocation -> PORTFOLIO_CONSTRUCTION_PROPOSED (insert only)
+  - ReasoningOutput -> REBALANCE_PLAN_PRODUCED (insert only)
 
 ## AgentRuntime
 - portfolio_engine_agents: portfolio-construction (Opus) + rebalance-planner (Sonnet) parallel orchestration
@@ -26,10 +33,10 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
 - PortfolioLookup: Retrieve current portfolio positions from State table (reads DDB)
 
 ## Handlers
-- event-listener.ts — Ingress event handler (CONSTRUCT_PORTFOLIO)
-- event-publisher.ts — Egress CDC publisher
-- kb-ingestion-handler.ts — KB ingestion for SEC filing data
-- tools/portfolio-lookup.ts — Portfolio positions tool Lambda
+- event-listener.ts -- Ingress event handler (CONSTRUCT_PORTFOLIO)
+- event-publisher.ts -- Egress CDC publisher
+- kb-ingestion-handler.ts -- KB ingestion for SEC filing data
+- tools/portfolio-lookup.ts -- Portfolio positions tool Lambda
 
 ## Event Types (domain/events.ts)
 - PortfolioEngineEventTypes: PORTFOLIO_COMPLETED, PORTFOLIO_CONSTRUCTION_PROPOSED, REBALANCE_PLAN_PRODUCED
@@ -39,6 +46,7 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
 ## Tests
 - agent-service.test.ts
 - event-listener.test.ts
+- graph.test.ts
 - kb-ingestion-handler.test.ts
 - portfolio-lookup.test.ts
 - service.stack.test.ts

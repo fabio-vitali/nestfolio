@@ -5,16 +5,22 @@ Stack: services/advisory/advisory-narrative-ctrl/src/service.stack.ts
 
 ## State
 - DynamoDB table (streams enabled)
-- ExplainabilityKB (S3 + Bedrock Knowledge Base): financial literacy content, communication templates, feedback-driven corpus
+
+## KnowledgeBase
+- ExplainabilityKB: Financial literacy content, communication templates, feedback-driven corpus
+  Storage: S3 Vector Bucket (CfnVectorBucket + CfnIndex, float32/1024d/cosine)
+  Embedding: amazon.titan-embed-text-v2:0
+  Data source: S3 bucket (versioned)
 
 ## Ingress
-- advisoryBus → advisory-narrative-ctrl-ingress (SQS → Lambda)
+- advisoryBus -> advisory-narrative-ctrl-ingress (SQS -> Lambda)
   Subscriptions: GENERATE_NARRATIVE, DECISION_FEEDBACK
   Grants: KB bucket read/write, Bedrock KB sync, AgentCore Memory API
 
 ## Egress
-- CDC: DynamoDB Streams → advisory-narrative-ctrl-egress (Lambda)
-  Emits: EXPLANATION_GENERATED (ReasoningOutput, insert only)
+- CDC: DynamoDB Streams -> advisory-narrative-ctrl-egress (Lambda)
+  Emits:
+  - ReasoningOutput -> EXPLANATION_GENERATED (insert only)
 
 ## AgentRuntime
 - advisory_narrative_agents: explainability (Sonnet, 8192 tokens) agent with feedback loop KB
@@ -22,9 +28,9 @@ Stack: services/advisory/advisory-narrative-ctrl/src/service.stack.ts
   Tools: none (all context arrives in event payload)
 
 ## Handlers
-- event-listener.ts — Ingress event handler (GENERATE_NARRATIVE)
-- event-publisher.ts — Egress CDC publisher
-- feedback-correlator.ts — Processes DECISION_FEEDBACK events, updates KB corpus
+- event-listener.ts -- Ingress event handler (GENERATE_NARRATIVE)
+- event-publisher.ts -- Egress CDC publisher
+- feedback-correlator.ts -- Processes DECISION_FEEDBACK events, updates KB corpus
 
 ## Event Types (domain/events.ts)
 - NarrativeEventTypes: NARRATIVE_COMPLETED, EXPLANATION_GENERATED
@@ -35,6 +41,7 @@ Stack: services/advisory/advisory-narrative-ctrl/src/service.stack.ts
 - agent-service.test.ts
 - event-listener.test.ts
 - feedback-correlator.test.ts
+- graph.test.ts
 - service.stack.test.ts
 
 ## Dependencies
