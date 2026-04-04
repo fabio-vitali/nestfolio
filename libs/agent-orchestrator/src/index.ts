@@ -32,3 +32,5 @@ export {
 } from './memory';
 
 export { createAgentServer, type AgentHandler } from './agent-server';
+
+export { createKBClient, type KBClient, type KBClientConfig, type KBResult } from './kb-retrieval';
