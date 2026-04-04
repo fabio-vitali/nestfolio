@@ -5,6 +5,7 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Duration } from 'aws-cdk-lib';
 import { ServiceStack, ServiceStackProps, State, Egress } from '@nestfolio/cdk-constructs/core';
+import { NamingService } from '@nestfolio/cdk-constructs/utils';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 
 export class OnboardingBffStack extends ServiceStack {
@@ -23,8 +24,9 @@ export class OnboardingBffStack extends ServiceStack {
     });
 
     // Model IDs from SSM (shared with advisory services)
+    const advisoryHubNaming = new NamingService({ prefix: props.prefix, subsystem: 'advisory', service: 'advisory-hub' });
     const sonnetModelId = StringParameter.valueForStringParameter(
-      this, `/${props.prefix}/advisory-hub/sonnet-model-id`,
+      this, advisoryHubNaming.ssmParameterPath('models/sonnet'),
     );
 
     // Knowledge Base for product documentation RAG
