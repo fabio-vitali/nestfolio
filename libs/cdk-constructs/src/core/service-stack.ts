@@ -20,6 +20,8 @@ export interface ServiceStackProps extends StackProps {
   eventBus?: IEventBus;
   /** Enable observability (Monitoring + Dashboard). Defaults to true. */
   observability?: boolean;
+  /** Enable WAF rate limiting on Facade APIs. Defaults to false. */
+  waf?: boolean;
 }
 
 export class ServiceStack extends Stack {
@@ -28,6 +30,7 @@ export class ServiceStack extends Stack {
   readonly serviceName: string;
   readonly serviceDir: string;
   readonly observability: boolean;
+  readonly waf: boolean;
   private _eventBus?: IEventBus;
 
   get eventBus(): IEventBus {
@@ -55,6 +58,7 @@ export class ServiceStack extends Stack {
     this.serviceName = props.service;
     this.serviceDir = props.serviceDir ?? '';
     this.observability = props.observability ?? true;
+    this.waf = props.waf ?? false;
     this.prefix = props.prefix;
 
     this.naming = new NamingService({

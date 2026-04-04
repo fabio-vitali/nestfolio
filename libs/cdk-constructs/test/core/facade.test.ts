@@ -132,6 +132,78 @@ describe('Facade construct', () => {
     template.resourceCountIs('AWS::AppSync::Resolver', 3);
   });
 
+  it('does not create WAF in non-prod environments by default', () => {
+    const { stack } = createFacadeStack();
+    const userPool = new UserPool(stack, 'Pool');
+    const resolver = new Function(stack, 'Resolver', {
+      runtime: Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: Code.fromInline('exports.handler = async () => ({})'),
+    });
+
+    new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'hello', handler: resolver },
+      ],
+    });
+
+    const template = Template.fromStack(stack);
+    template.resourceCountIs('AWS::WAFv2::WebACL', 0);
+  });
+
+  it('creates WAF when waf is enabled on ServiceStack', () => {
+    const app = new App({ context: { prefix: 'test' } });
+    const stack = new ServiceStack(app, 'WafStack', {
+      prefix: 'test',
+      subsystem: 'test',
+      service: 'test-svc',
+      serviceDir: os.tmpdir(),
+      waf: true,
+    });
+    const userPool = new UserPool(stack, 'Pool');
+    const resolver = new Function(stack, 'Resolver', {
+      runtime: Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: Code.fromInline('exports.handler = async () => ({})'),
+    });
+
+    new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'hello', handler: resolver },
+      ],
+    });
+
+    const template = Template.fromStack(stack);
+    template.resourceCountIs('AWS::WAFv2::WebACL', 1);
+    template.resourceCountIs('AWS::WAFv2::WebACLAssociation', 1);
+  });
+
+  it('creates WAF when explicitly enabled regardless of prefix', () => {
+    const { stack } = createFacadeStack();
+    const userPool = new UserPool(stack, 'Pool');
+    const resolver = new Function(stack, 'Resolver', {
+      runtime: Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: Code.fromInline('exports.handler = async () => ({})'),
+    });
+
+    new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+      enableWaf: true,
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'hello', handler: resolver },
+      ],
+    });
+
+    const template = Template.fromStack(stack);
+    template.resourceCountIs('AWS::WAFv2::WebACL', 1);
+  });
+
   it('creates no resolvers when neither jsResolvers nor lambdaResolvers provided', () => {
     const { stack } = createFacadeStack();
 

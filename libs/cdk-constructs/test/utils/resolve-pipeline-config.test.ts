@@ -212,7 +212,7 @@ describe('mergeConfigs', () => {
 describe('HARDCODED_FALLBACKS', () => {
   it('has expected default values', () => {
     expect(HARDCODED_FALLBACKS).toEqual({
-      observability: false, logRetention: 14, protectedResources: false, parallelDeploy: true, alarmActions: [],
+      observability: false, waf: false, logRetention: 14, protectedResources: false, parallelDeploy: true, alarmActions: [],
     });
   });
 });
@@ -244,7 +244,7 @@ describe('resolvePipelineConfig (integration)', () => {
 
     expect(config).toEqual({
       service: 'investor-hub', subsystem: 'investor', deploymentPhase: 1, dependencies: [],
-      observability: false, logRetention: 7, protectedResources: false, parallelDeploy: true, alarmActions: [],
+      observability: false, waf: false, logRetention: 7, protectedResources: false, parallelDeploy: true, alarmActions: [],
       prefix: 'sandbox-pr-42',
     });
   });

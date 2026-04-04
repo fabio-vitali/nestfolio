@@ -87,8 +87,8 @@ export class Facade extends Construct {
     });
     this.graphqlUrl = this.api.graphqlUrl;
 
-    // WAF rate limiting (S10)
-    if (props.enableWaf !== false) {
+    // WAF rate limiting — driven by pipeline config (waf flag on ServiceStack)
+    if (props.enableWaf ?? serviceStack.waf) {
       const rateLimit = props.wafRateLimit ?? 1000;
 
       const webAcl = new CfnWebACL(this, 'WebAcl', {

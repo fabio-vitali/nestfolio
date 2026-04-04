@@ -3,7 +3,7 @@ import { resolvePipelineConfig } from '@nestfolio/cdk-constructs/utils';
 import { OnboardingBffStack } from './service.stack';
 
 const app = new App();
-const { prefix, account, region, service, subsystem, observability } = resolvePipelineConfig(
+const { prefix, account, region, service, subsystem, observability, waf } = resolvePipelineConfig(
   app,
   'onboarding-bff',
 );
@@ -13,6 +13,7 @@ new OnboardingBffStack(app, `${prefix}-${service}`, {
   service,
   prefix,
   observability,
+  waf,
   env: {
     account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],
     region: region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',

@@ -3,13 +3,14 @@ import { resolvePipelineConfig } from '@nestfolio/cdk-constructs/utils';
 import { InvestorBffStack } from './service.stack';
 
 const app = new App();
-const { prefix, account, region, service, subsystem, observability } = resolvePipelineConfig(app, 'investor-bff');
+const { prefix, account, region, service, subsystem, observability, waf } = resolvePipelineConfig(app, 'investor-bff');
 
 new InvestorBffStack(app, `${prefix}-${service}`, {
   subsystem,
   service,
   prefix,
   observability,
+  waf,
   env: {
     account: account ?? process.env['CDK_DEFAULT_ACCOUNT'],
     region: region ?? process.env['CDK_DEFAULT_REGION'] ?? 'us-east-1',

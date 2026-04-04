@@ -16,6 +16,7 @@ export interface ResolvedPipelineConfig {
   deploymentPhase: 1 | 2 | 3;
   dependencies: string[];
   observability: boolean;
+  waf: boolean;
   parallelDeploy: boolean;
   logRetention: number;
   protectedResources: boolean;
@@ -40,6 +41,7 @@ type TierDefaults = Partial<
   Pick<
     ResolvedPipelineConfig,
     | 'observability'
+    | 'waf'
     | 'parallelDeploy'
     | 'logRetention'
     | 'protectedResources'
@@ -55,9 +57,10 @@ type TierDefaults = Partial<
 
 export const HARDCODED_FALLBACKS: Pick<
   ResolvedPipelineConfig,
-  'observability' | 'logRetention' | 'protectedResources' | 'parallelDeploy' | 'alarmActions'
+  'observability' | 'waf' | 'logRetention' | 'protectedResources' | 'parallelDeploy' | 'alarmActions'
 > = {
   observability: false,
+  waf: false,
   logRetention: 14,
   protectedResources: false,
   parallelDeploy: true,
