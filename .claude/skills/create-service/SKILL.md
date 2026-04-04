@@ -79,6 +79,51 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
 - [ ] 10. **Wire adapter subscription** if cross-domain events (consuming adapter deploys EB rule on source bus)
 - [ ] 11. **Commit**
 
+## AgentRuntime Service Template
+
+For services with Bedrock AgentCore agents, add the AgentRuntime construct and build-agent target:
+
+**project.json** — add build-agent target:
+```json
+{
+  "targets": {
+    "build-agent": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "esbuild src/agent/index.ts --bundle --platform=node --target=node20 --outdir=dist/agent",
+        "cwd": "services/{domain}/{service}"
+      }
+    }
+  },
+  "tags": ["has-agent-runtime"]
+}
+```
+
+**service.stack.ts** — add AgentRuntime construct:
+```typescript
+import { AgentRuntime } from '@nestfolio/cdk-constructs';
+
+const agentRuntime = new AgentRuntime(this, 'AgentRuntime', {
+  runtimeName: naming.functionName('agent'),
+  agentEntryPath: join(__dirname, '../dist/agent'),
+  modelId: 'us.anthropic.claude-sonnet-4-6',
+  tools: [
+    { name: 'my-tool', description: '...', schemaPath: join(__dirname, 'tools/my-tool.schema.json'), handler: myToolLambda },
+  ],
+});
+```
+
+**KnowledgeBase** — if the service needs RAG:
+```typescript
+import { KnowledgeBase } from '@nestfolio/cdk-constructs';
+
+const kb = new KnowledgeBase(this, 'MyKB', {
+  kbName: 'my-kb',
+  description: 'Description of the knowledge base',
+});
+// Pass kb.knowledgeBaseId to Lambda env vars
+```
+
 ## Reference Files
 - Example ctrl: `services/execution/broker-ctrl/`
 - Example adapter: `services/advisory/advisory-adpt/`
