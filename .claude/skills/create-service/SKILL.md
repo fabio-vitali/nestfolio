@@ -122,6 +122,8 @@ const kb = new KnowledgeBase(this, 'MyKB', {
   description: 'Description of the knowledge base',
 });
 // Pass kb.knowledgeBaseId to Lambda env vars
+// Note: KnowledgeBase construct handles IAM dependency ordering internally
+// (cfnKb.node.addDependency on the KB role) — no manual wiring needed
 ```
 
 ## Reference Files

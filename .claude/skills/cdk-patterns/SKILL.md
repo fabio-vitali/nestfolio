@@ -326,7 +326,13 @@ storageConfiguration: {
 }
 ```
 
-KB role needs s3vectors permissions: `PutVectors`, `QueryVectors`, `GetVectorBucket`, `GetIndex`, `DeleteVectors` — scoped to the vector bucket and index ARNs.
+KB role needs s3vectors permissions: `PutVectors`, `GetVectors`, `QueryVectors`, `DeleteVectors`, `GetVectorBucket`, `GetIndex` — scoped to the vector bucket and index ARNs. **`GetVectors` is required** — Bedrock calls it during KB creation to validate storage config.
+
+**Critical: IAM dependency ordering.** Bedrock validates the storage configuration at KB creation time by calling s3vectors APIs with the KB role. If the IAM policy isn't created yet, KB creation fails with 403. Always add:
+```ts
+cfnKb.node.addDependency(kbRole);
+```
+This ensures CloudFormation creates all role policies before the KB resource.
 
 Embedding dimensions by model:
 | Model | Default Dimension |
