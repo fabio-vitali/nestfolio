@@ -1,24 +1,78 @@
-import { ChatBedrockConverse } from '@langchain/aws';
-import { StateGraph, MessagesAnnotation } from '@langchain/langgraph';
+import {
+  createAgentNode,
+  withValidation,
+  withRetry,
+  withFallback,
+  createKBClient,
+  createMemoryClient,
+  createNoOpMemoryClient,
+  type KBClient,
+  type MemoryClient,
+} from '@nestfolio/agent-orchestrator';
+import { explainabilityConfig } from '../src/agents/explainability.config';
+import { narrativeValidationRule } from '../src/agents/validation';
+import { narrativeFallback } from '../src/agents/fallbacks';
 
-const SYSTEM_PROMPT = `You are the Nestfolio Narrative Agent. Your role is to generate clear,
-investor-friendly explanations of advisory decisions, portfolio changes, and risk assessments.
-Keep explanations concise, factual, and free of jargon.`;
+const agentNode = withFallback(
+  withRetry(
+    withValidation(
+      createAgentNode(explainabilityConfig),
+      narrativeValidationRule,
+    ),
+    { maxAttempts: 2, escalationPath: ['sonnet', 'opus'] },
+  ),
+  narrativeFallback,
+);
 
-export function buildGraph() {
-  const model = new ChatBedrockConverse({
-    model: process.env['MODEL_SONNET_ID'] ?? 'us.anthropic.claude-sonnet-4-6-20250514',
+function buildKBClient(): KBClient | null {
+  const kbId = process.env['KNOWLEDGE_BASE_ID'];
+  if (!kbId) return null;
+  return createKBClient({
+    knowledgeBaseId: kbId,
     region: process.env['AWS_REGION'] ?? 'us-east-1',
   });
+}
 
-  return new StateGraph(MessagesAnnotation)
-    .addNode('agent', async (state) => {
-      const response = await model.invoke([
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...state.messages,
-      ]);
-      return { messages: [response] };
-    })
-    .addEdge('__start__', 'agent')
-    .compile();
+function buildMemoryClient(): MemoryClient {
+  const memoryId = process.env['MEMORY_ID'];
+  if (!memoryId) return createNoOpMemoryClient();
+  return createMemoryClient({
+    memoryId,
+    region: process.env['AWS_REGION'] ?? 'us-east-1',
+    serviceName: 'advisory-narrative-ctrl',
+  });
+}
+
+export async function invokeNarrative(params: {
+  tenantId: string;
+  decisionId: string;
+  input: string;
+}): Promise<Record<string, unknown>> {
+  const memory = buildMemoryClient();
+  const session = memory.openDecisionSession(params.tenantId, params.decisionId);
+  const kb = buildKBClient();
+
+  // 1. Read upstream decision context from memory
+  const upstreamRecords = await session.readUpstreamOutput('advisory-ctrl');
+  const upstreamContext = upstreamRecords.length > 0
+    ? `\n\nUpstream decision context:\n${upstreamRecords.map((r) => r.content).join('\n')}`
+    : '';
+
+  // 2. Retrieve relevant communication templates from KB
+  let kbContext = '';
+  if (kb) {
+    const kbResults = await kb.retrieve(params.input, 3);
+    if (kbResults.length > 0) {
+      kbContext = `\n\nKnowledge base context:\n${kbResults.map((r) => r.text).join('\n')}`;
+    }
+  }
+
+  // 3. Invoke agent with enriched input
+  const enrichedInput = params.input + upstreamContext + kbContext;
+  const result = await agentNode({ input: enrichedInput });
+
+  // 4. Write output to memory
+  await session.writeAgentOutput(result);
+
+  return result;
 }
