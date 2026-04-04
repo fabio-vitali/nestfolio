@@ -94,6 +94,8 @@ export class KnowledgeBase extends Construct {
     }));
 
     // ── Bedrock Knowledge Base (L1) ────────────────────────────────────────
+    // Bedrock validates storage config at creation (calls s3vectors:QueryVectors),
+    // so IAM policies must exist first — add explicit dependency on the role subtree.
     const cfnKb = new CfnKnowledgeBase(this, 'KB', {
       name: `${id}-${props.kbName}`,
       description: props.description,
@@ -112,6 +114,8 @@ export class KnowledgeBase extends Construct {
         },
       },
     });
+
+    cfnKb.node.addDependency(kbRole);
 
     this.knowledgeBaseId = cfnKb.attrKnowledgeBaseId;
     this.knowledgeBaseArn = cfnKb.attrKnowledgeBaseArn;
