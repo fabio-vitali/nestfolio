@@ -1,6 +1,6 @@
 import { join } from 'path';
 import { Construct } from 'constructs';
-import { Duration } from 'aws-cdk-lib';
+import { Duration, Stack } from 'aws-cdk-lib';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
@@ -79,12 +79,14 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
       ],
     });
 
-    // Grant Memory execution role broad Bedrock access for inference profile models
-    // BedrockFoundationModel.grantInvoke() uses foundation-model/ ARN but inference profiles need inference-profile/ ARN
+    // Grant Memory execution role Bedrock access scoped to inference profiles + foundation models
     if (memory.executionRole) {
       memory.executionRole.addToPrincipalPolicy(new PolicyStatement({
         actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream', 'bedrock:GetFoundationModel', 'bedrock:GetInferenceProfile'],
-        resources: ['*'],
+        resources: [
+          `arn:aws:bedrock:${Stack.of(this).region}:*:inference-profile/us.*`,
+          `arn:aws:bedrock:${Stack.of(this).region}::foundation-model/*`,
+        ],
       }));
     }
 
