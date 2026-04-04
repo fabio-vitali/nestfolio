@@ -1,24 +1,93 @@
-import { ChatBedrockConverse } from '@langchain/aws';
-import { StateGraph, MessagesAnnotation } from '@langchain/langgraph';
+// services/advisory/investor-profile-ctrl/agents/graph.ts
+import {
+  createOrchestrator,
+  invokeOrchestrator,
+  createKBClient,
+  createMemoryClient,
+  createNoOpMemoryClient,
+  type CompiledGraph,
+  type KBClient,
+  type MemoryClient,
+} from '@nestfolio/agent-orchestrator';
+import { userGoalsConfig } from '../src/agents/user-goals.config';
+import { riskAssessmentConfig } from '../src/agents/risk-assessment.config';
+import { goalsValidationRule, riskValidationRule } from '../src/agents/validation';
+import { userGoalsFallback, riskAssessmentFallback } from '../src/agents/fallbacks';
+import { InvestorProfileState } from '../src/agents/state';
 
-const SYSTEM_PROMPT = `You are the Nestfolio Investor Profile Agent. Your role is to interpret
-investor goals, assess risk tolerance, and evaluate suitability against regulatory frameworks.
-Produce structured goal interpretations and risk evaluations.`;
+const graph: CompiledGraph = createOrchestrator({
+  agents: {
+    'user-goals': userGoalsConfig,
+    'risk-assessment': riskAssessmentConfig,
+  },
+  waves: [
+    { agents: ['user-goals', 'risk-assessment'] },
+  ],
+  stateAnnotation: InvestorProfileState,
+  validationRules: {
+    'user-goals': goalsValidationRule,
+    'risk-assessment': riskValidationRule,
+  },
+  fallbacks: {
+    'user-goals': userGoalsFallback,
+    'risk-assessment': riskAssessmentFallback,
+  },
+  retryOptions: { maxAttempts: 3 },
+});
 
-export function buildGraph() {
-  const model = new ChatBedrockConverse({
-    model: process.env['MODEL_HAIKU_ID'] ?? 'us.anthropic.claude-haiku-4-5-20251001',
-    region: process.env['AWS_REGION'] ?? 'us-east-1',
-  });
-
-  return new StateGraph(MessagesAnnotation)
-    .addNode('agent', async (state) => {
-      const response = await model.invoke([
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...state.messages,
-      ]);
-      return { messages: [response] };
-    })
-    .addEdge('__start__', 'agent')
-    .compile();
+function buildKBClient(): KBClient | null {
+  const kbId = process.env['KNOWLEDGE_BASE_ID'];
+  if (!kbId) return null;
+  return createKBClient({ knowledgeBaseId: kbId, region: process.env['AWS_REGION'] ?? 'us-east-1' });
 }
+
+function buildMemoryClient(): MemoryClient {
+  const memoryId = process.env['MEMORY_ID'];
+  if (!memoryId) return createNoOpMemoryClient();
+  return createMemoryClient({
+    memoryId,
+    region: process.env['AWS_REGION'] ?? 'us-east-1',
+    serviceName: 'investor-profile-ctrl',
+  });
+}
+
+export async function invokeInvestorProfile(params: {
+  tenantId: string;
+  decisionId: string;
+  input: string;
+}): Promise<Record<string, unknown>> {
+  const memory = buildMemoryClient();
+  const session = memory.openDecisionSession(params.tenantId, params.decisionId);
+  const kb = buildKBClient();
+
+  // 1. Retrieve regulatory frameworks from KB
+  let kbContext = '';
+  if (kb) {
+    const kbResults = await kb.retrieve(params.input, 3);
+    if (kbResults.length > 0) {
+      kbContext = `\n\nRegulatory context from knowledge base:\n${kbResults.map((r) => r.text).join('\n')}`;
+    }
+  }
+
+  // 2. Read tenant history from long-term memory
+  const tenantHistory = await session.searchLongTermMemory(
+    `prior risk assessments for tenant ${params.tenantId}`,
+    3,
+  );
+  const historyContext = tenantHistory.length > 0
+    ? `\n\nTenant history:\n${tenantHistory.map((r) => r.content).join('\n')}`
+    : '';
+
+  // 3. Invoke orchestrator (parallel: user-goals + risk-assessment)
+  const enrichedInput = params.input + kbContext + historyContext;
+  const result = await invokeOrchestrator(graph, { input: enrichedInput }, {});
+
+  // 4. Persist to memory
+  if (!('serviceUnavailable' in result)) {
+    await session.writeAgentOutput(result);
+  }
+
+  return result;
+}
+
+export { graph };
