@@ -41,7 +41,19 @@ describe('KnowledgeBase construct', () => {
     template.resourceCountIs('AWS::S3::Bucket', 1);
   });
 
-  it('creates a Bedrock Knowledge Base', () => {
+  it('creates an S3 Vector Bucket for embedding storage', () => {
+    template.resourceCountIs('AWS::S3Vectors::VectorBucket', 1);
+  });
+
+  it('creates a Vector Index with float32/1024d/cosine config', () => {
+    template.hasResourceProperties('AWS::S3Vectors::Index', {
+      DataType: 'float32',
+      Dimension: 1024,
+      DistanceMetric: 'cosine',
+    });
+  });
+
+  it('creates a Bedrock Knowledge Base with S3_VECTORS storage', () => {
     template.hasResourceProperties('AWS::Bedrock::KnowledgeBase', {
       Name: Match.stringLikeRegexp('regulatory'),
       Description: 'Regulatory & Compliance KB',
@@ -51,6 +63,28 @@ describe('KnowledgeBase construct', () => {
           EmbeddingModelArn: Match.stringLikeRegexp('amazon\\.titan-embed-text-v2'),
         },
       },
+      StorageConfiguration: {
+        Type: 'S3_VECTORS',
+        S3VectorsConfiguration: {
+          VectorBucketArn: Match.anyValue(),
+          IndexArn: Match.anyValue(),
+        },
+      },
+    });
+  });
+
+  it('grants s3vectors permissions to the KB role', () => {
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: Match.objectLike({
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: Match.arrayWith([
+              's3vectors:PutVectors',
+              's3vectors:QueryVectors',
+            ]),
+          }),
+        ]),
+      }),
     });
   });
 
