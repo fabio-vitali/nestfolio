@@ -82,10 +82,11 @@ export class KnowledgeBase extends Construct {
     kbRole.addToPolicy(new PolicyStatement({
       actions: [
         's3vectors:PutVectors',
+        's3vectors:GetVectors',
         's3vectors:QueryVectors',
+        's3vectors:DeleteVectors',
         's3vectors:GetVectorBucket',
         's3vectors:GetIndex',
-        's3vectors:DeleteVectors',
       ],
       resources: [
         this.vectorBucket.attrVectorBucketArn,

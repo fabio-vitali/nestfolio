@@ -80,6 +80,7 @@ describe('KnowledgeBase construct', () => {
           Match.objectLike({
             Action: Match.arrayWith([
               's3vectors:PutVectors',
+              's3vectors:GetVectors',
               's3vectors:QueryVectors',
             ]),
           }),
