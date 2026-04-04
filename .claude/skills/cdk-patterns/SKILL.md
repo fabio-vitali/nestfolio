@@ -289,6 +289,54 @@ agentRuntime.gateway   // agentcore.Gateway | undefined (present if toolTargets 
 
 **Bedrock model IDs — inference profiles:** Newer Claude models (4.5, 4.6) require US inference profile IDs, not base model IDs. Use `us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-opus-4-6-v1`, `us.anthropic.claude-haiku-4-5-20251001-v1:0`. `BedrockFoundationModel.grantInvoke()` generates `foundation-model/` ARN which doesn't match inference profiles — add a manual IAM grant for `inference-profile/*` when using `Memory` or other constructs that internally call `model.grantInvoke()`.
 
+**Inference profile IAM grant pattern:** When scoping Bedrock IAM manually (instead of `resources: ['*']`), use:
+```ts
+role.addToPrincipalPolicy(new PolicyStatement({
+  actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+  resources: [
+    `arn:aws:bedrock:${Stack.of(this).region}:*:inference-profile/us.*`,
+    `arn:aws:bedrock:${Stack.of(this).region}::foundation-model/*`,
+  ],
+}));
+```
+
+**KnowledgeBase with S3 Vector Bucket Storage:**
+
+KnowledgeBase uses S3 Vector Buckets (`AWS::S3Vectors::VectorBucket`) and Indexes (`AWS::S3Vectors::Index`) for embedding storage. These are native CloudFormation resources — no AwsCustomResource needed.
+
+```ts
+import { CfnVectorBucket, CfnIndex } from 'aws-cdk-lib/aws-s3vectors';
+
+// Vector storage
+const vectorBucket = new CfnVectorBucket(this, 'VectorBucket');
+const vectorIndex = new CfnIndex(this, 'VectorIndex', {
+  vectorBucketArn: vectorBucket.attrVectorBucketArn,
+  dataType: 'float32',
+  dimension: 1024, // must match embedding model output
+  distanceMetric: 'cosine',
+});
+
+// Wire into CfnKnowledgeBase
+storageConfiguration: {
+  type: 'S3_VECTORS',
+  s3VectorsConfiguration: {
+    vectorBucketArn: vectorBucket.attrVectorBucketArn,
+    indexArn: vectorIndex.attrIndexArn,
+  },
+}
+```
+
+KB role needs s3vectors permissions: `PutVectors`, `QueryVectors`, `GetVectorBucket`, `GetIndex`, `DeleteVectors` — scoped to the vector bucket and index ARNs.
+
+Embedding dimensions by model:
+| Model | Default Dimension |
+|-------|-------------------|
+| amazon.titan-embed-text-v2:0 | 1024 |
+| amazon.titan-embed-text-v1 | 1536 |
+| cohere.embed-english-v3 | 1024 |
+
+VectorBucket naming: 3-63 chars, lowercase + numbers + hyphens only. Let CloudFormation auto-generate names to avoid conflicts.
+
 ---
 
 ### 6. Orchestration
@@ -494,6 +542,7 @@ this.naming.ssmServicePath('api/endpoint') // "/nestfolio/dev-investor-bff/api/e
 | **Standard Ctrl** | State + Ingress + Egress | `ledger-ctrl` |
 | **Orchestrated Ctrl** | State + Ingress + Egress + Orchestration | `broker-ctrl` |
 | **AgentRuntime Ctrl** | State + Ingress + Egress + AgentRuntime | `advisory-ctrl` |
+| **KB + AgentRuntime Ctrl** | State + Ingress + Egress + AgentRuntime + KnowledgeBase | `advisory-narrative-ctrl` |
 
 ---
 
@@ -505,6 +554,7 @@ this.naming.ssmServicePath('api/endpoint') // "/nestfolio/dev-investor-bff/api/e
 - `libs/cdk-constructs/src/core/egress.ts` — Egress (DDB Streams → Lambda → EB)
 - `libs/cdk-constructs/src/core/facade.ts` — Facade (AppSync GraphQL + WAF)
 - `libs/cdk-constructs/src/extensions/agent-runtime.ts` — AgentRuntime (Bedrock AgentCore)
+- `libs/cdk-constructs/src/extensions/knowledge-base.ts` — KnowledgeBase (S3 Vector Bucket + Bedrock KB)
 - `libs/cdk-constructs/src/core/orchestration.ts` — Orchestration (Step Functions + EventBridge triggers)
 - `libs/cdk-constructs/src/utils/naming-service.ts` — NamingService, getPrefix, discoverSubsystem
 - `services/ledger/ledger-ctrl/src/service.stack.ts` — Full example: State + Ingress + Egress + extra DDB stream consumer
