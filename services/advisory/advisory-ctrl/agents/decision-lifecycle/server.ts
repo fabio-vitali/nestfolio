@@ -1,15 +1,19 @@
 import { serve } from '@hono/node-server';
 import { createAgentServer } from '@nestfolio/agent-orchestrator';
-import { buildGraph } from './graph';
+import { invokeDecisionLifecycle } from './graph';
 
-const graph = buildGraph();
-
-const app = createAgentServer(async (prompt, _sessionId) => {
-  const result = await graph.invoke({
-    messages: [{ role: 'user', content: prompt }],
+const app = createAgentServer(async (prompt, sessionId) => {
+  const result = await invokeDecisionLifecycle({
+    tenantId: sessionId.split('/')[0] || sessionId,
+    decisionId: sessionId,
+    input: prompt,
   });
-  const lastMsg = result.messages[result.messages.length - 1];
-  return typeof lastMsg.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg.content);
+
+  if ('serviceUnavailable' in result) {
+    return JSON.stringify({ error: result.reason, status: 'service_unavailable' });
+  }
+
+  return JSON.stringify(result);
 });
 
 serve({ fetch: app.fetch, port: 8080, hostname: '0.0.0.0' });

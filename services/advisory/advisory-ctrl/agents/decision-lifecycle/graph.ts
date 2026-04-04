@@ -1,25 +1,72 @@
-import { ChatBedrockConverse } from '@langchain/aws';
-import { StateGraph, MessagesAnnotation } from '@langchain/langgraph';
+import {
+  createOrchestrator,
+  invokeOrchestrator,
+  createMemoryClient,
+  createNoOpMemoryClient,
+  type CompiledGraph,
+  type MemoryClient,
+} from '@nestfolio/agent-orchestrator';
+import { AGENT_CONFIGS, DECISION_LIFECYCLE_WAVES } from '../../src/agents/config';
+import { VALIDATION_RULES } from '../../src/agents/validation';
+import { FALLBACK_MAP } from '../../src/agents/fallbacks';
+import { DecisionLifecycleState } from '../../src/agents/state';
 
-const SYSTEM_PROMPT = `You are the Nestfolio Decision Lifecycle Agent. You orchestrate the advisory
-decision pipeline: interpreting investor goals, evaluating market conditions, constructing portfolios,
-and producing decision packets for compliance review. You coordinate multiple sub-agents and tools
-to produce comprehensive, auditable investment recommendations.`;
+const graph: CompiledGraph = createOrchestrator({
+  agents: AGENT_CONFIGS,
+  waves: DECISION_LIFECYCLE_WAVES,
+  stateAnnotation: DecisionLifecycleState,
+  validationRules: VALIDATION_RULES,
+  fallbacks: FALLBACK_MAP,
+  retryOptions: { maxAttempts: 3 },
+});
 
-export function buildGraph() {
-  const model = new ChatBedrockConverse({
-    model: process.env['MODEL_SONNET_ID'] ?? 'us.anthropic.claude-sonnet-4-6-20250514',
+function buildMemoryClient(): MemoryClient {
+  const memoryId = process.env['MEMORY_ID'];
+  if (!memoryId) return createNoOpMemoryClient();
+  return createMemoryClient({
+    memoryId,
     region: process.env['AWS_REGION'] ?? 'us-east-1',
+    serviceName: 'advisory-ctrl',
   });
-
-  return new StateGraph(MessagesAnnotation)
-    .addNode('agent', async (state) => {
-      const response = await model.invoke([
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...state.messages,
-      ]);
-      return { messages: [response] };
-    })
-    .addEdge('__start__', 'agent')
-    .compile();
 }
+
+export async function invokeDecisionLifecycle(params: {
+  tenantId: string;
+  decisionId: string;
+  input: string;
+}): Promise<Record<string, unknown>> {
+  const memory = buildMemoryClient();
+  const session = memory.openDecisionSession(params.tenantId, params.decisionId);
+
+  // Enrich input with long-term memory context
+  const priorDecisions = await session.searchLongTermMemory(
+    `prior decisions for tenant ${params.tenantId}`,
+    3,
+  );
+  const memoryContext =
+    priorDecisions.length > 0
+      ? `\n\nPrior decision context:\n${priorDecisions.map((r) => r.content).join('\n')}`
+      : '';
+
+  const enrichedInput = params.input + memoryContext;
+
+  const result = await invokeOrchestrator(
+    graph,
+    {
+      input: enrichedInput,
+      tenantId: params.tenantId,
+      decisionId: params.decisionId,
+    },
+    {},
+  );
+
+  // Persist all agent outputs to memory
+  if (!('serviceUnavailable' in result)) {
+    await session.writeAgentOutput(result);
+  }
+
+  return result;
+}
+
+// Backward-compatible export for server.ts
+export { graph };
