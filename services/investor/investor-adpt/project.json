@@ -20,6 +20,10 @@
       "executor": "@nx/jest:jest",
       "options": { "jestConfig": "services/investor/investor-adpt/jest.config.js" }
     },
+    "test:integration": {
+      "executor": "@nx/jest:jest",
+      "options": { "jestConfig": "services/investor/investor-adpt/jest.integration.config.js" }
+    },
     "lint": { "executor": "@nx/eslint:lint" }
   },
   "tags": ["scope:investor", "type:adpt"]
