@@ -1,7 +1,7 @@
 import { join } from 'path';
 import { Construct } from 'constructs';
 import { Duration, Stack } from 'aws-cdk-lib';
-import { Match, Rule } from 'aws-cdk-lib/aws-events';
+import { CfnRule, Rule } from 'aws-cdk-lib/aws-events';
 import { SqsQueue } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
@@ -106,18 +106,29 @@ export class Ingress extends Construct {
     });
 
     // EventBridge Rule -> SQS
-    // Source filter: pass normal events + test events targeting this service only
-    new Rule(this, 'Rule', {
+    // Source filter via $or: pass normal events + test events targeting this service only
+    // Note: array-level OR with mixed content filters (anything-but + prefix) doesn't work
+    // for SQS targets despite passing test-event-pattern validation. Use $or instead.
+    const rule = new Rule(this, 'Rule', {
       eventBus,
-      eventPattern: {
-        detailType: props.eventTypes,
-        source: Match.anyOf(
-          Match.anythingButPrefix('integration-test:'),
-          Match.prefix(`integration-test:${serviceName}`),
-        ),
-      },
+      eventPattern: { detailType: props.eventTypes },
       targets: [new SqsQueue(this.queue)],
     });
+
+    // Override with $or pattern at L1 level (CDK EventPattern doesn't support $or)
+    const cfnRule = rule.node.defaultChild as CfnRule;
+    cfnRule.addPropertyOverride('EventPattern', JSON.stringify({
+      '$or': [
+        {
+          'detail-type': props.eventTypes,
+          'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }],
+        },
+        {
+          'detail-type': props.eventTypes,
+          'source': [{ 'prefix': `integration-test:${serviceName}` }],
+        },
+      ],
+    }));
 
     // SQS -> Lambda
     const batchingWindow = props.maxBatchingWindow
