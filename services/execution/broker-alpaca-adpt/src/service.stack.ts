@@ -2,6 +2,7 @@ import { join } from 'path';
 import { Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { ParamsAndSecretsLayerVersion, ParamsAndSecretsVersions } from 'aws-cdk-lib/aws-lambda';
 import { Egress, Ingress, Orchestration, ServiceStack, ServiceStackProps, State } from '@nestfolio/cdk-constructs/core';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { AlpacaAdptEventTypes } from './domain/events';
@@ -15,6 +16,11 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
     const state = new State(this, 'State');
     const table = state.getTable();
 
+    const paramsAndSecrets = ParamsAndSecretsLayerVersion.fromVersion(
+      ParamsAndSecretsVersions.V1_0_103,
+      { parameterStoreTtl: Duration.seconds(5) },
+    );
+
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
@@ -23,6 +29,11 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
         AlpacaAdptEventTypes.ALPACA_TRANSFER_REQUESTED,
         AlpacaAdptEventTypes.ALPACA_ACCOUNT_CHECK,
       ],
+      environment: {
+        ALPACA_BASE_URL_PARAM: `/nestfolio/${props.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
+        ALPACA_SECRET_ID: `${props.prefix}-broker-alpaca-adpt/alpaca-api-keys`,
+      },
+      lambdaProps: { paramsAndSecrets },
     });
 
     const egress = new Egress(this, 'Egress', {
@@ -65,7 +76,10 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
       entry: join(__dirname, 'handlers', 'order-poll-handler.ts'),
       environment: {
         TABLE_NAME: table.tableName,
+        ALPACA_BASE_URL_PARAM: `/nestfolio/${props.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
+        ALPACA_SECRET_ID: `${props.prefix}-broker-alpaca-adpt/alpaca-api-keys`,
       },
+      paramsAndSecrets,
       timeout: Duration.seconds(30),
     });
     table.grantReadWriteData(orderPollFn);
@@ -76,7 +90,10 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
       entry: join(__dirname, 'handlers', 'transfer-poll-handler.ts'),
       environment: {
         TABLE_NAME: table.tableName,
+        ALPACA_BASE_URL_PARAM: `/nestfolio/${props.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
+        ALPACA_SECRET_ID: `${props.prefix}-broker-alpaca-adpt/alpaca-api-keys`,
       },
+      paramsAndSecrets,
       timeout: Duration.seconds(30),
     });
     table.grantReadWriteData(transferPollFn);
