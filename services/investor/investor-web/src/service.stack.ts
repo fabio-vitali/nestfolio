@@ -77,7 +77,7 @@ export class InvestorWebStack extends ServiceStack {
     });
 
     const client = userPool.addClient('WebClient', {
-      authFlows: { userPassword: true, userSrp: true },
+      authFlows: { userPassword: true, userSrp: true, adminUserPassword: true },
       generateSecret: false,
     });
 
