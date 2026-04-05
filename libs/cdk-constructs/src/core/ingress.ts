@@ -117,7 +117,7 @@ export class Ingress extends Construct {
 
     // Override with $or pattern at L1 level (CDK EventPattern doesn't support $or)
     const cfnRule = rule.node.defaultChild as CfnRule;
-    cfnRule.addPropertyOverride('EventPattern', JSON.stringify({
+    cfnRule.addPropertyOverride('EventPattern', {
       '$or': [
         {
           'detail-type': props.eventTypes,
@@ -128,7 +128,7 @@ export class Ingress extends Construct {
           'source': [{ 'prefix': `integration-test:${serviceName}` }],
         },
       ],
-    }));
+    });
 
     // SQS -> Lambda
     const batchingWindow = props.maxBatchingWindow
