@@ -1,5 +1,5 @@
 import { Duration } from 'aws-cdk-lib';
-import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
+import { EventBus, Match, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
@@ -42,10 +42,10 @@ export class ExecutionAdptStack extends ServiceStack {
           ExecutionIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
           ExecutionIngestEventTypes.CIRCUIT_BREAKER_RESET,
         ],
-        source: [
-          { 'anything-but': { prefix: 'integration-test:' } },
-          { prefix: `integration-test:${serviceName}` },
-        ],
+        source: Match.anyOf(
+          Match.anythingButPrefix('integration-test:'),
+          Match.prefix(`integration-test:${serviceName}`),
+        ),
       },
       targets: [new EventBusTarget(executionBus, { deadLetterQueue: fromAdvisoryDlq })],
     });
@@ -64,10 +64,10 @@ export class ExecutionAdptStack extends ServiceStack {
           ExecutionIngestEventTypes.ACCOUNT_CLOSURE_REQUESTED,
           ExecutionIngestEventTypes.EXECUTION_MODE_CHANGED,
         ],
-        source: [
-          { 'anything-but': { prefix: 'integration-test:' } },
-          { prefix: `integration-test:${serviceName}` },
-        ],
+        source: Match.anyOf(
+          Match.anythingButPrefix('integration-test:'),
+          Match.prefix(`integration-test:${serviceName}`),
+        ),
       },
       targets: [new EventBusTarget(executionBus, { deadLetterQueue: fromInvestorDlq })],
     });

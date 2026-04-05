@@ -1,5 +1,5 @@
 import { Duration } from 'aws-cdk-lib';
-import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
+import { EventBus, Match, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
@@ -50,10 +50,10 @@ export class InvestorAdptStack extends ServiceStack {
           InvestorIngestEventTypes.INCIDENT_DETECTED,
           InvestorIngestEventTypes.INCIDENT_RESOLVED,
         ],
-        source: [
-          { 'anything-but': { prefix: 'integration-test:' } },
-          { prefix: `integration-test:${serviceName}` },
-        ],
+        source: Match.anyOf(
+          Match.anythingButPrefix('integration-test:'),
+          Match.prefix(`integration-test:${serviceName}`),
+        ),
       },
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromAdvisoryDlq })],
     });
@@ -76,10 +76,10 @@ export class InvestorAdptStack extends ServiceStack {
           InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
           InvestorIngestEventTypes.TRANSFER_FAILED,
         ],
-        source: [
-          { 'anything-but': { prefix: 'integration-test:' } },
-          { prefix: `integration-test:${serviceName}` },
-        ],
+        source: Match.anyOf(
+          Match.anythingButPrefix('integration-test:'),
+          Match.prefix(`integration-test:${serviceName}`),
+        ),
       },
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromExecutionDlq })],
     });
@@ -99,10 +99,10 @@ export class InvestorAdptStack extends ServiceStack {
           InvestorIngestEventTypes.RECONCILIATION_COMPLETED,
           InvestorIngestEventTypes.LEDGER_PROCESSING_FAILED,
         ],
-        source: [
-          { 'anything-but': { prefix: 'integration-test:' } },
-          { prefix: `integration-test:${serviceName}` },
-        ],
+        source: Match.anyOf(
+          Match.anythingButPrefix('integration-test:'),
+          Match.prefix(`integration-test:${serviceName}`),
+        ),
       },
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromLedgerDlq })],
     });

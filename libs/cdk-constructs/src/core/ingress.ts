@@ -1,7 +1,7 @@
 import { join } from 'path';
 import { Construct } from 'constructs';
 import { Duration, Stack } from 'aws-cdk-lib';
-import { Rule } from 'aws-cdk-lib/aws-events';
+import { Match, Rule } from 'aws-cdk-lib/aws-events';
 import { SqsQueue } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
@@ -111,10 +111,10 @@ export class Ingress extends Construct {
       eventBus,
       eventPattern: {
         detailType: props.eventTypes,
-        source: [
-          { 'anything-but': { prefix: 'integration-test:' } },
-          { prefix: `integration-test:${serviceName}` },
-        ],
+        source: Match.anyOf(
+          Match.anythingButPrefix('integration-test:'),
+          Match.prefix(`integration-test:${serviceName}`),
+        ),
       },
       targets: [new SqsQueue(this.queue)],
     });

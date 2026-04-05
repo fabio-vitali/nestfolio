@@ -1,5 +1,5 @@
 import { Duration } from 'aws-cdk-lib';
-import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
+import { EventBus, Match, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
@@ -45,10 +45,10 @@ export class LedgerAdptStack extends ServiceStack {
           LedgerIngestEventTypes.ALPACA_ACCOUNT_SNAPSHOT,
           LedgerIngestEventTypes.DECISION_PACKET_CREATED,
         ],
-        source: [
-          { 'anything-but': { prefix: 'integration-test:' } },
-          { prefix: `integration-test:${serviceName}` },
-        ],
+        source: Match.anyOf(
+          Match.anythingButPrefix('integration-test:'),
+          Match.prefix(`integration-test:${serviceName}`),
+        ),
       },
       targets: [new EventBusTarget(ledgerBus, { deadLetterQueue: fromExecutionDlq })],
     });

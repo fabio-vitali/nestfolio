@@ -1,5 +1,5 @@
 import { Duration } from 'aws-cdk-lib';
-import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
+import { EventBus, Match, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
@@ -47,10 +47,10 @@ export class AdvisoryAdptStack extends ServiceStack {
           AdvisoryIngestEventTypes.MANDATE_CREATED,
           AdvisoryIngestEventTypes.MANDATE_UPDATED,
         ],
-        source: [
-          { 'anything-but': { prefix: 'integration-test:' } },
-          { prefix: `integration-test:${serviceName}` },
-        ],
+        source: Match.anyOf(
+          Match.anythingButPrefix('integration-test:'),
+          Match.prefix(`integration-test:${serviceName}`),
+        ),
       },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromInvestorDlq })],
     });
@@ -69,10 +69,10 @@ export class AdvisoryAdptStack extends ServiceStack {
           AdvisoryIngestEventTypes.ORDER_CANCELLED,
           AdvisoryIngestEventTypes.DEPOSIT_DETECTED,
         ],
-        source: [
-          { 'anything-but': { prefix: 'integration-test:' } },
-          { prefix: `integration-test:${serviceName}` },
-        ],
+        source: Match.anyOf(
+          Match.anythingButPrefix('integration-test:'),
+          Match.prefix(`integration-test:${serviceName}`),
+        ),
       },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromExecutionDlq })],
     });
@@ -89,10 +89,10 @@ export class AdvisoryAdptStack extends ServiceStack {
           AdvisoryIngestEventTypes.PORTFOLIO_UPDATED,
           AdvisoryIngestEventTypes.PORTFOLIO_DRIFT_DETECTED,
         ],
-        source: [
-          { 'anything-but': { prefix: 'integration-test:' } },
-          { prefix: `integration-test:${serviceName}` },
-        ],
+        source: Match.anyOf(
+          Match.anythingButPrefix('integration-test:'),
+          Match.prefix(`integration-test:${serviceName}`),
+        ),
       },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromLedgerDlq })],
     });
