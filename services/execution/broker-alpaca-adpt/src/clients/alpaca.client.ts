@@ -29,25 +29,57 @@ export interface AlpacaResponse<T = unknown> {
 }
 
 export class AlpacaClient {
-  private readonly baseUrl: string;
-  private readonly apiKeyId: string;
-  private readonly apiKeySecret: string;
+  private baseUrl?: string;
+  private apiKeyId?: string;
+  private apiKeySecret?: string;
 
   constructor(config?: { baseUrl?: string; apiKeyId?: string; apiKeySecret?: string }) {
-    this.baseUrl = config?.baseUrl ?? process.env.ALPACA_BASE_URL!;
-    this.apiKeyId = config?.apiKeyId ?? process.env.ALPACA_API_KEY_ID!;
-    this.apiKeySecret = config?.apiKeySecret ?? process.env.ALPACA_API_KEY_SECRET!;
+    // Direct config injection for unit tests — bypasses resolve()
+    if (config?.baseUrl) {
+      this.baseUrl = config.baseUrl;
+      this.apiKeyId = config.apiKeyId;
+      this.apiKeySecret = config.apiKeySecret;
+    }
+  }
+
+  private async resolve(): Promise<void> {
+    if (this.baseUrl) return;
+
+    const port = process.env.PARAMETERS_SECRETS_EXTENSION_HTTP_PORT ?? '2773';
+    const token = process.env.AWS_SESSION_TOKEN!;
+    const headers = { 'X-Aws-Parameters-Secrets-Token': token };
+
+    // SSM param
+    const paramName = process.env.ALPACA_BASE_URL_PARAM!;
+    const paramRes = await fetch(
+      `http://localhost:${port}/systemsmanager/parameters/get?name=${encodeURIComponent(paramName)}`,
+      { headers },
+    );
+    const paramData = await paramRes.json() as { Parameter: { Value: string } };
+    this.baseUrl = paramData.Parameter.Value;
+
+    // Secrets Manager
+    const secretId = process.env.ALPACA_SECRET_ID!;
+    const secretRes = await fetch(
+      `http://localhost:${port}/secretsmanager/get?secretId=${encodeURIComponent(secretId)}`,
+      { headers },
+    );
+    const secretData = await secretRes.json() as { SecretString: string };
+    const keys = JSON.parse(secretData.SecretString) as { apiKeyId: string; apiKeySecret: string };
+    this.apiKeyId = keys.apiKeyId;
+    this.apiKeySecret = keys.apiKeySecret;
   }
 
   private async request<T = unknown>(method: string, path: string, body?: unknown): Promise<AlpacaResponse<T>> {
+    await this.resolve();
     const url = `${this.baseUrl}${path}`;
     logger.info('Alpaca API request', { method, path });
 
     const response = await fetch(url, {
       method,
       headers: {
-        'APCA-API-KEY-ID': this.apiKeyId,
-        'APCA-API-SECRET-KEY': this.apiKeySecret,
+        'APCA-API-KEY-ID': this.apiKeyId!,
+        'APCA-API-SECRET-KEY': this.apiKeySecret!,
         'Content-Type': 'application/json',
       },
       body: body ? JSON.stringify(body) : undefined,
