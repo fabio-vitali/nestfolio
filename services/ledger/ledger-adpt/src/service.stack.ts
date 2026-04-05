@@ -14,6 +14,7 @@ export class LedgerAdptStack extends ServiceStack {
 
     const prefix = this.prefix;
     const domainAccounts = getDomainAccounts(this);
+    const serviceName = 'ledger-adpt';
 
     // Consumer's own domain bus (target for all ingested events)
     const ledgerBusArn = resolveBusArn(this, 'LedgerBus', prefix, 'ledger', domainAccounts);
@@ -43,6 +44,10 @@ export class LedgerAdptStack extends ServiceStack {
           LedgerIngestEventTypes.PORTFOLIO_SNAPSHOT_IMPORTED,
           LedgerIngestEventTypes.ALPACA_ACCOUNT_SNAPSHOT,
           LedgerIngestEventTypes.DECISION_PACKET_CREATED,
+        ],
+        source: [
+          { 'anything-but': { prefix: 'integration-test:' } },
+          { prefix: `integration-test:${serviceName}` },
         ],
       },
       targets: [new EventBusTarget(ledgerBus, { deadLetterQueue: fromExecutionDlq })],

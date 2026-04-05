@@ -14,6 +14,7 @@ export class ExecutionAdptStack extends ServiceStack {
 
     const prefix = this.prefix;
     const domainAccounts = getDomainAccounts(this);
+    const serviceName = 'execution-adpt';
 
     // Consumer's own domain bus (target for all ingested events)
     const executionBusArn = resolveBusArn(this, 'ExecutionBus', prefix, 'execution', domainAccounts);
@@ -41,6 +42,10 @@ export class ExecutionAdptStack extends ServiceStack {
           ExecutionIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
           ExecutionIngestEventTypes.CIRCUIT_BREAKER_RESET,
         ],
+        source: [
+          { 'anything-but': { prefix: 'integration-test:' } },
+          { prefix: `integration-test:${serviceName}` },
+        ],
       },
       targets: [new EventBusTarget(executionBus, { deadLetterQueue: fromAdvisoryDlq })],
     });
@@ -58,6 +63,10 @@ export class ExecutionAdptStack extends ServiceStack {
           ExecutionIngestEventTypes.WITHDRAWAL_REQUESTED,
           ExecutionIngestEventTypes.ACCOUNT_CLOSURE_REQUESTED,
           ExecutionIngestEventTypes.EXECUTION_MODE_CHANGED,
+        ],
+        source: [
+          { 'anything-but': { prefix: 'integration-test:' } },
+          { prefix: `integration-test:${serviceName}` },
         ],
       },
       targets: [new EventBusTarget(executionBus, { deadLetterQueue: fromInvestorDlq })],

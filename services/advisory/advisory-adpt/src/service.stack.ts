@@ -14,6 +14,7 @@ export class AdvisoryAdptStack extends ServiceStack {
 
     const prefix = this.prefix;
     const domainAccounts = getDomainAccounts(this);
+    const serviceName = 'advisory-adpt';
 
     // Consumer's own domain bus (target for all ingested events)
     const advisoryBusArn = resolveBusArn(this, 'AdvisoryBus', prefix, 'advisory', domainAccounts);
@@ -46,6 +47,10 @@ export class AdvisoryAdptStack extends ServiceStack {
           AdvisoryIngestEventTypes.MANDATE_CREATED,
           AdvisoryIngestEventTypes.MANDATE_UPDATED,
         ],
+        source: [
+          { 'anything-but': { prefix: 'integration-test:' } },
+          { prefix: `integration-test:${serviceName}` },
+        ],
       },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromInvestorDlq })],
     });
@@ -64,6 +69,10 @@ export class AdvisoryAdptStack extends ServiceStack {
           AdvisoryIngestEventTypes.ORDER_CANCELLED,
           AdvisoryIngestEventTypes.DEPOSIT_DETECTED,
         ],
+        source: [
+          { 'anything-but': { prefix: 'integration-test:' } },
+          { prefix: `integration-test:${serviceName}` },
+        ],
       },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromExecutionDlq })],
     });
@@ -79,6 +88,10 @@ export class AdvisoryAdptStack extends ServiceStack {
         detailType: [
           AdvisoryIngestEventTypes.PORTFOLIO_UPDATED,
           AdvisoryIngestEventTypes.PORTFOLIO_DRIFT_DETECTED,
+        ],
+        source: [
+          { 'anything-but': { prefix: 'integration-test:' } },
+          { prefix: `integration-test:${serviceName}` },
         ],
       },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromLedgerDlq })],

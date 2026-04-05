@@ -14,6 +14,7 @@ export class InvestorAdptStack extends ServiceStack {
 
     const prefix = this.prefix;
     const domainAccounts = getDomainAccounts(this);
+    const serviceName = 'investor-adpt';
 
     // Consumer's own domain bus (target for all ingested events)
     const investorBusArn = resolveBusArn(this, 'InvestorBus', prefix, 'investor', domainAccounts);
@@ -49,6 +50,10 @@ export class InvestorAdptStack extends ServiceStack {
           InvestorIngestEventTypes.INCIDENT_DETECTED,
           InvestorIngestEventTypes.INCIDENT_RESOLVED,
         ],
+        source: [
+          { 'anything-but': { prefix: 'integration-test:' } },
+          { prefix: `integration-test:${serviceName}` },
+        ],
       },
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromAdvisoryDlq })],
     });
@@ -71,6 +76,10 @@ export class InvestorAdptStack extends ServiceStack {
           InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
           InvestorIngestEventTypes.TRANSFER_FAILED,
         ],
+        source: [
+          { 'anything-but': { prefix: 'integration-test:' } },
+          { prefix: `integration-test:${serviceName}` },
+        ],
       },
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromExecutionDlq })],
     });
@@ -89,6 +98,10 @@ export class InvestorAdptStack extends ServiceStack {
           InvestorIngestEventTypes.LEDGER_ENTRY_RECORDED,
           InvestorIngestEventTypes.RECONCILIATION_COMPLETED,
           InvestorIngestEventTypes.LEDGER_PROCESSING_FAILED,
+        ],
+        source: [
+          { 'anything-but': { prefix: 'integration-test:' } },
+          { prefix: `integration-test:${serviceName}` },
         ],
       },
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromLedgerDlq })],
