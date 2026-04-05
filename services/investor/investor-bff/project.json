@@ -20,7 +20,7 @@
       "executor": "@nx/jest:jest",
       "options": { "jestConfig": "services/investor/investor-bff/jest.config.js" }
     },
-    "test:integration": {
+    "test-integration": {
       "executor": "@nx/jest:jest",
       "options": { "jestConfig": "services/investor/investor-bff/jest.integration.config.js" }
     },
