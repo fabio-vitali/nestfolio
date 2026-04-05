@@ -1,6 +1,6 @@
 import { App } from 'aws-cdk-lib';
 import { Template, Match } from 'aws-cdk-lib/assertions';
-import { InvestorAdptStack } from '../src/service.stack';
+import { InvestorAdptStack } from '../../src/service.stack';
 
 describe('InvestorAdptStack', () => {
   let template: Template;

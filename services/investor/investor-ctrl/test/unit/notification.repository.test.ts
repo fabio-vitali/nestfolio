@@ -67,7 +67,7 @@ jest.mock('@nestfolio/event-processor', () => ({
   ),
 
 }));
-import { NotificationRepository } from '../src/repositories/notification.repository';
+import { NotificationRepository } from '../../src/repositories/notification.repository';
 
 function extractUpdateAttrs(update: any): Record<string, unknown> {
   const names = update.ExpressionAttributeNames;

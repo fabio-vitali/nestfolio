@@ -1,4 +1,4 @@
-import { computeRiskProfile } from '../../src/domain/risk-profile.service';
+import { computeRiskProfile } from '../../../src/domain/risk-profile.service';
 
 describe('computeRiskProfile', () => {
   it('returns conservative for low tolerance + low experience', () => {

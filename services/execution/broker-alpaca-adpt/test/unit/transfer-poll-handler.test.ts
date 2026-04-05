@@ -52,7 +52,7 @@ jest.mock('@nestfolio/event-processor', () => {
 
 const mockGetTransfer = jest.fn();
 
-jest.mock('../src/clients/alpaca.client', () => ({
+jest.mock('../../src/clients/alpaca.client', () => ({
   AlpacaClient: jest.fn().mockImplementation(() => ({
     getTransfer: mockGetTransfer,
   })),
@@ -60,7 +60,7 @@ jest.mock('../src/clients/alpaca.client', () => ({
 
 process.env.TABLE_NAME = 'test-table';
 
-import { handler } from '../src/handlers/transfer-poll-handler';
+import { handler } from '../../src/handlers/transfer-poll-handler';
 
 describe('transfer-poll-handler', () => {
   beforeEach(() => {

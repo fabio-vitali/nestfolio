@@ -1,6 +1,6 @@
 import { record } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
-import { userRegistered } from '../../src/transforms/user-registered';
+import { userRegistered } from '../../../src/transforms/user-registered';
 
 type TestUow = UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>;
 

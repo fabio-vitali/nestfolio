@@ -70,7 +70,7 @@ const mockInitiateTransfer = jest.fn();
 const mockGetAccount = jest.fn();
 const mockGetPositions = jest.fn();
 
-jest.mock('../src/clients/alpaca.client', () => ({
+jest.mock('../../src/clients/alpaca.client', () => ({
   AlpacaClient: jest.fn().mockImplementation(() => ({
     submitOrder: mockSubmitOrder,
     cancelOrder: mockCancelOrder,
@@ -83,13 +83,13 @@ jest.mock('../src/clients/alpaca.client', () => ({
 process.env.TABLE_NAME = 'test-table';
 
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
-import { AlpacaAdptEventTypes } from '../src/domain/events';
-import { AlpacaOrdersService } from '../src/services/alpaca-orders.service';
-import { OrderMappingRepository } from '../src/repositories/order-mapping.repository';
-import { AlpacaClient } from '../src/clients/alpaca.client';
+import { AlpacaAdptEventTypes } from '../../src/domain/events';
+import { AlpacaOrdersService } from '../../src/services/alpaca-orders.service';
+import { OrderMappingRepository } from '../../src/repositories/order-mapping.repository';
+import { AlpacaClient } from '../../src/clients/alpaca.client';
 import { record } from '@nestfolio/event-processor';
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
-import type { AlpacaAccountApiResponse, AlpacaPositionApiResponse, AlpacaTransferApiResponse } from '../src/domain/schemas';
+import type { AlpacaAccountApiResponse, AlpacaPositionApiResponse, AlpacaTransferApiResponse } from '../../src/domain/schemas';
 
 // Build the same handlers as the event-listener module, but with injectable mocks
 function createHandlers(deps: {

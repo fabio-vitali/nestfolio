@@ -67,9 +67,9 @@ jest.mock('@nestfolio/event-processor', () => ({
   ),
 
 }));
-import { NotificationRepository } from '../src/repositories/notification.repository';
-import { NotificationLifecycleService } from '../src/services/notification-lifecycle.service';
-import { NotificationDeliveryService } from '../src/services/notification-delivery.service';
+import { NotificationRepository } from '../../src/repositories/notification.repository';
+import { NotificationLifecycleService } from '../../src/services/notification-lifecycle.service';
+import { NotificationDeliveryService } from '../../src/services/notification-delivery.service';
 
 describe('NotificationLifecycleService', () => {
   let service: NotificationLifecycleService;

@@ -57,7 +57,7 @@ jest.mock('@nestfolio/event-processor', () => {
   };
 });
 
-import { OrderMappingRepository } from '../src/repositories/order-mapping.repository';
+import { OrderMappingRepository } from '../../src/repositories/order-mapping.repository';
 
 const TABLE_NAME = 'test-table';
 const TENANT_ID = 'tenant-1';

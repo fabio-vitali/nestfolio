@@ -38,7 +38,7 @@ jest.mock('@nestfolio/event-processor', () => ({
 }));
 
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
-import { createHandlers, getNotificationTemplate, type EventListenerDeps } from '../src/handlers/event-listener';
+import { createHandlers, getNotificationTemplate, type EventListenerDeps } from '../../src/handlers/event-listener';
 
 describe('investor-ctrl event-listener', () => {
   const mockDeps: EventListenerDeps = {};

@@ -86,7 +86,7 @@ jest.mock('@nestfolio/event-processor', () => ({
   },
 
 }));
-import { InvestorProfileRepository } from '../../src/repositories/investor-profile.repository';
+import { InvestorProfileRepository } from '../../../src/repositories/investor-profile.repository';
 
 describe('InvestorProfileRepository', () => {
   let repo: InvestorProfileRepository;

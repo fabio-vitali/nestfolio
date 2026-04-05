@@ -62,7 +62,7 @@ jest.mock('@nestfolio/event-processor', () => {
   };
 });
 
-import { TransferMappingRepository } from '../src/repositories/transfer-mapping.repository';
+import { TransferMappingRepository } from '../../src/repositories/transfer-mapping.repository';
 
 const TABLE_NAME = 'test-table';
 const TENANT_ID = 'tenant-1';

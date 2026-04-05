@@ -53,7 +53,7 @@ jest.mock('@nestfolio/event-processor', () => {
 const mockGetOrder = jest.fn();
 const mockCancelOrder = jest.fn();
 
-jest.mock('../src/clients/alpaca.client', () => ({
+jest.mock('../../src/clients/alpaca.client', () => ({
   AlpacaClient: jest.fn().mockImplementation(() => ({
     getOrder: mockGetOrder,
     cancelOrder: mockCancelOrder,
@@ -62,7 +62,7 @@ jest.mock('../src/clients/alpaca.client', () => ({
 
 process.env.TABLE_NAME = 'test-table';
 
-import { handler } from '../src/handlers/order-poll-handler';
+import { handler } from '../../src/handlers/order-poll-handler';
 
 describe('order-poll-handler', () => {
   beforeEach(() => {

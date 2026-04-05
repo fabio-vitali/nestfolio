@@ -1,8 +1,8 @@
-import { createHandlers } from '../../src/handlers/event-listener';
-import { InvestorBffEventTypes } from '../../src/domain/events';
+import { createHandlers } from '../../../src/handlers/event-listener';
+import { InvestorBffEventTypes } from '../../../src/domain/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
-import type { InvestorProfileRepository } from '../../src/repositories/investor-profile.repository';
+import type { InvestorProfileRepository } from '../../../src/repositories/investor-profile.repository';
 
 describe('investor-bff event-listener', () => {
   it('should export handlers for all event types', () => {

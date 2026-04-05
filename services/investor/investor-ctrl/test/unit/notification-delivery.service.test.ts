@@ -6,7 +6,7 @@ jest.mock('@nestfolio/event-processor', () => ({
   ),
 
 }));
-import { NotificationDeliveryService } from '../src/services/notification-delivery.service';
+import { NotificationDeliveryService } from '../../src/services/notification-delivery.service';
 
 describe('NotificationDeliveryService', () => {
   let service: NotificationDeliveryService;

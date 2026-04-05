@@ -2,9 +2,9 @@ jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
-import { AlpacaOrdersService } from '../src/services/alpaca-orders.service';
-import type { AlpacaClient } from '../src/clients/alpaca.client';
-import type { OrderMappingRepository } from '../src/repositories/order-mapping.repository';
+import { AlpacaOrdersService } from '../../src/services/alpaca-orders.service';
+import type { AlpacaClient } from '../../src/clients/alpaca.client';
+import type { OrderMappingRepository } from '../../src/repositories/order-mapping.repository';
 
 const mockClient = {
   submitOrder: jest.fn(),
