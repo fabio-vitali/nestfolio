@@ -106,9 +106,16 @@ export class Ingress extends Construct {
     });
 
     // EventBridge Rule -> SQS
+    // Source filter: pass normal events + test events targeting this service only
     new Rule(this, 'Rule', {
       eventBus,
-      eventPattern: { detailType: props.eventTypes },
+      eventPattern: {
+        detailType: props.eventTypes,
+        source: [
+          { 'anything-but': { prefix: 'integration-test:' } },
+          { prefix: `integration-test:${serviceName}` },
+        ],
+      },
       targets: [new SqsQueue(this.queue)],
     });
 
