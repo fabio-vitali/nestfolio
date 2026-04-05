@@ -1,0 +1,63 @@
+import {
+  createIntegrationContext,
+  CognitoFixture,
+  AppSyncClient,
+  EventBusTrap,
+  TableAssertions,
+  type IntegrationContext,
+} from '@nestfolio/integration-testing';
+
+describe('investor-bff: initiateDeposit', () => {
+  let ctx: IntegrationContext;
+  let cognito: CognitoFixture;
+  let appsync: AppSyncClient;
+  let trap: EventBusTrap;
+  let table: TableAssertions;
+
+  beforeAll(async () => {
+    ctx = await createIntegrationContext();
+    cognito = new CognitoFixture(ctx);
+    const tokens = await cognito.setup();
+    appsync = new AppSyncClient(ctx, tokens);
+    trap = new EventBusTrap(ctx);
+    table = new TableAssertions(ctx);
+
+    // Deploy trap BEFORE the mutation (captures DEPOSIT_INITIATED on InvestorBus)
+    await trap.deploy({
+      bus: 'investor',
+      detailType: 'DEPOSIT_INITIATED',
+    });
+  }, 60_000);
+
+  afterAll(async () => {
+    await ctx.cleanup.runAll();
+  }, 30_000);
+
+  it('should create deposit record and emit DEPOSIT_INITIATED', async () => {
+    // Act: authenticated GraphQL mutation
+    const result = await appsync.mutate<{
+      initiateDeposit: { depositId: string; status: string };
+    }>(`
+      mutation InitiateDeposit($input: InitiateDepositInput!) {
+        initiateDeposit(input: $input) { depositId status }
+      }
+    `, {
+      input: { amountCents: 100_000, currency: 'USD' },
+    });
+
+    expect(result.initiateDeposit.status).toBe('INITIATED');
+
+    // Assert: DDB state
+    const item = await table.waitForItem({
+      table: 'investor-bff',
+      pk: `InvestorProfile#${ctx.tenantId}#${ctx.userId}`,
+      sk: 'Deposit#',
+    });
+    expect(item['amountCents']).toBe(100_000);
+
+    // Assert: CDC event on EventBridge
+    const event = await trap.waitForEvent();
+    expect(event.detailType).toBe('DEPOSIT_INITIATED');
+    expect(event.detail.context.tenantId).toBe(ctx.tenantId);
+  }, 60_000);
+});
