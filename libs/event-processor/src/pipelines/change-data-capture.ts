@@ -69,9 +69,15 @@ function buildEntry(
     },
   };
 
+  // Tag CDC events from test tenants so other services' EB rules filter them out
+  const isTestTenant = record.tenantId?.startsWith('integ-');
+  const source = isTestTenant
+    ? `integration-test:${serviceName}`
+    : `${busName}@${serviceName}`;
+
   return {
     EventBusName: busName,
-    Source: `${busName}@${serviceName}`,
+    Source: source,
     DetailType: eventType,
     Detail: JSON.stringify(detail),
   };
