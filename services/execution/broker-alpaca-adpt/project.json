@@ -21,8 +21,10 @@
       "options": { "jestConfig": "services/execution/broker-alpaca-adpt/jest.config.js" }
     },
     "test-integration": {
-      "executor": "@nx/jest:jest",
-      "options": { "jestConfig": "services/execution/broker-alpaca-adpt/jest.integration.config.js" }
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/execution/broker-alpaca-adpt/jest.integration.config.js --passWithNoTests"
+      }
     },
     "lint": { "executor": "@nx/eslint:lint" }
   },

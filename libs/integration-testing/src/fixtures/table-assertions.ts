@@ -21,7 +21,7 @@ export class TableAssertions {
     const timeout = params.timeoutMs ?? 30_000;
     const pollInterval = params.pollIntervalMs ?? 2_000;
     const deadline = Date.now() + timeout;
-    const tableName = this.ctx.ssm.tableName(params.table);
+    const tableName = await this.ctx.ssm.tableName(params.table);
 
     while (Date.now() < deadline) {
       if (params.sk) {
@@ -52,7 +52,7 @@ export class TableAssertions {
     sk: string;
     expect: Record<string, unknown>;
   }): Promise<void> {
-    const tableName = this.ctx.ssm.tableName(params.table);
+    const tableName = await this.ctx.ssm.tableName(params.table);
     const result = await this.client.send(new GetItemCommand({
       TableName: tableName,
       Key: marshall({ pk: params.pk, sk: params.sk }),
@@ -75,7 +75,7 @@ export class TableAssertions {
     pk: string;
     skPrefix?: string;
   }): Promise<Record<string, unknown>[]> {
-    const tableName = this.ctx.ssm.tableName(params.table);
+    const tableName = await this.ctx.ssm.tableName(params.table);
     const keyCondition = params.skPrefix
       ? 'pk = :pk AND begins_with(sk, :skPrefix)'
       : 'pk = :pk';
@@ -93,7 +93,7 @@ export class TableAssertions {
 
   async cleanup(params: { table: string; pk: string }): Promise<void> {
     const items = await this.queryItems({ table: params.table, pk: params.pk });
-    const tableName = this.ctx.ssm.tableName(params.table);
+    const tableName = await this.ctx.ssm.tableName(params.table);
 
     for (const item of items) {
       await this.client.send(new DeleteItemCommand({

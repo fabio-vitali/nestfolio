@@ -1,13 +1,16 @@
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
+import { CloudFormationClient, ListStackResourcesCommand } from '@aws-sdk/client-cloudformation';
 
 export class SsmCache {
   private readonly client: SSMClient;
+  private readonly cfn: CloudFormationClient;
   private readonly cache = new Map<string, string>();
   private readonly prefix: string;
 
   constructor(prefix: string, region: string) {
     this.prefix = prefix;
     this.client = new SSMClient({ region });
+    this.cfn = new CloudFormationClient({ region });
   }
 
   private async get(paramName: string): Promise<string> {
@@ -27,9 +30,22 @@ export class SsmCache {
     return this.get(`/nestfolio/${this.prefix}-${subsystem}/event-hub/busArn`);
   }
 
-  /** Table name: deterministic "{prefix}-{service}-table" — no SSM needed */
-  tableName(service: string): string {
-    return `${this.prefix}-${service}-table`;
+  /** Table name: looks up DynamoDB table from CloudFormation stack resources */
+  async tableName(service: string): Promise<string> {
+    const cacheKey = `table:${service}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const stackName = `${this.prefix}-${service}`;
+    const result = await this.cfn.send(new ListStackResourcesCommand({ StackName: stackName }));
+    const table = result.StackResourceSummaries?.find(
+      r => r.ResourceType === 'AWS::DynamoDB::Table',
+    );
+    if (!table?.PhysicalResourceId) {
+      throw new Error(`DynamoDB table not found in stack ${stackName}`);
+    }
+    this.cache.set(cacheKey, table.PhysicalResourceId);
+    return table.PhysicalResourceId;
   }
 
   /** GraphQL URL: /nestfolio/{prefix}-{service}/api/graphqlUrl */
