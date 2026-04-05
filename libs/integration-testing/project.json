@@ -1,0 +1,26 @@
+{
+  "name": "integration-testing",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/integration-testing/src",
+  "projectType": "library",
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "libs/integration-testing/jest.config.js",
+        "passWithNoTests": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build:mocks": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx esbuild libs/integration-testing/src/mock-handlers/mock-alpaca.ts --bundle --platform=node --target=node20 --outfile=libs/integration-testing/assets/mock-alpaca/index.mjs --format=esm && cd libs/integration-testing/assets/mock-alpaca && zip -j ../mock-alpaca.zip index.mjs && cd ../.. && rm -rf assets/mock-alpaca"
+      },
+      "outputs": ["{projectRoot}/assets/mock-alpaca.zip"]
+    }
+  },
+  "tags": ["scope:platform", "type:lib"]
+}

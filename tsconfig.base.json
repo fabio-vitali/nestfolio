@@ -47,6 +47,8 @@
       "@nestfolio/shell": ["libs/shell/src/index.ts"],
       "@nestfolio/shell/testing": ["libs/shell/test/testing/index.ts"],
       "@nestfolio/shell/*": ["libs/shell/src/*/index.ts"],
+      "@nestfolio/integration-testing": ["libs/integration-testing/src/index.ts"],
+      "@nestfolio/integration-testing/*": ["libs/integration-testing/src/*"],
       "@nestfolio/ui": ["libs/ui/src/index.ts"]
     }
   },
