@@ -88,7 +88,7 @@ export class Ingress extends Construct {
     // SQS: DLQ + Queue
     this.dlq = new Queue(this, 'DLQ', {
       retentionPeriod: Duration.days(14),
-      encryption: QueueEncryption.KMS_MANAGED,
+      encryption: QueueEncryption.SQS_MANAGED,
     });
 
     const visibilityTimeout = props.visibilityTimeout
@@ -98,7 +98,7 @@ export class Ingress extends Construct {
 
     this.queue = new Queue(this, 'Queue', {
       visibilityTimeout,
-      encryption: QueueEncryption.KMS_MANAGED,
+      encryption: QueueEncryption.SQS_MANAGED,
       deadLetterQueue: {
         queue: this.dlq,
         maxReceiveCount: props.maxRetries ?? 10,
