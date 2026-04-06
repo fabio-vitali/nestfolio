@@ -45,5 +45,19 @@
 - **Category:** bug
 - **Description:** `createOrchestrator` in `agent-service.ts` was called with `stateAnnotation: {}` (empty object) instead of the actual Annotation.Root state. This caused `StateGraphInputError` on every Lambda cold start, making the services completely non-functional.
 - **Resolution:** Fixed by importing and passing the correct state annotation (`InvestorProfileState`, `PortfolioEngineState`) from `agents/state.ts`. Redeployed.
-- **Affected services:** investor-profile-ctrl, portfolio-engine-ctrl. Check advisory-narrative-ctrl and market-intelligence-ctrl for the same pattern.
+- **Affected services:** investor-profile-ctrl, portfolio-engine-ctrl. advisory-narrative-ctrl and market-intelligence-ctrl verified clean (different non-LangGraph pattern).
+
+---
+
+## Verification Sweep Results (2026-04-06)
+
+| Check | Result |
+|-------|--------|
+| `__typename` in DDB expressions | CLEAN — no remaining instances |
+| `withMethodLogging` sync calls | CLEAN — reconciliation-ctrl was only instance |
+| `stateAnnotation: {}` in remaining agents | CLEAN — advisory-narrative-ctrl + market-intelligence-ctrl use different pattern |
+| `custom:tenantId` (camelCase) | CLEAN — zero occurrences |
+| Integration test naming convention | CLEAN — all follow `test/integration/*.integration.test.ts` |
+| `test-integration` target coverage | 28/28 services with tests have targets (4 hubs + investor-web intentionally skipped) |
+| Full test run: `pnpm nx run-many -t test-integration --all` | 28/28 PASS (investor-adpt transient timeout on first run, passes on retry) |
 
