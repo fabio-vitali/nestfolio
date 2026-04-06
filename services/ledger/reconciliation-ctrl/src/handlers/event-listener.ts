@@ -9,14 +9,14 @@ export interface EventListenerDeps {
 }
 
 const reconcileHandler = (deps: EventListenerDeps) =>
-  (payload: EventPayload, ctx: EventContext): WriteIntent[] => {
+  async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
     const subject = payload.subject;
     const tenantId = ctx.tenantId;
     const reconciliationId = ctx.eventId;
     const portfolioId = (subject?.portfolioId as string) ?? tenantId;
     const positions = (subject?.positions as Array<{ symbol: string; quantity: number }>) ?? [];
 
-    const result = deps.reconciliationService.reconcile(reconciliationId, {
+    const result = await deps.reconciliationService.reconcile(reconciliationId, {
       tenantId,
       portfolioId,
       intentPositions: positions.map((p) => ({
@@ -52,14 +52,14 @@ const reconcileHandler = (deps: EventListenerDeps) =>
   };
 
 const alpacaSnapshotHandler = (deps: EventListenerDeps) =>
-  (payload: EventPayload, ctx: EventContext): WriteIntent[] => {
+  async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
     const subject = payload.subject;
     const tenantId = ctx.tenantId;
     const reconciliationId = ctx.eventId;
     const portfolioId = (subject?.portfolioId as string) ?? tenantId;
     const rawPositions = (subject?.positions as Array<{ symbol: string; qty: number }>) ?? [];
 
-    const result = deps.reconciliationService.reconcile(reconciliationId, {
+    const result = await deps.reconciliationService.reconcile(reconciliationId, {
       tenantId,
       portfolioId,
       intentPositions: rawPositions.map((p) => ({

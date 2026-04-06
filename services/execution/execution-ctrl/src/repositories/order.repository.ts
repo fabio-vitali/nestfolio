@@ -107,7 +107,8 @@ export class OrderRepository extends TableRepository {
       return this.queryAll({
         TableName: this.tableName,
         IndexName: 'tenantId-index',
-        KeyConditionExpression: 'tenantId = :tid AND __typename = :typ',
+        KeyConditionExpression: 'tenantId = :tid AND #typ = :typ',
+        ExpressionAttributeNames: { '#typ': '__typename' },
         ExpressionAttributeValues: { ':tid': tenantId, ':typ': 'StagedOrder' },
       });
     },

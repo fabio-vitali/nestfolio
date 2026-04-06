@@ -74,8 +74,8 @@ export class AdvisoryRepository extends TableRepository {
         TableName: this.tableName,
         IndexName: 'tenantId-index',
         KeyConditionExpression: 'tenantId = :tenantId',
-        FilterExpression: `#status IN (${statuses.map((_, i) => `:s${i}`).join(', ')}) AND __typename = :typename`,
-        ExpressionAttributeNames: { '#status': 'status' },
+        FilterExpression: `#status IN (${statuses.map((_, i) => `:s${i}`).join(', ')}) AND #typ = :typename`,
+        ExpressionAttributeNames: { '#status': 'status', '#typ': '__typename' },
         ExpressionAttributeValues: {
           ':tenantId': tenantId,
           ':typename': 'DecisionReadModel',
@@ -109,7 +109,8 @@ export class AdvisoryRepository extends TableRepository {
         TableName: this.tableName,
         IndexName: 'tenantId-index',
         KeyConditionExpression: 'tenantId = :tenantId',
-        FilterExpression: '__typename = :typename',
+        FilterExpression: '#typ = :typename',
+        ExpressionAttributeNames: { '#typ': '__typename' },
         ExpressionAttributeValues: {
           ':tenantId': tenantId,
           ':typename': 'DecisionReadModel',

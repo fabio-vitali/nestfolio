@@ -14,7 +14,8 @@ export const handler = async (event: { tenantId: string; portfolioId?: string })
   const result = await client.send(new QueryCommand({
     TableName: TABLE_NAME,
     IndexName: 'tenantId-index',
-    KeyConditionExpression: 'tenantId = :tid AND __typename = :type',
+    KeyConditionExpression: 'tenantId = :tid AND #typ = :type',
+    ExpressionAttributeNames: { '#typ': '__typename' },
     ExpressionAttributeValues: {
       ':tid': event.tenantId,
       ':type': 'PortfolioSnapshot',

@@ -6,7 +6,7 @@ jest.mock('@nestfolio/event-processor', () => ({
   ),
 
 }));
-import { MarketHoursService } from '../src/services/market-hours.service';
+import { MarketHoursService } from '../../src/services/market-hours.service';
 
 describe('MarketHoursService', () => {
   let service: MarketHoursService;

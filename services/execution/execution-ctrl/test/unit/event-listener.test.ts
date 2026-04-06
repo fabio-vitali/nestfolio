@@ -73,10 +73,10 @@ jest.mock('@nestfolio/event-processor', () => ({
 
 }));
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
-import { createHandlers, type EventListenerDeps } from '../src/handlers/event-listener';
-import { OrderRepository } from '../src/repositories/order.repository';
-import { SafetyChecksService } from '../src/services/safety-checks.service';
-import { MarketHoursService } from '../src/services/market-hours.service';
+import { createHandlers, type EventListenerDeps } from '../../src/handlers/event-listener';
+import { OrderRepository } from '../../src/repositories/order.repository';
+import { SafetyChecksService } from '../../src/services/safety-checks.service';
+import { MarketHoursService } from '../../src/services/market-hours.service';
 
 describe('event-listener handler', () => {
   const ORIGINAL_ENV = process.env;

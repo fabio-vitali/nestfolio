@@ -7,7 +7,7 @@ jest.mock('@nestfolio/event-processor', () => ({
   ),
 
 }));
-import { OrderLifecycleService } from '../src/services/order-lifecycle.service';
+import { OrderLifecycleService } from '../../src/services/order-lifecycle.service';
 
 describe('OrderLifecycleService', () => {
   let service: OrderLifecycleService;

@@ -6,7 +6,7 @@ jest.mock('@nestfolio/event-processor', () => ({
   ),
 
 }));
-import { SafetyChecksService } from '../src/services/safety-checks.service';
+import { SafetyChecksService } from '../../src/services/safety-checks.service';
 
 describe('SafetyChecksService', () => {
   let service: SafetyChecksService;

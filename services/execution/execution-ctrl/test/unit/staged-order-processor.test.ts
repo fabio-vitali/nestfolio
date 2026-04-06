@@ -76,9 +76,9 @@ jest.mock('@nestfolio/event-processor', () => ({
   ),
 }));
 
-import { createStagedOrderProcessor, type StagedOrderProcessorDeps } from '../src/handlers/staged-order-processor';
-import { OrderRepository } from '../src/repositories/order.repository';
-import { SafetyChecksService } from '../src/services/safety-checks.service';
+import { createStagedOrderProcessor, type StagedOrderProcessorDeps } from '../../src/handlers/staged-order-processor';
+import { OrderRepository } from '../../src/repositories/order.repository';
+import { SafetyChecksService } from '../../src/services/safety-checks.service';
 
 describe('staged-order-processor', () => {
   const repository = new OrderRepository('test-table');

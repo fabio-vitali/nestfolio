@@ -64,7 +64,8 @@ describe('portfolio-lookup tool handler', () => {
       expect.objectContaining({
         TableName: 'test-table',
         IndexName: 'tenantId-index',
-        KeyConditionExpression: 'tenantId = :tid AND __typename = :type',
+        KeyConditionExpression: 'tenantId = :tid AND #typ = :type',
+        ExpressionAttributeNames: { '#typ': '__typename' },
         ExpressionAttributeValues: {
           ':tid': 't1',
           ':type': 'PortfolioSnapshot',
