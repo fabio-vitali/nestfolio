@@ -1,6 +1,6 @@
 import { util } from '@aws-appsync/utils';
 export function request(ctx) {
-  const tenantId = ctx.identity?.claims?.['custom:tenantId'];
+  const tenantId = ctx.identity?.claims?.['custom:tenant_id'];
   const userId = ctx.identity?.username;
   if (!tenantId || !userId) util.unauthorized();
   ctx.stash.tenantId = tenantId;

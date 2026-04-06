@@ -52,7 +52,7 @@ jest.mock('@nestfolio/event-processor', () => {
   authorizeRequest: (event: { identity?: Record<string, unknown> }, region: string) => {
     const claims = event.identity as Record<string, unknown> | undefined;
     const claimsMap = claims?.['claims'] as Record<string, string> | undefined;
-    const tenantId = claimsMap?.['custom:tenantId'];
+    const tenantId = claimsMap?.['custom:tenant_id'];
     const userId = claimsMap?.['sub'];
     if (!tenantId) throw new MockNotRetryableError('UNAUTHORIZED: missing tenantId');
     if (!userId) throw new MockNotRetryableError('UNAUTHORIZED: missing userId');
@@ -93,7 +93,7 @@ function buildEvent(
     arguments: args,
     identity: {
       claims: {
-        'custom:tenantId': tenantId,
+        'custom:tenant_id': tenantId,
         sub: 'user-1',
       },
     },
