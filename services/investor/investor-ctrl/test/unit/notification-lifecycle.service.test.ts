@@ -71,6 +71,8 @@ import { NotificationRepository } from '../../src/repositories/notification.repo
 import { NotificationLifecycleService } from '../../src/services/notification-lifecycle.service';
 import { NotificationDeliveryService } from '../../src/services/notification-delivery.service';
 
+const testCtx = { tenantId: 't1', userId: 'u1', region: 'us-east-1' } as any;
+
 describe('NotificationLifecycleService', () => {
   let service: NotificationLifecycleService;
 
@@ -85,7 +87,7 @@ describe('NotificationLifecycleService', () => {
   describe('executeNotificationLifecycle', () => {
     it('should create welcome notification for ONBOARDING_COMPLETED', async () => {
       const context = {
-        tenantId: 't1',
+        requestContext: testCtx,
         triggerEvent: {
           id: 'evt-1',
           type: 'ONBOARDING_COMPLETED',
@@ -116,7 +118,7 @@ describe('NotificationLifecycleService', () => {
 
     it('should create notification AND monthly report for ORDER_FILLED', async () => {
       const context = {
-        tenantId: 't1',
+        requestContext: testCtx,
         triggerEvent: {
           id: 'evt-2',
           type: 'ORDER_FILLED',
@@ -166,7 +168,7 @@ describe('NotificationLifecycleService', () => {
         mockSend.mockResolvedValue({});
 
         const context = {
-          tenantId: 't1',
+          requestContext: testCtx,
           triggerEvent: {
             id: `evt-${type}`,
             type,

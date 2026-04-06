@@ -81,6 +81,10 @@ jest.mock('@nestfolio/event-processor', () => ({
 
 }));
 import { ComplianceRepository } from '../src/repositories/compliance.repository';
+import type { RequestContext } from '@nestfolio/event-processor';
+
+const makeCtx = (tenantId: string, userId = tenantId): RequestContext =>
+  ({ tenantId, userId, region: 'us-east-1' }) as unknown as RequestContext;
 
 describe('ComplianceRepository', () => {
   let repo: ComplianceRepository;
@@ -93,8 +97,9 @@ describe('ComplianceRepository', () => {
   describe('createComplianceCheck', () => {
     it('should create a ComplianceCheck with PENDING status and return true', async () => {
       mockSend.mockResolvedValueOnce({});
+      const ctx = makeCtx('t-1', 'u-1');
 
-      const created = await repo.createComplianceCheck('t-1', 'cc-1', 'dp-1', {
+      const created = await repo.createComplianceCheck(ctx, 'cc-1', 'dp-1', {
         mandateId: 'm-1',
         level: 'DISCRETIONARY',
         monthlyTurnoverCapPercent: 10,
@@ -111,6 +116,8 @@ describe('ComplianceRepository', () => {
         sk: 'ComplianceCheck',
         __typename: 'ComplianceCheck',
         tenantId: 't-1',
+        userId: 'u-1',
+        region: 'us-east-1',
         ccId: 'cc-1',
         decisionPacketId: 'dp-1',
         status: 'PENDING',
@@ -119,8 +126,9 @@ describe('ComplianceRepository', () => {
 
     it('should return false when item already exists', async () => {
       mockSend.mockRejectedValueOnce(Object.assign(new Error('ConditionalCheckFailedException'), { name: 'ConditionalCheckFailedException' }));
+      const ctx = makeCtx('t-1', 'u-1');
 
-      const created = await repo.createComplianceCheck('t-1', 'cc-1', 'dp-1', {
+      const created = await repo.createComplianceCheck(ctx, 'cc-1', 'dp-1', {
         mandateId: 'm-1',
         level: 'DISCRETIONARY',
         monthlyTurnoverCapPercent: 10,
@@ -165,8 +173,9 @@ describe('ComplianceRepository', () => {
         result: 'APPROVED',
       };
       mockSend.mockResolvedValueOnce({ Attributes: updated });
+      const ctx = makeCtx('t-1', 'u-1');
 
-      const result = await repo.updateCheckResult('t-1', 'cc-1', 'APPROVED', [], 'L1');
+      const result = await repo.updateCheckResult(ctx, 'cc-1', 'APPROVED', [], 'L1');
 
       expect(result).toMatchObject({ result: 'APPROVED' });
       expect(mockSend).toHaveBeenCalledTimes(1);
@@ -174,9 +183,10 @@ describe('ComplianceRepository', () => {
 
     it('should throw when check not found on update', async () => {
       mockSend.mockResolvedValueOnce({ Attributes: undefined });
+      const ctx = makeCtx('t-1', 'u-1');
 
       await expect(
-        repo.updateCheckResult('t-1', 'cc-1', 'BLOCKED', [], 'L2'),
+        repo.updateCheckResult(ctx, 'cc-1', 'BLOCKED', [], 'L2'),
       ).rejects.toThrow('not found');
     });
   });
@@ -184,8 +194,9 @@ describe('ComplianceRepository', () => {
   describe('createAuditArtifact', () => {
     it('should create an AuditArtifact record and return true', async () => {
       mockSend.mockResolvedValueOnce({});
+      const ctx = makeCtx('t-1', 'u-1');
 
-      const created = await repo.createAuditArtifact('t-1', 'cc-1', 'aa-1', {
+      const created = await repo.createAuditArtifact(ctx, 'cc-1', 'aa-1', {
         decisionPacketId: 'dp-1',
         evaluatedAt: '2025-01-01T00:00:00.000Z',
       });
@@ -198,6 +209,8 @@ describe('ComplianceRepository', () => {
         sk: 'AuditArtifact#aa-1',
         __typename: 'AuditArtifact',
         tenantId: 't-1',
+        userId: 'u-1',
+        region: 'us-east-1',
         artifactId: 'aa-1',
       });
     });
@@ -206,8 +219,9 @@ describe('ComplianceRepository', () => {
   describe('putMandateSnapshot', () => {
     it('should store mandate snapshot', async () => {
       mockSend.mockResolvedValueOnce({});
+      const ctx = makeCtx('t-1', 'u-1');
 
-      await repo.putMandateSnapshot('t-1', 'u-1', {
+      await repo.putMandateSnapshot(ctx, {
         mandateId: 'm-1',
         level: 'DISCRETIONARY',
       });
@@ -219,6 +233,8 @@ describe('ComplianceRepository', () => {
         sk: 'MandateSnapshot',
         __typename: 'MandateSnapshot',
         tenantId: 't-1',
+        userId: 'u-1',
+        region: 'us-east-1',
         mandateId: 'm-1',
       });
     });

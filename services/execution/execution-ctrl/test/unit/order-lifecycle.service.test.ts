@@ -38,6 +38,8 @@ describe('OrderLifecycleService', () => {
     service = new OrderLifecycleService(mockRepository, mockSafetyChecks, mockMarketHours);
   });
 
+  const defaultCtx = { tenantId: 't1', userId: 'u1', region: 'us-east-1' };
+
   const buildEvent = (overrides?: Record<string, unknown>) => ({
     id: 'evt-1',
     type: 'DECISION_APPROVED',
@@ -49,7 +51,7 @@ describe('OrderLifecycleService', () => {
         { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy VTI' },
       ],
     },
-    context: { tenantId: 't1' },
+    context: defaultCtx,
     ...overrides,
   });
 
@@ -57,7 +59,7 @@ describe('OrderLifecycleService', () => {
     it('should submit order immediately when market is open and safety checks pass', async () => {
       await service.processApprovedDecision(buildEvent() as any);
 
-      expect(mockRepository.createOrder).toHaveBeenCalledWith('t1', 'evt-1', 'dp-1', expect.any(Array), 'evt-1');
+      expect(mockRepository.createOrder).toHaveBeenCalledWith('evt-1', 'dp-1', expect.any(Array), defaultCtx, 'evt-1');
       expect(mockSafetyChecks.runAllChecks).toHaveBeenCalledWith('t1', expect.any(Array));
       expect(mockMarketHours.isMarketOpen).toHaveBeenCalled();
       expect(mockRepository.updateOrderStatus).toHaveBeenCalledWith('t1', 'evt-1', 'SUBMITTED');
@@ -69,9 +71,9 @@ describe('OrderLifecycleService', () => {
       await service.processApprovedDecision(buildEvent() as any);
 
       expect(mockRepository.createOrder).toHaveBeenCalled();
-      expect(mockRepository.createStagedOrder).toHaveBeenCalledWith('t1', 'evt-1', {
+      expect(mockRepository.createStagedOrder).toHaveBeenCalledWith('evt-1', {
         proposedTrades: expect.any(Array),
-      });
+      }, defaultCtx);
       expect(mockRepository.updateOrderStatus).toHaveBeenCalledWith('t1', 'evt-1', 'STAGED');
     });
 
@@ -93,8 +95,9 @@ describe('OrderLifecycleService', () => {
     });
 
     it('should extract tenantId from context', async () => {
+      const customCtx = { tenantId: 'tenant-abc', userId: 'u2', region: 'us-east-1' };
       const event = buildEvent({
-        context: { tenantId: 'tenant-abc' },
+        context: customCtx,
         subject: {
           decisionPacketId: 'dp-2',
           proposedTrades: [],
@@ -104,10 +107,10 @@ describe('OrderLifecycleService', () => {
       await service.processApprovedDecision(event as any);
 
       expect(mockRepository.createOrder).toHaveBeenCalledWith(
-        'tenant-abc',
         'evt-1',
         'dp-2',
         [],
+        customCtx,
         'evt-1',
       );
     });

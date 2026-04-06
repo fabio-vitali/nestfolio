@@ -9,7 +9,7 @@ process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
 
 import {
-  record, getUUID,
+  record, getUUID, asTenantId, asUserId,
   type EventPayload, type EventContext,
 } from '@nestfolio/event-processor';
 import { TRIGGER_EVENT_TYPES } from '../src/domain/events';
@@ -30,7 +30,9 @@ const triggerHandler = (payload: EventPayload, ctx: EventContext) => {
 const baseCtx = (eventType: string): EventContext => ({
   eventId: 'evt-1',
   eventType,
-  tenantId: 't1',
+  tenantId: asTenantId('t1'),
+  userId: asUserId('test-user'),
+  region: 'us-east-1',
   timestamp: new Date().toISOString(),
   receiveCount: 1,
   serviceName: 'decision-workflow-ctrl',

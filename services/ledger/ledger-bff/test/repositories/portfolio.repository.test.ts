@@ -56,6 +56,8 @@ jest.mock('@nestfolio/event-processor', () => {
 });
 import { PortfolioRepository } from '../../src/repositories/portfolio.repository';
 
+const TEST_CTX = { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' };
+
 describe('PortfolioRepository', () => {
   let repo: PortfolioRepository;
 
@@ -101,13 +103,13 @@ describe('PortfolioRepository', () => {
     it('should write history entry with zero-padded sequence', async () => {
       mockSend.mockResolvedValue({});
 
-      await repo.appendHistory('tenant-1', {
+      await repo.appendHistory({
         eventId: 'evt-1',
         eventType: 'ORDER_FILLED',
         payload: { symbol: 'VTI', quantity: 10 },
         timestamp: '2025-01-01T00:00:00.000Z',
         sequenceNo: 42,
-      });
+      }, TEST_CTX as any);
 
       const cmd = mockSend.mock.calls[0][0];
       expect(cmd._type).toBe('Put');
@@ -122,10 +124,10 @@ describe('PortfolioRepository', () => {
     it('should write checkpoint with conditional put', async () => {
       mockSend.mockResolvedValue({});
 
-      await repo.saveCheckpoint('tenant-1', '2025-01-01', {
+      await repo.saveCheckpoint('2025-01-01', {
         cashBalanceCents: 950_000,
         positions: {},
-      });
+      }, TEST_CTX as any);
 
       const cmd = mockSend.mock.calls[0][0];
       expect(cmd._type).toBe('Put');
@@ -179,10 +181,10 @@ describe('PortfolioRepository', () => {
     it('should write simulation latest state', async () => {
       mockSend.mockResolvedValue({});
 
-      await repo.upsertSimulation('tenant-1', {
+      await repo.upsertSimulation({
         cashBalanceCents: 900_000,
         positions: {},
-      });
+      }, TEST_CTX as any);
 
       const cmd = mockSend.mock.calls[0][0];
       expect(cmd._type).toBe('Put');
@@ -195,10 +197,11 @@ describe('PortfolioRepository', () => {
     it('should write a SnapshotAt item with TTL', async () => {
       mockSend.mockResolvedValueOnce({}); // put
 
-      await repo.saveSnapshotAt('t1', 'actual', '2025-06-15T12:00:00.000Z', {
+      const snapshotCtx = { tenantId: 't1', userId: 'u1', region: 'us-east-1' };
+      await repo.saveSnapshotAt('actual', '2025-06-15T12:00:00.000Z', {
         cashBalanceCents: 7_500_000,
         positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 250 } },
-      }, 365);
+      }, 365, snapshotCtx as any);
 
       const { PutCommand } = jest.requireMock('@aws-sdk/lib-dynamodb') as { PutCommand: jest.Mock };
       const putCall = PutCommand.mock.calls[0][0];

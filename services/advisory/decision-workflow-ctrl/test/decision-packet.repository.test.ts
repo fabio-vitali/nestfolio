@@ -72,6 +72,8 @@ process.env.TABLE_NAME = 'test-table';
 
 import { DecisionPacketRepository } from '../src/repositories/decision-packet.repository';
 
+const TEST_CTX = { tenantId: 't1', userId: 'u1', region: 'us-east-1' };
+
 function extractUpdateAttrs(update: any): Record<string, unknown> {
   const names = update.ExpressionAttributeNames;
   const values = update.ExpressionAttributeValues;
@@ -96,12 +98,11 @@ describe('DecisionPacketRepository', () => {
       mockSend.mockResolvedValueOnce({});
 
       const created = await repo.createDecisionPacket({
-        tenantId: 't1',
         decisionId: 'dp-1',
         trigger: 'MANDATE_CREATED',
         triggerEventId: 'evt-1',
         executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
-      });
+      }, TEST_CTX as any);
 
       expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
@@ -111,6 +112,8 @@ describe('DecisionPacketRepository', () => {
         sk: 'DecisionPacket',
         __typename: 'DecisionPacket',
         tenantId: 't1',
+        userId: 'u1',
+        region: 'us-east-1',
         decisionId: 'dp-1',
         status: 'INITIATED',
         trigger: 'MANDATE_CREATED',
@@ -125,12 +128,11 @@ describe('DecisionPacketRepository', () => {
       mockSend.mockRejectedValueOnce(condError);
 
       const created = await repo.createDecisionPacket({
-        tenantId: 't1',
         decisionId: 'dp-dup',
         trigger: 'MANDATE_CREATED',
         triggerEventId: 'evt-dup',
         executionArn: null,
-      });
+      }, TEST_CTX as any);
       expect(created).toBe(false);
     });
   });

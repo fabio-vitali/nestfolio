@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { createIngestionHandler, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { createIngestionHandler, skip, pickRequestContext, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { getTime, logger } from '@nestfolio/event-processor';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
@@ -19,15 +19,13 @@ async function processActualEvent(
   payload: EventPayload,
   ctx: EventContext,
 ) {
-  const tenantId = ctx.tenantId;
   const subject = payload.subject ?? {};
   const context = payload.context ?? {};
-  const eventPayload = { ...subject, userId: subject['userId'] ?? context['userId'] };
+  const eventPayload: Record<string, unknown> = { ...subject, userId: subject['userId'] ?? context['userId'] };
 
-  const sequenceNo = await deps.repository.nextSequence(tenantId, 'actual');
+  const sequenceNo = await deps.repository.nextSequence(ctx.tenantId, 'actual');
 
   const created = await deps.repository.putLedgerEntry({
-    tenantId,
     streamType: 'actual',
     eventId: ctx.eventId,
     eventType: ctx.eventType,
@@ -35,7 +33,7 @@ async function processActualEvent(
     timestamp: ctx.timestamp,
     sequenceNo,
     decisionId: subject['decisionId'] as string | undefined,
-  });
+  }, pickRequestContext(ctx));
 
   if (!created) {
     logger.info('Duplicate ledger entry, skipping', { eventType: ctx.eventType, eventId: ctx.eventId });
@@ -46,7 +44,7 @@ async function processActualEvent(
     const side = eventPayload.side as string;
     if (side === 'BUY') {
       await deps.taxLotManager.openLot({
-        tenantId,
+        tenantId: ctx.tenantId,
         orderId: eventPayload.orderId as string,
         symbol: eventPayload.symbol as string,
         quantity: eventPayload.filledQuantity as number ?? eventPayload.quantity as number,
@@ -55,7 +53,7 @@ async function processActualEvent(
       });
     } else if (side === 'SELL') {
       await deps.taxLotManager.closeLots({
-        tenantId,
+        tenantId: ctx.tenantId,
         symbol: eventPayload.symbol as string,
         quantity: eventPayload.filledQuantity as number ?? eventPayload.quantity as number,
         salePrice: eventPayload.averageFillPrice as number ?? eventPayload.fillPrice as number,
@@ -73,7 +71,6 @@ async function processSimulationEvent(
   payload: EventPayload,
   ctx: EventContext,
 ) {
-  const tenantId = ctx.tenantId;
   const subject = payload.subject ?? {};
   const decisionPacketId = (subject['decisionPacketId'] as string) ?? ctx.eventId;
   const proposedTrades = (subject['proposedTrades'] ?? []) as ProposedTrade[];
@@ -87,10 +84,9 @@ async function processSimulationEvent(
 
   for (const trade of proposedTrades) {
     const fillResult = await deps.shadowFill.simulateFill(trade);
-    const sequenceNo = await deps.repository.nextSequence(tenantId, 'simulated');
+    const sequenceNo = await deps.repository.nextSequence(ctx.tenantId, 'simulated');
 
     const created = await deps.repository.putLedgerEntry({
-      tenantId,
       streamType: 'simulated',
       eventId: `${ctx.eventId}-sim-${trade.symbol}`,
       eventType: 'ORDER_FILLED',
@@ -105,7 +101,7 @@ async function processSimulationEvent(
       timestamp: now,
       sequenceNo,
       decisionId: decisionPacketId,
-    });
+    }, pickRequestContext(ctx));
 
     if (!created) {
       logger.info('Duplicate simulation entry, skipping', { symbol: trade.symbol, eventId: ctx.eventId });

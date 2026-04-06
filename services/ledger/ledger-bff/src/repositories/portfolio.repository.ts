@@ -5,7 +5,7 @@ import {
   QueryCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getTime, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 
 export interface PositionRecord {
@@ -67,14 +67,14 @@ export class PortfolioRepository extends TableRepository {
   );
 
   readonly upsertPosition = this.log('upsertPosition',
-    async (tenantId: string, symbol: string, position: PositionRecord): Promise<void> => {
+    async (symbol: string, position: PositionRecord, ctx: RequestContext): Promise<void> => {
       const now = getTime();
 
       const item: TableEntry = {
-        pk: `Portfolio#${tenantId}`,
+        pk: `Portfolio#${ctx.tenantId}`,
         sk: `Position#${symbol}`,
         __typename: 'Position',
-        tenantId,
+        ...ctx,
         timestamp: now,
         symbol: position.symbol,
         quantity: position.quantity,
@@ -88,13 +88,13 @@ export class PortfolioRepository extends TableRepository {
   );
 
   readonly appendHistory = this.log('appendHistory',
-    async (tenantId: string, entry: HistoryEntry): Promise<void> => {
+    async (entry: HistoryEntry, ctx: RequestContext): Promise<void> => {
       const seqStr = String(entry.sequenceNo).padStart(8, '0');
       const item: TableEntry = {
-        pk: `History#${tenantId}`,
+        pk: `History#${ctx.tenantId}`,
         sk: `${seqStr}#${entry.eventId}`,
         __typename: 'HistoryEntry',
-        tenantId,
+        ...ctx,
         timestamp: entry.timestamp,
         eventId: entry.eventId,
         eventType: entry.eventType,
@@ -108,13 +108,13 @@ export class PortfolioRepository extends TableRepository {
   );
 
   readonly saveCheckpoint = this.log('saveCheckpoint',
-    async (tenantId: string, date: string, state: CheckpointState): Promise<void> => {
+    async (date: string, state: CheckpointState, ctx: RequestContext): Promise<void> => {
       const now = getTime();
       const item: TableEntry = {
-        pk: `Checkpoint#${tenantId}`,
+        pk: `Checkpoint#${ctx.tenantId}`,
         sk: `${date}`,
         __typename: 'Checkpoint',
-        tenantId,
+        ...ctx,
         timestamp: now,
         positions: state.positions,
         cashBalanceCents: state.cashBalanceCents,
@@ -133,14 +133,14 @@ export class PortfolioRepository extends TableRepository {
   );
 
   readonly upsertSimulation = this.log('upsertSimulation',
-    async (tenantId: string, state: CheckpointState): Promise<void> => {
+    async (state: CheckpointState, ctx: RequestContext): Promise<void> => {
       const now = getTime();
 
       const item: TableEntry = {
-        pk: `Simulation#${tenantId}`,
+        pk: `Simulation#${ctx.tenantId}`,
         sk: 'Latest',
         __typename: 'SimulationLatest',
-        tenantId,
+        ...ctx,
         timestamp: now,
         cashBalanceCents: state.cashBalanceCents,
         positions: state.positions,
@@ -151,14 +151,14 @@ export class PortfolioRepository extends TableRepository {
   );
 
   readonly upsertSimulationPosition = this.log('upsertSimulationPosition',
-    async (tenantId: string, symbol: string, position: PositionRecord): Promise<void> => {
+    async (symbol: string, position: PositionRecord, ctx: RequestContext): Promise<void> => {
       const now = getTime();
 
       const item: TableEntry = {
-        pk: `Simulation#${tenantId}`,
+        pk: `Simulation#${ctx.tenantId}`,
         sk: `Position#${symbol}`,
         __typename: 'SimulationPosition',
-        tenantId,
+        ...ctx,
         timestamp: now,
         symbol: position.symbol,
         quantity: position.quantity,
@@ -282,18 +282,18 @@ export class PortfolioRepository extends TableRepository {
 
   readonly saveSnapshotAt = this.log('saveSnapshotAt',
     async (
-      tenantId: string,
       streamType: string,
       timestamp: string,
       snapshot: CheckpointState,
       ttlDays: number,
+      ctx: RequestContext,
     ): Promise<void> => {
       const ttl = Math.floor(Date.now() / 1000) + (ttlDays * 86400);
       await this.put({
-        pk: `SnapshotAt#${tenantId}#${streamType}`,
+        pk: `SnapshotAt#${ctx.tenantId}#${streamType}`,
         sk: timestamp,
         __typename: 'SnapshotAt',
-        tenantId,
+        ...ctx,
         streamType,
         timestamp,
         positions: snapshot.positions,

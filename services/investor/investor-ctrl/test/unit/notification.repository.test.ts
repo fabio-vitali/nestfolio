@@ -69,6 +69,8 @@ jest.mock('@nestfolio/event-processor', () => ({
 }));
 import { NotificationRepository } from '../../src/repositories/notification.repository';
 
+const testCtx = { tenantId: 't1', userId: 'u1', region: 'us-east-1' } as any;
+
 function extractUpdateAttrs(update: any): Record<string, unknown> {
   const names = update.ExpressionAttributeNames;
   const values = update.ExpressionAttributeValues;
@@ -92,11 +94,11 @@ describe('NotificationRepository', () => {
     it('should create a Notification with status CREATED', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      const created = await repo.createNotification('t1', 'notif-1', {
+      const created = await repo.createNotification('notif-1', {
         title: 'Welcome to Nestfolio',
         body: 'Your account setup is complete.',
         channel: 'email',
-      });
+      }, testCtx);
 
       expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
@@ -106,6 +108,8 @@ describe('NotificationRepository', () => {
         sk: 'Notification',
         __typename: 'Notification',
         tenantId: 't1',
+        userId: 'u1',
+        region: 'us-east-1',
         notificationId: 'notif-1',
         status: 'CREATED',
         title: 'Welcome to Nestfolio',
@@ -154,11 +158,11 @@ describe('NotificationRepository', () => {
       mockSend.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
 
       await expect(
-        repo.createNotification('t1', 'notif-err', {
+        repo.createNotification('notif-err', {
           title: 'Test',
           body: 'Test body',
           channel: 'email',
-        }),
+        }, testCtx),
       ).rejects.toThrow('ProvisionedThroughputExceededException');
     });
 
@@ -175,10 +179,10 @@ describe('NotificationRepository', () => {
     it('should create a MonthlyReport with correct pk and sk', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      const created = await repo.createMonthlyReport('t1', 'report-1', {
+      const created = await repo.createMonthlyReport('report-1', {
         period: '2025-01',
         status: 'GENERATED',
-      });
+      }, testCtx);
 
       expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
@@ -188,6 +192,8 @@ describe('NotificationRepository', () => {
         sk: 'MonthlyReport',
         __typename: 'MonthlyReport',
         tenantId: 't1',
+        userId: 'u1',
+        region: 'us-east-1',
         reportId: 'report-1',
         period: '2025-01',
         status: 'GENERATED',

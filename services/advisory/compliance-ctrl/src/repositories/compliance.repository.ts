@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, EntityNotFoundError, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getTime, EntityNotFoundError, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import type { MandateSnapshot } from '../rules/rule-engine';
 
@@ -20,7 +20,7 @@ export class ComplianceRepository extends TableRepository {
   }
 
   readonly createComplianceCheck = this.log('createComplianceCheck', async (
-    tenantId: string,
+    ctx: RequestContext,
     ccId: string,
     decisionPacketId: string,
     mandateSnapshot: MandateSnapshot,
@@ -28,10 +28,10 @@ export class ComplianceRepository extends TableRepository {
   ): Promise<boolean> => {
     const now = getTime();
     const item: TableEntry = {
-      pk: complianceCheckPk(tenantId, ccId),
+      pk: complianceCheckPk(ctx.tenantId, ccId),
       sk: 'ComplianceCheck',
       __typename: 'ComplianceCheck',
-      tenantId,
+      ...ctx,
       timestamp: now,
       ccId,
       decisionPacketId,
@@ -65,13 +65,13 @@ export class ComplianceRepository extends TableRepository {
   });
 
   readonly updateCheckResult = this.log('updateCheckResult', async (
-    tenantId: string,
+    ctx: RequestContext,
     ccId: string,
     checkResult: 'APPROVED' | 'BLOCKED',
     violations: unknown[],
     authorityLevel: 'L1' | 'L2',
   ): Promise<Record<string, unknown>> => {
-    const pk = complianceCheckPk(tenantId, ccId);
+    const pk = complianceCheckPk(ctx.tenantId, ccId);
     const now = getTime();
 
     const updateResult = await this.docClient.send(
@@ -99,24 +99,24 @@ export class ComplianceRepository extends TableRepository {
     );
 
     if (!updateResult.Attributes) {
-      throw new EntityNotFoundError('ComplianceCheck', `${tenantId}#${ccId}`);
+      throw new EntityNotFoundError('ComplianceCheck', `${ctx.tenantId}#${ccId}`);
     }
 
     return updateResult.Attributes;
   });
 
   readonly createAuditArtifact = this.log('createAuditArtifact', async (
-    tenantId: string,
+    ctx: RequestContext,
     ccId: string,
     artifactId: string,
     artifact: Record<string, unknown>,
   ): Promise<boolean> => {
     const now = getTime();
     const item: TableEntry = {
-      pk: complianceCheckPk(tenantId, ccId),
+      pk: complianceCheckPk(ctx.tenantId, ccId),
       sk: `AuditArtifact#${artifactId}`,
       __typename: 'AuditArtifact',
-      tenantId,
+      ...ctx,
       timestamp: now,
       artifactId,
       ...artifact,
@@ -140,16 +140,15 @@ export class ComplianceRepository extends TableRepository {
   });
 
   readonly putMandateSnapshot = this.log('putMandateSnapshot', async (
-    tenantId: string,
-    userId: string,
+    ctx: RequestContext,
     mandate: Record<string, unknown>,
   ): Promise<void> => {
     const now = getTime();
     const item: TableEntry = {
-      pk: guardrailPolicyPk(tenantId, userId),
+      pk: guardrailPolicyPk(ctx.tenantId, ctx.userId),
       sk: 'MandateSnapshot',
       __typename: 'MandateSnapshot',
-      tenantId,
+      ...ctx,
       timestamp: now,
       ...mandate,
       snapshotAt: now,

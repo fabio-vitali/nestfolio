@@ -146,7 +146,7 @@ describe('event-listener handler', () => {
       symbol: 'VTI',
       side: 'BUY',
       quantity: 10,
-    }, { eventId: 'evt-1', tenantId: 't-1' });
+    }, { eventId: 'evt-1', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -161,7 +161,7 @@ describe('event-listener handler', () => {
       tenantId: 't-1',
       userId: 'u-1',
       amount: 5000,
-    }, { eventId: 'evt-2', tenantId: 't-1' });
+    }, { eventId: 'evt-2', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -187,7 +187,7 @@ describe('event-listener handler', () => {
       tenantId: 't-1',
       userId: 'u-1',
       // Missing: orderId, symbol, side, quantity
-    }, { eventId: 'evt-missing-fields', tenantId: 't-1' });
+    }, { eventId: 'evt-missing-fields', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
@@ -196,7 +196,7 @@ describe('event-listener handler', () => {
   });
 
   it('should skip unknown event types gracefully', async () => {
-    const record = fakeSqsRecord('UNKNOWN_EVENT', {}, { eventId: 'evt-3', tenantId: 't-1' });
+    const record = fakeSqsRecord('UNKNOWN_EVENT', {}, { eventId: 'evt-3', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -214,7 +214,7 @@ describe('event-listener handler', () => {
       symbol: 'VTI',
       side: 'BUY',
       quantity: 10,
-    }, { eventId: 'evt-fail', tenantId: 't-1' });
+    }, { eventId: 'evt-fail', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
@@ -241,7 +241,7 @@ describe('event-listener handler', () => {
       symbol: 'VTI',
       side: 'BUY',
       quantity: 10,
-    }, { eventId: 'evt-dup-order', tenantId: 't-1' });
+    }, { eventId: 'evt-dup-order', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -258,7 +258,7 @@ describe('event-listener handler', () => {
       tenantId: 't-1',
       userId: 'u-1',
       amount: 5000,
-    }, { eventId: 'evt-dup-withdraw', tenantId: 't-1' });
+    }, { eventId: 'evt-dup-withdraw', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -276,14 +276,14 @@ describe('event-listener handler', () => {
       userId: 'u-1',
       amountCents: 10000,
       currency: 'USD',
-    }, { eventId: 'evt-dup-deposit', tenantId: 't-1' });
+    }, { eventId: 'evt-dup-deposit', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('should throw descriptive error when ORDER_SUBMITTED has null subject', async () => {
-    const record = fakeSqsRecord('SIM_ORDER_REQUESTED', null as any, { eventId: 'evt-null-subject', tenantId: 't-1' });
+    const record = fakeSqsRecord('SIM_ORDER_REQUESTED', null as any, { eventId: 'evt-null-subject', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
@@ -291,7 +291,7 @@ describe('event-listener handler', () => {
   });
 
   it('should throw descriptive error when WITHDRAWAL_REQUESTED has null subject', async () => {
-    const record = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', null as any, { eventId: 'evt-null-subject-w', tenantId: 't-1' });
+    const record = fakeSqsRecord('SIM_WITHDRAWAL_REQUESTED', null as any, { eventId: 'evt-null-subject-w', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(1);
@@ -308,7 +308,7 @@ describe('event-listener handler', () => {
       userId: 'u-1',
       amountCents: 10000,
       currency: 'USD',
-    }, { eventId: 'evt-deposit', tenantId: 't-1' });
+    }, { eventId: 'evt-deposit', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -339,7 +339,7 @@ describe('event-listener handler', () => {
       userId: 'u-1',
       amountCents: 20000,
       currency: 'USD',
-    }, { eventId: 'evt-deposit-record', tenantId: 't-1' });
+    }, { eventId: 'evt-deposit-record', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -373,7 +373,7 @@ describe('event-listener handler', () => {
       userId: 'u-1',
       amountCents: 10000,
       currency: 'USD',
-    }, { eventId: 'evt-dup-deposit2', tenantId: 't-1' });
+    }, { eventId: 'evt-dup-deposit2', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([sqsRecord]);
     expect(result.batchItemFailures).toHaveLength(0);
@@ -399,7 +399,7 @@ describe('event-listener handler', () => {
         withdrawalId: 'wth-1',
         amount: 50,
         userId: 'user-1',
-      }, { eventId: 'evt-withdrawal-record', tenantId: 'tenant-1' });
+      }, { eventId: 'evt-withdrawal-record', tenantId: 'tenant-1', userId: 'user-1' });
 
       const result = await harness.process([sqsRecord]);
 
@@ -427,7 +427,7 @@ describe('event-listener handler', () => {
         withdrawalId: 'wth-2',
         amount: 99999,
         userId: 'user-1',
-      }, { eventId: 'evt-withdrawal-insufficient', tenantId: 'tenant-1' });
+      }, { eventId: 'evt-withdrawal-insufficient', tenantId: 'tenant-1', userId: 'user-1' });
 
       const result = await harness.process([sqsRecord]);
       // Handler returns skip() — no record intent emitted, no failure
@@ -445,7 +445,7 @@ describe('event-listener handler', () => {
         withdrawalId: 'wth-dup',
         amount: 100,
         userId: 'user-1',
-      }, { eventId: 'evt-withdrawal-dup', tenantId: 'tenant-1' });
+      }, { eventId: 'evt-withdrawal-dup', tenantId: 'tenant-1', userId: 'user-1' });
 
       const result = await harness.process([sqsRecord]);
       expect(result.batchItemFailures).toHaveLength(0);
@@ -484,7 +484,7 @@ describe('event-listener handler', () => {
       symbol: 'VTI',
       side: 'BUY',
       quantity: 2,
-    }, { eventId: 'evt-init', tenantId: 't-1' });
+    }, { eventId: 'evt-init', tenantId: 't-1', userId: 'u-1' });
 
     const result = await harness.process([record]);
     expect(result.batchItemFailures).toHaveLength(0);

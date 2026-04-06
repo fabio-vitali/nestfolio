@@ -1,10 +1,10 @@
-import { logger, type BusEvent } from '@nestfolio/event-processor';
+import { logger, type BusEvent, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationDeliveryService, type DeliveryResult } from './notification-delivery.service';
 
 export interface NotificationContext {
-  tenantId: string;
+  requestContext: RequestContext;
   triggerEvent: BusEvent;
 }
 
@@ -29,21 +29,22 @@ export class NotificationLifecycleService {
 
   readonly executeNotificationLifecycle = this.log('executeNotificationLifecycle',
     async (context: NotificationContext): Promise<NotificationResult> => {
+      const { requestContext: ctx } = context;
       const notificationId = context.triggerEvent.id;
       const content = this.getNotificationContent(context.triggerEvent.type);
 
       // 1. Create notification (conditional write — returns false if already exists)
-      const created = await this.repository.createNotification(context.tenantId, notificationId, {
+      const created = await this.repository.createNotification(notificationId, {
         title: content.title,
         body: content.body,
         channel: content.channel,
         triggerEventType: context.triggerEvent.type,
         sourceEventId: context.triggerEvent.id,
-      });
+      }, ctx);
 
       if (!created) {
         logger.info('Notification already exists, skipping duplicate', {
-          tenantId: context.tenantId,
+          tenantId: ctx.tenantId,
           notificationId,
         });
         return { notificationId, status: 'COMPLETED' };
@@ -58,12 +59,12 @@ export class NotificationLifecycleService {
       // 3. Update status based on delivery result
       if (deliveryResult.delivered) {
         await this.repository.updateNotificationStatus(
-          context.tenantId, notificationId, 'DELIVERED',
+          ctx.tenantId, notificationId, 'DELIVERED',
           { deliveredAt: deliveryResult.timestamp },
         );
       } else {
         await this.repository.updateNotificationStatus(
-          context.tenantId, notificationId, 'FAILED',
+          ctx.tenantId, notificationId, 'FAILED',
           { failedAt: deliveryResult.timestamp, failureReason: deliveryResult.error },
         );
       }
@@ -72,23 +73,23 @@ export class NotificationLifecycleService {
       if (context.triggerEvent.type === 'ORDER_FILLED') {
         const reportId = context.triggerEvent.id + '-report';
         const subject = (context.triggerEvent.subject as Record<string, unknown>) ?? {};
-        const reportCreated = await this.repository.createMonthlyReport(context.tenantId, reportId, {
+        const reportCreated = await this.repository.createMonthlyReport(reportId, {
           period: this.getCurrentPeriod(),
           orderDetails: subject,
           sourceEventId: context.triggerEvent.id,
           status: 'GENERATED',
-        });
+        }, ctx);
 
         if (reportCreated) {
           logger.info('Monthly report generated for ORDER_FILLED', {
-            tenantId: context.tenantId,
+            tenantId: ctx.tenantId,
             reportId,
           });
         }
       }
 
       logger.info('Notification lifecycle completed', {
-        tenantId: context.tenantId,
+        tenantId: ctx.tenantId,
         notificationId,
         eventType: context.triggerEvent.type,
       });

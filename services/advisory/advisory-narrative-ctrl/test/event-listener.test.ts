@@ -30,6 +30,7 @@ process.env.BUS_NAME = 'test-bus';
 process.env.MEMORY_ID = 'mem-test';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
+import { asTenantId, asUserId } from '@nestfolio/event-processor';
 import { createHandlers, type SfnCallbackDeps } from '../src/handlers/event-listener';
 
 describe('advisory-narrative-ctrl event-listener', () => {
@@ -57,7 +58,9 @@ describe('advisory-narrative-ctrl event-listener', () => {
   const baseCtx: EventContext = {
     eventId: 'evt-1',
     eventType: 'GENERATE_NARRATIVE',
-    tenantId: 't1',
+    tenantId: asTenantId('t1'),
+    userId: asUserId('test-user'),
+    region: 'us-east-1',
     timestamp: new Date().toISOString(),
     receiveCount: 1,
     serviceName: 'advisory-narrative-ctrl',

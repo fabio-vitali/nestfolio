@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getUUID, getTime, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import type { Phases, OnboardingSession } from '../domain/schemas';
 
@@ -18,16 +18,15 @@ export class OnboardingRepository extends TableRepository {
   }
 
   readonly createSession = this.log('createSession',
-    async (tenantId: string, userId: string, agentMemorySessionId: string): Promise<OnboardingSession & { sessionId: string }> => {
+    async (agentMemorySessionId: string, ctx: RequestContext): Promise<OnboardingSession & { sessionId: string }> => {
       const now = getTime();
       const sessionId = getUUID();
 
       const item: TableEntry = {
-        pk: sessionPk(tenantId, userId),
+        pk: sessionPk(ctx.tenantId, ctx.userId),
         sk: `OnboardingSession#${sessionId}`,
         __typename: 'OnboardingSession',
-        tenantId,
-        userId,
+        ...ctx,
         timestamp: now,
         sessionId,
         status: 'in_progress',
@@ -71,17 +70,16 @@ export class OnboardingRepository extends TableRepository {
   );
 
   readonly completeSession = this.log('completeSession',
-    async (tenantId: string, userId: string, sessionId: string, phases: Phases): Promise<void> => {
-      const pk = sessionPk(tenantId, userId);
+    async (sessionId: string, phases: Phases, ctx: RequestContext): Promise<void> => {
+      const pk = sessionPk(ctx.tenantId, ctx.userId);
       const now = getTime();
 
       // CDC record — raw onboarding data, onboarding vocabulary only
       const cdcRecord: TableEntry = {
-        pk: `OnboardingCompleted#${tenantId}#${userId}`,
+        pk: `OnboardingCompleted#${ctx.tenantId}#${ctx.userId}`,
         sk: `OnboardingCompleted#${sessionId}`,
         __typename: 'OnboardingCompleted',
-        tenantId,
-        userId,
+        ...ctx,
         timestamp: now,
         goal: phases.goal!,
         horizonYears: phases.horizon!.years,
@@ -113,17 +111,16 @@ export class OnboardingRepository extends TableRepository {
   );
 
   readonly confirmGoLive = this.log('confirmGoLive',
-    async (tenantId: string, userId: string, sessionId: string): Promise<void> => {
-      const pk = sessionPk(tenantId, userId);
+    async (sessionId: string, ctx: RequestContext): Promise<void> => {
+      const pk = sessionPk(ctx.tenantId, ctx.userId);
       const now = getTime();
 
       // CDC record — emitted as GO_LIVE_CONFIRMED via event-publisher
       const cdcRecord: TableEntry = {
-        pk: `GoLiveConfirmed#${tenantId}`,
+        pk: `GoLiveConfirmed#${ctx.tenantId}`,
         sk: `GoLiveConfirmed#${now}`,
         __typename: 'GoLiveConfirmed',
-        tenantId,
-        userId,
+        ...ctx,
         timestamp: now,
         ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
       };

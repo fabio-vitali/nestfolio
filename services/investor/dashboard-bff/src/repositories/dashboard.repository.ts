@@ -4,7 +4,7 @@ import {
   UpdateCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getTime, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging, guardedWrite } from '@nestfolio/event-processor';
 
 function dashboardPk(tenantId: string): string {
@@ -186,7 +186,6 @@ export class DashboardRepository extends TableRepository {
 
   readonly upsertPositionSnapshot = this.log('upsertPositionSnapshot',
     async (
-      tenantId: string,
       data: {
         symbol: string;
         assetClass?: string;
@@ -197,15 +196,16 @@ export class DashboardRepository extends TableRepository {
         weightPercent: number;
         unrealizedPnlCents: number;
       },
+      ctx: RequestContext,
     ): Promise<void> => {
-      const pk = dashboardPk(tenantId);
+      const pk = dashboardPk(ctx.tenantId);
       const now = getTime();
 
       const item: TableEntry = {
         pk,
         sk: `Position#${data.symbol}`,
         __typename: 'PositionSnapshot',
-        tenantId,
+        ...ctx,
         timestamp: now,
         symbol: data.symbol,
         assetClass: data.assetClass ?? 'EQUITY',
@@ -233,15 +233,15 @@ export class DashboardRepository extends TableRepository {
 
   readonly addActivity = this.log('addActivity',
     async (
-      tenantId: string,
       eventId: string,
       activity: {
         activityType: string;
         description: string;
         metadata?: Record<string, unknown>;
       },
+      ctx: RequestContext,
     ): Promise<boolean> => {
-      const pk = dashboardPk(tenantId);
+      const pk = dashboardPk(ctx.tenantId);
       const now = getTime();
 
       const TTL_90_DAYS = 90 * 24 * 60 * 60;
@@ -251,7 +251,7 @@ export class DashboardRepository extends TableRepository {
         pk,
         sk: `Activity#${now}#${eventId}`,
         __typename: 'RecentActivity',
-        tenantId,
+        ...ctx,
         timestamp: now,
         sourceEventId: eventId,
         activityType: activity.activityType,

@@ -7,8 +7,12 @@ jest.mock('@nestfolio/event-processor', () => ({
   ),
 }));
 
-import { TaxLotManager, type OpenLotParams, type CloseLotParams } from '../src/services/tax-lot-manager';
+import { TaxLotManager, type OpenLotParams, type CloseLotParams, type TaxLot } from '../src/services/tax-lot-manager';
 import { LedgerRepository } from '../src/repositories/ledger.repository';
+
+function makeLot(overrides: Partial<TaxLot> & Pick<TaxLot, 'pk' | 'sk' | 'lotId' | 'symbol' | 'quantity' | 'costBasisPerShare' | 'acquiredAt'>): TaxLot {
+  return { __typename: 'TaxLot', tenantId: 't1', status: 'open', ...overrides };
+}
 
 describe('TaxLotManager', () => {
   let manager: TaxLotManager;
@@ -55,14 +59,14 @@ describe('TaxLotManager', () => {
 
   it('closeLots FIFO — sells 80 shares, consumes oldest lots first', async () => {
     mockRepo.getOpenLotsBySymbol.mockResolvedValue([
-      {
+      makeLot({
         pk: 'TaxLot#t1#VTI', sk: 'Lot#2025-01-01T00:00:00.000Z#lot-a',
-        lotId: 'lot-a', symbol: 'VTI', quantity: 50, costBasisPerShare: 200, acquiredAt: '2025-01-01T00:00:00.000Z', status: 'open',
-      },
-      {
+        lotId: 'lot-a', symbol: 'VTI', quantity: 50, costBasisPerShare: 200, acquiredAt: '2025-01-01T00:00:00.000Z',
+      }),
+      makeLot({
         pk: 'TaxLot#t1#VTI', sk: 'Lot#2025-06-01T00:00:00.000Z#lot-b',
-        lotId: 'lot-b', symbol: 'VTI', quantity: 50, costBasisPerShare: 220, acquiredAt: '2025-06-01T00:00:00.000Z', status: 'open',
-      },
+        lotId: 'lot-b', symbol: 'VTI', quantity: 50, costBasisPerShare: 220, acquiredAt: '2025-06-01T00:00:00.000Z',
+      }),
     ]);
 
     const params: CloseLotParams = {
@@ -81,10 +85,10 @@ describe('TaxLotManager', () => {
 
   it('closeLots correctly calculates realizedGain (positive and negative)', async () => {
     mockRepo.getOpenLotsBySymbol.mockResolvedValue([
-      {
+      makeLot({
         pk: 'TaxLot#t1#VTI', sk: 'Lot#2025-01-01#lot-gain',
-        lotId: 'lot-gain', symbol: 'VTI', quantity: 10, costBasisPerShare: 100, acquiredAt: '2025-01-01T00:00:00.000Z', status: 'open',
-      },
+        lotId: 'lot-gain', symbol: 'VTI', quantity: 10, costBasisPerShare: 100, acquiredAt: '2025-01-01T00:00:00.000Z',
+      }),
     ]);
 
     // Sell at higher price → positive gain
@@ -95,10 +99,10 @@ describe('TaxLotManager', () => {
 
     // Reset and test negative gain
     mockRepo.getOpenLotsBySymbol.mockResolvedValue([
-      {
+      makeLot({
         pk: 'TaxLot#t1#VTI', sk: 'Lot#2025-01-01#lot-loss',
-        lotId: 'lot-loss', symbol: 'VTI', quantity: 10, costBasisPerShare: 200, acquiredAt: '2025-01-01T00:00:00.000Z', status: 'open',
-      },
+        lotId: 'lot-loss', symbol: 'VTI', quantity: 10, costBasisPerShare: 200, acquiredAt: '2025-01-01T00:00:00.000Z',
+      }),
     ]);
 
     const lossDispositions = await manager.closeLots({
@@ -109,14 +113,14 @@ describe('TaxLotManager', () => {
 
   it('closeLots determines holdingPeriod (short-term < 1 year, long-term >= 1 year)', async () => {
     mockRepo.getOpenLotsBySymbol.mockResolvedValue([
-      {
+      makeLot({
         pk: 'TaxLot#t1#VTI', sk: 'Lot#2024-01-01#lot-lt',
-        lotId: 'lot-lt', symbol: 'VTI', quantity: 10, costBasisPerShare: 100, acquiredAt: '2024-01-01T00:00:00.000Z', status: 'open',
-      },
-      {
+        lotId: 'lot-lt', symbol: 'VTI', quantity: 10, costBasisPerShare: 100, acquiredAt: '2024-01-01T00:00:00.000Z',
+      }),
+      makeLot({
         pk: 'TaxLot#t1#VTI', sk: 'Lot#2025-10-01#lot-st',
-        lotId: 'lot-st', symbol: 'VTI', quantity: 10, costBasisPerShare: 110, acquiredAt: '2025-10-01T00:00:00.000Z', status: 'open',
-      },
+        lotId: 'lot-st', symbol: 'VTI', quantity: 10, costBasisPerShare: 110, acquiredAt: '2025-10-01T00:00:00.000Z',
+      }),
     ]);
 
     const dispositions = await manager.closeLots({
@@ -131,10 +135,10 @@ describe('TaxLotManager', () => {
 
   it('closeLots marks lots as closed when fully consumed', async () => {
     mockRepo.getOpenLotsBySymbol.mockResolvedValue([
-      {
+      makeLot({
         pk: 'TaxLot#t1#VTI', sk: 'Lot#2025-01-01#lot-full',
-        lotId: 'lot-full', symbol: 'VTI', quantity: 30, costBasisPerShare: 100, acquiredAt: '2025-01-01T00:00:00.000Z', status: 'open',
-      },
+        lotId: 'lot-full', symbol: 'VTI', quantity: 30, costBasisPerShare: 100, acquiredAt: '2025-01-01T00:00:00.000Z',
+      }),
     ]);
 
     await manager.closeLots({
@@ -147,10 +151,10 @@ describe('TaxLotManager', () => {
 
   it('closeLots partial lot consumption updates remaining quantity', async () => {
     mockRepo.getOpenLotsBySymbol.mockResolvedValue([
-      {
+      makeLot({
         pk: 'TaxLot#t1#VTI', sk: 'Lot#2025-01-01#lot-partial',
-        lotId: 'lot-partial', symbol: 'VTI', quantity: 100, costBasisPerShare: 100, acquiredAt: '2025-01-01T00:00:00.000Z', status: 'open',
-      },
+        lotId: 'lot-partial', symbol: 'VTI', quantity: 100, costBasisPerShare: 100, acquiredAt: '2025-01-01T00:00:00.000Z',
+      }),
     ]);
 
     await manager.closeLots({
@@ -163,8 +167,14 @@ describe('TaxLotManager', () => {
 
   it('getUnrealizedGains calculates unrealized gains', async () => {
     mockRepo.getOpenLotsBySymbol.mockResolvedValue([
-      { quantity: 50, costBasisPerShare: 200 },
-      { quantity: 30, costBasisPerShare: 220 },
+      makeLot({
+        pk: 'TaxLot#t1#VTI', sk: 'Lot#2025-01-01#lot-ug-1',
+        lotId: 'lot-ug-1', symbol: 'VTI', quantity: 50, costBasisPerShare: 200, acquiredAt: '2025-01-01T00:00:00.000Z',
+      }),
+      makeLot({
+        pk: 'TaxLot#t1#VTI', sk: 'Lot#2025-06-01#lot-ug-2',
+        lotId: 'lot-ug-2', symbol: 'VTI', quantity: 30, costBasisPerShare: 220, acquiredAt: '2025-06-01T00:00:00.000Z',
+      }),
     ]);
 
     const unrealized = await manager.getUnrealizedGains('t1', 'VTI', 260);

@@ -1,6 +1,8 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
+import {
+  TableRepository, getUUID, getTime, type TableEntry, type RequestContext,
+} from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 
 function decisionPk(tenantId: string, decisionId: string): string {
@@ -15,16 +17,16 @@ export class AdvisoryRepository extends TableRepository {
   }
 
   readonly storeDecision = this.log('storeDecision', async (
-    tenantId: string,
+    ctx: RequestContext,
     decisionId: string,
     data: Record<string, unknown>,
   ): Promise<boolean> => {
     const now = getTime();
     const item: TableEntry = {
-      pk: decisionPk(tenantId, decisionId),
+      pk: decisionPk(ctx.tenantId, decisionId),
       sk: 'DecisionReadModel',
       __typename: 'DecisionReadModel',
-      tenantId,
+      ...ctx,
       timestamp: now,
       decisionId,
       status: 'PROPOSED',
@@ -134,17 +136,17 @@ export class AdvisoryRepository extends TableRepository {
   });
 
   readonly storeAgentInvocation = this.log('storeAgentInvocation', async (
-    tenantId: string,
+    ctx: RequestContext,
     decisionId: string,
     invocation: Record<string, unknown>,
   ): Promise<void> => {
     const now = getTime();
     const invocationId = (invocation.invocationId as string) ?? getUUID();
     const item: TableEntry = {
-      pk: decisionPk(tenantId, decisionId),
+      pk: decisionPk(ctx.tenantId, decisionId),
       sk: `AgentInvocation#${invocationId}`,
       __typename: 'AgentInvocation',
-      tenantId,
+      ...ctx,
       timestamp: now,
       decisionId,
       invocationId,
@@ -159,17 +161,17 @@ export class AdvisoryRepository extends TableRepository {
   });
 
   readonly storeComplianceCheck = this.log('storeComplianceCheck', async (
-    tenantId: string,
+    ctx: RequestContext,
     decisionId: string,
     check: Record<string, unknown>,
   ): Promise<void> => {
     const now = getTime();
     const checkId = (check.checkId as string) ?? getUUID();
     const item: TableEntry = {
-      pk: decisionPk(tenantId, decisionId),
+      pk: decisionPk(ctx.tenantId, decisionId),
       sk: `ComplianceCheck#${checkId}`,
       __typename: 'ComplianceCheck',
-      tenantId,
+      ...ctx,
       timestamp: now,
       decisionId,
       checkId,
@@ -184,21 +186,19 @@ export class AdvisoryRepository extends TableRepository {
   });
 
   readonly recordUserInteraction = this.log('recordUserInteraction', async (
-    tenantId: string,
-    userId: string,
+    ctx: RequestContext,
     decisionId: string,
     interactionType: string,
   ): Promise<void> => {
     const now = getTime();
     const interactionId = getUUID();
     const item: TableEntry = {
-      pk: decisionPk(tenantId, decisionId),
+      pk: decisionPk(ctx.tenantId, decisionId),
       sk: `UserInteraction#${interactionId}`,
       __typename: 'UserInteraction',
-      tenantId,
+      ...ctx,
       timestamp: now,
       decisionId,
-      userId,
       interactionType,
       interactedAt: now,
     };
@@ -206,39 +206,35 @@ export class AdvisoryRepository extends TableRepository {
   });
 
   readonly putUserConfirmation = this.log('putUserConfirmation', async (
-    tenantId: string,
+    ctx: RequestContext,
     decisionId: string,
-    userId: string,
     confirmedAt: string,
   ): Promise<void> => {
     const item: TableEntry = {
-      pk: decisionPk(tenantId, decisionId),
+      pk: decisionPk(ctx.tenantId, decisionId),
       sk: `UserConfirmation#${getUUID()}`,
       __typename: 'UserConfirmation',
-      tenantId,
+      ...ctx,
       timestamp: confirmedAt,
       decisionId,
-      userId,
       confirmedAt,
     };
     await this.put(item);
   });
 
   readonly putUserRejection = this.log('putUserRejection', async (
-    tenantId: string,
+    ctx: RequestContext,
     decisionId: string,
-    userId: string,
     rejectedAt: string,
     rejectionReason: string,
   ): Promise<void> => {
     const item: TableEntry = {
-      pk: decisionPk(tenantId, decisionId),
+      pk: decisionPk(ctx.tenantId, decisionId),
       sk: `UserRejection#${getUUID()}`,
       __typename: 'UserRejection',
-      tenantId,
+      ...ctx,
       timestamp: rejectedAt,
       decisionId,
-      userId,
       rejectedAt,
       rejectionReason,
     };

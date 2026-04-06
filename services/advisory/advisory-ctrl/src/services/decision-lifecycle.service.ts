@@ -1,4 +1,4 @@
-import { logger, type BusEvent } from '@nestfolio/event-processor';
+import { logger, type BusEvent, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import type { ProposedTrade } from '../domain/models';
 import { createOrchestrator, invokeOrchestrator, type ServiceUnavailableResponse } from '@nestfolio/agent-orchestrator';
@@ -9,10 +9,10 @@ import { VALIDATION_RULES } from '../agents/validation';
 import { DecisionRepository } from '../repositories/decision.repository';
 
 export interface DecisionContext {
-  tenantId: string;
   triggerEvent: BusEvent;
   investorProfile?: Record<string, unknown>;
   portfolioState?: Record<string, unknown>;
+  requestContext: RequestContext;
 }
 
 export interface DecisionResult {
@@ -38,13 +38,14 @@ export class DecisionLifecycleService {
 
   readonly executeDecisionLifecycle = this.log('executeDecisionLifecycle', async (context: DecisionContext): Promise<DecisionResult> => {
     const dpId = context.triggerEvent.id;
+    const ctx = context.requestContext;
 
     // 1. Create decision packet (conditional write — returns false if already exists)
     const created = await this.repository.createDecisionPacket(
-      context.tenantId,
       dpId,
       context.triggerEvent,
       context as unknown as Record<string, unknown>,
+      ctx,
     );
 
     if (!created) {
@@ -67,15 +68,15 @@ export class DecisionLifecycleService {
       const output = agentResult[agentName];
       agentOutputs[agentName] = output;
       await this.repository.recordAgentInvocation(
-        context.tenantId,
         dpId,
         1,
         agentName,
         context,
         output,
         0,
+        ctx,
       );
-      await this.repository.recordReasoningOutput(context.tenantId, dpId, agentName, output);
+      await this.repository.recordReasoningOutput(dpId, agentName, output, ctx);
     }
 
     // 4. Compose decision packet result
@@ -83,7 +84,7 @@ export class DecisionLifecycleService {
     const explanation = this.composeExplanation(agentResult);
 
     // 5. Update decision status
-    await this.repository.updateDecisionStatus(context.tenantId, dpId, 'AGENTS_COMPLETED', {
+    await this.repository.updateDecisionStatus(ctx.tenantId, dpId, 'AGENTS_COMPLETED', {
       agentOutputs,
       proposedTrades,
       explanation,

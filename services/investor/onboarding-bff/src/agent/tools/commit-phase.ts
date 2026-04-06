@@ -25,7 +25,10 @@ export function createCommitPhaseTool(repo: OnboardingRepository): DynamicStruct
       const nextIdx = next === 'completed' ? 7 : phaseIndexOf(next as Phase);
 
       if (phase === 'mandate' && allPhases) {
-        await repo.completeSession(tenantId, userId, sessionId, allPhases as unknown as Phases);
+        // Note: commit-phase is an agent tool without access to EventContext.
+        // Construct a minimal RequestContext from the tool input fields.
+        const ctx = { tenantId, userId, region: process.env.AWS_REGION ?? 'us-east-1' };
+        await repo.completeSession(sessionId, allPhases as unknown as Phases, ctx as any);
       } else {
         await repo.updatePhase(tenantId, userId, sessionId, phase, data, next, nextIdx);
       }

@@ -1,4 +1,4 @@
-import { isRetryable, traceEvent, extractRequestContext } from '../internal';
+import { isRetryable, traceEvent, extractRequestContext, logger } from '../internal';
 import type { HandlerEntry } from '../types/handler-config';
 import type { EventContext } from '../types/event-context';
 import { normalizeHandler } from './normalize-handler';
@@ -72,13 +72,11 @@ export class IngestionEngine {
             return;
           }
 
-          // Build context
+          // Build context (EventContext extends RequestContext — no duplication)
           const ctx: EventContext = {
+            ...reqCtx,
             eventId: event.id,
             eventType,
-            tenantId: reqCtx.tenantId,
-            userId: reqCtx.userId,
-            region: reqCtx.region,
             timestamp: event.timestamp,
             receiveCount: metadata.receiveCount,
             serviceName: this.config.serviceName,
@@ -90,8 +88,11 @@ export class IngestionEngine {
 
           // Execute intents
           let anyDeduplicated = false;
+          logger.info('intents produced', { count: intents.length, tags: intents.map((i) => (i as any)._tag) });
           for (const intent of intents) {
+            logger.info('executing intent', { tag: (intent as any)._tag, table: this.config.tableName });
             const result = await this.intentExecutor.execute(intent, ctx);
+            logger.info('intent result', { tag: result._tag, success: result.success, deduplicated: result.deduplicated });
             if (result.deduplicated) anyDeduplicated = true;
           }
 

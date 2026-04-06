@@ -91,6 +91,8 @@ jest.mock('@nestfolio/event-processor', () => {
   };
 });
 
+const TEST_CTX = { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' };
+
 describe('OnboardingRepository', () => {
   let repo: OnboardingRepository;
 
@@ -102,7 +104,7 @@ describe('OnboardingRepository', () => {
   describe('createSession', () => {
     it('creates a session with status in_progress, empty phases, and OnboardingSession pk pattern', async () => {
       mockSend.mockResolvedValueOnce({});
-      const result = await repo.createSession('tenant-1', 'user-1', 'mem-session-1');
+      const result = await repo.createSession('mem-session-1', TEST_CTX as any);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item.pk).toMatch(/^OnboardingSession#/);
@@ -110,6 +112,9 @@ describe('OnboardingRepository', () => {
       expect(call.input.Item.__typename).toBe('OnboardingSession');
       expect(call.input.Item.status).toBe('in_progress');
       expect(call.input.Item.phases).toEqual({});
+      expect(call.input.Item.tenantId).toBe('tenant-1');
+      expect(call.input.Item.userId).toBe('user-1');
+      expect(call.input.Item.region).toBe('us-east-1');
       expect(result.sessionId).toBeDefined();
       expect(result.status).toBe('in_progress');
     });
@@ -140,7 +145,7 @@ describe('OnboardingRepository', () => {
         operatingMode: { mode: 'BALANCED' as const },
         mandate: { accepted: true },
       };
-      await repo.completeSession('tenant-1', 'user-1', 'sess-1', phases);
+      await repo.completeSession('sess-1', phases, TEST_CTX as any);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.TransactItems).toHaveLength(2);
@@ -150,6 +155,9 @@ describe('OnboardingRepository', () => {
       const cdcItem = call.input.TransactItems[1].Put.Item;
       expect(cdcItem.__typename).toBe('OnboardingCompleted');
       expect(cdcItem.pk).toMatch(/^OnboardingCompleted#/);
+      expect(cdcItem.tenantId).toBe('tenant-1');
+      expect(cdcItem.userId).toBe('user-1');
+      expect(cdcItem.region).toBe('us-east-1');
       expect(cdcItem.horizonYears).toBe(5);
       expect(cdcItem.riskTolerance).toBe(2);
       expect(cdcItem.mandateAccepted).toBe(true);
@@ -159,7 +167,7 @@ describe('OnboardingRepository', () => {
   describe('confirmGoLive', () => {
     it('updates session to completed and writes GoLiveConfirmed CDC record in transactWrite', async () => {
       mockSend.mockResolvedValueOnce({});
-      await repo.confirmGoLive('tenant-1', 'user-1', 'sess-1');
+      await repo.confirmGoLive('sess-1', TEST_CTX as any);
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.TransactItems).toHaveLength(2);
@@ -173,6 +181,7 @@ describe('OnboardingRepository', () => {
       expect(cdcItem.sk).toMatch(/^GoLiveConfirmed#/);
       expect(cdcItem.tenantId).toBe('tenant-1');
       expect(cdcItem.userId).toBe('user-1');
+      expect(cdcItem.region).toBe('us-east-1');
     });
   });
 

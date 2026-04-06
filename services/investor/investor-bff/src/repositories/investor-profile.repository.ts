@@ -4,7 +4,7 @@ import {
   UpdateCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, NotRetryableError, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getUUID, getTime, NotRetryableError, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import { EntityNotFoundError } from '@nestfolio/event-processor';
 import type {
@@ -30,15 +30,14 @@ export class InvestorProfileRepository extends TableRepository {
   }
 
   readonly createProfile = this.log('createProfile',
-    async (tenantId: string, userId: string, email: string, sourceEventId: string): Promise<boolean> => {
+    async (ctx: RequestContext, email: string, sourceEventId: string): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
-        pk: profilePk(tenantId, userId),
+        pk: profilePk(ctx.tenantId, ctx.userId),
         sk: 'InvestorProfile',
         __typename: 'InvestorProfile',
-        tenantId,
+        ...ctx,
         timestamp: now,
-        userId,
         name: '',
         email,
         age: 0,
@@ -74,8 +73,7 @@ export class InvestorProfileRepository extends TableRepository {
 
   readonly setGoal = this.log('setGoal',
     async (
-      tenantId: string,
-      userId: string,
+      ctx: RequestContext,
       goal: {
         objective: string;
         targetAmountCents: number;
@@ -85,7 +83,7 @@ export class InvestorProfileRepository extends TableRepository {
       },
     ): Promise<Goal> => {
       validateGoalFields(goal);
-      const pk = profilePk(tenantId, userId);
+      const pk = profilePk(ctx.tenantId, ctx.userId);
       const now = getTime();
       const goalId = getUUID();
 
@@ -93,7 +91,7 @@ export class InvestorProfileRepository extends TableRepository {
         pk,
         sk: `Goal#${goalId}`,
         __typename: 'Goal',
-        tenantId,
+        ...ctx,
         timestamp: now,
         goalId,
         objective: goal.objective,
@@ -170,11 +168,10 @@ export class InvestorProfileRepository extends TableRepository {
 
   readonly setRiskProfile = this.log('setRiskProfile',
     async (
-      tenantId: string,
-      userId: string,
+      ctx: RequestContext,
       riskProfile: { score: number; band: { minEquity: number; maxEquity: number } },
     ): Promise<RiskProfile> => {
-      const pk = profilePk(tenantId, userId);
+      const pk = profilePk(ctx.tenantId, ctx.userId);
       const now = getTime();
       const profileId = getUUID();
 
@@ -182,7 +179,7 @@ export class InvestorProfileRepository extends TableRepository {
         pk,
         sk: 'RiskProfile',
         __typename: 'RiskProfile',
-        tenantId,
+        ...ctx,
         timestamp: now,
         profileId,
         score: riskProfile.score,
@@ -199,8 +196,7 @@ export class InvestorProfileRepository extends TableRepository {
 
   readonly grantMandate = this.log('grantMandate',
     async (
-      tenantId: string,
-      userId: string,
+      ctx: RequestContext,
       mandate: {
         level: MandateLevel;
         monthlyTurnoverCapPercent: number;
@@ -219,7 +215,7 @@ export class InvestorProfileRepository extends TableRepository {
       if (mandate.coolDownDays < 0) {
         throw new NotRetryableError('coolDownDays must be >= 0');
       }
-      const pk = profilePk(tenantId, userId);
+      const pk = profilePk(ctx.tenantId, ctx.userId);
       const now = getTime();
       const mandateId = getUUID();
 
@@ -227,7 +223,7 @@ export class InvestorProfileRepository extends TableRepository {
         pk,
         sk: 'Mandate',
         __typename: 'Mandate',
-        tenantId,
+        ...ctx,
         timestamp: now,
         mandateId,
         level: mandate.level,
@@ -272,15 +268,15 @@ export class InvestorProfileRepository extends TableRepository {
   );
 
   readonly setOperatingMode = this.log('setOperatingMode',
-    async (tenantId: string, userId: string, mode: OperatingMode): Promise<Record<string, unknown>> => {
-      const pk = profilePk(tenantId, userId);
+    async (ctx: RequestContext, mode: OperatingMode): Promise<Record<string, unknown>> => {
+      const pk = profilePk(ctx.tenantId, ctx.userId);
       const now = getTime();
 
       const item: TableEntry = {
         pk,
         sk: 'OperatingMode',
         __typename: 'OperatingModeRecord',
-        tenantId,
+        ...ctx,
         timestamp: now,
         mode,
         selectedAt: now,
@@ -306,8 +302,8 @@ export class InvestorProfileRepository extends TableRepository {
   );
 
   readonly setExecutionMode = this.log('setExecutionMode',
-    async (tenantId: string, userId: string, fromMode: ExecutionMode, toMode: ExecutionMode): Promise<Record<string, unknown>> => {
-      const pk = profilePk(tenantId, userId);
+    async (ctx: RequestContext, fromMode: ExecutionMode, toMode: ExecutionMode): Promise<Record<string, unknown>> => {
+      const pk = profilePk(ctx.tenantId, ctx.userId);
       const now = getTime();
       const changeId = getUUID();
 
@@ -315,7 +311,7 @@ export class InvestorProfileRepository extends TableRepository {
         pk,
         sk: `ExecutionModeChange#${changeId}`,
         __typename: 'ExecutionModeChange',
-        tenantId,
+        ...ctx,
         timestamp: now,
         changeId,
         fromMode,
@@ -360,8 +356,7 @@ export class InvestorProfileRepository extends TableRepository {
 
   readonly addNotification = this.log('addNotification',
     async (
-      tenantId: string,
-      userId: string,
+      ctx: RequestContext,
       notification: {
         notificationId: string;
         channel: string;
@@ -372,14 +367,14 @@ export class InvestorProfileRepository extends TableRepository {
       },
       sourceEventId: string,
     ): Promise<boolean> => {
-      const pk = profilePk(tenantId, userId);
+      const pk = profilePk(ctx.tenantId, ctx.userId);
       const now = getTime();
 
       const item: TableEntry = {
         pk,
         sk: `Notification#${notification.notificationId}`,
         __typename: 'Notification',
-        tenantId,
+        ...ctx,
         timestamp: now,
         notificationId: notification.notificationId,
         channel: notification.channel,

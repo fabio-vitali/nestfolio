@@ -17,6 +17,15 @@ export type RequestContext = {
  * Parses and validates raw input against RequestContextSchema,
  * then returns branded RequestContext.
  */
+/**
+ * Narrows any object that extends RequestContext back to just the context fields.
+ * Driven by RequestContextSchema keys — adding a field to the schema propagates here.
+ */
+export function pickRequestContext<T extends RequestContext>(ctx: T): RequestContext {
+  const { tenantId, userId, region } = ctx;
+  return { tenantId, userId, region };
+}
+
 export function parseRequestContext(raw: unknown): RequestContext {
   const parsed = RequestContextSchema.parse(raw);
   return {

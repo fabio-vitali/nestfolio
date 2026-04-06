@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getTime, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import type { WorkflowStatus } from '../domain/models';
 
@@ -9,7 +9,6 @@ function decisionPk(tenantId: string, dpId: string): string {
 }
 
 interface CreateDecisionPacketInput {
-  readonly tenantId: string;
   readonly decisionId: string;
   readonly trigger: string;
   readonly triggerEventId: string;
@@ -26,13 +25,14 @@ export class DecisionPacketRepository extends TableRepository {
   /** Idempotent create — returns false if packet already exists. */
   readonly createDecisionPacket = this.log('createDecisionPacket', async (
     input: CreateDecisionPacketInput,
+    ctx: RequestContext,
   ): Promise<boolean> => {
     const now = getTime();
     const item: TableEntry = {
-      pk: decisionPk(input.tenantId, input.decisionId),
+      pk: decisionPk(ctx.tenantId, input.decisionId),
       sk: 'DecisionPacket',
       __typename: 'DecisionPacket',
-      tenantId: input.tenantId,
+      ...ctx,
       timestamp: now,
       decisionId: input.decisionId,
       trigger: input.trigger,

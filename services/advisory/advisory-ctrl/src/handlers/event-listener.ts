@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { materializeToTable, skip, update, type WriteIntent, type EventPayload, type EventContext, type BusEvent } from '@nestfolio/event-processor';
+import { materializeToTable, skip, update, pickRequestContext, type WriteIntent, type EventPayload, type EventContext, type BusEvent } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
@@ -30,10 +30,10 @@ function toEvent(payload: EventPayload, ctx: EventContext): BusEvent {
 
 async function handleTriggerEvent(deps: EventListenerDeps, payload: EventPayload, ctx: EventContext) {
   await deps.lifecycleService.executeDecisionLifecycle({
-    tenantId: ctx.tenantId,
     triggerEvent: toEvent(payload, ctx),
     investorProfile: payload.subject ?? {},
     portfolioState: {},
+    requestContext: pickRequestContext(ctx),
   });
   return skip();
 }

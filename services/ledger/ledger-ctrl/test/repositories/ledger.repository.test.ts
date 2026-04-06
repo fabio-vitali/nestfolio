@@ -61,6 +61,8 @@ jest.mock('@nestfolio/event-processor', () => {
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
+  asTenantId: (v: string) => v,
+  asUserId: (v: string) => v,
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 
   withMethodLogging: jest.fn((_className: string) =>
@@ -69,6 +71,7 @@ jest.mock('@nestfolio/event-processor', () => {
 
   };
 });
+import { type RequestContext, asTenantId, asUserId } from '@nestfolio/event-processor';
 import { LedgerRepository } from '../../src/repositories/ledger.repository';
 
 describe('LedgerRepository', () => {
@@ -80,16 +83,17 @@ describe('LedgerRepository', () => {
     repo = new LedgerRepository('test-table');
   });
 
+  const testCtx: RequestContext = { tenantId: asTenantId('t1'), userId: asUserId('u1'), region: 'us-east-1' };
+
   it('putLedgerEntry writes correct pk/sk format', async () => {
     const created = await repo.putLedgerEntry({
-      tenantId: 't1',
       streamType: 'actual',
       eventId: 'e1',
       eventType: 'DEPOSIT_DETECTED',
       payload: { amountCents: 50000 },
       timestamp: '2025-01-01T00:00:00.000Z',
       sequenceNo: 1,
-    });
+    }, testCtx);
 
     expect(created).toBe(true);
     const putCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'Put');
@@ -108,14 +112,13 @@ describe('LedgerRepository', () => {
     );
 
     const created = await repo.putLedgerEntry({
-      tenantId: 't1',
       streamType: 'actual',
       eventId: 'e1',
       eventType: 'DEPOSIT_DETECTED',
       payload: { amountCents: 50000 },
       timestamp: '2025-01-01T00:00:00.000Z',
       sequenceNo: 1,
-    });
+    }, testCtx);
 
     expect(created).toBe(false);
   });
@@ -158,15 +161,14 @@ describe('LedgerRepository', () => {
     mockSend.mockResolvedValueOnce({}); // transactWrite
 
     await repo.saveSnapshotWithEvents({
-      tenantId: 't1',
       streamType: 'actual',
-      state: { positions: { AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 150 } }, cashBalanceCents: 9_850_000 },
+      state: { positions: { AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 150 } }, cashBalanceCents: 9_850_000, lastEventSequence: 3 },
       lastEventSequence: 3,
       version: 2,
       balanceChanged: true,
       positionsChanged: true,
       ttlDays: 365,
-    });
+    }, testCtx);
 
     const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
     expect(txCalls).toHaveLength(1);
@@ -186,15 +188,14 @@ describe('LedgerRepository', () => {
     mockSend.mockResolvedValueOnce({});
 
     await repo.saveSnapshotWithEvents({
-      tenantId: 't1',
       streamType: 'actual',
-      state: { positions: { AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 150 } }, cashBalanceCents: 10_000_000 },
+      state: { positions: { AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 150 } }, cashBalanceCents: 10_000_000, lastEventSequence: 2 },
       lastEventSequence: 2,
       version: 1,
       balanceChanged: false,
       positionsChanged: true,
       ttlDays: 365,
-    });
+    }, testCtx);
 
     const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
     const transactItems = txCalls[0][0].input.TransactItems;
@@ -207,10 +208,11 @@ describe('LedgerRepository', () => {
   it('saveCheckpoint uses conditional write', async () => {
     mockSend.mockResolvedValueOnce({});
 
-    await repo.saveCheckpoint('t1', 'actual', '2025-01-01', {
+    await repo.saveCheckpoint('actual', '2025-01-01', {
       positions: {},
       cashBalanceCents: 10_000_000,
-    });
+      lastEventSequence: 5,
+    }, testCtx);
 
     const putCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'Put');
     expect(putCalls).toHaveLength(1);

@@ -71,6 +71,8 @@ jest.mock('@nestfolio/event-processor', () => {
 });
 import { DashboardRepository } from '../../src/repositories/dashboard.repository';
 
+const TEST_CTX = { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' };
+
 describe('DashboardRepository', () => {
   let repository: DashboardRepository;
 
@@ -134,7 +136,7 @@ describe('DashboardRepository', () => {
     it('should put a position snapshot item', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repository.upsertPositionSnapshot('tenant-1', {
+      await repository.upsertPositionSnapshot({
         symbol: 'AAPL',
         quantity: 50,
         avgCostBasisCents: 15000,
@@ -142,7 +144,7 @@ describe('DashboardRepository', () => {
         marketValueCents: 875000,
         weightPercent: 35.5,
         unrealizedPnlCents: 125000,
-      });
+      }, TEST_CTX as any);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const cmd = mockSend.mock.calls[0][0];
@@ -171,11 +173,11 @@ describe('DashboardRepository', () => {
     it('should put an activity item with TTL', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repository.addActivity('tenant-1', 'evt-123', {
+      await repository.addActivity('evt-123', {
         activityType: 'ORDER_FILLED',
         description: 'Order filled: AAPL',
         metadata: { orderId: 'o1' },
-      });
+      }, TEST_CTX as any);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const cmd = mockSend.mock.calls[0][0];

@@ -1,10 +1,15 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { UpdateCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
+import {
+  TableRepository, getTime, type TableEntry, type RequestContext,
+} from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 
+// ---------------------------------------------------------------------------
+// DDB item & domain types (no RequestContext fields — context is a separate param)
+// ---------------------------------------------------------------------------
+
 export interface LedgerEntryItem {
-  readonly tenantId: string;
   readonly streamType: 'actual' | 'simulated';
   readonly eventId: string;
   readonly eventType: string;
@@ -14,17 +19,58 @@ export interface LedgerEntryItem {
   readonly decisionId?: string;
 }
 
+export type PositionSnapshot = {
+  readonly symbol: string;
+  readonly quantity: number;
+  readonly averageCostBasis: number;
+  readonly totalCostBasis: number;
+  readonly lastFillPrice: number;
+};
+
+export type SnapshotState = {
+  readonly positions: Readonly<Record<string, PositionSnapshot>>;
+  readonly cashBalanceCents: number;
+  readonly lastEventSequence: number;
+};
+
 export interface SnapshotWithEvents {
-  readonly tenantId: string;
   readonly streamType: 'actual' | 'simulated';
-  readonly state: Record<string, unknown>;
+  readonly state: SnapshotState;
   readonly lastEventSequence: number;
   readonly version: number;
   readonly balanceChanged: boolean;
   readonly positionsChanged: boolean;
-  readonly userId?: string;
   readonly ttlDays: number;
 }
+
+export type TaxLot = {
+  pk: string;
+  sk: string;
+  __typename: 'TaxLot';
+  tenantId: string;
+  lotId: string;
+  symbol: string;
+  quantity: number;
+  costBasisPerShare: number;
+  acquiredAt: string;
+  status: 'open' | 'closed';
+};
+
+export type DispositionRecord = {
+  lotId: string;
+  symbol: string;
+  quantitySold: number;
+  costBasisPerShare: number;
+  salePrice: number;
+  realizedGain: number;
+  holdingPeriod: 'short-term' | 'long-term';
+  acquiredAt: string;
+  soldAt: string;
+};
+
+// ---------------------------------------------------------------------------
+// Repository
+// ---------------------------------------------------------------------------
 
 export class LedgerRepository extends TableRepository {
   private readonly log = withMethodLogging('LedgerRepository');
@@ -34,12 +80,12 @@ export class LedgerRepository extends TableRepository {
   }
 
   readonly putLedgerEntry = this.log('putLedgerEntry',
-    async (entry: LedgerEntryItem): Promise<boolean> => {
+    async (entry: LedgerEntryItem, ctx: RequestContext): Promise<boolean> => {
       const item: TableEntry = {
-        pk: `Account#${entry.tenantId}#${entry.streamType}`,
+        pk: `Account#${ctx.tenantId}#${entry.streamType}`,
         sk: `Event#${entry.eventId}`,
         __typename: 'LedgerEntry',
-        tenantId: entry.tenantId,
+        ...ctx,
         timestamp: entry.timestamp,
         streamType: entry.streamType,
         sourceEventId: entry.eventId,
@@ -89,14 +135,14 @@ export class LedgerRepository extends TableRepository {
   );
 
   readonly saveSnapshotWithEvents = this.log('saveSnapshotWithEvents',
-    async (data: SnapshotWithEvents): Promise<void> => {
+    async (data: SnapshotWithEvents, ctx: RequestContext): Promise<void> => {
       const now = getTime();
-      const pk = `Account#${data.tenantId}#${data.streamType}`;
+      const pk = `Account#${ctx.tenantId}#${data.streamType}`;
       const totalValueCents = this.computeTotalValue(data.state);
 
-      const snapshot = {
-        positions: (data.state as any).positions ?? {},
-        cashBalanceCents: (data.state as any).cashBalanceCents ?? 0,
+      const snapshot: SnapshotState = {
+        positions: data.state.positions,
+        cashBalanceCents: data.state.cashBalanceCents,
         lastEventSequence: data.lastEventSequence,
       };
 
@@ -109,13 +155,13 @@ export class LedgerRepository extends TableRepository {
               pk,
               sk: 'Snapshot#latest',
               __typename: 'AccountSnapshot',
-              tenantId: data.tenantId,
+              ...ctx,
               timestamp: now,
               streamType: data.streamType,
-              positions: (data.state as any).positions ?? {},
-              cashBalanceCents: (data.state as any).cashBalanceCents ?? 0,
+              positions: data.state.positions,
+              cashBalanceCents: data.state.cashBalanceCents,
               totalValueCents,
-              positionCount: Object.keys((data.state as any).positions ?? {}).length,
+              positionCount: Object.keys(data.state.positions).length,
               lastEventSequence: data.lastEventSequence,
               version: data.version,
               snapshotAt: now,
@@ -133,12 +179,11 @@ export class LedgerRepository extends TableRepository {
               pk,
               sk: `BalanceEvent#${now}#${data.version}`,
               __typename: 'BalanceEvent',
-              tenantId: data.tenantId,
+              ...ctx,
               timestamp: now,
               streamType: data.streamType,
-              cashBalanceCents: (data.state as any).cashBalanceCents ?? 0,
+              cashBalanceCents: data.state.cashBalanceCents,
               totalValueCents,
-              userId: data.userId ?? 'system',
               version: data.version,
               snapshot,
             },
@@ -155,13 +200,12 @@ export class LedgerRepository extends TableRepository {
               pk,
               sk: `PortfolioEvent#${now}#${data.version}`,
               __typename: 'PortfolioEvent',
-              tenantId: data.tenantId,
+              ...ctx,
               timestamp: now,
               streamType: data.streamType,
-              positions: (data.state as any).positions ?? {},
-              positionCount: Object.keys((data.state as any).positions ?? {}).length,
+              positions: data.state.positions,
+              positionCount: Object.keys(data.state.positions).length,
               totalValueCents,
-              userId: data.userId ?? 'system',
               version: data.version,
               snapshot,
             },
@@ -177,11 +221,10 @@ export class LedgerRepository extends TableRepository {
             pk,
             sk: `LedgerEntryEvent#${now}#${data.version}`,
             __typename: 'LedgerEntryEvent',
-            tenantId: data.tenantId,
+            ...ctx,
             timestamp: now,
             streamType: data.streamType,
             lastEventSequence: data.lastEventSequence,
-            userId: data.userId ?? 'system',
             version: data.version,
             snapshot,
           },
@@ -196,11 +239,11 @@ export class LedgerRepository extends TableRepository {
             pk,
             sk: `SnapshotAt#${now}`,
             __typename: 'SnapshotHistory',
-            tenantId: data.tenantId,
+            ...ctx,
             streamType: data.streamType,
             timestamp: now,
-            positions: (data.state as any).positions ?? {},
-            cashBalanceCents: (data.state as any).cashBalanceCents ?? 0,
+            positions: data.state.positions,
+            cashBalanceCents: data.state.cashBalanceCents,
             lastEventSequence: data.lastEventSequence,
             ttl: Math.floor(Date.now() / 1000) + (data.ttlDays * 86400),
           },
@@ -213,22 +256,22 @@ export class LedgerRepository extends TableRepository {
 
   readonly saveCheckpoint = this.log('saveCheckpoint',
     async (
-      tenantId: string,
       streamType: string,
       date: string,
-      state: Record<string, unknown>,
+      state: SnapshotState,
+      ctx: RequestContext,
     ): Promise<void> => {
       const now = getTime();
-      const pk = `Account#${tenantId}#${streamType}`;
+      const pk = `Account#${ctx.tenantId}#${streamType}`;
       const item: TableEntry = {
         pk,
         sk: `Checkpoint#${date}`,
         __typename: 'AccountCheckpoint',
-        tenantId,
+        ...ctx,
         timestamp: now,
         streamType,
-        positions: (state as any).positions ?? {},
-        cashBalanceCents: (state as any).cashBalanceCents ?? 0,
+        positions: state.positions,
+        cashBalanceCents: state.cashBalanceCents,
         totalValueCents: this.computeTotalValue(state),
         snapshotAt: now,
       };
@@ -263,19 +306,21 @@ export class LedgerRepository extends TableRepository {
         }),
       );
       const items = result.Items ?? [];
-      return items.sort((a, b) => ((a as any).sequenceNo ?? 0) - ((b as any).sequenceNo ?? 0));
+      return items.sort((a, b) =>
+        ((a['sequenceNo'] as number) ?? 0) - ((b['sequenceNo'] as number) ?? 0),
+      );
     },
   );
 
   readonly putTaxLot = this.log('putTaxLot',
-    async (lot: Record<string, unknown>): Promise<void> => {
+    async (lot: TaxLot): Promise<void> => {
       await this.put(lot);
     },
   );
 
   readonly getOpenLotsBySymbol = this.log('getOpenLotsBySymbol',
-    async (tenantId: string, symbol: string): Promise<Record<string, unknown>[]> => {
-      return this.queryAll({
+    async (tenantId: string, symbol: string): Promise<TaxLot[]> => {
+      return this.queryAll<TaxLot>({
         TableName: this.tableName,
         KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
         FilterExpression: '#status = :open',
@@ -302,7 +347,7 @@ export class LedgerRepository extends TableRepository {
   );
 
   readonly putDisposition = this.log('putDisposition',
-    async (tenantId: string, disposition: Record<string, unknown>): Promise<void> => {
+    async (tenantId: string, disposition: DispositionRecord): Promise<void> => {
       await this.put({
         pk: `Disposition#${tenantId}#${disposition.symbol}`,
         sk: `Disp#${disposition.soldAt}#${disposition.lotId}`,
@@ -316,22 +361,20 @@ export class LedgerRepository extends TableRepository {
 
   readonly getDispositions = this.log('getDispositions',
     async (tenantId: string, symbol: string, year?: string): Promise<Record<string, unknown>[]> => {
-      const params: any = {
+      return this.queryAll({
         TableName: this.tableName,
         KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
         ExpressionAttributeValues: {
           ':pk': `Disposition#${tenantId}#${symbol}`,
           ':skPrefix': year ? `Disp#${year}` : 'Disp#',
         },
-      };
-      return this.queryAll(params);
+      });
     },
   );
 
-  private computeTotalValue(state: Record<string, unknown>): number {
-    const positions = (state as any).positions ?? {};
-    let total = (state as any).cashBalanceCents ?? 0;
-    for (const pos of Object.values(positions) as Array<{ quantity: number; lastFillPrice: number }>) {
+  private computeTotalValue(state: SnapshotState): number {
+    let total = state.cashBalanceCents;
+    for (const pos of Object.values(state.positions)) {
       total += Math.round(pos.quantity * pos.lastFillPrice * 100);
     }
     return total;

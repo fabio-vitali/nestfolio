@@ -1,4 +1,4 @@
-import { logger, NotRetryableError } from '@nestfolio/event-processor';
+import { logger, NotRetryableError, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from './market-data.service';
@@ -22,12 +22,11 @@ export class SimulationEngineService {
 
   readonly processOrderSubmitted = this.log('processOrderSubmitted',
     async (
-      tenantId: string,
-      userId: string,
       orderId: string,
       symbol: string,
       side: 'BUY' | 'SELL',
       quantity: number,
+      ctx: RequestContext,
     ): Promise<FillResult> => {
       // 0. Validate quantity
       if (!quantity || quantity <= 0) {
@@ -44,8 +43,8 @@ export class SimulationEngineService {
       const totalValue = quantity * fillPrice;
 
       // 2. Load current state
-      const cashBalance = await this.repository.getCashBalance(tenantId, userId, 'USD');
-      const position = await this.repository.getPosition(tenantId, userId, symbol);
+      const cashBalance = await this.repository.getCashBalance(ctx.tenantId, ctx.userId, 'USD');
+      const position = await this.repository.getPosition(ctx.tenantId, ctx.userId, symbol);
 
       // 3. Validate
       if (side === 'BUY') {
@@ -72,7 +71,7 @@ export class SimulationEngineService {
 
       // 4. Execute trade atomically
       const currentBalance = (cashBalance?.balance as number) ?? 0;
-      await this.repository.executeTrade(tenantId, userId, {
+      await this.repository.executeTrade({
         tradeId: orderId,
         orderId,
         symbol,
@@ -82,7 +81,7 @@ export class SimulationEngineService {
         totalValue,
         cashBefore: currentBalance,
         cashAfter: side === 'BUY' ? currentBalance - totalValue : currentBalance + totalValue,
-      });
+      }, ctx);
 
       logger.info('Order filled', { orderId, symbol, side, quantity, fillPrice, totalValue });
 
@@ -92,12 +91,11 @@ export class SimulationEngineService {
 
   readonly processWithdrawal = this.log('processWithdrawal',
     async (
-      tenantId: string,
-      userId: string,
       withdrawalId: string,
       amount: number,
+      ctx: RequestContext,
     ): Promise<{ status: 'COMPLETED' | 'REJECTED'; reason?: string }> => {
-      const cashBalance = await this.repository.getCashBalance(tenantId, userId, 'USD');
+      const cashBalance = await this.repository.getCashBalance(ctx.tenantId, ctx.userId, 'USD');
       const balance = (cashBalance?.balance as number) ?? 0;
       const currentVersion = (cashBalance?.version as number) ?? 0;
 
@@ -110,7 +108,7 @@ export class SimulationEngineService {
       }
 
       // Debit cash with optimistic locking
-      await this.repository.updateCashBalanceConditional(tenantId, userId, 'USD', balance - amount, currentVersion);
+      await this.repository.updateCashBalanceConditional('USD', balance - amount, currentVersion, ctx);
 
       logger.info('Withdrawal completed', { withdrawalId, amount, newBalance: balance - amount });
       return { status: 'COMPLETED' };
@@ -119,12 +117,11 @@ export class SimulationEngineService {
 
   readonly initializeAccount = this.log('initializeAccount',
     async (
-      tenantId: string,
-      userId: string,
+      ctx: RequestContext,
       initialBalance: number = 100_000,
     ): Promise<void> => {
-      await this.repository.initializeCashBalance(tenantId, userId, 'USD', initialBalance);
-      logger.info('Account initialized', { tenantId, userId, initialBalance });
+      await this.repository.initializeCashBalance('USD', initialBalance, ctx);
+      logger.info('Account initialized', { tenantId: ctx.tenantId, userId: ctx.userId, initialBalance });
     },
   );
 }

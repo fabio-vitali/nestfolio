@@ -67,6 +67,8 @@ jest.mock('@nestfolio/event-processor', () => ({
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  asTenantId: (s: string) => s,
+  asUserId: (s: string) => s,
 
   withMethodLogging: jest.fn((_className: string) =>
     (_methodName: string, fn: (...args: unknown[]) => unknown) => fn,
@@ -74,6 +76,14 @@ jest.mock('@nestfolio/event-processor', () => ({
 
 }));
 import { OrderRepository } from '../../src/repositories/order.repository';
+import { asTenantId, asUserId } from '@nestfolio/event-processor';
+import type { RequestContext } from '@nestfolio/event-processor';
+
+const testCtx: RequestContext = {
+  tenantId: asTenantId('t1'),
+  userId: asUserId('00000000-0000-0000-0000-000000000001'),
+  region: 'us-east-1',
+};
 
 function extractUpdateAttrs(update: any): Record<string, unknown> {
   const names = update.ExpressionAttributeNames;
@@ -102,7 +112,7 @@ describe('OrderRepository', () => {
         { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY' as const, quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy VTI' },
       ];
 
-      const result = await repo.createOrder('t1', 'ord-1', 'dp-1', trades, 'evt-1');
+      const result = await repo.createOrder('ord-1', 'dp-1', trades, testCtx, 'evt-1');
 
       expect(result).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
@@ -112,6 +122,8 @@ describe('OrderRepository', () => {
         sk: 'Order',
         __typename: 'Order',
         tenantId: 't1',
+        userId: '00000000-0000-0000-0000-000000000001',
+        region: 'us-east-1',
         orderId: 'ord-1',
         decisionPacketId: 'dp-1',
         status: 'PENDING',
@@ -197,7 +209,7 @@ describe('OrderRepository', () => {
       mockSend.mockResolvedValueOnce({});
 
       const trades = [{ symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 10 }];
-      await repo.createStagedOrder('t1', 'ord-1', { proposedTrades: trades });
+      await repo.createStagedOrder('ord-1', { proposedTrades: trades }, testCtx);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -206,6 +218,8 @@ describe('OrderRepository', () => {
         sk: 'StagedOrder',
         __typename: 'StagedOrder',
         tenantId: 't1',
+        userId: '00000000-0000-0000-0000-000000000001',
+        region: 'us-east-1',
         orderId: 'ord-1',
       });
     });
@@ -245,7 +259,7 @@ describe('OrderRepository', () => {
     it('should create a CoolDown record', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.setCoolDown('t1', 'VTI', '2025-01-02T00:00:00.000Z');
+      await repo.setCoolDown('VTI', '2025-01-02T00:00:00.000Z', testCtx);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -254,6 +268,8 @@ describe('OrderRepository', () => {
         sk: 'CoolDown',
         __typename: 'CoolDown',
         tenantId: 't1',
+        userId: '00000000-0000-0000-0000-000000000001',
+        region: 'us-east-1',
         instrument: 'VTI',
         expiresAt: '2025-01-02T00:00:00.000Z',
       });
@@ -295,7 +311,7 @@ describe('OrderRepository', () => {
       ];
 
       await expect(
-        repo.createOrder('t1', 'ord-err', 'dp-1', trades),
+        repo.createOrder('ord-err', 'dp-1', trades, testCtx),
       ).rejects.toThrow('ProvisionedThroughputExceededException');
     });
 

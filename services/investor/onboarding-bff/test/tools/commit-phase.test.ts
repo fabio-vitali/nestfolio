@@ -38,7 +38,9 @@ describe('createCommitPhaseTool', () => {
       tenantId: 't1', userId: 'u1', sessionId: 's1',
       phase: 'mandate', data: { mandateAccepted: true }, allPhases,
     });
-    expect(mockRepo.completeSession).toHaveBeenCalledWith('t1', 'u1', 's1', allPhases);
+    expect(mockRepo.completeSession).toHaveBeenCalledWith(
+      's1', allPhases, expect.objectContaining({ tenantId: 't1', userId: 'u1' }),
+    );
     expect(mockRepo.updatePhase).not.toHaveBeenCalled();
     expect(result).toContain('completed');
   });

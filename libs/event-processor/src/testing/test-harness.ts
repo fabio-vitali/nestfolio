@@ -7,6 +7,7 @@ import { normalizeHandler } from '../engine/normalize-handler';
 import { unmarshalStream } from '../util/unmarshal-stream';
 import { groupBy as groupByUtil } from '../util/group-by';
 import { isRetryable } from '../internal';
+import { asTenantId, asUserId } from '../platform/types/branded';
 
 export interface TestHarnessConfig {
   serviceName: string;
@@ -75,11 +76,11 @@ export function createTestHarness(config: TestHarnessConfig) {
           }
 
           const ctx: EventContext = {
+            tenantId: asTenantId(tenantId),
+            userId: asUserId(event.context?.userId ?? 'test-user'),
+            region: event.context?.region ?? 'us-east-1',
             eventId: event.id,
             eventType,
-            tenantId,
-            userId: event.context?.userId ?? 'test-user',
-            region: event.context?.region ?? 'us-east-1',
             timestamp: event.timestamp,
             receiveCount,
             serviceName: config.serviceName,

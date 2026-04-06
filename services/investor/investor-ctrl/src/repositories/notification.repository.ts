@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getTime, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 
 function notificationPk(tenantId: string, notificationId: string): string {
@@ -19,16 +19,16 @@ export class NotificationRepository extends TableRepository {
 
   readonly createNotification = this.log('createNotification',
     async (
-      tenantId: string,
       notificationId: string,
       data: Record<string, unknown>,
+      ctx: RequestContext,
     ): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
-        pk: notificationPk(tenantId, notificationId),
+        pk: notificationPk(ctx.tenantId, notificationId),
         sk: 'Notification',
         __typename: 'Notification',
-        tenantId,
+        ...ctx,
         timestamp: now,
         notificationId,
         status: 'CREATED',
@@ -66,16 +66,16 @@ export class NotificationRepository extends TableRepository {
 
   readonly createMonthlyReport = this.log('createMonthlyReport',
     async (
-      tenantId: string,
       reportId: string,
       data: Record<string, unknown>,
+      ctx: RequestContext,
     ): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
-        pk: monthlyReportPk(tenantId, reportId),
+        pk: monthlyReportPk(ctx.tenantId, reportId),
         sk: 'MonthlyReport',
         __typename: 'MonthlyReport',
-        tenantId,
+        ...ctx,
         timestamp: now,
         reportId,
         ...data,

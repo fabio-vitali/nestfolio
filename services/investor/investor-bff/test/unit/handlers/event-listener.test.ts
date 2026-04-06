@@ -22,11 +22,11 @@ describe('investor-bff event-listener', () => {
     const handlers = createHandlers({ profileRepo });
 
     const payload = { subject: { tenantId: 'tenant-1', userId: 'user-1' } };
-    const ctx = { tenantId: 'tenant-1', userId: 'user-1' };
+    const ctx = { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' };
 
     const result = await handlers['GO_LIVE_CONFIRMED'](payload, ctx);
 
-    expect(setExecutionMode).toHaveBeenCalledWith('tenant-1', 'user-1', 'simulation', 'live');
+    expect(setExecutionMode).toHaveBeenCalledWith({ tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' }, 'simulation', 'live');
     expect(result).toEqual({ _tag: 'skip' });
   });
 });

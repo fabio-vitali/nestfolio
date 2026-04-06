@@ -151,6 +151,8 @@ jest.mock('../src/agents/validation', () => ({
 import { DecisionRepository } from '../src/repositories/decision.repository';
 import { DecisionLifecycleService } from '../src/services/decision-lifecycle.service';
 
+const TEST_CTX = { tenantId: 't1', userId: 'u1', region: 'us-east-1' };
+
 describe('DecisionLifecycleService', () => {
   let service: DecisionLifecycleService;
 
@@ -165,7 +167,6 @@ describe('DecisionLifecycleService', () => {
   describe('executeDecisionLifecycle', () => {
     it('should execute all stub agents and return completed result', async () => {
       const context = {
-        tenantId: 't1',
         triggerEvent: {
           id: 'evt-1',
           type: 'MANDATE_CREATED',
@@ -175,6 +176,7 @@ describe('DecisionLifecycleService', () => {
         },
         investorProfile: { riskScore: 0.5 },
         portfolioState: {},
+        requestContext: TEST_CTX as any,
       };
 
       const result = await service.executeDecisionLifecycle(context);
@@ -193,7 +195,6 @@ describe('DecisionLifecycleService', () => {
 
     it('should extract trades from rebalance-planner output', async () => {
       const context = {
-        tenantId: 't1',
         triggerEvent: {
           id: 'evt-2',
           type: 'GOAL_UPDATED',
@@ -201,6 +202,7 @@ describe('DecisionLifecycleService', () => {
           subject: {},
           context: { tenantId: 't1' },
         },
+        requestContext: TEST_CTX as any,
       };
 
       const result = await service.executeDecisionLifecycle(context);
@@ -220,7 +222,6 @@ describe('DecisionLifecycleService', () => {
 
     it('should compose explanation from explainability agent output', async () => {
       const context = {
-        tenantId: 't1',
         triggerEvent: {
           id: 'evt-3',
           type: 'RISK_PROFILE_UPDATED',
@@ -228,6 +229,7 @@ describe('DecisionLifecycleService', () => {
           subject: {},
           context: { tenantId: 't1' },
         },
+        requestContext: TEST_CTX as any,
       };
 
       const result = await service.executeDecisionLifecycle(context);
@@ -238,7 +240,6 @@ describe('DecisionLifecycleService', () => {
 
     it('should record agent invocations and reasoning outputs', async () => {
       const context = {
-        tenantId: 't1',
         triggerEvent: {
           id: 'evt-4',
           type: 'MANDATE_CREATED',
@@ -246,6 +247,7 @@ describe('DecisionLifecycleService', () => {
           subject: {},
           context: { tenantId: 't1' },
         },
+        requestContext: TEST_CTX as any,
       };
 
       await service.executeDecisionLifecycle(context);
@@ -258,7 +260,6 @@ describe('DecisionLifecycleService', () => {
       mockInvokeOrchestrator.mockRejectedValueOnce(new Error('Agent pipeline timeout'));
 
       const context = {
-        tenantId: 't1',
         triggerEvent: {
           id: 'evt-err',
           type: 'MANDATE_CREATED',
@@ -266,6 +267,7 @@ describe('DecisionLifecycleService', () => {
           subject: {},
           context: { tenantId: 't1' },
         },
+        requestContext: TEST_CTX as any,
       };
 
       await expect(service.executeDecisionLifecycle(context)).rejects.toThrow('Agent pipeline timeout');
@@ -281,7 +283,6 @@ describe('DecisionLifecycleService', () => {
       });
 
       const context = {
-        tenantId: 't1',
         triggerEvent: {
           id: 'evt-unavail',
           type: 'MANDATE_CREATED',
@@ -289,6 +290,7 @@ describe('DecisionLifecycleService', () => {
           subject: {},
           context: { tenantId: 't1' },
         },
+        requestContext: TEST_CTX as any,
       };
 
       await expect(service.executeDecisionLifecycle(context)).rejects.toThrow(

@@ -21,7 +21,7 @@ import {
 } from '../src/domain/events';
 
 // Re-create the handler factory from sfn-callback.ts to test handler logic directly
-import { record, update } from '@nestfolio/event-processor';
+import { record, update, asTenantId, asUserId } from '@nestfolio/event-processor';
 
 function createHandlers() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,7 +89,9 @@ function createHandlers() {
 const baseCtx = (eventType: string): EventContext => ({
   eventId: 'evt-1',
   eventType,
-  tenantId: 't1',
+  tenantId: asTenantId('t1'),
+  userId: asUserId('test-user'),
+  region: 'us-east-1',
   timestamp: new Date().toISOString(),
   receiveCount: 1,
   serviceName: 'decision-workflow-ctrl',

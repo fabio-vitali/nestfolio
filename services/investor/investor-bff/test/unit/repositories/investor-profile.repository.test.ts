@@ -87,6 +87,11 @@ jest.mock('@nestfolio/event-processor', () => ({
 
 }));
 import { InvestorProfileRepository } from '../../../src/repositories/investor-profile.repository';
+import type { RequestContext } from '@nestfolio/event-processor';
+
+function ctx(tenantId: string, userId: string): RequestContext {
+  return { tenantId, userId, region: 'us-east-1' } as unknown as RequestContext;
+}
 
 describe('InvestorProfileRepository', () => {
   let repo: InvestorProfileRepository;
@@ -100,7 +105,7 @@ describe('InvestorProfileRepository', () => {
     it('should create an InvestorProfile with defaults', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      const created = await repo.createProfile('tenant-1', 'user-1', 'test@example.com', 'evt-1');
+      const created = await repo.createProfile(ctx('tenant-1', 'user-1'), 'test@example.com', 'evt-1');
 
       expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
@@ -110,6 +115,8 @@ describe('InvestorProfileRepository', () => {
         sk: 'InvestorProfile',
         __typename: 'InvestorProfile',
         tenantId: 'tenant-1',
+        userId: 'user-1',
+        region: 'us-east-1',
         email: 'test@example.com',
         operatingMode: 'BALANCED',
         currency: 'USD',
@@ -153,7 +160,7 @@ describe('InvestorProfileRepository', () => {
         targetReturn: 0.07,
       };
 
-      const result = await repo.setGoal('t1', 'u1', goal);
+      const result = await repo.setGoal(ctx('t1', 'u1'), goal);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -230,7 +237,7 @@ describe('InvestorProfileRepository', () => {
         rebalanceCadence: 'MONTHLY' as const,
       };
 
-      const result = await repo.grantMandate('t1', 'u1', mandate);
+      const result = await repo.grantMandate(ctx('t1', 'u1'), mandate);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -263,7 +270,7 @@ describe('InvestorProfileRepository', () => {
     it('should write OperatingMode + update InvestorProfile in transaction with 2 items', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      const result = await repo.setOperatingMode('t1', 'u1', 'AGGRESSIVE');
+      const result = await repo.setOperatingMode(ctx('t1', 'u1'), 'AGGRESSIVE');
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -317,7 +324,7 @@ describe('InvestorProfileRepository', () => {
     describe('setGoal validation', () => {
       it('should reject negative targetAmountCents', async () => {
         await expect(
-          repo.setGoal('t1', 'u1', {
+          repo.setGoal(ctx('t1', 'u1'), {
             objective: 'Retirement',
             targetAmountCents: -100,
             currency: 'USD',
@@ -329,7 +336,7 @@ describe('InvestorProfileRepository', () => {
 
       it('should reject zero timeHorizonMonths', async () => {
         await expect(
-          repo.setGoal('t1', 'u1', {
+          repo.setGoal(ctx('t1', 'u1'), {
             objective: 'Retirement',
             targetAmountCents: 100000,
             currency: 'USD',

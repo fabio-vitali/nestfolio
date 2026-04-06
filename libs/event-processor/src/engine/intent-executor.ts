@@ -2,6 +2,7 @@ import { PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { guardedWrite } from '../internal';
+import { pickRequestContext } from '../domain/schemas';
 import type { WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent, StoreIntent } from '../types/write-intent';
 import type { EventContext } from '../types/event-context';
 import type { IntentResult } from '../types/result-types';
@@ -36,7 +37,7 @@ export class IntentExecutor {
     try {
       await this.deps.docClient.send(new PutCommand({
         TableName: this.deps.tableName,
-        Item: { pk, sk, __typename: intent.typename, ...intent.fields, eventId: ctx.eventId, createdAt: ctx.timestamp },
+        Item: { pk, sk, __typename: intent.typename, ...pickRequestContext(ctx), ...intent.fields, eventId: ctx.eventId, createdAt: ctx.timestamp },
         ConditionExpression: 'attribute_not_exists(pk)',
       }));
       return { _tag: 'record', success: true };
@@ -54,7 +55,7 @@ export class IntentExecutor {
 
     await this.deps.docClient.send(new PutCommand({
       TableName: this.deps.tableName,
-      Item: { pk, sk, __typename: intent.typename, ...intent.fields, updatedAt: ctx.timestamp },
+      Item: { pk, sk, __typename: intent.typename, ...pickRequestContext(ctx), ...intent.fields, updatedAt: ctx.timestamp },
     }));
     return { _tag: 'project', success: true };
   }

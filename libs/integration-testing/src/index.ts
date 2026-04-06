@@ -8,3 +8,4 @@ export { CognitoFixture, type CognitoTokens } from './fixtures/cognito.fixture';
 export { AppSyncClient } from './fixtures/appsync-client';
 export { MockApiFixture } from './fixtures/mock-api.fixture';
 export { SsmOverrideFixture } from './fixtures/ssm-override.fixture';
+export { AccountSeedingFixture, type AccountSeedOptions } from './fixtures/account-seeding.fixture';

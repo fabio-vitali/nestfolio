@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getTime, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import type { ProposedTrade } from '@nestfolio/advisory-adpt/domain';
 
@@ -25,18 +25,18 @@ export class OrderRepository extends TableRepository {
 
   readonly createOrder = this.log('createOrder',
     async (
-      tenantId: string,
       orderId: string,
       decisionPacketId: string,
       trades: ProposedTrade[],
+      ctx: RequestContext,
       sourceEventId?: string,
     ): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
-        pk: orderPk(tenantId, orderId),
+        pk: orderPk(ctx.tenantId, orderId),
         sk: 'Order',
         __typename: 'Order',
-        tenantId,
+        ...ctx,
         timestamp: now,
         orderId,
         decisionPacketId,
@@ -83,16 +83,16 @@ export class OrderRepository extends TableRepository {
 
   readonly createStagedOrder = this.log('createStagedOrder',
     async (
-      tenantId: string,
       orderId: string,
       order: Record<string, unknown>,
+      ctx: RequestContext,
     ): Promise<void> => {
       const now = getTime();
       const item: TableEntry = {
-        pk: stagedOrderPk(tenantId, orderId),
+        pk: stagedOrderPk(ctx.tenantId, orderId),
         sk: 'StagedOrder',
         __typename: 'StagedOrder',
-        tenantId,
+        ...ctx,
         timestamp: now,
         orderId,
         ...order,
@@ -137,13 +137,13 @@ export class OrderRepository extends TableRepository {
   );
 
   readonly setCoolDown = this.log('setCoolDown',
-    async (tenantId: string, instrument: string, expiresAt: string): Promise<void> => {
+    async (instrument: string, expiresAt: string, ctx: RequestContext): Promise<void> => {
       const now = getTime();
       const item: TableEntry = {
-        pk: coolDownPk(tenantId, instrument),
+        pk: coolDownPk(ctx.tenantId, instrument),
         sk: 'CoolDown',
         __typename: 'CoolDown',
-        tenantId,
+        ...ctx,
         timestamp: now,
         instrument,
         expiresAt,

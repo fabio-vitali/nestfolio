@@ -1,4 +1,4 @@
-import { materializeToTable, toUow, skip, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, toUow, skip, pickRequestContext, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { InvestorBffEventTypes } from '../domain/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
@@ -20,7 +20,7 @@ export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository 
       onboardingCompleted(payload, ctx),
     ['GO_LIVE_CONFIRMED']: async (_payload: EventPayload, ctx: EventContext) => {
       const profileRepo = deps?.profileRepo ?? new InvestorProfileRepository(process.env['TABLE_NAME']!);
-      await profileRepo.setExecutionMode(ctx.tenantId, ctx.userId, 'simulation', 'live');
+      await profileRepo.setExecutionMode(pickRequestContext(ctx), 'simulation', 'live');
       return skip();
     },
   };

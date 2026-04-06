@@ -82,6 +82,8 @@ function extractUpdateAttrs(update: any): Record<string, unknown> {
   return result;
 }
 
+const TEST_CTX = { tenantId: 't1', userId: 'u1', region: 'us-east-1' };
+
 describe('ReconciliationRepository', () => {
   let repo: ReconciliationRepository;
 
@@ -94,7 +96,7 @@ describe('ReconciliationRepository', () => {
     it('should create a Reconciliation with status STARTED', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      const created = await repo.createReconciliation('t1', 'recon-1', 'MANUAL');
+      const created = await repo.createReconciliation('recon-1', 'MANUAL', TEST_CTX as any);
 
       expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
@@ -104,6 +106,8 @@ describe('ReconciliationRepository', () => {
         sk: 'Reconciliation',
         __typename: 'Reconciliation',
         tenantId: 't1',
+        userId: 'u1',
+        region: 'us-east-1',
         reconciliationId: 'recon-1',
         sourceEventId: 'recon-1',
         triggerType: 'MANUAL',
@@ -172,7 +176,7 @@ describe('ReconciliationRepository', () => {
     it('should create a DriftRecord', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      const created = await repo.createDriftRecord('t1', 'recon-1', 'AAPL', 100, 95, 5);
+      const created = await repo.createDriftRecord('recon-1', 'AAPL', 100, 95, 5, TEST_CTX as any);
 
       expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
@@ -181,6 +185,9 @@ describe('ReconciliationRepository', () => {
         pk: 'Reconciliation#t1#recon-1',
         sk: 'DriftRecord#AAPL',
         __typename: 'DriftRecord',
+        tenantId: 't1',
+        userId: 'u1',
+        region: 'us-east-1',
         sourceEventId: 'recon-1-AAPL',
         instrument: 'AAPL',
         intentQty: 100,
@@ -208,7 +215,7 @@ describe('ReconciliationRepository', () => {
     it('should acquire lock when not locked', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      const acquired = await repo.acquireLock('t1');
+      const acquired = await repo.acquireLock(TEST_CTX as any);
 
       expect(acquired).toBe(true);
     });
@@ -218,7 +225,7 @@ describe('ReconciliationRepository', () => {
       (error as any).name = 'ConditionalCheckFailedException';
       mockSend.mockRejectedValueOnce(error);
 
-      const acquired = await repo.acquireLock('t1');
+      const acquired = await repo.acquireLock(TEST_CTX as any);
 
       expect(acquired).toBe(false);
     });
@@ -244,7 +251,7 @@ describe('ReconciliationRepository', () => {
       mockSend.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
 
       await expect(
-        repo.createReconciliation('t1', 'recon-err', 'MANUAL'),
+        repo.createReconciliation('recon-err', 'MANUAL', TEST_CTX as any),
       ).rejects.toThrow('ProvisionedThroughputExceededException');
     });
   });

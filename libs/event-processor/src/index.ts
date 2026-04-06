@@ -117,6 +117,7 @@ export {
   BusEventSchema,
   RequestContextSchema,
   parseRequestContext,
+  pickRequestContext,
 } from './domain';
 export type {
   BusEventPayload,

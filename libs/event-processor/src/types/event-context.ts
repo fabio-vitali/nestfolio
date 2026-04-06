@@ -1,9 +1,8 @@
-export interface EventContext {
+import type { RequestContext } from '../domain/schemas';
+
+export interface EventContext extends RequestContext {
   readonly eventId: string;
   readonly eventType: string;
-  readonly tenantId: string;
-  readonly userId: string;
-  readonly region: string;
   readonly timestamp: string;
   readonly receiveCount?: number;
   readonly serviceName: string;

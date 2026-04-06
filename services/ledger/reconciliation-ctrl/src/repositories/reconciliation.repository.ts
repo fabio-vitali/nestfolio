@@ -4,7 +4,7 @@ import {
   DeleteCommand,
   PutCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, type TableEntry } from '@nestfolio/event-processor';
+import { TableRepository, getTime, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 
 function reconciliationPk(tenantId: string, reconciliationId: string): string {
@@ -24,16 +24,16 @@ export class ReconciliationRepository extends TableRepository {
 
   readonly createReconciliation = this.log('createReconciliation',
     async (
-      tenantId: string,
       reconciliationId: string,
       triggerType: string,
+      ctx: RequestContext,
     ): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
-        pk: reconciliationPk(tenantId, reconciliationId),
+        pk: reconciliationPk(ctx.tenantId, reconciliationId),
         sk: 'Reconciliation',
         __typename: 'Reconciliation',
-        tenantId,
+        ...ctx,
         timestamp: now,
         reconciliationId,
         triggerType,
@@ -89,19 +89,19 @@ export class ReconciliationRepository extends TableRepository {
 
   readonly createDriftRecord = this.log('createDriftRecord',
     async (
-      tenantId: string,
       reconciliationId: string,
       instrument: string,
       intentQty: number,
       settlementQty: number,
       drift: number,
+      ctx: RequestContext,
     ): Promise<boolean> => {
       const now = getTime();
       const item: TableEntry = {
-        pk: reconciliationPk(tenantId, reconciliationId),
+        pk: reconciliationPk(ctx.tenantId, reconciliationId),
         sk: `DriftRecord#${instrument}`,
         __typename: 'DriftRecord',
-        tenantId,
+        ...ctx,
         timestamp: now,
         reconciliationId,
         sourceEventId: `${reconciliationId}-${instrument}`,
@@ -126,7 +126,7 @@ export class ReconciliationRepository extends TableRepository {
   );
 
   readonly acquireLock = this.log('acquireLock',
-    async (tenantId: string): Promise<boolean> => {
+    async (ctx: RequestContext): Promise<boolean> => {
       const now = getTime();
       const lockTtl = Date.now() + 5 * 60 * 1000; // 5 minutes
 
@@ -135,10 +135,10 @@ export class ReconciliationRepository extends TableRepository {
           new PutCommand({
             TableName: this.tableName,
             Item: {
-              pk: lockPk(tenantId),
+              pk: lockPk(ctx.tenantId),
               sk: 'ReconciliationLock',
               __typename: 'ReconciliationLock',
-              tenantId,
+              ...ctx,
               timestamp: now,
               expiresAt: lockTtl,
               acquiredAt: now,

@@ -71,6 +71,8 @@ jest.mock('@nestfolio/event-processor', () => ({
 }));
 import { VirtualLedgerRepository } from '../src/repositories/virtual-ledger.repository';
 
+const TEST_CTX = { tenantId: 't-1', userId: 'u-1', region: 'us-east-1' };
+
 describe('VirtualLedgerRepository', () => {
   let repo: VirtualLedgerRepository;
 
@@ -112,7 +114,7 @@ describe('VirtualLedgerRepository', () => {
     it('should create a VirtualCashBalance record', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.initializeCashBalance('t-1', 'u-1', 'USD', 100000);
+      await repo.initializeCashBalance('USD', 100000, TEST_CTX as any);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -122,6 +124,7 @@ describe('VirtualLedgerRepository', () => {
         __typename: 'VirtualCashBalance',
         tenantId: 't-1',
         userId: 'u-1',
+        region: 'us-east-1',
         currency: 'USD',
         balance: 100000,
       });
@@ -130,7 +133,8 @@ describe('VirtualLedgerRepository', () => {
     it('should set version to 1 for new cash balances', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.initializeCashBalance('t-1', 'u-1', 'EUR', 50000);
+      const eurCtx = { tenantId: 't-1', userId: 'u-1', region: 'us-east-1' };
+      await repo.initializeCashBalance('EUR', 50000, eurCtx as any);
 
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item.version).toBe(1);
@@ -141,7 +145,7 @@ describe('VirtualLedgerRepository', () => {
     it('should use PutCommand with ConditionExpression for optimistic locking', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.updateCashBalanceConditional('t-1', 'u-1', 'USD', 95000, 3);
+      await repo.updateCashBalanceConditional('USD', 95000, 3, TEST_CTX as any);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -161,7 +165,7 @@ describe('VirtualLedgerRepository', () => {
     it('should increment version by 1', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.updateCashBalanceConditional('t-1', 'u-1', 'USD', 80000, 5);
+      await repo.updateCashBalanceConditional('USD', 80000, 5, TEST_CTX as any);
 
       const call = mockSend.mock.calls[0][0];
       expect(call.input.Item.version).toBe(6);
@@ -226,7 +230,7 @@ describe('VirtualLedgerRepository', () => {
       // transactWrite
       mockSend.mockResolvedValueOnce({});
 
-      await repo.executeTrade('t-1', 'u-1', {
+      await repo.executeTrade({
         tradeId: 'trade-1',
         orderId: 'order-1',
         symbol: 'VTI',
@@ -236,7 +240,7 @@ describe('VirtualLedgerRepository', () => {
         totalValue: 2505,
         cashBefore: 100000,
         cashAfter: 97495,
-      });
+      }, TEST_CTX as any);
 
       expect(mockSend).toHaveBeenCalledTimes(3);
       const transactCall = mockSend.mock.calls[2][0];
@@ -277,7 +281,7 @@ describe('VirtualLedgerRepository', () => {
       // transactWrite
       mockSend.mockResolvedValueOnce({});
 
-      await repo.executeTrade('t-1', 'u-1', {
+      await repo.executeTrade({
         tradeId: 'trade-new',
         orderId: 'order-new',
         symbol: 'VTI',
@@ -287,7 +291,7 @@ describe('VirtualLedgerRepository', () => {
         totalValue: 500,
         cashBefore: 0,
         cashAfter: -500,
-      });
+      }, TEST_CTX as any);
 
       const transactCall = mockSend.mock.calls[2][0];
       const cashPut = transactCall.input.TransactItems[0].Put;
@@ -307,7 +311,7 @@ describe('VirtualLedgerRepository', () => {
       // transactWrite
       mockSend.mockResolvedValueOnce({});
 
-      await repo.executeTrade('t-1', 'u-1', {
+      await repo.executeTrade({
         tradeId: 'trade-2',
         orderId: 'order-2',
         symbol: 'VTI',
@@ -317,7 +321,7 @@ describe('VirtualLedgerRepository', () => {
         totalValue: 1252.50,
         cashBefore: 50000,
         cashAfter: 51252.50,
-      });
+      }, TEST_CTX as any);
 
       expect(mockSend).toHaveBeenCalledTimes(3);
       const transactCall = mockSend.mock.calls[2][0];
@@ -356,12 +360,12 @@ describe('VirtualLedgerRepository', () => {
     it('should create a VirtualSnapshot record', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.createSnapshot('t-1', 'u-1', {
+      await repo.createSnapshot({
         date: '2025-01-01',
         cashBalance: 95000,
         positions: [{ symbol: 'VTI', quantity: 10, marketValue: 2505 }],
         totalValue: 97505,
-      });
+      }, TEST_CTX as any);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];

@@ -67,12 +67,15 @@ jest.mock('@nestfolio/event-processor', () => ({
   },
   getUUID: jest.fn().mockReturnValue('test-uuid'),
   getTime: jest.fn().mockReturnValue('2025-01-01T00:00:00.000Z'),
+  asTenantId: (v: string) => v,
+  asUserId: (v: string) => v,
   log: () => (_target: unknown, _key: string, descriptor: PropertyDescriptor) => descriptor,
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 
   withMethodLogging: () => (_name: string, fn: (...args: unknown[]) => unknown) => fn,
 
 }));
+import { type RequestContext, asTenantId, asUserId } from '@nestfolio/event-processor';
 import { AdvisoryRepository } from '../src/repositories/advisory.repository';
 
 function extractUpdateAttrs(update: any): Record<string, unknown> {
@@ -88,6 +91,7 @@ function extractUpdateAttrs(update: any): Record<string, unknown> {
 
 describe('AdvisoryRepository', () => {
   let repo: AdvisoryRepository;
+  const testCtx: RequestContext = { tenantId: asTenantId('t1'), userId: asUserId('u1'), region: 'us-east-1' };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -98,7 +102,7 @@ describe('AdvisoryRepository', () => {
     it('should store a decision read model', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      const result = await repo.storeDecision('t1', 'd1', {
+      const result = await repo.storeDecision(testCtx, 'd1', {
         trigger: 'REBALANCE',
         explanation: 'Rebalance needed',
         proposedTrades: [],
@@ -113,6 +117,8 @@ describe('AdvisoryRepository', () => {
         sk: 'DecisionReadModel',
         __typename: 'DecisionReadModel',
         tenantId: 't1',
+        userId: 'u1',
+        region: 'us-east-1',
         decisionId: 'd1',
         status: 'PROPOSED',
         trigger: 'REBALANCE',
@@ -181,7 +187,7 @@ describe('AdvisoryRepository', () => {
     it('should store an agent invocation record', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.storeAgentInvocation('t1', 'd1', {
+      await repo.storeAgentInvocation(testCtx, 'd1', {
         invocationId: 'inv-1',
         agentName: 'rebalance-agent',
         modelId: 'claude-v3',
@@ -220,7 +226,7 @@ describe('AdvisoryRepository', () => {
     it('should store a user interaction record', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.recordUserInteraction('t1', 'u1', 'd1', 'VIEWED_EXPLANATION');
+      await repo.recordUserInteraction(testCtx, 'd1', 'VIEWED_EXPLANATION');
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -228,7 +234,9 @@ describe('AdvisoryRepository', () => {
         pk: 'Decision#t1#d1',
         sk: 'UserInteraction#test-uuid',
         __typename: 'UserInteraction',
+        tenantId: 't1',
         userId: 'u1',
+        region: 'us-east-1',
         interactionType: 'VIEWED_EXPLANATION',
       });
     });
@@ -238,7 +246,7 @@ describe('AdvisoryRepository', () => {
     it('should store a UserConfirmation record for Egress CDC', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.putUserConfirmation('t1', 'd1', 'u1', '2025-01-01T00:00:00.000Z');
+      await repo.putUserConfirmation(testCtx, 'd1', '2025-01-01T00:00:00.000Z');
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -247,8 +255,9 @@ describe('AdvisoryRepository', () => {
         sk: 'UserConfirmation#test-uuid',
         __typename: 'UserConfirmation',
         tenantId: 't1',
-        decisionId: 'd1',
         userId: 'u1',
+        region: 'us-east-1',
+        decisionId: 'd1',
         confirmedAt: '2025-01-01T00:00:00.000Z',
       });
     });
@@ -258,7 +267,7 @@ describe('AdvisoryRepository', () => {
     it('should store a UserRejection record for Egress CDC', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.putUserRejection('t1', 'd1', 'u1', '2025-01-01T00:00:00.000Z', 'Too risky');
+      await repo.putUserRejection(testCtx, 'd1', '2025-01-01T00:00:00.000Z', 'Too risky');
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -267,8 +276,9 @@ describe('AdvisoryRepository', () => {
         sk: 'UserRejection#test-uuid',
         __typename: 'UserRejection',
         tenantId: 't1',
-        decisionId: 'd1',
         userId: 'u1',
+        region: 'us-east-1',
+        decisionId: 'd1',
         rejectedAt: '2025-01-01T00:00:00.000Z',
         rejectionReason: 'Too risky',
       });

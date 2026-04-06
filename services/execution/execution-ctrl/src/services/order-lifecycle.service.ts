@@ -16,13 +16,15 @@ export class OrderLifecycleService {
 
   readonly processApprovedDecision = this.log('processApprovedDecision',
     async (event: BusEvent): Promise<void> => {
-      const { tenantId, decisionPacketId, proposedTrades } = this.extractFromEvent(event);
+      const { decisionPacketId, proposedTrades } = this.extractFromEvent(event);
+      const ctx = event.context;
+      const tenantId = ctx.tenantId;
       const orderId = event.id;
 
       logger.info('Processing approved decision', { tenantId, decisionPacketId, orderId, tradeCount: proposedTrades.length });
 
       // 1. Create order record (conditional write — returns false if duplicate)
-      const created = await this.repository.createOrder(tenantId, orderId, decisionPacketId, proposedTrades, event.id);
+      const created = await this.repository.createOrder(orderId, decisionPacketId, proposedTrades, ctx, event.id);
       if (!created) {
         logger.info('Duplicate event, order already exists', { orderId, eventId: event.id });
         return;
@@ -44,24 +46,18 @@ export class OrderLifecycleService {
       } else {
         // Stage for later
         logger.info('Market closed, staging order', { orderId });
-        await this.repository.createStagedOrder(tenantId, orderId, { proposedTrades });
+        await this.repository.createStagedOrder(orderId, { proposedTrades }, ctx);
         await this.repository.updateOrderStatus(tenantId, orderId, 'STAGED');
       }
     },
   );
 
   private extractFromEvent(event: BusEvent): {
-    tenantId: string;
     decisionPacketId: string;
     proposedTrades: ProposedTrade[];
   } {
-    const context = (event.context ?? {}) as Record<string, unknown>;
     const subject = (event.subject ?? {}) as Record<string, unknown>;
-
-    const tenantId =
-      (context['tenantId'] as string) ??
-      (subject['tenantId'] as string) ??
-      'unknown';
+    const context = (event.context ?? {}) as Record<string, unknown>;
 
     const decisionPacketId =
       (subject['decisionPacketId'] as string) ??
@@ -73,6 +69,6 @@ export class OrderLifecycleService {
       (subject['proposedTrades'] as ProposedTrade[]) ??
       [];
 
-    return { tenantId, decisionPacketId, proposedTrades };
+    return { decisionPacketId, proposedTrades };
   }
 }

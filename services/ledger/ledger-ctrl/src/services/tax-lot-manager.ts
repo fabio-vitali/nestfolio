@@ -1,5 +1,7 @@
 import { withMethodLogging, logger } from '@nestfolio/event-processor';
-import { LedgerRepository } from '../repositories/ledger.repository';
+import { LedgerRepository, type TaxLot, type DispositionRecord } from '../repositories/ledger.repository';
+
+export type { TaxLot, DispositionRecord };
 
 export interface OpenLotParams {
   tenantId: string;
@@ -17,31 +19,6 @@ export interface CloseLotParams {
   salePrice: number;
   soldAt: string;
   orderId: string;
-}
-
-export interface DispositionRecord {
-  lotId: string;
-  symbol: string;
-  quantitySold: number;
-  costBasisPerShare: number;
-  salePrice: number;
-  realizedGain: number;
-  holdingPeriod: 'short-term' | 'long-term';
-  acquiredAt: string;
-  soldAt: string;
-}
-
-export interface TaxLot {
-  pk: string;
-  sk: string;
-  __typename: 'TaxLot';
-  tenantId: string;
-  lotId: string;
-  symbol: string;
-  quantity: number;
-  costBasisPerShare: number;
-  acquiredAt: string;
-  status: 'open' | 'closed';
 }
 
 export class TaxLotManager {
@@ -80,36 +57,34 @@ export class TaxLotManager {
       for (const lot of lots) {
         if (remainingToSell <= 0) break;
 
-        const lotQty = lot.quantity as number;
-        const qtyFromThisLot = Math.min(lotQty, remainingToSell);
-        const costBasis = lot.costBasisPerShare as number;
-        const realizedGain = (params.salePrice - costBasis) * qtyFromThisLot;
+        const qtyFromThisLot = Math.min(lot.quantity, remainingToSell);
+        const realizedGain = (params.salePrice - lot.costBasisPerShare) * qtyFromThisLot;
 
         // Determine holding period
-        const acquiredAt = new Date(lot.acquiredAt as string);
+        const acquiredAt = new Date(lot.acquiredAt);
         const soldAt = new Date(params.soldAt);
         const holdingMs = soldAt.getTime() - acquiredAt.getTime();
         const oneYearMs = 365 * 24 * 60 * 60 * 1000;
         const holdingPeriod: 'short-term' | 'long-term' = holdingMs >= oneYearMs ? 'long-term' : 'short-term';
 
         dispositions.push({
-          lotId: lot.lotId as string,
+          lotId: lot.lotId,
           symbol: params.symbol,
           quantitySold: qtyFromThisLot,
-          costBasisPerShare: costBasis,
+          costBasisPerShare: lot.costBasisPerShare,
           salePrice: params.salePrice,
           realizedGain,
           holdingPeriod,
-          acquiredAt: lot.acquiredAt as string,
+          acquiredAt: lot.acquiredAt,
           soldAt: params.soldAt,
         });
 
         // Update or close the lot
-        const newQty = lotQty - qtyFromThisLot;
+        const newQty = lot.quantity - qtyFromThisLot;
         if (newQty === 0) {
-          await this.repository.closeTaxLot(lot.pk as string, lot.sk as string);
+          await this.repository.closeTaxLot(lot.pk, lot.sk);
         } else {
-          await this.repository.updateTaxLotQuantity(lot.pk as string, lot.sk as string, newQty);
+          await this.repository.updateTaxLotQuantity(lot.pk, lot.sk, newQty);
         }
 
         remainingToSell -= qtyFromThisLot;
@@ -135,9 +110,7 @@ export class TaxLotManager {
       const lots = await this.repository.getOpenLotsBySymbol(tenantId, symbol);
       let totalUnrealized = 0;
       for (const lot of lots) {
-        const qty = lot.quantity as number;
-        const costBasis = lot.costBasisPerShare as number;
-        totalUnrealized += (currentPrice - costBasis) * qty;
+        totalUnrealized += (currentPrice - lot.costBasisPerShare) * lot.quantity;
       }
       return totalUnrealized;
     },

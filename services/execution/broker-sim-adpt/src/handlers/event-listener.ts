@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { logger, NotRetryableError } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
-import { createIngestionHandler, skip, record, getTime, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { createIngestionHandler, skip, record, getTime, pickRequestContext, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { BrokerSimEventTypes } from '../domain/events';
 import { VirtualLedgerRepository } from '../repositories/virtual-ledger.repository';
 import { MarketDataService } from '../services/market-data.service';
@@ -32,20 +32,21 @@ export function createHandlers(deps: EventListenerDeps) {
         );
       }
 
+      const reqCtx = pickRequestContext(ctx);
+
       // Ensure simulation account exists (lazy initialization)
       const cashBalance = await deps.repository.getCashBalance(tenantId, userId, 'USD');
       if (!cashBalance) {
-        await deps.simulationEngine.initializeAccount(tenantId, userId);
+        await deps.simulationEngine.initializeAccount(reqCtx);
       }
 
       try {
         const result = await deps.simulationEngine.processOrderSubmitted(
-          tenantId,
-          userId,
           orderId,
           symbol,
           side,
           quantity,
+          reqCtx,
         );
 
         logger.info('Order simulation complete', {
@@ -136,7 +137,7 @@ export function createHandlers(deps: EventListenerDeps) {
       // Ensure simulation account exists (lazy initialization)
       const cashBalance = await deps.repository.getCashBalance(tenantId, userId, currency);
       if (!cashBalance) {
-        await deps.simulationEngine.initializeAccount(tenantId, userId);
+        await deps.simulationEngine.initializeAccount(pickRequestContext(ctx));
       }
 
       // Guarded atomic credit — idempotent via event-keyed guard marker
