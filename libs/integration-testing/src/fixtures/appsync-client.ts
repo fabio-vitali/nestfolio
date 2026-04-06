@@ -5,8 +5,8 @@ export class AppSyncClient {
   private readonly graphqlUrl: Promise<string>;
   private readonly idToken: string;
 
-  constructor(ctx: IntegrationContext, tokens: CognitoTokens) {
-    this.graphqlUrl = ctx.ssm.graphqlUrl('investor-bff');
+  constructor(ctx: IntegrationContext, tokens: CognitoTokens, service: string) {
+    this.graphqlUrl = ctx.ssm.graphqlUrl(service);
     this.idToken = tokens.idToken;
   }
 
