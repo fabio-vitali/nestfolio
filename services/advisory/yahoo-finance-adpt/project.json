@@ -20,6 +20,12 @@
       "executor": "@nx/jest:jest",
       "options": { "jestConfig": "services/advisory/yahoo-finance-adpt/jest.config.js" }
     },
+    "test-integration": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/advisory/yahoo-finance-adpt/jest.integration.config.js --passWithNoTests"
+      }
+    },
     "lint": { "executor": "@nx/eslint:lint" }
   },
   "tags": ["scope:advisory", "type:adpt"]
