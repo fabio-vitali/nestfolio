@@ -63,7 +63,7 @@ describe('Facade construct', () => {
     const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
     const resolver = new Function(stack, 'Resolver', {
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       handler: 'index.handler',
       code: Code.fromInline('exports.handler = async () => ({})'),
     });
@@ -87,7 +87,7 @@ describe('Facade construct', () => {
     const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
     const resolver = new Function(stack, 'Resolver', {
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       handler: 'index.handler',
       code: Code.fromInline('exports.handler = async () => ({})'),
     });
@@ -102,7 +102,7 @@ describe('Facade construct', () => {
 
     const template = Template.fromStack(stack);
     template.hasResourceProperties('AWS::SSM::Parameter', {
-      Name: '/nestfolio/test-test/api/graphqlUrl',
+      Name: '/nestfolio/test-test-svc/api/graphqlUrl',
     });
   });
 
@@ -110,7 +110,7 @@ describe('Facade construct', () => {
     const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
     const resolver = new Function(stack, 'Resolver', {
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       handler: 'index.handler',
       code: Code.fromInline('exports.handler = async () => ({})'),
     });
@@ -136,7 +136,7 @@ describe('Facade construct', () => {
     const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
     const resolver = new Function(stack, 'Resolver', {
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       handler: 'index.handler',
       code: Code.fromInline('exports.handler = async () => ({})'),
     });
@@ -164,7 +164,7 @@ describe('Facade construct', () => {
     });
     const userPool = new UserPool(stack, 'Pool');
     const resolver = new Function(stack, 'Resolver', {
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       handler: 'index.handler',
       code: Code.fromInline('exports.handler = async () => ({})'),
     });
@@ -186,7 +186,7 @@ describe('Facade construct', () => {
     const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
     const resolver = new Function(stack, 'Resolver', {
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       handler: 'index.handler',
       code: Code.fromInline('exports.handler = async () => ({})'),
     });
@@ -273,7 +273,7 @@ describe('JS resolver support', () => {
     const { stack } = createFacadeStack({ withState: false });
     const userPool = new UserPool(stack, 'Pool');
     const resolver = new Function(stack, 'Resolver', {
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       handler: 'index.handler',
       code: Code.fromInline('exports.handler = async () => ({})'),
     });

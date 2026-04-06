@@ -2,10 +2,9 @@ import * as path from 'path';
 import { Construct } from 'constructs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Duration } from 'aws-cdk-lib';
 import { ServiceStack, ServiceStackProps, State, Egress } from '@nestfolio/cdk-constructs/core';
-import { NamingService } from '@nestfolio/cdk-constructs/utils';
+import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 
 export class OnboardingBffStack extends ServiceStack {
@@ -37,9 +36,9 @@ export class OnboardingBffStack extends ServiceStack {
 
     // Lambda handler for RAG search tool
     const searchKbFn = new NodejsFunction(this, 'SearchKbFn', {
+      ...defaultLambdaProps(this),
       entry: path.join(__dirname, 'agent/tools/search-kb.handler.ts'),
       handler: 'handler',
-      runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(15),
       environment: {
         KNOWLEDGE_BASE_ID: knowledgeBase.knowledgeBaseId,

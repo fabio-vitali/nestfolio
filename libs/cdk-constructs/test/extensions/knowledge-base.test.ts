@@ -130,7 +130,7 @@ describe('KnowledgeBase + AdapterSchedule integration', () => {
     });
 
     const fn = new Function(stack, 'FetchFn', {
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       handler: 'index.handler',
       code: Code.fromInline('exports.handler = async () => ({})'),
     });

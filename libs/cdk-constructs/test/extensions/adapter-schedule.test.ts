@@ -11,7 +11,7 @@ describe('AdapterSchedule construct', () => {
       const app = new App();
       const stack = new Stack(app, 'TestStack');
       const fn = new Function(stack, 'TestFn', {
-        runtime: Runtime.NODEJS_20_X,
+        runtime: Runtime.NODEJS_24_X,
         handler: 'index.handler',
         code: Code.fromInline('exports.handler = async () => ({})'),
       });
@@ -71,7 +71,7 @@ describe('AdapterSchedule construct', () => {
       const app = new App();
       const stack = new Stack(app, 'TestStack');
       const fn = new Function(stack, 'TestFn', {
-        runtime: Runtime.NODEJS_20_X,
+        runtime: Runtime.NODEJS_24_X,
         handler: 'index.handler',
         code: Code.fromInline('exports.handler = async () => ({})'),
       });
@@ -100,7 +100,7 @@ describe('AdapterSchedule construct', () => {
       const app = new App();
       const stack = new Stack(app, 'TestStack');
       const fn = new Function(stack, 'TestFn', {
-        runtime: Runtime.NODEJS_20_X,
+        runtime: Runtime.NODEJS_24_X,
         handler: 'index.handler',
         code: Code.fromInline('exports.handler = async () => ({})'),
       });

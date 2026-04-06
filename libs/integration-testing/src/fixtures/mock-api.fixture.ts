@@ -61,7 +61,7 @@ export class MockApiFixture {
       try {
         await this.lambda.send(new CreateFunctionCommand({
           FunctionName: this.functionName,
-          Runtime: 'nodejs20.x',
+          Runtime: 'nodejs24.x',
           Handler: 'index.handler',
           Role: this.roleArn,
           Code: { ZipFile: params.handlerAsset },
