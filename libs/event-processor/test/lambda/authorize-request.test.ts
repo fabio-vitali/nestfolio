@@ -4,7 +4,7 @@ describe('authorizeRequest', () => {
   const mockEvent = (tenantId?: string, sub?: string) => ({
     identity: {
       claims: {
-        ...(tenantId && { 'custom:tenantId': tenantId }),
+        ...(tenantId && { 'custom:tenant_id': tenantId }),
         ...(sub && { sub }),
       },
     },

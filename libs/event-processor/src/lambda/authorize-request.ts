@@ -17,7 +17,7 @@ export function authorizeRequest(
 ): RequestContext {
   const claims = event.identity as Record<string, unknown> | undefined;
   const claimsMap = claims?.['claims'] as Record<string, string> | undefined;
-  const tenantId = claimsMap?.['custom:tenantId'];
+  const tenantId = claimsMap?.['custom:tenant_id'];
   const userId = claimsMap?.['sub'];
 
   if (!tenantId) {
