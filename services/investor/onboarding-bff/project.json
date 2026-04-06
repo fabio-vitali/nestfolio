@@ -26,6 +26,12 @@
       "options": {
         "command": "npx esbuild services/investor/onboarding-bff/src/runtime/server.ts --bundle --platform=node --outfile=services/investor/onboarding-bff/dist/bundle.js --format=cjs --target=node20"
       }
+    },
+    "test-integration": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/investor/onboarding-bff/jest.integration.config.js --passWithNoTests"
+      }
     }
   },
   "tags": ["scope:investor", "type:bff", "has-agent-runtime"]
