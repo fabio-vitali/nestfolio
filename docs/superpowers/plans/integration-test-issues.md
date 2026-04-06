@@ -29,8 +29,10 @@
 ### Issue #4: ledger-ctrl CDC requires Reducer pre-existing state
 - **Service:** ledger-ctrl
 - **Category:** inconsistency
-- **Description:** ledger-ctrl has a two-hop CDC chain: Ingress writes `LedgerEntry` → Reducer materializes `BalanceEvent`/`PortfolioEvent`/`LedgerEntryEvent` → CDC emits events. For fresh integration test tenants with no prior state, the Reducer finds "No new events to reduce" and writes nothing → no CDC event.
-- **Resolution:** Used `TableAssertions` instead of `EventBusTrap` to verify the DDB `LedgerEntry` write directly. Full CDC chain test deferred until account seeding fixture exists.
+- **Description:** ledger-ctrl has a two-hop CDC chain: Ingress writes `LedgerEntry` → Reducer Lambda (DDB Stream-triggered, filters on `__typename = 'LedgerEntry'` INSERTs) materializes `BalanceEvent`/`PortfolioEvent`/`LedgerEntryEvent` → Egress CDC publishes to EventBridge. For fresh integration test tenants with no prior `AccountSnapshot` record, the Reducer correctly determines there is no prior balance to delta against, logs "No new events to reduce", and exits without writing — so no CDC event reaches the bus.
+- **What we tested:** Full Ingress pipeline: `ORDER_FILLED` → EB Rule → SQS → Lambda handler → `LedgerEntry` DDB write verified via `TableAssertions` (correct pk/sk, `__typename`, `tenantId`, `eventType`). This proves event delivery, handler execution, and DDB write against real infrastructure.
+- **What we deferred:** The Reducer→CDC hop. Testing it requires an `AccountSeedingFixture` in `libs/integration-testing` that pre-populates an `AccountSnapshot` record, giving the Reducer prior state to compute a delta. With that fixture: put `ORDER_FILLED` → LedgerEntry → Reducer computes balance delta → `BalanceEvent` written → CDC emits `BALANCE_UPDATED` → EventBusTrap catches it.
+- **Risk level:** Low. The Reducer has unit tests for its reduction logic. The Egress CDC (`changeDataCapture` pipeline) is the same code proven by ~15 other services in this batch. The only untested seam is the DDB Stream filter routing LedgerEntry INSERTs to the Reducer — a CDK filter config, not application code.
 - **Affected services:** Any service with a Reducer or materialization step in the CDC chain.
 
 ### Issue #5: advisory-ctrl Ingress Lambda crash — missing prompt .txt files
