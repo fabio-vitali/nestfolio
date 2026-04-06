@@ -98,7 +98,7 @@ export class MockApiFixture {
       AuthType: 'NONE',
     }));
 
-    // Add public invoke permission
+    // Add public invoke permissions (both are required for NONE auth)
     await this.lambda.send(new AddPermissionCommand({
       FunctionName: this.functionName,
       StatementId: 'FunctionURLAllowPublicAccess',
@@ -106,11 +106,17 @@ export class MockApiFixture {
       Principal: '*',
       FunctionUrlAuthType: 'NONE',
     }));
+    await this.lambda.send(new AddPermissionCommand({
+      FunctionName: this.functionName,
+      StatementId: 'FunctionInvokeAllowPublicAccess',
+      Action: 'lambda:InvokeFunction',
+      Principal: '*',
+    }));
 
     // Register cleanup
     this.ctx.cleanup.register('MockApiFixture', () => this.teardown());
 
-    return urlResult.FunctionUrl!;
+    return urlResult.FunctionUrl!.replace(/\/+$/, '');
   }
 
   async teardown(): Promise<void> {

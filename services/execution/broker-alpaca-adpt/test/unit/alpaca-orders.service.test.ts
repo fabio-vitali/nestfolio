@@ -45,6 +45,7 @@ describe('AlpacaOrdersService', () => {
         side: 'buy',
         type: 'market',
         time_in_force: 'day',
+        client_order_id: ORDER_ID,
       });
     });
 

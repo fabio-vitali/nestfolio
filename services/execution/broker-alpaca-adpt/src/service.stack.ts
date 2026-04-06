@@ -1,7 +1,8 @@
 import { join } from 'path';
-import { Duration } from 'aws-cdk-lib';
+import { Duration, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { ParamsAndSecretsLayerVersion, ParamsAndSecretsVersions } from 'aws-cdk-lib/aws-lambda';
 import { Egress, Ingress, Orchestration, ServiceStack, ServiceStackProps, State } from '@nestfolio/cdk-constructs/core';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
@@ -35,6 +36,19 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
       },
       lambdaProps: { paramsAndSecrets },
     });
+
+    // IAM: SSM + Secrets Manager for ParamsAndSecrets Extension
+    const ssmSecretsPolicy = [
+      new PolicyStatement({
+        actions: ['ssm:GetParameter'],
+        resources: [`arn:aws:ssm:${Stack.of(this).region}:${Stack.of(this).account}:parameter/nestfolio/${props.prefix}-broker-alpaca-adpt/alpaca/*`],
+      }),
+      new PolicyStatement({
+        actions: ['secretsmanager:GetSecretValue'],
+        resources: [`arn:aws:secretsmanager:${Stack.of(this).region}:${Stack.of(this).account}:secret:${props.prefix}-broker-alpaca-adpt/alpaca-api-keys*`],
+      }),
+    ];
+    ssmSecretsPolicy.forEach(p => ingress.handler.addToRolePolicy(p));
 
     const egress = new Egress(this, 'Egress', {
       state,
@@ -83,6 +97,7 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
       timeout: Duration.seconds(30),
     });
     table.grantReadWriteData(orderPollFn);
+    ssmSecretsPolicy.forEach(p => orderPollFn.addToRolePolicy(p));
 
     // --- Transfer Poll Handler Lambda (invoked by SF, not via Ingress) ---
     const transferPollFn = new NodejsFunction(this, 'TransferPollFn', {
@@ -97,6 +112,7 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
       timeout: Duration.seconds(30),
     });
     table.grantReadWriteData(transferPollFn);
+    ssmSecretsPolicy.forEach(p => transferPollFn.addToRolePolicy(p));
 
     // --- Order Polling Orchestration ---
     const orderPollingDef = new OrderPollingDefinition(this, 'OrderPollingDef', {

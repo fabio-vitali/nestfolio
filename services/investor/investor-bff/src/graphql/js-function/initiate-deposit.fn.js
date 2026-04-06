@@ -13,7 +13,7 @@ export function request(ctx) {
   ctx.stash._depositResult = { depositId, amountCents, currency, status: 'INITIATED', initiatedAt: now };
   return ddb.put({
     key: { pk: `InvestorProfile#${tenantId}#${userId}`, sk: `Deposit#${depositId}` },
-    attributeValues: {
+    item: {
       __typename: 'Deposit', tenantId, userId, depositId, amountCents, currency,
       status: 'INITIATED', initiatedAt: now, timestamp: now,
     },

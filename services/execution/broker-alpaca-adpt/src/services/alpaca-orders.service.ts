@@ -15,6 +15,7 @@ export class AlpacaOrdersService {
       side: side.toLowerCase() as 'buy' | 'sell',
       type: 'market',
       time_in_force: 'day',
+      client_order_id: orderId,
     });
 
     if (result.status >= 200 && result.status < 300) {

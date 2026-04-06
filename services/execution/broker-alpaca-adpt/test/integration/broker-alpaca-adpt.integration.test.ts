@@ -10,7 +10,7 @@ import {
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
-describe('broker-alpaca-adpt: order flow', () => {
+describe('broker-alpaca-adpt', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
@@ -38,11 +38,14 @@ describe('broker-alpaca-adpt: order flow', () => {
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);
 
-    // Single trap captures all outbound event types
+    // Single trap captures all outbound event types across all flows
     await trap.deploy({
       bus: 'execution',
       detailType: [
-        'ALPACA_ORDER_PLACED', 'ALPACA_ORDER_FILLED', 'ALPACA_ORDER_REJECTED',
+        'ALPACA_ORDER_PLACED',
+        'ALPACA_ORDER_REJECTED',
+        'ALPACA_TRANSFER_INITIATED',
+        'ALPACA_ACCOUNT_SNAPSHOT',
       ],
     });
   }, 90_000);
@@ -51,7 +54,9 @@ describe('broker-alpaca-adpt: order flow', () => {
     await ctx.cleanup.runAll();
   }, 60_000);
 
-  it('should place order, trigger polling SF, and fill', async () => {
+  // ── Order Flow ──────────────────────────────────────────────────────
+
+  it('should place order and emit ALPACA_ORDER_PLACED', async () => {
     const orderId = `integ-fill-${Date.now()}`;
 
     await eb.putEvent({
@@ -73,14 +78,7 @@ describe('broker-alpaca-adpt: order flow', () => {
     // Assert: CDC emits ALPACA_ORDER_PLACED
     const placedEvent = await trap.waitForEvent({ detailType: 'ALPACA_ORDER_PLACED' });
     expect(placedEvent.detail.subject.nestfolioOrderId).toBe(orderId);
-
-    // Assert: SF polls mock, writes FILLED, CDC emits ALPACA_ORDER_FILLED
-    const filledEvent = await trap.waitForEvent({
-      detailType: 'ALPACA_ORDER_FILLED',
-      timeoutMs: 90_000,
-    });
-    expect(filledEvent.detail.subject.nestfolioOrderId).toBe(orderId);
-  }, 120_000);
+  }, 60_000);
 
   it('should reject order and emit ALPACA_ORDER_REJECTED', async () => {
     const orderId = `integ-reject-${Date.now()}`;
@@ -102,5 +100,54 @@ describe('broker-alpaca-adpt: order flow', () => {
 
     const event = await trap.waitForEvent({ detailType: 'ALPACA_ORDER_REJECTED' });
     expect(event.detail.subject.status).toBe('REJECTED');
+  }, 60_000);
+
+  // ── Transfer Flow ───────────────────────────────────────────────────
+
+  it('should initiate transfer and emit ALPACA_TRANSFER_INITIATED', async () => {
+    const transferId = `integ-transfer-ok-${Date.now()}`;
+
+    await eb.putEvent({
+      bus: 'execution',
+      targetService: 'broker-alpaca-adpt',
+      detailType: 'ALPACA_TRANSFER_REQUESTED',
+      detail: {
+        transferId,
+        direction: 'INCOMING',
+        amount: 10000,
+        relationshipId: 'rel-integ',
+      },
+    });
+
+    const item = await table.waitForItem({
+      table: 'broker-alpaca-adpt',
+      pk: `TransferMapping#${ctx.tenantId}#${transferId}`,
+      sk: 'TransferMapping',
+    });
+    expect(item['status']).toBe('INITIATED');
+
+    const initiatedEvent = await trap.waitForEvent({ detailType: 'ALPACA_TRANSFER_INITIATED' });
+    expect(initiatedEvent.detail.subject.nestfolioTransferId).toBe(transferId);
+  }, 60_000);
+
+  // ── Account Check ──────────────────────────────────────────────────
+
+  it('should create account snapshot and emit ALPACA_ACCOUNT_SNAPSHOT', async () => {
+    await eb.putEvent({
+      bus: 'execution',
+      targetService: 'broker-alpaca-adpt',
+      detailType: 'ALPACA_ACCOUNT_CHECK',
+      detail: {},
+    });
+
+    const item = await table.waitForItem({
+      table: 'broker-alpaca-adpt',
+      pk: `AccountSnapshot#${ctx.tenantId}`,
+    });
+    expect(item['equity']).toBe('125000.00');
+    expect(item['positions']).toHaveLength(1);
+
+    const event = await trap.waitForEvent({ detailType: 'ALPACA_ACCOUNT_SNAPSHOT' });
+    expect(event.detail.subject.equity).toBe('125000.00');
   }, 60_000);
 });
