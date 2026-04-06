@@ -20,6 +20,12 @@
       "executor": "@nx/jest:jest",
       "options": { "jestConfig": "services/advisory/market-intelligence-ctrl/jest.config.js" }
     },
+    "test-integration": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/advisory/market-intelligence-ctrl/jest.integration.config.js --passWithNoTests"
+      }
+    },
     "lint": { "executor": "@nx/eslint:lint" },
     "build-agent": {
       "executor": "nx:run-commands",

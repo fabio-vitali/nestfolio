@@ -3,6 +3,7 @@ import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { portfolioConstructionConfig } from './agents/portfolio-construction.config';
 import { rebalancePlannerConfig } from './agents/rebalance-planner.config';
+import { PortfolioEngineState } from './agents/state';
 
 export interface AgentServiceDeps {
   readonly docClient: DynamoDBDocumentClient;
@@ -18,7 +19,7 @@ export const createAgentService = (deps: AgentServiceDeps) => {
     waves: [
       { agents: ['portfolio-construction', 'rebalance-planner'] },
     ],
-    stateAnnotation: {},
+    stateAnnotation: PortfolioEngineState,
   });
 
   return {

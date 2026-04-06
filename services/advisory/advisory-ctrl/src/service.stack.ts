@@ -15,6 +15,28 @@ export class AdvisoryCtrlStack extends ServiceStack {
 
     const ingress = new Ingress(this, 'Ingress', {
       state,
+      // Bundle prompt .txt files as inline strings so they are available in /var/task at runtime.
+      // The event-listener transitively imports agents/config which calls loadPrompt() at module init.
+      lambdaProps: {
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          target: 'node24',
+          externalModules: ['@aws-sdk/*'],
+          // Copy prompt .txt files into the Lambda bundle output directory.
+          // agents/config.ts calls loadPrompt() at module init which uses readFileSync(__dirname + txt).
+          // esbuild bundles to /asset-output/index.js, so prompts must be at /asset-output/prompts/*.txt.
+          commandHooks: {
+            beforeBundling: () => [],
+            beforeInstall: () => [],
+            // Copy prompt .txt files to the bundle root so readFileSync(__dirname + agentType + '.txt')
+            // resolves to /var/task/{agentType}.txt at Lambda runtime (__dirname = /var/task for index.js)
+            afterBundling: (inputDir: string, outputDir: string) => [
+              `cp ${inputDir}/services/advisory/advisory-ctrl/src/agents/prompts/*.txt ${outputDir}/`,
+            ],
+          },
+        },
+      },
       eventTypes: [
         'MANDATE_CREATED',
         'GOAL_CREATED',

@@ -33,3 +33,17 @@
 - **Resolution:** Used `TableAssertions` instead of `EventBusTrap` to verify the DDB `LedgerEntry` write directly. Full CDC chain test deferred until account seeding fixture exists.
 - **Affected services:** Any service with a Reducer or materialization step in the CDC chain.
 
+### Issue #5: advisory-ctrl Ingress Lambda crash — missing prompt .txt files
+- **Service:** advisory-ctrl
+- **Category:** bug
+- **Description:** event-listener.ts imports DecisionLifecycleService → AGENT_CONFIGS → `loadPrompt()` which calls `readFileSync()` for `.txt` prompt files at module load time. These files weren't bundled by esbuild, causing `ENOENT: /var/task/user-goals.txt` crash at Lambda init.
+- **Resolution:** Added `commandHooks.afterBundling` to copy prompt `.txt` files into the esbuild output. Redeployed.
+- **Affected services:** advisory-ctrl. Other AgentRuntime services should be checked for similar prompt file bundling issues.
+
+### Issue #6: `stateAnnotation: {}` in AgentRuntime services (init crash)
+- **Service:** investor-profile-ctrl, portfolio-engine-ctrl
+- **Category:** bug
+- **Description:** `createOrchestrator` in `agent-service.ts` was called with `stateAnnotation: {}` (empty object) instead of the actual Annotation.Root state. This caused `StateGraphInputError` on every Lambda cold start, making the services completely non-functional.
+- **Resolution:** Fixed by importing and passing the correct state annotation (`InvestorProfileState`, `PortfolioEngineState`) from `agents/state.ts`. Redeployed.
+- **Affected services:** investor-profile-ctrl, portfolio-engine-ctrl. Check advisory-narrative-ctrl and market-intelligence-ctrl for the same pattern.
+

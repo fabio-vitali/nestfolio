@@ -3,6 +3,7 @@ import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { userGoalsConfig } from './agents/user-goals.config';
 import { riskAssessmentConfig } from './agents/risk-assessment.config';
+import { InvestorProfileState } from './agents/state';
 
 export interface AgentServiceDeps {
   readonly docClient: DynamoDBDocumentClient;
@@ -18,7 +19,7 @@ export const createAgentService = (deps: AgentServiceDeps) => {
     waves: [
       { agents: ['user-goals', 'risk-assessment'] },
     ],
-    stateAnnotation: {},
+    stateAnnotation: InvestorProfileState,
   });
 
   return {

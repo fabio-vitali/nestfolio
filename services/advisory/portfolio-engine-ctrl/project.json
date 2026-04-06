@@ -21,6 +21,12 @@
       "options": { "jestConfig": "services/advisory/portfolio-engine-ctrl/jest.config.js" }
     },
     "lint": { "executor": "@nx/eslint:lint" },
+    "test-integration": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/advisory/portfolio-engine-ctrl/jest.integration.config.js --passWithNoTests"
+      }
+    },
     "build-agent": {
       "executor": "nx:run-commands",
       "options": {

@@ -26,6 +26,12 @@
       "options": {
         "command": "npx esbuild services/advisory/investor-profile-ctrl/agents/server.ts --bundle --platform=node --outfile=services/advisory/investor-profile-ctrl/agents/dist/bundle.js --format=cjs --target=node20"
       }
+    },
+    "test-integration": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/advisory/investor-profile-ctrl/jest.integration.config.js --passWithNoTests"
+      }
     }
   },
   "tags": ["scope:advisory", "type:ctrl", "has-agent-runtime"]
