@@ -20,13 +20,38 @@ function getCutoffDate(): string {
 }
 
 export interface EventListenerDeps {
+  getBaseUrl: () => Promise<string>;
   fetchCikFilings: (cik: string, sinceDate: string) => Promise<{ issuer: string; filings: Array<{ form: string; filingDate: string; accessionNumber: string; content: string }> }>;
 }
 
+async function resolveBaseUrl(): Promise<string> {
+  const port = process.env.PARAMETERS_SECRETS_EXTENSION_HTTP_PORT ?? '2773';
+  const token = process.env.AWS_SESSION_TOKEN!;
+  const paramName = process.env.EDGAR_BASE_URL_PARAM!;
+
+  const res = await fetch(
+    `http://localhost:${port}/systemsmanager/parameters/get?name=${encodeURIComponent(paramName)}`,
+    { headers: { 'X-Aws-Parameters-Secrets-Token': token } },
+  );
+  const data = await res.json() as { Parameter: { Value: string } };
+  return data.Parameter.Value;
+}
+
 export function createDeps(ciks: string[]): EventListenerDeps {
+  let cachedBaseUrl: string | undefined;
+
+  const getBaseUrl = async () => {
+    if (!cachedBaseUrl) {
+      cachedBaseUrl = await resolveBaseUrl();
+    }
+    return cachedBaseUrl;
+  };
+
   return {
+    getBaseUrl,
     async fetchCikFilings(cik: string, sinceDate: string) {
-      const submissions = await fetchSubmissions(cik);
+      const baseUrl = await getBaseUrl();
+      const submissions = await fetchSubmissions(baseUrl, cik);
       const filteredFilings = filterRecentFilings(
         submissions.recentFilings.filings,
         TARGET_FORMS,
@@ -37,7 +62,7 @@ export function createDeps(ciks: string[]): EventListenerDeps {
 
       for (const filing of filteredFilings) {
         try {
-          const filingUrl = buildFilingUrl(filing.accessionNumber, filing.primaryDocument);
+          const filingUrl = buildFilingUrl(baseUrl, filing.accessionNumber, filing.primaryDocument);
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 15_000);
           const response = await fetch(filingUrl, {

@@ -1,4 +1,3 @@
-const BASE_URL = 'https://data.sec.gov';
 const USER_AGENT = 'nestfolio/1.0 (advisory-agent; contact@nestfolio.dev)';
 const FETCH_TIMEOUT_MS = 15_000;
 
@@ -18,11 +17,11 @@ interface EdgarSubmissions {
   };
 }
 
-export async function fetchSubmissions(cik: string): Promise<EdgarSubmissions> {
+export async function fetchSubmissions(baseUrl: string, cik: string): Promise<EdgarSubmissions> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-  const response = await fetch(`${BASE_URL}/submissions/CIK${cik}.json`, {
+  const response = await fetch(`${baseUrl}/submissions/CIK${cik}.json`, {
     headers: { 'User-Agent': USER_AGENT },
     signal: controller.signal,
   });
@@ -46,7 +45,7 @@ export function filterRecentFilings(
   );
 }
 
-export function buildFilingUrl(accessionNumber: string, primaryDocument: string): string {
+export function buildFilingUrl(baseUrl: string, accessionNumber: string, primaryDocument: string): string {
   const stripped = accessionNumber.replace(/-/g, '');
-  return `${BASE_URL}/Archives/edgar/data/${stripped}/${primaryDocument}`;
+  return `${baseUrl}/Archives/edgar/data/${stripped}/${primaryDocument}`;
 }

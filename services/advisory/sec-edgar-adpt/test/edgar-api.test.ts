@@ -4,8 +4,11 @@ global.fetch = mockFetch as any;
 import {
   fetchSubmissions,
   filterRecentFilings,
+  buildFilingUrl,
   type EdgarFiling,
 } from '../src/clients/edgar-api';
+
+const TEST_BASE_URL = 'https://data.sec.gov';
 
 const SAMPLE_SUBMISSIONS = {
   cik: '0000102909',
@@ -32,10 +35,10 @@ describe('edgar-api', () => {
 
   describe('fetchSubmissions', () => {
     it('fetches submissions for a CIK with User-Agent header', async () => {
-      const result = await fetchSubmissions('0000102909');
+      const result = await fetchSubmissions(TEST_BASE_URL, '0000102909');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://data.sec.gov/submissions/CIK0000102909.json',
+        `${TEST_BASE_URL}/submissions/CIK0000102909.json`,
         expect.objectContaining({
           headers: expect.objectContaining({
             'User-Agent': expect.stringContaining('nestfolio'),
@@ -43,6 +46,13 @@ describe('edgar-api', () => {
         }),
       );
       expect(result.cik).toBe('0000102909');
+    });
+  });
+
+  describe('buildFilingUrl', () => {
+    it('constructs filing URL from base URL, accession number, and document', () => {
+      const url = buildFilingUrl(TEST_BASE_URL, '0001-23-456', 'doc.htm');
+      expect(url).toBe(`${TEST_BASE_URL}/Archives/edgar/data/000123456/doc.htm`);
     });
   });
 

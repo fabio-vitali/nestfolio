@@ -24,16 +24,18 @@ const SAMPLE_FILINGS = [
 ];
 
 describe('sec-edgar-adpt event-listener', () => {
+  let mockGetBaseUrl: jest.Mock;
   let mockFetchCikFilings: jest.Mock;
   let handlers: ReturnType<typeof createHandlers>;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetBaseUrl = jest.fn().mockResolvedValue('https://data.sec.gov');
     mockFetchCikFilings = jest.fn().mockResolvedValue({
       issuer: 'Vanguard Index Funds',
       filings: SAMPLE_FILINGS,
     });
-    const deps = { fetchCikFilings: mockFetchCikFilings };
+    const deps = { getBaseUrl: mockGetBaseUrl, fetchCikFilings: mockFetchCikFilings };
     const ciks = ['0000102909', '0000088053'];
     handlers = createHandlers(deps, ciks);
   });

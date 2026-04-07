@@ -1,8 +1,11 @@
 import { join } from 'path';
-import { Duration } from 'aws-cdk-lib';
+import { Duration, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { EventBus } from 'aws-cdk-lib/aws-events';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { ParamsAndSecretsLayerVersion, ParamsAndSecretsVersions } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
@@ -27,16 +30,37 @@ export class SecEdgarAdptStack extends ServiceStack {
     // Override the default event bus to the advisory bus
     this.eventBus = advisoryBus;
 
+    // ParamsAndSecrets Extension for SSM-based base URL resolution
+    const paramsAndSecrets = ParamsAndSecretsLayerVersion.fromVersion(
+      ParamsAndSecretsVersions.V1_0_103,
+      { parameterStoreTtl: Duration.seconds(5) },
+    );
+
+    const ssmBasePath = `/nestfolio/${props.prefix}-sec-edgar-adpt/edgar`;
+
+    new StringParameter(this, 'BaseUrl', {
+      parameterName: `${ssmBasePath}/baseUrl`,
+      stringValue: 'https://data.sec.gov',
+      description: 'SEC EDGAR API base URL (overridable for integration tests)',
+    });
+
     // Ingress: subscribes to FETCH_SEC_EDGAR_REQUESTED, fetches EDGAR filings, materializes SecFiling records into DDB
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [SecEdgarAdptEventTypes.FETCH_REQUESTED],
       lambdaTimeout: Duration.seconds(120),
-      lambdaProps: { memorySize: 512 },
+      lambdaProps: { memorySize: 512, paramsAndSecrets },
       environment: {
         TRACKED_CIKS: '0000102909,0000088053,0000914208',
+        EDGAR_BASE_URL_PARAM: `${ssmBasePath}/baseUrl`,
       },
     });
+
+    // IAM: SSM access for ParamsAndSecrets Extension
+    ingress.handler.addToRolePolicy(new PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: [`arn:aws:ssm:${Stack.of(this).region}:${Stack.of(this).account}:parameter${ssmBasePath}/*`],
+    }));
 
     // Egress: DDB Stream → CDC → EventBridge (form-type-based event routing)
     const egress = new Egress(this, 'Egress', {
