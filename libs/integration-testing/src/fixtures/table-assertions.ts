@@ -5,10 +5,36 @@ import type { IntegrationContext } from '../context';
 export class TableAssertions {
   private readonly client: DynamoDBClient;
   private readonly ctx: IntegrationContext;
+  private readonly observed: { tableName: string; pk: string; sk: string }[] = [];
+  private cleanupRegistered = false;
 
   constructor(ctx: IntegrationContext) {
     this.ctx = ctx;
     this.client = new DynamoDBClient({ region: ctx.region });
+  }
+
+  /**
+   * Register auto-cleanup of all items observed via waitForItem/assertItem.
+   * Call once in beforeAll after constructing TableAssertions.
+   */
+  registerCleanup(): void {
+    if (this.cleanupRegistered) return;
+    this.cleanupRegistered = true;
+    this.ctx.cleanup.register('TableAssertions', () => this.cleanupAll());
+  }
+
+  private async cleanupAll(): Promise<void> {
+    for (const { tableName, pk, sk } of this.observed) {
+      try {
+        await this.client.send(new DeleteItemCommand({
+          TableName: tableName,
+          Key: marshall({ pk, sk }),
+        }));
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`TableAssertions cleanup: failed to delete pk=${pk} sk=${sk}`, err);
+      }
+    }
   }
 
   async waitForItem(params: {
@@ -29,7 +55,11 @@ export class TableAssertions {
           TableName: tableName,
           Key: marshall({ pk: params.pk, sk: params.sk }),
         }));
-        if (result.Item) return unmarshall(result.Item);
+        if (result.Item) {
+          const item = unmarshall(result.Item);
+          this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
+          return item;
+        }
       } else {
         const result = await this.client.send(new QueryCommand({
           TableName: tableName,
@@ -37,7 +67,11 @@ export class TableAssertions {
           ExpressionAttributeValues: marshall({ ':pk': params.pk }),
           Limit: 1,
         }));
-        if (result.Items?.length) return unmarshall(result.Items[0]);
+        if (result.Items?.length) {
+          const item = unmarshall(result.Items[0]);
+          this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
+          return item;
+        }
       }
 
       await new Promise(resolve => setTimeout(resolve, pollInterval));
@@ -63,6 +97,7 @@ export class TableAssertions {
     }
 
     const item = unmarshall(result.Item);
+    this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
     for (const [key, expectedValue] of Object.entries(params.expect)) {
       if (item[key] !== expectedValue) {
         throw new Error(`TableAssertions: expected ${key}=${JSON.stringify(expectedValue)}, got ${JSON.stringify(item[key])}`);
