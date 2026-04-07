@@ -1,24 +1,13 @@
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
+import { SFNClient, SendTaskSuccessCommand, SendTaskFailureCommand } from '@aws-sdk/client-sfn';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import type { SQSEvent } from 'aws-lambda';
 import { resumeStateMachine } from '../../src/pipelines/resume-state-machine';
 import { record } from '../../src/intents/record';
 
-const mockSfnSend = jest.fn().mockResolvedValue({});
-
-jest.mock('@aws-sdk/client-sfn', () => ({
-  SFNClient: jest.fn(() => ({ send: mockSfnSend })),
-  SendTaskSuccessCommand: jest.fn((input: unknown) => ({ input, __type: 'SendTaskSuccessCommand' })),
-  SendTaskFailureCommand: jest.fn((input: unknown) => ({ input, __type: 'SendTaskFailureCommand' })),
-}));
-
-jest.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: jest.fn().mockImplementation(() => ({})),
-}));
-
-const mockDocSend = jest.fn().mockResolvedValue({});
-jest.mock('@aws-sdk/lib-dynamodb', () => ({
-  DynamoDBDocumentClient: { from: jest.fn(() => ({ send: mockDocSend })) },
-  PutCommand: jest.fn((input: unknown) => ({ input })),
-  UpdateCommand: jest.fn((input: unknown) => ({ input })),
-}));
+const sfnMock = mockClient(SFNClient);
+const ddbMock = mockClient(DynamoDBDocumentClient);
 
 jest.mock('../../src/internal', () => {
   class _NotRetryableError extends Error {
@@ -42,10 +31,11 @@ jest.mock('../../src/internal', () => {
     applyMiddleware: jest.fn((handler: unknown) => handler),
     withLambdaContext: jest.fn(() => (next: unknown) => next),
     withTiming: jest.fn(() => (next: unknown) => next),
+    guardedWrite: jest.fn().mockResolvedValue(true),
   };
 });
 
-function makeSqsEvent(type: string, payload: Record<string, unknown>) {
+function makeSqsEvent(type: string, payload: Record<string, unknown>): SQSEvent {
   return {
     Records: [{
       messageId: 'msg-1',
@@ -58,7 +48,12 @@ function makeSqsEvent(type: string, payload: Record<string, unknown>) {
           context: { tenantId: 'tenant-1', userId: 'test-user', region: 'us-east-1' },
         },
       }),
-      attributes: { ApproximateReceiveCount: '1' } as Record<string, string>,
+      attributes: {
+        ApproximateReceiveCount: '1',
+        SentTimestamp: '',
+        SenderId: '',
+        ApproximateFirstReceiveTimestamp: '',
+      },
       messageAttributes: {},
       md5OfBody: '',
       eventSource: 'aws:sqs',
@@ -71,7 +66,12 @@ function makeSqsEvent(type: string, payload: Record<string, unknown>) {
 
 describe('resumeStateMachine', () => {
   beforeEach(() => {
+    sfnMock.reset();
+    ddbMock.reset();
     jest.clearAllMocks();
+    sfnMock.on(SendTaskSuccessCommand).resolves({});
+    sfnMock.on(SendTaskFailureCommand).resolves({});
+    ddbMock.on(PutCommand).resolves({});
     process.env.TABLE_NAME = 'test-table';
     process.env.BUS_NAME = 'test-bus';
   });
@@ -101,14 +101,13 @@ describe('resumeStateMachine', () => {
       },
     });
 
-    const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'token-123' }) as any);
+    const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'token-123' }));
 
     expect(result.batchItemFailures).toHaveLength(0);
-    expect(mockSfnSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({ taskToken: 'token-123' }),
-      }),
-    );
+    expect(sfnMock).toHaveReceivedCommandWith(SendTaskSuccessCommand, {
+      taskToken: 'token-123',
+      output: expect.any(String),
+    });
   });
 
   it('executes returned intents via engine', async () => {
@@ -122,11 +121,11 @@ describe('resumeStateMachine', () => {
       },
     });
 
-    const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'token-456' }) as any);
+    const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'token-456' }));
 
     expect(result.batchItemFailures).toHaveLength(0);
-    expect(mockSfnSend).toHaveBeenCalled();
-    expect(mockDocSend).toHaveBeenCalled();
+    expect(sfnMock).toHaveReceivedCommand(SendTaskSuccessCommand);
+    expect(ddbMock).toHaveReceivedCommand(PutCommand);
   });
 
   it('sends SendTaskFailureCommand on handler error', async () => {
@@ -137,16 +136,13 @@ describe('resumeStateMachine', () => {
       },
     });
 
-    const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'token-789' }) as any);
+    const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'token-789' }));
 
-    expect(mockSfnSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({
-          taskToken: 'token-789',
-          error: 'agent failed',
-        }),
-      }),
-    );
+    expect(sfnMock).toHaveReceivedCommandWith(SendTaskFailureCommand, {
+      taskToken: 'token-789',
+      error: 'agent failed',
+      cause: 'Error',
+    });
     // Error is retryable by default, so record appears in failures
     expect(result.batchItemFailures).toHaveLength(1);
   });
@@ -159,17 +155,16 @@ describe('resumeStateMachine', () => {
       },
     });
 
-    const result = await handler(makeSqsEvent('TEST_EVENT', { noToken: true }) as any);
+    const result = await handler(makeSqsEvent('TEST_EVENT', { noToken: true }));
 
     // Should NOT have called SFN
-    expect(mockSfnSend).not.toHaveBeenCalled();
+    expect(sfnMock).not.toHaveReceivedCommand(SendTaskSuccessCommand);
+    expect(sfnMock).not.toHaveReceivedCommand(SendTaskFailureCommand);
     // NotRetryableError = drop, not retry — batchItemFailures empty
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
   it('serializes output to JSON string in SendTaskSuccessCommand', async () => {
-    const { SendTaskSuccessCommand } = jest.requireMock('@aws-sdk/client-sfn');
-
     const handler = resumeStateMachine({
       serviceName: 'test-svc',
       handlers: {
@@ -179,9 +174,9 @@ describe('resumeStateMachine', () => {
       },
     });
 
-    await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'tok-ser' }) as any);
+    await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'tok-ser' }));
 
-    expect(SendTaskSuccessCommand).toHaveBeenCalledWith({
+    expect(sfnMock).toHaveReceivedCommandWith(SendTaskSuccessCommand, {
       taskToken: 'tok-ser',
       output: JSON.stringify({ score: 42, label: 'high' }),
     });

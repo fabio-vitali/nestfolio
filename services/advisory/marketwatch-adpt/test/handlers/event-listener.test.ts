@@ -106,7 +106,7 @@ describe('marketwatch-adpt event-listener', () => {
       const intents = await handlers[MarketwatchAdptEventTypes.FETCH_REQUESTED](payload, ctx);
 
       expect(intents).toHaveLength(1);
-      const intent = intents[0] as any;
+      const intent = intents[0] as Record<string, unknown>;
       expect(intent.typename).toBe('MarketWatchArticle');
       expect(intent.overrides.pk).toBe('MarketWatch#SYSTEM');
       expect(intent.overrides.sk).toBe(`Feed#${FEED_PATHS[0]}`);

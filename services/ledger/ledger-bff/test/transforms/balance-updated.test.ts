@@ -18,7 +18,7 @@ describe('balanceUpdated transform', () => {
     const result = balanceUpdated(makeUow({
       cashBalanceCents: 950_000,
       deltaCents: -50_000,
-    }) as any);
+    }) as Parameters<typeof balanceUpdated>[0]);
 
     expect(result).toEqual(
       project('PortfolioBalance', {
@@ -37,10 +37,10 @@ describe('balanceUpdated transform', () => {
         cashBalanceCents: 950_000,
         lastEventSequence: 5,
       },
-    }) as any);
+    }) as Parameters<typeof balanceUpdated>[0]);
 
     expect(Array.isArray(result)).toBe(true);
-    const intents = result as any[];
+    const intents = result as Record<string, unknown>[];
     expect(intents).toHaveLength(2);
     expect(intents[0]._tag).toBe('project');
     expect(intents[0].typename).toBe('PortfolioBalance');

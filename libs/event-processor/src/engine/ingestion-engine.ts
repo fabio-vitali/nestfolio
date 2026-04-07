@@ -88,9 +88,9 @@ export class IngestionEngine {
 
           // Execute intents
           let anyDeduplicated = false;
-          logger.info('intents produced', { count: intents.length, tags: intents.map((i) => (i as any)._tag) });
+          logger.info('intents produced', { count: intents.length, tags: intents.map((i) => i._tag) });
           for (const intent of intents) {
-            logger.info('executing intent', { tag: (intent as any)._tag, table: this.config.tableName });
+            logger.info('executing intent', { tag: intent._tag, table: this.config.tableName });
             const result = await this.intentExecutor.execute(intent, ctx);
             logger.info('intent result', { tag: result._tag, success: result.success, deduplicated: result.deduplicated });
             if (result.deduplicated) anyDeduplicated = true;

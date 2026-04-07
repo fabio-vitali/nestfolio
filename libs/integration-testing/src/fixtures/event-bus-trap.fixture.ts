@@ -201,6 +201,7 @@ export class EventBusTrap {
         }));
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('EventBusTrap: failed to delete EB rule', err);
     }
     try {
@@ -208,6 +209,7 @@ export class EventBusTrap {
         await this.sqs.send(new DeleteQueueCommand({ QueueUrl: this.queueUrl }));
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('EventBusTrap: failed to delete SQS queue', err);
     }
   }

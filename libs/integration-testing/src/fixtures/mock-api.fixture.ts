@@ -132,6 +132,7 @@ export class MockApiFixture {
         }));
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('MockApiFixture: failed to delete Lambda', err);
     }
     try {
@@ -143,6 +144,7 @@ export class MockApiFixture {
         await this.iam.send(new DeleteRoleCommand({ RoleName: this.roleName }));
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('MockApiFixture: failed to delete IAM role', err);
     }
   }

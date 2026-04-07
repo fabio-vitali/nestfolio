@@ -114,7 +114,7 @@ export abstract class TableRepository {
     pk: string,
     sk: string,
     attrs: Record<string, unknown>,
-  ): { Update: Record<string, unknown> } {
+  ): NonNullable<TransactWriteCommandInput['TransactItems']>[number] {
     const { expression, names, values } = TableRepository.buildUpdateExpression(attrs);
     return {
       Update: {

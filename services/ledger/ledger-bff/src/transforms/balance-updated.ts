@@ -1,4 +1,4 @@
-import { update, project, type WriteIntent } from '@nestfolio/event-processor';
+import { project, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
 type BalancePayload = {

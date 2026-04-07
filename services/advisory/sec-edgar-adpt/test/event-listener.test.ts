@@ -76,7 +76,7 @@ describe('sec-edgar-adpt event-listener', () => {
       const intents = await handlers[SecEdgarAdptEventTypes.FETCH_REQUESTED](payload, ctx);
 
       for (const intent of intents) {
-        expect((intent as any).typename).toBe('SecFiling');
+        expect((intent as Record<string, unknown>).typename).toBe('SecFiling');
       }
     });
 
@@ -84,7 +84,7 @@ describe('sec-edgar-adpt event-listener', () => {
       const { payload, ctx } = makeContext();
       const intents = await handlers[SecEdgarAdptEventTypes.FETCH_REQUESTED](payload, ctx);
 
-      const formTypes = intents.map((i: any) => i.fields.formType);
+      const formTypes = intents.map((i: unknown) => (i as Record<string, Record<string, unknown>>).fields.formType);
       expect(formTypes).toContain('8-K');
       expect(formTypes).toContain('485BPOS');
       expect(formTypes).toContain('10-K');
@@ -98,7 +98,7 @@ describe('sec-edgar-adpt event-listener', () => {
       const { payload, ctx } = makeContext();
       const intents = await handlers[SecEdgarAdptEventTypes.FETCH_REQUESTED](payload, ctx);
 
-      const first = intents[0] as any;
+      const first = intents[0] as Record<string, Record<string, unknown>>;
       expect(first.overrides.pk).toBe('SecFiling#0000102909');
       expect(first.overrides.sk).toBe('Filing#0001-23-456');
     });

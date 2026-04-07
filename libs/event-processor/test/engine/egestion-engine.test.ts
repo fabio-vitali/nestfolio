@@ -5,7 +5,7 @@ import type { DynamoDBStreamEvent } from 'aws-lambda';
 // Mock internal utilities
 jest.mock('../../src/internal', () => ({
   logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn(), debug: jest.fn() },
-  isRetryable: jest.fn((err: unknown) => !(err as any).notRetryable),
+  isRetryable: jest.fn((err: unknown) => !(err instanceof Error && 'notRetryable' in err && err.notRetryable)),
   NotRetryableError: class NotRetryableError extends Error { notRetryable = true; },
 }));
 

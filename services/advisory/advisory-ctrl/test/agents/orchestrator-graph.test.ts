@@ -16,10 +16,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   }),
 }));
 
-import { AGENT_CONFIGS, DECISION_LIFECYCLE_WAVES } from '../../src/agents/config';
-import { VALIDATION_RULES } from '../../src/agents/validation';
-import { FALLBACK_MAP } from '../../src/agents/fallbacks';
-import { DecisionLifecycleState } from '../../src/agents/state';
+// Imports removed — tested indirectly via jest.isolateModules + require()
 
 describe('advisory-ctrl orchestrator graph', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -63,7 +60,7 @@ describe('advisory-ctrl orchestrator graph', () => {
       'risk-assessment': { riskScore: 50 },
     });
 
-    let invokeDecisionLifecycle: Function;
+    let invokeDecisionLifecycle: (...args: unknown[]) => unknown;
     jest.isolateModules(() => {
       const mod = require('../../agents/decision-lifecycle/graph');
       invokeDecisionLifecycle = mod.invokeDecisionLifecycle;

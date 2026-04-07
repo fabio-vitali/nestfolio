@@ -36,7 +36,6 @@ describe('Advisory Agent Fallbacks', () => {
         const schema = SCHEMA_MAP[type];
         const parsed = schema.safeParse(output);
         if (!parsed.success) {
-          // eslint-disable-next-line no-console
           console.error(`Schema error for ${type}:`, parsed.error);
         }
         expect(parsed.success).toBe(true);

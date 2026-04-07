@@ -1,9 +1,9 @@
-const mockBedrockSend = jest.fn();
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
+import { BedrockAgentClient, StartIngestionJobCommand } from '@aws-sdk/client-bedrock-agent';
 
-jest.mock('@aws-sdk/client-bedrock-agent', () => ({
-  BedrockAgentClient: jest.fn().mockImplementation(() => ({ send: mockBedrockSend })),
-  StartIngestionJobCommand: jest.fn().mockImplementation((input) => ({ _type: 'StartIngestionJob', input })),
-}));
+const bedrockMock = mockClient(BedrockAgentClient);
+
 jest.mock('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
 }));
@@ -24,8 +24,10 @@ import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { createKbIngestionHandlers, type KbIngestionDeps } from '../src/handlers/kb-ingestion-handler';
 
 describe('portfolio-engine-ctrl kb-ingestion-handler', () => {
+  const bedrockAgent = new BedrockAgentClient({});
+
   const mockDeps: KbIngestionDeps = {
-    bedrockAgent: { send: mockBedrockSend } as any,
+    bedrockAgent,
     kbId: 'test-kb-id',
     kbDataSourceId: 'test-ds-id',
   };
@@ -36,8 +38,8 @@ describe('portfolio-engine-ctrl kb-ingestion-handler', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockBedrockSend.mockResolvedValue({});
+    bedrockMock.reset();
+    bedrockMock.on(StartIngestionJobCommand).resolves({});
   });
 
   it('should return store intent for SEC_PROSPECTUS_UPDATED inline content and trigger KB sync', async () => {
@@ -53,7 +55,7 @@ describe('portfolio-engine-ctrl kb-ingestion-handler', () => {
       _tag: 'store',
       key: expect.stringMatching(/^sec_prospectus_updated\//),
     });
-    expect(mockBedrockSend).toHaveBeenCalled();
+    expect(bedrockMock).toHaveReceivedCommand(StartIngestionJobCommand);
   });
 
   it('should return store intent for SEC_10K_UPDATED content', async () => {

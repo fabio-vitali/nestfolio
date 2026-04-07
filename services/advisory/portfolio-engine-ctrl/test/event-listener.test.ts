@@ -49,7 +49,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
         searchLongTermMemory: mockSearchLongTermMemory,
       }),
       searchTenantMemory: jest.fn().mockResolvedValue([]),
-    } as any,
+    } as SfnCallbackDeps['memoryClient'],
   };
 
   const handlers = createHandlers(mockDeps);
@@ -63,7 +63,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
     timestamp: new Date().toISOString(),
     receiveCount: 1,
     serviceName: 'portfolio-engine-ctrl',
-    record: {} as any,
+    record: {},
   };
 
   beforeEach(() => {

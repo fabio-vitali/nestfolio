@@ -3,6 +3,7 @@ module.exports = {
   ...preset,
   displayName: 'reconciliation-ctrl',
   testEnvironment: 'node',
+  testPathIgnorePatterns: ['<rootDir>/test/integration/'],
   transform: {
     '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json', diagnostics: false }],
   },

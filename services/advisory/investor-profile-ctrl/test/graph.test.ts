@@ -52,7 +52,7 @@ describe('investor-profile-ctrl orchestrator graph', () => {
       'risk-assessment': { riskScore: 45, confidence: 0.85 },
     });
 
-    let invokeInvestorProfile: Function;
+    let invokeInvestorProfile: ((...args: unknown[]) => Promise<unknown>) | undefined;
     jest.isolateModules(() => {
       const mod = require('../agents/graph');
       invokeInvestorProfile = mod.invokeInvestorProfile;
@@ -77,7 +77,7 @@ describe('investor-profile-ctrl orchestrator graph', () => {
       'risk-assessment': { riskScore: 60 },
     });
 
-    let invokeInvestorProfile: Function;
+    let invokeInvestorProfile: ((...args: unknown[]) => Promise<unknown>) | undefined;
     jest.isolateModules(() => {
       const mod = require('../agents/graph');
       invokeInvestorProfile = mod.invokeInvestorProfile;

@@ -20,7 +20,7 @@ describe('instrument-universe tool handler', () => {
     const body = JSON.parse(result.body);
 
     expect(body.instruments.length).toBeGreaterThan(0);
-    body.instruments.forEach((i: any) => {
+    body.instruments.forEach((i: Record<string, unknown>) => {
       expect(i.assetClass).toBe('fixed-income');
     });
   });

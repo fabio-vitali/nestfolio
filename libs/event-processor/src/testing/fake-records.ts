@@ -1,4 +1,4 @@
-import type { SQSRecord, DynamoDBRecord, KinesisStreamRecord } from 'aws-lambda';
+import type { SQSRecord, DynamoDBRecord, KinesisStreamRecord, AttributeValue } from 'aws-lambda';
 import { randomUUID } from 'crypto';
 
 export function fakeSqsRecord(
@@ -117,8 +117,8 @@ export function fakeKinesisRecord(
   };
 }
 
-function toAttributeMap(obj: Record<string, unknown>): Record<string, any> {
-  const map: Record<string, any> = {};
+function toAttributeMap(obj: Record<string, unknown>): Record<string, AttributeValue> {
+  const map: Record<string, AttributeValue> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === 'string') map[key] = { S: value };
     else if (typeof value === 'number') map[key] = { N: String(value) };

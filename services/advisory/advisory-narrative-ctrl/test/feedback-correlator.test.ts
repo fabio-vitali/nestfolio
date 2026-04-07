@@ -1,31 +1,29 @@
-const mockDdbSend = jest.fn();
-const mockS3Send = jest.fn();
-const mockBedrockSend = jest.fn();
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
+import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { BedrockAgentClient, StartIngestionJobCommand } from '@aws-sdk/client-bedrock-agent';
 
-jest.mock('@aws-sdk/lib-dynamodb', () => ({
-  ...jest.requireActual('@aws-sdk/lib-dynamodb'),
-  DynamoDBDocumentClient: { from: jest.fn().mockImplementation(() => ({ send: mockDdbSend })) },
-  QueryCommand: jest.fn().mockImplementation((input) => ({ _type: 'Query', input })),
-}));
-jest.mock('@aws-sdk/client-s3', () => ({
-  S3Client: jest.fn().mockImplementation(() => ({ send: mockS3Send })),
-  PutObjectCommand: jest.fn().mockImplementation((input) => ({ _type: 'PutObject', input })),
-}));
-jest.mock('@aws-sdk/client-bedrock-agent', () => ({
-  BedrockAgentClient: jest.fn().mockImplementation(() => ({ send: mockBedrockSend })),
-  StartIngestionJobCommand: jest.fn().mockImplementation((input) => ({ _type: 'StartIngestionJob', input })),
-}));
 jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
+const ddbMock = mockClient(DynamoDBDocumentClient);
+const s3Mock = mockClient(S3Client);
+const bedrockMock = mockClient(BedrockAgentClient);
+
 import { createFeedbackCorrelator, type FeedbackCorrelatorDeps } from '../src/handlers/feedback-correlator';
 
 describe('feedback-correlator', () => {
+  const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+  const s3 = new S3Client({});
+  const bedrockAgent = new BedrockAgentClient({});
+
   const deps: FeedbackCorrelatorDeps = {
-    docClient: { send: mockDdbSend } as any,
-    s3: { send: mockS3Send } as any,
-    bedrockAgent: { send: mockBedrockSend } as any,
+    docClient,
+    s3,
+    bedrockAgent,
     tableName: 'test-table',
     kbBucket: 'test-kb-bucket',
     kbId: 'test-kb-id',
@@ -35,13 +33,15 @@ describe('feedback-correlator', () => {
   const correlator = createFeedbackCorrelator(deps);
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockS3Send.mockResolvedValue({});
-    mockBedrockSend.mockResolvedValue({});
+    ddbMock.reset();
+    s3Mock.reset();
+    bedrockMock.reset();
+    s3Mock.on(PutObjectCommand).resolves({});
+    bedrockMock.on(StartIngestionJobCommand).resolves({});
   });
 
   it('should annotate ACCEPTED feedback, write to S3, and trigger KB sync', async () => {
-    mockDdbSend.mockResolvedValue({
+    ddbMock.on(QueryCommand).resolves({
       Items: [{
         tenantId: 't1',
         summary: 'Portfolio rebalanced for moderate risk.',
@@ -59,21 +59,16 @@ describe('feedback-correlator', () => {
       },
     });
 
-    expect(mockDdbSend).toHaveBeenCalled();
-    expect(mockS3Send).toHaveBeenCalledWith(expect.objectContaining({
-      _type: 'PutObject',
-      input: expect.objectContaining({
-        Bucket: 'test-kb-bucket',
-        ContentType: 'application/json',
-      }),
-    }));
-    expect(mockBedrockSend).toHaveBeenCalledWith(expect.objectContaining({
-      _type: 'StartIngestionJob',
-    }));
+    expect(ddbMock).toHaveReceivedCommand(QueryCommand);
+    expect(s3Mock).toHaveReceivedCommandWith(PutObjectCommand, {
+      Bucket: 'test-kb-bucket',
+      ContentType: 'application/json',
+    });
+    expect(bedrockMock).toHaveReceivedCommand(StartIngestionJobCommand);
   });
 
   it('should annotate REJECTED feedback with reason', async () => {
-    mockDdbSend.mockResolvedValue({
+    ddbMock.on(QueryCommand).resolves({
       Items: [{
         tenantId: 't1',
         summary: 'Portfolio rebalanced.',
@@ -92,22 +87,22 @@ describe('feedback-correlator', () => {
       },
     });
 
-    expect(mockS3Send).toHaveBeenCalled();
+    expect(s3Mock).toHaveReceivedCommand(PutObjectCommand);
     // Verify the annotation contains the rejection reason
-    const putCall = mockS3Send.mock.calls[0][0];
-    const body = JSON.parse(putCall.input.Body);
+    const putCalls = s3Mock.commandCalls(PutObjectCommand);
+    const body = JSON.parse(putCalls[0].args[0].input.Body as string);
     expect(body.outcome).toBe('REJECTED');
     expect(body.rejectionReason).toBe('Too conservative approach');
   });
 
   it('should skip when no explanation found in DDB', async () => {
-    mockDdbSend.mockResolvedValue({ Items: [] });
+    ddbMock.on(QueryCommand).resolves({ Items: [] });
 
     await correlator.process({
       subject: { decisionId: 'dp-3', outcome: 'ACCEPTED', riskCategory: 'MODERATE' },
     });
 
-    expect(mockS3Send).not.toHaveBeenCalled();
-    expect(mockBedrockSend).not.toHaveBeenCalled();
+    expect(s3Mock).not.toHaveReceivedCommand(PutObjectCommand);
+    expect(bedrockMock).not.toHaveReceivedCommand(StartIngestionJobCommand);
   });
 });

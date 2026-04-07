@@ -51,6 +51,7 @@ export class SsmOverrideFixture {
         Overwrite: true,
       }));
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('SsmOverrideFixture: failed to restore SSM value', err);
     }
   }

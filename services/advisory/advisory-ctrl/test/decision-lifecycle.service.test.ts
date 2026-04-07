@@ -150,8 +150,9 @@ jest.mock('../src/agents/validation', () => ({
 
 import { DecisionRepository } from '../src/repositories/decision.repository';
 import { DecisionLifecycleService } from '../src/services/decision-lifecycle.service';
+import type { RequestContext } from '@nestfolio/event-processor';
 
-const TEST_CTX = { tenantId: 't1', userId: 'u1', region: 'us-east-1' };
+const TEST_CTX: RequestContext = { tenantId: 't1', userId: 'u1', region: 'us-east-1' } as RequestContext;
 
 describe('DecisionLifecycleService', () => {
   let service: DecisionLifecycleService;
@@ -176,7 +177,7 @@ describe('DecisionLifecycleService', () => {
         },
         investorProfile: { riskScore: 0.5 },
         portfolioState: {},
-        requestContext: TEST_CTX as any,
+        requestContext: TEST_CTX,
       };
 
       const result = await service.executeDecisionLifecycle(context);
@@ -202,7 +203,7 @@ describe('DecisionLifecycleService', () => {
           subject: {},
           context: { tenantId: 't1' },
         },
-        requestContext: TEST_CTX as any,
+        requestContext: TEST_CTX,
       };
 
       const result = await service.executeDecisionLifecycle(context);
@@ -229,7 +230,7 @@ describe('DecisionLifecycleService', () => {
           subject: {},
           context: { tenantId: 't1' },
         },
-        requestContext: TEST_CTX as any,
+        requestContext: TEST_CTX,
       };
 
       const result = await service.executeDecisionLifecycle(context);
@@ -247,7 +248,7 @@ describe('DecisionLifecycleService', () => {
           subject: {},
           context: { tenantId: 't1' },
         },
-        requestContext: TEST_CTX as any,
+        requestContext: TEST_CTX,
       };
 
       await service.executeDecisionLifecycle(context);
@@ -267,7 +268,7 @@ describe('DecisionLifecycleService', () => {
           subject: {},
           context: { tenantId: 't1' },
         },
-        requestContext: TEST_CTX as any,
+        requestContext: TEST_CTX,
       };
 
       await expect(service.executeDecisionLifecycle(context)).rejects.toThrow('Agent pipeline timeout');
@@ -290,7 +291,7 @@ describe('DecisionLifecycleService', () => {
           subject: {},
           context: { tenantId: 't1' },
         },
-        requestContext: TEST_CTX as any,
+        requestContext: TEST_CTX,
       };
 
       await expect(service.executeDecisionLifecycle(context)).rejects.toThrow(

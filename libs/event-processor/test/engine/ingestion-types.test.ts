@@ -1,4 +1,4 @@
-import type { IngestionRecord, IngestionResult, IngestionAdapter } from '../../src/engine/ingestion-types';
+import type { IngestionRecord, IngestionResult } from '../../src/engine/ingestion-types';
 
 describe('ingestion-types', () => {
   it('IngestionRecord satisfies its shape', () => {

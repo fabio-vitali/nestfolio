@@ -1,5 +1,10 @@
 import { DynamoDBDocumentClient, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 
+/** DynamoDB TransactionCanceledException includes CancellationReasons not in the SDK types. */
+interface TransactionCanceledWithReasons extends Error {
+  CancellationReasons?: Array<{ Code?: string }>;
+}
+
 const DEFAULT_TTL_SECONDS = 86400; // 24 hours
 
 /**
@@ -42,7 +47,7 @@ export async function guardedWrite(
     return true;
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'TransactionCanceledException') {
-      const reasons = (error as any).CancellationReasons as Array<{ Code?: string }> | undefined;
+      const reasons = (error as TransactionCanceledWithReasons).CancellationReasons;
       if (reasons?.[0]?.Code === 'ConditionalCheckFailed') {
         return false; // guard marker exists — skip
       }

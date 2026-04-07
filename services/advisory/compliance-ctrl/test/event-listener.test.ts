@@ -38,8 +38,8 @@ jest.mock('@nestfolio/event-processor', () => ({
       try {
         await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
         return true;
-      } catch (err: any) {
-        if (err.name === 'ConditionalCheckFailedException') return false;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'ConditionalCheckFailedException') return false;
         throw err;
       }
     }

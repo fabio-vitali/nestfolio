@@ -1,4 +1,4 @@
-import { materializeToTable, toUow } from '@nestfolio/event-processor';
+import { materializeToTable, toUow, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 import { balanceUpdated } from '../transforms/balance-updated';
 import { portfolioUpdated } from '../transforms/portfolio-updated';
@@ -6,11 +6,11 @@ import { ledgerEntryRecorded } from '../transforms/ledger-entry-recorded';
 
 export function createHandlers() {
   return {
-    [LedgerCtrlEventTypes.BALANCE_UPDATED]: (payload: any, ctx: any) =>
+    [LedgerCtrlEventTypes.BALANCE_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
       balanceUpdated(toUow(payload, ctx)),
-    [LedgerCtrlEventTypes.PORTFOLIO_UPDATED]: (payload: any, ctx: any) =>
+    [LedgerCtrlEventTypes.PORTFOLIO_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
       portfolioUpdated(toUow(payload, ctx)),
-    [LedgerCtrlEventTypes.LEDGER_ENTRY_RECORDED]: (payload: any, ctx: any) =>
+    [LedgerCtrlEventTypes.LEDGER_ENTRY_RECORDED]: (payload: EventPayload, ctx: EventContext) =>
       ledgerEntryRecorded(toUow(payload, ctx)),
   };
 }

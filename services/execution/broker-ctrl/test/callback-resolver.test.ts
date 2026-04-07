@@ -43,7 +43,6 @@ jest.mock('@nestfolio/event-processor', () => ({
 
 import { handler } from '../src/handlers/callback-resolver';
 import { fakeSqsRecord } from '@nestfolio/event-processor';
-import type { SQSEvent } from 'aws-lambda';
 
 describe('callback-resolver handler', () => {
   beforeEach(() => {

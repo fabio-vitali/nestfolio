@@ -10,11 +10,11 @@ describe('Market research fallback', () => {
 
   it('passes business validation', () => {
     const output = marketResearchFallback({});
-    expect(marketResearchValidationRule.validate(output as any).valid).toBe(true);
+    expect(marketResearchValidationRule.validate(output as Parameters<typeof marketResearchValidationRule.validate>[0]).valid).toBe(true);
   });
 
   it('has low confidence to signal fallback', () => {
     const output = marketResearchFallback({});
-    expect((output as any).confidenceScore).toBeLessThanOrEqual(0.2);
+    expect((output as Record<string, unknown>).confidenceScore).toBeLessThanOrEqual(0.2);
   });
 });

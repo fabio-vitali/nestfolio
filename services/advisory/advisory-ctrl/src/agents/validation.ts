@@ -196,7 +196,7 @@ function validateExplanation(output: unknown): ValidationResult {
  * Validation rules for all 6 advisory agent types.
  * Each rule wraps the domain-specific validator into the generic ValidationRule interface.
  */
-export const VALIDATION_RULES: Record<AgentType, ValidationRule<any>> = {
+export const VALIDATION_RULES: Record<AgentType, ValidationRule<unknown>> = {
   'user-goals': { validate: validateGoalInterpretation },
   'risk-assessment': { validate: validateRiskAssessment },
   'market-research': { validate: validateMarketResearch },

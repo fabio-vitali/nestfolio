@@ -1,3 +1,4 @@
+import type { z } from 'zod';
 import type { AgentConfig, WaveDefinition } from '@nestfolio/agent-orchestrator';
 import {
   GoalInterpretationSchema,
@@ -26,7 +27,7 @@ export const AGENT_TYPES: readonly AgentType[] = [
   'explainability',
 ] as const;
 
-export const AGENT_CONFIGS: Record<AgentType, AgentConfig<any>> = {
+export const AGENT_CONFIGS: Record<AgentType, AgentConfig<z.ZodType>> = {
   'user-goals': {
     modelId: 'anthropic.claude-haiku-4-5-20251001-v1:0',
     maxTokens: 2048,

@@ -1,14 +1,11 @@
-const mockSend = jest.fn();
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+
+const ddbMock = mockClient(DynamoDBDocumentClient);
 const mockAgentNode = jest.fn();
 
-jest.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: jest.fn().mockImplementation(() => ({ send: mockSend })),
-}));
-jest.mock('@aws-sdk/lib-dynamodb', () => ({
-  ...jest.requireActual('@aws-sdk/lib-dynamodb'),
-  DynamoDBDocumentClient: { from: jest.fn().mockImplementation(() => ({ send: mockSend })) },
-  PutCommand: jest.fn().mockImplementation((input) => ({ _type: 'Put', input })),
-}));
 jest.mock('@nestfolio/agent-orchestrator', () => ({
   createAgentNode: jest.fn().mockReturnValue(mockAgentNode),
   withRetry: jest.fn().mockImplementation((node) => node),
@@ -18,14 +15,16 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
 import { createAgentService } from '../src/agent-service';
 
 describe('advisory-narrative-ctrl agent-service', () => {
+  const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
   const deps = {
-    docClient: { send: mockSend } as any,
+    docClient,
     tableName: 'test-table',
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSend.mockResolvedValue({});
+    ddbMock.reset();
+    ddbMock.on(PutCommand).resolves({});
   });
 
   it('should invoke agent and return narrative result', async () => {
@@ -54,7 +53,7 @@ describe('advisory-narrative-ctrl agent-service', () => {
       metadata: expect.objectContaining({ modelTier: 'sonnet' }),
     });
     // Should write: IN_PROGRESS, REASONING, COMPLETED
-    expect(mockSend).toHaveBeenCalledTimes(3);
+    expect(ddbMock).toHaveReceivedCommandTimes(PutCommand, 3);
   });
 
   it('should propagate agent errors', async () => {

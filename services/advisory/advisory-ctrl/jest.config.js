@@ -3,6 +3,7 @@ module.exports = {
   ...preset,
   displayName: 'advisory-ctrl',
   testEnvironment: 'node',
+  testPathIgnorePatterns: ['<rootDir>/test/integration/'],
   moduleNameMapper: {
     '^@nestfolio/cdk-constructs/(.*)$': '<rootDir>/../../../libs/cdk-constructs/src/$1/index.ts',
     '^@nestfolio/agent-orchestrator$': '<rootDir>/../../../libs/agent-orchestrator/src/index.ts',

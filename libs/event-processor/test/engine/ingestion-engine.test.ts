@@ -1,19 +1,22 @@
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { IngestionEngine } from '../../src/engine/ingestion-engine';
 import { record } from '../../src/intents/record';
 import type { IngestionRecord } from '../../src/engine/ingestion-types';
+import type { BusEvent } from '../../src/platform';
 
-const mockEbSend = jest.fn().mockResolvedValue({});
-jest.mock('@aws-sdk/client-eventbridge', () => ({
-  EventBridgeClient: jest.fn().mockImplementation(() => ({ send: mockEbSend })),
-  PutEventsCommand: jest.fn().mockImplementation((input) => input),
-}));
+const ddbMock = mockClient(DynamoDBDocumentClient);
+const ebMock = mockClient(EventBridgeClient);
 
 jest.mock('../../src/internal', () => ({
   parseRecord: jest.fn((sqsRecord) => {
     const body = JSON.parse(sqsRecord.body);
     return { event: body.detail ?? body, payload: {}, record: sqsRecord };
   }),
-  isRetryable: jest.fn((err) => !(err as any).notRetryable),
+  isRetryable: jest.fn((err: unknown) => !(err instanceof Error && 'notRetryable' in err && err.notRetryable)),
   NotRetryableError: class NotRetryableError extends Error { notRetryable = true; },
   createServiceMetrics: jest.fn(() => ({
     addMetric: jest.fn(),
@@ -28,6 +31,8 @@ jest.mock('../../src/internal', () => ({
   guardedWrite: jest.fn().mockResolvedValue(true),
 }));
 
+const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+
 function makeRecord(
   type: string,
   payload: Record<string, unknown>,
@@ -41,16 +46,17 @@ function makeRecord(
       timestamp: '2026-01-01T00:00:00Z',
       subject: payload,
       context: { tenantId: 'tenant-1', userId: 'test-user', region: 'us-east-1' },
-    } as any,
+    } as BusEvent,
     metadata: { receiveCount: opts?.receiveCount },
   };
 }
 
 describe('IngestionEngine', () => {
-  let mockDocClient: any;
-
   beforeEach(() => {
-    mockDocClient = { send: jest.fn().mockResolvedValue({}) };
+    ddbMock.reset();
+    ebMock.reset();
+    ddbMock.on(PutCommand).resolves({});
+    ebMock.on(PutEventsCommand).resolves({});
     jest.clearAllMocks();
   });
 
@@ -58,9 +64,9 @@ describe('IngestionEngine', () => {
     const engine = new IngestionEngine({
       serviceName: 'test',
       handlers: {
-        ORDER_FILLED: record('Entry', ({ subject }) => ({ amount: (subject as any).amount })),
+        ORDER_FILLED: record('Entry', ({ subject }) => ({ amount: subject['amount'] })),
       },
-      docClient: mockDocClient,
+      docClient,
       tableName: 'TestTable',
     });
 
@@ -68,16 +74,16 @@ describe('IngestionEngine', () => {
     const result = await engine.process(records);
 
     expect(result.failures).toEqual([]);
-    expect(mockDocClient.send).toHaveBeenCalledTimes(1);
+    expect(ddbMock).toHaveReceivedCommandTimes(PutCommand, 1);
   });
 
   it('skips unknown event types without error (records EventSkipped metric)', async () => {
     const engine = new IngestionEngine({
       serviceName: 'test',
       handlers: {
-        ORDER_FILLED: record('Entry', ({ subject }) => subject as any),
+        ORDER_FILLED: record('Entry', ({ subject }) => subject),
       },
-      docClient: mockDocClient,
+      docClient,
       tableName: 'TestTable',
     });
 
@@ -86,18 +92,18 @@ describe('IngestionEngine', () => {
 
     expect(result.failures).toEqual([]);
     expect(result.metrics.EventSkipped).toBe(1);
-    expect(mockDocClient.send).not.toHaveBeenCalled();
+    expect(ddbMock).not.toHaveReceivedCommand(PutCommand);
   });
 
   it('collects retryable errors as failures in IngestionResult', async () => {
-    mockDocClient.send.mockRejectedValueOnce(new Error('timeout'));
+    ddbMock.on(PutCommand).rejectsOnce(new Error('timeout'));
 
     const engine = new IngestionEngine({
       serviceName: 'test',
       handlers: {
-        ORDER_FILLED: record('Entry', ({ subject }) => subject as any),
+        ORDER_FILLED: record('Entry', ({ subject }) => subject),
       },
-      docClient: mockDocClient,
+      docClient,
       tableName: 'TestTable',
     });
 
@@ -109,16 +115,15 @@ describe('IngestionEngine', () => {
   });
 
   it('drops non-retryable errors (records EventDropped metric, includes in droppedErrors)', async () => {
-    const notRetryable = new Error('validation failed');
-    (notRetryable as any).notRetryable = true;
-    mockDocClient.send.mockRejectedValueOnce(notRetryable);
+    const notRetryable = Object.assign(new Error('validation failed'), { notRetryable: true });
+    ddbMock.on(PutCommand).rejectsOnce(notRetryable);
 
     const engine = new IngestionEngine({
       serviceName: 'test',
       handlers: {
-        ORDER_FILLED: record('Entry', ({ subject }) => subject as any),
+        ORDER_FILLED: record('Entry', ({ subject }) => subject),
       },
-      docClient: mockDocClient,
+      docClient,
       tableName: 'TestTable',
     });
 
@@ -132,16 +137,16 @@ describe('IngestionEngine', () => {
   });
 
   it('processes multiple records with mixed outcomes (success + retryable + skipped)', async () => {
-    mockDocClient.send
-      .mockResolvedValueOnce({})          // msg-0: success
-      .mockRejectedValueOnce(new Error('timeout')); // msg-1: retryable
+    ddbMock.on(PutCommand)
+      .resolvesOnce({})          // msg-0: success
+      .rejectsOnce(new Error('timeout')); // msg-1: retryable
 
     const engine = new IngestionEngine({
       serviceName: 'test',
       handlers: {
-        ORDER_FILLED: record('Entry', ({ subject }) => subject as any),
+        ORDER_FILLED: record('Entry', ({ subject }) => subject),
       },
-      docClient: mockDocClient,
+      docClient,
       tableName: 'TestTable',
     });
 
@@ -161,14 +166,14 @@ describe('IngestionEngine', () => {
   it('records deduplication when IntentExecutor returns { deduplicated: true }', async () => {
     const condCheckError = new Error('ConditionalCheckFailedException');
     condCheckError.name = 'ConditionalCheckFailedException';
-    mockDocClient.send.mockRejectedValueOnce(condCheckError);
+    ddbMock.on(PutCommand).rejectsOnce(condCheckError);
 
     const engine = new IngestionEngine({
       serviceName: 'test',
       handlers: {
-        ORDER_FILLED: record('Entry', ({ subject }) => subject as any),
+        ORDER_FILLED: record('Entry', ({ subject }) => subject),
       },
-      docClient: mockDocClient,
+      docClient,
       tableName: 'TestTable',
     });
 
@@ -180,16 +185,15 @@ describe('IngestionEngine', () => {
   });
 
   it('publishes non-retryable errors to EventBridge when busName is configured', async () => {
-    const notRetryable = new Error('bad data');
-    (notRetryable as any).notRetryable = true;
-    mockDocClient.send.mockRejectedValueOnce(notRetryable);
+    const notRetryable = Object.assign(new Error('bad data'), { notRetryable: true });
+    ddbMock.on(PutCommand).rejectsOnce(notRetryable);
 
     const engine = new IngestionEngine({
       serviceName: 'test',
       handlers: {
-        ORDER_FILLED: record('Entry', ({ subject }) => subject as any),
+        ORDER_FILLED: record('Entry', ({ subject }) => subject),
       },
-      docClient: mockDocClient,
+      docClient,
       tableName: 'TestTable',
       busName: 'my-bus',
     });

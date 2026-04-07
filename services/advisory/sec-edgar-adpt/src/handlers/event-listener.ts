@@ -37,7 +37,7 @@ async function resolveBaseUrl(): Promise<string> {
   return data.Parameter.Value;
 }
 
-export function createDeps(ciks: string[]): EventListenerDeps {
+export function createDeps(_ciks: string[]): EventListenerDeps {
   let cachedBaseUrl: string | undefined;
 
   const getBaseUrl = async () => {

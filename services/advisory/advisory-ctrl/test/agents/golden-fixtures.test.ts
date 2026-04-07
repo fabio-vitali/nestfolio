@@ -27,7 +27,6 @@ describe('Golden fixtures: schema compliance', () => {
   ] as const)('%s golden output passes Zod schema', (_, schema, fixture) => {
     const result = (schema as { safeParse: (v: unknown) => { success: boolean; error?: unknown } }).safeParse(fixture);
     if (!result.success) {
-      // eslint-disable-next-line no-console
       console.error('Schema validation errors:', result.error);
     }
     expect(result.success).toBe(true);

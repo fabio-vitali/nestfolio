@@ -58,7 +58,7 @@ describe('forkMerge()', () => {
 
   it('handles empty items', async () => {
     const results = await forkMerge([], [
-      { filter: () => true, process: async (i: any) => i },
+      { filter: () => true, process: async (i: unknown) => i },
     ]);
     expect(results[0].results).toEqual([]);
   });

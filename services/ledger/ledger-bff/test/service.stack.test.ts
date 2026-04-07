@@ -50,7 +50,7 @@ describe('LedgerBffStack', () => {
     // Verify no function has that env var
     const lambdas = template.findResources('AWS::Lambda::Function');
     const hasEgress = Object.values(lambdas).some((lambda) => {
-      const env = (lambda as any).Properties?.Environment?.Variables;
+      const env = (lambda as Record<string, Record<string, Record<string, unknown>>>).Properties?.Environment?.Variables;
       return env && 'CUSTOM_EVENT_TYPE_MAP' in env;
     });
     expect(hasEgress).toBe(false);
@@ -64,7 +64,7 @@ describe('LedgerBffStack', () => {
     // Each JS resolver creates an AppSync Resolver with PipelineConfig
     const resolvers = template.findResources('AWS::AppSync::Resolver');
     const pipelineResolvers = Object.values(resolvers).filter(
-      (r) => (r as any).Properties?.Kind === 'PIPELINE',
+      (r) => (r as Record<string, Record<string, unknown>>).Properties?.Kind === 'PIPELINE',
     );
     // 6 JS pipeline resolvers
     expect(pipelineResolvers.length).toBe(6);
@@ -73,7 +73,7 @@ describe('LedgerBffStack', () => {
   it('creates Lambda resolvers for getPortfolioAt and getSimulationComparison', () => {
     const resolvers = template.findResources('AWS::AppSync::Resolver');
     const lambdaResolvers = Object.values(resolvers).filter(
-      (r) => (r as any).Properties?.Kind !== 'PIPELINE',
+      (r) => (r as Record<string, Record<string, unknown>>).Properties?.Kind !== 'PIPELINE',
     );
     // 2 Lambda resolvers (getPortfolioAt, getSimulationComparison)
     expect(lambdaResolvers.length).toBe(2);

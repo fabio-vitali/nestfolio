@@ -1,7 +1,12 @@
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
+import { DynamoDBDocumentClient, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { IntentExecutor } from '../../src/engine/intent-executor';
 import { update } from '../../src/intents/update';
 import type { EventContext } from '../../src/types/event-context';
-import type { RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent, SkipIntent, StoreIntent } from '../../src/types/write-intent';
+import type { RecordIntent, ProjectIntent, AccumulateIntent, SkipIntent, StoreIntent } from '../../src/types/write-intent';
 
 // Mock guardedWrite from internal
 const mockGuardedWrite = jest.fn().mockResolvedValue(true);
@@ -10,6 +15,12 @@ jest.mock('../../src/internal', () => ({
   guardedWrite: (...args: unknown[]) => mockGuardedWrite(...args),
   NotRetryableError: class NotRetryableError extends Error {},
 }));
+
+const ddbMock = mockClient(DynamoDBDocumentClient);
+const s3Mock = mockClient(S3Client);
+
+const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const s3Client = new S3Client({});
 
 const fakeCtx: EventContext = {
   eventId: 'evt-1',
@@ -21,16 +32,17 @@ const fakeCtx: EventContext = {
 } as EventContext;
 
 describe('IntentExecutor', () => {
-  let mockDocClient: any;
   let executor: IntentExecutor;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockDocClient = {
-      send: jest.fn().mockResolvedValue({}),
-    };
+    ddbMock.reset();
+    s3Mock.reset();
+    ddbMock.on(PutCommand).resolves({});
+    ddbMock.on(UpdateCommand).resolves({});
+    s3Mock.on(PutObjectCommand).resolves({});
     mockGuardedWrite.mockResolvedValue(true);
-    executor = new IntentExecutor({ docClient: mockDocClient, tableName: 'TestTable' });
+    executor = new IntentExecutor({ docClient, tableName: 'TestTable' });
   });
 
   describe('record intent (putIfNotExists)', () => {
@@ -39,21 +51,21 @@ describe('IntentExecutor', () => {
     it('sends PutCommand with condition expression', async () => {
       const result = await executor.execute(intent, fakeCtx);
       expect(result.success).toBe(true);
-      expect(mockDocClient.send).toHaveBeenCalledTimes(1);
+      expect(ddbMock).toHaveReceivedCommandTimes(PutCommand, 1);
 
-      const cmd = mockDocClient.send.mock.calls[0][0].input;
+      const cmd = ddbMock.commandCalls(PutCommand)[0].args[0].input;
       expect(cmd.TableName).toBe('TestTable');
-      expect(cmd.Item.pk).toBe('T#tenant-1');
-      expect(cmd.Item.sk).toBe('LedgerEntry#evt-1');
-      expect(cmd.Item.__typename).toBe('LedgerEntry');
-      expect(cmd.Item.amount).toBe(100);
+      expect(cmd.Item!.pk).toBe('T#tenant-1');
+      expect(cmd.Item!.sk).toBe('LedgerEntry#evt-1');
+      expect(cmd.Item!.__typename).toBe('LedgerEntry');
+      expect(cmd.Item!.amount).toBe(100);
       expect(cmd.ConditionExpression).toBe('attribute_not_exists(pk)');
     });
 
     it('returns deduplicated when ConditionalCheckFailedException', async () => {
       const err = new Error('cond');
       err.name = 'ConditionalCheckFailedException';
-      mockDocClient.send.mockRejectedValueOnce(err);
+      ddbMock.on(PutCommand).rejectsOnce(err);
 
       const result = await executor.execute(intent, fakeCtx);
       expect(result.success).toBe(true);
@@ -64,9 +76,9 @@ describe('IntentExecutor', () => {
       const overridden: RecordIntent = { ...intent, overrides: { pk: 'Custom#1', sk: 'Custom#2' } };
       await executor.execute(overridden, fakeCtx);
 
-      const cmd = mockDocClient.send.mock.calls[0][0].input;
-      expect(cmd.Item.pk).toBe('Custom#1');
-      expect(cmd.Item.sk).toBe('Custom#2');
+      const cmd = ddbMock.commandCalls(PutCommand)[0].args[0].input;
+      expect(cmd.Item!.pk).toBe('Custom#1');
+      expect(cmd.Item!.sk).toBe('Custom#2');
     });
   });
 
@@ -77,10 +89,10 @@ describe('IntentExecutor', () => {
       const result = await executor.execute(intent, fakeCtx);
       expect(result.success).toBe(true);
 
-      const cmd = mockDocClient.send.mock.calls[0][0].input;
-      expect(cmd.Item.pk).toBe('T#tenant-1');
-      expect(cmd.Item.sk).toBe('Summary');
-      expect(cmd.Item.total).toBe(42);
+      const cmd = ddbMock.commandCalls(PutCommand)[0].args[0].input;
+      expect(cmd.Item!.pk).toBe('T#tenant-1');
+      expect(cmd.Item!.sk).toBe('Summary');
+      expect(cmd.Item!.total).toBe(42);
       expect(cmd.ConditionExpression).toBeUndefined();
     });
   });
@@ -94,7 +106,7 @@ describe('IntentExecutor', () => {
       expect(result.deduplicated).toBeFalsy();
 
       expect(mockGuardedWrite).toHaveBeenCalledWith(
-        mockDocClient,
+        docClient,
         'TestTable',
         { pk: 'T#tenant-1', sk: 'ProcessedEvent#evt-1' },
         expect.arrayContaining([
@@ -121,7 +133,7 @@ describe('IntentExecutor', () => {
       await executor.execute(withTtl, fakeCtx);
 
       expect(mockGuardedWrite).toHaveBeenCalledWith(
-        mockDocClient, 'TestTable',
+        docClient, 'TestTable',
         expect.any(Object), expect.any(Array),
         604800,
       );
@@ -132,7 +144,8 @@ describe('IntentExecutor', () => {
     it('does nothing', async () => {
       const result = await executor.execute({ _tag: 'skip' } as SkipIntent, fakeCtx);
       expect(result.success).toBe(true);
-      expect(mockDocClient.send).not.toHaveBeenCalled();
+      expect(ddbMock).not.toHaveReceivedCommand(PutCommand);
+      expect(ddbMock).not.toHaveReceivedCommand(UpdateCommand);
       expect(mockGuardedWrite).not.toHaveBeenCalled();
     });
   });
@@ -141,40 +154,36 @@ describe('IntentExecutor', () => {
     it('returns failure result when no s3Client configured', async () => {
       const result = await executor.execute({ _tag: 'store', body: {}, format: 'json' } as StoreIntent, fakeCtx);
       expect(result).toEqual({ _tag: 'store', success: false });
-      expect(mockDocClient.send).not.toHaveBeenCalled();
+      expect(ddbMock).not.toHaveReceivedCommand(PutCommand);
     });
 
     it('writes to S3 when s3Client and bucket are provided', async () => {
-      const mockS3Send = jest.fn().mockResolvedValue({});
-      const mockS3Client = { send: mockS3Send } as any;
       const executorWithS3 = new IntentExecutor({
-        docClient: mockDocClient,
+        docClient,
         tableName: 'TestTable',
-        s3Client: mockS3Client,
+        s3Client,
         bucket: 'my-bucket',
       });
 
       const result = await executorWithS3.execute({ _tag: 'store', body: { data: 1 }, format: 'json' } as StoreIntent, fakeCtx);
       expect(result).toEqual({ _tag: 'store', success: true });
-      expect(mockS3Send).toHaveBeenCalledTimes(1);
-      const cmd = mockS3Send.mock.calls[0][0].input;
+      expect(s3Mock).toHaveReceivedCommandTimes(PutObjectCommand, 1);
+      const cmd = s3Mock.commandCalls(PutObjectCommand)[0].args[0].input;
       expect(cmd.Bucket).toBe('my-bucket');
       expect(cmd.Key).toBe('test-svc/ORDER_FILLED/evt-1.json');
       expect(cmd.ContentType).toBe('application/json');
     });
 
     it('uses custom key override when provided', async () => {
-      const mockS3Send = jest.fn().mockResolvedValue({});
-      const mockS3Client = { send: mockS3Send } as any;
       const executorWithS3 = new IntentExecutor({
-        docClient: mockDocClient,
+        docClient,
         tableName: 'TestTable',
-        s3Client: mockS3Client,
+        s3Client,
         bucket: 'my-bucket',
       });
 
       await executorWithS3.execute({ _tag: 'store', body: [{ a: 1 }], format: 'csv', key: 'exports/data.csv' } as StoreIntent, fakeCtx);
-      const cmd = mockS3Send.mock.calls[0][0].input;
+      const cmd = s3Mock.commandCalls(PutObjectCommand)[0].args[0].input;
       expect(cmd.Key).toBe('exports/data.csv');
       expect(cmd.ContentType).toBe('text/csv');
     });
@@ -185,9 +194,9 @@ describe('IntentExecutor', () => {
       const intent = update('DecisionPacket', { status: 'APPROVED', authorityLevel: 'L1' });
       const result = await executor.execute(intent, fakeCtx);
       expect(result).toEqual({ _tag: 'update', success: true });
-      expect(mockDocClient.send).toHaveBeenCalledTimes(1);
+      expect(ddbMock).toHaveReceivedCommandTimes(UpdateCommand, 1);
 
-      const cmd = mockDocClient.send.mock.calls[0][0].input;
+      const cmd = ddbMock.commandCalls(UpdateCommand)[0].args[0].input;
       expect(cmd.TableName).toBe('TestTable');
       expect(cmd.Key).toEqual({ pk: 'T#tenant-1', sk: 'DecisionPacket' });
       // Should have SET expression with updatedAt added automatically
@@ -200,7 +209,7 @@ describe('IntentExecutor', () => {
       const result = await executor.execute(intent, fakeCtx);
       expect(result).toEqual({ _tag: 'update', success: true });
 
-      const cmd = mockDocClient.send.mock.calls[0][0].input;
+      const cmd = ddbMock.commandCalls(UpdateCommand)[0].args[0].input;
       expect(cmd.UpdateExpression).toContain('REMOVE');
     });
 
@@ -211,7 +220,7 @@ describe('IntentExecutor', () => {
       const result = await executor.execute(intent, fakeCtx);
       expect(result).toEqual({ _tag: 'update', success: true });
 
-      const cmd = mockDocClient.send.mock.calls[0][0].input;
+      const cmd = ddbMock.commandCalls(UpdateCommand)[0].args[0].input;
       expect(cmd.Key).toEqual({ pk: 'custom-pk', sk: 'custom-sk' });
     });
 
@@ -221,7 +230,7 @@ describe('IntentExecutor', () => {
       });
       await executor.execute(intent, fakeCtx);
 
-      const cmd = mockDocClient.send.mock.calls[0][0].input;
+      const cmd = ddbMock.commandCalls(UpdateCommand)[0].args[0].input;
       expect(cmd.ConditionExpression).toBe('attribute_exists(pk)');
     });
   });

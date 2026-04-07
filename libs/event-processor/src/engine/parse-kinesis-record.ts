@@ -1,5 +1,6 @@
 import type { KinesisStreamRecord } from 'aws-lambda';
 import type { IngestionRecord } from './ingestion-types';
+import type { BusEvent } from '../platform';
 import { NotRetryableError } from '../internal';
 
 export function parseKinesisRecord(kinesisRecord: KinesisStreamRecord): IngestionRecord {
@@ -53,7 +54,7 @@ export function parseKinesisRecord(kinesisRecord: KinesisStreamRecord): Ingestio
 
   return {
     id: kinesisRecord.kinesis.sequenceNumber,
-    event: event as any,
+    event: event as BusEvent,
     metadata: {},
   };
 }

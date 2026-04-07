@@ -10,6 +10,6 @@ describe('Golden fixtures: schema compliance', () => {
 
 describe('Golden fixtures: business validation', () => {
   it('golden narrative passes validation', () => {
-    expect(narrativeValidationRule.validate(GOLDEN_NARRATIVE as any).valid).toBe(true);
+    expect(narrativeValidationRule.validate(GOLDEN_NARRATIVE as Parameters<typeof narrativeValidationRule.validate>[0]).valid).toBe(true);
   });
 });

@@ -109,7 +109,7 @@ describe('PortfolioRepository', () => {
         payload: { symbol: 'VTI', quantity: 10 },
         timestamp: '2025-01-01T00:00:00.000Z',
         sequenceNo: 42,
-      }, TEST_CTX as any);
+      }, TEST_CTX as Parameters<typeof repo.appendHistory>[1]);
 
       const cmd = mockSend.mock.calls[0][0];
       expect(cmd._type).toBe('Put');
@@ -127,7 +127,7 @@ describe('PortfolioRepository', () => {
       await repo.saveCheckpoint('2025-01-01', {
         cashBalanceCents: 950_000,
         positions: {},
-      }, TEST_CTX as any);
+      }, TEST_CTX as Parameters<typeof repo.saveCheckpoint>[2]);
 
       const cmd = mockSend.mock.calls[0][0];
       expect(cmd._type).toBe('Put');
@@ -184,7 +184,7 @@ describe('PortfolioRepository', () => {
       await repo.upsertSimulation({
         cashBalanceCents: 900_000,
         positions: {},
-      }, TEST_CTX as any);
+      }, TEST_CTX as Parameters<typeof repo.upsertSimulation>[1]);
 
       const cmd = mockSend.mock.calls[0][0];
       expect(cmd._type).toBe('Put');
@@ -201,7 +201,7 @@ describe('PortfolioRepository', () => {
       await repo.saveSnapshotAt('actual', '2025-06-15T12:00:00.000Z', {
         cashBalanceCents: 7_500_000,
         positions: { VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 250 } },
-      }, 365, snapshotCtx as any);
+      }, 365, snapshotCtx as Parameters<typeof repo.saveSnapshotAt>[3]);
 
       const { PutCommand } = jest.requireMock('@aws-sdk/lib-dynamodb') as { PutCommand: jest.Mock };
       const putCall = PutCommand.mock.calls[0][0];

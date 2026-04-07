@@ -34,8 +34,8 @@ jest.mock('@nestfolio/event-processor', () => ({
       try {
         await this.docClient.send(new PutCommand({ TableName: this.tableName, Item: item }));
         return true;
-      } catch (err: any) {
-        if (err.name === 'ConditionalCheckFailedException') return false;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'ConditionalCheckFailedException') return false;
         throw err;
       }
     }
@@ -72,10 +72,11 @@ jest.mock('@nestfolio/event-processor', () => ({
 
 }));
 import { DecisionRepository } from '../src/repositories/decision.repository';
+import type { RequestContext } from '@nestfolio/event-processor';
 
-const TEST_CTX = { tenantId: 't1', userId: 'u1', region: 'us-east-1' };
+const TEST_CTX: RequestContext = { tenantId: 't1', userId: 'u1', region: 'us-east-1' } as RequestContext;
 
-function extractUpdateAttrs(update: any): Record<string, unknown> {
+function extractUpdateAttrs(update: Record<string, unknown>): Record<string, unknown> {
   const names = update.ExpressionAttributeNames;
   const values = update.ExpressionAttributeValues;
   const result: Record<string, unknown> = {};
@@ -106,7 +107,7 @@ describe('DecisionRepository', () => {
         context: { tenantId: 't1' },
       };
 
-      const created = await repo.createDecisionPacket('dp-1', triggerEvent as any, { tenantId: 't1' }, TEST_CTX as any);
+      const created = await repo.createDecisionPacket('dp-1', triggerEvent, { tenantId: 't1' }, TEST_CTX);
 
       expect(created).toBe(true);
       expect(mockSend).toHaveBeenCalledTimes(1);
@@ -189,7 +190,7 @@ describe('DecisionRepository', () => {
     it('should create an AgentInvocation record', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.recordAgentInvocation('dp-1', 1, 'user-goals', { input: true }, { output: true }, 42, TEST_CTX as any);
+      await repo.recordAgentInvocation('dp-1', 1, 'user-goals', { input: true }, { output: true }, 42, TEST_CTX);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -209,7 +210,7 @@ describe('DecisionRepository', () => {
     it('should create a ReasoningOutput record', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.recordReasoningOutput('dp-1', 'risk-assessment', { riskScore: 0.45 }, TEST_CTX as any);
+      await repo.recordReasoningOutput('dp-1', 'risk-assessment', { riskScore: 0.45 }, TEST_CTX);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
@@ -237,7 +238,7 @@ describe('DecisionRepository', () => {
         context: { tenantId: 't1' },
       };
 
-      const created = await repo.createDecisionPacket('dp-dup', triggerEvent as any, { tenantId: 't1' }, TEST_CTX as any);
+      const created = await repo.createDecisionPacket('dp-dup', triggerEvent, { tenantId: 't1' }, TEST_CTX);
       expect(created).toBe(false);
     });
 
@@ -253,7 +254,7 @@ describe('DecisionRepository', () => {
       };
 
       await expect(
-        repo.createDecisionPacket('dp-err', triggerEvent as any, { tenantId: 't1' }, TEST_CTX as any),
+        repo.createDecisionPacket('dp-err', triggerEvent, { tenantId: 't1' }, TEST_CTX),
       ).rejects.toThrow('InternalServerError');
     });
   });
@@ -262,7 +263,7 @@ describe('DecisionRepository', () => {
     it('should create a WorkflowState record', async () => {
       mockSend.mockResolvedValueOnce({});
 
-      await repo.updateWorkflowState('wf-1', { currentStep: 'risk-assessment', progress: 0.33 }, TEST_CTX as any);
+      await repo.updateWorkflowState('wf-1', { currentStep: 'risk-assessment', progress: 0.33 }, TEST_CTX);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];

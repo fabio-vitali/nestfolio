@@ -12,6 +12,7 @@ export class CleanupRegistry {
       try {
         await fn();
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error(`Cleanup failed: ${name}`, err);
       }
     }

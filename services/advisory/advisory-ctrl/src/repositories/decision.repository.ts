@@ -74,7 +74,7 @@ export class DecisionRepository extends TableRepository {
           updatedAt: now,
           timestamp: now,
           ...(details ?? {}),
-        }) as any,
+        }),
       ],
     });
   });

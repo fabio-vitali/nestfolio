@@ -2,6 +2,7 @@ import type { KinesisStreamEvent } from 'aws-lambda';
 import { KinesisIngestionAdapter } from '../../src/engine/kinesis-adapter';
 import { fakeKinesisRecord } from '../../src/testing/fake-records';
 import type { IngestionResult } from '../../src/engine/ingestion-types';
+import type { BusEvent } from '../../src/platform';
 
 function makeKinesisEvent(
   ...records: ReturnType<typeof fakeKinesisRecord>[]
@@ -20,8 +21,8 @@ describe('KinesisIngestionAdapter', () => {
 
       expect(records).toHaveLength(1);
       expect(records[0].event.type).toBe('ORDER_FILLED');
-      expect((records[0].event as any).subject).toEqual({ amount: 100 });
-      expect((records[0].event as any).context.tenantId).toBe('tenant-1');
+      expect((records[0].event as BusEvent<Record<string, unknown>, Record<string, unknown>>).subject).toEqual({ amount: 100 });
+      expect((records[0].event as BusEvent<Record<string, unknown>, Record<string, unknown>>).context.tenantId).toBe('tenant-1');
     });
 
     it('handles multiple records', () => {

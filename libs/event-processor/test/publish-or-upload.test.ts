@@ -1,24 +1,26 @@
-const mockSend = jest.fn().mockResolvedValue({});
-const mockGetSignedUrl = jest.fn().mockResolvedValue('https://s3.example.com/presigned');
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
-jest.mock('@aws-sdk/client-s3', () => ({
-  S3Client: jest.fn().mockImplementation(() => ({ send: mockSend })),
-  PutObjectCommand: jest.fn().mockImplementation((input) => ({ _type: 'PutObject', input })),
-  GetObjectCommand: jest.fn().mockImplementation((input) => ({ _type: 'GetObject', input })),
-}));
+const mockGetSignedUrl = jest.fn().mockResolvedValue('https://s3.example.com/presigned');
 
 jest.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: (...args: unknown[]) => mockGetSignedUrl(...args),
 }));
 
+const s3Mock = mockClient(S3Client);
+
 import { publishOrUpload } from '../src/lambda/publish-or-upload';
+import type { Bus } from '../src/platform';
 
 describe('publishOrUpload', () => {
   const mockPublish = jest.fn().mockResolvedValue(undefined);
-  const bus = { publish: mockPublish } as any;
+  const bus: Bus = { publish: mockPublish };
   const bucket = 'test-kb-bucket';
 
   beforeEach(() => {
+    s3Mock.reset();
+    s3Mock.on(PutObjectCommand).resolves({});
     jest.clearAllMocks();
     mockPublish.mockResolvedValue(undefined);
   });
@@ -38,7 +40,7 @@ describe('publishOrUpload', () => {
     expect(event.type).toBe('TEST_UPDATED');
     expect(event.subject.content).toEqual(content);
     expect(event.subject.delivery).toBe('inline');
-    expect(mockSend).not.toHaveBeenCalled();
+    expect(s3Mock).not.toHaveReceivedCommand(PutObjectCommand);
   });
 
   it('uploads to S3 and publishes pre-signed URL when content exceeds 256KB', async () => {
@@ -51,7 +53,7 @@ describe('publishOrUpload', () => {
       serviceName: 'test-adpt',
     });
 
-    expect(mockSend).toHaveBeenCalledTimes(1);
+    expect(s3Mock).toHaveReceivedCommandTimes(PutObjectCommand, 1);
     expect(mockGetSignedUrl).toHaveBeenCalledTimes(1);
     expect(mockPublish).toHaveBeenCalledTimes(1);
     const event = mockPublish.mock.calls[0][0];

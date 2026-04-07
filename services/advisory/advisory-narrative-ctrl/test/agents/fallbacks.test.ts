@@ -10,7 +10,7 @@ describe('Narrative fallback', () => {
 
   it('passes business validation', () => {
     const output = narrativeFallback({});
-    expect(narrativeValidationRule.validate(output as any).valid).toBe(true);
+    expect(narrativeValidationRule.validate(output as Parameters<typeof narrativeValidationRule.validate>[0]).valid).toBe(true);
   });
 
   it('has low confidence to signal fallback', () => {

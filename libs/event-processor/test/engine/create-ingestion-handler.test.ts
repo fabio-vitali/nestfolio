@@ -1,3 +1,6 @@
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { createIngestionHandler } from '../../src/engine/create-ingestion-handler';
 import { record } from '../../src/intents/record';
 import { fakeSqsRecord, fakeKinesisRecord } from '../../src/testing/fake-records';
@@ -14,8 +17,8 @@ jest.mock('../../src/internal', () => ({
   publishErrorEvent: jest.fn(),
   extractRequestContext: jest.fn(() => ({ tenantId: 'tenant-1', userId: 'test-user', region: 'us-east-1' })),
   applyMiddleware: jest.fn((handler) => handler),
-  withLambdaContext: jest.fn(() => (next: any) => next),
-  withTiming: jest.fn(() => (next: any) => next),
+  withLambdaContext: jest.fn(() => (next: unknown) => next),
+  withTiming: jest.fn(() => (next: unknown) => next),
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
   getUUID: jest.fn(() => 'test-uuid'),
   getTime: jest.fn(() => '2026-01-01T00:00:00Z'),
@@ -30,14 +33,19 @@ function makeKinesisEvent(type: string, payload: Record<string, unknown>) {
   return { Records: [fakeKinesisRecord(type, payload)] };
 }
 
-const mockClient = { send: jest.fn().mockResolvedValue({}) } as any;
+const ddbMock = mockClient(DynamoDBDocumentClient);
 
 describe('createIngestionHandler()', () => {
+  beforeEach(() => {
+    ddbMock.reset();
+    ddbMock.on(PutCommand).resolves({});
+  });
+
   it('returns a function when transport is sqs (default)', () => {
     const handler = createIngestionHandler({
       serviceName: 'test',
       handlers: { TEST: record('Entry', ({ subject }) => subject) },
-      table: { name: 'T', client: mockClient },
+      table: 'T',
     });
     expect(typeof handler).toBe('function');
   });
@@ -47,7 +55,7 @@ describe('createIngestionHandler()', () => {
       transport: 'kinesis',
       serviceName: 'test',
       handlers: { TEST: record('Entry', ({ subject }) => subject) },
-      table: { name: 'T', client: mockClient },
+      table: 'T',
     });
     expect(typeof handler).toBe('function');
   });
@@ -56,7 +64,7 @@ describe('createIngestionHandler()', () => {
     const handler = createIngestionHandler({
       serviceName: 'test',
       handlers: { ORDER_FILLED: record('Entry', ({ subject }) => ({ a: subject['a'] })) },
-      table: { name: 'T', client: mockClient },
+      table: 'T',
     });
 
     const result = await handler(makeSqsEvent('ORDER_FILLED', { a: 1 }));
@@ -68,7 +76,7 @@ describe('createIngestionHandler()', () => {
       transport: 'kinesis',
       serviceName: 'test',
       handlers: { ORDER_FILLED: record('Entry', ({ subject }) => ({ a: subject['a'] })) },
-      table: { name: 'T', client: mockClient },
+      table: 'T',
     });
 
     const result = await handler(makeKinesisEvent('ORDER_FILLED', { a: 1 }));
@@ -86,7 +94,7 @@ describe('createIngestionHandler()', () => {
           throw new Error('fail');
         },
       },
-      table: { name: 'T', client: mockClient },
+      table: 'T',
     });
 
     const result = await handler(event);
@@ -107,7 +115,7 @@ describe('createIngestionHandler()', () => {
           throw new Error('fail');
         },
       },
-      table: { name: 'T', client: mockClient },
+      table: 'T',
     });
 
     const result = await handler(event);

@@ -1,20 +1,10 @@
-const mockSend = jest.fn();
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+
+const ddbMock = mockClient(DynamoDBDocumentClient);
 const mockInvokeOrchestrator = jest.fn();
-
-jest.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: jest.fn().mockImplementation(() => ({ send: mockSend })),
-}));
-
-jest.mock('@aws-sdk/lib-dynamodb', () => {
-  const actual = jest.requireActual('@aws-sdk/lib-dynamodb');
-  return {
-    ...actual,
-    DynamoDBDocumentClient: {
-      from: jest.fn().mockImplementation(() => ({ send: mockSend })),
-    },
-    PutCommand: jest.fn().mockImplementation((input) => ({ _type: 'Put', input })),
-  };
-});
 
 jest.mock('@nestfolio/agent-orchestrator', () => ({
   createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
@@ -24,14 +14,16 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
 import { createAgentService } from '../src/agent-service';
 
 describe('investor-profile-ctrl agent-service', () => {
+  const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
   const deps = {
-    docClient: { send: mockSend } as any,
+    docClient,
     tableName: 'test-table',
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSend.mockResolvedValue({});
+    ddbMock.reset();
+    ddbMock.on(PutCommand).resolves({});
   });
 
   it('should invoke orchestrator with correct context and persist invocation', async () => {
@@ -57,7 +49,7 @@ describe('investor-profile-ctrl agent-service', () => {
     });
 
     // Should have called PutCommand twice (IN_PROGRESS + COMPLETED)
-    expect(mockSend).toHaveBeenCalledTimes(2);
+    expect(ddbMock).toHaveReceivedCommandTimes(PutCommand, 2);
   });
 
   it('should propagate orchestrator errors', async () => {

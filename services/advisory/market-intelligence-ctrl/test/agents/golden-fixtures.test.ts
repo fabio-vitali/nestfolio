@@ -10,6 +10,6 @@ describe('Golden fixtures: schema compliance', () => {
 
 describe('Golden fixtures: business validation', () => {
   it('golden market analysis passes validation', () => {
-    expect(marketResearchValidationRule.validate(GOLDEN_MARKET_ANALYSIS as any).valid).toBe(true);
+    expect(marketResearchValidationRule.validate(GOLDEN_MARKET_ANALYSIS as Parameters<typeof marketResearchValidationRule.validate>[0]).valid).toBe(true);
   });
 });

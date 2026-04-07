@@ -21,7 +21,8 @@
       "inputs": ["default", "^production"],
       "cache": true,
       "options": {
-        "passWithNoTests": true
+        "passWithNoTests": true,
+        "forceExit": true
       }
     },
     "lint": {

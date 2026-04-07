@@ -14,10 +14,10 @@ describe('Golden fixtures: schema compliance', () => {
 
 describe('Golden fixtures: business validation', () => {
   it('golden goals passes validation', () => {
-    expect(goalsValidationRule.validate(GOLDEN_GOALS as any).valid).toBe(true);
+    expect(goalsValidationRule.validate(GOLDEN_GOALS as Parameters<typeof goalsValidationRule.validate>[0]).valid).toBe(true);
   });
 
   it('golden risk passes validation', () => {
-    expect(riskValidationRule.validate(GOLDEN_RISK as any).valid).toBe(true);
+    expect(riskValidationRule.validate(GOLDEN_RISK as Parameters<typeof riskValidationRule.validate>[0]).valid).toBe(true);
   });
 });

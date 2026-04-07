@@ -13,4 +13,5 @@ const app = createAgentServer(async (prompt, sessionId) => {
 });
 
 serve({ fetch: app.fetch, port: 8080, hostname: '0.0.0.0' });
+// eslint-disable-next-line no-console
 console.log('market-intelligence-ctrl agent runtime listening on 0.0.0.0:8080');

@@ -3,6 +3,7 @@ module.exports = {
   ...preset,
   displayName: 'investor-bff',
   testEnvironment: 'node',
+  testPathIgnorePatterns: ['<rootDir>/test/integration/'],
   testMatch: ['<rootDir>/test/unit/**/*.test.ts'],
   moduleNameMapper: {
     '^@nestfolio/cdk-constructs/(.*)$': '<rootDir>/../../../libs/cdk-constructs/src/$1/index.ts',

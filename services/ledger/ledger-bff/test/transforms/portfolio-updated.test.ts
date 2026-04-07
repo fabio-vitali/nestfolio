@@ -19,7 +19,7 @@ describe('portfolioUpdated transform', () => {
       positions: {
         VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 251 },
       },
-    }) as any);
+    }) as Parameters<typeof portfolioUpdated>[0]);
 
     expect(result).toEqual(
       project('Position', {
@@ -43,17 +43,17 @@ describe('portfolioUpdated transform', () => {
         cashBalanceCents: 9_500_000,
         lastEventSequence: 6,
       },
-    }) as any);
+    }) as Parameters<typeof portfolioUpdated>[0]);
 
     expect(Array.isArray(result)).toBe(true);
-    const intents = result as any[];
+    const intents = result as Record<string, unknown>[];
     expect(intents).toHaveLength(2);
     expect(intents[0].typename).toBe('Position');
     expect(intents[1].typename).toBe('SnapshotAt');
   });
 
   it('should return empty array for empty positions', () => {
-    const result = portfolioUpdated(makeUow({ positions: {} }) as any);
+    const result = portfolioUpdated(makeUow({ positions: {} }) as Parameters<typeof portfolioUpdated>[0]);
     // With empty positions and no snapshot, intents array is empty → length 1 check fails
     expect(result).toEqual([]);
   });

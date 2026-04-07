@@ -52,7 +52,7 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
       'rebalance-planner': { trades: [] },
     });
 
-    let invokePortfolioEngine: Function;
+    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
     jest.isolateModules(() => {
       const mod = require('../agents/graph');
       invokePortfolioEngine = mod.invokePortfolioEngine;
@@ -77,7 +77,7 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
       'rebalance-planner': { trades: [] },
     });
 
-    let invokePortfolioEngine: Function;
+    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
     jest.isolateModules(() => {
       const mod = require('../agents/graph');
       invokePortfolioEngine = mod.invokePortfolioEngine;

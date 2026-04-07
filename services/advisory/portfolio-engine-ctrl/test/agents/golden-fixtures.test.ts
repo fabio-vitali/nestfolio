@@ -14,10 +14,10 @@ describe('Golden fixtures: schema compliance', () => {
 
 describe('Golden fixtures: business validation', () => {
   it('golden portfolio passes validation', () => {
-    expect(portfolioValidationRule.validate(GOLDEN_PORTFOLIO as any).valid).toBe(true);
+    expect(portfolioValidationRule.validate(GOLDEN_PORTFOLIO as Parameters<typeof portfolioValidationRule.validate>[0]).valid).toBe(true);
   });
 
   it('golden rebalance passes validation', () => {
-    expect(rebalanceValidationRule.validate(GOLDEN_REBALANCE as any).valid).toBe(true);
+    expect(rebalanceValidationRule.validate(GOLDEN_REBALANCE as Parameters<typeof rebalanceValidationRule.validate>[0]).valid).toBe(true);
   });
 });

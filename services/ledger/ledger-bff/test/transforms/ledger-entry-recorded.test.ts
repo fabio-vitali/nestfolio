@@ -1,4 +1,4 @@
-import { record, project } from '@nestfolio/event-processor';
+import { record } from '@nestfolio/event-processor';
 import { ledgerEntryRecorded } from '../../src/transforms/ledger-entry-recorded';
 
 describe('ledgerEntryRecorded transform', () => {
@@ -21,7 +21,7 @@ describe('ledgerEntryRecorded transform', () => {
       payload: { symbol: 'VTI', quantity: 10 },
       timestamp: '2026-01-01T00:00:00.000Z',
       sequenceNo: 1,
-    }) as any);
+    }) as Parameters<typeof ledgerEntryRecorded>[0]);
 
     expect(result).toEqual(
       record('HistoryEntry', {
@@ -48,10 +48,10 @@ describe('ledgerEntryRecorded transform', () => {
       positions: {
         VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 251 },
       },
-    }) as any);
+    }) as Parameters<typeof ledgerEntryRecorded>[0]);
 
     expect(Array.isArray(result)).toBe(true);
-    const intents = result as any[];
+    const intents = result as Record<string, unknown>[];
     expect(intents).toHaveLength(3); // history + simulation summary + simulation position
     expect(intents[0].typename).toBe('HistoryEntry');
     expect(intents[1].typename).toBe('Simulation');
@@ -67,11 +67,11 @@ describe('ledgerEntryRecorded transform', () => {
       sequenceNo: 100,
       cashBalanceCents: 1_000_000,
       positions: {},
-    }) as any);
+    }) as Parameters<typeof ledgerEntryRecorded>[0]);
 
     expect(Array.isArray(result)).toBe(true);
-    const intents = result as any[];
-    expect(intents.some((i: any) => i.typename === 'Checkpoint')).toBe(true);
+    const intents = result as Record<string, unknown>[];
+    expect(intents.some((i: Record<string, unknown>) => i.typename === 'Checkpoint')).toBe(true);
   });
 
   it('should not include checkpoint for non-boundary sequence numbers', () => {
@@ -81,9 +81,9 @@ describe('ledgerEntryRecorded transform', () => {
       payload: {},
       timestamp: '2026-01-01T00:00:00.000Z',
       sequenceNo: 50,
-    }) as any);
+    }) as Parameters<typeof ledgerEntryRecorded>[0]);
 
     // Should be single intent (no checkpoint)
-    expect((result as any)._tag ?? (result as any[])[0]?._tag).toBe('record');
+    expect((result as Record<string, unknown>)._tag ?? ((result as Record<string, unknown>[])[0])?._tag).toBe('record');
   });
 });

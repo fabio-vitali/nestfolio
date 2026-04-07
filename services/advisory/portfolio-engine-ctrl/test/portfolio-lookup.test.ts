@@ -1,27 +1,24 @@
-const mockSend = jest.fn();
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
+import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 
-jest.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: jest.fn().mockImplementation(() => ({ send: mockSend })),
-}));
-jest.mock('@aws-sdk/lib-dynamodb', () => ({
-  ...jest.requireActual('@aws-sdk/lib-dynamodb'),
-  DynamoDBDocumentClient: { from: jest.fn().mockImplementation(() => ({ send: mockSend })) },
-  QueryCommand: jest.fn().mockImplementation((input) => ({ _type: 'Query', input })),
-}));
+const ddbMock = mockClient(DynamoDBDocumentClient);
 
 import { createPortfolioLookup } from '../src/handlers/tools/portfolio-lookup';
 
 describe('portfolio-lookup tool', () => {
+  const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
   const deps = {
-    docClient: { send: mockSend } as any,
+    docClient,
     tableName: 'test-table',
   };
   const lookup = createPortfolioLookup(deps);
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => ddbMock.reset());
 
   it('should return latest snapshot for valid tenantId', async () => {
-    mockSend.mockResolvedValue({
+    ddbMock.on(QueryCommand).resolves({
       Items: [{
         tenantId: 't1',
         snapshotDate: '2026-03-17',
@@ -38,7 +35,7 @@ describe('portfolio-lookup tool', () => {
   });
 
   it('should return empty holdings when no snapshot found', async () => {
-    mockSend.mockResolvedValue({ Items: [] });
+    ddbMock.on(QueryCommand).resolves({ Items: [] });
     const result = await lookup({ tenantId: 't2' });
     expect(result).toMatchObject({ tenantId: 't2', snapshot: null, holdings: [] });
   });

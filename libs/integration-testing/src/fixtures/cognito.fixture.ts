@@ -78,6 +78,7 @@ export class CognitoFixture {
         Username: this.username,
       }));
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('CognitoFixture: failed to delete test user', err);
     }
   }

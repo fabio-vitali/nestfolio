@@ -124,7 +124,7 @@ function makeSqsEvent(
         'detail-type': r.detailType,
         detail: JSON.stringify(r.detail),
       }),
-      attributes: {} as any,
+      attributes: {} as SQSEvent['Records'][0]['attributes'],
       messageAttributes: {},
       md5OfBody: '',
       eventSource: 'aws:sqs',

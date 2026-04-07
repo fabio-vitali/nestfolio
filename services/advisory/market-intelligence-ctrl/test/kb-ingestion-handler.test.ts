@@ -1,9 +1,8 @@
-const mockBedrockSend = jest.fn();
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
+import { BedrockAgentClient, StartIngestionJobCommand } from '@aws-sdk/client-bedrock-agent';
 
-jest.mock('@aws-sdk/client-bedrock-agent', () => ({
-  BedrockAgentClient: jest.fn().mockImplementation(() => ({ send: mockBedrockSend })),
-  StartIngestionJobCommand: jest.fn().mockImplementation((input) => ({ _type: 'StartIngestionJob', input })),
-}));
+const bedrockMock = mockClient(BedrockAgentClient);
 
 jest.mock('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
@@ -28,8 +27,10 @@ import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import { createKbIngestionHandlers, type KbIngestionDeps } from '../src/handlers/kb-ingestion-handler';
 
 describe('market-intelligence-ctrl kb-ingestion-handler', () => {
+  const bedrockAgent = new BedrockAgentClient({});
+
   const mockDeps: KbIngestionDeps = {
-    bedrockAgent: { send: mockBedrockSend } as any,
+    bedrockAgent,
     kbId: 'test-kb-id',
     kbDataSourceId: 'test-ds-id',
   };
@@ -40,8 +41,8 @@ describe('market-intelligence-ctrl kb-ingestion-handler', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockBedrockSend.mockResolvedValue({});
+    bedrockMock.reset();
+    bedrockMock.on(StartIngestionJobCommand).resolves({});
   });
 
   it('should return store intent for YAHOO_FINANCE_UPDATED with correct key prefix and trigger KB sync', async () => {
@@ -59,13 +60,10 @@ describe('market-intelligence-ctrl kb-ingestion-handler', () => {
       _tag: 'store',
       key: expect.stringMatching(/^feeds\/yahoo-finance\//),
     });
-    expect(mockBedrockSend).toHaveBeenCalledWith(expect.objectContaining({
-      _type: 'StartIngestionJob',
-      input: expect.objectContaining({
-        knowledgeBaseId: 'test-kb-id',
-        dataSourceId: 'test-ds-id',
-      }),
-    }));
+    expect(bedrockMock).toHaveReceivedCommandWith(StartIngestionJobCommand, {
+      knowledgeBaseId: 'test-kb-id',
+      dataSourceId: 'test-ds-id',
+    });
   });
 
   it('should return store intent for SEC_8K_FILED with correct key prefix and trigger KB sync', async () => {
@@ -83,11 +81,11 @@ describe('market-intelligence-ctrl kb-ingestion-handler', () => {
       _tag: 'store',
       key: expect.stringMatching(/^feeds\/sec-8k\//),
     });
-    expect(mockBedrockSend).toHaveBeenCalled();
+    expect(bedrockMock).toHaveReceivedCommand(StartIngestionJobCommand);
   });
 
   it('should report failure when Bedrock sync throws', async () => {
-    mockBedrockSend.mockRejectedValueOnce(new Error('Bedrock sync failed'));
+    bedrockMock.on(StartIngestionJobCommand).rejects(new Error('Bedrock sync failed'));
 
     const result = await harness.process([
       fakeSqsRecord('YAHOO_FINANCE_UPDATED', {

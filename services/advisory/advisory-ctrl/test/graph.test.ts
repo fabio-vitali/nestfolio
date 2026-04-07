@@ -26,7 +26,7 @@ describe('advisory-ctrl decision-lifecycle agent graph', () => {
       explainability: { explanation: 'Mocked decision lifecycle response.' },
     });
 
-    let invokeDecisionLifecycle: Function;
+    let invokeDecisionLifecycle: (...args: unknown[]) => unknown;
     jest.isolateModules(() => {
       const mod = require('../agents/decision-lifecycle/graph');
       invokeDecisionLifecycle = mod.invokeDecisionLifecycle;

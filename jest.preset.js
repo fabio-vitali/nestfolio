@@ -18,6 +18,8 @@ const preset = {
   moduleFileExtensions: ['ts', 'js', 'json'],
   testMatch: ['**/*.test.ts', '**/*.spec.ts'],
   testEnvironment: 'node',
+  forceExit: true,
+  maxWorkers: '50%',
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/index.ts',

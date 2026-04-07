@@ -8,7 +8,7 @@ describe('Portfolio engine fallbacks', () => {
   });
 
   it('portfolio-construction fallback passes validation', () => {
-    expect(portfolioValidationRule.validate(portfolioConstructionFallback({}) as any).valid).toBe(true);
+    expect(portfolioValidationRule.validate(portfolioConstructionFallback({}) as Parameters<typeof portfolioValidationRule.validate>[0]).valid).toBe(true);
   });
 
   it('rebalance-planner fallback passes schema', () => {
@@ -16,6 +16,6 @@ describe('Portfolio engine fallbacks', () => {
   });
 
   it('rebalance-planner fallback passes validation', () => {
-    expect(rebalanceValidationRule.validate(rebalancePlannerFallback({}) as any).valid).toBe(true);
+    expect(rebalanceValidationRule.validate(rebalancePlannerFallback({}) as Parameters<typeof rebalanceValidationRule.validate>[0]).valid).toBe(true);
   });
 });

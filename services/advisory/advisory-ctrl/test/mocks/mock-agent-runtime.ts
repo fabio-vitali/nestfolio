@@ -9,7 +9,7 @@ function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
  * Simulates the LangGraph agent decision lifecycle without real Bedrock calls.
  */
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
-  const body = JSON.parse(event.body ?? '{}');
+  const _body = JSON.parse(event.body ?? '{}');
 
   // Return a canned agent result based on the input event type
   return json(200, {

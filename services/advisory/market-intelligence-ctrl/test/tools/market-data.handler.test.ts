@@ -20,6 +20,6 @@ describe('market-data tool handler', () => {
     const body = JSON.parse(result.body);
 
     expect(body.indices).toHaveLength(2);
-    expect(body.indices.map((i: any) => i.ticker)).toEqual(['SPY', 'QQQ']);
+    expect(body.indices.map((i: Record<string, unknown>) => i.ticker)).toEqual(['SPY', 'QQQ']);
   });
 });

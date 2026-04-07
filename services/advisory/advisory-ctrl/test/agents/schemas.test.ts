@@ -24,8 +24,7 @@ describe('Advisory Agent Schemas', () => {
     });
 
     it('rejects missing goalId', () => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { goalId: _, ...invalid } = validData;
+      const { goalId: _goalId, ...invalid } = validData;
       expect(GoalInterpretationSchema.safeParse(invalid).success).toBe(false);
     });
 

@@ -1,5 +1,6 @@
 import type { SQSRecord } from 'aws-lambda';
 import type { IngestionRecord } from './ingestion-types';
+import type { BusEvent } from '../platform';
 import { NotRetryableError } from '../internal';
 
 export function parseSqsRecord(sqsRecord: SQSRecord): IngestionRecord {
@@ -54,7 +55,7 @@ export function parseSqsRecord(sqsRecord: SQSRecord): IngestionRecord {
 
   return {
     id: sqsRecord.messageId,
-    event: event as any,
+    event: event as BusEvent,
     metadata: { receiveCount },
   };
 }

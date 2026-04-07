@@ -6,7 +6,7 @@ describe('toUow', () => {
   const ctx = {
     eventId: 'e1', eventType: 'TEST', tenantId: 't1', userId: 'test-user', region: 'us-east-1',
     timestamp: '2026-01-01T00:00:00.000Z', receiveCount: 1, serviceName: 'test',
-    record: {} as any,
+    record: {} as unknown,
   } as EventContext;
 
   it('should build UoW from payload and context', () => {

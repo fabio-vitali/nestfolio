@@ -8,7 +8,7 @@ describe('Investor profile fallbacks', () => {
   });
 
   it('user-goals fallback passes validation', () => {
-    expect(goalsValidationRule.validate(userGoalsFallback({}) as any).valid).toBe(true);
+    expect(goalsValidationRule.validate(userGoalsFallback({}) as Parameters<typeof goalsValidationRule.validate>[0]).valid).toBe(true);
   });
 
   it('risk-assessment fallback passes schema', () => {
@@ -16,6 +16,6 @@ describe('Investor profile fallbacks', () => {
   });
 
   it('risk-assessment fallback passes validation', () => {
-    expect(riskValidationRule.validate(riskAssessmentFallback({}) as any).valid).toBe(true);
+    expect(riskValidationRule.validate(riskAssessmentFallback({}) as Parameters<typeof riskValidationRule.validate>[0]).valid).toBe(true);
   });
 });
