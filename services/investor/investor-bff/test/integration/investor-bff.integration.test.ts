@@ -41,9 +41,7 @@ describe('investor-bff', () => {
         'DEPOSIT_INITIATED',
         'WITHDRAWAL_REQUESTED',
         'GOAL_UPDATED',
-        'MANDATE_UPDATED',
-        'MANDATE_REVOKED',
-        'ACCOUNT_CLOSURE_REQUESTED',
+        'MANDATE_CREATED',
         'NOTIFICATION_READ',
       ],
     });
@@ -192,7 +190,7 @@ describe('investor-bff', () => {
         table: 'investor-bff',
         items: [{
           pk,
-          sk: 'CashBalance#USD',
+          sk: 'CashBalance',
           __typename: 'CashBalance',
           tenantId: ctx.tenantId,
           userId: cognitoSub,
@@ -292,6 +290,98 @@ describe('investor-bff', () => {
       // Assert: CDC event on EventBridge
       const event = await trap.waitForEvent({ detailType: 'GOAL_UPDATED', timeoutMs: 60_000 });
       expect(event.detailType).toBe('GOAL_UPDATED');
+    }, 120_000);
+
+    it('should create mandate and emit MANDATE_CREATED', async () => {
+      const result = await appsync.mutate<{
+        updateMandate: {
+          mandateId: string;
+          tenantId: string;
+          level: string;
+          monthlyTurnoverCapPercent: number;
+          maxSingleTradePercent: number;
+          coolDownDays: number;
+          rebalanceCadence: string;
+          effectiveDate: string;
+          version: number;
+        };
+      }>(`
+        mutation UpdateMandate($input: MandateInput!) {
+          updateMandate(input: $input) {
+            mandateId
+            tenantId
+            level
+            monthlyTurnoverCapPercent
+            maxSingleTradePercent
+            coolDownDays
+            rebalanceCadence
+            effectiveDate
+            version
+          }
+        }
+      `, {
+        input: {
+          level: 'DISCRETIONARY',
+          monthlyTurnoverCapPercent: 10,
+          maxSingleTradePercent: 5,
+          coolDownDays: 7,
+          rebalanceCadence: 'MONTHLY',
+        },
+      });
+
+      expect(result.updateMandate.level).toBe('DISCRETIONARY');
+      expect(result.updateMandate.monthlyTurnoverCapPercent).toBe(10);
+      expect(result.updateMandate.version).toBe(1);
+      const mandateId = result.updateMandate.mandateId;
+
+      // Assert: Mandate record in DDB
+      const item = await table.waitForItem({
+        table: 'investor-bff',
+        pk: `InvestorProfile#${ctx.tenantId}#${cognitoSub}`,
+        sk: `Mandate#${mandateId}`,
+      });
+      expect(item['__typename']).toBe('Mandate');
+      expect(item['level']).toBe('DISCRETIONARY');
+
+      // Assert: CDC event on EventBridge (PutItem → INSERT → MANDATE_CREATED)
+      const event = await trap.waitForEvent({ detailType: 'MANDATE_CREATED', timeoutMs: 60_000 });
+      expect(event.detailType).toBe('MANDATE_CREATED');
+    }, 120_000);
+
+    it('should revoke mandate and write MandateRevocation record', async () => {
+      // revokeMandate uses noneDataSource-style hardcoded return but writes MandateRevocation to DDB
+      // MandateRevocation __typename is NOT in CDC eventTypes map — no CDC event emitted
+      const result = await appsync.mutate<{
+        revokeMandate: {
+          mandateId: string;
+          tenantId: string;
+          level: string;
+          revokedAt: string;
+          version: number;
+        };
+      }>(`
+        mutation RevokeMandate {
+          revokeMandate {
+            mandateId
+            tenantId
+            level
+            revokedAt
+            version
+          }
+        }
+      `, {});
+
+      expect(result.revokeMandate.revokedAt).toBeTruthy();
+      expect(result.revokeMandate.level).toBe('ADVISORY');
+
+      // Assert: MandateRevocation record written to DDB
+      const items = await table.queryItems({
+        table: 'investor-bff',
+        pk: `InvestorProfile#${ctx.tenantId}#${cognitoSub}`,
+        skPrefix: 'MandateRevocation#',
+      });
+      expect(items.length).toBeGreaterThanOrEqual(1);
+      expect(items[0]['__typename']).toBe('MandateRevocation');
     }, 120_000);
 
     it('should return REQUESTED status for requestAccountClosure', async () => {
