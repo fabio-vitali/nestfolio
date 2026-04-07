@@ -70,8 +70,9 @@ jest.mock('@nestfolio/event-processor', () => {
   };
 });
 import { DashboardRepository } from '../../src/repositories/dashboard.repository';
+import type { RequestContext } from '@nestfolio/event-processor';
 
-const TEST_CTX = { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' };
+const TEST_CTX: RequestContext = { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' };
 
 describe('DashboardRepository', () => {
   let repository: DashboardRepository;
@@ -144,7 +145,7 @@ describe('DashboardRepository', () => {
         marketValueCents: 875000,
         weightPercent: 35.5,
         unrealizedPnlCents: 125000,
-      }, TEST_CTX as any);
+      }, TEST_CTX);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const cmd = mockSend.mock.calls[0][0];
@@ -177,7 +178,7 @@ describe('DashboardRepository', () => {
         activityType: 'ORDER_FILLED',
         description: 'Order filled: AAPL',
         metadata: { orderId: 'o1' },
-      }, TEST_CTX as any);
+      }, TEST_CTX);
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const cmd = mockSend.mock.calls[0][0];
