@@ -262,6 +262,8 @@ describe('ledger-bff', () => {
             timestamp: snapshotTimestamp,
           },
           // getSimulationComparison → reads Simulation#<tenantId> Latest + Position#
+          // Note: repository.upsertSimulation writes sk: 'Latest'; transform writes sk: 'Summary'.
+          // Seed uses 'Latest' to match what the resolver reads.
           {
             pk: simulationPk(),
             sk: 'Latest',
@@ -325,10 +327,10 @@ describe('ledger-bff', () => {
       `, {});
 
       expect(Array.isArray(result.getPositions)).toBe(true);
-      const appl = result.getPositions.find(p => p.symbol === 'AAPL');
-      expect(appl).toBeDefined();
-      expect(appl!.quantity).toBe(10);
-      expect(appl!.lastFillPrice).toBe(155.0);
+      const aapl = result.getPositions.find(p => p.symbol === 'AAPL');
+      expect(aapl).toBeDefined();
+      expect(aapl!.quantity).toBe(10);
+      expect(aapl!.lastFillPrice).toBe(155.0);
 
       const msft = result.getPositions.find(p => p.symbol === 'MSFT');
       expect(msft).toBeDefined();
@@ -452,9 +454,9 @@ describe('ledger-bff', () => {
       // Should reconstruct from the seeded SnapshotAt record
       expect(result.getPortfolioAt.cashBalanceCents).toBe(800_000);
       expect(Array.isArray(result.getPortfolioAt.positions)).toBe(true);
-      const appl = result.getPortfolioAt.positions.find(p => p.symbol === 'AAPL');
-      expect(appl).toBeDefined();
-      expect(appl!.quantity).toBe(8);
+      const aapl = result.getPortfolioAt.positions.find(p => p.symbol === 'AAPL');
+      expect(aapl).toBeDefined();
+      expect(aapl!.quantity).toBe(8);
     }, 60_000);
 
     it('should return simulation comparison via getSimulationComparison (Lambda resolver)', async () => {
