@@ -2,37 +2,45 @@ import {
   createIntegrationContext,
   EventBridgeClient,
   EventBusTrap,
+  TableAssertions,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
-describe('execution-ctrl: DECISION_APPROVED order creation', () => {
+describe('execution-ctrl', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
+  let table: TableAssertions;
 
   beforeAll(async () => {
     ctx = await createIntegrationContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
+    table = new TableAssertions(ctx);
+    table.registerCleanup();
 
-    // Trap any Order CDC event on ExecutionBus
+    // Trap all Order CDC events on ExecutionBus
     await trap.deploy({
       bus: 'execution',
-      detailType: ['ORDER_SUBMITTED', 'ORDER_STAGED', 'ORDER_REJECTED'],
+      detailType: ['ORDER_SUBMITTED', 'ORDER_STAGED', 'ORDER_REJECTED', 'STAGED_ORDER'],
     });
-  }, 60_000);
+  }, 90_000);
 
   afterAll(async () => {
     await ctx.cleanup.runAll();
-  }, 30_000);
+  }, 60_000);
 
-  it('should create an Order record and emit ORDER_SUBMITTED or ORDER_STAGED on DECISION_APPROVED', async () => {
+  // ── DECISION_APPROVED ─────────────────────────────────────────────
+
+  it('should create Order on DECISION_APPROVED and emit CDC event', async () => {
+    const decisionPacketId = `integ-decision-${Date.now()}`;
+
     await eb.putEvent({
       bus: 'execution',
       targetService: 'execution-ctrl',
       detailType: 'DECISION_APPROVED',
       detail: {
-        decisionPacketId: `integ-decision-${Date.now()}`,
+        decisionPacketId,
         proposedTrades: [
           {
             symbol: 'AAPL',
@@ -45,9 +53,84 @@ describe('execution-ctrl: DECISION_APPROVED order creation', () => {
       },
     });
 
-    // Assert: CDC event emitted (proves: event → SQS → Lambda → DDB write → CDC)
-    // Outcome depends on safety checks + market hours
+    // CDC event proves: EB → SQS → Lambda → DDB write → DDB Stream → CDC Lambda → EB
+    const event = await trap.waitForEvent({ timeoutMs: 90_000 });
+    expect(['ORDER_SUBMITTED', 'ORDER_STAGED', 'ORDER_REJECTED']).toContain(event.detailType);
+    expect(event.detail.subject).toEqual(
+      expect.objectContaining({ decisionPacketId }),
+    );
+  }, 120_000);
+
+  // ── USER_CONFIRMED ────────────────────────────────────────────────
+
+  it('should create Order on USER_CONFIRMED and emit CDC event', async () => {
+    const decisionPacketId = `integ-user-confirmed-${Date.now()}`;
+
+    await eb.putEvent({
+      bus: 'execution',
+      targetService: 'execution-ctrl',
+      detailType: 'USER_CONFIRMED',
+      detail: {
+        decisionPacketId,
+        proposedTrades: [
+          {
+            symbol: 'MSFT',
+            assetClass: 'EQUITY',
+            side: 'BUY',
+            quantityOrAmountCents: 500,
+            targetWeightPercent: 5,
+          },
+        ],
+      },
+    });
+
+    // USER_CONFIRMED routes to same processApprovedDecision handler
     const event = await trap.waitForEvent({ timeoutMs: 90_000 });
     expect(['ORDER_SUBMITTED', 'ORDER_STAGED', 'ORDER_REJECTED']).toContain(event.detailType);
   }, 120_000);
+
+  // ── CIRCUIT_BREAKER_TRIGGERED ─────────────────────────────────────
+
+  it('should process CIRCUIT_BREAKER_TRIGGERED without error (skip handler)', async () => {
+    await eb.putEvent({
+      bus: 'execution',
+      targetService: 'execution-ctrl',
+      detailType: 'CIRCUIT_BREAKER_TRIGGERED',
+      detail: {
+        reason: 'integ-test-circuit-break',
+        triggeredAt: new Date().toISOString(),
+      },
+    });
+
+    // Handler calls skip() — no DDB write, no CDC event expected.
+    // Wait briefly then drain to confirm no unexpected events appeared.
+    await new Promise(resolve => setTimeout(resolve, 15_000));
+    const stray = await trap.drain();
+    const circuitEvents = stray.filter(e =>
+      e.detailType.includes('CIRCUIT_BREAKER') || e.detailType.includes('EXECUTION_PAUSED'),
+    );
+    expect(circuitEvents).toHaveLength(0);
+  }, 60_000);
+
+  // ── CIRCUIT_BREAKER_RESET ─────────────────────────────────────────
+
+  it('should process CIRCUIT_BREAKER_RESET without error (skip handler)', async () => {
+    await eb.putEvent({
+      bus: 'execution',
+      targetService: 'execution-ctrl',
+      detailType: 'CIRCUIT_BREAKER_RESET',
+      detail: {
+        reason: 'integ-test-circuit-reset',
+        resetAt: new Date().toISOString(),
+      },
+    });
+
+    // Handler calls skip() — no DDB write, no CDC event expected.
+    await new Promise(resolve => setTimeout(resolve, 15_000));
+    const stray = await trap.drain();
+    const resetEvents = stray.filter(e =>
+      e.detailType.includes('CIRCUIT_BREAKER') || e.detailType.includes('EXECUTION_RESUMED'),
+    );
+    expect(resetEvents).toHaveLength(0);
+  }, 60_000);
 });
