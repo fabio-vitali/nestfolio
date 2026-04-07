@@ -1,8 +1,11 @@
 import { join } from 'path';
-import { Duration } from 'aws-cdk-lib';
+import { Duration, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { EventBus } from 'aws-cdk-lib/aws-events';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { ParamsAndSecretsLayerVersion, ParamsAndSecretsVersions } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
@@ -27,12 +30,36 @@ export class MarketwatchAdptStack extends ServiceStack {
     // Override the default event bus to the advisory bus
     this.eventBus = advisoryBus;
 
+    // ParamsAndSecrets Extension for SSM-based base URL resolution
+    const paramsAndSecrets = ParamsAndSecretsLayerVersion.fromVersion(
+      ParamsAndSecretsVersions.V1_0_103,
+      { parameterStoreTtl: Duration.seconds(5) },
+    );
+
+    const ssmBasePath = `/nestfolio/${props.prefix}-marketwatch-adpt/marketwatch`;
+
+    new StringParameter(this, 'BaseUrl', {
+      parameterName: `${ssmBasePath}/baseUrl`,
+      stringValue: 'https://feeds.marketwatch.com/marketwatch',
+      description: 'MarketWatch RSS base URL (overridable for integration tests)',
+    });
+
     // Ingress: subscribes to FETCH_REQUESTED, materializes MarketWatchArticle records into DDB
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [MarketwatchAdptEventTypes.FETCH_REQUESTED],
       lambdaTimeout: Duration.seconds(60),
+      environment: {
+        MARKETWATCH_BASE_URL_PARAM: `${ssmBasePath}/baseUrl`,
+      },
+      lambdaProps: { paramsAndSecrets },
     });
+
+    // IAM: SSM access for ParamsAndSecrets Extension
+    ingress.handler.addToRolePolicy(new PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: [`arn:aws:ssm:${Stack.of(this).region}:${Stack.of(this).account}:parameter${ssmBasePath}/*`],
+    }));
 
     // Egress: DDB Stream → CDC → EventBridge
     const egress = new Egress(this, 'Egress', {

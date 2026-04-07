@@ -13,22 +13,26 @@ jest.mock('@nestfolio/event-processor', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
 
-import { createDeps, createHandlers, FEEDS } from '../../src/handlers/event-listener';
+import { createDeps, createHandlers, FEED_PATHS } from '../../src/handlers/event-listener';
 import { MarketwatchAdptEventTypes } from '../../src/domain/events';
 
 const SAMPLE_XML = '<rss><channel><item><title>Test</title></item></channel></rss>';
 const SAMPLE_ARTICLES = [{ title: 'Test Article' }];
 
+const TEST_BASE_URL = 'https://feeds.marketwatch.com/marketwatch';
+
 describe('marketwatch-adpt event-listener', () => {
+  let mockGetBaseUrl: jest.Mock;
   let mockFetchFeed: jest.Mock;
   let mockParseRss: jest.Mock;
   let handlers: ReturnType<typeof createHandlers>;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetBaseUrl = jest.fn().mockResolvedValue(TEST_BASE_URL);
     mockFetchFeed = jest.fn().mockResolvedValue(SAMPLE_XML);
     mockParseRss = jest.fn().mockReturnValue(SAMPLE_ARTICLES);
-    const deps = { fetchFeed: mockFetchFeed, parseRss: mockParseRss };
+    const deps = { getBaseUrl: mockGetBaseUrl, fetchFeed: mockFetchFeed, parseRss: mockParseRss };
     handlers = createHandlers(deps);
   });
 
@@ -40,18 +44,19 @@ describe('marketwatch-adpt event-listener', () => {
 
       await handlers[MarketwatchAdptEventTypes.FETCH_REQUESTED](payload, ctx);
 
-      expect(mockFetchFeed).toHaveBeenCalledTimes(FEEDS.length);
+      expect(mockFetchFeed).toHaveBeenCalledTimes(FEED_PATHS.length);
     });
 
-    it('calls fetchFeed with each feed URL', async () => {
+    it('resolves base URL via getBaseUrl and constructs feed URLs', async () => {
       const sqsRecord = fakeSqsRecord(MarketwatchAdptEventTypes.FETCH_REQUESTED, {});
       const payload = JSON.parse(sqsRecord.body).detail;
       const ctx = { tenantId: 'SYSTEM', eventId: payload.id };
 
       await handlers[MarketwatchAdptEventTypes.FETCH_REQUESTED](payload, ctx);
 
-      for (const feed of FEEDS) {
-        expect(mockFetchFeed).toHaveBeenCalledWith(feed.url);
+      expect(mockGetBaseUrl).toHaveBeenCalledTimes(1);
+      for (const feedPath of FEED_PATHS) {
+        expect(mockFetchFeed).toHaveBeenCalledWith(`${TEST_BASE_URL}/${feedPath}`);
       }
     });
 
@@ -62,7 +67,7 @@ describe('marketwatch-adpt event-listener', () => {
 
       const intents = await handlers[MarketwatchAdptEventTypes.FETCH_REQUESTED](payload, ctx);
 
-      expect(intents).toHaveLength(FEEDS.length);
+      expect(intents).toHaveLength(FEED_PATHS.length);
     });
 
     it('skips feeds where fetchFeed returns null', async () => {
@@ -76,7 +81,7 @@ describe('marketwatch-adpt event-listener', () => {
 
       const intents = await handlers[MarketwatchAdptEventTypes.FETCH_REQUESTED](payload, ctx);
 
-      expect(intents).toHaveLength(FEEDS.length - 1);
+      expect(intents).toHaveLength(FEED_PATHS.length - 1);
     });
 
     it('returns empty array when all feeds return null', async () => {
@@ -104,7 +109,7 @@ describe('marketwatch-adpt event-listener', () => {
       const intent = intents[0] as any;
       expect(intent.typename).toBe('MarketWatchArticle');
       expect(intent.overrides.pk).toBe('MarketWatch#SYSTEM');
-      expect(intent.overrides.sk).toBe(`Feed#${FEEDS[0].name}`);
+      expect(intent.overrides.sk).toBe(`Feed#${FEED_PATHS[0]}`);
     });
 
     it('calls parseRss with the fetched XML for each successful feed', async () => {
@@ -114,28 +119,28 @@ describe('marketwatch-adpt event-listener', () => {
 
       await handlers[MarketwatchAdptEventTypes.FETCH_REQUESTED](payload, ctx);
 
-      expect(mockParseRss).toHaveBeenCalledTimes(FEEDS.length);
+      expect(mockParseRss).toHaveBeenCalledTimes(FEED_PATHS.length);
       expect(mockParseRss).toHaveBeenCalledWith(SAMPLE_XML);
     });
   });
 
   describe('createDeps', () => {
-    it('returns an object with fetchFeed and parseRss functions', () => {
+    it('returns an object with getBaseUrl, fetchFeed, and parseRss functions', () => {
       const deps = createDeps();
+      expect(typeof deps.getBaseUrl).toBe('function');
       expect(typeof deps.fetchFeed).toBe('function');
       expect(typeof deps.parseRss).toBe('function');
     });
   });
 
-  describe('FEEDS', () => {
-    it('contains 2 feeds', () => {
-      expect(FEEDS).toHaveLength(2);
+  describe('FEED_PATHS', () => {
+    it('contains 2 feed paths', () => {
+      expect(FEED_PATHS).toHaveLength(2);
     });
 
     it('includes topstories and marketpulse', () => {
-      const names = FEEDS.map((f) => f.name);
-      expect(names).toContain('topstories');
-      expect(names).toContain('marketpulse');
+      expect(FEED_PATHS).toContain('topstories');
+      expect(FEED_PATHS).toContain('marketpulse');
     });
   });
 });
