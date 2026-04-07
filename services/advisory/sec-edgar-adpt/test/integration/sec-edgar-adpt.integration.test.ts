@@ -1,50 +1,72 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import {
   createIntegrationContext,
   EventBridgeClient,
   EventBusTrap,
+  TableAssertions,
+  MockApiFixture,
+  SsmOverrideFixture,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 /**
- * sec-edgar-adpt integration test
+ * sec-edgar-adpt integration test (mocked)
  *
  * Strategy:
+ *   - Deploy a mock SEC EDGAR Lambda behind a Function URL
+ *   - Override the SSM base URL parameter to point at the mock
  *   - Trigger FETCH_SEC_EDGAR_REQUESTED on advisoryBus
- *   - Handler fetches recent SEC EDGAR filings for tracked CIKs (public API, no key required)
- *     and writes SecFiling records to DDB. CDC then emits SEC_8K_FILED / SEC_PROSPECTUS_UPDATED
- *     / SEC_10K_UPDATED based on form type.
- *   - We trap for any of these CDC events on advisoryBus.
- *   - If no filings exist in the last 24h for the tracked CIKs, the handler exits
- *     with 0 intents — no DDB write. We treat a timeout as a soft failure with a warning.
+ *   - Verify DDB writes and CDC events emitted via EventBridge
  *
  * PK/SK pattern:
- *   SecFiling → pk: SecFiling#{cik}, sk: Filing#{accessionNumber}
+ *   SecFiling -> pk: SecFiling#{cik}, sk: Filing#{accessionNumber}
  *
- * Tracked CIKs (from stack): 0000102909, 0000088053, 0000914208
- * (Vanguard, Fidelity, iShares — major fund issuers that file frequently)
+ * CDC events depend on form type:
+ *   8-K -> SEC_8K_FILED
+ *   485BPOS, N-1A -> SEC_PROSPECTUS_UPDATED
+ *   10-K, 10-Q -> SEC_10K_UPDATED
  */
-describe('sec-edgar-adpt: FETCH_SEC_EDGAR_REQUESTED → SecFiling DDB write', () => {
+describe('sec-edgar-adpt (mocked)', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
+  let table: TableAssertions;
 
   beforeAll(async () => {
     ctx = await createIntegrationContext();
+
+    // Deploy mock SEC EDGAR Lambda
+    const mockApi = new MockApiFixture(ctx);
+    const zipPath = join(__dirname, '..', 'mocks', 'mock-sec-edgar.zip');
+    const mockUrl = await mockApi.deploy({
+      name: 'mock-sec-edgar',
+      handlerAsset: readFileSync(zipPath),
+    });
+
+    // Override SSM base URL to point to mock
+    const ssmOverride = new SsmOverrideFixture(ctx);
+    await ssmOverride.override({
+      paramName: `/nestfolio/${ctx.prefix}-sec-edgar-adpt/edgar/baseUrl`,
+      testValue: mockUrl,
+    });
+
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
+    table = new TableAssertions(ctx);
+    table.registerCleanup();
 
-    // Trap SEC_8K_FILED as the default CDC event for any SecFiling insert
     await trap.deploy({
       bus: 'advisory',
-      detailType: 'SEC_8K_FILED',
+      detailType: ['SEC_8K_FILED', 'SEC_PROSPECTUS_UPDATED', 'SEC_10K_UPDATED'],
     });
-  }, 60_000);
+  }, 90_000);
 
   afterAll(async () => {
     await ctx.cleanup.runAll();
-  }, 30_000);
+  }, 60_000);
 
-  it('should fetch SEC EDGAR filings and emit CDC event if recent filings exist', async () => {
+  it('should process 8-K filing and emit SEC_8K_FILED', async () => {
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'sec-edgar-adpt',
@@ -52,24 +74,53 @@ describe('sec-edgar-adpt: FETCH_SEC_EDGAR_REQUESTED → SecFiling DDB write', ()
       detail: {},
     });
 
-    // Wait for CDC event — proves: EB → SQS → Lambda → DDB SecFiling write → CDC → SEC_8K_FILED
-    // If no filings were filed in the last 24h for tracked CIKs, the handler writes 0 intents.
-    // Lambda timeout is 120s, so allow up to 90s after event.
-    try {
-      const event = await trap.waitForEvent({ timeoutMs: 90_000 });
-      expect(event.detailType).toBe('SEC_8K_FILED');
-      expect(event.detail.context.tenantId).toBe(ctx.tenantId);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.toLowerCase().includes('timeout') || msg.toLowerCase().includes('timed out')) {
-        console.warn(
-          '[sec-edgar-adpt] No CDC event received within 90s. ' +
-          'This is expected if no 8-K filings exist in the last 24h for tracked CIKs. ' +
-          'The handler invocation path (EB → SQS → Lambda) is still verified.'
-        );
-        return;
-      }
-      throw err;
-    }
+    const item = await table.waitForItem({
+      table: 'sec-edgar-adpt',
+      pk: 'SecFiling#0000102909',
+      timeoutMs: 90_000,
+    });
+    expect(item['formType']).toBe('8-K');
+    expect(item['issuer']).toBe('Vanguard Group Inc');
+
+    const event = await trap.waitForEvent({ detailType: 'SEC_8K_FILED', timeoutMs: 30_000 });
+    expect(event.detailType).toBe('SEC_8K_FILED');
+  }, 120_000);
+
+  it('should process 485BPOS filing and emit SEC_PROSPECTUS_UPDATED', async () => {
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'sec-edgar-adpt',
+      detailType: 'FETCH_SEC_EDGAR_REQUESTED',
+      detail: {},
+    });
+
+    const item = await table.waitForItem({
+      table: 'sec-edgar-adpt',
+      pk: 'SecFiling#0000088053',
+      timeoutMs: 90_000,
+    });
+    expect(item['formType']).toBe('485BPOS');
+
+    const event = await trap.waitForEvent({ detailType: 'SEC_PROSPECTUS_UPDATED', timeoutMs: 30_000 });
+    expect(event.detailType).toBe('SEC_PROSPECTUS_UPDATED');
+  }, 120_000);
+
+  it('should process 10-K filing and emit SEC_10K_UPDATED', async () => {
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'sec-edgar-adpt',
+      detailType: 'FETCH_SEC_EDGAR_REQUESTED',
+      detail: {},
+    });
+
+    const item = await table.waitForItem({
+      table: 'sec-edgar-adpt',
+      pk: 'SecFiling#0000914208',
+      timeoutMs: 90_000,
+    });
+    expect(item['formType']).toBe('10-K');
+
+    const event = await trap.waitForEvent({ detailType: 'SEC_10K_UPDATED', timeoutMs: 30_000 });
+    expect(event.detailType).toBe('SEC_10K_UPDATED');
   }, 120_000);
 });
