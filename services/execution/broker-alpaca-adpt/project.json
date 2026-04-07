@@ -26,7 +26,19 @@
         "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/execution/broker-alpaca-adpt/jest.integration.config.js --passWithNoTests"
       }
     },
-    "lint": { "executor": "@nx/eslint:lint" }
+    "lint": { "executor": "@nx/eslint:lint" },
+    "build-mock": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "mkdir -p services/execution/broker-alpaca-adpt/test/mocks/dist",
+          "npx esbuild services/execution/broker-alpaca-adpt/test/mocks/mock-alpaca.ts --bundle --platform=node --target=node20 --outfile=services/execution/broker-alpaca-adpt/test/mocks/dist/index.mjs --format=esm",
+          "cd services/execution/broker-alpaca-adpt/test/mocks/dist && zip -j ../mock-alpaca.zip index.mjs"
+        ],
+        "parallel": false
+      },
+      "outputs": ["{projectRoot}/test/mocks/mock-alpaca.zip"]
+    }
   },
   "tags": ["scope:execution", "type:adpt"]
 }

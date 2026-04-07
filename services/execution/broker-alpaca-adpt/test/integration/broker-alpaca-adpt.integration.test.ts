@@ -21,7 +21,7 @@ describe('broker-alpaca-adpt', () => {
 
     // Deploy mock Alpaca Lambda
     const mockApi = new MockApiFixture(ctx);
-    const zipPath = join(__dirname, '../../../../..', 'libs/integration-testing/assets/mock-alpaca.zip');
+    const zipPath = join(__dirname, '..', 'mocks', 'mock-alpaca.zip');
     const mockUrl = await mockApi.deploy({
       name: 'mock-alpaca',
       handlerAsset: readFileSync(zipPath),
