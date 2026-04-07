@@ -12,4 +12,5 @@ module.exports = {
     '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json', diagnostics: false }],
   },
   transformIgnorePatterns: ['node_modules/(?!.*p-limit/|.*yocto-queue/)'],
+  testPathIgnorePatterns: ['test/integration/'],
 };

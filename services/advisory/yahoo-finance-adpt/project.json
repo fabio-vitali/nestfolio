@@ -26,6 +26,18 @@
         "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/advisory/yahoo-finance-adpt/jest.integration.config.js --passWithNoTests"
       }
     },
+    "build-mock": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "mkdir -p services/advisory/yahoo-finance-adpt/test/mocks/dist",
+          "npx esbuild services/advisory/yahoo-finance-adpt/test/mocks/mock-yahoo-finance.ts --bundle --platform=node --target=node20 --outfile=services/advisory/yahoo-finance-adpt/test/mocks/dist/index.mjs --format=esm",
+          "cd services/advisory/yahoo-finance-adpt/test/mocks/dist && zip -j ../mock-yahoo-finance.zip index.mjs"
+        ],
+        "parallel": false
+      },
+      "outputs": ["{projectRoot}/test/mocks/mock-yahoo-finance.zip"]
+    },
     "lint": { "executor": "@nx/eslint:lint" }
   },
   "tags": ["scope:advisory", "type:adpt"]
