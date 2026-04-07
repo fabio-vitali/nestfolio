@@ -26,6 +26,18 @@
         "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/advisory/decision-workflow-ctrl/jest.integration.config.js --passWithNoTests"
       }
     },
+    "build-mock": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "mkdir -p services/advisory/decision-workflow-ctrl/test/mocks/dist",
+          "npx esbuild services/advisory/decision-workflow-ctrl/test/mocks/mock-agent-responses.ts --bundle --platform=node --target=node20 --outfile=services/advisory/decision-workflow-ctrl/test/mocks/dist/index.mjs --format=esm",
+          "cd services/advisory/decision-workflow-ctrl/test/mocks/dist && zip -j ../mock-agent-responses.zip index.mjs"
+        ],
+        "parallel": false
+      },
+      "outputs": ["{projectRoot}/test/mocks/mock-agent-responses.zip"]
+    },
     "lint": { "executor": "@nx/eslint:lint" }
   },
   "tags": ["scope:advisory", "type:ctrl"]
