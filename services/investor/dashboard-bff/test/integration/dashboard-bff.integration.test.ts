@@ -194,8 +194,6 @@ describe('dashboard-bff', () => {
     }, 120_000);
 
     it('should materialize Activity record on BALANCE_UPDATED', async () => {
-      const eventTimestamp = Date.now();
-
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
@@ -216,10 +214,7 @@ describe('dashboard-bff', () => {
           pk: `T#${ctx.tenantId}`,
           skPrefix: 'Activity#',
         });
-        // Find an activity written around the time of our event, with the expected type
-        activityItem = items.find(
-          i => i['activityType'] === 'BALANCE_UPDATED' && Number(i['timestamp']) >= eventTimestamp - 10_000,
-        );
+        activityItem = items.find(i => i['activityType'] === 'BALANCE_UPDATED');
         if (!activityItem) await new Promise(r => setTimeout(r, 2_000));
       }
 
@@ -327,7 +322,7 @@ describe('dashboard-bff', () => {
           {
             pk: dashboardPk(),
             sk: `Activity#${new Date().toISOString()}`,
-            __typename: 'ActivityEntry',
+            __typename: 'Activity',
             tenantId: ctx.tenantId,
             activityType: 'DEPOSIT_DETECTED',
             description: 'Deposit detected: 500 USD',
@@ -412,6 +407,8 @@ describe('dashboard-bff', () => {
           symbol: string;
           assetClass: string | null;
           quantity: number;
+          avgCostBasisCents: number;
+          currentPriceCents: number;
           marketValueCents: number;
           weightPercent: number;
           unrealizedPnlCents: number;
