@@ -1,48 +1,70 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import {
   createIntegrationContext,
   EventBridgeClient,
   EventBusTrap,
+  TableAssertions,
+  MockApiFixture,
+  SsmOverrideFixture,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 /**
- * alpha-vantage-adpt integration test
+ * alpha-vantage-adpt integration test (mocked)
  *
  * Strategy:
+ *   - Deploy a mock Alpha Vantage Lambda behind a Function URL
+ *   - Override the SSM base URL parameter to point at the mock
  *   - Trigger FETCH_ALPHA_VANTAGE_REQUESTED on advisoryBus
- *   - If Alpha Vantage API key is valid and returns data, the handler writes
- *     AlphaVantageArticle and EconomicIndicator records to DDB and emits
- *     ALPHA_VANTAGE_NEWS_UPDATED / ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED via CDC.
- *   - We trap for either CDC event on advisoryBus. If no data is returned (rate
- *     limit, missing key), the handler exits cleanly with 0 intents — no DDB write
- *     and no CDC event. In that case the test is skipped with a warning.
+ *   - Verify DDB writes and CDC events emitted via EventBridge
  *
  * PK/SK pattern:
  *   AlphaVantageArticle → pk: AlphaVantage#SYSTEM, sk: Article#{ticker}#{date}#{i}
  *   EconomicIndicator   → pk: AlphaVantage#SYSTEM, sk: Indicator#{fn}
  */
-describe('alpha-vantage-adpt: FETCH_ALPHA_VANTAGE_REQUESTED → DDB write', () => {
+describe('alpha-vantage-adpt (mocked)', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
+  let table: TableAssertions;
 
   beforeAll(async () => {
     ctx = await createIntegrationContext();
+
+    // Deploy mock Alpha Vantage Lambda
+    const mockApi = new MockApiFixture(ctx);
+    const zipPath = join(__dirname, '..', 'mocks', 'mock-alpha-vantage.zip');
+    const mockUrl = await mockApi.deploy({
+      name: 'mock-alpha-vantage',
+      handlerAsset: readFileSync(zipPath),
+    });
+
+    // Override SSM base URL to point to mock
+    const ssmOverride = new SsmOverrideFixture(ctx);
+    await ssmOverride.override({
+      paramName: `/nestfolio/${ctx.prefix}-alpha-vantage-adpt/alpha-vantage/baseUrl`,
+      testValue: mockUrl,
+    });
+
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
+    table = new TableAssertions(ctx);
 
-    // Trap for either CDC event that proves a DDB write occurred
     await trap.deploy({
       bus: 'advisory',
-      detailType: 'ALPHA_VANTAGE_NEWS_UPDATED',
+      detailType: [
+        'ALPHA_VANTAGE_NEWS_UPDATED',
+        'ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED',
+      ],
     });
-  }, 60_000);
+  }, 90_000);
 
   afterAll(async () => {
     await ctx.cleanup.runAll();
-  }, 30_000);
+  }, 60_000);
 
-  it('should trigger handler and emit CDC event if Alpha Vantage API returns data', async () => {
+  it('should fetch news and emit ALPHA_VANTAGE_NEWS_UPDATED', async () => {
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'alpha-vantage-adpt',
@@ -50,25 +72,26 @@ describe('alpha-vantage-adpt: FETCH_ALPHA_VANTAGE_REQUESTED → DDB write', () =
       detail: {},
     });
 
-    // Wait for CDC event — proves: EB → SQS → Lambda → DDB write → CDC → ALPHA_VANTAGE_NEWS_UPDATED
-    // If the API returns no data (rate limit / invalid key), 0 intents are written and no
-    // CDC event fires. We catch the timeout and skip rather than fail.
-    try {
-      const event = await trap.waitForEvent({ timeoutMs: 90_000 });
-      expect(event.detailType).toBe('ALPHA_VANTAGE_NEWS_UPDATED');
-      expect(event.detail.context.tenantId).toBe(ctx.tenantId);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.toLowerCase().includes('timeout') || msg.toLowerCase().includes('timed out')) {
-        console.warn(
-          '[alpha-vantage-adpt] No CDC event received within 90s. ' +
-          'This is expected if the Alpha Vantage API key is rate-limited or returns no data. ' +
-          'The handler invocation path (EB → SQS → Lambda) is still verified.'
-        );
-        // Not a hard failure — external API dependency
-        return;
-      }
-      throw err;
-    }
+    // Verify DDB write
+    const item = await table.waitForItem({
+      table: 'alpha-vantage-adpt',
+      pk: 'AlphaVantage#SYSTEM',
+      timeoutMs: 60_000,
+    });
+    expect(item['__typename']).toBe('AlphaVantageArticle');
+
+    // Verify CDC event
+    const event = await trap.waitForEvent({ detailType: 'ALPHA_VANTAGE_NEWS_UPDATED' });
+    expect(event.detailType).toBe('ALPHA_VANTAGE_NEWS_UPDATED');
+    expect(event.detail.context.tenantId).toBe(ctx.tenantId);
+  }, 120_000);
+
+  it('should fetch economic indicators and emit ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED', async () => {
+    // Wait for indicator CDC event (may already be in the trap from the previous trigger)
+    const event = await trap.waitForEvent({
+      detailType: 'ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED',
+      timeoutMs: 90_000,
+    });
+    expect(event.detailType).toBe('ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED');
   }, 120_000);
 });

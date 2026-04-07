@@ -1,7 +1,6 @@
 import { materializeToTable, record, requireEnv, logger, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { AlphaVantageAdptEventTypes } from '../domain/events';
 
-const AV_BASE_URL = 'https://www.alphavantage.co/query';
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_REQUESTS_PER_CYCLE = 25;
 
@@ -9,12 +8,26 @@ const NEWS_TICKERS = ['VTI', 'BND', 'QQQ', 'SPY'];
 const ECONOMIC_FUNCTIONS = ['REAL_GDP', 'CPI', 'TREASURY_YIELD', 'FEDERAL_FUNDS_RATE', 'UNEMPLOYMENT'];
 
 export interface EventListenerDeps {
+  getBaseUrl: () => Promise<string>;
   fetchNews: (ticker: string) => Promise<unknown[] | null>;
   fetchIndicator: (fn: string) => Promise<unknown | null>;
 }
 
-async function fetchAV(apiKey: string, params: Record<string, string>): Promise<unknown | null> {
-  const url = new URL(AV_BASE_URL);
+async function resolveBaseUrl(): Promise<string> {
+  const port = process.env.PARAMETERS_SECRETS_EXTENSION_HTTP_PORT ?? '2773';
+  const token = process.env.AWS_SESSION_TOKEN!;
+  const paramName = process.env.ALPHA_VANTAGE_BASE_URL_PARAM!;
+
+  const res = await fetch(
+    `http://localhost:${port}/systemsmanager/parameters/get?name=${encodeURIComponent(paramName)}`,
+    { headers: { 'X-Aws-Parameters-Secrets-Token': token } },
+  );
+  const data = await res.json() as { Parameter: { Value: string } };
+  return data.Parameter.Value;
+}
+
+async function fetchAV(baseUrl: string, apiKey: string, params: Record<string, string>): Promise<unknown | null> {
+  const url = new URL(baseUrl);
   url.searchParams.set('apikey', apiKey);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
@@ -36,16 +49,26 @@ async function fetchAV(apiKey: string, params: Record<string, string>): Promise<
 }
 
 export function createDeps(apiKey: string): EventListenerDeps {
+  let cachedBaseUrl: string | undefined;
+
   return {
+    getBaseUrl: async () => {
+      if (!cachedBaseUrl) {
+        cachedBaseUrl = await resolveBaseUrl();
+      }
+      return cachedBaseUrl;
+    },
     fetchNews: async (ticker: string) => {
-      const data = await fetchAV(apiKey, { function: 'NEWS_SENTIMENT', tickers: ticker });
+      const baseUrl = await (cachedBaseUrl ? Promise.resolve(cachedBaseUrl) : resolveBaseUrl().then(v => { cachedBaseUrl = v; return v; }));
+      const data = await fetchAV(baseUrl, apiKey, { function: 'NEWS_SENTIMENT', tickers: ticker });
       if (data && (data as any).feed) {
         return (data as any).feed as unknown[];
       }
       return null;
     },
     fetchIndicator: async (fn: string) => {
-      const data = await fetchAV(apiKey, { function: fn });
+      const baseUrl = await (cachedBaseUrl ? Promise.resolve(cachedBaseUrl) : resolveBaseUrl().then(v => { cachedBaseUrl = v; return v; }));
+      const data = await fetchAV(baseUrl, apiKey, { function: fn });
       return data ?? null;
     },
   };

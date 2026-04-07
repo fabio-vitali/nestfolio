@@ -26,7 +26,19 @@
         "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/advisory/alpha-vantage-adpt/jest.integration.config.js --passWithNoTests"
       }
     },
-    "lint": { "executor": "@nx/eslint:lint" }
+    "lint": { "executor": "@nx/eslint:lint" },
+    "build-mock": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "mkdir -p services/advisory/alpha-vantage-adpt/test/mocks/dist",
+          "npx esbuild services/advisory/alpha-vantage-adpt/test/mocks/mock-alpha-vantage.ts --bundle --platform=node --target=node20 --outfile=services/advisory/alpha-vantage-adpt/test/mocks/dist/index.mjs --format=esm",
+          "cd services/advisory/alpha-vantage-adpt/test/mocks/dist && zip -j ../mock-alpha-vantage.zip index.mjs"
+        ],
+        "parallel": false
+      },
+      "outputs": ["{projectRoot}/test/mocks/mock-alpha-vantage.zip"]
+    }
   },
   "tags": ["scope:advisory", "type:adpt"]
 }

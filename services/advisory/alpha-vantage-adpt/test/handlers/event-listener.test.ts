@@ -50,7 +50,11 @@ describe('alpha-vantage-adpt event-listener', () => {
     jest.clearAllMocks();
     mockFetchNews = jest.fn().mockResolvedValue(SAMPLE_ARTICLES);
     mockFetchIndicator = jest.fn().mockResolvedValue(SAMPLE_INDICATOR);
-    const deps = { fetchNews: mockFetchNews, fetchIndicator: mockFetchIndicator };
+    const deps = {
+      getBaseUrl: jest.fn().mockResolvedValue('https://www.alphavantage.co/query'),
+      fetchNews: mockFetchNews,
+      fetchIndicator: mockFetchIndicator,
+    };
     handlers = createHandlers(deps);
   });
 
@@ -157,17 +161,32 @@ describe('alpha-vantage-adpt event-listener', () => {
   describe('createDeps', () => {
     const mockFetch = jest.fn();
     const originalFetch = global.fetch;
+    const originalEnv = { ...process.env };
 
     beforeEach(() => {
       global.fetch = mockFetch as any;
+      process.env.PARAMETERS_SECRETS_EXTENSION_HTTP_PORT = '2773';
+      process.env.AWS_SESSION_TOKEN = 'test-session-token';
+      process.env.ALPHA_VANTAGE_BASE_URL_PARAM = '/nestfolio/dev-alpha-vantage-adpt/alpha-vantage/baseUrl';
     });
 
     afterEach(() => {
       global.fetch = originalFetch;
+      process.env = { ...originalEnv };
     });
 
+    /** Helper: mock SSM extension response first, then the actual API response */
+    function mockSsmThenApi(apiResponse: { ok: boolean; json?: () => Promise<unknown> }) {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ Parameter: { Value: 'https://www.alphavantage.co/query' } }),
+        })
+        .mockResolvedValueOnce(apiResponse);
+    }
+
     it('fetchNews extracts feed array from response', async () => {
-      mockFetch.mockResolvedValue({
+      mockSsmThenApi({
         ok: true,
         json: () => Promise.resolve({ feed: SAMPLE_ARTICLES }),
       });
@@ -176,14 +195,15 @@ describe('alpha-vantage-adpt event-listener', () => {
       const result = await deps.fetchNews('VTI');
 
       expect(result).toEqual(SAMPLE_ARTICLES);
-      const call = mockFetch.mock.calls[0][0] as string;
-      expect(call).toContain('NEWS_SENTIMENT');
-      expect(call).toContain('VTI');
-      expect(call).toContain('test-key');
+      // First call is SSM extension, second is the actual API call
+      const apiCall = mockFetch.mock.calls[1][0] as string;
+      expect(apiCall).toContain('NEWS_SENTIMENT');
+      expect(apiCall).toContain('VTI');
+      expect(apiCall).toContain('test-key');
     });
 
     it('fetchNews returns null when response has no feed', async () => {
-      mockFetch.mockResolvedValue({
+      mockSsmThenApi({
         ok: true,
         json: () => Promise.resolve({ message: 'no data' }),
       });
@@ -195,7 +215,7 @@ describe('alpha-vantage-adpt event-listener', () => {
     });
 
     it('fetchIndicator returns raw response data', async () => {
-      mockFetch.mockResolvedValue({
+      mockSsmThenApi({
         ok: true,
         json: () => Promise.resolve(SAMPLE_INDICATOR),
       });
@@ -204,12 +224,12 @@ describe('alpha-vantage-adpt event-listener', () => {
       const result = await deps.fetchIndicator('REAL_GDP');
 
       expect(result).toEqual(SAMPLE_INDICATOR);
-      const call = mockFetch.mock.calls[0][0] as string;
-      expect(call).toContain('REAL_GDP');
+      const apiCall = mockFetch.mock.calls[1][0] as string;
+      expect(apiCall).toContain('REAL_GDP');
     });
 
     it('fetchNews returns null on HTTP error', async () => {
-      mockFetch.mockResolvedValue({ ok: false });
+      mockSsmThenApi({ ok: false });
 
       const deps = createDeps('test-key');
       const result = await deps.fetchNews('VTI');
@@ -218,12 +238,34 @@ describe('alpha-vantage-adpt event-listener', () => {
     });
 
     it('fetchIndicator returns null on fetch error', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'));
+      // SSM resolves, but API call rejects
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ Parameter: { Value: 'https://www.alphavantage.co/query' } }),
+        })
+        .mockRejectedValueOnce(new Error('Network error'));
 
       const deps = createDeps('test-key');
       const result = await deps.fetchIndicator('CPI');
 
       expect(result).toBeNull();
+    });
+
+    it('getBaseUrl caches the resolved URL', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ Parameter: { Value: 'https://mock.example.com' } }),
+      });
+
+      const deps = createDeps('test-key');
+      const url1 = await deps.getBaseUrl();
+      const url2 = await deps.getBaseUrl();
+
+      expect(url1).toBe('https://mock.example.com');
+      expect(url2).toBe('https://mock.example.com');
+      // SSM extension should only be called once (cached)
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 });
