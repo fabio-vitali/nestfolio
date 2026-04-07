@@ -1,9 +1,11 @@
 import { join } from 'path';
-import { Duration } from 'aws-cdk-lib';
+import { Duration, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { EventBus } from 'aws-cdk-lib/aws-events';
+import { ParamsAndSecretsLayerVersion, ParamsAndSecretsVersions } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
@@ -28,6 +30,20 @@ export class FredAdptStack extends ServiceStack {
     // Override the default event bus to the advisory bus
     this.eventBus = advisoryBus;
 
+    // ParamsAndSecrets Extension for SSM-based base URL resolution
+    const paramsAndSecrets = ParamsAndSecretsLayerVersion.fromVersion(
+      ParamsAndSecretsVersions.V1_0_103,
+      { parameterStoreTtl: Duration.seconds(5) },
+    );
+
+    const ssmBasePath = `/nestfolio/${props.prefix}-fred-adpt/fred`;
+
+    new StringParameter(this, 'BaseUrl', {
+      parameterName: `${ssmBasePath}/baseUrl`,
+      stringValue: 'https://api.stlouisfed.org/fred/series/observations',
+      description: 'FRED API base URL (overridable for integration tests)',
+    });
+
     const fredApiKey = StringParameter.valueForStringParameter(
       this,
       `/nestfolio/${props.prefix}-advisory/fred-api-key`,
@@ -40,8 +56,21 @@ export class FredAdptStack extends ServiceStack {
       lambdaTimeout: Duration.seconds(90),
       environment: {
         FRED_API_KEY: fredApiKey,
+        FRED_BASE_URL_PARAM: `${ssmBasePath}/baseUrl`,
       },
+      lambdaProps: { paramsAndSecrets },
     });
+
+    // IAM: SSM access for ParamsAndSecrets Extension base URL
+    ingress.handler.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['ssm:GetParameter'],
+        resources: [
+          `arn:aws:ssm:${Stack.of(this).region}:${Stack.of(this).account}:parameter${ssmBasePath}/*`,
+        ],
+      }),
+    );
 
     // Egress: DDB Stream → CDC → EventBridge
     const egress = new Egress(this, 'Egress', {

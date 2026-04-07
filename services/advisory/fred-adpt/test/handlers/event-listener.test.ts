@@ -31,7 +31,10 @@ describe('fred-adpt event-listener', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetchSeries = jest.fn().mockResolvedValue(SAMPLE_INDICATOR);
-    const deps = { fetchSeries: mockFetchSeries };
+    const deps = {
+      getBaseUrl: jest.fn().mockResolvedValue('https://mock.example.com'),
+      fetchSeries: mockFetchSeries,
+    };
     handlers = createHandlers(deps);
   });
 

@@ -1,7 +1,6 @@
 import { materializeToTable, record, requireEnv, logger, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { FredAdptEventTypes, type FredIndicator } from '../domain/events';
 
-const FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/observations';
 const FETCH_TIMEOUT_MS = 10_000;
 
 export const TRACKED_SERIES = [
@@ -24,21 +23,47 @@ function getObservationStartDate(): string {
   return d.toISOString().slice(0, 10);
 }
 
+async function resolveBaseUrl(): Promise<string> {
+  const port = process.env.PARAMETERS_SECRETS_EXTENSION_HTTP_PORT ?? '2773';
+  const token = process.env.AWS_SESSION_TOKEN!;
+  const paramName = process.env.FRED_BASE_URL_PARAM!;
+
+  const res = await fetch(
+    `http://localhost:${port}/systemsmanager/parameters/get?name=${encodeURIComponent(paramName)}`,
+    { headers: { 'X-Aws-Parameters-Secrets-Token': token } },
+  );
+  const data = await res.json() as { Parameter: { Value: string } };
+  return data.Parameter.Value;
+}
+
 export interface EventListenerDeps {
+  getBaseUrl: () => Promise<string>;
   fetchSeries: (seriesId: string, startDate: string) => Promise<FredIndicator | null>;
 }
 
 export function createDeps(apiKey: string): EventListenerDeps {
+  let cachedBaseUrl: string | undefined;
+
+  const getBaseUrl = async (): Promise<string> => {
+    if (!cachedBaseUrl) {
+      cachedBaseUrl = await resolveBaseUrl();
+    }
+    return cachedBaseUrl;
+  };
+
   return {
+    getBaseUrl,
     fetchSeries: async (seriesId: string, startDate: string) => {
       const series = TRACKED_SERIES.find((s) => s.seriesId === seriesId);
       if (!series) return null;
+
+      const baseUrl = await getBaseUrl();
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
       try {
-        const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${startDate}&sort_order=desc&limit=1`;
+        const url = `${baseUrl}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${startDate}&sort_order=desc&limit=1`;
         const response = await fetch(url, { signal: controller.signal });
         clearTimeout(timeout);
 

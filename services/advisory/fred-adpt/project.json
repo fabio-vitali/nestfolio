@@ -26,7 +26,19 @@
         "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/advisory/fred-adpt/jest.integration.config.js --passWithNoTests"
       }
     },
-    "lint": { "executor": "@nx/eslint:lint" }
+    "lint": { "executor": "@nx/eslint:lint" },
+    "build-mock": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "mkdir -p services/advisory/fred-adpt/test/mocks/dist",
+          "npx esbuild services/advisory/fred-adpt/test/mocks/mock-fred.ts --bundle --platform=node --target=node20 --outfile=services/advisory/fred-adpt/test/mocks/dist/index.mjs --format=esm",
+          "cd services/advisory/fred-adpt/test/mocks/dist && zip -j ../mock-fred.zip index.mjs"
+        ],
+        "parallel": false
+      },
+      "outputs": ["{projectRoot}/test/mocks/mock-fred.zip"]
+    }
   },
   "tags": ["scope:advisory", "type:adpt"]
 }
