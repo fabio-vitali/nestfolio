@@ -2,16 +2,37 @@ import { materializeToTable, record, requireEnv, logger, parseRssFeed, type Writ
 import { YahooFinanceAdptEventTypes } from '../domain/events';
 
 const FETCH_TIMEOUT_MS = 10_000;
-const BASE_URL = 'https://feeds.finance.yahoo.com/rss/2.0/headline';
 
 export interface EventListenerDeps {
+  getBaseUrl: () => Promise<string>;
   fetchFeed: (url: string) => Promise<string | null>;
   parseRss: (xml: string) => unknown[];
   getTickers: () => string[];
 }
 
+async function resolveBaseUrl(): Promise<string> {
+  const port = process.env.PARAMETERS_SECRETS_EXTENSION_HTTP_PORT ?? '2773';
+  const token = process.env.AWS_SESSION_TOKEN!;
+  const paramName = process.env.YAHOO_BASE_URL_PARAM!;
+
+  const res = await fetch(
+    `http://localhost:${port}/systemsmanager/parameters/get?name=${encodeURIComponent(paramName)}`,
+    { headers: { 'X-Aws-Parameters-Secrets-Token': token } },
+  );
+  const data = await res.json() as { Parameter: { Value: string } };
+  return data.Parameter.Value;
+}
+
 export function createDeps(): EventListenerDeps {
+  let cachedBaseUrl: string | undefined;
+
   return {
+    getBaseUrl: async () => {
+      if (!cachedBaseUrl) {
+        cachedBaseUrl = await resolveBaseUrl();
+      }
+      return cachedBaseUrl;
+    },
     fetchFeed: async (url: string) => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -43,12 +64,13 @@ async function handleFetchRequested(
   _ctx: EventContext,
 ): Promise<WriteIntent[]> {
   const tickers = deps.getTickers();
-  logger.info('Starting Yahoo Finance RSS fetch', { tickerCount: tickers.length });
+  const baseUrl = await deps.getBaseUrl();
+  logger.info('Starting Yahoo Finance RSS fetch', { tickerCount: tickers.length, baseUrl });
 
   const intents: WriteIntent[] = [];
 
   for (const ticker of tickers) {
-    const url = `${BASE_URL}?s=${ticker}`;
+    const url = `${baseUrl}?s=${ticker}`;
     const xml = await deps.fetchFeed(url);
 
     if (xml) {

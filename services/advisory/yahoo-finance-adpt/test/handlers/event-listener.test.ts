@@ -21,7 +21,10 @@ const SAMPLE_XML = '<rss><channel><item><title>Test</title></item></channel></rs
 const SAMPLE_ARTICLES = [{ title: 'Test Article' }];
 const TEST_TICKERS = ['VTI', 'BND', 'QQQ'];
 
+const TEST_BASE_URL = 'https://feeds.finance.yahoo.com/rss/2.0/headline';
+
 describe('yahoo-finance-adpt event-listener', () => {
+  let mockGetBaseUrl: jest.Mock;
   let mockFetchFeed: jest.Mock;
   let mockParseRss: jest.Mock;
   let mockGetTickers: jest.Mock;
@@ -29,10 +32,11 @@ describe('yahoo-finance-adpt event-listener', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetBaseUrl = jest.fn().mockResolvedValue(TEST_BASE_URL);
     mockFetchFeed = jest.fn().mockResolvedValue(SAMPLE_XML);
     mockParseRss = jest.fn().mockReturnValue(SAMPLE_ARTICLES);
     mockGetTickers = jest.fn().mockReturnValue(TEST_TICKERS);
-    const deps = { fetchFeed: mockFetchFeed, parseRss: mockParseRss, getTickers: mockGetTickers };
+    const deps = { getBaseUrl: mockGetBaseUrl, fetchFeed: mockFetchFeed, parseRss: mockParseRss, getTickers: mockGetTickers };
     handlers = createHandlers(deps);
   });
 
@@ -47,16 +51,17 @@ describe('yahoo-finance-adpt event-listener', () => {
       expect(mockFetchFeed).toHaveBeenCalledTimes(TEST_TICKERS.length);
     });
 
-    it('calls fetchFeed with the correct URL for each ticker', async () => {
+    it('resolves base URL via getBaseUrl and constructs feed URLs', async () => {
       const sqsRecord = fakeSqsRecord(YahooFinanceAdptEventTypes.FETCH_REQUESTED, {});
       const payload = JSON.parse(sqsRecord.body).detail;
       const ctx = { tenantId: 'SYSTEM', eventId: payload.id };
 
       await handlers[YahooFinanceAdptEventTypes.FETCH_REQUESTED](payload, ctx);
 
+      expect(mockGetBaseUrl).toHaveBeenCalledTimes(1);
       for (const ticker of TEST_TICKERS) {
         expect(mockFetchFeed).toHaveBeenCalledWith(
-          `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${ticker}`,
+          `${TEST_BASE_URL}?s=${ticker}`,
         );
       }
     });
@@ -126,8 +131,9 @@ describe('yahoo-finance-adpt event-listener', () => {
   });
 
   describe('createDeps', () => {
-    it('returns an object with fetchFeed, parseRss, and getTickers functions', () => {
+    it('returns an object with getBaseUrl, fetchFeed, parseRss, and getTickers functions', () => {
       const deps = createDeps();
+      expect(typeof deps.getBaseUrl).toBe('function');
       expect(typeof deps.fetchFeed).toBe('function');
       expect(typeof deps.parseRss).toBe('function');
       expect(typeof deps.getTickers).toBe('function');
