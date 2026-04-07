@@ -51,15 +51,17 @@ async function fetchAV(baseUrl: string, apiKey: string, params: Record<string, s
 export function createDeps(apiKey: string): EventListenerDeps {
   let cachedBaseUrl: string | undefined;
 
+  const getBaseUrl = async (): Promise<string> => {
+    if (!cachedBaseUrl) {
+      cachedBaseUrl = await resolveBaseUrl();
+    }
+    return cachedBaseUrl;
+  };
+
   return {
-    getBaseUrl: async () => {
-      if (!cachedBaseUrl) {
-        cachedBaseUrl = await resolveBaseUrl();
-      }
-      return cachedBaseUrl;
-    },
+    getBaseUrl,
     fetchNews: async (ticker: string) => {
-      const baseUrl = await (cachedBaseUrl ? Promise.resolve(cachedBaseUrl) : resolveBaseUrl().then(v => { cachedBaseUrl = v; return v; }));
+      const baseUrl = await getBaseUrl();
       const data = await fetchAV(baseUrl, apiKey, { function: 'NEWS_SENTIMENT', tickers: ticker });
       if (data && (data as any).feed) {
         return (data as any).feed as unknown[];
@@ -67,7 +69,7 @@ export function createDeps(apiKey: string): EventListenerDeps {
       return null;
     },
     fetchIndicator: async (fn: string) => {
-      const baseUrl = await (cachedBaseUrl ? Promise.resolve(cachedBaseUrl) : resolveBaseUrl().then(v => { cachedBaseUrl = v; return v; }));
+      const baseUrl = await getBaseUrl();
       const data = await fetchAV(baseUrl, apiKey, { function: fn });
       return data ?? null;
     },

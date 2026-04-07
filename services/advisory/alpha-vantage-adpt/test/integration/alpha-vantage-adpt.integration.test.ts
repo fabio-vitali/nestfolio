@@ -50,6 +50,7 @@ describe('alpha-vantage-adpt (mocked)', () => {
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);
+    table.registerCleanup();
 
     await trap.deploy({
       bus: 'advisory',
@@ -87,7 +88,13 @@ describe('alpha-vantage-adpt (mocked)', () => {
   }, 120_000);
 
   it('should fetch economic indicators and emit ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED', async () => {
-    // Wait for indicator CDC event (may already be in the trap from the previous trigger)
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'alpha-vantage-adpt',
+      detailType: 'FETCH_ALPHA_VANTAGE_REQUESTED',
+      detail: {},
+    });
+
     const event = await trap.waitForEvent({
       detailType: 'ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED',
       timeoutMs: 90_000,
