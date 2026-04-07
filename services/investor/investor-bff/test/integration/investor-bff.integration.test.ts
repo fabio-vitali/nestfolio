@@ -128,16 +128,23 @@ describe('investor-bff', () => {
       });
 
       // record('Notification', ...) — no overrides → pk: T#<tenantId>, sk: Notification#<eventId>
-      const item = await table.waitForItem({
-        table: 'investor-bff',
-        pk: `T#${ctx.tenantId}`,
-        timeoutMs: 60_000,
-      });
+      // Poll with skPrefix to avoid non-deterministic match against InvestorProfile records
+      let notifItem: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline && !notifItem) {
+        const items = await table.queryItems({
+          table: 'investor-bff',
+          pk: `T#${ctx.tenantId}`,
+          skPrefix: 'Notification#',
+        });
+        notifItem = items.find(i => i['notificationId'] === notificationId);
+        if (!notifItem) await new Promise(r => setTimeout(r, 2_000));
+      }
 
-      expect(item['__typename']).toBe('Notification');
-      expect(item['notificationId']).toBe(notificationId);
-      expect(item['channel']).toBe('IN_APP');
-      expect(item['title']).toBe('Integration test notification');
+      expect(notifItem).toBeDefined();
+      expect(notifItem!['__typename']).toBe('Notification');
+      expect(notifItem!['channel']).toBe('IN_APP');
+      expect(notifItem!['title']).toBe('Integration test notification');
     }, 120_000);
   });
 
@@ -190,7 +197,7 @@ describe('investor-bff', () => {
         table: 'investor-bff',
         items: [{
           pk,
-          sk: 'CashBalance',
+          sk: 'CashBalance#USD',
           __typename: 'CashBalance',
           tenantId: ctx.tenantId,
           userId: cognitoSub,
