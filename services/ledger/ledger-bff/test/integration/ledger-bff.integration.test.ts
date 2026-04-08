@@ -2,7 +2,6 @@ import {
   createIntegrationContext,
   EventBridgeClient,
   TableAssertions,
-  DdbSeedFixture,
   CognitoFixture,
   AppSyncClient,
   type IntegrationContext,
@@ -12,7 +11,6 @@ describe('ledger-bff', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let table: TableAssertions;
-  let seeder: DdbSeedFixture;
   let appsync: AppSyncClient;
 
   beforeAll(async () => {
@@ -20,7 +18,6 @@ describe('ledger-bff', () => {
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
-    seeder = new DdbSeedFixture(ctx);
 
     const cognito = new CognitoFixture(ctx);
     const tokens = await cognito.setup();
@@ -148,7 +145,7 @@ describe('ledger-bff', () => {
   //   getSimulationComparison → pk: Portfolio#<tenantId> Latest + positions;
   //                             pk: Simulation#<tenantId> Latest + positions
   //
-  // Pre-seed all required items before the describe block runs.
+  // All items are materialized via events before the describe block runs.
 
   describe('AppSync queries', () => {
     const portfolioPk = () => `Portfolio#${ctx.tenantId}`;
@@ -156,137 +153,151 @@ describe('ledger-bff', () => {
     const checkpointPk = () => `Checkpoint#${ctx.tenantId}`;
     const simulationPk = () => `Simulation#${ctx.tenantId}`;
 
-    // Snapshot timestamp well in the past so getPortfolioAt(timestamp >= snapshotTs) finds it
-    const snapshotTimestamp = '2025-06-01T12:00:00.000Z';
-
     beforeAll(async () => {
-      await seeder.seed({
-        table: 'ledger-bff',
-        items: [
-          // getBalance + getPortfolio + getPerformance use sk: 'Latest'
-          {
-            pk: portfolioPk(),
-            sk: 'Latest',
-            __typename: 'PortfolioLatest',
-            tenantId: ctx.tenantId,
-            cashBalanceCents: 1_000_000,
-            lastDeltaCents: 50_000,
-            updatedAt: new Date().toISOString(),
-          },
-          // getPositions + getPortfolio use sk: 'Position#<symbol>'
-          {
-            pk: portfolioPk(),
-            sk: 'Position#AAPL',
-            __typename: 'Position',
-            tenantId: ctx.tenantId,
-            symbol: 'AAPL',
-            quantity: 10,
-            averageCostBasis: 150.0,
-            totalCostBasis: 1500.0,
-            lastFillPrice: 155.0,
-          },
-          {
-            pk: portfolioPk(),
-            sk: 'Position#MSFT',
-            __typename: 'Position',
-            tenantId: ctx.tenantId,
-            symbol: 'MSFT',
-            quantity: 5,
-            averageCostBasis: 300.0,
-            totalCostBasis: 1500.0,
-            lastFillPrice: 310.0,
-          },
-          // getOrderHistory uses pk: History#<tenantId>
-          // sk format matches event-listener transform: Entry#<sequenceNo>
-          // Use high sequenceNo values so seeded items sort first in reverse order
-          // (materialization test uses random 1000–8999)
-          {
-            pk: historyPk(),
-            sk: 'Entry#99001',
-            __typename: 'HistoryEntry',
-            tenantId: ctx.tenantId,
-            eventId: 'integ-hist-001',
-            eventType: 'ORDER_FILLED',
-            payload: { orderId: 'order-001', symbol: 'AAPL', quantity: 5, fillPrice: 150.0 },
-            timestamp: new Date().toISOString(),
-            sequenceNo: 99001,
-            streamType: 'actual',
-          },
-          {
-            pk: historyPk(),
-            sk: 'Entry#99002',
-            __typename: 'HistoryEntry',
-            tenantId: ctx.tenantId,
-            eventId: 'integ-hist-002',
-            eventType: 'BALANCE_UPDATED',
-            payload: { cashBalanceCents: 1000000 },
-            timestamp: new Date().toISOString(),
-            sequenceNo: 99002,
-            streamType: 'actual',
-          },
-          // getTimeTravelAvailability uses pk: Checkpoint#<tenantId>, reads sk as date strings
-          {
-            pk: checkpointPk(),
-            sk: '2025-01-01',
-            __typename: 'Checkpoint',
-            tenantId: ctx.tenantId,
-            cashBalanceCents: 500_000,
-            positions: {},
-            snapshotAt: '2025-01-01T00:00:00.000Z',
-          },
-          {
-            pk: checkpointPk(),
-            sk: '2025-06-01',
-            __typename: 'Checkpoint',
-            tenantId: ctx.tenantId,
-            cashBalanceCents: 900_000,
-            positions: { AAPL: { symbol: 'AAPL', quantity: 8, averageCostBasis: 145.0, totalCostBasis: 1160.0, lastFillPrice: 150.0 } },
-            snapshotAt: '2025-06-01T00:00:00.000Z',
-          },
-          // getPortfolioAt → Lambda resolver reads SnapshotAt#<tenantId>#actual, sk <= timestamp
-          {
-            pk: `SnapshotAt#${ctx.tenantId}#actual`,
-            sk: snapshotTimestamp,
-            __typename: 'SnapshotAt',
-            tenantId: ctx.tenantId,
-            streamType: 'actual',
+      // ── Event-driven fixtures ─────────────────────────────────────────
+
+      // 1. BALANCE_UPDATED → PortfolioLatest (sk: 'Latest') + SnapshotAt
+      //    Include snapshot data so the transform also writes SnapshotAt
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'ledger-bff',
+        detailType: 'BALANCE_UPDATED',
+        detail: {
+          cashBalanceCents: 1_000_000,
+          deltaCents: 50_000,
+          snapshot: {
             cashBalanceCents: 800_000,
             positions: {
-              AAPL: {
-                symbol: 'AAPL',
-                quantity: 8,
-                averageCostBasis: 145.0,
-                totalCostBasis: 1160.0,
-                lastFillPrice: 150.0,
-              },
+              AAPL: { symbol: 'AAPL', quantity: 8, averageCostBasis: 145.0, totalCostBasis: 1160.0, lastFillPrice: 150.0 },
             },
-            timestamp: snapshotTimestamp,
+            lastEventSequence: 99,
           },
-          // getSimulationComparison → reads Simulation#<tenantId> Latest + Position#
-          // Both repository.upsertSimulation and transform write sk: 'Latest'.
-          {
-            pk: simulationPk(),
-            sk: 'Latest',
-            __typename: 'SimulationLatest',
-            tenantId: ctx.tenantId,
-            cashBalanceCents: 950_000,
-            positions: {},
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            pk: simulationPk(),
-            sk: 'Position#AAPL',
-            __typename: 'SimulationPosition',
-            tenantId: ctx.tenantId,
-            symbol: 'AAPL',
-            quantity: 12,
-            averageCostBasis: 148.0,
-            totalCostBasis: 1776.0,
-            lastFillPrice: 155.0,
-          },
-        ],
+        },
       });
-    }, 30_000);
+
+      // 2. PORTFOLIO_UPDATED → Position#AAPL, Position#MSFT
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'ledger-bff',
+        detailType: 'PORTFOLIO_UPDATED',
+        detail: {
+          positions: {
+            AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150.0, totalCostBasis: 1500.0, lastFillPrice: 155.0 },
+            MSFT: { symbol: 'MSFT', quantity: 5, averageCostBasis: 300.0, totalCostBasis: 1500.0, lastFillPrice: 310.0 },
+          },
+        },
+      });
+
+      // 3. LEDGER_ENTRY_RECORDED → HistoryEntry (Entry#99001, Entry#99002)
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'ledger-bff',
+        detailType: 'LEDGER_ENTRY_RECORDED',
+        detail: {
+          eventId: 'integ-hist-query-001',
+          eventType: 'ORDER_FILLED',
+          payload: { orderId: 'order-001', symbol: 'AAPL', quantity: 5, fillPrice: 150.0 },
+          timestamp: new Date().toISOString(),
+          sequenceNo: 99001,
+        },
+      });
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'ledger-bff',
+        detailType: 'LEDGER_ENTRY_RECORDED',
+        detail: {
+          eventId: 'integ-hist-query-002',
+          eventType: 'BALANCE_UPDATED',
+          payload: { cashBalanceCents: 1000000 },
+          timestamp: new Date().toISOString(),
+          sequenceNo: 99002,
+        },
+      });
+
+      // 4. LEDGER_ENTRY_RECORDED with sequenceNo % 100 === 0 → Checkpoint
+      //    Must include cashBalanceCents and positions for checkpoint data
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'ledger-bff',
+        detailType: 'LEDGER_ENTRY_RECORDED',
+        detail: {
+          eventId: 'integ-checkpoint-100',
+          eventType: 'CHECKPOINT',
+          payload: {},
+          timestamp: '2025-01-15T00:00:00.000Z',
+          sequenceNo: 100,
+          cashBalanceCents: 500_000,
+          positions: {},
+        },
+      });
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'ledger-bff',
+        detailType: 'LEDGER_ENTRY_RECORDED',
+        detail: {
+          eventId: 'integ-checkpoint-200',
+          eventType: 'CHECKPOINT',
+          payload: {},
+          timestamp: '2025-06-15T00:00:00.000Z',
+          sequenceNo: 200,
+          cashBalanceCents: 900_000,
+          positions: { AAPL: { symbol: 'AAPL', quantity: 8, averageCostBasis: 145.0, totalCostBasis: 1160.0, lastFillPrice: 150.0 } },
+        },
+      });
+
+      // 5. LEDGER_ENTRY_RECORDED with streamType: 'simulated' → Simulation#Latest + SimulationPosition
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'ledger-bff',
+        detailType: 'LEDGER_ENTRY_RECORDED',
+        detail: {
+          eventId: 'integ-sim-001',
+          eventType: 'SIMULATED_TRADE',
+          payload: {},
+          timestamp: new Date().toISOString(),
+          sequenceNo: 1,
+          streamType: 'simulated',
+          cashBalanceCents: 950_000,
+          positions: {
+            AAPL: { symbol: 'AAPL', quantity: 12, averageCostBasis: 148.0, totalCostBasis: 1776.0, lastFillPrice: 155.0 },
+          },
+        },
+      });
+
+      // Wait for all materializations
+      await table.waitForItem({
+        table: 'ledger-bff',
+        pk: portfolioPk(),
+        sk: 'Latest',
+        timeoutMs: 90_000,
+      });
+      await table.waitForItem({
+        table: 'ledger-bff',
+        pk: portfolioPk(),
+        sk: 'Position#AAPL',
+        timeoutMs: 30_000,
+      });
+      await table.waitForItem({
+        table: 'ledger-bff',
+        pk: historyPk(),
+        sk: 'Entry#99001',
+        timeoutMs: 30_000,
+      });
+      // Wait for checkpoint
+      await table.waitForItem({
+        table: 'ledger-bff',
+        pk: checkpointPk(),
+        sk: '2025-01-15',
+        timeoutMs: 30_000,
+      });
+      // Wait for simulation
+      await table.waitForItem({
+        table: 'ledger-bff',
+        pk: simulationPk(),
+        sk: 'Latest',
+        timeoutMs: 30_000,
+      });
+    }, 120_000);
 
     it('should return cashBalanceCents via getBalance', async () => {
       const result = await appsync.query<{
@@ -414,13 +425,13 @@ describe('ledger-bff', () => {
 
       expect(result.getTimeTravelAvailability).toBeDefined();
       // earliestDate = first checkpoint sk, latestDate = last checkpoint sk
-      expect(result.getTimeTravelAvailability.earliestDate).toBe('2025-01-01');
-      expect(result.getTimeTravelAvailability.latestDate).toBe('2025-06-01');
+      expect(result.getTimeTravelAvailability.earliestDate).toBe('2025-01-15');
+      expect(result.getTimeTravelAvailability.latestDate).toBe('2025-06-15');
     }, 60_000);
 
     it('should return portfolio at a past timestamp via getPortfolioAt (Lambda resolver)', async () => {
-      // Use a timestamp AFTER the seeded snapshot so getSnapshotAt finds it
-      const queryTimestamp = '2025-12-31T23:59:59.000Z';
+      // SnapshotAt sk = event.timestamp (processing time), so use far-future to ensure it's found
+      const queryTimestamp = '2099-12-31T23:59:59.000Z';
 
       const result = await appsync.query<{
         getPortfolioAt: {
@@ -451,7 +462,7 @@ describe('ledger-bff', () => {
       `, { timestamp: queryTimestamp });
 
       expect(result.getPortfolioAt).toBeDefined();
-      // Should reconstruct from the seeded SnapshotAt record
+      // Should reconstruct from the event-materialized SnapshotAt record
       expect(result.getPortfolioAt.cashBalanceCents).toBe(800_000);
       expect(Array.isArray(result.getPortfolioAt.positions)).toBe(true);
       const aapl = result.getPortfolioAt.positions.find(p => p.symbol === 'AAPL');
