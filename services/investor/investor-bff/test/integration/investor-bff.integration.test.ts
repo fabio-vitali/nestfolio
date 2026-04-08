@@ -366,18 +366,25 @@ describe('investor-bff', () => {
     it('should create withdrawal record and emit WITHDRAWAL_REQUESTED', async () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
 
-      // Pre-seed a CashBalance so the TransactWrite condition passes
-      await seeder.seed({
-        table: 'investor-bff',
-        items: [{
-          pk,
-          sk: 'CashBalance#USD',
-          __typename: 'CashBalance',
+      // Event-driven fixture: publish BALANCE_UPDATED to create CashBalance
+      // (replaces seeder.seed of CashBalance)
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'BALANCE_UPDATED',
+        detail: {
           tenantId: ctx.tenantId,
           userId: cognitoSub,
-          amount: 1_000_000,
-          timestamp: new Date().toISOString(),
-        }],
+          cashBalanceCents: 1_000_000,
+        },
+      });
+
+      // Wait for CashBalance to be materialized
+      await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'CashBalance',
+        timeoutMs: 60_000,
       });
 
       const result = await appsync.mutate<{
@@ -416,29 +423,62 @@ describe('investor-bff', () => {
 
     it('should update goal and emit GOAL_UPDATED', async () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
-      const goalId = `integ-goal-${Date.now()}`;
 
-      // Pre-seed a Goal so the resolver's ConditionExpression passes
-      await seeder.seed({
-        table: 'investor-bff',
-        items: [{
-          pk,
-          sk: `Goal#${goalId}`,
-          __typename: 'Goal',
+      // Event-driven fixture: create InvestorProfile + Goal via event chain
+      // 1. USER_REGISTERED creates InvestorProfile
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'USER_REGISTERED',
+        detail: {
           tenantId: ctx.tenantId,
           userId: cognitoSub,
-          goalId,
-          objective: 'Original objective',
-          targetAmountCents: 500_000,
-          currency: 'USD',
-          timeHorizonMonths: 60,
-          targetReturn: 0.07,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          timestamp: new Date().toISOString(),
-        }],
+          email: `${cognitoSub}@integ-goal.example`,
+        },
       });
 
+      await table.waitForItem({
+        table: 'investor-bff',
+        pk: `T#${ctx.tenantId}`,
+        timeoutMs: 60_000,
+      });
+
+      // 2. ONBOARDING_COMPLETED creates Goal (+ other entities)
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'ONBOARDING_COMPLETED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId: cognitoSub,
+          goal: { objective: 'GROWTH' },
+          horizonYears: 10,
+          accountMode: 'simulation',
+          capitalAmount: 50_000,
+          currency: 'USD',
+          riskTolerance: 6,
+          riskExperience: 4,
+          operatingMode: 'BALANCED',
+          mandateAccepted: true,
+        },
+      });
+
+      // 3. Query DDB for the generated goalId
+      let goalId: string | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline && !goalId) {
+        const items = await table.queryItems({
+          table: 'investor-bff',
+          pk,
+          skPrefix: 'Goal#',
+        });
+        const goalItem = items.find(i => i['__typename'] === 'Goal');
+        if (goalItem) goalId = goalItem['goalId'] as string;
+        else await new Promise(r => setTimeout(r, 2_000));
+      }
+      expect(goalId).toBeDefined();
+
+      // 4. Call updateGoal mutation
       const result = await appsync.mutate<{
         updateGoal: { goalId: string; objective: string; targetAmountCents: number; updatedAt: string };
       }>(`
@@ -471,7 +511,7 @@ describe('investor-bff', () => {
       // Assert: CDC event on EventBridge
       const event = await trap.waitForEvent({ detailType: 'GOAL_UPDATED', timeoutMs: 60_000 });
       expect(event.detailType).toBe('GOAL_UPDATED');
-    }, 120_000);
+    }, 180_000);
 
     it('should create mandate and emit MANDATE_CREATED', async () => {
       const result = await appsync.mutate<{
@@ -588,30 +628,39 @@ describe('investor-bff', () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
       const notificationId = `integ-notif-read-${Date.now()}`;
 
-      // Pre-seed a Notification so the UpdateItem condition passes
-      await seeder.seed({
-        table: 'investor-bff',
-        items: [{
-          pk,
-          sk: `Notification#${notificationId}`,
-          __typename: 'Notification',
+      // Event-driven fixture: publish NOTIFICATION_CREATED to create the Notification
+      // (replaces seeder.seed of Notification)
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'NOTIFICATION_CREATED',
+        detail: {
           tenantId: ctx.tenantId,
           userId: cognitoSub,
           notificationId,
           channel: 'IN_APP',
-          title: 'Test notification',
+          title: 'Test notification for read',
           body: 'Test body',
-          status: 'DELIVERED',
           relatedEntityType: 'Goal',
           relatedEntityId: 'goal-xyz',
-          createdAt: new Date().toISOString(),
-          sentAt: null,
-          deliveredAt: new Date().toISOString(),
-          readAt: null,
-          timestamp: new Date().toISOString(),
-        }],
+        },
       });
 
+      // Wait for Notification to be materialized in DDB
+      let notifItem: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline && !notifItem) {
+        const items = await table.queryItems({
+          table: 'investor-bff',
+          pk: `T#${ctx.tenantId}`,
+          skPrefix: 'Notification#',
+        });
+        notifItem = items.find(i => i['notificationId'] === notificationId);
+        if (!notifItem) await new Promise(r => setTimeout(r, 2_000));
+      }
+      expect(notifItem).toBeDefined();
+
+      // Now call markNotificationRead mutation
       const result = await appsync.mutate<{
         markNotificationRead: {
           notificationId: string;
