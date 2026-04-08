@@ -68,10 +68,11 @@ describe('investor-bff', () => {
         },
       });
 
-      // record('InvestorProfile', ...) — no overrides → pk: T#<tenantId>, sk: InvestorProfile#<eventId>
+      // project('InvestorProfile', ...) with overrides → pk: InvestorProfile#<tenantId>#<userId>, sk: InvestorProfile
       const item = await table.waitForItem({
         table: 'investor-bff',
-        pk: `T#${ctx.tenantId}`,
+        pk: `InvestorProfile#${ctx.tenantId}#${userId}`,
+        sk: 'InvestorProfile',
         timeoutMs: 60_000,
       });
 
@@ -127,19 +128,14 @@ describe('investor-bff', () => {
         },
       });
 
-      // record('Notification', ...) — no overrides → pk: T#<tenantId>, sk: Notification#<eventId>
-      // Poll with skPrefix to avoid non-deterministic match against InvestorProfile records
-      let notifItem: Record<string, unknown> | undefined;
-      const deadline = Date.now() + 60_000;
-      while (Date.now() < deadline && !notifItem) {
-        const items = await table.queryItems({
-          table: 'investor-bff',
-          pk: `T#${ctx.tenantId}`,
-          skPrefix: 'Notification#',
-        });
-        notifItem = items.find(i => i['notificationId'] === notificationId);
-        if (!notifItem) await new Promise(r => setTimeout(r, 2_000));
-      }
+      // record('Notification', ...) with overrides → pk: InvestorProfile#<tenantId>#<userId>, sk: Notification#<notificationId>
+      const item = await table.waitForItem({
+        table: 'investor-bff',
+        pk: `InvestorProfile#${ctx.tenantId}#${userId}`,
+        sk: `Notification#${notificationId}`,
+        timeoutMs: 60_000,
+      });
+      const notifItem = item;
 
       expect(notifItem).toBeDefined();
       expect(notifItem!['__typename']).toBe('Notification');
@@ -147,9 +143,7 @@ describe('investor-bff', () => {
       expect(notifItem!['title']).toBe('Integration test notification');
     }, 120_000);
 
-    // SKIPPED: requires pk alignment (InvestorProfile at InvestorProfile# pk, not T# pk)
-    // Will be enabled by Plan F after resolvers and transforms are aligned
-    it.skip('should create 7 entities atomically on ONBOARDING_COMPLETED', async () => {
+    it('should create 7 entities atomically on ONBOARDING_COMPLETED', async () => {
       const userId = cognitoSub;
       const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
 
@@ -169,7 +163,8 @@ describe('investor-bff', () => {
       // Wait for InvestorProfile to exist before sending ONBOARDING_COMPLETED
       await table.waitForItem({
         table: 'investor-bff',
-        pk: `T#${ctx.tenantId}`,
+        pk: `InvestorProfile#${ctx.tenantId}#${userId}`,
+        sk: 'InvestorProfile',
         timeoutMs: 60_000,
       });
 
@@ -274,8 +269,7 @@ describe('investor-bff', () => {
       expect(profileItem['onboardingCompletedAt']).toBeDefined();
     }, 180_000);
 
-    // SKIPPED: requires pk alignment — same as ONBOARDING_COMPLETED above
-    it.skip('should set executionMode to live on GO_LIVE_CONFIRMED', async () => {
+    it('should set executionMode to live on GO_LIVE_CONFIRMED', async () => {
       const userId = cognitoSub;
       const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
 
@@ -294,7 +288,8 @@ describe('investor-bff', () => {
 
       await table.waitForItem({
         table: 'investor-bff',
-        pk: `T#${ctx.tenantId}`,
+        pk: `InvestorProfile#${ctx.tenantId}#${userId}`,
+        sk: 'InvestorProfile',
         timeoutMs: 60_000,
       });
 
@@ -369,8 +364,8 @@ describe('investor-bff', () => {
     it('should create withdrawal record and emit WITHDRAWAL_REQUESTED', async () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
 
-      // Pre-seed a CashBalance so the TransactWrite condition passes
-      // NOTE: seeder retained — event-driven replacement blocked on pk/sk alignment (Plan F)
+      // NOTE: seeder retained — withdrawal resolver expects sk: CashBalance#<currency> with amount field,
+      // but BALANCE_UPDATED transform writes sk: CashBalance with cashBalanceCents (separate pk/sk mismatch)
       await seeder.seed({
         table: 'investor-bff',
         items: [{
@@ -422,8 +417,8 @@ describe('investor-bff', () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
       const goalId = `integ-goal-${Date.now()}`;
 
-      // Pre-seed a Goal so the resolver's ConditionExpression passes
-      // NOTE: seeder retained — event-driven replacement blocked on pk/sk alignment (Plan F)
+      // NOTE: seeder retained — ONBOARDING_COMPLETED generates random goalId UUIDs,
+      // but updateGoal resolver needs a known goalId to target the ConditionExpression
       await seeder.seed({
         table: 'investor-bff',
         items: [{
@@ -593,29 +588,29 @@ describe('investor-bff', () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
       const notificationId = `integ-notif-read-${Date.now()}`;
 
-      // Pre-seed a Notification so the UpdateItem condition passes
-      // NOTE: seeder retained — event-driven replacement blocked on pk/sk alignment (Plan F)
-      await seeder.seed({
-        table: 'investor-bff',
-        items: [{
-          pk,
-          sk: `Notification#${notificationId}`,
-          __typename: 'Notification',
+      // Event-driven fixture: NOTIFICATION_CREATED creates the notification at the correct pk
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'NOTIFICATION_CREATED',
+        detail: {
           tenantId: ctx.tenantId,
           userId: cognitoSub,
           notificationId,
           channel: 'IN_APP',
           title: 'Test notification',
           body: 'Test body',
-          status: 'DELIVERED',
           relatedEntityType: 'Goal',
           relatedEntityId: 'goal-xyz',
-          createdAt: new Date().toISOString(),
-          sentAt: null,
-          deliveredAt: new Date().toISOString(),
-          readAt: null,
-          timestamp: new Date().toISOString(),
-        }],
+        },
+      });
+
+      // Wait for notification to materialize
+      await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: `Notification#${notificationId}`,
+        timeoutMs: 60_000,
       });
 
       const result = await appsync.mutate<{
@@ -659,8 +654,8 @@ describe('investor-bff', () => {
 
     beforeAll(async () => {
       // Event-driven fixture: USER_REGISTERED + ONBOARDING_COMPLETED
-      // USER_REGISTERED creates InvestorProfile at T#<tenantId> (event-listener record)
-      // ONBOARDING_COMPLETED creates InvestorProfile + Goal at InvestorProfile#<tenantId>#<userId> (repository transactWrite)
+      // USER_REGISTERED creates InvestorProfile at InvestorProfile#<tenantId>#<userId> (event-listener project with overrides)
+      // ONBOARDING_COMPLETED updates InvestorProfile + creates Goal at InvestorProfile#<tenantId>#<userId> (repository transactWrite)
 
       await eb.putEvent({
         bus: 'investor',
@@ -673,10 +668,11 @@ describe('investor-bff', () => {
         },
       });
 
-      // Wait for InvestorProfile at T# pk (event-listener record)
+      // Wait for InvestorProfile at InvestorProfile# pk (event-listener project with overrides)
       await table.waitForItem({
         table: 'investor-bff',
-        pk: `T#${ctx.tenantId}`,
+        pk: `InvestorProfile#${ctx.tenantId}#${cognitoSub}`,
+        sk: 'InvestorProfile',
         timeoutMs: 60_000,
       });
 

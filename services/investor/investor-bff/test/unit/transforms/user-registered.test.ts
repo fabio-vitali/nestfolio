@@ -1,11 +1,11 @@
-import { record } from '@nestfolio/event-processor';
+import { project } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 import { userRegistered } from '../../../src/transforms/user-registered';
 
 type TestUow = UnitOfWork<BusEvent<Record<string, unknown>, Record<string, unknown>>>;
 
 describe('userRegistered transform', () => {
-  it('should return record intent for InvestorProfile', () => {
+  it('should return project intent for InvestorProfile with pk overrides', () => {
     const uow: TestUow = {
       event: {
         id: 'e1',
@@ -19,7 +19,10 @@ describe('userRegistered transform', () => {
     };
 
     expect(userRegistered(uow)).toEqual(
-      record('InvestorProfile', { tenantId: 't1', userId: 'u1', email: 'a@b.c' }),
+      project('InvestorProfile', { tenantId: 't1', userId: 'u1', email: 'a@b.c' }, {
+        pk: 'InvestorProfile#t1#u1',
+        sk: 'InvestorProfile',
+      }),
     );
   });
 });

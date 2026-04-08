@@ -37,6 +37,9 @@ describe('notificationCreated transform', () => {
         body: 'Hello',
         relatedEntityType: 'Order',
         relatedEntityId: 'o1',
+      }, {
+        pk: 'InvestorProfile#t1#u1',
+        sk: 'Notification#n1',
       }),
     );
   });

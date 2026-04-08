@@ -25,5 +25,8 @@ export const notificationCreated = (
     body: s.body,
     relatedEntityType: s.relatedEntityType,
     relatedEntityId: s.relatedEntityId,
+  }, {
+    pk: `InvestorProfile#${s.tenantId}#${s.userId}`,
+    sk: `Notification#${s.notificationId}`,
   });
 };
