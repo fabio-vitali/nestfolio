@@ -9,11 +9,15 @@ export const timeTravelAvailability = (
   const payload = event.subject as Record<string, unknown>;
   const snapshotAt = (payload.snapshotAt as string) ?? event.timestamp;
 
+  const date = snapshotAt.slice(0, 10);
+
   return project('TimeTravelAvailability', {
     tenantId,
     userId,
     region,
+    available: true,
     snapshotAt,
+    latestDate: date,
   }, {
     pk: `T#${tenantId}`,
     sk: 'TimeTravelAvailability',

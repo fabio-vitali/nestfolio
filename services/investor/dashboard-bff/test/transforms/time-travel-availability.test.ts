@@ -21,7 +21,9 @@ describe('timeTravelAvailability transform', () => {
     expect(timeTravelAvailability(makeUow({ snapshotAt: '2026-01-01T12:00:00.000Z' }))).toEqual(
       project('TimeTravelAvailability', {
         tenantId: 't1',
+        available: true,
         snapshotAt: '2026-01-01T12:00:00.000Z',
+        latestDate: '2026-01-01',
       }, { pk: 'T#t1', sk: 'TimeTravelAvailability' }),
     );
   });
@@ -30,7 +32,9 @@ describe('timeTravelAvailability transform', () => {
     expect(timeTravelAvailability(makeUow({}))).toEqual(
       project('TimeTravelAvailability', {
         tenantId: 't1',
+        available: true,
         snapshotAt: '2026-01-01T00:00:00.000Z',
+        latestDate: '2026-01-01',
       }, { pk: 'T#t1', sk: 'TimeTravelAvailability' }),
     );
   });

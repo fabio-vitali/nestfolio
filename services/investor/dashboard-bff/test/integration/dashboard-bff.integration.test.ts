@@ -801,46 +801,23 @@ describe('dashboard-bff', () => {
     }, 60_000);
 
     it('should return TimeTravelAvailability via getTimeTravelAvailability', async () => {
-      // The timeTravelAvailability transform (project) writes: tenantId, userId,
-      // region, snapshotAt. It does NOT write 'available', 'oldestDate', or
-      // 'latestDate'. The resolver returns the raw DDB item when found.
-      //
-      // Schema fields (available: Boolean!, oldestDate: String, latestDate: String)
-      // are absent from the event-driven item, so:
-      //   - oldestDate / latestDate → null (nullable String)
-      //   - available → null for a missing Boolean!, which causes AppSync to
-      //     null-propagate the entire TimeTravelAvailability object. Since the
-      //     query return type is TimeTravelAvailability! (non-null), this may
-      //     surface as a GraphQL error.
-      //
-      // We query the schema-defined fields and assert they reflect the absence
-      // of seeded data: oldestDate and latestDate are null.
       const result = await appsync.query<{
         getTimeTravelAvailability: {
           available: boolean;
-          oldestDate: string | null;
           latestDate: string | null;
-        } | null;
+        };
       }>(`
         query GetTimeTravelAvailability {
           getTimeTravelAvailability {
             available
-            oldestDate
             latestDate
           }
         }
       `, {});
 
-      // The item exists in DDB (written by LEDGER_ENTRY_RECORDED event), but
-      // none of the schema-visible fields (available, oldestDate, latestDate) are
-      // set by the transform. AppSync behaviour for missing Boolean! depends on
-      // runtime coercion rules — it may return false or null-propagate.
-      // Assert the response is defined; if non-null, verify the transform-absent
-      // fields are null/default.
-      if (result.getTimeTravelAvailability != null) {
-        expect(result.getTimeTravelAvailability.oldestDate).toBeNull();
-        expect(result.getTimeTravelAvailability.latestDate).toBeNull();
-      }
+      expect(result.getTimeTravelAvailability).toBeDefined();
+      expect(result.getTimeTravelAvailability.available).toBe(true);
+      expect(result.getTimeTravelAvailability.latestDate).toEqual(expect.any(String));
     }, 60_000);
 
     it('should return null from getSimulationSummary when no simulation exists', async () => {
