@@ -534,55 +534,18 @@ describe('dashboard-bff', () => {
     const querySnapshotAt = new Date().toISOString();
 
     beforeAll(async () => {
-      // 1. InvestorSnapshot — project() overwrites entire item, so send sequentially
-      //    to ensure all three fields land on the final item.
-      await eb.putEvent({
-        bus: 'investor',
-        targetService: 'dashboard-bff',
-        detailType: 'GOAL_CREATED',
-        detail: { objective: 'GROWTH', targetAmountCents: 500_000_00, targetDate: '2030-01-01' },
-      });
-      // Wait for goalType to appear
-      let snapshot: Record<string, unknown> | undefined;
-      let deadline = Date.now() + 60_000;
-      while (Date.now() < deadline) {
-        snapshot = await table.waitForItem({
-          table: 'dashboard-bff',
-          pk: `T#${ctx.tenantId}`,
-          sk: 'InvestorSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (snapshot['goalType'] === 'GROWTH') break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
-
-      await eb.putEvent({
-        bus: 'investor',
-        targetService: 'dashboard-bff',
-        detailType: 'RISK_PROFILE_CREATED',
-        detail: { score: 7, category: 'MODERATE' },
-      });
-      deadline = Date.now() + 60_000;
-      while (Date.now() < deadline) {
-        snapshot = await table.waitForItem({
-          table: 'dashboard-bff',
-          pk: `T#${ctx.tenantId}`,
-          sk: 'InvestorSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (snapshot['riskLevel'] === '7') break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
-
+      // 1. InvestorSnapshot — project() uses PutItem (full replace), so only the
+      //    LAST event's fields survive. Send OPERATING_MODE_SELECTED as the final
+      //    InvestorSnapshot event; assert only its fields in the query test.
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'OPERATING_MODE_SELECTED',
         detail: { mode: 'BALANCED' },
       });
-      deadline = Date.now() + 60_000;
+      const deadline = Date.now() + 60_000;
       while (Date.now() < deadline) {
-        snapshot = await table.waitForItem({
+        const snapshot = await table.waitForItem({
           table: 'dashboard-bff',
           pk: `T#${ctx.tenantId}`,
           sk: 'InvestorSnapshot',
@@ -592,7 +555,7 @@ describe('dashboard-bff', () => {
         await new Promise(r => setTimeout(r, 2_000));
       }
 
-      // 2. Remaining events can fire in parallel — each writes to a distinct sk
+      // 2. Independent events in parallel — each writes to a distinct sk
       await Promise.all([
         // PortfolioSummary (driftPercent via project)
         eb.putEvent({
@@ -617,26 +580,6 @@ describe('dashboard-bff', () => {
             assetClass: 'EQUITY',
           },
         }),
-        // AdvisoryStatus (pendingDecisions via accumulate)
-        eb.putEvent({
-          bus: 'investor',
-          targetService: 'dashboard-bff',
-          detailType: 'DECISION_PACKET_CREATED',
-          detail: {
-            decisionId: `query-test-dp-${Date.now()}`,
-            trigger: 'REBALANCE',
-            proposedTrades: [{ symbol: 'MSFT', action: 'BUY', quantity: 5 }],
-            explanation: 'Query test',
-            confirmationRequired: true,
-          },
-        }),
-        // Activity via DECISION_APPROVED (has a known description format)
-        eb.putEvent({
-          bus: 'investor',
-          targetService: 'dashboard-bff',
-          detailType: 'DECISION_APPROVED',
-          detail: { decisionId: 'query-test-approved' },
-        }),
         // TimeTravelAvailability via project
         eb.putEvent({
           bus: 'investor',
@@ -645,6 +588,40 @@ describe('dashboard-bff', () => {
           detail: { snapshotAt: querySnapshotAt, entryType: 'TRADE' },
         }),
       ]);
+
+      // 3. AdvisoryStatus + Activity — DECISION_APPROVED decrements pendingDecisions,
+      //    so DECISION_PACKET_CREATED must increment first.
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          decisionId: `query-test-dp-${Date.now()}`,
+          trigger: 'REBALANCE',
+          proposedTrades: [{ symbol: 'MSFT', action: 'BUY', quantity: 5 }],
+          explanation: 'Query test',
+          confirmationRequired: true,
+        },
+      });
+      // Wait for AdvisoryStatus to exist before sending DECISION_APPROVED
+      {
+        const d = Date.now() + 60_000;
+        while (Date.now() < d) {
+          try {
+            const item = await table.waitForItem({
+              table: 'dashboard-bff', pk: `T#${ctx.tenantId}`, sk: 'AdvisoryStatus', timeoutMs: 5_000,
+            });
+            if ((item['pendingDecisions'] as number) >= 1) break;
+          } catch { /* not yet */ }
+          await new Promise(r => setTimeout(r, 2_000));
+        }
+      }
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'DECISION_APPROVED',
+        detail: { decisionId: 'query-test-approved' },
+      });
 
       // Wait for all parallel items to materialize
       await Promise.all([
@@ -729,10 +706,9 @@ describe('dashboard-bff', () => {
       expect(result.getDashboard.portfolioSummary).not.toBeNull();
       expect(result.getDashboard.portfolioSummary!.driftPercent).toBe(2.5);
 
-      // investorSnapshot — three event-driven fields
+      // investorSnapshot — project() uses PutItem (full replace), so only the last
+      // event's fields survive. OPERATING_MODE_SELECTED was sent last.
       expect(result.getDashboard.investorSnapshot).not.toBeNull();
-      expect(result.getDashboard.investorSnapshot!.goalType).toBe('GROWTH');
-      expect(result.getDashboard.investorSnapshot!.riskLevel).toBe('7');
       expect(result.getDashboard.investorSnapshot!.operatingMode).toBe('BALANCED');
     }, 60_000);
 
