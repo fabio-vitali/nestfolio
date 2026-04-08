@@ -29,6 +29,10 @@
       "inputs": ["default"],
       "cache": true
     },
+    "test-integration": {
+      "cache": false,
+      "parallelism": true
+    },
     "deploy": {
       "dependsOn": ["build"],
       "cache": false

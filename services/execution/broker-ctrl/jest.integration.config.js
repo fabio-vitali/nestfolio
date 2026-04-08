@@ -13,4 +13,5 @@ module.exports = {
   },
   transformIgnorePatterns: ['node_modules/(?!.*p-limit/|.*yocto-queue/)'],
   testTimeout: 120_000,
+  maxWorkers: 1,
 };

@@ -20,7 +20,7 @@ export function request(ctx) {
         key: util.dynamodb.toMapValues({ pk, sk: `CashBalance#${currency}` }),
         update: {
           expression: 'SET amount = amount - :amount',
-          expressionValues: util.dynamodb.toMapValues({ ':amount': amountCents, ':zero': 0 }),
+          expressionValues: util.dynamodb.toMapValues({ ':amount': amountCents }),
         },
         condition: { expression: 'attribute_exists(pk) AND amount >= :amount' },
       },

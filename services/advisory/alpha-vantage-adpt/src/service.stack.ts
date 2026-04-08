@@ -77,8 +77,8 @@ export class AlphaVantageAdptStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'AlphaVantageArticle': { insert: 'ALPHA_VANTAGE_NEWS_UPDATED' },
-        'EconomicIndicator': { insert: 'ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED' },
+        'AlphaVantageArticle': { insert: 'ALPHA_VANTAGE_NEWS_UPDATED', modify: 'ALPHA_VANTAGE_NEWS_UPDATED' },
+        'EconomicIndicator': { insert: 'ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED', modify: 'ALPHA_VANTAGE_ECONOMIC_INDICATOR_UPDATED' },
       },
     });
 

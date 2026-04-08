@@ -1,6 +1,6 @@
 import {
   materializeToTable,
-  record,
+  project,
   requireEnv,
   logger,
   type WriteIntent,
@@ -113,7 +113,7 @@ async function handleFetchRequested(
         };
 
         intents.push(
-          record('SecFiling', filingData, {
+          project('SecFiling', filingData, {
             pk: `SecFiling#${cik}`,
             sk: `Filing#${filing.accessionNumber}`,
           }),

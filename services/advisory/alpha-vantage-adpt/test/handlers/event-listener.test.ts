@@ -98,7 +98,7 @@ describe('alpha-vantage-adpt event-listener', () => {
       // 4 tickers × 2 articles each = 8 article intents
       expect(articleIntents.length).toBe(8);
       for (const intent of articleIntents) {
-        expect((intent as any)._tag).toBe('record');
+        expect((intent as any)._tag).toBe('project');
         expect((intent as any).overrides.pk).toBe('AlphaVantage#SYSTEM');
         expect((intent as any).overrides.sk).toMatch(/^Article#/);
       }
@@ -114,7 +114,7 @@ describe('alpha-vantage-adpt event-listener', () => {
       const indicatorIntents = intents.filter((i: any) => i.typename === 'EconomicIndicator');
       expect(indicatorIntents.length).toBe(5); // REAL_GDP, CPI, TREASURY_YIELD, FEDERAL_FUNDS_RATE, UNEMPLOYMENT
       for (const intent of indicatorIntents) {
-        expect((intent as any)._tag).toBe('record');
+        expect((intent as any)._tag).toBe('project');
         expect((intent as any).overrides.pk).toBe('AlphaVantage#SYSTEM');
         expect((intent as any).overrides.sk).toMatch(/^Indicator#/);
       }

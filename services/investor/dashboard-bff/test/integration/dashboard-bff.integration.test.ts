@@ -74,16 +74,22 @@ describe('dashboard-bff', () => {
         },
       });
 
-      // project('InvestorSnapshot', ...) → pk: T#<tenantId>, sk: InvestorSnapshot
-      const item = await table.waitForItem({
-        table: 'dashboard-bff',
-        pk: `T#${ctx.tenantId}`,
-        sk: 'InvestorSnapshot',
-        timeoutMs: 60_000,
-      });
+      // Item already exists from prior GOAL_CREATED test — poll until riskLevel field appears
+      let item: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        item = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'InvestorSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (item['riskLevel'] === '7') break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
 
-      expect(item['__typename']).toBe('InvestorSnapshot');
-      expect(item['riskLevel']).toBe('7');
+      expect(item!['__typename']).toBe('InvestorSnapshot');
+      expect(item!['riskLevel']).toBe('7');
     }, 120_000);
 
     it('should update InvestorSnapshot on OPERATING_MODE_SELECTED', async () => {
@@ -96,16 +102,22 @@ describe('dashboard-bff', () => {
         },
       });
 
-      // project('InvestorSnapshot', ...) → pk: T#<tenantId>, sk: InvestorSnapshot
-      const item = await table.waitForItem({
-        table: 'dashboard-bff',
-        pk: `T#${ctx.tenantId}`,
-        sk: 'InvestorSnapshot',
-        timeoutMs: 60_000,
-      });
+      // Item already exists from prior GOAL_CREATED test — poll until operatingMode field appears
+      let item: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        item = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'InvestorSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (item['operatingMode'] === 'BALANCED') break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
 
-      expect(item['__typename']).toBe('InvestorSnapshot');
-      expect(item['operatingMode']).toBe('BALANCED');
+      expect(item!['__typename']).toBe('InvestorSnapshot');
+      expect(item!['operatingMode']).toBe('BALANCED');
     }, 120_000);
 
     it('should materialize PortfolioSummary on PORTFOLIO_UPDATED (driftPercent)', async () => {

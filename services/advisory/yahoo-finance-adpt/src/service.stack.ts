@@ -67,7 +67,7 @@ export class YahooFinanceAdptStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'YahooFinanceArticle': { insert: 'YAHOO_FINANCE_UPDATED' },
+        'YahooFinanceArticle': { insert: 'YAHOO_FINANCE_UPDATED', modify: 'YAHOO_FINANCE_UPDATED' },
       },
     });
 

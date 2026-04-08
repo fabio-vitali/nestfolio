@@ -65,7 +65,7 @@ export class MarketwatchAdptStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'MarketWatchArticle': { insert: 'MARKETWATCH_UPDATED' },
+        'MarketWatchArticle': { insert: 'MARKETWATCH_UPDATED', modify: 'MARKETWATCH_UPDATED' },
       },
     });
 

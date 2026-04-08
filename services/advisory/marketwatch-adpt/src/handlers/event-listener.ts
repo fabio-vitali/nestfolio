@@ -1,4 +1,4 @@
-import { materializeToTable, record, logger, parseRssFeed, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, project, logger, parseRssFeed, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { MarketwatchAdptEventTypes } from '../domain/events';
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -76,7 +76,7 @@ async function handleFetchRequested(
       const articles = deps.parseRss(xml);
 
       intents.push(
-        record('MarketWatchArticle', { source: 'marketwatch', feed: feedPath, articles }, {
+        project('MarketWatchArticle', { source: 'marketwatch', feed: feedPath, articles }, {
           pk: 'MarketWatch#SYSTEM',
           sk: `Feed#${feedPath}`,
         }),

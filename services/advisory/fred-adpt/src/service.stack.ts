@@ -76,7 +76,7 @@ export class FredAdptStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'FredIndicator': { insert: 'FRED_INDICATORS_UPDATED' },
+        'FredIndicator': { insert: 'FRED_INDICATORS_UPDATED', modify: 'FRED_INDICATORS_UPDATED' },
       },
     });
 

@@ -23,6 +23,7 @@ export class InvestorBffStack extends ServiceStack {
         'Deposit': { insert: 'DEPOSIT_INITIATED', modify: 'DEPOSIT_UPDATED' },
         'Withdrawal': { insert: 'WITHDRAWAL_REQUESTED', modify: 'WITHDRAWAL_UPDATED' },
         'ExecutionModeChange': { insert: 'EXECUTION_MODE_CHANGED', modify: 'EXECUTION_MODE_CHANGE_UPDATED' },
+        'Notification': { modify: 'NOTIFICATION_READ' },
       },
     });
 

@@ -199,28 +199,31 @@ describe('ledger-bff', () => {
             lastFillPrice: 310.0,
           },
           // getOrderHistory uses pk: History#<tenantId>
+          // sk format matches event-listener transform: Entry#<sequenceNo>
+          // Use high sequenceNo values so seeded items sort first in reverse order
+          // (materialization test uses random 1000–8999)
           {
             pk: historyPk(),
-            sk: '00001000#integ-hist-001',
+            sk: 'Entry#99001',
             __typename: 'HistoryEntry',
             tenantId: ctx.tenantId,
             eventId: 'integ-hist-001',
             eventType: 'ORDER_FILLED',
             payload: { orderId: 'order-001', symbol: 'AAPL', quantity: 5, fillPrice: 150.0 },
             timestamp: new Date().toISOString(),
-            sequenceNo: 1000,
+            sequenceNo: 99001,
             streamType: 'actual',
           },
           {
             pk: historyPk(),
-            sk: '00002000#integ-hist-002',
+            sk: 'Entry#99002',
             __typename: 'HistoryEntry',
             tenantId: ctx.tenantId,
             eventId: 'integ-hist-002',
             eventType: 'BALANCE_UPDATED',
             payload: { cashBalanceCents: 1000000 },
             timestamp: new Date().toISOString(),
-            sequenceNo: 2000,
+            sequenceNo: 99002,
             streamType: 'actual',
           },
           // getTimeTravelAvailability uses pk: Checkpoint#<tenantId>, reads sk as date strings
@@ -394,7 +397,7 @@ describe('ledger-bff', () => {
       // Returned in reverse order (scanIndexForward: false) — highest seq first
       const orderFilled = result.getOrderHistory.items.find(i => i.eventType === 'ORDER_FILLED');
       expect(orderFilled).toBeDefined();
-      expect(orderFilled!.sequenceNo).toBe(1000);
+      expect(orderFilled!.sequenceNo).toBe(99001);
     }, 60_000);
 
     it('should return TimeTravelAvailability via getTimeTravelAvailability', async () => {

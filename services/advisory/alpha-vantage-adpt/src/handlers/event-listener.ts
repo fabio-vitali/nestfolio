@@ -1,4 +1,4 @@
-import { materializeToTable, record, requireEnv, logger, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, project, requireEnv, logger, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { AlphaVantageAdptEventTypes } from '../domain/events';
 
 const FETCH_TIMEOUT_MS = 15_000;
@@ -98,7 +98,7 @@ async function handleFetchRequested(
         const article = articles[i] as Record<string, unknown>;
         const dateStr = (article['time_published'] as string | undefined) ?? new Date().toISOString().slice(0, 10).replace(/-/g, '');
         intents.push(
-          record('AlphaVantageArticle', article, {
+          project('AlphaVantageArticle', article, {
             pk: 'AlphaVantage#SYSTEM',
             sk: `Article#${ticker}#${dateStr}#${i}`,
           }),
@@ -116,7 +116,7 @@ async function handleFetchRequested(
 
     if (data) {
       intents.push(
-        record('EconomicIndicator', { function: fn, data }, {
+        project('EconomicIndicator', { function: fn, data }, {
           pk: 'AlphaVantage#SYSTEM',
           sk: `Indicator#${fn}`,
         }),

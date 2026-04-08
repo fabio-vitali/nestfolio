@@ -1,4 +1,4 @@
-import { materializeToTable, record, requireEnv, logger, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, project, requireEnv, logger, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { FredAdptEventTypes, type FredIndicator } from '../domain/events';
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -108,7 +108,7 @@ async function handleFetchRequested(
 
     if (indicator) {
       intents.push(
-        record('FredIndicator', indicator, {
+        project('FredIndicator', indicator, {
           pk: 'Fred#SYSTEM',
           sk: `Indicator#${series.seriesId}`,
         }),

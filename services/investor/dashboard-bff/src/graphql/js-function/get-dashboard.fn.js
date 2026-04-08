@@ -3,26 +3,23 @@ import { util } from '@aws-appsync/utils';
 export function request(ctx) {
   const { tenantId } = ctx.stash;
   const table = ctx.stash.tableName;
+  const pk = `Dashboard#${tenantId}`;
   return {
-    operation: 'BatchGetItem',
-    tables: {
-      [table]: [
-        util.dynamodb.toMapValues({ pk: `Dashboard#${tenantId}`, sk: 'PortfolioSummary' }),
-        util.dynamodb.toMapValues({ pk: `Dashboard#${tenantId}`, sk: 'AdvisoryStatus' }),
-        util.dynamodb.toMapValues({ pk: `Dashboard#${tenantId}`, sk: 'InvestorSnapshot' }),
-      ],
-    },
+    operation: 'TransactGetItems',
+    transactItems: [
+      { table, key: util.dynamodb.toMapValues({ pk, sk: 'PortfolioSummary' }) },
+      { table, key: util.dynamodb.toMapValues({ pk, sk: 'AdvisoryStatus' }) },
+      { table, key: util.dynamodb.toMapValues({ pk, sk: 'InvestorSnapshot' }) },
+    ],
   };
 }
 
 export function response(ctx) {
   if (ctx.error) util.error(ctx.error.message, ctx.error.type);
-  const items = ctx.result.data[ctx.stash.tableName] || [];
-  const byType = {};
-  for (const item of items) byType[item.sk] = item;
+  const items = ctx.result.items || [];
   return {
-    portfolioSummary: byType['PortfolioSummary'] || null,
-    advisoryStatus: byType['AdvisoryStatus'] || null,
-    investorSnapshot: byType['InvestorSnapshot'] || null,
+    portfolioSummary: items[0] || null,
+    advisoryStatus: items[1] || null,
+    investorSnapshot: items[2] || null,
   };
 }

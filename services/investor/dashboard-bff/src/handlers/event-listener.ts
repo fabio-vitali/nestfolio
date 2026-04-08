@@ -15,12 +15,12 @@ export function createHandlers() {
     [LedgerCrossDomainEventTypes.BALANCE_UPDATED]: (payload: EventPayload, ctx: EventContext) => [
       portfolioSummary(toUow(payload, ctx)),
       recentActivity(toUow(payload, ctx)),
-    ],
+    ].filter((i): i is NonNullable<typeof i> => i != null),
     [LedgerCrossDomainEventTypes.PORTFOLIO_UPDATED]: (payload: EventPayload, ctx: EventContext) => [
       portfolioSummary(toUow(payload, ctx)),
       positionSnapshot(toUow(payload, ctx)),
       recentActivity(toUow(payload, ctx)),
-    ],
+    ].filter((i): i is NonNullable<typeof i> => i != null),
     [LedgerCrossDomainEventTypes.RECONCILIATION_COMPLETED]: (payload: EventPayload, ctx: EventContext) =>
       portfolioSummary(toUow(payload, ctx)),
     [AdvisoryCrossDomainEventTypes.DECISION_PACKET_CREATED]: (payload: EventPayload, ctx: EventContext) =>
