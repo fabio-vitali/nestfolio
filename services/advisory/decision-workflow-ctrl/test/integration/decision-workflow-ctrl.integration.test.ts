@@ -10,7 +10,9 @@ import {
  * decision-workflow-ctrl integration tests — trigger paths + CDC chain.
  *
  * Handler groups tested:
- * 1. TriggerIngress: MANDATE_CREATED, GOAL_CREATED, PORTFOLIO_DRIFT_DETECTED,
+ * 1. TriggerIngress (all 11): MANDATE_CREATED, GOAL_CREATED, GOAL_UPDATED,
+ *    RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED,
+ *    PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED,
  *    DEPOSIT_DETECTED → WorkflowTrigger DDB write
  * 2. CDC chain: WorkflowTrigger DDB insert → WORKFLOW_TRIGGER_CREATED on advisory bus
  *
@@ -247,5 +249,215 @@ describe('decision-workflow-ctrl', () => {
     expect(item['__typename']).toBe('WorkflowTrigger');
     expect(item['tenantId']).toBe(ctx.tenantId);
     expect(item['trigger']).toBe('DEPOSIT_DETECTED');
+  }, 120_000);
+
+  // ── TriggerIngress: GOAL_UPDATED ──────────────────────────────────
+
+  it('should write WorkflowTrigger on GOAL_UPDATED', async () => {
+    const goalId = `integ-goal-upd-${Date.now()}`;
+
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'GOAL_UPDATED',
+      detail: {
+        goalId,
+        tenantId: ctx.tenantId,
+        objective: 'INCOME',
+        targetAmountCents: 1_000_000,
+      },
+    });
+
+    const item = await waitForTriggerRecord(table, {
+      table: 'decision-workflow-ctrl',
+      pk: `T#${ctx.tenantId}`,
+      triggerType: 'GOAL_UPDATED',
+      contextMatch: goalId,
+      timeoutMs: 60_000,
+    });
+
+    expect(item['__typename']).toBe('WorkflowTrigger');
+    expect(item['tenantId']).toBe(ctx.tenantId);
+    expect(item['trigger']).toBe('GOAL_UPDATED');
+  }, 120_000);
+
+  // ── TriggerIngress: RISK_PROFILE_CREATED ──────────────────────────
+
+  it('should write WorkflowTrigger on RISK_PROFILE_CREATED', async () => {
+    const riskProfileId = `integ-riskp-${Date.now()}`;
+
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'RISK_PROFILE_CREATED',
+      detail: {
+        riskProfileId,
+        tenantId: ctx.tenantId,
+        score: 7,
+        band: 'MODERATE',
+      },
+    });
+
+    const item = await waitForTriggerRecord(table, {
+      table: 'decision-workflow-ctrl',
+      pk: `T#${ctx.tenantId}`,
+      triggerType: 'RISK_PROFILE_CREATED',
+      contextMatch: riskProfileId,
+      timeoutMs: 60_000,
+    });
+
+    expect(item['__typename']).toBe('WorkflowTrigger');
+    expect(item['tenantId']).toBe(ctx.tenantId);
+    expect(item['trigger']).toBe('RISK_PROFILE_CREATED');
+  }, 120_000);
+
+  // ── TriggerIngress: RISK_PROFILE_UPDATED ──────────────────────────
+
+  it('should write WorkflowTrigger on RISK_PROFILE_UPDATED', async () => {
+    const riskProfileId = `integ-riskp-upd-${Date.now()}`;
+
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'RISK_PROFILE_UPDATED',
+      detail: {
+        riskProfileId,
+        tenantId: ctx.tenantId,
+        score: 9,
+        band: 'AGGRESSIVE',
+      },
+    });
+
+    const item = await waitForTriggerRecord(table, {
+      table: 'decision-workflow-ctrl',
+      pk: `T#${ctx.tenantId}`,
+      triggerType: 'RISK_PROFILE_UPDATED',
+      contextMatch: riskProfileId,
+      timeoutMs: 60_000,
+    });
+
+    expect(item['__typename']).toBe('WorkflowTrigger');
+    expect(item['tenantId']).toBe(ctx.tenantId);
+    expect(item['trigger']).toBe('RISK_PROFILE_UPDATED');
+  }, 120_000);
+
+  // ── TriggerIngress: OPERATING_MODE_CHANGED ────────────────────────
+
+  it('should write WorkflowTrigger on OPERATING_MODE_CHANGED', async () => {
+    const modeChangeId = `integ-mode-${Date.now()}`;
+
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'OPERATING_MODE_CHANGED',
+      detail: {
+        modeChangeId,
+        tenantId: ctx.tenantId,
+        mode: 'CONSERVATIVE',
+      },
+    });
+
+    const item = await waitForTriggerRecord(table, {
+      table: 'decision-workflow-ctrl',
+      pk: `T#${ctx.tenantId}`,
+      triggerType: 'OPERATING_MODE_CHANGED',
+      contextMatch: modeChangeId,
+      timeoutMs: 60_000,
+    });
+
+    expect(item['__typename']).toBe('WorkflowTrigger');
+    expect(item['tenantId']).toBe(ctx.tenantId);
+    expect(item['trigger']).toBe('OPERATING_MODE_CHANGED');
+  }, 120_000);
+
+  // ── TriggerIngress: ORDER_FILLED ──────────────────────────────────
+
+  it('should write WorkflowTrigger on ORDER_FILLED', async () => {
+    const orderId = `integ-fill-${Date.now()}`;
+
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'ORDER_FILLED',
+      detail: {
+        orderId,
+        tenantId: ctx.tenantId,
+        symbol: 'AAPL',
+        side: 'BUY',
+        quantity: 10,
+        fillPrice: 150,
+      },
+    });
+
+    const item = await waitForTriggerRecord(table, {
+      table: 'decision-workflow-ctrl',
+      pk: `T#${ctx.tenantId}`,
+      triggerType: 'ORDER_FILLED',
+      contextMatch: orderId,
+      timeoutMs: 60_000,
+    });
+
+    expect(item['__typename']).toBe('WorkflowTrigger');
+    expect(item['tenantId']).toBe(ctx.tenantId);
+    expect(item['trigger']).toBe('ORDER_FILLED');
+  }, 120_000);
+
+  // ── TriggerIngress: ORDER_REJECTED ────────────────────────────────
+
+  it('should write WorkflowTrigger on ORDER_REJECTED', async () => {
+    const orderId = `integ-rej-${Date.now()}`;
+
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'ORDER_REJECTED',
+      detail: {
+        orderId,
+        tenantId: ctx.tenantId,
+        symbol: 'TSLA',
+        reason: 'Margin',
+      },
+    });
+
+    const item = await waitForTriggerRecord(table, {
+      table: 'decision-workflow-ctrl',
+      pk: `T#${ctx.tenantId}`,
+      triggerType: 'ORDER_REJECTED',
+      contextMatch: orderId,
+      timeoutMs: 60_000,
+    });
+
+    expect(item['__typename']).toBe('WorkflowTrigger');
+    expect(item['tenantId']).toBe(ctx.tenantId);
+    expect(item['trigger']).toBe('ORDER_REJECTED');
+  }, 120_000);
+
+  // ── TriggerIngress: ORDER_CANCELLED ───────────────────────────────
+
+  it('should write WorkflowTrigger on ORDER_CANCELLED', async () => {
+    const orderId = `integ-cancel-${Date.now()}`;
+
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'ORDER_CANCELLED',
+      detail: {
+        orderId,
+        tenantId: ctx.tenantId,
+        symbol: 'GOOG',
+      },
+    });
+
+    const item = await waitForTriggerRecord(table, {
+      table: 'decision-workflow-ctrl',
+      pk: `T#${ctx.tenantId}`,
+      triggerType: 'ORDER_CANCELLED',
+      contextMatch: orderId,
+      timeoutMs: 60_000,
+    });
+
+    expect(item['__typename']).toBe('WorkflowTrigger');
+    expect(item['tenantId']).toBe(ctx.tenantId);
+    expect(item['trigger']).toBe('ORDER_CANCELLED');
   }, 120_000);
 });
