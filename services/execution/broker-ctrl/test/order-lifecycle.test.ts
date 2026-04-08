@@ -104,11 +104,11 @@ jest.mock('@nestfolio/event-processor', () => {
 });
 
 // ── Imports (after mocks) ───────────────────────────────────────────────────
-import { handler as routeOrder, type RouteOrderEvent } from '../../src/handlers/route-order';
-import { handler as callbackResolver } from '../../src/handlers/callback-resolver';
-import { handler as modeListener } from '../../src/handlers/mode-listener';
-import { handler as depositWithdrawalRouter } from '../../src/handlers/deposit-withdrawal-router';
-import { handler as depositWithdrawalNormalizer } from '../../src/handlers/deposit-withdrawal-normalizer';
+import { handler as routeOrder, type RouteOrderEvent } from '../src/handlers/route-order';
+import { handler as callbackResolver } from '../src/handlers/callback-resolver';
+import { handler as modeListener } from '../src/handlers/mode-listener';
+import { handler as depositWithdrawalRouter } from '../src/handlers/deposit-withdrawal-router';
+import { handler as depositWithdrawalNormalizer } from '../src/handlers/deposit-withdrawal-normalizer';
 import { fakeSqsRecord } from '@nestfolio/event-processor';
 import type { SQSEvent } from 'aws-lambda';
 
@@ -117,20 +117,33 @@ function makeSqsEvent(
   records: Array<{ detailType: string; detail: Record<string, unknown> }>,
 ): SQSEvent {
   return {
-    Records: records.map((r, i) => ({
-      messageId: `msg-${i}`,
-      receiptHandle: `handle-${i}`,
-      body: JSON.stringify({
-        'detail-type': r.detailType,
-        detail: JSON.stringify(r.detail),
-      }),
-      attributes: {} as SQSEvent['Records'][0]['attributes'],
-      messageAttributes: {},
-      md5OfBody: '',
-      eventSource: 'aws:sqs',
-      eventSourceARN: '',
-      awsRegion: 'us-east-1',
-    })),
+    Records: records.map((r, i) => {
+      const { tenantId = 't-1', subject, ...rest } = r.detail;
+      return {
+        messageId: `msg-${i}`,
+        receiptHandle: `handle-${i}`,
+        body: JSON.stringify({
+          detail: {
+            id: `evt-${i}`,
+            type: r.detailType,
+            timestamp: '2025-01-01T00:00:00.000Z',
+            subject: subject ?? rest,
+            context: { tenantId, userId: 'u-1', region: 'us-east-1' },
+          },
+        }),
+        attributes: {
+          ApproximateReceiveCount: '1',
+          SentTimestamp: '',
+          SenderId: '',
+          ApproximateFirstReceiveTimestamp: '',
+        },
+        messageAttributes: {},
+        md5OfBody: '',
+        eventSource: 'aws:sqs',
+        eventSourceARN: 'arn:aws:sqs:us-east-1:000000000000:test-queue',
+        awsRegion: 'us-east-1',
+      };
+    }),
   };
 }
 

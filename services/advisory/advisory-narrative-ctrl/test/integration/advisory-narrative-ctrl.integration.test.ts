@@ -14,6 +14,7 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
     ctx = await createIntegrationContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
+    table.registerCleanup();
   }, 60_000);
 
   afterAll(async () => {

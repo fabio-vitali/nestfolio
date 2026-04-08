@@ -1,5 +1,5 @@
 import { Duration } from 'aws-cdk-lib';
-import { EventBus, Match, Rule } from 'aws-cdk-lib/aws-events';
+import { CfnRule, EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
@@ -35,27 +35,28 @@ export class InvestorAdptStack extends ServiceStack {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
-    new Rule(this, 'InvestorIngress-FromAdvisory', {
+    const fromAdvisoryEvents = [
+      InvestorIngestEventTypes.DECISION_PACKET_CREATED,
+      InvestorIngestEventTypes.USER_CONFIRMATION_REQUESTED,
+      InvestorIngestEventTypes.EXPLANATION_GENERATED,
+      InvestorIngestEventTypes.DECISION_APPROVED,
+      InvestorIngestEventTypes.DECISION_BLOCKED,
+      InvestorIngestEventTypes.ESCALATION_TRIGGERED,
+      InvestorIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
+      InvestorIngestEventTypes.CIRCUIT_BREAKER_RESET,
+      InvestorIngestEventTypes.INCIDENT_DETECTED,
+      InvestorIngestEventTypes.INCIDENT_RESOLVED,
+    ];
+    const fromAdvisoryRule = new Rule(this, 'InvestorIngress-FromAdvisory', {
       eventBus: advisoryBus,
-      eventPattern: {
-        detailType: [
-          InvestorIngestEventTypes.DECISION_PACKET_CREATED,
-          InvestorIngestEventTypes.USER_CONFIRMATION_REQUESTED,
-          InvestorIngestEventTypes.EXPLANATION_GENERATED,
-          InvestorIngestEventTypes.DECISION_APPROVED,
-          InvestorIngestEventTypes.DECISION_BLOCKED,
-          InvestorIngestEventTypes.ESCALATION_TRIGGERED,
-          InvestorIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
-          InvestorIngestEventTypes.CIRCUIT_BREAKER_RESET,
-          InvestorIngestEventTypes.INCIDENT_DETECTED,
-          InvestorIngestEventTypes.INCIDENT_RESOLVED,
-        ],
-        source: Match.anyOf(
-          Match.anythingButPrefix('integration-test:'),
-          Match.prefix(`integration-test:${serviceName}`),
-        ),
-      },
+      eventPattern: { detailType: fromAdvisoryEvents },
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromAdvisoryDlq })],
+    });
+    (fromAdvisoryRule.node.defaultChild as CfnRule).addPropertyOverride('EventPattern', {
+      '$or': [
+        { 'detail-type': fromAdvisoryEvents, 'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }] },
+        { 'detail-type': fromAdvisoryEvents, 'source': [{ 'prefix': `integration-test:${serviceName}` }] },
+      ],
     });
 
     // Ingest: Execution → Investor
@@ -63,25 +64,26 @@ export class InvestorAdptStack extends ServiceStack {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
-    new Rule(this, 'InvestorIngress-FromExecution', {
+    const fromExecutionEvents = [
+      InvestorIngestEventTypes.ORDER_STAGED,
+      InvestorIngestEventTypes.ORDER_FILLED,
+      InvestorIngestEventTypes.ORDER_REJECTED,
+      InvestorIngestEventTypes.ORDER_CANCELLED,
+      InvestorIngestEventTypes.WITHDRAWAL_COMPLETED,
+      InvestorIngestEventTypes.ORDER_ESCALATED,
+      InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
+      InvestorIngestEventTypes.TRANSFER_FAILED,
+    ];
+    const fromExecutionRule = new Rule(this, 'InvestorIngress-FromExecution', {
       eventBus: executionBus,
-      eventPattern: {
-        detailType: [
-          InvestorIngestEventTypes.ORDER_STAGED,
-          InvestorIngestEventTypes.ORDER_FILLED,
-          InvestorIngestEventTypes.ORDER_REJECTED,
-          InvestorIngestEventTypes.ORDER_CANCELLED,
-          InvestorIngestEventTypes.WITHDRAWAL_COMPLETED,
-          InvestorIngestEventTypes.ORDER_ESCALATED,
-          InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
-          InvestorIngestEventTypes.TRANSFER_FAILED,
-        ],
-        source: Match.anyOf(
-          Match.anythingButPrefix('integration-test:'),
-          Match.prefix(`integration-test:${serviceName}`),
-        ),
-      },
+      eventPattern: { detailType: fromExecutionEvents },
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromExecutionDlq })],
+    });
+    (fromExecutionRule.node.defaultChild as CfnRule).addPropertyOverride('EventPattern', {
+      '$or': [
+        { 'detail-type': fromExecutionEvents, 'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }] },
+        { 'detail-type': fromExecutionEvents, 'source': [{ 'prefix': `integration-test:${serviceName}` }] },
+      ],
     });
 
     // Ingest: Ledger → Investor
@@ -89,22 +91,23 @@ export class InvestorAdptStack extends ServiceStack {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
-    new Rule(this, 'InvestorIngress-FromLedger', {
+    const fromLedgerEvents = [
+      InvestorIngestEventTypes.BALANCE_UPDATED,
+      InvestorIngestEventTypes.PORTFOLIO_UPDATED,
+      InvestorIngestEventTypes.LEDGER_ENTRY_RECORDED,
+      InvestorIngestEventTypes.RECONCILIATION_COMPLETED,
+      InvestorIngestEventTypes.LEDGER_PROCESSING_FAILED,
+    ];
+    const fromLedgerRule = new Rule(this, 'InvestorIngress-FromLedger', {
       eventBus: ledgerBus,
-      eventPattern: {
-        detailType: [
-          InvestorIngestEventTypes.BALANCE_UPDATED,
-          InvestorIngestEventTypes.PORTFOLIO_UPDATED,
-          InvestorIngestEventTypes.LEDGER_ENTRY_RECORDED,
-          InvestorIngestEventTypes.RECONCILIATION_COMPLETED,
-          InvestorIngestEventTypes.LEDGER_PROCESSING_FAILED,
-        ],
-        source: Match.anyOf(
-          Match.anythingButPrefix('integration-test:'),
-          Match.prefix(`integration-test:${serviceName}`),
-        ),
-      },
+      eventPattern: { detailType: fromLedgerEvents },
       targets: [new EventBusTarget(investorBus, { deadLetterQueue: fromLedgerDlq })],
+    });
+    (fromLedgerRule.node.defaultChild as CfnRule).addPropertyOverride('EventPattern', {
+      '$or': [
+        { 'detail-type': fromLedgerEvents, 'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }] },
+        { 'detail-type': fromLedgerEvents, 'source': [{ 'prefix': `integration-test:${serviceName}` }] },
+      ],
     });
 
     if (this.observability) {

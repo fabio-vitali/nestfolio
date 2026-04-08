@@ -14,6 +14,7 @@ describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DD
     ctx = await createIntegrationContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
+    table.registerCleanup();
   }, 60_000);
 
   afterAll(async () => {

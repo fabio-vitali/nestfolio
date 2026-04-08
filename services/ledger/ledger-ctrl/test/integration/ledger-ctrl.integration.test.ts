@@ -197,26 +197,8 @@ describe('ledger-ctrl: event-listener DDB writes', () => {
 // ── CDC chain: balance-affecting events → BALANCE_UPDATED ────────────
 // Flow: EB → SQS → event-listener (LedgerEntry DDB write) → DDB Stream →
 //       Reducer (snapshot + derived events) → DDB Stream → Egress → EB
-//
-// SKIPPED — Reducer Lambda sk-prefix mismatch (stale deployment)
-// ---------------------------------------------------------------
-// Root cause: The deployed Reducer Lambda (2026-04-06) was bundled from
-// the replayAndReduce pipeline's `conventionQuery`, which queries:
-//   begins_with(sk, '${__typename}#')  →  begins_with(sk, 'LedgerEntry#')
-// But putLedgerEntry writes sk = 'Event#<eventId>'. The query always
-// returns 0 events, so the Reducer logs "No new events to reduce" and
-// never writes BalanceEvent / PortfolioEvent / LedgerEntryEvent records.
-//
-// Fix: Redeploy ledger-ctrl. The current source (reducer.ts) uses
-// EgestionEngine with a custom processGroup that calls
-// repository.queryEntriesSince, which correctly queries
-// begins_with(sk, 'Event#').
-//
-// No AccountSeedingFixture needed: INITIAL_ACCOUNT_STATE provides
-// cashBalanceCents: 10_000_000, so the Reducer has a baseline to
-// delta against on the very first event for a tenant.
 
-describe.skip('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
+describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
@@ -324,9 +306,7 @@ describe.skip('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
 // ORDER_REJECTED is a no-op in the reducer (no balance/portfolio change),
 // but LedgerEntryEvent is always written when the snapshot updates →
 // Egress emits LEDGER_ENTRY_RECORDED.
-// SKIPPED — same Reducer sk-prefix mismatch as above.
-
-describe.skip('ledger-ctrl: CDC chain → LEDGER_ENTRY_RECORDED', () => {
+describe('ledger-ctrl: CDC chain → LEDGER_ENTRY_RECORDED', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;

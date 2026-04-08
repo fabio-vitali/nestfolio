@@ -1,5 +1,5 @@
 import { Duration } from 'aws-cdk-lib';
-import { EventBus, Match, Rule } from 'aws-cdk-lib/aws-events';
+import { CfnRule, EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
@@ -35,24 +35,25 @@ export class AdvisoryAdptStack extends ServiceStack {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
-    new Rule(this, 'AdvisoryIngress-FromInvestor', {
+    const fromInvestorEvents = [
+      AdvisoryIngestEventTypes.GOAL_CREATED,
+      AdvisoryIngestEventTypes.GOAL_UPDATED,
+      AdvisoryIngestEventTypes.RISK_PROFILE_CREATED,
+      AdvisoryIngestEventTypes.RISK_PROFILE_UPDATED,
+      AdvisoryIngestEventTypes.OPERATING_MODE_CHANGED,
+      AdvisoryIngestEventTypes.MANDATE_CREATED,
+      AdvisoryIngestEventTypes.MANDATE_UPDATED,
+    ];
+    const fromInvestorRule = new Rule(this, 'AdvisoryIngress-FromInvestor', {
       eventBus: investorBus,
-      eventPattern: {
-        detailType: [
-          AdvisoryIngestEventTypes.GOAL_CREATED,
-          AdvisoryIngestEventTypes.GOAL_UPDATED,
-          AdvisoryIngestEventTypes.RISK_PROFILE_CREATED,
-          AdvisoryIngestEventTypes.RISK_PROFILE_UPDATED,
-          AdvisoryIngestEventTypes.OPERATING_MODE_CHANGED,
-          AdvisoryIngestEventTypes.MANDATE_CREATED,
-          AdvisoryIngestEventTypes.MANDATE_UPDATED,
-        ],
-        source: Match.anyOf(
-          Match.anythingButPrefix('integration-test:'),
-          Match.prefix(`integration-test:${serviceName}`),
-        ),
-      },
+      eventPattern: { detailType: fromInvestorEvents },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromInvestorDlq })],
+    });
+    (fromInvestorRule.node.defaultChild as CfnRule).addPropertyOverride('EventPattern', {
+      '$or': [
+        { 'detail-type': fromInvestorEvents, 'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }] },
+        { 'detail-type': fromInvestorEvents, 'source': [{ 'prefix': `integration-test:${serviceName}` }] },
+      ],
     });
 
     // Ingest: Execution → Advisory
@@ -60,21 +61,22 @@ export class AdvisoryAdptStack extends ServiceStack {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
-    new Rule(this, 'AdvisoryIngress-FromExecution', {
+    const fromExecutionEvents = [
+      AdvisoryIngestEventTypes.ORDER_FILLED,
+      AdvisoryIngestEventTypes.ORDER_REJECTED,
+      AdvisoryIngestEventTypes.ORDER_CANCELLED,
+      AdvisoryIngestEventTypes.DEPOSIT_DETECTED,
+    ];
+    const fromExecutionRule = new Rule(this, 'AdvisoryIngress-FromExecution', {
       eventBus: executionBus,
-      eventPattern: {
-        detailType: [
-          AdvisoryIngestEventTypes.ORDER_FILLED,
-          AdvisoryIngestEventTypes.ORDER_REJECTED,
-          AdvisoryIngestEventTypes.ORDER_CANCELLED,
-          AdvisoryIngestEventTypes.DEPOSIT_DETECTED,
-        ],
-        source: Match.anyOf(
-          Match.anythingButPrefix('integration-test:'),
-          Match.prefix(`integration-test:${serviceName}`),
-        ),
-      },
+      eventPattern: { detailType: fromExecutionEvents },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromExecutionDlq })],
+    });
+    (fromExecutionRule.node.defaultChild as CfnRule).addPropertyOverride('EventPattern', {
+      '$or': [
+        { 'detail-type': fromExecutionEvents, 'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }] },
+        { 'detail-type': fromExecutionEvents, 'source': [{ 'prefix': `integration-test:${serviceName}` }] },
+      ],
     });
 
     // Ingest: Ledger → Advisory
@@ -82,19 +84,20 @@ export class AdvisoryAdptStack extends ServiceStack {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
-    new Rule(this, 'AdvisoryIngress-FromLedger', {
+    const fromLedgerEvents = [
+      AdvisoryIngestEventTypes.PORTFOLIO_UPDATED,
+      AdvisoryIngestEventTypes.PORTFOLIO_DRIFT_DETECTED,
+    ];
+    const fromLedgerRule = new Rule(this, 'AdvisoryIngress-FromLedger', {
       eventBus: ledgerBus,
-      eventPattern: {
-        detailType: [
-          AdvisoryIngestEventTypes.PORTFOLIO_UPDATED,
-          AdvisoryIngestEventTypes.PORTFOLIO_DRIFT_DETECTED,
-        ],
-        source: Match.anyOf(
-          Match.anythingButPrefix('integration-test:'),
-          Match.prefix(`integration-test:${serviceName}`),
-        ),
-      },
+      eventPattern: { detailType: fromLedgerEvents },
       targets: [new EventBusTarget(advisoryBus, { deadLetterQueue: fromLedgerDlq })],
+    });
+    (fromLedgerRule.node.defaultChild as CfnRule).addPropertyOverride('EventPattern', {
+      '$or': [
+        { 'detail-type': fromLedgerEvents, 'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }] },
+        { 'detail-type': fromLedgerEvents, 'source': [{ 'prefix': `integration-test:${serviceName}` }] },
+      ],
     });
 
     if (this.observability) {

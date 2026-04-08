@@ -40,6 +40,7 @@ describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB wri
     ctx = await createIntegrationContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
+    table.registerCleanup();
   }, 60_000);
 
   afterAll(async () => {

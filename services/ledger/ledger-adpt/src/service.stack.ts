@@ -1,5 +1,5 @@
 import { Duration } from 'aws-cdk-lib';
-import { EventBus, Match, Rule } from 'aws-cdk-lib/aws-events';
+import { CfnRule, EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
@@ -29,28 +29,29 @@ export class LedgerAdptStack extends ServiceStack {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
-    new Rule(this, 'LedgerIngress-FromExecution', {
+    const fromExecutionEvents = [
+      LedgerIngestEventTypes.ORDER_FILLED,
+      LedgerIngestEventTypes.ORDER_PARTIALLY_FILLED,
+      LedgerIngestEventTypes.ORDER_REJECTED,
+      LedgerIngestEventTypes.ORDER_CANCELLED,
+      LedgerIngestEventTypes.DEPOSIT_DETECTED,
+      LedgerIngestEventTypes.WITHDRAWAL_COMPLETED,
+      LedgerIngestEventTypes.TRANSFER_FAILED,
+      LedgerIngestEventTypes.CORPORATE_ACTION_APPLIED,
+      LedgerIngestEventTypes.PORTFOLIO_SNAPSHOT_IMPORTED,
+      LedgerIngestEventTypes.ALPACA_ACCOUNT_SNAPSHOT,
+      LedgerIngestEventTypes.DECISION_PACKET_CREATED,
+    ];
+    const fromExecutionRule = new Rule(this, 'LedgerIngress-FromExecution', {
       eventBus: executionBus,
-      eventPattern: {
-        detailType: [
-          LedgerIngestEventTypes.ORDER_FILLED,
-          LedgerIngestEventTypes.ORDER_PARTIALLY_FILLED,
-          LedgerIngestEventTypes.ORDER_REJECTED,
-          LedgerIngestEventTypes.ORDER_CANCELLED,
-          LedgerIngestEventTypes.DEPOSIT_DETECTED,
-          LedgerIngestEventTypes.WITHDRAWAL_COMPLETED,
-          LedgerIngestEventTypes.TRANSFER_FAILED,
-          LedgerIngestEventTypes.CORPORATE_ACTION_APPLIED,
-          LedgerIngestEventTypes.PORTFOLIO_SNAPSHOT_IMPORTED,
-          LedgerIngestEventTypes.ALPACA_ACCOUNT_SNAPSHOT,
-          LedgerIngestEventTypes.DECISION_PACKET_CREATED,
-        ],
-        source: Match.anyOf(
-          Match.anythingButPrefix('integration-test:'),
-          Match.prefix(`integration-test:${serviceName}`),
-        ),
-      },
+      eventPattern: { detailType: fromExecutionEvents },
       targets: [new EventBusTarget(ledgerBus, { deadLetterQueue: fromExecutionDlq })],
+    });
+    (fromExecutionRule.node.defaultChild as CfnRule).addPropertyOverride('EventPattern', {
+      '$or': [
+        { 'detail-type': fromExecutionEvents, 'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }] },
+        { 'detail-type': fromExecutionEvents, 'source': [{ 'prefix': `integration-test:${serviceName}` }] },
+      ],
     });
 
     if (this.observability) {

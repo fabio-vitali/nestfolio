@@ -1,5 +1,5 @@
 import { Duration } from 'aws-cdk-lib';
-import { EventBus, Match, Rule } from 'aws-cdk-lib/aws-events';
+import { CfnRule, EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { EventBus as EventBusTarget } from 'aws-cdk-lib/aws-events-targets';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
@@ -32,22 +32,23 @@ export class ExecutionAdptStack extends ServiceStack {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
-    new Rule(this, 'ExecutionIngress-FromAdvisory', {
+    const fromAdvisoryEvents = [
+      ExecutionIngestEventTypes.DECISION_APPROVED,
+      ExecutionIngestEventTypes.DECISION_PACKET_CREATED,
+      ExecutionIngestEventTypes.USER_CONFIRMED,
+      ExecutionIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
+      ExecutionIngestEventTypes.CIRCUIT_BREAKER_RESET,
+    ];
+    const fromAdvisoryRule = new Rule(this, 'ExecutionIngress-FromAdvisory', {
       eventBus: advisoryBus,
-      eventPattern: {
-        detailType: [
-          ExecutionIngestEventTypes.DECISION_APPROVED,
-          ExecutionIngestEventTypes.DECISION_PACKET_CREATED,
-          ExecutionIngestEventTypes.USER_CONFIRMED,
-          ExecutionIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
-          ExecutionIngestEventTypes.CIRCUIT_BREAKER_RESET,
-        ],
-        source: Match.anyOf(
-          Match.anythingButPrefix('integration-test:'),
-          Match.prefix(`integration-test:${serviceName}`),
-        ),
-      },
+      eventPattern: { detailType: fromAdvisoryEvents },
       targets: [new EventBusTarget(executionBus, { deadLetterQueue: fromAdvisoryDlq })],
+    });
+    (fromAdvisoryRule.node.defaultChild as CfnRule).addPropertyOverride('EventPattern', {
+      '$or': [
+        { 'detail-type': fromAdvisoryEvents, 'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }] },
+        { 'detail-type': fromAdvisoryEvents, 'source': [{ 'prefix': `integration-test:${serviceName}` }] },
+      ],
     });
 
     // Ingest: Investor → Execution
@@ -55,21 +56,22 @@ export class ExecutionAdptStack extends ServiceStack {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
-    new Rule(this, 'ExecutionIngress-FromInvestor', {
+    const fromInvestorEvents = [
+      ExecutionIngestEventTypes.DEPOSIT_INITIATED,
+      ExecutionIngestEventTypes.WITHDRAWAL_REQUESTED,
+      ExecutionIngestEventTypes.ACCOUNT_CLOSURE_REQUESTED,
+      ExecutionIngestEventTypes.EXECUTION_MODE_CHANGED,
+    ];
+    const fromInvestorRule = new Rule(this, 'ExecutionIngress-FromInvestor', {
       eventBus: investorBus,
-      eventPattern: {
-        detailType: [
-          ExecutionIngestEventTypes.DEPOSIT_INITIATED,
-          ExecutionIngestEventTypes.WITHDRAWAL_REQUESTED,
-          ExecutionIngestEventTypes.ACCOUNT_CLOSURE_REQUESTED,
-          ExecutionIngestEventTypes.EXECUTION_MODE_CHANGED,
-        ],
-        source: Match.anyOf(
-          Match.anythingButPrefix('integration-test:'),
-          Match.prefix(`integration-test:${serviceName}`),
-        ),
-      },
+      eventPattern: { detailType: fromInvestorEvents },
       targets: [new EventBusTarget(executionBus, { deadLetterQueue: fromInvestorDlq })],
+    });
+    (fromInvestorRule.node.defaultChild as CfnRule).addPropertyOverride('EventPattern', {
+      '$or': [
+        { 'detail-type': fromInvestorEvents, 'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }] },
+        { 'detail-type': fromInvestorEvents, 'source': [{ 'prefix': `integration-test:${serviceName}` }] },
+      ],
     });
 
     if (this.observability) {

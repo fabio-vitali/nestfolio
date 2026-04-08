@@ -122,14 +122,9 @@ describe('advisory-ctrl', () => {
       expect(item['complianceResult']).toBe('BLOCKED');
       expect(item['blockReason']).toBe('Integration test block');
 
-      // Optionally verify CDC egress — the UpdateCommand triggers a DDB Stream event.
-      // The CDC event may not arrive if the DDB Stream filter or processing has delays.
-      try {
-        const cdcEvent = await trap.waitForEvent({ detailType: 'DECISION_PACKET_CREATED', timeoutMs: 30_000 });
-        expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
-      } catch {
-        // CDC verification is best-effort; the DDB write above is the primary assertion.
-      }
+      // Verify CDC egress — the UpdateCommand triggers a DDB Stream event.
+      const cdcEvent = await trap.waitForEvent({ detailType: 'DECISION_PACKET_CREATED', timeoutMs: 30_000 });
+      expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
     }, 120_000);
 
     it('should update DecisionPacket to APPROVED on DECISION_APPROVED (L1 autonomous)', async () => {
@@ -356,7 +351,7 @@ describe('advisory-ctrl', () => {
     ];
 
     it.each(triggerEvents)(
-      'should process $detailType without handler error',
+      'should process $detailType and emit DECISION_PACKET_CREATED via CDC',
       async ({ detailType, detail }) => {
         await eb.putEvent({
           bus: 'advisory',
@@ -368,31 +363,12 @@ describe('advisory-ctrl', () => {
           },
         });
 
-        // The handler calls DecisionLifecycleService.executeDecisionLifecycle()
-        // which invokes the Bedrock AgentRuntime. The outcome depends on
-        // whether the AgentRuntime is deployed and responsive:
-        //
-        // If AgentRuntime is available:
-        //   - DecisionPacket (DRAFT) written to DDB → CDC emits DECISION_PACKET_CREATED
-        //   - Additional writes follow (AgentInvocation, status update)
-        // If AgentRuntime is unavailable:
-        //   - The handler may fail before writing to DDB
-        //   - No CDC event emitted
-        //
-        // We attempt to capture the CDC event but tolerate timeout —
-        // the primary assertion is that the event was accepted without
-        // a fatal SQS processing error (no DLQ redirect).
-        try {
-          const cdcEvent = await trap.waitForEvent({
-            detailType: 'DECISION_PACKET_CREATED',
-            timeoutMs: 30_000,
-          });
-          expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
-          expect(cdcEvent.detail).toBeDefined();
-        } catch {
-          // Timeout is acceptable — AgentRuntime may not be deployed.
-          // The event was still processed by the handler (no SQS failure).
-        }
+        const cdcEvent = await trap.waitForEvent({
+          detailType: 'DECISION_PACKET_CREATED',
+          timeoutMs: 30_000,
+        });
+        expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
+        expect(cdcEvent.detail).toBeDefined();
       },
       60_000,
     );

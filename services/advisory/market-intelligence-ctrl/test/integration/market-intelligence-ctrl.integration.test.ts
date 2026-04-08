@@ -14,6 +14,7 @@ describe('market-intelligence-ctrl: ANALYZE_MARKET → AgentInvocation DDB write
     ctx = await createIntegrationContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
+    table.registerCleanup();
   }, 60_000);
 
   afterAll(async () => {
