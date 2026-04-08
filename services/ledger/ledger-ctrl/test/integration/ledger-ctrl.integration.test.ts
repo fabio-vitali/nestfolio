@@ -2,7 +2,6 @@ import {
   createIntegrationContext,
   EventBridgeClient,
   EventBusTrap,
-  AccountSeedingFixture,
   TableAssertions,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
@@ -195,28 +194,38 @@ describe('ledger-ctrl: event-listener DDB writes', () => {
   }, 120_000);
 });
 
-// ── CDC chain tests ──────────────────────────────────────────────────
-// SKIPPED: CDC chain (Reducer → Egress → EB) times out in the current
-// deployment.  The DDB-write tests above prove the Ingress path works for
-// every event type.  Re-enable once the Reducer / Egress Lambda issue is
-// resolved.
+// ── CDC chain: balance-affecting events → BALANCE_UPDATED ────────────
+// Flow: EB → SQS → event-listener (LedgerEntry DDB write) → DDB Stream →
+//       Reducer (snapshot + derived events) → DDB Stream → Egress → EB
+//
+// SKIPPED — Reducer Lambda sk-prefix mismatch (stale deployment)
+// ---------------------------------------------------------------
+// Root cause: The deployed Reducer Lambda (2026-04-06) was bundled from
+// the replayAndReduce pipeline's `conventionQuery`, which queries:
+//   begins_with(sk, '${__typename}#')  →  begins_with(sk, 'LedgerEntry#')
+// But putLedgerEntry writes sk = 'Event#<eventId>'. The query always
+// returns 0 events, so the Reducer logs "No new events to reduce" and
+// never writes BalanceEvent / PortfolioEvent / LedgerEntryEvent records.
+//
+// Fix: Redeploy ledger-ctrl. The current source (reducer.ts) uses
+// EgestionEngine with a custom processGroup that calls
+// repository.queryEntriesSince, which correctly queries
+// begins_with(sk, 'Event#').
+//
+// No AccountSeedingFixture needed: INITIAL_ACCOUNT_STATE provides
+// cashBalanceCents: 10_000_000, so the Reducer has a baseline to
+// delta against on the very first event for a tenant.
 
-describe.skip('ledger-ctrl: ORDER_FILLED → full CDC chain', () => {
+describe.skip('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
-  let seeder: AccountSeedingFixture;
 
   beforeAll(async () => {
     ctx = await createIntegrationContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
-    seeder = new AccountSeedingFixture(ctx);
 
-    // Seed initial account state so Reducer has prior state to delta against
-    await seeder.seed('ledger-ctrl');
-
-    // Trap the CDC output
     await trap.deploy({ bus: 'ledger', detailType: 'BALANCE_UPDATED' });
   }, 90_000);
 
@@ -224,7 +233,7 @@ describe.skip('ledger-ctrl: ORDER_FILLED → full CDC chain', () => {
     await ctx.cleanup.runAll();
   }, 60_000);
 
-  it('should emit BALANCE_UPDATED via Reducer CDC chain', async () => {
+  it('ORDER_FILLED → BALANCE_UPDATED', async () => {
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
@@ -242,33 +251,12 @@ describe.skip('ledger-ctrl: ORDER_FILLED → full CDC chain', () => {
 
     const event = await trap.waitForEvent({ timeoutMs: 90_000 });
     expect(event.detailType).toBe('BALANCE_UPDATED');
-    expect((event.detail as any).context.tenantId).toBe(ctx.tenantId);
+    expect((event.detail as Record<string, unknown>).context).toEqual(
+      expect.objectContaining({ tenantId: ctx.tenantId }),
+    );
   }, 120_000);
-});
 
-// ── CDC chain: DEPOSIT_DETECTED → BALANCE_UPDATED ─────────────────────
-
-describe.skip('ledger-ctrl: DEPOSIT_DETECTED → full CDC chain', () => {
-  let ctx: IntegrationContext;
-  let eb: EventBridgeClient;
-  let trap: EventBusTrap;
-  let seeder: AccountSeedingFixture;
-
-  beforeAll(async () => {
-    ctx = await createIntegrationContext();
-    eb = new EventBridgeClient(ctx);
-    trap = new EventBusTrap(ctx);
-    seeder = new AccountSeedingFixture(ctx);
-
-    await seeder.seed('ledger-ctrl');
-    await trap.deploy({ bus: 'ledger', detailType: 'BALANCE_UPDATED' });
-  }, 90_000);
-
-  afterAll(async () => {
-    await ctx.cleanup.runAll();
-  }, 60_000);
-
-  it('should emit BALANCE_UPDATED on deposit', async () => {
+  it('DEPOSIT_DETECTED → BALANCE_UPDATED', async () => {
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
@@ -282,34 +270,14 @@ describe.skip('ledger-ctrl: DEPOSIT_DETECTED → full CDC chain', () => {
 
     const event = await trap.waitForEvent({ timeoutMs: 90_000 });
     expect(event.detailType).toBe('BALANCE_UPDATED');
-    expect((event.detail as any).context.tenantId).toBe(ctx.tenantId);
+    expect((event.detail as Record<string, unknown>).context).toEqual(
+      expect.objectContaining({ tenantId: ctx.tenantId }),
+    );
   }, 120_000);
-});
 
-// ── CDC chain: WITHDRAWAL_COMPLETED → BALANCE_UPDATED ─────────────────
-
-describe.skip('ledger-ctrl: WITHDRAWAL_COMPLETED → full CDC chain', () => {
-  let ctx: IntegrationContext;
-  let eb: EventBridgeClient;
-  let trap: EventBusTrap;
-  let seeder: AccountSeedingFixture;
-
-  beforeAll(async () => {
-    ctx = await createIntegrationContext();
-    eb = new EventBridgeClient(ctx);
-    trap = new EventBusTrap(ctx);
-    seeder = new AccountSeedingFixture(ctx);
-
-    // Seed with enough cash for withdrawal
-    await seeder.seed('ledger-ctrl', { cashBalanceCents: 2_000_000 });
-    await trap.deploy({ bus: 'ledger', detailType: 'BALANCE_UPDATED' });
-  }, 90_000);
-
-  afterAll(async () => {
-    await ctx.cleanup.runAll();
-  }, 60_000);
-
-  it('should emit BALANCE_UPDATED on withdrawal', async () => {
+  it('WITHDRAWAL_COMPLETED → BALANCE_UPDATED', async () => {
+    // INITIAL_ACCOUNT_STATE.cashBalanceCents = 10_000_000 — plenty for
+    // a 100_000-cent withdrawal even on the first event for this tenant.
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
@@ -323,33 +291,12 @@ describe.skip('ledger-ctrl: WITHDRAWAL_COMPLETED → full CDC chain', () => {
 
     const event = await trap.waitForEvent({ timeoutMs: 90_000 });
     expect(event.detailType).toBe('BALANCE_UPDATED');
-    expect((event.detail as any).context.tenantId).toBe(ctx.tenantId);
+    expect((event.detail as Record<string, unknown>).context).toEqual(
+      expect.objectContaining({ tenantId: ctx.tenantId }),
+    );
   }, 120_000);
-});
 
-// ── CDC chain: ORDER_PARTIALLY_FILLED → BALANCE_UPDATED ───────────────
-
-describe.skip('ledger-ctrl: ORDER_PARTIALLY_FILLED → full CDC chain', () => {
-  let ctx: IntegrationContext;
-  let eb: EventBridgeClient;
-  let trap: EventBusTrap;
-  let seeder: AccountSeedingFixture;
-
-  beforeAll(async () => {
-    ctx = await createIntegrationContext();
-    eb = new EventBridgeClient(ctx);
-    trap = new EventBusTrap(ctx);
-    seeder = new AccountSeedingFixture(ctx);
-
-    await seeder.seed('ledger-ctrl');
-    await trap.deploy({ bus: 'ledger', detailType: 'BALANCE_UPDATED' });
-  }, 90_000);
-
-  afterAll(async () => {
-    await ctx.cleanup.runAll();
-  }, 60_000);
-
-  it('should emit BALANCE_UPDATED on partial fill', async () => {
+  it('ORDER_PARTIALLY_FILLED → BALANCE_UPDATED', async () => {
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
@@ -367,27 +314,28 @@ describe.skip('ledger-ctrl: ORDER_PARTIALLY_FILLED → full CDC chain', () => {
 
     const event = await trap.waitForEvent({ timeoutMs: 90_000 });
     expect(event.detailType).toBe('BALANCE_UPDATED');
-    expect((event.detail as any).context.tenantId).toBe(ctx.tenantId);
+    expect((event.detail as Record<string, unknown>).context).toEqual(
+      expect.objectContaining({ tenantId: ctx.tenantId }),
+    );
   }, 120_000);
 });
 
 // ── CDC chain: ORDER_REJECTED → LEDGER_ENTRY_RECORDED ─────────────────
+// ORDER_REJECTED is a no-op in the reducer (no balance/portfolio change),
+// but LedgerEntryEvent is always written when the snapshot updates →
+// Egress emits LEDGER_ENTRY_RECORDED.
+// SKIPPED — same Reducer sk-prefix mismatch as above.
 
-describe.skip('ledger-ctrl: ORDER_REJECTED → full CDC chain', () => {
+describe.skip('ledger-ctrl: CDC chain → LEDGER_ENTRY_RECORDED', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
-  let seeder: AccountSeedingFixture;
 
   beforeAll(async () => {
     ctx = await createIntegrationContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
-    seeder = new AccountSeedingFixture(ctx);
 
-    await seeder.seed('ledger-ctrl');
-    // ORDER_REJECTED is a no-op in the reducer — no balance/portfolio change.
-    // But LedgerEntryEvent is always written → LEDGER_ENTRY_RECORDED.
     await trap.deploy({ bus: 'ledger', detailType: 'LEDGER_ENTRY_RECORDED' });
   }, 90_000);
 
@@ -395,7 +343,7 @@ describe.skip('ledger-ctrl: ORDER_REJECTED → full CDC chain', () => {
     await ctx.cleanup.runAll();
   }, 60_000);
 
-  it('should emit LEDGER_ENTRY_RECORDED on rejection', async () => {
+  it('ORDER_REJECTED → LEDGER_ENTRY_RECORDED', async () => {
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'ledger-ctrl',
@@ -412,6 +360,8 @@ describe.skip('ledger-ctrl: ORDER_REJECTED → full CDC chain', () => {
 
     const event = await trap.waitForEvent({ timeoutMs: 90_000 });
     expect(event.detailType).toBe('LEDGER_ENTRY_RECORDED');
-    expect((event.detail as any).context.tenantId).toBe(ctx.tenantId);
+    expect((event.detail as Record<string, unknown>).context).toEqual(
+      expect.objectContaining({ tenantId: ctx.tenantId }),
+    );
   }, 120_000);
 });
