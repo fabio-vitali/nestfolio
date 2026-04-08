@@ -8,7 +8,7 @@ import { TableRepository, getTime, type TableEntry, type RequestContext } from '
 import { withMethodLogging, guardedWrite } from '@nestfolio/event-processor';
 
 function dashboardPk(tenantId: string): string {
-  return `Dashboard#${tenantId}`;
+  return `T#${tenantId}`;
 }
 
 export class DashboardRepository extends TableRepository {
@@ -203,7 +203,7 @@ export class DashboardRepository extends TableRepository {
 
       const item: TableEntry = {
         pk,
-        sk: `Position#${data.symbol}`,
+        sk: `PositionSnapshot#${data.symbol}`,
         __typename: 'PositionSnapshot',
         ...ctx,
         timestamp: now,
@@ -225,7 +225,7 @@ export class DashboardRepository extends TableRepository {
   readonly getPositionSnapshots = this.log('getPositionSnapshots',
     async (tenantId: string): Promise<Record<string, unknown>[]> => {
       const pk = dashboardPk(tenantId);
-      return this.queryByPk(pk, 'Position#');
+      return this.queryByPk(pk, 'PositionSnapshot#');
     },
   );
 
@@ -464,7 +464,7 @@ export class DashboardRepository extends TableRepository {
       await this.docClient.send(
         new UpdateCommand({
           TableName: this.tableName,
-          Key: { pk, sk: 'TimeTravel' },
+          Key: { pk, sk: 'TimeTravelAvailability' },
           UpdateExpression: 'SET #ts = :ts, updatedAt = :now, __typename = :typename, tenantId = :tenantId, available = :available, latestDate = :latest, oldestDate = if_not_exists(oldestDate, :latest)',
           ExpressionAttributeNames: { '#ts': 'timestamp' },
           ExpressionAttributeValues: {
@@ -486,7 +486,7 @@ export class DashboardRepository extends TableRepository {
       const result = await this.docClient.send(
         new GetCommand({
           TableName: this.tableName,
-          Key: { pk, sk: 'TimeTravel' },
+          Key: { pk, sk: 'TimeTravelAvailability' },
         }),
       );
       return (result.Item as Record<string, unknown>) ?? null;

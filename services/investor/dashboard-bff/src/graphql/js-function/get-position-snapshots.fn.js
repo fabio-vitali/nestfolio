@@ -5,8 +5,8 @@ export function request(ctx) {
   const { tenantId } = ctx.stash;
   return ddb.query({
     query: {
-      pk: { eq: `Dashboard#${tenantId}` },
-      sk: { beginsWith: 'Position#' },
+      pk: { eq: `T#${tenantId}` },
+      sk: { beginsWith: 'PositionSnapshot#' },
     },
   });
 }

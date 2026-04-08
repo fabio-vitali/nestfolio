@@ -11,7 +11,7 @@ export function request(ctx) {
 
   return ddb.query({
     query: {
-      pk: { eq: `Dashboard#${tenantId}` },
+      pk: { eq: `T#${tenantId}` },
       sk: { beginsWith: 'Activity#' },
     },
     limit,

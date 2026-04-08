@@ -93,7 +93,7 @@ describe('DashboardRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const cmd = mockSend.mock.calls[0][0];
-      expect(cmd.input.Key).toEqual({ pk: 'Dashboard#tenant-1', sk: 'PortfolioSummary' });
+      expect(cmd.input.Key).toEqual({ pk: 'T#tenant-1', sk: 'PortfolioSummary' });
       expect(cmd.input.ExpressionAttributeValues[':totalValueCents']).toBe(12500000);
       expect(cmd.input.ExpressionAttributeValues[':positionCount']).toBe(5);
     });
@@ -107,7 +107,7 @@ describe('DashboardRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const cmd = mockSend.mock.calls[0][0];
-      expect(cmd.input.Key).toEqual({ pk: 'Dashboard#tenant-1', sk: 'PortfolioSummary' });
+      expect(cmd.input.Key).toEqual({ pk: 'T#tenant-1', sk: 'PortfolioSummary' });
       expect(cmd.input.UpdateExpression).toContain('totalValueCents = if_not_exists(totalValueCents, :zero) + :delta');
       expect(cmd.input.ExpressionAttributeValues[':zero']).toBe(0);
       expect(cmd.input.ExpressionAttributeValues[':delta']).toBe(500000);
@@ -149,8 +149,8 @@ describe('DashboardRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const cmd = mockSend.mock.calls[0][0];
-      expect(cmd.input.Item.pk).toBe('Dashboard#tenant-1');
-      expect(cmd.input.Item.sk).toBe('Position#AAPL');
+      expect(cmd.input.Item.pk).toBe('T#tenant-1');
+      expect(cmd.input.Item.sk).toBe('PositionSnapshot#AAPL');
       expect(cmd.input.Item.__typename).toBe('PositionSnapshot');
       expect(cmd.input.Item.symbol).toBe('AAPL');
       expect(cmd.input.Item.quantity).toBe(50);
@@ -182,7 +182,7 @@ describe('DashboardRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const cmd = mockSend.mock.calls[0][0];
-      expect(cmd.input.Item.pk).toBe('Dashboard#tenant-1');
+      expect(cmd.input.Item.pk).toBe('T#tenant-1');
       expect(cmd.input.Item.sk).toMatch(/^Activity#/);
       expect(cmd.input.Item.__typename).toBe('RecentActivity');
       expect(cmd.input.Item.activityType).toBe('ORDER_FILLED');
@@ -215,7 +215,7 @@ describe('DashboardRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const cmd = mockSend.mock.calls[0][0];
-      expect(cmd.input.Key).toEqual({ pk: 'Dashboard#tenant-1', sk: 'AdvisoryStatus' });
+      expect(cmd.input.Key).toEqual({ pk: 'T#tenant-1', sk: 'AdvisoryStatus' });
       expect(cmd.input.UpdateExpression).toContain('if_not_exists(pendingDecisionsCount, :zero) + :delta');
       expect(cmd.input.ExpressionAttributeValues[':delta']).toBe(1);
     });
@@ -246,7 +246,7 @@ describe('DashboardRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const cmd = mockSend.mock.calls[0][0];
-      expect(cmd.input.Key).toEqual({ pk: 'Dashboard#tenant-1', sk: 'InvestorSnapshot' });
+      expect(cmd.input.Key).toEqual({ pk: 'T#tenant-1', sk: 'InvestorSnapshot' });
       expect(cmd.input.ExpressionAttributeValues[':goalType']).toBe('Retirement');
       expect(cmd.input.ExpressionAttributeValues[':riskLevel']).toBe('7');
     });

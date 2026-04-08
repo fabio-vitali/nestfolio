@@ -4,7 +4,7 @@ import * as ddb from '@aws-appsync/utils/dynamodb';
 export function request(ctx) {
   const { tenantId } = ctx.stash;
   return ddb.get({
-    key: { pk: `Dashboard#${tenantId}`, sk: 'TimeTravel' },
+    key: { pk: `T#${tenantId}`, sk: 'TimeTravelAvailability' },
   });
 }
 

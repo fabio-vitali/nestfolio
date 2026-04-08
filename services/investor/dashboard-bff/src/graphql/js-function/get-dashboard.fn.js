@@ -3,7 +3,7 @@ import { util } from '@aws-appsync/utils';
 export function request(ctx) {
   const { tenantId } = ctx.stash;
   const table = ctx.stash.tableName;
-  const pk = `Dashboard#${tenantId}`;
+  const pk = `T#${tenantId}`;
   return {
     operation: 'TransactGetItems',
     transactItems: [
