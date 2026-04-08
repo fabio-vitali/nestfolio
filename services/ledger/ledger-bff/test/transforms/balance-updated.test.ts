@@ -21,10 +21,10 @@ describe('balanceUpdated transform', () => {
     }) as Parameters<typeof balanceUpdated>[0]);
 
     expect(result).toEqual(
-      project('PortfolioBalance', {
+      project('PortfolioLatest', {
         tenantId: 't1',
         cashBalanceCents: 950_000,
-      }, { pk: 'Portfolio#t1', sk: 'Balance' }),
+      }, { pk: 'Portfolio#t1', sk: 'Latest' }),
     );
   });
 
@@ -43,7 +43,7 @@ describe('balanceUpdated transform', () => {
     const intents = result as Record<string, unknown>[];
     expect(intents).toHaveLength(2);
     expect(intents[0]._tag).toBe('project');
-    expect(intents[0].typename).toBe('PortfolioBalance');
+    expect(intents[0].typename).toBe('PortfolioLatest');
     expect(intents[1]._tag).toBe('project');
     expect(intents[1].typename).toBe('SnapshotAt');
     expect(intents[1].overrides.pk).toBe('SnapshotAt#t1#actual');

@@ -60,7 +60,7 @@ export const ledgerEntryRecorded = (
         positions,
       }, {
         pk: `Simulation#${tenantId}`,
-        sk: 'Summary',
+        sk: 'Latest',
       }),
     );
 
@@ -96,7 +96,7 @@ export const ledgerEntryRecorded = (
         positions: payload.positions ?? {},
       }, {
         pk: `Checkpoint#${tenantId}`,
-        sk: `Checkpoint#${date}`,
+        sk: date,
       }),
     );
   }

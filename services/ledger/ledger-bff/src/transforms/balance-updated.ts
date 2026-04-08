@@ -22,14 +22,14 @@ export const balanceUpdated = (
   const balanceCents = payload.cashBalanceCents ?? 0;
 
   const intents: WriteIntent[] = [
-    project('PortfolioBalance', {
+    project('PortfolioLatest', {
       tenantId,
       userId,
       region,
       cashBalanceCents: balanceCents,
     }, {
       pk: `Portfolio#${tenantId}`,
-      sk: 'Balance',
+      sk: 'Latest',
     }),
   ];
 
@@ -46,7 +46,7 @@ export const balanceUpdated = (
         positions: payload.snapshot.positions,
       }, {
         pk: `SnapshotAt#${tenantId}#${streamType}`,
-        sk: `SnapshotAt#${event.timestamp}`,
+        sk: event.timestamp,
       }),
     );
   }

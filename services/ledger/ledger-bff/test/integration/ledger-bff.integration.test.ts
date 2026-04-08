@@ -33,13 +33,11 @@ describe('ledger-bff', () => {
 
   // ── Event Materializations ──────────────────────────────────────────
   //
-  // BALANCE_UPDATED → project('PortfolioBalance', ...) → pk: Portfolio#<tenantId>, sk: Balance
+  // BALANCE_UPDATED → project('PortfolioLatest', ...) → pk: Portfolio#<tenantId>, sk: Latest
   // PORTFOLIO_UPDATED → project('Position', ...) → pk: Portfolio#<tenantId>, sk: Position#<symbol>
   // LEDGER_ENTRY_RECORDED → record('HistoryEntry', ...) with override → pk: History#<tenantId>, sk: Entry#<sequenceNo>
   //
-  // Note: get-balance.fn.js resolver uses sk: 'Latest' (written by repository.upsertBalance),
-  // which is DIFFERENT from the event-listener transform sk: 'Balance' (written by balanceUpdated transform).
-  // These are two separate DDB items; the AppSync query tests seed sk: 'Latest'.
+  // Note: get-balance.fn.js resolver and event-listener transform both use sk: 'Latest'.
 
   describe('event materializations', () => {
     it('should materialize BALANCE_UPDATED to PortfolioBalance in DDB', async () => {
@@ -53,15 +51,15 @@ describe('ledger-bff', () => {
         },
       });
 
-      // project() → deterministic sk: Balance
+      // project() → deterministic sk: Latest
       const item = await table.waitForItem({
         table: 'ledger-bff',
         pk: `Portfolio#${ctx.tenantId}`,
-        sk: 'Balance',
+        sk: 'Latest',
         timeoutMs: 60_000,
       });
 
-      expect(item['__typename']).toBe('PortfolioBalance');
+      expect(item['__typename']).toBe('PortfolioLatest');
       expect(item['tenantId']).toBe(ctx.tenantId);
       expect(item['cashBalanceCents']).toBe(500000);
     }, 120_000);
@@ -265,8 +263,7 @@ describe('ledger-bff', () => {
             timestamp: snapshotTimestamp,
           },
           // getSimulationComparison → reads Simulation#<tenantId> Latest + Position#
-          // Note: repository.upsertSimulation writes sk: 'Latest'; transform writes sk: 'Summary'.
-          // Seed uses 'Latest' to match what the resolver reads.
+          // Both repository.upsertSimulation and transform write sk: 'Latest'.
           {
             pk: simulationPk(),
             sk: 'Latest',

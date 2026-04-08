@@ -60,7 +60,7 @@ export const portfolioUpdated = (
         positions: payload.snapshot.positions,
       }, {
         pk: `SnapshotAt#${tenantId}#${streamType}`,
-        sk: `SnapshotAt#${event.timestamp}`,
+        sk: event.timestamp,
       }),
     );
   }
