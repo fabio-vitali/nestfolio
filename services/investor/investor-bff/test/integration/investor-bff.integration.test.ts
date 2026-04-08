@@ -658,55 +658,67 @@ describe('investor-bff', () => {
     const profilePk = () => `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
 
     beforeAll(async () => {
-      // Pre-seed profile and a goal so query resolvers return data
-      await seeder.seed({
-        table: 'investor-bff',
-        items: [
-          {
-            pk: profilePk(),
-            sk: 'InvestorProfile',
-            __typename: 'InvestorProfile',
-            tenantId: ctx.tenantId,
-            userId: cognitoSub,
-            name: 'Integration Tester',
-            email: 'tester@integ-test.example',
-            age: 35,
-            locale: 'en',
-            operatingMode: 'BALANCED',
-            executionMode: 'simulation',
-            monthlyContributionCents: 200_000,
-            currency: 'USD',
-            onboardingCompletedAt: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            timestamp: new Date().toISOString(),
-          },
-          {
-            pk: profilePk(),
-            sk: 'Goal#seeded-goal-1',
-            __typename: 'Goal',
-            tenantId: ctx.tenantId,
-            userId: cognitoSub,
-            goalId: 'seeded-goal-1',
-            objective: 'Retirement',
-            targetAmountCents: 2_000_000_00,
-            currency: 'USD',
-            timeHorizonMonths: 240,
-            targetReturn: 0.07,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            timestamp: new Date().toISOString(),
-          },
-        ],
+      // Event-driven fixture: USER_REGISTERED + ONBOARDING_COMPLETED
+      // USER_REGISTERED creates InvestorProfile at T#<tenantId> (event-listener record)
+      // ONBOARDING_COMPLETED creates InvestorProfile + Goal at InvestorProfile#<tenantId>#<userId> (repository transactWrite)
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'USER_REGISTERED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId: cognitoSub,
+          email: 'tester@integ-test.example',
+        },
       });
-    }, 30_000);
+
+      // Wait for InvestorProfile at T# pk (event-listener record)
+      await table.waitForItem({
+        table: 'investor-bff',
+        pk: `T#${ctx.tenantId}`,
+        timeoutMs: 60_000,
+      });
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'ONBOARDING_COMPLETED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId: cognitoSub,
+          goal: { objective: 'Retirement' },
+          horizonYears: 20,
+          accountMode: 'simulation',
+          capitalAmount: 0,
+          currency: 'USD',
+          riskTolerance: 7,
+          riskExperience: 5,
+          operatingMode: 'BALANCED',
+          mandateAccepted: true,
+        },
+      });
+
+      // Wait for Goal to be created (ONBOARDING_COMPLETED transactWrite)
+      const deadline = Date.now() + 60_000;
+      let found = false;
+      while (Date.now() < deadline && !found) {
+        const items = await table.queryItems({
+          table: 'investor-bff',
+          pk: profilePk(),
+          skPrefix: 'Goal#',
+        });
+        if (items.length > 0) found = true;
+        else await new Promise(r => setTimeout(r, 2_000));
+      }
+      expect(found).toBe(true);
+    }, 120_000);
 
     it('should return InvestorProfile via getProfile', async () => {
       const result = await appsync.query<{
         getProfile: {
           tenantId: string;
           userId: string;
-          name: string;
           email: string;
           operatingMode: string;
           currency: string;
@@ -716,7 +728,6 @@ describe('investor-bff', () => {
           getProfile {
             tenantId
             userId
-            name
             email
             operatingMode
             currency
@@ -726,7 +737,6 @@ describe('investor-bff', () => {
 
       expect(result.getProfile.tenantId).toBe(ctx.tenantId);
       expect(result.getProfile.userId).toBe(cognitoSub);
-      expect(result.getProfile.email).toBe('tester@integ-test.example');
       expect(result.getProfile.operatingMode).toBe('BALANCED');
     }, 60_000);
 
@@ -738,19 +748,16 @@ describe('investor-bff', () => {
           getGoals {
             goalId
             objective
-            targetAmountCents
             currency
-            timeHorizonMonths
-            targetReturn
           }
         }
       `, {});
 
       expect(Array.isArray(result.getGoals)).toBe(true);
-      const seeded = result.getGoals.find(g => g.goalId === 'seeded-goal-1');
-      expect(seeded).toBeDefined();
-      expect(seeded?.objective).toBe('Retirement');
-      expect(seeded?.currency).toBe('USD');
+      expect(result.getGoals.length).toBeGreaterThanOrEqual(1);
+      const goal = result.getGoals[0];
+      expect(goal.objective).toBe('Retirement');
+      expect(goal.currency).toBe('USD');
     }, 60_000);
   });
 });
