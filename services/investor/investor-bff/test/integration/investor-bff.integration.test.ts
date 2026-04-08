@@ -146,6 +146,180 @@ describe('investor-bff', () => {
       expect(notifItem!['channel']).toBe('IN_APP');
       expect(notifItem!['title']).toBe('Integration test notification');
     }, 120_000);
+
+    it('should create 7 entities atomically on ONBOARDING_COMPLETED', async () => {
+      const userId = cognitoSub;
+      const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
+
+      // Event-driven fixture: USER_REGISTERED creates the InvestorProfile
+      // that ONBOARDING_COMPLETED's ConditionExpression requires
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'USER_REGISTERED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId,
+          email: `${userId}@integ-onboarding.example`,
+        },
+      });
+
+      // Wait for InvestorProfile to exist before sending ONBOARDING_COMPLETED
+      await table.waitForItem({
+        table: 'investor-bff',
+        pk: `T#${ctx.tenantId}`,
+        timeoutMs: 60_000,
+      });
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'ONBOARDING_COMPLETED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId,
+          goal: { objective: 'GROWTH' },
+          horizonYears: 10,
+          accountMode: 'simulation',
+          capitalAmount: 100_000,
+          currency: 'USD',
+          riskTolerance: 7,
+          riskExperience: 5,
+          operatingMode: 'BALANCED',
+          mandateAccepted: true,
+        },
+      });
+
+      // Verify Goal was created
+      const deadline = Date.now() + 60_000;
+      let goalItem: Record<string, unknown> | undefined;
+      while (Date.now() < deadline && !goalItem) {
+        const items = await table.queryItems({
+          table: 'investor-bff',
+          pk,
+          skPrefix: 'Goal#',
+        });
+        goalItem = items.find(i => i['__typename'] === 'Goal');
+        if (!goalItem) await new Promise(r => setTimeout(r, 2_000));
+      }
+      expect(goalItem).toBeDefined();
+      expect(goalItem!['objective']).toBe('GROWTH');
+
+      // Verify RiskProfile was created
+      const riskItem = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'RiskProfile',
+        timeoutMs: 30_000,
+      });
+      expect(riskItem['__typename']).toBe('RiskProfile');
+      expect(riskItem['band']).toBeDefined();
+
+      // Verify OperatingModeRecord was created
+      const modeItem = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'OperatingMode',
+        timeoutMs: 10_000,
+      });
+      expect(modeItem['__typename']).toBe('OperatingModeRecord');
+      expect(modeItem['mode']).toBe('BALANCED');
+
+      // Verify Mandate was created
+      const mandateItem = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'Mandate',
+        timeoutMs: 10_000,
+      });
+      expect(mandateItem['__typename']).toBe('Mandate');
+      expect(mandateItem['level']).toBe('ADVISORY');
+
+      // Verify Deposit was created (capitalAmount > 0)
+      let depositItem: Record<string, unknown> | undefined;
+      const depositDeadline = Date.now() + 30_000;
+      while (Date.now() < depositDeadline && !depositItem) {
+        const items = await table.queryItems({
+          table: 'investor-bff',
+          pk,
+          skPrefix: 'Deposit#',
+        });
+        depositItem = items.find(i => i['__typename'] === 'Deposit');
+        if (!depositItem) await new Promise(r => setTimeout(r, 2_000));
+      }
+      expect(depositItem).toBeDefined();
+      expect(depositItem!['amountCents']).toBe(100_000);
+      expect(depositItem!['status']).toBe('INITIATED');
+
+      // Verify AccountMode was created
+      const accountModeItem = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'AccountMode',
+        timeoutMs: 10_000,
+      });
+      expect(accountModeItem['__typename']).toBe('AccountMode');
+      expect(accountModeItem['mode']).toBe('simulation');
+
+      // Verify InvestorProfile was updated (operatingMode + onboardingCompletedAt)
+      const profileItem = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'InvestorProfile',
+        timeoutMs: 10_000,
+      });
+      expect(profileItem['operatingMode']).toBe('BALANCED');
+      expect(profileItem['onboardingCompletedAt']).toBeDefined();
+    }, 180_000);
+
+    it('should set executionMode to live on GO_LIVE_CONFIRMED', async () => {
+      const userId = cognitoSub;
+      const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
+
+      // Event-driven fixture: InvestorProfile must exist.
+      // Defensive: publish USER_REGISTERED again — idempotent since record() won't conflict.
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'USER_REGISTERED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId,
+          email: `${userId}@integ-golive.example`,
+        },
+      });
+
+      await table.waitForItem({
+        table: 'investor-bff',
+        pk: `T#${ctx.tenantId}`,
+        timeoutMs: 60_000,
+      });
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'GO_LIVE_CONFIRMED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId,
+        },
+      });
+
+      // Verify ExecutionModeChange record was created
+      let modeChangeItem: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline && !modeChangeItem) {
+        const items = await table.queryItems({
+          table: 'investor-bff',
+          pk,
+          skPrefix: 'ExecutionModeChange#',
+        });
+        modeChangeItem = items.find(i => i['__typename'] === 'ExecutionModeChange');
+        if (!modeChangeItem) await new Promise(r => setTimeout(r, 2_000));
+      }
+      expect(modeChangeItem).toBeDefined();
+      expect(modeChangeItem!['toMode']).toBe('live');
+    }, 120_000);
   });
 
   // ── AppSync Mutations ───────────────────────────────────────────────
