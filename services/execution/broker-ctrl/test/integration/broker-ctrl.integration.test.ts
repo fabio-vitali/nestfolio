@@ -197,11 +197,12 @@ describe('broker-ctrl', () => {
         detail: { mode: 'simulation' },
       });
 
-      // Wait for ExecutionMode DDB write (proves mode-listener processed it)
-      await table.waitForItem({
+      // Poll until mode=simulation (waitForItem returns on existence, not value)
+      await table.waitForItemMatching({
         table: 'broker-ctrl',
         pk: `ExecutionMode#${ctx.tenantId}`,
         sk: 'ExecutionMode',
+        condition: (item) => item['mode'] === 'simulation',
         timeoutMs: 60_000,
       });
 
@@ -219,7 +220,7 @@ describe('broker-ctrl', () => {
       // Allow handler time to process (router returns skip(), no DDB write)
       await new Promise(resolve => setTimeout(resolve, 15_000));
 
-      // Verify the ExecutionMode record is readable
+      // Verify the ExecutionMode record still reads simulation
       const modeItem = await table.waitForItem({
         table: 'broker-ctrl',
         pk: `ExecutionMode#${ctx.tenantId}`,
@@ -236,10 +237,11 @@ describe('broker-ctrl', () => {
         detail: { mode: 'simulation' },
       });
 
-      await table.waitForItem({
+      await table.waitForItemMatching({
         table: 'broker-ctrl',
         pk: `ExecutionMode#${ctx.tenantId}`,
         sk: 'ExecutionMode',
+        condition: (item) => item['mode'] === 'simulation',
         timeoutMs: 60_000,
       });
 
