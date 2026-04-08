@@ -95,6 +95,139 @@ describe('advisory-bff', () => {
 
       expect(item['status']).toBe('APPROVED');
     }, 120_000);
+
+    it('should update DecisionSummary to COMPLIANCE_REVIEW on DECISION_PACKET_UPDATED', async () => {
+      const decisionId = `integ-updated-${Date.now()}`;
+
+      // Event-driven fixture: DECISION_PACKET_CREATED creates the DecisionSummary
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+          trigger: 'REBALANCE',
+          proposedTrades: [{ symbol: 'GOOG', action: 'BUY', quantity: 3 }],
+          explanation: 'Test decision for update',
+          confirmationRequired: false,
+        },
+      });
+
+      // Wait for DecisionSummary to exist
+      await table.waitForItem({
+        table: 'advisory-bff',
+        pk: `T#${ctx.tenantId}`,
+        timeoutMs: 60_000,
+      });
+
+      // Now publish DECISION_PACKET_UPDATED
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_UPDATED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+        },
+      });
+
+      // update('DecisionSummary', { status: 'COMPLIANCE_REVIEW' }, { overrides: { pk, sk } })
+      const item = await table.waitForItem({
+        table: 'advisory-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: `DecisionSummary#${decisionId}`,
+        timeoutMs: 60_000,
+      });
+
+      expect(item['status']).toBe('COMPLIANCE_REVIEW');
+    }, 120_000);
+
+    it('should update DecisionSummary to BLOCKED on DECISION_BLOCKED', async () => {
+      const decisionId = `integ-blocked-${Date.now()}`;
+
+      // Event-driven fixture
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+          trigger: 'DRIFT',
+          proposedTrades: [],
+          explanation: 'Test for block',
+          confirmationRequired: false,
+        },
+      });
+      await table.waitForItem({
+        table: 'advisory-bff',
+        pk: `T#${ctx.tenantId}`,
+        timeoutMs: 60_000,
+      });
+
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_BLOCKED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+        },
+      });
+
+      const item = await table.waitForItem({
+        table: 'advisory-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: `DecisionSummary#${decisionId}`,
+        timeoutMs: 60_000,
+      });
+
+      expect(item['status']).toBe('BLOCKED');
+    }, 120_000);
+
+    it('should update DecisionSummary to AWAITING_CONFIRMATION on USER_CONFIRMATION_REQUESTED', async () => {
+      const decisionId = `integ-ucr-${Date.now()}`;
+
+      // Event-driven fixture
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+          trigger: 'DEPOSIT',
+          proposedTrades: [{ symbol: 'AAPL', action: 'BUY', quantity: 5 }],
+          explanation: 'Test for confirmation',
+          confirmationRequired: true,
+        },
+      });
+      await table.waitForItem({
+        table: 'advisory-bff',
+        pk: `T#${ctx.tenantId}`,
+        timeoutMs: 60_000,
+      });
+
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'USER_CONFIRMATION_REQUESTED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+        },
+      });
+
+      const item = await table.waitForItem({
+        table: 'advisory-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: `DecisionSummary#${decisionId}`,
+        timeoutMs: 60_000,
+      });
+
+      expect(item['status']).toBe('AWAITING_CONFIRMATION');
+    }, 120_000);
   });
 
   // ── AppSync Mutations ───────────────────────────────────────────────
