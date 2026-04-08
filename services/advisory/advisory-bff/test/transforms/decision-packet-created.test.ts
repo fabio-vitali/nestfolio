@@ -23,7 +23,7 @@ describe('decisionPacketCreated transform', () => {
     };
 
     expect(decisionPacketCreated(uow as any)).toEqual(
-      record('DecisionSummary', {
+      record('DecisionReadModel', {
         tenantId: 't1',
         decisionId: 'd1',
         trigger: 'rebalance',
@@ -32,7 +32,12 @@ describe('decisionPacketCreated transform', () => {
         confirmationRequired: true,
         complianceChecks: [],
         agentInvocations: [],
+        status: 'PENDING',
+        version: 1,
         sourceEventId: 'e1',
+      }, {
+        pk: 'Decision#t1#d1',
+        sk: 'DecisionReadModel',
       }),
     );
   });

@@ -16,32 +16,32 @@ describe('decisionStatusChanged transform', () => {
 
   it('should map DECISION_PACKET_UPDATED to COMPLIANCE_REVIEW status', () => {
     expect(decisionStatusChanged(makeUow('DECISION_PACKET_UPDATED') as any)).toEqual(
-      update('DecisionSummary', { status: 'COMPLIANCE_REVIEW' }, {
-        overrides: { pk: 'T#t1', sk: 'DecisionSummary#d1' },
+      update('DecisionReadModel', { status: 'COMPLIANCE_REVIEW' }, {
+        overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
     );
   });
 
   it('should map DECISION_APPROVED to APPROVED status', () => {
     expect(decisionStatusChanged(makeUow('DECISION_APPROVED') as any)).toEqual(
-      update('DecisionSummary', { status: 'APPROVED' }, {
-        overrides: { pk: 'T#t1', sk: 'DecisionSummary#d1' },
+      update('DecisionReadModel', { status: 'APPROVED' }, {
+        overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
     );
   });
 
   it('should map DECISION_BLOCKED to BLOCKED status', () => {
     expect(decisionStatusChanged(makeUow('DECISION_BLOCKED') as any)).toEqual(
-      update('DecisionSummary', { status: 'BLOCKED' }, {
-        overrides: { pk: 'T#t1', sk: 'DecisionSummary#d1' },
+      update('DecisionReadModel', { status: 'BLOCKED' }, {
+        overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
     );
   });
 
   it('should map USER_CONFIRMATION_REQUESTED to AWAITING_CONFIRMATION status', () => {
     expect(decisionStatusChanged(makeUow('USER_CONFIRMATION_REQUESTED') as any)).toEqual(
-      update('DecisionSummary', { status: 'AWAITING_CONFIRMATION' }, {
-        overrides: { pk: 'T#t1', sk: 'DecisionSummary#d1' },
+      update('DecisionReadModel', { status: 'AWAITING_CONFIRMATION' }, {
+        overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
     );
   });

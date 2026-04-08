@@ -3,7 +3,6 @@ import {
   EventBridgeClient,
   EventBusTrap,
   TableAssertions,
-  DdbSeedFixture,
   CognitoFixture,
   AppSyncClient,
   type IntegrationContext,
@@ -14,7 +13,7 @@ describe('advisory-bff', () => {
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
   let table: TableAssertions;
-  let seeder: DdbSeedFixture;
+
   let appsync: AppSyncClient;
 
   beforeAll(async () => {
@@ -23,8 +22,6 @@ describe('advisory-bff', () => {
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
-    seeder = new DdbSeedFixture(ctx);
-
     // Set up Cognito + AppSync for mutation tests
     const cognito = new CognitoFixture(ctx);
     const tokens = await cognito.setup();
@@ -44,14 +41,15 @@ describe('advisory-bff', () => {
   // ── Event Materializations ──────────────────────────────────────────
 
   describe('event materializations', () => {
-    it('should materialize DecisionSummary on DECISION_PACKET_CREATED', async () => {
+    it('should materialize DecisionReadModel on DECISION_PACKET_CREATED', async () => {
+      const decisionId = `integ-decision-${Date.now()}`;
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'advisory-bff',
         detailType: 'DECISION_PACKET_CREATED',
         detail: {
           tenantId: ctx.tenantId,
-          decisionId: `integ-decision-${Date.now()}`,
+          decisionId,
           trigger: 'REBALANCE',
           proposedTrades: [{ symbol: 'AAPL', action: 'BUY', quantity: 10 }],
           explanation: 'Integration test decision',
@@ -59,16 +57,18 @@ describe('advisory-bff', () => {
         },
       });
 
-      // record('DecisionSummary', ...) → pk: T#<tenantId>, sk: DecisionSummary#<eventId>
+      // record('DecisionReadModel', ..., { pk: Decision#<tenantId>#<decisionId>, sk: DecisionReadModel })
       const item = await table.waitForItem({
         table: 'advisory-bff',
-        pk: `T#${ctx.tenantId}`,
+        pk: `Decision#${ctx.tenantId}#${decisionId}`,
+        sk: 'DecisionReadModel',
         timeoutMs: 60_000,
       });
 
-      expect(item['__typename']).toBe('DecisionSummary');
+      expect(item['__typename']).toBe('DecisionReadModel');
       expect(item['tenantId']).toBe(ctx.tenantId);
       expect(item['trigger']).toBe('REBALANCE');
+      expect(item['status']).toBe('PENDING');
     }, 120_000);
 
     it('should update status to APPROVED on DECISION_APPROVED', async () => {
@@ -85,11 +85,11 @@ describe('advisory-bff', () => {
         },
       });
 
-      // update('DecisionSummary', { status: 'APPROVED' }, { overrides: { pk: T#<tenantId>, sk: DecisionSummary#<decisionId> } })
+      // update('DecisionReadModel', { status: 'APPROVED' }, { overrides: { pk: Decision#, sk: DecisionReadModel } })
       const item = await table.waitForItem({
         table: 'advisory-bff',
-        pk: `T#${ctx.tenantId}`,
-        sk: `DecisionSummary#${decisionId}`,
+        pk: `Decision#${ctx.tenantId}#${decisionId}`,
+        sk: 'DecisionReadModel',
         timeoutMs: 60_000,
       });
 
@@ -117,7 +117,8 @@ describe('advisory-bff', () => {
       // Wait for DecisionSummary to exist
       await table.waitForItem({
         table: 'advisory-bff',
-        pk: `T#${ctx.tenantId}`,
+        pk: `Decision#${ctx.tenantId}#${decisionId}`,
+        sk: 'DecisionReadModel',
         timeoutMs: 60_000,
       });
 
@@ -132,14 +133,16 @@ describe('advisory-bff', () => {
         },
       });
 
-      // update('DecisionSummary', { status: 'COMPLIANCE_REVIEW' }, { overrides: { pk, sk } })
-      const item = await table.waitForItem({
-        table: 'advisory-bff',
-        pk: `T#${ctx.tenantId}`,
-        sk: `DecisionSummary#${decisionId}`,
-        timeoutMs: 60_000,
-      });
-
+      // Poll until status changes from PENDING to COMPLIANCE_REVIEW
+      let item: Record<string, unknown> = {};
+      const d = Date.now() + 60_000;
+      while (Date.now() < d) {
+        item = await table.waitForItem({
+          table: 'advisory-bff', pk: `Decision#${ctx.tenantId}#${decisionId}`, sk: 'DecisionReadModel', timeoutMs: 5_000,
+        });
+        if (item['status'] === 'COMPLIANCE_REVIEW') break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
       expect(item['status']).toBe('COMPLIANCE_REVIEW');
     }, 120_000);
 
@@ -162,7 +165,8 @@ describe('advisory-bff', () => {
       });
       await table.waitForItem({
         table: 'advisory-bff',
-        pk: `T#${ctx.tenantId}`,
+        pk: `Decision#${ctx.tenantId}#${decisionId}`,
+        sk: 'DecisionReadModel',
         timeoutMs: 60_000,
       });
 
@@ -176,13 +180,15 @@ describe('advisory-bff', () => {
         },
       });
 
-      const item = await table.waitForItem({
-        table: 'advisory-bff',
-        pk: `T#${ctx.tenantId}`,
-        sk: `DecisionSummary#${decisionId}`,
-        timeoutMs: 60_000,
-      });
-
+      let item: Record<string, unknown> = {};
+      const d = Date.now() + 60_000;
+      while (Date.now() < d) {
+        item = await table.waitForItem({
+          table: 'advisory-bff', pk: `Decision#${ctx.tenantId}#${decisionId}`, sk: 'DecisionReadModel', timeoutMs: 5_000,
+        });
+        if (item['status'] === 'BLOCKED') break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
       expect(item['status']).toBe('BLOCKED');
     }, 120_000);
 
@@ -205,7 +211,8 @@ describe('advisory-bff', () => {
       });
       await table.waitForItem({
         table: 'advisory-bff',
-        pk: `T#${ctx.tenantId}`,
+        pk: `Decision#${ctx.tenantId}#${decisionId}`,
+        sk: 'DecisionReadModel',
         timeoutMs: 60_000,
       });
 
@@ -219,13 +226,15 @@ describe('advisory-bff', () => {
         },
       });
 
-      const item = await table.waitForItem({
-        table: 'advisory-bff',
-        pk: `T#${ctx.tenantId}`,
-        sk: `DecisionSummary#${decisionId}`,
-        timeoutMs: 60_000,
-      });
-
+      let item: Record<string, unknown> = {};
+      const d = Date.now() + 60_000;
+      while (Date.now() < d) {
+        item = await table.waitForItem({
+          table: 'advisory-bff', pk: `Decision#${ctx.tenantId}#${decisionId}`, sk: 'DecisionReadModel', timeoutMs: 5_000,
+        });
+        if (item['status'] === 'AWAITING_CONFIRMATION') break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
       expect(item['status']).toBe('AWAITING_CONFIRMATION');
     }, 120_000);
   });
@@ -237,27 +246,37 @@ describe('advisory-bff', () => {
       const decisionId = `integ-confirm-${Date.now()}`;
       const pk = `Decision#${ctx.tenantId}#${decisionId}`;
 
-      // Pre-seed a DecisionReadModel so the resolver's UpdateItem can increment version
-      await seeder.seed({
-        table: 'advisory-bff',
-        items: [{
-          pk,
-          sk: 'DecisionReadModel',
-          __typename: 'DecisionReadModel',
+      // Event-driven fixture: DECISION_PACKET_CREATED + USER_CONFIRMATION_REQUESTED
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
           tenantId: ctx.tenantId,
           decisionId,
-          status: 'AWAITING_CONFIRMATION',
           trigger: 'REBALANCE',
           proposedTrades: [{ symbol: 'AAPL', side: 'BUY', quantityOrAmountCents: 1000 }],
           explanation: 'Integration test decision for confirmation',
-          complianceChecks: [],
-          agentInvocations: [],
           confirmationRequired: true,
-          version: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }],
+        },
       });
+      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 60_000 });
+
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'USER_CONFIRMATION_REQUESTED',
+        detail: { tenantId: ctx.tenantId, decisionId },
+      });
+      // Wait for status to become AWAITING_CONFIRMATION
+      {
+        const d = Date.now() + 60_000;
+        while (Date.now() < d) {
+          const item = await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 5_000 });
+          if (item['status'] === 'AWAITING_CONFIRMATION') break;
+          await new Promise(r => setTimeout(r, 2_000));
+        }
+      }
 
       // Execute confirmDecision mutation
       const result = await appsync.mutate<{
@@ -299,27 +318,36 @@ describe('advisory-bff', () => {
       const pk = `Decision#${ctx.tenantId}#${decisionId}`;
       const rejectionReason = 'Integration test rejection reason';
 
-      // Pre-seed a DecisionReadModel
-      await seeder.seed({
-        table: 'advisory-bff',
-        items: [{
-          pk,
-          sk: 'DecisionReadModel',
-          __typename: 'DecisionReadModel',
+      // Event-driven fixture: DECISION_PACKET_CREATED + USER_CONFIRMATION_REQUESTED
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
           tenantId: ctx.tenantId,
           decisionId,
-          status: 'AWAITING_CONFIRMATION',
           trigger: 'REBALANCE',
           proposedTrades: [{ symbol: 'GOOG', side: 'SELL', quantityOrAmountCents: 500 }],
           explanation: 'Integration test decision for rejection',
-          complianceChecks: [],
-          agentInvocations: [],
           confirmationRequired: true,
-          version: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }],
+        },
       });
+      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 60_000 });
+
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'USER_CONFIRMATION_REQUESTED',
+        detail: { tenantId: ctx.tenantId, decisionId },
+      });
+      {
+        const d = Date.now() + 60_000;
+        while (Date.now() < d) {
+          const item = await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 5_000 });
+          if (item['status'] === 'AWAITING_CONFIRMATION') break;
+          await new Promise(r => setTimeout(r, 2_000));
+        }
+      }
 
       // Execute rejectDecision mutation
       const result = await appsync.mutate<{

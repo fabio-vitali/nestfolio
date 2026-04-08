@@ -20,12 +20,12 @@ export const decisionStatusChanged = (
   const newStatus = EVENT_TO_STATUS[uow.event.type];
   if (!newStatus) return undefined as unknown as WriteIntent;
 
-  return update('DecisionSummary', {
+  return update('DecisionReadModel', {
     status: newStatus,
   }, {
     overrides: {
-      pk: `T#${uow.event.subject.tenantId}`,
-      sk: `DecisionSummary#${uow.event.subject.decisionId}`,
+      pk: `Decision#${uow.event.subject.tenantId}#${uow.event.subject.decisionId}`,
+      sk: 'DecisionReadModel',
     },
   });
 };

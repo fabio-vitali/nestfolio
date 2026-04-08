@@ -14,7 +14,7 @@ export const decisionPacketCreated = (
   uow: UnitOfWork<BusEvent<DecisionPacketCreatedPayload>>,
 ): WriteIntent => {
   const { subject: p } = uow.event;
-  return record('DecisionSummary', {
+  return record('DecisionReadModel', {
     tenantId: p.tenantId,
     decisionId: p.decisionId,
     trigger: p.trigger,
@@ -23,6 +23,11 @@ export const decisionPacketCreated = (
     confirmationRequired: p.confirmationRequired,
     complianceChecks: [],
     agentInvocations: [],
+    status: 'PENDING',
+    version: 1,
     sourceEventId: uow.event.id,
+  }, {
+    pk: `Decision#${p.tenantId}#${p.decisionId}`,
+    sk: 'DecisionReadModel',
   });
 };
