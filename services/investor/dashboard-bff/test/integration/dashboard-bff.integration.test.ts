@@ -387,6 +387,18 @@ describe('dashboard-bff', () => {
     it('should accumulate AdvisoryStatus pendingDecisions on DECISION_PACKET_CREATED', async () => {
       const decisionId = `integ-dp-created-${Date.now()}`;
 
+      // Read current value before sending event (may already exist from DECISION_APPROVED test)
+      let beforeValue = 0;
+      try {
+        const before = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 2_000,
+        });
+        beforeValue = (before['pendingDecisions'] as number) ?? 0;
+      } catch { /* item doesn't exist yet */ }
+
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
@@ -400,20 +412,34 @@ describe('dashboard-bff', () => {
         },
       });
 
-      // accumulate('AdvisoryStatus', { field: 'pendingDecisions', increment: 1 })
-      const item = await table.waitForItem({
-        table: 'dashboard-bff',
-        pk: `T#${ctx.tenantId}`,
-        sk: 'AdvisoryStatus',
-        timeoutMs: 60_000,
-      });
+      // Poll until pendingDecisions increments from beforeValue
+      let item: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        item = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 5_000,
+        });
+        if ((item['pendingDecisions'] as number) > beforeValue) break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
 
-      // accumulate uses DDB ADD — __typename is not set by accumulate
-      expect(item['pendingDecisions']).toBeGreaterThanOrEqual(1);
+      expect((item!['pendingDecisions'] as number)).toBe(beforeValue + 1);
     }, 120_000);
 
     it('should accumulate AdvisoryStatus pendingDecisions on USER_CONFIRMATION_REQUESTED', async () => {
       const decisionId = `integ-ucr-${Date.now()}`;
+
+      // Read current value before sending event
+      const before = await table.waitForItem({
+        table: 'dashboard-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 5_000,
+      });
+      const beforeValue = (before['pendingDecisions'] as number) ?? 0;
 
       await eb.putEvent({
         bus: 'investor',
@@ -425,21 +451,34 @@ describe('dashboard-bff', () => {
         },
       });
 
-      // accumulate('AdvisoryStatus', { field: 'pendingDecisions', increment: 1 })
-      // Item may already exist from DECISION_PACKET_CREATED test — just verify it exists
-      const item = await table.waitForItem({
-        table: 'dashboard-bff',
-        pk: `T#${ctx.tenantId}`,
-        sk: 'AdvisoryStatus',
-        timeoutMs: 60_000,
-      });
+      // Poll until pendingDecisions increments
+      let item: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        item = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 5_000,
+        });
+        if ((item['pendingDecisions'] as number) > beforeValue) break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
 
-      // accumulate uses DDB ADD — __typename is not set by accumulate
-      expect(item['pendingDecisions']).toBeGreaterThanOrEqual(1);
+      expect((item!['pendingDecisions'] as number)).toBe(beforeValue + 1);
     }, 120_000);
 
     it('should decrement AdvisoryStatus and create Activity on DECISION_BLOCKED', async () => {
       const decisionId = `integ-blocked-${Date.now()}`;
+
+      // Read current value before sending event
+      const before = await table.waitForItem({
+        table: 'dashboard-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 5_000,
+      });
+      const beforeValue = (before['pendingDecisions'] as number) ?? 0;
 
       await eb.putEvent({
         bus: 'investor',
@@ -451,17 +490,22 @@ describe('dashboard-bff', () => {
         },
       });
 
-      // advisoryStatus: accumulate('AdvisoryStatus', { field: 'pendingDecisions', increment: -1 })
-      const statusItem = await table.waitForItem({
-        table: 'dashboard-bff',
-        pk: `T#${ctx.tenantId}`,
-        sk: 'AdvisoryStatus',
-        timeoutMs: 60_000,
-      });
-      // accumulate uses DDB ADD — __typename is not set by accumulate
-      expect(statusItem['pendingDecisions']).toBeDefined();
+      // Poll until pendingDecisions decrements
+      let statusItem: Record<string, unknown> | undefined;
+      const statusDeadline = Date.now() + 60_000;
+      while (Date.now() < statusDeadline) {
+        statusItem = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 5_000,
+        });
+        if ((statusItem['pendingDecisions'] as number) < beforeValue) break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+      expect((statusItem!['pendingDecisions'] as number)).toBe(beforeValue - 1);
 
-      // recentActivity: record('Activity', ...) → pk: T#<tenantId>, sk: Activity#<timestamp>
+      // recentActivity: record('Activity', ...) → pk: T#<tenantId>, sk: Activity#<eventId>
       let activityItem: Record<string, unknown> | undefined;
       const deadline = Date.now() + 60_000;
       while (Date.now() < deadline && !activityItem) {
