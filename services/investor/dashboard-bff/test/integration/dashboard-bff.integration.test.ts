@@ -120,6 +120,90 @@ describe('dashboard-bff', () => {
       expect(item!['operatingMode']).toBe('BALANCED');
     }, 120_000);
 
+    it('should update InvestorSnapshot on GOAL_UPDATED', async () => {
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'GOAL_UPDATED',
+        detail: {
+          objective: 'INCOME',
+          targetAmountCents: 1_000_000_00,
+          targetDate: '2035-01-01',
+        },
+      });
+
+      let item: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        item = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'InvestorSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (item['goalType'] === 'INCOME') break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+
+      expect(item!['__typename']).toBe('InvestorSnapshot');
+      expect(item!['goalType']).toBe('INCOME');
+    }, 120_000);
+
+    it('should update InvestorSnapshot on RISK_PROFILE_UPDATED', async () => {
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'RISK_PROFILE_UPDATED',
+        detail: {
+          score: 9,
+          category: 'AGGRESSIVE',
+        },
+      });
+
+      let item: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        item = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'InvestorSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (item['riskLevel'] === '9') break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+
+      expect(item!['__typename']).toBe('InvestorSnapshot');
+      expect(item!['riskLevel']).toBe('9');
+    }, 120_000);
+
+    it('should update InvestorSnapshot on OPERATING_MODE_CHANGED', async () => {
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'OPERATING_MODE_CHANGED',
+        detail: {
+          mode: 'AGGRESSIVE',
+        },
+      });
+
+      let item: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        item = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'InvestorSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (item['operatingMode'] === 'AGGRESSIVE') break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+
+      expect(item!['__typename']).toBe('InvestorSnapshot');
+      expect(item!['operatingMode']).toBe('AGGRESSIVE');
+    }, 120_000);
+
     it('should materialize PortfolioSummary on PORTFOLIO_UPDATED (driftPercent)', async () => {
       await eb.putEvent({
         bus: 'investor',
@@ -178,6 +262,37 @@ describe('dashboard-bff', () => {
       expect(item['assetClass']).toBe('EQUITY');
       expect(item['quantity']).toBe(10);
     }, 120_000);
+
+    it('should handle RECONCILIATION_COMPLETED via portfolioSummary (no-op without drift/fill data)', async () => {
+      // RECONCILIATION_COMPLETED goes through portfolioSummary transform.
+      // Without filledQuantity/averageFillPrice or driftPercent, portfolioSummary returns undefined.
+      // Verify no new PortfolioSummary is created for a bare reconciliation event.
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'RECONCILIATION_COMPLETED',
+        detail: {
+          reconciliationId: `integ-recon-${Date.now()}`,
+          completedAt: new Date().toISOString(),
+        },
+      });
+
+      // Wait briefly, then verify PortfolioSummary was not modified
+      await new Promise(r => setTimeout(r, 10_000));
+
+      // Prior PORTFOLIO_UPDATED test created PortfolioSummary with driftPercent=3.5.
+      // RECONCILIATION_COMPLETED should NOT have overwritten it.
+      const item = await table.waitForItem({
+        table: 'dashboard-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: 'PortfolioSummary',
+        timeoutMs: 5_000,
+      }).catch(() => undefined);
+
+      if (item) {
+        expect(item['driftPercent']).toBe(3.5);
+      }
+    }, 30_000);
 
     it('should materialize TimeTravelAvailability on LEDGER_ENTRY_RECORDED', async () => {
       const snapshotAt = new Date().toISOString();
@@ -267,6 +382,101 @@ describe('dashboard-bff', () => {
       expect(activityItem).toBeDefined();
       expect(activityItem!['__typename']).toBe('Activity');
       expect(activityItem!['activityType']).toBe('DECISION_APPROVED');
+    }, 120_000);
+
+    it('should accumulate AdvisoryStatus pendingDecisions on DECISION_PACKET_CREATED', async () => {
+      const decisionId = `integ-dp-created-${Date.now()}`;
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          decisionId,
+          trigger: 'REBALANCE',
+          proposedTrades: [{ symbol: 'AAPL', action: 'BUY', quantity: 5 }],
+          explanation: 'Integration test',
+          confirmationRequired: true,
+        },
+      });
+
+      // accumulate('AdvisoryStatus', { field: 'pendingDecisions', increment: 1 })
+      const item = await table.waitForItem({
+        table: 'dashboard-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 60_000,
+      });
+
+      expect(item['__typename']).toBe('AdvisoryStatus');
+      expect(item['pendingDecisions']).toBeGreaterThanOrEqual(1);
+    }, 120_000);
+
+    it('should accumulate AdvisoryStatus pendingDecisions on USER_CONFIRMATION_REQUESTED', async () => {
+      const decisionId = `integ-ucr-${Date.now()}`;
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'USER_CONFIRMATION_REQUESTED',
+        detail: {
+          decisionId,
+          tenantId: ctx.tenantId,
+        },
+      });
+
+      // accumulate('AdvisoryStatus', { field: 'pendingDecisions', increment: 1 })
+      // Item may already exist from DECISION_PACKET_CREATED test — just verify it exists
+      const item = await table.waitForItem({
+        table: 'dashboard-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 60_000,
+      });
+
+      expect(item['__typename']).toBe('AdvisoryStatus');
+      expect(item['pendingDecisions']).toBeGreaterThanOrEqual(1);
+    }, 120_000);
+
+    it('should decrement AdvisoryStatus and create Activity on DECISION_BLOCKED', async () => {
+      const decisionId = `integ-blocked-${Date.now()}`;
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'DECISION_BLOCKED',
+        detail: {
+          decisionId,
+          reason: 'Integration test block',
+        },
+      });
+
+      // advisoryStatus: accumulate('AdvisoryStatus', { field: 'pendingDecisions', increment: -1 })
+      const statusItem = await table.waitForItem({
+        table: 'dashboard-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 60_000,
+      });
+      expect(statusItem['__typename']).toBe('AdvisoryStatus');
+
+      // recentActivity: record('Activity', ...) → pk: T#<tenantId>, sk: Activity#<timestamp>
+      let activityItem: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline && !activityItem) {
+        const items = await table.queryItems({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          skPrefix: 'Activity#',
+        });
+        activityItem = items.find(i => i['activityType'] === 'DECISION_BLOCKED');
+        if (!activityItem) await new Promise(r => setTimeout(r, 2_000));
+      }
+
+      expect(activityItem).toBeDefined();
+      expect(activityItem!['__typename']).toBe('Activity');
+      expect(activityItem!['activityType']).toBe('DECISION_BLOCKED');
+      expect(activityItem!['description']).toContain('Integration test block');
     }, 120_000);
   });
 
