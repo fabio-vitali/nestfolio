@@ -11,11 +11,12 @@ export class TableAssertions {
   constructor(ctx: IntegrationContext) {
     this.ctx = ctx;
     this.client = new DynamoDBClient({ region: ctx.region });
+    this.registerCleanup();
   }
 
   /**
    * Register auto-cleanup of all items observed via waitForItem/assertItem.
-   * Call once in beforeAll after constructing TableAssertions.
+   * Safe to call multiple times — idempotent via cleanupRegistered guard.
    */
   registerCleanup(): void {
     if (this.cleanupRegistered) return;
@@ -35,6 +36,7 @@ export class TableAssertions {
         console.error(`TableAssertions cleanup: failed to delete pk=${pk} sk=${sk}`, err);
       }
     }
+    this.client.destroy();
   }
 
   async waitForItem(params: {

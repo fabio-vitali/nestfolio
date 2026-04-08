@@ -13,6 +13,11 @@ export class SsmCache {
     this.cfn = new CloudFormationClient({ region });
   }
 
+  destroy(): void {
+    this.client.destroy();
+    this.cfn.destroy();
+  }
+
   private async get(paramName: string): Promise<string> {
     const cached = this.cache.get(paramName);
     if (cached) return cached;

@@ -212,5 +212,7 @@ export class EventBusTrap {
       // eslint-disable-next-line no-console
       console.error('EventBusTrap: failed to delete SQS queue', err);
     }
+    this.eb.destroy();
+    this.sqs.destroy();
   }
 }

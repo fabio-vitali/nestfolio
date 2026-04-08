@@ -1,4 +1,4 @@
-import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import type { IntegrationContext } from '../context';
 
@@ -15,21 +15,36 @@ export interface AccountSeedOptions {
 export class AccountSeedingFixture {
   private readonly client: DynamoDBClient;
   private readonly ctx: IntegrationContext;
+  private readonly seededItems: { tableName: string; pk: string; sk: string }[] = [];
 
   constructor(ctx: IntegrationContext) {
     this.ctx = ctx;
     this.client = new DynamoDBClient({ region: ctx.region });
+    ctx.cleanup.register('AccountSeedingFixture', async () => {
+      for (const { tableName, pk, sk } of this.seededItems.reverse()) {
+        try {
+          await this.client.send(new DeleteItemCommand({
+            TableName: tableName,
+            Key: marshall({ pk, sk }),
+          }));
+        } catch (err) {
+          console.error(`AccountSeedingFixture cleanup failed: pk=${pk} sk=${sk}`, err);
+        }
+      }
+      this.client.destroy();
+    });
   }
 
   async seed(serviceName: string, options?: AccountSeedOptions): Promise<void> {
     const tableName = await this.ctx.ssm.tableName(serviceName);
     const streamType = options?.streamType ?? 'actual';
     const pk = `Account#${this.ctx.tenantId}#${streamType}`;
+    const sk = 'Snapshot#latest';
     const now = new Date().toISOString();
 
     const item = {
       pk,
-      sk: 'Snapshot#latest',
+      sk,
       __typename: 'AccountSnapshot',
       tenantId: this.ctx.tenantId,
       timestamp: now,
@@ -47,5 +62,7 @@ export class AccountSeedingFixture {
       TableName: tableName,
       Item: marshall(item, { removeUndefinedValues: true }),
     }));
+
+    this.seededItems.push({ tableName, pk, sk });
   }
 }

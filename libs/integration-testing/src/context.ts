@@ -17,13 +17,20 @@ export async function createIntegrationContext(options?: {
   const prefix = options?.prefix ?? 'dev';
   const region = options?.region ?? 'us-east-1';
   const timestamp = Date.now();
+  const cleanup = new CleanupRegistry();
+  const ssm = new SsmCache(prefix, region);
+
+  cleanup.register('SsmCache', () => {
+    ssm.destroy();
+    return Promise.resolve();
+  });
 
   return {
     tenantId: `integ-${timestamp}`,
     userId: `integ-user-${timestamp}`,
     prefix,
     region,
-    ssm: new SsmCache(prefix, region),
-    cleanup: new CleanupRegistry(),
+    ssm,
+    cleanup,
   };
 }

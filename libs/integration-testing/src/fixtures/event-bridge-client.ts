@@ -9,6 +9,10 @@ export class EventBridgeClient {
   constructor(ctx: IntegrationContext) {
     this.ctx = ctx;
     this.client = new AwsEBClient({ region: ctx.region });
+    ctx.cleanup.register('EventBridgeClient', () => {
+      this.client.destroy();
+      return Promise.resolve();
+    });
   }
 
   async putEvent(params: {
