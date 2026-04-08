@@ -17,12 +17,12 @@ export function request(ctx) {
       {
         table: ctx.stash.tableName,
         operation: 'UpdateItem',
-        key: util.dynamodb.toMapValues({ pk, sk: `CashBalance#${currency}` }),
+        key: util.dynamodb.toMapValues({ pk, sk: 'CashBalance' }),
         update: {
-          expression: 'SET amount = amount - :amount',
+          expression: 'SET cashBalanceCents = cashBalanceCents - :amount',
           expressionValues: util.dynamodb.toMapValues({ ':amount': amountCents }),
         },
-        condition: { expression: 'attribute_exists(pk) AND amount >= :amount' },
+        condition: { expression: 'attribute_exists(pk) AND cashBalanceCents >= :amount' },
       },
       {
         table: ctx.stash.tableName,

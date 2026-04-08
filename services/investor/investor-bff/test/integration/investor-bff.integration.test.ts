@@ -5,7 +5,6 @@ import {
   EventBridgeClient,
   EventBusTrap,
   TableAssertions,
-  DdbSeedFixture,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -14,7 +13,7 @@ describe('investor-bff', () => {
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
   let table: TableAssertions;
-  let seeder: DdbSeedFixture;
+
   let appsync: AppSyncClient;
   let cognitoSub: string;
 
@@ -24,8 +23,6 @@ describe('investor-bff', () => {
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
-    seeder = new DdbSeedFixture(ctx);
-
     const cognito = new CognitoFixture(ctx);
     const tokens = await cognito.setup();
     appsync = new AppSyncClient(ctx, tokens, 'investor-bff');
@@ -269,25 +266,13 @@ describe('investor-bff', () => {
       expect(profileItem['onboardingCompletedAt']).toBeDefined();
     }, 180_000);
 
-    // SKIPPED: GO_LIVE_CONFIRMED handler uses pickRequestContext(ctx) but the
-    // EventBridge event context may not propagate userId correctly. Separate fix needed.
-    it.skip('should set executionMode to live on GO_LIVE_CONFIRMED', async () => {
+    it('should set executionMode to live on GO_LIVE_CONFIRMED', async () => {
       const userId = cognitoSub;
       const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
 
-      // Event-driven fixture: InvestorProfile must exist.
-      // Defensive: publish USER_REGISTERED again — idempotent since record() won't conflict.
-      await eb.putEvent({
-        bus: 'investor',
-        targetService: 'investor-bff',
-        detailType: 'USER_REGISTERED',
-        detail: {
-          tenantId: ctx.tenantId,
-          userId,
-          email: `${userId}@integ-golive.example`,
-        },
-      });
-
+      // InvestorProfile already exists from ONBOARDING_COMPLETED materialization test.
+      // DO NOT re-send USER_REGISTERED — project() uses PutItem which replaces the item,
+      // wiping out operatingMode set by ONBOARDING_COMPLETED.
       await table.waitForItem({
         table: 'investor-bff',
         pk: `InvestorProfile#${ctx.tenantId}#${userId}`,
@@ -366,19 +351,22 @@ describe('investor-bff', () => {
     it('should create withdrawal record and emit WITHDRAWAL_REQUESTED', async () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
 
-      // NOTE: seeder retained — withdrawal resolver expects sk: CashBalance#<currency> with amount field,
-      // but BALANCE_UPDATED transform writes sk: CashBalance with cashBalanceCents (separate pk/sk mismatch)
-      await seeder.seed({
-        table: 'investor-bff',
-        items: [{
-          pk,
-          sk: 'CashBalance#USD',
-          __typename: 'CashBalance',
+      // Event-driven fixture: BALANCE_UPDATED materializes CashBalance at InvestorProfile# pk
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'BALANCE_UPDATED',
+        detail: {
           tenantId: ctx.tenantId,
           userId: cognitoSub,
-          amount: 1_000_000,
-          timestamp: new Date().toISOString(),
-        }],
+          cashBalanceCents: 1_000_000,
+        },
+      });
+      await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'CashBalance',
+        timeoutMs: 60_000,
       });
 
       const result = await appsync.mutate<{
@@ -417,29 +405,16 @@ describe('investor-bff', () => {
 
     it('should update goal and emit GOAL_UPDATED', async () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
-      const goalId = `integ-goal-${Date.now()}`;
 
-      // NOTE: seeder retained — ONBOARDING_COMPLETED generates random goalId UUIDs,
-      // but updateGoal resolver needs a known goalId to target the ConditionExpression
-      await seeder.seed({
+      // Event-driven fixture: ONBOARDING_COMPLETED (materialization test above) created a Goal.
+      // Query for the goalId it generated.
+      const goals = await table.queryItems({
         table: 'investor-bff',
-        items: [{
-          pk,
-          sk: `Goal#${goalId}`,
-          __typename: 'Goal',
-          tenantId: ctx.tenantId,
-          userId: cognitoSub,
-          goalId,
-          objective: 'Original objective',
-          targetAmountCents: 500_000,
-          currency: 'USD',
-          timeHorizonMonths: 60,
-          targetReturn: 0.07,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          timestamp: new Date().toISOString(),
-        }],
+        pk,
+        skPrefix: 'Goal#',
       });
+      expect(goals.length).toBeGreaterThanOrEqual(1);
+      const goalId = goals[0]['goalId'] as string;
 
       const result = await appsync.mutate<{
         updateGoal: { goalId: string; objective: string; targetAmountCents: number; updatedAt: string };
@@ -727,10 +702,10 @@ describe('investor-bff', () => {
 
       expect(Array.isArray(result.getGoals)).toBe(true);
       expect(result.getGoals.length).toBeGreaterThanOrEqual(1);
-      // Goal created by ONBOARDING_COMPLETED materialization test with objective: 'GROWTH'
-      const goal = result.getGoals.find(g => g.objective === 'GROWTH');
-      expect(goal).toBeDefined();
-      expect(goal!.currency).toBe('USD');
+      // Goal created by ONBOARDING_COMPLETED, then updated by updateGoal mutation test
+      const goal = result.getGoals[0];
+      expect(goal.goalId).toBeTruthy();
+      expect(goal.currency).toBe('USD');
     }, 60_000);
   });
 });

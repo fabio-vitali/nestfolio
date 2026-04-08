@@ -18,9 +18,11 @@ export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository 
       balanceUpdated(toUow(payload, ctx)),
     [InvestorBffEventTypes.ONBOARDING_COMPLETED]: async (payload: EventPayload, ctx: EventContext) =>
       onboardingCompleted(payload, ctx),
-    ['GO_LIVE_CONFIRMED']: async (_payload: EventPayload, ctx: EventContext) => {
+    ['GO_LIVE_CONFIRMED']: async (payload: EventPayload, ctx: EventContext) => {
+      const subject = payload.subject as Record<string, unknown>;
+      const reqCtx = { ...pickRequestContext(ctx), userId: (subject.userId as string) as typeof ctx.userId };
       const profileRepo = deps?.profileRepo ?? new InvestorProfileRepository(process.env['TABLE_NAME']!);
-      await profileRepo.setExecutionMode(pickRequestContext(ctx), 'simulation', 'live');
+      await profileRepo.setExecutionMode(reqCtx, 'simulation', 'live');
       return skip();
     },
   };

@@ -21,12 +21,13 @@ describe('investor-bff event-listener', () => {
     const profileRepo = { setExecutionMode } as unknown as InvestorProfileRepository;
     const handlers = createHandlers({ profileRepo });
 
-    const payload = { subject: { tenantId: 'tenant-1', userId: 'user-1' } };
-    const ctx = { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' };
+    // userId in subject differs from ctx to prove handler uses subject.userId
+    const payload = { subject: { tenantId: 'tenant-1', userId: 'subject-user' } };
+    const ctx = { tenantId: 'tenant-1', userId: 'ctx-user', region: 'us-east-1' };
 
     const result = await handlers['GO_LIVE_CONFIRMED'](payload, ctx);
 
-    expect(setExecutionMode).toHaveBeenCalledWith({ tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' }, 'simulation', 'live');
+    expect(setExecutionMode).toHaveBeenCalledWith({ tenantId: 'tenant-1', userId: 'subject-user', region: 'us-east-1' }, 'simulation', 'live');
     expect(result).toEqual({ _tag: 'skip' });
   });
 });
