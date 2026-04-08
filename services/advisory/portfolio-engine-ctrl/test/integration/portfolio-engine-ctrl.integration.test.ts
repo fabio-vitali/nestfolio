@@ -1,6 +1,7 @@
 import {
   createIntegrationContext,
   EventBridgeClient,
+  EventBusTrap,
   TableAssertions,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
@@ -31,16 +32,22 @@ import {
  *       With taskToken 'integ-task-token' the SFN SendTaskSuccess call will fail (no real
  *       SF execution), but the DDB write completes before that, so the assertion holds.
  */
-describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB write', () => {
+describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB write + CDC', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let table: TableAssertions;
+  let trap: EventBusTrap;
 
   beforeAll(async () => {
     ctx = await createIntegrationContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
+    trap = new EventBusTrap(ctx);
+    await trap.deploy({
+      bus: 'advisory',
+      detailType: ['AGENT_INVOCATION_CREATED'],
+    });
   }, 60_000);
 
   afterAll(async () => {
@@ -76,5 +83,12 @@ describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB wri
     // status may be IN_PROGRESS or COMPLETED depending on agent execution speed —
     // either is valid; the presence of an AgentInvocation record is what matters.
     expect(['IN_PROGRESS', 'COMPLETED']).toContain(item['status']);
+
+    // Verify CDC emission
+    const cdcEvent = await trap.waitForEvent({
+      detailType: 'AGENT_INVOCATION_CREATED',
+      timeoutMs: 30_000,
+    });
+    expect(cdcEvent.detailType).toBe('AGENT_INVOCATION_CREATED');
   }, 120_000);
 });

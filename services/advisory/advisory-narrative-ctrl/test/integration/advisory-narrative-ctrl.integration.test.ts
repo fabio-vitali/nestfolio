@@ -1,20 +1,27 @@
 import {
   createIntegrationContext,
   EventBridgeClient,
+  EventBusTrap,
   TableAssertions,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
-describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB write', () => {
+describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB write + CDC', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let table: TableAssertions;
+  let trap: EventBusTrap;
 
   beforeAll(async () => {
     ctx = await createIntegrationContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
+    trap = new EventBusTrap(ctx);
+    await trap.deploy({
+      bus: 'advisory',
+      detailType: ['AGENT_INVOCATION_CREATED', 'EXPLANATION_GENERATED'],
+    });
   }, 60_000);
 
   afterAll(async () => {
@@ -47,5 +54,12 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
     expect(item['tenantId']).toBe(ctx.tenantId);
     expect(item['agentName']).toBe('explainability');
     expect(item['decisionId']).toBe(decisionId);
+
+    // Verify CDC emission
+    const cdcEvent = await trap.waitForEvent({
+      detailType: 'AGENT_INVOCATION_CREATED',
+      timeoutMs: 30_000,
+    });
+    expect(cdcEvent.detailType).toBe('AGENT_INVOCATION_CREATED');
   }, 120_000);
 });

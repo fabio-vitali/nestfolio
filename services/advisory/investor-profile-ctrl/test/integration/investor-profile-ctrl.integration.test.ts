@@ -1,20 +1,27 @@
 import {
   createIntegrationContext,
   EventBridgeClient,
+  EventBusTrap,
   TableAssertions,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
-describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DDB write', () => {
+describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DDB write + CDC', () => {
   let ctx: IntegrationContext;
   let eb: EventBridgeClient;
   let table: TableAssertions;
+  let trap: EventBusTrap;
 
   beforeAll(async () => {
     ctx = await createIntegrationContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
+    trap = new EventBusTrap(ctx);
+    await trap.deploy({
+      bus: 'advisory',
+      detailType: ['AGENT_INVOCATION_CREATED'],
+    });
   }, 60_000);
 
   afterAll(async () => {
@@ -57,5 +64,12 @@ describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DD
     expect(item['tenantId']).toBe(ctx.tenantId);
     expect(item['decisionId']).toBe(decisionId);
     expect(item['status']).toMatch(/^(IN_PROGRESS|COMPLETED)$/);
+
+    // Verify CDC emission
+    const cdcEvent = await trap.waitForEvent({
+      detailType: 'AGENT_INVOCATION_CREATED',
+      timeoutMs: 30_000,
+    });
+    expect(cdcEvent.detailType).toBe('AGENT_INVOCATION_CREATED');
   }, 120_000);
 });
