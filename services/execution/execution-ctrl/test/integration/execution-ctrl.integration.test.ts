@@ -133,4 +133,27 @@ describe('execution-ctrl', () => {
     );
     expect(resetEvents).toHaveLength(0);
   }, 60_000);
+
+  // ── ACCOUNT_CLOSURE_REQUESTED ─────────────────────────────────────
+
+  it('should process ACCOUNT_CLOSURE_REQUESTED without error (skip handler)', async () => {
+    await eb.putEvent({
+      bus: 'execution',
+      targetService: 'execution-ctrl',
+      detailType: 'ACCOUNT_CLOSURE_REQUESTED',
+      detail: {
+        tenantId: `integ-tenant-${Date.now()}`,
+        reason: 'integ-test-account-closure',
+        requestedAt: new Date().toISOString(),
+      },
+    });
+
+    // Handler calls skip() — no DDB write, no CDC event expected.
+    await new Promise(resolve => setTimeout(resolve, 15_000));
+    const stray = await trap.drain();
+    const closureEvents = stray.filter(e =>
+      e.detailType.includes('ACCOUNT_CLOSURE') || e.detailType.includes('ACCOUNT_CLOSED'),
+    );
+    expect(closureEvents).toHaveLength(0);
+  }, 60_000);
 });
