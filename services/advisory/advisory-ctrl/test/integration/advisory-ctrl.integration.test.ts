@@ -3,7 +3,6 @@ import {
   EventBridgeClient,
   EventBusTrap,
   TableAssertions,
-  DdbSeedFixture,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -12,7 +11,7 @@ import {
  *
  * Handler groups tested:
  * 1. Compliance callback: DECISION_BLOCKED, DECISION_APPROVED (L1 → APPROVED, L2 → AWAITING_CONFIRMATION)
- * 2. User response: USER_CONFIRMED, USER_REJECTED (require pre-seeded DecisionPacket)
+ * 2. User response: USER_CONFIRMED, USER_REJECTED (use DECISION_APPROVED L2 as event-driven fixture)
  *
  * NOT tested here:
  *   Agent trigger path (MANDATE_CREATED, GOAL_CREATED, etc.) — these invoke the
@@ -26,13 +25,13 @@ import {
  *   pk: DecisionPacket#<tenantId>#<dpId>
  *   sk: DecisionPacket
  *
- * Note: update() uses UpdateCommand (not PutCommand) so __typename is NOT written
- * by compliance/user-response paths. Assertions target status fields instead.
+ * Note: compliance/user-response handlers use UpdateCommand (not PutCommand) so
+ * __typename is NOT written by those paths. Assertions target status fields instead.
  */
 
 /**
  * Poll DDB until a field reaches an expected value.
- * Used for pre-seeded items where waitForItem would return the seeded state immediately.
+ * Used when waiting for a state transition (e.g. AWAITING_CONFIRMATION → CONFIRMED).
  */
 async function waitForFieldValue(
   table: TableAssertions,
@@ -67,7 +66,6 @@ describe('advisory-ctrl', () => {
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
   let table: TableAssertions;
-  let seeder: DdbSeedFixture;
 
   beforeAll(async () => {
     ctx = await createIntegrationContext();
@@ -75,7 +73,6 @@ describe('advisory-ctrl', () => {
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
-    seeder = new DdbSeedFixture(ctx);
 
     // Trap all DecisionPacket-related CDC events
     await trap.deploy({
@@ -184,21 +181,31 @@ describe('advisory-ctrl', () => {
     it('should update DecisionPacket to CONFIRMED on USER_CONFIRMED', async () => {
       const dpId = `integ-dp-confirmed-${Date.now()}`;
 
-      // Pre-seed DecisionPacket in AWAITING_CONFIRMATION state
-      // (user response handler does an update, not a put — needs existing record)
-      await seeder.seed({
-        table: 'advisory-ctrl',
-        items: [{
-          pk: `DecisionPacket#${ctx.tenantId}#${dpId}`,
-          sk: 'DecisionPacket',
-          __typename: 'DecisionPacket',
-          tenantId: ctx.tenantId,
+      // Event-driven fixture: DECISION_APPROVED(L2) creates DecisionPacket
+      // with status AWAITING_CONFIRMATION (replaces seeder.seed)
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-ctrl',
+        detailType: 'DECISION_APPROVED',
+        detail: {
           decisionId: dpId,
-          status: 'AWAITING_CONFIRMATION',
-          createdAt: new Date().toISOString(),
-        }],
+          tenantId: ctx.tenantId,
+          authorityLevel: 'L2',
+        },
       });
 
+      // Wait for DecisionPacket to reach AWAITING_CONFIRMATION
+      const pk = `DecisionPacket#${ctx.tenantId}#${dpId}`;
+      await waitForFieldValue(table, {
+        table: 'advisory-ctrl',
+        pk,
+        sk: 'DecisionPacket',
+        field: 'status',
+        expected: 'AWAITING_CONFIRMATION',
+        timeoutMs: 60_000,
+      });
+
+      // Now publish USER_CONFIRMED
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'advisory-ctrl',
@@ -209,8 +216,7 @@ describe('advisory-ctrl', () => {
         },
       });
 
-      const pk = `DecisionPacket#${ctx.tenantId}#${dpId}`;
-      // Poll until status changes from seeded AWAITING_CONFIRMATION to CONFIRMED
+      // Poll until status changes to CONFIRMED
       const item = await waitForFieldValue(table, {
         table: 'advisory-ctrl',
         pk,
@@ -222,23 +228,31 @@ describe('advisory-ctrl', () => {
 
       expect(item['status']).toBe('CONFIRMED');
       expect(item['userDecision']).toBe('CONFIRMED');
-    }, 120_000);
+    }, 180_000);
 
     it('should update DecisionPacket to REJECTED on USER_REJECTED', async () => {
       const dpId = `integ-dp-rejected-${Date.now()}`;
 
-      // Pre-seed DecisionPacket in AWAITING_CONFIRMATION state
-      await seeder.seed({
-        table: 'advisory-ctrl',
-        items: [{
-          pk: `DecisionPacket#${ctx.tenantId}#${dpId}`,
-          sk: 'DecisionPacket',
-          __typename: 'DecisionPacket',
-          tenantId: ctx.tenantId,
+      // Event-driven fixture: DECISION_APPROVED(L2) creates AWAITING_CONFIRMATION state
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-ctrl',
+        detailType: 'DECISION_APPROVED',
+        detail: {
           decisionId: dpId,
-          status: 'AWAITING_CONFIRMATION',
-          createdAt: new Date().toISOString(),
-        }],
+          tenantId: ctx.tenantId,
+          authorityLevel: 'L2',
+        },
+      });
+
+      const pk = `DecisionPacket#${ctx.tenantId}#${dpId}`;
+      await waitForFieldValue(table, {
+        table: 'advisory-ctrl',
+        pk,
+        sk: 'DecisionPacket',
+        field: 'status',
+        expected: 'AWAITING_CONFIRMATION',
+        timeoutMs: 60_000,
       });
 
       await eb.putEvent({
@@ -252,8 +266,6 @@ describe('advisory-ctrl', () => {
         },
       });
 
-      const pk = `DecisionPacket#${ctx.tenantId}#${dpId}`;
-      // Poll until status changes from seeded AWAITING_CONFIRMATION to REJECTED
       const item = await waitForFieldValue(table, {
         table: 'advisory-ctrl',
         pk,
@@ -266,6 +278,6 @@ describe('advisory-ctrl', () => {
       expect(item['status']).toBe('REJECTED');
       expect(item['userDecision']).toBe('REJECTED');
       expect(item['rejectionReason']).toBe('Integration test rejection');
-    }, 120_000);
+    }, 180_000);
   });
 });
