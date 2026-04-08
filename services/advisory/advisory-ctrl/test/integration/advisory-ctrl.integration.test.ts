@@ -74,12 +74,16 @@ describe('advisory-ctrl', () => {
     table.registerCleanup();
 
     // Trap all DecisionPacket-related CDC events
+    // CDC auto-expands: DECISION_PACKET → DECISION_PACKET_CREATED (INSERT) / DECISION_PACKET_UPDATED (MODIFY)
     await trap.deploy({
       bus: 'advisory',
       detailType: [
-        'DECISION_PACKET',
-        'AGENT_INVOCATION',
-        'WORKFLOW_STATE',
+        'DECISION_PACKET_CREATED',
+        'DECISION_PACKET_UPDATED',
+        'AGENT_INVOCATION_CREATED',
+        'AGENT_INVOCATION_UPDATED',
+        'WORKFLOW_STATE_CREATED',
+        'WORKFLOW_STATE_UPDATED',
       ],
     });
   }, 90_000);
@@ -118,9 +122,9 @@ describe('advisory-ctrl', () => {
       expect(item['complianceResult']).toBe('BLOCKED');
       expect(item['blockReason']).toBe('Integration test block');
 
-      // Verify CDC egress — the UpdateCommand triggers a DDB Stream MODIFY → DECISION_PACKET event
-      const cdcEvent = await trap.waitForEvent({ detailType: 'DECISION_PACKET', timeoutMs: 60_000 });
-      expect(cdcEvent.detailType).toBe('DECISION_PACKET');
+      // Verify CDC egress — the UpdateCommand triggers a DDB Stream event → DECISION_PACKET_CREATED or _UPDATED
+      const cdcEvent = await trap.waitForEvent({ detailType: 'DECISION_PACKET_CREATED', timeoutMs: 60_000 });
+      expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
     }, 120_000);
 
     it('should update DecisionPacket to APPROVED on DECISION_APPROVED (L1 autonomous)', async () => {
@@ -292,7 +296,7 @@ describe('advisory-ctrl', () => {
   // handler throws, but the initial DRAFT record is already persisted.
   //
   // We verify the handler processes the event by waiting for the
-  // DECISION_PACKET CDC event emitted from the DDB Stream. The DDB pk
+  // DECISION_PACKET_CREATED CDC event emitted from the DDB Stream. The DDB pk
   // includes the EventBridge event ID (not predictable), so we use the
   // trap rather than direct DDB queries.
   //
@@ -364,7 +368,7 @@ describe('advisory-ctrl', () => {
         // whether the AgentRuntime is deployed and responsive:
         //
         // If AgentRuntime is available:
-        //   - DecisionPacket (DRAFT) written to DDB → CDC emits DECISION_PACKET
+        //   - DecisionPacket (DRAFT) written to DDB → CDC emits DECISION_PACKET_CREATED
         //   - Additional writes follow (AgentInvocation, status update)
         // If AgentRuntime is unavailable:
         //   - The handler may fail before writing to DDB
@@ -375,10 +379,10 @@ describe('advisory-ctrl', () => {
         // a fatal SQS processing error (no DLQ redirect).
         try {
           const cdcEvent = await trap.waitForEvent({
-            detailType: 'DECISION_PACKET',
+            detailType: 'DECISION_PACKET_CREATED',
             timeoutMs: 30_000,
           });
-          expect(cdcEvent.detailType).toBe('DECISION_PACKET');
+          expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
           expect(cdcEvent.detail).toBeDefined();
         } catch {
           // Timeout is acceptable — AgentRuntime may not be deployed.
