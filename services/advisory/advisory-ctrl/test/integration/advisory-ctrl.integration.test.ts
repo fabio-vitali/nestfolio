@@ -7,22 +7,21 @@ import {
 } from '@nestfolio/integration-testing';
 
 /**
- * advisory-ctrl integration tests — compliance callback + user response paths.
+ * advisory-ctrl integration tests — all 15 ingress events.
  *
  * Handler groups tested:
  * 1. Compliance callback: DECISION_BLOCKED, DECISION_APPROVED (L1 → APPROVED, L2 → AWAITING_CONFIRMATION)
  * 2. User response: USER_CONFIRMED, USER_REJECTED (use DECISION_APPROVED L2 as event-driven fixture)
- *
- * NOT tested here:
- *   Agent trigger path (MANDATE_CREATED, GOAL_CREATED, etc.) — these invoke the
- *   DecisionLifecycleService which calls Bedrock AgentCore via the agent-orchestrator
- *   library (createOrchestrator/invokeOrchestrator). This is NOT an HTTP endpoint and
- *   cannot be redirected via SsmOverrideFixture + MockApiFixture. Testing the agent
- *   trigger path requires either a deployed AgentRuntime or a different mocking strategy
- *   at the agent-orchestrator library level.
+ * 3. Agent trigger: 11 events (MANDATE_CREATED, GOAL_CREATED, GOAL_UPDATED,
+ *    RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED,
+ *    PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED,
+ *    DEPOSIT_DETECTED) — invoke DecisionLifecycleService → Bedrock AgentCore.
+ *    Verified via CDC trap (DECISION_PACKET event emitted from DDB Stream).
+ *    The DDB pk includes the EventBridge event ID (not predictable from test),
+ *    so we use the EventBusTrap rather than direct DDB queries.
  *
  * DDB entity: DecisionPacket
- *   pk: DecisionPacket#<tenantId>#<dpId>
+ *   pk: DecisionPacket#<tenantId>#<dpId>  (dpId = EventBridge event ID for trigger path)
  *   sk: DecisionPacket
  *
  * Note: compliance/user-response handlers use UpdateCommand (not PutCommand) so
@@ -118,6 +117,10 @@ describe('advisory-ctrl', () => {
       expect(item['status']).toBe('BLOCKED');
       expect(item['complianceResult']).toBe('BLOCKED');
       expect(item['blockReason']).toBe('Integration test block');
+
+      // Verify CDC egress — the UpdateCommand triggers a DDB Stream MODIFY → DECISION_PACKET event
+      const cdcEvent = await trap.waitForEvent({ detailType: 'DECISION_PACKET', timeoutMs: 60_000 });
+      expect(cdcEvent.detailType).toBe('DECISION_PACKET');
     }, 120_000);
 
     it('should update DecisionPacket to APPROVED on DECISION_APPROVED (L1 autonomous)', async () => {
@@ -279,5 +282,104 @@ describe('advisory-ctrl', () => {
       expect(item['userDecision']).toBe('REJECTED');
       expect(item['rejectionReason']).toBe('Integration test rejection');
     }, 180_000);
+  });
+
+  // ── Agent Trigger Path — DDB write + CDC verification ─────────────────
+  // These events invoke DecisionLifecycleService → Bedrock AgentCore.
+  // The service writes a DecisionPacket (status: DRAFT) via putIfNotExists
+  // BEFORE invoking the agent pipeline. If the agent responds, additional
+  // updates (AGENTS_COMPLETED) follow. If the agent is unavailable the
+  // handler throws, but the initial DRAFT record is already persisted.
+  //
+  // We verify the handler processes the event by waiting for the
+  // DECISION_PACKET CDC event emitted from the DDB Stream. The DDB pk
+  // includes the EventBridge event ID (not predictable), so we use the
+  // trap rather than direct DDB queries.
+  //
+  // The Bedrock agent response is non-deterministic in integration tests.
+
+  describe('agent trigger events (CDC verification)', () => {
+    const triggerEvents = [
+      {
+        detailType: 'MANDATE_CREATED',
+        detail: { mandateId: 'integ-mandate', level: 'DISCRETIONARY' },
+      },
+      {
+        detailType: 'GOAL_CREATED',
+        detail: { goalId: 'integ-goal', objective: 'GROWTH' },
+      },
+      {
+        detailType: 'GOAL_UPDATED',
+        detail: { goalId: 'integ-goal', objective: 'INCOME' },
+      },
+      {
+        detailType: 'RISK_PROFILE_CREATED',
+        detail: { score: 7, band: 'MODERATE' },
+      },
+      {
+        detailType: 'RISK_PROFILE_UPDATED',
+        detail: { score: 9, band: 'AGGRESSIVE' },
+      },
+      {
+        detailType: 'OPERATING_MODE_CHANGED',
+        detail: { mode: 'AGGRESSIVE', previousMode: 'BALANCED' },
+      },
+      {
+        detailType: 'PORTFOLIO_DRIFT_DETECTED',
+        detail: { driftPercent: 5.2, threshold: 3.0 },
+      },
+      {
+        detailType: 'ORDER_FILLED',
+        detail: { orderId: 'integ-order', symbol: 'AAPL', side: 'BUY', quantity: 10, fillPrice: 150 },
+      },
+      {
+        detailType: 'ORDER_REJECTED',
+        detail: { orderId: 'integ-reject', symbol: 'TSLA', reason: 'Margin' },
+      },
+      {
+        detailType: 'ORDER_CANCELLED',
+        detail: { orderId: 'integ-cancel', symbol: 'GOOG' },
+      },
+      {
+        detailType: 'DEPOSIT_DETECTED',
+        detail: { depositId: 'integ-dep', amountCents: 100_000 },
+      },
+    ];
+
+    it.each(triggerEvents)(
+      'should process $detailType and emit DECISION_PACKET via CDC',
+      async ({ detailType, detail }) => {
+        await eb.putEvent({
+          bus: 'advisory',
+          targetService: 'advisory-ctrl',
+          detailType,
+          detail: {
+            ...detail,
+            tenantId: ctx.tenantId,
+          },
+        });
+
+        // The handler calls DecisionLifecycleService.executeDecisionLifecycle()
+        // which writes a DecisionPacket (DRAFT) to DDB via putIfNotExists.
+        // This INSERT triggers DDB Streams → CDC → DECISION_PACKET on the bus.
+        //
+        // If the Bedrock AgentRuntime is deployed and responsive:
+        //   - Additional DDB writes follow (AgentInvocation, status update)
+        //   - Multiple CDC events emitted (DECISION_PACKET, AGENT_INVOCATION)
+        // If the AgentRuntime is unavailable:
+        //   - The initial DRAFT write still succeeds
+        //   - The handler throws → materializeToTable emits ADVISORY_CTRL_FAILED
+        //   - The DRAFT record's INSERT still triggers DECISION_PACKET CDC
+        //
+        // Either way, we expect at least one DECISION_PACKET CDC event.
+        const cdcEvent = await trap.waitForEvent({
+          detailType: 'DECISION_PACKET',
+          timeoutMs: 90_000,
+        });
+        expect(cdcEvent.detailType).toBe('DECISION_PACKET');
+        expect(cdcEvent.detail).toBeDefined();
+      },
+      120_000,
+    );
   });
 });
