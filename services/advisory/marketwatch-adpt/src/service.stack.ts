@@ -10,7 +10,6 @@ import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfo
 import { MarketwatchAdptEventTypes } from './domain/events';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
-import { MarketwatchAdptEventTypes } from './domain/events';
 
 export class MarketwatchAdptStack extends ServiceStack {
   constructor(

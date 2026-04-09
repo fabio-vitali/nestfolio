@@ -86,6 +86,7 @@ deploy_service() {
   local config_json="$4"
 
   # Extract config values
+  local subsystem=$(echo "$config_json" | jq -r '.subsystem')
   local observability=$(echo "$config_json" | jq -r '.observability')
   local log_retention=$(echo "$config_json" | jq -r '.logRetention')
   local protected_resources=$(echo "$config_json" | jq -r '.protectedResources')
@@ -103,9 +104,13 @@ deploy_service() {
   if [ -n "$region" ]; then env_vars="CDK_DEFAULT_REGION=$region"; fi
   if [ -n "$account" ]; then env_vars="$env_vars CDK_DEFAULT_ACCOUNT=$account"; fi
 
-  env $env_vars pnpm nx run "$svc:deploy" -- \
-    $APPROVAL_FLAG \
-    --prefix="$PREFIX" \
+  # Run CDK directly with per-service output dir to avoid cdk.out conflicts in parallel deploys
+  local app_path="services/$subsystem/$svc/src/main.ts"
+  env $env_vars npx cdk deploy \
+    --app "npx ts-node -r ./tools/register-paths.js $app_path" \
+    --require-approval never \
+    --output "cdk.out.$svc" \
+    -c prefix="$PREFIX" \
     -c tier="$RESOLVER_TIER" \
     -c observability="$observability" \
     -c logRetention="$log_retention" \
@@ -262,6 +267,9 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     fi
   fi
 done
+
+# Clean up per-service cdk.out directories
+rm -rf cdk.out.* 2>/dev/null || true
 
 echo ""
 echo "Deployment complete. Tier: $TIER, Prefix: $PREFIX"

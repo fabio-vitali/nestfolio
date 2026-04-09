@@ -10,7 +10,6 @@ import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfo
 import { YahooFinanceAdptEventTypes } from './domain/events';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
-import { YahooFinanceAdptEventTypes } from './domain/events';
 
 export class YahooFinanceAdptStack extends ServiceStack {
   constructor(
