@@ -5,6 +5,7 @@ import {
   EventBridgeClient,
   EventBusTrap,
   TableAssertions,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -343,7 +344,7 @@ describe('investor-bff', () => {
       expect(item['__typename']).toBe('Deposit');
 
       // Assert: CDC event on EventBridge
-      const event = await trap.waitForEvent({ detailType: 'DEPOSIT_INITIATED', timeoutMs: 60_000 });
+      const event = await trap.waitForEvent<BusEventPayload>({ detailType: 'DEPOSIT_INITIATED', timeoutMs: 60_000 });
       expect(event.detailType).toBe('DEPOSIT_INITIATED');
       expect(event.detail.context.tenantId).toBe(ctx.tenantId);
     }, 120_000);

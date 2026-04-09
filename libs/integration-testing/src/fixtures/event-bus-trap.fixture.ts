@@ -9,9 +9,9 @@ import {
 } from '@aws-sdk/client-sqs';
 import type { IntegrationContext } from '../context';
 
-export interface CapturedEvent {
+export interface CapturedEvent<TDetail = Record<string, unknown>> {
   detailType: string;
-  detail: Record<string, unknown>;
+  detail: TDetail;
   source: string;
   time: string;
 }
@@ -150,11 +150,11 @@ export class EventBusTrap {
     this.ctx.cleanup.register('EventBusTrap', () => this.teardown());
   }
 
-  async waitForEvent(params?: {
+  async waitForEvent<TDetail = Record<string, unknown>>(params?: {
     detailType?: string;
     timeoutMs?: number;
     pollIntervalMs?: number;
-  }): Promise<CapturedEvent> {
+  }): Promise<CapturedEvent<TDetail>> {
     const timeout = params?.timeoutMs ?? this.ctx.timings.eventTimeout;
     const pollInterval = params?.pollIntervalMs ?? this.ctx.timings.pollInterval;
     const deadline = Date.now() + timeout;
@@ -165,10 +165,10 @@ export class EventBusTrap {
         const match = this.captured.find(e => e.detailType === params.detailType);
         if (match) {
           this.captured = this.captured.filter(e => e !== match);
-          return match;
+          return match as CapturedEvent<TDetail>;
         }
       } else if (this.captured.length > 0) {
-        return this.captured.shift()!;
+        return this.captured.shift()! as CapturedEvent<TDetail>;
       }
 
       // Poll SQS
@@ -188,10 +188,10 @@ export class EventBusTrap {
         };
 
         if (params?.detailType && event.detailType === params.detailType) {
-          return event;
+          return event as CapturedEvent<TDetail>;
         }
         if (!params?.detailType) {
-          return event;
+          return event as CapturedEvent<TDetail>;
         }
         // Buffer non-matching events
         this.captured.push(event);

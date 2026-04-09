@@ -2,6 +2,7 @@ import {
   createIntegrationContext,
   EventBridgeClient,
   EventBusTrap,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -37,7 +38,7 @@ describe('investor-adpt: Advisory → Investor forwarding', () => {
       },
     });
 
-    const event = await trap.waitForEvent();
+    const event = await trap.waitForEvent<BusEventPayload>();
     expect(event.detailType).toBe('DECISION_PACKET_CREATED');
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 60_000);

@@ -7,6 +7,7 @@ import {
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -76,7 +77,7 @@ describe('fred-adpt (mocked)', () => {
     });
     expect(item['__typename']).toBe('FredIndicator');
 
-    const event = await trap.waitForEvent({ timeoutMs: 60_000 });
+    const event = await trap.waitForEvent<BusEventPayload>({ timeoutMs: 60_000 });
     expect(event.detailType).toBe('FRED_INDICATORS_UPDATED');
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 120_000);

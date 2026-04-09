@@ -7,6 +7,7 @@ import {
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -89,7 +90,7 @@ describe('marketwatch-adpt (mocked)', () => {
       detail: {},
     });
 
-    const event = await trap.waitForEvent({ timeoutMs: 60_000 });
+    const event = await trap.waitForEvent<BusEventPayload>({ timeoutMs: 60_000 });
     expect(event.detailType).toBe('MARKETWATCH_UPDATED');
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 120_000);

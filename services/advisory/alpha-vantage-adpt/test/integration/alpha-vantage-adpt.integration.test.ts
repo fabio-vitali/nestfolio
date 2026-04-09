@@ -7,6 +7,7 @@ import {
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -82,7 +83,7 @@ describe('alpha-vantage-adpt (mocked)', () => {
     expect(item['__typename']).toBe('AlphaVantageArticle');
 
     // Verify CDC event
-    const event = await trap.waitForEvent({ detailType: 'ALPHA_VANTAGE_NEWS_UPDATED' });
+    const event = await trap.waitForEvent<BusEventPayload>({ detailType: 'ALPHA_VANTAGE_NEWS_UPDATED' });
     expect(event.detailType).toBe('ALPHA_VANTAGE_NEWS_UPDATED');
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 120_000);

@@ -7,6 +7,7 @@ import {
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -76,7 +77,7 @@ describe('broker-alpaca-adpt', () => {
     expect(item['alpacaOrderId']).toBeTruthy();
 
     // Assert: CDC emits ALPACA_ORDER_PLACED
-    const placedEvent = await trap.waitForEvent({ detailType: 'ALPACA_ORDER_PLACED' });
+    const placedEvent = await trap.waitForEvent<BusEventPayload>({ detailType: 'ALPACA_ORDER_PLACED' });
     expect(placedEvent.detail.subject.nestfolioOrderId).toBe(orderId);
   }, 60_000);
 
@@ -98,7 +99,7 @@ describe('broker-alpaca-adpt', () => {
     expect(item['status']).toBe('REJECTED');
     expect(item['rejectionReason']).toBeTruthy();
 
-    const event = await trap.waitForEvent({ detailType: 'ALPACA_ORDER_REJECTED' });
+    const event = await trap.waitForEvent<BusEventPayload>({ detailType: 'ALPACA_ORDER_REJECTED' });
     expect(event.detail.subject.status).toBe('REJECTED');
   }, 60_000);
 
@@ -126,7 +127,7 @@ describe('broker-alpaca-adpt', () => {
     });
     expect(item['status']).toBe('INITIATED');
 
-    const initiatedEvent = await trap.waitForEvent({ detailType: 'ALPACA_TRANSFER_INITIATED' });
+    const initiatedEvent = await trap.waitForEvent<BusEventPayload>({ detailType: 'ALPACA_TRANSFER_INITIATED' });
     expect(initiatedEvent.detail.subject.nestfolioTransferId).toBe(transferId);
   }, 60_000);
 
@@ -147,7 +148,7 @@ describe('broker-alpaca-adpt', () => {
     expect(item['equity']).toBe('125000.00');
     expect(item['positions']).toHaveLength(1);
 
-    const event = await trap.waitForEvent({ detailType: 'ALPACA_ACCOUNT_SNAPSHOT' });
+    const event = await trap.waitForEvent<BusEventPayload>({ detailType: 'ALPACA_ACCOUNT_SNAPSHOT' });
     expect(event.detail.subject.equity).toBe('125000.00');
   }, 60_000);
 });

@@ -3,6 +3,7 @@ import {
   EventBridgeClient,
   EventBusTrap,
   TableAssertions,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -87,7 +88,7 @@ describe('broker-sim-adpt', () => {
 
     // Verify CDC event — proves full pipeline: EB → SQS → Lambda → DDB DepositDetected write → CDC → SIM_DEPOSIT_COMPLETED
     // DDB pk uses eventId (not depositId), so we verify via CDC event instead of waitForItem
-    const event = await trap.waitForEvent({ detailType: 'SIM_DEPOSIT_COMPLETED', timeoutMs: 60_000 });
+    const event = await trap.waitForEvent<BusEventPayload>({ detailType: 'SIM_DEPOSIT_COMPLETED', timeoutMs: 60_000 });
     expect(event.detailType).toBe('SIM_DEPOSIT_COMPLETED');
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 120_000);
@@ -127,7 +128,7 @@ describe('broker-sim-adpt', () => {
 
     // Verify CDC event — proves full pipeline: EB → SQS → Lambda → DDB WithdrawalCompleted write → CDC → SIM_WITHDRAWAL_COMPLETED
     // DDB pk uses eventId (not withdrawalId), so we verify via CDC event instead of waitForItem
-    const event = await trap.waitForEvent({ detailType: 'SIM_WITHDRAWAL_COMPLETED', timeoutMs: 60_000 });
+    const event = await trap.waitForEvent<BusEventPayload>({ detailType: 'SIM_WITHDRAWAL_COMPLETED', timeoutMs: 60_000 });
     expect(event.detailType).toBe('SIM_WITHDRAWAL_COMPLETED');
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 120_000);

@@ -3,6 +3,7 @@ import {
   EventBridgeClient,
   EventBusTrap,
   TableAssertions,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -149,7 +150,7 @@ describe('decision-workflow-ctrl', () => {
     expect(item['trigger']).toBe('MANDATE_CREATED');
 
     // Verify: CDC emits WORKFLOW_TRIGGER_CREATED on advisory bus
-    const cdcEvent = await trap.waitForEvent({
+    const cdcEvent = await trap.waitForEvent<BusEventPayload>({
       detailType: 'WORKFLOW_TRIGGER_CREATED',
       timeoutMs: 60_000,
     });

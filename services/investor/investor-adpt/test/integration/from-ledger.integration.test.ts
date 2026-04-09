@@ -2,6 +2,7 @@ import {
   createIntegrationContext,
   EventBridgeClient,
   EventBusTrap,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -37,7 +38,7 @@ describe('investor-adpt: Ledger → Investor forwarding', () => {
       },
     });
 
-    const event = await trap.waitForEvent();
+    const event = await trap.waitForEvent<BusEventPayload>();
     expect(event.detailType).toBe('BALANCE_UPDATED');
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 60_000);

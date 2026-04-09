@@ -2,6 +2,7 @@ import {
   createIntegrationContext,
   EventBridgeClient,
   EventBusTrap,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -38,7 +39,7 @@ describe('ledger-adpt: Execution → Ledger forwarding', () => {
       },
     });
 
-    const event = await trap.waitForEvent();
+    const event = await trap.waitForEvent<BusEventPayload>();
     expect(event.detailType).toBe('ORDER_FILLED');
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 60_000);

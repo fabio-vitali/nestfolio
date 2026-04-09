@@ -3,6 +3,7 @@ import {
   EventBridgeClient,
   EventBusTrap,
   TableAssertions,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -54,7 +55,7 @@ describe('execution-ctrl', () => {
     });
 
     // CDC event proves: EB → SQS → Lambda → DDB write → DDB Stream → CDC Lambda → EB
-    const event = await trap.waitForEvent({ timeoutMs: 90_000 });
+    const event = await trap.waitForEvent<BusEventPayload>({ timeoutMs: 90_000 });
     expect(['ORDER_SUBMITTED', 'ORDER_STAGED', 'ORDER_REJECTED']).toContain(event.detailType);
     expect(event.detail.subject).toEqual(
       expect.objectContaining({ decisionPacketId }),

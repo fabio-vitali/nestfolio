@@ -2,6 +2,7 @@ import {
   createIntegrationContext,
   EventBridgeClient,
   EventBusTrap,
+  type BusEventPayload,
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
@@ -37,7 +38,7 @@ describe('execution-adpt: Investor → Execution forwarding', () => {
       },
     });
 
-    const event = await trap.waitForEvent();
+    const event = await trap.waitForEvent<BusEventPayload>();
     expect(event.detailType).toBe('EXECUTION_MODE_CHANGED');
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 60_000);
