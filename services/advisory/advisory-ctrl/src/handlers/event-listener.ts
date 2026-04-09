@@ -51,7 +51,7 @@ function processComplianceCallback(
     throw new Error('Missing decisionId in compliance callback event subject');
   }
 
-  if (ctx.eventType === 'DECISION_APPROVED') {
+  if (ctx.eventType === ComplianceEventTypes.DECISION_APPROVED) {
     if (authorityLevel === 'L1') {
       logger.info('Decision approved (L1 autonomous)', { dpId, tenantId });
       return update('DecisionPacket', {
@@ -91,7 +91,7 @@ function processUserResponse(
     throw new Error('Missing decisionId in user response event subject');
   }
 
-  if (ctx.eventType === 'USER_CONFIRMED') {
+  if (ctx.eventType === AdvisoryBffEventTypes.USER_CONFIRMED) {
     logger.info('Decision confirmed by user', { dpId, tenantId });
     return update('DecisionPacket', {
       status: 'CONFIRMED',

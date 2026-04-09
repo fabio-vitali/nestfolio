@@ -40,7 +40,7 @@ async function processActualEvent(
   }
 
   // Tax lot tracking for live fills
-  if (ctx.eventType === 'ORDER_FILLED' && eventPayload.executionMode === 'live') {
+  if (ctx.eventType === ExecutionCrossDomainEventTypes.ORDER_FILLED && eventPayload.executionMode === 'live') {
     const side = eventPayload.side as string;
     if (side === 'BUY') {
       await deps.taxLotManager.openLot({
@@ -89,7 +89,7 @@ async function processSimulationEvent(
     const created = await deps.repository.putLedgerEntry({
       streamType: 'simulated',
       eventId: `${ctx.eventId}-sim-${trade.symbol}`,
-      eventType: 'ORDER_FILLED',
+      eventType: ExecutionCrossDomainEventTypes.ORDER_FILLED,
       payload: {
         orderId: `sim-${decisionPacketId}-${trade.symbol}`,
         symbol: trade.symbol,

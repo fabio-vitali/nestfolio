@@ -8,6 +8,8 @@ import {
   COMPLIANCE_EVENT_TYPES,
   USER_RESPONSE_EVENT_TYPES,
 } from '../domain/events';
+import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
+import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/events';
 
 const createHandlers = () => {
   const handlers: Record<string, any> = {};
@@ -31,7 +33,7 @@ const createHandlers = () => {
   for (const type of COMPLIANCE_EVENT_TYPES) {
     handlers[type] = async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject ?? {};
-      const isApproved = ctx.eventType === 'DECISION_APPROVED';
+      const isApproved = ctx.eventType === ComplianceEventTypes.DECISION_APPROVED;
       const decision = isApproved ? 'APPROVED' : 'BLOCKED';
       const authorityLevel = (subject.authorityLevel as string) ?? 'L2';
       const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
@@ -54,7 +56,7 @@ const createHandlers = () => {
   for (const type of USER_RESPONSE_EVENT_TYPES) {
     handlers[type] = async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject ?? {};
-      const isConfirmed = ctx.eventType === 'USER_CONFIRMED';
+      const isConfirmed = ctx.eventType === AdvisoryBffEventTypes.USER_CONFIRMED;
       const decision = isConfirmed ? 'CONFIRMED' : 'REJECTED';
       const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
       const decisionId = subject.decisionId as string;

@@ -12,32 +12,32 @@ const sfn = new SFNClient({});
 type FailureClass = 'none' | 'deterministic' | 'transient' | 'ambiguous';
 
 function classifyFailure(eventType: string, subject: Record<string, unknown>): FailureClass {
-  if (['SIM_ORDER_FILLED', 'ALPACA_ORDER_FILLED'].includes(eventType)) return 'none';
-  if (['SIM_ORDER_REJECTED', 'ALPACA_ORDER_REJECTED'].includes(eventType)) {
+  if ([BrokerCtrlInboundEventTypes.SIM_ORDER_FILLED, BrokerCtrlInboundEventTypes.ALPACA_ORDER_FILLED].includes(eventType)) return 'none';
+  if ([BrokerCtrlInboundEventTypes.SIM_ORDER_REJECTED, BrokerCtrlInboundEventTypes.ALPACA_ORDER_REJECTED].includes(eventType)) {
     const reason = (subject.rejectionReason as string) ?? '';
     if (/insufficient|buying power/i.test(reason)) return 'deterministic';
     if (/halted|delisted|invalid/i.test(reason)) return 'deterministic';
     if (/timeout|5\d{2}|rate.limit|unavailable/i.test(reason)) return 'transient';
     return 'deterministic';
   }
-  if (['SIM_DEPOSIT_COMPLETED', 'SIM_WITHDRAWAL_COMPLETED', 'ALPACA_TRANSFER_COMPLETED'].includes(eventType)) return 'none';
-  if (['ALPACA_TRANSFER_FAILED'].includes(eventType)) return 'deterministic';
-  if (['ALPACA_ORDER_PARTIALLY_FILLED'].includes(eventType)) return 'none';
-  if (['ALPACA_ORDER_CANCELLED', 'ALPACA_ORDER_CANCEL_FAILED'].includes(eventType)) return 'none';
-  if (['ALPACA_ACCOUNT_SNAPSHOT'].includes(eventType)) return 'none';
+  if ([BrokerCtrlInboundEventTypes.SIM_DEPOSIT_COMPLETED, BrokerCtrlInboundEventTypes.SIM_WITHDRAWAL_COMPLETED, BrokerCtrlInboundEventTypes.ALPACA_TRANSFER_COMPLETED].includes(eventType)) return 'none';
+  if ([BrokerCtrlInboundEventTypes.ALPACA_TRANSFER_FAILED].includes(eventType)) return 'deterministic';
+  if ([BrokerCtrlInboundEventTypes.ALPACA_ORDER_PARTIALLY_FILLED].includes(eventType)) return 'none';
+  if ([BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCELLED, BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCEL_FAILED].includes(eventType)) return 'none';
+  if ([BrokerCtrlInboundEventTypes.ALPACA_ACCOUNT_SNAPSHOT].includes(eventType)) return 'none';
   return 'ambiguous';
 }
 
 function mapEventToStatus(eventType: string): string {
   const statusMap: Record<string, string> = {
-    SIM_ORDER_FILLED: 'FILLED',
-    ALPACA_ORDER_FILLED: 'FILLED',
-    ALPACA_ORDER_PARTIALLY_FILLED: 'PARTIALLY_FILLED',
-    SIM_ORDER_REJECTED: 'REJECTED',
-    ALPACA_ORDER_REJECTED: 'REJECTED',
-    ALPACA_ORDER_CANCELLED: 'CANCELLED',
-    ALPACA_ORDER_CANCEL_FAILED: 'CANCEL_FAILED',
-    ALPACA_ACCOUNT_SNAPSHOT: 'SNAPSHOT_RECEIVED',
+    [BrokerCtrlInboundEventTypes.SIM_ORDER_FILLED]: 'FILLED',
+    [BrokerCtrlInboundEventTypes.ALPACA_ORDER_FILLED]: 'FILLED',
+    [BrokerCtrlInboundEventTypes.ALPACA_ORDER_PARTIALLY_FILLED]: 'PARTIALLY_FILLED',
+    [BrokerCtrlInboundEventTypes.SIM_ORDER_REJECTED]: 'REJECTED',
+    [BrokerCtrlInboundEventTypes.ALPACA_ORDER_REJECTED]: 'REJECTED',
+    [BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCELLED]: 'CANCELLED',
+    [BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCEL_FAILED]: 'CANCEL_FAILED',
+    [BrokerCtrlInboundEventTypes.ALPACA_ACCOUNT_SNAPSHOT]: 'SNAPSHOT_RECEIVED',
   };
   return statusMap[eventType] ?? eventType;
 }
@@ -46,7 +46,7 @@ async function resolveCallback(payload: EventPayload, ctx: EventContext) {
   const orderId = (payload.subject.orderId as string) ?? ctx.eventId;
 
   let taskToken: string | null;
-  if (ctx.eventType === 'ALPACA_ACCOUNT_SNAPSHOT') {
+  if (ctx.eventType === BrokerCtrlInboundEventTypes.ALPACA_ACCOUNT_SNAPSHOT) {
     const breaker = await circuitBreakerRepo.getBreaker(ctx.tenantId, 'Global');
     taskToken = (breaker?.healTaskToken as string) ?? null;
   } else {
