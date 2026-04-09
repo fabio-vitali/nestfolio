@@ -44,17 +44,16 @@ describe('changeDataCapture', () => {
       expect(detail.context.tenantId).toBe('t1');
     });
 
-    it('skips records not in the map', async () => {
+    it('throws for records not in the map', async () => {
       process.env.EVENT_TYPE_MAP = JSON.stringify({
         'Order:INSERT': 'ORDER_CREATED',
       });
       const handler = changeDataCapture();
-      await handler({
+      await expect(handler({
         Records: [
           fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'Guard#1', __typename: 'Guard', tenantId: 't1' }),
         ],
-      });
-      expect(mockPublish).not.toHaveBeenCalled();
+      })).rejects.toThrow('retryable error');
     });
   });
 
@@ -124,6 +123,18 @@ describe('changeDataCapture', () => {
       });
       const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
       expect(detail.type).toBe('ORDER_FILLED');
+    });
+
+    it('throws when passthrough field is falsy', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'NormalizedEvent:INSERT': { field: 'eventType', passthrough: true },
+      });
+      const handler = changeDataCapture();
+      await expect(handler({
+        Records: [
+          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'NE#1', __typename: 'NormalizedEvent', tenantId: 't1', eventType: '' }),
+        ],
+      })).rejects.toThrow('retryable error');
     });
   });
 

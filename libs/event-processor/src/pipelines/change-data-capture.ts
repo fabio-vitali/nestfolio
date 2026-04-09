@@ -36,15 +36,21 @@ function resolveEventType(
 ): string | null {
   const key = `${record.__typename}:${eventName}`;
   const mapping = config[key];
-  if (!mapping) return null;
+  if (!mapping) {
+    throw new Error(`Event name resolution failed: unmapped CDC record ${key}`);
+  }
 
   if (typeof mapping === 'string') return mapping;
 
   if ('passthrough' in mapping && mapping.passthrough) {
-    return (record as Record<string, unknown>)[mapping.field] as string ?? null;
+    const value = (record as Record<string, unknown>)[mapping.field] as string;
+    if (!value) {
+      throw new Error(`Event name resolution failed: passthrough field "${mapping.field}" is falsy for ${record.__typename}`);
+    }
+    return value;
   }
 
-  // Field dispatch
+  // Field dispatch — null return for unmapped values is intentional
   const value = (record as Record<string, unknown>)[mapping.field] as string;
   return mapping.map[value] ?? mapping.default ?? null;
 }
