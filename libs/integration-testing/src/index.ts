@@ -1,6 +1,6 @@
 export { CleanupRegistry } from './cleanup';
 export { SsmCache } from './ssm-cache';
-export { createIntegrationContext, type IntegrationContext } from './context';
+export { createIntegrationContext, type IntegrationContext, type TimingConfig } from './context';
 export { EventBridgeClient } from './fixtures/event-bridge-client';
 export { EventBusTrap, type CapturedEvent } from './fixtures/event-bus-trap.fixture';
 export { TableAssertions } from './fixtures/table-assertions';
