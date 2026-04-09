@@ -68,7 +68,6 @@ describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DD
     // CDC verification
     const cdcEvent = await trap.waitForEvent({
       detailType: 'AGENT_INVOCATION_CREATED',
-      timeoutMs: 30_000,
     });
     expect(cdcEvent.detailType).toBe('AGENT_INVOCATION_CREATED');
   }, 120_000);

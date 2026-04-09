@@ -123,7 +123,7 @@ describe('advisory-ctrl', () => {
       expect(item['blockReason']).toBe('Integration test block');
 
       // CDC verification
-      const cdcEvent = await trap.waitForEvent({ detailType: 'DECISION_PACKET_CREATED', timeoutMs: 30_000 });
+      const cdcEvent = await trap.waitForEvent({ detailType: 'DECISION_PACKET_CREATED' });
       expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
     }, 120_000);
 
@@ -366,7 +366,6 @@ describe('advisory-ctrl', () => {
         // CDC verification
         const cdcEvent = await trap.waitForEvent({
           detailType: 'DECISION_PACKET_CREATED',
-          timeoutMs: 30_000,
         });
         expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
         expect(cdcEvent.detail).toBeDefined();
