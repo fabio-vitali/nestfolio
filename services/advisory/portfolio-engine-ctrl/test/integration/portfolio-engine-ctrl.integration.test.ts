@@ -46,7 +46,7 @@ describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB wri
     trap = new EventBusTrap(ctx);
     await trap.deploy({
       bus: 'advisory',
-      detailType: ['AGENT_INVOCATION_CREATED'],
+      detailType: ['PORTFOLIO_CONSTRUCTION_PROPOSED'],
     });
   }, 60_000);
 
@@ -84,10 +84,10 @@ describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB wri
     // either is valid; the presence of an AgentInvocation record is what matters.
     expect(['IN_PROGRESS', 'COMPLETED']).toContain(item['status']);
 
-    // CDC verification
+    // CDC verification — stack emits PORTFOLIO_CONSTRUCTION_PROPOSED from AgentInvocation inserts
     const cdcEvent = await trap.waitForEvent({
-      detailType: 'AGENT_INVOCATION_CREATED',
+      detailType: 'PORTFOLIO_CONSTRUCTION_PROPOSED',
     });
-    expect(cdcEvent.detailType).toBe('AGENT_INVOCATION_CREATED');
+    expect(cdcEvent.detailType).toBe('PORTFOLIO_CONSTRUCTION_PROPOSED');
   }, 120_000);
 });

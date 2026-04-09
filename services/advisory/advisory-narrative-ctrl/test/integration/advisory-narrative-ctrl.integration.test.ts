@@ -20,7 +20,7 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
     trap = new EventBusTrap(ctx);
     await trap.deploy({
       bus: 'advisory',
-      detailType: ['AGENT_INVOCATION_CREATED', 'EXPLANATION_GENERATED'],
+      detailType: ['EXPLANATION_GENERATED'],
     });
   }, 60_000);
 
@@ -55,10 +55,10 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
     expect(item['agentName']).toBe('explainability');
     expect(item['decisionId']).toBe(decisionId);
 
-    // CDC verification
+    // CDC verification — stack emits EXPLANATION_GENERATED from ReasoningOutput inserts
     const cdcEvent = await trap.waitForEvent({
-      detailType: 'AGENT_INVOCATION_CREATED',
+      detailType: 'EXPLANATION_GENERATED',
     });
-    expect(cdcEvent.detailType).toBe('AGENT_INVOCATION_CREATED');
+    expect(cdcEvent.detailType).toBe('EXPLANATION_GENERATED');
   }, 120_000);
 });

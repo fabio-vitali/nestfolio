@@ -92,8 +92,8 @@ export class IntentExecutor {
     const values: Record<string, unknown> = {};
     const setParts: string[] = [];
 
-    // Always add updatedAt
-    const allUpdates = { ...intent.updates, updatedAt: ctx.timestamp };
+    // Always add __typename (required for CDC entity resolution) and updatedAt
+    const allUpdates = { ...intent.updates, __typename: intent.typename, updatedAt: ctx.timestamp };
 
     let i = 0;
     for (const [field, value] of Object.entries(allUpdates)) {

@@ -20,7 +20,7 @@ describe('market-intelligence-ctrl: ANALYZE_MARKET → AgentInvocation DDB write
     trap = new EventBusTrap(ctx);
     await trap.deploy({
       bus: 'advisory',
-      detailType: ['AGENT_INVOCATION_CREATED'],
+      detailType: ['MARKET_SIGNAL_DETECTED'],
     });
   }, 60_000);
 
@@ -55,10 +55,10 @@ describe('market-intelligence-ctrl: ANALYZE_MARKET → AgentInvocation DDB write
     expect(item['agentName']).toBe('market-research');
     expect(item['decisionId']).toBe(decisionId);
 
-    // CDC verification
+    // CDC verification — stack emits MARKET_SIGNAL_DETECTED from AgentInvocation inserts
     const cdcEvent = await trap.waitForEvent({
-      detailType: 'AGENT_INVOCATION_CREATED',
+      detailType: 'MARKET_SIGNAL_DETECTED',
     });
-    expect(cdcEvent.detailType).toBe('AGENT_INVOCATION_CREATED');
+    expect(cdcEvent.detailType).toBe('MARKET_SIGNAL_DETECTED');
   }, 120_000);
 });

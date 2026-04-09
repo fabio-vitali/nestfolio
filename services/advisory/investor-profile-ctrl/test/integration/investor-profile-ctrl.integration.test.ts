@@ -20,7 +20,7 @@ describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DD
     trap = new EventBusTrap(ctx);
     await trap.deploy({
       bus: 'advisory',
-      detailType: ['AGENT_INVOCATION_CREATED'],
+      detailType: ['GOAL_INTERPRETATION_PRODUCED'],
     });
   }, 60_000);
 
@@ -65,10 +65,10 @@ describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DD
     expect(item['decisionId']).toBe(decisionId);
     expect(item['status']).toMatch(/^(IN_PROGRESS|COMPLETED)$/);
 
-    // CDC verification
+    // CDC verification — stack emits GOAL_INTERPRETATION_PRODUCED from AgentInvocation inserts
     const cdcEvent = await trap.waitForEvent({
-      detailType: 'AGENT_INVOCATION_CREATED',
+      detailType: 'GOAL_INTERPRETATION_PRODUCED',
     });
-    expect(cdcEvent.detailType).toBe('AGENT_INVOCATION_CREATED');
+    expect(cdcEvent.detailType).toBe('GOAL_INTERPRETATION_PRODUCED');
   }, 120_000);
 });
