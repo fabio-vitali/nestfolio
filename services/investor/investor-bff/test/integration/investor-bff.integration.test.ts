@@ -127,13 +127,12 @@ describe('investor-bff', () => {
       });
 
       // record('Notification', ...) with overrides → pk: InvestorProfile#<tenantId>#<userId>, sk: Notification#<notificationId>
-      const item = await table.waitForItem({
+      const notifItem = await table.waitForItem({
         table: 'investor-bff',
         pk: `InvestorProfile#${ctx.tenantId}#${userId}`,
         sk: `Notification#${notificationId}`,
         timeoutMs: 60_000,
       });
-      const notifItem = item;
 
       expect(notifItem).toBeDefined();
       expect(notifItem!['__typename']).toBe('Notification');
@@ -194,8 +193,8 @@ describe('investor-bff', () => {
           pk,
           skPrefix: 'Goal#',
         });
-        goalItem = items.find(i => i['__typename'] === 'Goal');
-        if (!goalItem) await new Promise(r => setTimeout(r, 2_000));
+        goalItem = items.find((i) => i['__typename'] === 'Goal');
+        if (!goalItem) await new Promise((r) => setTimeout(r, 2_000));
       }
       expect(goalItem).toBeDefined();
       expect(goalItem!['objective']).toBe('GROWTH');
@@ -239,8 +238,8 @@ describe('investor-bff', () => {
           pk,
           skPrefix: 'Deposit#',
         });
-        depositItem = items.find(i => i['__typename'] === 'Deposit');
-        if (!depositItem) await new Promise(r => setTimeout(r, 2_000));
+        depositItem = items.find((i) => i['__typename'] === 'Deposit');
+        if (!depositItem) await new Promise((r) => setTimeout(r, 2_000));
       }
       expect(depositItem).toBeDefined();
       expect(depositItem!['amountCents']).toBe(100_000);
@@ -300,8 +299,8 @@ describe('investor-bff', () => {
           pk,
           skPrefix: 'ExecutionModeChange#',
         });
-        modeChangeItem = items.find(i => i['__typename'] === 'ExecutionModeChange');
-        if (!modeChangeItem) await new Promise(r => setTimeout(r, 2_000));
+        modeChangeItem = items.find((i) => i['__typename'] === 'ExecutionModeChange');
+        if (!modeChangeItem) await new Promise((r) => setTimeout(r, 2_000));
       }
       expect(modeChangeItem).toBeDefined();
       expect(modeChangeItem!['toMode']).toBe('live');
@@ -313,8 +312,15 @@ describe('investor-bff', () => {
   describe('AppSync mutations', () => {
     it('should create deposit record and emit DEPOSIT_INITIATED', async () => {
       const result = await appsync.mutate<{
-        initiateDeposit: { depositId: string; amountCents: number; currency: string; status: string; initiatedAt: string };
-      }>(`
+        initiateDeposit: {
+          depositId: string;
+          amountCents: number;
+          currency: string;
+          status: string;
+          initiatedAt: string;
+        };
+      }>(
+        `
         mutation InitiateDeposit($input: DepositInput!) {
           initiateDeposit(input: $input) {
             depositId
@@ -324,9 +330,11 @@ describe('investor-bff', () => {
             initiatedAt
           }
         }
-      `, {
-        input: { amountCents: 100_000, currency: 'USD' },
-      });
+      `,
+        {
+          input: { amountCents: 100_000, currency: 'USD' },
+        },
+      );
 
       expect(result.initiateDeposit.status).toBe('INITIATED');
       expect(result.initiateDeposit.amountCents).toBe(100_000);
@@ -344,7 +352,10 @@ describe('investor-bff', () => {
       expect(item['__typename']).toBe('Deposit');
 
       // Assert: CDC event on EventBridge
-      const event = await trap.waitForEvent<BusEventPayload>({ detailType: 'DEPOSIT_INITIATED', timeoutMs: 60_000 });
+      const event = await trap.waitForEvent<BusEventPayload>({
+        detailType: 'DEPOSIT_INITIATED',
+        timeoutMs: 60_000,
+      });
       expect(event.detailType).toBe('DEPOSIT_INITIATED');
       expect(event.detail.context.tenantId).toBe(ctx.tenantId);
     }, 120_000);
@@ -371,8 +382,15 @@ describe('investor-bff', () => {
       });
 
       const result = await appsync.mutate<{
-        requestWithdrawal: { withdrawalId: string; amountCents: number; currency: string; status: string; requestedAt: string };
-      }>(`
+        requestWithdrawal: {
+          withdrawalId: string;
+          amountCents: number;
+          currency: string;
+          status: string;
+          requestedAt: string;
+        };
+      }>(
+        `
         mutation RequestWithdrawal($input: WithdrawalInput!) {
           requestWithdrawal(input: $input) {
             withdrawalId
@@ -382,9 +400,11 @@ describe('investor-bff', () => {
             requestedAt
           }
         }
-      `, {
-        input: { amountCents: 50_000, currency: 'USD' },
-      });
+      `,
+        {
+          input: { amountCents: 50_000, currency: 'USD' },
+        },
+      );
 
       expect(result.requestWithdrawal.status).toBe('REQUESTED');
       expect(result.requestWithdrawal.amountCents).toBe(50_000);
@@ -400,7 +420,10 @@ describe('investor-bff', () => {
       expect(item['__typename']).toBe('Withdrawal');
 
       // Assert: CDC event on EventBridge
-      const event = await trap.waitForEvent({ detailType: 'WITHDRAWAL_REQUESTED', timeoutMs: 60_000 });
+      const event = await trap.waitForEvent({
+        detailType: 'WITHDRAWAL_REQUESTED',
+        timeoutMs: 60_000,
+      });
       expect(event.detailType).toBe('WITHDRAWAL_REQUESTED');
     }, 120_000);
 
@@ -418,8 +441,14 @@ describe('investor-bff', () => {
       const goalId = goals[0]['goalId'] as string;
 
       const result = await appsync.mutate<{
-        updateGoal: { goalId: string; objective: string; targetAmountCents: number; updatedAt: string };
-      }>(`
+        updateGoal: {
+          goalId: string;
+          objective: string;
+          targetAmountCents: number;
+          updatedAt: string;
+        };
+      }>(
+        `
         mutation UpdateGoal($goalId: ID!, $input: GoalInput!) {
           updateGoal(goalId: $goalId, input: $input) {
             goalId
@@ -431,16 +460,18 @@ describe('investor-bff', () => {
             updatedAt
           }
         }
-      `, {
-        goalId,
-        input: {
-          objective: 'Updated objective',
-          targetAmountCents: 750_000,
-          currency: 'USD',
-          timeHorizonMonths: 72,
-          targetReturn: 0.08,
+      `,
+        {
+          goalId,
+          input: {
+            objective: 'Updated objective',
+            targetAmountCents: 750_000,
+            currency: 'USD',
+            timeHorizonMonths: 72,
+            targetReturn: 0.08,
+          },
         },
-      });
+      );
 
       expect(result.updateGoal.goalId).toBe(goalId);
       expect(result.updateGoal.objective).toBe('Updated objective');
@@ -464,7 +495,8 @@ describe('investor-bff', () => {
           effectiveDate: string;
           version: number;
         };
-      }>(`
+      }>(
+        `
         mutation UpdateMandate($input: MandateInput!) {
           updateMandate(input: $input) {
             mandateId
@@ -478,15 +510,17 @@ describe('investor-bff', () => {
             version
           }
         }
-      `, {
-        input: {
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 10,
-          maxSingleTradePercent: 5,
-          coolDownDays: 7,
-          rebalanceCadence: 'MONTHLY',
+      `,
+        {
+          input: {
+            level: 'DISCRETIONARY',
+            monthlyTurnoverCapPercent: 10,
+            maxSingleTradePercent: 5,
+            coolDownDays: 7,
+            rebalanceCadence: 'MONTHLY',
+          },
         },
-      });
+      );
 
       expect(result.updateMandate.level).toBe('DISCRETIONARY');
       expect(result.updateMandate.monthlyTurnoverCapPercent).toBe(10);
@@ -518,7 +552,8 @@ describe('investor-bff', () => {
           revokedAt: string;
           version: number;
         };
-      }>(`
+      }>(
+        `
         mutation RevokeMandate {
           revokeMandate {
             mandateId
@@ -528,7 +563,9 @@ describe('investor-bff', () => {
             version
           }
         }
-      `, {});
+      `,
+        {},
+      );
 
       expect(result.revokeMandate.revokedAt).toBeTruthy();
       expect(result.revokeMandate.level).toBe('ADVISORY');
@@ -547,7 +584,8 @@ describe('investor-bff', () => {
       // requestAccountClosure uses noneDataSource — no DDB write, no CDC
       const result = await appsync.mutate<{
         requestAccountClosure: { closureId: string; status: string; requestedAt: string };
-      }>(`
+      }>(
+        `
         mutation RequestAccountClosure {
           requestAccountClosure {
             closureId
@@ -555,7 +593,9 @@ describe('investor-bff', () => {
             requestedAt
           }
         }
-      `, {});
+      `,
+        {},
+      );
 
       expect(result.requestAccountClosure.status).toBe('REQUESTED');
       expect(result.requestAccountClosure.closureId).toBeTruthy();
@@ -597,7 +637,8 @@ describe('investor-bff', () => {
           status: string;
           readAt: string;
         };
-      }>(`
+      }>(
+        `
         mutation MarkNotificationRead($notificationId: ID!) {
           markNotificationRead(notificationId: $notificationId) {
             notificationId
@@ -605,7 +646,9 @@ describe('investor-bff', () => {
             readAt
           }
         }
-      `, { notificationId });
+      `,
+        { notificationId },
+      );
 
       expect(result.markNotificationRead.notificationId).toBe(notificationId);
       expect(result.markNotificationRead.status).toBe('READ');
@@ -644,7 +687,7 @@ describe('investor-bff', () => {
           timeoutMs: 5_000,
         });
         if (item['operatingMode'] === 'BALANCED') break;
-        await new Promise(r => setTimeout(r, 2_000));
+        await new Promise((r) => setTimeout(r, 2_000));
       }
 
       // Wait for Goal
@@ -657,7 +700,7 @@ describe('investor-bff', () => {
           skPrefix: 'Goal#',
         });
         if (items.length > 0) found = true;
-        else await new Promise(r => setTimeout(r, 2_000));
+        else await new Promise((r) => setTimeout(r, 2_000));
       }
       expect(found).toBe(true);
     }, 120_000);
@@ -673,7 +716,8 @@ describe('investor-bff', () => {
           userId: string;
           operatingMode: string | null;
         };
-      }>(`
+      }>(
+        `
         query GetProfile {
           getProfile {
             tenantId
@@ -681,7 +725,9 @@ describe('investor-bff', () => {
             operatingMode
           }
         }
-      `, {});
+      `,
+        {},
+      );
 
       expect(result.getProfile.tenantId).toBe(ctx.tenantId);
       expect(result.getProfile.userId).toBe(cognitoSub);
@@ -691,7 +737,8 @@ describe('investor-bff', () => {
     it('should return goals via getGoals', async () => {
       const result = await appsync.query<{
         getGoals: Array<{ goalId: string; objective: string; currency: string }>;
-      }>(`
+      }>(
+        `
         query GetGoals {
           getGoals {
             goalId
@@ -699,7 +746,9 @@ describe('investor-bff', () => {
             currency
           }
         }
-      `, {});
+      `,
+        {},
+      );
 
       expect(Array.isArray(result.getGoals)).toBe(true);
       expect(result.getGoals.length).toBeGreaterThanOrEqual(1);
