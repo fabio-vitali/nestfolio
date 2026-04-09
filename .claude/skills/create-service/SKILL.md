@@ -72,8 +72,9 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
   - Call `this.addObservability({ ingress, egress })` at end of constructor
 - [ ] 4. **Write first handler** per `event-processor-patterns`
 - [ ] 5. **Define event types** per `create-event`
-- [ ] 6. **Write tests** per `testing-patterns`
-- [ ] 7. **Run tests** — `pnpm nx test {service-name}`
+- [ ] 6. **Write unit tests** per `testing-patterns`
+- [ ] 7. **Run unit tests** — `pnpm nx test {service-name}`
+- [ ] 7b. **Add integration tests** — invoke `create-integration-test` skill
 - [ ] 8. **Generate service card** — invoke `audit-service`
 - [ ] 9. **Create C3 diagram** — add `docs/architecture/c3/{service-name}.d2` and wire layer import in `nestfolio.d2`, then invoke `generate-c4-diagrams`
 - [ ] 10. **Wire adapter subscription** if cross-domain events (consuming adapter deploys EB rule on source bus)

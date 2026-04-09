@@ -79,6 +79,11 @@ pnpm nx test {service}                           # all tests
 pnpm nx test {service} -- --testPathPattern=foo   # specific test
 ```
 
+## Integration Tests
+For integration tests (real AWS, deployed services), use the dedicated skills:
+- `create-integration-test` — scaffold config, write test files with correct fixtures
+- `audit-integration-test` — verify coverage and convention compliance
+
 ## Anti-Patterns
 - NEVER put tests in `src/__tests__/`
 - NEVER test handlers without the event-processor harness

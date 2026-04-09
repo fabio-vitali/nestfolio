@@ -23,7 +23,8 @@ description: Step-by-step guide for adding a feature to an existing service. Ens
 - [ ] 5. **Write the handler** — `services/{domain}/{service}/src/handlers/{feature}.ts`
   Use an event-processor pipeline (see `event-processor-patterns` skill)
 - [ ] 6. **Wire handler in service stack** if new Ingress or event types needed
-- [ ] 7. **Run tests to verify pass** — `pnpm nx test {service}`
+- [ ] 7. **Run unit tests to verify pass** — `pnpm nx test {service}`
+- [ ] 7b. **Update integration tests** if service has them — invoke `create-integration-test` for new event coverage
 - [ ] 8. **If new events produced**, invoke `create-event` skill
 - [ ] 9. **If CDK changes needed**, reference `cdk-patterns` skill
 - [ ] 10. **Regenerate service card** — invoke `audit-service`

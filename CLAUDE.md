@@ -46,7 +46,9 @@ Before starting any task below, invoke the corresponding skill FIRST:
 | Add an MFE feature/route            | `create-mfe`                                       |
 | Write CDK infrastructure            | `cdk-patterns`                                     |
 | Write event-processor handlers      | `event-processor-patterns`                         |
-| Write or modify tests               | `testing-patterns`                                 |
+| Write or modify unit tests          | `testing-patterns`                                 |
+| Add integration tests to a service  | `create-integration-test`                          |
+| Audit integration test coverage     | `audit-integration-test`                           |
 | Design a new service/flow           | `design-service` or `design-data-flow`             |
 | Verify consistency                  | `audit-service`, `audit-domain`, or `audit-system` |
 | Validate a business flow            | `validate-flow`                                    |

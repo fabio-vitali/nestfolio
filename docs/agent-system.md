@@ -63,7 +63,8 @@ The system is organized into four layers with different load costs:
 │ L2 — ON ACTION (implement/ skills)                  │
 │ create-service, create-feature, create-event,       │
 │ create-data-flow, create-mfe, cdk-patterns,         │
-│ event-processor-patterns, testing-patterns          │
+│ event-processor-patterns, testing-patterns,         │
+│ create-integration-test, audit-integration-test     │
 ├─────────────────────────────────────────────────────┤
 │ L3 — AUTO-DERIVED (generated, never authored)       │
 │ services/{domain}/{svc}/CLAUDE.md → service card    │
@@ -89,7 +90,7 @@ loaded explicitly by the skill checklists.
 
 ## Skills
 
-All 22 skills are in `.claude/skills/`, each in its own directory with a `SKILL.md` file.
+All 24 skills are in `.claude/skills/`, each in its own directory with a `SKILL.md` file.
 Claude Code auto-discovers them and lists their descriptions in the system prompt so it can
 invoke them automatically when a task matches. The routing table in CLAUDE.md reinforces this.
 One skill (`init-docs`) has `disable-model-invocation: true` — it functions as a user-only
@@ -113,7 +114,8 @@ command invoked via `/init-docs` and Claude will never trigger it automatically.
 | `create-mfe` | MFE conventions, routing, BFF integration, shared UI components |
 | `cdk-patterns` | 6-construct pattern reference: State, Ingress, Egress, Facade, AgentRuntime, Orchestration |
 | `event-processor-patterns` | Pipeline types, handler structure, DLQ config, test harnesses |
-| `testing-patterns` | Directory convention, unit vs integration, harnesses, naming |
+| `testing-patterns` | Directory convention, unit test harnesses, CDK assertions, naming |
+| `create-integration-test` | Scaffold integration tests: determine pattern (A–E), config, fixtures, assertions |
 
 ### verify/ — Verification
 
@@ -122,6 +124,7 @@ command invoked via `/init-docs` and Claude will never trigger it automatically.
 | `audit-service` | Verifies a single service: structure, naming, handler patterns, tests, import boundaries, card freshness |
 | `audit-domain` | Verifies a full domain: service completeness, adapter forwarding, event contract consistency |
 | `audit-system` | Full system sweep via parallel sub-agents; produces a dashboard |
+| `audit-integration-test` | Verify integration test completeness, convention compliance, coverage gaps per service |
 | `ci-audit` | CI-optimized audit scoped to `nx affected` projects; structured output for PR comments |
 
 ### commands/ — User-Only Commands
