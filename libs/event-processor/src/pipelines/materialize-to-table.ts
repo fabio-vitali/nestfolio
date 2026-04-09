@@ -1,6 +1,6 @@
 import type { SQSEvent, SQSBatchResponse, KinesisStreamEvent, KinesisStreamBatchResponse, Context } from 'aws-lambda';
 import type { HandlerEntry } from '../types/handler-config';
-import { createIngestionHandler, type IngestionHandlerConfig } from '../engine/create-ingestion-handler';
+import { createIngestionHandler } from '../engine/create-ingestion-handler';
 
 export interface MaterializeToTableConfig {
   serviceName: string;
@@ -23,7 +23,7 @@ export function materializeToTable(
 export function materializeToTable(
   config: MaterializeToTableConfig & { transport?: 'sqs' | 'kinesis' },
 ): ((event: SQSEvent, context?: Context) => Promise<SQSBatchResponse>) | ((event: KinesisStreamEvent, context?: Context) => Promise<KinesisStreamBatchResponse>) {
-  return createIngestionHandler({
+  const base = {
     serviceName: config.serviceName,
     handlers: config.handlers,
     table: config.table ?? process.env.TABLE_NAME!,
@@ -31,6 +31,10 @@ export function materializeToTable(
     concurrency: config.concurrency,
     poisonPill: config.poisonPill,
     errorEventType: config.errorEventType,
-    transport: config.transport,
-  } as IngestionHandlerConfig);
+  };
+
+  if (config.transport === 'kinesis') {
+    return createIngestionHandler({ ...base, transport: 'kinesis' as const });
+  }
+  return createIngestionHandler(base);
 }

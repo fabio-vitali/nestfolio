@@ -42,7 +42,7 @@ function resolveEventType(
 
   if (typeof mapping === 'string') return mapping;
 
-  if ('passthrough' in mapping && mapping.passthrough) {
+  if ('passthrough' in mapping) {
     const value = (record as Record<string, unknown>)[mapping.field] as string;
     if (!value) {
       throw new Error(`Event name resolution failed: passthrough field "${mapping.field}" is falsy for ${record.__typename}`);

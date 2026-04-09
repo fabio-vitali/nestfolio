@@ -68,7 +68,9 @@ for SERVICE_PATH in $CHANGED_SERVICES; do
 done
 
 # Check 7: nx affected blast radius (non-blocking)
-AFFECTED=$(pnpm nx affected -t build --select=projects 2>/dev/null | tr ',' '\n' | wc -l | tr -d ' ' || echo "0")
+AFFECTED=$(pnpm nx affected -t build --select=projects 2>/dev/null | tr ',' '\n' | wc -l)
+AFFECTED=$(echo "$AFFECTED" | tr -d '[:space:]')
+AFFECTED=${AFFECTED:-0}
 if [ "$AFFECTED" -gt 5 ]; then
   echo ""
   echo -e "${YELLOW}WARNING: $AFFECTED projects affected by these changes${NC}"
