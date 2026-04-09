@@ -102,21 +102,24 @@ export class EventBusTrap {
       Targets: [{ Id: 'trap-target', Arn: this.queueArn }],
     }));
 
-    // Canary warmup — send event and poll SQS until it arrives
-    await this.eb.send(new PutEventsCommand({
-      Entries: [{
-        EventBusName: this.busArn,
-        Source: 'integration-test:canary',
-        DetailType: '__INTEG_CANARY',
-        Detail: JSON.stringify({ context: { tenantId: this.ctx.tenantId } }),
-      }],
-    }));
+    // Canary warmup — repeatedly send canary events and poll SQS until one arrives.
+    // The EB rule may not be active when the first canary is sent (propagation delay),
+    // so we resend on every poll iteration to catch the moment it activates.
+    const canaryEntry = {
+      EventBusName: this.busArn,
+      Source: 'integration-test:canary',
+      DetailType: '__INTEG_CANARY',
+      Detail: JSON.stringify({ context: { tenantId: this.ctx.tenantId } }),
+    };
 
     const canaryTimeout = this.ctx.timings.canaryTimeout;
     const canaryDeadline = Date.now() + canaryTimeout;
     let canaryReceived = false;
 
     while (Date.now() < canaryDeadline && !canaryReceived) {
+      // Send a fresh canary on each iteration — if the rule just activated, this one will match
+      await this.eb.send(new PutEventsCommand({ Entries: [canaryEntry] }));
+
       const result = await this.sqs.send(new ReceiveMessageCommand({
         QueueUrl: this.queueUrl,
         MaxNumberOfMessages: 10,
