@@ -46,8 +46,8 @@ export class TableAssertions {
     timeoutMs?: number;
     pollIntervalMs?: number;
   }): Promise<Record<string, unknown>> {
-    const timeout = params.timeoutMs ?? 30_000;
-    const pollInterval = params.pollIntervalMs ?? 2_000;
+    const timeout = params.timeoutMs ?? this.ctx.timings.eventTimeout;
+    const pollInterval = params.pollIntervalMs ?? this.ctx.timings.pollInterval;
     const deadline = Date.now() + timeout;
     const tableName = await this.ctx.ssm.tableName(params.table);
 
@@ -90,8 +90,8 @@ export class TableAssertions {
     timeoutMs?: number;
     pollIntervalMs?: number;
   }): Promise<Record<string, unknown>> {
-    const timeout = params.timeoutMs ?? 30_000;
-    const pollInterval = params.pollIntervalMs ?? 2_000;
+    const timeout = params.timeoutMs ?? this.ctx.timings.eventTimeout;
+    const pollInterval = params.pollIntervalMs ?? this.ctx.timings.pollInterval;
     const deadline = Date.now() + timeout;
     const tableName = await this.ctx.ssm.tableName(params.table);
 
