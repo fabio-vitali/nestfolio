@@ -33,6 +33,7 @@
       "@nestfolio/agent-orchestrator/*": ["libs/agent-orchestrator/src/*"],
 "@nestfolio/event-processor": ["libs/event-processor/src/index.ts"],
       "@nestfolio/event-processor/*": ["libs/event-processor/src/*"],
+      "@nestfolio/event-types": ["libs/event-types/src/index.ts"],
       "@nestfolio/investor-bff/events": ["services/investor/investor-bff/src/domain/events.ts"],
       "@nestfolio/investor-ctrl/events": ["services/investor/investor-ctrl/src/domain/events.ts"],
       "@nestfolio/advisory-ctrl/events": ["services/advisory/advisory-ctrl/src/domain/events.ts"],
