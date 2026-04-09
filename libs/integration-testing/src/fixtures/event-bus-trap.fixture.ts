@@ -1,5 +1,5 @@
 import {
-  EventBridgeClient, PutRuleCommand, PutTargetsCommand,
+  EventBridgeClient, PutEventsCommand, PutRuleCommand, PutTargetsCommand,
   RemoveTargetsCommand, DeleteRuleCommand,
 } from '@aws-sdk/client-eventbridge';
 import {
@@ -59,7 +59,7 @@ export class EventBusTrap {
     }));
     this.queueArn = attrsResult.Attributes!['QueueArn'];
 
-    // Create EB rule
+    // Create EB rule — include canary detailType for warmup verification
     this.ruleName = trapId;
     const detailTypes = Array.isArray(params.detailType) ? params.detailType : [params.detailType];
 
@@ -67,7 +67,7 @@ export class EventBusTrap {
       Name: this.ruleName,
       EventBusName: this.busArn,
       EventPattern: JSON.stringify({
-        'detail-type': detailTypes,
+        'detail-type': [...detailTypes, '__INTEG_CANARY'],
         detail: {
           context: {
             tenantId: [this.ctx.tenantId],
@@ -102,8 +102,46 @@ export class EventBusTrap {
       Targets: [{ Id: 'trap-target', Arn: this.queueArn }],
     }));
 
-    // Wait for rule activation
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Canary warmup — send event and poll SQS until it arrives
+    await this.eb.send(new PutEventsCommand({
+      Entries: [{
+        EventBusName: this.busArn,
+        Source: 'integration-test:canary',
+        DetailType: '__INTEG_CANARY',
+        Detail: JSON.stringify({ context: { tenantId: this.ctx.tenantId } }),
+      }],
+    }));
+
+    const canaryTimeout = this.ctx.timings.canaryTimeout;
+    const canaryDeadline = Date.now() + canaryTimeout;
+    let canaryReceived = false;
+
+    while (Date.now() < canaryDeadline && !canaryReceived) {
+      const result = await this.sqs.send(new ReceiveMessageCommand({
+        QueueUrl: this.queueUrl,
+        MaxNumberOfMessages: 10,
+        WaitTimeSeconds: Math.min(5, Math.ceil((canaryDeadline - Date.now()) / 1000)),
+      }));
+
+      for (const msg of result.Messages ?? []) {
+        const body = JSON.parse(msg.Body!);
+        if (body['detail-type'] === '__INTEG_CANARY') {
+          canaryReceived = true;
+          continue;
+        }
+        // Buffer any real events that arrived during warmup
+        this.captured.push({
+          detailType: body['detail-type'],
+          detail: body.detail,
+          source: body.source,
+          time: body.time,
+        });
+      }
+    }
+
+    if (!canaryReceived) {
+      throw new Error(`EventBusTrap: canary event did not arrive after ${canaryTimeout}ms — EB rule may not be active`);
+    }
 
     // Register cleanup
     this.ctx.cleanup.register('EventBusTrap', () => this.teardown());
@@ -114,8 +152,8 @@ export class EventBusTrap {
     timeoutMs?: number;
     pollIntervalMs?: number;
   }): Promise<CapturedEvent> {
-    const timeout = params?.timeoutMs ?? 30_000;
-    const pollInterval = params?.pollIntervalMs ?? 2_000;
+    const timeout = params?.timeoutMs ?? this.ctx.timings.eventTimeout;
+    const pollInterval = params?.pollIntervalMs ?? this.ctx.timings.pollInterval;
     const deadline = Date.now() + timeout;
 
     while (Date.now() < deadline) {
