@@ -3,6 +3,7 @@ import { Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ExecutionCtrlEventTypes } from './domain/events';
 import { AdapterSchedule } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
@@ -22,16 +23,19 @@ export class ExecutionCtrlStack extends ServiceStack {
       eventTypes: {
         'Order': {
           insert: { field: 'status', map: {
-            SUBMITTED: 'ORDER_SUBMITTED',
-            STAGED: 'ORDER_STAGED',
-            REJECTED: 'ORDER_REJECTED',
-          }, default: 'ORDER_CREATED' },
+            SUBMITTED: ExecutionCtrlEventTypes.ORDER_SUBMITTED,
+            STAGED: ExecutionCtrlEventTypes.ORDER_STAGED,
+            REJECTED: ExecutionCtrlEventTypes.ORDER_REJECTED,
+          }, default: ExecutionCtrlEventTypes.ORDER_CREATED },
           modify: { field: 'status', map: {
-            SUBMITTED: 'ORDER_SUBMITTED',
-            REJECTED: 'ORDER_REJECTED',
-          }, default: 'ORDER_UPDATED' },
+            SUBMITTED: ExecutionCtrlEventTypes.ORDER_SUBMITTED,
+            REJECTED: ExecutionCtrlEventTypes.ORDER_REJECTED,
+          }, default: ExecutionCtrlEventTypes.ORDER_UPDATED },
         },
-        'StagedOrder': 'STAGED_ORDER',
+        'StagedOrder': {
+          insert: ExecutionCtrlEventTypes.STAGED_ORDER_CREATED,
+          modify: ExecutionCtrlEventTypes.STAGED_ORDER_UPDATED,
+        },
       },
     });
 

@@ -1,6 +1,7 @@
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ReconciliationEventTypes } from './domain/events';
 import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 
 export class ReconciliationCtrlStack extends ServiceStack {
@@ -26,8 +27,14 @@ export class ReconciliationCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'ReconciliationResult': { insert: 'RECONCILIATION_COMPLETED', modify: 'RECONCILIATION_RESULT_UPDATED' },
-        'DriftRecord': { insert: 'PORTFOLIO_DRIFT_DETECTED', modify: 'DRIFT_RECORD_UPDATED' },
+        'ReconciliationResult': {
+          insert: ReconciliationEventTypes.RECONCILIATION_COMPLETED,
+          modify: ReconciliationEventTypes.RECONCILIATION_RESULT_UPDATED,
+        },
+        'DriftRecord': {
+          insert: ReconciliationEventTypes.PORTFOLIO_DRIFT_DETECTED,
+          modify: ReconciliationEventTypes.DRIFT_RECORD_UPDATED,
+        },
       },
     });
 

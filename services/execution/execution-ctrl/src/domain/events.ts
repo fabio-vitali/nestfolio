@@ -1,6 +1,9 @@
 import { eventName } from '@nestfolio/event-types';
 
 export const ExecutionCtrlEventTypes = {
+  ORDER_CREATED: eventName('ORDER_CREATED'),
+  ORDER_UPDATED: eventName('ORDER_UPDATED'),
+  ORDER_REJECTED: eventName('ORDER_REJECTED'),
   ORDER_SUBMITTED: eventName('ORDER_SUBMITTED'),
   ORDER_STAGED: eventName('ORDER_STAGED'),
   EXECUTION_PAUSED: eventName('EXECUTION_PAUSED'),

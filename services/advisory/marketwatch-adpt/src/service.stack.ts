@@ -7,6 +7,7 @@ import { ParamsAndSecretsLayerVersion, ParamsAndSecretsVersions } from 'aws-cdk-
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { MarketwatchAdptEventTypes } from './domain/events';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { MarketwatchAdptEventTypes } from './domain/events';
@@ -65,7 +66,10 @@ export class MarketwatchAdptStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'MarketWatchArticle': { insert: 'MARKETWATCH_UPDATED', modify: 'MARKETWATCH_UPDATED' },
+        'MarketWatchArticle': {
+          insert: MarketwatchAdptEventTypes.MARKETWATCH_UPDATED,
+          modify: MarketwatchAdptEventTypes.MARKETWATCH_UPDATED,
+        },
       },
     });
 

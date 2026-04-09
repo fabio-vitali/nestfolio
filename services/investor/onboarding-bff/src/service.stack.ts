@@ -4,6 +4,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Duration } from 'aws-cdk-lib';
 import { ServiceStack, ServiceStackProps, State, Egress } from '@nestfolio/cdk-constructs/core';
+import { ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED } from './domain/events';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 
@@ -17,8 +18,8 @@ export class OnboardingBffStack extends ServiceStack {
     new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'OnboardingCompleted': { insert: 'ONBOARDING_COMPLETED' },
-        'GoLiveConfirmed': { insert: 'GO_LIVE_CONFIRMED' },
+        'OnboardingCompleted': { insert: ONBOARDING_COMPLETED },
+        'GoLiveConfirmed': { insert: GO_LIVE_CONFIRMED },
       },
     });
 

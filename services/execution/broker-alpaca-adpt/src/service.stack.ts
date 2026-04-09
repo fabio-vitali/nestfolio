@@ -55,32 +55,32 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
       eventTypes: {
         'AlpacaOrderResult': {
           insert: { field: 'status', map: {
-            PLACED: 'ALPACA_ORDER_PLACED',
-            FILLED: 'ALPACA_ORDER_FILLED',
-            PARTIALLY_FILLED: 'ALPACA_ORDER_PARTIALLY_FILLED',
-            REJECTED: 'ALPACA_ORDER_REJECTED',
-            CANCELLED: 'ALPACA_ORDER_CANCELLED',
-            CANCEL_FAILED: 'ALPACA_ORDER_CANCEL_FAILED',
+            PLACED: AlpacaAdptEventTypes.ALPACA_ORDER_PLACED,
+            FILLED: AlpacaAdptEventTypes.ALPACA_ORDER_FILLED,
+            PARTIALLY_FILLED: AlpacaAdptEventTypes.ALPACA_ORDER_PARTIALLY_FILLED,
+            REJECTED: AlpacaAdptEventTypes.ALPACA_ORDER_REJECTED,
+            CANCELLED: AlpacaAdptEventTypes.ALPACA_ORDER_CANCELLED,
+            CANCEL_FAILED: AlpacaAdptEventTypes.ALPACA_ORDER_CANCEL_FAILED,
           }},
           modify: { field: 'status', map: {
-            FILLED: 'ALPACA_ORDER_FILLED',
-            PARTIALLY_FILLED: 'ALPACA_ORDER_PARTIALLY_FILLED',
-            REJECTED: 'ALPACA_ORDER_REJECTED',
-            CANCELLED: 'ALPACA_ORDER_CANCELLED',
+            FILLED: AlpacaAdptEventTypes.ALPACA_ORDER_FILLED,
+            PARTIALLY_FILLED: AlpacaAdptEventTypes.ALPACA_ORDER_PARTIALLY_FILLED,
+            REJECTED: AlpacaAdptEventTypes.ALPACA_ORDER_REJECTED,
+            CANCELLED: AlpacaAdptEventTypes.ALPACA_ORDER_CANCELLED,
           }},
         },
         'AlpacaTransferResult': {
           insert: { field: 'status', map: {
-            INITIATED: 'ALPACA_TRANSFER_INITIATED',
-            COMPLETED: 'ALPACA_TRANSFER_COMPLETED',
-            FAILED: 'ALPACA_TRANSFER_FAILED',
+            INITIATED: AlpacaAdptEventTypes.ALPACA_TRANSFER_INITIATED,
+            COMPLETED: AlpacaAdptEventTypes.ALPACA_TRANSFER_COMPLETED,
+            FAILED: AlpacaAdptEventTypes.ALPACA_TRANSFER_FAILED,
           }},
           modify: { field: 'status', map: {
-            COMPLETED: 'ALPACA_TRANSFER_COMPLETED',
-            FAILED: 'ALPACA_TRANSFER_FAILED',
+            COMPLETED: AlpacaAdptEventTypes.ALPACA_TRANSFER_COMPLETED,
+            FAILED: AlpacaAdptEventTypes.ALPACA_TRANSFER_FAILED,
           }},
         },
-        'AlpacaAccountSnapshot': { insert: 'ALPACA_ACCOUNT_SNAPSHOT' },
+        'AlpacaAccountSnapshot': { insert: AlpacaAdptEventTypes.ALPACA_ACCOUNT_SNAPSHOT },
       },
     });
 

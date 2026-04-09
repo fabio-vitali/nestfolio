@@ -21,10 +21,17 @@ export class BrokerCtrlStack extends ServiceStack {
       eventTypes: {
         'NormalizedEvent': {
           insert: { field: 'sk', passthrough: true, emits: [
-            'ORDER_FILLED', 'ORDER_PARTIALLY_FILLED', 'ORDER_REJECTED', 'ORDER_CANCELLED',
-            'ORDER_ESCALATED', 'DEPOSIT_DETECTED', 'WITHDRAWAL_COMPLETED',
-            'BROKER_CIRCUIT_OPEN', 'BROKER_CIRCUIT_CLOSED', 'BROKER_HEAL_ESCALATED',
-            'TRANSFER_FAILED',
+            BrokerCtrlEventTypes.ORDER_FILLED,
+            BrokerCtrlEventTypes.ORDER_PARTIALLY_FILLED,
+            BrokerCtrlEventTypes.ORDER_REJECTED,
+            BrokerCtrlEventTypes.ORDER_CANCELLED,
+            BrokerCtrlEventTypes.ORDER_ESCALATED,
+            BrokerCtrlEventTypes.DEPOSIT_DETECTED,
+            BrokerCtrlEventTypes.WITHDRAWAL_COMPLETED,
+            BrokerCtrlEventTypes.BROKER_CIRCUIT_OPEN,
+            BrokerCtrlEventTypes.BROKER_CIRCUIT_CLOSED,
+            BrokerCtrlEventTypes.BROKER_HEAL_ESCALATED,
+            BrokerCtrlEventTypes.TRANSFER_FAILED,
           ]},
         },
       },

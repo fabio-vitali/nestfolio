@@ -1,5 +1,6 @@
 import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { InvestorCtrlEventTypes } from './domain/events';
 
 export class InvestorCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -27,8 +28,14 @@ export class InvestorCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'Notification': 'NOTIFICATION',
-        'MonthlyReport': 'MONTHLY_REPORT',
+        'Notification': {
+          insert: InvestorCtrlEventTypes.NOTIFICATION_CREATED,
+          modify: InvestorCtrlEventTypes.NOTIFICATION_UPDATED,
+        },
+        'MonthlyReport': {
+          insert: InvestorCtrlEventTypes.MONTHLY_REPORT_CREATED,
+          modify: InvestorCtrlEventTypes.MONTHLY_REPORT_UPDATED,
+        },
       },
     });
 

@@ -7,6 +7,7 @@ import { ParamsAndSecretsLayerVersion, ParamsAndSecretsVersions } from 'aws-cdk-
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { FredAdptEventTypes } from './domain/events';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { FredAdptEventTypes } from './domain/events';
@@ -76,7 +77,10 @@ export class FredAdptStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'FredIndicator': { insert: 'FRED_INDICATORS_UPDATED', modify: 'FRED_INDICATORS_UPDATED' },
+        'FredIndicator': {
+          insert: FredAdptEventTypes.FRED_INDICATORS_UPDATED,
+          modify: FredAdptEventTypes.FRED_INDICATORS_UPDATED,
+        },
       },
     });
 

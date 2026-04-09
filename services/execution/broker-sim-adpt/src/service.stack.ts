@@ -22,14 +22,14 @@ export class BrokerSimAdptStack extends ServiceStack {
       eventTypes: {
         'VirtualTrade': {
           insert: { field: 'status', map: {
-            REJECTED: 'SIM_ORDER_REJECTED',
-          }, default: 'SIM_ORDER_FILLED' },
+            REJECTED: BrokerSimEventTypes.SIM_ORDER_REJECTED,
+          }, default: BrokerSimEventTypes.SIM_ORDER_FILLED },
           modify: { field: 'status', map: {
-            REJECTED: 'SIM_ORDER_REJECTED',
-          }, default: 'SIM_ORDER_FILLED' },
+            REJECTED: BrokerSimEventTypes.SIM_ORDER_REJECTED,
+          }, default: BrokerSimEventTypes.SIM_ORDER_FILLED },
         },
-        'DepositDetected': { insert: 'SIM_DEPOSIT_COMPLETED' },
-        'WithdrawalCompleted': { insert: 'SIM_WITHDRAWAL_COMPLETED' },
+        'DepositDetected': { insert: BrokerSimEventTypes.SIM_DEPOSIT_COMPLETED },
+        'WithdrawalCompleted': { insert: BrokerSimEventTypes.SIM_WITHDRAWAL_COMPLETED },
       },
     });
 

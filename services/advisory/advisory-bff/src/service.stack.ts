@@ -1,5 +1,6 @@
 import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { AdvisoryBffEventTypes } from './domain/events';
 
 export class AdvisoryBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -21,10 +22,16 @@ export class AdvisoryBffStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'DecisionReadModel': 'DECISION_READ_MODEL',
-        'UserInteraction': 'USER_INTERACTION',
-        'UserConfirmation': { insert: 'USER_CONFIRMED' },
-        'UserRejection': { insert: 'USER_REJECTED' },
+        'DecisionReadModel': {
+          insert: AdvisoryBffEventTypes.DECISION_READ_MODEL_CREATED,
+          modify: AdvisoryBffEventTypes.DECISION_READ_MODEL_UPDATED,
+        },
+        'UserInteraction': {
+          insert: AdvisoryBffEventTypes.USER_INTERACTION_CREATED,
+          modify: AdvisoryBffEventTypes.USER_INTERACTION_UPDATED,
+        },
+        'UserConfirmation': { insert: AdvisoryBffEventTypes.USER_CONFIRMED },
+        'UserRejection': { insert: AdvisoryBffEventTypes.USER_REJECTED },
       },
     });
 

@@ -3,6 +3,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { NarrativeEventTypes } from './domain/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 import { NamingService } from '@nestfolio/cdk-constructs/utils';
 
@@ -35,7 +36,7 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'ReasoningOutput': { insert: 'EXPLANATION_GENERATED' },
+        'ReasoningOutput': { insert: NarrativeEventTypes.EXPLANATION_GENERATED },
       },
     });
 

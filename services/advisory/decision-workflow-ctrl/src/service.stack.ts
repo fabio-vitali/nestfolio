@@ -7,6 +7,7 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
 import { BedrockFoundationModel } from '@aws-cdk/aws-bedrock-alpha';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Orchestration } from '@nestfolio/cdk-constructs/core';
+import { DecisionWorkflowEventTypes } from './domain/events';
 import { NamingService, defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { DecisionWorkflowDefinition } from './constructs/decision-state-machine';
 import {
@@ -147,9 +148,18 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'WorkflowTrigger': 'WORKFLOW_TRIGGER',
-        'DecisionPacket': 'DECISION_PACKET',
-        'AgentOutput': 'AGENT_OUTPUT',
+        'WorkflowTrigger': {
+          insert: DecisionWorkflowEventTypes.WORKFLOW_TRIGGER_CREATED,
+          modify: DecisionWorkflowEventTypes.WORKFLOW_TRIGGER_UPDATED,
+        },
+        'DecisionPacket': {
+          insert: DecisionWorkflowEventTypes.DECISION_PACKET_CREATED,
+          modify: DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED,
+        },
+        'AgentOutput': {
+          insert: DecisionWorkflowEventTypes.AGENT_OUTPUT_CREATED,
+          modify: DecisionWorkflowEventTypes.AGENT_OUTPUT_UPDATED,
+        },
       },
     });
 

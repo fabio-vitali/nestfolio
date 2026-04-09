@@ -6,6 +6,7 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { LedgerCtrlEventTypes } from './domain/events';
 import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
@@ -66,9 +67,18 @@ export class LedgerCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'BalanceEvent': { insert: 'BALANCE_UPDATED', modify: 'BALANCE_EVENT_UPDATED' },
-        'PortfolioEvent': { insert: 'PORTFOLIO_UPDATED', modify: 'PORTFOLIO_EVENT_UPDATED' },
-        'LedgerEntryEvent': { insert: 'LEDGER_ENTRY_RECORDED', modify: 'LEDGER_ENTRY_EVENT_UPDATED' },
+        'BalanceEvent': {
+          insert: LedgerCtrlEventTypes.BALANCE_UPDATED,
+          modify: LedgerCtrlEventTypes.BALANCE_EVENT_UPDATED,
+        },
+        'PortfolioEvent': {
+          insert: LedgerCtrlEventTypes.PORTFOLIO_UPDATED,
+          modify: LedgerCtrlEventTypes.PORTFOLIO_EVENT_UPDATED,
+        },
+        'LedgerEntryEvent': {
+          insert: LedgerCtrlEventTypes.LEDGER_ENTRY_RECORDED,
+          modify: LedgerCtrlEventTypes.LEDGER_ENTRY_EVENT_UPDATED,
+        },
       },
     });
 

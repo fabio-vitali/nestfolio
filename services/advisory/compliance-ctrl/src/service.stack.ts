@@ -1,5 +1,6 @@
 import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { ComplianceEventTypes } from './domain/events';
 
 export class ComplianceCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -23,11 +24,14 @@ export class ComplianceCtrlStack extends ServiceStack {
       eventTypes: {
         'ComplianceCheck': {
           insert: { field: 'result', map: {
-            APPROVED: 'DECISION_APPROVED',
-            BLOCKED: 'DECISION_BLOCKED',
+            APPROVED: ComplianceEventTypes.DECISION_APPROVED,
+            BLOCKED: ComplianceEventTypes.DECISION_BLOCKED,
           }},
         },
-        'AuditArtifact': 'AUDIT_ARTIFACT',
+        'AuditArtifact': {
+          insert: ComplianceEventTypes.AUDIT_ARTIFACT_CREATED,
+          modify: ComplianceEventTypes.AUDIT_ARTIFACT_UPDATED,
+        },
       },
     });
 

@@ -4,6 +4,7 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { InvestorProfileEventTypes } from './domain/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 
@@ -29,8 +30,8 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'AgentInvocation': { insert: 'GOAL_INTERPRETATION_PRODUCED' },
-        'ReasoningOutput': { insert: 'RISK_EVALUATION_PRODUCED' },
+        'AgentInvocation': { insert: InvestorProfileEventTypes.GOAL_INTERPRETATION_PRODUCED },
+        'ReasoningOutput': { insert: InvestorProfileEventTypes.RISK_EVALUATION_PRODUCED },
       },
     });
 

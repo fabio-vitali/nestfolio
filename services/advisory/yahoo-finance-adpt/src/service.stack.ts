@@ -7,6 +7,7 @@ import { ParamsAndSecretsLayerVersion, ParamsAndSecretsVersions } from 'aws-cdk-
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { YahooFinanceAdptEventTypes } from './domain/events';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { YahooFinanceAdptEventTypes } from './domain/events';
@@ -67,7 +68,10 @@ export class YahooFinanceAdptStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'YahooFinanceArticle': { insert: 'YAHOO_FINANCE_UPDATED', modify: 'YAHOO_FINANCE_UPDATED' },
+        'YahooFinanceArticle': {
+          insert: YahooFinanceAdptEventTypes.YAHOO_FINANCE_UPDATED,
+          modify: YahooFinanceAdptEventTypes.YAHOO_FINANCE_UPDATED,
+        },
       },
     });
 

@@ -4,6 +4,7 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
+import { AdvisoryCtrlEventTypes } from './domain/events';
 import { AgentRuntime } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps, createNamingService } from '@nestfolio/cdk-constructs/utils';
 
@@ -59,9 +60,18 @@ export class AdvisoryCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'DecisionPacket': 'DECISION_PACKET',
-        'AgentInvocation': 'AGENT_INVOCATION',
-        'WorkflowState': 'WORKFLOW_STATE',
+        'DecisionPacket': {
+          insert: AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED,
+          modify: AdvisoryCtrlEventTypes.DECISION_PACKET_UPDATED,
+        },
+        'AgentInvocation': {
+          insert: AdvisoryCtrlEventTypes.AGENT_INVOCATION_CREATED,
+          modify: AdvisoryCtrlEventTypes.AGENT_INVOCATION_UPDATED,
+        },
+        'WorkflowState': {
+          insert: AdvisoryCtrlEventTypes.WORKFLOW_STATE_CREATED,
+          modify: AdvisoryCtrlEventTypes.WORKFLOW_STATE_UPDATED,
+        },
       },
     });
 

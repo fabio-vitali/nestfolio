@@ -2,6 +2,7 @@ import { eventName } from '@nestfolio/event-types';
 
 export const InvestorCtrlEventTypes = {
   NOTIFICATION_CREATED: eventName('NOTIFICATION_CREATED'),
+  NOTIFICATION_UPDATED: eventName('NOTIFICATION_UPDATED'),
   NOTIFICATION_SENT: eventName('NOTIFICATION_SENT'),
   NOTIFICATION_DELIVERED: eventName('NOTIFICATION_DELIVERED'),
   MONTHLY_REPORT_GENERATED: eventName('MONTHLY_REPORT_GENERATED'),
