@@ -5,6 +5,7 @@ import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
 export class LedgerBffStack extends ServiceStack {
@@ -20,9 +21,9 @@ export class LedgerBffStack extends ServiceStack {
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
-        'BALANCE_UPDATED',
-        'PORTFOLIO_UPDATED',
-        'LEDGER_ENTRY_RECORDED',
+        LedgerCtrlEventTypes.BALANCE_UPDATED,
+        LedgerCtrlEventTypes.PORTFOLIO_UPDATED,
+        LedgerCtrlEventTypes.LEDGER_ENTRY_RECORDED,
       ],
       environment: {
         SNAPSHOT_HISTORY_TTL_DAYS: '365',

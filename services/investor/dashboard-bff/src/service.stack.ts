@@ -1,5 +1,7 @@
 import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
+import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 
 export class DashboardBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -10,20 +12,20 @@ export class DashboardBffStack extends ServiceStack {
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
-        'BALANCE_UPDATED',
-        'PORTFOLIO_UPDATED',
-        'RECONCILIATION_COMPLETED',
-        'DECISION_PACKET_CREATED',
-        'USER_CONFIRMATION_REQUESTED',
-        'DECISION_APPROVED',
-        'DECISION_BLOCKED',
-        'LEDGER_ENTRY_RECORDED',
-        'GOAL_CREATED',
-        'GOAL_UPDATED',
-        'RISK_PROFILE_CREATED',
-        'RISK_PROFILE_UPDATED',
-        'OPERATING_MODE_SELECTED',
-        'OPERATING_MODE_CHANGED',
+        InvestorIngestEventTypes.BALANCE_UPDATED,
+        InvestorIngestEventTypes.PORTFOLIO_UPDATED,
+        InvestorIngestEventTypes.RECONCILIATION_COMPLETED,
+        InvestorIngestEventTypes.DECISION_PACKET_CREATED,
+        InvestorIngestEventTypes.USER_CONFIRMATION_REQUESTED,
+        InvestorIngestEventTypes.DECISION_APPROVED,
+        InvestorIngestEventTypes.DECISION_BLOCKED,
+        InvestorIngestEventTypes.LEDGER_ENTRY_RECORDED,
+        InvestorBffEventTypes.GOAL_CREATED,
+        InvestorBffEventTypes.GOAL_UPDATED,
+        InvestorBffEventTypes.RISK_PROFILE_CREATED,
+        InvestorBffEventTypes.RISK_PROFILE_UPDATED,
+        InvestorBffEventTypes.OPERATING_MODE_SELECTED,
+        InvestorBffEventTypes.OPERATING_MODE_CHANGED,
       ],
     });
 

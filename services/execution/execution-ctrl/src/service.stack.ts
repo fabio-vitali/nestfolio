@@ -4,6 +4,7 @@ import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { ExecutionCtrlEventTypes } from './domain/events';
+import { ExecutionIngestEventTypes } from '@nestfolio/execution-adpt/domain';
 import { AdapterSchedule } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
@@ -15,7 +16,13 @@ export class ExecutionCtrlStack extends ServiceStack {
 
     const ingress = new Ingress(this, 'Ingress', {
       state,
-      eventTypes: ['DECISION_APPROVED', 'USER_CONFIRMED', 'CIRCUIT_BREAKER_TRIGGERED', 'CIRCUIT_BREAKER_RESET', 'ACCOUNT_CLOSURE_REQUESTED'],
+      eventTypes: [
+        ExecutionIngestEventTypes.DECISION_APPROVED,
+        ExecutionIngestEventTypes.USER_CONFIRMED,
+        ExecutionIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
+        ExecutionIngestEventTypes.CIRCUIT_BREAKER_RESET,
+        ExecutionIngestEventTypes.ACCOUNT_CLOSURE_REQUESTED,
+      ],
     });
 
     const egress = new Egress(this, 'Egress', {

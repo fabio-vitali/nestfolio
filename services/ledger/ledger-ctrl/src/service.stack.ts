@@ -8,6 +8,7 @@ import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { LedgerCtrlEventTypes } from './domain/events';
 import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
+import { LedgerIngestEventTypes } from '@nestfolio/ledger-adpt/domain';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
 export class LedgerCtrlStack extends ServiceStack {
@@ -23,14 +24,14 @@ export class LedgerCtrlStack extends ServiceStack {
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
-        'ORDER_FILLED',
-        'ORDER_PARTIALLY_FILLED',
-        'ORDER_REJECTED',
-        'ORDER_CANCELLED',
-        'DEPOSIT_DETECTED',
-        'WITHDRAWAL_COMPLETED',
-        'CORPORATE_ACTION_APPLIED',
-        'DECISION_PACKET_CREATED',
+        LedgerIngestEventTypes.ORDER_FILLED,
+        LedgerIngestEventTypes.ORDER_PARTIALLY_FILLED,
+        LedgerIngestEventTypes.ORDER_REJECTED,
+        LedgerIngestEventTypes.ORDER_CANCELLED,
+        LedgerIngestEventTypes.DEPOSIT_DETECTED,
+        LedgerIngestEventTypes.WITHDRAWAL_COMPLETED,
+        LedgerIngestEventTypes.CORPORATE_ACTION_APPLIED,
+        LedgerIngestEventTypes.DECISION_PACKET_CREATED,
       ],
     });
 

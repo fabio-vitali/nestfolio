@@ -3,6 +3,8 @@ import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { ReconciliationEventTypes } from './domain/events';
 import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
+import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
 
 export class ReconciliationCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -17,10 +19,10 @@ export class ReconciliationCtrlStack extends ServiceStack {
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
-        'PORTFOLIO_UPDATED',
-        'PORTFOLIO_SNAPSHOT_IMPORTED',
-        'CORPORATE_ACTION_APPLIED',
-        'ALPACA_ACCOUNT_SNAPSHOT',
+        LedgerCtrlEventTypes.PORTFOLIO_UPDATED,
+        ExecutionCrossDomainEventTypes.PORTFOLIO_SNAPSHOT_IMPORTED,
+        ExecutionCrossDomainEventTypes.CORPORATE_ACTION_APPLIED,
+        ExecutionCrossDomainEventTypes.ALPACA_ACCOUNT_SNAPSHOT,
       ],
     });
 

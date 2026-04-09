@@ -4,6 +4,7 @@ import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { NarrativeEventTypes } from './domain/events';
+import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 import { NamingService } from '@nestfolio/cdk-constructs/utils';
 
@@ -22,7 +23,10 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
     // Ingress: trigger + feedback events
     const ingress = new Ingress(this, 'Ingress', {
       state,
-      eventTypes: ['GENERATE_NARRATIVE', 'DECISION_FEEDBACK'],
+      eventTypes: [
+        DecisionWorkflowEventTypes.GENERATE_NARRATIVE,
+        DecisionWorkflowEventTypes.DECISION_FEEDBACK,
+      ],
     });
 
     // Grant KB access to the ingress handler (feedback-correlator runs inline)

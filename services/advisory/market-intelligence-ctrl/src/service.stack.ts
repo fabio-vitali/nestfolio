@@ -5,6 +5,12 @@ import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { MarketIntelligenceEventTypes } from './domain/events';
+import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
+import { YahooFinanceAdptEventTypes } from '@nestfolio/yahoo-finance-adpt/events';
+import { MarketwatchAdptEventTypes } from '@nestfolio/marketwatch-adpt/events';
+import { SecEdgarAdptEventTypes } from '@nestfolio/sec-edgar-adpt/events';
+import { FredAdptEventTypes } from '@nestfolio/fred-adpt/events';
+import { AlphaVantageAdptEventTypes } from '@nestfolio/alpha-vantage-adpt/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 
@@ -24,12 +30,12 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
-        'ANALYZE_MARKET',
-        'YAHOO_FINANCE_UPDATED',
-        'MARKETWATCH_UPDATED',
-        'SEC_8K_FILED',
-        'FRED_INDICATORS_UPDATED',
-        'ALPHA_VANTAGE_NEWS_UPDATED',
+        DecisionWorkflowEventTypes.ANALYZE_MARKET,
+        YahooFinanceAdptEventTypes.YAHOO_FINANCE_UPDATED,
+        MarketwatchAdptEventTypes.MARKETWATCH_UPDATED,
+        SecEdgarAdptEventTypes.SEC_8K_FILED,
+        FredAdptEventTypes.FRED_INDICATORS_UPDATED,
+        AlphaVantageAdptEventTypes.ALPHA_VANTAGE_NEWS_UPDATED,
       ],
     });
 

@@ -5,6 +5,8 @@ import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { InvestorProfileEventTypes } from './domain/events';
+import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
+import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 
@@ -23,7 +25,11 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     // Ingress: trigger event + KB ingestion events
     const ingress = new Ingress(this, 'Ingress', {
       state,
-      eventTypes: ['ANALYZE_INVESTOR_PROFILE', 'DECISION_BLOCKED', 'DECISION_APPROVED'],
+      eventTypes: [
+        DecisionWorkflowEventTypes.ANALYZE_INVESTOR_PROFILE,
+        ComplianceEventTypes.DECISION_BLOCKED,
+        ComplianceEventTypes.DECISION_APPROVED,
+      ],
     });
 
     // Egress: CDC events

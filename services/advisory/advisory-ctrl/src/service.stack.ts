@@ -6,6 +6,8 @@ import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AdvisoryCtrlEventTypes } from './domain/events';
 import { AgentRuntime } from '@nestfolio/cdk-constructs/extensions';
+import { AdvisoryIngestEventTypes, AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
+import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/events';
 import { defaultLambdaProps, createNamingService } from '@nestfolio/cdk-constructs/utils';
 
 export class AdvisoryCtrlStack extends ServiceStack {
@@ -39,21 +41,21 @@ export class AdvisoryCtrlStack extends ServiceStack {
         },
       },
       eventTypes: [
-        'MANDATE_CREATED',
-        'GOAL_CREATED',
-        'GOAL_UPDATED',
-        'RISK_PROFILE_CREATED',
-        'RISK_PROFILE_UPDATED',
-        'OPERATING_MODE_CHANGED',
-        'PORTFOLIO_DRIFT_DETECTED',
-        'ORDER_FILLED',
-        'ORDER_REJECTED',
-        'ORDER_CANCELLED',
-        'DEPOSIT_DETECTED',
-        'DECISION_APPROVED',
-        'DECISION_BLOCKED',
-        'USER_CONFIRMED',
-        'USER_REJECTED',
+        AdvisoryIngestEventTypes.MANDATE_CREATED,
+        AdvisoryIngestEventTypes.GOAL_CREATED,
+        AdvisoryIngestEventTypes.GOAL_UPDATED,
+        AdvisoryIngestEventTypes.RISK_PROFILE_CREATED,
+        AdvisoryIngestEventTypes.RISK_PROFILE_UPDATED,
+        AdvisoryIngestEventTypes.OPERATING_MODE_CHANGED,
+        AdvisoryIngestEventTypes.PORTFOLIO_DRIFT_DETECTED,
+        AdvisoryIngestEventTypes.ORDER_FILLED,
+        AdvisoryIngestEventTypes.ORDER_REJECTED,
+        AdvisoryIngestEventTypes.ORDER_CANCELLED,
+        AdvisoryIngestEventTypes.DEPOSIT_DETECTED,
+        AdvisoryCrossDomainEventTypes.DECISION_APPROVED,
+        AdvisoryCrossDomainEventTypes.DECISION_BLOCKED,
+        AdvisoryCrossDomainEventTypes.USER_CONFIRMED,
+        AdvisoryBffEventTypes.USER_REJECTED,
       ],
     });
 

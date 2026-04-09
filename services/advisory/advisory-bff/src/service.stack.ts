@@ -1,6 +1,8 @@
 import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 import { AdvisoryBffEventTypes } from './domain/events';
+import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
+import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
 
 export class AdvisoryBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -11,11 +13,11 @@ export class AdvisoryBffStack extends ServiceStack {
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
-        'DECISION_PACKET_CREATED',
-        'DECISION_PACKET_UPDATED',
-        'DECISION_APPROVED',
-        'DECISION_BLOCKED',
-        'USER_CONFIRMATION_REQUESTED',
+        AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED,
+        AdvisoryCtrlEventTypes.DECISION_PACKET_UPDATED,
+        ComplianceEventTypes.DECISION_APPROVED,
+        ComplianceEventTypes.DECISION_BLOCKED,
+        AdvisoryCtrlEventTypes.USER_CONFIRMATION_REQUESTED,
       ],
     });
 

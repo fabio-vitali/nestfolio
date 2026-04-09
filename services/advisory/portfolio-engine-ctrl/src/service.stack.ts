@@ -5,6 +5,8 @@ import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { PortfolioEngineEventTypes } from './domain/events';
+import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
+import { SecEdgarAdptEventTypes } from '@nestfolio/sec-edgar-adpt/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 
@@ -23,7 +25,11 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     // Ingress: trigger + KB ingestion events
     const ingress = new Ingress(this, 'Ingress', {
       state,
-      eventTypes: ['CONSTRUCT_PORTFOLIO', 'SEC_PROSPECTUS_UPDATED', 'SEC_10K_UPDATED'],
+      eventTypes: [
+        DecisionWorkflowEventTypes.CONSTRUCT_PORTFOLIO,
+        SecEdgarAdptEventTypes.SEC_PROSPECTUS_UPDATED,
+        SecEdgarAdptEventTypes.SEC_10K_UPDATED,
+      ],
     });
 
     // Egress: CDC events

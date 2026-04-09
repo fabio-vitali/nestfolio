@@ -1,6 +1,8 @@
 import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 import { InvestorBffEventTypes } from './domain/events';
+import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
+import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 
 export class InvestorBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -10,7 +12,13 @@ export class InvestorBffStack extends ServiceStack {
 
     const ingress = new Ingress(this, 'Ingress', {
       state,
-      eventTypes: ['USER_REGISTERED', 'NOTIFICATION_CREATED', 'BALANCE_UPDATED', 'ONBOARDING_COMPLETED', 'GO_LIVE_CONFIRMED'],
+      eventTypes: [
+        InvestorBffEventTypes.USER_REGISTERED,
+        InvestorCtrlEventTypes.NOTIFICATION_CREATED,
+        InvestorIngestEventTypes.BALANCE_UPDATED,
+        InvestorBffEventTypes.ONBOARDING_COMPLETED,
+        InvestorBffEventTypes.GO_LIVE_CONFIRMED,
+      ],
     });
 
     const egress = new Egress(this, 'Egress', {
