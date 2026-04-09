@@ -22,6 +22,8 @@ export class EventBridgeClient {
     detail: Record<string, unknown>;
   }): Promise<void> {
     const busArn = await this.ctx.ssm.busArn(params.bus);
+    const maxRetries = this.ctx.timings.putEventRetries;
+    const baseBackoff = this.ctx.timings.putEventBackoffMs;
 
     const detail = {
       id: `integ-${randomUUID()}`,
@@ -35,13 +37,24 @@ export class EventBridgeClient {
       },
     };
 
-    await this.client.send(new PutEventsCommand({
-      Entries: [{
-        EventBusName: busArn,
-        Source: `integration-test:${params.targetService}`,
-        DetailType: params.detailType,
-        Detail: JSON.stringify(detail),
-      }],
-    }));
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await this.client.send(new PutEventsCommand({
+          Entries: [{
+            EventBusName: busArn,
+            Source: `integration-test:${params.targetService}`,
+            DetailType: params.detailType,
+            Detail: JSON.stringify(detail),
+          }],
+        }));
+        if (result.FailedEntryCount === 0) return;
+        if (attempt === maxRetries) {
+          throw new Error(`putEvent failed after ${maxRetries} retries: ${result.Entries?.[0]?.ErrorMessage}`);
+        }
+      } catch (err) {
+        if (attempt === maxRetries) throw err;
+      }
+      await new Promise(r => setTimeout(r, baseBackoff * Math.pow(2, attempt)));
+    }
   }
 }
