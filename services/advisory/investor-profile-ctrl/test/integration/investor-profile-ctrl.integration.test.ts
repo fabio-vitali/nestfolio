@@ -65,15 +65,11 @@ describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DD
     expect(item['decisionId']).toBe(decisionId);
     expect(item['status']).toMatch(/^(IN_PROGRESS|COMPLETED)$/);
 
-    // CDC verification — best-effort (AgentRuntime may be unavailable)
-    try {
-      const cdcEvent = await trap.waitForEvent({
-        detailType: 'AGENT_INVOCATION_CREATED',
-        timeoutMs: 30_000,
-      });
-      expect(cdcEvent.detailType).toBe('AGENT_INVOCATION_CREATED');
-    } catch {
-      console.warn('CDC assertion skipped — AGENT_INVOCATION_CREATED not received within timeout');
-    }
+    // CDC verification
+    const cdcEvent = await trap.waitForEvent({
+      detailType: 'AGENT_INVOCATION_CREATED',
+      timeoutMs: 30_000,
+    });
+    expect(cdcEvent.detailType).toBe('AGENT_INVOCATION_CREATED');
   }, 120_000);
 });

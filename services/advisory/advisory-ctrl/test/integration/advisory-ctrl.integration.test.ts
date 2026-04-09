@@ -122,13 +122,9 @@ describe('advisory-ctrl', () => {
       expect(item['complianceResult']).toBe('BLOCKED');
       expect(item['blockReason']).toBe('Integration test block');
 
-      // CDC verification — best-effort (DDB Stream propagation can be slow under load)
-      try {
-        const cdcEvent = await trap.waitForEvent({ detailType: 'DECISION_PACKET_CREATED', timeoutMs: 30_000 });
-        expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
-      } catch {
-        console.warn('CDC assertion skipped — DECISION_PACKET_CREATED not received within timeout (DECISION_BLOCKED path)');
-      }
+      // CDC verification
+      const cdcEvent = await trap.waitForEvent({ detailType: 'DECISION_PACKET_CREATED', timeoutMs: 30_000 });
+      expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
     }, 120_000);
 
     it('should update DecisionPacket to APPROVED on DECISION_APPROVED (L1 autonomous)', async () => {
@@ -367,17 +363,13 @@ describe('advisory-ctrl', () => {
           },
         });
 
-        // CDC verification — best-effort (DDB Stream propagation can be slow under load)
-        try {
-          const cdcEvent = await trap.waitForEvent({
-            detailType: 'DECISION_PACKET_CREATED',
-            timeoutMs: 30_000,
-          });
-          expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
-          expect(cdcEvent.detail).toBeDefined();
-        } catch {
-          console.warn(`CDC assertion skipped — DECISION_PACKET_CREATED not received within timeout (${detailType} trigger)`);
-        }
+        // CDC verification
+        const cdcEvent = await trap.waitForEvent({
+          detailType: 'DECISION_PACKET_CREATED',
+          timeoutMs: 30_000,
+        });
+        expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
+        expect(cdcEvent.detail).toBeDefined();
       },
       60_000,
     );
