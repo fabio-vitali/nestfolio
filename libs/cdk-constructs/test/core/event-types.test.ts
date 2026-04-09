@@ -1,4 +1,5 @@
 // libs/cdk-constructs/test/core/event-types.test.ts
+import { eventName } from '@nestfolio/event-types';
 import {
   buildRuntimeConfig,
   collectAllEventTypes,
@@ -6,17 +7,12 @@ import {
 } from '../../src/core/event-types';
 
 describe('buildRuntimeConfig', () => {
-  it('expands base name string to _CREATED and _UPDATED', () => {
-    const result = buildRuntimeConfig({ 'DecisionPacket': 'DECISION_PACKET' });
-    expect(result).toEqual({
-      'DecisionPacket:INSERT': 'DECISION_PACKET_CREATED',
-      'DecisionPacket:MODIFY': 'DECISION_PACKET_UPDATED',
-    });
-  });
-
-  it('maps explicit per-action strings', () => {
+  it('maps explicit per-action EventName strings', () => {
     const result = buildRuntimeConfig({
-      'BalanceEvent': { insert: 'BALANCE_UPDATED', modify: 'BALANCE_EVENT_UPDATED' },
+      'BalanceEvent': {
+        insert: eventName('BALANCE_UPDATED'),
+        modify: eventName('BALANCE_EVENT_UPDATED'),
+      },
     });
     expect(result).toEqual({
       'BalanceEvent:INSERT': 'BALANCE_UPDATED',
@@ -26,7 +22,7 @@ describe('buildRuntimeConfig', () => {
 
   it('maps insert-only config (no modify)', () => {
     const result = buildRuntimeConfig({
-      'OnboardingCompleted': { insert: 'ONBOARDING_COMPLETED' },
+      'OnboardingCompleted': { insert: eventName('ONBOARDING_COMPLETED') },
     });
     expect(result).toEqual({
       'OnboardingCompleted:INSERT': 'ONBOARDING_COMPLETED',
@@ -38,8 +34,11 @@ describe('buildRuntimeConfig', () => {
       'Order': {
         insert: {
           field: 'status',
-          map: { SUBMITTED: 'ORDER_SUBMITTED', REJECTED: 'ORDER_REJECTED' },
-          default: 'ORDER_CREATED',
+          map: {
+            SUBMITTED: eventName('ORDER_SUBMITTED'),
+            REJECTED: eventName('ORDER_REJECTED'),
+          },
+          default: eventName('ORDER_CREATED'),
         },
       },
     });
@@ -55,7 +54,11 @@ describe('buildRuntimeConfig', () => {
   it('serializes passthrough to runtime format (without emits)', () => {
     const result = buildRuntimeConfig({
       'NormalizedEvent': {
-        insert: { field: 'sk', passthrough: true, emits: ['ORDER_FILLED', 'ORDER_REJECTED'] },
+        insert: {
+          field: 'sk',
+          passthrough: true,
+          emits: [eventName('ORDER_FILLED'), eventName('ORDER_REJECTED')],
+        },
       },
     });
     expect(result).toEqual({
@@ -63,10 +66,16 @@ describe('buildRuntimeConfig', () => {
     });
   });
 
-  it('handles mixed config with multiple record types', () => {
+  it('handles multiple record types with mixed configs', () => {
     const result = buildRuntimeConfig({
-      'Goal': 'GOAL',
-      'Deposit': { insert: 'DEPOSIT_INITIATED', modify: 'DEPOSIT_UPDATED' },
+      'Goal': {
+        insert: eventName('GOAL_CREATED'),
+        modify: eventName('GOAL_UPDATED'),
+      },
+      'Deposit': {
+        insert: eventName('DEPOSIT_INITIATED'),
+        modify: eventName('DEPOSIT_UPDATED'),
+      },
     });
     expect(result).toEqual({
       'Goal:INSERT': 'GOAL_CREATED',
@@ -75,18 +84,28 @@ describe('buildRuntimeConfig', () => {
       'Deposit:MODIFY': 'DEPOSIT_UPDATED',
     });
   });
+
+  it('includes remove action when defined', () => {
+    const result = buildRuntimeConfig({
+      'Session': {
+        insert: eventName('SESSION_CREATED'),
+        remove: eventName('SESSION_DELETED'),
+      },
+    });
+    expect(result).toEqual({
+      'Session:INSERT': 'SESSION_CREATED',
+      'Session:REMOVE': 'SESSION_DELETED',
+    });
+  });
 });
 
 describe('collectAllEventTypes', () => {
-  it('expands base name to _CREATED and _UPDATED', () => {
-    expect(collectAllEventTypes({ 'Foo': 'FOO' })).toEqual(
-      expect.arrayContaining(['FOO_CREATED', 'FOO_UPDATED']),
-    );
-  });
-
-  it('collects explicit per-action strings', () => {
+  it('collects explicit per-action EventName strings', () => {
     const result = collectAllEventTypes({
-      'Bar': { insert: 'BAR_INSERTED', modify: 'BAR_MODIFIED' },
+      'Bar': {
+        insert: eventName('BAR_INSERTED'),
+        modify: eventName('BAR_MODIFIED'),
+      },
     });
     expect(result).toEqual(expect.arrayContaining(['BAR_INSERTED', 'BAR_MODIFIED']));
   });
@@ -96,8 +115,11 @@ describe('collectAllEventTypes', () => {
       'Order': {
         insert: {
           field: 'status',
-          map: { A: 'EVENT_A', B: 'EVENT_B' },
-          default: 'EVENT_DEFAULT',
+          map: {
+            A: eventName('EVENT_A'),
+            B: eventName('EVENT_B'),
+          },
+          default: eventName('EVENT_DEFAULT'),
         },
       },
     });
@@ -107,7 +129,11 @@ describe('collectAllEventTypes', () => {
   it('collects passthrough emits array', () => {
     const result = collectAllEventTypes({
       'NE': {
-        insert: { field: 'sk', passthrough: true, emits: ['X', 'Y'] },
+        insert: {
+          field: 'sk',
+          passthrough: true,
+          emits: [eventName('X'), eventName('Y')],
+        },
       },
     });
     expect(result).toEqual(expect.arrayContaining(['X', 'Y']));
@@ -115,34 +141,42 @@ describe('collectAllEventTypes', () => {
 
   it('deduplicates across record types', () => {
     const result = collectAllEventTypes({
-      'A': { insert: 'SHARED' },
-      'B': { insert: 'SHARED' },
+      'A': { insert: eventName('SHARED') },
+      'B': { insert: eventName('SHARED') },
     });
     expect(result.filter(t => t === 'SHARED')).toHaveLength(1);
   });
 });
 
 describe('extractFilters', () => {
-  it('returns INSERT + MODIFY for base name string', () => {
-    const result = extractFilters({ 'Foo': 'FOO' });
-    expect(result).toEqual([
-      { typeName: 'Foo', action: 'INSERT' },
-      { typeName: 'Foo', action: 'MODIFY' },
-    ]);
-  });
-
-  it('returns only defined actions for per-action config', () => {
+  it('returns only defined actions', () => {
     const result = extractFilters({
-      'Bar': { insert: 'BAR_CREATED' },
+      'Bar': { insert: eventName('BAR_CREATED') },
     });
     expect(result).toEqual([
       { typeName: 'Bar', action: 'INSERT' },
     ]);
   });
 
+  it('returns INSERT and MODIFY when both defined', () => {
+    const result = extractFilters({
+      'Foo': {
+        insert: eventName('FOO_CREATED'),
+        modify: eventName('FOO_UPDATED'),
+      },
+    });
+    expect(result).toEqual([
+      { typeName: 'Foo', action: 'INSERT' },
+      { typeName: 'Foo', action: 'MODIFY' },
+    ]);
+  });
+
   it('includes REMOVE when defined', () => {
     const result = extractFilters({
-      'Baz': { insert: 'BAZ_CREATED', remove: 'BAZ_DELETED' },
+      'Baz': {
+        insert: eventName('BAZ_CREATED'),
+        remove: eventName('BAZ_DELETED'),
+      },
     });
     expect(result).toEqual([
       { typeName: 'Baz', action: 'INSERT' },
@@ -153,8 +187,8 @@ describe('extractFilters', () => {
   it('handles field dispatch and passthrough same as strings', () => {
     const result = extractFilters({
       'Order': {
-        insert: { field: 'status', map: { A: 'X' } },
-        modify: { field: 'status', map: { A: 'Y' } },
+        insert: { field: 'status', map: { A: eventName('X') } },
+        modify: { field: 'status', map: { A: eventName('Y') } },
       },
     });
     expect(result).toEqual([

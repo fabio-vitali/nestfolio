@@ -7,6 +7,7 @@ import { SfnStateMachine } from 'aws-cdk-lib/aws-events-targets';
 import { RuleTargetInput } from 'aws-cdk-lib/aws-events';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Function as LambdaFunction } from 'aws-cdk-lib/aws-lambda';
+import type { EventName } from '@nestfolio/event-types';
 import { ServiceStack } from './service-stack';
 import { State } from './state';
 
@@ -16,7 +17,7 @@ export interface OrchestrationProps {
   /** Step Functions definition body */
   definitionBody: sfn.DefinitionBody;
   /** Event types that trigger new state machine executions */
-  triggers: string[];
+  triggers: EventName[];
 /** State machine execution timeout (default: 5 minutes) */
   timeout?: Duration;
 }

@@ -1,5 +1,8 @@
 {
   "name": "@nestfolio/cdk-constructs",
   "version": "0.0.1",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "@nestfolio/event-types": "*"
+  }
 }

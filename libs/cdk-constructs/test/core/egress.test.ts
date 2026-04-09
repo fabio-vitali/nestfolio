@@ -3,6 +3,7 @@ import { Match, Template } from 'aws-cdk-lib/assertions';
 import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
+import { eventName } from '@nestfolio/event-types';
 import { ServiceStack } from '../../src/core/service-stack';
 import { State } from '../../src/core/state';
 import { Egress } from '../../src/core/egress';
@@ -35,7 +36,16 @@ describe('Egress construct', () => {
 
     const egress = new Egress(stack, 'TestEgress', {
       state,
-      eventTypes: { 'Order': 'ORDER', 'StagedOrder': 'STAGED_ORDER' },
+      eventTypes: {
+        'Order': {
+          insert: eventName('ORDER_CREATED'),
+          modify: eventName('ORDER_UPDATED'),
+        },
+        'StagedOrder': {
+          insert: eventName('STAGED_ORDER_CREATED'),
+          modify: eventName('STAGED_ORDER_UPDATED'),
+        },
+      },
       ...(overrides['egressOverrides'] as Record<string, unknown> ?? {}),
     });
 
@@ -116,7 +126,7 @@ describe('Egress construct', () => {
   });
 
   describe('allEventTypes()', () => {
-    it('returns expanded event types for base names', () => {
+    it('returns explicit event types for per-action config', () => {
       const { egress } = createEgress();
       expect(egress.allEventTypes()).toEqual(expect.arrayContaining([
         'ORDER_CREATED', 'ORDER_UPDATED',
@@ -124,10 +134,10 @@ describe('Egress construct', () => {
       ]));
     });
 
-    it('returns explicit event types for per-action config', () => {
+    it('returns single event for insert-only config', () => {
       const { egress } = createEgress({
         egressOverrides: {
-          eventTypes: { 'Payment': { insert: 'PAYMENT_RECEIVED' } },
+          eventTypes: { 'Payment': { insert: eventName('PAYMENT_RECEIVED') } },
         },
       });
       expect(egress.allEventTypes()).toEqual(['PAYMENT_RECEIVED']);

@@ -5,6 +5,7 @@ module.exports = {
   displayName: 'cdk-constructs',
   testEnvironment: 'node',
   moduleNameMapper: {
+    '^@nestfolio/event-types$': '<rootDir>/../event-types/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../event-processor/src/$1',
   },

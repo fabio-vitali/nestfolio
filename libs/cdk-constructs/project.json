@@ -10,7 +10,8 @@
       "options": {
         "outputPath": "dist/libs/cdk-constructs",
         "main": "libs/cdk-constructs/src/index.ts",
-        "tsConfig": "libs/cdk-constructs/tsconfig.lib.json"
+        "tsConfig": "libs/cdk-constructs/tsconfig.lib.json",
+        "rootDir": "."
       }
     },
     "test": {

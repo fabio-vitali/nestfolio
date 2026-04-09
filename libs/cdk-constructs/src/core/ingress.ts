@@ -7,12 +7,13 @@ import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { NodejsFunction, NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
+import type { EventName } from '@nestfolio/event-types';
 import { ServiceStack } from './service-stack';
 import { State } from './state';
 import { defaultLambdaProps } from '../utils/default-lambda-props';
 
 export interface IngressProps {
-  eventTypes: string[];
+  eventTypes: EventName[];
   /** State construct for DynamoDB/S3 grants. Optional — stateless adapters have no state. */
   state?: State;
   /** Path to the event listener handler file. Default: join(serviceDir, 'handlers', 'event-listener.ts') */
