@@ -82,62 +82,6 @@ export class TableAssertions {
     throw new Error(`TableAssertions: timeout waiting for item pk=${params.pk} sk=${params.sk ?? '(any)'} in ${params.table} after ${timeout}ms`);
   }
 
-  async waitForItemMatching(params: {
-    table: string;
-    pk: string;
-    sk: string;
-    condition: (item: Record<string, unknown>) => boolean;
-    timeoutMs?: number;
-    pollIntervalMs?: number;
-  }): Promise<Record<string, unknown>> {
-    const timeout = params.timeoutMs ?? this.ctx.timings.eventTimeout;
-    const pollInterval = params.pollIntervalMs ?? this.ctx.timings.pollInterval;
-    const deadline = Date.now() + timeout;
-    const tableName = await this.ctx.ssm.tableName(params.table);
-
-    while (Date.now() < deadline) {
-      const result = await this.client.send(new GetItemCommand({
-        TableName: tableName,
-        Key: marshall({ pk: params.pk, sk: params.sk }),
-      }));
-      if (result.Item) {
-        const item = unmarshall(result.Item);
-        if (params.condition(item)) {
-          this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
-          return item;
-        }
-      }
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-    }
-
-    throw new Error(`TableAssertions: timeout waiting for matching item pk=${params.pk} sk=${params.sk} in ${params.table} after ${timeout}ms`);
-  }
-
-  async assertItem(params: {
-    table: string;
-    pk: string;
-    sk: string;
-    expect: Record<string, unknown>;
-  }): Promise<void> {
-    const tableName = await this.ctx.ssm.tableName(params.table);
-    const result = await this.client.send(new GetItemCommand({
-      TableName: tableName,
-      Key: marshall({ pk: params.pk, sk: params.sk }),
-    }));
-
-    if (!result.Item) {
-      throw new Error(`TableAssertions: item not found pk=${params.pk} sk=${params.sk}`);
-    }
-
-    const item = unmarshall(result.Item);
-    this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
-    for (const [key, expectedValue] of Object.entries(params.expect)) {
-      if (item[key] !== expectedValue) {
-        throw new Error(`TableAssertions: expected ${key}=${JSON.stringify(expectedValue)}, got ${JSON.stringify(item[key])}`);
-      }
-    }
-  }
-
   async queryItems(params: {
     table: string;
     pk: string;
