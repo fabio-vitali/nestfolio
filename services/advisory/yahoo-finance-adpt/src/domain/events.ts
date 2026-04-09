@@ -1,6 +1,8 @@
+import { eventName } from '@nestfolio/event-types';
+
 export const YahooFinanceAdptEventTypes = {
-  FETCH_REQUESTED: 'FETCH_YAHOO_FINANCE_REQUESTED',
-  YAHOO_FINANCE_UPDATED: 'YAHOO_FINANCE_UPDATED',
+  FETCH_REQUESTED: eventName('FETCH_YAHOO_FINANCE_REQUESTED'),
+  YAHOO_FINANCE_UPDATED: eventName('YAHOO_FINANCE_UPDATED'),
 } as const;
 
 export interface YahooFinanceArticle {

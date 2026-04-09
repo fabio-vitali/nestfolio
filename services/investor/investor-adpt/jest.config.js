@@ -6,6 +6,7 @@ module.exports = {
   testPathIgnorePatterns: ['<rootDir>/test/integration/'],
   testMatch: ['<rootDir>/test/unit/**/*.test.ts'],
   moduleNameMapper: {
+    '^@nestfolio/event-types$': '<rootDir>/../../../libs/event-types/src/index.ts',
     '^@nestfolio/cdk-constructs/(.*)$': '<rootDir>/../../../libs/cdk-constructs/src/$1/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',

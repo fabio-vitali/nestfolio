@@ -1,6 +1,8 @@
+import { eventName } from '@nestfolio/event-types';
+
 export const FredAdptEventTypes = {
-  FETCH_REQUESTED: 'FETCH_FRED_REQUESTED',
-  FRED_INDICATORS_UPDATED: 'FRED_INDICATORS_UPDATED',
+  FETCH_REQUESTED: eventName('FETCH_FRED_REQUESTED'),
+  FRED_INDICATORS_UPDATED: eventName('FRED_INDICATORS_UPDATED'),
 } as const;
 
 export interface FredIndicator {
