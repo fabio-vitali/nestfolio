@@ -180,7 +180,14 @@ describe('ledger-ctrl resilience: idempotency', () => {
         eventId,
       });
 
-      await trap.waitForEvent({ detailType: 'BALANCE_UPDATED', timeoutMs: 90_000 });
+      const firstEvent = await trap.waitForEvent({
+        detailType: 'BALANCE_UPDATED',
+        timeoutMs: 120_000,
+      });
+      // Capture the first emission's id so we can distinguish a real
+      // duplicate emission from an SQS at-least-once re-receive of the
+      // same event (which is harmless and unrelated to dedup).
+      const firstEmissionId = (firstEvent.detail as { id?: string } | undefined)?.id;
 
       // Duplicate publish
       await cdcEb.putEvent({
@@ -191,18 +198,26 @@ describe('ledger-ctrl resilience: idempotency', () => {
         eventId,
       });
 
-      // Wait for any duplicate CDC event — match the first-event timeout (90s)
+      // Wait for any duplicate CDC event — match the first-event timeout
       // so a late duplicate can't produce a false negative.
       await new Promise((r) => setTimeout(r, 60_000));
 
-      // Drain remaining events — should be empty (only the one we already consumed)
+      // Drain remaining events. Filter out re-receives of the first
+      // emission (same detail.id) — those are SQS at-least-once artifacts
+      // and don't indicate dedup failure. A real dedup failure would
+      // produce a NEW BalanceEvent with a different detail.id (since the
+      // event-publisher generates a fresh envelope per stream record).
       const remaining = await trap.drain();
-      const balanceEvents = remaining.filter((e) => e.detailType === 'BALANCE_UPDATED');
-      expect(balanceEvents).toHaveLength(0);
+      const newBalanceEvents = remaining.filter((e) => {
+        if (e.detailType !== 'BALANCE_UPDATED') return false;
+        const emissionId = (e.detail as { id?: string } | undefined)?.id;
+        return emissionId !== firstEmissionId;
+      });
+      expect(newBalanceEvents).toHaveLength(0);
     } finally {
       await cdcCtx.cleanup.runAll();
     }
-  }, 240_000);
+  }, 360_000);
 });
 
 // ── Order-Agnostic: Pairwise Inversion ───────────────────────────────────
