@@ -1,7 +1,7 @@
 import { Duration } from 'aws-cdk-lib';
 import { Runtime, Architecture } from 'aws-cdk-lib/aws-lambda';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
-import { LambdaProfile, handlerProps, adapterProps, PARAMS_AND_SECRETS_LAYER } from '../../src/utils/lambda-profiles';
+import { LambdaProfile, handlerProps, adapterProps, reducerProps, PARAMS_AND_SECRETS_LAYER } from '../../src/utils/lambda-profiles';
 
 describe('lambda-profiles — module contract', () => {
   it('exports LambdaProfile type so it can be imported by constructs', () => {
@@ -85,5 +85,35 @@ describe('adapterProps — third-party API adapter profile', () => {
 
   it('inherits base bundling config', () => {
     expect(adapterProps.lambdaProps.bundling?.externalModules).toEqual(['@aws-sdk/*']);
+  });
+});
+
+describe('reducerProps — CDC/stream-heavy reducer profile', () => {
+  it('uses 512 MB memory (larger in-memory aggregation)', () => {
+    expect(reducerProps.lambdaProps.memorySize).toBe(512);
+  });
+
+  it('uses 60s timeout', () => {
+    expect(reducerProps.lambdaProps.timeout).toEqual(Duration.seconds(60));
+  });
+
+  it('uses large SQS batches (25) to amortize write cost', () => {
+    expect(reducerProps.sqsBatchSize).toBe(25);
+  });
+
+  it('uses 2s SQS batching window', () => {
+    expect(reducerProps.sqsMaxBatchingWindow).toEqual(Duration.seconds(2));
+  });
+
+  it('uses DDB stream batch size 100', () => {
+    expect(reducerProps.ddbStreamBatchSize).toBe(100);
+  });
+
+  it('uses DDB stream batching window 5s', () => {
+    expect(reducerProps.ddbStreamMaxBatchingWindow).toEqual(Duration.seconds(5));
+  });
+
+  it('uses DDB stream parallelizationFactor 1', () => {
+    expect(reducerProps.ddbStreamParallelizationFactor).toBe(1);
   });
 });

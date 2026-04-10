@@ -116,3 +116,28 @@ export const adapterProps: LambdaProfile = {
   sqsMaxBatchingWindow: Duration.seconds(2),
   sqsMaxConcurrency: 10,
 };
+
+/**
+ * Profile for high-throughput CDC reducers and projection builders —
+ * Lambdas that consume a DynamoDB stream (or a large SQS fan-out) to
+ * materialize read models. Larger memory for in-memory aggregation,
+ * larger DDB batches to amortize write cost, conservative
+ * parallelization factor so batches stay ordered within a partition.
+ *
+ * Use for:
+ *   - ledger-ctrl ReducerFn (materializes account snapshots from
+ *     LedgerEntry events)
+ *   - future projection builders
+ */
+export const reducerProps: LambdaProfile = {
+  lambdaProps: {
+    ...BASE_LAMBDA_PROPS,
+    memorySize: 512,
+    timeout: Duration.seconds(60),
+  },
+  sqsBatchSize: 25,
+  sqsMaxBatchingWindow: Duration.seconds(2),
+  ddbStreamBatchSize: 100,
+  ddbStreamMaxBatchingWindow: Duration.seconds(5),
+  ddbStreamParallelizationFactor: 1,
+};
