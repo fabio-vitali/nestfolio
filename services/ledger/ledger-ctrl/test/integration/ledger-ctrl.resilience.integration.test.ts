@@ -180,14 +180,10 @@ describe('ledger-ctrl resilience: idempotency', () => {
         eventId,
       });
 
-      const firstEvent = await trap.waitForEvent({
+      await trap.waitForEvent({
         detailType: 'BALANCE_UPDATED',
         timeoutMs: 120_000,
       });
-      // Capture the first emission's id so we can distinguish a real
-      // duplicate emission from an SQS at-least-once re-receive of the
-      // same event (which is harmless and unrelated to dedup).
-      const firstEmissionId = (firstEvent.detail as { id?: string } | undefined)?.id;
 
       // Duplicate publish
       await cdcEb.putEvent({
@@ -202,18 +198,11 @@ describe('ledger-ctrl resilience: idempotency', () => {
       // so a late duplicate can't produce a false negative.
       await new Promise((r) => setTimeout(r, 60_000));
 
-      // Drain remaining events. Filter out re-receives of the first
-      // emission (same detail.id) — those are SQS at-least-once artifacts
-      // and don't indicate dedup failure. A real dedup failure would
-      // produce a NEW BalanceEvent with a different detail.id (since the
-      // event-publisher generates a fresh envelope per stream record).
+      // Drain remaining events — should be empty. The trap's auto-delete
+      // + in-memory dedup ensures we never see the first emission again.
       const remaining = await trap.drain();
-      const newBalanceEvents = remaining.filter((e) => {
-        if (e.detailType !== 'BALANCE_UPDATED') return false;
-        const emissionId = (e.detail as { id?: string } | undefined)?.id;
-        return emissionId !== firstEmissionId;
-      });
-      expect(newBalanceEvents).toHaveLength(0);
+      const balanceEvents = remaining.filter((e) => e.detailType === 'BALANCE_UPDATED');
+      expect(balanceEvents).toHaveLength(0);
     } finally {
       await cdcCtx.cleanup.runAll();
     }
