@@ -5,7 +5,7 @@ import {
 import {
   SQSClient, CreateQueueCommand, DeleteQueueCommand,
   ReceiveMessageCommand, GetQueueAttributesCommand,
-  SetQueueAttributesCommand,
+  SetQueueAttributesCommand, DeleteMessageBatchCommand,
 } from '@aws-sdk/client-sqs';
 import type { IntegrationContext } from '../context';
 
@@ -26,6 +26,7 @@ export class EventBusTrap {
   private ruleName?: string;
   private busArn?: string;
   private captured: CapturedEvent[] = [];
+  private readonly seenMessageIds = new Set<string>();
 
   constructor(ctx: IntegrationContext) {
     this.ctx = ctx;
@@ -150,6 +151,50 @@ export class EventBusTrap {
     this.ctx.cleanup.register('EventBusTrap', () => this.teardown());
   }
 
+  private async consumeMessages(waitTimeSeconds: number): Promise<CapturedEvent[]> {
+    const result = await this.sqs.send(new ReceiveMessageCommand({
+      QueueUrl: this.queueUrl!,
+      MaxNumberOfMessages: 10,
+      WaitTimeSeconds: waitTimeSeconds,
+    }));
+
+    const messages = result.Messages ?? [];
+    if (messages.length === 0) return [];
+
+    // Best-effort delete to free SQS storage and prevent visibility-timeout re-receives
+    const deletable = messages
+      .filter(m => m.MessageId && m.ReceiptHandle)
+      .map(m => ({ Id: m.MessageId!, ReceiptHandle: m.ReceiptHandle! }));
+    if (deletable.length > 0) {
+      try {
+        await this.sqs.send(new DeleteMessageBatchCommand({
+          QueueUrl: this.queueUrl!,
+          Entries: deletable,
+        }));
+      } catch (error) {
+        // Best-effort: in-memory dedup below catches re-receives if delete fails
+        // Note: not using logger here because the fixture doesn't import one;
+        // a console.warn is acceptable in test infrastructure.
+        // eslint-disable-next-line no-console
+        console.warn('EventBusTrap: DeleteMessageBatch failed (best-effort, continuing)', error);
+      }
+    }
+
+    const fresh: CapturedEvent[] = [];
+    for (const msg of messages) {
+      if (!msg.MessageId || this.seenMessageIds.has(msg.MessageId)) continue;
+      this.seenMessageIds.add(msg.MessageId);
+      const body = JSON.parse(msg.Body!);
+      fresh.push({
+        detailType: body['detail-type'],
+        detail: body.detail,
+        source: body.source,
+        time: body.time,
+      });
+    }
+    return fresh;
+  }
+
   async waitForEvent<TDetail = Record<string, unknown>>(params?: {
     detailType?: string;
     timeoutMs?: number;
@@ -171,33 +216,23 @@ export class EventBusTrap {
         return this.captured.shift()! as CapturedEvent<TDetail>;
       }
 
-      // Poll SQS
-      const result = await this.sqs.send(new ReceiveMessageCommand({
-        QueueUrl: this.queueUrl!,
-        MaxNumberOfMessages: 10,
-        WaitTimeSeconds: Math.min(5, Math.ceil((deadline - Date.now()) / 1000)),
-      }));
+      // Poll SQS via the dedup-aware helper
+      const fresh = await this.consumeMessages(
+        Math.min(5, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))),
+      );
 
-      for (const msg of result.Messages ?? []) {
-        const body = JSON.parse(msg.Body!);
-        const event: CapturedEvent = {
-          detailType: body['detail-type'],
-          detail: body.detail,
-          source: body.source,
-          time: body.time,
-        };
-
+      for (const event of fresh) {
         if (params?.detailType && event.detailType === params.detailType) {
           return event as CapturedEvent<TDetail>;
         }
         if (!params?.detailType) {
           return event as CapturedEvent<TDetail>;
         }
-        // Buffer non-matching events
+        // Buffer non-matching events for the next iteration
         this.captured.push(event);
       }
 
-      if (!result.Messages?.length) {
+      if (fresh.length === 0) {
         await new Promise(resolve => setTimeout(resolve, pollInterval));
       }
     }
@@ -206,25 +241,9 @@ export class EventBusTrap {
   }
 
   async drain(): Promise<CapturedEvent[]> {
-    const result = await this.sqs.send(new ReceiveMessageCommand({
-      QueueUrl: this.queueUrl!,
-      MaxNumberOfMessages: 10,
-      WaitTimeSeconds: 0,
-    }));
-
-    const events: CapturedEvent[] = [...this.captured];
+    const fresh = await this.consumeMessages(0);
+    const events: CapturedEvent[] = [...this.captured, ...fresh];
     this.captured = [];
-
-    for (const msg of result.Messages ?? []) {
-      const body = JSON.parse(msg.Body!);
-      events.push({
-        detailType: body['detail-type'],
-        detail: body.detail,
-        source: body.source,
-        time: body.time,
-      });
-    }
-
     return events;
   }
 
