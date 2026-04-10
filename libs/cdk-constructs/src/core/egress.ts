@@ -11,6 +11,7 @@ import { State } from './state';
 import { defaultLambdaProps } from '../utils/default-lambda-props';
 import type { EventTypesMap } from './event-types';
 import { buildRuntimeConfig, collectAllEventTypes, extractFilters } from './event-types';
+import type { LambdaProfile } from '../utils/lambda-profiles';
 
 export interface EgressProps {
   /** State construct — required for DynamoDB Streams CDC */
@@ -23,6 +24,11 @@ export interface EgressProps {
   environment?: Record<string, string>;
   /** Override defaultLambdaProps (e.g. timeout, memorySize) */
   lambdaProps?: Partial<NodejsFunctionProps>;
+  /**
+   * Workload profile supplying publisher Lambda and DDB Stream defaults.
+   * Precedence: explicit props > profile > construct defaults.
+   */
+  profile?: LambdaProfile;
   /** DynamoDB Streams retry attempts before sending to DLQ. Default: 3 */
   retryAttempts?: number;
   /** DynamoDB Streams batch size. Default: DynamoDB stream default */
@@ -69,8 +75,11 @@ export class Egress extends Construct {
       encryption: QueueEncryption.KMS_MANAGED,
     });
 
+    // Publisher Lambda — precedence: explicit lambdaProps > profile.lambdaProps > defaultLambdaProps
+    const profileLambdaProps = props.profile?.lambdaProps ?? {};
     this.handler = new NodejsFunction(this, 'Publisher', {
       ...defaultLambdaProps(this),
+      ...profileLambdaProps,
       ...props.lambdaProps,
       entry,
       environment: env,
@@ -114,14 +123,23 @@ export class Egress extends Construct {
         },
       });
     });
+    // DynamoDB Streams event source — precedence: explicit prop > profile > construct default
+    const profile = props.profile;
+    const eventSourceBatchSize =
+      props.batchSize ?? profile?.ddbStreamBatchSize;
+    const eventSourceMaxBatchingWindow =
+      props.maxBatchingWindow ?? profile?.ddbStreamMaxBatchingWindow;
+    const eventSourceParallelizationFactor =
+      props.parallelizationFactor ?? profile?.ddbStreamParallelizationFactor;
+
     this.handler.addEventSource(
       new DynamoEventSource(state.getTable(), {
         startingPosition: StartingPosition.LATEST,
         bisectBatchOnError: true,
         retryAttempts: props.retryAttempts ?? 3,
-        batchSize: props.batchSize,
-        maxBatchingWindow: props.maxBatchingWindow,
-        parallelizationFactor: props.parallelizationFactor,
+        batchSize: eventSourceBatchSize,
+        maxBatchingWindow: eventSourceMaxBatchingWindow,
+        parallelizationFactor: eventSourceParallelizationFactor,
         onFailure: new SqsDlq(this.dlq),
         filters: filterCriteria,
       }),

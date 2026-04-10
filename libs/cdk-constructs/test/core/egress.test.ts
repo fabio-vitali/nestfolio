@@ -7,6 +7,7 @@ import { eventName } from '@nestfolio/event-types';
 import { ServiceStack } from '../../src/core/service-stack';
 import { State } from '../../src/core/state';
 import { Egress } from '../../src/core/egress';
+import { reducerProps } from '../../src/utils/lambda-profiles';
 
 describe('Egress construct', () => {
   const handlersDir = path.join(os.tmpdir(), 'handlers');
@@ -226,6 +227,76 @@ describe('Egress construct', () => {
       template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
         ParallelizationFactor: 4,
       });
+    });
+  });
+
+  describe('LambdaProfile integration', () => {
+    it('applies profile lambdaProps to the publisher (reducerProps: 512 MB)', () => {
+      const { template } = createEgress({
+        egressOverrides: { profile: reducerProps },
+      });
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        MemorySize: 512,
+      });
+    });
+
+    it('applies profile ddbStreamBatchSize to the event source mapping', () => {
+      const { template } = createEgress({
+        egressOverrides: { profile: reducerProps },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        BatchSize: 100,
+      });
+    });
+
+    it('applies profile ddbStreamMaxBatchingWindow to the event source mapping', () => {
+      const { template } = createEgress({
+        egressOverrides: { profile: reducerProps },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        MaximumBatchingWindowInSeconds: 5,
+      });
+    });
+
+    it('applies profile ddbStreamParallelizationFactor to the event source mapping', () => {
+      const { template } = createEgress({
+        egressOverrides: { profile: reducerProps },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        ParallelizationFactor: 1,
+      });
+    });
+
+    it('explicit batchSize overrides profile ddbStreamBatchSize', () => {
+      const { template } = createEgress({
+        egressOverrides: { profile: reducerProps, batchSize: 42 },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        BatchSize: 42,
+      });
+    });
+
+    it('explicit lambdaProps overrides profile lambdaProps', () => {
+      const { template } = createEgress({
+        egressOverrides: {
+          profile: reducerProps,
+          lambdaProps: { memorySize: 1024 },
+        },
+      });
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        MemorySize: 1024,
+      });
+    });
+
+    it('no profile — behavior identical to current defaults (256 MB, unset batch)', () => {
+      const { template } = createEgress();
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        MemorySize: 256,
+      });
+      // No profile — CDK synthesises the DynamoDB stream default (100); no explicit override applied.
+      const mappings = template.findResources('AWS::Lambda::EventSourceMapping');
+      const mapping = Object.values(mappings)[0];
+      expect(mapping.Properties.BatchSize).toBe(100);
     });
   });
 });
