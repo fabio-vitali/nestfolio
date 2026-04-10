@@ -26,6 +26,8 @@ export interface IngressProps {
   maxBatchingWindowMs?: number;
   /** Maximum batching window as CDK Duration. Takes precedence over maxBatchingWindowMs. */
   maxBatchingWindow?: Duration;
+  /** Maximum concurrent Lambda invocations from the SQS event source. Unset = no cap. */
+  maxConcurrency?: number;
   maxRetries?: number;
   /** Visibility timeout for the SQS queue. If not set but lambdaTimeout is provided, auto-calculated as 6x lambdaTimeout. */
   visibilityTimeout?: Duration;
@@ -138,6 +140,7 @@ export class Ingress extends Construct {
     this.handler.addEventSource(new SqsEventSource(this.queue, {
       batchSize: props.batchSize ?? 10,
       maxBatchingWindow: batchingWindow,
+      maxConcurrency: props.maxConcurrency,
       reportBatchItemFailures: true,
     }));
   }

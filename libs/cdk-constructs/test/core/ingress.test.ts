@@ -192,5 +192,24 @@ describe('Ingress construct', () => {
         VisibilityTimeout: 60,
       });
     });
+
+    it('does not set maxConcurrency by default', () => {
+      const { template } = createIngress();
+      const mappings = template.findResources('AWS::Lambda::EventSourceMapping');
+      const sqsMapping = Object.values(mappings).find(
+        (m) => m.Properties?.EventSourceArn?.['Fn::GetAtt']?.[0]?.startsWith('TestIngressQueue'),
+      );
+      expect(sqsMapping).toBeDefined();
+      expect(sqsMapping!.Properties.ScalingConfig).toBeUndefined();
+    });
+
+    it('applies explicit maxConcurrency to the SQS event source', () => {
+      const { template } = createIngress({
+        ingressOverrides: { maxConcurrency: 7 },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        ScalingConfig: { MaximumConcurrency: 7 },
+      });
+    });
   });
 });
