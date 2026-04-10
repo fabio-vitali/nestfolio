@@ -20,13 +20,14 @@ export class EventBridgeClient {
     targetService: string;
     detailType: string;
     detail: Record<string, unknown>;
+    eventId?: string;
   }): Promise<void> {
     const busArn = await this.ctx.ssm.busArn(params.bus);
     const maxRetries = this.ctx.timings.putEventRetries;
     const baseBackoff = this.ctx.timings.putEventBackoffMs;
 
     const detail = {
-      id: `integ-${randomUUID()}`,
+      id: params.eventId ?? `integ-${randomUUID()}`,
       type: params.detailType,
       timestamp: new Date().toISOString(),
       subject: params.detail,
