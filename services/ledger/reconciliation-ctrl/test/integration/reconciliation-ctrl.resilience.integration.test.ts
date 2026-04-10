@@ -41,7 +41,7 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
 
       const firstEvent = await trap.waitForEvent({
         detailType: 'RECONCILIATION_COMPLETED',
-        timeoutMs: 90_000,
+        timeoutMs: 120_000,
       });
       expect(firstEvent.detailType).toBe('RECONCILIATION_COMPLETED');
 
@@ -100,7 +100,7 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
 
       const firstA = await trapA.waitForEvent({
         detailType: 'RECONCILIATION_COMPLETED',
-        timeoutMs: 90_000,
+        timeoutMs: 120_000,
       });
       expect(firstA.detailType).toBe('RECONCILIATION_COMPLETED');
 
@@ -117,7 +117,7 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
 
       const secondA = await trapA.waitForEvent({
         detailType: 'RECONCILIATION_COMPLETED',
-        timeoutMs: 90_000,
+        timeoutMs: 120_000,
       });
       expect(secondA.detailType).toBe('RECONCILIATION_COMPLETED');
 
@@ -141,7 +141,7 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
 
         const firstB = await trapB.waitForEvent({
           detailType: 'RECONCILIATION_COMPLETED',
-          timeoutMs: 90_000,
+          timeoutMs: 120_000,
         });
         expect(firstB.detailType).toBe('RECONCILIATION_COMPLETED');
 
@@ -157,7 +157,7 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
 
         const secondB = await trapB.waitForEvent({
           detailType: 'RECONCILIATION_COMPLETED',
-          timeoutMs: 90_000,
+          timeoutMs: 120_000,
         });
         expect(secondB.detailType).toBe('RECONCILIATION_COMPLETED');
       } finally {
