@@ -143,3 +143,20 @@ describe('agentProps — Bedrock/LLM-calling profile', () => {
     expect(agentProps.lambdaProps.paramsAndSecrets).toBeUndefined();
   });
 });
+
+describe('lambda-profiles — barrel export', () => {
+  it('re-exports profiles from @nestfolio/cdk-constructs/utils', async () => {
+    const utils = await import('../../src/utils');
+    expect(utils.handlerProps).toBeDefined();
+    expect(utils.adapterProps).toBeDefined();
+    expect(utils.reducerProps).toBeDefined();
+    expect(utils.agentProps).toBeDefined();
+  });
+
+  it('re-exports LambdaProfile type', async () => {
+    // Type is erased at runtime — this test asserts the import path compiles.
+    type Profile = import('../../src/utils').LambdaProfile;
+    const check: Profile = { lambdaProps: {} };
+    expect(check).toBeDefined();
+  });
+});
