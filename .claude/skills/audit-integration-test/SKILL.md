@@ -7,7 +7,8 @@ description: Verify integration test completeness and convention compliance for 
 - After writing or modifying integration tests (as verification step)
 - Checking integration test coverage for a service
 - During domain or system audits
-- Called by `audit-service` or `audit-domain` as sub-check
+- Called by `audit-service` as a per-service sub-check (hard-fails if `test/integration/` absent for -ctrl/-bff/-adpt services)
+- Cascades transitively through `audit-domain` and `audit-system` via `audit-service`
 
 ## Prerequisites
 - Read the target service's CLAUDE.md card: `services/{domain}/{service}/CLAUDE.md`
