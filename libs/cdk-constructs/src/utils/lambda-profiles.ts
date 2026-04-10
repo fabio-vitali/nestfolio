@@ -84,3 +84,35 @@ export const handlerProps: LambdaProfile = {
   sqsBatchSize: 10,
   sqsMaxBatchingWindow: Duration.seconds(1),
 };
+
+/**
+ * Profile for THIRD-PARTY adapters — Lambdas that call external HTTP APIs.
+ *
+ * Bundles the AWS Parameters and Secrets Extension layer so base URLs can
+ * be swapped at runtime via SSM for integration tests. Smaller SQS batches
+ * so a slow upstream request doesn't hold up unrelated work (partial
+ * failures are already handled by `reportBatchItemFailures`). Concurrency
+ * capped below typical third-party rate limits.
+ *
+ * Use for:
+ *   - fred-adpt, marketwatch-adpt, alpha-vantage-adpt, yahoo-finance-adpt,
+ *     sec-edgar-adpt (advisory domain data feeds)
+ *   - broker-alpaca-adpt (execution domain broker API wrapper)
+ *
+ * Do NOT use for:
+ *   - Internal cross-domain adapters (investor-adpt, advisory-adpt,
+ *     execution-adpt, ledger-adpt) — those have no Lambda, they are pure
+ *     EB Rule → EB Target forwarding.
+ *   - broker-sim-adpt — a local simulator, not a real third-party wrapper.
+ */
+export const adapterProps: LambdaProfile = {
+  lambdaProps: {
+    ...BASE_LAMBDA_PROPS,
+    memorySize: 256,
+    timeout: Duration.seconds(60),
+    paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
+  },
+  sqsBatchSize: 5,
+  sqsMaxBatchingWindow: Duration.seconds(2),
+  sqsMaxConcurrency: 10,
+};

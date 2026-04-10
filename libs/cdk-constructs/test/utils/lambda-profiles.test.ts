@@ -1,7 +1,7 @@
 import { Duration } from 'aws-cdk-lib';
 import { Runtime, Architecture } from 'aws-cdk-lib/aws-lambda';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
-import { LambdaProfile, handlerProps } from '../../src/utils/lambda-profiles';
+import { LambdaProfile, handlerProps, adapterProps, PARAMS_AND_SECRETS_LAYER } from '../../src/utils/lambda-profiles';
 
 describe('lambda-profiles — module contract', () => {
   it('exports LambdaProfile type so it can be imported by constructs', () => {
@@ -55,5 +55,35 @@ describe('handlerProps — default event handler profile', () => {
 
   it('excludes @aws-sdk/* from bundling', () => {
     expect(handlerProps.lambdaProps.bundling?.externalModules).toEqual(['@aws-sdk/*']);
+  });
+});
+
+describe('adapterProps — third-party API adapter profile', () => {
+  it('uses 256 MB memory (same as handler)', () => {
+    expect(adapterProps.lambdaProps.memorySize).toBe(256);
+  });
+
+  it('uses 60s timeout (upstream can be slow)', () => {
+    expect(adapterProps.lambdaProps.timeout).toEqual(Duration.seconds(60));
+  });
+
+  it('bundles the Parameters and Secrets Extension layer', () => {
+    expect(adapterProps.lambdaProps.paramsAndSecrets).toBe(PARAMS_AND_SECRETS_LAYER);
+  });
+
+  it('uses smaller SQS batches (one slow call cannot hold up unrelated work)', () => {
+    expect(adapterProps.sqsBatchSize).toBe(5);
+  });
+
+  it('uses 2s SQS batching window', () => {
+    expect(adapterProps.sqsMaxBatchingWindow).toEqual(Duration.seconds(2));
+  });
+
+  it('caps SQS concurrency to 10 (rate-limit-friendly for third-party APIs)', () => {
+    expect(adapterProps.sqsMaxConcurrency).toBe(10);
+  });
+
+  it('inherits base bundling config', () => {
+    expect(adapterProps.lambdaProps.bundling?.externalModules).toEqual(['@aws-sdk/*']);
   });
 });
