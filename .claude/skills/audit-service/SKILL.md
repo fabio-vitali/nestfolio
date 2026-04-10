@@ -99,11 +99,18 @@ Write the result to: services/{domain}/{service}/CLAUDE.md
 | 1 | File structure: `src/`, `test/`, `src/service.stack.ts`, `project.json` | Hard fail | `ls` the paths |
 | 2 | Naming: suffix is `-ctrl`, `-bff`, `-hub`, `-adpt`, or `-web` | Hard fail | Parse directory name |
 | 3 | Handler pattern: every Lambda uses event-processor pipeline | Hard fail | Grep handlers for pipeline imports |
-| 4 | Test coverage: every handler has corresponding test | Warning | Compare handler vs test file lists |
+| 4 | Unit test coverage: every handler has corresponding test in test/ (excluding test/integration/) | Warning | Compare handler vs test file lists |
 | 5 | CDK pattern: extends ServiceStack | Warning | Read service.stack.ts imports |
 | 6 | Card freshness: CLAUDE.md matches code | Auto-fix | Regenerate and compare |
 | 7 | Import boundaries: no imports from `services/` | Hard fail | `grep -r "from.*services/" src/` |
 | 8 | Event emission completeness: all emission paths documented in card | Warning | Check CDC Egress, errorEventType, grantPutEventsTo, noneDataSource resolvers, SF PutEvents integrations |
+| 9 | Integration test coverage: test/integration/ exists and passes audit-integration-test (gated on service suffix) | Hard fail | Invoke audit-integration-test skill as sub-check; hard fail if directory absent AND suffix is -ctrl, -bff, or -adpt |
+
+**Integration test sub-check (check #9)**: Determine applicability by service suffix, then act:
+
+- **`-ctrl`, `-bff`, `-adpt`** (backend business services): if `test/integration/` exists, invoke the `audit-integration-test` skill and incorporate its findings into the audit report. If the directory is absent, hard-fail with the message: `"Service has no test/integration/ directory — integration tests are required for -ctrl/-bff/-adpt services (baseline: 28/28 covered today). Add tests via create-integration-test skill."`
+- **`-hub`** (event bus routers): skip check #9 entirely. Hubs are pass-through EventBridge routers with no business logic; the integration test model does not apply. Report as `"N/A — hub services route events, no integration test required."`
+- **`-web`** (Angular frontends / MFEs): skip check #9 entirely. Web apps use a different test model (Angular component tests, E2E via Playwright/Cypress) and do not consume the `@nestfolio/integration-testing` lib. Report as `"N/A — web services use a different test model."`
 
 ### Self-Healing
 - **Card stale/missing** → Auto-fix: regenerate silently
