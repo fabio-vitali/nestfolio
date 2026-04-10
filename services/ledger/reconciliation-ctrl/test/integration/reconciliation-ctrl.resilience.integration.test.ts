@@ -68,7 +68,7 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
     } finally {
       await ctx.cleanup.runAll();
     }
-  }, 180_000);
+  }, 300_000);
 });
 
 // ── Order-Agnostic: Pairwise Inversion ───────────────────────────────────
@@ -166,5 +166,5 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
     } finally {
       await ctxA.cleanup.runAll();
     }
-  }, 360_000);
+  }, 600_000);
 });

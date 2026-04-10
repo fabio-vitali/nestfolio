@@ -2,7 +2,7 @@ import { stripDynamicFields, sortSnapshot, assertEquivalentState } from '../src/
 
 describe('resilience helpers', () => {
   describe('stripDynamicFields', () => {
-    it('removes pk, sk, tenantId, userId, timestamps, eventId, sequenceNo, ttl, snapshotAt', () => {
+    it('removes pk, sk, tenantId, userId, timestamps, eventId, sequenceNo, ttl, snapshotAt, version', () => {
       const item = {
         pk: 'Account#tenant-1#actual',
         sk: 'Event#abc-123',
@@ -16,6 +16,7 @@ describe('resilience helpers', () => {
         eventId: 'abc-123',
         sourceEventId: 'abc-123',
         sequenceNo: 1,
+        version: 3,
         __typename: 'LedgerEntry',
         eventType: 'ORDER_FILLED',
         payload: { symbol: 'AAPL', quantity: 10 },

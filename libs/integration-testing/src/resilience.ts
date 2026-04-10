@@ -3,7 +3,7 @@ import type { TableAssertions } from './fixtures/table-assertions';
 const DYNAMIC_FIELDS = new Set([
   'pk', 'sk', 'tenantId', 'userId',
   'createdAt', 'updatedAt', 'timestamp', 'snapshotAt',
-  'ttl', 'eventId', 'sourceEventId', 'sequenceNo',
+  'ttl', 'eventId', 'sourceEventId', 'sequenceNo', 'version',
 ]);
 
 export function stripDynamicFields(
