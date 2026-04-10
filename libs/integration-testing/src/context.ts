@@ -40,6 +40,17 @@ export async function createIntegrationContext(options?: {
   region?: string;
   timings?: Partial<TimingConfig>;
 }): Promise<IntegrationContext> {
+  if (
+    process.env.CI === 'true' &&
+    !options?.prefix &&
+    !process.env.NESTFOLIO_INTEG_PREFIX
+  ) {
+    throw new Error(
+      'createIntegrationContext: running in CI (CI=true) but NESTFOLIO_INTEG_PREFIX is unset. ' +
+        'Refusing to fall back to the shared "dev" prefix. ' +
+        'Set NESTFOLIO_INTEG_PREFIX in the CI job env (e.g. sandbox-pr-${PR_NUMBER}) or pass options.prefix explicitly.',
+    );
+  }
   const prefix = options?.prefix ?? process.env.NESTFOLIO_INTEG_PREFIX ?? 'dev';
   const region = options?.region ?? 'us-east-1';
   const timestamp = Date.now();

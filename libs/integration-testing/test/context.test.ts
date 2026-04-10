@@ -38,4 +38,45 @@ describe('createIntegrationContext', () => {
       await ctx.cleanup.runAll();
     });
   });
+
+  describe('CI misconfiguration guard', () => {
+    it('throws when CI=true and no prefix option and no env var', async () => {
+      process.env.CI = 'true';
+      delete process.env.NESTFOLIO_INTEG_PREFIX;
+
+      await expect(createIntegrationContext()).rejects.toThrow(
+        /NESTFOLIO_INTEG_PREFIX/,
+      );
+    });
+
+    it('does not throw when CI=true and env var is set', async () => {
+      process.env.CI = 'true';
+      process.env.NESTFOLIO_INTEG_PREFIX = 'sandbox-pr-1';
+
+      const ctx = await createIntegrationContext();
+
+      expect(ctx.prefix).toBe('sandbox-pr-1');
+      await ctx.cleanup.runAll();
+    });
+
+    it('does not throw when CI=true and explicit prefix option is provided', async () => {
+      process.env.CI = 'true';
+      delete process.env.NESTFOLIO_INTEG_PREFIX;
+
+      const ctx = await createIntegrationContext({ prefix: 'explicit' });
+
+      expect(ctx.prefix).toBe('explicit');
+      await ctx.cleanup.runAll();
+    });
+
+    it('does not throw when CI is unset even if no prefix provided', async () => {
+      delete process.env.CI;
+      delete process.env.NESTFOLIO_INTEG_PREFIX;
+
+      const ctx = await createIntegrationContext();
+
+      expect(ctx.prefix).toBe('dev');
+      await ctx.cleanup.runAll();
+    });
+  });
 });
