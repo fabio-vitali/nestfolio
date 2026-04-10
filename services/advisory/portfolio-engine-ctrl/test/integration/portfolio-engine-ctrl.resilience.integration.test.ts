@@ -10,16 +10,12 @@ import {
 // ── Helpers ──────────────────────────────────────────────────────────────
 //
 // portfolio-engine-ctrl stores AgentInvocation entities under:
-//   pk: `DECISION#${decisionId}`   sk: `INV#${invocationId}`
+//   pk: `DECISION#${decisionId}`   sk: `INV#${eventId}`
 //
-// CONSTRUCT_PORTFOLIO idempotency: the agent-service uses a direct PutCommand
-// with a fresh randomUUID invocationId for every call (see agent-service.ts).
-// The event-processor pipeline's record() intent runs AFTER the agent, so
-// duplicate events produce one direct-write row per invocation. The test
-// therefore asserts a "bounded" idempotency: either exactly one row (if the
-// event-processor deduped the duplicate before the handler ran) or at most
-// two rows (if the duplicate reached the handler before dedup kicked in).
-// A higher count would indicate a regression in duplicate handling.
+// CONSTRUCT_PORTFOLIO idempotency: the agent-service derives sk from
+// ctx.eventId and uses attribute_not_exists(sk) to acquire an atomic lock.
+// Duplicate events fail the conditional check → DuplicateInvocationError →
+// handler returns deduplicated → no second row. Expected: exactly 1 row.
 //
 // Because the service has been documented as "tolerant of unavailable
 // AgentRuntime" (see CLAUDE.md), the test skips gracefully if the agent
@@ -99,18 +95,16 @@ describe('portfolio-engine-ctrl resilience: idempotency', () => {
       // is slow, so give it generous settle time.
       await new Promise((r) => setTimeout(r, 30_000));
 
-      // Assert: the AgentInvocation row count for this decisionId stays
-      // bounded. agent-service writes via a direct PutCommand with a fresh
-      // invocationId per call (see agent-service.ts), so a duplicate that
-      // escapes pipeline dedup can produce at most one additional row. A
-      // count higher than firstCount+1 indicates a real regression.
+      // After Tasks 7 + 8: agent-service is fully idempotent. The AgentInvocation
+      // row at INV#${ctx.eventId} is created once on first delivery, and the
+      // duplicate's conditional write fails → DuplicateInvocationError → handler
+      // returns deduplicated → no second row.
       const finalCount = await countItems(
         table,
         'portfolio-engine-ctrl',
         `DECISION#${decisionId}`,
       );
-      expect(finalCount).toBeGreaterThanOrEqual(firstCount);
-      expect(finalCount).toBeLessThanOrEqual(firstCount + 1);
+      expect(finalCount).toBe(firstCount);
     } finally {
       await ctx.cleanup.runAll();
     }
