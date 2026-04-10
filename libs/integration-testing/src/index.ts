@@ -11,3 +11,4 @@ export { MockApiFixture } from './fixtures/mock-api.fixture';
 export { SsmOverrideFixture } from './fixtures/ssm-override.fixture';
 export { AccountSeedingFixture, type AccountSeedOptions } from './fixtures/account-seeding.fixture';
 export { DdbSeedFixture } from './fixtures/ddb-seed.fixture';
+export { snapshotState, assertEquivalentState, countItems, stripDynamicFields, sortSnapshot } from './resilience';
