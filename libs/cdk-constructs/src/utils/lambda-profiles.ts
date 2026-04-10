@@ -66,3 +66,21 @@ export interface LambdaProfile {
   ddbStreamMaxBatchingWindow?: Duration;
   ddbStreamParallelizationFactor?: number;
 }
+
+/**
+ * Default profile for event-processor Lambdas running business logic on
+ * EventBridge → SQS messages. Values match the historical Ingress defaults
+ * exactly, so services with no explicit profile are 100% backwards-compatible.
+ *
+ * Use for: most `-ctrl` services, internal handlers, anything without a
+ * more specialized workload shape.
+ */
+export const handlerProps: LambdaProfile = {
+  lambdaProps: {
+    ...BASE_LAMBDA_PROPS,
+    memorySize: 256,
+    timeout: Duration.seconds(30),
+  },
+  sqsBatchSize: 10,
+  sqsMaxBatchingWindow: Duration.seconds(1),
+};

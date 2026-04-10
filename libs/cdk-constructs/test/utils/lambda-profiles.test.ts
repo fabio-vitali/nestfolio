@@ -1,7 +1,7 @@
 import { Duration } from 'aws-cdk-lib';
 import { Runtime, Architecture } from 'aws-cdk-lib/aws-lambda';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
-import { LambdaProfile } from '../../src/utils/lambda-profiles';
+import { LambdaProfile, handlerProps } from '../../src/utils/lambda-profiles';
 
 describe('lambda-profiles — module contract', () => {
   it('exports LambdaProfile type so it can be imported by constructs', () => {
@@ -24,5 +24,36 @@ describe('lambda-profiles — module contract', () => {
     };
     expect(full.sqsBatchSize).toBe(10);
     expect(full.ddbStreamBatchSize).toBe(50);
+  });
+});
+
+describe('handlerProps — default event handler profile', () => {
+  it('uses 256 MB memory (matches current Ingress default)', () => {
+    expect(handlerProps.lambdaProps.memorySize).toBe(256);
+  });
+
+  it('uses 30s timeout (matches current Ingress default)', () => {
+    expect(handlerProps.lambdaProps.timeout).toEqual(Duration.seconds(30));
+  });
+
+  it('uses Node.js 24 ARM64 runtime', () => {
+    expect(handlerProps.lambdaProps.runtime).toEqual(Runtime.NODEJS_24_X);
+    expect(handlerProps.lambdaProps.architecture).toEqual(Architecture.ARM_64);
+  });
+
+  it('defaults SQS batch size to 10 (matches current Ingress default)', () => {
+    expect(handlerProps.sqsBatchSize).toBe(10);
+  });
+
+  it('defaults SQS batching window to 1s (matches current Ingress default)', () => {
+    expect(handlerProps.sqsMaxBatchingWindow).toEqual(Duration.seconds(1));
+  });
+
+  it('does not set sqsMaxConcurrency (uncapped by default)', () => {
+    expect(handlerProps.sqsMaxConcurrency).toBeUndefined();
+  });
+
+  it('excludes @aws-sdk/* from bundling', () => {
+    expect(handlerProps.lambdaProps.bundling?.externalModules).toEqual(['@aws-sdk/*']);
   });
 });
