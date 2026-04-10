@@ -1,4 +1,4 @@
-import { App } from 'aws-cdk-lib';
+import { App, Duration } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -207,6 +207,24 @@ describe('Egress construct', () => {
       });
       template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
         BatchSize: 50,
+      });
+    });
+
+    it('applies explicit maxBatchingWindow to the event source mapping', () => {
+      const { template } = createEgress({
+        egressOverrides: { maxBatchingWindow: Duration.seconds(3) },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        MaximumBatchingWindowInSeconds: 3,
+      });
+    });
+
+    it('applies explicit parallelizationFactor to the event source mapping', () => {
+      const { template } = createEgress({
+        egressOverrides: { parallelizationFactor: 4 },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        ParallelizationFactor: 4,
       });
     });
   });

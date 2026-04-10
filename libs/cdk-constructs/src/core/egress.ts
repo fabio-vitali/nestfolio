@@ -27,6 +27,10 @@ export interface EgressProps {
   retryAttempts?: number;
   /** DynamoDB Streams batch size. Default: DynamoDB stream default */
   batchSize?: number;
+  /** DynamoDB Streams batching window. Default: unset (AWS default 0s) */
+  maxBatchingWindow?: Duration;
+  /** DynamoDB Streams parallelization factor. Default: unset (AWS default 1) */
+  parallelizationFactor?: number;
 }
 
 export class Egress extends Construct {
@@ -116,6 +120,8 @@ export class Egress extends Construct {
         bisectBatchOnError: true,
         retryAttempts: props.retryAttempts ?? 3,
         batchSize: props.batchSize,
+        maxBatchingWindow: props.maxBatchingWindow,
+        parallelizationFactor: props.parallelizationFactor,
         onFailure: new SqsDlq(this.dlq),
         filters: filterCriteria,
       }),
