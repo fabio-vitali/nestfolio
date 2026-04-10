@@ -54,7 +54,6 @@ export class AccountSeedingFixture {
       totalValueCents: options?.cashBalanceCents ?? 1_000_000,
       positionCount: Object.keys(options?.positions ?? {}).length,
       lastEventSequence: 0,
-      version: 1,
       snapshotAt: now,
     };
 
