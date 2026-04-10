@@ -1,7 +1,7 @@
 import { Duration } from 'aws-cdk-lib';
 import { Runtime, Architecture } from 'aws-cdk-lib/aws-lambda';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
-import { LambdaProfile, handlerProps, adapterProps, reducerProps, PARAMS_AND_SECRETS_LAYER } from '../../src/utils/lambda-profiles';
+import { LambdaProfile, handlerProps, adapterProps, reducerProps, agentProps, PARAMS_AND_SECRETS_LAYER } from '../../src/utils/lambda-profiles';
 
 describe('lambda-profiles — module contract', () => {
   it('exports LambdaProfile type so it can be imported by constructs', () => {
@@ -115,5 +115,31 @@ describe('reducerProps — CDC/stream-heavy reducer profile', () => {
 
   it('uses DDB stream parallelizationFactor 1', () => {
     expect(reducerProps.ddbStreamParallelizationFactor).toBe(1);
+  });
+});
+
+describe('agentProps — Bedrock/LLM-calling profile', () => {
+  it('uses 1024 MB memory (cold-start sensitive)', () => {
+    expect(agentProps.lambdaProps.memorySize).toBe(1024);
+  });
+
+  it('uses 5 minute timeout (LLM calls are slow)', () => {
+    expect(agentProps.lambdaProps.timeout).toEqual(Duration.minutes(5));
+  });
+
+  it('uses SQS batch size 1 — one event = one LLM invocation', () => {
+    expect(agentProps.sqsBatchSize).toBe(1);
+  });
+
+  it('uses zero batching window (no amortization benefit)', () => {
+    expect(agentProps.sqsMaxBatchingWindow).toEqual(Duration.seconds(0));
+  });
+
+  it('caps SQS concurrency to 5 (below Bedrock throttle limits)', () => {
+    expect(agentProps.sqsMaxConcurrency).toBe(5);
+  });
+
+  it('does NOT bundle the params-and-secrets layer', () => {
+    expect(agentProps.lambdaProps.paramsAndSecrets).toBeUndefined();
   });
 });

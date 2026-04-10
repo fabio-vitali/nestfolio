@@ -141,3 +141,30 @@ export const reducerProps: LambdaProfile = {
   ddbStreamMaxBatchingWindow: Duration.seconds(5),
   ddbStreamParallelizationFactor: 1,
 };
+
+/**
+ * Profile for Bedrock/LLM-calling Lambdas — agent orchestrators whose
+ * main workload is long-running model invocation.
+ *
+ * - High memory (matters for cold-start with bundled LangGraph/CopilotKit)
+ * - Long timeout (model invocations routinely run 30s–5min)
+ * - One event = one invocation (batching is meaningless when each call
+ *   is multi-second)
+ * - Concurrency capped below typical Bedrock TPS limits to avoid
+ *   throttle → retry → DLQ storms
+ *
+ * Use for:
+ *   - investor-profile-ctrl Ingress (ANALYZE_INVESTOR_PROFILE)
+ *   - portfolio-engine-ctrl Ingress (CONSTRUCT_PORTFOLIO)
+ *   - future agent orchestrator services
+ */
+export const agentProps: LambdaProfile = {
+  lambdaProps: {
+    ...BASE_LAMBDA_PROPS,
+    memorySize: 1024,
+    timeout: Duration.minutes(5),
+  },
+  sqsBatchSize: 1,
+  sqsMaxBatchingWindow: Duration.seconds(0),
+  sqsMaxConcurrency: 5,
+};
