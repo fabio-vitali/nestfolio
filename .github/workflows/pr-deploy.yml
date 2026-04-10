@@ -97,3 +97,34 @@ jobs:
           else
             bash infrastructure/scripts/deploy.sh sandbox --prefix="$PREFIX_SANDBOX" --services="$AFFECTED"
           fi
+
+  sandbox-integration-test:
+    needs: [detect-affected, sandbox-deploy]
+    if: needs.detect-affected.outputs.is_full_deploy == 'true' || needs.detect-affected.outputs.affected != ''
+    runs-on: ubuntu-latest
+    environment: sandbox
+    timeout-minutes: 30
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      NESTFOLIO_INTEG_PREFIX: sandbox-pr-${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Run integration tests
+        run: |
+          IS_FULL="${{ needs.detect-affected.outputs.is_full_deploy }}"
+          if [ "$IS_FULL" = "true" ]; then
+            pnpm nx run-many -t test-integration --parallel=4
+          else
+            pnpm nx affected -t test-integration --base=origin/main --parallel=4
+          fi
