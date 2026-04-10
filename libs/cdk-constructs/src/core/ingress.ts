@@ -11,6 +11,7 @@ import type { EventName } from '@nestfolio/event-types';
 import { ServiceStack } from './service-stack';
 import { State } from './state';
 import { defaultLambdaProps } from '../utils/default-lambda-props';
+import type { LambdaProfile } from '../utils/lambda-profiles';
 
 export interface IngressProps {
   eventTypes: EventName[];
@@ -22,6 +23,11 @@ export interface IngressProps {
   environment?: Record<string, string>;
   /** Override defaultLambdaProps (e.g. timeout, memorySize) */
   lambdaProps?: Partial<NodejsFunctionProps>;
+  /**
+   * Workload profile supplying Lambda and event-source defaults.
+   * Precedence: explicit props > profile > construct defaults.
+   */
+  profile?: LambdaProfile;
   batchSize?: number;
   maxBatchingWindowMs?: number;
   /** Maximum batching window as CDK Duration. Takes precedence over maxBatchingWindowMs. */
@@ -64,10 +70,16 @@ export class Ingress extends Construct {
       Object.assign(env, props.environment);
     }
 
-    // Create Lambda
+    // Create Lambda — precedence: explicit lambdaTimeout > explicit lambdaProps > profile.lambdaProps > defaultLambdaProps
+    const profileLambdaProps = props.profile?.lambdaProps ?? {};
+    const lambdaTimeoutOverride: Partial<NodejsFunctionProps> = props.lambdaTimeout
+      ? { timeout: props.lambdaTimeout }
+      : {};
     this.handler = new NodejsFunction(this, 'Handler', {
       ...defaultLambdaProps(this),
+      ...profileLambdaProps,
       ...props.lambdaProps,
+      ...lambdaTimeoutOverride,
       entry,
       environment: env,
     });
@@ -94,10 +106,15 @@ export class Ingress extends Construct {
       encryption: QueueEncryption.SQS_MANAGED,
     });
 
+    // Lambda timeout source (for auto-calculated visibility timeout):
+    // explicit lambdaTimeout > explicit lambdaProps.timeout > profile.lambdaProps.timeout > 30s fallback
+    const effectiveLambdaTimeout =
+      props.lambdaTimeout
+      ?? (props.lambdaProps?.timeout as Duration | undefined)
+      ?? (profileLambdaProps.timeout as Duration | undefined)
+      ?? Duration.seconds(30);
     const visibilityTimeout = props.visibilityTimeout
-      ?? (props.lambdaTimeout
-        ? Duration.seconds(6 * props.lambdaTimeout.toSeconds())
-        : Duration.seconds(180));
+      ?? Duration.seconds(6 * effectiveLambdaTimeout.toSeconds());
 
     this.queue = new Queue(this, 'Queue', {
       visibilityTimeout,
@@ -133,14 +150,20 @@ export class Ingress extends Construct {
       ],
     });
 
-    // SQS -> Lambda
-    const batchingWindow = props.maxBatchingWindow
-      ?? Duration.millis(props.maxBatchingWindowMs ?? 1000);
+    // SQS -> Lambda — precedence: explicit prop > profile default > construct default
+    const profile = props.profile;
+    const batchSize = props.batchSize ?? profile?.sqsBatchSize ?? 10;
+    const batchingWindow =
+      props.maxBatchingWindow
+      ?? (props.maxBatchingWindowMs != null ? Duration.millis(props.maxBatchingWindowMs) : undefined)
+      ?? profile?.sqsMaxBatchingWindow
+      ?? Duration.seconds(1);
+    const maxConcurrency = props.maxConcurrency ?? profile?.sqsMaxConcurrency;
 
     this.handler.addEventSource(new SqsEventSource(this.queue, {
-      batchSize: props.batchSize ?? 10,
+      batchSize,
       maxBatchingWindow: batchingWindow,
-      maxConcurrency: props.maxConcurrency,
+      maxConcurrency,
       reportBatchItemFailures: true,
     }));
   }

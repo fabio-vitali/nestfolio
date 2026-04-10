@@ -6,6 +6,7 @@ import * as path from 'path';
 import { Ingress } from '../../src/core/ingress';
 import { ServiceStack } from '../../src/core/service-stack';
 import { State } from '../../src/core/state';
+import { adapterProps, agentProps } from '../../src/utils/lambda-profiles';
 
 describe('Ingress construct', () => {
   const handlerPath = path.join(os.tmpdir(), 'ingress-test-handler.ts');
@@ -210,6 +211,107 @@ describe('Ingress construct', () => {
       template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
         ScalingConfig: { MaximumConcurrency: 7 },
       });
+    });
+  });
+
+  describe('LambdaProfile integration', () => {
+    it('applies profile lambdaProps to the handler (agentProps: 1024 MB, 5min timeout)', () => {
+      const { template } = createIngress({
+        ingressOverrides: { profile: agentProps },
+      });
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        MemorySize: 1024,
+        Timeout: 300,
+      });
+    });
+
+    it('applies profile sqsBatchSize to the event source', () => {
+      const { template } = createIngress({
+        ingressOverrides: { profile: agentProps },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        BatchSize: 1,
+      });
+    });
+
+    it('applies profile sqsMaxConcurrency to the event source', () => {
+      const { template } = createIngress({
+        ingressOverrides: { profile: agentProps },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        ScalingConfig: { MaximumConcurrency: 5 },
+      });
+    });
+
+    it('explicit batchSize overrides profile sqsBatchSize', () => {
+      const { template } = createIngress({
+        ingressOverrides: { profile: agentProps, batchSize: 3 },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        BatchSize: 3,
+      });
+    });
+
+    it('explicit lambdaProps overrides profile lambdaProps', () => {
+      const { template } = createIngress({
+        ingressOverrides: {
+          profile: agentProps,
+          lambdaProps: { memorySize: 2048 },
+        },
+      });
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        MemorySize: 2048,
+        Timeout: 300,
+      });
+    });
+
+    it('explicit lambdaTimeout overrides profile timeout AND drives visibility timeout', () => {
+      const { template } = createIngress({
+        ingressOverrides: {
+          profile: agentProps,
+          lambdaTimeout: Duration.seconds(60),
+        },
+      });
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Timeout: 60,
+      });
+      template.hasResourceProperties('AWS::SQS::Queue', {
+        VisibilityTimeout: 360,
+      });
+    });
+
+    it('explicit maxConcurrency overrides profile sqsMaxConcurrency', () => {
+      const { template } = createIngress({
+        ingressOverrides: { profile: agentProps, maxConcurrency: 2 },
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        ScalingConfig: { MaximumConcurrency: 2 },
+      });
+    });
+
+    it('no profile — behavior identical to current defaults (256 MB, 30s, batch 10)', () => {
+      const { template } = createIngress();
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        MemorySize: 256,
+        Timeout: 30,
+      });
+      template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+        BatchSize: 10,
+      });
+    });
+
+    it('adapterProps profile bundles paramsAndSecrets layer on the Lambda', () => {
+      const { template } = createIngress({
+        ingressOverrides: { profile: adapterProps },
+      });
+      // The Params and Secrets Extension attaches a Layers array on the handler Lambda.
+      const fns = template.findResources('AWS::Lambda::Function');
+      const handlerFn = Object.values(fns).find(
+        (f) => f.Properties?.Environment?.Variables?.SERVICE_NAME === 'test-svc',
+      );
+      expect(handlerFn).toBeDefined();
+      expect(Array.isArray(handlerFn!.Properties.Layers)).toBe(true);
+      expect(handlerFn!.Properties.Layers.length).toBeGreaterThan(0);
     });
   });
 });
