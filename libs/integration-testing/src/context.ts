@@ -40,7 +40,7 @@ export async function createIntegrationContext(options?: {
   region?: string;
   timings?: Partial<TimingConfig>;
 }): Promise<IntegrationContext> {
-  const prefix = options?.prefix ?? 'dev';
+  const prefix = options?.prefix ?? process.env.NESTFOLIO_INTEG_PREFIX ?? 'dev';
   const region = options?.region ?? 'us-east-1';
   const timestamp = Date.now();
   const cleanup = new CleanupRegistry();
