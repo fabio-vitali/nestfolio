@@ -2,7 +2,7 @@ import { stripDynamicFields, sortSnapshot, assertEquivalentState } from '../src/
 
 describe('resilience helpers', () => {
   describe('stripDynamicFields', () => {
-    it('removes pk, sk, tenantId, userId, timestamps, eventId, sequenceNo, ttl', () => {
+    it('removes pk, sk, tenantId, userId, timestamps, eventId, sequenceNo, ttl, snapshotAt', () => {
       const item = {
         pk: 'Account#tenant-1#actual',
         sk: 'Event#abc-123',
@@ -11,6 +11,7 @@ describe('resilience helpers', () => {
         createdAt: '2026-04-10T00:00:00Z',
         updatedAt: '2026-04-10T00:00:00Z',
         timestamp: '2026-04-10T00:00:00Z',
+        snapshotAt: '2026-04-10T00:00:00Z',
         ttl: 1712793600,
         eventId: 'abc-123',
         sourceEventId: 'abc-123',
@@ -49,6 +50,16 @@ describe('resilience helpers', () => {
       expect(sorted[0].__typename).toBe('AccountSnapshot');
       expect(sorted[1].eventType).toBe('DEPOSIT_DETECTED');
       expect(sorted[2].eventType).toBe('ORDER_FILLED');
+    });
+
+    it('uses content tie-breaker for items with the same typename and eventType', () => {
+      const items = [
+        { __typename: 'LedgerEntryEvent', payload: { z: 2 } },
+        { __typename: 'LedgerEntryEvent', payload: { a: 1 } },
+      ];
+      const sortedA = sortSnapshot(items);
+      const sortedB = sortSnapshot([...items].reverse());
+      expect(sortedA).toEqual(sortedB);
     });
   });
 

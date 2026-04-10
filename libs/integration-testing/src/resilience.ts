@@ -2,7 +2,7 @@ import type { TableAssertions } from './fixtures/table-assertions';
 
 const DYNAMIC_FIELDS = new Set([
   'pk', 'sk', 'tenantId', 'userId',
-  'createdAt', 'updatedAt', 'timestamp',
+  'createdAt', 'updatedAt', 'timestamp', 'snapshotAt',
   'ttl', 'eventId', 'sourceEventId', 'sequenceNo',
 ]);
 
@@ -22,17 +22,18 @@ export function sortSnapshot(
   return [...items].sort((a, b) => {
     const keyA = `${a['__typename'] ?? ''}#${a['eventType'] ?? ''}`;
     const keyB = `${b['__typename'] ?? ''}#${b['eventType'] ?? ''}`;
-    return keyA.localeCompare(keyB);
+    if (keyA !== keyB) return keyA.localeCompare(keyB);
+    return stableStringify(a).localeCompare(stableStringify(b));
   });
 }
 
 export async function snapshotState(
   table: TableAssertions,
-  tableName: string,
+  service: string,
   pk: string,
   skPrefix?: string,
 ): Promise<Record<string, unknown>[]> {
-  const items = await table.queryItems({ table: tableName, pk, skPrefix });
+  const items = await table.queryItems({ table: service, pk, skPrefix });
   return sortSnapshot(items.map(stripDynamicFields));
 }
 
@@ -75,10 +76,10 @@ export function assertEquivalentState(
 
 export async function countItems(
   table: TableAssertions,
-  tableName: string,
+  service: string,
   pk: string,
   skPrefix?: string,
 ): Promise<number> {
-  const items = await table.queryItems({ table: tableName, pk, skPrefix });
+  const items = await table.queryItems({ table: service, pk, skPrefix });
   return items.length;
 }
