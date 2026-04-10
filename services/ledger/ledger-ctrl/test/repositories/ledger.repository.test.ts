@@ -149,7 +149,6 @@ describe('LedgerRepository', () => {
       sk: 'Snapshot#latest',
       cashBalanceCents: 10_000_000,
       positions: {},
-      version: 1,
     };
     mockSend.mockResolvedValueOnce({ Items: [snapshotData] });
 
@@ -164,7 +163,6 @@ describe('LedgerRepository', () => {
       streamType: 'actual',
       state: { positions: { AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 150 } }, cashBalanceCents: 9_850_000, lastEventSequence: 3 },
       lastEventSequence: 3,
-      version: 2,
       balanceChanged: true,
       positionsChanged: true,
       ttlDays: 365,
@@ -191,7 +189,6 @@ describe('LedgerRepository', () => {
       streamType: 'actual',
       state: { positions: { AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 150 } }, cashBalanceCents: 10_000_000, lastEventSequence: 2 },
       lastEventSequence: 2,
-      version: 1,
       balanceChanged: false,
       positionsChanged: true,
       ttlDays: 365,

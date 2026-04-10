@@ -37,7 +37,6 @@ export interface SnapshotWithEvents {
   readonly streamType: 'actual' | 'simulated';
   readonly state: SnapshotState;
   readonly lastEventSequence: number;
-  readonly version: number;
   readonly balanceChanged: boolean;
   readonly positionsChanged: boolean;
   readonly ttlDays: number;
@@ -163,7 +162,6 @@ export class LedgerRepository extends TableRepository {
               totalValueCents,
               positionCount: Object.keys(data.state.positions).length,
               lastEventSequence: data.lastEventSequence,
-              version: data.version,
               snapshotAt: now,
             },
           },
@@ -177,14 +175,13 @@ export class LedgerRepository extends TableRepository {
             TableName: this.tableName,
             Item: {
               pk,
-              sk: `BalanceEvent#${now}#${data.version}`,
+              sk: `BalanceEvent#${now}#${data.lastEventSequence}`,
               __typename: 'BalanceEvent',
               ...ctx,
               timestamp: now,
               streamType: data.streamType,
               cashBalanceCents: data.state.cashBalanceCents,
               totalValueCents,
-              version: data.version,
               snapshot,
             },
           },
@@ -198,7 +195,7 @@ export class LedgerRepository extends TableRepository {
             TableName: this.tableName,
             Item: {
               pk,
-              sk: `PortfolioEvent#${now}#${data.version}`,
+              sk: `PortfolioEvent#${now}#${data.lastEventSequence}`,
               __typename: 'PortfolioEvent',
               ...ctx,
               timestamp: now,
@@ -206,7 +203,6 @@ export class LedgerRepository extends TableRepository {
               positions: data.state.positions,
               positionCount: Object.keys(data.state.positions).length,
               totalValueCents,
-              version: data.version,
               snapshot,
             },
           },
@@ -219,13 +215,12 @@ export class LedgerRepository extends TableRepository {
           TableName: this.tableName,
           Item: {
             pk,
-            sk: `LedgerEntryEvent#${now}#${data.version}`,
+            sk: `LedgerEntryEvent#${now}#${data.lastEventSequence}`,
             __typename: 'LedgerEntryEvent',
             ...ctx,
             timestamp: now,
             streamType: data.streamType,
             lastEventSequence: data.lastEventSequence,
-            version: data.version,
             snapshot,
           },
         },

@@ -42,7 +42,6 @@ const engine = new EgestionEngine({
       ? parseAccountState(existing)
       : INITIAL_ACCOUNT_STATE;
     const lastSeq = currentState.lastEventSequence;
-    const currentVersion = (existing?.['version'] as number) ?? 0;
 
     // 2. Query events since last snapshot sequence
     const events = await repository.queryEntriesSince(tenantId, streamType, lastSeq);
@@ -71,7 +70,6 @@ const engine = new EgestionEngine({
       streamType: streamType as 'actual' | 'simulated',
       state: nextState,
       lastEventSequence: maxSeq,
-      version: currentVersion + 1,
       balanceChanged,
       positionsChanged,
       ttlDays: SNAPSHOT_TTL_DAYS,
@@ -79,7 +77,7 @@ const engine = new EgestionEngine({
 
     logger.info('Snapshot updated with derived events', {
       groupKey,
-      version: currentVersion + 1,
+      lastEventSequence: maxSeq,
       eventCount: events.length,
       balanceChanged,
       positionsChanged,

@@ -127,7 +127,6 @@ describe('ledger-ctrl reducer handler', () => {
       expect(mockRepo.saveSnapshotWithEvents).toHaveBeenCalledWith(
         expect.objectContaining({
           streamType: 'actual',
-          version: 1,
           lastEventSequence: 1,
           balanceChanged: true,
           positionsChanged: true,
@@ -141,7 +140,6 @@ describe('ledger-ctrl reducer handler', () => {
         positions: {},
         cashBalanceCents: 10_000_000,
         lastEventSequence: 0,
-        version: 1,
       });
       mockRepo.queryEntriesSince.mockResolvedValue([{
         eventId: 'e1',
@@ -159,7 +157,6 @@ describe('ledger-ctrl reducer handler', () => {
       const savedData = mockRepo.saveSnapshotWithEvents.mock.calls[0][0];
       expect(savedData.balanceChanged).toBe(true);
       expect(savedData.positionsChanged).toBe(true);
-      expect(savedData.version).toBe(2);
       expect(savedData.lastEventSequence).toBe(1);
 
       const state = savedData.state;
@@ -174,7 +171,6 @@ describe('ledger-ctrl reducer handler', () => {
         positions: {},
         cashBalanceCents: 10_000_000,
         lastEventSequence: 0,
-        version: 1,
       });
       mockRepo.queryEntriesSince.mockResolvedValue([{
         eventId: 'e1',
