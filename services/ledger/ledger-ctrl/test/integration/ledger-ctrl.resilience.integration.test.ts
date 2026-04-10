@@ -211,7 +211,6 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
   it('DEPOSIT_DETECTED then ORDER_FILLED vs reverse → same final snapshot', async () => {
     // ── Run A: ordered (deposit first) ──
     const ctxA = await createIntegrationContext();
-    const ctxB = await createIntegrationContext();
     try {
       const ebA = new EventBridgeClient(ctxA);
       const tableA = new TableAssertions(ctxA);
@@ -251,47 +250,51 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
       );
 
       // ── Run B: reversed (fill first) ──
-      const ebB = new EventBridgeClient(ctxB);
-      const tableB = new TableAssertions(ctxB);
-      tableB.registerCleanup();
+      const ctxB = await createIntegrationContext();
+      try {
+        const ebB = new EventBridgeClient(ctxB);
+        const tableB = new TableAssertions(ctxB);
+        tableB.registerCleanup();
 
-      await ebB.putEvent({
-        bus: 'ledger',
-        targetService: 'ledger-ctrl',
-        detailType: 'ORDER_FILLED',
-        detail: {
-          orderId: `fill-pair-B-${randomUUID()}`,
-          symbol: 'AAPL',
-          side: 'BUY',
-          quantity: 10,
-          fillPrice: 150.0,
-          filledAt: new Date().toISOString(),
-          executionMode: 'paper',
-        },
-      });
-      await waitForSnapshot(tableB, ctxB.tenantId, 'actual');
+        await ebB.putEvent({
+          bus: 'ledger',
+          targetService: 'ledger-ctrl',
+          detailType: 'ORDER_FILLED',
+          detail: {
+            orderId: `fill-pair-B-${randomUUID()}`,
+            symbol: 'AAPL',
+            side: 'BUY',
+            quantity: 10,
+            fillPrice: 150.0,
+            filledAt: new Date().toISOString(),
+            executionMode: 'paper',
+          },
+        });
+        await waitForSnapshot(tableB, ctxB.tenantId, 'actual');
 
-      await ebB.putEvent({
-        bus: 'ledger',
-        targetService: 'ledger-ctrl',
-        detailType: 'DEPOSIT_DETECTED',
-        detail: {
-          depositId: `dep-pair-B-${randomUUID()}`,
-          amountCents: 500_000,
-          depositedAt: new Date().toISOString(),
-        },
-      });
+        await ebB.putEvent({
+          bus: 'ledger',
+          targetService: 'ledger-ctrl',
+          detailType: 'DEPOSIT_DETECTED',
+          detail: {
+            depositId: `dep-pair-B-${randomUUID()}`,
+            amountCents: 500_000,
+            depositedAt: new Date().toISOString(),
+          },
+        });
 
-      await new Promise((r) => setTimeout(r, 30_000));
-      const snapshotB = await snapshotState(
-        tableB, 'ledger-ctrl', `Account#${ctxB.tenantId}#actual`, 'Snapshot#',
-      );
+        await new Promise((r) => setTimeout(r, 30_000));
+        const snapshotB = await snapshotState(
+          tableB, 'ledger-ctrl', `Account#${ctxB.tenantId}#actual`, 'Snapshot#',
+        );
 
-      // ── Compare ──
-      assertEquivalentState(snapshotA, snapshotB);
+        // ── Compare ──
+        assertEquivalentState(snapshotA, snapshotB);
+      } finally {
+        await ctxB.cleanup.runAll();
+      }
     } finally {
       await ctxA.cleanup.runAll();
-      await ctxB.cleanup.runAll();
     }
   }, 300_000);
 });
@@ -337,7 +340,6 @@ describe('ledger-ctrl resilience: order-agnostic full shuffle', () => {
 
     // ── Run A: sequential order ──
     const ctxA = await createIntegrationContext();
-    const ctxB = await createIntegrationContext();
     try {
       const ebA = new EventBridgeClient(ctxA);
       const tableA = new TableAssertions(ctxA);
@@ -362,30 +364,34 @@ describe('ledger-ctrl resilience: order-agnostic full shuffle', () => {
 
       // ── Run B: shuffled order [2, 0, 1] → MSFT fill, deposit, AAPL fill ──
       const shuffled = [events[2], events[0], events[1]];
-      const ebB = new EventBridgeClient(ctxB);
-      const tableB = new TableAssertions(ctxB);
-      tableB.registerCleanup();
+      const ctxB = await createIntegrationContext();
+      try {
+        const ebB = new EventBridgeClient(ctxB);
+        const tableB = new TableAssertions(ctxB);
+        tableB.registerCleanup();
 
-      for (const evt of shuffled) {
-        await ebB.putEvent({
-          bus: 'ledger',
-          targetService: 'ledger-ctrl',
-          detailType: evt.detailType,
-          detail: evt.detail('B'),
-        });
-        await new Promise((r) => setTimeout(r, 10_000));
+        for (const evt of shuffled) {
+          await ebB.putEvent({
+            bus: 'ledger',
+            targetService: 'ledger-ctrl',
+            detailType: evt.detailType,
+            detail: evt.detail('B'),
+          });
+          await new Promise((r) => setTimeout(r, 10_000));
+        }
+        await waitForEntryCount(tableB, ctxB.tenantId, 'actual', 3);
+        await new Promise((r) => setTimeout(r, 30_000));
+        const snapshotB = await snapshotState(
+          tableB, 'ledger-ctrl', `Account#${ctxB.tenantId}#actual`, 'Snapshot#',
+        );
+
+        // ── Compare ──
+        assertEquivalentState(snapshotA, snapshotB);
+      } finally {
+        await ctxB.cleanup.runAll();
       }
-      await waitForEntryCount(tableB, ctxB.tenantId, 'actual', 3);
-      await new Promise((r) => setTimeout(r, 30_000));
-      const snapshotB = await snapshotState(
-        tableB, 'ledger-ctrl', `Account#${ctxB.tenantId}#actual`, 'Snapshot#',
-      );
-
-      // ── Compare ──
-      assertEquivalentState(snapshotA, snapshotB);
     } finally {
       await ctxA.cleanup.runAll();
-      await ctxB.cleanup.runAll();
     }
   }, 360_000);
 });
