@@ -38,12 +38,27 @@ export function resumeStateMachine(
         const result = await resumeHandler(payload, ctx);
         const intents = result.intents ?? [];
 
-        await sfnClient.send(new SendTaskSuccessCommand({
-          taskToken,
-          output: JSON.stringify(result.output),
-        }));
-
-        logger.info('State machine resumed', { eventType: ctx.eventType, taskToken: taskToken.slice(0, 20) });
+        try {
+          await sfnClient.send(new SendTaskSuccessCommand({
+            taskToken,
+            output: JSON.stringify(result.output),
+          }));
+          logger.info('State machine resumed', { eventType: ctx.eventType, taskToken: taskToken.slice(0, 20) });
+        } catch (sfnError: unknown) {
+          if (sfnError instanceof Error && (
+            sfnError.name === 'TaskTimedOut' ||
+            sfnError.name === 'InvalidToken' ||
+            sfnError.name === 'TaskDoesNotExist'
+          )) {
+            logger.info('SF task already resolved, treating duplicate as success', {
+              eventType: ctx.eventType,
+              eventId: ctx.eventId,
+              sfnErrorName: sfnError.name,
+            });
+          } else {
+            throw sfnError;
+          }
+        }
 
         return intents.length > 0 ? intents : skip();
       } catch (error) {

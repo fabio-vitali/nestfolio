@@ -181,4 +181,78 @@ describe('resumeStateMachine', () => {
       output: JSON.stringify({ score: 42, label: 'high' }),
     });
   });
+
+  it('treats SendTaskSuccess TaskTimedOut as success (duplicate event)', async () => {
+    const taskTimedOut = new Error('Task already closed');
+    taskTimedOut.name = 'TaskTimedOut';
+    sfnMock.on(SendTaskSuccessCommand).rejects(taskTimedOut);
+
+    const handler = resumeStateMachine({
+      serviceName: 'test-svc',
+      handlers: {
+        TEST_EVENT: async () => ({ output: { result: 'ok' } }),
+      },
+    });
+
+    const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'tok-dup-1' }));
+
+    // Lambda should succeed — no batch item failure, no SendTaskFailure call
+    expect(result.batchItemFailures).toHaveLength(0);
+    expect(sfnMock).not.toHaveReceivedCommand(SendTaskFailureCommand);
+  });
+
+  it('treats SendTaskSuccess InvalidToken as success (duplicate event)', async () => {
+    const invalidToken = new Error('Invalid token');
+    invalidToken.name = 'InvalidToken';
+    sfnMock.on(SendTaskSuccessCommand).rejects(invalidToken);
+
+    const handler = resumeStateMachine({
+      serviceName: 'test-svc',
+      handlers: {
+        TEST_EVENT: async () => ({ output: { result: 'ok' } }),
+      },
+    });
+
+    const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'tok-dup-2' }));
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    expect(sfnMock).not.toHaveReceivedCommand(SendTaskFailureCommand);
+  });
+
+  it('treats SendTaskSuccess TaskDoesNotExist as success (duplicate event)', async () => {
+    const taskGone = new Error('Task does not exist');
+    taskGone.name = 'TaskDoesNotExist';
+    sfnMock.on(SendTaskSuccessCommand).rejects(taskGone);
+
+    const handler = resumeStateMachine({
+      serviceName: 'test-svc',
+      handlers: {
+        TEST_EVENT: async () => ({ output: { result: 'ok' } }),
+      },
+    });
+
+    const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'tok-dup-3' }));
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    expect(sfnMock).not.toHaveReceivedCommand(SendTaskFailureCommand);
+  });
+
+  it('still propagates other SendTaskSuccess errors', async () => {
+    const otherError = new Error('something else broke');
+    otherError.name = 'KmsAccessDeniedException';
+    sfnMock.on(SendTaskSuccessCommand).rejects(otherError);
+
+    const handler = resumeStateMachine({
+      serviceName: 'test-svc',
+      handlers: {
+        TEST_EVENT: async () => ({ output: { result: 'ok' } }),
+      },
+    });
+
+    const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'tok-real-failure' }));
+
+    // Real error should fall through to the outer catch → SendTaskFailure → retryable
+    expect(sfnMock).toHaveReceivedCommand(SendTaskFailureCommand);
+    expect(result.batchItemFailures).toHaveLength(1);
+  });
 });
