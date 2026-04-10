@@ -7,10 +7,10 @@ import {
 } from '@nestfolio/event-processor';
 import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-orchestrator';
 import { KB_INGESTION_EVENT_TYPES } from '../domain';
-import { createAgentService } from '../agent-service';
+import { createAgentService, DuplicateInvocationError } from '../agent-service';
 
 export interface SfnCallbackDeps {
-  readonly agentService: { runPipeline: (event: Record<string, unknown>) => Promise<Record<string, unknown>> };
+  readonly agentService: { runPipeline: (eventId: string, event: Record<string, unknown>) => Promise<Record<string, unknown>> };
   readonly kbIngestionHandler: { ingest: (event: Record<string, unknown>, eventType: string) => Promise<void> };
   readonly memoryClient: MemoryClient;
 }
@@ -32,13 +32,22 @@ export const createHandlers = (deps: SfnCallbackDeps) => {
         session.searchLongTermMemory('allocation rationale decisions'),
       ]);
 
-      const result = await deps.agentService.runPipeline({
-        tenantId,
-        decisionId,
-        investorProfile: investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {},
-        marketAnalysis: marketRecords[0]?.content ? JSON.parse(marketRecords[0].content) : {},
-        pastRationale: pastRationale.map(r => r.content),
-      });
+      let result: Record<string, unknown>;
+      try {
+        result = await deps.agentService.runPipeline(ctx.eventId, {
+          tenantId,
+          decisionId,
+          investorProfile: investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {},
+          marketAnalysis: marketRecords[0]?.content ? JSON.parse(marketRecords[0].content) : {},
+          pastRationale: pastRationale.map(r => r.content),
+        });
+      } catch (error) {
+        if (error instanceof DuplicateInvocationError) {
+          logger.info('Duplicate CONSTRUCT_PORTFOLIO event, skipping', { eventId: ctx.eventId, decisionId });
+          return { output: { decisionId, tenantId, deduplicated: true } };
+        }
+        throw error;
+      }
 
       await session.writeAgentOutput(result);
 

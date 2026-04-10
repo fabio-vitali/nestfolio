@@ -94,8 +94,27 @@ describe('portfolio-engine-ctrl event-listener', () => {
     expect(mockReadUpstreamOutput).toHaveBeenCalledWith('investor-profile');
     expect(mockReadUpstreamOutput).toHaveBeenCalledWith('market-intelligence');
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('allocation rationale decisions');
-    expect(mockRunPipeline).toHaveBeenCalled();
+    expect(mockRunPipeline).toHaveBeenCalledWith(
+      'evt-1', // ctx.eventId
+      expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1' }),
+    );
     expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
+  });
+
+  it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
+    const { DuplicateInvocationError } = await import('../src/agent-service');
+    mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('evt-dup'));
+
+    const payload: EventPayload = {
+      subject: { tenantId: 't1', decisionId: 'dp-dup', taskToken: 'tok' },
+    };
+
+    const dupCtx: EventContext = { ...baseCtx, eventId: 'evt-dup' };
+    const result = await handlers.CONSTRUCT_PORTFOLIO(payload, dupCtx);
+
+    expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
+    expect(result.intents).toBeUndefined();
+    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
   });
 
   it('should route SEC_PROSPECTUS_UPDATED to KB ingestion', async () => {
