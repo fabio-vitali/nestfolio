@@ -3,13 +3,12 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { ParamsAndSecretsLayerVersion, ParamsAndSecretsVersions } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { YahooFinanceAdptEventTypes } from './domain/events';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
-import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
+import { adapterProps, defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
 export class YahooFinanceAdptStack extends ServiceStack {
   constructor(
@@ -31,12 +30,6 @@ export class YahooFinanceAdptStack extends ServiceStack {
     // Override the default event bus to the advisory bus
     this.eventBus = advisoryBus;
 
-    // ParamsAndSecrets Extension for SSM-based base URL resolution
-    const paramsAndSecrets = ParamsAndSecretsLayerVersion.fromVersion(
-      ParamsAndSecretsVersions.V1_0_103,
-      { parameterStoreTtl: Duration.seconds(5) },
-    );
-
     const ssmBasePath = `/nestfolio/${props.prefix}-yahoo-finance-adpt/yahoo`;
 
     new StringParameter(this, 'BaseUrl', {
@@ -49,12 +42,11 @@ export class YahooFinanceAdptStack extends ServiceStack {
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [YahooFinanceAdptEventTypes.FETCH_REQUESTED],
-      lambdaTimeout: Duration.seconds(60),
+      profile: adapterProps,
       environment: {
         TICKERS: tickers,
         YAHOO_BASE_URL_PARAM: `${ssmBasePath}/baseUrl`,
       },
-      lambdaProps: { paramsAndSecrets },
     });
 
     // IAM: SSM access for ParamsAndSecrets Extension
