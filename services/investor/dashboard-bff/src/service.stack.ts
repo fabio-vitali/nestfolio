@@ -26,6 +26,8 @@ export class DashboardBffStack extends ServiceStack {
         InvestorBffEventTypes.RISK_PROFILE_UPDATED,
         InvestorBffEventTypes.OPERATING_MODE_SELECTED,
         InvestorBffEventTypes.OPERATING_MODE_CHANGED,
+        InvestorIngestEventTypes.DEPOSIT_DETECTED,
+        InvestorIngestEventTypes.WITHDRAWAL_COMPLETED,
       ],
     });
 
