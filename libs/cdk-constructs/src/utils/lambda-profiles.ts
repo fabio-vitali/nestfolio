@@ -5,7 +5,6 @@ import {
   ParamsAndSecretsVersions,
   Runtime,
   Tracing,
-  type ILayerVersion,
 } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
@@ -36,7 +35,7 @@ export const BASE_LAMBDA_PROPS = {
  * Created once at module load and reused across stacks — the layer
  * reference is just a regional ARN, not a CDK construct.
  */
-export const PARAMS_AND_SECRETS_LAYER: ILayerVersion = ParamsAndSecretsLayerVersion.fromVersion(
+export const PARAMS_AND_SECRETS_LAYER: ParamsAndSecretsLayerVersion = ParamsAndSecretsLayerVersion.fromVersion(
   ParamsAndSecretsVersions.V1_0_103,
   { parameterStoreTtl: Duration.seconds(5) },
 );
