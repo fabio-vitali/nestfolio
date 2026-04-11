@@ -5,6 +5,9 @@ export {
   applyFixtures,
   onboarded,
   funded,
+  withDecision,
+  withNotification,
+  withHoldings,
   type Fixture,
   type FixtureResult,
 } from './helpers/fixtures';

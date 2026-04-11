@@ -63,3 +63,88 @@ describe('fixtures — funded', () => {
     }));
   });
 });
+
+import { withDecision, withNotification, withHoldings } from '../../src/helpers/fixtures';
+
+describe('fixtures — withDecision', () => {
+  it('publishes DECISION_PACKET_CREATED to the advisory bus and returns decisionId', async () => {
+    const ctx = {} as any;
+    const tenant = { tenantId: 't-3', userId: 'u-3', idToken: '', accessToken: '', cognitoTokens: {} as any };
+    const eb = { putEvent: jest.fn().mockResolvedValue(undefined) };
+    (EventBridgeClient as unknown as jest.Mock).mockImplementation(() => eb);
+
+    const result = await applyFixtures(ctx, tenant, [
+      withDecision({ trigger: 'INITIAL_ALLOCATION' }),
+    ]);
+
+    expect(eb.putEvent).toHaveBeenCalledWith(expect.objectContaining({
+      bus: 'advisory',
+      targetService: 'advisory-bff',
+      detailType: 'DECISION_PACKET_CREATED',
+      detail: expect.objectContaining({
+        tenantId: 't-3',
+        trigger: 'INITIAL_ALLOCATION',
+        confirmationRequired: true,
+      }),
+    }));
+    expect(typeof result.decisionId).toBe('string');
+    expect((result.decisionId as string).startsWith('e2e-decision-')).toBe(true);
+  });
+});
+
+describe('fixtures — withNotification', () => {
+  it('publishes NOTIFICATION_CREATED to the investor bus and returns notificationId', async () => {
+    const ctx = {} as any;
+    const tenant = { tenantId: 't-4', userId: 'u-4', idToken: '', accessToken: '', cognitoTokens: {} as any };
+    const eb = { putEvent: jest.fn().mockResolvedValue(undefined) };
+    (EventBridgeClient as unknown as jest.Mock).mockImplementation(() => eb);
+
+    const result = await applyFixtures(ctx, tenant, [
+      withNotification({ title: 'hello', body: 'world' }),
+    ]);
+
+    expect(eb.putEvent).toHaveBeenCalledWith(expect.objectContaining({
+      bus: 'investor',
+      targetService: 'investor-bff',
+      detailType: 'NOTIFICATION_CREATED',
+      detail: expect.objectContaining({
+        tenantId: 't-4',
+        userId: 'u-4',
+        title: 'hello',
+        body: 'world',
+        channel: 'IN_APP',
+      }),
+    }));
+    expect(typeof result.notificationId).toBe('string');
+  });
+});
+
+describe('fixtures — withHoldings', () => {
+  it('publishes one ORDER_FILLED per holding on the execution bus', async () => {
+    const ctx = {} as any;
+    const tenant = { tenantId: 't-5', userId: 'u-5', idToken: '', accessToken: '', cognitoTokens: {} as any };
+    const eb = { putEvent: jest.fn().mockResolvedValue(undefined) };
+    (EventBridgeClient as unknown as jest.Mock).mockImplementation(() => eb);
+
+    await applyFixtures(ctx, tenant, [
+      withHoldings([
+        { symbol: 'AAPL', quantity: 10, fillPriceCents: 15_000 },
+        { symbol: 'GOOG', quantity: 3, fillPriceCents: 140_000 },
+      ]),
+    ]);
+
+    expect(eb.putEvent).toHaveBeenCalledTimes(2);
+    expect(eb.putEvent).toHaveBeenCalledWith(expect.objectContaining({
+      bus: 'execution',
+      targetService: 'ledger-ctrl',
+      detailType: 'ORDER_FILLED',
+      detail: expect.objectContaining({ symbol: 'AAPL', quantity: 10, fillPriceCents: 15_000 }),
+    }));
+    expect(eb.putEvent).toHaveBeenCalledWith(expect.objectContaining({
+      bus: 'execution',
+      targetService: 'ledger-ctrl',
+      detailType: 'ORDER_FILLED',
+      detail: expect.objectContaining({ symbol: 'GOOG', quantity: 3, fillPriceCents: 140_000 }),
+    }));
+  });
+});

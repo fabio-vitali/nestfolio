@@ -3,6 +3,8 @@ import {
   type IntegrationContext,
 } from '@nestfolio/integration-testing';
 import { InvestorBffEventTypes } from '../../../../services/investor/investor-bff/src/domain/events';
+import { AdvisoryCtrlEventTypes } from '../../../../services/advisory/advisory-ctrl/src/domain/events';
+import { InvestorCtrlEventTypes } from '../../../../services/investor/investor-ctrl/src/domain/events';
 import type { FreshTenant } from './fresh-tenant';
 
 /**
@@ -96,6 +98,98 @@ export function funded(opts: { cashBalanceCents: number }): Fixture {
         cashBalanceCents: opts.cashBalanceCents,
       },
     });
+    return {};
+  };
+}
+
+/**
+ * Seeds a PENDING decision read-model on advisory-bff by publishing a
+ * synthetic DECISION_PACKET_CREATED. Returns the generated decisionId so
+ * scenarios can reference it in confirmDecision/rejectDecision mutations.
+ */
+export function withDecision(opts: {
+  trigger: 'INITIAL_ALLOCATION' | 'REBALANCE' | 'ADJUSTMENT';
+  proposedTrades?: Array<{ symbol: string; side: 'BUY' | 'SELL'; quantityOrAmountCents: number }>;
+  explanation?: string;
+}): Fixture {
+  return async (_ctx, tenant, eb) => {
+    const decisionId = `e2e-decision-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'advisory-bff',
+      detailType: AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED,
+      detail: {
+        tenantId: tenant.tenantId,
+        decisionId,
+        trigger: opts.trigger,
+        proposedTrades: opts.proposedTrades ?? [
+          { symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 500_000 },
+        ],
+        explanation: opts.explanation ?? 'E2E test synthetic decision',
+        confirmationRequired: true,
+      },
+    });
+    return { decisionId };
+  };
+}
+
+/**
+ * Seeds a CREATED notification on investor-bff by publishing a synthetic
+ * NOTIFICATION_CREATED. Returns the generated notificationId.
+ */
+export function withNotification(opts: {
+  title: string;
+  body: string;
+  channel?: 'IN_APP' | 'EMAIL' | 'PUSH' | 'SMS';
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+}): Fixture {
+  return async (_ctx, tenant, eb) => {
+    const notificationId = `e2e-notif-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    await eb.putEvent({
+      bus: 'investor',
+      targetService: 'investor-bff',
+      detailType: InvestorCtrlEventTypes.NOTIFICATION_CREATED,
+      detail: {
+        tenantId: tenant.tenantId,
+        userId: tenant.userId,
+        notificationId,
+        channel: opts.channel ?? 'IN_APP',
+        title: opts.title,
+        body: opts.body,
+        relatedEntityType: opts.relatedEntityType ?? 'System',
+        relatedEntityId: opts.relatedEntityId ?? 'system',
+      },
+    });
+    return { notificationId };
+  };
+}
+
+/**
+ * Seeds portfolio holdings by publishing one synthetic ORDER_FILLED per
+ * holding on the execution bus. The ledger-ctrl reducer projects these
+ * into the ledger-bff read model (Portfolio / Positions).
+ */
+export function withHoldings(
+  holdings: Array<{ symbol: string; quantity: number; fillPriceCents: number }>,
+): Fixture {
+  return async (_ctx, tenant, eb) => {
+    for (const h of holdings) {
+      await eb.putEvent({
+        bus: 'execution',
+        targetService: 'ledger-ctrl',
+        detailType: 'ORDER_FILLED',
+        detail: {
+          tenantId: tenant.tenantId,
+          userId: tenant.userId,
+          orderId: `e2e-order-${h.symbol}-${Date.now()}`,
+          symbol: h.symbol,
+          quantity: h.quantity,
+          fillPriceCents: h.fillPriceCents,
+          side: 'BUY',
+        },
+      });
+    }
     return {};
   };
 }
