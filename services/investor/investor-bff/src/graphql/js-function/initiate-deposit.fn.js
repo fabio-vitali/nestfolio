@@ -14,7 +14,7 @@ export function request(ctx) {
   return ddb.put({
     key: { pk: `InvestorProfile#${tenantId}#${userId}`, sk: `Deposit#${depositId}` },
     item: {
-      __typename: 'Deposit', tenantId, userId, depositId, amountCents, currency,
+      __typename: 'Deposit', tenantId, userId, region: ctx.stash.region, depositId, amountCents, currency,
       status: 'INITIATED', initiatedAt: now, timestamp: now,
     },
   });

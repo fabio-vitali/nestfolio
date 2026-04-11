@@ -17,7 +17,7 @@ export function request(ctx) {
         table: ctx.stash.tableName, operation: 'PutItem',
         key: util.dynamodb.toMapValues({ pk, sk: `Mandate#${mandateId}` }),
         attributeValues: util.dynamodb.toMapValues({
-          __typename: 'Mandate', tenantId, userId, mandateId, ...input,
+          __typename: 'Mandate', tenantId, userId, region: ctx.stash.region, mandateId, ...input,
           effectiveDate: now, revokedAt: null, version: 1, timestamp: now,
         }),
       },

@@ -29,7 +29,7 @@ export function request(ctx) {
         operation: 'PutItem',
         key: util.dynamodb.toMapValues({ pk, sk: `Withdrawal#${withdrawalId}` }),
         attributeValues: util.dynamodb.toMapValues({
-          __typename: 'Withdrawal', tenantId, userId, withdrawalId, amountCents, currency,
+          __typename: 'Withdrawal', tenantId, userId, region: ctx.stash.region, withdrawalId, amountCents, currency,
           status: 'REQUESTED', requestedAt: now, timestamp: now,
         }),
       },
