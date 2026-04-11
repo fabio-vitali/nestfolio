@@ -8,7 +8,7 @@ import { PortfolioEngineEventTypes } from './domain/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { SecEdgarAdptEventTypes } from '@nestfolio/sec-edgar-adpt/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
-import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
+import { agentProps, defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 
 export class PortfolioEngineCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -22,7 +22,9 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       description: 'ETF prospectuses, risk factors, instrument data, allocation history',
     });
 
-    // Ingress: trigger + KB ingestion events
+    // Ingress: trigger + KB ingestion events.
+    // Uses agentProps because the handler dispatches to Bedrock (Opus + Sonnet) —
+    // 1024 MB / 5min timeout / batchSize 1 / concurrency capped at 5.
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
@@ -30,6 +32,7 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
         SecEdgarAdptEventTypes.SEC_PROSPECTUS_UPDATED,
         SecEdgarAdptEventTypes.SEC_10K_UPDATED,
       ],
+      profile: agentProps,
     });
 
     // Egress: CDC events
