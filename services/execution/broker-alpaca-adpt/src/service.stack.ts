@@ -3,9 +3,8 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { ParamsAndSecretsLayerVersion, ParamsAndSecretsVersions } from 'aws-cdk-lib/aws-lambda';
 import { Egress, Ingress, Orchestration, ServiceStack, ServiceStackProps, State } from '@nestfolio/cdk-constructs/core';
-import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
+import { adapterProps, defaultLambdaProps, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 import { AlpacaAdptEventTypes } from './domain/events';
 import { OrderPollingDefinition } from './constructs/order-polling-definition';
 import { TransferPollingDefinition } from './constructs/transfer-polling-definition';
@@ -17,11 +16,6 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
     const state = new State(this, 'State');
     const table = state.getTable();
 
-    const paramsAndSecrets = ParamsAndSecretsLayerVersion.fromVersion(
-      ParamsAndSecretsVersions.V1_0_103,
-      { parameterStoreTtl: Duration.seconds(5) },
-    );
-
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
@@ -30,11 +24,11 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
         AlpacaAdptEventTypes.ALPACA_TRANSFER_REQUESTED,
         AlpacaAdptEventTypes.ALPACA_ACCOUNT_CHECK,
       ],
+      profile: adapterProps,
       environment: {
         ALPACA_BASE_URL_PARAM: `/nestfolio/${props.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
         ALPACA_SECRET_ID: `${props.prefix}-broker-alpaca-adpt/alpaca-api-keys`,
       },
-      lambdaProps: { paramsAndSecrets },
     });
 
     // IAM: SSM + Secrets Manager for ParamsAndSecrets Extension
@@ -93,7 +87,7 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
         ALPACA_BASE_URL_PARAM: `/nestfolio/${props.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
         ALPACA_SECRET_ID: `${props.prefix}-broker-alpaca-adpt/alpaca-api-keys`,
       },
-      paramsAndSecrets,
+      paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       timeout: Duration.seconds(30),
     });
     table.grantReadWriteData(orderPollFn);
@@ -108,7 +102,7 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
         ALPACA_BASE_URL_PARAM: `/nestfolio/${props.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
         ALPACA_SECRET_ID: `${props.prefix}-broker-alpaca-adpt/alpaca-api-keys`,
       },
-      paramsAndSecrets,
+      paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       timeout: Duration.seconds(30),
     });
     table.grantReadWriteData(transferPollFn);
