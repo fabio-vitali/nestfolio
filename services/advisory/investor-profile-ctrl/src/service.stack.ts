@@ -8,7 +8,7 @@ import { InvestorProfileEventTypes } from './domain/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
-import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
+import { agentProps, defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 
 export class InvestorProfileCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -22,7 +22,9 @@ export class InvestorProfileCtrlStack extends ServiceStack {
       description: 'Regulatory frameworks, suitability rules, compliance precedents',
     });
 
-    // Ingress: trigger event + KB ingestion events
+    // Ingress: trigger event + KB ingestion events.
+    // Uses agentProps because the handler dispatches to Bedrock (Opus + Haiku) —
+    // 1024 MB / 5min timeout / batchSize 1 / concurrency capped at 5.
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
@@ -30,6 +32,7 @@ export class InvestorProfileCtrlStack extends ServiceStack {
         ComplianceEventTypes.DECISION_BLOCKED,
         ComplianceEventTypes.DECISION_APPROVED,
       ],
+      profile: agentProps,
     });
 
     // Egress: CDC events
