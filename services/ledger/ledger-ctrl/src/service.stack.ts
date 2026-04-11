@@ -1,4 +1,3 @@
-import { Duration } from 'aws-cdk-lib';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { StartingPosition, FilterCriteria, FilterRule } from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
@@ -9,7 +8,7 @@ import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfo
 import { LedgerCtrlEventTypes } from './domain/events';
 import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
 import { LedgerIngestEventTypes } from '@nestfolio/ledger-adpt/domain';
-import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
+import { reducerProps } from '@nestfolio/cdk-constructs/utils';
 
 export class LedgerCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -35,9 +34,10 @@ export class LedgerCtrlStack extends ServiceStack {
       ],
     });
 
-    // Reducer: DDB Stream consumer that materializes account snapshots
+    // Reducer: DDB Stream consumer that materializes account snapshots.
+    // Shape comes from reducerProps (512 MB, 60s, batch 100, window 5s, parallelization 1).
     const reducerFn = new NodejsFunction(this, 'ReducerFn', {
-      ...defaultLambdaProps(this),
+      ...reducerProps.lambdaProps,
       entry: join(__dirname, 'handlers', 'reducer.ts'),
       environment: {
         TABLE_NAME: state.getTable().tableName,
@@ -51,8 +51,9 @@ export class LedgerCtrlStack extends ServiceStack {
       startingPosition: StartingPosition.LATEST,
       bisectBatchOnError: true,
       retryAttempts: 3,
-      batchSize: 100,
-      maxBatchingWindow: Duration.seconds(5),
+      batchSize: reducerProps.ddbStreamBatchSize,
+      maxBatchingWindow: reducerProps.ddbStreamMaxBatchingWindow,
+      parallelizationFactor: reducerProps.ddbStreamParallelizationFactor,
       filters: [
         FilterCriteria.filter({
           eventName: FilterRule.isEqual('INSERT'),
