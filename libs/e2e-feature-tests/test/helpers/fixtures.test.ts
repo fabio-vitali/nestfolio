@@ -39,3 +39,27 @@ describe('fixtures — onboarded', () => {
     }));
   });
 });
+
+import { funded } from '../../src/helpers/fixtures';
+
+describe('fixtures — funded', () => {
+  it('publishes BALANCE_UPDATED with the requested cashBalanceCents', async () => {
+    const ctx = { tenantId: 't-2' } as any;
+    const tenant = { tenantId: 't-2', userId: 'u-2', idToken: '', accessToken: '', cognitoTokens: {} as any };
+    const eb = { putEvent: jest.fn().mockResolvedValue(undefined) };
+    (EventBridgeClient as unknown as jest.Mock).mockImplementation(() => eb);
+
+    await applyFixtures(ctx, tenant, [funded({ cashBalanceCents: 2_500_000 })]);
+
+    expect(eb.putEvent).toHaveBeenCalledWith(expect.objectContaining({
+      bus: 'investor',
+      targetService: 'investor-bff',
+      detailType: 'BALANCE_UPDATED',
+      detail: expect.objectContaining({
+        tenantId: 't-2',
+        userId: 'u-2',
+        cashBalanceCents: 2_500_000,
+      }),
+    }));
+  });
+});

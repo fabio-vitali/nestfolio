@@ -78,3 +78,24 @@ export function onboarded(overrides?: {
     return {};
   };
 }
+
+/**
+ * Seeds cash balance by publishing BALANCE_UPDATED. That event materializes
+ * the CashBalance row at pk=InvestorProfile#{tenantId}#{userId}, which
+ * requestWithdrawal's ConditionExpression depends on.
+ */
+export function funded(opts: { cashBalanceCents: number }): Fixture {
+  return async (_ctx, tenant, eb) => {
+    await eb.putEvent({
+      bus: 'investor',
+      targetService: 'investor-bff',
+      detailType: 'BALANCE_UPDATED',
+      detail: {
+        tenantId: tenant.tenantId,
+        userId: tenant.userId,
+        cashBalanceCents: opts.cashBalanceCents,
+      },
+    });
+    return {};
+  };
+}

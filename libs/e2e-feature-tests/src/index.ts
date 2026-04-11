@@ -4,6 +4,7 @@ export { bffClient, type BffClients } from './helpers/bff-client';
 export {
   applyFixtures,
   onboarded,
+  funded,
   type Fixture,
   type FixtureResult,
 } from './helpers/fixtures';
