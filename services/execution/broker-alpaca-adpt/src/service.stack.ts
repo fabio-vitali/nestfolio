@@ -28,6 +28,7 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
       environment: {
         ALPACA_BASE_URL_PARAM: `/nestfolio/${props.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
         ALPACA_SECRET_ID: `${props.prefix}-broker-alpaca-adpt/alpaca-api-keys`,
+        NESTFOLIO_PREFIX: props.prefix,
       },
     });
 

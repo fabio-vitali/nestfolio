@@ -137,4 +137,48 @@ describe('AlpacaClient', () => {
       );
     });
   });
+
+  describe('cold-start paper-only safety guard', () => {
+    const ORIGINAL_ENV = { ...process.env };
+
+    afterEach(() => {
+      process.env = { ...ORIGINAL_ENV };
+    });
+
+    it('allows paper baseUrl in any prefix', () => {
+      process.env.NESTFOLIO_PREFIX = 'dev';
+      expect(() => new AlpacaClient({
+        baseUrl: 'https://paper-api.alpaca.markets',
+        apiKeyId: 'k',
+        apiKeySecret: 's',
+      })).not.toThrow();
+    });
+
+    it('allows non-paper baseUrl only when NESTFOLIO_PREFIX is prod', () => {
+      process.env.NESTFOLIO_PREFIX = 'prod';
+      expect(() => new AlpacaClient({
+        baseUrl: 'https://api.alpaca.markets',
+        apiKeyId: 'k',
+        apiKeySecret: 's',
+      })).not.toThrow();
+    });
+
+    it('refuses non-paper baseUrl in a non-prod prefix', () => {
+      process.env.NESTFOLIO_PREFIX = 'dev';
+      expect(() => new AlpacaClient({
+        baseUrl: 'https://api.alpaca.markets',
+        apiKeyId: 'k',
+        apiKeySecret: 's',
+      })).toThrow(/refuses to start: non-paper baseUrl/);
+    });
+
+    it('refuses non-paper baseUrl when NESTFOLIO_PREFIX is unset', () => {
+      delete process.env.NESTFOLIO_PREFIX;
+      expect(() => new AlpacaClient({
+        baseUrl: 'https://api.alpaca.markets',
+        apiKeyId: 'k',
+        apiKeySecret: 's',
+      })).toThrow(/refuses to start: non-paper baseUrl/);
+    });
+  });
 });

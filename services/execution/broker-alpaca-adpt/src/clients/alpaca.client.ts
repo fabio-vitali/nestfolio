@@ -29,6 +29,18 @@ export interface AlpacaResponse<T = unknown> {
   data: T;
 }
 
+const PAPER_BASE_URLS = new Set(['https://paper-api.alpaca.markets']);
+const LIVE_ALLOWED_PREFIXES = new Set(['prod']);
+
+function assertAlpacaSafe(baseUrl: string, prefix: string | undefined): void {
+  if (PAPER_BASE_URLS.has(baseUrl)) return;
+  if (prefix && LIVE_ALLOWED_PREFIXES.has(prefix)) return;
+  throw new Error(
+    `broker-alpaca-adpt refuses to start: non-paper baseUrl '${baseUrl}' ` +
+    `is not allowed in prefix '${prefix ?? '<unset>'}'. Only 'prod' may use live Alpaca.`,
+  );
+}
+
 export class AlpacaClient {
   private baseUrl?: string;
   private apiKeyId?: string;
@@ -38,6 +50,7 @@ export class AlpacaClient {
   constructor(config?: { baseUrl?: string; apiKeyId?: string; apiKeySecret?: string }) {
     // Direct config injection for unit tests — bypasses resolve()
     if (config?.baseUrl) {
+      assertAlpacaSafe(config.baseUrl, process.env.NESTFOLIO_PREFIX);
       this.baseUrl = config.baseUrl;
       this.apiKeyId = config.apiKeyId;
       this.apiKeySecret = config.apiKeySecret;
@@ -62,6 +75,7 @@ export class AlpacaClient {
     );
     const paramData = await paramRes.json() as { Parameter: { Value: string } };
     this.baseUrl = paramData.Parameter.Value;
+    assertAlpacaSafe(this.baseUrl, process.env.NESTFOLIO_PREFIX);
 
     // Secrets Manager (only resolve once — secrets don't change between invocations)
     if (!this.apiKeyId) {
