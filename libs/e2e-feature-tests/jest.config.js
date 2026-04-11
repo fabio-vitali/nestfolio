@@ -4,10 +4,13 @@ module.exports = {
   displayName: 'e2e-feature-tests',
   testEnvironment: 'node',
   rootDir: '.',
-  testMatch: ['<rootDir>/test/**/*.e2e.test.ts'],
+  testMatch: ['<rootDir>/test/**/*.test.ts'],
   testTimeout: 300_000,
   maxWorkers: 1,
   globalTeardown: '<rootDir>/jest.global-teardown.ts',
+  moduleNameMapper: {
+    '^@nestfolio/integration-testing$': '<rootDir>/../../libs/integration-testing/src/index.ts',
+  },
   transform: {
     '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json', diagnostics: false }],
   },
