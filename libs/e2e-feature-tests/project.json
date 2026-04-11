@@ -1,0 +1,20 @@
+{
+  "name": "e2e-feature-tests",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/e2e-feature-tests/src",
+  "projectType": "library",
+  "targets": {
+    "test-e2e-features": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "libs/e2e-feature-tests/jest.config.js",
+        "passWithNoTests": true,
+        "runInBand": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": ["scope:platform", "type:lib"]
+}

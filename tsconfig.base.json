@@ -57,6 +57,8 @@
       "@nestfolio/shell/*": ["libs/shell/src/*/index.ts"],
       "@nestfolio/integration-testing": ["libs/integration-testing/src/index.ts"],
       "@nestfolio/integration-testing/*": ["libs/integration-testing/src/*"],
+      "@nestfolio/e2e-feature-tests": ["libs/e2e-feature-tests/src/index.ts"],
+      "@nestfolio/e2e-feature-tests/*": ["libs/e2e-feature-tests/src/*"],
       "@nestfolio/ui": ["libs/ui/src/index.ts"]
     }
   },
