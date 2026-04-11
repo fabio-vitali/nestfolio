@@ -1,6 +1,6 @@
 import { App, Stack, Duration } from 'aws-cdk-lib';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
-import { defaultLambdaProps, agentLambdaProps } from '../../src/utils/default-lambda-props';
+import { defaultLambdaProps } from '../../src/utils/default-lambda-props';
 
 describe('defaultLambdaProps', () => {
   let stack: Stack;
@@ -33,39 +33,5 @@ describe('defaultLambdaProps', () => {
   it('sets 90-day log retention', () => {
     const props = defaultLambdaProps(stack);
     expect(props.logRetention).toBe(RetentionDays.THREE_MONTHS);
-  });
-});
-
-describe('agentLambdaProps', () => {
-  let stack: Stack;
-
-  beforeEach(() => {
-    const app = new App();
-    stack = new Stack(app, 'TestStack');
-  });
-
-  it('uses 180s timeout for agent Lambdas', () => {
-    const props = agentLambdaProps(stack);
-    expect(props.timeout).toEqual(Duration.seconds(180));
-  });
-
-  it('uses 512 MB memory for agent Lambdas', () => {
-    const props = agentLambdaProps(stack);
-    expect(props.memorySize).toBe(512);
-  });
-
-  it('inherits runtime and architecture from defaultLambdaProps', () => {
-    const defaultProps = defaultLambdaProps(stack);
-    const agentProps = agentLambdaProps(stack);
-
-    expect(agentProps.runtime).toEqual(defaultProps.runtime);
-    expect(agentProps.architecture).toEqual(defaultProps.architecture);
-  });
-
-  it('SQS Ingress visibility timeout (180s) >= 6x default Lambda timeout (30s)', () => {
-    // Default Lambda timeout is 30s, Ingress visibility timeout is 180s
-    const timeoutSeconds = 30; // Duration.seconds(30) from defaultLambdaProps
-    const ingressVisibilityTimeout = 180; // from Ingress construct
-    expect(ingressVisibilityTimeout).toBeGreaterThanOrEqual(6 * timeoutSeconds);
   });
 });

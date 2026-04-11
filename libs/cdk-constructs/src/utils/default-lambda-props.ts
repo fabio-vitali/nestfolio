@@ -7,6 +7,10 @@ import { NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 /**
  * Default Lambda props for standard service handlers (30s timeout).
  * Note: SQS Ingress visibility timeout (180s) must be >= 6x this value.
+ *
+ * For richer workload-specific defaults, prefer the `LambdaProfile`
+ * system in `./lambda-profiles.ts` (`handlerProps`, `adapterProps`,
+ * `reducerProps`, `agentProps`).
  */
 export const defaultLambdaProps = (_scope: Construct): Partial<NodejsFunctionProps> => ({
   runtime: Runtime.NODEJS_24_X,
@@ -21,15 +25,4 @@ export const defaultLambdaProps = (_scope: Construct): Partial<NodejsFunctionPro
     target: 'node24',
     externalModules: ['@aws-sdk/*'],
   },
-});
-
-/**
- * Lambda props for agent-related functions (tool targets, agent invokers).
- * Uses 180s timeout to accommodate Bedrock model invocations.
- * Note: SQS Ingress visibility timeout must be >= 6x this value (1080s) when used with SQS.
- */
-export const agentLambdaProps = (_scope: Construct): Partial<NodejsFunctionProps> => ({
-  ...defaultLambdaProps(_scope),
-  timeout: Duration.seconds(180),
-  memorySize: 512,
 });
