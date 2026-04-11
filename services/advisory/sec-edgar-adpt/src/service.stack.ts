@@ -3,12 +3,11 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { EventBus } from 'aws-cdk-lib/aws-events';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { ParamsAndSecretsLayerVersion, ParamsAndSecretsVersions } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AdapterSchedule, getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
-import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
+import { adapterProps, defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { SecEdgarAdptEventTypes } from './domain/events';
 
 export class SecEdgarAdptStack extends ServiceStack {
@@ -30,12 +29,6 @@ export class SecEdgarAdptStack extends ServiceStack {
     // Override the default event bus to the advisory bus
     this.eventBus = advisoryBus;
 
-    // ParamsAndSecrets Extension for SSM-based base URL resolution
-    const paramsAndSecrets = ParamsAndSecretsLayerVersion.fromVersion(
-      ParamsAndSecretsVersions.V1_0_103,
-      { parameterStoreTtl: Duration.seconds(5) },
-    );
-
     const ssmBasePath = `/nestfolio/${props.prefix}-sec-edgar-adpt/edgar`;
 
     new StringParameter(this, 'BaseUrl', {
@@ -48,8 +41,9 @@ export class SecEdgarAdptStack extends ServiceStack {
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [SecEdgarAdptEventTypes.FETCH_REQUESTED],
+      profile: adapterProps,
       lambdaTimeout: Duration.seconds(120),
-      lambdaProps: { memorySize: 512, paramsAndSecrets },
+      lambdaProps: { memorySize: 512 },
       environment: {
         TRACKED_CIKS: '0000102909,0000088053,0000914208',
         EDGAR_BASE_URL_PARAM: `${ssmBasePath}/baseUrl`,
