@@ -12,7 +12,7 @@ import { CognitoFixture } from '@nestfolio/integration-testing';
 
 describe('freshTenant', () => {
   it('creates a tenant, a cognito user, extracts sub as userId, returns tokens', async () => {
-    const ctx = { tenantId: 'tenant-aaa', region: 'us-east-1' } as any;
+    const ctx = { tenantId: 'tenant-aaa', userId: 'user-aaa', region: 'us-east-1' } as any;
 
     const tenant = await freshTenant(ctx);
 
