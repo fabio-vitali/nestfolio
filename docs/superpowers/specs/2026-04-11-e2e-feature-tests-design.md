@@ -81,15 +81,17 @@ Scenario 6 is intentionally multi-step (mutation + event publish) because the fe
 ```
 libs/e2e-feature-tests/
 ├── project.json              # Nx target: test-e2e-features
-├── jest.config.js            # maxWorkers: 1, testTimeout: 300000 (5 min)
+├── jest.config.js            # maxWorkers: 1, testTimeout: 300000 (5 min), globalTeardown
+├── jest.global-teardown.ts   # runs alpacaPaperReset() once at end of suite
 ├── tsconfig.json
 ├── tsconfig.spec.json
 ├── src/
 │   └── helpers/
-│       ├── fresh-tenant.ts   # freshTenant(ctx) → new Cognito user + tenantId
-│       ├── fixtures.ts       # onboarded(), funded(), withHoldings(), withDecision(), withNotification()
-│       ├── bff-client.ts     # thin wrapper over existing AppSyncClient fixture
-│       └── wait-for-graphql.ts # polls query until predicate(result) === true
+│       ├── fresh-tenant.ts       # freshTenant(ctx) → new Cognito user + tenantId
+│       ├── fixtures.ts           # onboarded(), funded(), withHoldings(), withDecision(), withNotification()
+│       ├── bff-client.ts         # thin wrapper over existing AppSyncClient fixture
+│       ├── wait-for-graphql.ts   # polls query until predicate(result) === true
+│       └── alpaca-paper-reset.ts # blanket cancel-all-orders + close-all-positions against paper endpoint
 └── test/
     ├── funding/
     │   ├── fund-account.e2e.test.ts
@@ -135,6 +137,12 @@ Fixtures bypass any upstream business logic — they plant observable state at t
 Polls a GraphQL query until `predicate(result) === true` or timeout. Defaults: 60 s timeout, 2 s interval. Used for every assertion that depends on CDC → read-model projection lag.
 
 **`bffClient`** — Convenience wrapper exposing methods like `bff.investor.query(...)`, `bff.advisory.mutate(...)`. Thin; does not hide anything.
+
+**`alpacaPaperReset(prefix: string): Promise<void>`** — Cleanup helper invoked once at end of suite via Jest `globalTeardown`. Reads the same SSM base-URL param (`/nestfolio/{prefix}-broker-alpaca-adpt/alpaca/baseUrl`) and Secrets Manager secret (`{prefix}-broker-alpaca-adpt/alpaca-api-keys`) the adapter uses — reusing the AWS credentials the test runner already has for AppSync/Cognito. Before doing anything, asserts the resolved baseUrl is in the paper allowlist; aborts with a loud error if not. Then fires two blanket calls against the Alpaca REST API:
+- `DELETE /v2/orders` — cancels all open orders
+- `DELETE /v2/positions?cancel_orders=true` — closes all open positions at market
+
+Direct `fetch` calls, no production-client dependency, no new `alpaca.client.ts` methods. The helper is test-only. **It does not reset the starting balance** — realized/unrealized P&L still accumulates over many runs, which is why section 11 retains the periodic manual dashboard reset as an operational task.
 
 ## 6. Test Shape — Canonical Example
 
@@ -285,13 +293,13 @@ No suite refactoring required.
 - **Vendor availability coupling.** If Alpaca paper is down, the suite fails. *Accepted:* this is signal, not noise — if real vendors are down, business flows are also actually broken.
 - **Non-deterministic values from LLMs and vendor APIs.** Assertions on such values must use shape matchers, not exact values. *Mitigated:* explicit rule in section 7.
 - **Synthetic event fixtures could drift from real event schemas.** If a real producer changes an event shape without updating the fixture, tests might publish stale payloads. *Mitigated:* use `@nestfolio/event-types` branded types in all fixtures so a schema change breaks the fixture at compile time.
-- **Paper Alpaca account state accumulation.** Orders, transfers, and positions accrue in the paper account across runs. *Mitigated:* out of scope for this spec — a separate maintenance script resets the paper account on a schedule.
+- **Paper Alpaca account state accumulation.** Orders, transfers, and positions accrue in the paper account across runs. *Mitigated:* a Jest `globalTeardown` hook runs `alpacaPaperReset()` at the end of every suite invocation, blanket-cancelling all open orders and closing all open positions against the paper endpoint. Starting balance still drifts due to accumulated P&L over time — a periodic manual dashboard reset remains an operational task.
 
 ## 11. Future Work (Not This Effort)
 
 - Onboarding coverage via a dedicated LangGraph-interface test harness
 - Market-data-refresh timestamp visibility on dashboard (if/when a `marketDataAsOf` field is added to read schemas)
-- Paper Alpaca account auto-reset maintenance script
+- Periodic manual paper Alpaca dashboard reset (operational, monthly or when equity drift crosses a threshold)
 - CI integration in `pr-deploy.yml`
 - Playwright UI smoke layer on top of the e2e feature suite
 
