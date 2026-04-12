@@ -28,6 +28,7 @@ export class AccountSeedingFixture {
             Key: marshall({ pk, sk }),
           }));
         } catch (err) {
+          // eslint-disable-next-line no-console
           console.error(`AccountSeedingFixture cleanup failed: pk=${pk} sk=${sk}`, err);
         }
       }
