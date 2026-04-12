@@ -1,8 +1,8 @@
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
-  type IntegrationContext,
-} from '@nestfolio/integration-testing';
+  type TestContext,
+} from '@nestfolio/test-support';
 import {
   freshTenant,
   applyFixtures,
@@ -14,11 +14,11 @@ import {
 } from '../../src';
 
 describe('scenario 2 — investor withdraws cash', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let tenant: FreshTenant;
 
   beforeEach(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     tenant = await freshTenant(ctx);
     await applyFixtures(ctx, tenant, [
       onboarded(),

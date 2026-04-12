@@ -1,4 +1,4 @@
-jest.mock('@nestfolio/integration-testing', () => ({
+jest.mock('@nestfolio/test-support', () => ({
   EventBridgeClient: jest.fn().mockImplementation(() => ({
     putEvent: jest.fn().mockResolvedValue(undefined),
   })),
@@ -8,7 +8,7 @@ import {
   onboarded,
   applyFixtures,
 } from '../../src/helpers/fixtures';
-import { EventBridgeClient } from '@nestfolio/integration-testing';
+import { EventBridgeClient } from '@nestfolio/test-support';
 
 describe('fixtures — onboarded', () => {
   it('publishes USER_REGISTERED then ONBOARDING_COMPLETED to the investor bus', async () => {

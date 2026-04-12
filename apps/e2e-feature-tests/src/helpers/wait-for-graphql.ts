@@ -1,4 +1,4 @@
-import type { AppSyncClient } from '@nestfolio/integration-testing';
+import type { AppSyncClient } from '@nestfolio/test-support';
 
 export interface WaitOptions {
   timeoutMs?: number;

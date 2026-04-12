@@ -1,5 +1,5 @@
 const mockInstances: Array<{ service: string }> = [];
-jest.mock('@nestfolio/integration-testing', () => ({
+jest.mock('@nestfolio/test-support', () => ({
   AppSyncClient: jest.fn().mockImplementation((_ctx: unknown, _tokens: unknown, service: string) => {
     const instance = { service, query: jest.fn(), mutate: jest.fn() };
     mockInstances.push(instance);
@@ -8,7 +8,7 @@ jest.mock('@nestfolio/integration-testing', () => ({
 }));
 
 import { bffClient } from '../../src/helpers/bff-client';
-import { AppSyncClient } from '@nestfolio/integration-testing';
+import { AppSyncClient } from '@nestfolio/test-support';
 
 describe('bffClient', () => {
   beforeEach(() => {

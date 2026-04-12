@@ -1,7 +1,7 @@
 import {
-  createIntegrationContext,
-  type IntegrationContext,
-} from '@nestfolio/integration-testing';
+  createTestContext,
+  type TestContext,
+} from '@nestfolio/test-support';
 import {
   freshTenant,
   applyFixtures,
@@ -12,11 +12,11 @@ import {
 } from '../../src';
 
 describe('scenario 1 — investor funds their account', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let tenant: FreshTenant;
 
   beforeEach(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     tenant = await freshTenant(ctx);
     await applyFixtures(ctx, tenant, [onboarded()]);
   }, 120_000);

@@ -1,8 +1,8 @@
 import {
   CognitoFixture,
   type CognitoTokens,
-  type IntegrationContext,
-} from '@nestfolio/integration-testing';
+  type TestContext,
+} from '@nestfolio/test-support';
 
 export interface FreshTenant {
   tenantId: string;
@@ -17,7 +17,7 @@ export interface FreshTenant {
  * `sub` claim becomes `userId`, matching the convention used by AppSync
  * resolvers throughout the codebase.
  */
-export async function freshTenant(ctx: IntegrationContext): Promise<FreshTenant> {
+export async function freshTenant(ctx: TestContext): Promise<FreshTenant> {
   // Replace `integ-` prefix with `e2e-` so the CDC publisher in libs/event-processor
   // does NOT detect this as a test tenant. This routes events through the prod source
   // format (`InvestorBus@investor-bff`), which cross-domain adapter rules accept via

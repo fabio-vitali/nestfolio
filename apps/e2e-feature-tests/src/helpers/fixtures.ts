@@ -1,7 +1,7 @@
 import {
   EventBridgeClient,
-  type IntegrationContext,
-} from '@nestfolio/integration-testing';
+  type TestContext,
+} from '@nestfolio/test-support';
 import { InvestorBffEventTypes } from '../../../../services/investor/investor-bff/src/domain/events';
 import { AdvisoryCtrlEventTypes } from '../../../../services/advisory/advisory-ctrl/src/domain/events';
 import { InvestorCtrlEventTypes } from '../../../../services/investor/investor-ctrl/src/domain/events';
@@ -12,7 +12,7 @@ import type { FreshTenant } from './fresh-tenant';
  * to bring a fresh tenant to a specific observable precondition.
  */
 export type Fixture = (
-  ctx: IntegrationContext,
+  ctx: TestContext,
   tenant: FreshTenant,
   eb: EventBridgeClient,
 ) => Promise<FixtureResult>;
@@ -23,7 +23,7 @@ export interface FixtureResult {
 }
 
 export async function applyFixtures(
-  ctx: IntegrationContext,
+  ctx: TestContext,
   tenant: FreshTenant,
   fixtures: Fixture[],
 ): Promise<FixtureResult> {

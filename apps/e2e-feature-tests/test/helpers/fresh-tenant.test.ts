@@ -1,4 +1,4 @@
-jest.mock('@nestfolio/integration-testing', () => ({
+jest.mock('@nestfolio/test-support', () => ({
   CognitoFixture: jest.fn().mockImplementation(() => ({
     setup: jest.fn().mockResolvedValue({
       idToken: 'header.' + Buffer.from(JSON.stringify({ sub: 'cog-sub-xyz' })).toString('base64url') + '.sig',
@@ -8,7 +8,7 @@ jest.mock('@nestfolio/integration-testing', () => ({
 }));
 
 import { freshTenant } from '../../src/helpers/fresh-tenant';
-import { CognitoFixture } from '@nestfolio/integration-testing';
+import { CognitoFixture } from '@nestfolio/test-support';
 
 describe('freshTenant', () => {
   it('creates a tenant, a cognito user, extracts sub as userId, returns tokens', async () => {

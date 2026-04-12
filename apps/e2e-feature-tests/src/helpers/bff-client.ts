@@ -1,7 +1,7 @@
 import {
   AppSyncClient,
-  type IntegrationContext,
-} from '@nestfolio/integration-testing';
+  type TestContext,
+} from '@nestfolio/test-support';
 import type { FreshTenant } from './fresh-tenant';
 
 export interface BffClients {
@@ -15,7 +15,7 @@ export interface BffClients {
  * Construct an AppSyncClient per BFF service, all authenticated with the
  * same Cognito tokens from the given tenant. Thin — does not hide anything.
  */
-export function bffClient(ctx: IntegrationContext, tenant: FreshTenant): BffClients {
+export function bffClient(ctx: TestContext, tenant: FreshTenant): BffClients {
   return {
     investor: new AppSyncClient(ctx, tenant.cognitoTokens, 'investor-bff'),
     advisory: new AppSyncClient(ctx, tenant.cognitoTokens, 'advisory-bff'),

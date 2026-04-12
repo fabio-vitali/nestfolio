@@ -9,7 +9,7 @@ module.exports = {
   maxWorkers: 1,
   globalTeardown: '<rootDir>/jest.global-teardown.ts',
   moduleNameMapper: {
-    '^@nestfolio/integration-testing$': '<rootDir>/../../libs/integration-testing/src/index.ts',
+    '^@nestfolio/test-support$': '<rootDir>/../../libs/test-support/src/index.ts',
     '^@nestfolio/event-types$': '<rootDir>/../../libs/event-types/src/index.ts',
   },
   transform: {
