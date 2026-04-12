@@ -27,7 +27,7 @@ describe('recentActivity transform', () => {
         activityId: 'e1',
         activityType: 'DECISION_APPROVED',
         description: 'Decision approved: d1',
-        timestamp: '2026-01-01T00:00:00.000Z',
+        createdAt: '2026-01-01T00:00:00.000Z',
         metadata: '{"decisionId":"d1"}',
       }),
     );
@@ -43,7 +43,7 @@ describe('recentActivity transform', () => {
         activityId: 'e1',
         activityType: 'SOME_EVENT',
         description: expect.stringContaining('SOME_EVENT'),
-        timestamp: '2026-01-01T00:00:00.000Z',
+        createdAt: '2026-01-01T00:00:00.000Z',
         metadata: expect.any(String),
       }),
     );
@@ -61,16 +61,16 @@ describe('recentActivity transform', () => {
         activityId: 'e1',
         activityType: 'DEPOSIT_DETECTED',
         description: 'Deposit detected: 5000 USD',
-        timestamp: '2026-01-01T00:00:00.000Z',
+        createdAt: '2026-01-01T00:00:00.000Z',
         metadata: '{"amountCents":500000,"currency":"USD"}',
       }),
     );
   });
 
-  it('should include timestamp and stringified metadata (required by GraphQL schema)', () => {
+  it('should include createdAt and stringified metadata (required by GraphQL schema)', () => {
     const result = recentActivity(makeUow('DEPOSIT_DETECTED', { amount: 100 }));
     const intent = result as unknown as { fields: Record<string, unknown> };
-    expect(intent.fields).toHaveProperty('timestamp', '2026-01-01T00:00:00.000Z');
+    expect(intent.fields).toHaveProperty('createdAt', '2026-01-01T00:00:00.000Z');
     expect(typeof intent.fields.metadata).toBe('string');
   });
 
@@ -86,7 +86,7 @@ describe('recentActivity transform', () => {
         activityId: 'e1',
         activityType: 'WITHDRAWAL_COMPLETED',
         description: 'Withdrawal completed: 2500 USD',
-        timestamp: '2026-01-01T00:00:00.000Z',
+        createdAt: '2026-01-01T00:00:00.000Z',
         metadata: '{"amountCents":250000,"currency":"USD"}',
       }),
     );

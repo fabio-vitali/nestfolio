@@ -47,10 +47,10 @@ describe('scenario 1 — investor funds their account', () => {
     expect(deposit.initiateDeposit.amountCents).toBe(500_000);
 
     const dashboard = await waitForGraphQL<{
-      getRecentActivity: Array<{ activityType: string; description: string; timestamp: string; metadata: string | null }>;
+      getRecentActivity: Array<{ activityType: string; description: string; createdAt: string; metadata: string | null }>;
     }>(
       bff.dashboard,
-      `query RecentActivity { getRecentActivity(limit: 20) { activityType description timestamp metadata } }`,
+      `query RecentActivity { getRecentActivity(limit: 20) { activityType description createdAt metadata } }`,
       {},
       (r) => r.getRecentActivity.some((e) => e.activityType.toUpperCase().includes('DEPOSIT')),
       { timeoutMs: 180_000 },

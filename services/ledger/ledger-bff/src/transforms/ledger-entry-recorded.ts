@@ -37,7 +37,7 @@ export const ledgerEntryRecorded = (
       eventId: payload.eventId,
       eventType: payload.eventType,
       payload: payload.payload ?? {},
-      timestamp: payload.timestamp,
+      createdAt: payload.timestamp,
       sequenceNo: payload.sequenceNo,
       streamType: payload.streamType,
     }, {

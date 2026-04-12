@@ -110,7 +110,6 @@ describe('deposit-withdrawal-router handler', () => {
       expect(detail.context.tenantId).toBe('t-2');
       expect(detail.subject.direction).toBe('INCOMING');
     });
-  });
 
     it('emits standard event envelope with id, type, timestamp, subject, context', async () => {
       mockDdbSend.mockResolvedValue({ Item: { mode: 'simulation' } });

@@ -42,9 +42,8 @@ export async function onboardingCompleted(
         Update: {
           TableName: tableName,
           Key: { pk, sk: 'InvestorProfile' },
-          UpdateExpression: 'SET operatingMode = :mode, onboardingCompletedAt = :now, updatedAt = :now, #ts = :ts',
-          ExpressionAttributeNames: { '#ts': 'timestamp' },
-          ExpressionAttributeValues: { ':mode': s.operatingMode, ':now': now, ':ts': now },
+          UpdateExpression: 'SET operatingMode = :mode, onboardingCompletedAt = :now, updatedAt = :now',
+          ExpressionAttributeValues: { ':mode': s.operatingMode, ':now': now },
           ConditionExpression: 'attribute_exists(pk)',
         },
       },
@@ -54,7 +53,7 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: `Goal#${goalId}`, __typename: 'Goal',
-            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now, goalId,
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region, goalId,
             objective: s.goal.objective,
             timeHorizonMonths: s.horizonYears * 12,
             targetAmountCents: 0, currency: s.currency, targetReturn: 0,
@@ -68,7 +67,7 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: 'RiskProfile', __typename: 'RiskProfile',
-            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now, profileId: getUUID(),
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region, createdAt: now, profileId: getUUID(),
             score: risk.score, band: risk.band,
             toleranceResponse: risk.tolerance, experienceLevel: risk.experienceLevel,
             assessedAt: now, version: 1,
@@ -81,7 +80,7 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: 'OperatingMode', __typename: 'OperatingModeRecord',
-            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now,
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region, createdAt: now,
             mode: s.operatingMode, selectedAt: now,
           } satisfies TableEntry,
         },
@@ -92,7 +91,7 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: 'AccountMode', __typename: 'AccountMode',
-            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now,
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region,
             mode: s.accountMode, capitalAmount: s.capitalAmount, currency: s.currency,
             createdAt: now, updatedAt: now,
           } satisfies TableEntry,
@@ -104,7 +103,7 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: 'Mandate', __typename: 'Mandate',
-            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now, mandateId,
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region, createdAt: now, mandateId,
             level: 'ADVISORY',
             monthlyTurnoverCapPercent: 10,
             maxSingleTradePercent: 5,
@@ -120,7 +119,7 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: `Deposit#${depositId}`, __typename: 'Deposit',
-            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now,
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region, createdAt: now,
             depositId,
             amountCents: s.capitalAmount, currency: s.currency,
             status: 'INITIATED', initiatedAt: now,

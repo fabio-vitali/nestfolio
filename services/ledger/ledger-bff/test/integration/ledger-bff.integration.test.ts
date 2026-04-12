@@ -381,7 +381,7 @@ describe('ledger-bff', () => {
           items: Array<{
             eventType: string;
             payload: string;
-            timestamp: string;
+            createdAt: string;
             sequenceNo: number;
           }>;
           nextToken: string | null;
@@ -392,7 +392,7 @@ describe('ledger-bff', () => {
             items {
               eventType
               payload
-              timestamp
+              createdAt
               sequenceNo
             }
             nextToken

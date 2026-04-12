@@ -42,7 +42,7 @@ type PositionSnapshot {
 type ActivityEntry {
   activityType: String!
   description: String!
-  timestamp: String!
+  createdAt: String!
   metadata: String
 }
 

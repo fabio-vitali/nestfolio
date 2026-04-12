@@ -42,7 +42,7 @@ type OrderHistoryPage {
 type OrderHistoryEntry {
   eventType: String!
   payload: AWSJSON!
-  timestamp: String!
+  createdAt: String!
   sequenceNo: Int!
 }
 

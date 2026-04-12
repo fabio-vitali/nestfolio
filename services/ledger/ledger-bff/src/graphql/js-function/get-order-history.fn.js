@@ -27,7 +27,7 @@ export function response(ctx) {
   const items = rawItems.map((item) => ({
     eventType: item.eventType,
     payload: JSON.stringify(item.payload ?? {}),
-    timestamp: item.timestamp,
+    createdAt: item.createdAt,
     sequenceNo: item.sequenceNo ?? 0,
   }));
 
