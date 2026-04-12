@@ -7,7 +7,7 @@ import {
   ReceiveMessageCommand, GetQueueAttributesCommand,
   SetQueueAttributesCommand, DeleteMessageBatchCommand,
 } from '@aws-sdk/client-sqs';
-import type { IntegrationContext } from '../context';
+import type { TestContext } from '@nestfolio/test-support';
 
 export interface CapturedEvent<TDetail = Record<string, unknown>> {
   detailType: string;
@@ -19,7 +19,7 @@ export interface CapturedEvent<TDetail = Record<string, unknown>> {
 export class EventBusTrap {
   private readonly eb: EventBridgeClient;
   private readonly sqs: SQSClient;
-  private readonly ctx: IntegrationContext;
+  private readonly ctx: TestContext;
 
   private queueUrl?: string;
   private queueArn?: string;
@@ -28,7 +28,7 @@ export class EventBusTrap {
   private captured: CapturedEvent[] = [];
   private readonly seenMessageIds = new Set<string>();
 
-  constructor(ctx: IntegrationContext) {
+  constructor(ctx: TestContext) {
     this.ctx = ctx;
     this.eb = new EventBridgeClient({ region: ctx.region });
     this.sqs = new SQSClient({ region: ctx.region });

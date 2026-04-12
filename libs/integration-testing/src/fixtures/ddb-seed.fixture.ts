@@ -1,13 +1,13 @@
 import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
-import type { IntegrationContext } from '../context';
+import type { TestContext } from '@nestfolio/test-support';
 
 export class DdbSeedFixture {
   private readonly client: DynamoDBClient;
-  private readonly ctx: IntegrationContext;
+  private readonly ctx: TestContext;
   private readonly seeded: { tableName: string; pk: string; sk: string }[] = [];
 
-  constructor(ctx: IntegrationContext) {
+  constructor(ctx: TestContext) {
     this.ctx = ctx;
     this.client = new DynamoDBClient({ region: ctx.region });
     this.ctx.cleanup.register('DdbSeedFixture', () => this.teardown());

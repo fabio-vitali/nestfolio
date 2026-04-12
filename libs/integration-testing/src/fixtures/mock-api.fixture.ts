@@ -7,20 +7,20 @@ import {
   GetFunctionConfigurationCommand, CreateFunctionUrlConfigCommand,
   DeleteFunctionUrlConfigCommand, AddPermissionCommand,
 } from '@aws-sdk/client-lambda';
-import type { IntegrationContext } from '../context';
+import type { TestContext } from '@nestfolio/test-support';
 
 const BASIC_EXECUTION_POLICY = 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole';
 
 export class MockApiFixture {
   private readonly iam: IAMClient;
   private readonly lambda: LambdaClient;
-  private readonly ctx: IntegrationContext;
+  private readonly ctx: TestContext;
 
   private roleName?: string;
   private roleArn?: string;
   private functionName?: string;
 
-  constructor(ctx: IntegrationContext) {
+  constructor(ctx: TestContext) {
     this.ctx = ctx;
     this.iam = new IAMClient({ region: ctx.region });
     this.lambda = new LambdaClient({ region: ctx.region });

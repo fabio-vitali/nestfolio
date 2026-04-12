@@ -1,12 +1,6 @@
-export { CleanupRegistry } from './cleanup';
-export { SsmCache } from './ssm-cache';
-export { createIntegrationContext, type IntegrationContext, type TimingConfig } from './context';
-export { EventBridgeClient } from './fixtures/event-bridge-client';
 export { EventBusTrap, type CapturedEvent } from './fixtures/event-bus-trap.fixture';
 export type { BusEventPayload } from '@nestfolio/event-processor';
 export { TableAssertions } from './fixtures/table-assertions';
-export { CognitoFixture, type CognitoTokens } from './fixtures/cognito.fixture';
-export { AppSyncClient } from './fixtures/appsync-client';
 export { MockApiFixture } from './fixtures/mock-api.fixture';
 export { SsmOverrideFixture } from './fixtures/ssm-override.fixture';
 export { AccountSeedingFixture, type AccountSeedOptions } from './fixtures/account-seeding.fixture';

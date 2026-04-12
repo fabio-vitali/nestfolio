@@ -1,13 +1,13 @@
 import { SSMClient, GetParameterCommand, PutParameterCommand } from '@aws-sdk/client-ssm';
-import type { IntegrationContext } from '../context';
+import type { TestContext } from '@nestfolio/test-support';
 
 export class SsmOverrideFixture {
   private readonly client: SSMClient;
-  private readonly ctx: IntegrationContext;
+  private readonly ctx: TestContext;
   private paramName?: string;
   private originalValue?: string;
 
-  constructor(ctx: IntegrationContext) {
+  constructor(ctx: TestContext) {
     this.ctx = ctx;
     this.client = new SSMClient({ region: ctx.region });
   }

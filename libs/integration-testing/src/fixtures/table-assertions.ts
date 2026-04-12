@@ -1,14 +1,14 @@
 import { DynamoDBClient, GetItemCommand, QueryCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall, marshall } from '@aws-sdk/util-dynamodb';
-import type { IntegrationContext } from '../context';
+import type { TestContext } from '@nestfolio/test-support';
 
 export class TableAssertions {
   private readonly client: DynamoDBClient;
-  private readonly ctx: IntegrationContext;
+  private readonly ctx: TestContext;
   private readonly observed: { tableName: string; pk: string; sk: string }[] = [];
   private cleanupRegistered = false;
 
-  constructor(ctx: IntegrationContext) {
+  constructor(ctx: TestContext) {
     this.ctx = ctx;
     this.client = new DynamoDBClient({ region: ctx.region });
     this.registerCleanup();
