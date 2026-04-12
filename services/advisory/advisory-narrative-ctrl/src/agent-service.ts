@@ -1,6 +1,7 @@
 import { createAgentNode, withRetry, withFallback } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
+import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
 import { explainabilityConfig } from './agents/explainability.config';
 
 export interface AgentServiceDeps {
@@ -29,22 +30,17 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       const invocationId = randomUUID();
       const startedAt = new Date().toISOString();
       const subject = (event.subject ?? event) as Record<string, unknown>;
+      const ctx = (event.context ?? subject) as RequestContext;
       const decisionId = subject.decisionId as string;
-      const tenantId = subject.tenantId as string;
+      const tenantId = ctx.tenantId;
 
       await deps.docClient.send(new PutCommand({
         TableName: deps.tableName,
-        Item: {
-          pk: `DECISION#${decisionId}`,
-          sk: `INV#${invocationId}`,
-          __typename: 'AgentInvocation',
-          invocationId,
-          decisionId,
-          tenantId,
-          agentName: 'explainability',
-          status: 'IN_PROGRESS',
-          startedAt,
-        },
+        Item: buildCdcItem('AgentInvocation',
+          { pk: `DECISION#${decisionId}`, sk: `INV#${invocationId}` },
+          ctx,
+          { invocationId, decisionId, agentName: 'explainability', status: 'IN_PROGRESS', startedAt },
+        ),
       }));
 
       const result = await agentNode({
@@ -59,34 +55,21 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       // Record reasoning output
       await deps.docClient.send(new PutCommand({
         TableName: deps.tableName,
-        Item: {
-          pk: `DECISION#${decisionId}`,
-          sk: `REASONING#${invocationId}`,
-          __typename: 'ReasoningOutput',
-          invocationId,
-          decisionId,
-          tenantId,
-          ...result,
-          createdAt: completedAt,
-        },
+        Item: buildCdcItem('ReasoningOutput',
+          { pk: `DECISION#${decisionId}`, sk: `REASONING#${invocationId}` },
+          ctx,
+          { invocationId, decisionId, ...result, createdAt: completedAt },
+        ),
       }));
 
       // Update invocation status
       await deps.docClient.send(new PutCommand({
         TableName: deps.tableName,
-        Item: {
-          pk: `DECISION#${decisionId}`,
-          sk: `INV#${invocationId}`,
-          __typename: 'AgentInvocation',
-          invocationId,
-          decisionId,
-          tenantId,
-          agentName: 'explainability',
-          status: 'COMPLETED',
-          startedAt,
-          completedAt,
-          durationMs,
-        },
+        Item: buildCdcItem('AgentInvocation',
+          { pk: `DECISION#${decisionId}`, sk: `INV#${invocationId}` },
+          ctx,
+          { invocationId, decisionId, agentName: 'explainability', status: 'COMPLETED', startedAt, completedAt, durationMs },
+        ),
       }));
 
       return { decisionId, ...result, metadata: { durationMs, modelTier: 'sonnet' } };

@@ -35,6 +35,8 @@ describe('decisionPacketCreated transform', () => {
         status: 'PENDING',
         version: 1,
         sourceEventId: 'e1',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
       }, {
         pk: 'Decision#t1#d1',
         sk: 'DecisionReadModel',

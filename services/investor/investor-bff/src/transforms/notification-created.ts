@@ -25,6 +25,8 @@ export const notificationCreated = (
     body: s.body,
     relatedEntityType: s.relatedEntityType,
     relatedEntityId: s.relatedEntityId,
+    createdAt: uow.event.timestamp,
+    read: false,
   }, {
     pk: `InvestorProfile#${s.tenantId}#${s.userId}`,
     sk: `Notification#${s.notificationId}`,

@@ -1,5 +1,6 @@
 import { createOrchestrator, invokeOrchestrator } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
 import { portfolioConstructionConfig } from './agents/portfolio-construction.config';
 import { rebalancePlannerConfig } from './agents/rebalance-planner.config';
 import { PortfolioEngineState } from './agents/state';
@@ -36,8 +37,9 @@ export const createAgentService = (deps: AgentServiceDeps) => {
     runPipeline: async (eventId: string, event: Record<string, unknown>): Promise<Record<string, unknown>> => {
       const startedAt = new Date().toISOString();
       const subject = (event.subject ?? event) as Record<string, unknown>;
+      const ctx = (event.context ?? subject) as RequestContext;
       const decisionId = subject.decisionId as string;
-      const tenantId = subject.tenantId as string;
+      const tenantId = ctx.tenantId;
       const sk = `INV#${eventId}`;
       const ttl = Math.floor(Date.now() / 1000) + LOCK_TTL_SECONDS;
 
@@ -46,17 +48,11 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       try {
         await deps.docClient.send(new PutCommand({
           TableName: deps.tableName,
-          Item: {
-            pk: `DECISION#${decisionId}`,
-            sk,
-            __typename: 'AgentInvocation',
-            invocationId: eventId,
-            decisionId,
-            tenantId,
-            status: 'IN_PROGRESS',
-            startedAt,
-            ttl,
-          },
+          Item: buildCdcItem('AgentInvocation',
+            { pk: `DECISION#${decisionId}`, sk },
+            ctx,
+            { invocationId: eventId, decisionId, status: 'IN_PROGRESS', startedAt, ttl },
+          ),
           ConditionExpression: 'attribute_not_exists(sk)',
         }));
       } catch (error: unknown) {
@@ -80,18 +76,11 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       // this drops the ttl so completed records persist indefinitely.
       await deps.docClient.send(new PutCommand({
         TableName: deps.tableName,
-        Item: {
-          pk: `DECISION#${decisionId}`,
-          sk,
-          __typename: 'AgentInvocation',
-          invocationId: eventId,
-          decisionId,
-          tenantId,
-          status: 'COMPLETED',
-          startedAt,
-          completedAt,
-          durationMs,
-        },
+        Item: buildCdcItem('AgentInvocation',
+          { pk: `DECISION#${decisionId}`, sk },
+          ctx,
+          { invocationId: eventId, decisionId, status: 'COMPLETED', startedAt, completedAt, durationMs },
+        ),
       }));
 
       return {

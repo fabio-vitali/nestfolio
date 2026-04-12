@@ -26,6 +26,8 @@ export const decisionPacketCreated = (
     status: 'PENDING',
     version: 1,
     sourceEventId: uow.event.id,
+    createdAt: uow.event.timestamp,
+    updatedAt: uow.event.timestamp,
   }, {
     pk: `Decision#${p.tenantId}#${p.decisionId}`,
     sk: 'DecisionReadModel',

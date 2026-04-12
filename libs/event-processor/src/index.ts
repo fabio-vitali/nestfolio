@@ -88,6 +88,9 @@ export {
   StaticMarketDataProvider, CachedMarketDataProvider, KNOWN_SYMBOLS,
 } from './platform';
 
+// CDC helpers
+export { buildCdcItem } from './util/build-cdc-item';
+
 // Adapter utilities
 export { publishOrUpload, type PublishOrUploadParams } from './lambda/publish-or-upload';
 export { parseRssFeed, type RssArticle } from './lambda/rss-parser';
