@@ -29,6 +29,7 @@ export const recentActivity = (
     activityId: event.id,
     activityType: event.type,
     description,
-    metadata: payload,
+    timestamp: event.timestamp,
+    metadata: JSON.stringify(payload),
   });
 };
