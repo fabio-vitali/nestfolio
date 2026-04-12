@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   TableAssertions,
   MockApiFixture,
@@ -28,15 +30,15 @@ import {
 //
 // Mock + SSM override are deployed once per file in beforeAll because
 // they are stateless infrastructure shared by both tests. Each it()
-// creates its own IntegrationContext to keep tenant data isolated.
+// creates its own TestContext to keep tenant data isolated.
 
 describe('broker-alpaca-adpt resilience: idempotency', () => {
-  let mockCtx: Awaited<ReturnType<typeof createIntegrationContext>>;
+  let mockCtx: Awaited<ReturnType<typeof createTestContext>>;
   let mockApi: MockApiFixture;
   let ssmOverride: SsmOverrideFixture;
 
   beforeAll(async () => {
-    mockCtx = await createIntegrationContext();
+    mockCtx = await createTestContext();
 
     mockApi = new MockApiFixture(mockCtx);
     const zipPath = join(__dirname, '..', 'mocks', 'mock-alpaca.zip');
@@ -57,7 +59,7 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
   }, 60_000);
 
   it('duplicate ALPACA_ORDER_REQUESTED does not create duplicate AlpacaOrderResult record', async () => {
-    const ctx = await createIntegrationContext();
+    const ctx = await createTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -126,7 +128,7 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
   }, 240_000);
 
   it('duplicate ALPACA_TRANSFER_REQUESTED does not create duplicate AlpacaTransferResult record', async () => {
-    const ctx = await createIntegrationContext();
+    const ctx = await createTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);

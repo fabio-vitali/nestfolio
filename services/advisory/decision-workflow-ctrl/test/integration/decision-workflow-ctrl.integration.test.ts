@@ -1,10 +1,12 @@
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   TableAssertions,
   type BusEventPayload,
-  type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 /**
@@ -78,13 +80,13 @@ async function waitForTriggerRecord(
 }
 
 describe('decision-workflow-ctrl', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);

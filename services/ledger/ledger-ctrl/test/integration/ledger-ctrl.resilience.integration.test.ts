@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   TableAssertions,
   snapshotState,
@@ -52,7 +54,7 @@ async function waitForSnapshot(
 
 describe('ledger-ctrl resilience: idempotency', () => {
   it('duplicate ORDER_FILLED does not create duplicate LedgerEntry', async () => {
-    const ctx = await createIntegrationContext();
+    const ctx = await createTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -106,7 +108,7 @@ describe('ledger-ctrl resilience: idempotency', () => {
   }, 180_000);
 
   it('duplicate DEPOSIT_DETECTED does not create duplicate LedgerEntry', async () => {
-    const ctx = await createIntegrationContext();
+    const ctx = await createTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -154,7 +156,7 @@ describe('ledger-ctrl resilience: idempotency', () => {
 
   it('duplicate ORDER_FILLED does not emit duplicate BALANCE_UPDATED CDC', async () => {
     // Separate context to isolate CDC events
-    const cdcCtx = await createIntegrationContext();
+    const cdcCtx = await createTestContext();
     try {
       const cdcEb = new EventBridgeClient(cdcCtx);
       const trap = new EventBusTrap(cdcCtx);
@@ -214,7 +216,7 @@ describe('ledger-ctrl resilience: idempotency', () => {
 describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
   it('DEPOSIT_DETECTED then ORDER_FILLED vs reverse → same final snapshot', async () => {
     // ── Run A: ordered (deposit first) ──
-    const ctxA = await createIntegrationContext();
+    const ctxA = await createTestContext();
     try {
       const ebA = new EventBridgeClient(ctxA);
       const tableA = new TableAssertions(ctxA);
@@ -254,7 +256,7 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
       );
 
       // ── Run B: reversed (fill first) ──
-      const ctxB = await createIntegrationContext();
+      const ctxB = await createTestContext();
       try {
         const ebB = new EventBridgeClient(ctxB);
         const tableB = new TableAssertions(ctxB);
@@ -343,7 +345,7 @@ describe('ledger-ctrl resilience: order-agnostic full shuffle', () => {
     ];
 
     // ── Run A: sequential order ──
-    const ctxA = await createIntegrationContext();
+    const ctxA = await createTestContext();
     try {
       const ebA = new EventBridgeClient(ctxA);
       const tableA = new TableAssertions(ctxA);
@@ -368,7 +370,7 @@ describe('ledger-ctrl resilience: order-agnostic full shuffle', () => {
 
       // ── Run B: shuffled order [2, 0, 1] → MSFT fill, deposit, AAPL fill ──
       const shuffled = [events[2], events[0], events[1]];
-      const ctxB = await createIntegrationContext();
+      const ctxB = await createTestContext();
       try {
         const ebB = new EventBridgeClient(ctxB);
         const tableB = new TableAssertions(ctxB);

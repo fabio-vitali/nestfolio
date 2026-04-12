@@ -1,19 +1,21 @@
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   TableAssertions,
-  type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 describe('market-intelligence-ctrl: ANALYZE_MARKET → AgentInvocation DDB write + CDC', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let table: TableAssertions;
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();

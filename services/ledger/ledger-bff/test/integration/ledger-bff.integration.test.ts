@@ -1,20 +1,22 @@
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
-  TableAssertions,
   CognitoFixture,
   AppSyncClient,
-  type IntegrationContext,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
+  TableAssertions,
 } from '@nestfolio/integration-testing';
 
 describe('ledger-bff', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let table: TableAssertions;
   let appsync: AppSyncClient;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();

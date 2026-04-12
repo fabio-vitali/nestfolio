@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
 } from '@nestfolio/integration-testing';
 
@@ -15,7 +17,7 @@ import {
 
 describe('reconciliation-ctrl resilience: idempotency', () => {
   it('duplicate PORTFOLIO_UPDATED does not produce duplicate ReconciliationResult', async () => {
-    const ctx = await createIntegrationContext();
+    const ctx = await createTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const trap = new EventBusTrap(ctx);
@@ -82,7 +84,7 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
 describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
   it('PORTFOLIO_UPDATED and ALPACA_ACCOUNT_SNAPSHOT in either order both produce reconciliation', async () => {
     // ── Run A: PORTFOLIO_UPDATED first, then ALPACA_ACCOUNT_SNAPSHOT ──
-    const ctxA = await createIntegrationContext();
+    const ctxA = await createTestContext();
     try {
       const ebA = new EventBridgeClient(ctxA);
       const trapA = new EventBusTrap(ctxA);
@@ -122,7 +124,7 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
       expect(secondA.detailType).toBe('RECONCILIATION_COMPLETED');
 
       // ── Run B: ALPACA_ACCOUNT_SNAPSHOT first, then PORTFOLIO_UPDATED ──
-      const ctxB = await createIntegrationContext();
+      const ctxB = await createTestContext();
       try {
         const ebB = new EventBridgeClient(ctxB);
         const trapB = new EventBusTrap(ctxB);

@@ -1,15 +1,17 @@
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
-  EventBusTrap,
-  TableAssertions,
   CognitoFixture,
   AppSyncClient,
-  type IntegrationContext,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
+  EventBusTrap,
+  TableAssertions,
 } from '@nestfolio/integration-testing';
 
 describe('advisory-bff', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
   let table: TableAssertions;
@@ -17,7 +19,7 @@ describe('advisory-bff', () => {
   let appsync: AppSyncClient;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);

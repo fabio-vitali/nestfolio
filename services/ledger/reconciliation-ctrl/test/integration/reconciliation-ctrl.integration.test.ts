@@ -1,17 +1,19 @@
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
-  type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 describe('reconciliation-ctrl: PORTFOLIO_UPDATED → RECONCILIATION_COMPLETED CDC', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
     await trap.deploy({ bus: 'ledger', detailType: 'RECONCILIATION_COMPLETED' });

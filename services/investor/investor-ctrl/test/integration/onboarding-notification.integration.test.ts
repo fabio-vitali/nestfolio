@@ -1,8 +1,10 @@
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
-  type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 /**
@@ -27,13 +29,13 @@ import {
  */
 
 describe('investor-ctrl', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let notificationTrap: EventBusTrap;
   let reportTrap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     notificationTrap = new EventBusTrap(ctx);
     reportTrap = new EventBusTrap(ctx);

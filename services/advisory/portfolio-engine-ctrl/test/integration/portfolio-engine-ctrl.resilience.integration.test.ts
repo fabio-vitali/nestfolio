@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   TableAssertions,
   countItems,
@@ -30,7 +32,7 @@ import {
 
 describe('portfolio-engine-ctrl resilience: idempotency', () => {
   it('duplicate CONSTRUCT_PORTFOLIO does not create duplicate AgentInvocation', async () => {
-    const ctx = await createIntegrationContext();
+    const ctx = await createTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -116,7 +118,7 @@ describe('portfolio-engine-ctrl resilience: idempotency', () => {
 describe('portfolio-engine-ctrl resilience: order-agnostic pairwise', () => {
   it('CONSTRUCT_PORTFOLIO and SEC_PROSPECTUS_UPDATED in either order both process', async () => {
     // ── Run A: CONSTRUCT_PORTFOLIO then SEC_PROSPECTUS_UPDATED ──
-    const ctxA = await createIntegrationContext();
+    const ctxA = await createTestContext();
     try {
       const ebA = new EventBridgeClient(ctxA);
       const tableA = new TableAssertions(ctxA);
@@ -173,7 +175,7 @@ describe('portfolio-engine-ctrl resilience: order-agnostic pairwise', () => {
       await new Promise((r) => setTimeout(r, 15_000));
 
       // ── Run B: SEC_PROSPECTUS_UPDATED then CONSTRUCT_PORTFOLIO ──
-      const ctxB = await createIntegrationContext();
+      const ctxB = await createTestContext();
       try {
         const ebB = new EventBridgeClient(ctxB);
         const tableB = new TableAssertions(ctxB);

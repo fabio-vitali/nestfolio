@@ -1,9 +1,11 @@
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   TableAssertions,
-  type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 // ── Helper: wait for a LedgerEntry with a specific eventType ──────────
@@ -38,12 +40,12 @@ async function waitForLedgerEntry(
 // ── Smoke: ORDER_FILLED → LedgerEntry DDB write ───────────────────────
 
 describe('ledger-ctrl: ORDER_FILLED → LedgerEntry DDB write (smoke)', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
@@ -84,12 +86,12 @@ describe('ledger-ctrl: ORDER_FILLED → LedgerEntry DDB write (smoke)', () => {
 // ── DDB write coverage: each event type creates a LedgerEntry ─────────
 
 describe('ledger-ctrl: event-listener DDB writes', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
@@ -199,12 +201,12 @@ describe('ledger-ctrl: event-listener DDB writes', () => {
 //       Reducer (snapshot + derived events) → DDB Stream → Egress → EB
 
 describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
 
@@ -305,12 +307,12 @@ describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
 // ── Simulation: DECISION_PACKET_CREATED → simulated LedgerEntry DDB writes ──
 
 describe('ledger-ctrl: DECISION_PACKET_CREATED → simulated LedgerEntry writes', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
@@ -402,12 +404,12 @@ describe('ledger-ctrl: DECISION_PACKET_CREATED → simulated LedgerEntry writes'
 //       DDB Stream → Egress → EB (BALANCE_UPDATED)
 
 describe('ledger-ctrl: simulation CDC chain → BALANCE_UPDATED', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
 
@@ -444,12 +446,12 @@ describe('ledger-ctrl: simulation CDC chain → BALANCE_UPDATED', () => {
 // but LedgerEntryEvent is always written when the snapshot updates →
 // Egress emits LEDGER_ENTRY_RECORDED.
 describe('ledger-ctrl: CDC chain → LEDGER_ENTRY_RECORDED', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
 

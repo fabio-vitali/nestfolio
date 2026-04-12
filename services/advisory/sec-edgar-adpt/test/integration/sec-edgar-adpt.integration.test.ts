@@ -1,13 +1,15 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
-  type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 /**
@@ -28,13 +30,13 @@ import {
  *   10-K, 10-Q -> SEC_10K_UPDATED
  */
 describe('sec-edgar-adpt (mocked)', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
 
     // Deploy mock SEC EDGAR Lambda
     const mockApi = new MockApiFixture(ctx);

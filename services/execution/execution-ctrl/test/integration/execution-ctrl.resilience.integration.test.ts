@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   TableAssertions,
   countItems,
@@ -45,7 +47,7 @@ async function countItemsForEventId(
 
 describe('execution-ctrl resilience: idempotency', () => {
   it('duplicate DECISION_APPROVED does not create duplicate Order/StagedOrder', async () => {
-    const ctx = await createIntegrationContext();
+    const ctx = await createTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -119,7 +121,7 @@ describe('execution-ctrl resilience: idempotency', () => {
 describe('execution-ctrl resilience: order-agnostic pairwise', () => {
   it('two DECISION_APPROVED events in either order produce same record set', async () => {
     // ── Run A: event1 (AAPL) then event2 (MSFT) ──
-    const ctxA = await createIntegrationContext();
+    const ctxA = await createTestContext();
     try {
       const ebA = new EventBridgeClient(ctxA);
       const tableA = new TableAssertions(ctxA);
@@ -179,7 +181,7 @@ describe('execution-ctrl resilience: order-agnostic pairwise', () => {
         (await countItemsForEventId(tableA, ctxA.tenantId, eventIdA2));
 
       // ── Run B: event2 (MSFT) then event1 (AAPL), same payloads reversed ──
-      const ctxB = await createIntegrationContext();
+      const ctxB = await createTestContext();
       try {
         const ebB = new EventBridgeClient(ctxB);
         const tableB = new TableAssertions(ctxB);
