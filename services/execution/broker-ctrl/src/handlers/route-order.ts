@@ -1,10 +1,12 @@
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { BrokerOrderRepository } from '../repositories/broker-order.repository';
 import { BrokerCtrlRoutedEventTypes } from '../domain/events';
-import { logger, requireEnv } from '@nestfolio/event-processor';
+import { logger, requireEnv, getUUID, getTime } from '@nestfolio/event-processor';
 
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const BUS_NAME = requireEnv('BUS_NAME');
+const SERVICE_NAME = 'broker-ctrl';
+const REGION = process.env.AWS_REGION ?? 'us-east-1';
 
 const repo = new BrokerOrderRepository(TABLE_NAME);
 const eb = new EventBridgeClient({});
@@ -43,21 +45,25 @@ export async function handler(event: RouteOrderEvent) {
     ? BrokerCtrlRoutedEventTypes.ALPACA_ORDER_REQUESTED
     : BrokerCtrlRoutedEventTypes.SIM_ORDER_REQUESTED;
 
+  const detail = {
+    id: getUUID(),
+    type: detailType,
+    timestamp: getTime(),
+    subject: {
+      orderId: order.orderId,
+      userId: order.userId,
+      symbol: order.symbol,
+      side: order.side,
+      quantity: order.quantity,
+    },
+    context: { tenantId: order.tenantId, userId: order.userId, region: REGION },
+  };
   await eb.send(new PutEventsCommand({
     Entries: [{
       EventBusName: BUS_NAME,
-      Source: 'broker-ctrl',
+      Source: `${BUS_NAME}@${SERVICE_NAME}`,
       DetailType: detailType,
-      Detail: JSON.stringify({
-        tenantId: order.tenantId,
-        subject: {
-          orderId: order.orderId,
-          userId: order.userId,
-          symbol: order.symbol,
-          side: order.side,
-          quantity: order.quantity,
-        },
-      }),
+      Detail: JSON.stringify(detail),
     }],
   }));
 

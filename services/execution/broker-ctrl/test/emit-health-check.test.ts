@@ -69,6 +69,7 @@ describe('emit-health-check handler', () => {
   it('stores healTaskToken and emits ALPACA_ACCOUNT_CHECK', async () => {
     const event: EmitHealthCheckEvent = {
       tenantId: 't-1',
+      userId: 'u-1',
       symbol: 'Global',
       taskToken: 'heal-token-123',
       attemptCount: 0,
@@ -87,16 +88,18 @@ describe('emit-health-check handler', () => {
     const ebCall = mockEbSend.mock.calls[0][0];
     expect(ebCall.input.Entries[0].DetailType).toBe('ALPACA_ACCOUNT_CHECK');
     expect(ebCall.input.Entries[0].EventBusName).toBe('test-bus');
-    expect(ebCall.input.Entries[0].Source).toBe('broker-ctrl');
+    expect(ebCall.input.Entries[0].Source).toBe('test-bus@broker-ctrl');
 
     const detail = JSON.parse(ebCall.input.Entries[0].Detail);
-    expect(detail.tenantId).toBe('t-1');
+    expect(detail.context.tenantId).toBe('t-1');
+    expect(detail.type).toBe('ALPACA_ACCOUNT_CHECK');
     expect(detail.subject.symbol).toBe('Global');
   });
 
   it('passes through different tenantId and symbol values', async () => {
     const event: EmitHealthCheckEvent = {
       tenantId: 't-42',
+      userId: 'u-42',
       symbol: 'AAPL',
       taskToken: 'heal-token-456',
       attemptCount: 3,
@@ -109,7 +112,7 @@ describe('emit-health-check handler', () => {
 
     const ebCall = mockEbSend.mock.calls[0][0];
     const detail = JSON.parse(ebCall.input.Entries[0].Detail);
-    expect(detail.tenantId).toBe('t-42');
+    expect(detail.context.tenantId).toBe('t-42');
     expect(detail.subject.symbol).toBe('AAPL');
   });
 });

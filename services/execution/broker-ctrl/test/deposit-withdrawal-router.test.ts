@@ -76,12 +76,13 @@ describe('deposit-withdrawal-router handler', () => {
       const ebCall = mockEbSend.mock.calls[0][0];
       expect(ebCall.input.Entries[0]).toMatchObject({
         EventBusName: 'test-bus',
-        Source: 'broker-ctrl',
+        Source: 'test-bus@broker-ctrl',
         DetailType: 'SIM_DEPOSIT_INITIATED',
       });
       const detail = JSON.parse(ebCall.input.Entries[0].Detail);
-      expect(detail.tenantId).toBe('t-1');
+      expect(detail.context.tenantId).toBe('t-1');
       expect(detail.subject.direction).toBe('INCOMING');
+      expect(detail.type).toBe('SIM_DEPOSIT_INITIATED');
     });
 
     it('routes to ALPACA_TRANSFER_REQUESTED with direction=INCOMING when mode=live', async () => {
@@ -102,12 +103,36 @@ describe('deposit-withdrawal-router handler', () => {
       const ebCall = mockEbSend.mock.calls[0][0];
       expect(ebCall.input.Entries[0]).toMatchObject({
         EventBusName: 'test-bus',
-        Source: 'broker-ctrl',
+        Source: 'test-bus@broker-ctrl',
         DetailType: 'ALPACA_TRANSFER_REQUESTED',
       });
       const detail = JSON.parse(ebCall.input.Entries[0].Detail);
-      expect(detail.tenantId).toBe('t-2');
+      expect(detail.context.tenantId).toBe('t-2');
       expect(detail.subject.direction).toBe('INCOMING');
+    });
+  });
+
+    it('emits standard event envelope with id, type, timestamp, subject, context', async () => {
+      mockDdbSend.mockResolvedValue({ Item: { mode: 'simulation' } });
+
+      const event = makeSqsEvent(
+        fakeSqsRecord(
+          BrokerCtrlInboundEventTypes.DEPOSIT_INITIATED,
+          { amount: 1000 },
+          { tenantId: 't-envelope', userId: 'u-envelope', region: 'us-east-1' },
+        ),
+      );
+
+      await handler(event);
+
+      const detail = JSON.parse(mockEbSend.mock.calls[0][0].input.Entries[0].Detail);
+      expect(detail).toEqual(expect.objectContaining({
+        id: expect.any(String),
+        type: 'SIM_DEPOSIT_INITIATED',
+        timestamp: expect.any(String),
+        subject: expect.objectContaining({ direction: 'INCOMING' }),
+        context: { tenantId: 't-envelope', userId: 'u-envelope', region: 'us-east-1' },
+      }));
     });
   });
 
@@ -130,11 +155,11 @@ describe('deposit-withdrawal-router handler', () => {
       const ebCall = mockEbSend.mock.calls[0][0];
       expect(ebCall.input.Entries[0]).toMatchObject({
         EventBusName: 'test-bus',
-        Source: 'broker-ctrl',
+        Source: 'test-bus@broker-ctrl',
         DetailType: 'SIM_WITHDRAWAL_REQUESTED',
       });
       const detail = JSON.parse(ebCall.input.Entries[0].Detail);
-      expect(detail.tenantId).toBe('t-3');
+      expect(detail.context.tenantId).toBe('t-3');
       expect(detail.subject.direction).toBe('OUTGOING');
     });
 
@@ -156,11 +181,11 @@ describe('deposit-withdrawal-router handler', () => {
       const ebCall = mockEbSend.mock.calls[0][0];
       expect(ebCall.input.Entries[0]).toMatchObject({
         EventBusName: 'test-bus',
-        Source: 'broker-ctrl',
+        Source: 'test-bus@broker-ctrl',
         DetailType: 'ALPACA_TRANSFER_REQUESTED',
       });
       const detail = JSON.parse(ebCall.input.Entries[0].Detail);
-      expect(detail.tenantId).toBe('t-4');
+      expect(detail.context.tenantId).toBe('t-4');
       expect(detail.subject.direction).toBe('OUTGOING');
     });
   });

@@ -243,7 +243,7 @@ describe('Order Lifecycle Integration', () => {
       const ebEntry = getEbEntry(0);
       expect(ebEntry).toMatchObject({
         EventBusName: 'execution-bus',
-        Source: 'broker-ctrl',
+        Source: 'execution-bus@broker-ctrl',
         DetailType: 'SIM_ORDER_REQUESTED',
       });
       const ebDetail = JSON.parse(ebEntry.Detail as string);
@@ -599,11 +599,11 @@ describe('Deposit/Withdrawal Router Integration', () => {
       const ebCall = mockEbSend.mock.calls[0][0];
       expect(ebCall.input.Entries[0]).toMatchObject({
         EventBusName: 'execution-bus',
-        Source: 'broker-ctrl',
+        Source: 'execution-bus@broker-ctrl',
         DetailType: 'SIM_DEPOSIT_INITIATED',
       });
       const detail = JSON.parse(ebCall.input.Entries[0].Detail);
-      expect(detail.tenantId).toBe('t-1');
+      expect(detail.context.tenantId).toBe('t-1');
       expect(detail.subject.direction).toBe('INCOMING');
       expect(detail.subject.amount).toBe(1000);
     });
@@ -624,11 +624,11 @@ describe('Deposit/Withdrawal Router Integration', () => {
       const ebCall = mockEbSend.mock.calls[0][0];
       expect(ebCall.input.Entries[0]).toMatchObject({
         EventBusName: 'execution-bus',
-        Source: 'broker-ctrl',
+        Source: 'execution-bus@broker-ctrl',
         DetailType: 'ALPACA_TRANSFER_REQUESTED',
       });
       const detail = JSON.parse(ebCall.input.Entries[0].Detail);
-      expect(detail.tenantId).toBe('t-2');
+      expect(detail.context.tenantId).toBe('t-2');
       expect(detail.subject.direction).toBe('INCOMING');
     });
   });
@@ -650,11 +650,11 @@ describe('Deposit/Withdrawal Router Integration', () => {
       const ebCall = mockEbSend.mock.calls[0][0];
       expect(ebCall.input.Entries[0]).toMatchObject({
         EventBusName: 'execution-bus',
-        Source: 'broker-ctrl',
+        Source: 'execution-bus@broker-ctrl',
         DetailType: 'SIM_WITHDRAWAL_REQUESTED',
       });
       const detail = JSON.parse(ebCall.input.Entries[0].Detail);
-      expect(detail.tenantId).toBe('t-3');
+      expect(detail.context.tenantId).toBe('t-3');
       expect(detail.subject.direction).toBe('OUTGOING');
     });
 
@@ -674,11 +674,11 @@ describe('Deposit/Withdrawal Router Integration', () => {
       const ebCall = mockEbSend.mock.calls[0][0];
       expect(ebCall.input.Entries[0]).toMatchObject({
         EventBusName: 'execution-bus',
-        Source: 'broker-ctrl',
+        Source: 'execution-bus@broker-ctrl',
         DetailType: 'ALPACA_TRANSFER_REQUESTED',
       });
       const detail = JSON.parse(ebCall.input.Entries[0].Detail);
-      expect(detail.tenantId).toBe('t-4');
+      expect(detail.context.tenantId).toBe('t-4');
       expect(detail.subject.direction).toBe('OUTGOING');
     });
   });

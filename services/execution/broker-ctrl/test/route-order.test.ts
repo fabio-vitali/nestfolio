@@ -90,7 +90,7 @@ describe('route-order handler', () => {
     const ebCall = mockEbSend.mock.calls[0][0];
     expect(ebCall.input.Entries[0]).toMatchObject({
       EventBusName: 'test-bus',
-      Source: 'broker-ctrl',
+      Source: 'test-bus@broker-ctrl',
       DetailType: 'SIM_ORDER_REQUESTED',
     });
   });
@@ -127,7 +127,8 @@ describe('route-order handler', () => {
 
     const ebCall = mockEbSend.mock.calls[0][0];
     const detail = JSON.parse(ebCall.input.Entries[0].Detail);
-    expect(detail.tenantId).toBe('t-1');
+    expect(detail.context.tenantId).toBe('t-1');
+    expect(detail.type).toBe('SIM_ORDER_REQUESTED');
     expect(detail.subject).toMatchObject({
       orderId: 'order-1',
       symbol: 'VTI',

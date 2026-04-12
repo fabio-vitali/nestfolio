@@ -1,16 +1,19 @@
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { CircuitBreakerRepository } from '../repositories/circuit-breaker.repository';
 import { BrokerCtrlRoutedEventTypes } from '../domain/events';
-import { logger, requireEnv } from '@nestfolio/event-processor';
+import { logger, requireEnv, getUUID, getTime } from '@nestfolio/event-processor';
 
 const TABLE_NAME = requireEnv('TABLE_NAME');
 const BUS_NAME = requireEnv('BUS_NAME');
+const SERVICE_NAME = 'broker-ctrl';
+const REGION = process.env.AWS_REGION ?? 'us-east-1';
 
 const circuitBreakerRepo = new CircuitBreakerRepository(TABLE_NAME);
 const eb = new EventBridgeClient({});
 
 export interface EmitHealthCheckEvent {
   tenantId: string;
+  userId: string;
   symbol: string;
   taskToken: string;
   attemptCount: number;
@@ -33,15 +36,19 @@ export async function handler(event: EmitHealthCheckEvent) {
   await circuitBreakerRepo.storeHealTaskToken(tenantId, symbol, taskToken);
 
   // 2. Emit ALPACA_ACCOUNT_CHECK
+  const detail = {
+    id: getUUID(),
+    type: BrokerCtrlRoutedEventTypes.ALPACA_ACCOUNT_CHECK,
+    timestamp: getTime(),
+    subject: { symbol },
+    context: { tenantId, userId: event.userId, region: REGION },
+  };
   const response = await eb.send(new PutEventsCommand({
     Entries: [{
       EventBusName: BUS_NAME,
-      Source: 'broker-ctrl',
+      Source: `${BUS_NAME}@${SERVICE_NAME}`,
       DetailType: BrokerCtrlRoutedEventTypes.ALPACA_ACCOUNT_CHECK,
-      Detail: JSON.stringify({
-        tenantId,
-        subject: { symbol },
-      }),
+      Detail: JSON.stringify(detail),
     }],
   }));
 
