@@ -23,7 +23,7 @@ interface OnboardingCompletedSubject {
  */
 export async function onboardingCompleted(
   payload: EventPayload,
-  _ctx: EventContext,
+  ctx: EventContext,
 ): Promise<WriteIntent> {
   const s = payload.subject as unknown as OnboardingCompletedSubject;
   const tableName = process.env['TABLE_NAME']!;
@@ -54,7 +54,7 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: `Goal#${goalId}`, __typename: 'Goal',
-            tenantId: s.tenantId, timestamp: now, goalId,
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now, goalId,
             objective: s.goal.objective,
             timeHorizonMonths: s.horizonYears * 12,
             targetAmountCents: 0, currency: s.currency, targetReturn: 0,
@@ -68,7 +68,7 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: 'RiskProfile', __typename: 'RiskProfile',
-            tenantId: s.tenantId, timestamp: now, profileId: getUUID(),
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now, profileId: getUUID(),
             score: risk.score, band: risk.band,
             toleranceResponse: risk.tolerance, experienceLevel: risk.experienceLevel,
             assessedAt: now, version: 1,
@@ -81,7 +81,7 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: 'OperatingMode', __typename: 'OperatingModeRecord',
-            tenantId: s.tenantId, timestamp: now,
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now,
             mode: s.operatingMode, selectedAt: now,
           } satisfies TableEntry,
         },
@@ -92,7 +92,7 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: 'AccountMode', __typename: 'AccountMode',
-            tenantId: s.tenantId, timestamp: now,
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now,
             mode: s.accountMode, capitalAmount: s.capitalAmount, currency: s.currency,
             createdAt: now, updatedAt: now,
           } satisfies TableEntry,
@@ -104,7 +104,7 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: 'Mandate', __typename: 'Mandate',
-            tenantId: s.tenantId, timestamp: now, mandateId,
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now, mandateId,
             level: 'ADVISORY',
             monthlyTurnoverCapPercent: 10,
             maxSingleTradePercent: 5,
@@ -120,8 +120,8 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk, sk: `Deposit#${depositId}`, __typename: 'Deposit',
-            tenantId: s.tenantId, timestamp: now,
-            userId: s.userId, depositId,
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region, timestamp: now,
+            depositId,
             amountCents: s.capitalAmount, currency: s.currency,
             status: 'INITIATED', initiatedAt: now,
           } satisfies TableEntry,
