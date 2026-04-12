@@ -39,7 +39,7 @@ export function request(ctx) {
 
 export function response(ctx) {
   if (ctx.error) {
-    if (ctx.error.type === 'DynamoDB:ConditionalCheckFailedException') {
+    if (ctx.error.type === 'DynamoDB:TransactionCanceledException') {
       util.error('Insufficient funds', 'InsufficientFundsError');
     }
     util.error(ctx.error.message, ctx.error.type);
