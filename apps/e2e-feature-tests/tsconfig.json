@@ -3,7 +3,7 @@
   "compilerOptions": {
     "module": "ES2022",
     "target": "ES2022",
-    "outDir": "../../dist/libs/e2e-feature-tests",
+    "outDir": "../../dist/apps/e2e-feature-tests",
     "declaration": true,
     "types": ["node"]
   },
