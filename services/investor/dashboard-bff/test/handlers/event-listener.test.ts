@@ -2,12 +2,13 @@ import { createHandlers } from '../../src/handlers/event-listener';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
+import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
 
 describe('dashboard-bff event-listener', () => {
-  it('should export handlers for all 14 event types', () => {
+  it('should export handlers for all 16 event types', () => {
     const handlers = createHandlers();
 
-    expect(Object.keys(handlers)).toHaveLength(14);
+    expect(Object.keys(handlers)).toHaveLength(16);
 
     // Ledger events
     expect(handlers).toHaveProperty(LedgerCrossDomainEventTypes.BALANCE_UPDATED);
@@ -28,5 +29,9 @@ describe('dashboard-bff event-listener', () => {
     expect(handlers).toHaveProperty(InvestorBffEventTypes.RISK_PROFILE_UPDATED);
     expect(handlers).toHaveProperty(InvestorBffEventTypes.OPERATING_MODE_SELECTED);
     expect(handlers).toHaveProperty(InvestorBffEventTypes.OPERATING_MODE_CHANGED);
+
+    // Execution cross-domain events (via investor-adpt)
+    expect(handlers).toHaveProperty(InvestorIngestEventTypes.DEPOSIT_DETECTED);
+    expect(handlers).toHaveProperty(InvestorIngestEventTypes.WITHDRAWAL_COMPLETED);
   });
 });

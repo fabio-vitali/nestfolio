@@ -3,6 +3,7 @@ import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
+import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
 import { portfolioSummary } from '../transforms/portfolio-summary';
 import { positionSnapshot } from '../transforms/position-snapshot';
 import { recentActivity } from '../transforms/recent-activity';
@@ -49,6 +50,10 @@ export function createHandlers() {
       investorSnapshot(toUow(payload, ctx)),
     [InvestorBffEventTypes.OPERATING_MODE_CHANGED]: (payload: EventPayload, ctx: EventContext) =>
       investorSnapshot(toUow(payload, ctx)),
+    [InvestorIngestEventTypes.DEPOSIT_DETECTED]: (payload: EventPayload, ctx: EventContext) =>
+      recentActivity(toUow(payload, ctx)),
+    [InvestorIngestEventTypes.WITHDRAWAL_COMPLETED]: (payload: EventPayload, ctx: EventContext) =>
+      recentActivity(toUow(payload, ctx)),
   };
 }
 
