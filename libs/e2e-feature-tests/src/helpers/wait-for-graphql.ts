@@ -22,12 +22,21 @@ export async function waitForGraphQL<T>(
   const deadline = Date.now() + timeoutMs;
 
   let last: T | undefined;
+  let lastError: unknown;
   while (Date.now() < deadline) {
-    last = await client.query<T>(operation, variables);
-    if (predicate(last)) return last;
+    try {
+      last = await client.query<T>(operation, variables);
+      lastError = undefined;
+      if (predicate(last)) return last;
+    } catch (err) {
+      // Treat GraphQL errors as a retry signal — the read-model may not
+      // have materialized yet (e.g., resolver returns NotFound on first poll).
+      lastError = err;
+    }
     await new Promise((r) => setTimeout(r, intervalMs));
   }
   throw new Error(
-    `waitForGraphQL timed out after ${timeoutMs}ms. Last result: ${JSON.stringify(last)}`,
+    `waitForGraphQL timed out after ${timeoutMs}ms. Last result: ${JSON.stringify(last)}` +
+    (lastError ? `. Last error: ${lastError}` : ''),
   );
 }
