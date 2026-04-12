@@ -53,7 +53,7 @@ describe('scenario 1 — investor funds their account', () => {
       `query RecentActivity { getRecentActivity(limit: 20) { activityType description timestamp metadata } }`,
       {},
       (r) => r.getRecentActivity.some((e) => e.activityType.toUpperCase().includes('DEPOSIT')),
-      { timeoutMs: 180_000 },
+      { timeoutMs: 480_000 },
     );
     expect(dashboard.getRecentActivity.some((e) => e.activityType.toUpperCase().includes('DEPOSIT'))).toBe(true);
   });

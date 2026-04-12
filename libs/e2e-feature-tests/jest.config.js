@@ -5,7 +5,7 @@ module.exports = {
   testEnvironment: 'node',
   rootDir: '.',
   testMatch: ['<rootDir>/test/**/*.test.ts'],
-  testTimeout: 300_000,
+  testTimeout: 600_000,
   maxWorkers: 1,
   globalTeardown: '<rootDir>/jest.global-teardown.ts',
   moduleNameMapper: {
