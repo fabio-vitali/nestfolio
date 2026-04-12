@@ -4,7 +4,7 @@ module.exports = {
   displayName: 'e2e-feature-tests',
   testEnvironment: 'node',
   rootDir: '.',
-  testMatch: ['<rootDir>/test/**/*.test.ts'],
+  testMatch: ['<rootDir>/src/**/*.e2e.test.ts', '<rootDir>/test/**/*.test.ts'],
   testTimeout: 300_000,
   maxWorkers: 1,
   globalTeardown: '<rootDir>/jest.global-teardown.ts',

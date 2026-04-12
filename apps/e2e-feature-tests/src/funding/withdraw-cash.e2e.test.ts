@@ -11,7 +11,7 @@ import {
   bffClient,
   waitForGraphQL,
   type FreshTenant,
-} from '../../src';
+} from '..';
 
 describe('scenario 2 — investor withdraws cash', () => {
   let ctx: TestContext;

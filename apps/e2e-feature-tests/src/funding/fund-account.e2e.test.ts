@@ -9,7 +9,7 @@ import {
   bffClient,
   waitForGraphQL,
   type FreshTenant,
-} from '../../src';
+} from '..';
 
 describe('scenario 1 — investor funds their account', () => {
   let ctx: TestContext;
