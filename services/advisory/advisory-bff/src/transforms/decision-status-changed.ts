@@ -23,6 +23,7 @@ export const decisionStatusChanged = (
   return update('DecisionReadModel', {
     status: newStatus,
   }, {
+    condition: 'attribute_exists(pk)',
     overrides: {
       pk: `Decision#${uow.event.subject.tenantId}#${uow.event.subject.decisionId}`,
       sk: 'DecisionReadModel',

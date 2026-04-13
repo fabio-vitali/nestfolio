@@ -17,6 +17,7 @@ describe('decisionStatusChanged transform', () => {
   it('should map DECISION_PACKET_UPDATED to COMPLIANCE_REVIEW status', () => {
     expect(decisionStatusChanged(makeUow('DECISION_PACKET_UPDATED') as any)).toEqual(
       update('DecisionReadModel', { status: 'COMPLIANCE_REVIEW' }, {
+        condition: 'attribute_exists(pk)',
         overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
     );
@@ -25,6 +26,7 @@ describe('decisionStatusChanged transform', () => {
   it('should map DECISION_APPROVED to APPROVED status', () => {
     expect(decisionStatusChanged(makeUow('DECISION_APPROVED') as any)).toEqual(
       update('DecisionReadModel', { status: 'APPROVED' }, {
+        condition: 'attribute_exists(pk)',
         overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
     );
@@ -33,6 +35,7 @@ describe('decisionStatusChanged transform', () => {
   it('should map DECISION_BLOCKED to BLOCKED status', () => {
     expect(decisionStatusChanged(makeUow('DECISION_BLOCKED') as any)).toEqual(
       update('DecisionReadModel', { status: 'BLOCKED' }, {
+        condition: 'attribute_exists(pk)',
         overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
     );
@@ -41,6 +44,7 @@ describe('decisionStatusChanged transform', () => {
   it('should map USER_CONFIRMATION_REQUESTED to AWAITING_CONFIRMATION status', () => {
     expect(decisionStatusChanged(makeUow('USER_CONFIRMATION_REQUESTED') as any)).toEqual(
       update('DecisionReadModel', { status: 'AWAITING_CONFIRMATION' }, {
+        condition: 'attribute_exists(pk)',
         overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
     );
