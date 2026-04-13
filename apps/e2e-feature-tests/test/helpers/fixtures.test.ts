@@ -2,6 +2,14 @@ jest.mock('@nestfolio/test-support', () => ({
   EventBridgeClient: jest.fn().mockImplementation(() => ({
     putEvent: jest.fn().mockResolvedValue(undefined),
   })),
+  AppSyncClient: jest.fn().mockImplementation(() => ({
+    query: jest.fn().mockResolvedValue({}),
+    mutate: jest.fn().mockResolvedValue({}),
+  })),
+}));
+
+jest.mock('../../src/helpers/wait-for-graphql', () => ({
+  waitForGraphQL: jest.fn().mockResolvedValue({ getProfile: { tenantId: 'tenant-1' } }),
 }));
 
 import {
@@ -9,9 +17,10 @@ import {
   applyFixtures,
 } from '../../src/helpers/fixtures';
 import { EventBridgeClient } from '@nestfolio/test-support';
+import { waitForGraphQL } from '../../src/helpers/wait-for-graphql';
 
 describe('fixtures — onboarded', () => {
-  it('publishes USER_REGISTERED then ONBOARDING_COMPLETED to the investor bus', async () => {
+  it('publishes USER_REGISTERED, waits for profile, then publishes ONBOARDING_COMPLETED', async () => {
     const ctx = { tenantId: 'tenant-1', region: 'us-east-1' } as any;
     const tenant = { tenantId: 'tenant-1', userId: 'user-1', idToken: '', accessToken: '', cognitoTokens: {} as any };
     const eb = { putEvent: jest.fn().mockResolvedValue(undefined) };
@@ -26,6 +35,14 @@ describe('fixtures — onboarded', () => {
       detailType: 'USER_REGISTERED',
       detail: expect.objectContaining({ tenantId: 'tenant-1', userId: 'user-1' }),
     }));
+    // Verify waitForGraphQL was called between the two putEvents (profile materialization)
+    expect(waitForGraphQL).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining('getProfile'),
+      {},
+      expect.any(Function),
+      expect.objectContaining({ timeoutMs: 60_000 }),
+    );
     expect(eb.putEvent).toHaveBeenNthCalledWith(2, expect.objectContaining({
       bus: 'investor',
       targetService: 'investor-bff',

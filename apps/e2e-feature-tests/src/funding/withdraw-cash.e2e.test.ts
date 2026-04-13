@@ -24,19 +24,6 @@ describe('scenario 2 — investor withdraws cash', () => {
       onboarded(),
       funded({ cashBalanceCents: 2_000_000 }),
     ]);
-    // Wait for funded fixture's events to materialize — BALANCE_UPDATED must
-    // propagate through EB → SQS → Lambda before requestWithdrawal can find
-    // the CashBalance row (its ConditionExpression requires attribute_exists).
-    const preflight = bffClient(ctx, tenant);
-    await waitForGraphQL<{ getProfile: { tenantId: string } }>(
-      preflight.investor,
-      `query { getProfile { tenantId } }`,
-      {},
-      (r) => !!r.getProfile?.tenantId,
-      { timeoutMs: 60_000 },
-    );
-    // Buffer for BALANCE_UPDATED (published after USER_REGISTERED in fixture sequence)
-    await new Promise((r) => setTimeout(r, 5_000));
   }, 120_000);
 
   afterEach(async () => {
@@ -46,20 +33,35 @@ describe('scenario 2 — investor withdraws cash', () => {
   it('requestWithdrawal surfaces a withdrawal entry on the activity feed', async () => {
     const bff = bffClient(ctx, tenant);
 
-    const withdrawal = await bff.investor.mutate<{
-      requestWithdrawal: { withdrawalId: string; amountCents: number; currency: string; status: string; requestedAt: string };
-    }>(
-      `mutation RequestWithdrawal($input: WithdrawalInput!) {
-         requestWithdrawal(input: $input) {
-           withdrawalId
-           amountCents
-           currency
-           status
-           requestedAt
-         }
-       }`,
-      { input: { amountCents: 250_000, currency: 'USD' } },
-    );
+    // Retry the mutation until BALANCE_UPDATED has been materialized. The
+    // funded() fixture publishes BALANCE_UPDATED but the CashBalance row may
+    // not exist yet when the mutation runs (eventual consistency). Retrying
+    // on InsufficientFundsError is safe — the resolver throws before writing.
+    const deadline = Date.now() + 60_000;
+    let withdrawal: { requestWithdrawal: { withdrawalId: string; amountCents: number; currency: string; status: string; requestedAt: string } } | undefined;
+    while (Date.now() < deadline) {
+      try {
+        withdrawal = await bff.investor.mutate<{
+          requestWithdrawal: { withdrawalId: string; amountCents: number; currency: string; status: string; requestedAt: string };
+        }>(
+          `mutation RequestWithdrawal($input: WithdrawalInput!) {
+             requestWithdrawal(input: $input) {
+               withdrawalId
+               amountCents
+               currency
+               status
+               requestedAt
+             }
+           }`,
+          { input: { amountCents: 250_000, currency: 'USD' } },
+        );
+        break;
+      } catch (err) {
+        if (!(err instanceof Error) || !err.message.includes('InsufficientFunds')) throw err;
+        await new Promise((r) => setTimeout(r, 2_000));
+      }
+    }
+    if (!withdrawal) throw new Error('requestWithdrawal did not succeed within 60s — BALANCE_UPDATED may not have materialized');
 
     expect(withdrawal.requestWithdrawal.status).toBe('REQUESTED');
     expect(withdrawal.requestWithdrawal.amountCents).toBe(250_000);

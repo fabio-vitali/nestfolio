@@ -6,15 +6,20 @@ import { InvestorBffEventTypes } from '../../../../services/investor/investor-bf
 import { AdvisoryCtrlEventTypes } from '../../../../services/advisory/advisory-ctrl/src/domain/events';
 import { InvestorCtrlEventTypes } from '../../../../services/investor/investor-ctrl/src/domain/events';
 import type { FreshTenant } from './fresh-tenant';
+import { bffClient, type BffClients } from './bff-client';
+import { waitForGraphQL } from './wait-for-graphql';
 
 /**
  * A Fixture is an async function that publishes whatever events are needed
  * to bring a fresh tenant to a specific observable precondition.
+ * Fixtures receive BffClients so they can poll GraphQL to confirm
+ * that prerequisite events have been materialized before proceeding.
  */
 export type Fixture = (
   ctx: TestContext,
   tenant: FreshTenant,
   eb: EventBridgeClient,
+  bff: BffClients,
 ) => Promise<FixtureResult>;
 
 export interface FixtureResult {
@@ -28,9 +33,10 @@ export async function applyFixtures(
   fixtures: Fixture[],
 ): Promise<FixtureResult> {
   const eb = new EventBridgeClient(ctx);
+  const bff = bffClient(ctx, tenant);
   const merged: FixtureResult = {};
   for (const fixture of fixtures) {
-    const result = await fixture(ctx, tenant, eb);
+    const result = await fixture(ctx, tenant, eb, bff);
     Object.assign(merged, result);
   }
   return merged;
@@ -48,7 +54,7 @@ export function onboarded(overrides?: {
   capitalAmount?: number;
   currency?: string;
 }): Fixture {
-  return async (_ctx, tenant, eb) => {
+  return async (_ctx, tenant, eb, bff) => {
     await eb.putEvent({
       bus: 'investor',
       targetService: 'investor-bff',
@@ -59,6 +65,18 @@ export function onboarded(overrides?: {
         email: `${tenant.userId}@integ-e2e.example`,
       },
     });
+    // ONBOARDING_COMPLETED's transactWrite has ConditionExpression: attribute_exists(pk)
+    // on the InvestorProfile row created by USER_REGISTERED. Poll getProfile to confirm
+    // the profile is materialized before publishing ONBOARDING_COMPLETED — avoids a
+    // race where ONBOARDING_COMPLETED is processed first, fails, and retries after the
+    // 180 s SQS visibility timeout.
+    await waitForGraphQL<{ getProfile: { tenantId: string } }>(
+      bff.investor,
+      `query { getProfile { tenantId } }`,
+      {},
+      (r) => !!r.getProfile?.tenantId,
+      { timeoutMs: 60_000 },
+    );
     await eb.putEvent({
       bus: 'investor',
       targetService: 'investor-bff',
@@ -87,7 +105,7 @@ export function onboarded(overrides?: {
  * requestWithdrawal's ConditionExpression depends on.
  */
 export function funded(opts: { cashBalanceCents: number }): Fixture {
-  return async (_ctx, tenant, eb) => {
+  return async (_ctx, tenant, eb, _bff) => {
     await eb.putEvent({
       bus: 'investor',
       targetService: 'investor-bff',
@@ -112,7 +130,7 @@ export function withDecision(opts: {
   proposedTrades?: Array<{ symbol: string; side: 'BUY' | 'SELL'; quantityOrAmountCents: number }>;
   explanation?: string;
 }): Fixture {
-  return async (_ctx, tenant, eb) => {
+  return async (_ctx, tenant, eb, _bff) => {
     const decisionId = `e2e-decision-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     await eb.putEvent({
       bus: 'advisory',
@@ -144,7 +162,7 @@ export function withNotification(opts: {
   relatedEntityType?: string;
   relatedEntityId?: string;
 }): Fixture {
-  return async (_ctx, tenant, eb) => {
+  return async (_ctx, tenant, eb, _bff) => {
     const notificationId = `e2e-notif-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     await eb.putEvent({
       bus: 'investor',
@@ -173,7 +191,7 @@ export function withNotification(opts: {
 export function withHoldings(
   holdings: Array<{ symbol: string; quantity: number; fillPriceCents: number }>,
 ): Fixture {
-  return async (_ctx, tenant, eb) => {
+  return async (_ctx, tenant, eb, _bff) => {
     for (const h of holdings) {
       await eb.putEvent({
         bus: 'execution',
