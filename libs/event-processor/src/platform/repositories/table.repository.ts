@@ -3,11 +3,9 @@ import {
   DynamoDBDocumentClient,
   PutCommand,
   QueryCommand,
-  ScanCommand,
   UpdateCommand,
   TransactWriteCommand,
   type QueryCommandInput,
-  type ScanCommandInput,
   type TransactWriteCommandInput,
 } from '@aws-sdk/lib-dynamodb';
 import { log } from '../logger';
@@ -73,22 +71,6 @@ export abstract class TableRepository {
       const params: QueryCommandInput = { ...input };
       if (lastKey) params.ExclusiveStartKey = lastKey;
       const result = await this.docClient.send(new QueryCommand(params));
-      items.push(...((result.Items ?? []) as T[]));
-      lastKey = result.LastEvaluatedKey;
-    } while (lastKey);
-
-    return items;
-  }
-
-  @log()
-  protected async scanAll<T = Record<string, unknown>>(input: ScanCommandInput): Promise<T[]> {
-    const items: T[] = [];
-    let lastKey: Record<string, unknown> | undefined = undefined;
-
-    do {
-      const params: ScanCommandInput = { ...input };
-      if (lastKey) params.ExclusiveStartKey = lastKey;
-      const result = await this.docClient.send(new ScanCommand(params));
       items.push(...((result.Items ?? []) as T[]));
       lastKey = result.LastEvaluatedKey;
     } while (lastKey);

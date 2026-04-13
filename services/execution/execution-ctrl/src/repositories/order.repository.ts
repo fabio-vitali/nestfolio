@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { BatchGetCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { TableRepository, getTime, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import type { ProposedTrade } from '@nestfolio/advisory-adpt/domain';
@@ -116,12 +116,30 @@ export class OrderRepository extends TableRepository {
 
   readonly getAllStagedOrders = this.log('getAllStagedOrders',
     async (): Promise<Record<string, unknown>[]> => {
-      return this.scanAll({
+      // Step 1: query KEYS_ONLY GSI for all StagedOrder pk/sk pairs
+      const keys = await this.queryAll<{ pk: string; sk: string }>({
         TableName: this.tableName,
-        FilterExpression: '#typ = :typ',
+        IndexName: 'typename-timestamp-index',
+        KeyConditionExpression: '#typ = :typ',
         ExpressionAttributeNames: { '#typ': '__typename' },
         ExpressionAttributeValues: { ':typ': 'StagedOrder' },
       });
+      if (keys.length === 0) return [];
+
+      // Step 2: BatchGetItem from main table for full items (batches of 100)
+      const items: Record<string, unknown>[] = [];
+      for (let i = 0; i < keys.length; i += 100) {
+        const batch = keys.slice(i, i + 100);
+        const result = await this.docClient.send(new BatchGetCommand({
+          RequestItems: {
+            [this.tableName]: {
+              Keys: batch.map((k) => ({ pk: k.pk, sk: k.sk })),
+            },
+          },
+        }));
+        items.push(...(result.Responses?.[this.tableName] ?? []));
+      }
+      return items;
     },
   );
 

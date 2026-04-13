@@ -14,7 +14,7 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
     PutCommand: jest.fn().mockImplementation((input) => ({ _type: 'Put', input })),
     QueryCommand: jest.fn().mockImplementation((input) => ({ _type: 'Query', input })),
     DeleteCommand: jest.fn().mockImplementation((input) => ({ _type: 'Delete', input })),
-    ScanCommand: jest.fn().mockImplementation((input) => ({ _type: 'Scan', input })),
+    BatchGetCommand: jest.fn().mockImplementation((input) => ({ _type: 'BatchGet', input })),
     TransactWriteCommand: jest.fn().mockImplementation((input) => ({ _type: 'TransactWrite', input })),
   };
 });
@@ -47,11 +47,6 @@ jest.mock('@nestfolio/event-processor', () => ({
     protected async queryAll(input: unknown) {
       const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
       const result = await this.docClient.send(new QueryCommand(input));
-      return result.Items ?? [];
-    }
-    protected async scanAll(input: unknown) {
-      const { ScanCommand } = require('@aws-sdk/lib-dynamodb');
-      const result = await this.docClient.send(new ScanCommand(input));
       return result.Items ?? [];
     }
     protected async transactWrite(input: unknown) {
@@ -93,19 +88,25 @@ describe('staged-order-processor', () => {
   });
 
   it('should submit staged orders that pass safety checks', async () => {
-    // getAllStagedOrders returns staged orders
+    // getAllStagedOrders: step 1 — GSI query returns keys
     mockSend.mockResolvedValueOnce({
-      Items: [
-        {
-          pk: 'StagedOrder#t1#o1',
-          sk: 'StagedOrder',
-          __typename: 'StagedOrder',
-          tenantId: 't1',
-          orderId: 'o1',
-          proposedTrades: [{ symbol: 'AAPL', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy' }],
-          timestamp: '2025-01-01T00:00:00.000Z',
-        },
-      ],
+      Items: [{ pk: 'StagedOrder#t1#o1', sk: 'StagedOrder', __typename: 'StagedOrder', timestamp: '2025-01-01T00:00:00.000Z' }],
+    });
+    // getAllStagedOrders: step 2 — BatchGet returns full items
+    mockSend.mockResolvedValueOnce({
+      Responses: {
+        'test-table': [
+          {
+            pk: 'StagedOrder#t1#o1',
+            sk: 'StagedOrder',
+            __typename: 'StagedOrder',
+            tenantId: 't1',
+            orderId: 'o1',
+            proposedTrades: [{ symbol: 'AAPL', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy' }],
+            timestamp: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+      },
     });
 
     jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValueOnce({
@@ -126,18 +127,25 @@ describe('staged-order-processor', () => {
   });
 
   it('should reject staged orders that fail safety checks', async () => {
+    // getAllStagedOrders: step 1 — GSI query returns keys
     mockSend.mockResolvedValueOnce({
-      Items: [
-        {
-          pk: 'StagedOrder#t1#o2',
-          sk: 'StagedOrder',
-          __typename: 'StagedOrder',
-          tenantId: 't1',
-          orderId: 'o2',
-          proposedTrades: [{ symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 5, targetWeightPercent: 30, rationale: 'Rebalance' }],
-          timestamp: '2025-01-01T00:00:00.000Z',
-        },
-      ],
+      Items: [{ pk: 'StagedOrder#t1#o2', sk: 'StagedOrder', __typename: 'StagedOrder', timestamp: '2025-01-01T00:00:00.000Z' }],
+    });
+    // getAllStagedOrders: step 2 — BatchGet returns full items
+    mockSend.mockResolvedValueOnce({
+      Responses: {
+        'test-table': [
+          {
+            pk: 'StagedOrder#t1#o2',
+            sk: 'StagedOrder',
+            __typename: 'StagedOrder',
+            tenantId: 't1',
+            orderId: 'o2',
+            proposedTrades: [{ symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 5, targetWeightPercent: 30, rationale: 'Rebalance' }],
+            timestamp: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+      },
     });
 
     jest.spyOn(safetyChecks, 'runAllChecks').mockResolvedValueOnce({
@@ -168,27 +176,37 @@ describe('staged-order-processor', () => {
   });
 
   it('should process multiple staged orders from different tenants', async () => {
+    // getAllStagedOrders: step 1 — GSI query returns keys
     mockSend.mockResolvedValueOnce({
       Items: [
-        {
-          pk: 'StagedOrder#t1#o1',
-          sk: 'StagedOrder',
-          __typename: 'StagedOrder',
-          tenantId: 't1',
-          orderId: 'o1',
-          proposedTrades: [{ symbol: 'AAPL', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy' }],
-          timestamp: '2025-01-01T00:00:00.000Z',
-        },
-        {
-          pk: 'StagedOrder#t2#o2',
-          sk: 'StagedOrder',
-          __typename: 'StagedOrder',
-          tenantId: 't2',
-          orderId: 'o2',
-          proposedTrades: [{ symbol: 'VTI', assetClass: 'EQUITY', side: 'SELL', quantityOrAmountCents: 5, targetWeightPercent: 20, rationale: 'Sell' }],
-          timestamp: '2025-01-01T00:00:00.000Z',
-        },
+        { pk: 'StagedOrder#t1#o1', sk: 'StagedOrder', __typename: 'StagedOrder', timestamp: '2025-01-01T00:00:00.000Z' },
+        { pk: 'StagedOrder#t2#o2', sk: 'StagedOrder', __typename: 'StagedOrder', timestamp: '2025-01-01T00:00:00.000Z' },
       ],
+    });
+    // getAllStagedOrders: step 2 — BatchGet returns full items
+    mockSend.mockResolvedValueOnce({
+      Responses: {
+        'test-table': [
+          {
+            pk: 'StagedOrder#t1#o1',
+            sk: 'StagedOrder',
+            __typename: 'StagedOrder',
+            tenantId: 't1',
+            orderId: 'o1',
+            proposedTrades: [{ symbol: 'AAPL', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy' }],
+            timestamp: '2025-01-01T00:00:00.000Z',
+          },
+          {
+            pk: 'StagedOrder#t2#o2',
+            sk: 'StagedOrder',
+            __typename: 'StagedOrder',
+            tenantId: 't2',
+            orderId: 'o2',
+            proposedTrades: [{ symbol: 'VTI', assetClass: 'EQUITY', side: 'SELL', quantityOrAmountCents: 5, targetWeightPercent: 20, rationale: 'Sell' }],
+            timestamp: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+      },
     });
 
     jest.spyOn(safetyChecks, 'runAllChecks')
@@ -217,27 +235,37 @@ describe('staged-order-processor', () => {
   });
 
   it('should count errors and continue processing remaining orders', async () => {
+    // getAllStagedOrders: step 1 — GSI query returns keys
     mockSend.mockResolvedValueOnce({
       Items: [
-        {
-          pk: 'StagedOrder#t1#o1',
-          sk: 'StagedOrder',
-          __typename: 'StagedOrder',
-          tenantId: 't1',
-          orderId: 'o1',
-          proposedTrades: [{ symbol: 'AAPL', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy' }],
-          timestamp: '2025-01-01T00:00:00.000Z',
-        },
-        {
-          pk: 'StagedOrder#t2#o2',
-          sk: 'StagedOrder',
-          __typename: 'StagedOrder',
-          tenantId: 't2',
-          orderId: 'o2',
-          proposedTrades: [{ symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 5, targetWeightPercent: 30, rationale: 'Rebalance' }],
-          timestamp: '2025-01-01T00:00:00.000Z',
-        },
+        { pk: 'StagedOrder#t1#o1', sk: 'StagedOrder', __typename: 'StagedOrder', timestamp: '2025-01-01T00:00:00.000Z' },
+        { pk: 'StagedOrder#t2#o2', sk: 'StagedOrder', __typename: 'StagedOrder', timestamp: '2025-01-01T00:00:00.000Z' },
       ],
+    });
+    // getAllStagedOrders: step 2 — BatchGet returns full items
+    mockSend.mockResolvedValueOnce({
+      Responses: {
+        'test-table': [
+          {
+            pk: 'StagedOrder#t1#o1',
+            sk: 'StagedOrder',
+            __typename: 'StagedOrder',
+            tenantId: 't1',
+            orderId: 'o1',
+            proposedTrades: [{ symbol: 'AAPL', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 10, targetWeightPercent: 50, rationale: 'Buy' }],
+            timestamp: '2025-01-01T00:00:00.000Z',
+          },
+          {
+            pk: 'StagedOrder#t2#o2',
+            sk: 'StagedOrder',
+            __typename: 'StagedOrder',
+            tenantId: 't2',
+            orderId: 'o2',
+            proposedTrades: [{ symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 5, targetWeightPercent: 30, rationale: 'Rebalance' }],
+            timestamp: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+      },
     });
 
     // First order: safety checks throw
