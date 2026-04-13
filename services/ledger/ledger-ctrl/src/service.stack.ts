@@ -66,6 +66,41 @@ export class LedgerCtrlStack extends ServiceStack {
       ],
     }));
 
+    // Snapshot Publisher: DDB Stream consumer that writes derived events
+    // (BalanceEvent, PortfolioEvent, LedgerEntryEvent, SnapshotHistory)
+    // from AccountSnapshot INSERT/MODIFY events.
+    const snapshotPublisherFn = new NodejsFunction(this, 'SnapshotPublisherFn', {
+      ...reducerProps.lambdaProps,
+      entry: join(__dirname, 'handlers', 'snapshot-publisher.ts'),
+      environment: {
+        TABLE_NAME: state.getTable().tableName,
+        SERVICE_NAME: 'ledger-ctrl',
+      },
+    });
+    state.getTable().grantReadWriteData(snapshotPublisherFn);
+
+    snapshotPublisherFn.addEventSource(new DynamoEventSource(state.getTable(), {
+      startingPosition: StartingPosition.LATEST,
+      bisectBatchOnError: true,
+      retryAttempts: 3,
+      batchSize: reducerProps.ddbStreamBatchSize,
+      maxBatchingWindow: reducerProps.ddbStreamMaxBatchingWindow,
+      parallelizationFactor: reducerProps.ddbStreamParallelizationFactor,
+      filters: [
+        FilterCriteria.filter({
+          eventName: FilterRule.or(
+            FilterRule.isEqual('INSERT'),
+            FilterRule.isEqual('MODIFY'),
+          ),
+          dynamodb: {
+            NewImage: {
+              __typename: { S: FilterRule.isEqual('AccountSnapshot') },
+            },
+          },
+        }),
+      ],
+    }));
+
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
@@ -84,6 +119,6 @@ export class LedgerCtrlStack extends ServiceStack {
       },
     });
 
-    this.addObservability({ ingress, egress, extraLambdas: [reducerFn] });
+    this.addObservability({ ingress, egress, extraLambdas: [reducerFn, snapshotPublisherFn] });
   }
 }

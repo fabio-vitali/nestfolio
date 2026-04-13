@@ -33,15 +33,6 @@ export type SnapshotState = {
   readonly lastEventSequence: number;
 };
 
-export interface SnapshotWithEvents {
-  readonly streamType: 'actual' | 'simulated';
-  readonly state: SnapshotState;
-  readonly lastEventSequence: number;
-  readonly balanceChanged: boolean;
-  readonly positionsChanged: boolean;
-  readonly ttlDays: number;
-}
-
 export type TaxLot = {
   pk: string;
   sk: string;
@@ -174,122 +165,6 @@ export class LedgerRepository extends TableRepository {
         }
         throw err;
       }
-    },
-  );
-
-  readonly saveSnapshotWithEvents = this.log('saveSnapshotWithEvents',
-    async (data: SnapshotWithEvents, ctx: RequestContext): Promise<void> => {
-      const now = getTime();
-      const pk = `Account#${ctx.tenantId}#${data.streamType}`;
-      const totalValueCents = this.computeTotalValue(data.state);
-
-      const snapshot: SnapshotState = {
-        positions: data.state.positions,
-        cashBalanceCents: data.state.cashBalanceCents,
-        lastEventSequence: data.lastEventSequence,
-      };
-
-      const transactItems: Record<string, unknown>[] = [
-        // Snapshot item
-        {
-          Put: {
-            TableName: this.tableName,
-            Item: {
-              pk,
-              sk: 'Snapshot#latest',
-              __typename: 'AccountSnapshot',
-              ...ctx,
-              timestamp: now,
-              streamType: data.streamType,
-              positions: data.state.positions,
-              cashBalanceCents: data.state.cashBalanceCents,
-              totalValueCents,
-              positionCount: Object.keys(data.state.positions).length,
-              lastEventSequence: data.lastEventSequence,
-              snapshotAt: now,
-            },
-          },
-        },
-      ];
-
-      // BalanceEvent — written when cash balance changed
-      if (data.balanceChanged) {
-        transactItems.push({
-          Put: {
-            TableName: this.tableName,
-            Item: {
-              pk,
-              sk: `BalanceEvent#${now}#${data.lastEventSequence}`,
-              __typename: 'BalanceEvent',
-              ...ctx,
-              timestamp: now,
-              streamType: data.streamType,
-              cashBalanceCents: data.state.cashBalanceCents,
-              totalValueCents,
-              snapshot,
-            },
-          },
-        });
-      }
-
-      // PortfolioEvent — written when positions changed
-      if (data.positionsChanged) {
-        transactItems.push({
-          Put: {
-            TableName: this.tableName,
-            Item: {
-              pk,
-              sk: `PortfolioEvent#${now}#${data.lastEventSequence}`,
-              __typename: 'PortfolioEvent',
-              ...ctx,
-              timestamp: now,
-              streamType: data.streamType,
-              positions: data.state.positions,
-              positionCount: Object.keys(data.state.positions).length,
-              totalValueCents,
-              snapshot,
-            },
-          },
-        });
-      }
-
-      // LedgerEntryEvent — always written when snapshot updates
-      transactItems.push({
-        Put: {
-          TableName: this.tableName,
-          Item: {
-            pk,
-            sk: `LedgerEntryEvent#${now}#${data.lastEventSequence}`,
-            __typename: 'LedgerEntryEvent',
-            ...ctx,
-            timestamp: now,
-            streamType: data.streamType,
-            lastEventSequence: data.lastEventSequence,
-            snapshot,
-          },
-        },
-      });
-
-      // SnapshotHistory — append-only, TTL-bounded
-      transactItems.push({
-        Put: {
-          TableName: this.tableName,
-          Item: {
-            pk,
-            sk: `SnapshotAt#${now}`,
-            __typename: 'SnapshotHistory',
-            ...ctx,
-            streamType: data.streamType,
-            timestamp: now,
-            positions: data.state.positions,
-            cashBalanceCents: data.state.cashBalanceCents,
-            lastEventSequence: data.lastEventSequence,
-            ttl: Math.floor(Date.now() / 1000) + (data.ttlDays * 86400),
-          },
-        },
-      });
-
-      await this.transactWrite({ TransactItems: transactItems });
     },
   );
 

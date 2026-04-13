@@ -156,52 +156,6 @@ describe('LedgerRepository', () => {
     expect(snapshot).toEqual(snapshotData);
   });
 
-  it('saveSnapshotWithEvents writes snapshot + events in transaction', async () => {
-    mockSend.mockResolvedValueOnce({}); // transactWrite
-
-    await repo.saveSnapshotWithEvents({
-      streamType: 'actual',
-      state: { positions: { AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 150 } }, cashBalanceCents: 9_850_000, lastEventSequence: 3 },
-      lastEventSequence: 3,
-      balanceChanged: true,
-      positionsChanged: true,
-      ttlDays: 365,
-    }, testCtx);
-
-    const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
-    expect(txCalls).toHaveLength(1);
-    const transactItems = txCalls[0][0].input.TransactItems;
-    // Should have: Snapshot + BalanceEvent + PortfolioEvent + LedgerEntryEvent + SnapshotHistory = 5
-    expect(transactItems).toHaveLength(5);
-
-    const typeNames = transactItems.map((t: any) => t.Put.Item.__typename);
-    expect(typeNames).toContain('AccountSnapshot');
-    expect(typeNames).toContain('BalanceEvent');
-    expect(typeNames).toContain('PortfolioEvent');
-    expect(typeNames).toContain('LedgerEntryEvent');
-    expect(typeNames).toContain('SnapshotHistory');
-  });
-
-  it('saveSnapshotWithEvents omits BalanceEvent when balance unchanged', async () => {
-    mockSend.mockResolvedValueOnce({});
-
-    await repo.saveSnapshotWithEvents({
-      streamType: 'actual',
-      state: { positions: { AAPL: { symbol: 'AAPL', quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 150 } }, cashBalanceCents: 10_000_000, lastEventSequence: 2 },
-      lastEventSequence: 2,
-      balanceChanged: false,
-      positionsChanged: true,
-      ttlDays: 365,
-    }, testCtx);
-
-    const txCalls = mockSend.mock.calls.filter((c) => c[0]?._type === 'TransactWrite');
-    const transactItems = txCalls[0][0].input.TransactItems;
-    // Snapshot + PortfolioEvent + LedgerEntryEvent + SnapshotHistory = 4 (no BalanceEvent)
-    expect(transactItems).toHaveLength(4);
-    const typeNames = transactItems.map((t: any) => t.Put.Item.__typename);
-    expect(typeNames).not.toContain('BalanceEvent');
-  });
-
   it('saveCheckpoint uses conditional write', async () => {
     mockSend.mockResolvedValueOnce({});
 

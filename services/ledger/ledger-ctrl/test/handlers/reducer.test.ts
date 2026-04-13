@@ -25,7 +25,6 @@ jest.mock('../../src/repositories/ledger.repository', () => ({
     getLatestSnapshot: jest.fn(),
     queryEntriesSince: jest.fn().mockResolvedValue([]),
     saveSnapshot: jest.fn().mockResolvedValue(undefined),
-    saveSnapshotWithEvents: jest.fn(),
   })),
 }));
 
