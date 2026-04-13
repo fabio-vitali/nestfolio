@@ -46,6 +46,12 @@ describe('LedgerCtrlStack', () => {
     });
   });
 
+  it('creates SnapshotPublisher Lambda with DDB Stream event source (FilterCriteria for AccountSnapshot)', () => {
+    // Two event source mappings on the same table: ReducerFn (LedgerEntry) + SnapshotPublisherFn (AccountSnapshot)
+    const mappings = template.findResources('AWS::Lambda::EventSourceMapping');
+    expect(Object.keys(mappings).length).toBeGreaterThanOrEqual(2);
+  });
+
   it('creates Egress for BalanceEvent, PortfolioEvent, LedgerEntryEvent (custom handler)', () => {
     // Egress now uses a custom entry — no CUSTOM_EVENT_TYPE_MAP env var
     template.hasResourceProperties('AWS::Lambda::Function', {

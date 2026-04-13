@@ -2,7 +2,7 @@ import type { DynamoDBStreamEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import type { StreamRecord, StreamContext } from '../types/stream-types';
-import type { WriteIntent } from '../types/write-intent';
+import type { WriteIntent, RecordIntent } from '../types/write-intent';
 import type { EventContext } from '../types/event-context';
 import { EgestionEngine } from '../engine/egestion-engine';
 import { IntentExecutor } from '../engine/intent-executor';
@@ -46,7 +46,7 @@ export function deriveFromStream(
     for (const intent of intents) {
       const eventCtx: EventContext = {
         eventId: `derived-${getUUID()}`,
-        eventType: intent._tag === 'record' ? (intent as any).typename : 'DERIVED',
+        eventType: intent._tag === 'record' ? (intent as RecordIntent).typename : 'DERIVED',
         tenantId: asTenantId(record.tenantId ?? ''),
         userId: asUserId(record.userId ?? 'system'),
         region: record.region ?? process.env['AWS_REGION'] ?? 'us-east-1',
