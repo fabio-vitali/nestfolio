@@ -1,9 +1,8 @@
 /**
- * Tests for ledger-ctrl reducer handler.
+ * Tests for ledger-ctrl reducer handler (replayAndReduce config).
  *
- * Strategy: mock EgestionEngine to capture config, then test the config
- * callbacks (filter, groupBy.key) and the processGroup logic which loads
- * snapshots, queries events, reduces, and calls saveSnapshotWithEvents.
+ * Strategy: mock replayAndReduce to capture the config, then test the
+ * config callbacks (filter, groupBy.key, reducer, queryEvents, requestContext, saveSnapshot).
  */
 
 let capturedConfig: any;
@@ -12,9 +11,9 @@ jest.mock('@nestfolio/event-processor', () => {
   const actual = jest.requireActual('@nestfolio/event-processor');
   return {
     ...actual,
-    EgestionEngine: jest.fn().mockImplementation((config) => {
+    replayAndReduce: jest.fn().mockImplementation((config) => {
       capturedConfig = config;
-      return { process: jest.fn() };
+      return jest.fn(); // handler function
     }),
     requireEnv: jest.fn(() => 'test-table'),
     logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
@@ -24,7 +23,8 @@ jest.mock('@nestfolio/event-processor', () => {
 jest.mock('../../src/repositories/ledger.repository', () => ({
   LedgerRepository: jest.fn().mockImplementation(() => ({
     getLatestSnapshot: jest.fn(),
-    queryEntriesSince: jest.fn(),
+    queryEntriesSince: jest.fn().mockResolvedValue([]),
+    saveSnapshot: jest.fn().mockResolvedValue(undefined),
     saveSnapshotWithEvents: jest.fn(),
   })),
 }));
@@ -35,17 +35,21 @@ jest.mock('@aws-sdk/client-dynamodb', () => ({
 
 process.env['TABLE_NAME'] = 'test-table';
 
-import { EgestionEngine } from '@nestfolio/event-processor';
+import { replayAndReduce } from '@nestfolio/event-processor';
 import { LedgerRepository } from '../../src/repositories/ledger.repository';
 import { handler } from '../../src/handlers/reducer';
+import { INITIAL_ACCOUNT_STATE } from '../../src/domain';
 
 describe('ledger-ctrl reducer handler', () => {
-  it('should construct EgestionEngine with correct config', () => {
-    expect(EgestionEngine).toHaveBeenCalledTimes(1);
+  it('should call replayAndReduce with correct config', () => {
+    expect(replayAndReduce).toHaveBeenCalledTimes(1);
     expect(capturedConfig.serviceName).toBe('ledger-ctrl');
     expect(capturedConfig.filter).toBeDefined();
     expect(capturedConfig.groupBy?.key).toBeDefined();
-    expect(capturedConfig.processGroup).toBeDefined();
+    expect(capturedConfig.reducer).toBeDefined();
+    expect(capturedConfig.queryEvents).toBeDefined();
+    expect(capturedConfig.requestContext).toBeDefined();
+    expect(capturedConfig.saveSnapshot).toBeDefined();
   });
 
   it('handler should be a function', () => {
@@ -54,64 +58,64 @@ describe('ledger-ctrl reducer handler', () => {
 
   describe('filter', () => {
     it('should accept records with __typename LedgerEntry', () => {
-      const record = { __typename: 'LedgerEntry', tenantId: 't1', streamType: 'actual' };
-      expect(capturedConfig.filter(record)).toBe(true);
+      expect(capturedConfig.filter({ __typename: 'LedgerEntry' })).toBe(true);
     });
 
     it('should reject records with other __typename', () => {
-      const record = { __typename: 'AccountSnapshot', tenantId: 't1', streamType: 'actual' };
-      expect(capturedConfig.filter(record)).toBe(false);
+      expect(capturedConfig.filter({ __typename: 'AccountSnapshot' })).toBe(false);
     });
 
     it('should reject records with no __typename', () => {
-      const record = { tenantId: 't1', streamType: 'actual' };
-      expect(capturedConfig.filter(record)).toBe(false);
+      expect(capturedConfig.filter({})).toBe(false);
     });
   });
 
   describe('groupBy.key', () => {
     it('should group by tenantId#streamType', () => {
-      const record = { __typename: 'LedgerEntry', tenantId: 'tenant-1', streamType: 'actual' };
-      expect(capturedConfig.groupBy.key(record)).toBe('tenant-1#actual');
+      expect(capturedConfig.groupBy.key({ tenantId: 'tenant-1', streamType: 'actual' }))
+        .toBe('tenant-1#actual');
     });
 
     it('should produce distinct keys for different tenants', () => {
-      const r1 = { tenantId: 'a', streamType: 'actual' };
-      const r2 = { tenantId: 'b', streamType: 'actual' };
-      expect(capturedConfig.groupBy.key(r1)).not.toBe(capturedConfig.groupBy.key(r2));
+      const k1 = capturedConfig.groupBy.key({ tenantId: 'a', streamType: 'actual' });
+      const k2 = capturedConfig.groupBy.key({ tenantId: 'b', streamType: 'actual' });
+      expect(k1).not.toBe(k2);
     });
 
     it('should produce distinct keys for different stream types', () => {
-      const r1 = { tenantId: 'a', streamType: 'actual' };
-      const r2 = { tenantId: 'a', streamType: 'simulated' };
-      expect(capturedConfig.groupBy.key(r1)).not.toBe(capturedConfig.groupBy.key(r2));
+      const k1 = capturedConfig.groupBy.key({ tenantId: 'a', streamType: 'actual' });
+      const k2 = capturedConfig.groupBy.key({ tenantId: 'a', streamType: 'simulated' });
+      expect(k1).not.toBe(k2);
     });
   });
 
-  describe('processGroup', () => {
-    // Capture the repo instance created at module-load time (before clearAllMocks wipes it)
-    const mockRepo = (LedgerRepository as unknown as jest.Mock).mock.results[0].value;
+  describe('snapshot.key', () => {
+    it('should return correct pk/sk', () => {
+      const key = capturedConfig.snapshot.key('tenant-1#actual');
+      expect(key).toEqual({ pk: 'Account#tenant-1#actual', sk: 'Snapshot#latest' });
+    });
+  });
 
-    beforeEach(() => {
-      mockRepo.getLatestSnapshot.mockReset();
-      mockRepo.queryEntriesSince.mockReset();
-      mockRepo.saveSnapshotWithEvents.mockReset();
+  describe('requestContext', () => {
+    it('should extract tenantId from groupKey and userId/region from records', () => {
+      const ctx = capturedConfig.requestContext('tenant-1#actual', [
+        { userId: 'user-1', region: 'us-west-2' },
+      ]);
+      expect(ctx.tenantId).toBe('tenant-1');
+      expect(ctx.userId).toBe('user-1');
+      expect(ctx.region).toBe('us-west-2');
     });
 
-    it('should skip when no new events found', async () => {
-      mockRepo.getLatestSnapshot.mockResolvedValue(null);
-      mockRepo.queryEntriesSince.mockResolvedValue([]);
-
-      await capturedConfig.processGroup('tenant-1#actual', [{ userId: 'u1', region: 'us-east-1' }]);
-
-      expect(mockRepo.getLatestSnapshot).toHaveBeenCalledWith('tenant-1', 'actual');
-      expect(mockRepo.queryEntriesSince).toHaveBeenCalledWith('tenant-1', 'actual', 0);
-      expect(mockRepo.saveSnapshotWithEvents).not.toHaveBeenCalled();
+    it('should default userId and region when not in records', () => {
+      const ctx = capturedConfig.requestContext('tenant-1#actual', [{}]);
+      expect(ctx.userId).toBe('system');
+      expect(ctx.region).toBe('us-east-1');
     });
+  });
 
-    it('should use INITIAL_ACCOUNT_STATE when no snapshot exists', async () => {
-      mockRepo.getLatestSnapshot.mockResolvedValue(null);
-      mockRepo.queryEntriesSince.mockResolvedValue([{
+  describe('reducer', () => {
+    it('should apply accountReducer to state and event', () => {
+      const result = capturedConfig.reducer(INITIAL_ACCOUNT_STATE, {
         eventId: 'e1',
         eventType: 'ORDER_FILLED',
         payload: {
@@ -119,72 +123,32 @@ describe('ledger-ctrl reducer handler', () => {
           quantity: 10, fillPrice: 150.0, filledAt: '2025-01-01T00:00:00.000Z',
         },
         sequenceNo: 1,
-      }]);
-      mockRepo.saveSnapshotWithEvents.mockResolvedValue(undefined);
+      });
+      expect(result.positions['AAPL']).toBeDefined();
+      expect(result.positions['AAPL'].quantity).toBe(10);
+    });
+  });
 
-      await capturedConfig.processGroup('tenant-1#actual', [{ userId: 'u1', region: 'us-east-1' }]);
+  describe('saveSnapshot', () => {
+    const mockRepo = (LedgerRepository as unknown as jest.Mock).mock.results[0].value;
 
-      expect(mockRepo.saveSnapshotWithEvents).toHaveBeenCalledWith(
-        expect.objectContaining({
-          streamType: 'actual',
-          lastEventSequence: 1,
-          balanceChanged: true,
-          positionsChanged: true,
-        }),
-        expect.objectContaining({ tenantId: 'tenant-1' }),
+    it('should delegate to repository.saveSnapshot', async () => {
+      await capturedConfig.saveSnapshot({
+        snapshotKey: { pk: 'Account#t1#actual', sk: 'Snapshot#latest' },
+        state: INITIAL_ACCOUNT_STATE,
+        lastEventSequence: 5,
+        version: 2,
+        requestContext: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
+        clients: {},
+      });
+
+      expect(mockRepo.saveSnapshot).toHaveBeenCalledWith(
+        'actual',
+        INITIAL_ACCOUNT_STATE,
+        5,
+        2,
+        { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
       );
-    });
-
-    it('should detect balance change on ORDER_FILLED', async () => {
-      mockRepo.getLatestSnapshot.mockResolvedValue({
-        positions: {},
-        cashBalanceCents: 10_000_000,
-        lastEventSequence: 0,
-      });
-      mockRepo.queryEntriesSince.mockResolvedValue([{
-        eventId: 'e1',
-        eventType: 'ORDER_FILLED',
-        payload: {
-          orderId: 'o1', symbol: 'VTI', side: 'BUY',
-          quantity: 10, fillPrice: 245.50, filledAt: '2025-01-01T00:00:00.000Z',
-        },
-        sequenceNo: 1,
-      }]);
-      mockRepo.saveSnapshotWithEvents.mockResolvedValue(undefined);
-
-      await capturedConfig.processGroup('tenant-1#actual', [{ userId: 'u1', region: 'us-east-1' }]);
-
-      const savedData = mockRepo.saveSnapshotWithEvents.mock.calls[0][0];
-      expect(savedData.balanceChanged).toBe(true);
-      expect(savedData.positionsChanged).toBe(true);
-      expect(savedData.lastEventSequence).toBe(1);
-
-      const state = savedData.state;
-      expect(state.positions['VTI']).toBeDefined();
-      expect(state.positions['VTI'].quantity).toBe(10);
-      // Cash should decrease by 10 * 245.50 * 100 = 245500 cents
-      expect(state.cashBalanceCents).toBe(10_000_000 - 245_500);
-    });
-
-    it('should not flag balance/position change for ORDER_REJECTED', async () => {
-      mockRepo.getLatestSnapshot.mockResolvedValue({
-        positions: {},
-        cashBalanceCents: 10_000_000,
-        lastEventSequence: 0,
-      });
-      mockRepo.queryEntriesSince.mockResolvedValue([{
-        eventId: 'e1',
-        eventType: 'ORDER_REJECTED',
-        payload: { orderId: 'o1' },
-        sequenceNo: 1,
-      }]);
-      mockRepo.saveSnapshotWithEvents.mockResolvedValue(undefined);
-
-      await capturedConfig.processGroup('tenant-1#actual', [{ userId: 'u1', region: 'us-east-1' }]);
-
-      const savedData = mockRepo.saveSnapshotWithEvents.mock.calls[0][0];
-      expect(savedData.balanceChanged).toBe(false);
-      expect(savedData.positionsChanged).toBe(false);
     });
   });
 });
