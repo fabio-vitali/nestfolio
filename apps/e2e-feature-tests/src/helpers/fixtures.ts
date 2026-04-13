@@ -212,3 +212,28 @@ export function withHoldings(
     return {};
   };
 }
+
+/**
+ * Publishes a synthetic ALPACA_ACCOUNT_SNAPSHOT on the ledger bus targeting
+ * reconciliation-ctrl. This seeds the settlement-side position cache.
+ * Use with withHoldings() to set up intent-side first, then publish a
+ * settlement snapshot with deliberately different quantities to trigger drift.
+ */
+export function withSettlementSnapshot(
+  positions: Array<{ symbol: string; qty: number; marketValue: number }>,
+): Fixture {
+  return async (_ctx, tenant, eb, _bff) => {
+    await eb.putEvent({
+      bus: 'ledger',
+      targetService: 'reconciliation-ctrl',
+      detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
+      detail: {
+        tenantId: tenant.tenantId,
+        userId: tenant.userId,
+        portfolioId: tenant.tenantId,
+        positions,
+      },
+    });
+    return {};
+  };
+}

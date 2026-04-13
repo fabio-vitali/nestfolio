@@ -8,6 +8,7 @@ export {
   withDecision,
   withNotification,
   withHoldings,
+  withSettlementSnapshot,
   type Fixture,
   type FixtureResult,
 } from './helpers/fixtures';
