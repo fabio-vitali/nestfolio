@@ -94,7 +94,7 @@ async function cacheAndReconcile(
   const settlementPositions = mySide === 'Settlement' ? myPositions : otherSnapshot.positions;
 
   const portfolioId = tenantId;
-  const result = deps.reconciliationService.reconcile(reconciliationId, {
+  const result = await deps.reconciliationService.reconcile(reconciliationId, {
     tenantId,
     portfolioId,
     intentPositions,

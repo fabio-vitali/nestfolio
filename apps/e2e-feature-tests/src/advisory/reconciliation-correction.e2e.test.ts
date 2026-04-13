@@ -13,6 +13,8 @@ import {
   waitForGraphQL,
   type FreshTenant,
 } from '..';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
 
 describe('scenario 13 — reconciliation discrepancy surfaces corrective decision', () => {
   let ctx: TestContext;
@@ -39,16 +41,24 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
     const bff = bffClient(ctx, tenant);
     const eb = new EventBridgeClient(ctx);
 
+    // Resolve reconciliation-ctrl table for verification
+    const tableName = await ctx.ssm.tableName('reconciliation-ctrl');
+    const ddbDoc = DynamoDBDocumentClient.from(new DynamoDBClient({ region: ctx.region }));
+
     // Wait for PORTFOLIO_UPDATED to propagate through ledger-ctrl CDC →
-    // ledger-adpt → reconciliation-ctrl (seeds Intent cache).
-    // withHoldings publishes ORDER_FILLED → ledger-ctrl reducer → PortfolioEvent →
-    // CDC → PORTFOLIO_UPDATED → reconciliation-ctrl caches Intent side.
-    // Give CDC chain 30 seconds to materialize.
-    await new Promise((r) => setTimeout(r, 30_000));
+    // reconciliation-ctrl (seeds Intent cache).
+    // Give CDC chain 60 seconds to materialize.
+    await new Promise((r) => setTimeout(r, 60_000));
+
+    // VERIFY: Intent cache was seeded
+    const intentBefore = await ddbDoc.send(new GetCommand({
+      TableName: tableName,
+      Key: { pk: `PositionCache#${tenant.tenantId}`, sk: 'Intent' },
+    }));
+    console.log('[scenario-13] Intent cache before trigger:', JSON.stringify(intentBefore.Item ?? null));
 
     // TRIGGER: publish broker snapshot with DIFFERENT quantities (settlement side)
-    // VTI: broker says 45 (intent says 50) → drift = +5
-    // BND: broker says 25 (intent says 20) → drift = -5
+    console.log('[scenario-13] Publishing ALPACA_ACCOUNT_SNAPSHOT for tenant', tenant.tenantId);
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'reconciliation-ctrl',
@@ -63,6 +73,22 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
         ],
       },
     });
+    console.log('[scenario-13] putEvent completed successfully');
+
+    // Wait for event to be processed by Lambda
+    await new Promise((r) => setTimeout(r, 15_000));
+
+    // VERIFY: Settlement cache was written (confirms event reached Lambda)
+    const settlementAfter = await ddbDoc.send(new GetCommand({
+      TableName: tableName,
+      Key: { pk: `PositionCache#${tenant.tenantId}`, sk: 'Settlement' },
+    }));
+    console.log('[scenario-13] Settlement cache after trigger:', JSON.stringify(settlementAfter.Item ?? null));
+
+    if (!settlementAfter.Item) {
+      // Check if there are any PositionCache items for this tenant at all
+      console.log('[scenario-13] WARNING: Settlement cache NOT written — event may not have reached Lambda');
+    }
 
     // ASSERT: drift detection → PORTFOLIO_DRIFT_DETECTED → advisory-ctrl →
     // decision surfaces in getDecisionHistory
@@ -73,7 +99,7 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
       `query History { getDecisionHistory(limit: 10) { items { decisionId trigger status } nextCursor } }`,
       {},
       (r) => r.getDecisionHistory.items.some((d) => d.trigger === 'PORTFOLIO_DRIFT_DETECTED'),
-      { timeoutMs: 240_000, intervalMs: 5_000 },
+      { timeoutMs: 180_000, intervalMs: 5_000 },
     );
 
     const decision = history.getDecisionHistory.items.find((d) => d.trigger === 'PORTFOLIO_DRIFT_DETECTED');
