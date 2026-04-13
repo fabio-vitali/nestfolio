@@ -5,7 +5,7 @@
     "target": "ES2022",
     "outDir": "../../dist/apps/e2e-feature-tests",
     "declaration": true,
-    "types": ["node"]
+    "types": ["jest", "node"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "jest.global-teardown.ts"]
 }
