@@ -12,8 +12,9 @@ export function request(ctx) {
     operation: 'Query',
     index: 'tenantId-index',
     query: {
-      expression: 'tenantId = :tenantId',
-      expressionValues: util.dynamodb.toMapValues({ ':tenantId': tenantId }),
+      expression: 'tenantId = :tenantId AND #typename = :typename',
+      expressionNames: { '#typename': '__typename' },
+      expressionValues: util.dynamodb.toMapValues({ ':tenantId': tenantId, ':typename': 'DecisionReadModel' }),
     },
     filter: {
       expression: '#status IN (:s1, :s2, :s3, :s4, :s5)',

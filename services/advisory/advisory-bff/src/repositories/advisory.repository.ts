@@ -75,8 +75,8 @@ export class AdvisoryRepository extends TableRepository {
       new QueryCommand({
         TableName: this.tableName,
         IndexName: 'tenantId-index',
-        KeyConditionExpression: 'tenantId = :tenantId',
-        FilterExpression: `#status IN (${statuses.map((_, i) => `:s${i}`).join(', ')}) AND #typ = :typename`,
+        KeyConditionExpression: 'tenantId = :tenantId AND #typ = :typename',
+        FilterExpression: `#status IN (${statuses.map((_, i) => `:s${i}`).join(', ')})`,
         ExpressionAttributeNames: { '#status': 'status', '#typ': '__typename' },
         ExpressionAttributeValues: {
           ':tenantId': tenantId,
@@ -110,8 +110,7 @@ export class AdvisoryRepository extends TableRepository {
       new QueryCommand({
         TableName: this.tableName,
         IndexName: 'tenantId-index',
-        KeyConditionExpression: 'tenantId = :tenantId',
-        FilterExpression: '#typ = :typename',
+        KeyConditionExpression: 'tenantId = :tenantId AND #typ = :typename',
         ExpressionAttributeNames: { '#typ': '__typename' },
         ExpressionAttributeValues: {
           ':tenantId': tenantId,
