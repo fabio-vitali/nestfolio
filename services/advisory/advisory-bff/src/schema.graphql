@@ -18,6 +18,7 @@ type Subscription {
 }
 
 enum DecisionStatus {
+  PENDING
   DRAFT
   PROPOSED
   COMPLIANCE_REVIEW

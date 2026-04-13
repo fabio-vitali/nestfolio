@@ -189,12 +189,12 @@ export function withNotification(opts: {
  * into the ledger-bff read model (Portfolio / Positions).
  */
 export function withHoldings(
-  holdings: Array<{ symbol: string; quantity: number; fillPriceCents: number }>,
+  holdings: Array<{ symbol: string; quantity: number; fillPrice: number }>,
 ): Fixture {
   return async (_ctx, tenant, eb, _bff) => {
     for (const h of holdings) {
       await eb.putEvent({
-        bus: 'execution',
+        bus: 'ledger',
         targetService: 'ledger-ctrl',
         detailType: 'ORDER_FILLED',
         detail: {
@@ -203,7 +203,8 @@ export function withHoldings(
           orderId: `e2e-order-${h.symbol}-${Date.now()}`,
           symbol: h.symbol,
           quantity: h.quantity,
-          fillPriceCents: h.fillPriceCents,
+          fillPrice: h.fillPrice,
+          filledAt: new Date().toISOString(),
           side: 'BUY',
         },
       });

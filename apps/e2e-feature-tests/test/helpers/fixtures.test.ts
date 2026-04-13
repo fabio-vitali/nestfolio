@@ -137,7 +137,7 @@ describe('fixtures — withNotification', () => {
 });
 
 describe('fixtures — withHoldings', () => {
-  it('publishes one ORDER_FILLED per holding on the execution bus', async () => {
+  it('publishes one ORDER_FILLED per holding on the ledger bus', async () => {
     const ctx = {} as any;
     const tenant = { tenantId: 't-5', userId: 'u-5', idToken: '', accessToken: '', cognitoTokens: {} as any };
     const eb = { putEvent: jest.fn().mockResolvedValue(undefined) };
@@ -145,23 +145,23 @@ describe('fixtures — withHoldings', () => {
 
     await applyFixtures(ctx, tenant, [
       withHoldings([
-        { symbol: 'AAPL', quantity: 10, fillPriceCents: 15_000 },
-        { symbol: 'GOOG', quantity: 3, fillPriceCents: 140_000 },
+        { symbol: 'AAPL', quantity: 10, fillPrice: 150 },
+        { symbol: 'GOOG', quantity: 3, fillPrice: 1400 },
       ]),
     ]);
 
     expect(eb.putEvent).toHaveBeenCalledTimes(2);
     expect(eb.putEvent).toHaveBeenCalledWith(expect.objectContaining({
-      bus: 'execution',
+      bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'ORDER_FILLED',
-      detail: expect.objectContaining({ symbol: 'AAPL', quantity: 10, fillPriceCents: 15_000 }),
+      detail: expect.objectContaining({ symbol: 'AAPL', quantity: 10, fillPrice: 150 }),
     }));
     expect(eb.putEvent).toHaveBeenCalledWith(expect.objectContaining({
-      bus: 'execution',
+      bus: 'ledger',
       targetService: 'ledger-ctrl',
       detailType: 'ORDER_FILLED',
-      detail: expect.objectContaining({ symbol: 'GOOG', quantity: 3, fillPriceCents: 140_000 }),
+      detail: expect.objectContaining({ symbol: 'GOOG', quantity: 3, fillPrice: 1400 }),
     }));
   });
 });

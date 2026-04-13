@@ -7,7 +7,6 @@ export function request(ctx) {
   return ddb.query({
     query: {
       pk: { eq: `Portfolio#${tenantId}` },
-      sk: { beginsWith: '' },
     },
   });
 }
