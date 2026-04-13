@@ -1,9 +1,10 @@
 import type { DynamoDBStreamEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { logger } from '../internal';
 import type { StreamRecord, StreamContext } from '../types/stream-types';
 import { EgestionEngine } from '../engine/egestion-engine';
+import type { RequestContext } from '../domain/schemas';
 
 export interface ReplayAndReduceConfig<S> {
   serviceName: string;
@@ -17,34 +18,29 @@ export interface ReplayAndReduceConfig<S> {
     key: (groupKey: string) => { pk: string; sk: string };
     daily?: boolean;
   };
-  queryEvents?: (
+  /** Query events since last checkpoint. Required — no default convention query. */
+  queryEvents: (
     groupKey: string,
     lastSequence: number,
     clients: { docClient: DynamoDBDocumentClient; tableName: string },
   ) => Promise<Record<string, unknown>[]>;
+  /** Extract RequestContext from the group key and stream records. */
+  requestContext: (groupKey: string, records: StreamRecord[]) => RequestContext;
+  /**
+   * Custom save logic. When provided, replaces the default PutCommand.
+   * Receives the reduced state, sequence info, and RequestContext.
+   */
+  saveSnapshot?: (params: {
+    snapshotKey: { pk: string; sk: string };
+    state: S;
+    lastEventSequence: number;
+    version: number;
+    requestContext: RequestContext;
+    clients: { docClient: DynamoDBDocumentClient; tableName: string };
+  }) => Promise<void>;
   table?: string;
   bus?: string;
   concurrency?: number;
-}
-
-async function conventionQuery(
-  lastSequence: number,
-  typename: string,
-  pk: string,
-  clients: { docClient: DynamoDBDocumentClient; tableName: string },
-): Promise<Record<string, unknown>[]> {
-  const result = await clients.docClient.send(new QueryCommand({
-    TableName: clients.tableName,
-    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-    FilterExpression: 'sequenceNo > :seq',
-    ExpressionAttributeValues: {
-      ':pk': pk,
-      ':prefix': `${typename}#`,
-      ':seq': lastSequence,
-    },
-    ScanIndexForward: true,
-  }));
-  return (result.Items ?? []) as Record<string, unknown>[];
 }
 
 export function replayAndReduce<S>(
@@ -60,6 +56,7 @@ export function replayAndReduce<S>(
     _ctx: StreamContext,
   ): Promise<void> => {
     const snapshotKey = config.snapshot.key(groupKey);
+    const reqCtx = config.requestContext(groupKey, records);
 
     // 1. Load current snapshot
     const snapshotResult = await docClient.send(new GetCommand({
@@ -77,13 +74,7 @@ export function replayAndReduce<S>(
     const currentVersion = (existing?.version as number) ?? 0;
 
     // 2. Query events since checkpoint
-    let events: Record<string, unknown>[];
-    if (config.queryEvents) {
-      events = await config.queryEvents(groupKey, lastSeq, clients);
-    } else {
-      const firstRecord = records[0];
-      events = await conventionQuery(lastSeq, firstRecord.__typename, firstRecord.pk, clients);
-    }
+    const events = await config.queryEvents(groupKey, lastSeq, clients);
 
     if (events.length === 0) {
       logger.info('No new events to reduce', { groupKey });
@@ -99,33 +90,45 @@ export function replayAndReduce<S>(
       currentState,
     );
 
-    // 5. Save snapshot with optimistic concurrency
+    // 5. Save snapshot
     const maxSeq = events.reduce(
       (max, e) => Math.max(max, (e.sequenceNo as number) ?? 0),
       0,
     );
     const nextVersion = currentVersion + 1;
 
-    try {
-      await docClient.send(new PutCommand({
-        TableName: tableName,
-        Item: {
-          ...snapshotKey,
-          ...(nextState as Record<string, unknown>),
-          version: nextVersion,
-          lastEventSequence: maxSeq,
-          updatedAt: new Date().toISOString(),
-        },
-        ConditionExpression: 'attribute_not_exists(pk) OR version = :v',
-        ExpressionAttributeValues: { ':v': currentVersion },
-      }));
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'ConditionalCheckFailedException') {
-        // Rethrow as plain Error so isRetryable() treats it as retryable
-        // (ConditionalCheckFailedException is classified as non-retryable client fault)
-        throw new Error(`Snapshot conflict for ${groupKey} — concurrent update detected`);
+    if (config.saveSnapshot) {
+      await config.saveSnapshot({
+        snapshotKey,
+        state: nextState,
+        lastEventSequence: maxSeq,
+        version: nextVersion,
+        requestContext: reqCtx,
+        clients,
+      });
+    } else {
+      // Default: optimistic-lock PutCommand
+      try {
+        await docClient.send(new PutCommand({
+          TableName: tableName,
+          Item: {
+            ...snapshotKey,
+            ...(nextState as Record<string, unknown>),
+            ...reqCtx,
+            __typename: 'AccountSnapshot',
+            version: nextVersion,
+            lastEventSequence: maxSeq,
+            updatedAt: new Date().toISOString(),
+          },
+          ConditionExpression: 'attribute_not_exists(pk) OR version = :v',
+          ExpressionAttributeValues: { ':v': currentVersion },
+        }));
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'ConditionalCheckFailedException') {
+          throw new Error(`Snapshot conflict for ${groupKey} — concurrent update detected`);
+        }
+        throw err;
       }
-      throw err;
     }
 
     // 6. Daily checkpoint
@@ -138,6 +141,8 @@ export function replayAndReduce<S>(
             pk: snapshotKey.pk,
             sk: `Snapshot#${today}`,
             ...(nextState as Record<string, unknown>),
+            ...reqCtx,
+            __typename: 'AccountCheckpoint',
             version: nextVersion,
             lastEventSequence: maxSeq,
             createdAt: new Date().toISOString(),

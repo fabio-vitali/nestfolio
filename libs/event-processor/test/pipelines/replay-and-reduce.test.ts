@@ -24,7 +24,6 @@ jest.mock('@aws-sdk/lib-dynamodb', () => ({
   },
   GetCommand: jest.fn().mockImplementation((input) => ({ ...input, _cmd: 'Get' })),
   PutCommand: jest.fn().mockImplementation((input) => ({ ...input, _cmd: 'Put' })),
-  QueryCommand: jest.fn().mockImplementation((input) => ({ ...input, _cmd: 'Query' })),
 }));
 jest.mock('../../src/engine/error-event-publisher', () => ({
   ErrorEventPublisher: jest.fn().mockImplementation(() => ({
@@ -33,6 +32,8 @@ jest.mock('../../src/engine/error-event-publisher', () => ({
 }));
 
 interface TestState { total: number }
+
+const mockQueryEvents = jest.fn();
 
 const testConfig: ReplayAndReduceConfig<TestState> = {
   serviceName: 'test-service',
@@ -46,6 +47,12 @@ const testConfig: ReplayAndReduceConfig<TestState> = {
       return { pk: `T#${tenantId}`, sk: 'Snapshot#current' };
     },
   },
+  queryEvents: mockQueryEvents,
+  requestContext: (gk, records) => ({
+    tenantId: gk.split('#')[0],
+    userId: (records[0]?.userId as string) ?? 'system',
+    region: 'us-east-1',
+  }),
 };
 
 describe('replayAndReduce', () => {
@@ -66,13 +73,11 @@ describe('replayAndReduce', () => {
   it('loads snapshot, queries events, reduces, and saves', async () => {
     // GetCommand: no existing snapshot
     mockSend.mockResolvedValueOnce({ Item: undefined });
-    // QueryCommand: returns events
-    mockSend.mockResolvedValueOnce({
-      Items: [
-        { eventType: 'ADD', amount: 100, sequenceNo: 1 },
-        { eventType: 'ADD', amount: 200, sequenceNo: 2 },
-      ],
-    });
+    // queryEvents: returns events
+    mockQueryEvents.mockResolvedValueOnce([
+      { eventType: 'ADD', amount: 100, sequenceNo: 1 },
+      { eventType: 'ADD', amount: 200, sequenceNo: 2 },
+    ]);
     // PutCommand: save snapshot (success)
     mockSend.mockResolvedValueOnce({});
 
@@ -80,16 +85,18 @@ describe('replayAndReduce', () => {
     await handler({
       Records: [
         fakeDdbStreamRecord('INSERT', {
-          pk: 'T#t1', sk: 'Event#1', __typename: 'Event', tenantId: 't1', sequenceNo: 1,
+          pk: 'T#t1', sk: 'Event#1', __typename: 'Event', tenantId: 't1', userId: 'u1', sequenceNo: 1,
         }),
       ],
     });
 
     // Verify snapshot save
-    const putCall = mockSend.mock.calls[2][0];
+    const putCall = mockSend.mock.calls[1][0];
     expect(putCall.Item.total).toBe(300);
     expect(putCall.Item.version).toBe(1);
     expect(putCall.Item.lastEventSequence).toBe(2);
+    expect(putCall.Item.tenantId).toBe('t1');
+    expect(putCall.Item.__typename).toBe('AccountSnapshot');
   });
 
   it('applies delta on existing snapshot', async () => {
@@ -97,10 +104,10 @@ describe('replayAndReduce', () => {
     mockSend.mockResolvedValueOnce({
       Item: { total: 500, version: 3, lastEventSequence: 10 },
     });
-    // QueryCommand: new events since seq 10
-    mockSend.mockResolvedValueOnce({
-      Items: [{ eventType: 'ADD', amount: 50, sequenceNo: 11 }],
-    });
+    // queryEvents: new events since seq 10
+    mockQueryEvents.mockResolvedValueOnce([
+      { eventType: 'ADD', amount: 50, sequenceNo: 11 },
+    ]);
     // PutCommand: save
     mockSend.mockResolvedValueOnce({});
 
@@ -108,36 +115,36 @@ describe('replayAndReduce', () => {
     await handler({
       Records: [
         fakeDdbStreamRecord('INSERT', {
-          pk: 'T#t1', sk: 'Event#11', __typename: 'Event', tenantId: 't1', sequenceNo: 11,
+          pk: 'T#t1', sk: 'Event#11', __typename: 'Event', tenantId: 't1', userId: 'u1', sequenceNo: 11,
         }),
       ],
     });
 
-    const putCall = mockSend.mock.calls[2][0];
+    const putCall = mockSend.mock.calls[1][0];
     expect(putCall.Item.total).toBe(550);
     expect(putCall.Item.version).toBe(4);
   });
 
   it('skips when no new events from query', async () => {
     mockSend.mockResolvedValueOnce({ Item: { total: 500, version: 3, lastEventSequence: 10 } });
-    mockSend.mockResolvedValueOnce({ Items: [] });
+    mockQueryEvents.mockResolvedValueOnce([]);
 
     const handler = replayAndReduce(testConfig);
     await handler({
       Records: [
         fakeDdbStreamRecord('INSERT', {
-          pk: 'T#t1', sk: 'Event#10', __typename: 'Event', tenantId: 't1', sequenceNo: 10,
+          pk: 'T#t1', sk: 'Event#10', __typename: 'Event', tenantId: 't1', userId: 'u1', sequenceNo: 10,
         }),
       ],
     });
 
-    // Only 2 calls (Get + Query), no Put
-    expect(mockSend).toHaveBeenCalledTimes(2);
+    // Only 1 DDB call (GetCommand), no Put
+    expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   it('retries on ConditionalCheckFailedException', async () => {
     mockSend.mockResolvedValueOnce({ Item: { total: 0, version: 1, lastEventSequence: 0 } });
-    mockSend.mockResolvedValueOnce({ Items: [{ amount: 100, sequenceNo: 1 }] });
+    mockQueryEvents.mockResolvedValueOnce([{ amount: 100, sequenceNo: 1 }]);
     // PutCommand fails with conditional check
     const condError = new Error('ConditionalCheckFailedException');
     condError.name = 'ConditionalCheckFailedException';
@@ -148,7 +155,7 @@ describe('replayAndReduce', () => {
     await expect(handler({
       Records: [
         fakeDdbStreamRecord('INSERT', {
-          pk: 'T#t1', sk: 'Event#1', __typename: 'Event', tenantId: 't1', sequenceNo: 1,
+          pk: 'T#t1', sk: 'Event#1', __typename: 'Event', tenantId: 't1', userId: 'u1', sequenceNo: 1,
         }),
       ],
     })).rejects.toThrow('EgestionBatchError');
@@ -159,39 +166,50 @@ describe('replayAndReduce', () => {
     await handler({
       Records: [
         fakeDdbStreamRecord('INSERT', {
-          pk: 'T#t1', sk: 'Guard#1', __typename: 'Guard', tenantId: 't1',
+          pk: 'T#t1', sk: 'Guard#1', __typename: 'Guard', tenantId: 't1', userId: 'u1',
         }),
       ],
     });
     expect(mockSend).not.toHaveBeenCalled();
   });
 
-  it('uses queryEvents override when provided', async () => {
-    const customQuery = jest.fn().mockResolvedValue([{ amount: 999, sequenceNo: 1 }]);
-    const configWithOverride = { ...testConfig, queryEvents: customQuery };
+  it('uses saveSnapshot override when provided', async () => {
+    const mockSaveSnapshot = jest.fn().mockResolvedValue(undefined);
+    const configWithSave = { ...testConfig, saveSnapshot: mockSaveSnapshot };
 
-    mockSend.mockResolvedValueOnce({ Item: undefined }); // Get snapshot
-    mockSend.mockResolvedValueOnce({}); // Put snapshot
+    // GetCommand: no existing snapshot
+    mockSend.mockResolvedValueOnce({ Item: undefined });
+    // queryEvents: returns events
+    mockQueryEvents.mockResolvedValueOnce([
+      { amount: 42, sequenceNo: 1 },
+    ]);
 
-    const handler = replayAndReduce(configWithOverride);
+    const handler = replayAndReduce(configWithSave);
     await handler({
       Records: [
         fakeDdbStreamRecord('INSERT', {
-          pk: 'T#t1', sk: 'Event#1', __typename: 'Event', tenantId: 't1', sequenceNo: 1,
+          pk: 'T#t1', sk: 'Event#1', __typename: 'Event', tenantId: 't1', userId: 'u1', sequenceNo: 1,
         }),
       ],
     });
 
-    expect(customQuery).toHaveBeenCalledWith('t1#stream', 0, expect.objectContaining({ tableName: 'test-table' }));
-    const putCall = mockSend.mock.calls[1][0];
-    expect(putCall.Item.total).toBe(999);
+    expect(mockSaveSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockSaveSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      snapshotKey: { pk: 'T#t1', sk: 'Snapshot#current' },
+      state: { total: 42 },
+      lastEventSequence: 1,
+      version: 1,
+      requestContext: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
+    }));
+    // Only 1 DDB send call (GetCommand) — no default PutCommand
+    expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   it('saves daily checkpoint when configured', async () => {
     const configWithDaily = { ...testConfig, snapshot: { ...testConfig.snapshot, daily: true } };
 
     mockSend.mockResolvedValueOnce({ Item: undefined }); // Get snapshot
-    mockSend.mockResolvedValueOnce({ Items: [{ amount: 100, sequenceNo: 1 }] }); // Query
+    mockQueryEvents.mockResolvedValueOnce([{ amount: 100, sequenceNo: 1 }]); // queryEvents
     mockSend.mockResolvedValueOnce({}); // Put snapshot
     mockSend.mockResolvedValueOnce({}); // Put daily checkpoint
 
@@ -199,14 +217,16 @@ describe('replayAndReduce', () => {
     await handler({
       Records: [
         fakeDdbStreamRecord('INSERT', {
-          pk: 'T#t1', sk: 'Event#1', __typename: 'Event', tenantId: 't1', sequenceNo: 1,
+          pk: 'T#t1', sk: 'Event#1', __typename: 'Event', tenantId: 't1', userId: 'u1', sequenceNo: 1,
         }),
       ],
     });
 
-    expect(mockSend).toHaveBeenCalledTimes(4);
-    const dailyPut = mockSend.mock.calls[3][0];
+    expect(mockSend).toHaveBeenCalledTimes(3);
+    const dailyPut = mockSend.mock.calls[2][0];
     const today = new Date().toISOString().slice(0, 10);
     expect(dailyPut.Item.sk).toBe(`Snapshot#${today}`);
+    expect(dailyPut.Item.__typename).toBe('AccountCheckpoint');
+    expect(dailyPut.Item.tenantId).toBe('t1');
   });
 });
