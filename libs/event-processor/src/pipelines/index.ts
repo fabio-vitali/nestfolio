@@ -8,3 +8,5 @@ export { replayAndReduce } from './replay-and-reduce';
 export type { ReplayAndReduceConfig } from './replay-and-reduce';
 export { resumeStateMachine } from './resume-state-machine';
 export type { ResumeStateMachineConfig, ResumeHandler } from './resume-state-machine';
+export { deriveFromStream } from './derive-from-stream';
+export type { DeriveFromStreamConfig } from './derive-from-stream';

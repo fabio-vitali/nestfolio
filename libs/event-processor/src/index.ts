@@ -38,6 +38,8 @@ export { changeDataCapture } from './pipelines/change-data-capture';
 export type { ChangeDataCaptureConfig } from './pipelines/change-data-capture';
 export { replayAndReduce } from './pipelines/replay-and-reduce';
 export type { ReplayAndReduceConfig } from './pipelines/replay-and-reduce';
+export { deriveFromStream } from './pipelines/derive-from-stream';
+export type { DeriveFromStreamConfig } from './pipelines/derive-from-stream';
 
 // Engine (advanced) — Ingestion
 export { IngestionEngine } from './engine/ingestion-engine';
