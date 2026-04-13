@@ -1,116 +1,173 @@
-import { materializeToTable, record, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
-import { requireEnv } from '@nestfolio/event-processor';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { materializeToTable, record, skip, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { requireEnv, logger } from '@nestfolio/event-processor';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
+import { ReconciliationRepository, type CachedPositionSnapshot } from '../repositories/reconciliation.repository';
 import { ReconciliationService } from '../services/reconciliation.service';
+
+const DEFAULT_STALENESS_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface EventListenerDeps {
   readonly reconciliationService: ReconciliationService;
+  readonly repository: ReconciliationRepository;
+  readonly stalenessWindowMs: number;
 }
 
-const reconcileHandler = (deps: EventListenerDeps) =>
-  async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
-    const subject = payload.subject;
-    const tenantId = ctx.tenantId;
-    const reconciliationId = ctx.eventId;
-    const portfolioId = (subject?.portfolioId as string) ?? tenantId;
-    const positions = (subject?.positions as Array<{ symbol: string; quantity: number }>) ?? [];
+// ---------------------------------------------------------------------------
+// Position normalization
+// ---------------------------------------------------------------------------
 
-    const result = await deps.reconciliationService.reconcile(reconciliationId, {
-      tenantId,
-      portfolioId,
-      intentPositions: positions.map((p) => ({
-        instrument: p.symbol,
-        quantity: p.quantity,
-      })),
-      settlementPositions: positions.map((p) => ({
-        instrument: p.symbol,
-        quantity: p.quantity,
-      })),
+type PositionEntry = { instrument: string; quantity: number };
+
+/**
+ * Normalizes positions from different event formats:
+ * - PORTFOLIO_UPDATED CDC: Record<string, { symbol, quantity, ... }> (object keyed by symbol)
+ * - ALPACA_ACCOUNT_SNAPSHOT: Array<{ symbol, qty, marketValue }> (array with qty field)
+ * - Generic: Array<{ symbol, quantity }> (array with quantity field)
+ */
+function normalizePositions(
+  raw: unknown,
+  fieldMapping: { quantityField: 'quantity' | 'qty' },
+): PositionEntry[] {
+  if (!raw) return [];
+
+  // Array format (ALPACA_ACCOUNT_SNAPSHOT or generic)
+  if (Array.isArray(raw)) {
+    return raw.map((p: Record<string, unknown>) => ({
+      instrument: (p.symbol as string) ?? '',
+      quantity: (p[fieldMapping.quantityField] as number) ?? 0,
+    }));
+  }
+
+  // Object format (PORTFOLIO_UPDATED CDC — Record<string, PositionSnapshot>)
+  if (typeof raw === 'object') {
+    return Object.values(raw as Record<string, Record<string, unknown>>).map((p) => ({
+      instrument: (p.symbol as string) ?? '',
+      quantity: (p.quantity as number) ?? 0,
+    }));
+  }
+
+  return [];
+}
+
+// ---------------------------------------------------------------------------
+// Staleness check
+// ---------------------------------------------------------------------------
+
+function isFresh(snapshot: CachedPositionSnapshot, stalenessMs: number): boolean {
+  const age = Date.now() - new Date(snapshot.capturedAt).getTime();
+  return age < stalenessMs;
+}
+
+// ---------------------------------------------------------------------------
+// Cache-and-compare reconciliation
+// ---------------------------------------------------------------------------
+
+async function cacheAndReconcile(
+  deps: EventListenerDeps,
+  mySide: 'Intent' | 'Settlement',
+  myPositions: PositionEntry[],
+  sourceEventType: string,
+  ctx: EventContext,
+): Promise<WriteIntent | WriteIntent[]> {
+  const tenantId = ctx.tenantId;
+  const reconciliationId = ctx.eventId;
+
+  // 1. Cache our side
+  await deps.repository.putPositionSnapshot(tenantId, mySide, myPositions, sourceEventType);
+
+  // 2. Read the other side
+  const otherSide = mySide === 'Intent' ? 'Settlement' : 'Intent';
+  const otherSnapshot = await deps.repository.getPositionSnapshot(tenantId, otherSide);
+
+  // 3. If other side doesn't exist or is stale, just cache and skip
+  if (!otherSnapshot || !isFresh(otherSnapshot, deps.stalenessWindowMs)) {
+    logger.info('Cached position snapshot, other side not available or stale', {
+      tenantId, mySide, otherSideExists: !!otherSnapshot,
     });
+    return skip();
+  }
 
-    const pk = `Reconciliation#${tenantId}#${reconciliationId}`;
+  // 4. Both sides available — reconcile
+  const intentPositions = mySide === 'Intent' ? myPositions : otherSnapshot.positions;
+  const settlementPositions = mySide === 'Settlement' ? myPositions : otherSnapshot.positions;
 
-    return [
-      record('ReconciliationResult', {
+  const portfolioId = tenantId;
+  const result = deps.reconciliationService.reconcile(reconciliationId, {
+    tenantId,
+    portfolioId,
+    intentPositions,
+    settlementPositions,
+  });
+
+  const pk = `Reconciliation#${tenantId}#${reconciliationId}`;
+
+  return [
+    record('ReconciliationResult', {
+      tenantId,
+      reconciliationId,
+      status: result.status,
+      driftCount: result.drifts.length,
+    }, { pk, sk: 'Reconciliation' }),
+    ...result.drifts.map((d) =>
+      record('DriftRecord', {
         tenantId,
         reconciliationId,
-        status: result.status,
-        driftCount: result.drifts.length,
-      }, { pk, sk: 'Reconciliation' }),
-      ...result.drifts.map((d) =>
-        record('DriftRecord', {
-          tenantId,
-          reconciliationId,
-          instrument: d.instrument,
-          intentQty: d.intentQty,
-          settlementQty: d.settlementQty,
-          drift: d.drift,
-        }, { pk, sk: `DriftRecord#${d.instrument}` }),
-      ),
-    ];
-  };
+        instrument: d.instrument,
+        intentQty: d.intentQty,
+        settlementQty: d.settlementQty,
+        drift: d.drift,
+      }, { pk, sk: `DriftRecord#${d.instrument}` }),
+    ),
+  ];
+}
 
-const alpacaSnapshotHandler = (deps: EventListenerDeps) =>
-  async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
-    const subject = payload.subject;
-    const tenantId = ctx.tenantId;
-    const reconciliationId = ctx.eventId;
-    const portfolioId = (subject?.portfolioId as string) ?? tenantId;
-    const rawPositions = (subject?.positions as Array<{ symbol: string; qty: number }>) ?? [];
+// ---------------------------------------------------------------------------
+// Handler factory
+// ---------------------------------------------------------------------------
 
-    const result = await deps.reconciliationService.reconcile(reconciliationId, {
-      tenantId,
-      portfolioId,
-      intentPositions: rawPositions.map((p) => ({
-        instrument: p.symbol,
-        quantity: p.qty,
-      })),
-      settlementPositions: rawPositions.map((p) => ({
-        instrument: p.symbol,
-        quantity: p.qty,
-      })),
-    });
-
-    const pk = `Reconciliation#${tenantId}#${reconciliationId}`;
-
-    return [
-      record('ReconciliationResult', {
-        tenantId,
-        reconciliationId,
-        status: result.status,
-        driftCount: result.drifts.length,
-      }, { pk, sk: 'Reconciliation' }),
-      ...result.drifts.map((d) =>
-        record('DriftRecord', {
-          tenantId,
-          reconciliationId,
-          instrument: d.instrument,
-          intentQty: d.intentQty,
-          settlementQty: d.settlementQty,
-          drift: d.drift,
-        }, { pk, sk: `DriftRecord#${d.instrument}` }),
-      ),
-    ];
-  };
-
-const RECONCILE_EVENT_TYPES = [
+const INTENT_EVENT_TYPES = [
   LedgerCtrlEventTypes.PORTFOLIO_UPDATED,
   ExecutionCrossDomainEventTypes.PORTFOLIO_SNAPSHOT_IMPORTED,
-  'CORPORATE_ACTION_APPLIED',
+  ExecutionCrossDomainEventTypes.CORPORATE_ACTION_APPLIED,
 ] as const;
 
-export const createHandlers = (deps: EventListenerDeps) => ({
-  ...Object.fromEntries(
-    RECONCILE_EVENT_TYPES.map((type) => [type, reconcileHandler(deps)]),
-  ),
-  [ExecutionCrossDomainEventTypes.ALPACA_ACCOUNT_SNAPSHOT]: alpacaSnapshotHandler(deps),
-});
+export const createHandlers = (deps: EventListenerDeps) => {
+  const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<WriteIntent | WriteIntent[]>> = {};
 
+  // Intent-side events (positions from internal ledger)
+  for (const type of INTENT_EVENT_TYPES) {
+    handlers[type] = async (payload, ctx) => {
+      const positions = normalizePositions(payload.subject?.positions, { quantityField: 'quantity' });
+      return cacheAndReconcile(deps, 'Intent', positions, ctx.eventType, ctx);
+    };
+  }
+
+  // Settlement-side event (positions from broker)
+  handlers[ExecutionCrossDomainEventTypes.ALPACA_ACCOUNT_SNAPSHOT] = async (payload, ctx) => {
+    const positions = normalizePositions(payload.subject?.positions, { quantityField: 'qty' });
+    return cacheAndReconcile(deps, 'Settlement', positions, ctx.eventType, ctx);
+  };
+
+  return handlers;
+};
+
+// ---------------------------------------------------------------------------
 // Production wiring
-requireEnv('TABLE_NAME'); // kept for environment validation
+// ---------------------------------------------------------------------------
+
+const TABLE_NAME = requireEnv('TABLE_NAME');
+const dynamoClient = new DynamoDBClient({});
+const repository = new ReconciliationRepository(TABLE_NAME, dynamoClient);
 const reconciliationService = new ReconciliationService();
-const deps: EventListenerDeps = { reconciliationService };
+const stalenessWindowMs = parseInt(process.env['STALENESS_WINDOW_MS'] ?? `${DEFAULT_STALENESS_MS}`, 10);
+
+const deps: EventListenerDeps = {
+  reconciliationService,
+  repository,
+  stalenessWindowMs,
+};
 
 export const handler = materializeToTable({
   serviceName: 'reconciliation-ctrl',
