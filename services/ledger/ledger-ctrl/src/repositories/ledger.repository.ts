@@ -133,6 +133,50 @@ export class LedgerRepository extends TableRepository {
     },
   );
 
+  readonly saveSnapshot = this.log('saveSnapshot',
+    async (
+      streamType: 'actual' | 'simulated',
+      state: SnapshotState,
+      lastEventSequence: number,
+      version: number,
+      ctx: RequestContext,
+    ): Promise<void> => {
+      const now = getTime();
+      const pk = `Account#${ctx.tenantId}#${streamType}`;
+      const totalValueCents = this.computeTotalValue(state);
+
+      try {
+        await this.docClient.send(
+          new PutCommand({
+            TableName: this.tableName,
+            Item: {
+              pk,
+              sk: 'Snapshot#latest',
+              __typename: 'AccountSnapshot',
+              ...ctx,
+              timestamp: now,
+              streamType,
+              positions: state.positions,
+              cashBalanceCents: state.cashBalanceCents,
+              totalValueCents,
+              positionCount: Object.keys(state.positions).length,
+              lastEventSequence,
+              version,
+              snapshotAt: now,
+            },
+            ConditionExpression: 'attribute_not_exists(pk) OR version = :v',
+            ExpressionAttributeValues: { ':v': version - 1 },
+          }),
+        );
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'ConditionalCheckFailedException') {
+          throw new Error(`Snapshot conflict for ${pk} — concurrent update detected`);
+        }
+        throw err;
+      }
+    },
+  );
+
   readonly saveSnapshotWithEvents = this.log('saveSnapshotWithEvents',
     async (data: SnapshotWithEvents, ctx: RequestContext): Promise<void> => {
       const now = getTime();
