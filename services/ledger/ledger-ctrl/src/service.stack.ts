@@ -88,10 +88,15 @@ export class LedgerCtrlStack extends ServiceStack {
       parallelizationFactor: reducerProps.ddbStreamParallelizationFactor,
       filters: [
         FilterCriteria.filter({
-          eventName: FilterRule.or(
-            FilterRule.isEqual('INSERT'),
-            FilterRule.isEqual('MODIFY'),
-          ),
+          eventName: FilterRule.isEqual('INSERT'),
+          dynamodb: {
+            NewImage: {
+              __typename: { S: FilterRule.isEqual('AccountSnapshot') },
+            },
+          },
+        }),
+        FilterCriteria.filter({
+          eventName: FilterRule.isEqual('MODIFY'),
           dynamodb: {
             NewImage: {
               __typename: { S: FilterRule.isEqual('AccountSnapshot') },
