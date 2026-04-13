@@ -285,4 +285,44 @@ describe('ReconciliationRepository', () => {
       expect(locked).toBe(false);
     });
   });
+
+  describe('putPositionSnapshot / getPositionSnapshot', () => {
+    it('should write and read an Intent snapshot', async () => {
+      mockSend.mockResolvedValueOnce({}); // PutCommand
+      await repo.putPositionSnapshot('t1', 'Intent', [
+        { instrument: 'AAPL', quantity: 100 },
+      ], 'PORTFOLIO_UPDATED');
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const putCall = mockSend.mock.calls[0][0];
+      expect(putCall.input.Item.pk).toBe('PositionCache#t1');
+      expect(putCall.input.Item.sk).toBe('Intent');
+      expect(putCall.input.Item.__typename).toBe('PositionCache');
+      expect(putCall.input.Item.positions).toEqual([{ instrument: 'AAPL', quantity: 100 }]);
+    });
+
+    it('should return null when no snapshot exists', async () => {
+      mockSend.mockResolvedValueOnce({ Item: undefined }); // GetCommand
+      const result = await repo.getPositionSnapshot('t1', 'Settlement');
+      expect(result).toBeNull();
+    });
+
+    it('should return cached snapshot when it exists', async () => {
+      mockSend.mockResolvedValueOnce({
+        Item: {
+          pk: 'PositionCache#t1', sk: 'Settlement', __typename: 'PositionCache',
+          side: 'Settlement',
+          positions: [{ instrument: 'AAPL', quantity: 50 }],
+          capturedAt: '2025-01-01T00:00:00.000Z',
+          sourceEventType: 'ALPACA_ACCOUNT_SNAPSHOT',
+        },
+      });
+      const result = await repo.getPositionSnapshot('t1', 'Settlement');
+      expect(result).toEqual({
+        side: 'Settlement',
+        positions: [{ instrument: 'AAPL', quantity: 50 }],
+        capturedAt: '2025-01-01T00:00:00.000Z',
+        sourceEventType: 'ALPACA_ACCOUNT_SNAPSHOT',
+      });
+    });
+  });
 });

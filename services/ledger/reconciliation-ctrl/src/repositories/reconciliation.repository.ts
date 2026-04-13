@@ -15,6 +15,17 @@ function lockPk(tenantId: string): string {
   return `ReconciliationLock#${tenantId}`;
 }
 
+function positionCachePk(tenantId: string): string {
+  return `PositionCache#${tenantId}`;
+}
+
+export interface CachedPositionSnapshot {
+  readonly side: 'Intent' | 'Settlement';
+  readonly positions: Array<{ instrument: string; quantity: number }>;
+  readonly capturedAt: string;
+  readonly sourceEventType: string;
+}
+
 export class ReconciliationRepository extends TableRepository {
   private readonly log = withMethodLogging('ReconciliationRepository');
 
@@ -182,6 +193,54 @@ export class ReconciliationRepository extends TableRepository {
 
       const expiresAt = result.Item.expiresAt as number;
       return expiresAt > Date.now();
+    },
+  );
+
+  readonly putPositionSnapshot = this.log('putPositionSnapshot',
+    async (
+      tenantId: string,
+      side: 'Intent' | 'Settlement',
+      positions: Array<{ instrument: string; quantity: number }>,
+      sourceEventType: string,
+    ): Promise<void> => {
+      const now = getTime();
+      await this.docClient.send(
+        new PutCommand({
+          TableName: this.tableName,
+          Item: {
+            pk: positionCachePk(tenantId),
+            sk: side,
+            __typename: 'PositionCache',
+            tenantId,
+            side,
+            positions,
+            sourceEventType,
+            capturedAt: now,
+            timestamp: now,
+          },
+        }),
+      );
+    },
+  );
+
+  readonly getPositionSnapshot = this.log('getPositionSnapshot',
+    async (
+      tenantId: string,
+      side: 'Intent' | 'Settlement',
+    ): Promise<CachedPositionSnapshot | null> => {
+      const result = await this.docClient.send(
+        new GetCommand({
+          TableName: this.tableName,
+          Key: { pk: positionCachePk(tenantId), sk: side },
+        }),
+      );
+      if (!result.Item) return null;
+      return {
+        side: result.Item.side as 'Intent' | 'Settlement',
+        positions: result.Item.positions as Array<{ instrument: string; quantity: number }>,
+        capturedAt: result.Item.capturedAt as string,
+        sourceEventType: result.Item.sourceEventType as string,
+      };
     },
   );
 }
