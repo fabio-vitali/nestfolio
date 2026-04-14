@@ -18,6 +18,10 @@ Stack: services/advisory/compliance-ctrl/src/service.stack.ts
 
 ## Handlers
 - event-listener.ts — Ingress event handler
+  - DECISION_PACKET_CREATED / DECISION_PACKET_UPDATED: loads MandateSnapshot from DDB, runs RuleEngine (MandateValidator + GuardrailEvaluator + SuitabilityChecker + AuthorityResolver), writes ComplianceCheck + AuditArtifact records
+  - Authority resolution uses mode-derived guardrail thresholds from the mandate snapshot (maxSingleTradePercent as % of portfolioValue, monthlyTurnoverCapPercent as % of portfolioValue); ADVISORY mandate always resolves L2
+  - MANDATE_CREATED / MANDATE_UPDATED: projects MandateSnapshot with all 8 guardrail fields (level, monthlyTurnoverCapPercent, maxSingleTradePercent, equityRiskBandPercent, driftTriggerPercent, singleEtfConcentrationPercent, drawdownCircuitBreakerPercent, effectiveDate/revokedAt)
+  - OPERATING_MODE_CHANGED: skip (no-op)
 - event-publisher.ts — Egress CDC publisher
 
 ## Event Types (domain/events.ts)
