@@ -168,7 +168,7 @@ sequenceDiagram
 
 - **Receives:** `DECISION_PACKET_CREATED | DECISION_PACKET_UPDATED`
 - **Via:** AdvisoryBus -> SQS -> compliance-ctrl-Ingress
-- **State change:** Loads mandate snapshot from DDB; runs MandateValidator -> GuardrailEvaluator -> SuitabilityChecker -> AuthorityResolver; writes ComplianceCheck + AuditArtifact records to DDB
+- **State change:** Loads mandate snapshot from DDB (includes mode-derived guardrail thresholds); runs MandateValidator -> GuardrailEvaluator -> SuitabilityChecker -> AuthorityResolver (uses mode-specific maxSingleTradePercent, monthlyTurnoverCapPercent, singleEtfConcentrationPercent for L1/L2 resolution); writes ComplianceCheck + AuditArtifact records to DDB
 - **Emits:** `DECISION_APPROVED or DECISION_BLOCKED (CDC, field dispatch on ComplianceCheck.result — APPROVED->DECISION_APPROVED, BLOCKED->DECISION_BLOCKED), AUDIT_ARTIFACT (CDC, AuditArtifact:INSERT)`
 - **Idempotent:** yes
 
