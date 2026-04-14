@@ -147,6 +147,7 @@ const agentRuntime = new AgentRuntime(this, 'AgentRuntime', {
   tools: [
     { name: 'my-tool', description: '...', schemaPath: join(__dirname, 'tools/my-tool.schema.json'), handler: myToolLambda },
   ],
+  // Create tools/<tool-name>.schema.json (JSON Schema) for each tool alongside its handler
 });
 ```
 
