@@ -5,11 +5,9 @@
   "projectType": "application",
   "targets": {
     "test-e2e-features": {
-      "executor": "@nx/jest:jest",
+      "executor": "nx:run-commands",
       "options": {
-        "jestConfig": "apps/e2e-feature-tests/jest.config.js",
-        "passWithNoTests": false,
-        "runInBand": true
+        "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config apps/e2e-feature-tests/jest.config.js --runInBand"
       }
     },
     "test": {
