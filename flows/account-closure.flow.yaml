@@ -1,0 +1,55 @@
+schema_version: 1
+flow: account-closure
+description: Investor requests account closure via GraphQL mutation; intent is acknowledged synchronously and forwarded to execution-ctrl for order-book awareness via cross-domain event
+domains: [investor, execution]
+
+trigger: investor calls requestAccountClosure GraphQL mutation on investor-bff
+
+# Design note: requestAccountClosure uses AppSync NONE data source (no Lambda, no DDB write).
+# The mutation returns a synthetic { closureId, status, requestedAt } response generated in the
+# JS resolver response function. No CDC emission occurs from investor-bff at this time.
+# ACCOUNT_CLOSURE_REQUESTED is defined in InvestorBffEventTypes and ExecutionIngestEventTypes,
+# and the execution-adpt FromInvestor rule includes it — but the CDC Egress on investor-bff has
+# no mapped DDB record type for account closure (no ClosureRequest row written).
+# This flow documents the current implemented state: the mutation is a stub that acknowledges
+# intent synchronously; the downstream execution path is wired but has no producer yet.
+
+steps:
+  - service: investor-bff
+    action: User calls requestAccountClosure via GraphQL mutation (request-account-closure.fn.js)
+    via: AppSync NONE data source — JS pipeline resolver, no Lambda invocation
+    state_change: none — no DDB write; resolver returns synthetic { closureId, status REQUESTED, requestedAt } directly
+    emits: none — ACCOUNT_CLOSURE_REQUESTED is defined in InvestorBffEventTypes but no CDC record type is mapped in Egress; event is NOT emitted in current implementation
+    idempotent: true
+
+  # --- Cross-domain wiring exists but has no live producer ---
+  # The following rule is deployed and would forward ACCOUNT_CLOSURE_REQUESTED if it were emitted:
+  - cross_domain: ACCOUNT_CLOSURE_REQUESTED
+    from: InvestorBus
+    to: ExecutionBus
+    via: execution-adpt EB rule (ExecutionIngress-FromInvestor)
+    note: no-op in current implementation — no producer emits this event from investor-bff
+
+  # --- execution-ctrl is wired to receive the event but takes no action ---
+  - service: execution-ctrl
+    receives: ACCOUNT_CLOSURE_REQUESTED
+    via: ExecutionBus -> SQS -> execution-ctrl-Ingress
+    state_change: none — handler calls skip(); no DDB write
+    emits: none
+    idempotent: true
+
+success_criteria:
+  - requestAccountClosure mutation returns { closureId, status: REQUESTED, requestedAt } synchronously
+  - Response is well-formed (valid UUID closureId, parseable ISO timestamp)
+
+failure_modes:
+  - AppSync resolver error: mutation returns GraphQL error; no retry path (client must retry)
+  - execution-adpt FromInvestorDLQ: if ACCOUNT_CLOSURE_REQUESTED were ever emitted, a forwarding failure would land here
+  - execution-ctrl ingress DLQ: if event were emitted and forwarded, a handler failure would land here
+
+known_gaps:
+  - ACCOUNT_CLOSURE_REQUESTED has no CDC producer in investor-bff — no DDB record type is mapped to it in Egress eventTypes
+  - The mutation is a synchronous stub; no durable record of the closure request is persisted
+  - No downstream effects: no ledger debit, no mandate revocation, no broker authorization revocation, no ACCOUNT_CLOSED event
+  - ACCOUNT_CLOSED and BROKER_AUTHORIZATION_REVOKED are defined in InvestorBffEventTypes but have no producers
+  - execution-ctrl handler calls skip() with only a log line — no order cancellation or position liquidation logic
