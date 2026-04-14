@@ -2,9 +2,13 @@ import {
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
-import { InvestorBffEventTypes } from '../../../../services/investor/investor-bff/src/domain/events';
-import { AdvisoryCtrlEventTypes } from '../../../../services/advisory/advisory-ctrl/src/domain/events';
-import { InvestorCtrlEventTypes } from '../../../../services/investor/investor-ctrl/src/domain/events';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
+import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
+import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
+import { BrokerCtrlEventTypes } from '@nestfolio/broker-ctrl/events';
 import type { FreshTenant } from './fresh-tenant';
 import { bffClient, type BffClients } from './bff-client';
 import { waitForGraphQL } from './wait-for-graphql';
@@ -105,18 +109,41 @@ export function onboarded(overrides?: {
  * requestWithdrawal's ConditionExpression depends on.
  */
 export function funded(opts: { cashBalanceCents: number }): Fixture {
-  return async (_ctx, tenant, eb, _bff) => {
+  return async (ctx, tenant, eb, _bff) => {
     await eb.putEvent({
       bus: 'investor',
       targetService: 'investor-bff',
-      detailType: 'BALANCE_UPDATED',
+      detailType: LedgerCtrlEventTypes.BALANCE_UPDATED,
       detail: {
         tenantId: tenant.tenantId,
         userId: tenant.userId,
         cashBalanceCents: opts.cashBalanceCents,
       },
     });
-    return {};
+
+    // Poll for CashBalance materialization. The investor-bff event-listener
+    // projects BALANCE_UPDATED into a CashBalance DDB row that downstream
+    // mutations (e.g. requestWithdrawal) depend on via ConditionExpression.
+    const tableName = await ctx.ssm.tableName('investor-bff');
+    const ddbClient = new DynamoDBClient({ region: ctx.region });
+    const ddbDoc = DynamoDBDocumentClient.from(ddbClient);
+    try {
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        const result = await ddbDoc.send(new GetCommand({
+          TableName: tableName,
+          Key: {
+            pk: `InvestorProfile#${tenant.tenantId}#${tenant.userId}`,
+            sk: 'CashBalance',
+          },
+        }));
+        if (result.Item) return {};
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+      throw new Error('funded(): CashBalance not materialized within 60s');
+    } finally {
+      ddbClient.destroy();
+    }
   };
 }
 
@@ -196,7 +223,7 @@ export function withHoldings(
       await eb.putEvent({
         bus: 'ledger',
         targetService: 'ledger-ctrl',
-        detailType: 'ORDER_FILLED',
+        detailType: BrokerCtrlEventTypes.ORDER_FILLED,
         detail: {
           tenantId: tenant.tenantId,
           userId: tenant.userId,
@@ -209,31 +236,6 @@ export function withHoldings(
         },
       });
     }
-    return {};
-  };
-}
-
-/**
- * Publishes a synthetic ALPACA_ACCOUNT_SNAPSHOT on the ledger bus targeting
- * reconciliation-ctrl. This seeds the settlement-side position cache.
- * Use with withHoldings() to set up intent-side first, then publish a
- * settlement snapshot with deliberately different quantities to trigger drift.
- */
-export function withSettlementSnapshot(
-  positions: Array<{ symbol: string; qty: number; marketValue: number }>,
-): Fixture {
-  return async (_ctx, tenant, eb, _bff) => {
-    await eb.putEvent({
-      bus: 'ledger',
-      targetService: 'reconciliation-ctrl',
-      detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
-      detail: {
-        tenantId: tenant.tenantId,
-        userId: tenant.userId,
-        portfolioId: tenant.tenantId,
-        positions,
-      },
-    });
     return {};
   };
 }

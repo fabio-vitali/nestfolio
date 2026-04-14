@@ -12,12 +12,12 @@ import { CognitoFixture } from '@nestfolio/test-support';
 
 describe('freshTenant', () => {
   it('creates a tenant, a cognito user, extracts sub as userId, returns tokens', async () => {
-    const ctx = { tenantId: 'tenant-aaa', userId: 'user-aaa', region: 'us-east-1' } as any;
+    const ctx = { tenantId: 'integ-tenant-aaa', userId: 'integ-user-aaa', region: 'us-east-1' } as any;
 
     const tenant = await freshTenant(ctx);
 
     expect(CognitoFixture).toHaveBeenCalledWith(ctx);
-    expect(tenant.tenantId).toBe('tenant-aaa');
+    expect(tenant.tenantId).toBe('e2e-tenant-aaa');
     expect(tenant.userId).toBe('cog-sub-xyz');
     expect(tenant.idToken).toContain('header.');
     expect(tenant.accessToken).toBe('access');

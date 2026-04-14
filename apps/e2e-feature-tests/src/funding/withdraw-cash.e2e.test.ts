@@ -12,6 +12,7 @@ import {
   waitForGraphQL,
   type FreshTenant,
 } from '..';
+import type { RecentActivityResponse } from '../helpers/graphql-types';
 
 describe('scenario 2 — investor withdraws cash', () => {
   let ctx: TestContext;
@@ -33,35 +34,22 @@ describe('scenario 2 — investor withdraws cash', () => {
   it('requestWithdrawal surfaces a withdrawal entry on the activity feed', async () => {
     const bff = bffClient(ctx, tenant);
 
-    // Retry the mutation until BALANCE_UPDATED has been materialized. The
-    // funded() fixture publishes BALANCE_UPDATED but the CashBalance row may
-    // not exist yet when the mutation runs (eventual consistency). Retrying
-    // on InsufficientFundsError is safe — the resolver throws before writing.
-    const deadline = Date.now() + 60_000;
-    let withdrawal: { requestWithdrawal: { withdrawalId: string; amountCents: number; currency: string; status: string; requestedAt: string } } | undefined;
-    while (Date.now() < deadline) {
-      try {
-        withdrawal = await bff.investor.mutate<{
-          requestWithdrawal: { withdrawalId: string; amountCents: number; currency: string; status: string; requestedAt: string };
-        }>(
-          `mutation RequestWithdrawal($input: WithdrawalInput!) {
-             requestWithdrawal(input: $input) {
-               withdrawalId
-               amountCents
-               currency
-               status
-               requestedAt
-             }
-           }`,
-          { input: { amountCents: 250_000, currency: 'USD' } },
-        );
-        break;
-      } catch (err) {
-        if (!(err instanceof Error) || !err.message.includes('InsufficientFunds')) throw err;
-        await new Promise((r) => setTimeout(r, 2_000));
-      }
-    }
-    if (!withdrawal) throw new Error('requestWithdrawal did not succeed within 60s — BALANCE_UPDATED may not have materialized');
+    // funded() now polls for CashBalance materialization, so the mutation
+    // can be called directly without retrying on InsufficientFundsError.
+    const withdrawal = await bff.investor.mutate<{
+      requestWithdrawal: { withdrawalId: string; amountCents: number; currency: string; status: string; requestedAt: string };
+    }>(
+      `mutation RequestWithdrawal($input: WithdrawalInput!) {
+         requestWithdrawal(input: $input) {
+           withdrawalId
+           amountCents
+           currency
+           status
+           requestedAt
+         }
+       }`,
+      { input: { amountCents: 250_000, currency: 'USD' } },
+    );
 
     expect(withdrawal.requestWithdrawal.status).toBe('REQUESTED');
     expect(withdrawal.requestWithdrawal.amountCents).toBe(250_000);
@@ -85,9 +73,7 @@ describe('scenario 2 — investor withdraws cash', () => {
       },
     });
 
-    const dashboard = await waitForGraphQL<{
-      getRecentActivity: Array<{ activityType: string; description: string; createdAt: string; metadata: string | null }>;
-    }>(
+    const dashboard = await waitForGraphQL<RecentActivityResponse>(
       bff.dashboard,
       `query RecentActivity { getRecentActivity(limit: 20) { activityType description createdAt metadata } }`,
       {},

@@ -10,6 +10,7 @@ import {
   waitForGraphQL,
   type FreshTenant,
 } from '..';
+import type { RecentActivityResponse } from '../helpers/graphql-types';
 
 describe('scenario 1 — investor funds their account', () => {
   let ctx: TestContext;
@@ -46,9 +47,7 @@ describe('scenario 1 — investor funds their account', () => {
     expect(deposit.initiateDeposit.status).toBe('INITIATED');
     expect(deposit.initiateDeposit.amountCents).toBe(500_000);
 
-    const dashboard = await waitForGraphQL<{
-      getRecentActivity: Array<{ activityType: string; description: string; createdAt: string; metadata: string | null }>;
-    }>(
+    const dashboard = await waitForGraphQL<RecentActivityResponse>(
       bff.dashboard,
       `query RecentActivity { getRecentActivity(limit: 20) { activityType description createdAt metadata } }`,
       {},

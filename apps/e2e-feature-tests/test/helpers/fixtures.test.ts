@@ -8,6 +8,21 @@ jest.mock('@nestfolio/test-support', () => ({
   })),
 }));
 
+jest.mock('@aws-sdk/client-dynamodb', () => ({
+  DynamoDBClient: jest.fn().mockImplementation(() => ({
+    destroy: jest.fn(),
+  })),
+}));
+
+jest.mock('@aws-sdk/lib-dynamodb', () => ({
+  DynamoDBDocumentClient: {
+    from: jest.fn().mockReturnValue({
+      send: jest.fn().mockResolvedValue({ Item: { pk: 'test', sk: 'CashBalance' } }),
+    }),
+  },
+  GetCommand: jest.fn(),
+}));
+
 jest.mock('../../src/helpers/wait-for-graphql', () => ({
   waitForGraphQL: jest.fn().mockResolvedValue({ getProfile: { tenantId: 'tenant-1' } }),
 }));
@@ -61,7 +76,7 @@ import { funded } from '../../src/helpers/fixtures';
 
 describe('fixtures — funded', () => {
   it('publishes BALANCE_UPDATED with the requested cashBalanceCents', async () => {
-    const ctx = { tenantId: 't-2' } as any;
+    const ctx = { tenantId: 't-2', region: 'us-east-1', ssm: { tableName: jest.fn().mockResolvedValue('test-table') } } as any;
     const tenant = { tenantId: 't-2', userId: 'u-2', idToken: '', accessToken: '', cognitoTokens: {} as any };
     const eb = { putEvent: jest.fn().mockResolvedValue(undefined) };
     (EventBridgeClient as unknown as jest.Mock).mockImplementation(() => eb);

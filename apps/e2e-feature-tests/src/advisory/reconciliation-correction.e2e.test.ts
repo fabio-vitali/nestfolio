@@ -13,12 +13,17 @@ import {
   waitForGraphQL,
   type FreshTenant,
 } from '..';
+import { AlpacaAdptEventTypes } from '@nestfolio/broker-alpaca-adpt/events';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+import type { DecisionHistoryResponse } from '../helpers/graphql-types';
 
 describe('scenario 13 — reconciliation discrepancy surfaces corrective decision', () => {
   let ctx: TestContext;
   let tenant: FreshTenant;
+  let ddbClient: DynamoDBClient;
+  let ddbDoc: DynamoDBDocumentClient;
+  let tableName: string;
 
   beforeEach(async () => {
     ctx = await createTestContext();
@@ -31,9 +36,13 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
         { symbol: 'BND', quantity: 20, fillPrice: 80 },
       ]),
     ]);
+    ddbClient = new DynamoDBClient({ region: ctx.region });
+    ddbDoc = DynamoDBDocumentClient.from(ddbClient);
+    tableName = await ctx.ssm.tableName('reconciliation-ctrl');
   }, 240_000);
 
   afterEach(async () => {
+    ddbClient.destroy();
     await ctx.cleanup.runAll();
   }, 60_000);
 
@@ -41,28 +50,25 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
     const bff = bffClient(ctx, tenant);
     const eb = new EventBridgeClient(ctx);
 
-    // Resolve reconciliation-ctrl table for verification
-    const tableName = await ctx.ssm.tableName('reconciliation-ctrl');
-    const ddbDoc = DynamoDBDocumentClient.from(new DynamoDBClient({ region: ctx.region }));
-
-    // Wait for PORTFOLIO_UPDATED to propagate through ledger-ctrl CDC →
-    // reconciliation-ctrl (seeds Intent cache).
-    // Give CDC chain 60 seconds to materialize.
-    await new Promise((r) => setTimeout(r, 60_000));
-
-    // VERIFY: Intent cache was seeded
-    const intentBefore = await ddbDoc.send(new GetCommand({
-      TableName: tableName,
-      Key: { pk: `PositionCache#${tenant.tenantId}`, sk: 'Intent' },
-    }));
-    console.log('[scenario-13] Intent cache before trigger:', JSON.stringify(intentBefore.Item ?? null));
+    // Poll for Intent cache — seeded by PORTFOLIO_UPDATED CDC chain
+    // (withHoldings → ledger-ctrl CDC → PORTFOLIO_UPDATED → reconciliation-ctrl)
+    const intentDeadline = Date.now() + 90_000;
+    let intentSeeded = false;
+    while (Date.now() < intentDeadline) {
+      const result = await ddbDoc.send(new GetCommand({
+        TableName: tableName,
+        Key: { pk: `PositionCache#${tenant.tenantId}`, sk: 'Intent' },
+      }));
+      if (result.Item) { intentSeeded = true; break; }
+      await new Promise(r => setTimeout(r, 2_000));
+    }
+    expect(intentSeeded).toBe(true);
 
     // TRIGGER: publish broker snapshot with DIFFERENT quantities (settlement side)
-    console.log('[scenario-13] Publishing ALPACA_ACCOUNT_SNAPSHOT for tenant', tenant.tenantId);
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'reconciliation-ctrl',
-      detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
+      detailType: AlpacaAdptEventTypes.ALPACA_ACCOUNT_SNAPSHOT,
       detail: {
         tenantId: tenant.tenantId,
         userId: tenant.userId,
@@ -73,28 +79,23 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
         ],
       },
     });
-    console.log('[scenario-13] putEvent completed successfully');
 
-    // Wait for event to be processed by Lambda
-    await new Promise((r) => setTimeout(r, 15_000));
-
-    // VERIFY: Settlement cache was written (confirms event reached Lambda)
-    const settlementAfter = await ddbDoc.send(new GetCommand({
-      TableName: tableName,
-      Key: { pk: `PositionCache#${tenant.tenantId}`, sk: 'Settlement' },
-    }));
-    console.log('[scenario-13] Settlement cache after trigger:', JSON.stringify(settlementAfter.Item ?? null));
-
-    if (!settlementAfter.Item) {
-      // Check if there are any PositionCache items for this tenant at all
-      console.log('[scenario-13] WARNING: Settlement cache NOT written — event may not have reached Lambda');
+    // Poll for Settlement cache — confirms event reached Lambda and was processed
+    const settlementDeadline = Date.now() + 60_000;
+    let settlementWritten = false;
+    while (Date.now() < settlementDeadline) {
+      const result = await ddbDoc.send(new GetCommand({
+        TableName: tableName,
+        Key: { pk: `PositionCache#${tenant.tenantId}`, sk: 'Settlement' },
+      }));
+      if (result.Item) { settlementWritten = true; break; }
+      await new Promise(r => setTimeout(r, 2_000));
     }
+    expect(settlementWritten).toBe(true);
 
     // ASSERT: drift detection → PORTFOLIO_DRIFT_DETECTED → advisory-ctrl →
     // decision surfaces in getDecisionHistory
-    const history = await waitForGraphQL<{
-      getDecisionHistory: { items: Array<{ decisionId: string; trigger: string; status: string }>; nextCursor: string | null };
-    }>(
+    const history = await waitForGraphQL<DecisionHistoryResponse>(
       bff.advisory,
       `query History { getDecisionHistory(limit: 10) { items { decisionId trigger status } nextCursor } }`,
       {},

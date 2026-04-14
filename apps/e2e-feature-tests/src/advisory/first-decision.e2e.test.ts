@@ -11,6 +11,7 @@ import {
   waitForGraphQL,
   type FreshTenant,
 } from '..';
+import type { DecisionHistoryResponse } from '../helpers/graphql-types';
 
 describe('scenario 11 — investor sees first advisory decision after onboarding', () => {
   let ctx: TestContext;
@@ -49,9 +50,7 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
 
     // ASSERT: advisory-bff eventually surfaces a decision via getDecisionHistory
     // (getDecisionHistory has no status filter — catches PENDING and beyond)
-    const history = await waitForGraphQL<{
-      getDecisionHistory: { items: Array<{ decisionId: string; status: string; trigger: string }>; nextCursor: string | null };
-    }>(
+    const history = await waitForGraphQL<DecisionHistoryResponse>(
       bff.advisory,
       `query History { getDecisionHistory(limit: 10) { items { decisionId status trigger } nextCursor } }`,
       {},

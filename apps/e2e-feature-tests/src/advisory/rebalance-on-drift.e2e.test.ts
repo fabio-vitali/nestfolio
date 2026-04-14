@@ -13,6 +13,7 @@ import {
   waitForGraphQL,
   type FreshTenant,
 } from '..';
+import type { DecisionHistoryResponse } from '../helpers/graphql-types';
 
 describe('scenario 12 — portfolio drift surfaces a rebalance decision', () => {
   let ctx: TestContext;
@@ -53,9 +54,7 @@ describe('scenario 12 — portfolio drift surfaces a rebalance decision', () => 
     });
 
     // ASSERT: a decision with trigger PORTFOLIO_DRIFT_DETECTED surfaces
-    const history = await waitForGraphQL<{
-      getDecisionHistory: { items: Array<{ decisionId: string; trigger: string; status: string }>; nextCursor: string | null };
-    }>(
+    const history = await waitForGraphQL<DecisionHistoryResponse>(
       bff.advisory,
       `query History { getDecisionHistory(limit: 10) { items { decisionId trigger status } nextCursor } }`,
       {},
