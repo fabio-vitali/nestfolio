@@ -23,6 +23,23 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
       const trap = new EventBusTrap(ctx);
       await trap.deploy({ bus: 'ledger', detailType: 'RECONCILIATION_COMPLETED' });
 
+      // Cache Settlement side first so Intent events trigger reconciliation
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'reconciliation-ctrl',
+        detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
+        detail: {
+          tenantId: ctx.tenantId,
+          positions: [
+            { symbol: 'AAPL', qty: 10 },
+            { symbol: 'MSFT', qty: 5 },
+          ],
+        },
+      });
+
+      // Let Settlement snapshot get cached
+      await new Promise((r) => setTimeout(r, 10_000));
+
       const eventId = `recon-idemp-${randomUUID()}`;
       const payload = {
         portfolioId: `portfolio-idemp-${randomUUID()}`,
@@ -32,7 +49,7 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
         ],
       };
 
-      // First publish — should produce one RECONCILIATION_COMPLETED
+      // First Intent publish — finds Settlement → reconcile → RECONCILIATION_COMPLETED
       await eb.putEvent({
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
@@ -82,15 +99,19 @@ describe('reconciliation-ctrl resilience: idempotency', () => {
 // two RECONCILIATION_COMPLETED CDC events.
 
 describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
-  it('PORTFOLIO_UPDATED and ALPACA_ACCOUNT_SNAPSHOT in either order both produce reconciliation', async () => {
-    // ── Run A: PORTFOLIO_UPDATED first, then ALPACA_ACCOUNT_SNAPSHOT ──
-    const ctxA = await createTestContext();
-    try {
-      const ebA = new EventBridgeClient(ctxA);
-      const trapA = new EventBusTrap(ctxA);
-      await trapA.deploy({ bus: 'ledger', detailType: 'RECONCILIATION_COMPLETED' });
+  // Cache-and-compare requires both Intent + Settlement sides.
+  // Reconciliation triggers only when the SECOND side arrives and finds
+  // the first cached. Verify that order of arrival doesn't matter.
 
-      await ebA.putEvent({
+  it('Intent-first: PORTFOLIO_UPDATED then ALPACA_ACCOUNT_SNAPSHOT produces reconciliation', async () => {
+    const ctx = await createTestContext();
+    try {
+      const eb = new EventBridgeClient(ctx);
+      const trap = new EventBusTrap(ctx);
+      await trap.deploy({ bus: 'ledger', detailType: 'RECONCILIATION_COMPLETED' });
+
+      // Intent side first — caches, no Settlement yet → skip
+      await eb.putEvent({
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'PORTFOLIO_UPDATED',
@@ -100,73 +121,67 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
         },
       });
 
-      const firstA = await trapA.waitForEvent({
-        detailType: 'RECONCILIATION_COMPLETED',
-        timeoutMs: 120_000,
-      });
-      expect(firstA.detailType).toBe('RECONCILIATION_COMPLETED');
+      await new Promise((r) => setTimeout(r, 10_000));
 
-      await ebA.putEvent({
+      // Settlement side second — finds cached Intent → reconcile
+      await eb.putEvent({
         bus: 'ledger',
         targetService: 'reconciliation-ctrl',
         detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
         detail: {
-          snapshotId: `snapshot-pair-A-${randomUUID()}`,
+          tenantId: ctx.tenantId,
           positions: [{ symbol: 'AAPL', qty: 10, marketValue: 1800 }],
-          cash: 50000,
         },
       });
 
-      const secondA = await trapA.waitForEvent({
+      const event = await trap.waitForEvent({
         detailType: 'RECONCILIATION_COMPLETED',
         timeoutMs: 120_000,
       });
-      expect(secondA.detailType).toBe('RECONCILIATION_COMPLETED');
-
-      // ── Run B: ALPACA_ACCOUNT_SNAPSHOT first, then PORTFOLIO_UPDATED ──
-      const ctxB = await createTestContext();
-      try {
-        const ebB = new EventBridgeClient(ctxB);
-        const trapB = new EventBusTrap(ctxB);
-        await trapB.deploy({ bus: 'ledger', detailType: 'RECONCILIATION_COMPLETED' });
-
-        await ebB.putEvent({
-          bus: 'ledger',
-          targetService: 'reconciliation-ctrl',
-          detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
-          detail: {
-            snapshotId: `snapshot-pair-B-${randomUUID()}`,
-            positions: [{ symbol: 'AAPL', qty: 10, marketValue: 1800 }],
-            cash: 50000,
-          },
-        });
-
-        const firstB = await trapB.waitForEvent({
-          detailType: 'RECONCILIATION_COMPLETED',
-          timeoutMs: 120_000,
-        });
-        expect(firstB.detailType).toBe('RECONCILIATION_COMPLETED');
-
-        await ebB.putEvent({
-          bus: 'ledger',
-          targetService: 'reconciliation-ctrl',
-          detailType: 'PORTFOLIO_UPDATED',
-          detail: {
-            portfolioId: `portfolio-pair-B-${randomUUID()}`,
-            positions: [{ symbol: 'AAPL', quantity: 10 }],
-          },
-        });
-
-        const secondB = await trapB.waitForEvent({
-          detailType: 'RECONCILIATION_COMPLETED',
-          timeoutMs: 120_000,
-        });
-        expect(secondB.detailType).toBe('RECONCILIATION_COMPLETED');
-      } finally {
-        await ctxB.cleanup.runAll();
-      }
+      expect(event.detailType).toBe('RECONCILIATION_COMPLETED');
     } finally {
-      await ctxA.cleanup.runAll();
+      await ctx.cleanup.runAll();
     }
-  }, 600_000);
+  }, 300_000);
+
+  it('Settlement-first: ALPACA_ACCOUNT_SNAPSHOT then PORTFOLIO_UPDATED produces reconciliation', async () => {
+    const ctx = await createTestContext();
+    try {
+      const eb = new EventBridgeClient(ctx);
+      const trap = new EventBusTrap(ctx);
+      await trap.deploy({ bus: 'ledger', detailType: 'RECONCILIATION_COMPLETED' });
+
+      // Settlement side first — caches, no Intent yet → skip
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'reconciliation-ctrl',
+        detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
+        detail: {
+          tenantId: ctx.tenantId,
+          positions: [{ symbol: 'AAPL', qty: 10, marketValue: 1800 }],
+        },
+      });
+
+      await new Promise((r) => setTimeout(r, 10_000));
+
+      // Intent side second — finds cached Settlement → reconcile
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'reconciliation-ctrl',
+        detailType: 'PORTFOLIO_UPDATED',
+        detail: {
+          portfolioId: `portfolio-pair-B-${randomUUID()}`,
+          positions: [{ symbol: 'AAPL', quantity: 10 }],
+        },
+      });
+
+      const event = await trap.waitForEvent({
+        detailType: 'RECONCILIATION_COMPLETED',
+        timeoutMs: 120_000,
+      });
+      expect(event.detailType).toBe('RECONCILIATION_COMPLETED');
+    } finally {
+      await ctx.cleanup.runAll();
+    }
+  }, 300_000);
 });

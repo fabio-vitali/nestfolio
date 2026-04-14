@@ -24,6 +24,24 @@ describe('reconciliation-ctrl: PORTFOLIO_UPDATED → RECONCILIATION_COMPLETED CD
   }, 30_000);
 
   it('should emit RECONCILIATION_COMPLETED on PORTFOLIO_UPDATED', async () => {
+    // Cache-and-compare requires both sides. Send Settlement side first.
+    await eb.putEvent({
+      bus: 'ledger',
+      targetService: 'reconciliation-ctrl',
+      detailType: 'ALPACA_ACCOUNT_SNAPSHOT',
+      detail: {
+        tenantId: ctx.tenantId,
+        positions: [
+          { symbol: 'AAPL', qty: 10 },
+          { symbol: 'MSFT', qty: 5 },
+        ],
+      },
+    });
+
+    // Small delay to let the Settlement snapshot get cached
+    await new Promise(r => setTimeout(r, 10_000));
+
+    // Now send the Intent side — triggers reconciliation
     await eb.putEvent({
       bus: 'ledger',
       targetService: 'reconciliation-ctrl',

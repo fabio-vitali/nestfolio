@@ -76,7 +76,29 @@ describe('advisory-bff', () => {
     it('should update status to APPROVED on DECISION_APPROVED', async () => {
       const decisionId = `integ-approve-${Date.now()}`;
 
-      // Send DECISION_APPROVED — update() uses overrides with pk/sk keyed by decisionId
+      // First create the DecisionReadModel so the conditional update has something to update
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+          trigger: 'REBALANCE',
+          proposedTrades: [{ symbol: 'AAPL', action: 'BUY', quantity: 5 }],
+          explanation: 'Fixture for DECISION_APPROVED test',
+          confirmationRequired: false,
+        },
+      });
+
+      await table.waitForItem({
+        table: 'advisory-bff',
+        pk: `Decision#${ctx.tenantId}#${decisionId}`,
+        sk: 'DecisionReadModel',
+        timeoutMs: 60_000,
+      });
+
+      // Now send DECISION_APPROVED — update() with condition: attribute_exists(pk)
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'advisory-bff',
@@ -87,15 +109,21 @@ describe('advisory-bff', () => {
         },
       });
 
-      // update('DecisionReadModel', { status: 'APPROVED' }, { overrides: { pk: Decision#, sk: DecisionReadModel } })
-      const item = await table.waitForItem({
-        table: 'advisory-bff',
-        pk: `Decision#${ctx.tenantId}#${decisionId}`,
-        sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
-      });
+      // Poll until status flips to APPROVED (waitForItem only checks existence, not value)
+      const deadline = Date.now() + 60_000;
+      let item: Record<string, unknown> | undefined;
+      while (Date.now() < deadline) {
+        item = await table.waitForItem({
+          table: 'advisory-bff',
+          pk: `Decision#${ctx.tenantId}#${decisionId}`,
+          sk: 'DecisionReadModel',
+          timeoutMs: 5_000,
+        });
+        if (item['status'] === 'APPROVED') break;
+        await new Promise(r => setTimeout(r, 3_000));
+      }
 
-      expect(item['status']).toBe('APPROVED');
+      expect(item!['status']).toBe('APPROVED');
     }, 120_000);
 
     it('should update DecisionSummary to COMPLIANCE_REVIEW on DECISION_PACKET_UPDATED', async () => {
