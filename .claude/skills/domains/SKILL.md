@@ -47,15 +47,15 @@ description: Domain boundaries, responsibilities, event topology, and cross-doma
 - `DECISION_FEEDBACK`, `DECISION_WORKFLOW_FAILED`
 
 **Events Consumed (decision-workflow-ctrl — inbound triggers):**
-- Trigger (new SF execution): `MANDATE_GRANTED`, `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `PORTFOLIO_DRIFT_DETECTED`, `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`
+- Trigger (new SF execution): `MANDATE_CREATED`, `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `PORTFOLIO_DRIFT_DETECTED`, `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`
 - Agent completions: `INVESTOR_PROFILE_COMPLETED`, `MARKET_ANALYSIS_COMPLETED`, `PORTFOLIO_COMPLETED`, `NARRATIVE_COMPLETED`
 - Compliance: `DECISION_APPROVED`, `DECISION_BLOCKED`
 - User response: `USER_CONFIRMED`, `USER_REJECTED`
 
 **Adapter Ingestion (advisory-adpt — pull model):**
-- InvestorBus → AdvisoryBus: `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`
-- ExecutionBus → AdvisoryBus: `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `PORTFOLIO_DRIFT_DETECTED`, `BROKER_SESSION_LOST`, `STREAM_DISCONNECTED`, `RECONCILIATION_FAILED`
-- LedgerBus → AdvisoryBus: `PORTFOLIO_UPDATED`, `PORTFOLIO_DRIFT_DETECTED`, `RECONCILIATION_FAILED`
+- InvestorBus → AdvisoryBus: `GOAL_CREATED`, `GOAL_UPDATED`, `RISK_PROFILE_CREATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_CREATED`, `MANDATE_UPDATED`
+- ExecutionBus → AdvisoryBus: `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`
+- LedgerBus → AdvisoryBus: `PORTFOLIO_UPDATED`, `PORTFOLIO_DRIFT_DETECTED`
 
 ---
 
@@ -69,19 +69,15 @@ description: Domain boundaries, responsibilities, event topology, and cross-doma
 - `ORDER_REJECTED` — order rejected by broker (→ Investor + Ledger + Advisory)
 - `ORDER_CANCELLED` — order cancelled (→ Investor + Ledger + Advisory)
 - `ORDER_ESCALATED` — order requires manual escalation (→ Investor)
-- `WITHDRAWAL_REJECTED` — withdrawal rejected (→ Investor)
-- `WITHDRAWAL_COMPLETED` — withdrawal completed (→ Investor + Ledger)
 - `BROKER_CIRCUIT_OPEN` — broker circuit breaker opened (→ Investor)
-- `ORDER_FILLED` — order fully filled (→ Ledger + Advisory)
-- `ORDER_PARTIALLY_FILLED` — order partially filled (→ Ledger)
-- `DEPOSIT_DETECTED` — deposit confirmed at broker (→ Ledger + Advisory)
+- `ORDER_FILLED` — order fully filled (→ Investor + Ledger + Advisory)
+- `ORDER_PARTIALLY_FILLED` — order partially filled (→ Investor + Ledger)
+- `DEPOSIT_DETECTED` — deposit confirmed at broker (→ Investor + Ledger + Advisory)
+- `WITHDRAWAL_COMPLETED` — withdrawal completed (→ Investor + Ledger)
+- `TRANSFER_FAILED` — transfer failed (→ Investor + Ledger)
 - `CORPORATE_ACTION_APPLIED` — corporate action processed (→ Ledger)
 - `PORTFOLIO_SNAPSHOT_IMPORTED` — full portfolio snapshot imported (→ Ledger)
 - `ALPACA_ACCOUNT_SNAPSHOT` — Alpaca account snapshot (→ Ledger)
-- `PORTFOLIO_DRIFT_DETECTED` — portfolio drift detected (→ Advisory)
-- `BROKER_SESSION_LOST` — broker session lost (→ Advisory)
-- `STREAM_DISCONNECTED` — market data stream disconnected (→ Advisory)
-- `RECONCILIATION_FAILED` — reconciliation failed (→ Advisory)
 
 **Events Produced (execution-ctrl — ExecutionCtrlEventTypes):**
 - `ORDER_SUBMITTED`, `ORDER_STAGED`, `EXECUTION_PAUSED`, `EXECUTION_RESUMED`
@@ -116,9 +112,8 @@ description: Domain boundaries, responsibilities, event topology, and cross-doma
 - `GOAL_UPDATED` — investor goal updated (→ Advisory)
 - `RISK_PROFILE_UPDATED` — risk profile updated (→ Advisory)
 - `OPERATING_MODE_CHANGED` — advisory operating mode changed (→ Advisory)
-- `MANDATE_GRANTED` — full advisory mandate granted (→ Advisory)
+- `MANDATE_CREATED` — full advisory mandate granted (→ Advisory)
 - `MANDATE_UPDATED` — mandate parameters updated (→ Advisory)
-- `MANDATE_REVOKED` — mandate revoked (→ Advisory)
 - `DEPOSIT_INITIATED` — deposit initiated by investor (→ Execution)
 - `WITHDRAWAL_REQUESTED` — withdrawal requested by investor (→ Execution)
 - `ACCOUNT_CLOSURE_REQUESTED` — account closure requested (→ Execution)
@@ -129,8 +124,8 @@ description: Domain boundaries, responsibilities, event topology, and cross-doma
 
 **Adapter Ingestion (investor-adpt — pull model):**
 - AdvisoryBus → InvestorBus: `DECISION_PACKET_CREATED`, `USER_CONFIRMATION_REQUESTED`, `EXPLANATION_GENERATED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `ESCALATION_TRIGGERED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`, `INCIDENT_DETECTED`, `INCIDENT_RESOLVED`
-- ExecutionBus → InvestorBus: `ORDER_STAGED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `WITHDRAWAL_REJECTED`, `WITHDRAWAL_COMPLETED`, `ORDER_ESCALATED`, `BROKER_CIRCUIT_OPEN`
-- LedgerBus → InvestorBus: `BALANCE_UPDATED`, `PORTFOLIO_UPDATED`, `LEDGER_ENTRY_RECORDED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED`, `LEDGER_PROCESSING_FAILED`
+- ExecutionBus → InvestorBus: `ORDER_STAGED`, `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `ORDER_ESCALATED`, `BROKER_CIRCUIT_OPEN`, `TRANSFER_FAILED`
+- LedgerBus → InvestorBus: `BALANCE_UPDATED`, `PORTFOLIO_UPDATED`, `LEDGER_ENTRY_RECORDED`, `RECONCILIATION_COMPLETED`, `LEDGER_PROCESSING_FAILED`
 
 ---
 
@@ -144,7 +139,6 @@ description: Domain boundaries, responsibilities, event topology, and cross-doma
 - `PORTFOLIO_UPDATED` — portfolio positions updated (→ Investor + Advisory)
 - `LEDGER_ENTRY_RECORDED` — new ledger entry recorded (→ Investor)
 - `RECONCILIATION_COMPLETED` — reconciliation completed successfully (→ Investor)
-- `RECONCILIATION_FAILED` — reconciliation failed (→ Investor + Advisory)
 - `LEDGER_PROCESSING_FAILED` — ledger processing error (→ Investor)
 - `PORTFOLIO_DRIFT_DETECTED` — drift detected by ledger/reconciliation (→ Advisory)
 
@@ -152,7 +146,7 @@ description: Domain boundaries, responsibilities, event topology, and cross-doma
 - `BALANCE_UPDATED`, `PORTFOLIO_UPDATED`, `LEDGER_ENTRY_RECORDED`, `LEDGER_PROCESSING_FAILED`, `LEDGER_SIMULATION_FAILED`
 
 **Adapter Ingestion (ledger-adpt — pull model):**
-- ExecutionBus → LedgerBus: `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `CORPORATE_ACTION_APPLIED`, `PORTFOLIO_SNAPSHOT_IMPORTED`, `ALPACA_ACCOUNT_SNAPSHOT`
+- ExecutionBus → LedgerBus: `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `TRANSFER_FAILED`, `CORPORATE_ACTION_APPLIED`, `PORTFOLIO_SNAPSHOT_IMPORTED`, `ALPACA_ACCOUNT_SNAPSHOT`, `DECISION_PACKET_CREATED`
 
 ---
 
@@ -167,21 +161,20 @@ investor-adpt ingests:
     DECISION_APPROVED, DECISION_BLOCKED, ESCALATION_TRIGGERED,
     CIRCUIT_BREAKER_TRIGGERED, CIRCUIT_BREAKER_RESET, INCIDENT_DETECTED, INCIDENT_RESOLVED
   From ExecutionBus → InvestorBus:
-    ORDER_STAGED, ORDER_REJECTED, ORDER_CANCELLED, WITHDRAWAL_REJECTED,
-    WITHDRAWAL_COMPLETED, ORDER_ESCALATED, BROKER_CIRCUIT_OPEN
+    ORDER_STAGED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED,
+    DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, ORDER_ESCALATED, BROKER_CIRCUIT_OPEN, TRANSFER_FAILED
   From LedgerBus → InvestorBus:
     BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED,
-    RECONCILIATION_COMPLETED, RECONCILIATION_FAILED, LEDGER_PROCESSING_FAILED
+    RECONCILIATION_COMPLETED, LEDGER_PROCESSING_FAILED
 
 advisory-adpt ingests:
   From InvestorBus → AdvisoryBus:
-    GOAL_UPDATED, RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED,
-    MANDATE_GRANTED, MANDATE_UPDATED, MANDATE_REVOKED
+    GOAL_CREATED, GOAL_UPDATED, RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED,
+    OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED
   From ExecutionBus → AdvisoryBus:
-    ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED,
-    PORTFOLIO_DRIFT_DETECTED, BROKER_SESSION_LOST, STREAM_DISCONNECTED, RECONCILIATION_FAILED
+    ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED
   From LedgerBus → AdvisoryBus:
-    PORTFOLIO_UPDATED, PORTFOLIO_DRIFT_DETECTED, RECONCILIATION_FAILED
+    PORTFOLIO_UPDATED, PORTFOLIO_DRIFT_DETECTED
 
 execution-adpt ingests:
   From AdvisoryBus → ExecutionBus:
@@ -193,8 +186,8 @@ execution-adpt ingests:
 ledger-adpt ingests:
   From ExecutionBus → LedgerBus:
     ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED,
-    DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, CORPORATE_ACTION_APPLIED,
-    PORTFOLIO_SNAPSHOT_IMPORTED, ALPACA_ACCOUNT_SNAPSHOT
+    DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, TRANSFER_FAILED, CORPORATE_ACTION_APPLIED,
+    PORTFOLIO_SNAPSHOT_IMPORTED, ALPACA_ACCOUNT_SNAPSHOT, DECISION_PACKET_CREATED
 ```
 
 ---

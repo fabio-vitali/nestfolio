@@ -17,6 +17,19 @@ Before writing a new scenario:
 3. Scan existing scenarios in the target domain folder — avoid duplicating coverage
 4. Identify which BFF GraphQL queries/mutations the scenario exercises — read the relevant BFF's `src/facade/resolvers/` to confirm field names
 
+## Available BFF Service Clients
+
+`bffClient(ctx, tenant)` returns a `BffClients` object with four `AppSyncClient` instances:
+
+| Property | Backing BFF |
+|----------|-------------|
+| `bff.investor` | investor-bff |
+| `bff.advisory` | advisory-bff |
+| `bff.ledger` | ledger-bff |
+| `bff.dashboard` | dashboard-bff |
+
+Each client exposes `.query<T>(operation, variables)` and `.mutate<T>(operation, variables)`. Use the client that matches the BFF owning the resolver you want to call.
+
 ## Checklist
 
 - [ ] 1. **Choose feature domain folder** — one of: `funding/`, `profile/`, `advisory/`, `account/`, `notifications/`, or create a new domain folder if none fits
@@ -82,7 +95,7 @@ describe('scenario N — {user action description}', () => {
       `query Q { {queryName} { field } }`,
       {},
       (r) => /* predicate */,
-      { timeoutMs: 120_000 },
+      { timeoutMs: 120_000, intervalMs: 5_000 },
     );
   });
 });
@@ -286,7 +299,7 @@ export function withMyPrecondition(opts: { field: string }): Fixture {
       `query Q($id: ID!) { getMyThing(id: $id) { id } }`,
       { id },
       (r) => r.getMyThing != null,
-      { timeoutMs: 60_000 },
+      { timeoutMs: 60_000, intervalMs: 2_000 },
     );
 
     return { myThingId: id };
@@ -314,8 +327,8 @@ export function withMyPrecondition(opts: { field: string }): Fixture {
 | `beforeEach` | 120_000–180_000 ms | Fixture chain: Cognito user + event publishing + materialization polling |
 | Test body (`it`) | 300_000 ms (jest.config) | Cross-domain CDC lag can be 60–240s |
 | `afterEach` | 60_000 ms | Cognito user deletion + client cleanup |
-| `waitForGraphQL` default | 60_000 ms | Single CDC hop |
-| `waitForGraphQL` cross-domain | 120_000–240_000 ms | Multiple CDC hops, SF orchestration |
+| `waitForGraphQL` default | 60_000 ms timeout, 2_000 ms interval | Single CDC hop |
+| `waitForGraphQL` cross-domain | 120_000–240_000 ms timeout, 5_000 ms interval | Multiple CDC hops, SF orchestration |
 
 ## Running
 

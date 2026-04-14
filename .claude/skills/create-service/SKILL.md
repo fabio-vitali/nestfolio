@@ -27,16 +27,19 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
       service.stack.ts
       handlers/{first-handler}.ts
       domain/events.ts
+      domain/schemas.ts
       domain/index.ts
     test/
       service.stack.test.ts
       {first-handler}.test.ts
-    project.json                   <- projectType: "application", deploy/destroy/test/lint targets
+    project.json                   <- projectType: "application", deploy/destroy/test/lint/test-integration targets
     jest.config.js                 <- extends jest.preset, moduleNameMapper for @nestfolio/*
+    jest.integration.config.js     <- integration test config (see test-integration target below)
     tsconfig.json
     tsconfig.lib.json
     tsconfig.spec.json
   ```
+  **Optional directories** (add as needed): `repositories/` (DDB access), `services/` (business logic), `state-machine/` (Step Functions definitions).
 
 - [ ] 2b. **Write `main.ts`** — CDK app entry point using `resolvePipelineConfig`:
   ```ts
@@ -74,7 +77,40 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
 - [ ] 5. **Define event types** per `create-event`
 - [ ] 6. **Write unit tests** per `testing-patterns`
 - [ ] 7. **Run unit tests** — `pnpm nx test {service-name}`
-- [ ] 7b. **Add integration tests** — invoke `create-integration-test` skill
+- [ ] 7b. **Add integration tests** — invoke `create-integration-test` skill. Ensure `project.json` includes the `test-integration` target:
+  ```json
+  "test-integration": {
+    "executor": "nx:run-commands",
+    "options": {
+      "command": "pnpm jest --config services/{domain}/{service-name}/jest.integration.config.js --passWithNoTests",
+      "env": { "NODE_OPTIONS": "--experimental-vm-modules" },
+      "color": true
+    }
+  }
+  ```
+  And create `jest.integration.config.js`:
+  ```js
+  const preset = require('../../../jest.preset');
+  module.exports = {
+    ...preset,
+    displayName: '{service-name}-integration',
+    testEnvironment: 'node',
+    testMatch: ['<rootDir>/test/integration/**/*.integration.test.ts'],
+    moduleNameMapper: {
+      '^@nestfolio/test-support$': '<rootDir>/../../../libs/test-support/src/index.ts',
+      '^@nestfolio/test-support/(.*)$': '<rootDir>/../../../libs/test-support/src/$1',
+      '^@nestfolio/integration-testing$': '<rootDir>/../../../libs/integration-testing/src/index.ts',
+      '^@nestfolio/integration-testing/(.*)$': '<rootDir>/../../../libs/integration-testing/src/$1',
+    },
+    transform: {
+      '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json', diagnostics: false }],
+    },
+    transformIgnorePatterns: ['node_modules/(?!.*p-limit/|.*yocto-queue/)'],
+    testTimeout: 120_000,
+    maxWorkers: 1,
+    setupFilesAfterEnv: ['<rootDir>/../../../libs/integration-testing/src/jest.integration.setup.ts'],
+  };
+  ```
 - [ ] 8. **Generate service card** — invoke `audit-service`
 - [ ] 9. **Create C3 diagram** — add `docs/architecture/c3/{service-name}.d2` and wire layer import in `nestfolio.d2`, then invoke `generate-c4-diagrams`
 - [ ] 10. **Wire adapter subscription** if cross-domain events (consuming adapter deploys EB rule on source bus)

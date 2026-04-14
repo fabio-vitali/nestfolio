@@ -32,7 +32,7 @@ export interface ServiceStackProps extends StackProps {
 }
 ```
 
-> **Important:** State is now consumer-instantiated, NOT auto-created by ServiceStack. Each service that needs state must create `new State(this, 'State', { ... })` explicitly in its constructor.
+> **Important:** State is consumer-instantiated, NOT auto-created by ServiceStack. Each service creates `const state = new State(this, 'State', { ... })` as a local variable and passes it to other constructs via their `state` prop. There is no `this.state` property on `ServiceStack`.
 
 ### Public API
 
@@ -41,7 +41,6 @@ export interface ServiceStackProps extends StackProps {
 | `this.prefix` | `string` | Environment prefix (e.g. `'dev'`) |
 | `this.serviceName` | `string` | From `props.service` |
 | `this.serviceDir` | `string` | From `props.serviceDir ?? ''` |
-| `this.state` | `State \| undefined` | Consumer-set via `this.state = state`. Only present when the service creates and assigns a State construct |
 | `this.eventBus` | `IEventBus` | Lazy-resolved from `naming.eventBusName()` unless injected. **Settable by subclasses** |
 | `this.naming` | `NamingService` | Resource naming helper |
 | `this.observability` | `boolean` | Whether Monitoring/Dashboard are wired |
@@ -107,7 +106,7 @@ export interface GsiConfig {
 }
 ```
 
-State is consumer-instantiated: each service creates `new State(this, 'State', { ... })` explicitly and assigns it to `this.state`. Services that don't need state simply skip this step. Other constructs (Ingress, Egress, Facade, AgentRuntime) accept `state` as a prop for explicit wiring.
+State is consumer-instantiated: each service creates `const state = new State(this, 'State', { ... })` as a local variable, then passes it to other constructs via their `state` prop. There is no `this.state` property on `ServiceStack`. Services that don't need state simply skip this step.
 
 **Accessors (throw if resource absent):**
 ```ts
@@ -139,14 +138,22 @@ export interface IngressProps {
   entry?: string;                  // default: join(serviceDir, 'handlers', 'event-listener.ts')
   environment?: Record<string, string>; // extra env vars merged in
   lambdaProps?: Partial<NodejsFunctionProps>; // override timeout, memorySize, etc.
+  profile?: LambdaProfile;         // workload profile — supplies Lambda and SQS event-source defaults (see below)
   batchSize?: number;              // SQS event source batch size, default 10
   maxBatchingWindowMs?: number;    // batching window in ms, default 1000
   maxBatchingWindow?: Duration;    // takes precedence over maxBatchingWindowMs
+  maxConcurrency?: number;         // max concurrent Lambda invocations from SQS, unset = no cap
   maxRetries?: number;             // DLQ max receive count, default 10
   visibilityTimeout?: Duration;    // queue visibility; auto = 6 x lambdaTimeout if not set
   lambdaTimeout?: Duration;        // used to auto-calculate visibilityTimeout
 }
 ```
+
+**Profile precedence:** explicit construct prop > profile default > construct hardcoded default. Import profiles from `@nestfolio/cdk-constructs/utils`:
+- `handlerProps` — standard event-processor Lambdas (256 MB, 30s, batch 10)
+- `adapterProps` — third-party API callers (256 MB, 60s, batch 5, concurrency 10, includes Parameters and Secrets Extension layer)
+- `reducerProps` — high-throughput CDC reducers (512 MB, 60s, batch 25, DDB stream batch 100)
+- `agentProps` — Bedrock/LLM-calling Lambdas (1024 MB, 5min, batch 1, concurrency 5)
 
 **Public members:**
 ```ts
@@ -173,10 +180,15 @@ export interface EgressProps {
   entry?: string;                    // default: join(serviceDir, 'handlers', 'event-publisher.ts')
   environment?: Record<string, string>;
   lambdaProps?: Partial<NodejsFunctionProps>;
+  profile?: LambdaProfile;           // workload profile — supplies Lambda and DDB stream event-source defaults
   retryAttempts?: number;            // DDB stream retry attempts before DLQ, default 3
   batchSize?: number;                // DDB stream batch size
+  maxBatchingWindow?: Duration;      // DDB stream batching window, default unset (AWS default 0s)
+  parallelizationFactor?: number;    // DDB stream parallelization factor, default unset (AWS default 1)
 }
 ```
+
+Profile precedence is the same as Ingress: explicit prop > profile > construct default. Profile fields applied by Egress: `lambdaProps`, `ddbStreamBatchSize`, `ddbStreamMaxBatchingWindow`, `ddbStreamParallelizationFactor`.
 
 **Public members:**
 ```ts
@@ -404,7 +416,6 @@ export class MyServiceStack extends ServiceStack {
     super(scope, id, { ...props, serviceDir: __dirname });
 
     const state = new State(this, 'State', {});
-    this.state = state;
 
     const ingress = new Ingress(this, 'Ingress', {
       state,
@@ -453,7 +464,6 @@ For orchestration services (e.g. broker-ctrl, broker-alpaca-adpt), use the Orche
 
 ```ts
 const state = new State(this, 'State', {});
-this.state = state;
 
 const orchestration = new Orchestration(this, 'OrderStateMachine', {
   state,
@@ -505,13 +515,13 @@ const reducerFn = new NodejsFunction(this, 'ReducerFn', {
   ...defaultLambdaProps(this),
   entry: join(__dirname, 'handlers', 'reducer.ts'),
   environment: {
-    TABLE_NAME: this.state.getTable().tableName,
+    TABLE_NAME: state.getTable().tableName,
     SERVICE_NAME: this.serviceName,
   },
 });
-this.state.getTable().grantReadWriteData(reducerFn);
+state.getTable().grantReadWriteData(reducerFn);
 
-reducerFn.addEventSource(new DynamoEventSource(this.state.getTable(), {
+reducerFn.addEventSource(new DynamoEventSource(state.getTable(), {
   startingPosition: StartingPosition.LATEST,
   bisectBatchOnError: true,
   retryAttempts: 3,
@@ -562,6 +572,7 @@ this.naming.ssmServicePath('api/endpoint') // "/nestfolio/dev-investor-bff/api/e
 - `libs/cdk-constructs/src/extensions/agent-runtime.ts` — AgentRuntime (Bedrock AgentCore)
 - `libs/cdk-constructs/src/extensions/knowledge-base.ts` — KnowledgeBase (S3 Vector Bucket + Bedrock KB)
 - `libs/cdk-constructs/src/core/orchestration.ts` — Orchestration (Step Functions + EventBridge triggers)
+- `libs/cdk-constructs/src/utils/lambda-profiles.ts` — LambdaProfile interface, handlerProps, adapterProps, reducerProps, agentProps
 - `libs/cdk-constructs/src/utils/naming-service.ts` — NamingService, getPrefix, discoverSubsystem
 - `services/ledger/ledger-ctrl/src/service.stack.ts` — Full example: State + Ingress + Egress + extra DDB stream consumer
 - `services/execution/broker-sim-adpt/src/service.stack.ts` — Minimal adapter example (no state)
@@ -578,4 +589,5 @@ this.naming.ssmServicePath('api/endpoint') // "/nestfolio/dev-investor-bff/api/e
 - **Never** create Lambda handlers outside the event-processor pipeline pattern (exception: SF task token callbacks)
 - **Do not** use `ServiceStack.of(construct)` from outside a `ServiceStack` subtree — it throws
 - **Do not** manually add `TABLE_NAME`/`BUS_NAME` env vars — Ingress/Egress inject them automatically
-- **Do not** use `stateProps` on ServiceStack — State is now consumer-instantiated (stateProps has been removed)
+- **Do not** use `stateProps` on ServiceStack — State is consumer-instantiated (stateProps has been removed)
+- **Do not** reference `this.state` on ServiceStack — it does not exist. State is a local variable passed to constructs via their `state` prop

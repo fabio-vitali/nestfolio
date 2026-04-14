@@ -16,12 +16,15 @@ description: Add a new event type — TypeScript schema, producer registration, 
 
 - [ ] 1. **Define event type constant** — `services/{domain}/{service}/src/domain/events.ts`
   ```typescript
-  // Use grouped const objects (actual codebase pattern):
+  import { eventName } from '@nestfolio/event-types';
+
+  // Use grouped const objects with branded eventName() (actual codebase pattern):
   export const MyServiceEventTypes = {
-    MY_NEW_EVENT: 'MY_NEW_EVENT',
-    MY_OTHER_EVENT: 'MY_OTHER_EVENT',
+    MY_NEW_EVENT: eventName('MY_NEW_EVENT'),
+    MY_OTHER_EVENT: eventName('MY_OTHER_EVENT'),
   } as const;
   ```
+  `eventName()` returns a branded `EventName` type — compile-time safety, runtime string.
 
 - [ ] 2. **Define event payload type** (same file or adjacent)
   ```typescript
@@ -30,10 +33,39 @@ description: Add a new event type — TypeScript schema, producer registration, 
 
 - [ ] 3. **Register emission** — either:
   - **CDC (preferred):** Add to declarative `eventTypes` map on Egress construct in `service.stack.ts`
+    ```typescript
+    // EventTypesMap shape: Record<__typename, RecordTypeConfig>
+    // RecordTypeConfig = { insert?: EventName; modify?: EventName; remove?: EventName }
+    const egress = new Egress(this, 'Egress', {
+      state,
+      eventTypes: {
+        'MyRecordType': {
+          insert: MyServiceEventTypes.MY_NEW_EVENT,
+          modify: MyServiceEventTypes.MY_EVENT_UPDATED,
+        },
+      },
+    });
+    ```
+    Each key is a DynamoDB `__typename`, each value maps DDB stream actions (`insert`/`modify`/`remove`) to branded EventName constants. Only mapped actions emit events — be explicit.
   - **Explicit:** Emit via EventBridge SDK in handler (rare)
 
 - [ ] 4. **Wire adapter subscription** (if cross-domain)
-  Add event type to consuming adapter's EB Rule `detailType` array on the source bus (pull model)
+  Add event type to consuming adapter's EB Rule `detailType` array on the source bus (pull model).
+  All adapter rules MUST use `$or` pattern for test isolation:
+  ```typescript
+  const fromSourceRule = new Rule(this, 'Ingress-FromSource', {
+    eventBus: sourceBus,
+    eventPattern: { detailType: eventList },
+    targets: [new EventBusTarget(domainBus, { deadLetterQueue: dlq })],
+  });
+  (fromSourceRule.node.defaultChild as CfnRule).addPropertyOverride('EventPattern', {
+    '$or': [
+      { 'detail-type': eventList, 'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }] },
+      { 'detail-type': eventList, 'source': [{ 'prefix': `integration-test:${serviceName}` }] },
+    ],
+  });
+  ```
+  This accepts all non-test events OR test events scoped to the adapter's own service name.
 
 - [ ] 5. **Wire consumer subscriptions**
   Add to consumer Ingress `eventTypes` array
@@ -52,7 +84,7 @@ description: Add a new event type — TypeScript schema, producer registration, 
 - Adapter patterns: `services/{domain}/{domain}-adpt/src/service.stack.ts`
 
 ## Anti-Patterns
-- NEVER use string literals for event types — always typed constants
+- NEVER use plain string constants (`'MY_EVENT'`) — always use `eventName('MY_EVENT')` from `@nestfolio/event-types`
 - NEVER forward events without a DLQ
 - NEVER skip adapter subscriptions for cross-domain events
 - NEVER skip flow spec updates for tracked flows

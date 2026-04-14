@@ -34,6 +34,8 @@ description: Add integration tests to a service — determine pattern, scaffold 
     testEnvironment: 'node',
     testMatch: ['<rootDir>/test/integration/**/*.integration.test.ts'],
     moduleNameMapper: {
+      '^@nestfolio/test-support$': '<rootDir>/../../../libs/test-support/src/index.ts',
+      '^@nestfolio/test-support/(.*)$': '<rootDir>/../../../libs/test-support/src/$1',
       '^@nestfolio/integration-testing$': '<rootDir>/../../../libs/integration-testing/src/index.ts',
       '^@nestfolio/integration-testing/(.*)$': '<rootDir>/../../../libs/integration-testing/src/$1',
     },
@@ -78,23 +80,25 @@ Requires a mock Lambda. Check if `build-mock` target and `test/mocks/` directory
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
-  type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 describe('{service} (mocked)', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
 
     // Deploy mock external API Lambda
     const mockApi = new MockApiFixture(ctx);
@@ -155,21 +159,23 @@ describe('{service} (mocked)', () => {
 
 ```typescript
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   TableAssertions,
-  type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 describe('{service}', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);
@@ -225,22 +231,24 @@ describe('{service}', () => {
 
 ```typescript
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
-  TableAssertions,
   CognitoFixture,
   AppSyncClient,
-  type IntegrationContext,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
+  TableAssertions,
 } from '@nestfolio/integration-testing';
 
 describe('{service}', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let table: TableAssertions;
   let appsync: AppSyncClient;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
@@ -327,20 +335,22 @@ One test file per source bus: `from-{source-domain}.integration.test.ts`
 
 ```typescript
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   type BusEventPayload,
-  type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 describe('{service}: {SourceDomain} -> {TargetDomain} forwarding', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
 
@@ -376,21 +386,23 @@ describe('{service}: {SourceDomain} -> {TargetDomain} forwarding', () => {
 
 ```typescript
 import {
-  createIntegrationContext,
+  createTestContext,
   EventBridgeClient,
+  type TestContext,
+} from '@nestfolio/test-support';
+import {
   EventBusTrap,
   TableAssertions,
-  type IntegrationContext,
 } from '@nestfolio/integration-testing';
 
 describe('{service}: {TRIGGER_EVENT} -> AgentInvocation DDB write + CDC', () => {
-  let ctx: IntegrationContext;
+  let ctx: TestContext;
   let eb: EventBridgeClient;
   let table: TableAssertions;
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createIntegrationContext();
+    ctx = await createTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();

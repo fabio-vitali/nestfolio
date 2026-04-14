@@ -61,6 +61,17 @@ Nestfolio is a robo-advisory investment platform. 4 DDD domains, 33 services, ev
 - `libs/agent-orchestrator` — Bedrock agent orchestration
 - `libs/shell` — Angular shell for MFE host
 - `libs/ui` — Shared UI component library
+- `libs/event-types` — Branded EventName type and compile-time event name safety
+- `libs/integration-testing` — Integration test fixtures (EventBusTrap, TableAssertions, MockApiFixture, resilience helpers)
+- `libs/test-support` — Shared test infrastructure (TestContext, CognitoFixture, EventBridgeClient, AppSyncClient)
+
+### Frontend Apps (Micro-Frontends)
+- `apps/nestfolio-host` — Angular shell host (Native Federation)
+- `apps/advisory-mfe` — Advisory domain micro-frontend
+- `apps/dashboard-mfe` — Dashboard micro-frontend
+- `apps/investor-mfe` — Investor domain micro-frontend
+- `apps/ledger-mfe` — Ledger domain micro-frontend
+- `apps/onboarding-mfe` — Onboarding wizard micro-frontend
 
 ### Service Naming Convention
 | Suffix | Role | Has State? |

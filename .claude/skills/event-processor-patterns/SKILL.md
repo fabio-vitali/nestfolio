@@ -19,7 +19,7 @@ All Lambda handlers in this project MUST use event-processor pipelines (except S
 
 ## Pipeline Types
 
-There are 5 pipeline factory functions. Import from `@nestfolio/event-processor`.
+There are 6 pipeline factory functions. Import from `@nestfolio/event-processor`.
 
 ### 1. `materializeToTable` — SQS/Kinesis → DynamoDB
 
@@ -225,11 +225,23 @@ interface ReplayAndReduceConfig<S> {
     key: (groupKey: string) => { pk: string; sk: string };
     daily?: boolean;
   };
-  queryEvents?: (
+  /** Required — no default convention query. */
+  queryEvents: (
     groupKey: string,
     lastSequence: number,
     clients: { docClient: DynamoDBDocumentClient; tableName: string },
   ) => Promise<Record<string, unknown>[]>;
+  /** Required — extract RequestContext from the group key and stream records. */
+  requestContext: (groupKey: string, records: StreamRecord[]) => RequestContext;
+  /** Optional — custom save logic. Replaces the default optimistic-lock PutCommand. */
+  saveSnapshot?: (params: {
+    snapshotKey: { pk: string; sk: string };
+    state: S;
+    lastEventSequence: number;
+    version: number;
+    requestContext: RequestContext;
+    clients: { docClient: DynamoDBDocumentClient; tableName: string };
+  }) => Promise<void>;
   table?: string;
   bus?: string;
   concurrency?: number;
@@ -252,6 +264,58 @@ export const handler = replayAndReduce<PortfolioState>({
 ```
 
 **Source:** `libs/event-processor/src/pipelines/replay-and-reduce.ts`
+
+---
+
+### 6. `deriveFromStream` — DynamoDB Stream → DynamoDB (write-back)
+
+Egestion pipeline. Reads DynamoDB Stream records, transforms them into WriteIntents, and writes derived items back to the same table via the IntentExecutor. Use for computed/denormalized records that should be materialized whenever a source record changes.
+
+**Import:**
+```ts
+import { deriveFromStream } from '@nestfolio/event-processor';
+```
+
+**Config shape:**
+```ts
+interface DeriveFromStreamConfig {
+  serviceName: string;
+  /** Filter stream records (e.g., by __typename). */
+  filter?: (record: StreamRecord) => boolean;
+  /**
+   * Transform a stream record into WriteIntents.
+   * `previous` is the OldImage (undefined on INSERT).
+   */
+  transform: (
+    current: StreamRecord,
+    previous: StreamRecord | undefined,
+    ctx: StreamContext,
+  ) => WriteIntent[] | Promise<WriteIntent[]>;
+  table?: string;
+  bus?: string;
+  concurrency?: number;
+  errorEventType?: string;
+}
+```
+
+**Usage:**
+```ts
+export const handler = deriveFromStream({
+  serviceName: 'portfolio-ctrl',
+  filter: (r) => r.__typename === 'Position',
+  transform: (current, previous, ctx) => {
+    const qty = (current.quantity as number) ?? 0;
+    const prevQty = (previous?.quantity as number) ?? 0;
+    const delta = qty - prevQty;
+    return [
+      accumulate('PortfolioSummary', { field: 'totalPositions', increment: delta }),
+    ];
+  },
+});
+// Returns: (event: DynamoDBStreamEvent) => Promise<void>
+```
+
+**Source:** `libs/event-processor/src/pipelines/derive-from-stream.ts`
 
 ---
 
@@ -288,7 +352,7 @@ Returned from handlers to declare what the engine should write. Import builder f
 |--------|-----|---------|------------|
 | `RecordIntent` | `'record'` | `record(typename, fields, overrides?)` | `typename`, `fields`, `overrides?` |
 | `ProjectIntent` | `'project'` | `project(typename, fields, overrides?)` | `typename`, `fields`, `overrides?` |
-| `AccumulateIntent` | `'accumulate'` | `accumulate(typename, field, increment, opts?)` | `typename`, `field`, `increment`, `ttl?`, `overrides?` |
+| `AccumulateIntent` | `'accumulate'` | `accumulate(typename, config)` | `typename`, `config: { field, increment, ttl?, overrides? }` |
 | `UpdateIntent` | `'update'` | `update(typename, updates, opts?)` | `typename`, `updates`, `removes?`, `condition?`, `overrides?` |
 | `StoreIntent` | `'store'` | `store(body, opts?)` | `body`, `format?` (`'json'\|'csv'`), `key?` |
 | `SkipIntent` | `'skip'` | `skip()` | — |
@@ -302,6 +366,22 @@ record('Order', { orderId: '123', status: 'open' })
 
 // Dynamic fields → returns HandlerFn (called with payload+ctx)
 record('Order', (payload, ctx) => ({ ...payload.subject, tenantId: ctx.tenantId }))
+```
+
+**`accumulate` builder:**
+```ts
+// Config object with field, increment, and optional ttl/overrides
+accumulate('PortfolioSummary', { field: 'totalPositions', increment: 1 })
+accumulate('PortfolioSummary', { field: 'totalPositions', increment: -1, ttl: 86400, overrides: { pk: `T#${tenantId}` } })
+```
+
+**`project` builder overloads:**
+```ts
+// Static fields → returns ProjectIntent directly
+project('OrderView', { orderId: '123', status: 'open' })
+
+// Dynamic fields → returns HandlerFn (called with payload+ctx)
+project('OrderView', (payload, ctx) => ({ ...payload.subject, tenantId: ctx.tenantId }))
 ```
 
 **`update` builder:**
