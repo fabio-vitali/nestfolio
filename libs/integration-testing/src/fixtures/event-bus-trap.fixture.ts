@@ -185,6 +185,9 @@ export class EventBusTrap {
       if (!msg.MessageId || this.seenMessageIds.has(msg.MessageId)) continue;
       this.seenMessageIds.add(msg.MessageId);
       const body = JSON.parse(msg.Body!);
+      // Discard canary events that arrive after warmup — they are an internal
+      // implementation detail and must never leak to waitForEvent() consumers.
+      if (body['detail-type'] === '__INTEG_CANARY') continue;
       fresh.push({
         detailType: body['detail-type'],
         detail: body.detail,
