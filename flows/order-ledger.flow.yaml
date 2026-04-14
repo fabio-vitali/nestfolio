@@ -70,8 +70,24 @@ success_criteria:
   - Investor domain receives BALANCE_UPDATED, PORTFOLIO_UPDATED, and LEDGER_ENTRY_RECORDED for portfolio display
   - Advisory domain receives PORTFOLIO_UPDATED for drift detection and rebalancing triggers
 
+  # -- Failure path: LEDGER_PROCESSING_FAILED --
+  # When the ledger-ctrl ingestion handler throws (e.g. unknown event type, repository error),
+  # the event-processor createIngestionHandler emits LEDGER_PROCESSING_FAILED directly to LedgerBus
+  # (direct EB putEvents, NOT CDC — no DDB record written).
+  - service: ledger-ctrl
+    action: Ingestion handler throws (unrecoverable error after SQS retries exhausted)
+    emits: LEDGER_PROCESSING_FAILED (direct EB putEvents via event-processor errorEventType)
+    note: SQS message also sent to ledger-ctrl-ingress DLQ after maxReceiveCount exceeded
+
+  - cross_domain: LEDGER_PROCESSING_FAILED
+    from: LedgerBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromLedger)
+    note: No investor-domain consumer currently subscribes; event is available on InvestorBus for alerting/notification wiring
+
 failure_modes:
-  - Ingestion handler fails: LEDGER_PROCESSING_FAILED error event emitted to LedgerBus; SQS retries + DLQ
+  - Ingestion handler fails: LEDGER_PROCESSING_FAILED error event emitted to LedgerBus (direct EB); SQS retries + DLQ
   - Reducer snapshot conflict: optimistic concurrency on snapshot version; DDB Stream retries (bisectBatchOnError, 3 retries)
   - CDC Egress fails: DLQ on Egress Lambda; BalanceEvent/PortfolioEvent/LedgerEntryEvent records persist regardless
   - Cross-domain forwarding fails: adapter DLQs (FromExecutionDLQ on ledger-adpt, FromLedgerDLQ on investor-adpt and advisory-adpt) with 14-day retention
+  - LEDGER_PROCESSING_FAILED forwarding fails: investor-adpt FromLedgerDLQ (14-day retention)

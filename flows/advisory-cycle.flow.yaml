@@ -210,6 +210,12 @@ steps:
     to: InvestorBus
     via: investor-adpt EB rule (InvestorIngress-FromAdvisory)
 
+  # -- Phase 12b: Investor domain receives explanation for user-facing display --
+  # EXPLANATION_GENERATED is forwarded to InvestorBus so the investor UI can surface
+  # the human-readable explanation alongside the decision. No investor service currently
+  # subscribes — the event is available on InvestorBus for future consumer wiring.
+  # (dashboard-bff and investor-ctrl do not subscribe to EXPLANATION_GENERATED as of 2026-04-14)
+
   - cross_domain: USER_CONFIRMED
     from: AdvisoryBus
     to: ExecutionBus
