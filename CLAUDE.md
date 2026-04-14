@@ -49,6 +49,8 @@ Before starting any task below, invoke the corresponding skill FIRST:
 | Write or modify unit tests          | `testing-patterns`                                 |
 | Add integration tests to a service  | `create-integration-test`                          |
 | Audit integration test coverage     | `audit-integration-test`                           |
+| Add an E2E feature test scenario    | `create-e2e-test`                                  |
+| Audit E2E feature test coverage     | `audit-e2e-test`                                   |
 | Design a new service/flow           | `design-service` or `design-data-flow`             |
 | Verify consistency                  | `audit-service`, `audit-domain`, or `audit-system` |
 | Validate a business flow            | `validate-flow`                                    |

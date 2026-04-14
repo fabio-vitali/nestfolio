@@ -84,6 +84,11 @@ For integration tests (real AWS, deployed services), use the dedicated skills:
 - `create-integration-test` — scaffold config, write test files with correct fixtures
 - `audit-integration-test` — verify coverage and convention compliance
 
+## E2E Feature Tests
+For end-to-end feature tests (cross-domain, black-box via BFF GraphQL), use the dedicated skills:
+- `create-e2e-test` — scaffold scenarios with composable fixtures and GraphQL assertions
+- `audit-e2e-test` — verify coverage across feature domains and convention compliance
+
 ## Anti-Patterns
 - NEVER put tests in `src/__tests__/`
 - NEVER test handlers without the event-processor harness

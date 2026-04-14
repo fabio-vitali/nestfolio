@@ -11,17 +11,19 @@ description: Full system sweep — dispatches audit-domain per domain in paralle
 ## Checklist
 
 - [ ] 1. **Dispatch 4 parallel sub-agents** — one per domain (advisory, execution, investor, ledger), each running audit-domain
-- [ ] 2. **System-level checks:**
+- [ ] 2. **E2E feature test audit** — invoke the `audit-e2e-test` skill against `apps/e2e-feature-tests/`. E2E tests are a system-level concern (they span domains), so this check lives here, not in per-service audit-service.
+- [ ] 3. **System-level checks:**
 
 | Check | Severity |
 |-------|----------|
 | All domains pass | Aggregated |
+| E2E feature test coverage (via audit-e2e-test) | Hard fail |
 | Cross-domain adapter subscription coverage (adapters subscribe to all required events on source buses) | Hard fail |
 | Orphan services (outside domains) | Warning |
 | Flow spec coverage | Warning |
 | Skill freshness (referenced paths exist) | Warning |
 
-- [ ] 3. **Generate dashboard:**
+- [ ] 4. **Generate dashboard:**
   ```
   | Domain | Services | Pass | Fail | Warn |
   |--------|----------|------|------|------|
@@ -30,7 +32,7 @@ description: Full system sweep — dispatches audit-domain per domain in paralle
   | Investor | 7 | ... | ... | ... |
   | Ledger | 5 | ... | ... | ... |
   ```
-- [ ] 4. **Apply auto-fixes** — regenerate stale cards
+- [ ] 5. **Apply auto-fixes** — regenerate stale cards
 
 ## Anti-Patterns
 - NEVER run sequentially — use parallel sub-agents
