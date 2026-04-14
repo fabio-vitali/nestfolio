@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nestfolio — Come Funziona</title>
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    /* ── Section Block ── */
+    .how-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ── Card styles ── */
+    .how-card {
+      background: var(--white);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .how-card-title {
+      font-size: var(--font-size-base);
+      font-weight: 600;
+      color: var(--neutral-800);
+    }
+    .how-card-subtitle {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-500);
+      margin-top: 2px;
+    }
+    .how-card-link {
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      color: var(--positive);
+      margin-top: 8px;
+      display: inline-block;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /* ── Card with left border ── */
+    .how-card--green-border {
+      border-left: 4px solid var(--positive);
+    }
+    .how-card--amber-border {
+      border-left: 4px solid var(--cautionary);
+    }
+
+    /* ── Badge pill inside card ── */
+    .mode-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--positive-light);
+      color: var(--positive);
+      margin-bottom: 8px;
+    }
+    .mode-description {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-600);
+      line-height: 1.55;
+    }
+
+    /* ── Check/Warning/Circle item rows ── */
+    .authority-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .authority-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: var(--font-size-sm);
+      color: var(--neutral-700);
+      line-height: 1.45;
+    }
+    .authority-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 0px;
+    }
+    .authority-icon--green {
+      background: var(--positive-light);
+      color: var(--positive);
+    }
+    .authority-icon--amber {
+      background: var(--cautionary-light);
+      color: var(--cautionary);
+    }
+    .authority-icon--neutral {
+      background: var(--neutral-200);
+      color: var(--neutral-600);
+    }
+    .authority-item-text {
+      padding-top: 2px;
+    }
+
+    /* ── Guardrail list ── */
+    .guardrail-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .guardrail-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: var(--font-size-sm);
+      color: var(--neutral-700);
+      line-height: 1.5;
+    }
+    .guardrail-bullet {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--neutral-400);
+      flex-shrink: 0;
+      margin-top: 7px;
+    }
+
+    /* ── Compliance summary ── */
+    .compliance-text {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-700);
+      line-height: 1.55;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-container">
+  <div class="phone-frame">
+
+    <!-- ── Status Bar ── -->
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <span class="indicators">
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="none"><rect x="0" y="3" width="3" height="9" rx="1" fill="currentColor" opacity=".4"/><rect x="4.5" y="2" width="3" height="10" rx="1" fill="currentColor" opacity=".6"/><rect x="9" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".8"/><rect x="13.5" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg>
+        <svg width="15" height="12" viewBox="0 0 15 12" fill="none"><path d="M7.5 2.5C9.8 2.5 11.8 3.5 13.2 5L14.5 3.7C12.7 1.9 10.2.8 7.5.8S2.3 1.9.5 3.7L1.8 5C3.2 3.5 5.2 2.5 7.5 2.5Z" fill="currentColor" opacity=".5"/><path d="M7.5 5.5C9 5.5 10.4 6.1 11.4 7.1L12.7 5.8C11.3 4.4 9.5 3.5 7.5 3.5S3.7 4.4 2.3 5.8L3.6 7.1C4.6 6.1 6 5.5 7.5 5.5Z" fill="currentColor" opacity=".7"/><path d="M7.5 8.5C8.5 8.5 9.3 8.9 9.9 9.5L7.5 12 5.1 9.5C5.7 8.9 6.5 8.5 7.5 8.5Z" fill="currentColor"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="2" stroke="currentColor" opacity=".35"/><rect x="22.5" y="3.5" width="2" height="5" rx="1" fill="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="1" fill="currentColor"/></svg>
+      </span>
+    </div>
+
+    <!-- ── Nav Header ── -->
+    <div class="nav-header">
+      <button class="back-btn">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="screen-title">Come Funziona</span>
+    </div>
+
+    <!-- ── Scrollable Content ── -->
+    <div class="content-area">
+
+      <!-- ════════════════════════════════════════════ -->
+      <!-- SECTION 1: I TUOI OBIETTIVI                 -->
+      <!-- ════════════════════════════════════════════ -->
+      <div class="how-section">
+        <div class="section-label">I TUOI OBIETTIVI</div>
+        <div class="how-card">
+          <div class="how-card-title">Crescita del capitale</div>
+          <div class="how-card-subtitle">&euro;50.000 &middot; entro il 2036</div>
+          <a class="how-card-link">Modifica nelle impostazioni</a>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════ -->
+      <!-- SECTION 2: IL TUO PROFILO DI RISCHIO        -->
+      <!-- ════════════════════════════════════════════ -->
+      <div class="how-section">
+        <div class="section-label">IL TUO PROFILO DI RISCHIO</div>
+        <div class="how-card">
+          <div class="how-card-title">Tolleranza al rischio moderata</div>
+          <div class="how-card-subtitle">Banda: 40-70% azioni</div>
+          <a class="how-card-link">Ripeti il questionario</a>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════ -->
+      <!-- SECTION 3: LA TUA MODALITA' OPERATIVA       -->
+      <!-- ════════════════════════════════════════════ -->
+      <div class="how-section">
+        <div class="section-label">LA TUA MODALITA' OPERATIVA</div>
+        <div class="how-card how-card--green-border">
+          <div class="mode-badge">BILANCIATO</div>
+          <div class="mode-description">Nestfolio gestisce la maggior parte delle operazioni e ti chiede conferma per i cambiamenti importanti.</div>
+          <a class="how-card-link">Cambia modalita'</a>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════ -->
+      <!-- SECTION 4: COSA PUO' FARE NESTFOLIO         -->
+      <!-- ════════════════════════════════════════════ -->
+      <div class="how-section">
+        <div class="section-label">COSA PUO' FARE NESTFOLIO</div>
+        <div class="how-card how-card--green-border">
+          <div class="authority-list">
+            <div class="authority-item">
+              <div class="authority-icon authority-icon--green">&#10003;</div>
+              <span class="authority-item-text">Ribilanciare il tuo portafoglio</span>
+            </div>
+            <div class="authority-item">
+              <div class="authority-icon authority-icon--green">&#10003;</div>
+              <span class="authority-item-text">Reinvestire i dividendi</span>
+            </div>
+            <div class="authority-item">
+              <div class="authority-icon authority-icon--green">&#10003;</div>
+              <span class="authority-item-text">Effettuare swap fiscalmente efficienti</span>
+            </div>
+            <div class="authority-item">
+              <div class="authority-icon authority-icon--green">&#10003;</div>
+              <span class="authority-item-text">Rispondere ai cambiamenti di mercato</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════ -->
+      <!-- SECTION 5: COSA RICHIEDE LA TUA CONFERMA    -->
+      <!-- ════════════════════════════════════════════ -->
+      <div class="how-section">
+        <div class="section-label">COSA RICHIEDE LA TUA CONFERMA</div>
+        <div class="how-card how-card--amber-border">
+          <div class="authority-list">
+            <div class="authority-item">
+              <div class="authority-icon authority-icon--amber">!</div>
+              <span class="authority-item-text">Operazioni sopra il 10% del portafoglio</span>
+            </div>
+            <div class="authority-item">
+              <div class="authority-icon authority-icon--amber">!</div>
+              <span class="authority-item-text">Cambiamenti di strategia o livello di rischio</span>
+            </div>
+            <div class="authority-item">
+              <div class="authority-icon authority-icon--amber">!</div>
+              <span class="authority-item-text">Raccomandazioni di prelievo</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════ -->
+      <!-- SECTION 6: COSA PUOI FARE SOLO TU           -->
+      <!-- ════════════════════════════════════════════ -->
+      <div class="how-section">
+        <div class="section-label">COSA PUOI FARE SOLO TU</div>
+        <div class="how-card">
+          <div class="authority-list">
+            <div class="authority-item">
+              <div class="authority-icon authority-icon--neutral">&#9679;</div>
+              <span class="authority-item-text">Aggiungere o prelevare fondi</span>
+            </div>
+            <div class="authority-item">
+              <div class="authority-icon authority-icon--neutral">&#9679;</div>
+              <span class="authority-item-text">Chiudere il tuo account</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════ -->
+      <!-- SECTION 7: LE TUE REGOLE DI SICUREZZA       -->
+      <!-- ════════════════════════════════════════════ -->
+      <div class="how-section">
+        <div class="section-label">LE TUE REGOLE DI SICUREZZA</div>
+        <div class="how-card">
+          <div class="guardrail-list">
+            <div class="guardrail-item">
+              <div class="guardrail-bullet"></div>
+              <span>Ribilanciamento: circa 1 volta al mese</span>
+            </div>
+            <div class="guardrail-item">
+              <div class="guardrail-bullet"></div>
+              <span>Operazione singola max: 10% del portafoglio</span>
+            </div>
+            <div class="guardrail-item">
+              <div class="guardrail-bullet"></div>
+              <span>Limite turnover mensile: 25%</span>
+            </div>
+            <div class="guardrail-item">
+              <div class="guardrail-bullet"></div>
+              <span>Cool-down: 5 giorni tra operazioni</span>
+            </div>
+            <div class="guardrail-item">
+              <div class="guardrail-bullet"></div>
+              <span>Protezione drawdown: pausa a -12%</span>
+            </div>
+            <div class="guardrail-item">
+              <div class="guardrail-bullet"></div>
+              <span>Concentrazione: nessun ETF sopra il 30%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════ -->
+      <!-- SECTION 8: RIEPILOGO COMPLIANCE              -->
+      <!-- ════════════════════════════════════════════ -->
+      <div class="how-section">
+        <div class="section-label">RIEPILOGO COMPLIANCE</div>
+        <div class="how-card how-card--green-border">
+          <div class="compliance-text">Tutte le 47 decisioni nell'ultimo anno sono state entro il tuo mandato.</div>
+          <a class="how-card-link">Vedi storico audit</a>
+        </div>
+      </div>
+
+      <!-- Footer spacing -->
+      <div style="height: 24px; flex-shrink: 0;"></div>
+
+    </div><!-- /content-area -->
+
+  </div><!-- /phone-frame -->
+</div><!-- /page-container -->
+
+</body>
+</html>

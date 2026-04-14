@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nestfolio — Impostazioni</title>
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    /* ── Profile Card ── */
+    .profile-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 16px;
+    }
+    .profile-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-full);
+      background: var(--primary);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+      flex-shrink: 0;
+      letter-spacing: 0.5px;
+    }
+    .profile-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .profile-name {
+      font-size: var(--font-size-md);
+      font-weight: 600;
+      color: var(--neutral-800);
+    }
+    .profile-email {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-500);
+      margin-top: 1px;
+    }
+    .profile-federation {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      background: var(--neutral-100);
+      color: var(--neutral-600);
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+    }
+
+    /* ── Settings Section Card ── */
+    .settings-section {
+      background: var(--white);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ── Expandable Section ── */
+    .expand-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      cursor: pointer;
+      user-select: none;
+      background: #FFFFFF;
+      position: relative;
+      z-index: 1;
+    }
+    .expand-header:hover {
+      background: var(--neutral-50);
+    }
+    .expand-header:active {
+      background: var(--neutral-100);
+    }
+    .expand-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+    .expand-title {
+      font-size: var(--font-size-base);
+      font-weight: 500;
+      color: var(--neutral-700);
+    }
+    .expand-chevron {
+      width: 20px;
+      height: 20px;
+      color: var(--neutral-400);
+      flex-shrink: 0;
+      transition: transform 0.25s ease;
+    }
+    .settings-section.open .expand-chevron {
+      transform: rotate(90deg);
+    }
+    .expand-content {
+      display: none;
+      padding: 0 16px 16px;
+    }
+    .settings-section.open .expand-content {
+      display: block;
+    }
+
+    /* ── Expand Content Details ── */
+    .detail-row {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-600);
+      padding: 3px 0;
+      line-height: 1.5;
+    }
+    .detail-row strong {
+      color: var(--neutral-700);
+      font-weight: 600;
+    }
+    .action-link {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--primary);
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .action-link:hover {
+      text-decoration: underline;
+    }
+    .action-link.red {
+      color: var(--negative);
+    }
+    .action-link.red:hover {
+      text-decoration: underline;
+    }
+
+    /* ── Rules Sub-section ── */
+    .rules-label {
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--neutral-400);
+      margin: 10px 0 8px;
+    }
+    .rule-item {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-600);
+      padding: 4px 0;
+      padding-left: 12px;
+      position: relative;
+      line-height: 1.5;
+    }
+    .rule-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 11px;
+      width: 4px;
+      height: 4px;
+      border-radius: var(--radius-full);
+      background: var(--neutral-400);
+    }
+    .rules-note {
+      font-size: var(--font-size-xs);
+      color: var(--neutral-400);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+    .mode-desc {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-600);
+      line-height: 1.5;
+      margin-bottom: 4px;
+    }
+
+    /* ── Toggle Row ── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--neutral-100);
+    }
+    .toggle-row:last-of-type {
+      border-bottom: none;
+    }
+    .toggle-label {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-700);
+      font-weight: 500;
+    }
+    .notif-mode {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-600);
+      padding: 2px 0 8px;
+    }
+
+    /* ── Broker Card ── */
+    .broker-card {
+      padding: 16px;
+    }
+    .broker-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .broker-title {
+      font-size: var(--font-size-base);
+      font-weight: 600;
+      color: var(--neutral-800);
+    }
+    .broker-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--positive);
+    }
+    .broker-sync {
+      font-size: var(--font-size-xs);
+      color: var(--neutral-400);
+      margin-bottom: 14px;
+    }
+    .broker-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-broker {
+      padding: 8px 16px;
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font-family);
+      transition: all 0.2s;
+    }
+    .btn-reconnect {
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px solid var(--primary);
+    }
+    .btn-reconnect:hover {
+      background: var(--primary-light);
+    }
+    .btn-disconnect {
+      background: transparent;
+      color: var(--negative);
+      border: 1.5px solid var(--negative);
+    }
+    .btn-disconnect:hover {
+      background: var(--negative-light);
+    }
+
+    /* ── Simple Link Row ── */
+    .link-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: background 0.15s;
+      user-select: none;
+    }
+    .link-row:hover {
+      background: var(--neutral-50);
+    }
+    .link-row:active {
+      background: var(--neutral-100);
+    }
+    .link-row-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+    .link-row-title {
+      font-size: var(--font-size-base);
+      font-weight: 500;
+      color: var(--neutral-700);
+    }
+    .link-row-title.red {
+      color: var(--negative);
+    }
+    .link-row-value {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-400);
+      margin-right: 4px;
+    }
+    .link-row-right {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .chevron-right {
+      width: 16px;
+      height: 16px;
+      color: var(--neutral-400);
+      flex-shrink: 0;
+    }
+
+    /* ── Account Mode Card ── */
+    .account-mode-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .account-mode-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .account-mode-badge.simulation {
+      background: var(--cautionary-light);
+      color: var(--cautionary);
+    }
+    .account-mode-badge.live {
+      background: var(--positive-light);
+      color: var(--positive);
+    }
+    .account-mode-balance {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-600);
+      padding: 4px 0;
+      line-height: 1.5;
+    }
+    .account-mode-balance strong {
+      color: var(--neutral-800);
+      font-weight: 600;
+    }
+    .btn-go-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 10px 20px;
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid var(--primary);
+      background: var(--primary);
+      color: var(--white);
+      font-family: var(--font-family);
+      transition: all 0.2s;
+    }
+    .btn-go-live:hover {
+      background: var(--primary-dark);
+      border-color: var(--primary-dark);
+    }
+
+    /* ── Section Groups ── */
+    .section-group {
+      background: var(--white);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .section-group .link-row + .link-row {
+      border-top: 1px solid var(--neutral-100);
+    }
+
+    /* ── Divider between expandable sections within the same group ── */
+    .settings-section + .settings-section {
+      /* handled by gap in content-area */
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-container">
+  <div class="phone-frame">
+
+    <!-- ── Status Bar ── -->
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <span class="indicators">
+        <span>&#9679;&#9679;&#9679;&#9679;</span>
+        <span>WiFi</span>
+        <span>&#128267;</span>
+      </span>
+    </div>
+
+    <!-- ── Nav Header ── -->
+    <div class="nav-header">
+      <span class="screen-title">Impostazioni</span>
+    </div>
+
+    <!-- ── Scrollable Content ── -->
+    <div class="content-area">
+
+      <!-- ── Profile Section ── -->
+      <div class="card profile-card">
+        <div class="profile-avatar">LM</div>
+        <div class="profile-info">
+          <div class="profile-name">Luca Moretti</div>
+          <div class="profile-email">luca.moretti@email.com</div>
+          <span class="profile-federation">Google</span>
+        </div>
+      </div>
+
+      <!-- ── Investment Goal (expandable) ── -->
+      <div class="settings-section" data-expandable>
+        <div class="expand-header">
+          <div class="expand-title-row">
+            <span class="expand-title">Obiettivo di investimento</span>
+          </div>
+          <svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </div>
+        <div class="expand-content">
+          <div class="detail-row">Tipo: <strong>Crescita del capitale</strong></div>
+          <div class="detail-row">Importo target: <strong>&euro;50.000</strong></div>
+          <div class="detail-row">Orizzonte: <strong>10 anni (2036)</strong></div>
+          <a class="action-link" href="#">Modifica obiettivo</a>
+        </div>
+      </div>
+
+      <!-- ── Risk Profile (expandable) ── -->
+      <div class="settings-section" data-expandable>
+        <div class="expand-header">
+          <div class="expand-title-row">
+            <span class="expand-title">Profilo di rischio</span>
+          </div>
+          <svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </div>
+        <div class="expand-content">
+          <div class="detail-row">Tolleranza: <strong>Moderata</strong></div>
+          <div class="detail-row">Banda di rischio: <strong>40-70% azioni</strong></div>
+          <a class="action-link" href="#">Ripeti questionario</a>
+        </div>
+      </div>
+
+      <!-- ── Operating Mode (expandable) ── -->
+      <div class="settings-section" data-expandable>
+        <div class="expand-header">
+          <div class="expand-title-row">
+            <span class="expand-title">Modalita' operativa</span>
+            <span class="badge-pill badge-green">BILANCIATO</span>
+          </div>
+          <svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </div>
+        <div class="expand-content">
+          <div class="mode-desc">Nestfolio gestisce la maggior parte delle operazioni e ti chiede conferma per i cambiamenti importanti.</div>
+
+          <div class="rules-label">LE TUE REGOLE DI SICUREZZA</div>
+          <div class="rule-item">Ribilanciamento: circa 1 volta al mese</div>
+          <div class="rule-item">Operazione singola max: 10% del portafoglio</div>
+          <div class="rule-item">Turnover mensile max: 25% del valore</div>
+          <div class="rule-item">Concentrazione: nessun ETF sopra il 30%</div>
+          <div class="rule-item">Cool-down: 5 giorni tra operazioni sullo stesso strumento</div>
+          <div class="rule-item">Protezione drawdown: pausa a -12%</div>
+          <div class="rule-item">Protezione volatilita': pausa in turbolenza moderata</div>
+
+          <div class="rules-note">Queste regole proteggono il tuo portafoglio. Si aggiornano automaticamente cambiando modalita'.</div>
+          <a class="action-link" href="#">Cambia modalita'</a>
+        </div>
+      </div>
+
+      <!-- ── Account Mode (expandable) ── -->
+      <div class="settings-section" data-expandable>
+        <div class="expand-header">
+          <div class="expand-title-row">
+            <span class="expand-title">Modalita' account</span>
+            <span class="badge-pill badge-amber">SIMULAZIONE</span>
+          </div>
+          <svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </div>
+        <div class="expand-content">
+          <div class="account-mode-status">
+            <span class="account-mode-badge simulation">Simulazione attiva</span>
+          </div>
+          <div class="account-mode-balance">Capitale virtuale: <strong>&euro;10.000,00</strong></div>
+          <div class="account-mode-balance">Valore portafoglio simulato: <strong>&euro;24.350,00</strong></div>
+          <div class="mode-desc" style="margin-top: 8px;">Stai utilizzando la modalita' simulazione. I tuoi investimenti sono virtuali e senza rischio. Quando ti senti pronto, passa alla modalita' Live per investire con denaro reale.</div>
+          <button class="btn-go-live">Passa alla modalita' Live &rarr;</button>
+        </div>
+      </div>
+
+      <!-- ── Mandate (expandable) ── -->
+      <div class="settings-section" data-expandable>
+        <div class="expand-header">
+          <div class="expand-title-row">
+            <span class="expand-title">Mandato</span>
+          </div>
+          <svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </div>
+        <div class="expand-content">
+          <div class="detail-row">Nestfolio e' autorizzato a ribilanciare il portafoglio, reinvestire dividendi e effettuare swap fiscalmente efficienti.</div>
+          <a class="action-link red" href="#">Revoca mandato</a>
+        </div>
+      </div>
+
+      <!-- ── Notifications (expandable) ── -->
+      <div class="settings-section" data-expandable>
+        <div class="expand-header">
+          <div class="expand-title-row">
+            <span class="expand-title">Notifiche</span>
+          </div>
+          <svg class="expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </div>
+        <div class="expand-content">
+          <div class="notif-mode">Modalita' temporale: <strong>Ibrida</strong></div>
+          <div class="toggle-row">
+            <span class="toggle-label">Notifiche push</span>
+            <div class="toggle active" data-toggle></div>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Email di riepilogo</span>
+            <div class="toggle active" data-toggle></div>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Azioni autonome</span>
+            <div class="toggle active" data-toggle></div>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Report mensile</span>
+            <div class="toggle active" data-toggle></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Broker Connection ── -->
+      <div class="card broker-card">
+        <div class="broker-header">
+          <span class="broker-title">Interactive Brokers</span>
+          <span class="broker-status">
+            <span class="status-dot green"></span>
+            Connesso
+          </span>
+        </div>
+        <div class="broker-sync">Ultima sincronizzazione: 2 min fa</div>
+        <div class="broker-actions">
+          <button class="btn-broker btn-reconnect">Riconnetti</button>
+          <button class="btn-broker btn-disconnect">Disconnetti</button>
+        </div>
+      </div>
+
+      <!-- ── Link Rows Group: Deposits, Language ── -->
+      <div class="section-group">
+        <div class="link-row">
+          <div class="link-row-left">
+            <span class="link-row-title">Depositi e Prelievi</span>
+          </div>
+          <div class="link-row-right">
+            <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+        </div>
+        <div class="link-row">
+          <div class="link-row-left">
+            <span class="link-row-title">Lingua</span>
+          </div>
+          <div class="link-row-right">
+            <span class="link-row-value">Italiano</span>
+            <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+        </div>
+        <div class="link-row">
+          <div class="link-row-left">
+            <span class="link-row-title">Legale e Privacy</span>
+          </div>
+          <div class="link-row-right">
+            <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Danger Zone: Account Actions ── -->
+      <div class="section-group">
+        <div class="link-row">
+          <div class="link-row-left">
+            <span class="link-row-title red">Chiudi account</span>
+          </div>
+          <div class="link-row-right">
+            <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+        </div>
+        <div class="link-row">
+          <div class="link-row-left">
+            <span class="link-row-title red">Cancella i miei dati</span>
+          </div>
+          <div class="link-row-right">
+            <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Info & Support ── -->
+      <div class="section-group">
+        <div class="link-row">
+          <div class="link-row-left">
+            <span class="link-row-title">Come funziona Nestfolio</span>
+          </div>
+          <div class="link-row-right">
+            <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+        </div>
+        <div class="link-row">
+          <div class="link-row-left">
+            <span class="link-row-title">Supporto e FAQ</span>
+          </div>
+          <div class="link-row-right">
+            <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content-area -->
+
+    <!-- ── Bottom Tab Bar ── -->
+    <div class="bottom-tabs">
+      <!-- Home -->
+      <button class="tab-item">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span class="tab-label">Home</span>
+      </button>
+
+      <!-- Portafoglio -->
+      <button class="tab-item">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 2a10 10 0 0 1 0 20"/>
+          <line x1="12" y1="2" x2="12" y2="22"/>
+          <path d="M2 12h20"/>
+        </svg>
+        <span class="tab-label">Portafoglio</span>
+      </button>
+
+      <!-- Notifiche (with badge) -->
+      <button class="tab-item">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span class="badge">3</span>
+        <span class="tab-label">Notifiche</span>
+      </button>
+
+      <!-- Impostazioni (active) -->
+      <button class="tab-item active">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"/>
+        </svg>
+        <span class="tab-label">Impostazioni</span>
+      </button>
+    </div>
+
+  </div><!-- /phone-frame -->
+</div><!-- /page-container -->
+
+<script>
+(function () {
+  // ── Expandable Sections ──
+  document.querySelectorAll('[data-expandable]').forEach(function (section) {
+    var header = section.querySelector('.expand-header');
+    header.addEventListener('click', function () {
+      section.classList.toggle('open');
+    });
+  });
+
+  // ── Toggle Switches ──
+  document.querySelectorAll('[data-toggle]').forEach(function (toggle) {
+    toggle.addEventListener('click', function () {
+      toggle.classList.toggle('active');
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
