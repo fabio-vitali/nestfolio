@@ -37,6 +37,7 @@ Stack: services/ledger/ledger-bff/src/service.stack.ts
 - transforms/balance-updated.test.ts
 - transforms/ledger-entry-recorded.test.ts
 - transforms/portfolio-updated.test.ts
+- integration/ledger-bff.integration.test.ts
 
 ## Dependencies
 - libs: cdk-constructs/core, cdk-constructs/extensions, cdk-constructs/utils, event-processor

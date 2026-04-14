@@ -17,6 +17,7 @@ None (stateless adapter — EB Rule forwarding only)
 
 ## Tests
 - service.stack.test.ts
+- integration/ledger-adpt.integration.test.ts
 
 ## Dependencies
 - libs: cdk-constructs (core, observability, extensions)

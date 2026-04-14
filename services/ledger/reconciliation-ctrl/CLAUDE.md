@@ -21,12 +21,14 @@ Stack: services/ledger/reconciliation-ctrl/src/service.stack.ts
 - event-publisher.ts — CDC changeDataCapture() pipeline
 
 ## Event Types (domain/events.ts)
-- ReconciliationEventTypes: PORTFOLIO_DRIFT_DETECTED, RECONCILIATION_REQUIRED, RECONCILIATION_STARTED, RECONCILIATION_COMPLETED, RECONCILIATION_FAILED, RECONCILIATION_LOCK_ACQUIRED, RECONCILIATION_LOCK_RELEASED, PROJECTION_REBUILT, CORPORATE_ACTION_APPLIED
+- ReconciliationEventTypes: PORTFOLIO_DRIFT_DETECTED, RECONCILIATION_REQUIRED, RECONCILIATION_STARTED, RECONCILIATION_COMPLETED, RECONCILIATION_RESULT_UPDATED, RECONCILIATION_FAILED, DRIFT_RECORD_UPDATED, RECONCILIATION_LOCK_ACQUIRED, RECONCILIATION_LOCK_RELEASED, PROJECTION_REBUILT, CORPORATE_ACTION_APPLIED
 
 ## Tests
 - event-listener.test.ts
 - reconciliation.repository.test.ts
 - reconciliation.service.test.ts
+- integration/reconciliation-ctrl.integration.test.ts
+- integration/reconciliation-ctrl.resilience.integration.test.ts
 
 ## Dependencies
 - libs: cdk-constructs/core, cdk-constructs/extensions, event-processor

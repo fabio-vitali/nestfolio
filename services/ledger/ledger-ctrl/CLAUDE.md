@@ -26,9 +26,10 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
 - event-listener.ts — Ingress event handler
 - event-publisher.ts — Egress CDC publisher
 - reducer.ts — Account snapshot materializer (DDB Stream consumer)
+- snapshot-publisher.ts — deriveFromStream pipeline; filters AccountSnapshot records, transforms to domain events via snapshotToEvents
 
 ## Event Types (domain/events.ts)
-- LedgerCtrlEventTypes: BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED, LEDGER_PROCESSING_FAILED, LEDGER_SIMULATION_FAILED
+- LedgerCtrlEventTypes: BALANCE_UPDATED, BALANCE_EVENT_UPDATED, PORTFOLIO_UPDATED, PORTFOLIO_EVENT_UPDATED, LEDGER_ENTRY_RECORDED, LEDGER_ENTRY_EVENT_UPDATED, LEDGER_PROCESSING_FAILED, LEDGER_SIMULATION_FAILED
 
 ## Tests
 - domain/account-state.test.ts
@@ -41,9 +42,13 @@ Stack: services/ledger/ledger-ctrl/src/service.stack.ts
 - domain/submit-order.test.ts
 - handlers/event-listener.test.ts
 - handlers/reducer.test.ts
+- handlers/snapshot-publisher.test.ts
 - repositories/ledger.repository.test.ts
 - service.stack.test.ts
 - tax-lot-manager.test.ts
+- transforms/snapshot-to-events.test.ts
+- integration/ledger-ctrl.integration.test.ts
+- integration/ledger-ctrl.resilience.integration.test.ts
 
 ## Dependencies
-- libs: cdk-constructs (core, extensions, utils), event-processor
+- libs: cdk-constructs (core, extensions, utils), event-processor, event-processor/sourcing
