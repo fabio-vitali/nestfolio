@@ -8,7 +8,7 @@ export type ExecutionMode = 'simulation' | 'live';
 export type MandateLevel = 'ADVISORY' | 'DISCRETIONARY';
 
 /** Rebalance cadence for the mandate. */
-export type RebalanceCadence = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY';
+export type RebalanceCadence = 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY';
 
 /** Notification delivery channel. */
 export type NotificationChannel = 'PUSH' | 'EMAIL' | 'SMS' | 'IN_APP';
