@@ -307,6 +307,54 @@ describe('investor-bff', () => {
       expect(modeChangeItem).toBeDefined();
       expect(modeChangeItem!['toMode']).toBe('live');
     }, 120_000);
+
+    it('should update Mandate guardrail params on OPERATING_MODE_CHANGED', async () => {
+      const userId = cognitoSub;
+      const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
+
+      // Mandate was created by ONBOARDING_COMPLETED (mode=BALANCED).
+      // Wait for it to exist before sending OPERATING_MODE_CHANGED.
+      await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'Mandate',
+        timeoutMs: 30_000,
+      });
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'OPERATING_MODE_CHANGED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId,
+          mode: 'CONSERVATIVE',
+        },
+      });
+
+      // update() intent → UpdateCommand → CDC emits MANDATE_UPDATED (modify action).
+      // Assert: Mandate row reflects CONSERVATIVE guardrail params.
+      // Poll until operatingMode field is updated (item already exists, so waitForItem returns immediately).
+      let mandateItem: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        mandateItem = await table.waitForItem({
+          table: 'investor-bff',
+          pk,
+          sk: 'Mandate',
+          timeoutMs: 5_000,
+        });
+        if (mandateItem['operatingMode'] === 'CONSERVATIVE') break;
+        await new Promise((r) => setTimeout(r, 2_000));
+      }
+
+      expect(mandateItem).toBeDefined();
+      expect(mandateItem!['operatingMode']).toBe('CONSERVATIVE');
+      expect(mandateItem!['maxSingleTradePercent']).toBe(5);
+      expect(mandateItem!['monthlyTurnoverCapPercent']).toBe(10);
+      expect(mandateItem!['coolDownDays']).toBe(10);
+      expect(mandateItem!['rebalanceCadence']).toBe('QUARTERLY');
+    }, 120_000);
   });
 
   // ── AppSync Mutations ───────────────────────────────────────────────

@@ -8,7 +8,7 @@ Stack: services/investor/investor-bff/src/service.stack.ts
 
 ## Ingress
 - InvestorBus → investor-bff-ingress (SQS → Lambda)
-  Subscriptions: USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED
+  Subscriptions: USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED, OPERATING_MODE_CHANGED
 
 ## Egress
 - CDC: DynamoDB Streams → investor-bff-egress (Lambda)
@@ -28,7 +28,7 @@ Stack: services/investor/investor-bff/src/service.stack.ts
   - update-mandate, revoke-mandate, initiate-deposit, request-withdrawal, request-account-closure (noneDataSource)
 
 ## Handlers
-- event-listener.ts — materializes USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED; GO_LIVE_CONFIRMED sets execution mode via profileRepo
+- event-listener.ts — materializes USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED, OPERATING_MODE_CHANGED (updates Mandate guardrail params); GO_LIVE_CONFIRMED sets execution mode via profileRepo
 - event-publisher.ts — CDC (changeDataCapture)
 
 ## Event Types (domain/events.ts)
@@ -41,6 +41,7 @@ Stack: services/investor/investor-bff/src/service.stack.ts
 - transforms/user-registered.test.ts
 - transforms/notification-created.test.ts
 - transforms/onboarding-completed.test.ts
+- transforms/operating-mode-changed.test.ts
 
 ## Dependencies
 - libs: cdk-constructs/core, event-processor

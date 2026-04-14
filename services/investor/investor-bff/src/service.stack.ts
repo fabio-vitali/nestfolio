@@ -18,6 +18,7 @@ export class InvestorBffStack extends ServiceStack {
         InvestorIngestEventTypes.BALANCE_UPDATED,
         InvestorBffEventTypes.ONBOARDING_COMPLETED,
         InvestorBffEventTypes.GO_LIVE_CONFIRMED,
+        InvestorBffEventTypes.OPERATING_MODE_CHANGED,
       ],
     });
 
