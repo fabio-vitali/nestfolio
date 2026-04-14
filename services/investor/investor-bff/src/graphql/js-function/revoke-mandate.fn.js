@@ -5,7 +5,7 @@ export function request(ctx) {
   const now = util.time.nowISO8601();
   const pk = `InvestorProfile#${tenantId}#${userId}`;
   const mandateId = 'latest';
-  ctx.stash._revokeResult = { mandateId, tenantId, level: 'ADVISORY', monthlyTurnoverCapPercent: 0, maxSingleTradePercent: 0, coolDownDays: 0, rebalanceCadence: 'MONTHLY', effectiveDate: now, revokedAt: now, version: 0 };
+  ctx.stash._revokeResult = { mandateId, tenantId, level: 'DISCRETIONARY', monthlyTurnoverCapPercent: 0, maxSingleTradePercent: 0, coolDownDays: 0, rebalanceCadence: 'MONTHLY', effectiveDate: now, revokedAt: now, version: 0 };
   return {
     operation: 'TransactWriteItems',
     transactItems: [

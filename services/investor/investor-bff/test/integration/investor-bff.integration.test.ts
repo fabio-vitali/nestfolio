@@ -229,7 +229,17 @@ describe('investor-bff', () => {
         timeoutMs: 10_000,
       });
       expect(mandateItem['__typename']).toBe('Mandate');
-      expect(mandateItem['level']).toBe('ADVISORY');
+      expect(mandateItem['level']).toBe('DISCRETIONARY');
+
+      // Verify mode-derived guardrail params for BALANCED operating mode
+      expect(mandateItem['maxSingleTradePercent']).toBe(10);
+      expect(mandateItem['monthlyTurnoverCapPercent']).toBe(25);
+      expect(mandateItem['coolDownDays']).toBe(5);
+      expect(mandateItem['rebalanceCadence']).toBe('MONTHLY');
+      expect(mandateItem['equityRiskBandPercent']).toBe(6);
+      expect(mandateItem['driftTriggerPercent']).toBe(4);
+      expect(mandateItem['singleEtfConcentrationPercent']).toBe(30);
+      expect(mandateItem['drawdownCircuitBreakerPercent']).toBe(12);
 
       // Verify Deposit was created (capitalAmount > 0)
       let depositItem: Record<string, unknown> | undefined;
@@ -618,7 +628,7 @@ describe('investor-bff', () => {
       );
 
       expect(result.revokeMandate.revokedAt).toBeTruthy();
-      expect(result.revokeMandate.level).toBe('ADVISORY');
+      expect(result.revokeMandate.level).toBe('DISCRETIONARY');
 
       // Assert: MandateRevocation record written to DDB
       const items = await table.queryItems({
