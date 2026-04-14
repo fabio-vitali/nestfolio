@@ -1,19 +1,14 @@
 import type { ComplianceInput, Violation } from './rule-engine';
 
 /**
- * Trade value threshold (in cents) above which L2 confirmation is required
- * even for DISCRETIONARY mandates.
- */
-const LARGE_TRADE_THRESHOLD_CENTS = 50_000_00; // $50,000
-
-/**
  * Determines the authority level for a compliance decision.
- * - L1 (autonomous): DISCRETIONARY mandate, all guardrails pass, trade value below threshold
- * - L2 (requires user confirmation): ADVISORY mandate, or large trades, or any violations
+ * Uses mode-derived thresholds from the mandate snapshot instead of hardcoded values.
+ * - L1 (autonomous): DISCRETIONARY mandate, all guardrails pass, within thresholds
+ * - L2 (requires user confirmation): ADVISORY mandate, violations, or threshold exceeded
  */
 export class AuthorityResolver {
   resolve(input: ComplianceInput, violations: Violation[]): 'L1' | 'L2' {
-    const { mandate, proposedTrades } = input;
+    const { mandate, proposedTrades, portfolioValue } = input;
 
     // ADVISORY mandate always requires confirmation
     if (mandate.level === 'ADVISORY') {
@@ -25,16 +20,25 @@ export class AuthorityResolver {
       return 'L2';
     }
 
-    // Check if any trade exceeds the large trade threshold
-    const hasLargeTrade = proposedTrades.some(
-      (trade) => trade.quantityOrAmountCents > LARGE_TRADE_THRESHOLD_CENTS,
+    // Check each trade against mode-derived maxSingleTradePercent
+    const maxTradeAmountCents = (portfolioValue * mandate.maxSingleTradePercent) / 100;
+    const hasOversizedTrade = proposedTrades.some(
+      (trade) => trade.quantityOrAmountCents > maxTradeAmountCents,
     );
-
-    if (hasLargeTrade) {
+    if (hasOversizedTrade) {
       return 'L2';
     }
 
-    // DISCRETIONARY, no violations, no large trades -> autonomous
+    // Check total turnover against mode-derived monthlyTurnoverCapPercent
+    const maxTurnoverCents = (portfolioValue * mandate.monthlyTurnoverCapPercent) / 100;
+    const totalTurnoverCents = proposedTrades.reduce(
+      (sum, trade) => sum + trade.quantityOrAmountCents, 0,
+    );
+    if (totalTurnoverCents > maxTurnoverCents) {
+      return 'L2';
+    }
+
+    // DISCRETIONARY, no violations, all thresholds pass -> autonomous
     return 'L1';
   }
 }

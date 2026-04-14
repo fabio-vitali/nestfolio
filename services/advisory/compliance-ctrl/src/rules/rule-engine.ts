@@ -9,6 +9,10 @@ export interface MandateSnapshot {
   level: MandateLevel;
   monthlyTurnoverCapPercent: number;
   maxSingleTradePercent: number;
+  equityRiskBandPercent: number;
+  driftTriggerPercent: number;
+  singleEtfConcentrationPercent: number;
+  drawdownCircuitBreakerPercent: number;
   effectiveDate: string;
   revokedAt: string | null;
 }

@@ -98,6 +98,10 @@ const mandate = {
   level: 'DISCRETIONARY',
   monthlyTurnoverCapPercent: 10,
   maxSingleTradePercent: 5,
+  equityRiskBandPercent: 6,
+  driftTriggerPercent: 4,
+  singleEtfConcentrationPercent: 30,
+  drawdownCircuitBreakerPercent: 12,
   effectiveDate: '2024-01-01T00:00:00.000Z',
   revokedAt: null,
 };

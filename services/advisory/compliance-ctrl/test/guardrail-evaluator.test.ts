@@ -11,6 +11,10 @@ function buildInput(overrides: Partial<ComplianceInput> = {}): ComplianceInput {
       level: 'DISCRETIONARY',
       monthlyTurnoverCapPercent: 10,
       maxSingleTradePercent: 5,
+      equityRiskBandPercent: 6,
+      driftTriggerPercent: 4,
+      singleEtfConcentrationPercent: 30,
+      drawdownCircuitBreakerPercent: 12,
       effectiveDate: '2024-01-01T00:00:00.000Z',
       revokedAt: null,
     },
@@ -74,7 +78,7 @@ describe('GuardrailEvaluator', () => {
           assetClass: 'EQUITY',
           side: 'BUY',
           quantityOrAmountCents: 3_000_00,
-          targetWeightPercent: 10,
+          targetWeightPercent: 15,
           rationale: 'Add more',
         },
       ],
@@ -86,6 +90,7 @@ describe('GuardrailEvaluator', () => {
       (r) => r.name === 'CONCENTRATION_LIMIT',
     );
 
+    // 20% + 15% = 35% > 30% singleEtfConcentrationPercent
     expect(concentrationCheck?.passed).toBe(false);
     expect(concentrationCheck?.details).toContain('exceeding concentration limit');
   });
@@ -148,7 +153,7 @@ describe('GuardrailEvaluator', () => {
       (r) => r.name === 'CONCENTRATION_LIMIT',
     );
 
-    // 24% - 5% = 19%, within 25% limit
+    // 24% - 5% = 19%, within 30% limit
     expect(concentrationCheck?.passed).toBe(true);
   });
 });

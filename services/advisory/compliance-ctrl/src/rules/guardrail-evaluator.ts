@@ -46,8 +46,8 @@ export class GuardrailEvaluator {
   }
 
   private checkConcentrationLimit(input: ComplianceInput): CheckResult {
-    const { proposedTrades, currentPositions } = input;
-    const maxConcentration = DEFAULT_MAX_CONCENTRATION_PERCENT;
+    const { proposedTrades, currentPositions, mandate } = input;
+    const maxConcentration = mandate.singleEtfConcentrationPercent ?? DEFAULT_MAX_CONCENTRATION_PERCENT;
 
     // Build a map of current weights
     const positionWeights = new Map<string, number>();
