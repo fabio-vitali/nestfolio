@@ -192,8 +192,8 @@ steps:
 
   - cross_domain: DECISION_PACKET_CREATED
     from: AdvisoryBus
-    to: ExecutionBus
-    via: execution-adpt EB rule (ExecutionIngress-FromAdvisory)
+    to: LedgerBus
+    via: ledger-adpt EB rule (LedgerIngress-FromAdvisory)
 
   - cross_domain: DECISION_PACKET_CREATED
     from: AdvisoryBus
