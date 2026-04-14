@@ -64,7 +64,8 @@ async function waitForComplianceCheck(
     const result = await ddbDoc.send(new QueryCommand({
       TableName: tableName,
       IndexName: 'tenantId-index',
-      KeyConditionExpression: 'tenantId = :tid AND __typename = :type',
+      KeyConditionExpression: 'tenantId = :tid AND #tn = :type',
+      ExpressionAttributeNames: { '#tn': '__typename' },
       ExpressionAttributeValues: {
         ':tid': tenantId,
         ':type': 'ComplianceCheck',
