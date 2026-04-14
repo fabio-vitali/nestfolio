@@ -234,8 +234,8 @@ sequenceDiagram
 
 - **Event:** `DECISION_PACKET_CREATED`
 - **From:** AdvisoryBus
-- **To:** ExecutionBus
-- **Via:** execution-adpt EB rule (ExecutionIngress-FromAdvisory)
+- **To:** LedgerBus
+- **Via:** ledger-adpt EB rule (LedgerIngress-FromAdvisory)
 
 ### Step 26: Cross-domain hop
 

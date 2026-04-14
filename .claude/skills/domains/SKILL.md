@@ -18,7 +18,7 @@ description: Domain boundaries, responsibilities, event topology, and cross-doma
 **Services:** advisory-ctrl, advisory-bff, advisory-hub, advisory-adpt, decision-workflow-ctrl, advisory-narrative-ctrl, compliance-ctrl, investor-profile-ctrl, market-intelligence-ctrl, portfolio-engine-ctrl, alpha-vantage-adpt, fred-adpt, marketwatch-adpt, sec-edgar-adpt, yahoo-finance-adpt
 
 **Events Produced (cross-domain — AdvisoryCrossDomainEventTypes):**
-- `DECISION_PACKET_CREATED` — new decision packet ready (→ Investor + Execution)
+- `DECISION_PACKET_CREATED` — new decision packet ready (→ Investor + Ledger)
 - `DECISION_APPROVED` — compliance approved decision (→ Investor + Execution)
 - `USER_CONFIRMED` — investor confirmed proposed action (→ Execution only)
 - `USER_CONFIRMATION_REQUESTED` — awaiting investor response (→ Investor only)
@@ -98,7 +98,7 @@ description: Domain boundaries, responsibilities, event topology, and cross-doma
 - Adapter results (broker-alpaca-adpt): `ALPACA_ORDER_FILLED`, `ALPACA_ORDER_PARTIALLY_FILLED`, `ALPACA_ORDER_REJECTED`, `ALPACA_ORDER_CANCELLED`, `ALPACA_ORDER_CANCEL_FAILED`, `ALPACA_TRANSFER_COMPLETED`, `ALPACA_TRANSFER_FAILED`, `ALPACA_ACCOUNT_SNAPSHOT`
 
 **Adapter Ingestion (execution-adpt — pull model):**
-- AdvisoryBus → ExecutionBus: `DECISION_APPROVED`, `DECISION_PACKET_CREATED`, `USER_CONFIRMED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`
+- AdvisoryBus → ExecutionBus: `DECISION_APPROVED`, `USER_CONFIRMED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`
 - InvestorBus → ExecutionBus: `DEPOSIT_INITIATED`, `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `EXECUTION_MODE_CHANGED`
 
 ---
@@ -146,7 +146,8 @@ description: Domain boundaries, responsibilities, event topology, and cross-doma
 - `BALANCE_UPDATED`, `PORTFOLIO_UPDATED`, `LEDGER_ENTRY_RECORDED`, `LEDGER_PROCESSING_FAILED`, `LEDGER_SIMULATION_FAILED`
 
 **Adapter Ingestion (ledger-adpt — pull model):**
-- ExecutionBus → LedgerBus: `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `TRANSFER_FAILED`, `CORPORATE_ACTION_APPLIED`, `PORTFOLIO_SNAPSHOT_IMPORTED`, `ALPACA_ACCOUNT_SNAPSHOT`, `DECISION_PACKET_CREATED`
+- ExecutionBus → LedgerBus: `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `TRANSFER_FAILED`, `CORPORATE_ACTION_APPLIED`, `PORTFOLIO_SNAPSHOT_IMPORTED`, `ALPACA_ACCOUNT_SNAPSHOT`
+- AdvisoryBus → LedgerBus: `DECISION_PACKET_CREATED`
 
 ---
 
@@ -178,7 +179,7 @@ advisory-adpt ingests:
 
 execution-adpt ingests:
   From AdvisoryBus → ExecutionBus:
-    DECISION_APPROVED, DECISION_PACKET_CREATED, USER_CONFIRMED,
+    DECISION_APPROVED, USER_CONFIRMED,
     CIRCUIT_BREAKER_TRIGGERED, CIRCUIT_BREAKER_RESET
   From InvestorBus → ExecutionBus:
     DEPOSIT_INITIATED, WITHDRAWAL_REQUESTED, ACCOUNT_CLOSURE_REQUESTED, EXECUTION_MODE_CHANGED
@@ -187,7 +188,9 @@ ledger-adpt ingests:
   From ExecutionBus → LedgerBus:
     ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_REJECTED, ORDER_CANCELLED,
     DEPOSIT_DETECTED, WITHDRAWAL_COMPLETED, TRANSFER_FAILED, CORPORATE_ACTION_APPLIED,
-    PORTFOLIO_SNAPSHOT_IMPORTED, ALPACA_ACCOUNT_SNAPSHOT, DECISION_PACKET_CREATED
+    PORTFOLIO_SNAPSHOT_IMPORTED, ALPACA_ACCOUNT_SNAPSHOT
+  From AdvisoryBus → LedgerBus:
+    DECISION_PACKET_CREATED
 ```
 
 ---
