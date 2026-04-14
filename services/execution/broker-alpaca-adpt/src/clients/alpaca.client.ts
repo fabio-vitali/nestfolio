@@ -29,14 +29,17 @@ export interface AlpacaResponse<T = unknown> {
   data: T;
 }
 
-const PAPER_BASE_URLS = new Set(['https://paper-api.alpaca.markets']);
+const LIVE_ALPACA_URLS = new Set([
+  'https://api.alpaca.markets',
+  'https://broker-api.alpaca.markets',
+]);
 const LIVE_ALLOWED_PREFIXES = new Set(['prod']);
 
 function assertAlpacaSafe(baseUrl: string, prefix: string | undefined): void {
-  if (PAPER_BASE_URLS.has(baseUrl)) return;
+  if (!LIVE_ALPACA_URLS.has(baseUrl)) return; // paper, mock, or test URL — safe
   if (prefix && LIVE_ALLOWED_PREFIXES.has(prefix)) return;
   throw new Error(
-    `broker-alpaca-adpt refuses to start: non-paper baseUrl '${baseUrl}' ` +
+    `broker-alpaca-adpt refuses to call live Alpaca: '${baseUrl}' ` +
     `is not allowed in prefix '${prefix ?? '<unset>'}'. Only 'prod' may use live Alpaca.`,
   );
 }

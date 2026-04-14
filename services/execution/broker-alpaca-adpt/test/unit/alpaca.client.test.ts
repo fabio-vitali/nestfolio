@@ -138,7 +138,7 @@ describe('AlpacaClient', () => {
     });
   });
 
-  describe('cold-start paper-only safety guard', () => {
+  describe('live Alpaca safety guard', () => {
     const ORIGINAL_ENV = { ...process.env };
 
     afterEach(() => {
@@ -154,7 +154,7 @@ describe('AlpacaClient', () => {
       })).not.toThrow();
     });
 
-    it('allows non-paper baseUrl only when NESTFOLIO_PREFIX is prod', () => {
+    it('allows live Alpaca URL only when NESTFOLIO_PREFIX is prod', () => {
       process.env.NESTFOLIO_PREFIX = 'prod';
       expect(() => new AlpacaClient({
         baseUrl: 'https://api.alpaca.markets',
@@ -163,22 +163,40 @@ describe('AlpacaClient', () => {
       })).not.toThrow();
     });
 
-    it('refuses non-paper baseUrl in a non-prod prefix', () => {
+    it('blocks live Alpaca URL in a non-prod prefix', () => {
       process.env.NESTFOLIO_PREFIX = 'dev';
       expect(() => new AlpacaClient({
         baseUrl: 'https://api.alpaca.markets',
         apiKeyId: 'k',
         apiKeySecret: 's',
-      })).toThrow(/refuses to start: non-paper baseUrl/);
+      })).toThrow(/refuses to call live Alpaca/);
     });
 
-    it('refuses non-paper baseUrl when NESTFOLIO_PREFIX is unset', () => {
+    it('blocks live Alpaca URL when NESTFOLIO_PREFIX is unset', () => {
       delete process.env.NESTFOLIO_PREFIX;
       expect(() => new AlpacaClient({
         baseUrl: 'https://api.alpaca.markets',
         apiKeyId: 'k',
         apiKeySecret: 's',
-      })).toThrow(/refuses to start: non-paper baseUrl/);
+      })).toThrow(/refuses to call live Alpaca/);
+    });
+
+    it('blocks broker-api.alpaca.markets in non-prod', () => {
+      process.env.NESTFOLIO_PREFIX = 'dev';
+      expect(() => new AlpacaClient({
+        baseUrl: 'https://broker-api.alpaca.markets',
+        apiKeyId: 'k',
+        apiKeySecret: 's',
+      })).toThrow(/refuses to call live Alpaca/);
+    });
+
+    it('allows non-Alpaca URLs in non-prod (mock APIs, Lambda URLs)', () => {
+      process.env.NESTFOLIO_PREFIX = 'dev';
+      expect(() => new AlpacaClient({
+        baseUrl: 'https://abc123.lambda-url.us-east-1.on.aws',
+        apiKeyId: 'k',
+        apiKeySecret: 's',
+      })).not.toThrow();
     });
   });
 });
