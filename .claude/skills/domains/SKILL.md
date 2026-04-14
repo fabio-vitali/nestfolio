@@ -111,7 +111,7 @@ description: Domain boundaries, responsibilities, event topology, and cross-doma
 **Events Produced (cross-domain — InvestorCrossDomainEventTypes):**
 - `GOAL_UPDATED` — investor goal updated (→ Advisory)
 - `RISK_PROFILE_UPDATED` — risk profile updated (→ Advisory)
-- `OPERATING_MODE_CHANGED` — advisory operating mode changed (→ Advisory)
+- `OPERATING_MODE_CHANGED` — operating mode changed, triggers mandate guardrail re-derivation in investor-bff (→ Advisory)
 - `MANDATE_CREATED` — full advisory mandate granted (→ Advisory)
 - `MANDATE_UPDATED` — mandate parameters updated (→ Advisory)
 - `DEPOSIT_INITIATED` — deposit initiated by investor (→ Execution)
