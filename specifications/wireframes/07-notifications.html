@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nestfolio — Notifiche</title>
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    /* ── Nav Header Override ── */
+    .nav-header .mark-all {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--primary);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: var(--font-family);
+      white-space: nowrap;
+    }
+    .nav-header .mark-all:hover {
+      text-decoration: underline;
+    }
+
+    /* ── Notification List ── */
+    .notification-list {
+      padding: 0;
+      gap: 0;
+    }
+
+    /* ── Date Group ── */
+    .date-group-header {
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--neutral-400);
+      padding: 16px 16px 8px;
+    }
+    .date-group-header:first-child {
+      padding-top: 12px;
+    }
+
+    /* ── Notification Item ── */
+    .notification-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--white);
+      border-bottom: 1px solid var(--neutral-100);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .notification-item:hover {
+      background: var(--neutral-50);
+    }
+    .notification-item:active {
+      background: var(--neutral-100);
+    }
+
+    /* ── Notification Icon ── */
+    .notif-icon {
+      margin-top: 2px;
+    }
+
+    /* ── Notification Content ── */
+    .notif-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .notif-title {
+      font-size: var(--font-size-base);
+      font-weight: 500;
+      color: var(--neutral-800);
+      line-height: 1.4;
+    }
+    .notification-item.unread .notif-title {
+      font-weight: 600;
+    }
+    .notif-meta {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-400);
+      margin-top: 2px;
+    }
+    .notif-meta .why-link {
+      color: var(--primary);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .notif-meta .why-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ── Unread Dot ── */
+    .notif-trailing {
+      display: flex;
+      align-items: center;
+      padding-top: 8px;
+      flex-shrink: 0;
+    }
+    .unread-dot {
+      transition: opacity 0.35s ease;
+    }
+    .unread-dot.fade-out {
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-container">
+  <div class="phone-frame">
+
+    <!-- ── Status Bar ── -->
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <span class="indicators">
+        <span>&#9679;&#9679;&#9679;&#9679;</span>
+        <span>WiFi</span>
+        <span>&#128267;</span>
+      </span>
+    </div>
+
+    <!-- ── Nav Header ── -->
+    <div class="nav-header">
+      <span class="screen-title">Notifiche</span>
+      <button class="mark-all" id="markAllBtn">Segna tutte come lette</button>
+    </div>
+
+    <!-- ── Scrollable Notification List ── -->
+    <div class="content-area notification-list">
+
+      <!-- ── Oggi (2 mar 2026) ── -->
+      <div class="date-group-header">Oggi</div>
+
+      <!-- 1. Confirmable — UNREAD -->
+      <div class="notification-item unread" data-id="1">
+        <div class="notif-icon confirmable">&#9888;</div>
+        <div class="notif-content">
+          <div class="notif-title">La tua conferma e' necessaria: aggiustamento strategia</div>
+          <div class="notif-meta">2 ore fa</div>
+        </div>
+        <div class="notif-trailing">
+          <span class="unread-dot"></span>
+        </div>
+      </div>
+
+      <!-- 2. Impactful — UNREAD -->
+      <div class="notification-item unread" data-id="2">
+        <div class="notif-icon impactful">&#9672;</div>
+        <div class="notif-content">
+          <div class="notif-title">Ribilanciamento completato &mdash; entro le tue regole di sicurezza</div>
+          <div class="notif-meta">Stamattina &middot; <a href="#" class="why-link">Perche'?</a></div>
+        </div>
+        <div class="notif-trailing">
+          <span class="unread-dot"></span>
+        </div>
+      </div>
+
+      <!-- ── Ieri (1 mar 2026) ── -->
+      <div class="date-group-header">Ieri</div>
+
+      <!-- 3. Advisory — UNREAD -->
+      <div class="notification-item unread" data-id="3">
+        <div class="notif-icon advisory">&#9673;</div>
+        <div class="notif-content">
+          <div class="notif-title">Deposito di &euro;500 ricevuto &mdash; stiamo valutando come investirlo</div>
+          <div class="notif-meta">Ieri alle 14:22</div>
+        </div>
+        <div class="notif-trailing">
+          <span class="unread-dot"></span>
+        </div>
+      </div>
+
+      <!-- 4. Informational — READ -->
+      <div class="notification-item" data-id="4">
+        <div class="notif-icon info">&#9675;</div>
+        <div class="notif-content">
+          <div class="notif-title">Report mensile di febbraio disponibile</div>
+          <div class="notif-meta">Ieri alle 9:00</div>
+        </div>
+      </div>
+
+      <!-- ── 26 feb 2026 ── -->
+      <div class="date-group-header">26 feb 2026</div>
+
+      <!-- 5. Impactful — READ -->
+      <div class="notification-item" data-id="5">
+        <div class="notif-icon impactful">&#9672;</div>
+        <div class="notif-content">
+          <div class="notif-title">Dividendo da Global Stocks ETF reinvestito</div>
+          <div class="notif-meta">26 feb &middot; <a href="#" class="why-link">Perche'?</a></div>
+        </div>
+      </div>
+
+      <!-- 6. Advisory — READ -->
+      <div class="notification-item" data-id="6">
+        <div class="notif-icon advisory">&#9673;</div>
+        <div class="notif-content">
+          <div class="notif-title">Azione societaria applicata: split VWCE 2:1</div>
+          <div class="notif-meta">26 feb &middot; <a href="#" class="why-link">Perche'?</a></div>
+        </div>
+      </div>
+
+      <!-- ── 20 feb 2026 ── -->
+      <div class="date-group-header">20 feb 2026</div>
+
+      <!-- 7. Informational — READ -->
+      <div class="notification-item" data-id="7">
+        <div class="notif-icon info">&#9675;</div>
+        <div class="notif-content">
+          <div class="notif-title">Il tuo portafoglio e' stato verificato &mdash; tutto corrisponde</div>
+          <div class="notif-meta">20 feb</div>
+        </div>
+      </div>
+
+      <!-- 8. Critical — READ -->
+      <div class="notification-item" data-id="8">
+        <div class="notif-icon critical">&#9670;</div>
+        <div class="notif-content">
+          <div class="notif-title">Il trading e' stato temporaneamente sospeso per sicurezza. Il tuo portafoglio e' al sicuro.</div>
+          <div class="notif-meta">20 feb</div>
+        </div>
+      </div>
+
+      <!-- 9. Informational — READ -->
+      <div class="notification-item" data-id="9">
+        <div class="notif-icon info">&#9675;</div>
+        <div class="notif-content">
+          <div class="notif-title">Tutto e' tornato alla normalita'. Il trading e' ripreso.</div>
+          <div class="notif-meta">20 feb</div>
+        </div>
+      </div>
+
+      <!-- ── 15 feb 2026 ── -->
+      <div class="date-group-header">15 feb 2026</div>
+
+      <!-- 10. Impactful — READ -->
+      <div class="notification-item" data-id="10">
+        <div class="notif-icon impactful">&#9672;</div>
+        <div class="notif-content">
+          <div class="notif-title">Ribilanciamento di 2 posizioni completato</div>
+          <div class="notif-meta">15 feb &middot; <a href="#" class="why-link">Perche'?</a></div>
+        </div>
+      </div>
+
+    </div><!-- /content-area -->
+
+    <!-- ── Bottom Tab Bar ── -->
+    <div class="bottom-tabs">
+      <!-- Home -->
+      <button class="tab-item">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span class="tab-label">Home</span>
+      </button>
+
+      <!-- Portafoglio -->
+      <button class="tab-item">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 2a10 10 0 0 1 0 20"/>
+          <line x1="12" y1="2" x2="12" y2="22"/>
+          <path d="M2 12h20"/>
+        </svg>
+        <span class="tab-label">Portafoglio</span>
+      </button>
+
+      <!-- Notifiche (active, with badge) -->
+      <button class="tab-item active">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span class="badge" id="tabBadge">3</span>
+        <span class="tab-label">Notifiche</span>
+      </button>
+
+      <!-- Impostazioni -->
+      <button class="tab-item">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"/>
+        </svg>
+        <span class="tab-label">Impostazioni</span>
+      </button>
+    </div>
+
+  </div><!-- /phone-frame -->
+</div><!-- /page-container -->
+
+<script>
+(function () {
+  var badge = document.getElementById('tabBadge');
+  var markAllBtn = document.getElementById('markAllBtn');
+
+  function getUnreadCount() {
+    return document.querySelectorAll('.notification-item.unread').length;
+  }
+
+  function updateBadge() {
+    var count = getUnreadCount();
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function markAsRead(item) {
+    if (!item.classList.contains('unread')) return;
+
+    var dot = item.querySelector('.unread-dot');
+    if (dot) {
+      dot.classList.add('fade-out');
+    }
+
+    // Remove unread state after fade completes
+    setTimeout(function () {
+      item.classList.remove('unread');
+      if (dot) {
+        dot.remove();
+      }
+      updateBadge();
+    }, 350);
+  }
+
+  // Click individual notification to mark as read
+  document.querySelectorAll('.notification-item').forEach(function (item) {
+    item.addEventListener('click', function (e) {
+      // Don't interfere with "Perche'?" link clicks
+      if (e.target.classList.contains('why-link')) return;
+      markAsRead(item);
+    });
+  });
+
+  // "Segna tutte come lette" button
+  markAllBtn.addEventListener('click', function () {
+    document.querySelectorAll('.notification-item.unread').forEach(function (item) {
+      markAsRead(item);
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
