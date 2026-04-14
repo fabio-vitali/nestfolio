@@ -122,7 +122,48 @@ Write the result to: services/{domain}/{service}/CLAUDE.md
 - Constructs: `libs/cdk-constructs/src/core/{state,ingress,egress,facade,orchestration}.ts`, `libs/cdk-constructs/src/extensions/agent-runtime.ts`
 - Pipelines: `libs/event-processor/src/pipelines/`
 
+## Remediation Plan
+
+After presenting verification results, if any hard-fail checks exist:
+
+1. **Collect failures** — group all hard-fails and warnings by category:
+   - Structure issues (missing files, wrong naming, import violations)
+   - Handler issues (missing event-processor pipeline usage)
+   - Test issues (missing unit tests, integration test gaps)
+   - Card issues (stale or missing CLAUDE.md)
+   - Event issues (undocumented emission paths)
+
+2. **Map each failure to a fixing skill:**
+
+   | Failure Category | Fixing Skill |
+   |-----------------|--------------|
+   | Missing file structure | `create-service` (if new) or manual fix |
+   | Handler not using pipeline | `event-processor-patterns` (reference for rewrite) |
+   | Missing unit tests | `testing-patterns` (scaffold test file) |
+   | Missing integration tests | `create-integration-test` |
+   | Stale/missing CLAUDE.md card | Auto-fix (regenerate) |
+   | Import boundary violation | Manual fix — report file:line |
+   | Undocumented event emission | `create-event` or `audit-service` card regeneration |
+
+3. **Present remediation summary** using AskUserQuestion:
+
+   > **{N} issues found for {service}.** Proposed remediation:
+   > - {count} auto-fixable (card regeneration)
+   > - {count} need integration test scaffolding → `create-integration-test`
+   > - {count} need manual code fixes at listed file:line locations
+   >
+   > Options:
+   > - **A) Generate fixing plan** — invoke `writing-plans` with the remediation scope (recommended if ≥3 issues)
+   > - **B) Fix now** — apply fixes directly in this session (recommended if ≤2 issues)
+   > - **C) Report only** — save the audit report, fix later
+
+4. If user selects **A**: invoke the `writing-plans` skill with the full audit report and mapped skills.
+5. If user selects **B**: apply auto-fixes first (card regeneration), then invoke appropriate skills for remaining issues.
+
+**When called as sub-agent by audit-domain:** skip the AskUserQuestion step. Instead, return the structured failure list with mapped skills so the parent audit can aggregate and present a single remediation prompt.
+
 ## Anti-Patterns
 - NEVER hand-write a service card — always generate from code
 - NEVER skip verification checks after generation
 - NEVER manually edit a card expecting it to persist — next audit overwrites
+- NEVER skip the remediation step when running standalone — always present options after failures

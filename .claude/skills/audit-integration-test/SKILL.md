@@ -143,7 +143,42 @@ Produce domain-level summary:
 - Full run report: `docs/reviews/2026-04-08-integration-test-full-run.md`
 - Create skill: `.claude/skills/create-integration-test/SKILL.md`
 
+## Remediation Plan
+
+After presenting the audit report, if any hard-fail checks exist or the grade is PARTIAL or below:
+
+1. **Collect failures** — group all hard-fails and warnings by category:
+   - Configuration gaps (missing config files, targets, settings)
+   - Convention violations (anti-patterns, missing cleanup, wrong fixtures)
+   - Coverage gaps (untested ingress/egress event types)
+
+2. **Map each failure to a fixing skill:**
+
+   | Failure Category | Fixing Skill |
+   |-----------------|--------------|
+   | Missing `test/integration/` or config files | `create-integration-test` |
+   | Untested ingress/egress events | `create-integration-test` (add test cases) |
+   | Anti-patterns (DdbSeedFixture, try/catch CDC) | Manual fix — report file:line with suggested replacement |
+   | Missing cleanup calls | Manual fix — report file:line |
+   | Stale service card | `audit-service` (auto-regenerates) |
+
+3. **Present remediation summary** using AskUserQuestion:
+
+   > **{N} issues found (grade: {GRADE}).** Proposed remediation:
+   > - {count} coverage gaps → scaffold via `create-integration-test`
+   > - {count} anti-pattern violations → manual fixes at listed file:line locations
+   > - {count} configuration issues → scaffold via `create-integration-test`
+   >
+   > Options:
+   > - **A) Generate fixing plan** — invoke `writing-plans` with the remediation scope (recommended if ≥3 issues)
+   > - **B) Fix now** — apply fixes directly in this session (recommended if ≤2 issues)
+   > - **C) Report only** — save the audit report, fix later
+
+4. If user selects **A**: invoke the `writing-plans` skill with a prompt that includes the full audit report, failure list, and mapped skills. The plan should produce one task per failure group.
+5. If user selects **B**: apply fixes sequentially, invoking the appropriate skill for each failure.
+
 ## Anti-Patterns
 - NEVER report coverage as "Full" if CDC assertions are wrapped in try/catch
 - NEVER skip the anti-pattern check -- false coverage is worse than no coverage
 - NEVER auto-fix test logic -- only auto-fix configuration (config files, targets)
+- NEVER skip the remediation step — always present options after a non-EXEMPLARY audit

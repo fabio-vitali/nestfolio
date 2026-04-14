@@ -114,6 +114,41 @@ List untested flows ordered by priority:
 2. {Priority 2 action}
 ```
 
+## Remediation Plan
+
+After presenting the audit report, if any hard-fail checks exist or the grade is PARTIAL or below:
+
+1. **Collect failures** — group all hard-fails and warnings by category:
+   - Configuration gaps (missing config, moduleNameMapper, barrel exports)
+   - Convention violations (DDB assertions in tests, missing cleanup, wrong prefix)
+   - Coverage gaps (untested user-facing flows)
+
+2. **Map each failure to a fixing skill:**
+
+   | Failure Category | Fixing Skill |
+   |-----------------|--------------|
+   | Missing or misconfigured jest.config.js / project.json | Manual fix — report exact setting to add |
+   | Missing moduleNameMapper entry | Manual fix — report import path and mapper line |
+   | Untested user-facing flows | `create-e2e-test` (scaffold new scenario) |
+   | Convention violations (DDB in tests, missing cleanup) | Manual fix — report file:line with replacement |
+   | INFEASIBLE flows blocking coverage | `design-service` or `design-data-flow` (architectural fix needed) |
+
+3. **Present remediation summary** using AskUserQuestion:
+
+   > **{N} issues found (grade: {GRADE}).** Proposed remediation:
+   > - {count} coverage gaps → scaffold via `create-e2e-test`
+   > - {count} convention violations → manual fixes at listed file:line locations
+   > - {count} configuration issues → direct config fixes
+   > - {count} infeasible flows → require architectural design
+   >
+   > Options:
+   > - **A) Generate fixing plan** — invoke `writing-plans` with the remediation scope (recommended if ≥3 issues)
+   > - **B) Fix now** — apply fixes directly in this session (recommended if ≤2 issues)
+   > - **C) Report only** — save the audit report, fix later
+
+4. If user selects **A**: invoke the `writing-plans` skill with a prompt that includes the full audit report, failure list, and mapped skills. The plan should produce one task per failure group.
+5. If user selects **B**: apply fixes sequentially, invoking the appropriate skill for each failure.
+
 ## Anti-Patterns
 
 - **NEVER report false coverage** — a test file existing is not the same as the flow being tested. Verify the test actually exercises the trigger and asserts the downstream effect.
@@ -121,6 +156,7 @@ List untested flows ordered by priority:
 - **NEVER skip convention checks** — run all checks even if coverage looks good. A passing test with anti-patterns (DDB assertions, missing cleanup) is worse than a missing test.
 - **NEVER conflate integration tests with E2E tests** — integration tests (per-service, in `test/integration/`) are a different concern. This audit covers only `apps/e2e-feature-tests/`.
 - **NEVER audit without reading the actual test files** — don't infer test behavior from file names alone. Read the test body to classify coverage.
+- **NEVER skip the remediation step** — always present options after a non-EXEMPLARY audit.
 
 ## Reference Files
 
