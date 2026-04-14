@@ -1,0 +1,118 @@
+schema_version: 1
+flow: circuit-breaker
+description: Advisory agent triggers circuit breaker to halt execution on risk events; broker-ctrl opens its own circuit breaker on adapter timeout and auto-heals via Step Functions
+domains: [advisory, execution, investor]
+
+trigger: advisory-ctrl agent tool publishes CIRCUIT_BREAKER_TRIGGERED directly to AdvisoryBus
+
+steps:
+  # ─── Flow A: Advisory-initiated circuit breaker ───────────────────────────
+
+  # Step 1: advisory-ctrl agent emits CIRCUIT_BREAKER_TRIGGERED via direct PutEvents
+  - service: advisory-ctrl
+    action: AgentCore agent tool (event-publisher Lambda) invokes PutEvents to AdvisoryBus
+    state_change: No DDB write — direct PutEvents with source "advisory-ctrl" and eventType CIRCUIT_BREAKER_TRIGGERED
+    emits: CIRCUIT_BREAKER_TRIGGERED (explicit PutEvents from agent tool, not CDC)
+    idempotent: true
+
+  # Step 2: Execution domain ingests CIRCUIT_BREAKER_TRIGGERED
+  - cross_domain: CIRCUIT_BREAKER_TRIGGERED
+    from: AdvisoryBus
+    to: ExecutionBus
+    via: execution-adpt EB rule (ExecutionIngress-FromAdvisory)
+
+  # Step 3: execution-ctrl acknowledges circuit breaker — execution paused
+  - service: execution-ctrl
+    receives: CIRCUIT_BREAKER_TRIGGERED
+    via: ExecutionBus -> SQS -> execution-ctrl-ingress
+    state_change: Logs "Circuit breaker triggered — execution paused"; returns skip() — no DDB write, no further action
+    emits: none
+    idempotent: true
+
+  # Step 4: Investor domain ingests CIRCUIT_BREAKER_TRIGGERED (for notification/UI)
+  - cross_domain: CIRCUIT_BREAKER_TRIGGERED
+    from: AdvisoryBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromAdvisory)
+
+  # Step 5: No investor service currently subscribes to CIRCUIT_BREAKER_TRIGGERED on InvestorBus
+  # Event lands on InvestorBus for future consumers (e.g., push notification).
+
+  # ─── Flow B: Advisory-initiated circuit breaker RESET ─────────────────────
+
+  # Step 6: advisory-ctrl agent emits CIRCUIT_BREAKER_RESET via direct PutEvents
+  - service: advisory-ctrl
+    action: AgentCore agent tool (event-publisher Lambda) invokes PutEvents to AdvisoryBus
+    state_change: No DDB write — direct PutEvents with source "advisory-ctrl" and eventType CIRCUIT_BREAKER_RESET
+    emits: CIRCUIT_BREAKER_RESET (explicit PutEvents from agent tool, not CDC)
+    idempotent: true
+
+  # Step 7: Execution domain ingests CIRCUIT_BREAKER_RESET
+  - cross_domain: CIRCUIT_BREAKER_RESET
+    from: AdvisoryBus
+    to: ExecutionBus
+    via: execution-adpt EB rule (ExecutionIngress-FromAdvisory)
+
+  # Step 8: execution-ctrl acknowledges reset — execution resumed
+  - service: execution-ctrl
+    receives: CIRCUIT_BREAKER_RESET
+    via: ExecutionBus -> SQS -> execution-ctrl-ingress
+    state_change: Logs "Circuit breaker reset — execution resumed"; returns skip() — no DDB write
+    emits: none
+    idempotent: true
+
+  # Step 9: Investor domain ingests CIRCUIT_BREAKER_RESET
+  - cross_domain: CIRCUIT_BREAKER_RESET
+    from: AdvisoryBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromAdvisory)
+
+  # ─── Flow C: Broker circuit breaker (adapter timeout) ─────────────────────
+
+  # Step 10: OrderStateMachine timeout triggers circuit breaker
+  - service: broker-ctrl
+    action: OrderStateMachine HandleTimeout parallel branch (adapter 300s timeout)
+    state_change: SF writes NormalizedEvent to DDB — pk=NormalizedEvent#{tenantId}#CIRCUIT_BREAKER, sk=BROKER_CIRCUIT_OPEN#{timestamp}, __typename=NormalizedEvent
+    emits: BROKER_CIRCUIT_OPEN (CDC from NormalizedEvent INSERT, sk passthrough)
+    idempotent: true
+
+  # Step 11: BROKER_CIRCUIT_OPEN triggers HealStateMachine
+  - service: broker-ctrl
+    receives: BROKER_CIRCUIT_OPEN
+    via: ExecutionBus -> Orchestration EB rule -> broker-ctrl HealStateMachine
+    state_change: |
+      SF starts HealWorkflow:
+      1. EmitHealthCheck: invokes EmitHealthCheckFn (waitForTaskToken) — Lambda stores healTaskToken, emits ALPACA_ACCOUNT_CHECK to ExecutionBus
+      2. Awaits ALPACA_ACCOUNT_SNAPSHOT callback via CallbackIngress (HEAL_STATE_MACHINE_ARN)
+      3. On success: CloseBreaker (DDB UpdateItem clears circuit breaker state)
+      4. On timeout/failure: IncrementAttempt → CheckAttemptLimit (< 10 retries → WaitForRetry 60s → loop; >= 10 → EscalateHealFailure terminal)
+    emits: BROKER_CIRCUIT_CLOSED or BROKER_HEAL_ESCALATED (CDC from NormalizedEvent INSERT after SF writes result record)
+    idempotent: true
+
+  # Step 12: BROKER_CIRCUIT_OPEN forwarded to InvestorBus (for notification/UI)
+  - cross_domain: BROKER_CIRCUIT_OPEN
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromExecution)
+
+  # Step 13: No investor service currently subscribes to BROKER_CIRCUIT_OPEN on InvestorBus
+  # Event lands on InvestorBus for future consumers (e.g., push notification).
+
+success_criteria:
+  - CIRCUIT_BREAKER_TRIGGERED published by advisory-ctrl agent reaches ExecutionBus and InvestorBus via adapters
+  - execution-ctrl processes CIRCUIT_BREAKER_TRIGGERED without error (skip handler, no DDB write)
+  - CIRCUIT_BREAKER_RESET published by advisory-ctrl agent reaches ExecutionBus and InvestorBus
+  - execution-ctrl processes CIRCUIT_BREAKER_RESET without error (skip handler, no DDB write)
+  - broker-ctrl OrderStateMachine timeout writes NormalizedEvent BROKER_CIRCUIT_OPEN to DDB
+  - BROKER_CIRCUIT_OPEN CDC emission triggers HealStateMachine on ExecutionBus
+  - HealStateMachine emits ALPACA_ACCOUNT_CHECK and awaits adapter callback
+  - On successful health check: circuit breaker closes (BROKER_CIRCUIT_CLOSED emitted via CDC)
+  - BROKER_CIRCUIT_OPEN reaches InvestorBus via investor-adpt
+
+failure_modes:
+  - step 1 fails: agent tool PutEvents rejected (IAM, bus not found); advisory-ctrl agent receives error from event-publisher tool; no circuit breaker state propagated
+  - step 2/4/7/9/12 fails: adapter EB rule DLQ (FromAdvisoryDLQ / FromExecutionDLQ); downstream domains not notified; 14-day retention for replay
+  - step 3/8 fails: execution-ctrl ingress DLQ; log observability lost but no state corruption (handler is skip-only)
+  - step 10 fails: DDB PutItem fails inside SF parallel branch; BROKER_CIRCUIT_OPEN not emitted; circuit breaker not opened; order hangs without heal
+  - step 11 (EmitHealthCheck) fails: ALPACA_ACCOUNT_CHECK not emitted; SF waits until task token timeout; increments attempt counter (up to 10 retries with 60s gaps)
+  - step 11 (heal exhausted): after 10 retries, HealStateMachine writes EscalateHealFailure — BROKER_HEAL_ESCALATED emitted via CDC; manual operator intervention required
