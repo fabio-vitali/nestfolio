@@ -34,7 +34,6 @@ export class ExecutionAdptStack extends ServiceStack {
     });
     const fromAdvisoryEvents = [
       ExecutionIngestEventTypes.DECISION_APPROVED,
-      ExecutionIngestEventTypes.DECISION_PACKET_CREATED,
       ExecutionIngestEventTypes.USER_CONFIRMED,
       ExecutionIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
       ExecutionIngestEventTypes.CIRCUIT_BREAKER_RESET,

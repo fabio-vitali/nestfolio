@@ -30,7 +30,6 @@ export const ExecutionCrossDomainEventTypes = {
 export const ExecutionIngestEventTypes = {
   // From Advisory
   DECISION_APPROVED: eventName('DECISION_APPROVED'),
-  DECISION_PACKET_CREATED: eventName('DECISION_PACKET_CREATED'),
   USER_CONFIRMED: eventName('USER_CONFIRMED'),
   CIRCUIT_BREAKER_TRIGGERED: eventName('CIRCUIT_BREAKER_TRIGGERED'),
   CIRCUIT_BREAKER_RESET: eventName('CIRCUIT_BREAKER_RESET'),

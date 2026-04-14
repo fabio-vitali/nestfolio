@@ -20,9 +20,12 @@ export class LedgerAdptStack extends ServiceStack {
     const ledgerBusArn = resolveBusArn(this, 'LedgerBus', prefix, 'ledger', domainAccounts);
     const ledgerBus = EventBus.fromEventBusArn(this, 'LedgerBus', ledgerBusArn);
 
-    // External source bus
+    // External source buses
     const executionBusArn = resolveBusArn(this, 'ExecutionBus', prefix, 'execution', domainAccounts);
     const executionBus = EventBus.fromEventBusArn(this, 'ExecutionBus', executionBusArn);
+
+    const advisoryBusArn = resolveBusArn(this, 'AdvisoryBus', prefix, 'advisory', domainAccounts);
+    const advisoryBus = EventBus.fromEventBusArn(this, 'AdvisoryBus', advisoryBusArn);
 
     // Ingest: Execution → Ledger
     const fromExecutionDlq = new Queue(this, 'FromExecutionDLQ', {
@@ -40,7 +43,6 @@ export class LedgerAdptStack extends ServiceStack {
       LedgerIngestEventTypes.CORPORATE_ACTION_APPLIED,
       LedgerIngestEventTypes.PORTFOLIO_SNAPSHOT_IMPORTED,
       LedgerIngestEventTypes.ALPACA_ACCOUNT_SNAPSHOT,
-      LedgerIngestEventTypes.DECISION_PACKET_CREATED,
     ];
     const fromExecutionRule = new Rule(this, 'LedgerIngress-FromExecution', {
       eventBus: executionBus,
@@ -54,16 +56,36 @@ export class LedgerAdptStack extends ServiceStack {
       ],
     });
 
+    // Ingest: Advisory → Ledger
+    const fromAdvisoryDlq = new Queue(this, 'FromAdvisoryDLQ', {
+      retentionPeriod: Duration.days(14),
+      encryption: QueueEncryption.KMS_MANAGED,
+    });
+    const fromAdvisoryEvents = [
+      LedgerIngestEventTypes.DECISION_PACKET_CREATED,
+    ];
+    const fromAdvisoryRule = new Rule(this, 'LedgerIngress-FromAdvisory', {
+      eventBus: advisoryBus,
+      eventPattern: { detailType: fromAdvisoryEvents },
+      targets: [new EventBusTarget(ledgerBus, { deadLetterQueue: fromAdvisoryDlq })],
+    });
+    (fromAdvisoryRule.node.defaultChild as CfnRule).addPropertyOverride('EventPattern', {
+      '$or': [
+        { 'detail-type': fromAdvisoryEvents, 'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }] },
+        { 'detail-type': fromAdvisoryEvents, 'source': [{ 'prefix': `integration-test:${serviceName}` }] },
+      ],
+    });
+
     if (this.observability) {
       new Monitoring(this, 'Monitoring', {
-        dlqs: [fromExecutionDlq],
+        dlqs: [fromExecutionDlq, fromAdvisoryDlq],
         eventBusBusNames: [this.naming.eventBusName()],
       });
 
       new ServiceDashboard(this, 'Dashboard', {
         serviceName: 'ledger-adpt',
         lambdaFunctions: [],
-        dlqs: [fromExecutionDlq],
+        dlqs: [fromExecutionDlq, fromAdvisoryDlq],
         eventBusNames: [this.naming.eventBusName()],
       });
     }

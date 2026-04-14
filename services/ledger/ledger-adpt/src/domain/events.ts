@@ -31,6 +31,6 @@ export const LedgerIngestEventTypes = {
   CORPORATE_ACTION_APPLIED: eventName('CORPORATE_ACTION_APPLIED'),
   PORTFOLIO_SNAPSHOT_IMPORTED: eventName('PORTFOLIO_SNAPSHOT_IMPORTED'),
   ALPACA_ACCOUNT_SNAPSHOT: eventName('ALPACA_ACCOUNT_SNAPSHOT'),
-  // From Execution (via advisory → execution-adpt)
+  // From Advisory (direct)
   DECISION_PACKET_CREATED: eventName('DECISION_PACKET_CREATED'),
 } as const;
