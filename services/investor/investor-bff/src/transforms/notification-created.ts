@@ -25,6 +25,7 @@ export const notificationCreated = (
     body: s.body,
     relatedEntityType: s.relatedEntityType,
     relatedEntityId: s.relatedEntityId,
+    status: 'CREATED',
     createdAt: uow.event.timestamp,
     read: false,
   }, {

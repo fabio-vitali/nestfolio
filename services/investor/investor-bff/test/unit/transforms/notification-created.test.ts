@@ -37,6 +37,7 @@ describe('notificationCreated transform', () => {
         body: 'Hello',
         relatedEntityType: 'Order',
         relatedEntityId: 'o1',
+        status: 'CREATED',
         createdAt: '2026-01-01T00:00:00.000Z',
         read: false,
       }, {

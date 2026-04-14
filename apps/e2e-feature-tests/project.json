@@ -7,7 +7,9 @@
     "test-e2e-features": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config apps/e2e-feature-tests/jest.config.js --runInBand"
+        "command": "pnpm jest --config apps/e2e-feature-tests/jest.config.js --runInBand",
+        "env": { "NODE_OPTIONS": "--experimental-vm-modules" },
+        "color": true
       }
     },
     "test": {

@@ -23,7 +23,9 @@
     "test-integration": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "NODE_OPTIONS=--experimental-vm-modules pnpm jest --config services/advisory/fred-adpt/jest.integration.config.js --passWithNoTests"
+        "command": "pnpm jest --config services/advisory/fred-adpt/jest.integration.config.js --passWithNoTests",
+        "env": { "NODE_OPTIONS": "--experimental-vm-modules" },
+        "color": true
       }
     },
     "lint": { "executor": "@nx/eslint:lint" },
