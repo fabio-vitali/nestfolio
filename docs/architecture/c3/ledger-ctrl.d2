@@ -33,6 +33,7 @@ egress: "Egress" {
 }
 
 reducer-fn: "Lambda\n[ReducerFn]" { class: aws-lambda }
+snapshot-publisher-fn: "Lambda\n[SnapshotPublisherFn]" { class: aws-lambda }
 
 # Flows
 ingress.handler -> state.table: Read/Write

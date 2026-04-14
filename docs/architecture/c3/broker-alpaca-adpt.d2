@@ -1,6 +1,6 @@
 direction: down
 
-title: "Broker Alpaca\nADPT\n[Event-Driven Service]" {
+title: "Broker Alpaca\nADPT\n[State Machine]" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
@@ -32,6 +32,25 @@ egress: "Egress" {
   processor -> bus: Publish
 }
 
+order-polling-state-machine: "Orchestration" {
+  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
+  state-machine: "Step Functions\n[OrderPollingStateMachine]" { class: aws-stepfunctions }
+  dlq: "DLQ" { class: aws-dlq }
+}
+
+transfer-polling-state-machine: "Orchestration" {
+  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
+  state-machine: "Step Functions\n[TransferPollingStateMachine]" { class: aws-stepfunctions }
+  dlq: "DLQ" { class: aws-dlq }
+}
+
+order-poll-fn: "Lambda\n[OrderPollFn]" { class: aws-lambda }
+transfer-poll-fn: "Lambda\n[TransferPollFn]" { class: aws-lambda }
+
 # Flows
 ingress.handler -> state.table: Read/Write
 state.stream -> egress.processor: Trigger
+ingress.handler -> order-polling-state-machine.state-machine: Execute
+order-polling-state-machine.state-machine -> state.table: Read/Write
+ingress.handler -> transfer-polling-state-machine.state-machine: Execute
+transfer-polling-state-machine.state-machine -> state.table: Read/Write
