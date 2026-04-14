@@ -168,6 +168,20 @@ sequenceDiagram
 - **Emits:** `TRANSFER_FAILED (CDC from NormalizedEvent INSERT, sk passthrough determines event type)`
 - **Idempotent:** yes
 
+### Step 15: Cross-domain hop
+
+- **Event:** `TRANSFER_FAILED`
+- **From:** ExecutionBus
+- **To:** InvestorBus
+- **Via:** investor-adpt EB rule (InvestorIngress-FromExecution)
+
+### Step 16: Cross-domain hop
+
+- **Event:** `TRANSFER_FAILED`
+- **From:** ExecutionBus
+- **To:** LedgerBus
+- **Via:** ledger-adpt EB rule (LedgerIngress-FromExecution)
+
 ## Success Criteria
 
 - Withdrawal amount debited in ledger-ctrl cash balance

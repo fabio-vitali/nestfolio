@@ -57,7 +57,7 @@ sequenceDiagram
     Note over decision_workflow_ctrl: SF invokes AssemblePacket Lambda (lambda:invoke, …
     Note over decision_workflow_ctrl: SF emits RECOMMENDATION_PROPOSED via EventBridge …
     Note over decision_workflow_ctrl: SF emits RECOMMENDATION_PROPOSED with awaitingCom…
-    decision_workflow_ctrl->>+compliance_ctrl: DECISION_PACKET_CREATED | DECISION_PACKET_ENRICHED
+    decision_workflow_ctrl->>+compliance_ctrl: DECISION_PACKET_CREATED | DECISION_PACKET_UPDATED
     compliance_ctrl->>+decision_workflow_ctrl: DECISION_APPROVED | DECISION_BLOCKED
     Note over decision_workflow_ctrl: SF emits USER_CONFIRMATION_REQUESTED via EventBri…
     decision_workflow_ctrl-)advisory_bff: USER_CONFIRMATION_REQUESTED (AdvisoryBus → InvestorBus)
@@ -166,7 +166,7 @@ sequenceDiagram
 
 ### Step 16: compliance-ctrl
 
-- **Receives:** `DECISION_PACKET_CREATED | DECISION_PACKET_ENRICHED`
+- **Receives:** `DECISION_PACKET_CREATED | DECISION_PACKET_UPDATED`
 - **Via:** AdvisoryBus -> SQS -> compliance-ctrl-Ingress
 - **State change:** Loads mandate snapshot from DDB; runs MandateValidator -> GuardrailEvaluator -> SuitabilityChecker -> AuthorityResolver; writes ComplianceCheck + AuditArtifact records to DDB
 - **Emits:** `DECISION_APPROVED or DECISION_BLOCKED (CDC, field dispatch on ComplianceCheck.result — APPROVED->DECISION_APPROVED, BLOCKED->DECISION_BLOCKED), AUDIT_ARTIFACT (CDC, AuditArtifact:INSERT)`

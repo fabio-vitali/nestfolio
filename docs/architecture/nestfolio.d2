@@ -272,6 +272,12 @@ nestfolio: "" {
   }
   execution-domain -> execution-to-ledger {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
   execution-to-ledger -> ledger-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  advisory-to-ledger: "0 Events" {
+    class: flow-label
+    tooltip: ""
+  }
+  advisory-domain -> advisory-to-ledger {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+  advisory-to-ledger -> ledger-domain {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
 }
 
 investor-user: "Investor User" {class: person}
@@ -580,6 +586,10 @@ layers: {
     execution-to-ledger-adpt: "0 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: ""}
     ext-execution -> execution-to-ledger-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
     execution-to-ledger-adpt -> ledger-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+    ext-advisory: "Advisory Domain" {style: { fill: "#8B8B8B"; stroke: "#666666"; font-color: "#ffffff"; font-size: 26; border-radius: 10; stroke-width: 1; stroke-dash: 5 }}
+    advisory-to-ledger-adpt: "0 Events" {style: { fill: "#F5F5F5"; stroke: "#999999"; font-color: "#666666"; font-size: 22; border-radius: 20; stroke-width: 1 }; tooltip: ""}
+    ext-advisory -> advisory-to-ledger-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
+    advisory-to-ledger-adpt -> ledger-adpt {style.stroke: "#999999"; style.stroke-width: 3; style.stroke-dash: 3}
 
     layers: {
       c3-ledger-adpt: { ...@./c3/ledger-adpt.d2 }

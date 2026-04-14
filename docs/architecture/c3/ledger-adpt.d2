@@ -10,4 +10,8 @@ ledger-ingress-from-execution: "execution-bus\n[Source]" { class: aws-eventbridg
 ledger-ingress-from-execution-dlq: "DLQ" { class: aws-dlq }
 ledger-ingress-from-execution -> target
 
+ledger-ingress-from-advisory: "advisory-bus\n[Source]" { class: aws-eventbridge }
+ledger-ingress-from-advisory-dlq: "DLQ" { class: aws-dlq }
+ledger-ingress-from-advisory -> target
+
 # Flows

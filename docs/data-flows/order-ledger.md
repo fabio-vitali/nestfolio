@@ -104,10 +104,13 @@ sequenceDiagram
 - Balance changes emit BALANCE_UPDATED; position changes emit PORTFOLIO_UPDATED; all entries emit LEDGER_ENTRY_RECORDED
 - Investor domain receives BALANCE_UPDATED, PORTFOLIO_UPDATED, and LEDGER_ENTRY_RECORDED for portfolio display
 - Advisory domain receives PORTFOLIO_UPDATED for drift detection and rebalancing triggers
+- [object Object]
+- [object Object]
 
 ## Failure Modes
 
-- **Ingestion handler fails:** LEDGER_PROCESSING_FAILED error event emitted to LedgerBus; SQS retries + DLQ
+- **Ingestion handler fails:** LEDGER_PROCESSING_FAILED error event emitted to LedgerBus (direct EB); SQS retries + DLQ
 - **Reducer snapshot conflict:** optimistic concurrency on snapshot version; DDB Stream retries (bisectBatchOnError, 3 retries)
 - **CDC Egress fails:** DLQ on Egress Lambda; BalanceEvent/PortfolioEvent/LedgerEntryEvent records persist regardless
 - **Cross-domain forwarding fails:** adapter DLQs (FromExecutionDLQ on ledger-adpt, FromLedgerDLQ on investor-adpt and advisory-adpt) with 14-day retention
+- **LEDGER_PROCESSING_FAILED forwarding fails:** investor-adpt FromLedgerDLQ (14-day retention)
