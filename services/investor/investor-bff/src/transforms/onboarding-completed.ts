@@ -2,6 +2,7 @@ import { skip, type WriteIntent, type EventPayload, type EventContext } from '@n
 import { getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { computeRiskProfile } from '../domain/risk-profile.service';
+import { resolveGuardrailParams } from '../domain/guardrail-params';
 
 interface OnboardingCompletedSubject {
   tenantId: string;
@@ -97,18 +98,15 @@ export async function onboardingCompleted(
           } satisfies TableEntry,
         },
       },
-      // 6. Put Mandate
+      // 6. Put Mandate — derive parameters from operating mode
       {
         Put: {
           TableName: tableName,
           Item: {
             pk, sk: 'Mandate', __typename: 'Mandate',
             tenantId: s.tenantId, userId: s.userId, region: ctx.region, createdAt: now, mandateId,
-            level: 'ADVISORY',
-            monthlyTurnoverCapPercent: 10,
-            maxSingleTradePercent: 5,
-            coolDownDays: 1,
-            rebalanceCadence: 'QUARTERLY',
+            level: 'DISCRETIONARY',
+            ...resolveGuardrailParams(s.operatingMode),
             effectiveDate: now, revokedAt: null, version: 1,
           } satisfies TableEntry,
         },
