@@ -112,6 +112,10 @@ export class AlpacaClient {
     const data = await response.json() as T;
     logger.info('Alpaca API response', { method, path, status: response.status });
 
+    if (response.status >= 500) {
+      throw new Error(`Alpaca API error: ${response.status} ${method} ${path}`);
+    }
+
     return { status: response.status, data };
   }
 

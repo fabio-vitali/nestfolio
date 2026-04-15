@@ -180,6 +180,27 @@ describe('AlpacaClient', () => {
       await expect(client.getAccount()).rejects.toThrow('persistent failure');
       expect(mockFetch).toHaveBeenCalledTimes(3);
     });
+
+    it('retries on 5xx server error and returns on eventual success', async () => {
+      mockFetch
+        .mockResolvedValueOnce({ status: 503, json: async () => ({ message: 'service unavailable' }) })
+        .mockResolvedValueOnce({ status: 200, json: async () => ({ id: 'recovered' }) });
+
+      const result = await client.getAccount();
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(result.status).toBe(200);
+    });
+
+    it('throws after exhausting retries on persistent 5xx', async () => {
+      mockFetch
+        .mockResolvedValueOnce({ status: 503, json: async () => ({ message: 'down' }) })
+        .mockResolvedValueOnce({ status: 503, json: async () => ({ message: 'down' }) })
+        .mockResolvedValueOnce({ status: 503, json: async () => ({ message: 'down' }) });
+
+      await expect(client.getAccount()).rejects.toThrow('Alpaca API error: 503');
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
   });
 
   describe('healthCheck', () => {
@@ -208,6 +229,14 @@ describe('AlpacaClient', () => {
 
       expect(result).toBe(false);
       expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns false on 5xx server error', async () => {
+      mockFetch.mockResolvedValueOnce({ status: 503, json: async () => ({ message: 'down' }) });
+
+      const result = await client.healthCheck();
+
+      expect(result).toBe(false);
     });
   });
 
