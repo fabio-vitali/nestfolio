@@ -3,19 +3,19 @@ import 'aws-sdk-client-mock-jest';
 import { DynamoDBClient, GetItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { TableAssertions } from '../src/fixtures/table-assertions';
-import type { IntegrationContext } from '../src/context';
+import type { TestContext } from '@nestfolio/test-support';
 
 const ddbMock = mockClient(DynamoDBClient);
 
-function makeCtx(): IntegrationContext {
+function makeCtx(): TestContext {
   return {
     region: 'us-east-1',
     tenantId: 'tenant-1',
     userId: 'user-1',
     timings: { eventTimeout: 2_000, pollInterval: 50, putEventRetries: 1, putEventBackoffMs: 50 },
     cleanup: { register: jest.fn(), runAll: jest.fn() },
-    ssm: { tableName: jest.fn().mockResolvedValue('my-table') } as unknown as IntegrationContext['ssm'],
-  } as unknown as IntegrationContext;
+    ssm: { tableName: jest.fn().mockResolvedValue('my-table') } as unknown as TestContext['ssm'],
+  } as unknown as TestContext;
 }
 
 function marshalledItem(attrs: Record<string, unknown>) {
