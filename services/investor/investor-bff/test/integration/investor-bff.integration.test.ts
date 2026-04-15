@@ -10,6 +10,8 @@ import {
   TableAssertions,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
 
 describe('investor-bff', () => {
   let ctx: TestContext;
@@ -817,5 +819,114 @@ describe('investor-bff', () => {
       expect(goal.goalId).toBeTruthy();
       expect(goal.currency).toBe('USD');
     }, 60_000);
+  });
+
+  // ── Circuit Breaker Feature Flags ────────────────────────────────────
+
+  describe('circuit breaker feature flags', () => {
+    let ddb: DynamoDBDocumentClient;
+    let tableName: string;
+
+    beforeAll(async () => {
+      ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: ctx.region }));
+      tableName = await ctx.ssm.tableName('investor-bff');
+    }, 30_000);
+
+    it('should disable feature flags on BROKER_CIRCUIT_OPEN', async () => {
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'BROKER_CIRCUIT_OPEN',
+        detail: {},
+      });
+
+      // The handler calls updateFeatureFlag(enabled: false) for 3 flags via IAM-signed AppSync mutation.
+      // Each writes a FeatureFlag record at pk=FeatureFlag#SYSTEM, sk=FeatureFlag#{name}
+      // Poll until initiateDeposit flag is disabled
+      const deadline = Date.now() + 60_000;
+      let found = false;
+      while (Date.now() < deadline) {
+        const result = await ddb.send(new GetCommand({
+          TableName: tableName,
+          Key: { pk: 'FeatureFlag#SYSTEM', sk: 'FeatureFlag#initiateDeposit' },
+        }));
+        if (result.Item && result.Item['enabled'] === false) {
+          found = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+      expect(found).toBe(true);
+
+      // Verify all 3 flags disabled
+      for (const flagName of ['confirmDecision', 'initiateDeposit', 'requestWithdrawal']) {
+        const result = await ddb.send(new GetCommand({
+          TableName: tableName,
+          Key: { pk: 'FeatureFlag#SYSTEM', sk: `FeatureFlag#${flagName}` },
+        }));
+        expect(result.Item).toBeDefined();
+        expect(result.Item!['enabled']).toBe(false);
+        expect(result.Item!['reason']).toBe('Broker connectivity issue');
+      }
+    }, 90_000);
+
+    it('should re-enable feature flags on BROKER_CIRCUIT_CLOSED', async () => {
+      // First ensure flags are disabled (from previous test or explicit setup)
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'BROKER_CIRCUIT_OPEN',
+        detail: {},
+      });
+
+      // Wait for flags to be disabled (guard: fail fast if setup times out)
+      const deadline1 = Date.now() + 60_000;
+      let setupDisabled = false;
+      while (Date.now() < deadline1) {
+        const r = await ddb.send(new GetCommand({
+          TableName: tableName,
+          Key: { pk: 'FeatureFlag#SYSTEM', sk: 'FeatureFlag#initiateDeposit' },
+        }));
+        if (r.Item && r.Item['enabled'] === false) {
+          setupDisabled = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+      expect(setupDisabled).toBe(true);
+
+      // Now close the breaker
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'BROKER_CIRCUIT_CLOSED',
+        detail: {},
+      });
+
+      // Wait for flags to be re-enabled
+      const deadline2 = Date.now() + 60_000;
+      let found = false;
+      while (Date.now() < deadline2) {
+        const r = await ddb.send(new GetCommand({
+          TableName: tableName,
+          Key: { pk: 'FeatureFlag#SYSTEM', sk: 'FeatureFlag#initiateDeposit' },
+        }));
+        if (r.Item && r.Item['enabled'] === true) {
+          found = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+      expect(found).toBe(true);
+
+      // Verify all 3 re-enabled
+      for (const flagName of ['confirmDecision', 'initiateDeposit', 'requestWithdrawal']) {
+        const result = await ddb.send(new GetCommand({
+          TableName: tableName,
+          Key: { pk: 'FeatureFlag#SYSTEM', sk: `FeatureFlag#${flagName}` },
+        }));
+        expect(result.Item!['enabled']).toBe(true);
+      }
+    }, 120_000);
   });
 });
