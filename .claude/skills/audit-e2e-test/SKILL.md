@@ -27,8 +27,8 @@ description: Verify E2E feature test coverage, convention compliance, and config
 | 2 | Every test uses `freshTenant()` (not manual CognitoFixture) | Hard fail | Grep for `new CognitoFixture` in test files — must NOT appear; only `freshTenant()` |
 | 3 | Every test calls `ctx.cleanup.runAll()` in `afterEach` | Hard fail | Grep `*.e2e.test.ts` for `cleanup.runAll` — must appear in every `afterEach` |
 | 4 | Timeout hierarchy: `beforeEach` ≥ 120_000, `afterEach` = 60_000 | Warning | Parse timeout arguments from `beforeEach(..., N)` and `afterEach(..., N)` |
-| 5 | All assertions use BFF GraphQL (no DDB reads in test bodies) | Hard fail | Grep `*.e2e.test.ts` for `GetCommand`, `QueryCommand`, `ScanCommand`, `DynamoDBClient` — must NOT appear in test files (only in `helpers/fixtures.ts` where `funded()` polls DDB as a fixture, not an assertion) |
-| 6 | Fixture composition via `applyFixtures()` in `beforeEach` (not in `it()`) | Warning | Grep for `applyFixtures` — must only appear inside `beforeEach` blocks |
+| 5 | Assertions use BFF GraphQL (no DDB reads in test bodies) | Hard fail | Grep `*.e2e.test.ts` for `GetCommand`, `QueryCommand`, `ScanCommand`, `DynamoDBClient` — must NOT appear in test files unless accompanied by a comment explaining why GraphQL is insufficient (e.g., SYSTEM-scoped data unreachable via tenant-authenticated queries). DDB in `helpers/fixtures.ts` is always allowed. |
+| 6 | Fixture composition via `applyFixtures()` in `beforeEach` or lifecycle `it()` blocks | Warning | Grep for `applyFixtures` — should appear in `beforeEach` for single-phase tests. Lifecycle tests (multi-phase state transitions like open→assert→close→assert) may call `applyFixtures` inside `it()` to drive mid-test state changes — this is acceptable when the test explicitly exercises a state machine. |
 | 7 | Tenant prefix is `e2e-` (not `integ-`) | Hard fail | Verify `freshTenant()` replaces prefix; grep test files for hardcoded `integ-` strings |
 | 8 | No imports from `@nestfolio/integration-testing` | Hard fail | Grep all files for `@nestfolio/integration-testing` — must NOT appear |
 | 9 | No `describe.skip` without documented reason | Warning | Grep for `describe.skip` — each must have an adjacent comment explaining why |
@@ -120,7 +120,7 @@ After presenting the audit report, if any hard-fail checks exist or the grade is
 
 1. **Collect failures** — group all hard-fails and warnings by category:
    - Configuration gaps (missing config, moduleNameMapper, barrel exports)
-   - Convention violations (DDB assertions in tests, missing cleanup, wrong prefix)
+   - Convention violations (unjustified DDB assertions in tests, missing cleanup, wrong prefix)
    - Coverage gaps (untested user-facing flows)
 
 2. **Map each failure to a fixing skill:**
@@ -153,7 +153,7 @@ After presenting the audit report, if any hard-fail checks exist or the grade is
 
 - **NEVER report false coverage** — a test file existing is not the same as the flow being tested. Verify the test actually exercises the trigger and asserts the downstream effect.
 - **NEVER count `describe.skip` as TESTED** — skipped tests are SKIPPED, not tested.
-- **NEVER skip convention checks** — run all checks even if coverage looks good. A passing test with anti-patterns (DDB assertions, missing cleanup) is worse than a missing test.
+- **NEVER skip convention checks** — run all checks even if coverage looks good. A passing test with unjustified anti-patterns (unexplained DDB assertions, missing cleanup) is worse than a missing test.
 - **NEVER conflate integration tests with E2E tests** — integration tests (per-service, in `test/integration/`) are a different concern. This audit covers only `apps/e2e-feature-tests/`.
 - **NEVER audit without reading the actual test files** — don't infer test behavior from file names alone. Read the test body to classify coverage.
 - **NEVER skip the remediation step** — always present options after a non-EXEMPLARY audit.
