@@ -76,6 +76,18 @@ export const AlpacaTransferResultSchema = z.object({
 });
 export type AlpacaTransferResult = z.infer<typeof AlpacaTransferResultSchema>;
 
+export const CircuitBreakerSchema = z.object({
+  pk: z.string(),
+  sk: z.literal('CircuitBreaker'),
+  __typename: z.literal('CircuitBreaker'),
+  state: z.enum(['OPEN', 'CLOSED']),
+  adapter: z.string(),
+  openedAt: z.string(),
+  closedAt: z.string().optional(),
+  reason: z.string(),
+});
+export type CircuitBreaker = z.infer<typeof CircuitBreakerSchema>;
+
 export const AlpacaAccountSnapshotSchema = z.object({
   pk: z.string(),
   sk: z.string(),
