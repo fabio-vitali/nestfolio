@@ -6,3 +6,5 @@ export { Egress, EgressProps } from './egress';
 export type { EventTypesMap, RecordTypeConfig, ActionMapping, FieldDispatch, Passthrough } from './event-types';
 export { Facade, FacadeProps, JsResolverConfig, LambdaResolverConfig, parseSchemaFields, discoverJsResolvers } from './facade';
 export { Orchestration, OrchestrationProps } from './orchestration';
+export { CircuitBreakerHealDefinition } from './circuit-breaker-heal';
+export type { CircuitBreakerHealDefinitionProps } from './circuit-breaker-heal';
