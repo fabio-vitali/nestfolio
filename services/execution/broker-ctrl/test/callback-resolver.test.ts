@@ -130,20 +130,5 @@ describe('callback-resolver handler', () => {
     expect(mockSfnSend).not.toHaveBeenCalled();
   });
 
-  it('ALPACA_ACCOUNT_SNAPSHOT → looks up healTaskToken from CircuitBreaker', async () => {
-    mockDdbSend.mockResolvedValueOnce({ Item: { healTaskToken: 'heal-token-xyz' } });
 
-    const record = fakeSqsRecord('ALPACA_ACCOUNT_SNAPSHOT', {
-      equity: 50000, positions: [],
-    }, { eventId: 'evt-6', tenantId: 't-1' });
-
-    const result = await handler({ Records: [record] });
-
-    expect(result.batchItemFailures).toHaveLength(0);
-    expect(mockSfnSend).toHaveBeenCalledTimes(1);
-    const sfnCall = mockSfnSend.mock.calls[0][0];
-    expect(sfnCall.input.taskToken).toBe('heal-token-xyz');
-    const output = JSON.parse(sfnCall.input.output);
-    expect(output.status).toBe('SNAPSHOT_RECEIVED');
-  });
 });

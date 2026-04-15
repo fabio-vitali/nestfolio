@@ -6,7 +6,6 @@ import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Orchestration 
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { BrokerCtrlInboundEventTypes, BrokerCtrlEventTypes } from './domain/events';
 import { OrderWorkflowDefinition } from './state-machine/order-state-machine';
-import { HealWorkflowDefinition } from './state-machine/circuit-breaker-heal';
 
 export class BrokerCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -28,9 +27,6 @@ export class BrokerCtrlStack extends ServiceStack {
             BrokerCtrlEventTypes.ORDER_ESCALATED,
             BrokerCtrlEventTypes.DEPOSIT_DETECTED,
             BrokerCtrlEventTypes.WITHDRAWAL_COMPLETED,
-            BrokerCtrlEventTypes.BROKER_CIRCUIT_OPEN,
-            BrokerCtrlEventTypes.BROKER_CIRCUIT_CLOSED,
-            BrokerCtrlEventTypes.BROKER_HEAL_ESCALATED,
             BrokerCtrlEventTypes.TRANSFER_FAILED,
           ]},
         },
@@ -56,7 +52,6 @@ export class BrokerCtrlStack extends ServiceStack {
       BrokerCtrlInboundEventTypes.ALPACA_ORDER_REJECTED,
       BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCELLED,
       BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCEL_FAILED,
-      BrokerCtrlInboundEventTypes.ALPACA_ACCOUNT_SNAPSHOT,
     ];
 
     const callbackIngress = new Ingress(this, 'CallbackIngress', {
@@ -96,32 +91,6 @@ export class BrokerCtrlStack extends ServiceStack {
     // --- Callback Ingress — grant SF task response ---
     orderOrchestration.grantCallbackAccess(callbackIngress.handler);
 
-    // --- EmitHealthCheck Lambda — invoked by heal SF, not via Ingress ---
-    const emitHealthCheckFn = new NodejsFunction(this, 'EmitHealthCheckFn', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'emit-health-check.ts'),
-      environment: {
-        TABLE_NAME: table.tableName,
-        BUS_NAME: this.eventBus.eventBusName,
-      },
-    });
-    table.grantReadWriteData(emitHealthCheckFn);
-    this.eventBus.grantPutEventsTo(emitHealthCheckFn);
-
-    // --- Heal Orchestration ---
-    const healWorkflow = new HealWorkflowDefinition(this, 'HealWorkflow', {
-      table,
-      emitHealthCheckFn,
-    });
-    const healOrchestration = new Orchestration(this, 'HealStateMachine', {
-      state,
-      definitionBody: healWorkflow.definitionBody,
-      triggers: [BrokerCtrlEventTypes.BROKER_CIRCUIT_OPEN],
-      timeout: Duration.hours(2),
-    });
-    emitHealthCheckFn.grantInvoke(healOrchestration.stateMachine);
-    healOrchestration.grantCallbackAccess(callbackIngress.handler, 'HEAL_STATE_MACHINE_ARN');
-
     // --- Ingress 3: Deposit/Withdrawal routing ---
     const depositWithdrawalIngress = new Ingress(this, 'DepositWithdrawalIngress', {
       state,
@@ -152,13 +121,11 @@ export class BrokerCtrlStack extends ServiceStack {
       extraLambdas: [
         callbackIngress.handler,
         routeOrderFn,
-        emitHealthCheckFn,
         depositWithdrawalIngress.handler,
         depositWithdrawalNormalizerIngress.handler,
       ],
       extraDlqs: [
         callbackIngress.dlq,
-        healOrchestration.dlq,
         depositWithdrawalIngress.dlq,
         depositWithdrawalNormalizerIngress.dlq,
       ],

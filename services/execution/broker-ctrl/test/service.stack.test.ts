@@ -20,8 +20,8 @@ describe('BrokerCtrlStack', () => {
     template.resourceCountIs('AWS::DynamoDB::Table', 1);
   });
 
-  it('creates two Step Functions state machines (order + heal)', () => {
-    template.resourceCountIs('AWS::StepFunctions::StateMachine', 2);
+  it('creates one Step Functions state machine (order)', () => {
+    template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
   });
 
   it('creates the order state machine with expected states', () => {
@@ -41,33 +41,10 @@ describe('BrokerCtrlStack', () => {
     expect(orderSM).toBeDefined();
   });
 
-  it('creates the circuit breaker heal state machine with expected states', () => {
-    const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
-    const definitions = Object.values(stateMachines).map((sm: any) => {
-      const defStr = sm.Properties?.DefinitionString;
-      if (defStr?.['Fn::Join']) {
-        return defStr['Fn::Join'][1].join('');
-      }
-      return typeof defStr === 'string' ? defStr : JSON.stringify(defStr);
-    });
-    const healSM = definitions.find((d: string) =>
-      d.includes('InitAttemptCount'),
-    );
-    expect(healSM).toBeDefined();
-  });
-
   it('creates an EventBridge rule for ORDER_SUBMITTED trigger', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({
         'detail-type': ['ORDER_SUBMITTED'],
-      }),
-    });
-  });
-
-  it('creates an EventBridge rule for BROKER_CIRCUIT_OPEN trigger (heal SF)', () => {
-    template.hasResourceProperties('AWS::Events::Rule', {
-      EventPattern: Match.objectLike({
-        'detail-type': ['BROKER_CIRCUIT_OPEN'],
       }),
     });
   });
@@ -79,11 +56,11 @@ describe('BrokerCtrlStack', () => {
   });
 
   it('creates Lambda functions for all handlers and CDC publisher', () => {
-    // RouteOrderFn + EmitHealthCheckFn + ModeIngress handler + CallbackIngress handler +
+    // RouteOrderFn + ModeIngress handler + CallbackIngress handler +
     // DepositWithdrawalIngress handler + DepositWithdrawalNormalizerIngress handler +
-    // Egress event-publisher = at least 7
+    // Egress event-publisher = at least 6
     const lambdas = template.findResources('AWS::Lambda::Function');
-    expect(Object.keys(lambdas).length).toBeGreaterThanOrEqual(7);
+    expect(Object.keys(lambdas).length).toBeGreaterThanOrEqual(6);
   });
 
   it('grants SFN task response to the callback ingress handler', () => {
