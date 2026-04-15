@@ -1,5 +1,5 @@
 import { Construct } from 'constructs';
-import { Duration } from 'aws-cdk-lib';
+import { Annotations, Duration } from 'aws-cdk-lib';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { Rule } from 'aws-cdk-lib/aws-events';
@@ -84,6 +84,12 @@ export class Orchestration extends Construct {
 
     // When executionName is set, skip EB rules — the state machine is triggered
     // programmatically via StartExecution(name=executionName) for singleton semantics.
+    if (props.executionName && props.triggers.length > 0) {
+      Annotations.of(this).addWarningV2(
+        '@nestfolio/cdk-constructs:orchestration-triggers-ignored',
+        'Orchestration triggers are ignored when executionName is set — trigger programmatically via grantStartExecution()',
+      );
+    }
     if (!props.executionName) {
       // EventBridge rules — one per trigger event type
       for (const eventType of props.triggers) {

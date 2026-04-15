@@ -1,5 +1,5 @@
 import { App, Duration } from 'aws-cdk-lib';
-import { Match, Template } from 'aws-cdk-lib/assertions';
+import { Annotations, Match, Template } from 'aws-cdk-lib/assertions';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -274,6 +274,18 @@ describe('Orchestration construct', () => {
           }),
         },
       });
+    });
+
+    it('emits a CDK warning when triggers are provided with executionName', () => {
+      const { stack } = createOrchestration({
+        executionName: 'singleton-heal',
+        triggers: ['EVENT_A'],
+      });
+      const warnings = Annotations.fromStack(stack).findWarning(
+        '*',
+        Match.stringLikeRegexp('triggers are ignored'),
+      );
+      expect(warnings.length).toBeGreaterThan(0);
     });
 
     it('supports custom env var prefix in grantStartExecution', () => {
