@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 const orders = new Map<string, Record<string, unknown>>();
 const transfers = new Map<string, Record<string, unknown>>();
 const pollCounts = new Map<string, number>();
+let brokerDown = false;
 
 function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
   return { statusCode, body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } };
@@ -14,6 +15,7 @@ function getScenario(identifier: string): string {
   if (identifier.startsWith('integ-partial-')) return 'partial';
   if (identifier.startsWith('integ-reject-')) return 'reject';
   if (identifier.startsWith('integ-cancel-')) return 'cancel';
+  if (identifier.startsWith('integ-broker-down-')) return 'broker-down';
   if (identifier.startsWith('integ-transfer-ok-')) return 'transfer-ok';
   if (identifier.startsWith('integ-transfer-fail-')) return 'transfer-fail';
   return 'fill'; // safe default
@@ -31,6 +33,11 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
 
     if (scenario === 'reject') {
       return json(422, { message: 'insufficient buying power' });
+    }
+
+    if (scenario === 'broker-down') {
+      brokerDown = true;
+      return json(503, { message: 'service unavailable' });
     }
 
     const id = `mock-${randomUUID()}`;
@@ -96,6 +103,9 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
 
   // GET /v2/account
   if (method === 'GET' && path === '/v2/account') {
+    if (brokerDown) {
+      return json(503, { message: 'service unavailable' });
+    }
     return json(200, {
       id: 'mock-account',
       equity: '125000.00',

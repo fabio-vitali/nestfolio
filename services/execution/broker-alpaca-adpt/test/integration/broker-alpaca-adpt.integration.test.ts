@@ -249,15 +249,8 @@ describe('broker-alpaca-adpt', () => {
       expect(item['failureReason']).toBe('BROKER_UNAVAILABLE');
     }, 60_000);
 
-    // TODO: requires mock error mode or non-routable IP approach may be too slow
-    it.skip('should write NormalizedEvent when breaker opens and CDC emits BROKER_CIRCUIT_OPEN', async () => {
-      const ssmOverride = new SsmOverrideFixture(ctx);
-      await ssmOverride.override({
-        paramName: `/nestfolio/${ctx.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
-        testValue: 'https://192.0.2.1',
-      });
-
-      const orderId = `integ-cb-open-${Date.now()}`;
+    it('should open circuit breaker on API failure and emit BROKER_CIRCUIT_OPEN via CDC', async () => {
+      const orderId = `integ-broker-down-${Date.now()}`;
 
       await eb.putEvent({
         bus: 'execution',
@@ -266,13 +259,29 @@ describe('broker-alpaca-adpt', () => {
         detail: { orderId, symbol: 'AAPL', side: 'BUY', quantity: 5 },
       });
 
-      await table.waitForItem({
+      // Handler: submitOrder fails 3x (503) → healthCheck fails (503) → opens breaker
+      // → writes CircuitBreaker item + NormalizedEvent → CDC emits BROKER_CIRCUIT_OPEN
+
+      // 1. Verify CircuitBreaker record written
+      const cbItem = await table.waitForItem({
         table: 'broker-alpaca-adpt',
         pk: CB_PK,
         sk: CB_SK,
         match: { state: 'OPEN' },
+        timeoutMs: 90_000,
       });
+      expect(cbItem['adapter']).toBe('alpaca');
 
+      // 2. Verify order was rejected with BROKER_UNAVAILABLE
+      const orderItem = await table.waitForItem({
+        table: 'broker-alpaca-adpt',
+        pk: `OrderMapping#${ctx.tenantId}#${orderId}`,
+        sk: 'OrderMapping',
+      });
+      expect(orderItem['status']).toBe('REJECTED');
+      expect(orderItem['rejectionReason']).toBe('BROKER_UNAVAILABLE');
+
+      // 3. Verify CDC emitted BROKER_CIRCUIT_OPEN on ExecutionBus
       const event = await trap.waitForEvent<BusEventPayload>({ detailType: 'BROKER_CIRCUIT_OPEN' });
       expect(event.detail.subject.adapter).toBe('alpaca');
     }, 120_000);
