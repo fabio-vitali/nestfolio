@@ -1,5 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import {
   createTestContext,
   EventBridgeClient,
@@ -49,6 +51,7 @@ describe('broker-alpaca-adpt', () => {
         'ALPACA_ORDER_REJECTED',
         'ALPACA_TRANSFER_INITIATED',
         'ALPACA_ACCOUNT_SNAPSHOT',
+        'BROKER_CIRCUIT_OPEN',
       ],
     });
   }, 90_000);
@@ -153,4 +156,125 @@ describe('broker-alpaca-adpt', () => {
     const event = await trap.waitForEvent<BusEventPayload>({ detailType: 'ALPACA_ACCOUNT_SNAPSHOT' });
     expect(event.detail.subject.equity).toBe('125000.00');
   }, 60_000);
+
+  // ── Circuit Breaker ─────────────────────────────────────────────────
+
+  describe('Circuit Breaker', () => {
+    const CB_PK = 'CircuitBreaker#alpaca';
+    const CB_SK = 'CircuitBreaker';
+    let ddb: DynamoDBDocumentClient;
+    let cbTableName: string;
+
+    beforeAll(async () => {
+      ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: ctx.region }));
+      cbTableName = await ctx.ssm.tableName('broker-alpaca-adpt');
+    });
+
+    async function putOpenBreaker(): Promise<void> {
+      await ddb.send(
+        new PutCommand({
+          TableName: cbTableName,
+          Item: {
+            pk: CB_PK,
+            sk: CB_SK,
+            __typename: 'CircuitBreaker',
+            state: 'OPEN',
+            adapter: 'alpaca',
+            openedAt: new Date().toISOString(),
+            reason: 'Integration test',
+          },
+        }),
+      );
+    }
+
+    async function deleteBreaker(): Promise<void> {
+      try {
+        await ddb.send(
+          new DeleteCommand({
+            TableName: cbTableName,
+            Key: { pk: CB_PK, sk: CB_SK },
+          }),
+        );
+      } catch { /* item may not exist */ }
+    }
+
+    afterEach(async () => {
+      await deleteBreaker();
+    });
+
+    it('should reject order immediately when breaker is open', async () => {
+      await putOpenBreaker();
+
+      const orderId = `integ-cb-order-${Date.now()}`;
+
+      await eb.putEvent({
+        bus: 'execution',
+        targetService: 'broker-alpaca-adpt',
+        detailType: 'ALPACA_ORDER_REQUESTED',
+        detail: { orderId, symbol: 'AAPL', side: 'BUY', quantity: 5 },
+      });
+
+      const item = await table.waitForItem({
+        table: 'broker-alpaca-adpt',
+        pk: `OrderMapping#${ctx.tenantId}#${orderId}`,
+        sk: 'OrderMapping',
+      });
+      expect(item['status']).toBe('REJECTED');
+      expect(item['rejectionReason']).toBe('BROKER_UNAVAILABLE');
+    }, 60_000);
+
+    it('should reject transfer immediately when breaker is open', async () => {
+      await putOpenBreaker();
+
+      const transferId = `integ-cb-transfer-${Date.now()}`;
+
+      await eb.putEvent({
+        bus: 'execution',
+        targetService: 'broker-alpaca-adpt',
+        detailType: 'ALPACA_TRANSFER_REQUESTED',
+        detail: {
+          transferId,
+          direction: 'INCOMING',
+          amount: 10000,
+          relationshipId: 'rel-integ',
+        },
+      });
+
+      const item = await table.waitForItem({
+        table: 'broker-alpaca-adpt',
+        pk: `TransferMapping#${ctx.tenantId}#${transferId}`,
+        sk: 'TransferMapping',
+      });
+      expect(item['status']).toBe('FAILED');
+      expect(item['failureReason']).toBe('BROKER_UNAVAILABLE');
+    }, 60_000);
+
+    // TODO: requires mock error mode or non-routable IP approach may be too slow
+    it.skip('should write NormalizedEvent when breaker opens and CDC emits BROKER_CIRCUIT_OPEN', async () => {
+      const ssmOverride = new SsmOverrideFixture(ctx);
+      await ssmOverride.override({
+        paramName: `/nestfolio/${ctx.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
+        testValue: 'https://192.0.2.1',
+      });
+
+      const orderId = `integ-cb-open-${Date.now()}`;
+
+      await eb.putEvent({
+        bus: 'execution',
+        targetService: 'broker-alpaca-adpt',
+        detailType: 'ALPACA_ORDER_REQUESTED',
+        detail: { orderId, symbol: 'AAPL', side: 'BUY', quantity: 5 },
+      });
+
+      await table.waitForItem({
+        table: 'broker-alpaca-adpt',
+        pk: CB_PK,
+        sk: CB_SK,
+        match: { state: 'OPEN' },
+      });
+
+      const event = await trap.waitForEvent<BusEventPayload>({ detailType: 'BROKER_CIRCUIT_OPEN' });
+      expect(event.detail.subject.adapter).toBe('alpaca');
+    }, 120_000);
+  });
 });
