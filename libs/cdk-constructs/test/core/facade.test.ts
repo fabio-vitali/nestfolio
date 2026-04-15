@@ -83,6 +83,60 @@ describe('Facade construct', () => {
     template.resourceCountIs('AWS::AppSync::GraphQLApi', 1);
   });
 
+  it('adds IAM as additional auth mode when enableIamAuth is true', () => {
+    const { stack } = createFacadeStack();
+    const userPool = new UserPool(stack, 'Pool');
+    const resolver = new Function(stack, 'Resolver', {
+      runtime: Runtime.NODEJS_24_X,
+      handler: 'index.handler',
+      code: Code.fromInline('exports.handler = async () => ({})'),
+    });
+
+    new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+      enableIamAuth: true,
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'hello', handler: resolver },
+      ],
+    });
+
+    const template = Template.fromStack(stack);
+    template.hasResourceProperties('AWS::AppSync::GraphQLApi', {
+      AuthenticationType: 'AMAZON_COGNITO_USER_POOLS',
+      AdditionalAuthenticationProviders: [
+        { AuthenticationType: 'AWS_IAM' },
+      ],
+    });
+  });
+
+  it('does not add IAM auth mode when enableIamAuth is false', () => {
+    const { stack } = createFacadeStack();
+    const userPool = new UserPool(stack, 'Pool');
+    const resolver = new Function(stack, 'Resolver', {
+      runtime: Runtime.NODEJS_24_X,
+      handler: 'index.handler',
+      code: Code.fromInline('exports.handler = async () => ({})'),
+    });
+
+    new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'hello', handler: resolver },
+      ],
+    });
+
+    const template = Template.fromStack(stack);
+    template.hasResourceProperties('AWS::AppSync::GraphQLApi', {
+      AuthenticationType: 'AMAZON_COGNITO_USER_POOLS',
+    });
+    // Verify no IAM additional provider
+    const resources = template.findResources('AWS::AppSync::GraphQLApi');
+    const apiResource = Object.values(resources)[0] as { Properties: { AdditionalAuthenticationProviders?: unknown[] } };
+    expect(apiResource.Properties.AdditionalAuthenticationProviders).toBeUndefined();
+  });
+
   it('creates SSM parameter when API exists', () => {
     const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');

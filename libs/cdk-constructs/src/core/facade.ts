@@ -44,6 +44,8 @@ export interface FacadeProps {
   readonly queryDepthLimit?: number;
   readonly enableWaf?: boolean;
   readonly wafRateLimit?: number;
+  /** When true, adds IAM as an additional authorization mode alongside Cognito User Pool. Required for Lambda-to-AppSync mutations using @aws_iam directives. */
+  readonly enableIamAuth?: boolean;
 }
 
 export class Facade extends Construct {
@@ -82,6 +84,9 @@ export class Facade extends Construct {
           authorizationType: AuthorizationType.USER_POOL,
           userPoolConfig: { userPool },
         },
+        additionalAuthorizationModes: props.enableIamAuth
+          ? [{ authorizationType: AuthorizationType.IAM }]
+          : undefined,
       },
       queryDepthLimit: depthLimit,
     });
