@@ -138,6 +138,79 @@ describe('AlpacaClient', () => {
     });
   });
 
+  describe('retry logic', () => {
+    beforeEach(() => {
+      // Replace setTimeout with an immediate version so retries complete without wall-clock delay
+      jest.spyOn(global, 'setTimeout').mockImplementation((fn: TimerHandler) => {
+        if (typeof fn === 'function') fn();
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      });
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('returns immediately on first success without retrying', async () => {
+      mockFetch.mockResolvedValueOnce({ status: 200, json: async () => ({ id: 'ok' }) });
+
+      const result = await client.getAccount();
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe(200);
+    });
+
+    it('retries on fetch failure and returns on eventual success', async () => {
+      mockFetch
+        .mockRejectedValueOnce(new Error('network error'))
+        .mockResolvedValueOnce({ status: 200, json: async () => ({ id: 'recovered' }) });
+
+      const result = await client.getAccount();
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(result.status).toBe(200);
+    });
+
+    it('throws after exhausting all retries', async () => {
+      mockFetch
+        .mockRejectedValueOnce(new Error('persistent failure'))
+        .mockRejectedValueOnce(new Error('persistent failure'))
+        .mockRejectedValueOnce(new Error('persistent failure'));
+
+      await expect(client.getAccount()).rejects.toThrow('persistent failure');
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('healthCheck', () => {
+    it('returns true when request succeeds', async () => {
+      mockFetch.mockResolvedValueOnce({ status: 200, json: async () => ({}) });
+
+      const result = await client.healthCheck();
+
+      expect(result).toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns false when request throws', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('unreachable'));
+
+      const result = await client.healthCheck();
+
+      expect(result).toBe(false);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry — only calls fetch once on failure', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('down'));
+
+      const result = await client.healthCheck();
+
+      expect(result).toBe(false);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('live Alpaca safety guard', () => {
     const ORIGINAL_ENV = { ...process.env };
 

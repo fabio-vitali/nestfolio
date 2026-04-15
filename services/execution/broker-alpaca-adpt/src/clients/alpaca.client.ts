@@ -115,35 +115,65 @@ export class AlpacaClient {
     return { status: response.status, data };
   }
 
+  private async requestWithRetry<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    maxAttempts = 3,
+  ): Promise<AlpacaResponse<T>> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await this.request<T>(method, path, body);
+      } catch (err) {
+        lastError = err;
+        if (attempt < maxAttempts - 1) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    throw lastError;
+  }
+
   async submitOrder(params: AlpacaOrderParams): Promise<AlpacaResponse<AlpacaOrderApiResponse>> {
-    return this.request<AlpacaOrderApiResponse>('POST', '/v2/orders', params);
+    return this.requestWithRetry<AlpacaOrderApiResponse>('POST', '/v2/orders', params);
   }
 
   async cancelOrder(alpacaOrderId: string): Promise<AlpacaResponse<AlpacaOrderApiResponse>> {
-    return this.request<AlpacaOrderApiResponse>('DELETE', `/v2/orders/${alpacaOrderId}`);
+    return this.requestWithRetry<AlpacaOrderApiResponse>('DELETE', `/v2/orders/${alpacaOrderId}`);
   }
 
   async getOrder(orderId: string): Promise<AlpacaResponse<AlpacaOrderApiResponse>> {
-    return this.request<AlpacaOrderApiResponse>('GET', `/v2/orders/${orderId}`);
+    return this.requestWithRetry<AlpacaOrderApiResponse>('GET', `/v2/orders/${orderId}`);
   }
 
   async getTradeEvents(since: string, until: string): Promise<AlpacaResponse<AlpacaTradeEvent[]>> {
-    return this.request<AlpacaTradeEvent[]>('GET', `/v2/events/trades?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}`);
+    return this.requestWithRetry<AlpacaTradeEvent[]>('GET', `/v2/events/trades?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}`);
   }
 
   async getAccount(): Promise<AlpacaResponse<AlpacaAccountApiResponse>> {
-    return this.request<AlpacaAccountApiResponse>('GET', '/v2/account');
+    return this.requestWithRetry<AlpacaAccountApiResponse>('GET', '/v2/account');
   }
 
   async getPositions(): Promise<AlpacaResponse<AlpacaPositionApiResponse[]>> {
-    return this.request<AlpacaPositionApiResponse[]>('GET', '/v2/positions');
+    return this.requestWithRetry<AlpacaPositionApiResponse[]>('GET', '/v2/positions');
   }
 
   async initiateTransfer(params: AlpacaTransferParams): Promise<AlpacaResponse<AlpacaTransferApiResponse>> {
-    return this.request<AlpacaTransferApiResponse>('POST', '/v2/ach/transfers', params);
+    return this.requestWithRetry<AlpacaTransferApiResponse>('POST', '/v2/ach/transfers', params);
   }
 
   async getTransfer(transferId: string): Promise<AlpacaResponse<AlpacaTransferApiResponse>> {
-    return this.request<AlpacaTransferApiResponse>('GET', `/v2/ach/transfers/${transferId}`);
+    return this.requestWithRetry<AlpacaTransferApiResponse>('GET', `/v2/ach/transfers/${transferId}`);
+  }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      await this.request('GET', '/v2/account');
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
