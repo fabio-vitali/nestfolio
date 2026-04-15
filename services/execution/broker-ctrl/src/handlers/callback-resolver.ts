@@ -1,12 +1,10 @@
 import { createIngestionHandler, skip, logger, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { SFNClient, SendTaskSuccessCommand } from '@aws-sdk/client-sfn';
 import { BrokerOrderRepository } from '../repositories/broker-order.repository';
-import { CircuitBreakerRepository } from '../repositories/circuit-breaker.repository';
 import { BrokerCtrlInboundEventTypes } from '../domain/events';
 
 const TABLE_NAME = process.env['TABLE_NAME']!;
 const repo = new BrokerOrderRepository(TABLE_NAME);
-const circuitBreakerRepo = new CircuitBreakerRepository(TABLE_NAME);
 const sfn = new SFNClient({});
 
 type FailureClass = 'none' | 'deterministic' | 'transient' | 'ambiguous';
@@ -24,7 +22,6 @@ function classifyFailure(eventType: string, subject: Record<string, unknown>): F
   if ([BrokerCtrlInboundEventTypes.ALPACA_TRANSFER_FAILED].includes(eventType)) return 'deterministic';
   if ([BrokerCtrlInboundEventTypes.ALPACA_ORDER_PARTIALLY_FILLED].includes(eventType)) return 'none';
   if ([BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCELLED, BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCEL_FAILED].includes(eventType)) return 'none';
-  if ([BrokerCtrlInboundEventTypes.ALPACA_ACCOUNT_SNAPSHOT].includes(eventType)) return 'none';
   return 'ambiguous';
 }
 
@@ -37,7 +34,6 @@ function mapEventToStatus(eventType: string): string {
     [BrokerCtrlInboundEventTypes.ALPACA_ORDER_REJECTED]: 'REJECTED',
     [BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCELLED]: 'CANCELLED',
     [BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCEL_FAILED]: 'CANCEL_FAILED',
-    [BrokerCtrlInboundEventTypes.ALPACA_ACCOUNT_SNAPSHOT]: 'SNAPSHOT_RECEIVED',
   };
   return statusMap[eventType] ?? eventType;
 }
@@ -45,13 +41,7 @@ function mapEventToStatus(eventType: string): string {
 async function resolveCallback(payload: EventPayload, ctx: EventContext) {
   const orderId = (payload.subject.orderId as string) ?? ctx.eventId;
 
-  let taskToken: string | null;
-  if (ctx.eventType === BrokerCtrlInboundEventTypes.ALPACA_ACCOUNT_SNAPSHOT) {
-    const breaker = await circuitBreakerRepo.getBreaker(ctx.tenantId, 'Global');
-    taskToken = (breaker?.healTaskToken as string) ?? null;
-  } else {
-    taskToken = await repo.getTaskToken(ctx.tenantId, orderId);
-  }
+  const taskToken = await repo.getTaskToken(ctx.tenantId, orderId);
 
   if (!taskToken) {
     logger.warn('No active taskToken found, skipping', { orderId, eventType: ctx.eventType });
@@ -86,7 +76,6 @@ const CALLBACK_EVENT_TYPES = [
   BrokerCtrlInboundEventTypes.ALPACA_ORDER_REJECTED,
   BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCELLED,
   BrokerCtrlInboundEventTypes.ALPACA_ORDER_CANCEL_FAILED,
-  BrokerCtrlInboundEventTypes.ALPACA_ACCOUNT_SNAPSHOT,
 ] as const;
 
 export const handler = createIngestionHandler({

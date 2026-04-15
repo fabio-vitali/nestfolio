@@ -38,20 +38,6 @@ export const NormalizedEventSchema = z.object({
 });
 export type NormalizedEvent = z.infer<typeof NormalizedEventSchema>;
 
-export const CircuitBreakerSchema = z.object({
-  pk: z.string(),
-  sk: z.literal('CircuitBreaker'),
-  __typename: z.literal('CircuitBreaker'),
-  tenantId: z.string(),
-  symbol: z.string(),
-  state: z.enum(['OPEN', 'CLOSED']),
-  openedAt: z.string().optional(),
-  closedAt: z.string().optional(),
-  reason: z.string().optional(),
-  healTaskToken: z.string().optional(),
-});
-export type CircuitBreaker = z.infer<typeof CircuitBreakerSchema>;
-
 export const ExecutionModeSchema = z.object({
   pk: z.string(),
   sk: z.literal('ExecutionMode'),
