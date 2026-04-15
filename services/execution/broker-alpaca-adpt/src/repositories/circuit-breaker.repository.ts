@@ -63,4 +63,17 @@ export class CircuitBreakerRepository extends TableRepository {
       );
     },
   );
+
+  readonly writeBreakerOpenEvent = this.log('writeBreakerOpenEvent',
+    async (tenantId: string): Promise<void> => {
+      const timestamp = getTime();
+      await this.put({
+        pk: `NormalizedEvent#${tenantId}#CIRCUIT_BREAKER`,
+        sk: `BROKER_CIRCUIT_OPEN#${timestamp}`,
+        __typename: 'NormalizedEvent',
+        tenantId,
+        timestamp,
+      });
+    },
+  );
 }
