@@ -92,51 +92,6 @@ describe('execution-ctrl', () => {
     expect(['ORDER_SUBMITTED', 'ORDER_STAGED', 'ORDER_REJECTED']).toContain(event.detailType);
   }, 120_000);
 
-  // ── CIRCUIT_BREAKER_TRIGGERED ─────────────────────────────────────
-
-  it('should process CIRCUIT_BREAKER_TRIGGERED without error (skip handler)', async () => {
-    await eb.putEvent({
-      bus: 'execution',
-      targetService: 'execution-ctrl',
-      detailType: 'CIRCUIT_BREAKER_TRIGGERED',
-      detail: {
-        reason: 'integ-test-circuit-break',
-        triggeredAt: new Date().toISOString(),
-      },
-    });
-
-    // Handler calls skip() — no DDB write, no CDC event expected.
-    // Wait briefly then drain to confirm no unexpected events appeared.
-    await new Promise(resolve => setTimeout(resolve, 15_000));
-    const stray = await trap.drain();
-    const circuitEvents = stray.filter(e =>
-      e.detailType.includes('CIRCUIT_BREAKER') || e.detailType.includes('EXECUTION_PAUSED'),
-    );
-    expect(circuitEvents).toHaveLength(0);
-  }, 60_000);
-
-  // ── CIRCUIT_BREAKER_RESET ─────────────────────────────────────────
-
-  it('should process CIRCUIT_BREAKER_RESET without error (skip handler)', async () => {
-    await eb.putEvent({
-      bus: 'execution',
-      targetService: 'execution-ctrl',
-      detailType: 'CIRCUIT_BREAKER_RESET',
-      detail: {
-        reason: 'integ-test-circuit-reset',
-        resetAt: new Date().toISOString(),
-      },
-    });
-
-    // Handler calls skip() — no DDB write, no CDC event expected.
-    await new Promise(resolve => setTimeout(resolve, 15_000));
-    const stray = await trap.drain();
-    const resetEvents = stray.filter(e =>
-      e.detailType.includes('CIRCUIT_BREAKER') || e.detailType.includes('EXECUTION_RESUMED'),
-    );
-    expect(resetEvents).toHaveLength(0);
-  }, 60_000);
-
   // ── ACCOUNT_CLOSURE_REQUESTED ─────────────────────────────────────
 
   it('should process ACCOUNT_CLOSURE_REQUESTED without error (skip handler)', async () => {

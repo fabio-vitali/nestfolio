@@ -185,24 +185,6 @@ describe('event-listener handler', () => {
     expect(result.intents[0]).toMatchObject({ _tag: 'record', typename: 'Order', fields: expect.objectContaining({ status: 'SUBMITTED' }) });
   });
 
-  it('CIRCUIT_BREAKER_TRIGGERED → returns skip()', async () => {
-    const sqsRecord = fakeSqsRecord('CIRCUIT_BREAKER_TRIGGERED', {}, { eventId: 'evt-cb', tenantId: 't1' });
-
-    const result = await harness.process([sqsRecord]);
-    expect(result.batchItemFailures).toHaveLength(0);
-    expect(result.intents).toHaveLength(1);
-    expect(result.intents[0]).toMatchObject({ _tag: 'skip' });
-  });
-
-  it('CIRCUIT_BREAKER_RESET → returns skip()', async () => {
-    const sqsRecord = fakeSqsRecord('CIRCUIT_BREAKER_RESET', {}, { eventId: 'evt-cbr', tenantId: 't1' });
-
-    const result = await harness.process([sqsRecord]);
-    expect(result.batchItemFailures).toHaveLength(0);
-    expect(result.intents).toHaveLength(1);
-    expect(result.intents[0]).toMatchObject({ _tag: 'skip' });
-  });
-
   it('ACCOUNT_CLOSURE_REQUESTED → returns skip()', async () => {
     const sqsRecord = fakeSqsRecord('ACCOUNT_CLOSURE_REQUESTED', {}, { eventId: 'evt-ac', tenantId: 't1' });
 

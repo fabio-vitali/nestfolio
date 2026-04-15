@@ -106,16 +106,6 @@ export function createHandlers(deps: EventListenerDeps): Record<string, (payload
     [AdvisoryCrossDomainEventTypes.USER_CONFIRMED]: (payload, ctx) =>
       processApprovedDecision(deps, payload, ctx),
 
-    [AdvisoryCrossDomainEventTypes.CIRCUIT_BREAKER_TRIGGERED]: async (_payload, ctx) => {
-      logger.info('Circuit breaker triggered — execution paused', { eventId: ctx.eventId });
-      return skip();
-    },
-
-    [AdvisoryCrossDomainEventTypes.CIRCUIT_BREAKER_RESET]: async (_payload, ctx) => {
-      logger.info('Circuit breaker reset — execution resumed', { eventId: ctx.eventId });
-      return skip();
-    },
-
     [InvestorCrossDomainEventTypes.ACCOUNT_CLOSURE_REQUESTED]: async (_payload, ctx) => {
       logger.info('Account closure requested', { eventId: ctx.eventId });
       return skip();
