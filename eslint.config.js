@@ -16,7 +16,10 @@ module.exports = [
     files: ['**/*.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' },
+      ],
       'no-console': 'error',
       '@nx/enforce-module-boundaries': [
         'error',
@@ -29,13 +32,34 @@ module.exports = [
           ],
           depConstraints: [
             { sourceTag: 'scope:platform', onlyDependOnLibsWithTags: ['scope:platform'] },
-            { sourceTag: 'scope:shared', onlyDependOnLibsWithTags: ['scope:shared', 'scope:platform'] },
-            { sourceTag: 'scope:domain', onlyDependOnLibsWithTags: ['scope:domain', 'scope:platform'] },
-            { sourceTag: 'scope:investor', onlyDependOnLibsWithTags: ['scope:investor', 'scope:platform', 'scope:shared'] },
-            { sourceTag: 'scope:onboarding', onlyDependOnLibsWithTags: ['scope:onboarding', 'scope:platform', 'scope:shared'] },
-            { sourceTag: 'scope:advisory', onlyDependOnLibsWithTags: ['scope:advisory', 'scope:platform', 'scope:shared'] },
-            { sourceTag: 'scope:execution', onlyDependOnLibsWithTags: ['scope:execution', 'scope:platform', 'scope:shared'] },
-            { sourceTag: 'scope:ledger', onlyDependOnLibsWithTags: ['scope:ledger', 'scope:platform', 'scope:shared'] },
+            {
+              sourceTag: 'scope:shared',
+              onlyDependOnLibsWithTags: ['scope:shared', 'scope:platform'],
+            },
+            {
+              sourceTag: 'scope:domain',
+              onlyDependOnLibsWithTags: ['scope:domain', 'scope:platform'],
+            },
+            {
+              sourceTag: 'scope:investor',
+              onlyDependOnLibsWithTags: ['scope:investor', 'scope:platform', 'scope:shared'],
+            },
+            {
+              sourceTag: 'scope:onboarding',
+              onlyDependOnLibsWithTags: ['scope:onboarding', 'scope:platform', 'scope:shared'],
+            },
+            {
+              sourceTag: 'scope:advisory',
+              onlyDependOnLibsWithTags: ['scope:advisory', 'scope:platform', 'scope:shared'],
+            },
+            {
+              sourceTag: 'scope:execution',
+              onlyDependOnLibsWithTags: ['scope:execution', 'scope:platform', 'scope:shared'],
+            },
+            {
+              sourceTag: 'scope:ledger',
+              onlyDependOnLibsWithTags: ['scope:ledger', 'scope:platform', 'scope:shared'],
+            },
             { sourceTag: 'scope:shell', onlyDependOnLibsWithTags: ['scope:shell', 'scope:shared'] },
           ],
         },
@@ -50,6 +74,15 @@ module.exports = [
     },
   },
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/tmp/**', '**/*.js', '**/*.cjs', '**/*.mjs', '!eslint.config.js'],
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/tmp/**',
+      '**/*.js',
+      '**/*.cjs',
+      '**/*.mjs',
+      '!eslint.config.js',
+      '**/vitest.config.*.timestamp*',
+    ],
   },
 ];

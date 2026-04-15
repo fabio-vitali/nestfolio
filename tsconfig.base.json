@@ -21,8 +21,12 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@nestfolio/broker-alpaca-adpt/events": ["services/execution/broker-alpaca-adpt/src/domain/events.ts"],
-      "@nestfolio/broker-alpaca-adpt/domain": ["services/execution/broker-alpaca-adpt/src/domain/index.ts"],
+      "@nestfolio/broker-alpaca-adpt/events": [
+        "services/execution/broker-alpaca-adpt/src/domain/events.ts"
+      ],
+      "@nestfolio/broker-alpaca-adpt/domain": [
+        "services/execution/broker-alpaca-adpt/src/domain/index.ts"
+      ],
       "@nestfolio/broker-ctrl/events": ["services/execution/broker-ctrl/src/domain/events.ts"],
       "@nestfolio/broker-ctrl/domain": ["services/execution/broker-ctrl/src/domain/index.ts"],
       "@nestfolio/cdk-constructs/core": ["libs/cdk-constructs/src/core/index.ts"],
@@ -31,22 +35,36 @@
       "@nestfolio/cdk-constructs/utils": ["libs/cdk-constructs/src/utils/index.ts"],
       "@nestfolio/agent-orchestrator": ["libs/agent-orchestrator/src/index.ts"],
       "@nestfolio/agent-orchestrator/*": ["libs/agent-orchestrator/src/*"],
-"@nestfolio/event-processor": ["libs/event-processor/src/index.ts"],
+      "@nestfolio/event-processor": ["libs/event-processor/src/index.ts"],
       "@nestfolio/event-processor/*": ["libs/event-processor/src/*"],
       "@nestfolio/event-types": ["libs/event-types/src/index.ts"],
       "@nestfolio/investor-bff/events": ["services/investor/investor-bff/src/domain/events.ts"],
       "@nestfolio/investor-ctrl/events": ["services/investor/investor-ctrl/src/domain/events.ts"],
       "@nestfolio/advisory-ctrl/events": ["services/advisory/advisory-ctrl/src/domain/events.ts"],
       "@nestfolio/advisory-bff/events": ["services/advisory/advisory-bff/src/domain/events.ts"],
-      "@nestfolio/compliance-ctrl/events": ["services/advisory/compliance-ctrl/src/domain/events.ts"],
-      "@nestfolio/decision-workflow-ctrl/events": ["services/advisory/decision-workflow-ctrl/src/domain/events.ts"],
-      "@nestfolio/yahoo-finance-adpt/events": ["services/advisory/yahoo-finance-adpt/src/domain/events.ts"],
-      "@nestfolio/marketwatch-adpt/events": ["services/advisory/marketwatch-adpt/src/domain/events.ts"],
+      "@nestfolio/compliance-ctrl/events": [
+        "services/advisory/compliance-ctrl/src/domain/events.ts"
+      ],
+      "@nestfolio/decision-workflow-ctrl/events": [
+        "services/advisory/decision-workflow-ctrl/src/domain/events.ts"
+      ],
+      "@nestfolio/yahoo-finance-adpt/events": [
+        "services/advisory/yahoo-finance-adpt/src/domain/events.ts"
+      ],
+      "@nestfolio/marketwatch-adpt/events": [
+        "services/advisory/marketwatch-adpt/src/domain/events.ts"
+      ],
       "@nestfolio/sec-edgar-adpt/events": ["services/advisory/sec-edgar-adpt/src/domain/events.ts"],
       "@nestfolio/fred-adpt/events": ["services/advisory/fred-adpt/src/domain/events.ts"],
-      "@nestfolio/alpha-vantage-adpt/events": ["services/advisory/alpha-vantage-adpt/src/domain/events.ts"],
-      "@nestfolio/portfolio-engine-ctrl/events": ["services/advisory/portfolio-engine-ctrl/src/domain/events.ts"],
-      "@nestfolio/execution-ctrl/events": ["services/execution/execution-ctrl/src/domain/events.ts"],
+      "@nestfolio/alpha-vantage-adpt/events": [
+        "services/advisory/alpha-vantage-adpt/src/domain/events.ts"
+      ],
+      "@nestfolio/portfolio-engine-ctrl/events": [
+        "services/advisory/portfolio-engine-ctrl/src/domain/events.ts"
+      ],
+      "@nestfolio/execution-ctrl/events": [
+        "services/execution/execution-ctrl/src/domain/events.ts"
+      ],
       "@nestfolio/ledger-ctrl/events": ["services/ledger/ledger-ctrl/src/domain/events.ts"],
       "@nestfolio/investor-adpt/domain": ["services/investor/investor-adpt/src/domain/index.ts"],
       "@nestfolio/advisory-adpt/domain": ["services/advisory/advisory-adpt/src/domain/index.ts"],
@@ -61,7 +79,8 @@
       "@nestfolio/integration-testing/*": ["libs/integration-testing/src/*"],
       "@nestfolio/e2e-feature-tests": ["apps/e2e-feature-tests/src/index.ts"],
       "@nestfolio/e2e-feature-tests/*": ["apps/e2e-feature-tests/src/*"],
-      "@nestfolio/ui": ["libs/ui/src/index.ts"]
+      "@nestfolio/ui": ["libs/ui/src/index.ts"],
+      "@nestfolio/feature-flags": ["libs/ui/feature-flags/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp", "dist"]
