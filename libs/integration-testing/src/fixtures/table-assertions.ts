@@ -45,6 +45,7 @@ export class TableAssertions {
     sk?: string;
     timeoutMs?: number;
     pollIntervalMs?: number;
+    match?: Record<string, unknown>;
   }): Promise<Record<string, unknown>> {
     const timeout = params.timeoutMs ?? this.ctx.timings.eventTimeout;
     const pollInterval = params.pollIntervalMs ?? this.ctx.timings.pollInterval;
@@ -59,8 +60,10 @@ export class TableAssertions {
         }));
         if (result.Item) {
           const item = unmarshall(result.Item);
-          this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
-          return item;
+          if (!params.match || Object.entries(params.match).every(([k, v]) => item[k] === v)) {
+            this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
+            return item;
+          }
         }
       } else {
         const result = await this.client.send(new QueryCommand({
@@ -71,15 +74,18 @@ export class TableAssertions {
         }));
         if (result.Items?.length) {
           const item = unmarshall(result.Items[0]);
-          this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
-          return item;
+          if (!params.match || Object.entries(params.match).every(([k, v]) => item[k] === v)) {
+            this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
+            return item;
+          }
         }
       }
 
       await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
 
-    throw new Error(`TableAssertions: timeout waiting for item pk=${params.pk} sk=${params.sk ?? '(any)'} in ${params.table} after ${timeout}ms`);
+    const matchDesc = params.match ? ` match=${JSON.stringify(params.match)}` : '';
+    throw new Error(`TableAssertions: timeout waiting for item pk=${params.pk} sk=${params.sk ?? '(any)'}${matchDesc} in ${params.table} after ${timeout}ms`);
   }
 
   async queryItems(params: {
