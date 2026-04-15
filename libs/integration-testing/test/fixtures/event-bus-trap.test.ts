@@ -3,7 +3,7 @@ import 'aws-sdk-client-mock-jest';
 import { SQSClient, ReceiveMessageCommand, DeleteMessageBatchCommand } from '@aws-sdk/client-sqs';
 import { EventBridgeClient as AwsEbClient } from '@aws-sdk/client-eventbridge';
 import { EventBusTrap } from '../../src/fixtures/event-bus-trap.fixture';
-import type { IntegrationContext } from '../../src/context';
+import type { TestContext } from '@nestfolio/test-support';
 
 const sqsMock = mockClient(SQSClient);
 mockClient(AwsEbClient);
@@ -21,7 +21,7 @@ function makeMessage(id: string, detailType: string) {
   };
 }
 
-function makeCtx(): IntegrationContext {
+function makeCtx(): TestContext {
   return {
     region: 'us-east-1',
     tenantId: 'tenant-1',
@@ -29,7 +29,7 @@ function makeCtx(): IntegrationContext {
     timings: { eventTimeout: 5_000, pollInterval: 100, putEventRetries: 1, putEventBackoffMs: 100 },
     cleanup: { register: jest.fn(), runAll: jest.fn() },
     ssm: { busArn: jest.fn().mockResolvedValue('arn:aws:events:us-east-1:111111111111:event-bus/test') },
-  } as unknown as IntegrationContext;
+  } as unknown as TestContext;
 }
 
 describe('EventBusTrap dedup + auto-delete', () => {

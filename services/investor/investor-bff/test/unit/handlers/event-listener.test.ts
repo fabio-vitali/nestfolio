@@ -13,6 +13,13 @@ jest.mock('@smithy/signature-v4', () => ({
   })),
 }));
 jest.mock('@aws-crypto/sha256-js', () => ({ Sha256: jest.fn() }));
+
+jest.mock('@nestfolio/event-processor', () => {
+  const actual = jest.requireActual('@nestfolio/event-processor');
+  return { ...actual, logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } };
+});
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { logger: mockLogger } = require('@nestfolio/event-processor');
 jest.mock('@aws-sdk/credential-provider-node', () => ({
   defaultProvider: jest.fn(),
 }));
@@ -105,23 +112,21 @@ describe('investor-bff event-listener', () => {
   describe('callAppSyncMutation', () => {
     it('skips when APPSYNC_URL is not set', async () => {
       delete process.env.APPSYNC_URL;
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      mockLogger.warn.mockClear();
 
       await callAppSyncMutation('mutation { test }', { foo: 'bar' });
 
       expect(global.fetch).not.toHaveBeenCalled();
-      expect(warnSpy).toHaveBeenCalledWith('APPSYNC_URL not set — skipping feature flag update');
-      warnSpy.mockRestore();
+      expect(mockLogger.warn).toHaveBeenCalledWith('APPSYNC_URL not set — skipping feature flag update');
     });
 
     it('logs error when fetch response is not ok', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false, status: 403 });
-      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+      mockLogger.error.mockClear();
 
       await callAppSyncMutation('mutation { test }', { foo: 'bar' });
 
-      expect(errorSpy).toHaveBeenCalledWith('AppSync mutation failed', { status: 403 });
-      errorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalledWith('AppSync mutation failed', { status: 403 });
     });
   });
 });

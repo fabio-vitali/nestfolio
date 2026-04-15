@@ -4,6 +4,10 @@
   "sourceRoot": "libs/test-support/src",
   "projectType": "library",
   "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": { "jestConfig": "libs/test-support/jest.config.js" }
+    },
     "lint": {
       "executor": "@nx/eslint:lint"
     }

@@ -1,4 +1,4 @@
-import { materializeToTable, toUow, skip, pickRequestContext, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, toUow, skip, pickRequestContext, logger, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { SignatureV4 } from '@smithy/signature-v4';
 import { Sha256 } from '@aws-crypto/sha256-js';
 import { defaultProvider } from '@aws-sdk/credential-provider-node';
@@ -17,7 +17,7 @@ export async function callAppSyncMutation(mutation: string, variables: Record<st
   const region = process.env.AWS_REGION ?? 'us-east-1';
 
   if (!appsyncUrl) {
-    console.warn('APPSYNC_URL not set — skipping feature flag update');
+    logger.warn('APPSYNC_URL not set — skipping feature flag update');
     return;
   }
   const url = new URL(appsyncUrl);
@@ -50,7 +50,7 @@ export async function callAppSyncMutation(mutation: string, variables: Record<st
   });
 
   if (!response.ok) {
-    console.error('AppSync mutation failed', { status: response.status });
+    logger.error('AppSync mutation failed', { status: response.status });
   }
 }
 
@@ -76,7 +76,7 @@ export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository 
       onboardingCompleted(payload, ctx),
     [InvestorBffEventTypes.OPERATING_MODE_CHANGED]: (payload: EventPayload, ctx: EventContext) =>
       operatingModeChanged(payload, ctx),
-    ['GO_LIVE_CONFIRMED']: async (payload: EventPayload, ctx: EventContext) => {
+    [InvestorBffEventTypes.GO_LIVE_CONFIRMED]: async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject as Record<string, unknown>;
       const reqCtx = { ...pickRequestContext(ctx), userId: (subject.userId as string) as typeof ctx.userId };
       const profileRepo = deps?.profileRepo ?? new InvestorProfileRepository(process.env['TABLE_NAME']!);

@@ -1,6 +1,6 @@
-import { createIntegrationContext } from '../src/context';
+import { createTestContext } from '../src/context';
 
-describe('createIntegrationContext', () => {
+describe('createTestContext', () => {
   const originalEnv = { ...process.env };
 
   afterEach(async () => {
@@ -12,7 +12,7 @@ describe('createIntegrationContext', () => {
       delete process.env.NESTFOLIO_INTEG_PREFIX;
       delete process.env.CI;
 
-      const ctx = await createIntegrationContext();
+      const ctx = await createTestContext();
 
       expect(ctx.prefix).toBe('dev');
       await ctx.cleanup.runAll();
@@ -22,7 +22,7 @@ describe('createIntegrationContext', () => {
       process.env.NESTFOLIO_INTEG_PREFIX = 'sandbox-pr-99';
       delete process.env.CI;
 
-      const ctx = await createIntegrationContext({ prefix: 'explicit' });
+      const ctx = await createTestContext({ prefix: 'explicit' });
 
       expect(ctx.prefix).toBe('explicit');
       await ctx.cleanup.runAll();
@@ -32,7 +32,7 @@ describe('createIntegrationContext', () => {
       process.env.NESTFOLIO_INTEG_PREFIX = 'sandbox-pr-42';
       delete process.env.CI;
 
-      const ctx = await createIntegrationContext();
+      const ctx = await createTestContext();
 
       expect(ctx.prefix).toBe('sandbox-pr-42');
       await ctx.cleanup.runAll();
@@ -44,7 +44,7 @@ describe('createIntegrationContext', () => {
       process.env.CI = 'true';
       delete process.env.NESTFOLIO_INTEG_PREFIX;
 
-      await expect(createIntegrationContext()).rejects.toThrow(
+      await expect(createTestContext()).rejects.toThrow(
         /NESTFOLIO_INTEG_PREFIX/,
       );
     });
@@ -53,7 +53,7 @@ describe('createIntegrationContext', () => {
       process.env.CI = 'true';
       process.env.NESTFOLIO_INTEG_PREFIX = 'sandbox-pr-1';
 
-      const ctx = await createIntegrationContext();
+      const ctx = await createTestContext();
 
       expect(ctx.prefix).toBe('sandbox-pr-1');
       await ctx.cleanup.runAll();
@@ -63,7 +63,7 @@ describe('createIntegrationContext', () => {
       process.env.CI = 'true';
       delete process.env.NESTFOLIO_INTEG_PREFIX;
 
-      const ctx = await createIntegrationContext({ prefix: 'explicit' });
+      const ctx = await createTestContext({ prefix: 'explicit' });
 
       expect(ctx.prefix).toBe('explicit');
       await ctx.cleanup.runAll();
@@ -73,7 +73,7 @@ describe('createIntegrationContext', () => {
       delete process.env.CI;
       delete process.env.NESTFOLIO_INTEG_PREFIX;
 
-      const ctx = await createIntegrationContext();
+      const ctx = await createTestContext();
 
       expect(ctx.prefix).toBe('dev');
       await ctx.cleanup.runAll();
