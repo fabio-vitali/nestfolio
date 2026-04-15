@@ -11,3 +11,4 @@ export { withDevtools } from './features/with-devtools';
 export { withLogoutReset } from './features/with-logout-reset';
 export { parseError, isGraphQLErrorResponse } from './errors/parse-error';
 export { FeatureFlagService } from './feature-flag.service';
+export { SystemBannerComponent } from './components/system-banner.component';
