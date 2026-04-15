@@ -1,0 +1,211 @@
+schema_version: 1
+flow: broker-circuit-breaker
+description: broker-alpaca-adpt detects Alpaca API failure, opens a global circuit breaker, triggers a singleton HealStateMachine that polls health until recovery or escalation, surfaces visibility to investors via feature flags and push notifications
+domains: [execution, investor]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Single trigger path with two downstream branches:
+#
+#   Branch A (Heal loop):  BROKER_CIRCUIT_OPEN → HealStateMachine (Orchestration
+#                          on ExecutionBus) → polls Alpaca until healthy →
+#                          BROKER_CIRCUIT_CLOSED or BROKER_HEAL_ESCALATED
+#
+#   Branch B (Investor):   BROKER_CIRCUIT_OPEN/CLOSED/HEAL_ESCALATED cross from
+#                          ExecutionBus → InvestorBus via investor-adpt →
+#                          investor-bff disables/re-enables feature flags →
+#                          investor-ctrl sends push/email notifications →
+#                          frontend SystemBannerComponent reacts in real time
+#
+# Circuit breaker scope:   Per-broker-adapter (CircuitBreaker#alpaca).
+#                          Failure domain is the adapter, not per-tenant/symbol.
+# Singleton guard:         Orchestration executionName='heal-alpaca' ensures only
+#                          one HealStateMachine runs at a time; subsequent
+#                          BROKER_CIRCUIT_OPEN events while a heal is in progress
+#                          are silently deduplicated by Step Functions.
+# ─────────────────────────────────────────────────────────────────────────────
+
+trigger: broker-alpaca-adpt ALPACA_ORDER_REQUESTED handler exhausts 3-attempt retry on Alpaca API, health-check (GET /v2/account) confirms broker is globally down, writes CircuitBreaker#alpaca (state=OPEN) + NormalizedEvent → CDC → BROKER_CIRCUIT_OPEN on ExecutionBus
+
+steps:
+  # ─── Phase 1: Failure detection and breaker opening ──────────────────────
+
+  - service: broker-alpaca-adpt
+    receives: ALPACA_ORDER_REQUESTED (or ALPACA_TRANSFER_REQUESTED | ALPACA_CANCEL_REQUESTED | ALPACA_ACCOUNT_CHECK_REQUESTED)
+    via: ExecutionBus -> SQS -> broker-alpaca-adpt-Ingress
+    state_change: |
+      Handler preamble checks CircuitBreaker#alpaca (isOpen); if already OPEN, records
+      AlpacaOrderResult (status=REJECTED, rejectionReason=BROKER_UNAVAILABLE) and returns.
+      If CLOSED: AlpacaClient.submitOrder() called with 3-attempt exponential retry.
+      On full retry exhaustion: calls isBrokerDown() (single GET /v2/account, ~5s timeout).
+      If broker confirmed down: CircuitBreakerRepository.open('alpaca', reason) writes
+      CircuitBreaker record (pk=CircuitBreaker#alpaca, sk=CircuitBreaker, state=OPEN,
+      openedAt=timestamp, reason). Also writes NormalizedEvent
+      (pk=NormalizedEvent#{tenantId}#{orderId}, sk=BROKER_CIRCUIT_OPEN#{timestamp}).
+      Records AlpacaOrderResult (status=REJECTED, rejectionReason=BROKER_UNAVAILABLE).
+    emits: BROKER_CIRCUIT_OPEN (CDC from NormalizedEvent:INSERT, sk passthrough prefix BROKER_CIRCUIT_OPEN)
+    idempotent: true
+    note: |
+      CircuitBreakerRepository.open uses a conditional DDB write (attribute_not_exists(pk)
+      OR state = CLOSED) to prevent double-open races. Subsequent handlers find isOpen=true
+      and skip the health check entirely.
+
+  # ─── Branch A: Heal loop ─────────────────────────────────────────────────
+
+  - service: broker-alpaca-adpt
+    receives: BROKER_CIRCUIT_OPEN
+    via: ExecutionBus -> Orchestration EB rule -> broker-alpaca-adpt HealStateMachine (singleton executionName='heal-alpaca', 2h timeout)
+    state_change: |
+      HealStateMachine (CircuitBreakerHealDefinition construct) runs:
+        InitAttemptCount (Pass: attemptCount=0)
+          → HealthCheck (HTTP:Invoke GET /v2/account via EB Connection with Alpaca auth,
+                         10s timeout, 3 retries 5/10/20s backoff)
+            on success → CloseBreaker (DDB UpdateItem: CircuitBreaker#alpaca state=CLOSED,
+                           closedAt=timestamp)
+              → EmitBreakerClosed (DDB PutItem: NormalizedEvent sk=BROKER_CIRCUIT_CLOSED#{timestamp})
+                → EndHealed (Succeed)
+            on catch → IncrementAttempt (Pass: attemptCount+1)
+              → CheckAttemptLimit (Choice)
+                  < maxAttempts (default 10) → WaitForRetry (Wait 60s) → HealthCheck (loop)
+                  >= maxAttempts → EscalateHealFailure (DDB PutItem: NormalizedEvent
+                                   sk=BROKER_HEAL_ESCALATED#{timestamp})
+                    → EndEscalated (Fail)
+    emits: BROKER_CIRCUIT_CLOSED or BROKER_HEAL_ESCALATED (CDC from NormalizedEvent:INSERT, sk passthrough)
+    idempotent: true
+
+  # ─── Branch A exit: breaker closed ───────────────────────────────────────
+
+  - service: broker-alpaca-adpt
+    action: HealStateMachine CloseBreaker step completes; CDC emits BROKER_CIRCUIT_CLOSED
+    state_change: CircuitBreaker#alpaca record updated to state=CLOSED, closedAt=timestamp
+    emits: BROKER_CIRCUIT_CLOSED (CDC from NormalizedEvent:INSERT)
+    idempotent: true
+
+  # ─── Branch A exit: heal escalated ───────────────────────────────────────
+
+  - service: broker-alpaca-adpt
+    action: HealStateMachine EscalateHealFailure step fires after maxAttempts exhausted
+    state_change: NormalizedEvent record written (sk=BROKER_HEAL_ESCALATED#{timestamp}); CircuitBreaker record remains OPEN
+    emits: BROKER_HEAL_ESCALATED (CDC from NormalizedEvent:INSERT)
+    idempotent: true
+
+  # ─── Branch B: Cross-domain forwarding ───────────────────────────────────
+
+  - cross_domain: BROKER_CIRCUIT_OPEN
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromExecution)
+
+  - cross_domain: BROKER_CIRCUIT_CLOSED
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromExecution)
+
+  - cross_domain: BROKER_HEAL_ESCALATED
+    from: ExecutionBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromExecution)
+
+  # ─── Branch B: investor-bff — feature flags ──────────────────────────────
+
+  - service: investor-bff
+    receives: BROKER_CIRCUIT_OPEN
+    via: InvestorBus -> SQS -> investor-bff-Ingress
+    state_change: |
+      event-listener handler calls AppSync updateFeatureFlag mutation (IAM auth) twice:
+        updateFeatureFlag(flag: 'initiateDeposit', enabled: false)
+        updateFeatureFlag(flag: 'requestWithdrawal', enabled: false)
+      AppSync persists flags and broadcasts onFeatureFlagUpdate subscription to all
+      connected investor-web clients.
+    emits: none (AppSync mutation side-effects only; no DDB CDC)
+    idempotent: true
+
+  - service: investor-bff
+    receives: BROKER_CIRCUIT_CLOSED
+    via: InvestorBus -> SQS -> investor-bff-Ingress
+    state_change: |
+      event-listener handler calls AppSync updateFeatureFlag mutation (IAM auth) twice:
+        updateFeatureFlag(flag: 'initiateDeposit', enabled: true)
+        updateFeatureFlag(flag: 'requestWithdrawal', enabled: true)
+      AppSync broadcasts onFeatureFlagUpdate subscription to all connected clients.
+    emits: none
+    idempotent: true
+
+  # ─── Branch B: investor-ctrl — notifications ─────────────────────────────
+
+  - service: investor-ctrl
+    receives: BROKER_CIRCUIT_OPEN
+    via: InvestorBus -> SQS -> investor-ctrl-Ingress
+    state_change: |
+      Creates Notification record (tenantId='SYSTEM', type=CIRCUIT_BREAKER_OPEN,
+      channel=PUSH, title='Deposits and withdrawals temporarily paused',
+      body='Deposits, withdrawals, and accepting decisions are temporarily paused
+      while we restore broker connectivity. We will notify you when service resumes.')
+    emits: NOTIFICATION_CREATED (CDC from Notification:INSERT)
+    idempotent: true
+
+  - service: investor-ctrl
+    receives: BROKER_CIRCUIT_CLOSED
+    via: InvestorBus -> SQS -> investor-ctrl-Ingress
+    state_change: |
+      Creates Notification record (tenantId='SYSTEM', type=CIRCUIT_BREAKER_CLOSED,
+      channel=PUSH, title='Service restored',
+      body='Broker connectivity has been restored. Deposits, withdrawals, and decision
+      confirmation are available again.')
+    emits: NOTIFICATION_CREATED (CDC from Notification:INSERT)
+    idempotent: true
+
+  - service: investor-ctrl
+    receives: BROKER_HEAL_ESCALATED
+    via: InvestorBus -> SQS -> investor-ctrl-Ingress
+    state_change: |
+      Creates two Notification records (tenantId='SYSTEM'):
+        1. type=BROKER_HEAL_ESCALATED, channel=EMAIL, title='Broker connectivity issue
+           requires attention', body='Automated recovery has failed after repeated attempts.
+           Operations team has been alerted. Deposits and withdrawals remain paused.'
+        2. type=BROKER_HEAL_ESCALATED, channel=PUSH (same message, shorter copy)
+    emits: NOTIFICATION_CREATED (CDC from Notification:INSERT, two records)
+    idempotent: true
+
+  # ─── Branch B: investor-web frontend ─────────────────────────────────────
+
+  - service: investor-web
+    action: Angular app boots; shell-level FeatureFlagService subscribes to onFeatureFlagUpdate AppSync subscription and calls getFeatureFlags query to hydrate FeatureFlagsStore
+    via: AppSync WebSocket subscription (Cognito auth)
+    state_change: FeatureFlagsStore (NgRx signal store) updated in real time when updateFeatureFlag mutation fires
+    emits: none
+
+  - service: investor-web
+    action: SystemBannerComponent (in shell app-root) renders warning banner when initiateDeposit or requestWithdrawal flag is disabled
+    via: FeatureFlagsStore signal; SystemBannerComponent uses async pipe on selectDisabledFlags
+    state_change: Banner visible while any monitored flag is disabled; auto-dismisses when all re-enabled
+    emits: none
+
+  - service: investor-web
+    action: Deposit and withdrawal buttons in MFEs disabled when flags are off; advisory-bff confirmDecision button also disabled (frontend guard; investor-bff pipeline resolver rejects as fallback)
+    via: FeatureFlagDirective (hasFeature structural directive) on button elements
+    state_change: none
+    emits: none
+
+success_criteria:
+  - broker-alpaca-adpt writes CircuitBreaker#alpaca (state=OPEN) only after health check confirms broker is globally down (not on first transient failure)
+  - BROKER_CIRCUIT_OPEN emitted via CDC from NormalizedEvent INSERT within seconds of detection
+  - HealStateMachine starts as singleton (executionName='heal-alpaca'); duplicate BROKER_CIRCUIT_OPEN events during active heal are silently deduplicated
+  - HealStateMachine CloseBreaker updates CircuitBreaker#alpaca to state=CLOSED and emits BROKER_CIRCUIT_CLOSED via CDC
+  - BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED all forwarded ExecutionBus → InvestorBus via investor-adpt
+  - investor-bff disables initiateDeposit + requestWithdrawal flags on OPEN; re-enables on CLOSED
+  - AppSync onFeatureFlagUpdate subscription delivers flag changes to all connected investor-web clients in real time
+  - investor-ctrl sends PUSH notification on BROKER_CIRCUIT_OPEN and BROKER_CIRCUIT_CLOSED; EMAIL+PUSH on BROKER_HEAL_ESCALATED
+  - SystemBannerComponent renders and dismisses reactively based on FeatureFlagsStore signal state
+  - Deposit and withdrawal UI controls disabled while flags are off
+
+failure_modes:
+  - Detection fails: isBrokerDown() call itself times out or throws → breaker not opened; handler falls through to existing error path; no BROKER_CIRCUIT_OPEN emitted; per-order failures continue accumulating
+  - Open race: two concurrent handlers both pass isOpen=false check; conditional DDB write ensures only first succeeds; second write is silently rejected (condition failed); one NormalizedEvent written, one heal SM started
+  - CDC pipeline: DynamoDB Streams event delivery delayed or Lambda throttled → BROKER_CIRCUIT_OPEN reaches ExecutionBus late; heal SM starts late; investor visibility delayed
+  - Heal SM singleton: SF execution name conflict if a previous heal completed and a new OPEN fires within 90 days (SF execution history window); resolved by appending date suffix to executionName if needed
+  - HealthCheck HTTP:Invoke: EB Connection secret rotation mid-execution → auth failure → SF retries will re-fetch credentials; no special handling needed
+  - Heal SM exhausts maxAttempts: BROKER_HEAL_ESCALATED emitted; CircuitBreaker record remains OPEN; all subsequent ALPACA_ORDER_REQUESTED continue to reject immediately; manual intervention required to reset
+  - investor-adpt DLQ: InvestorIngress-FromExecution rule target throttled → BROKER_CIRCUIT_OPEN/CLOSED/HEAL_ESCALATED land in FromExecutionDLQ (14-day retention); feature flags and notifications delayed until DLQ redriven
+  - investor-bff AppSync mutation fails: IAM permission error or AppSync unavailable → feature flags not updated; FeatureFlagsStore not notified; UI continues showing enabled buttons during outage
+  - investor-ctrl ingress DLQ: Notification records not created; push/email notifications not sent; investor has no history of the outage
+  - Frontend offline: investor-web not connected during flag change → misses onFeatureFlagUpdate subscription event; getFeatureFlags query on next app load reconciles state
