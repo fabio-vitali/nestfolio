@@ -8,6 +8,8 @@ export {
   withDecision,
   withNotification,
   withHoldings,
+  withBreakerOpen,
+  closeBreakerFixture,
   type Fixture,
   type FixtureResult,
 } from './helpers/fixtures';

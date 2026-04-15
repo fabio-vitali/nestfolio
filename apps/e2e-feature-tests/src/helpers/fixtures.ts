@@ -3,7 +3,7 @@ import {
   type TestContext,
 } from '@nestfolio/test-support';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
@@ -236,6 +236,92 @@ export function withHoldings(
         },
       });
     }
+    return {};
+  };
+}
+
+/**
+ * Opens the circuit breaker on broker-alpaca-adpt by writing a CircuitBreaker
+ * DDB record and a NormalizedEvent (which triggers CDC → BROKER_CIRCUIT_OPEN).
+ * Simulates what the handler does when the Alpaca API is unreachable.
+ */
+export function withBreakerOpen(): Fixture {
+  return async (ctx, tenant, _eb, _bff) => {
+    const tableName = await ctx.ssm.tableName('broker-alpaca-adpt');
+    const ddbClient = new DynamoDBClient({ region: ctx.region });
+    const ddb = DynamoDBDocumentClient.from(ddbClient);
+    const now = new Date().toISOString();
+
+    try {
+      // Open the breaker
+      await ddb.send(new PutCommand({
+        TableName: tableName,
+        Item: {
+          pk: 'CircuitBreaker#alpaca',
+          sk: 'CircuitBreaker',
+          __typename: 'CircuitBreaker',
+          state: 'OPEN',
+          adapter: 'alpaca',
+          openedAt: now,
+          reason: 'E2E test — simulated failure',
+        },
+      }));
+
+      // Write NormalizedEvent to trigger CDC → BROKER_CIRCUIT_OPEN
+      await ddb.send(new PutCommand({
+        TableName: tableName,
+        Item: {
+          pk: `NormalizedEvent#${tenant.tenantId}#CIRCUIT_BREAKER`,
+          sk: `BROKER_CIRCUIT_OPEN#${now}`,
+          __typename: 'NormalizedEvent',
+          tenantId: tenant.tenantId,
+          timestamp: now,
+        },
+      }));
+    } finally {
+      ddbClient.destroy();
+    }
+
+    return {};
+  };
+}
+
+/**
+ * Closes the circuit breaker by updating the DDB record and writing a
+ * NormalizedEvent (which triggers CDC → BROKER_CIRCUIT_CLOSED).
+ */
+export function closeBreakerFixture(): Fixture {
+  return async (ctx, tenant, _eb, _bff) => {
+    const tableName = await ctx.ssm.tableName('broker-alpaca-adpt');
+    const ddbClient = new DynamoDBClient({ region: ctx.region });
+    const ddb = DynamoDBDocumentClient.from(ddbClient);
+    const now = new Date().toISOString();
+
+    try {
+      // Close the breaker
+      await ddb.send(new UpdateCommand({
+        TableName: tableName,
+        Key: { pk: 'CircuitBreaker#alpaca', sk: 'CircuitBreaker' },
+        UpdateExpression: 'SET #st = :st, closedAt = :ca',
+        ExpressionAttributeNames: { '#st': 'state' },
+        ExpressionAttributeValues: { ':st': 'CLOSED', ':ca': now },
+      }));
+
+      // Write NormalizedEvent to trigger CDC → BROKER_CIRCUIT_CLOSED
+      await ddb.send(new PutCommand({
+        TableName: tableName,
+        Item: {
+          pk: `NormalizedEvent#${tenant.tenantId}#CIRCUIT_BREAKER`,
+          sk: `BROKER_CIRCUIT_CLOSED#${now}`,
+          __typename: 'NormalizedEvent',
+          tenantId: tenant.tenantId,
+          timestamp: now,
+        },
+      }));
+    } finally {
+      ddbClient.destroy();
+    }
+
     return {};
   };
 }

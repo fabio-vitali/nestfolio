@@ -15,3 +15,13 @@ export interface RecentActivityResponse {
     metadata: string | null;
   }>;
 }
+
+export interface FeatureFlag {
+  name: string;
+  enabled: boolean;
+  reason: string | null;
+}
+
+export interface FeatureFlagsResponse {
+  getFeatureFlags: FeatureFlag[];
+}
