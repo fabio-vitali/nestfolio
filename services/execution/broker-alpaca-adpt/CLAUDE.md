@@ -32,8 +32,7 @@ Stack: services/execution/broker-alpaca-adpt/src/service.stack.ts
   - Invokes: TransferPollFn on each poll cycle
 
 - HealStateMachine: circuit breaker healing workflow (CircuitBreakerHealDefinition)
-  - Triggers: BROKER_CIRCUIT_OPEN (via grantStartExecution, not EB rule — singleton guard)
-  - executionName: 'heal-alpaca' (idempotent StartExecution)
+  - Triggers: BROKER_CIRCUIT_OPEN (EB rule)
   - Timeout: 2 hours
   - Health checks Alpaca API via EB Connection (HTTP:Invoke) with retry
   - On success: closes breaker (DDB UpdateItem) → emits BROKER_CIRCUIT_CLOSED (CDC)
@@ -68,14 +67,17 @@ Stack: services/execution/broker-alpaca-adpt/src/service.stack.ts
 - AlpacaAdptEventTypes (outbound/CDC): ALPACA_ORDER_PLACED, ALPACA_ORDER_FILLED, ALPACA_ORDER_PARTIALLY_FILLED, ALPACA_ORDER_REJECTED, ALPACA_ORDER_CANCELLED, ALPACA_ORDER_CANCEL_FAILED, ALPACA_TRANSFER_INITIATED, ALPACA_TRANSFER_COMPLETED, ALPACA_TRANSFER_FAILED, ALPACA_ACCOUNT_SNAPSHOT, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED
 
 ## Tests
-- alpaca-orders.service.test.ts
-- alpaca.client.test.ts
-- circuit-breaker.repository.test.ts
-- event-listener.test.ts
-- order-mapping.repository.test.ts
-- order-poll-handler.test.ts
-- transfer-mapping.repository.test.ts
-- transfer-poll-handler.test.ts
+- service.stack.test.ts
+- unit/alpaca-orders.service.test.ts
+- unit/alpaca.client.test.ts
+- unit/circuit-breaker.repository.test.ts
+- unit/event-listener.test.ts
+- unit/order-mapping.repository.test.ts
+- unit/order-poll-handler.test.ts
+- unit/transfer-mapping.repository.test.ts
+- unit/transfer-poll-handler.test.ts
+- integration/broker-alpaca-adpt.integration.test.ts
+- integration/broker-alpaca-adpt.resilience.integration.test.ts
 
 ## Dependencies
-- libs: cdk-constructs/core, cdk-constructs/utils, event-processor
+- libs: cdk-constructs/core, cdk-constructs/utils, event-processor, event-types

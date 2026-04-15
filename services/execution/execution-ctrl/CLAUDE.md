@@ -1,37 +1,40 @@
 # execution-ctrl
 
 Domain: execution | Bus: ExecutionBus
-Stack: services/execution/execution-ctrl/src/service.stack.ts
+Stack: `services/execution/execution-ctrl/src/service.stack.ts`
 
 ## State
-- Table (DynamoDB, streams enabled)
+- DynamoDB Table (streams enabled)
 
 ## Ingress
-- ExecutionBus → execution-ctrl-ingress (SQS → Lambda)
-  Subscriptions: DECISION_APPROVED, USER_CONFIRMED, CIRCUIT_BREAKER_TRIGGERED, CIRCUIT_BREAKER_RESET, ACCOUNT_CLOSURE_REQUESTED
+- ExecutionBus -> SQS -> event-listener Lambda
+  - DECISION_APPROVED (from advisory-adpt)
+  - USER_CONFIRMED (from advisory-adpt)
+  - ACCOUNT_CLOSURE_REQUESTED (from investor-adpt)
 
 ## Egress
-- CDC: DynamoDB Streams → execution-ctrl-egress (Lambda)
-  Emits:
-  - Order (insert): ORDER_SUBMITTED (default), ORDER_STAGED (status=STAGED), ORDER_REJECTED (status=REJECTED)
-  - Order (modify): ORDER_UPDATED (default), ORDER_SUBMITTED (status=SUBMITTED), ORDER_REJECTED (status=REJECTED)
-  - StagedOrder (insert): STAGED_ORDER
+- DynamoDB Streams -> event-publisher Lambda (CDC)
+  - Order insert: ORDER_CREATED (default), ORDER_SUBMITTED (status=SUBMITTED), ORDER_STAGED (status=STAGED), ORDER_REJECTED (status=REJECTED)
+  - Order modify: ORDER_UPDATED (default), ORDER_SUBMITTED (status=SUBMITTED), ORDER_REJECTED (status=REJECTED)
+  - StagedOrder insert: STAGED_ORDER_CREATED
+  - StagedOrder modify: STAGED_ORDER_UPDATED
 
-## Scheduled
-- MarketOpenSchedule: staged-order-processor runs at US market open (cron 14:30 UTC, MON-FRI)
-  - Target: StagedOrderProcessor Lambda
-  - Timeout: 5 min
-  - Max retries: 2, flexible window: 5 min
+## Standalone Lambdas
+- StagedOrderProcessor: scheduled via AdapterSchedule (cron 14:30 UTC MON-FRI), timeout 5min, maxRetry 2, flexibleWindow 5min
+  - Reads staged orders, re-runs safety checks, submits or rejects, deletes StagedOrder records
 
 ## Handlers
-- event-listener.ts — SQS Ingress handler (event-processor pipeline)
-- event-publisher.ts — CDC Egress handler (event-processor pipeline)
-- staged-order-processor.ts — scheduled Lambda, processes staged orders at market open
+- `event-listener.ts` — materializeToTable pipeline, errorEventType: EXECUTION_CTRL_FAILED
+- `event-publisher.ts` — changeDataCapture pipeline
+- `staged-order-processor.ts` — standalone scheduled Lambda (not event-processor pipeline)
 
-## Event Types (domain/events.ts)
-- ExecutionCtrlEventTypes: ORDER_SUBMITTED, ORDER_STAGED, EXECUTION_PAUSED, EXECUTION_RESUMED
+## Event Types (`domain/events.ts`)
+- ORDER_CREATED, ORDER_UPDATED, ORDER_REJECTED, ORDER_SUBMITTED, ORDER_STAGED
+- EXECUTION_PAUSED, EXECUTION_RESUMED
+- STAGED_ORDER_CREATED, STAGED_ORDER_UPDATED
 
 ## Tests
+### Unit (`test/unit/`)
 - event-listener.test.ts
 - market-hours.service.test.ts
 - order-lifecycle.service.test.ts
@@ -39,6 +42,16 @@ Stack: services/execution/execution-ctrl/src/service.stack.ts
 - safety-checks.service.test.ts
 - staged-order-processor.test.ts
 
+### Integration (`test/integration/`)
+- execution-ctrl.integration.test.ts
+- execution-ctrl.resilience.integration.test.ts
+
 ## Dependencies
-- libs: cdk-constructs/core, cdk-constructs/extensions, cdk-constructs/utils, event-processor
-- cross-domain types: advisory-adpt/domain, investor-adpt/domain
+- `@nestfolio/cdk-constructs/core` (ServiceStack, State, Ingress, Egress)
+- `@nestfolio/cdk-constructs/extensions` (AdapterSchedule)
+- `@nestfolio/cdk-constructs/utils` (defaultLambdaProps)
+- `@nestfolio/event-processor`
+- `@nestfolio/event-types`
+- `@nestfolio/advisory-adpt/domain` (cross-domain event types + ProposedTrade)
+- `@nestfolio/investor-adpt/domain` (cross-domain event types)
+- `@nestfolio/execution-adpt/domain` (ExecutionIngestEventTypes)

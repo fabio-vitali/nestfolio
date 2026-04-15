@@ -28,7 +28,7 @@ Stack: services/investor/investor-bff/src/service.stack.ts
   - enableIamAuth: true (allows Lambda→AppSync IAM-signed mutations for feature flags)
   - Query: get-profile, get-goals, get-notifications, get-unread-count, get-feature-flags
   - Mutation: update-goal, update-mandate, revoke-mandate, initiate-deposit, request-withdrawal, request-account-closure (noneDataSource), update-feature-flag (@aws_iam), mark-notification-read
-  - Subscription: on-feature-flag-update (@aws_subscribe on updateFeatureFlag)
+  - Subscription: on-notification (@aws_subscribe on markNotificationRead), on-feature-flag-update (@aws_subscribe on updateFeatureFlag)
   - Pipeline steps: check-feature-flag.fn.js gates initiateDeposit + requestWithdrawal
 
 ## Handlers
@@ -46,13 +46,8 @@ Stack: services/investor/investor-bff/src/service.stack.ts
 - InvestorBffEventTypes: USER_REGISTERED, USER_AUTHENTICATED, USER_SESSION_EXPIRED, USER_DELETION_REQUESTED, PII_REMOVED, TENANT_ANONYMIZED, ONBOARDING_ANSWER_RECORDED, ONBOARDING_COMPLETED, GOAL_CREATED, GOAL_UPDATED, RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED, MANDATE_CREATED, MANDATE_UPDATED, MANDATE_REVOKED, OPERATING_MODE_SELECTED, OPERATING_MODE_CHANGED, DEPOSIT_INITIATED, WITHDRAWAL_REQUESTED, ACCOUNT_CLOSURE_REQUESTED, ACCOUNT_CLOSED, BROKER_AUTHORIZATION_REVOKED, NOTIFICATION_READ, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, GO_LIVE_CONFIRMED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, DEPOSIT_UPDATED, WITHDRAWAL_UPDATED, EXECUTION_MODE_CHANGED, EXECUTION_MODE_CHANGE_UPDATED
 
 ## Tests
-- handlers/event-listener.test.ts
-- repositories/investor-profile.repository.test.ts
-- transforms/balance-updated.test.ts
-- transforms/user-registered.test.ts
-- transforms/notification-created.test.ts
-- transforms/onboarding-completed.test.ts
-- transforms/operating-mode-changed.test.ts
+- Unit: handlers/event-listener.test.ts, repositories/investor-profile.repository.test.ts, transforms/balance-updated.test.ts, transforms/user-registered.test.ts, transforms/notification-created.test.ts, transforms/onboarding-completed.test.ts, transforms/operating-mode-changed.test.ts, domain/guardrail-params.test.ts
+- Integration: investor-bff.integration.test.ts (materializations, AppSync mutations, AppSync queries, circuit breaker feature flags)
 
 ## Dependencies
 - libs: cdk-constructs/core, event-processor

@@ -5,6 +5,7 @@ import { logger } from '@nestfolio/event-processor';
 import { requireEnv } from '@nestfolio/event-processor';
 
 const BUS_NAME = requireEnv('BUS_NAME');
+const SERVICE_NAME = 'advisory-ctrl';
 const client = new EventBridgeClient({});
 
 export const handler = async (event: { eventType: string; detail: Record<string, unknown> }): Promise<unknown> => {
@@ -13,7 +14,7 @@ export const handler = async (event: { eventType: string; detail: Record<string,
   await client.send(new PutEventsCommand({
     Entries: [{
       EventBusName: BUS_NAME,
-      Source: 'advisory-ctrl',
+      Source: `${BUS_NAME}@${SERVICE_NAME}`,
       DetailType: event.eventType,
       Detail: JSON.stringify(event.detail),
     }],

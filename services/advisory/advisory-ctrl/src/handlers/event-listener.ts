@@ -7,6 +7,7 @@ import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
+import { AdvisoryCtrlEventTypes } from '../domain/events';
 import { DecisionRepository } from '../repositories/decision.repository';
 import { DecisionLifecycleService } from '../services/decision-lifecycle.service';
 
@@ -164,5 +165,5 @@ const deps: EventListenerDeps = {
 export const handler = materializeToTable({
   serviceName: 'advisory-ctrl',
   handlers: createHandlers(deps),
-  errorEventType: 'ADVISORY_CTRL_FAILED',
+  errorEventType: AdvisoryCtrlEventTypes.ADVISORY_CTRL_FAILED,
 });

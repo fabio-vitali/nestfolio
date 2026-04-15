@@ -1,30 +1,61 @@
 # advisory-adpt
 
-Domain: advisory | Bus: advisoryBus
-Stack: services/advisory/advisory-adpt/src/service.stack.ts
+Domain: advisory | Bus: AdvisoryBus
+Stack: `services/advisory/advisory-adpt/src/service.stack.ts`
+Tags: `scope:advisory`, `type:adpt`
 
 ## State
-None (stateless adapter — EB Rule forwarding only)
 
-## Cross-Domain Event Forwarding (Pull Model)
-- Investor → Advisory:
-  Rule on investorBus → advisoryBus (DLQ: FromInvestorDLQ, 14-day retention, KMS encrypted)
-  Events: GOAL_CREATED, GOAL_UPDATED, RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED
+None (stateless adapter -- EB Rule forwarding only)
 
-- Execution → Advisory:
-  Rule on executionBus → advisoryBus (DLQ: FromExecutionDLQ, 14-day retention, KMS encrypted)
-  Events: ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED
+## Ingress (Cross-Domain Event Forwarding, Pull Model)
 
-- Ledger → Advisory:
-  Rule on ledgerBus → advisoryBus (DLQ: FromLedgerDLQ, 14-day retention, KMS encrypted)
-  Events: PORTFOLIO_UPDATED, PORTFOLIO_DRIFT_DETECTED
+### Investor -> Advisory
+Rule on InvestorBus -> AdvisoryBus (DLQ: FromInvestorDLQ, 14-day retention, KMS encrypted)
+Events: GOAL_CREATED, GOAL_UPDATED, RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED
+
+### Execution -> Advisory
+Rule on ExecutionBus -> AdvisoryBus (DLQ: FromExecutionDLQ, 14-day retention, KMS encrypted)
+Events: ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED
+
+### Ledger -> Advisory
+Rule on LedgerBus -> AdvisoryBus (DLQ: FromLedgerDLQ, 14-day retention, KMS encrypted)
+Events: PORTFOLIO_UPDATED, PORTFOLIO_DRIFT_DETECTED
+
+## Egress
+
+None (adapter does not emit events)
+
+## Standalone Lambdas
+
+None (no handlers -- pure EB rule forwarding)
+
+## Facade
+
+None
+
+## Orchestration
+
+None
 
 ## Event Types (domain/events.ts)
-- AdvisoryCrossDomainEventTypes: DECISION_PACKET_CREATED, DECISION_APPROVED, CIRCUIT_BREAKER_TRIGGERED, CIRCUIT_BREAKER_RESET, USER_CONFIRMATION_REQUESTED, EXPLANATION_GENERATED, DECISION_BLOCKED, ESCALATION_TRIGGERED, INCIDENT_DETECTED, INCIDENT_RESOLVED, USER_CONFIRMED
-- AdvisoryIngestEventTypes: GOAL_CREATED, GOAL_UPDATED, RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED, PORTFOLIO_UPDATED, PORTFOLIO_DRIFT_DETECTED
+
+### AdvisoryCrossDomainEventTypes (exported, not used by this stack)
+DECISION_PACKET_CREATED, DECISION_APPROVED, USER_CONFIRMATION_REQUESTED, EXPLANATION_GENERATED, DECISION_BLOCKED, ESCALATION_TRIGGERED, INCIDENT_DETECTED, INCIDENT_RESOLVED, USER_CONFIRMED
+
+### AdvisoryIngestEventTypes (used in EB rules)
+GOAL_CREATED, GOAL_UPDATED, RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED, PORTFOLIO_UPDATED, PORTFOLIO_DRIFT_DETECTED
 
 ## Tests
-- service.stack.test.ts
+
+- `test/service.stack.test.ts` -- CDK snapshot assertions (3 rules, 3 DLQs, tags)
+- `test/integration/from-investor.integration.test.ts` -- GOAL_UPDATED forwarding
+- `test/integration/from-execution.integration.test.ts` -- execution event forwarding
+- `test/integration/from-ledger.integration.test.ts` -- ledger event forwarding
 
 ## Dependencies
-- libs: cdk-constructs (core, observability, extensions)
+
+- `@nestfolio/cdk-constructs` (core, observability, extensions)
+- `@nestfolio/event-types` (eventName branded type)
+- `@nestfolio/test-support` (integration tests)
+- `@nestfolio/integration-testing` (EventBusTrap)
