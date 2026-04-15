@@ -18,15 +18,12 @@ export interface OrderWorkflowDefinitionProps {
  *
  * Flow:
  * 1. ReadExecutionMode (DDB GetItem)
- * 2. ReadCircuitBreaker (DDB GetItem)
- * 3. IsCircuitBreakerOpen? Yes -> BreakerWait -> loop; No -> RouteOrder
- * 4. RouteOrder (Lambda invoke.waitForTaskToken)
- * 5. ClassifyResult (Choice on adapter callback)
+ * 2. RouteOrder (Lambda invoke.waitForTaskToken)
+ * 3. ClassifyResult (Choice on adapter callback)
  *    - FILLED -> MarkFilled (Parallel DDB writes) -> End
  *    - PARTIALLY_FILLED -> MarkPartialFill -> WaitForMoreFills -> ClassifyResult
- *    - transient failure -> CheckRetryCount -> retry loop or MarkFailed
  *    - default -> MarkRejected -> End
- * 6. HandleTimeout -> open breaker + escalate -> End
+ * 4. HandleTimeout -> escalate order + NormalizedEvent -> End
  */
 export class OrderWorkflowDefinition extends Construct {
   readonly definitionBody: sfn.DefinitionBody;
@@ -56,37 +53,7 @@ export class OrderWorkflowDefinition extends Construct {
     });
 
     // ---------------------------------------------------------------
-    // 2. ReadCircuitBreaker — DDB GetItem (direct)
-    // ---------------------------------------------------------------
-    const readCircuitBreaker = new sfn.CustomState(this, 'ReadCircuitBreaker', {
-      stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::dynamodb:getItem',
-        Parameters: {
-          TableName: tableName,
-          Key: {
-            pk: { 'S.$': "States.Format('CircuitBreaker#{}#{}', $.tenantId, $.symbol)" },
-            sk: { S: 'CircuitBreaker' },
-          },
-        },
-        ResultPath: '$.circuitBreaker',
-      },
-    });
-
-    // ---------------------------------------------------------------
-    // 3. IsCircuitBreakerOpen — Choice
-    // ---------------------------------------------------------------
-    const isCircuitBreakerOpen = new sfn.Choice(this, 'IsCircuitBreakerOpen');
-
-    // ---------------------------------------------------------------
-    // 4. BreakerWait — Wait 30s, then re-read breaker
-    // ---------------------------------------------------------------
-    const breakerWait = new sfn.Wait(this, 'BreakerWait', {
-      time: sfn.WaitTime.duration(Duration.seconds(30)),
-    });
-
-    // ---------------------------------------------------------------
-    // 5. RouteOrder — Lambda invoke.waitForTaskToken
+    // 2. RouteOrder — Lambda invoke.waitForTaskToken
     // ---------------------------------------------------------------
     const routeOrder = new sfn.CustomState(this, 'RouteOrder', {
       stateJson: {
@@ -106,12 +73,12 @@ export class OrderWorkflowDefinition extends Construct {
     });
 
     // ---------------------------------------------------------------
-    // 6. ClassifyResult — Choice on adapter result
+    // 3. ClassifyResult — Choice on adapter result
     // ---------------------------------------------------------------
     const classifyResult = new sfn.Choice(this, 'ClassifyResult');
 
     // ---------------------------------------------------------------
-    // 7. MarkFilled — Parallel: UpdateItem (FILLED) + PutItem (NormalizedEvent ORDER_FILLED)
+    // 4. MarkFilled — Parallel: UpdateItem (FILLED) + PutItem (NormalizedEvent ORDER_FILLED)
     // ---------------------------------------------------------------
     const markFilledUpdateOrder = new sfn.CustomState(this, 'MarkFilledUpdateOrder', {
       stateJson: {
@@ -167,7 +134,7 @@ export class OrderWorkflowDefinition extends Construct {
     const endFilled = new sfn.Succeed(this, 'EndFilled');
 
     // ---------------------------------------------------------------
-    // 8. MarkPartialFill — DDB UpdateItem, then WaitForMoreFills
+    // 5. MarkPartialFill — DDB UpdateItem, then WaitForMoreFills
     // ---------------------------------------------------------------
     const markPartialFill = new sfn.CustomState(this, 'MarkPartialFill', {
       stateJson: {
@@ -210,7 +177,7 @@ export class OrderWorkflowDefinition extends Construct {
     });
 
     // ---------------------------------------------------------------
-    // 9. MarkRejected — Parallel: UpdateItem (REJECTED) + PutItem (NormalizedEvent ORDER_REJECTED)
+    // 6. MarkRejected — Parallel: UpdateItem (REJECTED) + PutItem (NormalizedEvent ORDER_REJECTED)
     // ---------------------------------------------------------------
     const markRejectedUpdateOrder = new sfn.CustomState(this, 'MarkRejectedUpdateOrder', {
       stateJson: {
@@ -263,162 +230,16 @@ export class OrderWorkflowDefinition extends Construct {
     const endRejected = new sfn.Succeed(this, 'EndRejected');
 
     // ---------------------------------------------------------------
-    // 10. CheckRetryCount — Choice: retryCount < 3 → IncrementRetry, else → MarkFailed
-    // ---------------------------------------------------------------
-    const checkRetryCount = new sfn.Choice(this, 'CheckRetryCount');
-
-    // ---------------------------------------------------------------
-    // 11. IncrementRetry — DDB UpdateItem (increment retryCount)
-    // ---------------------------------------------------------------
-    const incrementRetry = new sfn.CustomState(this, 'IncrementRetry', {
-      stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::dynamodb:updateItem',
-        Parameters: {
-          TableName: tableName,
-          Key: {
-            pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.tenantId, $.orderId)" },
-            sk: { S: 'BrokerOrder' },
-          },
-          UpdateExpression: 'SET retryCount = retryCount + :inc',
-          ExpressionAttributeValues: {
-            ':inc': { N: '1' },
-          },
-          ReturnValues: 'ALL_NEW',
-        },
-        ResultSelector: {
-          'retryCount.$': '$.Attributes.retryCount.N',
-        },
-        ResultPath: '$.retryState',
-      },
-    });
-
-    // ---------------------------------------------------------------
-    // 12. RetryBackoff — Choice on retryCount → Wait5s / Wait15s / Wait45s
-    // ---------------------------------------------------------------
-    const retryBackoff = new sfn.Choice(this, 'RetryBackoff');
-
-    const wait5s = new sfn.Wait(this, 'Wait5s', {
-      time: sfn.WaitTime.duration(Duration.seconds(5)),
-    });
-
-    const wait15s = new sfn.Wait(this, 'Wait15s', {
-      time: sfn.WaitTime.duration(Duration.seconds(15)),
-    });
-
-    const wait45s = new sfn.Wait(this, 'Wait45s', {
-      time: sfn.WaitTime.duration(Duration.seconds(45)),
-    });
-
-    // ---------------------------------------------------------------
-    // 13. WaitForRetryResult — Lambda invoke.waitForTaskToken (re-invoke RouteOrder)
-    // ---------------------------------------------------------------
-    const waitForRetryResult = new sfn.CustomState(this, 'WaitForRetryResult', {
-      stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::lambda:invoke.waitForTaskToken',
-        Parameters: {
-          FunctionName: routeOrderFn.functionArn,
-          Payload: {
-            'order.$': '$',
-            'executionMode.$': '$.executionMode.Item.mode.S',
-            'taskToken.$': '$$.Task.Token',
-          },
-        },
-        TimeoutSeconds: 300,
-        ResultPath: '$.adapterResult',
-      },
-    });
-
-    // ---------------------------------------------------------------
-    // 14. MarkFailed — Parallel: UpdateItem (FAILED) + PutItem (NormalizedEvent ORDER_REJECTED)
-    // ---------------------------------------------------------------
-    const markFailedUpdateOrder = new sfn.CustomState(this, 'MarkFailedUpdateOrder', {
-      stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::dynamodb:updateItem',
-        Parameters: {
-          TableName: tableName,
-          Key: {
-            pk: { 'S.$': "States.Format('BrokerOrder#{}#{}', $.tenantId, $.orderId)" },
-            sk: { S: 'BrokerOrder' },
-          },
-          UpdateExpression: 'SET #st = :st, failureReason = :fr',
-          ExpressionAttributeNames: { '#st': 'state' },
-          ExpressionAttributeValues: {
-            ':st': { S: 'FAILED' },
-            ':fr': { S: 'Max retries exceeded' },
-          },
-        },
-        ResultPath: sfn.JsonPath.DISCARD,
-      },
-    });
-
-    const markFailedNormalizedEvent = new sfn.CustomState(this, 'MarkFailedNormalizedEvent', {
-      stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::dynamodb:putItem',
-        Parameters: {
-          TableName: tableName,
-          Item: {
-            pk: { 'S.$': "States.Format('NormalizedEvent#{}#{}', $.tenantId, $.orderId)" },
-            sk: { 'S.$': "States.Format('ORDER_REJECTED#{}', $$.State.EnteredTime)" },
-            __typename: { S: 'NormalizedEvent' },
-            tenantId: { 'S.$': '$.tenantId' },
-            orderId: { 'S.$': '$.orderId' },
-            executionMode: { 'S.$': '$.executionMode.Item.mode.S' },
-            failureReason: { S: 'Max retries exceeded' },
-            timestamp: { 'S.$': '$$.State.EnteredTime' },
-          },
-        },
-        ResultPath: sfn.JsonPath.DISCARD,
-      },
-    });
-
-    const markFailed = new sfn.Parallel(this, 'MarkFailed', {
-      resultPath: sfn.JsonPath.DISCARD,
-    });
-    markFailed.branch(markFailedUpdateOrder);
-    markFailed.branch(markFailedNormalizedEvent);
-
-    const endFailed = new sfn.Succeed(this, 'EndFailed');
-
-    // ---------------------------------------------------------------
-    // 15. HandleTimeout — Parallel: open breaker + escalate order + write NormalizedEvent
+    // 7. HandleTimeout — Parallel: escalate order + write NormalizedEvent
     //
     // Implemented as CustomState with inline ASL Parallel branches.
-    // Connected to the graph via .addCatch() on RouteOrder, WaitForMoreFills, WaitForRetryResult.
+    // Connected to the graph via .addCatch() on RouteOrder and WaitForMoreFills.
     // ---------------------------------------------------------------
     const handleTimeout = new sfn.CustomState(this, 'HandleTimeout', {
       stateJson: {
         Type: 'Parallel',
         ResultPath: null,
         Branches: [
-          {
-            StartAt: 'HandleTimeoutOpenBreaker',
-            States: {
-              HandleTimeoutOpenBreaker: {
-                Type: 'Task',
-                Resource: 'arn:aws:states:::dynamodb:updateItem',
-                Parameters: {
-                  TableName: tableName,
-                  Key: {
-                    pk: { 'S.$': "States.Format('CircuitBreaker#{}#{}', $.tenantId, $.symbol)" },
-                    sk: { S: 'CircuitBreaker' },
-                  },
-                  UpdateExpression: 'SET #st = :st, openedAt = :oa, reason = :r',
-                  ExpressionAttributeNames: { '#st': 'state' },
-                  ExpressionAttributeValues: {
-                    ':st': { S: 'OPEN' },
-                    ':oa': { 'S.$': '$$.State.EnteredTime' },
-                    ':r': { S: 'Adapter timeout' },
-                  },
-                },
-                ResultPath: null,
-                End: true,
-              },
-            },
-          },
           {
             StartAt: 'HandleTimeoutEscalateOrder',
             States: {
@@ -466,29 +287,6 @@ export class OrderWorkflowDefinition extends Construct {
               },
             },
           },
-          // 4th branch: Emit BROKER_CIRCUIT_OPEN NormalizedEvent for CDC → triggers heal SF
-          {
-            StartAt: 'HandleTimeoutCircuitBreakerEvent',
-            States: {
-              HandleTimeoutCircuitBreakerEvent: {
-                Type: 'Task',
-                Resource: 'arn:aws:states:::dynamodb:putItem',
-                Parameters: {
-                  TableName: tableName,
-                  Item: {
-                    pk: { 'S.$': "States.Format('NormalizedEvent#{}#CIRCUIT_BREAKER', $.tenantId)" },
-                    sk: { 'S.$': "States.Format('BROKER_CIRCUIT_OPEN#{}', $$.State.EnteredTime)" },
-                    __typename: { S: 'NormalizedEvent' },
-                    tenantId: { 'S.$': '$.tenantId' },
-                    symbol: { 'S.$': '$.symbol' },
-                    timestamp: { 'S.$': '$$.State.EnteredTime' },
-                  },
-                },
-                ResultPath: null,
-                End: true,
-              },
-            },
-          },
         ],
       },
     });
@@ -498,32 +296,6 @@ export class OrderWorkflowDefinition extends Construct {
     // ===============================================================
     // Wire the chain
     // ===============================================================
-
-    // Breaker wait loop
-    breakerWait.next(readCircuitBreaker);
-
-    // Circuit breaker check
-    isCircuitBreakerOpen
-      .when(sfn.Condition.stringEquals('$.circuitBreaker.Item.state.S', 'OPEN'), breakerWait)
-      .otherwise(routeOrder);
-
-    // Retry backoff → WaitForRetryResult
-    wait5s.next(waitForRetryResult);
-    wait15s.next(waitForRetryResult);
-    wait45s.next(waitForRetryResult);
-
-    retryBackoff
-      .when(sfn.Condition.stringEquals('$.retryState.retryCount', '1'), wait5s)
-      .when(sfn.Condition.stringEquals('$.retryState.retryCount', '2'), wait15s)
-      .otherwise(wait45s);
-
-    // Retry check
-    checkRetryCount
-      .when(sfn.Condition.numberLessThan('$.retryCount', 3), incrementRetry)
-      .otherwise(markFailed.next(endFailed));
-
-    // Increment retry → backoff
-    incrementRetry.next(retryBackoff);
 
     // Partial fill → wait for more fills → classify
     markPartialFill.next(waitForMoreFills);
@@ -536,25 +308,20 @@ export class OrderWorkflowDefinition extends Construct {
     // CDK addCatch registers HandleTimeout in the state graph (raw JSON Catch is opaque to CDK)
     routeOrder.addCatch(handleTimeout, { errors: ['States.Timeout'], resultPath: '$.error' });
     waitForMoreFills.addCatch(handleTimeout, { errors: ['States.Timeout'], resultPath: '$.error' });
-    waitForRetryResult.addCatch(handleTimeout, { errors: ['States.Timeout'], resultPath: '$.error' });
 
-    // ClassifyResult choice
+    // ClassifyResult choice — FILLED, PARTIALLY_FILLED, or rejected (default)
     classifyResult
       .when(sfn.Condition.stringEquals('$.adapterResult.status', 'FILLED'), markFilled)
       .when(sfn.Condition.stringEquals('$.adapterResult.status', 'PARTIALLY_FILLED'), markPartialFill)
-      .when(sfn.Condition.stringEquals('$.adapterResult.failureClass', 'transient'), checkRetryCount)
       .otherwise(markRejected);
 
-    // Main chain: ReadExecutionMode → ReadCircuitBreaker → IsCircuitBreakerOpen
-    const definition = readExecutionMode
-      .next(readCircuitBreaker)
-      .next(isCircuitBreakerOpen);
+    // Main chain: ReadExecutionMode → RouteOrder
+    const definition = readExecutionMode.next(routeOrder);
 
     // CDK merges .next() into stateJson as the happy-path Next field.
     // Catch→Next references (e.g. 'HandleTimeout') resolve via CDK construct IDs.
     routeOrder.next(classifyResult);
     waitForMoreFills.next(classifyResult);
-    waitForRetryResult.next(classifyResult);
 
     // ---------------------------------------------------------------
     // Definition Body — consumed by Orchestration construct

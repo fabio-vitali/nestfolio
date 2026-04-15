@@ -9,7 +9,7 @@
  *
  * Order Lifecycle Scenarios:
  * 1. Happy path: ORDER_SUBMITTED → RouteOrder → SIM_ORDER_FILLED callback → FILLED
- * 2. Transient failure: RouteOrder → transient rejection → retry → eventual fill
+ * 2. Transient failure: RouteOrder → transient rejection → handler classifies correctly
  * 3. Deterministic rejection: RouteOrder → deterministic rejection → REJECTED
  * 4. Timeout / escalation: RouteOrder → no callback → taskToken already cleared
  *
@@ -449,7 +449,7 @@ describe('Order Lifecycle Integration', () => {
     });
   });
 
-  // ─── Scenario 4: Timeout → circuit breaker → ORDER_ESCALATED ────────────
+  // ─── Scenario 4: Timeout → ORDER_ESCALATED ──────────────────────────────
   describe('Scenario 4: ORDER_SUBMITTED → timeout → no taskToken (escalated)', () => {
     it('should route order, then callback finds no taskToken after SF timeout', async () => {
       // Step 1: RouteOrder
