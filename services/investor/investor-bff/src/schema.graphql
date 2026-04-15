@@ -3,6 +3,7 @@ type Query {
   getGoals: [Goal!]!
   getNotifications(limit: Int, cursor: String): NotificationConnection!
   getUnreadCount: Int!
+  getFeatureFlags: [FeatureFlag!]!
 }
 
 type Mutation {
@@ -13,11 +14,21 @@ type Mutation {
   requestWithdrawal(input: WithdrawalInput!): WithdrawalRequest!
   requestAccountClosure: ClosureRequest!
   markNotificationRead(notificationId: ID!): Notification!
+  updateFeatureFlag(name: String!, enabled: Boolean!, reason: String): FeatureFlag!
+    @aws_iam
 }
 
 type Subscription {
   onNotification: Notification!
   @aws_subscribe(mutations: ["markNotificationRead"])
+  onFeatureFlagUpdate: FeatureFlag!
+    @aws_subscribe(mutations: ["updateFeatureFlag"])
+}
+
+type FeatureFlag {
+  name: String!
+  enabled: Boolean!
+  reason: String
 }
 
 # --- Enums ---
