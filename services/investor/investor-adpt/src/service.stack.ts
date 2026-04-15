@@ -71,6 +71,8 @@ export class InvestorAdptStack extends ServiceStack {
       InvestorIngestEventTypes.WITHDRAWAL_COMPLETED,
       InvestorIngestEventTypes.ORDER_ESCALATED,
       InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
+      InvestorIngestEventTypes.BROKER_CIRCUIT_CLOSED,
+      InvestorIngestEventTypes.BROKER_HEAL_ESCALATED,
       InvestorIngestEventTypes.TRANSFER_FAILED,
     ];
     const fromExecutionRule = new Rule(this, 'InvestorIngress-FromExecution', {
