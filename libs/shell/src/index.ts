@@ -10,3 +10,4 @@ export { withCallState, setLoading, setLoaded, setError, type CallState } from '
 export { withDevtools } from './features/with-devtools';
 export { withLogoutReset } from './features/with-logout-reset';
 export { parseError, isGraphQLErrorResponse } from './errors/parse-error';
+export { FeatureFlagService } from './feature-flag.service';
