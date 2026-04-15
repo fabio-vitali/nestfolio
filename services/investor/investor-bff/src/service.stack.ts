@@ -1,4 +1,5 @@
 import { Construct } from 'constructs';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 import { InvestorBffEventTypes } from './domain/events';
 import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
@@ -10,6 +11,18 @@ export class InvestorBffStack extends ServiceStack {
 
     const state = new State(this, 'State');
 
+    const facade = new Facade(this, 'Facade', {
+      state,
+      enableIamAuth: true,
+      jsResolvers: discoverJsResolvers(__dirname, {
+        noneDataSource: ['requestAccountClosure'],
+        preSteps: {
+          initiateDeposit: ['check-feature-flag.fn.js'],
+          requestWithdrawal: ['check-feature-flag.fn.js'],
+        },
+      }),
+    });
+
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
@@ -19,8 +32,19 @@ export class InvestorBffStack extends ServiceStack {
         InvestorBffEventTypes.ONBOARDING_COMPLETED,
         InvestorBffEventTypes.GO_LIVE_CONFIRMED,
         InvestorBffEventTypes.OPERATING_MODE_CHANGED,
+        InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
+        InvestorIngestEventTypes.BROKER_CIRCUIT_CLOSED,
       ],
+      environment: facade.graphqlUrl ? { APPSYNC_URL: facade.graphqlUrl } : {},
     });
+
+    // Grant Ingress handler permission to invoke AppSync mutations via IAM
+    if (facade.api) {
+      ingress.handler.addToRolePolicy(new PolicyStatement({
+        actions: ['appsync:GraphQL'],
+        resources: [`${facade.api.arn}/*`],
+      }));
+    }
 
     const egress = new Egress(this, 'Egress', {
       state,
@@ -59,13 +83,6 @@ export class InvestorBffStack extends ServiceStack {
         },
         'Notification': { modify: InvestorBffEventTypes.NOTIFICATION_READ },
       },
-    });
-
-    new Facade(this, 'Facade', {
-      state,
-      jsResolvers: discoverJsResolvers(__dirname, {
-        noneDataSource: ['requestAccountClosure'],
-      }),
     });
 
     this.addObservability({ ingress, egress });

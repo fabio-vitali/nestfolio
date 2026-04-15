@@ -252,8 +252,10 @@ export function parseSchemaFields(schema: string): Array<{ typeName: string; fie
 export function discoverJsResolvers(serviceDir: string, options?: {
   /** Fields that use 'none' data source */
   noneDataSource?: string[];
-  /** Fields with extra pipeline steps (e.g. readback) */
+  /** Fields with extra pipeline steps (e.g. readback) appended AFTER the main resolver */
   extraSteps?: Record<string, string[]>;
+  /** Steps inserted AFTER check-auth but BEFORE the main resolver (e.g. feature flag checks) */
+  preSteps?: Record<string, string[]>;
   /** Fields handled by lambdaResolvers (excluded from JS resolvers) */
   exclude?: string[];
 }): JsResolverConfig[] {
@@ -270,9 +272,16 @@ export function discoverJsResolvers(serviceDir: string, options?: {
     .filter(f => !excludeSet.has(f.fieldName))
     .map(f => {
       const fnFileName = toKebabCase(f.fieldName) + '.fn.js';
-      const pipeline = [checkAuthPath, join(jsFnPath, fnFileName)];
+      const pipeline = [checkAuthPath];
 
-      // Add extra steps (e.g. readback)
+      // Pre-steps: after auth, before main resolver (e.g. feature flag checks)
+      if (options?.preSteps?.[f.fieldName]) {
+        pipeline.push(...options.preSteps[f.fieldName].map(step => join(jsFnPath, step)));
+      }
+
+      pipeline.push(join(jsFnPath, fnFileName));
+
+      // Post-steps: after main resolver (e.g. readback)
       if (options?.extraSteps?.[f.fieldName]) {
         pipeline.push(...options.extraSteps[f.fieldName].map(step => join(jsFnPath, step)));
       }
