@@ -155,4 +155,45 @@ describe('investor-ctrl', () => {
       expect(notifEvent.detailType).toBe('NOTIFICATION_CREATED');
     }, 120_000);
   });
+
+  // ── Circuit breaker notifications (SYSTEM tenant) ────────────────────
+
+  describe('circuit breaker notifications', () => {
+    /**
+     * BROKER_CIRCUIT_OPEN / BROKER_CIRCUIT_CLOSED / BROKER_HEAL_ESCALATED all
+     * create a Notification with tenantId='SYSTEM'.
+     * Flow: event → SQS → Lambda → DDB PutItem → DDB Stream INSERT → CDC → NOTIFICATION_CREATED
+     *
+     * CDC payload shape: cdcEvent.detail.subject contains the DDB item fields.
+     * Field access below may need adjustment if the actual CDC envelope differs.
+     */
+
+    const circuitBreakerEvents = [
+      { detailType: 'BROKER_CIRCUIT_OPEN' },
+      { detailType: 'BROKER_CIRCUIT_CLOSED' },
+      { detailType: 'BROKER_HEAL_ESCALATED' },
+    ];
+
+    it.each(circuitBreakerEvents)(
+      'should create SYSTEM Notification on $detailType and emit NOTIFICATION_CREATED via CDC',
+      async ({ detailType }) => {
+        await eb.putEvent({
+          bus: 'investor',
+          targetService: 'investor-ctrl',
+          detailType,
+          detail: {},
+        });
+
+        const cdcEvent = await notificationTrap.waitForEvent({
+          detailType: 'NOTIFICATION_CREATED',
+          timeoutMs: 90_000,
+        });
+        expect(cdcEvent.detailType).toBe('NOTIFICATION_CREATED');
+        expect(cdcEvent.detail).toBeDefined();
+        expect(cdcEvent.detail.subject.tenantId).toBe('SYSTEM');
+        expect(cdcEvent.detail.subject.type).toBe(detailType);
+      },
+      120_000,
+    );
+  });
 });
