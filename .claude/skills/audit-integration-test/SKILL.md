@@ -31,7 +31,7 @@ description: Verify integration test completeness and convention compliance for 
 
 | # | Check | Severity | How to Verify |
 |---|-------|----------|---------------|
-| 7 | Uses `createIntegrationContext()` (not manual setup) | Hard fail | Grep test files for `createIntegrationContext` |
+| 7 | Uses `createTestContext()` from `@nestfolio/test-support` (not manual setup) | Hard fail | Grep test files for `createTestContext` |
 | 8 | Calls `ctx.cleanup.runAll()` in `afterAll` | Hard fail | Grep for `cleanup.runAll` |
 | 9 | Calls `table.registerCleanup()` when using TableAssertions | Hard fail | Grep: if `TableAssertions` used, `registerCleanup` must appear |
 | 10 | No `DdbSeedFixture` usage | Hard fail | Grep for `DdbSeedFixture` -- must not appear |
