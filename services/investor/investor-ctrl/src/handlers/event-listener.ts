@@ -11,6 +11,7 @@ import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { ExecutionCrossDomainEventTypes } from '@nestfolio/execution-adpt/domain';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
+import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface EventListenerDeps {}
@@ -72,6 +73,21 @@ const NOTIFICATION_TEMPLATES: Record<string, NotificationTemplate> = {
     body: 'Your withdrawal has been processed successfully.',
     channel: 'email',
   },
+  BROKER_CIRCUIT_OPEN: {
+    title: 'Some features are temporarily paused',
+    body: "Deposits, withdrawals, and accepting decisions are temporarily paused. We're working on it and will notify you when they're available again.",
+    channel: 'push',
+  },
+  BROKER_CIRCUIT_CLOSED: {
+    title: 'All features are available',
+    body: 'Everything is back to normal. All features are available again.',
+    channel: 'push',
+  },
+  BROKER_HEAL_ESCALATED: {
+    title: "We're looking into an issue",
+    body: "We're experiencing an extended issue affecting some features. Our team is working on it — we'll update you as soon as it's resolved.",
+    channel: 'email,push',
+  },
 };
 
 export function getNotificationTemplate(eventType: string): NotificationTemplate {
@@ -103,37 +119,47 @@ const EVENT_TYPES = [
   AdvisoryCrossDomainEventTypes.DECISION_BLOCKED,
 ] as const;
 
+const SYSTEM_EVENT_TYPES = [
+  InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
+  InvestorIngestEventTypes.BROKER_CIRCUIT_CLOSED,
+  InvestorIngestEventTypes.BROKER_HEAL_ESCALATED,
+] as const;
+
+function buildNotificationRecord(tenantId: string, ctx: EventContext): WriteIntent {
+  const notificationId = ctx.eventId;
+  const now = getTime();
+  const template = getNotificationTemplate(ctx.eventType);
+  return record(
+    'Notification',
+    {
+      __typename: 'Notification',
+      tenantId,
+      notificationId,
+      type: ctx.eventType,
+      title: template.title,
+      body: template.body,
+      channel: template.channel,
+      status: 'DELIVERED',
+      sourceEventId: ctx.eventId,
+      timestamp: now,
+      createdAt: now,
+      updatedAt: now,
+    },
+    { pk: `Notification#${tenantId}#${notificationId}`, sk: 'Notification' },
+  );
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const createHandlers = (_deps: EventListenerDeps) =>
-  Object.fromEntries(
+export const createHandlers = (_deps: EventListenerDeps) => ({
+  ...Object.fromEntries(
     EVENT_TYPES.map((type) => [
       type,
       async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent | WriteIntent[]> => {
         const tenantId = ctx.tenantId;
-        const notificationId = ctx.eventId;
-        const now = getTime();
-        const template = getNotificationTemplate(ctx.eventType);
-
-        const notification = record(
-          'Notification',
-          {
-            __typename: 'Notification',
-            tenantId,
-            notificationId,
-            type: ctx.eventType,
-            title: template.title,
-            body: template.body,
-            channel: template.channel,
-            status: 'DELIVERED',
-            sourceEventId: ctx.eventId,
-            timestamp: now,
-            createdAt: now,
-            updatedAt: now,
-          },
-          { pk: `Notification#${tenantId}#${notificationId}`, sk: 'Notification' },
-        );
+        const notification = buildNotificationRecord(tenantId, ctx);
 
         if (ctx.eventType === ExecutionCrossDomainEventTypes.ORDER_FILLED) {
+          const now = getTime();
           const reportId = `${ctx.eventId}-report`;
           const subject = (payload.subject ?? {}) as Record<string, unknown>;
 
@@ -160,7 +186,17 @@ export const createHandlers = (_deps: EventListenerDeps) =>
         return notification;
       },
     ]),
-  );
+  ),
+  ...Object.fromEntries(
+    SYSTEM_EVENT_TYPES.map((type) => [
+      type,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      async (_payload: EventPayload, ctx: EventContext): Promise<WriteIntent> => {
+        return buildNotificationRecord('SYSTEM', ctx);
+      },
+    ]),
+  ),
+});
 
 // Production wiring
 requireEnv('TABLE_NAME');

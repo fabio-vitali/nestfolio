@@ -66,6 +66,24 @@ describe('investor-ctrl event-listener', () => {
       expect(t.channel).toBe('email');
     });
 
+    it('returns correct template for BROKER_CIRCUIT_OPEN', () => {
+      const t = getNotificationTemplate('BROKER_CIRCUIT_OPEN');
+      expect(t.title).toBe('Some features are temporarily paused');
+      expect(t.channel).toBe('push');
+    });
+
+    it('returns correct template for BROKER_CIRCUIT_CLOSED', () => {
+      const t = getNotificationTemplate('BROKER_CIRCUIT_CLOSED');
+      expect(t.title).toBe('All features are available');
+      expect(t.channel).toBe('push');
+    });
+
+    it('returns correct template for BROKER_HEAL_ESCALATED', () => {
+      const t = getNotificationTemplate('BROKER_HEAL_ESCALATED');
+      expect(t.title).toBe("We're looking into an issue");
+      expect(t.channel).toBe('email,push');
+    });
+
     it('returns fallback template for unknown event type', () => {
       const t = getNotificationTemplate('UNKNOWN_TYPE');
       expect(t.title).toBe('Notification');
@@ -216,6 +234,75 @@ describe('investor-ctrl event-listener', () => {
         fields: expect.objectContaining({
           title: 'Withdrawal Completed',
           channel: 'email',
+        }),
+      });
+    });
+  });
+
+  describe('WriteIntents — circuit breaker (SYSTEM tenant)', () => {
+    it('BROKER_CIRCUIT_OPEN creates Notification with tenantId=SYSTEM and push channel', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('BROKER_CIRCUIT_OPEN', {}, { tenantId: 'SYSTEM', eventId: 'evt-cb-1' }),
+      ]);
+      expect(result.errors).toHaveLength(0);
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'Notification',
+        fields: expect.objectContaining({
+          __typename: 'Notification',
+          tenantId: 'SYSTEM',
+          title: 'Some features are temporarily paused',
+          channel: 'push',
+          status: 'DELIVERED',
+        }),
+      });
+    });
+
+    it('BROKER_CIRCUIT_CLOSED creates Notification with tenantId=SYSTEM and correct title', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('BROKER_CIRCUIT_CLOSED', {}, { tenantId: 'SYSTEM', eventId: 'evt-cb-2' }),
+      ]);
+      expect(result.errors).toHaveLength(0);
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'Notification',
+        fields: expect.objectContaining({
+          tenantId: 'SYSTEM',
+          title: 'All features are available',
+          channel: 'push',
+          status: 'DELIVERED',
+        }),
+      });
+    });
+
+    it('BROKER_HEAL_ESCALATED creates Notification with tenantId=SYSTEM and email+push channel', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('BROKER_HEAL_ESCALATED', {}, { tenantId: 'SYSTEM', eventId: 'evt-cb-3' }),
+      ]);
+      expect(result.errors).toHaveLength(0);
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'Notification',
+        fields: expect.objectContaining({
+          tenantId: 'SYSTEM',
+          title: "We're looking into an issue",
+          channel: 'email,push',
+          status: 'DELIVERED',
+        }),
+      });
+    });
+
+    it('circuit breaker notifications key pk as Notification#SYSTEM#eventId', async () => {
+      const result = await harness.process([
+        fakeSqsRecord('BROKER_CIRCUIT_OPEN', {}, { tenantId: 'SYSTEM', eventId: 'evt-cb-key' }),
+      ]);
+      expect(result.intents[0]).toMatchObject({
+        overrides: expect.objectContaining({
+          pk: 'Notification#SYSTEM#evt-cb-key',
+          sk: 'Notification',
         }),
       });
     });
