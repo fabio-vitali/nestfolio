@@ -35,8 +35,6 @@ export class ExecutionAdptStack extends ServiceStack {
     const fromAdvisoryEvents = [
       ExecutionIngestEventTypes.DECISION_APPROVED,
       ExecutionIngestEventTypes.USER_CONFIRMED,
-      ExecutionIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
-      ExecutionIngestEventTypes.CIRCUIT_BREAKER_RESET,
     ];
     const fromAdvisoryRule = new Rule(this, 'ExecutionIngress-FromAdvisory', {
       eventBus: advisoryBus,

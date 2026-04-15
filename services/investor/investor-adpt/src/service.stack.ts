@@ -42,8 +42,6 @@ export class InvestorAdptStack extends ServiceStack {
       InvestorIngestEventTypes.DECISION_APPROVED,
       InvestorIngestEventTypes.DECISION_BLOCKED,
       InvestorIngestEventTypes.ESCALATION_TRIGGERED,
-      InvestorIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
-      InvestorIngestEventTypes.CIRCUIT_BREAKER_RESET,
       InvestorIngestEventTypes.INCIDENT_DETECTED,
       InvestorIngestEventTypes.INCIDENT_RESOLVED,
     ];

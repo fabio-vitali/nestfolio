@@ -19,8 +19,6 @@ export class ExecutionCtrlStack extends ServiceStack {
       eventTypes: [
         ExecutionIngestEventTypes.DECISION_APPROVED,
         ExecutionIngestEventTypes.USER_CONFIRMED,
-        ExecutionIngestEventTypes.CIRCUIT_BREAKER_TRIGGERED,
-        ExecutionIngestEventTypes.CIRCUIT_BREAKER_RESET,
         ExecutionIngestEventTypes.ACCOUNT_CLOSURE_REQUESTED,
       ],
     });
