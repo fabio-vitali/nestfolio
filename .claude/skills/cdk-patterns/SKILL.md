@@ -220,6 +220,7 @@ export interface FacadeProps {
   queryDepthLimit?: number;       // default 10
   enableWaf?: boolean;            // default true
   wafRateLimit?: number;          // requests/5min per IP, default 1000
+  enableIamAuth?: boolean;        // add IAM as additional auth mode (for Lambda→AppSync calls)
 }
 
 export interface JsResolverConfig {
@@ -369,12 +370,22 @@ export interface OrchestrationProps {
   definitionBody: sfn.DefinitionBody;   // state machine definition (fromChainable or fromFile)
   triggers: string[];                   // event types that trigger new state machine executions (EB rules created per type)
   timeout?: Duration;                   // state machine execution timeout, default 5 minutes
+  executionName?: string;               // fixed SF execution name — makes StartExecution idempotent (singleton guard)
 }
 ```
 
 **Public members:**
 ```ts
 orchestration.stateMachine   // sfn.StateMachine
+orchestration.executionName  // string | undefined (readonly — set via props)
+```
+
+**Singleton guard via `executionName`:** When `executionName` is provided, no EventBridge trigger rules are created — the caller is responsible for starting the state machine (e.g. via `grantStartExecution`). The fixed name makes `StartExecution` idempotent: concurrent calls with the same name are no-ops while an execution is running.
+
+```ts
+orchestration.grantStartExecution(ingressHandler);
+// Grants sfn:StartExecution
+// Injects STATE_MACHINE_ARN + EXECUTION_NAME env vars
 ```
 
 **Task token wiring:**
@@ -402,6 +413,59 @@ new sfn.CustomState(this, 'MyTask', {
 // CORRECT: handleError registered in CDK state graph
 const myTask = new sfn.CustomState(this, 'MyTask', { stateJson: { ... } });
 myTask.addCatch(handleError, { errors: ['States.Timeout'], resultPath: '$.error' });
+```
+
+---
+
+### 7. CircuitBreakerHealDefinition
+
+**File:** `libs/cdk-constructs/src/core/circuit-breaker-heal.ts`
+
+Generic circuit breaker healing workflow — produces a `DefinitionBody` for use with the Orchestration construct. The workflow: health-check loop (HTTP:Invoke with retry) → close breaker (DDB UpdateItem) → emit closed event (DDB PutItem for CDC). On exhaustion → escalate (DDB PutItem for CDC) → Fail state.
+
+```ts
+export interface CircuitBreakerHealDefinitionProps {
+  readonly table: ITable;                      // DDB table for breaker state + CDC events
+  readonly breakerKey: string;                 // e.g. 'CircuitBreaker#alpaca'
+  readonly events: {
+    readonly closed: string;                   // event type emitted on successful heal
+    readonly escalated: string;                // event type emitted when all retries exhausted
+  };
+  readonly healthCheck: {
+    readonly connection: IConnection;          // EventBridge Connection (API auth)
+    readonly apiRoot: string;                  // base URL
+    readonly apiEndpoint: sfn.TaskInput;       // path (e.g. '/v2/account')
+    readonly method: sfn.TaskInput;            // HTTP method (e.g. 'GET')
+    readonly timeoutSeconds?: number;          // default 10
+  };
+  readonly retry?: {
+    readonly maxAttempts?: number;             // default 10
+    readonly intervalSeconds?: number;         // default 60
+  };
+  readonly healthCheckRetry?: {
+    readonly maxAttempts?: number;             // default 3
+    readonly intervalSeconds?: number;         // default 5
+    readonly backoffRate?: number;             // default 2
+  };
+}
+```
+
+**Usage with Orchestration:**
+```ts
+const healWorkflow = new CircuitBreakerHealDefinition(this, 'HealWorkflow', {
+  table: state.getTable(),
+  breakerKey: 'CircuitBreaker#alpaca',
+  events: { closed: 'BROKER_CIRCUIT_CLOSED', escalated: 'BROKER_HEAL_ESCALATED' },
+  healthCheck: { connection, apiRoot, apiEndpoint: sfn.TaskInput.fromText('/v2/account'), method: sfn.TaskInput.fromText('GET') },
+});
+
+const healOrchestration = new Orchestration(this, 'HealStateMachine', {
+  state,
+  definitionBody: healWorkflow.definitionBody,
+  triggers: ['BROKER_CIRCUIT_OPEN'],
+  timeout: Duration.hours(2),
+  executionName: 'heal-alpaca',  // singleton guard
+});
 ```
 
 ---

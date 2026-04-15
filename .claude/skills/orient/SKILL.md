@@ -35,9 +35,9 @@ Nestfolio is a robo-advisory investment platform. 4 DDD domains, 33 services, ev
 - `execution-ctrl` — Execution orchestrator
 - `execution-hub` — Event aggregation/projection store
 - `execution-adpt` — Cross-domain event ingestion (Advisory, Investor → Execution)
-- `broker-ctrl` — Broker routing state machine + circuit breaker
+- `broker-ctrl` — Broker routing state machine (order lifecycle orchestration)
 - `broker-sim-adpt` — Simulated broker (paper trading)
-- `broker-alpaca-adpt` — Alpaca live broker integration
+- `broker-alpaca-adpt` — Alpaca live broker integration + circuit breaker owner (HealStateMachine, EB Connection)
 
 **Investor** (7 services) — Investor management and UI
 - `investor-ctrl` — Investor entity management
