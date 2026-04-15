@@ -1,9 +1,12 @@
 import { join } from 'path';
-import { Duration, Stack } from 'aws-cdk-lib';
+import { Duration, SecretValue, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { Egress, Ingress, Orchestration, ServiceStack, ServiceStackProps, State } from '@nestfolio/cdk-constructs/core';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
+import { CircuitBreakerHealDefinition, Egress, Ingress, Orchestration, ServiceStack, ServiceStackProps, State } from '@nestfolio/cdk-constructs/core';
 import { adapterProps, defaultLambdaProps, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 import { AlpacaAdptEventTypes } from './domain/events';
 import { OrderPollingDefinition } from './constructs/order-polling-definition';
@@ -76,7 +79,63 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
           }},
         },
         'AlpacaAccountSnapshot': { insert: AlpacaAdptEventTypes.ALPACA_ACCOUNT_SNAPSHOT },
+        'NormalizedEvent': {
+          insert: { field: 'sk', passthrough: true, emits: [
+            AlpacaAdptEventTypes.BROKER_CIRCUIT_OPEN,
+            AlpacaAdptEventTypes.BROKER_CIRCUIT_CLOSED,
+            AlpacaAdptEventTypes.BROKER_HEAL_ESCALATED,
+          ]},
+        },
       },
+    });
+
+    // --- EventBridge Connection for Alpaca API auth (used by HealStateMachine HTTP:Invoke) ---
+    const alpacaConnection = new events.Connection(this, 'AlpacaConnection', {
+      authorization: events.Authorization.apiKey(
+        'APCA-API-KEY-ID',
+        SecretValue.secretsManager(
+          `${props.prefix}-broker-alpaca-adpt/alpaca-api-keys`,
+          { jsonField: 'apiKeyId' },
+        ),
+      ),
+      headerParameters: {
+        'APCA-API-SECRET-KEY': events.HttpParameter.fromSecret(
+          SecretValue.secretsManager(
+            `${props.prefix}-broker-alpaca-adpt/alpaca-api-keys`,
+            { jsonField: 'apiKeySecret' },
+          ),
+        ),
+      },
+    });
+
+    // Alpaca base URL (deploy-time resolution from SSM)
+    const alpacaBaseUrl = StringParameter.valueForStringParameter(
+      this,
+      `/nestfolio/${props.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
+    );
+
+    // --- Circuit Breaker Heal Workflow ---
+    const healWorkflow = new CircuitBreakerHealDefinition(this, 'HealWorkflow', {
+      table: state.getTable(),
+      breakerKey: 'CircuitBreaker#alpaca',
+      events: {
+        closed: AlpacaAdptEventTypes.BROKER_CIRCUIT_CLOSED,
+        escalated: AlpacaAdptEventTypes.BROKER_HEAL_ESCALATED,
+      },
+      healthCheck: {
+        connection: alpacaConnection,
+        apiRoot: alpacaBaseUrl,
+        apiEndpoint: sfn.TaskInput.fromText('/v2/account'),
+        method: sfn.TaskInput.fromText('GET'),
+        timeoutSeconds: 10,
+      },
+    });
+
+    const healOrchestration = new Orchestration(this, 'HealStateMachine', {
+      state,
+      definitionBody: healWorkflow.definitionBody,
+      triggers: [AlpacaAdptEventTypes.BROKER_CIRCUIT_OPEN],
+      timeout: Duration.hours(2),
     });
 
     // --- Order Poll Handler Lambda (invoked by SF, not via Ingress) ---
@@ -141,7 +200,7 @@ export class BrokerAlpacaAdptStack extends ServiceStack {
       egress,
       orchestration: orderPolling,
       extraLambdas: [orderPollFn, transferPollFn],
-      extraDlqs: [transferPolling.dlq],
+      extraDlqs: [transferPolling.dlq, healOrchestration.dlq],
     });
   }
 }
