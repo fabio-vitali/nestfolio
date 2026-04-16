@@ -7,10 +7,10 @@
   "tags": [],
   "targets": {
     "test": {
-      "executor": "@nx/vitest:test",
-      "outputs": ["{options.reportsDirectory}"],
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/ui/feature-flags"],
       "options": {
-        "reportsDirectory": "../../../coverage/libs/ui/feature-flags"
+        "jestConfig": "libs/ui/feature-flags/jest.config.js"
       }
     },
     "lint": {
