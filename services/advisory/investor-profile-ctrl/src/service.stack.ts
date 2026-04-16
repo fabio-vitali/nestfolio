@@ -8,13 +8,18 @@ import { InvestorProfileEventTypes } from './domain/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
-import { agentProps, defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
+import { agentProps, defaultLambdaProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 
 export class InvestorProfileCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
     const state = new State(this, 'State');
+
+    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
+      parameterName: `/nestfolio/${props.prefix}-investor-profile-ctrl/agent/runtimeUrl`,
+      stringValue: 'DISABLED',
+    });
 
     // Knowledge Base: Regulatory & Compliance (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'RegulatoryKB', {
@@ -33,7 +38,13 @@ export class InvestorProfileCtrlStack extends ServiceStack {
         ComplianceEventTypes.DECISION_APPROVED,
       ],
       profile: agentProps,
+      lambdaProps: {
+        paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
+      },
     });
+
+    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
+    agentRuntimeUrlParam.grantRead(ingress.handler);
 
     // Egress: CDC events
     const egress = new Egress(this, 'Egress', {

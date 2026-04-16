@@ -1,4 +1,4 @@
-import { createOrchestrator, invokeOrchestrator } from '@nestfolio/agent-orchestrator';
+import { createOrchestrator, invokeOrchestrator, resolveAgentRuntimeUrl, invokeRemoteRuntime } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
@@ -41,12 +41,21 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         ),
       }));
 
-      const result = await invokeOrchestrator(orchestrator, {
-        tenantId,
-        decisionId,
-        investorProfile: subject.investorProfile ?? subject.context ?? {},
-        portfolioState: subject.portfolioState ?? {},
-      });
+      let result: Record<string, unknown>;
+      const runtimeUrl = await resolveAgentRuntimeUrl();
+      if (runtimeUrl) {
+        result = await invokeRemoteRuntime(runtimeUrl, {
+          tenantId, decisionId,
+          investorProfile: subject.investorProfile ?? subject.context ?? {},
+          portfolioState: subject.portfolioState ?? {},
+        });
+      } else {
+        result = await invokeOrchestrator(orchestrator, {
+          tenantId, decisionId,
+          investorProfile: subject.investorProfile ?? subject.context ?? {},
+          portfolioState: subject.portfolioState ?? {},
+        }) as Record<string, unknown>;
+      }
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
@@ -62,8 +71,8 @@ export const createAgentService = (deps: AgentServiceDeps) => {
 
       return {
         decisionId,
-        goals: (result as Record<string, unknown>)['user-goals'] ?? {},
-        risk: (result as Record<string, unknown>)['risk-assessment'] ?? {},
+        goals: result['user-goals'] ?? {},
+        risk: result['risk-assessment'] ?? {},
         metadata: { durationMs, modelTiers: ['haiku', 'opus'] },
       };
     },

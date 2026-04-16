@@ -9,6 +9,8 @@ const mockInvokeOrchestrator = jest.fn();
 jest.mock('@nestfolio/agent-orchestrator', () => ({
   createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
   invokeOrchestrator: mockInvokeOrchestrator,
+  resolveAgentRuntimeUrl: jest.fn().mockResolvedValue(null),
+  invokeRemoteRuntime: jest.fn(),
 }));
 
 import { createAgentService } from '../src/agent-service';
