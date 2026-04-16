@@ -29,7 +29,7 @@ describe('investor-bff event-listener', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv, APPSYNC_URL: 'https://example.appsync-api.us-east-1.amazonaws.com/graphql' };
-    global.fetch = jest.fn().mockResolvedValue({ ok: true }) as jest.Mock;
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: {} }) }) as jest.Mock;
   });
 
   afterEach(() => {
@@ -126,7 +126,22 @@ describe('investor-bff event-listener', () => {
 
       await callAppSyncMutation('mutation { test }', { foo: 'bar' });
 
-      expect(mockLogger.error).toHaveBeenCalledWith('AppSync mutation failed', { status: 403 });
+      expect(mockLogger.error).toHaveBeenCalledWith('AppSync mutation failed (HTTP)', { status: 403 });
+    });
+
+    it('logs error when GraphQL response contains errors', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ errors: [{ message: 'Not Authorized', errorType: 'Unauthorized' }] }),
+      });
+      mockLogger.error.mockClear();
+
+      await callAppSyncMutation('mutation { test }', { foo: 'bar' });
+
+      expect(mockLogger.error).toHaveBeenCalledWith('AppSync mutation failed (GraphQL)', {
+        errors: [{ message: 'Not Authorized', errorType: 'Unauthorized' }],
+      });
     });
   });
 });

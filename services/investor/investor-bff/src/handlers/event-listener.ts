@@ -50,7 +50,13 @@ export async function callAppSyncMutation(mutation: string, variables: Record<st
   });
 
   if (!response.ok) {
-    logger.error('AppSync mutation failed', { status: response.status });
+    logger.error('AppSync mutation failed (HTTP)', { status: response.status });
+    return;
+  }
+
+  const json = await response.json() as { errors?: Array<{ message: string; errorType?: string }> };
+  if (json.errors?.length) {
+    logger.error('AppSync mutation failed (GraphQL)', { errors: json.errors });
   }
 }
 
