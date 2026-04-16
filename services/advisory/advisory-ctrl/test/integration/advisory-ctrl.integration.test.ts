@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import {
   createTestContext,
   EventBridgeClient,
@@ -6,6 +8,8 @@ import {
 import {
   EventBusTrap,
   TableAssertions,
+  MockApiFixture,
+  SsmOverrideFixture,
 } from '@nestfolio/integration-testing';
 
 /**
@@ -70,13 +74,27 @@ describe('advisory-ctrl', () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+
+    // Deploy mock agent runtime
+    const mockApi = new MockApiFixture(ctx);
+    const zipPath = join(__dirname, '..', 'mocks', 'mock-agent-runtime.zip');
+    const mockUrl = await mockApi.deploy({
+      name: 'mock-agent-runtime',
+      handlerAsset: readFileSync(zipPath),
+    });
+
+    // Override SSM to point to mock (crash-safe)
+    const ssmOverride = new SsmOverrideFixture(ctx);
+    await ssmOverride.override({
+      paramName: `/nestfolio/${ctx.prefix}-advisory-ctrl/agent/runtimeUrl`,
+      testValue: mockUrl,
+    });
+
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
 
-    // Trap all DecisionPacket-related CDC events
-    // CDC auto-expands: DECISION_PACKET → DECISION_PACKET_CREATED (INSERT) / DECISION_PACKET_UPDATED (MODIFY)
     await trap.deploy({
       bus: 'advisory',
       detailType: [
@@ -88,7 +106,7 @@ describe('advisory-ctrl', () => {
         'WORKFLOW_STATE_UPDATED',
       ],
     });
-  }, 90_000);
+  }, 120_000);
 
   afterAll(async () => {
     await ctx.cleanup.runAll();
@@ -365,15 +383,13 @@ describe('advisory-ctrl', () => {
           },
         });
 
-        // CDC verification — agent invocations via Bedrock can be slow
         const cdcEvent = await trap.waitForEvent({
           detailType: 'DECISION_PACKET_CREATED',
-          timeoutMs: 90_000,
         });
         expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
         expect(cdcEvent.detail).toBeDefined();
       },
-      120_000,
+      60_000,
     );
   });
 });

@@ -4,25 +4,46 @@ function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
   return { statusCode, body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } };
 }
 
-/**
- * Mock agent runtime that returns canned responses.
- * Simulates the LangGraph agent decision lifecycle without real Bedrock calls.
- */
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
-  const _body = JSON.parse(event.body ?? '{}');
-
-  // Return a canned agent result based on the input event type
   return json(200, {
-    status: 'COMPLETED',
-    output: {
-      recommendation: 'REBALANCE',
-      proposedTrades: [
-        { symbol: 'VTI', side: 'BUY', quantity: 5, targetWeightPercent: 60 },
-        { symbol: 'BND', side: 'BUY', quantity: 10, targetWeightPercent: 40 },
+    'user-goals': {
+      goals: [{ description: 'Mock growth goal', priority: 'HIGH', timeHorizon: 'LONG_TERM' }],
+      investmentStyle: 'GROWTH',
+      confidence: 0.9,
+    },
+    'risk-assessment': {
+      riskScore: 7,
+      riskBand: 'MODERATE',
+      maxDrawdownTolerance: 0.15,
+      confidence: 0.85,
+    },
+    'market-research': {
+      signals: [{ indicator: 'VIX', value: 18, interpretation: 'LOW_VOLATILITY' }],
+      regime: 'BULL',
+      confidence: 0.8,
+    },
+    'portfolio-construction': {
+      allocations: [
+        { ticker: 'VTI', weight: 0.6, assetClass: 'US_EQUITY' },
+        { ticker: 'BND', weight: 0.4, assetClass: 'FIXED_INCOME' },
       ],
-      explanation: 'Mock agent recommendation for integration test',
-      confidenceScore: 0.85,
-      riskAssessment: 'LOW',
+      confidence: 0.85,
+    },
+    'rebalance-planner': {
+      trades: [
+        { ticker: 'VTI', action: 'buy', quantity: 5 },
+        { ticker: 'BND', action: 'buy', quantity: 10 },
+      ],
+      urgency: 'NORMAL',
+      confidence: 0.9,
+    },
+    explainability: {
+      summary: 'Mock: Portfolio rebalanced toward growth allocation.',
+      rationale: 'Mock rationale for integration test',
+      keyFactors: ['Market conditions favorable', 'Risk tolerance moderate'],
+      tone: 'confident',
+      wordCount: 12,
+      confidence: 0.85,
     },
   });
 }

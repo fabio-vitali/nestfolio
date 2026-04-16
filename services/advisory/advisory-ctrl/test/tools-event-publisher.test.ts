@@ -34,7 +34,7 @@ describe('event-publisher tool handler', () => {
       Entries: [
         expect.objectContaining({
           EventBusName: 'test-advisory-event-bus',
-          Source: 'advisory-ctrl',
+          Source: 'test-advisory-event-bus@advisory-ctrl',
           DetailType: 'DECISION_CREATED',
           Detail: JSON.stringify({ decisionId: 'd1', tenantId: 't1' }),
         }),

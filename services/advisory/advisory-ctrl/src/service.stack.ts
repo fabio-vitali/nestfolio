@@ -8,7 +8,7 @@ import { AdvisoryCtrlEventTypes } from './domain/events';
 import { AgentRuntime } from '@nestfolio/cdk-constructs/extensions';
 import { AdvisoryIngestEventTypes, AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/events';
-import { defaultLambdaProps, createNamingService } from '@nestfolio/cdk-constructs/utils';
+import { defaultLambdaProps, createNamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 
 export class AdvisoryCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -16,11 +16,17 @@ export class AdvisoryCtrlStack extends ServiceStack {
 
     const state = new State(this, 'State');
 
+    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
+      parameterName: `/nestfolio/${props.prefix}-advisory-ctrl/agent/runtimeUrl`,
+      stringValue: 'DISABLED',
+    });
+
     const ingress = new Ingress(this, 'Ingress', {
       state,
       // Bundle prompt .txt files as inline strings so they are available in /var/task at runtime.
       // The event-listener transitively imports agents/config which calls loadPrompt() at module init.
       lambdaProps: {
+        paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
         bundling: {
           minify: true,
           sourceMap: true,
@@ -58,6 +64,9 @@ export class AdvisoryCtrlStack extends ServiceStack {
         AdvisoryBffEventTypes.USER_REJECTED,
       ],
     });
+
+    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
+    agentRuntimeUrlParam.grantRead(ingress.handler);
 
     const egress = new Egress(this, 'Egress', {
       state,
