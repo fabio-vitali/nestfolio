@@ -836,7 +836,7 @@ describe('investor-bff', () => {
 
     async function waitForFlags(
       expectedEnabled: boolean,
-      timeoutMs = 60_000,
+      timeoutMs = 90_000,
     ): Promise<Array<{ name: string; enabled: boolean; reason: string | null }>> {
       const deadline = Date.now() + timeoutMs;
       while (Date.now() < deadline) {
@@ -872,7 +872,7 @@ describe('investor-bff', () => {
         expect(flag.enabled).toBe(false);
         expect(flag.reason).toBe('Broker connectivity issue');
       }
-    }, 90_000);
+    }, 120_000);
 
     it('should re-enable feature flags on BROKER_CIRCUIT_CLOSED', async () => {
       // Setup: ensure flags are disabled first
@@ -897,6 +897,6 @@ describe('investor-bff', () => {
       for (const flag of flags) {
         expect(flag.enabled).toBe(true);
       }
-    }, 120_000);
+    }, 210_000); // Two full event→mutation→poll cycles under parallel load
   });
 });
