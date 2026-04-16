@@ -33,6 +33,20 @@ For each of advisory-ctrl, investor-profile-ctrl, portfolio-engine-ctrl, advisor
 - **Modify:** `services/execution/broker-alpaca-adpt/test/integration/broker-alpaca-adpt.integration.test.ts`
 - **Modify:** `services/investor/investor-bff/test/integration/investor-bff.integration.test.ts`
 
+### AgentCore dead code removal
+- **Delete:** `libs/cdk-constructs/src/extensions/agent-runtime.ts` — dead CDK construct
+- **Delete:** `libs/agent-orchestrator/src/agent-server.ts` — only used by dead containers
+- **Delete:** `services/advisory/advisory-ctrl/agents/` — dead container code
+- **Delete:** `services/advisory/advisory-ctrl/src/handlers/tools/` — 4 dead tool Lambdas
+- **Delete:** `services/advisory/advisory-ctrl/src/tools/` — 4 dead schema JSONs
+- **Delete:** `services/advisory/investor-profile-ctrl/agents/` — dead container code
+- **Delete:** `services/advisory/portfolio-engine-ctrl/agents/` — dead container code
+- **Delete:** `services/advisory/portfolio-engine-ctrl/src/handlers/tools/` — dead tool Lambda
+- **Delete:** `services/advisory/advisory-narrative-ctrl/agents/` — dead container code
+- **Delete:** `services/advisory/market-intelligence-ctrl/agents/` — dead container code
+- **Delete:** `services/advisory/market-intelligence-ctrl/src/handlers/tools/` — 2 dead tool Lambdas
+- **Modify:** 5 service stacks — remove `new AgentRuntime(...)` + tool Lambda instantiations
+
 ---
 
 ### Task 1: Create StateResetFixture
@@ -1328,12 +1342,172 @@ git commit -m "fix(broker-alpaca-adpt,investor-bff): add StateResetFixture to cl
 
 ---
 
-### Task 10: Final verification — run all affected unit tests
+### Task 10: Remove AgentCore dead code
+
+The entire Bedrock AgentCore approach (containers, MCP Gateway, tool Lambdas) was abandoned in favor of in-process LangGraph orchestration. All agents run directly inside the event-listener Lambda via `createOrchestrator()` + `invokeOrchestrator()`. The AgentCore infrastructure is deployed but never invoked.
+
+**Dead code inventory:**
+- `AgentRuntime` CDK construct + all `new AgentRuntime(...)` in 6 service stacks
+- 7 tool Lambda handlers + 4+ tool schema JSON files
+- `agents/` directories at service root (Dockerfiles, server.ts, graph.ts) — container code never invoked
+- `createAgentServer()` + `AgentHandler` in agent-orchestrator (only used by dead containers)
+- Tool Lambda instantiations + IAM grants in CDK stacks
+
+**Files:**
+- Delete: `libs/cdk-constructs/src/extensions/agent-runtime.ts`
+- Modify: `libs/cdk-constructs/src/extensions/index.ts` — remove AgentRuntime export
+- Delete: `libs/agent-orchestrator/src/agent-server.ts`
+- Delete: `libs/agent-orchestrator/test/agent-server.test.ts`
+- Modify: `libs/agent-orchestrator/src/index.ts` — remove agent-server exports
+- Delete: `services/advisory/advisory-ctrl/src/handlers/tools/` (entire directory)
+- Delete: `services/advisory/advisory-ctrl/src/tools/` (entire directory — schema JSONs)
+- Delete: `services/advisory/advisory-ctrl/agents/` (entire directory — container code)
+- Delete: `services/advisory/investor-profile-ctrl/agents/` (entire directory)
+- Delete: `services/advisory/portfolio-engine-ctrl/agents/` (entire directory)
+- Delete: `services/advisory/portfolio-engine-ctrl/src/handlers/tools/` (entire directory)
+- Delete: `services/advisory/advisory-narrative-ctrl/agents/` (entire directory)
+- Delete: `services/advisory/market-intelligence-ctrl/src/handlers/tools/` (entire directory)
+- Modify: `services/advisory/advisory-ctrl/src/service.stack.ts` — remove AgentRuntime construct + tool Lambda instantiations
+- Modify: `services/advisory/investor-profile-ctrl/src/service.stack.ts` — remove AgentRuntime construct
+- Modify: `services/advisory/portfolio-engine-ctrl/src/service.stack.ts` — remove AgentRuntime construct + tool Lambda
+- Modify: `services/advisory/advisory-narrative-ctrl/src/service.stack.ts` — remove AgentRuntime construct
+- Modify: `services/advisory/market-intelligence-ctrl/src/service.stack.ts` — remove AgentRuntime construct + tool Lambdas
+
+**Note:** `onboarding-bff` also uses AgentRuntime — verify whether it's dead before removing. If the onboarding agent runs via container (CopilotKit + LangGraph), it may still be active. Check separately.
+
+- [ ] **Step 1: Delete agent-server from agent-orchestrator lib**
+
+```bash
+rm libs/agent-orchestrator/src/agent-server.ts
+rm libs/agent-orchestrator/test/agent-server.test.ts
+```
+
+Remove exports from `libs/agent-orchestrator/src/index.ts`:
+```typescript
+// DELETE these lines:
+export { createAgentServer, type AgentHandler } from './agent-server';
+```
+
+- [ ] **Step 2: Delete AgentRuntime CDK construct**
+
+```bash
+rm libs/cdk-constructs/src/extensions/agent-runtime.ts
+```
+
+Remove export from `libs/cdk-constructs/src/extensions/index.ts`:
+```typescript
+// DELETE the AgentRuntime export line
+```
+
+- [ ] **Step 3: Delete advisory-ctrl tool Lambdas, schemas, and container code**
+
+```bash
+rm -rf services/advisory/advisory-ctrl/src/handlers/tools/
+rm -rf services/advisory/advisory-ctrl/src/tools/
+rm -rf services/advisory/advisory-ctrl/agents/
+```
+
+Update `services/advisory/advisory-ctrl/src/service.stack.ts`:
+- Remove all `toolTargets` array and tool Lambda Function instantiations (portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn)
+- Remove the `new AgentRuntime(...)` block
+- Remove related imports (`AgentRuntime`, `join` if only used for agentCodePath)
+- Keep model ID SSM resolution (still used by agent configs for in-process LangGraph)
+
+- [ ] **Step 4: Delete investor-profile-ctrl container code**
+
+```bash
+rm -rf services/advisory/investor-profile-ctrl/agents/
+```
+
+Update `services/advisory/investor-profile-ctrl/src/service.stack.ts`:
+- Remove `new AgentRuntime(...)` block
+- Remove related imports
+
+- [ ] **Step 5: Delete portfolio-engine-ctrl tool Lambda and container code**
+
+```bash
+rm -rf services/advisory/portfolio-engine-ctrl/src/handlers/tools/
+rm -rf services/advisory/portfolio-engine-ctrl/agents/
+```
+
+Update `services/advisory/portfolio-engine-ctrl/src/service.stack.ts`:
+- Remove tool Lambda instantiation (portfolioLookupFn)
+- Remove `new AgentRuntime(...)` block
+- Remove related imports
+
+- [ ] **Step 6: Delete advisory-narrative-ctrl container code**
+
+```bash
+rm -rf services/advisory/advisory-narrative-ctrl/agents/
+```
+
+Update `services/advisory/advisory-narrative-ctrl/src/service.stack.ts`:
+- Remove `new AgentRuntime(...)` block
+- Remove related imports
+
+- [ ] **Step 7: Delete market-intelligence-ctrl tool Lambdas and container code**
+
+```bash
+rm -rf services/advisory/market-intelligence-ctrl/src/handlers/tools/
+rm -rf services/advisory/market-intelligence-ctrl/agents/
+```
+
+Update `services/advisory/market-intelligence-ctrl/src/service.stack.ts`:
+- Remove tool Lambda instantiations (marketDataFn, instrumentUniverseFn)
+- Remove `new AgentRuntime(...)` block
+- Remove related imports
+
+- [ ] **Step 8: Verify onboarding-bff AgentRuntime usage**
+
+Check if onboarding-bff's AgentRuntime is also dead:
+```bash
+grep -r "AgentRuntime\|agentCodePath\|toolTargets" services/investor/onboarding-bff/src/service.stack.ts
+```
+
+If dead (no container invocation from event-listener), remove it too. If active (CopilotKit uses the container), leave it.
+
+- [ ] **Step 9: Update unit tests that reference deleted code**
+
+Search for broken imports:
+```bash
+pnpm nx run-many -t test --projects=advisory-ctrl,investor-profile-ctrl,portfolio-engine-ctrl,advisory-narrative-ctrl,market-intelligence-ctrl --parallel=4
+```
+
+Fix any imports referencing deleted tool handlers or agent-server. CDK stack tests may need updating (remove assertions about AgentRuntime resources).
+
+- [ ] **Step 10: Run CDK synth to verify stacks are valid**
+
+```bash
+pnpm nx run-many -t synth --projects=advisory-ctrl,investor-profile-ctrl,portfolio-engine-ctrl,advisory-narrative-ctrl,market-intelligence-ctrl --parallel=2
+```
+Expected: ALL PASS (no AgentRuntime references remain)
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add -A
+git commit -m "refactor: remove dead AgentCore infrastructure (MCP Gateway, tool Lambdas, agent containers)
+
+The agent orchestration runs in-process via LangGraph (createOrchestrator + invokeOrchestrator)
+inside the event-listener Lambda. The Bedrock AgentCore Runtime, MCP Gateway, container code,
+and tool Lambdas were an abandoned approach that was never invoked at runtime.
+
+Removed:
+- AgentRuntime CDK construct
+- 7 tool Lambda handlers + schema JSONs
+- 5 agent container directories (Dockerfiles, server.ts, graph.ts)
+- createAgentServer + AgentHandler from agent-orchestrator lib
+- AgentRuntime instantiations from 5 service stacks"
+```
+
+---
+
+### Task 11: Final verification — run all affected unit tests
 
 - [ ] **Step 1: Run all affected unit tests**
 
 ```bash
-pnpm nx run-many -t test --projects=integration-testing,agent-orchestrator,advisory-ctrl,investor-profile-ctrl,portfolio-engine-ctrl,advisory-narrative-ctrl,broker-alpaca-adpt,investor-bff --parallel=4
+pnpm nx run-many -t test --projects=integration-testing,agent-orchestrator,advisory-ctrl,investor-profile-ctrl,portfolio-engine-ctrl,advisory-narrative-ctrl,market-intelligence-ctrl,broker-alpaca-adpt,investor-bff --parallel=4
 ```
 Expected: ALL PASS
 
@@ -1341,9 +1515,9 @@ Expected: ALL PASS
 
 If any test fails, fix and commit.
 
-- [ ] **Step 3: Final commit — update ledger-bff fix from earlier session**
+- [ ] **Step 3: Verify earlier ledger-bff fix is committed**
 
-The earlier `ledger-bff` checkpoint wait fix is still valid and independent. Verify it's committed:
+The `ledger-bff` checkpoint wait fix is valid and independent. Verify it's committed:
 ```bash
 git log --oneline -5
 ```
