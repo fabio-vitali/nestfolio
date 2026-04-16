@@ -164,9 +164,18 @@ describe('investor-ctrl', () => {
      * create a Notification with tenantId='SYSTEM'.
      * Flow: event → SQS → Lambda → DDB PutItem → DDB Stream INSERT → CDC → NOTIFICATION_CREATED
      *
-     * CDC payload shape: cdcEvent.detail.subject contains the DDB item fields.
-     * Field access below may need adjustment if the actual CDC envelope differs.
+     * System notifications use tenantId='SYSTEM' (not the test tenant), so we need
+     * a separate EventBusTrap whose EB rule filter matches tenantId='SYSTEM'.
      */
+    let systemTrap: EventBusTrap;
+
+    beforeAll(async () => {
+      systemTrap = new EventBusTrap({ ...ctx, tenantId: 'SYSTEM' });
+      await systemTrap.deploy({
+        bus: 'investor',
+        detailType: 'NOTIFICATION_CREATED',
+      });
+    }, 90_000);
 
     const circuitBreakerEvents = [
       { detailType: 'BROKER_CIRCUIT_OPEN' },
@@ -184,7 +193,7 @@ describe('investor-ctrl', () => {
           detail: {},
         });
 
-        const cdcEvent = await notificationTrap.waitForEvent({
+        const cdcEvent = await systemTrap.waitForEvent({
           detailType: 'NOTIFICATION_CREATED',
           timeoutMs: 90_000,
         });
