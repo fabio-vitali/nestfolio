@@ -120,13 +120,14 @@ beforeAll(async () => {
 
 ### 4. Mock Agent Runtime — Bedrock service mocking
 
-Same pattern as the 6 HTTP adapter mocks (MockApiFixture + SsmOverrideFixture). Applied to 4 Bedrock services.
+Same pattern as the 6 HTTP adapter mocks (MockApiFixture + SsmOverrideFixture). Applied to 5 Bedrock services.
 
 **Affected services:**
-- advisory-ctrl (mock already exists: `test/mocks/mock-agent-runtime.ts`)
+- advisory-ctrl
 - investor-profile-ctrl
 - portfolio-engine-ctrl
 - advisory-narrative-ctrl
+- market-intelligence-ctrl
 
 > **Note:** decision-workflow-ctrl does NOT have an AgentRuntime or agents/ directory — it orchestrates
 > the decision lifecycle via Step Functions task tokens, not via in-process agent invocation.
@@ -137,65 +138,49 @@ Add SSM parameter for agent runtime URL:
 
 ```typescript
 // In service.stack.ts
+import { PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
+
 const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
   parameterName: `/nestfolio/${props.prefix}-${serviceName}/agent/runtimeUrl`,
-  stringValue: '', // empty = in-process (production default)
+  stringValue: 'DISABLED', // SSM rejects empty strings — resolveAgentRuntimeUrl() treats non-URL values as null
 });
 ```
 
-Pass param name as Lambda env var:
+Add `paramsAndSecrets` to the Ingress construct's `lambdaProps` (required for `resolveAgentRuntimeUrl()` to reach the Parameters and Secrets Extension at `localhost:2773`):
 
 ```typescript
-environmentVariables: {
-  AGENT_RUNTIME_URL_PARAM: agentRuntimeUrlParam.parameterName,
-  // ... existing vars
-}
+paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
 ```
 
-#### 4b. Service lifecycle change (per service)
-
-In each service's lifecycle class (e.g., `DecisionLifecycleService`), add URL resolution before running the pipeline:
+After Ingress creation, add env var and grant SSM read permission:
 
 ```typescript
-private async runAgentPipeline(context: DecisionContext): Promise<DecisionLifecycleStateType> {
-  const runtimeUrl = await this.resolveRuntimeUrl();
-
-  if (runtimeUrl) {
-    // Mock path: invoke remote Lambda via HTTP
-    const response = await fetch(runtimeUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(context),
-    });
-    return await response.json() as DecisionLifecycleStateType;
-  }
-
-  // Production path: in-process graph
-  const result = await invokeOrchestrator(this.graph, { input: JSON.stringify(context) });
-  if ('serviceUnavailable' in result) {
-    throw new Error(`Agent pipeline unavailable: ${(result as ServiceUnavailableResponse).reason}`);
-  }
-  return result as DecisionLifecycleStateType;
-}
-
-private async resolveRuntimeUrl(): Promise<string | null> {
-  const paramName = process.env.AGENT_RUNTIME_URL_PARAM;
-  if (!paramName) return null;
-
-  const port = process.env.PARAMETERS_SECRETS_EXTENSION_HTTP_PORT ?? '2773';
-  const token = process.env.AWS_SESSION_TOKEN!;
-  const res = await fetch(
-    `http://localhost:${port}/systemsmanager/parameters/get?name=${encodeURIComponent(paramName)}`,
-    { headers: { 'X-Aws-Parameters-Secrets-Token': token } },
-  );
-  const data = await res.json() as { Parameter: { Value: string } };
-  return data.Parameter.Value || null; // empty string = in-process
-}
+ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
+agentRuntimeUrlParam.grantRead(ingress.handler);
 ```
+
+#### 4b. Shared helper in agent-orchestrator (replaces per-service inline resolution)
+
+The `resolveAgentRuntimeUrl()` and `invokeRemoteRuntime()` helpers live in `libs/agent-orchestrator/src/resolve-runtime-url.ts` — shared by all 5 services. Uses Powertools Logger (consistent with `invoke-orchestrator.ts`).
+
+Each service's lifecycle/agent-service class calls:
+
+```typescript
+import { resolveAgentRuntimeUrl, invokeRemoteRuntime } from '@nestfolio/agent-orchestrator';
+
+// Inside the pipeline method:
+const runtimeUrl = await resolveAgentRuntimeUrl();
+if (runtimeUrl) {
+  return invokeRemoteRuntime<ResultType>(runtimeUrl, payload);
+}
+// else: existing in-process path
+```
+
+`resolveAgentRuntimeUrl` reads `AGENT_RUNTIME_URL_PARAM` env var → fetches value via Parameters and Secrets Extension → returns URL if it starts with `https://`, null otherwise (CDK default `'DISABLED'` → null → in-process). Logs a warning on SSM fetch errors instead of failing silently.
 
 #### 4c. Mock handler (per service)
 
-Each service gets a `test/mocks/mock-agent-runtime.ts` returning a canned response matching its result type. Advisory-ctrl already has one. Other services need similar handlers.
+Each service gets a `test/mocks/mock-agent-runtime.ts` returning a canned response matching its result type.
 
 The mock handler receives the lifecycle context as POST body and returns the service-specific result shape (e.g., `DecisionLifecycleStateType` for advisory-ctrl).
 
@@ -241,24 +226,25 @@ Each test suite's `beforeAll` follows this order:
 
 ## Files changed
 
-**Modified:**
-- `libs/integration-testing/src/fixtures/ssm-override.fixture.ts` — crash-safe `.backup` param logic
-- `libs/integration-testing/src/index.ts` — export new fixtures
-- `services/execution/broker-alpaca-adpt/test/integration/broker-alpaca-adpt.integration.test.ts` — add StateResetFixture
-- `services/investor/investor-bff/test/integration/investor-bff.integration.test.ts` — add StateResetFixture
-- `services/advisory/advisory-ctrl/test/integration/advisory-ctrl.integration.test.ts` — add mock agent runtime setup
-- `services/advisory/advisory-ctrl/src/service.stack.ts` — add SSM param for agent runtime URL
-- `services/advisory/advisory-ctrl/src/services/decision-lifecycle.service.ts` — add runtime URL resolution
-
-**New:**
+**New (shared):**
 - `libs/integration-testing/src/fixtures/orphan-reaper.ts` — AWS resource cleanup utility
 - `libs/integration-testing/src/fixtures/state-reset.fixture.ts` — stale DDB item cleanup
+- `libs/agent-orchestrator/src/resolve-runtime-url.ts` — shared SSM-based URL resolution (Powertools Logger)
 
-**Per remaining Bedrock service (3 services — investor-profile-ctrl, portfolio-engine-ctrl, advisory-narrative-ctrl):**
-- `src/service.stack.ts` — add SSM param
-- `src/services/*.service.ts` — add runtime URL resolution
-- `test/mocks/mock-agent-runtime.ts` + `.zip` — canned response handler
-- `test/integration/*.integration.test.ts` — add mock setup
+**Modified (shared):**
+- `libs/integration-testing/src/fixtures/ssm-override.fixture.ts` — crash-safe `.backup` param logic
+- `libs/integration-testing/src/index.ts` — export new fixtures
+- `libs/agent-orchestrator/src/index.ts` — export new helper
+
+**Modified (stale state fix):**
+- `services/execution/broker-alpaca-adpt/test/integration/broker-alpaca-adpt.integration.test.ts` — add StateResetFixture
+- `services/investor/investor-bff/test/integration/investor-bff.integration.test.ts` — add StateResetFixture
+
+**Per Bedrock service (5 services — advisory-ctrl, investor-profile-ctrl, portfolio-engine-ctrl, advisory-narrative-ctrl, market-intelligence-ctrl):**
+- `src/service.stack.ts` — add SSM param for agent runtime URL
+- `src/agent-service.ts` or `src/services/decision-lifecycle.service.ts` — add runtime URL resolution
+- `test/mocks/mock-agent-runtime.ts` + `.gitignore` — canned response handler
+- `test/integration/*.integration.test.ts` — add MockApiFixture + SsmOverrideFixture
 
 ## Not in scope
 
