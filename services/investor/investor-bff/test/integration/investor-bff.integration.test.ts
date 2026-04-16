@@ -370,6 +370,11 @@ describe('investor-bff', () => {
   // ── AppSync Mutations ───────────────────────────────────────────────
 
   describe('AppSync mutations', () => {
+    beforeAll(async () => {
+      // Clear any leftover circuit-breaker feature flags from previous runs
+      await table.cleanup({ table: 'investor-bff', pk: 'FeatureFlag#SYSTEM' });
+    }, 30_000);
+
     it('should create deposit record and emit DEPOSIT_INITIATED', async () => {
       const result = await appsync.mutate<{
         initiateDeposit: {

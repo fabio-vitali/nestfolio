@@ -120,14 +120,16 @@ beforeAll(async () => {
 
 ### 4. Mock Agent Runtime — Bedrock service mocking
 
-Same pattern as the 6 HTTP adapter mocks (MockApiFixture + SsmOverrideFixture). Applied to 5 Bedrock services.
+Same pattern as the 6 HTTP adapter mocks (MockApiFixture + SsmOverrideFixture). Applied to 4 Bedrock services.
 
 **Affected services:**
 - advisory-ctrl (mock already exists: `test/mocks/mock-agent-runtime.ts`)
 - investor-profile-ctrl
-- decision-workflow-ctrl
 - portfolio-engine-ctrl
 - advisory-narrative-ctrl
+
+> **Note:** decision-workflow-ctrl does NOT have an AgentRuntime or agents/ directory — it orchestrates
+> the decision lifecycle via Step Functions task tokens, not via in-process agent invocation.
 
 #### 4a. CDK stack change (per service)
 
@@ -252,7 +254,7 @@ Each test suite's `beforeAll` follows this order:
 - `libs/integration-testing/src/fixtures/orphan-reaper.ts` — AWS resource cleanup utility
 - `libs/integration-testing/src/fixtures/state-reset.fixture.ts` — stale DDB item cleanup
 
-**Per remaining Bedrock service (4 services — investor-profile-ctrl, decision-workflow-ctrl, portfolio-engine-ctrl, advisory-narrative-ctrl):**
+**Per remaining Bedrock service (3 services — investor-profile-ctrl, portfolio-engine-ctrl, advisory-narrative-ctrl):**
 - `src/service.stack.ts` — add SSM param
 - `src/services/*.service.ts` — add runtime URL resolution
 - `test/mocks/mock-agent-runtime.ts` + `.zip` — canned response handler

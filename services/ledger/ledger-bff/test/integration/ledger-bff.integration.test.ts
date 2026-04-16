@@ -285,11 +285,17 @@ describe('ledger-bff', () => {
         sk: 'Entry#99001',
         timeoutMs: 30_000,
       });
-      // Wait for checkpoint
+      // Wait for checkpoints
       await table.waitForItem({
         table: 'ledger-bff',
         pk: checkpointPk(),
         sk: '2025-01-15',
+        timeoutMs: 30_000,
+      });
+      await table.waitForItem({
+        table: 'ledger-bff',
+        pk: checkpointPk(),
+        sk: '2025-06-15',
         timeoutMs: 30_000,
       });
       // Wait for simulation

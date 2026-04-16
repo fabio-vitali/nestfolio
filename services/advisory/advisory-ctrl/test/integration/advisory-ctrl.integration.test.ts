@@ -365,14 +365,15 @@ describe('advisory-ctrl', () => {
           },
         });
 
-        // CDC verification
+        // CDC verification — agent invocations via Bedrock can be slow
         const cdcEvent = await trap.waitForEvent({
           detailType: 'DECISION_PACKET_CREATED',
+          timeoutMs: 90_000,
         });
         expect(cdcEvent.detailType).toBe('DECISION_PACKET_CREATED');
         expect(cdcEvent.detail).toBeDefined();
       },
-      60_000,
+      120_000,
     );
   });
 });
