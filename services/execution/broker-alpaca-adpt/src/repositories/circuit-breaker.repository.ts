@@ -65,7 +65,7 @@ export class CircuitBreakerRepository extends TableRepository {
   );
 
   readonly writeBreakerOpenEvent = this.log('writeBreakerOpenEvent',
-    async (tenantId: string): Promise<void> => {
+    async (tenantId: string, adapterId: string): Promise<void> => {
       const timestamp = getTime();
       await this.put({
         pk: `NormalizedEvent#${tenantId}#CIRCUIT_BREAKER`,
@@ -73,6 +73,7 @@ export class CircuitBreakerRepository extends TableRepository {
         __typename: 'NormalizedEvent',
         tenantId,
         timestamp,
+        adapter: adapterId,
       });
     },
   );

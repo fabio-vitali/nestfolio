@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import {
   createTestContext,
   EventBridgeClient,
@@ -52,6 +54,16 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
       paramName: `/nestfolio/${mockCtx.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
       testValue: mockUrl,
     });
+
+    // Clean up any stale CircuitBreaker record left by a previous run
+    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: mockCtx.region }));
+    const cbTableName = await mockCtx.ssm.tableName('broker-alpaca-adpt');
+    try {
+      await ddb.send(new DeleteCommand({
+        TableName: cbTableName,
+        Key: { pk: 'CircuitBreaker#alpaca', sk: 'CircuitBreaker' },
+      }));
+    } catch { /* item may not exist */ }
   }, 120_000);
 
   afterAll(async () => {

@@ -43,11 +43,13 @@ function resolveEventType(
   if (typeof mapping === 'string') return mapping;
 
   if ('passthrough' in mapping) {
-    const value = (record as Record<string, unknown>)[mapping.field] as string;
-    if (!value) {
+    const raw = (record as Record<string, unknown>)[mapping.field] as string;
+    if (!raw) {
       throw new Error(`Event name resolution failed: passthrough field "${mapping.field}" is falsy for ${record.__typename}`);
     }
-    return value;
+    // Strip composite-key suffix (e.g. 'BROKER_CIRCUIT_OPEN#2026-04-16T...' → 'BROKER_CIRCUIT_OPEN')
+    const idx = raw.indexOf('#');
+    return idx > 0 ? raw.slice(0, idx) : raw;
   }
 
   // Field dispatch — null return for unmapped values is intentional

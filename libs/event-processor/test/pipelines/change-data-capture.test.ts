@@ -125,6 +125,20 @@ describe('changeDataCapture', () => {
       expect(detail.type).toBe('ORDER_FILLED');
     });
 
+    it('strips composite-key suffix after # from passthrough field', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'NormalizedEvent:INSERT': { field: 'sk', passthrough: true },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('INSERT', { pk: 'T#t1', sk: 'BROKER_CIRCUIT_OPEN#2026-04-16T12:00:00.000Z', __typename: 'NormalizedEvent', tenantId: 't1' }),
+        ],
+      });
+      const detail = JSON.parse(mockPublish.mock.calls[0][0][0].Detail);
+      expect(detail.type).toBe('BROKER_CIRCUIT_OPEN');
+    });
+
     it('throws when passthrough field is falsy', async () => {
       process.env.EVENT_TYPE_MAP = JSON.stringify({
         'NormalizedEvent:INSERT': { field: 'eventType', passthrough: true },

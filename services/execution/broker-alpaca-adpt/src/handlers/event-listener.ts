@@ -25,7 +25,7 @@ async function handleApiFailure(error: unknown, ctx: EventContext): Promise<bool
     const opened = await circuitBreakerRepo.open('alpaca', (error as Error).message ?? 'API unreachable');
     if (opened) {
       logger.warn('Circuit breaker OPENED for alpaca', { eventId: ctx.eventId });
-      await circuitBreakerRepo.writeBreakerOpenEvent(ctx.tenantId);
+      await circuitBreakerRepo.writeBreakerOpenEvent(ctx.tenantId, 'alpaca');
     }
     return true;
   }

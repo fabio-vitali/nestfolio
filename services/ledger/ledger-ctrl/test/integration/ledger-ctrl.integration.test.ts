@@ -477,10 +477,11 @@ describe('ledger-ctrl: CDC chain → LEDGER_ENTRY_RECORDED', () => {
       },
     });
 
-    const event = await trap.waitForEvent({ timeoutMs: 90_000 });
+    // 4-hop chain: Ingress→ReducerFn(5s batch)→snapshot-publisher(5s batch)→CDC
+    const event = await trap.waitForEvent({ timeoutMs: 120_000 });
     expect(event.detailType).toBe('LEDGER_ENTRY_RECORDED');
     expect((event.detail as Record<string, unknown>).context).toEqual(
       expect.objectContaining({ tenantId: ctx.tenantId }),
     );
-  }, 120_000);
+  }, 150_000);
 });
