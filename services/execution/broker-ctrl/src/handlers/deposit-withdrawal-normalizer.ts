@@ -1,4 +1,4 @@
-import { materializeToTable, record, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, normalizedEvent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { BrokerCtrlInboundEventTypes } from '../domain/events';
 
 export const handler = materializeToTable({
@@ -6,9 +6,10 @@ export const handler = materializeToTable({
   handlers: {
     [BrokerCtrlInboundEventTypes.SIM_DEPOSIT_COMPLETED]: (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject as Record<string, unknown>;
-      return record('NormalizedEvent', {
-        __typename: 'NormalizedEvent',
+      return normalizedEvent({
         tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        region: ctx.region,
         amount: subject.amountCents,
         currency: (subject.currency as string) ?? 'USD',
         executionMode: 'simulation',
@@ -21,9 +22,10 @@ export const handler = materializeToTable({
 
     [BrokerCtrlInboundEventTypes.SIM_WITHDRAWAL_COMPLETED]: (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject as Record<string, unknown>;
-      return record('NormalizedEvent', {
-        __typename: 'NormalizedEvent',
+      return normalizedEvent({
         tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        region: ctx.region,
         amount: subject.amount,
         currency: (subject.currency as string) ?? 'USD',
         executionMode: 'simulation',
@@ -37,9 +39,10 @@ export const handler = materializeToTable({
     [BrokerCtrlInboundEventTypes.ALPACA_TRANSFER_COMPLETED]: (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject as Record<string, unknown>;
       const isDeposit = subject.direction === 'INCOMING';
-      return record('NormalizedEvent', {
-        __typename: 'NormalizedEvent',
+      return normalizedEvent({
         tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        region: ctx.region,
         amount: subject.amount,
         executionMode: 'live',
         timestamp: ctx.timestamp,
@@ -51,9 +54,10 @@ export const handler = materializeToTable({
 
     [BrokerCtrlInboundEventTypes.ALPACA_TRANSFER_FAILED]: (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject as Record<string, unknown>;
-      return record('NormalizedEvent', {
-        __typename: 'NormalizedEvent',
+      return normalizedEvent({
         tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        region: ctx.region,
         amount: subject.amount,
         executionMode: 'live',
         failureReason: (subject.failureReason as string) ?? 'Transfer failed',

@@ -14,21 +14,38 @@ import {
   type FreshTenant,
 } from '..';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import type { FeatureFlagsResponse } from '../helpers/graphql-types';
 
 describe('scenario 14 — circuit breaker lifecycle', () => {
   let ctx: TestContext;
   let tenant: FreshTenant;
 
+  // Reset feature flags directly in investor-bff DDB (bypasses CDC chain).
+  // Flags are global (pk: FeatureFlag#SYSTEM), so a previous failed run can leave them disabled.
+  async function resetFeatureFlags() {
+    const flagTable = await ctx.ssm.tableName('investor-bff');
+    const flagDdb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: ctx.region }));
+    const flags = ['confirmDecision', 'initiateDeposit', 'requestWithdrawal'];
+    await Promise.all(flags.map(name =>
+      flagDdb.send(new PutCommand({
+        TableName: flagTable,
+        Item: { pk: 'FeatureFlag#SYSTEM', sk: `FeatureFlag#${name}`, __typename: 'FeatureFlag', name, enabled: true, reason: null },
+      })),
+    ));
+    flagDdb.destroy();
+  }
+
   // 180s: onboarded() + funded() fixture chain includes CDC propagation waits
   beforeEach(async () => {
     ctx = await createTestContext();
     tenant = await freshTenant(ctx);
+    await resetFeatureFlags();
     await applyFixtures(ctx, tenant, [onboarded(), funded({ cashBalanceCents: 500_000 })]);
   }, 180_000);
 
   afterEach(async () => {
+    try { await resetFeatureFlags(); } catch { /* best effort */ }
     await ctx.cleanup.runAll();
   }, 60_000);
 
@@ -54,7 +71,12 @@ describe('scenario 14 — circuit breaker lifecycle', () => {
       bff.investor,
       `query { getFeatureFlags { name enabled reason } }`,
       {},
-      (r) => r.getFeatureFlags.some(f => f.name === 'initiateDeposit' && !f.enabled),
+      (r) => {
+        const gated = r.getFeatureFlags.filter(f =>
+          ['confirmDecision', 'initiateDeposit', 'requestWithdrawal'].includes(f.name),
+        );
+        return gated.length === 3 && gated.every(f => !f.enabled);
+      },
       { timeoutMs: 120_000 },
     );
     expect(disabledFlags.getFeatureFlags.find(f => f.name === 'initiateDeposit')?.enabled).toBe(false);
@@ -116,7 +138,8 @@ describe('scenario 14 — circuit breaker lifecycle', () => {
       const result = await ddb.send(new QueryCommand({
         TableName: tableName,
         IndexName: 'tenantId-index',
-        KeyConditionExpression: 'tenantId = :tid AND __typename = :tn',
+        KeyConditionExpression: 'tenantId = :tid AND #tn = :tn',
+        ExpressionAttributeNames: { '#tn': '__typename' },
         ExpressionAttributeValues: { ':tid': 'SYSTEM', ':tn': 'Notification' },
       }));
       if (result.Items?.some(i => i['type'] === 'BROKER_CIRCUIT_OPEN')) {

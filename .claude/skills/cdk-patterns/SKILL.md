@@ -423,6 +423,8 @@ myTask.addCatch(handleError, { errors: ['States.Timeout'], resultPath: '$.error'
 
 Generic circuit breaker healing workflow — produces a `DefinitionBody` for use with the Orchestration construct. The workflow: health-check loop (HTTP:Invoke with retry) → close breaker (DDB UpdateItem) → emit closed event (DDB PutItem for CDC). On exhaustion → escalate (DDB PutItem for CDC) → Fail state.
 
+**CRITICAL:** All NormalizedEvent DDB PutItem steps in SF definitions MUST include `tenantId`, `userId`, and `region` from state input (`$.tenantId`, `$.userId`, `$.region`). These are `RequestContext` fields — the CDC reads them into the EventBridge event `context`, and downstream Ingress pipelines validate all three. Missing fields cause **silent event drops**. TypeScript can't enforce this in SF JSON definitions, so always include a comment referencing RequestContext.
+
 ```ts
 export interface CircuitBreakerHealDefinitionProps {
   readonly table: ITable;                      // DDB table for breaker state + CDC events

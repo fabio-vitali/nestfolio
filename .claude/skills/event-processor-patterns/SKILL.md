@@ -393,6 +393,55 @@ update('Order', { status: 'filled', filledAt: new Date().toISOString() }, {
 })
 ```
 
+**`normalizedEvent` builder (type-safe NormalizedEvent writes):**
+```ts
+import { normalizedEvent } from '@nestfolio/event-processor';
+
+normalizedEvent({
+  tenantId: ctx.tenantId,
+  userId: ctx.userId,
+  region: ctx.region,
+  timestamp: ctx.timestamp,
+  amount: subject.amount,
+}, {
+  pk: `NormalizedEvent#${ctx.tenantId}#${orderId}`,
+  sk: 'ORDER_FILLED',
+})
+```
+
+### NormalizedEvent and RequestContext — CRITICAL
+
+NormalizedEvent records trigger CDC passthrough events. The CDC `buildEntry` function reads `tenantId`, `userId`, and `region` from the DDB record and puts them in the EventBridge event `context`. Downstream Ingress pipelines validate all three fields via `RequestContextSchema`. **Missing fields cause silent event drops** (`Invalid event: missing "context.X" field`).
+
+**ALWAYS use `normalizedEvent()` instead of `record('NormalizedEvent', ...)` in Lambda handlers.** The `normalizedEvent()` intent requires `RequestContext` fields (`tenantId`, `userId`, `region`) at compile time — if you forget one, the build fails.
+
+**For repositories** that write NormalizedEvent (e.g., `CircuitBreakerRepository.writeBreakerOpenEvent`): accept `RequestContext` as a parameter and spread it into the record. This propagates any future RequestContext field additions.
+
+```ts
+// ✅ Correct — RequestContext enforced at compile time
+readonly writeBreakerOpenEvent = async (context: RequestContext, adapterId: string) => {
+  await this.put({ pk: ..., sk: ..., __typename: 'NormalizedEvent', ...context, adapter: adapterId });
+};
+
+// ❌ Wrong — individual fields, easy to forget one
+readonly writeBreakerOpenEvent = async (tenantId: string, adapterId: string) => {
+  await this.put({ pk: ..., sk: ..., __typename: 'NormalizedEvent', tenantId, adapter: adapterId });
+};
+```
+
+**For Step Functions DDB PutItem** (CDK CustomState): always include `tenantId`, `userId`, and `region` from state input. SF definitions are JSON, so TypeScript can't enforce this — add a comment referencing RequestContext.
+
+```ts
+// SF DDB PutItem — include all RequestContext fields (tenantId, userId, region)
+Item: {
+  __typename: { S: 'NormalizedEvent' },
+  tenantId: { 'S.$': '$.tenantId' },
+  userId: { 'S.$': '$.userId' },    // ← Required by RequestContext
+  region: { 'S.$': '$.region' },     // ← Required by RequestContext
+  timestamp: { 'S.$': '$$.State.EnteredTime' },
+}
+```
+
 **Source:** `libs/event-processor/src/types/write-intent.ts`, `libs/event-processor/src/intents/`
 
 ---

@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getTime, withMethodLogging } from '@nestfolio/event-processor';
+import { TableRepository, getTime, withMethodLogging, type RequestContext } from '@nestfolio/event-processor';
 
 export class CircuitBreakerRepository extends TableRepository {
   private readonly log = withMethodLogging('CircuitBreakerRepository');
@@ -65,13 +65,13 @@ export class CircuitBreakerRepository extends TableRepository {
   );
 
   readonly writeBreakerOpenEvent = this.log('writeBreakerOpenEvent',
-    async (tenantId: string, adapterId: string): Promise<void> => {
+    async (context: RequestContext, adapterId: string): Promise<void> => {
       const timestamp = getTime();
       await this.put({
-        pk: `NormalizedEvent#${tenantId}#CIRCUIT_BREAKER`,
+        pk: `NormalizedEvent#${context.tenantId}#CIRCUIT_BREAKER`,
         sk: `BROKER_CIRCUIT_OPEN#${timestamp}`,
         __typename: 'NormalizedEvent',
-        tenantId,
+        ...context,
         timestamp,
         adapter: adapterId,
       });

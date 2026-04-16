@@ -82,9 +82,14 @@ export class CircuitBreakerHealDefinition extends Construct {
     // ---------------------------------------------------------------
     // 1. InitAttemptCount — initialize counter
     // ---------------------------------------------------------------
+    // Extract RequestContext fields from the EventBridge event detail structure
+    // ($.context.tenantId, $.context.userId, $.context.region, $.subject.adapter)
     const initAttemptCount = new sfn.Pass(this, 'InitAttemptCount', {
       parameters: {
-        'tenantId.$': '$.tenantId',
+        'tenantId.$': '$.context.tenantId',
+        'userId.$': '$.context.userId',
+        'region.$': '$.context.region',
+        'adapter.$': '$.subject.adapter',
         attemptCount: 0,
       },
     });
@@ -147,6 +152,9 @@ export class CircuitBreakerHealDefinition extends Construct {
             sk: { 'S.$': `States.Format('${eventNames.closed}#{}', $$.State.EnteredTime)` },
             __typename: { S: 'NormalizedEvent' },
             tenantId: { 'S.$': '$.tenantId' },
+            userId: { S: 'SYSTEM' },
+            region: { 'S.$': '$.region' },
+            adapter: { 'S.$': '$.adapter' },
             timestamp: { 'S.$': '$$.State.EnteredTime' },
           },
         },
@@ -192,6 +200,9 @@ export class CircuitBreakerHealDefinition extends Construct {
             sk: { 'S.$': `States.Format('${eventNames.escalated}#{}', $$.State.EnteredTime)` },
             __typename: { S: 'NormalizedEvent' },
             tenantId: { 'S.$': '$.tenantId' },
+            userId: { S: 'SYSTEM' },
+            region: { 'S.$': '$.region' },
+            adapter: { 'S.$': '$.adapter' },
             failureReason: { S: `Circuit breaker heal failed after ${maxAttempts} attempts` },
             timestamp: { 'S.$': '$$.State.EnteredTime' },
           },

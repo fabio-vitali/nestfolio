@@ -275,6 +275,9 @@ export function withBreakerOpen(): Fixture {
           sk: `BROKER_CIRCUIT_OPEN#${now}`,
           __typename: 'NormalizedEvent',
           tenantId: tenant.tenantId,
+          userId: 'SYSTEM',
+          region: 'us-east-1',
+          adapter: 'alpaca',
           timestamp: now,
         },
       }));
@@ -315,6 +318,8 @@ export function closeBreakerFixture(): Fixture {
           sk: `BROKER_CIRCUIT_CLOSED#${now}`,
           __typename: 'NormalizedEvent',
           tenantId: tenant.tenantId,
+          userId: 'SYSTEM',
+          adapter: 'alpaca',
           timestamp: now,
         },
       }));

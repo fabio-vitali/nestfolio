@@ -11,6 +11,7 @@ export type {
 
 // Intent helpers
 export { record } from './intents/record';
+export { normalizedEvent } from './intents/normalized-event';
 export { project } from './intents/project';
 export { accumulate } from './intents/accumulate';
 export { update } from './intents/update';

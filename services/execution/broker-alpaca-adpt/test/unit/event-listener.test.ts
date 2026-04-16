@@ -127,7 +127,7 @@ function createHandlers(deps: {
       const opened = await circuitBreakerRepo.open('alpaca', (error as Error).message ?? 'API unreachable');
       if (opened) {
         logger.warn('Circuit breaker OPENED for alpaca', { eventId: ctx.eventId });
-        await circuitBreakerRepo.writeBreakerOpenEvent(ctx.tenantId, 'alpaca');
+        await circuitBreakerRepo.writeBreakerOpenEvent(ctx, 'alpaca');
       }
       return true;
     }
@@ -625,7 +625,7 @@ describe('broker-alpaca-adpt event-listener handler', () => {
 
       expect(mockHealthCheck).toHaveBeenCalledTimes(1);
       expect(mockOpen).toHaveBeenCalledWith('alpaca', 'ECONNREFUSED');
-      expect(mockWriteBreakerOpenEvent).toHaveBeenCalledWith('tenant-1', 'alpaca');
+      expect(mockWriteBreakerOpenEvent).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-1' }), 'alpaca');
     });
 
     it('does NOT write NormalizedEvent when breaker was already open (open returns false)', async () => {
