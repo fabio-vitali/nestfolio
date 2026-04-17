@@ -20,16 +20,30 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   }),
 }));
 
+jest.mock('@aws-sdk/client-dynamodb', () => ({
+  DynamoDBClient: jest.fn().mockImplementation(() => ({})),
+}));
+
+jest.mock('@aws-sdk/lib-dynamodb', () => ({
+  DynamoDBDocumentClient: { from: jest.fn().mockReturnValue({}) },
+}));
+
+jest.mock('../../src/agents/tools/portfolio-lookup', () => ({
+  createPortfolioLookup: jest.fn().mockReturnValue(async () => null),
+}));
+
 describe('portfolio-engine-ctrl orchestrator graph', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCreateOrchestrator.mockReturnValue({ invoke: jest.fn() });
     process.env['KNOWLEDGE_BASE_ID'] = 'kb-test';
     process.env['MEMORY_ID'] = 'mem-test';
+    process.env['TABLE_NAME'] = 'test-table';
   });
   afterEach(() => {
     delete process.env['KNOWLEDGE_BASE_ID'];
     delete process.env['MEMORY_ID'];
+    delete process.env['TABLE_NAME'];
   });
 
   it('creates orchestrator with 2 parallel agents', () => {
@@ -91,7 +105,6 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
       invokePortfolioEngine = mod.invokePortfolioEngine;
     });
 
-    process.env['TABLE_NAME'] = 'test-table';
     await invokePortfolioEngine!({ tenantId: 't1', decisionId: 'd1', input: 'Rebalance' });
 
     const passedInput = mockInvokeOrchestrator.mock.calls[0][1].input as string;

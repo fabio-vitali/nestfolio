@@ -9,6 +9,10 @@ import {
   type KBClient,
   type MemoryClient,
 } from '@nestfolio/agent-orchestrator';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { createPortfolioLookup } from '../src/agents/tools/portfolio-lookup';
+import { formatToolContext } from '../src/agents/tools/format-context';
 import { portfolioConstructionConfig } from '../src/agents/portfolio-construction.config';
 import { rebalancePlannerConfig } from '../src/agents/rebalance-planner.config';
 import { portfolioValidationRule, rebalanceValidationRule } from '../src/agents/validation';
@@ -51,6 +55,17 @@ function buildMemoryClient(): MemoryClient {
   });
 }
 
+function buildTools() {
+  const tableName = process.env['TABLE_NAME'];
+  if (!tableName) throw new Error('TABLE_NAME is required for portfolio-engine tools');
+  const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+  return {
+    portfolioLookup: createPortfolioLookup({ docClient, tableName }),
+  };
+}
+
+const tools = buildTools();
+
 export async function invokePortfolioEngine(params: {
   tenantId: string;
   decisionId: string;
@@ -75,11 +90,15 @@ export async function invokePortfolioEngine(params: {
     ? `\n\nUpstream context:\n${upstreamRecords.map((r) => r.content).join('\n')}`
     : '';
 
-  // 3. Invoke orchestrator (parallel: portfolio-construction + rebalance-planner)
-  const enrichedInput = params.input + kbContext + upstreamContext;
+  // 3. Deterministic tool context (portfolio snapshot)
+  const portfolioSnapshot = await tools.portfolioLookup({ tenantId: params.tenantId });
+  const toolContext = formatToolContext({ 'Portfolio snapshot': portfolioSnapshot });
+
+  // 4. Invoke orchestrator (parallel: portfolio-construction + rebalance-planner)
+  const enrichedInput = params.input + kbContext + upstreamContext + toolContext;
   const result = await invokeOrchestrator(graph, { input: enrichedInput }, {});
 
-  // 4. Persist to memory
+  // 5. Persist to memory
   if (!('serviceUnavailable' in result)) {
     await session.writeAgentOutput(result);
   }
