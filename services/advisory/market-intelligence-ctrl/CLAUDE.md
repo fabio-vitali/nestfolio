@@ -23,21 +23,21 @@ Stack: services/advisory/market-intelligence-ctrl/src/service.stack.ts
   - AgentInvocation -> MARKET_SIGNAL_DETECTED (insert only)
 
 ## AgentRuntime
-- market_intelligence_agents: market-research (Sonnet) single agent with tool access
+- market_intelligence_agents: market-research (Sonnet) single agent
   Models: Sonnet (SSM from advisory-hub)
-  Tools: none wired to AgentRuntime (standalone tool Lambdas exist)
+  Tools: none wired to AgentRuntime (Gateway)
+  Context augmentation: market-data + instrument-universe (in-process, deterministic pre-fetch via agents/graph.ts)
 
 ## Standalone Lambdas
 - KBIngestion: Ingests feed data into MarketKB (triggered by 5 feed ingestion events)
-- MarketDataTool: Retrieve market data from State table (reads DDB)
-- InstrumentUniverseTool: Retrieve instrument universe from State table (reads DDB)
 
 ## Handlers
 - event-listener.ts -- Ingress event handler (ANALYZE_MARKET)
 - event-publisher.ts -- Egress CDC publisher
 - kb-ingestion-handler.ts -- KB ingestion for 5 market feed sources
-- tools/market-data.handler.ts -- Market data tool Lambda
-- tools/instrument-universe.handler.ts -- Instrument universe tool Lambda
+- agents/tools/market-data.ts -- Market data factory (in-process, called from agents/graph.ts)
+- agents/tools/instrument-universe.ts -- Instrument universe factory (in-process)
+- agents/tools/format-context.ts -- Helper to serialize tool output as labelled prompt sections
 
 ## Event Types (domain/events.ts)
 - MarketIntelligenceEventTypes: MARKET_ANALYSIS_COMPLETED, MARKET_SIGNAL_DETECTED
@@ -50,8 +50,9 @@ Stack: services/advisory/market-intelligence-ctrl/src/service.stack.ts
 - graph.test.ts
 - kb-ingestion-handler.test.ts
 - service.stack.test.ts
-- tools/instrument-universe.handler.test.ts
-- tools/market-data.handler.test.ts
+- agents/format-context.test.ts
+- tools/market-data.test.ts
+- tools/instrument-universe.test.ts
 
 ## Dependencies
 - libs: cdk-constructs (core, extensions, utils), event-processor
