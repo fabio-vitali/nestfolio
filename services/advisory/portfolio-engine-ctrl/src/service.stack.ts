@@ -52,14 +52,6 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       },
     });
 
-    // Tool Lambda: portfolio-lookup
-    const portfolioLookupFn = new NodejsFunction(this, 'PortfolioLookup', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'tools', 'portfolio-lookup.ts'),
-      environment: { TABLE_NAME: state.getTable().tableName },
-    });
-    state.getTable().grantReadData(portfolioLookupFn);
-
     // KB ingestion Lambda
     const kbIngestionFn = new NodejsFunction(this, 'KBIngestion', {
       ...defaultLambdaProps(this),
@@ -128,7 +120,7 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     this.addObservability({
       ingress,
       egress,
-      extraLambdas: [kbIngestionFn, portfolioLookupFn],
+      extraLambdas: [kbIngestionFn],
       monitorBedrock: true,
       bedrockModelIds: [modelOpusId, modelSonnetId],
     });
