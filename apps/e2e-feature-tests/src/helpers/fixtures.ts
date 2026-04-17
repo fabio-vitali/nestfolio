@@ -371,6 +371,7 @@ export function closeBreakerFixture(): Fixture {
           __typename: 'NormalizedEvent',
           tenantId: tenant.tenantId,
           userId: 'SYSTEM',
+          region: 'us-east-1',
           adapter: 'alpaca',
           timestamp: now,
         },
