@@ -44,5 +44,6 @@ pnpm-debug.log*
 
 .claude/worktrees
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 .superpowers
 vitest.config.*.timestamp*
