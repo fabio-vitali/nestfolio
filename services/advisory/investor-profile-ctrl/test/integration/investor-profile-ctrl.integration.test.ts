@@ -35,6 +35,7 @@ describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DD
     await ssmOverride.override({
       paramName: `/nestfolio/${ctx.prefix}-investor-profile-ctrl/agent/runtimeUrl`,
       testValue: mockUrl,
+      restoreTo: 'DISABLED',
     });
 
     eb = new EventBridgeClient(ctx);

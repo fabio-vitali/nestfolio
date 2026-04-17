@@ -46,6 +46,7 @@ describe('broker-alpaca-adpt', () => {
     await ssmOverride.override({
       paramName: `/nestfolio/${ctx.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
       testValue: mockUrl,
+      restoreTo: 'https://paper-api.alpaca.markets',
     });
 
     eb = new EventBridgeClient(ctx);

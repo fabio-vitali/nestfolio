@@ -47,6 +47,7 @@ describe('fred-adpt (mocked)', () => {
     await ssmOverride.override({
       paramName: `/nestfolio/${ctx.prefix}-fred-adpt/fred/baseUrl`,
       testValue: mockUrl,
+      restoreTo: 'https://api.stlouisfed.org/fred/series/observations',
     });
 
     eb = new EventBridgeClient(ctx);

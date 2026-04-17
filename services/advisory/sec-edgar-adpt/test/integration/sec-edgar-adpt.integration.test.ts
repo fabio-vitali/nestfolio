@@ -51,6 +51,7 @@ describe('sec-edgar-adpt (mocked)', () => {
     await ssmOverride.override({
       paramName: `/nestfolio/${ctx.prefix}-sec-edgar-adpt/edgar/baseUrl`,
       testValue: mockUrl,
+      restoreTo: 'https://data.sec.gov',
     });
 
     eb = new EventBridgeClient(ctx);

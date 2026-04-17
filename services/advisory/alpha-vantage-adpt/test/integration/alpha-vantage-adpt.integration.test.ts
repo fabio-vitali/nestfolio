@@ -48,6 +48,7 @@ describe('alpha-vantage-adpt (mocked)', () => {
     await ssmOverride.override({
       paramName: `/nestfolio/${ctx.prefix}-alpha-vantage-adpt/alpha-vantage/baseUrl`,
       testValue: mockUrl,
+      restoreTo: 'https://www.alphavantage.co/query',
     });
 
     eb = new EventBridgeClient(ctx);

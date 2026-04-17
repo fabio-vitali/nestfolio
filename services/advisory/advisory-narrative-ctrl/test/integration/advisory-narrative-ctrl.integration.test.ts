@@ -35,6 +35,7 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
     await ssmOverride.override({
       paramName: `/nestfolio/${ctx.prefix}-advisory-narrative-ctrl/agent/runtimeUrl`,
       testValue: mockUrl,
+      restoreTo: 'DISABLED',
     });
 
     eb = new EventBridgeClient(ctx);

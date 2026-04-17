@@ -90,6 +90,7 @@ describe('advisory-ctrl', () => {
     await ssmOverride.override({
       paramName: `/nestfolio/${ctx.prefix}-advisory-ctrl/agent/runtimeUrl`,
       testValue: mockUrl,
+      restoreTo: 'DISABLED',
     });
 
     eb = new EventBridgeClient(ctx);

@@ -35,6 +35,7 @@ describe('market-intelligence-ctrl: ANALYZE_MARKET → AgentInvocation DDB write
     await ssmOverride.override({
       paramName: `/nestfolio/${ctx.prefix}-market-intelligence-ctrl/agent/runtimeUrl`,
       testValue: mockUrl,
+      restoreTo: 'DISABLED',
     });
 
     eb = new EventBridgeClient(ctx);

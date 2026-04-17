@@ -1,13 +1,13 @@
 import {
-  LambdaClient, ListFunctionsCommand, DeleteFunctionCommand,
+  LambdaClient, paginateListFunctions, DeleteFunctionCommand,
   DeleteFunctionUrlConfigCommand,
 } from '@aws-sdk/client-lambda';
 import {
-  IAMClient, ListRolesCommand, DeleteRoleCommand,
+  IAMClient, paginateListRoles, DeleteRoleCommand,
   DetachRolePolicyCommand, ListAttachedRolePoliciesCommand,
 } from '@aws-sdk/client-iam';
 import {
-  SQSClient, ListQueuesCommand, DeleteQueueCommand,
+  SQSClient, paginateListQueues, DeleteQueueCommand,
 } from '@aws-sdk/client-sqs';
 import {
   EventBridgeClient, ListRulesCommand, RemoveTargetsCommand,
@@ -27,8 +27,8 @@ export class OrphanReaper {
     this.prefix = ctx.prefix;
   }
 
-  // Note: List calls return a single page (~50 items). If orphaned resources exceed one page,
-  // older ones won't be cleaned. Acceptable for integ-* resources which rarely accumulate that high.
+  // All List* calls use AWS SDK v3 paginators so reaper sees every integ-* resource
+  // regardless of where it lands in alphabetical order vs. account-wide page boundaries.
   async cleanup(): Promise<void> {
     await Promise.allSettled([
       this.reapLambdas(),
@@ -44,18 +44,18 @@ export class OrphanReaper {
   private async reapLambdas(): Promise<void> {
     const lambda = new LambdaClient({ region: this.region });
     try {
-      const result = await lambda.send(new ListFunctionsCommand({}));
       const cutoff = Date.now() - ONE_HOUR_MS;
+      for await (const page of paginateListFunctions({ client: lambda }, {})) {
+        for (const fn of page.Functions ?? []) {
+          if (!fn.FunctionName?.startsWith('integ-mock-')) continue;
+          const modified = new Date(fn.LastModified ?? 0).getTime();
+          if (modified > cutoff) continue;
 
-      for (const fn of result.Functions ?? []) {
-        if (!fn.FunctionName?.startsWith('integ-mock-')) continue;
-        const modified = new Date(fn.LastModified ?? 0).getTime();
-        if (modified > cutoff) continue;
-
-        try {
-          await lambda.send(new DeleteFunctionUrlConfigCommand({ FunctionName: fn.FunctionName }));
-        } catch { /* may not have URL config */ }
-        await lambda.send(new DeleteFunctionCommand({ FunctionName: fn.FunctionName }));
+          try {
+            await lambda.send(new DeleteFunctionUrlConfigCommand({ FunctionName: fn.FunctionName }));
+          } catch { /* may not have URL config */ }
+          await lambda.send(new DeleteFunctionCommand({ FunctionName: fn.FunctionName }));
+        }
       }
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -66,22 +66,22 @@ export class OrphanReaper {
   private async reapIamRoles(): Promise<void> {
     const iam = new IAMClient({ region: this.region });
     try {
-      const result = await iam.send(new ListRolesCommand({}));
       const cutoff = Date.now() - ONE_HOUR_MS;
+      for await (const page of paginateListRoles({ client: iam }, {})) {
+        for (const role of page.Roles ?? []) {
+          if (!role.RoleName?.startsWith('integ-mock-')) continue;
+          const created = new Date(role.CreateDate ?? 0).getTime();
+          if (created > cutoff) continue;
 
-      for (const role of result.Roles ?? []) {
-        if (!role.RoleName?.startsWith('integ-mock-')) continue;
-        const created = new Date(role.CreateDate ?? 0).getTime();
-        if (created > cutoff) continue;
-
-        const policies = await iam.send(new ListAttachedRolePoliciesCommand({ RoleName: role.RoleName }));
-        for (const policy of policies.AttachedPolicies ?? []) {
-          await iam.send(new DetachRolePolicyCommand({
-            RoleName: role.RoleName,
-            PolicyArn: policy.PolicyArn,
-          }));
+          const policies = await iam.send(new ListAttachedRolePoliciesCommand({ RoleName: role.RoleName }));
+          for (const policy of policies.AttachedPolicies ?? []) {
+            await iam.send(new DetachRolePolicyCommand({
+              RoleName: role.RoleName,
+              PolicyArn: policy.PolicyArn,
+            }));
+          }
+          await iam.send(new DeleteRoleCommand({ RoleName: role.RoleName }));
         }
-        await iam.send(new DeleteRoleCommand({ RoleName: role.RoleName }));
       }
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -92,17 +92,17 @@ export class OrphanReaper {
   private async reapSqsQueues(): Promise<void> {
     const sqs = new SQSClient({ region: this.region });
     try {
-      const result = await sqs.send(new ListQueuesCommand({ QueueNamePrefix: 'integ-trap-' }));
       const cutoff = Date.now() - ONE_HOUR_MS;
+      for await (const page of paginateListQueues({ client: sqs }, { QueueNamePrefix: 'integ-trap-' })) {
+        for (const url of page.QueueUrls ?? []) {
+          const name = url.split('/').pop() ?? '';
+          const match = name.match(/^integ-trap-(\d+)-/);
+          if (!match) continue;
+          const created = Number(match[1]);
+          if (created > cutoff) continue;
 
-      for (const url of result.QueueUrls ?? []) {
-        const name = url.split('/').pop() ?? '';
-        const match = name.match(/^integ-trap-(\d+)-/);
-        if (!match) continue;
-        const created = Number(match[1]);
-        if (created > cutoff) continue;
-
-        await sqs.send(new DeleteQueueCommand({ QueueUrl: url }));
+          await sqs.send(new DeleteQueueCommand({ QueueUrl: url }));
+        }
       }
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -117,35 +117,40 @@ export class OrphanReaper {
 
       for (const domain of DOMAIN_BUSES) {
         const busName = `${this.prefix}-${domain}-event-bus`;
-        const result = await eb.send(new ListRulesCommand({
-          NamePrefix: 'integ-trap-',
-          EventBusName: busName,
-        }));
-
-        for (const rule of result.Rules ?? []) {
-          if (!rule.Name) continue;
-          const match = rule.Name.match(/^integ-trap-(\d+)-/);
-          if (!match) continue;
-          const created = Number(match[1]);
-          if (created > cutoff) continue;
-
-          const targets = await eb.send(new ListTargetsByRuleCommand({
-            Rule: rule.Name,
+        // @aws-sdk/client-eventbridge does not ship a ListRules paginator helper, so loop manually on NextToken.
+        let nextToken: string | undefined;
+        do {
+          const page = await eb.send(new ListRulesCommand({
+            NamePrefix: 'integ-trap-',
             EventBusName: busName,
+            NextToken: nextToken,
           }));
-          const targetIds = (targets.Targets ?? []).map(t => t.Id!).filter(Boolean);
-          if (targetIds.length > 0) {
-            await eb.send(new RemoveTargetsCommand({
+          for (const rule of page.Rules ?? []) {
+            if (!rule.Name) continue;
+            const match = rule.Name.match(/^integ-trap-(\d+)-/);
+            if (!match) continue;
+            const created = Number(match[1]);
+            if (created > cutoff) continue;
+
+            const targets = await eb.send(new ListTargetsByRuleCommand({
               Rule: rule.Name,
               EventBusName: busName,
-              Ids: targetIds,
+            }));
+            const targetIds = (targets.Targets ?? []).map(t => t.Id!).filter(Boolean);
+            if (targetIds.length > 0) {
+              await eb.send(new RemoveTargetsCommand({
+                Rule: rule.Name,
+                EventBusName: busName,
+                Ids: targetIds,
+              }));
+            }
+            await eb.send(new DeleteRuleCommand({
+              Name: rule.Name,
+              EventBusName: busName,
             }));
           }
-          await eb.send(new DeleteRuleCommand({
-            Name: rule.Name,
-            EventBusName: busName,
-          }));
-        }
+          nextToken = page.NextToken;
+        } while (nextToken);
       }
     } catch (err) {
       // eslint-disable-next-line no-console

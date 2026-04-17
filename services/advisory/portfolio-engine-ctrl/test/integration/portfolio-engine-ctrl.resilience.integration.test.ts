@@ -48,6 +48,7 @@ beforeAll(async () => {
   await ssmOverride.override({
     paramName: `/nestfolio/${sharedCtx.prefix}-portfolio-engine-ctrl/agent/runtimeUrl`,
     testValue: mockUrl,
+    restoreTo: 'DISABLED',
   });
 }, 120_000);
 

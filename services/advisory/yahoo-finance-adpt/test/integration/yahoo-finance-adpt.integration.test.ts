@@ -33,6 +33,7 @@ describe('yahoo-finance-adpt (mocked)', () => {
     await ssmOverride.override({
       paramName: `/nestfolio/${ctx.prefix}-yahoo-finance-adpt/yahoo/baseUrl`,
       testValue: mockUrl,
+      restoreTo: 'https://feeds.finance.yahoo.com/rss/2.0/headline',
     });
 
     eb = new EventBridgeClient(ctx);

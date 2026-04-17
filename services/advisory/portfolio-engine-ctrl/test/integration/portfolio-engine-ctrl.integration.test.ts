@@ -61,6 +61,7 @@ describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB wri
     await ssmOverride.override({
       paramName: `/nestfolio/${ctx.prefix}-portfolio-engine-ctrl/agent/runtimeUrl`,
       testValue: mockUrl,
+      restoreTo: 'DISABLED',
     });
 
     eb = new EventBridgeClient(ctx);

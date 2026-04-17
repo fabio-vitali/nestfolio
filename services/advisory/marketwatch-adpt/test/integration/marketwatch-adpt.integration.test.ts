@@ -47,6 +47,7 @@ describe('marketwatch-adpt (mocked)', () => {
     await ssmOverride.override({
       paramName: `/nestfolio/${ctx.prefix}-marketwatch-adpt/marketwatch/baseUrl`,
       testValue: mockUrl,
+      restoreTo: 'https://feeds.marketwatch.com/marketwatch',
     });
 
     eb = new EventBridgeClient(ctx);

@@ -53,6 +53,7 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
     await ssmOverride.override({
       paramName: `/nestfolio/${mockCtx.prefix}-broker-alpaca-adpt/alpaca/baseUrl`,
       testValue: mockUrl,
+      restoreTo: 'https://paper-api.alpaca.markets',
     });
 
     // Clean up any stale CircuitBreaker record left by a previous run
