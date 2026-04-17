@@ -5,7 +5,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 
-import { createPortfolioLookup } from '../../src/handlers/tools/portfolio-lookup';
+import { createPortfolioLookup } from '../../src/agents/tools/portfolio-lookup';
 
 describe('portfolio-lookup tool', () => {
   const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
