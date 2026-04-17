@@ -8,13 +8,18 @@ import { PortfolioEngineEventTypes } from './domain/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { SecEdgarAdptEventTypes } from '@nestfolio/sec-edgar-adpt/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
-import { agentProps, defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
+import { agentProps, defaultLambdaProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 
 export class PortfolioEngineCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
     const state = new State(this, 'State');
+
+    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
+      parameterName: `/nestfolio/${props.prefix}-portfolio-engine-ctrl/agent/runtimeUrl`,
+      stringValue: 'DISABLED',
+    });
 
     // Knowledge Base: Fund & Instrument (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'FundKB', {
@@ -33,6 +38,9 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
         SecEdgarAdptEventTypes.SEC_10K_UPDATED,
       ],
       profile: agentProps,
+      lambdaProps: {
+        paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
+      },
     });
 
     // Egress: CDC events
@@ -66,6 +74,9 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     });
     kb.bucket.grantWrite(kbIngestionFn);
     kbIngestionFn.addToRolePolicy(kb.triggerSyncPolicy());
+
+    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
+    agentRuntimeUrlParam.grantRead(ingress.handler);
 
     // Model SSM params from advisory-hub
     const hubNaming = new NamingService({ prefix: props.prefix, subsystem: 'advisory', service: 'advisory-hub' });

@@ -1,12 +1,17 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { randomUUID } from 'node:crypto';
 import {
   createTestContext,
   EventBridgeClient,
+  type TestContext,
 } from '@nestfolio/test-support';
 import {
   EventBusTrap,
   TableAssertions,
   countItems,
+  MockApiFixture,
+  SsmOverrideFixture,
 } from '@nestfolio/integration-testing';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -27,6 +32,26 @@ import {
 // to S3) — it does not touch the portfolio-engine-ctrl State table. The
 // order-agnostic pairwise test exercises both handlers in both orderings and
 // simply verifies the publish cycle completes without hard failure.
+
+// ── Shared mock setup ─────────────────────────────────────────────────────
+
+let sharedCtx: TestContext;
+
+beforeAll(async () => {
+  sharedCtx = await createTestContext();
+  const mockApi = new MockApiFixture(sharedCtx);
+  const zipPath = join(__dirname, '..', 'mocks', 'mock-agent-runtime.zip');
+  const mockUrl = await mockApi.deploy({ name: 'mock-agent-runtime', handlerAsset: readFileSync(zipPath) });
+  const ssmOverride = new SsmOverrideFixture(sharedCtx);
+  await ssmOverride.override({
+    paramName: `/nestfolio/${sharedCtx.prefix}-portfolio-engine-ctrl/agent/runtimeUrl`,
+    testValue: mockUrl,
+  });
+}, 120_000);
+
+afterAll(async () => {
+  await sharedCtx.cleanup.runAll();
+}, 30_000);
 
 // ── Idempotency: AgentInvocation ─────────────────────────────────────────
 

@@ -5,10 +5,14 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 const mockInvokeOrchestrator = jest.fn();
+const mockResolveAgentRuntimeUrl = jest.fn().mockResolvedValue(null);
+const mockInvokeRemoteRuntime = jest.fn();
 
 jest.mock('@nestfolio/agent-orchestrator', () => ({
   createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
   invokeOrchestrator: mockInvokeOrchestrator,
+  resolveAgentRuntimeUrl: mockResolveAgentRuntimeUrl,
+  invokeRemoteRuntime: mockInvokeRemoteRuntime,
 }));
 
 import { createAgentService } from '../src/agent-service';

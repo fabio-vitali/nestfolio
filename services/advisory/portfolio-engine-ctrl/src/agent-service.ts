@@ -1,4 +1,4 @@
-import { createOrchestrator, invokeOrchestrator } from '@nestfolio/agent-orchestrator';
+import { createOrchestrator, invokeOrchestrator, resolveAgentRuntimeUrl, invokeRemoteRuntime } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
 import { portfolioConstructionConfig } from './agents/portfolio-construction.config';
@@ -62,12 +62,20 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         throw error;
       }
 
-      // Run the agent pipeline (Bedrock orchestration).
-      const result = await invokeOrchestrator(orchestrator, {
-        tenantId,
-        decisionId,
-        upstreamOutputs: subject.context ?? subject.upstreamOutputs ?? {},
-      });
+      // Run the agent pipeline (Bedrock orchestration or mock remote runtime).
+      let result: Record<string, unknown>;
+      const runtimeUrl = await resolveAgentRuntimeUrl();
+      if (runtimeUrl) {
+        result = await invokeRemoteRuntime(runtimeUrl, {
+          tenantId, decisionId,
+          upstreamOutputs: subject.context ?? subject.upstreamOutputs ?? {},
+        });
+      } else {
+        result = await invokeOrchestrator(orchestrator, {
+          tenantId, decisionId,
+          upstreamOutputs: subject.context ?? subject.upstreamOutputs ?? {},
+        }) as Record<string, unknown>;
+      }
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
@@ -85,8 +93,8 @@ export const createAgentService = (deps: AgentServiceDeps) => {
 
       return {
         decisionId,
-        allocations: (result as Record<string, unknown>)['portfolio-construction'] ?? {},
-        trades: (result as Record<string, unknown>)['rebalance-planner'] ?? {},
+        allocations: result['portfolio-construction'] ?? {},
+        trades: result['rebalance-planner'] ?? {},
         metadata: { durationMs, modelTiers: ['opus', 'sonnet'] },
       };
     },
