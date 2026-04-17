@@ -32,6 +32,12 @@ egress: "Egress" {
   processor -> bus: Publish
 }
 
+heal-state-machine: "Orchestration" {
+  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
+  state-machine: "Step Functions\n[HealStateMachine]" { class: aws-stepfunctions }
+  dlq: "DLQ" { class: aws-dlq }
+}
+
 order-polling-state-machine: "Orchestration" {
   style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
   state-machine: "Step Functions\n[OrderPollingStateMachine]" { class: aws-stepfunctions }
@@ -50,6 +56,8 @@ transfer-poll-fn: "Lambda\n[TransferPollFn]" { class: aws-lambda }
 # Flows
 ingress.handler -> state.table: Read/Write
 state.stream -> egress.processor: Trigger
+ingress.handler -> heal-state-machine.state-machine: Execute
+heal-state-machine.state-machine -> state.table: Read/Write
 ingress.handler -> order-polling-state-machine.state-machine: Execute
 order-polling-state-machine.state-machine -> state.table: Read/Write
 ingress.handler -> transfer-polling-state-machine.state-machine: Execute

@@ -18,7 +18,7 @@ mode-ingress: "ModeIngress" {
 
 callback-ingress: "CallbackIngress" {
   style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
-  rule: "EventBridge Rule\n[8 events]" { class: aws-eventbridge }
+  rule: "EventBridge Rule\n[7 events]" { class: aws-eventbridge }
   sqs: "SQS Queue" { class: aws-sqs }
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
@@ -74,14 +74,7 @@ order-state-machine: "Orchestration" {
   dlq: "DLQ" { class: aws-dlq }
 }
 
-heal-state-machine: "Orchestration" {
-  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
-  state-machine: "Step Functions\n[HealStateMachine]" { class: aws-stepfunctions }
-  dlq: "DLQ" { class: aws-dlq }
-}
-
 route-order-fn: "Lambda\n[RouteOrderFn]" { class: aws-lambda }
-emit-health-check-fn: "Lambda\n[EmitHealthCheckFn]" { class: aws-lambda }
 
 # Flows
 mode-ingress.handler -> state.table: Read/Write
@@ -91,5 +84,3 @@ deposit-withdrawal-normalizer-ingress.handler -> state.table: Read/Write
 state.stream -> egress.processor: Trigger
 mode-ingress.handler -> order-state-machine.state-machine: Execute
 order-state-machine.state-machine -> state.table: Read/Write
-mode-ingress.handler -> heal-state-machine.state-machine: Execute
-heal-state-machine.state-machine -> state.table: Read/Write

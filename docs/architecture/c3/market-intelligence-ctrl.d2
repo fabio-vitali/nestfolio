@@ -47,8 +47,6 @@ knowledge-base: "KnowledgeBase" {
 }
 
 kbingestion: "Lambda\n[KBIngestion]" { class: aws-lambda }
-market-data-tool: "Lambda\n[MarketDataTool]" { class: aws-lambda }
-instrument-universe-tool: "Lambda\n[InstrumentUniverseTool]" { class: aws-lambda }
 
 # Flows
 ingress.handler -> state.table: Read/Write
