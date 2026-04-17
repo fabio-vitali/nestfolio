@@ -12,6 +12,7 @@ import {
   countItems,
   MockApiFixture,
   SsmOverrideFixture,
+  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ let sharedCtx: TestContext;
 
 beforeAll(async () => {
   sharedCtx = await createTestContext();
+  await new OrphanReaper(sharedCtx).cleanup();
   const mockApi = new MockApiFixture(sharedCtx);
   const zipPath = join(__dirname, '..', 'mocks', 'mock-agent-runtime.zip');
   const mockUrl = await mockApi.deploy({ name: 'mock-agent-runtime', handlerAsset: readFileSync(zipPath) });

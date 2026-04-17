@@ -10,6 +10,7 @@ import {
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
+  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 describe('market-intelligence-ctrl: ANALYZE_MARKET → AgentInvocation DDB write + CDC', () => {
@@ -20,6 +21,7 @@ describe('market-intelligence-ctrl: ANALYZE_MARKET → AgentInvocation DDB write
 
   beforeAll(async () => {
     ctx = await createTestContext();
+    await new OrphanReaper(ctx).cleanup();
 
     // Deploy mock agent runtime
     const mockApi = new MockApiFixture(ctx);

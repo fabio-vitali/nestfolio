@@ -10,6 +10,7 @@ import {
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
+  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB write + CDC', () => {
@@ -20,6 +21,7 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
 
   beforeAll(async () => {
     ctx = await createTestContext();
+    await new OrphanReaper(ctx).cleanup();
 
     // Deploy mock agent runtime
     const mockApi = new MockApiFixture(ctx);

@@ -13,6 +13,7 @@ import {
   MockApiFixture,
   SsmOverrideFixture,
   StateResetFixture,
+  OrphanReaper,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
 
@@ -24,6 +25,7 @@ describe('broker-alpaca-adpt', () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+    await new OrphanReaper(ctx).cleanup();
 
     // Clear stale circuit breaker state from interrupted runs
     const stateReset = new StateResetFixture(ctx);

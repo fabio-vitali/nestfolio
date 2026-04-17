@@ -9,6 +9,7 @@ import {
   EventBusTrap,
   TableAssertions,
   StateResetFixture,
+  OrphanReaper,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
 
@@ -23,6 +24,7 @@ describe('investor-bff', () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+    await new OrphanReaper(ctx).cleanup();
 
     // Clear stale feature flag state from interrupted runs
     const stateReset = new StateResetFixture(ctx);

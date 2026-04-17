@@ -10,6 +10,7 @@ import {
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
+  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DDB write + CDC', () => {
@@ -20,6 +21,7 @@ describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DD
 
   beforeAll(async () => {
     ctx = await createTestContext();
+    await new OrphanReaper(ctx).cleanup();
 
     // Deploy mock agent runtime
     const mockApi = new MockApiFixture(ctx);

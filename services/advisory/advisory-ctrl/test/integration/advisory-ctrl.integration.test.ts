@@ -10,6 +10,7 @@ import {
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
+  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 /**
@@ -74,6 +75,7 @@ describe('advisory-ctrl', () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+    await new OrphanReaper(ctx).cleanup();
 
     // Deploy mock agent runtime
     const mockApi = new MockApiFixture(ctx);
