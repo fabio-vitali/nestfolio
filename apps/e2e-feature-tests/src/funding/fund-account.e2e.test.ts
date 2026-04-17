@@ -11,14 +11,31 @@ import {
   type FreshTenant,
 } from '..';
 import type { RecentActivityResponse } from '../helpers/graphql-types';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 
 describe('scenario 1 — investor funds their account', () => {
   let ctx: TestContext;
   let tenant: FreshTenant;
 
+  // Ensure feature flags are enabled — guards against stale state from prior test runs
+  async function resetFeatureFlags() {
+    const flagTable = await ctx.ssm.tableName('investor-bff');
+    const flagDdb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: ctx.region }));
+    const flags = ['confirmDecision', 'initiateDeposit', 'requestWithdrawal'];
+    await Promise.all(flags.map(name =>
+      flagDdb.send(new PutCommand({
+        TableName: flagTable,
+        Item: { pk: 'FeatureFlag#SYSTEM', sk: `FeatureFlag#${name}`, __typename: 'FeatureFlag', name, enabled: true, reason: null },
+      })),
+    ));
+    flagDdb.destroy();
+  }
+
   beforeEach(async () => {
     ctx = await createTestContext();
     tenant = await freshTenant(ctx);
+    await resetFeatureFlags();
     await applyFixtures(ctx, tenant, [onboarded()]);
   }, 120_000);
 

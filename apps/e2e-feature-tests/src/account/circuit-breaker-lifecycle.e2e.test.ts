@@ -45,7 +45,11 @@ describe('scenario 14 — circuit breaker lifecycle', () => {
   }, 180_000);
 
   afterEach(async () => {
-    try { await resetFeatureFlags(); } catch { /* best effort */ }
+    try {
+      // Close the breaker first — prevents late CDC events from re-disabling flags
+      await applyFixtures(ctx, tenant, [closeBreakerFixture()]);
+      await resetFeatureFlags();
+    } catch { /* best effort */ }
     await ctx.cleanup.runAll();
   }, 60_000);
 
