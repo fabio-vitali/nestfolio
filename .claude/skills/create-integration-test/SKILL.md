@@ -19,11 +19,11 @@ description: Add integration tests to a service — determine pattern, scaffold 
 
   | Service Type | Pattern | Fixtures Needed |
   |-------------|---------|-----------------|
-  | Third-party adapter (-adpt with external API) | A: Full-Pipeline | MockApiFixture, SsmOverrideFixture, EventBusTrap, TableAssertions |
-  | Ctrl service (-ctrl with DDB + CDC) | B: CDC Chain | EventBusTrap, TableAssertions |
-  | BFF service (-bff with Facade) | C: BFF/AppSync | CognitoFixture, AppSyncClient, TableAssertions |
-  | Cross-domain adapter (-adpt, stateless) | D: Adapter Forwarding | EventBusTrap only |
-  | Agent service (-ctrl with AgentRuntime) | E: Agent Smoke | EventBusTrap, TableAssertions |
+  | Third-party adapter (-adpt with external API) | A: Full-Pipeline | MockApiFixture, SsmOverrideFixture, OrphanReaper, EventBusTrap, TableAssertions |
+  | Ctrl service (-ctrl with DDB + CDC) | B: CDC Chain | OrphanReaper, EventBusTrap, TableAssertions |
+  | BFF service (-bff with Facade) | C: BFF/AppSync | OrphanReaper, CognitoFixture, AppSyncClient, TableAssertions |
+  | Cross-domain adapter (-adpt, stateless) | D: Adapter Forwarding | OrphanReaper, EventBusTrap only |
+  | Agent service (-ctrl with AgentRuntime) | E: Agent Smoke | MockApiFixture, SsmOverrideFixture, OrphanReaper, EventBusTrap, TableAssertions |
 
 - [ ] 2. **Create `jest.integration.config.js`** at service root:
   ```js
@@ -89,6 +89,7 @@ import {
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
+  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 describe('{service} (mocked)', () => {
@@ -99,6 +100,9 @@ describe('{service} (mocked)', () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+
+    // Clean orphaned resources from previous crashed runs
+    await new OrphanReaper(ctx).cleanup();
 
     // Deploy mock external API Lambda
     const mockApi = new MockApiFixture(ctx);
@@ -166,6 +170,7 @@ import {
 import {
   EventBusTrap,
   TableAssertions,
+  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 describe('{service}', () => {
@@ -176,6 +181,10 @@ describe('{service}', () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+
+    // Clean orphaned resources from previous crashed runs
+    await new OrphanReaper(ctx).cleanup();
+
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);
@@ -239,6 +248,7 @@ import {
 } from '@nestfolio/test-support';
 import {
   TableAssertions,
+  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 describe('{service}', () => {
@@ -249,6 +259,10 @@ describe('{service}', () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+
+    // Clean orphaned resources from previous crashed runs
+    await new OrphanReaper(ctx).cleanup();
+
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
@@ -341,6 +355,7 @@ import {
 } from '@nestfolio/test-support';
 import {
   EventBusTrap,
+  OrphanReaper,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
 
@@ -351,6 +366,10 @@ describe('{service}: {SourceDomain} -> {TargetDomain} forwarding', () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+
+    // Clean orphaned resources from previous crashed runs
+    await new OrphanReaper(ctx).cleanup();
+
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
 
@@ -384,7 +403,13 @@ describe('{service}: {SourceDomain} -> {TargetDomain} forwarding', () => {
 
 ## Pattern E: Agent Smoke (Agent Ctrl Service)
 
+Requires a mock agent runtime Lambda to prevent real Bedrock/LLM calls. Check if `test/mocks/mock-agent-runtime.ts` exists. If not, scaffold it (see Mock Agent Runtime section below).
+
+The service must have `resolveAgentRuntimeUrl()` wired into its agent pipeline (via `@nestfolio/agent-orchestrator`). The CDK stack must define an `AgentRuntimeUrlParam` SSM parameter (default `DISABLED`). The integration test overrides this SSM param to point to the mock Lambda URL.
+
 ```typescript
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import {
   createTestContext,
   EventBridgeClient,
@@ -393,6 +418,9 @@ import {
 import {
   EventBusTrap,
   TableAssertions,
+  MockApiFixture,
+  SsmOverrideFixture,
+  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 describe('{service}: {TRIGGER_EVENT} -> AgentInvocation DDB write + CDC', () => {
@@ -403,6 +431,25 @@ describe('{service}: {TRIGGER_EVENT} -> AgentInvocation DDB write + CDC', () => 
 
   beforeAll(async () => {
     ctx = await createTestContext();
+
+    // Clean orphaned resources from previous crashed runs
+    await new OrphanReaper(ctx).cleanup();
+
+    // Deploy mock agent runtime (prevents real Bedrock calls)
+    const mockApi = new MockApiFixture(ctx);
+    const zipPath = join(__dirname, '..', 'mocks', 'mock-agent-runtime.zip');
+    const mockUrl = await mockApi.deploy({
+      name: 'mock-agent-runtime',
+      handlerAsset: readFileSync(zipPath),
+    });
+
+    // Override SSM to point to mock (crash-safe)
+    const ssmOverride = new SsmOverrideFixture(ctx);
+    await ssmOverride.override({
+      paramName: `/nestfolio/${ctx.prefix}-{service}/agent/runtimeUrl`,
+      testValue: mockUrl,
+    });
+
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
@@ -411,11 +458,11 @@ describe('{service}: {TRIGGER_EVENT} -> AgentInvocation DDB write + CDC', () => 
       bus: '{domain}',
       detailType: [/* CDC event types */],
     });
-  }, 60_000);
+  }, 120_000);
 
   afterAll(async () => {
     await ctx.cleanup.runAll();
-  }, 30_000);
+  }, 60_000);
 
   it('should write AgentInvocation record to DDB on {TRIGGER_EVENT}', async () => {
     const entityId = `integ-{entity}-${Date.now()}`;
@@ -452,7 +499,27 @@ describe('{service}: {TRIGGER_EVENT} -> AgentInvocation DDB write + CDC', () => 
 
 **Exemplary references**: `services/advisory/advisory-narrative-ctrl/`, `services/advisory/market-intelligence-ctrl/`
 
-## Mock Lambda (Pattern A only)
+## Mock Agent Runtime (Pattern E only)
+
+Agent services invoke LLM pipelines (Bedrock/LangGraph). The mock agent runtime returns canned output so integration tests don't make real LLM calls.
+
+**Prerequisites in the service:**
+1. CDK stack has `AgentRuntimeUrlParam` SSM parameter (default `DISABLED`)
+2. CDK stack adds `paramsAndSecrets: PARAMS_AND_SECRETS_LAYER` to Ingress `lambdaProps`
+3. CDK stack wires `AGENT_RUNTIME_URL_PARAM` env var + `grantRead` on the handler
+4. Agent service code calls `resolveAgentRuntimeUrl()` from `@nestfolio/agent-orchestrator` and branches to `invokeRemoteRuntime()` when URL is non-null
+
+**Scaffold mock handler:**
+
+1. Create `test/mocks/mock-agent-runtime.ts` — return canned JSON matching the service's expected agent output shape
+2. Create `test/mocks/.gitignore` with `*.zip` and `dist/`
+3. Build the mock zip:
+   ```bash
+   npx esbuild test/mocks/mock-agent-runtime.ts --bundle --platform=node --target=node20 --format=esm --outfile=test/mocks/dist/index.mjs
+   cd test/mocks/dist && zip -j ../mock-agent-runtime.zip index.mjs && cd -
+   ```
+
+## Mock External API Lambda (Pattern A only)
 
 If the service needs a `build-mock` target:
 
@@ -480,6 +547,22 @@ Read the service's Ingress subscriptions from `service.stack.ts` or the CLAUDE.m
 - Events that trigger agent invocations: Pattern E assertions (AgentInvocation DDB + CDC)
 - Events handled by skip(): drain assertion (wait 15s + drain + assert empty)
 
+## StateResetFixture (services with global-key DDB state)
+
+Services that use singleton/global DDB keys (e.g., `CircuitBreaker#alpaca`, `FeatureFlag#SYSTEM`) can accumulate stale state across interrupted test runs. Add `StateResetFixture` in `beforeAll` to clear these keys before the test suite runs.
+
+```typescript
+import { StateResetFixture } from '@nestfolio/integration-testing';
+
+// In beforeAll, after createTestContext and OrphanReaper:
+const stateReset = new StateResetFixture(ctx);
+await stateReset.reset([
+  { table: '{service}', pk: '{GlobalKey}#{id}' },
+]);
+```
+
+**When to use:** Only needed if the service writes DDB items with well-known partition keys that persist across test runs (not tenant-scoped or timestamp-unique).
+
 ## Anti-Patterns
 - NEVER use DdbSeedFixture -- all state must be created via events (project convention)
 - NEVER wrap CDC assertions in try/catch -- fix the root cause if flaky
@@ -487,5 +570,7 @@ Read the service's Ingress subscriptions from `service.stack.ts` or the CLAUDE.m
 - NEVER omit `table.registerCleanup()` -- items accumulate across runs
 - NEVER deploy fixtures inside `it()` blocks -- always in `beforeAll`
 - NEVER use scan-based DDB assertions -- always pk/sk or pk/skPrefix
-- NEVER put integration tests under `src/__tests__/` or `test/` root
+- NEVER put integration tests under `src/__tests__/` or `test/unit/`
 - NEVER assert against specific timing -- use polling with timeouts
+- NEVER omit `OrphanReaper` in `beforeAll` -- leaked AWS resources accumulate across crashed runs
+- NEVER skip mock agent runtime for Pattern E services -- real Bedrock calls in tests are forbidden

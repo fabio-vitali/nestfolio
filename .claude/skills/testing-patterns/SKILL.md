@@ -12,15 +12,18 @@ description: Test conventions — directory layout, event-processor harness, CDK
 ```
 services/{domain}/{service}/
   test/                          <- ALL tests here, NOT src/__tests__/
-    my-handler.test.ts           <- handler unit test
-    service.stack.test.ts        <- CDK assertion test
+    unit/                        <- unit tests (mirrors src/ structure)
+      handlers/
+        my-handler.test.ts       <- handler unit test
+      service.stack.test.ts      <- CDK assertion test
+    integration/                 <- integration tests (see create-integration-test skill)
 ```
 
 ## Handler Tests
 
 ```typescript
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
-import { handlers } from '../src/handlers/my-handler';
+import { handlers } from '../../src/handlers/my-handler';
 
 describe('my-handler', () => {
   const harness = createTestHarness({ serviceName: 'my-service', handlers });
@@ -52,7 +55,7 @@ describe('my-handler', () => {
 ```typescript
 import { App } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import { MyStack } from '../src/service.stack';
+import { MyStack } from '../../src/service.stack';
 
 describe('MyStack', () => {
   let template: Template;
@@ -83,6 +86,11 @@ pnpm nx test {service} -- --testPathPattern=foo   # specific test
 For integration tests (real AWS, deployed services), use the dedicated skills:
 - `create-integration-test` — scaffold config, write test files with correct fixtures
 - `audit-integration-test` — verify coverage and convention compliance
+
+**Required fixtures for all integration tests:**
+- `OrphanReaper` — clean leaked AWS resources from crashed runs (call in `beforeAll`)
+- `StateResetFixture` — clear stale global-key DDB items (when service uses singleton keys)
+- Agent services (Pattern E) must use `MockApiFixture` + `SsmOverrideFixture` for mock agent runtime
 
 ## E2E Feature Tests
 For end-to-end feature tests (cross-domain, black-box via BFF GraphQL), use the dedicated skills:

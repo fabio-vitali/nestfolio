@@ -37,7 +37,10 @@ description: Verify integration test completeness and convention compliance for 
 | 10 | No `DdbSeedFixture` usage | Hard fail | Grep for `DdbSeedFixture` -- must not appear |
 | 11 | No CDC assertions wrapped in try/catch | Hard fail | Grep for `waitForEvent` inside try blocks |
 | 12 | No `describe.skip` without documented reason | Warning | Grep for `describe.skip` |
-| 13 | Timeout hierarchy: beforeAll 90s, it() 120s, afterAll 60s | Warning | Read timeout values |
+| 13 | Timeout hierarchy: beforeAll 90-120s, it() 120s, afterAll 60s | Warning | Read timeout values |
+| 14 | Uses `OrphanReaper` in `beforeAll` | Hard fail | Grep for `OrphanReaper` -- must appear in all integration tests |
+| 15 | Agent services (Pattern E) use `MockApiFixture` + `SsmOverrideFixture` for mock agent runtime | Hard fail | If service has AgentRuntime construct, grep for `MockApiFixture` and `SsmOverrideFixture` |
+| 16 | Services with global-key DDB state use `StateResetFixture` | Warning | Check if service writes singleton/global keys (e.g., `CircuitBreaker#`, `FeatureFlag#`), then grep for `StateResetFixture` |
 
 ### Coverage Checks
 
@@ -72,6 +75,8 @@ Check for anti-patterns:
 - describe.skip blocks (WARNING — document reason)
 - Missing table.registerCleanup() (HARD FAIL)
 - Missing ctx.cleanup.runAll() in afterAll (HARD FAIL)
+- Missing OrphanReaper in beforeAll (HARD FAIL — leaked AWS resources)
+- Agent service without MockApiFixture+SsmOverrideFixture for mock agent runtime (HARD FAIL — real Bedrock calls)
 - Scan-based DDB assertions (WARNING)
 - Fixtures deployed inside it() blocks (WARNING)
 
@@ -182,3 +187,5 @@ After presenting the audit report, if any hard-fail checks exist or the grade is
 - NEVER skip the anti-pattern check -- false coverage is worse than no coverage
 - NEVER auto-fix test logic -- only auto-fix configuration (config files, targets)
 - NEVER skip the remediation step — always present options after a non-EXEMPLARY audit
+- NEVER report a Pattern E service as "GOOD" if it lacks mock agent runtime (MockApiFixture + SsmOverrideFixture)
+- NEVER report any service as "GOOD" if it lacks OrphanReaper in beforeAll
