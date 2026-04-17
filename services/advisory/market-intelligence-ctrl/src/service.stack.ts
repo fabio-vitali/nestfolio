@@ -74,25 +74,6 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     kb.bucket.grantWrite(kbIngestionFn);
     kbIngestionFn.addToRolePolicy(kb.triggerSyncPolicy());
 
-    // Tool Lambdas
-    const marketDataFn = new NodejsFunction(this, 'MarketDataTool', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'tools', 'market-data.handler.ts'),
-      environment: {
-        TABLE_NAME: state.getTable().tableName,
-      },
-    });
-    state.getTable().grantReadData(marketDataFn);
-
-    const instrumentUniverseFn = new NodejsFunction(this, 'InstrumentUniverseTool', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'tools', 'instrument-universe.handler.ts'),
-      environment: {
-        TABLE_NAME: state.getTable().tableName,
-      },
-    });
-    state.getTable().grantReadData(instrumentUniverseFn);
-
     // Model SSM params from advisory-hub (Sonnet only)
     const hubNaming = new NamingService({ prefix: props.prefix, subsystem: 'advisory', service: 'advisory-hub' });
     const modelSonnetId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/sonnet'));
@@ -123,7 +104,7 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
       resources: ['*'],
     }));
 
-    // AgentRuntime (tool Lambdas are standalone — gateway integration added when schemas defined)
+    // AgentRuntime
     new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'market_intelligence_agents',
       agentCodePath: join(__dirname, '..', 'agents'),
@@ -140,7 +121,7 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     this.addObservability({
       ingress,
       egress,
-      extraLambdas: [kbIngestionFn, marketDataFn, instrumentUniverseFn],
+      extraLambdas: [kbIngestionFn],
       monitorBedrock: true,
       bedrockModelIds: [modelSonnetId],
     });
