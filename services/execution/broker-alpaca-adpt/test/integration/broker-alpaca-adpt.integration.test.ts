@@ -12,6 +12,7 @@ import {
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
+  StateResetFixture,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
 
@@ -23,6 +24,12 @@ describe('broker-alpaca-adpt', () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+
+    // Clear stale circuit breaker state from interrupted runs
+    const stateReset = new StateResetFixture(ctx);
+    await stateReset.reset([
+      { table: 'broker-alpaca-adpt', pk: 'CircuitBreaker#alpaca' },
+    ]);
 
     // Deploy mock Alpaca Lambda
     const mockApi = new MockApiFixture(ctx);

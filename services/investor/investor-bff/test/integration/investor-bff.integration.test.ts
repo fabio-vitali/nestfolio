@@ -8,6 +8,7 @@ import {
 import {
   EventBusTrap,
   TableAssertions,
+  StateResetFixture,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
 
@@ -22,6 +23,13 @@ describe('investor-bff', () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+
+    // Clear stale feature flag state from interrupted runs
+    const stateReset = new StateResetFixture(ctx);
+    await stateReset.reset([
+      { table: 'investor-bff', pk: 'FeatureFlag#SYSTEM' },
+    ]);
+
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);
