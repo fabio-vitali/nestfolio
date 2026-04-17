@@ -33,9 +33,13 @@ describe('PortfolioEngineCtrlStack', () => {
     });
   });
 
-  it('creates Lambda functions (event-listener, CDC, KB ingestion, portfolio-lookup)', () => {
+  it('creates the expected Lambda functions (event-listener, CDC, KB ingestion)', () => {
     const lambdas = template.findResources('AWS::Lambda::Function');
-    expect(Object.keys(lambdas).length).toBeGreaterThanOrEqual(4);
+    const logicalIds = Object.keys(lambdas);
+    expect(logicalIds.some((id) => id.includes('PortfolioLookup'))).toBe(false);
+    expect(logicalIds.some((id) => id.includes('Ingress'))).toBe(true);
+    expect(logicalIds.some((id) => id.includes('Egress'))).toBe(true);
+    expect(logicalIds.some((id) => id.includes('KBIngestion'))).toBe(true);
   });
 
   it('creates an S3 bucket for KB content', () => {
