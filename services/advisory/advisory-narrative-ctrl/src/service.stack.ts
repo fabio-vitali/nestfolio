@@ -6,13 +6,19 @@ import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfo
 import { NarrativeEventTypes } from './domain/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
-import { NamingService } from '@nestfolio/cdk-constructs/utils';
+import { NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 
 export class AdvisoryNarrativeCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
     const state = new State(this, 'State');
+
+    // SSM param for mock agent runtime URL (set to DISABLED by default; overridden in integration tests)
+    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
+      parameterName: `/nestfolio/${props.prefix}-advisory-narrative-ctrl/agent/runtimeUrl`,
+      stringValue: 'DISABLED',
+    });
 
     // Knowledge Base: Explainability Feedback (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'ExplainabilityKB', {
@@ -27,7 +33,13 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
         DecisionWorkflowEventTypes.GENERATE_NARRATIVE,
         DecisionWorkflowEventTypes.DECISION_FEEDBACK,
       ],
+      lambdaProps: {
+        paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
+      },
     });
+
+    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
+    agentRuntimeUrlParam.grantRead(ingress.handler);
 
     // Grant KB access to the ingress handler (feedback-correlator runs inline)
     kb.bucket.grantReadWrite(ingress.handler);

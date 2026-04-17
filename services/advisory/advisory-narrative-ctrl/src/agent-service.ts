@@ -1,4 +1,4 @@
-import { createAgentNode, withRetry, withFallback } from '@nestfolio/agent-orchestrator';
+import { createAgentNode, withRetry, withFallback, resolveAgentRuntimeUrl, invokeRemoteRuntime } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
@@ -43,11 +43,20 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         ),
       }));
 
-      const result = await agentNode({
-        tenantId,
-        decisionId,
-        upstreamOutputs: subject.context ?? subject.upstreamOutputs ?? {},
-      });
+      let result: Record<string, unknown>;
+      const runtimeUrl = await resolveAgentRuntimeUrl();
+      if (runtimeUrl) {
+        result = await invokeRemoteRuntime(runtimeUrl, {
+          tenantId, decisionId,
+          upstreamOutputs: subject.context ?? subject.upstreamOutputs ?? {},
+        });
+      } else {
+        result = await agentNode({
+          tenantId,
+          decisionId,
+          upstreamOutputs: subject.context ?? subject.upstreamOutputs ?? {},
+        });
+      }
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
