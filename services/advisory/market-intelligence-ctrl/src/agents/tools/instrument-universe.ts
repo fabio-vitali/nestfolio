@@ -1,5 +1,21 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const APPROVED_INSTRUMENTS = [
+export interface Instrument {
+  readonly ticker: string;
+  readonly name: string;
+  readonly assetClass: string;
+  readonly region: string;
+}
+
+export interface InstrumentUniverseInput {
+  readonly assetClass?: string;
+}
+
+export interface InstrumentUniverseResult {
+  readonly instruments: readonly Instrument[];
+  readonly count: number;
+  readonly timestamp: string;
+}
+
+const APPROVED_INSTRUMENTS: readonly Instrument[] = [
   { ticker: 'SPY', name: 'SPDR S&P 500 ETF', assetClass: 'equity', region: 'US' },
   { ticker: 'QQQ', name: 'Invesco QQQ Trust', assetClass: 'equity', region: 'US' },
   { ticker: 'AGG', name: 'iShares Core U.S. Aggregate Bond ETF', assetClass: 'fixed-income', region: 'US' },
@@ -10,18 +26,13 @@ const APPROVED_INSTRUMENTS = [
   { ticker: 'EFA', name: 'iShares MSCI EAFE ETF', assetClass: 'equity', region: 'intl' },
 ];
 
-export const handler = async (event: any) => {
-  const assetClass = event.assetClass as string | undefined;
-  const filtered = assetClass
-    ? APPROVED_INSTRUMENTS.filter((i) => i.assetClass === assetClass)
+export function getInstrumentUniverse(input: InstrumentUniverseInput = {}): InstrumentUniverseResult {
+  const filtered = input.assetClass
+    ? APPROVED_INSTRUMENTS.filter((i) => i.assetClass === input.assetClass)
     : APPROVED_INSTRUMENTS;
-
   return {
-    statusCode: 200,
-    body: JSON.stringify({
-      instruments: filtered,
-      count: filtered.length,
-      timestamp: new Date().toISOString(),
-    }),
+    instruments: filtered,
+    count: filtered.length,
+    timestamp: new Date().toISOString(),
   };
-};
+}
