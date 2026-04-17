@@ -13,6 +13,9 @@ import {
 import { marketResearchConfig } from '../src/agents/market-research.config';
 import { marketResearchValidationRule } from '../src/agents/validation';
 import { marketResearchFallback } from '../src/agents/fallbacks';
+import { getMarketData } from '../src/agents/tools/market-data';
+import { getInstrumentUniverse } from '../src/agents/tools/instrument-universe';
+import { formatToolContext } from '../src/agents/tools/format-context';
 
 const agentNode = withFallback(
   withRetry(
@@ -62,11 +65,21 @@ export async function invokeMarketResearch(params: {
     ? `\n\nUpstream context:\n${upstreamRecords.map((r) => r.content).join('\n')}`
     : '';
 
-  // 3. Invoke agent
-  const enrichedInput = params.input + kbContext + upstreamContext;
+  // 3. Deterministic tool context (market data + instrument universe, in parallel)
+  const [marketData, instrumentUniverse] = await Promise.all([
+    Promise.resolve(getMarketData()),
+    Promise.resolve(getInstrumentUniverse()),
+  ]);
+  const toolContext = formatToolContext({
+    'Current market data': marketData,
+    'Instrument universe': instrumentUniverse,
+  });
+
+  // 4. Invoke agent
+  const enrichedInput = params.input + kbContext + upstreamContext + toolContext;
   const result = await agentNode({ input: enrichedInput });
 
-  // 4. Persist to memory
+  // 5. Persist to memory
   await session.writeAgentOutput(result);
 
   return result;
