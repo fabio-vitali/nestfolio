@@ -4,7 +4,7 @@ function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
   return { statusCode, body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } };
 }
 
-export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+export async function handler(_event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
   return json(200, {
     'user-goals': {
       goals: [{ description: 'Mock growth goal', priority: 'HIGH', timeHorizon: 'LONG_TERM' }],

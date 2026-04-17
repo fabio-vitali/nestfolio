@@ -116,7 +116,7 @@ export class OrphanReaper {
       const cutoff = Date.now() - ONE_HOUR_MS;
 
       for (const domain of DOMAIN_BUSES) {
-        const busName = `${this.prefix}-${domain}`;
+        const busName = `${this.prefix}-${domain}-event-bus`;
         const result = await eb.send(new ListRulesCommand({
           NamePrefix: 'integ-trap-',
           EventBusName: busName,

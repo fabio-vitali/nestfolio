@@ -9,6 +9,7 @@ export default {
     '^@nestfolio/shell/testing$': '<rootDir>/../../libs/shell/test/testing/index.ts',
     '^@nestfolio/shell/(.+)$': '<rootDir>/../../libs/shell/src/$1/index.ts',
     '^@nestfolio/ui$': '<rootDir>/../../libs/ui/src/index.ts',
+    '^@nestfolio/ui/feature-flags$': '<rootDir>/../../libs/ui/feature-flags/src/index.ts',
   },
   transform: {
     '^.+\\.(ts|mjs|js|html)$': [

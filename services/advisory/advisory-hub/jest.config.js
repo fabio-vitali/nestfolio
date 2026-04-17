@@ -3,6 +3,7 @@ module.exports = {
   ...preset,
   displayName: 'advisory-hub',
   testEnvironment: 'node',
+  testMatch: ['<rootDir>/test/unit/**/*.test.ts'],
   moduleNameMapper: {
     '^@nestfolio/cdk-constructs/(.*)$': '<rootDir>/../../../libs/cdk-constructs/src/$1/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',

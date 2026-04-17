@@ -71,11 +71,7 @@ describe('ledger-ctrl: ORDER_FILLED → LedgerEntry DDB write (smoke)', () => {
       },
     });
 
-    const item = await table.waitForItem({
-      table: 'ledger-ctrl',
-      pk: `Account#${ctx.tenantId}#actual`,
-      timeoutMs: 60_000,
-    });
+    const item = await waitForLedgerEntry(table, ctx.tenantId, 'ORDER_FILLED');
 
     expect(item['__typename']).toBe('LedgerEntry');
     expect(item['tenantId']).toBe(ctx.tenantId);

@@ -3,7 +3,6 @@ module.exports = {
   ...preset,
   displayName: 'investor-adpt',
   testEnvironment: 'node',
-  testPathIgnorePatterns: ['<rootDir>/test/integration/'],
   testMatch: ['<rootDir>/test/unit/**/*.test.ts'],
   moduleNameMapper: {
     '^@nestfolio/event-types$': '<rootDir>/../../../libs/event-types/src/index.ts',

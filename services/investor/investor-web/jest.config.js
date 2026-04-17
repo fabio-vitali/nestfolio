@@ -3,6 +3,7 @@ module.exports = {
   ...preset,
   displayName: 'investor-web',
   testEnvironment: 'node',
+  testMatch: ['<rootDir>/test/unit/**/*.test.ts'],
   moduleNameMapper: {
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',

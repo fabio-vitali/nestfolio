@@ -98,8 +98,8 @@ describe('ledger-bff', () => {
     }, 120_000);
 
     it('should materialize LEDGER_ENTRY_RECORDED to HistoryEntry in DDB', async () => {
-      // Use a large unique sequenceNo (avoids collision with previous runs and checkpoint boundary)
-      const sequenceNo = 1000 + Math.floor(Math.random() * 8000); // 1000–8999, never a checkpoint (mod 100 ≠ 0)
+      // Use a sequenceNo that is NOT a multiple of 100 (avoids creating Checkpoint items)
+      const sequenceNo = 1001 + Math.floor(Math.random() * 99); // 1001–1099, never a checkpoint (mod 100 ≠ 0)
       const eventId = `integ-entry-${Date.now()}`;
 
       await eb.putEvent({

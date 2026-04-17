@@ -34,6 +34,18 @@
         "env": { "NODE_OPTIONS": "--experimental-vm-modules" },
         "color": true
       }
+    },
+    "build-mock": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "mkdir -p services/advisory/advisory-narrative-ctrl/test/mocks/dist",
+          "npx esbuild services/advisory/advisory-narrative-ctrl/test/mocks/mock-agent-runtime.ts --bundle --platform=node --target=node20 --outfile=services/advisory/advisory-narrative-ctrl/test/mocks/dist/index.mjs --format=esm",
+          "cd services/advisory/advisory-narrative-ctrl/test/mocks/dist && zip -j ../mock-agent-runtime.zip index.mjs"
+        ],
+        "parallel": false
+      },
+      "outputs": ["{projectRoot}/test/mocks/mock-agent-runtime.zip"]
     }
   },
   "tags": ["scope:advisory", "type:ctrl", "has-agent-runtime"]

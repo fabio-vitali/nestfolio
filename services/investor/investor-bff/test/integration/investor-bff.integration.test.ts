@@ -890,14 +890,8 @@ describe('investor-bff', () => {
     }, 120_000);
 
     it('should re-enable feature flags on BROKER_CIRCUIT_CLOSED', async () => {
-      // Setup: ensure flags are disabled first
-      await eb.putEvent({
-        bus: 'investor',
-        targetService: 'investor-bff',
-        detailType: 'BROKER_CIRCUIT_OPEN',
-        detail: {},
-      });
-      await waitForFlags(false);
+      // Flags are already disabled from the preceding BROKER_CIRCUIT_OPEN test.
+      // Sending a redundant OPEN here would race with CLOSED via SQS reordering.
 
       // Act: close the breaker
       await eb.putEvent({

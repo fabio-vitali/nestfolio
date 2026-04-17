@@ -3,7 +3,7 @@ module.exports = {
   ...preset,
   displayName: 'decision-workflow-ctrl',
   testEnvironment: 'node',
-  testPathIgnorePatterns: ['<rootDir>/test/integration/'],
+  testMatch: ['<rootDir>/test/unit/**/*.test.ts'],
   moduleNameMapper: {
     '^@nestfolio/event-types$': '<rootDir>/../../../libs/event-types/src/index.ts',
     '^@nestfolio/agent-orchestrator$': '<rootDir>/../../../libs/agent-orchestrator/src/index.ts',

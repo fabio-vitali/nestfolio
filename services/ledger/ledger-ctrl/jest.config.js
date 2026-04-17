@@ -3,7 +3,7 @@ module.exports = {
   ...preset,
   displayName: 'ledger-ctrl',
   testEnvironment: 'node',
-  testPathIgnorePatterns: ['<rootDir>/test/integration/'],
+  testMatch: ['<rootDir>/test/unit/**/*.test.ts'],
   transform: {
     '^.+\\.[tj]sx?$': ['ts-jest', {
       tsconfig: '<rootDir>/tsconfig.spec.json',

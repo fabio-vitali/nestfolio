@@ -34,6 +34,18 @@
       "options": {
         "command": "npx esbuild services/advisory/market-intelligence-ctrl/agents/server.ts --bundle --platform=node --outfile=services/advisory/market-intelligence-ctrl/agents/dist/bundle.js --format=cjs --target=node20"
       }
+    },
+    "build-mock": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "mkdir -p services/advisory/market-intelligence-ctrl/test/mocks/dist",
+          "npx esbuild services/advisory/market-intelligence-ctrl/test/mocks/mock-agent-runtime.ts --bundle --platform=node --target=node20 --outfile=services/advisory/market-intelligence-ctrl/test/mocks/dist/index.mjs --format=esm",
+          "cd services/advisory/market-intelligence-ctrl/test/mocks/dist && zip -j ../mock-agent-runtime.zip index.mjs"
+        ],
+        "parallel": false
+      },
+      "outputs": ["{projectRoot}/test/mocks/mock-agent-runtime.zip"]
     }
   },
   "tags": ["scope:advisory", "type:ctrl", "has-agent-runtime"]
