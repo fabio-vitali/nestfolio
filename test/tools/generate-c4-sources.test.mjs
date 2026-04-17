@@ -288,9 +288,9 @@ describe('parseStack — raw resources', () => {
 
 describe('serviceLabel', () => {
   it('expands -mfe suffix to MFE', () => {
-    assert.equal(serviceLabel('investor-mfe'), 'Investor MFE');
-    assert.equal(serviceLabel('dashboard-mfe'), 'Dashboard MFE');
-    assert.equal(serviceLabel('onboarding-mfe'), 'Onboarding MFE');
+    assert.equal(serviceLabel('investor-mfe'), 'Investor\\nMFE');
+    assert.equal(serviceLabel('dashboard-mfe'), 'Dashboard\\nMFE');
+    assert.equal(serviceLabel('onboarding-mfe'), 'Onboarding\\nMFE');
   });
 });
 
@@ -353,8 +353,8 @@ describe('generateC2 with mfes', () => {
       mfes: mfes.filter(m => m.domain === 'investor'),
     });
     assert.ok(d2.includes('investor-mfe:'));
-    assert.ok(d2.includes('Dashboard MFE'));
-    assert.ok(d2.includes('Onboarding MFE'));
+    assert.ok(d2.includes('Dashboard\\nMFE'));
+    assert.ok(d2.includes('Onboarding\\nMFE'));
     assert.ok(d2.includes('class: frontend'));
   });
 

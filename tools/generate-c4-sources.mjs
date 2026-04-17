@@ -244,11 +244,25 @@ export function parseStack(src) {
     const after = src.slice(m.index, m.index + 1200);
     const isCrossDomain = /EventBusTarget/.test(after);
     const eventTypes = [];
-    const dtMatch = after.match(/detailType\s*:\s*\[([\s\S]*?)\]/);
-    if (dtMatch) {
-      eventTypes.push(...[...dtMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]));
+    const dtInlineMatch = after.match(/detailType\s*:\s*\[([\s\S]*?)\]/);
+    const dtVarMatch = after.match(/detailType\s*:\s*([A-Za-z_]\w*)\s*[,}\n]/);
+    const useInline = dtInlineMatch && (!dtVarMatch || dtInlineMatch.index <= dtVarMatch.index);
+    if (useInline) {
+      eventTypes.push(...[...dtInlineMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]));
       if (eventTypes.length === 0) {
-        eventTypes.push(...[...dtMatch[1].matchAll(/\.(\w+)/g)].map((x) => x[1]));
+        eventTypes.push(...[...dtInlineMatch[1].matchAll(/\.(\w+)/g)].map((x) => x[1]));
+      }
+    } else if (dtVarMatch) {
+      // Variable reference: detailType: someVariable — resolve const declaration in the stack source
+      const constName = dtVarMatch[1];
+      const constMatch = src.match(
+        new RegExp(`(?:const|let|export\\s+const)\\s+${constName}\\s*(?::\\s*\\w+(?:\\[\\])?)?\\s*=\\s*\\[([\\s\\S]*?)\\]`),
+      );
+      if (constMatch) {
+        eventTypes.push(...[...constMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]));
+        if (eventTypes.length === 0) {
+          eventTypes.push(...[...constMatch[1].matchAll(/\.(\w+)/g)].map((x) => x[1]));
+        }
       }
     }
     const targetMatch = after.match(/new\s+EventBusTarget\s*\(\s*(\w+)/);
