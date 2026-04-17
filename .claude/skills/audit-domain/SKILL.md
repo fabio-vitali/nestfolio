@@ -48,7 +48,7 @@ Events that are purely internal (e.g., error events, CDC projections within the 
 ## Sub-Agent Prompt Pattern
 ```
 Audit service {service} in domain {domain}.
-Read: services/{domain}/{service}/src/service.stack.ts, project.json, src/handlers/*, test/*
+Read: services/{domain}/{service}/src/service.stack.ts, project.json, src/handlers/*, test/unit/*, test/integration/*
 Check: file structure, naming, handler patterns, test coverage, CDK patterns, import boundaries
 Generate CLAUDE.md card → services/{domain}/{service}/CLAUDE.md
 Report: structured pass/fail/warning per check

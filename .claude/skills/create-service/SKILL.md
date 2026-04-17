@@ -30,8 +30,9 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
       domain/schemas.ts
       domain/index.ts
     test/
-      service.stack.test.ts
-      {first-handler}.test.ts
+      unit/
+        service.stack.test.ts
+        {first-handler}.test.ts
     project.json                   <- projectType: "application", deploy/destroy/test/lint/test-integration targets
     jest.config.js                 <- extends jest.preset, moduleNameMapper for @nestfolio/*
     jest.integration.config.js     <- integration test config (see test-integration target below)

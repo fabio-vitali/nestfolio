@@ -32,7 +32,7 @@ Audit the service {service} in domain {domain}. Read these files:
    - AgentRuntime: Bedrock agent if present
 3. services/{domain}/{service}/src/handlers/ — list all handler files
 4. services/{domain}/{service}/src/domain/events.ts — event type constants
-5. services/{domain}/{service}/test/ — list test files
+5. services/{domain}/{service}/test/unit/ and test/integration/ — list test files
 
 Produce a CLAUDE.md service card in EXACTLY this format:
 
@@ -99,7 +99,7 @@ Write the result to: services/{domain}/{service}/CLAUDE.md
 | 1 | File structure: `src/`, `test/`, `src/service.stack.ts`, `project.json` | Hard fail | `ls` the paths |
 | 2 | Naming: suffix is `-ctrl`, `-bff`, `-hub`, `-adpt`, or `-web` | Hard fail | Parse directory name |
 | 3 | Handler pattern: every Lambda uses event-processor pipeline | Hard fail | Grep handlers for pipeline imports |
-| 4 | Unit test coverage: every handler has corresponding test in test/ (excluding test/integration/) | Warning | Compare handler vs test file lists |
+| 4 | Unit test coverage: every handler has corresponding test in test/unit/ | Warning | Compare handler vs test file lists |
 | 5 | CDK pattern: extends ServiceStack | Warning | Read service.stack.ts imports |
 | 6 | Card freshness: CLAUDE.md matches code | Auto-fix | Regenerate and compare |
 | 7 | Import boundaries: no imports from `services/` | Hard fail | `grep -r "from.*services/" src/` |

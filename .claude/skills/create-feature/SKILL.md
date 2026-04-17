@@ -16,7 +16,7 @@ description: Step-by-step guide for adding a feature to an existing service. Ens
 
 - [ ] 1. **Read the service card** — understand events, state, emits
 - [ ] 2. **Read the service stack** — `services/{domain}/{service}/src/service.stack.ts`
-- [ ] 3. **Write the failing test** — `services/{domain}/{service}/test/{feature}.test.ts`
+- [ ] 3. **Write the failing test** — `services/{domain}/{service}/test/unit/{feature}.test.ts`
   Use `createTestHarness` + `fakeSqsRecord` from `@nestfolio/event-processor/testing`
 - [ ] 4. **Run test to verify it fails**
   `pnpm nx test {service} -- --testPathPattern={feature}`

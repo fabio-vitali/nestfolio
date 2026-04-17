@@ -94,7 +94,8 @@ Producer service → DynamoDB write → DDB Stream (CDC) → Egress Lambda → E
 | Service stack | `services/{domain}/{svc}/src/service.stack.ts` |
 | Service handlers | `services/{domain}/{svc}/src/handlers/` |
 | Event types | `services/{domain}/{svc}/src/domain/events.ts` |
-| Service tests | `services/{domain}/{svc}/test/` |
+| Unit tests | `services/{domain}/{svc}/test/unit/` |
+| Integration tests | `services/{domain}/{svc}/test/integration/` |
 | Service config | `services/{domain}/{svc}/project.json` |
 | CDK constructs | `libs/cdk-constructs/src/core/` |
 | Pipeline types | `libs/event-processor/src/pipelines/` |
