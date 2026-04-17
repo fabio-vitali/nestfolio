@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import {
   createTestContext,
   EventBridgeClient,
@@ -6,6 +8,8 @@ import {
 import {
   EventBusTrap,
   TableAssertions,
+  MockApiFixture,
+  SsmOverrideFixture,
 } from '@nestfolio/integration-testing';
 
 describe('market-intelligence-ctrl: ANALYZE_MARKET → AgentInvocation DDB write + CDC', () => {
@@ -16,6 +20,21 @@ describe('market-intelligence-ctrl: ANALYZE_MARKET → AgentInvocation DDB write
 
   beforeAll(async () => {
     ctx = await createTestContext();
+
+    // Deploy mock agent runtime
+    const mockApi = new MockApiFixture(ctx);
+    const zipPath = join(__dirname, '..', 'mocks', 'mock-agent-runtime.zip');
+    const mockUrl = await mockApi.deploy({
+      name: 'mock-agent-runtime',
+      handlerAsset: readFileSync(zipPath),
+    });
+
+    const ssmOverride = new SsmOverrideFixture(ctx);
+    await ssmOverride.override({
+      paramName: `/nestfolio/${ctx.prefix}-market-intelligence-ctrl/agent/runtimeUrl`,
+      testValue: mockUrl,
+    });
+
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
@@ -24,7 +43,7 @@ describe('market-intelligence-ctrl: ANALYZE_MARKET → AgentInvocation DDB write
       bus: 'advisory',
       detailType: ['MARKET_SIGNAL_DETECTED'],
     });
-  }, 60_000);
+  }, 120_000);
 
   afterAll(async () => {
     await ctx.cleanup.runAll();

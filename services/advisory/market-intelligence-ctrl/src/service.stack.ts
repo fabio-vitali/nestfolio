@@ -12,13 +12,19 @@ import { SecEdgarAdptEventTypes } from '@nestfolio/sec-edgar-adpt/events';
 import { FredAdptEventTypes } from '@nestfolio/fred-adpt/events';
 import { AlphaVantageAdptEventTypes } from '@nestfolio/alpha-vantage-adpt/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
-import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
+import { defaultLambdaProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 
 export class MarketIntelligenceCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props, serviceDir: __dirname });
 
     const state = new State(this, 'State');
+
+    // SSM param for mock agent runtime URL (set to DISABLED by default; overridden in integration tests)
+    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
+      parameterName: `/nestfolio/${props.prefix}-market-intelligence-ctrl/agent/runtimeUrl`,
+      stringValue: 'DISABLED',
+    });
 
     // Knowledge Base: Market Intelligence (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'MarketKB', {
@@ -29,6 +35,9 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     // Ingress: trigger event + 5 feed ingestion events
     const ingress = new Ingress(this, 'Ingress', {
       state,
+      lambdaProps: {
+        paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
+      },
       eventTypes: [
         DecisionWorkflowEventTypes.ANALYZE_MARKET,
         YahooFinanceAdptEventTypes.YAHOO_FINANCE_UPDATED,
@@ -46,6 +55,9 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
         'AgentInvocation': { insert: MarketIntelligenceEventTypes.MARKET_SIGNAL_DETECTED },
       },
     });
+
+    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
+    agentRuntimeUrlParam.grantRead(ingress.handler);
 
     // KB ingestion Lambda (separate from event-listener)
     const kbIngestionFn = new NodejsFunction(this, 'KBIngestion', {
