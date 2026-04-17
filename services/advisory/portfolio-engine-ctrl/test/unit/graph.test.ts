@@ -70,6 +70,35 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
     );
   });
 
+  it('invokePortfolioEngine injects portfolio snapshot into enriched input', async () => {
+    mockKBRetrieve.mockResolvedValue([]);
+    mockInvokeOrchestrator.mockResolvedValue({
+      'portfolio-construction': { allocations: [] },
+      'rebalance-planner': { trades: [] },
+    });
+
+    const snapshot = {
+      tenantId: 't1',
+      snapshot: { totalValue: 50000, holdings: [{ instrument: 'VTI', weight: 0.6 }] },
+    };
+
+    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
+    jest.isolateModules(() => {
+      jest.doMock('../../src/agents/tools/portfolio-lookup', () => ({
+        createPortfolioLookup: () => async () => snapshot,
+      }));
+      const mod = require('../../agents/graph');
+      invokePortfolioEngine = mod.invokePortfolioEngine;
+    });
+
+    process.env['TABLE_NAME'] = 'test-table';
+    await invokePortfolioEngine!({ tenantId: 't1', decisionId: 'd1', input: 'Rebalance' });
+
+    const passedInput = mockInvokeOrchestrator.mock.calls[0][1].input as string;
+    expect(passedInput).toContain('Portfolio snapshot:');
+    expect(passedInput).toContain('"totalValue": 50000');
+  });
+
   it('writes output to memory', async () => {
     mockKBRetrieve.mockResolvedValue([]);
     mockInvokeOrchestrator.mockResolvedValue({
