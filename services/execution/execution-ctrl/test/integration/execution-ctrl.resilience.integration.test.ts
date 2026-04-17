@@ -117,137 +117,78 @@ describe('execution-ctrl resilience: idempotency', () => {
 });
 
 // ── Order-Agnostic: Pairwise Inversion ───────────────────────────────────
+//
+// Runs A and B execute in parallel — each has its own tenant, trap, and
+// event sequence. Parallelism halves the wall-clock time and avoids the
+// 360s timeout that sequential dual-context deployment caused.
+
+async function runPairwiseSequence(
+  order: Array<{ symbol: string; quantityOrAmountCents: number; targetWeightPercent: number }>,
+  label: string,
+): Promise<{ count: number; cleanup: () => Promise<void> }> {
+  const ctx = await createTestContext();
+  const eb = new EventBridgeClient(ctx);
+  const table = new TableAssertions(ctx);
+  table.registerCleanup();
+  const trap = new EventBusTrap(ctx);
+  await trap.deploy({
+    bus: 'execution',
+    detailType: ['ORDER_SUBMITTED', 'ORDER_STAGED', 'ORDER_REJECTED'],
+  });
+
+  const eventIds: string[] = [];
+  for (let i = 0; i < order.length; i++) {
+    const eventId = `pair-${label}-${i}-${randomUUID()}`;
+    eventIds.push(eventId);
+
+    await eb.putEvent({
+      bus: 'execution',
+      targetService: 'execution-ctrl',
+      detailType: 'DECISION_APPROVED',
+      detail: {
+        decisionPacketId: `dp-pair-${label}-${i}-${randomUUID()}`,
+        proposedTrades: [
+          {
+            symbol: order[i].symbol,
+            assetClass: 'equity',
+            side: 'BUY',
+            quantityOrAmountCents: order[i].quantityOrAmountCents,
+            targetWeightPercent: order[i].targetWeightPercent,
+          },
+        ],
+      },
+      eventId,
+    });
+    await trap.waitForEvent({ timeoutMs: 90_000 });
+  }
+
+  await new Promise((r) => setTimeout(r, 10_000));
+
+  let count = 0;
+  for (const eventId of eventIds) {
+    count += await countItemsForEventId(table, ctx.tenantId, eventId);
+  }
+
+  return { count, cleanup: () => ctx.cleanup.runAll() };
+}
 
 describe('execution-ctrl resilience: order-agnostic pairwise', () => {
   it('two DECISION_APPROVED events in either order produce same record set', async () => {
-    // ── Run A: event1 (AAPL) then event2 (MSFT) ──
-    const ctxA = await createTestContext();
+    const tradeA = { symbol: 'AAPL', quantityOrAmountCents: 5, targetWeightPercent: 20 };
+    const tradeB = { symbol: 'MSFT', quantityOrAmountCents: 3, targetWeightPercent: 15 };
+
+    // Run both orderings in parallel — independent tenants, independent traps
+    const [resultA, resultB] = await Promise.all([
+      runPairwiseSequence([tradeA, tradeB], 'A'),
+      runPairwiseSequence([tradeB, tradeA], 'B'),
+    ]);
+
     try {
-      const ebA = new EventBridgeClient(ctxA);
-      const tableA = new TableAssertions(ctxA);
-      tableA.registerCleanup();
-      const trapA = new EventBusTrap(ctxA);
-      await trapA.deploy({
-        bus: 'execution',
-        detailType: ['ORDER_SUBMITTED', 'ORDER_STAGED'],
-      });
-
-      const eventIdA1 = `pair-A1-${randomUUID()}`;
-      const eventIdA2 = `pair-A2-${randomUUID()}`;
-
-      await ebA.putEvent({
-        bus: 'execution',
-        targetService: 'execution-ctrl',
-        detailType: 'DECISION_APPROVED',
-        detail: {
-          decisionPacketId: `dp-pair-A1-${randomUUID()}`,
-          proposedTrades: [
-            {
-              symbol: 'AAPL',
-              assetClass: 'equity',
-              side: 'BUY',
-              quantityOrAmountCents: 5,
-              targetWeightPercent: 20,
-            },
-          ],
-        },
-        eventId: eventIdA1,
-      });
-      await trapA.waitForEvent({ timeoutMs: 90_000 });
-
-      await ebA.putEvent({
-        bus: 'execution',
-        targetService: 'execution-ctrl',
-        detailType: 'DECISION_APPROVED',
-        detail: {
-          decisionPacketId: `dp-pair-A2-${randomUUID()}`,
-          proposedTrades: [
-            {
-              symbol: 'MSFT',
-              assetClass: 'equity',
-              side: 'BUY',
-              quantityOrAmountCents: 3,
-              targetWeightPercent: 15,
-            },
-          ],
-        },
-        eventId: eventIdA2,
-      });
-      await trapA.waitForEvent({ timeoutMs: 90_000 });
-
-      await new Promise((r) => setTimeout(r, 10_000));
-      const countA =
-        (await countItemsForEventId(tableA, ctxA.tenantId, eventIdA1)) +
-        (await countItemsForEventId(tableA, ctxA.tenantId, eventIdA2));
-
-      // ── Run B: event2 (MSFT) then event1 (AAPL), same payloads reversed ──
-      const ctxB = await createTestContext();
-      try {
-        const ebB = new EventBridgeClient(ctxB);
-        const tableB = new TableAssertions(ctxB);
-        tableB.registerCleanup();
-        const trapB = new EventBusTrap(ctxB);
-        await trapB.deploy({
-          bus: 'execution',
-          detailType: ['ORDER_SUBMITTED', 'ORDER_STAGED'],
-        });
-
-        const eventIdB2 = `pair-B2-${randomUUID()}`;
-        const eventIdB1 = `pair-B1-${randomUUID()}`;
-
-        await ebB.putEvent({
-          bus: 'execution',
-          targetService: 'execution-ctrl',
-          detailType: 'DECISION_APPROVED',
-          detail: {
-            decisionPacketId: `dp-pair-B2-${randomUUID()}`,
-            proposedTrades: [
-              {
-                symbol: 'MSFT',
-                assetClass: 'equity',
-                side: 'BUY',
-                quantityOrAmountCents: 3,
-                targetWeightPercent: 15,
-              },
-            ],
-          },
-          eventId: eventIdB2,
-        });
-        await trapB.waitForEvent({ timeoutMs: 90_000 });
-
-        await ebB.putEvent({
-          bus: 'execution',
-          targetService: 'execution-ctrl',
-          detailType: 'DECISION_APPROVED',
-          detail: {
-            decisionPacketId: `dp-pair-B1-${randomUUID()}`,
-            proposedTrades: [
-              {
-                symbol: 'AAPL',
-                assetClass: 'equity',
-                side: 'BUY',
-                quantityOrAmountCents: 5,
-                targetWeightPercent: 20,
-              },
-            ],
-          },
-          eventId: eventIdB1,
-        });
-        await trapB.waitForEvent({ timeoutMs: 90_000 });
-
-        await new Promise((r) => setTimeout(r, 10_000));
-        const countB =
-          (await countItemsForEventId(tableB, ctxB.tenantId, eventIdB2)) +
-          (await countItemsForEventId(tableB, ctxB.tenantId, eventIdB1));
-
-        // Both runs should produce the same number of records regardless of order
-        expect(countA).toBeGreaterThanOrEqual(2);
-        expect(countB).toBe(countA);
-      } finally {
-        await ctxB.cleanup.runAll();
-      }
+      // Both runs should produce the same number of records regardless of order
+      expect(resultA.count).toBeGreaterThanOrEqual(2);
+      expect(resultB.count).toBe(resultA.count);
     } finally {
-      await ctxA.cleanup.runAll();
+      await Promise.all([resultA.cleanup(), resultB.cleanup()]);
     }
   }, 360_000);
 });
