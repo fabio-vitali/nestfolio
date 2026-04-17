@@ -73,4 +73,24 @@ describe('market-intelligence-ctrl structured graph', () => {
 
     expect(mockMemorySession.writeAgentOutput).toHaveBeenCalled();
   });
+
+  it('injects market-data and instrument-universe into the agent prompt', async () => {
+    mockKBRetrieve.mockResolvedValue([]);
+    mockAgentNode.mockResolvedValue({
+      signals: [],
+      tickersMentioned: [],
+      marketOutlook: 'neutral',
+      confidenceScore: 0.5,
+    });
+
+    await invokeMarketResearch({
+      tenantId: 't1',
+      decisionId: 'd1',
+      input: 'Scan market',
+    });
+
+    const passedInput = (mockAgentNode.mock.calls[0][0] as { input: string }).input;
+    expect(passedInput).toContain('Current market data:');
+    expect(passedInput).toContain('Instrument universe:');
+  });
 });
