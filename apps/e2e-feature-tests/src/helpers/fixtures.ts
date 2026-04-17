@@ -4,6 +4,12 @@ import {
 } from '@nestfolio/test-support';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  EventBridgeClient as EbClient,
+  ListRulesCommand,
+  DisableRuleCommand,
+  EnableRuleCommand,
+} from '@aws-sdk/client-eventbridge';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
@@ -240,13 +246,56 @@ export function withHoldings(
   };
 }
 
+// Heal SM auto-closes the breaker within ~1s of BROKER_CIRCUIT_OPEN by health-checking
+// Alpaca and racing the BFF feature-flag disable. We disable the EB trigger rule for the
+// duration of the test so the breaker stays OPEN until closeBreakerFixture re-enables it.
+const HEAL_RULE_PREFIX_SUFFIX = '-broker-alpaca-adpt-HealStateMachine';
+
+async function findHealRuleName(ctx: TestContext): Promise<string> {
+  const eb = new EbClient({ region: ctx.region });
+  try {
+    const result = await eb.send(new ListRulesCommand({
+      EventBusName: `${ctx.prefix}-execution-event-bus`,
+      NamePrefix: `${ctx.prefix}${HEAL_RULE_PREFIX_SUFFIX}`,
+    }));
+    const rule = result.Rules?.[0];
+    if (!rule?.Name) {
+      throw new Error(
+        `withBreakerOpen: heal SM EB rule not found (prefix=${ctx.prefix}${HEAL_RULE_PREFIX_SUFFIX})`,
+      );
+    }
+    return rule.Name;
+  } finally {
+    eb.destroy();
+  }
+}
+
+async function setHealRuleState(ctx: TestContext, ruleName: string, enabled: boolean): Promise<void> {
+  const eb = new EbClient({ region: ctx.region });
+  try {
+    const cmd = enabled
+      ? new EnableRuleCommand({ Name: ruleName, EventBusName: `${ctx.prefix}-execution-event-bus` })
+      : new DisableRuleCommand({ Name: ruleName, EventBusName: `${ctx.prefix}-execution-event-bus` });
+    await eb.send(cmd);
+  } finally {
+    eb.destroy();
+  }
+}
+
 /**
  * Opens the circuit breaker on broker-alpaca-adpt by writing a CircuitBreaker
  * DDB record and a NormalizedEvent (which triggers CDC → BROKER_CIRCUIT_OPEN).
  * Simulates what the handler does when the Alpaca API is unreachable.
+ *
+ * Disables the heal SM EB trigger BEFORE the DDB writes so the BROKER_CIRCUIT_OPEN
+ * event reaches the investor-bff feature-flag handler without being raced by the
+ * heal SM auto-closing the breaker. closeBreakerFixture re-enables the rule.
  */
 export function withBreakerOpen(): Fixture {
   return async (ctx, tenant, _eb, _bff) => {
+    const ruleName = await findHealRuleName(ctx);
+    await setHealRuleState(ctx, ruleName, false);
+
     const tableName = await ctx.ssm.tableName('broker-alpaca-adpt');
     const ddbClient = new DynamoDBClient({ region: ctx.region });
     const ddb = DynamoDBDocumentClient.from(ddbClient);
@@ -292,6 +341,9 @@ export function withBreakerOpen(): Fixture {
 /**
  * Closes the circuit breaker by updating the DDB record and writing a
  * NormalizedEvent (which triggers CDC → BROKER_CIRCUIT_CLOSED).
+ *
+ * Re-enables the heal SM EB trigger that withBreakerOpen disabled, so the rule
+ * returns to its production state regardless of test outcome.
  */
 export function closeBreakerFixture(): Fixture {
   return async (ctx, tenant, _eb, _bff) => {
@@ -325,6 +377,15 @@ export function closeBreakerFixture(): Fixture {
       }));
     } finally {
       ddbClient.destroy();
+    }
+
+    try {
+      const ruleName = await findHealRuleName(ctx);
+      await setHealRuleState(ctx, ruleName, true);
+    } catch (err) {
+      // Best-effort: log but don't fail the test on cleanup.
+      // eslint-disable-next-line no-console
+      console.warn('closeBreakerFixture: failed to re-enable heal SM rule', err);
     }
 
     return {};
