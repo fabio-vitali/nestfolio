@@ -23,6 +23,7 @@ Stack: services/advisory/advisory-narrative-ctrl/src/service.stack.ts
   - ReasoningOutput -> EXPLANATION_GENERATED (insert only)
 
 ## AgentRuntime
+Agent folder: agents/advisory-narrative/
 - advisory_narrative_agents: explainability (Sonnet, 8192 tokens) agent with feedback loop KB
   Models: Sonnet (SSM from advisory-hub)
   Tools: none (all context arrives in event payload)

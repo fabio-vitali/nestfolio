@@ -9,9 +9,9 @@ import {
   type KBClient,
   type MemoryClient,
 } from '@nestfolio/agent-orchestrator';
-import { explainabilityConfig } from '../src/agents/explainability.config';
-import { narrativeValidationRule } from '../src/agents/validation';
-import { narrativeFallback } from '../src/agents/fallbacks';
+import { explainabilityConfig } from '../../src/agents/explainability.config';
+import { narrativeValidationRule } from '../../src/agents/validation';
+import { narrativeFallback } from '../../src/agents/fallbacks';
 
 const agentNode = withFallback(
   withRetry(

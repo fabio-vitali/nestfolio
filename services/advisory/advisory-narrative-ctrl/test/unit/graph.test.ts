@@ -20,7 +20,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   }),
 }));
 
-import { invokeNarrative } from '../../agents/graph';
+import { invokeNarrative } from '../../agents/advisory-narrative/graph';
 
 describe('advisory-narrative-ctrl structured graph', () => {
   beforeEach(() => {
