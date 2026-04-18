@@ -121,6 +121,8 @@ description: Scaffold a new service — Nx project, file structure, CDK stack, e
 
 For services with Bedrock AgentCore agents, add the AgentRuntime construct and build-agent target:
 
+The agent code lives at `services/{domain}/{service-name}/agents/{agent-name}/`, containing `graph.ts` (LangGraph entry), `server.ts` (Hono entry, listens on port 8080), and `Dockerfile` (ARM64 node:20-slim base, copies `dist/bundle.js`). Use a kebab-case `{agent-name}` (e.g. `decision-lifecycle`, `investor-profile`).
+
 **project.json** — add build-agent target:
 ```json
 {
@@ -128,8 +130,7 @@ For services with Bedrock AgentCore agents, add the AgentRuntime construct and b
     "build-agent": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "esbuild src/agent/index.ts --bundle --platform=node --target=node20 --outdir=dist/agent",
-        "cwd": "services/{domain}/{service}"
+        "command": "npx esbuild services/{domain}/{service-name}/agents/{agent-name}/server.ts --bundle --platform=node --outfile=services/{domain}/{service-name}/agents/{agent-name}/dist/bundle.js --format=cjs --target=node20"
       }
     }
   },
@@ -139,14 +140,15 @@ For services with Bedrock AgentCore agents, add the AgentRuntime construct and b
 
 **service.stack.ts** — add AgentRuntime construct:
 ```typescript
+import * as path from 'path';
 import { AgentRuntime } from '@nestfolio/cdk-constructs';
 
 const agentRuntime = new AgentRuntime(this, 'AgentRuntime', {
   runtimeName: naming.functionName('agent'),
-  agentEntryPath: join(__dirname, '../dist/agent'),
+  agentCodePath: path.join(__dirname, '..', 'agents', '{agent-name}'),
   modelId: 'us.anthropic.claude-sonnet-4-6',
   tools: [
-    { name: 'my-tool', description: '...', schemaPath: join(__dirname, 'tools/my-tool.schema.json'), handler: myToolLambda },
+    { name: 'my-tool', description: '...', schemaPath: path.join(__dirname, 'tools/my-tool.schema.json'), handler: myToolLambda },
   ],
   // Create tools/<tool-name>.schema.json (JSON Schema) for each tool alongside its handler
 });
