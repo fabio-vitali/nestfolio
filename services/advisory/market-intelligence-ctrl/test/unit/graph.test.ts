@@ -21,7 +21,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   }),
 }));
 
-import { invokeMarketResearch } from '../../agents/graph';
+import { invokeMarketResearch } from '../../agents/market-intelligence/graph';
 
 describe('market-intelligence-ctrl structured graph', () => {
   beforeEach(() => {

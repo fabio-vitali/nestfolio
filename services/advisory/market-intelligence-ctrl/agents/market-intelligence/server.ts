@@ -1,4 +1,4 @@
-// services/advisory/market-intelligence-ctrl/agents/server.ts
+// services/advisory/market-intelligence-ctrl/agents/market-intelligence/server.ts
 import { serve } from '@hono/node-server';
 import { createAgentServer } from '@nestfolio/agent-orchestrator';
 import { invokeMarketResearch } from './graph';
