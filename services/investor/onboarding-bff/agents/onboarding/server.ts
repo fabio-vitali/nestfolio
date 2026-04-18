@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { CopilotRuntime, LangGraphAgent } from '@copilotkit/runtime';
-import { buildOnboardingGraph } from '../agent/graph';
-import { OnboardingRepository } from '../repositories/onboarding.repository';
+import { buildOnboardingGraph } from './graph';
+import { OnboardingRepository } from '../../src/repositories/onboarding.repository';
 
 export function createApp() {
   const app = new Hono();
@@ -37,7 +37,7 @@ export function createApp() {
     }
 
     // Rehydrate state from committed DDB records
-    const { rehydrateState } = await import('../agent/session');
+    const { rehydrateState } = await import('../../src/agent/session');
     const state = rehydrateState(session as any);
     return c.json({ activeSession: true, state });
   });

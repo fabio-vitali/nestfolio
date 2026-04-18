@@ -19,6 +19,8 @@ Stack: services/investor/onboarding-bff/src/service.stack.ts
   - GoLiveConfirmed -> GO_LIVE_CONFIRMED (insert only)
 
 ## AgentRuntime
+Agent folder: agents/onboarding/  (graph.ts + server.ts + Dockerfile)
+Tooling support code remains under src/agent/ (tools, prompts, state, router, session, phase-node).
 - onboarding_agent: Conversational onboarding agent for investor onboarding
   Models: Sonnet (SSM from advisory-hub)
   Tools: search_knowledge_base (SearchKbFn Lambda, search-kb.schema.json, 15s timeout)

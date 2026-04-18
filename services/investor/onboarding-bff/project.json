@@ -24,7 +24,7 @@
     "build-agent": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx esbuild services/investor/onboarding-bff/src/runtime/server.ts --bundle --platform=node --outfile=services/investor/onboarding-bff/dist/bundle.js --format=cjs --target=node20"
+        "command": "npx esbuild services/investor/onboarding-bff/agents/onboarding/server.ts --bundle --platform=node --outfile=services/investor/onboarding-bff/agents/onboarding/dist/bundle.js --format=cjs --target=node20"
       }
     },
     "test-integration": {

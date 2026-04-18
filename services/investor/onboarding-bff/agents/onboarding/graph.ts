@@ -1,12 +1,12 @@
 import { StateGraph } from '@langchain/langgraph';
 import { ChatBedrockConverse } from '@langchain/aws';
-import { OnboardingAnnotation, PHASE_ORDER } from './state';
-import { routeToPhase } from './router';
-import { createPhaseNode } from './phase-node';
-import { RENDER_TOOLS } from './tools/render-ui';
-import type { OnboardingRepository } from '../repositories/onboarding.repository';
-import { createCommitPhaseTool } from './tools/commit-phase';
-import { computeRiskProfile } from './tools/compute-risk';
+import { OnboardingAnnotation, PHASE_ORDER } from '../../src/agent/state';
+import { routeToPhase } from '../../src/agent/router';
+import { createPhaseNode } from '../../src/agent/phase-node';
+import { RENDER_TOOLS } from '../../src/agent/tools/render-ui';
+import type { OnboardingRepository } from '../../src/repositories/onboarding.repository';
+import { createCommitPhaseTool } from '../../src/agent/tools/commit-phase';
+import { computeRiskProfile } from '../../src/agent/tools/compute-risk';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 

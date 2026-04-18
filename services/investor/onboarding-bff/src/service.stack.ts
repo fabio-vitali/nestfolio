@@ -51,7 +51,7 @@ export class OnboardingBffStack extends ServiceStack {
     // AgentRuntime — uses own table
     new AgentRuntime(this, 'OnboardingAgent', {
       runtimeName: 'onboarding_agent',
-      agentCodePath: path.join(__dirname, '..'),
+      agentCodePath: path.join(__dirname, '..', 'agents', 'onboarding'),
       description: 'Conversational onboarding agent for investor onboarding',
       modelIds: [sonnetModelId],
       state,
