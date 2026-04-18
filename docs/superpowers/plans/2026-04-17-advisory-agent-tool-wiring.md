@@ -4,7 +4,7 @@
 
 **Goal:** Wire three orphaned tool handlers in `portfolio-engine-ctrl` and `market-intelligence-ctrl` into their agents as in-process deterministic context augmentation, and delete the dead Lambda infrastructure.
 
-**Architecture:** Each tool factory is imported directly by its service's `agents/graph.ts` and invoked before the LLM call, with the result formatted as a labelled prompt section appended to the existing `kbContext` + `upstreamContext`. No Gateway, no `bindTools`, no MCP — same pattern the services already use for `kb.retrieve()` and `session.readUpstreamOutput()`. The standalone `NodejsFunction` CDK resources for these tools are deleted.
+**Architecture:** Each tool factory is imported directly by its service's `agents/{agent-name}/graph.ts` and invoked before the LLM call, with the result formatted as a labelled prompt section appended to the existing `kbContext` + `upstreamContext`. No Gateway, no `bindTools`, no MCP — same pattern the services already use for `kb.retrieve()` and `session.readUpstreamOutput()`. The standalone `NodejsFunction` CDK resources for these tools are deleted.
 
 **Tech Stack:** TypeScript, Jest, AWS CDK, `@langchain/aws`, `@nestfolio/agent-orchestrator`, `aws-sdk-client-mock`.
 
@@ -243,11 +243,11 @@ git commit -m "test(portfolio-engine-ctrl): expect portfolio snapshot in agent p
 ### Task 4: Wire portfolio-lookup into graph.ts
 
 **Files:**
-- Modify: `services/advisory/portfolio-engine-ctrl/agents/graph.ts`
+- Modify: `services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts`
 
 - [ ] **Step 1: Update imports and add the tool-building helper**
 
-At the top of `services/advisory/portfolio-engine-ctrl/agents/graph.ts`, add:
+At the top of `services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts`, add:
 
 ```ts
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
@@ -328,7 +328,7 @@ Expected: all graph tests pass, including the new injection assertion.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add services/advisory/portfolio-engine-ctrl/agents/graph.ts
+git add services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts
 git commit -m "feat(portfolio-engine-ctrl): inject portfolio snapshot into agent prompt"
 ```
 
@@ -817,11 +817,11 @@ git commit -m "test(market-intelligence-ctrl): expect market data + universe in 
 ### Task 12: Wire the two tools into graph.ts
 
 **Files:**
-- Modify: `services/advisory/market-intelligence-ctrl/agents/graph.ts`
+- Modify: `services/advisory/market-intelligence-ctrl/agents/market-intelligence/graph.ts`
 
 - [ ] **Step 1: Add imports and injection**
 
-At the top of `services/advisory/market-intelligence-ctrl/agents/graph.ts`, add:
+At the top of `services/advisory/market-intelligence-ctrl/agents/market-intelligence/graph.ts`, add:
 
 ```ts
 import { getMarketData } from '../src/agents/tools/market-data';
@@ -888,7 +888,7 @@ Expected: all graph tests pass including the new injection assertion.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add services/advisory/market-intelligence-ctrl/agents/graph.ts
+git add services/advisory/market-intelligence-ctrl/agents/market-intelligence/graph.ts
 git commit -m "feat(market-intelligence-ctrl): inject market data + universe into agent prompt"
 ```
 

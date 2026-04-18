@@ -18,6 +18,7 @@ Stack: services/advisory/advisory-ctrl/src/service.stack.ts
   - WorkflowState insert → WORKFLOW_STATE_CREATED, modify → WORKFLOW_STATE_UPDATED
 
 ## AgentRuntime
+Agent folder: agents/decision-lifecycle/
 - advisory_ctrl_decision_lifecycle: Multi-agent decision lifecycle orchestrated via LangGraph.js
   Models: Opus, Sonnet, Haiku (SSM from advisory-hub)
   Tools: portfolio-lookup, market-data, instrument-universe, event-publisher
