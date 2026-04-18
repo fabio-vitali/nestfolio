@@ -89,7 +89,7 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
     // AgentRuntime (no tool Lambdas — all context arrives in event payload)
     new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'advisory_narrative_agents',
-      agentCodePath: join(__dirname, '..', 'agents'),
+      agentCodePath: join(__dirname, '..', 'agents', 'advisory-narrative'),
       description: 'explainability (Sonnet, 8192 tokens) agent with feedback loop KB',
       state,
       modelIds: [modelSonnetId],

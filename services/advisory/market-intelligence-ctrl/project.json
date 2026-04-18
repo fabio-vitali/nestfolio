@@ -32,7 +32,7 @@
     "build-agent": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx esbuild services/advisory/market-intelligence-ctrl/agents/server.ts --bundle --platform=node --outfile=services/advisory/market-intelligence-ctrl/agents/dist/bundle.js --format=cjs --target=node20"
+        "command": "npx esbuild services/advisory/market-intelligence-ctrl/agents/market-intelligence/server.ts --bundle --platform=node --outfile=services/advisory/market-intelligence-ctrl/agents/market-intelligence/dist/bundle.js --format=cjs --target=node20"
       }
     },
     "build-mock": {

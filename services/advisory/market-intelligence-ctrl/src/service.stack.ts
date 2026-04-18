@@ -107,7 +107,7 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     // AgentRuntime
     new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'market_intelligence_agents',
-      agentCodePath: join(__dirname, '..', 'agents'),
+      agentCodePath: join(__dirname, '..', 'agents', 'market-intelligence'),
       description: 'market-research (Sonnet) single agent with tool access',
       state,
       modelIds: [modelSonnetId],

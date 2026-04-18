@@ -32,7 +32,7 @@
     "build-agent": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx esbuild services/advisory/portfolio-engine-ctrl/agents/server.ts --bundle --platform=node --outfile=services/advisory/portfolio-engine-ctrl/agents/dist/bundle.js --format=cjs --target=node20"
+        "command": "npx esbuild services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/server.ts --bundle --platform=node --outfile=services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/dist/bundle.js --format=cjs --target=node20"
       }
     },
     "build-mock": {

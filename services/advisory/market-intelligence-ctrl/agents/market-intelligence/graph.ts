@@ -1,4 +1,4 @@
-// services/advisory/market-intelligence-ctrl/agents/graph.ts
+// services/advisory/market-intelligence-ctrl/agents/market-intelligence/graph.ts
 import {
   createAgentNode,
   withValidation,
@@ -10,12 +10,12 @@ import {
   type KBClient,
   type MemoryClient,
 } from '@nestfolio/agent-orchestrator';
-import { marketResearchConfig } from '../src/agents/market-research.config';
-import { marketResearchValidationRule } from '../src/agents/validation';
-import { marketResearchFallback } from '../src/agents/fallbacks';
-import { getMarketData } from '../src/agents/tools/market-data';
-import { getInstrumentUniverse } from '../src/agents/tools/instrument-universe';
-import { formatToolContext } from '../src/agents/tools/format-context';
+import { marketResearchConfig } from '../../src/agents/market-research.config';
+import { marketResearchValidationRule } from '../../src/agents/validation';
+import { marketResearchFallback } from '../../src/agents/fallbacks';
+import { getMarketData } from '../../src/agents/tools/market-data';
+import { getInstrumentUniverse } from '../../src/agents/tools/instrument-universe';
+import { formatToolContext } from '../../src/agents/tools/format-context';
 
 const agentNode = withFallback(
   withRetry(

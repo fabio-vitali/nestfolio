@@ -105,7 +105,7 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     // AgentRuntime
     new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'portfolio_engine_agents',
-      agentCodePath: join(__dirname, '..', 'agents'),
+      agentCodePath: join(__dirname, '..', 'agents', 'portfolio-engine'),
       description: 'portfolio-construction (Opus) + rebalance-planner (Sonnet) parallel orchestration',
       state,
       modelIds: [modelOpusId, modelSonnetId],

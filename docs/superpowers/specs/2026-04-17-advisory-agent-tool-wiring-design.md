@@ -12,7 +12,7 @@ Two advisory services have tool Lambdas built and tested but never invoked:
 - `services/advisory/market-intelligence-ctrl/src/handlers/tools/market-data.handler.ts`
 - `services/advisory/market-intelligence-ctrl/src/handlers/tools/instrument-universe.handler.ts`
 
-They are deployed Lambda functions with no event source, no function URL, no IAM grant to any caller, and no `toolTargets` entry on their service's `AgentRuntime`. The service cards describe them as *"standalone tool Lambdas"*, which is a euphemism for orphaned. The agent code in each service's `agents/graph.ts` does not call them.
+They are deployed Lambda functions with no event source, no function URL, no IAM grant to any caller, and no `toolTargets` entry on their service's `AgentRuntime`. The service cards describe them as *"standalone tool Lambdas"*, which is a euphemism for orphaned. The agent code in each service's `agents/{agent-name}/graph.ts` does not call them.
 
 This spec fills the gap: make the three handlers actually contribute to their agents' reasoning while removing the dead Lambda infrastructure.
 
@@ -39,7 +39,7 @@ This spec fills the gap: make the three handlers actually contribute to their ag
 
 ### Pattern: deterministic context injection
 
-Each tool becomes a pure async function imported directly by `agents/graph.ts`, invoked unconditionally before the LLM call, with its result formatted as a labelled prompt section appended to the existing `kbContext` + `upstreamContext`.
+Each tool becomes a pure async function imported directly by `agents/{agent-name}/graph.ts`, invoked unconditionally before the LLM call, with its result formatted as a labelled prompt section appended to the existing `kbContext` + `upstreamContext`.
 
 ### File layout per service
 
@@ -55,7 +55,7 @@ Unit tests move with the code:
 
 ### Agent graph wiring
 
-Each `agents/graph.ts` gains a `buildTools()` helper constructed once at module scope:
+Each `agents/{agent-name}/graph.ts` gains a `buildTools()` helper constructed once at module scope:
 
 ```ts
 function buildTools() {
@@ -87,13 +87,13 @@ const enrichedInput = params.input + kbContext + upstreamContext + toolContext;
 **`portfolio-engine-ctrl`**
 
 - Tools injected: `portfolio-lookup` (keyed by `params.tenantId`).
-- Call site: `agents/graph.ts` inside `invokePortfolioEngine`, between the upstream-context read and `invokeOrchestrator`.
+- Call site: `agents/portfolio-engine/graph.ts` inside `invokePortfolioEngine`, between the upstream-context read and `invokeOrchestrator`.
 - `enrichedInput` becomes: `params.input + kbContext + upstreamContext + toolContext`.
 
 **`market-intelligence-ctrl`**
 
 - Tools injected: `market-data` (no params) and `instrument-universe` (no params), invoked in parallel via `Promise.all`.
-- Call site: `agents/graph.ts` inside `invokeMarketResearch`, between the upstream-context read and `agentNode(...)`.
+- Call site: `agents/market-intelligence/graph.ts` inside `invokeMarketResearch`, between the upstream-context read and `agentNode(...)`.
 - `enrichedInput` becomes: `params.input + kbContext + upstreamContext + toolContext`.
 
 ### CDK changes

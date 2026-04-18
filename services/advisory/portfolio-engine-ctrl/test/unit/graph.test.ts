@@ -48,7 +48,7 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
 
   it('creates orchestrator with 2 parallel agents', () => {
     jest.isolateModules(() => {
-      require('../../agents/graph');
+      require('../../agents/portfolio-engine/graph');
     });
 
     const config = mockCreateOrchestrator.mock.calls[0][0];
@@ -68,7 +68,7 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
 
     let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
     jest.isolateModules(() => {
-      const mod = require('../../agents/graph');
+      const mod = require('../../agents/portfolio-engine/graph');
       invokePortfolioEngine = mod.invokePortfolioEngine;
     });
 
@@ -101,7 +101,7 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
       jest.doMock('../../src/agents/tools/portfolio-lookup', () => ({
         createPortfolioLookup: () => async () => snapshot,
       }));
-      const mod = require('../../agents/graph');
+      const mod = require('../../agents/portfolio-engine/graph');
       invokePortfolioEngine = mod.invokePortfolioEngine;
     });
 
@@ -121,7 +121,7 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
 
     let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
     jest.isolateModules(() => {
-      const mod = require('../../agents/graph');
+      const mod = require('../../agents/portfolio-engine/graph');
       invokePortfolioEngine = mod.invokePortfolioEngine;
     });
 

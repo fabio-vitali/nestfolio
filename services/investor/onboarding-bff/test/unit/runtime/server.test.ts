@@ -1,4 +1,4 @@
-import { createApp } from '../../../src/runtime/server';
+import { createApp } from '../../../agents/onboarding/server';
 
 jest.mock('@copilotkit/runtime', () => ({
   CopilotRuntime: jest.fn().mockImplementation(() => ({
@@ -7,7 +7,7 @@ jest.mock('@copilotkit/runtime', () => ({
   LangGraphAgent: jest.fn(),
 }));
 
-jest.mock('../../../src/agent/graph', () => ({
+jest.mock('../../../agents/onboarding/graph', () => ({
   buildOnboardingGraph: jest.fn().mockReturnValue({}),
 }));
 

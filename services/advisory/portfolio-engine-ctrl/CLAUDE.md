@@ -24,10 +24,11 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
   - ReasoningOutput -> REBALANCE_PLAN_PRODUCED (insert only)
 
 ## AgentRuntime
+Agent folder: agents/portfolio-engine/
 - portfolio_engine_agents: portfolio-construction (Opus) + rebalance-planner (Sonnet) parallel orchestration
   Models: Opus, Sonnet (SSM from advisory-hub)
   Tools: none wired to AgentRuntime (Gateway)
-  Context augmentation: portfolio-lookup (in-process, deterministic pre-fetch via agents/graph.ts)
+  Context augmentation: portfolio-lookup (in-process, deterministic pre-fetch via agents/portfolio-engine/graph.ts)
 
 ## Standalone Lambdas
 - KBIngestion: Ingests SEC prospectus/10-K data into FundKB (triggered by SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED)
@@ -36,7 +37,7 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
 - event-listener.ts -- Ingress event handler (CONSTRUCT_PORTFOLIO)
 - event-publisher.ts -- Egress CDC publisher
 - kb-ingestion-handler.ts -- KB ingestion for SEC filing data
-- agents/tools/portfolio-lookup.ts -- Portfolio positions factory (in-process, called from agents/graph.ts)
+- agents/tools/portfolio-lookup.ts -- Portfolio positions factory (in-process, called from agents/portfolio-engine/graph.ts)
 - agents/tools/format-context.ts -- Helper to serialize tool output as labelled prompt sections
 
 ## Event Types (domain/events.ts)

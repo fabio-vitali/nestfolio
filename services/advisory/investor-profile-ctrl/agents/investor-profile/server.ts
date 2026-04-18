@@ -1,4 +1,4 @@
-// services/advisory/investor-profile-ctrl/agents/server.ts
+// services/advisory/investor-profile-ctrl/agents/investor-profile/server.ts
 import { serve } from '@hono/node-server';
 import { createAgentServer } from '@nestfolio/agent-orchestrator';
 import { invokeInvestorProfile } from './graph';
