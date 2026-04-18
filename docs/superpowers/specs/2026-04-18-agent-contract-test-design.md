@@ -19,14 +19,16 @@ Extend existing e2e scenarios in `apps/e2e-feature-tests` with **behavioural con
 
 **Scope — six agents across two domains:**
 
-| Service | Domain | Graph location | Server location |
-|---|---|---|---|
-| `advisory-ctrl` (decision-lifecycle) | advisory | `agents/decision-lifecycle/graph.ts` | `agents/decision-lifecycle/server.ts` |
-| `investor-profile-ctrl` | advisory | `agents/graph.ts` | `agents/server.ts` |
-| `portfolio-engine-ctrl` | advisory | `agents/graph.ts` | `agents/server.ts` |
-| `advisory-narrative-ctrl` | advisory | `agents/graph.ts` | `agents/server.ts` |
-| `market-intelligence-ctrl` | advisory | `agents/graph.ts` | `agents/server.ts` |
-| `onboarding-bff` | **investor** | `src/agent/graph.ts` | `src/runtime/server.ts` |
+| Service | Domain | Agent name | Graph location | Server location |
+|---|---|---|---|---|
+| `advisory-ctrl` | advisory | `decision-lifecycle` | `agents/decision-lifecycle/graph.ts` | `agents/decision-lifecycle/server.ts` |
+| `investor-profile-ctrl` | advisory | `investor-profile` | `agents/investor-profile/graph.ts` | `agents/investor-profile/server.ts` |
+| `portfolio-engine-ctrl` | advisory | `portfolio-engine` | `agents/portfolio-engine/graph.ts` | `agents/portfolio-engine/server.ts` |
+| `advisory-narrative-ctrl` | advisory | `advisory-narrative` | `agents/advisory-narrative/graph.ts` | `agents/advisory-narrative/server.ts` |
+| `market-intelligence-ctrl` | advisory | `market-intelligence` | `agents/market-intelligence/graph.ts` | `agents/market-intelligence/server.ts` |
+| `onboarding-bff` | **investor** | `onboarding` | `agents/onboarding/graph.ts` | `agents/onboarding/server.ts` |
+
+All six services use a uniform `agents/<agent-name>/{graph.ts, server.ts, Dockerfile}` layout. Onboarding-bff retains additional agent support code under `src/agent/` (tools, prompts, state, router, session) which is referenced by `agents/onboarding/graph.ts`.
 
 ## 2. Architecture overview
 
@@ -77,7 +79,7 @@ e2e test                              deployed agent runtime (Lambda)
 
 **Changes:**
 - `libs/agent-orchestrator/` gains `AgentTracer`, `TraceEmitter` interface, `EventBridgeTraceEmitter`, `NoopTraceEmitter`, plus extensions to `invokeOrchestrator`.
-- Six agent-emitting services each add one event declaration to their `domain/events.ts` and ~3 lines of wiring in their agent server file (`agents/server.ts` for the five advisory-domain agents, `src/runtime/server.ts` for onboarding-bff).
+- Six agent-emitting services each add one event declaration to their `domain/events.ts` and ~3 lines of wiring in their agent server file (`agents/<agent-name>/server.ts`, uniform across all six services).
 - `apps/e2e-feature-tests/src/helpers/agent-trace.ts` is new.
 - Existing scenarios under `apps/e2e-feature-tests/src/advisory/` gain assertion blocks.
 
@@ -434,13 +436,13 @@ export const AdvisoryCtrlEventTypes = {
 
 Each event is registered on its service's Egress construct like any other domain event. No CDC-driven emission — the event comes directly from `EventBridgeTraceEmitter.emit()`.
 
-### Note on onboarding-bff's structure
+### Note on onboarding-bff
 
-Onboarding-bff is the single agent outside the advisory domain. It uses a different directory convention (`src/agent/` and `src/runtime/server.ts`) and emits on the **investor** bus rather than advisory. The event name `ONBOARDING_AGENT_INVOCATION_TRACED` lives in `services/investor/onboarding-bff/src/domain/events.ts` (or the service's existing event-types module) following the same per-service ownership rule.
+Onboarding-bff is the single agent outside the advisory domain — it emits on the **investor** bus rather than advisory. The event name `ONBOARDING_AGENT_INVOCATION_TRACED` lives in `services/investor/onboarding-bff/src/domain/events.ts` (or the service's existing event-types module) following the same per-service ownership rule.
 
 ## 8. Service-side wiring
 
-Each agent service's `agents/server.ts`:
+Each agent service's `agents/<agent-name>/server.ts`:
 
 ```ts
 // services/advisory/advisory-ctrl/agents/decision-lifecycle/server.ts
@@ -725,7 +727,7 @@ Services are instrumented one at a time; one PR per service, ordered lowest-risk
 3. **`investor-profile-ctrl`** — RAG-only, parallel fan-out. Validates that retriever-driven invocations produce well-formed envelopes. Asserted in the onboarding-related scenario (if one exists; otherwise in a dedicated investor-profile scenario added later).
 4. **`advisory-ctrl/decision-lifecycle`** — full multi-tier + 4 tools. Asserted in `first-decision.e2e.test.ts`, `operating-mode-authority.e2e.test.ts`, `reconciliation-correction.e2e.test.ts`.
 5. **`market-intelligence-ctrl`** — asserted once its exact graph topology is confirmed; pattern is the same as advisory-narrative (single agent).
-6. **`onboarding-bff`** — last, because its structure differs from the advisory pattern (`src/agent/` + `src/runtime/server.ts`), it's the only agent on the investor bus, and it's multi-turn. Doing it last lets us reuse the settled pattern from all five advisory-side rollouts.
+6. **`onboarding-bff`** — last, because it's the only agent on the investor bus and it's multi-turn. Doing it last lets us reuse the settled pattern from all five advisory-side rollouts.
 
 ## 12. CI and cost
 
