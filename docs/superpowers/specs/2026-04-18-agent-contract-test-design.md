@@ -1,7 +1,7 @@
 # Agent Contract Test — Design
 
 **Date:** 2026-04-18
-**Status:** Design approved, plan pending
+**Status:** Design approved, plan pending. Layout prerequisite (uniform `agents/<agent-name>/` structure across all six services) merged on `main` 2026-04-19.
 **Supersedes (as the chosen variant):** [2026-04-18-agentcore-evaluations-design.md](./2026-04-18-agentcore-evaluations-design.md) — Solution B, simplified.
 
 ---
@@ -29,6 +29,8 @@ Extend existing e2e scenarios in `apps/e2e-feature-tests` with **behavioural con
 | `onboarding-bff` | **investor** | `onboarding` | `agents/onboarding/graph.ts` | `agents/onboarding/server.ts` |
 
 All six services use a uniform `agents/<agent-name>/{graph.ts, server.ts, Dockerfile}` layout. Onboarding-bff retains additional agent support code under `src/agent/` (tools, prompts, state, router, session) which is referenced by `agents/onboarding/graph.ts`.
+
+> **Layout prerequisite — done.** The uniform layout above was merged on `main` 2026-04-19 via `refactor/normalize-agent-runtime-structure` (9 commits). Per-service moves: `6b5aff21` (investor-profile), `88299e99` (portfolio-engine), `ec2fe625` (advisory-narrative), `f852d6fe` (market-intelligence), `8a7c2d8c` (onboarding-bff). `advisory-ctrl` was already canonical. The `service.stack.ts`, `project.json`, test imports, `CLAUDE.md` cards, and the `create-service` skill template were all updated in the same branch. The contract-test wiring described below can now assume this layout uniformly.
 
 ## 2. Architecture overview
 
@@ -155,7 +157,7 @@ export interface AgentTraceEnvelope {
 export interface AgentTraceEventDetail {
   tenantId: string;
   correlationId: string;                       // decisionId, profileId, etc. — caller-supplied
-  agent: string;                               // 'decision-lifecycle', 'portfolio-construction', etc.
+  agent: string;                               // 'decision-lifecycle', 'portfolio-engine', etc.
   envelope: AgentTraceEnvelope;
   emittedAt: string;                           // ISO
 }
