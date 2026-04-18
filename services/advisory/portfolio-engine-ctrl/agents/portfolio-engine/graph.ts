@@ -1,4 +1,4 @@
-// services/advisory/portfolio-engine-ctrl/agents/graph.ts
+// services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts
 import {
   createOrchestrator,
   invokeOrchestrator,
@@ -11,13 +11,13 @@ import {
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { createPortfolioLookup } from '../src/agents/tools/portfolio-lookup';
-import { formatToolContext } from '../src/agents/tools/format-context';
-import { portfolioConstructionConfig } from '../src/agents/portfolio-construction.config';
-import { rebalancePlannerConfig } from '../src/agents/rebalance-planner.config';
-import { portfolioValidationRule, rebalanceValidationRule } from '../src/agents/validation';
-import { portfolioConstructionFallback, rebalancePlannerFallback } from '../src/agents/fallbacks';
-import { PortfolioEngineState } from '../src/agents/state';
+import { createPortfolioLookup } from '../../src/agents/tools/portfolio-lookup';
+import { formatToolContext } from '../../src/agents/tools/format-context';
+import { portfolioConstructionConfig } from '../../src/agents/portfolio-construction.config';
+import { rebalancePlannerConfig } from '../../src/agents/rebalance-planner.config';
+import { portfolioValidationRule, rebalanceValidationRule } from '../../src/agents/validation';
+import { portfolioConstructionFallback, rebalancePlannerFallback } from '../../src/agents/fallbacks';
+import { PortfolioEngineState } from '../../src/agents/state';
 
 const graph: CompiledGraph = createOrchestrator({
   agents: {
