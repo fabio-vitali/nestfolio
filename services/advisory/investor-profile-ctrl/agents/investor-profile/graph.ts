@@ -1,4 +1,4 @@
-// services/advisory/investor-profile-ctrl/agents/graph.ts
+// services/advisory/investor-profile-ctrl/agents/investor-profile/graph.ts
 import {
   createOrchestrator,
   invokeOrchestrator,
@@ -9,11 +9,11 @@ import {
   type KBClient,
   type MemoryClient,
 } from '@nestfolio/agent-orchestrator';
-import { userGoalsConfig } from '../src/agents/user-goals.config';
-import { riskAssessmentConfig } from '../src/agents/risk-assessment.config';
-import { goalsValidationRule, riskValidationRule } from '../src/agents/validation';
-import { userGoalsFallback, riskAssessmentFallback } from '../src/agents/fallbacks';
-import { InvestorProfileState } from '../src/agents/state';
+import { userGoalsConfig } from '../../src/agents/user-goals.config';
+import { riskAssessmentConfig } from '../../src/agents/risk-assessment.config';
+import { goalsValidationRule, riskValidationRule } from '../../src/agents/validation';
+import { userGoalsFallback, riskAssessmentFallback } from '../../src/agents/fallbacks';
+import { InvestorProfileState } from '../../src/agents/state';
 
 const graph: CompiledGraph = createOrchestrator({
   agents: {

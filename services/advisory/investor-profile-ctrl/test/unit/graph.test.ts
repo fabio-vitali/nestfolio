@@ -34,7 +34,7 @@ describe('investor-profile-ctrl orchestrator graph', () => {
 
   it('creates orchestrator with 2 parallel agents (user-goals + risk-assessment)', () => {
     jest.isolateModules(() => {
-      require('../../agents/graph');
+      require('../../agents/investor-profile/graph');
     });
 
     const config = mockCreateOrchestrator.mock.calls[0][0];
@@ -54,7 +54,7 @@ describe('investor-profile-ctrl orchestrator graph', () => {
 
     let invokeInvestorProfile: ((...args: unknown[]) => Promise<unknown>) | undefined;
     jest.isolateModules(() => {
-      const mod = require('../../agents/graph');
+      const mod = require('../../agents/investor-profile/graph');
       invokeInvestorProfile = mod.invokeInvestorProfile;
     });
 
@@ -79,7 +79,7 @@ describe('investor-profile-ctrl orchestrator graph', () => {
 
     let invokeInvestorProfile: ((...args: unknown[]) => Promise<unknown>) | undefined;
     jest.isolateModules(() => {
-      const mod = require('../../agents/graph');
+      const mod = require('../../agents/investor-profile/graph');
       invokeInvestorProfile = mod.invokeInvestorProfile;
     });
 

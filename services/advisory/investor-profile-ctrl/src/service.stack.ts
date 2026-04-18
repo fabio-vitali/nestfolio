@@ -105,7 +105,7 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     // AgentRuntime (no tool Lambdas for this service — RAG only)
     new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'investor_profile_agents',
-      agentCodePath: join(__dirname, '..', 'agents'),
+      agentCodePath: join(__dirname, '..', 'agents', 'investor-profile'),
       description: 'user-goals (Haiku) + risk-assessment (Opus) parallel orchestration',
       state,
       modelIds: [modelOpusId, modelHaikuId],

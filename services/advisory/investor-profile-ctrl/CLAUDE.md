@@ -24,6 +24,7 @@ Stack: services/advisory/investor-profile-ctrl/src/service.stack.ts
   - ReasoningOutput -> RISK_EVALUATION_PRODUCED (insert only)
 
 ## AgentRuntime
+Agent folder: agents/investor-profile/
 - investor_profile_agents: user-goals (Haiku) + risk-assessment (Opus) parallel orchestration
   Models: Opus, Haiku (SSM from advisory-hub)
   Tools: none (RAG only)
