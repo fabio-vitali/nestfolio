@@ -48,16 +48,18 @@ Out of scope (covered by later plans): service wiring, CDK grants, e2e helper cl
 - `src/emitters/noop-emitter.ts` — `NoopTraceEmitter`
 - `test/agent-tracer.test.ts`
 - `test/emitters/eventbridge-emitter.test.ts`
-- `test/emitters/noop-emitter.test.ts`
-- **Extend** existing `libs/agent-orchestrator/test/invoke-orchestrator.test.ts` in place. Do NOT overwrite — add the new `describe('invokeOrchestrator trace emission', ...)` block.
+- **Extend** existing `libs/agent-orchestrator/test/invoke-orchestrator.test.ts` in place. Do NOT overwrite — add the new `describe('invokeOrchestrator trace emission', ...)` block and a module-level type assertion.
+
+> `NoopTraceEmitter` ships without a dedicated test — its only behaviour is `async emit() {}`, so a test asserting "resolves to undefined" is tautological. The interface compliance is proven by `invoke-orchestrator.test.ts`'s `skips emission when emitter is absent` path.
 
 > Note on layout: libs use flat `test/**` because they have no integration tests. Only services use `test/unit/**` (and `test/integration/**`).
 
 ### Modified files in `libs/agent-orchestrator`
+- `src/create-orchestrator.ts` — widen `CompiledGraph.invoke` to accept `RunnableConfig` (so `invokeOrchestrator` can pass `{ callbacks }`)
 - `src/types.ts` — extend `InvokeOptions` with `agent`, `correlationId`, `tenantId`, `emitter`
 - `src/invoke-orchestrator.ts` — wire tracer, emit in `finally`
 - `src/index.ts` — export new public API
-- `package.json` — verify `@aws-sdk/client-eventbridge` present (already used elsewhere in the workspace)
+- `package.json` — verify `@aws-sdk/client-eventbridge` and `aws-sdk-client-mock` present
 
 ### Modified repo-root files
 - `tsconfig.base.json` — add missing `@nestfolio/{advisory-narrative-ctrl,investor-profile-ctrl,market-intelligence-ctrl,onboarding-bff}/events` path aliases
@@ -87,13 +89,13 @@ Service-side CDK assertion tests and e2e scenarios live in the follow-up plans.
 - Create: `libs/agent-orchestrator/src/emitters/types.ts`
 - Create: `libs/agent-orchestrator/src/emitters/eventbridge-emitter.ts`
 - Create: `libs/agent-orchestrator/src/emitters/noop-emitter.ts`
+- Modify: `libs/agent-orchestrator/src/create-orchestrator.ts` (widen `CompiledGraph.invoke` signature)
 - Modify: `libs/agent-orchestrator/src/types.ts`
 - Modify: `libs/agent-orchestrator/src/invoke-orchestrator.ts`
 - Modify: `libs/agent-orchestrator/src/index.ts`
-- Modify: `libs/agent-orchestrator/package.json` (verify `@aws-sdk/client-eventbridge` present; it already is used elsewhere in the workspace)
+- Modify: `libs/agent-orchestrator/package.json` (verify `@aws-sdk/client-eventbridge` + `aws-sdk-client-mock`)
 - Test: `libs/agent-orchestrator/test/agent-tracer.test.ts`
 - Test: `libs/agent-orchestrator/test/emitters/eventbridge-emitter.test.ts`
-- Test: `libs/agent-orchestrator/test/emitters/noop-emitter.test.ts`
 - Test: `libs/agent-orchestrator/test/invoke-orchestrator.test.ts` (already exists — extend in place)
 
 ## Task 1.1 — AgentTraceEnvelope type + `AgentTracer` skeleton
@@ -122,7 +124,10 @@ export interface AgentTraceEnvelope {
     'gen_ai.usage.output_tokens': number;
     'gen_ai.operation.name': 'chat';
     latencyMs: number;
-    escalatedFromTier?: ModelTier | 'unknown';
+    // Set only when the current tier strictly outranks the previous one
+    // (haiku < sonnet < opus). Fallbacks / de-escalations / unknown-tier
+    // transitions leave this undefined.
+    escalatedFromTier?: ModelTier;
   }>;
   toolCalls: Array<{
     nodeName: string;
@@ -144,6 +149,10 @@ export interface AgentTraceEventDetail {
   emittedAt: string;
 }
 
+// Tier rank for rank-based escalation detection. Used only when both the
+// previous and current tier are known ModelTiers.
+const TIER_RANK: Record<ModelTier, number> = { haiku: 0, sonnet: 1, opus: 2 };
+
 export class AgentTracer extends BaseCallbackHandler {
   name = 'agent-tracer';
 
@@ -154,10 +163,11 @@ export class AgentTracer extends BaseCallbackHandler {
   private readonly errors: AgentTraceEnvelope['errors'] = [];
   private readonly pendingLlm = new Map<string, { model: ModelTier | 'unknown'; startedAtMs: number; node?: string }>();
   private readonly pendingTool = new Map<string, { toolName: string; startedAtMs: number; argKeys: string[]; node?: string }>();
-  // Keyed by LangChain runId so parallel chain start/end events (portfolio-engine,
-  // investor-profile run nodes in parallel) cannot mis-attribute completedAt timestamps.
+  // Keyed by LangChain runId. Acts as BOTH the node-sequence buffer (so
+  // parallel chain start/end cannot mis-attribute completedAt timestamps)
+  // AND the authoritative lookup for "which node owns run X" — used by
+  // LLM / tool callbacks via their `parentRunId` argument.
   private readonly pendingChains = new Map<string, { nodeName: string; startedAt: string }>();
-  private currentNode?: string;
   private lastTier?: ModelTier | 'unknown';
 
   build(status: 'success' | 'error'): AgentTraceEnvelope {
@@ -185,12 +195,8 @@ export function extractNodeName(chain: Serialized | undefined): string | undefin
 }
 
 export function extractModelTier(llm: Serialized | undefined): ModelTier | 'unknown' {
-  const modelId =
-    (llm as { kwargs?: { model?: string; modelName?: string; model_id?: string } } | undefined)
-      ?.kwargs?.model ??
-    (llm as { kwargs?: { model?: string; modelName?: string } } | undefined)?.kwargs?.modelName ??
-    (llm as { kwargs?: { model_id?: string } } | undefined)?.kwargs?.model_id ??
-    '';
+  const kwargs = (llm as { kwargs?: { model?: string; modelName?: string; model_id?: string } } | undefined)?.kwargs;
+  const modelId = kwargs?.model ?? kwargs?.modelName ?? kwargs?.model_id ?? '';
   if (/haiku/i.test(modelId)) return 'haiku';
   if (/opus/i.test(modelId)) return 'opus';
   if (/sonnet/i.test(modelId)) return 'sonnet';
@@ -278,10 +284,18 @@ git commit -m "feat(agent-orchestrator): add AgentTracer skeleton and envelope t
 Append the following methods to the `AgentTracer` class in `libs/agent-orchestrator/src/agent-tracer.ts` (before `build()`):
 
 ```ts
+  // Node ownership for LLM/tool runs is resolved via `parentRunId` — the runId
+  // of the chain that invoked them. No shared `currentNode` field: when two
+  // nodes fan out in parallel (portfolio-engine, investor-profile wave), a
+  // mutable "current node" pointer would attribute LLM/tool calls to whichever
+  // chain started most recently instead of the actual parent.
+  private nodeFor(parentRunId: string | undefined): string | undefined {
+    return parentRunId ? this.pendingChains.get(parentRunId)?.nodeName : undefined;
+  }
+
   handleChainStart(chain: Serialized, _inputs: unknown, runId: string): void {
     const nodeName = extractNodeName(chain);
     if (!nodeName) return;
-    this.currentNode = nodeName;
     this.pendingChains.set(runId, { nodeName, startedAt: new Date().toISOString() });
   }
 
@@ -296,13 +310,15 @@ Append the following methods to the `AgentTracer` class in `libs/agent-orchestra
     });
   }
 
-  handleChainError(err: Error, _runId: string): void {
-    this.errors.push({ nodeName: this.currentNode, kind: 'chain_error', message: err.message });
+  handleChainError(err: Error, runId: string): void {
+    const pending = this.pendingChains.get(runId);
+    this.errors.push({ nodeName: pending?.nodeName, kind: 'chain_error', message: err.message });
   }
 
-  handleLLMStart(llm: Serialized, _prompts: string[], runId: string): void {
+  // LangChain signature: (llm, prompts, runId, parentRunId?, extraParams?, tags?, metadata?, runName?)
+  handleLLMStart(llm: Serialized, _prompts: string[], runId: string, parentRunId?: string): void {
     const model = extractModelTier(llm);
-    this.pendingLlm.set(runId, { model, startedAtMs: Date.now(), node: this.currentNode });
+    this.pendingLlm.set(runId, { model, startedAtMs: Date.now(), node: this.nodeFor(parentRunId) });
   }
 
   handleLLMEnd(output: LLMResult, runId: string): void {
@@ -312,8 +328,16 @@ Append the following methods to the `AgentTracer` class in `libs/agent-orchestra
     const rawUsage =
       (output.llmOutput as { tokenUsage?: Record<string, number>; usage?: Record<string, number> } | undefined);
     const usage = rawUsage?.tokenUsage ?? rawUsage?.usage ?? {};
+    // Rank-based escalation: only set when both tiers are known AND the new
+    // tier strictly outranks the previous one. Fallbacks (opus→sonnet) and
+    // unknown-tier transitions leave escalatedFromTier undefined — the field
+    // means "escalated from", not "differs from".
+    const prev = this.lastTier;
+    const cur = pending.model;
     const escalatedFromTier =
-      this.lastTier && pending.model !== this.lastTier ? this.lastTier : undefined;
+      prev && prev !== 'unknown' && cur !== 'unknown' && TIER_RANK[cur] > TIER_RANK[prev]
+        ? prev
+        : undefined;
     this.llmCalls.push({
       nodeName: pending.node ?? 'unknown',
       'gen_ai.request.model': pending.model,
@@ -326,11 +350,13 @@ Append the following methods to the `AgentTracer` class in `libs/agent-orchestra
     this.lastTier = pending.model;
   }
 
-  handleLLMError(err: Error, _runId: string): void {
-    this.errors.push({ nodeName: this.currentNode, kind: 'llm_error', message: err.message });
+  handleLLMError(err: Error, runId: string): void {
+    const pending = this.pendingLlm.get(runId);
+    this.errors.push({ nodeName: pending?.node, kind: 'llm_error', message: err.message });
   }
 
-  handleToolStart(tool: Serialized, input: string, runId: string): void {
+  // LangChain signature: (tool, input, runId, parentRunId?, tags?, metadata?, runName?)
+  handleToolStart(tool: Serialized, input: string, runId: string, parentRunId?: string): void {
     const toolName = extractToolName(tool);
     let argKeys: string[] = [];
     try {
@@ -343,7 +369,7 @@ Append the following methods to the `AgentTracer` class in `libs/agent-orchestra
       toolName,
       startedAtMs: Date.now(),
       argKeys,
-      node: this.currentNode,
+      node: this.nodeFor(parentRunId),
     });
   }
 
@@ -445,7 +471,7 @@ describe('AgentTracer LangChain callbacks', () => {
     expect(env.llmCalls[0].escalatedFromTier).toBeUndefined();
   });
 
-  it('records escalatedFromTier when successive LLM calls change tier', () => {
+  it('records escalatedFromTier when successive LLM calls escalate upward', () => {
     const tracer = new AgentTracer();
     tracer.handleLLMStart({ kwargs: { model: 'haiku-x' } } as any, [], 'run-1');
     tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-1');
@@ -454,6 +480,66 @@ describe('AgentTracer LangChain callbacks', () => {
     const env = tracer.build('success');
     expect(env.llmCalls).toHaveLength(2);
     expect(env.llmCalls[1].escalatedFromTier).toBe('haiku');
+  });
+
+  it('leaves escalatedFromTier undefined when tier de-escalates (e.g. opus→sonnet)', () => {
+    // The field means "escalated from", not "differs from". A fallback to a
+    // cheaper tier must not masquerade as escalation.
+    const tracer = new AgentTracer();
+    tracer.handleLLMStart({ kwargs: { model: 'opus-x' } } as any, [], 'run-1');
+    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-1');
+    tracer.handleLLMStart({ kwargs: { model: 'sonnet-x' } } as any, [], 'run-2');
+    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-2');
+    const env = tracer.build('success');
+    expect(env.llmCalls[1].escalatedFromTier).toBeUndefined();
+  });
+
+  it('leaves escalatedFromTier undefined when either tier is unknown', () => {
+    const tracer = new AgentTracer();
+    tracer.handleLLMStart({ kwargs: { model: 'nova-pro' } } as any, [], 'run-1');
+    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-1');
+    tracer.handleLLMStart({ kwargs: { model: 'sonnet-x' } } as any, [], 'run-2');
+    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-2');
+    const env = tracer.build('success');
+    expect(env.llmCalls[0]['gen_ai.request.model']).toBe('unknown');
+    expect(env.llmCalls[1].escalatedFromTier).toBeUndefined();
+  });
+
+  it('attributes LLM calls to the correct node when two nodes run in parallel', () => {
+    // Regression: if node attribution went through a shared `currentNode`
+    // field, whichever chain started most recently would own every LLM call
+    // until the next chain started. Here LLM-A and LLM-B interleave between
+    // chains A and B and must each keep their own node.
+    const tracer = new AgentTracer();
+    tracer.handleChainStart({ kwargs: { name: 'nodeA' } } as any, {}, 'chain-A');
+    tracer.handleChainStart({ kwargs: { name: 'nodeB' } } as any, {}, 'chain-B');
+    tracer.handleLLMStart({ kwargs: { model: 'sonnet-x' } } as any, [], 'llm-A', 'chain-A');
+    tracer.handleLLMStart({ kwargs: { model: 'haiku-x' } } as any, [], 'llm-B', 'chain-B');
+    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'llm-B');
+    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'llm-A');
+    tracer.handleChainEnd({}, 'chain-A');
+    tracer.handleChainEnd({}, 'chain-B');
+    const env = tracer.build('success');
+    expect(env.llmCalls).toHaveLength(2);
+    const byNode = Object.fromEntries(env.llmCalls.map((c) => [c.nodeName, c]));
+    expect(byNode['nodeA']['gen_ai.request.model']).toBe('sonnet');
+    expect(byNode['nodeB']['gen_ai.request.model']).toBe('haiku');
+  });
+
+  it('attributes tool calls to the correct node when two nodes run in parallel', () => {
+    const tracer = new AgentTracer();
+    tracer.handleChainStart({ kwargs: { name: 'nodeA' } } as any, {}, 'chain-A');
+    tracer.handleChainStart({ kwargs: { name: 'nodeB' } } as any, {}, 'chain-B');
+    tracer.handleToolStart({ kwargs: { name: 'toolA' } } as any, '{}', 'tool-A', 'chain-A');
+    tracer.handleToolStart({ kwargs: { name: 'toolB' } } as any, '{}', 'tool-B', 'chain-B');
+    tracer.handleToolEnd('{}', 'tool-B');
+    tracer.handleToolEnd('{}', 'tool-A');
+    tracer.handleChainEnd({}, 'chain-A');
+    tracer.handleChainEnd({}, 'chain-B');
+    const env = tracer.build('success');
+    const byTool = Object.fromEntries(env.toolCalls.map((c) => [c.toolName, c]));
+    expect(byTool['toolA'].nodeName).toBe('nodeA');
+    expect(byTool['toolB'].nodeName).toBe('nodeB');
   });
 
   it('records a tool call with argKeys and resultKeys derived from JSON', () => {
@@ -549,34 +635,17 @@ export class NoopTraceEmitter implements TraceEmitter {
 }
 ```
 
-- [ ] **Step 3: Create `test/emitters/noop-emitter.test.ts`**
+- [ ] **Step 3: Typecheck**
 
-Content:
-
-```ts
-import { NoopTraceEmitter } from '../../src/emitters/noop-emitter';
-import type { AgentTraceEnvelope } from '../../src/agent-tracer';
-
-describe('NoopTraceEmitter', () => {
-  it('resolves without side-effects', async () => {
-    const emitter = new NoopTraceEmitter();
-    const envelope = { status: 'success' } as AgentTraceEnvelope;
-    await expect(
-      emitter.emit(envelope, { tenantId: 't', correlationId: 'c', agent: 'a' }),
-    ).resolves.toBeUndefined();
-  });
-});
-```
-
-- [ ] **Step 4: Run tests — expect pass**
-
-Run: `pnpm nx test agent-orchestrator -- --testPathPattern=noop-emitter`
+Run: `pnpm nx typecheck agent-orchestrator`
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+> No dedicated test for `NoopTraceEmitter` — its only behaviour is `async emit() {}`, so "resolves to undefined" is tautological. Interface conformance is proven in Task 1.5 via the `invokeOrchestrator` tests.
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add libs/agent-orchestrator/src/emitters/ libs/agent-orchestrator/test/emitters/noop-emitter.test.ts
+git add libs/agent-orchestrator/src/emitters/
 git commit -m "feat(agent-orchestrator): add TraceEmitter interface and NoopTraceEmitter"
 ```
 
@@ -720,21 +789,57 @@ export class EventBridgeTraceEmitter implements TraceEmitter {
 }
 ```
 
-- [ ] **Step 4: Run test — expect pass**
+- [ ] **Step 4: Verify `aws-sdk-client-mock` is reachable**
 
-Run: `pnpm nx test agent-orchestrator -- --testPathPattern=eventbridge-emitter`
-Expected: PASS. If `aws-sdk-client-mock` is not already a dev dep of the project, install via workspace: verify in existing integration-testing tests — `aws-sdk-client-mock` is used across the repo so it should be accessible.
+Run:
+```bash
+grep -E '"aws-sdk-client-mock"|"@aws-sdk/client-eventbridge"' libs/agent-orchestrator/package.json package.json
+```
 
-- [ ] **Step 5: Commit**
+`aws-sdk-client-mock` is used across the repo (e.g. `services/advisory/portfolio-engine-ctrl/test/unit/`). If it is hoisted to the workspace root `package.json` devDependencies, no action needed. If it is missing from both, install as a workspace dev dep:
 
 ```bash
-git add libs/agent-orchestrator/src/emitters/eventbridge-emitter.ts libs/agent-orchestrator/test/emitters/eventbridge-emitter.test.ts
+pnpm add -D -w aws-sdk-client-mock
+```
+
+Confirm `@aws-sdk/client-eventbridge` resolves from `libs/agent-orchestrator`. If not present in its `package.json`, add it:
+
+```bash
+pnpm add -F @nestfolio/agent-orchestrator @aws-sdk/client-eventbridge
+```
+
+- [ ] **Step 5: Run test — expect pass**
+
+Run: `pnpm nx test agent-orchestrator -- --testPathPattern=eventbridge-emitter`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add libs/agent-orchestrator/src/emitters/eventbridge-emitter.ts libs/agent-orchestrator/test/emitters/eventbridge-emitter.test.ts libs/agent-orchestrator/package.json
 git commit -m "feat(agent-orchestrator): add EventBridgeTraceEmitter"
 ```
 
 ## Task 1.5 — Extend `InvokeOptions` + `invokeOrchestrator`
 
-- [ ] **Step 1: Extend `InvokeOptions` in `types.ts` using a discriminated union**
+- [ ] **Step 1: Widen `CompiledGraph.invoke` to accept `RunnableConfig`**
+
+`invokeOrchestrator` needs to pass `{ callbacks: [tracer] }` as the second argument to `graph.invoke`. The existing interface at `libs/agent-orchestrator/src/create-orchestrator.ts` declares only `invoke(input)` — typecheck will fail on the new call. Widen it:
+
+```ts
+import type { RunnableConfig } from '@langchain/core/runnables';
+
+export interface CompiledGraph {
+  invoke(
+    input: Record<string, unknown>,
+    config?: RunnableConfig,
+  ): Promise<Record<string, unknown>>;
+}
+```
+
+The existing `graph.compile() as unknown as CompiledGraph` cast at the bottom of `create-orchestrator.ts` is compatible — the real LangGraph-compiled graph already accepts `RunnableConfig`. Existing callers passing only `input` continue to work (second arg is optional).
+
+- [ ] **Step 2: Extend `InvokeOptions` in `types.ts` using a discriminated union**
 
 Modify `libs/agent-orchestrator/src/types.ts`. Replace the existing `InvokeOptions` interface with a discriminated union that makes `agent` + `correlationId` REQUIRED whenever an `emitter` is passed. Callers that omit the emitter keep the minimal shape:
 
@@ -769,24 +874,27 @@ export type InvokeOptions = InvokeOptionsWithoutEmitter | InvokeOptionsWithEmitt
 
 Note: current `InvokeOptions` uses `unknown` for `logger`/`metrics`; upgrade to the concrete types from Powertools to preserve compile-time typing when tests pass real instances. Remove the `unknown` aliases. The union eliminates the runtime guard `options.emitter && options.correlationId && options.agent` — the type system now enforces that if an emitter is present, so are `agent` and `correlationId`, so the `finally` block can call `options.emitter.emit(...)` without the runtime existence checks.
 
-- [ ] **Step 2: Write failing test extending `invokeOrchestrator` behaviour**
+- [ ] **Step 3: Write failing test extending `invokeOrchestrator` behaviour**
 
-The file `libs/agent-orchestrator/test/invoke-orchestrator.test.ts` already exists. **Extend** it — do NOT overwrite. Add a new `describe('invokeOrchestrator trace emission', ...)` block appended to the existing suite. Keep existing imports; add only what the new block needs:
+The file `libs/agent-orchestrator/test/invoke-orchestrator.test.ts` already exists and imports `invokeOrchestrator` + `CompiledGraph`. **Extend it in place**:
+
+1. Add these imports alongside the existing ones (do NOT duplicate the two that are already there):
+   ```ts
+   import type { TraceEmitter } from '../src/emitters/types';
+   import type { AgentTraceEnvelope } from '../src/agent-tracer';
+   ```
+2. Append the `makeGraph` helper and the new `describe('invokeOrchestrator trace emission', ...)` block after the existing `describe('invokeOrchestrator', ...)` block.
+3. Append the module-level type-check constant at the very bottom of the file (not inside any `describe` or `it`).
 
 ```ts
-import { invokeOrchestrator } from '../src/invoke-orchestrator';
-import type { CompiledGraph } from '../src/create-orchestrator';
-import type { TraceEmitter } from '../src/emitters/types';
-import type { AgentTraceEnvelope } from '../src/agent-tracer';
-
 function makeGraph(result: Record<string, unknown> | Error): CompiledGraph {
-  return {
-    invoke: jest.fn(async (_input, config) => {
-      // honour callbacks signalling by calling chain/llm/tool handlers? Skipped — only the finally-emit path matters here.
+  const invoke: CompiledGraph['invoke'] = jest.fn(
+    async (_input: Record<string, unknown>, _config?: unknown) => {
       if (result instanceof Error) throw result;
       return result;
-    }),
-  } as unknown as CompiledGraph;
+    },
+  ) as unknown as CompiledGraph['invoke'];
+  return { invoke };
 }
 
 describe('invokeOrchestrator trace emission', () => {
@@ -826,16 +934,6 @@ describe('invokeOrchestrator trace emission', () => {
     expect(out).toEqual({ ok: true });
   });
 
-  it('rejects emitter without agent or correlationId at the type level', () => {
-    // Compile-time contract: the InvokeOptions union forbids this shape.
-    // This block exists to document the intent; it is tested by `pnpm nx typecheck`,
-    // not by Jest. Uncommenting should produce a TS error (test intentionally
-    // kept as a `.ts-expect-error` assertion in the source file).
-    // @ts-expect-error agent and correlationId are required when emitter is set
-    const invalid: Parameters<typeof invokeOrchestrator>[2] = { emitter: { emit: async () => {} } };
-    expect(invalid).toBeDefined();
-  });
-
   it('swallows emitter errors and still returns the orchestrator result', async () => {
     const emitter: TraceEmitter = { emit: async () => { throw new Error('emit-fail'); } };
     const graph = makeGraph({ ok: true });
@@ -847,27 +945,36 @@ describe('invokeOrchestrator trace emission', () => {
 
   it('attaches AgentTracer to graph.invoke callbacks', async () => {
     let capturedCallbacks: unknown;
-    const graph = {
+    const graph: CompiledGraph = {
       invoke: jest.fn(async (_input, config) => {
-        capturedCallbacks = config?.callbacks;
+        capturedCallbacks = (config as { callbacks?: unknown })?.callbacks;
         return { ok: true };
-      }),
-    } as unknown as CompiledGraph;
+      }) as unknown as CompiledGraph['invoke'],
+    };
 
     await invokeOrchestrator(graph, {}, { correlationId: 'x', agent: 'a' });
 
     expect(Array.isArray(capturedCallbacks)).toBe(true);
-    expect((capturedCallbacks as any[])[0]?.name).toBe('agent-tracer');
+    expect((capturedCallbacks as Array<{ name?: string }>)[0]?.name).toBe('agent-tracer');
   });
 });
+
+// Module-level type-only assertion: the `InvokeOptions` discriminated union
+// must reject `{ emitter }` without `agent` + `correlationId`. Checked by
+// `pnpm nx typecheck`, not by Jest. If the `@ts-expect-error` ever stops
+// flagging, the union has regressed and this line will fail compile.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _assertEmitterRequiresAgent: Parameters<typeof invokeOrchestrator>[2] =
+  // @ts-expect-error agent and correlationId are required when emitter is set
+  { emitter: { emit: async () => { /* noop */ } } };
 ```
 
-- [ ] **Step 3: Run test to verify it fails (old invokeOrchestrator doesn't emit or attach callbacks)**
+- [ ] **Step 4: Run test to verify it fails (old invokeOrchestrator doesn't emit or attach callbacks)**
 
 Run: `pnpm nx test agent-orchestrator -- --testPathPattern=invoke-orchestrator`
 Expected: FAIL — emission tests fail because current implementation ignores `emitter`.
 
-- [ ] **Step 4: Rewrite `invoke-orchestrator.ts` to attach tracer + emit in finally**
+- [ ] **Step 5: Rewrite `invoke-orchestrator.ts` to attach tracer + emit in finally**
 
 Replace content of `libs/agent-orchestrator/src/invoke-orchestrator.ts` with:
 
@@ -930,20 +1037,20 @@ export async function invokeOrchestrator(
 }
 ```
 
-- [ ] **Step 5: Run test — expect pass**
+- [ ] **Step 6: Run test — expect pass**
 
 Run: `pnpm nx test agent-orchestrator -- --testPathPattern=invoke-orchestrator`
 Expected: PASS.
 
-- [ ] **Step 6: Run the full library test suite — must stay green**
+- [ ] **Step 7: Run the full library test suite — must stay green**
 
 Run: `pnpm nx test agent-orchestrator`
 Expected: all tests pass. Any test calling `invokeOrchestrator` with no `options` must still work (emission skipped when `emitter` is undefined).
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add libs/agent-orchestrator/src/types.ts libs/agent-orchestrator/src/invoke-orchestrator.ts libs/agent-orchestrator/test/invoke-orchestrator.test.ts
+git add libs/agent-orchestrator/src/create-orchestrator.ts libs/agent-orchestrator/src/types.ts libs/agent-orchestrator/src/invoke-orchestrator.ts libs/agent-orchestrator/test/invoke-orchestrator.test.ts
 git commit -m "feat(agent-orchestrator): emit AgentTraceEnvelope from invokeOrchestrator"
 ```
 
@@ -977,8 +1084,10 @@ Expected: pass.
 
 - [ ] **Step 4: Verify existing consumers still build**
 
-Run: `pnpm nx affected -t build --base=HEAD~1`
+Run: `pnpm nx affected -t build --base=main`
 Expected: every affected project builds.
+
+> `--base=main` (not `HEAD~1`) — by this point Phase 1 has produced ~6 commits on the branch, so `HEAD~1` would compare to one of our own commits, not to the pre-branch baseline.
 
 - [ ] **Step 5: Commit**
 
@@ -989,35 +1098,44 @@ git commit -m "feat(agent-orchestrator): export AgentTracer, TraceEmitter and em
 
 ---
 
-# Phase 2 — TS path aliases for services that will be referenced in later plans
+# Phase 2 — TS path aliases + spec correction
 
-**Shippable outcome:** `tsconfig.base.json` gains the four missing path aliases. No helper code lands yet — the `AgentTraceTrap` class ships in Plan 2/3 alongside the first agent that needs it (narrative). This avoids the chicken-and-egg problem where the helper imports event constants from services that haven't declared them yet.
+**Shippable outcome:** `tsconfig.base.json` gains the four missing path aliases, and the design spec is updated to match what Plan 1 actually ships (so nobody reads the spec and implements the wrong envelope shape in Plan 2/3). No helper code lands yet — the `AgentTraceTrap` class ships in Plan 2/3 alongside the first agent that needs it (narrative). This avoids the chicken-and-egg problem where the helper imports event constants from services that haven't declared them yet.
 
 **Files:**
 - Modify: `tsconfig.base.json`
+- Modify: `docs/superpowers/specs/2026-04-18-agent-contract-test-design.md`
 
 ## Task 2.1 — Add missing path aliases
 
-- [ ] **Step 1: Verify `EventBusTrap.deploy` signature before anything depends on it**
+**Settled assumptions for Plan 2/3 (verified against `libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts`):**
 
-The `AgentTraceTrap.arm()` landing in Plan 2/3 calls `trap.deploy({ bus: <short-label>, detailType })`. That signature assumption must be confirmed up front — if `bus` expects a resolved name (e.g. `${prefix}-advisory-bus`) rather than the short domain label, every helper use will silently fail to collect events.
+- The method is **`deploy`**, not `init`. (The spec uses `trap.init(...)` in §2 and §9 — that's a doc bug; Task 2.2 below corrects it.)
+- `deploy({ bus, detailType })` accepts:
+  - `bus`: **short domain label** (`'advisory'` / `'investor'`). Internally resolved via `ctx.ssm.busArn(params.bus)` at fixture line 41. So Plan 2/3's `AGENT_TRACE_EVENTS` map carries short labels — no `NESTFOLIO_INTEG_PREFIX` threading needed.
+  - `detailType`: `string | string[]`. Accepts the branded `EventName` produced by `eventName(...)` (string-compatible).
+- The EB rule's event pattern filters on `detail.context.tenantId` (lines 70–76) — this is why the emitter wraps `tenantId` under `context` (see Task 1.4 Step 3 and the Known deviations section below).
 
-Run:
+- [ ] **Step 1: Sanity-check the assumptions still hold**
+
+Run (takes seconds):
 ```bash
-grep -n "deploy" libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts
-grep -n "bus" libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts | head -40
+grep -n "async deploy\|ssm.busArn\|context:\s*$\|tenantId:" libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts
 ```
 
-Confirm BEFORE moving on:
-- The `deploy` method signature accepts a `bus` parameter.
-- Verify what value `bus` actually expects — short domain label (`'advisory'` / `'investor'`) OR a resolved bus name. If resolved-name, update the `AGENT_TRACE_EVENTS` map plan in Plan 2/3 to carry resolved names (likely built from `process.env['NESTFOLIO_INTEG_PREFIX']`) instead of the short labels sketched there.
-- Confirm the `detailType` parameter accepts the branded `EventName` string produced by `eventName(...)`.
+Confirm the method is still named `deploy`, still calls `ctx.ssm.busArn(params.bus)`, and still filters on `detail.context.tenantId`. If any of these three have drifted since 2026-04-19, STOP and update this plan + Plan 2/3 before proceeding — the helper design depends on all three.
 
-Capture the findings in a short note appended to this task's commit message. If the signature differs from what the plan assumed, stop and revise Plan 2/3's helper before proceeding.
-
-- [ ] **Step 2: Inspect current aliases**
+- [ ] **Step 2: Inspect current aliases AND verify Plan 3's two pre-assumed aliases exist**
 
 Run: `grep -n '"@nestfolio/' tsconfig.base.json | head -80`
+
+This step adds aliases for advisory-narrative-ctrl, investor-profile-ctrl, market-intelligence-ctrl, onboarding-bff (Step 3). Plan 3 ALSO imports from `@nestfolio/portfolio-engine-ctrl/events` (Task 4.4 Step 1) and `@nestfolio/advisory-ctrl/events` (Task 6.4 Step 1) — the plan assumes those two aliases already exist. Confirm:
+
+```bash
+grep -n '"@nestfolio/portfolio-engine-ctrl/events"\|"@nestfolio/advisory-ctrl/events"' tsconfig.base.json
+```
+
+Expected: BOTH aliases present (verified on 2026-04-19: `advisory-ctrl/events` at line 43, `portfolio-engine-ctrl/events` at line 62). If either is missing, ADD it in Step 3 alongside the four new ones — otherwise Plan 3 will fail to typecheck `apps/e2e-feature-tests`.
 
 - [ ] **Step 3: Add the four missing entries**
 
@@ -1042,6 +1160,49 @@ git add tsconfig.base.json
 git commit -m "chore(tsconfig): add events path aliases for four agent services"
 ```
 
+## Task 2.2 — Correct the design spec so it matches what Plan 1 actually ships
+
+The design spec at `docs/superpowers/specs/2026-04-18-agent-contract-test-design.md` has two inaccuracies that would mislead anyone reading it after this plan merges. Fix them here so the spec and the code agree.
+
+- [ ] **Step 1: Fix `AgentTraceEventDetail` in §3 — `tenantId` must be wrapped under `context`**
+
+Open the spec at §3 ("Full emitted event detail"). Replace the flat `tenantId` with the `context.tenantId` wrapping:
+
+```ts
+export interface AgentTraceEventDetail {
+  context: { tenantId: string };              // wrapping required — EventBusTrap filters on detail.context.tenantId
+  correlationId: string;                       // decisionId, profileId, etc. — caller-supplied
+  agent: string;                               // 'decision-lifecycle', 'portfolio-engine', etc.
+  envelope: AgentTraceEnvelope;
+  emittedAt: string;                           // ISO
+}
+```
+
+- [ ] **Step 2: Fix `EventBridgeTraceEmitter` in §5 — serialised `Detail` must wrap `tenantId`**
+
+In §5, update the `Detail: JSON.stringify({ tenantId: ctx.tenantId, ... })` block to:
+
+```ts
+Detail: JSON.stringify({
+  context: { tenantId: ctx.tenantId },
+  correlationId: ctx.correlationId,
+  agent: ctx.agent,
+  envelope,
+  emittedAt: new Date().toISOString(),
+}),
+```
+
+- [ ] **Step 3: Fix §2 and §9 — `trap.init(...)` → `trap.deploy(...)`**
+
+The `EventBusTrap` public API is `deploy`, not `init`. In §2's ASCII flow diagram, change `trap.init({bus, detailType})` → `trap.deploy({bus, detailType})`. In §9 (`waitForAgentTraces`), change both `await trap.init(...)` and the nearby comment "EventBusTrap.init() registers cleanup" to reference `deploy` instead. The fixture's cleanup registration happens inside `deploy` — no other behaviour change.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add docs/superpowers/specs/2026-04-18-agent-contract-test-design.md
+git commit -m "docs(specs): correct agent-contract spec to match Plan 1 emitter shape"
+```
+
 ---
 
 # Cross-cutting guidance
@@ -1060,20 +1221,24 @@ One commit per sub-task as listed. Do not batch. Use conventional commits (`feat
 - No extension of `libs/event-types` with a cross-service trace event type.
 - No CDC pipeline — emission is direct `PutEvents`.
 
-## Known deviations from the spec (carried forward to later plans)
+## Corrections carried into the spec (see Task 2.2)
 
-- **Event detail shape wraps `tenantId` in `context`.** Spec §3 declares `AgentTraceEventDetail` with a flat `tenantId: string` at the top level. This plan wraps it as `detail.context.tenantId` because (a) the workspace envelope convention (see `libs/event-processor` parsers) puts tenant identity under `context`, and (b) `EventBusTrap`'s filter matches on `detail.context.tenantId`. The `AgentTraceEventDetail` type in `agent-tracer.ts` is defined accordingly — this document is the authoritative shape. When the full series lands, update `docs/superpowers/specs/2026-04-18-agent-contract-test-design.md` §3 to match so downstream consumers are not misled.
-- **`InvokeOptions` is a discriminated union.** When an `emitter` is passed, `agent` and `correlationId` are required at the type level. Callers that omit the emitter see the original optional shape. Removes the runtime `&&` guard — the union is the guard.
+- **Event detail shape wraps `tenantId` in `context`.** Load-bearing, not optional. `libs/event-processor` parsers reject events without `context.tenantId`, and `EventBusTrap`'s EB rule filters on `detail.context.tenantId` (`event-bus-trap.fixture.ts:67-76`). If the emitter used the spec's original flat shape, the trap would never match and every contract test would time out. The `AgentTraceEventDetail` type in `agent-tracer.ts` reflects this, and Task 2.2 updates the spec §3 + §5 to match.
+- **`trap.deploy(...)` is the real method** — the spec's `trap.init(...)` in §2 and §9 is a doc bug, corrected in Task 2.2 Step 3.
+- **`InvokeOptions` is a discriminated union.** When an `emitter` is passed, `agent` and `correlationId` are required at the type level. Callers that omit the emitter see the original optional shape. Removes the runtime `&&` guard — the union is the guard. (The spec does not describe the TS shape in detail, so no spec edit needed.)
+- **`escalatedFromTier` is rank-based.** Spec §4 describes it conceptually as "escalated from" without pinning semantics. Plan 1 fires it only when the current tier strictly outranks the previous one (`haiku < sonnet < opus`), so fallbacks and unknown-tier transitions leave it undefined. This matches the spec's intent (the field is named *escalated*, not *changed*), so no spec edit needed.
 
 ## Plan 1 success criteria
 
 - `pnpm nx test agent-orchestrator` green.
 - `pnpm nx typecheck agent-orchestrator` green.
 - `pnpm nx lint agent-orchestrator` green.
-- `pnpm nx affected -t build --base=HEAD~1` green (existing consumers still build).
+- `pnpm nx affected -t build --base=main` green (existing consumers still build).
 - `pnpm nx typecheck e2e-feature-tests` green (aliases resolve).
 - New public API exported from `@nestfolio/agent-orchestrator`: `AgentTracer`, `AgentTraceEnvelope`, `AgentTraceEventDetail`, `TraceEmitter`, `EmitContext`, `EventBridgeTraceEmitter`, `EventBridgeTraceEmitterOptions`, `NoopTraceEmitter`, extended `InvokeOptions`.
-- `EventBusTrap.deploy` signature confirmed (from Task 2.1 Step 1).
+- `CompiledGraph.invoke` widened to accept `RunnableConfig` (Task 1.5 Step 1).
+- `EventBusTrap.deploy` signature re-confirmed (Task 2.1 Step 1).
+- Design spec §2 / §3 / §5 / §9 updated to match the shipped emitter shape (Task 2.2).
 
 ## Handoff to Plan 2/3
 

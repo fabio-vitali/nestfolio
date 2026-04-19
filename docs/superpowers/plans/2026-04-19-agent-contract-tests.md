@@ -22,4 +22,8 @@ This plan has been split into three self-contained, sequentially-executable plan
 ## Authoritative source
 
 - Design spec: `docs/superpowers/specs/2026-04-18-agent-contract-test-design.md`
-- Cross-cutting guidance, known deviations, and "does NOT do" list live at the bottom of each split plan; the foundation plan carries the deviations that affect every subsequent plan.
+- Cross-cutting guidance and "does NOT do" list live at the bottom of each split plan.
+- Each split plan carries its own "Known deviations from the spec" section covering the deviations introduced in that plan:
+  - Plan 1 — event detail shape (`context.tenantId` wrapping), `EventBusTrap.init` → `deploy` rename, `InvokeOptions` discriminated union, rank-based `escalatedFromTier` semantics. Plan 1 Task 2.2 also corrects spec §2/§3/§5/§9.
+  - Plan 2 — `AgentTraceTrap<K extends AgentKey>` class shape, narrative graph wrapping in a single-node `StateGraph`, `server.ts` JSON-body parsing fix. Plan 2 Task 3.8 also rewrites spec §9 to describe the class API.
+  - Plan 3 — market-intelligence graph wrapping (same pattern as narrative), onboarding-bff CopilotKit emission seam, deferred onboarding e2e scenario.

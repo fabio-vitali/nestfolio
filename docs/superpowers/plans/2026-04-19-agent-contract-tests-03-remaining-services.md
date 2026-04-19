@@ -29,7 +29,7 @@ If either prerequisite fails, stop and land the missing plan first.
 - Design spec: `docs/superpowers/specs/2026-04-18-agent-contract-test-design.md`
 - Project conventions: `CLAUDE.md`
 - Plan 1 exports: `@nestfolio/agent-orchestrator` — `invokeOrchestrator`, `AgentTracer`, `EventBridgeTraceEmitter`, `NoopTraceEmitter`, `TraceEmitter`, `InvokeOptions`.
-- Plan 2 exports: `apps/e2e-feature-tests/src/helpers/agent-trace-trap.ts` — `AgentTraceTrap<K>`, `AgentKey`, `AgentTraceEvent`, `WaitForOptions`.
+- Plan 2 exports: `apps/e2e-feature-tests/src/helpers/agent-trace-trap.ts` — `AgentTraceTrap<K>`, `AgentKey`, `WaitForOptions`. (`AgentTraceEventDetail` is the canonical envelope-wrapper type and comes from `@nestfolio/agent-orchestrator`, not the helper.)
 
 ## Scope of this plan
 
@@ -63,7 +63,7 @@ For each of the five services:
 - `src/service.stack.ts` — `bus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal)`
 - `test/unit/service.stack.test.ts` — CDK assertion for IAM grant
 
-Additionally for `advisory-ctrl` and `investor-profile-ctrl`: their local in-process fallback call sites (`src/services/decision-lifecycle.service.ts`, `src/agent-service.ts`) receive a `NoopTraceEmitter` explicitly.
+Additionally for `advisory-ctrl` and `investor-profile-ctrl`: their local in-process fallback call sites (`src/services/decision-lifecycle.service.ts`, `src/agent-service.ts`) omit the emitter entirely so emission is silently skipped — matches Plan 2/3's rule (no `NoopTraceEmitter` fallback; the `InvokeOptions` discriminated union from Plan 1 makes `emitter` optional).
 
 Onboarding-bff diverges: see Phase 8.
 
@@ -77,6 +77,8 @@ Same as Plan 2/3:
 Emitter DI at each service's `graph.ts`/`server.ts` is covered by `pnpm nx typecheck` via the `InvokeOptions` discriminated union from Plan 1. No tautological `jest.mock(invokeOrchestrator)` tests.
 
 `test-support` and `integration-testing` are NOT extended — reuse `EventBusTrap`, `TestContext`, `OrphanReaper` as-is.
+
+**CDK synth.** None of the per-phase tasks below mandate running `cdk synth` locally — `pnpm nx build <service>` covers stack TypeScript compilation, and the per-phase CDK assertion test exercises the synthesised template via `Template.fromStack(stack)`. Same convention as Plan 2/3 Task 3.4 Step 3. (Full `cdk synth` from `infrastructure/` via `tools/register-paths.js` runs in CI on PR.)
 
 ## Verification commands reference
 
@@ -129,7 +131,7 @@ git commit -m "feat(portfolio-engine-ctrl): declare PORTFOLIO_ENGINE_AGENT_INVOC
 Apply this edit to `services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts`:
 
 ```ts
-import { invokeOrchestrator, NoopTraceEmitter, type TraceEmitter } from '@nestfolio/agent-orchestrator';
+import { invokeOrchestrator, type TraceEmitter } from '@nestfolio/agent-orchestrator';
 // ...keep existing imports...
 
 export async function invokePortfolioEngine(params: {
@@ -144,7 +146,9 @@ export async function invokePortfolioEngine(params: {
     agent: 'portfolio-engine',
     correlationId: params.decisionId,
     tenantId: params.tenantId,
-    emitter: params.emitter ?? new NoopTraceEmitter(),
+    // Per Plan 2/3 rule: emitter stays optional — invokeOrchestrator skips emission silently
+    // when absent. No NoopTraceEmitter fallback needed.
+    emitter: params.emitter,
   });
 
   // ...existing result handling unchanged...
@@ -215,20 +219,31 @@ this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
 
 - [ ] **Step 2: Add CDK assertion test**
 
-Apply to `services/advisory/portfolio-engine-ctrl/test/unit/service.stack.test.ts`:
+Apply to `services/advisory/portfolio-engine-ctrl/test/unit/service.stack.test.ts`. Scope the assertion to the AgentRuntime role so a pre-existing CDC publisher `events:PutEvents` grant on a separate role cannot mask a missing runtime grant (same rationale as Plan 2/3 Task 3.4):
 
 ```ts
 import { Template, Match } from 'aws-cdk-lib/assertions';
 // ...existing stack setup...
 
-it('grants events:PutEvents on the advisory bus to the AgentRuntime role', () => {
-  Template.fromStack(stack).hasResourceProperties('AWS::IAM::Policy', {
-    PolicyDocument: {
-      Statement: Match.arrayWith([
-        Match.objectLike({ Action: 'events:PutEvents', Effect: 'Allow' }),
+it('grants events:PutEvents to the AgentRuntime execution role', () => {
+  const template = Template.fromStack(stack);
+  const policies = template.findResources('AWS::IAM::Policy', {
+    Properties: {
+      Roles: Match.arrayWith([
+        Match.objectLike({ Ref: Match.stringLikeRegexp('.*AgentRuntime.*') }),
       ]),
     },
   });
+  expect(Object.keys(policies).length).toBeGreaterThan(0);
+
+  const statements = Object.values(policies).flatMap(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (p: any) => p.Properties.PolicyDocument.Statement ?? [],
+  );
+  const actions = statements.flatMap((s: { Action: string | string[] }) =>
+    Array.isArray(s.Action) ? s.Action : [s.Action],
+  );
+  expect(actions).toContain('events:PutEvents');
 });
 ```
 
@@ -287,7 +302,7 @@ describe('scenario — rebalance on drift', () => {
   // ...existing state...
 
   beforeEach(async () => {
-    ctx = await buildTestContext();
+    ctx = await createTestContext();
     tenant = await freshTenant(ctx);
     portfolioTrap = await AgentTraceTrap.arm(ctx, 'portfolioEngine');
     const result = await applyFixtures(ctx, tenant, [onboarded(), withDecision({ ... })]);
@@ -349,7 +364,7 @@ Use the `audit-service` skill on `portfolio-engine-ctrl`, commit card if drifted
 **Files:**
 - Modify: `services/advisory/investor-profile-ctrl/src/domain/events.ts` — add `INVESTOR_PROFILE_AGENT_INVOCATION_TRACED`
 - Modify: `services/advisory/investor-profile-ctrl/agents/investor-profile/graph.ts` — pass emitter to `invokeOrchestrator`
-- Modify: `services/advisory/investor-profile-ctrl/src/agent-service.ts` — pass `NoopTraceEmitter` to the local in-process fallback (traces from local fallback are irrelevant in sandbox/prod)
+- Modify: `services/advisory/investor-profile-ctrl/src/agent-service.ts` — omit emitter in the local in-process fallback (traces from local fallback are irrelevant in sandbox/prod; `invokeOrchestrator` skips emission silently when emitter is absent — same rule as Plan 2/3)
 - Modify: `services/advisory/investor-profile-ctrl/agents/investor-profile/server.ts` — build EventBridge emitter
 - Modify: `services/advisory/investor-profile-ctrl/src/service.stack.ts` — `events:PutEvents` grant
 - Modify: `apps/e2e-feature-tests/src/helpers/agent-trace-trap.ts` — add `investorProfile` entry
@@ -376,7 +391,7 @@ git commit -m "feat(investor-profile-ctrl): declare INVESTOR_PROFILE_AGENT_INVOC
 - [ ] **Step 1: Modify `agents/investor-profile/graph.ts:83`** — replace the existing `invokeOrchestrator(...)` call site options with:
 
 ```ts
-import { invokeOrchestrator, NoopTraceEmitter, type TraceEmitter } from '@nestfolio/agent-orchestrator';
+import { invokeOrchestrator, type TraceEmitter } from '@nestfolio/agent-orchestrator';
 
 export async function invokeInvestorProfile(params: {
   tenantId: string;
@@ -390,23 +405,25 @@ export async function invokeInvestorProfile(params: {
     agent: 'investor-profile',
     correlationId: params.decisionId,
     tenantId: params.tenantId,
-    emitter: params.emitter ?? new NoopTraceEmitter(),
+    // Per Plan 2/3 rule: emitter stays optional — invokeOrchestrator skips emission silently
+    // when absent. No NoopTraceEmitter fallback needed.
+    emitter: params.emitter,
   });
   // ...existing result handling...
 }
 ```
 
-- [ ] **Step 2: Modify `src/agent-service.ts:53`** — the local in-process fallback. Since `resolveAgentRuntimeUrl()` short-circuits to the remote runtime in sandbox/prod, this path is effectively dead code in deployed environments; pass `NoopTraceEmitter` explicitly for clarity:
+- [ ] **Step 2: Modify `src/agent-service.ts:53`** — the local in-process fallback. Since `resolveAgentRuntimeUrl()` short-circuits to the remote runtime in sandbox/prod, this path is effectively dead code in deployed environments; omit the emitter entirely so `invokeOrchestrator` skips emission silently (consistent with Plan 2/3's rule — no `NoopTraceEmitter` fallback):
 
 ```ts
-import { invokeOrchestrator, NoopTraceEmitter } from '@nestfolio/agent-orchestrator';
+import { invokeOrchestrator } from '@nestfolio/agent-orchestrator';
 
 // At the call site (around line 53):
 const result = await invokeOrchestrator(compiledGraph, input, {
   agent: 'investor-profile',
   correlationId: params.decisionId,
   tenantId: params.tenantId,
-  emitter: new NoopTraceEmitter(),
+  // emitter omitted — local in-process fallback path; invokeOrchestrator skips emission when emitter is absent.
 });
 ```
 
@@ -466,20 +483,31 @@ this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
 
 - [ ] **Step 2: Add CDK assertion test**
 
-Apply to `services/advisory/investor-profile-ctrl/test/unit/service.stack.test.ts`:
+Apply to `services/advisory/investor-profile-ctrl/test/unit/service.stack.test.ts`. Scope the assertion to the AgentRuntime role so a pre-existing CDC publisher `events:PutEvents` grant on a separate role cannot mask a missing runtime grant (same rationale as Plan 2/3 Task 3.4):
 
 ```ts
 import { Template, Match } from 'aws-cdk-lib/assertions';
 // ...existing stack setup...
 
-it('grants events:PutEvents on the advisory bus to the AgentRuntime role', () => {
-  Template.fromStack(stack).hasResourceProperties('AWS::IAM::Policy', {
-    PolicyDocument: {
-      Statement: Match.arrayWith([
-        Match.objectLike({ Action: 'events:PutEvents', Effect: 'Allow' }),
+it('grants events:PutEvents to the AgentRuntime execution role', () => {
+  const template = Template.fromStack(stack);
+  const policies = template.findResources('AWS::IAM::Policy', {
+    Properties: {
+      Roles: Match.arrayWith([
+        Match.objectLike({ Ref: Match.stringLikeRegexp('.*AgentRuntime.*') }),
       ]),
     },
   });
+  expect(Object.keys(policies).length).toBeGreaterThan(0);
+
+  const statements = Object.values(policies).flatMap(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (p: any) => p.Properties.PolicyDocument.Statement ?? [],
+  );
+  const actions = statements.flatMap((s: { Action: string | string[] }) =>
+    Array.isArray(s.Action) ? s.Action : [s.Action],
+  );
+  expect(actions).toContain('events:PutEvents');
 });
 ```
 
@@ -526,7 +554,7 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
   // ...existing state...
 
   beforeEach(async () => {
-    ctx = await buildTestContext();
+    ctx = await createTestContext();
     tenant = await freshTenant(ctx);
     // ARM BEFORE applyFixtures — the investor-profile agent runs during onboarding/decision bootstrap.
     investorProfileTrap = await AgentTraceTrap.arm(ctx, 'investorProfile');
@@ -592,7 +620,7 @@ Invoke the `audit-service` skill for `investor-profile-ctrl`; commit card if dri
 **Files:**
 - Modify: `services/advisory/advisory-ctrl/src/domain/events.ts` — add `DECISION_LIFECYCLE_AGENT_INVOCATION_TRACED`
 - Modify: `services/advisory/advisory-ctrl/agents/decision-lifecycle/graph.ts` — pass emitter to `invokeOrchestrator`
-- Modify: `services/advisory/advisory-ctrl/src/services/decision-lifecycle.service.ts` — local in-process fallback: pass `NoopTraceEmitter`
+- Modify: `services/advisory/advisory-ctrl/src/services/decision-lifecycle.service.ts` — local in-process fallback: omit emitter so `invokeOrchestrator` skips emission silently
 - Modify: `services/advisory/advisory-ctrl/agents/decision-lifecycle/server.ts` — build emitter
 - Modify: `services/advisory/advisory-ctrl/src/service.stack.ts` — `events:PutEvents` grant on the AgentRuntime role
 - Modify: `apps/e2e-feature-tests/src/helpers/agent-trace-trap.ts` — add `decisionLifecycle`
@@ -621,7 +649,7 @@ git commit -m "feat(advisory-ctrl): declare DECISION_LIFECYCLE_AGENT_INVOCATION_
 - [ ] **Step 1: Modify `agents/decision-lifecycle/graph.ts` (around line 53)** — thread emitter into `invokeOrchestrator`:
 
 ```ts
-import { invokeOrchestrator, NoopTraceEmitter, type TraceEmitter } from '@nestfolio/agent-orchestrator';
+import { invokeOrchestrator, type TraceEmitter } from '@nestfolio/agent-orchestrator';
 
 export async function invokeDecisionLifecycle(params: {
   tenantId: string;
@@ -635,23 +663,25 @@ export async function invokeDecisionLifecycle(params: {
     agent: 'decision-lifecycle',
     correlationId: params.decisionId,
     tenantId: params.tenantId,
-    emitter: params.emitter ?? new NoopTraceEmitter(),
+    // Per Plan 2/3 rule: emitter stays optional — invokeOrchestrator skips emission silently
+    // when absent. No NoopTraceEmitter fallback needed.
+    emitter: params.emitter,
   });
 
   // ...existing result handling...
 }
 ```
 
-- [ ] **Step 2: Modify `src/services/decision-lifecycle.service.ts` (around line 111)** — the local fallback runs only when `AGENT_RUNTIME_URL_PARAM` is unset; in sandbox/prod it never fires. Pass `NoopTraceEmitter` explicitly so callers don't get accidental emissions from a non-runtime code path:
+- [ ] **Step 2: Modify `src/services/decision-lifecycle.service.ts` (around line 111)** — the local fallback runs only when `AGENT_RUNTIME_URL_PARAM` is unset; in sandbox/prod it never fires. Omit the emitter entirely — `invokeOrchestrator` skips emission when `emitter` is absent (consistent with Plan 2/3's rule, no `NoopTraceEmitter` fallback):
 
 ```ts
-import { invokeOrchestrator, NoopTraceEmitter } from '@nestfolio/agent-orchestrator';
+import { invokeOrchestrator } from '@nestfolio/agent-orchestrator';
 
 const result = await invokeOrchestrator(compiledGraph, input, {
   agent: 'decision-lifecycle',
   correlationId: params.decisionId,
   tenantId: params.tenantId,
-  emitter: new NoopTraceEmitter(),
+  // emitter omitted — local in-process fallback path; invokeOrchestrator skips emission when emitter is absent.
 });
 ```
 
@@ -717,22 +747,32 @@ this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
 
 - [ ] **Step 3: CDK assertion test**
 
-Apply to `services/advisory/advisory-ctrl/test/unit/service.stack.test.ts`. Use `Match.arrayWith` on the policy statements so the new grant is additive to the existing tool-publisher policy (don't assert exclusivity):
+Apply to `services/advisory/advisory-ctrl/test/unit/service.stack.test.ts`. A loose "count >= 2 policies with PutEvents" check is insufficient — if CDK merges or splits the tool-publisher policy, the count can pass without the runtime grant. Bind the assertion to the AgentRuntime role's logical ID so the test specifically verifies the new grant:
 
 ```ts
 import { Template, Match } from 'aws-cdk-lib/assertions';
 
 it('grants events:PutEvents to the AgentRuntime role (in addition to any pre-existing tool-publisher grants)', () => {
   const template = Template.fromStack(stack);
-  // Count the number of IAM policies that grant events:PutEvents — should be >= 2 after this change
-  // (one for the tool-publisher Lambda, one for the AgentRuntime).
-  const policies = Object.values(template.findResources('AWS::IAM::Policy'));
-  const policiesWithPutEvents = policies.filter((p) =>
-    (p.Properties?.PolicyDocument?.Statement ?? []).some(
-      (s: Record<string, unknown>) => s['Action'] === 'events:PutEvents' && s['Effect'] === 'Allow',
-    ),
-  );
-  expect(policiesWithPutEvents.length).toBeGreaterThanOrEqual(2);
+
+  // Locate the AgentRuntime role's logical ID (CDK mangles it; match by construct path prefix).
+  const roles = template.findResources('AWS::IAM::Role');
+  const agentRuntimeRoleId = Object.keys(roles).find((id) => /AgentRuntime.*Role/.test(id));
+  expect(agentRuntimeRoleId).toBeDefined();
+
+  // Find an IAM::Policy that (a) grants events:PutEvents AND (b) is attached to the AgentRuntime role.
+  const policies = template.findResources('AWS::IAM::Policy');
+  const runtimeGrant = Object.values(policies).find((p) => {
+    const stmts = (p.Properties?.PolicyDocument?.Statement ?? []) as Array<Record<string, unknown>>;
+    const grantsPutEvents = stmts.some(
+      (s) => s['Action'] === 'events:PutEvents' && s['Effect'] === 'Allow',
+    );
+    const attachedRoles = (p.Properties?.Roles ?? []) as Array<{ Ref?: string }>;
+    const attachedToRuntime = attachedRoles.some((r) => r.Ref === agentRuntimeRoleId);
+    return grantsPutEvents && attachedToRuntime;
+  });
+
+  expect(runtimeGrant).toBeDefined();
 });
 ```
 
@@ -774,7 +814,7 @@ describe('scenario 11 — ...', () => {
   let decisionLifecycleTrap: AgentTraceTrap<'decisionLifecycle'>;
 
   beforeEach(async () => {
-    ctx = await buildTestContext();
+    ctx = await createTestContext();
     tenant = await freshTenant(ctx);
     investorProfileTrap = await AgentTraceTrap.arm(ctx, 'investorProfile');
     decisionLifecycleTrap = await AgentTraceTrap.arm(ctx, 'decisionLifecycle');
@@ -786,8 +826,10 @@ describe('scenario 11 — ...', () => {
     // ...existing body and investor-profile assertion from Phase 5...
 
     // decision-lifecycle contract
-    const dlTraces = await decisionLifecycleTrap.waitFor({ correlationId: decisionId });
-    const envelope = dlTraces[0].envelope;
+    // decision-lifecycle may emit multiple traces per decisionId under revision cycles; assert on the
+    // LAST trace (the final/settled invocation) rather than traces[0].
+    const dlTraces = await decisionLifecycleTrap.waitFor({ correlationId: decisionId, minCount: 1 });
+    const envelope = dlTraces[dlTraces.length - 1].envelope;
 
     expect(envelope.status).toBe('success');
     expect(envelope.errors).toHaveLength(0);
@@ -819,7 +861,7 @@ describe('scenario — operating mode authority', () => {
   let decisionLifecycleTrap: AgentTraceTrap<'decisionLifecycle'>;
 
   beforeEach(async () => {
-    ctx = await buildTestContext();
+    ctx = await createTestContext();
     tenant = await freshTenant(ctx);
     decisionLifecycleTrap = await AgentTraceTrap.arm(ctx, 'decisionLifecycle');
     const result = await applyFixtures(ctx, tenant, [onboarded(), withDecision({ ... })]);
@@ -829,8 +871,10 @@ describe('scenario — operating mode authority', () => {
   it('...', async () => {
     // ...existing body...
 
-    const traces = await decisionLifecycleTrap.waitFor({ correlationId: decisionId });
-    const envelope = traces[0].envelope;
+    // Assert on the LAST trace — operating-mode scenarios may run decision-lifecycle multiple times
+    // as authority escalates across tiers.
+    const traces = await decisionLifecycleTrap.waitFor({ correlationId: decisionId, minCount: 1 });
+    const envelope = traces[traces.length - 1].envelope;
 
     expect(envelope.status).toBe('success');
     expect(envelope.errors).toHaveLength(0);
@@ -858,7 +902,7 @@ describe('scenario — reconciliation correction', () => {
   let decisionLifecycleTrap: AgentTraceTrap<'decisionLifecycle'>;
 
   beforeEach(async () => {
-    ctx = await buildTestContext();
+    ctx = await createTestContext();
     tenant = await freshTenant(ctx);
     decisionLifecycleTrap = await AgentTraceTrap.arm(ctx, 'decisionLifecycle');
     const result = await applyFixtures(ctx, tenant, [onboarded(), withDecision({ ... })]);
@@ -868,8 +912,10 @@ describe('scenario — reconciliation correction', () => {
   it('...', async () => {
     // ...existing body...
 
-    const traces = await decisionLifecycleTrap.waitFor({ correlationId: decisionId });
-    const envelope = traces[0].envelope;
+    // Reconciliation fires decision-lifecycle post-correction; if the original decision also emitted,
+    // multiple traces can share the decisionId. Assert on the LAST (corrected) trace.
+    const traces = await decisionLifecycleTrap.waitFor({ correlationId: decisionId, minCount: 1 });
+    const envelope = traces[traces.length - 1].envelope;
 
     expect(envelope.status).toBe('success');
     expect(envelope.errors).toHaveLength(0);
@@ -942,11 +988,26 @@ git commit -m "feat(market-intelligence-ctrl): declare MARKET_INTELLIGENCE_AGENT
 
 Market-intelligence currently invokes `agentNode({input})` directly, bypassing `invokeOrchestrator`. To attach the tracer, wrap it in a single-node `StateGraph` and invoke via `invokeOrchestrator` — identical pattern to Plan 2/3 Task 3.2 (narrative).
 
+- [ ] **Step 0: Verify `correlationId` threading end-to-end (same check as narrative Plan 2/3 Task 3.3)**
+
+Plan 2 Task 3.3 uncovered a latent bug where `server.ts` wrote `decisionId: sessionId` — tolerated until `correlationId` began flowing into the emitted envelope. Repeat that check here before wrapping the graph:
+
+Run:
+```bash
+grep -n "decisionId\|sessionId\|correlationId" \
+  services/advisory/market-intelligence-ctrl/agents/market-intelligence/server.ts \
+  services/advisory/market-intelligence-ctrl/src/agent-service.ts
+```
+
+Required outcome:
+- Whatever value `server.ts` passes as `decisionId` to `invokeMarketIntelligence(...)` must be the real decision identifier from the POST body (JSON `{tenantId, decisionId, upstreamOutputs}`), NOT the opaque AgentCore `sessionId`.
+- If a mismatch exists, parse the body in `server.ts` like narrative's Task 3.3 did, before proceeding with Step 1 below. Memory session keys that currently collide with `sessionId` will silently diverge from the emitted envelope's `correlationId` otherwise, and the e2e assertion in Task 7.4 will time out.
+
 - [ ] **Step 1: Apply this edit to `services/advisory/market-intelligence-ctrl/agents/market-intelligence/graph.ts`**
 
 ```ts
 import { Annotation, StateGraph } from '@langchain/langgraph';
-import { invokeOrchestrator, NoopTraceEmitter, type TraceEmitter } from '@nestfolio/agent-orchestrator';
+import { invokeOrchestrator, type TraceEmitter } from '@nestfolio/agent-orchestrator';
 // keep existing imports (buildMemoryClient, createAgentNode, etc.)
 
 const MarketIntelState = Annotation.Root({
@@ -979,7 +1040,9 @@ export async function invokeMarketIntelligence(params: {
     agent: 'market-intelligence',
     correlationId: params.decisionId,
     tenantId: params.tenantId,
-    emitter: params.emitter ?? new NoopTraceEmitter(),
+    // Per Plan 2/3 rule: emitter stays optional — invokeOrchestrator skips emission silently
+    // when absent. No NoopTraceEmitter fallback needed.
+    emitter: params.emitter,
   });
 
   if ('serviceUnavailable' in result) throw new Error(`Market-intelligence unavailable: ${result.reason}`);
@@ -1047,19 +1110,30 @@ this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
 
 - [ ] **Step 3: CDK assertion test**
 
-Apply to `services/advisory/market-intelligence-ctrl/test/unit/service.stack.test.ts`:
+Apply to `services/advisory/market-intelligence-ctrl/test/unit/service.stack.test.ts`. Scope the assertion to the AgentRuntime role so a pre-existing CDC publisher `events:PutEvents` grant on a separate role cannot mask a missing runtime grant (same rationale as Plan 2/3 Task 3.4):
 
 ```ts
 import { Template, Match } from 'aws-cdk-lib/assertions';
 
-it('grants events:PutEvents on the advisory bus to the AgentRuntime role', () => {
-  Template.fromStack(stack).hasResourceProperties('AWS::IAM::Policy', {
-    PolicyDocument: {
-      Statement: Match.arrayWith([
-        Match.objectLike({ Action: 'events:PutEvents', Effect: 'Allow' }),
+it('grants events:PutEvents to the AgentRuntime execution role', () => {
+  const template = Template.fromStack(stack);
+  const policies = template.findResources('AWS::IAM::Policy', {
+    Properties: {
+      Roles: Match.arrayWith([
+        Match.objectLike({ Ref: Match.stringLikeRegexp('.*AgentRuntime.*') }),
       ]),
     },
   });
+  expect(Object.keys(policies).length).toBeGreaterThan(0);
+
+  const statements = Object.values(policies).flatMap(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (p: any) => p.Properties.PolicyDocument.Statement ?? [],
+  );
+  const actions = statements.flatMap((s: { Action: string | string[] }) =>
+    Array.isArray(s.Action) ? s.Action : [s.Action],
+  );
+  expect(actions).toContain('events:PutEvents');
 });
 ```
 
@@ -1101,7 +1175,7 @@ describe('scenario 11 — ...', () => {
   let marketIntelligenceTrap: AgentTraceTrap<'marketIntelligence'>;
 
   beforeEach(async () => {
-    ctx = await buildTestContext();
+    ctx = await createTestContext();
     tenant = await freshTenant(ctx);
     investorProfileTrap = await AgentTraceTrap.arm(ctx, 'investorProfile');
     decisionLifecycleTrap = await AgentTraceTrap.arm(ctx, 'decisionLifecycle');
@@ -1179,7 +1253,23 @@ export const OnboardingBffEventTypes = {
 
 The design challenge: CopilotRuntime invokes `graph.invoke` internally via the `LangGraphAgent` adapter. We need (a) the tracer attached as a callback, and (b) emission after each turn.
 
-**Approach:** create a fresh `AgentTracer` + `EventBridgeTraceEmitter` per HTTP request. Attach tracer via `graph.withConfig({ callbacks: [tracer] })` before handing the graph to `LangGraphAgent`. After `runtime.process(...)` resolves, emit. Errors from the adapter go through status='error'.
+**Approach:** construct the `EventBridgeTraceEmitter` at module scope (same pattern as every other service — the client is reusable and stateless). Create a **fresh `AgentTracer` per HTTP request** (it accumulates span state across a single turn). Attach tracer via `graph.withConfig({ callbacks: [tracer] })` before handing the graph to `LangGraphAgent`. After `runtime.process(...)` resolves, emit. Errors from the adapter go through status='error'. Emission is **skipped when `tenantId` is empty** — `libs/event-processor` parsers reject events without `context.tenantId`, and empty-string emissions would silently fail downstream.
+
+- [ ] **Step 0: Audit how tenantId and sessionId reach the `/copilotkit` handler**
+
+The design spec's "Corrections carried into the spec" makes `detail.context.tenantId` load-bearing: `EventBusTrap`'s EB rule filters on it, and event-processor parsers reject events without it. Before wiring the emitter, confirm the request shape:
+
+Run:
+```bash
+grep -n "tenant\|session\|CopilotRuntime\|LangGraphAgent\|authorizer\|context" \
+  services/investor/onboarding-bff/agents/onboarding/server.ts \
+  services/investor/onboarding-bff/src/resolvers/*.ts 2>/dev/null
+```
+
+Required outcomes:
+- Identify which HTTP header (or AppSync/API Gateway authorizer claim, or body field) carries `tenantId`. The snippet in Step 2 assumes `x-tenant-id` / `x-session-id` headers; ADJUST if the actual ingress plumbs them differently (e.g., from a Cognito claim via the API Gateway custom authorizer, or from the CopilotKit request body).
+- Identify the `correlationId` the follow-up e2e plan (Phase 8 Task 8.5) will filter on. It must be stable per CopilotKit **session**, not per turn (the envelope fans out N events per session, all sharing the same `correlationId`). Most likely this is the CopilotKit `threadId` or a session-scoped ID extracted from the request.
+- If tenantId is **not** present on the request (e.g., onboarding runs pre-tenant-creation), document this and skip emission — do NOT emit with an empty tenantId. The Step 2 guard (`if (sessionId && tenantId)`) handles this at runtime, but the plan should acknowledge that pre-tenant onboarding turns will silently produce no trace.
 
 - [ ] **Step 1: Modify `buildOnboardingGraph` in `agents/onboarding/graph.ts`** to accept an optional `tracer: BaseCallbackHandler` and, if present, call `graph.withConfig({ callbacks: [tracer] })` on the compiled graph before returning. Example:
 
@@ -1212,6 +1302,10 @@ const emitter = new EventBridgeTraceEmitter({
 app.post('/copilotkit', async (c) => {
   const tableName = process.env['TABLE_NAME'] ?? '';
   const repo = new OnboardingRepository(tableName);
+
+  // NOTE: header names here are the current best guess (see Task 8.2 Step 0). If the audit
+  // identifies a different source of truth (authorizer claim, request body field, etc.),
+  // replace BOTH extraction lines — the rest of the handler is source-agnostic.
   const tenantId = c.req.header('x-tenant-id') ?? '';
   const sessionId = c.req.header('x-session-id') ?? c.req.header('x-user-id') ?? '';
 
@@ -1228,6 +1322,8 @@ app.post('/copilotkit', async (c) => {
     status = 'error';
     throw err;
   } finally {
+    // Emit only when BOTH identifiers are present. Empty tenantId would violate the
+    // `detail.context.tenantId` invariant that event-processor parsers enforce.
     if (sessionId && tenantId) {
       emitter
         .emit(tracer.build(status), { tenantId, correlationId: sessionId, agent: 'onboarding' })
@@ -1235,6 +1331,12 @@ app.post('/copilotkit', async (c) => {
           // eslint-disable-next-line no-console
           console.warn('onboarding trace emit failed', e);
         });
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn('onboarding trace emission skipped (missing tenantId or sessionId)', {
+        hasTenantId: Boolean(tenantId),
+        hasSessionId: Boolean(sessionId),
+      });
     }
   }
 });
@@ -1263,19 +1365,30 @@ this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
 
 - [ ] **Step 2: CDK assertion test**
 
-Apply to `services/investor/onboarding-bff/test/unit/service.stack.test.ts`:
+Apply to `services/investor/onboarding-bff/test/unit/service.stack.test.ts`. Scope the assertion to the AgentRuntime role so a pre-existing `events:PutEvents` grant on a separate role (e.g., BFF resolvers publishing events) cannot mask a missing runtime grant (same rationale as Plan 2/3 Task 3.4):
 
 ```ts
 import { Template, Match } from 'aws-cdk-lib/assertions';
 
-it('grants events:PutEvents on the investor bus to the AgentRuntime role', () => {
-  Template.fromStack(stack).hasResourceProperties('AWS::IAM::Policy', {
-    PolicyDocument: {
-      Statement: Match.arrayWith([
-        Match.objectLike({ Action: 'events:PutEvents', Effect: 'Allow' }),
+it('grants events:PutEvents on the investor bus to the AgentRuntime execution role', () => {
+  const template = Template.fromStack(stack);
+  const policies = template.findResources('AWS::IAM::Policy', {
+    Properties: {
+      Roles: Match.arrayWith([
+        Match.objectLike({ Ref: Match.stringLikeRegexp('.*AgentRuntime.*') }),
       ]),
     },
   });
+  expect(Object.keys(policies).length).toBeGreaterThan(0);
+
+  const statements = Object.values(policies).flatMap(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (p: any) => p.Properties.PolicyDocument.Statement ?? [],
+  );
+  const actions = statements.flatMap((s: { Action: string | string[] }) =>
+    Array.isArray(s.Action) ? s.Action : [s.Action],
+  );
+  expect(actions).toContain('events:PutEvents');
 });
 ```
 
@@ -1329,7 +1442,7 @@ describe('scenario — onboarding CopilotKit multi-turn', () => {
   let onboardingTrap: AgentTraceTrap<'onboarding'>;
 
   beforeEach(async () => {
-    ctx = await buildTestContext();
+    ctx = await createTestContext();
     tenant = await freshTenant(ctx);
     onboardingTrap = await AgentTraceTrap.arm(ctx, 'onboarding');
     // NEW: copilotkit session harness to send multi-turn messages
@@ -1393,6 +1506,14 @@ Expected: every scenario green.
 - **Bus routing is literal.** `bus: 'advisory' as const` / `bus: 'investor' as const` are string literals — no runtime drift possible.
 
 A runtime test of the same facts would (a) require punching a hole through encapsulation (the `__testOnly_` re-export), and (b) verify only what the type system already verifies, at the cost of one more moving part.
+
+### Known exception: `onboarding` entry has no runtime assertion
+
+Typecheck + e2e assertion coverage is sufficient **for entries that are exercised by an e2e scenario**. The `onboarding` entry has no corresponding scenario in this plan (Phase 8 Task 8.5 deferral). Consequences:
+
+- If onboarding's emission code is silently removed, typecheck still passes — no scenario would fail.
+- This is accepted because the follow-up plan (`2026-XX-XX-onboarding-e2e-scenario.md`) will close the gap. Until then, the sandbox deploy smoke test after Phase 8 Task 8.6 is the only runtime verification.
+- If that follow-up plan slips, reconsider adding a targeted unit test on `onboarding-bff` that asserts `emitter.emit` is wired into the `/copilotkit` handler's finally block.
 
 - [ ] **Step 1: Verify typecheck covers the contract**
 
