@@ -2,5 +2,8 @@
   "name": "@nestfolio/agent-orchestrator",
   "version": "0.0.1",
   "private": true,
-  "main": "src/index.ts"
+  "main": "src/index.ts",
+  "dependencies": {
+    "@nestfolio/event-types": "workspace:*"
+  }
 }

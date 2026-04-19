@@ -35,4 +35,14 @@ export { createAgentServer, type AgentHandler } from './agent-server';
 
 export { createKBClient, type KBClient, type KBClientConfig, type KBResult } from './kb-retrieval';
 
+export {
+  AgentTracer,
+  type AgentTraceEnvelope,
+  type AgentTraceEventDetail,
+} from './agent-tracer';
+
+export { type TraceEmitter, type EmitContext } from './emitters/types';
+export { EventBridgeTraceEmitter, type EventBridgeTraceEmitterOptions } from './emitters/eventbridge-emitter';
+export { NoopTraceEmitter } from './emitters/noop-emitter';
+
 export { resolveAgentRuntimeUrl, invokeRemoteRuntime } from './resolve-runtime-url';
