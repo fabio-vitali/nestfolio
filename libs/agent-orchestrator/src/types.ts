@@ -1,4 +1,7 @@
 import type { z } from 'zod';
+import type { Logger } from '@aws-lambda-powertools/logger';
+import type { Metrics } from '@aws-lambda-powertools/metrics';
+import type { TraceEmitter } from './emitters/types';
 
 export interface AgentConfig<T extends z.ZodType> {
   readonly modelId: string;
@@ -52,7 +55,23 @@ export interface ServiceUnavailableResponse {
   readonly reason: string;
 }
 
-export interface InvokeOptions {
-  readonly logger?: unknown;
-  readonly metrics?: unknown;
+interface BaseInvokeOptions {
+  readonly logger?: Logger;
+  readonly metrics?: Metrics;
 }
+
+interface InvokeOptionsWithoutEmitter extends BaseInvokeOptions {
+  readonly emitter?: undefined;
+  readonly agent?: string;
+  readonly correlationId?: string;
+  readonly tenantId?: string;
+}
+
+interface InvokeOptionsWithEmitter extends BaseInvokeOptions {
+  readonly emitter: TraceEmitter;
+  readonly agent: string;
+  readonly correlationId: string;
+  readonly tenantId?: string;
+}
+
+export type InvokeOptions = InvokeOptionsWithoutEmitter | InvokeOptionsWithEmitter;
