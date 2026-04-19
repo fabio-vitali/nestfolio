@@ -15,3 +15,4 @@ export {
   type FixtureResult,
 } from './helpers/fixtures';
 export { alpacaPaperReset } from './helpers/alpaca-paper-reset';
+export { AgentTraceTrap, type AgentKey, type WaitForOptions } from './helpers/agent-trace-trap';
