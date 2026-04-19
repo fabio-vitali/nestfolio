@@ -517,7 +517,7 @@ export const AGENT_TRACE_EVENTS = {
 export type AgentKey = keyof typeof AGENT_TRACE_EVENTS;
 
 export interface AgentTraceEvent {
-  tenantId: string;
+  context: { tenantId: string };
   correlationId: string;
   agent: string;
   envelope: AgentTraceEnvelope;
