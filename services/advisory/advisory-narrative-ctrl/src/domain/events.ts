@@ -4,6 +4,7 @@ import { eventName } from '@nestfolio/event-types';
 export const NarrativeEventTypes = {
   NARRATIVE_COMPLETED: eventName('NARRATIVE_COMPLETED'),
   EXPLANATION_GENERATED: eventName('EXPLANATION_GENERATED'),
+  ADVISORY_NARRATIVE_AGENT_INVOCATION_TRACED: eventName('ADVISORY_NARRATIVE_AGENT_INVOCATION_TRACED'),
 } as const;
 
 /** Inbound event types consumed by advisory-narrative-ctrl */
