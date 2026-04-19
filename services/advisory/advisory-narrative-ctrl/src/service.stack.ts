@@ -88,6 +88,7 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       environmentVariables: {
         MODEL_SONNET_ID: modelSonnetId,
         TABLE_NAME: state.getTable().tableName,
+        EVENT_BUS_NAME: this.eventBus.eventBusName,
       },
     });
 
@@ -107,6 +108,10 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       actions: ['bedrock-agentcore:InvokeAgentRuntime'],
       resources: [runtimeArn],
     }));
+
+    // Grant the AgentRuntime role permission to emit trace envelopes to the
+    // advisory bus (consumed by e2e AgentTraceTrap and contract test assertions).
+    this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
 
     this.addObservability({
       ingress,
