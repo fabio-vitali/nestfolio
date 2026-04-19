@@ -40,7 +40,7 @@ Data flow in a single scenario:
 e2e test                              deployed agent runtime (Lambda)
 ────────                              ────────────────────────────────
 1. trap = new EventBusTrap(ctx)       
-   trap.init({bus, detailType})       
+   trap.deploy({bus, detailType})     
                                        
 2. applyFixtures + publish trigger ─► SF / EB rule ─► agent Lambda
                                                         │
@@ -155,7 +155,7 @@ export interface AgentTraceEnvelope {
 
 ```ts
 export interface AgentTraceEventDetail {
-  tenantId: string;
+  context: { tenantId: string };
   correlationId: string;                       // decisionId, profileId, etc. — caller-supplied
   agent: string;                               // 'decision-lifecycle', 'portfolio-engine', etc.
   envelope: AgentTraceEnvelope;
@@ -331,7 +331,7 @@ export class EventBridgeTraceEmitter implements TraceEmitter {
         DetailType: this.opts.detailType,
         EventBusName: this.opts.busName,
         Detail: JSON.stringify({
-          tenantId: ctx.tenantId,
+          context: { tenantId: ctx.tenantId },
           correlationId: ctx.correlationId,
           agent: ctx.agent,
           envelope,
@@ -517,7 +517,7 @@ export const AGENT_TRACE_EVENTS = {
 export type AgentKey = keyof typeof AGENT_TRACE_EVENTS;
 
 export interface AgentTraceEvent {
-  tenantId: string;
+  context: { tenantId: string };
   correlationId: string;
   agent: string;
   envelope: AgentTraceEnvelope;
@@ -540,7 +540,7 @@ export async function waitForAgentTraces(
   const timeoutMs = opts.timeoutMs ?? 60_000;
 
   const trap = new EventBusTrap(ctx);
-  await trap.init({ bus, detailType });
+  await trap.deploy({ bus, detailType });
 
   const deadline = Date.now() + timeoutMs;
   const collected: AgentTraceEvent[] = [];
@@ -564,8 +564,8 @@ export async function waitForAgentTraces(
 
 **Important behaviour notes:**
 - The `EventBusTrap` must be initialised **before** the trigger event is published (otherwise the rule isn't live when events flow through). Scenarios create the trap right after `applyFixtures` and right before the action that triggers the agent.
-- `EventBusTrap` has built-in canary warmup — `init()` does not return until the EB rule is provably delivering to the SQS queue.
-- `ctx.cleanup` (registered by `EventBusTrap.init()`) tears down the SQS queue + EB rule at scenario end.
+- `EventBusTrap` has built-in canary warmup — `deploy()` does not return until the EB rule is provably delivering to the SQS queue.
+- `ctx.cleanup` (registered by `EventBusTrap.deploy()`) tears down the SQS queue + EB rule at scenario end.
 - `OrphanReaper` (already in `libs/integration-testing`) cleans up any queues/rules that leak, older than 1 hour.
 
 ## 10. Per-agent contract assertions

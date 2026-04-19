@@ -1,4 +1,5 @@
 import { StateGraph } from '@langchain/langgraph';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import type { OrchestratorConfig } from './types';
 import { createAgentNode } from './agent-factory';
 import { withValidation, type AgentNodeFn } from './with-validation';
@@ -7,7 +8,10 @@ import { withFallback } from './with-fallback';
 import { buildEscalationPath } from './tier-escalation';
 
 export interface CompiledGraph {
-  invoke(input: Record<string, unknown>): Promise<Record<string, unknown>>;
+  invoke(
+    input: Record<string, unknown>,
+    config?: RunnableConfig,
+  ): Promise<Record<string, unknown>>;
 }
 
 export function createOrchestrator<K extends string, TState>(

@@ -10,7 +10,8 @@
       "options": {
         "outputPath": "dist/libs/agent-orchestrator",
         "main": "libs/agent-orchestrator/src/index.ts",
-        "tsConfig": "libs/agent-orchestrator/tsconfig.lib.json"
+        "tsConfig": "libs/agent-orchestrator/tsconfig.lib.json",
+        "rootDir": "."
       }
     },
     "test": {
