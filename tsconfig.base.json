@@ -40,6 +40,7 @@
       "@nestfolio/event-types": ["libs/event-types/src/index.ts"],
       "@nestfolio/investor-bff/events": ["services/investor/investor-bff/src/domain/events.ts"],
       "@nestfolio/investor-ctrl/events": ["services/investor/investor-ctrl/src/domain/events.ts"],
+      "@nestfolio/onboarding-bff/events": ["services/investor/onboarding-bff/src/domain/events.ts"],
       "@nestfolio/advisory-ctrl/events": ["services/advisory/advisory-ctrl/src/domain/events.ts"],
       "@nestfolio/advisory-bff/events": ["services/advisory/advisory-bff/src/domain/events.ts"],
       "@nestfolio/compliance-ctrl/events": [
@@ -61,6 +62,15 @@
       ],
       "@nestfolio/portfolio-engine-ctrl/events": [
         "services/advisory/portfolio-engine-ctrl/src/domain/events.ts"
+      ],
+      "@nestfolio/advisory-narrative-ctrl/events": [
+        "services/advisory/advisory-narrative-ctrl/src/domain/events.ts"
+      ],
+      "@nestfolio/investor-profile-ctrl/events": [
+        "services/advisory/investor-profile-ctrl/src/domain/events.ts"
+      ],
+      "@nestfolio/market-intelligence-ctrl/events": [
+        "services/advisory/market-intelligence-ctrl/src/domain/events.ts"
       ],
       "@nestfolio/execution-ctrl/events": [
         "services/execution/execution-ctrl/src/domain/events.ts"
