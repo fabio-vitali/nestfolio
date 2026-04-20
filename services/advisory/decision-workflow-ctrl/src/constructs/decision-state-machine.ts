@@ -214,9 +214,22 @@ export class DecisionWorkflowDefinition extends Construct {
 
     const endSuccess = new sfn.Succeed(this, 'EndSuccess');
 
+    // --- Entry: unpack CDC envelope ({id,type,timestamp,subject,context}) into
+    //     top-level {decisionId, tenantId, trigger, triggerContext} so downstream
+    //     states can reference $.decisionId and $.tenantId directly. ---
+    const unpackTriggerEnvelope = new sfn.Pass(this, 'UnpackTriggerEnvelope', {
+      parameters: {
+        'decisionId.$': '$.subject.decisionId',
+        'tenantId.$': '$.subject.tenantId',
+        'trigger.$': '$.subject.trigger',
+        'triggerContext.$': '$.subject.context',
+      },
+    });
+
     // --- Wire the chain ---
 
-    const definition = parallelProfiling
+    const definition = unpackTriggerEnvelope
+      .next(parallelProfiling)
       .next(mergeParallelOutputs)
       .next(invokePortfolioEngine)
       .next(invokeAdvisoryNarrative)
