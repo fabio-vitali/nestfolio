@@ -4,6 +4,7 @@
   "private": true,
   "main": "src/index.ts",
   "dependencies": {
+    "@aws-sdk/client-bedrock-agentcore": "^3.1012.0",
     "@nestfolio/event-types": "workspace:*"
   }
 }
