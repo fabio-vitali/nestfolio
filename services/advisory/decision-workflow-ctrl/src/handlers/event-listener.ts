@@ -5,8 +5,12 @@ import {
 import { TRIGGER_EVENT_TYPES } from '../domain/events';
 
 /**
- * Trigger handler — writes a WorkflowTrigger record to DDB.
- * CDK EventBridge rule starts Step Functions when CDC publishes WORKFLOW_TRIGGER_CREATED.
+ * Trigger handler — fan-in stage.
+ * Subscribes to 11 heterogeneous trigger events and materialises each to a
+ * WorkflowTrigger DDB row with a freshly-allocated decisionId. The subsequent
+ * DDB stream drives the Egress CDC publisher, which emits WORKFLOW_TRIGGER_CREATED.
+ * That canonical event is routed to the Decision state machine via the
+ * Orchestration.triggers wiring in service.stack.ts.
  */
 const triggerHandler = (payload: EventPayload, ctx: EventContext) => {
   const tenantId = (payload.subject?.tenantId as string) ?? ctx.tenantId;
