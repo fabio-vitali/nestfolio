@@ -14,12 +14,6 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
 
     const state = new State(this, 'State');
 
-    // SSM param for mock agent runtime URL (set to DISABLED by default; overridden in integration tests)
-    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
-      parameterName: `/nestfolio/${props.prefix}-advisory-narrative-ctrl/agent/runtimeUrl`,
-      stringValue: 'DISABLED',
-    });
-
     // Knowledge Base: Explainability Feedback (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'ExplainabilityKB', {
       kbName: 'explainability',
@@ -37,9 +31,6 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
         paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       },
     });
-
-    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
-    agentRuntimeUrlParam.grantRead(ingress.handler);
 
     // Grant KB access to the ingress handler (feedback-correlator runs inline)
     kb.bucket.grantReadWrite(ingress.handler);
@@ -87,7 +78,7 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
     }));
 
     // AgentRuntime (no tool Lambdas — all context arrives in event payload)
-    new AgentRuntime(this, 'AgentRuntime', {
+    const agentRuntime = new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'advisory_narrative_agents',
       agentCodePath: join(__dirname, '..', 'agents', 'advisory-narrative'),
       description: 'explainability (Sonnet, 8192 tokens) agent with feedback loop KB',
@@ -99,6 +90,23 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
         TABLE_NAME: state.getTable().tableName,
       },
     });
+
+    // SSM-published runtime target. Defaults to the real AgentCore runtime ARN;
+    // integration tests redirect via SsmOverrideFixture to a Function URL.
+    const runtimeArn = agentRuntime.runtime.agentRuntimeArn;
+    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
+      parameterName: `/nestfolio/${props.prefix}-advisory-narrative-ctrl/agent/runtimeUrl`,
+      stringValue: runtimeArn,
+    });
+    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
+    agentRuntimeUrlParam.grantRead(ingress.handler);
+
+    // Grant the ingress handler permission to invoke the AgentCore runtime.
+    ingress.handler.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['bedrock-agentcore:InvokeAgentRuntime'],
+      resources: [runtimeArn],
+    }));
 
     this.addObservability({
       ingress,
