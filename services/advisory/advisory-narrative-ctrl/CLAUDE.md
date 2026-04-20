@@ -15,7 +15,8 @@ Stack: services/advisory/advisory-narrative-ctrl/src/service.stack.ts
 ## Ingress
 - advisoryBus -> advisory-narrative-ctrl-ingress (SQS -> Lambda)
   Subscriptions: GENERATE_NARRATIVE, DECISION_FEEDBACK
-  Grants: KB bucket read/write, Bedrock KB sync, AgentCore Memory API
+  Grants: KB bucket read/write, Bedrock KB sync, AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
+  errorEventType: ADVISORY_NARRATIVE_CTRL_FAILED
 
 ## Egress
 - CDC: DynamoDB Streams -> advisory-narrative-ctrl-egress (Lambda)
@@ -27,25 +28,35 @@ Agent folder: agents/advisory-narrative/
 - advisory_narrative_agents: explainability (Sonnet, 8192 tokens) agent with feedback loop KB
   Models: Sonnet (SSM from advisory-hub)
   Tools: none (all context arrives in event payload)
+  Graph: single-node StateGraph wrapping agentNode (withFallback(withRetry(withValidation(createAgentNode)))), invoked via invokeOrchestrator
+  TraceEmitter: EventBridgeTraceEmitter (source `agent-orchestrator@advisory-narrative-ctrl`, detailType ADVISORY_NARRATIVE_AGENT_INVOCATION_TRACED)
+  PutEvents grant: eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal)
+  SSM runtime URL override param: `/nestfolio/${prefix}-advisory-narrative-ctrl/agent/runtimeUrl`
 
 ## Handlers
-- event-listener.ts -- Ingress event handler (GENERATE_NARRATIVE)
-- event-publisher.ts -- Egress CDC publisher
-- feedback-correlator.ts -- Processes DECISION_FEEDBACK events, updates KB corpus
+- event-listener.ts -- Ingress event handler (GENERATE_NARRATIVE, DECISION_FEEDBACK) via resumeStateMachine pipeline
+- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline)
+- feedback-correlator.ts -- Processes DECISION_FEEDBACK events, annotates decisions, writes to KB S3 bucket, triggers KB ingestion
 
 ## Event Types (domain/events.ts)
-- NarrativeEventTypes: NARRATIVE_COMPLETED, EXPLANATION_GENERATED
-- HANDLED_EVENT_TYPES: GENERATE_NARRATIVE, DECISION_FEEDBACK
-- FEEDBACK_EVENT_TYPES: DECISION_FEEDBACK
+- NarrativeEventTypes (outbound): NARRATIVE_COMPLETED, EXPLANATION_GENERATED, ADVISORY_NARRATIVE_AGENT_INVOCATION_TRACED
+- HANDLED_EVENT_TYPES (inbound): GENERATE_NARRATIVE, DECISION_FEEDBACK
+- FEEDBACK_EVENT_TYPES (routed): DECISION_FEEDBACK
 
 ## Tests
-- agent-service.test.ts
-- event-listener.test.ts
-- feedback-correlator.test.ts
-- graph.test.ts
-- service.stack.test.ts
+- test/unit/agent-service.test.ts
+- test/unit/event-listener.test.ts
+- test/unit/feedback-correlator.test.ts
+- test/unit/graph.test.ts
+- test/unit/service.stack.test.ts
+- test/unit/agents/fallbacks.test.ts
+- test/unit/agents/golden-fixtures.test.ts
+- test/unit/agents/schemas.test.ts
+- test/unit/agents/validation.test.ts
+- test/integration/advisory-narrative-ctrl.integration.test.ts
 
 ## Dependencies
-- libs: cdk-constructs (core, extensions, utils), event-processor
-- SSM: advisory-hub (models/sonnet), decision-workflow-ctrl (memory/id)
+- libs: cdk-constructs (core, extensions, utils), event-processor, agent-orchestrator, event-types, test-support, integration-testing
+- SSM: advisory-hub (models/sonnet), decision-workflow-ctrl (memory/id), advisory-narrative-ctrl (agent/runtimeUrl)
 - AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListMemoryRecords, ListEvents, ListActors, ListSessions)
+- AgentCore Runtime (InvokeAgentRuntime)
