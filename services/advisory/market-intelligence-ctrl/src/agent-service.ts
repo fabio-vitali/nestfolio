@@ -1,8 +1,10 @@
-import { createAgentNode, withRetry, withFallback, resolveAgentRuntimeUrl, invokeRemoteRuntime } from '@nestfolio/agent-orchestrator';
+import {
+  resolveAgentRuntimeTarget,
+  dispatchAgentInvocation,
+} from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
-import { marketResearchConfig } from './agents/market-research.config';
 import type { MarketAnalysisResult } from './domain';
 
 export interface AgentServiceDeps {
@@ -11,18 +13,6 @@ export interface AgentServiceDeps {
 }
 
 export const createAgentService = (deps: AgentServiceDeps) => {
-  const baseNode = createAgentNode(marketResearchConfig);
-  const resilientNode = withFallback(
-    withRetry(baseNode, { maxAttempts: 3, escalationPath: ['sonnet'] }),
-    async (state) => ({
-      ...state,
-      signals: [],
-      tickersMentioned: [],
-      marketOutlook: 'Unable to complete market analysis — fallback engaged',
-      confidenceScore: 0,
-    }),
-  );
-
   return {
     runPipeline: async (event: Record<string, unknown>): Promise<Record<string, unknown>> => {
       const invocationId = randomUUID();
@@ -41,20 +31,12 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         ),
       }));
 
-      let result: Record<string, unknown>;
-      const runtimeUrl = await resolveAgentRuntimeUrl();
-      if (runtimeUrl) {
-        result = await invokeRemoteRuntime(runtimeUrl, {
-          tenantId, decisionId,
-          upstreamOutputs: subject.upstreamOutputs ?? {},
-        });
-      } else {
-        result = await resilientNode({
-          tenantId,
-          decisionId,
-          upstreamOutputs: subject.upstreamOutputs ?? {},
-        }) as Record<string, unknown>;
-      }
+      const target = await resolveAgentRuntimeTarget();
+      const result = await dispatchAgentInvocation<Record<string, unknown>>(target, {
+        tenantId,
+        decisionId,
+        upstreamOutputs: (subject.upstreamOutputs ?? {}) as Record<string, unknown>,
+      });
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();

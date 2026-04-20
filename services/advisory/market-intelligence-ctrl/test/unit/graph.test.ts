@@ -48,10 +48,14 @@ describe('market-intelligence-ctrl structured graph', () => {
     const result = await invokeMarketResearch({
       tenantId: 't1',
       decisionId: 'd1',
-      input: 'Analyze market conditions',
+      upstreamOutputs: { investorProfile: { riskScore: 45 } },
     });
 
-    expect(mockKBRetrieve).toHaveBeenCalledWith(expect.stringContaining('Analyze market'), 5);
+    // KB is seeded with JSON.stringify(upstreamOutputs)
+    expect(mockKBRetrieve).toHaveBeenCalledWith(
+      expect.stringContaining('investorProfile'),
+      5,
+    );
     expect(mockAgentNode).toHaveBeenCalledWith(
       expect.objectContaining({
         input: expect.stringContaining('Fed rate cut expected'),
@@ -69,7 +73,7 @@ describe('market-intelligence-ctrl structured graph', () => {
       confidenceScore: 0.6,
     });
 
-    await invokeMarketResearch({ tenantId: 't1', decisionId: 'd1', input: 'Analyze' });
+    await invokeMarketResearch({ tenantId: 't1', decisionId: 'd1', upstreamOutputs: {} });
 
     expect(mockMemorySession.writeAgentOutput).toHaveBeenCalled();
   });
@@ -86,7 +90,7 @@ describe('market-intelligence-ctrl structured graph', () => {
     await invokeMarketResearch({
       tenantId: 't1',
       decisionId: 'd1',
-      input: 'Scan market',
+      upstreamOutputs: { portfolioSnapshot: { totalValue: 100000 } },
     });
 
     const passedInput = (mockAgentNode.mock.calls[0][0] as { input: string }).input;

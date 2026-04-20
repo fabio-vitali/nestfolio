@@ -4,17 +4,19 @@ import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
-const mockAgentNode = jest.fn();
 
 jest.mock('@nestfolio/agent-orchestrator', () => ({
-  createAgentNode: jest.fn().mockReturnValue(mockAgentNode),
-  withRetry: jest.fn().mockImplementation((node) => node),
-  withFallback: jest.fn().mockImplementation((node, _fallback) => node),
-  resolveAgentRuntimeUrl: jest.fn().mockResolvedValue(null),
-  invokeRemoteRuntime: jest.fn(),
+  resolveAgentRuntimeTarget: jest.fn().mockResolvedValue(
+    'arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/test',
+  ),
+  dispatchAgentInvocation: jest.fn(),
 }));
 
 import { createAgentService } from '../../src/agent-service';
+import {
+  resolveAgentRuntimeTarget,
+  dispatchAgentInvocation,
+} from '@nestfolio/agent-orchestrator';
 
 describe('market-intelligence-ctrl agent-service', () => {
   const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -27,10 +29,13 @@ describe('market-intelligence-ctrl agent-service', () => {
     jest.clearAllMocks();
     ddbMock.reset();
     ddbMock.on(PutCommand).resolves({});
+    (resolveAgentRuntimeTarget as jest.Mock).mockResolvedValue(
+      'arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/test',
+    );
   });
 
-  it('should invoke agent node with correct context and persist invocation', async () => {
-    mockAgentNode.mockResolvedValue({
+  it('should dispatch to AgentCore target and persist IN_PROGRESS + COMPLETED', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
       signals: [{ type: 'momentum', ticker: 'SPY', sentiment: 'BULLISH', confidence: 0.8, source: 'technical' }],
       tickersMentioned: ['SPY'],
       marketOutlook: 'Bullish momentum in US equities',
@@ -56,10 +61,17 @@ describe('market-intelligence-ctrl agent-service', () => {
 
     // Should have called PutCommand twice (IN_PROGRESS + COMPLETED)
     expect(ddbMock).toHaveReceivedCommandTimes(PutCommand, 2);
+    expect(dispatchAgentInvocation).toHaveBeenCalledWith(
+      expect.stringMatching(/^arn:/),
+      expect.objectContaining({
+        decisionId: 'dp-1',
+        upstreamOutputs: expect.any(Object),
+      }),
+    );
   });
 
-  it('should propagate agent errors', async () => {
-    mockAgentNode.mockRejectedValue(new Error('Agent failure'));
+  it('should propagate dispatcher errors', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockRejectedValue(new Error('Agent failure'));
 
     const service = createAgentService(deps);
     await expect(service.runPipeline({
