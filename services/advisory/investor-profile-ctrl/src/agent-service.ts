@@ -1,10 +1,10 @@
-import { createOrchestrator, invokeOrchestrator, resolveAgentRuntimeUrl, invokeRemoteRuntime } from '@nestfolio/agent-orchestrator';
+import {
+  resolveAgentRuntimeTarget,
+  dispatchAgentInvocation,
+} from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
-import { userGoalsConfig } from './agents/user-goals.config';
-import { riskAssessmentConfig } from './agents/risk-assessment.config';
-import { InvestorProfileState } from './agents/state';
 
 export interface AgentServiceDeps {
   readonly docClient: DynamoDBDocumentClient;
@@ -12,17 +12,6 @@ export interface AgentServiceDeps {
 }
 
 export const createAgentService = (deps: AgentServiceDeps) => {
-  const orchestrator = createOrchestrator({
-    agents: {
-      'user-goals': userGoalsConfig,
-      'risk-assessment': riskAssessmentConfig,
-    },
-    waves: [
-      { agents: ['user-goals', 'risk-assessment'] },
-    ],
-    stateAnnotation: InvestorProfileState,
-  });
-
   return {
     runPipeline: async (event: Record<string, unknown>): Promise<Record<string, unknown>> => {
       const invocationId = randomUUID();
@@ -41,21 +30,15 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         ),
       }));
 
-      let result: Record<string, unknown>;
-      const runtimeUrl = await resolveAgentRuntimeUrl();
-      if (runtimeUrl) {
-        result = await invokeRemoteRuntime(runtimeUrl, {
-          tenantId, decisionId,
+      const target = await resolveAgentRuntimeTarget();
+      const result = await dispatchAgentInvocation<Record<string, unknown>>(target, {
+        tenantId,
+        decisionId,
+        upstreamOutputs: {
           investorProfile: subject.investorProfile ?? subject.context ?? {},
           portfolioState: subject.portfolioState ?? {},
-        });
-      } else {
-        result = await invokeOrchestrator(orchestrator, {
-          tenantId, decisionId,
-          investorProfile: subject.investorProfile ?? subject.context ?? {},
-          portfolioState: subject.portfolioState ?? {},
-        }) as Record<string, unknown>;
-      }
+        },
+      });
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();

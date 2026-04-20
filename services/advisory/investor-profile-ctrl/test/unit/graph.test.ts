@@ -18,6 +18,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   createNoOpMemoryClient: jest.fn().mockReturnValue({
     openDecisionSession: jest.fn().mockReturnValue(mockMemorySession),
   }),
+  // AgentInvocation and ServiceUnavailableResponse are types — no runtime export needed
 }));
 
 describe('investor-profile-ctrl orchestrator graph', () => {
@@ -59,7 +60,9 @@ describe('investor-profile-ctrl orchestrator graph', () => {
     });
 
     await invokeInvestorProfile!({
-      tenantId: 't1', decisionId: 'd1', input: 'Analyze investor profile',
+      tenantId: 't1',
+      decisionId: 'd1',
+      upstreamOutputs: { investorProfile: { age: 35 }, portfolioState: {} },
     });
 
     expect(mockKBRetrieve).toHaveBeenCalled();
@@ -83,7 +86,11 @@ describe('investor-profile-ctrl orchestrator graph', () => {
       invokeInvestorProfile = mod.invokeInvestorProfile;
     });
 
-    await invokeInvestorProfile!({ tenantId: 't1', decisionId: 'd1', input: 'Analyze' });
+    await invokeInvestorProfile!({
+      tenantId: 't1',
+      decisionId: 'd1',
+      upstreamOutputs: { investorProfile: {}, portfolioState: {} },
+    });
 
     expect(mockMemorySession.writeAgentOutput).toHaveBeenCalled();
   });
