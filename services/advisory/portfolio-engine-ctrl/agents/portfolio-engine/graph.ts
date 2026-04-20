@@ -9,6 +9,7 @@ import {
   type CompiledGraph,
   type KBClient,
   type MemoryClient,
+  type TraceEmitter,
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
@@ -69,6 +70,7 @@ const tools = buildTools();
 
 export async function invokePortfolioEngine(
   payload: AgentInvocation,
+  emitter?: TraceEmitter,
 ): Promise<Record<string, unknown>> {
   const memory = buildMemoryClient();
   const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
@@ -96,7 +98,18 @@ export async function invokePortfolioEngine(
 
   // 4. Invoke orchestrator (parallel: portfolio-construction + rebalance-planner)
   const enrichedInput = `Decision ${payload.decisionId} context: ${seed}` + kbContext + upstreamContext + toolContext;
-  const result = await invokeOrchestrator(graph, { input: enrichedInput }, {});
+  const result = await invokeOrchestrator(
+    graph,
+    { input: enrichedInput },
+    emitter
+      ? {
+          agent: 'portfolio-engine',
+          correlationId: payload.decisionId,
+          tenantId: payload.tenantId,
+          emitter,
+        }
+      : undefined,
+  );
 
   // 5. Persist to memory
   if (!('serviceUnavailable' in result)) {

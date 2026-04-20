@@ -80,7 +80,7 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
     expect(mockInvokeOrchestrator).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({ input: expect.stringContaining('VTI expense ratio') }),
-      expect.any(Object),
+      undefined,
     );
   });
 
