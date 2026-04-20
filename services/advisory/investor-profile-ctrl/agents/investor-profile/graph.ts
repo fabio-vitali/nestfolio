@@ -8,6 +8,8 @@ import {
   type CompiledGraph,
   type KBClient,
   type MemoryClient,
+  type AgentInvocation,
+  type ServiceUnavailableResponse,
 } from '@nestfolio/agent-orchestrator';
 import { userGoalsConfig } from '../../src/agents/user-goals.config';
 import { riskAssessmentConfig } from '../../src/agents/risk-assessment.config';
@@ -51,19 +53,19 @@ function buildMemoryClient(): MemoryClient {
   });
 }
 
-export async function invokeInvestorProfile(params: {
-  tenantId: string;
-  decisionId: string;
-  input: string;
-}): Promise<Record<string, unknown>> {
+export async function invokeInvestorProfile(
+  payload: AgentInvocation,
+): Promise<Record<string, unknown>> {
   const memory = buildMemoryClient();
-  const session = memory.openDecisionSession(params.tenantId, params.decisionId);
+  const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
   const kb = buildKBClient();
+
+  const rawInput = JSON.stringify(payload.upstreamOutputs);
 
   // 1. Retrieve regulatory frameworks from KB
   let kbContext = '';
   if (kb) {
-    const kbResults = await kb.retrieve(params.input, 3);
+    const kbResults = await kb.retrieve(rawInput, 3);
     if (kbResults.length > 0) {
       kbContext = `\n\nRegulatory context from knowledge base:\n${kbResults.map((r) => r.text).join('\n')}`;
     }
@@ -71,7 +73,7 @@ export async function invokeInvestorProfile(params: {
 
   // 2. Read tenant history from long-term memory
   const tenantHistory = await session.searchLongTermMemory(
-    `prior risk assessments for tenant ${params.tenantId}`,
+    `prior risk assessments for tenant ${payload.tenantId}`,
     3,
   );
   const historyContext = tenantHistory.length > 0
@@ -79,13 +81,17 @@ export async function invokeInvestorProfile(params: {
     : '';
 
   // 3. Invoke orchestrator (parallel: user-goals + risk-assessment)
-  const enrichedInput = params.input + kbContext + historyContext;
+  const enrichedInput = rawInput + kbContext + historyContext;
   const result = await invokeOrchestrator(graph, { input: enrichedInput }, {});
 
-  // 4. Persist to memory
-  if (!('serviceUnavailable' in result)) {
-    await session.writeAgentOutput(result);
+  // Throw on service unavailable so the container emits a 500 via createAgentServer
+  if ('serviceUnavailable' in result) {
+    const unavailable = result as ServiceUnavailableResponse;
+    throw new Error(`Agent orchestrator unavailable: ${unavailable.reason}`);
   }
+
+  // 4. Persist to memory
+  await session.writeAgentOutput(result);
 
   return result;
 }
