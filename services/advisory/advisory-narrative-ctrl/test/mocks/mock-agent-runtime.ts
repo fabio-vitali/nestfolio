@@ -5,10 +5,15 @@ function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
 }
 
 /**
- * Mock agent runtime for advisory-narrative-ctrl.
- * Returns canned explainability agent output.
+ * Mock agent runtime for advisory-narrative-ctrl integration tests.
+ *
+ * Mirrors the real container's contract:
+ * - Body is `{ tenantId, decisionId, upstreamOutputs }`.
+ * - Response is the agent result JSON directly (no `{response, status}` envelope).
  */
-export async function handler(_event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+  const _payload = event.body ? JSON.parse(event.body) : {}; // parse to validate shape
+  void _payload;
   return json(200, {
     summary: 'Mock: Your portfolio has been rebalanced to align with your growth objectives.',
     rationale: 'Mock rationale: Market conditions support increased equity exposure.',
