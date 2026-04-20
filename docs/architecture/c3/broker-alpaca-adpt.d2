@@ -1,0 +1,64 @@
+direction: down
+
+title: "Broker Alpaca\nADPT\n[State Machine]" {
+  style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
+}
+
+ingress: "Ingress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+  rule: "EventBridge Rule\n[4 events]" { class: aws-eventbridge }
+  sqs: "SQS Queue" { class: aws-sqs }
+  dlq: "DLQ" { class: aws-dlq }
+  handler: "Lambda" { class: aws-lambda }
+
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
+}
+
+state: "State" {
+  style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
+  table: "DynamoDB Table" { class: aws-dynamodb }
+  stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
+  table -> stream: CDC
+}
+
+egress: "Egress" {
+  style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
+  processor: "Lambda" { class: aws-lambda }
+  bus: "EventBridge\n[execution-bus]" { class: aws-eventbridge }
+  dlq: "DLQ" { class: aws-dlq }
+
+  processor -> bus: Publish
+}
+
+heal-state-machine: "Orchestration" {
+  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
+  state-machine: "Step Functions\n[HealStateMachine]" { class: aws-stepfunctions }
+  dlq: "DLQ" { class: aws-dlq }
+}
+
+order-polling-state-machine: "Orchestration" {
+  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
+  state-machine: "Step Functions\n[OrderPollingStateMachine]" { class: aws-stepfunctions }
+  dlq: "DLQ" { class: aws-dlq }
+}
+
+transfer-polling-state-machine: "Orchestration" {
+  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
+  state-machine: "Step Functions\n[TransferPollingStateMachine]" { class: aws-stepfunctions }
+  dlq: "DLQ" { class: aws-dlq }
+}
+
+order-poll-fn: "Lambda\n[OrderPollFn]" { class: aws-lambda }
+transfer-poll-fn: "Lambda\n[TransferPollFn]" { class: aws-lambda }
+
+# Flows
+ingress.handler -> state.table: Read/Write
+state.stream -> egress.processor: Trigger
+ingress.handler -> heal-state-machine.state-machine: Execute
+heal-state-machine.state-machine -> state.table: Read/Write
+ingress.handler -> order-polling-state-machine.state-machine: Execute
+order-polling-state-machine.state-machine -> state.table: Read/Write
+ingress.handler -> transfer-polling-state-machine.state-machine: Execute
+transfer-polling-state-machine.state-machine -> state.table: Read/Write

@@ -1,0 +1,66 @@
+direction: down
+
+title: "Decision Workflow\nCTRL\n[State Machine · Agent Memory]" {
+  style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
+}
+
+trigger-ingress: "TriggerIngress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+  rule: "EventBridge Rule" { class: aws-eventbridge }
+  sqs: "SQS Queue" { class: aws-sqs }
+  dlq: "DLQ" { class: aws-dlq }
+  handler: "Lambda" { class: aws-lambda }
+
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
+}
+
+callback-ingress: "CallbackIngress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+  rule: "EventBridge Rule" { class: aws-eventbridge }
+  sqs: "SQS Queue" { class: aws-sqs }
+  dlq: "DLQ" { class: aws-dlq }
+  handler: "Lambda" { class: aws-lambda }
+
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
+}
+
+state: "State" {
+  style: { fill: "#E3F2FD"; stroke: "#2196F3"; border-radius: 12; font-size: 28 }
+  table: "DynamoDB Table" { class: aws-dynamodb }
+  stream: "DynamoDB Stream\n[CDC]" { class: aws-ddb-stream }
+  table -> stream: CDC
+}
+
+egress: "Egress" {
+  style: { fill: "#FBE9E7"; stroke: "#FF5722"; border-radius: 12; font-size: 28 }
+  processor: "Lambda" { class: aws-lambda }
+  bus: "EventBridge\n[advisory-bus]" { class: aws-eventbridge }
+  dlq: "DLQ" { class: aws-dlq }
+
+  processor -> bus: Publish
+}
+
+decision-state-machine: "Orchestration" {
+  style: { fill: "#E8F5E9"; stroke: "#4CAF50"; border-radius: 12; font-size: 28 }
+  state-machine: "Step Functions\n[DecisionStateMachine]" { class: aws-stepfunctions }
+  dlq: "DLQ" { class: aws-dlq }
+}
+
+agent-memory: "AgentCore Memory" {
+  style: { fill: "#E0F2F1"; stroke: "#00695C"; border-radius: 12; font-size: 28 }
+  memory: "Bedrock AgentCore\n[Memory]" { class: aws-bedrock }
+}
+
+assemble-packet: "Lambda\n[AssemblePacket]" { class: aws-lambda }
+
+# Flows
+trigger-ingress.handler -> state.table: Read/Write
+callback-ingress.handler -> state.table: Read/Write
+state.stream -> egress.processor: Trigger
+trigger-ingress.handler -> decision-state-machine.state-machine: Execute
+decision-state-machine.state-machine -> state.table: Read/Write
+decision-state-machine.state-machine -> agent-memory.memory: Store
