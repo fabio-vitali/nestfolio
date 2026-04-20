@@ -50,7 +50,7 @@ describe('advisory-narrative-ctrl structured graph', () => {
     const result = await invokeNarrative({
       tenantId: 't1',
       decisionId: 'd1',
-      input: 'Explain rebalance',
+      upstreamOutputs: { input: 'Explain rebalance' },
     });
 
     expect(mockKBRetrieve).toHaveBeenCalledWith(expect.stringContaining('Explain rebalance'), 3);
@@ -79,7 +79,7 @@ describe('advisory-narrative-ctrl structured graph', () => {
     await invokeNarrative({
       tenantId: 't1',
       decisionId: 'd1',
-      input: 'Explain decision',
+      upstreamOutputs: { input: 'Explain decision' },
     });
 
     expect(mockMemorySession.readUpstreamOutput).toHaveBeenCalledWith('advisory-ctrl');
@@ -99,7 +99,7 @@ describe('advisory-narrative-ctrl structured graph', () => {
     await invokeNarrative({
       tenantId: 't1',
       decisionId: 'd1',
-      input: 'Explain',
+      upstreamOutputs: { input: 'Explain' },
     });
 
     expect(mockMemorySession.writeAgentOutput).toHaveBeenCalledWith(
