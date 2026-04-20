@@ -2,19 +2,7 @@ import { serve } from '@hono/node-server';
 import { createAgentServer } from '@nestfolio/agent-orchestrator';
 import { invokeDecisionLifecycle } from './graph';
 
-const app = createAgentServer(async (prompt, sessionId) => {
-  const result = await invokeDecisionLifecycle({
-    tenantId: sessionId.split('/')[0] || sessionId,
-    decisionId: sessionId,
-    input: prompt,
-  });
-
-  if ('serviceUnavailable' in result) {
-    return JSON.stringify({ error: result.reason, status: 'service_unavailable' });
-  }
-
-  return JSON.stringify(result);
-});
+const app = createAgentServer(async (payload) => invokeDecisionLifecycle(payload));
 
 serve({ fetch: app.fetch, port: 8080, hostname: '0.0.0.0' });
 // eslint-disable-next-line no-console

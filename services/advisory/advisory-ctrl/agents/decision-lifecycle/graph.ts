@@ -5,6 +5,7 @@ import {
   createNoOpMemoryClient,
   type CompiledGraph,
   type MemoryClient,
+  type AgentInvocation,
 } from '@nestfolio/agent-orchestrator';
 import { AGENT_CONFIGS, DECISION_LIFECYCLE_WAVES } from '../../src/agents/config';
 import { VALIDATION_RULES } from '../../src/agents/validation';
@@ -30,17 +31,15 @@ function buildMemoryClient(): MemoryClient {
   });
 }
 
-export async function invokeDecisionLifecycle(params: {
-  tenantId: string;
-  decisionId: string;
-  input: string;
-}): Promise<Record<string, unknown>> {
+export async function invokeDecisionLifecycle(
+  payload: AgentInvocation,
+): Promise<Record<string, unknown>> {
   const memory = buildMemoryClient();
-  const session = memory.openDecisionSession(params.tenantId, params.decisionId);
+  const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
 
   // Enrich input with long-term memory context
   const priorDecisions = await session.searchLongTermMemory(
-    `prior decisions for tenant ${params.tenantId}`,
+    `prior decisions for tenant ${payload.tenantId}`,
     3,
   );
   const memoryContext =
@@ -48,14 +47,14 @@ export async function invokeDecisionLifecycle(params: {
       ? `\n\nPrior decision context:\n${priorDecisions.map((r) => r.content).join('\n')}`
       : '';
 
-  const enrichedInput = params.input + memoryContext;
+  const enrichedInput = JSON.stringify(payload.upstreamOutputs) + memoryContext;
 
   const result = await invokeOrchestrator(
     graph,
     {
       input: enrichedInput,
-      tenantId: params.tenantId,
-      decisionId: params.decisionId,
+      tenantId: payload.tenantId,
+      decisionId: payload.decisionId,
     },
     {},
   );
@@ -67,6 +66,3 @@ export async function invokeDecisionLifecycle(params: {
 
   return result;
 }
-
-// Backward-compatible export for server.ts
-export { graph };
