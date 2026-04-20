@@ -96,6 +96,15 @@ Emitter DI at each service's `graph.ts`/`server.ts` is covered by `pnpm nx typec
 
 # Phase 3.5 — Sandbox pipeline-trigger gap (prerequisite)
 
+> **STATUS 2026-04-20: RESOLVED** in `docs/superpowers/plans/2026-04-20-decision-workflow-sf-start-wiring.md`.
+> Both original exit criteria verified green in sandbox:
+> (1) fresh SF executions fire on `WORKFLOW_TRIGGER_CREATED`;
+> (2) all 4 advisory agents produce fresh CloudWatch log streams during a `first-decision` e2e run.
+> End-to-end chain runs through `ParallelProfiling` → `InvokePortfolioEngine` →
+> `InvokeAdvisoryNarrative` → `AssembleDecisionPacket` → `PublishRecommendation`
+> and waits at `WaitForCompliance` (compliance-ctrl downstream scope).
+> Phase 4 of this plan is now unblocked.
+
 **Why this phase exists:** Plan 2 discovered (2026-04-20) that the deployed sandbox does not drive the advisory-narrative agent end-to-end from any existing e2e scenario:
 
 - `view-decision-explanation.e2e.test.ts` uses the synthetic `withDecision` fixture, which publishes `DECISION_PACKET_CREATED` directly to advisory-bff and never invokes the narrative agent. `recordExplanationView` is a pure BFF write of a `UserInteraction` item; no upstream signal fires.

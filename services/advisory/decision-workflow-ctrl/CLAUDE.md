@@ -22,9 +22,15 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
 
 ## Orchestration
 - DecisionStateMachine: Step Functions state machine (72h timeout)
-  Started via CDC chain (no direct EB trigger)
-  Callback access granted to CallbackIngress handler
-  Invokes assemblePacketFn, publishes to advisoryBus
+  Started by EB Rule on WORKFLOW_TRIGGER_CREATED (Orchestration.triggers).
+  Entry state UnpackTriggerEnvelope flattens {subject.decisionId,
+  subject.tenantId, context.userId, context.region} to top-level SF state
+  so every putEvents task state can emit the event-processor envelope
+  ({id, type, timestamp, subject, context}).
+  AssembleDecisionPacket uses ResultPath=DISCARD to preserve userId/region
+  through compliance + user-confirm phases.
+  Callback access granted to CallbackIngress handler.
+  Invokes assemblePacketFn, publishes to advisoryBus.
 
 ## Standalone Lambdas
 - AssemblePacket: Assembles decision packet data (invoked by Step Functions)

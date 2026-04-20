@@ -27,9 +27,19 @@ steps:
     emits: WORKFLOW_TRIGGER_CREATED (CDC, WorkflowTrigger:INSERT auto-expand)
     idempotent: true
 
-  # NOTE: The Orchestration construct has `triggers: []` — SF is NOT started
-  # by a direct EB rule. The CDC event WORKFLOW_TRIGGER_CREATED starts SF
-  # via the Orchestration construct's internal wiring.
+  # -- Phase 1b: Start the state machine --
+  - service: decision-workflow-ctrl
+    receives: WORKFLOW_TRIGGER_CREATED
+    via: AdvisoryBus -> EB Rule -> SfnStateMachine target (Orchestration.triggers)
+    handler: Step Functions StartExecution (construct-managed, input = $.detail)
+    state_change: >
+      New DecisionStateMachine execution starts. Entry Pass state
+      (UnpackTriggerEnvelope) flattens {subject.decisionId,
+      subject.tenantId, context.userId, context.region} to top-level
+      SF state so every downstream putEvents task state can emit the
+      event-processor envelope ({id, type, timestamp, subject, context}).
+    emits: (none -- SF internal)
+    idempotent: false  # duplicate WORKFLOW_TRIGGER_CREATED events start duplicate executions
 
   # -- Phase 2: Step Functions dispatches agent tasks --
   # SF state machine definition: decision-state-machine.ts
