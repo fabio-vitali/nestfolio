@@ -6,6 +6,7 @@ import {
   createKBClient,
   createMemoryClient,
   createNoOpMemoryClient,
+  type AgentInvocation,
   type KBClient,
   type MemoryClient,
 } from '@nestfolio/agent-orchestrator';
@@ -43,13 +44,11 @@ function buildMemoryClient(): MemoryClient {
   });
 }
 
-export async function invokeNarrative(params: {
-  tenantId: string;
-  decisionId: string;
-  input: string;
-}): Promise<Record<string, unknown>> {
+export async function invokeNarrative(
+  payload: AgentInvocation,
+): Promise<Record<string, unknown>> {
   const memory = buildMemoryClient();
-  const session = memory.openDecisionSession(params.tenantId, params.decisionId);
+  const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
   const kb = buildKBClient();
 
   // 1. Read upstream decision context from memory
@@ -61,14 +60,19 @@ export async function invokeNarrative(params: {
   // 2. Retrieve relevant communication templates from KB
   let kbContext = '';
   if (kb) {
-    const kbResults = await kb.retrieve(params.input, 3);
+    const seed = JSON.stringify(payload.upstreamOutputs);
+    const kbResults = await kb.retrieve(seed, 3);
     if (kbResults.length > 0) {
       kbContext = `\n\nKnowledge base context:\n${kbResults.map((r) => r.text).join('\n')}`;
     }
   }
 
-  // 3. Invoke agent with enriched input
-  const enrichedInput = params.input + upstreamContext + kbContext;
+  // 3. Invoke agent with enriched input. The LLM-facing prompt is built from
+  //    the structured envelope; we serialize upstreamOutputs verbatim so the
+  //    agent has full context.
+  const enrichedInput =
+    `Decision ${payload.decisionId} context: ${JSON.stringify(payload.upstreamOutputs)}` +
+    upstreamContext + kbContext;
   const result = await agentNode({ input: enrichedInput });
 
   // 4. Write output to memory
