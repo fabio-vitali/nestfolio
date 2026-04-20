@@ -3,10 +3,14 @@ import type { z } from 'zod';
 import type { AgentConfig } from './types';
 import type { AgentNodeFn } from './with-validation';
 
+// US cross-region inference profile IDs. Must match advisory-hub's SSM
+// parameter values: these Claude 4 models require an inference profile (not a
+// base model ID) for on-demand invocation in us-east-1. Using the bare base
+// IDs yields a Bedrock ValidationException.
 const MODEL_ID_MAP: Record<string, string> = {
-  haiku: 'anthropic.claude-haiku-4-5-20251001-v1:0',
-  sonnet: 'anthropic.claude-sonnet-4-6-20250514-v1:0',
-  opus: 'anthropic.claude-opus-4-6-20250501-v1:0',
+  haiku: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+  sonnet: 'us.anthropic.claude-sonnet-4-6',
+  opus: 'us.anthropic.claude-opus-4-6-v1',
 };
 
 export function createAgentNode<T extends z.ZodType>(config: AgentConfig<T>): AgentNodeFn {

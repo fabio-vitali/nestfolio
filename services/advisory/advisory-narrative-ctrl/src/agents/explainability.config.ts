@@ -3,7 +3,7 @@ import { ExplainabilitySchema } from './schemas';
 import { explainabilityPrompt } from './prompts';
 
 export const explainabilityConfig: AgentConfig<typeof ExplainabilitySchema> = {
-  modelId: 'anthropic.claude-sonnet-4-6-20250514-v1:0',
+  modelId: 'us.anthropic.claude-sonnet-4-6',
   maxTokens: 8192,
   temperature: 0.3,
   schema: ExplainabilitySchema,

@@ -19,7 +19,7 @@ describe('createAgentNode (generic)', () => {
   const testSchema = z.object({ value: z.string() });
 
   const config: AgentConfig<typeof testSchema> = {
-    modelId: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+    modelId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
     maxTokens: 1024,
     temperature: 0.0,
     schema: testSchema,
@@ -33,7 +33,7 @@ describe('createAgentNode (generic)', () => {
     await node({ input: 'test' });
     expect(MockChatBedrockConverse).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+        model: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
         maxTokens: 1024,
         temperature: 0.0,
       }),
@@ -56,7 +56,7 @@ describe('createAgentNode (generic)', () => {
     await node({ input: 'test', __escalationTier: 'opus' });
     expect(MockChatBedrockConverse).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        model: 'anthropic.claude-opus-4-6-20250501-v1:0',
+        model: 'us.anthropic.claude-opus-4-6-v1',
       }),
     );
   });
@@ -65,7 +65,7 @@ describe('createAgentNode (generic)', () => {
 describe('createAgentNode — RunnableConfig propagation', () => {
   const testSchema = z.object({ value: z.string() });
   const config: AgentConfig<typeof testSchema> = {
-    modelId: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+    modelId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
     maxTokens: 1024,
     temperature: 0.0,
     schema: testSchema,
