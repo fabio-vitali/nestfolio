@@ -121,6 +121,15 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     // (at invoke time the SDK targets .../runtime-endpoint/DEFAULT).
     agentRuntime.grantInvoke(ingress.handler);
 
+    // resumeStateMachine pipeline calls SendTaskSuccess/SendTaskFailure on
+    // whatever state machine issued the task token. Task tokens are opaque
+    // and self-authenticating, so '*' is the canonical resource.
+    ingress.handler.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['states:SendTaskSuccess', 'states:SendTaskFailure', 'states:SendTaskHeartbeat'],
+      resources: ['*'],
+    }));
+
     this.addObservability({
       ingress,
       egress,

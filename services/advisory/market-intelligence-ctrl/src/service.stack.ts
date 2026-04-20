@@ -123,6 +123,13 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     // (covers both runtime ARN and its endpoint sub-resource).
     agentRuntime.grantInvoke(ingress.handler);
 
+    // resumeStateMachine pipeline callback permissions (see investor-profile-ctrl).
+    ingress.handler.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['states:SendTaskSuccess', 'states:SendTaskFailure', 'states:SendTaskHeartbeat'],
+      resources: ['*'],
+    }));
+
     this.addObservability({
       ingress,
       egress,

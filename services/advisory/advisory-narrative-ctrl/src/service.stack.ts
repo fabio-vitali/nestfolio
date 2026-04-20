@@ -106,6 +106,13 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
     // (covers both runtime ARN and its endpoint sub-resource).
     agentRuntime.grantInvoke(ingress.handler);
 
+    // resumeStateMachine pipeline callback permissions (see investor-profile-ctrl).
+    ingress.handler.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['states:SendTaskSuccess', 'states:SendTaskFailure', 'states:SendTaskHeartbeat'],
+      resources: ['*'],
+    }));
+
     // Grant the AgentRuntime role permission to emit trace envelopes to the
     // advisory bus (consumed by e2e AgentTraceTrap and contract test assertions).
     this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
