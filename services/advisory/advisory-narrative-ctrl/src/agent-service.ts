@@ -1,8 +1,10 @@
-import { createAgentNode, withRetry, withFallback, resolveAgentRuntimeUrl, invokeRemoteRuntime } from '@nestfolio/agent-orchestrator';
+import {
+  resolveAgentRuntimeTarget,
+  dispatchAgentInvocation,
+} from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
-import { explainabilityConfig } from './agents/explainability.config';
 
 export interface AgentServiceDeps {
   readonly docClient: DynamoDBDocumentClient;
@@ -10,21 +12,6 @@ export interface AgentServiceDeps {
 }
 
 export const createAgentService = (deps: AgentServiceDeps) => {
-  const agentNode = withFallback(
-    withRetry(
-      createAgentNode(explainabilityConfig),
-      { maxAttempts: 2, escalationPath: ['sonnet', 'opus'] },
-    ),
-    () => ({
-      summary: 'We were unable to generate a personalized explanation at this time.',
-      rationale: 'Service temporarily unavailable',
-      keyFactors: [],
-      tone: 'neutral',
-      wordCount: 0,
-      confidence: 0,
-    }),
-  );
-
   return {
     runPipeline: async (event: Record<string, unknown>): Promise<Record<string, unknown>> => {
       const invocationId = randomUUID();
@@ -43,25 +30,16 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         ),
       }));
 
-      let result: Record<string, unknown>;
-      const runtimeUrl = await resolveAgentRuntimeUrl();
-      if (runtimeUrl) {
-        result = await invokeRemoteRuntime(runtimeUrl, {
-          tenantId, decisionId,
-          upstreamOutputs: subject.context ?? subject.upstreamOutputs ?? {},
-        });
-      } else {
-        result = await agentNode({
-          tenantId,
-          decisionId,
-          upstreamOutputs: subject.context ?? subject.upstreamOutputs ?? {},
-        });
-      }
+      const target = await resolveAgentRuntimeTarget();
+      const result = await dispatchAgentInvocation<Record<string, unknown>>(target, {
+        tenantId,
+        decisionId,
+        upstreamOutputs: (subject.context ?? subject.upstreamOutputs ?? {}) as Record<string, unknown>,
+      });
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
 
-      // Record reasoning output
       await deps.docClient.send(new PutCommand({
         TableName: deps.tableName,
         Item: buildCdcItem('ReasoningOutput',
@@ -71,7 +49,6 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         ),
       }));
 
-      // Update invocation status
       await deps.docClient.send(new PutCommand({
         TableName: deps.tableName,
         Item: buildCdcItem('AgentInvocation',
