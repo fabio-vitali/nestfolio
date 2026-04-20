@@ -51,9 +51,19 @@ export class DecisionWorkflowDefinition extends Construct {
                 Source: serviceName,
                 DetailType: detailType,
                 Detail: {
-                  'decisionId.$': '$.decisionId',
-                  'tenantId.$': '$.tenantId',
-                  'taskToken.$': '$$.Task.Token',
+                  'id.$': 'States.UUID()',
+                  'type': detailType,
+                  'timestamp.$': '$$.State.EnteredTime',
+                  'subject': {
+                    'decisionId.$': '$.decisionId',
+                    'tenantId.$': '$.tenantId',
+                    'taskToken.$': '$$.Task.Token',
+                  },
+                  'context': {
+                    'tenantId.$': '$.tenantId',
+                    'userId.$': '$.userId',
+                    'region.$': '$.region',
+                  },
                 },
               },
             ],
@@ -100,11 +110,17 @@ export class DecisionWorkflowDefinition extends Construct {
       parameters: {
         'decisionId.$': '$.decisionId',
         'tenantId.$': '$.tenantId',
+        'userId.$': '$.userId',
+        'region.$': '$.region',
       },
     });
 
     // --- Merge all outputs before compliance ---
 
+    // AssemblePacket is a side-effecting Lambda (writes DecisionPacket to DDB).
+    // DISCARD its result so {decisionId, tenantId, userId, region} on input state
+    // flow through unchanged to compliance + user-confirm (which need userId/region
+    // for the event-processor envelope).
     const assemblePacket = new sfn.CustomState(this, 'AssembleDecisionPacket', {
       stateJson: {
         Type: 'Task',
@@ -116,11 +132,7 @@ export class DecisionWorkflowDefinition extends Construct {
             'tenantId.$': '$.tenantId',
           },
         },
-        ResultSelector: {
-          'decisionId.$': '$.Payload.decisionId',
-          'tenantId.$': '$.Payload.tenantId',
-        },
-        ResultPath: '$',
+        ResultPath: sfn.JsonPath.DISCARD,
       },
     });
 
@@ -137,8 +149,18 @@ export class DecisionWorkflowDefinition extends Construct {
               Source: serviceName,
               DetailType: 'RECOMMENDATION_PROPOSED',
               Detail: {
-                'decisionId.$': '$.decisionId',
-                'tenantId.$': '$.tenantId',
+                'id.$': 'States.UUID()',
+                'type': 'RECOMMENDATION_PROPOSED',
+                'timestamp.$': '$$.State.EnteredTime',
+                'subject': {
+                  'decisionId.$': '$.decisionId',
+                  'tenantId.$': '$.tenantId',
+                },
+                'context': {
+                  'tenantId.$': '$.tenantId',
+                  'userId.$': '$.userId',
+                  'region.$': '$.region',
+                },
               },
             },
           ],
@@ -158,10 +180,20 @@ export class DecisionWorkflowDefinition extends Construct {
               Source: serviceName,
               DetailType: 'RECOMMENDATION_PROPOSED',
               Detail: {
-                'decisionId.$': '$.decisionId',
-                'tenantId.$': '$.tenantId',
-                'taskToken.$': '$$.Task.Token',
-                'awaitingCompliance': true,
+                'id.$': 'States.UUID()',
+                'type': 'RECOMMENDATION_PROPOSED',
+                'timestamp.$': '$$.State.EnteredTime',
+                'subject': {
+                  'decisionId.$': '$.decisionId',
+                  'tenantId.$': '$.tenantId',
+                  'taskToken.$': '$$.Task.Token',
+                  'awaitingCompliance': true,
+                },
+                'context': {
+                  'tenantId.$': '$.tenantId',
+                  'userId.$': '$.userId',
+                  'region.$': '$.region',
+                },
               },
             },
           ],
@@ -196,9 +228,19 @@ export class DecisionWorkflowDefinition extends Construct {
               Source: serviceName,
               DetailType: 'USER_CONFIRMATION_REQUESTED',
               Detail: {
-                'decisionId.$': '$.decisionId',
-                'tenantId.$': '$.tenantId',
-                'taskToken.$': '$$.Task.Token',
+                'id.$': 'States.UUID()',
+                'type': 'USER_CONFIRMATION_REQUESTED',
+                'timestamp.$': '$$.State.EnteredTime',
+                'subject': {
+                  'decisionId.$': '$.decisionId',
+                  'tenantId.$': '$.tenantId',
+                  'taskToken.$': '$$.Task.Token',
+                },
+                'context': {
+                  'tenantId.$': '$.tenantId',
+                  'userId.$': '$.userId',
+                  'region.$': '$.region',
+                },
               },
             },
           ],
@@ -221,6 +263,11 @@ export class DecisionWorkflowDefinition extends Construct {
       parameters: {
         'decisionId.$': '$.subject.decisionId',
         'tenantId.$': '$.subject.tenantId',
+        // userId + region come from CDC envelope's top-level context — required by
+        // libs/event-processor/src/engine/parse-sqs-record.ts envelope validation
+        // on every downstream event we emit (agent invocations, compliance, user confirm).
+        'userId.$': '$.context.userId',
+        'region.$': '$.context.region',
         'trigger.$': '$.subject.trigger',
         'triggerContext.$': '$.subject.context',
       },
