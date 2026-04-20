@@ -17,7 +17,14 @@ export class EventBridgeClient {
 
   async putEvent(params: {
     bus: string;
-    targetService: string;
+    // Single target ("advisory-ctrl") routes only to that service's Ingress.
+    // Array fans the same envelope (shared `id`) to N services, each with its
+    // own `integration-test:<service>` source so every matching Ingress rule
+    // fires. Required when a scenario must drive multiple subscribers of the
+    // same detailType (e.g. advisory-ctrl + decision-workflow-ctrl both
+    // consume PORTFOLIO_DRIFT_DETECTED on the advisory bus, and ctx.eventId
+    // alignment requires they receive the same id).
+    targetService: string | string[];
     detailType: string;
     detail: Record<string, unknown>;
     eventId?: string;
@@ -25,6 +32,12 @@ export class EventBridgeClient {
     const busArn = await this.ctx.ssm.busArn(params.bus);
     const maxRetries = this.ctx.timings.putEventRetries;
     const baseBackoff = this.ctx.timings.putEventBackoffMs;
+    const targets = Array.isArray(params.targetService)
+      ? params.targetService
+      : [params.targetService];
+    if (targets.length === 0) {
+      throw new Error('putEvent: targetService must not be an empty array');
+    }
 
     const detail = {
       id: params.eventId ?? `integ-${randomUUID()}`,
@@ -41,12 +54,12 @@ export class EventBridgeClient {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const result = await this.client.send(new PutEventsCommand({
-          Entries: [{
+          Entries: targets.map((target) => ({
             EventBusName: busArn,
-            Source: `integration-test:${params.targetService}`,
+            Source: `integration-test:${target}`,
             DetailType: params.detailType,
             Detail: JSON.stringify(detail),
-          }],
+          })),
         }));
         if (result.FailedEntryCount === 0) return;
         if (attempt === maxRetries) {
