@@ -6,9 +6,14 @@ function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
 
 /**
  * Mock agent runtime for investor-profile-ctrl.
- * Returns canned orchestrator output keyed by agent name.
+ *
+ * Mirrors the real container's contract:
+ * - Body is `{ tenantId, decisionId, upstreamOutputs }` (AgentInvocation envelope).
+ * - Response is the agent result JSON directly (no `{response, status}` envelope).
  */
-export async function handler(_event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+  const _payload = event.body ? JSON.parse(event.body) : {}; // parse to validate shape
+  void _payload;
   return json(200, {
     'user-goals': {
       goals: [{ description: 'Mock retirement goal', priority: 'HIGH', timeHorizon: 'LONG_TERM' }],
