@@ -5,6 +5,7 @@ import {
   createKBClient,
   createMemoryClient,
   createNoOpMemoryClient,
+  type AgentInvocation,
   type CompiledGraph,
   type KBClient,
   type MemoryClient,
@@ -66,19 +67,18 @@ function buildTools() {
 
 const tools = buildTools();
 
-export async function invokePortfolioEngine(params: {
-  tenantId: string;
-  decisionId: string;
-  input: string;
-}): Promise<Record<string, unknown>> {
+export async function invokePortfolioEngine(
+  payload: AgentInvocation,
+): Promise<Record<string, unknown>> {
   const memory = buildMemoryClient();
-  const session = memory.openDecisionSession(params.tenantId, params.decisionId);
+  const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
   const kb = buildKBClient();
 
   // 1. Retrieve fund/instrument data from KB
+  const seed = JSON.stringify(payload.upstreamOutputs);
   let kbContext = '';
   if (kb) {
-    const kbResults = await kb.retrieve(params.input, 5);
+    const kbResults = await kb.retrieve(seed, 5);
     if (kbResults.length > 0) {
       kbContext = `\n\nFund & instrument data from knowledge base:\n${kbResults.map((r) => r.text).join('\n')}`;
     }
@@ -91,11 +91,11 @@ export async function invokePortfolioEngine(params: {
     : '';
 
   // 3. Deterministic tool context (portfolio snapshot)
-  const portfolioSnapshot = await tools.portfolioLookup({ tenantId: params.tenantId });
+  const portfolioSnapshot = await tools.portfolioLookup({ tenantId: payload.tenantId });
   const toolContext = formatToolContext({ 'Portfolio snapshot': portfolioSnapshot });
 
   // 4. Invoke orchestrator (parallel: portfolio-construction + rebalance-planner)
-  const enrichedInput = params.input + kbContext + upstreamContext + toolContext;
+  const enrichedInput = `Decision ${payload.decisionId} context: ${seed}` + kbContext + upstreamContext + toolContext;
   const result = await invokeOrchestrator(graph, { input: enrichedInput }, {});
 
   // 5. Persist to memory

@@ -3,14 +3,7 @@ import { serve } from '@hono/node-server';
 import { createAgentServer } from '@nestfolio/agent-orchestrator';
 import { invokePortfolioEngine } from './graph';
 
-const app = createAgentServer(async (prompt, sessionId) => {
-  const result = await invokePortfolioEngine({
-    tenantId: sessionId.split('/')[0] || sessionId,
-    decisionId: sessionId,
-    input: prompt,
-  });
-  return JSON.stringify(result);
-});
+const app = createAgentServer(async (payload) => invokePortfolioEngine(payload));
 
 serve({ fetch: app.fetch, port: 8080, hostname: '0.0.0.0' });
 // eslint-disable-next-line no-console
