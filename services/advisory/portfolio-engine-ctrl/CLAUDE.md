@@ -29,6 +29,9 @@ Agent folder: agents/portfolio-engine/
   Models: Opus, Sonnet (SSM from advisory-hub)
   Tools: none wired to AgentRuntime (Gateway)
   Context augmentation: portfolio-lookup (in-process, deterministic pre-fetch via agents/portfolio-engine/graph.ts)
+  TraceEmitter: EventBridgeTraceEmitter (source `agent-orchestrator@portfolio-engine-ctrl`, detailType PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED)
+  PutEvents grant: eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal)
+  SSM runtime URL override param: `/nestfolio/${prefix}-portfolio-engine-ctrl/agent/runtimeUrl`
 
 ## Standalone Lambdas
 - KBIngestion: Ingests SEC prospectus/10-K data into FundKB (triggered by SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED)
@@ -41,7 +44,7 @@ Agent folder: agents/portfolio-engine/
 - agents/tools/format-context.ts -- Helper to serialize tool output as labelled prompt sections
 
 ## Event Types (domain/events.ts)
-- PortfolioEngineEventTypes: PORTFOLIO_COMPLETED, PORTFOLIO_CONSTRUCTION_PROPOSED, REBALANCE_PLAN_PRODUCED
+- PortfolioEngineEventTypes: PORTFOLIO_COMPLETED, PORTFOLIO_CONSTRUCTION_PROPOSED, REBALANCE_PLAN_PRODUCED, PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED
 - HANDLED_EVENT_TYPES: CONSTRUCT_PORTFOLIO, SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
 - KB_INGESTION_EVENT_TYPES: SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
 
