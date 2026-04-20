@@ -4,18 +4,19 @@ import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
-const mockInvokeOrchestrator = jest.fn();
-const mockResolveAgentRuntimeUrl = jest.fn().mockResolvedValue(null);
-const mockInvokeRemoteRuntime = jest.fn();
 
 jest.mock('@nestfolio/agent-orchestrator', () => ({
-  createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
-  invokeOrchestrator: mockInvokeOrchestrator,
-  resolveAgentRuntimeUrl: mockResolveAgentRuntimeUrl,
-  invokeRemoteRuntime: mockInvokeRemoteRuntime,
+  resolveAgentRuntimeTarget: jest.fn().mockResolvedValue(
+    'arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/test',
+  ),
+  dispatchAgentInvocation: jest.fn(),
 }));
 
 import { createAgentService } from '../../src/agent-service';
+import {
+  resolveAgentRuntimeTarget,
+  dispatchAgentInvocation,
+} from '@nestfolio/agent-orchestrator';
 
 describe('portfolio-engine-ctrl agent-service', () => {
   const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -28,10 +29,13 @@ describe('portfolio-engine-ctrl agent-service', () => {
     jest.clearAllMocks();
     ddbMock.reset();
     ddbMock.on(PutCommand).resolves({});
+    (resolveAgentRuntimeTarget as jest.Mock).mockResolvedValue(
+      'arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/test',
+    );
   });
 
-  it('should invoke orchestrator and return allocations + trades', async () => {
-    mockInvokeOrchestrator.mockResolvedValue({
+  it('should dispatch to AgentCore and return allocations + trades', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
       'portfolio-construction': { allocations: [{ instrument: 'VTI', targetWeight: 0.6 }] },
       'rebalance-planner': { trades: [{ action: 'BUY', instrument: 'VTI' }] },
     });
@@ -51,19 +55,23 @@ describe('portfolio-engine-ctrl agent-service', () => {
       metadata: expect.objectContaining({ modelTiers: ['opus', 'sonnet'] }),
     });
     expect(ddbMock).toHaveReceivedCommandTimes(PutCommand, 2); // IN_PROGRESS + COMPLETED
+    expect(dispatchAgentInvocation).toHaveBeenCalledWith(
+      expect.stringMatching(/^arn:/),
+      expect.objectContaining({ decisionId: 'dp-1' }),
+    );
   });
 
-  it('should propagate orchestrator errors', async () => {
-    mockInvokeOrchestrator.mockRejectedValue(new Error('Orchestrator failure'));
+  it('should propagate dispatcher errors', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockRejectedValue(new Error('Agent failure'));
 
     const service = createAgentService(deps);
     await expect(service.runPipeline('evt-2', {
       tenantId: 't1', decisionId: 'dp-2', taskToken: 'token',
-    })).rejects.toThrow('Orchestrator failure');
+    })).rejects.toThrow('Agent failure');
   });
 
   it('uses INV#${eventId} as the sk and adds attribute_not_exists condition + ttl on IN_PROGRESS write', async () => {
-    mockInvokeOrchestrator.mockResolvedValue({
+    (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
       'portfolio-construction': {},
       'rebalance-planner': {},
     });
@@ -116,7 +124,7 @@ describe('portfolio-engine-ctrl agent-service', () => {
       taskToken: 'tok',
     })).rejects.toThrow(DuplicateInvocationError);
 
-    // Bedrock must NOT have been called on the duplicate
-    expect(mockInvokeOrchestrator).not.toHaveBeenCalled();
+    // AgentCore must NOT have been called on the duplicate
+    expect(dispatchAgentInvocation).not.toHaveBeenCalled();
   });
 });
