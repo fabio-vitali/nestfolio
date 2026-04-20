@@ -129,6 +129,8 @@ done
 
 Expected: each `graph.ts` already wraps `createAgentNode(...)` with `withRetry` and `withFallback` (verified for `advisory-narrative-ctrl/agents/advisory-narrative/graph.ts:16-25`). If any service is missing the wrap, add a sub-task to Phase 3 for that service before deleting the in-process fallback.
 
+**Phase 0 finding (2026-04-20):** Only 2 of 5 services wrap explicitly at the graph.ts surface (`advisory-narrative-ctrl`, `market-intelligence-ctrl`). The other 3 (`advisory-ctrl`, `investor-profile-ctrl`, `portfolio-engine-ctrl`) use the `createOrchestrator` multi-agent pattern with declarative `retryOptions: { maxAttempts: 3 }` + per-agent `fallbacks` map — retry/fallback is present inside the compiled orchestrator graph, not as explicit wrapper calls. This is equivalent resilience, so **no extra sub-task needed** before deleting the in-process fallback in any of the 5 services. Also confirmed: the exported function names are `invokeNarrative`, `invokeMarketResearch`, `invokeDecisionLifecycle`, `invokeInvestorProfile`, `invokePortfolioEngine`.
+
 ### Task 4: Add `@aws-sdk/client-bedrock-agentcore` runtime dependency
 
 **Files:**
@@ -1309,17 +1311,17 @@ For each service, repeat the Phase 2 task pattern. The only per-service variatio
 ### Task 21: `advisory-ctrl`
 
 **Files:**
-- Modify: `services/advisory/advisory-ctrl/src/agent-service.ts`
+- Modify: `services/advisory/advisory-ctrl/src/services/decision-lifecycle.service.ts` (**not** `src/agent-service.ts` — this service groups ingress logic under `src/services/` instead of the flat layout the other 4 use; verified Phase 0)
 - Modify: `services/advisory/advisory-ctrl/src/service.stack.ts`
 - Modify: `services/advisory/advisory-ctrl/agents/decision-lifecycle/server.ts`
-- Modify: `services/advisory/advisory-ctrl/agents/decision-lifecycle/graph.ts`
+- Modify: `services/advisory/advisory-ctrl/agents/decision-lifecycle/graph.ts` (exported fn: `invokeDecisionLifecycle`)
 - Modify: `services/advisory/advisory-ctrl/test/mocks/mock-agent-runtime.ts`
 - Modify: `services/advisory/advisory-ctrl/test/integration/advisory-ctrl.integration.test.ts`
-- Modify: `services/advisory/advisory-ctrl/test/**` (any unit tests that referenced the in-process fallback)
+- Modify: `services/advisory/advisory-ctrl/test/unit/decision-lifecycle.service.test.ts` (the matching unit test)
 
 - [ ] **Step 1: Apply Phase 2 Tasks 13–19 to advisory-ctrl**
 
-Container directory is `agents/decision-lifecycle/`. The graph's exported function name will differ (likely `invokeDecisionLifecycle` or similar) — confirm by reading the file and apply the same envelope-accepting refactor.
+Container directory is `agents/decision-lifecycle/`, exported fn is `invokeDecisionLifecycle` (Phase 0 confirmed). The ingress dispatch lives in `src/services/decision-lifecycle.service.ts` — apply Task 15's refactor there, not to a non-existent `src/agent-service.ts`. Everything else follows the Phase 2 template verbatim.
 
 - [ ] **Step 2: Tests + build**
 
