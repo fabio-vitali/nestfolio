@@ -120,7 +120,10 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     const orchestration = new Orchestration(this, 'DecisionStateMachine', {
       state,
       definitionBody: decisionWorkflow.definitionBody,
-      triggers: [],  // No direct EB trigger — SF started via CDC chain
+      // Canonical start event: TriggerIngress materializes 11 heterogeneous triggers
+      // into a WorkflowTrigger row; Egress CDC emits WORKFLOW_TRIGGER_CREATED on INSERT,
+      // which is routed here to StartExecution. See flows/advisory-cycle.flow.yaml.
+      triggers: [DecisionWorkflowEventTypes.WORKFLOW_TRIGGER_CREATED],
       timeout: Duration.hours(72),
     });
     assemblePacketFn.grantInvoke(orchestration.stateMachine);
