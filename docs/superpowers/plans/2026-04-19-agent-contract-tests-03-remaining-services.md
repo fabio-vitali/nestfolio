@@ -20,7 +20,9 @@
 - [ ] Plan 1/3 merged to `main`.
 - [ ] Plan 2/3 merged to `main`. Verify:
   - `grep -n "AgentTraceTrap\|AGENT_TRACE_EVENTS" apps/e2e-feature-tests/src/helpers/agent-trace-trap.ts` shows the class + map.
-  - `pnpm nx run e2e-feature-tests:test-e2e-features -- --testPathPattern=view-decision-explanation` passes (narrative contract assertion green on sandbox).
+  - Plan 2 unit suite green: `pnpm nx test advisory-narrative-ctrl` (includes the emitter, the `invokeOrchestrator` wrap, and the CDK `events:PutEvents` grant assertion).
+
+**Plan 2 deferred the live e2e assertion**: neither `view-decision-explanation` nor `first-decision` exercise the narrative agent in sandbox today — see the "Sandbox pipeline-trigger gap" phase below. The narrative envelope wiring is verified by Plan 2's unit tests + stack assertion + successful deploy; the live-path assertion is rolled into this plan once the gap is closed.
 
 If either prerequisite fails, stop and land the missing plan first.
 
@@ -33,14 +35,16 @@ If either prerequisite fails, stop and land the missing plan first.
 
 ## Scope of this plan
 
-Five services + cross-phase wrap-up:
+Sandbox pipeline gap + five services + cross-phase wrap-up:
 
 | Phase | Service | Scenario(s) asserted |
 | --- | --- | --- |
+| 3.5 | **Sandbox pipeline-trigger gap** | **prerequisite** for every live assertion below |
 | 4 | `portfolio-engine-ctrl` | `rebalance-on-drift.e2e.test.ts` |
 | 5 | `investor-profile-ctrl` | `first-decision.e2e.test.ts` |
 | 6 | `advisory-ctrl` / `decision-lifecycle` | `first-decision`, `operating-mode-authority`, `reconciliation-correction` |
 | 7 | `market-intelligence-ctrl` | `first-decision.e2e.test.ts` (baseline) |
+| 7.5 | **advisory-narrative-ctrl live assertion** (deferred from Plan 2) | `first-decision.e2e.test.ts` |
 | 8 | `onboarding-bff` | deferred (no CopilotKit scenario exists) |
 | 9 | Cross-phase | full-repo green, MEMORY.md, optional C4 regen, deferral log |
 
@@ -87,6 +91,76 @@ Emitter DI at each service's `graph.ts`/`server.ts` is covered by `pnpm nx typec
 - Deploy single service: `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=<svc>`
 - Full-repo: `pnpm nx run-many -t test,lint,build,typecheck`
 - E2E run: `NODE_OPTIONS='--experimental-vm-modules' NESTFOLIO_INTEG_PREFIX=dev pnpm nx run e2e-feature-tests:test-e2e-features`
+
+---
+
+# Phase 3.5 — Sandbox pipeline-trigger gap (prerequisite)
+
+**Why this phase exists:** Plan 2 discovered (2026-04-20) that the deployed sandbox does not drive the advisory-narrative agent end-to-end from any existing e2e scenario:
+
+- `view-decision-explanation.e2e.test.ts` uses the synthetic `withDecision` fixture, which publishes `DECISION_PACKET_CREATED` directly to advisory-bff and never invokes the narrative agent. `recordExplanationView` is a pure BFF write of a `UserInteraction` item; no upstream signal fires.
+- `first-decision.e2e.test.ts` uses `withLiveDecision({trigger: 'MANDATE_CREATED'})`, but `aws stepfunctions list-executions` on `dev-decision-workflow-ctrl-decisionstatemachine` returns `[]` — the Step Function has **never executed** in sandbox. `withLiveDecision` returns a decisionId only because `advisory-ctrl` creates its own decision packet via the decision-lifecycle path, which short-circuits advisory-bff without going through `decision-workflow-ctrl`. Since `GENERATE_NARRATIVE` is only published from `decision-workflow-ctrl`'s state machine (`services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts:86`), the narrative agent is never invoked.
+
+The same gap blocks the live contract assertions in Phases 5, 6, and 7 for any agent whose invocation depends on `decision-workflow-ctrl`'s state machine.
+
+**Shippable outcome:** `dev-decision-workflow-ctrl-decisionstatemachine` executes when `withLiveDecision` publishes a trigger event, and each agent the SF orchestrates (investor-profile, portfolio-engine, market-intelligence, advisory-narrative) logs an invocation in CloudWatch during a fresh `first-decision` run.
+
+## Task 3.5.1 — Diagnose why decision-workflow-ctrl SF does not fire
+
+- [ ] **Step 1: Confirm the gap**
+
+```bash
+aws stepfunctions list-executions --region us-east-1 \
+  --state-machine-arn arn:aws:states:us-east-1:771924376645:stateMachine:dev-decision-workflow-ctrl-decisionstatemachine \
+  --max-results 5
+```
+
+If `executions: []`, the gap is still open. If there are executions, the gap is closed — verify each agent produced logs and skip to Task 3.5.3.
+
+- [ ] **Step 2: Trace the trigger chain**
+
+Expected chain: `EventBridge putEvent('MANDATE_CREATED') → decision-workflow-ctrl Ingress SQS → event-listener Lambda → WorkflowTrigger DDB write → CDC egress → DECISION_WORKFLOW_TRIGGERED → decision-state-machine start`.
+
+Check each hop in CloudWatch:
+
+```bash
+aws logs tail /aws/lambda/dev-decision-workflow-ctrl-IngressHandler<suffix> --region us-east-1 --since 30m
+aws logs tail /aws/lambda/dev-decision-workflow-ctrl-EgressPublisher<suffix> --region us-east-1 --since 30m
+```
+
+Also inspect `services/advisory/decision-workflow-ctrl/src/service.stack.ts` for the ingress subscription list and the SF-start wiring. Cross-check against `CLAUDE.md` which lists the expected subscriptions.
+
+- [ ] **Step 3: Narrow the break**
+
+Common suspects (investigate in order):
+1. Missing subscription on the decision-workflow-ctrl Ingress EB rule (CDK `eventTypes` prop missing `MANDATE_CREATED`).
+2. SF start wiring on Egress not firing (CDC handler not emitting, or SF `grantStartExecution` missing).
+3. advisory-ctrl and decision-workflow-ctrl both subscribe to `MANDATE_CREATED` — advisory-ctrl processes it first and the message is consumed before decision-workflow-ctrl sees it (investigate the SQS/EB fanout; each service should have its own queue).
+4. Stale service — `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=decision-workflow-ctrl` may be needed.
+
+Report findings in this task's checklist before moving to the fix.
+
+## Task 3.5.2 — Close the gap
+
+- [ ] **Step 1:** Implement the fix identified in Task 3.5.1. Likely touches `services/advisory/decision-workflow-ctrl/src/service.stack.ts` or the handler chain.
+- [ ] **Step 2:** Redeploy `decision-workflow-ctrl`.
+- [ ] **Step 3:** Run `pnpm nx run e2e-feature-tests:test-e2e-features --testPathPatterns=first-decision` and confirm a fresh SF execution appears in `aws stepfunctions list-executions`.
+
+## Task 3.5.3 — Verify every agent the SF orchestrates is reachable
+
+- [ ] **Step 1:** With a successful `first-decision` run (Task 3.5.2 Step 3), confirm each agent's CloudWatch log group has a fresh invocation:
+
+```bash
+for svc in investor-profile-ctrl portfolio-engine-ctrl market-intelligence-ctrl advisory-narrative-ctrl; do
+  aws logs describe-log-groups --region us-east-1 \
+    --log-group-name-prefix "/aws/bedrock-agentcore/runtimes/${svc//-/_}" \
+    --query 'logGroups[].logGroupName' --output text
+done
+```
+
+- [ ] **Step 2:** If any log group is empty, the SF is not reaching that agent — this is a second gap (agent invocation step missing from the SF definition). Fix before proceeding to Phase 4.
+
+**Do not start Phase 4 until Task 3.5.3 is green.** Per-agent contract assertions below assume the SF drives each agent on every `first-decision` run.
 
 ---
 
@@ -1217,6 +1291,42 @@ git commit -m "test(e2e): assert market-intelligence contract in first-decision 
 - [ ] **Step 2:** `audit-service` on `market-intelligence-ctrl`; commit card if drifted.
 
 **Phase 7 success criteria:** market-intelligence emits + `first-decision` asserts baseline contract (1+ LLM call, no errors, under latency budget).
+
+---
+
+# Phase 7.5 — advisory-narrative-ctrl live assertion (deferred from Plan 2)
+
+**Why this phase exists:** Plan 2 deployed the emitter + stack grant + `AgentTraceTrap` class for advisory-narrative-ctrl and verified them at unit and CDK-assertion level. The live-path e2e assertion was deferred because no scenario actually invoked the narrative agent in sandbox (see Phase 3.5). Phase 3.5 closes that gap; this phase adds the contract block now that `first-decision` drives the narrative agent end-to-end.
+
+**Shippable outcome:** `first-decision.e2e.test.ts` asserts `advisoryNarrative` contract alongside investor-profile, decision-lifecycle, market-intelligence contracts added in prior phases.
+
+**Files:**
+- Modify: `apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts` (add narrativeTrap arming + assertion block)
+
+## Task 7.5.1 — Add narrative contract block to `first-decision.e2e.test.ts`
+
+- [ ] **Step 1:** Add `AgentTraceTrap` import if not already present from earlier phases.
+- [ ] **Step 2:** In `beforeEach`, arm `narrativeTrap = await AgentTraceTrap.arm(ctx, 'advisoryNarrative')` BEFORE `applyFixtures`. If other traps are already armed (from Phases 5–7), add narrativeTrap alongside them — each trap is independent.
+- [ ] **Step 3:** After the live decisionId is returned from `withLiveDecision`, add:
+
+```ts
+const narrativeTraces = await narrativeTrap.waitFor({
+  correlationId: decisionId,
+  timeoutMs: 120_000,
+});
+const narrative = narrativeTraces[0].envelope;
+expect(narrative.status).toBe('success');
+expect(narrative.errors).toHaveLength(0);
+expect(narrative.toolCalls).toHaveLength(0);
+expect(narrative.llmCalls.length).toBeGreaterThanOrEqual(1);
+expect(narrative.llmCalls[0]['gen_ai.request.model']).toBe('sonnet');
+expect(narrative['gen_ai.invocation.latency_ms']).toBeLessThan(narrativeTrap.getLatencyBudget());
+```
+
+- [ ] **Step 4:** Bump the test's overall `it()` timeout if the combined trap waits exceed 240_000 ms.
+- [ ] **Step 5:** `NODE_OPTIONS='--experimental-vm-modules' NESTFOLIO_INTEG_PREFIX=dev pnpm nx run e2e-feature-tests:test-e2e-features --testPathPatterns=first-decision` — green.
+
+**Phase 7.5 success criteria:** narrative contract asserted in the live-pipeline scenario; Plan 2's deferred assertion is no longer outstanding.
 
 ---
 

@@ -558,6 +558,15 @@ git commit -m "feat(e2e): add AgentTraceTrap class (narrative-only scaffold)"
 
 ## Task 3.6 — Deploy + e2e assertion
 
+> **DEFERRAL (2026-04-20):** Steps 3–5 are deferred to Plan 3/3 Phase 7.5 after execution of this plan surfaced a sandbox pipeline-trigger gap. Keep Steps 1–2 (deploy + log verification). Skip Steps 3–5 and do NOT add a narrative contract block to `view-decision-explanation.e2e.test.ts` or any other scenario as part of Plan 2.
+>
+> **Why deferred:**
+> - `view-decision-explanation.e2e.test.ts` uses the synthetic `withDecision` fixture which publishes `DECISION_PACKET_CREATED` directly to advisory-bff; it does not invoke the narrative agent. `recordExplanationView` is a pure BFF write of a `UserInteraction` item.
+> - `first-decision.e2e.test.ts` uses `withLiveDecision`, but `aws stepfunctions list-executions` on `dev-decision-workflow-ctrl-decisionstatemachine` returns `[]` — the Step Function has never executed in sandbox. `GENERATE_NARRATIVE` is only published from that SF (`services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts:86`), so the narrative agent is never invoked on any existing scenario.
+> - The narrative emitter, `invokeOrchestrator` wrap, and CDK `events:PutEvents` grant are all verified by Plan 2's unit test suite (`pnpm nx test advisory-narrative-ctrl` — 35/35 green) and by a successful sandbox deploy. Only the live-path delivery assertion is deferred.
+>
+> **Tracked in Plan 3:** see Phase 3.5 (close the pipeline gap) + Phase 7.5 (add the deferred narrative contract block to `first-decision.e2e.test.ts` once Phase 3.5 is green).
+
 - [ ] **Step 1: Deploy to sandbox**
 
 Run: `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=advisory-narrative-ctrl`

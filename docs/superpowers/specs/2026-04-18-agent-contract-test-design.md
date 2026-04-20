@@ -57,9 +57,10 @@ e2e test                              deployed agent runtime (Lambda)
                                                         │
                                                         └─ return response to AgentCore Runtime
                                        
-3. traces = await waitForAgentTraces(ctx, {agent, correlationId, minCount})
-4. expect(traces[0].envelope).toMatchObject(...)
-5. trap teardown via ctx.cleanup (already registered by EventBusTrap)
+3. trap = await AgentTraceTrap.arm(ctx, agentKey)   // BEFORE the trigger
+4. traces = await trap.waitFor({correlationId, minCount})
+5. expect(traces[0].envelope).toMatchObject(...)
+6. trap teardown via ctx.cleanup (already registered by EventBusTrap)
 ```
 
 ### Component ownership
@@ -74,7 +75,7 @@ e2e test                              deployed agent runtime (Lambda)
 | `invokeOrchestrator` (extended) | `libs/agent-orchestrator/src/invoke-orchestrator.ts` | Wires tracer → emitter. No event names, no bus names. |
 | `{SERVICE}_AGENT_INVOCATION_TRACED` event | each `services/.../src/domain/events.ts` | Service-owned. Each service declares its own name. |
 | CDK env wiring | each `services/.../src/service.stack.ts` | `EVENT_BUS_NAME`, `SERVICE_NAME` — most services already set these. |
-| `AGENT_TRACE_EVENTS` map + `waitForAgentTraces` | `apps/e2e-feature-tests/src/helpers/agent-trace.ts` | Imports each service's event catalog. Only place with system-wide view. |
+| `AGENT_TRACE_EVENTS` map + `AgentTraceTrap` class | `apps/e2e-feature-tests/src/helpers/agent-trace-trap.ts` | Imports each service's event catalog. Only place with system-wide view. |
 | Per-scenario assertions | existing `*.e2e.test.ts` files under `apps/e2e-feature-tests/src/` | Use helper via short label. |
 
 ### What changes vs. what doesn't
@@ -82,7 +83,7 @@ e2e test                              deployed agent runtime (Lambda)
 **Changes:**
 - `libs/agent-orchestrator/` gains `AgentTracer`, `TraceEmitter` interface, `EventBridgeTraceEmitter`, `NoopTraceEmitter`, plus extensions to `invokeOrchestrator`.
 - Six agent-emitting services each add one event declaration to their `domain/events.ts` and ~3 lines of wiring in their agent server file (`agents/<agent-name>/server.ts`, uniform across all six services).
-- `apps/e2e-feature-tests/src/helpers/agent-trace.ts` is new.
+- `apps/e2e-feature-tests/src/helpers/agent-trace-trap.ts` is new (exports the `AgentTraceTrap` class).
 - Existing scenarios under `apps/e2e-feature-tests/src/advisory/` gain assertion blocks.
 
 **Does not change:**
@@ -490,83 +491,102 @@ All agent-emitting services already set `EVENT_BUS_NAME` for their existing even
 
 The AgentCore Runtime's execution role must have `events:PutEvents` on its domain bus. Services that already emit domain events from their runtime have this; services that only consumed events before now need the grant added. Concretely, the plan phase must verify and extend `AgentRuntime` construct wiring in each service stack so `bus.grantPutEventsTo(runtime.grantPrincipal)` is invoked.
 
-## 9. E2E harness — `waitForAgentTraces`
+## 9. E2E harness — `AgentTraceTrap` class
+
+The harness is a small class that wraps `EventBusTrap`, bound to a single agent key at arm time. This shape mirrors how e2e scenarios actually use it: arm once in `beforeEach`, call `.waitFor({correlationId})` after the trigger. The class replaces the earlier free-function sketch (`waitForAgentTraces`) because:
+- Scenarios need to arm BEFORE the trigger runs; a free function that does "deploy then poll" in one call encourages the opposite (deploy after the trigger → miss events).
+- Per-agent latency budgets belong with the trap instance, not as a parameter on every `waitFor` call.
+- The agent key is static for the life of the scenario; keeping it on the instance eliminates repeated lookup and prevents accidental agent-key typos after the first `arm()`.
 
 ```ts
-// apps/e2e-feature-tests/src/helpers/agent-trace.ts
-import type { TestContext } from '@nestfolio/test-support';
+// apps/e2e-feature-tests/src/helpers/agent-trace-trap.ts
 import { EventBusTrap } from '@nestfolio/integration-testing';
-import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
-import { PortfolioEngineCtrlEventTypes } from '@nestfolio/portfolio-engine-ctrl/events';
-import { AdvisoryNarrativeCtrlEventTypes } from '@nestfolio/advisory-narrative-ctrl/events';
-import { InvestorProfileCtrlEventTypes } from '@nestfolio/investor-profile-ctrl/events';
-import { MarketIntelligenceCtrlEventTypes } from '@nestfolio/market-intelligence-ctrl/events';
-import type { AgentTraceEnvelope } from '@nestfolio/agent-orchestrator';
+import type { TestContext } from '@nestfolio/test-support';
+import type { AgentTraceEventDetail } from '@nestfolio/agent-orchestrator';
+import { NarrativeEventTypes } from '@nestfolio/advisory-narrative-ctrl/events';
 
-import { OnboardingBffEventTypes } from '@nestfolio/onboarding-bff/events';
-
-export const AGENT_TRACE_EVENTS = {
-  decisionLifecycle:  { bus: 'advisory', detailType: AdvisoryCtrlEventTypes.DECISION_LIFECYCLE_AGENT_INVOCATION_TRACED },
-  portfolioEngine:    { bus: 'advisory', detailType: PortfolioEngineCtrlEventTypes.PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED },
-  advisoryNarrative:  { bus: 'advisory', detailType: AdvisoryNarrativeCtrlEventTypes.ADVISORY_NARRATIVE_AGENT_INVOCATION_TRACED },
-  investorProfile:    { bus: 'advisory', detailType: InvestorProfileCtrlEventTypes.INVESTOR_PROFILE_AGENT_INVOCATION_TRACED },
-  marketIntelligence: { bus: 'advisory', detailType: MarketIntelligenceCtrlEventTypes.MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED },
-  onboarding:         { bus: 'investor', detailType: OnboardingBffEventTypes.ONBOARDING_AGENT_INVOCATION_TRACED },
-} as const;
+const AGENT_TRACE_EVENTS = {
+  advisoryNarrative: {
+    bus: 'advisory' as const,
+    detailType: NarrativeEventTypes.ADVISORY_NARRATIVE_AGENT_INVOCATION_TRACED,
+  },
+  // Additional agent entries are added in Plan 3 as each service opts in.
+};
 
 export type AgentKey = keyof typeof AGENT_TRACE_EVENTS;
 
-export interface AgentTraceEvent {
-  context: { tenantId: string };
-  correlationId: string;
-  agent: string;
-  envelope: AgentTraceEnvelope;
-  emittedAt: string;
-}
+const DEFAULT_LATENCY_BUDGETS_MS = {
+  advisoryNarrative: 15_000,
+  portfolioEngine: 45_000,
+  decisionLifecycle: 60_000,
+  investorProfile: 30_000,
+  marketIntelligence: 30_000,
+  onboarding: 30_000,
+} as const;
 
-export interface WaitForAgentTracesOptions {
-  agent: AgentKey;
+export interface WaitForOptions {
   correlationId: string;
   minCount?: number;
   timeoutMs?: number;
+  pollIntervalMs?: number;
 }
 
-export async function waitForAgentTraces(
-  ctx: TestContext,
-  opts: WaitForAgentTracesOptions,
-): Promise<AgentTraceEvent[]> {
-  const { bus, detailType } = AGENT_TRACE_EVENTS[opts.agent];
-  const minCount = opts.minCount ?? 1;
-  const timeoutMs = opts.timeoutMs ?? 60_000;
+export class AgentTraceTrap<K extends AgentKey> {
+  private constructor(
+    private readonly trap: EventBusTrap,
+    public readonly agent: K,
+    private readonly detailType: string,
+  ) {}
 
-  const trap = new EventBusTrap(ctx);
-  await trap.deploy({ bus, detailType });
-
-  const deadline = Date.now() + timeoutMs;
-  const collected: AgentTraceEvent[] = [];
-
-  while (Date.now() < deadline) {
-    const events = await trap.drain();
-    for (const e of events) {
-      const detail = e.detail as AgentTraceEvent;
-      if (detail.correlationId === opts.correlationId) collected.push(detail);
-    }
-    if (collected.length >= minCount) return collected;
-    await new Promise(r => setTimeout(r, 1000));
+  /** Arm the trap. Call BEFORE any fixture or action that can invoke the agent. */
+  static async arm<K extends AgentKey>(ctx: TestContext, agent: K): Promise<AgentTraceTrap<K>> {
+    const entry = AGENT_TRACE_EVENTS[agent];
+    const trap = new EventBusTrap(ctx);
+    await trap.deploy({ bus: entry.bus, detailType: entry.detailType });
+    return new AgentTraceTrap(trap, agent, entry.detailType);
   }
 
-  throw new Error(
-    `waitForAgentTraces timed out after ${timeoutMs}ms. agent=${opts.agent} ` +
-    `correlationId=${opts.correlationId} expected>=${minCount} got=${collected.length}`,
-  );
+  /** Poll for trace events matching correlationId. */
+  async waitFor(opts: WaitForOptions): Promise<AgentTraceEventDetail[]> {
+    // drain + filter by detailType and correlationId, poll until minCount (default 1)
+    // or timeoutMs (default 60_000). Throws with a hint that .arm() was likely
+    // called too late when the timeout fires.
+  }
+
+  /** Per-agent soft latency budget in ms; overridable via AGENT_LATENCY_BUDGET_MS_<KEY>. */
+  getLatencyBudget(): number { /* returns default or env override */ }
 }
 ```
 
+**Usage pattern (from `view-decision-explanation.e2e.test.ts`):**
+
+```ts
+let narrativeTrap: AgentTraceTrap<'advisoryNarrative'>;
+
+beforeEach(async () => {
+  ctx = await createTestContext();
+  tenant = await freshTenant(ctx);
+  // ARM BEFORE applyFixtures — the narrative fires during decision finalisation.
+  narrativeTrap = await AgentTraceTrap.arm(ctx, 'advisoryNarrative');
+  const result = await applyFixtures(ctx, tenant, [onboarded(), withDecision(...)]);
+  decisionId = result.decisionId;
+});
+
+it('...', async () => {
+  // ... trigger + primary assertions ...
+  const traces = await narrativeTrap.waitFor({ correlationId: decisionId });
+  expect(traces[0].envelope.status).toBe('success');
+  expect(traces[0].envelope['gen_ai.invocation.latency_ms'])
+    .toBeLessThan(narrativeTrap.getLatencyBudget());
+});
+```
+
 **Important behaviour notes:**
-- The `EventBusTrap` must be initialised **before** the trigger event is published (otherwise the rule isn't live when events flow through). Scenarios create the trap right after `applyFixtures` and right before the action that triggers the agent.
-- `EventBusTrap` has built-in canary warmup — `deploy()` does not return until the EB rule is provably delivering to the SQS queue.
+- `AgentTraceTrap.arm()` must be called **before** the trigger event is published (otherwise the EB rule isn't live when events flow through). In practice that means arming at the top of `beforeEach`, before `applyFixtures` — because fixtures like `withDecision` run the decision cycle synchronously and will invoke the agent.
+- `EventBusTrap.deploy()` has built-in canary warmup — it does not return until the EB rule is provably delivering to the SQS queue.
 - `ctx.cleanup` (registered by `EventBusTrap.deploy()`) tears down the SQS queue + EB rule at scenario end.
-- `OrphanReaper` (already in `libs/integration-testing`) cleans up any queues/rules that leak, older than 1 hour.
+- `OrphanReaper` (in `libs/integration-testing`) cleans up any queues/rules that leak, older than 1 hour.
+- The `AGENT_TRACE_EVENTS` map grows one entry at a time as each service rolls in (see §11 Rollout order). Plan 2 adds only `advisoryNarrative`; Plan 3 adds the remaining five.
 
 ## 10. Per-agent contract assertions
 
@@ -628,12 +648,10 @@ expect(t['gen_ai.invocation.latency_ms']).toBeLessThan(45_000);
 
 ### `advisory-narrative` (advisory-narrative-ctrl)
 
-Sonnet. Single-node agent. 0 tools.
+Sonnet. Single-node agent. 0 tools. `narrativeTrap` is armed in `beforeEach` before `applyFixtures`.
 
 ```ts
-const traces = await waitForAgentTraces(ctx, {
-  agent: 'advisoryNarrative', correlationId: decisionId, minCount: 1,
-});
+const traces = await narrativeTrap.waitFor({ correlationId: decisionId });
 const t = traces[0].envelope;
 
 expect(t.status).toBe('success');
@@ -641,7 +659,7 @@ expect(t.errors).toHaveLength(0);
 expect(t.toolCalls).toHaveLength(0);
 expect(t.llmCalls.length).toBeGreaterThanOrEqual(1);
 expect(t.llmCalls[0]['gen_ai.request.model']).toBe('sonnet');
-expect(t['gen_ai.invocation.latency_ms']).toBeLessThan(15_000);
+expect(t['gen_ai.invocation.latency_ms']).toBeLessThan(narrativeTrap.getLatencyBudget());
 ```
 
 ### `investor-profile` (investor-profile-ctrl)
@@ -722,9 +740,12 @@ for (const trace of traces) {
 
 ## 11. Rollout order
 
+**Prerequisite — sandbox pipeline-trigger gap (discovered 2026-04-20 during Plan 2 execution):**
+Before any live-path e2e assertion on the five advisory-side agents, `dev-decision-workflow-ctrl-decisionstatemachine` must actually execute when `withLiveDecision` publishes a trigger event. During Plan 2, `aws stepfunctions list-executions` on that SF returned `[]` — `advisory-ctrl` short-circuits the decision packet into advisory-bff without invoking the SF, so `GENERATE_NARRATIVE` (published only from `decision-state-machine.ts:86`) never fires. All five advisory agents depend on the SF firing; closing this gap is the first task of Plan 3 (Phase 3.5) and unblocks the live assertions in the phases below.
+
 Services are instrumented one at a time; one PR per service, ordered lowest-risk-first so the pattern hardens against real cases before the most complex agents are touched.
 
-1. **`advisory-narrative-ctrl`** — single-node, 0 tools, shortest graph. Proves `AgentTracer` + emitter wiring end-to-end. First assertion block lands in `view-decision-explanation.e2e.test.ts`.
+1. **`advisory-narrative-ctrl`** — single-node, 0 tools, shortest graph. Proves `AgentTracer` + emitter wiring end-to-end. **Live assertion originally planned for `view-decision-explanation.e2e.test.ts` was deferred** (that scenario uses the synthetic `withDecision` fixture and does not invoke the narrative agent). After the Phase 3.5 pipeline fix, the assertion lands in `first-decision.e2e.test.ts` alongside the other advisory agents — see Plan 3 Phase 7.5.
 2. **`portfolio-engine-ctrl`** — 0 tools, parallel-node topology. Validates `nodeSequence` capture across parallel branches. Asserted in `rebalance-on-drift.e2e.test.ts`.
 3. **`investor-profile-ctrl`** — RAG-only, parallel fan-out. Validates that retriever-driven invocations produce well-formed envelopes. Asserted in the onboarding-related scenario (if one exists; otherwise in a dedicated investor-profile scenario added later).
 4. **`advisory-ctrl/decision-lifecycle`** — full multi-tier + 4 tools. Asserted in `first-decision.e2e.test.ts`, `operating-mode-authority.e2e.test.ts`, `reconciliation-correction.e2e.test.ts`.
