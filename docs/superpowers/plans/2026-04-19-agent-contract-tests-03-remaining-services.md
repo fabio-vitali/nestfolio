@@ -105,62 +105,39 @@ The same gap blocks the live contract assertions in Phases 5, 6, and 7 for any a
 
 **Shippable outcome:** `dev-decision-workflow-ctrl-decisionstatemachine` executes when `withLiveDecision` publishes a trigger event, and each agent the SF orchestrates (investor-profile, portfolio-engine, market-intelligence, advisory-narrative) logs an invocation in CloudWatch during a fresh `first-decision` run.
 
-## Task 3.5.1 — Diagnose why decision-workflow-ctrl SF does not fire
+## Diagnosis (2026-04-20 — completed, escalated)
 
-- [ ] **Step 1: Confirm the gap**
+Diagnosis was run on 2026-04-20. The gap is **not** a stale deploy and **not** one of the four "common suspects" originally enumerated. Two distinct architectural defects were identified:
 
-```bash
-aws stepfunctions list-executions --region us-east-1 \
-  --state-machine-arn arn:aws:states:us-east-1:771924376645:stateMachine:dev-decision-workflow-ctrl-decisionstatemachine \
-  --max-results 5
-```
+### Defect 1 — Ingress Lambdas + EB rules absent from the deployed stack
+- `aws events list-rules --event-bus-name dev-advisory-event-bus --name-prefix dev-decision-workflow-ctrl` → `{"Rules": []}`.
+- Deployed log groups: only `AssemblePacket` + `EgressPublisher` — **no `IngressHandler*` log groups exist**.
+- CloudFormation stack `dev-decision-workflow-ctrl` is `UPDATE_COMPLETE` as of 2026-04-17 07:48 UTC.
+- The code declares `TriggerIngress` + `CallbackIngress` via `new Ingress(...)` in `services/advisory/decision-workflow-ctrl/src/service.stack.ts:130-144`, but neither is present in AWS. Likely cause: stale deploy **or** a `cdk-constructs` `Ingress` bug when instantiated twice against the same `State`. `cdk synth` diff will confirm which.
 
-If `executions: []`, the gap is still open. If there are executions, the gap is closed — verify each agent produced logs and skip to Task 3.5.3.
+### Defect 2 — No `StartExecution` wiring ANYWHERE
+This is the bigger problem. Even if the Ingresses were redeployed, the Step Function would still not start.
+- `grep -rn "startExecution\|grantStartExecution\|StartExecution" services/advisory/decision-workflow-ctrl/` → **no matches**.
+- `service.stack.ts:120-125` instantiates `Orchestration` with `triggers: []` and the comment *"No direct EB trigger — SF started via CDC chain"*.
+- `event-listener.ts` comment claims *"CDK EventBridge rule starts Step Functions when CDC publishes WORKFLOW_TRIGGER_CREATED"* — **but no such EB-rule-to-SF target is declared in the stack**, and no Lambda handler calls `sfn:StartExecution` on that event either.
+- The CDC chain terminates at `WORKFLOW_TRIGGER_CREATED` on the advisory bus with **no subscriber**.
 
-- [ ] **Step 2: Trace the trigger chain**
+### Consequence
+Closing this gap requires architectural design work that is **out of scope for this plan**:
+- Add an `EventBus → SF` target on `WORKFLOW_TRIGGER_CREATED` (clean: matches the "CDC chain" design comment; needs `Orchestration` construct extension or a raw `events.Rule` with `SfnStateMachine` target), **OR**
+- Add a third `Ingress` whose handler calls `sfn:StartExecution` on `WORKFLOW_TRIGGER_CREATED` (imperative; less clean), **OR**
+- Collapse the CDC hop: have `TriggerIngress`'s event-listener call `StartExecution` directly after the DDB write (shortest path; diverges from stated design).
 
-Expected chain: `EventBridge putEvent('MANDATE_CREATED') → decision-workflow-ctrl Ingress SQS → event-listener Lambda → WorkflowTrigger DDB write → CDC egress → DECISION_WORKFLOW_TRIGGERED → decision-state-machine start`.
+## Task 3.5.* — SUPERSEDED
 
-Check each hop in CloudWatch:
+Phase 3.5 tasks have been delegated to a separate plan that owns the architectural decision and the full fix+redeploy+verification loop:
 
-```bash
-aws logs tail /aws/lambda/dev-decision-workflow-ctrl-IngressHandler<suffix> --region us-east-1 --since 30m
-aws logs tail /aws/lambda/dev-decision-workflow-ctrl-EgressPublisher<suffix> --region us-east-1 --since 30m
-```
+- Location: `docs/superpowers/plans/2026-04-20-decision-workflow-sf-start-wiring.md` (create separately via `superpowers:brainstorming` + `superpowers:writing-plans`).
+- Exit criteria for that plan:
+  1. `aws stepfunctions list-executions --state-machine-arn arn:aws:states:us-east-1:771924376645:stateMachine:dev-decision-workflow-ctrl-decisionstatemachine` shows a fresh execution after a `first-decision` run.
+  2. Each of the four advisory agents (investor-profile, portfolio-engine, market-intelligence, advisory-narrative) shows a fresh invocation in `/aws/bedrock-agentcore/runtimes/<svc>*` CloudWatch log group during that run.
 
-Also inspect `services/advisory/decision-workflow-ctrl/src/service.stack.ts` for the ingress subscription list and the SF-start wiring. Cross-check against `CLAUDE.md` which lists the expected subscriptions.
-
-- [ ] **Step 3: Narrow the break**
-
-Common suspects (investigate in order):
-1. Missing subscription on the decision-workflow-ctrl Ingress EB rule (CDK `eventTypes` prop missing `MANDATE_CREATED`).
-2. SF start wiring on Egress not firing (CDC handler not emitting, or SF `grantStartExecution` missing).
-3. advisory-ctrl and decision-workflow-ctrl both subscribe to `MANDATE_CREATED` — advisory-ctrl processes it first and the message is consumed before decision-workflow-ctrl sees it (investigate the SQS/EB fanout; each service should have its own queue).
-4. Stale service — `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=decision-workflow-ctrl` may be needed.
-
-Report findings in this task's checklist before moving to the fix.
-
-## Task 3.5.2 — Close the gap
-
-- [ ] **Step 1:** Implement the fix identified in Task 3.5.1. Likely touches `services/advisory/decision-workflow-ctrl/src/service.stack.ts` or the handler chain.
-- [ ] **Step 2:** Redeploy `decision-workflow-ctrl`.
-- [ ] **Step 3:** Run `pnpm nx run e2e-feature-tests:test-e2e-features --testPathPatterns=first-decision` and confirm a fresh SF execution appears in `aws stepfunctions list-executions`.
-
-## Task 3.5.3 — Verify every agent the SF orchestrates is reachable
-
-- [ ] **Step 1:** With a successful `first-decision` run (Task 3.5.2 Step 3), confirm each agent's CloudWatch log group has a fresh invocation:
-
-```bash
-for svc in investor-profile-ctrl portfolio-engine-ctrl market-intelligence-ctrl advisory-narrative-ctrl; do
-  aws logs describe-log-groups --region us-east-1 \
-    --log-group-name-prefix "/aws/bedrock-agentcore/runtimes/${svc//-/_}" \
-    --query 'logGroups[].logGroupName' --output text
-done
-```
-
-- [ ] **Step 2:** If any log group is empty, the SF is not reaching that agent — this is a second gap (agent invocation step missing from the SF definition). Fix before proceeding to Phase 4.
-
-**Do not start Phase 4 until Task 3.5.3 is green.** Per-agent contract assertions below assume the SF drives each agent on every `first-decision` run.
+**Do not start Phase 4 of this plan until the sf-start-wiring plan is merged to `main` and both exit criteria are verified green in sandbox.** Every live e2e assertion in Phases 4–7 will time out otherwise.
 
 ---
 
