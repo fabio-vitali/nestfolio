@@ -46,4 +46,7 @@ export { type TraceEmitter, type EmitContext } from './emitters/types';
 export { EventBridgeTraceEmitter, type EventBridgeTraceEmitterOptions } from './emitters/eventbridge-emitter';
 export { NoopTraceEmitter } from './emitters/noop-emitter';
 
-export { resolveAgentRuntimeUrl, invokeRemoteRuntime } from './resolve-runtime-url';
+export { resolveAgentRuntimeTarget } from './resolve-runtime-target';
+export { dispatchAgentInvocation } from './dispatch-runtime';
+export { invokeAgentCoreRuntime } from './invoke-agentcore';
+export { invokeMockRuntime } from './invoke-mock';
