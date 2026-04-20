@@ -12,6 +12,7 @@ import {
   SsmOverrideFixture,
   OrphanReaper,
 } from '@nestfolio/integration-testing';
+import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 
 /**
  * advisory-ctrl integration tests — all 15 ingress events.
@@ -85,13 +86,22 @@ describe('advisory-ctrl', () => {
       handlerAsset: readFileSync(zipPath),
     });
 
-    // Override SSM to point to mock (crash-safe)
+    // Read canonical SSM value (must be an AgentCore runtime ARN after deploy)
+    const paramName = `/nestfolio/${ctx.prefix}-advisory-ctrl/agent/runtimeUrl`;
+    const ssm = new SSMClient({ region: ctx.region });
+    const canonical = await ssm.send(new GetParameterCommand({ Name: paramName }));
+    const restoreTo = canonical.Parameter!.Value!;
+    if (!restoreTo.startsWith('arn:')) {
+      throw new Error(
+        `Expected canonical SSM value to be an AgentCore runtime ARN, got: ${restoreTo}. ` +
+        `Stack may not be deployed, or a prior test run left a mock URL behind. ` +
+        `Re-deploy advisory-ctrl before re-running integration tests.`,
+      );
+    }
+
+    // Override SSM to point to mock (crash-safe — restores to runtime ARN on cleanup)
     const ssmOverride = new SsmOverrideFixture(ctx);
-    await ssmOverride.override({
-      paramName: `/nestfolio/${ctx.prefix}-advisory-ctrl/agent/runtimeUrl`,
-      testValue: mockUrl,
-      restoreTo: 'DISABLED',
-    });
+    await ssmOverride.override({ paramName, testValue: mockUrl, restoreTo });
 
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
