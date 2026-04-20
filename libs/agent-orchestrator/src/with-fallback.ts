@@ -4,9 +4,9 @@ export function withFallback(
   node: AgentNodeFn,
   fallbackFn: (input: Record<string, unknown>) => Record<string, unknown>,
 ): AgentNodeFn {
-  return async (state: Record<string, unknown>): Promise<Record<string, unknown>> => {
+  return async (state, config) => {
     try {
-      return await node(state);
+      return await node(state, config);
     } catch {
       return fallbackFn(state);
     }

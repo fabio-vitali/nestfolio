@@ -2,8 +2,9 @@
 import { z } from 'zod';
 import type { AgentConfig } from '../src/types';
 
+const mockInvoke = jest.fn().mockResolvedValue({ value: 'test-output' });
 const mockWithStructuredOutput = jest.fn().mockReturnValue({
-  invoke: jest.fn().mockResolvedValue({ value: 'test-output' }),
+  invoke: mockInvoke,
 });
 const MockChatBedrockConverse = jest.fn().mockImplementation(() => ({
   withStructuredOutput: mockWithStructuredOutput,
@@ -58,5 +59,34 @@ describe('createAgentNode (generic)', () => {
         model: 'anthropic.claude-opus-4-6-20250501-v1:0',
       }),
     );
+  });
+});
+
+describe('createAgentNode — RunnableConfig propagation', () => {
+  const testSchema = z.object({ value: z.string() });
+  const config: AgentConfig<typeof testSchema> = {
+    modelId: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+    maxTokens: 1024,
+    temperature: 0.0,
+    schema: testSchema,
+    promptTemplate: '{input}',
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('forwards RunnableConfig to structured.invoke so LangChain callbacks propagate', async () => {
+    const node = createAgentNode(config);
+    const mockCallback = { name: 'test-callback' };
+    const runnableConfig = { callbacks: [mockCallback] };
+
+    await node({ input: 'hello' }, runnableConfig as any);
+
+    expect(mockInvoke).toHaveBeenCalledWith('hello', runnableConfig);
+  });
+
+  it('passes undefined config through when invoked without one', async () => {
+    const node = createAgentNode(config);
+    await node({ input: 'hello' });
+    expect(mockInvoke).toHaveBeenCalledWith('hello', undefined);
   });
 });

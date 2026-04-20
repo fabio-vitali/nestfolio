@@ -32,6 +32,6 @@ describe('withValidation', () => {
     const node = jest.fn().mockResolvedValue({ value: 'ok' });
     const validated = withValidation(node, passingRule);
     await validated({ some: 'state' });
-    expect(node).toHaveBeenCalledWith({ some: 'state' });
+    expect(node).toHaveBeenCalledWith({ some: 'state' }, undefined);
   });
 });
