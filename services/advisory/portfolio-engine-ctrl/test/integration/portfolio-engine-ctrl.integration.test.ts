@@ -12,6 +12,7 @@ import {
   SsmOverrideFixture,
   OrphanReaper,
 } from '@nestfolio/integration-testing';
+import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 
 /**
  * portfolio-engine-ctrl integration test — event-listener path only (agent NOT invoked).
@@ -57,12 +58,20 @@ describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB wri
       handlerAsset: readFileSync(zipPath),
     });
 
+    const paramName = `/nestfolio/${ctx.prefix}-portfolio-engine-ctrl/agent/runtimeUrl`;
+    const ssm = new SSMClient({ region: ctx.region });
+    const canonical = await ssm.send(new GetParameterCommand({ Name: paramName }));
+    const restoreTo = canonical.Parameter!.Value!;
+    if (!restoreTo.startsWith('arn:')) {
+      throw new Error(
+        `Expected canonical SSM value to be an AgentCore runtime ARN, got: ${restoreTo}. ` +
+        `Stack may not be deployed, or a prior test run left a mock URL behind. ` +
+        `Re-deploy portfolio-engine-ctrl before re-running integration tests.`,
+      );
+    }
+
     const ssmOverride = new SsmOverrideFixture(ctx);
-    await ssmOverride.override({
-      paramName: `/nestfolio/${ctx.prefix}-portfolio-engine-ctrl/agent/runtimeUrl`,
-      testValue: mockUrl,
-      restoreTo: 'DISABLED',
-    });
+    await ssmOverride.override({ paramName, testValue: mockUrl, restoreTo });
 
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
