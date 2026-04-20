@@ -102,12 +102,9 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
     ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
     agentRuntimeUrlParam.grantRead(ingress.handler);
 
-    // Grant the ingress handler permission to invoke the AgentCore runtime.
-    ingress.handler.addToRolePolicy(new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ['bedrock-agentcore:InvokeAgentRuntime'],
-      resources: [runtimeArn],
-    }));
+    // Grant the ingress handler permission to invoke the AgentCore runtime
+    // (covers both runtime ARN and its endpoint sub-resource).
+    agentRuntime.grantInvoke(ingress.handler);
 
     // Grant the AgentRuntime role permission to emit trace envelopes to the
     // advisory bus (consumed by e2e AgentTraceTrap and contract test assertions).

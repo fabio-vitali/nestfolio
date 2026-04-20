@@ -117,11 +117,9 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
     agentRuntimeUrlParam.grantRead(ingress.handler);
 
-    ingress.handler.addToRolePolicy(new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ['bedrock-agentcore:InvokeAgentRuntime'],
-      resources: [runtimeArn],
-    }));
+    // Grants InvokeAgentRuntime on both the runtime ARN and its endpoint ARNs
+    // (at invoke time the SDK targets .../runtime-endpoint/DEFAULT).
+    agentRuntime.grantInvoke(ingress.handler);
 
     this.addObservability({
       ingress,

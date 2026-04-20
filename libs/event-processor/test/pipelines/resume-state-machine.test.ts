@@ -138,10 +138,13 @@ describe('resumeStateMachine', () => {
 
     const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'token-789' }));
 
+    // error = short code (err.name), cause = long description (err.message).
+    // The previous order violated the SendTaskFailure 256-char cap on `error`
+    // when err.message was long (e.g. full AccessDeniedException text).
     expect(sfnMock).toHaveReceivedCommandWith(SendTaskFailureCommand, {
       taskToken: 'token-789',
-      error: 'agent failed',
-      cause: 'Error',
+      error: 'Error',
+      cause: 'agent failed',
     });
     // Error is retryable by default, so record appears in failures
     expect(result.batchItemFailures).toHaveLength(1);

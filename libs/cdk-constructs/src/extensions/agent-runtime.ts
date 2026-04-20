@@ -120,4 +120,21 @@ export class AgentRuntime extends Construct {
       this.gateway.grantInvoke(this.runtime);
     }
   }
+
+  /**
+   * Grant a Lambda (or any IAM grantable) permission to call
+   * bedrock-agentcore:InvokeAgentRuntime on both the runtime ARN and ALL its
+   * endpoint ARNs. The runtime ARN alone is insufficient — at invoke time the
+   * SDK targets the endpoint resource (e.g. .../runtime-endpoint/DEFAULT).
+   */
+  grantInvoke(grantee: iam.IGrantable): void {
+    const runtimeArn = this.runtime.agentRuntimeArn;
+    grantee.grantPrincipal.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['bedrock-agentcore:InvokeAgentRuntime'],
+        resources: [runtimeArn, `${runtimeArn}/runtime-endpoint/*`],
+      }),
+    );
+  }
 }

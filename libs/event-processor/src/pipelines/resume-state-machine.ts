@@ -70,10 +70,13 @@ export function resumeStateMachine(
         const err = error instanceof Error ? error : new Error(String(error));
 
         try {
+          // SendTaskFailure field limits: error <= 256 chars, cause <= 32768 chars.
+          // Convention: `error` is the short error code (err.name), `cause` is the
+          // human-readable description (err.message). Truncate both defensively.
           await sfnClient.send(new SendTaskFailureCommand({
             taskToken,
-            error: err.message,
-            cause: err.name,
+            error: (err.name || 'Error').slice(0, 256),
+            cause: (err.message || '').slice(0, 32768),
           }));
         } catch (sfnError) {
           logger.error('Failed to send task failure to SFN', { sfnError, originalError: err.message });
