@@ -16,11 +16,6 @@ export class AdvisoryCtrlStack extends ServiceStack {
 
     const state = new State(this, 'State');
 
-    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
-      parameterName: `/nestfolio/${props.prefix}-advisory-ctrl/agent/runtimeUrl`,
-      stringValue: 'DISABLED',
-    });
-
     const ingress = new Ingress(this, 'Ingress', {
       state,
       // Bundle prompt .txt files as inline strings so they are available in /var/task at runtime.
@@ -64,9 +59,6 @@ export class AdvisoryCtrlStack extends ServiceStack {
         AdvisoryBffEventTypes.USER_REJECTED,
       ],
     });
-
-    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
-    agentRuntimeUrlParam.grantRead(ingress.handler);
 
     const egress = new Egress(this, 'Egress', {
       state,
@@ -134,7 +126,7 @@ export class AdvisoryCtrlStack extends ServiceStack {
       }),
     );
 
-    new AgentRuntime(this, 'AgentRuntime', {
+    const agentRuntime = new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'advisory_ctrl_decision_lifecycle',
       agentCodePath: join(__dirname, '..', 'agents', 'decision-lifecycle'),
       description: 'Multi-agent decision lifecycle orchestrated via LangGraph.js',
@@ -173,6 +165,23 @@ export class AdvisoryCtrlStack extends ServiceStack {
         },
       ],
     });
+
+    // SSM-published runtime target. Defaults to the real AgentCore runtime ARN;
+    // integration tests redirect via SsmOverrideFixture to a Function URL.
+    const runtimeArn = agentRuntime.runtime.agentRuntimeArn;
+    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
+      parameterName: `/nestfolio/${props.prefix}-advisory-ctrl/agent/runtimeUrl`,
+      stringValue: runtimeArn,
+    });
+    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
+    agentRuntimeUrlParam.grantRead(ingress.handler);
+
+    // Grant the ingress handler permission to invoke the AgentCore runtime.
+    ingress.handler.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['bedrock-agentcore:InvokeAgentRuntime'],
+      resources: [runtimeArn],
+    }));
 
     this.addObservability({
       ingress,

@@ -6,6 +6,7 @@ import {
   type CompiledGraph,
   type MemoryClient,
   type AgentInvocation,
+  type ServiceUnavailableResponse,
 } from '@nestfolio/agent-orchestrator';
 import { AGENT_CONFIGS, DECISION_LIFECYCLE_WAVES } from '../../src/agents/config';
 import { VALIDATION_RULES } from '../../src/agents/validation';
@@ -59,10 +60,14 @@ export async function invokeDecisionLifecycle(
     {},
   );
 
-  // Persist all agent outputs to memory
-  if (!('serviceUnavailable' in result)) {
-    await session.writeAgentOutput(result);
+  // Throw on service unavailable so the container emits a 500 via createAgentServer
+  if ('serviceUnavailable' in result) {
+    const unavailable = result as ServiceUnavailableResponse;
+    throw new Error(`Agent orchestrator unavailable: ${unavailable.reason}`);
   }
+
+  // Persist all agent outputs to memory
+  await session.writeAgentOutput(result);
 
   return result;
 }
