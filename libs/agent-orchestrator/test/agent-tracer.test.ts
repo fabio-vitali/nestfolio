@@ -35,6 +35,24 @@ describe('extract helpers', () => {
     expect(extractModelTier({ kwargs: {} } as any)).toBe('unknown');
     expect(extractModelTier({ kwargs: { model: 'us.amazon.nova-pro-v1:0' } } as any)).toBe('unknown');
   });
+  it('extractModelTier falls back to extraParams and metadata when kwargs.model is absent', () => {
+    // ChatBedrockConverse invoked via withStructuredOutput omits kwargs.model;
+    // LangChain surfaces the id via extraParams.invocation_params.model and
+    // metadata.ls_model_name. Classifier must cover these paths.
+    expect(
+      extractModelTier(
+        { id: ['langchain', 'chat_models', 'RunnableSequence'] } as any,
+        { invocation_params: { model: 'us.anthropic.claude-opus-4-6-v1' } },
+      ),
+    ).toBe('opus');
+    expect(
+      extractModelTier(
+        { kwargs: {} } as any,
+        undefined,
+        { ls_model_name: 'us.anthropic.claude-sonnet-4-6' },
+      ),
+    ).toBe('sonnet');
+  });
   it('extractToolName reads kwargs.name first, then last id segment', () => {
     expect(extractToolName({ kwargs: { name: 'portfolio-lookup' } } as any)).toBe('portfolio-lookup');
     expect(extractToolName({ id: ['tools', 'market-data'] } as any)).toBe('market-data');

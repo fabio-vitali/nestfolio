@@ -95,8 +95,16 @@ export class AgentTracer extends BaseCallbackHandler {
   }
 
   // LangChain signature: (llm, prompts, runId, parentRunId?, extraParams?, tags?, metadata?, runName?)
-  handleLLMStart(llm: Serialized, _prompts: string[], runId: string, parentRunId?: string): void {
-    const model = extractModelTier(llm);
+  handleLLMStart(
+    llm: Serialized,
+    _prompts: string[],
+    runId: string,
+    parentRunId?: string,
+    extraParams?: Record<string, unknown>,
+    _tags?: string[],
+    metadata?: Record<string, unknown>,
+  ): void {
+    const model = extractModelTier(llm, extraParams, metadata);
     this.pendingLlm.set(runId, { model, startedAtMs: Date.now(), node: this.nodeFor(parentRunId) });
   }
 
@@ -211,14 +219,32 @@ export function extractNodeName(chain: Serialized | undefined): string | undefin
   return undefined;
 }
 
-export function extractModelTier(llm: Serialized | undefined): ModelTier | 'unknown' {
-  const kwargs = (llm as { kwargs?: { model?: string; modelName?: string; model_id?: string } } | undefined)?.kwargs;
-  const modelId = kwargs?.model ?? kwargs?.modelName ?? kwargs?.model_id ?? '';
-  if (/haiku/i.test(modelId)) return 'haiku';
-  if (/opus/i.test(modelId)) return 'opus';
-  if (/sonnet/i.test(modelId)) return 'sonnet';
-  // Deliberately NOT defaulting to sonnet: an unknown model id should fail
-  // assertions loudly rather than masquerade as the expected tier.
+export function extractModelTier(
+  llm: Serialized | undefined,
+  extraParams?: Record<string, unknown>,
+  metadata?: Record<string, unknown>,
+): ModelTier | 'unknown' {
+  if (!llm) return 'unknown';
+  const kwargs = (llm as { kwargs?: { model?: string; modelName?: string; model_id?: string } }).kwargs;
+  // Primary: known kwargs keys (portable across LangChain chat models).
+  const kwargsModelId = kwargs?.model ?? kwargs?.modelName ?? kwargs?.model_id ?? '';
+  const fromKwargs = classifyTier(kwargsModelId);
+  if (fromKwargs !== 'unknown') return fromKwargs;
+  // Secondary: LangChain's tracing metadata often carries the model id under
+  // ls_model_name (LangSmith convention) or invocation_params.model.
+  const fromExtra = classifyTier(JSON.stringify(extraParams ?? {}));
+  if (fromExtra !== 'unknown') return fromExtra;
+  const fromMeta = classifyTier(JSON.stringify(metadata ?? {}));
+  if (fromMeta !== 'unknown') return fromMeta;
+  // Fallback: scan the entire Serialized for tier keywords before giving up.
+  // Intentionally does NOT default to sonnet.
+  return classifyTier(JSON.stringify(llm));
+}
+
+function classifyTier(text: string): ModelTier | 'unknown' {
+  if (/haiku/i.test(text)) return 'haiku';
+  if (/opus/i.test(text)) return 'opus';
+  if (/sonnet/i.test(text)) return 'sonnet';
   return 'unknown';
 }
 
