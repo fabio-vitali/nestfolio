@@ -16,6 +16,7 @@ module.exports = {
     '^@nestfolio/investor-bff/events$': '<rootDir>/../../services/investor/investor-bff/src/domain/events.ts',
     '^@nestfolio/advisory-ctrl/events$': '<rootDir>/../../services/advisory/advisory-ctrl/src/domain/events.ts',
     '^@nestfolio/advisory-narrative-ctrl/events$': '<rootDir>/../../services/advisory/advisory-narrative-ctrl/src/domain/events.ts',
+    '^@nestfolio/portfolio-engine-ctrl/events$': '<rootDir>/../../services/advisory/portfolio-engine-ctrl/src/domain/events.ts',
     '^@nestfolio/investor-ctrl/events$': '<rootDir>/../../services/investor/investor-ctrl/src/domain/events.ts',
     '^@nestfolio/ledger-ctrl/events$': '<rootDir>/../../services/ledger/ledger-ctrl/src/domain/events.ts',
     '^@nestfolio/broker-ctrl/events$': '<rootDir>/../../services/execution/broker-ctrl/src/domain/events.ts',

@@ -2,11 +2,16 @@ import { EventBusTrap } from '@nestfolio/integration-testing';
 import type { TestContext } from '@nestfolio/test-support';
 import type { AgentTraceEventDetail } from '@nestfolio/agent-orchestrator';
 import { NarrativeEventTypes } from '@nestfolio/advisory-narrative-ctrl/events';
+import { PortfolioEngineEventTypes } from '@nestfolio/portfolio-engine-ctrl/events';
 
 const AGENT_TRACE_EVENTS = {
   advisoryNarrative: {
     bus: 'advisory' as const,
     detailType: NarrativeEventTypes.ADVISORY_NARRATIVE_AGENT_INVOCATION_TRACED,
+  },
+  portfolioEngine: {
+    bus: 'advisory' as const,
+    detailType: PortfolioEngineEventTypes.PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED,
   },
 };
 
