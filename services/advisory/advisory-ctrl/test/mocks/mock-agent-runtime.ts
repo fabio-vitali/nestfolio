@@ -4,7 +4,16 @@ function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
   return { statusCode, body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } };
 }
 
-export async function handler(_event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+/**
+ * Mock agent runtime for advisory-ctrl integration tests.
+ *
+ * Mirrors the real container's contract:
+ * - Body is `{ tenantId, decisionId, upstreamOutputs }` (AgentInvocation envelope).
+ * - Response is the agent result JSON directly (no `{response, status}` envelope).
+ */
+export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+  const _payload = event.body ? JSON.parse(event.body) : {}; // parse to validate shape
+  void _payload;
   return json(200, {
     'user-goals': {
       goals: [{ description: 'Mock growth goal', priority: 'HIGH', timeHorizon: 'LONG_TERM' }],
