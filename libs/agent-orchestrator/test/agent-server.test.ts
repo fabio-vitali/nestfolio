@@ -1,68 +1,44 @@
 import { createAgentServer } from '../src/agent-server';
 
 describe('createAgentServer', () => {
-  const mockHandler = jest.fn();
-
-  beforeEach(() => {
-    mockHandler.mockReset();
-  });
-
-  it('GET /ping returns healthy status', async () => {
-    const app = createAgentServer(mockHandler);
-    const res = await app.request('/ping');
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toEqual({ status: 'healthy' });
-  });
-
-  it('POST /invocations calls handler with prompt and session ID', async () => {
-    mockHandler.mockResolvedValue('agent response text');
-    const app = createAgentServer(mockHandler);
+  it('passes the structured envelope and session-id header to the handler and returns its JSON', async () => {
+    const handler = jest.fn().mockResolvedValue({ summary: 'ok', confidence: 0.9 });
+    const app = createAgentServer(handler);
 
     const res = await app.request('/invocations', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'X-Amzn-Bedrock-AgentCore-Runtime-Session-Id': 'session-abc',
+        'content-type': 'application/json',
+        'x-amzn-bedrock-agentcore-runtime-session-id': 't1/d1',
       },
-      body: JSON.stringify({ prompt: 'What is risk?' }),
+      body: JSON.stringify({
+        tenantId: 't1', decisionId: 'd1', upstreamOutputs: { score: 7 },
+      }),
     });
 
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toEqual({ response: 'agent response text', status: 'success' });
-    expect(mockHandler).toHaveBeenCalledWith('What is risk?', 'session-abc');
+    expect(await res.json()).toEqual({ summary: 'ok', confidence: 0.9 });
+    expect(handler).toHaveBeenCalledWith(
+      { tenantId: 't1', decisionId: 'd1', upstreamOutputs: { score: 7 } },
+      't1/d1',
+    );
   });
 
-  it('POST /invocations handles missing prompt gracefully', async () => {
-    mockHandler.mockResolvedValue('empty prompt response');
-    const app = createAgentServer(mockHandler);
-
+  it('returns 500 with {error} on handler throw', async () => {
+    const app = createAgentServer(async () => { throw new Error('boom'); });
     const res = await app.request('/invocations', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ tenantId: 't1', decisionId: 'd1', upstreamOutputs: {} }),
     });
-
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.status).toBe('success');
-    expect(mockHandler).toHaveBeenCalledWith('', '');
-  });
-
-  it('POST /invocations returns 500 on handler error', async () => {
-    mockHandler.mockRejectedValue(new Error('Model unavailable'));
-    const app = createAgentServer(mockHandler);
-
-    const res = await app.request('/invocations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: 'test' }),
-    });
-
     expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body.status).toBe('error');
-    expect(body.error).toContain('Model unavailable');
+    expect(await res.json()).toEqual({ error: 'boom' });
+  });
+
+  it('answers GET /ping with healthy', async () => {
+    const app = createAgentServer(async () => ({}));
+    const res = await app.request('/ping');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: 'healthy' });
   });
 });
