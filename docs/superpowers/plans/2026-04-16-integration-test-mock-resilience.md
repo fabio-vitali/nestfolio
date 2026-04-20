@@ -1,5 +1,22 @@
 # Integration Test Mock Resilience — Implementation Plan
 
+> **SUPERSEDED (2026-04-20):** The agent-runtime mocking sections of this plan
+> describe a URL-based design (`resolveAgentRuntimeUrl()` + `invokeRemoteRuntime()`,
+> SSM defaults to the literal `'DISABLED'`, in-process fallback) that was replaced
+> by the AgentCore data-plane transport landed on `main` (commits ef83923e → c83d0d46).
+> The current shape is `resolveAgentRuntimeTarget()` + `dispatchAgentInvocation()`
+> with the `AgentInvocation = { tenantId, decisionId, upstreamOutputs }` envelope.
+> SSM polarity is inverted: each service's `AgentRuntimeUrlParam` defaults to the
+> deployed AgentCore runtime ARN, ingress Lambdas are granted
+> `bedrock-agentcore:InvokeAgentRuntime`, and integration tests read the canonical
+> SSM ARN as `restoreTo` before overriding to a mock Function URL. There is no
+> in-process fallback — misconfiguration throws. See
+> `.claude/skills/create-integration-test/SKILL.md` Pattern E for the canonical
+> setup and
+> `services/advisory/advisory-narrative-ctrl/test/integration/advisory-narrative-ctrl.integration.test.ts`
+> as the reference test. The OrphanReaper / StateResetFixture / crash-safe
+> SsmOverrideFixture sections remain accurate.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make integration tests crash-safe and prevent accidental real API calls (Bedrock, Alpaca) by fixing stale state, adding crash-safe SSM overrides, cleaning orphaned resources, and adding mock agent runtimes to 5 Bedrock services.

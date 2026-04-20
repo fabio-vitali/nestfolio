@@ -1,7 +1,24 @@
 # Integration Test Mock Resilience
 
+> **SUPERSEDED (2026-04-20):** Section 4 (Mock Agent Runtime) describes a URL-based
+> design (`resolveAgentRuntimeUrl()` + `invokeRemoteRuntime()`, SSM defaults to
+> `'DISABLED'`, in-process fallback) that was replaced by the AgentCore data-plane
+> transport landed on `main` (commits ef83923e → c83d0d46). The current shape is
+> `resolveAgentRuntimeTarget()` + `dispatchAgentInvocation()` with the
+> `AgentInvocation = { tenantId, decisionId, upstreamOutputs }` envelope. SSM
+> polarity is inverted: each service's `AgentRuntimeUrlParam` defaults to the
+> deployed AgentCore runtime ARN, ingress Lambdas are granted
+> `bedrock-agentcore:InvokeAgentRuntime`, and integration tests read the canonical
+> SSM ARN as `restoreTo` before overriding to a mock Function URL. There is no
+> in-process fallback — misconfiguration throws. See
+> `.claude/skills/create-integration-test/SKILL.md` Pattern E for the canonical
+> setup and
+> `services/advisory/advisory-narrative-ctrl/test/integration/advisory-narrative-ctrl.integration.test.ts`
+> as the reference test. Sections 1–3 (OrphanReaper / crash-safe SsmOverrideFixture
+> / StateResetFixture) remain accurate.
+
 **Date:** 2026-04-16
-**Status:** Approved
+**Status:** Approved (Section 4 superseded — see banner above)
 **Scope:** Shared test infrastructure (`integration-testing`, `test-support`) + per-service integration tests
 
 ## Problem
