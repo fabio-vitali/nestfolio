@@ -5,10 +5,17 @@ function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
 }
 
 /**
- * Mock agent runtime for market-intelligence-ctrl.
- * Returns canned market research agent output.
+ * Mock agent runtime for market-intelligence-ctrl integration tests.
+ *
+ * Mirrors the real container's contract:
+ * - Body is `{ tenantId, decisionId, upstreamOutputs }` (AgentInvocation envelope).
+ * - Response is the agent result JSON directly (no `{response, status}` envelope).
  */
-export async function handler(_event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+  const payload = event.body ? JSON.parse(event.body) : {};
+  if (!payload.tenantId || !payload.decisionId) {
+    return json(400, { error: 'Missing required AgentInvocation fields: tenantId, decisionId' });
+  }
   return json(200, {
     signals: [
       { indicator: 'VIX', value: 18.5, interpretation: 'LOW_VOLATILITY' },
