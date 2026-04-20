@@ -7,6 +7,7 @@ import {
   createKBClient,
   createMemoryClient,
   createNoOpMemoryClient,
+  type AgentInvocation,
   type KBClient,
   type MemoryClient,
 } from '@nestfolio/agent-orchestrator';
@@ -41,19 +42,18 @@ function buildMemoryClient(): MemoryClient {
   });
 }
 
-export async function invokeMarketResearch(params: {
-  tenantId: string;
-  decisionId: string;
-  input: string;
-}): Promise<Record<string, unknown>> {
+export async function invokeMarketResearch(
+  payload: AgentInvocation,
+): Promise<Record<string, unknown>> {
   const memory = buildMemoryClient();
-  const session = memory.openDecisionSession(params.tenantId, params.decisionId);
+  const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
   const kb = buildKBClient();
 
   // 1. Retrieve market intelligence from KB (news, sentiment, macro)
+  const seed = JSON.stringify(payload.upstreamOutputs);
   let kbContext = '';
   if (kb) {
-    const kbResults = await kb.retrieve(params.input, 5);
+    const kbResults = await kb.retrieve(seed, 5);
     if (kbResults.length > 0) {
       kbContext = `\n\nMarket intelligence from knowledge base:\n${kbResults.map((r) => r.text).join('\n')}`;
     }
@@ -75,8 +75,10 @@ export async function invokeMarketResearch(params: {
     'Instrument universe': instrumentUniverse,
   });
 
-  // 4. Invoke agent
-  const enrichedInput = params.input + kbContext + upstreamContext + toolContext;
+  // 4. Invoke agent with enriched input
+  const enrichedInput =
+    `Decision ${payload.decisionId} context: ${seed}` +
+    kbContext + upstreamContext + toolContext;
   const result = await agentNode({ input: enrichedInput });
 
   // 5. Persist to memory
