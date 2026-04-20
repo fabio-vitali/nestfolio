@@ -20,12 +20,6 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
 
     const state = new State(this, 'State');
 
-    // SSM param for mock agent runtime URL (set to DISABLED by default; overridden in integration tests)
-    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
-      parameterName: `/nestfolio/${props.prefix}-market-intelligence-ctrl/agent/runtimeUrl`,
-      stringValue: 'DISABLED',
-    });
-
     // Knowledge Base: Market Intelligence (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'MarketKB', {
       kbName: 'market',
@@ -55,9 +49,6 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
         'AgentInvocation': { insert: MarketIntelligenceEventTypes.MARKET_SIGNAL_DETECTED },
       },
     });
-
-    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
-    agentRuntimeUrlParam.grantRead(ingress.handler);
 
     // KB ingestion Lambda (separate from event-listener)
     const kbIngestionFn = new NodejsFunction(this, 'KBIngestion', {
@@ -105,7 +96,7 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     }));
 
     // AgentRuntime
-    new AgentRuntime(this, 'AgentRuntime', {
+    const agentRuntime = new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'market_intelligence_agents',
       agentCodePath: join(__dirname, '..', 'agents', 'market-intelligence'),
       description: 'market-research (Sonnet) single agent with tool access',
@@ -117,6 +108,23 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
         TABLE_NAME: state.getTable().tableName,
       },
     });
+
+    // SSM-published runtime target. Defaults to the real AgentCore runtime ARN;
+    // integration tests redirect via SsmOverrideFixture to a Function URL.
+    const runtimeArn = agentRuntime.runtime.agentRuntimeArn;
+    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
+      parameterName: `/nestfolio/${props.prefix}-market-intelligence-ctrl/agent/runtimeUrl`,
+      stringValue: runtimeArn,
+    });
+    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
+    agentRuntimeUrlParam.grantRead(ingress.handler);
+
+    // Grant the ingress handler permission to invoke the AgentCore runtime.
+    ingress.handler.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['bedrock-agentcore:InvokeAgentRuntime'],
+      resources: [runtimeArn],
+    }));
 
     this.addObservability({
       ingress,
