@@ -8,6 +8,7 @@ import {
   TableAssertions,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
+import { SFNClient, ListExecutionsCommand } from '@aws-sdk/client-sfn';
 
 /**
  * decision-workflow-ctrl integration tests — trigger paths + CDC chain.
@@ -79,11 +80,52 @@ async function waitForTriggerRecord(
   );
 }
 
+/**
+ * Poll Step Functions ListExecutions until an execution started after `since`
+ * appears on the given state machine ARN. Returns the execution metadata.
+ */
+async function waitForSfExecution(
+  sfn: SFNClient,
+  params: {
+    stateMachineArn: string;
+    since: Date;
+    timeoutMs?: number;
+  },
+): Promise<{ executionArn: string; startDate: Date; name: string }> {
+  const timeout = params.timeoutMs ?? 60_000;
+  const pollInterval = 2_000;
+  const deadline = Date.now() + timeout;
+
+  while (Date.now() < deadline) {
+    const resp = await sfn.send(new ListExecutionsCommand({
+      stateMachineArn: params.stateMachineArn,
+      maxResults: 20,
+    }));
+    const fresh = (resp.executions ?? []).find(
+      (e) => e.startDate && new Date(e.startDate) >= params.since,
+    );
+    if (fresh?.executionArn && fresh.startDate && fresh.name) {
+      return {
+        executionArn: fresh.executionArn,
+        startDate: new Date(fresh.startDate),
+        name: fresh.name,
+      };
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+  }
+
+  throw new Error(
+    `Timeout: no SF execution on ${params.stateMachineArn} started after ${params.since.toISOString()} within ${timeout}ms`,
+  );
+}
+
 describe('decision-workflow-ctrl', () => {
   let ctx: TestContext;
   let eb: EventBridgeClient;
   let trap: EventBusTrap;
   let table: TableAssertions;
+  let sfn: SFNClient;
+  let stateMachineArn: string;
 
   beforeAll(async () => {
     ctx = await createTestContext();
@@ -91,6 +133,13 @@ describe('decision-workflow-ctrl', () => {
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
+
+    sfn = new SFNClient({ region: process.env.AWS_REGION ?? 'us-east-1' });
+    const prefix = process.env.NESTFOLIO_INTEG_PREFIX ?? 'integ';
+    // ctx.accountId is not exposed by @nestfolio/test-support; resolve via STS.
+    const sts = new (await import('@aws-sdk/client-sts')).STSClient({});
+    const ident = await sts.send(new (await import('@aws-sdk/client-sts')).GetCallerIdentityCommand({}));
+    stateMachineArn = `arn:aws:states:${process.env.AWS_REGION ?? 'us-east-1'}:${ident.Account}:stateMachine:${prefix}-decision-workflow-ctrl-decisionstatemachine`;
 
     // Trap CDC events emitted by decision-workflow-ctrl Egress
     await trap.deploy({
@@ -120,8 +169,9 @@ describe('decision-workflow-ctrl', () => {
 
   // ── TriggerIngress: MANDATE_CREATED ────────────────────────────────
 
-  it('should write WorkflowTrigger on MANDATE_CREATED and emit CDC event', async () => {
+  it('should write WorkflowTrigger on MANDATE_CREATED, emit CDC, and start SF', async () => {
     const mandateId = `integ-mandate-${Date.now()}`;
+    const testStart = new Date();
 
     await eb.putEvent({
       bus: 'advisory',
@@ -138,7 +188,6 @@ describe('decision-workflow-ctrl', () => {
     });
 
     // Verify: WorkflowTrigger written to DDB
-    // record() default keys: pk = T#<tenantId>, sk = WorkflowTrigger#<eventId>
     const item = await waitForTriggerRecord(table, {
       table: 'decision-workflow-ctrl',
       pk: `T#${ctx.tenantId}`,
@@ -158,7 +207,15 @@ describe('decision-workflow-ctrl', () => {
     });
     expect(cdcEvent.detail.subject.trigger).toBe('MANDATE_CREATED');
     expect(cdcEvent.detail.subject.tenantId).toBe(ctx.tenantId);
-  }, 120_000);
+
+    // Verify: the canonical event starts an SF execution
+    const execution = await waitForSfExecution(sfn, {
+      stateMachineArn,
+      since: testStart,
+      timeoutMs: 90_000,
+    });
+    expect(execution.executionArn).toContain('decisionstatemachine');
+  }, 180_000);
 
   // ── TriggerIngress: GOAL_CREATED ───────────────────────────────────
 
