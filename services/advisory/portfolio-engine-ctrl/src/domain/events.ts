@@ -5,6 +5,7 @@ export const PortfolioEngineEventTypes = {
   PORTFOLIO_COMPLETED: eventName('PORTFOLIO_COMPLETED'),
   PORTFOLIO_CONSTRUCTION_PROPOSED: eventName('PORTFOLIO_CONSTRUCTION_PROPOSED'),
   REBALANCE_PLAN_PRODUCED: eventName('REBALANCE_PLAN_PRODUCED'),
+  PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED: eventName('PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED'),
 } as const;
 
 /** Inbound event types consumed by portfolio-engine-ctrl */
