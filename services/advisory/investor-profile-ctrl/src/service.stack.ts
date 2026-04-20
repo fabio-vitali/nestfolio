@@ -16,11 +16,6 @@ export class InvestorProfileCtrlStack extends ServiceStack {
 
     const state = new State(this, 'State');
 
-    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
-      parameterName: `/nestfolio/${props.prefix}-investor-profile-ctrl/agent/runtimeUrl`,
-      stringValue: 'DISABLED',
-    });
-
     // Knowledge Base: Regulatory & Compliance (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'RegulatoryKB', {
       kbName: 'regulatory',
@@ -42,9 +37,6 @@ export class InvestorProfileCtrlStack extends ServiceStack {
         paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       },
     });
-
-    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
-    agentRuntimeUrlParam.grantRead(ingress.handler);
 
     // Egress: CDC events
     const egress = new Egress(this, 'Egress', {
@@ -103,7 +95,7 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     }));
 
     // AgentRuntime (no tool Lambdas for this service — RAG only)
-    new AgentRuntime(this, 'AgentRuntime', {
+    const agentRuntime = new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'investor_profile_agents',
       agentCodePath: join(__dirname, '..', 'agents', 'investor-profile'),
       description: 'user-goals (Haiku) + risk-assessment (Opus) parallel orchestration',
@@ -116,6 +108,20 @@ export class InvestorProfileCtrlStack extends ServiceStack {
         TABLE_NAME: state.getTable().tableName,
       },
     });
+
+    const runtimeArn = agentRuntime.runtime.agentRuntimeArn;
+    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
+      parameterName: `/nestfolio/${props.prefix}-investor-profile-ctrl/agent/runtimeUrl`,
+      stringValue: runtimeArn,
+    });
+    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
+    agentRuntimeUrlParam.grantRead(ingress.handler);
+
+    ingress.handler.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['bedrock-agentcore:InvokeAgentRuntime'],
+      resources: [runtimeArn],
+    }));
 
     this.addObservability({
       ingress,
