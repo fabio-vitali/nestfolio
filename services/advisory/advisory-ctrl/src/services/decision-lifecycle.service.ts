@@ -1,11 +1,9 @@
 import { logger, type BusEvent, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import type { ProposedTrade } from '../domain/models';
-import { createOrchestrator, invokeOrchestrator, type ServiceUnavailableResponse, resolveAgentRuntimeUrl, invokeRemoteRuntime } from '@nestfolio/agent-orchestrator';
-import { AGENT_CONFIGS, DECISION_LIFECYCLE_WAVES, AGENT_TYPES } from '../agents/config';
-import { DecisionLifecycleState, type DecisionLifecycleStateType } from '../agents/state';
-import { FALLBACK_MAP } from '../agents/fallbacks';
-import { VALIDATION_RULES } from '../agents/validation';
+import { resolveAgentRuntimeTarget, dispatchAgentInvocation } from '@nestfolio/agent-orchestrator';
+import { AGENT_TYPES } from '../agents/config';
+import { type DecisionLifecycleStateType } from '../agents/state';
 import { DecisionRepository } from '../repositories/decision.repository';
 
 export interface DecisionContext {
@@ -25,14 +23,6 @@ export interface DecisionResult {
 
 export class DecisionLifecycleService {
   private readonly log = withMethodLogging('DecisionLifecycleService');
-
-  private readonly graph = createOrchestrator({
-    waves: DECISION_LIFECYCLE_WAVES,
-    stateAnnotation: DecisionLifecycleState,
-    agents: AGENT_CONFIGS,
-    fallbacks: FALLBACK_MAP,
-    validationRules: VALIDATION_RULES,
-  });
 
   constructor(private readonly repository: DecisionRepository) {}
 
@@ -102,20 +92,14 @@ export class DecisionLifecycleService {
   });
 
   private async runAgentPipeline(context: DecisionContext): Promise<DecisionLifecycleStateType> {
-    const runtimeUrl = await resolveAgentRuntimeUrl();
-
-    if (runtimeUrl) {
-      return invokeRemoteRuntime<DecisionLifecycleStateType>(runtimeUrl, context);
-    }
-
-    const result = await invokeOrchestrator(this.graph, { input: JSON.stringify(context) });
-
-    if ('serviceUnavailable' in result && (result as ServiceUnavailableResponse).serviceUnavailable) {
-      const unavailable = result as ServiceUnavailableResponse;
-      throw new Error(`Agent pipeline unavailable: ${unavailable.reason}`);
-    }
-
-    return result as DecisionLifecycleStateType;
+    const target = await resolveAgentRuntimeTarget();
+    const tenantId = context.requestContext.tenantId;
+    const decisionId = context.triggerEvent.id;
+    return dispatchAgentInvocation<DecisionLifecycleStateType>(target, {
+      tenantId,
+      decisionId,
+      upstreamOutputs: context as unknown as Record<string, unknown>,
+    });
   }
 
   private extractTrades(result: DecisionLifecycleStateType): ProposedTrade[] {
