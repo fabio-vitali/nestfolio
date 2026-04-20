@@ -16,11 +16,6 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
 
     const state = new State(this, 'State');
 
-    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
-      parameterName: `/nestfolio/${props.prefix}-portfolio-engine-ctrl/agent/runtimeUrl`,
-      stringValue: 'DISABLED',
-    });
-
     // Knowledge Base: Fund & Instrument (S3 Vectors — managed by Bedrock)
     const kb = new KnowledgeBase(this, 'FundKB', {
       kbName: 'fund',
@@ -67,8 +62,6 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     kb.bucket.grantWrite(kbIngestionFn);
     kbIngestionFn.addToRolePolicy(kb.triggerSyncPolicy());
 
-    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
-    agentRuntimeUrlParam.grantRead(ingress.handler);
 
     // Model SSM params from advisory-hub
     const hubNaming = new NamingService({ prefix: props.prefix, subsystem: 'advisory', service: 'advisory-hub' });
@@ -103,7 +96,7 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     }));
 
     // AgentRuntime
-    new AgentRuntime(this, 'AgentRuntime', {
+    const agentRuntime = new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'portfolio_engine_agents',
       agentCodePath: join(__dirname, '..', 'agents', 'portfolio-engine'),
       description: 'portfolio-construction (Opus) + rebalance-planner (Sonnet) parallel orchestration',
@@ -116,6 +109,23 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
         TABLE_NAME: state.getTable().tableName,
       },
     });
+
+    // SSM-published runtime target. Defaults to the real AgentCore runtime ARN;
+    // integration tests redirect via SsmOverrideFixture to a Function URL.
+    const runtimeArn = agentRuntime.runtime.agentRuntimeArn;
+    const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
+      parameterName: `/nestfolio/${props.prefix}-portfolio-engine-ctrl/agent/runtimeUrl`,
+      stringValue: runtimeArn,
+    });
+    ingress.handler.addEnvironment('AGENT_RUNTIME_URL_PARAM', agentRuntimeUrlParam.parameterName);
+    agentRuntimeUrlParam.grantRead(ingress.handler);
+
+    // Grant the ingress handler permission to invoke the AgentCore runtime.
+    ingress.handler.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['bedrock-agentcore:InvokeAgentRuntime'],
+      resources: [runtimeArn],
+    }));
 
     this.addObservability({
       ingress,
