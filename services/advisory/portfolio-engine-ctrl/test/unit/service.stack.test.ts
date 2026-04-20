@@ -63,4 +63,23 @@ describe('PortfolioEngineCtrlStack', () => {
     );
     expect(actions).toContain('bedrock:StartIngestionJob');
   });
+
+  it('grants events:PutEvents to the AgentRuntime execution role', () => {
+    const policies = template.findResources('AWS::IAM::Policy', {
+      Properties: {
+        Roles: Match.arrayWith([
+          Match.objectLike({ Ref: Match.stringLikeRegexp('.*AgentRuntime.*') }),
+        ]),
+      },
+    });
+    expect(Object.keys(policies).length).toBeGreaterThan(0);
+
+    const statements = Object.values(policies).flatMap(
+      (p: any) => p.Properties.PolicyDocument.Statement ?? [],
+    );
+    const actions = statements.flatMap((s: { Action: string | string[] }) =>
+      Array.isArray(s.Action) ? s.Action : [s.Action],
+    );
+    expect(actions).toContain('events:PutEvents');
+  });
 });

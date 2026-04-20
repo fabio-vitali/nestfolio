@@ -124,6 +124,9 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     // (covers both runtime ARN and its endpoint sub-resource).
     agentRuntime.grantInvoke(ingress.handler);
 
+    // Grant the AgentRuntime role permission to emit trace envelopes to the advisory bus.
+    this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
+
     // resumeStateMachine pipeline callback permissions (see investor-profile-ctrl).
     ingress.handler.addToRolePolicy(new PolicyStatement({
       effect: Effect.ALLOW,
