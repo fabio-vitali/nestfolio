@@ -75,3 +75,16 @@ interface InvokeOptionsWithEmitter extends BaseInvokeOptions {
 }
 
 export type InvokeOptions = InvokeOptionsWithoutEmitter | InvokeOptionsWithEmitter;
+
+/**
+ * Structured envelope every caller sends to an agent runtime — whether
+ * the runtime is AgentCore (real) or an HTTPS mock URL (integration tests).
+ *
+ * `upstreamOutputs` is an opaque per-agent shape; each agent's graph.ts
+ * decides how to consume it.
+ */
+export interface AgentInvocation {
+  readonly tenantId: string;
+  readonly decisionId: string;
+  readonly upstreamOutputs: Record<string, unknown>;
+}
