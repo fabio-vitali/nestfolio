@@ -125,4 +125,29 @@ describe('DecisionWorkflowCtrlStack', () => {
     );
     expect(assemblePacketLambda).toBeDefined();
   });
+
+  it('wires WORKFLOW_TRIGGER_CREATED from advisory bus to the Decision state machine', () => {
+    // There must be an EB Rule on the advisory bus matching WORKFLOW_TRIGGER_CREATED
+    // with the Decision state machine as a target (RuleTargetInput.fromEventPath('$.detail')).
+    const rules = template.findResources('AWS::Events::Rule');
+    const matching = Object.values(rules).filter((r: any) => {
+      const pattern = r.Properties?.EventPattern;
+      const detailTypes = pattern?.['detail-type'];
+      return Array.isArray(detailTypes)
+        && detailTypes.includes('WORKFLOW_TRIGGER_CREATED');
+    });
+    expect(matching.length).toBe(1);
+
+    const rule = matching[0] as any;
+    const targets = rule.Properties.Targets ?? [];
+    // One of the targets must reference the state machine
+    const sfTarget = targets.find((t: any) => {
+      const arn = t.Arn;
+      // The Arn is a Ref/Fn::GetAtt to the state machine; look for StateMachine-shaped logical ids
+      return typeof arn === 'object' && JSON.stringify(arn).includes('StateMachine');
+    });
+    expect(sfTarget).toBeDefined();
+    // Input should be the event detail so the SF sees {id,type,timestamp,subject,context}
+    expect(sfTarget.InputPath).toBe('$.detail');
+  });
 });
