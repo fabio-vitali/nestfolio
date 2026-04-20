@@ -2,25 +2,26 @@ jest.mock('@nestfolio/event-processor', () => ({
   ...jest.requireActual('@nestfolio/event-processor'),
   requireEnv: (name: string) => process.env[name] ?? name,
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
-  getUUID: jest.fn().mockReturnValue('test-uuid'),
 }));
 
 process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
 
 import {
-  record, getUUID, asTenantId, asUserId,
+  record, asTenantId, asUserId,
   type EventPayload, type EventContext,
 } from '@nestfolio/event-processor';
 import { TRIGGER_EVENT_TYPES } from '../../src/domain/events';
 
 // Re-create the triggerHandler logic under test (since the module export is just the
-// composed `handler`, we test the handler factory pattern directly)
+// composed `handler`, we test the handler factory pattern directly).
+// decisionId = ctx.eventId — aligns with advisory-ctrl's decision-lifecycle service
+// so both converge on the same id for the same trigger event.
 const triggerHandler = (payload: EventPayload, ctx: EventContext) => {
   const tenantId = (payload.subject?.tenantId as string) ?? ctx.tenantId;
   return record('WorkflowTrigger', {
     tenantId,
-    decisionId: getUUID(),
+    decisionId: ctx.eventId,
     trigger: ctx.eventType,
     triggerEventId: ctx.eventId,
     context: payload.subject ?? {},
@@ -53,7 +54,7 @@ describe('decision-workflow-ctrl event-listener (materializeToTable)', () => {
       typename: 'WorkflowTrigger',
       fields: {
         tenantId: 't1',
-        decisionId: 'test-uuid',
+        decisionId: 'evt-1',
         trigger: 'MANDATE_CREATED',
         triggerEventId: 'evt-1',
         context: { tenantId: 't1', userId: 'u1' },
