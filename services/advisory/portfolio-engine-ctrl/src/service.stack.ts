@@ -107,6 +107,7 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
         MODEL_OPUS_ID: modelOpusId,
         MODEL_SONNET_ID: modelSonnetId,
         TABLE_NAME: state.getTable().tableName,
+        EVENT_BUS_NAME: this.eventBus.eventBusName,
       },
     });
 
