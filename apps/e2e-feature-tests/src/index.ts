@@ -6,6 +6,7 @@ export {
   onboarded,
   funded,
   withDecision,
+  withLiveDecision,
   withNotification,
   withHoldings,
   withBreakerOpen,

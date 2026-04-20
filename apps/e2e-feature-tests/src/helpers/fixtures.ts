@@ -18,6 +18,7 @@ import { BrokerCtrlEventTypes } from '@nestfolio/broker-ctrl/events';
 import type { FreshTenant } from './fresh-tenant';
 import { bffClient, type BffClients } from './bff-client';
 import { waitForGraphQL } from './wait-for-graphql';
+import type { DecisionHistoryResponse } from './graphql-types';
 
 /**
  * A Fixture is an async function that publishes whatever events are needed
@@ -181,6 +182,84 @@ export function withDecision(opts: {
       },
     });
     return { decisionId };
+  };
+}
+
+/**
+ * Triggers the LIVE advisory decision pipeline end-to-end (decision-workflow-ctrl
+ * Step Function → 4 advisory agent services → AgentCore data-plane → DECISION_PACKET_*
+ * CDC chain → advisory-bff materialization). Unlike `withDecision`, this fixture
+ * does NOT short-circuit the agent pipeline by emitting a synthetic
+ * DECISION_PACKET_CREATED. It publishes a real workflow trigger event and polls
+ * advisory-bff GraphQL until a packet appears.
+ *
+ * Use sparingly: each call drives a real Bedrock wave (30–90 s). Most decision
+ * scenarios should keep using `withDecision` for fast, deterministic seeding —
+ * pick `withLiveDecision` only when verifying the AgentCore transport itself.
+ *
+ * `expectedStatus` defaults to undefined (any packet counts). Set to
+ * 'PENDING_CONFIRMATION' to verify the full L2 path through user_confirmation_requested.
+ */
+export function withLiveDecision(opts?: {
+  trigger?: 'MANDATE_CREATED' | 'OPERATING_MODE_CHANGED';
+  expectedStatus?: string;
+  timeoutMs?: number;
+  intervalMs?: number;
+}): Fixture {
+  return async (_ctx, tenant, eb, bff) => {
+    const trigger = opts?.trigger ?? 'MANDATE_CREATED';
+    if (trigger === 'MANDATE_CREATED') {
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-ctrl',
+        detailType: 'MANDATE_CREATED',
+        detail: {
+          tenantId: tenant.tenantId,
+          userId: tenant.userId,
+          mandateId: `e2e-mandate-${Date.now()}`,
+          level: 'ADVISORY',
+          monthlyTurnoverCapPercent: 10,
+          maxSingleTradePercent: 5,
+          coolDownDays: 1,
+          rebalanceCadence: 'MONTHLY',
+        },
+      });
+    } else {
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-ctrl',
+        detailType: 'OPERATING_MODE_CHANGED',
+        detail: {
+          tenantId: tenant.tenantId,
+          userId: tenant.userId,
+          newMode: 'BALANCED',
+          previousMode: 'CONSERVATIVE',
+        },
+      });
+    }
+
+    const expectedStatus = opts?.expectedStatus;
+    const result = await waitForGraphQL<DecisionHistoryResponse>(
+      bff.advisory,
+      `query History { getDecisionHistory(limit: 10) { items { decisionId status trigger } nextCursor } }`,
+      {},
+      (r) => {
+        const items = r.getDecisionHistory?.items ?? [];
+        if (items.length === 0) return false;
+        if (!expectedStatus) return true;
+        return items.some((i) => i.status === expectedStatus);
+      },
+      { timeoutMs: opts?.timeoutMs ?? 180_000, intervalMs: opts?.intervalMs ?? 5_000 },
+    );
+
+    const items = result.getDecisionHistory.items;
+    const item = expectedStatus
+      ? items.find((i) => i.status === expectedStatus)!
+      : items[0];
+    return {
+      decisionId: item.decisionId,
+      pipelineMetadata: { trigger: item.trigger, status: item.status },
+    };
   };
 }
 
