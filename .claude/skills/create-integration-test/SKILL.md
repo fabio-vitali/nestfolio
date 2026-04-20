@@ -405,7 +405,9 @@ describe('{service}: {SourceDomain} -> {TargetDomain} forwarding', () => {
 
 Requires a mock agent runtime Lambda to prevent real Bedrock/LLM calls. Check if `test/mocks/mock-agent-runtime.ts` exists. If not, scaffold it (see Mock Agent Runtime section below).
 
-The service must have `resolveAgentRuntimeUrl()` wired into its agent pipeline (via `@nestfolio/agent-orchestrator`). The CDK stack must define an `AgentRuntimeUrlParam` SSM parameter (default `DISABLED`). The integration test overrides this SSM param to point to the mock Lambda URL.
+The service must call `resolveAgentRuntimeTarget()` + `dispatchAgentInvocation()` from `@nestfolio/agent-orchestrator` in its agent pipeline. There is NO in-process fallback — the dispatcher routes to AgentCore for `arn:` targets and to the mock Function URL for `https://` targets.
+
+The CDK stack must define the `AgentRuntimeUrlParam` SSM parameter with `stringValue: agentRuntime.runtime.agentRuntimeArn` (the runtime ARN, NOT the literal `DISABLED`). The integration test reads the canonical SSM value first, asserts it starts with `arn:`, and passes it as `restoreTo` so the post-test cleanup restores the production ARN even if a previous run crashed mid-override.
 
 ```typescript
 import { readFileSync } from 'fs';
@@ -422,6 +424,7 @@ import {
   SsmOverrideFixture,
   OrphanReaper,
 } from '@nestfolio/integration-testing';
+import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 
 describe('{service}: {TRIGGER_EVENT} -> AgentInvocation DDB write + CDC', () => {
   let ctx: TestContext;
@@ -443,12 +446,25 @@ describe('{service}: {TRIGGER_EVENT} -> AgentInvocation DDB write + CDC', () => 
       handlerAsset: readFileSync(zipPath),
     });
 
-    // Override SSM to point to mock (crash-safe)
+    // Read canonical SSM value (the deployed AgentCore runtime ARN) first
+    // so we can pass it as restoreTo. If a previous run crashed, the SSM
+    // value may already be a stale mock https:// URL — assert it's an ARN
+    // before proceeding so cleanup never re-saves a dead mock URL.
+    const paramName = `/nestfolio/${ctx.prefix}-{service}/agent/runtimeUrl`;
+    const ssm = new SSMClient({ region: ctx.region });
+    const canonical = await ssm.send(new GetParameterCommand({ Name: paramName }));
+    const restoreTo = canonical.Parameter!.Value!;
+    if (!restoreTo.startsWith('arn:')) {
+      throw new Error(
+        `Expected canonical SSM value to be an AgentCore runtime ARN, got: ${restoreTo}. ` +
+        `Stack may not be deployed, or a prior test run left a mock URL behind. ` +
+        `Re-deploy {service} before re-running integration tests.`,
+      );
+    }
+
+    // Override SSM to point to mock; restoreTo is the production ARN
     const ssmOverride = new SsmOverrideFixture(ctx);
-    await ssmOverride.override({
-      paramName: `/nestfolio/${ctx.prefix}-{service}/agent/runtimeUrl`,
-      testValue: mockUrl,
-    });
+    await ssmOverride.override({ paramName, testValue: mockUrl, restoreTo });
 
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
@@ -504,10 +520,12 @@ describe('{service}: {TRIGGER_EVENT} -> AgentInvocation DDB write + CDC', () => 
 Agent services invoke LLM pipelines (Bedrock/LangGraph). The mock agent runtime returns canned output so integration tests don't make real LLM calls.
 
 **Prerequisites in the service:**
-1. CDK stack has `AgentRuntimeUrlParam` SSM parameter (default `DISABLED`)
+1. CDK stack has `AgentRuntimeUrlParam` SSM parameter with `stringValue: agentRuntime.runtime.agentRuntimeArn` (defaults to the AgentCore runtime ARN — NOT the literal `DISABLED`)
 2. CDK stack adds `paramsAndSecrets: PARAMS_AND_SECRETS_LAYER` to Ingress `lambdaProps`
 3. CDK stack wires `AGENT_RUNTIME_URL_PARAM` env var + `grantRead` on the handler
-4. Agent service code calls `resolveAgentRuntimeUrl()` from `@nestfolio/agent-orchestrator` and branches to `invokeRemoteRuntime()` when URL is non-null
+4. CDK stack grants the Ingress handler `bedrock-agentcore:InvokeAgentRuntime` on `runtimeArn` (required so the dispatcher can call AgentCore in production; integration tests bypass via the mock URL)
+5. Agent service code calls `resolveAgentRuntimeTarget()` then `dispatchAgentInvocation<ResultType>(target, payload)` from `@nestfolio/agent-orchestrator`. There is NO in-process fallback — misconfiguration throws. The dispatcher routes `arn:` targets to `invokeAgentCoreRuntime` and `https://` targets to `invokeMockRuntime`.
+6. The `payload` is the structured `AgentInvocation` envelope (`{ tenantId, decisionId, upstreamOutputs }`) — not a per-service ad-hoc shape
 
 **Scaffold mock handler:**
 
