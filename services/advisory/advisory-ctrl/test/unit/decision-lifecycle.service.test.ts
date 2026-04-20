@@ -66,7 +66,7 @@ jest.mock('@nestfolio/event-processor', () => ({
   withMethodLogging: () => (_name: string, fn: (...args: unknown[]) => unknown) => fn,
 
 }));
-const mockInvokeOrchestrator = jest.fn().mockResolvedValue({
+const mockDispatchAgentInvocation = jest.fn().mockResolvedValue({
   'user-goals': {
     goalId: 'g1',
     interpretedObjective: 'Growth',
@@ -119,10 +119,8 @@ const mockInvokeOrchestrator = jest.fn().mockResolvedValue({
 });
 
 jest.mock('@nestfolio/agent-orchestrator', () => ({
-  createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
-  invokeOrchestrator: mockInvokeOrchestrator,
-  resolveAgentRuntimeUrl: jest.fn().mockResolvedValue(null),
-  invokeRemoteRuntime: jest.fn(),
+  resolveAgentRuntimeTarget: jest.fn().mockResolvedValue({ type: 'mock', url: 'http://localhost' }),
+  dispatchAgentInvocation: mockDispatchAgentInvocation,
 }));
 
 jest.mock('../../src/agents/config', () => ({
@@ -134,20 +132,6 @@ jest.mock('../../src/agents/config', () => ({
     'rebalance-planner',
     'explainability',
   ],
-  AGENT_CONFIGS: {},
-  DECISION_LIFECYCLE_WAVES: [],
-}));
-
-jest.mock('../../src/agents/state', () => ({
-  DecisionLifecycleState: {},
-}));
-
-jest.mock('../../src/agents/fallbacks', () => ({
-  FALLBACK_MAP: {},
-}));
-
-jest.mock('../../src/agents/validation', () => ({
-  VALIDATION_RULES: {},
 }));
 
 import { DecisionRepository } from '../../src/repositories/decision.repository';
@@ -260,7 +244,7 @@ describe('DecisionLifecycleService', () => {
     });
 
     it('should propagate error when agent pipeline throws', async () => {
-      mockInvokeOrchestrator.mockRejectedValueOnce(new Error('Agent pipeline timeout'));
+      mockDispatchAgentInvocation.mockRejectedValueOnce(new Error('Agent pipeline timeout'));
 
       const context = {
         triggerEvent: {
@@ -276,31 +260,6 @@ describe('DecisionLifecycleService', () => {
       await expect(service.executeDecisionLifecycle(context)).rejects.toThrow('Agent pipeline timeout');
 
       // Only createDecisionPacket should have been called (1 DDB call before pipeline)
-      expect(mockSend).toHaveBeenCalledTimes(1);
-    });
-
-    it('should throw when agent pipeline returns ServiceUnavailableResponse', async () => {
-      mockInvokeOrchestrator.mockResolvedValueOnce({
-        serviceUnavailable: true,
-        reason: 'Bedrock throttled',
-      });
-
-      const context = {
-        triggerEvent: {
-          id: 'evt-unavail',
-          type: 'MANDATE_CREATED',
-          timestamp: '2025-01-01T00:00:00.000Z',
-          subject: {},
-          context: { tenantId: 't1' },
-        },
-        requestContext: TEST_CTX,
-      };
-
-      await expect(service.executeDecisionLifecycle(context)).rejects.toThrow(
-        'Agent pipeline unavailable: Bedrock throttled',
-      );
-
-      // Only createDecisionPacket should have been called
       expect(mockSend).toHaveBeenCalledTimes(1);
     });
   });

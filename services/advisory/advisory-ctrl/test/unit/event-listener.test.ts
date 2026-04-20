@@ -71,6 +71,29 @@ jest.mock('@nestfolio/event-processor', () => ({
   withMethodLogging: jest.fn().mockReturnValue((_name: string, fn: (...args: unknown[]) => unknown) => fn),
 
 }));
+jest.mock('@nestfolio/agent-orchestrator', () => ({
+  resolveAgentRuntimeTarget: jest.fn().mockResolvedValue({ type: 'mock', url: 'http://localhost' }),
+  dispatchAgentInvocation: jest.fn().mockResolvedValue({
+    'user-goals': {},
+    'risk-assessment': {},
+    'market-research': {},
+    'portfolio-construction': {},
+    'rebalance-planner': { trades: [] },
+    explainability: { summary: 'mock' },
+  }),
+}));
+
+jest.mock('../../src/agents/config', () => ({
+  AGENT_TYPES: [
+    'user-goals',
+    'risk-assessment',
+    'market-research',
+    'portfolio-construction',
+    'rebalance-planner',
+    'explainability',
+  ],
+}));
+
 process.env.TABLE_NAME = 'test-table';
 
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
