@@ -12,6 +12,13 @@ const emitter = new EventBridgeTraceEmitter({
   detailType: OnboardingBffEventTypes.ONBOARDING_AGENT_INVOCATION_TRACED,
 });
 
+function parseRuntimeSessionId(raw: string | undefined): { tenantId: string; sessionId: string } {
+  if (!raw) return { tenantId: '', sessionId: '' };
+  const slash = raw.indexOf('/');
+  if (slash < 0) return { tenantId: '', sessionId: '' };
+  return { tenantId: raw.slice(0, slash), sessionId: raw.slice(slash + 1) };
+}
+
 export function createApp() {
   const app = new Hono();
 
@@ -22,9 +29,9 @@ export function createApp() {
   }));
 
   app.get('/health', (c) => c.json({ status: 'ok' }));
+  app.get('/ping', (c) => c.json({ status: 'ok' }));
 
   app.get('/session', async (c) => {
-    // TODO: Extract tenantId + userId from auth context
     const tenantId = c.req.header('x-tenant-id') ?? '';
     const userId = c.req.header('x-user-id') ?? '';
 
@@ -44,27 +51,21 @@ export function createApp() {
       return c.json({ completed: true });
     }
 
-    // Rehydrate state from committed DDB records
     const { rehydrateState } = await import('../../src/agent/session');
     const state = rehydrateState(session as any);
     return c.json({ activeSession: true, state });
   });
 
-  app.post('/copilotkit', async (c) => {
+  app.post('/invocations', async (c) => {
     const tableName = process.env['TABLE_NAME'] ?? '';
     const repo = new OnboardingRepository(tableName);
 
-    // tenantId: matches the /session endpoint's convention above.
-    // correlationId source: session-scoped id. CopilotKit request body
-    // typically carries threadId; we also honour an explicit x-session-id
-    // header, falling back to x-user-id which /session already uses.
-    // Emission is gated on BOTH being present — event-processor parsers
-    // reject envelopes without detail.context.tenantId.
-    const tenantId = c.req.header('x-tenant-id') ?? '';
-    const sessionId =
-      c.req.header('x-session-id') ??
-      c.req.header('x-user-id') ??
-      '';
+    // AgentCore forwards the runtime session id as the header below, formatted
+    // as `${tenantId}/${sessionId}`. Matches libs/agent-orchestrator/
+    // invoke-agentcore.ts:45 and agent-server.ts:27.
+    const { tenantId, sessionId } = parseRuntimeSessionId(
+      c.req.header('x-amzn-bedrock-agentcore-runtime-session-id'),
+    );
 
     const tracer = new AgentTracer();
     const graph = buildOnboardingGraph({ repo }, { tracer });

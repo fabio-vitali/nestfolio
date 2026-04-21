@@ -1,8 +1,10 @@
 import { createApp } from '../../../agents/onboarding/server';
 
+const processMock = jest.fn().mockResolvedValue(new Response('ok'));
+
 jest.mock('@copilotkit/runtime', () => ({
   CopilotRuntime: jest.fn().mockImplementation(() => ({
-    process: jest.fn().mockResolvedValue(new Response('ok')),
+    process: processMock,
   })),
   LangGraphAgent: jest.fn(),
 }));
@@ -21,31 +23,105 @@ jest.mock('../../../src/agent/session', () => ({
   rehydrateState: jest.fn().mockReturnValue({ phase: 'personal-info' }),
 }));
 
-describe('CopilotKit Runtime Server', () => {
+const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+afterEach(() => {
+  processMock.mockClear();
+  warnSpy.mockClear();
+});
+
+describe('Onboarding AgentCore runtime server', () => {
   it('createApp returns a Hono app', () => {
     const app = createApp();
     expect(app).toBeDefined();
     expect(typeof app.fetch).toBe('function');
   });
 
-  it('responds to health check at /health', async () => {
+  it('responds 200 to GET /health', async () => {
     const app = createApp();
     const res = await app.request('/health');
     expect(res.status).toBe(200);
   });
 
-  it('has /copilotkit POST endpoint', async () => {
+  it('responds 200 to GET /ping (AgentCore health convention)', async () => {
+    const app = createApp();
+    const res = await app.request('/ping');
+    expect(res.status).toBe(200);
+  });
+
+  it('exposes POST /invocations and delegates to CopilotRuntime.process', async () => {
+    const app = createApp();
+    const res = await app.request('/invocations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-amzn-bedrock-agentcore-runtime-session-id': 'tenant-a/session-1',
+      },
+      body: JSON.stringify({ threadId: 'session-1', messages: [] }),
+    });
+    expect(res.status).toBe(200);
+    expect(processMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('POST /copilotkit no longer exists (routed off in favour of /invocations)', async () => {
     const app = createApp();
     const res = await app.request('/copilotkit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
-    expect(res.status).not.toBe(404);
+    expect(res.status).toBe(404);
   });
 });
 
-describe('/session endpoint', () => {
+describe('Runtime session-id parsing', () => {
+  it('skips emission and warns when the session-id header is missing', async () => {
+    const app = createApp();
+    await app.request('/invocations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('onboarding trace emission skipped'),
+      expect.objectContaining({ hasTenantId: false, hasSessionId: false }),
+    );
+  });
+
+  it('skips emission and warns when the session-id header has no "/" separator', async () => {
+    const app = createApp();
+    await app.request('/invocations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-amzn-bedrock-agentcore-runtime-session-id': 'malformed-no-slash',
+      },
+      body: JSON.stringify({}),
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('onboarding trace emission skipped'),
+      expect.objectContaining({ hasTenantId: false, hasSessionId: false }),
+    );
+  });
+
+  it('skips emission when either tenantId or sessionId half is empty', async () => {
+    const app = createApp();
+    await app.request('/invocations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-amzn-bedrock-agentcore-runtime-session-id': 'tenant-a/',
+      },
+      body: JSON.stringify({}),
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('onboarding trace emission skipped'),
+      expect.objectContaining({ hasTenantId: true, hasSessionId: false }),
+    );
+  });
+});
+
+describe('/session endpoint (unchanged)', () => {
   it('returns newSession when no headers', async () => {
     const app = createApp();
     const res = await app.request('/session');
