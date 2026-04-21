@@ -4,6 +4,7 @@ import type { AgentTraceEventDetail } from '@nestfolio/agent-orchestrator';
 import { NarrativeEventTypes } from '@nestfolio/advisory-narrative-ctrl/events';
 import { PortfolioEngineEventTypes } from '@nestfolio/portfolio-engine-ctrl/events';
 import { InvestorProfileEventTypes } from '@nestfolio/investor-profile-ctrl/events';
+import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
 
 const AGENT_TRACE_EVENTS = {
   advisoryNarrative: {
@@ -17,6 +18,10 @@ const AGENT_TRACE_EVENTS = {
   investorProfile: {
     bus: 'advisory' as const,
     detailType: InvestorProfileEventTypes.INVESTOR_PROFILE_AGENT_INVOCATION_TRACED,
+  },
+  decisionLifecycle: {
+    bus: 'advisory' as const,
+    detailType: AdvisoryCtrlEventTypes.DECISION_LIFECYCLE_AGENT_INVOCATION_TRACED,
   },
 };
 
