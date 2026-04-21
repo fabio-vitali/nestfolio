@@ -52,5 +52,19 @@ export async function invokeAgentCoreRuntime<T>(
   }));
 
   const text = await streamToString(result.response);
+  // Log shape of the response so degraded/empty replies are diagnosable.
+  // Preview is truncated to keep log volume bounded; full body recoverable
+  // from downstream AgentInvocation DDB row or re-invocation with X-Ray.
+  // Using console.log (Lambda-native JSON capture) to avoid taking a
+  // logger dependency from this foundational lib.
+  // eslint-disable-next-line no-console
+  console.log(JSON.stringify({
+    level: 'INFO',
+    message: 'invokeAgentCoreRuntime response',
+    runtimeSessionId,
+    sessionIdLength: runtimeSessionId.length,
+    responseBytes: text.length,
+    responsePreview: text.length > 256 ? `${text.slice(0, 256)}…` : text,
+  }));
   return JSON.parse(text) as T;
 }

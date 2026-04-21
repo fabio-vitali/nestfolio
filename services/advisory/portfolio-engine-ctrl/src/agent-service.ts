@@ -19,6 +19,20 @@ export class DuplicateInvocationError extends Error {
   }
 }
 
+export class EmptyAgentResponseError extends Error {
+  readonly decisionId: string;
+  readonly responseKeys: string[];
+  constructor(decisionId: string, responseKeys: string[]) {
+    super(
+      `Agent returned no orchestrator output for decision ${decisionId}; ` +
+      `got keys=[${responseKeys.join(',')}]. AgentCore likely accepted the invocation but did not run the agent.`,
+    );
+    this.name = 'EmptyAgentResponseError';
+    this.decisionId = decisionId;
+    this.responseKeys = responseKeys;
+  }
+}
+
 const LOCK_TTL_SECONDS = 3600; // 1 hour — orphaned IN_PROGRESS locks self-expire
 
 export const createAgentService = (deps: AgentServiceDeps) => {
@@ -57,6 +71,15 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         decisionId,
         upstreamOutputs: (subject.context ?? subject.upstreamOutputs ?? {}) as Record<string, unknown>,
       });
+
+      // AgentCore can return a degraded empty response (202-style ack without
+      // running the agent). `?? {}` fallbacks used to swallow that as success,
+      // which hid runtime failures (see scenario 12 rebalance-on-drift, 2026-04-21).
+      // Require at least one orchestrator output key so the failure surfaces
+      // as a SF TaskFailure instead of a silent success with empty trades.
+      if (!result['portfolio-construction'] && !result['rebalance-planner']) {
+        throw new EmptyAgentResponseError(decisionId, Object.keys(result));
+      }
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
