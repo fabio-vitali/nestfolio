@@ -3,6 +3,7 @@ import { eventName } from '@nestfolio/event-types';
 export const MarketIntelligenceEventTypes = {
   MARKET_ANALYSIS_COMPLETED: eventName('MARKET_ANALYSIS_COMPLETED'),
   MARKET_SIGNAL_DETECTED: eventName('MARKET_SIGNAL_DETECTED'),
+  MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED: eventName('MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED'),
 } as const;
 
 export const HANDLED_EVENT_TYPES = new Set([eventName('ANALYZE_MARKET')]);
