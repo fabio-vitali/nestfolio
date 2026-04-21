@@ -1,7 +1,5 @@
-declare const __brand: unique symbol;
-
 /** Branded event name type. Only constructable via eventName(). */
-export type EventName = string & { readonly [__brand]: 'EventName' };
+export type EventName = string & { readonly __brand: 'EventName' };
 
 /**
  * Create a typed event name constant.
