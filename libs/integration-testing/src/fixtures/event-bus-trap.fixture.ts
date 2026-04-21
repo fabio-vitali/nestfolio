@@ -200,6 +200,7 @@ export class EventBusTrap {
 
   async waitForEvent<TDetail = Record<string, unknown>>(params?: {
     detailType?: string;
+    match?: (detail: TDetail) => boolean;
     timeoutMs?: number;
     pollIntervalMs?: number;
   }): Promise<CapturedEvent<TDetail>> {
@@ -207,16 +208,19 @@ export class EventBusTrap {
     const pollInterval = params?.pollIntervalMs ?? this.ctx.timings.pollInterval;
     const deadline = Date.now() + timeout;
 
+    const satisfies = (e: CapturedEvent): boolean => {
+      if (params?.detailType && e.detailType !== params.detailType) return false;
+      if (params?.match && !params.match(e.detail as TDetail)) return false;
+      return true;
+    };
+
     while (Date.now() < deadline) {
-      // Check captured buffer first
-      if (params?.detailType) {
-        const match = this.captured.find(e => e.detailType === params.detailType);
-        if (match) {
-          this.captured = this.captured.filter(e => e !== match);
-          return match as CapturedEvent<TDetail>;
-        }
-      } else if (this.captured.length > 0) {
-        return this.captured.shift()! as CapturedEvent<TDetail>;
+      // Check captured buffer first — events that don't satisfy the filter stay
+      // in the buffer so a future waitForEvent call with different params can find them.
+      const buffered = this.captured.find(satisfies);
+      if (buffered) {
+        this.captured = this.captured.filter(e => e !== buffered);
+        return buffered as CapturedEvent<TDetail>;
       }
 
       // Poll SQS via the dedup-aware helper
@@ -225,13 +229,10 @@ export class EventBusTrap {
       );
 
       for (const event of fresh) {
-        if (params?.detailType && event.detailType === params.detailType) {
+        if (satisfies(event)) {
           return event as CapturedEvent<TDetail>;
         }
-        if (!params?.detailType) {
-          return event as CapturedEvent<TDetail>;
-        }
-        // Buffer non-matching events for the next iteration
+        // Buffer non-matching events for a future waitForEvent call
         this.captured.push(event);
       }
 
@@ -240,7 +241,11 @@ export class EventBusTrap {
       }
     }
 
-    throw new Error(`EventBusTrap: timeout waiting for event${params?.detailType ? ` ${params.detailType}` : ''} after ${timeout}ms`);
+    const suffix = [
+      params?.detailType ? ` ${params.detailType}` : '',
+      params?.match ? ' (matching predicate)' : '',
+    ].join('');
+    throw new Error(`EventBusTrap: timeout waiting for event${suffix} after ${timeout}ms`);
   }
 
   async drain(): Promise<CapturedEvent[]> {

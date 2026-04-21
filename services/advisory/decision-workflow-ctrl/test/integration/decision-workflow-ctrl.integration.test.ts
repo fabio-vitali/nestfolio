@@ -199,9 +199,13 @@ describe('decision-workflow-ctrl', () => {
     expect(item['tenantId']).toBe(ctx.tenantId);
     expect(item['trigger']).toBe('MANDATE_CREATED');
 
-    // Verify: CDC emits WORKFLOW_TRIGGER_CREATED on advisory bus
+    // Verify: CDC emits WORKFLOW_TRIGGER_CREATED on advisory bus.
+    // The match predicate guards against cross-test contamination: the trap
+    // accumulates CDC events from all 11 tests in this describe, and a jest
+    // retry of any one of them would otherwise pop a stale event.
     const cdcEvent = await trap.waitForEvent<BusEventPayload>({
       detailType: 'WORKFLOW_TRIGGER_CREATED',
+      match: (d) => (d.subject as { trigger?: string }).trigger === 'MANDATE_CREATED',
       timeoutMs: 60_000,
     });
     expect(cdcEvent.detail.subject.trigger).toBe('MANDATE_CREATED');

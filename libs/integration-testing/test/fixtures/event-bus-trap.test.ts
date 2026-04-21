@@ -8,13 +8,13 @@ import type { TestContext } from '@nestfolio/test-support';
 const sqsMock = mockClient(SQSClient);
 mockClient(AwsEbClient);
 
-function makeMessage(id: string, detailType: string) {
+function makeMessage(id: string, detailType: string, detail?: Record<string, unknown>) {
   return {
     MessageId: id,
     ReceiptHandle: `rh-${id}`,
     Body: JSON.stringify({
       'detail-type': detailType,
-      detail: { id: `evt-${id}` },
+      detail: detail ?? { id: `evt-${id}` },
       source: 'test',
       time: '2026-04-10T00:00:00Z',
     }),
@@ -90,5 +90,87 @@ describe('EventBusTrap dedup + auto-delete', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].detailType).toBe('EVENT_Y');
+  });
+});
+
+describe('EventBusTrap.waitForEvent match predicate', () => {
+  beforeEach(() => {
+    sqsMock.reset();
+  });
+
+  // Helper: the fixture reassigns `this.captured` via Array.filter, so tests
+  // must re-read it after each waitForEvent call.
+  const readCaptured = (trap: EventBusTrap): { detail: { subject: { trigger: string } } }[] =>
+    (trap as unknown as { captured: { detail: { subject: { trigger: string } } }[] }).captured;
+
+  it('returns the matching buffered event and leaves non-matching ones in the buffer', async () => {
+    const trap = new EventBusTrap(makeCtx());
+    (trap as unknown as { queueUrl: string }).queueUrl = 'https://sqs.test/queue';
+
+    // Pre-seed two WORKFLOW_TRIGGER_CREATED events in the buffer — order matters:
+    // GOAL arrives first. Without a match predicate, waitForEvent would pop GOAL.
+    (trap as unknown as { captured: unknown[] }).captured.push(
+      { detailType: 'WORKFLOW_TRIGGER_CREATED', detail: { subject: { trigger: 'GOAL_CREATED' } }, source: 't', time: 'x' },
+      { detailType: 'WORKFLOW_TRIGGER_CREATED', detail: { subject: { trigger: 'MANDATE_CREATED' } }, source: 't', time: 'x' },
+    );
+
+    const evt = await trap.waitForEvent<{ subject: { trigger: string } }>({
+      detailType: 'WORKFLOW_TRIGGER_CREATED',
+      match: (d) => d.subject.trigger === 'MANDATE_CREATED',
+      timeoutMs: 1_000,
+    });
+
+    expect(evt.detail.subject.trigger).toBe('MANDATE_CREATED');
+    // Non-matching event must still be in the buffer for a later waitForEvent
+    const after = readCaptured(trap);
+    expect(after).toHaveLength(1);
+    expect(after[0].detail.subject.trigger).toBe('GOAL_CREATED');
+  });
+
+  it('buffers non-matching fresh SQS events and returns only the one matching the predicate', async () => {
+    const trap = new EventBusTrap(makeCtx());
+    (trap as unknown as { queueUrl: string }).queueUrl = 'https://sqs.test/queue';
+
+    sqsMock.on(ReceiveMessageCommand).resolvesOnce({
+      Messages: [
+        makeMessage('m1', 'WORKFLOW_TRIGGER_CREATED', { subject: { trigger: 'GOAL_CREATED' } }),
+        makeMessage('m2', 'WORKFLOW_TRIGGER_CREATED', { subject: { trigger: 'MANDATE_CREATED' } }),
+      ],
+    });
+    sqsMock.on(DeleteMessageBatchCommand).resolves({});
+
+    const evt = await trap.waitForEvent<{ subject: { trigger: string } }>({
+      detailType: 'WORKFLOW_TRIGGER_CREATED',
+      match: (d) => d.subject.trigger === 'MANDATE_CREATED',
+      timeoutMs: 1_000,
+    });
+
+    expect(evt.detail.subject.trigger).toBe('MANDATE_CREATED');
+    const after = readCaptured(trap);
+    expect(after).toHaveLength(1);
+    expect(after[0].detail.subject.trigger).toBe('GOAL_CREATED');
+  });
+
+  it('times out when no buffered or fresh event satisfies the predicate', async () => {
+    const trap = new EventBusTrap(makeCtx());
+    (trap as unknown as { queueUrl: string }).queueUrl = 'https://sqs.test/queue';
+
+    const captured = (trap as unknown as { captured: unknown[] }).captured;
+    captured.push({
+      detailType: 'WORKFLOW_TRIGGER_CREATED',
+      detail: { subject: { trigger: 'GOAL_CREATED' } },
+      source: 't',
+      time: 'x',
+    });
+
+    sqsMock.on(ReceiveMessageCommand).resolves({ Messages: [] });
+
+    await expect(
+      trap.waitForEvent<{ subject: { trigger: string } }>({
+        detailType: 'WORKFLOW_TRIGGER_CREATED',
+        match: (d) => d.subject.trigger === 'MANDATE_CREATED',
+        timeoutMs: 200,
+      }),
+    ).rejects.toThrow(/timeout waiting for event WORKFLOW_TRIGGER_CREATED/);
   });
 });
