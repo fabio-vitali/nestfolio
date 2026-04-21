@@ -36,4 +36,11 @@ describe('OnboardingBffStack', () => {
     );
     expect(actions).toContain('events:PutEvents');
   });
+
+  it('publishes the AgentCore runtime ARN at /nestfolio/${prefix}-onboarding-bff/agent/runtimeUrl', () => {
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/nestfolio/test-onboarding-bff/agent/runtimeUrl',
+      Type: 'String',
+    });
+  });
 });
