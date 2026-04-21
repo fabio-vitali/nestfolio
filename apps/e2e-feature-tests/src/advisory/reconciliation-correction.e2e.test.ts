@@ -49,7 +49,7 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
   }, 240_000);
 
   afterEach(async () => {
-    ddbClient.destroy();
+    ddbClient?.destroy();
     await ctx.cleanup.runAll();
   }, 60_000);
 
