@@ -16,6 +16,7 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
   let tenant: FreshTenant;
   let investorProfileTrap: AgentTraceTrap<'investorProfile'>;
   let decisionLifecycleTrap: AgentTraceTrap<'decisionLifecycle'>;
+  let marketIntelligenceTrap: AgentTraceTrap<'marketIntelligence'>;
 
   beforeEach(async () => {
     ctx = await createTestContext();
@@ -26,6 +27,7 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     // waitFor can filter by correlationId.
     investorProfileTrap = await AgentTraceTrap.arm(ctx, 'investorProfile');
     decisionLifecycleTrap = await AgentTraceTrap.arm(ctx, 'decisionLifecycle');
+    marketIntelligenceTrap = await AgentTraceTrap.arm(ctx, 'marketIntelligence');
     await applyFixtures(ctx, tenant, [onboarded()]);
   }, 180_000);
 
@@ -88,6 +90,20 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     expect(dlEnvelope.llmCalls.length).toBeGreaterThanOrEqual(1);
     expect(dlEnvelope['gen_ai.invocation.latency_ms']).toBeLessThan(
       decisionLifecycleTrap.getLatencyBudget(),
+    );
+
+    const miTraces = await marketIntelligenceTrap.waitFor({
+      correlationId: decisionId,
+      timeoutMs: 240_000,
+    });
+    const miEnvelope = miTraces[0].envelope;
+
+    expect(miEnvelope.status).toBe('success');
+    const miLlmErrors = miEnvelope.errors.filter((e) => e.kind === 'llm_error');
+    expect(miLlmErrors).toHaveLength(0);
+    expect(miEnvelope.llmCalls.length).toBeGreaterThanOrEqual(1);
+    expect(miEnvelope['gen_ai.invocation.latency_ms']).toBeLessThan(
+      marketIntelligenceTrap.getLatencyBudget(),
     );
   }, 300_000);
 });

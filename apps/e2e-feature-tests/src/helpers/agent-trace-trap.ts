@@ -45,7 +45,9 @@ const DEFAULT_LATENCY_BUDGETS_MS = {
   // still catches multi-minute pathologies.
   decisionLifecycle: 180_000,
   investorProfile: 30_000,
-  marketIntelligence: 30_000,
+  // market-intelligence fetches live market data and news via tool calls;
+  // cold-start p95 observed ~128s. Budget matches decision-lifecycle headroom.
+  marketIntelligence: 180_000,
   onboarding: 30_000,
 } as const;
 
