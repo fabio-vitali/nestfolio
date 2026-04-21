@@ -86,6 +86,7 @@ describe('Runtime session-id parsing', () => {
       expect.stringContaining('onboarding trace emission skipped'),
       expect.objectContaining({ hasTenantId: false, hasSessionId: false }),
     );
+    expect(processMock).toHaveBeenCalledTimes(1);
   });
 
   it('skips emission and warns when the session-id header has no "/" separator', async () => {
@@ -102,6 +103,7 @@ describe('Runtime session-id parsing', () => {
       expect.stringContaining('onboarding trace emission skipped'),
       expect.objectContaining({ hasTenantId: false, hasSessionId: false }),
     );
+    expect(processMock).toHaveBeenCalledTimes(1);
   });
 
   it('skips emission when either tenantId or sessionId half is empty', async () => {
@@ -118,6 +120,24 @@ describe('Runtime session-id parsing', () => {
       expect.stringContaining('onboarding trace emission skipped'),
       expect.objectContaining({ hasTenantId: true, hasSessionId: false }),
     );
+    expect(processMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips emission when tenantId half is empty (leading slash)', async () => {
+    const app = createApp();
+    await app.request('/invocations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-amzn-bedrock-agentcore-runtime-session-id': '/session-only',
+      },
+      body: JSON.stringify({}),
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('onboarding trace emission skipped'),
+      expect.objectContaining({ hasTenantId: false, hasSessionId: true }),
+    );
+    expect(processMock).toHaveBeenCalledTimes(1);
   });
 });
 
