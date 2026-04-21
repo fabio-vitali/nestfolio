@@ -6,6 +6,8 @@ jest.mock('@copilotkit/runtime', () => ({
   CopilotRuntime: jest.fn().mockImplementation(() => ({
     process: processMock,
   })),
+}));
+jest.mock('@copilotkit/runtime/langgraph', () => ({
   LangGraphAgent: jest.fn(),
 }));
 

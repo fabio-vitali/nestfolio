@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { CopilotRuntime, LangGraphAgent } from '@copilotkit/runtime';
+import { CopilotRuntime } from '@copilotkit/runtime';
+import { LangGraphAgent } from '@copilotkit/runtime/langgraph';
 import { buildOnboardingGraph } from './graph';
 import { OnboardingRepository } from '../../src/repositories/onboarding.repository';
 import { AgentTracer, EventBridgeTraceEmitter } from '@nestfolio/agent-orchestrator';
