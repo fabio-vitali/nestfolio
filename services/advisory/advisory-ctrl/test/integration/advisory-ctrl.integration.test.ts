@@ -123,7 +123,7 @@ describe('advisory-ctrl', () => {
 
   afterAll(async () => {
     await ctx.cleanup.runAll();
-  }, 60_000);
+  }, 120_000);
 
   // ── Compliance Callback Path ────────────────────────────────────────
 

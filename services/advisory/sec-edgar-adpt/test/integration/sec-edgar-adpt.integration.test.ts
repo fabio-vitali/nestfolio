@@ -67,7 +67,7 @@ describe('sec-edgar-adpt (mocked)', () => {
 
   afterAll(async () => {
     await ctx.cleanup.runAll();
-  }, 60_000);
+  }, 120_000);
 
   it('should process 8-K filing and emit SEC_8K_FILED', async () => {
     await eb.putEvent({
