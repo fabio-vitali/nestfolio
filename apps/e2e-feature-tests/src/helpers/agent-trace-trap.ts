@@ -3,6 +3,7 @@ import type { TestContext } from '@nestfolio/test-support';
 import type { AgentTraceEventDetail } from '@nestfolio/agent-orchestrator';
 import { NarrativeEventTypes } from '@nestfolio/advisory-narrative-ctrl/events';
 import { PortfolioEngineEventTypes } from '@nestfolio/portfolio-engine-ctrl/events';
+import { InvestorProfileEventTypes } from '@nestfolio/investor-profile-ctrl/events';
 
 const AGENT_TRACE_EVENTS = {
   advisoryNarrative: {
@@ -12,6 +13,10 @@ const AGENT_TRACE_EVENTS = {
   portfolioEngine: {
     bus: 'advisory' as const,
     detailType: PortfolioEngineEventTypes.PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED,
+  },
+  investorProfile: {
+    bus: 'advisory' as const,
+    detailType: InvestorProfileEventTypes.INVESTOR_PROFILE_AGENT_INVOCATION_TRACED,
   },
 };
 
