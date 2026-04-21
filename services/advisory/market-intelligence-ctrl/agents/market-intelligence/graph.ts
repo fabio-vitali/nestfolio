@@ -1,4 +1,5 @@
 // services/advisory/market-intelligence-ctrl/agents/market-intelligence/graph.ts
+import { Annotation, StateGraph } from '@langchain/langgraph';
 import {
   createAgentNode,
   withValidation,
@@ -7,9 +8,11 @@ import {
   createKBClient,
   createMemoryClient,
   createNoOpMemoryClient,
+  invokeOrchestrator,
   type AgentInvocation,
   type KBClient,
   type MemoryClient,
+  type TraceEmitter,
 } from '@nestfolio/agent-orchestrator';
 import { marketResearchConfig } from '../../src/agents/market-research.config';
 import { marketResearchValidationRule } from '../../src/agents/validation';
@@ -25,6 +28,20 @@ const agentNode = withFallback(
   ),
   marketResearchFallback,
 );
+
+const MarketIntelState = Annotation.Root({
+  input: Annotation<string>,
+  output: Annotation<Record<string, unknown>>,
+});
+
+const compiledGraph = new StateGraph(MarketIntelState)
+  .addNode('market-intelligence', async (state) => {
+    const result = await agentNode({ input: state.input });
+    return { output: result as Record<string, unknown> };
+  })
+  .addEdge('__start__', 'market-intelligence')
+  .addEdge('market-intelligence', '__end__')
+  .compile();
 
 function buildKBClient(): KBClient | null {
   const kbId = process.env['KNOWLEDGE_BASE_ID'];
@@ -44,6 +61,7 @@ function buildMemoryClient(): MemoryClient {
 
 export async function invokeMarketResearch(
   payload: AgentInvocation,
+  emitter?: TraceEmitter,
 ): Promise<Record<string, unknown>> {
   const memory = buildMemoryClient();
   const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
@@ -79,10 +97,27 @@ export async function invokeMarketResearch(
   const enrichedInput =
     `Decision ${payload.decisionId} context: ${seed}` +
     kbContext + upstreamContext + toolContext;
-  const result = await agentNode({ input: enrichedInput });
+
+  const result = await invokeOrchestrator(
+    compiledGraph,
+    { input: enrichedInput },
+    emitter
+      ? {
+          agent: 'market-intelligence',
+          correlationId: payload.decisionId,
+          tenantId: payload.tenantId,
+          emitter,
+        }
+      : undefined,
+  );
+
+  if ('serviceUnavailable' in result) {
+    throw new Error(`Market-intelligence orchestrator unavailable: ${(result as { reason?: string }).reason ?? 'unknown'}`);
+  }
+  const output = (result as { output?: Record<string, unknown> }).output ?? {};
 
   // 5. Persist to memory
-  await session.writeAgentOutput(result);
+  await session.writeAgentOutput(output);
 
-  return result;
+  return output;
 }
