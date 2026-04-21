@@ -9,6 +9,7 @@ import { createCommitPhaseTool } from '../../src/agent/tools/commit-phase';
 import { computeRiskProfile } from '../../src/agent/tools/compute-risk';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
+import type { BaseCallbackHandler } from '@langchain/core/callbacks/base';
 
 interface GraphDeps {
   modelId?: string;
@@ -16,7 +17,7 @@ interface GraphDeps {
   repo: OnboardingRepository;
 }
 
-export function buildOnboardingGraph(deps: GraphDeps) {
+export function buildOnboardingGraph(deps: GraphDeps, opts?: { tracer?: BaseCallbackHandler }) {
   const model = new ChatBedrockConverse({
     model: deps.modelId ?? 'anthropic.claude-sonnet-4-20250514',
     region: deps.region ?? 'us-east-1',
@@ -86,5 +87,6 @@ export function buildOnboardingGraph(deps: GraphDeps) {
     graph.addEdge(`${phase}_node`, 'router');
   }
 
-  return graph.compile();
+  const compiled = graph.compile();
+  return opts?.tracer ? compiled.withConfig({ callbacks: [opts.tracer] }) : compiled;
 }

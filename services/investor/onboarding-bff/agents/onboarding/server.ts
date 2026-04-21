@@ -3,6 +3,14 @@ import { cors } from 'hono/cors';
 import { CopilotRuntime, LangGraphAgent } from '@copilotkit/runtime';
 import { buildOnboardingGraph } from './graph';
 import { OnboardingRepository } from '../../src/repositories/onboarding.repository';
+import { AgentTracer, EventBridgeTraceEmitter } from '@nestfolio/agent-orchestrator';
+import { OnboardingBffEventTypes } from '../../src/domain/events';
+
+const emitter = new EventBridgeTraceEmitter({
+  busName: process.env['EVENT_BUS_NAME'],
+  source: 'agent-orchestrator@onboarding-bff',
+  detailType: OnboardingBffEventTypes.ONBOARDING_AGENT_INVOCATION_TRACED,
+});
 
 export function createApp() {
   const app = new Hono();
@@ -45,11 +53,47 @@ export function createApp() {
   app.post('/copilotkit', async (c) => {
     const tableName = process.env['TABLE_NAME'] ?? '';
     const repo = new OnboardingRepository(tableName);
-    const graph = buildOnboardingGraph({ repo });
+
+    // tenantId: matches the /session endpoint's convention above.
+    // correlationId source: session-scoped id. CopilotKit request body
+    // typically carries threadId; we also honour an explicit x-session-id
+    // header, falling back to x-user-id which /session already uses.
+    // Emission is gated on BOTH being present — event-processor parsers
+    // reject envelopes without detail.context.tenantId.
+    const tenantId = c.req.header('x-tenant-id') ?? '';
+    const sessionId =
+      c.req.header('x-session-id') ??
+      c.req.header('x-user-id') ??
+      '';
+
+    const tracer = new AgentTracer();
+    const graph = buildOnboardingGraph({ repo }, { tracer });
 
     const runtime = new CopilotRuntime();
     const adapter = new LangGraphAgent({ graph });
-    return runtime.process(c.req.raw, adapter);
+
+    let status: 'success' | 'error' = 'success';
+    try {
+      return await runtime.process(c.req.raw, adapter);
+    } catch (err) {
+      status = 'error';
+      throw err;
+    } finally {
+      if (sessionId && tenantId) {
+        emitter
+          .emit(tracer.build(status), { tenantId, correlationId: sessionId, agent: 'onboarding' })
+          .catch((e) => {
+            // eslint-disable-next-line no-console
+            console.warn('onboarding trace emit failed', e);
+          });
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn('onboarding trace emission skipped (missing tenantId or sessionId)', {
+          hasTenantId: Boolean(tenantId),
+          hasSessionId: Boolean(sessionId),
+        });
+      }
+    }
   });
 
   return app;
