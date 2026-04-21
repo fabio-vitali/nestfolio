@@ -147,5 +147,7 @@ export class MockApiFixture {
       // eslint-disable-next-line no-console
       console.error('MockApiFixture: failed to delete IAM role', err);
     }
+    this.lambda.destroy();
+    this.iam.destroy();
   }
 }
