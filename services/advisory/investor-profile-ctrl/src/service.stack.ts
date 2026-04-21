@@ -106,8 +106,13 @@ export class InvestorProfileCtrlStack extends ServiceStack {
         MODEL_OPUS_ID: modelOpusId,
         MODEL_HAIKU_ID: modelHaikuId,
         TABLE_NAME: state.getTable().tableName,
+        EVENT_BUS_NAME: this.eventBus.eventBusName,
       },
     });
+
+    // Grant the AgentRuntime role permission to emit trace envelopes to the
+    // advisory bus (consumed by AgentTraceTrap in e2e feature tests).
+    this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
 
     const runtimeArn = agentRuntime.runtime.agentRuntimeArn;
     const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {
