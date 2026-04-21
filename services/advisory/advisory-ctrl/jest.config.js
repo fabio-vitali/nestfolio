@@ -20,6 +20,7 @@ module.exports = {
   },
   transform: {
     '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json', diagnostics: false }],
+    '\\.txt$': '<rootDir>/test/unit/__mocks__/txt-transformer.js',
   },
   transformIgnorePatterns: ['node_modules/(?!.*p-limit/|.*yocto-queue/)'],
 };

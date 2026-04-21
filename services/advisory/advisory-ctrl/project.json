@@ -44,7 +44,7 @@
     "build-agent": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx esbuild services/advisory/advisory-ctrl/agents/decision-lifecycle/server.ts --bundle --platform=node --outfile=services/advisory/advisory-ctrl/agents/decision-lifecycle/dist/bundle.js --format=cjs --target=node20"
+        "command": "npx esbuild services/advisory/advisory-ctrl/agents/decision-lifecycle/server.ts --bundle --platform=node --outfile=services/advisory/advisory-ctrl/agents/decision-lifecycle/dist/bundle.js --format=cjs --target=node20 --loader:.txt=text"
       }
     }
   },
