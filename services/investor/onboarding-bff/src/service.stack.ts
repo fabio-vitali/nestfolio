@@ -69,5 +69,14 @@ export class OnboardingBffStack extends ServiceStack {
       },
     });
     this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
+
+    // SSM-published runtime target. Pattern mirrors
+    // services/advisory/advisory-narrative-ctrl/src/service.stack.ts:99-107.
+    // Defaults to the real AgentCore runtime ARN; future consumers
+    // (proxy Lambda, BFF resolver, smoke scripts) discover it via SSM.
+    new StringParameter(this, 'AgentRuntimeUrlParam', {
+      parameterName: `/nestfolio/${props.prefix}-onboarding-bff/agent/runtimeUrl`,
+      stringValue: agentRuntime.runtime.agentRuntimeArn,
+    });
   }
 }

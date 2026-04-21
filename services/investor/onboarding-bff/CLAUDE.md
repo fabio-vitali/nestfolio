@@ -27,7 +27,8 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
   Environment: TABLE_NAME, KNOWLEDGE_BASE_ID, AGENT_RUNTIME=true, EVENT_BUS_NAME
   TraceEmitter: EventBridgeTraceEmitter, source `agent-orchestrator@onboarding-bff`, detailType `ONBOARDING_AGENT_INVOCATION_TRACED`
   PutEvents grant: investorBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal)
-  Emission lives in the `/copilotkit` request handler, not in `invokeOrchestrator` — see `agents/onboarding/server.ts`.
+  Emission lives in the `POST /invocations` request handler, not in `invokeOrchestrator` — see `agents/onboarding/server.ts`. Identity is parsed from the `x-amzn-bedrock-agentcore-runtime-session-id` header (`${tenantId}/${sessionId}`).
+  SSM runtime URL export param: `/nestfolio/${prefix}-onboarding-bff/agent/runtimeUrl`
 
 ## Standalone Lambdas
 - SearchKbFn: RAG search over knowledge base (invoked by AgentRuntime tool, not via Ingress)
