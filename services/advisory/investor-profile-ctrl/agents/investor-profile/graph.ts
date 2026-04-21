@@ -10,6 +10,7 @@ import {
   type MemoryClient,
   type AgentInvocation,
   type ServiceUnavailableResponse,
+  type TraceEmitter,
 } from '@nestfolio/agent-orchestrator';
 import { userGoalsConfig } from '../../src/agents/user-goals.config';
 import { riskAssessmentConfig } from '../../src/agents/risk-assessment.config';
@@ -55,6 +56,7 @@ function buildMemoryClient(): MemoryClient {
 
 export async function invokeInvestorProfile(
   payload: AgentInvocation,
+  emitter?: TraceEmitter,
 ): Promise<Record<string, unknown>> {
   const memory = buildMemoryClient();
   const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
@@ -82,7 +84,18 @@ export async function invokeInvestorProfile(
 
   // 3. Invoke orchestrator (parallel: user-goals + risk-assessment)
   const enrichedInput = rawInput + kbContext + historyContext;
-  const result = await invokeOrchestrator(graph, { input: enrichedInput }, {});
+  const result = await invokeOrchestrator(
+    graph,
+    { input: enrichedInput },
+    emitter
+      ? {
+          agent: 'investor-profile',
+          correlationId: payload.decisionId,
+          tenantId: payload.tenantId,
+          emitter,
+        }
+      : undefined,
+  );
 
   // Throw on service unavailable so the container emits a 500 via createAgentServer
   if ('serviceUnavailable' in result) {

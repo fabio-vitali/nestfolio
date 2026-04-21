@@ -69,7 +69,7 @@ describe('investor-profile-ctrl orchestrator graph', () => {
     expect(mockInvokeOrchestrator).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({ input: expect.stringContaining('FINRA 2111') }),
-      expect.any(Object),
+      undefined,
     );
   });
 
