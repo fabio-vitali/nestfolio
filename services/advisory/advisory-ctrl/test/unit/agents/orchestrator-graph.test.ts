@@ -77,7 +77,7 @@ describe('advisory-ctrl orchestrator graph', () => {
     expect(mockInvokeOrchestrator).toHaveBeenCalledWith(
       mockGraph,
       expect.objectContaining({ input: expect.any(String) }),
-      expect.any(Object),
+      undefined,
     );
     expect(result).toHaveProperty('user-goals');
   });

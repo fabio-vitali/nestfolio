@@ -7,6 +7,7 @@ import {
   type MemoryClient,
   type AgentInvocation,
   type ServiceUnavailableResponse,
+  type TraceEmitter,
 } from '@nestfolio/agent-orchestrator';
 import { AGENT_CONFIGS, DECISION_LIFECYCLE_WAVES } from '../../src/agents/config';
 import { VALIDATION_RULES } from '../../src/agents/validation';
@@ -34,6 +35,7 @@ function buildMemoryClient(): MemoryClient {
 
 export async function invokeDecisionLifecycle(
   payload: AgentInvocation,
+  emitter?: TraceEmitter,
 ): Promise<Record<string, unknown>> {
   const memory = buildMemoryClient();
   const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
@@ -57,7 +59,14 @@ export async function invokeDecisionLifecycle(
       tenantId: payload.tenantId,
       decisionId: payload.decisionId,
     },
-    {},
+    emitter
+      ? {
+          agent: 'decision-lifecycle',
+          correlationId: payload.decisionId,
+          tenantId: payload.tenantId,
+          emitter,
+        }
+      : undefined,
   );
 
   // Throw on service unavailable so the container emits a 500 via createAgentServer
