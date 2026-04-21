@@ -42,7 +42,7 @@ Sandbox pipeline gap + five services + cross-phase wrap-up:
 | 3.5 | **Sandbox pipeline-trigger gap** | **prerequisite** for every live assertion below |
 | 4 | `portfolio-engine-ctrl` | `rebalance-on-drift.e2e.test.ts` |
 | 5 | `investor-profile-ctrl` | `first-decision.e2e.test.ts` |
-| 6 | `advisory-ctrl` / `decision-lifecycle` | `first-decision`, `operating-mode-authority`, `reconciliation-correction` |
+| 6 | `advisory-ctrl` / `decision-lifecycle` | `first-decision`, ~~`operating-mode-authority`~~ (deferred — see Task 6.4 Step 4 / Task 9.5), `reconciliation-correction` |
 | 7 | `market-intelligence-ctrl` | `first-decision.e2e.test.ts` (baseline) |
 | 7.5 | **advisory-narrative-ctrl live assertion** (deferred from Plan 2) | `first-decision.e2e.test.ts` |
 | 8 | `onboarding-bff` | deferred (no CopilotKit scenario exists) |
@@ -912,7 +912,23 @@ describe('scenario 11 — ...', () => {
 });
 ```
 
-- [ ] **Step 4: Add decisionLifecycle trap + assertion to `operating-mode-authority.e2e.test.ts`**
+- [ ] **Step 4: ~~Add decisionLifecycle trap + assertion to `operating-mode-authority.e2e.test.ts`~~ — DEFERRED (2026-04-21)**
+
+> **Deferred during Phase 6 implementation.** The scenario publishes
+> `DECISION_PACKET_CREATED` directly to compliance-ctrl and asserts
+> compliance-ctrl's authority evaluation; advisory-ctrl's AgentRuntime is
+> never the target of the scenario's `it()` trigger. Authority escalation
+> happens in compliance-ctrl, NOT in advisory-ctrl's decision-lifecycle —
+> the assertion sketch below was based on a misread. The `onboarded()`
+> fixture does invoke advisory-ctrl's AgentRuntime (MANDATE_CREATED /
+> GOAL_CREATED / RISK_PROFILE_CREATED subscriptions) but the fixture
+> doesn't return those trigger event ids, so `waitFor({correlationId:…})`
+> has nothing to match. Resolution recorded in Phase 9 Task 9.5 deferral
+> list; decide between (a) exposing onboarded fixture ids, (b) writing a
+> dedicated operating-mode → advisory-ctrl scenario, or (c) marking the
+> task as "planned in error" when operating-mode feature work resumes.
+>
+> The snippet below is kept for reference only; do not apply it.
 
 ```ts
 import { AgentTraceTrap } from '../helpers/agent-trace-trap';
@@ -1638,9 +1654,9 @@ If a future refactor makes the type-level guarantee weaker (e.g. if `AGENT_TRACE
 
 ## Task 9.5 — Plan summary / deferrals
 
-Investor-profile (Phase 5) and market-intelligence (Phase 7) assertion blocks landed inside `first-decision.e2e.test.ts`. **Onboarding (Phase 8) is explicitly deferred** because no existing e2e scenario drives CopilotRuntime.
+Investor-profile (Phase 5) and market-intelligence (Phase 7) assertion blocks landed inside `first-decision.e2e.test.ts`. **Onboarding (Phase 8) is explicitly deferred** because no existing e2e scenario drives CopilotRuntime. **Operating-mode-authority decision-lifecycle assertion (Phase 6) is deferred** — discovered during Phase 6 execution 2026-04-21: the scenario triggers compliance-ctrl directly and never exercises advisory-ctrl's AgentRuntime with a scenario-visible decisionId.
 
-- [ ] **Step 1: Record the onboarding deferral in `project_agent_contract_tests.md`**
+- [ ] **Step 1: Record deferrals in `project_agent_contract_tests.md`**
 
 Add the following section to that topic file:
 
@@ -1652,13 +1668,38 @@ Add the following section to that topic file:
   Follow-up plan: `docs/superpowers/plans/2026-XX-XX-onboarding-e2e-scenario.md` (to be created)
   — scope: add a CopilotKit session harness to `apps/e2e-feature-tests` + a multi-turn
   scenario + the assertion block sketched in the contract-tests plan Phase 8 Task 8.5.
+
+- **Operating-mode-authority decision-lifecycle assertion** — Phase 6 planned to add the
+  decisionLifecycle trap to `operating-mode-authority.e2e.test.ts`. Discovered at
+  implementation time (2026-04-21) that the scenario publishes DECISION_PACKET_CREATED
+  directly to compliance-ctrl and asserts compliance-ctrl's authority evaluation.
+  advisory-ctrl's AgentRuntime is never the target of the scenario's `it()` trigger.
+  Authority escalation happens in compliance-ctrl, NOT advisory-ctrl's decision-lifecycle —
+  the plan's original "assert on the LAST trace under tier escalation" advice was based
+  on a misread of where escalation occurs. The `onboarded()` fixture in `beforeEach` does
+  invoke advisory-ctrl's AgentRuntime (MANDATE_CREATED/GOAL_CREATED/RISK_PROFILE_CREATED
+  subscriptions), but the fixture does not return those trigger event ids, so the
+  scenario cannot call `waitFor({correlationId: ...})` against them.
+  Resolution paths (pick one in follow-up):
+    (a) Expose onboarded-fixture trigger-event decisionIds via a return value so this
+        scenario can waitFor against them.
+    (b) Add a dedicated "operating-mode affects advisory-ctrl's decision-lifecycle"
+        scenario with a trigger that directly exercises advisory-ctrl's AgentRuntime
+        (e.g. OPERATING_MODE_CHANGED on advisory bus with a scenario-captured
+        decisionId = ctx.eventId).
+    (c) Accept that this scenario's scope is compliance-ctrl authority evaluation and
+        not advisory-ctrl agent orchestration — remove the task from the follow-up list
+        on the grounds that it was planned in error.
+  Follow-up plan: record in `project_agent_contract_tests.md` deferral list; decide
+  between (a)/(b)/(c) when the operating-mode feature work resumes (see
+  `project_operating_mode.md`).
 ```
 
 - [ ] **Step 2: Commit the summary**
 
 ```bash
 git add memory/project_agent_contract_tests.md  # adjust path to your memory dir
-git commit -m "docs: record onboarding-e2e deferral for agent contract tests"
+git commit -m "docs: record onboarding-e2e and operating-mode-authority deferrals for agent contract tests"
 ```
 
 **Phase 9 success criteria:**
