@@ -104,12 +104,12 @@ if (process.env['AGENT_RUNTIME'] === 'true') {
   const app = createApp();
   const port = parseInt(process.env['PORT'] ?? '8080', 10);
   // eslint-disable-next-line no-console
-  console.log(`Onboarding agent runtime listening on port ${port}`);
-  if (typeof Bun !== 'undefined' && Bun?.serve) {
-    Bun.serve({ fetch: app.fetch, port });
-  } else {
-    import('node:http').then(({ createServer }) => {
-      createServer(app.fetch as any).listen(port);
-    });
-  }
+  console.log(`Onboarding agent runtime listening on 0.0.0.0:${port}`);
+  // Use @hono/node-server (same bootstrap as advisory agents). The previous
+  // createServer(app.fetch) path passed Node's IncomingMessage to Hono, which
+  // expects Fetch Request semantics — `c.req.header()` crashed on every
+  // request including AgentCore's /ping health probe.
+  import('@hono/node-server').then(({ serve }) => {
+    serve({ fetch: app.fetch, port, hostname: '0.0.0.0' });
+  });
 }
