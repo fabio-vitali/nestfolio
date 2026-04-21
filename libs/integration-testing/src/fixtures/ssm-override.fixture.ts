@@ -82,8 +82,8 @@ export class SsmOverrideFixture {
   }
 
   async restore(): Promise<void> {
-    if (!this.paramName || !this.backupParamName || !this.restoreTo) return;
     try {
+      if (!this.paramName || !this.backupParamName || !this.restoreTo) return;
       // Always restore to the caller-provided canonical value. We pass it through
       // memory rather than reading from .backup so a corrupted .backup cannot
       // re-poison the live parameter.
@@ -100,6 +100,8 @@ export class SsmOverrideFixture {
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('SsmOverrideFixture: failed to restore SSM value', err);
+    } finally {
+      this.client.destroy();
     }
   }
 

@@ -4,7 +4,8 @@ import { SsmOverrideFixture } from '../../src/fixtures/ssm-override.fixture';
 // Mock the SSM client — no real AWS credentials needed for unit tests
 jest.mock('@aws-sdk/client-ssm');
 const mockSend = jest.fn();
-(SSMClient as jest.Mock).mockImplementation(() => ({ send: mockSend }));
+const mockDestroy = jest.fn();
+(SSMClient as jest.Mock).mockImplementation(() => ({ send: mockSend, destroy: mockDestroy }));
 
 const PARAM = '/test/ssm-override-fixture/baseUrl';
 const BACKUP = `${PARAM}.backup`;
@@ -18,6 +19,7 @@ const mockCtx = { region: 'us-east-1', cleanup: mockCleanup } as any;
 describe('SsmOverrideFixture', () => {
   beforeEach(() => {
     mockSend.mockReset();
+    mockDestroy.mockReset();
     mockCleanup.register.mockReset();
   });
 
@@ -115,5 +117,37 @@ describe('SsmOverrideFixture', () => {
     expect(putCalls[0][0]).toMatchObject({ Name: PARAM, Value: REAL_VALUE });
     const deleteCalls = (DeleteParameterCommand as unknown as jest.Mock).mock.calls;
     expect(deleteCalls[0][0]).toMatchObject({ Name: BACKUP });
+  });
+
+  it('destroys the ssm client on restore, even when override was never called', async () => {
+    const fixture = new SsmOverrideFixture(mockCtx);
+
+    // restore() on a fixture that never called override() hits the early-return
+    // path. destroy() must still run so Jest's connection pool clears.
+    await fixture.restore();
+
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('destroys the ssm client after a successful override+restore', async () => {
+    // Happy-path override (same setup as the `restore puts restoreTo back` test)
+    mockSend.mockRejectedValueOnce(new Error('ParameterNotFound'));
+    mockSend.mockResolvedValueOnce({ Parameter: { Value: REAL_VALUE } });
+    mockSend.mockResolvedValueOnce({});
+    mockSend.mockResolvedValueOnce({});
+
+    const fixture = new SsmOverrideFixture(mockCtx);
+    await fixture.override({
+      paramName: PARAM,
+      testValue: MOCK_VALUE,
+      restoreTo: REAL_VALUE,
+      waitMs: 0,
+    });
+
+    mockSend.mockResolvedValueOnce({}); // PutParam(restore)
+    mockSend.mockResolvedValueOnce({}); // DeleteParam(.backup)
+    await fixture.restore();
+
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
   });
 });
