@@ -49,7 +49,7 @@ export class OnboardingBffStack extends ServiceStack {
     searchKbFn.addToRolePolicy(knowledgeBase.triggerSyncPolicy());
 
     // AgentRuntime — uses own table
-    new AgentRuntime(this, 'OnboardingAgent', {
+    const agentRuntime = new AgentRuntime(this, 'OnboardingAgent', {
       runtimeName: 'onboarding_agent',
       agentCodePath: path.join(__dirname, '..', 'agents', 'onboarding'),
       description: 'Conversational onboarding agent for investor onboarding',
@@ -65,7 +65,9 @@ export class OnboardingBffStack extends ServiceStack {
         TABLE_NAME: state.getTable().tableName,
         KNOWLEDGE_BASE_ID: knowledgeBase.knowledgeBaseId,
         AGENT_RUNTIME: 'true',
+        EVENT_BUS_NAME: this.eventBus.eventBusName,
       },
     });
+    this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
   }
 }
