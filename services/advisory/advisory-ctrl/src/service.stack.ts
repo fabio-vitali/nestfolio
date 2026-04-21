@@ -137,6 +137,7 @@ export class AdvisoryCtrlStack extends ServiceStack {
         MODEL_SONNET_ID: modelSonnetId,
         MODEL_HAIKU_ID: modelHaikuId,
         TABLE_NAME: state.getTable().tableName,
+        EVENT_BUS_NAME: this.eventBus.eventBusName,
       },
       toolTargets: [
         {
@@ -182,6 +183,13 @@ export class AdvisoryCtrlStack extends ServiceStack {
       actions: ['bedrock-agentcore:InvokeAgentRuntime'],
       resources: [runtimeArn],
     }));
+
+    // Grant the AgentRuntime role permission to emit trace envelopes to the
+    // advisory bus. Separate from the tool-publisher Lambda's PutEvents grant
+    // above (that one lets the event-publisher tool emit domain events from
+    // within agent invocations); this grants emission of the agent trace
+    // envelope itself, consumed by AgentTraceTrap in e2e feature tests.
+    this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
 
     this.addObservability({
       ingress,
