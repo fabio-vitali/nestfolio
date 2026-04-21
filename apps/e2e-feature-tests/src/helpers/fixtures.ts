@@ -208,10 +208,16 @@ export function withLiveDecision(opts?: {
 }): Fixture {
   return async (_ctx, tenant, eb, bff) => {
     const trigger = opts?.trigger ?? 'MANDATE_CREATED';
+    // Fan to BOTH advisory-ctrl (materialises the DecisionPacket surfaced by
+    // advisory-bff.getDecisionHistory) AND decision-workflow-ctrl (starts the
+    // Step Function that invokes the 4 advisory agents). Both services key
+    // their decisionId on ctx.eventId (post 2026-04-20 alignment), so the
+    // decisionId returned here also matches the correlationId emitted by
+    // every agent trace envelope in the SF chain.
     if (trigger === 'MANDATE_CREATED') {
       await eb.putEvent({
         bus: 'advisory',
-        targetService: 'advisory-ctrl',
+        targetService: ['advisory-ctrl', 'decision-workflow-ctrl'],
         detailType: 'MANDATE_CREATED',
         detail: {
           tenantId: tenant.tenantId,
@@ -227,7 +233,7 @@ export function withLiveDecision(opts?: {
     } else {
       await eb.putEvent({
         bus: 'advisory',
-        targetService: 'advisory-ctrl',
+        targetService: ['advisory-ctrl', 'decision-workflow-ctrl'],
         detailType: 'OPERATING_MODE_CHANGED',
         detail: {
           tenantId: tenant.tenantId,
