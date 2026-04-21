@@ -19,6 +19,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   createNoOpMemoryClient: jest.fn().mockReturnValue({
     openDecisionSession: jest.fn().mockReturnValue(mockMemorySession),
   }),
+  invokeOrchestrator: jest.fn().mockImplementation(async (graph, input) => graph.invoke(input)),
 }));
 
 import { invokeMarketResearch } from '../../agents/market-intelligence/graph';
