@@ -6,6 +6,7 @@ import { PortfolioEngineEventTypes } from '@nestfolio/portfolio-engine-ctrl/even
 import { InvestorProfileEventTypes } from '@nestfolio/investor-profile-ctrl/events';
 import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
 import { MarketIntelligenceEventTypes } from '@nestfolio/market-intelligence-ctrl/events';
+import { OnboardingBffEventTypes } from '@nestfolio/onboarding-bff/events';
 
 const AGENT_TRACE_EVENTS = {
   advisoryNarrative: {
@@ -27,6 +28,10 @@ const AGENT_TRACE_EVENTS = {
   marketIntelligence: {
     bus: 'advisory' as const,
     detailType: MarketIntelligenceEventTypes.MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED,
+  },
+  onboarding: {
+    bus: 'investor' as const,
+    detailType: OnboardingBffEventTypes.ONBOARDING_AGENT_INVOCATION_TRACED,
   },
 };
 
