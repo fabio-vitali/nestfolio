@@ -17,6 +17,7 @@ import { AlpacaAdptEventTypes } from '@nestfolio/broker-alpaca-adpt/events';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
 import type { DecisionHistoryResponse } from '../helpers/graphql-types';
+import { AgentTraceTrap } from '../helpers/agent-trace-trap';
 
 describe('scenario 13 — reconciliation discrepancy surfaces corrective decision', () => {
   let ctx: TestContext;
@@ -24,10 +25,16 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
   let ddbClient: DynamoDBClient;
   let ddbDoc: DynamoDBDocumentClient;
   let tableName: string;
+  let decisionLifecycleTrap: AgentTraceTrap<'decisionLifecycle'>;
 
   beforeEach(async () => {
     ctx = await createTestContext();
     tenant = await freshTenant(ctx);
+    // Arm before any fixture — drift detection fires asynchronously from
+    // ALPACA_ACCOUNT_SNAPSHOT, and the resulting PORTFOLIO_DRIFT_DETECTED
+    // reaches advisory-ctrl's decision-lifecycle AgentRuntime before the
+    // scenario's assertions run.
+    decisionLifecycleTrap = await AgentTraceTrap.arm(ctx, 'decisionLifecycle');
     await applyFixtures(ctx, tenant, [
       onboarded(),
       funded({ cashBalanceCents: 2_000_000 }),
@@ -106,5 +113,23 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
     const decision = history.getDecisionHistory.items.find((d) => d.trigger === 'PORTFOLIO_DRIFT_DETECTED');
     expect(decision).toBeDefined();
     expect(decision!.decisionId).toEqual(expect.any(String));
-  });
+
+    // decision-lifecycle agent contract — PORTFOLIO_DRIFT_DETECTED drives
+    // advisory-ctrl's Ingress → AgentRuntime. decisionId = triggerEvent.id
+    // matches the envelope's correlationId. Reconciliation may produce
+    // multiple traces across correction cycles; assert on the LAST.
+    const dlTraces = await decisionLifecycleTrap.waitFor({
+      correlationId: decision!.decisionId,
+      timeoutMs: 240_000,
+    });
+    const envelope = dlTraces[dlTraces.length - 1].envelope;
+
+    expect(envelope.status).toBe('success');
+    const llmErrors = envelope.errors.filter((e) => e.kind === 'llm_error');
+    expect(llmErrors).toHaveLength(0);
+    expect(envelope.llmCalls.length).toBeGreaterThanOrEqual(1);
+    expect(envelope['gen_ai.invocation.latency_ms']).toBeLessThan(
+      decisionLifecycleTrap.getLatencyBudget(),
+    );
+  }, 420_000);
 });

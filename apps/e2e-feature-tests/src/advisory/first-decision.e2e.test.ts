@@ -15,15 +15,17 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
   let ctx: TestContext;
   let tenant: FreshTenant;
   let investorProfileTrap: AgentTraceTrap<'investorProfile'>;
+  let decisionLifecycleTrap: AgentTraceTrap<'decisionLifecycle'>;
 
   beforeEach(async () => {
     ctx = await createTestContext();
     tenant = await freshTenant(ctx);
     // Arm BEFORE any fixture — onboarded() publishes GOAL_CREATED /
     // RISK_PROFILE_CREATED which could themselves trigger SF executions and
-    // investor-profile invocations if cross-wired; we want every envelope in
-    // the window captured so waitFor can filter by correlationId.
+    // agent invocations; we want every envelope in the window captured so
+    // waitFor can filter by correlationId.
     investorProfileTrap = await AgentTraceTrap.arm(ctx, 'investorProfile');
+    decisionLifecycleTrap = await AgentTraceTrap.arm(ctx, 'decisionLifecycle');
     await applyFixtures(ctx, tenant, [onboarded()]);
   }, 180_000);
 
@@ -68,6 +70,24 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
 
     expect(envelope['gen_ai.invocation.latency_ms']).toBeLessThan(
       investorProfileTrap.getLatencyBudget(),
+    );
+
+    // advisory-ctrl's decision-lifecycle agent runs in parallel with the SF
+    // chain above (both services subscribe to MANDATE_CREATED). Fan-out means
+    // the agent can emit multiple traces per decisionId under revision
+    // cycles — assert on the LAST (settled) trace.
+    const dlTraces = await decisionLifecycleTrap.waitFor({
+      correlationId: decisionId,
+      timeoutMs: 240_000,
+    });
+    const dlEnvelope = dlTraces[dlTraces.length - 1].envelope;
+
+    expect(dlEnvelope.status).toBe('success');
+    const dlLlmErrors = dlEnvelope.errors.filter((e) => e.kind === 'llm_error');
+    expect(dlLlmErrors).toHaveLength(0);
+    expect(dlEnvelope.llmCalls.length).toBeGreaterThanOrEqual(1);
+    expect(dlEnvelope['gen_ai.invocation.latency_ms']).toBeLessThan(
+      decisionLifecycleTrap.getLatencyBudget(),
     );
   }, 300_000);
 });

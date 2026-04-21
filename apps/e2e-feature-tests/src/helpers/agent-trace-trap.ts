@@ -34,7 +34,11 @@ export type AgentKey = keyof typeof AGENT_TRACE_EVENTS;
 const DEFAULT_LATENCY_BUDGETS_MS = {
   advisoryNarrative: 15_000,
   portfolioEngine: 45_000,
-  decisionLifecycle: 60_000,
+  // Decision-lifecycle orchestrates 6 agents across 3 sequential waves
+  // (profiling → construction → explainability) with tier escalation and
+  // tool calls; real p95 lands ~80s. Budget keeps headroom for jitter but
+  // still catches multi-minute pathologies.
+  decisionLifecycle: 180_000,
   investorProfile: 30_000,
   marketIntelligence: 30_000,
   onboarding: 30_000,
