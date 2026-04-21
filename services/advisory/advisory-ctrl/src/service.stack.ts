@@ -178,11 +178,10 @@ export class AdvisoryCtrlStack extends ServiceStack {
     agentRuntimeUrlParam.grantRead(ingress.handler);
 
     // Grant the ingress handler permission to invoke the AgentCore runtime.
-    ingress.handler.addToRolePolicy(new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ['bedrock-agentcore:InvokeAgentRuntime'],
-      resources: [runtimeArn],
-    }));
+    // Uses the construct's grantInvoke helper so the grant covers BOTH the
+    // runtime ARN and its endpoint ARNs (at invoke time the SDK targets
+    // .../runtime-endpoint/DEFAULT; missing that causes AccessDeniedException).
+    agentRuntime.grantInvoke(ingress.handler);
 
     // Grant the AgentRuntime role permission to emit trace envelopes to the
     // advisory bus. Separate from the tool-publisher Lambda's PutEvents grant
