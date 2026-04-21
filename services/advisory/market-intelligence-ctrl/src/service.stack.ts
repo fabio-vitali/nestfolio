@@ -106,8 +106,13 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
       environmentVariables: {
         MODEL_SONNET_ID: modelSonnetId,
         TABLE_NAME: state.getTable().tableName,
+        EVENT_BUS_NAME: this.eventBus.eventBusName,
       },
     });
+
+    // Grant the AgentRuntime role permission to emit trace envelopes to the
+    // advisory bus (consumed by AgentTraceTrap in e2e feature tests).
+    this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
 
     // SSM-published runtime target. Defaults to the real AgentCore runtime ARN;
     // integration tests redirect via SsmOverrideFixture to a Function URL.
