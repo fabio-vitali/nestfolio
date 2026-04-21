@@ -42,7 +42,10 @@ export type AgentKey = keyof typeof AGENT_TRACE_EVENTS;
  * Override per-env via `AGENT_LATENCY_BUDGET_MS_<AGENT_KEY>`.
  */
 const DEFAULT_LATENCY_BUDGETS_MS = {
-  advisoryNarrative: 15_000,
+  // Narrative is a single Sonnet invocation behind a Lambda Ingress — cold
+  // starts + Bedrock jitter push p95 close to 15s. Budget holds 20s headroom
+  // to catch pathological regressions without flaking on normal variance.
+  advisoryNarrative: 20_000,
   portfolioEngine: 45_000,
   // Decision-lifecycle orchestrates 6 agents across 3 sequential waves
   // (profiling → construction → explainability) with tier escalation and
