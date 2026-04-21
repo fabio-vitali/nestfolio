@@ -6,7 +6,7 @@ import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfo
 import { NarrativeEventTypes } from './domain/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
-import { NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
+import { agentProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 
 export class AdvisoryNarrativeCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -21,8 +21,12 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
     });
 
     // Ingress: trigger + feedback events
+    // Uses agentProps because the handler dispatches to Bedrock (Sonnet) via
+    // AgentCore — invocations can take 50–130s (p95). Without this profile the
+    // Lambda times out at 30s, leaving the SF task token unreturned.
     const ingress = new Ingress(this, 'Ingress', {
       state,
+      profile: agentProps,
       eventTypes: [
         DecisionWorkflowEventTypes.GENERATE_NARRATIVE,
         DecisionWorkflowEventTypes.DECISION_FEEDBACK,

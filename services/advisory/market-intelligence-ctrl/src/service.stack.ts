@@ -12,7 +12,7 @@ import { SecEdgarAdptEventTypes } from '@nestfolio/sec-edgar-adpt/events';
 import { FredAdptEventTypes } from '@nestfolio/fred-adpt/events';
 import { AlphaVantageAdptEventTypes } from '@nestfolio/alpha-vantage-adpt/events';
 import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
-import { defaultLambdaProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
+import { agentProps, defaultLambdaProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 
 export class MarketIntelligenceCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -27,8 +27,12 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     });
 
     // Ingress: trigger event + 5 feed ingestion events
+    // Uses agentProps because the handler dispatches to Bedrock (Sonnet) via
+    // AgentCore — invocations can take 50–130s (p95). Without this profile the
+    // Lambda times out at 30s, leaving the SF task token unreturned.
     const ingress = new Ingress(this, 'Ingress', {
       state,
+      profile: agentProps,
       lambdaProps: {
         paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       },

@@ -17,6 +17,7 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
   let investorProfileTrap: AgentTraceTrap<'investorProfile'>;
   let decisionLifecycleTrap: AgentTraceTrap<'decisionLifecycle'>;
   let marketIntelligenceTrap: AgentTraceTrap<'marketIntelligence'>;
+  let narrativeTrap: AgentTraceTrap<'advisoryNarrative'>;
 
   beforeEach(async () => {
     ctx = await createTestContext();
@@ -28,6 +29,7 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     investorProfileTrap = await AgentTraceTrap.arm(ctx, 'investorProfile');
     decisionLifecycleTrap = await AgentTraceTrap.arm(ctx, 'decisionLifecycle');
     marketIntelligenceTrap = await AgentTraceTrap.arm(ctx, 'marketIntelligence');
+    narrativeTrap = await AgentTraceTrap.arm(ctx, 'advisoryNarrative');
     await applyFixtures(ctx, tenant, [onboarded()]);
   }, 180_000);
 
@@ -105,5 +107,27 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     expect(miEnvelope['gen_ai.invocation.latency_ms']).toBeLessThan(
       marketIntelligenceTrap.getLatencyBudget(),
     );
-  }, 300_000);
+
+    // advisory-narrative-ctrl runs as the final explainability wave in the SF
+    // chain (after profiling + construction waves complete). It receives the
+    // assembled decision packet and generates the investor-facing narrative.
+    const narrativeTraces = await narrativeTrap.waitFor({
+      correlationId: decisionId,
+      timeoutMs: 120_000,
+    });
+    const narrative = narrativeTraces[0].envelope;
+
+    expect(narrative.status).toBe('success');
+    // Tolerate chain_error (LangChain structured-output parser retries) — same
+    // relaxation applied to all other traps in this file; fail only on
+    // llm_error (Bedrock infra failures that cannot be self-healed).
+    const narrativeLlmErrors = narrative.errors.filter((e) => e.kind === 'llm_error');
+    expect(narrativeLlmErrors).toHaveLength(0);
+    expect(narrative.toolCalls).toHaveLength(0);
+    expect(narrative.llmCalls.length).toBeGreaterThanOrEqual(1);
+    expect(narrative.llmCalls[0]['gen_ai.request.model']).toBe('sonnet');
+    expect(narrative['gen_ai.invocation.latency_ms']).toBeLessThan(
+      narrativeTrap.getLatencyBudget(),
+    );
+  }, 360_000);
 });
