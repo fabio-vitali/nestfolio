@@ -134,12 +134,11 @@ describe('decision-workflow-ctrl', () => {
     table = new TableAssertions(ctx);
     table.registerCleanup();
 
-    sfn = new SFNClient({ region: process.env.AWS_REGION ?? 'us-east-1' });
-    const prefix = process.env.NESTFOLIO_INTEG_PREFIX ?? 'integ';
+    sfn = new SFNClient({ region: ctx.region });
     // ctx.accountId is not exposed by @nestfolio/test-support; resolve via STS.
     const sts = new (await import('@aws-sdk/client-sts')).STSClient({});
     const ident = await sts.send(new (await import('@aws-sdk/client-sts')).GetCallerIdentityCommand({}));
-    stateMachineArn = `arn:aws:states:${process.env.AWS_REGION ?? 'us-east-1'}:${ident.Account}:stateMachine:${prefix}-decision-workflow-ctrl-decisionstatemachine`;
+    stateMachineArn = `arn:aws:states:${ctx.region}:${ident.Account}:stateMachine:${ctx.prefix}-decision-workflow-ctrl-decisionstatemachine`;
 
     // Trap CDC events emitted by decision-workflow-ctrl Egress
     await trap.deploy({
