@@ -24,7 +24,7 @@
     "build-agent": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx esbuild services/investor/onboarding-bff/agents/onboarding/server.ts --bundle --platform=node --outfile=services/investor/onboarding-bff/agents/onboarding/dist/bundle.js --format=cjs --target=node20"
+        "command": "npx esbuild services/investor/onboarding-bff/agents/onboarding/server.ts --bundle --platform=node --outfile=services/investor/onboarding-bff/agents/onboarding/dist/bundle.mjs --format=esm --target=node20 --banner:js='import { createRequire as __createRequire } from \"module\"; import { fileURLToPath as __fileURLToPath } from \"url\"; import { dirname as __dirname_fn } from \"path\"; const require = __createRequire(import.meta.url); const __filename = __fileURLToPath(import.meta.url); const __dirname = __dirname_fn(__filename);'"
       }
     },
     "test-integration": {
