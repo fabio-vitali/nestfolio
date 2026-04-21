@@ -24,7 +24,10 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 - onboarding_agent: Conversational onboarding agent for investor onboarding
   Models: Sonnet (SSM from advisory-hub)
   Tools: search_knowledge_base (SearchKbFn Lambda, search-kb.schema.json, 15s timeout)
-  Environment: TABLE_NAME, KNOWLEDGE_BASE_ID, AGENT_RUNTIME=true
+  Environment: TABLE_NAME, KNOWLEDGE_BASE_ID, AGENT_RUNTIME=true, EVENT_BUS_NAME
+  TraceEmitter: EventBridgeTraceEmitter, source `agent-orchestrator@onboarding-bff`, detailType `ONBOARDING_AGENT_INVOCATION_TRACED`
+  PutEvents grant: investorBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal)
+  Emission lives in the `/copilotkit` request handler, not in `invokeOrchestrator` — see `agents/onboarding/server.ts`.
 
 ## Standalone Lambdas
 - SearchKbFn: RAG search over knowledge base (invoked by AgentRuntime tool, not via Ingress)
@@ -37,21 +40,25 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 - agent/tools/render-ui.ts -- Render UI components
 
 ## Event Types (domain/events.ts)
-- ONBOARDING_STARTED, ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED
+- Inbound: ONBOARDING_STARTED
+- Outbound (CDC): ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED
+- Outbound (direct PutEvents): ONBOARDING_AGENT_INVOCATION_TRACED
 
 ## Tests
-- agent/router.test.ts
-- agent/graph.test.ts
-- agent/state.test.ts
-- agent/session.test.ts
-- domain/schemas.test.ts
-- repositories/onboarding.repository.test.ts
-- runtime/server.test.ts
-- tools/search-kb.test.ts
-- tools/commit-phase.test.ts
-- tools/compute-risk.test.ts
-- tools/render-ui.test.ts
+- test/unit/service.stack.test.ts
+- test/unit/agent/router.test.ts
+- test/unit/agent/graph.test.ts
+- test/unit/agent/state.test.ts
+- test/unit/agent/session.test.ts
+- test/unit/domain/schemas.test.ts
+- test/unit/repositories/onboarding.repository.test.ts
+- test/unit/runtime/server.test.ts
+- test/unit/tools/search-kb.test.ts
+- test/unit/tools/commit-phase.test.ts
+- test/unit/tools/compute-risk.test.ts
+- test/unit/tools/render-ui.test.ts
+- test/integration/onboarding-bff.integration.test.ts
 
 ## Dependencies
-- libs: cdk-constructs (core, extensions, utils), event-processor
+- libs: cdk-constructs (core, extensions, utils), event-processor, agent-orchestrator
 - SSM: advisory-hub (models/sonnet)
