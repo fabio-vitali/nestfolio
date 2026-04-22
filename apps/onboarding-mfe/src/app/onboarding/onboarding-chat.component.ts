@@ -166,7 +166,6 @@ export class OnboardingChatComponent implements OnInit {
   connectionStatus = signal('Attivo ora');
 
   // ── Internal state ─────────────────────────────────────────────────────────
-  private agent: HttpAgent | null = null;
   private streamSub: Subscription | null = null;
   private loadingTimer: ReturnType<typeof setTimeout> | null = null;
   private timeoutTimer: ReturnType<typeof setTimeout> | null = null;
@@ -185,19 +184,6 @@ export class OnboardingChatComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.agent = new HttpAgent({
-      url: this.copilotApiUrl,
-      headers: async () => {
-        const session = await fetchAuthSession();
-        const idToken = session.tokens?.idToken?.toString() ?? '';
-        const tenantId = this.authStore.user()?.tenantId ?? '';
-        const sessionId = this.getOrCreateSessionId();
-        return {
-          'Authorization': `Bearer ${idToken}`,
-          'x-amzn-bedrock-agentcore-runtime-session-id': `${tenantId}/${sessionId}`,
-        };
-      },
-    });
     this.destroyRef.onDestroy(() => this.cleanup());
     // Kick off with an initial agent turn to get the greeting
     this.runAgent([]);
@@ -221,14 +207,26 @@ export class OnboardingChatComponent implements OnInit {
 
   // ── AG-UI SSE stream ───────────────────────────────────────────────────────
 
-  private runAgent(history: ChatMessage[]): void {
-    if (!this.agent) return;
+  private async runAgent(history: ChatMessage[]): Promise<void> {
     this.cleanup();
 
     this.isStreaming.set(true);
     this.showLoading.set(false);
     this.timedOut.set(false);
     this.errorMessage.set(null);
+
+    // Fetch fresh auth headers on every run
+    const session = await fetchAuthSession();
+    const idToken = session.tokens?.idToken?.toString() ?? '';
+    const tenantId = this.authStore.user()?.tenantId ?? '';
+    const sessionId = this.getOrCreateSessionId();
+    const agent = new HttpAgent({
+      url: this.copilotApiUrl,
+      headers: {
+        'Authorization': `Bearer ${idToken}`,
+        'x-amzn-bedrock-agentcore-runtime-session-id': `${tenantId}/${sessionId}`,
+      },
+    });
 
     // Loading indicator after 3 s
     this.loadingTimer = setTimeout(() => {
@@ -261,7 +259,7 @@ export class OnboardingChatComponent implements OnInit {
 
     let currentMsgId: string | null = null;
 
-    this.streamSub = this.agent.run(input).subscribe({
+    this.streamSub = agent.run(input).subscribe({
       next: (event) => {
         switch (event.type) {
           case EventType.RUN_STARTED:
