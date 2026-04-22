@@ -4,11 +4,14 @@
     "types": [
       "jest",
       "node"
-    ]
+    ],
+    "allowJs": true
   },
   "include": [
     "src/**/*.test.ts",
     "test/**/*.test.ts",
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "src/graphql/js-function/**/*.js",
+    "test/unit/graphql/__mocks__/**/*.ts"
   ]
 }
