@@ -31,7 +31,7 @@ const DEPOSIT_FLAG = 'initiateDeposit';
           [outlined]="true"
           data-testid="cta-deposit"
           [disabled]="depositDisabled()"
-          [pTooltip]="depositDisabled() ? (depositReason() || 'Deposits paused — the brokerage circuit is open.') : null"
+          [pTooltip]="depositDisabled() ? (depositReason() || 'Deposits paused — the brokerage circuit is open.') : undefined"
           (onClick)="goDeposit()" />
       </p-card>
 
