@@ -2,5 +2,6 @@
   "investor-mfe": "http://localhost:4201/remoteEntry.json",
   "dashboard-mfe": "http://localhost:4202/remoteEntry.json",
   "advisory-mfe": "http://localhost:4203/remoteEntry.json",
-  "ledger-mfe": "http://localhost:4204/remoteEntry.json"
+  "ledger-mfe": "http://localhost:4204/remoteEntry.json",
+  "onboarding-mfe": "http://localhost:4205/remoteEntry.json"
 }
