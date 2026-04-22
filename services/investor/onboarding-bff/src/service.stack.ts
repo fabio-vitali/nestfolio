@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Duration } from 'aws-cdk-lib';
+import { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import { ServiceStack, ServiceStackProps, State, Egress } from '@nestfolio/cdk-constructs/core';
 import { ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED } from './domain/events';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
@@ -48,6 +49,19 @@ export class OnboardingBffStack extends ServiceStack {
 
     searchKbFn.addToRolePolicy(knowledgeBase.triggerSyncPolicy());
 
+    // Import the investor User Pool + Web Client published by investor-web
+    // (subsystem-scoped paths — see services/investor/investor-web/src/service.stack.ts:127-134).
+    const userPoolId = StringParameter.valueForStringParameter(
+      this, `/nestfolio/${props.prefix}-investor/auth/userPoolId`,
+    );
+    const userPoolClientId = StringParameter.valueForStringParameter(
+      this, `/nestfolio/${props.prefix}-investor/auth/userPoolClientId`,
+    );
+    const investorUserPool = UserPool.fromUserPoolId(this, 'InvestorUserPool', userPoolId);
+    const investorUserPoolClient = UserPoolClient.fromUserPoolClientId(
+      this, 'InvestorUserPoolClient', userPoolClientId,
+    );
+
     // AgentRuntime — uses own table
     const agentRuntime = new AgentRuntime(this, 'OnboardingAgent', {
       runtimeName: 'onboarding_agent',
@@ -55,6 +69,8 @@ export class OnboardingBffStack extends ServiceStack {
       description: 'Conversational onboarding agent for investor onboarding',
       modelIds: [sonnetModelId],
       state,
+      userPool: investorUserPool,
+      userPoolClients: [investorUserPoolClient],
       toolTargets: [{
         name: 'search_knowledge_base',
         description: 'Search Nestfolio documentation to answer user questions',

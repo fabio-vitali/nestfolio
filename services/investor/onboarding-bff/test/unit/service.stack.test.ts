@@ -43,4 +43,17 @@ describe('OnboardingBffStack', () => {
       Type: 'String',
     });
   });
+
+  it('configures the AgentCore Runtime with a Cognito authorizer from the investor subsystem', () => {
+    template.hasResourceProperties('AWS::BedrockAgentCore::Runtime', {
+      AuthorizerConfiguration: {
+        CustomJWTAuthorizer: Match.objectLike({
+          // DiscoveryUrl is a CFN intrinsic (Fn::Join) because the userPoolId
+          // comes from SSM, so we can't regex-match the resolved string.
+          DiscoveryUrl: Match.anyValue(),
+          AllowedClients: Match.anyValue(),
+        }),
+      },
+    });
+  });
 });
