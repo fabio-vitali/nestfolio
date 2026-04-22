@@ -1,17 +1,23 @@
-import { RemovalPolicy, Duration } from 'aws-cdk-lib';
+import { RemovalPolicy, Duration, Fn } from 'aws-cdk-lib';
 import { UserPool, AccountRecovery, Mfa, StringAttribute } from 'aws-cdk-lib/aws-cognito';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
 import {
   Distribution, ViewerProtocolPolicy, OriginAccessIdentity,
   ResponseHeadersPolicy, HeadersFrameOption, HeadersReferrerPolicy,
+  Function as CfFunction, FunctionCode, FunctionEventType,
+  OriginRequestPolicy, OriginRequestHeaderBehavior, OriginRequestCookieBehavior,
+  OriginRequestQueryStringBehavior, AllowedMethods,
+  CachePolicy, CacheHeaderBehavior, CacheQueryStringBehavior, CacheCookieBehavior,
+  ResponseHeadersCorsBehavior,
 } from 'aws-cdk-lib/aws-cloudfront';
-import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
+import { S3Origin, HttpOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
+import { readFileSync } from 'fs';
 import { join } from 'path';
 
 export class InvestorWebStack extends ServiceStack {
@@ -121,6 +127,75 @@ export class InvestorWebStack extends ServiceStack {
       },
       defaultRootObject: 'index.html',
       errorResponses: [{ httpStatus: 404, responsePagePath: '/index.html', responseHttpStatus: 200 }],
+    });
+
+    // ─── CopilotKit bridge: /api/copilotkit* → AgentCore runtime ───────────────
+    // Deploy-order contract: `onboarding-bff` must be deployed first so this
+    // SSM parameter exists. Per-service CDK apps, so `stack.addDependency(...)`
+    // is not available.
+    const onboardingRuntimeArn = StringParameter.valueForStringParameter(
+      this, `/nestfolio/${this.prefix}-onboarding-bff/agent/runtimeUrl`,
+    );
+
+    const cfFunctionTemplate = readFileSync(
+      join(__dirname, 'cf-functions', 'copilot-rewrite.js'), 'utf-8',
+    );
+    const cfFunctionCode = Fn.sub(cfFunctionTemplate.replace(/__RUNTIME_ARN__/g, '${arn}'), {
+      arn: onboardingRuntimeArn,
+    });
+
+    const copilotRewriteFn = new CfFunction(this, 'CopilotRewriteFn', {
+      functionName: `${this.prefix}-investor-web-copilot-rewrite`,
+      code: FunctionCode.fromInline(cfFunctionCode),
+      comment: 'Rewrites /api/copilotkit* → /runtimes/<arn>/invocations?qualifier=DEFAULT',
+    });
+
+    // `Authorization` cannot be forwarded via OriginRequestPolicy — CF requires
+    // it to be attached to a CachePolicy (so it becomes part of the cache key).
+    // We disable caching through minTtl=0 + defaultTtl=0 + maxTtl=0.
+    const copilotCachePolicy = new CachePolicy(this, 'CopilotCachePolicy', {
+      cachePolicyName: `${this.prefix}-investor-web-copilot-cache`,
+      minTtl: Duration.seconds(0),
+      defaultTtl: Duration.seconds(0),
+      maxTtl: Duration.seconds(0),
+      headerBehavior: CacheHeaderBehavior.allowList('Authorization'),
+      cookieBehavior: CacheCookieBehavior.none(),
+      queryStringBehavior: CacheQueryStringBehavior.none(),
+    });
+
+    const copilotOriginRequestPolicy = new OriginRequestPolicy(this, 'CopilotOriginRequestPolicy', {
+      originRequestPolicyName: `${this.prefix}-investor-web-copilot-origin-req`,
+      headerBehavior: OriginRequestHeaderBehavior.allowList(
+        'Content-Type', 'x-amzn-bedrock-agentcore-runtime-session-id',
+      ),
+      cookieBehavior: OriginRequestCookieBehavior.none(),
+      queryStringBehavior: OriginRequestQueryStringBehavior.none(),
+    });
+
+    const copilotResponseHeadersPolicy = new ResponseHeadersPolicy(this, 'CopilotResponseHeadersPolicy', {
+      responseHeadersPolicyName: `${this.prefix}-investor-web-copilot-cors`,
+      corsBehavior: {
+        accessControlAllowCredentials: false,
+        accessControlAllowHeaders: [
+          'Authorization', 'Content-Type', 'x-amzn-bedrock-agentcore-runtime-session-id',
+        ],
+        accessControlAllowMethods: ['POST', 'OPTIONS'],
+        // Same-origin (the distribution itself) requests bypass CORS — don't
+        // self-reference to avoid a ResponseHeadersPolicy → Distribution cycle.
+        // For custom-domain deploys, append the custom domain here.
+        accessControlAllowOrigins: ['http://localhost:4200'],
+        accessControlExposeHeaders: ['Content-Type'],
+        originOverride: true,
+      } satisfies ResponseHeadersCorsBehavior,
+    });
+
+    distribution.addBehavior('/api/copilotkit*', new HttpOrigin('bedrock-agentcore.us-east-1.amazonaws.com'), {
+      viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
+      allowedMethods: AllowedMethods.ALLOW_ALL,
+      cachePolicy: copilotCachePolicy,
+      originRequestPolicy: copilotOriginRequestPolicy,
+      responseHeadersPolicy: copilotResponseHeadersPolicy,
+      functionAssociations: [{ function: copilotRewriteFn, eventType: FunctionEventType.VIEWER_REQUEST }],
     });
 
     // SSM Parameters for cross-service discovery
