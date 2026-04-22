@@ -908,4 +908,69 @@ describe('investor-bff', () => {
       }
     }, 210_000); // Two full event→mutation→poll cycles under parallel load
   });
+
+  describe('deposit event subscription pipeline', () => {
+    it('flips DepositIntent status to DETECTED when DEPOSIT_DETECTED is received', async () => {
+      // Create the DepositIntent row first — the publish-deposit-event resolver has
+      // attribute_exists(pk) and will fail silently (conditional) if no row exists.
+      const seedResult = await appsync.mutate<{
+        initiateDeposit: {
+          depositId: string;
+          amountCents: number;
+          currency: string;
+          status: string;
+          initiatedAt: string;
+        };
+      }>(
+        `
+        mutation InitiateDeposit($input: DepositInput!) {
+          initiateDeposit(input: $input) {
+            depositId
+            amountCents
+            currency
+            status
+            initiatedAt
+          }
+        }
+      `,
+        { input: { amountCents: 250_000, currency: 'USD' } },
+      );
+
+      const depositId = seedResult.initiateDeposit.depositId;
+      const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
+      const sk = `Deposit#${depositId}`;
+
+      // Confirm seed row is INITIATED
+      const seeded = await table.waitForItem({ table: 'investor-bff', pk, sk });
+      expect(seeded['status']).toBe('INITIATED');
+
+      // Act — emit DEPOSIT_DETECTED on investorBus (investor-adpt already routes
+      // DEPOSIT_DETECTED from executionBus → investorBus; here we bypass the adapter
+      // and emit directly on investorBus, which is what the ingress handler consumes).
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-bff',
+        detailType: 'DEPOSIT_DETECTED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId: cognitoSub,
+          depositId,
+          amountCents: 250_000,
+          currency: 'USD',
+        },
+      });
+
+      // Assert — DDB row status advances to DETECTED
+      const updated = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk,
+        match: { status: 'DETECTED' },
+        timeoutMs: 60_000,
+      });
+
+      expect(updated['status']).toBe('DETECTED');
+      expect(updated['occurredAt']).toBeDefined();
+    }, 120_000);
+  });
 });
