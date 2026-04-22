@@ -1,15 +1,18 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ShellLayoutComponent } from '@nestfolio/ui';
-import { AuthStore, SystemBannerComponent } from '@nestfolio/shell';
+import { AuthStore, LogoutButtonComponent, SystemBannerComponent } from '@nestfolio/shell';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ShellLayoutComponent, SystemBannerComponent],
+  imports: [RouterOutlet, ShellLayoutComponent, SystemBannerComponent, LogoutButtonComponent],
   template: `
     <app-system-banner />
     <nf-shell-layout>
+      @if (authStore.status() === 'authenticated') {
+        <nf-logout-button nfHeaderActions />
+      }
       <router-outlet />
     </nf-shell-layout>
   `,
