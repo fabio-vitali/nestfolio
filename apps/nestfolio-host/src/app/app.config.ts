@@ -5,10 +5,9 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { provideAuth, authInterceptor, getAuthUser } from '@nestfolio/shell/auth';
 import { provideI18n } from '@nestfolio/shell/i18n';
 import { provideNestfolioTheme } from '@nestfolio/ui';
-import { AuthStore, GlobalErrorHandler, FeatureFlagService } from '@nestfolio/shell';
+import { AuthStore, GlobalErrorHandler, FeatureFlagService, COPILOT_API_URL } from '@nestfolio/shell';
 import { appRoutes } from './app.routes';
 import { environment } from '../environments/environment';
-import { COPILOT_API_URL } from './copilot-api-url.token';
 
 export interface RuntimeConfig {
   auth: { userPoolId: string; clientId: string; region: string };

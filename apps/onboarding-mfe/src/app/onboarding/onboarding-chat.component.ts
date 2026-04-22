@@ -13,6 +13,8 @@ import { CommonModule } from '@angular/common';
 import { HttpAgent, EventType } from '@ag-ui/client';
 import { Subscription } from 'rxjs';
 import { RunAgentInput } from '@ag-ui/core';
+import { fetchAuthSession } from 'aws-amplify/auth';
+import { AuthStore, COPILOT_API_URL } from '@nestfolio/shell';
 
 import { OptionsRendererComponent } from './renderers/options-renderer.component';
 import { ModeCardsRendererComponent } from './renderers/mode-cards-renderer.component';
@@ -55,7 +57,6 @@ const TOOL_RENDERER_MAP: Partial<Record<RendererType, Type<unknown>>> = {
 
 const LOADING_DELAY_MS = 3_000;
 const TIMEOUT_MS = 15_000;
-const BFF_URL = '/api/copilotkit'; // proxied to onboarding-bff
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -146,6 +147,10 @@ const BFF_URL = '/api/copilotkit'; // proxied to onboarding-bff
 export class OnboardingChatComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly vcr = inject(ViewContainerRef);
+  private readonly copilotApiUrl = inject(COPILOT_API_URL);
+  private readonly authStore = inject(AuthStore);
+
+  private static readonly SESSION_KEY = 'onboarding.sessionId';
 
   // ── State signals ──────────────────────────────────────────────────────────
   phaseIndex = signal(0);
@@ -171,8 +176,28 @@ export class OnboardingChatComponent implements OnInit {
   private pendingToolArgs = '';
   private rendererRefs: ComponentRef<unknown>[] = [];
 
+  private getOrCreateSessionId(): string {
+    const existing = sessionStorage.getItem(OnboardingChatComponent.SESSION_KEY);
+    if (existing) return existing;
+    const fresh = crypto.randomUUID();
+    sessionStorage.setItem(OnboardingChatComponent.SESSION_KEY, fresh);
+    return fresh;
+  }
+
   ngOnInit(): void {
-    this.agent = new HttpAgent({ url: BFF_URL });
+    this.agent = new HttpAgent({
+      url: this.copilotApiUrl,
+      headers: async () => {
+        const session = await fetchAuthSession();
+        const idToken = session.tokens?.idToken?.toString() ?? '';
+        const tenantId = this.authStore.user()?.tenantId ?? '';
+        const sessionId = this.getOrCreateSessionId();
+        return {
+          'Authorization': `Bearer ${idToken}`,
+          'x-amzn-bedrock-agentcore-runtime-session-id': `${tenantId}/${sessionId}`,
+        };
+      },
+    });
     this.destroyRef.onDestroy(() => this.cleanup());
     // Kick off with an initial agent turn to get the greeting
     this.runAgent([]);

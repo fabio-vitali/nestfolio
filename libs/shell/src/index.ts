@@ -12,3 +12,4 @@ export { withLogoutReset } from './features/with-logout-reset';
 export { parseError, isGraphQLErrorResponse } from './errors/parse-error';
 export { FeatureFlagService } from './feature-flag.service';
 export { SystemBannerComponent } from './components/system-banner.component';
+export { COPILOT_API_URL } from './copilot-api-url.token';

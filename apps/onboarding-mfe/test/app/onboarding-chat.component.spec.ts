@@ -2,6 +2,15 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { OnboardingChatComponent } from '../../src/app/onboarding/onboarding-chat.component';
 import { provideRouter } from '@angular/router';
 import { EMPTY, Subject } from 'rxjs';
+import { AuthStore, COPILOT_API_URL } from '@nestfolio/shell';
+
+// ── Mock aws-amplify/auth ──────────────────────────────────────────────────────
+
+jest.mock('aws-amplify/auth', () => ({
+  fetchAuthSession: jest.fn(async () => ({
+    tokens: { idToken: { toString: () => 'fake-id-token' } },
+  })),
+}));
 
 // ── Mock @ag-ui/client ────────────────────────────────────────────────────────
 
@@ -29,16 +38,23 @@ jest.mock('@ag-ui/client', () => ({
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+const mockAuthStore = { user: () => ({ tenantId: 'tenant-xyz' }) };
+
 describe('OnboardingChatComponent', () => {
   let fixture: ComponentFixture<OnboardingChatComponent>;
   let component: OnboardingChatComponent;
 
   beforeEach(async () => {
     mockHttpAgent.run.mockReturnValue(EMPTY);
+    sessionStorage.clear();
 
     await TestBed.configureTestingModule({
       imports: [OnboardingChatComponent],
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        { provide: COPILOT_API_URL, useValue: 'https://example.cloudfront.net/api/copilotkit' },
+        { provide: AuthStore, useValue: mockAuthStore },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(OnboardingChatComponent);
@@ -195,5 +211,39 @@ describe('OnboardingChatComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(fixture.nativeElement.querySelector('.error-banner')).toBeTruthy();
+  });
+
+  // ── Bridge wiring ──────────────────────────────────────────────────────────
+
+  it('passes the absolute copilotApiUrl to HttpAgent', () => {
+    const { HttpAgent } = require('@ag-ui/client');
+    expect(HttpAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://example.cloudfront.net/api/copilotkit' }),
+    );
+  });
+
+  it('provides a headers factory that includes Bearer token + session-id', async () => {
+    const { HttpAgent } = require('@ag-ui/client');
+    const call = HttpAgent.mock.calls.at(-1)[0] as { headers?: () => Promise<Record<string, string>> };
+    expect(typeof call.headers).toBe('function');
+    const headers = await call.headers!();
+    expect(headers['Authorization']).toBe('Bearer fake-id-token');
+    expect(headers['x-amzn-bedrock-agentcore-runtime-session-id']).toMatch(/^tenant-xyz\/.+/);
+  });
+
+  it('persists the sessionId part across remounts via sessionStorage', async () => {
+    const { HttpAgent } = require('@ag-ui/client');
+    const firstCall = HttpAgent.mock.calls.at(-1)[0] as { headers: () => Promise<Record<string, string>> };
+    const firstHeaders = await firstCall.headers();
+    const firstSid = firstHeaders['x-amzn-bedrock-agentcore-runtime-session-id'];
+
+    // Remount the component (destroy + recreate).
+    fixture.destroy();
+    fixture = TestBed.createComponent(OnboardingChatComponent);
+    fixture.detectChanges();
+
+    const secondCall = HttpAgent.mock.calls.at(-1)[0] as { headers: () => Promise<Record<string, string>> };
+    const secondHeaders = await secondCall.headers();
+    expect(secondHeaders['x-amzn-bedrock-agentcore-runtime-session-id']).toBe(firstSid);
   });
 });
