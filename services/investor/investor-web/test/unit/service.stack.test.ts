@@ -41,14 +41,16 @@ describe('InvestorWebStack — CopilotKit bridge', () => {
     });
   });
 
-  it('creates a cache policy (disabled TTLs) that allowlists Authorization', () => {
+  it('creates a cache policy (minimum TTLs) that allowlists Authorization', () => {
     // CloudFront rejects Authorization in origin-request policies — it must be
-    // attached to a cache policy instead.
+    // attached to a cache policy instead. CloudFormation additionally rejects
+    // HeaderBehavior when all TTLs are 0, so MaxTTL is set to 1s (harmless:
+    // POSTs are never cached by CloudFront regardless of policy).
     template.hasResourceProperties('AWS::CloudFront::CachePolicy', {
       CachePolicyConfig: Match.objectLike({
         MinTTL: 0,
         DefaultTTL: 0,
-        MaxTTL: 0,
+        MaxTTL: 1,
         ParametersInCacheKeyAndForwardedToOrigin: Match.objectLike({
           HeadersConfig: {
             HeaderBehavior: 'whitelist',

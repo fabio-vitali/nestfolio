@@ -152,12 +152,14 @@ export class InvestorWebStack extends ServiceStack {
 
     // `Authorization` cannot be forwarded via OriginRequestPolicy — CF requires
     // it to be attached to a CachePolicy (so it becomes part of the cache key).
-    // We disable caching through minTtl=0 + defaultTtl=0 + maxTtl=0.
+    // Effective caching is moot: CopilotKit is a streaming POST, and CloudFront
+    // never caches POSTs. The 1-second maxTtl is required because CloudFormation
+    // rejects `HeaderBehavior` on policies where all TTLs are 0.
     const copilotCachePolicy = new CachePolicy(this, 'CopilotCachePolicy', {
       cachePolicyName: `${this.prefix}-investor-web-copilot-cache`,
       minTtl: Duration.seconds(0),
       defaultTtl: Duration.seconds(0),
-      maxTtl: Duration.seconds(0),
+      maxTtl: Duration.seconds(1),
       headerBehavior: CacheHeaderBehavior.allowList('Authorization'),
       cookieBehavior: CacheCookieBehavior.none(),
       queryStringBehavior: CacheQueryStringBehavior.none(),

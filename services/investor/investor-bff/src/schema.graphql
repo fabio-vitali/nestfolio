@@ -16,13 +16,17 @@ type Mutation {
   markNotificationRead(notificationId: ID!): Notification!
   updateFeatureFlag(name: String!, enabled: Boolean!, reason: String): FeatureFlag!
     @aws_iam
+  publishDepositEvent(input: DepositEventInput!): DepositEvent!
+    @aws_iam
 }
 
 type Subscription {
   onNotification: Notification!
-  @aws_subscribe(mutations: ["markNotificationRead"])
+    @aws_subscribe(mutations: ["markNotificationRead"])
   onFeatureFlagUpdate: FeatureFlag!
     @aws_subscribe(mutations: ["updateFeatureFlag"])
+  onDepositEvent(depositId: ID!): DepositEvent
+    @aws_subscribe(mutations: ["publishDepositEvent"])
 }
 
 type FeatureFlag @aws_cognito_user_pools @aws_iam {
@@ -203,14 +207,4 @@ input DepositEventInput {
   currency: String!
   occurredAt: String!
   reason: String
-}
-
-extend type Mutation {
-  publishDepositEvent(input: DepositEventInput!): DepositEvent!
-    @aws_iam
-}
-
-extend type Subscription {
-  onDepositEvent(depositId: ID!): DepositEvent
-    @aws_subscribe(mutations: ["publishDepositEvent"])
 }
