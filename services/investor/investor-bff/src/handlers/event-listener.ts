@@ -5,6 +5,7 @@ import { defaultProvider } from '@aws-sdk/credential-provider-node';
 import { InvestorBffEventTypes } from '../domain/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
+import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
 import { userRegistered } from '../transforms/user-registered';
 import { notificationCreated } from '../transforms/notification-created';
 import { balanceUpdated } from '../transforms/balance-updated';
@@ -70,6 +71,20 @@ const UPDATE_FEATURE_FLAG = `
   }
 `;
 
+const PUBLISH_DEPOSIT_EVENT = `
+  mutation PublishDepositEvent($input: DepositEventInput!) {
+    publishDepositEvent(input: $input) {
+      depositId
+      tenantId
+      status
+      amountCents
+      currency
+      occurredAt
+      reason
+    }
+  }
+`;
+
 export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository }) {
   return {
     [InvestorBffEventTypes.USER_REGISTERED]: (payload: EventPayload, ctx: EventContext) =>
@@ -109,6 +124,29 @@ export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository 
       for (const flag of flags) {
         await callAppSyncMutation(UPDATE_FEATURE_FLAG, flag);
       }
+      return skip();
+    },
+    [InvestorIngestEventTypes.DEPOSIT_DETECTED]: async (payload: EventPayload, _ctx: EventContext) => {
+      const subject = payload.subject as {
+        tenantId: string;
+        userId: string;
+        depositId: string;
+        amountCents: number;
+        currency: string;
+      };
+      const occurredAt = (payload as { occurredAt?: string }).occurredAt ?? new Date().toISOString();
+      await callAppSyncMutation(PUBLISH_DEPOSIT_EVENT, {
+        input: {
+          depositId: subject.depositId,
+          tenantId: subject.tenantId,
+          userId: subject.userId,
+          status: 'DETECTED',
+          amountCents: subject.amountCents,
+          currency: subject.currency,
+          occurredAt,
+          reason: null,
+        },
+      });
       return skip();
     },
   };

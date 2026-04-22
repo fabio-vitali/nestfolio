@@ -2,6 +2,7 @@ import { createHandlers, callAppSyncMutation } from '../../../src/handlers/event
 import { InvestorBffEventTypes } from '../../../src/domain/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 import { LedgerCrossDomainEventTypes } from '@nestfolio/ledger-adpt/domain';
+import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
 import type { InvestorProfileRepository } from '../../../src/repositories/investor-profile.repository';
 
 // Mock the signing dependencies so callAppSyncMutation uses fetch without real signing
@@ -40,7 +41,7 @@ describe('investor-bff event-listener', () => {
   it('should export handlers for all event types', () => {
     const handlers = createHandlers();
 
-    expect(Object.keys(handlers)).toHaveLength(8);
+    expect(Object.keys(handlers)).toHaveLength(9);
     expect(handlers).toHaveProperty(InvestorBffEventTypes.USER_REGISTERED);
     expect(handlers).toHaveProperty(InvestorCtrlEventTypes.NOTIFICATION_CREATED);
     expect(handlers).toHaveProperty(LedgerCrossDomainEventTypes.BALANCE_UPDATED);
@@ -49,6 +50,7 @@ describe('investor-bff event-listener', () => {
     expect(handlers).toHaveProperty('GO_LIVE_CONFIRMED');
     expect(handlers).toHaveProperty(InvestorBffEventTypes.BROKER_CIRCUIT_OPEN);
     expect(handlers).toHaveProperty(InvestorBffEventTypes.BROKER_CIRCUIT_CLOSED);
+    expect(handlers).toHaveProperty(InvestorIngestEventTypes.DEPOSIT_DETECTED);
   });
 
   it('GO_LIVE_CONFIRMED handler calls setExecutionMode with simulation→live and returns skip', async () => {
@@ -106,6 +108,63 @@ describe('investor-bff event-listener', () => {
       expect(bodies[2].variables).toEqual({ name: 'requestWithdrawal', enabled: true });
 
       expect(result).toEqual({ _tag: 'skip' });
+    });
+  });
+
+  describe('DEPOSIT_DETECTED handler', () => {
+    it('fires IAM-signed publishDepositEvent mutation with DETECTED status and returns skip', async () => {
+      const handlers = createHandlers();
+      const payload = {
+        subject: {
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          depositId: 'dep-42',
+          amountCents: 500_000,
+          currency: 'USD',
+        },
+        occurredAt: '2026-04-22T10:00:00.000Z',
+      };
+      const ctx = { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' };
+
+      const result = await handlers[InvestorIngestEventTypes.DEPOSIT_DETECTED](payload, ctx);
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const call = (global.fetch as jest.Mock).mock.calls[0];
+      const body = JSON.parse((call[1] as { body: string }).body);
+      expect(body.query).toContain('publishDepositEvent');
+      expect(body.variables).toEqual({
+        input: {
+          depositId: 'dep-42',
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          status: 'DETECTED',
+          amountCents: 500_000,
+          currency: 'USD',
+          occurredAt: '2026-04-22T10:00:00.000Z',
+          reason: null,
+        },
+      });
+      expect(result).toEqual({ _tag: 'skip' });
+    });
+
+    it('falls back to now() when occurredAt is missing on the event', async () => {
+      const handlers = createHandlers();
+      const payload = {
+        subject: {
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          depositId: 'dep-43',
+          amountCents: 100,
+          currency: 'USD',
+        },
+      };
+      const ctx = { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' };
+
+      await handlers[InvestorIngestEventTypes.DEPOSIT_DETECTED](payload, ctx);
+
+      const call = (global.fetch as jest.Mock).mock.calls[0];
+      const body = JSON.parse((call[1] as { body: string }).body);
+      expect(body.variables.input.occurredAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     });
   });
 
