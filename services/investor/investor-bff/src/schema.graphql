@@ -175,3 +175,42 @@ input WithdrawalInput {
   amountCents: Int!
   currency: String!
 }
+
+# --- Deposit event (real-time confirmation pipeline) ---
+
+enum DepositStatus {
+  INITIATED
+  DETECTED
+  FAILED
+}
+
+type DepositEvent @aws_cognito_user_pools @aws_iam {
+  depositId: ID!
+  tenantId: ID!
+  status: DepositStatus!
+  amountCents: Int!
+  currency: String!
+  occurredAt: String!
+  reason: String
+}
+
+input DepositEventInput {
+  depositId: ID!
+  tenantId: ID!
+  userId: String!
+  status: DepositStatus!
+  amountCents: Int!
+  currency: String!
+  occurredAt: String!
+  reason: String
+}
+
+extend type Mutation {
+  publishDepositEvent(input: DepositEventInput!): DepositEvent!
+    @aws_iam
+}
+
+extend type Subscription {
+  onDepositEvent(depositId: ID!): DepositEvent
+    @aws_subscribe(mutations: ["publishDepositEvent"])
+}
