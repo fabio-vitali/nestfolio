@@ -180,15 +180,15 @@ Ordering is a plan-level operational detail. Neither stack fails at synth if the
 
 ## Acceptance criteria
 
-- [ ] `onboarding-bff` deploys with Cognito authorizer on the AgentCore runtime.
-- [ ] `investor-web` deploys with the `/api/copilotkit*` behavior, CF Function, origin-request policy, and CORS response headers policy.
-- [ ] `RuntimeConfigService` exposes `copilotApiUrl`; `onboarding-chat.component.ts` no longer hardcodes `/api/copilotkit`.
-- [ ] Browser posts succeed with `Authorization: Bearer <idToken>` — AgentCore accepts the JWT; container receives the request on `/invocations`.
-- [ ] Response streams as SSE to the browser; CopilotKit's phase renderers mount as before.
-- [ ] `onboarding-bff` emits one `ONBOARDING_AGENT_INVOCATION_TRACED` envelope per invocation, `tenantId` and `correlationId` populated from the session-id header.
-- [ ] CORS preflight (OPTIONS) succeeds from `http://localhost:4200`.
-- [ ] CF Function unit test asserts rewrite correctness for `/api/copilotkit`, `/api/copilotkit/`, and `/api/copilotkit?x=y`.
-- [ ] CDK stack tests assert the new behavior's path pattern, policies, and function association.
+- [x] `onboarding-bff` deploys with Cognito authorizer on the AgentCore runtime. *(Verified 2026-04-22: `dev-onboarding-bff` deployed, runtime ARN `arn:aws:bedrock-agentcore:us-east-1:771924376645:runtime/onboarding_agent-YZ0LJhFVyA` published to SSM; unauthenticated POST through the CF bridge returns `HTTP/2 401 Missing Authentication Token`.)*
+- [x] `investor-web` deploys with the `/api/copilotkit*` behavior, CF Function, origin-request policy, and CORS response headers policy. *(Verified 2026-04-22: `dev-investor-web` stack `UPDATE_COMPLETE`. Required a non-zero `CachePolicy.maxTtl` — CloudFormation rejects `HeaderBehavior` on policies where all TTLs are 0. Canonical fix per CloudFront docs: `maxTtl=1s` since POSTs are never cached regardless of policy.)*
+- [x] `RuntimeConfigService` exposes `copilotApiUrl`; `onboarding-chat.component.ts` no longer hardcodes `/api/copilotkit`. *(Covered by prior commits `a50b5fcc` + `5bdf287c`.)*
+- [ ] Browser posts succeed with `Authorization: Bearer <idToken>` — AgentCore accepts the JWT; container receives the request on `/invocations`. *(Deferred: requires interactive browser sign-in via Cognito.)*
+- [ ] Response streams as SSE to the browser; CopilotKit's phase renderers mount as before. *(Deferred: same as above.)*
+- [ ] `onboarding-bff` emits one `ONBOARDING_AGENT_INVOCATION_TRACED` envelope per invocation, `tenantId` and `correlationId` populated from the session-id header. *(Deferred: no invocation possible without a valid browser-issued JWT.)*
+- [x] CORS preflight (OPTIONS) succeeds from `http://localhost:4200`. *(Verified 2026-04-22: `HTTP/2 200`, `access-control-allow-origin: http://localhost:4200`, allow-methods `POST,OPTIONS`, allow-headers echoes Authorization/Content-Type/x-amzn-bedrock-agentcore-runtime-session-id.)*
+- [x] CF Function unit test asserts rewrite correctness for `/api/copilotkit`, `/api/copilotkit/`, and `/api/copilotkit?x=y`. *(See `services/investor/investor-web/test/unit/cf-functions/copilot-rewrite.test.ts`.)*
+- [x] CDK stack tests assert the new behavior's path pattern, policies, and function association. *(See `services/investor/investor-web/test/unit/service.stack.test.ts`; 14 assertions green.)*
 
 ## Open questions / plan-level decisions
 
