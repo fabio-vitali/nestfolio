@@ -14,7 +14,9 @@ import { BottomNavComponent, NavItem } from './bottom-nav.component';
         [title]="title()"
         [showMenuToggle]="true"
         (menuToggle)="sidebarCollapsed = !sidebarCollapsed"
-      />
+      >
+        <ng-content select="[nfHeaderActions]" />
+      </nf-header>
       <div class="shell-body">
         <nf-sidebar
           [items]="navItems()"
