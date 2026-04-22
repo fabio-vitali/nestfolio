@@ -11,7 +11,6 @@ jest.mock('aws-amplify/auth', () => ({
 
 describe('LogoutButtonComponent', () => {
   let fixture: ComponentFixture<LogoutButtonComponent>;
-  let component: LogoutButtonComponent;
   let authStore: InstanceType<typeof AuthStore>;
   let routerNavigateSpy: jest.SpyInstance;
 
@@ -23,7 +22,6 @@ describe('LogoutButtonComponent', () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(LogoutButtonComponent);
-    component = fixture.componentInstance;
     authStore = TestBed.inject(AuthStore);
     const router = TestBed.inject(Router);
     routerNavigateSpy = jest.spyOn(router, 'navigate').mockResolvedValue(true);
