@@ -8,6 +8,7 @@ import { provideNestfolioTheme } from '@nestfolio/ui';
 import { AuthStore, GlobalErrorHandler, FeatureFlagService } from '@nestfolio/shell';
 import { appRoutes } from './app.routes';
 import { environment } from '../environments/environment';
+import { COPILOT_API_URL } from './copilot-api-url.token';
 
 export interface RuntimeConfig {
   auth: { userPoolId: string; clientId: string; region: string };
@@ -17,6 +18,7 @@ export interface RuntimeConfig {
     dashboardBff: { endpoint: string; region: string };
     ledgerBff: { endpoint: string; region: string };
   };
+  copilotApiUrl: string;
 }
 
 let runtimeConfig: RuntimeConfig | null = null;
@@ -31,6 +33,7 @@ export function validateEndpoints(config: RuntimeConfig): void {
     config.appsync.advisoryBff.endpoint,
     config.appsync.dashboardBff.endpoint,
     config.appsync.ledgerBff.endpoint,
+    config.copilotApiUrl,
   ];
 
   for (const url of endpoints) {
@@ -83,6 +86,10 @@ export const appConfig: ApplicationConfig = {
   providers: [
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideZonelessChangeDetection(),
+    {
+      provide: COPILOT_API_URL,
+      useFactory: () => getRuntimeConfig().copilotApiUrl,
+    },
     provideRouter(appRoutes),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideAnimationsAsync(),

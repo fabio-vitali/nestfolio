@@ -23,4 +23,5 @@ export const environment = {
       region: 'us-east-1',
     },
   },
+  copilotApiUrl: 'http://localhost:4200/api/copilotkit',
 };

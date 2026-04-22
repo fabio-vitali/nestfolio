@@ -22,4 +22,8 @@ export class RuntimeConfigService {
   get appsync(): RuntimeConfig['appsync'] {
     return this.config.appsync;
   }
+
+  get copilotApiUrl(): string {
+    return this.config.copilotApiUrl;
+  }
 }
