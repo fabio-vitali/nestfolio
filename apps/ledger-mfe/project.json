@@ -111,7 +111,8 @@
         "buildTarget": "ledger-mfe:build",
         "port": 4204,
         "staticFilePath": "dist/apps/ledger-mfe/browser",
-        "spa": true
+        "spa": true,
+        "cors": true
       }
     }
   }

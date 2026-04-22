@@ -111,7 +111,8 @@
         "buildTarget": "nestfolio-host:build",
         "port": 4200,
         "staticFilePath": "dist/apps/nestfolio-host/browser",
-        "spa": true
+        "spa": true,
+        "cors": true
       }
     }
   }

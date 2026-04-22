@@ -111,7 +111,8 @@
         "buildTarget": "investor-mfe:build",
         "port": 4201,
         "staticFilePath": "dist/apps/investor-mfe/browser",
-        "spa": true
+        "spa": true,
+        "cors": true
       }
     }
   }

@@ -111,7 +111,8 @@
         "buildTarget": "onboarding-mfe:build",
         "port": 4205,
         "staticFilePath": "dist/apps/onboarding-mfe/browser",
-        "spa": true
+        "spa": true,
+        "cors": true
       }
     }
   }
