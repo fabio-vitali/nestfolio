@@ -96,6 +96,7 @@
     "@aws-cdk/aws-bedrock-alpha": "2.243.0-alpha.0",
     "@aws-sdk/client-secrets-manager": "^3.1029.0",
     "@eslint/js": "^9.20.0",
+    "@nestfolio/frontend-deps": "workspace:*",
     "@nx/angular": "22.5.4",
     "@nx/devkit": "22.5.4",
     "@nx/eslint": "22.5.4",

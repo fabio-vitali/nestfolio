@@ -203,54 +203,79 @@ No Nx build target; lint only. See README for the Pillar 2 invariant."
 ## Task 2: Wire the workspace package
 
 **Files:**
+- Modify: `package.json` (root — declare `@nestfolio/frontend-deps` as a workspace devDependency)
 - Modify: `pnpm-lock.yaml` (mechanical — `pnpm install` writes it)
 
-- [ ] **Step 1: Install workspace dependencies**
+**Why the root `package.json` edit:** `apps/*` in this monorepo have no per-app `package.json`. `federation.config.js` is a CommonJS runtime module executed by node — resolution walks `node_modules` directories, not `tsconfig.base.json` paths. The symlink at `node_modules/@nestfolio/frontend-deps` is only created by pnpm if SOME `package.json` in the workspace declares the dep. Since apps have none, the root is the only place.
+
+- [ ] **Step 1: Add the workspace dep to root `package.json`**
+
+In the root `package.json`'s `devDependencies` block (alphabetically sorted `@scope/name` entries), insert:
+
+```
+"@nestfolio/frontend-deps": "workspace:*",
+```
+
+between `"@eslint/js": "^9.20.0",` and `"@nx/angular": "...",`.
+
+- [ ] **Step 2: Install workspace dependencies**
 
 Run:
 ```bash
 pnpm install
 ```
 
-Expected output: ends with a "done" line. `pnpm-lock.yaml` may be updated to record `@nestfolio/frontend-deps` as a workspace package. No npm registry fetches should happen for this package (it's workspace-resolved).
+Expected: ends with a line like `+ @nestfolio/frontend-deps 0.0.1 <- libs/frontend-deps` and `Done in <N>s`. Pre-existing peer-dep warnings about `lucide-angular` and `aws-appsync-subscription-link` are unrelated to this task — ignore them.
 
-- [ ] **Step 2: Verify node can resolve the package from an app directory**
+- [ ] **Step 3: Verify the symlink was created**
 
 Run:
 ```bash
-node -e "const m = require('@nestfolio/frontend-deps'); console.log('keys:', Object.keys(m.sharedFrontendDeps).length, 'mappings:', m.sharedMappings.length);"
+ls -la node_modules/@nestfolio/
+```
+
+Expected: a symlink `frontend-deps -> ../../libs/frontend-deps`.
+
+If the symlink is missing, step 1 didn't land correctly — check that the JSON edit is valid and re-run `pnpm install`.
+
+- [ ] **Step 4: Verify node can resolve the package by name**
+
+Run:
+```bash
+node -e "const m = require('@nestfolio/frontend-deps'); console.log('input packages: 23, expanded output keys:', Object.keys(m.sharedFrontendDeps).length, 'mappings:', m.sharedMappings.length);"
 ```
 
 Expected output:
 ```
-keys: 23 mappings: 2
+input packages: 23, expanded output keys: 396 mappings: 2
 ```
 
-If the count isn't 23 or require fails, the install didn't wire the package — check `pnpm-workspace.yaml` globs (should already include `libs/*`) and re-run `pnpm install`.
+Notes:
+- The 396 number is `share()` expanding each of the 23 packages into its primary key + every subpath export (e.g. `@angular/animations` → `@angular/animations` + `@angular/animations/browser` + ...). This is normal Native Federation behaviour, not an error.
+- The exact number (396) may drift by a handful if any of the shared packages emits a new subpath in a minor version. The invariant is "much larger than 23, plausibly 300–500". A value of 23 would mean `share()` wasn't called; a value < 100 would mean subpath expansion misfired.
+- A `Cannot find module` error means step 3's symlink isn't there.
 
-- [ ] **Step 3: Verify Nx picks up the new project**
+- [ ] **Step 5: Verify Nx picks up the new project**
 
 Run:
 ```bash
 pnpm nx show project frontend-deps --json
 ```
 
-Expected output: JSON containing `"name": "frontend-deps"`, `"projectType": "library"`, and a `targets.lint` entry. If Nx says the project doesn't exist, Nx's project graph cache may need a reset: `pnpm nx reset` then retry.
+Expected: JSON containing `"name": "frontend-deps"`, `"projectType": "library"`, and a `targets.lint` entry. If Nx says the project doesn't exist, run `pnpm nx reset` and retry.
 
-- [ ] **Step 4: Commit any lockfile changes**
+- [ ] **Step 6: Commit**
 
-Check for changes:
+Stage the root `package.json` change AND the lockfile change, and commit together as one atomic Task 2 commit:
+
 ```bash
-git status pnpm-lock.yaml
-```
+git add package.json pnpm-lock.yaml
+git commit -m "chore(a2-frontend-deps): declare @nestfolio/frontend-deps workspace dep
 
-If `pnpm-lock.yaml` changed:
-```bash
-git add pnpm-lock.yaml
-git commit -m "chore(a2-frontend-deps): record @nestfolio/frontend-deps workspace package in lockfile"
+Adds devDependency + lockfile entry so pnpm symlinks the lib into
+node_modules/@nestfolio/frontend-deps. Required so the CJS federation
+config files (apps/*/federation.config.js) can require it by name."
 ```
-
-If unchanged, skip the commit and move on.
 
 ---
 

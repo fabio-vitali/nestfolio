@@ -1,0 +1,6 @@
+{
+  "name": "@nestfolio/frontend-deps",
+  "version": "0.0.1",
+  "main": "index.js",
+  "private": true
+}
