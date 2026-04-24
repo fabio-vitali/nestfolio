@@ -4,7 +4,7 @@ Single source of truth for the Native Federation singleton surface consumed by e
 
 ## Exports
 
-- `sharedFrontendDeps` — the 23-entry `share({...})` result declaring every singleton package.
+- `sharedFrontendDeps` — the result of `share({...})` over 23 singleton packages. Native Federation expands each entry into its primary key plus every subpath export (so the output object has more than 23 keys — that's expected).
 - `sharedMappings` — the `['@nestfolio/ui', '@nestfolio/shell']` array consumed by `withNativeFederation`'s `sharedMappings` option.
 
 ## Usage

@@ -425,6 +425,8 @@ importers:
 
   libs/event-types: {}
 
+  libs/frontend-deps: {}
+
 packages:
 
   '@acemir/cssom@0.9.31':
