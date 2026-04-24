@@ -47,3 +47,6 @@ pnpm-debug.log*
 .claude/scheduled_tasks.lock
 .superpowers
 vitest.config.*.timestamp*
+
+# CSP single-source-of-truth — emitted from src/index.html.tmpl + csp.txt
+apps/nestfolio-host/src/index.html
