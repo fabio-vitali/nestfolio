@@ -244,6 +244,9 @@ importers:
       '@eslint/js':
         specifier: ^9.20.0
         version: 9.39.4
+      '@nestfolio/frontend-deps':
+        specifier: workspace:*
+        version: link:libs/frontend-deps
       '@nx/angular':
         specifier: 22.5.4
         version: 22.5.4(e5c8877ffc20222b0b6716d9cd10162c)
