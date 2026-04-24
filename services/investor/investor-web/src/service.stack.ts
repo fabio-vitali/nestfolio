@@ -97,10 +97,16 @@ export class InvestorWebStack extends ServiceStack {
     });
 
     // Security response headers policy
+    // CSP is single-sourced from apps/nestfolio-host/csp.txt (charter §5 row 8, Pillar 5).
+    const cspContent = readFileSync(
+      join(__dirname, '../../../../apps/nestfolio-host/csp.txt'),
+      'utf-8',
+    ).trim();
+
     const securityHeaders = new ResponseHeadersPolicy(this, 'SecurityHeaders', {
       securityHeadersBehavior: {
         contentSecurityPolicy: {
-          contentSecurityPolicy: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
+          contentSecurityPolicy: cspContent,
           override: true,
         },
         frameOptions: { frameOption: HeadersFrameOption.DENY, override: true },
