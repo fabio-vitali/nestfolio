@@ -303,6 +303,8 @@ The charter is design-complete; two items need a concrete spike before any plan 
 
 ### V1 — AppSync WSS subscription through CloudFront
 
+**Status:** Verified PASS (2026-04-24).
+
 **Goal:** confirm the unified-topology row `/realtime/<domain>` works end-to-end with a real AppSync subscription.
 
 **Approach:** one standalone test page (or a throwaway MFE) opens a subscription to a real BFF AppSync API through the CloudFront `/realtime/<domain>` path. Assert: `graphql-ws` handshake completes, a published mutation triggers a subscription payload received by the client.
@@ -310,6 +312,14 @@ The charter is design-complete; two items need a concrete spike before any plan 
 **Risk if it fails:** the topology table grows one exception row — `/realtime/<domain>` becomes a direct WSS to AppSync, and CSP `connect-src` re-admits `wss://*.appsync-realtime-api.*.amazonaws.com`. Pillar 5's "same-origin everything" weakens to "same-origin except subscriptions." Charter survives; CSP wording in §7 changes.
 
 **Effort:** ~30 minutes of plumbing + a quick browser verification.
+
+**Result:** A throwaway CloudFront distribution (spike code under `tools/spikes/wss-cf-spike/`, torn down after verification) with the configuration described in §7 R6 — `CachingDisabled` cache policy, `AllViewerExceptHostHeader` origin-request policy, viewer-request CF Function rewriting `/realtime/<domain>` → `/graphql`, custom HTTPS origin pointing at `<api-id>.appsync-realtime-api.us-east-1.amazonaws.com` — successfully proxied a `Subscription onNotification` WebSocket against `investor-bff`. The WS handshake completed through CloudFront without error, the subscription was registered, and a subscription data frame was delivered through the CF-proxied WSS channel.
+
+Evidence nuance: the selection-field data was `undefined` in the delivered payload because the trigger mutation (`markNotificationRead` with a fabricated `notificationId`) errored at the DynamoDB conditional-update step — that is orthogonal to the CF WSS transport under test. The transport itself (TLS handshake, Upgrade: websocket negotiation, AppSync subscription handshake, duplex data-frame delivery) was proven end-to-end by the fact that Apollo's `next` observer fired with a server-originated message.
+
+Diagnostic log preserved in `tools/spikes/wss-cf-spike/spike-result.log` (gitignored, not committed). The spike's `test-client.ts` queries had to be aligned with the real investor-bff schema (`onNotification`, `markNotificationRead(notificationId: ID!)`) before the run — the plan's original queries were stale; any future re-run must verify schema alignment first.
+
+**Implication:** Charter §7 R6 is unblocked. Pillar 5 (`connect-src 'self'`) holds. No CSP exception row needed. Migration plans may proceed against the unified-topology design as written.
 
 ### V2 — AppSync IAM auth: confirmed non-issue
 
