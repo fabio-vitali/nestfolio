@@ -144,17 +144,26 @@ contentSecurityPolicy: readFileSync(
 
 The `readFileSync` + `join` imports already exist (`service.stack.ts:21-22`). Path depth: `services/investor/investor-web/src/` → four `..` → workspace root → `apps/nestfolio-host/csp.txt`. The existing `cf-functions/copilot-rewrite.js` uses the same 1-level-up `__dirname` pattern (`readFileSync(join(__dirname, 'cf-functions', 'copilot-rewrite.js'))`), so the four-level-up pattern is a net-new path — it resolves at synth-time, not runtime, so no packaging concern.
 
-**`services/investor/investor-web/project.json`** — add the CSP file to the `synth` target's `inputs` so `nx affected` re-synths when `csp.txt` changes:
+**`services/investor/investor-web/project.json`** — add a new `synth` Nx target (investor-web currently only has `deploy`/`destroy`/`test`/`lint`) with `csp.txt` in its `inputs` so `nx affected` re-synths when `csp.txt` changes:
 
 ```json
 "synth": {
-  ...
-  "inputs": ["default", "^production", "{workspaceRoot}/apps/nestfolio-host/csp.txt"],
-  ...
+  "executor": "nx:run-commands",
+  "inputs": [
+    "default",
+    "^production",
+    "{workspaceRoot}/apps/nestfolio-host/csp.txt"
+  ],
+  "outputs": ["{projectRoot}/cdk.out"],
+  "options": {
+    "command": "npx cdk synth --app 'npx ts-node -r ./tools/register-paths.js services/investor/investor-web/src/main.ts' --output services/investor/investor-web/cdk.out -c prefix={args.prefix}"
+  }
 }
 ```
 
-Rationale: target-level inputs is the surgical choice. A project-level `implicitDependencies: ["nestfolio-host"]` would couple investor-web's re-synth to every shell change (CSS, TS, assets) — excessive. Target-level inputs only re-synth when `csp.txt` itself changes. If the current `synth` target has no explicit `inputs` array, add the full list (`default`, `^production`, `{workspaceRoot}/apps/nestfolio-host/csp.txt`) so we don't silently drop Nx's defaults.
+The `--app` argument mirrors the existing `deploy` target verbatim so both targets see the same CDK entrypoint. Adding the `synth` target (vs bolting inputs onto the side-effectful `deploy` target) gives us a cacheable, input-tracked CDK synth invocation that the rest of the charter migration will rely on.
+
+Rationale for target-level `inputs` over project-level `implicitDependencies: ["nestfolio-host"]`: target-level inputs is surgical — `csp.txt` changes invalidate only `synth`, not `test`/`lint`. Project-level `implicitDependencies` would invalidate everything in investor-web on any shell change.
 
 **`.gitignore`** — add:
 
