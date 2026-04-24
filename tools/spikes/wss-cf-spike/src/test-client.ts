@@ -64,8 +64,8 @@ async function main(): Promise<void> {
   const sub = subClient
     .subscribe({
       query: gql`
-        subscription OnNotificationRead {
-          onNotificationRead {
+        subscription OnNotification {
+          onNotification {
             notificationId
             readAt
           }
@@ -95,14 +95,14 @@ async function main(): Promise<void> {
   try {
     await triggerClient.mutate({
       mutation: gql`
-        mutation MarkRead($input: MarkNotificationReadInput!) {
-          markNotificationRead(input: $input) {
+        mutation MarkRead($notificationId: ID!) {
+          markNotificationRead(notificationId: $notificationId) {
             notificationId
             readAt
           }
         }
       `,
-      variables: { input: { notificationId: fabricatedNotificationId } },
+      variables: { notificationId: fabricatedNotificationId },
     });
   } catch (err) {
     console.warn('[spike] mutation errored (often expected for fabricated ID):', (err as Error).message);
