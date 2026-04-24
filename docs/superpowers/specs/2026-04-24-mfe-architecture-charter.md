@@ -225,23 +225,24 @@ The same "BFF defines, `investor-web`'s CloudFront proxies via an SSM-discovered
 An Nx `config` target on the **shell only**:
 
 ```
-pnpm nx run nestfolio-host:config --stage=<stage> --region=us-east-1
+pnpm nx run nestfolio-host:config --prefix=<prefix> --region=us-east-1
 ```
 
-A script (`scripts/fetch-runtime-config.sh`) reads SSM at the canonical prefix and writes `apps/nestfolio-host/public/assets/config.json`. Gitignored. Re-runs whenever stage switches.
+A script (`scripts/fetch-runtime-config.sh`) reads SSM at the canonical paths and writes `apps/nestfolio-host/public/assets/config.json`. Gitignored. Re-runs whenever prefix switches.
 
 ### SSM path convention
 
-```
-/nestfolio/<stage>/<subsystem>/<resource>
-```
+Defined by `libs/cdk-constructs/src/utils/naming-service.ts` — used as-is:
 
-Stage is its own path segment. Examples:
-- `/nestfolio/dev/investor/auth/userPoolId`
-- `/nestfolio/staging/investor/auth/userPoolClientId`
-- `/nestfolio/prod/investor/auth/region`
+- Subsystem-scoped: `/nestfolio/<prefix>-<subsystem>/<resource>` via `NamingService.ssmParameterPath(resource)`
+- Service-scoped: `/nestfolio/<prefix>-<service>/<resource>` via `NamingService.ssmServicePath(resource)`
 
-This is a *forward-looking* convention. Current code uses `/nestfolio/<stage>-<subsystem>/<resource>` (hyphenated). Migration is a separate plan (out of scope for this charter); current code is legacy debt to be itemized then.
+Examples relevant to this charter (all subsystem-scoped under `<prefix>-investor` since auth lives in the investor subsystem):
+- `/nestfolio/dev-investor/auth/userPoolId`
+- `/nestfolio/staging-investor/auth/userPoolClientId`
+- `/nestfolio/prod-investor/auth/region`
+
+`fetch-runtime-config.sh` queries these directly; no new convention introduced by this charter.
 
 ### Pipeline order (every workflow, including local dev)
 
@@ -249,7 +250,7 @@ This is a *forward-looking* convention. Current code uses `/nestfolio/<stage>-<s
 config  →  build  →  deploy
 ```
 
-For dev: `nx run nestfolio-host:config --stage=dev && nx serve nestfolio-host`. There is no `environment.ts` resource literal anywhere — Pillar 3 fully realized.
+For dev: `nx run nestfolio-host:config --prefix=dev && nx serve nestfolio-host`. There is no `environment.ts` resource literal anywhere — Pillar 3 fully realized.
 
 ### Payload shape (after R6 unification)
 
@@ -288,9 +289,9 @@ provideAuth(),  // reads AUTH_CONFIG from DI
 
 Eager capture against placeholder `environment.ts` values is what makes a deployed shell silently authenticate against a nonexistent Cognito pool. The charter forbids it; reviewers must catch it.
 
-### Adding a stage
+### Adding a prefix (stage)
 
-Create the SSM parameters at `/nestfolio/<new-stage>/investor/auth/*`. No code change.
+Create the SSM parameters at `/nestfolio/<new-prefix>-investor/auth/*` per the existing naming-service convention. No code change.
 
 ### Adding a runtime-config field
 
