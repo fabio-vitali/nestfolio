@@ -71,6 +71,7 @@
     "aws-appsync-subscription-link": "4.0.1",
     "aws-cdk-lib": "^2.243.0",
     "constructs": "^10.4.2",
+    "cross-fetch": "^4.1.0",
     "graphql": "^16.13.1",
     "highland": "^2.13.5",
     "hono": "^4.12.8",
