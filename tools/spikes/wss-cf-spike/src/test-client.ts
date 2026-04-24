@@ -91,7 +91,7 @@ async function main(): Promise<void> {
   // to subscribers of the mutation. If the spike BFF rejects the mutation entirely
   // (no row to update), swap to invoking a mutation that has no precondition (e.g.
   // initiateDeposit, then mark its notification). See Task 7 for fallback.
-  const fabricatedNotificationId = 'spike-' + Date.now();
+  const fabricatedNotificationId = process.env.SPIKE_NOTIFICATION_ID ?? 'spike-' + Date.now();
   try {
     await triggerClient.mutate({
       mutation: gql`

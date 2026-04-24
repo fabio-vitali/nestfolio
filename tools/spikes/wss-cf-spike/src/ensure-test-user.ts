@@ -42,11 +42,18 @@ export async function ensureTestUser(params: {
     }),
   );
 
-  await client.send(
-    new AdminUpdateUserAttributesCommand({
-      UserPoolId: params.userPoolId,
-      Username: params.username,
-      UserAttributes: [{ Name: 'custom:tenant_id', Value: params.tenantId }],
-    }),
-  );
+  try {
+    await client.send(
+      new AdminUpdateUserAttributesCommand({
+        UserPoolId: params.userPoolId,
+        Username: params.username,
+        UserAttributes: [{ Name: 'custom:tenant_id', Value: params.tenantId }],
+      }),
+    );
+  } catch (err) {
+    // custom:tenant_id may be non-mutable on this user pool — skip silently if so.
+    const msg = (err as Error).message ?? '';
+    if (!msg.includes('cannot be updated') && !msg.includes('Attribute cannot be updated')) throw err;
+    console.warn('[spike] ensureTestUser: tenant_id already set, skipping update');
+  }
 }
