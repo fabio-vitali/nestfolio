@@ -1,0 +1,4 @@
+.env.local
+cdk.out/
+node_modules/
+*.log
