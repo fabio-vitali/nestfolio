@@ -32,6 +32,17 @@ Stack: services/advisory/advisory-bff/src/service.stack.ts
 ## Event Types (domain/events.ts)
 - AdvisoryBffEventTypes: USER_CONFIRMED, USER_REJECTED, USER_VIEWED_EXPLANATION
 
+## MFE Hosting
+- MfeBucket (mfeKey=advisory): S3 bucket "{account}-{prefix}-nestfolio-mfe-advisory"
+  - CloudFront OAC bucket policy (scoped via AWS:SourceArn to investor-web distribution)
+  - SSM exports: mfe/bucketName, mfe/key
+
+## SSM Parameters Published
+- api/graphqlUrl
+- api/realtimeUrl
+- mfe/bucketName
+- mfe/key
+
 ## Tests
 - advisory.repository.test.ts
 - handlers/event-listener.test.ts

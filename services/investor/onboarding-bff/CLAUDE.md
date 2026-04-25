@@ -45,6 +45,17 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 - Outbound (CDC): ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED
 - Outbound (direct PutEvents): ONBOARDING_AGENT_INVOCATION_TRACED
 
+## MFE Hosting
+- MfeBucket (mfeKey=onboarding): S3 bucket "{account}-{prefix}-nestfolio-mfe-onboarding"
+  - CloudFront OAC bucket policy (scoped via AWS:SourceArn to investor-web distribution)
+  - SSM exports: mfe/bucketName, mfe/key
+  - No api/graphqlUrl or api/realtimeUrl: this MFE talks to onboarding-bff via the CopilotKit /api/copilotkit* bridge (charter §7 R6 row 5), not /graphql/onboarding
+
+## SSM Parameters Published
+- mfe/bucketName
+- mfe/key
+- agent/runtimeUrl (existing)
+
 ## Tests
 - test/unit/service.stack.test.ts
 - test/unit/agent/router.test.ts

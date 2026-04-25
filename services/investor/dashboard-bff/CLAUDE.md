@@ -13,6 +13,17 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
 ## Facade
 - AppSync GraphQL API (JS Resolvers via discoverJsResolvers)
 
+## MFE Hosting
+- MfeBucket (mfeKey=dashboard): S3 bucket "{account}-{prefix}-nestfolio-mfe-dashboard"
+  - CloudFront OAC bucket policy (scoped via AWS:SourceArn to investor-web distribution)
+  - SSM exports: mfe/bucketName, mfe/key
+
+## SSM Parameters Published
+- api/graphqlUrl
+- api/realtimeUrl
+- mfe/bucketName
+- mfe/key
+
 ## Handlers
 - event-listener.ts — Ingress event handler
 
