@@ -13,7 +13,7 @@
         "outputPath": "dist/apps/investor-mfe",
         "index": "apps/investor-mfe/src/index.html",
         "browser": "apps/investor-mfe/src/main.ts",
-        "polyfills": [],
+        "polyfills": ["es-module-shims"],
         "tsConfig": "apps/investor-mfe/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "assets": [
@@ -48,7 +48,7 @@
       },
       "defaultConfiguration": "production"
     },
-    "build": {
+    "nf-build": {
       "executor": "@angular-architects/native-federation:build",
       "options": {},
       "configurations": {
@@ -61,6 +61,22 @@
         }
       },
       "defaultConfiguration": "production"
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["nf-build"],
+      "inputs": [
+        "{workspaceRoot}/scripts/assert-shell-html.mjs",
+        { "dependentTasksOutputFiles": "**/*", "transitive": false }
+      ],
+      "outputs": ["{workspaceRoot}/dist/apps/{projectName}"],
+      "cache": true,
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "commands": [
+          "node scripts/assert-shell-html.mjs dist/apps/investor-mfe/browser --kind=mfe"
+        ]
+      }
     },
     "serve-original": {
       "continuous": true,
@@ -108,7 +124,7 @@
       "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "investor-mfe:build",
+        "buildTarget": "investor-mfe:nf-build",
         "port": 4201,
         "staticFilePath": "dist/apps/investor-mfe/browser",
         "spa": true,
