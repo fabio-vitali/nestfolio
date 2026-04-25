@@ -23,10 +23,10 @@ export interface MfeCatalogEntry {
   readonly hasFacade: boolean;
 }
 
-export const MFE_CATALOG: readonly MfeCatalogEntry[] = [
+export const MFE_CATALOG = [
   { key: 'investor',   subsystem: 'investor', service: 'investor-bff',   hasFacade: true  },
   { key: 'advisory',   subsystem: 'advisory', service: 'advisory-bff',   hasFacade: true  },
   { key: 'ledger',     subsystem: 'ledger',   service: 'ledger-bff',     hasFacade: true  },
   { key: 'dashboard',  subsystem: 'investor', service: 'dashboard-bff',  hasFacade: true  },
   { key: 'onboarding', subsystem: 'investor', service: 'onboarding-bff', hasFacade: false },
-] as const;
+] as const satisfies readonly MfeCatalogEntry[];

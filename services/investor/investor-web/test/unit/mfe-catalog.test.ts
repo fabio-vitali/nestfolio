@@ -37,4 +37,9 @@ describe('MFE_CATALOG', () => {
     expect(typeof sample.service).toBe('string');
     expect(typeof sample.hasFacade).toBe('boolean');
   });
+
+  it('keys are unique across entries', () => {
+    const keys = MFE_CATALOG.map(e => e.key);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
 });
