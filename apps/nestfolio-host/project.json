@@ -21,6 +21,18 @@
       },
       "cache": true
     },
+    "config": {
+      "executor": "nx:run-commands",
+      "inputs": ["{workspaceRoot}/scripts/fetch-runtime-config.sh"],
+      "outputs": ["{projectRoot}/public/assets/config.json"],
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "commands": [
+          "bash scripts/fetch-runtime-config.sh --prefix={args.prefix}"
+        ]
+      },
+      "cache": false
+    },
     "esbuild": {
       "executor": "@angular-devkit/build-angular:application",
       "dependsOn": ["prepare-index"],

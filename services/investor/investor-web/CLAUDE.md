@@ -30,6 +30,7 @@ None (frontend hosting + auth infrastructure)
 ## SSM Parameters Published
 - auth/userPoolId
 - auth/userPoolClientId
+- auth/region
 - web/distributionUrl
 - web/distributionId
 

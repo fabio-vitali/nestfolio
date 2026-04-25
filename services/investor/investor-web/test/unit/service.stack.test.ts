@@ -112,3 +112,23 @@ describe('InvestorWebStack — CopilotKit bridge', () => {
     });
   });
 });
+
+describe('InvestorWebStack — runtime config SSM exports', () => {
+  let template: Template;
+
+  beforeAll(() => {
+    const app = new App();
+    const stack = new InvestorWebStack(app, 'TestStackRuntimeConfig', {
+      prefix: 'test',
+      service: 'investor-web',
+      subsystem: 'investor',
+    } as any);
+    template = Template.fromStack(stack);
+  });
+
+  it('publishes auth/region for the runtime config producer', () => {
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/nestfolio/test-investor/auth/region',
+    });
+  });
+});
