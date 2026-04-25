@@ -1,4 +1,4 @@
-export type { AuthConfig } from './auth.config';
+export { AuthConfig } from './auth.config';
 export type { AuthTokens, AuthUser, SignUpInput } from './auth.service';
 export { authSignIn, authSignUp, authConfirmSignUp, authSignOut, getAuthSession, forceRefreshSession, getAuthUser, isAuthenticated } from './auth.service';
 export { authGuard } from './auth.guard';
