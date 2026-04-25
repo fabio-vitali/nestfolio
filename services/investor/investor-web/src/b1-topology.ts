@@ -1,8 +1,10 @@
+import { Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import {
   Distribution, ViewerProtocolPolicy, AllowedMethods, CachePolicy,
+  Function as CfFunction, FunctionEventType, OriginRequestPolicy,
 } from 'aws-cdk-lib/aws-cloudfront';
-import { S3BucketOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
+import { S3BucketOrigin, HttpOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import type { MfeCatalogEntry } from './mfe-catalog';
@@ -29,5 +31,38 @@ export function addMfeBucketBehavior(
     viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
     allowedMethods: AllowedMethods.ALLOW_GET_HEAD,
     cachePolicy: CachePolicy.CACHING_OPTIMIZED,
+  });
+}
+
+/**
+ * Adds a CloudFront cache behavior for a BFF's AppSync HTTPS endpoint.
+ *
+ * Charter §7 R6 row 3: /graphql/<domain> → that BFF's AppSync HTTPS
+ * endpoint. Hostname constructed from the SSM-discovered api/apiId
+ * + Stack region. Viewer-request rewrite strips /<domain> so AppSync
+ * sees /graphql.
+ */
+export function addGraphqlBehavior(
+  scope: Construct,
+  distribution: Distribution,
+  prefix: string,
+  entry: MfeCatalogEntry,
+  rewriteFn: CfFunction,
+): void {
+  if (!entry.hasFacade) {
+    throw new Error(`addGraphqlBehavior called for ${entry.key} which has no Facade`);
+  }
+  const apiId = StringParameter.valueForStringParameter(
+    scope, `/nestfolio/${prefix}-${entry.service}/api/apiId`,
+  );
+  const region = Stack.of(scope).region;
+  const httpHost = `${apiId}.appsync-api.${region}.amazonaws.com`;
+
+  distribution.addBehavior(`/graphql/${entry.key}`, new HttpOrigin(httpHost), {
+    viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
+    allowedMethods: AllowedMethods.ALLOW_ALL,
+    cachePolicy: CachePolicy.CACHING_DISABLED,
+    originRequestPolicy: OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+    functionAssociations: [{ function: rewriteFn, eventType: FunctionEventType.VIEWER_REQUEST }],
   });
 }

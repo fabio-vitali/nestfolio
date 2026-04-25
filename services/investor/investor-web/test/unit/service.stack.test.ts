@@ -201,3 +201,58 @@ describe('InvestorWebStack — B1 unified topology (flag on, /mfe/<key>/*)', () 
     template.resourceCountIs('AWS::CloudFront::OriginAccessControl', 5);
   });
 });
+
+describe('InvestorWebStack — B1 unified topology (flag on, /graphql/<domain>)', () => {
+  let template: Template;
+
+  beforeAll(() => {
+    const app = new App({ context: { mfeBehaviors: 'true' } });
+    const stack = new InvestorWebStack(app, 'TestStackB1OnGql', {
+      prefix: 'test',
+      service: 'investor-web',
+      subsystem: 'investor',
+    } as any);
+    template = Template.fromStack(stack);
+  });
+
+  it('adds /graphql/<domain> behavior for each Facade-bearing catalog entry', () => {
+    for (const domain of ['investor', 'advisory', 'ledger', 'dashboard']) {
+      template.hasResourceProperties('AWS::CloudFront::Distribution', {
+        DistributionConfig: Match.objectLike({
+          CacheBehaviors: Match.arrayWith([
+            Match.objectLike({
+              PathPattern: `/graphql/${domain}`,
+              ViewerProtocolPolicy: 'https-only',
+              AllowedMethods: Match.arrayWith(['POST']),
+              FunctionAssociations: Match.arrayWith([
+                Match.objectLike({ EventType: 'viewer-request' }),
+              ]),
+            }),
+          ]),
+        }),
+      });
+    }
+  });
+
+  it('does NOT add /graphql/onboarding (onboarding has no Facade)', () => {
+    const distConfig = template.findResources('AWS::CloudFront::Distribution');
+    const allBehaviors = Object.values(distConfig).flatMap(
+      (r: any) => r.Properties.DistributionConfig.CacheBehaviors ?? [],
+    );
+    const onboardingGql = allBehaviors.filter((b: any) => b.PathPattern === '/graphql/onboarding');
+    expect(onboardingGql).toHaveLength(0);
+  });
+
+  it('reads api/apiId SSM parameter for each Facade-bearing entry', () => {
+    for (const service of ['investor-bff', 'advisory-bff', 'ledger-bff', 'dashboard-bff']) {
+      template.hasParameter('*', {
+        Type: 'AWS::SSM::Parameter::Value<String>',
+        Default: `/nestfolio/test-${service}/api/apiId`,
+      });
+    }
+  });
+
+  it('creates one CloudFront Function for the realtime/graphql rewrite', () => {
+    template.resourceCountIs('AWS::CloudFront::Function', 2); // copilot + realtime-rewrite
+  });
+});

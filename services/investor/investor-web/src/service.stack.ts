@@ -21,7 +21,7 @@ import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MFE_CATALOG } from './mfe-catalog';
-import { addMfeBucketBehavior } from './b1-topology';
+import { addMfeBucketBehavior, addGraphqlBehavior } from './b1-topology';
 
 export class InvestorWebStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -227,8 +227,19 @@ export class InvestorWebStack extends ServiceStack {
     // re-deploys investor-web with mfeBehaviors=true after BFFs are deployed.
     const mfeBehaviorsEnabled = this.node.tryGetContext('mfeBehaviors') === 'true';
     if (mfeBehaviorsEnabled) {
+      const realtimeRewriteFn = new CfFunction(this, 'RealtimeRewriteFn', {
+        functionName: `${this.prefix}-investor-web-realtime-rewrite`,
+        code: FunctionCode.fromInline(
+          readFileSync(join(__dirname, 'cf-functions', 'realtime-rewrite.js'), 'utf-8'),
+        ),
+        comment: 'Rewrites /realtime/<domain> and /graphql/<domain> to /graphql',
+      });
+
       for (const entry of MFE_CATALOG) {
         addMfeBucketBehavior(this, distribution, this.prefix, entry);
+        if (entry.hasFacade) {
+          addGraphqlBehavior(this, distribution, this.prefix, entry, realtimeRewriteFn);
+        }
       }
     }
 
