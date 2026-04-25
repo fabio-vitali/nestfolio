@@ -7,7 +7,7 @@ import { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import { ServiceStack, ServiceStackProps, State, Egress } from '@nestfolio/cdk-constructs/core';
 import { ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED } from './domain/events';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
-import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
+import { AgentRuntime, KnowledgeBase, MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 
 export class OnboardingBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -23,6 +23,8 @@ export class OnboardingBffStack extends ServiceStack {
         'GoLiveConfirmed': { insert: GO_LIVE_CONFIRMED },
       },
     });
+
+    new MfeBucket(this, 'MfeBucket', { mfeKey: 'onboarding' });
 
     // Model IDs from SSM (shared with advisory services)
     const advisoryHubNaming = new NamingService({ prefix: props.prefix, subsystem: 'advisory', service: 'advisory-hub' });

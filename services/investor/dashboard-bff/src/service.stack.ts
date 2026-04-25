@@ -1,5 +1,6 @@
 import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 
@@ -35,6 +36,8 @@ export class DashboardBffStack extends ServiceStack {
       state,
       jsResolvers: discoverJsResolvers(__dirname),
     });
+
+    new MfeBucket(this, 'MfeBucket', { mfeKey: 'dashboard' });
 
     this.addObservability({ ingress });
   }

@@ -4,7 +4,7 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
-import { getDomainAccounts, resolveBusArn } from '@nestfolio/cdk-constructs/extensions';
+import { getDomainAccounts, resolveBusArn, MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 
@@ -55,6 +55,8 @@ export class LedgerBffStack extends ServiceStack {
         { typeName: 'Query', fieldName: 'getSimulationComparison', handler: resolver },
       ],
     });
+
+    new MfeBucket(this, 'MfeBucket', { mfeKey: 'ledger' });
 
     this.addObservability({ ingress, extraLambdas: [resolver] });
   }
