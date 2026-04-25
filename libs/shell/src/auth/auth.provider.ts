@@ -1,20 +1,32 @@
-import { type EnvironmentProviders, makeEnvironmentProviders, APP_INITIALIZER } from '@angular/core';
+import { type EnvironmentProviders, makeEnvironmentProviders, APP_INITIALIZER, inject } from '@angular/core';
 import { Amplify } from 'aws-amplify';
-import { type AuthConfig } from './auth.config';
+import { AuthConfig } from './auth.config';
 
-export function provideAuth(config: AuthConfig): EnvironmentProviders {
+/**
+ * Registers the Amplify configuration step as an APP_INITIALIZER.
+ * Reads `AuthConfig` from DI at injection time — the value must be provided
+ * by the consuming app via `{ provide: AuthConfig, useFactory: () => ... }`.
+ *
+ * Charter §8 bootstrap discipline: this initializer must run AFTER the
+ * runtime-config loader has populated the source the AuthConfig factory
+ * reads from. Ordering is the consumer app's responsibility.
+ */
+export function provideAuth(): EnvironmentProviders {
   return makeEnvironmentProviders([
     {
       provide: APP_INITIALIZER,
-      useFactory: () => () => {
-        Amplify.configure({
-          Auth: {
-            Cognito: {
-              userPoolId: config.userPoolId,
-              userPoolClientId: config.clientId,
+      useFactory: () => {
+        const cfg = inject(AuthConfig);
+        return () => {
+          Amplify.configure({
+            Auth: {
+              Cognito: {
+                userPoolId: cfg.userPoolId,
+                userPoolClientId: cfg.clientId,
+              },
             },
-          },
-        });
+          });
+        };
       },
       multi: true,
     },
