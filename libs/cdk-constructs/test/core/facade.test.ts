@@ -160,6 +160,29 @@ describe('Facade construct', () => {
     });
   });
 
+  it('creates an SSM parameter for api/realtimeUrl', () => {
+    const { stack } = createFacadeStack();
+    const userPool = new UserPool(stack, 'Pool');
+    const resolver = new Function(stack, 'Resolver', {
+      runtime: Runtime.NODEJS_24_X,
+      handler: 'index.handler',
+      code: Code.fromInline('exports.handler = async () => ({})'),
+    });
+
+    new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'hello', handler: resolver },
+      ],
+    });
+
+    const template = Template.fromStack(stack);
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/nestfolio/test-test-svc/api/realtimeUrl',
+    });
+  });
+
   it('creates Lambda resolvers when lambdaResolvers provided', () => {
     const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
