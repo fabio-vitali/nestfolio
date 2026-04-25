@@ -20,6 +20,8 @@ import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core'
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { MFE_CATALOG } from './mfe-catalog';
+import { addMfeBucketBehavior } from './b1-topology';
 
 export class InvestorWebStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -217,6 +219,18 @@ export class InvestorWebStack extends ServiceStack {
       responseHeadersPolicy: copilotResponseHeadersPolicy,
       functionAssociations: [{ function: copilotRewriteFn, eventType: FunctionEventType.VIEWER_REQUEST }],
     });
+
+    // ─── B1: unified topology (flag-gated) ─────────────────────────────────
+    // Charter §5 row 9a + §7 R6: per-domain /mfe/<key>/*, /graphql/<domain>,
+    // and /realtime/<domain> behaviors discovered via SSM. Cold-start: flag
+    // is false on first deploy (BFF SSM exports don't exist yet); deploy.sh
+    // re-deploys investor-web with mfeBehaviors=true after BFFs are deployed.
+    const mfeBehaviorsEnabled = this.node.tryGetContext('mfeBehaviors') === 'true';
+    if (mfeBehaviorsEnabled) {
+      for (const entry of MFE_CATALOG) {
+        addMfeBucketBehavior(this, distribution, this.prefix, entry);
+      }
+    }
 
     // SSM Parameters for cross-service discovery
     new StringParameter(this, 'UserPoolIdParam', {

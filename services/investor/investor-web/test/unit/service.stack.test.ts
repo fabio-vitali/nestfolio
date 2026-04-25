@@ -132,3 +132,66 @@ describe('InvestorWebStack — runtime config SSM exports', () => {
     });
   });
 });
+
+describe('InvestorWebStack — B1 unified topology (flag off)', () => {
+  let template: Template;
+
+  beforeAll(() => {
+    const app = new App();
+    const stack = new InvestorWebStack(app, 'TestStackB1Off', {
+      prefix: 'test',
+      service: 'investor-web',
+      subsystem: 'investor',
+    } as any);
+    template = Template.fromStack(stack);
+  });
+
+  it('CacheBehaviors has exactly 1 entry (the existing /api/copilotkit*)', () => {
+    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({
+        CacheBehaviors: Match.arrayEquals([
+          Match.objectLike({ PathPattern: '/api/copilotkit*' }),
+        ]),
+      }),
+    });
+  });
+});
+
+describe('InvestorWebStack — B1 unified topology (flag on, /mfe/<key>/*)', () => {
+  let template: Template;
+
+  beforeAll(() => {
+    const app = new App({ context: { mfeBehaviors: 'true' } });
+    const stack = new InvestorWebStack(app, 'TestStackB1OnMfe', {
+      prefix: 'test',
+      service: 'investor-web',
+      subsystem: 'investor',
+    } as any);
+    template = Template.fromStack(stack);
+  });
+
+  it('adds /mfe/<key>/* behavior for each catalog entry', () => {
+    for (const key of ['investor', 'advisory', 'ledger', 'dashboard', 'onboarding']) {
+      template.hasResourceProperties('AWS::CloudFront::Distribution', {
+        DistributionConfig: Match.objectLike({
+          CacheBehaviors: Match.arrayWith([
+            Match.objectLike({
+              PathPattern: `/mfe/${key}/*`,
+              ViewerProtocolPolicy: 'redirect-to-https',
+              AllowedMethods: Match.arrayWith(['GET', 'HEAD']),
+            }),
+          ]),
+        }),
+      });
+    }
+  });
+
+  it('each /mfe/<key>/* origin uses the SSM-discovered bucket name', () => {
+    for (const service of ['investor-bff', 'advisory-bff', 'ledger-bff', 'dashboard-bff', 'onboarding-bff']) {
+      template.hasParameter('*', {
+        Type: 'AWS::SSM::Parameter::Value<String>',
+        Default: `/nestfolio/test-${service}/mfe/bucketName`,
+      });
+    }
+  });
+});
