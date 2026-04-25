@@ -7,9 +7,9 @@ import { AuthConfig } from './auth.config';
  * Reads `AuthConfig` from DI at injection time — the value must be provided
  * by the consuming app via `{ provide: AuthConfig, useFactory: () => ... }`.
  *
- * Charter §8 bootstrap discipline: this initializer must run AFTER the
- * runtime-config loader has populated the source the AuthConfig factory
- * reads from. Ordering is the consumer app's responsibility.
+ * Bootstrap ordering: this initializer must run AFTER the runtime-config
+ * loader has populated the source the AuthConfig factory reads from.
+ * Ordering is the consumer app's responsibility.
  */
 export function provideAuth(): EnvironmentProviders {
   return makeEnvironmentProviders([

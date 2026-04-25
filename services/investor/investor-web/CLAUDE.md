@@ -29,17 +29,17 @@ None (frontend hosting + auth infrastructure)
 - Default behavior: S3Origin via OAI → shell SPA; HTTPS redirect; SPA routing (404 → /index.html 200)
 - ResponseHeadersPolicy: CSP (single-sourced — see CSP section below), X-Frame-Options DENY, HSTS 2 yr + includeSubdomains, X-Content-Type-Options, Referrer-Policy strict-origin-when-cross-origin
 - `/api/copilotkit*` behavior: HttpOrigin → `bedrock-agentcore.us-east-1.amazonaws.com`; viewer-request CopilotRewriteFn; custom CachePolicy (Authorization in cache key, maxTtl=1s); custom OriginRequestPolicy (Content-Type + x-amzn-bedrock-agentcore-runtime-session-id); CORS ResponseHeadersPolicy
-- B1 behaviors (13 total, gated by `mfeBehaviors=true` context flag — see section below)
+- MFE behaviors (13 total, gated by `mfeBehaviors=true` context flag — see section below)
 
-## CloudFront Distribution — B1 Unified Topology (gated by `mfeBehaviors=true`)
+## CloudFront Distribution — MFE Unified Topology (gated by `mfeBehaviors=true`)
 
-Charter §5 row 9a + §7 R6. When the CDK context key `mfeBehaviors` equals `'true'`, the stack
-instantiates a shared `RealtimeRewriteFn` CloudFront Function and iterates `MFE_CATALOG` to add
-**13 additional behaviors**:
+When the CDK context key `mfeBehaviors` equals `'true'`, the stack instantiates a shared
+`RealtimeRewriteFn` CloudFront Function and iterates `MFE_CATALOG` to add **13 additional
+behaviors**:
 
 | # | Path pattern | Origin | Notes |
 |---|---|---|---|
-| 5 | `/mfe/<key>/*` | S3BucketOrigin.withOriginAccessControl (SSM-discovered bucket) | CACHING_OPTIMIZED; GET/HEAD; consumes A3 OAC bucket policy |
+| 5 | `/mfe/<key>/*` | S3BucketOrigin.withOriginAccessControl (SSM-discovered bucket) | CACHING_OPTIMIZED; GET/HEAD; consumes the per-BFF OAC bucket policy |
 | 4 | `/graphql/<domain>` | HttpOrigin → host from SSM `api/graphqlUrl` (Fn.split) | CACHING_DISABLED; ALL methods; viewer-request RealtimeRewriteFn |
 | 4 | `/realtime/<domain>` | HttpOrigin → host from SSM `api/realtimeUrl` (Fn.split) | CACHING_DISABLED; ALL methods; viewer-request RealtimeRewriteFn |
 
@@ -49,7 +49,7 @@ only the `/mfe/<key>/*` behavior — no `/graphql` or `/realtime` behavior.
 ### MFE_CATALOG (`src/mfe-catalog.ts`)
 Single source of truth for wired BFFs. Consumed by:
 - `service.stack.ts` at CDK synth time
-- `tools/scripts/list-mfe-catalog.mjs` at deploy time (used by `deploy.sh` Phase 4a)
+- `tools/scripts/list-mfe-catalog.mjs` at deploy time (used by `deploy.sh`)
 
 | key | service | hasFacade |
 |---|---|---|
@@ -65,7 +65,7 @@ Single source of truth for wired BFFs. Consumed by:
 2. **Phase 2+ (BFF deploy)**: each BFF deploys and publishes `mfe/bucketName` and (if Facade-bearing)
    `api/apiId` SSM exports.
 3. **Phase 4a (re-deploy)**: `deploy.sh` re-deploys investor-web with `-c mfeBehaviors=true` after all
-   BFFs are deployed. The 13 B1 behaviors are wired. Steady-state deploys keep the flag `true`.
+   BFFs are deployed. The 13 MFE behaviors are wired. Steady-state deploys keep the flag `true`.
 
 ## Cognito Triggers (direct Lambda, not via Ingress)
 
@@ -85,7 +85,7 @@ Synchronous 5s timeout; must return to Cognito to complete auth flow. 3-tier ing
 - `auth/userPoolClientId`
 - `auth/region`
 - `web/distributionUrl`
-- `web/distributionId`  ← consumed by A3 OAC wiring in BFF stacks (MfeBucket)
+- `web/distributionId`  ← consumed by the per-BFF `MfeBucket` construct to scope the CloudFront OAC bucket policy
 
 ## SSM Parameters Consumed
 
@@ -93,19 +93,19 @@ Synchronous 5s timeout; must return to Cognito to complete auth flow. 3-tier ing
   time via `StringParameter.valueForStringParameter`; substituted into copilot-rewrite.js via `Fn.sub`.
   Deploy-order contract: onboarding-bff must be deployed before investor-web.
 - `/nestfolio/<prefix>-<service>/mfe/bucketName` × 5 BFFs — consumed when `mfeBehaviors=true`
-  (provisioned by A3's `MfeBucket` extension construct in each BFF stack).
+  (provisioned by the `MfeBucket` extension construct in each BFF stack).
 - `/nestfolio/<prefix>-<service>/api/graphqlUrl` × 4 facade-bearing BFFs — consumed when `mfeBehaviors=true`
   (exported by each BFF's `Facade` construct). Host extracted via `Fn.select(2, Fn.split('/', url))`.
 - `/nestfolio/<prefix>-<service>/api/realtimeUrl` × 4 facade-bearing BFFs — consumed when `mfeBehaviors=true`
-  (exported by each BFF's `Facade` construct since A3). Host extracted via `Fn.select(2, Fn.split('/', url))`.
+  (exported by each BFF's `Facade` construct). Host extracted via `Fn.select(2, Fn.split('/', url))`.
 
 ## CSP
 
-- **Source of truth**: `apps/nestfolio-host/csp.txt` (charter §5 row 8, Pillar 5; A1)
+- **Source of truth**: `apps/nestfolio-host/csp.txt`
 - Read at synth time via `readFileSync`; applied to CloudFront via `ResponseHeadersPolicy.contentSecurityPolicy`
 - `synth` Nx target lists `apps/nestfolio-host/csp.txt` in `inputs` for affected tracking
 - Inline script hash `NxFByHVehWCRp13zII+PkyEbL0FVXOumU3tgjZaLf9U=` covers the federation runtime
-  esms-options block (Pillar 5)
+  esms-options block
 
 ## CloudFront Functions
 

@@ -49,7 +49,7 @@ Tooling support code remains under src/agent/ (tools, prompts, state, router, se
 - MfeBucket (mfeKey=onboarding): S3 bucket "{account}-{prefix}-nestfolio-mfe-onboarding"
   - CloudFront OAC bucket policy (scoped via AWS:SourceArn to investor-web distribution)
   - SSM exports: mfe/bucketName, mfe/key
-  - No api/graphqlUrl or api/realtimeUrl: this MFE talks to onboarding-bff via the CopilotKit /api/copilotkit* bridge (charter §7 R6 row 5), not /graphql/onboarding
+  - No api/graphqlUrl or api/realtimeUrl: this MFE talks to onboarding-bff via the CopilotKit /api/copilotkit* bridge, not /graphql/onboarding
 
 ## SSM Parameters Published
 - mfe/bucketName

@@ -133,12 +133,12 @@ describe('InvestorWebStack — runtime config SSM exports', () => {
   });
 });
 
-describe('InvestorWebStack — B1 unified topology (flag off)', () => {
+describe('InvestorWebStack — MFE unified topology (flag off)', () => {
   let template: Template;
 
   beforeAll(() => {
     const app = new App();
-    const stack = new InvestorWebStack(app, 'TestStackB1Off', {
+    const stack = new InvestorWebStack(app, 'TestStackMfeOff', {
       prefix: 'test',
       service: 'investor-web',
       subsystem: 'investor',
@@ -157,12 +157,12 @@ describe('InvestorWebStack — B1 unified topology (flag off)', () => {
   });
 });
 
-describe('InvestorWebStack — B1 unified topology (flag on, /mfe/<key>/*)', () => {
+describe('InvestorWebStack — MFE unified topology (flag on, /mfe/<key>/*)', () => {
   let template: Template;
 
   beforeAll(() => {
     const app = new App({ context: { mfeBehaviors: 'true' } });
-    const stack = new InvestorWebStack(app, 'TestStackB1OnMfe', {
+    const stack = new InvestorWebStack(app, 'TestStackMfeOnBuckets', {
       prefix: 'test',
       service: 'investor-web',
       subsystem: 'investor',
@@ -197,17 +197,18 @@ describe('InvestorWebStack — B1 unified topology (flag on, /mfe/<key>/*)', () 
 
   it('creates one OriginAccessControl resource per MFE bucket origin (OAC, not OAI)', () => {
     // S3BucketOrigin.withOriginAccessControl creates one OAC per origin.
-    // This asserts the OAI-free (OAC) path is taken, matching A3's bucket policy.
+    // This asserts the OAI-free (OAC) path is taken, matching the bucket policy
+    // provisioned by the MfeBucket construct in each BFF stack.
     template.resourceCountIs('AWS::CloudFront::OriginAccessControl', 5);
   });
 });
 
-describe('InvestorWebStack — B1 unified topology (flag on, /graphql/<domain>)', () => {
+describe('InvestorWebStack — MFE unified topology (flag on, /graphql/<domain>)', () => {
   let template: Template;
 
   beforeAll(() => {
     const app = new App({ context: { mfeBehaviors: 'true' } });
-    const stack = new InvestorWebStack(app, 'TestStackB1OnGql', {
+    const stack = new InvestorWebStack(app, 'TestStackMfeOnGql', {
       prefix: 'test',
       service: 'investor-web',
       subsystem: 'investor',
@@ -257,12 +258,12 @@ describe('InvestorWebStack — B1 unified topology (flag on, /graphql/<domain>)'
   });
 });
 
-describe('InvestorWebStack — B1 unified topology (flag on, /realtime/<domain>)', () => {
+describe('InvestorWebStack — MFE unified topology (flag on, /realtime/<domain>)', () => {
   let template: Template;
 
   beforeAll(() => {
     const app = new App({ context: { mfeBehaviors: 'true' } });
-    const stack = new InvestorWebStack(app, 'TestStackB1OnRt', {
+    const stack = new InvestorWebStack(app, 'TestStackMfeOnRt', {
       prefix: 'test',
       service: 'investor-web',
       subsystem: 'investor',

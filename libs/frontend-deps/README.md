@@ -25,11 +25,7 @@ module.exports = withNativeFederation({
 
 ## Invariant — enforced by construction
 
-Charter Pillar 2 (`docs/superpowers/specs/2026-04-24-mfe-architecture-charter.md`) requires:
-
-> The shell's singleton set must be a *superset* of every MFE's.
-
-Because every `federation.config.js` in the workspace spreads the same `sharedFrontendDeps`, the sets are **identical** — the superset relation holds trivially. Do not add ad-hoc `share({...})` blocks in any `federation.config.js`; add the dependency here instead. Drift is only possible by bypassing this module.
+Native Federation requires the shell's singleton set to be a *superset* of every MFE's. Because every `federation.config.js` in the workspace spreads the same `sharedFrontendDeps`, the sets are **identical** — the superset relation holds trivially. Do not add ad-hoc `share({...})` blocks in any `federation.config.js`; add the dependency here instead. Drift is only possible by bypassing this module.
 
 ## Adding a new shared singleton
 

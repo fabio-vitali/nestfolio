@@ -19,9 +19,7 @@ export interface MfeBucketProps {
  *   AWS:SourceArn to the investor-web CloudFront distribution (id resolved from
  *   SSM at deploy-time).
  * - SSM exports `mfe/bucketName` and `mfe/key` at service-scoped paths so the
- *   investor-web CloudFront stack (B1) can discover origins per BFF.
- *
- * Charter §5 row 9b, §6 BFF charter, §7 R6.
+ *   investor-web CloudFront stack can discover origins per BFF.
  */
 export class MfeBucket extends Construct {
   readonly bucket: IBucket;
@@ -46,11 +44,11 @@ export class MfeBucket extends Construct {
     });
 
     // CloudFront OAC bucket policy. The single CloudFront distribution lives
-    // in investor-web (charter §5 row 9a) regardless of which BFF/subsystem
-    // instantiates this construct, so the SSM lookup hard-codes the
-    // `<prefix>-investor` subsystem path. Resolved at deploy-time via the
-    // standard CloudFormation `{{resolve:ssm:...}}` dynamic reference, which
-    // AWS supports inside S3::BucketPolicy.PolicyDocument.
+    // in investor-web regardless of which BFF/subsystem instantiates this
+    // construct, so the SSM lookup hard-codes the `<prefix>-investor`
+    // subsystem path. Resolved at deploy-time via the standard CloudFormation
+    // `{{resolve:ssm:...}}` dynamic reference, which AWS supports inside
+    // S3::BucketPolicy.PolicyDocument.
     const distributionId = StringParameter.valueForStringParameter(
       this, `/nestfolio/${prefix}-investor/web/distributionId`,
     );

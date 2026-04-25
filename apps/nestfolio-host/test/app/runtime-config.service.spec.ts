@@ -33,7 +33,7 @@ function makeConfig(): RuntimeConfig {
   };
 }
 
-describe('RuntimeConfigService (post-A4 fail-hard)', () => {
+describe('RuntimeConfigService (fail-hard runtime config)', () => {
   const originalFetch = globalThis.fetch;
   let service: RuntimeConfigService;
 

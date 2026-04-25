@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Prints services/investor/investor-web/src/mfe-catalog.ts as JSON
-// suitable for jq consumption by infrastructure/scripts/deploy.sh.
+// suitable for jq consumption by deploy.sh.
 //
 // Usage: node tools/scripts/list-mfe-catalog.mjs
 // Output (one JSON array on stdout):

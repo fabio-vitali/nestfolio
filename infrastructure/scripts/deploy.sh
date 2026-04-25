@@ -148,7 +148,7 @@ check_all_hub_params_exist() {
   return 0
 }
 
-check_all_b1_params_exist() {
+check_all_mfe_params_exist() {
   if [ "$DRY_RUN" = "true" ]; then return 1; fi
   local region="${TARGET_REGION:-${CDK_DEFAULT_REGION:-us-east-1}}"
   local catalog
@@ -197,10 +197,11 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     echo "═══ Target: ${TARGET_ENV:-default} (${TARGET_REGION:-default}) ═══"
   fi
 
-  # Reset B1 cold-start flags for this target — Phase 2 will set them based on
-  # this target's SSM state. Without the reset, target N could inherit target
-  # N-1's state when target N has no Phase 2 deploys (e.g., --services filter).
-  B1_BOOTSTRAP_NEEDED=false
+  # Reset MFE cold-start flags for this target — Phase 2 will set them based
+  # on this target's SSM state. Without the reset, target N could inherit
+  # target N-1's state when target N has no Phase 2 deploys (e.g., --services
+  # filter).
+  MFE_BOOTSTRAP_NEEDED=false
   MFE_BEHAVIORS_PHASE2=true
 
   for PHASE in 1 2 3; do
@@ -226,16 +227,16 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     SERIAL_CONFIGS=$(echo "$PHASE_CONFIGS" | jq -c '[.[] | select(.parallelDeploy == false)]')
     PARALLEL_CONFIGS=$(echo "$PHASE_CONFIGS" | jq -c '[.[] | select(.parallelDeploy == true)]')
 
-    # Capture B1 readiness ONCE before this phase's deploys, since BFF
+    # Capture MFE readiness ONCE before this phase's deploys, since BFF
     # exports get published during Phase 3 itself. On a cold start we deploy
     # investor-web in Phase 2 with mfeBehaviors=false, then Phase 4a re-runs
     # it with mfeBehaviors=true after Phase 3 publishes the SSM exports.
     if [ "$PHASE" = "2" ]; then
-      if check_all_b1_params_exist; then
-        B1_BOOTSTRAP_NEEDED=false
+      if check_all_mfe_params_exist; then
+        MFE_BOOTSTRAP_NEEDED=false
         MFE_BEHAVIORS_PHASE2=true
       else
-        B1_BOOTSTRAP_NEEDED=true
+        MFE_BOOTSTRAP_NEEDED=true
         MFE_BEHAVIORS_PHASE2=false
       fi
     fi
@@ -293,14 +294,14 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     fi
   done
 
-  # Phase 4a: Re-deploy investor-web with full B1 topology (only on cold start).
-  # B1_BOOTSTRAP_NEEDED was captured at Phase 2 — by Phase 4 the BFFs have
-  # published their api/apiId + mfe/bucketName SSM exports, so investor-web
-  # can now synth + deploy with mfeBehaviors=true.
-  if [ "${B1_BOOTSTRAP_NEEDED:-false}" = "true" ]; then
+  # Phase 4a: Re-deploy investor-web with full MFE topology (only on cold
+  # start). MFE_BOOTSTRAP_NEEDED was captured at Phase 2 — by Phase 4 the
+  # BFFs have published their api/apiId + mfe/bucketName SSM exports, so
+  # investor-web can now synth + deploy with mfeBehaviors=true.
+  if [ "${MFE_BOOTSTRAP_NEEDED:-false}" = "true" ]; then
     if is_service_included "investor-web"; then
       echo ""
-      echo "Phase 4a (investor-web re-deploy — cold-start B1 wiring):"
+      echo "Phase 4a (investor-web re-deploy — cold-start MFE wiring):"
       INVESTOR_WEB_CFG=$(echo "$CONFIGS" | jq -c '.[] | select(.service == "investor-web")' | head -n1)
       deploy_service "investor-web" "$TARGET_REGION" "$TARGET_ACCOUNT" "$INVESTOR_WEB_CFG" \
         -c mfeBehaviors=true
