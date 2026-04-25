@@ -84,6 +84,7 @@ deploy_service() {
   local region="${2:-}"
   local account="${3:-}"
   local config_json="$4"
+  shift 4  # remaining args become extra -c flags appended to cdk deploy
 
   # Extract config values
   local subsystem=$(echo "$config_json" | jq -r '.subsystem')
@@ -96,7 +97,7 @@ deploy_service() {
   echo "  Deploying $svc (${region_flag})..."
 
   if [ "$DRY_RUN" = "true" ]; then
-    echo "    [DRY RUN] Would deploy with: tier=$TIER prefix=$PREFIX observability=$observability logRetention=$log_retention protectedResources=$protected_resources"
+    echo "    [DRY RUN] Would deploy with: tier=$TIER prefix=$PREFIX observability=$observability logRetention=$log_retention protectedResources=$protected_resources${*:+ extra: $*}"
     return 0
   fi
 
@@ -115,7 +116,8 @@ deploy_service() {
     -c observability="$observability" \
     -c logRetention="$log_retention" \
     -c protectedResources="$protected_resources" \
-    -c region="$region_flag"
+    -c region="$region_flag" \
+    "$@"
 }
 
 verify_ssm_param() {
@@ -143,6 +145,25 @@ check_all_hub_params_exist() {
       return 1
     fi
   done < <(echo "$hub_configs" | jq -c '.[]')
+  return 0
+}
+
+check_all_b1_params_exist() {
+  if [ "$DRY_RUN" = "true" ]; then return 1; fi
+  local region="${TARGET_REGION:-${CDK_DEFAULT_REGION:-us-east-1}}"
+  local catalog
+  catalog=$(node "$REPO_ROOT/tools/scripts/list-mfe-catalog.mjs") || return 1
+  while IFS= read -r entry; do
+    local svc has_facade
+    svc=$(echo "$entry" | jq -r '.service')
+    has_facade=$(echo "$entry" | jq -r '.hasFacade')
+    aws ssm get-parameter --name "/nestfolio/${PREFIX}-${svc}/mfe/bucketName" \
+      --region "$region" --query 'Parameter.Value' --output text >/dev/null 2>&1 || return 1
+    if [ "$has_facade" = "true" ]; then
+      aws ssm get-parameter --name "/nestfolio/${PREFIX}-${svc}/api/apiId" \
+        --region "$region" --query 'Parameter.Value' --output text >/dev/null 2>&1 || return 1
+    fi
+  done < <(echo "$catalog" | jq -c '.[]')
   return 0
 }
 
@@ -176,6 +197,12 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     echo "═══ Target: ${TARGET_ENV:-default} (${TARGET_REGION:-default}) ═══"
   fi
 
+  # Reset B1 cold-start flags for this target — Phase 2 will set them based on
+  # this target's SSM state. Without the reset, target N could inherit target
+  # N-1's state when target N has no Phase 2 deploys (e.g., --services filter).
+  B1_BOOTSTRAP_NEEDED=false
+  MFE_BEHAVIORS_PHASE2=true
+
   for PHASE in 1 2 3; do
     # Filter configs for this phase + target
     PHASE_CONFIGS=$(echo "$CONFIGS" | jq -c "[.[] | select(
@@ -199,11 +226,30 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     SERIAL_CONFIGS=$(echo "$PHASE_CONFIGS" | jq -c '[.[] | select(.parallelDeploy == false)]')
     PARALLEL_CONFIGS=$(echo "$PHASE_CONFIGS" | jq -c '[.[] | select(.parallelDeploy == true)]')
 
+    # Capture B1 readiness ONCE before this phase's deploys, since BFF
+    # exports get published during Phase 3 itself. On a cold start we deploy
+    # investor-web in Phase 2 with mfeBehaviors=false, then Phase 4a re-runs
+    # it with mfeBehaviors=true after Phase 3 publishes the SSM exports.
+    if [ "$PHASE" = "2" ]; then
+      if check_all_b1_params_exist; then
+        B1_BOOTSTRAP_NEEDED=false
+        MFE_BEHAVIORS_PHASE2=true
+      else
+        B1_BOOTSTRAP_NEEDED=true
+        MFE_BEHAVIORS_PHASE2=false
+      fi
+    fi
+
     # Deploy serial services first
     while IFS= read -r cfg; do
       SVC=$(echo "$cfg" | jq -r '.service')
       if is_service_included "$SVC"; then
-        deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg"
+        if [ "$PHASE" = "2" ] && [ "$SVC" = "investor-web" ]; then
+          deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" \
+            -c mfeBehaviors="$MFE_BEHAVIORS_PHASE2"
+        else
+          deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg"
+        fi
       fi
     done < <(echo "$SERIAL_CONFIGS" | jq -c '.[]')
 
@@ -212,7 +258,12 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     while IFS= read -r cfg; do
       SVC=$(echo "$cfg" | jq -r '.service')
       if is_service_included "$SVC"; then
-        deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" &
+        if [ "$PHASE" = "2" ] && [ "$SVC" = "investor-web" ]; then
+          deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" \
+            -c mfeBehaviors="$MFE_BEHAVIORS_PHASE2" &
+        else
+          deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" &
+        fi
         PIDS="$PIDS $!"
       fi
     done < <(echo "$PARALLEL_CONFIGS" | jq -c '.[]')
@@ -241,6 +292,20 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
       verify_ssm_param "/nestfolio/${PREFIX}-investor/auth/userPoolClientId" "${TARGET_REGION:-${CDK_DEFAULT_REGION:-us-east-1}}"
     fi
   done
+
+  # Phase 4a: Re-deploy investor-web with full B1 topology (only on cold start).
+  # B1_BOOTSTRAP_NEEDED was captured at Phase 2 — by Phase 4 the BFFs have
+  # published their api/apiId + mfe/bucketName SSM exports, so investor-web
+  # can now synth + deploy with mfeBehaviors=true.
+  if [ "${B1_BOOTSTRAP_NEEDED:-false}" = "true" ]; then
+    if is_service_included "investor-web"; then
+      echo ""
+      echo "Phase 4a (investor-web re-deploy — cold-start B1 wiring):"
+      INVESTOR_WEB_CFG=$(echo "$CONFIGS" | jq -c '.[] | select(.service == "investor-web")' | head -n1)
+      deploy_service "investor-web" "$TARGET_REGION" "$TARGET_ACCOUNT" "$INVESTOR_WEB_CFG" \
+        -c mfeBehaviors=true
+    fi
+  fi
 
   # Phase 4: Re-deploy hubs (only on first deploy)
   HUB_COUNT=$(echo "$HUB_CONFIGS" | jq 'length')
