@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# fetch-runtime-config.sh — A4 runtime config producer.
+# fetch-runtime-config.sh — runtime config producer.
 #
 # Reads the runtime-config SSM parameters published by the investor subsystem
 # (auth, BFF AppSync endpoints, web distribution URL) and writes
 # apps/nestfolio-host/public/assets/config.json.
 #
-# Charter §8: the only producer of the shell's runtime-config payload.
+# This is the only producer of the shell's runtime-config payload.
 #
 # Usage:
 #   bash scripts/fetch-runtime-config.sh --prefix=<prefix> [--region=<region>]

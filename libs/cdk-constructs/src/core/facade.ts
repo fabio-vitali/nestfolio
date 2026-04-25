@@ -219,6 +219,11 @@ export class Facade extends Construct {
         stringValue: cfnApi.attrRealtimeUrl,
         description: `AppSync realtime (WSS) URL for ${id}`,
       });
+      new StringParameter(this, 'ApiIdParam', {
+        parameterName: naming.ssmServicePath('api/apiId'),
+        stringValue: this.api.apiId,
+        description: `AppSync API id for ${id}`,
+      });
     }
   }
 

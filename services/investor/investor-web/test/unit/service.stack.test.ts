@@ -132,3 +132,189 @@ describe('InvestorWebStack — runtime config SSM exports', () => {
     });
   });
 });
+
+describe('InvestorWebStack — MFE unified topology (flag off)', () => {
+  let template: Template;
+
+  beforeAll(() => {
+    const app = new App();
+    const stack = new InvestorWebStack(app, 'TestStackMfeOff', {
+      prefix: 'test',
+      service: 'investor-web',
+      subsystem: 'investor',
+    } as any);
+    template = Template.fromStack(stack);
+  });
+
+  it('CacheBehaviors has exactly 1 entry (the existing /api/copilotkit*)', () => {
+    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({
+        CacheBehaviors: Match.arrayEquals([
+          Match.objectLike({ PathPattern: '/api/copilotkit*' }),
+        ]),
+      }),
+    });
+  });
+});
+
+describe('InvestorWebStack — MFE unified topology (flag on, /mfe/<key>/*)', () => {
+  let template: Template;
+
+  beforeAll(() => {
+    const app = new App({ context: { mfeBehaviors: 'true' } });
+    const stack = new InvestorWebStack(app, 'TestStackMfeOnBuckets', {
+      prefix: 'test',
+      service: 'investor-web',
+      subsystem: 'investor',
+    } as any);
+    template = Template.fromStack(stack);
+  });
+
+  it('adds /mfe/<key>/* behavior for each catalog entry', () => {
+    for (const key of ['investor', 'advisory', 'ledger', 'dashboard', 'onboarding']) {
+      template.hasResourceProperties('AWS::CloudFront::Distribution', {
+        DistributionConfig: Match.objectLike({
+          CacheBehaviors: Match.arrayWith([
+            Match.objectLike({
+              PathPattern: `/mfe/${key}/*`,
+              ViewerProtocolPolicy: 'redirect-to-https',
+              AllowedMethods: Match.arrayWith(['GET', 'HEAD']),
+            }),
+          ]),
+        }),
+      });
+    }
+  });
+
+  it('each /mfe/<key>/* origin uses the SSM-discovered bucket name', () => {
+    for (const service of ['investor-bff', 'advisory-bff', 'ledger-bff', 'dashboard-bff', 'onboarding-bff']) {
+      template.hasParameter('*', {
+        Type: 'AWS::SSM::Parameter::Value<String>',
+        Default: `/nestfolio/test-${service}/mfe/bucketName`,
+      });
+    }
+  });
+
+  it('creates one OriginAccessControl resource per MFE bucket origin (OAC, not OAI)', () => {
+    // S3BucketOrigin.withOriginAccessControl creates one OAC per origin.
+    // This asserts the OAI-free (OAC) path is taken, matching the bucket policy
+    // provisioned by the MfeBucket construct in each BFF stack.
+    template.resourceCountIs('AWS::CloudFront::OriginAccessControl', 5);
+  });
+});
+
+describe('InvestorWebStack — MFE unified topology (flag on, /graphql/<domain>)', () => {
+  let template: Template;
+
+  beforeAll(() => {
+    const app = new App({ context: { mfeBehaviors: 'true' } });
+    const stack = new InvestorWebStack(app, 'TestStackMfeOnGql', {
+      prefix: 'test',
+      service: 'investor-web',
+      subsystem: 'investor',
+    } as any);
+    template = Template.fromStack(stack);
+  });
+
+  it('adds /graphql/<domain> behavior for each Facade-bearing catalog entry', () => {
+    for (const domain of ['investor', 'advisory', 'ledger', 'dashboard']) {
+      template.hasResourceProperties('AWS::CloudFront::Distribution', {
+        DistributionConfig: Match.objectLike({
+          CacheBehaviors: Match.arrayWith([
+            Match.objectLike({
+              PathPattern: `/graphql/${domain}`,
+              ViewerProtocolPolicy: 'https-only',
+              AllowedMethods: Match.arrayWith(['POST']),
+              FunctionAssociations: Match.arrayWith([
+                Match.objectLike({ EventType: 'viewer-request' }),
+              ]),
+            }),
+          ]),
+        }),
+      });
+    }
+  });
+
+  it('does NOT add /graphql/onboarding (onboarding has no Facade)', () => {
+    const distConfig = template.findResources('AWS::CloudFront::Distribution');
+    const allBehaviors = Object.values(distConfig).flatMap(
+      (r: any) => r.Properties.DistributionConfig.CacheBehaviors ?? [],
+    );
+    const onboardingGql = allBehaviors.filter((b: any) => b.PathPattern === '/graphql/onboarding');
+    expect(onboardingGql).toHaveLength(0);
+  });
+
+  it('reads api/graphqlUrl SSM parameter for each Facade-bearing entry', () => {
+    for (const service of ['investor-bff', 'advisory-bff', 'ledger-bff', 'dashboard-bff']) {
+      template.hasParameter('*', {
+        Type: 'AWS::SSM::Parameter::Value<String>',
+        Default: `/nestfolio/test-${service}/api/graphqlUrl`,
+      });
+    }
+  });
+
+  it('creates one CloudFront Function for the realtime/graphql rewrite', () => {
+    template.resourceCountIs('AWS::CloudFront::Function', 2); // copilot + realtime-rewrite
+  });
+});
+
+describe('InvestorWebStack — MFE unified topology (flag on, /realtime/<domain>)', () => {
+  let template: Template;
+
+  beforeAll(() => {
+    const app = new App({ context: { mfeBehaviors: 'true' } });
+    const stack = new InvestorWebStack(app, 'TestStackMfeOnRt', {
+      prefix: 'test',
+      service: 'investor-web',
+      subsystem: 'investor',
+    } as any);
+    template = Template.fromStack(stack);
+  });
+
+  it('adds /realtime/<domain> behavior for each Facade-bearing catalog entry', () => {
+    for (const domain of ['investor', 'advisory', 'ledger', 'dashboard']) {
+      template.hasResourceProperties('AWS::CloudFront::Distribution', {
+        DistributionConfig: Match.objectLike({
+          CacheBehaviors: Match.arrayWith([
+            Match.objectLike({
+              PathPattern: `/realtime/${domain}`,
+              ViewerProtocolPolicy: 'https-only',
+              AllowedMethods: Match.arrayWith(['POST']),
+              FunctionAssociations: Match.arrayWith([
+                Match.objectLike({ EventType: 'viewer-request' }),
+              ]),
+            }),
+          ]),
+        }),
+      });
+    }
+  });
+
+  it('does NOT add /realtime/onboarding (onboarding has no Facade)', () => {
+    const distConfig = template.findResources('AWS::CloudFront::Distribution');
+    const allBehaviors = Object.values(distConfig).flatMap(
+      (r: any) => r.Properties.DistributionConfig.CacheBehaviors ?? [],
+    );
+    const onboardingRt = allBehaviors.filter((b: any) => b.PathPattern === '/realtime/onboarding');
+    expect(onboardingRt).toHaveLength(0);
+  });
+
+  it('reads api/realtimeUrl SSM parameter for each Facade-bearing entry', () => {
+    for (const service of ['investor-bff', 'advisory-bff', 'ledger-bff', 'dashboard-bff']) {
+      template.hasParameter('*', {
+        Type: 'AWS::SSM::Parameter::Value<String>',
+        Default: `/nestfolio/test-${service}/api/realtimeUrl`,
+      });
+    }
+  });
+
+  it('CacheBehaviors has exactly 14 path-pattern entries when flag is on', () => {
+    const distConfig = template.findResources('AWS::CloudFront::Distribution');
+    const cacheBehaviors = (Object.values(distConfig)[0] as any).Properties.DistributionConfig.CacheBehaviors;
+    expect(cacheBehaviors).toHaveLength(14);
+  });
+
+  it('still has exactly 1 CloudFront Function for the realtime/graphql rewrite (reused, not duplicated)', () => {
+    template.resourceCountIs('AWS::CloudFront::Function', 2); // copilot + realtime-rewrite
+  });
+});

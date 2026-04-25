@@ -4,7 +4,7 @@
  *
  * Consumers: `inject(AuthConfig)` from inside a factory or constructor.
  * Provider: registered by the shell app with a `useFactory` reading
- * `getRuntimeConfig().auth` (charter §8 bootstrap discipline).
+ * `getRuntimeConfig().auth`.
  */
 export abstract class AuthConfig {
   abstract userPoolId: string;

@@ -7,9 +7,8 @@ import { getRuntimeConfig, RuntimeConfig } from './app.config';
  * so it is guaranteed to be available by the time any component or service injects this.
  *
  * Values always come from /assets/config.json — produced by
- * `pnpm nx run nestfolio-host:config --prefix=<prefix>` (charter §8). No
- * environment.ts fallback exists; if the producer hasn't run, bootstrap
- * fails hard.
+ * `pnpm nx run nestfolio-host:config --prefix=<prefix>`. No environment.ts
+ * fallback exists; if the producer hasn't run, bootstrap fails hard.
  */
 @Injectable({ providedIn: 'root' })
 export class RuntimeConfigService {
