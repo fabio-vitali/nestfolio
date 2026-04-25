@@ -105,4 +105,10 @@ describe('InvestorWebStack — CopilotKit bridge', () => {
       }),
     });
   });
+
+  it('exports web/distributionId SSM parameter', () => {
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/nestfolio/test-investor/web/distributionId',
+    });
+  });
 });
