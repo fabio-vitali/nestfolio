@@ -24,7 +24,7 @@ jest.mock('@angular/core', () => ({
   isDevMode: () => devMode,
 }));
 
-import { validateEndpoints, RuntimeConfig } from '../../src/app/app.config';
+import { validateEndpoints, RuntimeConfig, loadRuntimeConfig, getRuntimeConfig } from '../../src/app/app.config';
 
 function makeConfig(overrides?: Partial<Record<'investorBff' | 'advisoryBff' | 'dashboardBff' | 'ledgerBff', { endpoint: string; region: string }>>): RuntimeConfig {
   return {
@@ -36,6 +36,7 @@ function makeConfig(overrides?: Partial<Record<'investorBff' | 'advisoryBff' | '
       ledgerBff: { endpoint: 'https://ledger.appsync-api.us-east-1.amazonaws.com/graphql', region: 'us-east-1' },
       ...overrides,
     },
+    copilotApiUrl: 'https://example.cloudfront.net/api/copilotkit',
   };
 }
 
@@ -83,5 +84,72 @@ describe('validateEndpoints', () => {
       advisoryBff: { endpoint: 'http://evil.com/graphql', region: 'us-east-1' },
     });
     expect(() => validateEndpoints(config)).toThrow('Invalid endpoint URL');
+  });
+});
+
+describe('loadRuntimeConfig (fail-hard)', () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    devMode = false;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('populates runtimeConfig on a successful fetch', async () => {
+    const cfg = makeConfig();
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => cfg,
+    } as unknown as Response);
+
+    await loadRuntimeConfig()();
+    expect(getRuntimeConfig()).toEqual(cfg);
+  });
+
+  it('throws with named remediation when fetch returns 404', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({}),
+    } as unknown as Response);
+
+    await expect(loadRuntimeConfig()()).rejects.toThrow(
+      /Runtime config not found.*nestfolio-host:config/,
+    );
+  });
+
+  it('throws with named remediation when JSON is malformed', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => { throw new SyntaxError('unexpected token'); },
+    } as unknown as Response);
+
+    await expect(loadRuntimeConfig()()).rejects.toThrow(
+      /Runtime config malformed/,
+    );
+  });
+
+  it('throws when validateEndpoints rejects', async () => {
+    const bad = makeConfig({ investorBff: { endpoint: 'http://evil.com/graphql', region: 'us-east-1' } });
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => bad,
+    } as unknown as Response);
+
+    await expect(loadRuntimeConfig()()).rejects.toThrow('Invalid endpoint URL');
+  });
+
+  it('throws on network error', async () => {
+    globalThis.fetch = jest.fn().mockRejectedValue(new TypeError('NetworkError'));
+
+    await expect(loadRuntimeConfig()()).rejects.toThrow(
+      /Runtime config not reachable/,
+    );
   });
 });
