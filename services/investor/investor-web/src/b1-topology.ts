@@ -2,7 +2,7 @@ import { Construct } from 'constructs';
 import {
   Distribution, ViewerProtocolPolicy, AllowedMethods, CachePolicy,
 } from 'aws-cdk-lib/aws-cloudfront';
-import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
+import { S3BucketOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import type { MfeCatalogEntry } from './mfe-catalog';
@@ -25,7 +25,7 @@ export function addMfeBucketBehavior(
   );
   const bucket = Bucket.fromBucketName(scope, `MfeBucket-${entry.key}`, bucketName);
 
-  distribution.addBehavior(`/mfe/${entry.key}/*`, new S3Origin(bucket), {
+  distribution.addBehavior(`/mfe/${entry.key}/*`, S3BucketOrigin.withOriginAccessControl(bucket), {
     viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
     allowedMethods: AllowedMethods.ALLOW_GET_HEAD,
     cachePolicy: CachePolicy.CACHING_OPTIMIZED,

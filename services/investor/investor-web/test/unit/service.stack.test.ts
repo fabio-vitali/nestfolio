@@ -194,4 +194,10 @@ describe('InvestorWebStack — B1 unified topology (flag on, /mfe/<key>/*)', () 
       });
     }
   });
+
+  it('creates one OriginAccessControl resource per MFE bucket origin (OAC, not OAI)', () => {
+    // S3BucketOrigin.withOriginAccessControl creates one OAC per origin.
+    // This asserts the OAI-free (OAC) path is taken, matching A3's bucket policy.
+    template.resourceCountIs('AWS::CloudFront::OriginAccessControl', 5);
+  });
 });
