@@ -84,7 +84,12 @@ export class NamingService {
     return `${account}-${this.prefix}-nestfolio-kb-${kbName}`;
   }
 
-  /** MFE hosting S3 bucket name: "{account}-{prefix}-nestfolio-mfe-{mfeKey}" */
+  /**
+   * MFE hosting S3 bucket name: "{account}-{prefix}-nestfolio-mfe-{mfeKey}".
+   * NOTE: argument order intentionally differs from `kbBucketName(kbName, account)` —
+   * call sites acquire `account` from the parent stack before knowing the mfeKey, so
+   * account-first reads more naturally. Future cleanup may unify the two.
+   */
   mfeBucketName(account: string, mfeKey: string): string {
     return `${account}-${this.prefix}-nestfolio-mfe-${mfeKey}`;
   }

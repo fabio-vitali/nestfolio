@@ -87,6 +87,19 @@ describe('MfeBucket construct', () => {
         ]),
       }),
     });
+    // The SSM dynamic reference for distributionId surfaces in the template's
+    // Parameters block as a typed SSM Parameter::Value with Default set to the
+    // canonical subsystem-scoped investor-web path. Asserting it here catches
+    // typos that would otherwise only surface at deploy time.
+    const parameters = template.toJSON().Parameters ?? {};
+    const ssmRefs = Object.values(parameters).filter(
+      (p: any) => p.Type === 'AWS::SSM::Parameter::Value<String>',
+    );
+    expect(ssmRefs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ Default: '/nestfolio/dev-investor/web/distributionId' }),
+      ]),
+    );
   });
 
   it('exports mfe/bucketName SSM parameter at service-scoped path', () => {
@@ -99,7 +112,7 @@ describe('MfeBucket construct', () => {
   it('exports mfe/key SSM parameter at service-scoped path with the literal key', () => {
     const template = synthMfeBucket({ mfeKey: 'dashboard' });
     template.hasResourceProperties('AWS::SSM::Parameter', {
-      Name: Match.stringLikeRegexp('/mfe/key$'),
+      Name: '/nestfolio/dev-investor-bff/mfe/key',
       Value: 'dashboard',
     });
   });

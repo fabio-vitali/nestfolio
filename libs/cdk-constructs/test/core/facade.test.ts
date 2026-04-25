@@ -1,5 +1,5 @@
 import { App } from 'aws-cdk-lib';
-import { Template } from 'aws-cdk-lib/assertions';
+import { Template, Match } from 'aws-cdk-lib/assertions';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
 import { Facade, parseSchemaFields, discoverJsResolvers } from '../../src/core/facade';
@@ -180,6 +180,7 @@ describe('Facade construct', () => {
     const template = Template.fromStack(stack);
     template.hasResourceProperties('AWS::SSM::Parameter', {
       Name: '/nestfolio/test-test-svc/api/realtimeUrl',
+      Value: Match.anyValue(),
     });
   });
 
