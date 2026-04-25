@@ -243,11 +243,11 @@ describe('InvestorWebStack — B1 unified topology (flag on, /graphql/<domain>)'
     expect(onboardingGql).toHaveLength(0);
   });
 
-  it('reads api/apiId SSM parameter for each Facade-bearing entry', () => {
+  it('reads api/graphqlUrl SSM parameter for each Facade-bearing entry', () => {
     for (const service of ['investor-bff', 'advisory-bff', 'ledger-bff', 'dashboard-bff']) {
       template.hasParameter('*', {
         Type: 'AWS::SSM::Parameter::Value<String>',
-        Default: `/nestfolio/test-${service}/api/apiId`,
+        Default: `/nestfolio/test-${service}/api/graphqlUrl`,
       });
     }
   });
@@ -296,6 +296,15 @@ describe('InvestorWebStack — B1 unified topology (flag on, /realtime/<domain>)
     );
     const onboardingRt = allBehaviors.filter((b: any) => b.PathPattern === '/realtime/onboarding');
     expect(onboardingRt).toHaveLength(0);
+  });
+
+  it('reads api/realtimeUrl SSM parameter for each Facade-bearing entry', () => {
+    for (const service of ['investor-bff', 'advisory-bff', 'ledger-bff', 'dashboard-bff']) {
+      template.hasParameter('*', {
+        Type: 'AWS::SSM::Parameter::Value<String>',
+        Default: `/nestfolio/test-${service}/api/realtimeUrl`,
+      });
+    }
   });
 
   it('CacheBehaviors has exactly 14 path-pattern entries when flag is on', () => {

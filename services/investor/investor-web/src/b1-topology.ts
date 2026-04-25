@@ -1,4 +1,4 @@
-import { Stack } from 'aws-cdk-lib';
+import { Fn } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import {
   Distribution, ViewerProtocolPolicy, AllowedMethods, CachePolicy,
@@ -38,9 +38,10 @@ export function addMfeBucketBehavior(
  * Adds a CloudFront cache behavior for a BFF's AppSync HTTPS endpoint.
  *
  * Charter §7 R6 row 3: /graphql/<domain> → that BFF's AppSync HTTPS
- * endpoint. Hostname constructed from the SSM-discovered api/apiId
- * + Stack region. Viewer-request rewrite strips /<domain> so AppSync
- * sees /graphql.
+ * endpoint. Host extracted from the SSM-discovered api/graphqlUrl via
+ * Fn.split — the URL prefix is not derivable from api/apiId alone, since
+ * AppSync uses a separate prefix as the leftmost subdomain of its URL.
+ * Viewer-request rewrite strips /<domain> so AppSync sees /graphql.
  */
 export function addGraphqlBehavior(
   scope: Construct,
@@ -52,11 +53,12 @@ export function addGraphqlBehavior(
   if (!entry.hasFacade) {
     throw new Error(`addGraphqlBehavior called for ${entry.key} which has no Facade`);
   }
-  const apiId = StringParameter.valueForStringParameter(
-    scope, `/nestfolio/${prefix}-${entry.service}/api/apiId`,
+  const graphqlUrl = StringParameter.valueForStringParameter(
+    scope, `/nestfolio/${prefix}-${entry.service}/api/graphqlUrl`,
   );
-  const region = Stack.of(scope).region;
-  const httpHost = `${apiId}.appsync-api.${region}.amazonaws.com`;
+  // graphqlUrl is `https://<prefix>.appsync-api.<region>.amazonaws.com/graphql`.
+  // Fn.split('/', url) yields ['https:', '', '<host>', 'graphql']; index 2 is the host.
+  const httpHost = Fn.select(2, Fn.split('/', graphqlUrl));
 
   distribution.addBehavior(`/graphql/${entry.key}`, new HttpOrigin(httpHost), {
     viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
@@ -71,7 +73,9 @@ export function addGraphqlBehavior(
  * Adds a CloudFront cache behavior for a BFF's AppSync WSS endpoint.
  *
  * Charter §7 R6 row 4: /realtime/<domain> → that BFF's AppSync WSS endpoint.
- * Hostname constructed from the SSM-discovered api/apiId + Stack region.
+ * Host extracted from the SSM-discovered api/realtimeUrl via Fn.split — the
+ * URL prefix is not derivable from api/apiId alone, since AppSync uses a
+ * separate prefix as the leftmost subdomain of its URL.
  * Viewer-request rewrite strips /<domain> so AppSync sees /graphql (it
  * uses the same /graphql URI for both HTTPS and WSS handshakes).
  *
@@ -88,11 +92,12 @@ export function addRealtimeBehavior(
   if (!entry.hasFacade) {
     throw new Error(`addRealtimeBehavior called for ${entry.key} which has no Facade`);
   }
-  const apiId = StringParameter.valueForStringParameter(
-    scope, `/nestfolio/${prefix}-${entry.service}/api/apiId`,
+  const realtimeUrl = StringParameter.valueForStringParameter(
+    scope, `/nestfolio/${prefix}-${entry.service}/api/realtimeUrl`,
   );
-  const region = Stack.of(scope).region;
-  const wsHost = `${apiId}.appsync-realtime-api.${region}.amazonaws.com`;
+  // realtimeUrl is `wss://<prefix>.appsync-realtime-api.<region>.amazonaws.com/graphql`.
+  // Fn.split('/', url) yields ['wss:', '', '<host>', 'graphql']; index 2 is the host.
+  const wsHost = Fn.select(2, Fn.split('/', realtimeUrl));
 
   distribution.addBehavior(`/realtime/${entry.key}`, new HttpOrigin(wsHost), {
     viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,

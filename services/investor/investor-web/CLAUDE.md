@@ -40,8 +40,8 @@ instantiates a shared `RealtimeRewriteFn` CloudFront Function and iterates `MFE_
 | # | Path pattern | Origin | Notes |
 |---|---|---|---|
 | 5 | `/mfe/<key>/*` | S3BucketOrigin.withOriginAccessControl (SSM-discovered bucket) | CACHING_OPTIMIZED; GET/HEAD; consumes A3 OAC bucket policy |
-| 4 | `/graphql/<domain>` | HttpOrigin → `<apiId>.appsync-api.<region>.amazonaws.com` | CACHING_DISABLED; ALL methods; viewer-request RealtimeRewriteFn |
-| 4 | `/realtime/<domain>` | HttpOrigin → `<apiId>.appsync-realtime-api.<region>.amazonaws.com` | CACHING_DISABLED; ALL methods; viewer-request RealtimeRewriteFn |
+| 4 | `/graphql/<domain>` | HttpOrigin → host from SSM `api/graphqlUrl` (Fn.split) | CACHING_DISABLED; ALL methods; viewer-request RealtimeRewriteFn |
+| 4 | `/realtime/<domain>` | HttpOrigin → host from SSM `api/realtimeUrl` (Fn.split) | CACHING_DISABLED; ALL methods; viewer-request RealtimeRewriteFn |
 
 `MFE_CATALOG` drives which behaviors are added. Entries with `hasFacade: false` (onboarding) receive
 only the `/mfe/<key>/*` behavior — no `/graphql` or `/realtime` behavior.
@@ -94,8 +94,10 @@ Synchronous 5s timeout; must return to Cognito to complete auth flow. 3-tier ing
   Deploy-order contract: onboarding-bff must be deployed before investor-web.
 - `/nestfolio/<prefix>-<service>/mfe/bucketName` × 5 BFFs — consumed when `mfeBehaviors=true`
   (provisioned by A3's `MfeBucket` extension construct in each BFF stack).
-- `/nestfolio/<prefix>-<service>/api/apiId` × 4 facade-bearing BFFs — consumed when `mfeBehaviors=true`
-  (exported by each BFF's `Facade` construct via `api/apiId`).
+- `/nestfolio/<prefix>-<service>/api/graphqlUrl` × 4 facade-bearing BFFs — consumed when `mfeBehaviors=true`
+  (exported by each BFF's `Facade` construct). Host extracted via `Fn.select(2, Fn.split('/', url))`.
+- `/nestfolio/<prefix>-<service>/api/realtimeUrl` × 4 facade-bearing BFFs — consumed when `mfeBehaviors=true`
+  (exported by each BFF's `Facade` construct since A3). Host extracted via `Fn.select(2, Fn.split('/', url))`.
 
 ## CSP
 
