@@ -46,17 +46,30 @@ Read `libs/cdk-constructs/test/core/facade.test.ts` and find the test that asser
 Append to `libs/cdk-constructs/test/core/facade.test.ts`:
 
 ```typescript
-it('exports api/apiId SSM parameter for the GraphQL API id', () => {
-  // Reuses the existing TestStack synthesis pattern in this file.
-  // The facade is constructed with at least one resolver so the API exists.
+it('creates an SSM parameter for api/apiId', () => {
+  const { stack } = createFacadeStack();
+  const userPool = new UserPool(stack, 'Pool');
+  const resolver = new Function(stack, 'Resolver', {
+    runtime: Runtime.NODEJS_20_X,
+    handler: 'index.handler',
+    code: Code.fromInline('exports.handler = async () => ({});'),
+  });
+
+  new Facade(stack, 'TestFacade', {
+    schemaPath: SCHEMA_PATH,
+    userPool,
+    lambdaResolvers: [{ typeName: 'Query', fieldName: 'hello', handler: resolver }],
+  });
+
+  const template = Template.fromStack(stack);
   template.hasResourceProperties('AWS::SSM::Parameter', {
-    Name: '/nestfolio/test-investor-bff/api/apiId',
+    Name: '/nestfolio/test-test-svc/api/apiId',
     Description: Match.stringLikeRegexp('AppSync API id'),
   });
 });
 ```
 
-If the test file uses a separate `describe` for "SSM exports", add the test inside it. Otherwise add a new `describe('Facade — api/apiId export', ...)`.
+Add this test inside the existing `describe('Facade construct', ...)` block, right after the `it('creates an SSM parameter for api/realtimeUrl', ...)` test (around line 163-185 of the existing file). The fixture uses prefix `test` and service `test-svc` from `createFacadeStack`, so the SSM path is `/nestfolio/test-test-svc/api/apiId`.
 
 - [ ] **Step 3: Run test to verify it fails**
 
