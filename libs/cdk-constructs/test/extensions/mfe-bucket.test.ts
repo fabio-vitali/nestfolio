@@ -73,7 +73,14 @@ describe('MfeBucket construct', () => {
             Principal: { Service: 'cloudfront.amazonaws.com' },
             Condition: {
               StringEquals: {
-                'AWS:SourceArn': Match.anyValue(),
+                'AWS:SourceArn': Match.objectLike({
+                  'Fn::Join': [
+                    '',
+                    Match.arrayWith([
+                      Match.stringLikeRegexp('^arn:aws:cloudfront::'),
+                    ]),
+                  ],
+                }),
               },
             },
           }),

@@ -1,5 +1,5 @@
 import { Construct } from 'constructs';
-import { RemovalPolicy, Stack } from 'aws-cdk-lib';
+import { RemovalPolicy } from 'aws-cdk-lib';
 import { Bucket, BucketEncryption, BlockPublicAccess, IBucket } from 'aws-cdk-lib/aws-s3';
 import { PolicyStatement, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
@@ -32,7 +32,7 @@ export class MfeBucket extends Construct {
 
     const serviceStack = ServiceStack.of(this);
     const { naming, prefix } = serviceStack;
-    const account = Stack.of(this).account;
+    const account = serviceStack.account;
     this.mfeKey = props.mfeKey;
 
     const isProd = prefix === 'prod';
@@ -45,9 +45,12 @@ export class MfeBucket extends Construct {
       autoDeleteObjects: !isProd,
     });
 
-    // CloudFront OAC bucket policy. The distribution lives in investor-web
-    // (charter §5 row 9a). Its id is exported to SSM by investor-web at the
-    // canonical subsystem-scoped path.
+    // CloudFront OAC bucket policy. The single CloudFront distribution lives
+    // in investor-web (charter §5 row 9a) regardless of which BFF/subsystem
+    // instantiates this construct, so the SSM lookup hard-codes the
+    // `<prefix>-investor` subsystem path. Resolved at deploy-time via the
+    // standard CloudFormation `{{resolve:ssm:...}}` dynamic reference, which
+    // AWS supports inside S3::BucketPolicy.PolicyDocument.
     const distributionId = StringParameter.valueForStringParameter(
       this, `/nestfolio/${prefix}-investor/web/distributionId`,
     );
