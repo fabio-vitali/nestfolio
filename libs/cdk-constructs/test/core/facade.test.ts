@@ -188,7 +188,7 @@ describe('Facade construct', () => {
     const { stack } = createFacadeStack();
     const userPool = new UserPool(stack, 'Pool');
     const resolver = new Function(stack, 'Resolver', {
-      runtime: Runtime.NODEJS_20_X,
+      runtime: Runtime.NODEJS_24_X,
       handler: 'index.handler',
       code: Code.fromInline('exports.handler = async () => ({});'),
     });
