@@ -12,7 +12,7 @@ import {
   CachePolicy, CacheHeaderBehavior, CacheQueryStringBehavior, CacheCookieBehavior,
   ResponseHeadersCorsBehavior,
 } from 'aws-cdk-lib/aws-cloudfront';
-import { S3Origin, HttpOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
+import { S3Origin, S3BucketOrigin, HttpOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
@@ -20,17 +20,116 @@ import { ServiceStack, ServiceStackProps } from '@nestfolio/cdk-constructs/core'
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { MFE_CATALOG } from './mfe-catalog';
-import { addMfeBucketBehavior, addGraphqlBehavior, addRealtimeBehavior } from './b1-topology';
+import { MFE_CATALOG, MfeCatalogEntry } from './mfe-catalog';
+
+/**
+ * Adds a CloudFront cache behavior for an MFE bundle bucket.
+ *
+ * `/mfe/<key>/*` → that BFF's S3 bucket (SSM-discovered). The bucket policy
+ * already grants CloudFront OAC access (provisioned by the BFF stack).
+ */
+function addMfeBucketBehavior(
+  scope: Construct,
+  distribution: Distribution,
+  prefix: string,
+  entry: MfeCatalogEntry,
+): void {
+  const bucketName = StringParameter.valueForStringParameter(
+    scope, `/nestfolio/${prefix}-${entry.service}/mfe/bucketName`,
+  );
+  const bucket = Bucket.fromBucketName(scope, `MfeBucket-${entry.key}`, bucketName);
+
+  distribution.addBehavior(`/mfe/${entry.key}/*`, S3BucketOrigin.withOriginAccessControl(bucket), {
+    viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+    allowedMethods: AllowedMethods.ALLOW_GET_HEAD,
+    cachePolicy: CachePolicy.CACHING_OPTIMIZED,
+  });
+}
+
+/**
+ * Adds a CloudFront cache behavior for a BFF's AppSync HTTPS endpoint.
+ *
+ * `/graphql/<domain>` → that BFF's AppSync HTTPS endpoint. Host extracted
+ * from the SSM-discovered api/graphqlUrl via Fn.split — the URL prefix is
+ * not derivable from api/apiId alone, since AppSync uses a separate prefix
+ * as the leftmost subdomain of its URL. Viewer-request rewrite strips
+ * /<domain> so AppSync sees /graphql.
+ */
+function addGraphqlBehavior(
+  scope: Construct,
+  distribution: Distribution,
+  prefix: string,
+  entry: MfeCatalogEntry,
+  rewriteFn: CfFunction,
+): void {
+  if (!entry.hasFacade) {
+    throw new Error(`addGraphqlBehavior called for ${entry.key} which has no Facade`);
+  }
+  const graphqlUrl = StringParameter.valueForStringParameter(
+    scope, `/nestfolio/${prefix}-${entry.service}/api/graphqlUrl`,
+  );
+  // graphqlUrl is `https://<prefix>.appsync-api.<region>.amazonaws.com/graphql`.
+  // Fn.split('/', url) yields ['https:', '', '<host>', 'graphql']; index 2 is the host.
+  const httpHost = Fn.select(2, Fn.split('/', graphqlUrl));
+
+  distribution.addBehavior(`/graphql/${entry.key}`, new HttpOrigin(httpHost), {
+    viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
+    allowedMethods: AllowedMethods.ALLOW_ALL,
+    cachePolicy: CachePolicy.CACHING_DISABLED,
+    originRequestPolicy: OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+    functionAssociations: [{ function: rewriteFn, eventType: FunctionEventType.VIEWER_REQUEST }],
+  });
+}
+
+/**
+ * Adds a CloudFront cache behavior for a BFF's AppSync WSS endpoint.
+ *
+ * `/realtime/<domain>` → that BFF's AppSync WSS endpoint. Host extracted
+ * from the SSM-discovered api/realtimeUrl via Fn.split — the URL prefix is
+ * not derivable from api/apiId alone, since AppSync uses a separate prefix
+ * as the leftmost subdomain of its URL. Viewer-request rewrite strips
+ * /<domain> so AppSync sees /graphql (it uses the same /graphql URI for
+ * both HTTPS and WSS handshakes).
+ *
+ * This transport configuration was validated end-to-end against a real
+ * AppSync subscription before being adopted.
+ */
+function addRealtimeBehavior(
+  scope: Construct,
+  distribution: Distribution,
+  prefix: string,
+  entry: MfeCatalogEntry,
+  rewriteFn: CfFunction,
+): void {
+  if (!entry.hasFacade) {
+    throw new Error(`addRealtimeBehavior called for ${entry.key} which has no Facade`);
+  }
+  const realtimeUrl = StringParameter.valueForStringParameter(
+    scope, `/nestfolio/${prefix}-${entry.service}/api/realtimeUrl`,
+  );
+  // realtimeUrl is `wss://<prefix>.appsync-realtime-api.<region>.amazonaws.com/graphql`.
+  // Fn.split('/', url) yields ['wss:', '', '<host>', 'graphql']; index 2 is the host.
+  const wsHost = Fn.select(2, Fn.split('/', realtimeUrl));
+
+  distribution.addBehavior(`/realtime/${entry.key}`, new HttpOrigin(wsHost), {
+    viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
+    allowedMethods: AllowedMethods.ALLOW_ALL,
+    cachePolicy: CachePolicy.CACHING_DISABLED,
+    originRequestPolicy: OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+    functionAssociations: [{ function: rewriteFn, eventType: FunctionEventType.VIEWER_REQUEST }],
+  });
+}
 
 export class InvestorWebStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, { ...props });
 
-    // Scoped exception per spec §4: Cognito triggers are synchronous (5s timeout) and must
-    // return to Cognito to complete the auth flow. The 3-tier ingestion pattern (EventBridge Rule
-    // → SQS → Lambda) cannot apply because these Lambdas are invoked BY Cognito, not by EventBridge.
-    // If PutEvents fails, the handler throws, failing the Cognito trigger atomically.
+    // Scoped exception to the standard 3-tier ingestion pattern: Cognito
+    // triggers are synchronous (5s timeout) and must return to Cognito to
+    // complete the auth flow. The 3-tier pattern (EventBridge Rule → SQS →
+    // Lambda) cannot apply because these Lambdas are invoked BY Cognito, not
+    // by EventBridge. If PutEvents fails, the handler throws, failing the
+    // Cognito trigger atomically.
 
     // PostConfirmation Lambda
     const postConfirmation = new NodejsFunction(this, 'PostConfirmation', {
@@ -99,7 +198,7 @@ export class InvestorWebStack extends ServiceStack {
     });
 
     // Security response headers policy
-    // CSP is single-sourced from apps/nestfolio-host/csp.txt (charter §5 row 8, Pillar 5).
+    // CSP is single-sourced from apps/nestfolio-host/csp.txt.
     const cspContent = readFileSync(
       join(__dirname, '../../../../apps/nestfolio-host/csp.txt'),
       'utf-8',
@@ -220,11 +319,11 @@ export class InvestorWebStack extends ServiceStack {
       functionAssociations: [{ function: copilotRewriteFn, eventType: FunctionEventType.VIEWER_REQUEST }],
     });
 
-    // ─── B1: unified topology (flag-gated) ─────────────────────────────────
-    // Charter §5 row 9a + §7 R6: per-domain /mfe/<key>/*, /graphql/<domain>,
-    // and /realtime/<domain> behaviors discovered via SSM. Cold-start: flag
-    // is false on first deploy (BFF SSM exports don't exist yet); deploy.sh
-    // re-deploys investor-web with mfeBehaviors=true after BFFs are deployed.
+    // ─── MFE unified topology (flag-gated) ─────────────────────────────────
+    // Per-domain /mfe/<key>/*, /graphql/<domain>, and /realtime/<domain>
+    // behaviors discovered via SSM. Cold-start: flag is false on first
+    // deploy (BFF SSM exports don't exist yet); deploy.sh re-deploys
+    // investor-web with mfeBehaviors=true after BFFs are deployed.
     const mfeBehaviorsEnabled = this.node.tryGetContext('mfeBehaviors') === 'true';
     if (mfeBehaviorsEnabled) {
       const realtimeRewriteFn = new CfFunction(this, 'RealtimeRewriteFn', {
