@@ -26,19 +26,19 @@ try {
 }
 
 // Rule 1 — exactly one polyfills.js as type="module"
-const polyfills = [...html.matchAll(/<script\s+type="module"\s+src="(polyfills-[^"]+\.js)"\s*>/g)];
+const polyfills = [...html.matchAll(/<script\s+type="module"\s+src="(polyfills-[^"]+\.js)"\s*><\/script>/g)];
 if (polyfills.length !== 1) {
   fail('rule-1', `expected 1 <script type="module" src="polyfills-*.js">, found ${polyfills.length}`);
 }
 
 // Rule 2 — exactly one main.js as type="module-shim"
-const mainShim = [...html.matchAll(/<script\s+type="module-shim"\s+src="(main-[^"]+\.js)"\s*>/g)];
+const mainShim = [...html.matchAll(/<script\s+type="module-shim"\s+src="(main-[^"]+\.js)"\s*><\/script>/g)];
 if (mainShim.length !== 1) {
   fail('rule-2', `expected 1 <script type="module-shim" src="main-*.js">, found ${mainShim.length}`);
 }
 
 // Rule 3 — exactly one esms-options inline script with valid JSON body
-const esmsTags = [...html.matchAll(/<script\s+type="esms-options"\s*>([^<]*)<\/script>/g)];
+const esmsTags = [...html.matchAll(/<script\s+type="esms-options"\s*>([\s\S]*?)<\/script>/g)];
 if (esmsTags.length !== 1) {
   fail('rule-3', `expected 1 <script type="esms-options">, found ${esmsTags.length}`);
 }

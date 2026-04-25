@@ -58,6 +58,11 @@ D="$TMP/no-polyfills"; write_good_shell "$D"
 sed -i.bak '/polyfills-/d' "$D/index.html" && rm "$D/index.html.bak"
 node "$ASSERT" "$D" --kind=shell; expect_exit "rule 1 missing polyfills" 1 $?
 
+# Rule 1: malformed polyfills tag (missing close before garbage)
+D="$TMP/malformed-polyfills"; write_good_shell "$D"
+sed -i.bak 's|<script type="module" src="polyfills-ABC123.js"></script>|<script type="module" src="polyfills-ABC123.js" >garbage</script>|' "$D/index.html" && rm "$D/index.html.bak"
+node "$ASSERT" "$D" --kind=shell; expect_exit "rule 1 malformed polyfills" 1 $?
+
 # Rule 2: missing main module-shim tag
 D="$TMP/no-main-shim"; write_good_shell "$D"
 sed -i.bak '/main-/d' "$D/index.html" && rm "$D/index.html.bak"
