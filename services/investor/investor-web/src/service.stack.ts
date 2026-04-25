@@ -227,6 +227,10 @@ export class InvestorWebStack extends ServiceStack {
       parameterName: this.naming.ssmParameterPath('auth/userPoolClientId'),
       stringValue: client.userPoolClientId,
     });
+    new StringParameter(this, 'AuthRegionParam', {
+      parameterName: this.naming.ssmParameterPath('auth/region'),
+      stringValue: this.region,
+    });
     new StringParameter(this, 'DistributionUrlParam', {
       parameterName: this.naming.ssmParameterPath('web/distributionUrl'),
       stringValue: `https://${distribution.distributionDomainName}`,
