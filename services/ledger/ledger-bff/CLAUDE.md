@@ -25,6 +25,17 @@ Stack: services/ledger/ledger-bff/src/service.stack.ts
     - Query.getSimulationComparison → GraphqlResolver Lambda
   - Auth: Cognito UserPool (SSM: /nestfolio/{prefix}-investor/auth/userPoolId)
 
+## MFE Hosting
+- MfeBucket (mfeKey=ledger): S3 bucket "{account}-{prefix}-nestfolio-mfe-ledger"
+  - CloudFront OAC bucket policy (scoped via AWS:SourceArn to investor-web distribution)
+  - SSM exports: mfe/bucketName, mfe/key
+
+## SSM Parameters Published
+- api/graphqlUrl
+- api/realtimeUrl
+- mfe/bucketName
+- mfe/key
+
 ## Handlers
 - event-listener.ts — materializeToTable pipeline; handles BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED via transform functions
 - graphql-resolver.ts — AppSync Lambda resolver; handles getPortfolioAt (time-travel via snapshot replay) and getSimulationComparison (actual vs simulated portfolio diff)

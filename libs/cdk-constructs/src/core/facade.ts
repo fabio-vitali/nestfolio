@@ -11,6 +11,7 @@ import {
   FunctionRuntime,
   Resolver,
   BaseDataSource,
+  CfnGraphQLApi,
 } from 'aws-cdk-lib/aws-appsync';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { IUserPool, UserPool } from 'aws-cdk-lib/aws-cognito';
@@ -205,12 +206,18 @@ export class Facade extends Construct {
       }
     }
 
-    // Store API URL in SSM
+    // Store API URLs in SSM
     if (this.api) {
       new StringParameter(this, 'ApiUrlParam', {
         parameterName: naming.ssmServicePath('api/graphqlUrl'),
         stringValue: this.api.graphqlUrl,
         description: `AppSync GraphQL URL for ${id}`,
+      });
+      const cfnApi = this.api.node.defaultChild as CfnGraphQLApi;
+      new StringParameter(this, 'ApiRealtimeUrlParam', {
+        parameterName: naming.ssmServicePath('api/realtimeUrl'),
+        stringValue: cfnApi.attrRealtimeUrl,
+        description: `AppSync realtime (WSS) URL for ${id}`,
       });
     }
   }

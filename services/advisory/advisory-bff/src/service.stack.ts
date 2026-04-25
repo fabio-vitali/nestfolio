@@ -1,5 +1,6 @@
 import { Construct } from 'constructs';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 import { AdvisoryBffEventTypes } from './domain/events';
 import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
@@ -47,6 +48,8 @@ export class AdvisoryBffStack extends ServiceStack {
         },
       }),
     });
+
+    new MfeBucket(this, 'MfeBucket', { mfeKey: 'advisory' });
 
     this.addObservability({ ingress, egress });
   }

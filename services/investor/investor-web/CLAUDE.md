@@ -31,6 +31,7 @@ None (frontend hosting + auth infrastructure)
 - auth/userPoolId
 - auth/userPoolClientId
 - web/distributionUrl
+- web/distributionId
 
 ## Handlers
 - post-confirmation.ts — Cognito PostConfirmation trigger, emits USER_REGISTERED

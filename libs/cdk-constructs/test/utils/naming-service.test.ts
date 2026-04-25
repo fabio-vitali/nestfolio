@@ -75,6 +75,16 @@ describe('NamingService', () => {
     const naming = new NamingService({ prefix: 'dev', subsystem: 'advisory', service: 'advisory-ctrl' });
     expect(naming.kbBucketName('regulatory', '123456789012')).toBe('123456789012-dev-nestfolio-kb-regulatory');
   });
+
+  it('generates MFE bucket name with account, prefix, and MFE key', () => {
+    const naming = new NamingService({ prefix: 'dev', subsystem: 'investor', service: 'investor-bff' });
+    expect(naming.mfeBucketName('123456789012', 'investor')).toBe('123456789012-dev-nestfolio-mfe-investor');
+  });
+
+  it('generates MFE bucket name for sandbox prefix', () => {
+    const naming = new NamingService({ prefix: 'sandbox-pr-42', subsystem: 'advisory', service: 'advisory-bff' });
+    expect(naming.mfeBucketName('123456789012', 'advisory')).toBe('123456789012-sandbox-pr-42-nestfolio-mfe-advisory');
+  });
 });
 
 describe('createNamingService', () => {

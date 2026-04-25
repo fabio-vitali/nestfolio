@@ -1,6 +1,7 @@
 import { Construct } from 'constructs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
+import { MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 import { InvestorBffEventTypes } from './domain/events';
 import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
@@ -85,6 +86,8 @@ export class InvestorBffStack extends ServiceStack {
         'Notification': { modify: InvestorBffEventTypes.NOTIFICATION_READ },
       },
     });
+
+    new MfeBucket(this, 'MfeBucket', { mfeKey: 'investor' });
 
     this.addObservability({ ingress, egress });
   }

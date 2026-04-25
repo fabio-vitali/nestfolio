@@ -1,5 +1,5 @@
 import { App } from 'aws-cdk-lib';
-import { Template } from 'aws-cdk-lib/assertions';
+import { Template, Match } from 'aws-cdk-lib/assertions';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
 import { Facade, parseSchemaFields, discoverJsResolvers } from '../../src/core/facade';
@@ -157,6 +157,30 @@ describe('Facade construct', () => {
     const template = Template.fromStack(stack);
     template.hasResourceProperties('AWS::SSM::Parameter', {
       Name: '/nestfolio/test-test-svc/api/graphqlUrl',
+    });
+  });
+
+  it('creates an SSM parameter for api/realtimeUrl', () => {
+    const { stack } = createFacadeStack();
+    const userPool = new UserPool(stack, 'Pool');
+    const resolver = new Function(stack, 'Resolver', {
+      runtime: Runtime.NODEJS_24_X,
+      handler: 'index.handler',
+      code: Code.fromInline('exports.handler = async () => ({})'),
+    });
+
+    new Facade(stack, 'TestFacade', {
+      schemaPath: SCHEMA_PATH,
+      userPool,
+      lambdaResolvers: [
+        { typeName: 'Query', fieldName: 'hello', handler: resolver },
+      ],
+    });
+
+    const template = Template.fromStack(stack);
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/nestfolio/test-test-svc/api/realtimeUrl',
+      Value: Match.anyValue(),
     });
   });
 
