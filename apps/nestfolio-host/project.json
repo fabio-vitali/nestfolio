@@ -28,7 +28,7 @@
       "options": {
         "cwd": "{workspaceRoot}",
         "commands": [
-          "bash scripts/fetch-runtime-config.sh --prefix={args.prefix} --region={args.region}"
+          "bash scripts/fetch-runtime-config.sh --prefix={args.prefix}"
         ]
       },
       "cache": false

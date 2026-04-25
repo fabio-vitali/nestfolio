@@ -110,12 +110,13 @@ test('exits non-zero with usage when --prefix is missing', () => {
   assert.match(result.stderr, /--prefix/);
 });
 
-test('honors --region (default us-east-1)', () => {
+test('accepts --region as an explicit override', () => {
   const result = runScript({
     awsResponses: HAPPY_RESPONSES,
     args: ['--prefix=dev', '--region=us-east-1'],
   });
   assert.equal(result.status, 0, result.stderr);
   // No assertion on region in payload beyond what the SSM stub returned;
-  // success is enough — this case just exercises the flag parser.
+  // success is enough — this case just exercises the flag parser. Region
+  // resolution itself is delegated to the AWS CLI (env vars / ~/.aws/config).
 });

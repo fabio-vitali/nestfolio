@@ -17,14 +17,19 @@
 set -euo pipefail
 
 PREFIX=""
-REGION="us-east-1"
+# Region for SSM queries. Resolved from --region, then AWS_REGION /
+# AWS_DEFAULT_REGION env vars. No hardcoded fallback — if none of these are
+# set and --region is not passed, the AWS CLI's own resolution chain takes
+# over (~/.aws/config), and errors clearly if that also fails.
+REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-}}"
 
 usage() {
   cat >&2 <<EOF
 Usage: bash scripts/fetch-runtime-config.sh --prefix=<prefix> [--region=<region>]
 
   --prefix    Required. SSM parameter prefix (e.g. dev, staging, prod).
-  --region    Optional. AWS region for SSM queries. Default: us-east-1.
+  --region    Optional. AWS region for SSM queries. Defaults to AWS_REGION
+              or AWS_DEFAULT_REGION env var, then ~/.aws/config.
 EOF
   exit 2
 }
@@ -52,11 +57,26 @@ OUT_ROOT="${RUNTIME_CONFIG_OUT_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 OUT_PATH="${OUT_ROOT}/apps/nestfolio-host/public/assets/config.json"
 
 # Reads one SSM parameter. Names the path + remediation in the failure message.
+# Passes --region only when it has been resolved (flag, AWS_REGION,
+# AWS_DEFAULT_REGION). Otherwise lets the AWS CLI use its own region
+# resolution chain (~/.aws/config) and emit its own diagnostic if absent.
 get_ssm() {
   local path="$1"
   local owning_service="$2"
   local value
-  if ! value="$(aws ssm get-parameter --region "$REGION" --name "$path" --query 'Parameter.Value' --output text 2>&1)"; then
+  if [[ -n "$REGION" ]]; then
+    value="$(aws ssm get-parameter --region "$REGION" --name "$path" --query 'Parameter.Value' --output text 2>&1)" || {
+      cat >&2 <<EOF
+SSM param not found or unreadable: ${path}
+Run \`bash infrastructure/scripts/deploy.sh sandbox --prefix=${PREFIX} --services=${owning_service}\` first.
+(aws stderr was: ${value})
+EOF
+      exit 1
+    }
+    printf '%s' "$value"
+    return 0
+  fi
+  if ! value="$(aws ssm get-parameter --name "$path" --query 'Parameter.Value' --output text 2>&1)"; then
     cat >&2 <<EOF
 SSM param not found or unreadable: ${path}
 Run \`bash infrastructure/scripts/deploy.sh sandbox --prefix=${PREFIX} --services=${owning_service}\` first.
