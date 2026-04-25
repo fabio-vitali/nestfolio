@@ -21,7 +21,7 @@ import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MFE_CATALOG } from './mfe-catalog';
-import { addMfeBucketBehavior, addGraphqlBehavior } from './b1-topology';
+import { addMfeBucketBehavior, addGraphqlBehavior, addRealtimeBehavior } from './b1-topology';
 
 export class InvestorWebStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -239,6 +239,7 @@ export class InvestorWebStack extends ServiceStack {
         addMfeBucketBehavior(this, distribution, this.prefix, entry);
         if (entry.hasFacade) {
           addGraphqlBehavior(this, distribution, this.prefix, entry, realtimeRewriteFn);
+          addRealtimeBehavior(this, distribution, this.prefix, entry, realtimeRewriteFn);
         }
       }
     }

@@ -256,3 +256,55 @@ describe('InvestorWebStack — B1 unified topology (flag on, /graphql/<domain>)'
     template.resourceCountIs('AWS::CloudFront::Function', 2); // copilot + realtime-rewrite
   });
 });
+
+describe('InvestorWebStack — B1 unified topology (flag on, /realtime/<domain>)', () => {
+  let template: Template;
+
+  beforeAll(() => {
+    const app = new App({ context: { mfeBehaviors: 'true' } });
+    const stack = new InvestorWebStack(app, 'TestStackB1OnRt', {
+      prefix: 'test',
+      service: 'investor-web',
+      subsystem: 'investor',
+    } as any);
+    template = Template.fromStack(stack);
+  });
+
+  it('adds /realtime/<domain> behavior for each Facade-bearing catalog entry', () => {
+    for (const domain of ['investor', 'advisory', 'ledger', 'dashboard']) {
+      template.hasResourceProperties('AWS::CloudFront::Distribution', {
+        DistributionConfig: Match.objectLike({
+          CacheBehaviors: Match.arrayWith([
+            Match.objectLike({
+              PathPattern: `/realtime/${domain}`,
+              ViewerProtocolPolicy: 'https-only',
+              AllowedMethods: Match.arrayWith(['POST']),
+              FunctionAssociations: Match.arrayWith([
+                Match.objectLike({ EventType: 'viewer-request' }),
+              ]),
+            }),
+          ]),
+        }),
+      });
+    }
+  });
+
+  it('does NOT add /realtime/onboarding (onboarding has no Facade)', () => {
+    const distConfig = template.findResources('AWS::CloudFront::Distribution');
+    const allBehaviors = Object.values(distConfig).flatMap(
+      (r: any) => r.Properties.DistributionConfig.CacheBehaviors ?? [],
+    );
+    const onboardingRt = allBehaviors.filter((b: any) => b.PathPattern === '/realtime/onboarding');
+    expect(onboardingRt).toHaveLength(0);
+  });
+
+  it('CacheBehaviors has exactly 14 path-pattern entries when flag is on', () => {
+    const distConfig = template.findResources('AWS::CloudFront::Distribution');
+    const cacheBehaviors = (Object.values(distConfig)[0] as any).Properties.DistributionConfig.CacheBehaviors;
+    expect(cacheBehaviors).toHaveLength(14);
+  });
+
+  it('still has exactly 1 CloudFront Function for the realtime/graphql rewrite (reused, not duplicated)', () => {
+    template.resourceCountIs('AWS::CloudFront::Function', 2); // copilot + realtime-rewrite
+  });
+});
