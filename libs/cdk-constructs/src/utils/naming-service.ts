@@ -84,6 +84,11 @@ export class NamingService {
     return `${account}-${this.prefix}-nestfolio-kb-${kbName}`;
   }
 
+  /** MFE hosting S3 bucket name: "{account}-{prefix}-nestfolio-mfe-{mfeKey}" */
+  mfeBucketName(account: string, mfeKey: string): string {
+    return `${account}-${this.prefix}-nestfolio-mfe-${mfeKey}`;
+  }
+
   /** Lambda function name: "{prefix}-{service}-{functionSuffix}" */
   functionName(functionSuffix: string): string {
     return `${this.prefix}-${this.service}-${functionSuffix}`;
