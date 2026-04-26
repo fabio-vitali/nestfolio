@@ -2,6 +2,7 @@ const { share } = require('@angular-architects/native-federation/config');
 
 const singletonOpts = { singleton: true, strictVersion: true, requiredVersion: 'auto' };
 const singletonWithSecondaries = { ...singletonOpts, includeSecondaries: true };
+const singletonNoSecondaries = { ...singletonOpts, includeSecondaries: false };
 
 const sharedFrontendDeps = share({
   '@angular/animations': singletonOpts,
@@ -17,6 +18,7 @@ const sharedFrontendDeps = share({
   '@ngx-translate/core': singletonOpts,
   '@ngx-translate/http-loader': singletonOpts,
   '@primeuix/themes': singletonWithSecondaries,
+  '@primeuix/themes/aura': singletonNoSecondaries,
   'aws-amplify': singletonOpts,
   '@apollo/client': singletonOpts,
   'aws-appsync-auth-link': singletonWithSecondaries,
