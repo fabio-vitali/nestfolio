@@ -308,6 +308,26 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     fi
   fi
 
+  # Phase 4b: Upload shell bundle to investor-web's S3 bucket. Runs after
+  # investor-web is in its final state (Phase 2 steady-state OR Phase 4a
+  # cold-start re-deploy). Reads bucket name + distribution ID from SSM
+  # (web/shellBucketName, web/distributionId).
+  if is_service_included "investor-web"; then
+    echo ""
+    echo "Phase 4b (shell upload):"
+    if [ -n "$TARGET_REGION" ]; then
+      export CDK_DEFAULT_REGION="$TARGET_REGION"
+    fi
+    if [ "$DRY_RUN" = "true" ]; then
+      echo "  [DRY RUN] Would run: pnpm nx run investor-web:deploy-shell --prefix=$PREFIX"
+    else
+      pnpm nx run investor-web:deploy-shell --prefix="$PREFIX" || {
+        echo "ERROR: Shell upload failed. Tier: $TIER, Prefix: $PREFIX." >&2
+        exit 1
+      }
+    fi
+  fi
+
   # Phase 4: Re-deploy hubs (only on first deploy)
   HUB_COUNT=$(echo "$HUB_CONFIGS" | jq 'length')
   if [ "$HUB_COUNT" -gt 0 ]; then
