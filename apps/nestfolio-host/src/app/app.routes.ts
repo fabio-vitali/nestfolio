@@ -25,6 +25,9 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./auth/confirm.component').then((m) => m.ConfirmComponent),
   },
   {
+    // No provideMfeGraphql — onboarding-bff has no Facade / AppSync API; the
+    // onboarding-mfe drives the CopilotKit bridge at /api/copilotkit*.
+    // Documented exception per charter A3 + spec §6.7.
     path: 'onboarding',
     canActivate: [authGuard, onboardingPendingGuard],
     loadChildren: loadMfe('onboarding-mfe', './routes'),
