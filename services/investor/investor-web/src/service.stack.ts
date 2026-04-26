@@ -2,7 +2,6 @@ import { RemovalPolicy, Duration, Fn } from 'aws-cdk-lib';
 import { UserPool, AccountRecovery, Mfa, StringAttribute } from 'aws-cdk-lib/aws-cognito';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Bucket, BucketEncryption, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
-import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
 import {
   Distribution, ViewerProtocolPolicy, OriginAccessIdentity,
   ResponseHeadersPolicy, HeadersFrameOption, HeadersReferrerPolicy,
@@ -237,17 +236,6 @@ export class InvestorWebStack extends ServiceStack {
       errorResponses: [{ httpStatus: 404, responsePagePath: '/index.html', responseHttpStatus: 200 }],
     });
 
-    // Upload the built nestfolio-host shell to the assets bucket. The build must be run
-    // before `cdk deploy` — the deploy script handles this. CloudFront's 404→/index.html
-    // error response takes care of SPA routing.
-    new BucketDeployment(this, 'ShellDeployment', {
-      sources: [Source.asset(join(__dirname, '../../../../dist/apps/nestfolio-host/browser'))],
-      destinationBucket: assetsBucket,
-      distribution,
-      distributionPaths: ['/*'],
-      prune: true,
-    });
-
     // ─── CopilotKit bridge: /api/copilotkit* → AgentCore runtime ───────────────
     // Deploy-order contract: `onboarding-bff` must be deployed first so this
     // SSM parameter exists. Per-service CDK apps, so `stack.addDependency(...)`
@@ -363,6 +351,10 @@ export class InvestorWebStack extends ServiceStack {
     new StringParameter(this, 'DistributionIdParam', {
       parameterName: this.naming.ssmParameterPath('web/distributionId'),
       stringValue: distribution.distributionId,
+    });
+    new StringParameter(this, 'ShellBucketNameParam', {
+      parameterName: this.naming.ssmParameterPath('web/shellBucketName'),
+      stringValue: assetsBucket.bucketName,
     });
   }
 }

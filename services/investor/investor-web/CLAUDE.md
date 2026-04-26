@@ -23,7 +23,7 @@ None (frontend hosting + auth infrastructure)
 
 ### S3 AssetsBucket
 - Shell static assets (S3-managed encryption, block all public access)
-- BucketDeployment from `dist/apps/nestfolio-host/browser`; invalidates `/*` on deploy
+- Bundle uploaded by the `deploy-shell` Nx target via `infrastructure/scripts/deploy-shell.sh` (s3 sync + invalidation of `/index.html`, `/assets/*`, `/remoteEntry.json`). Bucket name SSM-exported as `web/shellBucketName`.
 
 ### CloudFront Distribution
 - Default behavior: S3Origin via OAI → shell SPA; HTTPS redirect; SPA routing (404 → /index.html 200)
@@ -86,6 +86,7 @@ Synchronous 5s timeout; must return to Cognito to complete auth flow. 3-tier ing
 - `auth/region`
 - `web/distributionUrl`
 - `web/distributionId`  ← consumed by the per-BFF `MfeBucket` construct to scope the CloudFront OAC bucket policy
+- `web/shellBucketName`  ← consumed by `infrastructure/scripts/deploy-shell.sh` to discover the upload target
 
 ## SSM Parameters Consumed
 

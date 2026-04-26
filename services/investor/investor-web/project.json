@@ -10,6 +10,18 @@
         "command": "npx cdk deploy --app 'npx ts-node -r ./tools/register-paths.js services/investor/investor-web/src/main.ts' --require-approval never -c prefix={args.prefix}"
       }
     },
+    "deploy-shell": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          "pnpm nx run nestfolio-host:config --prefix={args.prefix}",
+          "pnpm nx run nestfolio-host:build",
+          "bash infrastructure/scripts/deploy-shell.sh {args.prefix}"
+        ]
+      }
+    },
     "destroy": {
       "executor": "nx:run-commands",
       "options": {
