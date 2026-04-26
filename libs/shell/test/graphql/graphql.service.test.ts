@@ -65,7 +65,7 @@ jest.mock('aws-amplify/auth', () => ({
   }),
 }));
 
-jest.mock('@nestfolio/shell/auth', () => ({
+jest.mock('../../src/auth', () => ({
   AuthConfig: class AuthConfig {},
   authSignOut: mockAuthSignOut,
 }));

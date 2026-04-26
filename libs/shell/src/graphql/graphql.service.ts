@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { ApolloClient, gql } from '@apollo/client/core';
 import { fetchAuthSession } from 'aws-amplify/auth';
-import { AuthConfig, authSignOut } from '@nestfolio/shell/auth';
+import { AuthConfig, authSignOut } from '../auth';
 import { LogoutOrchestrator } from '../logout-orchestrator';
 import { AuthStore } from '../stores/auth.store';
 import { MFE_DOMAIN } from './mfe-domain.token';
