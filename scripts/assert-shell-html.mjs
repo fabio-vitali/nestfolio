@@ -58,11 +58,14 @@ if (JSON.stringify(esmsParsed) !== '{"shimMode":true}') {
 // Rule 5 — shell only: CSP script-src must contain
 //   (a) sha256(esms-options body) — the federation runtime <script type="esms-options"> body
 //   (b) sha256("this.media='all'") — the Angular CLI stylesheet-preload onload handler
-//   (c) sha256-wmGp6DJKu9FEjYplt1pD5S9HnB97ZkkEVu1HdQQTp90= — es-module-shims feature-detection
-//       inline script (runtime-injected by polyfills, runs in detection iframes)
-//   (d) the 'unsafe-hashes' keyword — required for sha256 to apply to event handlers
-//   (e) the blob: keyword — Native Federation loads remote MFE chunks via blob: URLs
-const ESMS_FEATURE_DETECT_HASH = 'wmGp6DJKu9FEjYplt1pD5S9HnB97ZkkEVu1HdQQTp90=';
+//   (c) sha256-wmGp6DJKu9FEjYplt1pD5S9HnB97ZkkEVu1HdQQTp90= — es-module-shims feature-detect #1
+//       (runtime-injected by polyfills, runs in detection iframes)
+//   (d) sha256-izTwo107zhmJU/OGynC9oqY8cpGias3IQEYVLua+oWc= — es-module-shims feature-detect #2
+//       (runtime-injected during the same probe sequence)
+//   (e) the 'unsafe-hashes' keyword — required for sha256 to apply to event handlers
+//   (f) the blob: keyword — Native Federation loads remote MFE chunks via blob: URLs
+const ESMS_FEATURE_DETECT_HASH_1 = 'wmGp6DJKu9FEjYplt1pD5S9HnB97ZkkEVu1HdQQTp90=';
+const ESMS_FEATURE_DETECT_HASH_2 = 'izTwo107zhmJU/OGynC9oqY8cpGias3IQEYVLua+oWc=';
 if (kind === 'shell') {
   const cspMatch = html.match(/<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"/);
   if (!cspMatch) fail('rule-5', 'no <meta http-equiv="Content-Security-Policy"> tag found');
@@ -83,23 +86,27 @@ if (kind === 'shell') {
     fail('rule-5b', `script-src missing sha256 of Angular preload onload handler — expected 'sha256-${expectedOnloadHash}' (sha256 of "this.media='all'"), script-src has: ${hashTokens.map(h => `'sha256-${h}'`).join(', ') || '(none)'}`);
   }
 
-  if (!hashTokens.includes(ESMS_FEATURE_DETECT_HASH)) {
-    fail('rule-5c', `script-src missing es-module-shims feature-detection hash — expected 'sha256-${ESMS_FEATURE_DETECT_HASH}', script-src has: ${hashTokens.map(h => `'sha256-${h}'`).join(', ') || '(none)'}`);
+  if (!hashTokens.includes(ESMS_FEATURE_DETECT_HASH_1)) {
+    fail('rule-5c', `script-src missing es-module-shims feature-detect hash #1 — expected 'sha256-${ESMS_FEATURE_DETECT_HASH_1}', script-src has: ${hashTokens.map(h => `'sha256-${h}'`).join(', ') || '(none)'}`);
+  }
+
+  if (!hashTokens.includes(ESMS_FEATURE_DETECT_HASH_2)) {
+    fail('rule-5d', `script-src missing es-module-shims feature-detect hash #2 — expected 'sha256-${ESMS_FEATURE_DETECT_HASH_2}', script-src has: ${hashTokens.map(h => `'sha256-${h}'`).join(', ') || '(none)'}`);
   }
 
   if (!/'unsafe-hashes'/.test(scriptSrc)) {
-    fail('rule-5d', `script-src must include 'unsafe-hashes' keyword (required for sha256 hashes to apply to inline event handlers)`);
+    fail('rule-5e', `script-src must include 'unsafe-hashes' keyword (required for sha256 hashes to apply to inline event handlers)`);
   }
 
   if (!/\bblob:/.test(scriptSrc)) {
-    fail('rule-5e', `script-src must include 'blob:' keyword (Native Federation loads remote MFE chunks via blob: URLs)`);
+    fail('rule-5f', `script-src must include 'blob:' keyword (Native Federation loads remote MFE chunks via blob: URLs)`);
   }
 
-  // Rule 5f — meta-tag CSP must NOT include frame-ancestors (browsers ignore it
+  // Rule 5g — meta-tag CSP must NOT include frame-ancestors (browsers ignore it
   // there and emit a console warning). The CloudFront ResponseHeadersPolicy
   // delivers frame-ancestors via the response header, where it is effective.
   if (/frame-ancestors\b/.test(csp)) {
-    fail('rule-5f', `meta-tag CSP must NOT include frame-ancestors (ignored in <meta>; delivered via CloudFront ResponseHeadersPolicy header instead)`);
+    fail('rule-5g', `meta-tag CSP must NOT include frame-ancestors (ignored in <meta>; delivered via CloudFront ResponseHeadersPolicy header instead)`);
   }
 }
 
