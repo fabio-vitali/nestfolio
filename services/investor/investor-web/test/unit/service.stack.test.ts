@@ -338,4 +338,9 @@ describe('InvestorWebStack — shell bucket SSM export (B4)', () => {
       Value: Match.anyValue(),
     });
   });
+
+  it('does not create a BucketDeployment for the shell', () => {
+    // Shell upload is handled by the deploy-shell Nx target, not by CDK.
+    template.resourceCountIs('Custom::CDKBucketDeployment', 0);
+  });
 });
