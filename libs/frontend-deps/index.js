@@ -18,6 +18,10 @@ const sharedFrontendDeps = share({
   '@ngx-translate/core': singletonOpts,
   '@ngx-translate/http-loader': singletonOpts,
   '@primeuix/themes': singletonWithSecondaries,
+  // Explicit `includeSecondaries: false`: @primeuix/themes ships a glob `./*`
+  // export, which `share()` walks to auto-discover the parent's `./tokens`
+  // subpath under aura/, producing the non-existent `aura/tokens` resolution.
+  // Suppressing secondary discovery forces a single concrete importmap entry.
   '@primeuix/themes/aura': singletonNoSecondaries,
   'aws-amplify': singletonOpts,
   '@apollo/client': singletonOpts,
