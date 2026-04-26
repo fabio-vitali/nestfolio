@@ -56,7 +56,8 @@ V1 spike result (charter §9 V1): WSS-through-CloudFront verified PASS using `aw
 | Factory shape | Free function `createApolloClient(opts)`; `GraphqlService` keeps its public surface and builds its inner client via the factory | Smallest blast radius — eight MFE service files don't move. The wrapper preserves test-mock ergonomics and `LogoutOrchestrator` registration. |
 | Subscription transport | `aws-appsync-subscription-link@4.0.1` against `${window.location.origin}/realtime/<domain>` | V1 PASS verified protocol; lib is already a federation singleton. Custom WSS link rejected as needless reinvention. |
 | Runtime-config scope | Delete `RuntimeConfig['appsync']` entirely (type, validation, producer SSM lookups, JSON output) | Charter §8 verbatim. Keeping a "two sources of region" duplicate (`appsync.*.region` + `auth.region`) invites drift; the producer also stops querying 4 BFF SSM paths (faster bootstrap). |
-| Error link | Add `errorLink` to factory; logs out on `networkError.statusCode === 401\|403` or `graphQLErrors[].extensions.code === 'UNAUTHORIZED'` | Closes a real correctness gap (token expiry / signed-out-elsewhere doesn't propagate today). Logout-on-error sits at the link chain so every MFE inherits it without touching service code. |
+| Error link | Add `errorLink` to factory; on `networkError.statusCode === 401\|403` or `graphQLErrors[].extensions.code === 'UNAUTHORIZED'` it invokes a caller-supplied `onAuthFailure(reason)` callback | Closes a real correctness gap (token expiry / signed-out-elsewhere doesn't propagate today). Logout-on-error sits at the link chain so every MFE inherits it without touching service code. |
+| Logout dispatch | `GraphqlService` provides `onAuthFailure` to the factory; its implementation mirrors `LogoutButtonComponent.logout()` verbatim — `try { await authSignOut() } catch {}; authStore.logout(); router.navigate(['/login'])` | The existing `LogoutOrchestrator` is a "logout cleanup" bus (`resetAll()` fans out reset fns), not a logout initiator. `LogoutButtonComponent` is the only existing initiator; B3 reuses its pattern instead of inventing a new public method on the orchestrator. Factory stays pure (no Router/AuthStore deps); the side-effect lives in `GraphqlService` where Angular DI is already in scope. |
 | DI helper home | Move to `@nestfolio/shell/graphql`, rename `provideMfeGraphql(domain)` | Charter §5 row 11 puts cross-cutting DI helpers in workspace-libs. MFEs can use the helper in standalone dev harnesses. |
 | Domain literal type | `string` (not `as const` enum) | Four domains, churn unlikely; the literals are colocated with `MFE_CATALOG` in `investor-web` (single source for B1). Adding a second source here invites drift. The route-provider call site is the only consumer. |
 | `MFE_DOMAIN` token | New `InjectionToken<string>` replaces `APPSYNC_CONFIG` | One `<domain>` literal, scoped per route. The token's purpose changes from "config blob" to "domain literal", so renaming clarifies the contract. |
@@ -107,17 +108,16 @@ import { ApolloClient, InMemoryCache, HttpLink, ApolloLink } from '@apollo/clien
 import { onError } from '@apollo/client/link/error';
 import { createAuthLink, AUTH_TYPE, AuthOptions } from 'aws-appsync-auth-link';
 import { createSubscriptionHandshakeLink } from 'aws-appsync-subscription-link';
-import { LogoutOrchestrator } from '../logout-orchestrator';
 
 export interface CreateApolloClientOptions {
   domain: string;
   region: string;
   jwtTokenProvider: () => Promise<string>;
-  logoutOrchestrator: LogoutOrchestrator;
+  onAuthFailure: (reason: string) => void;
 }
 
 export function createApolloClient(opts: CreateApolloClientOptions): ApolloClient {
-  const { domain, region, jwtTokenProvider, logoutOrchestrator } = opts;
+  const { domain, region, jwtTokenProvider, onAuthFailure } = opts;
 
   const httpUri = `/graphql/${domain}`;
   const realtimeUrl = `${window.location.origin}/realtime/${domain}`;
@@ -133,7 +133,7 @@ export function createApolloClient(opts: CreateApolloClientOptions): ApolloClien
         (networkError.statusCode === 401 || networkError.statusCode === 403)) ||
       (graphQLErrors?.some((e) => e.extensions?.['code'] === 'UNAUTHORIZED'));
     if (isAuthFailure) {
-      logoutOrchestrator.triggerLogout('apollo-401');
+      onAuthFailure('apollo-401');
     }
   });
 
@@ -195,11 +195,13 @@ The `useClass: GraphqlService` reprovision is intentional: it forces a per-route
 
 ```ts
 import { Injectable, OnDestroy, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { ApolloClient, gql } from '@apollo/client/core';
 import { fetchAuthSession } from 'aws-amplify/auth';
-import { AuthConfig } from '@nestfolio/shell/auth';
+import { AuthConfig, authSignOut } from '@nestfolio/shell/auth';
 import { LogoutOrchestrator } from '../logout-orchestrator';
+import { AuthStore } from '../stores/auth.store';
 import { MFE_DOMAIN } from './mfe-domain.token';
 import { createApolloClient } from './create-apollo-client';
 
@@ -208,6 +210,8 @@ export class GraphqlService implements OnDestroy {
   private readonly domain = inject(MFE_DOMAIN);
   private readonly authConfig = inject(AuthConfig);
   private readonly logoutOrchestrator = inject(LogoutOrchestrator);
+  private readonly router = inject(Router);
+  private readonly authStore = inject(AuthStore);
   private client: ApolloClient;
   private readonly resetFn = () => this.resetClient();
 
@@ -229,8 +233,19 @@ export class GraphqlService implements OnDestroy {
       region: this.authConfig.region,
       jwtTokenProvider: async () =>
         (await fetchAuthSession()).tokens?.idToken?.toString() ?? '',
-      logoutOrchestrator: this.logoutOrchestrator,
+      onAuthFailure: () => { void this.handleAuthFailure(); },
     });
+  }
+
+  /**
+   * Mirrors LogoutButtonComponent.logout() — see libs/shell/src/components/logout-button.component.ts.
+   * Single-flighted in practice because Apollo emits at most one auth-failure error per
+   * client and the eventual /login redirect tears down the route tree (and this service).
+   */
+  private async handleAuthFailure(): Promise<void> {
+    try { await authSignOut(); } catch { /* fail-safe: still clear state + navigate */ }
+    this.authStore.logout();
+    await this.router.navigate(['/login']);
   }
 }
 ```
@@ -327,13 +342,13 @@ Lines 94-97 (the four `*-bff/api/graphqlUrl` SSM lookups) and lines 110-115 (the
 
 | Error | Surface | Behavior |
 |---|---|---|
-| `networkError.statusCode === 401\|403` (HTTP) | errorLink | calls `logoutOrchestrator.triggerLogout('apollo-401')`; error still propagates to caller |
+| `networkError.statusCode === 401\|403` (HTTP) | errorLink | calls `onAuthFailure('apollo-401')` → `GraphqlService.handleAuthFailure()` → `authSignOut() + authStore.logout() + router.navigate(['/login'])`; error still propagates to caller |
 | `graphQLErrors[].extensions.code === 'UNAUTHORIZED'` | errorLink | same as above |
 | Other graphQLErrors / 5xx | errorLink | passthrough (caller decides) |
 | WSS handshake failure | subscription Observable's error channel | unchanged — `NotificationService` + `AdvisoryService` keep exponential-backoff reconnect (5 s × 2^n, max 5 attempts) |
 | WSS `Connection error: Unauthorized` mid-stream | subscription error channel + indirectly errorLink on next op | reconnect attempts tried first; eventual 401 on next HTTP op triggers logout |
 
-`triggerLogout` is idempotent and self-deduping (existing behavior of `LogoutOrchestrator`); concurrent 401s from multiple in-flight operations don't cascade.
+The errorLink → `onAuthFailure` callback fires synchronously. Concurrent 401s from in-flight operations on the same `GraphqlService` instance can each trigger `handleAuthFailure()`, but `authStore.logout()` is idempotent (sets a defined "unauthenticated" state) and `router.navigate(['/login'])` from `/login` is a no-op. The Amplify `signOut()` call in the second concurrent invocation may reject — caught by the `try/catch`. Acceptable: nothing cascades.
 
 ---
 
@@ -341,13 +356,13 @@ Lines 94-97 (the four `*-bff/api/graphqlUrl` SSM lookups) and lines 110-115 (the
 
 **New unit tests in `libs/shell/test/graphql/`**
 
-- `create-apollo-client.test.ts` — asserts (a) `httpLink.uri === '/graphql/${domain}'` for each domain literal, (b) subscription link constructed with `${origin}/realtime/${domain}`, (c) link order `[errorLink, authLink, subscriptionLink]`, (d) `defaultOptions.query.fetchPolicy === 'no-cache'`, (e) `cache instanceof InMemoryCache`. Mocks `aws-appsync-{auth,subscription}-link` factories to capture args.
-- `error-link.test.ts` — feeds `errorLink` fixtures: 401, 403, `'UNAUTHORIZED'`, 500, plain GraphQL error. Asserts `logoutOrchestrator.triggerLogout` called only on the auth-error fixtures, with reason string `'apollo-401'`.
+- `create-apollo-client.test.ts` — asserts (a) `httpLink.uri === '/graphql/${domain}'` for each domain literal, (b) subscription link constructed with `${origin}/realtime/${domain}`, (c) link order `[errorLink, authLink, subscriptionLink]`, (d) `defaultOptions.query.fetchPolicy === 'no-cache'`, (e) `cache instanceof InMemoryCache`. Mocks `aws-appsync-{auth,subscription}-link` factories to capture args. Stubs `globalThis.window = { location: { origin: 'https://test.example.com' } }` (the test file uses `@jest-environment node` like its sibling `graphql.service.test.ts`).
+- `error-link.test.ts` — feeds the errorLink callback (extracted via the captured `onError` handler) fixtures: 401, 403, `'UNAUTHORIZED'`, 500, plain GraphQL error. Asserts the `onAuthFailure` spy is called only on the auth-error fixtures, with reason string `'apollo-401'`.
 - `provide-mfe-graphql.test.ts` — TestBed asserts `provideMfeGraphql('investor')` provides `MFE_DOMAIN === 'investor'` and `inject(GraphqlService) instanceof GraphqlService`.
 
 **Existing tests to update**
 
-- `libs/shell/test/graphql/graphql.service.test.ts` — swap `APPSYNC_CONFIG` provider for `MFE_DOMAIN` + `AuthConfig`; behavior assertions unchanged.
+- `libs/shell/test/graphql/graphql.service.test.ts` — extend the `inject` mock to dispatch `MFE_DOMAIN` → `'investor'`, `AuthConfig` → `{region: 'us-east-1', userPoolId: 'p', clientId: 'c'}`, `LogoutOrchestrator` → existing mock, plus new `Router` (mock with `navigate`) and `AuthStore` (mock with `logout`). Add a `mockAuthSignOut` for `authSignOut`. Add one new `describe('handleAuthFailure')` block asserting that an `onAuthFailure` callback (captured via the mocked factory) triggers `authSignOut → authStore.logout → router.navigate(['/login'])` in order, even when `authSignOut` rejects. Existing query/mutate/subscribe assertions unchanged.
 - `libs/shell/test/graphql/appsync-config.test.ts` — delete (token gone).
 - `apps/nestfolio-host/test/app/provide-graphql.spec.ts` — delete.
 - `apps/nestfolio-host/test/app/runtime-config.service.spec.ts` + `app.config.spec.ts` — drop `appsync.*` from fixtures + assertions.
