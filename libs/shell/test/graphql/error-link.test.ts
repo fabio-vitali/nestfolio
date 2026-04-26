@@ -1,8 +1,6 @@
 /** @jest-environment node */
-type ErrorHandler = (e: {
-  networkError?: { statusCode?: number };
-  graphQLErrors?: { extensions?: Record<string, unknown> }[];
-}) => void;
+type ErrorEvent = { error: unknown };
+type ErrorHandler = (e: ErrorEvent) => void;
 
 let capturedHandler: ErrorHandler | undefined;
 
@@ -18,6 +16,18 @@ jest.mock('@apollo/client/core', () => ({
   ApolloLink: { from: jest.fn().mockReturnValue({}) },
 }));
 jest.mock('@apollo/client/link/error', () => ({ onError: mockOnError }));
+
+// Apollo v4 errors module — mock the discriminator helpers so the errorLink
+// branch logic is exercised against shaped fixtures rather than real instances.
+jest.mock('@apollo/client/errors', () => ({
+  CombinedGraphQLErrors: {
+    is: (e: unknown) => (e as { kind?: string })?.kind === 'graphql',
+  },
+  ServerError: {
+    is: (e: unknown) => (e as { kind?: string })?.kind === 'server',
+  },
+}));
+
 jest.mock('aws-appsync-auth-link', () => ({
   createAuthLink: jest.fn().mockReturnValue({}),
   AUTH_TYPE: { AMAZON_COGNITO_USER_POOLS: 'AMAZON_COGNITO_USER_POOLS' },
@@ -48,33 +58,37 @@ describe('errorLink', () => {
     expect(capturedHandler).toBeDefined();
   });
 
-  it('triggers onAuthFailure on networkError statusCode 401', () => {
-    capturedHandler!({ networkError: { statusCode: 401 } });
+  it('triggers onAuthFailure on a ServerError with statusCode 401', () => {
+    capturedHandler!({ error: { kind: 'server', statusCode: 401 } });
     expect(onAuthFailure).toHaveBeenCalledWith('apollo-401');
   });
 
-  it('triggers onAuthFailure on networkError statusCode 403', () => {
-    capturedHandler!({ networkError: { statusCode: 403 } });
+  it('triggers onAuthFailure on a ServerError with statusCode 403', () => {
+    capturedHandler!({ error: { kind: 'server', statusCode: 403 } });
     expect(onAuthFailure).toHaveBeenCalledWith('apollo-401');
   });
 
-  it("triggers onAuthFailure on a graphQLError with extensions.code === 'UNAUTHORIZED'", () => {
-    capturedHandler!({ graphQLErrors: [{ extensions: { code: 'UNAUTHORIZED' } }] });
+  it("triggers onAuthFailure on CombinedGraphQLErrors carrying extensions.code === 'UNAUTHORIZED'", () => {
+    capturedHandler!({
+      error: { kind: 'graphql', errors: [{ extensions: { code: 'UNAUTHORIZED' } }] },
+    });
     expect(onAuthFailure).toHaveBeenCalledWith('apollo-401');
   });
 
-  it('does NOT trigger onAuthFailure on networkError statusCode 500', () => {
-    capturedHandler!({ networkError: { statusCode: 500 } });
+  it('does NOT trigger onAuthFailure on a ServerError with statusCode 500', () => {
+    capturedHandler!({ error: { kind: 'server', statusCode: 500 } });
     expect(onAuthFailure).not.toHaveBeenCalled();
   });
 
-  it('does NOT trigger onAuthFailure on a graphQLError without UNAUTHORIZED', () => {
-    capturedHandler!({ graphQLErrors: [{ extensions: { code: 'BAD_USER_INPUT' } }] });
+  it('does NOT trigger onAuthFailure on CombinedGraphQLErrors without UNAUTHORIZED', () => {
+    capturedHandler!({
+      error: { kind: 'graphql', errors: [{ extensions: { code: 'BAD_USER_INPUT' } }] },
+    });
     expect(onAuthFailure).not.toHaveBeenCalled();
   });
 
-  it('does NOT trigger onAuthFailure on an empty error event', () => {
-    capturedHandler!({});
+  it('does NOT trigger onAuthFailure on a plain Error (neither GraphQL nor Server)', () => {
+    capturedHandler!({ error: new Error('something else') });
     expect(onAuthFailure).not.toHaveBeenCalled();
   });
 });

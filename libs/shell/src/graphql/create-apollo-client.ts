@@ -1,5 +1,6 @@
 import { ApolloClient, InMemoryCache, HttpLink, ApolloLink } from '@apollo/client/core';
 import { onError } from '@apollo/client/link/error';
+import { CombinedGraphQLErrors, ServerError } from '@apollo/client/errors';
 import { createAuthLink, AUTH_TYPE, AuthOptions } from 'aws-appsync-auth-link';
 import { createSubscriptionHandshakeLink } from 'aws-appsync-subscription-link';
 
@@ -25,17 +26,14 @@ export function createApolloClient(opts: CreateApolloClientOptions): ApolloClien
     jwtToken: jwtTokenProvider,
   };
 
-  const errorLink = onError(({ networkError, graphQLErrors }) => {
-    const networkAuthFailure =
-      networkError !== undefined &&
-      networkError !== null &&
-      'statusCode' in networkError &&
-      ((networkError as { statusCode?: number }).statusCode === 401 ||
-        (networkError as { statusCode?: number }).statusCode === 403);
-    const graphqlAuthFailure =
-      graphQLErrors !== undefined &&
-      graphQLErrors.some((e) => e.extensions?.['code'] === 'UNAUTHORIZED');
-    if (networkAuthFailure || graphqlAuthFailure) {
+  const errorLink = onError(({ error }) => {
+    let isAuthFailure = false;
+    if (CombinedGraphQLErrors.is(error)) {
+      isAuthFailure = error.errors.some((e) => e.extensions?.['code'] === 'UNAUTHORIZED');
+    } else if (ServerError.is(error)) {
+      isAuthFailure = error.statusCode === 401 || error.statusCode === 403;
+    }
+    if (isAuthFailure) {
       onAuthFailure('apollo-401');
     }
   });

@@ -16,6 +16,10 @@ jest.mock('@apollo/client/core', () => ({
   ApolloLink: { from: mockApolloLinkFrom },
 }));
 jest.mock('@apollo/client/link/error', () => ({ onError: mockOnError }));
+jest.mock('@apollo/client/errors', () => ({
+  CombinedGraphQLErrors: { is: () => false },
+  ServerError: { is: () => false },
+}));
 jest.mock('aws-appsync-auth-link', () => ({
   createAuthLink: mockCreateAuthLink,
   AUTH_TYPE: { AMAZON_COGNITO_USER_POOLS: 'AMAZON_COGNITO_USER_POOLS' },
