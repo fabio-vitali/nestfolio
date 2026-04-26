@@ -315,13 +315,16 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
   if is_service_included "investor-web"; then
     echo ""
     echo "Phase 4b (shell upload):"
+    # Scope CDK_DEFAULT_REGION to the nx subprocess only — `export` would
+    # leak into subsequent iterations of the per-target loop.
+    REGION_ENV=""
     if [ -n "$TARGET_REGION" ]; then
-      export CDK_DEFAULT_REGION="$TARGET_REGION"
+      REGION_ENV="CDK_DEFAULT_REGION=$TARGET_REGION"
     fi
     if [ "$DRY_RUN" = "true" ]; then
-      echo "  [DRY RUN] Would run: pnpm nx run investor-web:deploy-shell --prefix=$PREFIX"
+      echo "  [DRY RUN] Would run: ${REGION_ENV:+$REGION_ENV }pnpm nx run investor-web:deploy-shell --prefix=$PREFIX"
     else
-      pnpm nx run investor-web:deploy-shell --prefix="$PREFIX" || {
+      env $REGION_ENV pnpm nx run investor-web:deploy-shell --prefix="$PREFIX" || {
         echo "ERROR: Shell upload failed. Tier: $TIER, Prefix: $PREFIX." >&2
         exit 1
       }

@@ -40,13 +40,25 @@ if [ ! -d "$DIST_DIR" ]; then
   exit 1
 fi
 
+# Subsystem is hardcoded to `investor` because investor-web is the only
+# service that publishes these exports (charter §5 row 9a). If investor-web
+# ever moves subsystem, update both literals here.
 BUCKET_PARAM="/nestfolio/${PREFIX}-investor/web/shellBucketName"
 DIST_ID_PARAM="/nestfolio/${PREFIX}-investor/web/distributionId"
 
-BUCKET=$(aws ssm get-parameter --name "$BUCKET_PARAM" --region "$REGION" \
-  --query 'Parameter.Value' --output text)
-DIST_ID=$(aws ssm get-parameter --name "$DIST_ID_PARAM" --region "$REGION" \
-  --query 'Parameter.Value' --output text)
+resolve_param() {
+  local name="$1"
+  if ! aws ssm get-parameter --name "$name" --region "$REGION" \
+       --query 'Parameter.Value' --output text 2>/dev/null; then
+    echo "ERROR: SSM parameter $name not found in $REGION." >&2
+    echo "Has investor-web been deployed for prefix '$PREFIX'?" >&2
+    echo "  bash infrastructure/scripts/deploy.sh sandbox --prefix=$PREFIX --services=investor-web" >&2
+    exit 1
+  fi
+}
+
+BUCKET=$(resolve_param "$BUCKET_PARAM")
+DIST_ID=$(resolve_param "$DIST_ID_PARAM")
 
 echo "Shell deploy: prefix=$PREFIX region=$REGION"
 echo "  Bucket:        $BUCKET"
@@ -60,6 +72,12 @@ if [ "$DRY_RUN" = "true" ]; then
 fi
 
 aws s3 sync "$DIST_DIR" "s3://$BUCKET" --delete --region "$REGION"
+# Surgical invalidation — only paths the shell controls under the default
+# CloudFront behavior:
+#   /index.html        — Angular emits at root, unhashed (references hashed bundles)
+#   /assets/*          — runtime-config.json, favicons, etc. (unhashed)
+#   /remoteEntry.json  — Native Federation host manifest (unhashed)
+# Hashed bundles (main.<hash>.js, etc.) need no invalidation — new builds emit new filenames.
 aws cloudfront create-invalidation --distribution-id "$DIST_ID" \
   --paths /index.html "/assets/*" /remoteEntry.json >/dev/null
 echo "Shell deployed."
