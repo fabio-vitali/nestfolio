@@ -139,8 +139,27 @@
         "buildTarget": "nestfolio-host:esbuild"
       }
     },
+    "check-charter-invariants": {
+      "executor": "nx:run-commands",
+      "inputs": [
+        "{workspaceRoot}/tools/check-no-appsync-literals.mjs",
+        "{workspaceRoot}/apps/**/*.{ts,html,json,js,mjs}",
+        "{workspaceRoot}/libs/shell/**/*.{ts,html,json,js,mjs}",
+        "{workspaceRoot}/libs/frontend-deps/**/*.{ts,html,json,js,mjs}",
+        "{workspaceRoot}/libs/ui/**/*.{ts,html,json,js,mjs}"
+      ],
+      "outputs": [],
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "commands": [
+          "node tools/check-no-appsync-literals.mjs"
+        ]
+      },
+      "cache": true
+    },
     "lint": {
-      "executor": "@nx/eslint:lint"
+      "executor": "@nx/eslint:lint",
+      "dependsOn": ["check-charter-invariants"]
     },
     "test": {
       "executor": "@nx/jest:jest",
