@@ -78,6 +78,17 @@
         ]
       }
     },
+    "deploy-mfe": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          "pnpm nx run ledger-mfe:build",
+          "bash infrastructure/scripts/deploy-mfe.sh {args.prefix} ledger"
+        ]
+      }
+    },
     "serve-original": {
       "continuous": true,
       "executor": "@angular-devkit/build-angular:dev-server",
