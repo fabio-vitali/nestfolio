@@ -23,6 +23,12 @@ CATALOG_SCRIPT="$REPO_ROOT/tools/scripts/list-mfe-catalog.mjs"
 
 CATALOG_JSON=$(node "$CATALOG_SCRIPT")
 
+ENTRY_COUNT=$(echo "$CATALOG_JSON" | jq 'length')
+if [ "$ENTRY_COUNT" = "0" ] || [ -z "$ENTRY_COUNT" ]; then
+  echo "ERROR: list-mfe-catalog returned no entries. Has services/investor/investor-web/src/mfe-catalog.ts changed shape?" >&2
+  exit 1
+fi
+
 PIDS=""
 KEYS=""
 while IFS= read -r entry; do
