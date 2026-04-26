@@ -66,6 +66,13 @@ async function checkRoute(browser, baseUrl, route) {
       requestFailures.push({ url, failure: req.failure()?.errorText || 'unknown' });
     }
   });
+  page.on('response', async resp => {
+    const url = resp.url();
+    const status = resp.status();
+    if (status >= 400 && CHARTER_PATH_RE.test(url)) {
+      requestFailures.push({ url, failure: `HTTP ${status}` });
+    }
+  });
 
   let response;
   let renderOk = false;

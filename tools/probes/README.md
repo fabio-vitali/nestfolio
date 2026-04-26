@@ -17,7 +17,11 @@ node tools/probes/cf-smoke.mjs --prefix=dev --region=us-east-1
 Requires Leapp credentials (reads SSM
 `/nestfolio/<prefix>-investor/web/distributionUrl`) and the
 chromium-headless-shell Playwright binary
-(`pnpm exec playwright install chromium-headless-shell`).
+(install with `npx --yes playwright install chromium-headless-shell` —
+the binary lives in `~/Library/Caches/ms-playwright/` on macOS and is
+not committed). Note: the workspace declares only `playwright-core`;
+`npx playwright` fetches the install CLI on demand without adding to
+devDependencies.
 
 This probe is the C1 charter graduation gate. When the full
 `apps/nestfolio-e2e/` Playwright harness lands (resumption of
