@@ -1,21 +1,26 @@
 import { Injectable, OnDestroy, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
-import { ApolloClient, InMemoryCache, HttpLink, gql, ApolloLink } from '@apollo/client/core';
-import { createAuthLink, AUTH_TYPE, AuthOptions } from 'aws-appsync-auth-link';
-import { createSubscriptionHandshakeLink } from 'aws-appsync-subscription-link';
+import { ApolloClient, gql } from '@apollo/client/core';
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { AuthConfig, authSignOut } from '../auth';
 import { LogoutOrchestrator } from '../logout-orchestrator';
-import { APPSYNC_CONFIG } from './appsync.config';
+import { AuthStore } from '../stores/auth.store';
+import { MFE_DOMAIN } from './mfe-domain.token';
+import { createApolloClient } from './create-apollo-client';
 
 @Injectable()
 export class GraphqlService implements OnDestroy {
-  private readonly config = inject(APPSYNC_CONFIG);
+  private readonly domain = inject(MFE_DOMAIN);
+  private readonly authConfig = inject(AuthConfig);
   private readonly logoutOrchestrator = inject(LogoutOrchestrator);
+  private readonly router = inject(Router);
+  private readonly authStore = inject(AuthStore);
   private client: ApolloClient;
   private readonly resetFn = () => this.resetClient();
 
   constructor() {
-    this.client = this.createApolloClient();
+    this.client = this.build();
     this.logoutOrchestrator.register(this.resetFn);
   }
 
@@ -60,36 +65,33 @@ export class GraphqlService implements OnDestroy {
 
   resetClient(): void {
     this.client.stop();
-    this.client = this.createApolloClient();
+    this.client = this.build();
   }
 
-  private createApolloClient(): ApolloClient {
-    const { endpoint, region } = this.config;
-
-    const auth: AuthOptions = {
-      type: AUTH_TYPE.AMAZON_COGNITO_USER_POOLS,
-      jwtToken: async () => {
-        const session = await fetchAuthSession();
-        return session.tokens?.idToken?.toString() ?? '';
-      },
-    };
-
-    const httpLink = new HttpLink({ uri: endpoint });
-    const authLink = createAuthLink({ url: endpoint, region, auth });
-    const subscriptionLink = createSubscriptionHandshakeLink(
-      { url: endpoint, region, auth },
-      httpLink,
-    );
-
-    const link = ApolloLink.from([authLink, subscriptionLink]);
-
-    return new ApolloClient({
-      link,
-      cache: new InMemoryCache(),
-      defaultOptions: {
-        query: { fetchPolicy: 'no-cache' },
-        mutate: { fetchPolicy: 'no-cache' },
-      },
+  private build(): ApolloClient {
+    return createApolloClient({
+      domain: this.domain,
+      region: this.authConfig.region,
+      jwtTokenProvider: async () =>
+        (await fetchAuthSession()).tokens?.idToken?.toString() ?? '',
+      onAuthFailure: () => { void this.handleAuthFailure(); },
     });
+  }
+
+  /**
+   * Mirrors LogoutButtonComponent.logout() — see libs/shell/src/components/logout-button.component.ts.
+   * Single-flighted in practice because Apollo emits at most one auth-failure
+   * error per client and the eventual /login redirect tears down the route
+   * tree (and this service).
+   */
+  private async handleAuthFailure(): Promise<void> {
+    try {
+      await authSignOut();
+    } catch {
+      // Fail-safe: still clear local state + navigate even if Amplify rejects.
+    } finally {
+      this.authStore.logout();
+      await this.router.navigate(['/login']);
+    }
   }
 }

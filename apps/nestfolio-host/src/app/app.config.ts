@@ -10,12 +10,6 @@ import { appRoutes } from './app.routes';
 
 export interface RuntimeConfig {
   auth: { userPoolId: string; clientId: string; region: string };
-  appsync: {
-    investorBff: { endpoint: string; region: string };
-    advisoryBff: { endpoint: string; region: string };
-    dashboardBff: { endpoint: string; region: string };
-    ledgerBff: { endpoint: string; region: string };
-  };
   copilotApiUrl: string;
 }
 
@@ -31,20 +25,11 @@ export function getRuntimeConfig(): RuntimeConfig {
 }
 
 export function validateEndpoints(config: RuntimeConfig): void {
-  const endpoints = [
-    config.appsync.investorBff.endpoint,
-    config.appsync.advisoryBff.endpoint,
-    config.appsync.dashboardBff.endpoint,
-    config.appsync.ledgerBff.endpoint,
-    config.copilotApiUrl,
-  ];
-
-  for (const url of endpoints) {
-    if (!url) continue;
-    if (url.startsWith('https://')) continue;
-    if (isDevMode() && url.startsWith('http://localhost')) continue;
-    throw new Error(`Invalid endpoint URL: "${url}". All endpoints must use HTTPS.`);
-  }
+  const url = config.copilotApiUrl;
+  if (!url) return;
+  if (url.startsWith('https://')) return;
+  if (isDevMode() && url.startsWith('http://localhost')) return;
+  throw new Error(`Invalid endpoint URL: "${url}". All endpoints must use HTTPS.`);
 }
 
 export function loadRuntimeConfig(): () => Promise<void> {

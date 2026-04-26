@@ -20,10 +20,6 @@ export class RuntimeConfigService {
     return this.config.auth;
   }
 
-  get appsync(): RuntimeConfig['appsync'] {
-    return this.config.appsync;
-  }
-
   get copilotApiUrl(): string {
     return this.config.copilotApiUrl;
   }

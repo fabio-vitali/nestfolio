@@ -1,8 +1,8 @@
 import { Route } from '@angular/router';
 import { loadRemoteModule } from '@angular-architects/native-federation';
 import { authGuard, onboardingPendingGuard, onboardingCompletedGuard } from '@nestfolio/shell/auth';
+import { provideMfeGraphql } from '@nestfolio/shell/graphql';
 import { MfeErrorComponent } from './mfe-error.component';
-import { provideGraphqlFor } from './provide-graphql';
 
 function loadMfe(remoteName: string, exposedModule: string) {
   return () =>
@@ -25,31 +25,34 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./auth/confirm.component').then((m) => m.ConfirmComponent),
   },
   {
+    // No provideMfeGraphql — onboarding-bff has no Facade / AppSync API; the
+    // onboarding-mfe drives the CopilotKit bridge at /api/copilotkit*.
+    // Documented exception per charter A3 + spec §6.7.
     path: 'onboarding',
     canActivate: [authGuard, onboardingPendingGuard],
     loadChildren: loadMfe('onboarding-mfe', './routes'),
   },
   {
     path: 'investor',
-    providers: [provideGraphqlFor('investorBff')],
+    providers: [provideMfeGraphql('investor')],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('investor-mfe', './routes'),
   },
   {
     path: 'dashboard',
-    providers: [provideGraphqlFor('dashboardBff')],
+    providers: [provideMfeGraphql('dashboard')],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('dashboard-mfe', './routes'),
   },
   {
     path: 'advisory',
-    providers: [provideGraphqlFor('advisoryBff')],
+    providers: [provideMfeGraphql('advisory')],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('advisory-mfe', './routes'),
   },
   {
     path: 'ledger',
-    providers: [provideGraphqlFor('ledgerBff')],
+    providers: [provideMfeGraphql('ledger')],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('ledger-mfe', './routes'),
   },
