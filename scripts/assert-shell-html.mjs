@@ -55,15 +55,37 @@ if (JSON.stringify(esmsParsed) !== '{"shimMode":true}') {
   fail('rule-4', `esms-options body must equal {"shimMode":true}, got ${JSON.stringify(esmsParsed)}`);
 }
 
-// Rule 5 — shell only: sha256(esms body) matches the CSP script-src hash token
+// Rule 5 — shell only: CSP script-src must contain
+//   (a) sha256(esms-options body) — the federation runtime inline script
+//   (b) sha256("this.media='all'") — the Angular CLI stylesheet-preload onload handler
+//   (c) the 'unsafe-hashes' keyword — required for sha256 to apply to event handlers
+//   (d) the blob: keyword — Native Federation loads remote MFE chunks via blob: URLs
 if (kind === 'shell') {
   const cspMatch = html.match(/<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"/);
   if (!cspMatch) fail('rule-5', 'no <meta http-equiv="Content-Security-Policy"> tag found');
-  const hashToken = cspMatch[1].match(/script-src[^;]*'sha256-([A-Za-z0-9+/=]+)'/);
-  if (!hashToken) fail('rule-5', `no sha256-<hash> token in script-src: ${cspMatch[1]}`);
-  const expected = createHash('sha256').update(esmsBody).digest('base64');
-  if (hashToken[1] !== expected) {
-    fail('rule-5', `CSP hash mismatch — meta has 'sha256-${hashToken[1]}', sha256(esms-body) is 'sha256-${expected}'`);
+  const csp = cspMatch[1];
+  const scriptSrcMatch = csp.match(/script-src([^;]+)/);
+  if (!scriptSrcMatch) fail('rule-5', `no script-src directive: ${csp}`);
+  const scriptSrc = scriptSrcMatch[1];
+
+  const hashTokens = [...scriptSrc.matchAll(/'sha256-([A-Za-z0-9+/=]+)'/g)].map(m => m[1]);
+
+  const expectedEsmsHash = createHash('sha256').update(esmsBody).digest('base64');
+  if (!hashTokens.includes(expectedEsmsHash)) {
+    fail('rule-5a', `script-src missing sha256 of esms-options body — expected 'sha256-${expectedEsmsHash}', script-src has: ${hashTokens.map(h => `'sha256-${h}'`).join(', ') || '(none)'}`);
+  }
+
+  const expectedOnloadHash = createHash('sha256').update("this.media='all'").digest('base64');
+  if (!hashTokens.includes(expectedOnloadHash)) {
+    fail('rule-5b', `script-src missing sha256 of Angular preload onload handler — expected 'sha256-${expectedOnloadHash}' (sha256 of "this.media='all'"), script-src has: ${hashTokens.map(h => `'sha256-${h}'`).join(', ') || '(none)'}`);
+  }
+
+  if (!/'unsafe-hashes'/.test(scriptSrc)) {
+    fail('rule-5c', `script-src must include 'unsafe-hashes' keyword (required for sha256 hashes to apply to inline event handlers)`);
+  }
+
+  if (!/\bblob:/.test(scriptSrc)) {
+    fail('rule-5d', `script-src must include 'blob:' keyword (Native Federation loads remote MFE chunks via blob: URLs)`);
   }
 }
 
