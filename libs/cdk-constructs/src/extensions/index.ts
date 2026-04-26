@@ -9,5 +9,4 @@ export {
 } from './cross-account';
 export { CostControls, CostControlsProps } from './cost-controls';
 export { AdapterSchedule, AdapterScheduleProps } from './adapter-schedule';
-export { RuntimeConfig, RuntimeConfigProps, RuntimeConfigSsmPaths } from './runtime-config';
 export { MfeBucket, MfeBucketProps } from './mfe-bucket';

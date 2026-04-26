@@ -17,16 +17,5 @@
         "files": ["/assets/**"]
       }
     }
-  ],
-  "dataGroups": [
-    {
-      "name": "api",
-      "urls": ["https://*.appsync-api.*.amazonaws.com/**"],
-      "cacheConfig": {
-        "maxSize": 50,
-        "maxAge": "1h",
-        "strategy": "freshness"
-      }
-    }
   ]
 }
