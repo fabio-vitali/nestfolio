@@ -41,7 +41,7 @@
         "outputPath": "dist/apps/nestfolio-host",
         "index": "apps/nestfolio-host/src/index.html",
         "browser": "apps/nestfolio-host/src/main.ts",
-        "polyfills": [],
+        "polyfills": ["es-module-shims"],
         "tsConfig": "apps/nestfolio-host/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "assets": [
@@ -76,7 +76,7 @@
       },
       "defaultConfiguration": "production"
     },
-    "build": {
+    "nf-build": {
       "executor": "@angular-architects/native-federation:build",
       "options": {},
       "configurations": {
@@ -89,6 +89,23 @@
         }
       },
       "defaultConfiguration": "production"
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["nf-build"],
+      "inputs": [
+        "{workspaceRoot}/scripts/assert-shell-html.mjs",
+        "{workspaceRoot}/apps/nestfolio-host/csp.txt",
+        { "dependentTasksOutputFiles": "**/*", "transitive": false }
+      ],
+      "outputs": ["{workspaceRoot}/dist/apps/{projectName}"],
+      "cache": true,
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "commands": [
+          "node scripts/assert-shell-html.mjs dist/apps/nestfolio-host/browser --kind=shell"
+        ]
+      }
     },
     "serve-original": {
       "continuous": true,
@@ -137,7 +154,7 @@
       "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "nestfolio-host:build",
+        "buildTarget": "nestfolio-host:nf-build",
         "port": 4200,
         "staticFilePath": "dist/apps/nestfolio-host/browser",
         "spa": true,

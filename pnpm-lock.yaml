@@ -316,6 +316,9 @@ importers:
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
+      es-module-shims:
+        specifier: ^1.5.12
+        version: 1.10.1
       esbuild:
         specifier: ^0.25.0
         version: 0.25.12
@@ -376,6 +379,9 @@ importers:
       typescript-eslint:
         specifier: ^8.25.0
         version: 8.56.1(eslint@9.39.3(jiti@2.6.1))(typescript@5.9.3)
+      url:
+        specifier: ^0.11.0
+        version: 0.11.4
       yaml:
         specifier: ^2.8.3
         version: 2.8.3
@@ -7171,6 +7177,9 @@ packages:
 
   es-module-lexer@2.0.0:
     resolution: {integrity: sha512-5POEcUuZybH7IdmGsD8wlf0AI55wMecM9rVBTI/qEAy2c1kTOm3DjFYjrBdI2K3BaJjJYfYFeRtM0t9ssnRuxw==}
+
+  es-module-shims@1.10.1:
+    resolution: {integrity: sha512-HSSkRLkqFEyX6GrCAHrSOR5iz/QzQJRqZUF7bFJOZ4aoSw0WoSggfsTIGN2yFbF8v6xjQFhT4HGP6b+0qQZmEQ==}
 
   es-object-atoms@1.1.1:
     resolution: {integrity: sha512-FGgH2h8zKNim9ljj7dankFPcICIK9Cp5bm+c2gQSYePhpaG5+esrLODihIorn+Pe6FGJzWhXQotPv73jTaldXA==}
@@ -21226,6 +21235,8 @@ snapshots:
   es-module-lexer@1.7.0: {}
 
   es-module-lexer@2.0.0: {}
+
+  es-module-shims@1.10.1: {}
 
   es-object-atoms@1.1.1:
     dependencies:
