@@ -65,6 +65,16 @@ echo "  Bucket:        $BUCKET"
 echo "  Distribution:  $DIST_ID"
 echo "  Dist dir:      $DIST_DIR"
 
+# Overwrite the dev federation.manifest.json (committed at
+# apps/nestfolio-host/public/assets/federation.manifest.json with
+# localhost dev URLs) with the production manifest pointing at
+# /mfe/<key>/remoteEntry.json paths served by the unified CloudFront
+# distribution. Single source of truth: MFE_CATALOG (read by
+# build-prod-manifest.mjs via list-mfe-catalog.mjs).
+PROD_MANIFEST="$DIST_DIR/assets/federation.manifest.json"
+echo "  Manifest:      $PROD_MANIFEST"
+node "$REPO_ROOT/tools/scripts/build-prod-manifest.mjs" --out "$PROD_MANIFEST"
+
 if [ "$DRY_RUN" = "true" ]; then
   echo "  [DRY RUN] Would: aws s3 sync $DIST_DIR s3://$BUCKET --delete --region $REGION"
   echo "  [DRY RUN] Would: aws cloudfront create-invalidation --distribution-id $DIST_ID --paths /index.html /assets/* /remoteEntry.json"
