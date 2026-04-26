@@ -1,8 +1,8 @@
 import { Route } from '@angular/router';
 import { loadRemoteModule } from '@angular-architects/native-federation';
 import { authGuard, onboardingPendingGuard, onboardingCompletedGuard } from '@nestfolio/shell/auth';
+import { provideMfeGraphql } from '@nestfolio/shell/graphql';
 import { MfeErrorComponent } from './mfe-error.component';
-import { provideGraphqlFor } from './provide-graphql';
 
 function loadMfe(remoteName: string, exposedModule: string) {
   return () =>
@@ -31,25 +31,25 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'investor',
-    providers: [provideGraphqlFor('investorBff')],
+    providers: [provideMfeGraphql('investor')],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('investor-mfe', './routes'),
   },
   {
     path: 'dashboard',
-    providers: [provideGraphqlFor('dashboardBff')],
+    providers: [provideMfeGraphql('dashboard')],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('dashboard-mfe', './routes'),
   },
   {
     path: 'advisory',
-    providers: [provideGraphqlFor('advisoryBff')],
+    providers: [provideMfeGraphql('advisory')],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('advisory-mfe', './routes'),
   },
   {
     path: 'ledger',
-    providers: [provideGraphqlFor('ledgerBff')],
+    providers: [provideMfeGraphql('ledger')],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('ledger-mfe', './routes'),
   },
