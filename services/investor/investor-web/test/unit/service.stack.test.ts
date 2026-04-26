@@ -253,8 +253,8 @@ describe('InvestorWebStack — MFE unified topology (flag on, /graphql/<domain>)
     }
   });
 
-  it('creates one CloudFront Function for the realtime/graphql rewrite', () => {
-    template.resourceCountIs('AWS::CloudFront::Function', 2); // copilot + realtime-rewrite
+  it('creates three CloudFront Functions for the rewrites', () => {
+    template.resourceCountIs('AWS::CloudFront::Function', 3); // copilot + realtime-rewrite + mfe-bucket-rewrite
   });
 });
 
@@ -314,8 +314,8 @@ describe('InvestorWebStack — MFE unified topology (flag on, /realtime/<domain>
     expect(cacheBehaviors).toHaveLength(14);
   });
 
-  it('still has exactly 1 CloudFront Function for the realtime/graphql rewrite (reused, not duplicated)', () => {
-    template.resourceCountIs('AWS::CloudFront::Function', 2); // copilot + realtime-rewrite
+  it('still has exactly 3 CloudFront Functions (rewrite fns reused across behaviors, not duplicated)', () => {
+    template.resourceCountIs('AWS::CloudFront::Function', 3); // copilot + realtime-rewrite + mfe-bucket-rewrite
   });
 });
 
