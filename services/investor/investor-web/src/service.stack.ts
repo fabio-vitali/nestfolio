@@ -364,5 +364,9 @@ export class InvestorWebStack extends ServiceStack {
       parameterName: this.naming.ssmParameterPath('web/distributionId'),
       stringValue: distribution.distributionId,
     });
+    new StringParameter(this, 'ShellBucketNameParam', {
+      parameterName: this.naming.ssmParameterPath('web/shellBucketName'),
+      stringValue: assetsBucket.bucketName,
+    });
   }
 }

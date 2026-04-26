@@ -318,3 +318,24 @@ describe('InvestorWebStack — MFE unified topology (flag on, /realtime/<domain>
     template.resourceCountIs('AWS::CloudFront::Function', 2); // copilot + realtime-rewrite
   });
 });
+
+describe('InvestorWebStack — shell bucket SSM export (B4)', () => {
+  let template: Template;
+
+  beforeAll(() => {
+    const app = new App();
+    const stack = new InvestorWebStack(app, 'TestStack', {
+      prefix: 'test',
+      service: 'investor-web',
+      subsystem: 'investor',
+    } as any);
+    template = Template.fromStack(stack);
+  });
+
+  it('exports the shell bucket name to SSM', () => {
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/nestfolio/test-investor/web/shellBucketName',
+      Value: Match.anyValue(),
+    });
+  });
+});
