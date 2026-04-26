@@ -30,7 +30,12 @@ if (placeholderCount > 1) {
   fail(`placeholder {{CSP}} appears ${placeholderCount} times in template (expected 1): ${templatePath}`);
 }
 
-const substituted = template.replace('{{CSP}}', csp);
+// Strip frame-ancestors from the meta-tag CSP — browsers ignore it there and
+// emit a console warning. The CloudFront ResponseHeadersPolicy delivers the
+// unmodified csp.txt via response header, where frame-ancestors is effective.
+const metaCsp = csp.replace(/\s*frame-ancestors\s+[^;]*;?/g, '').replace(/;\s*;/g, ';').trim();
+
+const substituted = template.replace('{{CSP}}', metaCsp);
 
 const lines = substituted.split('\n');
 const banner = '    <!-- Generated from index.html.tmpl + csp.txt. DO NOT EDIT. -->';
