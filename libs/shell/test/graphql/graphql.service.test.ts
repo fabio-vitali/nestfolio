@@ -219,6 +219,7 @@ describe('GraphqlService', () => {
       mockAuthSignOut.mockRejectedValueOnce(new Error('amplify down'));
       capturedOnAuthFailure!('apollo-401');
       await new Promise((r) => setImmediate(r));
+      expect(mockAuthSignOut).toHaveBeenCalled();
       expect(mockAuthStoreLogout).toHaveBeenCalled();
       expect(mockNavigate).toHaveBeenCalledWith(['/login']);
     });

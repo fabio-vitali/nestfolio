@@ -85,8 +85,13 @@ export class GraphqlService implements OnDestroy {
    * tree (and this service).
    */
   private async handleAuthFailure(): Promise<void> {
-    try { await authSignOut(); } catch { /* fail-safe: still clear state + navigate */ }
-    this.authStore.logout();
-    await this.router.navigate(['/login']);
+    try {
+      await authSignOut();
+    } catch {
+      // Fail-safe: still clear local state + navigate even if Amplify rejects.
+    } finally {
+      this.authStore.logout();
+      await this.router.navigate(['/login']);
+    }
   }
 }
