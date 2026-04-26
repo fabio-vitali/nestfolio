@@ -91,10 +91,6 @@ USER_POOL_ID="$(get_ssm "/nestfolio/${PREFIX}-investor/auth/userPoolId" "investo
 CLIENT_ID="$(get_ssm "/nestfolio/${PREFIX}-investor/auth/userPoolClientId" "investor-web")"
 AUTH_REGION="$(get_ssm "/nestfolio/${PREFIX}-investor/auth/region" "investor-web")"
 DIST_URL="$(get_ssm "/nestfolio/${PREFIX}-investor/web/distributionUrl" "investor-web")"
-INVESTOR_BFF_URL="$(get_ssm "/nestfolio/${PREFIX}-investor-bff/api/graphqlUrl" "investor-bff")"
-ADVISORY_BFF_URL="$(get_ssm "/nestfolio/${PREFIX}-advisory-bff/api/graphqlUrl" "advisory-bff")"
-LEDGER_BFF_URL="$(get_ssm "/nestfolio/${PREFIX}-ledger-bff/api/graphqlUrl" "ledger-bff")"
-DASHBOARD_BFF_URL="$(get_ssm "/nestfolio/${PREFIX}-dashboard-bff/api/graphqlUrl" "dashboard-bff")"
 
 # JSON encoder: minimal, used per-string to escape backslash and double-quote.
 json_str() { printf '"%s"' "${1//\"/\\\"}" ; }
@@ -106,12 +102,6 @@ mkdir -p "$(dirname "$OUT_PATH")"
   printf '    "userPoolId": %s,\n' "$(json_str "$USER_POOL_ID")"
   printf '    "clientId": %s,\n'   "$(json_str "$CLIENT_ID")"
   printf '    "region": %s\n'      "$(json_str "$AUTH_REGION")"
-  printf '  },\n'
-  printf '  "appsync": {\n'
-  printf '    "investorBff":  { "endpoint": %s, "region": %s },\n' "$(json_str "$INVESTOR_BFF_URL")"  "$(json_str "$AUTH_REGION")"
-  printf '    "advisoryBff":  { "endpoint": %s, "region": %s },\n' "$(json_str "$ADVISORY_BFF_URL")"  "$(json_str "$AUTH_REGION")"
-  printf '    "dashboardBff": { "endpoint": %s, "region": %s },\n' "$(json_str "$DASHBOARD_BFF_URL")" "$(json_str "$AUTH_REGION")"
-  printf '    "ledgerBff":    { "endpoint": %s, "region": %s }\n'  "$(json_str "$LEDGER_BFF_URL")"    "$(json_str "$AUTH_REGION")"
   printf '  },\n'
   printf '  "copilotApiUrl": %s\n' "$(json_str "${DIST_URL}/api/copilotkit")"
   printf '}\n'
