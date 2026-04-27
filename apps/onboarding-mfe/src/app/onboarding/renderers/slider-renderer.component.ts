@@ -12,6 +12,7 @@ import { Component, input, output, signal } from '@angular/core';
       <input
         type="range"
         class="slider-input"
+        data-testid="slider-input"
         [min]="min()"
         [max]="max()"
         [step]="step()"
