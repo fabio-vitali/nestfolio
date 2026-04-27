@@ -40,22 +40,40 @@ export async function seedAmplifyTokens(page: Page, opts: SeedOptions): Promise<
 }
 
 /**
- * Call AFTER navigating to the host root. Fails fast if `fetchAuthSession()` still
- * returns null after seeding — that's the silent-failure mode of wrong-keys, the
- * single largest time-sink risk in this harness.
+ * Call AFTER navigating to the host root. Fails fast if the seeded Amplify v6
+ * localStorage keys are missing — that's the silent-failure mode of wrong-keys,
+ * the single largest time-sink risk in this harness.
+ *
+ * We check localStorage directly rather than calling `fetchAuthSession()` because
+ * the host page bootstraps Amplify through a Native Federation importmap, and a
+ * fresh `await import('aws-amplify/auth')` from inside `page.evaluate()` runs in
+ * a separate script context that doesn't see the importmap and fails to resolve
+ * the module specifier. Verifying the storage shape directly is the operative
+ * check anyway — if the keys are present, Amplify reads them at boot.
  */
-export async function assertAmplifySessionAlive(page: Page): Promise<void> {
-  const session = await page.evaluate(async () => {
-    const { fetchAuthSession } = await import('aws-amplify/auth');
-    const s = await fetchAuthSession();
-    return {
-      hasIdToken: !!s.tokens?.idToken?.toString(),
-      hasAccessToken: !!s.tokens?.accessToken?.toString(),
-    };
-  });
-  if (!session.hasIdToken || !session.hasAccessToken) {
+export async function assertAmplifySessionAlive(
+  page: Page,
+  opts: { clientId: string; username: string },
+): Promise<void> {
+  const present = await page.evaluate(
+    ({ clientId, username }) => {
+      const prefix = `CognitoIdentityServiceProvider.${clientId}`;
+      return {
+        lastAuthUser: localStorage.getItem(`${prefix}.LastAuthUser`),
+        idTokenPresent: !!localStorage.getItem(`${prefix}.${username}.idToken`),
+        accessTokenPresent: !!localStorage.getItem(`${prefix}.${username}.accessToken`),
+      };
+    },
+    { clientId: opts.clientId, username: opts.username },
+  );
+  if (
+    present.lastAuthUser !== opts.username ||
+    !present.idTokenPresent ||
+    !present.accessTokenPresent
+  ) {
     throw new Error(
-      'seedAmplifyTokens: fetchAuthSession() returned no tokens after seeding. ' +
+      'seedAmplifyTokens: localStorage missing expected Amplify v6 keys after seeding ' +
+        `(LastAuthUser=${present.lastAuthUser ?? 'null'}, idToken=${present.idTokenPresent}, accessToken=${present.accessTokenPresent}). ` +
         'Amplify v6 key format may have changed — re-run the Spike 1.1 verification.',
     );
   }

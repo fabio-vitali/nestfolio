@@ -46,7 +46,7 @@ export const test = base.extend<Fx>({
       tokens: tenant.cognitoTokens,
     });
     await page.goto('/');
-    await assertAmplifySessionAlive(page);
+    await assertAmplifySessionAlive(page, { clientId, username });
     await use(page);
   },
 });
