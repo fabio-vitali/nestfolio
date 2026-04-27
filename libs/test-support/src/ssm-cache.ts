@@ -67,4 +67,10 @@ export class SsmCache {
   async userPoolClientId(): Promise<string> {
     return this.get(`/nestfolio/${this.prefix}-investor/auth/userPoolClientId`);
   }
+
+  /** CloudFront distribution URL for investor-web (subsystem-scoped):
+   * /nestfolio/{prefix}-investor/web/distributionUrl */
+  async investorWebDistributionUrl(): Promise<string> {
+    return this.get(`/nestfolio/${this.prefix}-investor/web/distributionUrl`);
+  }
 }
