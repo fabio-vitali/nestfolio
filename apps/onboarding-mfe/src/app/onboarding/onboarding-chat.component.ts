@@ -309,9 +309,14 @@ export class OnboardingChatComponent implements OnInit {
             break;
 
           case EventType.TOOL_CALL_START: {
-            const e = event as { toolCallId?: string; toolName?: string };
+            // AG-UI's ToolCallStartEvent shape is { toolCallId, toolCallName }
+            // (see @ag-ui/core). The previous reader referenced `toolName`,
+            // which is undefined — pendingToolName stayed null and the
+            // renderer mount in TOOL_CALL_END below was a no-op. Was hidden
+            // until the agent started emitting real tool-call events.
+            const e = event as { toolCallId?: string; toolCallName?: string };
             this.pendingToolId = e.toolCallId ?? crypto.randomUUID();
-            this.pendingToolName = e.toolName ?? null;
+            this.pendingToolName = e.toolCallName ?? null;
             this.pendingToolArgs = '';
             this.showLoading.set(false);
             break;
