@@ -85,6 +85,14 @@ export function createApp() {
     const agent = new LangGraphAgent({ graph });
     const encoder = new EventEncoder({ accept: c.req.header('accept') });
 
+    // AG-UI clients (e.g. @ag-ui/client.HttpAgent) read this as a
+    // text/event-stream. Hono's stream() defaults to text/plain — explicit
+    // headers ensure the browser EventSource pipeline activates and the
+    // CloudFront CORS policy lets the response through with the right CT.
+    c.header('Content-Type', encoder.getContentType());
+    c.header('Cache-Control', 'no-cache, no-transform');
+    c.header('X-Accel-Buffering', 'no');
+
     let status: 'success' | 'error' = 'success';
     try {
       return stream(c, async (sseStream) => {

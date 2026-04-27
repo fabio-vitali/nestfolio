@@ -13,6 +13,7 @@ jest.mock('@copilotkit/runtime/langgraph', () => ({
 }));
 jest.mock('@ag-ui/encoder', () => ({
   EventEncoder: jest.fn().mockImplementation(() => ({
+    getContentType: () => 'text/event-stream',
     encodeSSE: (event: { type: string }) => `data: ${JSON.stringify(event)}\n\n`,
   })),
 }));
