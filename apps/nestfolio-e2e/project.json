@@ -8,11 +8,12 @@
     "e2e": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm exec playwright test --config apps/nestfolio-e2e/playwright.config.ts"
-      },
-      "dependsOn": [
-        { "target": "nf-build", "projects": ["nestfolio-host", "onboarding-mfe", "investor-mfe", "dashboard-mfe", "advisory-mfe", "ledger-mfe"] }
-      ]
+        "commands": [
+          "pnpm nx run-many --target=nf-build --configuration=production --projects=nestfolio-host,onboarding-mfe,investor-mfe,dashboard-mfe,advisory-mfe,ledger-mfe --parallel=1",
+          "pnpm exec playwright test --config apps/nestfolio-e2e/playwright.config.ts"
+        ],
+        "parallel": false
+      }
     },
     "e2e-ui": {
       "executor": "nx:run-commands",

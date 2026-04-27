@@ -126,6 +126,7 @@
     "esbuild": "^0.25.0",
     "eslint": "^9.20.0",
     "eslint-config-prettier": "^10.0.0",
+    "http-server": "^14.1.1",
     "jest": "^30.0.0",
     "jest-environment-jsdom": "^30.0.0",
     "jest-mock-extended": "^4.0.0",

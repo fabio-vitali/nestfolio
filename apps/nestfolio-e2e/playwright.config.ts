@@ -2,11 +2,19 @@ import { defineConfig, devices } from '@playwright/test';
 
 const HOST_URL = 'http://localhost:4200';
 
+// Serve directly from dist/ via http-server. The Nx `e2e` target's `dependsOn`
+// pre-builds all six MFEs sequentially with `nf-build:production` so dist is
+// guaranteed up-to-date by the time Playwright launches these processes. We
+// avoid invoking `nx run X:serve-static` because @nx/web:file-server triggers
+// a parallel build on each spawn, which races on the federation manifest cache
+// and intermittently fails with "@angular/animations not found in package.json".
+// SPA fallback: --proxy http://localhost:${port}? routes 404s back to /index.html
+// so deep-links like /onboarding work under Angular's client-side router.
 const mfeServer = (app: string, port: number) => ({
-  command: `pnpm nx run ${app}:serve-static`,
+  command: `pnpm exec http-server dist/apps/${app}/browser -p ${port} -s --cors -c-1 --proxy http://localhost:${port}?`,
   url: `http://localhost:${port}`,
   reuseExistingServer: !process.env.CI,
-  timeout: 120_000,
+  timeout: 60_000,
   stdout: 'pipe' as const,
   stderr: 'pipe' as const,
 });
