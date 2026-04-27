@@ -15,7 +15,7 @@ interface ModeCard {
       <h3 class="mode-cards-title">{{ title() }}</h3>
       <div class="mode-cards-grid">
         @for (card of cards(); track card.id) {
-          <button class="mode-card" [class.selected]="selectedId === card.id" (click)="select(card.id)">
+          <button class="mode-card" [attr.data-testid]="'mode-' + card.id" [class.selected]="selectedId === card.id" (click)="select(card.id)">
             <div class="mode-card-header">
               <span class="mode-card-title">{{ card.title }}</span>
               @if (card.badge) { <span class="mode-badge">{{ card.badge }}</span> }
