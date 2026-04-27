@@ -1,15 +1,15 @@
 import { createApp } from '../../../agents/onboarding/server';
 import { EMPTY } from 'rxjs';
 
-// We bypass CopilotRuntime entirely and call `LangGraphAgent.run(input)`
-// directly, encoding the resulting Observable as SSE. The runMock returns
-// an immediately-completing Observable so the stream resolves and the test
-// can read `res.status`. Tests can override the implementation per-spec via
-// `runMock.mockImplementationOnce(() => observable)` to drive richer paths.
+// `OnboardingAgent` (in agents/onboarding/agent.ts) drives the in-process
+// LangGraph and emits AG-UI events. Replaced the prior `@copilotkit/runtime/
+// langgraph` `LangGraphAgent` mock — that class is a remote-only client and
+// no longer used by server.ts. The runMock returns an immediately-completing
+// Observable so the stream resolves; per-spec overrides drive richer paths.
 const runMock = jest.fn().mockImplementation(() => EMPTY);
 
-jest.mock('@copilotkit/runtime/langgraph', () => ({
-  LangGraphAgent: jest.fn().mockImplementation(() => ({ run: runMock })),
+jest.mock('../../../agents/onboarding/agent', () => ({
+  OnboardingAgent: jest.fn().mockImplementation(() => ({ run: runMock })),
 }));
 jest.mock('@ag-ui/encoder', () => ({
   EventEncoder: jest.fn().mockImplementation(() => ({
@@ -58,7 +58,7 @@ describe('Onboarding AgentCore runtime server', () => {
     expect(res.status).toBe(200);
   });
 
-  it('exposes POST /invocations and invokes the LangGraph agent', async () => {
+  it('exposes POST /invocations and invokes the in-process onboarding agent', async () => {
     const app = createApp();
     const res = await app.request('/invocations', {
       method: 'POST',

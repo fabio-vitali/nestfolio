@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { stream } from 'hono/streaming';
-import { LangGraphAgent } from '@copilotkit/runtime/langgraph';
 import { EventEncoder } from '@ag-ui/encoder';
 import type { RunAgentInput } from '@ag-ui/client';
 import { buildOnboardingGraph } from './graph';
+import { OnboardingAgent } from './agent';
 import { OnboardingRepository } from '../../src/repositories/onboarding.repository';
 import { AgentTracer, EventBridgeTraceEmitter } from '@nestfolio/agent-orchestrator';
 import { OnboardingBffEventTypes } from '../../src/domain/events';
@@ -73,16 +73,14 @@ export function createApp() {
     const tracer = new AgentTracer();
     const graph = buildOnboardingGraph({ repo }, { tracer });
 
-    // The browser uses `@ag-ui/client.HttpAgent` which POSTs a raw
-    // `RunAgentInput` body and consumes a `text/event-stream` response of
-    // AG-UI events. CopilotKit 1.54's `copilotRuntimeNodeHttpEndpoint` is a
-    // "single-route" handler that expects a method-call envelope and rejects
-    // raw AG-UI input with `Invalid single-route payload`. So we skip the
-    // CopilotRuntime layer and invoke the LangGraph agent's own AG-UI
-    // implementation directly: parse RunAgentInput, run the graph, encode
-    // the resulting Observable as SSE.
+    // Drives the in-process LangGraph and emits AG-UI events. We intentionally
+    // do NOT use `@copilotkit/runtime/langgraph`'s `LangGraphAgent` — that
+    // class is a remote-only client (constructor requires `deploymentUrl` +
+    // `graphId`, ignores any locally-passed graph) and its first call would
+    // be `client.assistants.search()` against LangSmith Cloud. See
+    // `agents/onboarding/agent.ts` for the in-process bridge.
     const input = (await c.req.json()) as RunAgentInput;
-    const agent = new LangGraphAgent({ graph });
+    const agent = new OnboardingAgent({ graph, threadId: input.threadId });
     const encoder = new EventEncoder({ accept: c.req.header('accept') });
 
     // AG-UI clients (e.g. @ag-ui/client.HttpAgent) read this as a
