@@ -1,0 +1,27 @@
+{
+  "name": "nestfolio-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/nestfolio-e2e/src",
+  "projectType": "application",
+  "tags": ["scope:platform", "type:app"],
+  "targets": {
+    "e2e": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec playwright test --config apps/nestfolio-e2e/playwright.config.ts"
+      },
+      "dependsOn": [
+        { "target": "nf-build", "projects": ["nestfolio-host", "onboarding-mfe", "investor-mfe", "dashboard-mfe", "advisory-mfe", "ledger-mfe"] }
+      ]
+    },
+    "e2e-ui": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec playwright test --config apps/nestfolio-e2e/playwright.config.ts --ui"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
