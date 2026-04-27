@@ -96,6 +96,11 @@ export class OnboardingAgent extends AbstractAgent {
       runId: input.runId,
     } as RunStartedEvent);
 
+    const eventCounts: Record<string, number> = {};
+    const recordEvent = (type: string) => {
+      eventCounts[type] = (eventCounts[type] ?? 0) + 1;
+    };
+
     const lastUser = [...input.messages].reverse().find((m) => m.role === 'user');
     // Bedrock Converse rejects empty `human` content. The browser's first run
     // passes `messages: []` (see onboarding-chat.component.ts ngOnInit) — the
@@ -123,6 +128,7 @@ export class OnboardingAgent extends AbstractAgent {
       configurable: { thread_id: input.threadId },
       signal,
     })) {
+      recordEvent(`graph:${ev.event}`);
       switch (ev.event) {
         case 'on_chat_model_stream':
           this.handleChatModelStream(ev, subscriber, messageId, {
@@ -152,6 +158,15 @@ export class OnboardingAgent extends AbstractAgent {
           break;
       }
     }
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify({
+      level: 'INFO',
+      message: 'OnboardingAgent stream complete',
+      threadId: input.threadId,
+      runId: input.runId,
+      eventCounts,
+      openToolCallsRemaining: openToolCalls.size,
+    }));
 
     if (textOpened) {
       subscriber.next({

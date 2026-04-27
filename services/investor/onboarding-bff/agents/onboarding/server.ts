@@ -80,6 +80,17 @@ export function createApp() {
     // be `client.assistants.search()` against LangSmith Cloud. See
     // `agents/onboarding/agent.ts` for the in-process bridge.
     const input = (await c.req.json()) as RunAgentInput;
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify({
+      level: 'INFO',
+      message: 'onboarding /invocations',
+      threadId: input.threadId,
+      runId: input.runId,
+      messageCount: Array.isArray(input.messages) ? input.messages.length : -1,
+      stateKeys: input.state && typeof input.state === 'object' ? Object.keys(input.state as object) : [],
+      tenantId,
+      sessionId,
+    }));
     const agent = new OnboardingAgent({ graph, threadId: input.threadId });
     const encoder = new EventEncoder({ accept: c.req.header('accept') });
 
