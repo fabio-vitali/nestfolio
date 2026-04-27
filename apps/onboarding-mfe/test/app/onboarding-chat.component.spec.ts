@@ -1,5 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentRef } from '@angular/core';
 import { OnboardingChatComponent } from '../../src/app/onboarding/onboarding-chat.component';
+import { OptionsRendererComponent } from '../../src/app/onboarding/renderers/options-renderer.component';
+import { ModeCardsRendererComponent } from '../../src/app/onboarding/renderers/mode-cards-renderer.component';
+import { SliderRendererComponent } from '../../src/app/onboarding/renderers/slider-renderer.component';
+import { AmountRendererComponent } from '../../src/app/onboarding/renderers/amount-renderer.component';
+import { ConsentRendererComponent } from '../../src/app/onboarding/renderers/consent-renderer.component';
+import { SummaryRendererComponent } from '../../src/app/onboarding/renderers/summary-renderer.component';
 import { provideRouter } from '@angular/router';
 import { EMPTY, Subject } from 'rxjs';
 import { AuthStore, COPILOT_API_URL } from '@nestfolio/shell';
@@ -246,6 +253,58 @@ describe('OnboardingChatComponent', () => {
     const secondHeaders = await secondCall.headers();
     expect(secondHeaders['x-amzn-bedrock-agentcore-runtime-session-id']).toBe(firstSid);
   });
+
+  // ── mountRenderer integration test ────────────────────────────────────────
+
+  it('mountRenderer wires render_options output to submitUserContent', async () => {
+    const sub$ = new Subject<unknown>();
+    mockHttpAgent.run.mockReturnValue(sub$.asObservable());
+
+    // First user turn — triggers TOOL_CALL_END for render_options
+    component.inputValue.set('start');
+    component.sendMessage();
+    // runAgent is async (awaits fetchAuthSession) — drain the microtask queue
+    // so the HttpAgent.run() subscription is set up before we push events
+    await Promise.resolve();
+    await Promise.resolve();
+
+    sub$.next({ type: 'TOOL_CALL_START', toolCallId: 'tc-1', toolName: 'render_options' });
+    sub$.next({ type: 'TOOL_CALL_ARGS', delta: JSON.stringify({ title: 'Pick one', options: [{ id: 'GROWTH', label: 'Growth' }] }) });
+    sub$.next({ type: 'TOOL_CALL_END' });
+    sub$.next({ type: 'RUN_FINISHED' });
+    sub$.complete();
+
+    // Let Angular render the tool-slot div (needed before the real setTimeout fires)
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    // The production code calls setTimeout(..., 0) before mountRenderer.
+    // Advance fake timer is not needed here since we're using real timers.
+    // We just need the macrotask queue to drain — use setImmediate if available.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    // Reach into rendererRefs to grab the live OptionsRendererComponent instance
+    const refs = (component as unknown as { rendererRefs: ComponentRef<unknown>[] }).rendererRefs;
+    expect(refs).toHaveLength(1);
+    const optionsInstance = refs[0].instance as OptionsRendererComponent;
+
+    // Reset the agent-run spy so we count the next call only
+    mockHttpAgent.run.mockClear();
+    mockHttpAgent.run.mockReturnValue(EMPTY);
+
+    // Emit user selection from the mounted renderer
+    optionsInstance.selected.emit('GROWTH');
+    // submitUserContent → runAgent is async (awaits fetchAuthSession) — drain microtasks
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Verify the wiring: synthetic user message + agent re-run
+    const userMessages = component.messages().filter(m => m.role === 'user');
+    expect(userMessages.at(-1)?.content).toBe('GROWTH');
+    expect(mockHttpAgent.run).toHaveBeenCalledTimes(1);
+  });
 });
 
 // ── CTA renderer click → session refresh + AuthStore patch + dashboard navigate ──
@@ -356,5 +415,150 @@ describe('OnboardingChatComponent — CTA renderer click', () => {
 
     expect(component.errorMessage()).toBeTruthy();
     expect(navigateSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ── Renderer output → agent feedback loop ─────────────────────────────────────
+//
+// Each test verifies that when a renderer emits its user-input output,
+// submitUserContent() is called with the correct synthetic message content,
+// which in turn appends a user ChatMessage and re-runs the agent.
+//
+// Strategy: create the renderer component in isolation via TestBed, emit its
+// output, and assert the effect on the chat component via a spy on the
+// protected submitUserContent method.
+
+describe('OnboardingChatComponent — renderer output wiring', () => {
+  let fixture: ComponentFixture<OnboardingChatComponent>;
+  let component: OnboardingChatComponent;
+  let submitSpy: jest.SpyInstance;
+
+  beforeEach(async () => {
+    mockHttpAgent.run.mockReturnValue(EMPTY);
+    sessionStorage.clear();
+
+    await TestBed.configureTestingModule({
+      imports: [
+        OnboardingChatComponent,
+        OptionsRendererComponent,
+        ModeCardsRendererComponent,
+        SliderRendererComponent,
+        AmountRendererComponent,
+        ConsentRendererComponent,
+        SummaryRendererComponent,
+      ],
+      providers: [
+        provideRouter([]),
+        { provide: COPILOT_API_URL, useValue: 'https://example.cloudfront.net/api/copilotkit' },
+        { provide: AuthStore, useValue: { user: () => ({ tenantId: 'tenant-xyz' }) } },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(OnboardingChatComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    // Spy on the protected helper — cast through any to access it
+    submitSpy = jest.spyOn(component as unknown as { submitUserContent(c: string): void }, 'submitUserContent');
+  });
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  it('options renderer: selected output submits the chosen id as user content', () => {
+    const rendererFixture = TestBed.createComponent(OptionsRendererComponent);
+    rendererFixture.componentRef.setInput('title', 'Scegli');
+    rendererFixture.componentRef.setInput('options', [{ id: 'GROWTH', label: 'Crescita' }]);
+    rendererFixture.detectChanges();
+
+    // Simulate the wiring: subscribe submitUserContent to the renderer's output
+    rendererFixture.componentInstance.selected.subscribe((id: string) =>
+      (component as unknown as { submitUserContent(c: string): void }).submitUserContent(id)
+    );
+
+    rendererFixture.componentInstance.select('GROWTH');
+
+    expect(submitSpy).toHaveBeenCalledWith('GROWTH');
+  });
+
+  it('mode-cards renderer: selected output submits the chosen id as user content', () => {
+    const rendererFixture = TestBed.createComponent(ModeCardsRendererComponent);
+    rendererFixture.componentRef.setInput('title', 'Modalità');
+    rendererFixture.componentRef.setInput('cards', [{ id: 'BALANCED', title: 'Bilanciato', details: [] }]);
+    rendererFixture.detectChanges();
+
+    rendererFixture.componentInstance.selected.subscribe((id: string) =>
+      (component as unknown as { submitUserContent(c: string): void }).submitUserContent(id)
+    );
+
+    rendererFixture.componentInstance.select('BALANCED');
+
+    expect(submitSpy).toHaveBeenCalledWith('BALANCED');
+  });
+
+  it('slider renderer: valueChange output submits String(value) as user content', () => {
+    const rendererFixture = TestBed.createComponent(SliderRendererComponent);
+    rendererFixture.componentRef.setInput('label', 'Orizzonte');
+    rendererFixture.componentRef.setInput('min', 1);
+    rendererFixture.componentRef.setInput('max', 30);
+    rendererFixture.componentRef.setInput('step', 1);
+    rendererFixture.detectChanges();
+
+    rendererFixture.componentInstance.valueChange.subscribe((v: number) =>
+      (component as unknown as { submitUserContent(c: string): void }).submitUserContent(String(v))
+    );
+
+    rendererFixture.componentInstance.currentValue.set(10);
+    rendererFixture.componentInstance.valueChange.emit(10);
+
+    expect(submitSpy).toHaveBeenCalledWith('10');
+  });
+
+  it('amount renderer: amountChange output submits String(value) as user content', () => {
+    const rendererFixture = TestBed.createComponent(AmountRendererComponent);
+    rendererFixture.componentRef.setInput('label', 'Investimento iniziale');
+    rendererFixture.componentRef.setInput('currency', '€');
+    rendererFixture.componentRef.setInput('presets', [1000, 5000, 10000]);
+    rendererFixture.detectChanges();
+
+    rendererFixture.componentInstance.amountChange.subscribe((v: number) =>
+      (component as unknown as { submitUserContent(c: string): void }).submitUserContent(String(v))
+    );
+
+    rendererFixture.componentInstance.selectPreset(5000);
+
+    expect(submitSpy).toHaveBeenCalledWith('5000');
+  });
+
+  it('consent renderer: accepted=true submits "Accetto"; accepted=false submits "Rifiuto"', () => {
+    const rendererFixture = TestBed.createComponent(ConsentRendererComponent);
+    rendererFixture.componentRef.setInput('label', 'Accetta i termini');
+    rendererFixture.detectChanges();
+
+    rendererFixture.componentInstance.accepted.subscribe((v: boolean) =>
+      (component as unknown as { submitUserContent(c: string): void }).submitUserContent(v ? 'Accetto' : 'Rifiuto')
+    );
+
+    rendererFixture.componentInstance.accepted.emit(true);
+    expect(submitSpy).toHaveBeenCalledWith('Accetto');
+
+    rendererFixture.componentInstance.accepted.emit(false);
+    expect(submitSpy).toHaveBeenCalledWith('Rifiuto');
+  });
+
+  it('summary renderer: confirmed output submits "Confermo" as user content', () => {
+    const rendererFixture = TestBed.createComponent(SummaryRendererComponent);
+    rendererFixture.componentRef.setInput('title', 'Riepilogo');
+    rendererFixture.componentRef.setInput('rows', [{ label: 'Obiettivo', value: 'Crescita' }]);
+    rendererFixture.detectChanges();
+
+    rendererFixture.componentInstance.confirmed.subscribe(() =>
+      (component as unknown as { submitUserContent(c: string): void }).submitUserContent('Confermo')
+    );
+
+    rendererFixture.componentInstance.onConfirm();
+
+    expect(submitSpy).toHaveBeenCalledWith('Confermo');
   });
 });

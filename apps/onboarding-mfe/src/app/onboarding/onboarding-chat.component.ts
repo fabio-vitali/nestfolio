@@ -195,10 +195,14 @@ export class OnboardingChatComponent implements OnInit {
   sendMessage(): void {
     const text = this.inputValue().trim();
     if (!text || this.isStreaming()) return;
-
-    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text };
-    this.messages.update((prev) => [...prev, userMsg]);
     this.inputValue.set('');
+    this.submitUserContent(text);
+  }
+
+  private submitUserContent(content: string): void {
+    if (!content || this.isStreaming()) return;
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content };
+    this.messages.update((prev) => [...prev, userMsg]);
     this.runAgent(this.messages());
   }
 
@@ -412,6 +416,55 @@ export class OnboardingChatComponent implements OnInit {
       const cta = ref.instance as CtaRendererComponent;
       const sub = cta.clicked.subscribe((action: string) => {
         void this.onCtaClick(action);
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    // Subscribe to user-input renderer outputs to feed selections back to the agent
+    if (toolName === 'render_options') {
+      const r = ref.instance as OptionsRendererComponent;
+      const sub = r.selected.subscribe((id: string) => {
+        this.submitUserContent(id);
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    if (toolName === 'render_mode_cards') {
+      const r = ref.instance as ModeCardsRendererComponent;
+      const sub = r.selected.subscribe((id: string) => {
+        this.submitUserContent(id);
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    if (toolName === 'render_slider') {
+      const r = ref.instance as SliderRendererComponent;
+      const sub = r.valueChange.subscribe((value: number) => {
+        this.submitUserContent(String(value));
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    if (toolName === 'render_amount') {
+      const r = ref.instance as AmountRendererComponent;
+      const sub = r.amountChange.subscribe((value: number) => {
+        this.submitUserContent(String(value));
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    if (toolName === 'render_consent') {
+      const r = ref.instance as ConsentRendererComponent;
+      const sub = r.accepted.subscribe((accepted: boolean) => {
+        this.submitUserContent(accepted ? 'Accetto' : 'Rifiuto');
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    if (toolName === 'render_summary') {
+      const r = ref.instance as SummaryRendererComponent;
+      const sub = r.confirmed.subscribe(() => {
+        this.submitUserContent('Confermo');
       });
       this.rendererSubs.push(sub);
     }
