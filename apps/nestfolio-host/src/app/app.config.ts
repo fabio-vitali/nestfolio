@@ -14,6 +14,7 @@ export interface RuntimeConfig {
 }
 
 let runtimeConfig: RuntimeConfig | null = null;
+let runtimeConfigPromise: Promise<RuntimeConfig> | null = null;
 
 export function getRuntimeConfig(): RuntimeConfig {
   if (!runtimeConfig) {
@@ -22,6 +23,23 @@ export function getRuntimeConfig(): RuntimeConfig {
     );
   }
   return runtimeConfig;
+}
+
+/**
+ * Returns a promise that resolves once `loadRuntimeConfig` has finished
+ * fetching `/assets/config.json` and populated `runtimeConfig`. Callers
+ * (e.g., `provideAuth`'s awaiter) use this to defer DI lookups that
+ * depend on runtime config until after the loader's APP_INITIALIZER body
+ * has run. Throws if `loadRuntimeConfig` was never registered as an
+ * APP_INITIALIZER (the promise is set inside its body).
+ */
+export async function awaitRuntimeConfigReady(): Promise<RuntimeConfig> {
+  if (!runtimeConfigPromise) {
+    throw new Error(
+      'loadRuntimeConfig must be registered as an APP_INITIALIZER before awaitRuntimeConfigReady() is called.',
+    );
+  }
+  return runtimeConfigPromise;
 }
 
 export function validateEndpoints(config: RuntimeConfig): void {
@@ -33,32 +51,40 @@ export function validateEndpoints(config: RuntimeConfig): void {
 }
 
 export function loadRuntimeConfig(): () => Promise<void> {
-  return async () => {
-    const remediation =
-      'Run `pnpm nx run nestfolio-host:config --prefix=<prefix>` (e.g. --prefix=dev for local development).';
-    let response: Response;
-    try {
-      response = await fetch('/assets/config.json');
-    } catch (error) {
-      throw new Error(
-        `Runtime config not reachable at /assets/config.json: ${String(error)}. ${remediation}`,
-      );
-    }
-    if (!response.ok) {
-      throw new Error(
-        `Runtime config not found at /assets/config.json (HTTP ${response.status}). ${remediation}`,
-      );
-    }
-    let parsed: RuntimeConfig;
-    try {
-      parsed = (await response.json()) as RuntimeConfig;
-    } catch (error) {
-      throw new Error(
-        `Runtime config malformed at /assets/config.json: ${String(error)}. Re-run \`pnpm nx run nestfolio-host:config --prefix=<prefix>\`.`,
-      );
-    }
-    validateEndpoints(parsed);
-    runtimeConfig = parsed;
+  return () => {
+    // Set the shared promise SYNCHRONOUSLY at the top of the body so any
+    // sibling APP_INITIALIZER that awaits awaitRuntimeConfigReady() finds
+    // it populated (Angular invokes APP_INITIALIZERs sequentially in a
+    // single tick before kicking off Promise.all).
+    runtimeConfigPromise = (async (): Promise<RuntimeConfig> => {
+      const remediation =
+        'Run `pnpm nx run nestfolio-host:config --prefix=<prefix>` (e.g. --prefix=dev for local development).';
+      let response: Response;
+      try {
+        response = await fetch('/assets/config.json');
+      } catch (error) {
+        throw new Error(
+          `Runtime config not reachable at /assets/config.json: ${String(error)}. ${remediation}`,
+        );
+      }
+      if (!response.ok) {
+        throw new Error(
+          `Runtime config not found at /assets/config.json (HTTP ${response.status}). ${remediation}`,
+        );
+      }
+      let parsed: RuntimeConfig;
+      try {
+        parsed = (await response.json()) as RuntimeConfig;
+      } catch (error) {
+        throw new Error(
+          `Runtime config malformed at /assets/config.json: ${String(error)}. Re-run \`pnpm nx run nestfolio-host:config --prefix=<prefix>\`.`,
+        );
+      }
+      validateEndpoints(parsed);
+      runtimeConfig = parsed;
+      return parsed;
+    })();
+    return runtimeConfigPromise.then(() => undefined);
   };
 }
 
@@ -100,7 +126,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(appRoutes),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideAnimationsAsync(),
-    provideAuth(),
+    provideAuth(awaitRuntimeConfigReady),
     provideI18n('it-IT'),
     provideNestfolioTheme('light'),
     {
