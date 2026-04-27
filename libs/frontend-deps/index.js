@@ -1,16 +1,18 @@
 const { share } = require('@angular-architects/native-federation/config');
 
-// Explicit includeSecondaries: false suppresses Native Federation's
-// transitive-package walker. Without this, share() auto-discovers
-// secondary packages (via peer deps + import graphs) of every listed
-// package and emits federated chunks for them. That's what kept
-// graphql, aws-appsync-auth-link, and aws-appsync-subscription-link
-// in the importmap even after we removed them from this list — they
-// were getting auto-shared via @apollo/client's secondary surface.
-// With secondaries off, the federation runtime resolves only the
-// packages explicitly listed below; everything else gets bundled
-// statically into its consumer chunk by esbuild's normal resolution.
-const singletonOpts = { singleton: true, strictVersion: true, requiredVersion: 'auto', includeSecondaries: false };
+// Default singleton: includeSecondaries enabled. Most listed packages
+// (Angular family especially) ship subpath exports their consumers
+// import as bare specifiers (e.g. @angular/common/http) — those need
+// importmap entries, which only the secondary-walker generates.
+const singletonOpts = { singleton: true, strictVersion: true, requiredVersion: 'auto', includeSecondaries: true };
+
+// Variant that suppresses the walker. Use for packages whose secondary
+// surface pulls in problematic transitive packages (e.g. @apollo/client
+// drags graphql + aws-appsync-{auth,subscription}-link into the share
+// surface, and those packages have glob `./*` exports that the walker
+// can't enumerate, leading to runtime "Unable to resolve specifier"
+// errors for subpaths like graphql/language/printer.js).
+const singletonNoSecondaries = { ...singletonOpts, includeSecondaries: false };
 
 const sharedFrontendDeps = share({
   '@angular/animations': singletonOpts,
@@ -36,15 +38,18 @@ const sharedFrontendDeps = share({
   // imports get inlined by esbuild at build time. Bounded duplication: only
   // libs/ui imports @primeuix/themes, and libs/ui is a sharedMapping.
   'aws-amplify': singletonOpts,
-  '@apollo/client': singletonOpts,
+  // @apollo/client uses singletonNoSecondaries because its secondary surface
+  // (peer deps + transitive imports) drags in graphql + aws-appsync-{auth,
+  // subscription}-link, all of which have glob exports that the walker
+  // can't enumerate (see graphql/language/printer.js failure mode).
+  // libs/shell's GraphqlService is the primary consumer; it bundles
+  // @apollo/client's transitive imports statically via esbuild.
+  '@apollo/client': singletonNoSecondaries,
   // graphql, aws-appsync-auth-link, and aws-appsync-subscription-link are
-  // intentionally NOT shared. Same root cause as @primeuix/themes (above):
-  // their federated chunks bare-specifier-import internal subpaths
-  // (e.g. graphql/language/printer.js) which Native Federation's
-  // includeSecondaries walker doesn't enumerate. Each consumer (primarily
-  // libs/shell's GraphqlService) bundles them statically via esbuild's
-  // normal module resolution, sidestepping the runtime importmap. Bounded
-  // duplication: libs/shell is a sharedMapping (single chunk).
+  // intentionally NOT shared. Same root cause as @primeuix/themes (above).
+  // Each consumer (primarily libs/shell's GraphqlService) bundles them
+  // statically via esbuild's normal module resolution. Bounded duplication:
+  // libs/shell is a sharedMapping (single chunk).
   'primeicons': singletonOpts,
   'primeng': singletonOpts,
   'rxjs': singletonOpts,
