@@ -27,7 +27,7 @@ function deriveUsername(tenant: FreshTenant): string {
 }
 
 export const test = base.extend<Fx>({
-  ctx: async ({}, use) => {
+  ctx: async (_fixtures, use) => {
     const ctx = await createTestContext();
     await use(ctx);
     await ctx.cleanup.runAll();
