@@ -19,7 +19,11 @@ interface GraphDeps {
 
 export function buildOnboardingGraph(deps: GraphDeps, opts?: { tracer?: BaseCallbackHandler }) {
   const model = new ChatBedrockConverse({
-    model: deps.modelId ?? 'anthropic.claude-sonnet-4-20250514',
+    // Bedrock requires inference profile IDs (the `us.` prefix) for Claude
+    // Sonnet 4.x in us-east-1; passing a base model id returns
+    // `ValidationException` with no message body. Mirrors the
+    // `MODEL_ID_MAP.sonnet` value in libs/agent-orchestrator/src/agent-factory.ts.
+    model: deps.modelId ?? 'us.anthropic.claude-sonnet-4-6',
     region: deps.region ?? 'us-east-1',
   });
 
