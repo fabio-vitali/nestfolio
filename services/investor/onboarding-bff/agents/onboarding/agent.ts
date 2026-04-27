@@ -99,10 +99,13 @@ export class OnboardingAgent extends AbstractAgent {
     const lastUser = [...input.messages].reverse().find((m) => m.role === 'user');
     // Bedrock Converse rejects empty `human` content. The browser's first run
     // passes `messages: []` (see onboarding-chat.component.ts ngOnInit) — the
-    // agent is supposed to greet via `render_options` without waiting for the
-    // user to type. Use a neutral kickoff so the model has a non-empty turn;
-    // the system prompt + phase instructions drive the actual response.
-    const userText = (lastUser?.content ?? '').trim() || 'Iniziamo.';
+    // agent is supposed to render the phase UI without waiting for the user
+    // to type. A bare "Iniziamo." kickoff lets the model greet in plain text
+    // and ignore the render_* tool, leaving the renderer to never mount.
+    // A directive kickoff steers the model to call the render_* tool for the
+    // current phase instead of writing prose.
+    const userText = (lastUser?.content ?? '').trim()
+      || 'Inizia la fase corrente chiamando direttamente lo strumento render_* indicato nelle istruzioni della fase. Non scrivere alcun testo prima del tool call.';
 
     // The graph reduces messages by appending; we seed with the new user turn
     // and the annotation defaults handle phase/turnCount on first invocation.
