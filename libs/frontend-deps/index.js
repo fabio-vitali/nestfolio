@@ -2,7 +2,6 @@ const { share } = require('@angular-architects/native-federation/config');
 
 const singletonOpts = { singleton: true, strictVersion: true, requiredVersion: 'auto' };
 const singletonWithSecondaries = { ...singletonOpts, includeSecondaries: true };
-const singletonNoSecondaries = { ...singletonOpts, includeSecondaries: false };
 
 const sharedFrontendDeps = share({
   '@angular/animations': singletonOpts,
@@ -17,12 +16,16 @@ const sharedFrontendDeps = share({
   '@ngrx/signals': singletonOpts,
   '@ngx-translate/core': singletonOpts,
   '@ngx-translate/http-loader': singletonOpts,
-  '@primeuix/themes': singletonWithSecondaries,
-  // Explicit `includeSecondaries: false`: @primeuix/themes ships a glob `./*`
-  // export, which `share()` walks to auto-discover the parent's `./tokens`
-  // subpath under aura/, producing the non-existent `aura/tokens` resolution.
-  // Suppressing secondary discovery forces a single concrete importmap entry.
-  '@primeuix/themes/aura': singletonNoSecondaries,
+  // @primeuix/themes is intentionally NOT shared. It ships a glob `./*` export
+  // that maps any subpath (including unused virtual ones like `aura/tokens`)
+  // to ./dist/<subpath>/index.mjs. Native Federation's includeSecondaries
+  // walker doesn't enumerate glob patterns, so the runtime importmap can never
+  // contain entries for `aura/<component>` — and the aura/index.mjs module
+  // imports each component at runtime via the federation importmap. Bundling
+  // statically inside libs/ui (the only consumer of nestfolio-preset.ts)
+  // sidesteps the resolution path entirely; aura's relative `./accordion`
+  // imports get inlined by esbuild at build time. Bounded duplication: only
+  // libs/ui imports @primeuix/themes, and libs/ui is a sharedMapping.
   'aws-amplify': singletonOpts,
   '@apollo/client': singletonOpts,
   'aws-appsync-auth-link': singletonWithSecondaries,
