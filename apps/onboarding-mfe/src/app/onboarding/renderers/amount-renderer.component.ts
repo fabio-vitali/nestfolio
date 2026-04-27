@@ -20,6 +20,7 @@ import { DecimalPipe } from '@angular/common';
         <input
           type="number"
           class="amount-input"
+          data-testid="amount-input"
           [value]="customAmount()"
           (input)="onInput($event)"
           placeholder="Importo personalizzato"
