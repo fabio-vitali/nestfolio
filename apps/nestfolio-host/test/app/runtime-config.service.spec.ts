@@ -15,7 +15,7 @@ jest.mock('aws-amplify/auth', () => ({
 
 import { TestBed } from '@angular/core/testing';
 import { RuntimeConfigService } from '../../src/app/runtime-config.service';
-import { loadRuntimeConfig, RuntimeConfig } from '../../src/app/app.config';
+import { fetchRuntimeConfig, RuntimeConfig } from '../../src/app/app.config';
 
 function makeConfig(): RuntimeConfig {
   return {
@@ -32,7 +32,7 @@ describe('RuntimeConfigService (fail-hard runtime config)', () => {
     globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true, status: 200, json: async () => makeConfig(),
     } as unknown as Response);
-    await loadRuntimeConfig()();
+    await fetchRuntimeConfig();
   });
 
   afterAll(() => { globalThis.fetch = originalFetch; });

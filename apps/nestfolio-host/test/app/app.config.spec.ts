@@ -23,7 +23,7 @@ jest.mock('@angular/core', () => ({
   isDevMode: () => devMode,
 }));
 
-import { validateEndpoints, RuntimeConfig, loadRuntimeConfig, getRuntimeConfig } from '../../src/app/app.config';
+import { validateEndpoints, RuntimeConfig, fetchRuntimeConfig, getRuntimeConfig } from '../../src/app/app.config';
 
 function makeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
   return {
@@ -71,7 +71,7 @@ describe('validateEndpoints', () => {
   });
 });
 
-describe('loadRuntimeConfig (fail-hard)', () => {
+describe('fetchRuntimeConfig (fail-hard)', () => {
   const originalFetch = globalThis.fetch;
   beforeEach(() => { devMode = false; });
   afterEach(() => { globalThis.fetch = originalFetch; });
@@ -81,7 +81,7 @@ describe('loadRuntimeConfig (fail-hard)', () => {
     globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true, status: 200, json: async () => cfg,
     } as unknown as Response);
-    await loadRuntimeConfig()();
+    await fetchRuntimeConfig();
     expect(getRuntimeConfig()).toEqual(cfg);
   });
 
@@ -89,7 +89,7 @@ describe('loadRuntimeConfig (fail-hard)', () => {
     globalThis.fetch = jest.fn().mockResolvedValue({
       ok: false, status: 404, json: async () => ({}),
     } as unknown as Response);
-    await expect(loadRuntimeConfig()()).rejects.toThrow(
+    await expect(fetchRuntimeConfig()).rejects.toThrow(
       /Runtime config not found.*nestfolio-host:config/,
     );
   });
@@ -98,7 +98,7 @@ describe('loadRuntimeConfig (fail-hard)', () => {
     globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true, status: 200, json: async () => { throw new SyntaxError('bad'); },
     } as unknown as Response);
-    await expect(loadRuntimeConfig()()).rejects.toThrow(/Runtime config malformed/);
+    await expect(fetchRuntimeConfig()).rejects.toThrow(/Runtime config malformed/);
   });
 
   it('throws when validateEndpoints rejects', async () => {
@@ -106,11 +106,23 @@ describe('loadRuntimeConfig (fail-hard)', () => {
     globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true, status: 200, json: async () => bad,
     } as unknown as Response);
-    await expect(loadRuntimeConfig()()).rejects.toThrow('Invalid endpoint URL');
+    await expect(fetchRuntimeConfig()).rejects.toThrow('Invalid endpoint URL');
   });
 
   it('throws on network error', async () => {
     globalThis.fetch = jest.fn().mockRejectedValue(new TypeError('NetworkError'));
-    await expect(loadRuntimeConfig()()).rejects.toThrow(/Runtime config not reachable/);
+    await expect(fetchRuntimeConfig()).rejects.toThrow(/Runtime config not reachable/);
+  });
+});
+
+describe('getRuntimeConfig() guard', () => {
+  it('throws with bootstrap-ordering remediation when runtimeConfig is not yet populated', () => {
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const fresh = require('../../src/app/app.config') as typeof import('../../src/app/app.config');
+      expect(() => fresh.getRuntimeConfig()).toThrow(
+        /fetchRuntimeConfig\(\) must run before bootstrapApplication/,
+      );
+    });
   });
 });
