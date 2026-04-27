@@ -10,7 +10,7 @@ export { withCallState, setLoading, setLoaded, setError, type CallState } from '
 export { withDevtools } from './features/with-devtools';
 export { withLogoutReset } from './features/with-logout-reset';
 export { parseError, isGraphQLErrorResponse } from './errors/parse-error';
-export { FeatureFlagService } from './feature-flag.service';
+export { FeatureFlagService, provideFeatureFlags } from './feature-flags';
 export { SystemBannerComponent } from './components/system-banner.component';
 export { LogoutButtonComponent } from './components/logout-button.component';
 export { COPILOT_API_URL } from './copilot-api-url.token';

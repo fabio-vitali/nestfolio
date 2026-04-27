@@ -5,7 +5,7 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { provideAuth, authInterceptor, getAuthUser, AuthConfig } from '@nestfolio/shell/auth';
 import { provideI18n } from '@nestfolio/shell/i18n';
 import { provideNestfolioTheme } from '@nestfolio/ui';
-import { AuthStore, GlobalErrorHandler, FeatureFlagService, COPILOT_API_URL } from '@nestfolio/shell';
+import { AuthStore, GlobalErrorHandler, COPILOT_API_URL, provideFeatureFlags } from '@nestfolio/shell';
 import { appRoutes } from './app.routes';
 
 export interface RuntimeConfig {
@@ -18,7 +18,7 @@ let runtimeConfig: RuntimeConfig | null = null;
 export function getRuntimeConfig(): RuntimeConfig {
   if (!runtimeConfig) {
     throw new Error(
-      'Runtime config not initialised. loadRuntimeConfig must run as an APP_INITIALIZER before any consumer reads getRuntimeConfig().',
+      'Runtime config not initialised. fetchRuntimeConfig() must run before bootstrapApplication().',
     );
   }
   return runtimeConfig;
@@ -32,34 +32,42 @@ export function validateEndpoints(config: RuntimeConfig): void {
   throw new Error(`Invalid endpoint URL: "${url}". All endpoints must use HTTPS.`);
 }
 
-export function loadRuntimeConfig(): () => Promise<void> {
-  return async () => {
-    const remediation =
-      'Run `pnpm nx run nestfolio-host:config --prefix=<prefix>` (e.g. --prefix=dev for local development).';
-    let response: Response;
-    try {
-      response = await fetch('/assets/config.json');
-    } catch (error) {
-      throw new Error(
-        `Runtime config not reachable at /assets/config.json: ${String(error)}. ${remediation}`,
-      );
-    }
-    if (!response.ok) {
-      throw new Error(
-        `Runtime config not found at /assets/config.json (HTTP ${response.status}). ${remediation}`,
-      );
-    }
-    let parsed: RuntimeConfig;
-    try {
-      parsed = (await response.json()) as RuntimeConfig;
-    } catch (error) {
-      throw new Error(
-        `Runtime config malformed at /assets/config.json: ${String(error)}. Re-run \`pnpm nx run nestfolio-host:config --prefix=<prefix>\`.`,
-      );
-    }
-    validateEndpoints(parsed);
-    runtimeConfig = parsed;
-  };
+/**
+ * Fetches `/assets/config.json` and populates the module-scoped
+ * `runtimeConfig` so any DI factory that calls `getRuntimeConfig()` during
+ * Angular bootstrap finds a populated value. Must be awaited BEFORE
+ * `bootstrapApplication()` in `bootstrap.ts`.
+ *
+ * Fail-hard: every failure mode (404, malformed JSON, validation reject,
+ * network error) throws with a named-path remediation.
+ */
+export async function fetchRuntimeConfig(): Promise<RuntimeConfig> {
+  const remediation =
+    'Run `pnpm nx run nestfolio-host:config --prefix=<prefix>` (e.g. --prefix=dev for local development).';
+  let response: Response;
+  try {
+    response = await fetch('/assets/config.json');
+  } catch (error) {
+    throw new Error(
+      `Runtime config not reachable at /assets/config.json: ${String(error)}. ${remediation}`,
+    );
+  }
+  if (!response.ok) {
+    throw new Error(
+      `Runtime config not found at /assets/config.json (HTTP ${response.status}). ${remediation}`,
+    );
+  }
+  let parsed: RuntimeConfig;
+  try {
+    parsed = (await response.json()) as RuntimeConfig;
+  } catch (error) {
+    throw new Error(
+      `Runtime config malformed at /assets/config.json: ${String(error)}. Re-run \`pnpm nx run nestfolio-host:config --prefix=<prefix>\`.`,
+    );
+  }
+  validateEndpoints(parsed);
+  runtimeConfig = parsed;
+  return parsed;
 }
 
 function initializeAuth(): () => Promise<void> {
@@ -85,11 +93,6 @@ export const appConfig: ApplicationConfig = {
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideZonelessChangeDetection(),
     {
-      provide: APP_INITIALIZER,
-      useFactory: loadRuntimeConfig,
-      multi: true,
-    },
-    {
       provide: AuthConfig,
       useFactory: () => getRuntimeConfig().auth,
     },
@@ -103,17 +106,10 @@ export const appConfig: ApplicationConfig = {
     provideAuth(),
     provideI18n('it-IT'),
     provideNestfolioTheme('light'),
+    provideFeatureFlags(),
     {
       provide: APP_INITIALIZER,
       useFactory: initializeAuth,
-      multi: true,
-    },
-    {
-      provide: APP_INITIALIZER,
-      useFactory: () => {
-        inject(FeatureFlagService); // triggers constructor → loads flags + subscribes
-        return () => Promise.resolve();
-      },
       multi: true,
     },
   ],

@@ -9,7 +9,8 @@ import { AuthConfig } from './auth.config';
  *
  * Bootstrap ordering: this initializer must run AFTER the runtime-config
  * loader has populated the source the AuthConfig factory reads from.
- * Ordering is the consumer app's responsibility.
+ * The shell host (`apps/nestfolio-host`) ensures this by awaiting
+ * `fetchRuntimeConfig()` BEFORE `bootstrapApplication()` in `bootstrap.ts`.
  */
 export function provideAuth(): EnvironmentProviders {
   return makeEnvironmentProviders([

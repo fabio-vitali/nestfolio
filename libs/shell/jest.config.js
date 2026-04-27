@@ -17,6 +17,7 @@ module.exports = {
   transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$|@ngrx|@ngx-translate)'],
   moduleNameMapper: {
     '^@nestfolio/shell/testing$': '<rootDir>/test/testing/index.ts',
+    '^@nestfolio/ui/feature-flags$': '<rootDir>/../ui/feature-flags/src/index.ts',
   },
   setupFilesAfterEnv: ['<rootDir>/test/test-setup.ts'],
 };

@@ -1,13 +1,14 @@
 import { Injectable, OnDestroy, inject } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { GraphqlService } from './graphql/graphql.service';
+import { gql, ApolloClient } from '@apollo/client/core';
 import { FeatureFlagsStore, GET_FEATURE_FLAGS, ON_FEATURE_FLAG_UPDATE } from '@nestfolio/ui/feature-flags';
 import type { FeatureFlag } from '@nestfolio/ui/feature-flags';
+import { FEATURE_FLAG_APOLLO_CLIENT } from './feature-flag-apollo-client';
 
 @Injectable()
 export class FeatureFlagService implements OnDestroy {
   private readonly store = inject(FeatureFlagsStore);
-  private readonly graphql = inject(GraphqlService);
+  private readonly client = inject<ApolloClient>(FEATURE_FLAG_APOLLO_CLIENT);
   private subscription: Subscription | null = null;
 
   constructor() {
@@ -16,9 +17,15 @@ export class FeatureFlagService implements OnDestroy {
   }
 
   private loadInitialFlags(): void {
-    this.graphql
-      .query<{ getFeatureFlags: FeatureFlag[] }>(GET_FEATURE_FLAGS)
-      .then((data) => this.store.setFlags(data.getFeatureFlags))
+    this.client
+      .query<{ getFeatureFlags: FeatureFlag[] }>({
+        query: gql(GET_FEATURE_FLAGS),
+      })
+      .then((result) => {
+        if (result.data) {
+          this.store.setFlags(result.data.getFeatureFlags);
+        }
+      })
       .catch((err: unknown) => {
         // eslint-disable-next-line no-console
         console.error('FeatureFlagService: failed to load initial flags', err);
@@ -26,10 +33,12 @@ export class FeatureFlagService implements OnDestroy {
   }
 
   private subscribeToUpdates(): void {
-    const obs = this.graphql.subscribe<{ onFeatureFlagUpdate: FeatureFlag }>(ON_FEATURE_FLAG_UPDATE);
+    const obs = this.client.subscribe<{ onFeatureFlagUpdate: FeatureFlag }>({
+      query: gql(ON_FEATURE_FLAG_UPDATE),
+    });
     this.subscription = obs.subscribe({
-      next: (data) => {
-        if (data.onFeatureFlagUpdate) {
+      next: ({ data }: { data: { onFeatureFlagUpdate: FeatureFlag } | null | undefined }) => {
+        if (data?.onFeatureFlagUpdate) {
           this.store.updateFlag(data.onFeatureFlagUpdate);
         }
       },
