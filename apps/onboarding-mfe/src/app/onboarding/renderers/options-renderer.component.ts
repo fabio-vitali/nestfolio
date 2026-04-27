@@ -15,7 +15,7 @@ interface OptionItem {
       <h3 class="options-title">{{ title() }}</h3>
       <div class="options-grid">
         @for (opt of options(); track opt.id) {
-          <button class="option-card" [class.selected]="selectedId === opt.id" (click)="select(opt.id)">
+          <button class="option-card" [attr.data-testid]="'option-' + opt.id" [class.selected]="selectedId === opt.id" (click)="select(opt.id)">
             @if (opt.emoji) { <span class="option-emoji">{{ opt.emoji }}</span> }
             <span class="option-label">{{ opt.label }}</span>
             @if (opt.description) { <span class="option-desc">{{ opt.description }}</span> }

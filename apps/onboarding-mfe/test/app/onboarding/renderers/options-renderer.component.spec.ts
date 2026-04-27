@@ -43,4 +43,14 @@ describe('OptionsRendererComponent', () => {
     fixture.detectChanges();
     expect(component.selectedId).toBe('home');
   });
+
+  it('renders data-testid attribute per option id', () => {
+    fixture.componentRef.setInput('options', [
+      { id: 'GROWTH', emoji: '📈', label: 'Crescita' },
+      { id: 'INCOME', label: 'Reddito' },
+    ]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="option-GROWTH"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="option-INCOME"]')).toBeTruthy();
+  });
 });
