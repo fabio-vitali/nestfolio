@@ -5,7 +5,7 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { provideAuth, authInterceptor, getAuthUser, AuthConfig } from '@nestfolio/shell/auth';
 import { provideI18n } from '@nestfolio/shell/i18n';
 import { provideNestfolioTheme } from '@nestfolio/ui';
-import { AuthStore, GlobalErrorHandler, FeatureFlagService, COPILOT_API_URL } from '@nestfolio/shell';
+import { AuthStore, GlobalErrorHandler, COPILOT_API_URL, provideFeatureFlags } from '@nestfolio/shell';
 import { appRoutes } from './app.routes';
 
 export interface RuntimeConfig {
@@ -106,17 +106,10 @@ export const appConfig: ApplicationConfig = {
     provideAuth(),
     provideI18n('it-IT'),
     provideNestfolioTheme('light'),
+    provideFeatureFlags(),
     {
       provide: APP_INITIALIZER,
       useFactory: initializeAuth,
-      multi: true,
-    },
-    {
-      provide: APP_INITIALIZER,
-      useFactory: () => {
-        inject(FeatureFlagService); // triggers constructor → loads flags + subscribes
-        return () => Promise.resolve();
-      },
       multi: true,
     },
   ],
