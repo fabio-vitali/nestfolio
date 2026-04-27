@@ -5,7 +5,10 @@ import { OnboardingAgent } from '../../../agents/onboarding/agent';
 
 interface FakeStreamEvent {
   event: string;
-  data?: { chunk?: { content?: string; tool_call_chunks?: Array<{ id?: string; name?: string; args?: string; index?: number }> } };
+  data?: {
+    chunk?: { content?: string };
+    output?: { tool_calls?: Array<{ id?: string; name?: string; args?: unknown }> };
+  };
 }
 
 function fakeGraph(events: FakeStreamEvent[], opts: { throwAtEnd?: boolean } = {}) {
@@ -59,21 +62,16 @@ describe('OnboardingAgent', () => {
     expect(content.map((c) => c.delta).join('')).toBe('Hello!');
   });
 
-  it('emits TOOL_CALL_START/ARGS/END for a tool-call stream', async () => {
+  it('emits TOOL_CALL_START/ARGS/END from on_chat_model_end output.tool_calls', async () => {
     const graph = fakeGraph([
       {
-        event: 'on_chat_model_stream',
+        event: 'on_chat_model_end',
         data: {
-          chunk: {
-            tool_call_chunks: [{ id: 'tc-1', name: 'render_options', args: '{"tit', index: 0 }],
+          output: {
+            tool_calls: [{ id: 'tc-1', name: 'render_options', args: { title: 'Pick' } }],
           },
         },
       },
-      {
-        event: 'on_chat_model_stream',
-        data: { chunk: { tool_call_chunks: [{ args: 'le":"Pick"}', index: 0 }] } },
-      },
-      { event: 'on_chat_model_end' },
     ]);
     const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId });
     const events = await lastValueFrom(agent.run(baseInput).pipe(toArray())) as BaseEvent[];
@@ -83,7 +81,6 @@ describe('OnboardingAgent', () => {
       EventType.RUN_STARTED,
       EventType.TOOL_CALL_START,
       EventType.TOOL_CALL_ARGS,
-      EventType.TOOL_CALL_ARGS,
       EventType.TOOL_CALL_END,
       EventType.RUN_FINISHED,
     ]);
@@ -92,9 +89,9 @@ describe('OnboardingAgent', () => {
     expect(tcStart.toolCallId).toBe('tc-1');
     expect(tcStart.toolCallName).toBe('render_options');
 
-    const argsEvents = events.filter((e) => e.type === EventType.TOOL_CALL_ARGS) as Array<Extract<BaseEvent, { delta: string; toolCallId: string }>>;
-    expect(argsEvents.every((a) => a.toolCallId === 'tc-1')).toBe(true);
-    expect(argsEvents.map((a) => a.delta).join('')).toBe('{"title":"Pick"}');
+    const argsEvent = events.find((e) => e.type === EventType.TOOL_CALL_ARGS) as Extract<BaseEvent, { delta: string; toolCallId: string }>;
+    expect(argsEvent.toolCallId).toBe('tc-1');
+    expect(JSON.parse(argsEvent.delta)).toEqual({ title: 'Pick' });
   });
 
   it('emits a single RUN_ERROR and propagates the Observable error when the graph throws', async () => {

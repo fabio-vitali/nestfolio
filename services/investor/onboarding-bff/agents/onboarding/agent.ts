@@ -16,9 +16,6 @@ import { Observable, type Subscriber } from 'rxjs';
 import { HumanMessage } from '@langchain/core/messages';
 import { randomUUID } from 'node:crypto';
 
-// Minimal shape we rely on from the compiled LangGraph. Avoids dragging in the
-// concrete `CompiledStateGraph` generic args, which differ between langgraph
-// versions and break TS inference.
 interface StreamableGraph {
   streamEvents(
     input: unknown,
@@ -34,16 +31,15 @@ interface LangGraphStreamEvent {
   event: string;
   name?: string;
   data?: {
-    chunk?: {
-      content?: string | Array<{ type: string; text?: string }>;
-      tool_call_chunks?: Array<{
-        id?: string;
-        name?: string;
-        args?: string;
-        index?: number;
-      }>;
-    };
+    chunk?: ChunkLike;
+    output?: ChunkLike;
   };
+}
+
+interface ChunkLike {
+  content?: string | Array<{ type: string; text?: string }>;
+  tool_calls?: Array<{ id?: string; name?: string; args?: unknown }>;
+  tool_call_chunks?: Array<{ id?: string; name?: string; args?: string; index?: number }>;
 }
 
 interface OnboardingAgentConfig {
@@ -54,16 +50,20 @@ interface OnboardingAgentConfig {
 /**
  * AG-UI agent that drives the in-process onboarding LangGraph.
  *
- * AG-UI's canonical extension point is subclassing `AbstractAgent` and
- * implementing `run(input)`. We translate LangGraph's `streamEvents` output
- * (`on_chat_model_stream`, `on_chat_model_end`) into AG-UI's
- * TEXT_MESSAGE_* / TOOL_CALL_* events that `@ag-ui/client.HttpAgent`
- * consumes in the browser.
+ * Translates LangGraph's `streamEvents` (v2) output into the AG-UI event
+ * stream that `@ag-ui/client.HttpAgent` consumes in the browser.
  *
- * `@copilotkit/runtime/langgraph`'s `LangGraphAgent` is hard-wired to a
- * remote LangGraph deployment via `@langchain/langgraph-sdk` and ignores any
- * locally-provided graph — see `node_modules/.../@ag-ui/langgraph/dist/index.mjs`
- * `LangGraphAgentConfig`. Hence this class.
+ * Tool-call handling: Bedrock Converse streams `tool_call_chunks` with
+ * `index` set but `id` + `name` undefined on every delta. The full call (with
+ * id/name and concatenated args) only appears on the AIMessage emitted by
+ * `on_chat_model_end`. We therefore:
+ *   - stream text deltas as TEXT_MESSAGE_CONTENT
+ *   - skip tool_call_chunks during streaming
+ *   - on `on_chat_model_end`, read `output.tool_calls` and emit a complete
+ *     TOOL_CALL_START + TOOL_CALL_ARGS + TOOL_CALL_END burst per tool call.
+ *
+ * Renderers don't show progressive args, so the lack of streaming on tool
+ * calls is acceptable.
  */
 export class OnboardingAgent extends AbstractAgent {
   constructor(private readonly cfg: OnboardingAgentConfig) {
@@ -102,17 +102,12 @@ export class OnboardingAgent extends AbstractAgent {
     };
 
     const lastUser = [...input.messages].reverse().find((m) => m.role === 'user');
-    // Bedrock Converse rejects empty `human` content. The browser's first run
-    // passes `messages: []` (see onboarding-chat.component.ts ngOnInit) — the
-    // agent is supposed to render the phase UI without waiting for the user
-    // to type. Use a neutral kickoff so the model has a non-empty turn; the
-    // system prompt + phase instructions drive the actual response (greeting
-    // text + render_options tool call for the current phase).
+    // Bedrock Converse rejects empty `human` content. Browser sends
+    // `messages: []` on first run (see onboarding-chat.component.ts ngOnInit);
+    // a neutral kickoff lets the model run with the system prompt + phase
+    // instructions driving the response.
     const userText = (lastUser?.content ?? '').trim() || 'Iniziamo.';
 
-    // The graph reduces messages by appending; we seed with the new user turn
-    // and the annotation defaults handle phase/turnCount on first invocation.
-    // Subsequent state propagation is the browser's job (passes prior `state`).
     const initial: Record<string, unknown> = {
       ...(input.state as Record<string, unknown> | undefined),
       messages: [new HumanMessage(userText)],
@@ -120,8 +115,7 @@ export class OnboardingAgent extends AbstractAgent {
 
     const messageId = randomUUID();
     let textOpened = false;
-    const openToolCalls = new Map<string, { name: string; lastIndex?: number }>();
-    let lastToolCallId: string | null = null;
+    let toolCallsEmitted = 0;
 
     for await (const ev of this.cfg.graph.streamEvents(initial, {
       version: 'v2',
@@ -131,33 +125,23 @@ export class OnboardingAgent extends AbstractAgent {
       recordEvent(`graph:${ev.event}`);
       switch (ev.event) {
         case 'on_chat_model_stream':
-          this.handleChatModelStream(ev, subscriber, messageId, {
-            getTextOpened: () => textOpened,
-            setTextOpened: (v) => (textOpened = v),
-            openToolCalls,
-            getLastToolCallId: () => lastToolCallId,
-            setLastToolCallId: (v) => (lastToolCallId = v),
-          });
+          textOpened = this.streamTextDelta(ev, subscriber, messageId, textOpened);
           break;
-        case 'on_chat_model_end':
+        case 'on_chat_model_end': {
           if (textOpened) {
-            subscriber.next({
-              type: EventType.TEXT_MESSAGE_END,
-              messageId,
-            } as TextMessageEndEvent);
+            subscriber.next({ type: EventType.TEXT_MESSAGE_END, messageId } as TextMessageEndEvent);
             textOpened = false;
           }
-          for (const [id] of openToolCalls) {
-            subscriber.next({
-              type: EventType.TOOL_CALL_END,
-              toolCallId: id,
-            } as ToolCallEndEvent);
-          }
-          openToolCalls.clear();
-          lastToolCallId = null;
+          toolCallsEmitted += this.emitToolCallsFromAIMessage(ev, subscriber, messageId);
           break;
+        }
       }
     }
+
+    if (textOpened) {
+      subscriber.next({ type: EventType.TEXT_MESSAGE_END, messageId } as TextMessageEndEvent);
+    }
+
     // eslint-disable-next-line no-console
     console.log(JSON.stringify({
       level: 'INFO',
@@ -165,21 +149,8 @@ export class OnboardingAgent extends AbstractAgent {
       threadId: input.threadId,
       runId: input.runId,
       eventCounts,
-      openToolCallsRemaining: openToolCalls.size,
+      toolCallsEmitted,
     }));
-
-    if (textOpened) {
-      subscriber.next({
-        type: EventType.TEXT_MESSAGE_END,
-        messageId,
-      } as TextMessageEndEvent);
-    }
-    for (const [id] of openToolCalls) {
-      subscriber.next({
-        type: EventType.TOOL_CALL_END,
-        toolCallId: id,
-      } as ToolCallEndEvent);
-    }
 
     subscriber.next({
       type: EventType.RUN_FINISHED,
@@ -188,62 +159,65 @@ export class OnboardingAgent extends AbstractAgent {
     } as RunFinishedEvent);
   }
 
-  private handleChatModelStream(
+  private streamTextDelta(
     ev: LangGraphStreamEvent,
     subscriber: Subscriber<BaseEvent>,
     messageId: string,
-    s: {
-      getTextOpened: () => boolean;
-      setTextOpened: (v: boolean) => void;
-      openToolCalls: Map<string, { name: string; lastIndex?: number }>;
-      getLastToolCallId: () => string | null;
-      setLastToolCallId: (v: string | null) => void;
-    },
-  ): void {
+    textOpened: boolean,
+  ): boolean {
     const chunk = ev.data?.chunk;
-    if (!chunk) return;
-
+    if (!chunk) return textOpened;
     const text = extractText(chunk.content);
-    if (text) {
-      if (!s.getTextOpened()) {
-        subscriber.next({
-          type: EventType.TEXT_MESSAGE_START,
-          messageId,
-          role: 'assistant',
-        } as TextMessageStartEvent);
-        s.setTextOpened(true);
-      }
+    if (!text) return textOpened;
+    if (!textOpened) {
       subscriber.next({
-        type: EventType.TEXT_MESSAGE_CONTENT,
+        type: EventType.TEXT_MESSAGE_START,
         messageId,
-        delta: text,
-      } as TextMessageContentEvent);
+        role: 'assistant',
+      } as TextMessageStartEvent);
+      textOpened = true;
     }
+    subscriber.next({
+      type: EventType.TEXT_MESSAGE_CONTENT,
+      messageId,
+      delta: text,
+    } as TextMessageContentEvent);
+    return textOpened;
+  }
 
-    for (const tc of chunk.tool_call_chunks ?? []) {
-      // Bedrock + most providers only emit `id` + `name` on the first chunk
-      // of a tool call. Subsequent arg deltas may have neither — fall back to
-      // the most-recently-opened tool call for that stream.
-      const resolvedId = tc.id ?? s.getLastToolCallId();
-      if (tc.id && !s.openToolCalls.has(tc.id)) {
-        s.openToolCalls.set(tc.id, { name: tc.name ?? '', lastIndex: tc.index });
-        s.setLastToolCallId(tc.id);
-        subscriber.next({
-          type: EventType.TOOL_CALL_START,
-          toolCallId: tc.id,
-          toolCallName: tc.name ?? '',
-          parentMessageId: messageId,
-        } as ToolCallStartEvent);
-      }
-      const argsDelta = tc.args ?? '';
-      if (argsDelta && resolvedId) {
-        subscriber.next({
-          type: EventType.TOOL_CALL_ARGS,
-          toolCallId: resolvedId,
-          delta: argsDelta,
-        } as ToolCallArgsEvent);
-      }
+  private emitToolCallsFromAIMessage(
+    ev: LangGraphStreamEvent,
+    subscriber: Subscriber<BaseEvent>,
+    messageId: string,
+  ): number {
+    const output = ev.data?.output;
+    const toolCalls = output?.tool_calls ?? [];
+    let emitted = 0;
+    for (const tc of toolCalls) {
+      const id = tc.id ?? randomUUID();
+      const name = tc.name ?? '';
+      // tc.args is the parsed object; AG-UI expects the JSON string.
+      const argsString = typeof tc.args === 'string'
+        ? tc.args
+        : JSON.stringify(tc.args ?? {});
+      subscriber.next({
+        type: EventType.TOOL_CALL_START,
+        toolCallId: id,
+        toolCallName: name,
+        parentMessageId: messageId,
+      } as ToolCallStartEvent);
+      subscriber.next({
+        type: EventType.TOOL_CALL_ARGS,
+        toolCallId: id,
+        delta: argsString,
+      } as ToolCallArgsEvent);
+      subscriber.next({
+        type: EventType.TOOL_CALL_END,
+        toolCallId: id,
+      } as ToolCallEndEvent);
+      emitted += 1;
     }
+    return emitted;
   }
 }
 
