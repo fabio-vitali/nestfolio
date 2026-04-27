@@ -37,8 +37,11 @@ const MIME = {
 async function tryFile(path) {
   try {
     const s = await stat(path);
-    if (s.isFile()) return await readFile(path);
-    if (s.isDirectory()) return await readFile(join(path, 'index.html'));
+    if (s.isFile()) return { body: await readFile(path), path };
+    if (s.isDirectory()) {
+      const resolved = join(path, 'index.html');
+      return { body: await readFile(resolved), path: resolved };
+    }
   } catch {
     /* not found */
   }
@@ -62,21 +65,16 @@ const server = createServer(async (req, res) => {
     res.end('Forbidden');
     return;
   }
-  let body = await tryFile(filePath);
-  let path = filePath;
-  if (!body) {
-    // SPA fallback: serve /index.html for any unknown route.
-    path = join(ROOT, 'index.html');
-    body = await tryFile(path);
-  }
-  if (!body) {
+  // Try the requested path first; fall back to /index.html for SPA routes.
+  const hit = (await tryFile(filePath)) ?? (await tryFile(join(ROOT, 'index.html')));
+  if (!hit) {
     res.writeHead(404, cors);
     res.end('Not found');
     return;
   }
-  const ct = MIME[extname(path).toLowerCase()] || 'application/octet-stream';
+  const ct = MIME[extname(hit.path).toLowerCase()] || 'application/octet-stream';
   res.writeHead(200, { ...cors, 'content-type': ct });
-  res.end(body);
+  res.end(hit.body);
 });
 
 server.listen(PORT, () => {
