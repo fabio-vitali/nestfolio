@@ -1,6 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
+import { resolve } from 'node:path';
 
 const HOST_URL = 'http://localhost:4200';
+// Spawn webServer commands from the workspace root so `dist/...` and
+// `apps/nestfolio-e2e/tools/...` resolve correctly. Playwright's default
+// cwd is the directory containing this config file.
+const WORKSPACE_ROOT = resolve(__dirname, '../..');
 
 // Serve directly from dist/ via http-server. The Nx `e2e` target's `dependsOn`
 // pre-builds all six MFEs sequentially with `nf-build:production` so dist is
@@ -14,6 +19,7 @@ const HOST_URL = 'http://localhost:4200';
 // in http-server@14's proxy code.
 const mfeServer = (app: string, port: number) => ({
   command: `node apps/nestfolio-e2e/tools/serve-mfe.mjs dist/apps/${app}/browser ${port}`,
+  cwd: WORKSPACE_ROOT,
   url: `http://localhost:${port}`,
   reuseExistingServer: !process.env.CI,
   timeout: 60_000,
