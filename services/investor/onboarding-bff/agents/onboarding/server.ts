@@ -113,8 +113,18 @@ export function createApp() {
         });
       }, async (err, sseStream) => {
         status = 'error';
+        // Log structured error fields. AWS SDK exceptions stringify as
+        // `Error: <name>` and lose the `message` property unless extracted.
         // eslint-disable-next-line no-console
-        console.error('onboarding agent stream error', err);
+        console.error(JSON.stringify({
+          level: 'ERROR',
+          message: 'onboarding agent stream error',
+          errorName: (err as Error)?.name,
+          errorMessage: (err as Error)?.message,
+          errorMetadata: (err as { $metadata?: unknown })?.$metadata,
+          errorFault: (err as { $fault?: unknown })?.$fault,
+          errorStack: (err as Error)?.stack,
+        }));
         await sseStream.close();
       }) as unknown as Response;
     } catch (err) {
