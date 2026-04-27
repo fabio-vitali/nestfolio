@@ -8,10 +8,12 @@ const HOST_URL = 'http://localhost:4200';
 // avoid invoking `nx run X:serve-static` because @nx/web:file-server triggers
 // a parallel build on each spawn, which races on the federation manifest cache
 // and intermittently fails with "@angular/animations not found in package.json".
-// SPA fallback: --proxy http://localhost:${port}? routes 404s back to /index.html
-// so deep-links like /onboarding work under Angular's client-side router.
+// Tiny SPA-aware server lives at apps/nestfolio-e2e/tools/serve-mfe.mjs —
+// vanilla Node, ~70 LOC, no external deps. Replaces `http-server --proxy`
+// which returns HTTP 431 on Node 24 due to a deprecated util._extend path
+// in http-server@14's proxy code.
 const mfeServer = (app: string, port: number) => ({
-  command: `pnpm exec http-server dist/apps/${app}/browser -p ${port} -s --cors -c-1 --proxy http://localhost:${port}?`,
+  command: `node apps/nestfolio-e2e/tools/serve-mfe.mjs dist/apps/${app}/browser ${port}`,
   url: `http://localhost:${port}`,
   reuseExistingServer: !process.env.CI,
   timeout: 60_000,
