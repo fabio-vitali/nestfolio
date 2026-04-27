@@ -1,0 +1,60 @@
+# CI engine: GitHub Actions.
+# Path-filter syntax: on.pull_request.paths.
+# On-demand: workflow_dispatch. Nightly: schedule cron.
+name: nestfolio-e2e
+
+on:
+  pull_request:
+    paths:
+      - 'apps/*-mfe/**'
+      - 'apps/nestfolio-host/**'
+      - 'apps/nestfolio-e2e/**'
+      - 'libs/shell/**'
+      - 'libs/ui/**'
+      - 'libs/test-support/**'
+      - 'services/**/*-bff/**'
+      - '.github/workflows/nestfolio-e2e.yml'
+  schedule:
+    - cron: '0 5 * * *' # 05:00 UTC nightly
+  workflow_dispatch: {}
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: sandbox
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+    env:
+      NESTFOLIO_INTEG_PREFIX: dev
+      AWS_REGION: us-east-1
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Generate runtime config from sandbox SSM
+        run: pnpm nx run nestfolio-host:config --prefix=dev
+      - name: Install Playwright Chromium with system deps
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run e2e suite
+        run: pnpm nx run nestfolio-e2e:e2e
+      - name: Upload Playwright artifacts on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            apps/nestfolio-e2e/reports/
+            apps/nestfolio-e2e/test-results/
+          retention-days: 14
