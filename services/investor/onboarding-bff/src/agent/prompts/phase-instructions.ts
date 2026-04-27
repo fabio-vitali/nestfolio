@@ -1,58 +1,57 @@
 export const PHASE_INSTRUCTIONS: Record<string, string> = {
-  goal: `FASE: Obiettivo di investimento
-Chiedi all'utente qual è il suo obiettivo principale. Usa render_options con queste opzioni:
-- 📈 Far crescere il capitale
-- 🏠 Acquistare un immobile
-- 👨‍👩‍👧 Pianificare per la famiglia
-- 🎓 Finanziare studi/formazione
-- 🏖️ Prepararsi alla pensione
-- 💼 Altro
-Se l'utente scrive a testo libero, mappa al più vicino e conferma.
-Dopo la conferma, chiama commit_phase con tool_input { phase: "goal", data: { goal: "<obiettivo>" } }.`,
+  goal: `PHASE: investment goal.
+On this turn you MUST call render_options with these option items (labels MUST be in Italian, ids stay in English):
+  - { id: "growth",      emoji: "📈", label: "Far crescere il capitale" }
+  - { id: "real_estate", emoji: "🏠", label: "Acquistare un immobile" }
+  - { id: "family",      emoji: "👨‍👩‍👧", label: "Pianificare per la famiglia" }
+  - { id: "education",   emoji: "🎓", label: "Finanziare studi/formazione" }
+  - { id: "retirement",  emoji: "🏖️", label: "Prepararsi alla pensione" }
+  - { id: "other",       emoji: "💼", label: "Altro" }
+Use an Italian title like "Qual è il tuo obiettivo principale di investimento?".
+If the user replies with free text instead of clicking, map it to the closest id and confirm in Italian.
+After confirmation call commit_phase with { phase: "goal", data: { goal: "<id>" } }.`,
 
-  horizon: `FASE: Orizzonte temporale
-Chiedi all'utente per quanti anni intende investire. Usa render_slider con min=1, max=30, step=1, unit="anni".
-Dopo la scelta, conferma e chiama commit_phase con { phase: "horizon", data: { horizonYears: <N> } }.`,
+  horizon: `PHASE: investment horizon.
+On this turn you MUST call render_slider with min=1, max=30, step=1, unit="anni" and an Italian label such as "Per quanti anni intendi investire?".
+After the user picks a value, confirm in Italian and call commit_phase with { phase: "horizon", data: { horizonYears: <N> } }.`,
 
-  mode: `FASE: Modalità account
-Chiedi se vuole iniziare in simulazione o con denaro reale. Usa render_mode_cards con:
-- Simulazione: "Impara senza rischi", badge "Consigliato", details: ["Soldi virtuali", "Stesso algoritmo", "Passa al reale quando vuoi"]
-- Reale: "Investi subito", details: ["Denaro reale", "Rendimenti reali", "Richiede verifica identità"]
-Dopo la scelta, conferma e chiama commit_phase con { phase: "mode", data: { accountMode: "simulation"|"live" } }.`,
+  mode: `PHASE: account mode.
+On this turn you MUST call render_mode_cards with these cards (Italian copy):
+  - { id: "simulation", title: "Simulazione", badge: "Consigliato", details: ["Soldi virtuali", "Stesso algoritmo", "Passa al reale quando vuoi"] }
+  - { id: "live",       title: "Reale",                            details: ["Denaro reale", "Rendimenti reali", "Richiede verifica identità"] }
+After the user picks, confirm in Italian and call commit_phase with { phase: "mode", data: { accountMode: "simulation" | "live" } }.`,
 
-  capital: `FASE: Capitale iniziale
-Chiedi quanto vuole investire inizialmente. Usa render_amount con currency="EUR" e presets=[5000, 10000, 25000, 50000].
-L'utente può anche digitare un importo personalizzato.
-Dopo la scelta, conferma e chiama commit_phase con { phase: "capital", data: { capitalAmount: <N> } }.`,
+  capital: `PHASE: initial capital.
+On this turn you MUST call render_amount with currency="EUR", presets=[5000, 10000, 25000, 50000] and an Italian label such as "Quanto vuoi investire inizialmente?".
+The user may also type a custom amount.
+After the choice, confirm in Italian and call commit_phase with { phase: "capital", data: { capitalAmount: <N> } }.`,
 
-  risk: `FASE: Profilo di rischio
-Raccogli il profilo di rischio con DUE domande separate:
+  risk: `PHASE: risk profile (TWO sub-questions, ask them sequentially).
 
-1. Tolleranza al rischio — usa render_options:
-   - 😌 Non faccio nulla e aspetto (hold)
-   - 🤔 Osservo con attenzione (cautious)
-   - 📊 Rivedo selettivamente (selective)
-   - ⚡ Agisco rapidamente (aggressive)
+1. Risk tolerance — call render_options with these items (Italian labels):
+   - { id: "hold",       emoji: "😌", label: "Non faccio nulla e aspetto" }
+   - { id: "cautious",   emoji: "🤔", label: "Osservo con attenzione" }
+   - { id: "selective",  emoji: "📊", label: "Rivedo selettivamente" }
+   - { id: "aggressive", emoji: "⚡", label: "Agisco rapidamente" }
 
-2. Livello di esperienza — usa render_options:
-   - 🌱 Principiante (novice)
-   - 📚 Ho qualche nozione (beginner)
-   - 📈 Investo da qualche anno (intermediate)
-   - 🎯 Esperto (expert)
+2. Experience level — call render_options with these items (Italian labels):
+   - { id: "novice",       emoji: "🌱", label: "Principiante" }
+   - { id: "beginner",     emoji: "📚", label: "Ho qualche nozione" }
+   - { id: "intermediate", emoji: "📈", label: "Investo da qualche anno" }
+   - { id: "expert",       emoji: "🎯", label: "Esperto" }
 
-Se l'utente scrive a testo libero, interpreta e conferma la categoria prima di procedere.
-Dopo entrambe le risposte, chiama compute_risk_profile con i due indici, poi commit_phase con { phase: "risk", data: { toleranceIdx, experienceIdx, riskProfile } }.`,
+If the user types free text, interpret and confirm the category in Italian before continuing.
+After both answers, call compute_risk_profile with the two indices, then commit_phase with { phase: "risk", data: { toleranceIdx, experienceIdx, riskProfile } }.`,
 
-  operating_mode: `FASE: Modalità operativa
-Chiedi la modalità operativa preferita. Usa render_mode_cards con:
-- Conservativo: "Proteggi il capitale", details: ["Bassa volatilità", "Rendimenti moderati", "Ribilanciamento raro"]
-- Bilanciato: "Equilibrio rischio-rendimento", badge "Più scelto", details: ["Volatilità media", "Buoni rendimenti", "Ribilanciamento periodico"]
-- Aggressivo: "Massimizza i rendimenti", details: ["Alta volatilità", "Potenziali alti rendimenti", "Ribilanciamento frequente"]
-Dopo la scelta, conferma e chiama commit_phase con { phase: "operating_mode", data: { operatingMode: "conservative"|"balanced"|"aggressive" } }.`,
+  operating_mode: `PHASE: operating mode.
+On this turn you MUST call render_mode_cards with these cards (Italian copy):
+  - { id: "conservative", title: "Conservativo", details: ["Bassa volatilità", "Rendimenti moderati", "Ribilanciamento raro"] }
+  - { id: "balanced",     title: "Bilanciato",   badge: "Più scelto", details: ["Volatilità media", "Buoni rendimenti", "Ribilanciamento periodico"] }
+  - { id: "aggressive",   title: "Aggressivo",   details: ["Alta volatilità", "Potenziali alti rendimenti", "Ribilanciamento frequente"] }
+After the choice, confirm in Italian and call commit_phase with { phase: "operating_mode", data: { operatingMode: "conservative" | "balanced" | "aggressive" } }.`,
 
-  mandate: `FASE: Mandato
-Mostra un riepilogo di tutte le scelte fatte usando render_summary. Poi mostra render_consent con il testo del mandato:
-"Autorizzo Nestfolio a gestire il mio portafoglio secondo le preferenze indicate".
-Se l'utente accetta, chiama commit_phase con { phase: "mandate", data: { mandateAccepted: true } }.
-Dopo il commit, mostra render_cta con label="Vai alla Dashboard" e action="navigate:/dashboard".`,
+  mandate: `PHASE: mandate.
+On this turn you MUST call render_summary with title="Riepilogo" and rows recapping all prior phase choices (Italian labels and values). Then call render_consent with the Italian mandate text "Autorizzo Nestfolio a gestire il mio portafoglio secondo le preferenze indicate".
+If the user accepts, call commit_phase with { phase: "mandate", data: { mandateAccepted: true } }.
+After commit, call render_cta with label="Vai alla Dashboard" and action="navigate:/dashboard".`,
 };
