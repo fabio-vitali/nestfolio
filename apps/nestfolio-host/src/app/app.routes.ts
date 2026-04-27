@@ -1,14 +1,20 @@
-import { Route } from '@angular/router';
+import { Route, Routes } from '@angular/router';
 import { loadRemoteModule } from '@angular-architects/native-federation';
 import { authGuard, onboardingPendingGuard, onboardingCompletedGuard } from '@nestfolio/shell/auth';
 import { provideMfeGraphql } from '@nestfolio/shell/graphql';
 import { MfeErrorComponent } from './mfe-error.component';
 
-function loadMfe(remoteName: string, exposedModule: string) {
+// Native Federation contract: each MFE exposes `export const remoteRoutes: Routes`
+// from its `./routes` entry. Angular Router's `loadChildren` accepts a `Routes`
+// array (or NgModule shapes) — NOT a `{ remoteRoutes: Routes }` wrapper.
+// Returning the wrapper makes Router fall through to the legacy NgModule path
+// and crash with `TypeError: Cannot read properties of null (reading 'bootstrap')`.
+// See docs/superpowers/specs/2026-04-27-f-loadmfe-routes-shape-design.md.
+export function loadMfe(remoteName: string, exposedModule: string) {
   return () =>
-    loadRemoteModule(remoteName, exposedModule).catch(() => ({
-      remoteRoutes: [{ path: '**', component: MfeErrorComponent }],
-    }));
+    loadRemoteModule(remoteName, exposedModule)
+      .then((m) => (m as { remoteRoutes: Routes }).remoteRoutes)
+      .catch((): Routes => [{ path: '**', component: MfeErrorComponent }]);
 }
 
 export const appRoutes: Route[] = [
