@@ -1,38 +1,24 @@
-import { type EnvironmentProviders, makeEnvironmentProviders, APP_INITIALIZER, inject, Injector } from '@angular/core';
+import { type EnvironmentProviders, makeEnvironmentProviders, APP_INITIALIZER, inject } from '@angular/core';
 import { Amplify } from 'aws-amplify';
 import { AuthConfig } from './auth.config';
 
 /**
  * Registers the Amplify configuration step as an APP_INITIALIZER.
+ * Reads `AuthConfig` from DI at injection time — the value must be provided
+ * by the consuming app via `{ provide: AuthConfig, useFactory: () => ... }`.
  *
- * `AuthConfig` is read from DI INSIDE the async initializer body (not at
- * factory-resolution time) to avoid racing the consuming app's
- * runtime-config loader. The optional `awaitConfig` callback is awaited
- * BEFORE the AuthConfig lookup; consumers wire it to whatever signals
- * their runtime-config has been populated. Without `awaitConfig`,
- * AuthConfig is resolved as soon as the initializer body runs (caller's
- * responsibility to ensure it's available by then).
- *
- * Why a callback rather than `inject(AuthConfig)` at factory time:
- * Angular calls all APP_INITIALIZER factories during DI hydration, BEFORE
- * any initializer body runs. A synchronous `inject(AuthConfig)` at
- * factory time triggers AuthConfig.useFactory immediately — and if that
- * factory reads a runtime config that's loaded by a sibling
- * APP_INITIALIZER, it throws because that sibling hasn't run yet. The
- * captured Injector + lazy `injector.get(AuthConfig)` inside the awaited
- * async body sidesteps this race.
+ * Bootstrap ordering: this initializer must run AFTER the runtime-config
+ * loader has populated the source the AuthConfig factory reads from.
+ * The shell host (`apps/nestfolio-host`) ensures this by awaiting
+ * `fetchRuntimeConfig()` BEFORE `bootstrapApplication()` in `bootstrap.ts`.
  */
-export function provideAuth(awaitConfig?: () => Promise<unknown>): EnvironmentProviders {
+export function provideAuth(): EnvironmentProviders {
   return makeEnvironmentProviders([
     {
       provide: APP_INITIALIZER,
       useFactory: () => {
-        const injector = inject(Injector);
-        return async () => {
-          if (awaitConfig) {
-            await awaitConfig();
-          }
-          const cfg = injector.get(AuthConfig);
+        const cfg = inject(AuthConfig);
+        return () => {
           Amplify.configure({
             Auth: {
               Cognito: {
