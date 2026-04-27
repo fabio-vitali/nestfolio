@@ -1,7 +1,16 @@
 const { share } = require('@angular-architects/native-federation/config');
 
-const singletonOpts = { singleton: true, strictVersion: true, requiredVersion: 'auto' };
-const singletonWithSecondaries = { ...singletonOpts, includeSecondaries: true };
+// Explicit includeSecondaries: false suppresses Native Federation's
+// transitive-package walker. Without this, share() auto-discovers
+// secondary packages (via peer deps + import graphs) of every listed
+// package and emits federated chunks for them. That's what kept
+// graphql, aws-appsync-auth-link, and aws-appsync-subscription-link
+// in the importmap even after we removed them from this list — they
+// were getting auto-shared via @apollo/client's secondary surface.
+// With secondaries off, the federation runtime resolves only the
+// packages explicitly listed below; everything else gets bundled
+// statically into its consumer chunk by esbuild's normal resolution.
+const singletonOpts = { singleton: true, strictVersion: true, requiredVersion: 'auto', includeSecondaries: false };
 
 const sharedFrontendDeps = share({
   '@angular/animations': singletonOpts,
