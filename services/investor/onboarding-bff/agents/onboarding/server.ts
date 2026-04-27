@@ -1,6 +1,10 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { CopilotRuntime } from '@copilotkit/runtime';
+import {
+  CopilotRuntime,
+  EmptyAdapter,
+  copilotRuntimeNodeHttpEndpoint,
+} from '@copilotkit/runtime';
 import { LangGraphAgent } from '@copilotkit/runtime/langgraph';
 import { buildOnboardingGraph } from './graph';
 import { OnboardingRepository } from '../../src/repositories/onboarding.repository';
@@ -71,12 +75,24 @@ export function createApp() {
     const tracer = new AgentTracer();
     const graph = buildOnboardingGraph({ repo }, { tracer });
 
-    const runtime = new CopilotRuntime();
-    const adapter = new LangGraphAgent({ graph });
+    // CopilotKit 1.54.0 removed the `runtime.process(req, adapter)` shortcut.
+    // The new shape: register agents on the runtime constructor and let
+    // `copilotRuntimeNodeHttpEndpoint` build the HTTP handler that adapts
+    // a Fetch Request → Fetch Response. EmptyAdapter is the documented
+    // service-adapter for runs where the agent (LangGraph) owns the LLM call.
+    const runtime = new CopilotRuntime({
+      agents: { onboarding: new LangGraphAgent({ graph }) as never },
+    });
+    const handler = copilotRuntimeNodeHttpEndpoint({
+      runtime,
+      serviceAdapter: new EmptyAdapter(),
+      endpoint: '/invocations',
+    });
 
     let status: 'success' | 'error' = 'success';
     try {
-      return await runtime.process(c.req.raw, adapter);
+      const response = await handler(c.req.raw);
+      return response as Response;
     } catch (err) {
       status = 'error';
       throw err;
