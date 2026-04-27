@@ -19,7 +19,7 @@ interface SummaryRow {
           </div>
         }
       </div>
-      <button class="summary-confirm" (click)="onConfirm()">Conferma</button>
+      <button class="summary-confirm" data-testid="summary-confirm" (click)="onConfirm()">Conferma</button>
     </div>
   `,
   styles: [`

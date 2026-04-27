@@ -53,4 +53,8 @@ describe('SummaryRendererComponent', () => {
 
     expect(emitted).toHaveLength(1);
   });
+
+  it('renders data-testid="summary-confirm" on the Conferma button', () => {
+    expect(fixture.nativeElement.querySelector('[data-testid="summary-confirm"]')).toBeTruthy();
+  });
 });
