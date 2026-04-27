@@ -27,7 +27,8 @@ function deriveUsername(tenant: FreshTenant): string {
 }
 
 export const test = base.extend<Fx>({
-  ctx: async (_fixtures, use) => {
+  // eslint-disable-next-line no-empty-pattern
+  ctx: async ({}, use) => {
     const ctx = await createTestContext();
     await use(ctx);
     await ctx.cleanup.runAll();
