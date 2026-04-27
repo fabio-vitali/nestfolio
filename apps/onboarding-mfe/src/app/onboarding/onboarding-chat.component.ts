@@ -226,15 +226,22 @@ export class OnboardingChatComponent implements OnInit {
     this.timedOut.set(false);
     this.errorMessage.set(null);
 
-    // Fetch fresh auth headers on every run
+    // Fetch fresh auth headers on every run.
+    //
+    // AgentCore's Custom JWT authorizer requires a Cognito ACCESS token, not
+    // the ID token. ID tokens carry `token_use: "id"` and AgentCore rejects
+    // them with `UnrecognizedClientException` (the JWT validator hands the
+    // request back to the SigV4 path, which then fails for lack of a sig).
+    // See AWS docs:
+    // https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-oauth.html
     const session = await fetchAuthSession();
-    const idToken = session.tokens?.idToken?.toString() ?? '';
+    const accessToken = session.tokens?.accessToken?.toString() ?? '';
     const tenantId = this.authStore.user()?.tenantId ?? '';
     const sessionId = this.getOrCreateSessionId();
     const agent = new HttpAgent({
       url: this.copilotApiUrl,
       headers: {
-        'Authorization': `Bearer ${idToken}`,
+        'Authorization': `Bearer ${accessToken}`,
         'x-amzn-bedrock-agentcore-runtime-session-id': `${tenantId}/${sessionId}`,
       },
     });

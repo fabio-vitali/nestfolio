@@ -15,7 +15,10 @@ import { AuthStore, COPILOT_API_URL } from '@nestfolio/shell';
 
 jest.mock('aws-amplify/auth', () => ({
   fetchAuthSession: jest.fn(async () => ({
-    tokens: { idToken: { toString: () => 'fake-id-token' } },
+    tokens: {
+      idToken: { toString: () => 'fake-id-token' },
+      accessToken: { toString: () => 'fake-access-token' },
+    },
   })),
 }));
 
@@ -234,7 +237,7 @@ describe('OnboardingChatComponent', () => {
     const call = HttpAgent.mock.calls.at(-1)[0] as { headers?: () => Promise<Record<string, string>> };
     expect(typeof call.headers).toBe('function');
     const headers = await call.headers!();
-    expect(headers['Authorization']).toBe('Bearer fake-id-token');
+    expect(headers['Authorization']).toBe('Bearer fake-access-token');
     expect(headers['x-amzn-bedrock-agentcore-runtime-session-id']).toMatch(/^tenant-xyz\/.+/);
   });
 
