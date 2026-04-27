@@ -10,6 +10,7 @@ import {
   ViewContainerRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { HttpAgent, EventType } from '@ag-ui/client';
 import { Subscription } from 'rxjs';
 import { RunAgentInput } from '@ag-ui/core';
@@ -149,6 +150,7 @@ export class OnboardingChatComponent implements OnInit {
   private readonly vcr = inject(ViewContainerRef);
   private readonly copilotApiUrl = inject(COPILOT_API_URL);
   private readonly authStore = inject(AuthStore);
+  private readonly router = inject(Router);
 
   private static readonly SESSION_KEY = 'onboarding.sessionId';
 
@@ -174,6 +176,7 @@ export class OnboardingChatComponent implements OnInit {
   private pendingToolName: string | null = null;
   private pendingToolArgs = '';
   private rendererRefs: ComponentRef<unknown>[] = [];
+  private rendererSubs: Array<{ unsubscribe(): void }> = [];
 
   private getOrCreateSessionId(): string {
     const existing = sessionStorage.getItem(OnboardingChatComponent.SESSION_KEY);
@@ -357,6 +360,27 @@ export class OnboardingChatComponent implements OnInit {
     });
   }
 
+  // ── CTA click handler ─────────────────────────────────────────────────────
+  //
+  // We call fetchAuthSession({ forceRefresh: true }) directly (no separate
+  // forceRefreshSession() call) because it both forces the Cognito token refresh
+  // AND returns the idToken payload we need to read custom:onboarding_completed_at
+  // in a single round-trip. A second forceRefreshSession() call would be redundant.
+
+  async onCtaClick(_action: string): Promise<void> {
+    try {
+      const session = await fetchAuthSession({ forceRefresh: true });
+      const onboardingCompletedAt =
+        (session.tokens?.idToken?.payload?.['custom:onboarding_completed_at'] as string) || null;
+      if (onboardingCompletedAt) {
+        this.authStore.updateUser({ onboardingCompletedAt });
+      }
+      await this.router.navigate(['/dashboard']);
+    } catch {
+      this.errorMessage.set('Errore durante il completamento. Riprova.');
+    }
+  }
+
   // ── Renderer mounting ──────────────────────────────────────────────────────
 
   private mountRenderer(
@@ -383,6 +407,15 @@ export class OnboardingChatComponent implements OnInit {
       }
     }
 
+    // Subscribe to CTA output so the final wizard step navigates to the dashboard
+    if (toolName === 'render_cta') {
+      const cta = ref.instance as CtaRendererComponent;
+      const sub = cta.clicked.subscribe((action: string) => {
+        void this.onCtaClick(action);
+      });
+      this.rendererSubs.push(sub);
+    }
+
     slot.appendChild(ref.location.nativeElement);
     this.rendererRefs.push(ref);
   }
@@ -404,5 +437,7 @@ export class OnboardingChatComponent implements OnInit {
     if (this.timeoutTimer) { clearTimeout(this.timeoutTimer); this.timeoutTimer = null; }
     this.rendererRefs.forEach((r) => r.destroy());
     this.rendererRefs = [];
+    this.rendererSubs.forEach((s) => s.unsubscribe());
+    this.rendererSubs = [];
   }
 }

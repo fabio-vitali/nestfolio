@@ -247,3 +247,114 @@ describe('OnboardingChatComponent', () => {
     expect(secondHeaders['x-amzn-bedrock-agentcore-runtime-session-id']).toBe(firstSid);
   });
 });
+
+// ── CTA renderer click → session refresh + AuthStore patch + dashboard navigate ──
+//
+// Design note: onCtaClick uses a single fetchAuthSession({ forceRefresh: true })
+// rather than calling forceRefreshSession() (which is a wrapper that also calls
+// fetchAuthSession internally) and then fetchAuthSession again. One round-trip to
+// Cognito is enough; it returns the fresh tokens AND the idToken payload we need
+// to read custom:onboarding_completed_at. forceRefreshSession() would be redundant.
+
+describe('OnboardingChatComponent — CTA renderer click', () => {
+  let fixture: ComponentFixture<OnboardingChatComponent>;
+  let component: OnboardingChatComponent;
+  let mockUpdateUser: jest.Mock;
+
+  beforeEach(async () => {
+    mockUpdateUser = jest.fn();
+    const ctaAuthStore = {
+      user: () => ({ tenantId: 'tenant-cta' }),
+      updateUser: mockUpdateUser,
+    };
+
+    // Configure fetchAuthSession to return a session with onboarding_completed_at in payload
+    const { fetchAuthSession } = require('aws-amplify/auth');
+    (fetchAuthSession as jest.Mock).mockImplementation(async (opts?: { forceRefresh?: boolean }) => {
+      if (opts?.forceRefresh) {
+        return {
+          tokens: {
+            idToken: {
+              toString: () => 'fresh-id-token',
+              payload: { 'custom:onboarding_completed_at': '2026-04-27T10:00:00.000Z' },
+            },
+            accessToken: { toString: () => 'fresh-access-token' },
+          },
+        };
+      }
+      return {
+        tokens: { idToken: { toString: () => 'fake-id-token' } },
+      };
+    });
+
+    await TestBed.configureTestingModule({
+      imports: [OnboardingChatComponent],
+      providers: [
+        provideRouter([]),
+        { provide: COPILOT_API_URL, useValue: 'https://example.cloudfront.net/api/copilotkit' },
+        { provide: AuthStore, useValue: ctaAuthStore },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(OnboardingChatComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  it('onCtaClick() force-refreshes session, patches AuthStore, and navigates to /dashboard', async () => {
+    const { fetchAuthSession } = require('aws-amplify/auth');
+    const router = TestBed.inject(require('@angular/router').Router);
+    const navigateSpy = jest.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    await component.onCtaClick('complete');
+
+    // fetchAuthSession was called with forceRefresh: true
+    expect(fetchAuthSession).toHaveBeenCalledWith({ forceRefresh: true });
+
+    // AuthStore.updateUser was called with the decoded onboardingCompletedAt
+    expect(mockUpdateUser).toHaveBeenCalledWith({
+      onboardingCompletedAt: '2026-04-27T10:00:00.000Z',
+    });
+
+    // router.navigate was called with ['/dashboard']
+    expect(navigateSpy).toHaveBeenCalledWith(['/dashboard']);
+  });
+
+  it('onCtaClick() still navigates to /dashboard even if onboarding_completed_at is absent', async () => {
+    const { fetchAuthSession } = require('aws-amplify/auth');
+    (fetchAuthSession as jest.Mock).mockImplementation(async (opts?: { forceRefresh?: boolean }) => {
+      if (opts?.forceRefresh) {
+        return {
+          tokens: {
+            idToken: { toString: () => 'fresh-token', payload: {} },
+            accessToken: { toString: () => 'access' },
+          },
+        };
+      }
+      return { tokens: { idToken: { toString: () => 'fake-id-token' } } };
+    });
+    const router = TestBed.inject(require('@angular/router').Router);
+    const navigateSpy = jest.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    await component.onCtaClick('complete');
+
+    // updateUser is NOT called when the claim is absent
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+    expect(navigateSpy).toHaveBeenCalledWith(['/dashboard']);
+  });
+
+  it('onCtaClick() sets errorMessage and does NOT navigate when fetchAuthSession rejects', async () => {
+    jest.requireMock('aws-amplify/auth').fetchAuthSession.mockRejectedValueOnce(new Error('cognito-down'));
+    const router = TestBed.inject(require('@angular/router').Router);
+    const navigateSpy = jest.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    await component.onCtaClick('complete');
+
+    expect(component.errorMessage()).toBeTruthy();
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+});
