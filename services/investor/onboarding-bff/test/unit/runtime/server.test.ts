@@ -1,18 +1,20 @@
 import { createApp } from '../../../agents/onboarding/server';
+import { EMPTY } from 'rxjs';
 
-// CopilotKit 1.54.0 removed `runtime.process(req, adapter)`. The new shape:
-// agents are registered on the runtime constructor, and the HTTP handler is
-// produced by `copilotRuntimeNodeHttpEndpoint({...})`. The handlerMock stands
-// in for that produced handler so we can count delegations + return 200.
-const handlerMock = jest.fn().mockResolvedValue(new Response('ok'));
+// We bypass CopilotRuntime entirely and call `LangGraphAgent.run(input)`
+// directly, encoding the resulting Observable as SSE. The runMock returns
+// an immediately-completing Observable so the stream resolves and the test
+// can read `res.status`. Tests can override the implementation per-spec via
+// `runMock.mockImplementationOnce(() => observable)` to drive richer paths.
+const runMock = jest.fn().mockImplementation(() => EMPTY);
 
-jest.mock('@copilotkit/runtime', () => ({
-  CopilotRuntime: jest.fn().mockImplementation(() => ({})),
-  EmptyAdapter: jest.fn().mockImplementation(() => ({})),
-  copilotRuntimeNodeHttpEndpoint: jest.fn().mockImplementation(() => handlerMock),
-}));
 jest.mock('@copilotkit/runtime/langgraph', () => ({
-  LangGraphAgent: jest.fn(),
+  LangGraphAgent: jest.fn().mockImplementation(() => ({ run: runMock })),
+}));
+jest.mock('@ag-ui/encoder', () => ({
+  EventEncoder: jest.fn().mockImplementation(() => ({
+    encodeSSE: (event: { type: string }) => `data: ${JSON.stringify(event)}\n\n`,
+  })),
 }));
 
 jest.mock('../../../agents/onboarding/graph', () => ({
@@ -32,7 +34,7 @@ jest.mock('../../../src/agent/session', () => ({
 const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
 afterEach(() => {
-  handlerMock.mockClear();
+  runMock.mockClear();
   warnSpy.mockClear();
 });
 
@@ -55,7 +57,7 @@ describe('Onboarding AgentCore runtime server', () => {
     expect(res.status).toBe(200);
   });
 
-  it('exposes POST /invocations and delegates to copilotRuntimeNodeHttpEndpoint handler', async () => {
+  it('exposes POST /invocations and invokes the LangGraph agent', async () => {
     const app = createApp();
     const res = await app.request('/invocations', {
       method: 'POST',
@@ -66,7 +68,7 @@ describe('Onboarding AgentCore runtime server', () => {
       body: JSON.stringify({ threadId: 'session-1', messages: [] }),
     });
     expect(res.status).toBe(200);
-    expect(handlerMock).toHaveBeenCalledTimes(1);
+    expect(runMock).toHaveBeenCalledTimes(1);
   });
 
   it('POST /copilotkit no longer exists (routed off in favour of /invocations)', async () => {
@@ -92,7 +94,7 @@ describe('Runtime session-id parsing', () => {
       expect.stringContaining('onboarding trace emission skipped'),
       expect.objectContaining({ hasTenantId: false, hasSessionId: false }),
     );
-    expect(handlerMock).toHaveBeenCalledTimes(1);
+    expect(runMock).toHaveBeenCalledTimes(1);
   });
 
   it('skips emission and warns when the session-id header has no "/" separator', async () => {
@@ -109,7 +111,7 @@ describe('Runtime session-id parsing', () => {
       expect.stringContaining('onboarding trace emission skipped'),
       expect.objectContaining({ hasTenantId: false, hasSessionId: false }),
     );
-    expect(handlerMock).toHaveBeenCalledTimes(1);
+    expect(runMock).toHaveBeenCalledTimes(1);
   });
 
   it('skips emission when either tenantId or sessionId half is empty', async () => {
@@ -126,7 +128,7 @@ describe('Runtime session-id parsing', () => {
       expect.stringContaining('onboarding trace emission skipped'),
       expect.objectContaining({ hasTenantId: true, hasSessionId: false }),
     );
-    expect(handlerMock).toHaveBeenCalledTimes(1);
+    expect(runMock).toHaveBeenCalledTimes(1);
   });
 
   it('skips emission when tenantId half is empty (leading slash)', async () => {
@@ -143,7 +145,7 @@ describe('Runtime session-id parsing', () => {
       expect.stringContaining('onboarding trace emission skipped'),
       expect.objectContaining({ hasTenantId: false, hasSessionId: true }),
     );
-    expect(handlerMock).toHaveBeenCalledTimes(1);
+    expect(runMock).toHaveBeenCalledTimes(1);
   });
 });
 

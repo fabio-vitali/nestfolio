@@ -1,11 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import {
-  CopilotRuntime,
-  EmptyAdapter,
-  copilotRuntimeNodeHttpEndpoint,
-} from '@copilotkit/runtime';
+import { stream } from 'hono/streaming';
 import { LangGraphAgent } from '@copilotkit/runtime/langgraph';
+import { EventEncoder } from '@ag-ui/encoder';
+import type { RunAgentInput } from '@ag-ui/client';
 import { buildOnboardingGraph } from './graph';
 import { OnboardingRepository } from '../../src/repositories/onboarding.repository';
 import { AgentTracer, EventBridgeTraceEmitter } from '@nestfolio/agent-orchestrator';
@@ -75,24 +73,44 @@ export function createApp() {
     const tracer = new AgentTracer();
     const graph = buildOnboardingGraph({ repo }, { tracer });
 
-    // CopilotKit 1.54.0 removed the `runtime.process(req, adapter)` shortcut.
-    // The new shape: register agents on the runtime constructor and let
-    // `copilotRuntimeNodeHttpEndpoint` build the HTTP handler that adapts
-    // a Fetch Request → Fetch Response. EmptyAdapter is the documented
-    // service-adapter for runs where the agent (LangGraph) owns the LLM call.
-    const runtime = new CopilotRuntime({
-      agents: { onboarding: new LangGraphAgent({ graph }) as never },
-    });
-    const handler = copilotRuntimeNodeHttpEndpoint({
-      runtime,
-      serviceAdapter: new EmptyAdapter(),
-      endpoint: '/invocations',
-    });
+    // The browser uses `@ag-ui/client.HttpAgent` which POSTs a raw
+    // `RunAgentInput` body and consumes a `text/event-stream` response of
+    // AG-UI events. CopilotKit 1.54's `copilotRuntimeNodeHttpEndpoint` is a
+    // "single-route" handler that expects a method-call envelope and rejects
+    // raw AG-UI input with `Invalid single-route payload`. So we skip the
+    // CopilotRuntime layer and invoke the LangGraph agent's own AG-UI
+    // implementation directly: parse RunAgentInput, run the graph, encode
+    // the resulting Observable as SSE.
+    const input = (await c.req.json()) as RunAgentInput;
+    const agent = new LangGraphAgent({ graph });
+    const encoder = new EventEncoder({ accept: c.req.header('accept') });
 
     let status: 'success' | 'error' = 'success';
     try {
-      const response = await handler(c.req.raw);
-      return response as Response;
+      return stream(c, async (sseStream) => {
+        sseStream.onAbort(() => {
+          // Client disconnected; the rxjs subscription closes when the
+          // stream's `write` rejects below, so no extra cleanup needed.
+        });
+        await new Promise<void>((resolve, reject) => {
+          const subscription = agent.run(input).subscribe({
+            next: (event) => {
+              void sseStream.write(encoder.encodeSSE(event));
+            },
+            error: (err) => {
+              status = 'error';
+              reject(err);
+            },
+            complete: () => resolve(),
+          });
+          sseStream.onAbort(() => subscription.unsubscribe());
+        });
+      }, async (err, sseStream) => {
+        status = 'error';
+        // eslint-disable-next-line no-console
+        console.error('onboarding agent stream error', err);
+        await sseStream.close();
+      }) as unknown as Response;
     } catch (err) {
       status = 'error';
       throw err;
