@@ -86,9 +86,14 @@ export function buildOnboardingGraph(deps: GraphDeps, opts?: { tracer?: BaseCall
   });
   graph.addEdge('safety_cap_node', '__end__');
 
-  // Each phase node loops back to router
+  // Each phase node terminates after one invocation. The graph has no tool
+  // executor and no `interrupt()` waits, so looping back to router would just
+  // re-invoke the model on a conversation history with un-resolved tool_calls
+  // — Bedrock rejects that with a content-less ValidationException. Per the
+  // AG-UI streaming model, every browser turn (POST /invocations) drives ONE
+  // phase-node pass; the next phase advance happens on the next AG-UI request.
   for (const phase of PHASE_ORDER) {
-    graph.addEdge(`${phase}_node`, 'router');
+    graph.addEdge(`${phase}_node`, '__end__');
   }
 
   const compiled = graph.compile();
