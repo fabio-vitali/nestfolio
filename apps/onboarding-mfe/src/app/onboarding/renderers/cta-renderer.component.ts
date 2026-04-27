@@ -5,7 +5,7 @@ import { Component, input, output } from '@angular/core';
   standalone: true,
   template: `
     <div class="cta-container">
-      <button class="cta-button" (click)="onClick()">{{ label() }}</button>
+      <button class="cta-button" data-testid="cta-primary" (click)="onClick()">{{ label() }}</button>
     </div>
   `,
   styles: [`

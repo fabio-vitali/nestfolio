@@ -30,4 +30,8 @@ describe('CtaRendererComponent', () => {
     button.click();
     expect(spy).toHaveBeenCalledWith('start_onboarding');
   });
+
+  it('renders data-testid="cta-primary" on the button', () => {
+    expect(fixture.nativeElement.querySelector('[data-testid="cta-primary"]')).toBeTruthy();
+  });
 });
