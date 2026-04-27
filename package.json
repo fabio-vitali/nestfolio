@@ -106,6 +106,7 @@
     "@nx/js": "22.5.4",
     "@nx/node": "22.5.4",
     "@nx/web": "22.5.4",
+    "@playwright/test": "^1.59.1",
     "@schematics/angular": "21.2.3",
     "@swc-node/register": "~1.11.1",
     "@swc/core": "~1.15.5",
