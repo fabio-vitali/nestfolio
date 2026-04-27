@@ -118,7 +118,6 @@ describe('fetchRuntimeConfig (fail-hard)', () => {
 describe('getRuntimeConfig() guard', () => {
   it('throws with bootstrap-ordering remediation when runtimeConfig is not yet populated', () => {
     jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const fresh = require('../../src/app/app.config') as typeof import('../../src/app/app.config');
       expect(() => fresh.getRuntimeConfig()).toThrow(
         /fetchRuntimeConfig\(\) must run before bootstrapApplication/,
