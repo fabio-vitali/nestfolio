@@ -1,7 +1,10 @@
 const { share } = require('@angular-architects/native-federation/config');
 
-const singletonOpts = { singleton: true, strictVersion: true, requiredVersion: 'auto' };
-const singletonWithSecondaries = { ...singletonOpts, includeSecondaries: true };
+// Default singleton: includeSecondaries enabled. Most listed packages
+// (Angular family especially) ship subpath exports their consumers
+// import as bare specifiers (e.g. @angular/common/http) — those need
+// importmap entries, which only the secondary-walker generates.
+const singletonOpts = { singleton: true, strictVersion: true, requiredVersion: 'auto', includeSecondaries: true };
 
 const sharedFrontendDeps = share({
   '@angular/animations': singletonOpts,
@@ -16,12 +19,34 @@ const sharedFrontendDeps = share({
   '@ngrx/signals': singletonOpts,
   '@ngx-translate/core': singletonOpts,
   '@ngx-translate/http-loader': singletonOpts,
-  '@primeuix/themes': singletonWithSecondaries,
+  // @primeuix/themes is intentionally NOT shared. It ships a glob `./*` export
+  // that maps any subpath (including unused virtual ones like `aura/tokens`)
+  // to ./dist/<subpath>/index.mjs. Native Federation's includeSecondaries
+  // walker doesn't enumerate glob patterns, so the runtime importmap can never
+  // contain entries for `aura/<component>` — and the aura/index.mjs module
+  // imports each component at runtime via the federation importmap. Bundling
+  // statically inside libs/ui (the only consumer of nestfolio-preset.ts)
+  // sidesteps the resolution path entirely; aura's relative `./accordion`
+  // imports get inlined by esbuild at build time. Bounded duplication: only
+  // libs/ui imports @primeuix/themes, and libs/ui is a sharedMapping.
   'aws-amplify': singletonOpts,
-  '@apollo/client': singletonOpts,
-  'aws-appsync-auth-link': singletonWithSecondaries,
-  'aws-appsync-subscription-link': singletonWithSecondaries,
-  'graphql': singletonWithSecondaries,
+  // @apollo/client, graphql, aws-appsync-auth-link, and
+  // aws-appsync-subscription-link are intentionally NOT shared. We hit a
+  // dilemma:
+  //   - With includeSecondaries: true, @apollo/client's secondary walker
+  //     drags in graphql + aws-appsync-{auth,subscription}-link as
+  //     federated chunks, and those packages have glob `./*` exports the
+  //     walker can't enumerate (failure: 'graphql/language/printer.js' —
+  //     see Plan D iter-3).
+  //   - With includeSecondaries: false on @apollo/client only, its OWN
+  //     subpaths (@apollo/client/core, /link/error etc.) drop out of the
+  //     importmap (failure: '@apollo/client/core' — see Plan D iter-5).
+  //
+  // Cleanest exit: drop the whole Apollo + GraphQL + appsync-link cluster
+  // from share() entirely. libs/shell's GraphqlService (the only consumer
+  // of these packages) bundles them statically via esbuild's normal
+  // module resolution. Bounded duplication: libs/shell is a sharedMapping
+  // (single chunk regardless of how many MFEs consume it).
   'primeicons': singletonOpts,
   'primeng': singletonOpts,
   'rxjs': singletonOpts,

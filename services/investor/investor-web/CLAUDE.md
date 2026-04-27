@@ -27,7 +27,7 @@ None (frontend hosting + auth infrastructure)
 
 ### CloudFront Distribution
 - Default behavior: S3Origin via OAI → shell SPA; HTTPS redirect; SPA routing (404 → /index.html 200)
-- ResponseHeadersPolicy: CSP (single-sourced — see CSP section below), X-Frame-Options DENY, HSTS 2 yr + includeSubdomains, X-Content-Type-Options, Referrer-Policy strict-origin-when-cross-origin
+- ResponseHeadersPolicy: X-Frame-Options DENY, HSTS 2 yr + includeSubdomains, X-Content-Type-Options, Referrer-Policy strict-origin-when-cross-origin
 - `/api/copilotkit*` behavior: HttpOrigin → `bedrock-agentcore.us-east-1.amazonaws.com`; viewer-request CopilotRewriteFn; custom CachePolicy (Authorization in cache key, maxTtl=1s); custom OriginRequestPolicy (Content-Type + x-amzn-bedrock-agentcore-runtime-session-id); CORS ResponseHeadersPolicy
 - MFE behaviors (13 total, gated by `mfeBehaviors=true` context flag — see section below)
 
@@ -99,14 +99,6 @@ Synchronous 5s timeout; must return to Cognito to complete auth flow. 3-tier ing
   (exported by each BFF's `Facade` construct). Host extracted via `Fn.select(2, Fn.split('/', url))`.
 - `/nestfolio/<prefix>-<service>/api/realtimeUrl` × 4 facade-bearing BFFs — consumed when `mfeBehaviors=true`
   (exported by each BFF's `Facade` construct). Host extracted via `Fn.select(2, Fn.split('/', url))`.
-
-## CSP
-
-- **Source of truth**: `apps/nestfolio-host/csp.txt`
-- Read at synth time via `readFileSync`; applied to CloudFront via `ResponseHeadersPolicy.contentSecurityPolicy`
-- `synth` Nx target lists `apps/nestfolio-host/csp.txt` in `inputs` for affected tracking
-- Inline script hash `NxFByHVehWCRp13zII+PkyEbL0FVXOumU3tgjZaLf9U=` covers the federation runtime
-  esms-options block
 
 ## CloudFront Functions
 

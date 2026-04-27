@@ -308,13 +308,51 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
     fi
   fi
 
-  # Phase 4b: Upload shell bundle to investor-web's S3 bucket. Runs after
+  # Phase 4b: Upload all 5 MFE bundles to their per-BFF S3 buckets, in
+  # parallel. Each MFE was built by its own deploy-mfe Nx target chain.
+  # Runs AFTER Phase 4a (so per-BFF MFE bucket names are in SSM) and
+  # BEFORE Phase 4c (so the shell, when it serves the prod federation
+  # manifest, references already-populated buckets).
+  #
+  # Filter: deploy-mfes.sh always runs all 5; the --services filter can
+  # only opt the whole batch in or out, since "investor-mfe" is the
+  # convention for the *app*, not the bff service. If the user passed
+  # --services without any *-mfe app, skip the batch.
+  RUN_MFES="false"
+  for k in investor advisory ledger dashboard onboarding; do
+    if is_service_included "${k}-mfe"; then
+      RUN_MFES="true"
+      break
+    fi
+  done
+  # If --services was NOT passed at all, also run the batch by default
+  # (matches the pre-existing convention for investor-web's deploy-shell
+  # which runs unless --services excludes investor-web).
+  if [ "$SERVICES_FLAG_PROVIDED" = "false" ]; then RUN_MFES="true"; fi
+  if [ "$RUN_MFES" = "true" ]; then
+    echo ""
+    echo "Phase 4b (MFE bundle uploads):"
+    if [ "$DRY_RUN" = "true" ]; then
+      echo "  [DRY RUN] Would run: bash infrastructure/scripts/deploy-mfes.sh $PREFIX${TARGET_REGION:+ $TARGET_REGION}"
+    else
+      bash infrastructure/scripts/deploy-mfes.sh "$PREFIX" "${TARGET_REGION:-}" || {
+        echo "ERROR: One or more MFE uploads failed. Tier: $TIER, Prefix: $PREFIX." >&2
+        exit 1
+      }
+    fi
+  fi
+
+  # Phase 4c: Upload shell bundle to investor-web's S3 bucket. Runs after
   # investor-web is in its final state (Phase 2 steady-state OR Phase 4a
-  # cold-start re-deploy). Reads bucket name + distribution ID from SSM
-  # (web/shellBucketName, web/distributionId).
+  # cold-start re-deploy) AND after Phase 4b (MFE buckets populated, so
+  # the shell's rewritten federation manifest references live origins).
+  # Reads bucket name + distribution ID from SSM (web/shellBucketName,
+  # web/distributionId). The deploy-shell Nx target also rewrites the
+  # dev federation.manifest.json into a prod manifest in dist before
+  # the s3 sync.
   if is_service_included "investor-web"; then
     echo ""
-    echo "Phase 4b (shell upload):"
+    echo "Phase 4c (shell upload):"
     # Scope CDK_DEFAULT_REGION to the nx subprocess only — `export` would
     # leak into subsequent iterations of the per-target loop.
     REGION_ENV=""

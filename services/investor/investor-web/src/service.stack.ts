@@ -26,12 +26,15 @@ import { MFE_CATALOG, MfeCatalogEntry } from './mfe-catalog';
  *
  * `/mfe/<key>/*` → that BFF's S3 bucket (SSM-discovered). The bucket policy
  * already grants CloudFront OAC access (provisioned by the BFF stack).
+ * Viewer-request rewrite strips the `/mfe/<key>` prefix so S3 sees the
+ * actual object key (`/remoteEntry.json` etc.) rather than `/mfe/<key>/...`.
  */
 function addMfeBucketBehavior(
   scope: Construct,
   distribution: Distribution,
   prefix: string,
   entry: MfeCatalogEntry,
+  rewriteFn: CfFunction,
 ): void {
   const bucketName = StringParameter.valueForStringParameter(
     scope, `/nestfolio/${prefix}-${entry.service}/mfe/bucketName`,
@@ -42,6 +45,7 @@ function addMfeBucketBehavior(
     viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
     allowedMethods: AllowedMethods.ALLOW_GET_HEAD,
     cachePolicy: CachePolicy.CACHING_OPTIMIZED,
+    functionAssociations: [{ function: rewriteFn, eventType: FunctionEventType.VIEWER_REQUEST }],
   });
 }
 
@@ -197,18 +201,8 @@ export class InvestorWebStack extends ServiceStack {
     });
 
     // Security response headers policy
-    // CSP is single-sourced from apps/nestfolio-host/csp.txt.
-    const cspContent = readFileSync(
-      join(__dirname, '../../../../apps/nestfolio-host/csp.txt'),
-      'utf-8',
-    ).trim();
-
     const securityHeaders = new ResponseHeadersPolicy(this, 'SecurityHeaders', {
       securityHeadersBehavior: {
-        contentSecurityPolicy: {
-          contentSecurityPolicy: cspContent,
-          override: true,
-        },
         frameOptions: { frameOption: HeadersFrameOption.DENY, override: true },
         contentTypeOptions: { override: true },
         strictTransportSecurity: {
@@ -322,8 +316,16 @@ export class InvestorWebStack extends ServiceStack {
         comment: 'Rewrites /realtime/<domain> and /graphql/<domain> to /graphql',
       });
 
+      const mfeBucketRewriteFn = new CfFunction(this, 'MfeBucketRewriteFn', {
+        functionName: `${this.prefix}-investor-web-mfe-bucket-rewrite`,
+        code: FunctionCode.fromInline(
+          readFileSync(join(__dirname, 'cf-functions', 'mfe-bucket-rewrite.js'), 'utf-8'),
+        ),
+        comment: 'Strips /mfe/<key> prefix so S3 sees the actual object key',
+      });
+
       for (const entry of MFE_CATALOG) {
-        addMfeBucketBehavior(this, distribution, this.prefix, entry);
+        addMfeBucketBehavior(this, distribution, this.prefix, entry, mfeBucketRewriteFn);
         if (entry.hasFacade) {
           addGraphqlBehavior(this, distribution, this.prefix, entry, realtimeRewriteFn);
           addRealtimeBehavior(this, distribution, this.prefix, entry, realtimeRewriteFn);

@@ -15,8 +15,6 @@
 //   - libs/shell/**, libs/frontend-deps/**, libs/ui/** (same extensions)
 // Excluded path fragments:
 //   - node_modules, dist, cdk.out, .worktrees, .nx, coverage
-// Excluded files:
-//   - csp.txt (intentionally lists the Cognito host as a charter exception)
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
@@ -30,11 +28,8 @@ const SCOPED_DIRS = [
   'libs/frontend-deps',
   'libs/ui',
 ];
-// csp.txt intentionally lists the Cognito connect-src allowlist — charter-approved exception.
-// apps/nestfolio-host/src/index.html is a generated artifact (emitted by prepare-index from
-// index.html.tmpl + csp.txt) that also carries the same Cognito allowlist.
-const EXCLUDED_BASENAMES = new Set(['csp.txt']);
-const EXCLUDED_REL_PATHS = new Set(['apps/nestfolio-host/src/index.html']);
+const EXCLUDED_BASENAMES = new Set();
+const EXCLUDED_REL_PATHS = new Set();
 
 function parseArgs(argv) {
   let root = process.cwd();

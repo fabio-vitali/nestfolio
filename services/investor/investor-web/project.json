@@ -33,8 +33,7 @@
       "cache": true,
       "inputs": [
         "default",
-        "^production",
-        "{workspaceRoot}/apps/nestfolio-host/csp.txt"
+        "^production"
       ],
       "outputs": ["{projectRoot}/cdk.out"],
       "options": {
