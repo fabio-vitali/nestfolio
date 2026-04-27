@@ -96,7 +96,11 @@ const TIMEOUT_MS = 15_000;
           <div class="chat-bubble" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
             @if (msg.role === 'assistant' && msg.toolName) {
               <!-- Renderer slot — filled dynamically by ViewContainerRef -->
-              <div [attr.data-tool-slot]="msg.id" class="renderer-slot"></div>
+              <div
+                [attr.data-tool-slot]="msg.id"
+                [attr.data-testid]="'renderer-' + msg.toolName"
+                class="renderer-slot"
+              ></div>
             } @else {
               <p class="bubble-text">{{ msg.content }}</p>
             }
