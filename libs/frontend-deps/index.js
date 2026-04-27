@@ -6,14 +6,6 @@ const { share } = require('@angular-architects/native-federation/config');
 // importmap entries, which only the secondary-walker generates.
 const singletonOpts = { singleton: true, strictVersion: true, requiredVersion: 'auto', includeSecondaries: true };
 
-// Variant that suppresses the walker. Use for packages whose secondary
-// surface pulls in problematic transitive packages (e.g. @apollo/client
-// drags graphql + aws-appsync-{auth,subscription}-link into the share
-// surface, and those packages have glob `./*` exports that the walker
-// can't enumerate, leading to runtime "Unable to resolve specifier"
-// errors for subpaths like graphql/language/printer.js).
-const singletonNoSecondaries = { ...singletonOpts, includeSecondaries: false };
-
 const sharedFrontendDeps = share({
   '@angular/animations': singletonOpts,
   '@angular/cdk': singletonOpts,
@@ -38,18 +30,23 @@ const sharedFrontendDeps = share({
   // imports get inlined by esbuild at build time. Bounded duplication: only
   // libs/ui imports @primeuix/themes, and libs/ui is a sharedMapping.
   'aws-amplify': singletonOpts,
-  // @apollo/client uses singletonNoSecondaries because its secondary surface
-  // (peer deps + transitive imports) drags in graphql + aws-appsync-{auth,
-  // subscription}-link, all of which have glob exports that the walker
-  // can't enumerate (see graphql/language/printer.js failure mode).
-  // libs/shell's GraphqlService is the primary consumer; it bundles
-  // @apollo/client's transitive imports statically via esbuild.
-  '@apollo/client': singletonNoSecondaries,
-  // graphql, aws-appsync-auth-link, and aws-appsync-subscription-link are
-  // intentionally NOT shared. Same root cause as @primeuix/themes (above).
-  // Each consumer (primarily libs/shell's GraphqlService) bundles them
-  // statically via esbuild's normal module resolution. Bounded duplication:
-  // libs/shell is a sharedMapping (single chunk).
+  // @apollo/client, graphql, aws-appsync-auth-link, and
+  // aws-appsync-subscription-link are intentionally NOT shared. We hit a
+  // dilemma:
+  //   - With includeSecondaries: true, @apollo/client's secondary walker
+  //     drags in graphql + aws-appsync-{auth,subscription}-link as
+  //     federated chunks, and those packages have glob `./*` exports the
+  //     walker can't enumerate (failure: 'graphql/language/printer.js' —
+  //     see Plan D iter-3).
+  //   - With includeSecondaries: false on @apollo/client only, its OWN
+  //     subpaths (@apollo/client/core, /link/error etc.) drop out of the
+  //     importmap (failure: '@apollo/client/core' — see Plan D iter-5).
+  //
+  // Cleanest exit: drop the whole Apollo + GraphQL + appsync-link cluster
+  // from share() entirely. libs/shell's GraphqlService (the only consumer
+  // of these packages) bundles them statically via esbuild's normal
+  // module resolution. Bounded duplication: libs/shell is a sharedMapping
+  // (single chunk regardless of how many MFEs consume it).
   'primeicons': singletonOpts,
   'primeng': singletonOpts,
   'rxjs': singletonOpts,
