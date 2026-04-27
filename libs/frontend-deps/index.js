@@ -28,9 +28,14 @@ const sharedFrontendDeps = share({
   // libs/ui imports @primeuix/themes, and libs/ui is a sharedMapping.
   'aws-amplify': singletonOpts,
   '@apollo/client': singletonOpts,
-  'aws-appsync-auth-link': singletonWithSecondaries,
-  'aws-appsync-subscription-link': singletonWithSecondaries,
-  'graphql': singletonWithSecondaries,
+  // graphql, aws-appsync-auth-link, and aws-appsync-subscription-link are
+  // intentionally NOT shared. Same root cause as @primeuix/themes (above):
+  // their federated chunks bare-specifier-import internal subpaths
+  // (e.g. graphql/language/printer.js) which Native Federation's
+  // includeSecondaries walker doesn't enumerate. Each consumer (primarily
+  // libs/shell's GraphqlService) bundles them statically via esbuild's
+  // normal module resolution, sidestepping the runtime importmap. Bounded
+  // duplication: libs/shell is a sharedMapping (single chunk).
   'primeicons': singletonOpts,
   'primeng': singletonOpts,
   'rxjs': singletonOpts,
