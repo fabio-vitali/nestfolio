@@ -123,6 +123,22 @@ describe('OnboardingAgent', () => {
     expect(runError.message).toBe('graph blew up');
   });
 
+  it('synthesises a kickoff HumanMessage when input.messages is empty', async () => {
+    let receivedInitial: any;
+    const graph = {
+      streamEvents: async function* (input: unknown, _options: unknown) {
+        receivedInitial = input;
+        yield { event: 'on_chat_model_end' };
+      },
+    };
+    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId });
+    await lastValueFrom(agent.run({ ...baseInput, messages: [] }).pipe(toArray()));
+    expect(receivedInitial.messages).toHaveLength(1);
+    const msg = receivedInitial.messages[0];
+    // Verify content is non-empty so Bedrock Converse doesn't reject it.
+    expect(typeof msg.content === 'string' ? msg.content.length : 1).toBeGreaterThan(0);
+  });
+
   it('first emitted event is RUN_STARTED with input threadId and runId', async () => {
     const graph = fakeGraph([{ event: 'on_chat_model_end' }]);
     const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId });
