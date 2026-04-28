@@ -7,7 +7,10 @@ import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfo
 import { PortfolioEngineEventTypes } from './domain/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { SecEdgarAdptEventTypes } from '@nestfolio/sec-edgar-adpt/events';
-import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
+import {
+  AgentRuntime, KnowledgeBase,
+  BedrockUsageAlarms, importCostAlertTopic,
+} from '@nestfolio/cdk-constructs/extensions';
 import { agentProps, defaultLambdaProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 
 export class PortfolioEngineCtrlStack extends ServiceStack {
@@ -141,6 +144,16 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       extraLambdas: [kbIngestionFn],
       monitorBedrock: true,
       bedrockModelIds: [modelOpusId, modelSonnetId],
+    });
+
+    // Per-service Bedrock usage alarms (P1 — 2026-04-28 cost safeguards).
+    new BedrockUsageAlarms(this, 'BedrockAlarms', {
+      serviceName: 'portfolio-engine-ctrl',
+      modelIds: [modelOpusId, modelSonnetId],
+      alertTopic: importCostAlertTopic(
+        this, 'CostAlertTopic',
+        `/nestfolio/${props.prefix}-investor/cost-controls/alertTopicArn`,
+      ),
     });
   }
 }

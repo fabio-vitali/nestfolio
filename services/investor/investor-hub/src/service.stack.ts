@@ -43,11 +43,18 @@ export class InvestorHubStack extends ServiceStack {
       });
     }
 
-    // Cost controls (deployed in Phase 1 as part of investor-hub)
+    // Cost controls (deployed in Phase 1 as part of investor-hub).
+    // dailyBudgetUsd + spikeRatio added 2026-04-28 after the 2026-04-21
+    // $55.80 spike that sat below the old monthly-only thresholds.
+    // alertTopicSsmExportPath lets per-service BedrockUsageAlarms reuse
+    // the same SNS topic without cross-stack CFN refs.
     const alertEmail = this.node.tryGetContext('alertEmail') ?? 'alerts@nestfolio.dev';
     new CostControls(this, 'CostControls', {
       alertEmail,
       monthlyBudgetUsd: 200,
+      dailyBudgetUsd: 30,
+      spikeRatio: 0.075,
+      alertTopicSsmExportPath: this.naming.ssmParameterPath('cost-controls/alertTopicArn'),
     });
 
     if (this.observability) {

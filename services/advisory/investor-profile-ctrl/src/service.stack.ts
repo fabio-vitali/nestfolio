@@ -7,7 +7,10 @@ import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfo
 import { InvestorProfileEventTypes } from './domain/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
-import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
+import {
+  AgentRuntime, KnowledgeBase,
+  BedrockUsageAlarms, importCostAlertTopic,
+} from '@nestfolio/cdk-constructs/extensions';
 import { agentProps, defaultLambdaProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 
 export class InvestorProfileCtrlStack extends ServiceStack {
@@ -141,6 +144,16 @@ export class InvestorProfileCtrlStack extends ServiceStack {
       extraLambdas: [kbIngestionFn],
       monitorBedrock: true,
       bedrockModelIds: [modelOpusId, modelHaikuId],
+    });
+
+    // Per-service Bedrock usage alarms (P1 — 2026-04-28 cost safeguards).
+    new BedrockUsageAlarms(this, 'BedrockAlarms', {
+      serviceName: 'investor-profile-ctrl',
+      modelIds: [modelOpusId, modelHaikuId],
+      alertTopic: importCostAlertTopic(
+        this, 'CostAlertTopic',
+        `/nestfolio/${props.prefix}-investor/cost-controls/alertTopicArn`,
+      ),
     });
   }
 }

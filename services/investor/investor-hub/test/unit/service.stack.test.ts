@@ -39,11 +39,35 @@ describe('InvestorHubStack', () => {
     template.resourceCountIs('AWS::SQS::Queue', 0);
   });
 
-  it('includes CostControls construct', () => {
+  it('includes the monthly $200 budget from CostControls', () => {
     template.hasResourceProperties('AWS::Budgets::Budget', {
-      Budget: {
+      Budget: Match.objectLike({
+        BudgetName: 'nestfolio-monthly',
         BudgetLimit: { Amount: 200, Unit: 'USD' },
-      },
+      }),
+    });
+  });
+
+  it('includes the daily $30 budget (P1 — 2026-04-28 cost safeguards)', () => {
+    template.hasResourceProperties('AWS::Budgets::Budget', {
+      Budget: Match.objectLike({
+        BudgetName: 'nestfolio-daily',
+        TimeUnit: 'DAILY',
+        BudgetLimit: { Amount: 30, Unit: 'USD' },
+      }),
+    });
+  });
+
+  it('uses the tightened spike-alarm threshold of $15 / 6h (0.075 of $200)', () => {
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'nestfolio-billing-spike',
+      Threshold: 15,
+    });
+  });
+
+  it('exports the cost-alert SNS topic ARN to SSM for per-service BedrockUsageAlarms', () => {
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/nestfolio/test-investor/cost-controls/alertTopicArn',
     });
   });
 

@@ -5,7 +5,9 @@ import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { AdvisoryCtrlEventTypes } from './domain/events';
-import { AgentRuntime } from '@nestfolio/cdk-constructs/extensions';
+import {
+  AgentRuntime, BedrockUsageAlarms, importCostAlertTopic,
+} from '@nestfolio/cdk-constructs/extensions';
 import { AdvisoryIngestEventTypes, AdvisoryCrossDomainEventTypes } from '@nestfolio/advisory-adpt/domain';
 import { AdvisoryBffEventTypes } from '@nestfolio/advisory-bff/events';
 import { defaultLambdaProps, createNamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
@@ -196,6 +198,16 @@ export class AdvisoryCtrlStack extends ServiceStack {
       extraLambdas: [portfolioLookupFn, marketDataFn, instrumentUniverseFn, eventPublisherFn],
       monitorBedrock: true,
       bedrockModelIds: [modelOpusId, modelSonnetId, modelHaikuId],
+    });
+
+    // Per-service Bedrock usage alarms (P1 — 2026-04-28 cost safeguards).
+    new BedrockUsageAlarms(this, 'BedrockAlarms', {
+      serviceName: 'advisory-ctrl',
+      modelIds: [modelOpusId, modelSonnetId, modelHaikuId],
+      alertTopic: importCostAlertTopic(
+        this, 'CostAlertTopic',
+        `/nestfolio/${props.prefix}-investor/cost-controls/alertTopicArn`,
+      ),
     });
   }
 }

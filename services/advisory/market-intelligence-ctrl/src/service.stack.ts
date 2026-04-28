@@ -11,7 +11,10 @@ import { MarketwatchAdptEventTypes } from '@nestfolio/marketwatch-adpt/events';
 import { SecEdgarAdptEventTypes } from '@nestfolio/sec-edgar-adpt/events';
 import { FredAdptEventTypes } from '@nestfolio/fred-adpt/events';
 import { AlphaVantageAdptEventTypes } from '@nestfolio/alpha-vantage-adpt/events';
-import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
+import {
+  AgentRuntime, KnowledgeBase,
+  BedrockUsageAlarms, importCostAlertTopic,
+} from '@nestfolio/cdk-constructs/extensions';
 import { agentProps, defaultLambdaProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 
 export class MarketIntelligenceCtrlStack extends ServiceStack {
@@ -145,6 +148,16 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
       extraLambdas: [kbIngestionFn],
       monitorBedrock: true,
       bedrockModelIds: [modelSonnetId],
+    });
+
+    // Per-service Bedrock usage alarms (P1 — 2026-04-28 cost safeguards).
+    new BedrockUsageAlarms(this, 'BedrockAlarms', {
+      serviceName: 'market-intelligence-ctrl',
+      modelIds: [modelSonnetId],
+      alertTopic: importCostAlertTopic(
+        this, 'CostAlertTopic',
+        `/nestfolio/${props.prefix}-investor/cost-controls/alertTopicArn`,
+      ),
     });
   }
 }

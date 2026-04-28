@@ -7,7 +7,10 @@ import { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import { ServiceStack, ServiceStackProps, State, Egress } from '@nestfolio/cdk-constructs/core';
 import { ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED } from './domain/events';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
-import { AgentRuntime, KnowledgeBase, MfeBucket } from '@nestfolio/cdk-constructs/extensions';
+import {
+  AgentRuntime, KnowledgeBase, MfeBucket,
+  BedrockUsageAlarms, importCostAlertTopic,
+} from '@nestfolio/cdk-constructs/extensions';
 
 export class OnboardingBffStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -100,6 +103,22 @@ export class OnboardingBffStack extends ServiceStack {
     new StringParameter(this, 'AgentRuntimeUrlParam', {
       parameterName: `/nestfolio/${props.prefix}-onboarding-bff/agent/runtimeUrl`,
       stringValue: agentRuntime.runtime.agentRuntimeArn,
+    });
+
+    // Per-service Bedrock usage alarms (P1 — 2026-04-28 cost safeguards).
+    // Reuses CostControls' SNS topic via SSM lookup (path published by
+    // investor-hub stack). Onboarding agent invokes Sonnet (or Haiku
+    // under AGENT_MODEL_OVERRIDE) — alarm both candidate models.
+    const haikuModelId = StringParameter.valueForStringParameter(
+      this, advisoryHubNaming.ssmParameterPath('models/haiku'),
+    );
+    new BedrockUsageAlarms(this, 'BedrockAlarms', {
+      serviceName: 'onboarding-bff',
+      modelIds: [sonnetModelId, haikuModelId],
+      alertTopic: importCostAlertTopic(
+        this, 'CostAlertTopic',
+        `/nestfolio/${props.prefix}-investor/cost-controls/alertTopicArn`,
+      ),
     });
   }
 }
