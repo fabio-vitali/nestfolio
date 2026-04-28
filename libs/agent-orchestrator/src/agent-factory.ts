@@ -1,25 +1,52 @@
 import { ChatBedrockConverse } from '@langchain/aws';
 import type { z } from 'zod';
-import type { AgentConfig } from './types';
+import type { AgentConfig, ModelTier } from './types';
 import type { AgentNodeFn } from './with-validation';
 
 // US cross-region inference profile IDs. Must match advisory-hub's SSM
 // parameter values: these Claude 4 models require an inference profile (not a
 // base model ID) for on-demand invocation in us-east-1. Using the bare base
 // IDs yields a Bedrock ValidationException.
-const MODEL_ID_MAP: Record<string, string> = {
+const MODEL_ID_MAP: Record<ModelTier, string> = {
   haiku: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
   sonnet: 'us.anthropic.claude-sonnet-4-6',
   opus: 'us.anthropic.claude-opus-4-6-v1',
 };
+
+const TIER_ORDER: readonly ModelTier[] = ['haiku', 'sonnet', 'opus'];
+
+function detectTier(modelId: string): ModelTier | null {
+  if (modelId.includes('haiku')) return 'haiku';
+  if (modelId.includes('sonnet')) return 'sonnet';
+  if (modelId.includes('opus')) return 'opus';
+  return null;
+}
+
+// Temporary cost-cap downgrade. Driven by AGENT_MODEL_OVERRIDE env var, set
+// per deploy via `cdk deploy --context agentModelOverride=haiku`. Two rules:
+//   (a) Opus sites are EXEMPT — they were chosen deliberately for
+//       structured-output reliability against their Zod schemas.
+//   (b) Override never RAISES a tier. Escalation logic via __escalationTier
+//       remains the only mechanism that bumps quality up.
+function applyOverride(modelId: string): string {
+  const target = process.env['AGENT_MODEL_OVERRIDE'] as ModelTier | undefined;
+  if (!target || !TIER_ORDER.includes(target)) return modelId;
+  const currentTier = detectTier(modelId);
+  if (!currentTier) return modelId;
+  if (currentTier === 'opus') return modelId;
+  const targetIdx = TIER_ORDER.indexOf(target);
+  const currentIdx = TIER_ORDER.indexOf(currentTier);
+  if (targetIdx >= currentIdx) return modelId;
+  return MODEL_ID_MAP[target];
+}
 
 export function createAgentNode<T extends z.ZodType>(config: AgentConfig<T>): AgentNodeFn {
   const { modelId, maxTokens, temperature, schema, promptTemplate } = config;
 
   return async (state, runnableConfig) => {
     const effectiveModelId = state.__escalationTier
-      ? MODEL_ID_MAP[state.__escalationTier as string] ?? modelId
-      : modelId;
+      ? MODEL_ID_MAP[state.__escalationTier as ModelTier] ?? modelId
+      : applyOverride(modelId);
 
     const llm = new ChatBedrockConverse({
       model: effectiveModelId,

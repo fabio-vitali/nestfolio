@@ -39,6 +39,15 @@ describe('invokeOrchestrator', () => {
     );
   });
 
+  it('caps LangGraph recursion at 10 to prevent runaway cost (P0 addendum)', async () => {
+    (mockGraph.invoke as jest.Mock).mockResolvedValue({});
+    await invokeOrchestrator(mockGraph, { input: 'hello' });
+    expect(mockGraph.invoke).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ recursionLimit: 10 }),
+    );
+  });
+
   it('returns ServiceUnavailableResponse on graph failure', async () => {
     (mockGraph.invoke as jest.Mock).mockRejectedValue(new Error('graph exploded'));
     const result = await invokeOrchestrator(mockGraph, { input: 'test' });
