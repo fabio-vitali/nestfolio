@@ -1,5 +1,5 @@
 import { Construct } from 'constructs';
-import { Duration } from 'aws-cdk-lib';
+import { Duration, Token } from 'aws-cdk-lib';
 import { Alarm, ComparisonOperator, Metric, TreatMissingData } from 'aws-cdk-lib/aws-cloudwatch';
 import { SnsAction } from 'aws-cdk-lib/aws-cloudwatch-actions';
 import { ITopic, Topic } from 'aws-cdk-lib/aws-sns';
@@ -67,11 +67,13 @@ export class BedrockUsageAlarms extends Construct {
 
     props.modelIds.forEach((modelId, idx) => {
       // Per-model alarms — runaway on any candidate model is caught.
-      // Use a stable id-suffix derived from the array index so a future
-      // re-order does not silently rename existing CloudWatch alarms.
+      // Suffix prefers a friendly tier slug (`-haiku`/`-sonnet`/`-opus`)
+      // when the literal model id is known at synth time. When the id
+      // arrives as a CloudFormation token (e.g. `valueForStringParameter`
+      // from SSM), the slug match fails — fall back to the array index.
       const suffix = props.modelIds.length === 1
         ? ''
-        : `-${slugifyModelId(modelId)}`;
+        : `-${Token.isUnresolved(modelId) ? idx : slugifyModelId(modelId)}`;
 
       new Alarm(this, `InvocationsAlarm${idx}`, {
         alarmName: `${props.serviceName}-bedrock-invocations${suffix}`,
