@@ -17,10 +17,23 @@ interface GraphDeps {
   repo: OnboardingRepository;
 }
 
+const ONBOARDING_OVERRIDE_MAP: Record<string, string> = {
+  haiku: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+  sonnet: 'us.anthropic.claude-sonnet-4-6',
+  opus: 'us.anthropic.claude-opus-4-6-v1',
+};
+
+const ONBOARDING_RECURSION_LIMIT = 10;
+const ONBOARDING_MAX_TOKENS = 2048;
+
 export function buildOnboardingGraph(deps: GraphDeps, opts?: { tracer?: BaseCallbackHandler }) {
+  const overrideTier = process.env['AGENT_MODEL_OVERRIDE'];
+  const overrideId = overrideTier ? ONBOARDING_OVERRIDE_MAP[overrideTier] : undefined;
   const model = new ChatBedrockConverse({
-    model: deps.modelId ?? 'anthropic.claude-sonnet-4-20250514',
+    model: overrideId ?? deps.modelId ?? 'us.anthropic.claude-sonnet-4-6',
     region: deps.region ?? 'us-east-1',
+    maxTokens: ONBOARDING_MAX_TOKENS,
+    temperature: 0,
   });
 
   const commitPhaseTool = createCommitPhaseTool(deps.repo);
@@ -88,5 +101,8 @@ export function buildOnboardingGraph(deps: GraphDeps, opts?: { tracer?: BaseCall
   }
 
   const compiled = graph.compile();
-  return opts?.tracer ? compiled.withConfig({ callbacks: [opts.tracer] }) : compiled;
+  const baseConfig = { recursionLimit: ONBOARDING_RECURSION_LIMIT };
+  return opts?.tracer
+    ? compiled.withConfig({ ...baseConfig, callbacks: [opts.tracer] })
+    : compiled.withConfig(baseConfig);
 }

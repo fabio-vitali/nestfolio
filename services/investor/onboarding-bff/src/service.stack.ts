@@ -64,7 +64,10 @@ export class OnboardingBffStack extends ServiceStack {
       this, 'InvestorUserPoolClient', userPoolClientId,
     );
 
-    // AgentRuntime — uses own table
+    // AgentRuntime — uses own table.
+    // idleTimeout/maxLifetime tightened from defaults (15min/4h) after the
+    // 2026-04-21 cost spike. Onboarding is short-session Q&A; nothing legitimate
+    // keeps a microVM warm beyond a few minutes idle or beyond a single hour.
     const agentRuntime = new AgentRuntime(this, 'OnboardingAgent', {
       runtimeName: 'onboarding_agent',
       agentCodePath: path.join(__dirname, '..', 'agents', 'onboarding'),
@@ -73,6 +76,8 @@ export class OnboardingBffStack extends ServiceStack {
       state,
       userPool: investorUserPool,
       userPoolClients: [investorUserPoolClient],
+      idleTimeout: Duration.minutes(5),
+      maxLifetime: Duration.hours(1),
       toolTargets: [{
         name: 'search_knowledge_base',
         description: 'Search Nestfolio documentation to answer user questions',
