@@ -2,7 +2,7 @@
 # deploy.sh — Phase-ordered deployment driven by resolve-all-configs.ts
 set -euo pipefail
 
-TIER=${1:?Usage: deploy.sh <tier> [--prefix=<custom>] [--services=svc1,svc2,...] [--dry-run]}
+TIER=${1:?Usage: deploy.sh <tier> [--prefix=<custom>] [--services=svc1,svc2,...] [--context KEY=VALUE]... [--dry-run]}
 
 # Validate tier
 case "$TIER" in
@@ -19,15 +19,28 @@ PREFIX=""
 SERVICES_FILTER=""
 SERVICES_FLAG_PROVIDED="false"
 DRY_RUN="false"
+EXTRA_CONTEXT=()  # Collected -c KEY=VALUE pairs to forward to every cdk deploy
 shift
+EXPECT_CONTEXT_VALUE="false"
 for arg in "$@"; do
+  if [ "$EXPECT_CONTEXT_VALUE" = "true" ]; then
+    EXTRA_CONTEXT+=("-c" "$arg")
+    EXPECT_CONTEXT_VALUE="false"
+    continue
+  fi
   case "$arg" in
     --prefix=*) PREFIX="${arg#--prefix=}" ;;
     --services=*) SERVICES_FILTER="${arg#--services=}"; SERVICES_FLAG_PROVIDED="true" ;;
+    --context=*) EXTRA_CONTEXT+=("-c" "${arg#--context=}") ;;
+    --context) EXPECT_CONTEXT_VALUE="true" ;;
     --dry-run) DRY_RUN="true" ;;
     *) echo "Unknown flag: $arg" >&2; exit 1 ;;
   esac
 done
+if [ "$EXPECT_CONTEXT_VALUE" = "true" ]; then
+  echo "ERROR: --context requires a KEY=VALUE argument." >&2
+  exit 1
+fi
 
 # Default prefix from tier
 if [ -z "$PREFIX" ]; then
@@ -177,6 +190,9 @@ else
   echo "Service filter: (all)"
 fi
 if [ "$DRY_RUN" = "true" ]; then echo "Mode: DRY RUN"; fi
+if [ "${#EXTRA_CONTEXT[@]}" -gt 0 ]; then
+  echo "Extra CDK context: ${EXTRA_CONTEXT[*]}"
+fi
 
 # Collect hub configs for Phase 4
 HUB_CONFIGS="[]"
@@ -247,9 +263,9 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
       if is_service_included "$SVC"; then
         if [ "$PHASE" = "2" ] && [ "$SVC" = "investor-web" ]; then
           deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" \
-            -c mfeBehaviors="$MFE_BEHAVIORS_PHASE2"
+            -c mfeBehaviors="$MFE_BEHAVIORS_PHASE2" ${EXTRA_CONTEXT[@]+"${EXTRA_CONTEXT[@]}"}
         else
-          deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg"
+          deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" ${EXTRA_CONTEXT[@]+"${EXTRA_CONTEXT[@]}"}
         fi
       fi
     done < <(echo "$SERIAL_CONFIGS" | jq -c '.[]')
@@ -261,9 +277,9 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
       if is_service_included "$SVC"; then
         if [ "$PHASE" = "2" ] && [ "$SVC" = "investor-web" ]; then
           deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" \
-            -c mfeBehaviors="$MFE_BEHAVIORS_PHASE2" &
+            -c mfeBehaviors="$MFE_BEHAVIORS_PHASE2" ${EXTRA_CONTEXT[@]+"${EXTRA_CONTEXT[@]}"} &
         else
-          deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" &
+          deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" ${EXTRA_CONTEXT[@]+"${EXTRA_CONTEXT[@]}"} &
         fi
         PIDS="$PIDS $!"
       fi
@@ -304,7 +320,7 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
       echo "Phase 4a (investor-web re-deploy — cold-start MFE wiring):"
       INVESTOR_WEB_CFG=$(echo "$CONFIGS" | jq -c '.[] | select(.service == "investor-web")' | head -n1)
       deploy_service "investor-web" "$TARGET_REGION" "$TARGET_ACCOUNT" "$INVESTOR_WEB_CFG" \
-        -c mfeBehaviors=true
+        -c mfeBehaviors=true ${EXTRA_CONTEXT[@]+"${EXTRA_CONTEXT[@]}"}
     fi
   fi
 
@@ -382,7 +398,7 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
       while IFS= read -r cfg; do
         SVC=$(echo "$cfg" | jq -r '.service')
         if is_service_included "$SVC"; then
-          deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" &
+          deploy_service "$SVC" "$TARGET_REGION" "$TARGET_ACCOUNT" "$cfg" ${EXTRA_CONTEXT[@]+"${EXTRA_CONTEXT[@]}"} &
           PIDS="$PIDS $!"
         fi
       done < <(echo "$HUB_CONFIGS" | jq -c '.[]')
