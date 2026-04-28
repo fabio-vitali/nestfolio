@@ -42,28 +42,6 @@ if [ "$EXPECT_CONTEXT_VALUE" = "true" ]; then
   exit 1
 fi
 
-# Guard: agentModelOverride is a cost-iteration knob — sandbox + terminal only.
-# Block it on staging/prod and in CI so a Haiku container never lands in a
-# higher tier or in an automated pipeline. The override is consumed by
-# libs/cdk-constructs/src/extensions/agent-runtime.ts and bakes
-# AGENT_MODEL_OVERRIDE into the container env at synth.
-if [ "${#EXTRA_CONTEXT[@]}" -gt 0 ]; then
-  for ctx in "${EXTRA_CONTEXT[@]}"; do
-    case "$ctx" in
-      agentModelOverride=*)
-        if [ "$TIER" != "sandbox" ]; then
-          echo "ERROR: --context agentModelOverride=... is only allowed for tier=sandbox (got: $TIER)." >&2
-          exit 1
-        fi
-        if [ -n "${CI:-}" ]; then
-          echo "ERROR: --context agentModelOverride=... is not allowed in CI (CI env var set)." >&2
-          exit 1
-        fi
-        ;;
-    esac
-  done
-fi
-
 # Default prefix from tier
 if [ -z "$PREFIX" ]; then
   case "$TIER" in
