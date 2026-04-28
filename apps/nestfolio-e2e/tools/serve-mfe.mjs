@@ -138,7 +138,6 @@ const server = createServer(async (req, res) => {
 if (proxyOrigin) {
   server.on('upgrade', (req, socket, head) => {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-    console.log(`[serve-mfe] upgrade ${req.method} ${url.pathname}${url.search}`);
     if (shouldProxy(url.pathname)) {
       proxyUpgrade(req, socket, head);
     } else {
