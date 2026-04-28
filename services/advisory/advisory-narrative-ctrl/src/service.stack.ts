@@ -5,7 +5,10 @@ import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { NarrativeEventTypes } from './domain/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
-import { AgentRuntime, KnowledgeBase } from '@nestfolio/cdk-constructs/extensions';
+import {
+  AgentRuntime, KnowledgeBase,
+  BedrockUsageAlarms, importCostAlertTopic,
+} from '@nestfolio/cdk-constructs/extensions';
 import { agentProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
 
 export class AdvisoryNarrativeCtrlStack extends ServiceStack {
@@ -126,6 +129,16 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       egress,
       monitorBedrock: true,
       bedrockModelIds: [modelSonnetId],
+    });
+
+    // Per-service Bedrock usage alarms (P1 — 2026-04-28 cost safeguards).
+    new BedrockUsageAlarms(this, 'BedrockAlarms', {
+      serviceName: 'advisory-narrative-ctrl',
+      modelIds: [modelSonnetId],
+      alertTopic: importCostAlertTopic(
+        this, 'CostAlertTopic',
+        `/nestfolio/${props.prefix}-investor/cost-controls/alertTopicArn`,
+      ),
     });
   }
 }

@@ -22,7 +22,7 @@ export async function invokeOrchestrator(
   logger.info('Orchestrator invocation started', { inputKeys: Object.keys(input) });
 
   try {
-    result = await graph.invoke(input, { callbacks: [tracer] });
+    result = await graph.invoke(input, { callbacks: [tracer], recursionLimit: 10 });
     const duration = Date.now() - startTime;
     logger.info('Orchestrator invocation completed', { duration });
     metrics.addMetric('OrchestratorSuccess', MetricUnit.Count, 1);

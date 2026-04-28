@@ -8,5 +8,8 @@ export {
   resolveBusArn, resolveSsmValue,
 } from './cross-account';
 export { CostControls, CostControlsProps } from './cost-controls';
+export {
+  BedrockUsageAlarms, BedrockUsageAlarmsProps, importCostAlertTopic,
+} from './bedrock-usage-alarms';
 export { AdapterSchedule, AdapterScheduleProps } from './adapter-schedule';
 export { MfeBucket, MfeBucketProps } from './mfe-bucket';
