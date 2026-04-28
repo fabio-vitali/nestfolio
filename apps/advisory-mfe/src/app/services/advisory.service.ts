@@ -17,7 +17,7 @@ import type {
   ComplianceCheck,
 } from '../stores/advisory.store';
 
-@Injectable({ providedIn: 'root' })
+@Injectable()
 export class AdvisoryService {
   private readonly graphql = inject(GraphqlService);
 
