@@ -2,7 +2,8 @@ import * as path from 'path';
 import { Construct } from 'constructs';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { Duration } from 'aws-cdk-lib';
+import { Duration, Stack } from 'aws-cdk-lib';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import { ServiceStack, ServiceStackProps, State, Egress } from '@nestfolio/cdk-constructs/core';
 import { ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED } from './domain/events';
@@ -95,6 +96,21 @@ export class OnboardingBffStack extends ServiceStack {
       },
     });
     this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
+
+    // The in-process search_knowledge_base tool calls bedrock:RetrieveAndGenerate
+    // directly from the AgentCore container (not via the SearchKbFn Lambda).
+    // The R&G operation needs both the KB-level action and bedrock:InvokeModel
+    // on the foundation model used to summarise retrieved chunks.
+    agentRuntime.runtime.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
+      actions: ['bedrock:Retrieve', 'bedrock:RetrieveAndGenerate'],
+      resources: [knowledgeBase.knowledgeBaseArn],
+    }));
+    agentRuntime.runtime.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: [
+        `arn:aws:bedrock:${Stack.of(this).region}::foundation-model/anthropic.claude-sonnet-4-20250514`,
+      ],
+    }));
 
     // SSM-published runtime target. Pattern mirrors
     // services/advisory/advisory-narrative-ctrl/src/service.stack.ts:99-107.

@@ -2,7 +2,15 @@ import { z } from 'zod';
 import { Annotation } from '@langchain/langgraph';
 import { BaseMessage } from '@langchain/core/messages';
 
-export const PHASE_ORDER = ['goal', 'horizon', 'mode', 'capital', 'risk', 'operating_mode', 'mandate'] as const;
+export const PHASE_ORDER = [
+  'goal',
+  'operating_mode',
+  'horizon',
+  'capital',
+  'mandate_summary',
+  'mandate_consent',
+  'mandate_cta',
+] as const;
 export type Phase = (typeof PHASE_ORDER)[number];
 
 export function phaseIndexOf(phase: Phase): number {
@@ -19,14 +27,9 @@ export const OnboardingStateSchema = z.object({
   phaseIndex: z.number().int().min(0).max(6),
   totalPhases: z.literal(7),
   goal: z.string().optional(),
-  horizonYears: z.number().int().min(1).max(30).optional(),
-  accountMode: z.enum(['simulation', 'live']).optional(),
-  capitalAmount: z.number().nonnegative().optional(),
-  riskProfile: z.object({
-    toleranceIdx: z.number(), experienceIdx: z.number(),
-    score: z.number(), category: z.string(),
-  }).optional(),
   operatingMode: z.enum(['conservative', 'balanced', 'aggressive']).optional(),
+  horizonYears: z.number().int().min(1).max(30).optional(),
+  capitalAmount: z.number().nonnegative().optional(),
   mandateAccepted: z.boolean().optional(),
   turnCount: z.number().int().min(0).default(0),
   messages: z.array(z.any()),
@@ -39,11 +42,9 @@ export const OnboardingAnnotation = Annotation.Root({
   phaseIndex: Annotation<number>({ reducer: (_, v) => v, default: () => 0 }),
   totalPhases: Annotation<number>({ reducer: (_, v) => v, default: () => 7 }),
   goal: Annotation<string | undefined>({ reducer: (_, v) => v, default: () => undefined }),
-  horizonYears: Annotation<number | undefined>({ reducer: (_, v) => v, default: () => undefined }),
-  accountMode: Annotation<'simulation' | 'live' | undefined>({ reducer: (_, v) => v, default: () => undefined }),
-  capitalAmount: Annotation<number | undefined>({ reducer: (_, v) => v, default: () => undefined }),
-  riskProfile: Annotation<Record<string, unknown> | undefined>({ reducer: (_, v) => v, default: () => undefined }),
   operatingMode: Annotation<string | undefined>({ reducer: (_, v) => v, default: () => undefined }),
+  horizonYears: Annotation<number | undefined>({ reducer: (_, v) => v, default: () => undefined }),
+  capitalAmount: Annotation<number | undefined>({ reducer: (_, v) => v, default: () => undefined }),
   mandateAccepted: Annotation<boolean | undefined>({ reducer: (_, v) => v, default: () => undefined }),
   turnCount: Annotation<number>({ reducer: (prev, next) => prev + next, default: () => 0 }),
   messages: Annotation<BaseMessage[]>({

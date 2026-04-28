@@ -57,7 +57,10 @@ const TOOL_RENDERER_MAP: Partial<Record<RendererType, Type<unknown>>> = {
 };
 
 const LOADING_DELAY_MS = 3_000;
-const TIMEOUT_MS = 15_000;
+// 45s budget covers the worst-case turn: cold-start container + 2 sequential
+// Bedrock model invocations (commit_phase loop → next phase render) plus the
+// optional follow-up text generation in the search_knowledge_base path.
+const TIMEOUT_MS = 45_000;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -181,6 +184,10 @@ export class OnboardingChatComponent implements OnInit {
   private pendingToolArgs = '';
   private rendererRefs: ComponentRef<unknown>[] = [];
   private rendererSubs: Array<{ unsubscribe(): void }> = [];
+  // Browser-side mirror of the graph state. Updated from STATE_SNAPSHOT events
+  // and forwarded as `state` on each /invocations call so the in-process graph
+  // (which has no checkpointer) can resume at the correct phase.
+  private agentState: Record<string, unknown> = {};
 
   private getOrCreateSessionId(): string {
     const existing = sessionStorage.getItem(OnboardingChatComponent.SESSION_KEY);
@@ -191,7 +198,10 @@ export class OnboardingChatComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.destroyRef.onDestroy(() => this.cleanup());
+    this.destroyRef.onDestroy(() => {
+      this.cleanup();
+      this.destroyAllRenderers();
+    });
     // Kick off with an initial agent turn to get the greeting
     this.runAgent([]);
   }
@@ -272,7 +282,7 @@ export class OnboardingChatComponent implements OnInit {
       tools: [],
       context: [],
       forwardedProps: {},
-      state: {},
+      state: this.agentState,
     };
 
     let currentMsgId: string | null = null;
@@ -357,8 +367,12 @@ export class OnboardingChatComponent implements OnInit {
 
           case EventType.STATE_SNAPSHOT: {
             const state = (event as { snapshot?: Record<string, unknown> }).snapshot ?? {};
-            if (typeof state['phase_index'] === 'number') {
-              this.phaseIndex.set(state['phase_index'] as number);
+            this.agentState = { ...this.agentState, ...state };
+            if (typeof state['phaseIndex'] === 'number') {
+              this.phaseIndex.set(state['phaseIndex'] as number);
+            }
+            if (typeof state['totalPhases'] === 'number') {
+              this.totalPhases.set(state['totalPhases'] as number);
             }
             break;
           }
@@ -388,17 +402,27 @@ export class OnboardingChatComponent implements OnInit {
   // in a single round-trip. A second forceRefreshSession() call would be redundant.
 
   async onCtaClick(_action: string): Promise<void> {
+    // The agent has just committed the mandate_consent phase, which writes
+    // ONBOARDING_COMPLETED to DDB and triggers the CDC → investor-ctrl →
+    // Cognito SetUserAttributes chain. That chain takes seconds to propagate.
+    // To avoid the route guard bouncing /dashboard back to /onboarding, mark
+    // the user complete locally NOW (the agent has guaranteed completion);
+    // a follow-up forceRefresh updates the claim once it's available.
+    const localCompletedAt = new Date().toISOString();
+    this.authStore.updateUser({ onboardingCompletedAt: localCompletedAt });
+
     try {
       const session = await fetchAuthSession({ forceRefresh: true });
-      const onboardingCompletedAt =
+      const claimAt =
         (session.tokens?.idToken?.payload?.['custom:onboarding_completed_at'] as string) || null;
-      if (onboardingCompletedAt) {
-        this.authStore.updateUser({ onboardingCompletedAt });
+      if (claimAt) {
+        this.authStore.updateUser({ onboardingCompletedAt: claimAt });
       }
-      await this.router.navigate(['/dashboard']);
-    } catch {
-      this.errorMessage.set('Errore durante il completamento. Riprova.');
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[OnboardingChat] CTA fetchAuthSession failed; navigating anyway', err);
     }
+    await this.router.navigate(['/dashboard']);
   }
 
   // ── Renderer mounting ──────────────────────────────────────────────────────
@@ -504,6 +528,14 @@ export class OnboardingChatComponent implements OnInit {
     this.streamSub = null;
     if (this.loadingTimer) { clearTimeout(this.loadingTimer); this.loadingTimer = null; }
     if (this.timeoutTimer) { clearTimeout(this.timeoutTimer); this.timeoutTimer = null; }
+  }
+
+  /** Destroys all mounted renderer components and their output subscriptions.
+   *  Called on component destroy only — `runAgent` no longer wipes prior
+   *  renderers because users may interact with an existing renderer (e.g.,
+   *  the consent checkbox) AFTER asking a follow-up question that adds a new
+   *  text message but does not advance the phase. */
+  private destroyAllRenderers(): void {
     this.rendererRefs.forEach((r) => r.destroy());
     this.rendererRefs = [];
     this.rendererSubs.forEach((s) => s.unsubscribe());

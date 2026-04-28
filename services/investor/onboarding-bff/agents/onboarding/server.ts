@@ -71,7 +71,11 @@ export function createApp() {
     );
 
     const tracer = new AgentTracer();
-    const graph = buildOnboardingGraph({ repo }, { tracer });
+    // Build the graph WITHOUT a callback config; pass the tracer through to
+    // the OnboardingAgent so it ends up in `streamEvents`'s config.callbacks.
+    // Without that path, BaseCallbackHandler hooks (handleToolStart/End) don't
+    // fire on tool invocations and the AgentTraceEnvelope ships empty toolCalls.
+    const graph = buildOnboardingGraph({ repo });
 
     // Drives the in-process LangGraph and emits AG-UI events. We intentionally
     // do NOT use `@copilotkit/runtime/langgraph`'s `LangGraphAgent` — that
@@ -91,7 +95,7 @@ export function createApp() {
       tenantId,
       sessionId,
     }));
-    const agent = new OnboardingAgent({ graph, threadId: input.threadId });
+    const agent = new OnboardingAgent({ graph, threadId: input.threadId, callbacks: [tracer] });
     const encoder = new EventEncoder({ accept: c.req.header('accept') });
 
     // AG-UI clients (e.g. @ag-ui/client.HttpAgent) read this as a
@@ -103,12 +107,12 @@ export function createApp() {
     c.header('X-Accel-Buffering', 'no');
 
     let status: 'success' | 'error' = 'success';
-    try {
-      return stream(c, async (sseStream) => {
-        sseStream.onAbort(() => {
-          // Client disconnected; the rxjs subscription closes when the
-          // stream's `write` rejects below, so no extra cleanup needed.
-        });
+    return stream(c, async (sseStream) => {
+      sseStream.onAbort(() => {
+        // Client disconnected; the rxjs subscription closes when the
+        // stream's `write` rejects below, so no extra cleanup needed.
+      });
+      try {
         await new Promise<void>((resolve, reject) => {
           const subscription = agent.run(input).subscribe({
             next: (event) => {
@@ -122,41 +126,50 @@ export function createApp() {
           });
           sseStream.onAbort(() => subscription.unsubscribe());
         });
-      }, async (err, sseStream) => {
+      } catch (err) {
         status = 'error';
-        // Log structured error fields. AWS SDK exceptions stringify as
-        // `Error: <name>` and lose the `message` property unless extracted.
         // eslint-disable-next-line no-console
         console.error(JSON.stringify({
           level: 'ERROR',
           message: 'onboarding agent stream error',
           errorName: (err as Error)?.name,
           errorMessage: (err as Error)?.message,
-          errorMetadata: (err as { $metadata?: unknown })?.$metadata,
-          errorFault: (err as { $fault?: unknown })?.$fault,
           errorStack: (err as Error)?.stack,
         }));
-        await sseStream.close();
-      }) as unknown as Response;
-    } catch (err) {
-      status = 'error';
-      throw err;
-    } finally {
-      if (sessionId && tenantId) {
-        emitter
-          .emit(tracer.build(status), { tenantId, correlationId: sessionId, agent: 'onboarding' })
-          .catch((e) => {
-            // eslint-disable-next-line no-console
-            console.warn('onboarding trace emit failed', e);
+      } finally {
+        // Emit the trace envelope HERE, INSIDE the stream callback, so it runs
+        // AFTER the agent's run() Observable completes. Hono's `stream()`
+        // returns the Response synchronously and continues the callback in the
+        // background — putting `tracer.build()` in the outer try/finally
+        // executes it before any tool/LLM event has been processed, leaving
+        // toolCalls and llmCalls empty in the envelope.
+        if (sessionId && tenantId) {
+          const envelope = tracer.build(status);
+          // eslint-disable-next-line no-console
+          console.log(JSON.stringify({
+            level: 'INFO',
+            message: 'onboarding trace envelope',
+            tenantId,
+            toolCallsCount: envelope.toolCalls.length,
+            toolNames: envelope.toolCalls.map((t) => t.toolName),
+            llmCallsCount: envelope.llmCalls.length,
+            status,
+          }));
+          emitter
+            .emit(envelope, { tenantId, correlationId: tenantId, agent: 'onboarding' })
+            .catch((e) => {
+              // eslint-disable-next-line no-console
+              console.warn('onboarding trace emit failed', e);
+            });
+        } else {
+          // eslint-disable-next-line no-console
+          console.warn('onboarding trace emission skipped (missing tenantId or sessionId)', {
+            hasTenantId: Boolean(tenantId),
+            hasSessionId: Boolean(sessionId),
           });
-      } else {
-        // eslint-disable-next-line no-console
-        console.warn('onboarding trace emission skipped (missing tenantId or sessionId)', {
-          hasTenantId: Boolean(tenantId),
-          hasSessionId: Boolean(sessionId),
-        });
+        }
       }
-    }
+    }) as unknown as Response;
   });
 
   return app;

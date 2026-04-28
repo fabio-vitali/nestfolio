@@ -37,12 +37,12 @@ test('new-investor-happy-path: onboarding → deposit → decision → logout', 
 
   // Step 3 — walk phases 0..4 (options → mode-cards → slider → amount → summary).
   await test.step('phase 0: options', async () => {
-    await onboarding.selectOption('GROWTH');
+    await onboarding.selectOption('growth');
     await onboarding.waitForRenderer('render_mode_cards');
     expect(await onboarding.phaseIndex()).toBe(1);
   });
 
-  const pickedMode: OperatingMode = 'BALANCED';
+  const pickedMode: OperatingMode = 'balanced';
   await test.step('phase 1: mode cards', async () => {
     await onboarding.selectMode(pickedMode);
     await onboarding.waitForRenderer('render_slider');
@@ -74,14 +74,25 @@ test('new-investor-happy-path: onboarding → deposit → decision → logout', 
     await onboarding.sendMessage('Come funziona il rebalancing?');
     await onboarding.waitForAssistantReply(90_000);
 
-    const traces = await trap.waitFor({
-      correlationId: tenant.tenantId,
-      minCount: 1,
-      timeoutMs: 90_000,
-    });
-    const kbCall = traces
-      .flatMap((t) => t.envelope.toolCalls)
-      .find((c) => c.toolName === 'search_knowledge_base');
+    // The onboarding agent emits ONE AgentTraceEnvelope per /invocations call,
+    // so by the time the user reaches this step there are already several
+    // (initial render + commits + render). Poll across all collected traces
+    // until one carries the search_knowledge_base toolCall, since the trap's
+    // default minCount returns on the first arriving envelope (which is the
+    // initial render with empty toolCalls).
+    const deadline = Date.now() + 90_000;
+    let kbCall: { toolName: string; status: string; argKeys: string[] } | undefined;
+    while (Date.now() < deadline && !kbCall) {
+      const traces = await trap.waitFor({
+        correlationId: tenant.tenantId,
+        minCount: 1,
+        timeoutMs: Math.max(2_000, deadline - Date.now()),
+      });
+      kbCall = traces
+        .flatMap((t) => t.envelope.toolCalls)
+        .find((c) => c.toolName === 'search_knowledge_base');
+      if (!kbCall) await new Promise((r) => setTimeout(r, 1_000));
+    }
     expect(kbCall, 'expected a search_knowledge_base tool call on onboarding bus').toBeTruthy();
     expect(kbCall!.status).toBe('success');
     expect(kbCall!.argKeys).toContain('query');

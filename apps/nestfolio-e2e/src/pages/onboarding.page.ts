@@ -4,7 +4,7 @@ export type RendererTool =
   | 'render_options' | 'render_mode_cards' | 'render_slider'
   | 'render_amount'  | 'render_summary'    | 'render_consent' | 'render_cta';
 
-export type OperatingMode = 'AGGRESSIVE' | 'BALANCED' | 'CONSERVATIVE';
+export type OperatingMode = 'aggressive' | 'balanced' | 'conservative';
 
 export class OnboardingChatPage {
   constructor(readonly page: Page) {}
@@ -26,23 +26,22 @@ export class OnboardingChatPage {
   }
 
   async setSlider(value: number): Promise<void> {
-    const slider = this.page.getByTestId('slider-input');
-    await slider.fill(String(value));
-    await slider.dispatchEvent('input');
-    await slider.dispatchEvent('change');
+    // Playwright's fill() on a type=range input triggers the Angular (input)
+    // handler, which immediately submits the value and replaces the slider
+    // with the next phase's renderer. Dispatching follow-up events would
+    // race against the renderer swap and fail.
+    await this.page.getByTestId('slider-input').fill(String(value));
   }
 
   /**
-   * Fills the amount input. The renderer's `(input)` listener emits amountChange
-   * per keystroke, which Phase 2.5's mountRenderer wires to submitUserContent —
-   * no separate submit button exists or is needed.
+   * Fills the amount input. Playwright's fill() triggers the renderer's
+   * (input) listener which immediately emits amountChange → submitUserContent,
+   * advancing the agent and replacing the amount component before any
+   * follow-up event would reach it.
    */
   async setAmount(valueCents: number): Promise<void> {
     const display = (valueCents / 100).toString();
-    const input = this.page.getByTestId('amount-input');
-    await input.fill(display);
-    await input.dispatchEvent('input');
-    await input.blur();
+    await this.page.getByTestId('amount-input').fill(display);
   }
 
   confirmSummary() {

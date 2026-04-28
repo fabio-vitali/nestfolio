@@ -144,4 +144,36 @@ describe('OnboardingAgent', () => {
     expect(first.threadId).toBe('thread-1');
     expect(first.runId).toBe('run-1');
   });
+
+  it('emits STATE_SNAPSHOT before RUN_FINISHED when LangGraph on_chain_end carries final state', async () => {
+    const graph = {
+      streamEvents: async function* (_input: unknown, _options: unknown) {
+        yield { event: 'on_chat_model_end' };
+        yield {
+          event: 'on_chain_end',
+          name: 'LangGraph',
+          data: {
+            output: {
+              phase: 'operating_mode',
+              phaseIndex: 1,
+              totalPhases: 7,
+              goal: 'growth',
+            },
+          },
+        };
+      },
+    };
+    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId });
+    const events = await lastValueFrom(agent.run(baseInput).pipe(toArray())) as BaseEvent[];
+
+    const snapshotIdx = events.findIndex((e) => e.type === EventType.STATE_SNAPSHOT);
+    const finishedIdx = events.findIndex((e) => e.type === EventType.RUN_FINISHED);
+    expect(snapshotIdx).toBeGreaterThan(-1);
+    expect(snapshotIdx).toBeLessThan(finishedIdx);
+
+    const snap = events[snapshotIdx] as Extract<BaseEvent, { snapshot: Record<string, unknown> }>;
+    expect(snap.snapshot.phase).toBe('operating_mode');
+    expect(snap.snapshot.phaseIndex).toBe(1);
+    expect(snap.snapshot.goal).toBe('growth');
+  });
 });
