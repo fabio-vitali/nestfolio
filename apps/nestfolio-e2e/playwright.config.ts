@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 const HOST_URL = 'http://localhost:4200';
@@ -7,16 +8,31 @@ const HOST_URL = 'http://localhost:4200';
 // cwd is the directory containing this config file.
 const WORKSPACE_ROOT = resolve(__dirname, '../..');
 
-// Serve directly from dist/ via http-server. The Nx `e2e` target's `dependsOn`
-// pre-builds all six MFEs sequentially with `nf-build:production` so dist is
-// guaranteed up-to-date by the time Playwright launches these processes. We
-// avoid invoking `nx run X:serve-static` because @nx/web:file-server triggers
-// a parallel build on each spawn, which races on the federation manifest cache
-// and intermittently fails with "@angular/animations not found in package.json".
-// Tiny SPA-aware server lives at apps/nestfolio-e2e/tools/serve-mfe.mjs —
-// vanilla Node, ~70 LOC, no external deps. Replaces `http-server --proxy`
-// which returns HTTP 431 on Node 24 due to a deprecated util._extend path
-// in http-server@14's proxy code.
+// Resolve dev CloudFront URL once and forward `/graphql/*` + `/realtime/*`
+// from the host webServer to it. Without the proxy those relative paths
+// (the production same-origin contract — Charter §7 R6, see
+// libs/shell/src/graphql/create-apollo-client.ts) fall through to the SPA
+// index.html and the browser hits "Unexpected token '<'" on every Apollo
+// query/mutation/subscription. Only port 4200 (host) needs the proxy —
+// the MFE bundle servers on 4201–4205 don't see API traffic.
+const PREFIX = process.env.NESTFOLIO_INTEG_PREFIX ?? 'dev';
+const REGION = process.env.AWS_REGION ?? 'us-east-1';
+const PROXY_TARGET = (() => {
+  if (process.env.NF_E2E_PROXY_TARGET) return process.env.NF_E2E_PROXY_TARGET;
+  try {
+    return execFileSync('aws', [
+      'ssm', 'get-parameter',
+      '--region', REGION,
+      '--name', `/nestfolio/${PREFIX}-investor/web/distributionUrl`,
+      '--query', 'Parameter.Value',
+      '--output', 'text',
+    ], { encoding: 'utf8' }).trim();
+  } catch (err) {
+    console.warn(`[playwright.config] could not resolve CloudFront URL via SSM (${(err as Error).message}); /graphql proxy disabled`);
+    return '';
+  }
+})();
+
 const mfeServer = (app: string, port: number) => ({
   command: `node apps/nestfolio-e2e/tools/serve-mfe.mjs dist/apps/${app}/browser ${port}`,
   cwd: WORKSPACE_ROOT,
@@ -25,6 +41,10 @@ const mfeServer = (app: string, port: number) => ({
   timeout: 60_000,
   stdout: 'pipe' as const,
   stderr: 'pipe' as const,
+  env: {
+    ...(process.env as Record<string, string>),
+    NF_E2E_PROXY_TARGET: port === 4200 ? PROXY_TARGET : '',
+  },
 });
 
 export default defineConfig({
