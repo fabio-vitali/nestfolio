@@ -1,7 +1,7 @@
 # AgentCore Cost Safeguards — Design
 
 **Date:** 2026-04-28
-**Status:** Design (pending approval — no deploy yet)
+**Status:** P0 + P0.5 + P1 implemented on `feat/agentcore-cost-safeguards`. P0 + P0.5 deployed to dev (771924376645) on 2026-04-28 with `--context agentModelOverride=haiku`. P1 implemented but not yet deployed. P2 deferred.
 **Trigger:** 2026-04-21 cost spike — $55.80 in one day (AgentCore Runtime $7.71 + Claude models $47.81). AWS Q analysis attached in conversation.
 **Caps decision:** Tight — `maxTokens=2048`, LangGraph `recursionLimit=10`.
 
@@ -420,20 +420,15 @@ by token count today").
 - All 6 services synth clean
 - Manual: AgentCore Observability console shows traces post-deploy
 
-## 8. Open questions
+## 8. Open questions — RESOLVED 2026-04-28
 
-1. **Daily budget amount** — proposed $30. Sustainable rate for
-   dev account given current 33-service deploy? User to confirm.
-2. **Spike ratio** — proposed 7.5% of monthly in 6h ≈ $15. Too tight
-   may produce false positives during legitimate burst e2e runs.
-3. **AgentCore Observability cost** — Observability itself bills for
-   trace ingestion + retention. Confirm marginal cost is acceptable
-   before P2 deploy.
-4. **Backfill caps to other agents** — advisory agents already capped,
-   but should we add `recursionLimit=10` to their orchestrator
-   invocations as belt-and-braces? Currently in
-   `libs/agent-orchestrator/src/invoke-orchestrator.ts` — no
-   `recursionLimit` set. Could be done as a P0 addendum.
+1. **Daily budget amount** — RESOLVED: $30 (spec default).
+2. **Spike ratio** — RESOLVED: 0.075 (≈ $15 / 6h). User accepted the
+   false-positive risk; tunable per environment via `spikeRatio` prop.
+3. **AgentCore Observability cost** — Still open; gates P2 deploy only.
+4. **Backfill caps to other agents** — RESOLVED: shipped as P0 addendum
+   in `libs/agent-orchestrator/src/invoke-orchestrator.ts` —
+   `graph.invoke(input, { callbacks: [tracer], recursionLimit: 10 })`.
 
 ## 9. Files touched (summary)
 
