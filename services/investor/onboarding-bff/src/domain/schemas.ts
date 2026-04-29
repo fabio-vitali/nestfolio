@@ -57,6 +57,7 @@ export type GoLiveConfirmedRecord = z.infer<typeof GoLiveConfirmedRecordSchema>;
 export const OnboardingCompletedRecordSchema = z.object({
   tenantId: z.string().uuid(),
   userId: z.string().min(1),
+  email: z.string().email(),
   goal: z.object({ objective: z.string() }),
   horizonYears: z.number().int().min(1).max(30),
   accountMode: z.enum(['simulation', 'live']),

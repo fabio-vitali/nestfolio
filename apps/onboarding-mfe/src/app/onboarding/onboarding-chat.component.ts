@@ -279,6 +279,7 @@ export class OnboardingChatComponent implements OnInit {
     // schema. tenantId/sessionId still travel through the AgentCore
     // session-id header above.
     const userId = this.authStore.user()?.userId ?? '';
+    const email = this.authStore.user()?.email ?? '';
     const input: RunAgentInput = {
       threadId: this.threadId,
       runId: crypto.randomUUID(),
@@ -289,7 +290,7 @@ export class OnboardingChatComponent implements OnInit {
       })) as RunAgentInput['messages'],
       tools: [],
       context: [],
-      forwardedProps: { identity: { userId } },
+      forwardedProps: { identity: { userId, email } },
       state: this.agentState,
     };
 

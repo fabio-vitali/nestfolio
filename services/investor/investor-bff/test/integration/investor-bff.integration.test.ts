@@ -156,8 +156,13 @@ describe('investor-bff', () => {
       const userId = cognitoSub;
       const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
 
-      // Event-driven fixture: USER_REGISTERED creates the InvestorProfile
-      // that ONBOARDING_COMPLETED's ConditionExpression requires
+      // ONBOARDING_COMPLETED is now self-contained — it carries `email` on
+      // the subject and atomically Puts InvestorProfile, so it does NOT
+      // depend on USER_REGISTERED having run first. (Race fix —
+      // memory/project_decision_workflow_stuck.md.) We still emit
+      // USER_REGISTERED to mirror the production flow and exercise the
+      // race-safe `record()` (putIfNotExists) path: it must dedup against
+      // the row ONBOARDING_COMPLETED is about to write.
       await eb.putEvent({
         bus: 'investor',
         targetService: 'investor-bff',
@@ -184,6 +189,7 @@ describe('investor-bff', () => {
         detail: {
           tenantId: ctx.tenantId,
           userId,
+          email: `${userId}@integ-onboarding.example`,
           goal: { objective: 'GROWTH' },
           horizonYears: 10,
           accountMode: 'simulation',
@@ -293,8 +299,9 @@ describe('investor-bff', () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
 
       // InvestorProfile already exists from ONBOARDING_COMPLETED materialization test.
-      // DO NOT re-send USER_REGISTERED — project() uses PutItem which replaces the item,
-      // wiping out operatingMode set by ONBOARDING_COMPLETED.
+      // Re-sending USER_REGISTERED is now safe — user-registered.ts uses
+      // record() (putIfNotExists) so it dedups instead of clobbering the row.
+      // We still skip the redundant emit here for speed.
       await table.waitForItem({
         table: 'investor-bff',
         pk: `InvestorProfile#${ctx.tenantId}#${userId}`,
@@ -751,8 +758,9 @@ describe('investor-bff', () => {
     beforeAll(async () => {
       // The ONBOARDING_COMPLETED materialization test (above) already created
       // InvestorProfile + Goal at InvestorProfile#<tenantId>#<cognitoSub>.
-      // Wait for operatingMode to be set (added by ONBOARDING_COMPLETED Update,
-      // not by user-registered project() which only writes tenantId/userId/email).
+      // Wait for operatingMode to be set (added by ONBOARDING_COMPLETED's
+      // atomic Put — not by USER_REGISTERED's record() which only writes
+      // tenantId/userId/email if the row didn't exist yet).
       const deadline = Date.now() + 90_000;
       while (Date.now() < deadline) {
         const item = await table.waitForItem({
@@ -782,8 +790,10 @@ describe('investor-bff', () => {
 
     it('should return InvestorProfile via getProfile', async () => {
       // Only query nullable fields or fields known to be populated.
-      // user-registered project() writes: tenantId, userId, email
-      // ONBOARDING_COMPLETED Update adds: operatingMode, onboardingCompletedAt
+      // user-registered record() writes: tenantId, userId, email — only if the
+      // row did not yet exist (race-safe upsert).
+      // ONBOARDING_COMPLETED's atomic Put writes the full row: tenantId,
+      // userId, email, operatingMode, onboardingCompletedAt.
       // Non-nullable schema fields not written (e.g. currency) cause GraphQL errors.
       const result = await appsync.query<{
         getProfile: {

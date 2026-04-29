@@ -98,6 +98,15 @@ interface OnboardingAgentConfig {
     tenantId: string;
     userId: string;
     sessionId: string;
+    /**
+     * Authenticated user email, browser-forwarded via
+     * `forwardedProps.identity.email`. Bound to RunnableConfig.configurable
+     * so commit_phase reads it at session completion and writes it onto the
+     * OnboardingCompleted CDC record — investor-bff's onboarding-completed
+     * transform then materializes InvestorProfile in a single atomic Put,
+     * eliminating the USER_REGISTERED race that was dropping Mandate.
+     */
+    email: string;
   };
 }
 
@@ -191,6 +200,7 @@ export class OnboardingAgent extends AbstractAgent {
         tenantId: this.cfg.identity.tenantId,
         userId: this.cfg.identity.userId,
         sessionId: this.cfg.identity.sessionId,
+        email: this.cfg.identity.email,
       },
       signal,
       callbacks: this.cfg.callbacks,

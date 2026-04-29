@@ -76,6 +76,7 @@ describe('OnboardingCompletedRecordSchema', () => {
     const record = {
       tenantId: '550e8400-e29b-41d4-a716-446655440000',
       userId: 'user-1',
+      email: 'investor@example.com',
       goal: { objective: 'Retirement savings' },
       horizonYears: 10,
       accountMode: 'simulation',
@@ -87,5 +88,22 @@ describe('OnboardingCompletedRecordSchema', () => {
       mandateAccepted: true,
     };
     expect(OnboardingCompletedRecordSchema.parse(record)).toBeDefined();
+  });
+
+  it('rejects a record missing email', () => {
+    const record = {
+      tenantId: '550e8400-e29b-41d4-a716-446655440000',
+      userId: 'user-1',
+      goal: { objective: 'Retirement savings' },
+      horizonYears: 10,
+      accountMode: 'simulation',
+      capitalAmount: 25000,
+      currency: 'EUR',
+      riskTolerance: 2,
+      riskExperience: 1,
+      operatingMode: 'BALANCED',
+      mandateAccepted: true,
+    };
+    expect(() => OnboardingCompletedRecordSchema.parse(record)).toThrow();
   });
 });

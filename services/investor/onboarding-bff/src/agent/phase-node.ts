@@ -72,6 +72,17 @@ export function createPhaseNode(phaseName: string, deps: PhaseNodeDeps) {
       const args: Record<string, unknown> = { ...(tc.args as Record<string, unknown>) };
       args['phase'] = args['phase'] ?? phaseName;
 
+      // For mandate_consent the tool persists the OnboardingCompleted CDC
+      // record from `allPhases`. The LLM has been observed to hallucinate
+      // '<UNKNOWN>' placeholders when re-emitting state it can't see — that
+      // garbage then propagates into the CDC record (`horizonYears: '<UNKNOWN>'`)
+      // and downstream investor-bff's transactWrite fails with a DDB
+      // ValidationException on `<UNKNOWN>' * 12 = NaN`. Build `allPhases`
+      // from the accumulated graph state we control, not from tool args.
+      if (args['phase'] === 'mandate_consent') {
+        args['allPhases'] = buildAllPhasesFromState(state);
+      }
+
       let result: string;
       try {
         result = await tool.invoke(args, config);
@@ -179,5 +190,35 @@ export function createPhaseNode(phaseName: string, deps: PhaseNodeDeps) {
 export function afterPhase(currentPhase: string) {
   return (state: Record<string, unknown>): string => {
     return state['phase'] !== currentPhase ? 'router' : END;
+  };
+}
+
+/**
+ * Build the `allPhases` map for `commit_phase('mandate_consent', ...)` from
+ * graph state rather than trusting LLM-supplied args. The phase nodes
+ * accumulate `goal`, `operatingMode`, `horizonYears`, `capitalAmount`
+ * during their respective commits (see `stateFields` block above), so by
+ * mandate_consent time the state IS the source of truth.
+ *
+ * Shape mirrors `OnboardingRepository.completeSession`'s consumption (see
+ * `services/investor/onboarding-bff/src/repositories/onboarding.repository.ts`).
+ * Defaults match the schema's permissive fields (currency EUR, simulation
+ * mode, neutral risk indices) — these surfaces don't have a UI step in the
+ * current wizard, so the wizard would otherwise rely on the LLM to fabricate
+ * values, which is exactly what we are protecting against.
+ */
+function buildAllPhasesFromState(state: Record<string, unknown>): Record<string, unknown> {
+  const goal = state['goal'];
+  const horizonYears = state['horizonYears'];
+  const capitalAmount = state['capitalAmount'];
+  const operatingMode = state['operatingMode'];
+  return {
+    goal: typeof goal === 'string' ? { objective: goal } : undefined,
+    horizon: typeof horizonYears === 'number' ? { years: horizonYears } : undefined,
+    mode: { accountMode: 'simulation' },
+    capital: typeof capitalAmount === 'number' ? { amount: capitalAmount, currency: 'EUR' } : undefined,
+    risk: { toleranceIdx: 1, experienceIdx: 1, score: 50, category: 'moderate' },
+    operatingMode: typeof operatingMode === 'string' ? { mode: operatingMode.toUpperCase() } : undefined,
+    mandate: { accepted: true },
   };
 }

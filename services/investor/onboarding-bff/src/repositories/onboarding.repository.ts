@@ -70,7 +70,7 @@ export class OnboardingRepository extends TableRepository {
   );
 
   readonly completeSession = this.log('completeSession',
-    async (sessionId: string, phases: Phases, ctx: RequestContext): Promise<void> => {
+    async (sessionId: string, phases: Phases, ctx: RequestContext, email: string): Promise<void> => {
       const pk = sessionPk(ctx.tenantId, ctx.userId);
       const now = getTime();
 
@@ -78,12 +78,17 @@ export class OnboardingRepository extends TableRepository {
       // Account-mode + risk-profile phases were dropped from the wizard; defaults
       // below keep the OnboardingCompleted CDC schema satisfied for downstream
       // services (investor-bff/advisory) until those flows surface their own UI.
+      // `email` is bundled here (not derived later by USER_REGISTERED's
+      // projection) so investor-bff's onboarding-completed transform can
+      // materialize InvestorProfile in a single atomic Put — see
+      // `services/investor/investor-bff/src/transforms/onboarding-completed.ts`.
       const cdcRecord: TableEntry = {
         pk: `OnboardingCompleted#${ctx.tenantId}#${ctx.userId}`,
         sk: `OnboardingCompleted#${sessionId}`,
         __typename: 'OnboardingCompleted',
         ...ctx,
         timestamp: now,
+        email,
         goal: phases.goal!,
         horizonYears: phases.horizon!.years,
         accountMode: phases.mode?.accountMode ?? 'simulation',

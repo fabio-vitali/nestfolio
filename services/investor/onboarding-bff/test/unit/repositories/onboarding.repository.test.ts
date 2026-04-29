@@ -134,7 +134,7 @@ describe('OnboardingRepository', () => {
   });
 
   describe('completeSession', () => {
-    it('updates session to completed and writes OnboardingCompleted CDC record in transactWrite', async () => {
+    it('updates session to completed and writes OnboardingCompleted CDC record (with email) in transactWrite', async () => {
       mockSend.mockResolvedValueOnce({});
       const phases = {
         goal: { objective: 'Growth' },
@@ -145,7 +145,7 @@ describe('OnboardingRepository', () => {
         operatingMode: { mode: 'BALANCED' as const },
         mandate: { accepted: true },
       };
-      await repo.completeSession('sess-1', phases, TEST_CTX as any);
+      await repo.completeSession('sess-1', phases, TEST_CTX as any, 'investor@example.com');
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
       expect(call.input.TransactItems).toHaveLength(2);
@@ -157,6 +157,7 @@ describe('OnboardingRepository', () => {
       expect(cdcItem.pk).toMatch(/^OnboardingCompleted#/);
       expect(cdcItem.tenantId).toBe('tenant-1');
       expect(cdcItem.userId).toBe('user-1');
+      expect(cdcItem.email).toBe('investor@example.com');
       expect(cdcItem.region).toBe('us-east-1');
       expect(cdcItem.horizonYears).toBe(5);
       expect(cdcItem.riskTolerance).toBe(2);

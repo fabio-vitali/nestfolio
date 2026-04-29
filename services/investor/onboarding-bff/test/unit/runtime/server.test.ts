@@ -4,6 +4,7 @@ import { EMPTY } from 'rxjs';
 const TENANT = 't-1';
 const USER = 'u-1';
 const SESSION = 'session-1';
+const EMAIL = 'investor@example.com';
 const SESSION_ID_HEADER = `${TENANT}/${SESSION}`;
 
 // `OnboardingAgent` (in agents/onboarding/agent.ts) drives the in-process
@@ -44,7 +45,7 @@ const validInvocationBody = () => JSON.stringify({
   threadId: SESSION,
   runId: 'run-1',
   messages: [],
-  forwardedProps: { identity: { userId: USER } },
+  forwardedProps: { identity: { userId: USER, email: EMAIL } },
 });
 
 describe('Onboarding AgentCore runtime server', () => {
@@ -93,7 +94,7 @@ describe('Onboarding AgentCore runtime server', () => {
     });
     expect(OnboardingAgent).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        identity: { tenantId: TENANT, userId: USER, sessionId: SESSION },
+        identity: { tenantId: TENANT, userId: USER, sessionId: SESSION, email: EMAIL },
       }),
     );
   });
@@ -148,6 +149,27 @@ describe('Identity gate on /invocations', () => {
         'x-amzn-bedrock-agentcore-runtime-session-id': SESSION_ID_HEADER,
       },
       body: JSON.stringify({ threadId: SESSION, messages: [] }),
+    });
+    expect(res.status).toBe(401);
+    expect(runMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 when forwardedProps.identity.email is missing', async () => {
+    // Email is required upstream of commit_phase so the runtime cannot start
+    // a session that would later fail mid-conversation when ONBOARDING_COMPLETED
+    // is emitted without email — see onboarding-completed.ts atomic-Put fix.
+    const app = createApp();
+    const res = await app.request('/invocations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-amzn-bedrock-agentcore-runtime-session-id': SESSION_ID_HEADER,
+      },
+      body: JSON.stringify({
+        threadId: SESSION,
+        messages: [],
+        forwardedProps: { identity: { userId: USER } },
+      }),
     });
     expect(res.status).toBe(401);
     expect(runMock).not.toHaveBeenCalled();

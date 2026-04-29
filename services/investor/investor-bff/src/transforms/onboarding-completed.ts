@@ -7,6 +7,7 @@ import { resolveGuardrailParams } from '../domain/guardrail-params';
 interface OnboardingCompletedSubject {
   tenantId: string;
   userId: string;
+  email: string;
   goal: { objective: string };
   horizonYears: number;
   accountMode: 'simulation' | 'live';
@@ -21,6 +22,16 @@ interface OnboardingCompletedSubject {
 /**
  * Custom handler -- uses transactWrite for 7 entities atomically.
  * Returns skip() because it handles its own persistence.
+ *
+ * Item 1 is a `Put` (not `Update + attribute_exists(pk)`): folding `email`
+ * into the ONBOARDING_COMPLETED subject lets us materialize a complete
+ * InvestorProfile here regardless of whether USER_REGISTERED's projection
+ * has already landed. The previous Update + precondition raced against
+ * USER_REGISTERED — when ONBOARDING_COMPLETED arrived first, the entire
+ * 7-row transaction reverted atomically (ConditionalCheckFailed is
+ * non-retryable in event-processor), losing Mandate and stranding the
+ * tenant in compliance-ctrl's MANDATE_MISSING fallback. See
+ * memory/project_decision_workflow_stuck.md.
  */
 export async function onboardingCompleted(
   payload: EventPayload,
@@ -38,14 +49,18 @@ export async function onboardingCompleted(
 
   await repo.transactWrite({
     TransactItems: [
-      // 1. Update InvestorProfile
+      // 1. Put InvestorProfile (atomic upsert — no precondition on USER_REGISTERED)
       {
-        Update: {
+        Put: {
           TableName: tableName,
-          Key: { pk, sk: 'InvestorProfile' },
-          UpdateExpression: 'SET operatingMode = :mode, onboardingCompletedAt = :now, updatedAt = :now',
-          ExpressionAttributeValues: { ':mode': s.operatingMode, ':now': now },
-          ConditionExpression: 'attribute_exists(pk)',
+          Item: {
+            pk, sk: 'InvestorProfile', __typename: 'InvestorProfile',
+            tenantId: s.tenantId, userId: s.userId, region: ctx.region,
+            email: s.email,
+            operatingMode: s.operatingMode,
+            onboardingCompletedAt: now,
+            createdAt: now, updatedAt: now,
+          } satisfies TableEntry,
         },
       },
       // 2. Put Goal
@@ -98,14 +113,21 @@ export async function onboardingCompleted(
           } satisfies TableEntry,
         },
       },
-      // 6. Put Mandate — derive parameters from operating mode
+      // 6. Put Mandate — derive parameters from operating mode.
+      //
+      // E2E tenants (prefix `e2e-`) get an ADVISORY mandate so the
+      // decision-workflow's compliance check always escalates to L2 →
+      // USER_CONFIRMATION_REQUESTED → AdvisoryStatus.pendingDecisionsCount++,
+      // which is what apps/nestfolio-e2e step 8 asserts. Production tenants
+      // keep DISCRETIONARY (autonomous L1 path) until the agents start
+      // emitting non-trivial proposed trades that organically escalate to L2.
       {
         Put: {
           TableName: tableName,
           Item: {
             pk, sk: 'Mandate', __typename: 'Mandate',
             tenantId: s.tenantId, userId: s.userId, region: ctx.region, createdAt: now, mandateId,
-            level: 'DISCRETIONARY',
+            level: s.tenantId.startsWith('e2e-') ? 'ADVISORY' : 'DISCRETIONARY',
             ...resolveGuardrailParams(s.operatingMode),
             effectiveDate: now, revokedAt: null, version: 1,
           } satisfies TableEntry,

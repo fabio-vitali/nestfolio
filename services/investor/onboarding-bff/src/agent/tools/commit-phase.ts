@@ -21,23 +21,25 @@ interface ConfigurableIdentity {
   tenantId?: unknown;
   userId?: unknown;
   sessionId?: unknown;
+  email?: unknown;
 }
 
 interface RunnableConfigLike {
   configurable?: ConfigurableIdentity;
 }
 
-function readIdentity(config: RunnableConfigLike | undefined): { tenantId: string; userId: string; sessionId: string } {
+function readIdentity(config: RunnableConfigLike | undefined): { tenantId: string; userId: string; sessionId: string; email: string } {
   const c = config?.configurable;
   const tenantId = typeof c?.tenantId === 'string' ? c.tenantId : '';
   const userId = typeof c?.userId === 'string' ? c.userId : '';
   const sessionId = typeof c?.sessionId === 'string' ? c.sessionId : '';
-  if (!tenantId || !userId || !sessionId) {
+  const email = typeof c?.email === 'string' ? c.email : '';
+  if (!tenantId || !userId || !sessionId || !email) {
     throw new Error(
-      `commit_phase: identity missing on RunnableConfig.configurable (tenantId=${Boolean(tenantId)}, userId=${Boolean(userId)}, sessionId=${Boolean(sessionId)}) — refusing to write`,
+      `commit_phase: identity missing on RunnableConfig.configurable (tenantId=${Boolean(tenantId)}, userId=${Boolean(userId)}, sessionId=${Boolean(sessionId)}, email=${Boolean(email)}) — refusing to write`,
     );
   }
-  return { tenantId, userId, sessionId };
+  return { tenantId, userId, sessionId, email };
 }
 
 export function createCommitPhaseTool(repo: OnboardingRepository): DynamicStructuredTool {
@@ -50,13 +52,13 @@ export function createCommitPhaseTool(repo: OnboardingRepository): DynamicStruct
     // @langchain/core/tools.
     func: async (input, _runManager, config?: RunnableConfigLike) => {
       const { phase, data, allPhases } = input as { phase: Phase; data: Record<string, unknown>; allPhases?: Record<string, unknown> };
-      const { tenantId, userId, sessionId } = readIdentity(config);
+      const { tenantId, userId, sessionId, email } = readIdentity(config);
       const next = nextPhase(phase);
       const nextIdx = next === 'completed' ? PHASE_ORDER.length : phaseIndexOf(next as Phase);
 
       if (phase === 'mandate_consent' && allPhases) {
         const ctx = { tenantId, userId, region: process.env.AWS_REGION ?? 'us-east-1' };
-        await repo.completeSession(sessionId, allPhases as unknown as Phases, ctx as any);
+        await repo.completeSession(sessionId, allPhases as unknown as Phases, ctx as any, email);
       } else {
         await repo.updatePhase(tenantId, userId, sessionId, phase, data, next, nextIdx);
       }

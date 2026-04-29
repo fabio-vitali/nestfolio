@@ -46,6 +46,7 @@ function parseRuntimeSessionId(raw: string | undefined): ParsedSessionId {
 
 interface ForwardedIdentity {
   userId: string;
+  email: string;
 }
 
 /**
@@ -58,15 +59,21 @@ interface ForwardedIdentity {
  * Cognito signing key, but it IS browser-supplied and could in principle
  * be rotated to another claim by a hostile client. Treat as browser-trust,
  * same level as the session-id header tenantId portion.
+ *
+ * Email is forwarded alongside userId so the ONBOARDING_COMPLETED CDC
+ * record (and downstream investor-bff InvestorProfile materialization) can
+ * carry email in a single atomic write — closing the USER_REGISTERED race
+ * documented in 2026-04-29-decision-workflow-stuck.
  */
 function readForwardedIdentity(input: unknown): ForwardedIdentity {
-  if (!input || typeof input !== 'object') return { userId: '' };
+  if (!input || typeof input !== 'object') return { userId: '', email: '' };
   const fp = (input as { forwardedProps?: unknown }).forwardedProps;
-  if (!fp || typeof fp !== 'object') return { userId: '' };
+  if (!fp || typeof fp !== 'object') return { userId: '', email: '' };
   const id = (fp as { identity?: unknown }).identity;
-  if (!id || typeof id !== 'object') return { userId: '' };
+  if (!id || typeof id !== 'object') return { userId: '', email: '' };
   const userId = typeof (id as { userId?: unknown }).userId === 'string' ? (id as { userId: string }).userId : '';
-  return { userId };
+  const email = typeof (id as { email?: unknown }).email === 'string' ? (id as { email: string }).email : '';
+  return { userId, email };
 }
 
 export function createApp() {
@@ -132,9 +139,9 @@ export function createApp() {
     // userId before the identity gate runs. The body is reused for the
     // agent invocation below; we don't re-parse.
     const input = (await c.req.json()) as RunAgentInput;
-    const { userId } = readForwardedIdentity(input);
+    const { userId, email } = readForwardedIdentity(input);
 
-    if (!tenantId || !userId || !sessionId) {
+    if (!tenantId || !userId || !sessionId || !email) {
       // eslint-disable-next-line no-console
       console.error(JSON.stringify({
         level: 'ERROR',
@@ -142,6 +149,7 @@ export function createApp() {
         hasTenantId: Boolean(tenantId),
         hasUserId: Boolean(userId),
         hasSessionId: Boolean(sessionId),
+        hasEmail: Boolean(email),
       }));
       return c.json({ error: 'identity required' }, 401);
     }
@@ -174,7 +182,7 @@ export function createApp() {
       graph,
       threadId: input.threadId,
       callbacks: [tracer],
-      identity: { tenantId, userId, sessionId },
+      identity: { tenantId, userId, sessionId, email },
     });
     const encoder = new EventEncoder({ accept: c.req.header('accept') });
 

@@ -12,7 +12,7 @@ describe('createCommitPhaseTool', () => {
   // tool.invoke(input, config) — LangChain forwards `config` as the 3rd
   // positional arg to the tool's `func`.
   const identityConfig = {
-    configurable: { tenantId: 't1', userId: 'u1', sessionId: 's1' },
+    configurable: { tenantId: 't1', userId: 'u1', sessionId: 's1', email: 'investor@example.com' },
   };
 
   beforeEach(() => jest.clearAllMocks());
@@ -38,7 +38,7 @@ describe('createCommitPhaseTool', () => {
     expect(result).toContain('committed');
   });
 
-  it('calls completeSession with identity from config.configurable for mandate_consent phase', async () => {
+  it('calls completeSession with identity (incl. email) from config.configurable for mandate_consent phase', async () => {
     const allPhases = {
       goal: { objective: 'growth' },
       operatingMode: { mode: 'BALANCED' },
@@ -51,7 +51,7 @@ describe('createCommitPhaseTool', () => {
       identityConfig,
     );
     expect(mockRepo.completeSession).toHaveBeenCalledWith(
-      's1', allPhases, expect.objectContaining({ tenantId: 't1', userId: 'u1' }),
+      's1', allPhases, expect.objectContaining({ tenantId: 't1', userId: 'u1' }), 'investor@example.com',
     );
     expect(mockRepo.updatePhase).not.toHaveBeenCalled();
     expect(result).toContain('committed');
@@ -73,7 +73,16 @@ describe('createCommitPhaseTool', () => {
   it('refuses to write when only some identity fields are present', async () => {
     await expect(
       tool.invoke({ phase: 'goal', data: { goal: 'growth' } }, {
-        configurable: { tenantId: 't1', userId: 'u1' /* missing sessionId */ },
+        configurable: { tenantId: 't1', userId: 'u1', email: 'investor@example.com' /* missing sessionId */ },
+      }),
+    ).rejects.toThrow(/identity missing/);
+    expect(mockRepo.updatePhase).not.toHaveBeenCalled();
+  });
+
+  it('refuses to write when email is missing', async () => {
+    await expect(
+      tool.invoke({ phase: 'goal', data: { goal: 'growth' } }, {
+        configurable: { tenantId: 't1', userId: 'u1', sessionId: 's1' /* missing email */ },
       }),
     ).rejects.toThrow(/identity missing/);
     expect(mockRepo.updatePhase).not.toHaveBeenCalled();
