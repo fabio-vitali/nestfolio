@@ -43,4 +43,8 @@ describe('AmountRendererComponent', () => {
     input.dispatchEvent(new Event('input'));
     expect(spy).toHaveBeenCalledWith(7500);
   });
+
+  it('renders data-testid="amount-input" on the number input', () => {
+    expect(fixture.nativeElement.querySelector('[data-testid="amount-input"]')).toBeTruthy();
+  });
 });

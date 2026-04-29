@@ -50,7 +50,19 @@ const sharedFrontendDeps = share({
   'primeicons': singletonOpts,
   'primeng': singletonOpts,
   'rxjs': singletonOpts,
-  'url': singletonOpts,
+  // `url` is intentionally NOT shared — same reason as the Apollo/graphql
+  // cluster directly above. The two consumers, `aws-appsync-auth-link` and
+  // `aws-appsync-subscription-link`, both call the legacy Node `url.parse()`
+  // (auth-link/index.mjs:351,362,408,548 + subscription-link/index.mjs:3106).
+  // The `url@0.11.4` browserify CJS shim, when run through Native Federation's
+  // shared-bundle pipeline, ends up with a single `export default _i()` —
+  // namespace imports (`import * as Url from "url"`) then resolve to
+  // `{ default: <urlModule> }` and `Url.parse` is undefined. Since
+  // aws-appsync-* are themselves part of the Apollo cluster carve-out (already
+  // bundled statically inside libs/shell's GraphqlService), keeping `url`
+  // singleton'd buys nothing except a runtime crash on the first /dashboard
+  // navigation. Bounded duplication: libs/shell is a sharedMapping, so the
+  // url-shim ships exactly once across all MFEs.
   '@ag-ui/client': singletonOpts,
   '@copilotkitnext/angular': singletonOpts,
 });

@@ -14,7 +14,7 @@ import type {
   SimulationSummary,
 } from '../stores/dashboard.store';
 
-@Injectable({ providedIn: 'root' })
+@Injectable()
 export class DashboardService {
   private readonly graphql = inject(GraphqlService);
 

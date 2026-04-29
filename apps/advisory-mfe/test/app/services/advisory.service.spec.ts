@@ -13,6 +13,7 @@ describe('AdvisoryService', () => {
     orchestrator = { register: jest.fn(), resetAll: jest.fn() };
     TestBed.configureTestingModule({
       providers: [
+        AdvisoryService,
         { provide: GraphqlService, useValue: graphql },
         { provide: LogoutOrchestrator, useValue: orchestrator },
       ],

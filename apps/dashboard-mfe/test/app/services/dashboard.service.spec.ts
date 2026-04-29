@@ -18,6 +18,7 @@ describe('DashboardService', () => {
     orchestrator = { register: jest.fn(), resetAll: jest.fn() };
     TestBed.configureTestingModule({
       providers: [
+        DashboardService,
         { provide: GraphqlService, useValue: graphql },
         { provide: LogoutOrchestrator, useValue: orchestrator },
       ],

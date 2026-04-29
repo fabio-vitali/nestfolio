@@ -84,44 +84,17 @@ function addGraphqlBehavior(
   });
 }
 
-/**
- * Adds a CloudFront cache behavior for a BFF's AppSync WSS endpoint.
- *
- * `/realtime/<domain>` → that BFF's AppSync WSS endpoint. Host extracted
- * from the SSM-discovered api/realtimeUrl via Fn.split — the URL prefix is
- * not derivable from api/apiId alone, since AppSync uses a separate prefix
- * as the leftmost subdomain of its URL. Viewer-request rewrite strips
- * /<domain> so AppSync sees /graphql (it uses the same /graphql URI for
- * both HTTPS and WSS handshakes).
- *
- * This transport configuration was validated end-to-end against a real
- * AppSync subscription before being adopted.
- */
-function addRealtimeBehavior(
-  scope: Construct,
-  distribution: Distribution,
-  prefix: string,
-  entry: MfeCatalogEntry,
-  rewriteFn: CfFunction,
-): void {
-  if (!entry.hasFacade) {
-    throw new Error(`addRealtimeBehavior called for ${entry.key} which has no Facade`);
-  }
-  const realtimeUrl = StringParameter.valueForStringParameter(
-    scope, `/nestfolio/${prefix}-${entry.service}/api/realtimeUrl`,
-  );
-  // realtimeUrl is `wss://<prefix>.appsync-realtime-api.<region>.amazonaws.com/graphql`.
-  // Fn.split('/', url) yields ['wss:', '', '<host>', 'graphql']; index 2 is the host.
-  const wsHost = Fn.select(2, Fn.split('/', realtimeUrl));
-
-  distribution.addBehavior(`/realtime/${entry.key}`, new HttpOrigin(wsHost), {
-    viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
-    allowedMethods: AllowedMethods.ALLOW_ALL,
-    cachePolicy: CachePolicy.CACHING_DISABLED,
-    originRequestPolicy: OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
-    functionAssociations: [{ function: rewriteFn, eventType: FunctionEventType.VIEWER_REQUEST }],
-  });
-}
+// `addRealtimeBehavior` previously routed `/realtime/<domain>*` through
+// CloudFront to the AppSync WSS endpoint. It was removed because
+// `aws-appsync-subscription-link` includes the URL host in the
+// connection_init auth payload — AppSync rejects any host that does not
+// map to one of its APIs, and a CloudFront proxy host does not map. The
+// only viable transport for WSS subscriptions is direct browser →
+// AppSync. The host now exposes per-BFF realtime URLs via runtime config
+// (`/nestfolio/<prefix>-<bff>/api/realtimeUrl` SSM → `realtimeUrls` in
+// `assets/config.json`) and `provideMfeGraphql` injects the URL into
+// `createApolloClient`. HTTP queries/mutations continue to use the
+// relative `/graphql/<domain>` proxy path (Charter §7 R6).
 
 export class InvestorWebStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -328,7 +301,8 @@ export class InvestorWebStack extends ServiceStack {
         addMfeBucketBehavior(this, distribution, this.prefix, entry, mfeBucketRewriteFn);
         if (entry.hasFacade) {
           addGraphqlBehavior(this, distribution, this.prefix, entry, realtimeRewriteFn);
-          addRealtimeBehavior(this, distribution, this.prefix, entry, realtimeRewriteFn);
+          // No /realtime/<domain> behavior — WSS subscriptions go direct to
+          // AppSync (see comment on addRealtimeBehavior removal above).
         }
       }
     }

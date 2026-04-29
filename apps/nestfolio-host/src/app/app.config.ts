@@ -11,6 +11,14 @@ import { appRoutes } from './app.routes';
 export interface RuntimeConfig {
   auth: { userPoolId: string; clientId: string; region: string };
   copilotApiUrl: string;
+  /**
+   * Per-BFF AppSync HTTPS GraphQL endpoint URLs. Used by the subscription
+   * link to derive the WSS realtime URL (it replaces `appsync-api` with
+   * `appsync-realtime-api` and `https://` with `wss://`). Direct AppSync
+   * (NOT CloudFront proxy) because the lib binds the URL host in the
+   * connection_init auth payload.
+   */
+  appsyncGraphqlUrls: { investor: string; advisory: string; ledger: string; dashboard: string };
 }
 
 let runtimeConfig: RuntimeConfig | null = null;
@@ -106,7 +114,7 @@ export const appConfig: ApplicationConfig = {
     provideAuth(),
     provideI18n('it-IT'),
     provideNestfolioTheme('light'),
-    provideFeatureFlags(),
+    provideFeatureFlags(() => getRuntimeConfig().appsyncGraphqlUrls.investor),
     {
       provide: APP_INITIALIZER,
       useFactory: initializeAuth,

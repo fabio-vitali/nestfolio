@@ -23,7 +23,7 @@ type Mutation {
 type Subscription {
   onNotification: Notification!
     @aws_subscribe(mutations: ["markNotificationRead"])
-  onFeatureFlagUpdate: FeatureFlag!
+  onFeatureFlagUpdate: FeatureFlag
     @aws_subscribe(mutations: ["updateFeatureFlag"])
   onDepositEvent(depositId: ID!): DepositEvent
     @aws_subscribe(mutations: ["publishDepositEvent"])

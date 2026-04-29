@@ -92,6 +92,27 @@ CLIENT_ID="$(get_ssm "/nestfolio/${PREFIX}-investor/auth/userPoolClientId" "inve
 AUTH_REGION="$(get_ssm "/nestfolio/${PREFIX}-investor/auth/region" "investor-web")"
 DIST_URL="$(get_ssm "/nestfolio/${PREFIX}-investor/web/distributionUrl" "investor-web")"
 
+# Per-BFF AppSync GraphQL HTTPS URLs (NOT the WSS realtime URLs).
+# `aws-appsync-subscription-link` expects the HTTPS GraphQL endpoint URL
+# and internally converts it to the WSS realtime URL by replacing
+# `appsync-api` → `appsync-realtime-api` and `https://` → `wss://`,
+# producing the canonical native handshake URI `wss://<id>.appsync-realtime-api.<region>.amazonaws.com/graphql`.
+#
+# Why direct (not via CloudFront proxy): the lib includes the URL host in
+# the connection_init auth payload, and AppSync rejects any host it cannot
+# map to one of its APIs (it cannot map a CloudFront domain). The standard
+# AppSync API domain pattern (`<id>.appsync-api.<region>.amazonaws.com`)
+# IS recognized by the lib as the native domain — using a CloudFront URL
+# instead would trigger the lib's "custom domain" branch which appends
+# `/realtime` and produces a wrong URI on the native realtime host.
+#
+# HTTP queries/mutations stay on the relative `/graphql/<domain>` proxy
+# path (Charter §7 R6) since CORS+JWT work transparently through CloudFront.
+INVESTOR_GRAPHQL_URL="$(get_ssm "/nestfolio/${PREFIX}-investor-bff/api/graphqlUrl" "investor-bff")"
+ADVISORY_GRAPHQL_URL="$(get_ssm "/nestfolio/${PREFIX}-advisory-bff/api/graphqlUrl" "advisory-bff")"
+LEDGER_GRAPHQL_URL="$(get_ssm "/nestfolio/${PREFIX}-ledger-bff/api/graphqlUrl" "ledger-bff")"
+DASHBOARD_GRAPHQL_URL="$(get_ssm "/nestfolio/${PREFIX}-dashboard-bff/api/graphqlUrl" "dashboard-bff")"
+
 # JSON encoder: minimal, used per-string to escape backslash and double-quote.
 json_str() { printf '"%s"' "${1//\"/\\\"}" ; }
 
@@ -103,7 +124,13 @@ mkdir -p "$(dirname "$OUT_PATH")"
   printf '    "clientId": %s,\n'   "$(json_str "$CLIENT_ID")"
   printf '    "region": %s\n'      "$(json_str "$AUTH_REGION")"
   printf '  },\n'
-  printf '  "copilotApiUrl": %s\n' "$(json_str "${DIST_URL}/api/copilotkit")"
+  printf '  "copilotApiUrl": %s,\n' "$(json_str "${DIST_URL}/api/copilotkit")"
+  printf '  "appsyncGraphqlUrls": {\n'
+  printf '    "investor": %s,\n'  "$(json_str "$INVESTOR_GRAPHQL_URL")"
+  printf '    "advisory": %s,\n'  "$(json_str "$ADVISORY_GRAPHQL_URL")"
+  printf '    "ledger": %s,\n'    "$(json_str "$LEDGER_GRAPHQL_URL")"
+  printf '    "dashboard": %s\n'  "$(json_str "$DASHBOARD_GRAPHQL_URL")"
+  printf '  }\n'
   printf '}\n'
 } > "$OUT_PATH"
 

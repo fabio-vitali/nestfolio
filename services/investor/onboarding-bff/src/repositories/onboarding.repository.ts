@@ -74,7 +74,10 @@ export class OnboardingRepository extends TableRepository {
       const pk = sessionPk(ctx.tenantId, ctx.userId);
       const now = getTime();
 
-      // CDC record — raw onboarding data, onboarding vocabulary only
+      // CDC record — raw onboarding data, onboarding vocabulary only.
+      // Account-mode + risk-profile phases were dropped from the wizard; defaults
+      // below keep the OnboardingCompleted CDC schema satisfied for downstream
+      // services (investor-bff/advisory) until those flows surface their own UI.
       const cdcRecord: TableEntry = {
         pk: `OnboardingCompleted#${ctx.tenantId}#${ctx.userId}`,
         sk: `OnboardingCompleted#${sessionId}`,
@@ -83,11 +86,11 @@ export class OnboardingRepository extends TableRepository {
         timestamp: now,
         goal: phases.goal!,
         horizonYears: phases.horizon!.years,
-        accountMode: phases.mode!.accountMode,
+        accountMode: phases.mode?.accountMode ?? 'simulation',
         capitalAmount: phases.capital!.amount,
-        currency: phases.capital!.currency,
-        riskTolerance: phases.risk!.toleranceIdx,
-        riskExperience: phases.risk!.experienceIdx,
+        currency: phases.capital?.currency ?? 'EUR',
+        riskTolerance: phases.risk?.toleranceIdx ?? 1,
+        riskExperience: phases.risk?.experienceIdx ?? 1,
         operatingMode: phases.operatingMode!.mode.toUpperCase(),
         mandateAccepted: true,
         ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30-day cleanup

@@ -16,9 +16,7 @@ export function rehydrateState(session: SessionRecord | null): Record<string, un
   const p = session.phases ?? {};
   const goal = p.goal as { objective: string } | undefined;
   const horizon = p.horizon as { years: number } | undefined;
-  const mode = p.mode as { accountMode: string } | undefined;
   const capital = p.capital as { amount: number } | undefined;
-  const risk = p.risk as Record<string, unknown> | undefined;
   const opMode = p.operatingMode as { mode: string } | undefined;
 
   return {
@@ -29,10 +27,8 @@ export function rehydrateState(session: SessionRecord | null): Record<string, un
     sessionId: session.sessionId,
     goal: goal?.objective,
     horizonYears: horizon?.years,
-    accountMode: mode?.accountMode,
     capitalAmount: capital?.amount,
-    riskProfile: risk,
-    operatingMode: opMode?.mode,
+    operatingMode: opMode?.mode?.toLowerCase(),
     messages: [],
   };
 }

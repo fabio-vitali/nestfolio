@@ -28,16 +28,14 @@ jest.mock('aws-appsync-subscription-link', () => ({
   createSubscriptionHandshakeLink: mockCreateSubscriptionHandshakeLink,
 }));
 
-// jsdom is not the default for this file; stub window.location.origin manually.
-(globalThis as unknown as { window: { location: { origin: string } } }).window = {
-  location: { origin: 'https://test.example.com' },
-};
-
 import { createApolloClient } from '../../src/graphql/create-apollo-client';
+
+const APPSYNC_GRAPHQL_URL = 'wss://test.appsync-realtime-api.us-east-1.amazonaws.com/graphql';
 
 describe('createApolloClient', () => {
   const baseOpts = {
     domain: 'investor',
+    appsyncGraphqlUrl: APPSYNC_GRAPHQL_URL,
     region: 'us-east-1',
     jwtTokenProvider: jest.fn().mockResolvedValue('jwt-xyz'),
     onAuthFailure: jest.fn(),
@@ -52,11 +50,12 @@ describe('createApolloClient', () => {
     expect(mockHttpLink).toHaveBeenCalledWith({ uri: '/graphql/investor' });
   });
 
-  it('builds the subscription link against ${window.location.origin}/realtime/<domain>', () => {
-    createApolloClient({ ...baseOpts, domain: 'advisory' });
+  it('builds the subscription link against the direct AppSync graphqlUrl (NOT a relative path)', () => {
+    const advisoryUrl = 'wss://advisory.appsync-realtime-api.us-east-1.amazonaws.com/graphql';
+    createApolloClient({ ...baseOpts, domain: 'advisory', appsyncGraphqlUrl: advisoryUrl });
     expect(mockCreateSubscriptionHandshakeLink).toHaveBeenCalledWith(
       expect.objectContaining({
-        url: 'https://test.example.com/realtime/advisory',
+        url: advisoryUrl,
         region: 'us-east-1',
         auth: expect.objectContaining({ type: 'AMAZON_COGNITO_USER_POOLS' }),
       }),

@@ -48,4 +48,14 @@ describe('ModeCardsRendererComponent', () => {
   it('renders detail items', () => {
     expect(fixture.nativeElement.textContent).toContain('Gestione passiva');
   });
+
+  it('renders data-testid attribute per card id', () => {
+    fixture.componentRef.setInput('cards', [
+      { id: 'AGGRESSIVE', title: 'Aggressivo', details: ['Alto rischio'] },
+      { id: 'BALANCED', title: 'Bilanciato', details: ['Medio rischio'] },
+    ]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="mode-AGGRESSIVE"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="mode-BALANCED"]')).toBeTruthy();
+  });
 });

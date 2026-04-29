@@ -10,6 +10,7 @@ import {
   ViewContainerRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { HttpAgent, EventType } from '@ag-ui/client';
 import { Subscription } from 'rxjs';
 import { RunAgentInput } from '@ag-ui/core';
@@ -56,7 +57,10 @@ const TOOL_RENDERER_MAP: Partial<Record<RendererType, Type<unknown>>> = {
 };
 
 const LOADING_DELAY_MS = 3_000;
-const TIMEOUT_MS = 15_000;
+// 45s budget covers the worst-case turn: cold-start container + 2 sequential
+// Bedrock model invocations (commit_phase loop → next phase render) plus the
+// optional follow-up text generation in the search_knowledge_base path.
+const TIMEOUT_MS = 45_000;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -95,7 +99,11 @@ const TIMEOUT_MS = 15_000;
           <div class="chat-bubble" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
             @if (msg.role === 'assistant' && msg.toolName) {
               <!-- Renderer slot — filled dynamically by ViewContainerRef -->
-              <div [attr.data-tool-slot]="msg.id" class="renderer-slot"></div>
+              <div
+                [attr.data-tool-slot]="msg.id"
+                [attr.data-testid]="'renderer-' + msg.toolName"
+                class="renderer-slot"
+              ></div>
             } @else {
               <p class="bubble-text">{{ msg.content }}</p>
             }
@@ -149,6 +157,7 @@ export class OnboardingChatComponent implements OnInit {
   private readonly vcr = inject(ViewContainerRef);
   private readonly copilotApiUrl = inject(COPILOT_API_URL);
   private readonly authStore = inject(AuthStore);
+  private readonly router = inject(Router);
 
   private static readonly SESSION_KEY = 'onboarding.sessionId';
 
@@ -174,6 +183,11 @@ export class OnboardingChatComponent implements OnInit {
   private pendingToolName: string | null = null;
   private pendingToolArgs = '';
   private rendererRefs: ComponentRef<unknown>[] = [];
+  private rendererSubs: Array<{ unsubscribe(): void }> = [];
+  // Browser-side mirror of the graph state. Updated from STATE_SNAPSHOT events
+  // and forwarded as `state` on each /invocations call so the in-process graph
+  // (which has no checkpointer) can resume at the correct phase.
+  private agentState: Record<string, unknown> = {};
 
   private getOrCreateSessionId(): string {
     const existing = sessionStorage.getItem(OnboardingChatComponent.SESSION_KEY);
@@ -184,7 +198,10 @@ export class OnboardingChatComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.destroyRef.onDestroy(() => this.cleanup());
+    this.destroyRef.onDestroy(() => {
+      this.cleanup();
+      this.destroyAllRenderers();
+    });
     // Kick off with an initial agent turn to get the greeting
     this.runAgent([]);
   }
@@ -192,10 +209,14 @@ export class OnboardingChatComponent implements OnInit {
   sendMessage(): void {
     const text = this.inputValue().trim();
     if (!text || this.isStreaming()) return;
-
-    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text };
-    this.messages.update((prev) => [...prev, userMsg]);
     this.inputValue.set('');
+    this.submitUserContent(text);
+  }
+
+  private submitUserContent(content: string): void {
+    if (!content || this.isStreaming()) return;
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content };
+    this.messages.update((prev) => [...prev, userMsg]);
     this.runAgent(this.messages());
   }
 
@@ -215,15 +236,22 @@ export class OnboardingChatComponent implements OnInit {
     this.timedOut.set(false);
     this.errorMessage.set(null);
 
-    // Fetch fresh auth headers on every run
+    // Fetch fresh auth headers on every run.
+    //
+    // AgentCore's Custom JWT authorizer requires a Cognito ACCESS token, not
+    // the ID token. ID tokens carry `token_use: "id"` and AgentCore rejects
+    // them with `UnrecognizedClientException` (the JWT validator hands the
+    // request back to the SigV4 path, which then fails for lack of a sig).
+    // See AWS docs:
+    // https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-oauth.html
     const session = await fetchAuthSession();
-    const idToken = session.tokens?.idToken?.toString() ?? '';
+    const accessToken = session.tokens?.accessToken?.toString() ?? '';
     const tenantId = this.authStore.user()?.tenantId ?? '';
     const sessionId = this.getOrCreateSessionId();
     const agent = new HttpAgent({
       url: this.copilotApiUrl,
       headers: {
-        'Authorization': `Bearer ${idToken}`,
+        'Authorization': `Bearer ${accessToken}`,
         'x-amzn-bedrock-agentcore-runtime-session-id': `${tenantId}/${sessionId}`,
       },
     });
@@ -254,7 +282,7 @@ export class OnboardingChatComponent implements OnInit {
       tools: [],
       context: [],
       forwardedProps: {},
-      state: {},
+      state: this.agentState,
     };
 
     let currentMsgId: string | null = null;
@@ -291,9 +319,14 @@ export class OnboardingChatComponent implements OnInit {
             break;
 
           case EventType.TOOL_CALL_START: {
-            const e = event as { toolCallId?: string; toolName?: string };
+            // AG-UI's ToolCallStartEvent shape is { toolCallId, toolCallName }
+            // (see @ag-ui/core). The previous reader referenced `toolName`,
+            // which is undefined — pendingToolName stayed null and the
+            // renderer mount in TOOL_CALL_END below was a no-op. Was hidden
+            // until the agent started emitting real tool-call events.
+            const e = event as { toolCallId?: string; toolCallName?: string };
             this.pendingToolId = e.toolCallId ?? crypto.randomUUID();
-            this.pendingToolName = e.toolName ?? null;
+            this.pendingToolName = e.toolCallName ?? null;
             this.pendingToolArgs = '';
             this.showLoading.set(false);
             break;
@@ -334,8 +367,12 @@ export class OnboardingChatComponent implements OnInit {
 
           case EventType.STATE_SNAPSHOT: {
             const state = (event as { snapshot?: Record<string, unknown> }).snapshot ?? {};
-            if (typeof state['phase_index'] === 'number') {
-              this.phaseIndex.set(state['phase_index'] as number);
+            this.agentState = { ...this.agentState, ...state };
+            if (typeof state['phaseIndex'] === 'number') {
+              this.phaseIndex.set(state['phaseIndex'] as number);
+            }
+            if (typeof state['totalPhases'] === 'number') {
+              this.totalPhases.set(state['totalPhases'] as number);
             }
             break;
           }
@@ -355,6 +392,37 @@ export class OnboardingChatComponent implements OnInit {
         this.finishStream();
       },
     });
+  }
+
+  // ── CTA click handler ─────────────────────────────────────────────────────
+  //
+  // We call fetchAuthSession({ forceRefresh: true }) directly (no separate
+  // forceRefreshSession() call) because it both forces the Cognito token refresh
+  // AND returns the idToken payload we need to read custom:onboarding_completed_at
+  // in a single round-trip. A second forceRefreshSession() call would be redundant.
+
+  async onCtaClick(_action: string): Promise<void> {
+    // The agent has just committed the mandate_consent phase, which writes
+    // ONBOARDING_COMPLETED to DDB and triggers the CDC → investor-ctrl →
+    // Cognito SetUserAttributes chain. That chain takes seconds to propagate.
+    // To avoid the route guard bouncing /dashboard back to /onboarding, mark
+    // the user complete locally NOW (the agent has guaranteed completion);
+    // a follow-up forceRefresh updates the claim once it's available.
+    const localCompletedAt = new Date().toISOString();
+    this.authStore.updateUser({ onboardingCompletedAt: localCompletedAt });
+
+    try {
+      const session = await fetchAuthSession({ forceRefresh: true });
+      const claimAt =
+        (session.tokens?.idToken?.payload?.['custom:onboarding_completed_at'] as string) || null;
+      if (claimAt) {
+        this.authStore.updateUser({ onboardingCompletedAt: claimAt });
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[OnboardingChat] CTA fetchAuthSession failed; navigating anyway', err);
+    }
+    await this.router.navigate(['/dashboard']);
   }
 
   // ── Renderer mounting ──────────────────────────────────────────────────────
@@ -383,6 +451,64 @@ export class OnboardingChatComponent implements OnInit {
       }
     }
 
+    // Subscribe to CTA output so the final wizard step navigates to the dashboard
+    if (toolName === 'render_cta') {
+      const cta = ref.instance as CtaRendererComponent;
+      const sub = cta.clicked.subscribe((action: string) => {
+        void this.onCtaClick(action);
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    // Subscribe to user-input renderer outputs to feed selections back to the agent
+    if (toolName === 'render_options') {
+      const r = ref.instance as OptionsRendererComponent;
+      const sub = r.selected.subscribe((id: string) => {
+        this.submitUserContent(id);
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    if (toolName === 'render_mode_cards') {
+      const r = ref.instance as ModeCardsRendererComponent;
+      const sub = r.selected.subscribe((id: string) => {
+        this.submitUserContent(id);
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    if (toolName === 'render_slider') {
+      const r = ref.instance as SliderRendererComponent;
+      const sub = r.valueChange.subscribe((value: number) => {
+        this.submitUserContent(String(value));
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    if (toolName === 'render_amount') {
+      const r = ref.instance as AmountRendererComponent;
+      const sub = r.amountChange.subscribe((value: number) => {
+        this.submitUserContent(String(value));
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    if (toolName === 'render_consent') {
+      const r = ref.instance as ConsentRendererComponent;
+      const sub = r.accepted.subscribe((accepted: boolean) => {
+        this.submitUserContent(accepted ? 'Accetto' : 'Rifiuto');
+      });
+      this.rendererSubs.push(sub);
+    }
+
+    if (toolName === 'render_summary') {
+      const r = ref.instance as SummaryRendererComponent;
+      const sub = r.confirmed.subscribe(() => {
+        this.submitUserContent('Confermo');
+      });
+      this.rendererSubs.push(sub);
+    }
+
     slot.appendChild(ref.location.nativeElement);
     this.rendererRefs.push(ref);
   }
@@ -402,7 +528,17 @@ export class OnboardingChatComponent implements OnInit {
     this.streamSub = null;
     if (this.loadingTimer) { clearTimeout(this.loadingTimer); this.loadingTimer = null; }
     if (this.timeoutTimer) { clearTimeout(this.timeoutTimer); this.timeoutTimer = null; }
+  }
+
+  /** Destroys all mounted renderer components and their output subscriptions.
+   *  Called on component destroy only — `runAgent` no longer wipes prior
+   *  renderers because users may interact with an existing renderer (e.g.,
+   *  the consent checkbox) AFTER asking a follow-up question that adds a new
+   *  text message but does not advance the phase. */
+  private destroyAllRenderers(): void {
     this.rendererRefs.forEach((r) => r.destroy());
     this.rendererRefs = [];
+    this.rendererSubs.forEach((s) => s.unsubscribe());
+    this.rendererSubs = [];
   }
 }

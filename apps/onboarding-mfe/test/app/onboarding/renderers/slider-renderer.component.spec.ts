@@ -44,4 +44,8 @@ describe('SliderRendererComponent', () => {
   it('renders unit in label', () => {
     expect(fixture.nativeElement.textContent).toContain('anni');
   });
+
+  it('renders data-testid="slider-input" on the range input', () => {
+    expect(fixture.nativeElement.querySelector('[data-testid="slider-input"]')).toBeTruthy();
+  });
 });

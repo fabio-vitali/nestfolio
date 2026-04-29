@@ -29,6 +29,7 @@ module.exports = [
             '@nestfolio/.+/events',
             '@nestfolio/.+-adpt/domain',
             '@nestfolio/event-processor',
+            '@nestfolio/e2e-feature-tests',
           ],
           depConstraints: [
             { sourceTag: 'scope:platform', onlyDependOnLibsWithTags: ['scope:platform'] },

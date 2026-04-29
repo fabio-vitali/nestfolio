@@ -14,6 +14,7 @@ interface ConsentLink {
         <input
           type="checkbox"
           class="consent-checkbox"
+          data-testid="consent-accept"
           [checked]="isChecked()"
           (change)="onChange($event)"
         />

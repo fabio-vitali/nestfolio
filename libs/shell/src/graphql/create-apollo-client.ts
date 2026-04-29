@@ -7,6 +7,18 @@ import { createSubscriptionHandshakeLink } from 'aws-appsync-subscription-link';
 export interface CreateApolloClientOptions {
   /** BFF domain literal: 'investor' | 'advisory' | 'dashboard' | 'ledger'. */
   domain: string;
+  /**
+   * Direct AppSync WSS realtime endpoint URL, e.g.
+   * `wss://<api-id>.appsync-realtime-api.<region>.amazonaws.com/graphql`.
+   *
+   * Must be the real AppSync host — `aws-appsync-subscription-link` includes
+   * the URL host in the connection_init auth payload, and AppSync rejects
+   * any host it cannot map to one of its APIs (so a CloudFront proxy host
+   * would fail with HttpNotFoundException). HTTP queries/mutations are
+   * unaffected: they use the relative `/graphql/<domain>` path which
+   * CloudFront proxies via the `realtime-rewrite` CF Function.
+   */
+  appsyncGraphqlUrl: string;
   /** AWS region for AppSync auth-link header construction. */
   region: string;
   /** Returns a Cognito ID token for outgoing requests. */
@@ -16,10 +28,9 @@ export interface CreateApolloClientOptions {
 }
 
 export function createApolloClient(opts: CreateApolloClientOptions): ApolloClient {
-  const { domain, region, jwtTokenProvider, onAuthFailure } = opts;
+  const { domain, appsyncGraphqlUrl, region, jwtTokenProvider, onAuthFailure } = opts;
 
   const httpUri = `/graphql/${domain}`;
-  const realtimeUrl = `${window.location.origin}/realtime/${domain}`;
 
   const auth: AuthOptions = {
     type: AUTH_TYPE.AMAZON_COGNITO_USER_POOLS,
@@ -41,7 +52,7 @@ export function createApolloClient(opts: CreateApolloClientOptions): ApolloClien
   const httpLink = new HttpLink({ uri: httpUri });
   const authLink = createAuthLink({ url: httpUri, region, auth });
   const subscriptionLink = createSubscriptionHandshakeLink(
-    { url: realtimeUrl, region, auth },
+    { url: appsyncGraphqlUrl, region, auth },
     httpLink,
   );
 

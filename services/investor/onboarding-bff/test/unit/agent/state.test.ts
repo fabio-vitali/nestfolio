@@ -13,16 +13,14 @@ describe('OnboardingStateSchema', () => {
 
   it('accepts fully populated state', () => {
     const result = OnboardingStateSchema.safeParse({
-      phase: 'mandate',
+      phase: 'mandate_cta',
       phaseIndex: 6,
       totalPhases: 7,
-      goal: 'Crescita',
-      horizonYears: 10,
-      accountMode: 'simulation',
-      capitalAmount: 25000,
-      riskProfile: { toleranceIdx: 0, experienceIdx: 0, score: 25, category: 'conservative' },
+      goal: 'growth',
       operatingMode: 'balanced',
-      mandateAccepted: false,
+      horizonYears: 10,
+      capitalAmount: 50000,
+      mandateAccepted: true,
       messages: [],
     });
     expect(result.success).toBe(true);
@@ -34,16 +32,30 @@ describe('PHASE_ORDER', () => {
     expect(PHASE_ORDER).toHaveLength(7);
   });
 
-  it('starts with goal and ends with mandate', () => {
+  it('starts with goal and ends with mandate_cta', () => {
     expect(PHASE_ORDER[0]).toBe('goal');
-    expect(PHASE_ORDER[6]).toBe('mandate');
+    expect(PHASE_ORDER[6]).toBe('mandate_cta');
+  });
+
+  it('matches the journey-driven order', () => {
+    expect(PHASE_ORDER).toEqual([
+      'goal',
+      'operating_mode',
+      'horizon',
+      'capital',
+      'mandate_summary',
+      'mandate_consent',
+      'mandate_cta',
+    ]);
   });
 });
 
 describe('phaseIndexOf', () => {
   it('returns correct index for each phase', () => {
     expect(phaseIndexOf('goal')).toBe(0);
-    expect(phaseIndexOf('horizon')).toBe(1);
-    expect(phaseIndexOf('mandate')).toBe(6);
+    expect(phaseIndexOf('operating_mode')).toBe(1);
+    expect(phaseIndexOf('horizon')).toBe(2);
+    expect(phaseIndexOf('capital')).toBe(3);
+    expect(phaseIndexOf('mandate_cta')).toBe(6);
   });
 });

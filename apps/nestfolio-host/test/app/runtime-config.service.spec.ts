@@ -21,6 +21,12 @@ function makeConfig(): RuntimeConfig {
   return {
     auth: { userPoolId: 'pool', clientId: 'client', region: 'us-east-1' },
     copilotApiUrl: 'https://example.cloudfront.net/api/copilotkit',
+    appsyncGraphqlUrls: {
+      investor: 'https://investor.appsync-api.us-east-1.amazonaws.com/graphql',
+      advisory: 'https://advisory.appsync-api.us-east-1.amazonaws.com/graphql',
+      ledger: 'https://ledger.appsync-api.us-east-1.amazonaws.com/graphql',
+      dashboard: 'https://dashboard.appsync-api.us-east-1.amazonaws.com/graphql',
+    },
   };
 }
 
@@ -54,5 +60,20 @@ describe('RuntimeConfigService (fail-hard runtime config)', () => {
 
   it('exposes copilotApiUrl shortcut', () => {
     expect(service.copilotApiUrl).toBe('https://example.cloudfront.net/api/copilotkit');
+  });
+
+  it('exposes appsyncGraphqlUrl(domain) for each Facade-bearing BFF', () => {
+    expect(service.appsyncGraphqlUrl('investor')).toBe(
+      'https://investor.appsync-api.us-east-1.amazonaws.com/graphql',
+    );
+    expect(service.appsyncGraphqlUrl('advisory')).toBe(
+      'https://advisory.appsync-api.us-east-1.amazonaws.com/graphql',
+    );
+    expect(service.appsyncGraphqlUrl('ledger')).toBe(
+      'https://ledger.appsync-api.us-east-1.amazonaws.com/graphql',
+    );
+    expect(service.appsyncGraphqlUrl('dashboard')).toBe(
+      'https://dashboard.appsync-api.us-east-1.amazonaws.com/graphql',
+    );
   });
 });

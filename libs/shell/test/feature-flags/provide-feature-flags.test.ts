@@ -27,7 +27,7 @@ describe('provideFeatureFlags()', () => {
           provide: AuthConfig,
           useValue: { userPoolId: 'pool', clientId: 'client', region: 'us-east-1' },
         },
-        provideFeatureFlags(),
+        provideFeatureFlags(() => 'wss://test.appsync-realtime-api.us-east-1.amazonaws.com/graphql'),
       ],
     });
   });

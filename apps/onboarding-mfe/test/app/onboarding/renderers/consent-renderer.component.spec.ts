@@ -52,4 +52,8 @@ describe('ConsentRendererComponent', () => {
     checkbox.dispatchEvent(new Event('change'));
     expect(spy).toHaveBeenCalledWith(false);
   });
+
+  it('renders data-testid="consent-accept" on the checkbox', () => {
+    expect(fixture.nativeElement.querySelector('[data-testid="consent-accept"]')).toBeTruthy();
+  });
 });

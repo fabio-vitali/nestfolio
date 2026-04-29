@@ -37,4 +37,24 @@ describe('SummaryRendererComponent', () => {
     expect(text).toContain('10 anni');
     expect(text).toContain('€ 25.000');
   });
+
+  it('renders a Conferma button', () => {
+    const btn = fixture.nativeElement.querySelector('.summary-confirm');
+    expect(btn).toBeTruthy();
+    expect(btn.textContent.trim()).toBe('Conferma');
+  });
+
+  it('emits confirmed when the Conferma button is clicked', () => {
+    const emitted: void[] = [];
+    fixture.componentInstance.confirmed.subscribe(() => emitted.push(undefined));
+
+    const btn = fixture.nativeElement.querySelector('.summary-confirm') as HTMLButtonElement;
+    btn.click();
+
+    expect(emitted).toHaveLength(1);
+  });
+
+  it('renders data-testid="summary-confirm" on the Conferma button', () => {
+    expect(fixture.nativeElement.querySelector('[data-testid="summary-confirm"]')).toBeTruthy();
+  });
 });

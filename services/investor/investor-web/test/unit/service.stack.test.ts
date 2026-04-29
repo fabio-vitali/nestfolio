@@ -271,22 +271,17 @@ describe('InvestorWebStack — MFE unified topology (flag on, /realtime/<domain>
     template = Template.fromStack(stack);
   });
 
-  it('adds /realtime/<domain> behavior for each Facade-bearing catalog entry', () => {
+  it('adds NO /realtime/<domain> behavior — WSS subscriptions connect direct to AppSync', () => {
+    // Removed in favour of direct browser → AppSync WSS. See service.stack.ts
+    // for rationale (AppSync rejects connection_init when the URL host is a
+    // CloudFront proxy; the host is consumed via runtime config now).
+    const distConfig = template.findResources('AWS::CloudFront::Distribution');
+    const allBehaviors = Object.values(distConfig).flatMap(
+      (r: any) => r.Properties.DistributionConfig.CacheBehaviors ?? [],
+    );
     for (const domain of ['investor', 'advisory', 'ledger', 'dashboard']) {
-      template.hasResourceProperties('AWS::CloudFront::Distribution', {
-        DistributionConfig: Match.objectLike({
-          CacheBehaviors: Match.arrayWith([
-            Match.objectLike({
-              PathPattern: `/realtime/${domain}`,
-              ViewerProtocolPolicy: 'https-only',
-              AllowedMethods: Match.arrayWith(['POST']),
-              FunctionAssociations: Match.arrayWith([
-                Match.objectLike({ EventType: 'viewer-request' }),
-              ]),
-            }),
-          ]),
-        }),
-      });
+      const realtime = allBehaviors.filter((b: any) => /^\/realtime\/[^/]+\/?$/.test(b.PathPattern) && b.PathPattern.includes(domain));
+      expect(realtime).toHaveLength(0);
     }
   });
 
@@ -299,19 +294,37 @@ describe('InvestorWebStack — MFE unified topology (flag on, /realtime/<domain>
     expect(onboardingRt).toHaveLength(0);
   });
 
-  it('reads api/realtimeUrl SSM parameter for each Facade-bearing entry', () => {
+  it('does NOT read api/realtimeUrl SSM (consumer removed; WSS goes direct to AppSync)', () => {
+    // The BFF Facade still publishes `api/realtimeUrl` — the host now consumes
+    // it via the runtime-config emit script (`scripts/fetch-runtime-config.sh`)
+    // not via CDK synth. The investor-web stack should not reference this
+    // SSM parameter directly anymore.
     for (const service of ['investor-bff', 'advisory-bff', 'ledger-bff', 'dashboard-bff']) {
-      template.hasParameter('*', {
+      const params = template.findParameters('*', {
         Type: 'AWS::SSM::Parameter::Value<String>',
         Default: `/nestfolio/test-${service}/api/realtimeUrl`,
       });
+      expect(Object.keys(params)).toHaveLength(0);
     }
   });
 
-  it('CacheBehaviors has exactly 14 path-pattern entries when flag is on', () => {
+  it('CacheBehaviors has exactly 10 path-pattern entries when flag is on', () => {
+    // 1 copilot + 5 mfe-bucket + 4 graphql.
+    // No /realtime/<domain> behaviors — WSS subscriptions connect direct to
+    // AppSync (the lib's connection_init payload binds the URL host, which
+    // AppSync rejects when the host is a CloudFront proxy).
     const distConfig = template.findResources('AWS::CloudFront::Distribution');
     const cacheBehaviors = (Object.values(distConfig)[0] as any).Properties.DistributionConfig.CacheBehaviors;
-    expect(cacheBehaviors).toHaveLength(14);
+    expect(cacheBehaviors).toHaveLength(10);
+  });
+
+  it('has no /realtime/* behaviors (subscriptions are direct browser → AppSync)', () => {
+    const distConfig = template.findResources('AWS::CloudFront::Distribution');
+    const cacheBehaviors = (Object.values(distConfig)[0] as any).Properties.DistributionConfig.CacheBehaviors;
+    const realtimePatterns = cacheBehaviors
+      .map((b: { PathPattern: string }) => b.PathPattern)
+      .filter((p: string) => /^\/realtime\//.test(p));
+    expect(realtimePatterns).toHaveLength(0);
   });
 
   it('still has exactly 3 CloudFront Functions (rewrite fns reused across behaviors, not duplicated)', () => {

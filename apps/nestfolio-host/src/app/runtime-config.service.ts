@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { getRuntimeConfig, RuntimeConfig } from './app.config';
+import type { RuntimeConfig } from './app.config';
+import { getRuntimeConfig } from './app.config';
 
 /**
  * Injectable service that provides access to the runtime configuration.
@@ -24,5 +25,9 @@ export class RuntimeConfigService {
 
   get copilotApiUrl(): string {
     return this.config.copilotApiUrl;
+  }
+
+  appsyncGraphqlUrl(domain: keyof RuntimeConfig['appsyncGraphqlUrls']): string {
+    return this.config.appsyncGraphqlUrls[domain];
   }
 }

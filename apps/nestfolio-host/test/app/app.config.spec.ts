@@ -29,6 +29,12 @@ function makeConfig(overrides?: Partial<RuntimeConfig>): RuntimeConfig {
   return {
     auth: { userPoolId: 'pool', clientId: 'client', region: 'us-east-1' },
     copilotApiUrl: 'https://example.cloudfront.net/api/copilotkit',
+    appsyncGraphqlUrls: {
+      investor: 'https://investor.appsync-api.us-east-1.amazonaws.com/graphql',
+      advisory: 'https://advisory.appsync-api.us-east-1.amazonaws.com/graphql',
+      ledger: 'https://ledger.appsync-api.us-east-1.amazonaws.com/graphql',
+      dashboard: 'https://dashboard.appsync-api.us-east-1.amazonaws.com/graphql',
+    },
     ...overrides,
   };
 }

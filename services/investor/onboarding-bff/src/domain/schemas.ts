@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 export const OnboardingPhaseSchema = z.enum([
-  'goal', 'horizon', 'mode', 'capital', 'risk', 'operating_mode', 'mandate', 'completed',
+  'goal', 'operating_mode', 'horizon', 'capital',
+  'mandate_summary', 'mandate_consent', 'mandate_cta', 'completed',
   'review_risk', 'review_goals', 'review_mandate', 'fund_account', 'go_live_confirmation',
 ]);
 export type OnboardingPhase = z.infer<typeof OnboardingPhaseSchema>;
