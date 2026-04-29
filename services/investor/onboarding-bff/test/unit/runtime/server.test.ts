@@ -1,20 +1,10 @@
 import { createApp } from '../../../agents/onboarding/server';
 import { EMPTY } from 'rxjs';
 
-// Build a JWT (header.payload.signature, base64url) carrying the given claims.
-// `decodeJwt` from `jose` decodes without verifying the signature; AgentCore's
-// Custom JWT authorizer is the auth boundary and has already validated the
-// token before forwarding the request — see resolveJwtIdentity in server.ts.
-function buildJwt(claims: Record<string, unknown>): string {
-  const enc = (obj: unknown) => Buffer.from(JSON.stringify(obj)).toString('base64url');
-  const header = enc({ alg: 'RS256', typ: 'JWT' });
-  const body = enc(claims);
-  return `${header}.${body}.signature-not-verified-by-agent-runtime`;
-}
-
 const TENANT = 't-1';
 const USER = 'u-1';
-const VALID_BEARER = `Bearer ${buildJwt({ sub: USER, 'custom:tenant_id': TENANT })}`;
+const SESSION = 'session-1';
+const SESSION_ID_HEADER = `${TENANT}/${SESSION}`;
 
 // `OnboardingAgent` (in agents/onboarding/agent.ts) drives the in-process
 // LangGraph and emits AG-UI events. The runMock returns an immediately-
@@ -50,6 +40,13 @@ afterEach(() => {
   runMock.mockClear();
 });
 
+const validInvocationBody = () => JSON.stringify({
+  threadId: SESSION,
+  runId: 'run-1',
+  messages: [],
+  forwardedProps: { identity: { userId: USER } },
+});
+
 describe('Onboarding AgentCore runtime server', () => {
   it('createApp returns a Hono app', () => {
     const app = createApp();
@@ -75,80 +72,40 @@ describe('Onboarding AgentCore runtime server', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': VALID_BEARER,
-        'x-amzn-bedrock-agentcore-runtime-session-id': 'browser-tenant/session-1',
+        'x-amzn-bedrock-agentcore-runtime-session-id': SESSION_ID_HEADER,
       },
-      body: JSON.stringify({ threadId: 'session-1', messages: [] }),
+      body: validInvocationBody(),
     });
     expect(res.status).toBe(200);
     expect(runMock).toHaveBeenCalledTimes(1);
   });
 
-  it('passes JWT-derived identity to the OnboardingAgent (browser tenant prefix discarded)', async () => {
+  it('passes parsed identity (tenantId from session-id header, userId from body) to OnboardingAgent', async () => {
     const { OnboardingAgent } = require('../../../agents/onboarding/agent');
     const app = createApp();
     await app.request('/invocations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': VALID_BEARER,
-        // Browser-supplied "tenant-spoofed" prefix MUST be ignored — the
-        // tenantId comes from the JWT custom:tenant_id claim, not the
-        // session-id header. This is the prompt-injection / cross-tenant
-        // write boundary documented in
-        // 2026-04-29-onboarding-identity-propagation-design.md.
-        'x-amzn-bedrock-agentcore-runtime-session-id': 'tenant-spoofed/session-1',
+        'x-amzn-bedrock-agentcore-runtime-session-id': SESSION_ID_HEADER,
       },
-      body: JSON.stringify({ threadId: 'session-1', messages: [] }),
+      body: validInvocationBody(),
     });
     expect(OnboardingAgent).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        identity: { tenantId: TENANT, userId: USER, sessionId: 'session-1' },
+        identity: { tenantId: TENANT, userId: USER, sessionId: SESSION },
       }),
     );
   });
 });
 
 describe('Identity gate on /invocations', () => {
-  it('returns 401 when Authorization header is missing', async () => {
+  it('returns 401 when session-id header is missing', async () => {
     const app = createApp();
     const res = await app.request('/invocations', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-amzn-bedrock-agentcore-runtime-session-id': 't1/s1',
-      },
-      body: JSON.stringify({}),
-    });
-    expect(res.status).toBe(401);
-    expect(runMock).not.toHaveBeenCalled();
-  });
-
-  it('returns 401 when JWT lacks the custom:tenant_id claim', async () => {
-    const app = createApp();
-    const res = await app.request('/invocations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${buildJwt({ sub: 'u-1' /* no custom:tenant_id */ })}`,
-        'x-amzn-bedrock-agentcore-runtime-session-id': 't1/s1',
-      },
-      body: JSON.stringify({}),
-    });
-    expect(res.status).toBe(401);
-    expect(runMock).not.toHaveBeenCalled();
-  });
-
-  it('returns 401 when JWT lacks the sub claim', async () => {
-    const app = createApp();
-    const res = await app.request('/invocations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${buildJwt({ 'custom:tenant_id': 't-1' /* no sub */ })}`,
-        'x-amzn-bedrock-agentcore-runtime-session-id': 't1/s1',
-      },
-      body: JSON.stringify({}),
+      headers: { 'Content-Type': 'application/json' },
+      body: validInvocationBody(),
     });
     expect(res.status).toBe(401);
     expect(runMock).not.toHaveBeenCalled();
@@ -160,45 +117,77 @@ describe('Identity gate on /invocations', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': VALID_BEARER,
         'x-amzn-bedrock-agentcore-runtime-session-id': 'no-slash',
       },
-      body: JSON.stringify({}),
+      body: validInvocationBody(),
     });
     expect(res.status).toBe(401);
     expect(runMock).not.toHaveBeenCalled();
   });
 
-  it('returns 401 when session-id header is missing entirely', async () => {
+  it('returns 401 when forwardedProps.identity.userId is missing', async () => {
     const app = createApp();
     const res = await app.request('/invocations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': VALID_BEARER,
+        'x-amzn-bedrock-agentcore-runtime-session-id': SESSION_ID_HEADER,
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ threadId: SESSION, messages: [], forwardedProps: {} }),
+    });
+    expect(res.status).toBe(401);
+    expect(runMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 when forwardedProps is missing entirely', async () => {
+    const app = createApp();
+    const res = await app.request('/invocations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-amzn-bedrock-agentcore-runtime-session-id': SESSION_ID_HEADER,
+      },
+      body: JSON.stringify({ threadId: SESSION, messages: [] }),
+    });
+    expect(res.status).toBe(401);
+    expect(runMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 when session-id tenantId portion is empty (leading slash)', async () => {
+    const app = createApp();
+    const res = await app.request('/invocations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-amzn-bedrock-agentcore-runtime-session-id': `/${SESSION}`,
+      },
+      body: validInvocationBody(),
     });
     expect(res.status).toBe(401);
     expect(runMock).not.toHaveBeenCalled();
   });
 });
 
-describe('/session endpoint (now JWT-gated)', () => {
-  it('returns newSession when Authorization header missing', async () => {
+describe('/session endpoint', () => {
+  it('returns newSession when session-id header missing', async () => {
     const app = createApp();
     const res = await app.request('/session');
     const json = await res.json();
     expect(json.newSession).toBe(true);
   });
 
-  it('returns newSession when no active session for the JWT-derived tenant/user', async () => {
+  it('returns newSession when no active session for the parsed tenant/user', async () => {
     const { OnboardingRepository } = require('../../../src/repositories/onboarding.repository');
     OnboardingRepository.mockImplementation(() => ({
       getActiveSession: jest.fn().mockResolvedValue(null),
     }));
     const app = createApp();
-    const res = await app.request('/session', { headers: { 'Authorization': VALID_BEARER } });
+    const res = await app.request('/session', {
+      headers: {
+        'x-amzn-bedrock-agentcore-runtime-session-id': SESSION_ID_HEADER,
+        'x-user-id': USER,
+      },
+    });
     const json = await res.json();
     expect(json.newSession).toBe(true);
   });
@@ -209,7 +198,12 @@ describe('/session endpoint (now JWT-gated)', () => {
       getActiveSession: jest.fn().mockResolvedValue({ status: 'completed', currentPhase: 'completed' }),
     }));
     const app = createApp();
-    const res = await app.request('/session', { headers: { 'Authorization': VALID_BEARER } });
+    const res = await app.request('/session', {
+      headers: {
+        'x-amzn-bedrock-agentcore-runtime-session-id': SESSION_ID_HEADER,
+        'x-user-id': USER,
+      },
+    });
     const json = await res.json();
     expect(json.completed).toBe(true);
   });

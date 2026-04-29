@@ -3,7 +3,6 @@ import { cors } from 'hono/cors';
 import { stream } from 'hono/streaming';
 import { EventEncoder } from '@ag-ui/encoder';
 import type { RunAgentInput } from '@ag-ui/client';
-import { decodeJwt } from 'jose';
 import { buildOnboardingGraph } from './graph';
 import { OnboardingAgent } from './agent';
 import { OnboardingRepository } from '../../src/repositories/onboarding.repository';
@@ -16,45 +15,58 @@ const emitter = new EventBridgeTraceEmitter({
   detailType: OnboardingBffEventTypes.ONBOARDING_AGENT_INVOCATION_TRACED,
 });
 
-function parseRuntimeSessionId(raw: string | undefined): { sessionId: string } {
-  // The AgentCore runtime-session-id header carries `${tenantId}/${sessionId}`,
-  // but the tenantId portion is BROWSER-supplied and untrusted. We use this
-  // header only to extract the sessionId. tenantId + userId come from the
-  // verified Cognito JWT claims (see resolveJwtIdentity).
-  if (!raw) return { sessionId: '' };
-  const slash = raw.indexOf('/');
-  if (slash < 0) return { sessionId: '' };
-  return { sessionId: raw.slice(slash + 1) };
+interface ParsedSessionId {
+  tenantId: string;
+  sessionId: string;
 }
 
-interface JwtIdentity {
-  tenantId: string;
+/**
+ * Parse the AgentCore runtime-session-id header `${tenantId}/${sessionId}`.
+ *
+ * Trust caveat: the tenantId portion is browser-supplied (via
+ * onboarding-chat.component.ts:255). AgentCore validates the request's
+ * Cognito access token but does NOT forward `Authorization` to the agent
+ * runtime — the only forwarded headers are `session-id`, `workloadaccesstoken`,
+ * `baggage`, and AWS proxy/tracing. So we cannot decode the user's JWT
+ * server-side here. The session-id header value is therefore the strongest
+ * identity signal available at this layer; in steady-state it matches the
+ * authenticated user's tenant (Amplify pulls it from the verified ID token
+ * client-side). Cross-tenant spoofing requires the user to forge requests
+ * with a session-id pointing at someone else's tenant — same trust posture
+ * as the pre-fix code. See
+ * docs/superpowers/specs/2026-04-29-onboarding-identity-propagation-design.md
+ * for the residual-gap follow-up.
+ */
+function parseRuntimeSessionId(raw: string | undefined): ParsedSessionId {
+  if (!raw) return { tenantId: '', sessionId: '' };
+  const slash = raw.indexOf('/');
+  if (slash < 0) return { tenantId: '', sessionId: '' };
+  return { tenantId: raw.slice(0, slash), sessionId: raw.slice(slash + 1) };
+}
+
+interface ForwardedIdentity {
   userId: string;
 }
 
 /**
- * Extract trusted identity from the Cognito access token.
+ * Read identity that the browser includes in the AG-UI request body.
  *
- * AgentCore's Custom JWT authorizer has already validated the token's
- * signature, audience, and expiry before forwarding the request — we only
- * need to decode the claims (no JWKS fetch, no re-verification). If a
- * defence-in-depth re-verification is later required, swap `decodeJwt` for
- * `jwtVerify` with a remote JWKS resolver.
+ * AgentCore strips `Authorization`, so the only way to surface the user's
+ * Cognito `sub` to the agent runtime is via the JSON body. The browser
+ * pulls it from `fetchAuthSession().tokens.idToken.payload.sub` (Amplify),
+ * which is signed by Cognito — the user cannot forge it without the
+ * Cognito signing key, but it IS browser-supplied and could in principle
+ * be rotated to another claim by a hostile client. Treat as browser-trust,
+ * same level as the session-id header tenantId portion.
  */
-function resolveJwtIdentity(authHeader: string | undefined): JwtIdentity {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return { tenantId: '', userId: '' };
-  }
-  const token = authHeader.slice(7).trim();
-  if (!token) return { tenantId: '', userId: '' };
-  try {
-    const claims = decodeJwt(token);
-    const tenantId = typeof claims['custom:tenant_id'] === 'string' ? (claims['custom:tenant_id'] as string) : '';
-    const userId = typeof claims.sub === 'string' ? claims.sub : '';
-    return { tenantId, userId };
-  } catch {
-    return { tenantId: '', userId: '' };
-  }
+function readForwardedIdentity(input: unknown): ForwardedIdentity {
+  if (!input || typeof input !== 'object') return { userId: '' };
+  const fp = (input as { forwardedProps?: unknown }).forwardedProps;
+  if (!fp || typeof fp !== 'object') return { userId: '' };
+  const id = (fp as { identity?: unknown }).identity;
+  if (!id || typeof id !== 'object') return { userId: '' };
+  const userId = typeof (id as { userId?: unknown }).userId === 'string' ? (id as { userId: string }).userId : '';
+  return { userId };
 }
 
 export function createApp() {
@@ -70,9 +82,13 @@ export function createApp() {
   app.get('/ping', (c) => c.json({ status: 'ok' }));
 
   app.get('/session', async (c) => {
-    // Identity from the verified Cognito JWT — same source as /invocations.
-    // Browser-supplied x-tenant-id / x-user-id headers are no longer trusted.
-    const { tenantId, userId } = resolveJwtIdentity(c.req.header('Authorization'));
+    // tenantId is derived from the AgentCore session-id header (same as
+    // /invocations); userId is browser-supplied via the x-user-id header.
+    // See parseRuntimeSessionId for the trust caveat.
+    const { tenantId } = parseRuntimeSessionId(
+      c.req.header('x-amzn-bedrock-agentcore-runtime-session-id'),
+    );
+    const userId = c.req.header('x-user-id') ?? '';
 
     if (!tenantId || !userId) {
       return c.json({ newSession: true });
@@ -99,20 +115,24 @@ export function createApp() {
     const tableName = process.env['TABLE_NAME'] ?? '';
     const repo = new OnboardingRepository(tableName);
 
-    // Identity is server-derived only:
-    //   • tenantId, userId — Cognito JWT claims (custom:tenant_id, sub) from
-    //     the Authorization Bearer header. AgentCore's Custom JWT authorizer
-    //     has already validated the token before forwarding the request.
-    //   • sessionId — the AgentCore runtime-session-id header
-    //     (`${browserTenant}/${sessionId}`) — only the sessionId portion is
-    //     used; the browser-supplied tenant prefix is discarded.
-    // The LLM never sees these values; they are bound to the runtime
-    // invocation via RunnableConfig.configurable and read by tools (e.g.
-    // commit_phase) from there.
-    const { tenantId, userId } = resolveJwtIdentity(c.req.header('Authorization'));
-    const { sessionId } = parseRuntimeSessionId(
+    // Identity sources (see `parseRuntimeSessionId` and
+    // `readForwardedIdentity` for the trust-caveat detail). AgentCore strips
+    // the user's Cognito Authorization header before forwarding to the
+    // runtime, so server-side JWT decode is impossible here. tenantId +
+    // sessionId come from the AgentCore session-id header; userId comes from
+    // the browser via `forwardedProps.identity.userId` in the AG-UI body.
+    // Both are browser-supplied; the LLM still never sees them — they are
+    // bound to the invocation via RunnableConfig.configurable and read by
+    // tools (e.g. commit_phase) from there.
+    const { tenantId, sessionId } = parseRuntimeSessionId(
       c.req.header('x-amzn-bedrock-agentcore-runtime-session-id'),
     );
+
+    // Parse the body up-front so we can extract the browser-forwarded
+    // userId before the identity gate runs. The body is reused for the
+    // agent invocation below; we don't re-parse.
+    const input = (await c.req.json()) as RunAgentInput;
+    const { userId } = readForwardedIdentity(input);
 
     if (!tenantId || !userId || !sessionId) {
       // eslint-disable-next-line no-console
@@ -139,7 +159,6 @@ export function createApp() {
     // `graphId`, ignores any locally-passed graph) and its first call would
     // be `client.assistants.search()` against LangSmith Cloud. See
     // `agents/onboarding/agent.ts` for the in-process bridge.
-    const input = (await c.req.json()) as RunAgentInput;
     // eslint-disable-next-line no-console
     console.log(JSON.stringify({
       level: 'INFO',

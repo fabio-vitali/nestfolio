@@ -16,5 +16,5 @@ module.exports = {
   transform: {
     '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json', diagnostics: false }],
   },
-  transformIgnorePatterns: ['node_modules/(?!.*p-limit/|.*yocto-queue/|.*jose/)'],
+  transformIgnorePatterns: ['node_modules/(?!.*p-limit/|.*yocto-queue/)'],
 };

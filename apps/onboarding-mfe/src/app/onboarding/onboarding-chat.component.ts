@@ -271,6 +271,14 @@ export class OnboardingChatComponent implements OnInit {
       }
     }, TIMEOUT_MS);
 
+    // userId is forwarded via `forwardedProps.identity` rather than a header
+    // because AgentCore strips Authorization and arbitrary custom headers
+    // from the runtime invocation. The agent runtime reads it from the body
+    // and binds it to RunnableConfig.configurable so identity-using tools
+    // (commit_phase) can read it without it being part of the LLM's tool
+    // schema. tenantId/sessionId still travel through the AgentCore
+    // session-id header above.
+    const userId = this.authStore.user()?.userId ?? '';
     const input: RunAgentInput = {
       threadId: this.threadId,
       runId: crypto.randomUUID(),
@@ -281,7 +289,7 @@ export class OnboardingChatComponent implements OnInit {
       })) as RunAgentInput['messages'],
       tools: [],
       context: [],
-      forwardedProps: {},
+      forwardedProps: { identity: { userId } },
       state: this.agentState,
     };
 
