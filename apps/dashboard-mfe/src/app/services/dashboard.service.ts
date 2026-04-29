@@ -1,14 +1,17 @@
 import { Injectable, inject } from '@angular/core';
+import type { Observable } from 'rxjs';
 import { GraphqlService, CachedQuery } from '@nestfolio/shell/graphql';
 import {
   GET_DASHBOARD,
   GET_POSITION_SNAPSHOTS,
   GET_RECENT_ACTIVITY,
   GET_SIMULATION_SUMMARY,
+  ON_DASHBOARD_UPDATE,
 } from '../graphql/dashboard-bff.queries';
 import { LogoutOrchestrator } from '@nestfolio/shell';
 import type {
   DashboardData,
+  AdvisoryStatus,
   PositionSnapshot,
   ActivityEntry,
   SimulationSummary,
@@ -65,5 +68,17 @@ export class DashboardService {
     this.dashboardCache.invalidate();
     this.positionsCache.invalidate();
     this.simulationSummaryCache.invalidate();
+  }
+
+  /**
+   * Live updates: dashboard-bff fires `publishDashboardUpdate` IAM-signed from
+   * a DDB-stream-driven Lambda whenever `AdvisoryStatus` mutates. The
+   * subscription's `tenantId` argument matches the mutation's `tenantId`
+   * argument, so AppSync only delivers frames for the current tenant.
+   */
+  subscribeToDashboardUpdates(
+    tenantId: string,
+  ): Observable<{ onDashboardUpdate: { advisoryStatus: AdvisoryStatus | null } | null }> {
+    return this.graphql.subscribe(ON_DASHBOARD_UPDATE, { tenantId });
   }
 }

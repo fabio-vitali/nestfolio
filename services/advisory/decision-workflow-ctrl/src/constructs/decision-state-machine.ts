@@ -112,6 +112,7 @@ export class DecisionWorkflowDefinition extends Construct {
         'tenantId.$': '$.tenantId',
         'userId.$': '$.userId',
         'region.$': '$.region',
+        'trigger.$': '$.trigger',
       },
     });
 
@@ -121,6 +122,8 @@ export class DecisionWorkflowDefinition extends Construct {
     // DISCARD its result so {decisionId, tenantId, userId, region} on input state
     // flow through unchanged to compliance + user-confirm (which need userId/region
     // for the event-processor envelope).
+    // triggerEventId === decisionId per event-listener.ts (both are the trigger
+    // event's id), so we reuse $.decisionId.
     const assemblePacket = new sfn.CustomState(this, 'AssembleDecisionPacket', {
       stateJson: {
         Type: 'Task',
@@ -130,6 +133,11 @@ export class DecisionWorkflowDefinition extends Construct {
           Payload: {
             'decisionId.$': '$.decisionId',
             'tenantId.$': '$.tenantId',
+            'userId.$': '$.userId',
+            'region.$': '$.region',
+            'trigger.$': '$.trigger',
+            'triggerEventId.$': '$.decisionId',
+            'executionArn.$': '$$.Execution.Id',
           },
         },
         ResultPath: sfn.JsonPath.DISCARD,

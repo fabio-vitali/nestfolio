@@ -13,7 +13,12 @@ jest.mock('@nestfolio/event-processor', () => ({
   requireEnv: (name: string) => process.env[name] ?? name,
 }));
 
+jest.mock('../../src/repositories/decision-packet.repository', () => ({
+  DecisionPacketRepository: jest.fn(),
+}));
+
 process.env.MEMORY_ID = 'mem-test';
+process.env.TABLE_NAME = 'test-table';
 
 import { createAssemblePacketHandler } from '../../src/handlers/assemble-packet';
 
@@ -27,15 +32,51 @@ describe('assemble-packet handler', () => {
     })),
     searchTenantMemory: jest.fn(),
   };
+  const mockCreateDecisionPacket = jest.fn();
+  const mockRepo = { createDecisionPacket: mockCreateDecisionPacket } as any;
 
-  const handler = createAssemblePacketHandler({ memoryClient: mockMemoryClient as any });
+  const handler = createAssemblePacketHandler({
+    memoryClient: mockMemoryClient as any,
+    decisionPacketRepository: mockRepo,
+  });
 
-  beforeEach(() => mockReadUpstream.mockReset());
+  const baseEvent = {
+    decisionId: 'dec-1',
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    region: 'us-east-1',
+    trigger: 'DEPOSIT_DETECTED',
+    triggerEventId: 'dec-1',
+    executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
+  };
+
+  beforeEach(() => {
+    mockReadUpstream.mockReset();
+    mockCreateDecisionPacket.mockReset();
+    mockCreateDecisionPacket.mockResolvedValue(true);
+  });
+
+  it('writes DecisionPacket row before reading agent outputs', async () => {
+    mockReadUpstream.mockResolvedValue([]);
+
+    await handler(baseEvent);
+
+    expect(mockCreateDecisionPacket).toHaveBeenCalledTimes(1);
+    expect(mockCreateDecisionPacket).toHaveBeenCalledWith(
+      {
+        decisionId: 'dec-1',
+        trigger: 'DEPOSIT_DETECTED',
+        triggerEventId: 'dec-1',
+        executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
+      },
+      { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' },
+    );
+  });
 
   it('reads all 4 upstream outputs from Memory', async () => {
     mockReadUpstream.mockResolvedValue([{ content: '{"test":true}', score: 1, memoryRecordId: 'r1' }]);
 
-    const result = await handler({ decisionId: 'dec-1', tenantId: 'tenant-1' });
+    const result = await handler(baseEvent);
 
     expect(mockReadUpstream).toHaveBeenCalledTimes(4);
     expect(mockReadUpstream).toHaveBeenCalledWith('investor-profile');
@@ -48,7 +89,7 @@ describe('assemble-packet handler', () => {
   it('returns null for missing outputs', async () => {
     mockReadUpstream.mockResolvedValue([]);
 
-    const result = await handler({ decisionId: 'dec-1', tenantId: 'tenant-1' });
+    const result = await handler(baseEvent);
 
     expect(result.investorProfileOutput).toBeNull();
     expect(result.marketAnalysisOutput).toBeNull();

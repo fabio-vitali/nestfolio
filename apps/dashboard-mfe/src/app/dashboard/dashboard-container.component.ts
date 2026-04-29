@@ -1,8 +1,9 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import type { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { MessageModule } from 'primeng/message';
 import { I18nService } from '@nestfolio/shell/i18n';
-import { parseError } from '@nestfolio/shell';
+import { AuthStore, parseError } from '@nestfolio/shell';
 import { LoadingSkeletonComponent } from '@nestfolio/ui';
 import { DashboardStore } from '../stores/dashboard.store';
 import { DashboardService } from '../services/dashboard.service';
@@ -150,13 +151,38 @@ import { ExecutionModeBadgeComponent } from './execution-mode-badge.component';
     }
   `],
 })
-export class DashboardContainerComponent implements OnInit {
+export class DashboardContainerComponent implements OnInit, OnDestroy {
   private readonly dashboardService = inject(DashboardService);
+  private readonly authStore = inject(AuthStore);
   readonly i18n = inject(I18nService);
   readonly store = inject(DashboardStore);
+  private updateSubscription: Subscription | null = null;
 
   async ngOnInit(): Promise<void> {
     await this.loadDashboard();
+    this.subscribeToUpdates();
+  }
+
+  ngOnDestroy(): void {
+    this.updateSubscription?.unsubscribe();
+    this.updateSubscription = null;
+  }
+
+  private subscribeToUpdates(): void {
+    const tenantId = this.authStore.user()?.tenantId;
+    if (!tenantId) return;
+    this.updateSubscription = this.dashboardService
+      .subscribeToDashboardUpdates(tenantId)
+      .subscribe({
+        next: (data) => {
+          const advisoryStatus = data?.onDashboardUpdate?.advisoryStatus;
+          if (advisoryStatus) this.store.setAdvisoryStatus(advisoryStatus);
+        },
+        error: (err: unknown) => {
+          // eslint-disable-next-line no-console
+          console.error('DashboardContainer: subscription error', err);
+        },
+      });
   }
 
   private async loadDashboard(): Promise<void> {

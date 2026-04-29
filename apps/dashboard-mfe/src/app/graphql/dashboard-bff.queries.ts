@@ -111,3 +111,16 @@ export const GET_SIMULATION_SUMMARY = `
     }
   }
 `;
+
+// --- Subscriptions ---
+
+export const ON_DASHBOARD_UPDATE = `
+  subscription OnDashboardUpdate($tenantId: ID!) {
+    onDashboardUpdate(tenantId: $tenantId) {
+      advisoryStatus {
+        ...AdvisoryStatusFields
+      }
+    }
+  }
+  ${ADVISORY_STATUS_FIELDS}
+`;

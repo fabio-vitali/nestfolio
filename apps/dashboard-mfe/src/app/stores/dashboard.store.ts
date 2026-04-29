@@ -118,6 +118,9 @@ export const DashboardStore = signalStore(
         investorSnapshot: data.investorSnapshot,
       });
     },
+    setAdvisoryStatus(advisoryStatus: AdvisoryStatus | null): void {
+      patchState(store, { advisoryStatus });
+    },
     setPositions(positions: PositionSnapshot[]): void {
       patchState(store, { positions });
     },

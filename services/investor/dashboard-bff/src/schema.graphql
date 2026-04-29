@@ -6,14 +6,29 @@ type Query {
   getSimulationSummary: SimulationSummary
 }
 
+type Mutation {
+  publishDashboardUpdate(
+    tenantId: ID!
+    advisoryStatus: AdvisoryStatusInput
+  ): Dashboard!
+    @aws_iam
+}
+
 type Subscription {
-  onDashboardUpdate: Dashboard!
-  @aws_subscribe(mutations: [])
+  onDashboardUpdate(tenantId: ID!): Dashboard
+    @aws_subscribe(mutations: ["publishDashboardUpdate"])
+}
+
+input AdvisoryStatusInput {
+  pendingDecisionsCount: Int!
+  lastRecommendationAt: String
+  lastDecisionStatus: String
+  updatedAt: String!
 }
 
 # --- Types ---
 
-type Dashboard {
+type Dashboard @aws_cognito_user_pools @aws_iam {
   portfolioSummary: PortfolioSummary
   advisoryStatus: AdvisoryStatus
   investorSnapshot: InvestorSnapshot
@@ -46,7 +61,7 @@ type ActivityEntry {
   metadata: String
 }
 
-type AdvisoryStatus {
+type AdvisoryStatus @aws_cognito_user_pools @aws_iam {
   pendingDecisionsCount: Int!
   lastRecommendationAt: String
   lastDecisionStatus: String

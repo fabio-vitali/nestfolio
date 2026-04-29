@@ -21,6 +21,11 @@ export class DashboardPage {
    * Counter renders inside `.alert-text` as
    *   "<i18n: advisory.pendingDecisions>: <N>"
    * Match the trailing integer regardless of the localised label.
+   *
+   * Verifies the live-update path: dashboard-bff emits onDashboardUpdate via
+   * an IAM-signed publishDashboardUpdate mutation after each AdvisoryStatus
+   * write; the dashboard MFE subscribes and patches the store. The page is
+   * NOT reloaded — that would mask a missing subscription.
    */
   async waitForPendingDecisionsAtLeast(n: number, timeout = 180_000): Promise<void> {
     await expect(async () => {

@@ -12,21 +12,21 @@ export const advisoryStatus = (
     case 'DECISION_PACKET_CREATED':
     case 'USER_CONFIRMATION_REQUESTED':
       return accumulate('AdvisoryStatus', {
-        field: 'pendingDecisions',
+        field: 'pendingDecisionsCount',
         increment: 1,
         overrides,
       });
 
     case 'DECISION_APPROVED':
       return accumulate('AdvisoryStatus', {
-        field: 'pendingDecisions',
+        field: 'pendingDecisionsCount',
         increment: -1,
         overrides,
       });
 
     case 'DECISION_BLOCKED':
       return accumulate('AdvisoryStatus', {
-        field: 'pendingDecisions',
+        field: 'pendingDecisionsCount',
         increment: -1,
         overrides,
       });

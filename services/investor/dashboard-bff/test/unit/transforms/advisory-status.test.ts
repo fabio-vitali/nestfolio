@@ -20,7 +20,7 @@ describe('advisoryStatus transform', () => {
   it('should increment pendingDecisions for DECISION_PACKET_CREATED', () => {
     expect(advisoryStatus(makeUow('DECISION_PACKET_CREATED'))).toEqual(
       accumulate('AdvisoryStatus', {
-        field: 'pendingDecisions',
+        field: 'pendingDecisionsCount',
         increment: 1,
         overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' },
       }),
@@ -30,7 +30,7 @@ describe('advisoryStatus transform', () => {
   it('should increment pendingDecisions for USER_CONFIRMATION_REQUESTED', () => {
     expect(advisoryStatus(makeUow('USER_CONFIRMATION_REQUESTED'))).toEqual(
       accumulate('AdvisoryStatus', {
-        field: 'pendingDecisions',
+        field: 'pendingDecisionsCount',
         increment: 1,
         overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' },
       }),
@@ -40,7 +40,7 @@ describe('advisoryStatus transform', () => {
   it('should decrement pendingDecisions for DECISION_APPROVED', () => {
     expect(advisoryStatus(makeUow('DECISION_APPROVED'))).toEqual(
       accumulate('AdvisoryStatus', {
-        field: 'pendingDecisions',
+        field: 'pendingDecisionsCount',
         increment: -1,
         overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' },
       }),
@@ -50,7 +50,7 @@ describe('advisoryStatus transform', () => {
   it('should decrement pendingDecisions for DECISION_BLOCKED', () => {
     expect(advisoryStatus(makeUow('DECISION_BLOCKED'))).toEqual(
       accumulate('AdvisoryStatus', {
-        field: 'pendingDecisions',
+        field: 'pendingDecisionsCount',
         increment: -1,
         overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' },
       }),
