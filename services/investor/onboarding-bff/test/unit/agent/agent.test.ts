@@ -41,7 +41,7 @@ describe('OnboardingAgent', () => {
       { event: 'on_chat_model_stream', data: { chunk: { content: 'lo!' } } },
       { event: 'on_chat_model_end' },
     ]);
-    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId });
+    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId, identity: { tenantId: 't', userId: 'u', sessionId: 's' } });
     const events = await lastValueFrom(agent.run(baseInput).pipe(toArray())) as BaseEvent[];
 
     const types = events.map((e) => e.type);
@@ -73,7 +73,7 @@ describe('OnboardingAgent', () => {
         },
       },
     ]);
-    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId });
+    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId, identity: { tenantId: 't', userId: 'u', sessionId: 's' } });
     const events = await lastValueFrom(agent.run(baseInput).pipe(toArray())) as BaseEvent[];
 
     const types = events.map((e) => e.type);
@@ -99,7 +99,7 @@ describe('OnboardingAgent', () => {
       [{ event: 'on_chat_model_stream', data: { chunk: { content: 'partial' } } }],
       { throwAtEnd: true },
     );
-    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId });
+    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId, identity: { tenantId: 't', userId: 'u', sessionId: 's' } });
 
     const collected: BaseEvent[] = [];
     let errorMsg: string | undefined;
@@ -128,7 +128,7 @@ describe('OnboardingAgent', () => {
         yield { event: 'on_chat_model_end' };
       },
     };
-    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId });
+    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId, identity: { tenantId: 't', userId: 'u', sessionId: 's' } });
     await lastValueFrom(agent.run({ ...baseInput, messages: [] }).pipe(toArray()));
     expect(receivedInitial.messages).toHaveLength(1);
     const msg = receivedInitial.messages[0];
@@ -138,7 +138,7 @@ describe('OnboardingAgent', () => {
 
   it('first emitted event is RUN_STARTED with input threadId and runId', async () => {
     const graph = fakeGraph([{ event: 'on_chat_model_end' }]);
-    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId });
+    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId, identity: { tenantId: 't', userId: 'u', sessionId: 's' } });
     const first = await firstValueFrom(agent.run(baseInput)) as Extract<BaseEvent, { threadId: string; runId: string }>;
     expect(first.type).toBe(EventType.RUN_STARTED);
     expect(first.threadId).toBe('thread-1');
@@ -163,7 +163,7 @@ describe('OnboardingAgent', () => {
         };
       },
     };
-    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId });
+    const agent = new OnboardingAgent({ graph, threadId: baseInput.threadId, identity: { tenantId: 't', userId: 'u', sessionId: 's' } });
     const events = await lastValueFrom(agent.run(baseInput).pipe(toArray())) as BaseEvent[];
 
     const snapshotIdx = events.findIndex((e) => e.type === EventType.STATE_SNAPSHOT);

@@ -87,6 +87,18 @@ interface OnboardingAgentConfig {
    * callbacks to populate the AgentTraceEnvelope.toolCalls list).
    */
   callbacks?: unknown[];
+  /**
+   * Server-derived identity bound to this invocation. Forwarded to the graph
+   * via RunnableConfig.configurable so identity-using tools (e.g.
+   * commit_phase) can read it without it being part of the LLM's tool
+   * schema. Populated by the `/invocations` handler from the verified
+   * Cognito access token + AgentCore session-id header. Required.
+   */
+  identity: {
+    tenantId: string;
+    userId: string;
+    sessionId: string;
+  };
 }
 
 /**
@@ -172,7 +184,14 @@ export class OnboardingAgent extends AbstractAgent {
 
     for await (const ev of this.cfg.graph.streamEvents(initial, {
       version: 'v2',
-      configurable: { thread_id: input.threadId },
+      configurable: {
+        thread_id: input.threadId,
+        // Identity is invisible to the LLM's tool schema; tools (e.g.
+        // commit_phase) read it from RunnableConfig.configurable.
+        tenantId: this.cfg.identity.tenantId,
+        userId: this.cfg.identity.userId,
+        sessionId: this.cfg.identity.sessionId,
+      },
       signal,
       callbacks: this.cfg.callbacks,
     })) {

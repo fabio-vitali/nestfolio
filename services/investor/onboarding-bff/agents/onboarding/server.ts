@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { stream } from 'hono/streaming';
 import { EventEncoder } from '@ag-ui/encoder';
 import type { RunAgentInput } from '@ag-ui/client';
+import { decodeJwt } from 'jose';
 import { buildOnboardingGraph } from './graph';
 import { OnboardingAgent } from './agent';
 import { OnboardingRepository } from '../../src/repositories/onboarding.repository';
@@ -15,11 +16,45 @@ const emitter = new EventBridgeTraceEmitter({
   detailType: OnboardingBffEventTypes.ONBOARDING_AGENT_INVOCATION_TRACED,
 });
 
-function parseRuntimeSessionId(raw: string | undefined): { tenantId: string; sessionId: string } {
-  if (!raw) return { tenantId: '', sessionId: '' };
+function parseRuntimeSessionId(raw: string | undefined): { sessionId: string } {
+  // The AgentCore runtime-session-id header carries `${tenantId}/${sessionId}`,
+  // but the tenantId portion is BROWSER-supplied and untrusted. We use this
+  // header only to extract the sessionId. tenantId + userId come from the
+  // verified Cognito JWT claims (see resolveJwtIdentity).
+  if (!raw) return { sessionId: '' };
   const slash = raw.indexOf('/');
-  if (slash < 0) return { tenantId: '', sessionId: '' };
-  return { tenantId: raw.slice(0, slash), sessionId: raw.slice(slash + 1) };
+  if (slash < 0) return { sessionId: '' };
+  return { sessionId: raw.slice(slash + 1) };
+}
+
+interface JwtIdentity {
+  tenantId: string;
+  userId: string;
+}
+
+/**
+ * Extract trusted identity from the Cognito access token.
+ *
+ * AgentCore's Custom JWT authorizer has already validated the token's
+ * signature, audience, and expiry before forwarding the request — we only
+ * need to decode the claims (no JWKS fetch, no re-verification). If a
+ * defence-in-depth re-verification is later required, swap `decodeJwt` for
+ * `jwtVerify` with a remote JWKS resolver.
+ */
+function resolveJwtIdentity(authHeader: string | undefined): JwtIdentity {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { tenantId: '', userId: '' };
+  }
+  const token = authHeader.slice(7).trim();
+  if (!token) return { tenantId: '', userId: '' };
+  try {
+    const claims = decodeJwt(token);
+    const tenantId = typeof claims['custom:tenant_id'] === 'string' ? (claims['custom:tenant_id'] as string) : '';
+    const userId = typeof claims.sub === 'string' ? claims.sub : '';
+    return { tenantId, userId };
+  } catch {
+    return { tenantId: '', userId: '' };
+  }
 }
 
 export function createApp() {
@@ -35,8 +70,9 @@ export function createApp() {
   app.get('/ping', (c) => c.json({ status: 'ok' }));
 
   app.get('/session', async (c) => {
-    const tenantId = c.req.header('x-tenant-id') ?? '';
-    const userId = c.req.header('x-user-id') ?? '';
+    // Identity from the verified Cognito JWT — same source as /invocations.
+    // Browser-supplied x-tenant-id / x-user-id headers are no longer trusted.
+    const { tenantId, userId } = resolveJwtIdentity(c.req.header('Authorization'));
 
     if (!tenantId || !userId) {
       return c.json({ newSession: true });
@@ -63,12 +99,32 @@ export function createApp() {
     const tableName = process.env['TABLE_NAME'] ?? '';
     const repo = new OnboardingRepository(tableName);
 
-    // AgentCore forwards the runtime session id as the header below, formatted
-    // as `${tenantId}/${sessionId}`. Matches libs/agent-orchestrator/
-    // invoke-agentcore.ts:45 and agent-server.ts:27.
-    const { tenantId, sessionId } = parseRuntimeSessionId(
+    // Identity is server-derived only:
+    //   • tenantId, userId — Cognito JWT claims (custom:tenant_id, sub) from
+    //     the Authorization Bearer header. AgentCore's Custom JWT authorizer
+    //     has already validated the token before forwarding the request.
+    //   • sessionId — the AgentCore runtime-session-id header
+    //     (`${browserTenant}/${sessionId}`) — only the sessionId portion is
+    //     used; the browser-supplied tenant prefix is discarded.
+    // The LLM never sees these values; they are bound to the runtime
+    // invocation via RunnableConfig.configurable and read by tools (e.g.
+    // commit_phase) from there.
+    const { tenantId, userId } = resolveJwtIdentity(c.req.header('Authorization'));
+    const { sessionId } = parseRuntimeSessionId(
       c.req.header('x-amzn-bedrock-agentcore-runtime-session-id'),
     );
+
+    if (!tenantId || !userId || !sessionId) {
+      // eslint-disable-next-line no-console
+      console.error(JSON.stringify({
+        level: 'ERROR',
+        message: 'onboarding /invocations: identity missing — refusing',
+        hasTenantId: Boolean(tenantId),
+        hasUserId: Boolean(userId),
+        hasSessionId: Boolean(sessionId),
+      }));
+      return c.json({ error: 'identity required' }, 401);
+    }
 
     const tracer = new AgentTracer();
     // Build the graph WITHOUT a callback config; pass the tracer through to
@@ -95,7 +151,12 @@ export function createApp() {
       tenantId,
       sessionId,
     }));
-    const agent = new OnboardingAgent({ graph, threadId: input.threadId, callbacks: [tracer] });
+    const agent = new OnboardingAgent({
+      graph,
+      threadId: input.threadId,
+      callbacks: [tracer],
+      identity: { tenantId, userId, sessionId },
+    });
     const encoder = new EventEncoder({ accept: c.req.header('accept') });
 
     // AG-UI clients (e.g. @ag-ui/client.HttpAgent) read this as a

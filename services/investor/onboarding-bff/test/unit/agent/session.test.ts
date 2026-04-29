@@ -16,7 +16,10 @@ describe('rehydrateState', () => {
     expect(state.phase).toBe('operating_mode');
     expect(state.phaseIndex).toBe(1);
     expect(state.goal).toBe('growth');
-    expect(state.sessionId).toBe('s1');
+    // sessionId is no longer rehydrated into agent state — it is bound to
+    // the runtime invocation via RunnableConfig.configurable, not carried in
+    // the LLM-visible state.
+    expect(state.sessionId).toBeUndefined();
   });
 
   it('resumes from capital phase with prior phases', () => {

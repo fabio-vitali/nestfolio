@@ -24,7 +24,6 @@ export function rehydrateState(session: SessionRecord | null): Record<string, un
     phaseIndex: session.phaseIndex,
     totalPhases: 7,
     turnCount: 0,
-    sessionId: session.sessionId,
     goal: goal?.objective,
     horizonYears: horizon?.years,
     capitalAmount: capital?.amount,

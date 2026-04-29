@@ -64,10 +64,12 @@ export function createPhaseNode(phaseName: string, deps: PhaseNodeDeps) {
 
     if (tc.name === 'commit_phase') {
       const tool = toolsByName['commit_phase'];
+      // Identity (tenantId/userId/sessionId) is no longer in the tool input —
+      // commit_phase reads it from RunnableConfig.configurable, populated
+      // server-side from the verified Cognito JWT (see
+      // agents/onboarding/server.ts). We only normalize `phase` here as a
+      // defence against the LLM forgetting to set it.
       const args: Record<string, unknown> = { ...(tc.args as Record<string, unknown>) };
-      args['tenantId'] = args['tenantId'] ?? state['tenantId'] ?? 'unknown';
-      args['userId'] = args['userId'] ?? state['userId'] ?? 'unknown';
-      args['sessionId'] = args['sessionId'] ?? state['sessionId'] ?? 'unknown';
       args['phase'] = args['phase'] ?? phaseName;
 
       let result: string;

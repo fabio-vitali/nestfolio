@@ -51,7 +51,8 @@ export const OnboardingAnnotation = Annotation.Root({
     reducer: (prev, next) => [...prev, ...next],
     default: () => [],
   }),
-  sessionId: Annotation<string | undefined>({ reducer: (_, v) => v, default: () => undefined }),
-  tenantId: Annotation<string | undefined>({ reducer: (_, v) => v, default: () => undefined }),
-  userId: Annotation<string | undefined>({ reducer: (_, v) => v, default: () => undefined }),
+  // Identity (tenantId, userId, sessionId) is intentionally NOT held in graph
+  // state. It is bound to the runtime invocation via
+  // RunnableConfig.configurable (see agents/onboarding/server.ts) so the LLM
+  // never sees it and cannot supply or override it.
 });
