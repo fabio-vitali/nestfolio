@@ -668,6 +668,47 @@ describe('dashboard-bff', () => {
       ]);
     }, 300_000);
 
+    it('should default missing PortfolioSummary Int! fields to 0 (regression: e2e step-8 fresh tenant)', async () => {
+      // PortfolioSummary row exists with only driftPercent + updatedAt populated
+      // (a freshly-onboarded tenant who has not yet had any orders filled). The
+      // schema declares totalValueCents/cashBalanceCents/positionCount as Int!,
+      // so a naive resolver that returns the raw DDB item would cause AppSync
+      // to null-coerce the parent object — failing getDashboard for the e2e.
+      // get-dashboard.fn.js fills 0 defaults for the missing Int!/Float! fields.
+      const result = await appsync.query<{
+        getDashboard: {
+          portfolioSummary: {
+            totalValueCents: number;
+            cashBalanceCents: number;
+            positionCount: number;
+            driftPercent: number;
+            updatedAt: string;
+          } | null;
+        };
+      }>(`
+        query GetDashboardFull {
+          getDashboard {
+            portfolioSummary {
+              totalValueCents
+              cashBalanceCents
+              positionCount
+              driftPercent
+              updatedAt
+            }
+          }
+        }
+      `, {});
+
+      expect(result.getDashboard.portfolioSummary).not.toBeNull();
+      const ps = result.getDashboard.portfolioSummary!;
+      expect(ps.totalValueCents).toBe(0);
+      expect(ps.cashBalanceCents).toBe(0);
+      expect(ps.positionCount).toBe(0);
+      expect(ps.driftPercent).toBe(2.5);
+      expect(typeof ps.updatedAt).toBe('string');
+      expect(ps.updatedAt.length).toBeGreaterThan(0);
+    }, 60_000);
+
     it('should return Dashboard via getDashboard', async () => {
       // portfolioSummary: project() writes driftPercent + updatedAt (no totalValueCents/cashBalanceCents/positionCount)
       // advisoryStatus: accumulate() writes pendingDecisions only (field name != schema pendingDecisionsCount)

@@ -47,19 +47,45 @@ export class GraphqlService implements OnDestroy {
   }
 
   subscribe<T>(statement: string, variables?: Record<string, unknown>): Observable<T> {
+    const dom = this.domain;
+    // eslint-disable-next-line no-console
+    console.log(`[GraphqlService.subscribe] called domain=${dom} variables=`, variables);
     return new Observable<T>((subscriber) => {
-      const sub = this.client
-        .subscribe<T>({
+      // eslint-disable-next-line no-console
+      console.log(`[GraphqlService.subscribe] factory entered domain=${dom} appsyncUrl=${this.appsyncGraphqlUrl}`);
+      let apolloSub: ReturnType<typeof this.client.subscribe<T>> | undefined;
+      try {
+        apolloSub = this.client.subscribe<T>({
           query: gql(statement),
           variables: variables ?? {},
-        })
-        .subscribe({
-          next: ({ data }: { data: T | null | undefined }) => {
-            if (data) subscriber.next(data);
-          },
-          error: (err: unknown) => subscriber.error(err),
-          complete: () => subscriber.complete(),
         });
+        // eslint-disable-next-line no-console
+        console.log(`[GraphqlService.subscribe] client.subscribe returned domain=${dom}`);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`[GraphqlService.subscribe] client.subscribe THREW domain=${dom}`, err);
+        subscriber.error(err);
+        return;
+      }
+      const sub = apolloSub.subscribe({
+        next: ({ data }: { data: T | null | undefined }) => {
+          // eslint-disable-next-line no-console
+          console.log(`[GraphqlService.subscribe] apollo next domain=${dom} hasData=${!!data}`);
+          if (data) subscriber.next(data);
+        },
+        error: (err: unknown) => {
+          // eslint-disable-next-line no-console
+          console.error(`[GraphqlService.subscribe] apollo error domain=${dom}`, err);
+          subscriber.error(err);
+        },
+        complete: () => {
+          // eslint-disable-next-line no-console
+          console.log(`[GraphqlService.subscribe] apollo complete domain=${dom}`);
+          subscriber.complete();
+        },
+      });
+      // eslint-disable-next-line no-console
+      console.log(`[GraphqlService.subscribe] inner subscribe attached domain=${dom}`);
       return () => sub.unsubscribe();
     });
   }
