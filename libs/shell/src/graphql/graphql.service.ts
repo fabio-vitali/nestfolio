@@ -6,12 +6,13 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { AuthConfig, authSignOut } from '../auth';
 import { LogoutOrchestrator } from '../logout-orchestrator';
 import { AuthStore } from '../stores/auth.store';
-import { MFE_DOMAIN } from './mfe-domain.token';
+import { MFE_DOMAIN, MFE_APPSYNC_GRAPHQL_URL } from './mfe-domain.token';
 import { createApolloClient } from './create-apollo-client';
 
 @Injectable()
 export class GraphqlService implements OnDestroy {
   private readonly domain = inject(MFE_DOMAIN);
+  private readonly appsyncGraphqlUrl = inject(MFE_APPSYNC_GRAPHQL_URL);
   private readonly authConfig = inject(AuthConfig);
   private readonly logoutOrchestrator = inject(LogoutOrchestrator);
   private readonly router = inject(Router);
@@ -71,6 +72,7 @@ export class GraphqlService implements OnDestroy {
   private build(): ApolloClient {
     return createApolloClient({
       domain: this.domain,
+      appsyncGraphqlUrl: this.appsyncGraphqlUrl,
       region: this.authConfig.region,
       jwtTokenProvider: async () =>
         (await fetchAuthSession()).tokens?.idToken?.toString() ?? '',

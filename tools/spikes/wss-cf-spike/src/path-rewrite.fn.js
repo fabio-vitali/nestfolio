@@ -1,10 +1,7 @@
 function handler(event) {
   var request = event.request;
-  // Match /realtime/<domain>; rewrite to /graphql.
-  // <domain> is captured but not currently used — kept for future per-domain routing.
-  var match = request.uri.match(/^\/realtime\/([^/]+)\/?$/);
-  if (match) {
-    request.uri = '/graphql';
-  }
+  // The AppSync native realtime API host accepts arbitrary URIs on WSS
+  // upgrade — the API ID is encoded in the Host header. Forward
+  // `/realtime/*` paths unchanged. (Spike kept for reference parity.)
   return request;
 }

@@ -24,18 +24,26 @@ export interface SeedOptions {
 export async function seedAmplifyTokens(page: Page, opts: SeedOptions): Promise<void> {
   const { clientId, username, tokens } = opts;
   await page.addInitScript(
-    ({ clientId, username, idToken, accessToken }) => {
+    ({ clientId, username, idToken, accessToken, refreshToken }) => {
       const prefix = `CognitoIdentityServiceProvider.${clientId}`;
       localStorage.setItem(`${prefix}.LastAuthUser`, username);
       localStorage.setItem(`${prefix}.${username}.idToken`, idToken);
       localStorage.setItem(`${prefix}.${username}.accessToken`, accessToken);
-      // refreshToken is intentionally empty — test sessions are short-lived
-      // (idToken TTL is 1h; the journey runs in <5min). If a future test needs >1h,
-      // capture a real refreshToken in CognitoFixture and plumb it through.
-      localStorage.setItem(`${prefix}.${username}.refreshToken`, '');
+      // A real refreshToken is required: Amplify v6 reads this slot at session
+      // resolution time, and an empty value is interpreted as "OAuth implicit
+      // grant" (no refresh capability), causing fetchAuthSession() to throw
+      // TokenRefreshException — which silently kills the AppSync subscription
+      // auth handshake before any WS is opened.
+      localStorage.setItem(`${prefix}.${username}.refreshToken`, refreshToken);
       localStorage.setItem(`${prefix}.${username}.clockDrift`, '0');
     },
-    { clientId, username, idToken: tokens.idToken, accessToken: tokens.accessToken },
+    {
+      clientId,
+      username,
+      idToken: tokens.idToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    },
   );
 }
 

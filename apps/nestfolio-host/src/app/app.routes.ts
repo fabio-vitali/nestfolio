@@ -3,6 +3,15 @@ import { loadRemoteModule } from '@angular-architects/native-federation';
 import { authGuard, onboardingPendingGuard, onboardingCompletedGuard } from '@nestfolio/shell/auth';
 import { provideMfeGraphql } from '@nestfolio/shell/graphql';
 import { MfeErrorComponent } from './mfe-error.component';
+import { getRuntimeConfig } from './app.config';
+
+// Per-domain AppSync HTTPS GraphQL URLs are resolved lazily — runtime config
+// loads asynchronously in bootstrap.ts AFTER this module file is imported,
+// so we cannot read it at top-level. The lambda runs inside Angular's DI
+// factory, at which point the config has been fetched. The subscription
+// link derives the WSS URL from this HTTPS URL internally.
+const appsyncGraphqlUrl = (domain: keyof ReturnType<typeof getRuntimeConfig>['appsyncGraphqlUrls']) =>
+  () => getRuntimeConfig().appsyncGraphqlUrls[domain];
 
 // Native Federation contract: each MFE exposes `export const remoteRoutes: Routes`
 // from its `./routes` entry. Angular Router's `loadChildren` accepts a `Routes`
@@ -40,25 +49,25 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'investor',
-    providers: [provideMfeGraphql('investor')],
+    providers: [provideMfeGraphql('investor', appsyncGraphqlUrl('investor'))],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('investor-mfe', './routes'),
   },
   {
     path: 'dashboard',
-    providers: [provideMfeGraphql('dashboard')],
+    providers: [provideMfeGraphql('dashboard', appsyncGraphqlUrl('dashboard'))],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('dashboard-mfe', './routes'),
   },
   {
     path: 'advisory',
-    providers: [provideMfeGraphql('advisory')],
+    providers: [provideMfeGraphql('advisory', appsyncGraphqlUrl('advisory'))],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('advisory-mfe', './routes'),
   },
   {
     path: 'ledger',
-    providers: [provideMfeGraphql('ledger')],
+    providers: [provideMfeGraphql('ledger', appsyncGraphqlUrl('ledger'))],
     canActivate: [authGuard, onboardingCompletedGuard],
     loadChildren: loadMfe('ledger-mfe', './routes'),
   },

@@ -3,6 +3,7 @@ jest.mock('@nestfolio/test-support', () => ({
     setup: jest.fn().mockResolvedValue({
       idToken: 'header.' + Buffer.from(JSON.stringify({ sub: 'cog-sub-xyz' })).toString('base64url') + '.sig',
       accessToken: 'access',
+      refreshToken: 'refresh',
     }),
   })),
 }));

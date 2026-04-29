@@ -10,6 +10,7 @@ import type { TestContext } from '../context';
 export interface CognitoTokens {
   idToken: string;
   accessToken: string;
+  refreshToken: string;
 }
 
 // Cognito throttles PostAuthentication trigger invocations (~10 TPS per user
@@ -100,6 +101,7 @@ export class CognitoFixture {
     return {
       idToken: authResult.AuthenticationResult!.IdToken!,
       accessToken: authResult.AuthenticationResult!.AccessToken!,
+      refreshToken: authResult.AuthenticationResult!.RefreshToken!,
     };
   }
 

@@ -26,6 +26,14 @@ export const FEATURE_FLAG_APOLLO_CLIENT = new InjectionToken<ApolloClient>(
 
 export interface CreateFeatureFlagApolloClientOptions {
   authConfig: AuthConfig;
+  /**
+   * Direct AppSync WSS realtime URL for investor-bff (the BFF that hosts
+   * the feature-flag schema). Required because FeatureFlagService opens a
+   * subscription on `onFeatureFlagUpdate`, and AppSync rejects the
+   * connection_init when the URL host is a CloudFront proxy. Resolved by
+   * the host from runtime config and threaded in via provideFeatureFlags.
+   */
+  appsyncGraphqlUrl: string;
   onAuthFailure: (reason: string) => void;
 }
 
@@ -34,6 +42,7 @@ export function createFeatureFlagApolloClient(
 ): ApolloClient {
   return createApolloClient({
     domain: 'investor',
+    appsyncGraphqlUrl: opts.appsyncGraphqlUrl,
     region: opts.authConfig.region,
     jwtTokenProvider: async () =>
       (await fetchAuthSession()).tokens?.idToken?.toString() ?? '',

@@ -22,24 +22,23 @@ describe('realtime-rewrite CF function', () => {
     return out;
   }
 
-  it('rewrites /realtime/<domain> to /graphql', () => {
-    expect(runEvent('/realtime/investor').uri).toBe('/graphql');
-    expect(runEvent('/realtime/advisory').uri).toBe('/graphql');
-    expect(runEvent('/realtime/ledger').uri).toBe('/graphql');
-    expect(runEvent('/realtime/dashboard').uri).toBe('/graphql');
-  });
-
-  it('rewrites /realtime/<domain>/ (trailing slash) to /graphql', () => {
-    expect(runEvent('/realtime/investor/').uri).toBe('/graphql');
-  });
-
-  it('rewrites /graphql/<domain> to /graphql', () => {
+  it('rewrites /graphql/<domain> to /graphql (HTTP queries/mutations)', () => {
     expect(runEvent('/graphql/investor').uri).toBe('/graphql');
     expect(runEvent('/graphql/advisory').uri).toBe('/graphql');
+    expect(runEvent('/graphql/ledger').uri).toBe('/graphql');
+    expect(runEvent('/graphql/dashboard').uri).toBe('/graphql');
   });
 
   it('rewrites /graphql/<domain>/ (trailing slash) to /graphql', () => {
     expect(runEvent('/graphql/investor/').uri).toBe('/graphql');
+  });
+
+  it('leaves /realtime/* untouched (no CloudFront WSS proxy — direct to AppSync)', () => {
+    // Subscriptions connect direct to AppSync; CloudFront never sees these
+    // URIs. Asserted to guard against accidental re-introduction of the
+    // old WSS proxy behavior.
+    expect(runEvent('/realtime/investor').uri).toBe('/realtime/investor');
+    expect(runEvent('/realtime/investor/realtime').uri).toBe('/realtime/investor/realtime');
   });
 
   it('does not rewrite /api/copilotkit*', () => {
@@ -61,5 +60,6 @@ describe('realtime-rewrite CF function', () => {
     expect(runEvent('/realtime').uri).toBe('/realtime');           // missing domain
     expect(runEvent('/graphql').uri).toBe('/graphql');              // already /graphql, untouched
     expect(runEvent('/realtimex/foo').uri).toBe('/realtimex/foo');
+    expect(runEvent('/realtime/investor/other').uri).toBe('/realtime/investor/other'); // 3-seg but not /realtime suffix
   });
 });

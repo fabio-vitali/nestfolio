@@ -23,6 +23,7 @@ jest.mock('@angular/core', () => ({
   inject: (token: { toString?: () => string } | unknown) => {
     const desc = (token as { toString?: () => string })?.toString?.() ?? '';
     if (desc.includes('MFE_DOMAIN')) return 'investor';
+    if (desc.includes('MFE_APPSYNC_GRAPHQL_URL')) return 'wss://test.appsync-realtime-api.us-east-1.amazonaws.com/graphql';
     if (desc.includes('AuthConfig') || (token as { name?: string })?.name === 'AuthConfig') return mockAuthConfig;
     if (desc.includes('LogoutOrchestrator') || (token as { name?: string })?.name === 'LogoutOrchestrator') return mockLogoutOrchestrator;
     if (desc.includes('Router') || (token as { name?: string })?.name === 'Router') return mockRouter;

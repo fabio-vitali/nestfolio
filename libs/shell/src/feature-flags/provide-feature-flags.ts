@@ -33,7 +33,15 @@ import { FeatureFlagService } from './feature-flag.service';
  * shape. Replicate for any future cross-cutting concern that needs backend
  * access at bootstrap (telemetry, audit, user-context).
  */
-export function provideFeatureFlags(): EnvironmentProviders {
+/**
+ * @param appsyncGraphqlUrlFactory Returns the direct AppSync WSS URL for
+ *   investor-bff (where the feature-flag schema lives). The host resolves
+ *   this from runtime config — typically `() => getRuntimeConfig().appsyncGraphqlUrls.investor`.
+ *   Required because FeatureFlagService opens a `onFeatureFlagUpdate`
+ *   subscription, and AppSync rejects the connection_init when the URL
+ *   host is a CloudFront proxy.
+ */
+export function provideFeatureFlags(appsyncGraphqlUrlFactory: () => string): EnvironmentProviders {
   return makeEnvironmentProviders([
     FeatureFlagService,
     {
@@ -54,7 +62,11 @@ export function provideFeatureFlags(): EnvironmentProviders {
             }
           })();
         };
-        return createFeatureFlagApolloClient({ authConfig, onAuthFailure });
+        return createFeatureFlagApolloClient({
+          authConfig,
+          appsyncGraphqlUrl: appsyncGraphqlUrlFactory(),
+          onAuthFailure,
+        });
       },
     },
     {
