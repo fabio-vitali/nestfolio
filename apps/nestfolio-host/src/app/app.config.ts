@@ -2,10 +2,10 @@ import { ApplicationConfig, provideZonelessChangeDetection, APP_INITIALIZER, Err
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { provideAuth, authInterceptor, getAuthUser, AuthConfig } from '@nestfolio/shell/auth';
+import { provideAuth, authInterceptor, getAuthUser, forceRefreshSession, AuthConfig } from '@nestfolio/shell/auth';
 import { provideI18n } from '@nestfolio/shell/i18n';
 import { provideNestfolioTheme } from '@nestfolio/ui';
-import { AuthStore, GlobalErrorHandler, COPILOT_API_URL, provideFeatureFlags } from '@nestfolio/shell';
+import { AuthStore, GlobalErrorHandler, COPILOT_API_URL, provideFeatureFlags, ONBOARDING_COMPLETED_KEY } from '@nestfolio/shell';
 import { appRoutes } from './app.routes';
 
 export interface RuntimeConfig {
@@ -81,7 +81,25 @@ export async function fetchRuntimeConfig(): Promise<RuntimeConfig> {
 function initializeAuth(): () => Promise<void> {
   const authStore = inject(AuthStore);
   return async () => {
-    const user = await getAuthUser();
+    let user = await getAuthUser();
+    // Cognito custom attributes are baked into the JWT at issuance time.
+    // After onboarding completes, the backend (CDC → investor-ctrl) calls
+    // SetUserAttributes asynchronously, but a cached ID token won't pick up
+    // the new claim until a refresh-token grant. Bootstrap with a missing
+    // `custom:onboarding_completed_at` claim attempts a single refresh so a
+    // returning, already-onboarded user isn't bounced back to /onboarding.
+    if (user && !user.onboardingCompletedAt) {
+      await forceRefreshSession().catch(() => null);
+      user = await getAuthUser();
+      // Fallback: read the locally-mirrored timestamp written by AuthStore
+      // when the user clicked the onboarding CTA. The Cognito custom-attribute
+      // chain (CDC → SetUserAttributes) is not wired today, so the JWT claim
+      // alone never carries the value across a page reload.
+      if (user && !user.onboardingCompletedAt) {
+        const stored = localStorage.getItem(ONBOARDING_COMPLETED_KEY);
+        if (stored) user = { ...user, onboardingCompletedAt: stored };
+      }
+    }
     if (user) {
       authStore.setAuthenticated({
         userId: user.userId,

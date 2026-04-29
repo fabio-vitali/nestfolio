@@ -17,6 +17,25 @@ const initialState: AuthState = {
   pendingEmail: null,
 };
 
+/**
+ * localStorage key mirroring `user.onboardingCompletedAt`. The architectural
+ * intent is to read this value from the Cognito `custom:onboarding_completed_at`
+ * JWT claim, but no backend handler currently writes that attribute (only
+ * `tenant_id` is set, by the PostConfirmation trigger). Until the missing CDC
+ * chain is wired, we mirror the value here so an in-memory patch made by
+ * `OnboardingChatComponent.onCtaClick` survives a page reload — otherwise the
+ * `onboardingCompletedGuard` bounces back to /onboarding on every refresh.
+ */
+export const ONBOARDING_COMPLETED_KEY = 'nestfolio.onboardingCompletedAt';
+
+function persistOnboardingCompletedAt(value: string | null | undefined): void {
+  if (value) {
+    localStorage.setItem(ONBOARDING_COMPLETED_KEY, value);
+  } else {
+    localStorage.removeItem(ONBOARDING_COMPLETED_KEY);
+  }
+}
+
 export const AuthStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
@@ -26,14 +45,19 @@ export const AuthStore = signalStore(
     return {
       setAuthenticated(user: UserProfile): void {
         patchState(store, { user, status: 'authenticated' });
+        persistOnboardingCompletedAt(user.onboardingCompletedAt);
       },
       setUnauthenticated(): void {
         patchState(store, { user: null, status: 'unauthenticated' });
+        persistOnboardingCompletedAt(null);
       },
       updateUser(updates: Partial<UserProfile>): void {
         const current = store.user();
         if (current) {
           patchState(store, { user: { ...current, ...updates } });
+          if ('onboardingCompletedAt' in updates) {
+            persistOnboardingCompletedAt(updates.onboardingCompletedAt);
+          }
         }
       },
       setPendingEmail(email: string): void {
@@ -47,6 +71,7 @@ export const AuthStore = signalStore(
       },
       logout(): void {
         patchState(store, { ...initialState, status: 'unauthenticated' });
+        persistOnboardingCompletedAt(null);
         logoutOrchestrator.resetAll();
       },
     };
