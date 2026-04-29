@@ -42,6 +42,16 @@ export class AdvisoryBffStack extends ServiceStack {
       state,
       userPoolSsmPath: `/nestfolio/${this.prefix}-investor/auth/userPoolId`,
       jsResolvers: discoverJsResolvers(__dirname, {
+        // Pre-step reads the existing DecisionReadModel so the mutation can
+        // copy `taskToken` (originally stamped by the SF
+        // USER_CONFIRMATION_REQUESTED state) onto the UserConfirmation /
+        // UserRejection row. CDC then re-emits USER_CONFIRMED / USER_REJECTED
+        // with `subject.taskToken`, closing the SF callback loop in
+        // decision-workflow-ctrl/sfn-callback.ts.
+        preSteps: {
+          confirmDecision: ['get-decision-readback.fn.js'],
+          rejectDecision: ['get-decision-readback.fn.js'],
+        },
         extraSteps: {
           confirmDecision: ['get-decision-readback.fn.js'],
           rejectDecision: ['get-decision-readback.fn.js'],

@@ -159,11 +159,7 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
   private updateSubscription: Subscription | null = null;
 
   async ngOnInit(): Promise<void> {
-    // eslint-disable-next-line no-console
-    console.log('[DashboardContainer] ngOnInit start');
     await this.loadDashboard();
-    // eslint-disable-next-line no-console
-    console.log('[DashboardContainer] loadDashboard done, calling subscribeToUpdates');
     this.subscribeToUpdates();
   }
 
@@ -174,34 +170,15 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
 
   private subscribeToUpdates(): void {
     const tenantId = this.authStore.user()?.tenantId;
-    // eslint-disable-next-line no-console
-    console.log('[DashboardContainer] subscribeToUpdates entry tenantId=', tenantId);
-    if (!tenantId) {
-      // eslint-disable-next-line no-console
-      console.log('[DashboardContainer] subscribeToUpdates EARLY RETURN no tenantId');
-      return;
-    }
-    const obs = this.dashboardService.subscribeToDashboardUpdates(tenantId);
-    // eslint-disable-next-line no-console
-    console.log('[DashboardContainer] got Observable, about to subscribe');
-    this.updateSubscription = obs.subscribe({
-      next: (data) => {
-        // eslint-disable-next-line no-console
-        console.log('[DashboardContainer] sub next', JSON.stringify(data));
-        const advisoryStatus = data?.onDashboardUpdate?.advisoryStatus;
-        if (advisoryStatus) this.store.setAdvisoryStatus(advisoryStatus);
-      },
-      error: (err: unknown) => {
-        // eslint-disable-next-line no-console
-        console.error('[DashboardContainer] sub error', err);
-      },
-      complete: () => {
-        // eslint-disable-next-line no-console
-        console.log('[DashboardContainer] sub complete');
-      },
-    });
-    // eslint-disable-next-line no-console
-    console.log('[DashboardContainer] subscribe() returned, closed=', this.updateSubscription.closed);
+    if (!tenantId) return;
+    this.updateSubscription = this.dashboardService
+      .subscribeToDashboardUpdates(tenantId)
+      .subscribe({
+        next: (data) => {
+          const advisoryStatus = data?.onDashboardUpdate?.advisoryStatus;
+          if (advisoryStatus) this.store.setAdvisoryStatus(advisoryStatus);
+        },
+      });
   }
 
   private async loadDashboard(): Promise<void> {

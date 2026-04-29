@@ -11,8 +11,27 @@ export function request(ctx) {
     util.error('decisionId must be 256 characters or less', 'ValidationError');
   }
 
+  // get-decision-readback pre-step has placed the existing DecisionReadModel
+  // in ctx.prev.result. Lift taskToken (stamped by SF on
+  // USER_CONFIRMATION_REQUESTED) onto the UserConfirmation row so CDC
+  // re-emits USER_CONFIRMED with subject.taskToken. Without this, the SF
+  // execution waiting at WaitForUserResponse cannot resume.
+  const taskToken = ctx.prev?.result?.taskToken;
+
   const now = util.time.nowISO8601();
   const pk = `Decision#${tenantId}#${decisionId}`;
+
+  const userConfirmationAttrs = {
+    __typename: 'UserConfirmation',
+    tenantId,
+    decisionId,
+    confirmedAt: now,
+    confirmedBy: userId,
+    timestamp: now,
+  };
+  if (taskToken) {
+    userConfirmationAttrs.taskToken = taskToken;
+  }
 
   return {
     operation: 'TransactWriteItems',
@@ -36,14 +55,7 @@ export function request(ctx) {
         table: ctx.stash.tableName,
         operation: 'PutItem',
         key: util.dynamodb.toMapValues({ pk, sk: `UserConfirmation#${util.autoId()}` }),
-        attributeValues: util.dynamodb.toMapValues({
-          __typename: 'UserConfirmation',
-          tenantId,
-          decisionId,
-          confirmedAt: now,
-          confirmedBy: userId,
-          timestamp: now,
-        }),
+        attributeValues: util.dynamodb.toMapValues(userConfirmationAttrs),
       },
     ],
   };

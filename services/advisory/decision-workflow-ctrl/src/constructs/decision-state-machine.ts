@@ -118,10 +118,14 @@ export class DecisionWorkflowDefinition extends Construct {
 
     // --- Merge all outputs before compliance ---
 
-    // AssemblePacket is a side-effecting Lambda (writes DecisionPacket to DDB).
-    // DISCARD its result so {decisionId, tenantId, userId, region} on input state
-    // flow through unchanged to compliance + user-confirm (which need userId/region
-    // for the event-processor envelope).
+    // AssemblePacket invocation. The Lambda writes a DecisionPacket DDB row
+    // (idempotent) AND returns the compliance inputs (proposedTrades,
+    // portfolioValue, riskScore, currentPositions) extracted from the agents'
+    // memory outputs. ResultSelector flattens the lambda:invoke envelope so we
+    // address the fields directly via $.decisionPacket.<field>. ResultPath
+    // captures only this packet — the existing top-level state ({decisionId,
+    // tenantId, userId, region, trigger, triggerContext}) flows through
+    // unchanged.
     // triggerEventId === decisionId per event-listener.ts (both are the trigger
     // event's id), so we reuse $.decisionId.
     const assemblePacket = new sfn.CustomState(this, 'AssembleDecisionPacket', {
@@ -140,42 +144,23 @@ export class DecisionWorkflowDefinition extends Construct {
             'executionArn.$': '$$.Execution.Id',
           },
         },
-        ResultPath: sfn.JsonPath.DISCARD,
+        ResultSelector: {
+          'proposedTrades.$': '$.Payload.proposedTrades',
+          'portfolioValue.$': '$.Payload.portfolioValue',
+          'riskScore.$': '$.Payload.riskScore',
+          'currentPositions.$': '$.Payload.currentPositions',
+        },
+        ResultPath: '$.decisionPacket',
       },
     });
 
     // --- Compliance wait ---
-
-    const publishRecommendation = new sfn.CustomState(this, 'PublishRecommendation', {
-      stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::events:putEvents',
-        Parameters: {
-          Entries: [
-            {
-              EventBusName: eventBus.eventBusName,
-              Source: serviceName,
-              DetailType: 'RECOMMENDATION_PROPOSED',
-              Detail: {
-                'id.$': 'States.UUID()',
-                'type': 'RECOMMENDATION_PROPOSED',
-                'timestamp.$': '$$.State.EnteredTime',
-                'subject': {
-                  'decisionId.$': '$.decisionId',
-                  'tenantId.$': '$.tenantId',
-                },
-                'context': {
-                  'tenantId.$': '$.tenantId',
-                  'userId.$': '$.userId',
-                  'region.$': '$.region',
-                },
-              },
-            },
-          ],
-        },
-        ResultPath: sfn.JsonPath.DISCARD,
-      },
-    });
+    //
+    // Single emission: RECOMMENDATION_PROPOSED carries taskToken AND the
+    // packet data compliance-ctrl needs. compliance-ctrl subscribes to this
+    // detailType, runs the rule engine, persists ComplianceCheck with
+    // taskToken, and CDC re-emits DECISION_APPROVED|BLOCKED with taskToken on
+    // subject — closing the SF callback loop.
 
     const waitForCompliance = new sfn.CustomState(this, 'WaitForCompliance', {
       stateJson: {
@@ -194,8 +179,13 @@ export class DecisionWorkflowDefinition extends Construct {
                 'subject': {
                   'decisionId.$': '$.decisionId',
                   'tenantId.$': '$.tenantId',
+                  'userId.$': '$.userId',
                   'taskToken.$': '$$.Task.Token',
                   'awaitingCompliance': true,
+                  'proposedTrades.$': '$.decisionPacket.proposedTrades',
+                  'portfolioValue.$': '$.decisionPacket.portfolioValue',
+                  'riskScore.$': '$.decisionPacket.riskScore',
+                  'currentPositions.$': '$.decisionPacket.currentPositions',
                 },
                 'context': {
                   'tenantId.$': '$.tenantId',
@@ -289,7 +279,6 @@ export class DecisionWorkflowDefinition extends Construct {
       .next(invokePortfolioEngine)
       .next(invokeAdvisoryNarrative)
       .next(assemblePacket)
-      .next(publishRecommendation)
       .next(waitForCompliance)
       .next(
         complianceChoice

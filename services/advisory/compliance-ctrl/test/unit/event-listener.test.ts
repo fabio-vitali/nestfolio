@@ -138,6 +138,8 @@ describe('event-listener handler', () => {
     decisionId: 'dp-1',
     tenantId: 't-1',
     userId: 'u-1',
+    taskToken: 'integ-task-token',
+    awaitingCompliance: true,
     proposedTrades: [
       {
         symbol: 'AAPL',
@@ -164,7 +166,7 @@ describe('event-listener handler', () => {
 
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('DECISION_PACKET_CREATED', decisionPayload, { tenantId: 't-1' }),
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', decisionPayload, { tenantId: 't-1' }),
       ]);
 
       expect(result.batchItemFailures).toHaveLength(0);
@@ -202,7 +204,7 @@ describe('event-listener handler', () => {
 
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('DECISION_PACKET_CREATED', decisionPayload, { tenantId: 't-1' }),
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', decisionPayload, { tenantId: 't-1' }),
       ]);
 
       expect(result.batchItemFailures).toHaveLength(0);
@@ -219,7 +221,7 @@ describe('event-listener handler', () => {
 
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('DECISION_PACKET_CREATED', {
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', {
           ...decisionPayload,
           decisionId: 'dp-nomandante',
         }, { tenantId: 't-1' }),
@@ -233,21 +235,35 @@ describe('event-listener handler', () => {
         fields: expect.objectContaining({
           status: 'BLOCKED',
           result: 'BLOCKED',
+          taskToken: 'integ-task-token',
         }),
       });
       expect(evaluateSpy).not.toHaveBeenCalled();
       expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('should report failure when DECISION_PACKET_CREATED is missing required fields', async () => {
+    it('should report failure when RECOMMENDATION_PROPOSED is missing required fields', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('DECISION_PACKET_CREATED', {
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', {
           decisionId: 'dp-missing',
           tenantId: 't-1',
           userId: 'u-1',
+          taskToken: 'tok',
           // Missing: proposedTrades, portfolioValue, riskScore, currentPositions
         }, { tenantId: 't-1' }),
+      ]);
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(getMandateSnapshot).not.toHaveBeenCalled();
+      expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it('should report failure when RECOMMENDATION_PROPOSED is missing taskToken', async () => {
+      const harness = makeHarness();
+      const noTokenPayload = { ...decisionPayload };
+      delete (noTokenPayload as Record<string, unknown>).taskToken;
+      const result = await harness.process([
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', noTokenPayload, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(1);
       expect(getMandateSnapshot).not.toHaveBeenCalled();
@@ -267,23 +283,27 @@ describe('event-listener handler', () => {
 
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('DECISION_PACKET_CREATED', decisionPayload, { tenantId: 't-1' }),
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', decisionPayload, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(1);
     });
 
-    it('should process DECISION_PACKET_UPDATED the same way as DECISION_PACKET_CREATED', async () => {
+    it('should persist taskToken on the ComplianceCheck record so CDC re-emits it on DECISION_APPROVED', async () => {
       getMandateSnapshot.mockResolvedValue(mandate);
       evaluateSpy.mockReturnValue({ result: 'APPROVED', violations: [], authorityLevel: 'L1' });
 
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('DECISION_PACKET_UPDATED', decisionPayload, { tenantId: 't-1' }),
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', decisionPayload, { tenantId: 't-1' }),
       ]);
 
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(2);
-      expect(result.intents[0]._tag).toBe('record');
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'ComplianceCheck',
+        fields: expect.objectContaining({ taskToken: 'integ-task-token' }),
+      });
     });
   });
 

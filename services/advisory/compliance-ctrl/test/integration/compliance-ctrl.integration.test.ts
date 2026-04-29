@@ -32,17 +32,20 @@ describe('compliance-ctrl', () => {
     await ctx.cleanup.runAll();
   }, 60_000);
 
-  // ── Decision Packet Created ────────────────────────────────────────
+  // ── Recommendation Proposed (taskToken propagation) ────────────────
 
-  it('should emit DECISION_APPROVED or DECISION_BLOCKED on DECISION_PACKET_CREATED', async () => {
+  it('should emit DECISION_APPROVED or DECISION_BLOCKED on RECOMMENDATION_PROPOSED with taskToken propagated to subject', async () => {
     const decisionId = `integ-decision-created-${Date.now()}`;
+    const taskToken = `integ-task-token-${Date.now()}`;
 
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: 'DECISION_PACKET_CREATED',
+      detailType: 'RECOMMENDATION_PROPOSED',
       detail: {
         decisionId,
+        taskToken,
+        awaitingCompliance: true,
         proposedTrades: [
           { symbol: 'AAPL', side: 'BUY', quantity: 10, price: 150.0 },
         ],
@@ -54,36 +57,15 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    // Assert: CDC event emitted (proves: event → SQS → Lambda → DDB write → CDC)
+    // Regression: taskToken on RECOMMENDATION_PROPOSED must round-trip through
+    // ComplianceCheck row → CDC subject on DECISION_APPROVED|BLOCKED so the SF
+    // callback Lambda can call SendTaskSuccess. Without this round-trip the
+    // decision-workflow-ctrl state machine remains stuck at WaitForCompliance.
     const event = await trap.waitForEvent({ timeoutMs: 90_000 });
     expect(['DECISION_APPROVED', 'DECISION_BLOCKED']).toContain(event.detailType);
-  }, 120_000);
-
-  // ── Decision Packet Updated (re-evaluation) ───────────────────────
-
-  it('should re-evaluate and emit DECISION_APPROVED or DECISION_BLOCKED on DECISION_PACKET_UPDATED', async () => {
-    const decisionId = `integ-decision-updated-${Date.now()}`;
-
-    await eb.putEvent({
-      bus: 'advisory',
-      targetService: 'compliance-ctrl',
-      detailType: 'DECISION_PACKET_UPDATED',
-      detail: {
-        decisionId,
-        proposedTrades: [
-          { symbol: 'MSFT', side: 'SELL', quantity: 20, price: 300.0 },
-        ],
-        portfolioValue: 100000,
-        riskScore: 3,
-        currentPositions: [
-          { symbol: 'MSFT', quantity: 50, value: 15000.0 },
-        ],
-      },
-    });
-
-    // Assert: CDC event emitted — same path as CREATED, proves UPDATED is wired
-    const event = await trap.waitForEvent({ timeoutMs: 90_000 });
-    expect(['DECISION_APPROVED', 'DECISION_BLOCKED']).toContain(event.detailType);
+    const detail = event.detail as Record<string, unknown>;
+    const subject = detail.subject as Record<string, unknown>;
+    expect(subject['taskToken']).toBe(taskToken);
   }, 120_000);
 
   // ── Mandate Created (compliance rules projection) ─────────────────
@@ -163,13 +145,15 @@ describe('compliance-ctrl', () => {
 
     const decisionId = `integ-authority-balanced-${Date.now()}`;
 
-    // Send DECISION_PACKET_CREATED with a 6% trade (within BALANCED 10% limit)
+    // Send RECOMMENDATION_PROPOSED with a 6% trade (within BALANCED 10% limit)
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: 'DECISION_PACKET_CREATED',
+      detailType: 'RECOMMENDATION_PROPOSED',
       detail: {
         decisionId,
+        taskToken: `integ-task-token-${decisionId}`,
+        awaitingCompliance: true,
         proposedTrades: [
           {
             symbol: 'AAPL',
@@ -244,9 +228,11 @@ describe('compliance-ctrl', () => {
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: 'DECISION_PACKET_CREATED',
+      detailType: 'RECOMMENDATION_PROPOSED',
       detail: {
         decisionId,
+        taskToken: `integ-task-token-${decisionId}`,
+        awaitingCompliance: true,
         proposedTrades: [
           {
             symbol: 'AAPL',

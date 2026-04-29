@@ -4,6 +4,12 @@ import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
+
+// Subject field carrying the SF taskToken across the compliance hop. Persisted
+// onto the ComplianceCheck row so CDC re-emits it on DECISION_APPROVED |
+// DECISION_BLOCKED, allowing decision-workflow-ctrl/sfn-callback.ts to call
+// SendTaskSuccess. Without this, the SF execution remains stuck at
+// WaitForCompliance.
 import { ComplianceRepository } from '../repositories/compliance.repository';
 import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../rules/rule-engine';
 import { MandateValidator } from '../rules/mandate-validator';
@@ -35,12 +41,17 @@ async function processDecisionPacket(
   const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
   const userId = (subject.userId as string) ?? tenantId;
   const decisionPacketId = subject.decisionId as string;
+  const taskToken = subject.taskToken as string | undefined;
 
   // Validate required fields
   const requiredFields = ['proposedTrades', 'portfolioValue', 'riskScore', 'currentPositions'];
   const missingFields = requiredFields.filter((f) => !(f in subject));
   if (missingFields.length) {
     throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
+  }
+
+  if (!taskToken) {
+    throw new NotRetryableError('Missing taskToken on RECOMMENDATION_PROPOSED subject — SF callback cannot resume');
   }
 
   const ccId = ctx.eventId;
@@ -53,6 +64,7 @@ async function processDecisionPacket(
       tenantId,
       ccId,
       decisionPacketId,
+      taskToken,
       mandateSnapshot: {
         mandateId: 'NONE',
         level: 'ADVISORY',
@@ -119,6 +131,7 @@ async function processDecisionPacket(
       tenantId,
       ccId,
       decisionPacketId,
+      taskToken,
       mandateSnapshot: mandate,
       status: 'COMPLETED',
       result: output.result,
@@ -183,10 +196,11 @@ function processMandateEvent(
 export const createHandlers = (deps: EventListenerDeps) => {
   const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<WriteIntent | WriteIntent[]> | WriteIntent | WriteIntent[]> = {};
 
-  // Decision events
-  for (const type of [AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED, AdvisoryCtrlEventTypes.DECISION_PACKET_UPDATED]) {
-    handlers[type] = (payload, ctx) => processDecisionPacket(deps, payload, ctx);
-  }
+  // RECOMMENDATION_PROPOSED is emitted by decision-workflow-ctrl SF's
+  // WaitForCompliance state with the taskToken, packet data, and an
+  // awaitingCompliance=true flag. We are the sole consumer.
+  handlers[AdvisoryCtrlEventTypes.RECOMMENDATION_PROPOSED] = (payload, ctx) =>
+    processDecisionPacket(deps, payload, ctx);
 
   // Mandate events
   for (const type of [InvestorCrossDomainEventTypes.MANDATE_CREATED, InvestorCrossDomainEventTypes.MANDATE_UPDATED, InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED]) {

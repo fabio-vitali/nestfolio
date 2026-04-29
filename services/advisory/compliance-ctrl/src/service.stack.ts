@@ -13,8 +13,7 @@ export class ComplianceCtrlStack extends ServiceStack {
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
-        AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED,
-        AdvisoryCtrlEventTypes.DECISION_PACKET_UPDATED,
+        AdvisoryCtrlEventTypes.RECOMMENDATION_PROPOSED,
         AdvisoryIngestEventTypes.MANDATE_CREATED,
         AdvisoryIngestEventTypes.MANDATE_UPDATED,
         AdvisoryIngestEventTypes.OPERATING_MODE_CHANGED,

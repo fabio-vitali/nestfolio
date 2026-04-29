@@ -17,8 +17,25 @@ export function request(ctx) {
     util.error('reason must be 2000 characters or less', 'ValidationError');
   }
 
+  // See confirm-decision.fn.js for the rationale on lifting taskToken from
+  // ctx.prev.result onto the UserRejection row.
+  const taskToken = ctx.prev?.result?.taskToken;
+
   const now = util.time.nowISO8601();
   const pk = `Decision#${tenantId}#${decisionId}`;
+
+  const userRejectionAttrs = {
+    __typename: 'UserRejection',
+    tenantId,
+    decisionId,
+    rejectedAt: now,
+    rejectedBy: userId,
+    rejectionReason: reason,
+    timestamp: now,
+  };
+  if (taskToken) {
+    userRejectionAttrs.taskToken = taskToken;
+  }
 
   return {
     operation: 'TransactWriteItems',
@@ -43,15 +60,7 @@ export function request(ctx) {
         table: ctx.stash.tableName,
         operation: 'PutItem',
         key: util.dynamodb.toMapValues({ pk, sk: `UserRejection#${util.autoId()}` }),
-        attributeValues: util.dynamodb.toMapValues({
-          __typename: 'UserRejection',
-          tenantId,
-          decisionId,
-          rejectedAt: now,
-          rejectedBy: userId,
-          rejectionReason: reason,
-          timestamp: now,
-        }),
+        attributeValues: util.dynamodb.toMapValues(userRejectionAttrs),
       },
     ],
   };

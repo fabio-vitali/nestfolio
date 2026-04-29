@@ -94,4 +94,49 @@ describe('assemble-packet handler', () => {
     expect(result.investorProfileOutput).toBeNull();
     expect(result.marketAnalysisOutput).toBeNull();
   });
+
+  it('returns safe-default compliance inputs when agents have not produced structured fields', async () => {
+    mockReadUpstream.mockResolvedValue([]);
+
+    const result = await handler(baseEvent);
+
+    // Defaults align with the empty-trade / neutral-risk degenerate case so the
+    // rule engine resolves APPROVED L1 (no exposure → no violation). When the
+    // agents start emitting structured outputs, real values flow through.
+    expect(result.proposedTrades).toEqual([]);
+    expect(result.currentPositions).toEqual([]);
+    expect(result.portfolioValue).toBe(0);
+    expect(result.riskScore).toBe(5);
+  });
+
+  it('lifts compliance inputs from agent outputs when present', async () => {
+    mockReadUpstream.mockImplementation((svc: string) => {
+      if (svc === 'portfolio-engine') {
+        return Promise.resolve([
+          {
+            content: JSON.stringify({
+              proposedTrades: [{ symbol: 'AAPL', side: 'BUY' }],
+              currentPositions: [{ ticker: 'MSFT', weight: 10 }],
+              portfolioValue: 100_000,
+            }),
+            score: 1,
+            memoryRecordId: 'r1',
+          },
+        ]);
+      }
+      if (svc === 'investor-profile') {
+        return Promise.resolve([
+          { content: JSON.stringify({ riskScore: 7 }), score: 1, memoryRecordId: 'r2' },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+
+    const result = await handler(baseEvent);
+
+    expect(result.proposedTrades).toEqual([{ symbol: 'AAPL', side: 'BUY' }]);
+    expect(result.currentPositions).toEqual([{ ticker: 'MSFT', weight: 10 }]);
+    expect(result.portfolioValue).toBe(100_000);
+    expect(result.riskScore).toBe(7);
+  });
 });

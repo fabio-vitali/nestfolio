@@ -2,12 +2,12 @@ import { update } from '@nestfolio/event-processor';
 import { decisionStatusChanged } from '../../../src/transforms/decision-status-changed';
 
 describe('decisionStatusChanged transform', () => {
-  const makeUow = (eventType: string) => ({
+  const makeUow = (eventType: string, extraSubject: Record<string, unknown> = {}) => ({
     event: {
       id: 'e1',
       type: eventType,
       timestamp: '2026-01-01T00:00:00.000Z',
-      subject: { tenantId: 't1', decisionId: 'd1' },
+      subject: { tenantId: 't1', decisionId: 'd1', ...extraSubject },
       context: { tenantId: 't1' },
     },
     payload: {},
@@ -48,6 +48,22 @@ describe('decisionStatusChanged transform', () => {
         overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
     );
+  });
+
+  it('should persist taskToken on DecisionReadModel when USER_CONFIRMATION_REQUESTED carries one', () => {
+    expect(
+      decisionStatusChanged(makeUow('USER_CONFIRMATION_REQUESTED', { taskToken: 'tok-123' }) as any),
+    ).toEqual(
+      update('DecisionReadModel', { status: 'AWAITING_CONFIRMATION', taskToken: 'tok-123' }, {
+        condition: 'attribute_exists(pk)',
+        overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
+      }),
+    );
+  });
+
+  it('should not write taskToken on transitions that do not carry one (DECISION_APPROVED)', () => {
+    const result = decisionStatusChanged(makeUow('DECISION_APPROVED') as any) as ReturnType<typeof update>;
+    expect(result.updates).not.toHaveProperty('taskToken');
   });
 
   it('should return undefined for unmapped event types', () => {
