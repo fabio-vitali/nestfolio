@@ -126,7 +126,8 @@ describe('broker-ctrl resilience: idempotency', () => {
         timeoutMs: 90_000,
       });
       expect(firstItem['__typename']).toBe('NormalizedEvent');
-      expect(firstItem['amount']).toBe(100000);
+      expect(firstItem['amountCents']).toBe(100000);
+      expect(firstItem['depositId']).toBe(depositId);
 
       // Wait for the first DEPOSIT_DETECTED CDC event
       await trap.waitForEvent({

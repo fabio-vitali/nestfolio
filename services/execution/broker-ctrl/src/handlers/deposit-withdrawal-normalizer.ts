@@ -6,16 +6,18 @@ export const handler = materializeToTable({
   handlers: {
     [BrokerCtrlInboundEventTypes.SIM_DEPOSIT_COMPLETED]: (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject as Record<string, unknown>;
+      const depositId = (subject.depositId as string) ?? ctx.eventId;
       return normalizedEvent({
         tenantId: ctx.tenantId,
-        userId: ctx.userId,
+        userId: (subject.userId as string) ?? ctx.userId,
         region: ctx.region,
-        amount: subject.amountCents,
+        depositId,
+        amountCents: subject.amountCents,
         currency: (subject.currency as string) ?? 'USD',
         executionMode: 'simulation',
         timestamp: ctx.timestamp,
       }, {
-        pk: `NormalizedEvent#${ctx.tenantId}#${(subject.depositId as string) ?? ctx.eventId}`,
+        pk: `NormalizedEvent#${ctx.tenantId}#${depositId}`,
         sk: 'DEPOSIT_DETECTED',
       });
     },

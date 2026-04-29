@@ -8,15 +8,18 @@ import { BrokerCtrlInboundEventTypes } from '../../src/domain/events';
 const handlers = {
   [BrokerCtrlInboundEventTypes.SIM_DEPOSIT_COMPLETED]: (payload, ctx) => {
     const subject = payload.subject;
+    const depositId = subject.depositId ?? ctx.eventId;
     return record('NormalizedEvent', {
       __typename: 'NormalizedEvent',
       tenantId: ctx.tenantId,
-      amount: subject.amountCents,
+      userId: subject.userId ?? ctx.userId,
+      depositId,
+      amountCents: subject.amountCents,
       currency: subject.currency ?? 'USD',
       executionMode: 'simulation',
       timestamp: ctx.timestamp,
     }, {
-      pk: `NormalizedEvent#${ctx.tenantId}#${subject.depositId ?? ctx.eventId}`,
+      pk: `NormalizedEvent#${ctx.tenantId}#${depositId}`,
       sk: 'DEPOSIT_DETECTED',
     });
   },
@@ -87,7 +90,8 @@ describe('deposit-withdrawal-normalizer', () => {
       fields: expect.objectContaining({
         __typename: 'NormalizedEvent',
         tenantId: 't-1',
-        amount: 10000,
+        depositId: 'dep-1',
+        amountCents: 10000,
         currency: 'USD',
         executionMode: 'simulation',
       }),
