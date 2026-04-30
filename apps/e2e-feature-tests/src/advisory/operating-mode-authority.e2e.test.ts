@@ -5,7 +5,7 @@ import {
 } from '@nestfolio/test-support';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
+import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import {
   freshTenant,
   applyFixtures,
@@ -121,7 +121,7 @@ describe.each([
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED,
+      detailType: DecisionWorkflowEventTypes.DECISION_PACKET_CREATED,
       detail: {
         tenantId: tenant.tenantId,
         userId: tenant.userId,

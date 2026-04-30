@@ -15,9 +15,8 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
   let ctx: TestContext;
   let tenant: FreshTenant;
   let investorProfileTrap: AgentTraceTrap<'investorProfile'>;
-  let decisionLifecycleTrap: AgentTraceTrap<'decisionLifecycle'>;
+  let advisoryNarrativeTrap: AgentTraceTrap<'advisoryNarrative'>;
   let marketIntelligenceTrap: AgentTraceTrap<'marketIntelligence'>;
-  let narrativeTrap: AgentTraceTrap<'advisoryNarrative'>;
 
   beforeEach(async () => {
     ctx = await createTestContext();
@@ -27,9 +26,8 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     // agent invocations; we want every envelope in the window captured so
     // waitFor can filter by correlationId.
     investorProfileTrap = await AgentTraceTrap.arm(ctx, 'investorProfile');
-    decisionLifecycleTrap = await AgentTraceTrap.arm(ctx, 'decisionLifecycle');
+    advisoryNarrativeTrap = await AgentTraceTrap.arm(ctx, 'advisoryNarrative');
     marketIntelligenceTrap = await AgentTraceTrap.arm(ctx, 'marketIntelligence');
-    narrativeTrap = await AgentTraceTrap.arm(ctx, 'advisoryNarrative');
     await applyFixtures(ctx, tenant, [onboarded()]);
   }, 180_000);
 
@@ -76,24 +74,6 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
       investorProfileTrap.getLatencyBudget(),
     );
 
-    // advisory-ctrl's decision-lifecycle agent runs in parallel with the SF
-    // chain above (both services subscribe to MANDATE_CREATED). Fan-out means
-    // the agent can emit multiple traces per decisionId under revision
-    // cycles — assert on the LAST (settled) trace.
-    const dlTraces = await decisionLifecycleTrap.waitFor({
-      correlationId: decisionId,
-      timeoutMs: 240_000,
-    });
-    const dlEnvelope = dlTraces[dlTraces.length - 1].envelope;
-
-    expect(dlEnvelope.status).toBe('success');
-    const dlLlmErrors = dlEnvelope.errors.filter((e) => e.kind === 'llm_error');
-    expect(dlLlmErrors).toHaveLength(0);
-    expect(dlEnvelope.llmCalls.length).toBeGreaterThanOrEqual(1);
-    expect(dlEnvelope['gen_ai.invocation.latency_ms']).toBeLessThan(
-      decisionLifecycleTrap.getLatencyBudget(),
-    );
-
     const miTraces = await marketIntelligenceTrap.waitFor({
       correlationId: decisionId,
       timeoutMs: 240_000,
@@ -111,11 +91,13 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     // advisory-narrative-ctrl runs as the final explainability wave in the SF
     // chain (after profiling + construction waves complete). It receives the
     // assembled decision packet and generates the investor-facing narrative.
-    const narrativeTraces = await narrativeTrap.waitFor({
+    // Also serves as the canary for the full advisory lifecycle — the last
+    // wave completing confirms the 4-agent pipeline ran end-to-end.
+    const narrativeTraces = await advisoryNarrativeTrap.waitFor({
       correlationId: decisionId,
-      timeoutMs: 120_000,
+      timeoutMs: 240_000,
     });
-    const narrative = narrativeTraces[0].envelope;
+    const narrative = narrativeTraces[narrativeTraces.length - 1].envelope;
 
     expect(narrative.status).toBe('success');
     // Tolerate chain_error (LangChain structured-output parser retries) — same
@@ -127,7 +109,7 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     expect(narrative.llmCalls.length).toBeGreaterThanOrEqual(1);
     expect(narrative.llmCalls[0]['gen_ai.request.model']).toBe('sonnet');
     expect(narrative['gen_ai.invocation.latency_ms']).toBeLessThan(
-      narrativeTrap.getLatencyBudget(),
+      advisoryNarrativeTrap.getLatencyBudget(),
     );
   }, 360_000);
 });

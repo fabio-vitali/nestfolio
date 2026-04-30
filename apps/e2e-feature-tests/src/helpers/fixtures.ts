@@ -11,7 +11,7 @@ import {
   EnableRuleCommand,
 } from '@aws-sdk/client-eventbridge';
 import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
-import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
+import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { InvestorCtrlEventTypes } from '@nestfolio/investor-ctrl/events';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 import { BrokerCtrlEventTypes } from '@nestfolio/broker-ctrl/events';
@@ -169,7 +169,7 @@ export function withDecision(opts: {
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'advisory-bff',
-      detailType: AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED,
+      detailType: DecisionWorkflowEventTypes.DECISION_PACKET_CREATED,
       detail: {
         tenantId: tenant.tenantId,
         decisionId,

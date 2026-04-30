@@ -25,7 +25,7 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
   let ddbClient: DynamoDBClient;
   let ddbDoc: DynamoDBDocumentClient;
   let tableName: string;
-  let decisionLifecycleTrap: AgentTraceTrap<'decisionLifecycle'>;
+  let advisoryNarrativeTrap: AgentTraceTrap<'advisoryNarrative'>;
 
   beforeEach(async () => {
     ctx = await createTestContext();
@@ -34,7 +34,7 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
     // ALPACA_ACCOUNT_SNAPSHOT, and the resulting PORTFOLIO_DRIFT_DETECTED
     // reaches advisory-ctrl's decision-lifecycle AgentRuntime before the
     // scenario's assertions run.
-    decisionLifecycleTrap = await AgentTraceTrap.arm(ctx, 'decisionLifecycle');
+    advisoryNarrativeTrap = await AgentTraceTrap.arm(ctx, 'advisoryNarrative');
     await applyFixtures(ctx, tenant, [
       onboarded(),
       funded({ cashBalanceCents: 2_000_000 }),
@@ -118,18 +118,18 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
     // advisory-ctrl's Ingress → AgentRuntime. decisionId = triggerEvent.id
     // matches the envelope's correlationId. Reconciliation may produce
     // multiple traces across correction cycles; assert on the LAST.
-    const dlTraces = await decisionLifecycleTrap.waitFor({
+    const narrativeTraces = await advisoryNarrativeTrap.waitFor({
       correlationId: decision!.decisionId,
       timeoutMs: 240_000,
     });
-    const envelope = dlTraces[dlTraces.length - 1].envelope;
+    const envelope = narrativeTraces[narrativeTraces.length - 1].envelope;
 
     expect(envelope.status).toBe('success');
     const llmErrors = envelope.errors.filter((e) => e.kind === 'llm_error');
     expect(llmErrors).toHaveLength(0);
     expect(envelope.llmCalls.length).toBeGreaterThanOrEqual(1);
     expect(envelope['gen_ai.invocation.latency_ms']).toBeLessThan(
-      decisionLifecycleTrap.getLatencyBudget(),
+      advisoryNarrativeTrap.getLatencyBudget(),
     );
   }, 420_000);
 });

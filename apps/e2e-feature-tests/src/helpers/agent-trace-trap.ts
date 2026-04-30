@@ -4,7 +4,6 @@ import type { AgentTraceEventDetail } from '@nestfolio/agent-orchestrator';
 import { NarrativeEventTypes } from '@nestfolio/advisory-narrative-ctrl/events';
 import { PortfolioEngineEventTypes } from '@nestfolio/portfolio-engine-ctrl/events';
 import { InvestorProfileEventTypes } from '@nestfolio/investor-profile-ctrl/events';
-import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
 import { MarketIntelligenceEventTypes } from '@nestfolio/market-intelligence-ctrl/events';
 import { OnboardingBffEventTypes } from '@nestfolio/onboarding-bff/events';
 
@@ -20,10 +19,6 @@ const AGENT_TRACE_EVENTS = {
   investorProfile: {
     bus: 'advisory' as const,
     detailType: InvestorProfileEventTypes.INVESTOR_PROFILE_AGENT_INVOCATION_TRACED,
-  },
-  decisionLifecycle: {
-    bus: 'advisory' as const,
-    detailType: AdvisoryCtrlEventTypes.DECISION_LIFECYCLE_AGENT_INVOCATION_TRACED,
   },
   marketIntelligence: {
     bus: 'advisory' as const,
@@ -47,11 +42,6 @@ const DEFAULT_LATENCY_BUDGETS_MS = {
   // to catch pathological regressions without flaking on normal variance.
   advisoryNarrative: 20_000,
   portfolioEngine: 45_000,
-  // Decision-lifecycle orchestrates 6 agents across 3 sequential waves
-  // (profiling → construction → explainability) with tier escalation and
-  // tool calls; real p95 lands ~80s. Budget keeps headroom for jitter but
-  // still catches multi-minute pathologies.
-  decisionLifecycle: 180_000,
   investorProfile: 30_000,
   // market-intelligence fetches live market data and news via tool calls;
   // cold-start p95 observed ~128s. Budget matches decision-lifecycle headroom.
