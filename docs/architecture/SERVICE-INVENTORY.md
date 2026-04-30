@@ -1,379 +1,697 @@
-> **Status: RECOVERY IN PROGRESS — content is the verbatim 2026-03-24 baseline (commit `fa15bbfd~1`). Phase C of the implementation plan expands this to current 33-service code. Until expansion lands, treat this file as historical context, not as a current reference.**
-
 # Service Inventory
 
-Complete listing of all Nestfolio services organized by domain, including responsibilities, event contracts, state ownership, and hosted AI agents. For definitions of service roles (BFF, CTRL, ADPT, Event Hub), see [Event-Driven Architecture](../03-event-driven-architecture.md).
+> **Status:** Canonical reference. Per-service responsibility, key events, AI agents, knowledge bases, state, MFEs, and architectural-evolution annotations.
+>
+> **Companion document:** `docs/architecture/SYSTEM-ARCHITECTURE.md` (cross-cutting architecture).
+>
+> **Last whole-document review:** 2026-04-30.
 
-> [Back to Index](../../README.md) | [Section Overview](./README.md)
+For per-service code-anchored detail (event subscriptions, handlers, dependencies, tests), read each service's own `CLAUDE.md` card — those are regenerable from code via the `audit-service` skill and stay in sync with the implementation. This document is the cross-cutting view: *why* each service exists and where it sits in the architectural evolution.
 
 ---
 
 ## Inventory Summary
 
-| # | Service | Domain | Type | Actor Served | Has Microfrontend |
-|---|---|---|---|---|---|
-| 1 | `investor-hub` | Investor | Event Hub | -- | No |
-| 2 | `investor-web` | Investor | Web | Investor (auth) | Yes |
-| 3 | `investor-bff` | Investor | BFF | Investor | Yes |
-| 4 | `investor-ctrl` | Investor | CTRL | -- | No |
-| 5 | `advisory-hub` | Advisory | Event Hub | -- | No |
-| 6 | `advisory-ctrl` | Advisory | CTRL | -- | No |
-| 7 | `compliance-ctrl` | Advisory | CTRL | -- | No |
-| 8 | `operations-ctrl` | Advisory | CTRL | -- | No |
-| 9 | `advisory-bff` | Advisory | BFF | Investor + Operator + Reviewer | Yes |
-| 10 | `execution-hub` | Execution | Event Hub | -- | No |
-| 11 | `execution-ctrl` | Execution | CTRL | -- | No |
-| 12 | `execution-adpt` | Execution | ADPT | -- | No |
-| 13 | `portfolio-bff` | Execution | BFF | Investor | Yes |
-| 14 | `portfolio-ctrl` | Execution | CTRL | -- | No |
+Total services: **33** (verified 2026-04-30 via `ls services/{advisory,execution,investor,ledger}/` minus `README.md`).
 
-**Total: 14 services** (3 Event Hubs, 3 BFFs, 6 CTRLs, 1 ADPT, 1 Web) + 2 frontend host applications.
+Health tags:
+- **canonical** — matches design intent, current code is the reference shape.
+- **transitional** — active divergence; named follow-up spec will land alignment.
+- **legacy** — will be retired; named follow-up spec.
+- **dormant** — deployed but no live consumers (reserved for planned future).
 
-| Domain | Services | Count |
-|---|---|---|
-| Investor | investor-hub, investor-web, investor-bff, investor-ctrl | 4 |
-| Advisory | advisory-hub, advisory-ctrl, compliance-ctrl, operations-ctrl, advisory-bff | 5 |
-| Execution | execution-hub, execution-ctrl, execution-adpt, portfolio-bff, portfolio-ctrl | 5 |
+| # | Service | Domain | Type | MFE | AI Agent | Health |
+|---:|---|---|---|:---:|:---:|---|
+| 1 | investor-hub | Investor | hub | — | — | canonical |
+| 2 | investor-web | Investor | web (shell) | shell | — | canonical |
+| 3 | investor-bff | Investor | bff | investor-mfe | — | canonical |
+| 4 | investor-ctrl | Investor | ctrl | — | — | canonical |
+| 5 | dashboard-bff | Investor | bff | dashboard-mfe | — | canonical |
+| 6 | onboarding-bff | Investor | bff (hybrid) | onboarding-mfe | OnboardingAgent (in-process LangGraph) | canonical |
+| 7 | investor-adpt | Investor | adpt (cross-domain) | — | — | canonical |
+| 8 | advisory-hub | Advisory | hub | — | — | canonical |
+| 9 | advisory-ctrl | Advisory | ctrl (control plane + vestigial decision-lifecycle) | — | decision-lifecycle multi-agent (LangGraph) | transitional (Spec 2) |
+| 10 | advisory-bff | Advisory | bff | advisory-mfe | — | canonical |
+| 11 | advisory-narrative-ctrl | Advisory | ctrl | — | Recommendation & Explainability | canonical |
+| 12 | investor-profile-ctrl | Advisory | ctrl | — | User & Goals + Risk | canonical |
+| 13 | market-intelligence-ctrl | Advisory | ctrl | — | Market & Research | canonical |
+| 14 | portfolio-engine-ctrl | Advisory | ctrl | — | Portfolio Construction + Rebalance | canonical |
+| 15 | decision-workflow-ctrl | Advisory | ctrl (orchestrator) | — | — (Step Functions) | canonical |
+| 16 | compliance-ctrl | Advisory | ctrl | — | — (rule engine) | canonical |
+| 17 | advisory-adpt | Advisory | adpt (cross-domain) | — | — | canonical |
+| 18 | alpha-vantage-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
+| 19 | fred-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
+| 20 | marketwatch-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
+| 21 | sec-edgar-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
+| 22 | yahoo-finance-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
+| 23 | execution-hub | Execution | hub | — | — | canonical |
+| 24 | execution-ctrl | Execution | ctrl | — | — | canonical |
+| 25 | broker-ctrl | Execution | ctrl (orchestrator) | — | — (Step Functions) | canonical |
+| 26 | broker-sim-adpt | Execution | adpt (broker) | — | — | canonical |
+| 27 | broker-alpaca-adpt | Execution | adpt (broker + circuit breaker) | — | — | canonical |
+| 28 | execution-adpt | Execution | adpt (cross-domain) | — | — | canonical |
+| 29 | ledger-hub | Ledger | hub | — | — | canonical |
+| 30 | ledger-ctrl | Ledger | ctrl | — | — | canonical |
+| 31 | ledger-bff | Ledger | bff | ledger-mfe | — | canonical |
+| 32 | reconciliation-ctrl | Ledger | ctrl | — | — | canonical |
+| 33 | ledger-adpt | Ledger | adpt (cross-domain) | — | — | canonical |
 
 ---
 
-## Investor Domain
+## Per-service template
+
+Each entry below uses the same structure:
+
+- **Type** + **Domain** + **Stack** path.
+- **Why this service exists** (bounded-context responsibility).
+- **Responsibilities** (cohesive responsibilities owned).
+- **Key events** (published / consumed — per-service `CLAUDE.md` is authoritative for the full list).
+- **AI Agents** (if any).
+- **State** (DDB / S3 / KB).
+- **API surface** (BFFs only).
+- **MFE** (BFFs with frontend).
+- **Architectural Evolution** (where applicable).
+- **Health** + cross-references.
+
+---
+
+## Investor Domain (7 services)
 
 ### investor-hub
 
-**Type**: Event Hub
+**Type:** hub · **Domain:** Investor
+**Stack:** `services/investor/investor-hub/src/service.stack.ts`
 
-Owns the Investor domain EventBridge bus, cross-domain forwarding rules, and event archive. Merges the event infrastructure of the former identity-hub, investor-hub, and notification-hub.
+**Why this service exists.** Owns the `investor-bus` EventBridge bus and the cross-cutting SSM parameters consumed by investor-domain services (account IDs, runtime config). One bus per domain is the architectural convention (§4 of SYSTEM-ARCHITECTURE.md).
 
-**Cross-domain forwarding rules (outbound)**:
+**Responsibilities.** EventBridge bus provisioning; SSM parameter exports for sibling services.
 
-| Target | Events |
-|---|---|
-| advisory-hub | `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`, `ACCOUNT_MODE_SET` |
-| execution-hub | `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `ACCOUNT_MODE_SET`, `GO_LIVE_REQUESTED` |
+**State.** None (no DDB, no Lambda handlers).
+
+**Architectural Evolution.** None.
+
+**Health.** canonical.
+
+**Cross-references.** Per-service `CLAUDE.md` card.
 
 ---
 
 ### investor-web
 
-**Type**: Web
+**Type:** web (Angular shell host) · **Domain:** Investor
+**Stack:** `services/investor/investor-web/src/service.stack.ts`
 
-Cognito User Pool (Google/Facebook federation), CloudFront distribution, Route53 hosted zone. Lambda triggers on PostAuthentication/PostConfirmation publish auth events. Serves the landing/marketing page and auth UI.
+**Why this service exists.** Hosts the Angular PWA shell that federates the 5 MFEs at runtime via Native Federation. Includes CloudFront distribution + WAF + the unified MFE-bucket origin topology (§20).
 
-No BFF needed -- auth features are served by Cognito hosted UI and the landing page is static.
+**Responsibilities.** Shell static-asset hosting; routing to MFE remoteEntry.json; per-route auth integration with Cognito; CSP enforcement.
 
-**External dependency**: Amazon Cognito (embedded, not a separate ADPT).
+**State.** S3 shell bucket + CloudFront distribution. Exports `web/distributionId` at the canonical subsystem-scoped SSM path (per the A3 ship in user-memory `project_mfe_charter_migration.md`).
 
-**Events published**: `USER_REGISTERED`, `USER_AUTHENTICATED`, `USER_SESSION_EXPIRED`, `USER_DELETION_REQUESTED`, `PII_REMOVED`, `TENANT_ANONYMIZED`
+**MFE.** This is the shell, not a federated MFE. `apps/nestfolio-host/` contains the shell source.
 
-**Microfrontends**: Landing/marketing page, sign-up/sign-in (Cognito hosted UI).
+**Architectural Evolution.** Through the MFE charter migration (2026-04-24 → 2026-04-27, fully graduated), `investor-web` became the canonical CloudFront origin host for all 5 MFEs via per-BFF MFE buckets (A3) + the `frontend-deps` shared singleton library (A2) + the CSP single-source-of-truth (A1). See user-memory `project_mfe_charter_migration.md`.
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; user-memory `project_mfe_charter_migration.md`.
 
 ---
 
 ### investor-bff
 
-**Type**: BFF
-**Actor**: Investor
+**Type:** bff · **Domain:** Investor
+**Stack:** `services/investor/investor-bff/src/service.stack.ts`
 
-Owns the InvestorProfile aggregate (event-sourced: goals, risk profile, mandate, operating mode, account_mode, onboarding answers, deposit intents, withdrawal requests) and the NotificationInbox projection (materialized from `investor-ctrl` events). Absorbs the former notification-bff inbox features.
+**Why this service exists.** Backend-for-Frontend for the Investor MFE. Owns the GraphQL surface for investor profile + mandate management + cross-cutting feature flags (e.g. circuit-breaker UI gate). BFFs are the system-state read model for the UI (per user-memory `feedback_bff_is_read_model.md`).
 
-**Feature set**: Onboarding conversation, profile/goal/risk/mandate management, operating mode selection, account mode selection (SIMULATION/LIVE), simulation-to-live transition flow, deposit initiation, withdrawal requests, account closure, notification inbox, unread count, mark-as-read, real-time notification push, notification preferences.
+**Responsibilities.** Profile + mandate + risk-profile projections; feature-flag mutations (used by circuit-breaker — see user-memory `project_cb_appsync_auth.md`); cross-domain read aggregation via `investor-adpt`.
 
-**API**: AppSync GraphQL -- onboarding mutations, profile queries, goal CRUD, mandate management, setAccountMode mutation, requestGoLive mutation, account mode query, deposit/withdrawal, closure, notification inbox queries, mark-as-read mutations, real-time notification subscriptions.
+**Key events consumed.** `MANDATE_DEFINED`, `RISK_PROFILE_*`, `OPERATING_MODE_CHANGED`, `CIRCUIT_BREAKER_*` (via investor-adpt).
 
-**AI agents**: Conversational AgentCore instances of **User & Goals Agent** (onboarding goal dialogue, goal refinement) and **Risk Agent** (risk questionnaire evaluation).
+**State.** DDB projection table; AppSync GraphQL.
 
-**Knowledge Base**: Bedrock KB (vector + graph) fed by investor domain events -- user intent history, goal context, risk preference patterns.
+**API surface.** AppSync GraphQL with Cognito-User-Pool authentication and IAM-signed write paths from sibling services. The `check-auth.fn.js` JS resolver detects IAM identity to bypass Cognito claims for cross-service mutations (per user-memory `project_cb_appsync_auth.md`).
 
-**Events published**: `ONBOARDING_ANSWER_RECORDED`, `ONBOARDING_COMPLETED`, `GOAL_SET`, `GOAL_UPDATED`, `RISK_PROFILE_SET`, `RISK_PROFILE_UPDATED`, `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`, `OPERATING_MODE_SELECTED`, `OPERATING_MODE_CHANGED`, `ACCOUNT_MODE_SET`, `GO_LIVE_REQUESTED`, `GO_LIVE_COMPLETED`, `DEPOSIT_INITIATED`, `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `ACCOUNT_CLOSED`, `BROKER_AUTHORIZATION_REVOKED`, `NOTIFICATION_READ`
+**MFE.** `apps/investor-mfe/`. Shares its MFE bucket via the A3 per-BFF construct.
 
-**Events consumed (intra-domain)**: `USER_REGISTERED` (from investor-web), `NOTIFICATION_CREATED` (from investor-ctrl)
+**Health.** canonical.
 
-**Events consumed (cross-domain from execution-hub)**: `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`
-
-**Microfrontends**: Onboarding Conversation, Settings & Profile, Deposit Flow, Withdrawal Flow, Account Closure & Deletion, How Nestfolio Works (partial), Activity & Notifications, Dashboard -- Recent Activity (partial).
+**Cross-references.** Service `CLAUDE.md` card; user-memories `project_cb_appsync_auth.md`, `feedback_bff_is_read_model.md`.
 
 ---
 
 ### investor-ctrl
 
-**Type**: CTRL
+**Type:** ctrl · **Domain:** Investor
+**Stack:** `services/investor/investor-ctrl/src/service.stack.ts`
 
-Notification pipeline via Step Functions -- impact classification, policy resolution, template selection, channel routing, delivery. Implements 5 severity tiers (Informational, Advisory, Impactful, Confirmable, Critical) and 3 timing modes (Post-Fact, Pre-Intent, Hybrid).
+**Why this service exists.** Owns the Investor identity + notification subsystem. Despite the `ctrl` suffix this service handles cross-cutting investor notifications — there is **no `notification-ctrl` service**, that vocabulary is sometimes invented in error (per user-memory `feedback_investor_ctrl_not_notification.md`).
 
-**State**: DynamoDB table (Notification records, NotificationPolicy, user channel preferences).
+**Responsibilities.** Investor registration; identity write side; notification fan-out (system → user channels).
 
-**Events published**: `NOTIFICATION_CREATED`, `NOTIFICATION_SENT`, `NOTIFICATION_DELIVERED`, `MONTHLY_REPORT_GENERATED`
+**Architectural Evolution.** None.
 
-**Events consumed (intra-domain)**: `DEPOSIT_INITIATED`, `WITHDRAWAL_REQUESTED`, `ACCOUNT_CLOSURE_REQUESTED`, `GO_LIVE_COMPLETED` (from investor-bff)
+**Health.** canonical.
 
-**Events consumed (cross-domain from advisory-hub)**: `DECISION_PACKET_CREATED`, `USER_CONFIRMATION_REQUESTED`, `EXPLANATION_GENERATED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `ESCALATION_TRIGGERED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`, `INCIDENT_DETECTED`, `INCIDENT_RESOLVED`
-
-**Events consumed (cross-domain from execution-hub)**: `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `ORDER_STAGED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `CORPORATE_ACTION_APPLIED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED`, `VIRTUAL_DEPOSIT_CREDITED`, `VIRTUAL_WITHDRAWAL_DEBITED`
-
-Simulation-specific notification templates are included for virtual deposit confirmation and go-live completion events. Template selection uses the account mode context from the triggering event to render simulation-appropriate copy.
+**Cross-references.** Service `CLAUDE.md` card; user-memory `feedback_investor_ctrl_not_notification.md`.
 
 ---
 
-## Advisory Domain
+### dashboard-bff
+
+**Type:** bff · **Domain:** Investor
+**Stack:** `services/investor/dashboard-bff/src/service.stack.ts`
+
+**Why this service exists.** CQRS read side for the Investor home dashboard. Aggregates portfolio state + active decisions + recent activity into a single GraphQL view. Separate from `investor-bff` because the dashboard's read patterns + WSS subscription topology differ enough to justify a dedicated projection.
+
+**Responsibilities.** Dashboard projection table; WebSocket subscription broadcasts on AppSync (mind the subscription-filter pitfall — every `@aws_subscribe` filter arg must be on the return type, resolver response, AND the publisher's mutation selection per user-memory `feedback_appsync_subscribe_filter_args.md`).
+
+**State.** DDB projection table; AppSync GraphQL with WSS.
+
+**MFE.** `apps/dashboard-mfe/`.
+
+**Architectural Evolution.** Late addition relative to the original 2026-03-01 design — emerged when dashboard read patterns diverged from investor-bff's CRUD shape.
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; user-memory `feedback_appsync_subscribe_filter_args.md`.
+
+---
+
+### onboarding-bff
+
+**Type:** bff (hybrid: BFF + AgentCore Bridge + LangGraph host) · **Domain:** Investor
+**Stack:** `services/investor/onboarding-bff/src/service.stack.ts`
+
+**Why this service exists.** The conversational onboarding wizard runs an in-process LangGraph agent that streams via the AG-UI protocol to a CopilotKit-driven Angular MFE. The BFF + agent-host coupling exists because the wizard's mid-flow state is most easily owned by the same Lambda that serves the GraphQL layer.
+
+**Responsibilities.** AG-UI bridge endpoint (Hono server in `services/investor/onboarding-bff/src/`); LangGraph wizard graph (`services/investor/onboarding-bff/agents/onboarding/graph.ts`); Bedrock KB query for RAG-backed answers; phase progression (7 phases) culminating in `INVESTOR_REGISTERED` + `MANDATE_DEFINED`.
+
+**AI Agents.**
+- `OnboardingAgent extends AbstractAgent` (`@ag-ui/client`) at `services/investor/onboarding-bff/agents/onboarding/agent.ts`. Drives the in-process LangGraph; emits AG-UI events directly. Default model: `us.anthropic.claude-sonnet-4-6`.
+
+**State.** DDB session table; Bedrock KB for onboarding RAG.
+
+**MFE.** `apps/onboarding-mfe/`.
+
+**Architectural Evolution.** **Onboarding agent runtime redesign — SHIPPED 2026-04-28** (see user-memory `project_playwright_e2e_ui.md`). Replaced `@copilotkit/runtime/langgraph`'s remote-only `LangGraphAgent` (which required `deploymentUrl` + LangSmith) with a custom `OnboardingAgent` driving the in-process LangGraph via `streamEvents({ version: 'v2' })`. Symmetric with the 5 advisory agents (also in-process LangGraph in AgentCore). Bundle 6.8 → 6.3 MB. Spec: `docs/superpowers/specs/2026-04-28-onboarding-runtime-redesign.md`.
+
+**Open question** (§21 Open Question #8 in SYSTEM-ARCHITECTURE.md). With the in-process redesign, is the AgentCore Runtime still a deployment target, or is the Hono bridge running standalone? Verify in `service.stack.ts`.
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; user-memory `project_playwright_e2e_ui.md`; `docs/superpowers/specs/2026-04-28-onboarding-runtime-redesign.md`.
+
+---
+
+### investor-adpt
+
+**Type:** adpt (cross-domain) · **Domain:** Investor
+**Stack:** `services/investor/investor-adpt/src/service.stack.ts`
+
+**Why this service exists.** Pull-model cross-domain adapter for the Investor domain. Owns EB Rules on advisory-bus, ledger-bus, execution-bus that match events the Investor domain consumes (e.g. `DECISION_PACKET_*`, `CIRCUIT_BREAKER_*`, `PORTFOLIO_DRIFT_DETECTED`) and republishes them onto investor-bus (sometimes renaming to scope-strip the upstream prefix).
+
+**Responsibilities.** Cross-domain rule subscriptions; event renames; pass-through projection-ready envelopes onto investor-bus.
+
+**Architectural Evolution.** Pull-model inversion (per user-memory `project_inverted_adapter_routing.md`) — adapters own their subscriptions rather than the upstream domain pushing.
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §18.
+
+---
+
+## Advisory Domain (15 services)
 
 ### advisory-hub
 
-**Type**: Event Hub
+**Type:** hub · **Domain:** Advisory
+**Stack:** `services/advisory/advisory-hub/src/service.stack.ts`
 
-Owns the Advisory domain EventBridge bus, cross-domain forwarding rules, and event archive. Merges the event infrastructure of the former advisory-hub, compliance-hub, and operations-hub.
+**Why this service exists.** Owns `advisory-bus` and the SSM parameters consumed by advisory-domain services — including the model inference-profile IDs (`models/opus`, `models/sonnet`, `models/haiku`) referenced from `agent-orchestrator` (per advisory-ctrl `CLAUDE.md`).
 
-**Cross-domain forwarding rules (outbound)**:
+**State.** None.
 
-| Target | Events |
-|---|---|
-| investor-hub | `DECISION_PACKET_CREATED`, `USER_CONFIRMATION_REQUESTED`, `EXPLANATION_GENERATED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `ESCALATION_TRIGGERED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`, `INCIDENT_DETECTED`, `INCIDENT_RESOLVED` |
-| execution-hub | `DECISION_APPROVED`, `USER_CONFIRMED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET` |
+**Architectural Evolution.** None.
+
+**Health.** canonical.
 
 ---
 
 ### advisory-ctrl
 
-**Type**: CTRL
+**Type:** ctrl (control plane + vestigial decision-lifecycle) · **Domain:** Advisory
+**Stack:** `services/advisory/advisory-ctrl/src/service.stack.ts`
 
-Decision lifecycle orchestration via Step Functions state machine -- trigger detection, context assembly, 6-agent invocation sequence, Decision Packet composition, compliance handoff, user confirmation, execution handoff. Pattern: Orchestration + SAGA with compensating actions on compliance block or user rejection.
+**Why this service exists.** Per the post-2026-03-18 design, this is the **control plane** for the advisory domain — model lifecycle (`MODEL_REGISTERED`, `SHADOW_RUN_*`, `MODEL_PROMOTED`, `MODEL_ROLLBACK_TRIGGERED`), incident management (`INCIDENT_DETECTED|CONTAINED|ESCALATED|RESOLVED`), tenant budget enforcement (`TENANT_BUDGET_*`), reasoning-tier control (`REASONING_TIER_CHANGED`), and operator action audit (`OPERATOR_ACTION_PERFORMED`). It absorbs the originally-planned `operations-ctrl` service — that service does **not** exist as a deployable.
 
-**AI agents**: Async AgentCore instances of all 6 agents: User & Goals, Risk, Market & Research, Portfolio Construction, Rebalance Planner, Recommendation & Explainability.
+**Responsibilities.**
+- *(Designed)* Control plane: model lifecycle, incidents, budgets, reasoning tier.
+- *(Vestigial)* Decision-lifecycle multi-agent LangGraph (the original 6-agent in-process orchestrator pre-2026-03-18). The `agents/decision-lifecycle/` subtree, the 6 prompt files, the orchestrator graph — all still on disk, still deployed.
 
-**Decision lifecycle invocation sequence**:
+**Key events.**
+- *Live emission* (via CDC, per its `CLAUDE.md`): `DECISION_PACKET_CREATED`, `DECISION_PACKET_UPDATED`, `AGENT_INVOCATION_CREATED|UPDATED`, `WORKFLOW_STATE_CREATED|UPDATED`.
+- *Declared but not currently emitted* (typed event constants in `services/advisory/advisory-ctrl/src/domain/events.ts:1-41` — reserved-for-future): the operations-ctrl absorbed vocabulary (`SHADOW_RUN_*`, `MODEL_*`, `INCIDENT_*`, `HEALTH_CHECK_*`, `TENANT_BUDGET_*`, `REASONING_TIER_CHANGED`, `OPERATOR_ACTION_PERFORMED`, `EVENT_DELIVERY_FAILED`, `EVENT_REPLAYED`). These have routing surface in `investor-adpt` and `advisory-adpt` event-types but no producer code yet.
 
-| Step | Agent | Output Event |
-|---|---|---|
-| 1 | User & Goals Agent | `GOAL_INTERPRETATION_PRODUCED` |
-| 2 | Risk Agent | `RISK_EVALUATION_PRODUCED` |
-| 3 | Market & Research Agent | `MARKET_SIGNAL_DETECTED` |
-| 4 | Portfolio Construction Agent | `PORTFOLIO_CONSTRUCTION_PROPOSED` |
-| 5 | Rebalance Planner Agent | `REBALANCE_PLAN_PRODUCED` |
-| 6 | Recommendation & Explainability Agent | `RECOMMENDATION_PROPOSED`, `EXPLANATION_GENERATED` |
+**AI Agents.** `advisory_ctrl_decision_lifecycle` — multi-agent LangGraph orchestrator (Opus / Sonnet / Haiku via SSM); tools: portfolio-lookup, market-data, instrument-universe, event-publisher (per CLAUDE.md card).
 
-Steps 1-2 may be skipped if the trigger is not goal/risk related and cached interpretations are current.
+**State.** DDB tables (Decision Packet legacy, AgentInvocation, WorkflowState) + standalone tool Lambdas.
 
-**Knowledge Base**: Bedrock KB fed by cross-domain trigger events -- decision history, market context, portfolio states, reasoning precedents. Market & Research Agent may additionally use an MCP server for real-time market data.
+**Architectural Evolution — vestigial decision-lifecycle.** Pre-2026-03-18: this was the single SF orchestrator hosting all 6 agents in-process. Post-2026-03-18 (per `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`): `decision-workflow-ctrl` was introduced as the canonical orchestrator and the 6 agents were split into 4 cluster-ctrl services (SYSTEM-ARCHITECTURE.md §7.1). `advisory-ctrl` was supposed to retire its decision-lifecycle code. The retirement never landed → both services emit `DECISION_PACKET_CREATED` (SYSTEM-ARCHITECTURE.md §10.1, line citation `services/advisory/advisory-ctrl/src/service.stack.ts:69`). **Spec 2 (advisory pipeline consolidation) retires the decision-lifecycle subsystem** and leaves advisory-ctrl as the pure control plane.
 
-**State**: DynamoDB table (AgentInvocation records, reasoning outputs, DecisionPacket, Workflow state).
+**Architectural Evolution — operations-ctrl absorbed.** The operations-ctrl service was planned in the 2026-03-01 baseline but never built. Its event vocabulary was absorbed into advisory-ctrl when the service was repurposed as the control plane. Most of those events are still typed-but-unwired today.
 
-**Events published**: `AGENT_INVOCATION_STARTED`, `AGENT_INVOCATION_COMPLETED`, `AGENT_EXECUTION_FAILED`, `GOAL_INTERPRETATION_PRODUCED`, `RISK_EVALUATION_PRODUCED`, `MARKET_SIGNAL_DETECTED`, `PORTFOLIO_CONSTRUCTION_PROPOSED`, `REBALANCE_PLAN_PRODUCED`, `RECOMMENDATION_PROPOSED`, `EXPLANATION_GENERATED`, `DECISION_PACKET_CREATED`, `DECISION_PACKET_ENRICHED`, `USER_CONFIRMATION_REQUESTED`, `USER_CONFIRMED`, `USER_REJECTED`
+**Health.** transitional. The decision-lifecycle subsystem is `legacy` with a forward-pointer to **Spec 2**; the control-plane responsibilities are `canonical` but largely reserved-for-future (most events typed, most producers not yet implemented).
 
-**Events consumed (intra-domain)**: `DECISION_APPROVED`, `DECISION_BLOCKED` (from compliance-ctrl)
-
-**Events consumed (cross-domain from investor-hub)**: `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`
-
-**Events consumed (cross-domain from execution-hub)**: `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `PORTFOLIO_DRIFT_DETECTED`
-
----
-
-### compliance-ctrl
-
-**Type**: CTRL (separate deployable unit per regulatory requirements)
-
-Compliance check pipeline via Step Functions -- mandate validation, guardrail evaluation, suitability check, authority level determination, approve/block.
-
-**State**: DynamoDB table (ComplianceCheck, GuardrailPolicy, AuditArtifact). Guardrail policies are materialized from investor domain events.
-
-**Events published**: `DECISION_APPROVED`, `DECISION_BLOCKED`, `GUARDRAIL_VIOLATION_DETECTED`, `ESCALATION_TRIGGERED`, `COMPLIANCE_APPROVAL_GRANTED`, `AUDIT_ARTIFACT_CREATED`, `SUITABILITY_CHECK_PASSED`, `SUITABILITY_CHECK_FAILED`
-
-**Events consumed (intra-domain)**: `DECISION_PACKET_CREATED`, `DECISION_PACKET_ENRICHED` (from advisory-ctrl)
-
-**Events consumed (cross-domain from investor-hub)**: `MANDATE_GRANTED`, `MANDATE_UPDATED`, `MANDATE_REVOKED`, `OPERATING_MODE_CHANGED`
-
----
-
-### operations-ctrl
-
-**Type**: CTRL
-
-Three independent Step Functions workflows:
-
-1. **Incident lifecycle**: Detection, classification (SEV-1 through SEV-5), automatic containment, stabilization, escalation, human review gate, controlled recovery.
-2. **Model promotion pipeline**: Offline evaluation, shadow mode, limited rollout, approval gate, production promotion.
-3. **Cost governance**: Budget monitoring, reasoning tier adjustment, throttling.
-
-**State**: DynamoDB table (Incident, Alert, ContainmentAction, ModelVersion, PromotionRequest, ShadowRun, EvaluationResult), S3 bucket (model artifacts, evaluation datasets).
-
-**Events published**:
-- Incident: `INCIDENT_DETECTED`, `INCIDENT_CONTAINED`, `INCIDENT_ESCALATED`, `INCIDENT_RESOLVED`
-- Circuit breaker: `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`
-- Health: `HEALTH_CHECK_COMPLETED`
-- Model lifecycle: `MODEL_REGISTERED`, `SHADOW_RUN_STARTED`, `SHADOW_RUN_COMPLETED`, `MODEL_PROMOTION_REQUESTED`, `MODEL_PROMOTION_APPROVED`, `MODEL_PROMOTED`, `MODEL_ROLLBACK_TRIGGERED`
-- Cost: `TENANT_BUDGET_APPROACHING`, `TENANT_BUDGET_EXCEEDED`, `REASONING_TIER_CHANGED`
-- Operator: `OPERATOR_ACTION_PERFORMED`
-- Telemetry: `EVENT_DELIVERY_FAILED`, `EVENT_REPLAYED`
-
-**Events consumed (intra-domain)**: `AGENT_EXECUTION_FAILED`, `DECISION_PACKET_CREATED` (from advisory-ctrl, for shadow comparison); `GUARDRAIL_VIOLATION_DETECTED`, `SUITABILITY_CHECK_FAILED` (from compliance-ctrl); `MODEL_PROMOTION_REQUESTED` (own)
-
-**Events consumed (cross-domain from execution-hub)**: `BROKER_SESSION_LOST`, `STREAM_DISCONNECTED`, `ORDER_REJECTED`, `PORTFOLIO_DRIFT_DETECTED`, `RECONCILIATION_FAILED`
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7.1, §10.1; `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`.
 
 ---
 
 ### advisory-bff
 
-**Type**: BFF
-**Actor**: Investor + Platform Operator + Compliance Reviewer + AI Governance Reviewer (ABAC-gated)
+**Type:** bff · **Domain:** Advisory
+**Stack:** `services/advisory/advisory-bff/src/service.stack.ts`
 
-Absorbs the former compliance-bff and operations-bff. Serves four actor types via ABAC-gated API. Investor sees recommendations, explanations, and read-only safety rules; internal actors see their respective dashboards.
+**Why this service exists.** CQRS read side for the advisory domain — Decision Packet projections, Recommendation projections, decision-list views consumed by the Advisory MFE.
 
-**Feature set**: Recommendations, explanations, "Why" views, user confirmation flow, safety rules view, audit trail, compliance dashboard, operations dashboard, AI governance dashboard, incident history, model registry, shadow divergence reports, cost dashboards, flight phase status.
+**Responsibilities.** Decision Packet projection (the highest-traffic read model in the system); decision-list filters; subscription broadcasts when packets transition state.
 
-**Aggregate**: Recommendation/Explanation projections + Compliance/Audit projections + Operations dashboard projections.
+**Key events consumed.** `DECISION_PACKET_CREATED`, `DECISION_PACKET_UPDATED` (both emitters — see SYSTEM-ARCHITECTURE.md §10.1), `RECOMMENDATION_PROPOSED|APPROVED|BLOCKED|AWAITING_CONFIRMATION`.
 
-**API**: AppSync GraphQL -- recommendation queries, explanation queries, "why" narrative subscriptions, decision confirmation/rejection mutations, safety rules queries, audit trail queries, ops dashboard queries, model registry queries, incident history queries.
+**State.** DDB projection table; AppSync GraphQL.
 
-**AI agent**: Conversational AgentCore instance of **Recommendation & Explainability Agent** for on-demand "why" queries.
+**API surface.** AppSync GraphQL with Cognito + IAM auth.
 
-**Knowledge Base**: Bedrock KB fed by recommendation and explanation events.
+**MFE.** `apps/advisory-mfe/`.
 
-**Events published**: `USER_VIEWED_EXPLANATION`
+**Architectural Evolution.** Hosts the **2026-04-30 race-condition fix** for the dual-emitter situation: `services/advisory/advisory-bff/src/transforms/decision-packet-created.ts` skips empty CREATE events; `services/advisory/advisory-bff/src/handlers/event-listener.ts` copies `explanation` from the UPDATE path with `attribute_exists(pk)` condition (commit `3dcad1eb`). Tactical mitigation, not root-cause fix — the proper resolution is **Spec 2** retiring the dual emitter.
 
-**Events consumed (intra-domain)**: `RECOMMENDATION_PROPOSED`, `EXPLANATION_GENERATED`, `USER_CONFIRMATION_REQUESTED` (from advisory-ctrl); all compliance-ctrl events (compliance/audit projections); all operations-ctrl events (ops dashboard projections)
+**Health.** canonical.
 
-**Microfrontends**: Decision Detail / "Why" View, Confirmation Dialog, Dashboard -- Status Banner + Action Required (partial), Settings -- Your Safety Rules (embedded), How Nestfolio Works -- safety rules + compliance summary (partial), Operations Dashboard (all panels, operator-facing).
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §10.1, §12; user-memory `feedback_bff_is_read_model.md`.
 
 ---
 
-## Execution Domain
+### advisory-narrative-ctrl
+
+**Type:** ctrl (agent host) · **Domain:** Advisory
+**Stack:** `services/advisory/advisory-narrative-ctrl/src/service.stack.ts`
+
+**Why this service exists.** Hosts the Recommendation & Explainability agent — converts the assembled Decision Packet's structured trades + portfolio diff into a plain-language rationale that lands on the packet via the `explanation` field.
+
+**AI Agents.** Recommendation & Explainability — Bedrock Sonnet 4.6 via AgentCore Runtime; consumes upstream agent outputs from AgentCore Memory (subject to the §17.1 namespace divergence).
+
+**State.** DDB; Bedrock Memory namespace; possibly Knowledge Base for rationale templates / regulatory boilerplate.
+
+**Architectural Evolution.** Emerged from the 2026-03-18 6→4 split (SYSTEM-ARCHITECTURE.md §7.1) — covers the original "Recommendation & Explainability" agent role. Subject to the AgentCore Memory namespace divergence (§17.1) — Spec 2 lands the alignment.
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7.1, §17.1.
+
+---
+
+### investor-profile-ctrl
+
+**Type:** ctrl (agent host) · **Domain:** Advisory
+**Stack:** `services/advisory/investor-profile-ctrl/src/service.stack.ts`
+
+**Why this service exists.** Hosts the User & Goals + Risk agent cluster — consumes mandate + investor profile inputs and emits a structured profile inference (goals interpretation, risk evaluation) that feeds downstream agents.
+
+**AI Agents.** User & Goals + Risk Assessment cluster — Bedrock Sonnet 4.6 via AgentCore Runtime.
+
+**Architectural Evolution.** Emerged from the 2026-03-18 6→4 split (SYSTEM-ARCHITECTURE.md §7.1) — covers the original "User & Goals" + "Risk Assessment" agent roles consolidated into one cluster. Subject to the §17.1 Memory namespace divergence.
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7.1.
+
+---
+
+### market-intelligence-ctrl
+
+**Type:** ctrl (agent host) · **Domain:** Advisory
+**Stack:** `services/advisory/market-intelligence-ctrl/src/service.stack.ts`
+
+**Why this service exists.** Hosts the Market & Research agent — consumes upstream market-data adapter outputs (alpha-vantage / fred / marketwatch / sec-edgar / yahoo-finance) + a Bedrock Knowledge Base for research notes; emits market signal extraction.
+
+**AI Agents.** Market & Research — Bedrock Sonnet 4.6 via AgentCore Runtime.
+
+**State.** DDB; Bedrock Memory; Bedrock KB (research-notes corpus).
+
+**Architectural Evolution.** Emerged from the 2026-03-18 6→4 split (SYSTEM-ARCHITECTURE.md §7.1). Subject to the §17.1 Memory namespace divergence.
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7.1.
+
+---
+
+### portfolio-engine-ctrl
+
+**Type:** ctrl (agent host) · **Domain:** Advisory
+**Stack:** `services/advisory/portfolio-engine-ctrl/src/service.stack.ts`
+
+**Why this service exists.** Hosts the Portfolio Construction + Rebalance Planner cluster — consumes investor-profile-ctrl + market-intelligence-ctrl outputs from Memory; emits a portfolio construction + a rebalance plan.
+
+**AI Agents.** Portfolio Construction + Rebalance Planner cluster — Bedrock Sonnet 4.6 via AgentCore Runtime.
+
+**Architectural Evolution.** Emerged from the 2026-03-18 6→4 split (SYSTEM-ARCHITECTURE.md §7.1) — covers the original "Portfolio Construction" + "Rebalance Planner" agent roles consolidated into one cluster. Subject to the §17.1 Memory namespace divergence.
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7.1.
+
+---
+
+### decision-workflow-ctrl
+
+**Type:** ctrl (orchestrator) · **Domain:** Advisory
+**Stack:** `services/advisory/decision-workflow-ctrl/src/service.stack.ts`
+
+**Why this service exists.** **Canonical orchestrator** of the advisory decision cycle. Owns the Step Functions state machine that fans out to the 4 agent ctrls in parallel, persists their outputs to AgentCore Memory, runs the `AssemblePacket` step, and emits the canonical `DECISION_PACKET_CREATED`. Owns the AgentCore Memory resource for the decision-cycle short-term namespace.
+
+**Responsibilities.** SF state machine (`services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts`); agent invocation via task tokens; AssemblePacket reduction (`services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts`); CDC emission of Decision Packet events.
+
+**Key events.**
+- Consumed: `WORKFLOW_TRIGGER_CREATED` (the cycle kick-off).
+- Emitted: `DECISION_PACKET_CREATED` (canonical, post-AssemblePacket — `assemble-packet.ts:70`), `DECISION_PACKET_UPDATED`.
+
+**State.** DDB DecisionPacket table (the canonical post-2026-03-18 owner); AgentCore Memory resource (per the §17 contract).
+
+**Architectural Evolution.** Introduced 2026-03-17 (commit `a54006c9`); replaces `advisory-ctrl` as the canonical SF orchestrator per `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`. The retirement of advisory-ctrl's decision-lifecycle code never landed → dual `DECISION_PACKET_CREATED` emitter (SYSTEM-ARCHITECTURE.md §10.1). The 8th-Playwright-session bug fix (commit `429afa7a`) lives in this service: `AssemblePacket` reads agent outputs directly from upstream task results before creating the row + persists `explanation`. The AgentCore Memory namespace divergence (§17.1) is also rooted in this service's `writeAgentOutput` / `readUpstreamOutput` calls (delegated to `libs/agent-orchestrator/src/memory/memory-client.ts`).
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7, §10, §10.1, §13, §17.1; `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`.
+
+---
+
+### compliance-ctrl
+
+**Type:** ctrl (rule engine) · **Domain:** Advisory
+**Stack:** `services/advisory/compliance-ctrl/src/service.stack.ts`
+
+**Why this service exists.** The single gate between agent-proposed recommendations and execution. Rule-based (deterministic), **not** an LLM. Enforces mandate guardrails + operating-mode parameters (§14) on the assembled Decision Packet; classifies as L1 (auto-execute) / L2 (user-confirm) / Blocked.
+
+**Key events.**
+- Consumed: `RECOMMENDATION_PROPOSED`.
+- Emitted: `RECOMMENDATION_APPROVED`, `RECOMMENDATION_AWAITING_CONFIRMATION`, `RECOMMENDATION_BLOCKED`.
+
+**Architectural Evolution.** None.
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §6, §8.
+
+---
+
+### advisory-adpt
+
+**Type:** adpt (cross-domain) · **Domain:** Advisory
+**Stack:** `services/advisory/advisory-adpt/src/service.stack.ts`
+
+**Why this service exists.** Pull-model cross-domain adapter for the Advisory domain. Subscribes to investor-bus + ledger-bus + execution-bus events the Advisory domain needs (mandate events, portfolio drift, order outcomes, etc.) and republishes onto advisory-bus.
+
+**Architectural Evolution.** None beyond the pull-model inversion (`project_inverted_adapter_routing.md`).
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §18.
+
+---
+
+### alpha-vantage-adpt
+
+**Type:** adpt (3rd-party data) · **Domain:** Advisory
+**Stack:** `services/advisory/alpha-vantage-adpt/src/service.stack.ts`
+
+**Why this service exists.** Adapter to the Alpha Vantage market-data API. Polled / triggered by market-intelligence-ctrl's needs; emits market-data ingestion events onto advisory-bus.
+
+**Responsibilities.** Alpha Vantage API client; rate-limit handling; envelope normalisation; KB ingestion path (where applicable).
+
+**State.** Uses AWS Parameters and Secrets Lambda Extension for runtime config (per user-memory's "Third-party adapters" technical note) — not env vars.
+
+**Architectural Evolution.** None.
+
+**Health.** canonical.
+
+---
+
+### fred-adpt
+
+**Type:** adpt (3rd-party data — FRED economic data) · **Domain:** Advisory
+**Stack:** `services/advisory/fred-adpt/src/service.stack.ts`
+
+**Why this service exists.** Adapter to the Federal Reserve Economic Data (FRED) API for macro indicators consumed by market-intelligence-ctrl.
+
+**Responsibilities.** FRED API client; macro-indicator publication.
+
+**State.** Parameters and Secrets Extension for credentials.
+
+**Architectural Evolution.** None.
+
+**Health.** canonical.
+
+---
+
+### marketwatch-adpt
+
+**Type:** adpt (3rd-party data — MarketWatch news) · **Domain:** Advisory
+**Stack:** `services/advisory/marketwatch-adpt/src/service.stack.ts`
+
+**Why this service exists.** News + market-headline adapter for market-intelligence-ctrl.
+
+**Architectural Evolution.** None.
+
+**Health.** canonical.
+
+---
+
+### sec-edgar-adpt
+
+**Type:** adpt (3rd-party data — SEC EDGAR filings) · **Domain:** Advisory
+**Stack:** `services/advisory/sec-edgar-adpt/src/service.stack.ts`
+
+**Why this service exists.** SEC EDGAR filings adapter — equity research source for advisory-narrative-ctrl + market-intelligence-ctrl.
+
+**Architectural Evolution.** None.
+
+**Health.** canonical.
+
+---
+
+### yahoo-finance-adpt
+
+**Type:** adpt (3rd-party data — Yahoo Finance prices) · **Domain:** Advisory
+**Stack:** `services/advisory/yahoo-finance-adpt/src/service.stack.ts`
+
+**Why this service exists.** Quote + price-history adapter for market-intelligence-ctrl + portfolio-engine-ctrl.
+
+**Architectural Evolution.** None.
+
+**Health.** canonical.
+
+---
+
+## Execution Domain (6 services)
 
 ### execution-hub
 
-**Type**: Event Hub
+**Type:** hub · **Domain:** Execution
+**Stack:** `services/execution/execution-hub/src/service.stack.ts`
 
-Owns the Execution domain EventBridge bus, cross-domain forwarding rules, and event archive. Merges the event infrastructure of the former execution-hub and portfolio-hub.
+**Why this service exists.** Owns `execution-bus` and the SSM parameters consumed by execution-domain services.
 
-**Cross-domain forwarding rules (outbound)**:
+**State.** None.
 
-| Target | Events |
-|---|---|
-| investor-hub | `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `ORDER_STAGED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `CORPORATE_ACTION_APPLIED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED`, `VIRTUAL_DEPOSIT_CREDITED`, `VIRTUAL_WITHDRAWAL_DEBITED`, `PORTFOLIO_RESET_COMPLETED` |
-| advisory-hub | `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`, `PORTFOLIO_DRIFT_DETECTED`, `BROKER_SESSION_LOST`, `STREAM_DISCONNECTED`, `RECONCILIATION_FAILED` |
+**Architectural Evolution.** None.
+
+**Health.** canonical.
 
 ---
 
 ### execution-ctrl
 
-**Type**: CTRL
+**Type:** ctrl · **Domain:** Execution
+**Stack:** `services/execution/execution-ctrl/src/service.stack.ts`
 
-Order lifecycle orchestration via Step Functions -- pre-submission safety checks, market hours validation, submit or stage, monitor fills, cool-down enforcement. Enforces single-writer principle: only this service can generate order submission commands.
+**Why this service exists.** Top-level execution coordinator. Consumes `RECOMMENDATION_CONFIRMED` (from advisory side via `execution-adpt`); creates `ORDER_INTENT_CREATED` envelopes; routes to `broker-ctrl` for SF-driven execution.
 
-**State**: DynamoDB table (Order records, order lifecycle state).
+**Key events.**
+- Consumed: `RECOMMENDATION_CONFIRMED` (cross-domain via `execution-adpt`).
+- Emitted: `ORDER_INTENT_CREATED`, `EXECUTION_*`.
 
-**Events published**: `ORDER_SUBMITTED`, `ORDER_STAGED`, `EXECUTION_PAUSED`, `EXECUTION_RESUMED`
+**Architectural Evolution.** None.
 
-**Events consumed (intra-domain)**: `RECONCILIATION_LOCK_ACQUIRED`, `RECONCILIATION_LOCK_RELEASED` (from portfolio-ctrl)
+**Health.** canonical.
 
-**Events consumed (cross-domain from advisory-hub)**: `DECISION_APPROVED`, `USER_CONFIRMED`, `CIRCUIT_BREAKER_TRIGGERED`, `CIRCUIT_BREAKER_RESET`
+---
 
-**Events consumed (cross-domain from investor-hub)**: `ACCOUNT_CLOSURE_REQUESTED` -- triggers cancellation of all pending/staged orders and blocks new submissions. The account enters a terminal wind-down state. `ACCOUNT_MODE_SET` -- adjusts order routing behavior; in SIMULATION mode, submitted orders are directed to the simulation engine within `execution-adpt` rather than IBKR.
+### broker-ctrl
+
+**Type:** ctrl (orchestrator) · **Domain:** Execution
+**Stack:** `services/execution/broker-ctrl/src/service.stack.ts`
+
+**Why this service exists.** Owns the broker-side Step Functions state machine. Receives `ORDER_INTENT_CREATED`, routes the order through the appropriate broker adapter (sim or alpaca based on account mode), tracks fill state, emits `ORDER_FILLED` / `ORDER_REJECTED`.
+
+**Architectural Evolution.** Split during the 2026-03-26 real-money-ops design (`docs/superpowers/specs/2026-03-26-real-money-operations-design.md`) — `broker-ctrl` owns the SF state machine; `broker-{sim,alpaca}-adpt` own the broker-specific protocols. The split lets us add brokers (e.g. IBKR) without changing the orchestration layer.
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; user-memory `project_real_money_ops.md`.
+
+---
+
+### broker-sim-adpt
+
+**Type:** adpt (broker — paper trading) · **Domain:** Execution
+**Stack:** `services/execution/broker-sim-adpt/src/service.stack.ts`
+
+**Why this service exists.** Paper-trading broker adapter — fills orders against synthetic prices for SIM accounts. Used in tests + dev tenant onboarding.
+
+**Architectural Evolution.** Same 2026-03-26 split as broker-ctrl.
+
+**Health.** canonical.
+
+---
+
+### broker-alpaca-adpt
+
+**Type:** adpt (broker + circuit breaker host) · **Domain:** Execution
+**Stack:** `services/execution/broker-alpaca-adpt/src/service.stack.ts`
+
+**Why this service exists.** Alpaca broker adapter for LIVE accounts + **owns the global circuit-breaker** since the 2026-04-15 redesign (per user-memory `project_circuit_breaker_redesign.md`). The circuit breaker lives here because broker-side is where execution failures originate; consolidating the breaker with the broker adapter avoids cross-service state for pause/resume.
+
+**Responsibilities.** Alpaca API client; order routing for LIVE accounts; circuit-breaker tripping + heal SF state machine; cross-domain notification fan-out (broker → advisory feature flag → investor notification).
+
+**Key events.**
+- Emitted: `CIRCUIT_BREAKER_TRIPPED`, `CIRCUIT_BREAKER_RESET`, `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_FAILED`.
+
+**State.** DDB; `Orchestration` construct (heal SF state machine).
+
+**Architectural Evolution.** Circuit-breaker redesign merged 2026-04-15 (`project_circuit_breaker_redesign.md`). Branch was `feat/cb-redesign`; CB previously in `execution-ctrl`. Includes IAM-based AppSync auth (`check-auth.fn.js` detects IAM identity, bypasses Cognito claims) per user-memory `project_cb_appsync_auth.md`.
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §16; user-memories `project_circuit_breaker_redesign.md`, `project_cb_appsync_auth.md`.
 
 ---
 
 ### execution-adpt
 
-**Type**: ADPT
-**External system**: Interactive Brokers (IBKR) / Simulation Engine
+**Type:** adpt (cross-domain) · **Domain:** Execution
+**Stack:** `services/execution/execution-adpt/src/service.stack.ts`
 
-Anti-corruption layer translating IBKR protocols (REST API, webhooks, streaming feeds) into domain events. Handles order submission, position/account snapshots (periodic + streaming), session management, credential isolation (Secrets Manager), deposit detection (via snapshot cash diff), and withdrawal execution.
+**Why this service exists.** Pull-model cross-domain adapter — subscribes to advisory-bus events (mainly `RECOMMENDATION_CONFIRMED`) and republishes onto execution-bus.
 
-When the tenant's account mode is SIMULATION, the internal simulation engine handles all broker-facing operations instead of IBKR. The simulation engine maintains a virtual position ledger and virtual cash balance, produces simulated fills at real market prices (sourced from the same market data feed used by the Market & Research Agent), and emits identical domain events as the IBKR path so that downstream services (advisory, portfolio, notifications) operate without branching. Virtual deposits and withdrawals are credited/debited immediately against the virtual cash balance. Portfolio snapshots are generated from the virtual ledger on the same periodic schedule as IBKR snapshots.
+**Architectural Evolution.** None beyond the pull-model inversion.
 
-**Facade**: API Gateway REST API for IBKR webhook callbacks.
+**Health.** canonical.
 
-**State**: DynamoDB table (BrokerSession, StreamConnection, API response cache, Deposit, Withdrawal, VirtualPortfolioLedger, VirtualCashBalance).
-
-**Events published**: `ORDER_ACCEPTED`, `ORDER_PARTIALLY_FILLED`, `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `PORTFOLIO_SNAPSHOT_IMPORTED`, `BROKER_SESSION_ESTABLISHED`, `BROKER_SESSION_LOST`, `STREAM_CONNECTED`, `STREAM_DISCONNECTED`, `BROKER_AUTHORIZATION_REVOKED`, `DEPOSIT_DETECTED`, `WITHDRAWAL_SUBMITTED`, `WITHDRAWAL_COMPLETED`, `WITHDRAWAL_REJECTED`, `VIRTUAL_DEPOSIT_CREDITED`, `VIRTUAL_WITHDRAWAL_DEBITED`, `PORTFOLIO_RESET_COMPLETED`
-
-**Events consumed (intra-domain)**: `ORDER_SUBMITTED` (from execution-ctrl)
-
-**Events consumed (cross-domain from investor-hub)**: `WITHDRAWAL_REQUESTED`; `ACCOUNT_MODE_SET` -- switches between IBKR and simulation engine routing; `GO_LIVE_REQUESTED` -- provisions a real IBKR account, clears the virtual ledger, and emits `PORTFOLIO_RESET_COMPLETED`; scheduled events for periodic snapshot imports
+**Cross-references.** SYSTEM-ARCHITECTURE.md §18.
 
 ---
 
-### portfolio-bff
+## Ledger Domain (5 services)
 
-**Type**: BFF
-**Actor**: Investor
+The Ledger domain didn't exist in the 2026-03-01 baseline; it emerged with the real-money-ops design (2026-03-26). It owns settlement truth — what the broker actually filled — separately from intent (advisory + execution).
 
-Portfolio dashboard, holdings, performance charts, real-time position subscriptions, goal progress. In SIMULATION mode, displays a simulation mode indicator, virtual capital balance, and a "Go Live" call-to-action.
+### ledger-hub
 
-**Aggregate**: Portfolio projection (positions, cash balances, performance metrics, account mode).
+**Type:** hub · **Domain:** Ledger
+**Stack:** `services/ledger/ledger-hub/src/service.stack.ts`
 
-**API**: AppSync GraphQL with real-time subscriptions.
+**Why this service exists.** Owns `ledger-bus` and the SSM parameters consumed by ledger-domain services.
 
-**State**: DynamoDB table.
+**State.** None.
 
-**Events published**: `PORTFOLIO_CREATED`, `PORTFOLIO_UPDATED`, `POSITION_UPDATED`, `CASH_BALANCE_UPDATED` -- projection-change events for real-time UI subscriptions (AppSync) only. No other service subscribes to them.
+**Architectural Evolution.** Domain itself emerged 2026-03-26.
 
-**Events consumed (intra-domain)**: `ORDER_FILLED`, `ORDER_PARTIALLY_FILLED`, `PORTFOLIO_SNAPSHOT_IMPORTED` (from execution-adpt); `CORPORATE_ACTION_APPLIED`, reconciliation events (from portfolio-ctrl)
-
-**Events consumed (cross-domain from investor-hub)**: `ACCOUNT_MODE_SET` -- toggles simulation mode indicator and virtual capital display in the portfolio UI
-
-**Microfrontends**: Dashboard -- Portfolio Value (partial), Portfolio Detail.
+**Health.** canonical.
 
 ---
 
-### portfolio-ctrl
+### ledger-ctrl
 
-**Type**: CTRL
+**Type:** ctrl · **Domain:** Ledger
+**Stack:** `services/ledger/ledger-ctrl/src/service.stack.ts`
 
-Reconciliation pipeline via Step Functions -- compare intent vs settlement, detect drift, acquire lock, pause affected execution, import snapshot, correct projections, revalidate compliance, release lock, resume. Also handles post-execution reconciliation, scheduled reconciliation (hourly, daily), and startup reconciliation. In SIMULATION mode, reconciliation compares the intent projection against the virtual portfolio ledger maintained by `execution-adpt` rather than an external broker snapshot.
+**Why this service exists.** Settlement truth — owns the canonical position table. Consumes execution-side fill events; updates positions; emits position-state events that feed reconciliation + dashboard projections.
 
-**State**: DynamoDB table (Reconciliation records, DriftRecord).
+**Key events.**
+- Consumed (cross-domain via `ledger-adpt`): `ORDER_FILLED`, `ORDER_REJECTED`.
+- Emitted: `POSITION_OPENED`, `POSITION_CLOSED`, `POSITION_UPDATED`, `LEDGER_PORTFOLIO_DRIFT_DETECTED` (renamed at the cross-domain boundary to `PORTFOLIO_DRIFT_DETECTED` for advisory consumers — SYSTEM-ARCHITECTURE.md §18).
 
-**Events published**: `PORTFOLIO_DRIFT_DETECTED`, `RECONCILIATION_REQUIRED`, `RECONCILIATION_STARTED`, `RECONCILIATION_COMPLETED`, `RECONCILIATION_FAILED`, `RECONCILIATION_LOCK_ACQUIRED`, `RECONCILIATION_LOCK_RELEASED`, `PROJECTION_REBUILT`, `CORPORATE_ACTION_APPLIED`
+**Architectural Evolution.** Underwent a 2026-04 rewrite (per user-memory `project_explicit_state_orchestration.md`) to align with the 6-construct CDK pattern.
 
-**Events consumed (intra-domain)**: `PORTFOLIO_SNAPSHOT_IMPORTED`, `ORDER_FILLED` (from execution-adpt); scheduled events
+**Health.** canonical.
 
----
-
-## Orchestration Workflows
-
-| Service | Workflow | Pattern | Triggers |
-|---|---|---|---|
-| `advisory-ctrl` | Decision Lifecycle | Orchestration + SAGA | Goal/risk/mode changes (Investor), drift/order outcomes/deposits (Execution) |
-| `compliance-ctrl` | Compliance Check | Orchestration | `DECISION_PACKET_CREATED` (intra-domain) |
-| `execution-ctrl` | Order Lifecycle | Orchestration | `DECISION_APPROVED` + `USER_CONFIRMED` (cross-domain from Advisory) |
-| `portfolio-ctrl` | Reconciliation | Orchestration + SAGA | `PORTFOLIO_SNAPSHOT_IMPORTED`, `ORDER_FILLED` (intra-domain), scheduled |
-| `investor-ctrl` | Notification Pipeline | Orchestration | Cross-domain events from Advisory and Execution; intra-domain events from investor-bff |
-| `operations-ctrl` | Incident Lifecycle | Orchestration | Failure/anomaly events from Execution (cross-domain) and Advisory (intra-domain) |
-| `operations-ctrl` | Model Promotion | Orchestration | `MODEL_PROMOTION_REQUESTED` (intra-domain) |
-| `operations-ctrl` | Cost Governance | Orchestration | Budget threshold events, invocation rate signals |
+**Cross-references.** Service `CLAUDE.md` card; flows `flows/order-ledger.flow.yaml`, `flows/reconciliation.flow.yaml`.
 
 ---
 
-## AI Agent Hosting Map
+### ledger-bff
 
-All 6 agents are implemented via Amazon AgentCore. BFF agents are conversational (user-in-the-loop); CTRL agents are async (event-driven, no user-in-the-loop).
+**Type:** bff · **Domain:** Ledger
+**Stack:** `services/ledger/ledger-bff/src/service.stack.ts`
 
-| Agent | Async Host (CTRL) | Conversational Host (BFF) |
-|---|---|---|
-| User & Goals | `advisory-ctrl` -- decision lifecycle | `investor-bff` -- onboarding, goal refinement |
-| Risk | `advisory-ctrl` -- decision lifecycle | `investor-bff` -- risk questionnaire |
-| Market & Research | `advisory-ctrl` -- decision lifecycle | -- |
-| Portfolio Construction | `advisory-ctrl` -- decision lifecycle | -- |
-| Rebalance Planner | `advisory-ctrl` -- decision lifecycle | -- |
-| Recommendation & Explainability | `advisory-ctrl` -- explanation generation | `advisory-bff` -- on-demand "why" queries |
+**Why this service exists.** CQRS read side for portfolio positions — the GraphQL surface consumed by the Ledger MFE.
 
-**Knowledge Bases (RAG-first)**:
+**State.** DDB projection table; AppSync GraphQL.
 
-| Service | Fed By | Content |
-|---|---|---|
-| `investor-bff` | Investor domain events | User intent history, goal context, risk preference patterns |
-| `advisory-ctrl` | Cross-domain trigger events | Decision history, market context, portfolio states, reasoning precedents |
-| `advisory-bff` | Recommendation and explanation events | Explanation corpus, recommendation history, user interaction patterns |
+**MFE.** `apps/ledger-mfe/`.
+
+**Architectural Evolution.** None.
+
+**Open question.** BFF resolver region sweep is pending (per user-memory's "BFF resolver region sweep" item) — mutation resolvers may be missing the `region` field that `check-auth.fn.js` writes to `ctx.stash`. Verify.
+
+**Health.** canonical (with open follow-up).
+
+**Cross-references.** Service `CLAUDE.md` card.
 
 ---
 
-## External System Integrations
+### reconciliation-ctrl
 
-| External System | Service | Integration Pattern |
-|---|---|---|
-| **Interactive Brokers (IBKR)** | `execution-adpt` | REST API (orders, snapshots), streaming feeds (positions, order status), webhook callbacks, OAuth. Credential isolation via Secrets Manager |
-| **Simulation Engine** | `execution-adpt` | Internal module within `execution-adpt`. Virtual position ledger, virtual cash balance, simulated fills at real market prices. No external dependency -- all state is managed in DynamoDB |
-| **Amazon Cognito** | `investor-web` | User Pool with Google/Facebook federation, JWT with `tenant_id` claim, Lambda triggers |
-| **Amazon AgentCore** | `advisory-ctrl`, `advisory-bff`, `investor-bff` | AI agent hosting (6 specialized agents). Platform service |
-| **Amazon Bedrock KB** | `investor-bff`, `advisory-ctrl`, `advisory-bff` | RAG-based knowledge access, per-service KB fed by domain events |
-| **MCP Server** | `advisory-ctrl` | Real-time market data for Market & Research Agent |
-| **Email/Push (SES, SNS/FCM)** | `investor-ctrl` | Notification delivery channels |
+**Type:** ctrl · **Domain:** Ledger
+**Stack:** `services/ledger/reconciliation-ctrl/src/service.stack.ts`
+
+**Why this service exists.** Periodic + event-driven reconciliation between intent (advisory) and settlement (ledger). Detects drift; triggers the advisory-side rebalance cycle on threshold breach; escalates to circuit-breaker on unsafe divergence.
+
+**Key events.**
+- Emitted: `LEDGER_PORTFOLIO_DRIFT_DETECTED`, `RECONCILIATION_COMPLETED`, `CORPORATE_ACTION_PROCESSED`.
+
+**Architectural Evolution.** The ledger-ctrl 2026-04 rewrite split out reconciliation into this dedicated service (per user-memory).
+
+**Health.** canonical.
+
+**Cross-references.** Service `CLAUDE.md` card; `flows/reconciliation.flow.yaml`; SYSTEM-ARCHITECTURE.md §15.
+
+---
+
+### ledger-adpt
+
+**Type:** adpt (cross-domain) · **Domain:** Ledger
+**Stack:** `services/ledger/ledger-adpt/src/service.stack.ts`
+
+**Why this service exists.** Pull-model cross-domain adapter — subscribes to execution-bus events (mainly `ORDER_FILLED`, `ORDER_REJECTED`) and republishes onto ledger-bus.
+
+**Architectural Evolution.** None beyond the pull-model inversion.
+
+**Health.** canonical.
+
+**Cross-references.** SYSTEM-ARCHITECTURE.md §18.
+
+---
+
+## Closing notes
+
+This document covers all 33 services as of 2026-04-30. Updates land via spec → plan → impl per `CLAUDE.md` "Canonical Architecture References" section. For event-detail tables and full handler manifests on a given service, `audit-service` regenerates the per-service `CLAUDE.md` from code.
+
+Health-tag forecasts (subject to change with Spec 2):
+
+- **transitional → canonical (Spec 2):** `advisory-ctrl` (after decision-lifecycle retirement).
+- **canonical:** all other 32 services as of 2026-04-30.
+
+No services currently carry the `dormant` tag — every entry has live consumers. `advisory-ctrl`'s control-plane *event vocabulary* has dormant entries (operations-ctrl absorbed events declared but no producer), but the service itself is live (decision-lifecycle path).
