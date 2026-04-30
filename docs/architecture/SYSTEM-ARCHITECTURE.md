@@ -82,7 +82,7 @@ Verified on 2026-04-30 by `ls services/` → `advisory  execution  investor  led
 The 2026-03-01 baseline named **five domains**: Investor, Advisory, Execution, Platform Infrastructure, and a not-yet-named persistence concern that later became Ledger. Current code:
 
 - **Platform Infrastructure** responsibilities folded into shared libraries — observability into `libs/cdk-constructs/src/observability/`, IAM into per-service stacks. No standalone domain remains.
-- **Ledger** emerged as a first-class domain when reconciliation became a core concern, per `docs/superpowers/specs/2026-03-26-real-money-operations-design.md`. The domain owns position truth and corporate-actions handling separately from execution intent.
+- **Ledger** emerged as a first-class domain when reconciliation became a core concern, per the 2026-03-26 real-money-operations design (originating spec absent from `docs/superpowers/specs/` — see §21 Open Question #11). The domain owns position truth and corporate-actions handling separately from execution intent.
 
 ---
 
@@ -157,7 +157,7 @@ All agents target Bedrock Claude inference profiles via `libs/agent-orchestrator
 
 **Pre-2026-03-18.** A single `advisory-ctrl` service hosted **all 6 agents** (User & Goals, Risk, Market & Research, Portfolio Construction, Rebalance Planner, Recommendation & Explainability) as one in-process LangGraph. The 6 prompt files for those agents are still on disk: `services/advisory/advisory-ctrl/src/agents/prompts/{user-goals,risk-assessment,market-research,portfolio-construction,rebalance-planner,explainability}.txt`. Step Functions sat in front of `advisory-ctrl` as a trigger, not as a per-agent fan-out.
 
-**Post-2026-03-18** (per `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`). The 6 agents were clustered into 4 cohesive ctrl services, each hosting its own AgentRuntime:
+**Post-2026-03-18** (per the 2026-03-18 AgentCore Memory design (originating spec absent from `docs/superpowers/specs/` — see §21 Open Question #11)). The 6 agents were clustered into 4 cohesive ctrl services, each hosting its own AgentRuntime:
 
 - User & Goals + Risk → `investor-profile-ctrl`
 - Market & Research → `market-intelligence-ctrl`
@@ -247,7 +247,7 @@ The **Decision Packet** is the canonical immutable record of every advisory deci
 
 **Pre-2026-03-18.** `advisory-ctrl` was the single Step Functions orchestrator; it owned the Decision Packet write and was the sole emitter of `DECISION_PACKET_CREATED`.
 
-**Post-2026-03-18** (per `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`). `decision-workflow-ctrl` was introduced as the canonical orchestrator. It owns the AgentCore Memory resource, delegates the 4 agent invocations to ctrl services via SF task tokens, and runs the `AssemblePacket` step that persists the assembled Decision Packet. Per the design intent, `advisory-ctrl` was supposed to retire its decision-lifecycle code and become the **control plane** (model lifecycle, incidents, budgets, reasoning-tier — absorbing what `operations-ctrl` would have owned).
+**Post-2026-03-18** (per the 2026-03-18 AgentCore Memory design (originating spec absent from `docs/superpowers/specs/` — see §21 Open Question #11)). `decision-workflow-ctrl` was introduced as the canonical orchestrator. It owns the AgentCore Memory resource, delegates the 4 agent invocations to ctrl services via SF task tokens, and runs the `AssemblePacket` step that persists the assembled Decision Packet. Per the design intent, `advisory-ctrl` was supposed to retire its decision-lifecycle code and become the **control plane** (model lifecycle, incidents, budgets, reasoning-tier — absorbing what `operations-ctrl` would have owned).
 
 **Current state.** The retirement never landed. Both services still emit `DECISION_PACKET_CREATED`:
 
@@ -364,7 +364,7 @@ The two are kept in sync by the **reconciliation cycle** in `services/ledger/rec
 
 **Corporate actions** (splits, dividends, mergers) are processed in Ledger and emitted as adjustment events that the intent side reconciles against.
 
-Reference: `flows/reconciliation.flow.yaml`, `flows/order-ledger.flow.yaml`, `docs/superpowers/specs/2026-03-26-real-money-operations-design.md`.
+Reference: `flows/reconciliation.flow.yaml`, `flows/order-ledger.flow.yaml`, the 2026-03-26 real-money-operations design (originating spec absent from `docs/superpowers/specs/` — see §21 Open Question #11).
 
 ---
 
@@ -525,6 +525,8 @@ These items the writing process surfaced but did not resolve. Each lists a propo
 
 10. **Operating-mode-parameter source of truth.** The numbers in §14 are illustrative defaults from the 2026-03-01 baseline. Live parameters must be located in `services/advisory/compliance-ctrl/` (or wherever the rule engine reads them) and either cited inline in §14 or moved to a separate operating-mode parameters reference.
 
+11. **Missing originating specs.** Two foundational specs cited throughout this document — the **2026-03-18 AgentCore Memory design** (originator of the §7.1 6→4 split, §10.1 dual-emitter design intent, §17 namespace contract) and the **2026-03-26 real-money-operations design** (originator of the Ledger domain + broker-ctrl/adpt split + circuit-breaker scaffold) — are referenced by date in this doc but are **not currently present** in `docs/superpowers/specs/` (verified 2026-04-30 by `ls`). They may live in git history (the `daa8c087` 2026-04-14 "restore and consolidate" commit may have removed them along with other specifications). Resolution: locate via `git log -- docs/superpowers/specs/`, recover if found, or accept that the design intent is now anchored solely in this document and SERVICE-INVENTORY.md. Until recovered, treat the date-anchored references as historical attribution rather than navigable links.
+
 ---
 
 ## 22. Glossary
@@ -555,9 +557,10 @@ These items the writing process surfaced but did not resolve. Each lists a propo
 | `docs/architecture/nestfolio.d2` | D2 source for the C4 diagrams |
 | `specifications/01-product-vision.md` | Product framing |
 | `specifications/02-system-design.md` | High-level executive summary (this doc supersedes for service-level reasoning) |
-| `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md` | Memory contract source design |
-| `docs/superpowers/specs/2026-03-26-real-money-operations-design.md` | Real-money-ops + Ledger domain emergence |
+| `docs/superpowers/specs/2026-04-28-onboarding-runtime-redesign.md` | Onboarding agent runtime redesign — in-process AbstractAgent |
 | `docs/superpowers/specs/2026-04-30-system-architecture-docs-foundation-design.md` | This document's authoring spec |
+| (date-anchored, not on disk) 2026-03-18 AgentCore Memory design | Originator of §7.1 / §10.1 / §17. See §21 Open Question #11. |
+| (date-anchored, not on disk) 2026-03-26 real-money-operations design | Originator of Ledger domain + broker split + circuit-breaker scaffold. See §21 Open Question #11. |
 | Per-service `CLAUDE.md` cards | Code-anchored current-state per service |
 | `CLAUDE.md` (root) | Skill router; lists this file as canonical reference |
 

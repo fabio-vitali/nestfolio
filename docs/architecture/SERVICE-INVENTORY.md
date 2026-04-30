@@ -257,13 +257,13 @@ Each entry below uses the same structure:
 
 **State.** DDB tables (Decision Packet legacy, AgentInvocation, WorkflowState) + standalone tool Lambdas.
 
-**Architectural Evolution — vestigial decision-lifecycle.** Pre-2026-03-18: this was the single SF orchestrator hosting all 6 agents in-process. Post-2026-03-18 (per `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`): `decision-workflow-ctrl` was introduced as the canonical orchestrator and the 6 agents were split into 4 cluster-ctrl services (SYSTEM-ARCHITECTURE.md §7.1). `advisory-ctrl` was supposed to retire its decision-lifecycle code. The retirement never landed → both services emit `DECISION_PACKET_CREATED` (SYSTEM-ARCHITECTURE.md §10.1, line citation `services/advisory/advisory-ctrl/src/service.stack.ts:69`). **Spec 2 (advisory pipeline consolidation) retires the decision-lifecycle subsystem** and leaves advisory-ctrl as the pure control plane.
+**Architectural Evolution — vestigial decision-lifecycle.** Pre-2026-03-18: this was the single SF orchestrator hosting all 6 agents in-process. Post-2026-03-18 (per the 2026-03-18 AgentCore Memory design (date-anchored historical reference; see SYSTEM-ARCHITECTURE.md §21 Open Question #11)): `decision-workflow-ctrl` was introduced as the canonical orchestrator and the 6 agents were split into 4 cluster-ctrl services (SYSTEM-ARCHITECTURE.md §7.1). `advisory-ctrl` was supposed to retire its decision-lifecycle code. The retirement never landed → both services emit `DECISION_PACKET_CREATED` (SYSTEM-ARCHITECTURE.md §10.1, line citation `services/advisory/advisory-ctrl/src/service.stack.ts:69`). **Spec 2 (advisory pipeline consolidation) retires the decision-lifecycle subsystem** and leaves advisory-ctrl as the pure control plane.
 
 **Architectural Evolution — operations-ctrl absorbed.** The operations-ctrl service was planned in the 2026-03-01 baseline but never built. Its event vocabulary was absorbed into advisory-ctrl when the service was repurposed as the control plane. Most of those events are still typed-but-unwired today.
 
 **Health.** transitional. The decision-lifecycle subsystem is `legacy` with a forward-pointer to **Spec 2**; the control-plane responsibilities are `canonical` but largely reserved-for-future (most events typed, most producers not yet implemented).
 
-**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7.1, §10.1; `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`.
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7.1, §10.1; the 2026-03-18 AgentCore Memory design (date-anchored historical reference; see SYSTEM-ARCHITECTURE.md §21 Open Question #11).
 
 ---
 
@@ -379,11 +379,11 @@ Each entry below uses the same structure:
 
 **State.** DDB DecisionPacket table (the canonical post-2026-03-18 owner); AgentCore Memory resource (per the §17 contract).
 
-**Architectural Evolution.** Introduced 2026-03-17 (commit `a54006c9`); replaces `advisory-ctrl` as the canonical SF orchestrator per `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`. The retirement of advisory-ctrl's decision-lifecycle code never landed → dual `DECISION_PACKET_CREATED` emitter (SYSTEM-ARCHITECTURE.md §10.1). The 8th-Playwright-session bug fix (commit `429afa7a`) lives in this service: `AssemblePacket` reads agent outputs directly from upstream task results before creating the row + persists `explanation`. The AgentCore Memory namespace divergence (§17.1) is also rooted in this service's `writeAgentOutput` / `readUpstreamOutput` calls (delegated to `libs/agent-orchestrator/src/memory/memory-client.ts`).
+**Architectural Evolution.** Introduced 2026-03-17 (commit `a54006c9`); replaces `advisory-ctrl` as the canonical SF orchestrator per the 2026-03-18 AgentCore Memory design (date-anchored historical reference; see SYSTEM-ARCHITECTURE.md §21 Open Question #11). The retirement of advisory-ctrl's decision-lifecycle code never landed → dual `DECISION_PACKET_CREATED` emitter (SYSTEM-ARCHITECTURE.md §10.1). The 8th-Playwright-session bug fix (commit `429afa7a`) lives in this service: `AssemblePacket` reads agent outputs directly from upstream task results before creating the row + persists `explanation`. The AgentCore Memory namespace divergence (§17.1) is also rooted in this service's `writeAgentOutput` / `readUpstreamOutput` calls (delegated to `libs/agent-orchestrator/src/memory/memory-client.ts`).
 
 **Health.** canonical.
 
-**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7, §10, §10.1, §13, §17.1; `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`.
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7, §10, §10.1, §13, §17.1; the 2026-03-18 AgentCore Memory design (date-anchored historical reference; see SYSTEM-ARCHITECTURE.md §21 Open Question #11).
 
 ---
 
@@ -535,7 +535,7 @@ Each entry below uses the same structure:
 
 **Why this service exists.** Owns the broker-side Step Functions state machine. Receives `ORDER_INTENT_CREATED`, routes the order through the appropriate broker adapter (sim or alpaca based on account mode), tracks fill state, emits `ORDER_FILLED` / `ORDER_REJECTED`.
 
-**Architectural Evolution.** Split during the 2026-03-26 real-money-ops design (`docs/superpowers/specs/2026-03-26-real-money-operations-design.md`) — `broker-ctrl` owns the SF state machine; `broker-{sim,alpaca}-adpt` own the broker-specific protocols. The split lets us add brokers (e.g. IBKR) without changing the orchestration layer.
+**Architectural Evolution.** Split during the 2026-03-26 real-money-operations design (date-anchored historical reference; see SYSTEM-ARCHITECTURE.md §21 Open Question #11) — `broker-ctrl` owns the SF state machine; `broker-{sim,alpaca}-adpt` own the broker-specific protocols. The split lets us add brokers (e.g. IBKR) without changing the orchestration layer.
 
 **Health.** canonical.
 
