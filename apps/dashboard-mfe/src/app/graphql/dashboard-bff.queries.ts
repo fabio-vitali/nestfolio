@@ -28,7 +28,7 @@ const ACTIVITY_ENTRY_FIELDS = `
   fragment ActivityEntryFields on ActivityEntry {
     activityType
     description
-    timestamp
+    createdAt
     metadata
   }
 `;

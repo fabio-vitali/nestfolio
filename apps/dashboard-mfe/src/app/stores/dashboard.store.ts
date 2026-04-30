@@ -31,7 +31,7 @@ export interface PositionSnapshot {
 export interface ActivityEntry {
   activityType: string;
   description: string;
-  timestamp: string;
+  createdAt: string;
   metadata: string | null;
 }
 

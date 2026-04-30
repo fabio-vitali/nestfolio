@@ -65,7 +65,7 @@ describe('DashboardStore', () => {
     {
       activityType: 'ORDER_FILLED',
       description: 'Bought 10 AAPL',
-      timestamp: '2026-03-01T10:00:00Z',
+      createdAt: '2026-03-01T10:00:00Z',
       metadata: null,
     },
   ];
