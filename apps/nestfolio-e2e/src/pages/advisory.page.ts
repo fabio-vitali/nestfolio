@@ -8,18 +8,17 @@ export class AdvisoryPage {
    * The list renders after DashboardPage.waitForPendingDecisionsAtLeast(1)
    * has confirmed the projection materialised.
    *
-   * The list-item testid is not yet present in advisory-mfe; the selector
-   * matches the first link/button under the list container as a fallback.
-   * If the list-item testid lands later (e.g. data-testid="decision-<id>"),
-   * tighten this selector then.
+   * decisionId in this codebase = upstream EventBridge eventId (32-char hex,
+   * no dashes — see decision-workflow-ctrl/event-listener.ts:24). The URL
+   * assertion accepts any non-empty path segment after /advisory/.
    */
   async goToFirstPendingDecision(): Promise<void> {
     await this.page.goto('/advisory');
     const decision = this.page.locator(
-      '[data-testid^="decision-"], a[href^="/advisory/"]',
+      'a[data-testid^="decision-"], a[href^="/advisory/"]:not([href="/advisory"])',
     ).first();
     await decision.click();
-    await expect(this.page).toHaveURL(/\/advisory\/[0-9a-f-]{36}/);
+    await expect(this.page).toHaveURL(/\/advisory\/[^/]+$/);
   }
 
   async waitForRationale(timeout = 60_000): Promise<void> {

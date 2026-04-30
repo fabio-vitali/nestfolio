@@ -14,24 +14,23 @@ import { I18nService } from '@nestfolio/shell/i18n';
 const mockDecision: Decision = {
   decisionId: 'd0000000-0000-0000-0000-000000000001',
   tenantId: 'tenant-1',
+  trigger: 'PORTFOLIO_DRIFT',
   status: 'APPROVED',
-  rationale: 'Portfolio drift detected',
-  proposedActions: [
+  explanation: 'Portfolio drift detected',
+  proposedTrades: [
     {
-      actionType: 'MARKET',
       symbol: 'VWCE.DE',
+      assetClass: 'EQUITY_ETF',
       side: 'BUY',
-      quantity: 10,
-      limitPrice: null,
-      currency: 'EUR',
+      quantityOrAmountCents: 100000,
+      targetWeightPercent: 60,
+      rationale: 'core equity exposure',
     },
   ],
-  complianceStatus: 'PASSED',
+  confirmationRequired: true,
   confirmedAt: null,
-  confirmedBy: null,
   rejectedAt: null,
   rejectionReason: null,
-  rejectedBy: null,
   version: 1,
   createdAt: '2026-03-01T10:00:00Z',
   updatedAt: '2026-03-01T10:05:00Z',
@@ -42,12 +41,14 @@ const mockInvocations: AgentInvocation[] = [
     invocationId: 'inv-001',
     decisionId: 'd0000000-0000-0000-0000-000000000001',
     agentName: 'Portfolio Analyst',
-    tier: 'Claude Opus 4.6',
-    input: null,
-    output: 'Rebalance recommended',
-    durationMs: 3200,
+    modelId: 'us.anthropic.claude-sonnet-4-6',
+    inputTokens: 1200,
+    outputTokens: 800,
+    latencyMs: 3200,
     status: 'COMPLETED',
-    invokedAt: '2026-03-01T10:00:00Z',
+    errorMessage: null,
+    startedAt: '2026-03-01T10:00:00Z',
+    completedAt: '2026-03-01T10:00:03Z',
   },
 ];
 
@@ -55,6 +56,7 @@ const mockChecks: ComplianceCheck[] = [
   {
     checkId: 'chk-001',
     decisionId: 'd0000000-0000-0000-0000-000000000001',
+    level: 'L1',
     ruleName: 'MaxSingleTrade',
     result: 'PASSED',
     details: null,
@@ -143,7 +145,7 @@ describe('DecisionDetailComponent', () => {
   it('should compute model versions', async () => {
     await component.ngOnInit();
 
-    expect(store.modelVersions()).toEqual(['Claude Opus 4.6']);
+    expect(store.modelVersions()).toEqual(['us.anthropic.claude-sonnet-4-6']);
   });
 
   it('should set error when decision ID is missing', async () => {
@@ -237,35 +239,6 @@ describe('DecisionDetailComponent', () => {
 
     component.ngOnDestroy();
     expect(store.decision()).toBeNull();
-  });
-
-  it('should redirect to dashboard when decision ID is invalid (not UUID)', async () => {
-    TestBed.resetTestingModule();
-    await TestBed.configureTestingModule({
-      imports: [DecisionDetailComponent],
-      providers: [
-        { provide: AdvisoryService, useValue: advisoryService },
-        { provide: Router, useValue: router },
-        { provide: I18nService, useValue: { t: (k: string) => k } },
-        { provide: TranslateService, useValue: { instant: (k: string) => k } },
-        {
-          provide: ActivatedRoute,
-          useValue: { snapshot: { paramMap: { get: () => 'not-a-uuid' } } },
-        },
-      ],
-    })
-      .overrideComponent(DecisionDetailComponent, {
-        set: { template: '<div>test</div>', imports: [], styles: [] },
-      })
-      .compileComponents();
-
-    const s = TestBed.inject(AdvisoryStore);
-    s.reset();
-    const f = TestBed.createComponent(DecisionDetailComponent);
-    await f.componentInstance.ngOnInit();
-
-    expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
-    expect(advisoryService.getDecision).not.toHaveBeenCalled();
   });
 
   it('should log error when recordExplanationView fails', async () => {

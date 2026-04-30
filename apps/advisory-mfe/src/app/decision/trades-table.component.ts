@@ -1,7 +1,7 @@
 import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
-import type { ProposedAction } from '../stores/advisory.store';
+import type { ProposedTrade } from '../stores/advisory.store';
 
 @Component({
   selector: 'app-trades-table',
@@ -26,8 +26,8 @@ import type { ProposedAction } from '../stores/advisory.store';
                 {{ trade.side }}
               </span>
             </td>
-            <td class="text-right">{{ trade.quantity }}</td>
-            <td>{{ trade.actionType }}</td>
+            <td class="text-right">{{ trade.quantityOrAmountCents }}</td>
+            <td>{{ trade.assetClass }}</td>
           </tr>
         }
       </tbody>
@@ -83,5 +83,5 @@ import type { ProposedAction } from '../stores/advisory.store';
   `],
 })
 export class TradesTableComponent {
-  trades = input.required<ProposedAction[]>();
+  trades = input.required<ProposedTrade[]>();
 }

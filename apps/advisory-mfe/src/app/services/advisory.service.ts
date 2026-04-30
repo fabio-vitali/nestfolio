@@ -3,6 +3,7 @@ import { Subscription } from 'rxjs';
 import { GraphqlService, CachedQuery } from '@nestfolio/shell/graphql';
 import {
   GET_DECISION,
+  GET_PENDING_DECISIONS,
   GET_AGENT_INVOCATIONS,
   GET_COMPLIANCE_CHECKS,
   RECORD_EXPLANATION_VIEW,
@@ -16,6 +17,18 @@ import type {
   AgentInvocation,
   ComplianceCheck,
 } from '../stores/advisory.store';
+
+export interface PendingDecisionListItem {
+  decisionId: string;
+  status: string;
+  trigger: string;
+  createdAt: string;
+}
+
+interface PendingDecisionsConnection {
+  items: PendingDecisionListItem[];
+  nextCursor: string | null;
+}
 
 @Injectable()
 export class AdvisoryService {
@@ -97,6 +110,14 @@ export class AdvisoryService {
     this.ensureCaches(decisionId);
     const data = await this.complianceCache!.get(forceRefresh);
     return data.getComplianceChecks ?? [];
+  }
+
+  async getPendingDecisions(limit = 20): Promise<PendingDecisionListItem[]> {
+    const data = await this.graphql.query<{ getPendingDecisions: PendingDecisionsConnection }>(
+      GET_PENDING_DECISIONS,
+      { limit },
+    );
+    return data.getPendingDecisions?.items ?? [];
   }
 
   async recordExplanationView(decisionId: string): Promise<void> {

@@ -61,12 +61,12 @@ import { TradesTableComponent } from './trades-table.component';
 
             <div class="agent-badges">
               @for (inv of store.agentInvocations(); track inv.invocationId) {
-                <nf-agent-badge [agentName]="inv.agentName" [tier]="inv.tier" />
+                <nf-agent-badge [agentName]="inv.agentName" [tier]="inv.modelId" />
               }
             </div>
 
-            @if (decision.rationale) {
-              <p class="rationale">{{ decision.rationale }}</p>
+            @if (decision.explanation) {
+              <p class="rationale">{{ decision.explanation }}</p>
             }
           </div>
 
@@ -122,9 +122,9 @@ import { TradesTableComponent } from './trades-table.component';
           </p-dialog>
 
           <!-- Expandable: Proposed Trades -->
-          @if (decision.proposedActions.length > 0) {
+          @if (decision.proposedTrades.length > 0) {
             <nf-expandable [title]="'advisory.detail.trades' | translate">
-              <app-trades-table [trades]="decision.proposedActions" />
+              <app-trades-table [trades]="decision.proposedTrades" />
             </nf-expandable>
           }
 
@@ -135,18 +135,18 @@ import { TradesTableComponent } from './trades-table.component';
                 @for (inv of store.agentInvocations(); track inv.invocationId) {
                   <div class="invocation-item">
                     <div class="invocation-header">
-                      <nf-agent-badge [agentName]="inv.agentName" [tier]="inv.tier" />
+                      <nf-agent-badge [agentName]="inv.agentName" [tier]="inv.modelId" />
                       <nf-status-badge
                         [label]="inv.status"
                         [severity]="inv.status === 'COMPLETED' ? 'success' : inv.status === 'FAILED' ? 'danger' : 'info'"
                       />
                     </div>
                     <div class="invocation-meta">
-                      <span>{{ inv.durationMs }}ms</span>
-                      <span>{{ inv.invokedAt | date:'short' }}</span>
+                      <span>{{ inv.latencyMs }}ms</span>
+                      <span>{{ inv.startedAt | date:'short' }}</span>
                     </div>
-                    @if (inv.output) {
-                      <p class="invocation-output">{{ inv.output }}</p>
+                    @if (inv.errorMessage) {
+                      <p class="invocation-output">{{ inv.errorMessage }}</p>
                     }
                   </div>
                 }
@@ -340,8 +340,6 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
   readonly i18n = inject(I18nService);
   readonly store = inject(AdvisoryStore);
 
-  private static readonly UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
   actionType: 'confirm' | 'reject' | null = null;
   showRejectDialog = false;
   rejectReason = '';
@@ -350,10 +348,6 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
     const decisionId = this.route.snapshot.paramMap.get('id');
     if (!decisionId) {
       this.store.setError('Missing decision ID');
-      return;
-    }
-    if (!DecisionDetailComponent.UUID_REGEX.test(decisionId)) {
-      this.router.navigate(['/dashboard']);
       return;
     }
     await this.loadDecision(decisionId);

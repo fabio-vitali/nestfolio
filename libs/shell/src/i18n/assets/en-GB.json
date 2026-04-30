@@ -132,6 +132,12 @@
     "explanation": "Explanation",
     "proposedTrades": "Proposed Trades",
     "compliance": "Compliance",
+    "list": {
+      "title": "Pending Decisions",
+      "emptyTitle": "No pending decisions",
+      "emptyHint": "New advisory recommendations will appear here.",
+      "errorTitle": "Could not load decisions"
+    },
     "detail": {
       "trades": "Proposed Trades",
       "tradeSymbol": "Symbol",

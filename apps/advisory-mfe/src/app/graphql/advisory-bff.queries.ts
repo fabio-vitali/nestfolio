@@ -1,25 +1,24 @@
 // --- Fragments (internal — used via template interpolation) ---
 
 const DECISION_FIELDS = `
-  fragment DecisionFields on Decision {
+  fragment DecisionFields on DecisionPacket {
     decisionId
     tenantId
+    trigger
     status
-    rationale
-    proposedActions {
-      actionType
+    explanation
+    proposedTrades {
       symbol
+      assetClass
       side
-      quantity
-      limitPrice
-      currency
+      quantityOrAmountCents
+      targetWeightPercent
+      rationale
     }
-    complianceStatus
+    confirmationRequired
     confirmedAt
-    confirmedBy
     rejectedAt
     rejectionReason
-    rejectedBy
     version
     createdAt
     updatedAt
@@ -31,12 +30,14 @@ const AGENT_INVOCATION_FIELDS = `
     invocationId
     decisionId
     agentName
-    tier
-    input
-    output
-    durationMs
+    modelId
+    inputTokens
+    outputTokens
+    latencyMs
     status
-    invokedAt
+    errorMessage
+    startedAt
+    completedAt
   }
 `;
 
@@ -44,6 +45,7 @@ const COMPLIANCE_CHECK_FIELDS = `
   fragment ComplianceCheckFields on ComplianceCheck {
     checkId
     decisionId
+    level
     ruleName
     result
     details
@@ -51,7 +53,29 @@ const COMPLIANCE_CHECK_FIELDS = `
   }
 `;
 
+// List view selects only the minimum needed for the list UI.
+const DECISION_LIST_FIELDS = `
+  fragment DecisionListFields on DecisionPacket {
+    decisionId
+    status
+    trigger
+    createdAt
+  }
+`;
+
 // --- Queries ---
+
+export const GET_PENDING_DECISIONS = `
+  query GetPendingDecisions($limit: Int, $cursor: String) {
+    getPendingDecisions(limit: $limit, cursor: $cursor) {
+      items {
+        ...DecisionListFields
+      }
+      nextCursor
+    }
+  }
+  ${DECISION_LIST_FIELDS}
+`;
 
 export const GET_DECISION = `
   query GetDecision($decisionId: ID!) {

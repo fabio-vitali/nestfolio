@@ -3,7 +3,7 @@ import { Component } from '@angular/core';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { TradesTableComponent } from '../../../src/app/decision/trades-table.component';
-import type { ProposedAction } from '../../../src/app/stores/advisory.store';
+import type { ProposedTrade } from '../../../src/app/stores/advisory.store';
 
 class FakeLoader implements TranslateLoader {
   getTranslation() {
@@ -17,9 +17,9 @@ class FakeLoader implements TranslateLoader {
   template: `<app-trades-table [trades]="trades" />`,
 })
 class TestHostComponent {
-  trades: ProposedAction[] = [
-    { actionType: 'MARKET', symbol: 'VWCE.DE', side: 'BUY', quantity: 10, limitPrice: null, currency: 'EUR' },
-    { actionType: 'LIMIT', symbol: 'AGGH.L', side: 'SELL', quantity: 5, limitPrice: 2500, currency: 'EUR' },
+  trades: ProposedTrade[] = [
+    { symbol: 'VWCE.DE', assetClass: 'EQUITY_ETF', side: 'BUY', quantityOrAmountCents: 100000, targetWeightPercent: 60, rationale: 'core' },
+    { symbol: 'AGGH.L', assetClass: 'BOND_ETF', side: 'SELL', quantityOrAmountCents: 50000, targetWeightPercent: 40, rationale: 'reduce' },
   ];
 }
 
@@ -59,8 +59,8 @@ describe('TradesTableComponent', () => {
     expect(tags[1].classList).toContain('side-sell');
   });
 
-  it('should display quantity', () => {
+  it('should display quantity or amount', () => {
     const rows = fixture.nativeElement.querySelectorAll('tbody tr');
-    expect(rows[0].textContent).toContain('10');
+    expect(rows[0].textContent).toContain('100000');
   });
 });

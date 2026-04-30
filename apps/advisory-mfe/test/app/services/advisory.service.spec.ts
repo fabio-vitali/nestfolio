@@ -54,6 +54,27 @@ describe('AdvisoryService', () => {
     expect(graphql.query).toHaveBeenCalledWith(expect.any(String), { decisionId: 'dec-001' });
   });
 
+  it('should call getPendingDecisions and return items', async () => {
+    const items = [
+      { decisionId: 'dec-001', status: 'AWAITING_CONFIRMATION', trigger: 'X', createdAt: 't1' },
+      { decisionId: 'dec-002', status: 'COMPLIANCE_REVIEW', trigger: 'Y', createdAt: 't2' },
+    ];
+    graphql.query.mockResolvedValue({ getPendingDecisions: { items, nextCursor: null } });
+
+    const result = await service.getPendingDecisions();
+
+    expect(result).toEqual(items);
+    expect(graphql.query).toHaveBeenCalledWith(expect.any(String), { limit: 20 });
+  });
+
+  it('should return [] when getPendingDecisions returns null connection', async () => {
+    graphql.query.mockResolvedValue({ getPendingDecisions: null });
+
+    const result = await service.getPendingDecisions();
+
+    expect(result).toEqual([]);
+  });
+
   it('should call recordExplanationView', async () => {
     graphql.mutate.mockResolvedValue({});
 

@@ -5,18 +5,17 @@ import { LogoutOrchestrator } from '@nestfolio/shell';
 const mockDecision: Decision = {
   decisionId: 'dec-001',
   tenantId: 'tenant-1',
+  trigger: 'PORTFOLIO_DRIFT',
   status: 'APPROVED',
-  rationale: 'Portfolio needs rebalancing due to drift',
-  proposedActions: [
-    { actionType: 'MARKET', symbol: 'VWCE.DE', side: 'BUY', quantity: 10, limitPrice: null, currency: 'EUR' },
-    { actionType: 'MARKET', symbol: 'AGGH.L', side: 'SELL', quantity: 5, limitPrice: null, currency: 'EUR' },
+  explanation: 'Portfolio needs rebalancing due to drift',
+  proposedTrades: [
+    { symbol: 'VWCE.DE', assetClass: 'EQUITY_ETF', side: 'BUY', quantityOrAmountCents: 100000, targetWeightPercent: 60, rationale: 'core equity' },
+    { symbol: 'AGGH.L', assetClass: 'BOND_ETF', side: 'SELL', quantityOrAmountCents: 50000, targetWeightPercent: 40, rationale: 'reduce bonds' },
   ],
-  complianceStatus: 'PASSED',
+  confirmationRequired: true,
   confirmedAt: null,
-  confirmedBy: null,
   rejectedAt: null,
   rejectionReason: null,
-  rejectedBy: null,
   version: 1,
   createdAt: '2026-03-01T10:00:00Z',
   updatedAt: '2026-03-01T10:05:00Z',
@@ -27,29 +26,33 @@ const mockInvocations: AgentInvocation[] = [
     invocationId: 'inv-001',
     decisionId: 'dec-001',
     agentName: 'Portfolio Analyst',
-    tier: 'Claude Opus 4.6',
-    input: null,
-    output: 'Rebalance recommended',
-    durationMs: 3200,
+    modelId: 'us.anthropic.claude-opus-4-6',
+    inputTokens: 1200,
+    outputTokens: 800,
+    latencyMs: 3200,
     status: 'COMPLETED',
-    invokedAt: '2026-03-01T10:00:00Z',
+    errorMessage: null,
+    startedAt: '2026-03-01T10:00:00Z',
+    completedAt: '2026-03-01T10:00:03Z',
   },
   {
     invocationId: 'inv-002',
     decisionId: 'dec-001',
     agentName: 'Risk Evaluator',
-    tier: 'Claude Sonnet 4.6',
-    input: null,
-    output: 'Risk within bounds',
-    durationMs: 1800,
+    modelId: 'us.anthropic.claude-sonnet-4-6',
+    inputTokens: 800,
+    outputTokens: 400,
+    latencyMs: 1800,
     status: 'COMPLETED',
-    invokedAt: '2026-03-01T10:01:00Z',
+    errorMessage: null,
+    startedAt: '2026-03-01T10:01:00Z',
+    completedAt: '2026-03-01T10:01:02Z',
   },
 ];
 
 const mockChecks: ComplianceCheck[] = [
-  { checkId: 'chk-001', decisionId: 'dec-001', ruleName: 'MaxSingleTrade', result: 'PASSED', details: null, checkedAt: '2026-03-01T10:03:00Z' },
-  { checkId: 'chk-002', decisionId: 'dec-001', ruleName: 'MonthlyTurnover', result: 'PASSED', details: null, checkedAt: '2026-03-01T10:03:01Z' },
+  { checkId: 'chk-001', decisionId: 'dec-001', level: 'L1', ruleName: 'MaxSingleTrade', result: 'PASSED', details: null, checkedAt: '2026-03-01T10:03:00Z' },
+  { checkId: 'chk-002', decisionId: 'dec-001', level: 'L2', ruleName: 'MonthlyTurnover', result: 'PASSED', details: null, checkedAt: '2026-03-01T10:03:01Z' },
 ];
 
 describe('AdvisoryStore', () => {
@@ -77,13 +80,13 @@ describe('AdvisoryStore', () => {
     expect(store.isLoaded()).toBe(true);
   });
 
-  it('should compute headline from first proposed action', () => {
+  it('should compute headline from first proposed trade', () => {
     store.setDecision(mockDecision);
     expect(store.headline()).toBe('BUY VWCE.DE');
   });
 
-  it('should compute headline from rationale when no actions', () => {
-    store.setDecision({ ...mockDecision, proposedActions: [] });
+  it('should compute headline from explanation when no trades', () => {
+    store.setDecision({ ...mockDecision, proposedTrades: [] });
     expect(store.headline()).toBe('Portfolio needs rebalancing due to drift');
   });
 
@@ -109,12 +112,15 @@ describe('AdvisoryStore', () => {
 
   it('should compute model versions', () => {
     store.setAgentInvocations(mockInvocations);
-    expect(store.modelVersions()).toEqual(['Claude Opus 4.6', 'Claude Sonnet 4.6']);
+    expect(store.modelVersions()).toEqual([
+      'us.anthropic.claude-opus-4-6',
+      'us.anthropic.claude-sonnet-4-6',
+    ]);
   });
 
-  it('should compute total duration', () => {
+  it('should compute total latency', () => {
     store.setAgentInvocations(mockInvocations);
-    expect(store.totalDurationMs()).toBe(5000);
+    expect(store.totalLatencyMs()).toBe(5000);
   });
 
   it('should set compliance checks', () => {
@@ -130,7 +136,7 @@ describe('AdvisoryStore', () => {
   it('should compute compliancePassed as false when any fails', () => {
     store.setComplianceChecks([
       ...mockChecks,
-      { checkId: 'chk-003', decisionId: 'dec-001', ruleName: 'ConcentrationLimit', result: 'FAILED', details: 'Over 30%', checkedAt: '2026-03-01T10:03:02Z' },
+      { checkId: 'chk-003', decisionId: 'dec-001', level: 'L1', ruleName: 'ConcentrationLimit', result: 'FAILED', details: 'Over 30%', checkedAt: '2026-03-01T10:03:02Z' },
     ]);
     expect(store.compliancePassed()).toBe(false);
   });

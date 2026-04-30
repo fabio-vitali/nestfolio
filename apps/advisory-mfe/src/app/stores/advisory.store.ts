@@ -8,27 +8,26 @@ import {
   withLogoutReset,
 } from '@nestfolio/shell';
 
-export interface ProposedAction {
-  actionType: string;
+export interface ProposedTrade {
   symbol: string;
+  assetClass: string;
   side: string;
-  quantity: number;
-  limitPrice: number | null;
-  currency: string;
+  quantityOrAmountCents: number;
+  targetWeightPercent: number;
+  rationale: string;
 }
 
 export interface Decision {
   decisionId: string;
   tenantId: string;
+  trigger: string;
   status: string;
-  rationale: string | null;
-  proposedActions: ProposedAction[];
-  complianceStatus: string | null;
+  explanation: string;
+  proposedTrades: ProposedTrade[];
+  confirmationRequired: boolean;
   confirmedAt: string | null;
-  confirmedBy: string | null;
   rejectedAt: string | null;
   rejectionReason: string | null;
-  rejectedBy: string | null;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -38,17 +37,20 @@ export interface AgentInvocation {
   invocationId: string;
   decisionId: string;
   agentName: string;
-  tier: string;
-  input: string | null;
-  output: string | null;
-  durationMs: number;
+  modelId: string;
+  inputTokens: number;
+  outputTokens: number;
+  latencyMs: number;
   status: string;
-  invokedAt: string;
+  errorMessage: string | null;
+  startedAt: string;
+  completedAt: string | null;
 }
 
 export interface ComplianceCheck {
   checkId: string;
   decisionId: string;
+  level: string;
   ruleName: string;
   result: string;
   details: string | null;
@@ -78,9 +80,9 @@ export const AdvisoryStore = signalStore(
     headline: computed(() => {
       const d = store.decision();
       if (!d) return '';
-      const action = d.proposedActions[0];
-      if (!action) return d.rationale ?? '';
-      return `${action.side} ${action.symbol}`;
+      const trade = d.proposedTrades[0];
+      if (!trade) return d.explanation ?? '';
+      return `${trade.side} ${trade.symbol}`;
     }),
     statusSeverity: computed(() => {
       const status = store.decision()?.status;
@@ -110,12 +112,12 @@ export const AdvisoryStore = signalStore(
       if (checks.length === 0) return null;
       return checks.every((c) => c.result === 'PASSED');
     }),
-    totalDurationMs: computed(() => {
-      return store.agentInvocations().reduce((sum, inv) => sum + inv.durationMs, 0);
+    totalLatencyMs: computed(() => {
+      return store.agentInvocations().reduce((sum, inv) => sum + inv.latencyMs, 0);
     }),
     modelVersions: computed(() => {
       const invocations = store.agentInvocations();
-      const unique = new Set(invocations.map((i) => i.tier));
+      const unique = new Set(invocations.map((i) => i.modelId));
       return [...unique];
     }),
     canAct: computed(() => {

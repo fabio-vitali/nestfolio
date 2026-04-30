@@ -132,6 +132,12 @@
     "explanation": "Spiegazione",
     "proposedTrades": "Operazioni Proposte",
     "compliance": "Compliance",
+    "list": {
+      "title": "Decisioni in Attesa",
+      "emptyTitle": "Nessuna decisione in attesa",
+      "emptyHint": "Le nuove raccomandazioni della consulenza appariranno qui.",
+      "errorTitle": "Impossibile caricare le decisioni"
+    },
     "detail": {
       "trades": "Operazioni Proposte",
       "tradeSymbol": "Simbolo",
