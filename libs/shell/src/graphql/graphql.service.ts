@@ -100,10 +100,41 @@ export class GraphqlService implements OnDestroy {
       domain: this.domain,
       appsyncGraphqlUrl: this.appsyncGraphqlUrl,
       region: this.authConfig.region,
-      jwtTokenProvider: async () =>
-        (await fetchAuthSession()).tokens?.idToken?.toString() ?? '',
+      jwtTokenProvider: () => this.resolveJwtToken(),
       onAuthFailure: () => { void this.handleAuthFailure(); },
     });
+  }
+
+  /**
+   * Returns a Cognito ID token for outgoing AppSync calls.
+   *
+   * Under Amplify v6's implicit-grant OAuth flow, `fetchAuthSession()` throws
+   * `TokenRefreshException` whenever it decides to attempt a refresh (the
+   * implicit flow has no refresh token). The throw propagates through
+   * `aws-appsync-subscription-link`'s `_awsRealTimeHeaderBasedAuth`, which
+   * silently rejects the WS handshake — Apollo's `errorLink` only handles
+   * `CombinedGraphQLErrors`/`ServerError`, so the rejection is swallowed and
+   * the subscription Observable never fires `next` or `error`. The result is
+   * a totally silent failure: zero WS frames, zero console errors, zero
+   * `apollo next` events. See `docs/superpowers/specs/2026-04-29-wss-subscription-transport.md` §9.
+   *
+   * Fallback reads the cached idToken directly from the same localStorage
+   * keys Amplify writes (and the e2e fixture seeds; see
+   * `apps/nestfolio-e2e/src/fixtures/seed-amplify-tokens.ts`).
+   */
+  private async resolveJwtToken(): Promise<string> {
+    try {
+      const session = await fetchAuthSession();
+      return session.tokens?.idToken?.toString() ?? '';
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[GraphqlService] fetchAuthSession threw — falling back to cached idToken in localStorage', err);
+      const clientId = this.authConfig.clientId;
+      const prefix = `CognitoIdentityServiceProvider.${clientId}`;
+      const lastUser = localStorage.getItem(`${prefix}.LastAuthUser`);
+      if (!lastUser) return '';
+      return localStorage.getItem(`${prefix}.${lastUser}.idToken`) ?? '';
+    }
   }
 
   /**

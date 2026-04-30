@@ -60,11 +60,24 @@ jest.mock('@apollo/client/core', () => ({
     typeof s === 'string' ? s : (s.raw ? s.raw.join('') : String(s)),
 }));
 
+const mockFetchAuthSession = jest.fn().mockResolvedValue({
+  tokens: { idToken: { toString: () => 'mock-jwt-token' } },
+});
 jest.mock('aws-amplify/auth', () => ({
-  fetchAuthSession: jest.fn().mockResolvedValue({
-    tokens: { idToken: { toString: () => 'mock-jwt-token' } },
-  }),
+  fetchAuthSession: (...args: unknown[]) => mockFetchAuthSession(...args),
 }));
+
+// Minimal localStorage shim — the @jest-environment node directive means there
+// is no DOM. The fallback path in resolveJwtToken() reads cached Amplify tokens
+// from localStorage when fetchAuthSession() throws (implicit-grant flow).
+const localStorageStore: Record<string, string> = {};
+const mockLocalStorage = {
+  getItem: jest.fn((k: string) => localStorageStore[k] ?? null),
+  setItem: jest.fn((k: string, v: string) => { localStorageStore[k] = v; }),
+  removeItem: jest.fn((k: string) => { delete localStorageStore[k]; }),
+  clear: jest.fn(() => { for (const k of Object.keys(localStorageStore)) delete localStorageStore[k]; }),
+};
+Object.defineProperty(globalThis, 'localStorage', { value: mockLocalStorage, writable: true });
 
 jest.mock('../../src/auth', () => ({
   AuthConfig: class AuthConfig {},
@@ -84,6 +97,11 @@ describe('GraphqlService', () => {
     jest.clearAllMocks();
     mockApolloInstances.length = 0;
     capturedOnAuthFailure = undefined;
+    mockFetchAuthSession.mockResolvedValue({
+      tokens: { idToken: { toString: () => 'mock-jwt-token' } },
+    });
+    mockLocalStorage.getItem.mockImplementation((k: string) => localStorageStore[k] ?? null);
+    for (const k of Object.keys(localStorageStore)) delete localStorageStore[k];
     service = new GraphqlService();
   });
 
@@ -107,6 +125,32 @@ describe('GraphqlService', () => {
       const opts = mockCreateApolloClient.mock.calls[0][0];
       const token = await opts.jwtTokenProvider();
       expect(token).toBe('mock-jwt-token');
+    });
+
+    it('falls back to localStorage idToken when fetchAuthSession throws (implicit-grant TokenRefreshException)', async () => {
+      mockFetchAuthSession.mockRejectedValueOnce(
+        Object.assign(new Error('Token refresh is not supported when authenticated with the implicit grant'), {
+          name: 'TokenRefreshException',
+        }),
+      );
+      mockLocalStorage.getItem.mockImplementation((k: string) => {
+        if (k === 'CognitoIdentityServiceProvider.client.LastAuthUser') return 'alice';
+        if (k === 'CognitoIdentityServiceProvider.client.alice.idToken') return 'cached-jwt-token';
+        return null;
+      });
+      const opts = mockCreateApolloClient.mock.calls[0][0];
+      const token = await opts.jwtTokenProvider();
+      expect(token).toBe('cached-jwt-token');
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('CognitoIdentityServiceProvider.client.LastAuthUser');
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('CognitoIdentityServiceProvider.client.alice.idToken');
+    });
+
+    it('returns empty string when fetchAuthSession throws AND no cached user in localStorage', async () => {
+      mockFetchAuthSession.mockRejectedValueOnce(new Error('boom'));
+      mockLocalStorage.getItem.mockReturnValue(null);
+      const opts = mockCreateApolloClient.mock.calls[0][0];
+      const token = await opts.jwtTokenProvider();
+      expect(token).toBe('');
     });
   });
 
