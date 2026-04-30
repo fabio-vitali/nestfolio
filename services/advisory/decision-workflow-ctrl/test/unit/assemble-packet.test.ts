@@ -56,21 +56,90 @@ describe('assemble-packet handler', () => {
     mockCreateDecisionPacket.mockResolvedValue(true);
   });
 
-  it('writes DecisionPacket row before reading agent outputs', async () => {
-    mockReadUpstream.mockResolvedValue([]);
+  it('reads agent outputs before creating DecisionPacket row, so explanation lands in the CDC INSERT event', async () => {
+    const callOrder: string[] = [];
+    mockReadUpstream.mockImplementation(async () => {
+      callOrder.push('readUpstream');
+      return [];
+    });
+    mockCreateDecisionPacket.mockImplementation(async () => {
+      callOrder.push('createDecisionPacket');
+      return true;
+    });
 
     await handler(baseEvent);
 
+    expect(callOrder.indexOf('readUpstream')).toBeLessThan(
+      callOrder.indexOf('createDecisionPacket'),
+    );
     expect(mockCreateDecisionPacket).toHaveBeenCalledTimes(1);
     expect(mockCreateDecisionPacket).toHaveBeenCalledWith(
-      {
+      expect.objectContaining({
         decisionId: 'dec-1',
         trigger: 'DEPOSIT_DETECTED',
         triggerEventId: 'dec-1',
         executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
-      },
+      }),
       { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' },
     );
+  });
+
+  it('persists narrative.rationale onto the DecisionPacket as explanation (regression: empty .rationale broke e2e step 10)', async () => {
+    mockReadUpstream.mockImplementation((svc: string) => {
+      if (svc === 'advisory-narrative') {
+        return Promise.resolve([
+          {
+            content: JSON.stringify({
+              summary: 'short framing',
+              rationale: 'detailed reasoning behind the recommendation',
+              keyFactors: ['factor-1'],
+            }),
+            score: 1,
+            memoryRecordId: 'r-narr',
+          },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+
+    await handler(baseEvent);
+
+    expect(mockCreateDecisionPacket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        explanation: 'detailed reasoning behind the recommendation',
+        proposedTrades: [],
+        confirmationRequired: true,
+      }),
+      expect.anything(),
+    );
+  });
+
+  it('falls back to narrative.summary when rationale is missing', async () => {
+    mockReadUpstream.mockImplementation((svc: string) =>
+      svc === 'advisory-narrative'
+        ? Promise.resolve([
+            { content: JSON.stringify({ summary: 'fallback summary' }), score: 1, memoryRecordId: 'r-s' },
+          ])
+        : Promise.resolve([]),
+    );
+
+    await handler(baseEvent);
+
+    expect(mockCreateDecisionPacket).toHaveBeenCalledWith(
+      expect.objectContaining({ explanation: 'fallback summary' }),
+      expect.anything(),
+    );
+  });
+
+  it('persists a non-empty placeholder explanation when narrative output is missing (covers Memory namespace mismatch)', async () => {
+    mockReadUpstream.mockResolvedValue([]);
+
+    await handler(baseEvent);
+
+    const call = mockCreateDecisionPacket.mock.calls[0][0];
+    expect(typeof call.explanation).toBe('string');
+    expect(call.explanation.length).toBeGreaterThan(10);
+    expect(call.explanation).toMatch(/DEPOSIT_DETECTED/);
   });
 
   it('reads all 4 upstream outputs from Memory', async () => {

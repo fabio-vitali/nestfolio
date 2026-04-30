@@ -94,7 +94,7 @@ describe('DecisionPacketRepository', () => {
   });
 
   describe('createDecisionPacket', () => {
-    it('should create a DecisionPacket with status INITIATED', async () => {
+    it('should create a DecisionPacket with status INITIATED and persist content fields', async () => {
       mockSend.mockResolvedValueOnce({});
 
       const created = await repo.createDecisionPacket({
@@ -102,6 +102,9 @@ describe('DecisionPacketRepository', () => {
         trigger: 'MANDATE_CREATED',
         triggerEventId: 'evt-1',
         executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
+        explanation: 'detailed reasoning',
+        proposedTrades: [{ symbol: 'AAPL' }],
+        confirmationRequired: true,
       }, TEST_CTX as any);
 
       expect(created).toBe(true);
@@ -119,6 +122,9 @@ describe('DecisionPacketRepository', () => {
         trigger: 'MANDATE_CREATED',
         triggerEventId: 'evt-1',
         executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
+        explanation: 'detailed reasoning',
+        proposedTrades: [{ symbol: 'AAPL' }],
+        confirmationRequired: true,
       });
     });
 
@@ -132,6 +138,9 @@ describe('DecisionPacketRepository', () => {
         trigger: 'MANDATE_CREATED',
         triggerEventId: 'evt-dup',
         executionArn: null,
+        explanation: '',
+        proposedTrades: [],
+        confirmationRequired: true,
       }, TEST_CTX as any);
       expect(created).toBe(false);
     });

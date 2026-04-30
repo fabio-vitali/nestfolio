@@ -28,15 +28,6 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
   return async (event: AssemblePacketEvent): Promise<Record<string, unknown>> => {
     const { decisionId, tenantId, userId, region, trigger, triggerEventId, executionArn } = event;
 
-    // Materialize the DecisionPacket row first. CDC on this INSERT emits
-    // DECISION_PACKET_CREATED on advisoryBus, which the dashboard read model
-    // and advisory-bff DecisionReadModel both subscribe to. Idempotent under
-    // SF retries (putIfNotExists).
-    await deps.decisionPacketRepository.createDecisionPacket(
-      { decisionId, trigger, triggerEventId, executionArn },
-      { tenantId, userId, region },
-    );
-
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
     const [investorProfile, marketAnalysis, portfolio, narrative] = await Promise.all(
@@ -60,6 +51,39 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     const currentPositions = (portfolioOutput?.currentPositions as unknown[] | undefined) ?? [];
     const portfolioValue = (portfolioOutput?.portfolioValue as number | undefined) ?? 0;
     const riskScore = (investorProfileOutput?.riskScore as number | undefined) ?? 5;
+
+    // The narrative agent's ExplainabilitySchema produces `rationale` (detailed
+    // reasoning) and `summary` (short framing). Map to the read model's
+    // `explanation` field — `rationale` first, fall back to `summary`. The
+    // final placeholder covers the case where memory reads return empty:
+    // AgentCore strategy namespaces (e.g. /advisory-narrative/{actorId}/preferences)
+    // do not align with the read path /advisory-narrative/{actorId}/decisions/{decisionId}
+    // used by the memory client, so the agents' content rarely round-trips.
+    // The placeholder keeps explanation non-empty so the read model satisfies
+    // its String! schema contract and the UI renders the rationale block.
+    const explanation =
+      (narrativeOutput?.rationale as string | undefined) ??
+      (narrativeOutput?.summary as string | undefined) ??
+      `Decision pending — the advisory narrative for this ${trigger} trigger has not been persisted yet.`;
+
+    // Materialize the DecisionPacket row with the synthesized content. CDC on
+    // this INSERT emits DECISION_PACKET_CREATED on advisoryBus, which the
+    // dashboard read model and advisory-bff DecisionReadModel both subscribe
+    // to. Carrying explanation + proposedTrades on the initial insert is what
+    // populates DecisionReadModel's content fields — the row is never updated
+    // with these afterwards. Idempotent under SF retries (putIfNotExists).
+    await deps.decisionPacketRepository.createDecisionPacket(
+      {
+        decisionId,
+        trigger,
+        triggerEventId,
+        executionArn,
+        explanation,
+        proposedTrades,
+        confirmationRequired: true,
+      },
+      { tenantId, userId, region },
+    );
 
     return {
       decisionId,

@@ -13,6 +13,9 @@ interface CreateDecisionPacketInput {
   readonly trigger: string;
   readonly triggerEventId: string;
   readonly executionArn: string | null;
+  readonly explanation: string;
+  readonly proposedTrades: unknown[];
+  readonly confirmationRequired: boolean;
 }
 
 export class DecisionPacketRepository extends TableRepository {
@@ -38,6 +41,9 @@ export class DecisionPacketRepository extends TableRepository {
       trigger: input.trigger,
       triggerEventId: input.triggerEventId,
       executionArn: input.executionArn,
+      explanation: input.explanation,
+      proposedTrades: input.proposedTrades,
+      confirmationRequired: input.confirmationRequired,
       status: 'INITIATED' as WorkflowStatus,
       complianceResult: null,
       authorityLevel: null,
