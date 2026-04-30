@@ -22,17 +22,40 @@ export class DashboardPage {
    *   "<i18n: advisory.pendingDecisions>: <N>"
    * Match the trailing integer regardless of the localised label.
    *
-   * Verifies the live-update path: dashboard-bff emits onDashboardUpdate via
-   * an IAM-signed publishDashboardUpdate mutation after each AdvisoryStatus
-   * write; the dashboard MFE subscribes and patches the store. The page is
-   * NOT reloaded — that would mask a missing subscription.
+   * NOTE: this passes when EITHER the initial getDashboard query OR a WSS
+   * frame populates the count. To explicitly verify the WSS live-update
+   * path (no page reload), use waitForPendingDecisionsExactly after
+   * injecting a sentinel value via injectAdvisoryUpdate.
    */
   async waitForPendingDecisionsAtLeast(n: number, timeout = 180_000): Promise<void> {
     await expect(async () => {
-      const text = await this.page.locator('.alert-text').innerText();
-      const match = /(\d+)\s*$/.exec(text);
-      const count = match ? parseInt(match[1], 10) : 0;
+      const count = await this.getCurrentPendingDecisions();
       expect(count).toBeGreaterThanOrEqual(n);
     }).toPass({ timeout, intervals: [1000, 2000, 5000] });
+  }
+
+  /**
+   * Read the AdvisoryAlertBar counter value right now. Throws if .alert-text
+   * is not present in the DOM (alert-bar is gated by hasAdvisoryAlerts() so
+   * absence indicates count == 0 in the store).
+   */
+  async getCurrentPendingDecisions(): Promise<number> {
+    const text = await this.page.locator('.alert-text').innerText();
+    const match = /(\d+)\s*$/.exec(text);
+    return match ? parseInt(match[1], 10) : 0;
+  }
+
+  /**
+   * Wait for the pending-decisions counter to reach EXACTLY n. Used to
+   * verify the WSS live-update path: inject a sentinel value (one the
+   * pipeline never produces) via SigV4 against publishDashboardUpdate;
+   * if WSS works, the dashboard's subscription delivers the broadcast and
+   * the store updates without a page reload.
+   */
+  async waitForPendingDecisionsExactly(n: number, timeout = 30_000): Promise<void> {
+    await expect(async () => {
+      const count = await this.getCurrentPendingDecisions();
+      expect(count).toBe(n);
+    }).toPass({ timeout, intervals: [500, 1000, 2000] });
   }
 }

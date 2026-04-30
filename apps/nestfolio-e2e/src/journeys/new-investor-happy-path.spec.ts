@@ -5,6 +5,7 @@ import { DashboardPage } from '../pages/dashboard.page';
 import { InvestorPage } from '../pages/investor.page';
 import { AdvisoryPage } from '../pages/advisory.page';
 import { HostPage } from '../pages/host.page';
+import { injectAdvisoryUpdate } from '../fixtures/inject-advisory-update';
 // Spike 1.3 concluded `initiateDeposit` defaults to ENABLED when no flag row
 // exists, so Phase 4 Task 4.2 was skipped. The import below stays commented;
 // uncomment only if a future regression flips that default to disabled.
@@ -130,10 +131,23 @@ test('new-investor-happy-path: onboarding → deposit → decision → logout', 
     await investor.waitForDetected();
   });
 
-  // Step 8 — pending-decisions counter advances on the dashboard.
-  await test.step('decision pipeline triggers', async () => {
+  // Step 8 — pending-decisions counter advances on the dashboard, AND a
+  //          subsequent IAM-signed publishDashboardUpdate broadcast reaches
+  //          the live subscription without a page reload (WSS path proof).
+  await test.step('decision pipeline triggers + WSS live-update verified', async () => {
     await authedPage.goto('/dashboard');
+    await dashboard.waitForLoaded();
+    // Pipeline write reaches the dashboard via either getDashboard query or
+    // a WSS frame — accept whichever; baseline is the current displayed count.
     await dashboard.waitForPendingDecisionsAtLeast(1, 180_000);
+    const baseline = await dashboard.getCurrentPendingDecisions();
+
+    // Inject a sentinel value the pipeline never produces. The dashboard is
+    // mounted with an active subscription; the only way `.alert-text` updates
+    // to this value (no reload) is via the onDashboardUpdate WSS broadcast.
+    const sentinel = baseline + 100;
+    await injectAdvisoryUpdate(ctx, tenant.tenantId, sentinel);
+    await dashboard.waitForPendingDecisionsExactly(sentinel, 30_000);
   });
 
   // Step 9-10 — read rationale; accept decision.
