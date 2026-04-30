@@ -22,6 +22,15 @@
 
 <!-- nx configuration end-->
 
+## Canonical Architecture References
+
+Before any architecturally non-trivial change, read:
+
+- `docs/architecture/SYSTEM-ARCHITECTURE.md` — domains, agent topology, decision lifecycle, event taxonomy, AgentCore Memory contract, idempotency, circuit breakers, frontend topology
+- `docs/architecture/SERVICE-INVENTORY.md` — per-service responsibility, events published/consumed, AI agents, current health (canonical / transitional / legacy / dormant)
+
+These supersede `specifications/02-system-design.md` (kept as a high-level summary) for service-level reasoning. Per-service `CLAUDE.md` cards remain authoritative for current code state per service.
+
 ## System Model
 
 - Monorepo: 4 DDD domains (Investor, Advisory, Execution, Ledger)
