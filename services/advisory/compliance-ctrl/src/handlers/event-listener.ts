@@ -2,7 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { materializeToTable, skip, record, project, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
-import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
+import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
 
 // Subject field carrying the SF taskToken across the compliance hop. Persisted
@@ -199,7 +199,7 @@ export const createHandlers = (deps: EventListenerDeps) => {
   // RECOMMENDATION_PROPOSED is emitted by decision-workflow-ctrl SF's
   // WaitForCompliance state with the taskToken, packet data, and an
   // awaitingCompliance=true flag. We are the sole consumer.
-  handlers[AdvisoryCtrlEventTypes.RECOMMENDATION_PROPOSED] = (payload, ctx) =>
+  handlers[DecisionWorkflowEventTypes.RECOMMENDATION_PROPOSED] = (payload, ctx) =>
     processDecisionPacket(deps, payload, ctx);
 
   // Mandate events
