@@ -44,7 +44,7 @@ describe('decisionPacketCreated transform', () => {
     );
   });
 
-  it('should skip events with empty explanation AND empty trades (advisory-ctrl emits these before its agent pipeline runs)', () => {
+  it('should skip events with empty explanation AND empty trades (defence-in-depth against degraded-path producers)', () => {
     const uow = {
       event: {
         id: 'e2',

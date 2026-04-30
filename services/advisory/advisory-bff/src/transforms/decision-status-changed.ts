@@ -29,12 +29,11 @@ export const decisionStatusChanged = (
   if (uow.event.subject.taskToken) {
     fields.taskToken = uow.event.subject.taskToken;
   }
-  // advisory-ctrl emits DECISION_PACKET_UPDATED with the assembled explanation
-  // and proposedTrades on subject after its agent pipeline completes. The CREATE
-  // event that preceded this UPDATE landed an empty row (advisory-ctrl writes
-  // an empty packet first, then updates with content). Copy these fields when
-  // present so the read model carries the agent-produced narrative the UI's
-  // .rationale element renders.
+  // Copy explanation and proposedTrades from the subject when present.
+  // Post-Spec-2, AssemblePacket lands the CREATE event with these fields
+  // already populated and DECISION_PACKET_UPDATED rarely carries them again.
+  // Preserved as a no-op safety net: if a future producer emits an UPDATE with
+  // newly-synthesized content, the read model picks it up without code change.
   if (typeof uow.event.subject.explanation === 'string') {
     fields.explanation = uow.event.subject.explanation;
   }

@@ -9,7 +9,7 @@ module.exports = {
     '^@nestfolio/event-types$': '<rootDir>/../../../libs/event-types/src/index.ts',
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
-    '^@nestfolio/advisory-ctrl/events$': '<rootDir>/../../advisory/advisory-ctrl/src/domain/events.ts',
+    '^@nestfolio/decision-workflow-ctrl/events$': '<rootDir>/../../advisory/decision-workflow-ctrl/src/domain/events.ts',
     '^@nestfolio/compliance-ctrl/events$': '<rootDir>/../../advisory/compliance-ctrl/src/domain/events.ts',
   },
   transform: {

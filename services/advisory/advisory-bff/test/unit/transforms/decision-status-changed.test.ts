@@ -70,7 +70,7 @@ describe('decisionStatusChanged transform', () => {
     expect(decisionStatusChanged(makeUow('UNKNOWN_EVENT') as any)).toBeUndefined();
   });
 
-  it('should copy explanation + proposedTrades from DECISION_PACKET_UPDATED subject (advisory-ctrl agent pipeline output)', () => {
+  it('should copy explanation + proposedTrades from DECISION_PACKET_UPDATED subject (post-Spec-2 safety net for late-arriving content)', () => {
     const explanation = 'detailed reasoning behind the recommendation';
     const proposedTrades = [{ symbol: 'AAPL', side: 'BUY' }];
     const result = decisionStatusChanged(

@@ -10,14 +10,12 @@ type DecisionPacketCreatedPayload = {
   confirmationRequired: boolean;
 };
 
-// Two services emit DECISION_PACKET_CREATED for the same decision: advisory-ctrl
-// writes an empty packet first (its sync agent pipeline regularly hits the 30s
-// Lambda timeout before the follow-up update with explanation can fire), and
-// decision-workflow-ctrl's AssemblePacket lands a packet with the synthesized
-// explanation seconds later. `record()` is putIfNotExists, so whichever event
-// arrives first wins — and the empty advisory-ctrl event arrives first because
-// its DDB write is synchronous on the trigger. Skip events that carry no
-// explanation so the populated event from the other source creates the row.
+// Defence-in-depth: skip DECISION_PACKET_CREATED events that carry neither
+// explanation nor proposed trades. Post-Spec-2 the sole emitter is
+// decision-workflow-ctrl's AssemblePacket (assemble-packet.ts:75-86), which
+// always lands the row populated, so this skip should never fire in practice.
+// Keeping it cheap protects against degraded paths (e.g. AgentCore returning
+// empty narrative output) producing an empty read-model row.
 export const decisionPacketCreated = (
   uow: UnitOfWork<BusEvent<DecisionPacketCreatedPayload>>,
 ): WriteIntent | undefined => {

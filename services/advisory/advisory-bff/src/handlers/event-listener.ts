@@ -1,20 +1,20 @@
 import { materializeToTable, toUow } from '@nestfolio/event-processor';
-import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';
+import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
 import { decisionPacketCreated } from '../transforms/decision-packet-created';
 import { decisionStatusChanged } from '../transforms/decision-status-changed';
 
 export function createHandlers() {
   return {
-    [AdvisoryCtrlEventTypes.DECISION_PACKET_CREATED]: (payload: any, ctx: any) =>
+    [DecisionWorkflowEventTypes.DECISION_PACKET_CREATED]: (payload: any, ctx: any) =>
       decisionPacketCreated(toUow(payload, ctx) as any),
-    [AdvisoryCtrlEventTypes.DECISION_PACKET_UPDATED]: (payload: any, ctx: any) =>
+    [DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED]: (payload: any, ctx: any) =>
       decisionStatusChanged(toUow(payload, ctx) as any),
     [ComplianceEventTypes.DECISION_APPROVED]: (payload: any, ctx: any) =>
       decisionStatusChanged(toUow(payload, ctx) as any),
     [ComplianceEventTypes.DECISION_BLOCKED]: (payload: any, ctx: any) =>
       decisionStatusChanged(toUow(payload, ctx) as any),
-    [AdvisoryCtrlEventTypes.USER_CONFIRMATION_REQUESTED]: (payload: any, ctx: any) =>
+    [DecisionWorkflowEventTypes.USER_CONFIRMATION_REQUESTED]: (payload: any, ctx: any) =>
       decisionStatusChanged(toUow(payload, ctx) as any),
   };
 }
