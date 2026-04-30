@@ -1,1674 +1,580 @@
-> **Status: RECOVERY IN PROGRESS — content is the verbatim 2026-03-01 baseline (commit `eac934d5`). Phase B of the implementation plan reconciles every section to current code. Until reconciliation lands, treat this file as historical context, not as a current reference.**
+# Nestfolio — System Architecture
 
-# Nestfolio — Volume 2: System Architecture
+## 1. Purpose, Audience, How to Read
 
-## 1. Purpose of this Document
-This document evolves the Nestfolio product vision into an actionable system plan. It will define architecture, agents, data flows, compliance boundaries, and operational behaviors.
+**Purpose.** This document is the canonical architectural reference for the Nestfolio system. It explains, for each domain and major subsystem, *why* the code is shaped the way it is — bounded contexts, agent topology, decision lifecycle, event taxonomy, idempotency, projections, AgentCore Memory contract, and the architectural evolution that produced the current shape.
 
-This is a living document and will be iteratively refined.
+**Audience.** Future Claude sessions and human engineers making non-trivial architectural changes. For per-service current state, read the service's `CLAUDE.md` card. For workflow-level traversal, read `flows/*.flow.yaml`. For visual topology, see `docs/architecture/c3/`. This document supersedes none of those — it sits beside them as the cross-cutting reference.
+
+**How to read.** Sections 2–5 are foundational. §6–§17 cover the decision pipeline end-to-end. §18–§20 cover cross-cutting concerns (routing, KBs, frontend). §21 captures known open questions. §22–§24 are reference material.
+
+**Companion document:** `docs/architecture/SERVICE-INVENTORY.md` (per-service inventory).
+
+**Maintenance.** Updates land via spec → plan → implementation. See §24. Last whole-document review: **2026-04-30**.
+
+---
+
+## Table of Contents
+
+1. [Purpose, Audience, How to Read](#1-purpose-audience-how-to-read)
+2. [Product Summary](#2-product-summary)
+3. [System Goals](#3-system-goals)
+4. [High-Level System Domains](#4-high-level-system-domains)
+5. [Core Architectural Principles](#5-core-architectural-principles)
+6. [Decision Authority Model (L1 / L2)](#6-decision-authority-model-l1--l2)
+7. [Agent Topology](#7-agent-topology)
+   - 7.1 [Architectural Evolution — 6→4 advisory agent decomposition](#71-architectural-evolution--64-advisory-agent-decomposition)
+8. [Compliance Boundary](#8-compliance-boundary)
+9. [Event Sourcing & Event Taxonomy](#9-event-sourcing--event-taxonomy)
+10. [Decision Packet](#10-decision-packet)
+    - 10.1 [Architectural Evolution — Dual `DECISION_PACKET_CREATED` emitters](#101-architectural-evolution--dual-decision_packet_created-emitters)
+11. [Idempotency & Safety Rules](#11-idempotency--safety-rules)
+12. [Projections (Read Models)](#12-projections-read-models)
+13. [Decision Lifecycle (End-to-End)](#13-decision-lifecycle-end-to-end)
+14. [Operating Modes & Guardrails](#14-operating-modes--guardrails)
+15. [Portfolio Truth & Reconciliation](#15-portfolio-truth--reconciliation)
+16. [Circuit Breakers](#16-circuit-breakers)
+17. [AgentCore Memory Contract](#17-agentcore-memory-contract)
+    - 17.1 [Architectural Evolution — Current implementation diverges from contract](#171-architectural-evolution--current-implementation-diverges-from-contract)
+18. [Cross-Domain Routing](#18-cross-domain-routing)
+19. [Knowledge Bases](#19-knowledge-bases)
+20. [Frontend Topology](#20-frontend-topology)
+21. [Open Questions](#21-open-questions)
+22. [Glossary](#22-glossary)
+23. [Related Documents](#23-related-documents)
+24. [Maintenance](#24-maintenance)
 
 ---
 
 ## 2. Product Summary
-Nestfolio is an AI‑managed investment platform that acts as a digital financial coach for novice investors.
 
-Core promise:
-- Users express goals conversationally
-- AI manages portfolios automatically
-- Trades are executed via Interactive Brokers (IBKR)
-- Users receive simple explanations and actionable guidance
+Nestfolio is an AI-augmented investment advisory platform. Each investor onboards through a conversational wizard that produces a **mandate** (goals, risk profile, constraints) and an **operating mode** (Conservative / Balanced / Aggressive). The system runs a recurring decision cycle that proposes portfolio adjustments, gates them through a deterministic compliance check, and — for low-authority decisions — executes them via a paper-broker (SIM) or live broker (LIVE) account. High-authority decisions require explicit user confirmation.
+
+The product framing is documented in `specifications/01-product-vision.md`.
 
 ---
 
 ## 3. System Goals
-- Fully automated portfolio lifecycle
-- Trust-first user experience
-- Explainable AI decisions
-- Regulatory auditability
-- Localization-first architecture
-- Scalable multi-agent backend
+
+1. **Trust** — every recommendation is auditable end-to-end via the immutable Decision Packet (§10).
+2. **Safety** — the compliance gate (§8) enforces mandate + operating-mode guardrails before any execution.
+3. **Auditability** — event-sourced state (§9), single-writer per stream, idempotent handlers (§11).
+4. **Cost discipline** — Lambda profiles, ARM64 AgentCore Runtimes, per-tenant budget caps; the agent runtime pipeline supports Sonnet → Haiku reasoning-tier downgrade under cost pressure.
+5. **Operational resilience** — circuit breakers (§16), reconciliation cadence (§15), at-most-once Step Functions task-token semantics.
 
 ---
 
 ## 4. High-Level System Domains
 
-### 4.1 User Experience Domain
-Handles all user-facing interactions:
-- Conversational onboarding
-- Dashboard
-- Recommendations
-- Explainability views
-- Notifications
+The system decomposes into **four bounded contexts**, each owning an EventBridge bus and a set of services. Inter-domain communication is exclusively via cross-domain adapters (`*-adpt`) using the pull model (§18).
 
-### 4.2 AI Advisory Domain
-Responsible for investment reasoning:
-- Goal interpretation
-- Risk profiling
-- Portfolio strategy
-- Rebalancing decisions
-- Recommendation generation
+| Domain | EventBridge Bus | Owned bounded context |
+|---|---|---|
+| **Investor** | `investor-bus` | Investor identity, profile, mandate, onboarding wizard, dashboard projections, cross-cutting notifications |
+| **Advisory** | `advisory-bus` | Decision lifecycle (trigger → recommendation), AI agent execution, compliance gating, control plane (incidents, budgets, model lifecycle) |
+| **Execution** | `execution-bus` | Order routing, broker abstraction (SIM + Alpaca), execution state machine, circuit-breaker enforcement |
+| **Ledger** | `ledger-bus` | Position truth (intent vs settlement), reconciliation, corporate actions, drift detection |
 
-### 4.3 Execution Domain
-Responsible for real-world actions:
-- Order generation
-- IBKR integration
-- Trade execution
-- Position synchronization
+Verified on 2026-04-30 by `ls services/` → `advisory  execution  investor  ledger`.
 
-### 4.4 Compliance & Trust Domain
-Ensures regulatory alignment:
-- Decision audit trails
-- Model explainability
-- Activity logging
-- User consent tracking
+### 4.1 Architectural Evolution — 5→4 domains
 
-### 4.5 Platform Infrastructure Domain
-Underlying technical capabilities:
-- Identity & authentication
-- Data storage
-- Event processing
-- Agent orchestration
-- Localization services
+The 2026-03-01 baseline named **five domains**: Investor, Advisory, Execution, Platform Infrastructure, and a not-yet-named persistence concern that later became Ledger. Current code:
+
+- **Platform Infrastructure** responsibilities folded into shared libraries — observability into `libs/cdk-constructs/src/observability/`, IAM into per-service stacks. No standalone domain remains.
+- **Ledger** emerged as a first-class domain when reconciliation became a core concern, per `docs/superpowers/specs/2026-03-26-real-money-operations-design.md`. The domain owns position truth and corporate-actions handling separately from execution intent.
 
 ---
 
 ## 5. Core Architectural Principles
-- Event-driven system
-- Agent-based orchestration
-- Human-readable decision layer
-- Separation of advice vs execution
-- Deterministic audit replay
+
+1. **Event-only inter-domain communication.** Services never call each other via API; they communicate exclusively via EventBridge events. Cross-domain delivery routes through `*-adpt` adapters (§18). This is enforced as a project hard-rule (`CLAUDE.md` → "Hard Constraints"; user-memory `feedback_no_api_between_services.md`).
+
+2. **Single-writer per DDB row.** Each stream of state has exactly one writer service; projections are read-only consumers. Race conditions are prevented at the source rather than reconciled downstream. See §11.
+
+3. **6-construct CDK pattern.** Every service stack composes from a fixed catalogue of constructs, each consumer-instantiated and explicitly wired via props. Cite: `libs/cdk-constructs/src/core/` (`state.ts`, `ingress.ts`, `egress.ts`, `facade.ts`, `orchestration.ts`) and `libs/cdk-constructs/src/extensions/agent-runtime.ts`.
+
+   | Construct | Purpose |
+   |---|---|
+   | `State` | DDB tables + GSIs + S3 buckets + KB vector buckets |
+   | `Ingress` | EventBridge Rules + SQS queues + Lambda handlers (event-processor pipelines) |
+   | `Egress` | DDB-stream → declarative event-typing → EventBridge emission |
+   | `Facade` | AppSync GraphQL API + Cognito + IAM (BFFs) |
+   | `Orchestration` | Step Functions state machines |
+   | `AgentRuntime` (extension) | Bedrock AgentCore Runtime + ECR image + observability |
+
+4. **Deterministic orchestration + governed agents.** The "thinking parts" are governed AI agents (LangGraph + Bedrock Claude); the "doing parts" are deterministic Step Functions state machines that fan out to agents and reduce their outputs. Compliance is rule-based (§8), not LLM-based.
+
+5. **Dual-truth model.** Intent state (recommendations, orders) lives in Advisory + Execution. Settlement state (positions, cash) lives in Ledger. The two are reconciled continuously (§15).
 
 ---
 
-## 6. Open Questions (Iteration 1)
-- What is the primary architectural style for agents? (central orchestrator vs autonomous agents)
-- What level of autonomy can agents have before compliance approval?
-- Where does explainability live: generated on demand or stored with decisions?
-- Real-time vs batch portfolio management cadence?
-- What is the MVP regulatory scope (advice vs discretionary management)?
+## 6. Decision Authority Model (L1 / L2)
+
+Decisions carry an **authority level** that determines whether the system can act autonomously or requires explicit user confirmation:
+
+- **L1 (autonomous within mandate).** Small drift rebalances, scheduled DCAs (Dollar-Cost-Averaging contributions), routine compliance-pass adjustments. The system executes without user prompting; the user is notified after the fact.
+- **L2 (requires confirmation).** Large allocation shifts beyond a per-mandate threshold, mode changes, withdrawals/deposits, account closure. The system stages the proposal; the user must confirm via the mobile/web client.
+
+The L1/L2 split is encoded at decision-packet creation time and routed through `compliance-ctrl` (§8), which is the gate that converts an `RECOMMENDATION_PROPOSED` into either `RECOMMENDATION_APPROVED` (auto-execute), `RECOMMENDATION_AWAITING_CONFIRMATION` (L2 escalation), or `RECOMMENDATION_BLOCKED` (rule violation).
+
+The classification rules and threshold parameters are declared per operating mode (§14). Reference flows: `flows/advisory-cycle.flow.yaml` (L1 path), `flows/withdrawal.flow.yaml` and `flows/account-closure.flow.yaml` (L2-by-construction).
 
 ---
 
-## 7. Decision Authority Model (Hybrid)
+## 7. Agent Topology
 
-Nestfolio operates under a **Hybrid Delegated Mandate Model**.
+The system runs **6 production AI agents** organised in a layered topology.
 
-Users grant Nestfolio a scoped discretionary mandate during onboarding. The AI system may autonomously execute investment actions **within predefined guardrails**, while certain actions remain user‑controlled.
+### Orchestrator layer
 
-### Authority Levels
+`decision-workflow-ctrl` — Step Functions state machine that triggers the 4 advisory agents in parallel, persists results to AgentCore Memory, then assembles the Decision Packet. Cite: `services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts`, `services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts`.
 
-**Level 0 — Informational**
-- Portfolio insights
-- Market explanations
-- Progress updates
-- No execution impact
+### Intelligence layer (4 agent-ctrl services, each hosting its own AgentCore Runtime)
 
-**Level 1 — Autonomous Actions (Pre‑Authorized)**
-- Portfolio rebalancing within risk band
-- Asset allocation drift correction
-- Dividend reinvestment
-- Tax‑efficient adjustments
-
-**Level 2 — User Confirmation Required**
-- Strategy change
-- Risk profile modification
-- Large allocation shifts
-- Withdrawal recommendations
-
-**Level 3 — User Exclusive Actions**
-- Deposits
-- Withdrawals
-- Account closure
-- Mandate revocation
-
----
-
-## 8. Agent Topology (Governed Multi‑Agent)
-
-Nestfolio uses a **Governed Multi‑Agent Architecture**:
-- Specialized agents perform analysis and propose actions.
-- A deterministic **Orchestrator** coordinates workflows.
-- A **Compliance Control Layer** authorizes (or blocks) any action that could impact execution.
-- Only the Execution Agent can place orders, and only after authorization.
-
-### Topology Overview
-
-**Orchestrator (Deterministic Control Plane)**
-- Owns workflow state machines and timing (cadence)
-- Routes events to agents
-- Enforces step ordering and idempotency
-- Produces canonical “Decision Packets” for audit
-
-**Specialized Intelligence Agents (Non‑executing)**
-- **User & Goals Agent**: goal interpretation, timeline, constraints
-- **Risk Agent**: risk profiling, risk band, guardrails evaluation
-- **Market & Research Agent**: signals, market regime, watchlists
-- **Portfolio Construction Agent**: target allocation, instrument selection
-- **Rebalance Planner Agent**: trade plan generation, cost/impact estimation
-- **Recommendation & Explainability Agent**: plain‑language outputs, UX narratives
-
-**Compliance Control Layer (Authorizer)**
-- **Compliance Agent**: validates mandate scope, suitability constraints, and thresholds
-- Generates immutable audit artifacts
-- Can require human review in future iterations (optional “Human-in-the-Loop” gate)
-
-**Execution Layer (Single Writer Principle)**
-- **Execution Agent**: IBKR integration, order placement, status tracking
-- **Positions & Ledger Service**: canonical holdings and cash accounting
-
----
-
-## 9. Compliance Boundary Definition
-
-Nestfolio enforces strict separation between:
-
-- **Advice Generation** (AI reasoning)
-- **Decision Authorization** (mandate + guardrails)
-- **Trade Execution** (broker integration)
-
-Every executed action must be:
-1. Traceable to a mandate
-2. Supported by stored reasoning
-3. Replayable for audit
-
-All decisions generate immutable audit events.
-
----
-
-## 10. System State Model (Event Sourcing)
-
-Nestfolio uses **Event Sourcing** as the system-of-record for all user, portfolio, decision, and execution activity.
-
-### Why Event Sourcing
-- Deterministic audit replay (regulatory + trust)
-- Traceable explainability: explanations are derived from stored inputs and rationale
-- Strong idempotency and recovery (avoids double execution)
-- Clean separation between immutable history and UI-friendly projections
-
-### Canonical Record
-The canonical record is an append-only **Event Store**. All current “state” is derived from projections.
-
----
-
-## 11. Event Taxonomy (Draft)
-
-### 11.1 User & Mandate Events
-- `UserRegistered`
-- `OnboardingAnswerRecorded`
-- `GoalSet`
-- `RiskProfileSet`
-- `MandateGranted`
-- `MandateUpdated`
-- `MandateRevoked`
-
-### 11.2 Portfolio State Events
-- `PortfolioSnapshotImported` (from IBKR sync)
-- `CashBalanceUpdated`
-- `PositionUpdated`
-- `CorporateActionApplied`
-
-### 11.3 Decision & Planning Events
-- `RebalanceNeedDetected`
-- `RecommendationProposed`
-- `DecisionPacketCreated`
-- `DecisionApproved` / `DecisionBlocked`
-- `UserConfirmationRequested`
-- `UserConfirmed` / `UserRejected`
-
-### 11.4 Execution Events
-- `OrderSubmitted`
-- `OrderAccepted`
-- `OrderPartiallyFilled`
-- `OrderFilled`
-- `OrderRejected`
-- `OrderCancelled`
-
-### 11.5 Explainability & Reporting Events
-- `ExplanationGenerated`
-- `UserViewedExplanation`
-- `MonthlyReportGenerated`
-
----
-
-## 12. Decision Packet (Canonical Unit)
-
-A **Decision Packet** is the orchestrator’s canonical artifact for any portfolio-impacting change.
-It is immutable once created and is fully auditable.
-
-### 12.1 Decision Packet Contents (Draft Schema)
-- **decision_id** (UUID)
-- **user_id**
-- **trigger** (event references + timestamps)
-- **portfolio_context** (projection version + key metrics)
-- **mandate_context** (mandate_id, scope, limits)
-- **proposed_actions** (one or more action plans)
-- **trade_plan** (candidate orders, quantities, constraints)
-- **risk_checks** (pre/post risk band, stress checks)
-- **cost_checks** (fees, slippage estimate, tax impact estimate if available)
-- **explainability_factors** (human-readable factor list)
-- **required_authority_level** (L0–L3)
-- **compliance_decision** (approved/blocked + reasons)
-- **execution_outcome** (filled/rejected + references)
-
----
-
-## 13. Idempotency & Safety Rules
-
-### 13.1 Single-Writer Execution
-Only the **Execution Agent** can submit orders.
-
-### 13.2 Idempotency Keys
-- Each Decision Packet has a unique `decision_id`.
-- Each order has an `order_key = hash(decision_id, instrument_id, side, quantity, limit_params)`.
-- Execution must be idempotent on `order_key` (safe retry).
-
-### 13.3 Dedupe & Replay
-- Orchestrator maintains a processed-event checkpoint per stream.
-- All agent outputs are referenced by event IDs.
-- Replays must recreate the same Decision Packet for the same inputs (within deterministic constraints).
-
----
-
-## 14. Projections (Read Models)
-
-Projections are materialized views built from the event store:
-
-- **Portfolio Projection**: holdings, cash, performance, drift
-- **Goal Projection**: progress vs target, runway
-- **Recommendation Projection**: current actionable nudges
-- **Explainability Projection**: “why” narratives per action
-- **Compliance Projection**: audit views, approvals, blocks
-
-The UI reads only projections; it never writes portfolio state directly.
-
----
-
-## 15. Decision Lifecycle (Event-Sourced)
-
-1. Trigger event occurs (market, schedule, user change, IBKR sync)
-2. Orchestrator routes to analysis agents
-3. Agents emit proposals as events
-4. Orchestrator composes **Decision Packet**
-5. Compliance Agent authorizes (or blocks)
-6. If required: request user confirmation
-7. Execution Agent submits idempotent orders to IBKR
-8. Fills/rejections are recorded as execution events
-9. Projections update; user receives simplified explanation
-
----
-
-## 17. Guardrails as Configurable Operating Modes
-
-Nestfolio supports three configurable operating modes that determine autonomy, thresholds, and user confirmation requirements.
-
-### Mode 1 — Conservative (Trust-First)
-Designed for cautious users and early-stage launch.
-- Narrow risk bands and drift thresholds
-- Smaller max trade sizes
-- Less frequent rebalancing
-- Strategy changes always require confirmation
-
-### Mode 2 — Balanced (Default)
-Designed for most users.
-- Moderate risk bands and drift thresholds
-- Moderate max trade sizes
-- Regular rebalancing cadence
-- Some strategy adjustments can be autonomous if within mandate scope
-
-### Mode 3 — Aggressive (Autonomy-First)
-Designed for users who explicitly opt in.
-- Wider risk bands and drift thresholds
-- Larger max trade sizes
-- More frequent rebalancing
-- Faster adaptation to market regimes (still within suitability constraints)
-
-### Mode Selection & Governance
-- The operating mode is selected during onboarding (and can be changed later).
-- Mode changes are **Level 2 (User Confirmation Required)**.
-- The Compliance Agent validates that the selected mode is compatible with the user’s risk profile and mandate.
-
-### Guardrail Policy Structure (Draft)
-Each mode defines a policy bundle:
-- **Risk bands**: allowable ranges for key exposures (e.g., equity, duration)
-- **Drift thresholds**: when rebalancing is triggered
-- **Max turnover**: per rebalance window and per month
-- **Max order size**: absolute and portfolio-percentage caps
-- **Confirmation thresholds**: triggers that escalate Level 1 → Level 2
-- **Cool-down rules**: minimum time between rebalances
-- **Circuit breakers**: pause execution under abnormal conditions
-
----
-
-## 19. Guardrail Parameters (Standard Scope - MVP)
-
-Nestfolio MVP adopts **Standard Guardrails**, balancing autonomy with strong safety guarantees.
-
-### 19.1 Guardrail Dimensions
-
-The following constraints are enforced by the Compliance Agent before execution:
-
-- Asset allocation risk bands
-- Drift thresholds
-- Maximum trade size
-- Rebalance frequency
-- Monthly turnover limits
-- Volatility & drawdown circuit breakers
-- Liquidity constraints
-- Concentration limits
-
----
-
-## 19.2 Baseline Mode Parameters (Initial Defaults)
-
-| Parameter | Conservative | Balanced (Default) | Aggressive |
+| Service | Original 6-agent role(s) | Cluster | Default model |
 |---|---|---|---|
-| Equity Risk Band | ±3% | ±6% | ±10% |
-| Drift Trigger | 2% | 4% | 7% |
-| Max Trade Size | 5% portfolio | 10% portfolio | 20% portfolio |
-| Rebalance Cadence | Quarterly | Monthly | Bi‑Weekly |
-| Monthly Turnover Cap | 10% | 25% | 50% |
-| Single ETF Concentration | 20% | 30% | 40% |
-| Illiquid Asset Allowed | No | Limited | Allowed (screened) |
-| Volatility Pause Trigger | High | Medium | Extreme |
-| Drawdown Circuit Breaker | −8% | −12% | −18% |
+| `investor-profile-ctrl` | User & Goals + Risk Assessment | Investor profile inference | Sonnet 4.6 (Haiku tier available) |
+| `market-intelligence-ctrl` | Market & Research | Market signal extraction | Sonnet 4.6 |
+| `portfolio-engine-ctrl` | Portfolio Construction + Rebalance Planner | Allocation + rebalance proposals | Sonnet 4.6 |
+| `advisory-narrative-ctrl` | Recommendation & Explainability | Recommendation rationale + explainability | Sonnet 4.6 |
 
-NOTE: Values are initial product defaults and may evolve following regulatory review and live performance analysis.
+Each of these services has its own AgentRuntime construct (`libs/cdk-constructs/src/extensions/agent-runtime.ts`), ECR image (built by the AgentCore deploy pipeline — see `project_agentruntime_deploy.md` topic in user memory), and Bedrock AgentCore Memory resource scoped to the agent's namespace.
 
----
+### Compliance layer
 
-## 19.3 Level Escalation Rules
+`compliance-ctrl` — rule-based gate, **not** an LLM agent; enforces mandate + operating-mode guardrails on the assembled Decision Packet (§8).
 
-Actions automatically escalate from Level 1 → Level 2 when:
+### Execution-adjacent agents
 
-- Allocation change exceeds mode risk band
-- Trade exceeds max trade size
-- Monthly turnover cap would be breached
-- Portfolio drawdown exceeds circuit breaker
-- Strategy model changes allocation class
-- User mandate or risk profile mismatch detected
+`onboarding-bff` — in-process LangGraph wizard hosted by the BFF, AG-UI streaming, 7-phase onboarding flow. Cite: `services/investor/onboarding-bff/agents/onboarding/agent.ts`, `services/investor/onboarding-bff/agents/onboarding/graph.ts`.
 
----
+### Models
 
-## 19.4 Circuit Breakers
+All agents target Bedrock Claude inference profiles via `libs/agent-orchestrator/`. Default: `us.anthropic.claude-sonnet-4-6`. Cost-pressure downgrade path (Sonnet → Haiku) is implemented via `libs/agent-orchestrator/src/tier-escalation.ts`.
 
-Execution is automatically paused when:
+### 7.1 Architectural Evolution — 6→4 advisory agent decomposition
 
-- Market volatility exceeds configured thresholds
-- IBKR portfolio sync mismatch detected
-- Data feeds unavailable or inconsistent
-- Compliance validation fails
+**Pre-2026-03-18.** A single `advisory-ctrl` service hosted **all 6 agents** (User & Goals, Risk, Market & Research, Portfolio Construction, Rebalance Planner, Recommendation & Explainability) as one in-process LangGraph. The 6 prompt files for those agents are still on disk: `services/advisory/advisory-ctrl/src/agents/prompts/{user-goals,risk-assessment,market-research,portfolio-construction,rebalance-planner,explainability}.txt`. Step Functions sat in front of `advisory-ctrl` as a trigger, not as a per-agent fan-out.
 
-Recovery requires:
-- Successful resynchronization
-- Compliance revalidation
-- Or user confirmation (depending on severity)
+**Post-2026-03-18** (per `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`). The 6 agents were clustered into 4 cohesive ctrl services, each hosting its own AgentRuntime:
 
----
+- User & Goals + Risk → `investor-profile-ctrl`
+- Market & Research → `market-intelligence-ctrl`
+- Portfolio Construction + Rebalance Planner → `portfolio-engine-ctrl`
+- Recommendation & Explainability → `advisory-narrative-ctrl`
 
-## 21. Portfolio Truth & Reconciliation Model (Dual Truth)
+A new orchestrator `decision-workflow-ctrl` was introduced (commit `a54006c9`, 2026-03-17) to fan out to the 4 ctrl services via Step Functions task tokens and assemble results from AgentCore Memory.
 
-Nestfolio adopts a **Dual Truth Model** aligned with industry best practices.
+**Rationale for the split:**
+- Memory locality: each agent owns its own Memory namespace and resource ARN.
+- Independent deploy + scale per agent cluster.
+- Per-cluster model-tier control (cost discipline).
+- Distinct timeout / retry / observability profiles.
 
-- The **Event Store** represents *intent truth* (what Nestfolio decided).
-- **Interactive Brokers (IBKR)** represents *settlement truth* (what actually exists in custody).
-
-Both sources are continuously reconciled.
+**Vestigial code.** `advisory-ctrl` retains the original decision-lifecycle code paths (the `agents/` subtree, the prompts, the 6-agent orchestration). The service still emits `DECISION_PACKET_CREATED` from its DDB stream (cite `services/advisory/advisory-ctrl/src/service.stack.ts:69`). This causes the dual-emitter situation documented in §10.1. **Spec 2 (advisory pipeline consolidation) retires the decision-lifecycle subsystem in `advisory-ctrl`**, leaving the service as the control plane (model lifecycle + incidents + budgets + reasoning-tier).
 
 ---
 
-## 21.1 Truth Domains
+## 8. Compliance Boundary
 
-### Intent Truth (Nestfolio)
-Owned internally via Event Sourcing.
-Represents:
-- Decisions
-- Authorized trade plans
-- Submitted orders
-- Expected portfolio state
+`compliance-ctrl` is the **single gate** between agent-proposed recommendations and execution.
 
-### Settlement Truth (IBKR)
-Owned externally by the broker.
-Represents:
-- Executed trades
-- Actual holdings
-- Cash balances
-- Corporate actions
+**Inputs.** `RECOMMENDATION_PROPOSED` event emitted at the end of the decision cycle.
+**Outputs.** `RECOMMENDATION_APPROVED` (auto-execute), `RECOMMENDATION_AWAITING_CONFIRMATION` (L2 escalation), or `RECOMMENDATION_BLOCKED` (rule violation).
 
-IBKR settlement truth always prevails for real asset state.
+The rule engine is deterministic (no LLM). It evaluates:
+- **Mandate guardrails** — risk-profile bounds, asset-class constraints, ESG filters declared at onboarding.
+- **Operating-mode parameters** (§14) — max single-trade %, monthly turnover cap, drawdown limits, drift triggers, cool-down windows, ETF concentration caps, equity risk band.
+- **L1/L2 classification** — converts to either auto-execute or user-confirmation routing.
+
+Cite: `services/advisory/compliance-ctrl/src/`. Reference flows: `flows/advisory-cycle.flow.yaml` (the compliance step is the second-to-last node before execution).
 
 ---
 
-## 21.2 Reconciliation Agent
+## 9. Event Sourcing & Event Taxonomy
 
-A dedicated **Reconciliation Agent** continuously compares:
+**Why event-sourced.** Decisions and trades require complete auditability — every state transition must be replayable. Event sourcing gives us (a) immutable audit trail by default, (b) projection rebuild from log, (c) cross-service decoupling via async events.
 
-- Expected portfolio projection
-- IBKR portfolio snapshots
+**Canonical envelope** (EventBridge `PutEvents` shape):
+- `Source` — `${BUS_NAME}@${SERVICE_NAME}` for direct emitters; CDC pipeline emits with the producing service's source.
+- `DetailType` — the branded event name (e.g. `DECISION_PACKET_CREATED`).
+- `Detail` — JSON with `tenantId`, `subject`, `context`, payload-specific fields.
 
-Responsibilities:
-- Detect drift between intent and settlement
-- Emit reconciliation events
-- Trigger safe correction workflows
-- Prevent duplicate execution
+The branded `EventName` type lives at `libs/event-types/src/index.ts:2`. Event names are **free-form** strings — there is no closed suffix set (per user-memory `feedback_event_naming_freedom.md`). Names are typically `<DOMAIN>_<NOUN>_<VERB-PAST>` (e.g. `MANDATE_DEFINED`, `DECISION_PACKET_CREATED`) but the pattern is convention, not enforcement.
 
----
+**Intra-domain vs cross-domain.** Intra-domain events flow directly on the owning bus. Cross-domain delivery goes through the receiving domain's `*-adpt` adapter (§18), which subscribes to upstream buses and republishes onto the consumer bus (sometimes with a rename to scope-strip the upstream prefix).
 
-## 21.3 Reconciliation Cadence
+**Event categories** (organising the catalogue, not enforced typing):
 
-- Post‑execution reconciliation (after fills)
-- Scheduled reconciliation (e.g., hourly)
-- Daily full portfolio reconciliation
-- Startup reconciliation after outages
-
----
-
-## 21.4 Drift Detection
-
-Drift occurs when:
-
-- Position quantity mismatch
-- Cash balance mismatch
-- Missing or unexpected fills
-- Corporate actions not reflected internally
-
-Detected drift emits:
-- `PortfolioDriftDetected`
-- `ReconciliationRequired`
-
----
-
-## 21.5 Safe Recovery Flow
-
-1. Execution paused for affected instruments
-2. IBKR snapshot imported
-3. Internal projections corrected
-4. Adjustment events emitted
-5. Compliance revalidation executed
-6. Normal operation resumes
-
-If reconciliation confidence is low → escalate to Level 2 or human review.
-
----
-
-## 21.6 Never Double‑Trade Guarantees
-
-Nestfolio prevents duplicate execution via:
-
-- Decision Packet idempotency
-- Order keys tied to decision IDs
-- Execution confirmation checkpoints
-- Reconciliation lock during drift resolution
-
-Orders cannot be resubmitted unless explicitly invalidated by reconciliation events.
-
----
-
-## 23. Operational Timing Model (Hybrid Cadence)
-
-Nestfolio uses a **Hybrid Cadence** operating model:
-
-- **Event‑Driven Triggers** for responsiveness
-- **Scheduled Cycles** for stability, coverage, and compliance routines
-
----
-
-## 23.1 Event‑Driven Triggers (Examples)
-
-Agents are triggered by events such as:
-- Deposit confirmed
-- Goal or risk profile change
-- Portfolio drift detected
-- Order filled / rejected
-- Volatility circuit breaker trip
-- Data feed outage / recovery
-
-Event triggers typically generate:
-- Updated recommendations
-- Rebalance evaluation
-- Compliance checks
-- Reconciliation workflows
-
----
-
-## 23.2 Scheduled Cycles (Examples)
-
-Scheduled workflows ensure coverage even when no events occur:
-- Daily portfolio health check
-- Daily IBKR snapshot reconciliation
-- Weekly risk review
-- Monthly strategic rebalance review
-- Monthly report generation
-
----
-
-## 23.3 Market-Hours Behavior (Draft)
-
-- Execution respects market hours per instrument.
-- If a decision is approved outside market hours:
-  - Orders are staged and submitted at next valid window.
-- Circuit breakers can pause execution regardless of market hours.
-
----
-
-## 25. IBKR Integration Boundary (Full Trading + Streaming)
-
-Nestfolio integrates with Interactive Brokers (IBKR) using a **full trading + streaming posture**.
-
-Goals:
-- Low-latency execution feedback (fills, rejects)
-- Near real-time portfolio projections
-- Stronger reconciliation through continuous updates
-
----
-
-## 25.1 Boundary Responsibilities
-
-### Nestfolio Owns
-- Mandate, guardrails, suitability logic
-- Decision Packets and audit trail
-- Order intent generation and idempotency keys
-- Execution authorization (Compliance Agent)
-- Reconciliation logic and drift resolution
-- User-facing explanations and reports
-
-### IBKR Owns
-- Custody and settlement truth
-- Order routing and exchange connectivity
-- Execution outcomes (fills, partial fills, rejects)
-- Account/position balances as broker-of-record
-
----
-
-## 25.2 Integration Surfaces (Conceptual)
-
-- **Authentication & Session Management**
-- **Order APIs**: submit / modify / cancel
-- **Streaming Feeds**:
-  - Order status updates
-  - Execution reports / fills
-  - Account and position updates
-  - Market data subscriptions (where applicable)
-
-(Exact endpoints/protocols are implementation details but must support streaming semantics and reconnection.)
-
----
-
-## 25.3 Order Lifecycle Mapping (Nestfolio ↔ IBKR)
-
-Nestfolio Order States (internal):
-- `Draft` → `Authorized` → `Submitted` → `Acknowledged` → `PartiallyFilled` → `Filled` OR `Rejected` OR `Cancelled`
-
-IBKR Events are mapped into internal events:
-- `OrderSubmitted` / `OrderAccepted` / `OrderPartiallyFilled` / `OrderFilled` / `OrderRejected` / `OrderCancelled`
-
-All mapping events are appended to the Event Store and drive projections.
-
----
-
-## 25.4 Streaming Reliability & Recovery
-
-### Connection Strategy
-- Persistent streaming connections per account context
-- Heartbeats to detect stale streams
-- Automatic reconnection with backoff
-
-### Catch-Up on Reconnect
-- On reconnect, perform:
-  1. Snapshot import (`PortfolioSnapshotImported`)
-  2. Stream resubscription
-  3. Reconciliation pass
-
----
-
-## 25.5 Error Taxonomy (Execution & Streaming)
-
-### Retriable Errors
-- Network timeouts / transient connectivity
-- 5xx broker/service errors
-- Rate limiting
-- Temporary market data subscription failures
-
-Handling:
-- Exponential backoff with jitter
-- Idempotent order submission using `order_key`
-- Retry budgets per decision packet
-
-### Terminal Errors
-- Insufficient funds / margin
-- Invalid instrument / contract
-- Permission/authorization failures
-- Compliance guardrail violations
-
-Handling:
-- Emit terminal error events
-- Escalate to Level 2 (user notification)
-- Require reconciliation and/or user action
-
----
-
-## 25.6 Safety Constraints for Streaming Execution
-
-- **Single Writer**: only Execution Agent can submit/modify/cancel orders.
-- **Idempotent Submit**: no resubmission without explicit reconciliation invalidation.
-- **Reconciliation Lock**: when drift is detected, execution pauses for impacted instruments.
-- **Circuit Breakers**: can pause all execution regardless of stream state.
-
----
-
-## 27. Decision Windows & Execution Policy (Immediate Execution)
-
-Nestfolio adopts an **Immediate Execution Policy** for MVP.
-
-Approved decisions are executed as soon as possible when:
-- Compliance authorization is granted
-- Guardrails are satisfied
-- Market venue is open for the instrument
-
-This maximizes responsiveness while remaining bounded by safety mechanisms.
-
----
-
-## 27.1 Market Hours & Order Staging
-
-- If market is **open** → order submitted immediately.
-- If market is **closed** → order enters `Staged` state and is submitted at the next valid trading window.
-- Staged orders are revalidated by Compliance before submission.
-
----
-
-## 27.2 Cool‑Down & Anti‑Thrashing Rules
-
-To prevent excessive trading caused by noisy signals:
-
-- Minimum cool‑down enforced per instrument after execution.
-- New decisions affecting the same instrument are blocked during cool‑down unless:
-  - Circuit breaker triggered, or
-  - User action requires override (Level 2).
-
-### Default Cool‑Down by Mode
-| Mode | Instrument Cool‑Down |
+| Category | Examples |
 |---|---|
-| Conservative | 10 trading days |
-| Balanced | 5 trading days |
-| Aggressive | 2 trading days |
+| User & Mandate | `INVESTOR_REGISTERED`, `MANDATE_DEFINED`, `OPERATING_MODE_CHANGED` |
+| Portfolio State | `POSITION_OPENED`, `POSITION_CLOSED`, `PORTFOLIO_DRIFT_DETECTED` |
+| Decision & Planning | `WORKFLOW_TRIGGER_CREATED`, `DECISION_PACKET_CREATED`, `DECISION_PACKET_UPDATED`, `RECOMMENDATION_PROPOSED`, `RECOMMENDATION_APPROVED` |
+| Execution | `ORDER_INTENT_CREATED`, `ORDER_FILLED`, `ORDER_FAILED` |
+| Reporting & Explainability | `EXPLANATION_RECORDED`, `AGENT_TRACE_RECORDED` |
+| Control Plane | `INCIDENT_OPENED`, `CIRCUIT_BREAKER_TRIPPED`, `MODEL_PROMOTED`, `TENANT_BUDGET_EXCEEDED` |
+
+The Control Plane category was inherited from the originally-planned `operations-ctrl` service which was absorbed into `advisory-ctrl` (see SERVICE-INVENTORY.md `advisory-ctrl` entry).
 
 ---
 
-## 27.3 Immediate Execution Safety Checks
+## 10. Decision Packet
 
-Before submission, Execution Agent verifies:
-- No active reconciliation lock
-- No pending conflicting staged order
-- Turnover limits respected
-- Market liquidity checks pass
+The **Decision Packet** is the canonical immutable record of every advisory decision. It is the audit-trail anchor — once created, fields are appended (via UPDATE events) but never mutated in place.
 
-Failure of any check converts execution into a Level 2 escalation or postponement event.
+**Schema** (intent — actual fields are in `libs/event-types/src/index.ts` / per-service `domain/schemas.ts`):
 
----
+| Field | Notes |
+|---|---|
+| `decisionId` | UUID, the row's PK component |
+| `tenantId` | Multi-tenant isolation key |
+| `triggerEvent` | What triggered this cycle (drift, schedule, deposit, mode change) |
+| `recommendation` | Summary of what the system proposes |
+| `proposedTrades` | List of trade intents (symbol, side, quantity, target weight) |
+| `agentInvocations` | Per-agent trace metadata (model, latency, tools, errors) |
+| `explanation` | Plain-language rationale, sourced from `advisory-narrative-ctrl` |
+| `authorityLevel` | L1 / L2 |
+| `status` | `DRAFT` → `PENDING` → `COMPLIANCE_REVIEW` → `APPROVED|BLOCKED|AWAITING_CONFIRMATION` → `CONFIRMED|REJECTED` → `EXECUTING` → `COMPLETED|FAILED` |
+| `timestamps` | createdAt, updatedAt |
 
-## 27.4 Escalation Conditions (Timing Related)
+**Storage.** A `DecisionPacket` row in DDB. CDC propagates `DECISION_PACKET_CREATED` on INSERT and `DECISION_PACKET_UPDATED` on MODIFY. The advisory-bff projection (§12) consumes both and maintains the GraphQL read model.
 
-Execution escalates to Level 2 when:
-- Market liquidity is degraded
-- Volatility circuit breaker active
-- Order would execute during abnormal market conditions
-- Multiple rapid decisions detected within cool‑down window
+**Schema reference.** `services/advisory/advisory-ctrl/src/domain/schemas.ts:5` defines `DecisionPacketCreatedSchema`.
 
----
+### 10.1 Architectural Evolution — Dual `DECISION_PACKET_CREATED` emitters
 
-## 29. User Communication & Notification Model (Configurable Hybrid)
+**Pre-2026-03-18.** `advisory-ctrl` was the single Step Functions orchestrator; it owned the Decision Packet write and was the sole emitter of `DECISION_PACKET_CREATED`.
 
-Nestfolio adopts a **Contextual Hybrid Communication Model** with strong user configurability.
+**Post-2026-03-18** (per `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md`). `decision-workflow-ctrl` was introduced as the canonical orchestrator. It owns the AgentCore Memory resource, delegates the 4 agent invocations to ctrl services via SF task tokens, and runs the `AssemblePacket` step that persists the assembled Decision Packet. Per the design intent, `advisory-ctrl` was supposed to retire its decision-lifecycle code and become the **control plane** (model lifecycle, incidents, budgets, reasoning-tier — absorbing what `operations-ctrl` would have owned).
 
-### Default Behavior
-- **Level 1 (Autonomous)** → Post‑execution explanation
-- **Level 2 (Confirmation Required)** → Pre‑execution confirmation
-- **High‑Impact Level 1** → Soft pre‑notice when feasible (non‑blocking)
+**Current state.** The retirement never landed. Both services still emit `DECISION_PACKET_CREATED`:
 
----
+- `services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts:70` — canonical, post-AssemblePacket. Comment in code reads: *"this INSERT emits DECISION_PACKET_CREATED on advisoryBus, which the …"*.
+- `services/advisory/advisory-ctrl/src/service.stack.ts:69` — declarative CDC emission on `DecisionPacket` INSERT in advisory-ctrl's own DDB table; legacy code path from when advisory-ctrl was the single orchestrator.
 
-## 29.1 Notification Timing Modes (User‑Configurable)
+**Symptom observed in 2026-04-30 8th-session Playwright run.** The dual emitter caused a race in advisory-bff's CQRS projection — `DECISION_PACKET_UPDATED` arrived before `CREATED`, producing a sparse row. Mitigated tactically by:
 
-Users may override default timing preferences within safe bounds:
+- `services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts` reads agent outputs from upstream task results before creating the row + persists `explanation` (commit `429afa7a`).
+- `services/advisory/advisory-bff/src/transforms/decision-packet-created.ts` skips empty CREATE events; `services/advisory/advisory-bff/src/handlers/event-listener.ts` copies `explanation` from the UPDATE path with `attribute_exists(pk)` condition (commit `3dcad1eb`).
 
-- **Post‑Fact Mode**: notify after execution
-- **Pre‑Intent Mode**: notify before execution with optional cancel window
-- **Hybrid (Default)**: system‑chosen timing based on impact level
-
-Compliance Agent ensures overrides cannot bypass mandate or safety rules.
+**Resolution path.** **Spec 2 (advisory pipeline consolidation)** retires `advisory-ctrl`'s decision-lifecycle subsystem entirely, leaving `decision-workflow-ctrl` as the sole emitter and removing the race at the source.
 
 ---
 
-## 29.2 Notification Severity Tiers
+## 11. Idempotency & Safety Rules
 
-| Tier | Example | Timing |
+Every handler must be safely retriable. The system enforces this via:
+
+1. **Single-writer per DDB row.** Only one service writes any given row; projections read.
+2. **Conditional writes.** `attribute_not_exists(pk)` for inserts (the `record()` intent in `libs/event-processor/`); `attribute_exists(pk)` for updates that must not create a sparse row (the post-2026-04-30 race-condition mitigation in advisory-bff).
+3. **Idempotency keys on event-processor pipelines.** Event-processor pipelines use deterministic write-intent keys to dedupe replays (per user-memory `feedback_event_processor_pipelines.md`).
+4. **SQS visibility-timeout + DLQ.** Failed handlers retry on visibility-timeout expiry; persistent failures land in a DLQ.
+5. **SF task-token at-most-once.** Step Functions task tokens are consumed exactly once per task; double-`SendTaskSuccess` is rejected by the SF service.
+6. **No `Scan`, no `FilterExpression` on key attributes.** GSIs are designed so reads use `Query`. Filter expressions on key attributes are a project anti-pattern (per user-memory `feedback_no_scan_no_filter.md`).
+
+Cite: `libs/event-processor/src/intents/` for the canonical `record()` / `update()` intents.
+
+---
+
+## 12. Projections (Read Models)
+
+The system uses **CQRS**. The write side is the producing service's DDB table; the read side is the consuming BFF's projection table. BFFs are the system-state read model for the UI (per user-memory `feedback_bff_is_read_model.md`).
+
+**Intent vocabulary** (declared in `libs/event-processor/src/intents/`):
+
+- `record()` — idempotent insert. Used to project `*_CREATED` events. Skip-if-empty is a project pattern (cite `services/advisory/advisory-bff/src/transforms/decision-packet-created.ts`).
+- `update()` — conditional patch. Used to project `*_UPDATED` events. Race-safe via `attribute_exists(pk)` (cite the advisory-bff fix shipped 2026-04-30).
+- Status transitions are encoded in the projection's transform layer — e.g. `DECISION_PACKET_UPDATED` with `complianceStatus=PASSED` transitions the row's `status` field to `APPROVED`.
+
+**The advisory-bff projection** is the highest-traffic read model. It maintains the Decision Packet GraphQL view consumed by the advisory MFE's decision list and detail pages. The 8th-session race-condition fix (record-skip-empty + UPDATE-explanation-copy) lives in this projection.
+
+The dashboard-bff projection serves the Investor home dashboard and broadcasts via WebSocket subscriptions on AppSync (see user-memory `feedback_appsync_subscribe_filter_args.md` for the subscription-filter pitfall).
+
+---
+
+## 13. Decision Lifecycle (End-to-End)
+
+Linear traversal of the canonical advisory cycle. For wire-level steps, see `flows/advisory-cycle.flow.yaml`.
+
+```
+WORKFLOW_TRIGGER_CREATED              (event from drift / schedule / deposit / mode-change)
+   ↓  (decision-workflow-ctrl ingress)
+SF.StartExecution                     (decision-workflow state machine)
+   ↓  (4 parallel branches)
+InvokeAgentRuntime × 4                (investor-profile, market-intelligence, portfolio-engine, advisory-narrative)
+   ↓  (each agent persists output, completes via SendTaskSuccess)
+AssemblePacket                        (decision-workflow-ctrl handler)
+   ↓  (PutItem on DecisionPacket → CDC)
+DECISION_PACKET_CREATED               (canonical emission point, §10.1)
+   ↓  (advisory-bff projection + compliance-ctrl listener)
+RECOMMENDATION_PROPOSED               (compliance-ctrl input)
+   ↓  (rule engine, §8)
+RECOMMENDATION_APPROVED  |  RECOMMENDATION_AWAITING_CONFIRMATION  |  RECOMMENDATION_BLOCKED
+   ↓  (L1: auto-execute)              ↓  (L2: user-confirms via UI)
+                                     RECOMMENDATION_CONFIRMED  |  RECOMMENDATION_REJECTED
+   ↓
+ORDER_INTENT_CREATED                  (execution-ctrl, crosses to Execution domain via execution-adpt)
+   ↓
+… execution → ledger settlement … (see flows/order-execution.flow.yaml + flows/order-ledger.flow.yaml)
+```
+
+The lifecycle is canonical for L1 cycles. L2 cycles add a user-confirmation pause; rebalance cycles add a drift-detection trigger upstream (`flows/portfolio-rebalance.flow.yaml`).
+
+---
+
+## 14. Operating Modes & Guardrails
+
+Three modes — **Conservative**, **Balanced**, **Aggressive** — declare the operating envelope for autonomous decisions.
+
+| Parameter | Conservative | Balanced | Aggressive |
+|---|---|---|---|
+| Max single-trade as % of portfolio | 2% | 5% | 10% |
+| Monthly turnover cap | 10% | 25% | 50% |
+| Drawdown circuit-breaker trigger | -5% | -10% | -15% |
+| Drift trigger | 5% | 10% | 15% |
+| Cool-down between rebalances | 30 days | 14 days | 7 days |
+| ETF concentration cap | 25% | 35% | 50% |
+| Equity risk band | conservative | balanced | aggressive |
+
+(Numbers above are illustrative MVP defaults from the recovered 2026-03-01 baseline; live parameters are declared in `services/advisory/compliance-ctrl/` and may have been adjusted.)
+
+**Mode change protocol.** A mandate event (`OPERATING_MODE_CHANGE_REQUESTED`) propagates through `investor-bff` → `advisory-adpt` → `advisory-bff` projection. The change takes effect on the **next decision cycle** — in-flight cycles continue under the previous mode.
+
+### Open question: mode → agent behaviour wiring
+
+Per user-memory `project_operating_mode.md`, the mode is captured in projections but **not yet fully wired into agent behaviour** as of 2026-04-30. See §21 Open Question #2.
+
+---
+
+## 15. Portfolio Truth & Reconciliation
+
+**Dual truth.** Two canonical state stores:
+
+- **Intent** — what the system *thinks* the portfolio should be. Lives in advisory + execution. Updated when recommendations approve and orders are placed.
+- **Settlement** — what the broker actually filled. Lives in Ledger. Updated when execution events arrive (`ORDER_FILLED`, `POSITION_OPENED`, `POSITION_CLOSED`).
+
+The two are kept in sync by the **reconciliation cycle** in `services/ledger/reconciliation-ctrl/`, which:
+
+1. Periodically sweeps active positions on a schedule.
+2. Cross-references intent (advisory state) with settlement (broker statement).
+3. Emits `PORTFOLIO_DRIFT_DETECTED` when divergence exceeds threshold.
+4. Triggers the circuit breaker (§16) if the drift is unsafe.
+
+**Corporate actions** (splits, dividends, mergers) are processed in Ledger and emitted as adjustment events that the intent side reconciles against.
+
+Reference: `flows/reconciliation.flow.yaml`, `flows/order-ledger.flow.yaml`, `docs/superpowers/specs/2026-03-26-real-money-operations-design.md`.
+
+---
+
+## 16. Circuit Breakers
+
+The circuit breaker is a global pause-and-validate mechanism, owned by `broker-alpaca-adpt` since the 2026-04-15 redesign (per user-memory `project_circuit_breaker_redesign.md`).
+
+**Trigger conditions:**
+- Broker error rate above threshold over rolling window.
+- Reconciliation drift exceeds severity-2 (§15).
+- Cluster of mandate violations (per-tenant or system-wide).
+- Manual ops kill-switch.
+
+**Pause protocol:**
+1. `CIRCUIT_BREAKER_TRIPPED` is emitted.
+2. `investor-bff` flips a feature flag (gates the UI).
+3. `broker-alpaca-adpt` halts new order submissions — in-flight orders complete, no new orders are sent.
+4. Notification is fanned out: broker → advisory feature flag → investor notification.
+
+**Recovery validation gates.** A heal Step Functions state machine in `broker-alpaca-adpt` runs validation (broker connectivity, reconciliation re-sync, mandate-compliance check) before emitting `CIRCUIT_BREAKER_RESET` to resume operations.
+
+---
+
+## 17. AgentCore Memory Contract
+
+**Purpose.** AgentCore Memory provides per-agent durable conversation + extraction state for short- and long-term recall across decision cycles. The contract below defines how every agent in the system addresses Memory; deviations from the contract are explicitly named (§17.1).
+
+### Namespace convention
+
+```
+/{serviceName}/{actorId}/{scope}
+```
+
+Where `actorId` is `tenantId`, and `scope` is one of:
+
+| Scope | Lifetime | Purpose |
 |---|---|---|
-| Informational | Monthly update, minor rebalance | Post‑fact |
-| Advisory | Recommendation available | Pre or Post |
-| Impactful | Large rebalance within guardrails | Soft pre‑notice |
-| Confirmable | Strategy/risk change | Pre‑execution confirmation |
-| Critical | Circuit breaker, execution pause | Immediate alert |
+| `decisions/{decisionId}` | short-term | Per-decision agent inputs/outputs; written by upstream agent ctrls, read by `decision-workflow-ctrl`'s `AssemblePacket` |
+| `preferences` | long-term | Investor preference extraction across cycles |
+| `signals` | long-term | Market signal extraction with cross-decision shelf life |
+| `rationale` | long-term | Recommendation rationale archive for explainability |
+| `sessions/{sessionId}` | session | Conversational context (onboarding wizard) |
 
----
-
-## 29.3 Messaging Lifecycle
-
-1. Decision Packet created
-2. Impact classification computed
-3. Notification policy resolved (default + user overrides)
-4. Message generated by Recommendation & Explainability Agent
-5. Delivery via configured channels
-6. User interaction events appended to Event Store
-
----
-
-## 29.4 Channels (MVP)
-
-- In‑app notifications
-- Email summaries
-- Push notifications (mobile)
-
-All communications are linked to Decision Packet IDs for traceability.
-
----
-
-## 29.5 Trust Reinforcement Principles
-
-- Plain‑language explanations
-- Positive framing (“No action needed — we handled this”)
-- Easy access to "Why" explanations
-- Clear indication when user action is required
-
----
-
-## 31. AI Reasoning Persistence Model (Dual Layer)
-
-Nestfolio adopts a **Dual Layer Reasoning Model**:
-- Preserve auditable *decision intent* at execution time.
-- Allow safe regeneration of richer explanations later.
-
----
-
-## 31.1 Stored Artifacts (at Decision Time)
-
-For each Decision Packet, the system persists:
-- **Reasoning Factors** (structured, non‑CoT)
-- **Feature Snapshot** (key inputs used for decision)
-- **Model Metadata** (model id, version, policy set)
-- **Prompt/Policy Hash** (immutable reference)
-- **Decision Hash** (deterministic integrity check)
-
-Example Reasoning Factors:
-- Equity drift exceeded risk band
-- Portfolio volatility within mandate
-- Goal horizon: long-term
-- Expected risk-adjusted improvement
-- Turnover within mode limits
-
----
-
-## 31.2 Explanation Generation
-
-### Default (Deterministic)
-- Explanations reconstructed directly from stored factors.
-- Instant, replayable, audit-safe.
-
-### Enhanced (Adaptive)
-- LLM generates natural-language explanation using stored factors as bounded context.
-- Cannot introduce facts outside recorded factors.
-
----
-
-## 31.3 Audit & Reproducibility Guarantees
-
-- Decisions are reproducible from stored feature snapshots and policy hashes.
-- Explanations remain consistent over time.
-- Model upgrades do not alter historical intent.
-- All explanation views reference the originating `decision_id`.
-
----
-
-## 31.4 Governance Constraints
-
-- Raw chain-of-thought is **not stored**.
-- PII minimized within reasoning factors.
-- Regeneration is constrained to Decision Packet context.
-- Compliance Agent validates reasoning completeness before execution.
-
----
-
-## 33. AI Model Governance & Promotion Pipeline
-
-Nestfolio adopts a **Governed Model Promotion Pipeline** aligned with institutional financial system practices.
-
-AI model changes are treated as controlled operational events.
-
----
-
-## 33.1 Model Lifecycle Stages
-
-### Stage 1 — Offline Evaluation
-- Candidate models evaluated on historical market and portfolio datasets.
-- Metrics evaluated:
-  - Risk compliance
-  - Portfolio stability
-  - Turnover impact
-  - Decision consistency
-  - Guardrail adherence
-
-No production exposure.
-
----
-
-### Stage 2 — Shadow Mode
-- Candidate model runs in parallel with production model.
-- Generates Decision Packets marked as `shadow`.
-- No execution allowed.
-- Differences analyzed:
-  - Allocation deviation
-  - Trade frequency
-  - Risk exposure
-
-Shadow decisions are stored for comparison and audit.
-
----
-
-### Stage 3 — Limited Rollout
-- Model enabled for a controlled subset of users or portfolios.
-- Compliance monitoring intensified.
-- Circuit breakers tightened.
-
-Automatic rollback available.
-
----
-
-### Stage 4 — Promotion
-- Model promoted to production after approval.
-- Promotion recorded as immutable governance event.
-- Model version becomes eligible for Decision Packets.
-
----
-
-## 33.2 Model Registry
-
-All models are registered with:
-- model_id
-- version
-- training data reference
-- evaluation results
-- approval timestamp
-- approver identity (human or governance process)
-
-Decision Packets reference model metadata for reproducibility.
-
----
-
-## 33.3 Safety & Rollback
-
-- Previous production model retained for rollback.
-- Rollback emits `ModelRollbackTriggered` event.
-- Active executions paused during rollback if required.
-
----
-
-## 33.4 Governance Principles
-
-- Model upgrades must not alter historical decisions.
-- Explainability compatibility required before promotion.
-- Guardrail compliance validated pre‑promotion.
-- Human approval required for promotion (MVP).
-
----
-
-## 35. Agent Runtime Model (Serverless via Amazon AgentCore)
-
-Nestfolio adopts a **Serverless / Event‑Activated Agent Runtime** powered by **Amazon AgentCore**.
-
-Agents are instantiated on-demand in response to events emitted by the Event Store or orchestrator workflows.
-
----
-
-## 35.1 Runtime Principles
-
-- Agents are **stateless** across invocations.
-- All durable context is sourced from the Event Store and projections.
-- Agent execution is deterministic given:
-  - Event inputs
-  - Feature snapshots
-  - Model & policy versions
-
-This aligns with Nestfolio’s event‑sourced architecture and audit requirements.
-
----
-
-## 35.2 Responsibilities by Runtime Type
-
-### Event‑Activated Agents (AgentCore)
-- Advisory reasoning
-- Risk evaluation
-- Portfolio construction
-- Rebalance planning
-- Recommendation generation
-- Explainability synthesis
-
-Characteristics:
-- Short‑lived execution
-- Horizontally scalable
-- Idempotent processing per event
-
-### Persistent Control Services
-Remain continuously available:
-- Orchestrator (workflow/state machine owner)
-- Execution Agent (single writer to IBKR)
-- Reconciliation Agent
-- Projection builders
-
----
-
-## 35.3 Invocation Lifecycle
-
-1. Event appended to Event Store
-2. Orchestrator emits Agent Invocation
-3. AgentCore executes agent with bounded context
-4. Agent emits result events
-5. Results appended to Event Store
-6. Projections update
-
-All invocations reference a `decision_id` or `event_id`.
-
----
-
-## 35.4 Concurrency & Idempotency
-
-- Each event processed exactly-once logically (at-least-once physically).
-- Agents must be idempotent.
-- Duplicate invocations deduped via event checkpoints and decision hashes.
-
----
-
-## 35.5 Failure Isolation
-
-- Agent failures do not impact orchestrator availability.
-- Failed invocations emit `AgentExecutionFailed` events.
-- Automatic retry with exponential backoff and jitter.
-- Retry budgets enforced per Decision Packet.
-
----
-
-## 35.6 Cost & Scaling Characteristics
-
-- Compute scales with decision activity, not user count.
-- Idle portfolios incur near-zero reasoning cost.
-- Heavy market events scale horizontally without pre-provisioning.
-
----
-
-## 37. Agent Memory Model (Structured Retrieval Context)
-
-Nestfolio adopts a **Structured Retrieval Context Model** for all AgentCore invocations.
-
-Agents do not independently query system state. Instead, the Orchestrator prepares a curated **Context Bundle** containing all required inputs.
-
----
-
-## 37.1 Context Bundle Principles
-
-- Deterministic inputs per invocation
-- Minimal necessary information
-- Audit‑replay compatibility
-- Token and cost efficiency
-
-Agents must treat the Context Bundle as the authoritative working memory.
-
----
-
-## 37.2 Context Bundle Contents (Draft)
-
-Each invocation receives:
-- triggering_event
-- decision_id (if applicable)
-- portfolio_projection_snapshot
-- mandate_context
-- guardrail_policy (mode-derived)
-- relevant market signals
-- prior decision references (bounded window)
-- feature snapshot
-- model & policy versions
-
-Bundles are immutable once generated.
-
----
-
-## 37.3 Retrieval Responsibilities
-
-### Orchestrator
-- Builds Context Bundle
-- Performs projection queries
-- Applies retrieval limits
-- Ensures determinism
-
-### Agents
-- Consume provided bundle
-- Produce outputs/events only
-- Do not access persistent storage directly
-
----
-
-## 37.4 Cost & Token Containment
-
-- Context window bounded per agent type.
-- Historical references limited to relevance windows.
-- Large historical data accessed via summarized projections.
-
-This prevents inference cost growth with account age.
-
----
-
-## 37.5 Audit & Reproducibility
-
-- Context Bundle hash stored in Decision Packet.
-- Replaying the same bundle must reproduce equivalent reasoning factors.
-- Enables deterministic audit replay.
-
----
-
-## 39. Observability & Operational Monitoring (Institutional Grade)
-
-Nestfolio adopts **Institutional Observability**, extending beyond infrastructure monitoring to include AI behavior, financial safety, and decision quality.
-
----
-
-## 39.1 Observability Layers
-
-### Infrastructure Layer
-- Agent invocation latency
-- Error rates
-- Streaming connection health
-- Queue depth and throughput
-- Service availability
-
----
-
-### Operational AI Layer
-- Agent success/failure rates
-- Decision throughput
-- Execution latency
-- Retry and backoff frequency
-- Context bundle size trends
-
----
-
-### Financial Safety Layer
-- Portfolio drift frequency
-- Reconciliation mismatch rate
-- Order rejection ratio
-- Circuit breaker activations
-- Turnover pressure indicators
-
----
+### Strategy mapping
 
-### Decision Quality Layer
-- Guardrail proximity metrics
-- Strategy deviation monitoring
-- Allocation volatility
-- Trade clustering detection
-- Model divergence vs shadow models
+Each namespace has an extraction strategy attached at Memory provisioning time. `decisions/{decisionId}` namespaces are intended for raw payload retrieval (no Bedrock extraction strategy — they're transient session data). Long-term namespaces (`preferences`, `signals`, `rationale`) use Bedrock extraction strategies to summarise across cycles.
 
----
-
-## 39.2 AI Health Indicators
-
-Derived metrics include:
-- Decision Stability Index
-- Guardrail Pressure Index
-- Reconciliation Confidence Score
-- Model Agreement Score (production vs shadow)
-
-Threshold breaches emit operational alerts.
-
----
-
-## 39.3 Monitoring Dashboards
-
-Separate visibility planes:
-
-- **Operations Dashboard**: system health and performance
-- **Compliance Dashboard**: audit events and mandate adherence
-- **AI Governance Dashboard**: model performance and divergence
-
----
-
-## 39.4 Automated Safety Responses
-
-System may automatically:
-- Pause execution for affected portfolios
-- Tighten guardrails temporarily
-- Escalate to human review
-- Trigger reconciliation workflows
-
-All automated actions are event‑logged.
-
----
-
-## 39.5 Incident Classes
-
-| Class | Example |
-|---|---|
-| Infra Incident | Stream disconnect |
-| Agent Incident | Repeated execution failure |
-| Financial Incident | Drift mismatch |
-| Model Incident | Shadow divergence |
-| Compliance Incident | Guardrail violation |
-
-Each incident produces immutable incident events.
-
----
-
-## 41. Security & Data Isolation Model (Tenant Isolation)
-
-Nestfolio adopts a **Tenant Isolation** security model.
-
-Core concept:
-- Every request and every backend action is scoped to a **tenant_id**.
-- `tenant_id` is carried in the user JWT as a custom claim.
-- All storage and processing paths enforce tenant partition constraints.
-
----
-
-## 41.1 Identity & Authorization
-
-### User Identity
-- Users authenticate and receive a JWT.
-- JWT includes a custom claim: `tenant_id`.
-
-### Service Authorization
-- Services and agents extract `tenant_id` and apply it as a required scope.
-- Authorization checks occur at:
-  - API boundary
-  - Orchestrator workflows
-  - Event store append/read paths
-  - Projection reads
-
----
-
-## 41.2 Resource Partitioning
-
-Tenant isolation is enforced via partitioning of:
-- Event streams
-- Projection stores
-- Order/decision artifacts
-- Notification and messaging records
-
-All resource keys include (or map to) `tenant_id`.
-
----
-
-## 41.3 IAM ABAC & Dynamic Policies
-
-Nestfolio uses **IAM Attribute-Based Access Control (ABAC)** to constrain access to tenant partitions.
-
-- Principal/session attributes include `tenant_id`.
-- Resource tags include `tenant_id`.
-- Dynamic policies enforce:
-  - Principal `tenant_id` must match Resource `tenant_id`
-  - Agents/services only access permitted partitions
-
-This applies to both user-initiated and system-initiated workflows.
-
----
-
-## 41.4 Agent & Service Scoping
-
-- AgentCore invocations include `tenant_id` in the Context Bundle.
-- Orchestrator enforces tenant-scoped routing.
-- Execution and Reconciliation operate tenant-scoped; no cross-tenant operations.
-
----
-
-## 41.5 Audit Integrity (Tenant Scoped)
-
-- All Decision Packets, Context Bundles, and audit events are stored with `tenant_id`.
-- Audit queries are tenant-scoped by default.
-
----
-
-## 42. Secrets Handling & IBKR Credential Isolation (Delegated Tokens)
-
-Nestfolio adopts a **User‑Delegated Authorization Model** for Interactive Brokers (IBKR) access.
-
-Goal:
-- Minimize custody of long‑lived broker credentials
-- Maintain per‑tenant isolation
-- Enable automated trading within user‑granted scopes
-
----
-
-## 42.1 Delegated Authorization Flow
-
-1. User connects IBKR account via secure authorization flow.
-2. IBKR issues delegated access artifacts (access/refresh tokens or equivalent).
-3. Nestfolio stores only the delegated artifacts required for automation.
-4. Tokens are exchanged for short‑lived runtime credentials when execution is needed.
-
-All authorization artifacts are scoped to `tenant_id`.
-
----
-
-## 42.2 Storage & Isolation
-
-- Delegated tokens stored in a managed secrets vault.
-- Secrets are partitioned by `tenant_id`.
-- Access controlled via IAM ABAC policies:
-  - Principal `tenant_id` must match Secret `tenant_id`.
-
-No shared credentials across tenants.
-
----
-
-## 42.3 Runtime Access Pattern
-
-- Execution Agent requests short‑lived broker session using delegated artifact.
-- Temporary credentials injected at runtime only.
-- Credentials never persisted in logs, events, or Context Bundles.
-
-Agents other than the Execution Agent cannot access broker secrets.
-
----
-
-## 42.4 Rotation & Revocation
-
-- Token refresh handled automatically where supported.
-- User may revoke authorization at any time.
-- Revocation emits `BrokerAuthorizationRevoked` event and pauses execution.
-- Reauthorization required before resuming autonomous actions.
-
----
-
-## 42.5 Break‑Glass Controls
-
-- Emergency disable per tenant without accessing secrets.
-- Global broker integration pause supported via circuit breaker.
-
----
-
-## 44. Cost Control Strategy for AI Inference (Adaptive Scaling)
-
-Nestfolio adopts an **Adaptive Intelligence Scaling** strategy to control inference costs during volatility and growth.
-
----
-
-## 44.1 Budgeting
-
-Budgets exist at two levels:
-- **Global Budget**: overall platform inference ceiling
-- **Tenant Budget**: per-tenant rate and spend limits
-
-Budget events:
-- `TenantBudgetApproaching`
-- `TenantBudgetExceeded`
-- `GlobalBudgetApproaching`
-- `GlobalBudgetExceeded`
-
----
-
-## 44.2 Reasoning Tiers
-
-Agents can operate in tiers:
-
-- **Tier 0 (Minimal)**: rule-based checks + deterministic projections only
-- **Tier 1 (Standard)**: normal agent reasoning using full Context Bundle
-- **Tier 2 (Deep)**: expanded analysis, richer market context, scenario evaluation
-
-Tier selection is dynamic based on:
-- operating mode (Conservative/Balanced/Aggressive)
-- budget health
-- volatility conditions
-- incident state (circuit breakers)
-
----
-
-## 44.3 Model Tier Switching
-
-- Use smaller/cheaper models for Tier 0–1 reasoning where possible.
-- Use larger models for Tier 2 only when justified.
-- Explainability generation can be downgraded to deterministic factor-based output under load.
-
----
-
-## 44.4 Throttling & Debounce Under Volatility
-
-To prevent cost spikes:
-- Debounce market-driven triggers
-- Merge duplicate trigger events within time windows
-- Enforce per-tenant invocation rate limits
-
----
-
-## 44.5 Degraded Mode Behaviors
-
-When budgets are exceeded:
-- Pause non-critical analysis
-- Continue reconciliation and safety checks
-- Provide minimal user explanations
-- Escalate critical events only
-
-All degradations are event-logged for audit.
-
----
-
-## 46. Human‑in‑the‑Loop Operational Roles (Full Fintech Ops)
-
-Nestfolio defines a **Full Fintech Operational Role Model** for MVP to ensure safe oversight of autonomous systems.
-
----
+### Reference implementation
 
-## 46.1 Operational Roles
+`libs/agent-orchestrator/src/memory/memory-client.ts` exposes:
 
-### Platform Operator
-Responsibilities:
-- Monitor system health dashboards
-- Pause/resume execution globally or per tenant
-- Trigger reconciliation workflows
-- Respond to infrastructure or agent incidents
+- `openDecisionSession(tenantId, decisionId)` → returns a `DecisionSession` with:
+  - `writeAgentOutput(output)` — writes the agent's output for this decision.
+  - `readUpstreamOutput(upstreamService)` — reads outputs from another service for the same decision.
+  - `searchLongTermMemory(query, topK)` — searches the long-term namespaces.
+- `searchTenantMemory(tenantId, query, topK)` — top-level long-term search.
 
-Scope:
-- System-level visibility
-- No access to broker credentials
+### 17.1 Architectural Evolution — Current implementation diverges from contract
 
----
-
-### Compliance Reviewer
-Responsibilities:
-- Review audit trails and Decision Packets
-- Approve or block escalated decisions
-- Sign off incident resolution
-- Validate mandate and guardrail adherence
-
-Scope:
-- Read access to tenant decision history
-- Approval authority for compliance escalations
-
----
-
-### Customer Support (Tenant‑Scoped)
-Responsibilities:
-- Assist users with account questions
-- View portfolio projections and explanations
-- Trigger safe workflows (e.g., resend notifications)
-
-Constraints:
-- Read-only access
-- Strict tenant scoping enforced via ABAC
-- No execution or mandate modification authority
-
----
-
-### AI Governance Reviewer
-Responsibilities:
-- Approve model promotion
-- Review shadow-mode divergence reports
-- Authorize rollback when required
-
-Scope:
-- Access to AI governance dashboards
-- No direct portfolio execution authority
-
----
-
-## 46.2 Authorization Model
-
-- Roles mapped to IAM identities.
-- Access controlled using ABAC with role and `tenant_id` attributes.
-- All privileged actions require authenticated identity.
-
----
-
-## 46.3 Internal Action Auditing
+**Symptom (2026-04-30, 8th Playwright session).** `decision-workflow-ctrl`'s `AssemblePacket` step finds **no** agent outputs from Memory; assembly proceeds with empty agent payloads.
 
-All internal actions emit immutable audit events:
-- `OperatorActionPerformed`
-- `ComplianceApprovalGranted`
-- `ModelPromotionApproved`
-- `ExecutionPaused`
+**Root cause.** The write path and the read path use different AgentCore Memory storage modes:
 
-Audit events include actor identity and timestamp.
+- **Write** (`libs/agent-orchestrator/src/memory/memory-client.ts:36-53`) — `writeAgentOutput` calls `CreateEventCommand` with `sessionId: decisionId`. This writes a **session event**, not a memory record. Session events are conversational state, not addressable by namespace search.
+- **Read** (`libs/agent-orchestrator/src/memory/memory-client.ts:55-65`) — `readUpstreamOutput` calls `RetrieveMemoryRecordsCommand` with `namespace: /${upstreamService}/${tenantId}/decisions/${decisionId}`. This searches **memory records** addressed by namespace.
 
----
-
-## 48. Incident Response & Recovery Model (Autonomous Safety + Human Oversight)
-
-Nestfolio adopts an **Autonomous Containment with Human Oversight** incident response philosophy.
-
-Goal:
-- Contain financial or operational risk immediately
-- Stabilize system automatically
-- Enable human investigation and controlled recovery
-
----
-
-## 48.1 Incident Lifecycle
-
-1. Detection (observability signal or rule trigger)
-2. Classification (incident class assignment)
-3. Automatic containment
-4. Stabilization workflows
-5. Human review
-6. Controlled recovery
-7. Post‑incident audit and learning
-
-All phases emit immutable incident events.
+The two storage modes don't intersect. Reads find nothing because writes don't populate the namespace they search.
 
----
-
-## 48.2 Automatic Containment Actions
-
-Depending on incident class, system may automatically:
-- Pause execution globally or per tenant
-- Activate reconciliation lock
-- Tighten guardrails
-- Disable affected agents
-- Freeze model promotion pipeline
-
-Containment actions are reversible only after review.
-
----
-
-## 48.3 Stabilization Workflows
+**Tactical mitigation in place** (commits `429afa7a` + `3dcad1eb` on `main`):
+- `AssemblePacket` reads agent outputs directly from upstream Step Functions task results (in the SF execution's input map) rather than from Memory.
+- `advisory-bff` projection copies `explanation` from the `DECISION_PACKET_UPDATED` event when the `DECISION_PACKET_CREATED` arrives without it.
 
-Examples:
-- Broker outage → switch to monitoring-only mode
-- Reconciliation failure → snapshot import + projection rebuild
-- Model anomaly → revert to previous approved model
-- Streaming failure → reconnect + catch-up reconciliation
+**Resolution path.** **Spec 2** lands the namespace alignment: `writeAgentOutput` switches from `CreateEventCommand` to a memory-record write against `decisions/{decisionId}`, so reads against the same namespace return the agent outputs as designed. Tactical mitigations remain as defence-in-depth.
 
 ---
 
-## 48.4 Human Oversight & Recovery
+## 18. Cross-Domain Routing
 
-Platform Operator or Compliance Reviewer must:
-- Review incident diagnostics
-- Approve execution resumption
-- Confirm guardrail restoration
-
-Recovery emits `ExecutionResumed` or equivalent events.
-
----
+**Pull model.** Each domain has exactly one cross-domain adapter (`*-adpt`) that owns the EventBridge Rules on **upstream** domain buses. The adapter copies matching events onto the consumer's bus, sometimes renaming them to scope-strip the upstream prefix.
 
-## 48.5 Incident Severity Levels
+The four cross-domain adapters:
 
-| Level | Example | Automatic Action |
+| Service | Subscribes to (upstream buses) | Republishes onto |
 |---|---|---|
-| SEV‑1 | Market data disruption | Agent retry |
-| SEV‑2 | Broker streaming loss | Execution pause |
-| SEV‑3 | Portfolio drift mismatch | Reconciliation lock |
-| SEV‑4 | Model anomaly | Model rollback |
-| SEV‑5 | Systemic risk | Global execution freeze |
+| `advisory-adpt` | investor-bus, ledger-bus, execution-bus | advisory-bus |
+| `execution-adpt` | advisory-bus | execution-bus |
+| `investor-adpt` | advisory-bus, ledger-bus, execution-bus | investor-bus |
+| `ledger-adpt` | execution-bus | ledger-bus |
+
+(Each domain also has third-party data adapters for external sources — alpha-vantage-adpt, fred-adpt, marketwatch-adpt, sec-edgar-adpt, yahoo-finance-adpt, broker-sim-adpt, broker-alpaca-adpt — those are not cross-*domain* adapters but external-service adapters.)
+
+**Rule pattern.** Each adapter declares its own EB rules using `Match.anyOf()` for `$or` content filters. Cite: `services/advisory/advisory-adpt/src/`. The pull model means consumers control what they listen to — the upstream domain doesn't know who consumes its events.
+
+**Renames at boundary.** Some events are renamed when crossing — e.g. `LEDGER_PORTFOLIO_DRIFT_DETECTED` (on ledger-bus) is republished as `PORTFOLIO_DRIFT_DETECTED` (on advisory-bus). This decouples the consumer from the upstream domain's vocabulary.
+
+Reference: user-memory `project_inverted_adapter_routing.md`.
 
 ---
 
-## 50. Production Readiness & Launch Controls (Controlled Flight Phases)
+## 19. Knowledge Bases
 
-Nestfolio adopts a **Controlled Flight Phase** launch strategy inspired by safety‑critical system deployment models.
+Bedrock Knowledge Bases provide **authoritative external context** to LLM agents at inference time, complementing Memory (§17).
 
-Goal:
-- Gradually increase autonomy and capital exposure
-- Validate system behavior under real conditions
-- Maintain reversible risk at every phase
+**Hosting.** Per-service S3 vector buckets via `libs/cdk-constructs/src/extensions/knowledge-base.ts`. The naming service generates KB bucket names following the convention `kbBucketName(account, kbKey)`.
 
----
+**Ingestion pipeline:** producing service writes documents to its S3 bucket → DDB stream marks ingestion intent → SQS queue → ingestion Lambda → Bedrock KB sync. Re-indexing is incremental.
 
-## 50.1 Flight Phases
+**Query at agent inference.** Agents call `libs/agent-orchestrator/src/kb-retrieval.ts` to query KBs as part of their LangGraph state.
 
-### Phase 0 — Internal Simulation
-- Historical replay testing
-- Shadow decision evaluation
-- No real capital exposure
+**KB vs Memory complementarity:**
 
-Entry Criteria:
-- Model stability confirmed
-- Guardrail adherence validated
+| | Knowledge Base | AgentCore Memory |
+|---|---|---|
+| Source | Authoritative external corpus (research notes, policy docs, market analyses) | Behavioural / session / extraction artefacts |
+| Lifetime | Long-lived, manually curated | Per-tenant, evolves with usage |
+| Update | Document ingestion pipeline | Agent output writes |
+| Query mode | Semantic search (top-K vector) | Namespace-scoped retrieval + extraction |
 
----
-
-### Phase 1 — Sandbox Capital
-- Test portfolios with controlled capital
-- Execution enabled with strict limits
-- Aggressive monitoring enabled
-
-Constraints:
-- Conservative mode only
-- Tight turnover limits
-- Automatic execution pauses on anomalies
+The agents that consume KBs in production: `market-intelligence-ctrl` (market research corpus), `advisory-narrative-ctrl` (rationale templates / regulatory boilerplate), `onboarding-bff` (RAG for onboarding answers).
 
 ---
 
-### Phase 2 — Limited User Beta
-- Small cohort of real users
-- Hybrid autonomy enabled
-- Enhanced human oversight
+## 20. Frontend Topology
 
-Controls:
-- Per‑tenant capital limits
-- Mandatory pre‑notice notifications
-- Increased reconciliation cadence
+**Shell + 5 MFEs over Native Federation.** The Angular PWA shell (`apps/nestfolio-host/`) federates 5 MFEs at runtime: `apps/investor-mfe`, `apps/dashboard-mfe`, `apps/advisory-mfe`, `apps/ledger-mfe`, `apps/onboarding-mfe`. Each MFE is paired with its BFF, and each BFF publishes its own MFE bucket + CloudFront origin (per user-memory `project_mfe_charter_migration.md`, fully graduated 2026-04-27).
 
----
+**Per-route Apollo + AppSync GraphQL.** Each MFE has its own Apollo client pointed at its BFF's AppSync endpoint. Cross-MFE state passes through the shell via routing only, not via shared Apollo cache.
 
-### Phase 3 — Controlled Production
-- Broader user onboarding
-- Balanced mode default
-- Standard monitoring
+**`frontend-deps` shared singleton surface.** `libs/frontend-deps/index.js` exports `sharedFrontendDeps` — a 23-package singleton union spread into every `apps/*/federation.config.js`. The shell-⊇-every-MFE invariant is structural: shell shares everything every MFE shares.
 
-Restrictions:
-- Gradual increase of exposure caps
-- Continuous shadow model comparison
+**CSP single-source-of-truth.** A single CSP policy is built into the shell's `index.html` template at build time and emitted by `investor-web` at synth time. (Per user-memory `project_mfe_charter_migration.md` — exact path verified during the A1 ship in the MFE charter migration; current location is in `apps/nestfolio-host/` build artefacts; refer to that topic file for path detail.)
+
+**onboarding-bff as a hybrid.** It serves an MFE (the onboarding wizard), exposes a CopilotKit/AG-UI bridge endpoint, and previously hosted an AgentCore Runtime. Per the 2026-04-28 onboarding-runtime redesign (user-memory `project_playwright_e2e_ui.md` and the `project_agent_contract_tests.md` resolution), the agent runs in-process via `OnboardingAgent extends AbstractAgent` (cite `services/investor/onboarding-bff/agents/onboarding/agent.ts`).
 
 ---
 
-### Phase 4 — Full Production
-- Full operating modes available
-- Normal guardrails active
-- Governance and monitoring remain mandatory
+## 21. Open Questions
+
+These items the writing process surfaced but did not resolve. Each lists a proposed resolution path.
+
+1. **L1/L2 authority encoding.** Is `authorityLevel` a typed field on Decision Packet schemas, or a runtime classification in `compliance-ctrl`? Verify in `services/advisory/compliance-ctrl/src/` — if absent as a typed field, document the implicit classification logic in §6 explicitly. Spec 2 candidate.
+
+2. **Operating mode → agent behaviour wiring.** Per user-memory `project_operating_mode.md`, mode is captured in projections but not yet flowed into agent prompt construction. Resolution: the operating-mode design spec referenced in that topic file. Out of scope for Spec 1.
+
+3. **AgentCore Memory namespace mismatch.** `writeAgentOutput` writes session events; `readUpstreamOutput` reads memory records. **Spec 2** lands the alignment.
+
+4. **Dual `DECISION_PACKET_CREATED` emitter.** Both `advisory-ctrl` and `decision-workflow-ctrl` emit. **Spec 2** retires `advisory-ctrl`'s decision-lifecycle subsystem.
+
+5. **`advisory-ctrl/decision-lifecycle` AgentRuntime fate.** It deploys today; under Spec 2 it gets retired. Documented in SERVICE-INVENTORY.md as `legacy` health tag with forward-pointer to Spec 2.
+
+6. **`operations-ctrl` absorbed events — live vs reserved.** Categories `SHADOW_RUN_*`, `MODEL_*`, `INCIDENT_*`, `CIRCUIT_BREAKER_*`, `HEALTH_CHECK_*`, `TENANT_BUDGET_*` were absorbed into `advisory-ctrl`. Phase C audit should identify which event names are actually emitted/consumed by current code (live) versus declared but dormant (reserved-for-future). Captured in SERVICE-INVENTORY.md `advisory-ctrl` entry.
+
+7. **`decisions/{decisionId}` namespace extraction strategy.** The contract specifies "no extraction strategy — raw retrieval" but the current `RetrieveMemoryRecordsCommand` call uses a `searchQuery` (`'agent output'`) which implies a search-backed retrieval, not a direct read. Revisit during Spec 2 — may want a different API call (e.g. list-records-by-namespace) for the canonical read.
+
+8. **`onboarding-bff` AgentCore Runtime status post-2026-04-28.** With the in-process redesign, is the AgentCore Runtime still a deployment target, or is the Hono bridge running standalone? Verify by reading `services/investor/onboarding-bff/src/service.stack.ts`. Update the SERVICE-INVENTORY entry accordingly.
+
+9. **CSP single-source-of-truth file path.** Memory references `apps/nestfolio-host/csp.txt` but no such file is on disk (verified 2026-04-30). The CSP is single-sourced through some other mechanism. Resolution: trace the build-time CSP generation in `apps/nestfolio-host/` and update §20 with the actual path.
+
+10. **Operating-mode-parameter source of truth.** The numbers in §14 are illustrative defaults from the 2026-03-01 baseline. Live parameters must be located in `services/advisory/compliance-ctrl/` (or wherever the rule engine reads them) and either cited inline in §14 or moved to a separate operating-mode parameters reference.
 
 ---
 
-## 50.2 Autonomy Unlock Criteria
+## 22. Glossary
 
-Advancement between phases requires:
-- Incident rates below thresholds
-- Stable reconciliation metrics
-- Model agreement scores within limits
-- Compliance approval
-
----
-
-## 50.3 Capital Exposure Limits
-
-Exposure caps enforced per phase:
-- Per tenant
-- Global AUM
-- Strategy category
-
-Caps configurable and enforced by Compliance Agent.
+- **Decision Packet** — the canonical immutable record of a decision cycle (§10).
+- **Mandate** — the per-investor configuration declared at onboarding: goals, risk profile, asset constraints, ESG filters.
+- **Operating Mode** — Conservative / Balanced / Aggressive; declares the autonomy envelope (§14).
+- **Authority Level** (L1 / L2) — whether a decision can auto-execute or requires user confirmation (§6).
+- **Account Mode** (SIM / LIVE) — paper-broker or live-broker account; declared at investor onboarding.
+- **Reasoning Tier** — Sonnet / Haiku model selection per agent invocation; downgrades under cost pressure (§3).
+- **Cross-Domain Adapter** — a `*-adpt` service that subscribes to upstream domain buses and republishes onto the consumer bus (§18).
+- **BFF (Backend-for-Frontend)** — the CQRS read side for a frontend; owns a GraphQL API and a projection table (§12).
+- **AgentCore Memory** — Bedrock-managed durable conversation + extraction store for agents (§17).
+- **AgentCore Runtime** — Bedrock-managed Lambda + ECR runtime for agent code (§7).
+- **Knowledge Base** — Bedrock-managed S3 vector store for RAG context (§19).
+- **Circuit Breaker** — global pause-and-validate mechanism for execution-side incidents (§16).
 
 ---
 
-## 50.4 Kill‑Switch Governance
+## 23. Related Documents
 
-Immediate suspension possible via:
-- Platform Operator
-- Compliance Reviewer
-- Automated SEV‑5 containment
-
-Kill‑switch emits global execution freeze events.
-
----
-
-## 52. Data Retention & Deletion Policy (Layered Retention)
-
-Nestfolio adopts a **Layered Retention Model** to balance GDPR rights with financial audit requirements.
-
----
-
-## 52.1 Data Classification
-
-Data is separated into distinct domains:
-
-- **PII Layer**: user identity, contact information, authentication artifacts
-- **Operational Layer**: preferences, onboarding responses, UI interactions
-- **Financial & Audit Layer**: decisions, trades, reconciliation, compliance events
-
----
-
-## 52.2 Retention Principles
-
-- Personal data must be deletable upon verified user request.
-- Financial and audit records must remain retained for regulatory obligations.
-- Historical decisions remain reproducible without retaining direct identity linkage.
-
----
-
-## 52.3 Anonymization Strategy
-
-Upon deletion request:
-
-1. PII records removed from Identity Store.
-2. Tenant linkage replaced with irreversible pseudonymous identifier.
-3. Event Store retains financial history without personal attribution.
-4. Audit trail remains valid but anonymized.
-
-This enables audit replay while honoring GDPR erasure requirements.
-
----
-
-## 52.4 Deletion Workflow
-
-Deletion emits events:
-- `UserDeletionRequested`
-- `PIIRemoved`
-- `TenantAnonymized`
-
-Execution authority and broker connectivity are revoked immediately.
-
----
-
-## 52.5 Retention Periods (Draft)
-
-| Data Type | Retention |
+| Path | Purpose |
 |---|---|
-| PII | Until deletion request |
-| Operational Data | 5 years |
-| Financial & Audit Events | 10+ years (regulatory) |
-
-Retention durations configurable per jurisdiction.
+| `docs/architecture/SERVICE-INVENTORY.md` | Per-service responsibility, events, agents, health |
+| `flows/*.flow.yaml` (14 flows) | Workflow-level event traversal; canonical for business flows |
+| `docs/data-flows/*.md` | Generated narrative views of the flow specs |
+| `docs/architecture/c3/` | C4 SVG diagrams (system + container level) |
+| `docs/architecture/nestfolio.d2` | D2 source for the C4 diagrams |
+| `specifications/01-product-vision.md` | Product framing |
+| `specifications/02-system-design.md` | High-level executive summary (this doc supersedes for service-level reasoning) |
+| `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md` | Memory contract source design |
+| `docs/superpowers/specs/2026-03-26-real-money-operations-design.md` | Real-money-ops + Ledger domain emergence |
+| `docs/superpowers/specs/2026-04-30-system-architecture-docs-foundation-design.md` | This document's authoring spec |
+| Per-service `CLAUDE.md` cards | Code-anchored current-state per service |
+| `CLAUDE.md` (root) | Skill router; lists this file as canonical reference |
 
 ---
 
-## 53. Next Iteration Targets
-- Define Regulatory compliance mapping (EU/Italy scope)
-- Define Business Continuity & Disaster Recovery model
-- Define Operational Runbooks & Playbooks
-- Define External Audit & Certification readiness
-- Define Long‑Term Platform Evolution roadmap
+## 24. Maintenance
 
+**Update protocol.** Updates to this document land via spec → plan → implementation, the same loop used for code change. A change to system architecture requires:
+
+1. A spec under `docs/superpowers/specs/YYYY-MM-DD-<topic>.md` capturing the design.
+2. A plan under `docs/superpowers/plans/YYYY-MM-DD-<topic>.md`.
+3. An implementation PR that lands code change *and* the corresponding section update here.
+
+Section-level changes that don't ship code (e.g. clarifications, glossary additions, link fixes) can land as a single `docs(arch):` commit on `main`.
+
+**Review cadence.** Each section header carries an implicit "last reviewed" date — the date of the most recent commit that touched the section. Whole-document review at 2-month intervals or upon major architectural change.
+
+**Ownership.** Maintained by whoever lands an architectural change. The repo enforces this via `CLAUDE.md`'s "Canonical Architecture References" section, which directs every future session to read this file before architecturally non-trivial work.
+
+**Last whole-document review:** 2026-04-30 — recovery from `eac934d5` baseline + reconciliation to current 33-service code (commit `c038691a` and following).
