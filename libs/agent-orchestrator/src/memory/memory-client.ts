@@ -1,6 +1,7 @@
 import {
   BedrockAgentCoreClient,
-  CreateEventCommand,
+  BatchCreateMemoryRecordsCommand,
+  ListMemoryRecordsCommand,
   RetrieveMemoryRecordsCommand,
 } from '@aws-sdk/client-bedrock-agentcore';
 
@@ -34,18 +35,21 @@ export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
     openDecisionSession(tenantId: string, decisionId: string): DecisionSession {
       return {
         async writeAgentOutput(output: Record<string, unknown>): Promise<void> {
+          // BatchCreateMemoryRecordsCommand records take `namespaces: string[]`
+          // (plural array) per the SDK's MemoryRecordCreateInput type.
+          // ListMemoryRecordsCommand below uses `namespace: string` (singular).
+          // The asymmetry is SDK-mandated — do not "fix" it. requestIdentifier
+          // is an idempotency key; AgentCore deduplicates retries by it.
+          const namespace = `/${config.serviceName}/${tenantId}/decisions/${decisionId}`;
           await client.send(
-            new CreateEventCommand({
+            new BatchCreateMemoryRecordsCommand({
               memoryId: config.memoryId,
-              actorId: tenantId,
-              sessionId: decisionId,
-              eventTimestamp: new Date(),
-              payload: [
+              records: [
                 {
-                  conversational: {
-                    content: { text: JSON.stringify(output) },
-                    role: 'ASSISTANT',
-                  },
+                  requestIdentifier: `${tenantId}/${decisionId}`,
+                  namespaces: [namespace],
+                  content: { text: JSON.stringify(output) },
+                  timestamp: new Date(),
                 },
               ],
             })
@@ -55,10 +59,9 @@ export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
         async readUpstreamOutput(upstreamService: string): Promise<MemoryRecord[]> {
           const namespace = `/${upstreamService}/${tenantId}/decisions/${decisionId}`;
           const resp = await client.send(
-            new RetrieveMemoryRecordsCommand({
+            new ListMemoryRecordsCommand({
               memoryId: config.memoryId,
               namespace,
-              searchCriteria: { searchQuery: 'agent output', topK: 5 },
             })
           );
           return (resp.memoryRecordSummaries ?? []).map(mapRecord);

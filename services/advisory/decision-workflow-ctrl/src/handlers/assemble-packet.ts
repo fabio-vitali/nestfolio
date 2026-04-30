@@ -55,12 +55,12 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     // The narrative agent's ExplainabilitySchema produces `rationale` (detailed
     // reasoning) and `summary` (short framing). Map to the read model's
     // `explanation` field — `rationale` first, fall back to `summary`. The
-    // final placeholder covers the case where memory reads return empty:
-    // AgentCore strategy namespaces (e.g. /advisory-narrative/{actorId}/preferences)
-    // do not align with the read path /advisory-narrative/{actorId}/decisions/{decisionId}
-    // used by the memory client, so the agents' content rarely round-trips.
-    // The placeholder keeps explanation non-empty so the read model satisfies
-    // its String! schema contract and the UI renders the rationale block.
+    // final placeholder is defence-in-depth for the rare case where the upstream
+    // Memory read returns no record (e.g. transient AgentCore unavailability or
+    // an agent that ran but failed to persist its output). With the Memory client
+    // contract aligned (Spec 2 — direct record write + list-records read against
+    // the same /agent/{tenant}/decisions/{decisionId} namespace), this read
+    // returns the agent's structured output as the primary path.
     const explanation =
       (narrativeOutput?.rationale as string | undefined) ??
       (narrativeOutput?.summary as string | undefined) ??

@@ -5,18 +5,14 @@ jest.mock('@aws-sdk/client-bedrock-agentcore', () => {
   const sendMock = jest.fn();
   return {
     BedrockAgentCoreClient: jest.fn(() => ({ send: sendMock })),
-    CreateEventCommand: jest.fn((input) => ({ input, __type: 'CreateEvent' })),
-    RetrieveMemoryRecordsCommand: jest.fn((input) => ({
-      input,
-      __type: 'RetrieveMemory',
-    })),
+    BatchCreateMemoryRecordsCommand: jest.fn((input) => ({ input, __type: 'BatchCreateMemoryRecords' })),
+    ListMemoryRecordsCommand: jest.fn((input) => ({ input, __type: 'ListMemoryRecords' })),
+    RetrieveMemoryRecordsCommand: jest.fn((input) => ({ input, __type: 'RetrieveMemory' })),
     __sendMock: sendMock,
   };
 });
 
-const { __sendMock: sendMock } = jest.requireMock(
-  '@aws-sdk/client-bedrock-agentcore'
-);
+const { __sendMock: sendMock } = jest.requireMock('@aws-sdk/client-bedrock-agentcore');
 
 describe('createMemoryClient', () => {
   const config = {
@@ -28,7 +24,7 @@ describe('createMemoryClient', () => {
   beforeEach(() => sendMock.mockReset());
 
   describe('openDecisionSession', () => {
-    it('writeAgentOutput sends CreateEventCommand with correct fields', async () => {
+    it('writeAgentOutput sends BatchCreateMemoryRecordsCommand against the decision namespace', async () => {
       sendMock.mockResolvedValue({});
       const client = createMemoryClient(config);
       const session = client.openDecisionSession('tenant-1', 'dec-42');
@@ -37,16 +33,14 @@ describe('createMemoryClient', () => {
 
       expect(sendMock).toHaveBeenCalledTimes(1);
       const cmd = sendMock.mock.calls[0][0];
+      expect(cmd.__type).toBe('BatchCreateMemoryRecords');
       expect(cmd.input.memoryId).toBe('mem-123');
-      expect(cmd.input.actorId).toBe('tenant-1');
-      expect(cmd.input.sessionId).toBe('dec-42');
-      expect(cmd.input.payload[0].conversational.role).toBe('ASSISTANT');
-      expect(cmd.input.payload[0].conversational.content.text).toBe(
-        JSON.stringify({ goals: 'conservative' })
-      );
+      expect(cmd.input.records).toHaveLength(1);
+      expect(cmd.input.records[0].namespaces[0]).toBe('/investor-profile/tenant-1/decisions/dec-42');
+      expect(cmd.input.records[0].content.text).toBe(JSON.stringify({ goals: 'conservative' }));
     });
 
-    it('readUpstreamOutput queries correct upstream namespace', async () => {
+    it('readUpstreamOutput sends ListMemoryRecordsCommand against the upstream service namespace', async () => {
       sendMock.mockResolvedValue({
         memoryRecordSummaries: [
           {
@@ -63,14 +57,26 @@ describe('createMemoryClient', () => {
 
       expect(sendMock).toHaveBeenCalledTimes(1);
       const cmd = sendMock.mock.calls[0][0];
-      expect(cmd.input.namespace).toBe(
-        '/market-intelligence/tenant-1/decisions/dec-42'
-      );
+      expect(cmd.__type).toBe('ListMemoryRecords');
+      expect(cmd.input.memoryId).toBe('mem-123');
+      expect(cmd.input.namespace).toBe('/market-intelligence/tenant-1/decisions/dec-42');
       expect(records).toHaveLength(1);
       expect(records[0].score).toBe(0.95);
+      expect(records[0].memoryRecordId).toBe('rec-1');
+      expect(records[0].content).toBe('{"signals":[]}');
     });
 
-    it('searchLongTermMemory uses service namespace', async () => {
+    it('readUpstreamOutput returns empty array when namespace has no records', async () => {
+      sendMock.mockResolvedValue({ memoryRecordSummaries: undefined });
+      const client = createMemoryClient(config);
+      const session = client.openDecisionSession('tenant-1', 'dec-42');
+
+      const records = await session.readUpstreamOutput('portfolio-engine');
+
+      expect(records).toEqual([]);
+    });
+
+    it('searchLongTermMemory still uses RetrieveMemoryRecordsCommand with searchQuery', async () => {
       sendMock.mockResolvedValue({ memoryRecordSummaries: [] });
       const client = createMemoryClient(config);
       const session = client.openDecisionSession('tenant-1', 'dec-42');
@@ -78,19 +84,23 @@ describe('createMemoryClient', () => {
       await session.searchLongTermMemory('risk tolerance', 3);
 
       const cmd = sendMock.mock.calls[0][0];
+      expect(cmd.__type).toBe('RetrieveMemory');
       expect(cmd.input.namespace).toBe('/investor-profile/tenant-1');
       expect(cmd.input.searchCriteria.topK).toBe(3);
+      expect(cmd.input.searchCriteria.searchQuery).toBe('risk tolerance');
     });
   });
 
-  it('searchTenantMemory uses service namespace', async () => {
+  it('searchTenantMemory still uses RetrieveMemoryRecordsCommand with searchQuery', async () => {
     sendMock.mockResolvedValue({ memoryRecordSummaries: [] });
     const client = createMemoryClient(config);
 
     await client.searchTenantMemory('tenant-1', 'past allocations');
 
     const cmd = sendMock.mock.calls[0][0];
+    expect(cmd.__type).toBe('RetrieveMemory');
     expect(cmd.input.namespace).toBe('/investor-profile/tenant-1');
+    expect(cmd.input.searchCriteria.searchQuery).toBe('past allocations');
   });
 });
 
