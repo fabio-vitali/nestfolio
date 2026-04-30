@@ -107,15 +107,24 @@ advisory-bff and the e2e suite import names that survive in `decision-workflow-c
 
 The names — `DECISION_PACKET_CREATED`, `DECISION_PACKET_UPDATED`, `USER_CONFIRMATION_REQUESTED` — are already defined in `services/advisory/decision-workflow-ctrl/src/domain/events.ts`. No new types added.
 
-### 6.3 Edits — compliance-ctrl trigger swap
+### 6.3 Edits — compliance-ctrl import path migration
+
+`RECOMMENDATION_PROPOSED` is **not** a dead legacy event. The SF `WaitForCompliance` state in `services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts:159-177` actively emits it on `advisoryBus`, carrying the SF `taskToken` in `subject.taskToken`. compliance-ctrl is the canonical consumer (see `services/advisory/compliance-ctrl/src/handlers/event-listener.ts:199-202`), and the `taskToken` is load-bearing for `SendTaskSuccess` resume. Three integration tests in `services/advisory/compliance-ctrl/test/integration/compliance-ctrl.integration.test.ts` pump `RECOMMENDATION_PROPOSED` end-to-end and pass today.
+
+The change is therefore a **pure import-path migration**, identical in shape to the advisory-bff migration in §6.2:
 
 | File | Edit |
 |---|---|
-| `services/advisory/compliance-ctrl/src/handlers/event-listener.ts:202` | Drop `AdvisoryCtrlEventTypes.RECOMMENDATION_PROPOSED` handler. Replace with `DecisionWorkflowEventTypes.DECISION_PACKET_CREATED` handler. The handler body keeps the same compliance-evaluation logic; only the event-type key changes |
-| `services/advisory/compliance-ctrl/src/service.stack.ts:16` | Same swap in the Ingress `eventTypes` array |
-| `services/advisory/compliance-ctrl/test/unit/event-listener.test.ts` | Drop `RECOMMENDATION_PROPOSED` assertion. Add `DECISION_PACKET_CREATED` assertion |
+| `services/advisory/compliance-ctrl/src/service.stack.ts` | Replace `import { AdvisoryCtrlEventTypes } from '@nestfolio/advisory-ctrl/events';` with `import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';`. In the Ingress `eventTypes` array, replace `AdvisoryCtrlEventTypes.RECOMMENDATION_PROPOSED` with `DecisionWorkflowEventTypes.RECOMMENDATION_PROPOSED` |
+| `services/advisory/compliance-ctrl/src/handlers/event-listener.ts:5,202` | Same import swap; replace `AdvisoryCtrlEventTypes.RECOMMENDATION_PROPOSED` at line 202 with `DecisionWorkflowEventTypes.RECOMMENDATION_PROPOSED` |
+| `services/advisory/compliance-ctrl/test/unit/event-listener.test.ts` | Import-path swap only — the test fixtures already use the literal string `'RECOMMENDATION_PROPOSED'` via `fakeSqsRecord(...)`, so no assertion changes |
+| `services/advisory/compliance-ctrl/test/integration/compliance-ctrl.integration.test.ts` | No change — it already uses the literal `detailType: 'RECOMMENDATION_PROPOSED'` |
 
-The `DECISION_PACKET_CREATED` payload carries the same business inputs compliance needs (proposed trades, current positions, portfolio value, risk score) — see `decision-workflow-ctrl/src/handlers/assemble-packet.ts:75-86` for the row shape. No payload schema changes required.
+The wire-level trigger, payload shape, taskToken propagation, and end-to-end behaviour are unchanged. `RECOMMENDATION_PROPOSED` already exists in `DecisionWorkflowEventTypes` at `services/advisory/decision-workflow-ctrl/src/domain/events.ts:16`, so no new event types are added.
+
+### 6.3.1 Stale service card to regenerate
+
+`services/advisory/compliance-ctrl/CLAUDE.md` currently states "Subscriptions: DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED, MANDATE_CREATED, MANDATE_UPDATED, OPERATING_MODE_CHANGED" — this contradicts the actual code (`RECOMMENDATION_PROPOSED` + the three mandate events). The card was either generated against a stale snapshot or pre-emptively written for a future state that never shipped. Regenerate via the `audit-service` skill as part of this spec's execution so the card matches reality.
 
 ### 6.4 Documents — leave alone
 
@@ -222,7 +231,7 @@ Unchanged. Both `RetrieveMemoryRecordsCommand` and `ListMemoryRecordsCommand` re
 ### 8.2 Updated tests
 
 - `services/advisory/decision-workflow-ctrl/test/unit/assemble-packet.test.ts` — keep; the `Promise.all` over `UPSTREAM_SERVICES` composition is unchanged.
-- `services/advisory/compliance-ctrl/test/unit/event-listener.test.ts` — drop `RECOMMENDATION_PROPOSED` handler assertion; add `DECISION_PACKET_CREATED` handler assertion.
+- `services/advisory/compliance-ctrl/test/unit/event-listener.test.ts` — import-path swap only; assertions unchanged. Tests already use the literal `'RECOMMENDATION_PROPOSED'` via `fakeSqsRecord`.
 - `services/advisory/advisory-bff/test/unit/handlers/event-listener.test.ts` + transforms tests — update import paths only; behaviour unchanged.
 - `apps/e2e-feature-tests/src/advisory/operating-mode-authority.e2e.test.ts` — update import path; assertion unchanged.
 
@@ -243,7 +252,7 @@ Sandbox account 771924376645, region us-east-1, prefix `dev`.
 Three deploy steps:
 
 1. `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=compliance-ctrl,advisory-bff`
-   - Deploys the trigger swap and import migration. compliance-ctrl now subscribes to `DECISION_PACKET_CREATED` from decision-workflow-ctrl. advisory-bff projection unchanged at the wire (event names identical) but the bundle hash changes because the import path changed. decision-workflow-ctrl has no code diff and does not need redeployment.
+   - Deploys the import-path migrations on both services. Wire-level subscriptions are unchanged (compliance-ctrl still ingests `RECOMMENDATION_PROPOSED`; advisory-bff still ingests `DECISION_PACKET_CREATED` / `DECISION_PACKET_UPDATED` / `USER_CONFIRMATION_REQUESTED`). Lambda bundle hashes change because the imports now resolve to `@nestfolio/decision-workflow-ctrl/events`. decision-workflow-ctrl has no code diff and does not need redeployment.
 2. Remove advisory-ctrl from `infrastructure/bin/app.ts` and re-synth → next deploy of the full app set will skip advisory-ctrl.
 3. **Explicit destroy** (the only destructive AWS operation in this spec — confirm before running): `cdk destroy NestfolioAdvisoryCtrlStack-dev` (or whatever the stack id is). CDK does not auto-destroy stacks when their construct is removed from the app composition.
 
@@ -287,7 +296,7 @@ No edits. The "Canonical Architecture References" block already points at the tw
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| compliance-ctrl integration test fails because `DECISION_PACKET_CREATED` payload shape differs from what handler expects | Low | Verified payload at `assemble-packet.ts:75-86`. Add unit-test assertion early in the plan |
+| compliance-ctrl unit/integration tests fail after import-path swap | Very low | Tests use the literal string `'RECOMMENDATION_PROPOSED'` for SQS fixtures and EB `detailType`, not the imported enum. TypeScript compile catches any usage mismatch before tests run |
 | advisory-bff projection regression because import path swap reorders or shadows a name | Very low | Names are identical; TypeScript compile catches any mismatch |
 | Memory client unit test passes but live AgentCore runtime returns no records | Low | Smoke test in dev — invoke a 4-agent pipeline end-to-end, assert AssemblePacket logs show non-empty `readUpstreamOutput` results |
 | `cdk destroy` of advisory-ctrl deletes the State table with in-flight data | Negligible | Dev is disposable per `feedback_no_deprecation.md`. Confirm no cross-service reads of advisory-ctrl's State table — `Grep` search confirms zero |
@@ -301,14 +310,14 @@ Rollback: revert the commit series. Dev redeploy of advisory-ctrl from the prior
 - Migrating the four canonical agent services off direct `@nestfolio/agent-orchestrator` Memory client usage — they're already using it correctly.
 - Touching the `searchLongTermMemory` / `searchTenantMemory` semantics — they remain `RetrieveMemoryRecordsCommand` with a `searchQuery`, which is correct for long-term namespaces with extraction strategies attached.
 - Adding integration tests for the AgentCore Memory client against a live AgentCore Memory resource. The unit tests with `aws-sdk-client-mock` cover the contract; integration coverage comes from the existing E2E suite.
-- Resolving the broader open question in `project_decision_workflow_stuck.md` (SF stuck at WaitForCompliance). That issue is independent — compliance-ctrl trigger swap may help or may not; if SF is still stuck after Spec 2 ships, it's a separate investigation.
+- Resolving the broader open question in `project_decision_workflow_stuck.md` (SF stuck at WaitForCompliance). That issue is independent of Spec 2 — Spec 2 only changes the producer of `DECISION_PACKET_CREATED` and the import paths; the SF↔compliance-ctrl `RECOMMENDATION_PROPOSED` link is unchanged.
 
 ## 13. Success criteria
 
 1. `find services/advisory/advisory-ctrl -type d` returns nothing.
 2. `Grep "@nestfolio/advisory-ctrl"` over the entire workspace (excluding `docs/superpowers/`) returns zero matches.
 3. `Grep "AdvisoryCtrlEventTypes"` over the entire workspace (excluding `docs/superpowers/` and `MEMORY.md` history) returns zero matches.
-4. `Grep "RECOMMENDATION_PROPOSED"` returns only references in legacy specs/plans under `docs/superpowers/`. Zero references in production code.
+4. `Grep "RECOMMENDATION_PROPOSED"` returns expected hits in `decision-workflow-ctrl` (SF state machine + events.ts) and `compliance-ctrl` (handlers + tests + literal `detailType` strings). Zero references to `AdvisoryCtrlEventTypes.RECOMMENDATION_PROPOSED` (the now-removed import).
 5. `pnpm nx run-many -t build,test,lint` — green for affected projects.
 6. `pnpm nx run e2e-feature-tests:test-e2e-features` — passes scenarios touching the advisory pipeline.
 7. SYSTEM-ARCHITECTURE.md §7.1 + §10.1 + §17.1 read "Resolved 2026-04-30 (Spec 2)".
