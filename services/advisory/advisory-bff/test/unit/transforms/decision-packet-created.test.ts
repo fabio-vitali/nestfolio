@@ -43,4 +43,54 @@ describe('decisionPacketCreated transform', () => {
       }),
     );
   });
+
+  it('should skip events with empty explanation AND empty trades (advisory-ctrl emits these before its agent pipeline runs)', () => {
+    const uow = {
+      event: {
+        id: 'e2',
+        type: 'DECISION_PACKET_CREATED',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        subject: {
+          tenantId: 't1',
+          decisionId: 'd1',
+          trigger: 'MANDATE_CREATED',
+          proposedTrades: [],
+          explanation: '',
+          confirmationRequired: false,
+        },
+        context: { tenantId: 't1' },
+      },
+      payload: {},
+      record: {},
+    };
+
+    expect(decisionPacketCreated(uow as any)).toBeUndefined();
+  });
+
+  it('should write when explanation is present even if trades are empty (decision-workflow-ctrl placeholder path)', () => {
+    const uow = {
+      event: {
+        id: 'e3',
+        type: 'DECISION_PACKET_CREATED',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        subject: {
+          tenantId: 't1',
+          decisionId: 'd1',
+          trigger: 'MANDATE_CREATED',
+          proposedTrades: [],
+          explanation: 'Decision pending — narrative placeholder.',
+          confirmationRequired: true,
+        },
+        context: { tenantId: 't1' },
+      },
+      payload: {},
+      record: {},
+    };
+
+    const result = decisionPacketCreated(uow as any);
+    expect(result).toBeDefined();
+    expect((result as { fields: Record<string, unknown> }).fields.explanation).toBe(
+      'Decision pending — narrative placeholder.',
+    );
+  });
 });

@@ -29,6 +29,18 @@ export const decisionStatusChanged = (
   if (uow.event.subject.taskToken) {
     fields.taskToken = uow.event.subject.taskToken;
   }
+  // advisory-ctrl emits DECISION_PACKET_UPDATED with the assembled explanation
+  // and proposedTrades on subject after its agent pipeline completes. The CREATE
+  // event that preceded this UPDATE landed an empty row (advisory-ctrl writes
+  // an empty packet first, then updates with content). Copy these fields when
+  // present so the read model carries the agent-produced narrative the UI's
+  // .rationale element renders.
+  if (typeof uow.event.subject.explanation === 'string') {
+    fields.explanation = uow.event.subject.explanation;
+  }
+  if (Array.isArray(uow.event.subject.proposedTrades)) {
+    fields.proposedTrades = uow.event.subject.proposedTrades;
+  }
 
   return update('DecisionReadModel', fields, {
     condition: 'attribute_exists(pk)',

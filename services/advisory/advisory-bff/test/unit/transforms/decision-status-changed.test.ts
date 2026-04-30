@@ -69,4 +69,23 @@ describe('decisionStatusChanged transform', () => {
   it('should return undefined for unmapped event types', () => {
     expect(decisionStatusChanged(makeUow('UNKNOWN_EVENT') as any)).toBeUndefined();
   });
+
+  it('should copy explanation + proposedTrades from DECISION_PACKET_UPDATED subject (advisory-ctrl agent pipeline output)', () => {
+    const explanation = 'detailed reasoning behind the recommendation';
+    const proposedTrades = [{ symbol: 'AAPL', side: 'BUY' }];
+    const result = decisionStatusChanged(
+      makeUow('DECISION_PACKET_UPDATED', { explanation, proposedTrades }) as any,
+    ) as ReturnType<typeof update>;
+    expect(result.updates).toMatchObject({
+      status: 'COMPLIANCE_REVIEW',
+      explanation,
+      proposedTrades,
+    });
+  });
+
+  it('should not copy explanation when missing from subject (e.g. DECISION_APPROVED from compliance-ctrl)', () => {
+    const result = decisionStatusChanged(makeUow('DECISION_APPROVED') as any) as ReturnType<typeof update>;
+    expect(result.updates).not.toHaveProperty('explanation');
+    expect(result.updates).not.toHaveProperty('proposedTrades');
+  });
 });
