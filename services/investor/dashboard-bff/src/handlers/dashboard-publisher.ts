@@ -6,9 +6,14 @@ import { SignatureV4 } from '@smithy/signature-v4';
 import { Sha256 } from '@aws-crypto/sha256-js';
 import { defaultProvider } from '@aws-sdk/credential-provider-node';
 
+// `tenantId` MUST be in the selection set: AppSync's @aws_subscribe filter
+// matches the subscription's `tenantId` argument against fields in the mutation
+// RESPONSE (not input args). Without selecting tenantId, the filter never
+// matches and the broadcast silently drops on the server side.
 const PUBLISH_DASHBOARD_UPDATE = `
   mutation PublishDashboardUpdate($tenantId: ID!, $advisoryStatus: AdvisoryStatusInput) {
     publishDashboardUpdate(tenantId: $tenantId, advisoryStatus: $advisoryStatus) {
+      tenantId
       advisoryStatus {
         pendingDecisionsCount
         lastRecommendationAt

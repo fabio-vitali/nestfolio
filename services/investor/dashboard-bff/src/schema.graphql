@@ -29,12 +29,17 @@ input AdvisoryStatusInput {
 # --- Types ---
 
 type Dashboard @aws_cognito_user_pools @aws_iam {
+  # Required by @aws_subscribe filter on onDashboardUpdate(tenantId).
+  # AppSync compares subscription args against fields in the mutation response,
+  # NOT the mutation's input args. Without this, the filter never matches and
+  # the broadcast silently drops.
+  tenantId: ID
   portfolioSummary: PortfolioSummary
   advisoryStatus: AdvisoryStatus
   investorSnapshot: InvestorSnapshot
 }
 
-type PortfolioSummary {
+type PortfolioSummary @aws_cognito_user_pools @aws_iam {
   totalValueCents: Int!
   cashBalanceCents: Int!
   positionCount: Int!
@@ -42,7 +47,7 @@ type PortfolioSummary {
   updatedAt: String!
 }
 
-type PositionSnapshot {
+type PositionSnapshot @aws_cognito_user_pools @aws_iam {
   symbol: String!
   assetClass: String
   quantity: Float!
@@ -54,7 +59,7 @@ type PositionSnapshot {
   lastUpdatedAt: String!
 }
 
-type ActivityEntry {
+type ActivityEntry @aws_cognito_user_pools @aws_iam {
   activityType: String!
   description: String!
   createdAt: String!
@@ -68,7 +73,7 @@ type AdvisoryStatus @aws_cognito_user_pools @aws_iam {
   updatedAt: String!
 }
 
-type InvestorSnapshot {
+type InvestorSnapshot @aws_cognito_user_pools @aws_iam {
   goalType: String
   riskLevel: String
   operatingMode: String
@@ -77,13 +82,13 @@ type InvestorSnapshot {
   updatedAt: String!
 }
 
-type TimeTravelAvailability {
+type TimeTravelAvailability @aws_cognito_user_pools @aws_iam {
   available: Boolean!
   oldestDate: String
   latestDate: String
 }
 
-type SimulationSummary {
+type SimulationSummary @aws_cognito_user_pools @aws_iam {
   actualTotalValueCents: Int!
   simulatedTotalValueCents: Int!
   actualReturnPercent: Float!

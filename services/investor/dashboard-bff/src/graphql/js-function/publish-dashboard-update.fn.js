@@ -9,8 +9,9 @@ export function request(ctx) {
 }
 
 export function response(ctx) {
-  const { advisoryStatus } = ctx.arguments;
+  const { tenantId, advisoryStatus } = ctx.arguments;
   return {
+    tenantId,
     portfolioSummary: null,
     advisoryStatus: advisoryStatus ?? null,
     investorSnapshot: null,
