@@ -51,6 +51,7 @@ export const OnboardingCompletedSchema = BusEventSchema.extend({
     riskTolerance: z.number().int().min(0).max(3),
     riskExperience: z.number().int().min(0).max(3),
     operatingMode: z.enum(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']),
+    mandateLevel: z.enum(['ADVISORY', 'DISCRETIONARY']).optional(),
     mandateAccepted: z.literal(true),
   }),
 });

@@ -18,15 +18,24 @@ import {
  * by driving the compliance-ctrl pipeline directly.
  *
  * Flow:
- *   1. onboarded(mode) → investor-bff writes Mandate → CDC emits MANDATE_CREATED
- *      → investor-adpt → advisory-adpt → compliance-ctrl materializes MandateSnapshot
- *   2. Synthetic DECISION_PACKET_CREATED on advisory bus → compliance-ctrl
- *   3. compliance-ctrl evaluates rules → writes ComplianceCheck with authorityLevel
+ *   1. onboarded(mode, mandateLevel: 'DISCRETIONARY') → investor-bff writes Mandate
+ *      with mode-derived guardrail params → CDC emits MANDATE_CREATED →
+ *      investor-adpt → advisory-adpt → compliance-ctrl materializes MandateSnapshot.
+ *   2. Synthetic RECOMMENDATION_PROPOSED on advisory bus carrying a controlled
+ *      proposedTrade size + a unique decisionPacketId + a fake taskToken.
+ *   3. compliance-ctrl ingests, runs RuleEngine, writes ComplianceCheck record.
+ *   4. The test reads the ComplianceCheck row back, filtered by decisionPacketId
+ *      (so the SF auto-pipeline's RECOMMENDATION_PROPOSED — also fired by the
+ *      onboarding's Mandate write — doesn't race against the test's row).
  *
- * A 6 % trade should be:
- *   - L2 in CONSERVATIVE (maxSingleTradePercent = 5 %)
- *   - L1 in BALANCED    (maxSingleTradePercent = 10 %)
- *   - L1 in AGGRESSIVE  (maxSingleTradePercent = 20 %)
+ * A 6 % trade should resolve:
+ *   - L2 in CONSERVATIVE (maxSingleTradePercent = 5 %, trade exceeds threshold)
+ *   - L1 in BALANCED    (maxSingleTradePercent = 10 %, trade within threshold)
+ *   - L1 in AGGRESSIVE  (maxSingleTradePercent = 20 %, trade within threshold)
+ *
+ * The mandateLevel: 'DISCRETIONARY' override is required because the default
+ * for e2e tenants is ADVISORY (forces L2 regardless of mode — see
+ * services/investor/investor-bff/src/transforms/onboarding-completed.ts).
  */
 
 const CAPITAL_AMOUNT = 100_000;
@@ -53,11 +62,12 @@ async function waitForMandateSnapshot(
   throw new Error(`MandateSnapshot not materialized in compliance-ctrl within 90 s (pk=${pk})`);
 }
 
-/** Poll compliance-ctrl DDB for a ComplianceCheck record matching tenantId (max 120 s). */
+/** Poll compliance-ctrl DDB for a ComplianceCheck record matching tenantId + decisionPacketId (max 120 s). */
 async function waitForComplianceCheck(
   ddbDoc: DynamoDBDocumentClient,
   tableName: string,
   tenantId: string,
+  decisionPacketId: string,
 ): Promise<Record<string, unknown>> {
   const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
@@ -71,12 +81,13 @@ async function waitForComplianceCheck(
         ':type': 'ComplianceCheck',
       },
     }));
-    if (result.Items && result.Items.length > 0) {
-      return result.Items[0];
+    const match = result.Items?.find((item) => item['decisionPacketId'] === decisionPacketId);
+    if (match) {
+      return match;
     }
     await new Promise((r) => setTimeout(r, 3_000));
   }
-  throw new Error(`ComplianceCheck not found for tenantId=${tenantId} within 120 s`);
+  throw new Error(`ComplianceCheck not found for tenantId=${tenantId}, decisionPacketId=${decisionPacketId} within 120 s`);
 }
 
 describe.each([
@@ -94,9 +105,10 @@ describe.each([
     ctx = await createTestContext();
     tenant = await freshTenant(ctx);
 
-    // Seed onboarded state — triggers Mandate creation with mode-derived guardrail params
+    // Seed onboarded state with DISCRETIONARY mandate so authority resolution
+    // depends on mode-derived guardrail params, not on the e2e-prefix ADVISORY default.
     await applyFixtures(ctx, tenant, [
-      onboarded({ operatingMode: mode, capitalAmount: CAPITAL_AMOUNT }),
+      onboarded({ operatingMode: mode, capitalAmount: CAPITAL_AMOUNT, mandateLevel: 'DISCRETIONARY' }),
     ]);
 
     // Set up DDB client for compliance-ctrl reads
@@ -116,16 +128,22 @@ describe.each([
 
   it(`authority is ${expectedAuthority}`, async () => {
     const eb = new EventBridgeClient(ctx);
+    const decisionId = `e2e-decision-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-    // Publish DECISION_PACKET_CREATED to advisory bus targeting compliance-ctrl
+    // Publish RECOMMENDATION_PROPOSED to advisory bus targeting compliance-ctrl.
+    // taskToken is required by compliance-ctrl's handler (NotRetryableError otherwise);
+    // we use a fake token because we don't care about the SF callback in this test —
+    // we only assert on the ComplianceCheck row written by compliance-ctrl.
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: DecisionWorkflowEventTypes.DECISION_PACKET_CREATED,
+      detailType: DecisionWorkflowEventTypes.RECOMMENDATION_PROPOSED,
       detail: {
         tenantId: tenant.tenantId,
         userId: tenant.userId,
-        decisionId: `e2e-decision-${Date.now()}`,
+        decisionId,
+        taskToken: `e2e-fake-token-${decisionId}`,
+        awaitingCompliance: true,
         proposedTrades: [{
           symbol: 'VTI',
           assetClass: 'EQUITY',
@@ -140,8 +158,10 @@ describe.each([
       },
     });
 
-    // Wait for compliance-ctrl to write a ComplianceCheck record
-    const check = await waitForComplianceCheck(ddbDoc, complianceTableName, tenant.tenantId);
+    // Wait for compliance-ctrl to write a ComplianceCheck record matching this
+    // specific decisionId — filters out the row the SF auto-pipeline writes
+    // for the Mandate-driven decision (which uses agent-proposed trades, not ours).
+    const check = await waitForComplianceCheck(ddbDoc, complianceTableName, tenant.tenantId, decisionId);
 
     expect(check.authorityLevel).toBe(expectedAuthority);
   }, 180_000);

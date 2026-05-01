@@ -16,6 +16,7 @@ interface OnboardingCompletedSubject {
   riskTolerance: number;
   riskExperience: number;
   operatingMode: 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
+  mandateLevel?: 'ADVISORY' | 'DISCRETIONARY';
   mandateAccepted: true;
 }
 
@@ -115,19 +116,22 @@ export async function onboardingCompleted(
       },
       // 6. Put Mandate — derive parameters from operating mode.
       //
-      // E2E tenants (prefix `e2e-`) get an ADVISORY mandate so the
+      // E2E tenants (prefix `e2e-`) get an ADVISORY mandate by default so the
       // decision-workflow's compliance check always escalates to L2 →
       // USER_CONFIRMATION_REQUESTED → AdvisoryStatus.pendingDecisionsCount++,
       // which is what apps/nestfolio-e2e step 8 asserts. Production tenants
       // keep DISCRETIONARY (autonomous L1 path) until the agents start
       // emitting non-trivial proposed trades that organically escalate to L2.
+      // The mandateLevel override on the event payload lets specific e2e tests
+      // (e.g. operating-mode-authority.e2e) opt into DISCRETIONARY when they
+      // need to assert mode → authority differentiation.
       {
         Put: {
           TableName: tableName,
           Item: {
             pk, sk: 'Mandate', __typename: 'Mandate',
             tenantId: s.tenantId, userId: s.userId, region: ctx.region, createdAt: now, mandateId,
-            level: s.tenantId.startsWith('e2e-') ? 'ADVISORY' : 'DISCRETIONARY',
+            level: s.mandateLevel ?? (s.tenantId.startsWith('e2e-') ? 'ADVISORY' : 'DISCRETIONARY'),
             ...resolveGuardrailParams(s.operatingMode),
             effectiveDate: now, revokedAt: null, version: 1,
           } satisfies TableEntry,

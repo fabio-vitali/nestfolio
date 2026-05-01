@@ -64,6 +64,7 @@ export function onboarded(overrides?: {
   operatingMode?: 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
   capitalAmount?: number;
   currency?: string;
+  mandateLevel?: 'ADVISORY' | 'DISCRETIONARY';
 }): Fixture {
   return async (_ctx, tenant, eb, bff) => {
     await eb.putEvent({
@@ -103,6 +104,7 @@ export function onboarded(overrides?: {
         riskTolerance: 7,
         riskExperience: 5,
         operatingMode: overrides?.operatingMode ?? 'BALANCED',
+        mandateLevel: overrides?.mandateLevel,  // optional — falls back to e2e-prefix default in transform
         mandateAccepted: true,
       },
     });
