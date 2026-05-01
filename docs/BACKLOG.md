@@ -8,13 +8,30 @@
 - **Scope contract.** Every spec/plan must have an explicit §"Out of scope" before execution starts. Out-of-scope failures during validation default to *file-and-continue*, not pivot.
 - **Boundary review.** At each workstream ship, spend 5 min re-ranking PARKING LOT and promoting items to QUEUED if they've grown teeth.
 
-Last reviewed: 2026-05-01 (after Spec 3 ship `fa78514c`).
+Last reviewed: 2026-05-01 (after Spec 3 ship `fa78514c`; Spec 4 promoted to ACTIVE same day).
 
 ---
 
 ## ACTIVE
 
-*(none — between workstreams; pick from QUEUED)*
+### `[arch-docs]` Spec 4 — Recover originating specs (§21 OQ #11)
+
+**Done when:** The two originating specs cited throughout `docs/architecture/SYSTEM-ARCHITECTURE.md` (the 2026-03-18 AgentCore Memory design and the 2026-03-26 real-money-operations design) are recovered from git history into `docs/superpowers/specs/`, and the §21 Open Question #11 + §23 references in `SYSTEM-ARCHITECTURE.md` are updated to point at the recovered files instead of `(date-anchored, not on disk)`.
+
+**Status:** Last item in the system architecture docs workstream. Spec 1 + Spec 2 + Spec 3 shipped 2026-04-30 → 2026-05-01.
+
+**Recovery sources (verified 2026-05-01):**
+- `2026-03-18-agentcore-memory-design.md` — present at parent `37e9994a` of deletion `fa15bbfd` (rename onboarding-agent-bff → onboarding-bff, 2026-03-24).
+- `2026-03-26-real-money-ops-design.md` — present at parent `93c7e6e1` of deletion `9b6001df` (2026-03-26 "fix: fixes").
+- Two companion specs at the same parent: `2026-03-26-broker-ctrl-sf-native-design.md` + `2026-03-26-broker-ctrl-sf-state-machine.md` — recovered alongside since they're cited from real-money-ops as the broker-ctrl SF native design referenced in `project_real_money_ops.md`.
+
+**Out of scope:**
+- Auditing the *content* of recovered specs against the current code state. They land as historical attribution; SYSTEM-ARCHITECTURE.md + SERVICE-INVENTORY.md remain the canonical "what is true now" references.
+- Recovering any *other* deleted specs from `docs/superpowers/specs/` (the broader `daa8c087` "restore and consolidate" deletions). If those are later wanted, file as separate workstreams.
+- Updating `project_real_money_ops.md` or other topic memory files beyond a one-line "originating spec recovered" pointer in `project_specifications_recovery.md` + `project_system_architecture_docs.md`.
+- Touching the cited *companion* topic memories (e.g., the 2026-03-18 AgentCore Memory design's links into `project_advisory_pipeline_consolidation.md`) — Spec 2 already closed those.
+
+**Topic memory:** `project_specifications_recovery.md`, `project_system_architecture_docs.md`.
 
 ---
 
@@ -50,16 +67,6 @@ Ordered by priority. Top of list = what to start next.
 **Cheapest next step:** add console logging of actual `pendingDecisionsCount` values delivered to `dashboard-container.component.ts:178`, rebuild + re-run e2e once, inspect.
 
 **Topic memory:** `project_playwright_e2e_ui.md` (search "Side-finding from Spec 3 e2e gate").
-
----
-
-### `[arch-docs]` Spec 4 — Recover originating specs (§21 OQ #11)
-
-**Done when:** Per `SYSTEM-ARCHITECTURE.md` §21 Open Question #11, the missing originating specs are recovered from git history and re-filed under `docs/superpowers/specs/`.
-
-**Status:** Last item in the system architecture docs workstream. Spec 1 + Spec 2 + Spec 3 shipped 2026-04-30 → 2026-05-01.
-
-**Topic memory:** `project_specifications_recovery.md`, `project_system_architecture_docs.md`.
 
 ---
 
@@ -116,6 +123,7 @@ Compact list — full prose lives in user auto-memory `MEMORY.md` § "Recently C
 
 | Date | Item | Commit |
 |---|---|---|
+| 2026-05-01 | Spec 4 — recover originating specs (§21 OQ #11) | (this commit) |
 | 2026-05-01 | Spec 3 — onboarding tool-call reliability | `fa78514c` |
 | 2026-04-30 | Spec 2 — advisory pipeline consolidation | `7c91abb9..2c706015` |
 | 2026-04-30 | Spec 1 — system architecture foundation docs | (multiple) |

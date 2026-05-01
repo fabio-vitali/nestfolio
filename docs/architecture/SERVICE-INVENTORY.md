@@ -353,7 +353,7 @@ Each entry below uses the same structure:
 
 **Health.** canonical.
 
-**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7, §10, §10.1, §13, §17.1; the 2026-03-18 AgentCore Memory design (date-anchored historical reference; see SYSTEM-ARCHITECTURE.md §21 Open Question #11).
+**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7, §10, §10.1, §13, §17.1; `docs/superpowers/specs/2026-03-18-agentcore-memory-design.md` (recovered 2026-05-01 by Spec 4).
 
 ---
 
@@ -505,7 +505,7 @@ Each entry below uses the same structure:
 
 **Why this service exists.** Owns the broker-side Step Functions state machine. Receives `ORDER_INTENT_CREATED`, routes the order through the appropriate broker adapter (sim or alpaca based on account mode), tracks fill state, emits `ORDER_FILLED` / `ORDER_REJECTED`.
 
-**Architectural Evolution.** Split during the 2026-03-26 real-money-operations design (date-anchored historical reference; see SYSTEM-ARCHITECTURE.md §21 Open Question #11) — `broker-ctrl` owns the SF state machine; `broker-{sim,alpaca}-adpt` own the broker-specific protocols. The split lets us add brokers (e.g. IBKR) without changing the orchestration layer.
+**Architectural Evolution.** Split during the 2026-03-26 real-money-operations design (`docs/superpowers/specs/2026-03-26-real-money-ops-design.md` + companions `2026-03-26-broker-ctrl-sf-native-design.md`, `2026-03-26-broker-ctrl-sf-state-machine.md`; recovered 2026-05-01 by Spec 4) — `broker-ctrl` owns the SF state machine; `broker-{sim,alpaca}-adpt` own the broker-specific protocols. The split lets us add brokers (e.g. IBKR) without changing the orchestration layer.
 
 **Health.** canonical.
 
