@@ -68,6 +68,25 @@ Before starting any task below, invoke the corresponding skill FIRST:
 | Regenerate C4 architecture diagrams | `generate-c4-diagrams`                             |
 | Rebuild all docs from code          | `/init-docs` (user command only)                   |
 
+## Backlog Discipline (MANDATORY)
+
+`docs/BACKLOG.md` is the single source of truth for what to do next. It has three sections: **ACTIVE** (one workstream), **QUEUED** (ordered list), **PARKING LOT** (one-liners).
+
+**Before starting any spec/plan/implementation:** confirm the active workstream is reflected in `docs/BACKLOG.md` ACTIVE. If it isn't, update it first.
+
+**Every spec or plan MUST have an explicit §"Out of scope" section** before execution begins. If a spec/plan lacks one, propose one as the first step.
+
+**When an out-of-scope finding surfaces during execution** (a separate bug, a tangential improvement, a future refactor), default to *file-and-continue*:
+1. Invoke the `backlog-add` skill with a one-liner including file:line evidence and a pointer to the relevant topic memory.
+2. State briefly in chat what was filed.
+3. Continue executing the active workstream.
+
+Do NOT pivot mid-flight unless the finding actually blocks the active workstream's done-definition (e.g., the validation gate cannot complete). When ambiguous, ask the user with the cost surfaced ("pivot extends ship time by N; the gate may complete first regardless"). Default = file-and-continue.
+
+**At each workstream ship:** spend 5 minutes on a boundary review of `docs/BACKLOG.md` — re-rank PARKING LOT, promote items to QUEUED if they've grown teeth, drop items that have aged out.
+
+The brainstorming / writing-plans / executing-plans / subagent-driven-development skills do not enforce this on their own — these instructions override their default behavior per the superpowers skill priority rules.
+
 ## Hard Constraints
 
 - Services NEVER call each other via API — events only
@@ -76,3 +95,4 @@ Before starting any task below, invoke the corresponding skill FIRST:
 - Codebase is source of truth — verify before documenting or planning
 - Run tasks through `pnpm nx`, never the underlying tool directly
 - Always use AskUserQuestion widget for architectural decisions
+- `docs/BACKLOG.md` discipline (above) — file-and-continue, single ACTIVE
