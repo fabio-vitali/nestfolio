@@ -12,7 +12,7 @@ For per-service code-anchored detail (event subscriptions, handlers, dependencie
 
 ## Inventory Summary
 
-Total services: **33** (verified 2026-04-30 via `ls services/{advisory,execution,investor,ledger}/` minus `README.md`).
+Total services: **32** (verified 2026-04-30 via `ls services/{advisory,execution,investor,ledger}/` minus `README.md`; advisory-ctrl removed by Spec 2 2026-04-30).
 
 Health tags:
 - **canonical** — matches design intent, current code is the reference shape.
@@ -30,31 +30,30 @@ Health tags:
 | 6 | onboarding-bff | Investor | bff (hybrid) | onboarding-mfe | OnboardingAgent (in-process LangGraph) | canonical |
 | 7 | investor-adpt | Investor | adpt (cross-domain) | — | — | canonical |
 | 8 | advisory-hub | Advisory | hub | — | — | canonical |
-| 9 | advisory-ctrl | Advisory | ctrl (control plane + vestigial decision-lifecycle) | — | decision-lifecycle multi-agent (LangGraph) | transitional (Spec 2) |
-| 10 | advisory-bff | Advisory | bff | advisory-mfe | — | canonical |
-| 11 | advisory-narrative-ctrl | Advisory | ctrl | — | Recommendation & Explainability | canonical |
-| 12 | investor-profile-ctrl | Advisory | ctrl | — | User & Goals + Risk | canonical |
-| 13 | market-intelligence-ctrl | Advisory | ctrl | — | Market & Research | canonical |
-| 14 | portfolio-engine-ctrl | Advisory | ctrl | — | Portfolio Construction + Rebalance | canonical |
-| 15 | decision-workflow-ctrl | Advisory | ctrl (orchestrator) | — | — (Step Functions) | canonical |
-| 16 | compliance-ctrl | Advisory | ctrl | — | — (rule engine) | canonical |
-| 17 | advisory-adpt | Advisory | adpt (cross-domain) | — | — | canonical |
-| 18 | alpha-vantage-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
-| 19 | fred-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
-| 20 | marketwatch-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
-| 21 | sec-edgar-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
-| 22 | yahoo-finance-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
-| 23 | execution-hub | Execution | hub | — | — | canonical |
-| 24 | execution-ctrl | Execution | ctrl | — | — | canonical |
-| 25 | broker-ctrl | Execution | ctrl (orchestrator) | — | — (Step Functions) | canonical |
-| 26 | broker-sim-adpt | Execution | adpt (broker) | — | — | canonical |
-| 27 | broker-alpaca-adpt | Execution | adpt (broker + circuit breaker) | — | — | canonical |
-| 28 | execution-adpt | Execution | adpt (cross-domain) | — | — | canonical |
-| 29 | ledger-hub | Ledger | hub | — | — | canonical |
-| 30 | ledger-ctrl | Ledger | ctrl | — | — | canonical |
-| 31 | ledger-bff | Ledger | bff | ledger-mfe | — | canonical |
-| 32 | reconciliation-ctrl | Ledger | ctrl | — | — | canonical |
-| 33 | ledger-adpt | Ledger | adpt (cross-domain) | — | — | canonical |
+| 9 | advisory-bff | Advisory | bff | advisory-mfe | — | canonical |
+| 10 | advisory-narrative-ctrl | Advisory | ctrl | — | Recommendation & Explainability | canonical |
+| 11 | investor-profile-ctrl | Advisory | ctrl | — | User & Goals + Risk | canonical |
+| 12 | market-intelligence-ctrl | Advisory | ctrl | — | Market & Research | canonical |
+| 13 | portfolio-engine-ctrl | Advisory | ctrl | — | Portfolio Construction + Rebalance | canonical |
+| 14 | decision-workflow-ctrl | Advisory | ctrl (orchestrator) | — | — (Step Functions) | canonical |
+| 15 | compliance-ctrl | Advisory | ctrl | — | — (rule engine) | canonical |
+| 16 | advisory-adpt | Advisory | adpt (cross-domain) | — | — | canonical |
+| 17 | alpha-vantage-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
+| 18 | fred-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
+| 19 | marketwatch-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
+| 20 | sec-edgar-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
+| 21 | yahoo-finance-adpt | Advisory | adpt (3rd-party data) | — | — | canonical |
+| 22 | execution-hub | Execution | hub | — | — | canonical |
+| 23 | execution-ctrl | Execution | ctrl | — | — | canonical |
+| 24 | broker-ctrl | Execution | ctrl (orchestrator) | — | — (Step Functions) | canonical |
+| 25 | broker-sim-adpt | Execution | adpt (broker) | — | — | canonical |
+| 26 | broker-alpaca-adpt | Execution | adpt (broker + circuit breaker) | — | — | canonical |
+| 27 | execution-adpt | Execution | adpt (cross-domain) | — | — | canonical |
+| 28 | ledger-hub | Ledger | hub | — | — | canonical |
+| 29 | ledger-ctrl | Ledger | ctrl | — | — | canonical |
+| 30 | ledger-bff | Ledger | bff | ledger-mfe | — | canonical |
+| 31 | reconciliation-ctrl | Ledger | ctrl | — | — | canonical |
+| 32 | ledger-adpt | Ledger | adpt (cross-domain) | — | — | canonical |
 
 ---
 
@@ -221,7 +220,7 @@ Each entry below uses the same structure:
 
 ---
 
-## Advisory Domain (15 services)
+## Advisory Domain (14 services)
 
 ### advisory-hub
 
@@ -238,35 +237,6 @@ Each entry below uses the same structure:
 
 ---
 
-### advisory-ctrl
-
-**Type:** ctrl (control plane + vestigial decision-lifecycle) · **Domain:** Advisory
-**Stack:** `services/advisory/advisory-ctrl/src/service.stack.ts`
-
-**Why this service exists.** Per the post-2026-03-18 design, this is the **control plane** for the advisory domain — model lifecycle (`MODEL_REGISTERED`, `SHADOW_RUN_*`, `MODEL_PROMOTED`, `MODEL_ROLLBACK_TRIGGERED`), incident management (`INCIDENT_DETECTED|CONTAINED|ESCALATED|RESOLVED`), tenant budget enforcement (`TENANT_BUDGET_*`), reasoning-tier control (`REASONING_TIER_CHANGED`), and operator action audit (`OPERATOR_ACTION_PERFORMED`). It absorbs the originally-planned `operations-ctrl` service — that service does **not** exist as a deployable.
-
-**Responsibilities.**
-- *(Designed)* Control plane: model lifecycle, incidents, budgets, reasoning tier.
-- *(Vestigial)* Decision-lifecycle multi-agent LangGraph (the original 6-agent in-process orchestrator pre-2026-03-18). The `agents/decision-lifecycle/` subtree, the 6 prompt files, the orchestrator graph — all still on disk, still deployed.
-
-**Key events.**
-- *Live emission* (via CDC, per its `CLAUDE.md`): `DECISION_PACKET_CREATED`, `DECISION_PACKET_UPDATED`, `AGENT_INVOCATION_CREATED|UPDATED`, `WORKFLOW_STATE_CREATED|UPDATED`.
-- *Declared but not currently emitted* (typed event constants in `services/advisory/advisory-ctrl/src/domain/events.ts:1-41` — reserved-for-future): the operations-ctrl absorbed vocabulary (`SHADOW_RUN_*`, `MODEL_*`, `INCIDENT_*`, `HEALTH_CHECK_*`, `TENANT_BUDGET_*`, `REASONING_TIER_CHANGED`, `OPERATOR_ACTION_PERFORMED`, `EVENT_DELIVERY_FAILED`, `EVENT_REPLAYED`). These have routing surface in `investor-adpt` and `advisory-adpt` event-types but no producer code yet.
-
-**AI Agents.** `advisory_ctrl_decision_lifecycle` — multi-agent LangGraph orchestrator (Opus / Sonnet / Haiku via SSM); tools: portfolio-lookup, market-data, instrument-universe, event-publisher (per CLAUDE.md card).
-
-**State.** DDB tables (Decision Packet legacy, AgentInvocation, WorkflowState) + standalone tool Lambdas.
-
-**Architectural Evolution — vestigial decision-lifecycle.** Pre-2026-03-18: this was the single SF orchestrator hosting all 6 agents in-process. Post-2026-03-18 (per the 2026-03-18 AgentCore Memory design (date-anchored historical reference; see SYSTEM-ARCHITECTURE.md §21 Open Question #11)): `decision-workflow-ctrl` was introduced as the canonical orchestrator and the 6 agents were split into 4 cluster-ctrl services (SYSTEM-ARCHITECTURE.md §7.1). `advisory-ctrl` was supposed to retire its decision-lifecycle code. The retirement never landed → both services emit `DECISION_PACKET_CREATED` (SYSTEM-ARCHITECTURE.md §10.1, line citation `services/advisory/advisory-ctrl/src/service.stack.ts:69`). **Spec 2 (advisory pipeline consolidation) retires the decision-lifecycle subsystem** and leaves advisory-ctrl as the pure control plane.
-
-**Architectural Evolution — operations-ctrl absorbed.** The operations-ctrl service was planned in the 2026-03-01 baseline but never built. Its event vocabulary was absorbed into advisory-ctrl when the service was repurposed as the control plane. Most of those events are still typed-but-unwired today.
-
-**Health.** transitional. The decision-lifecycle subsystem is `legacy` with a forward-pointer to **Spec 2**; the control-plane responsibilities are `canonical` but largely reserved-for-future (most events typed, most producers not yet implemented).
-
-**Cross-references.** Service `CLAUDE.md` card; SYSTEM-ARCHITECTURE.md §7.1, §10.1; the 2026-03-18 AgentCore Memory design (date-anchored historical reference; see SYSTEM-ARCHITECTURE.md §21 Open Question #11).
-
----
-
 ### advisory-bff
 
 **Type:** bff · **Domain:** Advisory
@@ -276,7 +246,7 @@ Each entry below uses the same structure:
 
 **Responsibilities.** Decision Packet projection (the highest-traffic read model in the system); decision-list filters; subscription broadcasts when packets transition state.
 
-**Key events consumed.** `DECISION_PACKET_CREATED`, `DECISION_PACKET_UPDATED` (both emitters — see SYSTEM-ARCHITECTURE.md §10.1), `RECOMMENDATION_PROPOSED|APPROVED|BLOCKED|AWAITING_CONFIRMATION`.
+**Key events consumed.** `DECISION_PACKET_CREATED`, `DECISION_PACKET_UPDATED` (sole emitter: `decision-workflow-ctrl` — see SYSTEM-ARCHITECTURE.md §10.1), `RECOMMENDATION_PROPOSED|APPROVED|BLOCKED|AWAITING_CONFIRMATION`.
 
 **State.** DDB projection table; AppSync GraphQL.
 
@@ -284,7 +254,7 @@ Each entry below uses the same structure:
 
 **MFE.** `apps/advisory-mfe/`.
 
-**Architectural Evolution.** Hosts the **2026-04-30 race-condition fix** for the dual-emitter situation: `services/advisory/advisory-bff/src/transforms/decision-packet-created.ts` skips empty CREATE events; `services/advisory/advisory-bff/src/handlers/event-listener.ts` copies `explanation` from the UPDATE path with `attribute_exists(pk)` condition (commit `3dcad1eb`). Tactical mitigation, not root-cause fix — the proper resolution is **Spec 2** retiring the dual emitter.
+**Architectural Evolution.** Hosts the 2026-04-30 defence-in-depth guards (commits `429afa7a` + `3dcad1eb`): `services/advisory/advisory-bff/src/transforms/decision-packet-created.ts` skips events that carry neither `explanation` nor `proposedTrades`; `services/advisory/advisory-bff/src/handlers/event-listener.ts` copies `explanation` from the UPDATE path with `attribute_exists(pk)` condition. These guards remain as defence-in-depth now that Spec 2 removed the dual emitter. See SYSTEM-ARCHITECTURE.md §10.1.
 
 **Health.** canonical.
 
@@ -379,7 +349,7 @@ Each entry below uses the same structure:
 
 **State.** DDB DecisionPacket table (the canonical post-2026-03-18 owner); AgentCore Memory resource (per the §17 contract).
 
-**Architectural Evolution.** Introduced 2026-03-17 (commit `a54006c9`); replaces `advisory-ctrl` as the canonical SF orchestrator per the 2026-03-18 AgentCore Memory design (date-anchored historical reference; see SYSTEM-ARCHITECTURE.md §21 Open Question #11). The retirement of advisory-ctrl's decision-lifecycle code never landed → dual `DECISION_PACKET_CREATED` emitter (SYSTEM-ARCHITECTURE.md §10.1). The 8th-Playwright-session bug fix (commit `429afa7a`) lives in this service: `AssemblePacket` reads agent outputs directly from upstream task results before creating the row + persists `explanation`. The AgentCore Memory namespace divergence (§17.1) is also rooted in this service's `writeAgentOutput` / `readUpstreamOutput` calls (delegated to `libs/agent-orchestrator/src/memory/memory-client.ts`).
+**Architectural Evolution.** Introduced 2026-03-17 (commit `a54006c9`). Became the sole `DECISION_PACKET_CREATED` emitter when advisory-ctrl was removed by Spec 2 (2026-04-30) — see SYSTEM-ARCHITECTURE.md §10.1. The AgentCore Memory namespace alignment (§17.1) was also landed in Spec 2: `writeAgentOutput` now uses `BatchCreateMemoryRecordsCommand`; `readUpstreamOutput` uses `ListMemoryRecordsCommand` against the same namespace. The 8th-Playwright-session bug fix (commit `429afa7a`) lives in this service and remains as defence-in-depth: `AssemblePacket` reads agent outputs from SF task results before creating the row + persists `explanation`.
 
 **Health.** canonical.
 
@@ -687,11 +657,10 @@ The Ledger domain didn't exist in the 2026-03-01 baseline; it emerged with the r
 
 ## Closing notes
 
-This document covers all 33 services as of 2026-04-30. Updates land via spec → plan → impl per `CLAUDE.md` "Canonical Architecture References" section. For event-detail tables and full handler manifests on a given service, `audit-service` regenerates the per-service `CLAUDE.md` from code.
+This document covers all 32 services as of 2026-04-30 (advisory-ctrl removed by Spec 2). Updates land via spec → plan → impl per `CLAUDE.md` "Canonical Architecture References" section. For event-detail tables and full handler manifests on a given service, `audit-service` regenerates the per-service `CLAUDE.md` from code.
 
-Health-tag forecasts (subject to change with Spec 2):
+Health-tag state (post Spec 2, 2026-04-30):
 
-- **transitional → canonical (Spec 2):** `advisory-ctrl` (after decision-lifecycle retirement).
-- **canonical:** all other 32 services as of 2026-04-30.
+- **canonical:** all 32 services. No transitional, legacy, or dormant entries remain.
 
-No services currently carry the `dormant` tag — every entry has live consumers. `advisory-ctrl`'s control-plane *event vocabulary* has dormant entries (operations-ctrl absorbed events declared but no producer), but the service itself is live (decision-lifecycle path).
+No services currently carry the `dormant` tag — every entry has live consumers.

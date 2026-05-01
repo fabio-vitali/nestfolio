@@ -8,33 +8,33 @@ Stack: services/advisory/compliance-ctrl/src/service.stack.ts
 
 ## Ingress
 - advisoryBus → compliance-ctrl-ingress (SQS → Lambda)
-  Subscriptions: DECISION_PACKET_CREATED, DECISION_PACKET_UPDATED, MANDATE_CREATED, MANDATE_UPDATED, OPERATING_MODE_CHANGED
+  Subscriptions: RECOMMENDATION_PROPOSED, MANDATE_CREATED, MANDATE_UPDATED, OPERATING_MODE_CHANGED
 
 ## Egress
 - CDC: DynamoDB Streams → compliance-ctrl-egress (Lambda)
   Emits:
   - ComplianceCheck → insert: field dispatch on `result` — APPROVED → DECISION_APPROVED, BLOCKED → DECISION_BLOCKED
-  - AuditArtifact → AUDIT_ARTIFACT
+  - AuditArtifact → insert: AUDIT_ARTIFACT_CREATED, modify: AUDIT_ARTIFACT_UPDATED
 
 ## Handlers
 - event-listener.ts — Ingress event handler
-  - DECISION_PACKET_CREATED / DECISION_PACKET_UPDATED: loads MandateSnapshot from DDB, runs RuleEngine (MandateValidator + GuardrailEvaluator + SuitabilityChecker + AuthorityResolver), writes ComplianceCheck + AuditArtifact records
-  - Authority resolution uses mode-derived guardrail thresholds from the mandate snapshot (maxSingleTradePercent as % of portfolioValue, monthlyTurnoverCapPercent as % of portfolioValue); ADVISORY mandate always resolves L2
-  - MANDATE_CREATED / MANDATE_UPDATED: projects MandateSnapshot with all 8 guardrail fields (level, monthlyTurnoverCapPercent, maxSingleTradePercent, equityRiskBandPercent, driftTriggerPercent, singleEtfConcentrationPercent, drawdownCircuitBreakerPercent, effectiveDate/revokedAt)
+  - RECOMMENDATION_PROPOSED: loads MandateSnapshot from DDB, runs RuleEngine (MandateValidator + GuardrailEvaluator + SuitabilityChecker + AuthorityResolver), writes ComplianceCheck + AuditArtifact records. Requires `taskToken` on subject (SF callback to decision-workflow-ctrl on DECISION_APPROVED|BLOCKED). Throws NotRetryableError if taskToken missing or required fields absent.
+  - MANDATE_CREATED / MANDATE_UPDATED: projects GuardrailPolicy (MandateSnapshot) with 8 guardrail fields (level, monthlyTurnoverCapPercent, maxSingleTradePercent, equityRiskBandPercent, driftTriggerPercent, singleEtfConcentrationPercent, drawdownCircuitBreakerPercent, effectiveDate/revokedAt)
   - OPERATING_MODE_CHANGED: skip (no-op)
 - event-publisher.ts — Egress CDC publisher
 
 ## Event Types (domain/events.ts)
-- ComplianceEventTypes: DECISION_APPROVED, DECISION_BLOCKED, GUARDRAIL_VIOLATION_DETECTED, ESCALATION_TRIGGERED, COMPLIANCE_APPROVAL_GRANTED, AUDIT_ARTIFACT_CREATED, SUITABILITY_CHECK_PASSED, SUITABILITY_CHECK_FAILED
+- ComplianceEventTypes (outbound, via CDC): DECISION_APPROVED, DECISION_BLOCKED, GUARDRAIL_VIOLATION_DETECTED, ESCALATION_TRIGGERED, COMPLIANCE_APPROVAL_GRANTED, AUDIT_ARTIFACT_CREATED, SUITABILITY_CHECK_PASSED, SUITABILITY_CHECK_FAILED, AUDIT_ARTIFACT_UPDATED
 
 ## Tests
-- authority-resolver.test.ts
-- compliance.repository.test.ts
-- event-listener.test.ts
-- guardrail-evaluator.test.ts
-- mandate-validator.test.ts
-- rule-engine.test.ts
-- suitability-checker.test.ts
+- test/unit/authority-resolver.test.ts
+- test/unit/compliance.repository.test.ts
+- test/unit/event-listener.test.ts
+- test/unit/guardrail-evaluator.test.ts
+- test/unit/mandate-validator.test.ts
+- test/unit/rule-engine.test.ts
+- test/unit/suitability-checker.test.ts
+- test/integration/compliance-ctrl.integration.test.ts
 
 ## Dependencies
-- libs: cdk-constructs (core), event-processor
+- libs: cdk-constructs (core), event-processor, decision-workflow-ctrl/events, advisory-adpt/domain

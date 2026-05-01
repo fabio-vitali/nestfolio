@@ -155,24 +155,7 @@ All agents target Bedrock Claude inference profiles via `libs/agent-orchestrator
 
 ### 7.1 Architectural Evolution — 6→4 advisory agent decomposition
 
-**Pre-2026-03-18.** A single `advisory-ctrl` service hosted **all 6 agents** (User & Goals, Risk, Market & Research, Portfolio Construction, Rebalance Planner, Recommendation & Explainability) as one in-process LangGraph. The 6 prompt files for those agents are still on disk: `services/advisory/advisory-ctrl/src/agents/prompts/{user-goals,risk-assessment,market-research,portfolio-construction,rebalance-planner,explainability}.txt`. Step Functions sat in front of `advisory-ctrl` as a trigger, not as a per-agent fan-out.
-
-**Post-2026-03-18** (per the 2026-03-18 AgentCore Memory design (originating spec absent from `docs/superpowers/specs/` — see §21 Open Question #11)). The 6 agents were clustered into 4 cohesive ctrl services, each hosting its own AgentRuntime:
-
-- User & Goals + Risk → `investor-profile-ctrl`
-- Market & Research → `market-intelligence-ctrl`
-- Portfolio Construction + Rebalance Planner → `portfolio-engine-ctrl`
-- Recommendation & Explainability → `advisory-narrative-ctrl`
-
-A new orchestrator `decision-workflow-ctrl` was introduced (commit `a54006c9`, 2026-03-17) to fan out to the 4 ctrl services via Step Functions task tokens and assemble results from AgentCore Memory.
-
-**Rationale for the split:**
-- Memory locality: each agent owns its own Memory namespace and resource ARN.
-- Independent deploy + scale per agent cluster.
-- Per-cluster model-tier control (cost discipline).
-- Distinct timeout / retry / observability profiles.
-
-**Vestigial code.** `advisory-ctrl` retains the original decision-lifecycle code paths (the `agents/` subtree, the prompts, the 6-agent orchestration). The service still emits `DECISION_PACKET_CREATED` from its DDB stream (cite `services/advisory/advisory-ctrl/src/service.stack.ts:69`). This causes the dual-emitter situation documented in §10.1. **Spec 2 (advisory pipeline consolidation) retires the decision-lifecycle subsystem in `advisory-ctrl`**, leaving the service as the control plane (model lifecycle + incidents + budgets + reasoning-tier).
+**Resolved 2026-04-30 (Spec 2).** The legacy 6-agent advisory-ctrl service was removed. The Intelligence layer is exactly four services: investor-profile-ctrl, market-intelligence-ctrl, portfolio-engine-ctrl, advisory-narrative-ctrl. Drivers of the decomposition: per-agent Memory locality (each agent owns its namespace and resource ARN), per-agent observability (independent trace channels via `*_AGENT_INVOCATION_TRACED`), per-agent runtime independence (independent ECR images, deploy cadence, and AgentCore lifecycle). The orchestrator role passed to decision-workflow-ctrl, which composes the four agents via Step Functions task tokens.
 
 ---
 
@@ -245,21 +228,9 @@ The **Decision Packet** is the canonical immutable record of every advisory deci
 
 ### 10.1 Architectural Evolution — Dual `DECISION_PACKET_CREATED` emitters
 
-**Pre-2026-03-18.** `advisory-ctrl` was the single Step Functions orchestrator; it owned the Decision Packet write and was the sole emitter of `DECISION_PACKET_CREATED`.
+**Resolved 2026-04-30 (Spec 2).** The legacy emitter (advisory-ctrl CDC on its DecisionPacket row) was removed when advisory-ctrl was deleted in full. `decision-workflow-ctrl`'s `AssemblePacket` Lambda is now the sole canonical emitter. The CQRS race symptom observed in the 8th-session Playwright run (DECISION_PACKET_UPDATED arriving before CREATED, sparse advisory-bff projection rows) cannot recur — there is no second producer.
 
-**Post-2026-03-18** (per the 2026-03-18 AgentCore Memory design (originating spec absent from `docs/superpowers/specs/` — see §21 Open Question #11)). `decision-workflow-ctrl` was introduced as the canonical orchestrator. It owns the AgentCore Memory resource, delegates the 4 agent invocations to ctrl services via SF task tokens, and runs the `AssemblePacket` step that persists the assembled Decision Packet. Per the design intent, `advisory-ctrl` was supposed to retire its decision-lifecycle code and become the **control plane** (model lifecycle, incidents, budgets, reasoning-tier — absorbing what `operations-ctrl` would have owned).
-
-**Current state.** The retirement never landed. Both services still emit `DECISION_PACKET_CREATED`:
-
-- `services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts:70` — canonical, post-AssemblePacket. Comment in code reads: *"this INSERT emits DECISION_PACKET_CREATED on advisoryBus, which the …"*.
-- `services/advisory/advisory-ctrl/src/service.stack.ts:69` — declarative CDC emission on `DecisionPacket` INSERT in advisory-ctrl's own DDB table; legacy code path from when advisory-ctrl was the single orchestrator.
-
-**Symptom observed in 2026-04-30 8th-session Playwright run.** The dual emitter caused a race in advisory-bff's CQRS projection — `DECISION_PACKET_UPDATED` arrived before `CREATED`, producing a sparse row. Mitigated tactically by:
-
-- `services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts` reads agent outputs from upstream task results before creating the row + persists `explanation` (commit `429afa7a`).
-- `services/advisory/advisory-bff/src/transforms/decision-packet-created.ts` skips empty CREATE events; `services/advisory/advisory-bff/src/handlers/event-listener.ts` copies `explanation` from the UPDATE path with `attribute_exists(pk)` condition (commit `3dcad1eb`).
-
-**Resolution path.** **Spec 2 (advisory pipeline consolidation)** retires `advisory-ctrl`'s decision-lifecycle subsystem entirely, leaving `decision-workflow-ctrl` as the sole emitter and removing the race at the source.
+Defence-in-depth retained in `advisory-bff/transforms/decision-packet-created.ts`: the transform skips events that carry neither `explanation` nor `proposedTrades`. With one emitter that always lands the row populated, this skip should never fire — but it cheaply protects against degraded paths (e.g. AgentCore returning empty narrative output).
 
 ---
 
@@ -424,20 +395,16 @@ Each namespace has an extraction strategy attached at Memory provisioning time. 
 
 ### 17.1 Architectural Evolution — Current implementation diverges from contract
 
-**Symptom (2026-04-30, 8th Playwright session).** `decision-workflow-ctrl`'s `AssemblePacket` step finds **no** agent outputs from Memory; assembly proceeds with empty agent payloads.
+**Resolved 2026-04-30 (Spec 2).** `libs/agent-orchestrator/src/memory/memory-client.ts` now uses symmetric write/read commands against the same namespace.
 
-**Root cause.** The write path and the read path use different AgentCore Memory storage modes:
+- **Write** — `writeAgentOutput` calls `BatchCreateMemoryRecordsCommand` with `records[0].namespaces[0] = /{serviceName}/{tenantId}/decisions/{decisionId}`. Writes a memory record directly addressable by namespace.
+- **Read** — `readUpstreamOutput(upstreamService)` calls `ListMemoryRecordsCommand` against `/{upstreamService}/{tenantId}/decisions/{decisionId}`. Returns all records in the namespace, deterministic and complete.
 
-- **Write** (`libs/agent-orchestrator/src/memory/memory-client.ts:36-53`) — `writeAgentOutput` calls `CreateEventCommand` with `sessionId: decisionId`. This writes a **session event**, not a memory record. Session events are conversational state, not addressable by namespace search.
-- **Read** (`libs/agent-orchestrator/src/memory/memory-client.ts:55-65`) — `readUpstreamOutput` calls `RetrieveMemoryRecordsCommand` with `namespace: /${upstreamService}/${tenantId}/decisions/${decisionId}`. This searches **memory records** addressed by namespace.
+Reads find what writes produce. The placeholder fallback in `decision-workflow-ctrl/handlers/assemble-packet.ts:64-67` becomes true defence-in-depth (degraded-path safety) rather than the always-hit primary path it was during the divergence.
 
-The two storage modes don't intersect. Reads find nothing because writes don't populate the namespace they search.
+`searchLongTermMemory` and `searchTenantMemory` continue to use `RetrieveMemoryRecordsCommand` with a `searchQuery` — semantic recall is the correct semantic over the long-term namespaces (`preferences`, `signals`, `rationale`) where Bedrock extraction strategies are attached.
 
-**Tactical mitigation in place** (commits `429afa7a` + `3dcad1eb` on `main`):
-- `AssemblePacket` reads agent outputs directly from upstream Step Functions task results (in the SF execution's input map) rather than from Memory.
-- `advisory-bff` projection copies `explanation` from the `DECISION_PACKET_UPDATED` event when the `DECISION_PACKET_CREATED` arrives without it.
-
-**Resolution path.** **Spec 2** lands the namespace alignment: `writeAgentOutput` switches from `CreateEventCommand` to a memory-record write against `decisions/{decisionId}`, so reads against the same namespace return the agent outputs as designed. Tactical mitigations remain as defence-in-depth.
+Note on SDK shape: `BatchCreateMemoryRecordsCommand` records take `namespaces: string[]` (plural array) per `MemoryRecordCreateInput`; `ListMemoryRecordsCommand` takes `namespace: string` (singular). The asymmetry is SDK-mandated.
 
 ---
 
@@ -509,7 +476,7 @@ These items the writing process surfaced but did not resolve. Each lists a propo
 
 2. **Operating mode → agent behaviour wiring.** Per user-memory `project_operating_mode.md`, mode is captured in projections but not yet flowed into agent prompt construction. Resolution: the operating-mode design spec referenced in that topic file. Out of scope for Spec 1.
 
-3. **AgentCore Memory namespace mismatch.** `writeAgentOutput` writes session events; `readUpstreamOutput` reads memory records. **Spec 2** lands the alignment.
+3. ~~AgentCore Memory namespace mismatch.~~ **Closed 2026-04-30 by Spec 2** — `writeAgentOutput` now uses `BatchCreateMemoryRecordsCommand`, `readUpstreamOutput` uses `ListMemoryRecordsCommand`, both against `/{service}/{tenant}/decisions/{decisionId}`. See §17.1.
 
 4. **Dual `DECISION_PACKET_CREATED` emitter.** Both `advisory-ctrl` and `decision-workflow-ctrl` emit. **Spec 2** retires `advisory-ctrl`'s decision-lifecycle subsystem.
 
@@ -517,7 +484,7 @@ These items the writing process surfaced but did not resolve. Each lists a propo
 
 6. **`operations-ctrl` absorbed events — live vs reserved.** Categories `SHADOW_RUN_*`, `MODEL_*`, `INCIDENT_*`, `CIRCUIT_BREAKER_*`, `HEALTH_CHECK_*`, `TENANT_BUDGET_*` were absorbed into `advisory-ctrl`. Phase C audit should identify which event names are actually emitted/consumed by current code (live) versus declared but dormant (reserved-for-future). Captured in SERVICE-INVENTORY.md `advisory-ctrl` entry.
 
-7. **`decisions/{decisionId}` namespace extraction strategy.** The contract specifies "no extraction strategy — raw retrieval" but the current `RetrieveMemoryRecordsCommand` call uses a `searchQuery` (`'agent output'`) which implies a search-backed retrieval, not a direct read. Revisit during Spec 2 — may want a different API call (e.g. list-records-by-namespace) for the canonical read.
+7. ~~`decisions/{decisionId}` namespace extraction strategy.~~ **Closed 2026-04-30 by Spec 2** — `ListMemoryRecordsCommand` (direct list-by-namespace) replaces the semantic-search read. No extraction strategy needed on the namespace.
 
 8. **`onboarding-bff` AgentCore Runtime status post-2026-04-28.** With the in-process redesign, is the AgentCore Runtime still a deployment target, or is the Hono bridge running standalone? Verify by reading `services/investor/onboarding-bff/src/service.stack.ts`. Update the SERVICE-INVENTORY entry accordingly.
 
