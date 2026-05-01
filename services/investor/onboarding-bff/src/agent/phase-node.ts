@@ -11,6 +11,43 @@ interface PhaseNodeDeps {
   toolsByName: Record<string, any>;
 }
 
+/**
+ * Maps each onboarding phase to its expected render_* tool. Used by the
+ * named-tool retry guard to pin tool_choice when the first invoke returns
+ * an unexpected tool. Tool names match RENDER_TOOLS in
+ * `services/investor/onboarding-bff/src/agent/tools/render-ui.ts`.
+ */
+export const phaseToRenderTool: Record<Phase, string> = {
+  goal:            'render_options',
+  operating_mode:  'render_mode_cards',
+  horizon:         'render_slider',
+  capital:         'render_amount',
+  mandate_summary: 'render_summary',
+  mandate_consent: 'render_consent',
+  mandate_cta:     'render_cta',
+};
+
+/**
+ * Thrown by the phase node when the named-tool retry also fails to produce
+ * the expected tool. AbstractAgent's runStream catch maps this to a RUN_ERROR
+ * AG-UI event; the browser surfaces the existing 'Riprova' UX. Grep-friendly
+ * message shape.
+ */
+export class OnboardingToolCallFailure extends Error {
+  readonly phase: string;
+  readonly expectedTool: string;
+  readonly attempts: number;
+  constructor(args: { phase: string; expectedTool: string; attempts: number }) {
+    super(
+      `OnboardingToolCallFailure: phase=${args.phase} expectedTool=${args.expectedTool} attempts=${args.attempts}`,
+    );
+    this.name = 'OnboardingToolCallFailure';
+    this.phase = args.phase;
+    this.expectedTool = args.expectedTool;
+    this.attempts = args.attempts;
+  }
+}
+
 export function createPhaseNode(phaseName: string, deps: PhaseNodeDeps) {
   return async (state: Record<string, unknown>, config?: any) => {
     const { model, tools, toolsByName } = deps;
@@ -51,11 +88,51 @@ export function createPhaseNode(phaseName: string, deps: PhaseNodeDeps) {
     const systemMsg = new SystemMessage(`${SYSTEM_PROMPT}\n\n${phaseInstructions}${guidance}`);
     const messages = [systemMsg, ...stateMessages];
 
-    const response = (await modelWithTools.invoke(messages)) as AIMessage;
+    // Compute the tool the model is expected to call this turn — drives the
+    // named-tool retry guard if the first invoke returns zero or wrong-named
+    // tool calls. Branches mirror the `guidance` block above.
+    const expectedTool: string =
+        isProductQuestion ? 'search_knowledge_base'
+      : userHasResponded  ? 'commit_phase'
+      :                     phaseToRenderTool[phaseName as Phase];
+
+    let response = (await modelWithTools.invoke(messages)) as AIMessage;
+    let phaseRetryCount = 0;
+    let phaseFailure: { phase: string; firstAttemptTool: string | null; expectedTool: string } | undefined;
+    const firstToolName = response.tool_calls?.[0]?.name ?? null;
+
+    if (firstToolName !== expectedTool) {
+      // eslint-disable-next-line no-console
+      console.warn(JSON.stringify({
+        level: 'WARN',
+        message: 'phase-node retry pinned to expected tool',
+        phase: phaseName,
+        expectedTool,
+        firstAttemptTool: firstToolName,
+      }));
+      phaseRetryCount = 1;
+      phaseFailure = { phase: phaseName, firstAttemptTool: firstToolName, expectedTool };
+      const pinnedModel = model.bindTools(tools as any[], {
+        tool_choice: expectedTool,
+      });
+      response = (await pinnedModel.invoke(messages)) as AIMessage;
+      if ((response.tool_calls?.[0]?.name ?? null) !== expectedTool) {
+        throw new OnboardingToolCallFailure({
+          phase: phaseName,
+          expectedTool,
+          attempts: 2,
+        });
+      }
+    }
+
     const updates: Record<string, unknown> = {
       messages: [response],
       turnCount: 1,
+      phaseRetryCount,
     };
+    if (phaseFailure) {
+      updates['phaseFailures'] = [phaseFailure];
+    }
 
     const tc = response.tool_calls?.[0];
     if (!tc) {

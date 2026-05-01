@@ -47,6 +47,15 @@ export const OnboardingAnnotation = Annotation.Root({
   capitalAmount: Annotation<number | undefined>({ reducer: (_, v) => v, default: () => undefined }),
   mandateAccepted: Annotation<boolean | undefined>({ reducer: (_, v) => v, default: () => undefined }),
   turnCount: Annotation<number>({ reducer: (prev, next) => prev + next, default: () => 0 }),
+  // Retry telemetry — summed across all phase-node invocations in a single
+  // browser turn. Surfaced via `OnboardingAgent stream complete` log line in
+  // agents/onboarding/agent.ts. Steady-state expectation: 0. Non-zero signals
+  // a model-behavior change or prompt regression.
+  phaseRetryCount: Annotation<number>({ reducer: (prev, next) => prev + next, default: () => 0 }),
+  phaseFailures: Annotation<Array<{ phase: string; firstAttemptTool: string | null; expectedTool: string }>>({
+    reducer: (prev, next) => [...prev, ...next],
+    default: () => [],
+  }),
   messages: Annotation<BaseMessage[]>({
     reducer: (prev, next) => [...prev, ...next],
     default: () => [],

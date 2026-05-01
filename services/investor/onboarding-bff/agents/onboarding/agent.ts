@@ -345,6 +345,12 @@ export class OnboardingAgent extends AbstractAgent {
       } as StateSnapshotEvent);
     }
 
+    // Retry telemetry comes up via finalState — phase-node writes
+    // `phaseRetryCount` (number, summed reducer) and `phaseFailures` (array,
+    // concat reducer) on each invocation. See state.ts annotation defs.
+    const phaseRetryCount = (finalState?.['phaseRetryCount'] as number | undefined) ?? 0;
+    const phaseFailures = (finalState?.['phaseFailures'] as unknown[] | undefined) ?? [];
+
     // eslint-disable-next-line no-console
     console.log(JSON.stringify({
       level: 'INFO',
@@ -353,6 +359,8 @@ export class OnboardingAgent extends AbstractAgent {
       runId: input.runId,
       eventCounts,
       toolCallsEmitted,
+      phaseRetryCount,
+      phaseFailures,
     }));
 
     subscriber.next({
