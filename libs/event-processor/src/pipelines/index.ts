@@ -10,3 +10,5 @@ export { resumeStateMachine } from './resume-state-machine';
 export type { ResumeStateMachineConfig, ResumeHandler } from './resume-state-machine';
 export { deriveFromStream } from './derive-from-stream';
 export type { DeriveFromStreamConfig } from './derive-from-stream';
+export { broadcastFromStream } from './broadcast-from-stream';
+export type { BroadcastFromStreamConfig, StreamBroadcastEntry } from './broadcast-from-stream';
