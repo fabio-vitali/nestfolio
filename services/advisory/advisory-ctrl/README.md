@@ -1,1 +1,0 @@
-Core decision lifecycle orchestrator that evaluates portfolios against market conditions and investor profiles to determine if rebalancing is needed. It uses AI tools for portfolio analysis, market assessment, and universe screening to drive the advisory decision cycle.

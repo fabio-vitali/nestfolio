@@ -1,7 +1,0 @@
-{
-  "type": "object",
-  "properties": {
-    "assetClass": { "type": "string", "description": "Filter by asset class" },
-    "region": { "type": "string", "description": "Filter by region" }
-  }
-}

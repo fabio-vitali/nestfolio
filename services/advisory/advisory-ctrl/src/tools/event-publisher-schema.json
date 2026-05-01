@@ -1,8 +1,0 @@
-{
-  "type": "object",
-  "properties": {
-    "eventType": { "type": "string", "description": "The type of event to publish" },
-    "detail": { "type": "object", "description": "The event detail payload" }
-  },
-  "required": ["eventType", "detail"]
-}

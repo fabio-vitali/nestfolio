@@ -1,8 +1,0 @@
-{
-  "type": "object",
-  "properties": {
-    "tenantId": { "type": "string", "description": "The tenant ID to look up the portfolio for" },
-    "portfolioId": { "type": "string", "description": "Optional specific portfolio ID" }
-  },
-  "required": ["tenantId"]
-}

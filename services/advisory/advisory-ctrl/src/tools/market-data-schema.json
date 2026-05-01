@@ -1,6 +1,0 @@
-{
-  "type": "object",
-  "properties": {
-    "region": { "type": "string", "description": "Market region filter (US, EU, APAC)" }
-  }
-}
