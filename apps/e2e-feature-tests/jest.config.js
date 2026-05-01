@@ -14,7 +14,7 @@ module.exports = {
     '^@nestfolio/integration-testing$': '<rootDir>/../../libs/integration-testing/src/index.ts',
     '^@nestfolio/agent-orchestrator$': '<rootDir>/../../libs/agent-orchestrator/src/index.ts',
     '^@nestfolio/investor-bff/events$': '<rootDir>/../../services/investor/investor-bff/src/domain/events.ts',
-    '^@nestfolio/advisory-ctrl/events$': '<rootDir>/../../services/advisory/advisory-ctrl/src/domain/events.ts',
+    '^@nestfolio/decision-workflow-ctrl/events$': '<rootDir>/../../services/advisory/decision-workflow-ctrl/src/domain/events.ts',
     '^@nestfolio/advisory-narrative-ctrl/events$': '<rootDir>/../../services/advisory/advisory-narrative-ctrl/src/domain/events.ts',
     '^@nestfolio/portfolio-engine-ctrl/events$': '<rootDir>/../../services/advisory/portfolio-engine-ctrl/src/domain/events.ts',
     '^@nestfolio/investor-profile-ctrl/events$': '<rootDir>/../../services/advisory/investor-profile-ctrl/src/domain/events.ts',
