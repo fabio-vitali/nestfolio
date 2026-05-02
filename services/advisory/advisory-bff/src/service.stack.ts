@@ -1,6 +1,12 @@
+import { join } from 'path';
 import { Construct } from 'constructs';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
+import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 import { MfeBucket } from '@nestfolio/cdk-constructs/extensions';
+import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { AdvisoryBffEventTypes } from './domain/events';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
@@ -38,10 +44,12 @@ export class AdvisoryBffStack extends ServiceStack {
       },
     });
 
-    new Facade(this, 'Facade', {
+    const facade = new Facade(this, 'Facade', {
       state,
+      enableIamAuth: true,
       userPoolSsmPath: `/nestfolio/${this.prefix}-investor/auth/userPoolId`,
       jsResolvers: discoverJsResolvers(__dirname, {
+        noneDataSource: ['publishDecisionUpdate'],
         // Pre-step reads the existing DecisionReadModel so the mutation can
         // copy `taskToken` (originally stamped by the SF
         // USER_CONFIRMATION_REQUESTED state) onto the UserConfirmation /
@@ -60,6 +68,24 @@ export class AdvisoryBffStack extends ServiceStack {
     });
 
     new MfeBucket(this, 'MfeBucket', { mfeKey: 'advisory' });
+
+    const decisionPublisher = new NodejsFunction(this, 'DecisionPublisher', {
+      ...defaultLambdaProps(this),
+      entry: join(__dirname, 'handlers', 'decision-publisher.ts'),
+      environment: facade.graphqlUrl ? { APPSYNC_URL: facade.graphqlUrl } : {},
+    });
+    decisionPublisher.addEventSource(
+      new DynamoEventSource(state.getTable(), {
+        startingPosition: StartingPosition.LATEST,
+        retryAttempts: 3,
+      }),
+    );
+    if (facade.api) {
+      decisionPublisher.addToRolePolicy(new PolicyStatement({
+        actions: ['appsync:GraphQL'],
+        resources: [`${facade.api.arn}/*`],
+      }));
+    }
 
     this.addObservability({ ingress, egress });
   }
