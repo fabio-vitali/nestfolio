@@ -147,4 +147,32 @@ describe('DecisionListComponent', () => {
       expect.any(Function),
     );
   });
+
+  it('prepends a frame for an unknown decisionId in a pending status', async () => {
+    let cb!: (d: Decision) => void;
+    advisoryService.subscribeToDecisionListUpdates.mockImplementation(
+      (_tenantId: string, fn: (d: Decision) => void) => {
+        cb = fn;
+      },
+    );
+    advisoryService.getPendingDecisions.mockResolvedValue([mockItems[0]]);
+
+    await component.ngOnInit();
+    expect(component.decisions()).toHaveLength(1);
+
+    cb(frame({
+      decisionId: 'd-new',
+      status: 'COMPLIANCE_REVIEW',
+      trigger: 'DEPOSIT_DETECTED',
+      createdAt: '2026-04-30T10:20:00Z',
+    }));
+
+    expect(component.decisions().map((d) => d.decisionId)).toEqual(['d-new', mockItems[0].decisionId]);
+    expect(component.decisions()[0]).toEqual({
+      decisionId: 'd-new',
+      status: 'COMPLIANCE_REVIEW',
+      trigger: 'DEPOSIT_DETECTED',
+      createdAt: '2026-04-30T10:20:00Z',
+    });
+  });
 });

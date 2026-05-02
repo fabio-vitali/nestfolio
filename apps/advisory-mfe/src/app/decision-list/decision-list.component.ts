@@ -131,6 +131,18 @@ export class DecisionListComponent implements OnInit, OnDestroy {
   readonly loaded = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
+  // Mirrors services/advisory/advisory-bff/src/graphql/js-function/get-pending-decisions.fn.js
+  // — keep in sync if backend filter changes.
+  private static readonly PENDING_STATUSES = new Set<string>([
+    'PENDING',
+    'DRAFT',
+    'PROPOSED',
+    'COMPLIANCE_REVIEW',
+    'APPROVED',
+    'CONFIRMATION_REQUIRED',
+    'AWAITING_CONFIRMATION',
+  ]);
+
   async ngOnInit(): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
@@ -159,8 +171,22 @@ export class DecisionListComponent implements OnInit, OnDestroy {
     this.advisoryService.unsubscribeFromDecisionListUpdates();
   }
 
-  private reconcile(_frame: Decision): void {
-    // Reconciliation logic added in Tasks 4-6.
+  private reconcile(frame: Decision): void {
+    const current = this.decisions();
+    const idx = current.findIndex((d) => d.decisionId === frame.decisionId);
+    const isPending = DecisionListComponent.PENDING_STATUSES.has(frame.status);
+
+    if (idx === -1 && isPending) {
+      this.decisions.set([
+        {
+          decisionId: frame.decisionId,
+          status: frame.status,
+          trigger: frame.trigger,
+          createdAt: frame.createdAt,
+        },
+        ...current,
+      ]);
+    }
   }
 
   statusSeverity(
