@@ -26,8 +26,14 @@ Appends a one-line bullet to the PARKING LOT section of `docs/BACKLOG.md`. Each 
 1. Read `docs/BACKLOG.md` to confirm the file exists and find the PARKING LOT section header.
 2. If args were provided to the skill invocation, treat that as the description text. Otherwise ask the user briefly: "What's the one-liner? (and any file:line evidence)".
 3. Use the Edit tool to insert a new bullet at the END of PARKING LOT (just before the `---` that follows the section). Preserve existing entries.
-4. Do NOT commit. The backlog is project-scoped (the user will commit at their cadence). Just leave the working-tree change.
-5. Report back in one line: "Filed in PARKING LOT: <description>. Resuming active workstream."
+4. **Commit immediately.** Stage ONLY `docs/BACKLOG.md` (do not `git add .` — never sweep up unrelated working-tree changes), then commit with a conventional message matching the kind of edit:
+   - `docs(backlog): file <topic>` for new PARKING LOT entries (this skill's default)
+   - `docs(backlog): promote <topic> to QUEUED` for promotions
+   - `docs(backlog): ship <workstream>` for workstream-ship updates
+   - Do NOT pass `--no-verify` unless the user explicitly asked. If a hook fails, surface the error and ask — don't bypass.
+5. Report back in one line: "Filed in PARKING LOT: <description> (commit `<sha>`). Resuming active workstream."
+
+**Why auto-commit:** uncommitted BACKLOG edits don't travel cleanly across worktrees, don't survive crashes, and accumulate as hidden todos. File-and-continue should be atomic — the action isn't done until it's locked in. Cost is a slightly noisier `git log` (mitigated by the `docs(backlog):` prefix being grep-able and squash-merge collapsing on PRs).
 
 ## Format template
 
