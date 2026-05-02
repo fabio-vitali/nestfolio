@@ -13,5 +13,9 @@
         "repo": "nrwl/nx-ai-agents-config"
       }
     }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash /Users/fabiovitali/.claude/statusline-command.sh"
   }
 }
