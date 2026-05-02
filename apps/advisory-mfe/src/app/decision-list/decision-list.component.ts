@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
@@ -7,11 +7,12 @@ import {
   StatusBadgeComponent,
 } from '@nestfolio/ui';
 import { I18nService } from '@nestfolio/shell/i18n';
-import { parseError } from '@nestfolio/shell';
+import { AuthStore, parseError } from '@nestfolio/shell';
 import {
   AdvisoryService,
   type PendingDecisionListItem,
 } from '../services/advisory.service';
+import type { Decision } from '../stores/advisory.store';
 
 @Component({
   selector: 'app-decision-list',
@@ -120,9 +121,10 @@ import {
     `,
   ],
 })
-export class DecisionListComponent implements OnInit {
+export class DecisionListComponent implements OnInit, OnDestroy {
   readonly i18n = inject(I18nService);
   private readonly advisoryService = inject(AdvisoryService);
+  private readonly authStore = inject(AuthStore);
 
   readonly decisions = signal<PendingDecisionListItem[]>([]);
   readonly loading = signal<boolean>(false);
@@ -132,6 +134,16 @@ export class DecisionListComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
+
+    const tenantId = this.authStore.user()?.tenantId;
+    if (tenantId) {
+      // Pattern B (R1): attach subscription BEFORE the query fires so any frame
+      // that arrives during query resolution is reconciled, not lost.
+      this.advisoryService.subscribeToDecisionListUpdates(tenantId, (frame) =>
+        this.reconcile(frame),
+      );
+    }
+
     try {
       const items = await this.advisoryService.getPendingDecisions();
       this.decisions.set(items);
@@ -141,6 +153,14 @@ export class DecisionListComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  ngOnDestroy(): void {
+    this.advisoryService.unsubscribeFromDecisionListUpdates();
+  }
+
+  private reconcile(_frame: Decision): void {
+    // Reconciliation logic added in Tasks 4-6.
   }
 
   statusSeverity(
