@@ -43,6 +43,10 @@ export class AdvisoryService {
   private reconnectAttempts = 0;
   private static readonly MAX_RECONNECT_ATTEMPTS = 5;
 
+  private listSubscription: Subscription | null = null;
+  private listReconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  private listReconnectAttempts = 0;
+
   subscribeToDecisionUpdates(
     tenantId: string,
     decisionId: string,
@@ -88,6 +92,51 @@ export class AdvisoryService {
     if (this.decisionSubscription) {
       this.decisionSubscription.unsubscribe();
       this.decisionSubscription = null;
+    }
+  }
+
+  subscribeToDecisionListUpdates(
+    tenantId: string,
+    onUpdate: (decision: Decision) => void,
+  ): void {
+    this.unsubscribeFromDecisionListUpdates();
+    this.listReconnectAttempts = 0;
+    this.doSubscribeToList(tenantId, onUpdate);
+  }
+
+  private doSubscribeToList(
+    tenantId: string,
+    onUpdate: (decision: Decision) => void,
+  ): void {
+    const obs = this.graphql.subscribe<{ onDecisionUpdate: Decision }>(ON_DECISION_UPDATE, { tenantId });
+    this.listSubscription = obs.subscribe({
+      next: (data) => {
+        if (data.onDecisionUpdate) {
+          this.listReconnectAttempts = 0;
+          onUpdate(data.onDecisionUpdate);
+        }
+      },
+      error: (err) => {
+        // eslint-disable-next-line no-console
+        console.error('Decision list subscription error', err);
+        if (this.listReconnectAttempts < AdvisoryService.MAX_RECONNECT_ATTEMPTS) {
+          this.listReconnectAttempts++;
+          const delay = Math.min(5000 * Math.pow(2, this.listReconnectAttempts - 1), 30_000);
+          this.listReconnectTimeout = setTimeout(() => this.doSubscribeToList(tenantId, onUpdate), delay);
+        }
+      },
+    });
+  }
+
+  unsubscribeFromDecisionListUpdates(): void {
+    if (this.listReconnectTimeout !== null) {
+      clearTimeout(this.listReconnectTimeout);
+      this.listReconnectTimeout = null;
+    }
+    this.listReconnectAttempts = 0;
+    if (this.listSubscription) {
+      this.listSubscription.unsubscribe();
+      this.listSubscription = null;
     }
   }
 

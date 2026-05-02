@@ -236,4 +236,81 @@ describe('AdvisoryService', () => {
     expect(graphql.subscribe).toHaveBeenCalledTimes(1);
     jest.useRealTimers();
   });
+
+  describe('subscribeToDecisionListUpdates', () => {
+    it('subscribes with tenantId as the GraphQL variable', () => {
+      const mockUnsubscribe = jest.fn();
+      const mockSubscribe = jest.fn().mockReturnValue({ unsubscribe: mockUnsubscribe });
+      graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
+
+      service.subscribeToDecisionListUpdates('t-abc', () => undefined);
+
+      expect(graphql.subscribe).toHaveBeenCalledWith(expect.any(String), { tenantId: 't-abc' });
+      expect(mockSubscribe).toHaveBeenCalled();
+    });
+
+    it('fires the callback for every frame (no decisionId filter)', () => {
+      const cb = jest.fn();
+      let nextHandler!: (data: { onDecisionUpdate: { decisionId: string; tenantId: string } }) => void;
+      const mockSubscribe = jest.fn().mockImplementation((handlers: any) => {
+        nextHandler = handlers.next;
+        return { unsubscribe: jest.fn() };
+      });
+      graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
+
+      service.subscribeToDecisionListUpdates('t-001', cb);
+
+      nextHandler({ onDecisionUpdate: { decisionId: 'a', tenantId: 't-001' } as any });
+      nextHandler({ onDecisionUpdate: { decisionId: 'b', tenantId: 't-001' } as any });
+
+      expect(cb).toHaveBeenCalledTimes(2);
+      expect(cb.mock.calls[0][0].decisionId).toBe('a');
+      expect(cb.mock.calls[1][0].decisionId).toBe('b');
+    });
+
+    it('unsubscribes cleanly', () => {
+      const mockUnsubscribe = jest.fn();
+      const mockSubscribe = jest.fn().mockReturnValue({ unsubscribe: mockUnsubscribe });
+      graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
+
+      service.subscribeToDecisionListUpdates('t-001', jest.fn());
+      service.unsubscribeFromDecisionListUpdates();
+
+      expect(mockUnsubscribe).toHaveBeenCalled();
+    });
+
+    it('does not throw when unsubscribing without an active list subscription', () => {
+      expect(() => service.unsubscribeFromDecisionListUpdates()).not.toThrow();
+    });
+
+    it('reconnects with backoff after a subscription error', () => {
+      jest.useFakeTimers();
+      let errorHandler!: (err: Error) => void;
+      const mockSubscribe = jest.fn().mockImplementation((handlers: any) => {
+        errorHandler = handlers.error;
+        return { unsubscribe: jest.fn() };
+      });
+      graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
+
+      service.subscribeToDecisionListUpdates('t-001', jest.fn());
+      expect(graphql.subscribe).toHaveBeenCalledTimes(1);
+
+      errorHandler(new Error('connection lost'));
+      jest.advanceTimersByTime(5000);
+      expect(graphql.subscribe).toHaveBeenCalledTimes(2);
+
+      jest.useRealTimers();
+    });
+
+    it('list and detail subscriptions coexist independently', () => {
+      const mockSubscribe = jest.fn().mockReturnValue({ unsubscribe: jest.fn() });
+      graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
+
+      service.subscribeToDecisionUpdates('t-001', 'dec-001', jest.fn());
+      service.subscribeToDecisionListUpdates('t-001', jest.fn());
+
+      // Two independent subscriptions on the same WSS channel.
+      expect(graphql.subscribe).toHaveBeenCalledTimes(2);
+    });
+  });
 });
