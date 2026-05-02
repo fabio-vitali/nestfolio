@@ -158,14 +158,27 @@ describe('AdvisoryService', () => {
     expect(graphql.query).toHaveBeenCalledTimes(2);
   });
 
+  it('subscribeToDecisionUpdates passes tenantId as the GraphQL variable', () => {
+    const mockUnsubscribe = jest.fn();
+    const mockSubscribe = jest.fn().mockReturnValue({ unsubscribe: mockUnsubscribe });
+    graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
+
+    service.subscribeToDecisionUpdates('t-abc', 'd-xyz', () => undefined);
+
+    expect(graphql.subscribe).toHaveBeenCalledWith(
+      expect.anything(),
+      { tenantId: 't-abc' },
+    );
+  });
+
   it('should subscribe to decision updates', () => {
     const mockUnsubscribe = jest.fn();
     const mockSubscribe = jest.fn().mockReturnValue({ unsubscribe: mockUnsubscribe });
     graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
 
-    service.subscribeToDecisionUpdates('dec-001', jest.fn());
+    service.subscribeToDecisionUpdates('t-001', 'dec-001', jest.fn());
 
-    expect(graphql.subscribe).toHaveBeenCalledWith(expect.any(String));
+    expect(graphql.subscribe).toHaveBeenCalledWith(expect.any(String), { tenantId: 't-001' });
     expect(mockSubscribe).toHaveBeenCalled();
   });
 
@@ -174,7 +187,7 @@ describe('AdvisoryService', () => {
     const mockSubscribe = jest.fn().mockReturnValue({ unsubscribe: mockUnsubscribe });
     graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
 
-    service.subscribeToDecisionUpdates('dec-001', jest.fn());
+    service.subscribeToDecisionUpdates('t-001', 'dec-001', jest.fn());
     service.unsubscribeFromDecisionUpdates();
 
     expect(mockUnsubscribe).toHaveBeenCalled();
@@ -193,7 +206,7 @@ describe('AdvisoryService', () => {
     });
     graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
 
-    service.subscribeToDecisionUpdates('dec-001', jest.fn());
+    service.subscribeToDecisionUpdates('t-001', 'dec-001', jest.fn());
     expect(graphql.subscribe).toHaveBeenCalledTimes(1);
 
     // First error → reconnect after 5s
@@ -213,7 +226,7 @@ describe('AdvisoryService', () => {
     });
     graphql.subscribe.mockReturnValue({ subscribe: mockSubscribe } as any);
 
-    service.subscribeToDecisionUpdates('dec-001', jest.fn());
+    service.subscribeToDecisionUpdates('t-001', 'dec-001', jest.fn());
     errorHandler(new Error('connection lost'));
 
     service.unsubscribeFromDecisionUpdates();

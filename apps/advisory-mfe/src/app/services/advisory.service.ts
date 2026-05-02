@@ -44,19 +44,21 @@ export class AdvisoryService {
   private static readonly MAX_RECONNECT_ATTEMPTS = 5;
 
   subscribeToDecisionUpdates(
+    tenantId: string,
     decisionId: string,
     onUpdate: (decision: Decision) => void,
   ): void {
     this.unsubscribeFromDecisionUpdates();
     this.reconnectAttempts = 0;
-    this.doSubscribe(decisionId, onUpdate);
+    this.doSubscribe(tenantId, decisionId, onUpdate);
   }
 
   private doSubscribe(
+    tenantId: string,
     decisionId: string,
     onUpdate: (decision: Decision) => void,
   ): void {
-    const obs = this.graphql.subscribe<{ onDecisionUpdate: Decision }>(ON_DECISION_UPDATE);
+    const obs = this.graphql.subscribe<{ onDecisionUpdate: Decision }>(ON_DECISION_UPDATE, { tenantId });
     this.decisionSubscription = obs.subscribe({
       next: (data) => {
         if (data.onDecisionUpdate && data.onDecisionUpdate.decisionId === decisionId) {
@@ -71,7 +73,7 @@ export class AdvisoryService {
         if (this.reconnectAttempts < AdvisoryService.MAX_RECONNECT_ATTEMPTS) {
           this.reconnectAttempts++;
           const delay = Math.min(5000 * Math.pow(2, this.reconnectAttempts - 1), 30_000);
-          this.reconnectTimeout = setTimeout(() => this.doSubscribe(decisionId, onUpdate), delay);
+          this.reconnectTimeout = setTimeout(() => this.doSubscribe(tenantId, decisionId, onUpdate), delay);
         }
       },
     });
