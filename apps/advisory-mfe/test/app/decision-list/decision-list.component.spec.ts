@@ -226,9 +226,37 @@ describe('DecisionListComponent', () => {
     advisoryService.getPendingDecisions.mockResolvedValue([mockItems[0]]);
 
     await component.ngOnInit();
+    const before = component.decisions();
 
     cb(frame({ decisionId: 'never-seen', status: 'CONFIRMED' }));
 
+    // Reference equality proves the early-return fired (no array allocation).
+    // Without the early-return, fall-through to filter() would allocate a new
+    // array even on no-op — toBe would fail.
+    expect(component.decisions()).toBe(before);
     expect(component.decisions().map((d) => d.decisionId)).toEqual([mockItems[0].decisionId]);
+  });
+
+  it('handles an idempotent frame (same status as current row) without error', async () => {
+    let cb!: (d: Decision) => void;
+    advisoryService.subscribeToDecisionListUpdates.mockImplementation(
+      (_t: string, fn: (d: Decision) => void) => { cb = fn; },
+    );
+    advisoryService.getPendingDecisions.mockResolvedValue([
+      { ...mockItems[0], status: 'COMPLIANCE_REVIEW' },
+    ]);
+
+    await component.ngOnInit();
+
+    cb(frame({
+      decisionId: mockItems[0].decisionId,
+      status: 'COMPLIANCE_REVIEW',
+      trigger: mockItems[0].trigger,
+      createdAt: mockItems[0].createdAt,
+    }));
+
+    expect(component.decisions()).toHaveLength(1);
+    expect(component.decisions()[0].status).toBe('COMPLIANCE_REVIEW');
+    expect(component.decisions()[0].decisionId).toBe(mockItems[0].decisionId);
   });
 });

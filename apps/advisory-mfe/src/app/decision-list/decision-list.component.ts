@@ -200,7 +200,7 @@ export class DecisionListComponent implements OnInit, OnDestroy {
     next[idx] = {
       ...current[idx],
       status: frame.status,
-      trigger: frame.trigger || current[idx].trigger,
+      trigger: frame.trigger,
     };
     this.decisions.set(next);
   }
