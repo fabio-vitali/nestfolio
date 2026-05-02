@@ -8,38 +8,42 @@
 - **Scope contract.** Every spec/plan must have an explicit §"Out of scope" before execution starts. Out-of-scope failures during validation default to *file-and-continue*, not pivot.
 - **Boundary review.** At each workstream ship, spend 5 min re-ranking PARKING LOT and promoting items to QUEUED if they've grown teeth.
 
-Last reviewed: 2026-05-01 (after Spec 4 ship `89f4f169` — system architecture docs workstream now complete).
-Updated 2026-05-01: promoted Steps 9-10 advisory-mfe blockers to ACTIVE.
+Last reviewed: 2026-05-02 (after Spec 5 ship — decision-update broadcast pipeline operational).
+Updated 2026-05-02: Spec 5 partial-ship. Step 10 (Confirm button → WSS broadcast) demonstrably resolved by `feat/decision-broadcast`; Step 9 (decision-list empty on first query) is a separate timing issue, refiled in QUEUED.
 
 ---
 
 ## ACTIVE
 
-### `[e2e]` Journey Steps 9-10 — advisory-mfe blockers
-
-**Done when:** `new-investor-happy-path.spec.ts` passes Steps 9-10 (decision-list navigation + Confirm button) reliably across 5 consecutive runs.
-
-**Status:** Promoted from QUEUED 2026-05-01. Pre-existing per sixth-session memory; surfaced again in Spec 3's 5-run gate (3/5 fails on these steps).
-
-**Concrete failures:**
-- `apps/nestfolio-e2e/src/pages/advisory.page.ts:20` — `goToFirstPendingDecision()` waits for `a[data-testid^="decision-"]` and times out at 15s.
-- `apps/nestfolio-e2e/src/pages/advisory.page.ts:34` — `confirm()` waits for `getByRole('button', { name: /confirm|conferma/i })` and times out.
-
-**Candidate root causes (eighth-session architectural findings, not yet ruled out):**
-1. Dual `DECISION_PACKET_CREATED` emitter race (advisory-ctrl + decision-workflow-ctrl) — projection state nondeterministic.
-2. advisory-ctrl synchronous agent pipeline hits 30s Lambda timeout — `AGENTS_COMPLETED` rarely fires → status stuck at `PENDING` → no confirm button.
-3. AgentCore Memory namespace write/read mismatch — AssemblePacket can't read upstream agent outputs (workaround placeholder shipped 2026-04-30).
-4. SF stuck at `WaitForCompliance` (separate, tracked in `project_decision_workflow_stuck.md`).
-
-**Topic memory:** `project_playwright_e2e_ui.md` (search "Spec 3 ship-time blockers below onboarding"); `project_decision_workflow_stuck.md`.
-
-**Next step:** brainstorm scope — fix surface (mfe-only patch / advisory-bff projection / advisory-ctrl pipeline removal / SF unstick) before writing a spec.
+*(none — between workstreams; pick from QUEUED)*
 
 ---
 
 ## QUEUED
 
 Ordered by priority. Top of list = what to start next.
+
+### `[e2e]` Journey Step 9 — decision-list empty on first query (timing race)
+
+**Done when:** `goToFirstPendingDecision()` finds a decision link reliably (5/5 runs) without extending the 15s POM timeout, and the decision-list page recovers if the row arrives after first query.
+
+**Status:** Surfaced 2026-05-02 during Spec 5 validation gate. Spec 5's broadcast pipeline (Step 10) is shipping clean — the remaining failure is upstream of the broadcast. Per `feedback_e2e_ui_assertions_only.md`: a 15s wait is more than a real user would tolerate; the UI/projection is the bug, not the test.
+
+**Concrete failure:** `apps/nestfolio-e2e/src/pages/advisory.page.ts:20` — `goToFirstPendingDecision()` navigates to `/advisory`, waits ≤15s for `a[data-testid^="decision-"]`. Page snapshot at timeout: `heading "advisory.list.emptyTitle"`. The decision row exists in `dev-advisory-bff-StateTable` with `status: AWAITING_CONFIRMATION` matching the e2e tenant — confirmed by direct DDB scan post-failure.
+
+**Mechanism (verified during Spec 5 e2e Run 1-redo, fresh-1, fresh-2):** `decision-list.component.ts:132` calls `getPendingDecisions` ONCE on init (no subscription, no polling). If the agent pipeline hasn't materialised the row at the moment the user lands on `/advisory`, the page renders empty state forever. Step 8's dashboard counter materialises ~30s before advisory-bff's row appears, so Step 8 passing isn't a sufficient barrier for Step 9.
+
+**Possible fixes (pick one):**
+1. **MFE: subscribe-before-query on decision-list** — mirror Spec 5's R1 pattern (advisory-mfe decision-detail). Attach `onDecisionUpdate` subscription before `getPendingDecisions`, version-guard frames into the list. Now feasible because the broadcast pipeline shipped.
+2. **MFE: poll fallback** — re-query `getPendingDecisions` every Ns up to a budget. Simpler but coarser.
+3. **Backend: tighten advisory-bff materialisation latency** — investigate why DECISION_PACKET_CREATED → row append is ~30s after the dashboard counter increments. Likely involves AssemblePacket workaround (memory `project_playwright_e2e_ui.md` 8th-session) or upstream SF.
+4. **Test: keep 15s timeout, fix upstream** — don't change the POM (per UI-assertions-only feedback); fix whatever makes the row land after dashboard counter.
+
+**Cheapest next step:** add the MFE subscription (option 1) — broadcast pipeline is already deployed and proven.
+
+**Topic memory:** `project_playwright_e2e_ui.md` (Step 9 timing); `project_decision_workflow_stuck.md`.
+
+---
 
 ### `[e2e]` Journey Step 8 — WSS dashboard subscription bug
 
@@ -106,6 +110,7 @@ One-liners for things surfaced but not yet adopted as a workstream. Promote to Q
 - **Vestigial MemoryStrategy declarations in decision-workflow-ctrl** — `services/advisory/decision-workflow-ctrl/src/service.stack.ts:36-78` declares 5 `MemoryStrategy` entries (`/portfolio-engine/{actorId}/rationale`, `/advisory-narrative/{actorId}/preferences`, etc.) that are no longer fed. Spec 2 (2026-04-30) replaced the `CreateEvent` + `RetrieveMemoryRecords` path that strategies process events for; the current `libs/agent-orchestrator/src/memory/memory-client.ts:43,60` uses `BatchCreateMemoryRecordsCommand` + `ListMemoryRecordsCommand` directly against `/{upstreamService}/{tenantId}/decisions/{decisionId}`. Strategies are provisioned but never receive input. Either remove or repurpose. Low priority — misleading-but-functional.
 - **WSS subscription test harness in `libs/test-support`** — for integration tests that need to assert AppSync `@aws_subscribe` broadcasts actually deliver. Today's integration tests use `EventBridgeClient.putEvent` + `TableAssertions.waitForItem` against deployed dev (HTTP-only); no subscription client exists. This blocked Task 9 of Spec 5 (decision-update broadcast) — coverage for the broadcast path now relies entirely on per-handler unit tests + the 5-run e2e gate. Promote when a SECOND subscription needs integration coverage (advisory-bff `publishDecisionUpdate` is the first; dashboard-bff `publishDashboardUpdate` already shipped with no harness either). Pattern likely: a thin wrapper around AppSync SubscriptionClient + Cognito tokens, plus an awaitable frame collector.
 - **Rename `NESTFOLIO_INTEG_PREFIX` env var to `PREFIX`** — the verbose `NESTFOLIO_INTEG_` namespace is friction every time we run e2e/integration locally. Four code refs: `libs/test-support/src/context.ts:46,49,51,54`, `libs/test-support/test/context.test.ts` (8 occurrences), `apps/nestfolio-e2e/playwright.config.ts:18`, `apps/e2e-feature-tests/jest.global-teardown.ts:4`. Plus ~15 plan/skill docs reference it. Rename should be atomic + sweep all docs in same PR; deploy script already accepts `--prefix=<custom>` so no infra impact.
+- **Host runtime `config.json` regeneration is silently optional** — `apps/nestfolio-host/public/assets/config.json` carries the deployed BFF AppSync URLs, Cognito pool IDs, etc. Two latent bugs surfaced during Spec 5 e2e validation: (1) `infrastructure/scripts/deploy.sh` does not re-run `pnpm nx run nestfolio-host:config --prefix=<prefix>` after BFF redeploys, so a fresh deploy can leave the file pointing at stale URLs; (2) `nestfolio-host:build` does not copy the file from `apps/nestfolio-host/public/assets/` into `dist/apps/nestfolio-host/browser/assets/`, so even when config IS regenerated, the served bundle keeps the old one. Failure mode: shell loads `/assets/config.json` → gets the SPA `index.html` (404 fallback) → `JSON.parse('<!doctype...')` → "Federation init failed" → page renders empty `<generic>Failed to load application</generic>`. Two fixes needed (deploy hook + build asset wiring).
 
 ---
 
@@ -115,6 +120,7 @@ Compact list — full prose lives in user auto-memory `MEMORY.md` § "Recently C
 
 | Date | Item | Commit |
 |---|---|---|
+| 2026-05-02 | Spec 5 — decision-update broadcast pipeline (Step 10 unblocked; Step 9 refiled) | `feat/decision-broadcast` |
 | 2026-05-01 | Spec 4 — recover originating specs (§21 OQ #11) | (this commit) |
 | 2026-05-01 | Spec 3 — onboarding tool-call reliability | `fa78514c` |
 | 2026-04-30 | Spec 2 — advisory pipeline consolidation | `7c91abb9..2c706015` |
