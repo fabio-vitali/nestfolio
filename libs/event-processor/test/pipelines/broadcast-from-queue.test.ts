@@ -143,6 +143,59 @@ describe('broadcastFromQueue', () => {
     expect(result?.batchItemFailures).toEqual([{ itemIdentifier: 'm-1' }]);
   });
 
+  // EventBridge → SQS delivery wraps the domain event in the full EB envelope;
+  // the pipeline must unwrap `body.detail`, otherwise dispatch silently skips
+  // every message. Production-shape regression test.
+  it('unwraps the EventBridge detail envelope shape', async () => {
+    const handler = broadcastFromQueue({
+      serviceName: 'svc',
+      appsyncUrl: 'https://x.example/graphql',
+      broadcasts: {
+        FOO_HAPPENED: {
+          mutation: MUTATION,
+          mapPayload: (payload) => ({ id: (payload.subject as { id: string })['id'] }),
+        },
+      },
+    });
+
+    const ebShapedEvent = {
+      Records: [{
+        messageId: 'eb-1',
+        receiptHandle: 'r-eb',
+        body: JSON.stringify({
+          version: '0',
+          id: 'eb-id',
+          'detail-type': 'FOO_HAPPENED',
+          source: 'svc',
+          account: '111111111111',
+          time: '2026-05-02T00:00:00Z',
+          region: 'us-east-1',
+          resources: [],
+          detail: {
+            id: 'evt-1',
+            type: 'FOO_HAPPENED',
+            timestamp: '2026-05-02T00:00:00Z',
+            subject: { id: 'wrapped' },
+            context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
+          },
+        }),
+        attributes: {} as never,
+        messageAttributes: {},
+        md5OfBody: '',
+        eventSource: 'aws:sqs',
+        eventSourceARN: '',
+        awsRegion: 'us-east-1',
+      }],
+    } as unknown as Parameters<ReturnType<typeof broadcastFromQueue>>[0];
+
+    await handler(ebShapedEvent, {} as never, () => {});
+
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    expect(postAppSyncMutation).toHaveBeenCalledWith(
+      expect.objectContaining({ variables: { id: 'wrapped' } }),
+    );
+  });
+
   it('reports batch item failure when record.body is malformed JSON', async () => {
     const handler = broadcastFromQueue({
       serviceName: 'svc', appsyncUrl: 'https://x.example/graphql',

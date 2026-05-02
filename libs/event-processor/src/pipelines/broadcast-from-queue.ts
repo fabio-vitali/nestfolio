@@ -54,13 +54,17 @@ async function processSqsRecord(
   record: SQSRecord,
   config: BroadcastFromQueueConfig,
 ): Promise<void> {
-  const envelope = JSON.parse(record.body) as {
+  // EventBridge → SQS delivers the full EB envelope as the message body; the
+  // domain event lives in `body.detail`. Direct SQS sends (tests, integration
+  // harnesses) write the domain event at the top level. Accept both.
+  const body = JSON.parse(record.body) as Record<string, unknown>;
+  const envelope = ((body['detail'] ?? body) as {
     id?: string;
     type: string;
     timestamp?: string;
     subject?: Record<string, unknown>;
     context?: EventContext;
-  };
+  });
 
   const entry = config.broadcasts[envelope.type];
   if (!entry) return;
