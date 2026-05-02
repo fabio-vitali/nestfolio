@@ -23,6 +23,29 @@ Updated 2026-05-02: Spec 5 partial-ship. Step 10 (Confirm button → WSS broadca
 
 Ordered by priority. Top of list = what to start next.
 
+### `[bug]` Multi-SF execution race per single decision trigger
+
+**Done when:** a single deposit/decision-triggering event produces exactly ONE Step Function execution and ONE `DecisionReadModel` row in advisory-bff per tenant. Validated by an integration test that fires one `DEPOSIT_DETECTED` (or equivalent upstream trigger) and asserts `aws stepfunctions list-executions` returns count 1 within 60s, AND `getPendingDecisions` returns exactly 1 item.
+
+**Status:** Surfaced 2026-05-02 during diagnostic of original Pattern B Step 9 e2e gate Run 3 failure. Tenant `e2e-1777759287358` (Run 3 of the original gate at ~22:02 UTC) produced **5 SF executions** (started 22:02:39 ×3, 22:02:54, 22:03:13) and **3 `DecisionReadModel` rows** (decisionIds `62c643f7…`, `15117943…`, `26aebfa5…`) from a single test trigger. Real money: each successful agent chain costs ~4 LLM invocations × multiple agents = direct Bedrock spend. Earlier docs claimed the dual-`DECISION_PACKET_CREATED` emitter race was closed by Spec 2 (advisory-ctrl removal) — this evidence shows it's back, replicated to triple, or never fully closed.
+
+**Concrete evidence:**
+- SF executions list (filter `dev-decision-workflow-ctrl-decisionstatemachine` 2026-05-02T22:02-22:04 UTC) shows 5 starts within 34 seconds for one test tenant.
+- DDB scan of `dev-advisory-bff-StateTable962DE04C-1VGXL2KZX3AUM` filtered by `tenantId = e2e-1777759287358` shows 3 distinct decisionIds.
+- Aggregate cost across all 676 historical SF executions on this state machine since 2026-04-20: 499 FAILED, 147 RUNNING-stuck, 15 SUCCEEDED, 15 TIMED_OUT (only 2.2% reach a successful terminal state — and many of the failures may also be duplicates that ran to expensive completion before failing).
+
+**Hypotheses (none verified):**
+- broker-detect / investor-bff emitting multiple `DEPOSIT_DETECTED` events per single deposit (upstream fan-out).
+- decision-workflow-ctrl ingress fan-out on event ingestion (one event → multiple SF starts).
+- Cross-domain adapter forwarding the same event multiple times.
+- SF retry storm on transient transient downstream Lambda failure (each retry = new execution, not a continuation).
+
+**Cheapest next step:** pick one of the 5 stuck Run 3 executions (e.g., the one starting 22:02:54 — execution name contains a correlationId). Compare the `correlationId` portion across all 5: if identical, it's an ingestion fan-out (same event triggering N starts); if all different, it's N upstream events.
+
+**Topic memory:** `project_playwright_e2e_ui.md` (mentions "dual `DECISION_PACKET_CREATED` emitter race"); `project_decision_workflow_stuck.md`.
+
+---
+
 ### `[e2e]` Journey Step 8 — WSS dashboard subscription bug
 
 **Done when:** `injectAdvisoryUpdate` sentinel value reliably appears in the dashboard counter via the live WSS subscription path.
@@ -37,6 +60,30 @@ Ordered by priority. Top of list = what to start next.
 **Cheapest next step:** add console logging of actual `pendingDecisionsCount` values delivered to `dashboard-container.component.ts:178`, rebuild + re-run e2e once, inspect.
 
 **Topic memory:** `project_playwright_e2e_ui.md` (search "Side-finding from Spec 3 e2e gate").
+
+**Why this slot (above the cleanup chore below):** Step 8 and Step 10 (Confirm button → WSS callback) likely share root cause in WSS subscription delivery semantics — fixing this also fixes Step 10, which drains the 147 stuck SFs (next entry) at the source. Sequence wins over symptom-treatment.
+
+---
+
+### `[chore]` Stop + clean up 147 stuck Step Function executions on dev
+
+**Done when:** `aws stepfunctions list-executions --status-filter RUNNING` on `dev-decision-workflow-ctrl-decisionstatemachine` returns 0 executions older than 24h, AND no orphaned task-token DDB rows remain in `dev-advisory-bff-StateTable962DE04C-1VGXL2KZX3AUM`.
+
+**Status:** Surfaced 2026-05-02. **147 of 676 historical executions on `dev-decision-workflow-ctrl-decisionstatemachine` are stuck RUNNING** (vs 15 SUCCEEDED, 499 FAILED, 15 TIMED_OUT — 2.2% success rate since 2026-04-20). Each stuck execution sits at the `RequestUserConfirmation` task-token wait: WaitForCompliance returned, the user-confirm task token was issued, and Step 10's WSS callback never fires reliably so the token is never returned. SF default 1-year timeout means they'd sit there until 2027 without intervention.
+
+**Mechanism:** stuck-at-`RequestUserConfirmation` is the symptom; the root cause is Step 10 (Confirm button → `confirmDecision` mutation → WSS callback) being unreliable. Fixing the previous QUEUED entry (Step 8 WSS bug, family-resemblance fix expected to also close Step 10) drains the source. This entry is the one-time hygiene to clean up the existing residue.
+
+**Fix:**
+1. Bash one-liner to stop all stuck executions older than 24h:
+   ```bash
+   aws stepfunctions list-executions --state-machine-arn arn:aws:states:us-east-1:771924376645:stateMachine:dev-decision-workflow-ctrl-decisionstatemachine --status-filter RUNNING --region us-east-1 --max-items 1000 --output json | jq -r '.executions[] | select(.startDate < (now - 86400)) | .executionArn' | xargs -I{} aws stepfunctions stop-execution --execution-arn {} --region us-east-1
+   ```
+2. DDB scan for orphaned task-token rows (`sk` begins with `TaskToken#` and the corresponding decisionId is in a stuck-pending status with no live SF) → batch delete.
+3. Verify count drops to 0.
+
+**Why slot 3 (not slot 2):** the 147 executions are dev-test residue — no real users, sole-dev account, no SF concurrency budget hit (Standard SF has no concurrent-running ceiling), small DDB storage cost. Cleanup is a 5-min chore. Real protection comes from fixing Step 8/10 (the previous slot), which prevents new stuck SFs accumulating; without that fix, this cleanup just kicks the can.
+
+**Topic memory:** `project_decision_workflow_stuck.md`.
 
 ---
 
