@@ -259,4 +259,35 @@ describe('DecisionListComponent', () => {
     expect(component.decisions()[0].status).toBe('COMPLIANCE_REVIEW');
     expect(component.decisions()[0].decisionId).toBe(mockItems[0].decisionId);
   });
+
+  it('unsubscribes from decision list updates on destroy', async () => {
+    await component.ngOnInit();
+
+    component.ngOnDestroy();
+
+    expect(advisoryService.unsubscribeFromDecisionListUpdates).toHaveBeenCalled();
+  });
+
+  it('skips subscription when authStore has no tenantId (still issues query)', async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [DecisionListComponent],
+      providers: [
+        provideRouter([]),
+        { provide: AdvisoryService, useValue: advisoryService },
+        { provide: I18nService, useValue: { t: (k: string) => k } },
+        { provide: AuthStore, useValue: { user: () => null } },
+      ],
+    })
+      .overrideComponent(DecisionListComponent, {
+        set: { template: '<div>test</div>', imports: [], styles: [] },
+      })
+      .compileComponents();
+
+    const f = TestBed.createComponent(DecisionListComponent);
+    await f.componentInstance.ngOnInit();
+
+    expect(advisoryService.subscribeToDecisionListUpdates).not.toHaveBeenCalled();
+    expect(advisoryService.getPendingDecisions).toHaveBeenCalled();
+  });
 });
