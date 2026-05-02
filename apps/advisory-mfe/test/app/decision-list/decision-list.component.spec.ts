@@ -175,4 +175,27 @@ describe('DecisionListComponent', () => {
       createdAt: '2026-04-30T10:20:00Z',
     });
   });
+
+  it('updates in place when frame matches an existing decisionId still pending', async () => {
+    let cb!: (d: Decision) => void;
+    advisoryService.subscribeToDecisionListUpdates.mockImplementation(
+      (_t: string, fn: (d: Decision) => void) => { cb = fn; },
+    );
+    advisoryService.getPendingDecisions.mockResolvedValue([
+      { ...mockItems[0], status: 'COMPLIANCE_REVIEW' },
+    ]);
+
+    await component.ngOnInit();
+
+    cb(frame({
+      decisionId: mockItems[0].decisionId,
+      status: 'AWAITING_CONFIRMATION',
+      trigger: mockItems[0].trigger,
+      createdAt: mockItems[0].createdAt,
+    }));
+
+    expect(component.decisions()).toHaveLength(1);
+    expect(component.decisions()[0].status).toBe('AWAITING_CONFIRMATION');
+    expect(component.decisions()[0].decisionId).toBe(mockItems[0].decisionId);
+  });
 });

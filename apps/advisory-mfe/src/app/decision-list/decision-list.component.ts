@@ -176,16 +176,31 @@ export class DecisionListComponent implements OnInit, OnDestroy {
     const idx = current.findIndex((d) => d.decisionId === frame.decisionId);
     const isPending = DecisionListComponent.PENDING_STATUSES.has(frame.status);
 
-    if (idx === -1 && isPending) {
-      this.decisions.set([
-        {
-          decisionId: frame.decisionId,
-          status: frame.status,
-          trigger: frame.trigger,
-          createdAt: frame.createdAt,
-        },
-        ...current,
-      ]);
+    if (idx === -1) {
+      if (isPending) {
+        this.decisions.set([
+          {
+            decisionId: frame.decisionId,
+            status: frame.status,
+            trigger: frame.trigger,
+            createdAt: frame.createdAt,
+          },
+          ...current,
+        ]);
+      }
+      // Terminal-status frame for an unknown decisionId — ignore.
+      return;
+    }
+
+    if (isPending) {
+      const next = [...current];
+      next[idx] = {
+        ...current[idx],
+        status: frame.status,
+        // trigger ride-along: defensive in case a partial frame ever leaks in.
+        trigger: frame.trigger || current[idx].trigger,
+      };
+      this.decisions.set(next);
     }
   }
 
