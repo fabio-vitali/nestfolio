@@ -92,6 +92,7 @@ The brainstorming / writing-plans / executing-plans / subagent-driven-developmen
 - Services NEVER call each other via API — events only
 - ALL Lambda handlers use event-processor pipelines (no raw Lambda handlers)
 - Tests live in `test/` directory, NOT `src/__tests__/`
+- E2E relies on UI assertions only — if the POM needs to wait longer than a real user would tolerate, or polls for state a real user could not observe, the UI is the bug, not the test. Fix the UI/backend wiring; do not extend POM timeouts as a band-aid.
 - Codebase is source of truth — verify before documenting or planning
 - Run tasks through `pnpm nx`, never the underlying tool directly
 - Always use AskUserQuestion widget for architectural decisions
