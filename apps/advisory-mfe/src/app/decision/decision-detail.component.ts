@@ -14,7 +14,7 @@ import {
   LoadingSkeletonComponent,
 } from '@nestfolio/ui';
 import { I18nService } from '@nestfolio/shell/i18n';
-import { parseError } from '@nestfolio/shell';
+import { AuthStore, parseError } from '@nestfolio/shell';
 import { AdvisoryStore } from '../stores/advisory.store';
 import { AdvisoryService } from '../services/advisory.service';
 import { AuditFooterComponent } from './audit-footer.component';
@@ -337,6 +337,7 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly advisoryService = inject(AdvisoryService);
   private readonly translate = inject(TranslateService);
+  private readonly authStore = inject(AuthStore);
   readonly i18n = inject(I18nService);
   readonly store = inject(AdvisoryStore);
 
@@ -362,6 +363,24 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
     this.store.setLoading(true);
     this.store.setError(null);
 
+    const tenantId = this.authStore.user()?.tenantId;
+    if (!tenantId) {
+      this.store.setError('errors.missingTenant');
+      this.store.setLoading(false);
+      return;
+    }
+
+    // R1: attach subscription BEFORE the queries fire. Frames that arrive
+    // during query resolution are version-guarded into the store; the
+    // setDecision() call from the resolved query is also version-guarded so
+    // an older query result does not clobber a newer broadcast already in.
+    this.advisoryService.subscribeToDecisionUpdates(tenantId, decisionId, (updated) => {
+      const current = this.store.decision();
+      if (!current || updated.version >= current.version) {
+        this.store.setDecision(updated);
+      }
+    });
+
     try {
       const [decision, invocations, checks] = await Promise.all([
         this.advisoryService.getDecision(decisionId),
@@ -369,19 +388,16 @@ export class DecisionDetailComponent implements OnInit, OnDestroy {
         this.advisoryService.getComplianceChecks(decisionId),
       ]);
 
-      this.store.setDecision(decision);
+      const current = this.store.decision();
+      if (!current || decision.version >= current.version) {
+        this.store.setDecision(decision);
+      }
       this.store.setAgentInvocations(invocations);
       this.store.setComplianceChecks(checks);
 
-      // Record that user viewed the explanation (fire-and-forget, but log errors)
       this.advisoryService.recordExplanationView(decisionId).catch((err) => {
         // eslint-disable-next-line no-console
         console.error('audit log failed', err);
-      });
-
-      // Subscribe for real-time updates
-      this.advisoryService.subscribeToDecisionUpdates(decisionId, (updated) => {
-        this.store.setDecision(updated);
       });
     } catch (e: unknown) {
       this.store.setError(parseError(e, 'errors.decision'));

@@ -175,7 +175,8 @@
     "comparison": "Impossibile caricare il confronto delle simulazioni. Riprova.",
     "dashboard": "Impossibile caricare i dati della dashboard. Riprova.",
     "decision": "Impossibile caricare i dettagli della decisione. Riprova.",
-    "notifications": "Impossibile caricare le notifiche. Riprova."
+    "notifications": "Impossibile caricare le notifiche. Riprova.",
+    "missingTenant": "Errore di sessione — accedi di nuovo."
   },
   "onboarding": {
     "welcome": "Benvenuto in Nestfolio",

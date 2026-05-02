@@ -10,6 +10,7 @@ import {
 } from '../../../src/app/stores/advisory.store';
 import { AdvisoryService } from '../../../src/app/services/advisory.service';
 import { I18nService } from '@nestfolio/shell/i18n';
+import { AuthStore } from '@nestfolio/shell';
 
 const mockDecision: Decision = {
   decisionId: 'd0000000-0000-0000-0000-000000000001',
@@ -96,6 +97,10 @@ describe('DecisionDetailComponent', () => {
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: { get: () => 'd0000000-0000-0000-0000-000000000001' } } },
+        },
+        {
+          provide: AuthStore,
+          useValue: { user: () => ({ tenantId: 'tenant-1', userId: 'u', username: 'u', email: 'e' }) },
         },
       ],
     })
@@ -286,13 +291,125 @@ describe('DecisionDetailComponent', () => {
     expect(component.actionType).toBeNull();
   });
 
-  it('should subscribe to decision updates after loading', async () => {
+  it('should subscribe to decision updates with 3-arg form (tenantId, decisionId, callback)', async () => {
     await component.ngOnInit();
 
     expect(advisoryService.subscribeToDecisionUpdates).toHaveBeenCalledWith(
+      'tenant-1',
       'd0000000-0000-0000-0000-000000000001',
       expect.any(Function),
     );
+  });
+
+  it('attaches the subscription BEFORE issuing getDecision', async () => {
+    const callOrder: string[] = [];
+    advisoryService.subscribeToDecisionUpdates.mockImplementation(() => { callOrder.push('subscribe'); });
+    advisoryService.getDecision.mockImplementation(async () => { callOrder.push('getDecision'); return mockDecision; });
+
+    await component.ngOnInit();
+
+    const subscribeIdx = callOrder.indexOf('subscribe');
+    const getDecisionIdx = callOrder.indexOf('getDecision');
+    expect(subscribeIdx).toBeGreaterThanOrEqual(0);
+    expect(getDecisionIdx).toBeGreaterThanOrEqual(0);
+    expect(subscribeIdx).toBeLessThan(getDecisionIdx);
+  });
+
+  it('passes tenantId from authStore to subscribeToDecisionUpdates', async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [DecisionDetailComponent],
+      providers: [
+        { provide: AdvisoryService, useValue: advisoryService },
+        { provide: Router, useValue: router },
+        { provide: I18nService, useValue: { t: (k: string) => k } },
+        { provide: TranslateService, useValue: { instant: (k: string) => k } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => 'd0000000-0000-0000-0000-000000000001' } } },
+        },
+        {
+          provide: AuthStore,
+          useValue: { user: () => ({ tenantId: 't-99', userId: 'u', username: 'u', email: 'e' }) },
+        },
+      ],
+    })
+      .overrideComponent(DecisionDetailComponent, {
+        set: { template: '<div>test</div>', imports: [], styles: [] },
+      })
+      .compileComponents();
+
+    const s = TestBed.inject(AdvisoryStore);
+    s.reset();
+    const f = TestBed.createComponent(DecisionDetailComponent);
+    await f.componentInstance.ngOnInit();
+
+    expect(advisoryService.subscribeToDecisionUpdates).toHaveBeenCalledWith(
+      't-99',
+      'd0000000-0000-0000-0000-000000000001',
+      expect.any(Function),
+    );
+  });
+
+  it('drops a subscription frame whose version is older than current store version', async () => {
+    let capturedCallback!: (d: Decision) => void;
+    advisoryService.subscribeToDecisionUpdates.mockImplementation((_tid: string, _did: string, cb: (d: Decision) => void) => {
+      capturedCallback = cb;
+    });
+    advisoryService.getDecision.mockResolvedValue({ ...mockDecision, version: 5 });
+
+    await component.ngOnInit();
+
+    // Store is now at version 5; fire a stale frame at version 3
+    capturedCallback({ ...mockDecision, version: 3, status: 'REJECTED' });
+
+    expect(store.decision()?.version).toBe(5);
+    expect(store.decision()?.status).toBe('APPROVED');
+  });
+
+  it('applies a subscription frame whose version is >= current store version', async () => {
+    let capturedCallback!: (d: Decision) => void;
+    advisoryService.subscribeToDecisionUpdates.mockImplementation((_tid: string, _did: string, cb: (d: Decision) => void) => {
+      capturedCallback = cb;
+    });
+    advisoryService.getDecision.mockResolvedValue({ ...mockDecision, version: 5 });
+
+    await component.ngOnInit();
+
+    capturedCallback({ ...mockDecision, version: 6, status: 'AWAITING_CONFIRMATION' });
+
+    expect(store.decision()?.version).toBe(6);
+    expect(store.decision()?.status).toBe('AWAITING_CONFIRMATION');
+  });
+
+  it('errors out gracefully when authStore has no tenantId (no subscribe attempt)', async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [DecisionDetailComponent],
+      providers: [
+        { provide: AdvisoryService, useValue: advisoryService },
+        { provide: Router, useValue: router },
+        { provide: I18nService, useValue: { t: (k: string) => k } },
+        { provide: TranslateService, useValue: { instant: (k: string) => k } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => 'd0000000-0000-0000-0000-000000000001' } } },
+        },
+        { provide: AuthStore, useValue: { user: () => null } },
+      ],
+    })
+      .overrideComponent(DecisionDetailComponent, {
+        set: { template: '<div>test</div>', imports: [], styles: [] },
+      })
+      .compileComponents();
+
+    const s = TestBed.inject(AdvisoryStore);
+    s.reset();
+    const f = TestBed.createComponent(DecisionDetailComponent);
+    await f.componentInstance.ngOnInit();
+
+    expect(advisoryService.subscribeToDecisionUpdates).not.toHaveBeenCalled();
+    expect(s.error()).toBeTruthy();
   });
 
   it('should unsubscribe from decision updates on destroy', async () => {

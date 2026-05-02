@@ -175,7 +175,8 @@
     "comparison": "Failed to load simulation comparison. Please try again.",
     "dashboard": "Failed to load dashboard data. Please try again.",
     "decision": "Failed to load decision details. Please try again.",
-    "notifications": "Failed to load notifications. Please try again."
+    "notifications": "Failed to load notifications. Please try again.",
+    "missingTenant": "Session error — please sign in again."
   },
   "onboarding": {
     "welcome": "Welcome to Nestfolio",
