@@ -44,14 +44,16 @@ describe('decision-publisher', () => {
   it('broadcasts when DecisionReadModel.status flips to AWAITING_CONFIRMATION', async () => {
     await handler(streamEvent({
       eventName: 'MODIFY',
-      oldImage: { sk: 'DecisionReadModel', decisionId: 'd1', tenantId: 't1', status: 'PENDING', explanation: '', version: 1 },
-      newImage: { sk: 'DecisionReadModel', decisionId: 'd1', tenantId: 't1', status: 'AWAITING_CONFIRMATION', explanation: 'rationale', version: 2, updatedAt: '2026-05-02T00:00:00Z' },
+      oldImage: { sk: 'DecisionReadModel', decisionId: 'd1', tenantId: 't1', status: 'PENDING', explanation: '', version: 1, trigger: 'PORTFOLIO_DRIFT', createdAt: '2026-05-02T00:00:00Z' },
+      newImage: { sk: 'DecisionReadModel', decisionId: 'd1', tenantId: 't1', status: 'AWAITING_CONFIRMATION', explanation: 'rationale', version: 2, updatedAt: '2026-05-02T00:00:01Z', trigger: 'PORTFOLIO_DRIFT', createdAt: '2026-05-02T00:00:00Z' },
     }), {} as never, () => {});
     expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
     const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
     expect(call.variables).toMatchObject({
       decisionId: 'd1', tenantId: 't1', status: 'AWAITING_CONFIRMATION',
       explanation: 'rationale', version: 2,
+      trigger: 'PORTFOLIO_DRIFT',
+      createdAt: '2026-05-02T00:00:00Z',
     });
   });
 
@@ -67,9 +69,11 @@ describe('decision-publisher', () => {
   it('broadcasts on INSERT (initial materialisation visible to early subscribers)', async () => {
     await handler(streamEvent({
       eventName: 'INSERT',
-      newImage: { sk: 'DecisionReadModel', decisionId: 'd1', tenantId: 't1', status: 'PENDING', explanation: '', version: 1, updatedAt: '2026-05-02T00:00:00Z' },
+      newImage: { sk: 'DecisionReadModel', decisionId: 'd1', tenantId: 't1', status: 'PENDING', explanation: '', version: 1, updatedAt: '2026-05-02T00:00:00Z', trigger: 'PORTFOLIO_DRIFT', createdAt: '2026-05-02T00:00:00Z' },
     }), {} as never, () => {});
     expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.variables).toMatchObject({ trigger: 'PORTFOLIO_DRIFT', createdAt: '2026-05-02T00:00:00Z' });
   });
 
   it('skips records with sk other than DecisionReadModel', async () => {

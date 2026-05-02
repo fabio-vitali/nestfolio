@@ -14,9 +14,11 @@ type Mutation {
     decisionId: ID!
     tenantId: ID!
     status: DecisionStatus!
+    trigger: String!
     explanation: String!
     proposedTrades: [ProposedTradeInput!]!
     version: Int!
+    createdAt: String!
     updatedAt: String!
   ): DecisionPacket! @aws_iam
 }

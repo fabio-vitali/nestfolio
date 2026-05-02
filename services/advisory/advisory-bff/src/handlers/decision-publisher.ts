@@ -10,26 +10,32 @@ const PUBLISH_DECISION_UPDATE = `
     $decisionId: ID!
     $tenantId: ID!
     $status: DecisionStatus!
+    $trigger: String!
     $explanation: String!
     $proposedTrades: [ProposedTradeInput!]!
     $version: Int!
+    $createdAt: String!
     $updatedAt: String!
   ) {
     publishDecisionUpdate(
       decisionId: $decisionId
       tenantId: $tenantId
       status: $status
+      trigger: $trigger
       explanation: $explanation
       proposedTrades: $proposedTrades
       version: $version
+      createdAt: $createdAt
       updatedAt: $updatedAt
     ) {
       decisionId
       tenantId
       status
+      trigger
       explanation
       proposedTrades { symbol assetClass side quantityOrAmountCents targetWeightPercent rationale }
       version
+      createdAt
       updatedAt
     }
   }
@@ -51,9 +57,11 @@ export const handler = broadcastFromStream({
         decisionId: String(item['decisionId'] ?? ''),
         tenantId: String(item['tenantId'] ?? ''),
         status: String(item['status'] ?? ''),
+        trigger: String(item['trigger'] ?? ''),
         explanation: String(item['explanation'] ?? ''),
         proposedTrades: Array.isArray(item['proposedTrades']) ? item['proposedTrades'] : [],
         version: Number(item['version'] ?? 0),
+        createdAt: String(item['createdAt'] ?? ''),
         updatedAt: String(item['updatedAt'] ?? new Date().toISOString()),
       }),
     },
