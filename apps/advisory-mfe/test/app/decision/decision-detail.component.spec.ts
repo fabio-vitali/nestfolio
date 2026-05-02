@@ -382,6 +382,25 @@ describe('DecisionDetailComponent', () => {
     expect(store.decision()?.status).toBe('AWAITING_CONFIRMATION');
   });
 
+  // The broadcast and the query may both arrive carrying the same DDB modify
+  // version (publisher emits from the same stream record that materialised
+  // the row). The version-guard predicate is `>=` so equal-version frames
+  // are applied — locks in that intent.
+  it('applies a subscription frame whose version is equal to current store version', async () => {
+    let capturedCallback!: (d: Decision) => void;
+    advisoryService.subscribeToDecisionUpdates.mockImplementation((_tid: string, _did: string, cb: (d: Decision) => void) => {
+      capturedCallback = cb;
+    });
+    advisoryService.getDecision.mockResolvedValue({ ...mockDecision, version: 5, status: 'APPROVED' });
+
+    await component.ngOnInit();
+
+    capturedCallback({ ...mockDecision, version: 5, status: 'AWAITING_CONFIRMATION' });
+
+    expect(store.decision()?.version).toBe(5);
+    expect(store.decision()?.status).toBe('AWAITING_CONFIRMATION');
+  });
+
   it('errors out gracefully when authStore has no tenantId (no subscribe attempt)', async () => {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
