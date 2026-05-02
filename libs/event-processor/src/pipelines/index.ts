@@ -12,3 +12,5 @@ export { deriveFromStream } from './derive-from-stream';
 export type { DeriveFromStreamConfig } from './derive-from-stream';
 export { broadcastFromStream } from './broadcast-from-stream';
 export type { BroadcastFromStreamConfig, StreamBroadcastEntry } from './broadcast-from-stream';
+export { broadcastFromQueue } from './broadcast-from-queue';
+export type { BroadcastFromQueueConfig, QueueBroadcastEntry } from './broadcast-from-queue';
