@@ -35,16 +35,7 @@ export class InvestorBffStack extends ServiceStack {
         InvestorBffEventTypes.GO_LIVE_CONFIRMED,
         InvestorBffEventTypes.OPERATING_MODE_CHANGED,
       ],
-      environment: facade.graphqlUrl ? { APPSYNC_URL: facade.graphqlUrl } : {},
     });
-
-    // Grant Ingress handler permission to invoke AppSync mutations via IAM
-    if (facade.api) {
-      ingress.handler.addToRolePolicy(new PolicyStatement({
-        actions: ['appsync:GraphQL'],
-        resources: [`${facade.api.arn}/*`],
-      }));
-    }
 
     // --- Ingress 2: Broadcast events → broadcast-listener.ts ---
     const broadcastIngress = new Ingress(this, 'BroadcastIngress', {
