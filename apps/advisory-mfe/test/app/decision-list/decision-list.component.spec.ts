@@ -198,4 +198,37 @@ describe('DecisionListComponent', () => {
     expect(component.decisions()[0].status).toBe('AWAITING_CONFIRMATION');
     expect(component.decisions()[0].decisionId).toBe(mockItems[0].decisionId);
   });
+
+  it('removes a row when its frame status moves to a terminal value', async () => {
+    let cb!: (d: Decision) => void;
+    advisoryService.subscribeToDecisionListUpdates.mockImplementation(
+      (_t: string, fn: (d: Decision) => void) => { cb = fn; },
+    );
+    advisoryService.getPendingDecisions.mockResolvedValue([
+      mockItems[0],
+      mockItems[1],
+    ]);
+
+    await component.ngOnInit();
+    expect(component.decisions().map((d) => d.decisionId))
+      .toEqual([mockItems[0].decisionId, mockItems[1].decisionId]);
+
+    cb(frame({ decisionId: mockItems[0].decisionId, status: 'CONFIRMED' }));
+
+    expect(component.decisions().map((d) => d.decisionId)).toEqual([mockItems[1].decisionId]);
+  });
+
+  it('ignores a frame for an unknown decisionId in a terminal status', async () => {
+    let cb!: (d: Decision) => void;
+    advisoryService.subscribeToDecisionListUpdates.mockImplementation(
+      (_t: string, fn: (d: Decision) => void) => { cb = fn; },
+    );
+    advisoryService.getPendingDecisions.mockResolvedValue([mockItems[0]]);
+
+    await component.ngOnInit();
+
+    cb(frame({ decisionId: 'never-seen', status: 'CONFIRMED' }));
+
+    expect(component.decisions().map((d) => d.decisionId)).toEqual([mockItems[0].decisionId]);
+  });
 });

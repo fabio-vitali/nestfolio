@@ -188,20 +188,21 @@ export class DecisionListComponent implements OnInit, OnDestroy {
           ...current,
         ]);
       }
-      // Terminal-status frame for an unknown decisionId — ignore.
       return;
     }
 
-    if (isPending) {
-      const next = [...current];
-      next[idx] = {
-        ...current[idx],
-        status: frame.status,
-        // trigger ride-along: defensive in case a partial frame ever leaks in.
-        trigger: frame.trigger || current[idx].trigger,
-      };
-      this.decisions.set(next);
+    if (!isPending) {
+      this.decisions.set(current.filter((_, i) => i !== idx));
+      return;
     }
+
+    const next = [...current];
+    next[idx] = {
+      ...current[idx],
+      status: frame.status,
+      trigger: frame.trigger || current[idx].trigger,
+    };
+    this.decisions.set(next);
   }
 
   statusSeverity(
