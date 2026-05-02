@@ -61,7 +61,7 @@ enum TradeSide {
   SELL
 }
 
-type DecisionPacket {
+type DecisionPacket @aws_cognito_user_pools @aws_iam {
   decisionId: ID!
   tenantId: ID!
   trigger: String!
@@ -79,7 +79,7 @@ type DecisionPacket {
   version: Int!
 }
 
-type ProposedTrade {
+type ProposedTrade @aws_cognito_user_pools @aws_iam {
   symbol: String!
   assetClass: String!
   side: TradeSide!
@@ -97,7 +97,7 @@ input ProposedTradeInput {
   rationale: String!
 }
 
-type ComplianceCheck {
+type ComplianceCheck @aws_cognito_user_pools @aws_iam {
   checkId: ID!
   decisionId: ID!
   level: ComplianceLevel!
@@ -107,7 +107,7 @@ type ComplianceCheck {
   checkedAt: String!
 }
 
-type AgentInvocation {
+type AgentInvocation @aws_cognito_user_pools @aws_iam {
   invocationId: ID!
   decisionId: ID!
   agentName: String!
