@@ -51,8 +51,8 @@ export class InvestorBffStack extends ServiceStack {
       state,
       entry: join(__dirname, 'handlers', 'broadcast-listener.ts'),
       eventTypes: [
-        InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
-        InvestorIngestEventTypes.BROKER_CIRCUIT_CLOSED,
+        InvestorBffEventTypes.BROKER_CIRCUIT_OPEN,
+        InvestorBffEventTypes.BROKER_CIRCUIT_CLOSED,
         InvestorIngestEventTypes.DEPOSIT_DETECTED,
       ],
       environment: facade.graphqlUrl ? { APPSYNC_URL: facade.graphqlUrl } : {},
