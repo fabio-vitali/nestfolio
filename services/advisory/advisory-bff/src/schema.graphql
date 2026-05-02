@@ -10,11 +10,22 @@ type Mutation {
   confirmDecision(decisionId: ID!): DecisionPacket!
   rejectDecision(decisionId: ID!, reason: String!): DecisionPacket!
   recordExplanationView(decisionId: ID!): ViewReceipt!
+  publishDecisionUpdate(
+    decisionId: ID!
+    tenantId: ID!
+    status: DecisionStatus!
+    explanation: String!
+    proposedTrades: [ProposedTradeInput!]!
+    version: Int!
+    updatedAt: String!
+  ): DecisionPacket! @aws_iam
 }
 
 type Subscription {
-  onDecisionUpdate: DecisionPacket!
-  @aws_subscribe(mutations: ["confirmDecision", "rejectDecision"])
+  onDecisionUpdate(tenantId: ID!): DecisionPacket!
+  @aws_subscribe(mutations: ["confirmDecision", "rejectDecision", "publishDecisionUpdate"])
+  @aws_cognito_user_pools
+  @aws_iam
 }
 
 enum DecisionStatus {
@@ -69,6 +80,15 @@ type DecisionPacket {
 }
 
 type ProposedTrade {
+  symbol: String!
+  assetClass: String!
+  side: TradeSide!
+  quantityOrAmountCents: Int!
+  targetWeightPercent: Float!
+  rationale: String!
+}
+
+input ProposedTradeInput {
   symbol: String!
   assetClass: String!
   side: TradeSide!
