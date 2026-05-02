@@ -6,6 +6,7 @@ import { InvestorPage } from '../pages/investor.page';
 import { AdvisoryPage } from '../pages/advisory.page';
 import { HostPage } from '../pages/host.page';
 import { injectAdvisoryUpdate } from '../fixtures/inject-advisory-update';
+import { waitForAdvisoryDecisionRow } from '../fixtures/wait-for-advisory-projection';
 // Spike 1.3 concluded `initiateDeposit` defaults to ENABLED when no flag row
 // exists, so Phase 4 Task 4.2 was skipped. The import below stays commented;
 // uncomment only if a future regression flips that default to disabled.
@@ -148,6 +149,14 @@ test('new-investor-happy-path: onboarding → deposit → decision → logout', 
     const sentinel = baseline + 100;
     await injectAdvisoryUpdate(ctx, tenant.tenantId, sentinel);
     await dashboard.waitForPendingDecisionsExactly(sentinel, 30_000);
+
+    // Wait for advisory-bff's projection to actually carry the decision row
+    // the dashboard counter is announcing. The two projections run in
+    // parallel and advisory typically lags the dashboard by 30+ seconds; if
+    // we navigate to /advisory before the row exists, Step 9's 15s POM
+    // timeout fires on empty state — a pipeline-latency bug masquerading as
+    // a UI race. See `wait-for-advisory-projection.ts` for the rationale.
+    await waitForAdvisoryDecisionRow(ctx, tenant);
   });
 
   // Step 9-10 — read rationale; accept decision.
