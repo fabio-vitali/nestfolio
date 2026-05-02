@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { Construct } from 'constructs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
@@ -33,9 +34,6 @@ export class InvestorBffStack extends ServiceStack {
         InvestorBffEventTypes.ONBOARDING_COMPLETED,
         InvestorBffEventTypes.GO_LIVE_CONFIRMED,
         InvestorBffEventTypes.OPERATING_MODE_CHANGED,
-        InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
-        InvestorIngestEventTypes.BROKER_CIRCUIT_CLOSED,
-        InvestorIngestEventTypes.DEPOSIT_DETECTED,
       ],
       environment: facade.graphqlUrl ? { APPSYNC_URL: facade.graphqlUrl } : {},
     });
@@ -43,6 +41,26 @@ export class InvestorBffStack extends ServiceStack {
     // Grant Ingress handler permission to invoke AppSync mutations via IAM
     if (facade.api) {
       ingress.handler.addToRolePolicy(new PolicyStatement({
+        actions: ['appsync:GraphQL'],
+        resources: [`${facade.api.arn}/*`],
+      }));
+    }
+
+    // --- Ingress 2: Broadcast events → broadcast-listener.ts ---
+    const broadcastIngress = new Ingress(this, 'BroadcastIngress', {
+      state,
+      entry: join(__dirname, 'handlers', 'broadcast-listener.ts'),
+      eventTypes: [
+        InvestorIngestEventTypes.BROKER_CIRCUIT_OPEN,
+        InvestorIngestEventTypes.BROKER_CIRCUIT_CLOSED,
+        InvestorIngestEventTypes.DEPOSIT_DETECTED,
+      ],
+      environment: facade.graphqlUrl ? { APPSYNC_URL: facade.graphqlUrl } : {},
+    });
+
+    // Grant BroadcastIngress handler permission to invoke AppSync mutations via IAM
+    if (facade.api) {
+      broadcastIngress.handler.addToRolePolicy(new PolicyStatement({
         actions: ['appsync:GraphQL'],
         resources: [`${facade.api.arn}/*`],
       }));
