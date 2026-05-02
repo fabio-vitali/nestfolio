@@ -15,7 +15,9 @@ Updated 2026-05-02: Spec 5 partial-ship. Step 10 (Confirm button → WSS broadca
 
 ## ACTIVE
 
-*(none — between workstreams; pick from QUEUED)*
+### `[e2e]` Journey Step 9 — decision-list empty on first query (timing race)
+
+Plan: `docs/superpowers/plans/2026-05-02-decision-list-pattern-b.md`. Promoted from QUEUED 2026-05-02 — see same entry below for the full mechanism + fix prescription.
 
 ---
 
