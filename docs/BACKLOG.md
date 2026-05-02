@@ -33,13 +33,11 @@ Ordered by priority. Top of list = what to start next.
 
 **Mechanism (verified during Spec 5 e2e Run 1-redo, fresh-1, fresh-2):** `decision-list.component.ts:132` calls `getPendingDecisions` ONCE on init (no subscription, no polling). If the agent pipeline hasn't materialised the row at the moment the user lands on `/advisory`, the page renders empty state forever. Step 8's dashboard counter materialises ~30s before advisory-bff's row appears, so Step 8 passing isn't a sufficient barrier for Step 9.
 
-**Possible fixes (pick one):**
-1. **MFE: subscribe-before-query on decision-list** — mirror Spec 5's R1 pattern (advisory-mfe decision-detail). Attach `onDecisionUpdate` subscription before `getPendingDecisions`, version-guard frames into the list. Now feasible because the broadcast pipeline shipped.
-2. **MFE: poll fallback** — re-query `getPendingDecisions` every Ns up to a budget. Simpler but coarser.
-3. **Backend: tighten advisory-bff materialisation latency** — investigate why DECISION_PACKET_CREATED → row append is ~30s after the dashboard counter increments. Likely involves AssemblePacket workaround (memory `project_playwright_e2e_ui.md` 8th-session) or upstream SF.
-4. **Test: keep 15s timeout, fix upstream** — don't change the POM (per UI-assertions-only feedback); fix whatever makes the row land after dashboard counter.
+**Fix:** apply Pattern B on decision-list — subscribe to `onDecisionUpdate(tenantId)` in `decision-list.component.ts:ngOnInit`, unsubscribe in `ngOnDestroy`, run `getPendingDecisions` alongside (the query hydrates whatever already exists; the subscription delivers everything that arrives after). Frame handler reconciles by `decisionId`: not present → prepend; present → update in place; new status falls outside the pending set → remove. No version-guard race-prevention needed (R1) the way `decision-detail` needed it — for a tenant-scoped list, INSERT events are additive and arrive monotonically; MODIFY events naturally land after the query's snapshot regardless of order. The advisory-bff broadcast pipeline shipped in Spec 5 already emits both INSERT and MODIFY events, so the wire is ready.
 
-**Cheapest next step:** add the MFE subscription (option 1) — broadcast pipeline is already deployed and proven.
+**Why no other options are listed:**
+- Polling fallback is off the table per `feedback_e2e_ui_assertions_only.md` — we use subscriptions, and we e2e-assert subscription-driven re-rendering.
+- "Tighten upstream materialisation latency" is wrong-premise — the system is eventually consistent by design. Reducing latency cannot eliminate the race; the only correct response is to make the UI react to events that arrive after the initial query, which is exactly Pattern B.
 
 **Topic memory:** `project_playwright_e2e_ui.md` (Step 9 timing); `project_decision_workflow_stuck.md`.
 
