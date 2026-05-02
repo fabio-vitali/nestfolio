@@ -12,6 +12,9 @@ export interface StreamBroadcastEntry {
    * between OldImage and NewImage. Arrays/objects always compare unequal
    * (different references after unmarshall) — over-broadcasts on collections,
    * which is the safer default. Use shouldBroadcast for value-equality.
+   *
+   * Empty array is equivalent to omitting this field — MODIFY events always
+   * broadcast for the matched typename (subject only to shouldBroadcast).
    */
   whenChanged?: string[];
   /** Optional escape hatch — supplied predicate overrides whenChanged. */
@@ -74,7 +77,7 @@ async function processRecord(
 
   if (entry.shouldBroadcast) {
     if (!entry.shouldBroadcast(newImage, oldImage, eventName)) return;
-  } else if (eventName === 'MODIFY' && entry.whenChanged) {
+  } else if (eventName === 'MODIFY' && entry.whenChanged && entry.whenChanged.length > 0) {
     const changed = entry.whenChanged.some((f) => oldImage?.[f] !== newImage[f]);
     if (!changed) return;
   }

@@ -126,4 +126,32 @@ describe('broadcastFromStream', () => {
     expect(shouldBroadcast).toHaveBeenCalledTimes(1);
     expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
   });
+
+  it('rethrows when postAppSyncMutation rejects (at-least-once contract)', async () => {
+    (postAppSyncMutation as jest.Mock).mockRejectedValueOnce(new Error('appsync-down'));
+    const handler = broadcastFromStream({
+      serviceName: 'svc', appsyncUrl: 'https://x.example/graphql',
+      broadcasts: {
+        Foo: { mutation: MUTATION, mapImage: (img) => ({ id: img['id'] }) },
+      },
+    });
+    await expect(
+      handler(makeEvent([{ eventName: 'INSERT', newImage: { sk: 'Foo', id: 'a' } }]), {} as never, () => {}),
+    ).rejects.toThrow('appsync-down');
+  });
+
+  it('treats empty whenChanged array as always-broadcast on MODIFY', async () => {
+    const handler = broadcastFromStream({
+      serviceName: 'svc', appsyncUrl: 'https://x.example/graphql',
+      broadcasts: {
+        Foo: { mutation: MUTATION, whenChanged: [], mapImage: (img) => ({ id: img['id'] }) },
+      },
+    });
+    await handler(makeEvent([{
+      eventName: 'MODIFY',
+      oldImage: { sk: 'Foo', id: 'a', status: 'X' },
+      newImage: { sk: 'Foo', id: 'a', status: 'X' },
+    }]), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+  });
 });
