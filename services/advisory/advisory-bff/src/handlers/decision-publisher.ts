@@ -1,5 +1,10 @@
 import { broadcastFromStream } from '@nestfolio/event-processor';
 
+const APPSYNC_URL = process.env['APPSYNC_URL'];
+if (!APPSYNC_URL) {
+  throw new Error('decision-publisher: APPSYNC_URL is required');
+}
+
 const PUBLISH_DECISION_UPDATE = `
   mutation PublishDecisionUpdate(
     $decisionId: ID!
@@ -32,7 +37,7 @@ const PUBLISH_DECISION_UPDATE = `
 
 export const handler = broadcastFromStream({
   serviceName: 'advisory-bff',
-  appsyncUrl: process.env['APPSYNC_URL'] ?? '',
+  appsyncUrl: APPSYNC_URL,
   region: process.env['AWS_REGION'],
   broadcasts: {
     DecisionReadModel: {
@@ -45,7 +50,7 @@ export const handler = broadcastFromStream({
       mapImage: (item) => ({
         decisionId: String(item['decisionId'] ?? ''),
         tenantId: String(item['tenantId'] ?? ''),
-        status: String(item['status'] ?? 'PENDING'),
+        status: String(item['status'] ?? ''),
         explanation: String(item['explanation'] ?? ''),
         proposedTrades: Array.isArray(item['proposedTrades']) ? item['proposedTrades'] : [],
         version: Number(item['version'] ?? 0),
