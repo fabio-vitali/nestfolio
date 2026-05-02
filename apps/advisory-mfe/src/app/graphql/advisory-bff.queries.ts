@@ -136,8 +136,8 @@ export const RECORD_EXPLANATION_VIEW = `
 // --- Subscriptions ---
 
 export const ON_DECISION_UPDATE = `
-  subscription OnDecisionUpdate {
-    onDecisionUpdate {
+  subscription OnDecisionUpdate($tenantId: ID!) {
+    onDecisionUpdate(tenantId: $tenantId) {
       ...DecisionFields
     }
   }
