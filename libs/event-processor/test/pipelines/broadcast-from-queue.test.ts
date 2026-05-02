@@ -120,4 +120,52 @@ describe('broadcastFromQueue', () => {
     );
     expect(result?.batchItemFailures.length).toBe(1);
   });
+
+  it('isolates batch failure to the failing record (multi-record batch)', async () => {
+    // First call resolves, second rejects, third resolves.
+    (postAppSyncMutation as jest.Mock)
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('appsync-down'))
+      .mockResolvedValueOnce(undefined);
+
+    const handler = broadcastFromQueue({
+      serviceName: 'svc', appsyncUrl: 'https://x.example/graphql',
+      broadcasts: { FOO: { mutation: MUTATION, mapPayload: (p) => ({ id: (p.subject as { id: string }).id }) } },
+    });
+
+    const result = await handler(makeSqsEvent([
+      { type: 'FOO', subject: { id: 'a' } },
+      { type: 'FOO', subject: { id: 'b' } },
+      { type: 'FOO', subject: { id: 'c' } },
+    ]), {} as never, () => {});
+
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(3);
+    expect(result?.batchItemFailures).toEqual([{ itemIdentifier: 'm-1' }]);
+  });
+
+  it('reports batch item failure when record.body is malformed JSON', async () => {
+    const handler = broadcastFromQueue({
+      serviceName: 'svc', appsyncUrl: 'https://x.example/graphql',
+      broadcasts: { FOO: { mutation: MUTATION, mapPayload: () => ({ id: 'a' }) } },
+    });
+
+    const malformedEvent = {
+      Records: [{
+        messageId: 'bad-1',
+        receiptHandle: 'r-bad',
+        body: 'not-json',
+        attributes: {} as never,
+        messageAttributes: {},
+        md5OfBody: '',
+        eventSource: 'aws:sqs',
+        eventSourceARN: '',
+        awsRegion: 'us-east-1',
+      }],
+    } as unknown as Parameters<ReturnType<typeof broadcastFromQueue>>[0];
+
+    const result = await handler(malformedEvent, {} as never, () => {});
+
+    expect(postAppSyncMutation).not.toHaveBeenCalled();
+    expect(result?.batchItemFailures).toEqual([{ itemIdentifier: 'bad-1' }]);
+  });
 });
