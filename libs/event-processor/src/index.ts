@@ -41,6 +41,10 @@ export { replayAndReduce } from './pipelines/replay-and-reduce';
 export type { ReplayAndReduceConfig } from './pipelines/replay-and-reduce';
 export { deriveFromStream } from './pipelines/derive-from-stream';
 export type { DeriveFromStreamConfig } from './pipelines/derive-from-stream';
+export { broadcastFromStream } from './pipelines/broadcast-from-stream';
+export type { BroadcastFromStreamConfig, StreamBroadcastEntry } from './pipelines/broadcast-from-stream';
+export { broadcastFromQueue } from './pipelines/broadcast-from-queue';
+export type { BroadcastFromQueueConfig, QueueBroadcastEntry } from './pipelines/broadcast-from-queue';
 
 // Engine (advanced) — Ingestion
 export { IngestionEngine } from './engine/ingestion-engine';
@@ -136,3 +140,7 @@ export {
   defineCommand, applyCommand,
   type LedgerEntry, type EventReducer, replayEvents,
 } from './sourcing';
+
+// Shared helpers
+export { postAppSyncMutation } from './shared/post-appsync-mutation';
+export type { PostAppSyncMutationArgs } from './shared/post-appsync-mutation';
