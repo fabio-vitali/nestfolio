@@ -112,22 +112,31 @@ The EB rule targets `SF.StartExecution` directly with `executionName = ${event.i
 
 Rationale: nested groups preserve human readability of payloads, mirror the existing `MandateSnapshot` shape in `compliance-ctrl/src/rules/rule-engine.ts:7`, keep diff-detection per-group rather than per-flat-field, and don't bloat field names with prefixes (`mandateMonthlyTurnoverCapPercent` etc.).
 
-### 3.3 (Q3) Mandate revocation — distinct event, denormalized state
+### 3.3 (Q3) Mandate lifecycle — separate `MandateStatus` row, symmetric INSERT/MODIFY events
 
-User insight (verified): revocation is a **distinct semantic action**, not a field check. The current code already half-implements this pattern (`MandateRevocation` __typename + `MANDATE_REVOKED` event type both exist) but the wiring is incomplete (the row is written but the event is never emitted; the InvestorProfile mandate state is never updated to reflect revocation).
+**Verified premises (2026-05-03):**
+- No revoke-mandate CTA exists in any MFE (grep across all 5 MFEs: zero hits). Only caller of the `revokeMandate` mutation is `apps/e2e-feature-tests/src/profile/revoke-mandate.e2e.test.ts`. Total design freedom.
+- AppSync JS resolver patterns in the codebase are mature and capable (18 resolvers across `investor-bff` + `advisory-bff`). Standard `operation: 'UpdateItem'` + `attribute_exists` condition pattern handles everything we need. No Lambda Resolver needed.
+- Today's half-implementation (writes `MandateRevocation` row + `EditEvent` row, never updates Mandate row's `revokedAt`, never emits `MANDATE_REVOKED` because the row isn't mapped in Egress) is dead-letter scaffolding — clean slate.
 
-**Design completes the existing intent:**
+**Design — `MandateStatus` row owns the lifecycle:**
 
-- **`InvestorProfile.mandate.status: 'ACTIVE' | 'REVOKED'`** + `mandate.revokedAt: ISO | null` — denormalized current-state on the composite row, for fast single-row frontend reads ("is my mandate active right now?" answers from one DDB read, no event-history scan).
-- **`MandateRevocation` stays as a separate sibling row** (`pk = InvestorProfile#${tenantId}#${userId}`, `sk = MandateRevocation#${autoId}`, `__typename = 'MandateRevocation'`). It's an **event row**, not state — preserves audit trail.
-- **Egress eventTypes maps `'MandateRevocation': { insert: MANDATE_REVOKED }`** — closes the latent dead-code gap (event type already exists in `domain/events.ts` but isn't wired today).
-- **`revoke-mandate.fn.js` rewritten as a 3-row TransactWriteItems:**
-  1. UpdateItem on the InvestorProfile composite row: `SET mandate.status = 'REVOKED', mandate.revokedAt = :now`.
-  2. PutItem on a new `MandateRevocation` row.
-  3. PutItem on an `EditEvent` row (preserves today's audit log).
-- **`compliance-ctrl` subscribes to `MANDATE_REVOKED`** (new explicit handler). On receipt, it sets a `MandateSnapshot.status = 'REVOKED'` field in its own GuardrailPolicy table. The rule engine (`AuthorityResolver` / `MandateValidator`) gates on `mandate.status === 'REVOKED'` and returns `BLOCKED` with violation `MANDATE_REVOKED` (parallel to today's `MANDATE_MISSING` fallback).
-- **`decision-workflow-ctrl` does NOT subscribe to `MANDATE_REVOKED` as a trigger** — revocation is a "stop deciding" signal, not a "decide what to do" trigger. The compliance gate handles it for any in-flight cycles.
-- **Topology consequence:** revocation now produces THREE events fanning out from one transactWrite — `INVESTOR_PROFILE_UPDATED` (composite row UpdateItem) + `MANDATE_REVOKED` (MandateRevocation row INSERT) + (no event from EditEvent — it's an audit log, not in Egress map). `decision-workflow-ctrl` receives `INVESTOR_PROFILE_UPDATED` → starts a cycle → that cycle reaches compliance → compliance has already received the parallel `MANDATE_REVOKED` and blocks. No race risk because the cycle is 30–75s of LLM work; the parallel `MANDATE_REVOKED` lands in compliance well before the cycle reaches compliance gate.
+- **One row per investor for mandate lifecycle:** `pk = InvestorProfile#${tenantId}#${userId}`, `sk = 'MandateStatus'`, `__typename = 'MandateStatus'`. Fields: `{ status: 'ACCEPTED' | 'REVOKED', acceptedAt: ISO, revokedAt: ISO | null, tenantId, userId, region }`.
+- **INSERT during onboarding** (added to `onboarding-completed.ts` transactWrite as item N+1): `Put { status: 'ACCEPTED', acceptedAt: now, revokedAt: null }`. CDC fires `MANDATE_ACCEPTED`.
+- **MODIFY on revocation** (in rewritten `revoke-mandate.fn.js`): single `UpdateItem` `SET status = 'REVOKED', revokedAt = :now WHERE attribute_exists(pk)`. ~10 LOC. CDC fires `MANDATE_REVOKED`.
+- **Egress map: `'MandateStatus': { insert: MANDATE_ACCEPTED, modify: MANDATE_REVOKED }`** — ONE LINE wires both lifecycle events.
+- **Mandate config fields** (level, monthlyTurnoverCapPercent, maxSingleTradePercent, etc.) **stay nested under `InvestorProfile.mandate.*`** in the composite row. Status concern lives separately from config concern — different lifecycle, different update cadence.
+- **`get-profile.fn.js` extended** to use `ddb.query({ key: { pk: { eq: ... } } })` returning the whole item collection (composite InvestorProfile + MandateStatus); response composes `mandate.status` from MandateStatus row (in addition to mandate.* config from composite). Same Query, no extra DDB call, no extra latency. Existing `get-goals.fn.js` already uses this Query pattern.
+- **`compliance-ctrl` subscribes to `MANDATE_REVOKED`** (new handler) — sets `MandateSnapshot.status = 'REVOKED'` in its GuardrailPolicy table. The rule engine gates on `mandate.status === 'REVOKED'` and returns `BLOCKED` with violation `MANDATE_REVOKED`. NO need to subscribe to `MANDATE_ACCEPTED` (mandate config arrives via INVESTOR_PROFILE_CREATED → MandateSnapshot projection — status defaults to ACTIVE/ACCEPTED).
+- **`investor-ctrl` notifications subscribe to `MANDATE_ACCEPTED`** for "Investment Mandate Activated" copy (replaces today's awkward MANDATE_CREATED trigger). Subscribes to `MANDATE_REVOKED` for new "Mandate Revoked" copy.
+- **`decision-workflow-ctrl` does NOT subscribe to `MANDATE_*` events as triggers** — mandate lifecycle is a compliance concern, not a "decide what to do" signal. The compliance gate handles it for any in-flight cycles triggered by `INVESTOR_PROFILE_*`.
+- **`EditEvent` row dropped from revoke-mandate.fn.js** — speculative audit nothing consumes today. If a generic edit-event log is needed later, reintroduce as a separate workstream.
+
+**What this design loses vs the alternatives:**
+- Per-revocation DDB audit rows (each revocation overwrites the same MandateStatus row). EB events archive preserves immutable lifecycle history; consistent with `04-governance.md`'s focus on Decision Packets as the audit anchor, not profile entities.
+- "Re-acceptance" lifecycle (REVOKED → ACCEPTED) is not naturally expressible — the Egress `modify: MANDATE_REVOKED` mapping assumes one-way revocation. If re-acceptance becomes a real product flow later, refactor to two separate `MandateAccepted` + `MandateRevoked` event-row types then. YAGNI today.
+
+**Topology consequence:** revocation produces ONE event from one resolver write — `MANDATE_REVOKED` from MandateStatus row CDC MODIFY. No fan-out from the resolver. The composite InvestorProfile row is NOT touched by revocation (only its sibling MandateStatus is) — so no spurious `INVESTOR_PROFILE_UPDATED` is fired, decision-workflow-ctrl doesn't get triggered, no LLM cycle wasted reasoning about a profile that just got revoked. Compliance handles in-flight cycles (started before revocation) at the gate.
 
 ### 3.4 (Q4) Dev migration — hard cutover
 
@@ -155,17 +164,19 @@ Zero throwaway code. No migration Lambda.
 
 **`src/graphql/js-function/*.fn.js`:** `update-goal.fn.js`, `update-mandate.fn.js`, `revoke-mandate.fn.js`, `set-operating-mode.fn.js` rewritten to UpdateItem on the composite row.
 
-**`src/service.stack.ts` Egress eventTypes map:** collapses from 9 shapes to 5:
+**`src/service.stack.ts` Egress eventTypes map:** collapses from 9 shapes to 6:
 ```
 'InvestorProfile': { insert: INVESTOR_PROFILE_CREATED, modify: INVESTOR_PROFILE_UPDATED }
-'MandateRevocation': { insert: MANDATE_REVOKED }                                              // NEW — closes latent gap
-'Deposit': { insert: DEPOSIT_INITIATED, modify: DEPOSIT_UPDATED }
-'Withdrawal': { insert: WITHDRAWAL_REQUESTED, modify: WITHDRAWAL_UPDATED }
+'MandateStatus':   { insert: MANDATE_ACCEPTED,         modify: MANDATE_REVOKED }            // NEW — symmetric lifecycle
+'Deposit':         { insert: DEPOSIT_INITIATED,        modify: DEPOSIT_UPDATED }
+'Withdrawal':      { insert: WITHDRAWAL_REQUESTED,     modify: WITHDRAWAL_UPDATED }
 'ExecutionModeChange': { insert: EXECUTION_MODE_CHANGED, modify: EXECUTION_MODE_CHANGE_UPDATED }
-'Notification': { modify: NOTIFICATION_READ }
+'Notification':    { modify: NOTIFICATION_READ }
 ```
 
-**`src/domain/events.ts`:** removes Goal/RiskProfile/Mandate/OperatingMode `_CREATED` + `_UPDATED` event names (8 total). Keeps `INVESTOR_PROFILE_CREATED`/`UPDATED`, `MANDATE_REVOKED`, others. `INVESTOR_PROFILE_CREATED` + `INVESTOR_PROFILE_UPDATED` were already declared (just unused as triggers — now load-bearing).
+(Old `MandateRevocation` row + `EditEvent` row both dropped from `revoke-mandate.fn.js`.)
+
+**`src/domain/events.ts`:** removes Goal/RiskProfile/Mandate/OperatingMode `_CREATED` + `_UPDATED` event names (8 total). Keeps `INVESTOR_PROFILE_CREATED`/`UPDATED`, `MANDATE_REVOKED` (newly load-bearing), adds `MANDATE_ACCEPTED` (new). `INVESTOR_PROFILE_CREATED` + `INVESTOR_PROFILE_UPDATED` + `MANDATE_REVOKED` were already declared (just unused — now load-bearing).
 
 ### 4.2 `services/investor/dashboard-bff`
 
@@ -173,28 +184,35 @@ Zero throwaway code. No migration Lambda.
 
 **`src/transforms/investor-snapshot.ts`:** switch-on-event-type collapses to one branch reading the composite payload's `goal.objective`, `riskProfile.score`, `operatingMode`. No diff-detection needed (snapshot is idempotent overwrite).
 
-### 4.3 `services/investor/investor-ctrl` — notification redesign (Path A)
+### 4.3 `services/investor/investor-ctrl` — notification redesign (hybrid: dedicated lifecycle events + diff-detection only where needed)
 
-Per deep-review Track 2: implement diff-detection in the consumer.
+Per the §3.3 MandateStatus design, the **mandate lifecycle notifications come from dedicated events** — no diff-detection needed:
 
-**`src/handlers/event-listener.ts`:** subscriptions change from 14 events to ~12 (drop `MANDATE_CREATED`, `GOAL_UPDATED`, `OPERATING_MODE_CHANGED`; add `INVESTOR_PROFILE_UPDATED`, `MANDATE_REVOKED`).
+- `MANDATE_ACCEPTED` → "Investment Mandate Activated" notification (replaces today's MANDATE_CREATED trigger).
+- `MANDATE_REVOKED` → new "Mandate Revoked" notification.
 
-**`src/services/notification-lifecycle.service.ts`:** receives `INVESTOR_PROFILE_UPDATED` with NewImage + OldImage; derives which semantic notifications apply by diffing nested groups:
-- `OldImage.mandate == null && NewImage.mandate != null` → "Investment Mandate Activated" notification
-- `OldImage.goal?.objective !== NewImage.goal?.objective` (or any `goal.*` field) → "Goal Updated" notification
-- `OldImage.operatingMode !== NewImage.operatingMode` → "Operating Mode Changed" notification
-- `INVESTOR_PROFILE_CREATED` → no derivation needed; `ONBOARDING_COMPLETED` already fires "Welcome to Nestfolio"
-- `MANDATE_REVOKED` → new "Mandate Revoked" notification (event-driven, not field-driven)
+For the **remaining notifications** that still derive from generic profile updates, `INVESTOR_PROFILE_UPDATED` diff-detection is needed (per deep-review Track 2 Path A):
 
-Existing dedup (`notificationId = eventId`) extends to `notificationId = ${eventId}:${derivedField}` to allow one composite event to fan out multiple notifications without duplicate suppression.
+- `OldImage.goal?.objective !== NewImage.goal?.objective` (or any `goal.*` field) → "Goal Updated" notification.
+- `OldImage.operatingMode !== NewImage.operatingMode` → "Operating Mode Changed" notification.
 
-Estimated +80–120 LOC (per Track 2 estimate). Existing precedent for field-diff-gating: `dashboard-publisher.ts` `whenChanged` pattern in `broadcastFromStream`.
+Other event subscriptions unchanged: `ONBOARDING_COMPLETED` → "Welcome to Nestfolio", `DEPOSIT_INITIATED`, `DECISION_APPROVED`, `ORDER_FILLED`.
+
+**`src/handlers/event-listener.ts`:** subscriptions change from 14 events to 13 (drop `MANDATE_CREATED`, `GOAL_UPDATED`, `OPERATING_MODE_CHANGED`; add `MANDATE_ACCEPTED`, `MANDATE_REVOKED`, `INVESTOR_PROFILE_UPDATED`).
+
+**`src/services/notification-lifecycle.service.ts`:** the `getNotificationContent()` map gains `MANDATE_ACCEPTED` + `MANDATE_REVOKED` entries (drops `MANDATE_CREATED`). The `INVESTOR_PROFILE_UPDATED` handler derives notifications via diff-detection only for goal/operatingMode (NOT mandate — covered by dedicated events).
+
+Existing dedup (`notificationId = eventId`) extends to `notificationId = ${eventId}:${derivedField}` for composite-event-derived notifications.
+
+**Estimated +50–80 LOC** (smaller than original Track 2 estimate of 80-120 because mandate lifecycle bypasses the diff path). Existing precedent for field-diff-gating: `dashboard-publisher.ts` `whenChanged` pattern in `broadcastFromStream`.
 
 ### 4.4 `services/advisory/compliance-ctrl`
 
-**`src/handlers/event-listener.ts`:** `processMandateEvent` resubscribes from `MANDATE_CREATED`/`MANDATE_UPDATED`/`OPERATING_MODE_CHANGED` to `INVESTOR_PROFILE_CREATED`/`INVESTOR_PROFILE_UPDATED`. Re-projects `MandateSnapshot` from the new payload's `subject.mandate.*` + `subject.operatingMode`. Idempotent re-write on every profile change.
+**`src/handlers/event-listener.ts`:** `processMandateEvent` resubscribes from `MANDATE_CREATED`/`MANDATE_UPDATED`/`OPERATING_MODE_CHANGED` to `INVESTOR_PROFILE_CREATED`/`INVESTOR_PROFILE_UPDATED`. Re-projects `MandateSnapshot` from the new payload's `subject.mandate.*` + `subject.operatingMode`. Idempotent re-write on every profile change. Default `status: 'ACCEPTED'` written on every projection (lifecycle-status updates handled separately).
 
-NEW handler for `MANDATE_REVOKED`: sets `MandateSnapshot.status = 'REVOKED'` in GuardrailPolicy table. Rule engine reads this and gates accordingly.
+NEW handler for `MANDATE_REVOKED`: minimal handler that sets `MandateSnapshot.status = 'REVOKED'` in GuardrailPolicy table (single UpdateItem with `attribute_exists` condition). Rule engine reads `status` field and gates accordingly (`AuthorityResolver` returns `BLOCKED` with violation `MANDATE_REVOKED` when `status === 'REVOKED'`).
+
+NO subscription to `MANDATE_ACCEPTED` — the parallel `INVESTOR_PROFILE_CREATED` event during onboarding already projects the mandate config + defaults `status: 'ACCEPTED'`. MANDATE_ACCEPTED is consumed only by `investor-ctrl` for notifications.
 
 ### 4.5 `services/advisory/decision-workflow-ctrl`
 
@@ -208,7 +226,7 @@ NEW handler for `MANDATE_REVOKED`: sets `MandateSnapshot.status = 'REVOKED'` in 
 
 ### 4.6 `services/advisory/advisory-adpt`
 
-**`src/service.stack.ts` `fromInvestorEvents` array:** drops `GOAL_CREATED`, `GOAL_UPDATED`, `RISK_PROFILE_CREATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_CREATED`, `MANDATE_UPDATED` (7 events). Adds `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_REVOKED` (3 events). Net: 7 → 3 events forwarded from InvestorBus.
+**`src/service.stack.ts` `fromInvestorEvents` array:** drops `GOAL_CREATED`, `GOAL_UPDATED`, `RISK_PROFILE_CREATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `MANDATE_CREATED`, `MANDATE_UPDATED` (7 events). Adds `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_ACCEPTED`, `MANDATE_REVOKED` (4 events). Net: 7 → 4 events forwarded from InvestorBus.
 
 ### 4.7 Frontend (per Track 1 finding: minimal impact)
 
@@ -240,8 +258,9 @@ NEW handler for `MANDATE_REVOKED`: sets `MandateSnapshot.status = 'REVOKED'` in 
 3. E2E feature tests pass: `apps/e2e-feature-tests/src/` full suite (especially `profile/update-goal.e2e.test.ts`, `profile/update-mandate.e2e.test.ts`, `profile/revoke-mandate.e2e.test.ts`, `advisory/operating-mode-authority.e2e.test.ts`, `advisory/first-decision.e2e.test.ts`).
 4. Playwright e2e: 5-run gate via `apps/nestfolio-e2e` against deployed dev — 5/5 onboarding completions produce **exactly 1 SF execution** in `dev-decision-workflow-ctrl-decisionstatemachine` per fresh user (CloudWatch verification).
 5. Hard cutover verified: dev `investor-bff` table contains zero stale multi-row InvestorProfile data (all rows are composite shape).
-6. Revocation path verified: `revokeMandate` mutation produces (a) UpdateItem on InvestorProfile setting `mandate.status='REVOKED'`, (b) MandateRevocation row INSERT, (c) `MANDATE_REVOKED` event observed on InvestorBus, (d) compliance-ctrl GuardrailPolicy MandateSnapshot.status updated, (e) subsequent decision cycle (if any triggered post-revocation) reaches compliance gate and is BLOCKED with `MANDATE_REVOKED` violation.
-7. Architecture docs updated. `audit-system` skill run reports zero drift.
+6. Revocation path verified: `revokeMandate` mutation produces (a) single UpdateItem on MandateStatus row setting `status='REVOKED', revokedAt=now`, (b) `MANDATE_REVOKED` event observed on InvestorBus via CDC MODIFY, (c) compliance-ctrl GuardrailPolicy MandateSnapshot.status updated to 'REVOKED', (d) `investor-ctrl` fires "Mandate Revoked" notification, (e) `decision-workflow-ctrl` does NOT trigger a cycle (no INVESTOR_PROFILE_UPDATED fires — composite row untouched), (f) any in-flight decision cycle reaches compliance gate and is BLOCKED with `MANDATE_REVOKED` violation.
+7. Acceptance path verified: onboarding produces a MandateStatus row INSERT → `MANDATE_ACCEPTED` event observed on InvestorBus → `investor-ctrl` fires "Investment Mandate Activated" notification (no diff-detection involved).
+8. Architecture docs updated. `audit-system` skill run reports zero drift.
 
 ## 7. Estimated effort
 
@@ -264,7 +283,7 @@ Per deep-review synthesis: **62–96 hours total** (~1.5–2.5 weeks of focused 
 2. **Phase 2 — Direct EB → SF in decision-workflow-ctrl.** Remove WorkflowTrigger materialization; rewire `Orchestration.triggers` to subscribe to INVESTOR_PROFILE_* + the 5 unchanged cross-domain triggers; add `executionName=${event.id}` for dedup.
 3. **Phase 3 — Compliance + dashboard-bff consumers re-subscribe.** Update event-listener subscriptions; re-project from new payload shape.
 4. **Phase 4 — Notification-lifecycle redesign.** Implement Path A diff-detection. Add `MANDATE_REVOKED` handler.
-5. **Phase 5 — `revokeMandate` 3-row transactWrite + Egress mapping for MandateRevocation.** Closes latent gap.
+5. **Phase 5 — `revokeMandate` single-UpdateItem on MandateStatus row + `MandateStatus` Egress mapping (`MANDATE_ACCEPTED`/`MANDATE_REVOKED`).** Drop legacy `MandateRevocation` + `EditEvent` writes. Closes latent gap.
 6. **Phase 6 — advisory-adpt forwarding rule update.** Drop 7 old events, add 3 new.
 7. **Phase 7 — Frontend GraphQL + e2e test updates.** Singular `getProfile.goal`, `updateGoal` without goalId.
 8. **Phase 8 — Architecture docs + service cards regenerated.**
