@@ -15,6 +15,10 @@ export interface MandateSnapshot {
   drawdownCircuitBreakerPercent: number;
   effectiveDate: string;
   revokedAt: string | null;
+  // Lifecycle state. ACTIVE is the default; REVOKED is set by the
+  // MANDATE_REVOKED projection and short-circuits the rule engine
+  // (mandate-validator emits BLOCKED, authority-resolver returns L2).
+  status?: 'ACTIVE' | 'REVOKED';
 }
 
 export interface ComplianceInput {

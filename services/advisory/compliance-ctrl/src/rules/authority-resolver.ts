@@ -10,6 +10,12 @@ export class AuthorityResolver {
   resolve(input: ComplianceInput, violations: Violation[]): 'L1' | 'L2' {
     const { mandate, proposedTrades, portfolioValue } = input;
 
+    // Revoked mandate forces user-confirmation gate; mandate-validator emits
+    // a BLOCKING violation so the final result will be BLOCKED regardless.
+    if (mandate.status === 'REVOKED') {
+      return 'L2';
+    }
+
     // ADVISORY mandate always requires confirmation
     if (mandate.level === 'ADVISORY') {
       return 'L2';

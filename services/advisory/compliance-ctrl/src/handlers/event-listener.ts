@@ -1,9 +1,9 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { materializeToTable, skip, record, project, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, record, project, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
-import { InvestorCrossDomainEventTypes } from '@nestfolio/investor-adpt/domain';
+import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 
 // Subject field carrying the SF taskToken across the compliance hop. Persisted
 // onto the ComplianceCheck row so CDC re-emits it on DECISION_APPROVED |
@@ -152,45 +152,71 @@ async function processDecisionPacket(
   ];
 }
 
-function processMandateEvent(
+function processInvestorProfileEvent(
   payload: EventPayload,
   ctx: EventContext,
 ): WriteIntent {
   const subject = payload.subject;
-  const context = payload.context ?? {};
-  const tenantId = ((context.tenantId ?? subject?.tenantId) as string) ?? ctx.tenantId;
-  const userId = ((subject?.userId ?? tenantId) as string);
+  const tenantId = (subject?.tenantId as string) ?? ctx.tenantId;
+  const userId = (subject?.userId as string) ?? tenantId;
+  const mandate = (subject?.mandate ?? {}) as Record<string, unknown>;
+  const operatingMode = subject?.operatingMode as string | undefined;
 
-  switch (ctx.eventType) {
-    case 'MANDATE_CREATED':
-    case 'MANDATE_UPDATED':
-      if (!subject.mandateId || !subject.level) {
-        throw new NotRetryableError(`Missing required mandate fields: mandateId=${subject.mandateId}, level=${subject.level}`);
-      }
-      logger.info('Mandate snapshot created/updated', { tenantId, userId, eventType: ctx.eventType });
-      return project('MandateSnapshot', {
-        tenantId,
-        userId,
-        mandateId: subject.mandateId,
-        level: subject.level,
-        monthlyTurnoverCapPercent: subject.monthlyTurnoverCapPercent ?? 25,
-        maxSingleTradePercent: subject.maxSingleTradePercent ?? 10,
-        equityRiskBandPercent: subject.equityRiskBandPercent ?? 6,
-        driftTriggerPercent: subject.driftTriggerPercent ?? 4,
-        singleEtfConcentrationPercent: subject.singleEtfConcentrationPercent ?? 30,
-        drawdownCircuitBreakerPercent: subject.drawdownCircuitBreakerPercent ?? 12,
-        effectiveDate: subject.effectiveDate,
-        revokedAt: (subject.revokedAt as string) ?? null,
-      }, { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' });
-
-    case 'OPERATING_MODE_CHANGED':
-      logger.info('Operating mode changed, noted', { tenantId, userId, mode: subject.mode });
-      return skip();
-
-    default:
-      logger.info('No handler for mandate event type, skipping', { eventType: ctx.eventType });
-      return skip();
+  if (!mandate.mandateId || !mandate.level) {
+    throw new NotRetryableError(
+      `Missing required mandate fields in INVESTOR_PROFILE_* payload: mandateId=${mandate.mandateId}, level=${mandate.level}`,
+    );
   }
+
+  logger.info('MandateSnapshot projected from composite InvestorProfile event', {
+    tenantId,
+    userId,
+    eventType: ctx.eventType,
+    operatingMode,
+  });
+
+  return project(
+    'MandateSnapshot',
+    {
+      tenantId,
+      userId,
+      mandateId: mandate.mandateId,
+      level: mandate.level,
+      monthlyTurnoverCapPercent: (mandate.monthlyTurnoverCapPercent as number) ?? 25,
+      maxSingleTradePercent: (mandate.maxSingleTradePercent as number) ?? 10,
+      equityRiskBandPercent: (mandate.equityRiskBandPercent as number) ?? 6,
+      driftTriggerPercent: (mandate.driftTriggerPercent as number) ?? 4,
+      singleEtfConcentrationPercent: (mandate.singleEtfConcentrationPercent as number) ?? 30,
+      drawdownCircuitBreakerPercent: (mandate.drawdownCircuitBreakerPercent as number) ?? 12,
+      effectiveDate: mandate.effectiveDate as string,
+      revokedAt: (mandate.revokedAt as string) ?? null,
+      status: 'ACTIVE',
+    },
+    { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' },
+  );
+}
+
+function processMandateRevoked(
+  payload: EventPayload,
+  ctx: EventContext,
+): WriteIntent {
+  const subject = payload.subject ?? {};
+  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
+  const userId = (subject.userId as string) ?? tenantId;
+  const revokedAt = (subject.revokedAt as string) ?? new Date().toISOString();
+
+  logger.info('Mandate revoked — gating MandateSnapshot.status=REVOKED', { tenantId, userId });
+
+  return project(
+    'MandateSnapshot',
+    {
+      tenantId,
+      userId,
+      status: 'REVOKED',
+      revokedAt,
+    },
+    { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' },
+  );
 }
 
 export const createHandlers = (deps: EventListenerDeps) => {
@@ -202,10 +228,18 @@ export const createHandlers = (deps: EventListenerDeps) => {
   handlers[DecisionWorkflowEventTypes.RECOMMENDATION_PROPOSED] = (payload, ctx) =>
     processDecisionPacket(deps, payload, ctx);
 
-  // Mandate events
-  for (const type of [InvestorCrossDomainEventTypes.MANDATE_CREATED, InvestorCrossDomainEventTypes.MANDATE_UPDATED, InvestorCrossDomainEventTypes.OPERATING_MODE_CHANGED]) {
-    handlers[type] = (payload, ctx) => processMandateEvent(payload, ctx);
-  }
+  // Composite InvestorProfile events carry mandate config in subject.mandate.*
+  // and operating mode in subject.operatingMode. Replaces legacy
+  // MANDATE_CREATED/UPDATED/OPERATING_MODE_CHANGED fan-out (Phase 3 of
+  // InvestorProfile collapse).
+  handlers[InvestorBffEventTypes.INVESTOR_PROFILE_CREATED] = (payload, ctx) =>
+    processInvestorProfileEvent(payload, ctx);
+  handlers[InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED] = (payload, ctx) =>
+    processInvestorProfileEvent(payload, ctx);
+
+  // MANDATE_REVOKED gates the rule engine via MandateSnapshot.status='REVOKED'.
+  handlers[InvestorBffEventTypes.MANDATE_REVOKED] = (payload, ctx) =>
+    processMandateRevoked(payload, ctx);
 
   return handlers;
 };

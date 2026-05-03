@@ -307,19 +307,29 @@ describe('event-listener handler', () => {
     });
   });
 
-  describe('mandate events', () => {
-    it('MANDATE_CREATED → project(MandateSnapshot) with mandate fields', async () => {
+  describe('investor profile events', () => {
+    const compositePayload = (overrides: Record<string, unknown> = {}) => ({
+      tenantId: 't-1',
+      userId: 'u-1',
+      operatingMode: 'BALANCED',
+      mandate: {
+        mandateId: 'm-1',
+        level: 'DISCRETIONARY',
+        monthlyTurnoverCapPercent: 10,
+        maxSingleTradePercent: 5,
+        equityRiskBandPercent: 6,
+        driftTriggerPercent: 4,
+        singleEtfConcentrationPercent: 30,
+        drawdownCircuitBreakerPercent: 12,
+        effectiveDate: '2025-01-01T00:00:00.000Z',
+      },
+      ...overrides,
+    });
+
+    it('INVESTOR_PROFILE_CREATED → project(MandateSnapshot) with all guardrail fields and status=ACTIVE', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_CREATED', {
-          tenantId: 't-1',
-          userId: 'u-1',
-          mandateId: 'm-1',
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 10,
-          maxSingleTradePercent: 5,
-          effectiveDate: '2025-01-01T00:00:00.000Z',
-        }, { tenantId: 't-1' }),
+        fakeSqsRecord('INVESTOR_PROFILE_CREATED', compositePayload(), { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(1);
@@ -327,39 +337,6 @@ describe('event-listener handler', () => {
         _tag: 'project',
         typename: 'MandateSnapshot',
         fields: expect.objectContaining({
-          mandateId: 'm-1',
-          level: 'DISCRETIONARY',
-          revokedAt: null,
-        }),
-      });
-      expect(mockSend).not.toHaveBeenCalled();
-    });
-
-    it('MANDATE_UPDATED → project(MandateSnapshot) with updated fields', async () => {
-      const harness = makeHarness();
-      const result = await harness.process([
-        fakeSqsRecord('MANDATE_UPDATED', {
-          tenantId: 't-1',
-          userId: 'u-1',
-          mandateId: 'm-2',
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 5,
-          maxSingleTradePercent: 3,
-          equityRiskBandPercent: 3,
-          driftTriggerPercent: 2,
-          singleEtfConcentrationPercent: 20,
-          drawdownCircuitBreakerPercent: 8,
-          effectiveDate: '2025-06-01T00:00:00.000Z',
-        }, { tenantId: 't-1' }),
-      ]);
-      expect(result.batchItemFailures).toHaveLength(0);
-      expect(result.intents[0]).toMatchObject({ _tag: 'project', typename: 'MandateSnapshot' });
-    });
-
-    it('MANDATE_UPDATED with revokedAt → project(MandateSnapshot) preserving revokedAt', async () => {
-      const harness = makeHarness();
-      const result = await harness.process([
-        fakeSqsRecord('MANDATE_UPDATED', {
           tenantId: 't-1',
           userId: 'u-1',
           mandateId: 'm-1',
@@ -371,8 +348,33 @@ describe('event-listener handler', () => {
           singleEtfConcentrationPercent: 30,
           drawdownCircuitBreakerPercent: 12,
           effectiveDate: '2025-01-01T00:00:00.000Z',
-          revokedAt: '2025-01-01T00:00:00.000Z',
-        }, { tenantId: 't-1' }),
+          revokedAt: null,
+          status: 'ACTIVE',
+        }),
+      });
+      expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it('INVESTOR_PROFILE_UPDATED → project(MandateSnapshot) with updated mandate fields', async () => {
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord(
+          'INVESTOR_PROFILE_UPDATED',
+          compositePayload({
+            mandate: {
+              mandateId: 'm-2',
+              level: 'DISCRETIONARY',
+              monthlyTurnoverCapPercent: 5,
+              maxSingleTradePercent: 3,
+              equityRiskBandPercent: 3,
+              driftTriggerPercent: 2,
+              singleEtfConcentrationPercent: 20,
+              drawdownCircuitBreakerPercent: 8,
+              effectiveDate: '2025-06-01T00:00:00.000Z',
+            },
+          }),
+          { tenantId: 't-1' },
+        ),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(1);
@@ -380,36 +382,106 @@ describe('event-listener handler', () => {
         _tag: 'project',
         typename: 'MandateSnapshot',
         fields: expect.objectContaining({
-          mandateId: 'm-1',
-          revokedAt: '2025-01-01T00:00:00.000Z',
+          mandateId: 'm-2',
+          monthlyTurnoverCapPercent: 5,
+          maxSingleTradePercent: 3,
+          status: 'ACTIVE',
         }),
       });
       expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('OPERATING_MODE_CHANGED → skip (no intents, no DDB calls)', async () => {
+    it('INVESTOR_PROFILE_CREATED with missing mandate.mandateId → batch item failure (NotRetryableError)', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('OPERATING_MODE_CHANGED', {
-          tenantId: 't-1', mode: 'AUTONOMOUS',
-        }, { tenantId: 't-1' }),
+        fakeSqsRecord(
+          'INVESTOR_PROFILE_CREATED',
+          {
+            tenantId: 't-1',
+            userId: 'u-1',
+            operatingMode: 'BALANCED',
+            mandate: {
+              // mandateId missing
+              level: 'DISCRETIONARY',
+            },
+          },
+          { tenantId: 't-1' },
+        ),
+      ]);
+      expect(result.batchItemFailures).toHaveLength(1);
+    });
+
+    it('INVESTOR_PROFILE_UPDATED with missing mandate.level → batch item failure (NotRetryableError)', async () => {
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord(
+          'INVESTOR_PROFILE_UPDATED',
+          {
+            tenantId: 't-1',
+            userId: 'u-1',
+            mandate: {
+              mandateId: 'm-1',
+              // level missing
+            },
+          },
+          { tenantId: 't-1' },
+        ),
+      ]);
+      expect(result.batchItemFailures).toHaveLength(1);
+    });
+  });
+
+  describe('mandate revoked events', () => {
+    it('MANDATE_REVOKED → project(MandateSnapshot) with status=REVOKED and revokedAt', async () => {
+      const harness = makeHarness();
+      const result = await harness.process([
+        fakeSqsRecord(
+          'MANDATE_REVOKED',
+          {
+            tenantId: 't-1',
+            userId: 'u-1',
+            mandateId: 'm-1',
+            revokedAt: '2026-05-03T12:00:00.000Z',
+          },
+          { tenantId: 't-1' },
+        ),
       ]);
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(1);
-      expect(result.intents[0]).toMatchObject({ _tag: 'skip' });
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'project',
+        typename: 'MandateSnapshot',
+        fields: expect.objectContaining({
+          tenantId: 't-1',
+          userId: 'u-1',
+          status: 'REVOKED',
+          revokedAt: '2026-05-03T12:00:00.000Z',
+        }),
+      });
       expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('should throw NotRetryableError on MANDATE_CREATED with missing mandateId/level', async () => {
+    it('MANDATE_REVOKED without revokedAt → projection still emits with synthesized revokedAt', async () => {
       const harness = makeHarness();
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_CREATED', {
-          tenantId: 't-1',
-          userId: 'u-1',
-          // mandateId and level are missing
-        }, { tenantId: 't-1' }),
+        fakeSqsRecord(
+          'MANDATE_REVOKED',
+          { tenantId: 't-1', userId: 'u-1' },
+          { tenantId: 't-1' },
+        ),
       ]);
-      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures).toHaveLength(0);
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'project',
+        typename: 'MandateSnapshot',
+        fields: expect.objectContaining({
+          status: 'REVOKED',
+        }),
+      });
+      // revokedAt should be a string (synthesized via new Date().toISOString())
+      const fields = (result.intents[0] as { fields: Record<string, unknown> }).fields;
+      expect(typeof fields.revokedAt).toBe('string');
     });
   });
 });
