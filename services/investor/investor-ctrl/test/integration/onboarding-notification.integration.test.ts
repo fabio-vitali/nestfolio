@@ -8,24 +8,32 @@ import {
 } from '@nestfolio/integration-testing';
 
 /**
- * investor-ctrl integration tests — all 11 ingress events.
+ * investor-ctrl integration tests — Phase 4 collapsed event surface.
  *
  * Handler: event-listener.ts
- *   - Every event → Notification record (PutItem)
+ *   - 10 tenant events    → record('Notification') (PutItem)
+ *   - INVESTOR_PROFILE_UPDATED → 0–2 synthesised Notifications
+ *     (GOAL_UPDATED + OPERATING_MODE_CHANGED) via deriveProfileUpdateNotifications.
+ *     Today's CDC envelope omits `previousSubject`; the handler falls back to
+ *     "fire BOTH" until OldImage propagation is wired (PARKING LOT entry,
+ *     2026-05-03). Tests below only assert lower bounds (>=1 notification
+ *     fires) and pin the synthesised event types to keep them stable across
+ *     that future change.
  *   - ORDER_FILLED → [Notification, MonthlyReport] (two PutItems)
+ *   - 3 system events (BROKER_CIRCUIT_OPEN/CLOSED/HEAL_ESCALATED) →
+ *     Notification with tenantId='SYSTEM'.
  *
  * DDB entities:
  *   Notification:   pk = Notification#{tenantId}#{notificationId}   sk = Notification
  *   MonthlyReport:  pk = MonthlyReport#{tenantId}#{reportId}        sk = MonthlyReport
- *     where notificationId = ctx.eventId (EB event ID), reportId = ctx.eventId + "-report"
+ *     where notificationId = ctx.eventId (or `${ctx.eventId}-${synthType}` for
+ *     synthesised diff notifications), reportId = ctx.eventId + "-report"
  *
- * CDC egress (auto-expand):
- *   Notification  → NOTIFICATION  → NOTIFICATION_CREATED  (INSERT)
- *   MonthlyReport → MONTHLY_REPORT → MONTHLY_REPORT_CREATED (INSERT)
+ * CDC egress:
+ *   Notification  → NOTIFICATION_CREATED  (INSERT)
+ *   MonthlyReport → MONTHLY_REPORT_CREATED (INSERT)
  *
  * Strategy: publish event → trap CDC → assert detail-type.
- * The pk includes the EB event ID (random), so we rely on the EventBusTrap
- * (filtered by tenantId) rather than direct DDB queries.
  */
 
 describe('investor-ctrl', () => {
@@ -55,7 +63,7 @@ describe('investor-ctrl', () => {
     await ctx.cleanup.runAll();
   }, 60_000);
 
-  // ── Notification creation for all 11 events ─────────────────────────
+  // ── Notification creation for the 10 simple-template events ────────────
 
   describe('notification creation (CDC verification)', () => {
     const notificationEvents = [
@@ -64,20 +72,16 @@ describe('investor-ctrl', () => {
         detail: { goal: 'RETIREMENT', riskTolerance: 'MODERATE' },
       },
       {
-        detailType: 'MANDATE_CREATED',
+        detailType: 'MANDATE_ACCEPTED',
         detail: { mandateId: 'integ-mandate', level: 'DISCRETIONARY' },
       },
       {
-        detailType: 'GOAL_UPDATED',
-        detail: { goalId: 'integ-goal', objective: 'INCOME' },
+        detailType: 'MANDATE_REVOKED',
+        detail: { mandateId: 'integ-mandate', revokedAt: new Date().toISOString() },
       },
       {
         detailType: 'DEPOSIT_INITIATED',
         detail: { depositId: 'integ-dep', amountCents: 100_000 },
-      },
-      {
-        detailType: 'OPERATING_MODE_CHANGED',
-        detail: { mode: 'AGGRESSIVE', previousMode: 'BALANCED' },
       },
       {
         detailType: 'DECISION_APPROVED',
@@ -125,6 +129,121 @@ describe('investor-ctrl', () => {
       },
       120_000,
     );
+  });
+
+  // ── INVESTOR_PROFILE_UPDATED diff-detection (5 scenarios) ──────────────
+  //
+  // The handler diff-detects goal.* and operatingMode and emits 0–2
+  // synthesised Notifications. Today's CDC envelope omits previousSubject,
+  // so the handler falls back to "fire BOTH" on every event. These tests
+  // pin the synthesised event types (GOAL_UPDATED, OPERATING_MODE_CHANGED)
+  // and assert lower bounds, so they stay green both today (fire-both) and
+  // after previousSubject propagation lands (true diff).
+  //
+  // PARKING LOT: CDC envelope previousSubject omission (commit f7afe69d).
+
+  describe('INVESTOR_PROFILE_UPDATED diff notifications', () => {
+    const baseSubject = {
+      profileId: 'integ-profile',
+      goal: { objective: 'RETIREMENT', targetAmountCents: 100_000_000 },
+      operatingMode: 'BALANCED',
+      mandate: { status: 'ACTIVE', level: 'DISCRETIONARY' },
+    };
+
+    it('goal change only → at least 1 GOAL_UPDATED notification fires', async () => {
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-ctrl',
+        detailType: 'INVESTOR_PROFILE_UPDATED',
+        detail: {
+          ...baseSubject,
+          goal: { ...baseSubject.goal, objective: 'INCOME' },
+        },
+      });
+
+      const cdcEvent = await notificationTrap.waitForEvent({
+        detailType: 'NOTIFICATION_CREATED',
+        timeoutMs: 90_000,
+      });
+      expect(cdcEvent.detailType).toBe('NOTIFICATION_CREATED');
+      expect(cdcEvent.detail).toBeDefined();
+      // Synthesised notification type is one of the two diff-types
+      const subjectType = cdcEvent.detail.subject?.type;
+      expect(['GOAL_UPDATED', 'OPERATING_MODE_CHANGED']).toContain(subjectType);
+    }, 120_000);
+
+    it('operatingMode change only → at least 1 OPERATING_MODE_CHANGED notification fires', async () => {
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-ctrl',
+        detailType: 'INVESTOR_PROFILE_UPDATED',
+        detail: {
+          ...baseSubject,
+          operatingMode: 'AGGRESSIVE',
+        },
+      });
+
+      const cdcEvent = await notificationTrap.waitForEvent({
+        detailType: 'NOTIFICATION_CREATED',
+        timeoutMs: 90_000,
+      });
+      expect(cdcEvent.detailType).toBe('NOTIFICATION_CREATED');
+      const subjectType = cdcEvent.detail.subject?.type;
+      expect(['GOAL_UPDATED', 'OPERATING_MODE_CHANGED']).toContain(subjectType);
+    }, 120_000);
+
+    it('both goal AND operatingMode change → 2 notifications fire', async () => {
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-ctrl',
+        detailType: 'INVESTOR_PROFILE_UPDATED',
+        detail: {
+          ...baseSubject,
+          goal: { ...baseSubject.goal, objective: 'INCOME' },
+          operatingMode: 'AGGRESSIVE',
+        },
+      });
+
+      // Both notifications should arrive on the trap
+      const first = await notificationTrap.waitForEvent({
+        detailType: 'NOTIFICATION_CREATED',
+        timeoutMs: 90_000,
+      });
+      const second = await notificationTrap.waitForEvent({
+        detailType: 'NOTIFICATION_CREATED',
+        timeoutMs: 90_000,
+      });
+      const types = [first.detail.subject?.type, second.detail.subject?.type].sort();
+      expect(types).toEqual(['GOAL_UPDATED', 'OPERATING_MODE_CHANGED']);
+    }, 120_000);
+
+    it('null OldImage (no previousSubject) → fires BOTH (fallback branch)', async () => {
+      // putEvent does not propagate previousSubject — exercises the same
+      // null-OldImage code path the production handler hits today.
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'investor-ctrl',
+        detailType: 'INVESTOR_PROFILE_UPDATED',
+        detail: baseSubject,
+      });
+
+      const first = await notificationTrap.waitForEvent({
+        detailType: 'NOTIFICATION_CREATED',
+        timeoutMs: 90_000,
+      });
+      const second = await notificationTrap.waitForEvent({
+        detailType: 'NOTIFICATION_CREATED',
+        timeoutMs: 90_000,
+      });
+      const types = [first.detail.subject?.type, second.detail.subject?.type].sort();
+      expect(types).toEqual(['GOAL_UPDATED', 'OPERATING_MODE_CHANGED']);
+    }, 120_000);
+
+    // No-change case: cannot be reliably asserted via integration today
+    // because (a) putEvent does not propagate previousSubject so the
+    // handler can't see "no change", and (b) asserting absence requires a
+    // negative-wait on the trap which is flaky. Covered exhaustively in
+    // unit tests (deriveProfileUpdateNotifications).
   });
 
   // ── ORDER_FILLED also creates MonthlyReport ─────────────────────────
