@@ -1,6 +1,6 @@
 ---
 name: audit-system
-description: Full system sweep — dispatches audit-domain per domain in parallel, checks cross-domain consistency, orphans, flow coverage, skill freshness.
+description: Full system sweep — dispatches audit-domain per domain in parallel, checks cross-domain consistency, orphans, flow coverage, arch doc freshness (SERVICE-INVENTORY count + BACKLOG design refs + orientation skill drift), skill freshness.
 ---
 
 ## When This Skill Applies
@@ -14,7 +14,13 @@ description: Full system sweep — dispatches audit-domain per domain in paralle
 - [ ] 2. **E2E feature test audit** — invoke the `audit-e2e-test` skill against `apps/e2e-feature-tests/`. E2E tests are a system-level concern (they span domains), so this check lives here, not in per-service audit-service.
 - [ ] 3. **C4 diagram freshness** — re-run Stage 1 (`node tools/generate-c4-sources.mjs --dry-run` or to a temp dir), diff the generated D2 files against `docs/architecture/c3/*.d2` and `docs/architecture/nestfolio.d2`. Any delta means diagrams are stale. Report which services have changed stacks since last generation.
 - [ ] 4. **Flow spec completeness** — scan all cross-domain adapter rules (each `*-adpt` service's `service.stack.ts` Ingress subscriptions) and all BFF mutations (each `*-bff` Facade resolver list). For each cross-domain event path or user-triggered mutation flow, check whether a corresponding `.flow.yaml` exists in `flows/`. Report undocumented flows.
-- [ ] 5. **System-level checks:**
+- [ ] 5. **Architecture doc & skill freshness** — verify the canonical architecture layer hasn't drifted from code (this check exists because design specs that read against drifted docs ship wrong solutions — see `CLAUDE.md` § Backlog Discipline):
+  - **Service count** in `docs/architecture/SERVICE-INVENTORY.md` "Inventory Summary" table matches `ls services/{advisory,execution,investor,ledger}/ | grep -v README.md | wc -l`
+  - **Per-service entries** in SERVICE-INVENTORY.md exist for every directory under `services/*/` and vice-versa (no orphan entries, no missing entries). Health tags (canonical / transitional / legacy / dormant) match git history (any service marked transitional/legacy must have a follow-up spec referenced).
+  - **Evolution annotations** in `docs/architecture/SYSTEM-ARCHITECTURE.md` (§7.1, §10.1, §17.1, etc.) reference specs that exist under `docs/superpowers/specs/`
+  - **Orientation skill drift guard:** `.claude/skills/orient/SKILL.md` and `.claude/skills/domains/SKILL.md` must remain under ~60 lines each. They were thinned to canonical-doc pointers on 2026-05-03; re-population with enumerated service or event lists is the failure mode (those drift on every system change). Grep for forbidden enumerations: any service name (`advisory-ctrl`, `decision-workflow-ctrl`, etc.) or event name (`MANDATE_CREATED`, etc.) appearing in these two skills is a hard fail.
+  - **BACKLOG design-entry refs valid:** for each `[design]` entry in `docs/BACKLOG.md`, every reference in its `**References:**` line resolves AND still matches code (cited service section in SERVICE-INVENTORY.md exists; cited SYSTEM-ARCHITECTURE.md section exists; cited `flows/*.flow.yaml` exists and passes `validate-flow`).
+- [ ] 6. **System-level checks summary:**
 
 | Check | Severity |
 |-------|----------|
@@ -23,19 +29,22 @@ description: Full system sweep — dispatches audit-domain per domain in paralle
 | C4 diagram freshness (D2 sources match CDK stacks) | Hard fail |
 | Flow spec completeness (all cross-domain + user-triggered flows documented) | Hard fail |
 | Cross-domain adapter subscription coverage (adapters subscribe to all required events on source buses) | Hard fail |
+| Architecture doc freshness (SERVICE-INVENTORY count, evolution annotations, BACKLOG design refs) | Hard fail |
+| Orientation skill drift guard (orient + domains under 60 lines, no enumerations) | Hard fail |
 | Orphan services (outside domains) | Warning |
 | Skill freshness (referenced paths exist) | Warning |
 
-- [ ] 6. **Generate dashboard:**
+- [ ] 7. **Generate dashboard:**
   ```
-  | Domain | Services | Pass | Fail | Warn |
-  |--------|----------|------|------|------|
-  | Advisory | 15 | ... | ... | ... |
-  | Execution | 6 | ... | ... | ... |
-  | Investor | 7 | ... | ... | ... |
-  | Ledger | 5 | ... | ... | ... |
+  | Domain   | Services | Pass | Fail | Warn |
+  |----------|----------|------|------|------|
+  | Advisory | {count}  | ...  | ...  | ...  |
+  | Execution| {count}  | ...  | ...  | ...  |
+  | Investor | {count}  | ...  | ...  | ...  |
+  | Ledger   | {count}  | ...  | ...  | ...  |
   ```
-- [ ] 7. **Apply auto-fixes** — regenerate stale cards, regenerate stale C4 diagrams
+  Service count per domain is filled from `ls services/<domain>/ | grep -v README.md | wc -l` — never hardcode (that's how the dashboard itself drifts).
+- [ ] 8. **Apply auto-fixes** — regenerate stale cards, regenerate stale C4 diagrams. Arch-doc drift and skill drift are NOT auto-fixable (they require human-curated narrative); surface them in the remediation summary instead.
 
 ## Remediation Plan
 
@@ -55,6 +64,10 @@ After generating the dashboard, if any domain has failures or system-level check
    | Flow spec missing for cross-domain or user-triggered flow | `generate-flow-spec` |
    | Flow spec exists but fails validation | `validate-flow` → manual fix or `create-data-flow` |
    | Cross-domain adapter subscription gap | `create-data-flow` + `create-event` |
+   | SERVICE-INVENTORY.md service count or per-service entry drift | Manual fix — edit SERVICE-INVENTORY.md to match code; do not adopt any `[design]` entry referencing the affected service until fixed |
+   | SYSTEM-ARCHITECTURE.md evolution annotation references missing spec | Manual fix — recover the spec (see Spec 4 precedent) or remove the annotation |
+   | Orient/domains skill drifted (>60 lines or contains enumerations) | Manual fix — re-thin per the 2026-05-03 refactor pattern (canonical-doc pointers only) |
+   | BACKLOG `[design]` entry References: line stale | Manual fix — either update the BACKLOG entry's refs to current code OR fix the doc layer. Do NOT adopt the entry to ACTIVE until refs verify. |
    | Orphan service (outside domains) | `create-service` (move to correct domain) |
    | Stale skill (referenced path gone) | Manual fix — update skill file |
 
