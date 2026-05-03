@@ -7,15 +7,13 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
 import { BedrockFoundationModel } from '@aws-cdk/aws-bedrock-alpha';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Orchestration } from '@nestfolio/cdk-constructs/core';
-import { DecisionWorkflowEventTypes } from './domain/events';
-import { NamingService, defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
-import { DecisionWorkflowDefinition } from './constructs/decision-state-machine';
 import {
   TRIGGER_EVENT_TYPES,
-  AGENT_COMPLETION_EVENT_TYPES,
-  COMPLIANCE_EVENT_TYPES,
-  USER_RESPONSE_EVENT_TYPES,
+  ALL_INBOUND_EVENT_TYPES,
+  DecisionWorkflowEventTypes,
 } from './domain/events';
+import { NamingService, defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
+import { DecisionWorkflowDefinition } from './constructs/decision-state-machine';
 
 export class DecisionWorkflowCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -117,32 +115,26 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
       serviceName: this.serviceName,
       assemblePacketFnArn: assemblePacketFn.functionArn,
     });
+
+    // Direct EB → SF: 7 trigger events start the state machine. Auto-named
+    // executions (no executionName field — AWS doesn't expose per-target Name
+    // for the native EB→SF integration). Phase 1's fan-out collapse removed
+    // the multi-event-per-action duplication that previously motivated dedup;
+    // remaining at-least-once redelivery risk is theoretical and unobserved.
     const orchestration = new Orchestration(this, 'DecisionStateMachine', {
       state,
       definitionBody: decisionWorkflow.definitionBody,
-      // Canonical start event: TriggerIngress materializes 11 heterogeneous triggers
-      // into a WorkflowTrigger row; Egress CDC emits WORKFLOW_TRIGGER_CREATED on INSERT,
-      // which is routed here to StartExecution. See flows/advisory-cycle.flow.yaml.
-      triggers: [DecisionWorkflowEventTypes.WORKFLOW_TRIGGER_CREATED],
+      triggers: [...TRIGGER_EVENT_TYPES],
       timeout: Duration.hours(72),
     });
     assemblePacketFn.grantInvoke(orchestration.stateMachine);
     this.eventBus.grantPutEventsTo(orchestration.stateMachine);
 
-    // --- Ingress 1: Trigger events → materializeToTable (event-listener.ts) ---
-    const triggerIngress = new Ingress(this, 'TriggerIngress', {
-      state,
-      eventTypes: [...TRIGGER_EVENT_TYPES],
-    });
-
-    // --- Ingress 2: Callback events → resumeStateMachine (sfn-callback.ts) ---
+    // CallbackIngress remains: agent completions + compliance + user responses
+    // resume the SF via SendTaskSuccess. No more TriggerIngress.
     const callbackIngress = new Ingress(this, 'CallbackIngress', {
       state,
-      eventTypes: [
-        ...AGENT_COMPLETION_EVENT_TYPES,
-        ...COMPLIANCE_EVENT_TYPES,
-        ...USER_RESPONSE_EVENT_TYPES,
-      ],
+      eventTypes: [...ALL_INBOUND_EVENT_TYPES],
       entry: join(__dirname, 'handlers', 'sfn-callback.ts'),
     });
     orchestration.grantCallbackAccess(callbackIngress.handler);
@@ -151,10 +143,6 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'WorkflowTrigger': {
-          insert: DecisionWorkflowEventTypes.WORKFLOW_TRIGGER_CREATED,
-          modify: DecisionWorkflowEventTypes.WORKFLOW_TRIGGER_UPDATED,
-        },
         'DecisionPacket': {
           insert: DecisionWorkflowEventTypes.DECISION_PACKET_CREATED,
           modify: DecisionWorkflowEventTypes.DECISION_PACKET_UPDATED,
@@ -168,7 +156,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
 
     // --- Observability ---
     this.addObservability({
-      ingress: triggerIngress,
+      ingress: callbackIngress,
       egress,
       orchestration,
     });
