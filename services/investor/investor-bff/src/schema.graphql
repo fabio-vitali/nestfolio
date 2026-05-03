@@ -1,15 +1,14 @@
 type Query {
   getProfile: InvestorProfile!
-  getGoals: [Goal!]!
   getNotifications(limit: Int, cursor: String): NotificationConnection!
   getUnreadCount: Int!
   getFeatureFlags: [FeatureFlag!]!
 }
 
 type Mutation {
-  updateGoal(goalId: ID!, input: GoalInput!): Goal!
+  updateGoal(input: GoalInput!): Goal!
   updateMandate(input: MandateInput!): Mandate!
-  revokeMandate: Mandate!
+  revokeMandate: MandateStatus!
   initiateDeposit(input: DepositInput!): DepositIntent!
   requestWithdrawal(input: WithdrawalInput!): WithdrawalRequest!
   requestAccountClosure: ClosureRequest!
@@ -48,8 +47,14 @@ enum MandateLevel {
   DISCRETIONARY
 }
 
+enum MandateStatusValue {
+  ACTIVE
+  REVOKED
+}
+
 enum RebalanceCadence {
   WEEKLY
+  BI_WEEKLY
   MONTHLY
   QUARTERLY
 }
@@ -68,46 +73,67 @@ enum NotificationStatus {
   READ
 }
 
-# --- Types ---
+# --- Types (composite shape) ---
 
-type InvestorProfile {
-  tenantId: ID!
-  userId: String!
-  name: String!
-  email: String!
-  age: Int!
-  locale: String!
-  operatingMode: OperatingMode!
-  monthlyContributionCents: Int!
+type AccountMode {
+  mode: String!
+  capitalAmount: Int!
   currency: String!
-  onboardingCompletedAt: String
-  createdAt: String!
-  updatedAt: String!
 }
 
 type Goal {
-  goalId: ID!
-  tenantId: ID!
   objective: String!
   targetAmountCents: Int!
   currency: String!
   timeHorizonMonths: Int!
   targetReturn: Float!
-  createdAt: String!
-  updatedAt: String!
+}
+
+type RiskProfile {
+  score: Int!
+  band: RiskBand!
+  toleranceResponse: String!
+  experienceLevel: String!
+}
+
+type RiskBand {
+  minEquity: Float!
+  maxEquity: Float!
 }
 
 type Mandate {
   mandateId: ID!
-  tenantId: ID!
   level: MandateLevel!
+  status: MandateStatusValue!
   monthlyTurnoverCapPercent: Float!
   maxSingleTradePercent: Float!
-  coolDownDays: Int!
+  equityRiskBandPercent: Float!
+  driftTriggerPercent: Float!
+  singleEtfConcentrationPercent: Float!
+  drawdownCircuitBreakerPercent: Float!
   rebalanceCadence: RebalanceCadence!
   effectiveDate: String!
   revokedAt: String
-  version: Int!
+}
+
+type MandateStatus {
+  status: MandateStatusValue!
+  acceptedAt: String!
+  revokedAt: String
+}
+
+type InvestorProfile {
+  tenantId: ID!
+  userId: String!
+  email: String!
+  operatingMode: OperatingMode!
+  accountMode: AccountMode!
+  goal: Goal!
+  riskProfile: RiskProfile!
+  mandate: Mandate!
+  onboardingCompletedAt: String
+  createdAt: String!
+  updatedAt: String!
 }
 
 type DepositIntent {
@@ -155,19 +181,22 @@ type NotificationConnection {
 # --- Inputs ---
 
 input GoalInput {
-  objective: String!
-  targetAmountCents: Int!
-  currency: String!
-  timeHorizonMonths: Int!
-  targetReturn: Float!
+  objective: String
+  targetAmountCents: Int
+  currency: String
+  timeHorizonMonths: Int
+  targetReturn: Float
 }
 
 input MandateInput {
-  level: MandateLevel!
-  monthlyTurnoverCapPercent: Float!
-  maxSingleTradePercent: Float!
-  coolDownDays: Int!
-  rebalanceCadence: RebalanceCadence!
+  level: MandateLevel
+  monthlyTurnoverCapPercent: Float
+  maxSingleTradePercent: Float
+  equityRiskBandPercent: Float
+  driftTriggerPercent: Float
+  singleEtfConcentrationPercent: Float
+  drawdownCircuitBreakerPercent: Float
+  rebalanceCadence: RebalanceCadence
 }
 
 input DepositInput {
