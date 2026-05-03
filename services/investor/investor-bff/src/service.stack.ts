@@ -33,7 +33,6 @@ export class InvestorBffStack extends ServiceStack {
         InvestorIngestEventTypes.BALANCE_UPDATED,
         InvestorBffEventTypes.ONBOARDING_COMPLETED,
         InvestorBffEventTypes.GO_LIVE_CONFIRMED,
-        InvestorBffEventTypes.OPERATING_MODE_CHANGED,
       ],
     });
 
@@ -60,25 +59,13 @@ export class InvestorBffStack extends ServiceStack {
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
-        'Goal': {
-          insert: InvestorBffEventTypes.GOAL_CREATED,
-          modify: InvestorBffEventTypes.GOAL_UPDATED,
-        },
-        'RiskProfile': {
-          insert: InvestorBffEventTypes.RISK_PROFILE_CREATED,
-          modify: InvestorBffEventTypes.RISK_PROFILE_UPDATED,
-        },
-        'Mandate': {
-          insert: InvestorBffEventTypes.MANDATE_CREATED,
-          modify: InvestorBffEventTypes.MANDATE_UPDATED,
-        },
-        'OperatingModeRecord': {
-          insert: InvestorBffEventTypes.OPERATING_MODE_SELECTED,
-          modify: InvestorBffEventTypes.OPERATING_MODE_CHANGED,
-        },
         'InvestorProfile': {
           insert: InvestorBffEventTypes.INVESTOR_PROFILE_CREATED,
           modify: InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
+        },
+        'MandateStatus': {
+          insert: InvestorBffEventTypes.MANDATE_ACCEPTED,
+          modify: InvestorBffEventTypes.MANDATE_REVOKED,
         },
         'Deposit': {
           insert: InvestorBffEventTypes.DEPOSIT_INITIATED,
