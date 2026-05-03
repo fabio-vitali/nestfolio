@@ -30,27 +30,81 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
   });
 
-  it('creates SQS queues for two Ingresses + Egress DLQs', () => {
-    // 2 ingress queues + 2 ingress DLQs + 1 egress DLQ = at least 5
+  it('creates SQS queues for the CallbackIngress + Egress DLQs', () => {
+    // Post-Phase-1: only CallbackIngress remains (no TriggerIngress).
+    // 1 ingress queue + 1 ingress DLQ + 1 egress DLQ = at least 3.
     const queues = template.findResources('AWS::SQS::Queue');
-    expect(Object.keys(queues).length).toBeGreaterThanOrEqual(4);
+    expect(Object.keys(queues).length).toBeGreaterThanOrEqual(3);
   });
 
-  it('creates EventBridge rules for inbound event types', () => {
+  it('creates 7 EB→SF trigger rules, one per trigger event', () => {
+    // Phase 1 collapse: TriggerIngress + WORKFLOW_TRIGGER intermediate event removed.
+    // The Orchestration construct now wires each trigger event directly to the SF
+    // state machine via a separate EB Rule (one rule per event type).
+    const expectedTriggers = [
+      'INVESTOR_PROFILE_CREATED',
+      'INVESTOR_PROFILE_UPDATED',
+      'PORTFOLIO_DRIFT_DETECTED',
+      'ORDER_FILLED',
+      'ORDER_REJECTED',
+      'ORDER_CANCELLED',
+      'DEPOSIT_DETECTED',
+    ];
+    for (const t of expectedTriggers) {
+      template.hasResourceProperties('AWS::Events::Rule', {
+        EventPattern: Match.objectLike({ 'detail-type': [t] }),
+      });
+    }
+  });
+
+  it('targets the Decision state machine from each trigger rule', () => {
+    const rules = template.findResources('AWS::Events::Rule');
+    const triggerRules = Object.values(rules).filter((r: any) => {
+      const detailTypes = r.Properties?.EventPattern?.['detail-type'];
+      if (!Array.isArray(detailTypes) || detailTypes.length !== 1) return false;
+      return [
+        'INVESTOR_PROFILE_CREATED',
+        'INVESTOR_PROFILE_UPDATED',
+        'PORTFOLIO_DRIFT_DETECTED',
+        'ORDER_FILLED',
+        'ORDER_REJECTED',
+        'ORDER_CANCELLED',
+        'DEPOSIT_DETECTED',
+      ].includes(detailTypes[0]);
+    });
+    expect(triggerRules.length).toBe(7);
+
+    for (const rule of triggerRules) {
+      const targets = (rule as any).Properties?.Targets ?? [];
+      const sfTarget = targets.find((t: any) => {
+        const arn = t.Arn;
+        return typeof arn === 'object' && JSON.stringify(arn).includes('StateMachine');
+      });
+      expect(sfTarget).toBeDefined();
+    }
+  });
+
+  it('does NOT create a TriggerIngress Lambda or queue', () => {
+    const synthesized = JSON.stringify(template.toJSON());
+    expect(synthesized).not.toContain('TriggerIngress');
+  });
+
+  it('does NOT emit WORKFLOW_TRIGGER_* events', () => {
+    const synthesized = JSON.stringify(template.toJSON());
+    expect(synthesized).not.toContain('WORKFLOW_TRIGGER_CREATED');
+    expect(synthesized).not.toContain('WORKFLOW_TRIGGER_UPDATED');
+  });
+
+  it('creates a CallbackIngress rule subscribing to agent / compliance / user-response events', () => {
+    // Single Ingress matches all 8 ALL_INBOUND_EVENT_TYPES via Match.anyOf.
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({
-        'detail-type': Match.anyValue(),
+        'detail-type': Match.arrayWith(['INVESTOR_PROFILE_COMPLETED']),
       }),
     });
   });
 
-  it('creates Lambda functions for event-listener and CDC publisher', () => {
-    const lambdas = template.findResources('AWS::Lambda::Function');
-    expect(Object.keys(lambdas).length).toBeGreaterThanOrEqual(2);
-  });
-
   it('grants SFN task response to the callback ingress handler', () => {
-    // The callback ingress handler needs SendTaskSuccess/SendTaskFailure for SFN resume
     const policies = template.findResources('AWS::IAM::Policy');
     const allStatements = Object.values(policies).flatMap(
       (p: any) => p.Properties.PolicyDocument.Statement ?? [],
@@ -124,30 +178,5 @@ describe('DecisionWorkflowCtrlStack', () => {
                    l.Properties.Environment?.Variables?.MEMORY_ID,
     );
     expect(assemblePacketLambda).toBeDefined();
-  });
-
-  it('wires WORKFLOW_TRIGGER_CREATED from advisory bus to the Decision state machine', () => {
-    // There must be an EB Rule on the advisory bus matching WORKFLOW_TRIGGER_CREATED
-    // with the Decision state machine as a target (RuleTargetInput.fromEventPath('$.detail')).
-    const rules = template.findResources('AWS::Events::Rule');
-    const matching = Object.values(rules).filter((r: any) => {
-      const pattern = r.Properties?.EventPattern;
-      const detailTypes = pattern?.['detail-type'];
-      return Array.isArray(detailTypes)
-        && detailTypes.includes('WORKFLOW_TRIGGER_CREATED');
-    });
-    expect(matching.length).toBe(1);
-
-    const rule = matching[0] as any;
-    const targets = rule.Properties.Targets ?? [];
-    // One of the targets must reference the state machine
-    const sfTarget = targets.find((t: any) => {
-      const arn = t.Arn;
-      // The Arn is a Ref/Fn::GetAtt to the state machine; look for StateMachine-shaped logical ids
-      return typeof arn === 'object' && JSON.stringify(arn).includes('StateMachine');
-    });
-    expect(sfTarget).toBeDefined();
-    // Input should be the event detail so the SF sees {id,type,timestamp,subject,context}
-    expect(sfTarget.InputPath).toBe('$.detail');
   });
 });
