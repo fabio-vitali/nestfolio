@@ -91,20 +91,56 @@ Per CLAUDE.md backlog discipline. If any of these surface during execution, invo
 - `apps/investor-mfe/src/app/settings/go-live/go-live-wizard.component.ts` — cosmetic step-label review (no data-binding migration)
 
 **Modified — Tests (in lockstep with each phase):**
-- `services/investor/investor-bff/test/integration/investor-bff.integration.test.ts` (986 LOC) — full rewrite for composite shape (Phase 1)
-- `services/investor/investor-bff/test/unit/repositories/investor-profile.repository.test.ts` — 6 method signatures rewritten (Phase 1)
-- `services/investor/investor-bff/test/unit/transforms/onboarding-completed.test.ts` — rewrite TransactItems list assertions (Phase 1)
-- `services/investor/investor-bff/test/unit/transforms/operating-mode-changed.test.ts` — single composite UpdateItem assertion (Phase 1)
-- `services/advisory/decision-workflow-ctrl/test/unit/event-listener.test.ts` — DELETE (Phase 2)
-- `services/advisory/decision-workflow-ctrl/test/unit/service.stack.test.ts` — rewrite for 7-event triggers + executionName + no TriggerIngress (Phase 2)
-- `services/advisory/decision-workflow-ctrl/test/integration/decision-workflow-ctrl.integration.test.ts` — collapse 8 trigger event tests to 2 unified (Phase 2)
-- `services/advisory/compliance-ctrl/test/unit/event-listener.test.ts` — rewrite mandate event tests (Phase 3)
-- `services/investor/dashboard-bff/test/unit/handlers/event-listener.test.ts` — single INVESTOR_PROFILE_* branch (Phase 3)
-- `services/investor/dashboard-bff/test/unit/transforms/investor-snapshot.test.ts` — composite payload assertions (Phase 3)
-- `services/investor/investor-ctrl/test/unit/services/notification-lifecycle.service.test.ts` — diff-detection unit tests (Phase 4)
-- `services/investor/investor-ctrl/test/integration/onboarding-notification.integration.test.ts` — MANDATE_ACCEPTED/REVOKED + INVESTOR_PROFILE_UPDATED scenarios (Phase 4)
-- `services/advisory/advisory-adpt/test/integration/from-investor.integration.test.ts` — assert new forwarded events (Phase 6)
-- `services/advisory/advisory-adpt/test/service.stack.test.ts` — CDK assertion update (Phase 6)
+
+`investor-bff` (Phase 1 + Phase 5):
+- `test/integration/investor-bff.integration.test.ts` (986 LOC) — full rewrite for composite shape (Task 1.9 + revoke re-enable Task 5.1)
+- `test/unit/repositories/investor-profile.repository.test.ts` — method signatures rewritten (Task 1.5)
+- `test/unit/transforms/onboarding-completed.test.ts` — rewrite TransactItems list assertions (Task 1.3)
+- `test/unit/transforms/onboarding-completed-transform.test.ts` — race-regression coverage; reconcile to new shape (Task 1.10)
+- `test/unit/transforms/operating-mode-changed.test.ts` — single composite UpdateItem assertion (Task 1.4)
+- `test/unit/handlers/event-listener.test.ts` — verify no breakage from `createProfile` removal (Task 1.10 Step 1)
+- `test/unit/handlers/broadcast-listener.test.ts` — verify untouched (Task 1.10 Step 1)
+- `test/unit/transforms/{user-registered,balance-updated,notification-created}.test.ts` — verify untouched (Task 1.10 Step 1)
+- `test/unit/domain/guardrail-params.test.ts` — verify untouched (Task 1.10 Step 1)
+- `test/unit/graphql/publish-deposit-event.test.ts` — verify untouched (Task 1.10 Step 1)
+
+`investor-bff` resolver tests (NEW — Tasks 1.10 + 5.x):
+- Create `test/unit/graphql/get-profile.test.ts` (Task 1.10 Step 3)
+- Create `test/unit/graphql/update-goal.test.ts` (Task 1.10 Step 4)
+- Create `test/unit/graphql/update-mandate.test.ts` (Task 1.10 Step 5)
+- Create `test/unit/graphql/revoke-mandate.test.ts` (Task 5.1 — see addendum below)
+
+`decision-workflow-ctrl` (Phase 2):
+- DELETE `test/unit/event-listener.test.ts` (Task 2.2)
+- Rewrite `test/unit/service.stack.test.ts` for 7-event triggers + executionName + no TriggerIngress (Task 2.4)
+- Rewrite `test/integration/decision-workflow-ctrl.integration.test.ts` (Task 2.5)
+
+`compliance-ctrl` (Phase 3):
+- Rewrite `test/unit/event-listener.test.ts` for INVESTOR_PROFILE_* + MANDATE_REVOKED (Task 3.1 Step 5)
+- Append to `test/unit/mandate-validator.test.ts` — REVOKED gate cases (Task 3.3)
+- Append to `test/unit/authority-resolver.test.ts` — REVOKED cases (Task 3.3)
+- Append to `test/unit/rule-engine.test.ts` — end-to-end REVOKED flow (Task 3.3)
+- Rewrite `test/integration/compliance-ctrl.integration.test.ts` (Task 3.4)
+
+`dashboard-bff` (Phase 3):
+- Rewrite `test/unit/handlers/event-listener.test.ts` — single INVESTOR_PROFILE_* branch (Task 3.2)
+- Rewrite `test/unit/transforms/investor-snapshot.test.ts` — composite payload assertions (Task 3.2)
+
+`investor-ctrl` (Phase 4):
+- Rewrite `test/unit/event-listener.test.ts` + `test/unit/notification-lifecycle.service.test.ts` — diff-detection (Task 4.2 Step 5)
+- Rewrite `test/integration/onboarding-notification.integration.test.ts` — MANDATE_ACCEPTED/REVOKED + INVESTOR_PROFILE_UPDATED diff scenarios (Task 4.3)
+
+`advisory-adpt` (Phase 6):
+- Rewrite `test/integration/from-investor.integration.test.ts` — assert new forwarded events (Task 6.1)
+- Rewrite `test/service.stack.test.ts` — CDK assertion update (Task 6.1)
+
+`apps/e2e-feature-tests` (Phase 7):
+- Rewrite `src/profile/{update-goal,update-mandate,revoke-mandate}.e2e.test.ts` (Tasks 7.1-7.3)
+- Rewrite `src/helpers/fixtures.ts` (Task 7.4)
+- Rewrite `src/advisory/{operating-mode-authority,first-decision}.e2e.test.ts` (Task 7.6)
+- Verify `src/advisory/{reconciliation-correction,accept-decision,reject-decision,rebalance-on-drift,view-decision-explanation}.e2e.test.ts` (Task 7.6 Step 4)
+- Update `src/helpers/{agent-trace-trap,graphql-types,bff-client,wait-for-graphql}.ts` (Task 7.7)
+- Final typecheck sweep across remaining e2e files: `src/{account,funding,notifications}/*.e2e.test.ts` (Task 7.8)
 
 **Modified — Architecture docs (Phase 8):**
 - `docs/architecture/SYSTEM-ARCHITECTURE.md` — §195 event-taxonomy table
@@ -1372,6 +1408,193 @@ git commit -m "investor-bff: rewrite integration tests for composite shape (revo
 
 (Integration tests run in Phase 9 against deployed dev. Don't run them now — investor-bff is not yet redeployed and would conflict with the in-flight migration.)
 
+### Task 1.10: Sweep remaining investor-bff unit tests + add resolver tests
+
+**Goal:** ensure every test file under `services/investor/investor-bff/test/unit/` passes after the collapse, and add unit tests for the 4 rewritten AppSync JS resolvers (TDD coverage).
+
+**Files:**
+- Verify: `services/investor/investor-bff/test/unit/handlers/event-listener.test.ts`
+- Verify: `services/investor/investor-bff/test/unit/handlers/broadcast-listener.test.ts`
+- Verify: `services/investor/investor-bff/test/unit/transforms/user-registered.test.ts`
+- Verify: `services/investor/investor-bff/test/unit/transforms/balance-updated.test.ts`
+- Verify: `services/investor/investor-bff/test/unit/transforms/notification-created.test.ts`
+- Verify: `services/investor/investor-bff/test/unit/domain/guardrail-params.test.ts`
+- Verify: `services/investor/investor-bff/test/unit/graphql/publish-deposit-event.test.ts`
+- Modify: `services/investor/investor-bff/test/unit/transforms/onboarding-completed-transform.test.ts` — duplicate-named regression test for USER_REGISTERED↔ONBOARDING_COMPLETED race; reconcile with `onboarding-completed.test.ts`
+- Create: `services/investor/investor-bff/test/unit/graphql/get-profile.test.ts`
+- Create: `services/investor/investor-bff/test/unit/graphql/update-goal.test.ts`
+- Create: `services/investor/investor-bff/test/unit/graphql/update-mandate.test.ts`
+
+(Phase 5 will add `services/investor/investor-bff/test/unit/graphql/revoke-mandate.test.ts` after the resolver is rewritten.)
+
+- [ ] **Step 1: Run the full unit-test suite to identify breakage**
+
+Run: `pnpm nx test investor-bff 2>&1 | tee /tmp/inv-bff-test.log | tail -80`
+Expected: tests for `handlers/event-listener.test.ts`, `transforms/user-registered.test.ts`, `transforms/balance-updated.test.ts`, `transforms/notification-created.test.ts`, `domain/guardrail-params.test.ts`, `graphql/publish-deposit-event.test.ts` all PASS without changes (they don't touch dropped event types or method signatures).
+
+If any fail, read the failure and fix in-line. The expected fixes are minimal — the only structural change that could ripple is `createProfile` removal from the repository. `user-registered.ts` transform calls `record()` directly (not `createProfile`), so it should be unaffected.
+
+- [ ] **Step 2: Reconcile `onboarding-completed-transform.test.ts` (regression race coverage)**
+
+Read `services/investor/investor-bff/test/unit/transforms/onboarding-completed-transform.test.ts` — it's a regression test for the documented USER_REGISTERED↔ONBOARDING_COMPLETED race (memory/project_decision_workflow_stuck.md). It asserts `TransactItems[0]` is a `Put` (not Update+attribute_exists).
+
+After the collapse, the transactWrite has 2-3 items (composite + MandateStatus + optional Deposit) instead of 7. The race-coverage assertion stays valid: `TransactItems[0].Put` is the composite InvestorProfile.
+
+Update its assertions to match the new shape:
+
+```typescript
+expect(transactWriteSpy).toHaveBeenCalledTimes(1);
+const call = transactWriteSpy.mock.calls[0][0];
+expect(call.TransactItems[0]).toHaveProperty('Put');
+expect(call.TransactItems[0].Put.Item.sk).toBe('InvestorProfile');
+expect(call.TransactItems[0].Put.Item.__typename).toBe('InvestorProfile');
+// No ConditionExpression on the Put — race-safe by design (idempotent overwrite of any sparse user-registered row)
+expect(call.TransactItems[0].Put.ConditionExpression).toBeUndefined();
+```
+
+- [ ] **Step 3: Write `get-profile.test.ts`**
+
+Create `services/investor/investor-bff/test/unit/graphql/get-profile.test.ts`:
+
+```typescript
+import { request, response } from '../../../src/graphql/js-function/get-profile.fn.js';
+
+describe('get-profile resolver', () => {
+  const stash = { tenantId: 't1', userId: 'u1', tableName: 'inv-bff' };
+
+  it('request: builds a BatchGetItem for InvestorProfile + MandateStatus on the same pk', () => {
+    const op = request({ stash });
+    expect(op.operation).toBe('BatchGetItem');
+    const keys = op.tables['inv-bff'].keys;
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toEqual({ pk: { S: 'InvestorProfile#t1#u1' }, sk: { S: 'InvestorProfile' } });
+    expect(keys[1]).toEqual({ pk: { S: 'InvestorProfile#t1#u1' }, sk: { S: 'MandateStatus' } });
+  });
+
+  it('response: merges MandateStatus.status into mandate.status when present', () => {
+    const ctx = {
+      stash,
+      result: {
+        data: {
+          'inv-bff': [
+            { sk: 'InvestorProfile', mandate: { mandateId: 'm1', level: 'ADVISORY', status: 'ACTIVE' } },
+            { sk: 'MandateStatus', status: 'REVOKED', acceptedAt: 't0', revokedAt: 't1' },
+          ],
+        },
+      },
+    };
+    const result = response(ctx);
+    expect(result.mandate.status).toBe('REVOKED');
+    expect(result.mandate.revokedAt).toBe('t1');
+  });
+
+  it('response: leaves mandate.status alone when MandateStatus row absent', () => {
+    const ctx = {
+      stash,
+      result: {
+        data: {
+          'inv-bff': [{ sk: 'InvestorProfile', mandate: { mandateId: 'm1', level: 'ADVISORY', status: 'ACTIVE' } }],
+        },
+      },
+    };
+    const result = response(ctx);
+    expect(result.mandate.status).toBe('ACTIVE');
+  });
+
+  it('response: errors with NotFound when InvestorProfile row absent', () => {
+    const utilErrorSpy = jest.fn(() => { throw new Error('Profile not found'); });
+    jest.mock('@aws-appsync/utils', () => ({ util: { error: utilErrorSpy } }), { virtual: true });
+    const ctx = { stash, result: { data: { 'inv-bff': [] } } };
+    expect(() => response(ctx)).toThrow();
+  });
+});
+```
+
+- [ ] **Step 4: Write `update-goal.test.ts`**
+
+Create `services/investor/investor-bff/test/unit/graphql/update-goal.test.ts`:
+
+```typescript
+import { request, response } from '../../../src/graphql/js-function/update-goal.fn.js';
+
+describe('update-goal resolver', () => {
+  const stash = { tenantId: 't1', userId: 'u1', tableName: 'inv-bff' };
+
+  it('request: targets the composite InvestorProfile row, NOT a Goal#${id} sk', () => {
+    const op = request({ stash, arguments: { input: { objective: 'GROWTH', targetAmountCents: 500000 } } });
+    expect(op.operation).toBe('UpdateItem');
+    expect(op.key).toEqual({ pk: { S: 'InvestorProfile#t1#u1' }, sk: { S: 'InvestorProfile' } });
+  });
+
+  it('request: nests update under goal.<field>, never top-level', () => {
+    const op = request({ stash, arguments: { input: { objective: 'GROWTH' } } });
+    expect(op.update.expression).toContain('goal.#objective = :objective');
+    expect(op.update.expression).not.toMatch(/\bobjective\b/);
+  });
+
+  it('request: drops undefined/null fields from input', () => {
+    const op = request({ stash, arguments: { input: { objective: 'GROWTH', currency: null } } });
+    expect(op.update.expression).toContain('goal.#objective');
+    expect(op.update.expression).not.toContain('goal.#currency');
+  });
+
+  it('request: includes attribute_exists(pk) precondition', () => {
+    const op = request({ stash, arguments: { input: { objective: 'GROWTH' } } });
+    expect(op.condition.expression).toBe('attribute_exists(pk)');
+  });
+
+  it('response: returns the goal sub-object from the updated item', () => {
+    const result = response({ result: { goal: { objective: 'GROWTH', targetAmountCents: 500000 } } });
+    expect(result).toEqual({ objective: 'GROWTH', targetAmountCents: 500000 });
+  });
+});
+```
+
+- [ ] **Step 5: Write `update-mandate.test.ts`**
+
+Create `services/investor/investor-bff/test/unit/graphql/update-mandate.test.ts`:
+
+```typescript
+import { request, response } from '../../../src/graphql/js-function/update-mandate.fn.js';
+
+describe('update-mandate resolver', () => {
+  const stash = { tenantId: 't1', userId: 'u1', tableName: 'inv-bff' };
+
+  it('request: nests update under mandate.<field> on composite InvestorProfile row', () => {
+    const op = request({ stash, arguments: { input: { level: 'DISCRETIONARY', monthlyTurnoverCapPercent: 30 } } });
+    expect(op.operation).toBe('UpdateItem');
+    expect(op.key).toEqual({ pk: { S: 'InvestorProfile#t1#u1' }, sk: { S: 'InvestorProfile' } });
+    expect(op.update.expression).toContain('mandate.#level = :level');
+    expect(op.update.expression).toContain('mandate.#monthlyTurnoverCapPercent');
+  });
+
+  it('request: rejects monthlyTurnoverCapPercent out of [0,100]', () => {
+    expect(() => request({ stash, arguments: { input: { monthlyTurnoverCapPercent: 150 } } })).toThrow();
+  });
+
+  it('request: rejects maxSingleTradePercent out of [0,100]', () => {
+    expect(() => request({ stash, arguments: { input: { maxSingleTradePercent: -1 } } })).toThrow();
+  });
+
+  it('response: returns mandate sub-object', () => {
+    const result = response({ result: { mandate: { mandateId: 'm1', level: 'ADVISORY' } } });
+    expect(result).toEqual({ mandateId: 'm1', level: 'ADVISORY' });
+  });
+});
+```
+
+- [ ] **Step 6: Run full unit suite — expect pass**
+
+Run: `pnpm nx test investor-bff`
+Expected: PASS, all suites green.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add services/investor/investor-bff/test/unit/
+git commit -m "investor-bff: unit tests for collapsed resolvers (get-profile, update-goal, update-mandate); reconcile race-regression test"
+```
+
 ### Acceptance criteria for Phase 1
 
 - [ ] **Verify build passes:**
@@ -1384,7 +1607,7 @@ git commit -m "investor-bff: rewrite integration tests for composite shape (revo
 
 - [ ] **Verify all unit tests pass:**
   Run: `pnpm nx test investor-bff`
-  Expected: success.
+  Expected: success — all 12 unit-test files green (existing 8 + 3 new graphql + 1 reconciled).
 
 - [ ] **Verify CDK synth:**
   Run: `pnpm nx run investor-bff:synth`
@@ -2036,11 +2259,162 @@ git add services/investor/dashboard-bff/
 git commit -m "dashboard-bff: subscribe to INVESTOR_PROFILE_* (composite payload, single branch)"
 ```
 
+### Task 3.3: Update compliance-ctrl rule unit tests for MANDATE_REVOKED gate
+
+**Goal:** unit-level coverage of the new `status === 'REVOKED'` gating in mandate-validator → authority-resolver → rule-engine.
+
+**Files:**
+- Modify: `services/advisory/compliance-ctrl/test/unit/mandate-validator.test.ts`
+- Modify: `services/advisory/compliance-ctrl/test/unit/authority-resolver.test.ts`
+- Modify: `services/advisory/compliance-ctrl/test/unit/rule-engine.test.ts`
+
+- [ ] **Step 1: Add `MANDATE_REVOKED` precondition test to `mandate-validator.test.ts`**
+
+Append to the existing test file:
+
+```typescript
+describe('mandate-validator (REVOKED gate)', () => {
+  it('returns failed CheckResult with name=MANDATE_REVOKED when input.mandate.status === "REVOKED"', () => {
+    const validator = new MandateValidator();
+    const result = validator.validate({
+      mandate: { status: 'REVOKED', mandateId: 'm1', level: 'ADVISORY' /* ...other fields */ } as any,
+      proposedTrades: [],
+      portfolioValue: 100000,
+      riskScore: 5,
+      currentPositions: [],
+      decisionPacketId: 'd1',
+      tenantId: 't1',
+      userId: 'u1',
+    });
+    expect(result.passed).toBe(false);
+    expect(result.name).toBe('MANDATE_REVOKED');
+    expect(result.details).toMatch(/revoked/i);
+  });
+
+  it('passes when status is undefined (legacy snapshots without status field)', () => {
+    const validator = new MandateValidator();
+    const result = validator.validate({
+      mandate: { mandateId: 'm1', level: 'ADVISORY' /* no status field */ } as any,
+      // ... rest
+    } as any);
+    // Legacy snapshots without explicit status field default to allowed; preserves backwards-compat for in-flight cycles
+    expect(result.passed).toBe(true);
+  });
+});
+```
+
+(Adapt object shapes to match the actual `MandateValidator.validate` signature in your codebase — read `services/advisory/compliance-ctrl/src/rules/mandate-validator.ts` first.)
+
+- [ ] **Step 2: Add gate test to `authority-resolver.test.ts`**
+
+Append:
+
+```typescript
+describe('authority-resolver (REVOKED gate)', () => {
+  it('returns L2 when mandate.status === "REVOKED" so cycle blocks at user-confirm', () => {
+    const resolver = new AuthorityResolver();
+    const level = resolver.resolve(
+      { mandate: { status: 'REVOKED' /* ... */ } as any, /* rest */ } as any,
+      [],
+    );
+    expect(level).toBe('L2');
+  });
+});
+```
+
+- [ ] **Step 3: Add end-to-end REVOKED flow to `rule-engine.test.ts`**
+
+Append:
+
+```typescript
+describe('RuleEngine.evaluate (REVOKED end-to-end)', () => {
+  it('returns BLOCKED with MANDATE_REVOKED violation when mandate is revoked', () => {
+    const engine = new RuleEngine(
+      new MandateValidator(),
+      new GuardrailEvaluator(),
+      new SuitabilityChecker(),
+      new AuthorityResolver(),
+    );
+    const output = engine.evaluate({
+      mandate: { mandateId: 'm1', level: 'ADVISORY', status: 'REVOKED' /* ...required fields with defaults */ } as any,
+      proposedTrades: [{ symbol: 'VTI', assetClass: 'ETF', side: 'BUY', quantityOrAmountCents: 1000_00, targetWeightPercent: 10, rationale: '' }],
+      portfolioValue: 100000,
+      riskScore: 5,
+      currentPositions: [],
+      decisionPacketId: 'd1',
+      tenantId: 't1',
+      userId: 'u1',
+    });
+    expect(output.result).toBe('BLOCKED');
+    expect(output.violations.some((v) => v.rule === 'MANDATE_REVOKED')).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 4: Run tests**
+
+Run: `pnpm nx test compliance-ctrl -- --testPathPattern='mandate-validator|authority-resolver|rule-engine'`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add services/advisory/compliance-ctrl/test/unit/
+git commit -m "compliance-ctrl: unit tests for MANDATE_REVOKED gate (validator + resolver + engine)"
+```
+
+### Task 3.4: Refactor compliance-ctrl integration test
+
+**Files:**
+- Modify: `services/advisory/compliance-ctrl/test/integration/compliance-ctrl.integration.test.ts`
+
+- [ ] **Step 1: Read existing scenarios**
+
+Run: `grep -n "MANDATE_CREATED\|MANDATE_UPDATED\|OPERATING_MODE_CHANGED\|RECOMMENDATION_PROPOSED" services/advisory/compliance-ctrl/test/integration/compliance-ctrl.integration.test.ts`
+
+- [ ] **Step 2: Replace mandate-projection scenarios**
+
+Replace `it('projects MandateSnapshot from MANDATE_CREATED', ...)` with `it('projects MandateSnapshot from INVESTOR_PROFILE_CREATED composite payload', ...)`. The emitted event subject now has `mandate: { mandateId, level, monthlyTurnoverCapPercent, ... }` nested. Assertions update to read `mandate.*` from subject.
+
+Replace `it('updates MandateSnapshot from MANDATE_UPDATED', ...)` with `it('updates MandateSnapshot from INVESTOR_PROFILE_UPDATED', ...)`.
+
+DELETE `it('skips OPERATING_MODE_CHANGED', ...)` — that branch is removed; operating mode is folded into INVESTOR_PROFILE_UPDATED.
+
+- [ ] **Step 3: Add MANDATE_REVOKED scenario**
+
+```typescript
+it('sets MandateSnapshot.status=REVOKED on MANDATE_REVOKED event', async () => {
+  // Seed MandateSnapshot via INVESTOR_PROFILE_CREATED
+  await emitEvent('INVESTOR_PROFILE_CREATED', { tenantId, userId, mandate: { mandateId: 'm1', level: 'ADVISORY', /* ... */ } });
+  await waitForProjection({ pk: `GuardrailPolicy#${tenantId}#${userId}`, sk: 'MandateSnapshot', expected: { status: 'ACTIVE' } });
+
+  // Revoke
+  await emitEvent('MANDATE_REVOKED', { tenantId, userId, revokedAt: '2026-05-03T10:00:00Z' });
+  await waitForProjection({ pk: `GuardrailPolicy#${tenantId}#${userId}`, sk: 'MandateSnapshot', expected: { status: 'REVOKED', revokedAt: '2026-05-03T10:00:00Z' } });
+});
+```
+
+- [ ] **Step 4: Add REVOKED-blocks-cycle scenario**
+
+```typescript
+it('RECOMMENDATION_PROPOSED returns BLOCKED+MANDATE_REVOKED when MandateSnapshot.status=REVOKED', async () => {
+  // seed snapshot in REVOKED state, then propose, assert ComplianceCheck.violations contains MANDATE_REVOKED
+});
+```
+
+- [ ] **Step 5: Commit (don't run integration; runs in Phase 9)**
+
+```bash
+git add services/advisory/compliance-ctrl/test/integration/
+git commit -m "compliance-ctrl: integration tests for INVESTOR_PROFILE_*+MANDATE_REVOKED projections"
+```
+
 ### Acceptance criteria for Phase 3
 
-- [ ] `pnpm nx run-many --target=test --projects=compliance-ctrl,dashboard-bff` PASSES.
+- [ ] `pnpm nx run-many --target=test --projects=compliance-ctrl,dashboard-bff` PASSES (all 7 unit-test files for compliance-ctrl + 8 for dashboard-bff).
 - [ ] `pnpm nx run-many --target=synth --projects=compliance-ctrl,dashboard-bff` PASSES.
 - [ ] `grep -rn 'GOAL_CREATED\|MANDATE_CREATED\|MANDATE_UPDATED' services/advisory/compliance-ctrl/src/ services/investor/dashboard-bff/src/` returns zero matches.
+- [ ] `grep -rn 'MANDATE_CREATED' services/advisory/compliance-ctrl/test/` returns zero matches (after Task 3.4).
 
 ---
 
@@ -2231,11 +2605,86 @@ git add services/investor/investor-ctrl/
 git commit -m "investor-ctrl: MANDATE_ACCEPTED/REVOKED notifications + INVESTOR_PROFILE_UPDATED diff-gate"
 ```
 
+### Task 4.3: Refactor investor-ctrl onboarding-notification integration test
+
+**Files:**
+- Modify: `services/investor/investor-ctrl/test/integration/onboarding-notification.integration.test.ts`
+
+- [ ] **Step 1: Read existing scenarios**
+
+Run: `grep -n "detailType:" services/investor/investor-ctrl/test/integration/onboarding-notification.integration.test.ts`
+
+Expected (from inventory): scenarios for `MANDATE_CREATED`, `GOAL_UPDATED`, `OPERATING_MODE_CHANGED` among others.
+
+- [ ] **Step 2: Replace MANDATE_CREATED scenario with MANDATE_ACCEPTED**
+
+```typescript
+it('emits "Investment Mandate Activated" notification on MANDATE_ACCEPTED', async () => {
+  await emitEvent('MANDATE_ACCEPTED', { tenantId, userId, status: 'ACCEPTED', acceptedAt: '...' });
+  await waitForNotification({ tenantId, type: 'MANDATE_ACCEPTED' });
+  // notificationId = eventId (no diff suffix — dedicated event)
+});
+```
+
+- [ ] **Step 3: Add MANDATE_REVOKED scenario**
+
+```typescript
+it('emits "Mandate Revoked" notification on MANDATE_REVOKED', async () => {
+  await emitEvent('MANDATE_REVOKED', { tenantId, userId, revokedAt: '...' });
+  await waitForNotification({ tenantId, type: 'MANDATE_REVOKED' });
+});
+```
+
+- [ ] **Step 4: Replace GOAL_UPDATED + OPERATING_MODE_CHANGED with INVESTOR_PROFILE_UPDATED diff scenarios**
+
+```typescript
+it('INVESTOR_PROFILE_UPDATED with goal change → 1 "Goal Updated" notification (notificationId = eventId:goal)', async () => {
+  await emitEvent('INVESTOR_PROFILE_UPDATED', {
+    tenantId, userId,
+    goal: { objective: 'GROWTH', /* ... */ },
+    /* unchanged operatingMode */
+  }, {
+    previousSubject: { goal: { objective: 'RETIREMENT', /* ... */ }, operatingMode: 'BALANCED' },
+  });
+  const notifications = await listNotificationsByTenant(tenantId);
+  expect(notifications.filter((n) => n.type === 'GOAL_UPDATED')).toHaveLength(1);
+  expect(notifications.filter((n) => n.type === 'OPERATING_MODE_CHANGED')).toHaveLength(0);
+});
+
+it('INVESTOR_PROFILE_UPDATED with operatingMode change → 1 "Operating Mode Changed" notification', async () => {
+  // similar — assert exactly 1 OPERATING_MODE_CHANGED, 0 GOAL_UPDATED
+});
+
+it('INVESTOR_PROFILE_UPDATED with both changed → 2 notifications with distinct notificationIds', async () => {
+  // emit with both goal + operatingMode changed; assert 2 notifications, notificationIds = [eventId:goal, eventId:mode]
+});
+
+it('INVESTOR_PROFILE_UPDATED with no semantic change → 0 notifications', async () => {
+  // emit with NewImage === OldImage (e.g. timestamp-only refresh); assert no notifications written
+});
+
+it('INVESTOR_PROFILE_UPDATED with null OldImage (CDC race / first observation) → notifications fire for all populated fields', async () => {
+  // emit without previousSubject; assert 2 notifications
+});
+```
+
+- [ ] **Step 5: Verify the existing `ONBOARDING_COMPLETED → "Welcome"` scenario is still correct**
+
+The "Welcome to Nestfolio" notification is emitted from ONBOARDING_COMPLETED — unchanged behavior. Verify the assertion still holds.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add services/investor/investor-ctrl/test/integration/onboarding-notification.integration.test.ts
+git commit -m "investor-ctrl: integration tests for MANDATE_ACCEPTED/REVOKED + INVESTOR_PROFILE_UPDATED diff notifications"
+```
+
 ### Acceptance criteria for Phase 4
 
-- [ ] `pnpm nx test investor-ctrl` PASSES.
+- [ ] `pnpm nx test investor-ctrl` PASSES (all 4 unit-test files green).
 - [ ] `pnpm nx run investor-ctrl:synth` PASSES.
 - [ ] No reference to `MANDATE_CREATED` in investor-ctrl/src.
+- [ ] `grep -rn 'detailType:.*MANDATE_CREATED\|detailType:.*GOAL_UPDATED\|detailType:.*OPERATING_MODE_CHANGED' services/investor/investor-ctrl/test/integration/` returns zero matches (the literal strings inside event-emission helpers).
 
 ---
 
@@ -2329,11 +2778,60 @@ it('rejects revoke when MandateStatus row missing (not onboarded)', async () => 
 });
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Write `revoke-mandate.test.ts` resolver unit test**
+
+Create `services/investor/investor-bff/test/unit/graphql/revoke-mandate.test.ts`:
+
+```typescript
+import { request, response } from '../../../src/graphql/js-function/revoke-mandate.fn.js';
+
+describe('revoke-mandate resolver', () => {
+  const stash = { tenantId: 't1', userId: 'u1', tableName: 'inv-bff' };
+
+  it('request: targets MandateStatus row (NOT InvestorProfile composite — avoid spurious INVESTOR_PROFILE_UPDATED)', () => {
+    const op = request({ stash });
+    expect(op.operation).toBe('UpdateItem');
+    expect(op.key).toEqual({ pk: { S: 'InvestorProfile#t1#u1' }, sk: { S: 'MandateStatus' } });
+  });
+
+  it('request: sets status=REVOKED + revokedAt=now', () => {
+    const op = request({ stash });
+    expect(op.update.expression).toContain('#status = :revoked');
+    expect(op.update.expression).toContain('revokedAt = :now');
+    expect(op.update.expressionValues[':revoked']).toEqual({ S: 'REVOKED' });
+  });
+
+  it('request: includes attribute_exists(pk) AND status=ACCEPTED precondition', () => {
+    const op = request({ stash });
+    expect(op.condition.expression).toContain('attribute_exists(pk)');
+    expect(op.condition.expression).toContain('#status = :active');
+    expect(op.condition.expressionValues[':active']).toEqual({ S: 'ACCEPTED' });
+  });
+
+  it('response: returns the MandateStatus shape', () => {
+    const result = response({
+      result: { status: 'REVOKED', acceptedAt: 't0', revokedAt: 't1' },
+    });
+    expect(result).toEqual({ status: 'REVOKED', acceptedAt: 't0', revokedAt: 't1' });
+  });
+
+  it('response: maps ConditionalCheckFailedException to InvalidState (already-revoked guard)', () => {
+    const ctx = { error: { type: 'DynamoDB:ConditionalCheckFailedException', message: '...' } };
+    expect(() => response(ctx)).toThrow();
+  });
+});
+```
+
+- [ ] **Step 4: Run unit + integration test sets locally**
+
+Run: `pnpm nx test investor-bff -- --testPathPattern='revoke-mandate'`
+Expected: PASS for the new resolver unit test.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add services/investor/investor-bff/src/graphql/js-function/revoke-mandate.fn.js services/investor/investor-bff/test/integration/investor-bff.integration.test.ts
-git commit -m "investor-bff: revokeMandate single UpdateItem on MandateStatus → MANDATE_REVOKED CDC"
+git add services/investor/investor-bff/src/graphql/js-function/revoke-mandate.fn.js services/investor/investor-bff/test/integration/investor-bff.integration.test.ts services/investor/investor-bff/test/unit/graphql/revoke-mandate.test.ts
+git commit -m "investor-bff: revokeMandate single UpdateItem on MandateStatus → MANDATE_REVOKED CDC + unit test"
 ```
 
 ### Task 5.2: Verify `compliance-ctrl` consumes MANDATE_REVOKED
@@ -2537,10 +3035,134 @@ git commit -m "investor-mfe: cosmetic step-label update for singular goal"
 
 (Skip commit if no changes.)
 
+### Task 7.6: Sweep advisory e2e tests for dropped event references
+
+**Goal:** the inventory grep showed `apps/e2e-feature-tests/src/advisory/operating-mode-authority.e2e.test.ts` and `apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts` reference dropped event types. Update them.
+
+**Files:**
+- Modify: `apps/e2e-feature-tests/src/advisory/operating-mode-authority.e2e.test.ts`
+- Modify: `apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts`
+- Verify: `apps/e2e-feature-tests/src/advisory/reconciliation-correction.e2e.test.ts`
+- Verify: `apps/e2e-feature-tests/src/advisory/accept-decision.e2e.test.ts`
+- Verify: `apps/e2e-feature-tests/src/advisory/reject-decision.e2e.test.ts`
+- Verify: `apps/e2e-feature-tests/src/advisory/rebalance-on-drift.e2e.test.ts`
+- Verify: `apps/e2e-feature-tests/src/advisory/view-decision-explanation.e2e.test.ts`
+
+- [ ] **Step 1: Inventory references**
+
+Run: `grep -n "GOAL_CREATED\|GOAL_UPDATED\|RISK_PROFILE\|MANDATE_CREATED\|MANDATE_UPDATED\|OPERATING_MODE_SELECTED\|OPERATING_MODE_CHANGED\|WORKFLOW_TRIGGER" apps/e2e-feature-tests/src/advisory/`
+Expected: matches in operating-mode-authority + first-decision + maybe reconciliation-correction.
+
+- [ ] **Step 2: Update `operating-mode-authority.e2e.test.ts`**
+
+This test verifies that operating mode (CONSERVATIVE/BALANCED/AGGRESSIVE) determines authority level. After collapse:
+- Operating-mode changes are now triggered via `INVESTOR_PROFILE_UPDATED` (composite payload `subject.operatingMode`), NOT `OPERATING_MODE_CHANGED`.
+- The decision-workflow-ctrl SF starts on `INVESTOR_PROFILE_UPDATED`.
+- The cycle is exactly ONE per mode change (not the previous fan-out).
+
+Replace any direct EB emission of `OPERATING_MODE_CHANGED` with mutating the operatingMode field via the BFF (the production path) or with directly emitting `INVESTOR_PROFILE_UPDATED` with the new mode in the subject. Update assertions on the trigger event the trap captures.
+
+- [ ] **Step 3: Update `first-decision.e2e.test.ts`**
+
+Find any assertions referencing `MANDATE_CREATED`/`GOAL_CREATED`/`RISK_PROFILE_CREATED` as the SF trigger and replace with `INVESTOR_PROFILE_CREATED`. Verify assertion that "decision-workflow-ctrl SF executes exactly once per onboarding" still holds (it should now hold tighter — single SF execution from a single trigger event).
+
+- [ ] **Step 4: Verify untouched advisory tests still typecheck**
+
+Run: `pnpm nx run e2e-feature-tests:typecheck`
+Expected: PASS for all advisory e2e tests.
+
+If `reconciliation-correction.e2e.test.ts`, `accept-decision.e2e.test.ts`, `reject-decision.e2e.test.ts`, `rebalance-on-drift.e2e.test.ts`, `view-decision-explanation.e2e.test.ts` reference dropped types via `agent-trace-trap` traps (handled in Task 7.7 below), update accordingly.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/e2e-feature-tests/src/advisory/
+git commit -m "e2e: advisory scenarios use INVESTOR_PROFILE_* triggers"
+```
+
+### Task 7.7: Review `agent-trace-trap.ts` + `graphql-types.ts`
+
+**Files:**
+- Verify: `apps/e2e-feature-tests/src/helpers/agent-trace-trap.ts`
+- Verify: `apps/e2e-feature-tests/src/helpers/graphql-types.ts`
+- Verify: `apps/e2e-feature-tests/src/helpers/bff-client.ts`
+- Verify: `apps/e2e-feature-tests/src/helpers/wait-for-graphql.ts`
+
+- [ ] **Step 1: Grep for dropped event names + GraphQL field renames**
+
+Run: `grep -n "GOAL_CREATED\|MANDATE_CREATED\|OPERATING_MODE_CHANGED\|getGoals\|goalId\|RISK_PROFILE_CREATED" apps/e2e-feature-tests/src/helpers/`
+Expected: matches in some helpers — likely `agent-trace-trap.ts` (if it has trap entries for those events), `graphql-types.ts` (if it has codegen-generated types referencing the old schema), `bff-client.ts` (if it has typed query helpers).
+
+- [ ] **Step 2: Update `agent-trace-trap.ts`**
+
+If it has named trap entries (e.g., `mandateLifecycle`, `goalLifecycle`) keyed on dropped event types, decide:
+- Drop them entirely if no test consumer remains, OR
+- Rename to `investorProfileLifecycle` keyed on `INVESTOR_PROFILE_CREATED|UPDATED`
+
+Per spec §3.3 + memory `project_advisory_pipeline_consolidation.md`, the `decisionLifecycle` trap was already removed in 2026-04-30; check no further removal is needed.
+
+- [ ] **Step 3: Update `graphql-types.ts`**
+
+If it has hand-written or codegen TypeScript types matching the BFF schema (Goal, Mandate, RiskProfile shapes), regenerate or update to match the new composite shape (nested under `InvestorProfile`).
+
+If codegen is configured (e.g., `graphql-codegen.yml`), run:
+```bash
+pnpm nx run e2e-feature-tests:codegen
+```
+to regenerate from the updated `services/investor/investor-bff/src/schema.graphql`.
+
+- [ ] **Step 4: Update `bff-client.ts`**
+
+If it has typed mutation helpers like `updateGoalMutation(goalId, input)` change to `updateGoalMutation(input)`. If `getGoalsQuery` exists, replace with `getProfileQuery` selecting `goal { ... }`.
+
+- [ ] **Step 5: Run full typecheck**
+
+Run: `pnpm nx run e2e-feature-tests:typecheck && pnpm nx run e2e-feature-tests:lint`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/e2e-feature-tests/src/helpers/
+git commit -m "e2e helpers: align traps + types + bff-client with composite InvestorProfile schema"
+```
+
+### Task 7.8: Final e2e sweep — run all e2e tests' typecheck after cascading helper changes
+
+**Files:**
+- Verify all under: `apps/e2e-feature-tests/src/`
+
+- [ ] **Step 1: Run typecheck across the whole e2e tree**
+
+Run: `pnpm nx run e2e-feature-tests:typecheck`
+Expected: PASS. Helper renames + fixture updates may ripple into:
+- `account/circuit-breaker-lifecycle.e2e.test.ts`
+- `account/request-closure.e2e.test.ts`
+- `funding/fund-account.e2e.test.ts`
+- `funding/withdraw-cash.e2e.test.ts`
+- `notifications/mark-notification-read.e2e.test.ts`
+
+If any fail, fix in-line (most likely a dropped helper method or a renamed type).
+
+- [ ] **Step 2: Final grep verifying no dropped names linger**
+
+Run: `grep -rn "getGoals\|goalId\|GOAL_CREATED\|GOAL_UPDATED\|MANDATE_CREATED\|MANDATE_UPDATED\|RISK_PROFILE_CREATED\|RISK_PROFILE_UPDATED\|OPERATING_MODE_SELECTED\|OPERATING_MODE_CHANGED\|WORKFLOW_TRIGGER" apps/e2e-feature-tests/src/`
+Expected: zero matches.
+
+- [ ] **Step 3: Commit (if any cascade fixes were needed)**
+
+```bash
+git add apps/e2e-feature-tests/src/
+git commit -m "e2e: cascade fixture/helper renames across remaining scenarios"
+```
+
+(Skip commit if no changes.)
+
 ### Acceptance criteria for Phase 7
 
 - [ ] `pnpm nx run e2e-feature-tests:lint && pnpm nx run e2e-feature-tests:typecheck` PASSES (do not run e2e itself yet — see Phase 9).
 - [ ] `grep -rn "getGoals\|goalId" apps/e2e-feature-tests/src/profile/` returns zero matches.
+- [ ] `grep -rn "GOAL_CREATED\|MANDATE_CREATED\|MANDATE_UPDATED\|RISK_PROFILE_CREATED\|OPERATING_MODE_SELECTED\|OPERATING_MODE_CHANGED\|WORKFLOW_TRIGGER" apps/e2e-feature-tests/src/` returns zero matches across the whole e2e tree.
 
 ---
 
