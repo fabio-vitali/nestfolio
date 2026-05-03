@@ -15,6 +15,7 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
     GetCommand: jest.fn().mockImplementation((input) => ({ _type: 'Get', input })),
     QueryCommand: jest.fn().mockImplementation((input) => ({ _type: 'Query', input })),
     UpdateCommand: jest.fn().mockImplementation((input) => ({ _type: 'Update', input })),
+    BatchGetCommand: jest.fn().mockImplementation((input) => ({ _type: 'BatchGet', input })),
     TransactWriteCommand: jest.fn().mockImplementation((input) => ({ _type: 'TransactWrite', input })),
   };
 });
@@ -101,32 +102,8 @@ describe('InvestorProfileRepository', () => {
     repo = new InvestorProfileRepository('test-table');
   });
 
-  describe('createProfile', () => {
-    it('should create an InvestorProfile with defaults', async () => {
-      mockSend.mockResolvedValueOnce({});
-
-      const created = await repo.createProfile(ctx('tenant-1', 'user-1'), 'test@example.com', 'evt-1');
-
-      expect(created).toBe(true);
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const call = mockSend.mock.calls[0][0];
-      expect(call.input.Item).toMatchObject({
-        pk: 'InvestorProfile#tenant-1#user-1',
-        sk: 'InvestorProfile',
-        __typename: 'InvestorProfile',
-        tenantId: 'tenant-1',
-        userId: 'user-1',
-        region: 'us-east-1',
-        email: 'test@example.com',
-        operatingMode: 'BALANCED',
-        currency: 'USD',
-        sourceEventId: 'evt-1',
-      });
-    });
-  });
-
-  describe('getProfile', () => {
-    it('should return profile when found', async () => {
+  describe('getProfile (composite + MandateStatus via BatchGet)', () => {
+    it('returns profile + mandateStatus when both exist', async () => {
       const profile = {
         pk: 'InvestorProfile#t1#u1',
         sk: 'InvestorProfile',
@@ -134,29 +111,66 @@ describe('InvestorProfileRepository', () => {
         tenantId: 't1',
         email: 'test@example.com',
       };
-      mockSend.mockResolvedValueOnce({ Item: profile });
+      const mandateStatus = {
+        pk: 'InvestorProfile#t1#u1',
+        sk: 'MandateStatus',
+        __typename: 'MandateStatus',
+        status: 'ACTIVE',
+      };
+      mockSend.mockResolvedValueOnce({ Responses: { 'test-table': [profile, mandateStatus] } });
 
       const result = await repo.getProfile('t1', 'u1');
 
-      expect(result).toEqual(profile);
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const call = mockSend.mock.calls[0][0];
+      expect(call._type).toBe('BatchGet');
+      expect(call.input.RequestItems['test-table'].Keys).toEqual([
+        { pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile' },
+        { pk: 'InvestorProfile#t1#u1', sk: 'MandateStatus' },
+      ]);
+      expect(result).toEqual({ profile, mandateStatus });
     });
 
-    it('should throw EntityNotFoundError when not found', async () => {
-      mockSend.mockResolvedValueOnce({ Item: undefined });
+    it('returns mandateStatus = null when only the InvestorProfile row exists', async () => {
+      const profile = {
+        pk: 'InvestorProfile#t1#u1',
+        sk: 'InvestorProfile',
+        __typename: 'InvestorProfile',
+      };
+      mockSend.mockResolvedValueOnce({ Responses: { 'test-table': [profile] } });
+
+      const result = await repo.getProfile('t1', 'u1');
+
+      expect(result).toEqual({ profile, mandateStatus: null });
+    });
+
+    it('is order-independent (BatchGet may return items in any order)', async () => {
+      const profile = { pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile' };
+      const mandateStatus = { pk: 'InvestorProfile#t1#u1', sk: 'MandateStatus' };
+      mockSend.mockResolvedValueOnce({ Responses: { 'test-table': [mandateStatus, profile] } });
+
+      const result = await repo.getProfile('t1', 'u1');
+
+      expect(result.profile).toEqual(profile);
+      expect(result.mandateStatus).toEqual(mandateStatus);
+    });
+
+    it('throws EntityNotFoundError when InvestorProfile not found', async () => {
+      mockSend.mockResolvedValueOnce({ Responses: { 'test-table': [] } });
 
       await expect(repo.getProfile('t1', 'u1')).rejects.toThrow('not found');
     });
   });
 
-  describe('setGoal', () => {
-    it('should create goal with a single put', async () => {
+  describe('setGoal (composite row)', () => {
+    it('updates the InvestorProfile.goal nested attribute via UpdateItem', async () => {
       mockSend.mockResolvedValueOnce({});
 
       const goal = {
-        objective: 'Retirement',
-        targetAmountCents: 100000000,
-        currency: 'USD',
-        timeHorizonMonths: 360,
+        objective: 'GROWTH',
+        targetAmountCents: 500000,
+        currency: 'EUR',
+        timeHorizonMonths: 60,
         targetReturn: 0.07,
       };
 
@@ -164,76 +178,72 @@ describe('InvestorProfileRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.Item).toMatchObject({
-        pk: 'InvestorProfile#t1#u1',
-        sk: 'Goal#test-uuid',
-        __typename: 'Goal',
-        objective: 'Retirement',
-      });
-      expect(result).toMatchObject({ goalId: 'test-uuid', objective: 'Retirement' });
+      expect(call._type).toBe('Update');
+      expect(call.input.Key).toEqual({ pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile' });
+      expect(call.input.UpdateExpression).toContain('goal = :goal');
+      expect(call.input.UpdateExpression).toContain('updatedAt = :now');
+      expect(call.input.ExpressionAttributeValues[':goal']).toEqual(goal);
+      expect(call.input.ConditionExpression).toBe('attribute_exists(pk)');
+      expect(result).toEqual(goal);
     });
   });
 
-  describe('getGoals', () => {
-    it('should query all goals for a profile', async () => {
-      const goals = [
-        { goalId: 'g1', objective: 'Retirement' },
-        { goalId: 'g2', objective: 'House' },
-      ];
-      mockSend.mockResolvedValueOnce({ Items: goals });
-
-      const result = await repo.getGoals('t1', 'u1');
-
-      expect(result).toEqual(goals);
-    });
-  });
-
-  describe('updateGoal', () => {
-    it('should use ExpressionAttributeNames for all dynamic fields', async () => {
-      const updatedGoal = {
+  describe('updateGoal (composite row, no goalId)', () => {
+    it('uses dynamic SET expressions on goal.<field> paths', async () => {
+      const updatedAttrs = {
         pk: 'InvestorProfile#t1#u1',
-        sk: 'Goal#g1',
-        __typename: 'Goal',
-        objective: 'Retirement Updated',
-        currency: 'EUR',
+        sk: 'InvestorProfile',
+        goal: {
+          objective: 'Retirement Updated',
+          currency: 'EUR',
+        },
       };
-      mockSend.mockResolvedValueOnce({ Attributes: updatedGoal });
+      mockSend.mockResolvedValueOnce({ Attributes: updatedAttrs });
 
-      const result = await repo.updateGoal('t1', 'u1', 'g1', {
+      const result = await repo.updateGoal(ctx('t1', 'u1'), {
         objective: 'Retirement Updated',
         currency: 'EUR',
       });
 
       expect(result).toMatchObject({ objective: 'Retirement Updated' });
       const call = mockSend.mock.calls[0][0];
-      // All attribute names should be aliased with #
+      expect(call._type).toBe('Update');
+      expect(call.input.Key).toEqual({ pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile' });
       expect(call.input.ExpressionAttributeNames).toMatchObject({
         '#ts': 'timestamp',
-        '#updatedAt': 'updatedAt',
         '#objective': 'objective',
         '#currency': 'currency',
       });
-      expect(call.input.UpdateExpression).toContain('#objective = :objective');
-      expect(call.input.UpdateExpression).toContain('#currency = :currency');
-      expect(call.input.UpdateExpression).toContain('#updatedAt = :now');
+      expect(call.input.UpdateExpression).toContain('goal.#objective = :objective');
+      expect(call.input.UpdateExpression).toContain('goal.#currency = :currency');
+      expect(call.input.UpdateExpression).toContain('updatedAt = :now');
     });
 
-    it('should throw EntityNotFoundError when goal not found', async () => {
+    it('throws EntityNotFoundError when profile not found', async () => {
       mockSend.mockResolvedValueOnce({ Attributes: undefined });
 
-      await expect(repo.updateGoal('t1', 'u1', 'g1', { objective: 'X' })).rejects.toThrow('not found');
+      await expect(repo.updateGoal(ctx('t1', 'u1'), { objective: 'X' })).rejects.toThrow('not found');
     });
   });
 
-  describe('grantMandate', () => {
-    it('should create mandate with a single put', async () => {
-      mockSend.mockResolvedValueOnce({});
+  describe('grantMandate (composite row)', () => {
+    it('updates mandate.<field> paths on the InvestorProfile row', async () => {
+      const updatedAttrs = {
+        pk: 'InvestorProfile#t1#u1',
+        sk: 'InvestorProfile',
+        mandate: {
+          level: 'DISCRETIONARY',
+          monthlyTurnoverCapPercent: 10,
+          maxSingleTradePercent: 5,
+          rebalanceCadence: 'MONTHLY',
+        },
+      };
+      mockSend.mockResolvedValueOnce({ Attributes: updatedAttrs });
 
       const mandate = {
         level: 'DISCRETIONARY' as const,
         monthlyTurnoverCapPercent: 10,
         maxSingleTradePercent: 5,
-        coolDownDays: 7,
         rebalanceCadence: 'MONTHLY' as const,
       };
 
@@ -241,51 +251,77 @@ describe('InvestorProfileRepository', () => {
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.Item).toMatchObject({
-        __typename: 'Mandate',
-        level: 'DISCRETIONARY',
-      });
-      expect(result).toMatchObject({ mandateId: 'test-uuid', level: 'DISCRETIONARY' });
+      expect(call._type).toBe('Update');
+      expect(call.input.Key).toEqual({ pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile' });
+      expect(call.input.UpdateExpression).toContain('mandate.#level = :level');
+      expect(call.input.UpdateExpression).toContain('mandate.#monthlyTurnoverCapPercent = :monthlyTurnoverCapPercent');
+      expect(call.input.UpdateExpression).toContain('mandate.#maxSingleTradePercent = :maxSingleTradePercent');
+      expect(call.input.UpdateExpression).toContain('mandate.#rebalanceCadence = :rebalanceCadence');
+      expect(call.input.ConditionExpression).toBe('attribute_exists(pk)');
+      expect(result).toMatchObject({ level: 'DISCRETIONARY' });
+    });
+
+    it('rejects monthlyTurnoverCapPercent > 100', async () => {
+      await expect(
+        repo.grantMandate(ctx('t1', 'u1'), {
+          level: 'DISCRETIONARY',
+          monthlyTurnoverCapPercent: 150,
+          maxSingleTradePercent: 5,
+          rebalanceCadence: 'MONTHLY',
+        }),
+      ).rejects.toThrow('monthlyTurnoverCapPercent must be between 0 and 100');
+    });
+
+    it('rejects negative monthlyTurnoverCapPercent', async () => {
+      await expect(
+        repo.grantMandate(ctx('t1', 'u1'), {
+          level: 'DISCRETIONARY',
+          monthlyTurnoverCapPercent: -1,
+          maxSingleTradePercent: 5,
+          rebalanceCadence: 'MONTHLY',
+        }),
+      ).rejects.toThrow('monthlyTurnoverCapPercent must be between 0 and 100');
+    });
+
+    it('rejects maxSingleTradePercent > 100', async () => {
+      await expect(
+        repo.grantMandate(ctx('t1', 'u1'), {
+          level: 'DISCRETIONARY',
+          monthlyTurnoverCapPercent: 10,
+          maxSingleTradePercent: 200,
+          rebalanceCadence: 'MONTHLY',
+        }),
+      ).rejects.toThrow('maxSingleTradePercent must be between 0 and 100');
+    });
+
+    it('throws EntityNotFoundError when profile not found', async () => {
+      mockSend.mockResolvedValueOnce({ Attributes: undefined });
+
+      await expect(
+        repo.grantMandate(ctx('t1', 'u1'), {
+          level: 'DISCRETIONARY',
+          monthlyTurnoverCapPercent: 10,
+          maxSingleTradePercent: 5,
+          rebalanceCadence: 'MONTHLY',
+        }),
+      ).rejects.toThrow('not found');
     });
   });
 
-  describe('revokeMandate', () => {
-    it('should set revokedAt on mandate', async () => {
-      const updatedMandate = {
-        pk: 'InvestorProfile#t1#u1',
-        sk: 'Mandate',
-        __typename: 'Mandate',
-        revokedAt: '2025-01-01T00:00:00.000Z',
-      };
-      mockSend.mockResolvedValueOnce({ Attributes: updatedMandate });
-
-      const result = await repo.revokeMandate('t1', 'u1');
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      expect(result).toMatchObject({ revokedAt: '2025-01-01T00:00:00.000Z' });
-    });
-  });
-
-  describe('setOperatingMode', () => {
-    it('should write OperatingMode + update InvestorProfile in transaction with 2 items', async () => {
+  describe('setOperatingMode (composite row)', () => {
+    it('issues a single UpdateItem on the InvestorProfile row', async () => {
       mockSend.mockResolvedValueOnce({});
 
       const result = await repo.setOperatingMode(ctx('t1', 'u1'), 'AGGRESSIVE');
 
       expect(mockSend).toHaveBeenCalledTimes(1);
       const call = mockSend.mock.calls[0][0];
-      expect(call.input.TransactItems).toHaveLength(2);
-      // Item 0: OperatingMode record
-      expect(call.input.TransactItems[0].Put.Item).toMatchObject({
-        __typename: 'OperatingModeRecord',
-        mode: 'AGGRESSIVE',
-      });
-      // Item 1: Update InvestorProfile
-      expect(call.input.TransactItems[1].Update).toMatchObject({
-        Key: { pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile' },
-      });
-      expect(call.input.TransactItems[1].Update.ExpressionAttributeValues[':mode']).toBe('AGGRESSIVE');
-      expect(result).toMatchObject({ mode: 'AGGRESSIVE' });
+      expect(call._type).toBe('Update');
+      expect(call.input.Key).toEqual({ pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile' });
+      expect(call.input.UpdateExpression).toContain('operatingMode = :mode');
+      expect(call.input.ExpressionAttributeValues[':mode']).toBe('AGGRESSIVE');
+      expect(call.input.ConditionExpression).toBe('attribute_exists(pk)');
+      expect(result).toEqual({ mode: 'AGGRESSIVE' });
     });
   });
 
@@ -350,13 +386,13 @@ describe('InvestorProfileRepository', () => {
     describe('updateGoal validation', () => {
       it('should reject negative targetAmountCents in partial update', async () => {
         await expect(
-          repo.updateGoal('t1', 'u1', 'g1', { targetAmountCents: -500 }),
+          repo.updateGoal(ctx('t1', 'u1'), { targetAmountCents: -500 }),
         ).rejects.toThrow('targetAmountCents must be >= 0');
       });
 
       it('should reject zero timeHorizonMonths in partial update', async () => {
         await expect(
-          repo.updateGoal('t1', 'u1', 'g1', { timeHorizonMonths: 0 }),
+          repo.updateGoal(ctx('t1', 'u1'), { timeHorizonMonths: 0 }),
         ).rejects.toThrow('timeHorizonMonths must be > 0');
       });
     });

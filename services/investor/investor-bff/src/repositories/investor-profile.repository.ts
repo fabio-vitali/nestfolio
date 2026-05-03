@@ -1,15 +1,14 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
-  GetCommand,
+  BatchGetCommand,
   UpdateCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { TableRepository, getUUID, getTime, NotRetryableError, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
+import { TableRepository, getTime, NotRetryableError, type TableEntry, type RequestContext } from '@nestfolio/event-processor';
 import { withMethodLogging } from '@nestfolio/event-processor';
 import { EntityNotFoundError } from '@nestfolio/event-processor';
 import type {
   Goal,
-  RiskProfile,
   Mandate,
   OperatingMode,
   ExecutionMode,
@@ -29,45 +28,31 @@ export class InvestorProfileRepository extends TableRepository {
     super(tableName, client);
   }
 
-  readonly createProfile = this.log('createProfile',
-    async (ctx: RequestContext, email: string, sourceEventId: string): Promise<boolean> => {
-      const now = getTime();
-      const item: TableEntry = {
-        pk: profilePk(ctx.tenantId, ctx.userId),
-        sk: 'InvestorProfile',
-        __typename: 'InvestorProfile',
-        ...ctx,
-        timestamp: now,
-        name: '',
-        email,
-        age: 0,
-        locale: 'en',
-        operatingMode: 'BALANCED',
-        executionMode: 'simulation',
-        monthlyContributionCents: 0,
-        currency: 'USD',
-        onboardingCompletedAt: null,
-        createdAt: now,
-        updatedAt: now,
-        sourceEventId,
-      };
-      return this.putIfNotExists(item);
-    },
-  );
-
   readonly getProfile = this.log('getProfile',
-    async (tenantId: string, userId: string): Promise<Record<string, unknown>> => {
+    async (
+      tenantId: string,
+      userId: string,
+    ): Promise<{ profile: Record<string, unknown>; mandateStatus: Record<string, unknown> | null }> => {
       const pk = profilePk(tenantId, userId);
       const result = await this.docClient.send(
-        new GetCommand({
-          TableName: this.tableName,
-          Key: { pk, sk: 'InvestorProfile' },
+        new BatchGetCommand({
+          RequestItems: {
+            [this.tableName]: {
+              Keys: [
+                { pk, sk: 'InvestorProfile' },
+                { pk, sk: 'MandateStatus' },
+              ],
+            },
+          },
         }),
       );
-      if (!result.Item) {
+      const items = result.Responses?.[this.tableName] ?? [];
+      const profile = items.find((i) => i.sk === 'InvestorProfile');
+      const mandateStatus = items.find((i) => i.sk === 'MandateStatus') ?? null;
+      if (!profile) {
         throw new EntityNotFoundError('InvestorProfile', `${tenantId}#${userId}`);
       }
-      return result.Item;
+      return { profile, mandateStatus };
     },
   );
 
@@ -85,35 +70,25 @@ export class InvestorProfileRepository extends TableRepository {
       validateGoalFields(goal);
       const pk = profilePk(ctx.tenantId, ctx.userId);
       const now = getTime();
-      const goalId = getUUID();
 
-      const goalItem: TableEntry = {
-        pk,
-        sk: `Goal#${goalId}`,
-        __typename: 'Goal',
-        ...ctx,
-        timestamp: now,
-        goalId,
-        objective: goal.objective,
-        targetAmountCents: goal.targetAmountCents,
-        currency: goal.currency,
-        timeHorizonMonths: goal.timeHorizonMonths,
-        targetReturn: goal.targetReturn,
-        createdAt: now,
-        updatedAt: now,
-      };
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: 'InvestorProfile' },
+          UpdateExpression: 'SET goal = :goal, updatedAt = :now, #ts = :ts',
+          ExpressionAttributeNames: { '#ts': 'timestamp' },
+          ExpressionAttributeValues: { ':goal': goal, ':now': now, ':ts': now },
+          ConditionExpression: 'attribute_exists(pk)',
+        }),
+      );
 
-      await this.put(goalItem);
-
-      return goalItem as unknown as Goal;
+      return goal as unknown as Goal;
     },
   );
 
   readonly updateGoal = this.log('updateGoal',
     async (
-      tenantId: string,
-      userId: string,
-      goalId: string,
+      ctx: RequestContext,
       updates: Partial<{
         objective: string;
         targetAmountCents: number;
@@ -123,74 +98,36 @@ export class InvestorProfileRepository extends TableRepository {
       }>,
     ): Promise<Goal> => {
       validateGoalFields(updates);
-      const pk = profilePk(tenantId, userId);
+      const pk = profilePk(ctx.tenantId, ctx.userId);
       const now = getTime();
 
-      const updateExpressions: string[] = ['#ts = :ts', '#updatedAt = :now'];
-      const expressionNames: Record<string, string> = { '#ts': 'timestamp', '#updatedAt': 'updatedAt' };
-      const expressionValues: Record<string, unknown> = { ':ts': now, ':now': now };
-
-      for (const [key, value] of Object.entries(updates)) {
-        if (value !== undefined) {
-          updateExpressions.push(`#${key} = :${key}`);
-          expressionNames[`#${key}`] = key;
-          expressionValues[`:${key}`] = value;
-        }
+      const setExprs: string[] = ['updatedAt = :now', '#ts = :ts'];
+      const exprNames: Record<string, string> = { '#ts': 'timestamp' };
+      const exprValues: Record<string, unknown> = { ':now': now, ':ts': now };
+      for (const [k, v] of Object.entries(updates)) {
+        if (v === undefined) continue;
+        setExprs.push(`goal.#${k} = :${k}`);
+        exprNames[`#${k}`] = k;
+        exprValues[`:${k}`] = v;
       }
 
       const result = await this.docClient.send(
         new UpdateCommand({
           TableName: this.tableName,
-          Key: { pk, sk: `Goal#${goalId}` },
-          UpdateExpression: `SET ${updateExpressions.join(', ')}`,
-          ExpressionAttributeNames: expressionNames,
-          ExpressionAttributeValues: expressionValues,
+          Key: { pk, sk: 'InvestorProfile' },
+          UpdateExpression: `SET ${setExprs.join(', ')}`,
+          ExpressionAttributeNames: exprNames,
+          ExpressionAttributeValues: exprValues,
           ConditionExpression: 'attribute_exists(pk)',
           ReturnValues: 'ALL_NEW',
         }),
       );
 
       if (!result.Attributes) {
-        throw new EntityNotFoundError('Goal', goalId);
+        throw new EntityNotFoundError('Goal', `${ctx.tenantId}#${ctx.userId}`);
       }
 
-      return result.Attributes as unknown as Goal;
-    },
-  );
-
-  readonly getGoals = this.log('getGoals',
-    async (tenantId: string, userId: string): Promise<Goal[]> => {
-      const pk = profilePk(tenantId, userId);
-      const items = await this.queryByPk(pk, 'Goal#');
-      return items as unknown as Goal[];
-    },
-  );
-
-  readonly setRiskProfile = this.log('setRiskProfile',
-    async (
-      ctx: RequestContext,
-      riskProfile: { score: number; band: { minEquity: number; maxEquity: number } },
-    ): Promise<RiskProfile> => {
-      const pk = profilePk(ctx.tenantId, ctx.userId);
-      const now = getTime();
-      const profileId = getUUID();
-
-      const item: TableEntry = {
-        pk,
-        sk: 'RiskProfile',
-        __typename: 'RiskProfile',
-        ...ctx,
-        timestamp: now,
-        profileId,
-        score: riskProfile.score,
-        band: riskProfile.band,
-        assessedAt: now,
-        version: 1,
-      };
-
-      await this.put(item);
-
-      return item as unknown as RiskProfile;
+      return result.Attributes.goal as unknown as Goal;
     },
   );
 
@@ -201,10 +138,8 @@ export class InvestorProfileRepository extends TableRepository {
         level: MandateLevel;
         monthlyTurnoverCapPercent: number;
         maxSingleTradePercent: number;
-        coolDownDays: number;
         rebalanceCadence: RebalanceCadence;
       },
-      _editedBy?: string,
     ): Promise<Mandate> => {
       if (mandate.monthlyTurnoverCapPercent < 0 || mandate.monthlyTurnoverCapPercent > 100) {
         throw new NotRetryableError('monthlyTurnoverCapPercent must be between 0 and 100');
@@ -212,92 +147,55 @@ export class InvestorProfileRepository extends TableRepository {
       if (mandate.maxSingleTradePercent < 0 || mandate.maxSingleTradePercent > 100) {
         throw new NotRetryableError('maxSingleTradePercent must be between 0 and 100');
       }
-      if (mandate.coolDownDays < 0) {
-        throw new NotRetryableError('coolDownDays must be >= 0');
-      }
       const pk = profilePk(ctx.tenantId, ctx.userId);
       const now = getTime();
-      const mandateId = getUUID();
 
-      const item: TableEntry = {
-        pk,
-        sk: 'Mandate',
-        __typename: 'Mandate',
-        ...ctx,
-        timestamp: now,
-        mandateId,
-        level: mandate.level,
-        monthlyTurnoverCapPercent: mandate.monthlyTurnoverCapPercent,
-        maxSingleTradePercent: mandate.maxSingleTradePercent,
-        coolDownDays: mandate.coolDownDays,
-        rebalanceCadence: mandate.rebalanceCadence,
-        effectiveDate: now,
-        revokedAt: null,
-        version: 1,
-      };
-
-      await this.put(item);
-
-      return item as unknown as Mandate;
-    },
-  );
-
-  readonly revokeMandate = this.log('revokeMandate',
-    async (tenantId: string, userId: string, _editedBy?: string): Promise<Mandate> => {
-      const pk = profilePk(tenantId, userId);
-      const now = getTime();
+      const setExprs: string[] = ['updatedAt = :now', '#ts = :ts'];
+      const exprNames: Record<string, string> = { '#ts': 'timestamp' };
+      const exprValues: Record<string, unknown> = { ':now': now, ':ts': now };
+      for (const [k, v] of Object.entries(mandate)) {
+        setExprs.push(`mandate.#${k} = :${k}`);
+        exprNames[`#${k}`] = k;
+        exprValues[`:${k}`] = v;
+      }
 
       const result = await this.docClient.send(
         new UpdateCommand({
           TableName: this.tableName,
-          Key: { pk, sk: 'Mandate' },
-          UpdateExpression: 'SET revokedAt = :revokedAt, #ts = :ts',
-          ExpressionAttributeNames: { '#ts': 'timestamp' },
-          ExpressionAttributeValues: { ':revokedAt': now, ':ts': now },
+          Key: { pk, sk: 'InvestorProfile' },
+          UpdateExpression: `SET ${setExprs.join(', ')}`,
+          ExpressionAttributeNames: exprNames,
+          ExpressionAttributeValues: exprValues,
           ConditionExpression: 'attribute_exists(pk)',
           ReturnValues: 'ALL_NEW',
         }),
       );
 
       if (!result.Attributes) {
-        throw new EntityNotFoundError('Mandate', `${tenantId}#${userId}`);
+        throw new EntityNotFoundError('Mandate', `${ctx.tenantId}#${ctx.userId}`);
       }
 
-      return result.Attributes as unknown as Mandate;
+      return result.Attributes.mandate as unknown as Mandate;
     },
   );
 
   readonly setOperatingMode = this.log('setOperatingMode',
-    async (ctx: RequestContext, mode: OperatingMode): Promise<Record<string, unknown>> => {
+    async (ctx: RequestContext, mode: OperatingMode): Promise<{ mode: OperatingMode }> => {
       const pk = profilePk(ctx.tenantId, ctx.userId);
       const now = getTime();
 
-      const item: TableEntry = {
-        pk,
-        sk: 'OperatingMode',
-        __typename: 'OperatingModeRecord',
-        ...ctx,
-        timestamp: now,
-        mode,
-        selectedAt: now,
-      };
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: 'InvestorProfile' },
+          UpdateExpression: 'SET operatingMode = :mode, updatedAt = :now, #ts = :ts',
+          ExpressionAttributeNames: { '#ts': 'timestamp' },
+          ExpressionAttributeValues: { ':mode': mode, ':now': now, ':ts': now },
+          ConditionExpression: 'attribute_exists(pk)',
+        }),
+      );
 
-      await this.transactWrite({
-        TransactItems: [
-          { Put: { TableName: this.tableName, Item: item } },
-          {
-            Update: {
-              TableName: this.tableName,
-              Key: { pk, sk: 'InvestorProfile' },
-              UpdateExpression: 'SET operatingMode = :mode, updatedAt = :now, #ts = :ts',
-              ExpressionAttributeNames: { '#ts': 'timestamp' },
-              ExpressionAttributeValues: { ':mode': mode, ':now': now, ':ts': now },
-            },
-          },
-        ],
-      });
-
-      return item;
+      return { mode };
     },
   );
 
@@ -305,7 +203,7 @@ export class InvestorProfileRepository extends TableRepository {
     async (ctx: RequestContext, fromMode: ExecutionMode, toMode: ExecutionMode): Promise<Record<string, unknown>> => {
       const pk = profilePk(ctx.tenantId, ctx.userId);
       const now = getTime();
-      const changeId = getUUID();
+      const changeId = `${ctx.tenantId}#${ctx.userId}#${now}`;
 
       const changeItem: TableEntry = {
         pk,
