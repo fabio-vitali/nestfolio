@@ -17,13 +17,14 @@ export function request(ctx) {
   const pk = `InvestorProfile#${tenantId}#${userId}`;
 
   const updates = [];
+  const names = {};
   const values = { ':now': now };
 
   for (const [key, val] of Object.entries(input)) {
-    if (val !== undefined && val !== null) {
-      updates.push(`mandate.${key} = :${key}`);
-      values[`:${key}`] = val;
-    }
+    if (val === undefined || val === null) continue;
+    updates.push(`mandate.#${key} = :${key}`);
+    names[`#${key}`] = key;
+    values[`:${key}`] = val;
   }
   updates.push('updatedAt = :now');
 
@@ -32,6 +33,7 @@ export function request(ctx) {
     key: util.dynamodb.toMapValues({ pk, sk: 'InvestorProfile' }),
     update: {
       expression: `SET ${updates.join(', ')}`,
+      expressionNames: names,
       expressionValues: util.dynamodb.toMapValues(values),
     },
     condition: { expression: 'attribute_exists(pk)' },
