@@ -143,6 +143,72 @@ describe('RuleEngine', () => {
     expect(output.authorityLevel).toBe('L2');
   });
 
+  // ── MANDATE_REVOKED end-to-end gate ──────────────────────────────────
+  describe('MANDATE_REVOKED status gate end-to-end', () => {
+    it('should BLOCK with L2 + MANDATE_REVOKED check when mandate.status === REVOKED', () => {
+      const input = buildInput({
+        mandate: {
+          mandateId: 'm-1',
+          level: 'DISCRETIONARY',
+          monthlyTurnoverCapPercent: 10,
+          maxSingleTradePercent: 5,
+          equityRiskBandPercent: 6,
+          driftTriggerPercent: 4,
+          singleEtfConcentrationPercent: 30,
+          drawdownCircuitBreakerPercent: 12,
+          effectiveDate: '2024-01-01T00:00:00.000Z',
+          revokedAt: null,
+          status: 'REVOKED',
+        },
+      });
+
+      const output = engine.evaluate(input);
+
+      // Result is BLOCKED because mandate-validator emits a BLOCKING violation.
+      expect(output.result).toBe('BLOCKED');
+
+      // Check trace carries the MANDATE_REVOKED name (single source of truth
+      // emitted by mandate-validator's status-driven gate).
+      const revokedCheck = output.checks.find((c) => c.name === 'MANDATE_REVOKED');
+      expect(revokedCheck).toBeDefined();
+      expect(revokedCheck!.passed).toBe(false);
+
+      // Rule engine wraps the failed mandate check as a MANDATE_SCOPE violation
+      // with BLOCKING severity (existing wiring — same as revokedAt path).
+      const mandateViolation = output.violations.find((v) => v.rule === 'MANDATE_SCOPE');
+      expect(mandateViolation).toBeDefined();
+      expect(mandateViolation!.severity).toBe('BLOCKING');
+      expect(mandateViolation!.description).toContain('revoked');
+
+      // Authority resolver forces L2 on REVOKED.
+      expect(output.authorityLevel).toBe('L2');
+    });
+
+    it('should BLOCK on REVOKED even when all other rules would pass', () => {
+      // Same input as the green-path test but with status=REVOKED.
+      const input = buildInput({
+        mandate: {
+          mandateId: 'm-1',
+          level: 'DISCRETIONARY',
+          monthlyTurnoverCapPercent: 10,
+          maxSingleTradePercent: 5,
+          equityRiskBandPercent: 6,
+          driftTriggerPercent: 4,
+          singleEtfConcentrationPercent: 30,
+          drawdownCircuitBreakerPercent: 12,
+          effectiveDate: '2024-01-01T00:00:00.000Z',
+          revokedAt: null,
+          status: 'REVOKED',
+        },
+      });
+
+      const output = engine.evaluate(input);
+
+      expect(output.result).toBe('BLOCKED');
+      expect(output.checks.some((c) => c.name === 'MANDATE_REVOKED' && !c.passed)).toBe(true);
+    });
+  });
+
   it('should collect all violations when multiple rules fail', () => {
     const input = buildInput({
       mandate: {

@@ -54,4 +54,43 @@ describe('MandateValidator', () => {
     expect(result.passed).toBe(false);
     expect(result.details).toContain('not yet effective');
   });
+
+  // ── MANDATE_REVOKED status gate (set by MANDATE_REVOKED projection) ───
+  describe('MANDATE_REVOKED status gate', () => {
+    it('should fail with name=MANDATE_REVOKED when mandate.status === REVOKED', () => {
+      const result = validator.validate(buildInput({ status: 'REVOKED' }));
+
+      expect(result.passed).toBe(false);
+      expect(result.name).toBe('MANDATE_REVOKED');
+      expect(result.details).toContain('revoked');
+    });
+
+    it('should pass (MANDATE_ACTIVE) when status is undefined and mandate is otherwise active (legacy snapshots default to allowed)', () => {
+      const result = validator.validate(buildInput({ status: undefined }));
+
+      expect(result.passed).toBe(true);
+      expect(result.name).toBe('MANDATE_ACTIVE');
+    });
+
+    it('should pass (MANDATE_ACTIVE) when status === ACTIVE explicitly', () => {
+      const result = validator.validate(buildInput({ status: 'ACTIVE' }));
+
+      expect(result.passed).toBe(true);
+      expect(result.name).toBe('MANDATE_ACTIVE');
+    });
+
+    it('REVOKED status takes precedence over revokedAt timestamp check', () => {
+      // Even with revokedAt set, status=REVOKED short-circuits with the
+      // dedicated MANDATE_REVOKED name (single source of truth).
+      const result = validator.validate(
+        buildInput({
+          status: 'REVOKED',
+          revokedAt: '2025-01-15T00:00:00.000Z',
+        }),
+      );
+
+      expect(result.passed).toBe(false);
+      expect(result.name).toBe('MANDATE_REVOKED');
+    });
+  });
 });

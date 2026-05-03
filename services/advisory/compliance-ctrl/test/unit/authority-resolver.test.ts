@@ -216,4 +216,42 @@ describe('AuthorityResolver', () => {
 
     expect(result).toBe('L1');
   });
+
+  // ── MANDATE_REVOKED gate ──────────────────────────────────────────
+  describe('MANDATE_REVOKED status gate', () => {
+    it('should resolve to L2 when mandate.status === REVOKED (forces user-confirmation gate)', () => {
+      const input = buildInput({
+        mandate: { ...BALANCED_MANDATE, status: 'REVOKED' },
+      });
+
+      const result = resolver.resolve(input, []);
+
+      expect(result).toBe('L2');
+    });
+
+    it('should resolve to L2 when REVOKED even on a DISCRETIONARY mandate with tiny within-threshold trade', () => {
+      // DISCRETIONARY + small trade would normally be L1, but REVOKED forces L2.
+      const input = buildInput({
+        mandate: {
+          ...BALANCED_MANDATE,
+          level: 'DISCRETIONARY',
+          status: 'REVOKED',
+        },
+        proposedTrades: [
+          {
+            symbol: 'AAPL',
+            assetClass: 'EQUITY',
+            side: 'BUY',
+            quantityOrAmountCents: 100_00, // 0.1% — tiny
+            targetWeightPercent: 0.1,
+            rationale: 'Tiny buy',
+          },
+        ],
+      });
+
+      const result = resolver.resolve(input, []);
+
+      expect(result).toBe('L2');
+    });
+  });
 });
