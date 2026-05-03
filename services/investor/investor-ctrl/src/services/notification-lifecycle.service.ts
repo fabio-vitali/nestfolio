@@ -123,9 +123,14 @@ export class NotificationLifecycleService {
         body: 'Your account setup is complete. You can now start investing.',
         channel: 'email',
       },
-      MANDATE_CREATED: {
+      MANDATE_ACCEPTED: {
         title: 'Investment Mandate Activated',
         body: 'Your investment mandate has been granted. We will start managing your portfolio.',
+        channel: 'push',
+      },
+      MANDATE_REVOKED: {
+        title: 'Mandate Revoked',
+        body: 'Your investment mandate has been revoked. No further automated trades will be authorized.',
         channel: 'push',
       },
       GOAL_UPDATED: {

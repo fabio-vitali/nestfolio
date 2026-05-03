@@ -155,7 +155,8 @@ describe('NotificationLifecycleService', () => {
     it('should return correct notification content for each event type', async () => {
       const eventTypes = [
         { type: 'ONBOARDING_COMPLETED', expectedTitle: 'Welcome to Nestfolio' },
-        { type: 'MANDATE_CREATED', expectedTitle: 'Investment Mandate Activated' },
+        { type: 'MANDATE_ACCEPTED', expectedTitle: 'Investment Mandate Activated' },
+        { type: 'MANDATE_REVOKED', expectedTitle: 'Mandate Revoked' },
         { type: 'GOAL_UPDATED', expectedTitle: 'Goal Updated' },
         { type: 'DEPOSIT_INITIATED', expectedTitle: 'Deposit Received' },
         { type: 'OPERATING_MODE_CHANGED', expectedTitle: 'Operating Mode Changed' },
