@@ -5,10 +5,10 @@ import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
 
 describe('dashboard-bff event-listener', () => {
-  it('should export handlers for all 16 event types', () => {
+  it('should export handlers for all 12 event types', () => {
     const handlers = createHandlers();
 
-    expect(Object.keys(handlers)).toHaveLength(16);
+    expect(Object.keys(handlers)).toHaveLength(12);
 
     // Ledger events
     expect(handlers).toHaveProperty(LedgerCrossDomainEventTypes.BALANCE_UPDATED);
@@ -22,13 +22,9 @@ describe('dashboard-bff event-listener', () => {
     expect(handlers).toHaveProperty(AdvisoryCrossDomainEventTypes.DECISION_APPROVED);
     expect(handlers).toHaveProperty(AdvisoryCrossDomainEventTypes.DECISION_BLOCKED);
 
-    // Investor-bff events
-    expect(handlers).toHaveProperty(InvestorBffEventTypes.GOAL_CREATED);
-    expect(handlers).toHaveProperty(InvestorBffEventTypes.GOAL_UPDATED);
-    expect(handlers).toHaveProperty(InvestorBffEventTypes.RISK_PROFILE_CREATED);
-    expect(handlers).toHaveProperty(InvestorBffEventTypes.RISK_PROFILE_UPDATED);
-    expect(handlers).toHaveProperty(InvestorBffEventTypes.OPERATING_MODE_SELECTED);
-    expect(handlers).toHaveProperty(InvestorBffEventTypes.OPERATING_MODE_CHANGED);
+    // Investor-bff events (collapsed: composite InvestorProfile row)
+    expect(handlers).toHaveProperty(InvestorBffEventTypes.INVESTOR_PROFILE_CREATED);
+    expect(handlers).toHaveProperty(InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED);
 
     // Execution cross-domain events (via investor-adpt)
     expect(handlers).toHaveProperty(InvestorIngestEventTypes.DEPOSIT_DETECTED);

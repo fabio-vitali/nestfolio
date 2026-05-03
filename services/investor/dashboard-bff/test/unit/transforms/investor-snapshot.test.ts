@@ -11,55 +11,128 @@ describe('investorSnapshot transform', () => {
       type: eventType,
       timestamp: '2026-01-01T00:00:00.000Z',
       subject,
-      context: { tenantId: 't1' },
+      context: { tenantId: 't1', userId: 'u1', region: 'us-east-1' },
     },
     payload: {},
     record: {},
   }) as unknown as TestUow;
 
-  it('should project goalType and onboardedAt for GOAL_CREATED', () => {
-    expect(investorSnapshot(makeUow('GOAL_CREATED', { objective: 'income' }))).toEqual(
-      project('InvestorSnapshot', {
-        tenantId: 't1',
-        goalType: 'income',
-        onboardedAt: '2026-01-01T00:00:00.000Z',
-      }, { pk: 'T#t1', sk: 'InvestorSnapshot' }),
+  const compositePayload = (overrides: Record<string, unknown> = {}) => ({
+    tenantId: 't1',
+    userId: 'u1',
+    operatingMode: 'BALANCED',
+    goal: { objective: 'income' },
+    riskProfile: { score: 5 },
+    mandate: {
+      mandateId: 'm-1',
+      level: 'DISCRETIONARY',
+    },
+    ...overrides,
+  });
+
+  it('INVESTOR_PROFILE_CREATED → projects composite fields + onboardedAt', () => {
+    const intent = investorSnapshot(makeUow('INVESTOR_PROFILE_CREATED', compositePayload()));
+    expect(intent).toEqual(
+      project(
+        'InvestorSnapshot',
+        {
+          tenantId: 't1',
+          userId: 'u1',
+          region: 'us-east-1',
+          goalType: 'income',
+          riskLevel: '5',
+          operatingMode: 'BALANCED',
+          onboardedAt: '2026-01-01T00:00:00.000Z',
+        },
+        { pk: 'T#t1', sk: 'InvestorSnapshot' },
+      ),
     );
   });
 
-  it('should project goalType only for GOAL_UPDATED (no onboardedAt)', () => {
-    expect(investorSnapshot(makeUow('GOAL_UPDATED', { objective: 'growth' }))).toEqual(
-      project('InvestorSnapshot', {
-        tenantId: 't1',
-        goalType: 'growth',
-      }, { pk: 'T#t1', sk: 'InvestorSnapshot' }),
+  it('INVESTOR_PROFILE_UPDATED → projects composite fields without onboardedAt', () => {
+    const intent = investorSnapshot(
+      makeUow(
+        'INVESTOR_PROFILE_UPDATED',
+        compositePayload({
+          goal: { objective: 'growth' },
+          riskProfile: { score: 7 },
+          operatingMode: 'AGGRESSIVE',
+        }),
+      ),
+    );
+    expect(intent).toEqual(
+      project(
+        'InvestorSnapshot',
+        {
+          tenantId: 't1',
+          userId: 'u1',
+          region: 'us-east-1',
+          goalType: 'growth',
+          riskLevel: '7',
+          operatingMode: 'AGGRESSIVE',
+        },
+        { pk: 'T#t1', sk: 'InvestorSnapshot' },
+      ),
     );
   });
 
-  it('should project riskLevel for RISK_PROFILE_CREATED', () => {
-    expect(investorSnapshot(makeUow('RISK_PROFILE_CREATED', { score: 5 }))).toEqual(
-      project('InvestorSnapshot', {
-        tenantId: 't1',
-        riskLevel: '5',
-      }, { pk: 'T#t1', sk: 'InvestorSnapshot' }),
+  it('omits goalType when goal.objective is missing', () => {
+    const intent = investorSnapshot(
+      makeUow('INVESTOR_PROFILE_UPDATED', compositePayload({ goal: {} })),
+    );
+    expect(intent).toEqual(
+      project(
+        'InvestorSnapshot',
+        {
+          tenantId: 't1',
+          userId: 'u1',
+          region: 'us-east-1',
+          riskLevel: '5',
+          operatingMode: 'BALANCED',
+        },
+        { pk: 'T#t1', sk: 'InvestorSnapshot' },
+      ),
     );
   });
 
-  it('should project operatingMode for OPERATING_MODE_SELECTED', () => {
-    expect(investorSnapshot(makeUow('OPERATING_MODE_SELECTED', { mode: 'AUTO' }))).toEqual(
-      project('InvestorSnapshot', {
-        tenantId: 't1',
-        operatingMode: 'AUTO',
-      }, { pk: 'T#t1', sk: 'InvestorSnapshot' }),
+  it('omits riskLevel when riskProfile is absent', () => {
+    const intent = investorSnapshot(
+      makeUow('INVESTOR_PROFILE_UPDATED', compositePayload({ riskProfile: undefined })),
+    );
+    expect(intent).toEqual(
+      project(
+        'InvestorSnapshot',
+        {
+          tenantId: 't1',
+          userId: 'u1',
+          region: 'us-east-1',
+          goalType: 'income',
+          operatingMode: 'BALANCED',
+        },
+        { pk: 'T#t1', sk: 'InvestorSnapshot' },
+      ),
     );
   });
 
-  it('should project operatingMode for OPERATING_MODE_CHANGED', () => {
-    expect(investorSnapshot(makeUow('OPERATING_MODE_CHANGED', { mode: 'MANUAL' }))).toEqual(
-      project('InvestorSnapshot', {
-        tenantId: 't1',
-        operatingMode: 'MANUAL',
-      }, { pk: 'T#t1', sk: 'InvestorSnapshot' }),
+  it('omits operatingMode when payload.operatingMode is undefined', () => {
+    const intent = investorSnapshot(
+      makeUow(
+        'INVESTOR_PROFILE_UPDATED',
+        compositePayload({ operatingMode: undefined }),
+      ),
+    );
+    expect(intent).toEqual(
+      project(
+        'InvestorSnapshot',
+        {
+          tenantId: 't1',
+          userId: 'u1',
+          region: 'us-east-1',
+          goalType: 'income',
+          riskLevel: '5',
+        },
+        { pk: 'T#t1', sk: 'InvestorSnapshot' },
+      ),
     );
   });
 });

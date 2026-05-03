@@ -38,17 +38,9 @@ export function createHandlers() {
     ],
     [LedgerCrossDomainEventTypes.LEDGER_ENTRY_RECORDED]: (payload: EventPayload, ctx: EventContext) =>
       timeTravelAvailability(toUow(payload, ctx)),
-    [InvestorBffEventTypes.GOAL_CREATED]: (payload: EventPayload, ctx: EventContext) =>
+    [InvestorBffEventTypes.INVESTOR_PROFILE_CREATED]: (payload: EventPayload, ctx: EventContext) =>
       investorSnapshot(toUow(payload, ctx)),
-    [InvestorBffEventTypes.GOAL_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
-      investorSnapshot(toUow(payload, ctx)),
-    [InvestorBffEventTypes.RISK_PROFILE_CREATED]: (payload: EventPayload, ctx: EventContext) =>
-      investorSnapshot(toUow(payload, ctx)),
-    [InvestorBffEventTypes.RISK_PROFILE_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
-      investorSnapshot(toUow(payload, ctx)),
-    [InvestorBffEventTypes.OPERATING_MODE_SELECTED]: (payload: EventPayload, ctx: EventContext) =>
-      investorSnapshot(toUow(payload, ctx)),
-    [InvestorBffEventTypes.OPERATING_MODE_CHANGED]: (payload: EventPayload, ctx: EventContext) =>
+    [InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
       investorSnapshot(toUow(payload, ctx)),
     [InvestorIngestEventTypes.DEPOSIT_DETECTED]: (payload: EventPayload, ctx: EventContext) =>
       recentActivity(toUow(payload, ctx)),
