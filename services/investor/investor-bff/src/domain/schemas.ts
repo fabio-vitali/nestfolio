@@ -1,42 +1,12 @@
 import { z } from 'zod';
 import { BusEventSchema } from '@nestfolio/event-processor';
 
-export const MandateCreatedSchema = BusEventSchema.extend({
-  type: z.literal('MANDATE_CREATED'),
-  subject: z.object({
-    mandateId: z.string(),
-    level: z.enum(['ADVISORY', 'DISCRETIONARY']),
-    effectiveDate: z.string().datetime(),
-  }),
-});
-
-export type MandateCreatedEvent = z.infer<typeof MandateCreatedSchema>;
-
-export const GoalUpdatedSchema = BusEventSchema.extend({
-  type: z.literal('GOAL_UPDATED'),
-  subject: z.object({
-    goalId: z.string(),
-    objective: z.string(),
-    timeHorizonMonths: z.number().int().positive(),
-    targetReturn: z.number().min(0).max(1),
-  }),
-});
-
-export type GoalUpdatedEvent = z.infer<typeof GoalUpdatedSchema>;
-
-export const RiskProfileUpdatedSchema = BusEventSchema.extend({
-  type: z.literal('RISK_PROFILE_UPDATED'),
-  subject: z.object({
-    profileId: z.string(),
-    score: z.number().int().min(1).max(10),
-    band: z.object({
-      minEquity: z.number().min(0).max(1),
-      maxEquity: z.number().min(0).max(1),
-    }),
-  }),
-});
-
-export type RiskProfileUpdatedEvent = z.infer<typeof RiskProfileUpdatedSchema>;
+// Phase 1 InvestorProfile collapse (2026-05-03):
+// MandateCreatedSchema, GoalUpdatedSchema, RiskProfileUpdatedSchema dropped —
+// these were Egress emissions from the legacy 7-row InvestorProfile model.
+// Phase 1 Tasks 1.3 + 1.6 collapsed all of (Goal, RiskProfile, Mandate,
+// OperatingModeRecord) into nested fields on a single InvestorProfile row,
+// and Egress no longer emits these legacy event types.
 
 export const OnboardingCompletedSchema = BusEventSchema.extend({
   type: z.literal('ONBOARDING_COMPLETED'),

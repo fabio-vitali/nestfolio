@@ -6,7 +6,6 @@ import { userRegistered } from '../transforms/user-registered';
 import { notificationCreated } from '../transforms/notification-created';
 import { balanceUpdated } from '../transforms/balance-updated';
 import { onboardingCompleted } from '../transforms/onboarding-completed';
-import { operatingModeChanged } from '../transforms/operating-mode-changed';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 
 export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository }) {
@@ -19,8 +18,6 @@ export function createHandlers(deps?: { profileRepo?: InvestorProfileRepository 
       balanceUpdated(toUow(payload, ctx)),
     [InvestorBffEventTypes.ONBOARDING_COMPLETED]: async (payload: EventPayload, ctx: EventContext) =>
       onboardingCompleted(payload, ctx),
-    [InvestorBffEventTypes.OPERATING_MODE_CHANGED]: (payload: EventPayload, ctx: EventContext) =>
-      operatingModeChanged(payload, ctx),
     [InvestorBffEventTypes.GO_LIVE_CONFIRMED]: async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject as Record<string, unknown>;
       const reqCtx = { ...pickRequestContext(ctx), userId: (subject.userId as string) as typeof ctx.userId };

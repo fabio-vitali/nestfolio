@@ -12,9 +12,12 @@
  * decision-workflow at EndBlocked and leaving e2e step 8 (pendingDecisions
  * ≥ 1) timing out.
  *
- * After the fix, TransactItems[0] is a `Put` that includes the email forwarded
- * via the ONBOARDING_COMPLETED subject, so the row is materialized atomically
- * regardless of USER_REGISTERED ordering.
+ * After Phase 1 (InvestorProfile collapse — Task 1.3), TransactItems[0] is
+ * an unconditional `Put` against the composite InvestorProfile row that
+ * includes the email forwarded via the ONBOARDING_COMPLETED subject. The
+ * row is materialized atomically regardless of USER_REGISTERED ordering —
+ * an idempotent overwrite of any sparse user-registered row is the
+ * race-safe design.
  */
 
 const transactWriteSpy = jest.fn();
@@ -52,23 +55,26 @@ const CTX: Partial<EventContext> = {
   timestamp: '2026-04-29T18:41:00.000Z',
 };
 
-describe('onboardingCompleted transform', () => {
+describe('onboardingCompleted transform — race regression coverage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env['TABLE_NAME'] = 'test-investor-bff-table';
   });
 
-  it('writes 7 items atomically when capitalAmount > 0', async () => {
+  it('writes 3 items atomically when capitalAmount > 0 (InvestorProfile + MandateStatus + Deposit)', async () => {
     transactWriteSpy.mockResolvedValueOnce(undefined);
 
     await onboardingCompleted({ subject: SUBJECT } as unknown as EventPayload, CTX as EventContext);
 
     expect(transactWriteSpy).toHaveBeenCalledTimes(1);
     const call = transactWriteSpy.mock.calls[0][0];
-    expect(call.TransactItems).toHaveLength(7);
+    expect(call.TransactItems).toHaveLength(3);
+    expect(call.TransactItems[0].Put.Item.__typename).toBe('InvestorProfile');
+    expect(call.TransactItems[1].Put.Item.__typename).toBe('MandateStatus');
+    expect(call.TransactItems[2].Put.Item.__typename).toBe('Deposit');
   });
 
-  it('writes 6 items when capitalAmount is 0 (no Deposit)', async () => {
+  it('writes 2 items when capitalAmount is 0 (no Deposit row)', async () => {
     transactWriteSpy.mockResolvedValueOnce(undefined);
 
     await onboardingCompleted(
@@ -77,23 +83,28 @@ describe('onboardingCompleted transform', () => {
     );
 
     const call = transactWriteSpy.mock.calls[0][0];
-    expect(call.TransactItems).toHaveLength(6);
+    expect(call.TransactItems).toHaveLength(2);
+    expect(call.TransactItems[0].Put.Item.__typename).toBe('InvestorProfile');
+    expect(call.TransactItems[1].Put.Item.__typename).toBe('MandateStatus');
   });
 
-  it('item 0 is a Put for InvestorProfile (no Update, no attribute_exists precondition)', async () => {
+  it('item 0 is a Put for InvestorProfile (no Update, no attribute_exists precondition — race-safe)', async () => {
     transactWriteSpy.mockResolvedValueOnce(undefined);
 
     await onboardingCompleted({ subject: SUBJECT } as unknown as EventPayload, CTX as EventContext);
 
     const item0 = transactWriteSpy.mock.calls[0][0].TransactItems[0];
-    expect(item0.Put).toBeDefined();
+    expect(item0).toHaveProperty('Put');
+    expect(item0.Put.Item.sk).toBe('InvestorProfile');
+    expect(item0.Put.Item.__typename).toBe('InvestorProfile');
     expect(item0.Update).toBeUndefined();
     // Critically: no ConditionExpression — the Put is unconditional so it
     // succeeds whether or not USER_REGISTERED has projected the row first.
+    // Idempotent overwrite of any sparse user-registered row is race-safe by design.
     expect(item0.Put.ConditionExpression).toBeUndefined();
   });
 
-  it('item 0 InvestorProfile carries email from the ONBOARDING_COMPLETED subject', async () => {
+  it('item 0 InvestorProfile composite row carries email + nested goal/riskProfile/mandate from ONBOARDING_COMPLETED subject', async () => {
     transactWriteSpy.mockResolvedValueOnce(undefined);
 
     await onboardingCompleted({ subject: SUBJECT } as unknown as EventPayload, CTX as EventContext);
@@ -110,22 +121,27 @@ describe('onboardingCompleted transform', () => {
       region: 'us-east-1',
     });
     expect(item0.Put.Item.onboardingCompletedAt).toBeDefined();
+    // Phase 1: goal, riskProfile, mandate are now NESTED on the composite row,
+    // not separate sibling rows.
+    expect(item0.Put.Item.goal).toMatchObject({ objective: SUBJECT.goal.objective });
+    expect(item0.Put.Item.riskProfile).toMatchObject({ score: expect.any(Number) });
+    expect(item0.Put.Item.mandate).toMatchObject({ status: 'ACTIVE' });
   });
 
-  it('Mandate item is present with DISCRETIONARY level for production tenants', async () => {
+  it('mandate.level is DISCRETIONARY for production tenants (nested on composite row)', async () => {
     transactWriteSpy.mockResolvedValueOnce(undefined);
 
     await onboardingCompleted({ subject: SUBJECT } as unknown as EventPayload, CTX as EventContext);
 
-    const items = transactWriteSpy.mock.calls[0][0].TransactItems;
-    const mandate = items.find((it: { Put?: { Item?: { __typename?: string } } }) => it.Put?.Item?.__typename === 'Mandate');
-    expect(mandate).toBeDefined();
-    expect(mandate.Put.Item.level).toBe('DISCRETIONARY');
-    expect(mandate.Put.Item.tenantId).toBe(SUBJECT.tenantId);
-    expect(mandate.Put.Item.userId).toBe(SUBJECT.userId);
+    const item0 = transactWriteSpy.mock.calls[0][0].TransactItems[0];
+    expect(item0.Put.Item.__typename).toBe('InvestorProfile');
+    expect(item0.Put.Item.mandate.level).toBe('DISCRETIONARY');
+    expect(item0.Put.Item.mandate.tenantId).toBeUndefined(); // mandate is a nested object on InvestorProfile, not a separate row with its own tenantId
+    expect(item0.Put.Item.tenantId).toBe(SUBJECT.tenantId);
+    expect(item0.Put.Item.userId).toBe(SUBJECT.userId);
   });
 
-  it('Mandate level is ADVISORY for e2e tenants (forces L2 user-confirmation flow until agents emit proposed trades)', async () => {
+  it('mandate.level is ADVISORY for e2e tenants (forces L2 user-confirmation flow until agents emit proposed trades)', async () => {
     transactWriteSpy.mockResolvedValueOnce(undefined);
 
     const e2eSubject = { ...SUBJECT, tenantId: 'e2e-1777999999999' };
@@ -134,9 +150,8 @@ describe('onboardingCompleted transform', () => {
       { ...CTX, tenantId: e2eSubject.tenantId } as EventContext,
     );
 
-    const items = transactWriteSpy.mock.calls[0][0].TransactItems;
-    const mandate = items.find((it: { Put?: { Item?: { __typename?: string } } }) => it.Put?.Item?.__typename === 'Mandate');
-    expect(mandate).toBeDefined();
-    expect(mandate.Put.Item.level).toBe('ADVISORY');
+    const item0 = transactWriteSpy.mock.calls[0][0].TransactItems[0];
+    expect(item0.Put.Item.__typename).toBe('InvestorProfile');
+    expect(item0.Put.Item.mandate.level).toBe('ADVISORY');
   });
 });
