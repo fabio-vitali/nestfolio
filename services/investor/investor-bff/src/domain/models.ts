@@ -22,61 +22,71 @@ export type NotificationStatus =
 
 /** Risk profile for an investor, derived from onboarding questionnaire. */
 export interface RiskProfile {
-  readonly profileId: string;
-  readonly tenantId: string;
   readonly score: number;
   readonly band: {
     readonly minEquity: number;
     readonly maxEquity: number;
   };
-  readonly assessedAt: string;
-  readonly version: number;
+  readonly toleranceResponse: 'cautious' | 'neutral' | 'bold';
+  readonly experienceLevel: 'beginner' | 'intermediate' | 'expert';
 }
 
 /** Investment goal set by the investor. */
 export interface Goal {
-  readonly goalId: string;
-  readonly tenantId: string;
   readonly objective: string;
   readonly targetAmountCents: number;
   readonly currency: string;
   readonly timeHorizonMonths: number;
   readonly targetReturn: number;
-  readonly createdAt: string;
-  readonly updatedAt: string;
 }
 
 /** Mandate defines the rules under which the advisory engine can act. */
 export interface Mandate {
   readonly mandateId: string;
-  readonly tenantId: string;
   readonly level: MandateLevel;
   readonly monthlyTurnoverCapPercent: number;
   readonly maxSingleTradePercent: number;
-  readonly coolDownDays: number;
+  readonly equityRiskBandPercent: number;
+  readonly driftTriggerPercent: number;
+  readonly singleEtfConcentrationPercent: number;
+  readonly drawdownCircuitBreakerPercent: number;
   readonly rebalanceCadence: RebalanceCadence;
   readonly effectiveDate: string;
   readonly revokedAt: string | null;
-  readonly version: number;
+  readonly status: 'ACTIVE' | 'REVOKED';
 }
 
-/** Full investor profile aggregate. */
+/** Account funding mode (simulation vs live capital). */
+export interface AccountMode {
+  readonly mode: 'simulation' | 'live';
+  readonly capitalAmount: number;
+  readonly currency: string;
+}
+
+/** Full investor profile aggregate (composite single-row shape). */
 export interface InvestorProfile {
   readonly tenantId: string;
-  readonly name: string;
+  readonly userId: string;
   readonly email: string;
-  readonly age: number;
-  readonly locale: string;
   readonly operatingMode: OperatingMode;
   readonly executionMode: ExecutionMode;
+  readonly accountMode: AccountMode;
+  readonly goal: Goal;
   readonly riskProfile: RiskProfile;
-  readonly goals: ReadonlyArray<Goal>;
-  readonly mandate: Mandate | null;
-  readonly monthlyContributionCents: number;
-  readonly currency: string;
+  readonly mandate: Mandate;
   readonly onboardingCompletedAt: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+/** Mandate lifecycle status row — single row per (tenantId, userId). */
+export interface MandateStatus {
+  readonly tenantId: string;
+  readonly userId: string;
+  readonly status: 'ACCEPTED' | 'REVOKED';
+  readonly acceptedAt: string;
+  readonly revokedAt: string | null;
+  readonly region: string;
 }
 
 /** Written to DDB when the investor switches execution mode; triggers EXECUTION_MODE_CHANGED via CDC. */
