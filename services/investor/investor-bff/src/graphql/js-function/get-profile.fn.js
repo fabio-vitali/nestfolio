@@ -3,11 +3,33 @@ import * as ddb from '@aws-appsync/utils/dynamodb';
 
 export function request(ctx) {
   const { tenantId, userId } = ctx.stash;
-  return ddb.get({ key: { pk: `InvestorProfile#${tenantId}#${userId}`, sk: 'InvestorProfile' } });
+  const pk = `InvestorProfile#${tenantId}#${userId}`;
+  return ddb.batchGet({
+    tables: {
+      [ctx.stash.tableName]: {
+        keys: [
+          { pk, sk: 'InvestorProfile' },
+          { pk, sk: 'MandateStatus' },
+        ],
+      },
+    },
+  });
 }
 
 export function response(ctx) {
   if (ctx.error) util.error(ctx.error.message, ctx.error.type);
-  if (!ctx.result) util.error('Profile not found', 'NotFound');
-  return ctx.result;
+  const items = (ctx.result && ctx.result.data && ctx.result.data[ctx.stash.tableName]) || [];
+  let profile = null;
+  let mandateStatus = null;
+  for (const item of items) {
+    if (!item) continue;
+    if (item.sk === 'InvestorProfile') profile = item;
+    else if (item.sk === 'MandateStatus') mandateStatus = item;
+  }
+  if (!profile) util.error('Profile not found', 'NotFound');
+  if (mandateStatus && profile.mandate) {
+    profile.mandate.status = mandateStatus.status;
+    profile.mandate.revokedAt = mandateStatus.revokedAt;
+  }
+  return profile;
 }
