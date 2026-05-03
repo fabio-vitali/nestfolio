@@ -8,8 +8,8 @@
 - **Scope contract.** Every spec/plan must have an explicit §"Out of scope" before execution starts. Out-of-scope failures during validation default to *file-and-continue*, not pivot.
 - **Boundary review.** At each workstream ship, spend 5 min re-ranking PARKING LOT and promoting items to QUEUED if they've grown teeth.
 
-Last reviewed: 2026-05-02 (after Spec 5 ship — decision-update broadcast pipeline operational).
-Updated 2026-05-02: Spec 5 partial-ship. Step 10 (Confirm button → WSS broadcast) demonstrably resolved by `feat/decision-broadcast`; Step 9 (decision-list empty on first query) is a separate timing issue, refiled in QUEUED.
+Last reviewed: 2026-05-03 (after multi-SF entry retired-as-misdiagnosed — see below).
+Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retired. Diagnostic on 5 fresh SF starts (tenant `e2e-1777762060562`, 22:48–22:49 UTC 2026-05-02) showed 5 distinct trigger events (1× RISK_PROFILE_CREATED + 1× MANDATE_CREATED + 1× GOAL_CREATED + 2× DEPOSIT_DETECTED), each with unique `triggerEventId` + `decisionId`. Per `services/advisory/decision-workflow-ctrl/src/handlers/event-listener.ts:22-28` and `flows/advisory-cycle.flow.yaml` Phase 1b (`idempotent: false`), N triggers → N SF executions is **architectural intent**, not a bug. Refiled the real underlying problems below.
 
 ---
 
@@ -23,26 +23,26 @@ Updated 2026-05-02: Spec 5 partial-ship. Step 10 (Confirm button → WSS broadca
 
 Ordered by priority. Top of list = what to start next.
 
-### `[bug]` Multi-SF execution race per single decision trigger
+### `[design]` Onboarding completion fan-out (3 decision cycles → 1)
 
-**Done when:** a single deposit/decision-triggering event produces exactly ONE Step Function execution and ONE `DecisionReadModel` row in advisory-bff per tenant. Validated by an integration test that fires one `DEPOSIT_DETECTED` (or equivalent upstream trigger) and asserts `aws stepfunctions list-executions` returns count 1 within 60s, AND `getPendingDecisions` returns exactly 1 item.
+**Done when:** completing onboarding for a new user produces ONE decision cycle (one SF execution, one DecisionReadModel row), not three. Validated by an integration test that fires the onboarding-complete sequence (Risk + Mandate + Goal all atomic-batch in `services/investor/investor-bff/src/transforms/onboarding-completed.ts`) and asserts SF execution count = 1 within 60s.
 
-**Status:** Surfaced 2026-05-02 during diagnostic of original Pattern B Step 9 e2e gate Run 3 failure. Tenant `e2e-1777759287358` (Run 3 of the original gate at ~22:02 UTC) produced **5 SF executions** (started 22:02:39 ×3, 22:02:54, 22:03:13) and **3 `DecisionReadModel` rows** (decisionIds `62c643f7…`, `15117943…`, `26aebfa5…`) from a single test trigger. Real money: each successful agent chain costs ~4 LLM invocations × multiple agents = direct Bedrock spend. Earlier docs claimed the dual-`DECISION_PACKET_CREATED` emitter race was closed by Spec 2 (advisory-ctrl removal) — this evidence shows it's back, replicated to triple, or never fully closed.
+**Status:** Surfaced 2026-05-03 as the real signal under the retired multi-SF entry. Onboarding's atomic-batch transactWrite emits 3 distinct DDB INSERTs in the same millisecond; CDC fans out to 3 separate trigger events; `decision-workflow-ctrl` materialises 3 WorkflowTriggers; SF starts 3 chains. Each chain is ~4 LLM agents on Bedrock — concrete real-money waste of ~3× per fresh user. Also drives the Step 9 decision-list empty-state UX bug (PARKING LOT, line 141): dashboard counter goes 0 → 3 immediately on onboarding-complete, but the cycles take 30–75s each to project, so the user sees an inconsistent counter+list pair.
 
-**Concrete evidence:**
-- SF executions list (filter `dev-decision-workflow-ctrl-decisionstatemachine` 2026-05-02T22:02-22:04 UTC) shows 5 starts within 34 seconds for one test tenant.
-- DDB scan of `dev-advisory-bff-StateTable962DE04C-1VGXL2KZX3AUM` filtered by `tenantId = e2e-1777759287358` shows 3 distinct decisionIds.
-- Aggregate cost across all 676 historical SF executions on this state machine since 2026-04-20: 499 FAILED, 147 RUNNING-stuck, 15 SUCCEEDED, 15 TIMED_OUT (only 2.2% reach a successful terminal state — and many of the failures may also be duplicates that ran to expensive completion before failing).
+**Design questions to settle before code:**
+- Should `decision-workflow-ctrl` debounce per-tenant within an N-second window (e.g., latest-trigger-wins, or merge-into-one composite trigger)?
+- Should the ingress collapse the 3 onboarding triggers into a single synthetic `ONBOARDING_COMPLETED` trigger emitted once?
+- Should `investor-bff/transforms/onboarding-completed.ts` emit a single composite event upstream instead of 3 DDB INSERTs that CDC then fans out?
+- What's the right behaviour when the user later updates their Risk profile separately — still trigger 1 cycle, or skip if a recent cycle already covered the same content?
 
-**Hypotheses (none verified):**
-- broker-detect / investor-bff emitting multiple `DEPOSIT_DETECTED` events per single deposit (upstream fan-out).
-- decision-workflow-ctrl ingress fan-out on event ingestion (one event → multiple SF starts).
-- Cross-domain adapter forwarding the same event multiple times.
-- SF retry storm on transient transient downstream Lambda failure (each retry = new execution, not a continuation).
+**References:**
+- `docs/architecture/SYSTEM-ARCHITECTURE.md` §13 (Decision Lifecycle End-to-End) — defines what one decision cycle is and where the trigger fan-out happens
+- `docs/architecture/SERVICE-INVENTORY.md` § `decision-workflow-ctrl` (orchestrator owning SF + WorkflowTrigger materialisation), § `investor-bff` (origin of the 3 onboarding atomic-batch DDB INSERTs)
+- `flows/advisory-cycle.flow.yaml` Phase 1 (trigger materialisation; explicitly flagged `idempotent: false  # duplicate WORKFLOW_TRIGGER_CREATED events start duplicate executions`)
+- `flows/investor-onboarding.flow.yaml` (where the 3 events get emitted)
+- Code: `services/advisory/decision-workflow-ctrl/src/handlers/event-listener.ts:22-28`, `services/investor/investor-bff/src/transforms/onboarding-completed.ts`
 
-**Cheapest next step:** pick one of the 5 stuck Run 3 executions (e.g., the one starting 22:02:54 — execution name contains a correlationId). Compare the `correlationId` portion across all 5: if identical, it's an ingestion fan-out (same event triggering N starts); if all different, it's N upstream events.
-
-**Topic memory:** `project_playwright_e2e_ui.md` (mentions "dual `DECISION_PACKET_CREATED` emitter race"); `project_decision_workflow_stuck.md`.
+**Topic memory:** `project_decision_workflow_stuck.md` (compliance/SF context); `project_playwright_e2e_ui.md` (Run 3 evidence of 5 SFs / 3 DRMs).
 
 ---
 
@@ -93,6 +93,12 @@ Ordered by priority. Top of list = what to start next.
 
 **Done when:** AGGRESSIVE/BALANCED/CONSERVATIVE actually drives portfolio-engine + advisory-narrative behavior.
 
+**References:**
+- `docs/architecture/SYSTEM-ARCHITECTURE.md` §14 (Operating Modes & Guardrails) — canonical definition of the 3 modes + how they interact with mandate + agent behavior
+- `docs/architecture/SERVICE-INVENTORY.md` § `portfolio-engine-ctrl` + § `advisory-narrative-ctrl` (the two consumers that need mode-driven behavior), § `investor-bff` (where mode is captured at onboarding + emitted via `OPERATING_MODE_CHANGED`)
+- `flows/advisory-cycle.flow.yaml` Phases 2c (PortfolioEngine) + 2d (AdvisoryNarrative) — where mode would gate agent behavior
+- Code: `services/investor/investor-bff/src/transforms/onboarding-completed.ts` (mandate level branch by mode), agent-factory in `libs/agent-orchestrator`
+
 **Topic memory:** `project_operating_mode.md`.
 
 ---
@@ -100,6 +106,12 @@ Ordered by priority. Top of list = what to start next.
 ### `[design]` Integration test mock resilience
 
 **Status:** DESIGN IN PROGRESS (2026-04-16). FakeLlm via env var in agent-factory; StateResetFixture for stale state; SsmOverride verification.
+
+**References:** *Test-infrastructure design — arch docs do not apply directly. Canonical references are the libs being modified:*
+- `libs/integration-testing/` — current EventBusTrap, TableAssertions, MockApiFixture, resilience helpers
+- `libs/test-support/` — TestContext, CognitoFixture, EventBridgeClient, AppSyncClient
+- `libs/agent-orchestrator/src/agent-factory.ts` — single LLM injection point (see MEMORY.md technical note "single LLM injection point — `createAgentNode()` line 20")
+- `docs/architecture/SYSTEM-ARCHITECTURE.md` §11 (Idempotency & Safety Rules) — *tangential*, the resilience tests check these properties
 
 **Topic memory:** `project_mock_resilience.md`.
 
@@ -140,6 +152,8 @@ One-liners for things surfaced but not yet adopted as a workstream. Promote to Q
 - **Bump `tsconfig.base.json` `lib` from ES2022 → ES2023** to enable `.toSpliced` / `.toReversed` / `.with` and other immutable array methods workspace-wide. Surfaced 2026-05-02 during Task 6 review of `feat/decision-list-pattern-b` — `apps/advisory-mfe/src/app/decision-list/decision-list.component.ts:194` could read more clearly as `current.toSpliced(idx, 1)` than `current.filter((_, i) => i !== idx)`. Workspace-scope change touching every project's type-checking; not Task 6 scope. Promote when at least one more caller would benefit.
 - **`/advisory` shows empty state when `pendingDecisionsCount > 0` and the list query is empty** — UX bug. Real users clicking the dashboard alert immediately can hit this when the agent pipeline (advisory-bff projection) lags the dashboard counter by 30–75s. Surfaced 2026-05-02 during Pattern B Step 9 e2e gate (Run 3 fail). Patched test-side via `apps/nestfolio-e2e/src/fixtures/wait-for-advisory-projection.ts` Step 8 wait. Proper fix: when `dashboard.pendingDecisionsCount() > 0` AND `decisions().length === 0`, show a loading shimmer / "agent is generating recommendations…" instead of `advisory.list.emptyTitle`. Touch points: `apps/advisory-mfe/src/app/decision-list/decision-list.component.ts` template @if branches + read of dashboard count via shared store or fresh query. Promote when the test-side patch becomes load-bearing in CI or user-testing surfaces the empty-state confusion.
 - **`publishDecisionUpdate` omits decision-detail null fields** — `PUBLISH_DECISION_UPDATE` in `services/advisory/advisory-bff/src/handlers/decision-publisher.ts` sets only {decisionId, tenantId, status, trigger, explanation, proposedTrades, version, createdAt, updatedAt}. `confirmedAt`/`rejectedAt`/`rejectionReason`/`confirmationRequired` arrive as null at decision-detail's `onDecisionUpdate` handler, which calls `store.setDecision(updated)` (replace, not merge — `apps/advisory-mfe/src/app/decision/decision-detail.component.ts:380`). Latent: any IAM-published mid-cycle frame would erase those fields. Currently masked because `confirmDecision`/`rejectDecision` re-broadcast via DDB readback. Surfaced 2026-05-02 during decision-list Pattern B workstream.
+- **Verify whether `DEPOSIT_DETECTED` is double-emitted upstream** — diagnostic 2026-05-03 (tenant `e2e-1777762060562`) showed 2 distinct `DEPOSIT_DETECTED` events in 15s with different `depositId`s (`0ee4082f…` EUR 500 and `76b39b5f…` USD 5000). Could be intentional e2e (two test deposits) OR a real upstream double-emit (broker-sim/investor-bff fan-out). To verify: cross-check `apps/nestfolio-e2e/` test step that initiates deposit — does it call `initiateDeposit` once or twice? If once, the upstream is dup-emitting and is a real bug worth promoting. If twice, by-design and drop. ~10 min check.
+- **Add SF-start idempotency by `executionName = decisionId`** — `services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts` Orchestration construct currently lets AWS auto-name SF executions (we observed format `{uuid}_{uuid}`), and `flows/advisory-cycle.flow.yaml` Phase 1b explicitly flags `idempotent: false  # duplicate WORKFLOW_TRIGGER_CREATED events start duplicate executions`. Setting `executionName` to the trigger's `decisionId` (= `triggerEventId`) would make AWS reject same-name duplicate StartExecution calls within 90 days. Cheap defense against any upstream double-emit OR EB at-least-once redelivery. Won't help with the legitimate-N-triggers case (each has a unique decisionId), but closes the architectural `idempotent: false` flag and removes a class of failure that's currently silently undetectable. Promote if the deposit-double-emit verification (above) confirms an upstream bug, OR if EB redelivery storms become observable.
 - **Sweep stale local branches + unused worktrees** — as of 2026-05-02 the local clone has 16 unmerged-named `feat/` `refactor/` `docs/` branches plus 2 worktrees (`.worktrees/ledger-domain` for `feature/ledger-domain-restructure` at `079f005b`, `.worktrees/playwright-e2e` for `feat/playwright-e2e-ui` at `20971554`). Most appear shipped per MEMORY.md "Recently Completed Work" (a2-frontend-deps, b1-cloudfront, b2-federation, b4-shell, c-cleanup-and-playwright, d-mfe-deploy, f-loadmfe, g-feature-flags, agentcore-transport, integration-test-resilience, real-money-ops, etc.) but `git branch -d` may refuse if they're squash-merged or rebased (not direct ancestors of `main`). For each branch: cross-check against MEMORY.md / `git log` on main for the corresponding ship commit, then `git branch -D` if confirmed shipped, or `git rebase main && git branch -d` if cleanly forward. For worktrees: `git worktree remove .worktrees/<name>` after confirming no uncommitted work in each. Sole-dev project — no risk of stomping a teammate. ~15 min chore. Promote when the long branch list becomes friction (tab-completion noise, accidental checkout of a stale branch).
 
 ---
@@ -150,6 +164,7 @@ Compact list — full prose lives in user auto-memory `MEMORY.md` § "Recently C
 
 | Date | Item | Commit |
 |---|---|---|
+| 2026-05-03 | Multi-SF execution race entry retired-as-misdiagnosed (refiled as onboarding fan-out + 2 PARKING LOT items) | (this conversation) |
 | 2026-05-02 | Decision-list Pattern B (Step 9 5/5 gate green) | `feat/decision-list-pattern-b` |
 | 2026-05-02 | Spec 5 — decision-update broadcast pipeline (Step 10 unblocked; Step 9 refiled) | `feat/decision-broadcast` |
 | 2026-05-01 | Spec 4 — recover originating specs (§21 OQ #11) | (this commit) |

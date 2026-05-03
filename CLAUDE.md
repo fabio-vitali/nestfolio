@@ -74,6 +74,8 @@ Before starting any task below, invoke the corresponding skill FIRST:
 
 **Before starting any spec/plan/implementation:** confirm the active workstream is reflected in `docs/BACKLOG.md` ACTIVE. If it isn't, update it first.
 
+**Every `[design]` BACKLOG entry MUST include a `**References:**` line** citing the relevant `docs/architecture/SYSTEM-ARCHITECTURE.md` §X / `docs/architecture/SERVICE-INVENTORY.md` §Service / `flows/*.flow.yaml` it depends on. Topic memories + code paths are complementary, not a substitute. **Adoption of a `[design]` entry to ACTIVE requires verifying every cited reference still matches code** (one read pass — grep the file, compare to ground truth). **If any reference is stale, fix the doc layer FIRST**; do not start design on top of incorrect arch docs. This rule exists because design specs that read against drifted docs ship wrong solutions.
+
 **Every spec or plan MUST have an explicit §"Out of scope" section** before execution begins. If a spec/plan lacks one, propose one as the first step.
 
 **When an out-of-scope finding surfaces during execution** (a separate bug, a tangential improvement, a future refactor), default to *file-and-continue*:
