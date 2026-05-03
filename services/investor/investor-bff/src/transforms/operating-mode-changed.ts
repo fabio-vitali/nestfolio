@@ -1,5 +1,4 @@
-import { update, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
-import { resolveGuardrailParams } from '../domain/guardrail-params';
+import { project, getTime, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 
 interface OperatingModeChangedSubject {
   tenantId: string;
@@ -9,18 +8,22 @@ interface OperatingModeChangedSubject {
 
 export function operatingModeChanged(
   payload: EventPayload,
-  _ctx: EventContext,
+  ctx: EventContext,
 ): WriteIntent {
   const s = payload.subject as unknown as OperatingModeChangedSubject;
-  const params = resolveGuardrailParams(s.mode);
-
-  return update('Mandate', {
-    ...params,
-    operatingMode: s.mode,
-  }, {
-    overrides: {
-      pk: `InvestorProfile#${s.tenantId}#${s.userId}`,
-      sk: 'Mandate',
+  const tenantId = s.tenantId ?? ctx.tenantId;
+  const userId = s.userId ?? ctx.userId;
+  const now = getTime();
+  const pk = `InvestorProfile#${tenantId}#${userId}`;
+  return project(
+    'InvestorProfile',
+    {
+      tenantId,
+      userId,
+      operatingMode: s.mode,
+      updatedAt: now,
+      timestamp: now,
     },
-  });
+    { pk, sk: 'InvestorProfile' },
+  );
 }
