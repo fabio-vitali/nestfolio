@@ -15,15 +15,9 @@ Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retire
 
 ## ACTIVE
 
-*(none — between workstreams; pick from QUEUED)*
-
----
-
-## QUEUED
-
-Ordered by priority. Top of list = what to start next.
-
 ### `[design]` Onboarding completion fan-out (3 decision cycles → 1)
+
+**Adopted to ACTIVE:** 2026-05-03. References verified against code (event-listener.ts:22-28 + TRIGGER_EVENT_TYPES subscribes to all 3 onboarding events with `decisionId: ctx.eventId` per event; onboarding-completed.ts emits the 3 atomic-batch Puts; flows/advisory-cycle.flow.yaml Phase 1b carries the explicit `idempotent: false` flag). Currently in **design phase** via `design-data-flow` skill.
 
 **Done when:** completing onboarding for a new user produces ONE decision cycle (one SF execution, one DecisionReadModel row), not three. Validated by an integration test that fires the onboarding-complete sequence (Risk + Mandate + Goal all atomic-batch in `services/investor/investor-bff/src/transforms/onboarding-completed.ts`) and asserts SF execution count = 1 within 60s.
 
@@ -45,6 +39,10 @@ Ordered by priority. Top of list = what to start next.
 **Topic memory:** `project_decision_workflow_stuck.md` (compliance/SF context); `project_playwright_e2e_ui.md` (Run 3 evidence of 5 SFs / 3 DRMs).
 
 ---
+
+## QUEUED
+
+Ordered by priority. Top of list = what to start next.
 
 ### `[e2e]` Journey Step 8 — WSS dashboard subscription bug
 
@@ -154,6 +152,7 @@ One-liners for things surfaced but not yet adopted as a workstream. Promote to Q
 - **`publishDecisionUpdate` omits decision-detail null fields** — `PUBLISH_DECISION_UPDATE` in `services/advisory/advisory-bff/src/handlers/decision-publisher.ts` sets only {decisionId, tenantId, status, trigger, explanation, proposedTrades, version, createdAt, updatedAt}. `confirmedAt`/`rejectedAt`/`rejectionReason`/`confirmationRequired` arrive as null at decision-detail's `onDecisionUpdate` handler, which calls `store.setDecision(updated)` (replace, not merge — `apps/advisory-mfe/src/app/decision/decision-detail.component.ts:380`). Latent: any IAM-published mid-cycle frame would erase those fields. Currently masked because `confirmDecision`/`rejectDecision` re-broadcast via DDB readback. Surfaced 2026-05-02 during decision-list Pattern B workstream.
 - **Verify whether `DEPOSIT_DETECTED` is double-emitted upstream** — diagnostic 2026-05-03 (tenant `e2e-1777762060562`) showed 2 distinct `DEPOSIT_DETECTED` events in 15s with different `depositId`s (`0ee4082f…` EUR 500 and `76b39b5f…` USD 5000). Could be intentional e2e (two test deposits) OR a real upstream double-emit (broker-sim/investor-bff fan-out). To verify: cross-check `apps/nestfolio-e2e/` test step that initiates deposit — does it call `initiateDeposit` once or twice? If once, the upstream is dup-emitting and is a real bug worth promoting. If twice, by-design and drop. ~10 min check.
 - **Add SF-start idempotency by `executionName = decisionId`** — `services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts` Orchestration construct currently lets AWS auto-name SF executions (we observed format `{uuid}_{uuid}`), and `flows/advisory-cycle.flow.yaml` Phase 1b explicitly flags `idempotent: false  # duplicate WORKFLOW_TRIGGER_CREATED events start duplicate executions`. Setting `executionName` to the trigger's `decisionId` (= `triggerEventId`) would make AWS reject same-name duplicate StartExecution calls within 90 days. Cheap defense against any upstream double-emit OR EB at-least-once redelivery. Won't help with the legitimate-N-triggers case (each has a unique decisionId), but closes the architectural `idempotent: false` flag and removes a class of failure that's currently silently undetectable. Promote if the deposit-double-emit verification (above) confirms an upstream bug, OR if EB redelivery storms become observable.
+- **`MANDATE_UPDATED` missing from `TRIGGER_EVENT_TYPES`** — `services/advisory/decision-workflow-ctrl/src/domain/events.ts:34-46` lists 11 trigger events; `MANDATE_UPDATED` is not among them, although `MANDATE_CREATED`, `GOAL_UPDATED`, `RISK_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED` all are. Result: a user editing their mandate (level change, turnover-cap edit, etc.) emits `MANDATE_UPDATED` via investor-bff Egress (`services/investor/investor-bff/src/service.stack.ts:72-73`) and advisory-adpt forwards it (`services/advisory/advisory-adpt/src/service.stack.ts:42` lists `MANDATE_UPDATED` in `fromInvestorEvents`) but decision-workflow-ctrl does not subscribe → no re-cycle. Surfaced 2026-05-03 during onboarding-fanout design Q2 follow-up. Cheap fix: add `eventName('MANDATE_UPDATED')` to TRIGGER_EVENT_TYPES + add to advisory-cycle.flow.yaml Phase 1 list. Promote when a real mandate-edit UI flow needs to trigger a re-cycle.
 - **Sweep stale local branches + unused worktrees** — as of 2026-05-02 the local clone has 16 unmerged-named `feat/` `refactor/` `docs/` branches plus 2 worktrees (`.worktrees/ledger-domain` for `feature/ledger-domain-restructure` at `079f005b`, `.worktrees/playwright-e2e` for `feat/playwright-e2e-ui` at `20971554`). Most appear shipped per MEMORY.md "Recently Completed Work" (a2-frontend-deps, b1-cloudfront, b2-federation, b4-shell, c-cleanup-and-playwright, d-mfe-deploy, f-loadmfe, g-feature-flags, agentcore-transport, integration-test-resilience, real-money-ops, etc.) but `git branch -d` may refuse if they're squash-merged or rebased (not direct ancestors of `main`). For each branch: cross-check against MEMORY.md / `git log` on main for the corresponding ship commit, then `git branch -D` if confirmed shipped, or `git rebase main && git branch -d` if cleanly forward. For worktrees: `git worktree remove .worktrees/<name>` after confirming no uncommitted work in each. Sole-dev project — no risk of stomping a teammate. ~15 min chore. Promote when the long branch list becomes friction (tab-completion noise, accidental checkout of a stale branch).
 
 ---
