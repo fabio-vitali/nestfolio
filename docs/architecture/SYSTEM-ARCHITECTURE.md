@@ -184,7 +184,7 @@ Cite: `services/advisory/compliance-ctrl/src/`. Reference flows: `flows/advisory
 - `DetailType` — the branded event name (e.g. `DECISION_PACKET_CREATED`).
 - `Detail` — JSON with `tenantId`, `subject`, `context`, payload-specific fields.
 
-The branded `EventName` type lives at `libs/event-types/src/index.ts:2`. Event names are **free-form** strings — there is no closed suffix set (per user-memory `feedback_event_naming_freedom.md`). Names are typically `<DOMAIN>_<NOUN>_<VERB-PAST>` (e.g. `MANDATE_DEFINED`, `DECISION_PACKET_CREATED`) but the pattern is convention, not enforcement.
+The branded `EventName` type lives at `libs/event-types/src/index.ts:2`. Event names are **free-form** strings — there is no closed suffix set (per user-memory `feedback_event_naming_freedom.md`). Names are typically `<DOMAIN>_<NOUN>_<VERB-PAST>` (e.g. `INVESTOR_PROFILE_CREATED`, `DECISION_PACKET_CREATED`) but the pattern is convention, not enforcement.
 
 **Intra-domain vs cross-domain.** Intra-domain events flow directly on the owning bus. Cross-domain delivery goes through the receiving domain's `*-adpt` adapter (§18), which subscribes to upstream buses and republishes onto the consumer bus (sometimes with a rename to scope-strip the upstream prefix).
 
@@ -192,9 +192,9 @@ The branded `EventName` type lives at `libs/event-types/src/index.ts:2`. Event n
 
 | Category | Examples |
 |---|---|
-| User & Mandate | `INVESTOR_REGISTERED`, `MANDATE_DEFINED`, `OPERATING_MODE_CHANGED` |
+| User & Mandate | `INVESTOR_REGISTERED`, `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_ACCEPTED`, `MANDATE_REVOKED` |
 | Portfolio State | `POSITION_OPENED`, `POSITION_CLOSED`, `PORTFOLIO_DRIFT_DETECTED` |
-| Decision & Planning | `WORKFLOW_TRIGGER_CREATED`, `DECISION_PACKET_CREATED`, `DECISION_PACKET_UPDATED`, `RECOMMENDATION_PROPOSED`, `RECOMMENDATION_APPROVED` |
+| Decision & Planning | `DECISION_PACKET_CREATED`, `DECISION_PACKET_UPDATED`, `RECOMMENDATION_PROPOSED`, `RECOMMENDATION_APPROVED` |
 | Execution | `ORDER_INTENT_CREATED`, `ORDER_FILLED`, `ORDER_FAILED` |
 | Reporting & Explainability | `EXPLANATION_RECORDED`, `AGENT_TRACE_RECORDED` |
 | Control Plane | `INCIDENT_OPENED`, `CIRCUIT_BREAKER_TRIPPED`, `MODEL_PROMOTED`, `TENANT_BUDGET_EXCEEDED` |
@@ -270,8 +270,15 @@ The dashboard-bff projection serves the Investor home dashboard and broadcasts v
 Linear traversal of the canonical advisory cycle. For wire-level steps, see `flows/advisory-cycle.flow.yaml`.
 
 ```
-WORKFLOW_TRIGGER_CREATED              (event from drift / schedule / deposit / mode-change)
-   ↓  (decision-workflow-ctrl ingress)
+Trigger events                         (one of 7 — direct EB → SF, no aggregator)
+   • INVESTOR_PROFILE_CREATED          (onboarding)
+   • INVESTOR_PROFILE_UPDATED          (mandate / mode / goal / risk change)
+   • PORTFOLIO_DRIFT_DETECTED          (reconciliation sweep)
+   • ORDER_FILLED                      (post-trade re-evaluation)
+   • ORDER_REJECTED                    (broker rejection)
+   • ORDER_CANCELLED                   (cancellation)
+   • DEPOSIT_DETECTED                  (cash-in)
+   ↓  (decision-workflow-ctrl ingress, EB → SF directly)
 SF.StartExecution                     (decision-workflow state machine)
    ↓  (4 parallel branches)
 InvokeAgentRuntime × 4                (investor-profile, market-intelligence, portfolio-engine, advisory-narrative)
