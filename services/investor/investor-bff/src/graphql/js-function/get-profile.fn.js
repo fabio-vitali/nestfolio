@@ -22,9 +22,10 @@ export function response(ctx) {
   let profile = null;
   let mandateStatus = null;
   for (const item of items) {
-    if (!item) continue;
-    if (item.sk === 'InvestorProfile') profile = item;
-    else if (item.sk === 'MandateStatus') mandateStatus = item;
+    if (item) {
+      if (item.sk === 'InvestorProfile') profile = item;
+      else if (item.sk === 'MandateStatus') mandateStatus = item;
+    }
   }
   if (!profile) util.error('Profile not found', 'NotFound');
   if (mandateStatus && profile.mandate) {

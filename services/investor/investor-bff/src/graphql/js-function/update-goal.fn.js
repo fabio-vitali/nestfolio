@@ -11,10 +11,11 @@ export function request(ctx) {
   const values = { ':now': now };
 
   for (const [key, val] of Object.entries(input)) {
-    if (val === undefined || val === null) continue;
-    updates.push(`goal.#${key} = :${key}`);
-    names[`#${key}`] = key;
-    values[`:${key}`] = val;
+    if (val !== undefined && val !== null) {
+      updates.push(`goal.#${key} = :${key}`);
+      names[`#${key}`] = key;
+      values[`:${key}`] = val;
+    }
   }
   updates.push('updatedAt = :now');
 
