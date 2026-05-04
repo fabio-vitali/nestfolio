@@ -217,18 +217,28 @@ describe('investor-bff', () => {
 
       // Wait for the composite InvestorProfile row's `mandate` group to appear
       // (last-written attribute in the transactWrite Put — its presence is the
-      // strongest signal the composite row is hydrated).
+      // strongest signal the composite row is hydrated). Single long poll —
+      // jest's auto-retry would otherwise re-fire ONBOARDING_COMPLETED, turning
+      // the second Put into a CDC MODIFY (INVESTOR_PROFILE_UPDATED) instead of
+      // INSERT (INVESTOR_PROFILE_CREATED) and breaking the event assertion below.
       let profileItem: Record<string, unknown> | undefined;
-      const deadline = Date.now() + 60_000;
+      const deadline = Date.now() + 90_000;
       while (Date.now() < deadline) {
-        profileItem = await table.waitForItem({
-          table: 'investor-bff',
-          pk,
-          sk: 'InvestorProfile',
-          timeoutMs: 5_000,
-        });
-        if (profileItem['mandate']) break;
+        try {
+          profileItem = await table.waitForItem({
+            table: 'investor-bff',
+            pk,
+            sk: 'InvestorProfile',
+            timeoutMs: 5_000,
+          });
+          if (profileItem['mandate']) break;
+        } catch {
+          // Row not yet materialized — keep polling within outer deadline.
+        }
         await new Promise((r) => setTimeout(r, 2_000));
+      }
+      if (!profileItem || !profileItem['mandate']) {
+        throw new Error(`InvestorProfile row with mandate group did not appear within 90s for pk=${pk}`);
       }
 
       // Composite assertions — ONE row, nested groups
@@ -288,15 +298,25 @@ describe('investor-bff', () => {
 
       // Event assertions — composite row → INVESTOR_PROFILE_CREATED;
       // MandateStatus row → MANDATE_ACCEPTED. NEVER per-field events.
-      const buffered = await trap.drain();
-      const eventTypes = buffered.map((e) => e.detailType);
-      expect(eventTypes).toEqual(
-        expect.arrayContaining(['INVESTOR_PROFILE_CREATED', 'MANDATE_ACCEPTED']),
-      );
-      expect(eventTypes).not.toContain('GOAL_CREATED');
-      expect(eventTypes).not.toContain('RISK_PROFILE_CREATED');
-      expect(eventTypes).not.toContain('MANDATE_CREATED');
-      expect(eventTypes).not.toContain('OPERATING_MODE_SELECTED');
+      // waitForEvent polls SQS in a loop, robust to SQS-sample races where
+      // a single drain() may not surface all messages.
+      const created = await trap.waitForEvent({
+        detailType: 'INVESTOR_PROFILE_CREATED',
+        timeoutMs: 60_000,
+      });
+      const accepted = await trap.waitForEvent({
+        detailType: 'MANDATE_ACCEPTED',
+        timeoutMs: 60_000,
+      });
+      expect(created.detailType).toBe('INVESTOR_PROFILE_CREATED');
+      expect(accepted.detailType).toBe('MANDATE_ACCEPTED');
+
+      // Drain residual events to assert legacy per-field events are NOT emitted.
+      const residual = (await trap.drain()).map((e) => e.detailType);
+      expect(residual).not.toContain('GOAL_CREATED');
+      expect(residual).not.toContain('RISK_PROFILE_CREATED');
+      expect(residual).not.toContain('MANDATE_CREATED');
+      expect(residual).not.toContain('OPERATING_MODE_SELECTED');
     }, 180_000);
 
     it('should set executionMode to live on GO_LIVE_CONFIRMED', async () => {
