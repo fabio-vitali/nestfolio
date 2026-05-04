@@ -8,7 +8,9 @@ Stack: services/advisory/compliance-ctrl/src/service.stack.ts
 
 ## Ingress
 - advisoryBus → compliance-ctrl-ingress (SQS → Lambda)
-  Subscriptions: RECOMMENDATION_PROPOSED, MANDATE_CREATED, MANDATE_UPDATED, OPERATING_MODE_CHANGED
+  Subscriptions: RECOMMENDATION_PROPOSED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_REVOKED
+
+Post-collapse: legacy MANDATE_CREATED + MANDATE_UPDATED + OPERATING_MODE_CHANGED replaced by INVESTOR_PROFILE_CREATED + INVESTOR_PROFILE_UPDATED + MANDATE_REVOKED. The composite events carry the mandate sub-payload that MandateSnapshot is projected from; MANDATE_REVOKED sets MandateSnapshot.status='REVOKED' which the rule engine short-circuits on.
 
 ## Egress
 - CDC: DynamoDB Streams → compliance-ctrl-egress (Lambda)
@@ -19,8 +21,8 @@ Stack: services/advisory/compliance-ctrl/src/service.stack.ts
 ## Handlers
 - event-listener.ts — Ingress event handler
   - RECOMMENDATION_PROPOSED: loads MandateSnapshot from DDB, runs RuleEngine (MandateValidator + GuardrailEvaluator + SuitabilityChecker + AuthorityResolver), writes ComplianceCheck + AuditArtifact records. Requires `taskToken` on subject (SF callback to decision-workflow-ctrl on DECISION_APPROVED|BLOCKED). Throws NotRetryableError if taskToken missing or required fields absent.
-  - MANDATE_CREATED / MANDATE_UPDATED: projects GuardrailPolicy (MandateSnapshot) with 8 guardrail fields (level, monthlyTurnoverCapPercent, maxSingleTradePercent, equityRiskBandPercent, driftTriggerPercent, singleEtfConcentrationPercent, drawdownCircuitBreakerPercent, effectiveDate/revokedAt)
-  - OPERATING_MODE_CHANGED: skip (no-op)
+  - INVESTOR_PROFILE_CREATED / INVESTOR_PROFILE_UPDATED: projects GuardrailPolicy (MandateSnapshot) with 8 guardrail fields (level, monthlyTurnoverCapPercent, maxSingleTradePercent, equityRiskBandPercent, driftTriggerPercent, singleEtfConcentrationPercent, drawdownCircuitBreakerPercent, effectiveDate). Reads `mandate` + `operatingMode` from the composite payload.
+  - MANDATE_REVOKED: sets MandateSnapshot.status='REVOKED' + revokedAt; MandateValidator's REVOKED gate short-circuits the rule engine for any subsequent RECOMMENDATION_PROPOSED.
 - event-publisher.ts — Egress CDC publisher
 
 ## Event Types (domain/events.ts)
@@ -37,4 +39,4 @@ Stack: services/advisory/compliance-ctrl/src/service.stack.ts
 - test/integration/compliance-ctrl.integration.test.ts
 
 ## Dependencies
-- libs: cdk-constructs (core), event-processor, decision-workflow-ctrl/events, advisory-adpt/domain
+- libs: cdk-constructs (core), event-processor, decision-workflow-ctrl/events, advisory-adpt/domain, investor-bff/events

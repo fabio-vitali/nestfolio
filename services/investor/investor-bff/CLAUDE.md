@@ -4,46 +4,47 @@ Domain: investor | Bus: InvestorBus
 Stack: services/investor/investor-bff/src/service.stack.ts
 
 ## State
-- Table (DynamoDB, streams enabled)
+- Table (DynamoDB, streams enabled). InvestorProfile is a **single composite row** (sk='InvestorProfile') holding goal, riskProfile, operatingMode, mandate, accountMode, executionMode, onboardingCompletedAt. MandateStatus is a sibling lifecycle row (sk='MandateStatus') with status='ACCEPTED' | 'REVOKED'.
 
 ## Ingress
-- InvestorBus → investor-bff-ingress (SQS → Lambda)
-  Subscriptions: USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED, OPERATING_MODE_CHANGED, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED
+- InvestorBus → investor-bff-Ingress (SQS → Lambda, event-listener.ts)
+  Subscriptions: USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED, GO_LIVE_CONFIRMED
+- InvestorBus → investor-bff-BroadcastIngress (SQS → Lambda, broadcast-listener.ts)
+  Subscriptions: BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, DEPOSIT_DETECTED
 
-## Egress
-- CDC: DynamoDB Streams → investor-bff-egress (Lambda)
-  Emits:
-  - Goal → GOAL_CREATED (insert), GOAL_UPDATED (modify)
-  - RiskProfile → RISK_PROFILE_CREATED (insert), RISK_PROFILE_UPDATED (modify)
-  - Mandate → MANDATE_CREATED (insert), MANDATE_UPDATED (modify)
-  - OperatingModeRecord → OPERATING_MODE_SELECTED (insert), OPERATING_MODE_CHANGED (modify)
-  - InvestorProfile → INVESTOR_PROFILE_CREATED (insert), INVESTOR_PROFILE_UPDATED (modify)
+## Egress (CDC, 6 entity types — collapsed from 9)
+- DynamoDB Streams → investor-bff-egress (Lambda)
+- Declarative `eventTypes` map:
+  - InvestorProfile (composite row) → INVESTOR_PROFILE_CREATED (insert), INVESTOR_PROFILE_UPDATED (modify)
+  - MandateStatus → MANDATE_ACCEPTED (insert), MANDATE_REVOKED (modify)
   - Deposit → DEPOSIT_INITIATED (insert), DEPOSIT_UPDATED (modify)
   - Withdrawal → WITHDRAWAL_REQUESTED (insert), WITHDRAWAL_UPDATED (modify)
   - ExecutionModeChange → EXECUTION_MODE_CHANGED (insert), EXECUTION_MODE_CHANGE_UPDATED (modify)
-  - Notification → NOTIFICATION_READ (modify)
+  - Notification → NOTIFICATION_READ (modify only)
+
+Note: legacy per-entity rows (Goal, RiskProfile, Mandate, OperatingModeRecord, AccountMode) and their CDC events (GOAL_*, RISK_PROFILE_*, MANDATE_CREATED/UPDATED, OPERATING_MODE_*) are removed — the composite row now carries those fields and a single INVESTOR_PROFILE_UPDATED event covers all profile mutations.
 
 ## Facade
 - AppSync GraphQL API with JS resolvers (discoverJsResolvers)
   - enableIamAuth: true (allows Lambda→AppSync IAM-signed mutations for feature flags)
-  - Query: get-profile, get-goals, get-notifications, get-unread-count, get-feature-flags
-  - Mutation: update-goal, update-mandate, revoke-mandate, initiate-deposit, request-withdrawal, request-account-closure (noneDataSource), update-feature-flag (@aws_iam), mark-notification-read
-  - Subscription: on-notification (@aws_subscribe on markNotificationRead), on-feature-flag-update (@aws_subscribe on updateFeatureFlag)
-  - Pipeline steps: check-feature-flag.fn.js gates initiateDeposit + requestWithdrawal
+  - Query: getProfile, getNotifications, getUnreadCount, getFeatureFlags
+  - Mutation: updateGoal(input), updateMandate, revokeMandate (returns MandateStatus), initiateDeposit, requestWithdrawal, requestAccountClosure (noneDataSource), updateFeatureFlag (@aws_iam), markNotificationRead
+  - Subscription: onNotification (@aws_subscribe on markNotificationRead), onFeatureFlagUpdate (@aws_subscribe on updateFeatureFlag)
+  - Pipeline preSteps: check-feature-flag.fn.js gates initiateDeposit + requestWithdrawal
+- revokeMandate resolver issues a single UpdateItem on the MandateStatus row (status='REVOKED', revokedAt) — CDC then emits MANDATE_REVOKED. No write to InvestorProfile.
 
 ## Handlers
-- event-listener.ts — materializes USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED, OPERATING_MODE_CHANGED; GO_LIVE_CONFIRMED sets execution mode; BROKER_CIRCUIT_OPEN disables 3 feature flags (confirmDecision, initiateDeposit, requestWithdrawal) via IAM-signed AppSync mutation; BROKER_CIRCUIT_CLOSED re-enables same flags
-- event-publisher.ts — CDC (changeDataCapture)
+- event-listener.ts — materializes USER_REGISTERED, NOTIFICATION_CREATED, BALANCE_UPDATED, ONBOARDING_COMPLETED (transactWrite: composite InvestorProfile + MandateStatus + conditional Deposit), GO_LIVE_CONFIRMED (sets executionMode='live' on the composite row)
+- broadcast-listener.ts — BROKER_CIRCUIT_OPEN disables 3 feature flags (confirmDecision, initiateDeposit, requestWithdrawal) via IAM-signed AppSync mutation; BROKER_CIRCUIT_CLOSED re-enables them; DEPOSIT_DETECTED published to investor-facing notification flow
+- event-publisher.ts — CDC (changeDataCapture) using the declarative eventTypes map
 
 ## Feature Flags (Circuit Breaker)
-- BROKER_CIRCUIT_OPEN handler: calls updateFeatureFlag(enabled: false) for confirmDecision, initiateDeposit, requestWithdrawal
-- BROKER_CIRCUIT_CLOSED handler: calls updateFeatureFlag(enabled: true) for same flags
+- BroadcastIngress handler env: APPSYNC_URL (from facade.graphqlUrl)
+- BroadcastIngress IAM: appsync:GraphQL grant on Facade API
 - AppSync mutations signed via @smithy/signature-v4 + @aws-crypto/sha256-js
-- Ingress handler env: APPSYNC_URL (from facade.graphqlUrl)
-- Ingress handler IAM: appsync:GraphQL grant on Facade API
 
 ## Event Types (domain/events.ts)
-- InvestorBffEventTypes: USER_REGISTERED, USER_AUTHENTICATED, USER_SESSION_EXPIRED, USER_DELETION_REQUESTED, PII_REMOVED, TENANT_ANONYMIZED, ONBOARDING_ANSWER_RECORDED, ONBOARDING_COMPLETED, GOAL_CREATED, GOAL_UPDATED, RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED, MANDATE_CREATED, MANDATE_UPDATED, MANDATE_REVOKED, OPERATING_MODE_SELECTED, OPERATING_MODE_CHANGED, DEPOSIT_INITIATED, WITHDRAWAL_REQUESTED, ACCOUNT_CLOSURE_REQUESTED, ACCOUNT_CLOSED, BROKER_AUTHORIZATION_REVOKED, NOTIFICATION_READ, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, GO_LIVE_CONFIRMED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, DEPOSIT_UPDATED, WITHDRAWAL_UPDATED, EXECUTION_MODE_CHANGED, EXECUTION_MODE_CHANGE_UPDATED
+InvestorBffEventTypes: USER_REGISTERED, USER_AUTHENTICATED, USER_SESSION_EXPIRED, USER_DELETION_REQUESTED, PII_REMOVED, TENANT_ANONYMIZED, ONBOARDING_ANSWER_RECORDED, ONBOARDING_COMPLETED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_ACCEPTED, MANDATE_REVOKED, DEPOSIT_INITIATED, DEPOSIT_UPDATED, WITHDRAWAL_REQUESTED, WITHDRAWAL_UPDATED, ACCOUNT_CLOSURE_REQUESTED, ACCOUNT_CLOSED, BROKER_AUTHORIZATION_REVOKED, NOTIFICATION_READ, EXECUTION_MODE_CHANGED, EXECUTION_MODE_CHANGE_UPDATED, GO_LIVE_CONFIRMED, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED
 
 ## MFE Hosting
 - MfeBucket (mfeKey=investor): S3 bucket "{account}-{prefix}-nestfolio-mfe-investor"
@@ -57,10 +58,10 @@ Stack: services/investor/investor-bff/src/service.stack.ts
 - mfe/key
 
 ## Tests
-- Unit: handlers/event-listener.test.ts, repositories/investor-profile.repository.test.ts, transforms/balance-updated.test.ts, transforms/user-registered.test.ts, transforms/notification-created.test.ts, transforms/onboarding-completed.test.ts, transforms/operating-mode-changed.test.ts, domain/guardrail-params.test.ts
-- Integration: investor-bff.integration.test.ts (materializations, AppSync mutations, AppSync queries, circuit breaker feature flags)
+- Unit: handlers/event-listener.test.ts, repositories/investor-profile.repository.test.ts, transforms/balance-updated.test.ts, transforms/user-registered.test.ts, transforms/notification-created.test.ts, transforms/onboarding-completed.test.ts, domain/guardrail-params.test.ts, graphql/* (resolver fn unit tests)
+- Integration: investor-bff.integration.test.ts (composite-row materialization, AppSync mutations including revokeMandate, AppSync queries, circuit breaker feature flags)
 
 ## Dependencies
 - libs: cdk-constructs/core, event-processor
-- cross-domain imports: investor-ctrl/events, ledger-adpt/domain
+- cross-domain imports: investor-ctrl/events, investor-adpt/domain
 - runtime deps: @smithy/signature-v4, @aws-crypto/sha256-js (for IAM-signed AppSync calls)
