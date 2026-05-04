@@ -18,9 +18,10 @@ import {
  * by driving the compliance-ctrl pipeline directly.
  *
  * Flow:
- *   1. onboarded(mode, mandateLevel: 'DISCRETIONARY') → investor-bff writes Mandate
- *      with mode-derived guardrail params → CDC emits MANDATE_CREATED →
- *      investor-adpt → advisory-adpt → compliance-ctrl materializes MandateSnapshot.
+ *   1. onboarded(mode, mandateLevel: 'DISCRETIONARY') → investor-bff writes the
+ *      composite InvestorProfile row with mode-derived guardrail params on
+ *      mandate.* → CDC emits INVESTOR_PROFILE_CREATED → advisory-adpt forwards
+ *      to AdvisoryBus → compliance-ctrl materializes MandateSnapshot.
  *   2. Synthetic RECOMMENDATION_PROPOSED on advisory bus carrying a controlled
  *      proposedTrade size + a unique decisionPacketId + a fake taskToken.
  *   3. compliance-ctrl ingests, runs RuleEngine, writes ComplianceCheck record.
