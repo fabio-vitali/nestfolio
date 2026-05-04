@@ -40,6 +40,8 @@ egress: "Egress" {
   processor -> bus: Publish
 }
 
+decision-publisher: "Lambda\n[DecisionPublisher]" { class: aws-lambda }
+
 # Flows
 facade.resolvers -> state.table: Read/Write
 ingress.handler -> state.table: Read/Write

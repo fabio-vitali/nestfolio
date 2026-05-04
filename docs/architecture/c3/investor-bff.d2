@@ -14,7 +14,19 @@ facade: "Facade" {
 
 ingress: "Ingress" {
   style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
-  rule: "EventBridge Rule\n[8 events]" { class: aws-eventbridge }
+  rule: "EventBridge Rule\n[5 events]" { class: aws-eventbridge }
+  sqs: "SQS Queue" { class: aws-sqs }
+  dlq: "DLQ" { class: aws-dlq }
+  handler: "Lambda" { class: aws-lambda }
+
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
+}
+
+broadcast-ingress: "BroadcastIngress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+  rule: "EventBridge Rule\n[3 events]" { class: aws-eventbridge }
   sqs: "SQS Queue" { class: aws-sqs }
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
@@ -43,4 +55,5 @@ egress: "Egress" {
 # Flows
 facade.resolvers -> state.table: Read/Write
 ingress.handler -> state.table: Read/Write
+broadcast-ingress.handler -> state.table: Read/Write
 state.stream -> egress.processor: Trigger

@@ -23,34 +23,24 @@ steps:
     to: AdvisoryBus
     via: advisory-adpt EB rule (AdvisoryIngress-FromLedger, DLQ FromLedgerDLQ 14d)
 
-  # Step 3: decision-workflow-ctrl materializes trigger to DDB
-  # Source: services/advisory/decision-workflow-ctrl/src/handlers/event-listener.ts
-  # All TRIGGER_EVENT_TYPES (including PORTFOLIO_DRIFT_DETECTED) -> triggerHandler -> record('WorkflowTrigger')
-  # Source: services/advisory/decision-workflow-ctrl/src/service.stack.ts (TriggerIngress + Egress)
+  # Step 3: decision-workflow-ctrl SF starts directly from EB → SF (Phase 2 collapse)
+  # Source: services/advisory/decision-workflow-ctrl/src/service.stack.ts (Orchestration.triggers)
+  # All TRIGGER_EVENT_TYPES (7) wired declaratively as native EB → SF targets — no
+  # TriggerIngress Lambda, no WorkflowTrigger DDB row, no WORKFLOW_TRIGGER_CREATED hop.
+  # SF entry state UnpackTriggerEnvelope mints decisionId via States.UUID() and unpacks
+  # tenantId/userId/region from the EB envelope's context block.
   - service: decision-workflow-ctrl
     receives: PORTFOLIO_DRIFT_DETECTED
-    via: AdvisoryBus → SQS → decision-workflow-ctrl-trigger-ingress
-    state_change: Writes WorkflowTrigger record (tenantId, decisionId, trigger, triggerEventId, context)
-    emits: WORKFLOW_TRIGGER (CDC from WorkflowTrigger insert)
-    idempotent: true
+    via: AdvisoryBus → EventBridge target → Step Functions (direct EB → SF)
+    state_change: SF execution starts; decisionId minted in UnpackTriggerEnvelope; no DDB write at trigger time
+    emits: nothing at this step (DecisionPacket row written by AssemblePacket later in the SF)
+    idempotent: AWS at-least-once redelivery is theoretical and unobserved post-collapse — each user/system action produces exactly one trigger event
 
-  # Step 3b: advisory-ctrl also receives drift event and runs inline agent lifecycle
-  # Source: services/advisory/advisory-ctrl/src/handlers/event-listener.ts
-  # handleTriggerEvent -> lifecycleService.executeDecisionLifecycle -> skip()
-  # Writes DecisionPacket + AgentInvocation + ReasoningOutput to DDB via repository
-  # Source: services/advisory/advisory-ctrl/src/service.stack.ts (Egress)
-  - service: advisory-ctrl
-    receives: PORTFOLIO_DRIFT_DETECTED
-    via: AdvisoryBus → SQS → advisory-ctrl-ingress
-    state_change: Runs inline LangGraph agent pipeline (4 agents), writes DecisionPacket + AgentInvocation records
-    emits: DECISION_PACKET (CDC from DecisionPacket insert)
-    idempotent: true
-
-  # Step 4: SF orchestration — WORKFLOW_TRIGGER CDC starts Step Functions
+  # Step 4: SF orchestration — Step Functions runs the 4-agent pipeline + compliance + user-confirm
   # Source: services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
-  # SF flow: ParallelProfiling (InvokeInvestorProfile || InvokeMarketIntelligence)
+  # SF flow: UnpackTriggerEnvelope → ParallelProfiling (InvokeInvestorProfile || InvokeMarketIntelligence)
   #        → InvokePortfolioEngine → InvokeAdvisoryNarrative → AssembleDecisionPacket
-  #        → PublishRecommendation → WaitForCompliance → ComplianceChoice
+  #        → WaitForCompliance → ComplianceChoice (BLOCKED | APPROVED+L1 | else → user confirm)
   # Each agent invocation publishes detailType to AdvisoryBus with waitForTaskToken
 
   # Step 4a: Parallel — investor-profile-ctrl + market-intelligence-ctrl
@@ -146,7 +136,7 @@ success_criteria:
 failure_modes:
   - step 1 fails: reconciliation-ctrl ingress DLQ; drift remains undetected
   - step 2 fails: advisory-adpt FromLedgerDLQ (14d retention); advisory domain not notified
-  - step 3 fails: decision-workflow-ctrl TriggerIngress DLQ; decision cycle not started
+  - step 3 fails: EventBridge → SF native target invocation fails or is throttled; decision cycle not started; trigger event sits on the source bus DLQ if a downstream rule failure cascades back
   - step 4a fails: agent invocation timeout (10 min); SF task token expires, workflow fails
   - step 4b fails: portfolio-engine-ctrl agent failure; SF task token expires
   - step 4c fails: advisory-narrative-ctrl agent failure; SF task token expires

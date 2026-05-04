@@ -4,7 +4,7 @@
 
 **Domains:** advisory, investor, execution
 
-**Trigger:** decision-workflow-ctrl TriggerIngress receives one of 9 trigger events (cross-domain via advisory-adpt)
+**Trigger:** decision-workflow-ctrl receives one of 7 trigger events directly (no TriggerIngress aggregator -- direct EventBridge -> Step Functions)
 
 ## Flowchart
 
@@ -69,7 +69,7 @@ sequenceDiagram
 
 ### Step 1: Cross-domain hop
 
-- **Event:** `MANDATE_CREATED | GOAL_CREATED | RISK_PROFILE_CREATED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED`
+- **Event:** `INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | MANDATE_ACCEPTED | MANDATE_REVOKED`
 - **From:** InvestorBus
 - **To:** AdvisoryBus
 - **Via:** advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
@@ -83,11 +83,12 @@ sequenceDiagram
 
 ### Step 3: decision-workflow-ctrl
 
-- **Receives:** `MANDATE_CREATED | GOAL_CREATED | RISK_PROFILE_CREATED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED`
-- **Via:** AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
-- **State change:** Creates WorkflowTrigger record in DDB with new decisionId; CDC fires on WorkflowTrigger:INSERT
-- **Emits:** `WORKFLOW_TRIGGER_CREATED (CDC, WorkflowTrigger:INSERT auto-expand)`
-- **Idempotent:** yes
+- **Receives:** `INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED`
+- **Via:** AdvisoryBus -> EB Rule -> SfnStateMachine target (Orchestration.triggers, direct)
+- **State change:** New DecisionStateMachine execution starts directly from the EventBridge target. The 7-event trigger list is wired declaratively on Orchestration.triggers; there is no TriggerIngress Lambda + WorkflowTrigger DDB row aggregator. Entry Pass state (UnpackTriggerEnvelope) flattens {subject.decisionId, subject.tenantId, context.userId, context.region} to top-level SF state so every downstream putEvents task state can emit the event-processor envelope ({id, type, timestamp, subject, context}).
+
+- **Emits:** `(none -- SF internal)`
+- **Idempotent:** no
 
 ### Step 4: decision-workflow-ctrl
 
@@ -276,7 +277,7 @@ sequenceDiagram
 
 ## Failure Modes
 
-- **step 1 (trigger ingestion) fails:** TriggerIngress DLQ; WorkflowTrigger not created; SF not started
+- **step 1 (trigger ingestion) fails:** EventBridge → SF native target invocation fails or is throttled; SF not started; trigger event sits on the source bus DLQ if a downstream rule failure cascades back
 - **step 2a/2b (parallel agents) fails:** Agent Lambda fails or times out (10min default); SF task token expires; branch fails
 - **step 2c (portfolio engine) fails:** SF task token timeout; PortfolioEngine branch fails
 - **step 2d (narrative agent) fails:** SF task token timeout; AdvisoryNarrative branch fails

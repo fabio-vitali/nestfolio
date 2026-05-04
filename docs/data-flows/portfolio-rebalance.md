@@ -16,7 +16,6 @@ flowchart TD
     end
     subgraph advisory["Advisory Domain"]
         decision_workflow_ctrl["decision-workflow-ctrl"]
-        advisory_ctrl["advisory-ctrl"]
         market_intelligence_ctrl["market-intelligence-ctrl"]
         portfolio_engine_ctrl["portfolio-engine-ctrl"]
         advisory_narrative_ctrl["advisory-narrative-ctrl"]
@@ -39,7 +38,6 @@ sequenceDiagram
     end
     box advisory domain
         participant decision_workflow_ctrl as decision-workflow-ctrl
-        participant advisory_ctrl as advisory-ctrl
         participant market_intelligence_ctrl as market-intelligence-ctrl
         participant portfolio_engine_ctrl as portfolio-engine-ctrl
         participant advisory_narrative_ctrl as advisory-narrative-ctrl
@@ -50,8 +48,7 @@ sequenceDiagram
     end
     Note over reconciliation_ctrl: Reconciliation detects position drift exceeding t…
     reconciliation_ctrl-)decision_workflow_ctrl: PORTFOLIO_DRIFT_DETECTED (LedgerBus → AdvisoryBus)
-    reconciliation_ctrl->>+advisory_ctrl: PORTFOLIO_DRIFT_DETECTED
-    advisory_ctrl->>+investor_profile_ctrl: ANALYZE_INVESTOR_PROFILE
+    decision_workflow_ctrl->>+investor_profile_ctrl: ANALYZE_INVESTOR_PROFILE
     investor_profile_ctrl->>+market_intelligence_ctrl: ANALYZE_MARKET
     market_intelligence_ctrl->>+portfolio_engine_ctrl: CONSTRUCT_PORTFOLIO
     portfolio_engine_ctrl->>+advisory_narrative_ctrl: GENERATE_NARRATIVE
@@ -78,20 +75,12 @@ sequenceDiagram
 ### Step 3: decision-workflow-ctrl
 
 - **Receives:** `PORTFOLIO_DRIFT_DETECTED`
-- **Via:** AdvisoryBus → SQS → decision-workflow-ctrl-trigger-ingress
-- **State change:** Writes WorkflowTrigger record (tenantId, decisionId, trigger, triggerEventId, context)
-- **Emits:** `WORKFLOW_TRIGGER (CDC from WorkflowTrigger insert)`
+- **Via:** AdvisoryBus → EventBridge target → Step Functions (direct EB → SF)
+- **State change:** SF execution starts; decisionId minted in UnpackTriggerEnvelope; no DDB write at trigger time
+- **Emits:** `nothing at this step (DecisionPacket row written by AssemblePacket later in the SF)`
 - **Idempotent:** yes
 
-### Step 4: advisory-ctrl
-
-- **Receives:** `PORTFOLIO_DRIFT_DETECTED`
-- **Via:** AdvisoryBus → SQS → advisory-ctrl-ingress
-- **State change:** Runs inline LangGraph agent pipeline (4 agents), writes DecisionPacket + AgentInvocation records
-- **Emits:** `DECISION_PACKET (CDC from DecisionPacket insert)`
-- **Idempotent:** yes
-
-### Step 5: investor-profile-ctrl
+### Step 4: investor-profile-ctrl
 
 - **Receives:** `ANALYZE_INVESTOR_PROFILE`
 - **Via:** AdvisoryBus → SQS → investor-profile-ctrl-ingress
@@ -99,7 +88,7 @@ sequenceDiagram
 - **Emits:** `GOAL_INTERPRETATION_PRODUCED (CDC from AgentInvocation insert)`
 - **Idempotent:** no
 
-### Step 6: market-intelligence-ctrl
+### Step 5: market-intelligence-ctrl
 
 - **Receives:** `ANALYZE_MARKET`
 - **Via:** AdvisoryBus → SQS → market-intelligence-ctrl-ingress
@@ -107,7 +96,7 @@ sequenceDiagram
 - **Emits:** `MARKET_SIGNAL_DETECTED (CDC from AgentInvocation insert)`
 - **Idempotent:** no
 
-### Step 7: portfolio-engine-ctrl
+### Step 6: portfolio-engine-ctrl
 
 - **Receives:** `CONSTRUCT_PORTFOLIO`
 - **Via:** AdvisoryBus → SQS → portfolio-engine-ctrl-ingress
@@ -115,7 +104,7 @@ sequenceDiagram
 - **Emits:** `PORTFOLIO_CONSTRUCTION_PROPOSED (CDC from AgentInvocation insert), REBALANCE_PLAN_PRODUCED (CDC from ReasoningOutput insert)`
 - **Idempotent:** no
 
-### Step 8: advisory-narrative-ctrl
+### Step 7: advisory-narrative-ctrl
 
 - **Receives:** `GENERATE_NARRATIVE`
 - **Via:** AdvisoryBus → SQS → advisory-narrative-ctrl-ingress
@@ -123,7 +112,7 @@ sequenceDiagram
 - **Emits:** `EXPLANATION_GENERATED (CDC from ReasoningOutput insert)`
 - **Idempotent:** no
 
-### Step 9: compliance-ctrl
+### Step 8: compliance-ctrl
 
 - **Receives:** `DECISION_PACKET_CREATED`
 - **Via:** AdvisoryBus → SQS → compliance-ctrl-ingress
@@ -131,14 +120,14 @@ sequenceDiagram
 - **Emits:** `COMPLIANCE_CHECK (CDC from ComplianceCheck insert), AUDIT_ARTIFACT (CDC from AuditArtifact insert)`
 - **Idempotent:** yes
 
-### Step 10: Cross-domain hop
+### Step 9: Cross-domain hop
 
 - **Event:** `DECISION_APPROVED`
 - **From:** AdvisoryBus
 - **To:** ExecutionBus
 - **Via:** execution-adpt EB rule (ExecutionIngress-FromAdvisory, DLQ FromAdvisoryDLQ 14d)
 
-### Step 11: execution-ctrl
+### Step 10: execution-ctrl
 
 - **Receives:** `DECISION_APPROVED`
 - **Via:** ExecutionBus → SQS → execution-ctrl-ingress
@@ -158,7 +147,7 @@ sequenceDiagram
 
 - **step 1 fails:** reconciliation-ctrl ingress DLQ; drift remains undetected
 - **step 2 fails:** advisory-adpt FromLedgerDLQ (14d retention); advisory domain not notified
-- **step 3 fails:** decision-workflow-ctrl TriggerIngress DLQ; decision cycle not started
+- **step 3 fails:** EventBridge → SF native target invocation fails or is throttled; decision cycle not started; trigger event sits on the source bus DLQ if a downstream rule failure cascades back
 - **step 4a fails:** agent invocation timeout (10 min); SF task token expires, workflow fails
 - **step 4b fails:** portfolio-engine-ctrl agent failure; SF task token expires
 - **step 4c fails:** advisory-narrative-ctrl agent failure; SF task token expires
