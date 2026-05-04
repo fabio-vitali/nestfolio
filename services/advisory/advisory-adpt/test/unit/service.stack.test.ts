@@ -22,7 +22,12 @@ describe('AdvisoryAdptStack', () => {
   it('ingests from investor bus', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({
-        'detail-type': Match.arrayWith(['GOAL_UPDATED']),
+        'detail-type': Match.arrayWith([
+          'INVESTOR_PROFILE_CREATED',
+          'INVESTOR_PROFILE_UPDATED',
+          'MANDATE_ACCEPTED',
+          'MANDATE_REVOKED',
+        ]),
       }),
     });
   });

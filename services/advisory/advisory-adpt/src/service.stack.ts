@@ -36,13 +36,10 @@ export class AdvisoryAdptStack extends ServiceStack {
       encryption: QueueEncryption.KMS_MANAGED,
     });
     const fromInvestorEvents = [
-      AdvisoryIngestEventTypes.GOAL_CREATED,
-      AdvisoryIngestEventTypes.GOAL_UPDATED,
-      AdvisoryIngestEventTypes.RISK_PROFILE_CREATED,
-      AdvisoryIngestEventTypes.RISK_PROFILE_UPDATED,
-      AdvisoryIngestEventTypes.OPERATING_MODE_CHANGED,
-      AdvisoryIngestEventTypes.MANDATE_CREATED,
-      AdvisoryIngestEventTypes.MANDATE_UPDATED,
+      AdvisoryIngestEventTypes.INVESTOR_PROFILE_CREATED,
+      AdvisoryIngestEventTypes.INVESTOR_PROFILE_UPDATED,
+      AdvisoryIngestEventTypes.MANDATE_ACCEPTED,
+      AdvisoryIngestEventTypes.MANDATE_REVOKED,
     ];
     const fromInvestorRule = new Rule(this, 'AdvisoryIngress-FromInvestor', {
       eventBus: investorBus,
