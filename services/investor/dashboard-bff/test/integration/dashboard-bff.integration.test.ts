@@ -36,19 +36,20 @@ describe('dashboard-bff', () => {
   // project() writes deterministic sk; record() writes sk: <typename>#<eventId>
 
   describe('event materializations', () => {
-    it('should materialize InvestorSnapshot on GOAL_CREATED', async () => {
+    it('should materialize InvestorSnapshot on INVESTOR_PROFILE_CREATED (composite payload)', async () => {
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
-        detailType: 'GOAL_CREATED',
+        detailType: 'INVESTOR_PROFILE_CREATED',
         detail: {
-          objective: 'GROWTH',
-          targetAmountCents: 500_000_00,
-          targetDate: '2030-01-01',
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          goal: { objective: 'GROWTH', targetAmountCents: 500_000_00 },
+          riskProfile: { score: 7 },
+          operatingMode: 'BALANCED',
         },
       });
 
-      // project('InvestorSnapshot', ...) → pk: T#<tenantId>, sk: InvestorSnapshot
       const item = await table.waitForItem({
         table: 'dashboard-bff',
         pk: `T#${ctx.tenantId}`,
@@ -59,75 +60,22 @@ describe('dashboard-bff', () => {
       expect(item['__typename']).toBe('InvestorSnapshot');
       expect(item['tenantId']).toBe(ctx.tenantId);
       expect(item['goalType']).toBe('GROWTH');
+      expect(item['riskLevel']).toBe('7');
+      expect(item['operatingMode']).toBe('BALANCED');
       expect(item['onboardedAt']).toBeDefined();
     }, 120_000);
 
-    it('should update InvestorSnapshot on RISK_PROFILE_CREATED', async () => {
+    it('should update InvestorSnapshot fields on INVESTOR_PROFILE_UPDATED', async () => {
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
-        detailType: 'RISK_PROFILE_CREATED',
+        detailType: 'INVESTOR_PROFILE_UPDATED',
         detail: {
-          score: 7,
-          category: 'MODERATE',
-        },
-      });
-
-      // Item already exists from prior GOAL_CREATED test — poll until riskLevel field appears
-      let item: Record<string, unknown> | undefined;
-      const deadline = Date.now() + 60_000;
-      while (Date.now() < deadline) {
-        item = await table.waitForItem({
-          table: 'dashboard-bff',
-          pk: `T#${ctx.tenantId}`,
-          sk: 'InvestorSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (item['riskLevel'] === '7') break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
-
-      expect(item!['__typename']).toBe('InvestorSnapshot');
-      expect(item!['riskLevel']).toBe('7');
-    }, 120_000);
-
-    it('should update InvestorSnapshot on OPERATING_MODE_SELECTED', async () => {
-      await eb.putEvent({
-        bus: 'investor',
-        targetService: 'dashboard-bff',
-        detailType: 'OPERATING_MODE_SELECTED',
-        detail: {
-          mode: 'BALANCED',
-        },
-      });
-
-      // Item already exists from prior GOAL_CREATED test — poll until operatingMode field appears
-      let item: Record<string, unknown> | undefined;
-      const deadline = Date.now() + 60_000;
-      while (Date.now() < deadline) {
-        item = await table.waitForItem({
-          table: 'dashboard-bff',
-          pk: `T#${ctx.tenantId}`,
-          sk: 'InvestorSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (item['operatingMode'] === 'BALANCED') break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
-
-      expect(item!['__typename']).toBe('InvestorSnapshot');
-      expect(item!['operatingMode']).toBe('BALANCED');
-    }, 120_000);
-
-    it('should update InvestorSnapshot on GOAL_UPDATED', async () => {
-      await eb.putEvent({
-        bus: 'investor',
-        targetService: 'dashboard-bff',
-        detailType: 'GOAL_UPDATED',
-        detail: {
-          objective: 'INCOME',
-          targetAmountCents: 1_000_000_00,
-          targetDate: '2035-01-01',
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          goal: { objective: 'INCOME', targetAmountCents: 1_000_000_00 },
+          riskProfile: { score: 9 },
+          operatingMode: 'AGGRESSIVE',
         },
       });
 
@@ -140,66 +88,13 @@ describe('dashboard-bff', () => {
           sk: 'InvestorSnapshot',
           timeoutMs: 5_000,
         });
-        if (item['goalType'] === 'INCOME') break;
+        if (item['goalType'] === 'INCOME' && item['riskLevel'] === '9' && item['operatingMode'] === 'AGGRESSIVE') break;
         await new Promise(r => setTimeout(r, 2_000));
       }
 
       expect(item!['__typename']).toBe('InvestorSnapshot');
       expect(item!['goalType']).toBe('INCOME');
-    }, 120_000);
-
-    it('should update InvestorSnapshot on RISK_PROFILE_UPDATED', async () => {
-      await eb.putEvent({
-        bus: 'investor',
-        targetService: 'dashboard-bff',
-        detailType: 'RISK_PROFILE_UPDATED',
-        detail: {
-          score: 9,
-          category: 'AGGRESSIVE',
-        },
-      });
-
-      let item: Record<string, unknown> | undefined;
-      const deadline = Date.now() + 60_000;
-      while (Date.now() < deadline) {
-        item = await table.waitForItem({
-          table: 'dashboard-bff',
-          pk: `T#${ctx.tenantId}`,
-          sk: 'InvestorSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (item['riskLevel'] === '9') break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
-
-      expect(item!['__typename']).toBe('InvestorSnapshot');
       expect(item!['riskLevel']).toBe('9');
-    }, 120_000);
-
-    it('should update InvestorSnapshot on OPERATING_MODE_CHANGED', async () => {
-      await eb.putEvent({
-        bus: 'investor',
-        targetService: 'dashboard-bff',
-        detailType: 'OPERATING_MODE_CHANGED',
-        detail: {
-          mode: 'AGGRESSIVE',
-        },
-      });
-
-      let item: Record<string, unknown> | undefined;
-      const deadline = Date.now() + 60_000;
-      while (Date.now() < deadline) {
-        item = await table.waitForItem({
-          table: 'dashboard-bff',
-          pk: `T#${ctx.tenantId}`,
-          sk: 'InvestorSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (item['operatingMode'] === 'AGGRESSIVE') break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
-
-      expect(item!['__typename']).toBe('InvestorSnapshot');
       expect(item!['operatingMode']).toBe('AGGRESSIVE');
     }, 120_000);
 
@@ -537,13 +432,17 @@ describe('dashboard-bff', () => {
 
     beforeAll(async () => {
       // 1. InvestorSnapshot — project() uses PutItem (full replace), so only the
-      //    LAST event's fields survive. Send OPERATING_MODE_SELECTED as the final
+      //    LAST event's fields survive. Send INVESTOR_PROFILE_UPDATED as the final
       //    InvestorSnapshot event; assert only its fields in the query test.
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
-        detailType: 'OPERATING_MODE_SELECTED',
-        detail: { mode: 'BALANCED' },
+        detailType: 'INVESTOR_PROFILE_UPDATED',
+        detail: {
+          goal: { goalType: 'RETIREMENT' },
+          riskProfile: { riskLevel: 'BALANCED' },
+          operatingMode: { mode: 'BALANCED' },
+        },
       });
       const deadline = Date.now() + 60_000;
       while (Date.now() < deadline) {
@@ -750,8 +649,10 @@ describe('dashboard-bff', () => {
       expect(result.getDashboard.portfolioSummary!.driftPercent).toBe(2.5);
 
       // investorSnapshot — project() uses PutItem (full replace), so only the last
-      // event's fields survive. OPERATING_MODE_SELECTED was sent last.
+      // event's fields survive. INVESTOR_PROFILE_UPDATED was sent last.
       expect(result.getDashboard.investorSnapshot).not.toBeNull();
+      expect(result.getDashboard.investorSnapshot!.goalType).toBe('RETIREMENT');
+      expect(result.getDashboard.investorSnapshot!.riskLevel).toBe('BALANCED');
       expect(result.getDashboard.investorSnapshot!.operatingMode).toBe('BALANCED');
     }, 60_000);
 
