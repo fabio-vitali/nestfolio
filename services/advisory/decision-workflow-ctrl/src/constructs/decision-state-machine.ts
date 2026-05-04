@@ -254,20 +254,28 @@ export class DecisionWorkflowDefinition extends Construct {
 
     const endSuccess = new sfn.Succeed(this, 'EndSuccess');
 
-    // --- Entry: unpack CDC envelope ({id,type,timestamp,subject,context}) into
+    // --- Entry: unpack EB envelope ({id,type,timestamp,subject,context}) into
     //     top-level {decisionId, tenantId, trigger, triggerContext} so downstream
-    //     states can reference $.decisionId and $.tenantId directly. ---
+    //     states can reference $.decisionId and $.tenantId directly.
+    //     Post-collapse (Phase 2): trigger events arrive directly from EB→SF
+    //     and do NOT carry a pre-generated decisionId — the legacy TriggerIngress
+    //     Lambda that minted one was removed. We generate a fresh decisionId here
+    //     via States.UUID() so each SF execution owns a stable ID for its
+    //     downstream agent invocations + DecisionPacket persistence.
+    //     `trigger` is the trigger event's detailType (e.g. DEPOSIT_DETECTED);
+    //     `triggerContext` carries the full trigger payload for downstream agents
+    //     that need fields beyond decisionId/tenantId/userId. ---
     const unpackTriggerEnvelope = new sfn.Pass(this, 'UnpackTriggerEnvelope', {
       parameters: {
-        'decisionId.$': '$.subject.decisionId',
-        'tenantId.$': '$.subject.tenantId',
+        'decisionId.$': 'States.UUID()',
+        'tenantId.$': '$.context.tenantId',
         // userId + region come from CDC envelope's top-level context — required by
         // libs/event-processor/src/engine/parse-sqs-record.ts envelope validation
         // on every downstream event we emit (agent invocations, compliance, user confirm).
         'userId.$': '$.context.userId',
         'region.$': '$.context.region',
-        'trigger.$': '$.subject.trigger',
-        'triggerContext.$': '$.subject.context',
+        'trigger.$': '$.type',
+        'triggerContext.$': '$.subject',
       },
     });
 
