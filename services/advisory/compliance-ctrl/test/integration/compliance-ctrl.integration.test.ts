@@ -288,8 +288,13 @@ describe('compliance-ctrl', () => {
 
   // ── REVOKED-blocks-cycle (rule engine gate) ──────────────────────────
   it('should return DECISION_BLOCKED with MANDATE_SCOPE violation on RECOMMENDATION_PROPOSED when MandateSnapshot.status=REVOKED', async () => {
+    // Per-test unique userId — isolates this scenario's MandateSnapshot from
+    // late-arriving lambda invocations of other tests' INVESTOR_PROFILE_CREATED
+    // (which would project the row back to ACTIVE and break the REVOKED gate).
+    const userId = `integ-user-revoked-${Date.now()}`;
     const mandateId = `integ-mandate-revoked-block-${Date.now()}`;
     const revokedAt = '2026-05-03T11:00:00.000Z';
+    const policyPk = `GuardrailPolicy#${ctx.tenantId}#${userId}`;
 
     // Seed ACTIVE snapshot
     await eb.putEvent({
@@ -298,7 +303,7 @@ describe('compliance-ctrl', () => {
       detailType: 'INVESTOR_PROFILE_CREATED',
       detail: {
         tenantId: ctx.tenantId,
-        userId: ctx.tenantId,
+        userId,
         mandate: {
           mandateId,
           level: 'DISCRETIONARY',
@@ -317,18 +322,24 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    // Wait for ACTIVE
+    // Wait for ACTIVE — try/catch swallows the inner waitForItem timeout so
+    // jest.retryTimes(1) doesn't double-fire the seed/revoke pair.
     let seeded: Record<string, unknown> | undefined;
-    const seedDeadline = Date.now() + 60_000;
+    const seedDeadline = Date.now() + 90_000;
     while (Date.now() < seedDeadline) {
-      seeded = await table.waitForItem({
-        table: 'compliance-ctrl',
-        pk: `GuardrailPolicy#${ctx.tenantId}#${ctx.tenantId}`,
-        sk: 'MandateSnapshot',
-        timeoutMs: 5_000,
-      });
-      if (seeded['mandateId'] === mandateId && seeded['status'] === 'ACTIVE') break;
+      try {
+        seeded = await table.waitForItem({
+          table: 'compliance-ctrl',
+          pk: policyPk,
+          sk: 'MandateSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (seeded['mandateId'] === mandateId && seeded['status'] === 'ACTIVE') break;
+      } catch { /* not yet */ }
       await new Promise((r) => setTimeout(r, 2_000));
+    }
+    if (!seeded || seeded['status'] !== 'ACTIVE') {
+      throw new Error(`MandateSnapshot did not reach ACTIVE for ${policyPk} within 90s`);
     }
 
     // Revoke
@@ -338,22 +349,24 @@ describe('compliance-ctrl', () => {
       detailType: 'MANDATE_REVOKED',
       detail: {
         tenantId: ctx.tenantId,
-        userId: ctx.tenantId,
+        userId,
         revokedAt,
       },
     });
 
     // Wait for REVOKED
     let revoked: Record<string, unknown> | undefined;
-    const revokeDeadline = Date.now() + 60_000;
+    const revokeDeadline = Date.now() + 90_000;
     while (Date.now() < revokeDeadline) {
-      revoked = await table.waitForItem({
-        table: 'compliance-ctrl',
-        pk: `GuardrailPolicy#${ctx.tenantId}#${ctx.tenantId}`,
-        sk: 'MandateSnapshot',
-        timeoutMs: 5_000,
-      });
-      if (revoked['status'] === 'REVOKED') break;
+      try {
+        revoked = await table.waitForItem({
+          table: 'compliance-ctrl',
+          pk: policyPk,
+          sk: 'MandateSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (revoked['status'] === 'REVOKED') break;
+      } catch { /* not yet */ }
       await new Promise((r) => setTimeout(r, 2_000));
     }
     expect(revoked!['status']).toBe('REVOKED');
@@ -366,6 +379,11 @@ describe('compliance-ctrl', () => {
       detailType: 'RECOMMENDATION_PROPOSED',
       detail: {
         decisionId,
+        // Pin userId so processDecisionPacket reads the same MandateSnapshot
+        // pk this test seeded above — otherwise it falls back to
+        // ctx.tenantId and misses the per-test row.
+        tenantId: ctx.tenantId,
+        userId,
         taskToken: `integ-task-token-${decisionId}`,
         awaitingCompliance: true,
         proposedTrades: [
@@ -384,7 +402,14 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    const event = await trap.waitForEvent({ timeoutMs: 90_000 });
+    const event = await trap.waitForEvent({
+      detailType: 'DECISION_BLOCKED',
+      match: (d) => {
+        const subject = (d as Record<string, unknown>).subject as Record<string, unknown>;
+        return subject?.['decisionPacketId'] === decisionId;
+      },
+      timeoutMs: 120_000,
+    });
     expect(event.detailType).toBe('DECISION_BLOCKED');
 
     const detail = event.detail as Record<string, unknown>;
