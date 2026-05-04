@@ -4,7 +4,7 @@
 
 **Domains:** advisory, investor, execution
 
-**Trigger:** decision-workflow-ctrl receives one of 7 trigger events directly (no TriggerIngress aggregator -- direct EventBridge -> Step Functions)
+**Trigger:** decision-workflow-ctrl receives one of 7 trigger events; EventBridge starts the Step Functions execution directly via a native target.
 
 ## Flowchart
 
@@ -85,7 +85,7 @@ sequenceDiagram
 
 - **Receives:** `INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED`
 - **Via:** AdvisoryBus -> EB Rule -> SfnStateMachine target (Orchestration.triggers, direct)
-- **State change:** New DecisionStateMachine execution starts directly from the EventBridge target. The 7-event trigger list is wired declaratively on Orchestration.triggers; there is no TriggerIngress Lambda + WorkflowTrigger DDB row aggregator. Entry Pass state (UnpackTriggerEnvelope) flattens {subject.decisionId, subject.tenantId, context.userId, context.region} to top-level SF state so every downstream putEvents task state can emit the event-processor envelope ({id, type, timestamp, subject, context}).
+- **State change:** New DecisionStateMachine execution starts directly from the EventBridge target. The 7-event trigger list is wired declaratively on Orchestration.triggers. Entry Pass state (UnpackTriggerEnvelope) mints decisionId via States.UUID() and flattens {context.tenantId, context.userId, context.region, type, subject} to top-level SF state so every downstream putEvents task state can emit the event-processor envelope ({id, type, timestamp, subject, context}).
 
 - **Emits:** `(none -- SF internal)`
 - **Idempotent:** no

@@ -17,10 +17,10 @@ flowchart TD
         dashboard_bff["dashboard-bff"]
     end
     subgraph advisory["Advisory Domain"]
-        advisory_ctrl["advisory-ctrl"]
+        decision_workflow_ctrl["decision-workflow-ctrl"]
     end
     reconciliation_ctrl -.->|"RECONCILIATION_COMPLETED"| dashboard_bff
-    dashboard_bff -.->|"PORTFOLIO_DRIFT_DETECTED"| advisory_ctrl
+    dashboard_bff -.->|"PORTFOLIO_DRIFT_DETECTED"| decision_workflow_ctrl
 ```
 
 ## Sequence Diagram
@@ -34,11 +34,11 @@ sequenceDiagram
         participant dashboard_bff as dashboard-bff
     end
     box advisory domain
-        participant advisory_ctrl as advisory-ctrl
+        participant decision_workflow_ctrl as decision-workflow-ctrl
     end
     Note over reconciliation_ctrl: CDC (Egress) processes DynamoDB Stream changes
     reconciliation_ctrl-)dashboard_bff: RECONCILIATION_COMPLETED (LedgerBus → InvestorBus)
-    dashboard_bff-)advisory_ctrl: PORTFOLIO_DRIFT_DETECTED (LedgerBus → AdvisoryBus)
+    dashboard_bff-)decision_workflow_ctrl: PORTFOLIO_DRIFT_DETECTED (LedgerBus → AdvisoryBus)
 ```
 
 ## Steps
@@ -105,12 +105,12 @@ sequenceDiagram
 - **To:** AdvisoryBus
 - **Via:** advisory-adpt EB rule (AdvisoryIngress-FromLedger)
 
-### Step 10: advisory-ctrl
+### Step 10: decision-workflow-ctrl
 
 - **Receives:** `PORTFOLIO_DRIFT_DETECTED`
-- **Action:** PORTFOLIO_DRIFT_DETECTED is one of the TRIGGER_EVENT_TYPES that invokes DecisionLifecycleService.executeDecisionLifecycle(), kicking off the advisory decision cycle (see advisory-cycle.flow.yaml).
-- **Via:** AdvisoryBus -> SQS -> advisory-ctrl-ingress
-- **State change:** Decision lifecycle creates DecisionPacket via agent orchestration
+- **Action:** PORTFOLIO_DRIFT_DETECTED is one of the 7 TRIGGER_EVENT_TYPES that start the decision Step Functions workflow directly from EventBridge. The SF runs the 4-agent pipeline + compliance check (see advisory-cycle.flow.yaml).
+- **Via:** AdvisoryBus -> EventBridge target -> Step Functions (direct EB -> SF)
+- **State change:** SF execution starts; decisionId minted in UnpackTriggerEnvelope
 - **Idempotent:** yes
 
 ## Success Criteria
@@ -119,7 +119,7 @@ sequenceDiagram
 - DriftRecord created per instrument where abs(drift) > 0.001
 - ReconciliationResult written with status COMPLETED or DRIFT_DETECTED and accurate driftCount
 - RECONCILIATION_COMPLETED reaches dashboard-bff and updates PortfolioSummary projection
-- PORTFOLIO_DRIFT_DETECTED reaches advisory-ctrl and triggers decision lifecycle (rebalance)
+- PORTFOLIO_DRIFT_DETECTED reaches decision-workflow-ctrl and triggers a Step Functions execution (rebalance)
 
 ## Failure Modes
 
@@ -128,4 +128,4 @@ sequenceDiagram
 - **step 7 fails:** investor-adpt FromLedgerDLQ; dashboard not updated with reconciliation status
 - **step 8 fails:** dashboard-bff ingress DLQ; portfolio summary stale
 - **step 9 fails:** advisory-adpt FromLedgerDLQ; rebalance not triggered
-- **step 10 fails:** advisory-ctrl ingress DLQ; decision lifecycle not started
+- **step 10 fails:** EventBridge → SF native target invocation fails or is throttled; decision cycle not started

@@ -101,23 +101,23 @@ steps:
     # Verified: LEDGER_PORTFOLIO_DRIFT_DETECTED (= 'PORTFOLIO_DRIFT_DETECTED') in AdvisoryIngestEventTypes
     # and advisory-adpt service.stack.ts AdvisoryIngress-FromLedger detailType array
 
-  - service: advisory-ctrl
+  - service: decision-workflow-ctrl
     receives: PORTFOLIO_DRIFT_DETECTED
-    via: AdvisoryBus -> SQS -> advisory-ctrl-ingress
-    handler: handleTriggerEvent (event-listener.ts)
+    via: AdvisoryBus -> EventBridge target -> Step Functions (direct EB -> SF)
+    handler: DecisionStateMachine.StartExecution (Orchestration.triggers)
     action: >-
-      PORTFOLIO_DRIFT_DETECTED is one of the TRIGGER_EVENT_TYPES that invokes
-      DecisionLifecycleService.executeDecisionLifecycle(), kicking off the
-      advisory decision cycle (see advisory-cycle.flow.yaml).
-    state_change: Decision lifecycle creates DecisionPacket via agent orchestration
-    idempotent: true
+      PORTFOLIO_DRIFT_DETECTED is one of the 7 TRIGGER_EVENT_TYPES that start
+      the decision Step Functions workflow directly from EventBridge. The SF
+      runs the 4-agent pipeline + compliance check (see advisory-cycle.flow.yaml).
+    state_change: SF execution starts; decisionId minted in UnpackTriggerEnvelope
+    idempotent: each user/system action produces exactly one trigger event
 
 success_criteria:
   - Intent and settlement positions compared for all instruments in the event payload
   - DriftRecord created per instrument where abs(drift) > 0.001
   - ReconciliationResult written with status COMPLETED or DRIFT_DETECTED and accurate driftCount
   - RECONCILIATION_COMPLETED reaches dashboard-bff and updates PortfolioSummary projection
-  - PORTFOLIO_DRIFT_DETECTED reaches advisory-ctrl and triggers decision lifecycle (rebalance)
+  - PORTFOLIO_DRIFT_DETECTED reaches decision-workflow-ctrl and triggers a Step Functions execution (rebalance)
 
 failure_modes:
   - step 4-5 fails: reconciliation-ctrl ingress DLQ; reconciliation not executed
@@ -125,4 +125,4 @@ failure_modes:
   - step 7 fails: investor-adpt FromLedgerDLQ; dashboard not updated with reconciliation status
   - step 8 fails: dashboard-bff ingress DLQ; portfolio summary stale
   - step 9 fails: advisory-adpt FromLedgerDLQ; rebalance not triggered
-  - step 10 fails: advisory-ctrl ingress DLQ; decision lifecycle not started
+  - step 10 fails: EventBridge → SF native target invocation fails or is throttled; decision cycle not started

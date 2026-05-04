@@ -17,45 +17,6 @@ Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retire
 
 _(none — last workstream shipped 2026-05-04; pick next from QUEUED)_
 
-### `[design]` Collapse InvestorProfile to single-row CQRS BFF read model — SHIPPED 2026-05-04
-
-**Adopted to ACTIVE:** 2026-05-03 (pivoted from "Onboarding fan-out 3 → 1" — see Recently Shipped table). **Shipped:** 2026-05-04 across phases 1-9 on `main` (commits `4d4c5679` spec → `e60caf76` Phase-9 SF wiring fix). All 6 services deployed to dev; integration tests green for investor-bff (17/17), dashboard-bff (17/17), compliance-ctrl (5/7 — 2 pre-existing fixture flakes filed); Playwright 5-run gate scored 2/5 full journeys + 5/5 onboarding completions (3/5 timeout at L1 user-confirm UX, filed). Spec: `docs/superpowers/specs/2026-05-03-investor-profile-collapse-design.md`. Plan: `docs/superpowers/plans/2026-05-03-investor-profile-collapse-plan.md`.
-
-**Done when:**
-1. `investor-bff` stores investor profile state as ONE DDB row per investor (sk = `'InvestorProfile'`), not a multi-row item-collection (Goal#id + RiskProfile + Mandate + OperatingMode + AccountMode + Deposit + InvestorProfile).
-2. CDC fires ONE event (`INVESTOR_PROFILE_CREATED` / `INVESTOR_PROFILE_UPDATED`) when the profile changes — collapsing today's per-sub-entity GOAL_*, RISK_PROFILE_*, MANDATE_*, OPERATING_MODE_* into one logical event stream.
-3. Onboarding produces ONE decision cycle (the original "3 → 1" outcome falls out as a side-effect, not the goal).
-4. `dashboard-bff` snapshot transform refreshes from one composite event instead of switching on per-field event type.
-5. `compliance-ctrl` reads mandate-shape fields from the composite payload (no semantic change to compliance logic).
-6. `investor-ctrl` notification-lifecycle is updated to either (a) diff CDC OldImage/NewImage to derive specific notifications, or (b) emit semantic action events from BFF mutation resolvers (`USER_UPDATED_GOAL`, `USER_REVOKED_MANDATE`) for notifications, separating semantic events from CDC data-change events. Decision in design phase.
-7. GraphQL surface drops plural `getGoals: [Goal!]!` → `getProfile.goal: String!` (or single goal scalar fields on `InvestorProfile`); drops `Mandate.version` field; drops `RiskProfile.version`/`assessedAt` (or moves to `InvestorProfile` as `lastRiskAssessmentAt`); revocation works as a state flag (`revokedAt`) on the composite row.
-8. Dead `version: 1` fields removed everywhere (currently set once, never incremented, never read).
-9. Multi-row scaffolding (`Goal#${goalId}` plural, `Mandate.version` history hooks, `RiskProfile.version` history hooks) removed — these were YAGNI futureproofing for plural-goals + entity-versioning that no spec requires (verified 2026-05-03 against `specifications/01-04-*.md` + `docs/architecture/*.md` + `docs/superpowers/specs/*.md`).
-10. Frontend (`apps/investor-mfe`, `apps/onboarding-mfe`, `apps/advisory-mfe`, `apps/dashboard-mfe`) updated to query collapsed shape.
-11. Validation: full e2e suite passes (incl. Scenario 5 "revoke mandate", Scenario 3 "update investment goal"). Onboarding produces 1 cycle (verified by integration test asserting SF execution count = 1 within 60s).
-
-**Why this scope (vs the original "3 → 1" tactical fix):** the fan-out bug is a symptom; the root cause is the multi-row decomposition of a single logical entity (the investor's profile). The schema-level scaffolding (`Goal#${goalId}` plural, `version: 1` set-once-never-incremented, `revokedAt` working as state flag not history) was empirically NOT load-bearing per business specs (every spec references investor goals as singular; no spec requires entity versioning at the BFF layer; revocation works as state, not history). Per CQRS, BFFs are read models + command handlers — versioning/history belongs to a future audit projection, not the BFF. Collapsing dissolves the fan-out problem at root, removes ~3 dead schema fields, and aligns the BFF with the read-model role the rest of the system already uses (Decision Packets follow this pattern correctly).
-
-**Out of scope (file-and-continue if surfaced):**
-- Future audit-projection service for entity history (becomes its own workstream IF/WHEN regulatory or compliance need is articulated).
-- Future multi-goal product feature (would reintroduce a `Goals` collection with concrete requirements driving the schema).
-- The 147 stuck SF executions cleanup (separate QUEUED entry — depends on Step 8/10 fix, not this collapse).
-- `MANDATE_UPDATED` missing from `TRIGGER_EVENT_TYPES` (already in PARKING LOT — would be naturally subsumed by `INVESTOR_PROFILE_UPDATED` becoming a trigger).
-
-**References:**
-- `docs/architecture/SYSTEM-ARCHITECTURE.md` §13 (Decision Lifecycle — trigger semantics simplify), §11 (Idempotency — single-writer per row remains), §18 (Cross-Domain Routing — advisory-adpt rule simplifies to forward `INVESTOR_PROFILE_*`), §10.1 (Canonical emission points — adds new canonical pair, deprecates 3 olds)
-- `docs/architecture/SERVICE-INVENTORY.md` § `investor-bff` (Egress eventTypes mapping changes from 9-shape map to 3-4-shape map), § `dashboard-bff` (event subscriptions simplify), § `investor-ctrl` (notifications path needs re-design), § `compliance-ctrl` (read shape unchanged), § `decision-workflow-ctrl` (TRIGGER_EVENT_TYPES drops 3, gains 1 per onboarding + 1 per profile-change)
-- `flows/investor-onboarding.flow.yaml` (Phase 2a transactWrite collapses; Phase 6 cross-domain forwarding simplifies), `flows/advisory-cycle.flow.yaml` (Phase 1 trigger list collapses), `flows/portfolio-rebalance.flow.yaml`, `flows/go-live.flow.yaml` (verify no breakage)
-- Code anchors: `services/investor/investor-bff/src/transforms/onboarding-completed.ts` (transactWrite surface), `services/investor/investor-bff/src/repositories/investor-profile.repository.ts` (Goal/Mandate/RiskProfile read+write surface), `services/investor/investor-bff/src/schema.graphql` (GraphQL contract), `services/investor/investor-bff/src/graphql/js-function/*.fn.js` (AppSync JS resolvers), `services/investor/dashboard-bff/src/transforms/investor-snapshot.ts`, `services/investor/investor-ctrl/src/services/notification-lifecycle.service.ts`, `services/advisory/compliance-ctrl/src/handlers/event-listener.ts`, `services/advisory/decision-workflow-ctrl/src/domain/events.ts`, `services/advisory/advisory-adpt/src/service.stack.ts`
-
-**Empirical evidence behind "scaffolding not load-bearing"** (2026-05-03):
-- All `version: 1` literals set in `onboarding-completed.ts:90,136` + `repository.ts:184,228` — no code increments them. `grep mandate.version` / `riskProfile.version` returns zero read sites that branch on value.
-- `getGoals: [Goal!]!` plural — every consumer reads index `[0]`. No test creates a 2nd goal. Onboarding wizard captures one. No spec describes >1 goal per investor.
-- `revokeMandate` mutation works via `UpdateExpression: 'SET revokedAt = :revokedAt'` — modifies single row in place; doesn't preserve history.
-- No regulator citation in `specifications/04-governance.md` requires entity-version history at BFF layer (Decision Packets already carry the audit trail).
-
-**Topic memory:** `project_decision_workflow_stuck.md` + `project_playwright_e2e_ui.md` (the symptom this fixes); a new `project_investor_profile_collapse.md` to be created during deep-review synthesis.
-
 ---
 
 ## QUEUED

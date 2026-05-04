@@ -1,17 +1,16 @@
 # Incident Escalation
 
-> Advisory AI incidents and compliance escalations, plus broker order escalations, surface as investor notifications via cross-domain forwarding
+> Compliance escalations and broker order escalations surface as investor notifications via cross-domain forwarding
 
 **Domains:** advisory, execution, investor
 
-**Trigger:** advisory-ctrl AgentRuntime emits INCIDENT_DETECTED or INCIDENT_RESOLVED (direct PutEvents to AdvisoryBus); compliance-ctrl emits ESCALATION_TRIGGERED (direct PutEvents to AdvisoryBus); broker-ctrl Step Functions writes NormalizedEvent record (sk=ORDER_ESCALATED) → CDC emits ORDER_ESCALATED on ExecutionBus
+**Trigger:** compliance-ctrl emits ESCALATION_TRIGGERED (direct PutEvents to AdvisoryBus); broker-ctrl Step Functions writes NormalizedEvent record (sk=ORDER_ESCALATED) → CDC emits ORDER_ESCALATED on ExecutionBus
 
 ## Flowchart
 
 ```mermaid
 flowchart TD
     subgraph advisory["Advisory Domain"]
-        advisory_ctrl["advisory-ctrl"]
         compliance_ctrl["compliance-ctrl"]
     end
     subgraph execution["Execution Domain"]
@@ -20,7 +19,6 @@ flowchart TD
     subgraph investor["Investor Domain"]
         investor_ctrl["investor-ctrl"]
     end
-    advisory_ctrl -->|"INCIDENT_DETECTED, INCIDENT_DETECTED ..."| investor_ctrl
     compliance_ctrl -->|"ESCALATION_TRIGGERED, ESCALATION_TRIGGERED"| investor_ctrl
     broker_ctrl -->|"ORDER_ESCALATED, ORDER_ESCALATED"| investor_ctrl
 ```
@@ -30,7 +28,6 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     box advisory domain
-        participant advisory_ctrl as advisory-ctrl
         participant compliance_ctrl as compliance-ctrl
     end
     box execution domain
@@ -39,46 +36,13 @@ sequenceDiagram
     box investor domain
         participant investor_ctrl as investor-ctrl
     end
-    Note over advisory_ctrl: AgentRuntime (LangGraph agent) detects an AI mode…
-    advisory_ctrl-)advisory_ctrl: INCIDENT_DETECTED (AdvisoryBus → InvestorBus)
-    advisory_ctrl-)compliance_ctrl: INCIDENT_RESOLVED (AdvisoryBus → InvestorBus)
     compliance_ctrl-)broker_ctrl: ESCALATION_TRIGGERED (AdvisoryBus → InvestorBus)
     broker_ctrl-)investor_ctrl: ORDER_ESCALATED (ExecutionBus → InvestorBus)
 ```
 
 ## Steps
 
-### Step 1: advisory-ctrl
-
-- **Action:** AgentRuntime (LangGraph agent) detects an AI model or system incident and invokes the event-publisher tool
-- **Via:** AgentRuntime ToolEventPublisher Lambda → PutEvents → AdvisoryBus
-- **State change:** none (direct publish; no DDB entity for Incident in advisory-ctrl egress)
-- **Emits:** `INCIDENT_DETECTED (direct PutEvents to AdvisoryBus)`
-- **Idempotent:** yes
-
-### Step 2: Cross-domain hop
-
-- **Event:** `INCIDENT_DETECTED`
-- **From:** AdvisoryBus
-- **To:** InvestorBus
-- **Via:** investor-adpt EB rule (InvestorIngress-FromAdvisory)
-
-### Step 3: advisory-ctrl
-
-- **Action:** AgentRuntime detects incident is resolved and invokes the event-publisher tool
-- **Via:** AgentRuntime ToolEventPublisher Lambda → PutEvents → AdvisoryBus
-- **State change:** none (direct publish)
-- **Emits:** `INCIDENT_RESOLVED (direct PutEvents to AdvisoryBus)`
-- **Idempotent:** yes
-
-### Step 4: Cross-domain hop
-
-- **Event:** `INCIDENT_RESOLVED`
-- **From:** AdvisoryBus
-- **To:** InvestorBus
-- **Via:** investor-adpt EB rule (InvestorIngress-FromAdvisory)
-
-### Step 5: compliance-ctrl
+### Step 1: compliance-ctrl
 
 - **Receives:** `DECISION_PACKET_CREATED or DECISION_PACKET_UPDATED`
 - **Via:** AdvisoryBus -> SQS -> compliance-ctrl-Ingress
@@ -86,14 +50,14 @@ sequenceDiagram
 - **Emits:** `ESCALATION_TRIGGERED (direct PutEvents to AdvisoryBus; not in egress CDC config)`
 - **Idempotent:** yes
 
-### Step 6: Cross-domain hop
+### Step 2: Cross-domain hop
 
 - **Event:** `ESCALATION_TRIGGERED`
 - **From:** AdvisoryBus
 - **To:** InvestorBus
 - **Via:** investor-adpt EB rule (InvestorIngress-FromAdvisory)
 
-### Step 7: broker-ctrl
+### Step 3: broker-ctrl
 
 - **Action:** Step Functions order-state-machine adapter-callback timeout branch fires
 - **Via:** broker-ctrl-OrderStateMachine (Step Functions) → DynamoDB PutItem (arn:aws:states:::dynamodb:putItem)
@@ -101,16 +65,16 @@ sequenceDiagram
 - **Emits:** `ORDER_ESCALATED (CDC from NormalizedEvent INSERT, sk passthrough determines event type)`
 - **Idempotent:** yes
 
-### Step 8: Cross-domain hop
+### Step 4: Cross-domain hop
 
 - **Event:** `ORDER_ESCALATED`
 - **From:** ExecutionBus
 - **To:** InvestorBus
 - **Via:** investor-adpt EB rule (InvestorIngress-FromExecution)
 
-### Step 9: investor-ctrl
+### Step 5: investor-ctrl
 
-- **Receives:** `INCIDENT_DETECTED | INCIDENT_RESOLVED | ESCALATION_TRIGGERED | ORDER_ESCALATED`
+- **Receives:** `ESCALATION_TRIGGERED | ORDER_ESCALATED`
 - **Via:** InvestorBus -> (no SQS subscription configured — events are forwarded but not consumed)
 - **State change:** none (gap — no Notification record created for these event types)
 - **Emits:** `none`
@@ -118,15 +82,13 @@ sequenceDiagram
 
 ## Success Criteria
 
-- INCIDENT_DETECTED reaches InvestorBus via investor-adpt InvestorIngress-FromAdvisory rule
-- INCIDENT_RESOLVED reaches InvestorBus via investor-adpt InvestorIngress-FromAdvisory rule
 - ESCALATION_TRIGGERED reaches InvestorBus via investor-adpt InvestorIngress-FromAdvisory rule
 - ORDER_ESCALATED NormalizedEvent written by Step Functions, CDC emits on ExecutionBus, forwarded to InvestorBus via investor-adpt InvestorIngress-FromExecution rule
 
 ## Failure Modes
 
-- **Path A/B fails:** advisory-ctrl ToolEventPublisher Lambda IAM error — PutEvents denied; event never reaches AdvisoryBus
-- **Path A/B cross-domain:** investor-adpt InvestorIngress-FromAdvisory DLQ (FromAdvisoryDLQ, 14-day retention) receives message if InvestorBus target is throttled or unavailable
+- **Path B fails:** compliance-ctrl event-publisher Lambda IAM error — PutEvents denied; event never reaches AdvisoryBus
+- **Path B cross-domain:** investor-adpt InvestorIngress-FromAdvisory DLQ (FromAdvisoryDLQ, 14-day retention) receives message if InvestorBus target is throttled or unavailable
 - **Path C fails:** Step Functions DynamoDB PutItem fails — ORDER_ESCALATED NormalizedEvent not written; CDC never fires; event lost
 - **Path C cross-domain:** investor-adpt InvestorIngress-FromExecution DLQ (FromExecutionDLQ, 14-day retention) receives message if InvestorBus target is unavailable
 - **All paths:** events reach InvestorBus but investor-ctrl has no subscription — no downstream notification is created (known gap)

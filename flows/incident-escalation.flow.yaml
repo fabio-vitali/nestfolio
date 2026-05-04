@@ -1,13 +1,10 @@
 schema_version: 1
 flow: incident-escalation
-description: Advisory AI incidents and compliance escalations, plus broker order escalations, surface as investor notifications via cross-domain forwarding
+description: Compliance escalations and broker order escalations surface as investor notifications via cross-domain forwarding
 domains: [advisory, execution, investor]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Three parallel trigger paths converge at investor-adpt:
-#
-#   Path A: advisory-ctrl AgentRuntime detects an incident → publishes
-#           INCIDENT_DETECTED or INCIDENT_RESOLVED directly to AdvisoryBus
+# Two parallel trigger paths converge at investor-adpt:
 #
 #   Path B: compliance-ctrl compliance pipeline determines decision must be
 #           escalated → publishes ESCALATION_TRIGGERED directly to AdvisoryBus
@@ -17,37 +14,9 @@ domains: [advisory, execution, investor]
 #           → CDC emits ORDER_ESCALATED on ExecutionBus
 # ─────────────────────────────────────────────────────────────────────────────
 
-trigger: advisory-ctrl AgentRuntime emits INCIDENT_DETECTED or INCIDENT_RESOLVED (direct PutEvents to AdvisoryBus); compliance-ctrl emits ESCALATION_TRIGGERED (direct PutEvents to AdvisoryBus); broker-ctrl Step Functions writes NormalizedEvent record (sk=ORDER_ESCALATED) → CDC emits ORDER_ESCALATED on ExecutionBus
+trigger: compliance-ctrl emits ESCALATION_TRIGGERED (direct PutEvents to AdvisoryBus); broker-ctrl Step Functions writes NormalizedEvent record (sk=ORDER_ESCALATED) → CDC emits ORDER_ESCALATED on ExecutionBus
 
 steps:
-  # ─── Path A: INCIDENT_DETECTED ───────────────────────────────────────────
-
-  - service: advisory-ctrl
-    action: AgentRuntime (LangGraph agent) detects an AI model or system incident and invokes the event-publisher tool
-    via: AgentRuntime ToolEventPublisher Lambda → PutEvents → AdvisoryBus
-    state_change: none (direct publish; no DDB entity for Incident in advisory-ctrl egress)
-    emits: INCIDENT_DETECTED (direct PutEvents to AdvisoryBus)
-    idempotent: true
-
-  - cross_domain: INCIDENT_DETECTED
-    from: AdvisoryBus
-    to: InvestorBus
-    via: investor-adpt EB rule (InvestorIngress-FromAdvisory)
-
-  # ─── Path A: INCIDENT_RESOLVED ───────────────────────────────────────────
-
-  - service: advisory-ctrl
-    action: AgentRuntime detects incident is resolved and invokes the event-publisher tool
-    via: AgentRuntime ToolEventPublisher Lambda → PutEvents → AdvisoryBus
-    state_change: none (direct publish)
-    emits: INCIDENT_RESOLVED (direct PutEvents to AdvisoryBus)
-    idempotent: true
-
-  - cross_domain: INCIDENT_RESOLVED
-    from: AdvisoryBus
-    to: InvestorBus
-    via: investor-adpt EB rule (InvestorIngress-FromAdvisory)
-
   # ─── Path B: ESCALATION_TRIGGERED ────────────────────────────────────────
 
   - service: compliance-ctrl
@@ -80,14 +49,14 @@ steps:
   # NOTE: investor-ctrl does NOT currently subscribe to INCIDENT_DETECTED,
   # INCIDENT_RESOLVED, ESCALATION_TRIGGERED, or ORDER_ESCALATED.
   # These events reach InvestorBus but have no downstream consumer — a known
-  # coverage gap. investor-ctrl triggerIngress only handles (post-collapse):
+  # coverage gap. investor-ctrl triggerIngress only handles:
   # ONBOARDING_COMPLETED, MANDATE_ACCEPTED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED,
   # DEPOSIT_INITIATED, DECISION_APPROVED, ORDER_FILLED, BALANCE_UPDATED,
   # ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED, BROKER_CIRCUIT_OPEN,
   # BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED.
 
   - service: investor-ctrl
-    receives: INCIDENT_DETECTED | INCIDENT_RESOLVED | ESCALATION_TRIGGERED | ORDER_ESCALATED
+    receives: ESCALATION_TRIGGERED | ORDER_ESCALATED
     via: InvestorBus -> (no SQS subscription configured — events are forwarded but not consumed)
     state_change: none (gap — no Notification record created for these event types)
     emits: none
@@ -95,14 +64,12 @@ steps:
     note: MISSING SUBSCRIPTION — investor-ctrl does not handle these events; no notification is sent to the investor
 
 success_criteria:
-  - INCIDENT_DETECTED reaches InvestorBus via investor-adpt InvestorIngress-FromAdvisory rule
-  - INCIDENT_RESOLVED reaches InvestorBus via investor-adpt InvestorIngress-FromAdvisory rule
   - ESCALATION_TRIGGERED reaches InvestorBus via investor-adpt InvestorIngress-FromAdvisory rule
   - ORDER_ESCALATED NormalizedEvent written by Step Functions, CDC emits on ExecutionBus, forwarded to InvestorBus via investor-adpt InvestorIngress-FromExecution rule
 
 failure_modes:
-  - Path A/B fails: advisory-ctrl ToolEventPublisher Lambda IAM error — PutEvents denied; event never reaches AdvisoryBus
-  - Path A/B cross-domain: investor-adpt InvestorIngress-FromAdvisory DLQ (FromAdvisoryDLQ, 14-day retention) receives message if InvestorBus target is throttled or unavailable
+  - Path B fails: compliance-ctrl event-publisher Lambda IAM error — PutEvents denied; event never reaches AdvisoryBus
+  - Path B cross-domain: investor-adpt InvestorIngress-FromAdvisory DLQ (FromAdvisoryDLQ, 14-day retention) receives message if InvestorBus target is throttled or unavailable
   - Path C fails: Step Functions DynamoDB PutItem fails — ORDER_ESCALATED NormalizedEvent not written; CDC never fires; event lost
   - Path C cross-domain: investor-adpt InvestorIngress-FromExecution DLQ (FromExecutionDLQ, 14-day retention) receives message if InvestorBus target is unavailable
   - All paths: events reach InvestorBus but investor-ctrl has no subscription — no downstream notification is created (known gap)

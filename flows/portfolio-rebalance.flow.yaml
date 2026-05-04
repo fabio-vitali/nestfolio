@@ -23,10 +23,9 @@ steps:
     to: AdvisoryBus
     via: advisory-adpt EB rule (AdvisoryIngress-FromLedger, DLQ FromLedgerDLQ 14d)
 
-  # Step 3: decision-workflow-ctrl SF starts directly from EB → SF (Phase 2 collapse)
+  # Step 3: decision-workflow-ctrl SF starts directly from EB → SF
   # Source: services/advisory/decision-workflow-ctrl/src/service.stack.ts (Orchestration.triggers)
-  # All TRIGGER_EVENT_TYPES (7) wired declaratively as native EB → SF targets — no
-  # TriggerIngress Lambda, no WorkflowTrigger DDB row, no WORKFLOW_TRIGGER_CREATED hop.
+  # All TRIGGER_EVENT_TYPES (7) wired declaratively as native EB → SF targets.
   # SF entry state UnpackTriggerEnvelope mints decisionId via States.UUID() and unpacks
   # tenantId/userId/region from the EB envelope's context block.
   - service: decision-workflow-ctrl
@@ -34,7 +33,7 @@ steps:
     via: AdvisoryBus → EventBridge target → Step Functions (direct EB → SF)
     state_change: SF execution starts; decisionId minted in UnpackTriggerEnvelope; no DDB write at trigger time
     emits: nothing at this step (DecisionPacket row written by AssemblePacket later in the SF)
-    idempotent: AWS at-least-once redelivery is theoretical and unobserved post-collapse — each user/system action produces exactly one trigger event
+    idempotent: each user/system action produces exactly one trigger event
 
   # Step 4: SF orchestration — Step Functions runs the 4-agent pipeline + compliance + user-confirm
   # Source: services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts

@@ -69,7 +69,7 @@ sequenceDiagram
 
 - **Receives:** `ONBOARDING_COMPLETED`
 - **Via:** InvestorBus -> SQS -> investor-bff-ingress
-- **State change:** transactWrite creates 2-3 records atomically (collapsed from the legacy 7-row per-entity model): 1. InvestorProfile composite row (sk='InvestorProfile', PUT) -- single row holds
+- **State change:** transactWrite creates 2-3 records atomically: 1. InvestorProfile composite row (sk='InvestorProfile', PUT) -- single row holds
    goal, riskProfile, operatingMode, mandate, accountMode, executionMode='simulation',
    onboardingCompletedAt
 2. MandateStatus row (sk='MandateStatus', PUT) -- status='ACCEPTED', mandateLevel='ADVISORY',
@@ -146,7 +146,7 @@ sequenceDiagram
 ### Step 11: decision-workflow-ctrl
 
 - **Receives:** `INVESTOR_PROFILE_CREATED`
-- **Via:** AdvisoryBus -> EventBridge target -> Step Functions (direct EB -> SF, no TriggerIngress aggregator)
+- **Via:** AdvisoryBus -> EventBridge target -> Step Functions (direct EB -> SF)
 - **State change:** SF.StartExecution starts the initial advisory decision cycle for the new investor
 - **Emits:** `agent-pipeline events (DECISION_PACKET_CREATED downstream)`
 - **Idempotent:** yes
@@ -167,7 +167,7 @@ sequenceDiagram
 - Dashboard snapshot updated from INVESTOR_PROFILE_CREATED composite payload
 - If capitalAmount > 0, deposit routed to execution domain via execution-adpt
 - INVESTOR_PROFILE_CREATED + MANDATE_ACCEPTED forwarded to advisory domain via advisory-adpt
-- decision-workflow-ctrl starts exactly ONE advisory SF execution per onboarding (direct EB -> SF on INVESTOR_PROFILE_CREATED), down from 3-4 executions in the legacy fan-out model
+- decision-workflow-ctrl starts exactly ONE advisory SF execution per onboarding (direct EB -> SF on INVESTOR_PROFILE_CREATED)
 
 ## Failure Modes
 
