@@ -63,7 +63,7 @@ For each BFF service (investor-bff, advisory-bff, ledger-bff, dashboard-bff):
 |--------|------|---------|--------|-----------|-------|
 | Funding | Deposit | initiateDeposit mutation | TESTED | fund-account.e2e.test.ts | |
 | Funding | Withdraw | requestWithdrawal mutation | TESTED | withdraw-cash.e2e.test.ts | |
-| Advisory | First Decision | MANDATE_CREATED event | TESTED | first-decision.e2e.test.ts | |
+| Advisory | First Decision | INVESTOR_PROFILE_CREATED event | TESTED | first-decision.e2e.test.ts | |
 | ... | ... | ... | ... | ... | ... |
 ```
 

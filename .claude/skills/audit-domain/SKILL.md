@@ -39,8 +39,8 @@ Report format:
 ```
 | Service | Event | Direction | Documented? | Flow Spec |
 |---------|-------|-----------|-------------|-----------|
-| advisory-ctrl | MANDATE_CREATED | Ingress | Yes | mandate-to-decision.flow.yaml |
-| advisory-ctrl | ANALYSIS_COMPLETED | Egress | No | — |
+| compliance-ctrl | INVESTOR_PROFILE_CREATED | Ingress | Yes | advisory-cycle.flow.yaml |
+| decision-workflow-ctrl | DECISION_PACKET_CREATED | Egress | No | — |
 ```
 
 Events that are purely internal (e.g., error events, CDC projections within the same service) may be legitimately undocumented — flag as warning, not hard-fail.
