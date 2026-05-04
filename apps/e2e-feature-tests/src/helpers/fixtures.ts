@@ -199,52 +199,50 @@ export function withDecision(opts: {
  * scenarios should keep using `withDecision` for fast, deterministic seeding —
  * pick `withLiveDecision` only when verifying the AgentCore transport itself.
  *
+ * Post-collapse (2026-05-03): the SF triggers on INVESTOR_PROFILE_CREATED /
+ * INVESTOR_PROFILE_UPDATED — the single composite-row CDC event that replaced
+ * the per-entity GOAL_/RISK_PROFILE_/MANDATE_/OPERATING_MODE_* fan-out.
+ *
  * `expectedStatus` defaults to undefined (any packet counts). Set to
  * 'PENDING_CONFIRMATION' to verify the full L2 path through user_confirmation_requested.
  */
 export function withLiveDecision(opts?: {
-  trigger?: 'MANDATE_CREATED' | 'OPERATING_MODE_CHANGED';
+  trigger?: 'INVESTOR_PROFILE_CREATED' | 'INVESTOR_PROFILE_UPDATED';
   expectedStatus?: string;
   timeoutMs?: number;
   intervalMs?: number;
 }): Fixture {
   return async (_ctx, tenant, eb, bff) => {
-    const trigger = opts?.trigger ?? 'MANDATE_CREATED';
-    // Fan to BOTH advisory-ctrl (materialises the DecisionPacket surfaced by
-    // advisory-bff.getDecisionHistory) AND decision-workflow-ctrl (starts the
-    // Step Function that invokes the 4 advisory agents). Both services key
-    // their decisionId on ctx.eventId (post 2026-04-20 alignment), so the
-    // decisionId returned here also matches the correlationId emitted by
-    // every agent trace envelope in the SF chain.
-    if (trigger === 'MANDATE_CREATED') {
-      await eb.putEvent({
-        bus: 'advisory',
-        targetService: ['advisory-ctrl', 'decision-workflow-ctrl'],
-        detailType: 'MANDATE_CREATED',
-        detail: {
-          tenantId: tenant.tenantId,
-          userId: tenant.userId,
+    const trigger = opts?.trigger ?? 'INVESTOR_PROFILE_CREATED';
+    // Publish directly on the advisory bus targeting decision-workflow-ctrl —
+    // it materialises a WorkflowTrigger row whose CDC fires WORKFLOW_TRIGGER_CREATED,
+    // which starts the SF (Phase 2 wired this directly: EB Rule on
+    // WORKFLOW_TRIGGER_CREATED → SF.start). The SF then drives the 4-agent
+    // pipeline → DECISION_PACKET_CREATED → advisory-bff materialisation.
+    // decisionId is keyed on ctx.eventId, so it also matches the correlationId
+    // emitted by every agent trace envelope in the SF chain.
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: trigger,
+      detail: {
+        tenantId: tenant.tenantId,
+        userId: tenant.userId,
+        operatingMode: 'BALANCED',
+        accountMode: { mode: 'simulation', capitalAmount: 100_000, currency: 'USD' },
+        goal: { objective: 'GROWTH', targetAmountCents: 1_000_000, currency: 'USD', timeHorizonMonths: 120, targetReturn: 0.07 },
+        riskProfile: { score: 7, band: { minEquity: 0.5, maxEquity: 0.8 }, toleranceResponse: 'MEDIUM', experienceLevel: 'INTERMEDIATE' },
+        mandate: {
           mandateId: `e2e-mandate-${Date.now()}`,
           level: 'ADVISORY',
+          status: 'ACTIVE',
           monthlyTurnoverCapPercent: 10,
           maxSingleTradePercent: 5,
-          coolDownDays: 1,
           rebalanceCadence: 'MONTHLY',
+          effectiveDate: new Date().toISOString(),
         },
-      });
-    } else {
-      await eb.putEvent({
-        bus: 'advisory',
-        targetService: ['advisory-ctrl', 'decision-workflow-ctrl'],
-        detailType: 'OPERATING_MODE_CHANGED',
-        detail: {
-          tenantId: tenant.tenantId,
-          userId: tenant.userId,
-          newMode: 'BALANCED',
-          previousMode: 'CONSERVATIVE',
-        },
-      });
-    }
+      },
+    });
 
     const expectedStatus = opts?.expectedStatus;
     const result = await waitForGraphQL<DecisionHistoryResponse>(
