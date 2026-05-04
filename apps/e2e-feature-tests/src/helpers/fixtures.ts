@@ -215,10 +215,10 @@ export function withLiveDecision(opts?: {
   return async (_ctx, tenant, eb, bff) => {
     const trigger = opts?.trigger ?? 'INVESTOR_PROFILE_CREATED';
     // Publish directly on the advisory bus targeting decision-workflow-ctrl —
-    // it materialises a WorkflowTrigger row whose CDC fires WORKFLOW_TRIGGER_CREATED,
-    // which starts the SF (Phase 2 wired this directly: EB Rule on
-    // WORKFLOW_TRIGGER_CREATED → SF.start). The SF then drives the 4-agent
-    // pipeline → DECISION_PACKET_CREATED → advisory-bff materialisation.
+    // it materialises a workflow-trigger row whose CDC starts the SF (Phase 2
+    // wired this directly: EB Rule on the trigger row's insert event →
+    // SF.start). The SF then drives the 4-agent pipeline →
+    // DECISION_PACKET_CREATED → advisory-bff materialisation.
     // decisionId is keyed on ctx.eventId, so it also matches the correlationId
     // emitted by every agent trace envelope in the SF chain.
     await eb.putEvent({
