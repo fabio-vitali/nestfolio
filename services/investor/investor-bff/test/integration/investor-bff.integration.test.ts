@@ -84,7 +84,7 @@ describe('investor-bff', () => {
   // ── Event Materializations ──────────────────────────────────────────
 
   describe('event materializations', () => {
-    it('should materialize InvestorProfile on USER_REGISTERED', async () => {
+    it('should NOT materialize InvestorProfile on USER_REGISTERED (onboarding is sole creator)', async () => {
       const userId = `integ-user-${Date.now()}`;
 
       await eb.putEvent({
@@ -98,19 +98,22 @@ describe('investor-bff', () => {
         },
       });
 
-      // user-registered transform writes the bare InvestorProfile row
-      // (no goal/riskProfile/mandate yet — those are filled by ONBOARDING_COMPLETED).
-      const item = await table.waitForItem({
-        table: 'investor-bff',
-        pk: `InvestorProfile#${ctx.tenantId}#${userId}`,
-        sk: 'InvestorProfile',
-        timeoutMs: 60_000,
-      });
-
-      expect(item['__typename']).toBe('InvestorProfile');
-      expect(item['email']).toBe(`${userId}@integ-test.example`);
-      expect(item['userId']).toBe(userId);
-    }, 120_000);
+      // user-registered transform returns skip() — pre-creating a sparse row
+      // would race with onboarding-completed's atomic Put and surface as
+      // INVESTOR_PROFILE_UPDATED (MODIFY) instead of INVESTOR_PROFILE_CREATED
+      // (INSERT) in CDC. Onboarding is the sole creator of the composite row.
+      // Wait long enough that, if a row WERE being written, it would have
+      // appeared by now.
+      await new Promise((r) => setTimeout(r, 15_000));
+      await expect(
+        table.waitForItem({
+          table: 'investor-bff',
+          pk: `InvestorProfile#${ctx.tenantId}#${userId}`,
+          sk: 'InvestorProfile',
+          timeoutMs: 5_000,
+        }),
+      ).rejects.toThrow();
+    }, 60_000);
 
     it('should materialize CashBalance on BALANCE_UPDATED', async () => {
       const userId = cognitoSub;
@@ -177,11 +180,10 @@ describe('investor-bff', () => {
       const userId = cognitoSub;
       const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
 
-      // Pre-condition — race-safe USER_REGISTERED before ONBOARDING_COMPLETED.
-      // user-registered transform uses record() (putIfNotExists); the subsequent
-      // ONBOARDING_COMPLETED transactWrite Puts the same pk/sk:'InvestorProfile'
-      // — which will clobber any record()-written stub. We still emit
-      // USER_REGISTERED first to mirror production flow.
+      // Mirror production flow: USER_REGISTERED then ONBOARDING_COMPLETED.
+      // user-registered returns skip(), so onboarding-completed's transactWrite
+      // is the first writer of the composite row — its Put surfaces as a CDC
+      // INSERT and emits INVESTOR_PROFILE_CREATED.
       await eb.putEvent({
         bus: 'investor',
         targetService: 'investor-bff',
@@ -191,14 +193,6 @@ describe('investor-bff', () => {
           userId,
           email: `${userId}@integ-onboarding.example`,
         },
-      });
-
-      // Wait for InvestorProfile stub to exist before sending ONBOARDING_COMPLETED
-      await table.waitForItem({
-        table: 'investor-bff',
-        pk,
-        sk: 'InvestorProfile',
-        timeoutMs: 60_000,
       });
 
       await eb.putEvent({
@@ -878,10 +872,12 @@ describe('investor-bff', () => {
       expect(result.getProfile.goal.objective).toBeTruthy();
       expect(result.getProfile.goal.currency).toBe('USD');
       // Mandate nested group with status from MandateStatus sibling (resolver
-      // joins them) — see spec §"Read path" / Task 1.7.
+      // joins them) — see spec §"Read path" / Task 1.7. The prior describe
+      // ('AppSync mutations') ran revokeMandate against the same tenant, so
+      // MandateStatus.status is now 'REVOKED' — getProfile reflects that join.
       expect(result.getProfile.mandate).toBeDefined();
       expect(result.getProfile.mandate.mandateId).toBeTruthy();
-      expect(result.getProfile.mandate.status).toBe('ACTIVE');
+      expect(result.getProfile.mandate.status).toBe('REVOKED');
       // AccountMode nested group
       expect(result.getProfile.accountMode).toBeDefined();
       expect(result.getProfile.accountMode.mode).toBe('simulation');
