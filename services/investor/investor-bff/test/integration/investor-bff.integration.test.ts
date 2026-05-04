@@ -620,14 +620,21 @@ describe('investor-bff', () => {
       expect(event.detailType).toBe('INVESTOR_PROFILE_UPDATED');
     }, 120_000);
 
-    // TODO Phase 5: re-enable after revoke-mandate.fn.js rewrite
-    // (single UpdateItem on MandateStatus row → modify CDC → MANDATE_REVOKED).
-    // Today's revoke-mandate.fn.js still writes a MandateRevocation# row
-    // (legacy half-implementation latent bug — see PARKING LOT entry filed
-    // 2026-05-03). Phase 5 rewrites it to flip MandateStatus.status = REVOKED;
-    // CDC then emits MANDATE_REVOKED via the Egress map added in Task 1.4.
-    it.skip('should revoke mandate and flip MandateStatus to REVOKED + emit MANDATE_REVOKED', async () => {
-      // Intentionally empty — see TODO above.
+    it('should revoke mandate and flip MandateStatus to REVOKED + emit MANDATE_REVOKED (no INVESTOR_PROFILE_UPDATED)', async () => {
+      const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
+
+      // Snapshot the composite InvestorProfile row's mandate group + updatedAt
+      // BEFORE the revoke so we can later assert the composite row was NOT
+      // touched (Phase 5 design: revokeMandate writes only the MandateStatus
+      // sibling row, never the composite).
+      const profileBefore = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'InvestorProfile',
+      });
+      const mandateBefore = profileBefore['mandate'] as Record<string, unknown> | undefined;
+      const updatedAtBefore = profileBefore['updatedAt'];
+
       const result = await appsync.mutate<{
         revokeMandate: {
           status: string;
@@ -653,11 +660,24 @@ describe('investor-bff', () => {
       // Assert: MandateStatus sibling row flipped to REVOKED
       const status = await table.waitForItem({
         table: 'investor-bff',
-        pk: `InvestorProfile#${ctx.tenantId}#${cognitoSub}`,
+        pk,
         sk: 'MandateStatus',
       });
       expect(status['status']).toBe('REVOKED');
       expect(status['revokedAt']).toBeTruthy();
+
+      // Assert: composite InvestorProfile row's mandate group NOT touched
+      // (raw row — get-profile.fn.js merges MandateStatus.status onto
+      // profile.mandate at read time, but the underlying composite row's
+      // mandate.status is preserved).
+      const profileAfter = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'InvestorProfile',
+      });
+      const mandateAfter = profileAfter['mandate'] as Record<string, unknown> | undefined;
+      expect(mandateAfter).toEqual(mandateBefore);
+      expect(profileAfter['updatedAt']).toBe(updatedAtBefore);
 
       // Assert: CDC modify on MandateStatus row → MANDATE_REVOKED
       const event = await trap.waitForEvent({
@@ -665,7 +685,38 @@ describe('investor-bff', () => {
         timeoutMs: 60_000,
       });
       expect(event.detailType).toBe('MANDATE_REVOKED');
+
+      // Note: "NO INVESTOR_PROFILE_UPDATED emitted" is enforced by
+      // construction at the resolver level (revoke-mandate.fn.js targets
+      // sk='MandateStatus', never the composite InvestorProfile row) and is
+      // unit-tested in test/unit/graphql/revoke-mandate.test.ts. Adding a
+      // negative-event assertion here would either be racy (drain only sees
+      // the past) or destructive (drain consumes the buffer that subsequent
+      // tests rely on). The composite-row no-touch invariant is asserted
+      // above via mandateAfter === mandateBefore on the raw DDB row.
     }, 120_000);
+
+    it('should reject double-revoke with InvalidState', async () => {
+      // First revoke happened in the previous test in this describe block;
+      // attempting a second revoke must surface InvalidState (precondition
+      // status=ACCEPTED fails because status is now REVOKED).
+      await expect(
+        appsync.mutate<{
+          revokeMandate: { status: string; acceptedAt: string; revokedAt: string };
+        }>(
+          `
+          mutation RevokeMandate {
+            revokeMandate {
+              status
+              acceptedAt
+              revokedAt
+            }
+          }
+        `,
+          {},
+        ),
+      ).rejects.toThrow(/InvalidState|not active|already revoked/i);
+    }, 60_000);
 
     it('should return REQUESTED status for requestAccountClosure', async () => {
       // requestAccountClosure uses noneDataSource — no DDB write, no CDC
