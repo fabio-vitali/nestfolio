@@ -18,7 +18,7 @@ steps:
     to: AdvisoryBus
     via: advisory-adpt EB rule (AdvisoryIngress-FromExecution)
 
-  # -- Phase 1: Direct EB -> SF (no TriggerIngress, no WORKFLOW_TRIGGER_CREATED hop) --
+  # -- Phase 1: Direct EB -> SF (no TriggerIngress, no aggregator-event hop) --
   - service: decision-workflow-ctrl
     receives: INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED
     via: AdvisoryBus -> EB Rule -> SfnStateMachine target (Orchestration.triggers, direct)

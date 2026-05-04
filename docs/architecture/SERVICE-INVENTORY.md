@@ -123,11 +123,15 @@ Each entry below uses the same structure:
 
 **Why this service exists.** Backend-for-Frontend for the Investor MFE. Owns the GraphQL surface for investor profile + mandate management + cross-cutting feature flags (e.g. circuit-breaker UI gate). BFFs are the system-state read model for the UI (per user-memory `feedback_bff_is_read_model.md`).
 
-**Responsibilities.** Profile + mandate + risk-profile projections; feature-flag mutations (used by circuit-breaker — see user-memory `project_cb_appsync_auth.md`); cross-domain read aggregation via `investor-adpt`.
+**Responsibilities.** Composite InvestorProfile projection (single DDB row holds goal, riskProfile, operatingMode, mandate, accountMode, executionMode); MandateStatus lifecycle row; feature-flag mutations (used by circuit-breaker — see user-memory `project_cb_appsync_auth.md`); cross-domain read aggregation via `investor-adpt`.
 
-**Key events consumed.** `MANDATE_DEFINED`, `RISK_PROFILE_*`, `OPERATING_MODE_CHANGED`, `CIRCUIT_BREAKER_*` (via investor-adpt).
+**Key events consumed.** `USER_REGISTERED`, `NOTIFICATION_CREATED`, `BALANCE_UPDATED`, `ONBOARDING_COMPLETED`, `GO_LIVE_CONFIRMED`, `BROKER_CIRCUIT_OPEN`, `BROKER_CIRCUIT_CLOSED`, `DEPOSIT_DETECTED`.
 
-**State.** DDB projection table; AppSync GraphQL.
+**Key events emitted (Egress shapes — 6, post-collapse).** `InvestorProfile` → `INVESTOR_PROFILE_CREATED` / `INVESTOR_PROFILE_UPDATED`; `MandateStatus` → `MANDATE_ACCEPTED` / `MANDATE_REVOKED`; `Deposit` → `DEPOSIT_INITIATED` / `DEPOSIT_UPDATED`; `Withdrawal` → `WITHDRAWAL_REQUESTED` / `WITHDRAWAL_UPDATED`; `ExecutionModeChange` → `EXECUTION_MODE_CHANGED` / `EXECUTION_MODE_CHANGE_UPDATED`; `Notification` → `NOTIFICATION_READ`.
+
+Down from 9 entity shapes pre-collapse (Goal, RiskProfile, Mandate, OperatingModeRecord, InvestorProfile, Deposit, Withdrawal, ExecutionModeChange, Notification). The legacy GOAL_*, RISK_PROFILE_*, OPERATING_MODE_*, and MANDATE_CREATED/UPDATED events are gone — INVESTOR_PROFILE_UPDATED carries those mutations on the composite row.
+
+**State.** DDB projection table (composite InvestorProfile row + MandateStatus sibling row); AppSync GraphQL.
 
 **API surface.** AppSync GraphQL with Cognito-User-Pool authentication and IAM-signed write paths from sibling services. The `check-auth.fn.js` JS resolver detects IAM identity to bypass Cognito claims for cross-service mutations (per user-memory `project_cb_appsync_auth.md`).
 
@@ -146,9 +150,13 @@ Each entry below uses the same structure:
 
 **Why this service exists.** Owns the Investor identity + notification subsystem. Despite the `ctrl` suffix this service handles cross-cutting investor notifications — there is **no `notification-ctrl` service**, that vocabulary is sometimes invented in error (per user-memory `feedback_investor_ctrl_not_notification.md`).
 
-**Responsibilities.** Investor registration; identity write side; notification fan-out (system → user channels).
+**Responsibilities.** Investor registration; identity write side; notification fan-out (system → user channels) via NOTIFICATION_TEMPLATES; INVESTOR_PROFILE_UPDATED diff-detect handler that derives goal-change / operating-mode-change notifications from the composite payload diff.
 
-**Architectural Evolution.** None.
+**Key events consumed (14).** `ONBOARDING_COMPLETED`, `MANDATE_ACCEPTED`, `MANDATE_REVOKED`, `INVESTOR_PROFILE_UPDATED`, `DEPOSIT_INITIATED`, `DECISION_APPROVED`, `ORDER_FILLED`, `BALANCE_UPDATED`, `ORDER_REJECTED`, `DECISION_BLOCKED`, `WITHDRAWAL_COMPLETED`, `BROKER_CIRCUIT_OPEN`, `BROKER_CIRCUIT_CLOSED`, `BROKER_HEAL_ESCALATED`.
+
+**Key events emitted.** `Notification` → `NOTIFICATION_CREATED` / `NOTIFICATION_UPDATED`; `MonthlyReport` → `MONTHLY_REPORT_CREATED` / `MONTHLY_REPORT_UPDATED`.
+
+**Architectural Evolution.** Notification-lifecycle redesigned 2026-05-03 (InvestorProfile collapse Phase 4): legacy MANDATE_CREATED + GOAL_UPDATED + OPERATING_MODE_CHANGED triggers replaced by MANDATE_ACCEPTED + MANDATE_REVOKED + INVESTOR_PROFILE_UPDATED (with diff-detect handler).
 
 **Health.** canonical.
 
@@ -164,6 +172,8 @@ Each entry below uses the same structure:
 **Why this service exists.** CQRS read side for the Investor home dashboard. Aggregates portfolio state + active decisions + recent activity into a single GraphQL view. Separate from `investor-bff` because the dashboard's read patterns + WSS subscription topology differ enough to justify a dedicated projection.
 
 **Responsibilities.** Dashboard projection table; WebSocket subscription broadcasts on AppSync (mind the subscription-filter pitfall — every `@aws_subscribe` filter arg must be on the return type, resolver response, AND the publisher's mutation selection per user-memory `feedback_appsync_subscribe_filter_args.md`).
+
+**Key events consumed.** `BALANCE_UPDATED`, `PORTFOLIO_UPDATED`, `RECONCILIATION_COMPLETED`, `DECISION_PACKET_CREATED`, `USER_CONFIRMATION_REQUESTED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `LEDGER_ENTRY_RECORDED`, `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`. Post-collapse: the 6 legacy per-entity events (GOAL_*, RISK_PROFILE_*, OPERATING_MODE_*) replaced by the 2 composite events; the investor-snapshot transform reads goal, riskProfile, operatingMode from the composite payload.
 
 **State.** DDB projection table; AppSync GraphQL with WSS.
 
@@ -184,7 +194,7 @@ Each entry below uses the same structure:
 
 **Why this service exists.** The conversational onboarding wizard runs an in-process LangGraph agent that streams via the AG-UI protocol to a CopilotKit-driven Angular MFE. The BFF + agent-host coupling exists because the wizard's mid-flow state is most easily owned by the same Lambda that serves the GraphQL layer.
 
-**Responsibilities.** AG-UI bridge endpoint (Hono server in `services/investor/onboarding-bff/src/`); LangGraph wizard graph (`services/investor/onboarding-bff/agents/onboarding/graph.ts`); Bedrock KB query for RAG-backed answers; phase progression (7 phases) culminating in `INVESTOR_REGISTERED` + `MANDATE_DEFINED`.
+**Responsibilities.** AG-UI bridge endpoint (Hono server in `services/investor/onboarding-bff/src/`); LangGraph wizard graph (`services/investor/onboarding-bff/agents/onboarding/graph.ts`); Bedrock KB query for RAG-backed answers; phase progression (7 phases) culminating in the `ONBOARDING_COMPLETED` event that investor-bff materialises into the composite `InvestorProfile` row + `MandateStatus` lifecycle row (post-collapse 2026-05-03).
 
 **AI Agents.**
 - `OnboardingAgent extends AbstractAgent` (`@ag-ui/client`) at `services/investor/onboarding-bff/agents/onboarding/agent.ts`. Drives the in-process LangGraph; emits AG-UI events directly. Default model: `us.anthropic.claude-sonnet-4-6`.
@@ -344,12 +354,13 @@ Each entry below uses the same structure:
 **Responsibilities.** SF state machine (`services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts`); agent invocation via task tokens; AssemblePacket reduction (`services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts`); CDC emission of Decision Packet events.
 
 **Key events.**
-- Consumed: `WORKFLOW_TRIGGER_CREATED` (the cycle kick-off).
-- Emitted: `DECISION_PACKET_CREATED` (canonical, post-AssemblePacket — `assemble-packet.ts:70`), `DECISION_PACKET_UPDATED`.
+- TRIGGER_EVENT_TYPES (7, direct EB → SF): `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `PORTFOLIO_DRIFT_DETECTED`, `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`. Wired declaratively on `Orchestration.triggers`; no TriggerIngress, no WorkflowTrigger DDB row, no `WORKFLOW_TRIGGER_CREATED` hop.
+- Callback-consumed: `INVESTOR_PROFILE_COMPLETED`, `MARKET_ANALYSIS_COMPLETED`, `PORTFOLIO_COMPLETED`, `NARRATIVE_COMPLETED`, `DECISION_APPROVED`, `DECISION_BLOCKED`, `USER_CONFIRMED`, `USER_REJECTED`.
+- Emitted: `DECISION_PACKET_CREATED` (canonical, post-AssemblePacket — `assemble-packet.ts:70`), `DECISION_PACKET_UPDATED`, `AGENT_OUTPUT_CREATED`, `AGENT_OUTPUT_UPDATED`.
 
-**State.** DDB DecisionPacket table (the canonical post-2026-03-18 owner); AgentCore Memory resource (per the §17 contract).
+**State.** DDB DecisionPacket + AgentOutput tables (the canonical post-2026-03-18 owner); AgentCore Memory resource (per the §17 contract). WorkflowTrigger row removed by InvestorProfile collapse Phase 2 (2026-05-03).
 
-**Architectural Evolution.** Introduced 2026-03-17 (commit `a54006c9`). Became the sole `DECISION_PACKET_CREATED` emitter when advisory-ctrl was removed by Spec 2 (2026-04-30) — see SYSTEM-ARCHITECTURE.md §10.1. The AgentCore Memory namespace alignment (§17.1) was also landed in Spec 2: `writeAgentOutput` now uses `BatchCreateMemoryRecordsCommand`; `readUpstreamOutput` uses `ListMemoryRecordsCommand` against the same namespace. The 8th-Playwright-session bug fix (commit `429afa7a`) lives in this service and remains as defence-in-depth: `AssemblePacket` reads agent outputs from SF task results before creating the row + persists `explanation`.
+**Architectural Evolution.** Introduced 2026-03-17 (commit `a54006c9`). Became the sole `DECISION_PACKET_CREATED` emitter when advisory-ctrl was removed by Spec 2 (2026-04-30) — see SYSTEM-ARCHITECTURE.md §10.1. The AgentCore Memory namespace alignment (§17.1) was also landed in Spec 2: `writeAgentOutput` now uses `BatchCreateMemoryRecordsCommand`; `readUpstreamOutput` uses `ListMemoryRecordsCommand` against the same namespace. The 8th-Playwright-session bug fix (commit `429afa7a`) lives in this service: `AssemblePacket` reads agent outputs from SF task results before creating the row + persists `explanation`. **InvestorProfile collapse Phase 2 (2026-05-03)** moved the trigger ingestion from the TriggerIngress + WorkflowTrigger row aggregator to direct EB → SF, eliminating the 11-event-list-with-duplication anti-pattern (now 7 events, one SF execution per trigger).
 
 **Health.** canonical.
 
@@ -365,10 +376,10 @@ Each entry below uses the same structure:
 **Why this service exists.** The single gate between agent-proposed recommendations and execution. Rule-based (deterministic), **not** an LLM. Enforces mandate guardrails + operating-mode parameters (§14) on the assembled Decision Packet; classifies as L1 (auto-execute) / L2 (user-confirm) / Blocked.
 
 **Key events.**
-- Consumed: `RECOMMENDATION_PROPOSED`.
-- Emitted: `RECOMMENDATION_APPROVED`, `RECOMMENDATION_AWAITING_CONFIRMATION`, `RECOMMENDATION_BLOCKED`.
+- Consumed: `RECOMMENDATION_PROPOSED`, `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_REVOKED`. Post-collapse, the composite events project the MandateSnapshot (with the 8 guardrail fields) that the rule engine consumes; MANDATE_REVOKED sets `status='REVOKED'`, which MandateValidator's REVOKED gate short-circuits the rule engine on.
+- Emitted: `DECISION_APPROVED`, `DECISION_BLOCKED` (field-dispatch on `ComplianceCheck.result`), `AUDIT_ARTIFACT_CREATED`, `AUDIT_ARTIFACT_UPDATED`.
 
-**Architectural Evolution.** None.
+**Architectural Evolution.** InvestorProfile collapse Phase 3 (2026-05-03): legacy MANDATE_CREATED + MANDATE_UPDATED + OPERATING_MODE_CHANGED triggers replaced by INVESTOR_PROFILE_CREATED + INVESTOR_PROFILE_UPDATED + MANDATE_REVOKED (the latter is the sole revocation lifecycle event from the MandateStatus row).
 
 **Health.** canonical.
 
@@ -383,7 +394,12 @@ Each entry below uses the same structure:
 
 **Why this service exists.** Pull-model cross-domain adapter for the Advisory domain. Subscribes to investor-bus + ledger-bus + execution-bus events the Advisory domain needs (mandate events, portfolio drift, order outcomes, etc.) and republishes onto advisory-bus.
 
-**Architectural Evolution.** None beyond the pull-model inversion (`project_inverted_adapter_routing.md`).
+**Forwarding rules.**
+- Investor → Advisory (4 events post-collapse): `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_ACCEPTED`, `MANDATE_REVOKED`. Down from 7 (legacy: GOAL_*, RISK_PROFILE_*, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED).
+- Execution → Advisory (4): `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`.
+- Ledger → Advisory (2): `PORTFOLIO_UPDATED`, `PORTFOLIO_DRIFT_DETECTED`.
+
+**Architectural Evolution.** Pull-model inversion (`project_inverted_adapter_routing.md`); InvestorProfile collapse Phase 6 (2026-05-03) reduced the FromInvestor rule from 7 → 4 events.
 
 **Health.** canonical.
 
