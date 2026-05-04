@@ -290,7 +290,7 @@ describe('dashboard-bff', () => {
           sk: 'AdvisoryStatus',
           timeoutMs: 2_000,
         });
-        beforeValue = (before['pendingDecisions'] as number) ?? 0;
+        beforeValue = (before['pendingDecisionsCount'] as number) ?? 0;
       } catch { /* item doesn't exist yet */ }
 
       await eb.putEvent({
@@ -316,11 +316,11 @@ describe('dashboard-bff', () => {
           sk: 'AdvisoryStatus',
           timeoutMs: 5_000,
         });
-        if ((item['pendingDecisions'] as number) > beforeValue) break;
+        if ((item['pendingDecisionsCount'] as number) > beforeValue) break;
         await new Promise(r => setTimeout(r, 2_000));
       }
 
-      expect((item!['pendingDecisions'] as number)).toBe(beforeValue + 1);
+      expect((item!['pendingDecisionsCount'] as number)).toBe(beforeValue + 1);
     }, 120_000);
 
     it('should accumulate AdvisoryStatus pendingDecisions on USER_CONFIRMATION_REQUESTED', async () => {
@@ -333,7 +333,7 @@ describe('dashboard-bff', () => {
         sk: 'AdvisoryStatus',
         timeoutMs: 5_000,
       });
-      const beforeValue = (before['pendingDecisions'] as number) ?? 0;
+      const beforeValue = (before['pendingDecisionsCount'] as number) ?? 0;
 
       await eb.putEvent({
         bus: 'investor',
@@ -355,11 +355,11 @@ describe('dashboard-bff', () => {
           sk: 'AdvisoryStatus',
           timeoutMs: 5_000,
         });
-        if ((item['pendingDecisions'] as number) > beforeValue) break;
+        if ((item['pendingDecisionsCount'] as number) > beforeValue) break;
         await new Promise(r => setTimeout(r, 2_000));
       }
 
-      expect((item!['pendingDecisions'] as number)).toBe(beforeValue + 1);
+      expect((item!['pendingDecisionsCount'] as number)).toBe(beforeValue + 1);
     }, 120_000);
 
     it('should decrement AdvisoryStatus and create Activity on DECISION_BLOCKED', async () => {
@@ -372,7 +372,7 @@ describe('dashboard-bff', () => {
         sk: 'AdvisoryStatus',
         timeoutMs: 5_000,
       });
-      const beforeValue = (before['pendingDecisions'] as number) ?? 0;
+      const beforeValue = (before['pendingDecisionsCount'] as number) ?? 0;
 
       await eb.putEvent({
         bus: 'investor',
@@ -394,10 +394,10 @@ describe('dashboard-bff', () => {
           sk: 'AdvisoryStatus',
           timeoutMs: 5_000,
         });
-        if ((statusItem['pendingDecisions'] as number) < beforeValue) break;
+        if ((statusItem['pendingDecisionsCount'] as number) < beforeValue) break;
         await new Promise(r => setTimeout(r, 2_000));
       }
-      expect((statusItem!['pendingDecisions'] as number)).toBe(beforeValue - 1);
+      expect((statusItem!['pendingDecisionsCount'] as number)).toBe(beforeValue - 1);
 
       // recentActivity: record('Activity', ...) → pk: T#<tenantId>, sk: Activity#<eventId>
       let activityItem: Record<string, unknown> | undefined;
@@ -434,14 +434,19 @@ describe('dashboard-bff', () => {
       // 1. InvestorSnapshot — project() uses PutItem (full replace), so only the
       //    LAST event's fields survive. Send INVESTOR_PROFILE_UPDATED as the final
       //    InvestorSnapshot event; assert only its fields in the query test.
+      // Detail shape mirrors the CDC envelope investor-bff emits — see
+      // services/investor/dashboard-bff/src/transforms/investor-snapshot.ts:
+      //   payload.goal.objective → goalType
+      //   payload.riskProfile.score → riskLevel (stringified)
+      //   payload.operatingMode (string) → operatingMode
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
         detailType: 'INVESTOR_PROFILE_UPDATED',
         detail: {
-          goal: { goalType: 'RETIREMENT' },
-          riskProfile: { riskLevel: 'BALANCED' },
-          operatingMode: { mode: 'BALANCED' },
+          goal: { objective: 'RETIREMENT' },
+          riskProfile: { score: 6 },
+          operatingMode: 'BALANCED',
         },
       });
       const deadline = Date.now() + 60_000;
@@ -512,7 +517,7 @@ describe('dashboard-bff', () => {
             const item = await table.waitForItem({
               table: 'dashboard-bff', pk: `T#${ctx.tenantId}`, sk: 'AdvisoryStatus', timeoutMs: 5_000,
             });
-            if ((item['pendingDecisions'] as number) >= 1) break;
+            if ((item['pendingDecisionsCount'] as number) >= 1) break;
           } catch { /* not yet */ }
           await new Promise(r => setTimeout(r, 2_000));
         }
@@ -650,9 +655,11 @@ describe('dashboard-bff', () => {
 
       // investorSnapshot — project() uses PutItem (full replace), so only the last
       // event's fields survive. INVESTOR_PROFILE_UPDATED was sent last.
+      // investor-snapshot transform: goal.objective → goalType,
+      // riskProfile.score → riskLevel (stringified), operatingMode passthrough.
       expect(result.getDashboard.investorSnapshot).not.toBeNull();
       expect(result.getDashboard.investorSnapshot!.goalType).toBe('RETIREMENT');
-      expect(result.getDashboard.investorSnapshot!.riskLevel).toBe('BALANCED');
+      expect(result.getDashboard.investorSnapshot!.riskLevel).toBe('6');
       expect(result.getDashboard.investorSnapshot!.operatingMode).toBe('BALANCED');
     }, 60_000);
 
