@@ -3,12 +3,12 @@ flow: advisory-cycle
 description: Advisory decision cycle — Step Functions orchestrates 4 LangGraph agents (2 parallel + 2 sequential), assembles outputs via AgentCore Memory, runs compliance check, then optionally requests user confirmation before forwarding to execution
 domains: [advisory, investor, execution]
 
-trigger: decision-workflow-ctrl TriggerIngress receives one of 9 trigger events (cross-domain via advisory-adpt)
+trigger: decision-workflow-ctrl receives one of 7 trigger events directly (no TriggerIngress aggregator -- direct EventBridge -> Step Functions)
 
 steps:
   # -- Phase 0: Cross-domain trigger ingestion --
-  # 6 of the 9 triggers originate from other domains and arrive via advisory-adpt
-  - cross_domain: MANDATE_CREATED | GOAL_CREATED | RISK_PROFILE_CREATED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED
+  # 4 of the 7 triggers originate from the investor domain (post-collapse) and arrive via advisory-adpt
+  - cross_domain: INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | MANDATE_ACCEPTED | MANDATE_REVOKED
     from: InvestorBus
     to: AdvisoryBus
     via: advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
@@ -18,28 +18,21 @@ steps:
     to: AdvisoryBus
     via: advisory-adpt EB rule (AdvisoryIngress-FromExecution)
 
-  # -- Phase 1: Trigger materialisation --
+  # -- Phase 1: Direct EB -> SF (no TriggerIngress, no WORKFLOW_TRIGGER_CREATED hop) --
   - service: decision-workflow-ctrl
-    receives: MANDATE_CREATED | GOAL_CREATED | RISK_PROFILE_CREATED | GOAL_UPDATED | RISK_PROFILE_UPDATED | OPERATING_MODE_CHANGED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED
-    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-TriggerIngress
-    handler: event-listener.ts (materializeToTable)
-    state_change: Creates WorkflowTrigger record in DDB with new decisionId; CDC fires on WorkflowTrigger:INSERT
-    emits: WORKFLOW_TRIGGER_CREATED (CDC, WorkflowTrigger:INSERT auto-expand)
-    idempotent: true
-
-  # -- Phase 1b: Start the state machine --
-  - service: decision-workflow-ctrl
-    receives: WORKFLOW_TRIGGER_CREATED
-    via: AdvisoryBus -> EB Rule -> SfnStateMachine target (Orchestration.triggers)
+    receives: INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED
+    via: AdvisoryBus -> EB Rule -> SfnStateMachine target (Orchestration.triggers, direct)
     handler: Step Functions StartExecution (construct-managed, input = $.detail)
     state_change: >
-      New DecisionStateMachine execution starts. Entry Pass state
-      (UnpackTriggerEnvelope) flattens {subject.decisionId,
-      subject.tenantId, context.userId, context.region} to top-level
-      SF state so every downstream putEvents task state can emit the
-      event-processor envelope ({id, type, timestamp, subject, context}).
+      New DecisionStateMachine execution starts directly from the EventBridge target.
+      The 7-event trigger list is wired declaratively on Orchestration.triggers; there
+      is no TriggerIngress Lambda + WorkflowTrigger DDB row aggregator. Entry Pass state
+      (UnpackTriggerEnvelope) flattens {subject.decisionId, subject.tenantId,
+      context.userId, context.region} to top-level SF state so every downstream
+      putEvents task state can emit the event-processor envelope
+      ({id, type, timestamp, subject, context}).
     emits: (none -- SF internal)
-    idempotent: false  # duplicate WORKFLOW_TRIGGER_CREATED events start duplicate executions
+    idempotent: false  # duplicate trigger events start duplicate executions
 
   # -- Phase 2: Step Functions dispatches agent tasks --
   # SF state machine definition: decision-state-machine.ts
