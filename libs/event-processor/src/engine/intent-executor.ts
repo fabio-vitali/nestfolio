@@ -15,6 +15,35 @@ interface ExecutorDeps {
   bucket?: string;
 }
 
+/**
+ * Deep-strip undefined values from intent payloads before they reach the
+ * DDB DocumentClient marshaller. The default marshaller throws
+ * `Pass options.removeUndefinedValues=true to remove undefined values`
+ * on any undefined leaf. Handlers commonly produce undefined fields when
+ * upstream rows omit optional columns (e.g. MandateSnapshot.status before
+ * MANDATE_REVOKED writes it). Treat undefined uniformly as absent — that
+ * is the platform contract callers reasonably expect.
+ *
+ * Why not pass marshallOptions.removeUndefinedValues to the DocumentClient
+ * directly: that affects ExpressionAttributeValues for UpdateCommand too,
+ * where stripping a value would leave an orphan SET placeholder. Stripping
+ * at this boundary keeps the policy local to record/project Items.
+ */
+function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((v) => stripUndefinedDeep(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object' && value.constructor === Object) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefinedDeep(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 export class IntentExecutor {
   constructor(private readonly deps: ExecutorDeps) {}
 
@@ -35,9 +64,10 @@ export class IntentExecutor {
     const sk = intent.overrides?.sk ?? `${intent.typename}#${ctx.eventId}`;
 
     try {
+      const item = stripUndefinedDeep({ pk, sk, __typename: intent.typename, ...pickRequestContext(ctx), ...intent.fields, eventId: ctx.eventId, createdAt: ctx.timestamp });
       await this.deps.docClient.send(new PutCommand({
         TableName: this.deps.tableName,
-        Item: { pk, sk, __typename: intent.typename, ...pickRequestContext(ctx), ...intent.fields, eventId: ctx.eventId, createdAt: ctx.timestamp },
+        Item: item,
         ConditionExpression: 'attribute_not_exists(pk)',
       }));
       return { _tag: 'record', success: true };
@@ -53,9 +83,10 @@ export class IntentExecutor {
     const pk = intent.overrides?.pk ?? `T#${ctx.tenantId}`;
     const sk = intent.overrides?.sk ?? intent.typename;
 
+    const item = stripUndefinedDeep({ pk, sk, __typename: intent.typename, ...pickRequestContext(ctx), ...intent.fields, updatedAt: ctx.timestamp });
     await this.deps.docClient.send(new PutCommand({
       TableName: this.deps.tableName,
-      Item: { pk, sk, __typename: intent.typename, ...pickRequestContext(ctx), ...intent.fields, updatedAt: ctx.timestamp },
+      Item: item,
     }));
     return { _tag: 'project', success: true };
   }
@@ -92,8 +123,11 @@ export class IntentExecutor {
     const values: Record<string, unknown> = {};
     const setParts: string[] = [];
 
-    // Always add __typename (CDC entity resolution), request context (CDC event envelope), and updatedAt
-    const allUpdates = { ...intent.updates, __typename: intent.typename, ...pickRequestContext(ctx), updatedAt: ctx.timestamp };
+    // Always add __typename (CDC entity resolution), request context (CDC event envelope), and updatedAt.
+    // Strip undefined leaves recursively — same contract as record/project paths;
+    // a top-level undefined value is treated as "do not write this field" rather
+    // than emitting a SET placeholder that would crash the DDB marshaller.
+    const allUpdates = stripUndefinedDeep({ ...intent.updates, __typename: intent.typename, ...pickRequestContext(ctx), updatedAt: ctx.timestamp }) as Record<string, unknown>;
 
     let i = 0;
     for (const [field, value] of Object.entries(allUpdates)) {
@@ -116,16 +150,29 @@ export class IntentExecutor {
       updateExpr += ` REMOVE ${removeParts.join(', ')}`;
     }
 
-    await this.deps.docClient.send(new UpdateCommand({
-      TableName: this.deps.tableName,
-      Key: { pk, sk },
-      UpdateExpression: updateExpr,
-      ExpressionAttributeNames: names,
-      ExpressionAttributeValues: values,
-      ...(intent.condition ? { ConditionExpression: intent.condition } : {}),
-    }));
+    if (intent.conditionNames) Object.assign(names, intent.conditionNames);
+    if (intent.conditionValues) Object.assign(values, intent.conditionValues);
 
-    return { _tag: 'update', success: true };
+    try {
+      await this.deps.docClient.send(new UpdateCommand({
+        TableName: this.deps.tableName,
+        Key: { pk, sk },
+        UpdateExpression: updateExpr,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
+        ...(intent.condition ? { ConditionExpression: intent.condition } : {}),
+      }));
+      return { _tag: 'update', success: true };
+    } catch (error: unknown) {
+      // ConditionalCheckFailedException is the no-op signal for guarded
+      // updates (matches the executeRecord dedup pattern). Callers express
+      // "skip if pre-condition not met" via `condition` rather than reading
+      // and branching themselves.
+      if (intent.condition && error instanceof Error && error.name === 'ConditionalCheckFailedException') {
+        return { _tag: 'update', success: true, deduplicated: true };
+      }
+      throw error;
+    }
   }
 
   private async executeStore(intent: StoreIntent, ctx: EventContext): Promise<IntentResult> {

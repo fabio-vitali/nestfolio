@@ -104,6 +104,19 @@ export class IngestionEngine {
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
           const retryable = isRetryable(err);
+          // Surface the failure on the same Lambda log stream as the
+          // upstream "executing intent" line. Without this log the catch
+          // is invisible — a record() that throws on a marshalling error
+          // (e.g. undefined value) leaves only an "executing intent" line
+          // followed by the wrapper's "completed" line, producing the
+          // illusion of a successful no-op write while CDC never fires.
+          logger.error('record processing failed', {
+            eventId: ingestionRecord.event.id,
+            eventType: ingestionRecord.event.type,
+            errorName: err.name,
+            errorMessage: err.message,
+            retryable,
+          });
           collector.recordError(id, err, retryable, parsedPayload);
         }
       },

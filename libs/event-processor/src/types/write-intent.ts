@@ -32,6 +32,8 @@ export interface UpdateIntent {
   readonly updates: Record<string, unknown>;
   readonly removes?: string[];
   readonly condition?: string;
+  readonly conditionNames?: Record<string, string>;
+  readonly conditionValues?: Record<string, unknown>;
   readonly overrides?: KeyOverrides;
 }
 
