@@ -29,9 +29,27 @@ export class AdvisoryPage {
     return (await this.page.locator('.rationale').innerText()).trim();
   }
 
-  /** Click Confirm. Match by accessible role+name to survive PrimeNG churn. */
+  /**
+   * Click Confirm. Match by accessible role+name to survive PrimeNG churn.
+   * If the button never appears (e.g. decision landed BLOCKED instead of
+   * AWAITING_CONFIRMATION) surface the actually-rendered status badge so the
+   * failure points at the upstream cause rather than at "button not found".
+   */
   async confirm(): Promise<void> {
-    await this.page.getByRole('button', { name: /confirm|conferma/i }).click();
+    const button = this.page.getByRole('button', { name: /confirm|conferma/i });
+    try {
+      await button.click({ timeout: 15_000 });
+    } catch (err) {
+      const status = await this.page
+        .locator('.headline-top .nf-badge')
+        .first()
+        .innerText()
+        .catch(() => '<status badge not rendered>');
+      throw new Error(
+        `advisory.page.confirm(): Confirm button never appeared. Decision status badge = "${status.trim()}". ` +
+          `Expected AWAITING_CONFIRMATION (L2 path). Underlying cause: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   async waitForConfirmed(timeout = 60_000): Promise<void> {
