@@ -6,10 +6,10 @@ import {
   requireEnv, logger,
 } from '@nestfolio/event-processor';
 import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-orchestrator';
-import { createAgentService } from '../agent-service';
+import { createAgentService, DuplicateInvocationError } from '../agent-service';
 
 export interface SfnCallbackDeps {
-  readonly agentService: { runPipeline: (event: Record<string, unknown>) => Promise<Record<string, unknown>> };
+  readonly agentService: { runPipeline: (eventId: string, event: Record<string, unknown>) => Promise<Record<string, unknown>> };
   readonly memoryClient: MemoryClient;
 }
 
@@ -24,13 +24,22 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
     const tenantHistory = await session.searchLongTermMemory('investor preferences risk tolerance');
 
-    const result = await deps.agentService.runPipeline({
-      tenantId,
-      decisionId,
-      investorProfile: subject.investorProfile ?? subject.context ?? {},
-      portfolioState: subject.portfolioState ?? {},
-      tenantHistory: tenantHistory.map(r => r.content),
-    });
+    let result: Record<string, unknown>;
+    try {
+      result = await deps.agentService.runPipeline(ctx.eventId, {
+        tenantId,
+        decisionId,
+        investorProfile: subject.investorProfile ?? subject.context ?? {},
+        portfolioState: subject.portfolioState ?? {},
+        tenantHistory: tenantHistory.map(r => r.content),
+      });
+    } catch (error) {
+      if (error instanceof DuplicateInvocationError) {
+        logger.info('Duplicate ANALYZE_INVESTOR_PROFILE event, skipping', { eventId: ctx.eventId, decisionId });
+        return { output: { decisionId, tenantId, deduplicated: true } };
+      }
+      throw error;
+    }
 
     await session.writeAgentOutput(result);
 

@@ -9,6 +9,7 @@
 - **Boundary review.** At each workstream ship, spend 5 min re-ranking PARKING LOT and promoting items to QUEUED if they've grown teeth.
 
 Last reviewed: 2026-05-05 (after InvestorProfile collapse ship 2026-05-04 + compliance-ctrl flake resolution 2026-05-05).
+Updated 2026-05-05 (later): promoted "Resilience tests batch-2 + agent-service idempotency port" to ACTIVE; demoted "Step 8 WSS dashboard subscription bug" to QUEUED slot 1 (ahead of 147-stuck-SFs cleanup). Driver: audit found 3 advisory agent services (advisory-narrative-ctrl, investor-profile-ctrl, market-intelligence-ctrl) carrying the same agent-service idempotency bug fixed in portfolio-engine-ctrl on 2026-04-10, and 3 stateful controllers (compliance-ctrl, decision-workflow-ctrl, investor-ctrl) lacking resilience coverage entirely.
 Updated 2026-05-05: promoted Step 8 WSS dashboard subscription bug from QUEUED slot 1 to ACTIVE; removed resolved compliance-ctrl flake entry from PARKING LOT (logged in Recently shipped); no other re-ranking needed — slot 2 (147 stuck SFs cleanup) remains gated on ACTIVE per documented sequencing rationale.
 Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retired. Diagnostic on 5 fresh SF starts (tenant `e2e-1777762060562`, 22:48–22:49 UTC 2026-05-02) showed 5 distinct trigger events (1× RISK_PROFILE_CREATED + 1× MANDATE_CREATED + 1× GOAL_CREATED + 2× DEPOSIT_DETECTED), each with unique `triggerEventId` + `decisionId`. Per `services/advisory/decision-workflow-ctrl/src/handlers/event-listener.ts:22-28` and `flows/advisory-cycle.flow.yaml` Phase 1b (`idempotent: false`), N triggers → N SF executions is **architectural intent**, not a bug. Refiled the real underlying problems below.
 
@@ -16,11 +17,34 @@ Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retire
 
 ## ACTIVE
 
-### `[e2e]` Journey Step 8 — WSS dashboard subscription bug
+### `[infra]` Resilience tests batch-2 + agent-service idempotency port
+
+**Done when:** 6 new `*.resilience.integration.test.ts` files run green against deployed dev — one per service: compliance-ctrl, decision-workflow-ctrl, investor-ctrl, advisory-narrative-ctrl, investor-profile-ctrl, market-intelligence-ctrl. Plus the 3 advisory agent services (advisory-narrative-ctrl, investor-profile-ctrl, market-intelligence-ctrl) carry the deterministic-INV-sk + DuplicateInvocationError idempotency port from portfolio-engine-ctrl.
+
+**Status:** SCAFFOLDED on `feat/agent-service-idempotency-batch-2` 2026-05-05. Awaiting deploy + run against deployed dev. Production code change: 3 `agent-service.ts` files + 3 `event-listener.ts` files. Unit tests updated + green (42/42 across 3 agent services). Test scaffolding: 6 new resilience test files, ~1100 LoC total, mirroring the portfolio-engine-ctrl pattern shipped 2026-04-10.
+
+**References:**
+- `docs/architecture/SYSTEM-ARCHITECTURE.md` §11 (Idempotency & Safety Rules) — canonical contract for resilience properties under SQS at-least-once redelivery
+- `docs/superpowers/specs/2026-04-10-resilience-followup-fixes-design.md` — Fix 1A (portfolio-engine-ctrl agent-service idempotency); the same fix is being ported to 3 sibling services in this workstream
+- `services/advisory/portfolio-engine-ctrl/src/agent-service.ts:38-104` — reference implementation (deterministic INV#${eventId} sk + attribute_not_exists guard + DuplicateInvocationError + 1h TTL)
+- `services/advisory/portfolio-engine-ctrl/test/integration/portfolio-engine-ctrl.resilience.integration.test.ts` — reference test pattern
+- `libs/integration-testing/src/resilience.ts` — `stripDynamicFields`, `sortSnapshot`, `assertEquivalentState` helpers (commit `4d0d1bc`)
+- `libs/event-processor/src/pipelines/resume-state-machine.ts:48-57` — task-token tolerance (`InvalidToken` / `TaskDoesNotExist` swallowed) — relevant for decision-workflow-ctrl resilience test which uses synthetic taskTokens
+
+**Topic memory:** `project_resilience_testing.md` (existing — covers the original 2026-04-10 ship of 16 tests across 6 services).
+
+**Out of scope:**
+- The 8 NEEDS-IDEMPOTENCY-only services flagged by the audit (5 advisory data fetchers — alpha-vantage-adpt, fred-adpt, marketwatch-adpt, sec-edgar-adpt, yahoo-finance-adpt — plus broker-sim-adpt, investor-bff, onboarding-bff). File-and-continue per backlog discipline; revisit as a follow-up batch-3 if any of them surface real bugs in production
+- The 7 NO-COVERAGE-NEEDED services (4 cross-domain forwarding adapters: advisory-adpt, execution-adpt, investor-adpt, ledger-adpt; 3 read-only/projection: advisory-bff, dashboard-bff, ledger-bff) — pure EB-Rule forwarding or projection-only, no DDB writes per ingress event
+- Hoisting the deterministic INV#sk + DuplicateInvocationError pattern to a shared lib (premature — only 4 callers, three are textually near-identical 60-line files; revisit if a 5th agent service is added)
+
+### `[e2e]` Journey Step 8 — WSS dashboard subscription bug (PAUSED — moved to QUEUED slot 1)
+
+This entry is preserved here verbatim until the resilience workstream ships, at which point it returns to ACTIVE. Nothing is being done on it during this pause.
 
 **Done when:** `injectAdvisoryUpdate` sentinel value reliably appears in the dashboard counter via the live WSS subscription path.
 
-**Status:** Promoted from QUEUED slot 1 on 2026-05-05. Pre-existing. Spec 3 surfaced new evidence that supersedes 6th-session "WSS subscription never opens" diagnosis: subscription IS attached and DELIVERS frames (30 `apollo next domain=dashboard` events on Run 1), but the inject's specific value isn't arriving in the counter. Failure mechanism is different from what 6th-session assumed.
+**Status:** Pre-existing. Spec 3 surfaced new evidence that supersedes 6th-session "WSS subscription never opens" diagnosis: subscription IS attached and DELIVERS frames (30 `apollo next domain=dashboard` events on Run 1), but the inject's specific value isn't arriving in the counter. Failure mechanism is different from what 6th-session assumed.
 
 **Hypotheses (none verified):**
 - Inject mutation and dashboard subscription target different AppSync APIs.
@@ -30,10 +54,6 @@ Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retire
 **Cheapest next step:** add console logging of actual `pendingDecisionsCount` values delivered to `dashboard-container.component.ts:178`, rebuild + re-run e2e once, inspect.
 
 **Topic memory:** `project_playwright_e2e_ui.md` (search "Side-finding from Spec 3 e2e gate").
-
-**Why ACTIVE (above the 147-stuck-SF cleanup chore in QUEUED):** Step 8 and Step 10 (Confirm button → WSS callback) likely share root cause in WSS subscription delivery semantics — fixing this also fixes Step 10, which drains the 147 stuck SFs at the source. Sequence wins over symptom-treatment.
-
-**Out of scope (placeholder — to be filled when this workstream gets a spec):** the 147-stuck-SF cleanup itself (slot 1 of QUEUED); decision-detail Confirm-button UI changes; broader AppSync auth-mode refactor.
 
 ---
 

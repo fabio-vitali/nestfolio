@@ -42,7 +42,7 @@ describe('advisory-narrative-ctrl agent-service', () => {
     });
 
     const service = createAgentService(deps);
-    const result = await service.runPipeline({
+    const result = await service.runPipeline('evt-narr-1', {
       tenantId: 't1',
       decisionId: 'dp-1',
       taskToken: 'token',
@@ -69,8 +69,62 @@ describe('advisory-narrative-ctrl agent-service', () => {
   it('propagates dispatcher errors', async () => {
     (dispatchAgentInvocation as jest.Mock).mockRejectedValue(new Error('Agent failure'));
     const service = createAgentService(deps);
-    await expect(service.runPipeline({
+    await expect(service.runPipeline('evt-narr-2', {
       tenantId: 't1', decisionId: 'dp-2', taskToken: 'token',
     })).rejects.toThrow('Agent failure');
+  });
+
+  it('uses INV#${eventId} as the sk and adds attribute_not_exists condition + ttl on IN_PROGRESS write', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+      summary: 's', rationale: 'r', keyFactors: [], tone: 'educational', wordCount: 0, confidence: 0,
+    });
+
+    const service = createAgentService(deps);
+    await service.runPipeline('evt-narr-lock', {
+      tenantId: 't1',
+      decisionId: 'dp-lock',
+      taskToken: 'tok',
+    });
+
+    const calls = ddbMock.commandCalls(PutCommand);
+    expect(calls.length).toBe(3); // IN_PROGRESS + ReasoningOutput + COMPLETED
+
+    const inProgressArgs = calls[0].args[0].input;
+    expect(inProgressArgs.Item).toMatchObject({
+      pk: 'DECISION#dp-lock',
+      sk: 'INV#evt-narr-lock',
+      __typename: 'AgentInvocation',
+      invocationId: 'evt-narr-lock',
+      decisionId: 'dp-lock',
+      tenantId: 't1',
+      status: 'IN_PROGRESS',
+    });
+    expect(inProgressArgs.Item?.ttl).toEqual(expect.any(Number));
+    expect(inProgressArgs.ConditionExpression).toBe('attribute_not_exists(sk)');
+
+    const completedArgs = calls[2].args[0].input;
+    expect(completedArgs.Item).toMatchObject({
+      pk: 'DECISION#dp-lock',
+      sk: 'INV#evt-narr-lock',
+      status: 'COMPLETED',
+    });
+    expect(completedArgs.ConditionExpression).toBeUndefined();
+  });
+
+  it('throws DuplicateInvocationError when conditional check fails (duplicate event)', async () => {
+    const conditionalFailure = new Error('The conditional request failed');
+    conditionalFailure.name = 'ConditionalCheckFailedException';
+    ddbMock.on(PutCommand).rejectsOnce(conditionalFailure);
+
+    const { DuplicateInvocationError } = await import('../../src/agent-service');
+    const service = createAgentService(deps);
+
+    await expect(service.runPipeline('evt-narr-dup', {
+      tenantId: 't1',
+      decisionId: 'dp-dup',
+      taskToken: 'tok',
+    })).rejects.toThrow(DuplicateInvocationError);
+
+    expect(dispatchAgentInvocation).not.toHaveBeenCalled();
   });
 });

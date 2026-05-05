@@ -3,7 +3,6 @@ import {
   dispatchAgentInvocation,
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { randomUUID } from 'crypto';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
 import type { MarketAnalysisResult } from './domain';
 
@@ -12,24 +11,44 @@ export interface AgentServiceDeps {
   readonly tableName: string;
 }
 
+export class DuplicateInvocationError extends Error {
+  readonly eventId: string;
+  constructor(eventId: string) {
+    super(`Duplicate agent invocation for eventId ${eventId}`);
+    this.name = 'DuplicateInvocationError';
+    this.eventId = eventId;
+  }
+}
+
+const LOCK_TTL_SECONDS = 3600;
+
 export const createAgentService = (deps: AgentServiceDeps) => {
   return {
-    runPipeline: async (event: Record<string, unknown>): Promise<Record<string, unknown>> => {
-      const invocationId = randomUUID();
+    runPipeline: async (eventId: string, event: Record<string, unknown>): Promise<Record<string, unknown>> => {
       const startedAt = new Date().toISOString();
       const subject = (event.subject ?? event) as Record<string, unknown>;
       const ctx = (event.context ?? subject) as RequestContext;
       const decisionId = subject.decisionId as string;
       const tenantId = ctx.tenantId;
+      const sk = `INV#${eventId}`;
+      const ttl = Math.floor(Date.now() / 1000) + LOCK_TTL_SECONDS;
 
-      await deps.docClient.send(new PutCommand({
-        TableName: deps.tableName,
-        Item: buildCdcItem('AgentInvocation',
-          { pk: `DECISION#${decisionId}`, sk: `INV#${invocationId}` },
-          ctx,
-          { invocationId, decisionId, agentName: 'market-research', status: 'IN_PROGRESS', startedAt },
-        ),
-      }));
+      try {
+        await deps.docClient.send(new PutCommand({
+          TableName: deps.tableName,
+          Item: buildCdcItem('AgentInvocation',
+            { pk: `DECISION#${decisionId}`, sk },
+            ctx,
+            { invocationId: eventId, decisionId, agentName: 'market-research', status: 'IN_PROGRESS', startedAt, ttl },
+          ),
+          ConditionExpression: 'attribute_not_exists(sk)',
+        }));
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'ConditionalCheckFailedException') {
+          throw new DuplicateInvocationError(eventId);
+        }
+        throw error;
+      }
 
       const target = await resolveAgentRuntimeTarget();
       const result = await dispatchAgentInvocation<Record<string, unknown>>(target, {
@@ -44,9 +63,9 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       await deps.docClient.send(new PutCommand({
         TableName: deps.tableName,
         Item: buildCdcItem('AgentInvocation',
-          { pk: `DECISION#${decisionId}`, sk: `INV#${invocationId}` },
+          { pk: `DECISION#${decisionId}`, sk },
           ctx,
-          { invocationId, decisionId, agentName: 'market-research', status: 'COMPLETED', startedAt, completedAt, durationMs },
+          { invocationId: eventId, decisionId, agentName: 'market-research', status: 'COMPLETED', startedAt, completedAt, durationMs },
         ),
       }));
 

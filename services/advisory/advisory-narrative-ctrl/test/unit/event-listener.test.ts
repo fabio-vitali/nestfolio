@@ -98,8 +98,27 @@ describe('advisory-narrative-ctrl event-listener', () => {
     expect(mockReadUpstreamOutput).toHaveBeenCalledWith('portfolio-engine');
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('narrative preferences communication style');
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('session summaries');
-    expect(mockRunPipeline).toHaveBeenCalled();
+    expect(mockRunPipeline).toHaveBeenCalledWith(
+      'evt-1',
+      expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1' }),
+    );
     expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
+  });
+
+  it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
+    const { DuplicateInvocationError } = await import('../../src/agent-service');
+    mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('evt-dup'));
+
+    const payload: EventPayload = {
+      subject: { tenantId: 't1', decisionId: 'dp-dup', taskToken: 'tok' },
+    };
+
+    const dupCtx: EventContext = { ...baseCtx, eventId: 'evt-dup' };
+    const result = await handlers.GENERATE_NARRATIVE(payload, dupCtx);
+
+    expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
+    expect(result.intents).toBeUndefined();
+    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
   });
 
   it('should route DECISION_FEEDBACK to feedback correlator', async () => {

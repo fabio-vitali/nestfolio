@@ -43,7 +43,7 @@ describe('market-intelligence-ctrl agent-service', () => {
     });
 
     const service = createAgentService(deps);
-    const result = await service.runPipeline({
+    const result = await service.runPipeline('evt-mkt-1', {
       tenantId: 't1',
       decisionId: 'dp-1',
       taskToken: 'token-123',
@@ -74,10 +74,64 @@ describe('market-intelligence-ctrl agent-service', () => {
     (dispatchAgentInvocation as jest.Mock).mockRejectedValue(new Error('Agent failure'));
 
     const service = createAgentService(deps);
-    await expect(service.runPipeline({
+    await expect(service.runPipeline('evt-mkt-2', {
       tenantId: 't1',
       decisionId: 'dp-2',
       taskToken: 'token-456',
     })).rejects.toThrow('Agent failure');
+  });
+
+  it('uses INV#${eventId} as the sk and adds attribute_not_exists condition + ttl on IN_PROGRESS write', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+      signals: [], tickersMentioned: [], marketOutlook: '', confidenceScore: 0,
+    });
+
+    const service = createAgentService(deps);
+    await service.runPipeline('evt-mkt-lock', {
+      tenantId: 't1',
+      decisionId: 'dp-lock',
+      taskToken: 'tok',
+    });
+
+    const calls = ddbMock.commandCalls(PutCommand);
+    expect(calls.length).toBe(2);
+
+    const inProgressArgs = calls[0].args[0].input;
+    expect(inProgressArgs.Item).toMatchObject({
+      pk: 'DECISION#dp-lock',
+      sk: 'INV#evt-mkt-lock',
+      __typename: 'AgentInvocation',
+      invocationId: 'evt-mkt-lock',
+      decisionId: 'dp-lock',
+      tenantId: 't1',
+      status: 'IN_PROGRESS',
+    });
+    expect(inProgressArgs.Item?.ttl).toEqual(expect.any(Number));
+    expect(inProgressArgs.ConditionExpression).toBe('attribute_not_exists(sk)');
+
+    const completedArgs = calls[1].args[0].input;
+    expect(completedArgs.Item).toMatchObject({
+      pk: 'DECISION#dp-lock',
+      sk: 'INV#evt-mkt-lock',
+      status: 'COMPLETED',
+    });
+    expect(completedArgs.ConditionExpression).toBeUndefined();
+  });
+
+  it('throws DuplicateInvocationError when conditional check fails (duplicate event)', async () => {
+    const conditionalFailure = new Error('The conditional request failed');
+    conditionalFailure.name = 'ConditionalCheckFailedException';
+    ddbMock.on(PutCommand).rejectsOnce(conditionalFailure);
+
+    const { DuplicateInvocationError } = await import('../../src/agent-service');
+    const service = createAgentService(deps);
+
+    await expect(service.runPipeline('evt-mkt-dup', {
+      tenantId: 't1',
+      decisionId: 'dp-dup',
+      taskToken: 'tok',
+    })).rejects.toThrow(DuplicateInvocationError);
+
+    expect(dispatchAgentInvocation).not.toHaveBeenCalled();
   });
 });

@@ -101,18 +101,35 @@ describe('investor-profile-ctrl event-listener', () => {
     expect(result.output).toEqual({ decisionId: 'dp-1', tenantId: 't1' });
     expect(result.intents).toHaveLength(1);
 
-    expect(mockRunPipeline).toHaveBeenCalledWith(expect.objectContaining({
-      tenantId: 't1',
-      decisionId: 'dp-1',
-    }));
+    expect(mockRunPipeline).toHaveBeenCalledWith(
+      'evt-1',
+      expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1' }),
+    );
 
     // taskToken should NOT be passed to runPipeline (pipeline handles SFN resume)
-    expect(mockRunPipeline).toHaveBeenCalledWith(expect.not.objectContaining({
-      taskToken: expect.anything(),
-    }));
+    expect(mockRunPipeline).toHaveBeenCalledWith(
+      'evt-1',
+      expect.not.objectContaining({ taskToken: expect.anything() }),
+    );
 
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('investor preferences risk tolerance');
     expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
+  });
+
+  it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
+    const { DuplicateInvocationError } = await import('../../src/agent-service');
+    mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('evt-dup'));
+
+    const payload: EventPayload = {
+      subject: { tenantId: 't1', decisionId: 'dp-dup', taskToken: 'tok' },
+    };
+
+    const dupCtx: EventContext = { ...baseCtx, eventId: 'evt-dup' };
+    const result = await handlers.ANALYZE_INVESTOR_PROFILE(payload, dupCtx);
+
+    expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
+    expect(result.intents).toBeUndefined();
+    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
   });
 
   it('should propagate agent errors', async () => {
