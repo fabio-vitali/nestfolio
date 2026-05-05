@@ -2,7 +2,7 @@ import { Construct } from 'constructs';
 import { Annotations, Duration } from 'aws-cdk-lib';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import * as logs from 'aws-cdk-lib/aws-logs';
-import { Rule } from 'aws-cdk-lib/aws-events';
+import { CfnRule, Rule } from 'aws-cdk-lib/aws-events';
 import { SfnStateMachine } from 'aws-cdk-lib/aws-events-targets';
 import { RuleTargetInput } from 'aws-cdk-lib/aws-events';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
@@ -91,9 +91,18 @@ export class Orchestration extends Construct {
       );
     }
     if (!props.executionName) {
-      // EventBridge rules — one per trigger event type
+      // EventBridge rules — one per trigger event type.
+      // Apply the same `$or` source filter as Ingress so integration-test
+      // events targeting OTHER services (source = `integration-test:<other>`)
+      // do NOT spuriously start an SF execution. Without this, a per-service
+      // integration test that emits a trigger event (e.g.
+      // INVESTOR_PROFILE_CREATED with source = `integration-test:
+      // compliance-ctrl`) would also fire decision-workflow-ctrl's SF, which
+      // then emits noise events back into the test's trap and breaks
+      // assertions on decisionId-bound events.
+      const serviceName = naming.service;
       for (const eventType of props.triggers) {
-        new Rule(this, `${eventType}Rule`, {
+        const rule = new Rule(this, `${eventType}Rule`, {
           eventBus,
           eventPattern: { detailType: [eventType] },
           targets: [
@@ -101,6 +110,19 @@ export class Orchestration extends Construct {
               input: RuleTargetInput.fromEventPath('$.detail'),
               deadLetterQueue: this.dlq,
             }),
+          ],
+        });
+        const cfnRule = rule.node.defaultChild as CfnRule;
+        cfnRule.addPropertyOverride('EventPattern', {
+          '$or': [
+            {
+              'detail-type': [eventType],
+              'source': [{ 'anything-but': { 'prefix': 'integration-test:' } }],
+            },
+            {
+              'detail-type': [eventType],
+              'source': [{ 'prefix': `integration-test:${serviceName}` }],
+            },
           ],
         });
       }

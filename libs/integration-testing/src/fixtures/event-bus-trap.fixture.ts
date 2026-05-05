@@ -245,7 +245,17 @@ export class EventBusTrap {
       params?.detailType ? ` ${params.detailType}` : '',
       params?.match ? ' (matching predicate)' : '',
     ].join('');
-    throw new Error(`EventBusTrap: timeout waiting for event${suffix} after ${timeout}ms`);
+    // Surface what we DID see so trap-side test failures point at the
+    // upstream cause (wrong detailType, missing field, etc.) instead of
+    // a generic "timeout" message.
+    const seen = this.captured.map(e => ({
+      detailType: e.detailType,
+      subject: (e.detail as { subject?: unknown })?.subject,
+    }));
+    throw new Error(
+      `EventBusTrap: timeout waiting for event${suffix} after ${timeout}ms. ` +
+        `Captured-but-unmatched buffer: ${JSON.stringify(seen).slice(0, 2000)}`,
+    );
   }
 
   async drain(): Promise<CapturedEvent[]> {
