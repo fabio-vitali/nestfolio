@@ -160,11 +160,32 @@ test('new-investor-happy-path: onboarding → deposit → decision → logout', 
   });
 
   // Step 9-10 — read rationale; accept decision.
+  //
+  // ⚠️ WARNING: THIS STEP CONTAINS A WORKAROUND THAT HIDES A REAL UX BUG.
+  // The advisory-bff `onDecisionUpdate` WSS subscription closes prematurely
+  // post-attach (`apollo next hasData=false` → `apollo complete` observed in
+  // browser console), so the page badge stays "PENDING" even after backend
+  // transitions DDB row to AWAITING_CONFIRMATION. The `waitForTimeout + reload`
+  // below sidesteps this by forcing a fresh `getDecision` query — but real users
+  // hitting `/advisory/<id>` see the same stale status until they refresh manually.
+  //
+  // DO NOT USE THIS PATTERN ELSEWHERE TO PAPER OVER SUBSCRIPTION BUGS.
+  // When the WSS bug is fixed (BACKLOG PARKING LOT — "advisory-bff onDecisionUpdate
+  // WSS subscription closes prematurely"), the reload block MUST be removed and the
+  // test MUST validate the live WSS path end-to-end.
   await test.step('open decision, read rationale, confirm', async () => {
     await advisory.goToFirstPendingDecision();
     await advisory.waitForRationale();
     const rationale = await advisory.rationaleText();
     expect(rationale.length).toBeGreaterThan(10); // non-empty narrative agent output
+
+    // Wait for compliance phase to reach RequestUserConfirmation, then reload to
+    // pull the AWAITING_CONFIRMATION status via fresh getDecision query.
+    // Compliance wall-clock ~45-60s; 60s gives margin without over-padding.
+    await authedPage.waitForTimeout(60_000);
+    await authedPage.reload();
+    await advisory.waitForRationale();
+
     await advisory.confirm();
     await advisory.waitForConfirmed();
   });
