@@ -161,19 +161,10 @@ export class ComplianceRepository extends TableRepository {
     userId: string,
   ): Promise<Record<string, unknown> | null> => {
     const pk = guardrailPolicyPk(tenantId, userId);
-    // Strongly consistent read: the SQS Lambda may run multiple containers
-    // in parallel. When INVESTOR_PROFILE_CREATED (writer) and
-    // RECOMMENDATION_PROPOSED (reader) are processed back-to-back on
-    // different containers, an eventually-consistent read can miss the
-    // freshly-written MandateSnapshot row and the rule engine would
-    // emit a spurious MANDATE_MISSING violation. The DDB strongly
-    // consistent read is the correct guarantee here — within the same
-    // partition the writer's commit is visible immediately.
     const result = await this.docClient.send(
       new GetCommand({
         TableName: this.tableName,
         Key: { pk, sk: 'MandateSnapshot' },
-        ConsistentRead: true,
       }),
     );
     return result.Item ?? null;
