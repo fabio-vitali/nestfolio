@@ -176,7 +176,29 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (data) => {
           const advisoryStatus = data?.onDashboardUpdate?.advisoryStatus;
-          if (advisoryStatus) this.store.setAdvisoryStatus(advisoryStatus);
+          // TEMP Phase-1 instrumentation for BACKLOG ACTIVE: Step 8 WSS bug.
+          // Logs every onDashboardUpdate frame to disambiguate (a) sentinel
+          // never arrives, (b) arrives with advisoryStatus null, (c) arrives
+          // correctly but is overwritten by a production frame within the
+          // 500ms poll window. Remove once root cause identified.
+          // eslint-disable-next-line no-console
+          console.log('[Step8Diag.subscribeToUpdates] frame', {
+            t: new Date().toISOString(),
+            tenantId,
+            hasData: !!data,
+            hasAdvisoryStatus: !!advisoryStatus,
+            pendingDecisionsCount: advisoryStatus?.pendingDecisionsCount ?? null,
+            lastDecisionStatus: advisoryStatus?.lastDecisionStatus ?? null,
+            updatedAt: advisoryStatus?.updatedAt ?? null,
+          });
+          if (advisoryStatus) {
+            this.store.setAdvisoryStatus(advisoryStatus);
+            // eslint-disable-next-line no-console
+            console.log('[Step8Diag.subscribeToUpdates] store updated', {
+              t: new Date().toISOString(),
+              storeNow: this.store.advisoryStatus()?.pendingDecisionsCount ?? null,
+            });
+          }
         },
       });
   }

@@ -52,6 +52,14 @@ export async function injectAdvisoryUpdate(
     headers: { 'Content-Type': 'application/json', host: url.hostname },
     body,
   });
+  // TEMP Phase-1 instrumentation for BACKLOG ACTIVE: Step 8 WSS bug.
+  // eslint-disable-next-line no-console
+  console.log('[Step8Diag.injectAdvisoryUpdate] sending', {
+    t: new Date().toISOString(),
+    appsyncUrl,
+    tenantId,
+    pendingDecisionsCount,
+  });
   const response = await fetch(appsyncUrl, {
     method: 'POST',
     headers: signed.headers as Record<string, string>,
@@ -60,7 +68,17 @@ export async function injectAdvisoryUpdate(
   if (!response.ok) {
     throw new Error(`injectAdvisoryUpdate HTTP ${response.status}: ${await response.text()}`);
   }
-  const json = (await response.json()) as { errors?: Array<{ message: string }> };
+  const json = (await response.json()) as {
+    data?: { publishDashboardUpdate?: unknown };
+    errors?: Array<{ message: string }>;
+  };
+  // eslint-disable-next-line no-console
+  console.log('[Step8Diag.injectAdvisoryUpdate] response', {
+    t: new Date().toISOString(),
+    status: response.status,
+    data: json.data,
+    errors: json.errors ?? null,
+  });
   if (json.errors?.length) {
     throw new Error(`injectAdvisoryUpdate GraphQL errors: ${JSON.stringify(json.errors)}`);
   }
