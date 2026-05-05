@@ -8,7 +8,8 @@
 - **Scope contract.** Every spec/plan must have an explicit §"Out of scope" before execution starts. Out-of-scope failures during validation default to *file-and-continue*, not pivot.
 - **Boundary review.** At each workstream ship, spend 5 min re-ranking PARKING LOT and promoting items to QUEUED if they've grown teeth.
 
-Last reviewed: 2026-05-05 (full Playwright happy-path GREEN — `new-investor-happy-path` passed 1/1 in 3.5m. Step 10 ACTIVE workaround shipped; advisory WSS subscription bug filed in PARKING LOT for proper investigation).
+Last reviewed: 2026-05-05 (147-stuck-SF cleanup chore shipped — 65 stale RUNNING executions stopped, 0 orphaned TaskToken rows, done-definition met. Operating mode promoted to ACTIVE).
+Updated 2026-05-05 (chore shipped): ran the documented one-liner against `dev-decision-workflow-ctrl-decisionstatemachine`. Pre-state: 89 RUNNING total, **65 stale (>24h)**, 6 in 1h–24h band, 18 fresh (<1h, live e2e). Post-state: 24 RUNNING (24h-and-under only), 0 stale, 0 TaskToken rows in `dev-advisory-bff-StateTable962DE04C-1VGXL2KZX3AUM`. Cutoff 1777924340 epoch. Stop reason `BacklogChore` / cause "Cleanup per docs/BACKLOG.md ACTIVE 2026-05-05". Original entry quoted "147+" but real count had decayed to 65 between 2026-05-02 surfacing and 2026-05-05 execution (some auto-timed-out at 1y horizon, some completed via Step 10 reload workaround).
 Updated 2026-05-05 (Step 10 GREEN): Playwright `new-investor-happy-path: onboarding → deposit → decision → logout` PASSED 1/1 in 3.5 min on tenant `e2e-1778007688617`. The 120s confirm() timeout (slot-1 timing fix) was necessary but insufficient — surfaced a deeper bug: `advisory-bff onDecisionUpdate` WSS subscription closes prematurely (`apollo next hasData=false → apollo complete` in browser console), so live-update from PENDING → AWAITING_CONFIRMATION never propagates to the rendered page even though backend writes the correct status to DDB and decision-publisher Lambda fires broadcasts. WSS issue is advisory-bff-specific (dashboard-bff `onDashboardUpdate` works fine on the same page). Workaround shipped in `apps/nestfolio-e2e/src/journeys/new-investor-happy-path.spec.ts` Step 9-10: `waitForTimeout(60s) + page.reload()` between rationale + confirm, forcing fresh `getDecision` query that pulls the correct status from DDB. WSS root-cause investigation filed in PARKING LOT. Diagnostic instrumentation (`[Step8Diag.*]`, `[Step10Diag.*]`) removed from `apps/dashboard-mfe/src/app/dashboard/dashboard-container.component.ts`, `apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts`, `apps/nestfolio-e2e/src/fixtures/test.ts`, `apps/advisory-mfe/src/app/services/advisory.service.ts`. Step 10 ACTIVE → Recently shipped.
 Updated 2026-05-05 (Step 8 resolution + Step 10 ACTIVE): ran the Step 8 instrumented e2e (tenant `e2e-1778001673526`). **Step 8 PASSED** — `[Step8Diag.injectAdvisoryUpdate]` got HTTP 200 with valid `advisoryStatus` payload, and `waitForPendingDecisionsExactly(101, 30s)` succeeded → the inject sentinel reached the dashboard subscriber via WSS. All four hypotheses (a/b/c/d) were FALSE; the pre-existing `Step8Diag` instrumentation can be removed in a cleanup pass. **Test now fails at Step 10** — `confirm()` 15s timeout vs ~45-60s compliance phase: SF history confirms `RequestUserConfirmation` entered at 19:24:15 (via `WaitForCompliance` exit + `ComplianceChoice → RequestUserConfirmation`), 25s after the test gave up. The QUEUED slot-1 entry was MISDIAGNOSED as L1/L2 nondeterminism — verified: `services/investor/investor-bff/src/transforms/onboarding-completed.ts:36` already forces `mandate.level='ADVISORY'` for `e2e-*` tenants, which guarantees L2 in `services/advisory/compliance-ctrl/src/rules/authority-resolver.ts:20`. Real cause is timing. Pivoted slot-1 → ACTIVE, re-scoped to "extend confirm() timeout to 120s" + verify 5/5 gate. Step 8 ACTIVE moved to Recently shipped.
 Updated 2026-05-05 (Step 8 resolution + Step 10 ACTIVE): ran the Step 8 instrumented e2e (tenant `e2e-1778001673526`). **Step 8 PASSED** — `[Step8Diag.injectAdvisoryUpdate]` got HTTP 200 with valid `advisoryStatus` payload, and `waitForPendingDecisionsExactly(101, 30s)` succeeded → the inject sentinel reached the dashboard subscriber via WSS. All four hypotheses (a/b/c/d) were FALSE; the pre-existing `Step8Diag` instrumentation can be removed in a cleanup pass. **Test now fails at Step 10** — `confirm()` 15s timeout vs ~45-60s compliance phase: SF history confirms `RequestUserConfirmation` entered at 19:24:15 (via `WaitForCompliance` exit + `ComplianceChoice → RequestUserConfirmation`), 25s after the test gave up. The QUEUED slot-1 entry was MISDIAGNOSED as L1/L2 nondeterminism — verified: `services/investor/investor-bff/src/transforms/onboarding-completed.ts:36` already forces `mandate.level='ADVISORY'` for `e2e-*` tenants, which guarantees L2 in `services/advisory/compliance-ctrl/src/rules/authority-resolver.ts:20`. Real cause is timing. Pivoted slot-1 → ACTIVE, re-scoped to "extend confirm() timeout to 120s" + verify 5/5 gate. Step 8 ACTIVE moved to Recently shipped.
@@ -24,35 +25,9 @@ Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retire
 
 ## ACTIVE
 
-### `[chore]` Stop + clean up 147+ stuck Step Function executions on dev
-
-**Done when:** `aws stepfunctions list-executions --status-filter RUNNING` on `dev-decision-workflow-ctrl-decisionstatemachine` returns 0 executions older than 24h, AND no orphaned task-token DDB rows remain in `dev-advisory-bff-StateTable962DE04C-1VGXL2KZX3AUM`.
-
-**Status:** Surfaced 2026-05-02. **147 of 676 historical executions on `dev-decision-workflow-ctrl-decisionstatemachine` are stuck RUNNING** (vs 15 SUCCEEDED, 499 FAILED, 15 TIMED_OUT — 2.2% success rate since 2026-04-20). Each stuck execution sits at the `RequestUserConfirmation` task-token wait: WaitForCompliance returned, the user-confirm task token was issued, and Step 10's WSS callback never fires reliably so the token is never returned. SF default 1-year timeout means they'd sit there until 2027 without intervention.
-
-**Mechanism:** stuck-at-`RequestUserConfirmation` is the symptom; the root cause is Step 10 (Confirm button → `confirmDecision` mutation → WSS callback) being unreliable. The Step 8 + Step 10 ACTIVE workstreams shipped 2026-05-05 (Step 8 verified working as-is; Step 10 fixed via test-side reload workaround that bypasses the broken advisory-bff `onDecisionUpdate` WSS subscription — see PARKING LOT for the underlying WSS bug). With those source-of-stuck-SFs gates green, this entry is the one-time hygiene to clean up the existing residue.
-
-**Fix:**
-1. Bash one-liner to stop all stuck executions older than 24h:
-   ```bash
-   aws stepfunctions list-executions --state-machine-arn arn:aws:states:us-east-1:771924376645:stateMachine:dev-decision-workflow-ctrl-decisionstatemachine --status-filter RUNNING --region us-east-1 --max-items 1000 --output json | jq -r '.executions[] | select(.startDate < (now - 86400)) | .executionArn' | xargs -I{} aws stepfunctions stop-execution --execution-arn {} --region us-east-1
-   ```
-2. DDB scan for orphaned task-token rows (`sk` begins with `TaskToken#` and the corresponding decisionId is in a stuck-pending status with no live SF) → batch delete.
-3. Verify count drops to 0.
-
-**Why ACTIVE (promoted from slot 2):** Step 8 + Step 10 shipped 2026-05-05; the source of new stuck SFs is gated. Cleanup is now safe to run without immediate re-accumulation. Small (5-min) chore — execute the bash one-liner above, verify count drops to 0, ship.
-
-**Topic memory:** `project_decision_workflow_stuck.md`.
-
----
-
-## QUEUED
-
-Ordered. Slot 1 is the next adopt-as-ACTIVE candidate.
-
 ### `[design]` Operating mode feature
 
-**Status:** DESIGN IN PROGRESS (2026-04-14). Captured at onboarding but not wired into advisory behavior.
+**Status:** DESIGN IN PROGRESS (2026-04-14). Captured at onboarding but not wired into advisory behavior. Promoted from QUEUED slot 1 on 2026-05-05 after the 147-stuck-SF cleanup chore shipped.
 
 **Done when:** AGGRESSIVE/BALANCED/CONSERVATIVE actually drives portfolio-engine + advisory-narrative behavior.
 
@@ -65,6 +40,10 @@ Ordered. Slot 1 is the next adopt-as-ACTIVE candidate.
 **Topic memory:** `project_operating_mode.md`.
 
 ---
+
+## QUEUED
+
+Ordered. Slot 1 is the next adopt-as-ACTIVE candidate.
 
 ### `[design]` Integration test mock resilience
 
@@ -131,6 +110,7 @@ Compact list — full prose lives in user auto-memory `MEMORY.md` § "Recently C
 
 | Date | Item | Commit |
 |---|---|---|
+| 2026-05-05 | 147-stuck-SF cleanup chore — 65 stale (>24h) RUNNING executions stopped on `dev-decision-workflow-ctrl-decisionstatemachine` (stop reason `BacklogChore`); post-state 0 stale + 0 TaskToken rows in `dev-advisory-bff-StateTable962DE04C-1VGXL2KZX3AUM`. Source-of-stuck-SFs already gated by Step 8/10 ships earlier same day. Original "147+" had decayed to 65 by execution day. | n/a (AWS state cleanup) |
 | 2026-05-05 | Playwright happy-path GREEN (1/1 in 3.5m) — Step 10 Confirm-button blocker resolved via test-side reload workaround. Two-layer fix: (1) `advisory.page.ts confirm()` 15s → 120s click timeout; (2) journey spec adds `waitForTimeout(60s) + page.reload()` between rationale + confirm to bypass advisory-bff `onDecisionUpdate` WSS subscription that closes prematurely (`apollo next hasData=false → apollo complete` in browser console — distinct from dashboard WSS which works). Backend healthy (DDB has correct `AWAITING_CONFIRMATION`, decision-publisher Lambda fires broadcasts). WSS root-cause investigation filed in PARKING LOT — three competing hypotheses (Apollo dedup with identical query+vars, non-null `DecisionPacket!` schema return, explicit `@aws_cognito_user_pools @aws_iam` directive interaction). Diag instrumentation removed: `apps/dashboard-mfe/src/app/dashboard/dashboard-container.component.ts`, `apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts`, `apps/nestfolio-e2e/src/fixtures/test.ts`, `apps/advisory-mfe/src/app/services/advisory.service.ts`. Validated tenant `e2e-1778007688617`. | uncommitted |
 | 2026-05-05 | Step 8 WSS dashboard subscription bug — RESOLVED via diagnostic e2e run (tenant `e2e-1778001673526`). `[Step8Diag.injectAdvisoryUpdate]` got HTTP 200 + valid `advisoryStatus` payload; `waitForPendingDecisionsExactly(101, 30s)` succeeded → inject sentinel arrived at the dashboard subscriber. All four hypotheses (a/b/c/d) ruled out by the run alone; the WSS path is healthy. Test now fails at Step 10 (Confirm-button timing) — refiled as new ACTIVE. Pre-existing `Step8Diag` instrumentation can be removed (filed as new QUEUED slot 1). | uncommitted |
 | 2026-05-05 | Advisory pipeline regression fix — 3 coupled fixes ship the agent-Memory write path: (1) `agentProps.bundling.externalModules: []` so `@aws-sdk/client-bedrock-agentcore` bundles into the 4 agent service Ingress Lambdas (Lambda Node 24 runtime ships an older SDK that lacks `BatchCreateMemoryRecordsCommand`); (2) IAM grant `bedrock-agentcore:BatchCreateMemoryRecords` added to all 4 service.stack.ts policies (Spec 2 SDK migration missed updating grants); (3) `requestIdentifier` separator in `memory-client.ts` changed from `/` to `_` to match SDK's `[a-zA-Z0-9_-]+` constraint. Verified: 3 SF executions reached `RequestUserConfirmation` (one state past `WaitForCompliance`); done-definition exceeded. Step 8 WSS bug re-promoted to ACTIVE. | uncommitted |
