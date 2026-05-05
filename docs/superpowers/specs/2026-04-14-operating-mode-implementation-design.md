@@ -1,8 +1,12 @@
 # Operating Mode Implementation Design
 
 **Date:** 2026-04-14
-**Status:** Approved
+**Status:** Phase 1 SHIPPED 2026-05-05 (verified 4/4 implementation tasks on `main`, E2E gate 3/3 GREEN against deployed dev — see `docs/BACKLOG.md` Recently shipped). Phase 2 (agent-behavior dimension B) filed as new QUEUED `[design]` item.
 **Reference:** `specifications/01-product-vision.md` — Operating Modes and Guardrails Table
+
+---
+
+> **⚠️ Post-collapse note (2026-05-05):** This spec was authored before the 2026-05-04 InvestorProfile single-row collapse. References below to a separate `Mandate` row (`sk='Mandate'`), `OperatingModeRecord`, and the `MANDATE_CREATED` / `MANDATE_UPDATED` / `OPERATING_MODE_CHANGED` events are stale — those entities were collapsed into a composite `InvestorProfile` row carrying `mandate.*` + `operatingMode` as embedded fields, with a single `INVESTOR_PROFILE_CREATED` / `INVESTOR_PROFILE_UPDATED` event pair. Authoritative current state: `services/investor/investor-bff/CLAUDE.md` + `services/advisory/compliance-ctrl/CLAUDE.md`. The implementation correctly adapted to the post-collapse model — the spec text below remains for historical context only.
 
 ---
 

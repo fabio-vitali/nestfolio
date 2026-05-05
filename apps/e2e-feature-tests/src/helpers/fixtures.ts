@@ -55,8 +55,9 @@ export async function applyFixtures(
 
 /**
  * Seeds the minimum viable onboarded state:
- *   1. USER_REGISTERED  — materializes InvestorProfile (required by ONBOARDING_COMPLETED's ConditionExpression)
- *   2. ONBOARDING_COMPLETED — materializes Goal, RiskProfile, Mandate, OperatingMode, AccountMode, Deposit
+ *   1. USER_REGISTERED — observed for cross-service propagation (no-op in investor-bff post-collapse)
+ *   2. ONBOARDING_COMPLETED — materializes the composite InvestorProfile row + sibling MandateStatus + optional Deposit
+ *   3. Wait for getProfile to confirm the composite row exists before downstream fixtures run.
  *
  * Matches the seeding chain used by services/investor/investor-bff/test/integration/.
  */
@@ -77,18 +78,6 @@ export function onboarded(overrides?: {
         email: `${tenant.userId}@integ-e2e.example`,
       },
     });
-    // ONBOARDING_COMPLETED's transactWrite has ConditionExpression: attribute_exists(pk)
-    // on the InvestorProfile row created by USER_REGISTERED. Poll getProfile to confirm
-    // the profile is materialized before publishing ONBOARDING_COMPLETED — avoids a
-    // race where ONBOARDING_COMPLETED is processed first, fails, and retries after the
-    // 180 s SQS visibility timeout.
-    await waitForGraphQL<{ getProfile: { tenantId: string } }>(
-      bff.investor,
-      `query { getProfile { tenantId } }`,
-      {},
-      (r) => !!r.getProfile?.tenantId,
-      { timeoutMs: 60_000 },
-    );
     await eb.putEvent({
       bus: 'investor',
       targetService: 'investor-bff',
@@ -108,6 +97,17 @@ export function onboarded(overrides?: {
         mandateAccepted: true,
       },
     });
+    // Poll getProfile to confirm the composite InvestorProfile row has been materialized
+    // by onboarding-completed's Put. Downstream fixtures (funded, withDecision, etc.) can
+    // race against this if the profile isn't ready, and any test asserting on
+    // mandate/operatingMode shape needs a materialized row.
+    await waitForGraphQL<{ getProfile: { tenantId: string } }>(
+      bff.investor,
+      `query { getProfile { tenantId } }`,
+      {},
+      (r) => !!r.getProfile?.tenantId,
+      { timeoutMs: 60_000 },
+    );
     return {};
   };
 }

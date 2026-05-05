@@ -1,5 +1,9 @@
 # Operating Mode Implementation Plan
 
+**Status (2026-05-05):** Tasks 1, 2, 3, 4 SHIPPED on `main` (verified). Task 5 SHIPPED — E2E gate green 3/3 against deployed dev (CONSERVATIVE→L2, BALANCED→L1, AGGRESSIVE→L1) in 169s. Task 2b (operating-mode-change handler) was made moot by the 2026-05-04 InvestorProfile collapse — the OPERATING_MODE_CHANGED event no longer exists, but `updateOperatingMode` mutation re-derivation gap remains open and is filed in `docs/BACKLOG.md` PARKING LOT.
+
+> **⚠️ Post-collapse note:** This plan was authored before the 2026-05-04 InvestorProfile single-row collapse. References below to `OPERATING_MODE_CHANGED` event, `OperatingModeRecord` entity, separate `Mandate` row (`sk='Mandate'`), and `MANDATE_CREATED` / `MANDATE_UPDATED` events are stale. The collapse replaced these with a composite `InvestorProfile` row + `INVESTOR_PROFILE_CREATED` / `INVESTOR_PROFILE_UPDATED` events. The implementation correctly adapted (compliance-ctrl now ingests the composite events per `services/advisory/compliance-ctrl/CLAUDE.md`); the plan text remains for historical context only.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Wire operating mode (CONSERVATIVE/BALANCED/AGGRESSIVE) into actual system behavior so that mode-specific guardrail thresholds drive L1/L2 authority resolution.
