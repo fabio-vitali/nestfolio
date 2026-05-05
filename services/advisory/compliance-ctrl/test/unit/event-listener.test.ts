@@ -326,7 +326,7 @@ describe('event-listener handler', () => {
       ...overrides,
     });
 
-    it('INVESTOR_PROFILE_CREATED → project(MandateSnapshot) with all guardrail fields and status=ACTIVE', async () => {
+    it('INVESTOR_PROFILE_CREATED → update(MandateSnapshot) SETs guardrail fields and skips when status=REVOKED', async () => {
       const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord('INVESTOR_PROFILE_CREATED', compositePayload(), { tenantId: 't-1' }),
@@ -334,9 +334,9 @@ describe('event-listener handler', () => {
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(1);
       expect(result.intents[0]).toMatchObject({
-        _tag: 'project',
+        _tag: 'update',
         typename: 'MandateSnapshot',
-        fields: expect.objectContaining({
+        updates: expect.objectContaining({
           tenantId: 't-1',
           userId: 'u-1',
           mandateId: 'm-1',
@@ -348,14 +348,21 @@ describe('event-listener handler', () => {
           singleEtfConcentrationPercent: 30,
           drawdownCircuitBreakerPercent: 12,
           effectiveDate: '2025-01-01T00:00:00.000Z',
-          revokedAt: null,
-          status: 'ACTIVE',
         }),
+        condition: 'attribute_not_exists(#mandate_status) OR #mandate_status <> :revoked',
+        conditionNames: { '#mandate_status': 'status' },
+        conditionValues: { ':revoked': 'REVOKED' },
       });
+      // Status field intentionally omitted from updates — owned by
+      // processMandateRevoked. revokedAt likewise unset on this path so a
+      // redelivered INVESTOR_PROFILE_CREATED can't reset it to null.
+      const updates = (result.intents[0] as { updates: Record<string, unknown> }).updates;
+      expect('status' in updates).toBe(false);
+      expect('revokedAt' in updates).toBe(false);
       expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('INVESTOR_PROFILE_UPDATED → project(MandateSnapshot) with updated mandate fields', async () => {
+    it('INVESTOR_PROFILE_UPDATED → update(MandateSnapshot) SETs new guardrail fields without touching status', async () => {
       const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord(
@@ -379,15 +386,16 @@ describe('event-listener handler', () => {
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(1);
       expect(result.intents[0]).toMatchObject({
-        _tag: 'project',
+        _tag: 'update',
         typename: 'MandateSnapshot',
-        fields: expect.objectContaining({
+        updates: expect.objectContaining({
           mandateId: 'm-2',
           monthlyTurnoverCapPercent: 5,
           maxSingleTradePercent: 3,
-          status: 'ACTIVE',
         }),
       });
+      const updates = (result.intents[0] as { updates: Record<string, unknown> }).updates;
+      expect('status' in updates).toBe(false);
       expect(mockSend).not.toHaveBeenCalled();
     });
 
@@ -432,7 +440,7 @@ describe('event-listener handler', () => {
   });
 
   describe('mandate revoked events', () => {
-    it('MANDATE_REVOKED → project(MandateSnapshot) with status=REVOKED and revokedAt', async () => {
+    it('MANDATE_REVOKED → update(MandateSnapshot) patches only status + revokedAt, preserving guardrails', async () => {
       const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord(
@@ -449,19 +457,27 @@ describe('event-listener handler', () => {
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(1);
       expect(result.intents[0]).toMatchObject({
-        _tag: 'project',
+        _tag: 'update',
         typename: 'MandateSnapshot',
-        fields: expect.objectContaining({
+        updates: expect.objectContaining({
           tenantId: 't-1',
           userId: 'u-1',
           status: 'REVOKED',
           revokedAt: '2026-05-03T12:00:00.000Z',
         }),
       });
+      // The patch must NOT include guardrail fields — those are owned by
+      // the INVESTOR_PROFILE_* projection. Wiping them on revocation was
+      // the original PutItem-based bug.
+      const updates = (result.intents[0] as { updates: Record<string, unknown> }).updates;
+      expect('mandateId' in updates).toBe(false);
+      expect('level' in updates).toBe(false);
+      expect('maxSingleTradePercent' in updates).toBe(false);
+      expect('monthlyTurnoverCapPercent' in updates).toBe(false);
       expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it('MANDATE_REVOKED without revokedAt → projection still emits with synthesized revokedAt', async () => {
+    it('MANDATE_REVOKED without revokedAt → patch still emits with synthesized revokedAt', async () => {
       const harness = makeHarness();
       const result = await harness.process([
         fakeSqsRecord(
@@ -473,15 +489,15 @@ describe('event-listener handler', () => {
       expect(result.batchItemFailures).toHaveLength(0);
       expect(result.intents).toHaveLength(1);
       expect(result.intents[0]).toMatchObject({
-        _tag: 'project',
+        _tag: 'update',
         typename: 'MandateSnapshot',
-        fields: expect.objectContaining({
+        updates: expect.objectContaining({
           status: 'REVOKED',
         }),
       });
       // revokedAt should be a string (synthesized via new Date().toISOString())
-      const fields = (result.intents[0] as { fields: Record<string, unknown> }).fields;
-      expect(typeof fields.revokedAt).toBe('string');
+      const updates = (result.intents[0] as { updates: Record<string, unknown> }).updates;
+      expect(typeof updates.revokedAt).toBe('string');
     });
   });
 });

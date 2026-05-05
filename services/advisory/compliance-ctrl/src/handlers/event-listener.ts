@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { materializeToTable, record, project, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
+import { materializeToTable, record, update, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, NotRetryableError } from '@nestfolio/event-processor';
 import { logger } from '@nestfolio/event-processor';
 import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
@@ -95,7 +95,12 @@ async function processDecisionPacket(
     singleEtfConcentrationPercent: (mandateRecord.singleEtfConcentrationPercent as number) ?? 30,
     drawdownCircuitBreakerPercent: (mandateRecord.drawdownCircuitBreakerPercent as number) ?? 12,
     effectiveDate: mandateRecord.effectiveDate as string,
-    revokedAt: mandateRecord.revokedAt as string | null,
+    // INVESTOR_PROFILE_* projection no longer writes revokedAt — that field
+    // is owned exclusively by the MANDATE_REVOKED handler. Coerce undefined
+    // (column never set) to null so MandateValidator's `revokedAt !== null`
+    // gate doesn't false-positive on fresh-but-unrevoked rows.
+    revokedAt: (mandateRecord.revokedAt as string | undefined) ?? null,
+    status: mandateRecord.status as 'ACTIVE' | 'REVOKED' | undefined,
   };
 
   const proposedTrades = (subject.proposedTrades as ComplianceInput['proposedTrades']) ?? [];
@@ -175,7 +180,14 @@ function processInvestorProfileEvent(
     operatingMode,
   });
 
-  return project(
+  // SET-style update preserves any prior status='REVOKED' written by
+  // processMandateRevoked. ConditionExpression skips the write entirely when
+  // the row is already REVOKED — protects against SQS at-least-once
+  // redelivery of an INVESTOR_PROFILE_CREATED that arrives AFTER a
+  // MANDATE_REVOKED for the same user. The runtime catches
+  // ConditionalCheckFailedException as a no-op on event-processor's
+  // executeUpdate path.
+  return update(
     'MandateSnapshot',
     {
       tenantId,
@@ -189,10 +201,13 @@ function processInvestorProfileEvent(
       singleEtfConcentrationPercent: (mandate.singleEtfConcentrationPercent as number) ?? 30,
       drawdownCircuitBreakerPercent: (mandate.drawdownCircuitBreakerPercent as number) ?? 12,
       effectiveDate: mandate.effectiveDate as string,
-      revokedAt: (mandate.revokedAt as string) ?? null,
-      status: 'ACTIVE',
     },
-    { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' },
+    {
+      condition: 'attribute_not_exists(#mandate_status) OR #mandate_status <> :revoked',
+      conditionNames: { '#mandate_status': 'status' },
+      conditionValues: { ':revoked': 'REVOKED' },
+      overrides: { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' },
+    },
   );
 }
 
@@ -207,7 +222,12 @@ function processMandateRevoked(
 
   logger.info('Mandate revoked — gating MandateSnapshot.status=REVOKED', { tenantId, userId });
 
-  return project(
+  // Patch only status + revokedAt via UpdateExpression — preserves all
+  // mandate guardrail fields (mandateId, level, *Percent thresholds,
+  // effectiveDate) projected from a prior INVESTOR_PROFILE_CREATED. The
+  // previous PutItem-based projection wiped those fields, leaving the
+  // RuleEngine to evaluate against an empty mandate snapshot.
+  return update(
     'MandateSnapshot',
     {
       tenantId,
@@ -215,7 +235,7 @@ function processMandateRevoked(
       status: 'REVOKED',
       revokedAt,
     },
-    { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' },
+    { overrides: { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' } },
   );
 }
 

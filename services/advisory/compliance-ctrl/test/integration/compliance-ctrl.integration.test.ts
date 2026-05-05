@@ -75,6 +75,12 @@ describe('compliance-ctrl', () => {
   // riskProfile + operatingMode in subject.
 
   it('should project MandateSnapshot from INVESTOR_PROFILE_CREATED composite payload', async () => {
+    // Per-test unique userId — isolates the row so prior runs cannot pollute
+    // it (the REVOKED-gate test below leaves `status: REVOKED`, and the
+    // composite-event projection's ConditionExpression deliberately skips
+    // re-init when REVOKED is set, so a shared row would cause this test
+    // to read a stale REVOKED row).
+    const userId = `integ-user-create-${Date.now()}`;
     const mandateId = `integ-mandate-${Date.now()}`;
 
     await eb.putEvent({
@@ -83,7 +89,7 @@ describe('compliance-ctrl', () => {
       detailType: 'INVESTOR_PROFILE_CREATED',
       detail: {
         tenantId: ctx.tenantId,
-        userId: ctx.tenantId,
+        userId,
         mandate: {
           mandateId,
           level: 'DISCRETIONARY',
@@ -102,14 +108,26 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    // Assert: MandateSnapshot projected into DDB
-    // pk = GuardrailPolicy#{tenantId}#{userId}, sk = MandateSnapshot
-    const item = await table.waitForItem({
-      table: 'compliance-ctrl',
-      pk: `GuardrailPolicy#${ctx.tenantId}#${ctx.tenantId}`,
-      sk: 'MandateSnapshot',
-      timeoutMs: 60_000,
-    });
+    // Poll for THIS test's mandateId — handler may run multiple times if the
+    // SQS Lambda redelivers, but each carries the same mandateId so the
+    // assertion is stable.
+    let item: Record<string, unknown> | undefined;
+    const deadline = Date.now() + 90_000;
+    while (Date.now() < deadline) {
+      try {
+        item = await table.waitForItem({
+          table: 'compliance-ctrl',
+          pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
+          sk: 'MandateSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (item['mandateId'] === mandateId) break;
+      } catch { /* not yet */ }
+      await new Promise((r) => setTimeout(r, 2_000));
+    }
+    if (!item || item['mandateId'] !== mandateId) {
+      throw new Error(`MandateSnapshot did not project mandateId=${mandateId} within 90s`);
+    }
 
     expect(item['mandateId']).toBe(mandateId);
     expect(item['level']).toBe('DISCRETIONARY');
@@ -119,11 +137,16 @@ describe('compliance-ctrl', () => {
     expect(item['driftTriggerPercent']).toBe(4);
     expect(item['singleEtfConcentrationPercent']).toBe(30);
     expect(item['drawdownCircuitBreakerPercent']).toBe(12);
-    // Initial projection sets the lifecycle status to ACTIVE (Phase 3).
-    expect(item['status']).toBe('ACTIVE');
+    // Status is intentionally NOT set on initial projection — owned by the
+    // MANDATE_REVOKED handler. AuthorityResolver and MandateValidator both
+    // treat undefined `status` as not-revoked (the row defaults to ACTIVE
+    // semantically). This contract protects against SQS at-least-once
+    // redelivery of INVESTOR_PROFILE_CREATED clobbering a REVOKED row.
+    expect(item['status']).toBeUndefined();
   }, 120_000);
 
   it('should update MandateSnapshot from INVESTOR_PROFILE_UPDATED composite payload', async () => {
+    const userId = `integ-user-update-${Date.now()}`;
     const mandateId = `integ-mandate-updated-${Date.now()}`;
 
     // Seed via INVESTOR_PROFILE_CREATED first
@@ -133,7 +156,7 @@ describe('compliance-ctrl', () => {
       detailType: 'INVESTOR_PROFILE_CREATED',
       detail: {
         tenantId: ctx.tenantId,
-        userId: ctx.tenantId,
+        userId,
         mandate: {
           mandateId,
           level: 'ADVISORY',
@@ -152,12 +175,23 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    await table.waitForItem({
-      table: 'compliance-ctrl',
-      pk: `GuardrailPolicy#${ctx.tenantId}#${ctx.tenantId}`,
-      sk: 'MandateSnapshot',
-      timeoutMs: 60_000,
-    });
+    let seeded: Record<string, unknown> | undefined;
+    const seedDeadline = Date.now() + 60_000;
+    while (Date.now() < seedDeadline) {
+      try {
+        seeded = await table.waitForItem({
+          table: 'compliance-ctrl',
+          pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
+          sk: 'MandateSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (seeded['mandateId'] === mandateId && seeded['level'] === 'ADVISORY') break;
+      } catch { /* not yet */ }
+      await new Promise((r) => setTimeout(r, 2_000));
+    }
+    if (!seeded || seeded['level'] !== 'ADVISORY') {
+      throw new Error(`Initial MandateSnapshot did not seed for ${userId} within 60s`);
+    }
 
     // Now emit INVESTOR_PROFILE_UPDATED with broadened guardrails
     await eb.putEvent({
@@ -166,7 +200,7 @@ describe('compliance-ctrl', () => {
       detailType: 'INVESTOR_PROFILE_UPDATED',
       detail: {
         tenantId: ctx.tenantId,
-        userId: ctx.tenantId,
+        userId,
         mandate: {
           mandateId,
           level: 'DISCRETIONARY',
@@ -189,13 +223,15 @@ describe('compliance-ctrl', () => {
     let updated: Record<string, unknown> | undefined;
     const deadline = Date.now() + 60_000;
     while (Date.now() < deadline) {
-      updated = await table.waitForItem({
-        table: 'compliance-ctrl',
-        pk: `GuardrailPolicy#${ctx.tenantId}#${ctx.tenantId}`,
-        sk: 'MandateSnapshot',
-        timeoutMs: 5_000,
-      });
-      if (updated['level'] === 'DISCRETIONARY' && updated['maxSingleTradePercent'] === 20) break;
+      try {
+        updated = await table.waitForItem({
+          table: 'compliance-ctrl',
+          pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
+          sk: 'MandateSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (updated['level'] === 'DISCRETIONARY' && updated['maxSingleTradePercent'] === 20) break;
+      } catch { /* not yet */ }
       await new Promise((r) => setTimeout(r, 2_000));
     }
 
@@ -207,22 +243,25 @@ describe('compliance-ctrl', () => {
     expect(updated!['driftTriggerPercent']).toBe(6);
     expect(updated!['singleEtfConcentrationPercent']).toBe(35);
     expect(updated!['drawdownCircuitBreakerPercent']).toBe(15);
-    expect(updated!['status']).toBe('ACTIVE');
+    // status field remains unset by INVESTOR_PROFILE_* projections — owned
+    // exclusively by the MANDATE_REVOKED handler.
+    expect(updated!['status']).toBeUndefined();
   }, 180_000);
 
   // ── MANDATE_REVOKED projection ────────────────────────────────────────
-  it('should set MandateSnapshot.status=REVOKED on MANDATE_REVOKED event', async () => {
+  it('should set MandateSnapshot.status=REVOKED on MANDATE_REVOKED event preserving guardrails', async () => {
+    const userId = `integ-user-revoke-event-${Date.now()}`;
     const mandateId = `integ-mandate-revoke-${Date.now()}`;
     const revokedAt = '2026-05-03T10:00:00.000Z';
 
-    // 1. Seed MandateSnapshot via INVESTOR_PROFILE_CREATED (status=ACTIVE)
+    // 1. Seed MandateSnapshot via INVESTOR_PROFILE_CREATED.
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'INVESTOR_PROFILE_CREATED',
       detail: {
         tenantId: ctx.tenantId,
-        userId: ctx.tenantId,
+        userId,
         mandate: {
           mandateId,
           level: 'DISCRETIONARY',
@@ -241,21 +280,24 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    // Wait for ACTIVE seed
+    // Wait for the row to land — initial projection writes guardrails but
+    // no `status` field (status is owned by MANDATE_REVOKED).
     let seeded: Record<string, unknown> | undefined;
     const seedDeadline = Date.now() + 60_000;
     while (Date.now() < seedDeadline) {
-      seeded = await table.waitForItem({
-        table: 'compliance-ctrl',
-        pk: `GuardrailPolicy#${ctx.tenantId}#${ctx.tenantId}`,
-        sk: 'MandateSnapshot',
-        timeoutMs: 5_000,
-      });
-      if (seeded['mandateId'] === mandateId && seeded['status'] === 'ACTIVE') break;
+      try {
+        seeded = await table.waitForItem({
+          table: 'compliance-ctrl',
+          pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
+          sk: 'MandateSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (seeded['mandateId'] === mandateId) break;
+      } catch { /* not yet */ }
       await new Promise((r) => setTimeout(r, 2_000));
     }
     expect(seeded!['mandateId']).toBe(mandateId);
-    expect(seeded!['status']).toBe('ACTIVE');
+    expect(seeded!['status']).toBeUndefined();
 
     // 2. Emit MANDATE_REVOKED
     await eb.putEvent({
@@ -264,7 +306,7 @@ describe('compliance-ctrl', () => {
       detailType: 'MANDATE_REVOKED',
       detail: {
         tenantId: ctx.tenantId,
-        userId: ctx.tenantId,
+        userId,
         revokedAt,
       },
     });
@@ -273,17 +315,27 @@ describe('compliance-ctrl', () => {
     let revoked: Record<string, unknown> | undefined;
     const revokeDeadline = Date.now() + 60_000;
     while (Date.now() < revokeDeadline) {
-      revoked = await table.waitForItem({
-        table: 'compliance-ctrl',
-        pk: `GuardrailPolicy#${ctx.tenantId}#${ctx.tenantId}`,
-        sk: 'MandateSnapshot',
-        timeoutMs: 5_000,
-      });
-      if (revoked['status'] === 'REVOKED') break;
+      try {
+        revoked = await table.waitForItem({
+          table: 'compliance-ctrl',
+          pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
+          sk: 'MandateSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (revoked['status'] === 'REVOKED') break;
+      } catch { /* not yet */ }
       await new Promise((r) => setTimeout(r, 2_000));
     }
     expect(revoked!['status']).toBe('REVOKED');
     expect(revoked!['revokedAt']).toBe(revokedAt);
+    // Critical: MANDATE_REVOKED must patch only status + revokedAt, leaving
+    // the guardrail fields projected by INVESTOR_PROFILE_CREATED intact.
+    // The previous PutItem-based projection wiped them, breaking any
+    // downstream RECOMMENDATION_PROPOSED rule evaluation.
+    expect(revoked!['mandateId']).toBe(mandateId);
+    expect(revoked!['level']).toBe('DISCRETIONARY');
+    expect(revoked!['maxSingleTradePercent']).toBe(10);
+    expect(revoked!['monthlyTurnoverCapPercent']).toBe(25);
   }, 240_000);
 
   // ── REVOKED-blocks-cycle (rule engine gate) ──────────────────────────
@@ -322,8 +374,11 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    // Wait for ACTIVE — try/catch swallows the inner waitForItem timeout so
-    // jest.retryTimes(1) doesn't double-fire the seed/revoke pair.
+    // Wait for the seed to land — initial projection writes guardrails but
+    // no `status` field (owned by MANDATE_REVOKED). Mandate semantics:
+    // undefined status === ACTIVE for AuthorityResolver / RuleEngine.
+    // try/catch swallows the inner waitForItem timeout so jest.retryTimes(1)
+    // doesn't double-fire the seed/revoke pair.
     let seeded: Record<string, unknown> | undefined;
     const seedDeadline = Date.now() + 90_000;
     while (Date.now() < seedDeadline) {
@@ -334,12 +389,12 @@ describe('compliance-ctrl', () => {
           sk: 'MandateSnapshot',
           timeoutMs: 5_000,
         });
-        if (seeded['mandateId'] === mandateId && seeded['status'] === 'ACTIVE') break;
+        if (seeded['mandateId'] === mandateId && seeded['status'] !== 'REVOKED') break;
       } catch { /* not yet */ }
       await new Promise((r) => setTimeout(r, 2_000));
     }
-    if (!seeded || seeded['status'] !== 'ACTIVE') {
-      throw new Error(`MandateSnapshot did not reach ACTIVE for ${policyPk} within 90s`);
+    if (!seeded || seeded['mandateId'] !== mandateId || seeded['status'] === 'REVOKED') {
+      throw new Error(`MandateSnapshot did not seed for ${policyPk} within 90s`);
     }
 
     // Revoke
@@ -428,17 +483,20 @@ describe('compliance-ctrl', () => {
   // ── Authority Resolution ────────────────────────────────────────────
 
   it('should resolve L1 authority for DISCRETIONARY+BALANCED when trade is within thresholds', async () => {
+    // Per-test unique userId — isolates this scenario's MandateSnapshot pk
+    // from out-of-order lambda invocations of other tests' INVESTOR_PROFILE_*
+    // events (which would overwrite a shared row mid-test).
+    const userId = `integ-user-balanced-${Date.now()}`;
     const mandateId = `integ-mandate-balanced-${Date.now()}`;
+    const policyPk = `GuardrailPolicy#${ctx.tenantId}#${userId}`;
 
-    // Seed MandateSnapshot with BALANCED params (maxSingleTradePercent=10)
-    // via composite INVESTOR_PROFILE_CREATED event (Phase 3 collapse).
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'INVESTOR_PROFILE_CREATED',
       detail: {
         tenantId: ctx.tenantId,
-        userId: ctx.tenantId,
+        userId,
         mandate: {
           mandateId,
           level: 'DISCRETIONARY',
@@ -457,23 +515,38 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    // Wait for MandateSnapshot to be projected
-    await table.waitForItem({
-      table: 'compliance-ctrl',
-      pk: `GuardrailPolicy#${ctx.tenantId}#${ctx.tenantId}`,
-      sk: 'MandateSnapshot',
-      timeoutMs: 60_000,
-    });
+    // Wait for THIS test's mandateId to land — try/catch swallows the inner
+    // timeout so jest.retryTimes(1) doesn't re-fire the seed/decision pair.
+    let seeded: Record<string, unknown> | undefined;
+    const seedDeadline = Date.now() + 90_000;
+    while (Date.now() < seedDeadline) {
+      try {
+        seeded = await table.waitForItem({
+          table: 'compliance-ctrl',
+          pk: policyPk,
+          sk: 'MandateSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (seeded['mandateId'] === mandateId) break;
+      } catch { /* not yet */ }
+      await new Promise((r) => setTimeout(r, 2_000));
+    }
+    if (!seeded || seeded['mandateId'] !== mandateId) {
+      throw new Error(`MandateSnapshot did not project mandateId=${mandateId} for ${policyPk} within 90s`);
+    }
 
     const decisionId = `integ-authority-balanced-${Date.now()}`;
 
-    // Send RECOMMENDATION_PROPOSED with a 6% trade (within BALANCED 10% limit)
+    // Send RECOMMENDATION_PROPOSED with a 6% trade (within BALANCED 10% limit).
+    // Pin userId so processDecisionPacket reads this test's MandateSnapshot.
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'RECOMMENDATION_PROPOSED',
       detail: {
         decisionId,
+        tenantId: ctx.tenantId,
+        userId,
         taskToken: `integ-task-token-${decisionId}`,
         awaitingCompliance: true,
         proposedTrades: [
@@ -494,31 +567,37 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    // Wait for ComplianceCheck CDC output
-    const event = await trap.waitForEvent({ timeoutMs: 90_000 });
+    // Match the trap event by detailType + decisionPacketId. The detailType
+    // filter is required because the trap rule fires on both DECISION_APPROVED
+    // and DECISION_BLOCKED, and prior tests' DECISION_BLOCKED frames may sit
+    // in the buffer; without the type narrow, a buffered non-matching event
+    // could starve the predicate-only loop of fresh-fetch attempts.
+    const event = await trap.waitForEvent({
+      detailType: 'DECISION_APPROVED',
+      match: (d) => {
+        const subject = (d as Record<string, unknown>).subject as Record<string, unknown>;
+        return subject?.['decisionPacketId'] === decisionId;
+      },
+      timeoutMs: 120_000,
+    });
     expect(event.detailType).toBe('DECISION_APPROVED');
-
-    // Verify ComplianceCheck record has authorityLevel L1
-    // pk = ComplianceCheck#{tenantId}#{eventId} — but eventId is generated by event-processor.
-    // Instead, query by detailType from the trap event to confirm L1.
-    // The CDC event detail.subject should contain the authorityLevel.
     const detail = event.detail as Record<string, unknown>;
     const subject = detail.subject as Record<string, unknown>;
     expect(subject['authorityLevel']).toBe('L1');
-  }, 180_000);
+  }, 300_000);
 
   it('should resolve L2 authority for DISCRETIONARY+CONSERVATIVE when trade exceeds threshold', async () => {
+    const userId = `integ-user-conservative-${Date.now()}`;
     const mandateId = `integ-mandate-conservative-${Date.now()}`;
+    const policyPk = `GuardrailPolicy#${ctx.tenantId}#${userId}`;
 
-    // Seed MandateSnapshot with CONSERVATIVE params (maxSingleTradePercent=5)
-    // via composite INVESTOR_PROFILE_CREATED event (Phase 3 collapse).
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'INVESTOR_PROFILE_CREATED',
       detail: {
         tenantId: ctx.tenantId,
-        userId: ctx.tenantId,
+        userId,
         mandate: {
           mandateId,
           level: 'DISCRETIONARY',
@@ -537,30 +616,35 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    // Wait for MandateSnapshot to be projected (overwrite previous)
-    let snapshot: Record<string, unknown> | undefined;
-    const deadline = Date.now() + 60_000;
-    while (Date.now() < deadline) {
-      snapshot = await table.waitForItem({
-        table: 'compliance-ctrl',
-        pk: `GuardrailPolicy#${ctx.tenantId}#${ctx.tenantId}`,
-        sk: 'MandateSnapshot',
-        timeoutMs: 5_000,
-      });
-      if (snapshot['mandateId'] === mandateId) break;
+    let seeded: Record<string, unknown> | undefined;
+    const seedDeadline = Date.now() + 90_000;
+    while (Date.now() < seedDeadline) {
+      try {
+        seeded = await table.waitForItem({
+          table: 'compliance-ctrl',
+          pk: policyPk,
+          sk: 'MandateSnapshot',
+          timeoutMs: 5_000,
+        });
+        if (seeded['mandateId'] === mandateId) break;
+      } catch { /* not yet */ }
       await new Promise((r) => setTimeout(r, 2_000));
     }
-    expect(snapshot!['mandateId']).toBe(mandateId);
+    if (!seeded || seeded['mandateId'] !== mandateId) {
+      throw new Error(`MandateSnapshot did not project mandateId=${mandateId} for ${policyPk} within 90s`);
+    }
 
     const decisionId = `integ-authority-conservative-${Date.now()}`;
 
-    // Send same 6% trade — exceeds CONSERVATIVE 5% maxSingleTradePercent
+    // 6% trade exceeds CONSERVATIVE 5% maxSingleTradePercent → L2 + BLOCKED.
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
       detailType: 'RECOMMENDATION_PROPOSED',
       detail: {
         decisionId,
+        tenantId: ctx.tenantId,
+        userId,
         taskToken: `integ-task-token-${decisionId}`,
         awaitingCompliance: true,
         proposedTrades: [
@@ -581,13 +665,17 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    // Wait for ComplianceCheck CDC output — BLOCKED because trade exceeds guardrail
-    const event = await trap.waitForEvent({ timeoutMs: 90_000 });
+    const event = await trap.waitForEvent({
+      detailType: 'DECISION_BLOCKED',
+      match: (d) => {
+        const subject = (d as Record<string, unknown>).subject as Record<string, unknown>;
+        return subject?.['decisionPacketId'] === decisionId;
+      },
+      timeoutMs: 120_000,
+    });
     expect(event.detailType).toBe('DECISION_BLOCKED');
-
-    // Verify ComplianceCheck record has authorityLevel L2
     const detail = event.detail as Record<string, unknown>;
     const subject = detail.subject as Record<string, unknown>;
     expect(subject['authorityLevel']).toBe('L2');
-  }, 180_000);
+  }, 300_000);
 });
