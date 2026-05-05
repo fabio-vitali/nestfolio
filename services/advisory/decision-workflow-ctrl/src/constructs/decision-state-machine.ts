@@ -76,10 +76,45 @@ export class DecisionWorkflowDefinition extends Construct {
 
     // --- Agent invocation states ---
 
-    const invokeInvestorProfile = createAgentInvocationState(
-      'InvokeInvestorProfile',
-      'ANALYZE_INVESTOR_PROFILE',
-    );
+    // ANALYZE_INVESTOR_PROFILE carries the trigger event's full subject as
+    // `investorProfile` so investor-profile-ctrl can read `operatingMode` (and
+    // any other profile fields) for downstream propagation via AgentCore Memory.
+    // For non-INVESTOR_PROFILE_* triggers (DEPOSIT_DETECTED etc.), triggerContext
+    // is the deposit/order subject — investor-profile-ctrl handler defaults
+    // operatingMode to 'BALANCED' on missing field.
+    const invokeInvestorProfile = new sfn.CustomState(this, 'InvokeInvestorProfile', {
+      stateJson: {
+        Type: 'Task',
+        Resource: 'arn:aws:states:::events:putEvents.waitForTaskToken',
+        Parameters: {
+          Entries: [
+            {
+              EventBusName: eventBus.eventBusName,
+              Source: serviceName,
+              DetailType: 'ANALYZE_INVESTOR_PROFILE',
+              Detail: {
+                'id.$': 'States.UUID()',
+                'type': 'ANALYZE_INVESTOR_PROFILE',
+                'timestamp.$': '$$.State.EnteredTime',
+                'subject': {
+                  'decisionId.$': '$.decisionId',
+                  'tenantId.$': '$.tenantId',
+                  'taskToken.$': '$$.Task.Token',
+                  'investorProfile.$': '$.triggerContext',
+                },
+                'context': {
+                  'tenantId.$': '$.tenantId',
+                  'userId.$': '$.userId',
+                  'region.$': '$.region',
+                },
+              },
+            },
+          ],
+        },
+        TimeoutSeconds: Duration.minutes(10).toSeconds(),
+        ResultPath: '$.agentResults.InvokeInvestorProfile',
+      },
+    });
 
     const invokeMarketIntelligence = createAgentInvocationState(
       'InvokeMarketIntelligence',

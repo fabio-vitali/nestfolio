@@ -32,12 +32,18 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
       session.searchLongTermMemory('session summaries'),
     ]);
 
+    const investorProfile = investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {};
+    // operatingMode wrapped at top level by investor-profile-ctrl (Phase 2).
+    // BALANCED default covers cold-cache + non-INVESTOR_PROFILE_* trigger paths.
+    const operatingMode = (investorProfile.operatingMode as string) ?? 'BALANCED';
+
     let result: Record<string, unknown>;
     try {
       result = await deps.agentService.runPipeline(ctx.eventId, {
         tenantId,
         decisionId,
-        investorProfile: investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {},
+        operatingMode,
+        investorProfile,
         marketAnalysis: marketRecords[0]?.content ? JSON.parse(marketRecords[0].content) : {},
         portfolio: portfolioRecords[0]?.content ? JSON.parse(portfolioRecords[0].content) : {},
         preferences: preferences.map(r => r.content),

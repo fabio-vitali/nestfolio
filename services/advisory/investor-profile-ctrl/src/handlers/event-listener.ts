@@ -24,12 +24,23 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
     const tenantHistory = await session.searchLongTermMemory('investor preferences risk tolerance');
 
+    // Extract operatingMode from the InvestorProfile payload SF passes via
+    // subject.investorProfile (composite InvestorProfile row carries it post-collapse).
+    // Default to BALANCED for non-INVESTOR_PROFILE_* triggers (DEPOSIT_DETECTED etc.)
+    // where triggerContext is not a profile payload — see
+    // docs/superpowers/specs/2026-05-05-operating-mode-phase-2-design.md §Out of scope.
+    const investorProfile = (subject.investorProfile as Record<string, unknown> | undefined) ?? {};
+    const operatingMode = (investorProfile.operatingMode as string)
+      ?? ((investorProfile.mandate as Record<string, unknown> | undefined)?.operatingMode as string)
+      ?? 'BALANCED';
+
     let result: Record<string, unknown>;
     try {
       result = await deps.agentService.runPipeline(ctx.eventId, {
         tenantId,
         decisionId,
-        investorProfile: subject.investorProfile ?? subject.context ?? {},
+        operatingMode,
+        investorProfile,
         portfolioState: subject.portfolioState ?? {},
         tenantHistory: tenantHistory.map(r => r.content),
       });
@@ -41,7 +52,9 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
       throw error;
     }
 
-    await session.writeAgentOutput(result);
+    // Wrap with operatingMode at top level so downstream agents (portfolio-engine,
+    // advisory-narrative) read it from Memory via session.readUpstreamOutput('investor-profile').
+    await session.writeAgentOutput({ operatingMode, ...result });
 
     return {
       output: { decisionId, tenantId },

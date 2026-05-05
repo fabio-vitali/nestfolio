@@ -7,9 +7,15 @@ export const PortfolioConstructionSchema = z.object({
     rationale: z.string(),
   })),
   totalExposure: z.number(),
+  // equityWeight + largestPositionWeight added in Phase 2 of operating-mode workstream
+  // (docs/superpowers/specs/2026-05-05-operating-mode-phase-2-design.md). The agent
+  // MUST report these so e2e gates can assert mode-envelope adherence
+  // (CONSERVATIVE ≤ 0.30 equity / ≤ 0.10 single-position, etc.).
+  equityWeight: z.number().min(0).max(1).describe('Total weight in equity instruments (vs fixed income / cash)'),
   riskMetrics: z.object({
     concentrationRisk: z.number(),
     sectorDiversity: z.number(),
+    largestPositionWeight: z.number().min(0).max(1).describe('Weight of the single largest position'),
   }),
   confidence: z.number().min(0).max(1),
 });

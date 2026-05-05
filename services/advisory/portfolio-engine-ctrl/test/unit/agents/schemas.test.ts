@@ -7,7 +7,8 @@ describe('PortfolioConstructionSchema', () => {
       { instrument: 'BND', targetWeight: 0.4, rationale: 'Fixed income' },
     ],
     totalExposure: 1.0,
-    riskMetrics: { concentrationRisk: 0.3, sectorDiversity: 0.7 },
+    equityWeight: 0.6,
+    riskMetrics: { concentrationRisk: 0.3, sectorDiversity: 0.7, largestPositionWeight: 0.6 },
     confidence: 0.85,
   };
 

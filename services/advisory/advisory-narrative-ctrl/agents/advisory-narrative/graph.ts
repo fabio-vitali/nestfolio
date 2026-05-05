@@ -83,9 +83,24 @@ export async function invokeNarrative(
     }
   }
 
+  // Inject operating-mode framing so the explanation tone matches the investor's
+  // chosen autonomy envelope (Phase 2 — docs/superpowers/specs/2026-05-05-operating-mode-phase-2-design.md).
+  const upstreams = (payload.upstreamOutputs ?? {}) as Record<string, unknown>;
+  const investorProfile = (upstreams['investorProfile'] as Record<string, unknown> | undefined) ?? {};
+  const operatingMode = (upstreams['operatingMode'] as string)
+    ?? (investorProfile['operatingMode'] as string)
+    ?? 'BALANCED';
+  const narrativeFraming: Record<string, string> = {
+    CONSERVATIVE: 'OPERATING MODE: CONSERVATIVE. Frame the explanation around safety, capital preservation, and downside protection. Address volatility concerns proactively. Prefer reassuring language over growth-thesis language.',
+    BALANCED: 'OPERATING MODE: BALANCED. Frame the explanation around long-term growth tempered by measured risk. Acknowledge both upside and downside scenarios with equal weight.',
+    AGGRESSIVE: 'OPERATING MODE: AGGRESSIVE. Frame the explanation around growth opportunity and conviction. Acknowledge volatility as the cost of higher expected return; do not over-soften.',
+  };
+  const modeContext = `\n\n${narrativeFraming[operatingMode] ?? narrativeFraming['BALANCED']}\n` +
+    `Reflect this framing in Explainability.tone and Explainability.summary.`;
+
   const enrichedInput =
     `Decision ${payload.decisionId} context: ${JSON.stringify(payload.upstreamOutputs)}` +
-    upstreamContext + kbContext;
+    modeContext + upstreamContext + kbContext;
 
   const result = await invokeOrchestrator(
     compiledGraph,

@@ -96,8 +96,24 @@ export async function invokePortfolioEngine(
   const portfolioSnapshot = await tools.portfolioLookup({ tenantId: payload.tenantId });
   const toolContext = formatToolContext({ 'Portfolio snapshot': portfolioSnapshot });
 
-  // 4. Invoke orchestrator (parallel: portfolio-construction + rebalance-planner)
-  const enrichedInput = `Decision ${payload.decisionId} context: ${seed}` + kbContext + upstreamContext + toolContext;
+  // 4. Inject operating-mode behavioral envelope so the agent respects mode-specific
+  //    allocation rules (Phase 2 — docs/superpowers/specs/2026-05-05-operating-mode-phase-2-design.md).
+  //    investor-profile-ctrl wraps `operatingMode` at the top of its Memory record.
+  const upstreams = (payload.upstreamOutputs ?? {}) as Record<string, unknown>;
+  const investorProfile = (upstreams['investorProfile'] as Record<string, unknown> | undefined) ?? {};
+  const operatingMode = (upstreams['operatingMode'] as string)
+    ?? (investorProfile['operatingMode'] as string)
+    ?? 'BALANCED';
+  const modeGuidance: Record<string, string> = {
+    CONSERVATIVE: 'OPERATING MODE: CONSERVATIVE. You MUST: keep equity weight ≤ 30% (rest in fixed income / cash); cap any single position at 10%; emit 3-5 total positions; prefer broad-market ETFs over single names; prioritise capital preservation over growth.',
+    BALANCED: 'OPERATING MODE: BALANCED. You MUST: keep equity weight in 50-70%; cap any single position at 15%; emit 5-8 total positions; mix broad ETFs with measured sector tilts; balance growth and stability.',
+    AGGRESSIVE: 'OPERATING MODE: AGGRESSIVE. You MUST: equity weight 70-90%; single position cap 25%; emit 6-12 total positions; sector and thematic concentrations allowed; prioritise long-term growth and accept higher volatility.',
+  };
+  const modeContext = `\n\n${modeGuidance[operatingMode] ?? modeGuidance['BALANCED']}\n` +
+    `Reflect adherence in your output: PortfolioConstruction.equityWeight, PortfolioConstruction.riskMetrics.largestPositionWeight, allocations.length must all fall within the envelope above.`;
+
+  // 5. Invoke orchestrator (parallel: portfolio-construction + rebalance-planner)
+  const enrichedInput = `Decision ${payload.decisionId} context: ${seed}` + modeContext + kbContext + upstreamContext + toolContext;
   const result = await invokeOrchestrator(
     graph,
     { input: enrichedInput },

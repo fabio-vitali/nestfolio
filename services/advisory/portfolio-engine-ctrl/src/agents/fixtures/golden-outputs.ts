@@ -6,7 +6,8 @@ export const GOLDEN_PORTFOLIO = {
     { instrument: 'VNQ', targetWeight: 0.15, rationale: 'Real estate diversification' },
   ],
   totalExposure: 1.0,
-  riskMetrics: { concentrationRisk: 0.25, sectorDiversity: 0.78 },
+  equityWeight: 0.7, // VTI 0.4 + VXUS 0.15 + VNQ 0.15 (REIT counts as equity by exposure type)
+  riskMetrics: { concentrationRisk: 0.25, sectorDiversity: 0.78, largestPositionWeight: 0.4 },
   confidence: 0.85,
 };
 

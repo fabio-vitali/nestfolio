@@ -54,6 +54,7 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         tenantId,
         decisionId,
         upstreamOutputs: {
+          operatingMode: (subject.operatingMode as string) ?? 'BALANCED',
           investorProfile: subject.investorProfile ?? subject.context ?? {},
           portfolioState: subject.portfolioState ?? {},
         },

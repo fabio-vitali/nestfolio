@@ -66,10 +66,20 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       }
 
       const target = await resolveAgentRuntimeTarget();
+      // Build upstreamOutputs explicitly from subject fields. The previous
+      // `subject.context ?? subject.upstreamOutputs ?? {}` fallback never
+      // matched (the handler doesn't set either) so the agent ran with empty
+      // input — fixed in Phase 2 of the operating-mode workstream
+      // (docs/superpowers/specs/2026-05-05-operating-mode-phase-2-design.md).
       const result = await dispatchAgentInvocation<Record<string, unknown>>(target, {
         tenantId,
         decisionId,
-        upstreamOutputs: (subject.context ?? subject.upstreamOutputs ?? {}) as Record<string, unknown>,
+        upstreamOutputs: {
+          operatingMode: (subject.operatingMode as string) ?? 'BALANCED',
+          investorProfile: subject.investorProfile ?? {},
+          marketAnalysis: subject.marketAnalysis ?? {},
+          pastRationale: subject.pastRationale ?? [],
+        },
       });
 
       // AgentCore can return a degraded empty response (202-style ack without
