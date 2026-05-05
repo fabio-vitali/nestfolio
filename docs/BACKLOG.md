@@ -64,6 +64,26 @@ Ordered by priority. Top of list = what to start next.
 
 ---
 
+### `[design]` Self-contained `RECOMMENDATION_PROPOSED` (drop the compliance-ctrl mandate projection)
+
+**Status:** Spec drafted 2026-05-05 — `docs/superpowers/specs/2026-05-05-self-contained-compliance-event-design.md`. Pending user review of §8 Open Questions before writing-plans.
+
+**Done when:** compliance-ctrl Ingress subscribes to `RECOMMENDATION_PROPOSED` only (1, was 4); `MandateSnapshot` row + `getMandateSnapshot`/`putMandateSnapshot` repository methods deleted; `ConsistentRead` workaround on the same call deleted; rule engine evaluates against `subject.mandate` carried in the event itself; integration tests collapse from 7 → 5 (no DDB seeding loops); Playwright happy-path 5-fresh-tenant gate ≥4/5.
+
+**Why:** the compliance-ctrl integration flake we just resolved (commits `69e781cb`..`f06a87f5`, 2026-05-05) shipped a `ConsistentRead: true` band-aid that papers over a real architectural coupling — compliance-ctrl projects a `MandateSnapshot` row from `INVESTOR_PROFILE_*` events on one SQS arm, then reads it back when `RECOMMENDATION_PROPOSED` arrives on a parallel arm. The two arms have independent consistency horizons and there is no business invariant requiring a re-read; the mandate is in the event chain that triggered the cycle. Carrying it on `RECOMMENDATION_PROPOSED.subject.mandate` makes the event self-contained, removes the race by design (no projection in the read path), simplifies the test surface, and matches the "frozen at cycle start" semantics implicit in the SF.
+
+**References:**
+- `docs/architecture/SYSTEM-ARCHITECTURE.md` §8 (compliance-ctrl Inputs — currently claims `RECOMMENDATION_PROPOSED` is the only input; spec aligns code with this), §11 (single-writer per row + idempotency — projection move from compliance-ctrl to decision-workflow-ctrl preserves this invariant)
+- `docs/architecture/SERVICE-INVENTORY.md` § `compliance-ctrl` (Ingress subscriptions reduce 4 → 1; State table no longer holds MandateSnapshot), § `decision-workflow-ctrl` (Ingress gains 3 InvestorProfile subs; State table gains InvestorProfileSnapshot row)
+- `flows/advisory-cycle.flow.yaml` Phase 6 — `state_change` line currently reads "Loads mandate snapshot from DDB"; spec rewrites this and adds an entry-side `LoadMandate` SF state
+- Code: `services/advisory/compliance-ctrl/src/handlers/event-listener.ts:60` (the read this spec deletes), `services/advisory/compliance-ctrl/src/repositories/compliance.repository.ts:159-180` (the `getMandateSnapshot` with `ConsistentRead: true` workaround), `services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts:165-202` (the WaitForCompliance state where `mandate.$` is added to subject)
+
+**Topic memory:** `project_event_processor.md` (carries the platform-level invariants that motivated this), `project_compliance_self_contained_event.md` (to be created on plan-start).
+
+**Why slot 4 (not earlier):** Step 8/10 fix + 147-SF chore are user-visible system-health items; this is architectural debt. The integration tests are green today via the band-aid; this spec converts the band-aid into a structurally clean design. Higher than operating-mode below because it's mechanically smaller (touches 2 services not 4) and because the band-aid is recent — the design context is fresh.
+
+---
+
 ### `[design]` Operating mode feature
 
 **Status:** DESIGN IN PROGRESS (2026-04-14). Captured at onboarding but not wired into advisory behavior.
