@@ -8,26 +8,19 @@
 - **Scope contract.** Every spec/plan must have an explicit §"Out of scope" before execution starts. Out-of-scope failures during validation default to *file-and-continue*, not pivot.
 - **Boundary review.** At each workstream ship, spend 5 min re-ranking PARKING LOT and promoting items to QUEUED if they've grown teeth.
 
-Last reviewed: 2026-05-03 (after multi-SF entry retired-as-misdiagnosed — see below).
+Last reviewed: 2026-05-05 (after InvestorProfile collapse ship 2026-05-04 + compliance-ctrl flake resolution 2026-05-05).
+Updated 2026-05-05: promoted Step 8 WSS dashboard subscription bug from QUEUED slot 1 to ACTIVE; removed resolved compliance-ctrl flake entry from PARKING LOT (logged in Recently shipped); no other re-ranking needed — slot 2 (147 stuck SFs cleanup) remains gated on ACTIVE per documented sequencing rationale.
 Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retired. Diagnostic on 5 fresh SF starts (tenant `e2e-1777762060562`, 22:48–22:49 UTC 2026-05-02) showed 5 distinct trigger events (1× RISK_PROFILE_CREATED + 1× MANDATE_CREATED + 1× GOAL_CREATED + 2× DEPOSIT_DETECTED), each with unique `triggerEventId` + `decisionId`. Per `services/advisory/decision-workflow-ctrl/src/handlers/event-listener.ts:22-28` and `flows/advisory-cycle.flow.yaml` Phase 1b (`idempotent: false`), N triggers → N SF executions is **architectural intent**, not a bug. Refiled the real underlying problems below.
 
 ---
 
 ## ACTIVE
 
-_(none — last workstream shipped 2026-05-04; pick next from QUEUED)_
-
----
-
-## QUEUED
-
-Ordered by priority. Top of list = what to start next.
-
 ### `[e2e]` Journey Step 8 — WSS dashboard subscription bug
 
 **Done when:** `injectAdvisoryUpdate` sentinel value reliably appears in the dashboard counter via the live WSS subscription path.
 
-**Status:** Pre-existing. Spec 3 surfaced new evidence that supersedes 6th-session "WSS subscription never opens" diagnosis: subscription IS attached and DELIVERS frames (30 `apollo next domain=dashboard` events on Run 1), but the inject's specific value isn't arriving in the counter. Failure mechanism is different from what 6th-session assumed.
+**Status:** Promoted from QUEUED slot 1 on 2026-05-05. Pre-existing. Spec 3 surfaced new evidence that supersedes 6th-session "WSS subscription never opens" diagnosis: subscription IS attached and DELIVERS frames (30 `apollo next domain=dashboard` events on Run 1), but the inject's specific value isn't arriving in the counter. Failure mechanism is different from what 6th-session assumed.
 
 **Hypotheses (none verified):**
 - Inject mutation and dashboard subscription target different AppSync APIs.
@@ -38,9 +31,15 @@ Ordered by priority. Top of list = what to start next.
 
 **Topic memory:** `project_playwright_e2e_ui.md` (search "Side-finding from Spec 3 e2e gate").
 
-**Why this slot (above the cleanup chore below):** Step 8 and Step 10 (Confirm button → WSS callback) likely share root cause in WSS subscription delivery semantics — fixing this also fixes Step 10, which drains the 147 stuck SFs (next entry) at the source. Sequence wins over symptom-treatment.
+**Why ACTIVE (above the 147-stuck-SF cleanup chore in QUEUED):** Step 8 and Step 10 (Confirm button → WSS callback) likely share root cause in WSS subscription delivery semantics — fixing this also fixes Step 10, which drains the 147 stuck SFs at the source. Sequence wins over symptom-treatment.
+
+**Out of scope (placeholder — to be filled when this workstream gets a spec):** the 147-stuck-SF cleanup itself (slot 1 of QUEUED); decision-detail Confirm-button UI changes; broader AppSync auth-mode refactor.
 
 ---
+
+## QUEUED
+
+Ordered by priority. Top of list = what to start next.
 
 ### `[chore]` Stop + clean up 147 stuck Step Function executions on dev
 
@@ -58,7 +57,7 @@ Ordered by priority. Top of list = what to start next.
 2. DDB scan for orphaned task-token rows (`sk` begins with `TaskToken#` and the corresponding decisionId is in a stuck-pending status with no live SF) → batch delete.
 3. Verify count drops to 0.
 
-**Why slot 3 (not slot 2):** the 147 executions are dev-test residue — no real users, sole-dev account, no SF concurrency budget hit (Standard SF has no concurrent-running ceiling), small DDB storage cost. Cleanup is a 5-min chore. Real protection comes from fixing Step 8/10 (the previous slot), which prevents new stuck SFs accumulating; without that fix, this cleanup just kicks the can.
+**Why slot 1 of QUEUED (not ACTIVE):** the 147 executions are dev-test residue — no real users, sole-dev account, no SF concurrency budget hit (Standard SF has no concurrent-running ceiling), small DDB storage cost. Cleanup is a 5-min chore. Real protection comes from fixing Step 8/10 (the ACTIVE workstream), which prevents new stuck SFs accumulating; without that fix, this cleanup just kicks the can.
 
 **Topic memory:** `project_decision_workflow_stuck.md`.
 
@@ -136,7 +135,6 @@ One-liners for things surfaced but not yet adopted as a workstream. Promote to Q
 - **Sweep stale local branches + unused worktrees** — as of 2026-05-02 the local clone has 16 unmerged-named `feat/` `refactor/` `docs/` branches plus 2 worktrees (`.worktrees/ledger-domain` for `feature/ledger-domain-restructure` at `079f005b`, `.worktrees/playwright-e2e` for `feat/playwright-e2e-ui` at `20971554`). Most appear shipped per MEMORY.md "Recently Completed Work" (a2-frontend-deps, b1-cloudfront, b2-federation, b4-shell, c-cleanup-and-playwright, d-mfe-deploy, f-loadmfe, g-feature-flags, agentcore-transport, integration-test-resilience, real-money-ops, etc.) but `git branch -d` may refuse if they're squash-merged or rebased (not direct ancestors of `main`). For each branch: cross-check against MEMORY.md / `git log` on main for the corresponding ship commit, then `git branch -D` if confirmed shipped, or `git rebase main && git branch -d` if cleanly forward. For worktrees: `git worktree remove .worktrees/<name>` after confirming no uncommitted work in each. Sole-dev project — no risk of stomping a teammate. ~15 min chore. Promote when the long branch list becomes friction (tab-completion noise, accidental checkout of a stale branch).
 - **investor-bff has 13 latent `tsc --noEmit` errors** — branded `TenantId`/`UserId` cast mismatches in `services/investor/investor-bff/src/transforms/{onboarding-completed,balance-updated,notification-created,user-registered}.ts`; `transactWrite` protected-access leak at `services/investor/investor-bff/src/transforms/onboarding-completed.ts:39` (transform calls a base-class protected method from outside the class); `timestamp` not on `TableEntry` / `EventPayload` interfaces (used in repository writes + broadcast-listener). Pre-existed Task 1.10; verified at parent commit `0378ec25`. NOT a Phase 9 deploy blocker — Lambda bundling uses esbuild (strips types) and CDK synth uses `ts-node` transpile-only; jest passes 72/72. Filed during InvestorProfile collapse workstream 2026-05-03. Promote as a focused cleanup pass when type debt becomes load-bearing (e.g. when a fresh service onboard lands a developer who trusts `tsc --noEmit` as a quality gate).
 - **CDC envelope omits `previousSubject` (OldImage)** — `libs/event-processor/src/pipelines/change-data-capture.ts:68` builds `{id, type, timestamp, subject, context}` from NewImage only; OldImage is read in `libs/event-processor/src/util/unmarshal-stream.ts:19-22` (StreamContext.oldImage) but never propagated to EventBridge. Surfaced 2026-05-03 during InvestorProfile collapse Phase 4 — `deriveProfileUpdateNotifications` in `services/investor/investor-ctrl/src/handlers/event-listener.ts` cannot diff `goal.*` / `operatingMode` from a single `subject`, so it falls back to "fire both notifications on every INVESTOR_PROFILE_UPDATED" per Phase 4 plan (null-OldImage branch). Fix options: (a) add `previousSubject` field to envelope unconditionally, (b) wire OldImage through the existing `transform` callback. Promote if over-firing of GOAL_UPDATED + OPERATING_MODE_CHANGED notifications becomes user-visible noise. Topic: `project_investor_profile_collapse.md`.
-- **`compliance-ctrl` integration tests "REVOKED gate" + "L1 authority BALANCED" flaky** — RESOLVED 2026-05-05 (commits `69e781cb` + `25c7480e` + `f06a87f5`). Original "SQS reordering" hypothesis was wrong; root cause was `mandate.status: undefined` propagating into a `record()` intent, where the default DDB DocumentClient marshaller threw on the undefined leaf. The engine's per-record catch block silently recorded the error with no log emission — producing the illusion of a successful no-op write while CDC never fired. Fixes: (1) `event-processor` now logs every caught processing failure (eventId, eventType, errorName, errorMessage, retryable); (2) executor deep-strips undefined values from record/project/update payloads platform-wide (undefined = absent); (3) `compliance-ctrl` switched to patch-semantics `update()` for both InvestorProfile and MandateRevoked projections so guardrail fields survive a revoke; (4) `Orchestration` rules now apply the same `$or` test-source filter as Ingress so a per-service test no longer spuriously starts other domains' state machines. Validation: 7/7 PASS in 156s (no retries; was 743s with retries).
 - **Playwright happy-path test assumes L2 user-confirm path; agents non-deterministically return L1** — 2026-05-04 InvestorProfile collapse Phase 9 5-run gate scored 2/5 full-journey passes. The 3 failures all timeout at `apps/nestfolio-e2e/src/pages/advisory.page.ts:34` waiting for the Confirm button (`getByRole('button', { name: /confirm|conferma/i })`); root cause is `services/advisory/compliance-ctrl/src/rules/authority-resolver.ts` returning L1 for some agent-proposed trades (DISCRETIONARY + small-size below `maxSingleTradePercent`), which auto-approves the decision via the SF `complianceChoice → approvedL1End` branch without surfacing a Confirm button. All 5 runs completed onboarding + deposit + decision generation cleanly post-Phase-2-wiring-fix (commit `e60caf76`). Two fix options: (a) make the test path-aware — branch on `authorityLevel` from the decision detail and skip Confirm for L1, (b) seed agent inputs to deterministically push to L2 (e.g. CONSERVATIVE mandate via journey fixture). Promote when the Playwright gate is re-run for the next ship.
 - **execution-ctrl mandate re-check at order-placement boundary (defense-in-depth)** — Today's design relies on each consumer (compliance-ctrl, execution-ctrl) keeping a fast local mandate projection and reading fresh at decision time. Empirical timing 2026-05-05: SF cycle 42–80s wall-clock vs projection write mean 158ms / max 998ms (~300×) — so the production race is structurally absent for the compliance read. The one residual sub-second gap: a user revoking BETWEEN compliance-ctrl APPROVED and execution-ctrl placing the order on the L1 auto-execute path. Cheapest mitigation: `services/execution/execution-ctrl/src/` reads its local mandate projection one more time before broker submission; fail order with `REVOKED_AFTER_APPROVAL` reason if status changed. First step before promoting: verify whether such a check already exists. This is the only architectural improvement worth filing from the 2026-05-05 self-contained-event design exercise (the rest was over-engineering a non-problem — see the spec that was drafted and retired in commits `74f55961` then deleted).
 
@@ -148,6 +146,7 @@ Compact list — full prose lives in user auto-memory `MEMORY.md` § "Recently C
 
 | Date | Item | Commit |
 |---|---|---|
+| 2026-05-05 | compliance-ctrl integration test flake fix — root-caused silent marshaller throw on undefined leaf; event-processor now logs caught failures + deep-strips undefined; compliance-ctrl moved to patch-semantics MandateSnapshot projection; Orchestration rules apply test-source filter | `69e781cb`, `25c7480e`, `f06a87f5`, `0d6144cf`, `15fe1693`, `74f55961`, `7fbe64d4` |
 | 2026-05-04 | InvestorProfile single-row collapse (composite InvestorProfile row, 8→2 events, direct EB→SF, MandateStatus sibling row, revokeMandate complete) | `4d4c5679..e60caf76` |
 | 2026-05-03 | Multi-SF execution race entry retired-as-misdiagnosed (refiled as onboarding fan-out + 2 PARKING LOT items) | (this conversation) |
 | 2026-05-02 | Decision-list Pattern B (Step 9 5/5 gate green) | `feat/decision-list-pattern-b` |
