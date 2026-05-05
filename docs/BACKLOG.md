@@ -42,6 +42,10 @@ Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retire
 
 ---
 
+## QUEUED
+
+Ordered. Slot 1 is the next adopt-as-ACTIVE candidate.
+
 ### `[chore]` Stop + clean up 147+ stuck Step Function executions on dev
 
 **Done when:** `aws stepfunctions list-executions --status-filter RUNNING` on `dev-decision-workflow-ctrl-decisionstatemachine` returns 0 executions older than 24h, AND no orphaned task-token DDB rows remain in `dev-advisory-bff-StateTable962DE04C-1VGXL2KZX3AUM`.
