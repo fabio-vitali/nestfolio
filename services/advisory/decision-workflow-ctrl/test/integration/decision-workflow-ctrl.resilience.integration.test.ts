@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
-  createTestContext,
   EventBridgeClient,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   TableAssertions,
   countItems,
   snapshotState,
@@ -43,7 +43,7 @@ const fakeTaskToken = (label: string) =>
 
 describe('decision-workflow-ctrl resilience: idempotency', () => {
   it('duplicate INVESTOR_PROFILE_COMPLETED produces a single AgentOutput row', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -101,7 +101,7 @@ describe('decision-workflow-ctrl resilience: idempotency', () => {
   }, 180_000);
 
   it('duplicate DECISION_APPROVED leaves DecisionPacket idempotent (UpdateItem upsert)', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -224,7 +224,7 @@ describe('decision-workflow-ctrl resilience: order-agnostic', () => {
       return { ipcId, macId, snapshot };
     };
 
-    const ctxA = await createTestContext();
+    const ctxA = await createIntegrationTestContext();
     let snapshotA: Record<string, unknown>[];
     try {
       ({ snapshot: snapshotA } = await runOrder(ctxA, 'profile-first'));
@@ -233,7 +233,7 @@ describe('decision-workflow-ctrl resilience: order-agnostic', () => {
       await ctxA.cleanup.runAll();
     }
 
-    const ctxB = await createTestContext();
+    const ctxB = await createIntegrationTestContext();
     let snapshotB: Record<string, unknown>[];
     try {
       ({ snapshot: snapshotB } = await runOrder(ctxB, 'market-first'));

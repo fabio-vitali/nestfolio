@@ -1,9 +1,9 @@
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
@@ -13,7 +13,7 @@ describe('advisory-adpt: Investor → Advisory forwarding', () => {
   let eb: EventBridgeClient;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
   }, 60_000);
 

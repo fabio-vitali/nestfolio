@@ -1,9 +1,9 @@
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
 } from '@nestfolio/integration-testing';
@@ -15,7 +15,7 @@ describe('broker-ctrl', () => {
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);

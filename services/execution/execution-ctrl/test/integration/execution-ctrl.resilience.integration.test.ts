@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
-  createTestContext,
   EventBridgeClient,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
   countItems,
@@ -47,7 +47,7 @@ async function countItemsForEventId(
 
 describe('execution-ctrl resilience: idempotency', () => {
   it('duplicate DECISION_APPROVED does not create duplicate Order/StagedOrder', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -126,7 +126,7 @@ async function runPairwiseSequence(
   order: Array<{ symbol: string; quantityOrAmountCents: number; targetWeightPercent: number }>,
   label: string,
 ): Promise<{ count: number; cleanup: () => Promise<void> }> {
-  const ctx = await createTestContext();
+  const ctx = await createIntegrationTestContext();
   const eb = new EventBridgeClient(ctx);
   const table = new TableAssertions(ctx);
   table.registerCleanup();

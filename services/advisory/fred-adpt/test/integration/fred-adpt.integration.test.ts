@@ -1,11 +1,11 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
   MockApiFixture,
@@ -32,7 +32,7 @@ describe('fred-adpt (mocked)', () => {
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
 
     // Deploy mock FRED Lambda
     const mockApi = new MockApiFixture(ctx);

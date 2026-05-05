@@ -19,11 +19,11 @@ description: Add integration tests to a service — determine pattern, scaffold 
 
   | Service Type | Pattern | Fixtures Needed |
   |-------------|---------|-----------------|
-  | Third-party adapter (-adpt with external API) | A: Full-Pipeline | MockApiFixture, SsmOverrideFixture, OrphanReaper, EventBusTrap, TableAssertions |
-  | Ctrl service (-ctrl with DDB + CDC) | B: CDC Chain | OrphanReaper, EventBusTrap, TableAssertions |
-  | BFF service (-bff with Facade) | C: BFF/AppSync | OrphanReaper, CognitoFixture, AppSyncClient, TableAssertions |
-  | Cross-domain adapter (-adpt, stateless) | D: Adapter Forwarding | OrphanReaper, EventBusTrap only |
-  | Agent service (-ctrl with AgentRuntime) | E: Agent Smoke | MockApiFixture, SsmOverrideFixture, OrphanReaper, EventBusTrap, TableAssertions |
+  | Third-party adapter (-adpt with external API) | A: Full-Pipeline | MockApiFixture, SsmOverrideFixture, EventBusTrap, TableAssertions |
+  | Ctrl service (-ctrl with DDB + CDC) | B: CDC Chain | EventBusTrap, TableAssertions |
+  | BFF service (-bff with Facade) | C: BFF/AppSync | CognitoFixture, AppSyncClient, TableAssertions |
+  | Cross-domain adapter (-adpt, stateless) | D: Adapter Forwarding | EventBusTrap only |
+  | Agent service (-ctrl with AgentRuntime) | E: Agent Smoke | MockApiFixture, SsmOverrideFixture, EventBusTrap, TableAssertions |
 
 - [ ] 2. **Create `jest.integration.config.js`** at service root:
   ```js
@@ -80,16 +80,15 @@ Requires a mock Lambda. Check if `build-mock` target and `test/mocks/` directory
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
-  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 describe('{service} (mocked)', () => {
@@ -99,11 +98,7 @@ describe('{service} (mocked)', () => {
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
-
-    // Clean orphaned resources from previous crashed runs
-    await new OrphanReaper(ctx).cleanup();
-
+    ctx = await createIntegrationTestContext();
     // Deploy mock external API Lambda
     const mockApi = new MockApiFixture(ctx);
     const zipPath = join(__dirname, '..', 'mocks', 'mock-{api-name}.zip');
@@ -163,14 +158,13 @@ describe('{service} (mocked)', () => {
 
 ```typescript
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
-  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 describe('{service}', () => {
@@ -180,11 +174,7 @@ describe('{service}', () => {
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
-
-    // Clean orphaned resources from previous crashed runs
-    await new OrphanReaper(ctx).cleanup();
-
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
     table = new TableAssertions(ctx);
@@ -240,15 +230,14 @@ describe('{service}', () => {
 
 ```typescript
 import {
-  createTestContext,
   EventBridgeClient,
   CognitoFixture,
   AppSyncClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   TableAssertions,
-  OrphanReaper,
 } from '@nestfolio/integration-testing';
 
 describe('{service}', () => {
@@ -258,11 +247,7 @@ describe('{service}', () => {
   let appsync: AppSyncClient;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
-
-    // Clean orphaned resources from previous crashed runs
-    await new OrphanReaper(ctx).cleanup();
-
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
@@ -349,13 +334,12 @@ One test file per source bus: `from-{source-domain}.integration.test.ts`
 
 ```typescript
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
-  OrphanReaper,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
 
@@ -365,11 +349,7 @@ describe('{service}: {SourceDomain} -> {TargetDomain} forwarding', () => {
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
-
-    // Clean orphaned resources from previous crashed runs
-    await new OrphanReaper(ctx).cleanup();
-
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
 
@@ -413,16 +393,15 @@ The CDK stack must define the `AgentRuntimeUrlParam` SSM parameter with `stringV
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
-  OrphanReaper,
 } from '@nestfolio/integration-testing';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 
@@ -433,11 +412,7 @@ describe('{service}: {TRIGGER_EVENT} -> AgentInvocation DDB write + CDC', () => 
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
-
-    // Clean orphaned resources from previous crashed runs
-    await new OrphanReaper(ctx).cleanup();
-
+    ctx = await createIntegrationTestContext();
     // Deploy mock agent runtime (prevents real Bedrock calls)
     const mockApi = new MockApiFixture(ctx);
     const zipPath = join(__dirname, '..', 'mocks', 'mock-agent-runtime.zip');
@@ -570,9 +545,10 @@ Read the service's Ingress subscriptions from `service.stack.ts` or the CLAUDE.m
 Services that use singleton/global DDB keys (e.g., `CircuitBreaker#alpaca`, `FeatureFlag#SYSTEM`) can accumulate stale state across interrupted test runs. Add `StateResetFixture` in `beforeAll` to clear these keys before the test suite runs.
 
 ```typescript
-import { StateResetFixture } from '@nestfolio/integration-testing';
+import {
+  createIntegrationTestContext, StateResetFixture } from '@nestfolio/integration-testing';
 
-// In beforeAll, after createTestContext and OrphanReaper:
+// In beforeAll, after createIntegrationTestContext():
 const stateReset = new StateResetFixture(ctx);
 await stateReset.reset([
   { table: '{service}', pk: '{GlobalKey}#{id}' },
@@ -590,5 +566,5 @@ await stateReset.reset([
 - NEVER use scan-based DDB assertions -- always pk/sk or pk/skPrefix
 - NEVER put integration tests under `src/__tests__/` or `test/unit/`
 - NEVER assert against specific timing -- use polling with timeouts
-- NEVER omit `OrphanReaper` in `beforeAll` -- leaked AWS resources accumulate across crashed runs
+- NEVER call `createTestContext()` directly in integration tests — use `createIntegrationTestContext()` from `@nestfolio/integration-testing` so OrphanReaper runs automatically and leaked AWS resources from prior crashed runs get reaped
 - NEVER skip mock agent runtime for Pattern E services -- real Bedrock calls in tests are forbidden

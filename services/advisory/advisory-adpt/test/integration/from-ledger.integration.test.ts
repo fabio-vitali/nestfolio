@@ -1,9 +1,9 @@
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
@@ -14,7 +14,7 @@ describe('advisory-adpt: Ledger → Advisory forwarding', () => {
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
 

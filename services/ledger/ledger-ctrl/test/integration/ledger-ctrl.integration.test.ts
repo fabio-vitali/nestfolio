@@ -1,9 +1,9 @@
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
 } from '@nestfolio/integration-testing';
@@ -45,7 +45,7 @@ describe('ledger-ctrl: ORDER_FILLED → LedgerEntry DDB write (smoke)', () => {
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
@@ -87,7 +87,7 @@ describe('ledger-ctrl: event-listener DDB writes', () => {
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
@@ -202,7 +202,7 @@ describe('ledger-ctrl: CDC chain → BALANCE_UPDATED', () => {
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
 
@@ -308,7 +308,7 @@ describe('ledger-ctrl: DECISION_PACKET_CREATED → simulated LedgerEntry writes'
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
@@ -405,7 +405,7 @@ describe('ledger-ctrl: simulation CDC chain → BALANCE_UPDATED', () => {
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
 
@@ -447,7 +447,7 @@ describe('ledger-ctrl: CDC chain → LEDGER_ENTRY_RECORDED', () => {
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     trap = new EventBusTrap(ctx);
 

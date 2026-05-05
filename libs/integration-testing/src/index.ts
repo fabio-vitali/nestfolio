@@ -8,3 +8,4 @@ export { DdbSeedFixture } from './fixtures/ddb-seed.fixture';
 export { snapshotState, assertEquivalentState, countItems, stripDynamicFields, sortSnapshot } from './resilience';
 export { StateResetFixture } from './fixtures/state-reset.fixture';
 export { OrphanReaper } from './fixtures/orphan-reaper';
+export { createIntegrationTestContext } from './bootstrap';

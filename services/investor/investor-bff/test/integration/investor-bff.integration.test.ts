@@ -1,15 +1,14 @@
 import {
-  createTestContext,
   CognitoFixture,
   AppSyncClient,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
   StateResetFixture,
-  OrphanReaper,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
 
@@ -39,9 +38,7 @@ describe('investor-bff', () => {
   }
 
   beforeAll(async () => {
-    ctx = await createTestContext();
-    await new OrphanReaper(ctx).cleanup();
-
+    ctx = await createIntegrationTestContext();
     // Clear stale feature flag state from interrupted runs
     const stateReset = new StateResetFixture(ctx);
     await stateReset.reset([

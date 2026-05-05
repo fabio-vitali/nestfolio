@@ -2,17 +2,16 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'node:crypto';
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
   countItems,
   MockApiFixture,
   SsmOverrideFixture,
-  OrphanReaper,
 } from '@nestfolio/integration-testing';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 
@@ -36,8 +35,7 @@ import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 let sharedCtx: TestContext;
 
 beforeAll(async () => {
-  sharedCtx = await createTestContext();
-  await new OrphanReaper(sharedCtx).cleanup();
+  sharedCtx = await createIntegrationTestContext();
   const mockApi = new MockApiFixture(sharedCtx);
   const zipPath = join(__dirname, '..', 'mocks', 'mock-agent-runtime.zip');
   const mockUrl = await mockApi.deploy({ name: 'mock-agent-runtime', handlerAsset: readFileSync(zipPath) });
@@ -65,7 +63,7 @@ afterAll(async () => {
 
 describe('market-intelligence-ctrl resilience: idempotency', () => {
   it('duplicate ANALYZE_MARKET does not create duplicate AgentInvocation', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -136,7 +134,7 @@ describe('market-intelligence-ctrl resilience: idempotency', () => {
 describe('market-intelligence-ctrl resilience: order-agnostic pairwise', () => {
   it('ANALYZE_MARKET and YAHOO_FINANCE_UPDATED in either order both process', async () => {
     // Run A: analyze then KB-ingest
-    const ctxA = await createTestContext();
+    const ctxA = await createIntegrationTestContext();
     try {
       const ebA = new EventBridgeClient(ctxA);
       const tableA = new TableAssertions(ctxA);
@@ -190,7 +188,7 @@ describe('market-intelligence-ctrl resilience: order-agnostic pairwise', () => {
       await new Promise((r) => setTimeout(r, 15_000));
 
       // Run B: KB-ingest then analyze
-      const ctxB = await createTestContext();
+      const ctxB = await createIntegrationTestContext();
       try {
         const ebB = new EventBridgeClient(ctxB);
         const tableB = new TableAssertions(ctxB);

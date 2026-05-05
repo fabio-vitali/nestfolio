@@ -4,10 +4,10 @@ import { join } from 'path';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import {
-  createTestContext,
   EventBridgeClient,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
   MockApiFixture,
@@ -40,7 +40,7 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
   let ssmOverride: SsmOverrideFixture;
 
   beforeAll(async () => {
-    mockCtx = await createTestContext();
+    mockCtx = await createIntegrationTestContext();
 
     mockApi = new MockApiFixture(mockCtx);
     const zipPath = join(__dirname, '..', 'mocks', 'mock-alpaca.zip');
@@ -72,7 +72,7 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
   }, 60_000);
 
   it('duplicate ALPACA_ORDER_REQUESTED does not create duplicate AlpacaOrderResult record', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -141,7 +141,7 @@ describe('broker-alpaca-adpt resilience: idempotency', () => {
   }, 240_000);
 
   it('duplicate ALPACA_TRANSFER_REQUESTED does not create duplicate AlpacaTransferResult record', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);

@@ -1,11 +1,11 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
   MockApiFixture,
@@ -20,7 +20,7 @@ describe('yahoo-finance-adpt (mocked)', () => {
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
 
     const mockApi = new MockApiFixture(ctx);
     const zipPath = join(__dirname, '..', 'mocks', 'mock-yahoo-finance.zip');

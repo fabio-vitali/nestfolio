@@ -24,10 +24,10 @@
  */
 
 import {
-  createTestContext,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   TableAssertions,
 } from '@nestfolio/integration-testing';
 import { DynamoDBClient, PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
@@ -43,7 +43,7 @@ describe('onboarding-bff: DDB schema validation (CDC path)', () => {
   const written: Array<{ pk: string; sk: string }> = [];
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
     table = new TableAssertions(ctx);
     ddb = new DynamoDBClient({ region: ctx.region });
     tableName = await ctx.ssm.tableName('onboarding-bff');

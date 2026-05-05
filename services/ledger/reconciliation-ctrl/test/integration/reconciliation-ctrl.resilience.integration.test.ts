@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
-  createTestContext,
   EventBridgeClient,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
 } from '@nestfolio/integration-testing';
 
@@ -17,7 +17,7 @@ import {
 
 describe('reconciliation-ctrl resilience: idempotency', () => {
   it('duplicate PORTFOLIO_UPDATED does not produce duplicate ReconciliationResult', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const trap = new EventBusTrap(ctx);
@@ -104,7 +104,7 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
   // the first cached. Verify that order of arrival doesn't matter.
 
   it('Intent-first: PORTFOLIO_UPDATED then ALPACA_ACCOUNT_SNAPSHOT produces reconciliation', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const trap = new EventBusTrap(ctx);
@@ -145,7 +145,7 @@ describe('reconciliation-ctrl resilience: order-agnostic pairwise', () => {
   }, 300_000);
 
   it('Settlement-first: ALPACA_ACCOUNT_SNAPSHOT then PORTFOLIO_UPDATED produces reconciliation', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const trap = new EventBusTrap(ctx);

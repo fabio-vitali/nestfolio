@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
-  createTestContext,
   EventBridgeClient,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
   countItems,
@@ -29,7 +29,7 @@ import {
 
 describe('broker-ctrl resilience: idempotency', () => {
   it('duplicate EXECUTION_MODE_CHANGED does not create duplicate ExecutionMode record', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -90,7 +90,7 @@ describe('broker-ctrl resilience: idempotency', () => {
   }, 180_000);
 
   it('duplicate SIM_DEPOSIT_COMPLETED does not create duplicate NormalizedEvent', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -177,7 +177,7 @@ describe('broker-ctrl resilience: idempotency', () => {
 describe('broker-ctrl resilience: order-agnostic pairwise', () => {
   it('SIM_DEPOSIT_COMPLETED then SIM_WITHDRAWAL_COMPLETED vs reverse produces same record set', async () => {
     // ── Run A: deposit then withdrawal ──
-    const ctxA = await createTestContext();
+    const ctxA = await createIntegrationTestContext();
     try {
       const ebA = new EventBridgeClient(ctxA);
       const tableA = new TableAssertions(ctxA);
@@ -238,7 +238,7 @@ describe('broker-ctrl resilience: order-agnostic pairwise', () => {
       const countA = depCountA + wdCountA;
 
       // ── Run B: withdrawal then deposit ──
-      const ctxB = await createTestContext();
+      const ctxB = await createIntegrationTestContext();
       try {
         const ebB = new EventBridgeClient(ctxB);
         const tableB = new TableAssertions(ctxB);

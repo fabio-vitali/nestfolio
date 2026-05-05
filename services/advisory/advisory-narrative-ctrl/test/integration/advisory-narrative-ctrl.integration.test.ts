@@ -1,16 +1,15 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
-  OrphanReaper,
 } from '@nestfolio/integration-testing';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 
@@ -21,9 +20,7 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
   let trap: EventBusTrap;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
-    await new OrphanReaper(ctx).cleanup();
-
+    ctx = await createIntegrationTestContext();
     // Deploy mock agent runtime
     const mockApi = new MockApiFixture(ctx);
     const zipPath = join(__dirname, '..', 'mocks', 'mock-agent-runtime.zip');

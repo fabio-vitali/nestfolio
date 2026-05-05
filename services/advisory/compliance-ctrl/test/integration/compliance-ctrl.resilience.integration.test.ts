@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
-  createTestContext,
   EventBridgeClient,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   TableAssertions,
   countItems,
 } from '@nestfolio/integration-testing';
@@ -68,7 +68,7 @@ async function pollForMandateSnapshot(
 
 describe('compliance-ctrl resilience: idempotency', () => {
   it('duplicate INVESTOR_PROFILE_CREATED produces a single MandateSnapshot row', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -127,7 +127,7 @@ describe('compliance-ctrl resilience: idempotency', () => {
   }, 180_000);
 
   it('duplicate MANDATE_REVOKED does not flip a REVOKED row back to ACTIVE', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -207,7 +207,7 @@ describe('compliance-ctrl resilience: idempotency', () => {
 
 describe('compliance-ctrl resilience: order-agnostic (SQS redelivery)', () => {
   it('CREATE → REVOKE → late-CREATE does not clobber MandateSnapshot.status=REVOKED', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);

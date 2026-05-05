@@ -3,17 +3,16 @@ import { join } from 'path';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import {
-  createTestContext,
   EventBridgeClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
   StateResetFixture,
-  OrphanReaper,
   type BusEventPayload,
 } from '@nestfolio/integration-testing';
 
@@ -24,9 +23,7 @@ describe('broker-alpaca-adpt', () => {
   let table: TableAssertions;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
-    await new OrphanReaper(ctx).cleanup();
-
+    ctx = await createIntegrationTestContext();
     // Clear stale circuit breaker state from interrupted runs
     const stateReset = new StateResetFixture(ctx);
     await stateReset.reset([

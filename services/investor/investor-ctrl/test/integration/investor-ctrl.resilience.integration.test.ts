@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
-  createTestContext,
   EventBridgeClient,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   TableAssertions,
   countItems,
 } from '@nestfolio/integration-testing';
@@ -55,7 +55,7 @@ async function waitForMonthlyReport(
 
 describe('investor-ctrl resilience: idempotency', () => {
   it('duplicate ORDER_FILLED produces a single Notification + a single MonthlyReport', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -119,7 +119,7 @@ describe('investor-ctrl resilience: idempotency', () => {
   }, 180_000);
 
   it('duplicate ONBOARDING_COMPLETED produces a single Notification', async () => {
-    const ctx = await createTestContext();
+    const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
@@ -208,14 +208,14 @@ describe('investor-ctrl resilience: order-agnostic', () => {
       return { onboardId, fillId, reportId };
     };
 
-    const ctxA = await createTestContext();
+    const ctxA = await createIntegrationTestContext();
     try {
       await runOrder(ctxA, 'onboard-then-fill');
     } finally {
       await ctxA.cleanup.runAll();
     }
 
-    const ctxB = await createTestContext();
+    const ctxB = await createIntegrationTestContext();
     try {
       await runOrder(ctxB, 'fill-then-onboard');
     } finally {

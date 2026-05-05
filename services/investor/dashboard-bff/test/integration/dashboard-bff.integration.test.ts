@@ -1,11 +1,11 @@
 import {
-  createTestContext,
   EventBridgeClient,
   CognitoFixture,
   AppSyncClient,
   type TestContext,
 } from '@nestfolio/test-support';
 import {
+  createIntegrationTestContext,
   TableAssertions,
 } from '@nestfolio/integration-testing';
 
@@ -16,7 +16,7 @@ describe('dashboard-bff', () => {
   let appsync: AppSyncClient;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    ctx = await createIntegrationTestContext();
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
     table.registerCleanup();
