@@ -39,14 +39,16 @@ export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
           // (plural array) per the SDK's MemoryRecordCreateInput type.
           // ListMemoryRecordsCommand below uses `namespace: string` (singular).
           // The asymmetry is SDK-mandated — do not "fix" it. requestIdentifier
-          // is an idempotency key; AgentCore deduplicates retries by it.
+          // is an idempotency key; AgentCore deduplicates retries by it. The
+          // SDK enforces `[a-zA-Z0-9_-]+` on requestIdentifier — no slashes,
+          // so the tenant/decision separator is `_`, not `/`.
           const namespace = `/${config.serviceName}/${tenantId}/decisions/${decisionId}`;
           await client.send(
             new BatchCreateMemoryRecordsCommand({
               memoryId: config.memoryId,
               records: [
                 {
-                  requestIdentifier: `${tenantId}/${decisionId}`,
+                  requestIdentifier: `${tenantId}_${decisionId}`,
                   namespaces: [namespace],
                   content: { text: JSON.stringify(output) },
                   timestamp: new Date(),

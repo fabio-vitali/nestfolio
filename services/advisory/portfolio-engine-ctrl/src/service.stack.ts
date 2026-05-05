@@ -88,6 +88,7 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       effect: Effect.ALLOW,
       actions: [
         'bedrock-agentcore:CreateEvent',
+        'bedrock-agentcore:BatchCreateMemoryRecords',
         'bedrock-agentcore:RetrieveMemoryRecords',
         'bedrock-agentcore:GetMemoryRecord',
         'bedrock-agentcore:ListMemoryRecords',

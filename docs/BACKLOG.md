@@ -8,8 +8,10 @@
 - **Scope contract.** Every spec/plan must have an explicit §"Out of scope" before execution starts. Out-of-scope failures during validation default to *file-and-continue*, not pivot.
 - **Boundary review.** At each workstream ship, spend 5 min re-ranking PARKING LOT and promoting items to QUEUED if they've grown teeth.
 
-Last reviewed: 2026-05-05 (after resilience batch-2 ship + InvestorProfile collapse ship 2026-05-04 + compliance-ctrl flake resolution 2026-05-05).
-Updated 2026-05-05 (latest): SHIPPED resilience batch-2 + agent-service idempotency port (commits `c9dae7db`..`98da12ed` on `main`). 15/15 resilience tests green against deployed dev across 6 services. Restored Step 8 WSS bug to ACTIVE.
+Last reviewed: 2026-05-05 (post-pivot ship: pipeline restored on dev; Step 8 WSS bug re-promoted to ACTIVE).
+Updated 2026-05-05 (latest, post-ship): SHIPPED to dev (uncommitted) — three coupled fixes restored the advisory pipeline. Verified: 3 SF executions reached `RequestUserConfirmation` (one state past `WaitForCompliance`) — done-definition exceeded. Step 8 WSS bug re-promoted to ACTIVE; 147+9 stuck SFs cleanup still QUEUED slot 1.
+Updated 2026-05-05 (post-pivot): PIVOTED ACTIVE from "Step 8 WSS bug" → "Advisory pipeline regression — `BatchCreateMemoryRecordsCommand is not a constructor`". Diagnostic 2 e2e runs back-to-back (tenants `e2e-1777983470777`, `e2e-1777984420638`) timed out at `waitForPendingDecisionsAtLeast(1, 180s)`; deployed-dev SF executions reveal **6 of last 30 FAILED in 12-16s** at `putEvents.waitForTaskToken` (agent invocation) with `TypeError: fo.BatchCreateMemoryRecordsCommand is not a constructor`. 24 of last 30 are RUNNING (residue, fed the 147-stuck-SF chore). Yesterday's InvestorProfile-collapse 5-run gate had 5/5 passing through Step 8 — regression entered with today's deploy of commits `c9dae7db`..`98da12ed`. Step 8 WSS bug demoted to QUEUED slot 2 (after this fix); 147-stuck-SF cleanup remains slot 1 but is now BLOCKED — no point cleaning up residue while new failures keep producing it.
+Updated 2026-05-05: SHIPPED resilience batch-2 + agent-service idempotency port (commits `c9dae7db`..`98da12ed` on `main`). 15/15 resilience tests green against deployed dev across 6 services. Restored Step 8 WSS bug to ACTIVE.
 Updated 2026-05-05 (earlier): promoted "Resilience tests batch-2 + agent-service idempotency port" to ACTIVE; demoted Step 8 WSS bug to QUEUED slot 1.
 Updated 2026-05-05: promoted Step 8 WSS dashboard subscription bug from QUEUED slot 1 to ACTIVE; removed resolved compliance-ctrl flake entry from PARKING LOT (logged in Recently shipped); no other re-ranking needed — slot 2 (147 stuck SFs cleanup) remains gated on ACTIVE per documented sequencing rationale.
 Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retired. Diagnostic on 5 fresh SF starts (tenant `e2e-1777762060562`, 22:48–22:49 UTC 2026-05-02) showed 5 distinct trigger events (1× RISK_PROFILE_CREATED + 1× MANDATE_CREATED + 1× GOAL_CREATED + 2× DEPOSIT_DETECTED), each with unique `triggerEventId` + `decisionId`. Per `services/advisory/decision-workflow-ctrl/src/handlers/event-listener.ts:22-28` and `flows/advisory-cycle.flow.yaml` Phase 1b (`idempotent: false`), N triggers → N SF executions is **architectural intent**, not a bug. Refiled the real underlying problems below.
@@ -22,28 +24,25 @@ Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retire
 
 **Done when:** `injectAdvisoryUpdate` sentinel value reliably appears in the dashboard counter via the live WSS subscription path.
 
-**Status:** Restored to ACTIVE 2026-05-05 after resilience batch-2 shipped (commits `c9dae7db`..`98da12ed`). Pre-existing. Spec 3 surfaced new evidence that supersedes 6th-session "WSS subscription never opens" diagnosis: subscription IS attached and DELIVERS frames (30 `apollo next domain=dashboard` events on Run 1), but the inject's specific value isn't arriving in the counter. Failure mechanism is different from what 6th-session assumed.
+**Status:** Re-promoted to ACTIVE 2026-05-05 (evening) after the BatchCreateMemoryRecords pipeline regression shipped (see Recently shipped). Pre-existing `Step8Diag` instrumentation is in source: `apps/dashboard-mfe/src/app/dashboard/dashboard-container.component.ts` logs `[Step8Diag.subscribeToUpdates]` per frame; `apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts` logs `[Step8Diag.injectAdvisoryUpdate]` send/response. Spec 3 surfaced evidence that supersedes 6th-session "WSS subscription never opens" diagnosis: subscription IS attached and DELIVERS frames (30 `apollo next domain=dashboard` events on Run 1), but the inject's specific value isn't arriving in the counter. Today's pipeline-regression detour also surfaced a side-finding: `apps/investor-mfe/src/app/deposit/deposit-page.component.ts:180` Pattern-A subscribe-after-async race may block Step 7 (deposit-detected UI) before Step 8 even fires; if that flake intensifies, fixing it is a prerequisite (PARKING LOT entry "Refactor deposit-page from Pattern A → Pattern B" — promote if it blocks two consecutive runs).
 
-**Hypotheses (none verified):**
+**Hypotheses (none verified — instrumentation will disambiguate on next run):**
 - Inject mutation and dashboard subscription target different AppSync APIs.
 - Inject's broadcast may arrive with `advisoryStatus: null` (resolver returns `?? null`; subscriber gates on `if (advisoryStatus)`).
 - Auth-mode interaction between IAM-published mutation and Cognito subscriber.
+- (NEW) Race: production-pipeline frames may overwrite the sentinel within the 500ms `waitForPendingDecisionsExactly` poll window.
 
-**Cheapest next step:** add console logging of actual `pendingDecisionsCount` values delivered to `dashboard-container.component.ts:178`, rebuild + re-run e2e once, inspect.
+**Cheapest next step:** rebuild + re-run e2e — the `Step8Diag` instrumentation already in source will log every dashboard frame's `pendingDecisionsCount` and disambiguate the four hypotheses without further code changes.
 
 **Topic memory:** `project_playwright_e2e_ui.md` (search "Side-finding from Spec 3 e2e gate").
 
-**Why ACTIVE (above the 147-stuck-SF cleanup chore in QUEUED):** Step 8 and Step 10 (Confirm button → WSS callback) likely share root cause in WSS subscription delivery semantics — fixing this also fixes Step 10, which drains the 147 stuck SFs at the source. Sequence wins over symptom-treatment.
+**Why ACTIVE (above the 147+ stuck-SF cleanup chore):** Step 8 and Step 10 (Confirm button → WSS callback) likely share root cause in WSS subscription delivery semantics — fixing this also fixes Step 10, which drains the 147+ stuck SFs at the source. Sequence wins over symptom-treatment.
 
-**Out of scope (placeholder — to be filled when this workstream gets a spec):** the 147-stuck-SF cleanup itself (slot 1 of QUEUED); decision-detail Confirm-button UI changes; broader AppSync auth-mode refactor.
+**Out of scope (placeholder):** the 147+ stuck-SF cleanup itself (slot 1 of QUEUED); decision-detail Confirm-button UI changes; broader AppSync auth-mode refactor.
 
 ---
 
-## QUEUED
-
-Ordered by priority. Top of list = what to start next.
-
-### `[chore]` Stop + clean up 147 stuck Step Function executions on dev
+### `[chore]` Stop + clean up 147+ stuck Step Function executions on dev
 
 **Done when:** `aws stepfunctions list-executions --status-filter RUNNING` on `dev-decision-workflow-ctrl-decisionstatemachine` returns 0 executions older than 24h, AND no orphaned task-token DDB rows remain in `dev-advisory-bff-StateTable962DE04C-1VGXL2KZX3AUM`.
 
@@ -59,7 +58,7 @@ Ordered by priority. Top of list = what to start next.
 2. DDB scan for orphaned task-token rows (`sk` begins with `TaskToken#` and the corresponding decisionId is in a stuck-pending status with no live SF) → batch delete.
 3. Verify count drops to 0.
 
-**Why slot 1 of QUEUED (not ACTIVE):** the 147 executions are dev-test residue — no real users, sole-dev account, no SF concurrency budget hit (Standard SF has no concurrent-running ceiling), small DDB storage cost. Cleanup is a 5-min chore. Real protection comes from fixing Step 8/10 (the ACTIVE workstream), which prevents new stuck SFs accumulating; without that fix, this cleanup just kicks the can.
+**Why slot 1 of QUEUED (not ACTIVE):** the 147+ executions are dev-test residue — no real users, sole-dev account, no SF concurrency budget hit (Standard SF has no concurrent-running ceiling), small DDB storage cost. Cleanup is a 5-min chore. Real protection comes from fixing Step 8/10 (the ACTIVE workstream), which prevents new stuck SFs accumulating; without that fix, this cleanup just kicks the can. The 2026-05-05 BatchCreateMemoryRecords regression added ~9 fresh stuck SFs on top of the 147 — bumps the count, not the urgency.
 
 **Topic memory:** `project_decision_workflow_stuck.md`.
 
@@ -148,6 +147,7 @@ Compact list — full prose lives in user auto-memory `MEMORY.md` § "Recently C
 
 | Date | Item | Commit |
 |---|---|---|
+| 2026-05-05 | Advisory pipeline regression fix — 3 coupled fixes ship the agent-Memory write path: (1) `agentProps.bundling.externalModules: []` so `@aws-sdk/client-bedrock-agentcore` bundles into the 4 agent service Ingress Lambdas (Lambda Node 24 runtime ships an older SDK that lacks `BatchCreateMemoryRecordsCommand`); (2) IAM grant `bedrock-agentcore:BatchCreateMemoryRecords` added to all 4 service.stack.ts policies (Spec 2 SDK migration missed updating grants); (3) `requestIdentifier` separator in `memory-client.ts` changed from `/` to `_` to match SDK's `[a-zA-Z0-9_-]+` constraint. Verified: 3 SF executions reached `RequestUserConfirmation` (one state past `WaitForCompliance`); done-definition exceeded. Step 8 WSS bug re-promoted to ACTIVE. | uncommitted |
 | 2026-05-05 | Resilience tests batch-2 + agent-service idempotency port — 15 new tests across 6 services (compliance-ctrl, decision-workflow-ctrl, investor-ctrl, advisory-narrative-ctrl, investor-profile-ctrl, market-intelligence-ctrl), all green against deployed dev; Fix 1A from 2026-04-10 ported from portfolio-engine-ctrl to 3 sibling agent services | `c9dae7db`, `98da12ed` |
 | 2026-05-05 | compliance-ctrl integration test flake fix — root-caused silent marshaller throw on undefined leaf; event-processor now logs caught failures + deep-strips undefined; compliance-ctrl moved to patch-semantics MandateSnapshot projection; Orchestration rules apply test-source filter | `69e781cb`, `25c7480e`, `f06a87f5`, `0d6144cf`, `15fe1693`, `74f55961`, `7fbe64d4` |
 | 2026-05-04 | InvestorProfile single-row collapse (composite InvestorProfile row, 8→2 events, direct EB→SF, MandateStatus sibling row, revokeMandate complete) | `4d4c5679..e60caf76` |
