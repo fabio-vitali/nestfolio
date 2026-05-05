@@ -8,7 +8,8 @@
 - **Scope contract.** Every spec/plan must have an explicit §"Out of scope" before execution starts. Out-of-scope failures during validation default to *file-and-continue*, not pivot.
 - **Boundary review.** At each workstream ship, spend 5 min re-ranking PARKING LOT and promoting items to QUEUED if they've grown teeth.
 
-Last reviewed: 2026-05-05 (ACTIVE re-scoped after adoption verification — see "Updated 2026-05-05 (ACTIVE re-scope)" below).
+Last reviewed: 2026-05-05 (Bootstrap uplift SHIPPED commit `4d882d39`; Operating mode Phase 2 promoted from QUEUED slot 1 to ACTIVE; references verified against current code — all green).
+Updated 2026-05-05 (Bootstrap uplift SHIPPED + Phase 2 ACTIVE): Integration test bootstrap uplift shipped on `main` commit `4d882d39` — `createIntegrationTestContext()` factory in `libs/integration-testing/src/bootstrap.ts`, all 44 integration test suites swept, validation gate green (8/8 unit suites + 19/19 smoke tests across 3 representative suites: compliance-ctrl 10/10, advisory-adpt cross-domain 6/6, portfolio-engine-ctrl 3/3). Side-finding `apps/nestfolio-e2e/playwright.config.ts:31 no-console` filed in PARKING LOT (commit `5c3ba85b`). Promoted Operating mode Phase 2 (agent behavior dimension) to ACTIVE — refs verified: SYSTEM-ARCHITECTURE.md §14 exists at line 305, SERVICE-INVENTORY.md portfolio-engine-ctrl §330 + advisory-narrative-ctrl §275 exist, flows/advisory-cycle.flow.yaml Phase 2c/2d exist (comment markers in YAML), agent dirs `services/advisory/{portfolio-engine-ctrl,advisory-narrative-ctrl}/src/agents/` populated with `prompts.ts` + `schemas.ts`, `libs/agent-orchestrator/src/agent-factory.ts` present.
 Updated 2026-05-05 (ACTIVE re-scope): Adoption verification of "Integration test mock resilience" revealed Sections 1–3 of the 2026-04-16 spec already SHIPPED (`libs/integration-testing/src/fixtures/{orphan-reaper,ssm-override.fixture,state-reset.fixture}.ts`); Section 4 SUPERSEDED 2026-04-20 by AgentCore data-plane transport; StateResetFixture coverage audit found only 2 global-key DDB patterns codebase-wide (`CircuitBreaker#alpaca`, `FeatureFlag#SYSTEM`), both already wired. Real remaining gap: OrphanReaper wired in 10 of 44 integration test suites (23%), 34 missing. Re-scoped ACTIVE to "Integration test bootstrap uplift — wire OrphanReaper into TestContext" (Option 2 — lift into `createTestContext()` factory with opt-out flag, eliminating per-suite manual wiring as a failure mode).
 Updated 2026-05-05 (Operating mode SHIPPED + cross-cutting fixture fix): Adoption verification revealed the 2026-04-14 design was actually 4/4 implementation tasks shipped (`guardrail-params.ts` lookup table + `onboarding-completed.ts` mode-derived mandate + mode-aware `authority-resolver.ts` + `operating-mode-authority.e2e.test.ts`); only validation gate remained. First E2E run failed 3/3 — root cause was NOT operating-mode but a fixture regression (`apps/e2e-feature-tests/src/helpers/fixtures.ts:80-91` polled `getProfile` between USER_REGISTERED and ONBOARDING_COMPLETED, but post-InvestorProfile-collapse `services/investor/investor-bff/src/transforms/user-registered.ts` returns `skip()` so the profile never materialized until ONBOARDING_COMPLETED itself ran the Put). Fix: moved `waitForGraphQL(getProfile)` to AFTER the ONBOARDING_COMPLETED publish. **Affects ALL 16+ e2e tests using `onboarded()` fixture** — entire e2e suite was broken since 2026-05-04 collapse, never noticed because no one ran Jest e2e during Playwright work. Re-run: 3/3 GREEN in 169s (CONSERVATIVE→L2, BALANCED→L1, AGGRESSIVE→L1). Done-definition for spec scope (compliance-ctrl mode-aware authority resolver) met. The original BACKLOG done-when ("drives portfolio-engine + advisory-narrative behavior") was broader than the 2026-04-14 spec actually scoped — agent-behavior dimension filed as new QUEUED `[design]` item. `updateOperatingMode` re-derivation gap filed in PARKING LOT.
 Updated 2026-05-05 (chore shipped): ran the documented one-liner against `dev-decision-workflow-ctrl-decisionstatemachine`. Pre-state: 89 RUNNING total, **65 stale (>24h)**, 6 in 1h–24h band, 18 fresh (<1h, live e2e). Post-state: 24 RUNNING (24h-and-under only), 0 stale, 0 TaskToken rows in `dev-advisory-bff-StateTable962DE04C-1VGXL2KZX3AUM`. Cutoff 1777924340 epoch. Stop reason `BacklogChore` / cause "Cleanup per docs/BACKLOG.md ACTIVE 2026-05-05". Original entry quoted "147+" but real count had decayed to 65 between 2026-05-02 surfacing and 2026-05-05 execution (some auto-timed-out at 1y horizon, some completed via Step 10 reload workaround).
@@ -27,51 +28,32 @@ Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retire
 
 ## ACTIVE
 
-### `[design]` Integration test bootstrap uplift — wire OrphanReaper into TestContext
+### `[design]` Operating mode — agent behavior dimension (Phase 2)
 
-**Status:** DESIGN PENDING (2026-05-05). Re-scoped from the original 2026-04-16 "Integration test mock resilience" workstream after adoption verification revealed:
-- Sections 1–3 of the 2026-04-16 spec (`OrphanReaper`, crash-safe `SsmOverrideFixture` with `restoreTo` guard, `StateResetFixture`) are SHIPPED in `libs/integration-testing/src/fixtures/`.
-- Section 4 (FakeLlm / URL-based mock agent runtime) was SUPERSEDED 2026-04-20 by the AgentCore data-plane transport (`resolveAgentRuntimeTarget()` + `dispatchAgentInvocation()`). The "FakeLlm via env var" line in the prior BACKLOG was dead text.
-- StateResetFixture coverage audit (2026-05-05): only two global-key DDB patterns exist in the codebase (`CircuitBreaker#alpaca` in broker-alpaca-adpt, `FeatureFlag#SYSTEM` in investor-bff) — both already wired. Coverage is COMPLETE.
-- **Real remaining gap:** OrphanReaper is wired in 10 of 44 integration test suites (23%). The 34 missing suites silently leak `integ-mock-*` Lambda functions, `integ-mock-*` IAM roles, `integ-trap-*` SQS queues, and `integ-trap-*` EB rules across all four event buses. Manual per-suite wiring is the failure mode.
+**Status:** DESIGN PENDING (2026-05-05). Promoted from QUEUED slot 1 after Bootstrap uplift shipped (commit `4d882d39`). The 2026-04-14 spec/plan only scoped dimension A (mandate parameters) + dimension C (authority thresholds use mode-derived params), both shipped. Dimension B (agent behavior — risk allocation, position concentration, strategy selection driven by mode) was deferred and remains the original BACKLOG done-when ("AGGRESSIVE/BALANCED/CONSERVATIVE actually drives portfolio-engine + advisory-narrative behavior").
 
-**Done when:** OrphanReaper runs once per integration test suite without per-suite boilerplate. New integration test suites get cleanup by default; opt-out is explicit, not opt-in. Validated by `pnpm nx run-many -t test-integration` against deployed dev with no orphan accumulation visible in AWS Console.
+**Adoption-gate verification (2026-05-05, all green):**
+- `docs/architecture/SYSTEM-ARCHITECTURE.md` §14 — present at line 305 ("Operating Modes & Guardrails"), TOC link line 34, glossary entry line 514.
+- `docs/architecture/SERVICE-INVENTORY.md` — advisory-narrative-ctrl §275, portfolio-engine-ctrl §330; both `canonical` health.
+- `flows/advisory-cycle.flow.yaml` — Phase 2c (portfolio-engine-ctrl, line 71) + Phase 2d (advisory-narrative-ctrl, line 84) intact; failure_modes section references both at lines 237-238.
+- Agent code dirs: `services/advisory/portfolio-engine-ctrl/src/agents/` (portfolio-construction.config.ts, rebalance-planner.config.ts, prompts.ts, schemas.ts, validation.ts, fallbacks.ts, state.ts, tools/) + `services/advisory/advisory-narrative-ctrl/src/agents/` (explainability.config.ts, prompts.ts, schemas.ts, validation.ts, fallbacks.ts) — both populated post-collapse.
+- `libs/agent-orchestrator/src/agent-factory.ts` — present (single LLM injection point per MEMORY.md).
 
-**Approach (Option 2, agreed 2026-05-05):** Lift `OrphanReaper.cleanup()` invocation into `createTestContext()` itself, behind an opt-out flag (`{ skipOrphanReaper: true }`) for the rare suite that doesn't need it. This eliminates the 34-test wiring gap and protects against future test-suite drift.
+**Done when:** portfolio-engine + advisory-narrative agent prompts/golden-context read `operatingMode` from `InvestorProfile` payload and produce mode-differentiated recommendations; e2e gate verifies same trigger yields different `proposedTrades` shape across modes.
 
 **References:**
-- `libs/integration-testing/src/fixtures/orphan-reaper.ts` — current implementation (reaps Lambda + IAM + SQS + EB rules >1h old, prefix-aware)
-- `libs/test-support/src/context.ts` — `createTestContext()` bootstrap factory (the lift target)
-- `libs/integration-testing/src/index.ts` — exports `OrphanReaper` (will need to stay exported for direct callers)
-- `docs/superpowers/specs/2026-04-16-integration-test-mock-resilience-design.md` — original spec (Sections 1–3 still authoritative)
-- `services/advisory/portfolio-engine-ctrl/test/integration/portfolio-engine-ctrl.integration.test.ts:50-51` — canonical wiring pattern (current manual call site)
-- `.claude/skills/create-integration-test/SKILL.md` Pattern E + Mock Agent Runtime sections — needs update post-uplift
+- `docs/architecture/SYSTEM-ARCHITECTURE.md` §14 (Operating Modes & Guardrails)
+- `docs/architecture/SERVICE-INVENTORY.md` § `portfolio-engine-ctrl` + § `advisory-narrative-ctrl`
+- `flows/advisory-cycle.flow.yaml` Phases 2c (PortfolioEngine) + 2d (AdvisoryNarrative)
+- Code: `libs/agent-orchestrator/src/agent-factory.ts`, `services/advisory/portfolio-engine-ctrl/src/agents/`, `services/advisory/advisory-narrative-ctrl/src/agents/`
 
-**Topic memory:** `project_mock_resilience.md` (currently labeled SUPERSEDED — needs amendment after this re-scope ships).
+**Topic memory:** `project_operating_mode.md` (needs Phase 1 → SHIPPED + Phase 2 → DESIGN IN PROGRESS update at design start).
 
 ---
 
 ## QUEUED
 
 Ordered. Slot 1 is the next adopt-as-ACTIVE candidate.
-
-### `[design]` Operating mode — agent behavior dimension (Phase 2)
-
-**Status:** NEW (2026-05-05). The 2026-04-14 spec/plan only scoped dimension A (mandate parameters) + dimension C (authority thresholds use mode-derived params), both shipped. Dimension B (agent behavior — risk allocation, position concentration, strategy selection driven by mode) was deferred and remains the original BACKLOG done-when ("AGGRESSIVE/BALANCED/CONSERVATIVE actually drives portfolio-engine + advisory-narrative behavior").
-
-**Done when:** portfolio-engine + advisory-narrative agent prompts/golden-context read `operatingMode` from `InvestorProfile` payload and produce mode-differentiated recommendations; e2e gate verifies same trigger yields different `proposedTrades` shape across modes.
-
-**References:**
-- `docs/architecture/SYSTEM-ARCHITECTURE.md` §14 (Operating Modes & Guardrails) — verify still current post-collapse
-- `docs/architecture/SERVICE-INVENTORY.md` § `portfolio-engine-ctrl` + § `advisory-narrative-ctrl` — the two agent services that need mode-aware behavior
-- `flows/advisory-cycle.flow.yaml` Phases 2c (PortfolioEngine) + 2d (AdvisoryNarrative) — where mode would gate agent behavior
-- Code: `libs/agent-orchestrator/src/agent-factory.ts` (single LLM injection point), `services/advisory/portfolio-engine-ctrl/src/agents/`, `services/advisory/advisory-narrative-ctrl/src/agents/`
-
-**Topic memory:** `project_operating_mode.md` (needs Phase 1 → SHIPPED + Phase 2 → DESIGN PENDING update at adoption time).
-
-**Adoption gate:** before promoting to ACTIVE, re-verify all `References:` lines against current code (per CLAUDE.md backlog discipline) — especially that the SYSTEM-ARCHITECTURE.md §14 + SERVICE-INVENTORY.md sections still reflect post-collapse model.
-
----
 
 ### `[infra]` PR pipeline integration tests
 
@@ -132,6 +114,7 @@ Compact list — full prose lives in user auto-memory `MEMORY.md` § "Recently C
 
 | Date | Item | Commit |
 |---|---|---|
+| 2026-05-05 | Integration test bootstrap uplift — `createIntegrationTestContext()` factory in `libs/integration-testing/src/bootstrap.ts` composes `createTestContext + OrphanReaper.cleanup()`. Swept all 44 integration test suites (10 wired previously + 34 newly wired, 100% coverage). Closes the spec's per-suite manual wiring failure mode — new suites get cleanup automatically. Validation gate green: tsc + lint + 8/8 unit suites + 19/19 smoke tests across 3 representative suites against deployed dev (compliance-ctrl 10/10 in 4m25s, advisory-adpt cross-domain 6/6 in 1m28s, portfolio-engine-ctrl 3/3 in 2m24s). Skill `.claude/skills/create-integration-test/SKILL.md` migrated across all 5 patterns (A-E) + fixture-needs table. Topic memory `project_mock_resilience.md` updated. Spec: `docs/superpowers/specs/2026-05-05-integration-test-bootstrap-uplift-design.md`. | `4d882d39` |
 | 2026-05-05 | Operating mode feature (Phase 1 — compliance-ctrl mode-aware authority resolver) — VALIDATED + SHIPPED. Adoption verification revealed all 4 implementation tasks already on `main` (`guardrail-params.ts` lookup table + `onboarding-completed.ts` mode-derived mandate + mode-aware `authority-resolver.ts` + `operating-mode-authority.e2e.test.ts`). E2E gate: 3/3 GREEN in 169s against deployed dev (CONSERVATIVE→L2, BALANCED→L1, AGGRESSIVE→L1). **Cross-cutting fixture fix unblocked entire e2e suite**: `apps/e2e-feature-tests/src/helpers/fixtures.ts:80-91` polled `getProfile` between USER_REGISTERED and ONBOARDING_COMPLETED, but post-2026-05-04 InvestorProfile collapse `services/investor/investor-bff/src/transforms/user-registered.ts` returns `skip()` so the profile never materialized until ONBOARDING_COMPLETED itself ran the Put — fixture timed out. Fix: moved `waitForGraphQL(getProfile)` to AFTER ONBOARDING_COMPLETED. Affects all 16+ e2e tests using `onboarded()` fixture. Phase 2 (agent behavior dimension B — portfolio-engine + advisory-narrative mode-aware recommendations) filed as new QUEUED slot 2. `updateOperatingMode` re-derivation gap filed in PARKING LOT. | uncommitted |
 | 2026-05-05 | 147-stuck-SF cleanup chore — 65 stale (>24h) RUNNING executions stopped on `dev-decision-workflow-ctrl-decisionstatemachine` (stop reason `BacklogChore`); post-state 0 stale + 0 TaskToken rows in `dev-advisory-bff-StateTable962DE04C-1VGXL2KZX3AUM`. Source-of-stuck-SFs already gated by Step 8/10 ships earlier same day. Original "147+" had decayed to 65 by execution day. | n/a (AWS state cleanup) |
 | 2026-05-05 | Playwright happy-path GREEN (1/1 in 3.5m) — Step 10 Confirm-button blocker resolved via test-side reload workaround. Two-layer fix: (1) `advisory.page.ts confirm()` 15s → 120s click timeout; (2) journey spec adds `waitForTimeout(60s) + page.reload()` between rationale + confirm to bypass advisory-bff `onDecisionUpdate` WSS subscription that closes prematurely (`apollo next hasData=false → apollo complete` in browser console — distinct from dashboard WSS which works). Backend healthy (DDB has correct `AWAITING_CONFIRMATION`, decision-publisher Lambda fires broadcasts). WSS root-cause investigation filed in PARKING LOT — three competing hypotheses (Apollo dedup with identical query+vars, non-null `DecisionPacket!` schema return, explicit `@aws_cognito_user_pools @aws_iam` directive interaction). Diag instrumentation removed: `apps/dashboard-mfe/src/app/dashboard/dashboard-container.component.ts`, `apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts`, `apps/nestfolio-e2e/src/fixtures/test.ts`, `apps/advisory-mfe/src/app/services/advisory.service.ts`. Validated tenant `e2e-1778007688617`. | uncommitted |
