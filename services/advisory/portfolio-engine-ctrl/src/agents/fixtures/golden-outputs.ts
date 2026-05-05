@@ -1,9 +1,9 @@
 export const GOLDEN_PORTFOLIO = {
   allocations: [
-    { instrument: 'VTI', targetWeight: 0.4, rationale: 'US equity broad market exposure' },
-    { instrument: 'VXUS', targetWeight: 0.15, rationale: 'International equity diversification' },
-    { instrument: 'BND', targetWeight: 0.3, rationale: 'Investment-grade bond ballast' },
-    { instrument: 'VNQ', targetWeight: 0.15, rationale: 'Real estate diversification' },
+    { instrument: 'VTI', assetClass: 'EQUITY' as const, targetWeight: 0.4, rationale: 'US equity broad market exposure' },
+    { instrument: 'VXUS', assetClass: 'EQUITY' as const, targetWeight: 0.15, rationale: 'International equity diversification' },
+    { instrument: 'BND', assetClass: 'FIXED_INCOME' as const, targetWeight: 0.3, rationale: 'Investment-grade bond ballast' },
+    { instrument: 'VNQ', assetClass: 'REIT' as const, targetWeight: 0.15, rationale: 'Real estate diversification' },
   ],
   totalExposure: 1.0,
   equityWeight: 0.7, // VTI 0.4 + VXUS 0.15 + VNQ 0.15 (REIT counts as equity by exposure type)

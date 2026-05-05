@@ -110,7 +110,8 @@ export async function invokePortfolioEngine(
     AGGRESSIVE: 'OPERATING MODE: AGGRESSIVE. You MUST: equity weight 70-90%; single position cap 25%; emit 6-12 total positions; sector and thematic concentrations allowed; prioritise long-term growth and accept higher volatility.',
   };
   const modeContext = `\n\n${modeGuidance[operatingMode] ?? modeGuidance['BALANCED']}\n` +
-    `Reflect adherence in your output: PortfolioConstruction.equityWeight, PortfolioConstruction.riskMetrics.largestPositionWeight, allocations.length must all fall within the envelope above.`;
+    `Reflect adherence in your output: PortfolioConstruction.equityWeight, PortfolioConstruction.riskMetrics.largestPositionWeight, allocations.length must all fall within the envelope above. ` +
+    `Each allocation MUST include assetClass (EQUITY | FIXED_INCOME | REIT | COMMODITY | CASH | CRYPTO | OTHER) so the downstream pipeline can derive equity weight from individual positions.`;
 
   // 5. Invoke orchestrator (parallel: portfolio-construction + rebalance-planner)
   const enrichedInput = `Decision ${payload.decisionId} context: ${seed}` + modeContext + kbContext + upstreamContext + toolContext;

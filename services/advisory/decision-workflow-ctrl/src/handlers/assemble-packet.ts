@@ -46,10 +46,31 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     // rule engine can always run. Empty trades + zero portfolio + neutral risk
     // resolve APPROVED L1 (no exposure, no violations), which is the
     // correct degenerate behavior when agents haven't yet produced structured
-    // output. As agent schemas mature, populate these from real fields.
-    const proposedTrades = (portfolioOutput?.proposedTrades as unknown[] | undefined) ?? [];
+    // output.
+    //
+    // The portfolio-engine handler stores `result['portfolio-construction']`
+    // verbatim under the key `allocations`, so the actual PortfolioConstruction
+    // payload is at `portfolioOutput.allocations` (an object) and the array of
+    // target allocations is at `portfolioOutput.allocations.allocations`. Map
+    // each allocation to ProposedTrade shape per advisory-bff schema
+    // (services/advisory/advisory-bff/src/schema.graphql:84). Phase 2 of the
+    // operating-mode workstream made `assetClass` mandatory on the agent's
+    // schema so the equityWeight derivation downstream is deterministic.
+    const construction = (portfolioOutput?.allocations as Record<string, unknown> | undefined) ?? {};
+    const allocationsArray = (construction.allocations as Array<Record<string, unknown>> | undefined) ?? [];
+    const portfolioValue = (construction.totalExposure as number | undefined) ?? 0;
+    const proposedTrades = allocationsArray.map((a) => {
+      const targetWeight = (a.targetWeight as number | undefined) ?? 0;
+      return {
+        symbol: (a.instrument as string) ?? '',
+        assetClass: (a.assetClass as string) ?? 'OTHER',
+        side: 'BUY',
+        quantityOrAmountCents: Math.round(targetWeight * portfolioValue * 100),
+        targetWeightPercent: targetWeight * 100,
+        rationale: (a.rationale as string) ?? '',
+      };
+    });
     const currentPositions = (portfolioOutput?.currentPositions as unknown[] | undefined) ?? [];
-    const portfolioValue = (portfolioOutput?.portfolioValue as number | undefined) ?? 0;
     const riskScore = (investorProfileOutput?.riskScore as number | undefined) ?? 5;
 
     // The narrative agent's ExplainabilitySchema produces `rationale` (detailed

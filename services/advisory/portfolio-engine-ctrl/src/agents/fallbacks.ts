@@ -1,9 +1,9 @@
 export function portfolioConstructionFallback(_state: Record<string, unknown>): Record<string, unknown> {
   return {
     allocations: [
-      { instrument: 'VTI', targetWeight: 0.5, rationale: 'US equity core (fallback)' },
-      { instrument: 'BND', targetWeight: 0.3, rationale: 'Fixed income ballast (fallback)' },
-      { instrument: 'VXUS', targetWeight: 0.2, rationale: 'International diversification (fallback)' },
+      { instrument: 'VTI', assetClass: 'EQUITY', targetWeight: 0.5, rationale: 'US equity core (fallback)' },
+      { instrument: 'BND', assetClass: 'FIXED_INCOME', targetWeight: 0.3, rationale: 'Fixed income ballast (fallback)' },
+      { instrument: 'VXUS', assetClass: 'EQUITY', targetWeight: 0.2, rationale: 'International diversification (fallback)' },
     ],
     totalExposure: 1.0,
     // BALANCED-shaped fallback: equityWeight 0.7 (VTI 0.5 + VXUS 0.2), largest position VTI 0.5.

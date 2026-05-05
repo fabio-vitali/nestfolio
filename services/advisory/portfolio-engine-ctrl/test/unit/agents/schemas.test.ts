@@ -3,8 +3,8 @@ import { PortfolioConstructionSchema, RebalancePlanSchema } from '../../../src/a
 describe('PortfolioConstructionSchema', () => {
   const validData = {
     allocations: [
-      { instrument: 'VTI', targetWeight: 0.6, rationale: 'US equity core' },
-      { instrument: 'BND', targetWeight: 0.4, rationale: 'Fixed income' },
+      { instrument: 'VTI', assetClass: 'EQUITY' as const, targetWeight: 0.6, rationale: 'US equity core' },
+      { instrument: 'BND', assetClass: 'FIXED_INCOME' as const, targetWeight: 0.4, rationale: 'Fixed income' },
     ],
     totalExposure: 1.0,
     equityWeight: 0.6,

@@ -3,6 +3,12 @@ import { z } from 'zod';
 export const PortfolioConstructionSchema = z.object({
   allocations: z.array(z.object({
     instrument: z.string(),
+    // assetClass added in Phase 2 of operating-mode workstream so the
+    // decision-workflow-ctrl assembler can derive equity vs fixed-income
+    // weights when mapping allocations → ProposedTrade. The agent MUST
+    // classify each instrument; without it, mode-envelope assertions in the
+    // e2e gate cannot verify mode adherence.
+    assetClass: z.enum(['EQUITY', 'FIXED_INCOME', 'REIT', 'COMMODITY', 'CASH', 'CRYPTO', 'OTHER']),
     targetWeight: z.number().min(0).max(1),
     rationale: z.string(),
   })),

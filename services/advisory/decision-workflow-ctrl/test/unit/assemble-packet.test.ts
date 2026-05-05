@@ -178,15 +178,31 @@ describe('assemble-packet handler', () => {
     expect(result.riskScore).toBe(5);
   });
 
-  it('lifts compliance inputs from agent outputs when present', async () => {
+  it('translates portfolio-engine allocations into proposedTrades', async () => {
+    // portfolio-engine handler writes its agent output as
+    // `{ decisionId, allocations: <PortfolioConstructionSchema>, trades: ..., metadata }`
+    // — see services/advisory/portfolio-engine-ctrl/src/agent-service.ts.
+    // assemble-packet must derive the assembler-shaped proposedTrades[] by
+    // mapping each PortfolioConstructionSchema.allocations[] entry. Phase 2
+    // added `assetClass` per allocation; assembler propagates it.
     mockReadUpstream.mockImplementation((svc: string) => {
       if (svc === 'portfolio-engine') {
         return Promise.resolve([
           {
             content: JSON.stringify({
-              proposedTrades: [{ symbol: 'AAPL', side: 'BUY' }],
+              decisionId: 'd-1',
+              allocations: {
+                allocations: [
+                  { instrument: 'AAPL', assetClass: 'EQUITY', targetWeight: 0.6, rationale: 'Growth' },
+                  { instrument: 'BND', assetClass: 'FIXED_INCOME', targetWeight: 0.4, rationale: 'Ballast' },
+                ],
+                totalExposure: 100_000,
+                equityWeight: 0.6,
+                riskMetrics: { concentrationRisk: 0.3, sectorDiversity: 0.7, largestPositionWeight: 0.6 },
+                confidence: 0.85,
+              },
               currentPositions: [{ ticker: 'MSFT', weight: 10 }],
-              portfolioValue: 100_000,
+              metadata: { durationMs: 1000, modelTiers: ['opus'] },
             }),
             score: 1,
             memoryRecordId: 'r1',
@@ -203,7 +219,10 @@ describe('assemble-packet handler', () => {
 
     const result = await handler(baseEvent);
 
-    expect(result.proposedTrades).toEqual([{ symbol: 'AAPL', side: 'BUY' }]);
+    expect(result.proposedTrades).toEqual([
+      { symbol: 'AAPL', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 6_000_000, targetWeightPercent: 60, rationale: 'Growth' },
+      { symbol: 'BND', assetClass: 'FIXED_INCOME', side: 'BUY', quantityOrAmountCents: 4_000_000, targetWeightPercent: 40, rationale: 'Ballast' },
+    ]);
     expect(result.currentPositions).toEqual([{ ticker: 'MSFT', weight: 10 }]);
     expect(result.portfolioValue).toBe(100_000);
     expect(result.riskScore).toBe(7);
