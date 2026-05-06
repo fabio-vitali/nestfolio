@@ -112,7 +112,7 @@ export async function invokePortfolioEngine(
   const modeContext = `\n\n${modeGuidance[operatingMode] ?? modeGuidance['BALANCED']}\n` +
     `Reflect adherence in your output: PortfolioConstruction.equityWeight, PortfolioConstruction.riskMetrics.largestPositionWeight, allocations.length must all fall within the envelope above. ` +
     `Each allocation MUST include assetClass (EQUITY | FIXED_INCOME | REIT | COMMODITY | CASH | CRYPTO | OTHER) so the downstream pipeline can derive equity weight from individual positions. ` +
-    `Compute equityWeight as the sum of targetWeight across allocations whose assetClass is EQUITY; compute largestPositionWeight as the maximum targetWeight across all allocations.`;
+    `Compute equityWeight as the sum of targetWeight across allocations whose assetClass is EQUITY; compute riskMetrics.largestPositionWeight as the maximum targetWeight across allocations whose assetClass is EQUITY (NOT across all allocations).`;
 
   // 5. Invoke orchestrator (parallel: portfolio-construction + rebalance-planner)
   const enrichedInput = `Decision ${payload.decisionId} context: ${seed}` + modeContext + kbContext + upstreamContext + toolContext;

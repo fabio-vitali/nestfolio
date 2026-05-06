@@ -133,9 +133,8 @@ describe.each(CASES)('operating mode $mode — proposedTrades shape', (testCase)
 
     const equityTrades = packet.proposedTrades.filter((t) => t.assetClass === 'EQUITY');
     const equityWeight = equityTrades.reduce((sum, t) => sum + (t.targetWeightPercent ?? 0), 0) / 100;
-    const equityPositions = packet.proposedTrades.filter((t) => t.assetClass === 'EQUITY');
-    const largestPositionWeight = equityPositions.length > 0
-      ? Math.max(...equityPositions.map((t) => (t.targetWeightPercent ?? 0) / 100))
+    const largestPositionWeight = equityTrades.length > 0
+      ? Math.max(...equityTrades.map((t) => (t.targetWeightPercent ?? 0) / 100))
       : 0;
     const count = packet.proposedTrades.length;
 
