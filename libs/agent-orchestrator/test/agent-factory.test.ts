@@ -14,6 +14,7 @@ jest.mock('@langchain/aws', () => ({
 }));
 
 import { createAgentNode } from '../src/agent-factory';
+import { DegradedStructuredOutputError } from '../src/errors';
 
 describe('createAgentNode (generic)', () => {
   const testSchema = z.object({ value: z.string() });
@@ -199,5 +200,74 @@ describe('createAgentNode — AGENT_MODEL_OVERRIDE (cost-cap downgrade)', () => 
     expect(MockChatBedrockConverse).toHaveBeenCalledWith(
       expect.objectContaining({ model: 'us.anthropic.claude-opus-4-6-v1' }),
     );
+  });
+});
+
+describe('createAgentNode — Phase γ.4 structured-output retry', () => {
+  // Spec 3 (services/investor/onboarding-bff/src/agent/phase-node.ts, commit
+  // fa78514c) showed that retrying once with tool_choice pinned recovers
+  // Sonnet 4.6's intermittent zero-tool-call cases. This test suite exercises
+  // the lib-level equivalent.
+  const testSchema = z.object({
+    value: z.string(),
+    items: z.array(z.string()),
+  });
+  const config: AgentConfig<typeof testSchema> = {
+    modelId: 'us.anthropic.claude-sonnet-4-6',
+    maxTokens: 1024,
+    temperature: 0.0,
+    schema: testSchema,
+    promptTemplate: 'agent {input}',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env['AGENT_MODEL_OVERRIDE'];
+  });
+
+  it('happy path: when first invoke returns a populated payload, no retry is taken', async () => {
+    mockInvoke.mockResolvedValueOnce({ value: 'ok', items: ['a', 'b'] });
+    const node = createAgentNode(config);
+    const result = await node({ input: 'go' });
+    expect(result).toEqual({ value: 'ok', items: ['a', 'b'] });
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    // Only one withStructuredOutput call (no pinned-retry second instantiation)
+    expect(mockWithStructuredOutput).toHaveBeenCalledTimes(1);
+  });
+
+  it('retry path: degraded first invoke triggers tool_choice-pinned retry; populated second invoke returns', async () => {
+    mockInvoke.mockResolvedValueOnce({}); // degraded
+    mockInvoke.mockResolvedValueOnce({ value: 'recovered', items: ['x'] });
+    const node = createAgentNode(config);
+    const result = await node({ input: 'go' });
+    expect(result).toEqual({ value: 'recovered', items: ['x'] });
+    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    // Second withStructuredOutput call carries the pinned tool name option
+    expect(mockWithStructuredOutput).toHaveBeenCalledTimes(2);
+    const secondCallOpts = mockWithStructuredOutput.mock.calls[1][1];
+    expect(secondCallOpts).toEqual(expect.objectContaining({ name: expect.any(String), includeRaw: false }));
+  });
+
+  it('double-fail path: second invoke also degraded → throws DegradedStructuredOutputError', async () => {
+    mockInvoke.mockResolvedValueOnce({});
+    mockInvoke.mockResolvedValueOnce({});
+    const node = createAgentNode(config);
+    await expect(node({ input: 'go' })).rejects.toThrow(DegradedStructuredOutputError);
+    expect(mockInvoke).toHaveBeenCalledTimes(2);
+  });
+
+  it('retry call carries the same RunnableConfig so AgentTracer captures both attempts', async () => {
+    mockInvoke.mockResolvedValueOnce({});
+    mockInvoke.mockResolvedValueOnce({ value: 'ok', items: ['a'] });
+    const cb = { name: 'tracer' };
+    const runnableConfig = { callbacks: [cb] };
+    const node = createAgentNode(config);
+    await node({ input: 'go' }, runnableConfig as any);
+    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    // Both invokes received the same runnableConfig
+    expect(mockInvoke.mock.calls[0][1]).toEqual(runnableConfig);
+    expect(mockInvoke.mock.calls[1][1]).toEqual(runnableConfig);
+    // Second prompt carries the REINFORCE_SUFFIX
+    expect(mockInvoke.mock.calls[1][0]).toEqual(expect.stringContaining('Re-emit the structured-output tool call with EVERY required field populated'));
   });
 });

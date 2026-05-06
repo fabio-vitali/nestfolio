@@ -1,6 +1,7 @@
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  assertOrchestratorOutput,
   DegradedAgentOutputError,
   type AgentNodeResult,
 } from '@nestfolio/agent-orchestrator';
@@ -85,6 +86,16 @@ export const createAgentService = (deps: AgentServiceDeps) => {
           });
         }
       }
+
+      // Phase γ (Spec 4, 2026-05-06): first time this service has had a
+      // library-level empty-output guard. Surfaces a degraded structured
+      // output as EmptyAgentResponseError instead of silently spreading an
+      // empty narrative into the ReasoningOutput CDC item.
+      assertOrchestratorOutput(
+        result,
+        ['explainability'],
+        { decisionId, agent: 'advisory-narrative' },
+      );
 
       const explainability = (result['explainability'] as { ok: true; output: Record<string, unknown> }).output;
 

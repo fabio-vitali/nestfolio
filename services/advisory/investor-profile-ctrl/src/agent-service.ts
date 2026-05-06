@@ -1,6 +1,7 @@
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  assertOrchestratorOutput,
   DegradedAgentOutputError,
   type AgentNodeResult,
 } from '@nestfolio/agent-orchestrator';
@@ -77,6 +78,16 @@ export const createAgentService = (deps: AgentServiceDeps) => {
           });
         }
       }
+
+      // Phase γ (Spec 4, 2026-05-06): first time this service has had a
+      // library-level empty-output guard. Surfaces a degraded structured
+      // output as EmptyAgentResponseError instead of silently passing an
+      // empty `goals` / `risk` payload to the SF callback.
+      assertOrchestratorOutput(
+        result,
+        ['user-goals', 'risk-assessment'],
+        { decisionId, agent: 'investor-profile' },
+      );
 
       const goals = (result['user-goals'] as { ok: true; output: Record<string, unknown> }).output;
       const risk = (result['risk-assessment'] as { ok: true; output: Record<string, unknown> }).output;

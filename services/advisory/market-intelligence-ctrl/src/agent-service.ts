@@ -1,6 +1,7 @@
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  assertOrchestratorOutput,
   DegradedAgentOutputError,
   type AgentNodeResult,
 } from '@nestfolio/agent-orchestrator';
@@ -74,6 +75,16 @@ export const createAgentService = (deps: AgentServiceDeps) => {
           });
         }
       }
+
+      // Phase γ (Spec 4, 2026-05-06): first time this service has had a
+      // library-level empty-output guard. Surfaces a degraded structured
+      // output as EmptyAgentResponseError instead of silently passing an
+      // empty `signals` array through to the consumer.
+      assertOrchestratorOutput(
+        result,
+        ['market-research'],
+        { decisionId, agent: 'market-intelligence' },
+      );
 
       const marketResearch = (result['market-research'] as { ok: true; output: Record<string, unknown> }).output;
 

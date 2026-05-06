@@ -11,6 +11,8 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   ),
   dispatchAgentInvocation: jest.fn(),
   DegradedAgentOutputError: jest.requireActual('@nestfolio/agent-orchestrator').DegradedAgentOutputError,
+  EmptyAgentResponseError: jest.requireActual('@nestfolio/agent-orchestrator').EmptyAgentResponseError,
+  assertOrchestratorOutput: jest.requireActual('@nestfolio/agent-orchestrator').assertOrchestratorOutput,
 }));
 
 import { createAgentService } from '../../src/agent-service';

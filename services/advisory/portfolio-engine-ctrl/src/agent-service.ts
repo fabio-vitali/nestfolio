@@ -1,6 +1,7 @@
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  assertOrchestratorOutput,
   DegradedAgentOutputError,
   type AgentNodeResult,
 } from '@nestfolio/agent-orchestrator';
@@ -86,6 +87,16 @@ export const createAgentService = (deps: AgentServiceDeps) => {
           });
         }
       }
+
+      // Phase γ (Spec 4, 2026-05-06): library-level empty-output guard.
+      // assertOrchestratorOutput is the lib hoist of the local check this
+      // service used to carry; it now also protects the three other advisory
+      // services that previously had no such guard.
+      assertOrchestratorOutput(
+        result,
+        ['portfolio-construction', 'rebalance-planner'],
+        { decisionId, agent: 'portfolio-engine' },
+      );
 
       const allocations = (result['portfolio-construction'] as { ok: true; output: Record<string, unknown> }).output;
       const trades = (result['rebalance-planner'] as { ok: true; output: Record<string, unknown> }).output;
