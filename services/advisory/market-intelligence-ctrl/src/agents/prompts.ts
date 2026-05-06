@@ -28,8 +28,9 @@ export const marketResearchPrompt = formatStructuredOutputPrompt({
   schemaShape: marketResearchSchemaShape,
   rules: [
     'signals MUST be a non-empty array. Every entry MUST include type (e.g. TECHNICAL, FUNDAMENTAL, MACRO, NEWS, SENTIMENT), ticker (string), sentiment (BULLISH | BEARISH | NEUTRAL), confidence (number in [0, 1]), and source (string explaining the basis for the signal).',
-    'tickersMentioned MUST be an array of unique tickers referenced in the signals or marketOutlook; MUST be present even if empty when no tickers are referenced.',
-    'marketOutlook MUST be a non-empty narrative string summarising the overall market view in 1-3 sentences.',
+    'signals MUST NOT contain duplicate tickers — each ticker appears AT MOST ONCE across all signals. If you have multiple observations on the same ticker, combine them into a single signal entry with a source string that summarises both observations. Duplicate tickers are a HARD validation failure.',
+    'marketOutlook MUST be a non-empty narrative string of at least 20 characters summarising the overall market view in 1-3 sentences.',
+    'tickersMentioned MUST be an array containing every unique ticker that appears in signals[].ticker; MUST also be present (possibly empty) when no tickers appear.',
     'confidenceScore MUST be a number in [0, 1] reflecting the model\'s aggregate confidence in this analysis.',
     'Do NOT fabricate tickers or signals; if the upstream context is sparse, emit a smaller signals array with high source-quality entries rather than inventing data.',
   ],

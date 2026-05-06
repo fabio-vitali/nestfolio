@@ -105,13 +105,14 @@ export async function invokePortfolioEngine(
     ?? (investorProfile['operatingMode'] as string)
     ?? 'BALANCED';
   const modeGuidance: Record<string, string> = {
-    CONSERVATIVE: 'OPERATING MODE: CONSERVATIVE. THESE ARE HARD RULES FOR THIS INVOCATION — violating any clause is a hard failure. Keep equity weight ≤ 30% (rest in fixed income / cash); cap any single position at 10%; emit 3-5 total positions; prefer broad-market ETFs over single names; prioritise capital preservation over growth.',
-    BALANCED: 'OPERATING MODE: BALANCED. THESE ARE HARD RULES FOR THIS INVOCATION — violating any clause is a hard failure. Keep equity weight in 50-70%; cap any single position at 15%; emit 5-8 total positions; mix broad ETFs with measured sector tilts; balance growth and stability.',
-    AGGRESSIVE: 'OPERATING MODE: AGGRESSIVE. THESE ARE HARD RULES FOR THIS INVOCATION — violating any clause is a hard failure. Equity weight 70-90%; single position cap 25%; emit 6-12 total positions; sector and thematic concentrations allowed; prioritise long-term growth and accept higher volatility.',
+    CONSERVATIVE: 'OPERATING MODE: CONSERVATIVE. THESE ARE HARD RULES FOR THIS INVOCATION — every clause MUST be honoured exactly. (1) equityWeight MUST be ≤ 0.30 (the rest in fixed income / cash). (2) riskMetrics.largestPositionWeight MUST be ≤ 0.10. (3) allocations.length MUST be between 3 and 5 inclusive. (4) Prefer broad-market ETFs over single names. (5) Prioritise capital preservation over growth. Producing equityWeight > 0.30, a position > 10%, or fewer than 3 / more than 5 positions is a HARD FAILURE.',
+    BALANCED: 'OPERATING MODE: BALANCED. THESE ARE HARD RULES FOR THIS INVOCATION — every clause MUST be honoured exactly. (1) equityWeight MUST be in [0.50, 0.70]. (2) riskMetrics.largestPositionWeight MUST be ≤ 0.15. (3) allocations.length MUST be between 5 and 8 inclusive. (4) Mix broad ETFs with measured sector tilts. (5) Balance growth and stability. Producing equityWeight outside [0.50, 0.70], a position > 15%, or fewer than 5 / more than 8 positions is a HARD FAILURE.',
+    AGGRESSIVE: 'OPERATING MODE: AGGRESSIVE. THESE ARE HARD RULES FOR THIS INVOCATION — every clause MUST be honoured exactly. (1) equityWeight MUST be in [0.70, 0.90]. (2) riskMetrics.largestPositionWeight MUST be ≤ 0.25. (3) allocations.length MUST be between 6 and 12 inclusive. (4) Sector and thematic concentrations allowed. (5) Prioritise long-term growth and accept higher volatility. Producing equityWeight outside [0.70, 0.90], a position > 25%, or fewer than 6 / more than 12 positions is a HARD FAILURE.',
   };
   const modeContext = `\n\n${modeGuidance[operatingMode] ?? modeGuidance['BALANCED']}\n` +
     `Reflect adherence in your output: PortfolioConstruction.equityWeight, PortfolioConstruction.riskMetrics.largestPositionWeight, allocations.length must all fall within the envelope above. ` +
-    `Each allocation MUST include assetClass (EQUITY | FIXED_INCOME | REIT | COMMODITY | CASH | CRYPTO | OTHER) so the downstream pipeline can derive equity weight from individual positions.`;
+    `Each allocation MUST include assetClass (EQUITY | FIXED_INCOME | REIT | COMMODITY | CASH | CRYPTO | OTHER) so the downstream pipeline can derive equity weight from individual positions. ` +
+    `Compute equityWeight as the sum of targetWeight across allocations whose assetClass is EQUITY; compute largestPositionWeight as the maximum targetWeight across all allocations.`;
 
   // 5. Invoke orchestrator (parallel: portfolio-construction + rebalance-planner)
   const enrichedInput = `Decision ${payload.decisionId} context: ${seed}` + modeContext + kbContext + upstreamContext + toolContext;
