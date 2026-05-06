@@ -76,9 +76,15 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       // AgentCore Memory. SF observes a TaskFailure with a clear cause; the
       // legacy two-key empty-response check is replaced by the lib-level
       // assertOrchestratorOutput helper introduced in Phase γ.
-      for (const [k, v] of Object.entries(result)) {
+      //
+      // Iterate only EXPECTED agent keys. The graph state also carries `input`
+      // (a string) and other LangGraph metadata that we must NOT treat as a
+      // discriminant.
+      const expectedAgentKeys = ['portfolio-construction', 'rebalance-planner'] as const;
+      for (const k of expectedAgentKeys) {
+        const v = result[k];
         if (typeof v !== 'object' || v === null || (v as { ok?: boolean }).ok !== true) {
-          const reason = (v as { reason?: string })?.reason ?? 'unknown — non-discriminant shape';
+          const reason = (v as { reason?: string } | undefined)?.reason ?? 'unknown — non-discriminant shape';
           throw new DegradedAgentOutputError({
             decisionId,
             agent: k,

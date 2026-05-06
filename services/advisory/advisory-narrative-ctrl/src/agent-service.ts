@@ -75,9 +75,15 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       // degraded wave-node entry. First time this service has had any guard
       // (the legacy code spread `...result` directly into the ReasoningOutput
       // CDC item, so a degraded `{}` quietly produced an empty narrative).
-      for (const [k, v] of Object.entries(result)) {
+      //
+      // Iterate only EXPECTED agent keys. The graph state also carries `input`
+      // (a string) and other LangGraph metadata that we must NOT treat as a
+      // discriminant.
+      const expectedAgentKeys = ['explainability'] as const;
+      for (const k of expectedAgentKeys) {
+        const v = result[k];
         if (typeof v !== 'object' || v === null || (v as { ok?: boolean }).ok !== true) {
-          const reason = (v as { reason?: string })?.reason ?? 'unknown — non-discriminant shape';
+          const reason = (v as { reason?: string } | undefined)?.reason ?? 'unknown — non-discriminant shape';
           throw new DegradedAgentOutputError({
             decisionId,
             agent: k,
