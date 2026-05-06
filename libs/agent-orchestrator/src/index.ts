@@ -20,6 +20,10 @@ export { withValidation } from './with-validation';
 export { withRetry } from './with-retry';
 export { withFallback } from './with-fallback';
 export { buildEscalationPath } from './tier-escalation';
+export {
+  formatStructuredOutputPrompt,
+  type StructuredOutputPromptSpec,
+} from './format-prompt';
 export { createOrchestrator, type CompiledGraph } from './create-orchestrator';
 export { invokeOrchestrator } from './invoke-orchestrator';
 

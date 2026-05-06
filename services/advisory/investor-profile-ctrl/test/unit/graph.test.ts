@@ -19,6 +19,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
     openDecisionSession: jest.fn().mockReturnValue(mockMemorySession),
   }),
   // AgentInvocation and ServiceUnavailableResponse are types — no runtime export needed
+  formatStructuredOutputPrompt: jest.requireActual('@nestfolio/agent-orchestrator').formatStructuredOutputPrompt,
 }));
 
 describe('investor-profile-ctrl orchestrator graph', () => {

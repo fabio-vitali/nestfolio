@@ -91,9 +91,9 @@ export async function invokeNarrative(
     ?? (investorProfile['operatingMode'] as string)
     ?? 'BALANCED';
   const narrativeFraming: Record<string, string> = {
-    CONSERVATIVE: 'OPERATING MODE: CONSERVATIVE. Frame the explanation around safety, capital preservation, and downside protection. Address volatility concerns proactively. Prefer reassuring language over growth-thesis language.',
-    BALANCED: 'OPERATING MODE: BALANCED. Frame the explanation around long-term growth tempered by measured risk. Acknowledge both upside and downside scenarios with equal weight.',
-    AGGRESSIVE: 'OPERATING MODE: AGGRESSIVE. Frame the explanation around growth opportunity and conviction. Acknowledge volatility as the cost of higher expected return; do not over-soften.',
+    CONSERVATIVE: 'OPERATING MODE: CONSERVATIVE. THESE ARE HARD RULES FOR THIS INVOCATION. Frame the explanation around safety, capital preservation, and downside protection. Address volatility concerns proactively. Prefer reassuring language over growth-thesis language.',
+    BALANCED: 'OPERATING MODE: BALANCED. THESE ARE HARD RULES FOR THIS INVOCATION. Frame the explanation around long-term growth tempered by measured risk. Acknowledge both upside and downside scenarios with equal weight.',
+    AGGRESSIVE: 'OPERATING MODE: AGGRESSIVE. THESE ARE HARD RULES FOR THIS INVOCATION. Frame the explanation around growth opportunity and conviction. Acknowledge volatility as the cost of higher expected return; do not over-soften.',
   };
   const modeContext = `\n\n${narrativeFraming[operatingMode] ?? narrativeFraming['BALANCED']}\n` +
     `Reflect this framing in Explainability.tone and Explainability.summary.`;

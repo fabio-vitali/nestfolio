@@ -18,6 +18,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   createNoOpMemoryClient: jest.fn().mockReturnValue({
     openDecisionSession: jest.fn().mockReturnValue(mockMemorySession),
   }),
+  formatStructuredOutputPrompt: jest.requireActual('@nestfolio/agent-orchestrator').formatStructuredOutputPrompt,
 }));
 
 jest.mock('@aws-sdk/client-dynamodb', () => ({

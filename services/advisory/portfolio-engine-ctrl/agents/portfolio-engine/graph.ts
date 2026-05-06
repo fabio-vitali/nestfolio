@@ -105,9 +105,9 @@ export async function invokePortfolioEngine(
     ?? (investorProfile['operatingMode'] as string)
     ?? 'BALANCED';
   const modeGuidance: Record<string, string> = {
-    CONSERVATIVE: 'OPERATING MODE: CONSERVATIVE. You MUST: keep equity weight ≤ 30% (rest in fixed income / cash); cap any single position at 10%; emit 3-5 total positions; prefer broad-market ETFs over single names; prioritise capital preservation over growth.',
-    BALANCED: 'OPERATING MODE: BALANCED. You MUST: keep equity weight in 50-70%; cap any single position at 15%; emit 5-8 total positions; mix broad ETFs with measured sector tilts; balance growth and stability.',
-    AGGRESSIVE: 'OPERATING MODE: AGGRESSIVE. You MUST: equity weight 70-90%; single position cap 25%; emit 6-12 total positions; sector and thematic concentrations allowed; prioritise long-term growth and accept higher volatility.',
+    CONSERVATIVE: 'OPERATING MODE: CONSERVATIVE. THESE ARE HARD RULES FOR THIS INVOCATION — violating any clause is a hard failure. Keep equity weight ≤ 30% (rest in fixed income / cash); cap any single position at 10%; emit 3-5 total positions; prefer broad-market ETFs over single names; prioritise capital preservation over growth.',
+    BALANCED: 'OPERATING MODE: BALANCED. THESE ARE HARD RULES FOR THIS INVOCATION — violating any clause is a hard failure. Keep equity weight in 50-70%; cap any single position at 15%; emit 5-8 total positions; mix broad ETFs with measured sector tilts; balance growth and stability.',
+    AGGRESSIVE: 'OPERATING MODE: AGGRESSIVE. THESE ARE HARD RULES FOR THIS INVOCATION — violating any clause is a hard failure. Equity weight 70-90%; single position cap 25%; emit 6-12 total positions; sector and thematic concentrations allowed; prioritise long-term growth and accept higher volatility.',
   };
   const modeContext = `\n\n${modeGuidance[operatingMode] ?? modeGuidance['BALANCED']}\n` +
     `Reflect adherence in your output: PortfolioConstruction.equityWeight, PortfolioConstruction.riskMetrics.largestPositionWeight, allocations.length must all fall within the envelope above. ` +

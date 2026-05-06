@@ -20,6 +20,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
     openDecisionSession: jest.fn().mockReturnValue(mockMemorySession),
   }),
   invokeOrchestrator: jest.fn().mockImplementation(async (graph, input) => graph.invoke(input)),
+  formatStructuredOutputPrompt: jest.requireActual('@nestfolio/agent-orchestrator').formatStructuredOutputPrompt,
 }));
 
 import { invokeMarketResearch } from '../../agents/market-intelligence/graph';
