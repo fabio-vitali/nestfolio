@@ -10,7 +10,18 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   createAgentNode: jest.fn().mockReturnValue(mockAgentNode),
   withValidation: jest.fn().mockImplementation((node) => node),
   withRetry: jest.fn().mockImplementation((node) => node),
-  withFallback: jest.fn().mockImplementation((node) => node),
+  // After Phase β, withFallback returns AgentNodeResult discriminant.
+  // Reproduce that contract here so the production graph code sees the
+  // expected shape.
+  withFallback: jest.fn().mockImplementation((node, fallbackFn) => async (state: Record<string, unknown>, cfg: unknown) => {
+    try {
+      const output = await node(state, cfg);
+      return { ok: true, output };
+    } catch (err) {
+      const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      return { ok: false, reason, fallback: fallbackFn(state) };
+    }
+  }),
   createKBClient: jest.fn().mockReturnValue({ retrieve: mockKBRetrieve }),
   createMemoryClient: jest.fn().mockReturnValue({
     openDecisionSession: jest.fn().mockReturnValue(mockMemorySession),
@@ -60,8 +71,13 @@ describe('advisory-narrative-ctrl structured graph', () => {
       expect.objectContaining({
         input: expect.stringContaining('Template: Use simple language'),
       }),
+      undefined,
     );
-    expect(result).toHaveProperty('summary');
+    // Phase β: invokeNarrative now returns the discriminant-shaped
+    // `{[agentKey]: AgentNodeResult}` envelope (uniform with createOrchestrator
+    // services). The bare summary lives under .output.
+    expect(result).toHaveProperty('explainability');
+    expect((result as { explainability: { ok: boolean; output: { summary: string } } }).explainability.output).toHaveProperty('summary');
   });
 
   it('reads upstream memory context', async () => {
@@ -105,7 +121,9 @@ describe('advisory-narrative-ctrl structured graph', () => {
     });
 
     expect(mockMemorySession.writeAgentOutput).toHaveBeenCalledWith(
-      expect.objectContaining({ summary: expect.any(String) }),
+      expect.objectContaining({
+        explainability: expect.objectContaining({ summary: expect.any(String) }),
+      }),
     );
   });
 });

@@ -9,6 +9,7 @@ import {
   createNoOpMemoryClient,
   invokeOrchestrator,
   type AgentInvocation,
+  type AgentNodeResult,
   type KBClient,
   type MemoryClient,
   type TraceEmitter,
@@ -28,15 +29,18 @@ const agentNode = withFallback(
   narrativeFallback,
 );
 
+// Phase β (Spec 4, 2026-05-06): the graph state mirrors the createOrchestrator
+// `{[agentKey]: AgentNodeResult}` shape so the per-service agent-service.ts
+// applies a uniform discriminant check across all four advisory services.
 const NarrativeState = Annotation.Root({
   input: Annotation<string>,
-  output: Annotation<Record<string, unknown>>,
+  explainability: Annotation<AgentNodeResult | undefined>,
 });
 
 const compiledGraph = new StateGraph(NarrativeState)
   .addNode('advisory-narrative', async (state) => {
     const result = await agentNode({ input: state.input });
-    return { output: result as Record<string, unknown> };
+    return { explainability: result };
   })
   .addEdge('__start__', 'advisory-narrative')
   .addEdge('advisory-narrative', '__end__')
@@ -118,8 +122,20 @@ export async function invokeNarrative(
   if ('serviceUnavailable' in result) {
     throw new Error(`Narrative unavailable: ${result.reason}`);
   }
-  const output = (result as { output?: Record<string, unknown> }).output ?? {};
 
-  await session.writeAgentOutput(output);
-  return output;
+  // Phase β (Spec 4, 2026-05-06): graph now returns
+  // `{ input, explainability: AgentNodeResult }`. Forward only the discriminant
+  // shape upstream; agent-service.ts applies the discriminant check.
+  const explainability = (result as { explainability?: AgentNodeResult }).explainability;
+  const shaped: Record<string, AgentNodeResult> = {
+    explainability: explainability ?? { ok: false, reason: 'graph returned no explainability entry', fallback: {} },
+  };
+
+  // Memory write is all-or-nothing: skip on degraded paths so a partial cycle
+  // does not poison Memory for downstream consumers.
+  if (shaped['explainability'].ok) {
+    await session.writeAgentOutput({ explainability: shaped['explainability'].output });
+  }
+
+  return shaped;
 }

@@ -71,4 +71,60 @@ describe('createOrchestrator', () => {
     };
     expect(() => createOrchestrator(config)).toThrow(/unknown agent/i);
   });
+
+  it('wave node propagates AgentNodeResult discriminant for each agent', async () => {
+    mockInvoke.mockResolvedValue({ result: 'parallel-output' });
+    const config: OrchestratorConfig<TestAgentKey, typeof TestState.State> = {
+      waves: [{ agents: ['alpha', 'beta'] }],
+      stateAnnotation: TestState,
+      agents: {
+        alpha: makeConfig(),
+        beta: makeConfig(),
+      },
+    };
+    const graph = createOrchestrator(config);
+    const result = await graph.invoke({ input: 'go' });
+    expect(result['alpha']).toEqual({ ok: true, output: { result: 'parallel-output' } });
+    expect(result['beta']).toEqual({ ok: true, output: { result: 'parallel-output' } });
+  });
+
+  it('wave node marks an agent ok:false when its decorator stack throws and no fallback is configured', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('alpha down'));
+    mockInvoke.mockResolvedValueOnce({ result: 'beta-up' });
+    const config: OrchestratorConfig<TestAgentKey, typeof TestState.State> = {
+      waves: [{ agents: ['alpha', 'beta'] }],
+      stateAnnotation: TestState,
+      agents: {
+        alpha: makeConfig(),
+        beta: makeConfig(),
+      },
+      retryOptions: { maxAttempts: 1 },
+    };
+    const graph = createOrchestrator(config);
+    const result = await graph.invoke({ input: 'go' });
+    expect((result['alpha'] as { ok: boolean }).ok).toBe(false);
+    expect((result['alpha'] as { reason: string }).reason).toMatch(/alpha down/);
+    expect(result['beta']).toEqual({ ok: true, output: { result: 'beta-up' } });
+  });
+
+  it('wave node uses configured fallback when agent throws', async () => {
+    mockInvoke.mockRejectedValue(new Error('boom'));
+    const config: OrchestratorConfig<TestAgentKey, typeof TestState.State> = {
+      waves: [{ agents: ['alpha'] }],
+      stateAnnotation: TestState,
+      agents: { alpha: makeConfig(), beta: makeConfig() },
+      fallbacks: {
+        alpha: () => ({ alpha: { result: 'static-fallback' } } as any),
+        beta: () => ({} as any),
+      },
+      retryOptions: { maxAttempts: 1 },
+    };
+    const graph = createOrchestrator(config);
+    const result = await graph.invoke({ input: 'go' });
+    expect(result['alpha']).toEqual({
+      ok: false,
+      reason: expect.stringMatching(/boom/),
+      fallback: { alpha: { result: 'static-fallback' } },
+    });
+  });
 });

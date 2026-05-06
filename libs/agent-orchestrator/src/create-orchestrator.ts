@@ -4,7 +4,7 @@ import type { OrchestratorConfig } from './types';
 import { createAgentNode } from './agent-factory';
 import { withValidation, type AgentNodeFn } from './with-validation';
 import { withRetry } from './with-retry';
-import { withFallback } from './with-fallback';
+import { withFallback, type AgentNodeWithFallback } from './with-fallback';
 import { buildEscalationPath } from './tier-escalation';
 
 export interface CompiledGraph {
@@ -29,13 +29,16 @@ export function createOrchestrator<K extends string, TState>(
     }
   }
 
-  // Build decorated node for each agent
-  const nodeMap: Record<string, AgentNodeFn> = {};
+  // Build decorated node for each agent. Phase β (Spec 4, 2026-05-06):
+  // every entry of nodeMap returns AgentNodeResult so the wave-node output
+  // marks degraded agents discriminantly; downstream consumers must check
+  // `.ok` before using `.output` (or `.fallback`).
+  const nodeMap: Record<string, AgentNodeWithFallback> = {};
   for (const [key, agentConfig] of Object.entries(agents) as [K, typeof agents[K]][]) {
-    let node: AgentNodeFn = createAgentNode(agentConfig);
+    let bareNode: AgentNodeFn = createAgentNode(agentConfig);
 
     if (validationRules?.[key]) {
-      node = withValidation(node, validationRules[key]);
+      bareNode = withValidation(bareNode, validationRules[key]);
     }
 
     // Determine escalation path from model ID
@@ -43,23 +46,37 @@ export function createOrchestrator<K extends string, TState>(
       : agentConfig.modelId.includes('opus') ? 'opus' : 'sonnet';
     const escalationPath = buildEscalationPath(tier as any);
 
-    node = withRetry(node, { ...defaultRetry, escalationPath });
+    bareNode = withRetry(bareNode, { ...defaultRetry, escalationPath });
 
     if (fallbacks?.[key]) {
-      node = withFallback(node, fallbacks[key] as any);
+      nodeMap[key] = withFallback(bareNode, fallbacks[key] as any);
+    } else {
+      // Adapter: a node without an explicit fallback still surfaces ok/error
+      // via the same union shape so the wave node accumulator does not need
+      // to special-case an absent fallback.
+      const innerNode = bareNode;
+      nodeMap[key] = async (state, runnableConfig) => {
+        try {
+          const output = await innerNode(state, runnableConfig);
+          return { ok: true, output };
+        } catch (err) {
+          const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+          return { ok: false, reason, fallback: {} };
+        }
+      };
     }
-
-    nodeMap[key] = node;
   }
 
-  // Build wave nodes (parallel agents within each wave)
-  const waveNodes: Array<{ name: string; fn: AgentNodeFn }> = waves.map((wave, idx) => ({
+  // Build wave nodes (parallel agents within each wave). Each wave returns
+  // an object whose values are AgentNodeResult so consumers can check `.ok`.
+  type WaveNodeFn = (state: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  const waveNodes: Array<{ name: string; fn: WaveNodeFn }> = waves.map((wave, idx) => ({
     name: `wave${idx}`,
     fn: async (state: Record<string, unknown>) => {
       const results = await Promise.all(
         wave.agents.map(async (agentKey) => {
-          const output = await nodeMap[agentKey](state);
-          return { [agentKey]: output };
+          const result = await nodeMap[agentKey](state);
+          return { [agentKey]: result };
         }),
       );
       return Object.assign({}, ...results);

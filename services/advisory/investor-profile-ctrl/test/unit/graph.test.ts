@@ -74,11 +74,11 @@ describe('investor-profile-ctrl orchestrator graph', () => {
     );
   });
 
-  it('writes output to memory', async () => {
+  it('writes output to memory when every wave-node entry is ok:true', async () => {
     mockKBRetrieve.mockResolvedValue([]);
     mockInvokeOrchestrator.mockResolvedValue({
-      'user-goals': { goals: ['growth'] },
-      'risk-assessment': { riskScore: 60 },
+      'user-goals': { ok: true, output: { goals: ['growth'] } },
+      'risk-assessment': { ok: true, output: { riskScore: 60 } },
     });
 
     let invokeInvestorProfile: ((...args: unknown[]) => Promise<unknown>) | undefined;
@@ -93,6 +93,31 @@ describe('investor-profile-ctrl orchestrator graph', () => {
       upstreamOutputs: { investorProfile: {}, portfolioState: {} },
     });
 
-    expect(mockMemorySession.writeAgentOutput).toHaveBeenCalled();
+    expect(mockMemorySession.writeAgentOutput).toHaveBeenCalledWith({
+      'user-goals': { goals: ['growth'] },
+      'risk-assessment': { riskScore: 60 },
+    });
+  });
+
+  it('skips Memory write when any wave-node entry is ok:false (Phase β fail-fast)', async () => {
+    mockKBRetrieve.mockResolvedValue([]);
+    mockInvokeOrchestrator.mockResolvedValue({
+      'user-goals': { ok: true, output: { goals: ['growth'] } },
+      'risk-assessment': { ok: false, reason: 'Error: timeout', fallback: {} },
+    });
+
+    let invokeInvestorProfile: ((...args: unknown[]) => Promise<unknown>) | undefined;
+    jest.isolateModules(() => {
+      const mod = require('../../agents/investor-profile/graph');
+      invokeInvestorProfile = mod.invokeInvestorProfile;
+    });
+
+    await invokeInvestorProfile!({
+      tenantId: 't1',
+      decisionId: 'd1',
+      upstreamOutputs: { investorProfile: {}, portfolioState: {} },
+    });
+
+    expect(mockMemorySession.writeAgentOutput).not.toHaveBeenCalled();
   });
 });

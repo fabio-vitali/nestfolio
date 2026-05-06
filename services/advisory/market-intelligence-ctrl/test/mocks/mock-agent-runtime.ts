@@ -9,7 +9,9 @@ function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
  *
  * Mirrors the real container's contract:
  * - Body is `{ tenantId, decisionId, upstreamOutputs }` (AgentInvocation envelope).
- * - Response is the agent result JSON directly (no `{response, status}` envelope).
+ * - Response is the orchestrator result JSON directly: `{[agentKey]: AgentNodeResult}`
+ *   where AgentNodeResult is the Phase β discriminated union
+ *   { ok: true; output } | { ok: false; reason; fallback }.
  */
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
   const payload = event.body ? JSON.parse(event.body) : {};
@@ -17,13 +19,18 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     return json(400, { error: 'Missing required AgentInvocation fields: tenantId, decisionId' });
   }
   return json(200, {
-    signals: [
-      { indicator: 'VIX', value: 18.5, interpretation: 'LOW_VOLATILITY' },
-      { indicator: 'SPY_RSI', value: 55, interpretation: 'NEUTRAL' },
-    ],
-    tickersMentioned: ['SPY', 'VTI', 'BND'],
-    marketOutlook: 'NEUTRAL_BULLISH',
-    confidenceScore: 0.82,
-    metadata: { analysisTimestamp: new Date().toISOString(), modelVersion: 'mock-v1' },
+    'market-research': {
+      ok: true,
+      output: {
+        signals: [
+          { indicator: 'VIX', value: 18.5, interpretation: 'LOW_VOLATILITY' },
+          { indicator: 'SPY_RSI', value: 55, interpretation: 'NEUTRAL' },
+        ],
+        tickersMentioned: ['SPY', 'VTI', 'BND'],
+        marketOutlook: 'NEUTRAL_BULLISH',
+        confidenceScore: 0.82,
+        metadata: { analysisTimestamp: new Date().toISOString(), modelVersion: 'mock-v1' },
+      },
+    },
   });
 }

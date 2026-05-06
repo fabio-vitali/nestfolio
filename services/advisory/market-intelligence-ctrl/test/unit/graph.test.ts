@@ -11,7 +11,18 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   createAgentNode: jest.fn().mockReturnValue(mockAgentNode),
   withValidation: jest.fn().mockImplementation((node) => node),
   withRetry: jest.fn().mockImplementation((node) => node),
-  withFallback: jest.fn().mockImplementation((node) => node),
+  // After Phase β, withFallback returns AgentNodeResult discriminant.
+  // Reproduce that contract here so the production graph code sees the
+  // expected shape.
+  withFallback: jest.fn().mockImplementation((node, fallbackFn) => async (state: Record<string, unknown>, cfg: unknown) => {
+    try {
+      const output = await node(state, cfg);
+      return { ok: true, output };
+    } catch (err) {
+      const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      return { ok: false, reason, fallback: fallbackFn(state) };
+    }
+  }),
   createKBClient: jest.fn().mockReturnValue({ retrieve: mockKBRetrieve }),
   createMemoryClient: jest.fn().mockReturnValue({
     openDecisionSession: jest.fn().mockReturnValue(mockMemorySession),
@@ -62,8 +73,13 @@ describe('market-intelligence-ctrl structured graph', () => {
       expect.objectContaining({
         input: expect.stringContaining('Fed rate cut expected'),
       }),
+      undefined,
     );
-    expect(result).toHaveProperty('signals');
+    // Phase β: invokeMarketResearch now returns the discriminant-shaped
+    // `{[agentKey]: AgentNodeResult}` envelope (uniform with createOrchestrator
+    // services). The bare signals/marketOutlook live under .output.
+    expect(result).toHaveProperty('market-research');
+    expect((result as { 'market-research': { ok: boolean; output: { signals: unknown[] } } })['market-research'].output).toHaveProperty('signals');
   });
 
   it('writes output to memory', async () => {
@@ -77,7 +93,9 @@ describe('market-intelligence-ctrl structured graph', () => {
 
     await invokeMarketResearch({ tenantId: 't1', decisionId: 'd1', upstreamOutputs: {} });
 
-    expect(mockMemorySession.writeAgentOutput).toHaveBeenCalled();
+    expect(mockMemorySession.writeAgentOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ 'market-research': expect.objectContaining({ signals: expect.any(Array) }) }),
+    );
   });
 
   it('injects market-data and instrument-universe into the agent prompt', async () => {

@@ -10,12 +10,14 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
     'arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/test',
   ),
   dispatchAgentInvocation: jest.fn(),
+  DegradedAgentOutputError: jest.requireActual('@nestfolio/agent-orchestrator').DegradedAgentOutputError,
 }));
 
 import { createAgentService } from '../../src/agent-service';
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  DegradedAgentOutputError,
 } from '@nestfolio/agent-orchestrator';
 
 describe('portfolio-engine-ctrl agent-service', () => {
@@ -36,8 +38,8 @@ describe('portfolio-engine-ctrl agent-service', () => {
 
   it('should dispatch to AgentCore and return allocations + trades', async () => {
     (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
-      'portfolio-construction': { allocations: [{ instrument: 'VTI', targetWeight: 0.6 }] },
-      'rebalance-planner': { trades: [{ action: 'BUY', instrument: 'VTI' }] },
+      'portfolio-construction': { ok: true, output: { allocations: [{ instrument: 'VTI', targetWeight: 0.6 }] } },
+      'rebalance-planner': { ok: true, output: { trades: [{ action: 'BUY', instrument: 'VTI' }] } },
     });
 
     const service = createAgentService(deps);
@@ -61,6 +63,20 @@ describe('portfolio-engine-ctrl agent-service', () => {
     );
   });
 
+  it('throws DegradedAgentOutputError when an agent returned ok:false (Phase β fail-fast)', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+      'portfolio-construction': { ok: true, output: { allocations: [] } },
+      'rebalance-planner': { ok: false, reason: 'Error: timeout', fallback: { trades: [] } },
+    });
+
+    const service = createAgentService(deps);
+    await expect(service.runPipeline('evt-deg', {
+      tenantId: 't1',
+      decisionId: 'dp-deg',
+      taskToken: 'token',
+    })).rejects.toThrow(DegradedAgentOutputError);
+  });
+
   it('should propagate dispatcher errors', async () => {
     (dispatchAgentInvocation as jest.Mock).mockRejectedValue(new Error('Agent failure'));
 
@@ -72,8 +88,8 @@ describe('portfolio-engine-ctrl agent-service', () => {
 
   it('uses INV#${eventId} as the sk and adds attribute_not_exists condition + ttl on IN_PROGRESS write', async () => {
     (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
-      'portfolio-construction': {},
-      'rebalance-planner': {},
+      'portfolio-construction': { ok: true, output: { allocations: [] } },
+      'rebalance-planner': { ok: true, output: { trades: [] } },
     });
 
     const service = createAgentService(deps);

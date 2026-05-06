@@ -1,6 +1,8 @@
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  DegradedAgentOutputError,
+  type AgentNodeResult,
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
@@ -51,11 +53,29 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       }
 
       const target = await resolveAgentRuntimeTarget();
-      const result = await dispatchAgentInvocation<Record<string, unknown>>(target, {
+      const result = await dispatchAgentInvocation<Record<string, AgentNodeResult>>(target, {
         tenantId,
         decisionId,
         upstreamOutputs: (subject.upstreamOutputs ?? {}) as Record<string, unknown>,
       });
+
+      // Phase β (Spec 4, 2026-05-06): discriminant check — fail loudly on any
+      // degraded wave-node entry. First time this service has had any guard
+      // (legacy code did `result.signals ?? []` which silently passed through
+      // a degraded empty fallback as success).
+      for (const [k, v] of Object.entries(result)) {
+        if (typeof v !== 'object' || v === null || (v as { ok?: boolean }).ok !== true) {
+          const reason = (v as { reason?: string })?.reason ?? 'unknown — non-discriminant shape';
+          throw new DegradedAgentOutputError({
+            decisionId,
+            agent: k,
+            reason,
+            responseKeys: Object.keys(result),
+          });
+        }
+      }
+
+      const marketResearch = (result['market-research'] as { ok: true; output: Record<string, unknown> }).output;
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
@@ -71,10 +91,10 @@ export const createAgentService = (deps: AgentServiceDeps) => {
 
       return {
         decisionId,
-        signals: result.signals ?? [],
-        tickersMentioned: result.tickersMentioned ?? [],
-        marketOutlook: result.marketOutlook ?? '',
-        confidenceScore: result.confidenceScore ?? 0,
+        signals: (marketResearch['signals'] as unknown[]) ?? [],
+        tickersMentioned: (marketResearch['tickersMentioned'] as string[]) ?? [],
+        marketOutlook: (marketResearch['marketOutlook'] as string) ?? '',
+        confidenceScore: (marketResearch['confidenceScore'] as number) ?? 0,
         metadata: { durationMs, modelTier: 'sonnet' },
       } satisfies Omit<MarketAnalysisResult, 'metadata'> & { decisionId: string; metadata: { durationMs: number; modelTier: string } };
     },

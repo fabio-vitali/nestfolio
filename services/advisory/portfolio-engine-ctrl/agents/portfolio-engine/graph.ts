@@ -128,9 +128,21 @@ export async function invokePortfolioEngine(
       : undefined,
   );
 
-  // 5. Persist to memory
+  // 5. Persist to memory — Phase β (Spec 4, 2026-05-06): only write when every
+  // agent's wave-node entry is `ok: true`. A partial-degraded cycle no longer
+  // poisons AgentCore Memory for downstream agents. The discriminant is
+  // stripped before writing because Memory consumers expect raw outputs.
   if (!('serviceUnavailable' in result)) {
-    await session.writeAgentOutput(result);
+    const entries = Object.entries(result);
+    const allOk = entries.every(
+      ([, v]) => typeof v === 'object' && v !== null && (v as { ok?: boolean }).ok === true,
+    );
+    if (allOk) {
+      const stripped = Object.fromEntries(
+        entries.map(([k, v]) => [k, (v as { output: Record<string, unknown> }).output]),
+      );
+      await session.writeAgentOutput(stripped);
+    }
   }
 
   return result;

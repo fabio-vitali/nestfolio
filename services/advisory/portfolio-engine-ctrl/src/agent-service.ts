@@ -1,6 +1,8 @@
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  DegradedAgentOutputError,
+  type AgentNodeResult,
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
@@ -16,20 +18,6 @@ export class DuplicateInvocationError extends Error {
     super(`Duplicate agent invocation for eventId ${eventId}`);
     this.name = 'DuplicateInvocationError';
     this.eventId = eventId;
-  }
-}
-
-export class EmptyAgentResponseError extends Error {
-  readonly decisionId: string;
-  readonly responseKeys: string[];
-  constructor(decisionId: string, responseKeys: string[]) {
-    super(
-      `Agent returned no orchestrator output for decision ${decisionId}; ` +
-      `got keys=[${responseKeys.join(',')}]. AgentCore likely accepted the invocation but did not run the agent.`,
-    );
-    this.name = 'EmptyAgentResponseError';
-    this.decisionId = decisionId;
-    this.responseKeys = responseKeys;
   }
 }
 
@@ -71,7 +59,7 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       // matched (the handler doesn't set either) so the agent ran with empty
       // input — fixed in Phase 2 of the operating-mode workstream
       // (docs/superpowers/specs/2026-05-05-operating-mode-phase-2-design.md).
-      const result = await dispatchAgentInvocation<Record<string, unknown>>(target, {
+      const result = await dispatchAgentInvocation<Record<string, AgentNodeResult>>(target, {
         tenantId,
         decisionId,
         upstreamOutputs: {
@@ -82,14 +70,25 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         },
       });
 
-      // AgentCore can return a degraded empty response (202-style ack without
-      // running the agent). `?? {}` fallbacks used to swallow that as success,
-      // which hid runtime failures (see scenario 12 rebalance-on-drift, 2026-04-21).
-      // Require at least one orchestrator output key so the failure surfaces
-      // as a SF TaskFailure instead of a silent success with empty trades.
-      if (!result['portfolio-construction'] && !result['rebalance-planner']) {
-        throw new EmptyAgentResponseError(decisionId, Object.keys(result));
+      // Phase β (Spec 4, 2026-05-06): discriminant check — fail loudly on any
+      // degraded wave-node entry instead of laundering a static fallback into
+      // AgentCore Memory. SF observes a TaskFailure with a clear cause; the
+      // legacy two-key empty-response check is replaced by the lib-level
+      // assertOrchestratorOutput helper introduced in Phase γ.
+      for (const [k, v] of Object.entries(result)) {
+        if (typeof v !== 'object' || v === null || (v as { ok?: boolean }).ok !== true) {
+          const reason = (v as { reason?: string })?.reason ?? 'unknown — non-discriminant shape';
+          throw new DegradedAgentOutputError({
+            decisionId,
+            agent: k,
+            reason,
+            responseKeys: Object.keys(result),
+          });
+        }
       }
+
+      const allocations = (result['portfolio-construction'] as { ok: true; output: Record<string, unknown> }).output;
+      const trades = (result['rebalance-planner'] as { ok: true; output: Record<string, unknown> }).output;
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
@@ -107,9 +106,9 @@ export const createAgentService = (deps: AgentServiceDeps) => {
 
       return {
         decisionId,
-        allocations: result['portfolio-construction'] ?? {},
-        trades: result['rebalance-planner'] ?? {},
-        metadata: { durationMs, modelTiers: ['opus', 'sonnet'] },
+        allocations,
+        trades,
+        metadata: { durationMs, modelTiers: ['opus', 'sonnet'], modeUsed: (subject.operatingMode as string) ?? 'BALANCED' },
       };
     },
   };

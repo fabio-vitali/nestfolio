@@ -10,12 +10,14 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
     'arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/test',
   ),
   dispatchAgentInvocation: jest.fn(),
+  DegradedAgentOutputError: jest.requireActual('@nestfolio/agent-orchestrator').DegradedAgentOutputError,
 }));
 
 import { createAgentService } from '../../src/agent-service';
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  DegradedAgentOutputError,
 } from '@nestfolio/agent-orchestrator';
 
 describe('advisory-narrative-ctrl agent-service', () => {
@@ -33,12 +35,17 @@ describe('advisory-narrative-ctrl agent-service', () => {
 
   it('dispatches to the AgentCore target and persists IN_PROGRESS + ReasoningOutput + COMPLETED', async () => {
     (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
-      summary: 'Your portfolio was rebalanced to align with your moderate risk profile.',
-      rationale: 'Based on market conditions and your investment goals...',
-      keyFactors: ['market outlook', 'risk tolerance', 'time horizon'],
-      tone: 'educational',
-      wordCount: 250,
-      confidence: 0.85,
+      explainability: {
+        ok: true,
+        output: {
+          summary: 'Your portfolio was rebalanced to align with your moderate risk profile.',
+          rationale: 'Based on market conditions and your investment goals...',
+          keyFactors: ['market outlook', 'risk tolerance', 'time horizon'],
+          tone: 'educational',
+          wordCount: 250,
+          confidence: 0.85,
+        },
+      },
     });
 
     const service = createAgentService(deps);
@@ -76,7 +83,10 @@ describe('advisory-narrative-ctrl agent-service', () => {
 
   it('uses INV#${eventId} as the sk and adds attribute_not_exists condition + ttl on IN_PROGRESS write', async () => {
     (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
-      summary: 's', rationale: 'r', keyFactors: [], tone: 'educational', wordCount: 0, confidence: 0,
+      explainability: {
+        ok: true,
+        output: { summary: 's', rationale: 'r', keyFactors: [], tone: 'educational', wordCount: 0, confidence: 0 },
+      },
     });
 
     const service = createAgentService(deps);
@@ -109,6 +119,18 @@ describe('advisory-narrative-ctrl agent-service', () => {
       status: 'COMPLETED',
     });
     expect(completedArgs.ConditionExpression).toBeUndefined();
+  });
+
+  it('throws DegradedAgentOutputError when explainability returned ok:false (Phase β fail-fast)', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+      explainability: { ok: false, reason: 'Error: timeout', fallback: { summary: '' } },
+    });
+    const service = createAgentService(deps);
+    await expect(service.runPipeline('evt-narr-deg', {
+      tenantId: 't1',
+      decisionId: 'dp-deg',
+      taskToken: 'tok',
+    })).rejects.toThrow(DegradedAgentOutputError);
   });
 
   it('throws DuplicateInvocationError when conditional check fails (duplicate event)', async () => {

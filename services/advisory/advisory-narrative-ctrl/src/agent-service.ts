@@ -1,6 +1,8 @@
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  DegradedAgentOutputError,
+  type AgentNodeResult,
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
@@ -55,7 +57,7 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       // matched (the handler doesn't set either) so the agent ran with empty
       // input — fixed in Phase 2 of the operating-mode workstream
       // (docs/superpowers/specs/2026-05-05-operating-mode-phase-2-design.md).
-      const result = await dispatchAgentInvocation<Record<string, unknown>>(target, {
+      const result = await dispatchAgentInvocation<Record<string, AgentNodeResult>>(target, {
         tenantId,
         decisionId,
         upstreamOutputs: {
@@ -68,6 +70,24 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         },
       });
 
+      // Phase β (Spec 4, 2026-05-06): discriminant check — fail loudly on any
+      // degraded wave-node entry. First time this service has had any guard
+      // (the legacy code spread `...result` directly into the ReasoningOutput
+      // CDC item, so a degraded `{}` quietly produced an empty narrative).
+      for (const [k, v] of Object.entries(result)) {
+        if (typeof v !== 'object' || v === null || (v as { ok?: boolean }).ok !== true) {
+          const reason = (v as { reason?: string })?.reason ?? 'unknown — non-discriminant shape';
+          throw new DegradedAgentOutputError({
+            decisionId,
+            agent: k,
+            reason,
+            responseKeys: Object.keys(result),
+          });
+        }
+      }
+
+      const explainability = (result['explainability'] as { ok: true; output: Record<string, unknown> }).output;
+
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
 
@@ -76,7 +96,7 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         Item: buildCdcItem('ReasoningOutput',
           { pk: `DECISION#${decisionId}`, sk: `REASONING#${eventId}` },
           ctx,
-          { invocationId: eventId, decisionId, ...result, createdAt: completedAt },
+          { invocationId: eventId, decisionId, ...explainability, createdAt: completedAt },
         ),
       }));
 
@@ -89,7 +109,7 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         ),
       }));
 
-      return { decisionId, ...result, metadata: { durationMs, modelTier: 'sonnet' } };
+      return { decisionId, ...explainability, metadata: { durationMs, modelTier: 'sonnet' } };
     },
   };
 };

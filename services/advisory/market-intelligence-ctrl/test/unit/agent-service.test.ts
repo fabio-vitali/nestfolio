@@ -10,12 +10,14 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
     'arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/test',
   ),
   dispatchAgentInvocation: jest.fn(),
+  DegradedAgentOutputError: jest.requireActual('@nestfolio/agent-orchestrator').DegradedAgentOutputError,
 }));
 
 import { createAgentService } from '../../src/agent-service';
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  DegradedAgentOutputError,
 } from '@nestfolio/agent-orchestrator';
 
 describe('market-intelligence-ctrl agent-service', () => {
@@ -36,10 +38,15 @@ describe('market-intelligence-ctrl agent-service', () => {
 
   it('should dispatch to AgentCore target and persist IN_PROGRESS + COMPLETED', async () => {
     (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
-      signals: [{ type: 'momentum', ticker: 'SPY', sentiment: 'BULLISH', confidence: 0.8, source: 'technical' }],
-      tickersMentioned: ['SPY'],
-      marketOutlook: 'Bullish momentum in US equities',
-      confidenceScore: 0.85,
+      'market-research': {
+        ok: true,
+        output: {
+          signals: [{ type: 'momentum', ticker: 'SPY', sentiment: 'BULLISH', confidence: 0.8, source: 'technical' }],
+          tickersMentioned: ['SPY'],
+          marketOutlook: 'Bullish momentum in US equities',
+          confidenceScore: 0.85,
+        },
+      },
     });
 
     const service = createAgentService(deps);
@@ -83,7 +90,10 @@ describe('market-intelligence-ctrl agent-service', () => {
 
   it('uses INV#${eventId} as the sk and adds attribute_not_exists condition + ttl on IN_PROGRESS write', async () => {
     (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
-      signals: [], tickersMentioned: [], marketOutlook: '', confidenceScore: 0,
+      'market-research': {
+        ok: true,
+        output: { signals: [], tickersMentioned: [], marketOutlook: '', confidenceScore: 0 },
+      },
     });
 
     const service = createAgentService(deps);
@@ -116,6 +126,18 @@ describe('market-intelligence-ctrl agent-service', () => {
       status: 'COMPLETED',
     });
     expect(completedArgs.ConditionExpression).toBeUndefined();
+  });
+
+  it('throws DegradedAgentOutputError when market-research returned ok:false (Phase β fail-fast)', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+      'market-research': { ok: false, reason: 'Error: timeout', fallback: { signals: [] } },
+    });
+    const service = createAgentService(deps);
+    await expect(service.runPipeline('evt-mkt-deg', {
+      tenantId: 't1',
+      decisionId: 'dp-deg',
+      taskToken: 'tok',
+    })).rejects.toThrow(DegradedAgentOutputError);
   });
 
   it('throws DuplicateInvocationError when conditional check fails (duplicate event)', async () => {

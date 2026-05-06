@@ -10,12 +10,14 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
     'arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/test',
   ),
   dispatchAgentInvocation: jest.fn(),
+  DegradedAgentOutputError: jest.requireActual('@nestfolio/agent-orchestrator').DegradedAgentOutputError,
 }));
 
 import { createAgentService } from '../../src/agent-service';
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  DegradedAgentOutputError,
 } from '@nestfolio/agent-orchestrator';
 
 describe('investor-profile-ctrl agent-service', () => {
@@ -36,8 +38,8 @@ describe('investor-profile-ctrl agent-service', () => {
 
   it('dispatches to the AgentCore target and persists IN_PROGRESS + COMPLETED', async () => {
     (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
-      'user-goals': { goals: ['retirement'], timeHorizon: '10 years', riskWillingness: 'moderate', confidence: 0.9 },
-      'risk-assessment': { riskScore: 45, riskCategory: 'MODERATE', regulatoryFlags: [], suitabilityAssessment: 'Suitable', confidence: 0.85 },
+      'user-goals': { ok: true, output: { goals: ['retirement'], timeHorizon: '10 years', riskWillingness: 'moderate', confidence: 0.9 } },
+      'risk-assessment': { ok: true, output: { riskScore: 45, riskCategory: 'MODERATE', regulatoryFlags: [], suitabilityAssessment: 'Suitable', confidence: 0.85 } },
     });
 
     const service = createAgentService(deps);
@@ -80,7 +82,8 @@ describe('investor-profile-ctrl agent-service', () => {
 
   it('uses INV#${eventId} as the sk and adds attribute_not_exists condition + ttl on IN_PROGRESS write', async () => {
     (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
-      'user-goals': {}, 'risk-assessment': {},
+      'user-goals': { ok: true, output: { goals: [] } },
+      'risk-assessment': { ok: true, output: { riskScore: 0 } },
     });
 
     const service = createAgentService(deps);
@@ -113,6 +116,19 @@ describe('investor-profile-ctrl agent-service', () => {
       status: 'COMPLETED',
     });
     expect(completedArgs.ConditionExpression).toBeUndefined();
+  });
+
+  it('throws DegradedAgentOutputError when an agent returned ok:false (Phase β fail-fast)', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+      'user-goals': { ok: true, output: { goals: ['retirement'] } },
+      'risk-assessment': { ok: false, reason: 'Error: timeout', fallback: { riskScore: 0 } },
+    });
+    const service = createAgentService(deps);
+    await expect(service.runPipeline('evt-prof-deg', {
+      tenantId: 't1',
+      decisionId: 'dp-deg',
+      taskToken: 'tok',
+    })).rejects.toThrow(DegradedAgentOutputError);
   });
 
   it('throws DuplicateInvocationError when conditional check fails (duplicate event)', async () => {

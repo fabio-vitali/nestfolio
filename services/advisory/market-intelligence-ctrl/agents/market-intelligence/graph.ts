@@ -10,6 +10,7 @@ import {
   createNoOpMemoryClient,
   invokeOrchestrator,
   type AgentInvocation,
+  type AgentNodeResult,
   type KBClient,
   type MemoryClient,
   type TraceEmitter,
@@ -29,15 +30,18 @@ const agentNode = withFallback(
   marketResearchFallback,
 );
 
+// Phase β (Spec 4, 2026-05-06): the graph state mirrors the createOrchestrator
+// `{[agentKey]: AgentNodeResult}` shape so per-service agent-service.ts
+// applies a uniform discriminant check across all four advisory services.
 const MarketIntelState = Annotation.Root({
   input: Annotation<string>,
-  output: Annotation<Record<string, unknown>>,
+  marketResearch: Annotation<AgentNodeResult | undefined>,
 });
 
 const compiledGraph = new StateGraph(MarketIntelState)
   .addNode('market-intelligence', async (state) => {
     const result = await agentNode({ input: state.input });
-    return { output: result as Record<string, unknown> };
+    return { marketResearch: result };
   })
   .addEdge('__start__', 'market-intelligence')
   .addEdge('market-intelligence', '__end__')
@@ -114,10 +118,19 @@ export async function invokeMarketResearch(
   if ('serviceUnavailable' in result) {
     throw new Error(`Market-intelligence orchestrator unavailable: ${(result as { reason?: string }).reason ?? 'unknown'}`);
   }
-  const output = (result as { output?: Record<string, unknown> }).output ?? {};
 
-  // 5. Persist to memory
-  await session.writeAgentOutput(output);
+  // Phase β (Spec 4, 2026-05-06): graph now returns
+  // `{ input, marketResearch: AgentNodeResult }`. Re-shape to the
+  // hyphenated agent key the rest of the system expects ('market-research')
+  // and apply the all-or-nothing Memory write rule.
+  const marketResearch = (result as { marketResearch?: AgentNodeResult }).marketResearch;
+  const shaped: Record<string, AgentNodeResult> = {
+    'market-research': marketResearch ?? { ok: false, reason: 'graph returned no marketResearch entry', fallback: {} },
+  };
 
-  return output;
+  if (shaped['market-research'].ok) {
+    await session.writeAgentOutput({ 'market-research': shaped['market-research'].output });
+  }
+
+  return shaped;
 }

@@ -18,12 +18,21 @@ export { type AgentNodeFn } from './with-validation';
 export { createAgentNode } from './agent-factory';
 export { withValidation } from './with-validation';
 export { withRetry } from './with-retry';
-export { withFallback } from './with-fallback';
+export {
+  withFallback,
+  type AgentNodeResult,
+  type AgentNodeWithFallback,
+} from './with-fallback';
 export { buildEscalationPath } from './tier-escalation';
 export {
   formatStructuredOutputPrompt,
   type StructuredOutputPromptSpec,
 } from './format-prompt';
+export {
+  DegradedAgentOutputError,
+  DegradedStructuredOutputError,
+  EmptyAgentResponseError,
+} from './errors';
 export { createOrchestrator, type CompiledGraph } from './create-orchestrator';
 export { invokeOrchestrator } from './invoke-orchestrator';
 

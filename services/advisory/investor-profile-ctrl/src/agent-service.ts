@@ -1,6 +1,8 @@
 import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
+  DegradedAgentOutputError,
+  type AgentNodeResult,
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
@@ -50,7 +52,7 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       }
 
       const target = await resolveAgentRuntimeTarget();
-      const result = await dispatchAgentInvocation<Record<string, unknown>>(target, {
+      const result = await dispatchAgentInvocation<Record<string, AgentNodeResult>>(target, {
         tenantId,
         decisionId,
         upstreamOutputs: {
@@ -59,6 +61,25 @@ export const createAgentService = (deps: AgentServiceDeps) => {
           portfolioState: subject.portfolioState ?? {},
         },
       });
+
+      // Phase β (Spec 4, 2026-05-06): discriminant check — fail loudly on any
+      // degraded wave-node entry. First time this service has had any guard
+      // (legacy code did `result['user-goals'] ?? {}` which silently passed
+      // through a degraded empty fallback as success).
+      for (const [k, v] of Object.entries(result)) {
+        if (typeof v !== 'object' || v === null || (v as { ok?: boolean }).ok !== true) {
+          const reason = (v as { reason?: string })?.reason ?? 'unknown — non-discriminant shape';
+          throw new DegradedAgentOutputError({
+            decisionId,
+            agent: k,
+            reason,
+            responseKeys: Object.keys(result),
+          });
+        }
+      }
+
+      const goals = (result['user-goals'] as { ok: true; output: Record<string, unknown> }).output;
+      const risk = (result['risk-assessment'] as { ok: true; output: Record<string, unknown> }).output;
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();
@@ -74,8 +95,8 @@ export const createAgentService = (deps: AgentServiceDeps) => {
 
       return {
         decisionId,
-        goals: result['user-goals'] ?? {},
-        risk: result['risk-assessment'] ?? {},
+        goals,
+        risk,
         metadata: { durationMs, modelTiers: ['haiku', 'opus'] },
       };
     },

@@ -103,8 +103,19 @@ export async function invokeInvestorProfile(
     throw new Error(`Agent orchestrator unavailable: ${unavailable.reason}`);
   }
 
-  // 4. Persist to memory
-  await session.writeAgentOutput(result);
+  // 4. Persist to memory — Phase β (Spec 4, 2026-05-06): only write when every
+  // agent's wave-node entry is `ok: true`. Strip the discriminant before
+  // writing; Memory consumers expect raw outputs.
+  const entries = Object.entries(result);
+  const allOk = entries.every(
+    ([, v]) => typeof v === 'object' && v !== null && (v as { ok?: boolean }).ok === true,
+  );
+  if (allOk) {
+    const stripped = Object.fromEntries(
+      entries.map(([k, v]) => [k, (v as { output: Record<string, unknown> }).output]),
+    );
+    await session.writeAgentOutput(stripped);
+  }
 
   return result;
 }
