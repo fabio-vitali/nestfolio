@@ -183,7 +183,10 @@ const modeEnvelopes: Record<OperatingMode, ModeEnvelope> = {
 };
 
 export function buildPortfolioConstructionPrompt(mode: OperatingMode): string {
-  const env = modeEnvelopes[mode as keyof typeof modeEnvelopes] ?? modeEnvelopes['BALANCED'];
+  const env = modeEnvelopes[mode];
+  if (!env) {
+    throw new Error(`buildPortfolioConstructionPrompt: unknown OperatingMode '${String(mode)}'. Expected one of CONSERVATIVE | BALANCED | AGGRESSIVE.`);
+  }
   return formatStructuredOutputPrompt({
     role: 'portfolio construction specialist',
     task: `Design target allocations based on the investor profile, risk assessment, and market analysis. The investor is in ${mode} mode — the worked example above and the rules below are tuned to that mode and MUST be honoured. Use fund prospectus and instrument data from the knowledge base when available.`,

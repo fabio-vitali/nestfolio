@@ -80,8 +80,14 @@ describe('buildPortfolioConstructionPrompt', () => {
   });
 
   it('rejects unknown modes at compile time', () => {
-    // @ts-expect-error — mode parameter is a literal union
-    buildPortfolioConstructionPrompt('UNKNOWN');
+    // @ts-expect-error — mode parameter is a literal union; the call also throws at runtime
+    expect(() => buildPortfolioConstructionPrompt('UNKNOWN' as never)).toThrow();
+  });
+
+  it('throws at runtime when an invalid mode string slips past the type', () => {
+    expect(() =>
+      buildPortfolioConstructionPrompt('MODERATE' as never),
+    ).toThrow(/unknown OperatingMode 'MODERATE'/);
   });
 });
 
