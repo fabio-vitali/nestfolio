@@ -29,17 +29,9 @@ Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retire
 
 ## ACTIVE
 
-*(none — between workstreams as of 2026-05-06. Next adopt-as-ACTIVE candidate is QUEUED slot 1: `[bug] Agent runtime returns degraded structured output`.)*
-
----
-
-## QUEUED
-
-Ordered. Slot 1 is the next adopt-as-ACTIVE candidate.
-
 ### `[bug]` Agent runtime returns degraded structured output (e2e gate blocker)
 
-**Status:** PROMOTED 2026-05-06 (from PARKING LOT, surfaced during Operating Mode Phase 2 e2e validation). High-confidence diagnosis; fix is design-required.
+**Status:** ADOPTED 2026-05-06 from QUEUED slot 1. Investigation phase. High-confidence diagnosis from Phase 2 e2e validation — pre-existing bug, NOT a Phase 2 regression.
 
 **Concrete failures:**
 - AgentCore Runtime invocations for portfolio-engine + advisory-narrative complete in 10-15s wall-clock. A real Sonnet/Opus call producing 5-12 stock allocations with rationales should take 30-60s+. The orchestrator returns successfully but with `result['portfolio-construction'] = {}` and `result['rebalance-planner'] = {}` (empty objects).
@@ -65,6 +57,10 @@ Ordered. Slot 1 is the next adopt-as-ACTIVE candidate.
 **Topic memory:** Create `project_agent_runtime_structured_output.md` at adoption time (no existing topic file).
 
 ---
+
+## QUEUED
+
+Ordered. Slot 1 is the next adopt-as-ACTIVE candidate.
 
 ### `[infra]` PR pipeline integration tests
 
