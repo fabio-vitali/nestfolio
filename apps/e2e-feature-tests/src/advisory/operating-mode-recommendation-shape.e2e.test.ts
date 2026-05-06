@@ -26,10 +26,14 @@ import { EventBridgeClient } from '@nestfolio/test-support';
  *   5. Derive equityWeight + largestPositionWeight from proposedTrades and assert
  *      they fall within the mode envelope.
  *
- * Mode envelopes (from spec §Step 6):
- *   CONSERVATIVE  count ≤ 5,  equityWeight ≤ 0.30, largestPositionWeight ≤ 0.10
- *   BALANCED      count 5-8,  equityWeight 0.50-0.70, largestPositionWeight ≤ 0.15
- *   AGGRESSIVE    count ≥ 6,  equityWeight ≥ 0.70, largestPositionWeight ≤ 0.25
+ * Mode envelopes (from spec §Step 6, clarified 2026-05-06):
+ *   CONSERVATIVE  count ≤ 5,  equityWeight ≤ 0.30, largest EQUITY position ≤ 0.10
+ *   BALANCED      count 5-8,  equityWeight 0.50-0.70, largest EQUITY position ≤ 0.15
+ *   AGGRESSIVE    count ≥ 6,  equityWeight ≥ 0.70, largest EQUITY position ≤ 0.25
+ *
+ * `largestPositionWeight` constraint applies only to allocations whose
+ * assetClass === 'EQUITY' — broad bond ETFs and cash equivalents may exceed
+ * the cap because they are diversified by construction.
  *
  * Tolerances are wide because LLM output is non-deterministic. If a mode fails
  * a single run, re-run before declaring failure — see §Risk register in the spec.
@@ -129,7 +133,10 @@ describe.each(CASES)('operating mode $mode — proposedTrades shape', (testCase)
 
     const equityTrades = packet.proposedTrades.filter((t) => t.assetClass === 'EQUITY');
     const equityWeight = equityTrades.reduce((sum, t) => sum + (t.targetWeightPercent ?? 0), 0) / 100;
-    const largestPositionWeight = Math.max(0, ...packet.proposedTrades.map((t) => (t.targetWeightPercent ?? 0) / 100));
+    const equityPositions = packet.proposedTrades.filter((t) => t.assetClass === 'EQUITY');
+    const largestPositionWeight = equityPositions.length > 0
+      ? Math.max(...equityPositions.map((t) => (t.targetWeightPercent ?? 0) / 100))
+      : 0;
     const count = packet.proposedTrades.length;
 
     // eslint-disable-next-line no-console

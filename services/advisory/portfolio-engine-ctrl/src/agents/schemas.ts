@@ -21,7 +21,7 @@ export const PortfolioConstructionSchema = z.object({
   riskMetrics: z.object({
     concentrationRisk: z.number(),
     sectorDiversity: z.number(),
-    largestPositionWeight: z.number().min(0).max(1).describe('Weight of the single largest position'),
+    largestPositionWeight: z.number().min(0).max(1).describe('Weight of the single largest EQUITY position (max targetWeight across allocations whose assetClass is EQUITY)'),
   }),
   confidence: z.number().min(0).max(1),
 });

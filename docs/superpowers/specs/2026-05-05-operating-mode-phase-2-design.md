@@ -146,9 +146,11 @@ New scenario `apps/e2e-feature-tests/src/advisory/operating-mode-recommendation-
 - Parametrized over 3 modes (CONSERVATIVE, BALANCED, AGGRESSIVE) — same pattern as existing `operating-mode-authority.e2e.test.ts`.
 - Onboard a tenant with a specific mode, fire INVESTOR_PROFILE_CREATED, wait for DecisionPacket via `withLiveDecision()` fixture.
 - Assert mode-specific shape:
-  - **CONSERVATIVE**: `proposedTrades.length` ≤ 5, `equityWeight` ≤ 0.30, `largestPositionWeight` ≤ 0.10
-  - **BALANCED**: `proposedTrades.length` ∈ [5, 8], `equityWeight` ∈ [0.50, 0.70], `largestPositionWeight` ≤ 0.15
-  - **AGGRESSIVE**: `proposedTrades.length` ≥ 6, `equityWeight` ≥ 0.70, `largestPositionWeight` ≤ 0.25
+  - **CONSERVATIVE**: `proposedTrades.length` ≤ 5, `equityWeight` ≤ 0.30, largest EQUITY position ≤ 0.10
+  - **BALANCED**: `proposedTrades.length` ∈ [5, 8], `equityWeight` ∈ [0.50, 0.70], largest EQUITY position ≤ 0.15
+  - **AGGRESSIVE**: `proposedTrades.length` ≥ 6, `equityWeight` ≥ 0.70, largest EQUITY position ≤ 0.25
+
+  > Envelope clarified 2026-05-06 — `largestPositionWeight` reframed as "largest EQUITY position" so the CONSERVATIVE math is satisfiable. See `docs/superpowers/specs/2026-05-06-portfolio-engine-mode-anchored-examples-design.md` § "Root cause 1" for the full reasoning.
 - Each mode runs once (LLM nondeterminism may require generous tolerances or 3-run averaging — see §Risk register).
 
 ## Files changed
