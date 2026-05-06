@@ -1,4 +1,4 @@
-// services/advisory/portfolio-engine-ctrl/test/graph.test.ts
+// services/advisory/portfolio-engine-ctrl/test/unit/graph.test.ts
 const mockCreateOrchestrator = jest.fn();
 const mockInvokeOrchestrator = jest.fn();
 const mockKBRetrieve = jest.fn();
@@ -37,6 +37,10 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCreateOrchestrator.mockReturnValue({ invoke: jest.fn() });
+    mockInvokeOrchestrator.mockResolvedValue({
+      'portfolio-construction': { allocations: [] },
+      'rebalance-planner': { trades: [] },
+    });
     process.env['KNOWLEDGE_BASE_ID'] = 'kb-test';
     process.env['MEMORY_ID'] = 'mem-test';
     process.env['TABLE_NAME'] = 'test-table';
@@ -47,25 +51,26 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
     delete process.env['TABLE_NAME'];
   });
 
-  it('creates orchestrator with 2 parallel agents', () => {
+  it('builds an orchestrator with 2 parallel agents on first invocation', async () => {
+    mockKBRetrieve.mockResolvedValue([]);
+
+    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
     jest.isolateModules(() => {
-      require('../../agents/portfolio-engine/graph');
+      const mod = require('../../agents/portfolio-engine/graph');
+      invokePortfolioEngine = mod.invokePortfolioEngine;
     });
 
+    await invokePortfolioEngine!({ tenantId: 't1', decisionId: 'd1', upstreamOutputs: {} });
+
+    expect(mockCreateOrchestrator).toHaveBeenCalledTimes(1);
     const config = mockCreateOrchestrator.mock.calls[0][0];
     expect(Object.keys(config.agents)).toEqual(['portfolio-construction', 'rebalance-planner']);
     expect(config.waves).toHaveLength(1);
     expect(config.waves[0].agents).toEqual(['portfolio-construction', 'rebalance-planner']);
   });
 
-  it('invokePortfolioEngine enriches input with KB context', async () => {
-    mockKBRetrieve.mockResolvedValue([
-      { text: 'VTI expense ratio 0.03%, tracks CRSP Total Market', score: 0.9 },
-    ]);
-    mockInvokeOrchestrator.mockResolvedValue({
-      'portfolio-construction': { allocations: [] },
-      'rebalance-planner': { trades: [] },
-    });
+  it('caches the orchestrator per mode — same mode invoked twice rebuilds once', async () => {
+    mockKBRetrieve.mockResolvedValue([]);
 
     let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
     jest.isolateModules(() => {
@@ -74,8 +79,50 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
     });
 
     await invokePortfolioEngine!({
-      tenantId: 't1', decisionId: 'd1', input: 'Construct portfolio',
+      tenantId: 't1', decisionId: 'd1',
+      upstreamOutputs: { operatingMode: 'CONSERVATIVE' },
     });
+    await invokePortfolioEngine!({
+      tenantId: 't1', decisionId: 'd2',
+      upstreamOutputs: { operatingMode: 'CONSERVATIVE' },
+    });
+
+    expect(mockCreateOrchestrator).toHaveBeenCalledTimes(1);
+  });
+
+  it('builds a separate orchestrator per mode', async () => {
+    mockKBRetrieve.mockResolvedValue([]);
+
+    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
+    jest.isolateModules(() => {
+      const mod = require('../../agents/portfolio-engine/graph');
+      invokePortfolioEngine = mod.invokePortfolioEngine;
+    });
+
+    await invokePortfolioEngine!({
+      tenantId: 't1', decisionId: 'd1',
+      upstreamOutputs: { operatingMode: 'CONSERVATIVE' },
+    });
+    await invokePortfolioEngine!({
+      tenantId: 't1', decisionId: 'd2',
+      upstreamOutputs: { operatingMode: 'AGGRESSIVE' },
+    });
+
+    expect(mockCreateOrchestrator).toHaveBeenCalledTimes(2);
+  });
+
+  it('invokePortfolioEngine enriches input with KB context', async () => {
+    mockKBRetrieve.mockResolvedValue([
+      { text: 'VTI expense ratio 0.03%, tracks CRSP Total Market', score: 0.9 },
+    ]);
+
+    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
+    jest.isolateModules(() => {
+      const mod = require('../../agents/portfolio-engine/graph');
+      invokePortfolioEngine = mod.invokePortfolioEngine;
+    });
+
+    await invokePortfolioEngine!({ tenantId: 't1', decisionId: 'd1', upstreamOutputs: {} });
 
     expect(mockKBRetrieve).toHaveBeenCalled();
     expect(mockInvokeOrchestrator).toHaveBeenCalledWith(
@@ -87,10 +134,6 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
 
   it('invokePortfolioEngine injects portfolio snapshot into enriched input', async () => {
     mockKBRetrieve.mockResolvedValue([]);
-    mockInvokeOrchestrator.mockResolvedValue({
-      'portfolio-construction': { allocations: [] },
-      'rebalance-planner': { trades: [] },
-    });
 
     const snapshot = {
       tenantId: 't1',
@@ -106,7 +149,7 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
       invokePortfolioEngine = mod.invokePortfolioEngine;
     });
 
-    await invokePortfolioEngine!({ tenantId: 't1', decisionId: 'd1', input: 'Rebalance' });
+    await invokePortfolioEngine!({ tenantId: 't1', decisionId: 'd1', upstreamOutputs: {} });
 
     const passedInput = mockInvokeOrchestrator.mock.calls[0][1].input as string;
     expect(passedInput).toContain('Portfolio snapshot:');
@@ -126,9 +169,7 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
       invokePortfolioEngine = mod.invokePortfolioEngine;
     });
 
-    await invokePortfolioEngine!({
-      tenantId: 't1', decisionId: 'd1', input: 'Build',
-    });
+    await invokePortfolioEngine!({ tenantId: 't1', decisionId: 'd1', upstreamOutputs: {} });
 
     expect(mockMemorySession.writeAgentOutput).toHaveBeenCalledWith({
       'portfolio-construction': { allocations: [{ instrument: 'VTI' }] },
@@ -149,9 +190,7 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
       invokePortfolioEngine = mod.invokePortfolioEngine;
     });
 
-    await invokePortfolioEngine!({
-      tenantId: 't1', decisionId: 'd1', input: 'Build',
-    });
+    await invokePortfolioEngine!({ tenantId: 't1', decisionId: 'd1', upstreamOutputs: {} });
 
     expect(mockMemorySession.writeAgentOutput).not.toHaveBeenCalled();
   });

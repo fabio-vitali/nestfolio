@@ -15,31 +15,40 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { createPortfolioLookup } from '../../src/agents/tools/portfolio-lookup';
 import { formatToolContext } from '../../src/agents/tools/format-context';
-import { portfolioConstructionConfig } from '../../src/agents/portfolio-construction.config';
+import { buildPortfolioConstructionConfig } from '../../src/agents/portfolio-construction.config';
 import { rebalancePlannerConfig } from '../../src/agents/rebalance-planner.config';
 import { portfolioValidationRule, rebalanceValidationRule } from '../../src/agents/validation';
 import { portfolioConstructionFallback, rebalancePlannerFallback } from '../../src/agents/fallbacks';
 import { PortfolioEngineState } from '../../src/agents/state';
+import type { OperatingMode } from '../../src/agents/prompts';
 
-const graph: CompiledGraph = createOrchestrator({
-  agents: {
-    'portfolio-construction': portfolioConstructionConfig,
-    'rebalance-planner': rebalancePlannerConfig,
-  },
-  waves: [
-    { agents: ['portfolio-construction', 'rebalance-planner'] },
-  ],
-  stateAnnotation: PortfolioEngineState,
-  validationRules: {
-    'portfolio-construction': portfolioValidationRule,
-    'rebalance-planner': rebalanceValidationRule,
-  },
-  fallbacks: {
-    'portfolio-construction': portfolioConstructionFallback,
-    'rebalance-planner': rebalancePlannerFallback,
-  },
-  retryOptions: { maxAttempts: 3 },
-});
+const graphCache = new Map<OperatingMode, CompiledGraph>();
+
+function getGraphForMode(mode: OperatingMode): CompiledGraph {
+  const cached = graphCache.get(mode);
+  if (cached) return cached;
+  const built = createOrchestrator({
+    agents: {
+      'portfolio-construction': buildPortfolioConstructionConfig(mode),
+      'rebalance-planner': rebalancePlannerConfig,
+    },
+    waves: [
+      { agents: ['portfolio-construction', 'rebalance-planner'] },
+    ],
+    stateAnnotation: PortfolioEngineState,
+    validationRules: {
+      'portfolio-construction': portfolioValidationRule,
+      'rebalance-planner': rebalanceValidationRule,
+    },
+    fallbacks: {
+      'portfolio-construction': portfolioConstructionFallback,
+      'rebalance-planner': rebalancePlannerFallback,
+    },
+    retryOptions: { maxAttempts: 3 },
+  });
+  graphCache.set(mode, built);
+  return built;
+}
 
 function buildKBClient(): KBClient | null {
   const kbId = process.env['KNOWLEDGE_BASE_ID'];
@@ -76,7 +85,6 @@ export async function invokePortfolioEngine(
   const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
   const kb = buildKBClient();
 
-  // 1. Retrieve fund/instrument data from KB
   const seed = JSON.stringify(payload.upstreamOutputs);
   let kbContext = '';
   if (kb) {
@@ -86,35 +94,41 @@ export async function invokePortfolioEngine(
     }
   }
 
-  // 2. Read upstream context
   const upstreamRecords = await session.readUpstreamOutput('advisory-ctrl');
   const upstreamContext = upstreamRecords.length > 0
     ? `\n\nUpstream context:\n${upstreamRecords.map((r) => r.content).join('\n')}`
     : '';
 
-  // 3. Deterministic tool context (portfolio snapshot)
   const portfolioSnapshot = await tools.portfolioLookup({ tenantId: payload.tenantId });
   const toolContext = formatToolContext({ 'Portfolio snapshot': portfolioSnapshot });
 
-  // 4. Inject operating-mode behavioral envelope so the agent respects mode-specific
-  //    allocation rules (Phase 2 — docs/superpowers/specs/2026-05-05-operating-mode-phase-2-design.md).
-  //    investor-profile-ctrl wraps `operatingMode` at the top of its Memory record.
+  // Detect operating mode and select the per-mode orchestrator. The
+  // mode-specific worked example baked into each orchestrator's
+  // portfolio-construction prompt is the dominant anchor for Bedrock
+  // structured-output models — so the modeContext rules below are now
+  // belt-and-braces rather than load-bearing. See
+  // docs/superpowers/specs/2026-05-06-portfolio-engine-mode-anchored-examples-design.md.
   const upstreams = (payload.upstreamOutputs ?? {}) as Record<string, unknown>;
   const investorProfile = (upstreams['investorProfile'] as Record<string, unknown> | undefined) ?? {};
-  const operatingMode = (upstreams['operatingMode'] as string)
+  const operatingModeRaw = (upstreams['operatingMode'] as string)
     ?? (investorProfile['operatingMode'] as string)
     ?? 'BALANCED';
-  const modeGuidance: Record<string, string> = {
+  const operatingMode: OperatingMode =
+    operatingModeRaw === 'CONSERVATIVE' || operatingModeRaw === 'AGGRESSIVE'
+      ? operatingModeRaw
+      : 'BALANCED';
+
+  const modeGuidance: Record<OperatingMode, string> = {
     CONSERVATIVE: 'OPERATING MODE: CONSERVATIVE. THESE ARE HARD RULES FOR THIS INVOCATION — every clause MUST be honoured exactly. (1) equityWeight MUST be ≤ 0.30 (the rest in fixed income / cash). (2) the largest single EQUITY position (max targetWeight across allocations whose assetClass is EQUITY) MUST be ≤ 0.10 — bond and cash positions may be larger. (3) allocations.length MUST be between 3 and 5 inclusive. (4) Prefer broad-market ETFs over single names. (5) Prioritise capital preservation over growth. Producing equityWeight > 0.30, an equity position > 10%, or fewer than 3 / more than 5 positions is a HARD FAILURE.',
     BALANCED: 'OPERATING MODE: BALANCED. THESE ARE HARD RULES FOR THIS INVOCATION — every clause MUST be honoured exactly. (1) equityWeight MUST be in [0.50, 0.70]. (2) the largest single EQUITY position (max targetWeight across allocations whose assetClass is EQUITY) MUST be ≤ 0.15 — bond and cash positions may be larger. (3) allocations.length MUST be between 5 and 8 inclusive. (4) Mix broad ETFs with measured sector tilts. (5) Balance growth and stability. Producing equityWeight outside [0.50, 0.70], an equity position > 15%, or fewer than 5 / more than 8 positions is a HARD FAILURE.',
     AGGRESSIVE: 'OPERATING MODE: AGGRESSIVE. THESE ARE HARD RULES FOR THIS INVOCATION — every clause MUST be honoured exactly. (1) equityWeight MUST be in [0.70, 0.90]. (2) the largest single EQUITY position (max targetWeight across allocations whose assetClass is EQUITY) MUST be ≤ 0.25 — bond and cash positions may be larger. (3) allocations.length MUST be between 6 and 12 inclusive. (4) Sector and thematic concentrations allowed. (5) Prioritise long-term growth and accept higher volatility. Producing equityWeight outside [0.70, 0.90], an equity position > 25%, or fewer than 6 / more than 12 positions is a HARD FAILURE.',
   };
-  const modeContext = `\n\n${modeGuidance[operatingMode] ?? modeGuidance['BALANCED']}\n` +
+  const modeContext = `\n\n${modeGuidance[operatingMode]}\n` +
     `Reflect adherence in your output: PortfolioConstruction.equityWeight, PortfolioConstruction.riskMetrics.largestPositionWeight, allocations.length must all fall within the envelope above. ` +
     `Each allocation MUST include assetClass (EQUITY | FIXED_INCOME | REIT | COMMODITY | CASH | CRYPTO | OTHER) so the downstream pipeline can derive equity weight from individual positions. ` +
     `Compute equityWeight as the sum of targetWeight across allocations whose assetClass is EQUITY; compute riskMetrics.largestPositionWeight as the maximum targetWeight across allocations whose assetClass is EQUITY (NOT across all allocations).`;
 
-  // 5. Invoke orchestrator (parallel: portfolio-construction + rebalance-planner)
+  const graph = getGraphForMode(operatingMode);
   const enrichedInput = `Decision ${payload.decisionId} context: ${seed}` + modeContext + kbContext + upstreamContext + toolContext;
   const result = await invokeOrchestrator(
     graph,
@@ -129,7 +143,7 @@ export async function invokePortfolioEngine(
       : undefined,
   );
 
-  // 5. Persist to memory — Phase β (Spec 4, 2026-05-06): only write when every
+  // Persist to memory — Phase β (Spec 4, 2026-05-06): only write when every
   // agent's wave-node entry is `ok: true`. A partial-degraded cycle no longer
   // poisons AgentCore Memory for downstream agents. The discriminant is
   // stripped before writing because Memory consumers expect raw outputs.
@@ -148,5 +162,3 @@ export async function invokePortfolioEngine(
 
   return result;
 }
-
-export { graph };
