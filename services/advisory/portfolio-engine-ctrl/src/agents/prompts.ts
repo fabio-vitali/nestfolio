@@ -176,7 +176,7 @@ const modeEnvelopes: Record<OperatingMode, ModeEnvelope> = {
   },
   AGGRESSIVE: {
     schemaShape: aggressiveShape,
-    equityRule: 'equityWeight MUST be ≥ 0.70 and ≤ 0.90.',
+    equityRule: 'equityWeight MUST be in [0.70, 0.90].',
     largestEquityRule: 'The largest single EQUITY position (max targetWeight across allocations whose assetClass is EQUITY) MUST be ≤ 0.25. Bond and cash positions may exceed this cap because they are diversified by construction.',
     countRule: 'allocations.length MUST be between 6 and 12 inclusive.',
   },

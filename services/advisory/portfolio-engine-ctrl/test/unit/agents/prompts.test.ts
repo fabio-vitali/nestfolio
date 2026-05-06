@@ -1,41 +1,44 @@
-import { portfolioConstructionPrompt, rebalancePlannerPrompt } from '../../../src/agents/prompts';
+import { buildPortfolioConstructionPrompt, rebalancePlannerPrompt } from '../../../src/agents/prompts';
 
 describe('portfolio-engine prompts — content anchors', () => {
-  describe('portfolioConstructionPrompt', () => {
+  describe('buildPortfolioConstructionPrompt — structural assertions (mode-orthogonal)', () => {
+    // Mode-orthogonal structural assertions. Pick any one mode for the
+    // shape check; per-mode number assertions live in test/unit/prompts.test.ts.
+    const prompt = buildPortfolioConstructionPrompt('BALANCED');
+
     it('declares the role and task headers', () => {
-      expect(portfolioConstructionPrompt).toContain('ROLE: portfolio construction specialist');
-      expect(portfolioConstructionPrompt).toContain('TASK:');
+      expect(prompt).toContain('ROLE: portfolio construction specialist');
+      expect(prompt).toContain('TASK:');
     });
 
     it('emits the schema-derived field markers', () => {
-      expect(portfolioConstructionPrompt).toContain('"allocations"');
-      expect(portfolioConstructionPrompt).toContain('"assetClass"');
-      expect(portfolioConstructionPrompt).toContain('"targetWeight"');
-      expect(portfolioConstructionPrompt).toContain('"rationale"');
-      expect(portfolioConstructionPrompt).toContain('"equityWeight"');
-      expect(portfolioConstructionPrompt).toContain('"largestPositionWeight"');
-      expect(portfolioConstructionPrompt).toContain('"confidence"');
+      expect(prompt).toContain('"allocations"');
+      expect(prompt).toContain('"assetClass"');
+      expect(prompt).toContain('"targetWeight"');
+      expect(prompt).toContain('"rationale"');
+      expect(prompt).toContain('"equityWeight"');
+      expect(prompt).toContain('"largestPositionWeight"');
+      expect(prompt).toContain('"confidence"');
     });
 
     it('enumerates the seven asset classes', () => {
-      expect(portfolioConstructionPrompt).toContain('EQUITY | FIXED_INCOME | REIT | COMMODITY | CASH | CRYPTO | OTHER');
+      expect(prompt).toContain('EQUITY | FIXED_INCOME | REIT | COMMODITY | CASH | CRYPTO | OTHER');
     });
 
-    it('references the Operating Mode envelope clauses', () => {
-      expect(portfolioConstructionPrompt).toMatch(/operating mode/i);
-      expect(portfolioConstructionPrompt).toMatch(/HARD RULES/);
-      expect(portfolioConstructionPrompt).toMatch(/equity weight band/);
-      expect(portfolioConstructionPrompt).toMatch(/single-position cap/);
-      expect(portfolioConstructionPrompt).toMatch(/position count/);
+    it('references the Operating Mode envelope clauses (post-α-tune wording)', () => {
+      expect(prompt).toMatch(/OPERATING MODE/);
+      expect(prompt).toMatch(/equityWeight/);
+      expect(prompt).toMatch(/largest single EQUITY position/);
+      expect(prompt).toMatch(/allocations\.length MUST be between/);
     });
 
     it('emits the forbid-empty marker', () => {
-      expect(portfolioConstructionPrompt).toContain('You MUST call the structured-output tool');
-      expect(portfolioConstructionPrompt).toContain('every required field above MUST be populated');
+      expect(prompt).toContain('You MUST call the structured-output tool');
+      expect(prompt).toContain('every required field above MUST be populated');
     });
 
     it('terminates with Input: {input} so the runtime placeholder still resolves', () => {
-      expect(portfolioConstructionPrompt.endsWith('Input: {input}')).toBe(true);
+      expect(prompt.endsWith('Input: {input}')).toBe(true);
     });
   });
 

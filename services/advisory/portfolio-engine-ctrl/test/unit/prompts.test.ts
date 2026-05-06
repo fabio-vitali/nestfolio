@@ -70,7 +70,8 @@ describe('buildPortfolioConstructionPrompt', () => {
     });
 
     it('rules state the equityWeight floor is 0.70', () => {
-      expect(prompt).toMatch(/equityWeight .* 0\.70/);
+      // Bracket notation `[0.70, 0.90]` puts no space before `0.70` so allow either.
+      expect(prompt).toMatch(/equityWeight[^\n]*0\.70/);
     });
 
     it('rules state the position count band starts at 6', () => {
