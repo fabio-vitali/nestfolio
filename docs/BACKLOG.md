@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Latent — IAM-published mid-cycle frame would erase confirmedAt/rejectedAt fields.
 
 ## QUEUED
 
-1. [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Latent — IAM-published mid-cycle frame would erase confirmedAt/rejectedAt fields.
-2. [spec3-phase1-mandate-cta-consent-shape](backlog/spec3-phase1-mandate-cta-consent-shape.md) [refactor] — mandate_cta missing ON RESPONSE marker; mandate_consent missing OPTIONS block.
+1. [spec3-phase1-mandate-cta-consent-shape](backlog/spec3-phase1-mandate-cta-consent-shape.md) [refactor] — mandate_cta missing ON RESPONSE marker; mandate_consent missing OPTIONS block.
 
 ## LATER
 
@@ -32,6 +30,7 @@ _(none)_
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
+- [portfolio-engine-graph-no-console-lint](backlog/portfolio-engine-graph-no-console-lint.md) [bug] — Trivial — eslint-disable above the operatingMode-narrowing console.warn.
 - [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md) [infra] — Throwaway-PR rehearsal of sandbox-integration-test + flip required-status-check on main.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [reit-vs-equity-equity-weight-ambiguity](backlog/reit-vs-equity-equity-weight-ambiguity.md) [bug] — Test filters EQUITY only; agent prompt allows optional REIT-as-equity.
