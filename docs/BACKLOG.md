@@ -11,7 +11,8 @@ _(none)_
 
 ## QUEUED
 
-1. [spec3-phase1-mandate-cta-consent-shape](backlog/spec3-phase1-mandate-cta-consent-shape.md) [refactor] — mandate_cta missing ON RESPONSE marker; mandate_consent missing OPTIONS block.
+_(none)_
+
 
 ## LATER
 
