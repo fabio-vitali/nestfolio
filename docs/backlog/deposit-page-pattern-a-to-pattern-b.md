@@ -1,7 +1,8 @@
 ---
 id: deposit-page-pattern-a-to-pattern-b
-status: active
+status: shipped
 type: refactor
+closed: "2026-05-08"
 references:
   - apps/investor-mfe/src/app/deposit/deposit-page.component.ts
   - apps/advisory-mfe/src/app/decision/decision-detail.component.ts
@@ -19,9 +20,9 @@ out_of_scope:
   - "Subscription drop retry — preserve existing console.error behaviour; 30s timeout still fires."
   - "Cross-tenant integration test fixtures — resolver unit asserting pk shape is structurally sufficient."
 spec: docs/superpowers/specs/2026-05-08-deposit-page-pattern-b-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-08-deposit-page-pattern-b.md
 topic_memory: []
-validation_gate: null
+validation_gate: "investor-bff unit + integration green on deployed dev (19/19 + 7/7); investor-mfe unit green (93/93, includes REGRESSION 'subscribe before initiateDeposit' test); Playwright deposit-reload-mid-flight green; new-investor-happy-path remains green."
 notes: "deposit-page is the lone Pattern A holdout; full fix = client-UUID + URL routing + getDeposit recovery."
 ---
 

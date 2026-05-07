@@ -6,7 +6,8 @@
 
 ## ACTIVE
 
-- [deposit-page-pattern-a-to-pattern-b](backlog/deposit-page-pattern-a-to-pattern-b.md) [refactor] — deposit-page is the lone Pattern A holdout; full fix = client-UUID + URL routing + getDeposit recovery.
+_(none)_
+
 
 ## QUEUED
 
@@ -44,6 +45,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-05-08 — [deposit-page-pattern-a-to-pattern-b](backlog/deposit-page-pattern-a-to-pattern-b.md) [refactor] — deposit-page is the lone Pattern A holdout; full fix = client-UUID + URL routing + getDeposit recovery.
 - 2026-05-07 — [advisory-bff-on-decision-update-wss-closes-early](backlog/advisory-bff-on-decision-update-wss-closes-early.md) [bug] — WSS closes prematurely; e2e test hides bug via reload — must remove on fix.
 - 2026-05-07 — [backlog-redesign](backlog/backlog-redesign.md) [refactor] — Per-item backlog files + auto-generated index + backlog-lint enforcement; MEMORY duplication removed.
 - 2026-05-07 — [nestfolio-e2e-playwright-config-no-console-lint](backlog/nestfolio-e2e-playwright-config-no-console-lint.md) [bug] — Shipped 2026-05-07 — added // eslint-disable-next-line no-console comment matching the libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts:178 precedent.
@@ -53,4 +55,3 @@ _(none)_
 - 2026-05-07 — [remaining-agent-orchestrators](backlog/remaining-agent-orchestrators.md) [refactor] — Naturally closed by Spec 2 + structured-output α/β/γ ship; no fresh workstream needed.
 - 2026-05-07 — [silent-discard-unknown-operating-mode-narrowing](backlog/silent-discard-unknown-operating-mode-narrowing.md) [bug] — Shipped 2026-05-07 — added console.warn with structured payload (rawOperatingMode/tenantId/decisionId) before BALANCED narrowing in services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts. Five-condition guard: string + non-empty + not in {CONSERVATIVE,BALANCED,AGGRESSIVE}. TDD red→green.
 - 2026-05-07 — [stale-read-upstream-output-advisory-ctrl](backlog/stale-read-upstream-output-advisory-ctrl.md) [bug] — Shipped 2026-05-07 — deleted dead reads + concat in 3 graph.ts files (portfolio-engine, advisory-narrative, market-intelligence) and removed orphaned 'reads upstream memory context' test in advisory-narrative-ctrl/test/unit/graph.test.ts. Fix scope grew from 2 to 3 files at promotion time when reference verification surfaced the third caller.
-- 2026-05-06 — [agent-runtime-structured-output-reliability](backlog/agent-runtime-structured-output-reliability.md) [refactor] — Three-phase α/β/γ rollout closed silent-success failure mode where AgentCore returned empty {} agent results.
