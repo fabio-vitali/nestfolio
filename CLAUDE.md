@@ -99,3 +99,19 @@ The brainstorming / writing-plans / executing-plans / subagent-driven-developmen
 - Run tasks through `pnpm nx`, never the underlying tool directly
 - Always use AskUserQuestion widget for architectural decisions
 - `docs/BACKLOG.md` discipline (above) — file-and-continue, single ACTIVE
+
+## Pre-authorized actions (auto mode)
+
+The following actions against the **dev sandbox** (AWS account 771924376645) are pre-authorized — proceed without asking when in auto mode:
+
+- **Dev deploys.** `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev …` (any `--services=` filter, any tee/pipe to `/tmp/*.log`).
+- **Dev teardowns.** `bash infrastructure/scripts/destroy.sh sandbox --prefix=dev …` — only when explicitly requested or when a BACKLOG item names a teardown step.
+- **E2E gates against deployed dev.** `pnpm nx run e2e-feature-tests:test-e2e-features` (Jest) and `pnpm nx run nestfolio-e2e:e2e` (Playwright), including their `NESTFOLIO_INTEG_PREFIX=dev` invocations.
+- **Read-only AWS introspection** in account 771924376645: CloudWatch Logs (`/aws/lambda/dev-*`, `/aws/bedrock-agentcore/runtime/dev-*`, `/aws/states/dev-*`), DynamoDB scans/queries, EventBridge rule listings, SSM parameter reads, Step Functions execution history, S3 listings.
+- **Bedrock AgentCore Runtime updates** that are part of a `deploy.sh` invocation (the script handles esbuild → Docker → ECR push → AgentCore runtime update as one unit).
+
+**Still requires explicit confirmation:**
+- Anything against staging or prod accounts.
+- Mutations to shared S3 buckets or DDB tables outside `dev-*` naming.
+- `git push --force` to any branch, `git reset --hard` on shared branches.
+- Anything outside this repo's working directory.
