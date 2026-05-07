@@ -11,10 +11,9 @@ _(none)_
 
 ## QUEUED
 
-1. [nestfolio-e2e-playwright-config-no-console-lint](backlog/nestfolio-e2e-playwright-config-no-console-lint.md) [bug] — Trivial fix — eslint-disable or process.stderr.write.
-2. [verify-deposit-detected-double-emit](backlog/verify-deposit-detected-double-emit.md) [bug] — 10 min check whether the upstream is dup-emitting DEPOSIT_DETECTED.
-3. [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Latent — IAM-published mid-cycle frame would erase confirmedAt/rejectedAt fields.
-4. [spec3-phase1-mandate-cta-consent-shape](backlog/spec3-phase1-mandate-cta-consent-shape.md) [refactor] — mandate_cta missing ON RESPONSE marker; mandate_consent missing OPTIONS block.
+1. [verify-deposit-detected-double-emit](backlog/verify-deposit-detected-double-emit.md) [bug] — 10 min check whether the upstream is dup-emitting DEPOSIT_DETECTED.
+2. [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Latent — IAM-published mid-cycle frame would erase confirmedAt/rejectedAt fields.
+3. [spec3-phase1-mandate-cta-consent-shape](backlog/spec3-phase1-mandate-cta-consent-shape.md) [refactor] — mandate_cta missing ON RESPONSE marker; mandate_consent missing OPTIONS block.
 
 ## LATER
 
@@ -50,6 +49,7 @@ _(none)_
 ## Recently Shipped (last 10)
 
 - 2026-05-07 — [backlog-redesign](backlog/backlog-redesign.md) [refactor] — Per-item backlog files + auto-generated index + backlog-lint enforcement; MEMORY duplication removed.
+- 2026-05-07 — [nestfolio-e2e-playwright-config-no-console-lint](backlog/nestfolio-e2e-playwright-config-no-console-lint.md) [bug] — Shipped 2026-05-07 — added // eslint-disable-next-line no-console comment matching the libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts:178 precedent.
 - 2026-05-07 — [pr-pipeline-integration-tests](backlog/pr-pipeline-integration-tests.md) [infra] — Closed 2026-05-07 — implementation landed inline with the test-support extraction; backlog file lagged.
 - 2026-05-07 — [remaining-agent-orchestrators](backlog/remaining-agent-orchestrators.md) [refactor] — Naturally closed by Spec 2 + structured-output α/β/γ ship; no fresh workstream needed.
 - 2026-05-07 — [silent-discard-unknown-operating-mode-narrowing](backlog/silent-discard-unknown-operating-mode-narrowing.md) [bug] — Shipped 2026-05-07 — added console.warn with structured payload (rawOperatingMode/tenantId/decisionId) before BALANCED narrowing in services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts. Five-condition guard: string + non-empty + not in {CONSERVATIVE,BALANCED,AGGRESSIVE}. TDD red→green.
@@ -58,4 +58,3 @@ _(none)_
 - 2026-05-06 — [operating-mode-feature](backlog/operating-mode-feature.md) [refactor] — Two-phase ship — Phase 1 (compliance authority resolver) 2026-05-05 + Phase 2 (agent behavior) 2026-05-06.
 - 2026-05-04 — [investor-profile-single-row-collapse](backlog/investor-profile-single-row-collapse.md) [refactor] — Replaced multi-row InvestorProfile decomposition with single composite row + sibling MandateStatus row owning lifecycle.
 - 2026-05-01 — [onboarding-agent-tool-call-reliability-spec3](backlog/onboarding-agent-tool-call-reliability-spec3.md) [refactor] — Hardened phase-node against Sonnet 4.6 zero-tool-call returns via prompt cleanup + named-tool retry guard.
-- 2026-04-30 — [advisory-pipeline-consolidation-spec2](backlog/advisory-pipeline-consolidation-spec2.md) [refactor] — Deleted advisory-ctrl entirely; aligned AgentCore Memory write/read contract; closed §21 OQ #3 + #7.

@@ -28,6 +28,7 @@ const PROXY_TARGET = (() => {
       '--output', 'text',
     ], { encoding: 'utf8' }).trim();
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.warn(`[playwright.config] could not resolve CloudFront URL via SSM (${(err as Error).message}); /graphql proxy disabled`);
     return '';
   }
