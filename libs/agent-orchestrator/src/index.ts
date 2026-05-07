@@ -5,6 +5,7 @@ export {
   type AgentInvocation,
   type ModelTier,
   type RetryOptions,
+  type ValidationContext,
   type ValidationResult,
   type ValidationRule,
   type WaveDefinition,
