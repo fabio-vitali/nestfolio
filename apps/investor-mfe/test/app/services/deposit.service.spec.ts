@@ -4,13 +4,26 @@ import { GraphqlService } from '@nestfolio/shell/graphql';
 import { createMockGraphqlService } from '@nestfolio/shell/testing';
 import {
   DepositService,
-  type DepositIntent,
+  DepositNotFoundError,
+  type Deposit,
   type DepositEvent,
 } from '../../../src/app/services/deposit.service';
 
 describe('DepositService', () => {
   let graphql: ReturnType<typeof createMockGraphqlService>;
   let service: DepositService;
+
+  const depositId = '33333333-3333-4333-8333-333333333333';
+  const deposit: Deposit = {
+    depositId,
+    amountCents: 10_000,
+    currency: 'USD',
+    status: 'INITIATED',
+    initiatedAt: '2026-04-22T00:00:00.000Z',
+    detectedAt: null,
+    failedAt: null,
+    reason: null,
+  };
 
   beforeEach(() => {
     graphql = createMockGraphqlService();
@@ -23,79 +36,93 @@ describe('DepositService', () => {
     service = TestBed.inject(DepositService);
   });
 
-  it('initiateDeposit: calls the InitiateDeposit mutation with amountCents + currency and returns the intent', async () => {
-    const intent: DepositIntent = {
-      depositId: 'dep-1',
-      amountCents: 10_000,
-      currency: 'USD',
-      status: 'INITIATED',
-      initiatedAt: '2026-04-22T00:00:00.000Z',
-    };
-    graphql.mutate.mockResolvedValue({ initiateDeposit: intent });
-
-    const out = await service.initiateDeposit({ amountCents: 10_000, currency: 'USD' });
-
+  it('initiateDeposit: passes depositId, amountCents, currency to the mutation and returns Deposit', async () => {
+    graphql.mutate.mockResolvedValue({ initiateDeposit: deposit });
+    const out = await service.initiateDeposit({ depositId, amountCents: 10_000, currency: 'USD' });
     expect(graphql.mutate).toHaveBeenCalledWith(
       expect.stringContaining('initiateDeposit'),
-      { input: { amountCents: 10_000, currency: 'USD' } },
+      { input: { depositId, amountCents: 10_000, currency: 'USD' } },
     );
-    expect(out).toEqual(intent);
+    expect(out).toEqual(deposit);
   });
 
-  it('initiateDeposit: propagates mutation errors (e.g. feature-flag disabled)', async () => {
+  it('initiateDeposit: propagates mutation errors', async () => {
     graphql.mutate.mockRejectedValue(new Error('This action is temporarily paused'));
-    await expect(service.initiateDeposit({ amountCents: 1_000, currency: 'USD' }))
+    await expect(service.initiateDeposit({ depositId, amountCents: 1_000, currency: 'USD' }))
       .rejects.toThrow('This action is temporarily paused');
+  });
+
+  it('getDeposit: queries with depositId and returns the row', async () => {
+    graphql.query.mockResolvedValue({ getDeposit: deposit });
+    const out = await service.getDeposit(depositId);
+    expect(graphql.query).toHaveBeenCalledWith(
+      expect.stringContaining('getDeposit'),
+      { depositId },
+    );
+    expect(out).toEqual(deposit);
+  });
+
+  it('getDeposit: throws DepositNotFoundError on AppSync NotFoundError', async () => {
+    const err: Error & { errorType?: string } = new Error('Deposit not found');
+    err.errorType = 'NotFoundError';
+    graphql.query.mockRejectedValue(err);
+    await expect(service.getDeposit(depositId)).rejects.toBeInstanceOf(DepositNotFoundError);
+  });
+
+  it('getDeposit: rethrows non-NotFound errors as-is', async () => {
+    graphql.query.mockRejectedValue(new Error('Connection refused'));
+    await expect(service.getDeposit(depositId)).rejects.toThrow('Connection refused');
   });
 
   it('subscribeToDepositEvent: forwards subscription payloads to the callback', () => {
     const subject = new Subject<{ onDepositEvent: DepositEvent }>();
     graphql.subscribe.mockReturnValue(subject.asObservable());
-
     const received: DepositEvent[] = [];
-    service.subscribeToDepositEvent('dep-1', (e) => received.push(e));
-
+    service.subscribeToDepositEvent(depositId, (e) => received.push(e));
     expect(graphql.subscribe).toHaveBeenCalledWith(
       expect.stringContaining('onDepositEvent'),
-      { depositId: 'dep-1' },
+      { depositId },
     );
-
     const payload: DepositEvent = {
-      depositId: 'dep-1',
-      tenantId: 't-1',
-      status: 'DETECTED',
-      amountCents: 10_000,
-      currency: 'USD',
-      occurredAt: '2026-04-22T00:00:00.000Z',
-      reason: null,
+      depositId, tenantId: 't-1', status: 'DETECTED',
+      amountCents: 10_000, currency: 'USD',
+      occurredAt: '2026-04-22T00:01:00.000Z', reason: null,
     };
     subject.next({ onDepositEvent: payload });
     expect(received).toEqual([payload]);
   });
 
-  it('unsubscribeFromDepositEvent: unsubscribes and ignores further payloads', () => {
+  it('unsubscribeFromDepositEvent: ignores further payloads', () => {
     const subject = new Subject<{ onDepositEvent: DepositEvent }>();
     graphql.subscribe.mockReturnValue(subject.asObservable());
-
     const received: DepositEvent[] = [];
-    service.subscribeToDepositEvent('dep-1', (e) => received.push(e));
+    service.subscribeToDepositEvent(depositId, (e) => received.push(e));
     service.unsubscribeFromDepositEvent();
-
     subject.next({
       onDepositEvent: {
-        depositId: 'dep-1', tenantId: 't-1', status: 'DETECTED',
+        depositId, tenantId: 't-1', status: 'DETECTED',
         amountCents: 1, currency: 'USD', occurredAt: '', reason: null,
       },
     });
     expect(received).toEqual([]);
   });
 
-  it('subscribeToDepositEvent: on subscription error, still records error via console but does not throw', () => {
+  it('subscribeToDepositEvent: error path logs but does not throw', () => {
     const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     graphql.subscribe.mockReturnValue(throwError(() => new Error('WS closed')));
-
-    expect(() => service.subscribeToDepositEvent('dep-1', () => undefined)).not.toThrow();
+    expect(() => service.subscribeToDepositEvent(depositId, () => undefined)).not.toThrow();
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  it('waitForSubscriptionReady: resolves after an internal handshake delay', async () => {
+    jest.useFakeTimers();
+    try {
+      const promise = service.waitForSubscriptionReady();
+      jest.advanceTimersByTime(500);
+      await expect(promise).resolves.toBeUndefined();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
