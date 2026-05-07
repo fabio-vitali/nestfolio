@@ -9,17 +9,22 @@ export function withRetry(
 
   return async (state, config) => {
     let lastError: Error | undefined;
+    let workingState: Record<string, unknown> = state;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const escalatedState = { ...state };
+        const enriched: Record<string, unknown> = { ...workingState, __retryAttempt: attempt };
         if (escalationPath && attempt > 0 && attempt < escalationPath.length) {
-          escalatedState.__escalationTier = escalationPath[attempt];
+          enriched['__escalationTier'] = escalationPath[attempt];
         }
-        return await node(escalatedState, config);
+        return await node(enriched, config);
       } catch (error) {
         if (error instanceof ValidationError) {
           lastError = error;
+          workingState = {
+            ...workingState,
+            __retryFeedback: error.feedback ?? error.errors.join('\n'),
+          };
           continue;
         }
         throw error;
