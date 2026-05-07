@@ -194,4 +194,46 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
 
     expect(mockMemorySession.writeAgentOutput).not.toHaveBeenCalled();
   });
+
+  it('passes operatingMode to invokeOrchestrator alongside input', async () => {
+    mockKBRetrieve.mockResolvedValue([]);
+
+    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
+    jest.isolateModules(() => {
+      const mod = require('../../agents/portfolio-engine/graph');
+      invokePortfolioEngine = mod.invokePortfolioEngine;
+    });
+
+    await invokePortfolioEngine!({
+      tenantId: 't1', decisionId: 'd1',
+      upstreamOutputs: { operatingMode: 'AGGRESSIVE' },
+    });
+
+    expect(mockInvokeOrchestrator).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ input: expect.any(String), operatingMode: 'AGGRESSIVE' }),
+      undefined,
+    );
+  });
+
+  it('defaults operatingMode to BALANCED when upstreamOutputs has none', async () => {
+    mockKBRetrieve.mockResolvedValue([]);
+
+    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
+    jest.isolateModules(() => {
+      const mod = require('../../agents/portfolio-engine/graph');
+      invokePortfolioEngine = mod.invokePortfolioEngine;
+    });
+
+    await invokePortfolioEngine!({
+      tenantId: 't1', decisionId: 'd1',
+      upstreamOutputs: {},
+    });
+
+    expect(mockInvokeOrchestrator).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ operatingMode: 'BALANCED' }),
+      undefined,
+    );
+  });
 });

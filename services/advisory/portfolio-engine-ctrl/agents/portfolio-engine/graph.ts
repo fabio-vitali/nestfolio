@@ -132,7 +132,7 @@ export async function invokePortfolioEngine(
   const enrichedInput = `Decision ${payload.decisionId} context: ${seed}` + modeContext + kbContext + upstreamContext + toolContext;
   const result = await invokeOrchestrator(
     graph,
-    { input: enrichedInput },
+    { input: enrichedInput, operatingMode },
     emitter
       ? {
           agent: 'portfolio-engine',
