@@ -236,4 +236,75 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
       undefined,
     );
   });
+
+  it('warns and falls back to BALANCED when operatingMode is non-empty but unrecognised', async () => {
+    mockKBRetrieve.mockResolvedValue([]);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
+    jest.isolateModules(() => {
+      const mod = require('../../agents/portfolio-engine/graph');
+      invokePortfolioEngine = mod.invokePortfolioEngine;
+    });
+
+    await invokePortfolioEngine!({
+      tenantId: 't1',
+      decisionId: 'd1',
+      upstreamOutputs: { operatingMode: 'Conservative' },
+    });
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const [message, payload] = warnSpy.mock.calls[0] as [string, Record<string, unknown>];
+    expect(message).toMatch(/operatingMode/i);
+    expect(payload).toMatchObject({ rawOperatingMode: 'Conservative', tenantId: 't1', decisionId: 'd1' });
+
+    expect(mockInvokeOrchestrator).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ operatingMode: 'BALANCED' }),
+      undefined,
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it.each(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE'])(
+    'does NOT warn for canonical operatingMode %s',
+    async (mode) => {
+      mockKBRetrieve.mockResolvedValue([]);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
+      jest.isolateModules(() => {
+        const mod = require('../../agents/portfolio-engine/graph');
+        invokePortfolioEngine = mod.invokePortfolioEngine;
+      });
+
+      await invokePortfolioEngine!({
+        tenantId: 't1', decisionId: 'd1',
+        upstreamOutputs: { operatingMode: mode },
+      });
+
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    },
+  );
+
+  it('does NOT warn when operatingMode is missing entirely', async () => {
+    mockKBRetrieve.mockResolvedValue([]);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
+    jest.isolateModules(() => {
+      const mod = require('../../agents/portfolio-engine/graph');
+      invokePortfolioEngine = mod.invokePortfolioEngine;
+    });
+
+    await invokePortfolioEngine!({
+      tenantId: 't1', decisionId: 'd1',
+      upstreamOutputs: {},
+    });
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
 });

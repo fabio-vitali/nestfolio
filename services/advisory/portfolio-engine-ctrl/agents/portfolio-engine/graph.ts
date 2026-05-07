@@ -108,6 +108,19 @@ export async function invokePortfolioEngine(
   const operatingModeRaw = (upstreams['operatingMode'] as string)
     ?? (investorProfile['operatingMode'] as string)
     ?? 'BALANCED';
+  if (
+    typeof operatingModeRaw === 'string' &&
+    operatingModeRaw.length > 0 &&
+    operatingModeRaw !== 'CONSERVATIVE' &&
+    operatingModeRaw !== 'BALANCED' &&
+    operatingModeRaw !== 'AGGRESSIVE'
+  ) {
+    console.warn('Unrecognised operatingMode — falling back to BALANCED', {
+      rawOperatingMode: operatingModeRaw,
+      tenantId: payload.tenantId,
+      decisionId: payload.decisionId,
+    });
+  }
   const operatingMode: OperatingMode =
     operatingModeRaw === 'CONSERVATIVE' || operatingModeRaw === 'AGGRESSIVE'
       ? operatingModeRaw
