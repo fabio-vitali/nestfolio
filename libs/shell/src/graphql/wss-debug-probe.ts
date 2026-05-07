@@ -23,13 +23,12 @@ function isAppsyncRealtimeUrl(url: string): boolean {
   return /\/realtime|appsync-realtime-api/.test(url);
 }
 
-function parseFrame(data: unknown): unknown {
-  if (typeof data !== 'string') return data;
-  try {
-    return JSON.parse(data);
-  } catch {
-    return data;
-  }
+function parseFrame(data: unknown): string {
+  if (typeof data !== 'string') return String(data);
+  // Return the raw string — Playwright trace previews truncate object args
+  // to "Object" without capturing payload contents. Strings are fully
+  // captured so we can read AppSync's error frames verbatim.
+  return data;
 }
 
 export function installWssDebugProbe(domain: string): void {

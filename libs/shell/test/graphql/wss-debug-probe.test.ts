@@ -86,13 +86,13 @@ describe('installWssDebugProbe', () => {
     ws.emit('message', { data: JSON.stringify({ type: 'connection_ack' }) });
     expect(consoleSpy.log).toHaveBeenCalledWith(
       expect.stringContaining('[wss-probe][advisory] <-- recv'),
-      { type: 'connection_ack' },
+      JSON.stringify({ type: 'connection_ack' }),
     );
 
     ws.send(JSON.stringify({ type: 'start', id: 'abc', payload: { data: 'q' } }));
     expect(consoleSpy.log).toHaveBeenCalledWith(
       expect.stringContaining('[wss-probe][advisory] --> send'),
-      { type: 'start', id: 'abc', payload: { data: 'q' } },
+      JSON.stringify({ type: 'start', id: 'abc', payload: { data: 'q' } }),
     );
 
     ws.emit('close', { code: 1006, reason: 'abnormal', wasClean: false });
@@ -131,6 +131,12 @@ describe('installWssDebugProbe', () => {
     expect(consoleSpy.log).toHaveBeenCalledWith(
       expect.stringContaining('<-- recv'),
       'not-json',
+    );
+    // Sanity: a non-string payload is coerced via String()
+    ws.emit('message', { data: 42 });
+    expect(consoleSpy.log).toHaveBeenCalledWith(
+      expect.stringContaining('<-- recv'),
+      '42',
     );
   });
 });
