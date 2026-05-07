@@ -24,19 +24,17 @@ test('rule 1: id matches filename — fail when frontmatter id differs', () => {
   assert.match(violations[0].message, /id.*does not match filename/i);
 });
 
-test('rule 2: exactly one active — pass with one active', () => {
+test('rule 2: at most one active — pass with one active', () => {
   const files = [file('a', { status: 'active', out_of_scope: ['x'] }), file('b'), file('c')];
   assert.deepEqual(ruleSingleActive(files), []);
 });
 
-test('rule 2: exactly one active — fail with zero', () => {
+test('rule 2: at most one active — pass with zero active', () => {
   const files = [file('a'), file('b')];
-  const violations = ruleSingleActive(files);
-  assert.equal(violations.length, 1);
-  assert.match(violations[0].message, /no file with status: active/i);
+  assert.deepEqual(ruleSingleActive(files), []);
 });
 
-test('rule 2: exactly one active — fail with two', () => {
+test('rule 2: at most one active — fail with two', () => {
   const files = [
     file('a', { status: 'active', out_of_scope: ['x'] }),
     file('b', { status: 'active', out_of_scope: ['x'] }),

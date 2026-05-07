@@ -17,7 +17,7 @@ Invoke when:
 7 rules over `docs/backlog/<id>.md`:
 
 1. `id` matches filename.
-2. Exactly one file has `status: active`.
+2. At most one file has `status: active` (zero is allowed between workstreams).
 3. `type ∈ {design, spec}` ⇒ `references:` non-empty + paths exist + `#anchors` resolve.
 4. `status: active` ⇒ `out_of_scope:` non-empty.
 5. `status: shipped` ⇒ `validation_gate` non-empty.

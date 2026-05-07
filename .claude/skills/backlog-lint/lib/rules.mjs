@@ -14,7 +14,6 @@ export function ruleIdMatchesFilename(file) {
 
 export function ruleSingleActive(files) {
   const active = files.filter(f => f.frontmatter?.status === 'active');
-  if (active.length === 0) return [v('single-active', null, 'no file with status: active')];
   if (active.length > 1) {
     const ids = active.map(f => f.id).join(', ');
     return [v('single-active', null, `multiple files with status: active — ${ids}`)];

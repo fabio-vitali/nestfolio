@@ -6,7 +6,8 @@
 
 ## ACTIVE
 
-- [pr-pipeline-integration-tests](backlog/pr-pipeline-integration-tests.md) [infra] — Specs/plans done; implementation pending (2026-04-10).
+_(none)_
+
 
 ## QUEUED
 
@@ -32,6 +33,7 @@ _(none)_
 - [nestfolio-e2e-playwright-config-no-console-lint](backlog/nestfolio-e2e-playwright-config-no-console-lint.md) [bug] — Trivial fix — eslint-disable or process.stderr.write.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
+- [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md) [infra] — Throwaway-PR rehearsal of sandbox-integration-test + flip required-status-check on main.
 - [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Latent — IAM-published mid-cycle frame would erase confirmedAt/rejectedAt fields.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [reit-vs-equity-equity-weight-ambiguity](backlog/reit-vs-equity-equity-weight-ambiguity.md) [bug] — Test filters EQUITY only; agent prompt allows optional REIT-as-equity.
@@ -52,6 +54,7 @@ _(none)_
 ## Recently Shipped (last 10)
 
 - 2026-05-07 — [backlog-redesign](backlog/backlog-redesign.md) [refactor] — Per-item backlog files + auto-generated index + backlog-lint enforcement; MEMORY duplication removed.
+- 2026-05-07 — [pr-pipeline-integration-tests](backlog/pr-pipeline-integration-tests.md) [infra] — Closed 2026-05-07 — implementation landed inline with the test-support extraction; backlog file lagged.
 - 2026-05-07 — [remaining-agent-orchestrators](backlog/remaining-agent-orchestrators.md) [refactor] — Naturally closed by Spec 2 + structured-output α/β/γ ship; no fresh workstream needed.
 - 2026-05-06 — [agent-runtime-structured-output-reliability](backlog/agent-runtime-structured-output-reliability.md) [refactor] — Three-phase α/β/γ rollout closed silent-success failure mode where AgentCore returned empty {} agent results.
 - 2026-05-06 — [operating-mode-feature](backlog/operating-mode-feature.md) [refactor] — Two-phase ship — Phase 1 (compliance authority resolver) 2026-05-05 + Phase 2 (agent behavior) 2026-05-06.
@@ -60,4 +63,3 @@ _(none)_
 - 2026-04-30 — [advisory-pipeline-consolidation-spec2](backlog/advisory-pipeline-consolidation-spec2.md) [refactor] — Deleted advisory-ctrl entirely; aligned AgentCore Memory write/read contract; closed §21 OQ #3 + #7.
 - 2026-04-28 — [onboarding-agent-runtime-redesign](backlog/onboarding-agent-runtime-redesign.md) [refactor] — Replaced LangGraphAgent (remote-only) with custom OnboardingAgent driving in-process LangGraph; symmetric with 5 advisory agents.
 - 2026-04-26 — [mfe-charter-migration-phase-c](backlog/mfe-charter-migration-phase-c.md) [refactor] — Phase C of MFE charter migration shipped PARTIAL — pillars correct as code; deploy wiring incomplete (deferred).
-- 2026-04-25 — [a2-frontend-deps-lib](backlog/a2-frontend-deps-lib.md) [refactor] — New CJS-only lib exports sharedFrontendDeps singleton union; collapsed 6 federation.config.js files from ~38 to ~10 lines.

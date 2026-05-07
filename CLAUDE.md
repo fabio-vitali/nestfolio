@@ -79,7 +79,7 @@ The canonical record for every workstream is `docs/backlog/<id>.md`. `docs/BACKL
 - Cross-references everywhere are by `id`, never file path.
 
 **The 7 rules** (enforced by `backlog-lint`):
-1. `id` matches filename. 2. Exactly one `status: active`. 3. `type ∈ {design, spec}` ⇒ `references:` non-empty + paths exist + anchors resolve. 4. `status: active` ⇒ `out_of_scope:` non-empty. 5. `status: shipped` ⇒ `validation_gate` non-empty. 6. `status: queued` ⇒ `rank` set + unique. 7. `BACKLOG.md` matches files.
+1. `id` matches filename. 2. At most one `status: active` (zero allowed between workstreams). 3. `type ∈ {design, spec}` ⇒ `references:` non-empty + paths exist + anchors resolve. 4. `status: active` ⇒ `out_of_scope:` non-empty. 5. `status: shipped` ⇒ `validation_gate` non-empty. 6. `status: queued` ⇒ `rank` set + unique. 7. `BACKLOG.md` matches files.
 
 **Before starting any spec/plan/implementation:** confirm the active workstream is reflected in `docs/backlog/<id>.md` with `status: active`. If it isn't, create or promote first.
 
