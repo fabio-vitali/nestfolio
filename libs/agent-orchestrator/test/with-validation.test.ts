@@ -34,4 +34,58 @@ describe('withValidation', () => {
     await validated({ some: 'state' });
     expect(node).toHaveBeenCalledWith({ some: 'state' }, undefined);
   });
+
+  it('passes ctx={state, attempt} to the rule (attempt defaults to 0)', async () => {
+    const node = jest.fn().mockResolvedValue({ value: 'hello' });
+    const validate = jest.fn().mockReturnValue({ valid: true, errors: [] });
+    const rule = { validate };
+    const validated = withValidation(node, rule);
+    await validated({ input: 'test', operatingMode: 'CONSERVATIVE' });
+    expect(validate).toHaveBeenCalledWith(
+      { value: 'hello' },
+      { state: { input: 'test', operatingMode: 'CONSERVATIVE' }, attempt: 0 },
+    );
+  });
+
+  it('passes ctx.attempt from state.__retryAttempt when set', async () => {
+    const node = jest.fn().mockResolvedValue({ value: 'hello' });
+    const validate = jest.fn().mockReturnValue({ valid: true, errors: [] });
+    const rule = { validate };
+    const validated = withValidation(node, rule);
+    await validated({ input: 'test', __retryAttempt: 2 });
+    expect(validate).toHaveBeenCalledWith(
+      { value: 'hello' },
+      { state: { input: 'test', __retryAttempt: 2 }, attempt: 2 },
+    );
+  });
+
+  it('propagates result.feedback into the thrown ValidationError', async () => {
+    const node = jest.fn().mockResolvedValue({ value: '' });
+    const rule = {
+      validate: () => ({
+        valid: false,
+        errors: ['empty value'],
+        feedback: 'corrective: provide a non-empty value',
+      }),
+    };
+    const validated = withValidation(node, rule);
+    await expect(validated({ input: 'test' })).rejects.toMatchObject({
+      name: 'ValidationError',
+      errors: ['empty value'],
+      feedback: 'corrective: provide a non-empty value',
+    });
+  });
+
+  it('does not require result.feedback (backward-compatible)', async () => {
+    const node = jest.fn().mockResolvedValue({ value: '' });
+    const rule = {
+      validate: () => ({ valid: false, errors: ['empty value'] }),
+    };
+    const validated = withValidation(node, rule);
+    await expect(validated({ input: 'test' })).rejects.toMatchObject({
+      name: 'ValidationError',
+      errors: ['empty value'],
+      feedback: undefined,
+    });
+  });
 });

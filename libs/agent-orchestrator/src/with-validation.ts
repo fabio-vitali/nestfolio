@@ -1,5 +1,5 @@
 import type { RunnableConfig } from '@langchain/core/runnables';
-import { ValidationError, type ValidationRule } from './types';
+import { ValidationError, type ValidationContext, type ValidationRule } from './types';
 
 export type AgentNodeFn = (
   state: Record<string, unknown>,
@@ -12,9 +12,11 @@ export function withValidation<T>(
 ): AgentNodeFn {
   return async (state, config) => {
     const output = await node(state, config);
-    const result = rule.validate(output as unknown as T);
+    const attempt = (state['__retryAttempt'] as number | undefined) ?? 0;
+    const ctx: ValidationContext = { state, attempt };
+    const result = rule.validate(output as unknown as T, ctx);
     if (!result.valid) {
-      throw new ValidationError(result.errors);
+      throw new ValidationError(result.errors, { feedback: result.feedback });
     }
     return output;
   };
