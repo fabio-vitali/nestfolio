@@ -50,3 +50,12 @@
 ## Recently Shipped (last 10)
 
 - 2026-05-07 — [remaining-agent-orchestrators](backlog/remaining-agent-orchestrators.md) [refactor] — Naturally closed by Spec 2 + structured-output α/β/γ ship; no fresh workstream needed.
+- 2026-05-06 — [agent-runtime-structured-output-reliability](backlog/agent-runtime-structured-output-reliability.md) [refactor] — Three-phase α/β/γ rollout closed silent-success failure mode where AgentCore returned empty {} agent results.
+- 2026-05-04 — [investor-profile-single-row-collapse](backlog/investor-profile-single-row-collapse.md) [refactor] — Replaced multi-row InvestorProfile decomposition with single composite row + sibling MandateStatus row owning lifecycle.
+- 2026-05-01 — [onboarding-agent-tool-call-reliability-spec3](backlog/onboarding-agent-tool-call-reliability-spec3.md) [refactor] — Hardened phase-node against Sonnet 4.6 zero-tool-call returns via prompt cleanup + named-tool retry guard.
+- 2026-04-30 — [advisory-pipeline-consolidation-spec2](backlog/advisory-pipeline-consolidation-spec2.md) [refactor] — Deleted advisory-ctrl entirely; aligned AgentCore Memory write/read contract; closed §21 OQ #3 + #7.
+- 2026-04-28 — [onboarding-agent-runtime-redesign](backlog/onboarding-agent-runtime-redesign.md) [refactor] — Replaced LangGraphAgent (remote-only) with custom OnboardingAgent driving in-process LangGraph; symmetric with 5 advisory agents.
+- 2026-04-26 — [mfe-charter-migration-phase-c](backlog/mfe-charter-migration-phase-c.md) [refactor] — Phase C of MFE charter migration shipped PARTIAL — pillars correct as code; deploy wiring incomplete (deferred).
+- 2026-04-25 — [a2-frontend-deps-lib](backlog/a2-frontend-deps-lib.md) [refactor] — New CJS-only lib exports sharedFrontendDeps singleton union; collapsed 6 federation.config.js files from ~38 to ~10 lines.
+- 2026-04-25 — [a3-per-bff-mfe-bucket-provisioning](backlog/a3-per-bff-mfe-bucket-provisioning.md) [infra] — Per-MFE S3 bucket + CloudFront-OAC bucket policy + service-scoped SSM exports; mirrors kbBucketName precedent.
+- 2026-04-24 — [a1-csp-single-source](backlog/a1-csp-single-source.md) [tooling] — apps/nestfolio-host/csp.txt is canonical CSP; substituted at build-time and synth-time.
