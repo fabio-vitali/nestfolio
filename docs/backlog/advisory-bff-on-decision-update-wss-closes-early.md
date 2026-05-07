@@ -1,10 +1,14 @@
 ---
 id: advisory-bff-on-decision-update-wss-closes-early
-status: queued
-rank: 1
+status: active
 type: bug
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Refactoring dashboard-bff onDashboardUpdate (verified working, leave untouched)"
+  - "Generalising AppSync subscription patterns across other BFFs (separate workstream)"
+  - "Changing AppSync primary auth mode or Cognito/IAM directive strategy beyond what the fix demands"
+  - "Adding new e2e reload workarounds elsewhere (search 2026-05-05 confirmed this is the only one)"
+  - "Investor-bff/ledger-bff subscriptions"
 spec: null
 plan: null
 topic_memory: []

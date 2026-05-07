@@ -6,12 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [advisory-bff-on-decision-update-wss-closes-early](backlog/advisory-bff-on-decision-update-wss-closes-early.md) [bug] — WSS closes prematurely; e2e test hides bug via reload — must remove on fix.
 
 ## QUEUED
 
-1. [advisory-bff-on-decision-update-wss-closes-early](backlog/advisory-bff-on-decision-update-wss-closes-early.md) [bug] — WSS closes prematurely; e2e test hides bug via reload — must remove on fix.
+_(none)_
+
 
 ## LATER
 
