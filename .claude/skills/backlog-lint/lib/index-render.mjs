@@ -38,7 +38,7 @@ export function renderIndex(files) {
   lines.push('\n## QUEUED\n');
   if (queued.length === 0) lines.push('_(none)_\n');
   queued.forEach((f, i) => lines.push(`${i + 1}. ${lineFor(f)}`));
-  lines.push('\n## PARKING LOT\n');
+  lines.push('\n## LATER\n');
   if (parking.length === 0) lines.push('_(none)_\n');
   for (const f of parking) lines.push(`- ${lineFor(f)}`);
   lines.push('\n## Recently Shipped (last 10)\n');

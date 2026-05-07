@@ -75,7 +75,7 @@ The canonical record for every workstream is `docs/backlog/<id>.md`. `docs/BACKL
 
 **Storage:**
 - `docs/backlog/<id>.md` — one file per workstream, ever. `status: active|queued|parking|shipped|dropped` distinguishes lifecycle. Files never move folder on close.
-- `docs/BACKLOG.md` — auto-generated index. Sections: ACTIVE / QUEUED / PARKING LOT / Recently Shipped (last 10).
+- `docs/BACKLOG.md` — auto-generated index. Sections: ACTIVE / QUEUED / LATER / Recently Shipped (last 10).
 - Cross-references everywhere are by `id`, never file path.
 
 **The 7 rules** (enforced by `backlog-lint`):
@@ -97,7 +97,7 @@ Do NOT pivot mid-flight unless the finding actually blocks the active workstream
 **At each workstream ship:**
 1. Set `status: shipped`, fill `validation_gate:` in the active file.
 2. Run `node .claude/skills/backlog-lint/lint.mjs --fix` — regenerates `BACKLOG.md` and `related_workstreams:` in topic dossiers.
-3. Spend 5 minutes on a boundary review of `docs/BACKLOG.md` — re-rank PARKING LOT, promote items to QUEUED, drop items that have aged out.
+3. Spend 5 minutes on a boundary review of `docs/BACKLOG.md` — re-rank LATER, promote items to QUEUED, drop items that have aged out.
 
 **BACKLOG ↔ MEMORY contract** (see spec `docs/superpowers/specs/2026-05-07-backlog-redesign-design.md`):
 - Backlog file `topic_memory: [project_X.md]` is the single source of truth for the workstream↔dossier link.

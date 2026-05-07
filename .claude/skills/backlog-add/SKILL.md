@@ -25,7 +25,7 @@ Creates `docs/backlog/<id>.md` with minimum-valid frontmatter (default `status: 
 3. Write `docs/backlog/<id>.md` using the template below.
 4. Run `node .claude/skills/backlog-lint/lint.mjs --fix` to refresh `docs/BACKLOG.md` and verify the new file passes.
 5. **Commit immediately.** Stage ONLY `docs/backlog/<id>.md` and `docs/BACKLOG.md`. Do NOT use `git add .`. Commit with `docs(backlog): file <id>` (parking), `docs(backlog): promote <id> to QUEUED` (queued), or `docs(backlog): ship <id>` (shipped).
-6. Report: "Filed in PARKING LOT: `<id>` (commit `<sha>`). Resuming active workstream."
+6. Report: "Filed in LATER: `<id>` (commit `<sha>`). Resuming active workstream."
 
 ## File template (parking, default)
 

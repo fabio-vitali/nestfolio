@@ -18,12 +18,12 @@ test('renderIndex includes all four sections in order', () => {
   const out = renderIndex(files);
   assert.match(out, /## ACTIVE/);
   assert.match(out, /## QUEUED/);
-  assert.match(out, /## PARKING LOT/);
+  assert.match(out, /## LATER/);
   assert.match(out, /## Recently Shipped/);
   // section order
   assert.ok(out.indexOf('## ACTIVE') < out.indexOf('## QUEUED'));
-  assert.ok(out.indexOf('## QUEUED') < out.indexOf('## PARKING LOT'));
-  assert.ok(out.indexOf('## PARKING LOT') < out.indexOf('## Recently Shipped'));
+  assert.ok(out.indexOf('## QUEUED') < out.indexOf('## LATER'));
+  assert.ok(out.indexOf('## LATER') < out.indexOf('## Recently Shipped'));
 });
 
 test('renderIndex links by id-relative path and includes notes one-liner', () => {
@@ -44,7 +44,7 @@ test('renderIndex orders QUEUED by rank', () => {
     file('q-2', { status: 'queued', rank: 2, notes: 'second' }),
   ];
   const out = renderIndex(files);
-  const queuedSection = out.split('## QUEUED')[1].split('## PARKING LOT')[0];
+  const queuedSection = out.split('## QUEUED')[1].split('## LATER')[0];
   assert.ok(queuedSection.indexOf('q-1') < queuedSection.indexOf('q-2'));
   assert.ok(queuedSection.indexOf('q-2') < queuedSection.indexOf('q-3'));
 });
