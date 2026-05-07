@@ -36,6 +36,10 @@ export async function seedAmplifyTokens(page: Page, opts: SeedOptions): Promise<
       // auth handshake before any WS is opened.
       localStorage.setItem(`${prefix}.${username}.refreshToken`, refreshToken);
       localStorage.setItem(`${prefix}.${username}.clockDrift`, '0');
+      // Activate the WSS protocol-frame probe in libs/shell. Logs raw AppSync
+      // graphql-ws frames to console for diagnosing subscription failures.
+      // No-op in production where this flag is never set.
+      (globalThis as { __nfWssDebug?: boolean }).__nfWssDebug = true;
     },
     {
       clientId,

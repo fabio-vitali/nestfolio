@@ -3,6 +3,7 @@ import { onError } from '@apollo/client/link/error';
 import { CombinedGraphQLErrors, ServerError } from '@apollo/client/errors';
 import { createAuthLink, AUTH_TYPE, AuthOptions } from 'aws-appsync-auth-link';
 import { createSubscriptionHandshakeLink } from 'aws-appsync-subscription-link';
+import { installWssDebugProbe } from './wss-debug-probe';
 
 export interface CreateApolloClientOptions {
   /** BFF domain literal: 'investor' | 'advisory' | 'dashboard' | 'ledger'. */
@@ -29,6 +30,8 @@ export interface CreateApolloClientOptions {
 
 export function createApolloClient(opts: CreateApolloClientOptions): ApolloClient {
   const { domain, appsyncGraphqlUrl, region, jwtTokenProvider, onAuthFailure } = opts;
+
+  installWssDebugProbe(domain);
 
   const httpUri = `/graphql/${domain}`;
 
