@@ -28,7 +28,15 @@ type Mutation {
 }
 
 type Subscription {
-  onDecisionUpdate(tenantId: ID!): DecisionPacket!
+  # Return type MUST be nullable. AppSync resolves the subscription field on
+  # subscription start (and on duplicate-subscribe coalescing when two clients
+  # subscribe with identical args) using the implicit @aws_subscribe resolver,
+  # which returns null prior to the first broadcast. A non-null modifier here
+  # raises "Cannot return null for non-nullable type: 'DecisionPacket' within
+  # parent 'Subscription' (/onDecisionUpdate)" — emitted as a graphql-ws
+  # `error` frame that Apollo surfaces as next(data:null) + complete, killing
+  # the live update path. Cf. dashboard-bff's Dashboard (also nullable).
+  onDecisionUpdate(tenantId: ID!): DecisionPacket
   @aws_subscribe(mutations: ["confirmDecision", "rejectDecision", "publishDecisionUpdate"])
   @aws_cognito_user_pools
   @aws_iam
