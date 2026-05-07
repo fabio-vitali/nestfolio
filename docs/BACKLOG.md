@@ -6,11 +6,12 @@
 
 ## ACTIVE
 
-- [backlog-redesign](backlog/backlog-redesign.md) [spec] — Decompose BACKLOG.md to per-item files; build backlog-lint; remove MEMORY duplication
+- [pr-pipeline-integration-tests](backlog/pr-pipeline-integration-tests.md) [infra] — Specs/plans done; implementation pending (2026-04-10).
 
 ## QUEUED
 
-1. [pr-pipeline-integration-tests](backlog/pr-pipeline-integration-tests.md) [infra] — Specs/plans done; implementation pending (2026-04-10).
+_(none)_
+
 
 ## PARKING LOT
 
@@ -50,6 +51,7 @@
 
 ## Recently Shipped (last 10)
 
+- 2026-05-07 — [backlog-redesign](backlog/backlog-redesign.md) [refactor] — Per-item backlog files + auto-generated index + backlog-lint enforcement; MEMORY duplication removed.
 - 2026-05-07 — [remaining-agent-orchestrators](backlog/remaining-agent-orchestrators.md) [refactor] — Naturally closed by Spec 2 + structured-output α/β/γ ship; no fresh workstream needed.
 - 2026-05-06 — [agent-runtime-structured-output-reliability](backlog/agent-runtime-structured-output-reliability.md) [refactor] — Three-phase α/β/γ rollout closed silent-success failure mode where AgentCore returned empty {} agent results.
 - 2026-05-06 — [operating-mode-feature](backlog/operating-mode-feature.md) [refactor] — Two-phase ship — Phase 1 (compliance authority resolver) 2026-05-05 + Phase 2 (agent behavior) 2026-05-06.
@@ -59,4 +61,3 @@
 - 2026-04-28 — [onboarding-agent-runtime-redesign](backlog/onboarding-agent-runtime-redesign.md) [refactor] — Replaced LangGraphAgent (remote-only) with custom OnboardingAgent driving in-process LangGraph; symmetric with 5 advisory agents.
 - 2026-04-26 — [mfe-charter-migration-phase-c](backlog/mfe-charter-migration-phase-c.md) [refactor] — Phase C of MFE charter migration shipped PARTIAL — pillars correct as code; deploy wiring incomplete (deferred).
 - 2026-04-25 — [a2-frontend-deps-lib](backlog/a2-frontend-deps-lib.md) [refactor] — New CJS-only lib exports sharedFrontendDeps singleton union; collapsed 6 federation.config.js files from ~38 to ~10 lines.
-- 2026-04-25 — [a3-per-bff-mfe-bucket-provisioning](backlog/a3-per-bff-mfe-bucket-provisioning.md) [infra] — Per-MFE S3 bucket + CloudFront-OAC bucket policy + service-scoped SSM exports; mirrors kbBucketName precedent.
