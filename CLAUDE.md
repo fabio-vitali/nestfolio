@@ -66,26 +66,43 @@ Before starting any task below, invoke the corresponding skill FIRST:
 | Assess impact of a change           | `impact-analysis`                                  |
 | Document a flow from code           | `generate-flow-spec`                               |
 | Regenerate C4 architecture diagrams | `generate-c4-diagrams`                             |
+| Validate backlog state              | `backlog-lint`                                     |
 | Rebuild all docs from code          | `/init-docs` (user command only)                   |
 
 ## Backlog Discipline (MANDATORY)
 
-`docs/BACKLOG.md` is the single source of truth for what to do next. It has three sections: **ACTIVE** (one workstream), **QUEUED** (ordered list), **PARKING LOT** (one-liners).
+The canonical record for every workstream is `docs/backlog/<id>.md`. `docs/BACKLOG.md` is an auto-generated thin index — **never hand-edit it**. The `backlog-lint` skill enforces 7 invariants; the `backlog-add` skill creates new entries.
 
-**Before starting any spec/plan/implementation:** confirm the active workstream is reflected in `docs/BACKLOG.md` ACTIVE. If it isn't, update it first.
+**Storage:**
+- `docs/backlog/<id>.md` — one file per workstream, ever. `status: active|queued|parking|shipped|dropped` distinguishes lifecycle. Files never move folder on close.
+- `docs/BACKLOG.md` — auto-generated index. Sections: ACTIVE / QUEUED / PARKING LOT / Recently Shipped (last 10).
+- Cross-references everywhere are by `id`, never file path.
 
-**Every `[design]` BACKLOG entry MUST include a `**References:**` line** citing the relevant `docs/architecture/SYSTEM-ARCHITECTURE.md` §X / `docs/architecture/SERVICE-INVENTORY.md` §Service / `flows/*.flow.yaml` it depends on. Topic memories + code paths are complementary, not a substitute. **Adoption of a `[design]` entry to ACTIVE requires verifying every cited reference still matches code** (one read pass — grep the file, compare to ground truth). **If any reference is stale, fix the doc layer FIRST**; do not start design on top of incorrect arch docs. This rule exists because design specs that read against drifted docs ship wrong solutions.
+**The 7 rules** (enforced by `backlog-lint`):
+1. `id` matches filename. 2. Exactly one `status: active`. 3. `type ∈ {design, spec}` ⇒ `references:` non-empty + paths exist + anchors resolve. 4. `status: active` ⇒ `out_of_scope:` non-empty. 5. `status: shipped` ⇒ `validation_gate` non-empty. 6. `status: queued` ⇒ `rank` set + unique. 7. `BACKLOG.md` matches files.
 
-**Every spec or plan MUST have an explicit §"Out of scope" section** before execution begins. If a spec/plan lacks one, propose one as the first step.
+**Before starting any spec/plan/implementation:** confirm the active workstream is reflected in `docs/backlog/<id>.md` with `status: active`. If it isn't, create or promote first.
 
-**When an out-of-scope finding surfaces during execution** (a separate bug, a tangential improvement, a future refactor), default to *file-and-continue*:
-1. Invoke the `backlog-add` skill with a one-liner including file:line evidence and a pointer to the relevant topic memory.
+**Adoption to ACTIVE requires verifying every cited reference still matches code** — `backlog-lint` confirms paths and anchors exist, but YOU must confirm the cited section's *meaning* still holds. If any reference is stale, fix the doc layer FIRST.
+
+**Every spec or plan MUST have an explicit § "Out of scope" section** before execution begins. The backlog file's `out_of_scope:` frontmatter mirrors this.
+
+**When an out-of-scope finding surfaces during execution**, default to *file-and-continue*:
+1. Invoke the `backlog-add` skill — it creates `docs/backlog/<id>.md` and runs `backlog-lint --fix`.
 2. State briefly in chat what was filed.
 3. Continue executing the active workstream.
 
-Do NOT pivot mid-flight unless the finding actually blocks the active workstream's done-definition (e.g., the validation gate cannot complete). When ambiguous, ask the user with the cost surfaced ("pivot extends ship time by N; the gate may complete first regardless"). Default = file-and-continue.
+Do NOT pivot mid-flight unless the finding actually blocks the active workstream's done-definition.
 
-**At each workstream ship:** spend 5 minutes on a boundary review of `docs/BACKLOG.md` — re-rank PARKING LOT, promote items to QUEUED if they've grown teeth, drop items that have aged out.
+**At each workstream ship:**
+1. Set `status: shipped`, fill `validation_gate:` in the active file.
+2. Run `node .claude/skills/backlog-lint/lint.mjs --fix` — regenerates `BACKLOG.md` and `related_workstreams:` in topic dossiers.
+3. Spend 5 minutes on a boundary review of `docs/BACKLOG.md` — re-rank PARKING LOT, promote items to QUEUED, drop items that have aged out.
+
+**BACKLOG ↔ MEMORY contract** (see spec `docs/superpowers/specs/2026-05-07-backlog-redesign-design.md`):
+- Backlog file `topic_memory: [project_X.md]` is the single source of truth for the workstream↔dossier link.
+- Topic dossier `related_workstreams:` is regenerated by `backlog-lint --fix` — **never hand-edit it**.
+- `MEMORY.md` no longer has "Recently Completed Work" or "Active / Planned Work" sections; ship narratives live in the backlog file body.
 
 The brainstorming / writing-plans / executing-plans / subagent-driven-development skills do not enforce this on their own — these instructions override their default behavior per the superpowers skill priority rules.
 
