@@ -3,13 +3,14 @@ type Query {
   getNotifications(limit: Int, cursor: String): NotificationConnection!
   getUnreadCount: Int!
   getFeatureFlags: [FeatureFlag!]!
+  getDeposit(depositId: ID!): Deposit!
 }
 
 type Mutation {
   updateGoal(input: GoalInput!): Goal!
   updateMandate(input: MandateInput!): Mandate!
   revokeMandate: MandateStatus!
-  initiateDeposit(input: DepositInput!): DepositIntent!
+  initiateDeposit(input: DepositInput!): Deposit!
   requestWithdrawal(input: WithdrawalInput!): WithdrawalRequest!
   requestAccountClosure: ClosureRequest!
   markNotificationRead(notificationId: ID!): Notification!
@@ -136,12 +137,15 @@ type InvestorProfile {
   updatedAt: String!
 }
 
-type DepositIntent {
+type Deposit @aws_cognito_user_pools {
   depositId: ID!
   amountCents: Int!
   currency: String!
   status: String!
   initiatedAt: String!
+  detectedAt: String
+  failedAt: String
+  reason: String
 }
 
 type WithdrawalRequest {
@@ -200,6 +204,7 @@ input MandateInput {
 }
 
 input DepositInput {
+  depositId: ID!
   amountCents: Int!
   currency: String!
 }
