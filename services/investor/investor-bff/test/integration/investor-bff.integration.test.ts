@@ -378,6 +378,7 @@ describe('investor-bff', () => {
     }, 30_000);
 
     it('should create deposit record and emit DEPOSIT_INITIATED', async () => {
+      const clientDepositId = crypto.randomUUID();
       const result = await appsync.mutate<{
         initiateDeposit: {
           depositId: string;
@@ -399,13 +400,14 @@ describe('investor-bff', () => {
         }
       `,
         {
-          input: { amountCents: 100_000, currency: 'USD' },
+          input: { depositId: clientDepositId, amountCents: 100_000, currency: 'USD' },
         },
       );
 
       expect(result.initiateDeposit.status).toBe('INITIATED');
       expect(result.initiateDeposit.amountCents).toBe(100_000);
       expect(result.initiateDeposit.currency).toBe('USD');
+      expect(result.initiateDeposit.depositId).toBe(clientDepositId);
       const depositId = result.initiateDeposit.depositId;
 
       // Assert: Deposit record in DDB
@@ -899,6 +901,62 @@ describe('investor-bff', () => {
       expect(result.getProfile.accountMode).toBeDefined();
       expect(result.getProfile.accountMode.mode).toBe('simulation');
     }, 60_000);
+
+    it('getDeposit returns the row written by initiateDeposit', async () => {
+      const depositId = crypto.randomUUID();
+      await appsync.mutate(
+        `
+        mutation InitiateDeposit($input: DepositInput!) {
+          initiateDeposit(input: $input) { depositId }
+        }
+      `,
+        { input: { depositId, amountCents: 5_000, currency: 'USD' } },
+      );
+
+      const result = await appsync.query<{
+        getDeposit: {
+          depositId: string;
+          amountCents: number;
+          currency: string;
+          status: string;
+        };
+      }>(
+        `
+        query GetDeposit($depositId: ID!) {
+          getDeposit(depositId: $depositId) {
+            depositId
+            amountCents
+            currency
+            status
+          }
+        }
+      `,
+        { depositId },
+      );
+
+      expect(result.getDeposit).toEqual(
+        expect.objectContaining({
+          depositId,
+          amountCents: 5_000,
+          currency: 'USD',
+          status: 'INITIATED',
+        }),
+      );
+    }, 60_000);
+
+    it('getDeposit throws NotFoundError for an unknown depositId', async () => {
+      const depositId = crypto.randomUUID();
+      await expect(
+        appsync.query(
+          `
+          query GetDeposit($depositId: ID!) {
+            getDeposit(depositId: $depositId) { depositId }
+          }
+        `,
+          { depositId },
+        ),
+      ).rejects.toThrow(/Deposit not found|NotFoundError/);
+    }, 60_000);
   });
 
   // ── Circuit Breaker Feature Flags ────────────────────────────────────
@@ -1000,7 +1058,7 @@ describe('investor-bff', () => {
           }
         }
       `,
-        { input: { amountCents: 250_000, currency: 'USD' } },
+        { input: { depositId: crypto.randomUUID(), amountCents: 250_000, currency: 'USD' } },
       );
 
       const depositId = seedResult.initiateDeposit.depositId;

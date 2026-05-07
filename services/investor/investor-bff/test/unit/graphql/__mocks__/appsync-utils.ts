@@ -19,4 +19,5 @@ export const util = {
   },
   time: { nowISO8601: () => '2026-04-22T00:00:00.000Z' },
   autoId: () => 'mock-auto-id',
+  matches: (pattern: string, value: string) => new RegExp(pattern).test(value),
 };
