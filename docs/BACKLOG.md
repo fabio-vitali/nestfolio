@@ -32,29 +32,20 @@ Updated 2026-05-03: "Multi-SF execution race per single decision trigger" retire
 
 ## ACTIVE
 
-_(empty — between workstreams. Pick from QUEUED slot 1.)_
-
----
-
-## QUEUED
-
-Ordered. Slot 1 is the next adopt-as-ACTIVE candidate.
-
 ### `[α-tune-B]` Mode-aware validation rule + retry-feedback prompt loop (Approach B)
 
-**Status:** Promoted from PARKING LOT 2026-05-07 after α-tune (Approach A) shipped but failed to close the e2e gate. Predecessor: `docs/superpowers/specs/2026-05-06-portfolio-engine-mode-anchored-examples-design.md`.
+**Adopted:** 2026-05-07 (promoted from QUEUED slot 1 after α-tune shipped but failed to close the e2e gate). Branch: `main` (per established workstream pattern).
+
+**Spec:** `docs/superpowers/specs/2026-05-07-portfolio-engine-mode-aware-validation-design.md` (commit `8e43acc8`).
+**Plan:** `docs/superpowers/plans/2026-05-07-portfolio-engine-mode-aware-validation-plan.md` (commit `d3d3d574`) — 9 TDD tasks.
 
 **Done-when:** E2E gate `apps/e2e-feature-tests/src/advisory/operating-mode-recommendation-shape.e2e.test.ts` against deployed dev returns CONSERVATIVE GREEN + AGGRESSIVE GREEN. BALANCED still depends on the Vestigial MemoryStrategy entry — gate result is "2/3 from us, 1/3 blocked-out-of-scope".
 
-**Concrete failures from α-tune ship (2026-05-07):** CONSERVATIVE produced 7-position 0.50-equity output (improvement from 8/0.60 but still over caps); AGGRESSIVE produced 7-position 0.52-equity (count met, equity floor missed). Both modes regressed to a centered "BALANCED-shape" anchor despite per-mode worked examples in the prompt — Bedrock structured-output isn't anchoring strongly enough on per-mode shape numbers under HARD-RULES framing alone.
+**Concrete failures from α-tune ship (2026-05-07) that motivate this workstream:** CONSERVATIVE produced 7-position 0.50-equity output (improvement from 8/0.60 but still over caps); AGGRESSIVE produced 7-position 0.52-equity (count met, equity floor missed). Both modes regressed to a centered "BALANCED-shape" anchor despite per-mode worked examples in the prompt — Bedrock structured-output isn't anchoring strongly enough on per-mode shape numbers under HARD-RULES framing alone.
 
-**Approach:** Force the model to retry on envelope violation by extending the validation chain with an envelope-aware rule, and feed the violation diff back into the next attempt's prompt as concrete "your previous output had X, must be Y — correct it" feedback.
+**Approach (per spec):** Extend `ValidationRule<T>.validate()` with an optional `ValidationContext` (`{state, attempt}`); extend `ValidationResult` + `ValidationError` with an optional `feedback` string; `withRetry` writes `__retryFeedback` to state on `ValidationError`; `agent-factory` appends a "PRIOR ATTEMPT FEEDBACK" section to the prompt when present. Service-side, `portfolioValidationRule` becomes mode-aware (per-mode count band, equityWeight band, largest-EQUITY-position cap) and emits a structured corrective `feedback` string. No code changes to the 3 sibling advisory services.
 
-**Required lib changes** (`libs/agent-orchestrator`):
-- Extend `ValidationRule<T>` in `src/types.ts` so `validate()` receives invocation state alongside output (currently it only sees output → can't read mode from upstream).
-- Implement `portfolioModeValidationRule` in `services/advisory/portfolio-engine-ctrl/src/agents/validation.ts` that rejects envelope violations per mode (count, equityWeight band, largest equity position cap).
-- Extend `withRetry` in `src/with-retry.ts` to inject the validation diff into the next prompt attempt as feedback. Currently re-runs same prompt; needs prompt-mutation hook.
-- Cross-touch: `with-validation.ts` (state propagation), `create-orchestrator.ts` (rule wiring), `agent-factory.ts` (prompt mutation hook).
+**Plan task ordering (TDD):** Tasks 1-5 (lib) → Tasks 6-8 (service) → Task 9 (validation gate: lint + unit + integration smoke + AgentRuntime deploy + e2e against deployed dev). 8 files modified across `libs/agent-orchestrator` (5) and `services/advisory/portfolio-engine-ctrl` (3); 5 test files extended.
 
 **Topic memory:** `project_agent_runtime_structured_output.md`.
 
@@ -62,9 +53,16 @@ Ordered. Slot 1 is the next adopt-as-ACTIVE candidate.
 - `docs/architecture/SYSTEM-ARCHITECTURE.md` §14 — operating-mode dimension.
 - `docs/architecture/SERVICE-INVENTORY.md` § portfolio-engine-ctrl — agent topology and the Opus/Sonnet split.
 - `flows/advisory-cycle.flow.yaml` Phase 2c — portfolio-construction agent invocation contract.
-- `docs/superpowers/specs/2026-05-06-portfolio-engine-mode-anchored-examples-design.md` § "Solution" + § "Risk register" — the predecessor spec that explicitly identified this as the fallback path.
+- `docs/superpowers/specs/2026-05-06-portfolio-engine-mode-anchored-examples-design.md` § "Solution" + § "Risk register" — predecessor spec that explicitly identified this as the fallback path.
+- `docs/superpowers/specs/2026-05-06-agent-runtime-structured-output-design.md` — architectural α/β/γ pipeline this design sits on top of.
+
+**Done-when escalation (per plan Task 9 step 8):** Two consecutive e2e failures of CONSERVATIVE or AGGRESSIVE → file SHIPPED-NOT-VALIDATED + escalation options (raise `maxAttempts` 3→5; raise `maxTokens`; promote a new design workstream).
 
 ---
+
+## QUEUED
+
+Ordered. Slot 1 is the next adopt-as-ACTIVE candidate.
 
 ### `[infra]` PR pipeline integration tests
 
