@@ -6,7 +6,8 @@
 
 ## ACTIVE
 
-- [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Latent — IAM-published mid-cycle frame would erase confirmedAt/rejectedAt fields.
+_(none)_
+
 
 ## QUEUED
 
@@ -49,10 +50,10 @@
 - 2026-05-07 — [backlog-redesign](backlog/backlog-redesign.md) [refactor] — Per-item backlog files + auto-generated index + backlog-lint enforcement; MEMORY duplication removed.
 - 2026-05-07 — [nestfolio-e2e-playwright-config-no-console-lint](backlog/nestfolio-e2e-playwright-config-no-console-lint.md) [bug] — Shipped 2026-05-07 — added // eslint-disable-next-line no-console comment matching the libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts:178 precedent.
 - 2026-05-07 — [pr-pipeline-integration-tests](backlog/pr-pipeline-integration-tests.md) [infra] — Closed 2026-05-07 — implementation landed inline with the test-support extraction; backlog file lagged.
+- 2026-05-07 — [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Shipped 2026-05-07 — broadcaster + resolver now carry confirmedAt/rejectedAt/rejectionReason/confirmationRequired.
 - 2026-05-07 — [remaining-agent-orchestrators](backlog/remaining-agent-orchestrators.md) [refactor] — Naturally closed by Spec 2 + structured-output α/β/γ ship; no fresh workstream needed.
 - 2026-05-07 — [silent-discard-unknown-operating-mode-narrowing](backlog/silent-discard-unknown-operating-mode-narrowing.md) [bug] — Shipped 2026-05-07 — added console.warn with structured payload (rawOperatingMode/tenantId/decisionId) before BALANCED narrowing in services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts. Five-condition guard: string + non-empty + not in {CONSERVATIVE,BALANCED,AGGRESSIVE}. TDD red→green.
 - 2026-05-07 — [stale-read-upstream-output-advisory-ctrl](backlog/stale-read-upstream-output-advisory-ctrl.md) [bug] — Shipped 2026-05-07 — deleted dead reads + concat in 3 graph.ts files (portfolio-engine, advisory-narrative, market-intelligence) and removed orphaned 'reads upstream memory context' test in advisory-narrative-ctrl/test/unit/graph.test.ts. Fix scope grew from 2 to 3 files at promotion time when reference verification surfaced the third caller.
 - 2026-05-06 — [agent-runtime-structured-output-reliability](backlog/agent-runtime-structured-output-reliability.md) [refactor] — Three-phase α/β/γ rollout closed silent-success failure mode where AgentCore returned empty {} agent results.
 - 2026-05-06 — [operating-mode-feature](backlog/operating-mode-feature.md) [refactor] — Two-phase ship — Phase 1 (compliance authority resolver) 2026-05-05 + Phase 2 (agent behavior) 2026-05-06.
 - 2026-05-04 — [investor-profile-single-row-collapse](backlog/investor-profile-single-row-collapse.md) [refactor] — Replaced multi-row InvestorProfile decomposition with single composite row + sibling MandateStatus row owning lifecycle.
-- 2026-05-01 — [onboarding-agent-tool-call-reliability-spec3](backlog/onboarding-agent-tool-call-reliability-spec3.md) [refactor] — Hardened phase-node against Sonnet 4.6 zero-tool-call returns via prompt cleanup + named-tool retry guard.

@@ -16,11 +16,13 @@ function streamEvent(record: {
   newImage: Record<string, unknown>;
   oldImage?: Record<string, unknown>;
 }): DynamoDBStreamEvent {
-  const m = (item: Record<string, unknown>): Record<string, { S?: string; N?: string; L?: unknown[] }> => {
-    const out: Record<string, { S?: string; N?: string; L?: unknown[] }> = {};
+  const m = (item: Record<string, unknown>): Record<string, { S?: string; N?: string; L?: unknown[]; BOOL?: boolean; NULL?: boolean }> => {
+    const out: Record<string, { S?: string; N?: string; L?: unknown[]; BOOL?: boolean; NULL?: boolean }> = {};
     for (const [k, v] of Object.entries(item)) {
       if (typeof v === 'string') out[k] = { S: v };
       else if (typeof v === 'number') out[k] = { N: String(v) };
+      else if (typeof v === 'boolean') out[k] = { BOOL: v };
+      else if (v === null) out[k] = { NULL: true };
       else if (Array.isArray(v)) out[k] = { L: [] };
     }
     return out;
@@ -74,6 +76,38 @@ describe('decision-publisher', () => {
     expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
     const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
     expect(call.variables).toMatchObject({ trigger: 'PORTFOLIO_DRIFT', createdAt: '2026-05-02T00:00:00Z' });
+  });
+
+  it('propagates confirmedAt/rejectedAt/rejectionReason/confirmationRequired to the broadcast', async () => {
+    await handler(streamEvent({
+      eventName: 'MODIFY',
+      oldImage: {
+        sk: 'DecisionReadModel', decisionId: 'd1', tenantId: 't1',
+        status: 'AWAITING_CONFIRMATION', explanation: 'rationale', version: 2,
+        trigger: 'PORTFOLIO_DRIFT', createdAt: '2026-05-02T00:00:00Z',
+        confirmationRequired: true, confirmedAt: null, rejectedAt: null, rejectionReason: null,
+      },
+      newImage: {
+        sk: 'DecisionReadModel', decisionId: 'd1', tenantId: 't1',
+        status: 'CONFIRMED', explanation: 'rationale', version: 3,
+        updatedAt: '2026-05-02T00:00:05Z',
+        trigger: 'PORTFOLIO_DRIFT', createdAt: '2026-05-02T00:00:00Z',
+        confirmationRequired: true, confirmedAt: '2026-05-02T00:00:05Z',
+        rejectedAt: null, rejectionReason: null,
+      },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.variables).toMatchObject({
+      decisionId: 'd1',
+      tenantId: 't1',
+      status: 'CONFIRMED',
+      version: 3,
+      confirmationRequired: true,
+      confirmedAt: '2026-05-02T00:00:05Z',
+      rejectedAt: null,
+      rejectionReason: null,
+    });
   });
 
   it('skips records with sk other than DecisionReadModel', async () => {

@@ -16,6 +16,10 @@ const PUBLISH_DECISION_UPDATE = `
     $version: Int!
     $createdAt: String!
     $updatedAt: String!
+    $confirmationRequired: Boolean
+    $confirmedAt: String
+    $rejectedAt: String
+    $rejectionReason: String
   ) {
     publishDecisionUpdate(
       decisionId: $decisionId
@@ -27,6 +31,10 @@ const PUBLISH_DECISION_UPDATE = `
       version: $version
       createdAt: $createdAt
       updatedAt: $updatedAt
+      confirmationRequired: $confirmationRequired
+      confirmedAt: $confirmedAt
+      rejectedAt: $rejectedAt
+      rejectionReason: $rejectionReason
     ) {
       decisionId
       tenantId
@@ -37,6 +45,10 @@ const PUBLISH_DECISION_UPDATE = `
       version
       createdAt
       updatedAt
+      confirmationRequired
+      confirmedAt
+      rejectedAt
+      rejectionReason
     }
   }
 `;
@@ -63,6 +75,10 @@ export const handler = broadcastFromStream({
         version: Number(item['version'] ?? 0),
         createdAt: String(item['createdAt'] ?? ''),
         updatedAt: String(item['updatedAt'] ?? new Date().toISOString()),
+        confirmationRequired: typeof item['confirmationRequired'] === 'boolean' ? item['confirmationRequired'] : false,
+        confirmedAt: typeof item['confirmedAt'] === 'string' ? item['confirmedAt'] : null,
+        rejectedAt: typeof item['rejectedAt'] === 'string' ? item['rejectedAt'] : null,
+        rejectionReason: typeof item['rejectionReason'] === 'string' ? item['rejectionReason'] : null,
       }),
     },
   },

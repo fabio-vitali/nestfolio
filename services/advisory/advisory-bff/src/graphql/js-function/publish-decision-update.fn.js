@@ -13,27 +13,28 @@ export function request(_ctx) {
 }
 
 export function response(ctx) {
-  // Provide schema-required defaults for fields that are non-null in
-  // DecisionPacket but not arguments to publishDecisionUpdate (e.g.,
-  // confirmationRequired, complianceChecks, agentInvocations, trigger,
-  // createdAt). The subscriber doesn't depend on these for filtering or
-  // for the version-guarded store update — they're carried for type safety.
+  // Echo args back. Optional fields (confirmationRequired/confirmedAt/
+  // rejectedAt/rejectionReason) carry the live row state from the publisher's
+  // mapImage; without them, a mid-cycle frame would erase those values at the
+  // subscriber's full-replace store. complianceChecks/agentInvocations are
+  // schema-required arrays the publisher doesn't carry — defaulted to [] so
+  // the subscriber's getDecision query is the sole source of truth for those.
   const args = ctx.arguments;
   return {
     decisionId: args.decisionId,
     tenantId: args.tenantId,
     status: args.status,
+    trigger: args.trigger,
     explanation: args.explanation,
     proposedTrades: args.proposedTrades,
     version: args.version,
+    createdAt: args.createdAt,
     updatedAt: args.updatedAt,
-    trigger: 'BROADCAST',
-    confirmationRequired: false,
+    confirmationRequired: args.confirmationRequired ?? false,
+    confirmedAt: args.confirmedAt ?? null,
+    rejectedAt: args.rejectedAt ?? null,
+    rejectionReason: args.rejectionReason ?? null,
     complianceChecks: [],
     agentInvocations: [],
-    confirmedAt: null,
-    rejectedAt: null,
-    rejectionReason: null,
-    createdAt: args.updatedAt,
   };
 }
