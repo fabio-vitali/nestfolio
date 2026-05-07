@@ -1,6 +1,7 @@
 ---
 id: spec3-phase1-mandate-cta-consent-shape
-status: parking
+status: queued
+rank: 6
 type: refactor
 references: []
 out_of_scope: []

@@ -81,13 +81,7 @@ export async function invokeMarketResearch(
     }
   }
 
-  // 2. Read upstream context (investor profile from advisory-ctrl)
-  const upstreamRecords = await session.readUpstreamOutput('advisory-ctrl');
-  const upstreamContext = upstreamRecords.length > 0
-    ? `\n\nUpstream context:\n${upstreamRecords.map((r) => r.content).join('\n')}`
-    : '';
-
-  // 3. Deterministic tool context (market data + instrument universe, in parallel)
+  // 2. Deterministic tool context (market data + instrument universe, in parallel)
   const [marketData, instrumentUniverse] = await Promise.all([
     Promise.resolve(getMarketData()),
     Promise.resolve(getInstrumentUniverse()),
@@ -97,10 +91,10 @@ export async function invokeMarketResearch(
     'Instrument universe': instrumentUniverse,
   });
 
-  // 4. Invoke agent with enriched input
+  // 3. Invoke agent with enriched input
   const enrichedInput =
     `Decision ${payload.decisionId} context: ${seed}` +
-    kbContext + upstreamContext + toolContext;
+    kbContext + toolContext;
 
   const result = await invokeOrchestrator(
     compiledGraph,

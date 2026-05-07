@@ -1,6 +1,7 @@
 ---
 id: nestfolio-e2e-playwright-config-no-console-lint
-status: parking
+status: queued
+rank: 3
 type: bug
 references: []
 out_of_scope: []

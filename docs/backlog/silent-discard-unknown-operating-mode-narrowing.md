@@ -1,6 +1,7 @@
 ---
 id: silent-discard-unknown-operating-mode-narrowing
-status: parking
+status: queued
+rank: 2
 type: bug
 references: []
 out_of_scope: []

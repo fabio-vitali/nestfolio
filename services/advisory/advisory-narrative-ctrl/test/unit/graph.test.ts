@@ -80,29 +80,6 @@ describe('advisory-narrative-ctrl structured graph', () => {
     expect((result as { explainability: { ok: boolean; output: { summary: string } } }).explainability.output).toHaveProperty('summary');
   });
 
-  it('reads upstream memory context', async () => {
-    mockMemorySession.readUpstreamOutput.mockResolvedValue([
-      { content: 'portfolio-construction output', score: 0.95, memoryRecordId: 'r1' },
-    ]);
-    mockKBRetrieve.mockResolvedValue([]);
-    mockAgentNode.mockResolvedValue({
-      summary: 'Based on your portfolio construction.',
-      rationale: 'Upstream context used.',
-      keyFactors: ['upstream'],
-      tone: 'reassuring',
-      wordCount: 100,
-      confidence: 0.85,
-    });
-
-    await invokeNarrative({
-      tenantId: 't1',
-      decisionId: 'd1',
-      upstreamOutputs: { input: 'Explain decision' },
-    });
-
-    expect(mockMemorySession.readUpstreamOutput).toHaveBeenCalledWith('advisory-ctrl');
-  });
-
   it('writes output to memory after successful invocation', async () => {
     mockKBRetrieve.mockResolvedValue([]);
     mockAgentNode.mockResolvedValue({

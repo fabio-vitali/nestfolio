@@ -73,11 +73,6 @@ export async function invokeNarrative(
   const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
   const kb = buildKBClient();
 
-  const upstreamRecords = await session.readUpstreamOutput('advisory-ctrl');
-  const upstreamContext = upstreamRecords.length > 0
-    ? `\n\nUpstream decision context:\n${upstreamRecords.map((r) => r.content).join('\n')}`
-    : '';
-
   let kbContext = '';
   if (kb) {
     const seed = JSON.stringify(payload.upstreamOutputs);
@@ -104,7 +99,7 @@ export async function invokeNarrative(
 
   const enrichedInput =
     `Decision ${payload.decisionId} context: ${JSON.stringify(payload.upstreamOutputs)}` +
-    modeContext + upstreamContext + kbContext;
+    modeContext + kbContext;
 
   const result = await invokeOrchestrator(
     compiledGraph,

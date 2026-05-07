@@ -94,11 +94,6 @@ export async function invokePortfolioEngine(
     }
   }
 
-  const upstreamRecords = await session.readUpstreamOutput('advisory-ctrl');
-  const upstreamContext = upstreamRecords.length > 0
-    ? `\n\nUpstream context:\n${upstreamRecords.map((r) => r.content).join('\n')}`
-    : '';
-
   const portfolioSnapshot = await tools.portfolioLookup({ tenantId: payload.tenantId });
   const toolContext = formatToolContext({ 'Portfolio snapshot': portfolioSnapshot });
 
@@ -129,7 +124,7 @@ export async function invokePortfolioEngine(
     `Compute equityWeight as the sum of targetWeight across allocations whose assetClass is EQUITY; compute riskMetrics.largestPositionWeight as the maximum targetWeight across allocations whose assetClass is EQUITY (NOT across all allocations).`;
 
   const graph = getGraphForMode(operatingMode);
-  const enrichedInput = `Decision ${payload.decisionId} context: ${seed}` + modeContext + kbContext + upstreamContext + toolContext;
+  const enrichedInput = `Decision ${payload.decisionId} context: ${seed}` + modeContext + kbContext + toolContext;
   const result = await invokeOrchestrator(
     graph,
     { input: enrichedInput, operatingMode },

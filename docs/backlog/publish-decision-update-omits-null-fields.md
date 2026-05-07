@@ -1,6 +1,7 @@
 ---
 id: publish-decision-update-omits-null-fields
-status: parking
+status: queued
+rank: 5
 type: bug
 references: []
 out_of_scope: []

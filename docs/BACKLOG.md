@@ -11,8 +11,11 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [silent-discard-unknown-operating-mode-narrowing](backlog/silent-discard-unknown-operating-mode-narrowing.md) [bug] — One-line fix: console.warn before narrowing assignment when raw value is non-empty.
+2. [nestfolio-e2e-playwright-config-no-console-lint](backlog/nestfolio-e2e-playwright-config-no-console-lint.md) [bug] — Trivial fix — eslint-disable or process.stderr.write.
+3. [verify-deposit-detected-double-emit](backlog/verify-deposit-detected-double-emit.md) [bug] — 10 min check whether the upstream is dup-emitting DEPOSIT_DETECTED.
+4. [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Latent — IAM-published mid-cycle frame would erase confirmedAt/rejectedAt fields.
+5. [spec3-phase1-mandate-cta-consent-shape](backlog/spec3-phase1-mandate-cta-consent-shape.md) [refactor] — mandate_cta missing ON RESPONSE marker; mandate_consent missing OPTIONS block.
 
 ## LATER
 
@@ -30,23 +33,17 @@ _(none)_
 - [integration-test-mock-resilience](backlog/integration-test-mock-resilience.md) [tooling] — DESIGN IN PROGRESS (2026-04-16) — partly superseded by 2026-05-05 bootstrap uplift; FakeLlm + SsmOverride remain unstarted.
 - [intermittent-zero-packet-runs-operating-mode-e2e](backlog/intermittent-zero-packet-runs-operating-mode-e2e.md) [bug] — Hypothesis: AgentCore Runtime ARM64 cold-start variability under serial mode.
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
-- [nestfolio-e2e-playwright-config-no-console-lint](backlog/nestfolio-e2e-playwright-config-no-console-lint.md) [bug] — Trivial fix — eslint-disable or process.stderr.write.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
 - [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md) [infra] — Throwaway-PR rehearsal of sandbox-integration-test + flip required-status-check on main.
-- [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Latent — IAM-published mid-cycle frame would erase confirmedAt/rejectedAt fields.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [reit-vs-equity-equity-weight-ambiguity](backlog/reit-vs-equity-equity-weight-ambiguity.md) [bug] — Test filters EQUITY only; agent prompt allows optional REIT-as-equity.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
 - [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md) [refactor] — LOW priority post-collapse — defer until EB redelivery is observed empirically.
-- [silent-discard-unknown-operating-mode-narrowing](backlog/silent-discard-unknown-operating-mode-narrowing.md) [bug] — One-line fix: console.warn before narrowing assignment when raw value is non-empty.
-- [spec3-phase1-mandate-cta-consent-shape](backlog/spec3-phase1-mandate-cta-consent-shape.md) [refactor] — mandate_cta missing ON RESPONSE marker; mandate_consent missing OPTIONS block.
-- [stale-read-upstream-output-advisory-ctrl](backlog/stale-read-upstream-output-advisory-ctrl.md) [bug] — Agents losing context channel since 2026-04-30 ship; trivial fix.
 - [sweep-stale-local-branches-worktrees](backlog/sweep-stale-local-branches-worktrees.md) [tooling] — 16 unmerged feat/refactor branches + 2 worktrees; ~15 min chore.
 - [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
 - [update-operating-mode-mutation-rederivation-gap](backlog/update-operating-mode-mutation-rederivation-gap.md) [bug] — No updateOperatingMode mutation; mode change won't re-derive guardrails.
-- [verify-deposit-detected-double-emit](backlog/verify-deposit-detected-double-emit.md) [bug] — 10 min check whether the upstream is dup-emitting DEPOSIT_DETECTED.
 - [vestigial-memorystrategy-decision-workflow-ctrl](backlog/vestigial-memorystrategy-decision-workflow-ctrl.md) [refactor] — 5 MemoryStrategy entries in service.stack.ts that are no longer fed.
 - [with-live-decision-fixture-hardcodes-balanced](backlog/with-live-decision-fixture-hardcodes-balanced.md) [refactor] — Tiny refactor — add operatingMode option, propagate to event detail.
 - [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
@@ -56,10 +53,10 @@ _(none)_
 - 2026-05-07 — [backlog-redesign](backlog/backlog-redesign.md) [refactor] — Per-item backlog files + auto-generated index + backlog-lint enforcement; MEMORY duplication removed.
 - 2026-05-07 — [pr-pipeline-integration-tests](backlog/pr-pipeline-integration-tests.md) [infra] — Closed 2026-05-07 — implementation landed inline with the test-support extraction; backlog file lagged.
 - 2026-05-07 — [remaining-agent-orchestrators](backlog/remaining-agent-orchestrators.md) [refactor] — Naturally closed by Spec 2 + structured-output α/β/γ ship; no fresh workstream needed.
+- 2026-05-07 — [stale-read-upstream-output-advisory-ctrl](backlog/stale-read-upstream-output-advisory-ctrl.md) [bug] — Shipped 2026-05-07 — deleted dead reads + concat in 3 graph.ts files (portfolio-engine, advisory-narrative, market-intelligence) and removed orphaned 'reads upstream memory context' test in advisory-narrative-ctrl/test/unit/graph.test.ts. Fix scope grew from 2 to 3 files at promotion time when reference verification surfaced the third caller.
 - 2026-05-06 — [agent-runtime-structured-output-reliability](backlog/agent-runtime-structured-output-reliability.md) [refactor] — Three-phase α/β/γ rollout closed silent-success failure mode where AgentCore returned empty {} agent results.
 - 2026-05-06 — [operating-mode-feature](backlog/operating-mode-feature.md) [refactor] — Two-phase ship — Phase 1 (compliance authority resolver) 2026-05-05 + Phase 2 (agent behavior) 2026-05-06.
 - 2026-05-04 — [investor-profile-single-row-collapse](backlog/investor-profile-single-row-collapse.md) [refactor] — Replaced multi-row InvestorProfile decomposition with single composite row + sibling MandateStatus row owning lifecycle.
 - 2026-05-01 — [onboarding-agent-tool-call-reliability-spec3](backlog/onboarding-agent-tool-call-reliability-spec3.md) [refactor] — Hardened phase-node against Sonnet 4.6 zero-tool-call returns via prompt cleanup + named-tool retry guard.
 - 2026-04-30 — [advisory-pipeline-consolidation-spec2](backlog/advisory-pipeline-consolidation-spec2.md) [refactor] — Deleted advisory-ctrl entirely; aligned AgentCore Memory write/read contract; closed §21 OQ #3 + #7.
 - 2026-04-28 — [onboarding-agent-runtime-redesign](backlog/onboarding-agent-runtime-redesign.md) [refactor] — Replaced LangGraphAgent (remote-only) with custom OnboardingAgent driving in-process LangGraph; symmetric with 5 advisory agents.
-- 2026-04-26 — [mfe-charter-migration-phase-c](backlog/mfe-charter-migration-phase-c.md) [refactor] — Phase C of MFE charter migration shipped PARTIAL — pillars correct as code; deploy wiring incomplete (deferred).
