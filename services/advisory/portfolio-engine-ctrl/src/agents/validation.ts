@@ -72,7 +72,7 @@ function formatCorrectiveFeedback(
         ? `- equityWeight=${eq.toFixed(2)} — must be in [${lo}, ${hi}]. REDUCE equity sleeve by ~${(eq - hi).toFixed(2)} by trimming individual EQUITY targetWeights or reallocating to FIXED_INCOME / CASH.`
         : `- equityWeight=${eq.toFixed(2)} — must be in [${lo}, ${hi}]. INCREASE equity sleeve by ~${(lo - eq).toFixed(2)} by adding EQUITY positions or raising existing EQUITY targetWeights.`);
     } else if (v.kind === 'largestEquity') {
-      lines.push(`- largest EQUITY position is ${v.observed} — must be ≤ ${env.largestEquityCap}. CAP individual EQUITY positions at ${env.largestEquityCap} each (FIXED_INCOME / CASH positions are exempt from this cap).`);
+      lines.push(`- largest EQUITY position is ${v.observed} — must be ≤ ${env.largestEquityCap}. CAP individual EQUITY positions at ${env.largestEquityCap} each (FIXED_INCOME / CASH / REIT positions are exempt from this cap).`);
     }
   }
   lines.push(`Re-emit the structured-output tool with corrected allocations.`);
