@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -71,6 +71,7 @@ const FEATURE_FLAG = 'initiateDeposit';
 export class DepositFormComponent {
   readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly flagsStore = inject(FeatureFlagsStore);
 
   readonly amount = signal<number | null>(null);
@@ -89,7 +90,10 @@ export class DepositFormComponent {
     if (this.confirmDisabled()) return;
     const depositId = crypto.randomUUID();
     const amountCents = Math.round((this.amount() ?? 0) * 100);
-    this.router.navigate(['/deposit', depositId], { state: { amountCents, currency: 'USD' } });
+    this.router.navigate([depositId], {
+      relativeTo: this.route,
+      state: { amountCents, currency: 'USD' },
+    });
   }
 
   cancel(): void {

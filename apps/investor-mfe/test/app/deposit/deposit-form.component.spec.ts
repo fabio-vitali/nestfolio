@@ -1,5 +1,5 @@
 import { ComponentFixture } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DepositFormComponent } from '../../../src/app/deposit/deposit-form.component';
 import { FeatureFlagsStore } from '@nestfolio/ui/feature-flags';
 import { I18nService } from '@nestfolio/shell/i18n';
@@ -13,10 +13,12 @@ describe('DepositFormComponent', () => {
   let component: DepositFormComponent;
   let fixture: ComponentFixture<DepositFormComponent>;
   let router: ReturnType<typeof createMockRouter>;
+  let route: object;
   let flagsStore: { isEnabled: jest.Mock; flags: jest.Mock };
 
   beforeEach(async () => {
     router = createMockRouter();
+    route = {};
     flagsStore = {
       isEnabled: jest.fn().mockReturnValue(true),
       flags: jest.fn().mockReturnValue({}),
@@ -24,6 +26,7 @@ describe('DepositFormComponent', () => {
     fixture = await setupComponentTest(DepositFormComponent, {
       providers: [
         { provide: Router, useValue: router },
+        { provide: ActivatedRoute, useValue: route },
         { provide: FeatureFlagsStore, useValue: flagsStore },
         { provide: I18nService, useValue: createMockI18nService() },
       ],
@@ -48,7 +51,7 @@ describe('DepositFormComponent', () => {
     expect(component.confirmDisabled()).toBe(true);
   });
 
-  it('submit: generates a UUIDv4 depositId and navigates to /deposit/:id with router state', () => {
+  it('submit: generates a UUIDv4 depositId and navigates relatively with router state', () => {
     const uuidSpy = jest.spyOn(crypto, 'randomUUID').mockReturnValue(
       '44444444-4444-4444-8444-444444444444' as `${string}-${string}-${string}-${string}-${string}`,
     );
@@ -56,8 +59,8 @@ describe('DepositFormComponent', () => {
     component.submit();
 
     expect(router.navigate).toHaveBeenCalledWith(
-      ['/deposit', '44444444-4444-4444-8444-444444444444'],
-      { state: { amountCents: 10_000, currency: 'USD' } },
+      ['44444444-4444-4444-8444-444444444444'],
+      { relativeTo: route, state: { amountCents: 10_000, currency: 'USD' } },
     );
     uuidSpy.mockRestore();
   });

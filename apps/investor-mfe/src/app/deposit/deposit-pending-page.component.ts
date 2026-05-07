@@ -194,11 +194,11 @@ export class DepositPendingPageComponent implements OnInit, OnDestroy {
   }
 
   tryAgain(): void {
-    this.router.navigate(['/deposit']);
+    this.router.navigate(['..'], { relativeTo: this.route });
   }
 
   newDeposit(): void {
-    this.router.navigate(['/deposit']);
+    this.router.navigate(['..'], { relativeTo: this.route });
   }
 
   viewDashboard(): void {
