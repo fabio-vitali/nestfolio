@@ -25,8 +25,15 @@ export const remoteRoutes: Routes = [
       {
         path: 'deposit',
         loadComponent: () =>
-          import('./deposit/deposit-page.component').then(
-            (m) => m.DepositPageComponent,
+          import('./deposit/deposit-form.component').then(
+            (m) => m.DepositFormComponent,
+          ),
+      },
+      {
+        path: 'deposit/:depositId',
+        loadComponent: () =>
+          import('./deposit/deposit-pending-page.component').then(
+            (m) => m.DepositPendingPageComponent,
           ),
       },
       { path: '', redirectTo: 'notifications', pathMatch: 'full' },
