@@ -1,15 +1,15 @@
 ---
 id: portfolio-engine-graph-no-console-lint
-status: queued
-rank: 3
+status: shipped
+rank: null
 type: bug
-notes: "Trivial — eslint-disable above the operatingMode-narrowing console.warn."
+notes: "Shipped 2026-05-07 — added // eslint-disable-next-line no-console above the warn."
 references: []
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "pnpm nx run portfolio-engine-ctrl:lint → All files pass linting"
 ---
 
 # `portfolio-engine-ctrl/agents/portfolio-engine/graph.ts:118` no-console lint error

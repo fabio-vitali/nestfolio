@@ -115,6 +115,7 @@ export async function invokePortfolioEngine(
     operatingModeRaw !== 'BALANCED' &&
     operatingModeRaw !== 'AGGRESSIVE'
   ) {
+    // eslint-disable-next-line no-console
     console.warn('Unrecognised operatingMode — falling back to BALANCED', {
       rawOperatingMode: operatingModeRaw,
       tenantId: payload.tenantId,
