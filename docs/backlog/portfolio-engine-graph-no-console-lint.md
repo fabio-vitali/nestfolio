@@ -1,6 +1,7 @@
 ---
 id: portfolio-engine-graph-no-console-lint
-status: parking
+status: queued
+rank: 3
 type: bug
 notes: "Trivial — eslint-disable above the operatingMode-narrowing console.warn."
 references: []
