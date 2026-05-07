@@ -1,13 +1,16 @@
 export const GOLDEN_PORTFOLIO = {
+  // BALANCED-envelope golden fixture: 5 positions, equityWeight=0.55 (in [0.50,0.70]),
+  // largest EQUITY position=0.15 (at cap), mass conserved at totalExposure=1.0.
   allocations: [
-    { instrument: 'VTI', assetClass: 'EQUITY' as const, targetWeight: 0.4, rationale: 'US equity broad market exposure' },
-    { instrument: 'VXUS', assetClass: 'EQUITY' as const, targetWeight: 0.15, rationale: 'International equity diversification' },
-    { instrument: 'BND', assetClass: 'FIXED_INCOME' as const, targetWeight: 0.3, rationale: 'Investment-grade bond ballast' },
-    { instrument: 'VNQ', assetClass: 'REIT' as const, targetWeight: 0.15, rationale: 'Real estate diversification' },
+    { instrument: 'VTI',  assetClass: 'EQUITY' as const,       targetWeight: 0.15, rationale: 'US equity broad market exposure' },
+    { instrument: 'VXUS', assetClass: 'EQUITY' as const,       targetWeight: 0.15, rationale: 'International equity diversification' },
+    { instrument: 'QQQ',  assetClass: 'EQUITY' as const,       targetWeight: 0.15, rationale: 'Growth tilt' },
+    { instrument: 'VWO',  assetClass: 'EQUITY' as const,       targetWeight: 0.10, rationale: 'Emerging markets diversification' },
+    { instrument: 'BND',  assetClass: 'FIXED_INCOME' as const, targetWeight: 0.45, rationale: 'Investment-grade bond ballast' },
   ],
   totalExposure: 1.0,
-  equityWeight: 0.7, // VTI 0.4 + VXUS 0.15 + VNQ 0.15 (REIT counts as equity by exposure type)
-  riskMetrics: { concentrationRisk: 0.25, sectorDiversity: 0.78, largestPositionWeight: 0.4 },
+  equityWeight: 0.55, // VTI 0.15 + VXUS 0.15 + QQQ 0.15 + VWO 0.10
+  riskMetrics: { concentrationRisk: 0.20, sectorDiversity: 0.78, largestPositionWeight: 0.15 },
   confidence: 0.85,
 };
 
