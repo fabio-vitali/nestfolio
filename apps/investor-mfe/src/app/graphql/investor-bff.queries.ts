@@ -58,3 +58,27 @@ export const ON_NOTIFICATION = `
   }
   ${NOTIFICATION_FIELDS}
 `;
+
+// --- Deposit ---
+
+const DEPOSIT_FIELDS = `
+  fragment DepositFields on Deposit {
+    depositId
+    amountCents
+    currency
+    status
+    initiatedAt
+    detectedAt
+    failedAt
+    reason
+  }
+`;
+
+export const GET_DEPOSIT = `
+  query GetDeposit($depositId: ID!) {
+    getDeposit(depositId: $depositId) {
+      ...DepositFields
+    }
+  }
+  ${DEPOSIT_FIELDS}
+`;

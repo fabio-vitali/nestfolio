@@ -6,6 +6,9 @@ export const INITIATE_DEPOSIT = `
       currency
       status
       initiatedAt
+      detectedAt
+      failedAt
+      reason
     }
   }
 `;
