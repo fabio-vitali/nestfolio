@@ -36,3 +36,23 @@ export function ruleQueuedRanks(files) {
   }
   return violations;
 }
+
+export function ruleActiveOutOfScope(file) {
+  if (file.frontmatter?.status !== 'active') return [];
+  const oos = file.frontmatter.out_of_scope;
+  if (!Array.isArray(oos) || oos.length === 0) {
+    return [v('active-out-of-scope', file,
+      `${file.id}: active item — out_of_scope is empty (rule 4)`)];
+  }
+  return [];
+}
+
+export function ruleShippedValidationGate(file) {
+  if (file.frontmatter?.status !== 'shipped') return [];
+  const gate = file.frontmatter.validation_gate;
+  if (typeof gate !== 'string' || gate.trim() === '') {
+    return [v('shipped-validation-gate', file,
+      `${file.id}: shipped item — validation_gate is empty (rule 5)`)];
+  }
+  return [];
+}

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ruleIdMatchesFilename, ruleSingleActive, ruleQueuedRanks } from '../lib/rules.mjs';
+import { ruleActiveOutOfScope, ruleShippedValidationGate } from '../lib/rules.mjs';
 
 const file = (id, fm = {}) => ({
   id, filename: `${id}.md`, path: `/dummy/${id}.md`,
@@ -63,4 +64,34 @@ test('rule 6: queued ⇒ fail when ranks duplicate', () => {
   const violations = ruleQueuedRanks(files);
   assert.equal(violations.length, 1);
   assert.match(violations[0].message, /duplicate rank/i);
+});
+
+test('rule 4: active ⇒ out_of_scope non-empty — pass', () => {
+  const f = file('a', { status: 'active', out_of_scope: ['something'] });
+  assert.deepEqual(ruleActiveOutOfScope(f), []);
+});
+
+test('rule 4: active ⇒ out_of_scope non-empty — fail when empty', () => {
+  const f = file('a', { status: 'active', out_of_scope: [] });
+  const violations = ruleActiveOutOfScope(f);
+  assert.equal(violations.length, 1);
+  assert.match(violations[0].message, /out_of_scope.*empty/i);
+});
+
+test('rule 4: active ⇒ out_of_scope non-empty — fail when missing', () => {
+  const f = file('a', { status: 'active' });
+  const violations = ruleActiveOutOfScope(f);
+  assert.equal(violations.length, 1);
+});
+
+test('rule 5: shipped ⇒ validation_gate non-empty — pass', () => {
+  const f = file('a', { status: 'shipped', validation_gate: '5/5 e2e' });
+  assert.deepEqual(ruleShippedValidationGate(f), []);
+});
+
+test('rule 5: shipped ⇒ validation_gate non-empty — fail when empty', () => {
+  const f = file('a', { status: 'shipped', validation_gate: '' });
+  const violations = ruleShippedValidationGate(f);
+  assert.equal(violations.length, 1);
+  assert.match(violations[0].message, /validation_gate.*empty/i);
 });
