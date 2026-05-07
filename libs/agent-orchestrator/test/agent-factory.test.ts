@@ -271,3 +271,54 @@ describe('createAgentNode — Phase γ.4 structured-output retry', () => {
     expect(mockInvoke.mock.calls[1][0]).toEqual(expect.stringContaining('Re-emit the structured-output tool call with EVERY required field populated'));
   });
 });
+
+describe('createAgentNode — __retryFeedback prompt augmentation', () => {
+  const testSchema = z.object({ value: z.string() });
+  const config: AgentConfig<typeof testSchema> = {
+    modelId: 'us.anthropic.claude-sonnet-4-6',
+    maxTokens: 1024,
+    temperature: 0.0,
+    schema: testSchema,
+    promptTemplate: 'Analyze: {input}',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env['AGENT_MODEL_OVERRIDE'];
+  });
+
+  it('appends PRIOR ATTEMPT FEEDBACK section when state.__retryFeedback is set', async () => {
+    mockInvoke.mockResolvedValueOnce({ value: 'recovered' });
+    const node = createAgentNode(config);
+    await node({ input: 'something', __retryFeedback: 'previous output had X, must be Y' });
+    const promptArg = mockInvoke.mock.calls[0][0] as string;
+    expect(promptArg).toContain('Analyze: something');
+    expect(promptArg).toContain('PRIOR ATTEMPT FEEDBACK — your previous output was rejected. Correct it now:');
+    expect(promptArg).toContain('previous output had X, must be Y');
+  });
+
+  it('emits the bare prompt when state.__retryFeedback is absent', async () => {
+    mockInvoke.mockResolvedValueOnce({ value: 'ok' });
+    const node = createAgentNode(config);
+    await node({ input: 'something' });
+    const promptArg = mockInvoke.mock.calls[0][0] as string;
+    expect(promptArg).toBe('Analyze: something');
+    expect(promptArg).not.toContain('PRIOR ATTEMPT FEEDBACK');
+  });
+
+  it('feedback-augmented prompt is also used by the tool_choice-pinned retry inside agent-factory', async () => {
+    mockInvoke.mockResolvedValueOnce({}); // degraded → triggers in-call retry
+    mockInvoke.mockResolvedValueOnce({ value: 'recovered' });
+    const node = createAgentNode(config);
+    await node({ input: 'something', __retryFeedback: 'corrective hint' });
+    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    const firstPrompt = mockInvoke.mock.calls[0][0] as string;
+    const secondPrompt = mockInvoke.mock.calls[1][0] as string;
+    expect(firstPrompt).toContain('PRIOR ATTEMPT FEEDBACK');
+    expect(firstPrompt).toContain('corrective hint');
+    // Second prompt carries BOTH the feedback and the existing REINFORCE_SUFFIX
+    expect(secondPrompt).toContain('PRIOR ATTEMPT FEEDBACK');
+    expect(secondPrompt).toContain('corrective hint');
+    expect(secondPrompt).toContain('Re-emit the structured-output tool call with EVERY required field populated');
+  });
+});

@@ -95,7 +95,11 @@ export function createAgentNode<T extends z.ZodType>(config: AgentConfig<T>): Ag
 
     const structured = llm.withStructuredOutput(schema as any);
     const input = typeof state.input === 'string' ? state.input : JSON.stringify(state);
-    const prompt = promptTemplate.replace('{input}', input);
+    const basePrompt = promptTemplate.replace('{input}', input);
+    const feedback = state['__retryFeedback'] as string | undefined;
+    const prompt = feedback
+      ? `${basePrompt}\n\nPRIOR ATTEMPT FEEDBACK — your previous output was rejected. Correct it now:\n${feedback}`
+      : basePrompt;
     // Forward RunnableConfig so LangChain propagates the AgentTracer's callbacks
     // (installed by invokeOrchestrator via graph.invoke(input, {callbacks: [...]}))
     // down to the LLM call. Without this, handleLLMStart/End never fire and
