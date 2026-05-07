@@ -107,6 +107,48 @@ describe('createOrchestrator', () => {
     expect(result['beta']).toEqual({ ok: true, output: { result: 'beta-up' } });
   });
 
+  // Regression: 2026-05-07. The Approach-B mode-aware portfolioValidationRule
+  // depends on `ctx.state['operatingMode']` reaching the validation hook.
+  // Diagnostic on deployed dev confirmed propagation works, but the only test
+  // coverage was a mock that bypassed the orchestrator. This test uses the
+  // REAL createOrchestrator with a real LangGraph StateGraph, only mocking
+  // ChatBedrockConverse at the Bedrock boundary, and asserts that a
+  // stateAnnotation-declared channel value reaches the validation rule.
+  it('propagates stateAnnotation channels into validation rule ctx.state', async () => {
+    mockInvoke.mockResolvedValue({ result: 'mode-aware-output' });
+    const ModeState = Annotation.Root({
+      input: Annotation<string | undefined>,
+      operatingMode: Annotation<string | undefined>,
+      alpha: Annotation<Record<string, unknown> | undefined>,
+    });
+    type ModeKey = 'alpha';
+    const captured: Array<{ keys: string[]; operatingMode: unknown; attempt: number }> = [];
+    const config: OrchestratorConfig<ModeKey, typeof ModeState.State> = {
+      waves: [{ agents: ['alpha'] }],
+      stateAnnotation: ModeState,
+      agents: { alpha: makeConfig() },
+      validationRules: {
+        alpha: {
+          validate: (_output, ctx) => {
+            captured.push({
+              keys: Object.keys(ctx?.state ?? {}),
+              operatingMode: ctx?.state?.['operatingMode'],
+              attempt: ctx?.attempt ?? -1,
+            });
+            return { valid: true, errors: [] };
+          },
+        },
+      },
+      retryOptions: { maxAttempts: 1 },
+    };
+    const graph = createOrchestrator(config);
+    await graph.invoke({ input: 'go', operatingMode: 'CONSERVATIVE' });
+    expect(captured).toHaveLength(1);
+    expect(captured[0].keys).toEqual(expect.arrayContaining(['input', 'operatingMode']));
+    expect(captured[0].operatingMode).toBe('CONSERVATIVE');
+    expect(captured[0].attempt).toBe(0);
+  });
+
   it('wave node uses configured fallback when agent throws', async () => {
     mockInvoke.mockRejectedValue(new Error('boom'));
     const config: OrchestratorConfig<TestAgentKey, typeof TestState.State> = {
