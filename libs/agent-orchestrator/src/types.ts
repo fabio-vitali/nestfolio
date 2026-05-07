@@ -21,18 +21,26 @@ export interface RetryOptions {
 export interface ValidationResult {
   readonly valid: boolean;
   readonly errors: string[];
+  readonly feedback?: string;
+}
+
+export interface ValidationContext {
+  readonly state: Record<string, unknown>;
+  readonly attempt: number;
 }
 
 export interface ValidationRule<T> {
-  readonly validate: (output: T) => ValidationResult;
+  readonly validate: (output: T, ctx?: ValidationContext) => ValidationResult;
 }
 
 export class ValidationError extends Error {
   readonly errors: string[];
-  constructor(errors: string[]) {
+  readonly feedback?: string;
+  constructor(errors: string[], opts?: { feedback?: string }) {
     super(`Validation failed: ${errors.join('; ')}`);
     this.name = 'ValidationError';
     this.errors = errors;
+    this.feedback = opts?.feedback;
   }
 }
 
