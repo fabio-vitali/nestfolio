@@ -5,7 +5,13 @@ import { parseFrontmatter } from './frontmatter.mjs';
 
 function writeDossier(path, ids) {
   const content = readFileSync(path, 'utf8');
-  const { frontmatter, body } = parseFrontmatter(content);
+  let frontmatter, body;
+  try {
+    ({ frontmatter, body } = parseFrontmatter(content));
+  } catch (e) {
+    console.warn(`[dossier-sync] skipping ${path}: malformed YAML frontmatter (${e.message.split('\n')[0]})`);
+    return;
+  }
   const fm = frontmatter ?? {};
   fm.related_workstreams = [...ids].sort();
   const fmYaml = stringifyYaml(fm);
