@@ -1,7 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ruleIdMatchesFilename, ruleSingleActive, ruleQueuedRanks } from '../lib/rules.mjs';
 import { ruleActiveOutOfScope, ruleShippedValidationGate } from '../lib/rules.mjs';
+import { ruleReferencesValid } from '../lib/rules.mjs';
+
+const fixturesDir = dirname(fileURLToPath(import.meta.url)) + '/fixtures';
 
 const file = (id, fm = {}) => ({
   id, filename: `${id}.md`, path: `/dummy/${id}.md`,
@@ -94,4 +99,38 @@ test('rule 5: shipped ⇒ validation_gate non-empty — fail when empty', () => 
   const violations = ruleShippedValidationGate(f);
   assert.equal(violations.length, 1);
   assert.match(violations[0].message, /validation_gate.*empty/i);
+});
+
+test('rule 3: design type with valid refs (path + anchor) — pass', () => {
+  const f = file('a', {
+    type: 'spec',
+    references: ['sample-target.md#7.2-portfolio-construction'],
+  });
+  assert.deepEqual(ruleReferencesValid(f, fixturesDir), []);
+});
+
+test('rule 3: design type with empty references — fail', () => {
+  const f = file('a', { type: 'design', references: [] });
+  const violations = ruleReferencesValid(f, fixturesDir);
+  assert.equal(violations.length, 1);
+  assert.match(violations[0].message, /references.*empty/i);
+});
+
+test('rule 3: design type with non-existent path — fail', () => {
+  const f = file('a', { type: 'spec', references: ['nonexistent.md'] });
+  const violations = ruleReferencesValid(f, fixturesDir);
+  assert.equal(violations.length, 1);
+  assert.match(violations[0].message, /not found/i);
+});
+
+test('rule 3: design type with bad anchor — fail', () => {
+  const f = file('a', { type: 'spec', references: ['sample-target.md#nope'] });
+  const violations = ruleReferencesValid(f, fixturesDir);
+  assert.equal(violations.length, 1);
+  assert.match(violations[0].message, /anchor.*not found/i);
+});
+
+test('rule 3: non-design types skip the check', () => {
+  const f = file('a', { type: 'bug', references: [] });
+  assert.deepEqual(ruleReferencesValid(f, fixturesDir), []);
 });

@@ -1,3 +1,6 @@
+import { readFileSync, existsSync } from 'node:fs';
+import { join, isAbsolute } from 'node:path';
+
 const v = (rule, file, message) => ({ rule, file: file?.filename ?? null, message });
 
 export function ruleIdMatchesFilename(file) {
@@ -55,4 +58,36 @@ export function ruleShippedValidationGate(file) {
       `${file.id}: shipped item — validation_gate is empty (rule 5)`)];
   }
   return [];
+}
+
+function slugify(s) {
+  return s.toLowerCase().replace(/[^a-z0-9.]+/g, '-').replace(/^-|-$/g, '');
+}
+
+export function ruleReferencesValid(file, repoRoot) {
+  if (!['design', 'spec'].includes(file.frontmatter?.type)) return [];
+  const refs = file.frontmatter.references;
+  if (!Array.isArray(refs) || refs.length === 0) {
+    return [v('references-valid', file,
+      `${file.id}: references are empty — ${file.frontmatter.type} type requires references (rule 3)`)];
+  }
+  const violations = [];
+  for (const ref of refs) {
+    const [pathPart, anchor] = ref.split('#');
+    const fullPath = isAbsolute(pathPart) ? pathPart : join(repoRoot, pathPart);
+    if (!existsSync(fullPath)) {
+      violations.push(v('references-valid', file,
+        `${file.id}: reference path not found: ${pathPart}`));
+      continue;
+    }
+    if (anchor) {
+      const content = readFileSync(fullPath, 'utf8');
+      const headings = [...content.matchAll(/^#+\s+(.+)$/gm)].map(m => slugify(m[1]));
+      if (!headings.includes(anchor.toLowerCase())) {
+        violations.push(v('references-valid', file,
+          `${file.id}: anchor "#${anchor}" not found in ${pathPart}`));
+      }
+    }
+  }
+  return violations;
 }
