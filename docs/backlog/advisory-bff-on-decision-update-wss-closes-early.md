@@ -1,6 +1,7 @@
 ---
 id: advisory-bff-on-decision-update-wss-closes-early
-status: parking
+status: queued
+rank: 1
 type: bug
 references: []
 out_of_scope: []

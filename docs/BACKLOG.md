@@ -11,12 +11,10 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [advisory-bff-on-decision-update-wss-closes-early](backlog/advisory-bff-on-decision-update-wss-closes-early.md) [bug] — WSS closes prematurely; e2e test hides bug via reload — must remove on fix.
 
 ## LATER
 
-- [advisory-bff-on-decision-update-wss-closes-early](backlog/advisory-bff-on-decision-update-wss-closes-early.md) [bug] — WSS closes prematurely; e2e test hides bug via reload — must remove on fix.
 - [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [bug] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging.
 - [bff-resolver-region-sweep](backlog/bff-resolver-region-sweep.md) [bug] — advisory-bff + ledger-bff mutation resolvers likely missing region field.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
