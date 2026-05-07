@@ -11,9 +11,8 @@ _(none)_
 
 ## QUEUED
 
-1. [verify-deposit-detected-double-emit](backlog/verify-deposit-detected-double-emit.md) [bug] — 10 min check whether the upstream is dup-emitting DEPOSIT_DETECTED.
-2. [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Latent — IAM-published mid-cycle frame would erase confirmedAt/rejectedAt fields.
-3. [spec3-phase1-mandate-cta-consent-shape](backlog/spec3-phase1-mandate-cta-consent-shape.md) [refactor] — mandate_cta missing ON RESPONSE marker; mandate_consent missing OPTIONS block.
+1. [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Latent — IAM-published mid-cycle frame would erase confirmedAt/rejectedAt fields.
+2. [spec3-phase1-mandate-cta-consent-shape](backlog/spec3-phase1-mandate-cta-consent-shape.md) [refactor] — mandate_cta missing ON RESPONSE marker; mandate_consent missing OPTIONS block.
 
 ## LATER
 
