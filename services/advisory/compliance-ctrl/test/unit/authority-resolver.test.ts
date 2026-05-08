@@ -1,18 +1,12 @@
 import { AuthorityResolver } from '../../src/rules/authority-resolver';
-import type { ComplianceInput, Violation } from '../../src/rules/rule-engine';
+import type { ComplianceInput, MandateSnapshot, Violation } from '../../src/rules/rule-engine';
 
-/** Balanced-mode defaults */
-const BALANCED_MANDATE = {
-  mandateId: 'm-1',
-  level: 'DISCRETIONARY' as const,
-  monthlyTurnoverCapPercent: 25,
-  maxSingleTradePercent: 10,
-  equityRiskBandPercent: 6,
-  driftTriggerPercent: 4,
-  singleEtfConcentrationPercent: 30,
-  drawdownCircuitBreakerPercent: 12,
+// BALANCED: maxSingleTrade=10%, monthlyTurnover=25%
+const BALANCED_MANDATE: MandateSnapshot = {
+  level: 'DISCRETIONARY',
+  status: 'ACTIVE',
+  operatingMode: 'BALANCED',
   effectiveDate: '2024-01-01T00:00:00.000Z',
-  revokedAt: null,
 };
 
 function buildInput(overrides: Partial<ComplianceInput> = {}): ComplianceInput {
@@ -67,7 +61,8 @@ describe('AuthorityResolver', () => {
     expect(result).toBe('L2');
   });
 
-  it('should resolve to L2 when trade exceeds Balanced maxSingleTradePercent (10%)', () => {
+  // ── maxSingleTradePercent via resolveGuardrailParams ─────────────────
+  it('should resolve to L2 when trade exceeds BALANCED maxSingleTradePercent (10%)', () => {
     const input = buildInput({
       proposedTrades: [
         {
@@ -86,7 +81,7 @@ describe('AuthorityResolver', () => {
     expect(result).toBe('L2');
   });
 
-  it('should resolve to L1 when trade is within Balanced maxSingleTradePercent (10%)', () => {
+  it('should resolve to L1 when trade is within BALANCED maxSingleTradePercent (10%)', () => {
     const input = buildInput({
       proposedTrades: [
         {
@@ -105,13 +100,10 @@ describe('AuthorityResolver', () => {
     expect(result).toBe('L1');
   });
 
-  it('should resolve to L2 when trade exceeds Conservative maxSingleTradePercent (5%)', () => {
+  it('should resolve to L2 when trade exceeds CONSERVATIVE maxSingleTradePercent (5%)', () => {
+    // CONSERVATIVE: maxSingleTrade=5%, monthlyTurnover=10%
     const input = buildInput({
-      mandate: {
-        ...BALANCED_MANDATE,
-        maxSingleTradePercent: 5,
-        monthlyTurnoverCapPercent: 15,
-      },
+      mandate: { ...BALANCED_MANDATE, operatingMode: 'CONSERVATIVE' },
       proposedTrades: [
         {
           symbol: 'AAPL',
@@ -129,13 +121,10 @@ describe('AuthorityResolver', () => {
     expect(result).toBe('L2');
   });
 
-  it('should resolve to L1 for same trade under Aggressive maxSingleTradePercent (20%)', () => {
+  it('should resolve to L1 for same trade under AGGRESSIVE maxSingleTradePercent (20%)', () => {
+    // AGGRESSIVE: maxSingleTrade=20%, monthlyTurnover=50%
     const input = buildInput({
-      mandate: {
-        ...BALANCED_MANDATE,
-        maxSingleTradePercent: 20,
-        monthlyTurnoverCapPercent: 40,
-      },
+      mandate: { ...BALANCED_MANDATE, operatingMode: 'AGGRESSIVE' },
       proposedTrades: [
         {
           symbol: 'AAPL',
@@ -153,7 +142,8 @@ describe('AuthorityResolver', () => {
     expect(result).toBe('L1');
   });
 
-  it('should resolve to L2 when monthly turnover would exceed cap', () => {
+  // ── monthlyTurnoverCapPercent via resolveGuardrailParams ─────────────
+  it('should resolve to L2 when monthly turnover would exceed BALANCED cap (25%)', () => {
     const input = buildInput({
       proposedTrades: [
         {
@@ -189,7 +179,7 @@ describe('AuthorityResolver', () => {
     expect(result).toBe('L2');
   });
 
-  it('should resolve to L1 when total turnover is within cap', () => {
+  it('should resolve to L1 when total turnover is within BALANCED cap (25%)', () => {
     const input = buildInput({
       proposedTrades: [
         {

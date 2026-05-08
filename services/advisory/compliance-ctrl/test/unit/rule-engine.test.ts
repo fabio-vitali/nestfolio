@@ -1,32 +1,28 @@
-import { RuleEngine, type ComplianceInput } from '../../src/rules/rule-engine';
+import { RuleEngine, type ComplianceInput, type MandateSnapshot } from '../../src/rules/rule-engine';
 import { MandateValidator } from '../../src/rules/mandate-validator';
 import { GuardrailEvaluator } from '../../src/rules/guardrail-evaluator';
 import { SuitabilityChecker } from '../../src/rules/suitability-checker';
 import { AuthorityResolver } from '../../src/rules/authority-resolver';
+
+const BALANCED_MANDATE: MandateSnapshot = {
+  level: 'DISCRETIONARY',
+  status: 'ACTIVE',
+  operatingMode: 'BALANCED',
+  effectiveDate: '2024-01-01T00:00:00.000Z',
+};
 
 function buildInput(overrides: Partial<ComplianceInput> = {}): ComplianceInput {
   return {
     decisionPacketId: 'dp-1',
     tenantId: 't-1',
     userId: 'u-1',
-    mandate: {
-      mandateId: 'm-1',
-      level: 'DISCRETIONARY',
-      monthlyTurnoverCapPercent: 10,
-      maxSingleTradePercent: 5,
-      equityRiskBandPercent: 6,
-      driftTriggerPercent: 4,
-      singleEtfConcentrationPercent: 30,
-      drawdownCircuitBreakerPercent: 12,
-      effectiveDate: '2024-01-01T00:00:00.000Z',
-      revokedAt: null,
-    },
+    mandate: { ...BALANCED_MANDATE },
     proposedTrades: [
       {
         symbol: 'AAPL',
         assetClass: 'EQUITY',
         side: 'BUY',
-        quantityOrAmountCents: 2_000_00,
+        quantityOrAmountCents: 2_000_00, // 2% — well within BALANCED limits
         targetWeightPercent: 2,
         rationale: 'Good value',
       },
@@ -56,20 +52,9 @@ describe('RuleEngine', () => {
     expect(output.checks.every((c) => c.passed)).toBe(true);
   });
 
-  it('should BLOCK when mandate is revoked', () => {
+  it('should BLOCK when mandate status is REVOKED', () => {
     const input = buildInput({
-      mandate: {
-        mandateId: 'm-1',
-        level: 'DISCRETIONARY',
-        monthlyTurnoverCapPercent: 10,
-        maxSingleTradePercent: 5,
-        equityRiskBandPercent: 6,
-        driftTriggerPercent: 4,
-        singleEtfConcentrationPercent: 30,
-        drawdownCircuitBreakerPercent: 12,
-        effectiveDate: '2024-01-01T00:00:00.000Z',
-        revokedAt: '2025-06-01T00:00:00.000Z',
-      },
+      mandate: { ...BALANCED_MANDATE, status: 'REVOKED' },
     });
 
     const output = engine.evaluate(input);
@@ -78,14 +63,16 @@ describe('RuleEngine', () => {
     expect(output.violations.some((v) => v.rule === 'MANDATE_SCOPE')).toBe(true);
   });
 
-  it('should BLOCK when guardrail is violated', () => {
+  it('should BLOCK when guardrail is violated (CONSERVATIVE mode — max single trade 5%)', () => {
+    // CONSERVATIVE: maxSingleTradePercent=5; 10% trade exceeds it.
     const input = buildInput({
+      mandate: { ...BALANCED_MANDATE, operatingMode: 'CONSERVATIVE' },
       proposedTrades: [
         {
           symbol: 'TSLA',
           assetClass: 'EQUITY',
           side: 'BUY',
-          quantityOrAmountCents: 10_000_00, // 10% > 5% max single trade
+          quantityOrAmountCents: 10_000_00, // 10% > 5% conservative limit
           targetWeightPercent: 10,
           rationale: 'Overweight',
         },
@@ -123,18 +110,7 @@ describe('RuleEngine', () => {
 
   it('should APPROVE with L2 for ADVISORY mandate even when all rules pass', () => {
     const input = buildInput({
-      mandate: {
-        mandateId: 'm-1',
-        level: 'ADVISORY',
-        monthlyTurnoverCapPercent: 10,
-        maxSingleTradePercent: 5,
-        equityRiskBandPercent: 6,
-        driftTriggerPercent: 4,
-        singleEtfConcentrationPercent: 30,
-        drawdownCircuitBreakerPercent: 12,
-        effectiveDate: '2024-01-01T00:00:00.000Z',
-        revokedAt: null,
-      },
+      mandate: { ...BALANCED_MANDATE, level: 'ADVISORY' },
     });
 
     const output = engine.evaluate(input);
@@ -147,19 +123,7 @@ describe('RuleEngine', () => {
   describe('MANDATE_REVOKED status gate end-to-end', () => {
     it('should BLOCK with L2 + MANDATE_REVOKED check when mandate.status === REVOKED', () => {
       const input = buildInput({
-        mandate: {
-          mandateId: 'm-1',
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 10,
-          maxSingleTradePercent: 5,
-          equityRiskBandPercent: 6,
-          driftTriggerPercent: 4,
-          singleEtfConcentrationPercent: 30,
-          drawdownCircuitBreakerPercent: 12,
-          effectiveDate: '2024-01-01T00:00:00.000Z',
-          revokedAt: null,
-          status: 'REVOKED',
-        },
+        mandate: { ...BALANCED_MANDATE, status: 'REVOKED' },
       });
 
       const output = engine.evaluate(input);
@@ -185,21 +149,8 @@ describe('RuleEngine', () => {
     });
 
     it('should BLOCK on REVOKED even when all other rules would pass', () => {
-      // Same input as the green-path test but with status=REVOKED.
       const input = buildInput({
-        mandate: {
-          mandateId: 'm-1',
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 10,
-          maxSingleTradePercent: 5,
-          equityRiskBandPercent: 6,
-          driftTriggerPercent: 4,
-          singleEtfConcentrationPercent: 30,
-          drawdownCircuitBreakerPercent: 12,
-          effectiveDate: '2024-01-01T00:00:00.000Z',
-          revokedAt: null,
-          status: 'REVOKED',
-        },
+        mandate: { ...BALANCED_MANDATE, status: 'REVOKED' },
       });
 
       const output = engine.evaluate(input);
@@ -210,25 +161,15 @@ describe('RuleEngine', () => {
   });
 
   it('should collect all violations when multiple rules fail', () => {
+    // REVOKED mandate + oversized trade (CONSERVATIVE mode)
     const input = buildInput({
-      mandate: {
-        mandateId: 'm-1',
-        level: 'DISCRETIONARY',
-        monthlyTurnoverCapPercent: 10,
-        maxSingleTradePercent: 5,
-        equityRiskBandPercent: 6,
-        driftTriggerPercent: 4,
-        singleEtfConcentrationPercent: 30,
-        drawdownCircuitBreakerPercent: 12,
-        effectiveDate: '2024-01-01T00:00:00.000Z',
-        revokedAt: '2025-06-01T00:00:00.000Z', // revoked
-      },
+      mandate: { ...BALANCED_MANDATE, status: 'REVOKED', operatingMode: 'CONSERVATIVE' },
       proposedTrades: [
         {
           symbol: 'TSLA',
           assetClass: 'EQUITY',
           side: 'BUY',
-          quantityOrAmountCents: 10_000_00, // exceeds single trade limit
+          quantityOrAmountCents: 10_000_00, // 10% > 5% conservative single-trade limit
           targetWeightPercent: 10,
           rationale: 'Overweight',
         },

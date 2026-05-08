@@ -1,8 +1,10 @@
 import type { ComplianceInput, Violation } from './rule-engine';
+import { resolveGuardrailParams } from './guardrail-params';
 
 /**
  * Determines the authority level for a compliance decision.
- * Uses mode-derived thresholds from the mandate snapshot instead of hardcoded values.
+ * Derives numeric thresholds from the mandate's operatingMode via resolveGuardrailParams
+ * so no guardrail numbers live on MandateSnapshot itself.
  * - L1 (autonomous): DISCRETIONARY mandate, all guardrails pass, within thresholds
  * - L2 (requires user confirmation): ADVISORY mandate, violations, or threshold exceeded
  */
@@ -26,8 +28,10 @@ export class AuthorityResolver {
       return 'L2';
     }
 
+    const guardrails = resolveGuardrailParams(mandate.operatingMode);
+
     // Check each trade against mode-derived maxSingleTradePercent
-    const maxTradeAmountCents = (portfolioValue * mandate.maxSingleTradePercent) / 100;
+    const maxTradeAmountCents = (portfolioValue * guardrails.maxSingleTradePercent) / 100;
     const hasOversizedTrade = proposedTrades.some(
       (trade) => trade.quantityOrAmountCents > maxTradeAmountCents,
     );
@@ -36,7 +40,7 @@ export class AuthorityResolver {
     }
 
     // Check total turnover against mode-derived monthlyTurnoverCapPercent
-    const maxTurnoverCents = (portfolioValue * mandate.monthlyTurnoverCapPercent) / 100;
+    const maxTurnoverCents = (portfolioValue * guardrails.monthlyTurnoverCapPercent) / 100;
     const totalTurnoverCents = proposedTrades.reduce(
       (sum, trade) => sum + trade.quantityOrAmountCents, 0,
     );

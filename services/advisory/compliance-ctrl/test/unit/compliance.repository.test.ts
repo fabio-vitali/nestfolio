@@ -100,12 +100,10 @@ describe('ComplianceRepository', () => {
       const ctx = makeCtx('t-1', 'u-1');
 
       const created = await repo.createComplianceCheck(ctx, 'cc-1', 'dp-1', {
-        mandateId: 'm-1',
         level: 'DISCRETIONARY',
-        monthlyTurnoverCapPercent: 10,
-        maxSingleTradePercent: 5,
+        status: 'ACTIVE',
+        operatingMode: 'BALANCED',
         effectiveDate: '2024-01-01T00:00:00.000Z',
-        revokedAt: null,
       });
 
       expect(created).toBe(true);
@@ -129,12 +127,10 @@ describe('ComplianceRepository', () => {
       const ctx = makeCtx('t-1', 'u-1');
 
       const created = await repo.createComplianceCheck(ctx, 'cc-1', 'dp-1', {
-        mandateId: 'm-1',
         level: 'DISCRETIONARY',
-        monthlyTurnoverCapPercent: 10,
-        maxSingleTradePercent: 5,
+        status: 'ACTIVE',
+        operatingMode: 'BALANCED',
         effectiveDate: '2024-01-01T00:00:00.000Z',
-        revokedAt: null,
       });
 
       expect(created).toBe(false);
@@ -222,8 +218,10 @@ describe('ComplianceRepository', () => {
       const ctx = makeCtx('t-1', 'u-1');
 
       await repo.putMandateSnapshot(ctx, {
-        mandateId: 'm-1',
         level: 'DISCRETIONARY',
+        status: 'ACTIVE',
+        operatingMode: 'BALANCED',
+        effectiveDate: '2024-01-01T00:00:00.000Z',
       });
 
       expect(mockSend).toHaveBeenCalledTimes(1);
@@ -235,7 +233,8 @@ describe('ComplianceRepository', () => {
         tenantId: 't-1',
         userId: 'u-1',
         region: 'us-east-1',
-        mandateId: 'm-1',
+        level: 'DISCRETIONARY',
+        operatingMode: 'BALANCED',
       });
     });
   });
