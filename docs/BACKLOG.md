@@ -26,6 +26,7 @@
 - [host-runtime-config-json-regeneration-silently-optional](backlog/host-runtime-config-json-regeneration-silently-optional.md) [bug] — Two latent bugs: deploy.sh skips config regen + build doesn't copy file.
 - [integration-test-mock-resilience](backlog/integration-test-mock-resilience.md) [tooling] — DESIGN IN PROGRESS (2026-04-16) — partly superseded by 2026-05-05 bootstrap uplift; FakeLlm + SsmOverride remain unstarted.
 - [intermittent-zero-packet-runs-operating-mode-e2e](backlog/intermittent-zero-packet-runs-operating-mode-e2e.md) [bug] — Hypothesis: AgentCore Runtime ARM64 cold-start variability under serial mode.
+- [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
 - [pr-audit-workflow-missing-pnpm-install](backlog/pr-audit-workflow-missing-pnpm-install.md) [bug] — pr-audit.yml fails at 'Install dependencies' step — pnpm not on runner. Compare with pr-deploy.yml's pnpm/action-setup.
