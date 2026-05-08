@@ -40,20 +40,15 @@ export interface Goal {
   readonly targetReturn: number;
 }
 
-/** Mandate defines the rules under which the advisory engine can act. */
+export type MandateStatusValue = 'ACTIVE' | 'REVOKED';
+
+/** Authority grant — sibling row at sk='Mandate'. Lifecycle only, no policy fields. */
 export interface Mandate {
   readonly mandateId: string;
   readonly level: MandateLevel;
-  readonly monthlyTurnoverCapPercent: number;
-  readonly maxSingleTradePercent: number;
-  readonly equityRiskBandPercent: number;
-  readonly driftTriggerPercent: number;
-  readonly singleEtfConcentrationPercent: number;
-  readonly drawdownCircuitBreakerPercent: number;
-  readonly rebalanceCadence: RebalanceCadence;
+  readonly status: MandateStatusValue;
   readonly effectiveDate: string;
   readonly revokedAt: string | null;
-  readonly status: 'ACTIVE' | 'REVOKED';
 }
 
 /** Account funding mode (simulation vs live capital). */
@@ -73,7 +68,8 @@ export interface InvestorProfile {
   readonly accountMode: AccountMode;
   readonly goal: Goal;
   readonly riskProfile: RiskProfile;
-  readonly mandate: Mandate;
+  readonly mandateLevel: MandateLevel;
+  readonly mandateId: string;
   readonly onboardingCompletedAt: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
