@@ -104,4 +104,25 @@ describe('advisory-adpt: Investor → Advisory forwarding', () => {
     expect(event.detailType).toBe('MANDATE_REVOKED');
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 60_000);
+
+  it('should forward OPERATING_MODE_CHANGED from InvestorBus to AdvisoryBus', async () => {
+    const trap = new EventBusTrap(ctx);
+    await trap.deploy({
+      bus: 'advisory',
+      detailType: 'OPERATING_MODE_CHANGED',
+    });
+
+    await eb.putEvent({
+      bus: 'investor',
+      targetService: 'advisory-adpt',
+      detailType: 'OPERATING_MODE_CHANGED',
+      detail: {
+        operatingMode: 'AGGRESSIVE',
+      },
+    });
+
+    const event = await trap.waitForEvent<BusEventPayload>();
+    expect(event.detailType).toBe('OPERATING_MODE_CHANGED');
+    expect(event.detail.context.tenantId).toBe(ctx.tenantId);
+  }, 60_000);
 });
