@@ -6,10 +6,10 @@ type: design
 references:
   - services/investor/investor-bff/src/transforms/onboarding-completed.ts
   - services/investor/investor-bff/src/repositories/investor-profile.repository.ts
-  - services/investor/investor-bff/src/graphql/js-function/update-mandate.fn.js
+  - services/investor/investor-bff/src/graphql/js-function/update-operating-mode.fn.js
   - services/investor/investor-bff/src/graphql/js-function/revoke-mandate.fn.js
   - services/investor/investor-bff/src/schema.graphql
-  - services/investor/investor-bff/src/domain/guardrail-params.ts
+  - services/advisory/compliance-ctrl/src/rules/guardrail-params.ts
   - services/advisory/compliance-ctrl/src/handlers/event-listener.ts
   - services/advisory/compliance-ctrl/src/rules/rule-engine.ts
   - services/advisory/compliance-ctrl/src/rules/guardrail-evaluator.ts
