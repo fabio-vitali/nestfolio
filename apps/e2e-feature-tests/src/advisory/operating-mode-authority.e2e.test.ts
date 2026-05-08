@@ -19,20 +19,23 @@ import {
  *
  * Flow:
  *   1. onboarded(mode, mandateLevel: 'DISCRETIONARY') → investor-bff writes the
- *      composite InvestorProfile row with mode-derived guardrail params on
- *      mandate.* → CDC emits INVESTOR_PROFILE_CREATED → advisory-adpt forwards
- *      to AdvisoryBus → compliance-ctrl materializes MandateSnapshot.
+ *      composite InvestorProfile row (operatingMode on the row) + sibling Mandate
+ *      row (slim: mandateId, level, status, operatingMode, effectiveDate) → CDC
+ *      emits INVESTOR_PROFILE_CREATED → advisory-adpt forwards to AdvisoryBus →
+ *      compliance-ctrl materializes MandateSnapshot{level, status, operatingMode, effectiveDate}.
  *   2. Synthetic RECOMMENDATION_PROPOSED on advisory bus carrying a controlled
  *      proposedTrade size + a unique decisionPacketId + a fake taskToken.
- *   3. compliance-ctrl ingests, runs RuleEngine, writes ComplianceCheck record.
+ *   3. compliance-ctrl ingests, runs RuleEngine — guardrail thresholds are derived
+ *      at evaluation time via resolveGuardrailParams(mandate.operatingMode), not
+ *      stored as numeric fields on MandateSnapshot.
  *   4. The test reads the ComplianceCheck row back, filtered by decisionPacketId
  *      (so the SF auto-pipeline's RECOMMENDATION_PROPOSED — also fired by the
  *      onboarding's Mandate write — doesn't race against the test's row).
  *
- * A 6 % trade should resolve:
- *   - L2 in CONSERVATIVE (maxSingleTradePercent = 5 %, trade exceeds threshold)
- *   - L1 in BALANCED    (maxSingleTradePercent = 10 %, trade within threshold)
- *   - L1 in AGGRESSIVE  (maxSingleTradePercent = 20 %, trade within threshold)
+ * A 6 % trade should resolve (thresholds from resolveGuardrailParams):
+ *   - L2 in CONSERVATIVE (maxSingleTradePercent = 5 %, trade exceeds threshold → L2)
+ *   - L1 in BALANCED    (maxSingleTradePercent = 10 %, trade within threshold → L1)
+ *   - L1 in AGGRESSIVE  (maxSingleTradePercent = 20 %, trade within threshold → L1)
  *
  * The mandateLevel: 'DISCRETIONARY' override is required because the default
  * for e2e tenants is ADVISORY (forces L2 regardless of mode — see
