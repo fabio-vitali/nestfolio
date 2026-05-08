@@ -170,17 +170,19 @@ describe('scenario — investor switches operatingMode CONSERVATIVE → AGGRESSI
     // The 3-tier event topology emits both: the carrier (INVESTOR_PROFILE_UPDATED)
     // fires on any MODIFY to the row, and the semantic event (OPERATING_MODE_CHANGED)
     // fires from the producer-side onFieldChange diff on operatingMode.
+    // Wait independently for each event — they originate from one CDC batch but
+    // arrive in non-deterministic order on the trap.
     const modeChangedEvent = await trap.waitForEvent({
       detailType: InvestorBffEventTypes.OPERATING_MODE_CHANGED,
       timeoutMs: 60_000,
     });
     expect(modeChangedEvent.detailType).toBe(InvestorBffEventTypes.OPERATING_MODE_CHANGED);
 
-    const remaining = await trap.drain();
-    const profileUpdates = remaining.filter(
-      (e) => e.detailType === InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
-    );
-    expect(profileUpdates.length).toBeGreaterThanOrEqual(1);
+    const carrierEvent = await trap.waitForEvent({
+      detailType: InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
+      timeoutMs: 60_000,
+    });
+    expect(carrierEvent.detailType).toBe(InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED);
 
     // ── Step 3: wait for MandateSnapshot to reflect AGGRESSIVE in compliance-ctrl ──
     // OPERATING_MODE_CHANGED → advisory-adpt forwards → compliance-ctrl re-derives.
