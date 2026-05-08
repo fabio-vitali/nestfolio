@@ -64,9 +64,15 @@ export class InvestorBffStack extends ServiceStack {
       eventTypes: {
         'InvestorProfile': {
           insert: InvestorBffEventTypes.INVESTOR_PROFILE_CREATED,
-          modify: InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
+          modify: {
+            always: InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
+            onFieldChange: {
+              operatingMode: InvestorBffEventTypes.OPERATING_MODE_CHANGED,
+              goal: InvestorBffEventTypes.GOAL_UPDATED,
+            },
+          },
         },
-        'MandateStatus': {
+        'Mandate': {
           insert: InvestorBffEventTypes.MANDATE_ISSUED,
           modify: InvestorBffEventTypes.MANDATE_REVOKED,
         },
