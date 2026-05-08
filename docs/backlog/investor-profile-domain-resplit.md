@@ -1,6 +1,7 @@
 ---
 id: investor-profile-domain-resplit
-status: active
+status: shipped
+closed: "2026-05-08"
 rank: 1
 type: design
 references:
@@ -31,7 +32,7 @@ spec: docs/superpowers/specs/2026-05-08-investor-profile-domain-resplit-design.m
 plan: null
 topic_memory:
   - project_investor_profile_collapse.md
-validation_gate: null
+validation_gate: "unit 849+ tests green (9 projects); deploy clean to dev sandbox; e2e 5/5 resplit-touched scenarios green (revoke-mandate, operating-mode-authority×3, update-operating-mode); DDB confirmed Mandate sibling row + MandateSnapshot shape + REVOKED lifecycle; backlog-lint GREEN"
 notes: "Re-split Mandate as a sibling aggregate; relocate GUARDRAIL_TABLE policy into compliance-ctrl; introduce 3-tier event topology (carrier + semantic + lifecycle) via declarative onFieldChange extension to cdk-constructs."
 ---
 
