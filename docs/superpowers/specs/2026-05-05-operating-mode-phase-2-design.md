@@ -1,5 +1,7 @@
 # Operating Mode Phase 2 — Agent Behavior Dimension
 
+> **Partially superseded by [2026-05-08-investor-profile-domain-resplit-design.md](./2026-05-08-investor-profile-domain-resplit-design.md)** — the parts dealing with mandate-on-InvestorProfile, MandateStatus sibling, and carrier-only event topology are reversed. Other parts (multi-row YAGNI removal, plural-Goal removal, version-field cleanup) remain canonical.
+
 **Date:** 2026-05-05
 **Status:** Proposed (pending approval)
 **Scope:** `services/advisory/{decision-workflow-ctrl,investor-profile-ctrl,portfolio-engine-ctrl,advisory-narrative-ctrl}/src/`, `apps/e2e-feature-tests/src/advisory/`

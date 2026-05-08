@@ -1,5 +1,7 @@
 # Operating Mode Implementation Design
 
+> **Partially superseded by [2026-05-08-investor-profile-domain-resplit-design.md](./2026-05-08-investor-profile-domain-resplit-design.md)** — the parts dealing with mandate-on-InvestorProfile, MandateStatus sibling, and carrier-only event topology are reversed. Other parts (multi-row YAGNI removal, plural-Goal removal, version-field cleanup) remain canonical.
+
 **Date:** 2026-04-14
 **Status:** Phase 1 SHIPPED 2026-05-05 (verified 4/4 implementation tasks on `main`, E2E gate 3/3 GREEN against deployed dev — see `docs/BACKLOG.md` Recently shipped). Phase 2 (agent-behavior dimension B) filed as new QUEUED `[design]` item.
 **Reference:** `specifications/01-product-vision.md` — Operating Modes and Guardrails Table

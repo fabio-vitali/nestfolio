@@ -1,5 +1,7 @@
 # InvestorProfile single-row collapse — deep review (2026-05-03)
 
+> **Partially superseded by [2026-05-08-investor-profile-domain-resplit-design.md](./2026-05-08-investor-profile-domain-resplit-design.md)** — the parts dealing with mandate-on-InvestorProfile, MandateStatus sibling, and carrier-only event topology are reversed. Other parts (multi-row YAGNI removal, plural-Goal removal, version-field cleanup) remain canonical.
+
 **Status:** pre-design synthesis. Will inform the formal design spec.
 **Active workstream:** `[design]` Collapse InvestorProfile to single-row CQRS BFF read model (see `docs/BACKLOG.md` ACTIVE).
 **Pivoted from:** `[design]` Onboarding completion fan-out (3 → 1) — the fan-out is a symptom of the multi-row decomposition; this collapse dissolves it at root.

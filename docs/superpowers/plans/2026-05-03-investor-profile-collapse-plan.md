@@ -1,5 +1,7 @@
 # InvestorProfile Single-Row Collapse Implementation Plan
 
+> **Partially superseded by [2026-05-08-investor-profile-domain-resplit-design.md](../specs/2026-05-08-investor-profile-domain-resplit-design.md)** — the parts dealing with mandate-on-InvestorProfile, MandateStatus sibling, and carrier-only event topology are reversed. Other parts (multi-row YAGNI removal, plural-Goal removal, version-field cleanup) remain canonical.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace `investor-bff`'s multi-row InvestorProfile decomposition (separate `Goal#${goalId}`, `RiskProfile`, `Mandate`, `OperatingModeRecord`, `AccountMode`, `InvestorProfile` rows) with a single composite `InvestorProfile` row per investor carrying nested groups; collapse 8 per-field events to 2 (`INVESTOR_PROFILE_CREATED`/`UPDATED`); rewire `decision-workflow-ctrl` to start Step Functions directly from EventBridge with `executionName` dedup (removing `WorkflowTrigger` row + `TriggerIngress` Lambda); add a separate `MandateStatus` row owning the mandate lifecycle (emitting `MANDATE_ISSUED`/`MANDATE_REVOKED`); complete the half-implemented `revokeMandate` flow.

@@ -1,5 +1,7 @@
 # Design: InvestorProfile single-row collapse
 
+> **Partially superseded by [2026-05-08-investor-profile-domain-resplit-design.md](./2026-05-08-investor-profile-domain-resplit-design.md)** — the parts dealing with mandate-on-InvestorProfile, MandateStatus sibling, and carrier-only event topology are reversed. Other parts (multi-row YAGNI removal, plural-Goal removal, version-field cleanup) remain canonical.
+
 **Date:** 2026-05-03
 **Status:** Spec — pending user review before writing-plans.
 **ACTIVE workstream:** see `docs/BACKLOG.md` ACTIVE.
