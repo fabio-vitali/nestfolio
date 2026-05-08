@@ -62,7 +62,7 @@ function buildMemoryClient(): MemoryClient {
   return createMemoryClient({
     memoryId,
     region: process.env['AWS_REGION'] ?? 'us-east-1',
-    serviceName: 'portfolio-engine-ctrl',
+    serviceName: 'portfolio-engine',
   });
 }
 
@@ -156,14 +156,19 @@ export async function invokePortfolioEngine(
   // agent's wave-node entry is `ok: true`. A partial-degraded cycle no longer
   // poisons AgentCore Memory for downstream agents. The discriminant is
   // stripped before writing because Memory consumers expect raw outputs.
+  //
+  // Iterate only EXPECTED agent keys — `result` also carries LangGraph state
+  // metadata (`input` as string, etc.) that must NOT be treated as a
+  // discriminant. Mirrors agent-service.ts commit 97d41a36 (2026-05-07).
   if (!('serviceUnavailable' in result)) {
-    const entries = Object.entries(result);
-    const allOk = entries.every(
-      ([, v]) => typeof v === 'object' && v !== null && (v as { ok?: boolean }).ok === true,
-    );
+    const expectedAgentKeys = ['portfolio-construction', 'rebalance-planner'] as const;
+    const allOk = expectedAgentKeys.every((k) => {
+      const v = (result as Record<string, unknown>)[k];
+      return typeof v === 'object' && v !== null && (v as { ok?: boolean }).ok === true;
+    });
     if (allOk) {
       const stripped = Object.fromEntries(
-        entries.map(([k, v]) => [k, (v as { output: Record<string, unknown> }).output]),
+        expectedAgentKeys.map((k) => [k, ((result as Record<string, unknown>)[k] as { output: Record<string, unknown> }).output]),
       );
       await session.writeAgentOutput(stripped);
     }

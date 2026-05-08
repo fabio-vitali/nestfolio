@@ -5,7 +5,7 @@ import {
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-orchestrator';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError } from '@nestfolio/agent-orchestrator';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
 
 export interface SfnCallbackDeps {
@@ -26,13 +26,19 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
 
     // Extract operatingMode from the InvestorProfile payload SF passes via
     // subject.investorProfile (composite InvestorProfile row carries it post-collapse).
-    // Default to BALANCED for non-INVESTOR_PROFILE_* triggers (DEPOSIT_DETECTED etc.)
-    // where triggerContext is not a profile payload — see
-    // docs/superpowers/specs/2026-05-05-operating-mode-phase-2-design.md §Out of scope.
+    // Throws UnknownOperatingModeError if missing — silent BALANCED fallback was
+    // masking the propagation regression tracked in
+    // docs/backlog/operating-mode-shape-empty-proposed-trades.md.
     const investorProfile = (subject.investorProfile as Record<string, unknown> | undefined) ?? {};
-    const operatingMode = (investorProfile.operatingMode as string)
-      ?? ((investorProfile.mandate as Record<string, unknown> | undefined)?.operatingMode as string)
-      ?? 'BALANCED';
+    const operatingMode = (investorProfile.operatingMode as string | undefined)
+      ?? ((investorProfile.mandate as Record<string, unknown> | undefined)?.operatingMode as string | undefined);
+    if (!operatingMode) {
+      throw new UnknownOperatingModeError({
+        decisionId,
+        resolutionPath: 'subject.investorProfile.operatingMode || subject.investorProfile.mandate.operatingMode',
+        availableKeys: Object.keys(investorProfile),
+      });
+    }
 
     let result: Record<string, unknown>;
     try {
@@ -52,9 +58,11 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
       throw error;
     }
 
-    // Wrap with operatingMode at top level so downstream agents (portfolio-engine,
-    // advisory-narrative) read it from Memory via session.readUpstreamOutput('investor-profile').
-    await session.writeAgentOutput({ operatingMode, ...result });
+    // Memory persistence happens inside the AgentRuntime (graph.ts:117) — it
+    // includes operatingMode at the top level so this Lambda's previous
+    // wrap-write (which was silently deduplicated by `requestIdentifier`
+    // idempotency in BatchCreateMemoryRecordsCommand) is no longer needed.
+    void result;
 
     return {
       output: { decisionId, tenantId },

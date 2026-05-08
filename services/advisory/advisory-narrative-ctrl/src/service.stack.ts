@@ -97,8 +97,27 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
         MODEL_SONNET_ID: modelSonnetId,
         TABLE_NAME: state.getTable().tableName,
         EVENT_BUS_NAME: this.eventBus.eventBusName,
+        MEMORY_ID: memoryId,
       },
     });
+
+    // Grant the AgentRuntime role AgentCore Memory write permissions —
+    // graph.ts:writeAgentOutput runs in this container. See
+    // investor-profile-ctrl service.stack.ts for the rationale.
+    agentRuntime.runtime.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        'bedrock-agentcore:CreateEvent',
+        'bedrock-agentcore:BatchCreateMemoryRecords',
+        'bedrock-agentcore:RetrieveMemoryRecords',
+        'bedrock-agentcore:GetMemoryRecord',
+        'bedrock-agentcore:ListMemoryRecords',
+        'bedrock-agentcore:ListEvents',
+        'bedrock-agentcore:ListActors',
+        'bedrock-agentcore:ListSessions',
+      ],
+      resources: ['*'],
+    }));
 
     // SSM-published runtime target. Defaults to the real AgentCore runtime ARN;
     // integration tests redirect via SsmOverrideFixture to a Function URL.

@@ -112,6 +112,7 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
         MODEL_SONNET_ID: modelSonnetId,
         TABLE_NAME: state.getTable().tableName,
         EVENT_BUS_NAME: this.eventBus.eventBusName,
+        MEMORY_ID: memoryId,
       },
     });
 
@@ -131,6 +132,24 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
 
     // Grant the AgentRuntime role permission to emit trace envelopes to the advisory bus.
     this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
+
+    // Grant the AgentRuntime role AgentCore Memory write permissions —
+    // graph.ts:writeAgentOutput runs in this container. See
+    // investor-profile-ctrl service.stack.ts for the rationale.
+    agentRuntime.runtime.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        'bedrock-agentcore:CreateEvent',
+        'bedrock-agentcore:BatchCreateMemoryRecords',
+        'bedrock-agentcore:RetrieveMemoryRecords',
+        'bedrock-agentcore:GetMemoryRecord',
+        'bedrock-agentcore:ListMemoryRecords',
+        'bedrock-agentcore:ListEvents',
+        'bedrock-agentcore:ListActors',
+        'bedrock-agentcore:ListSessions',
+      ],
+      resources: ['*'],
+    }));
 
     // resumeStateMachine pipeline callback permissions (see investor-profile-ctrl).
     ingress.handler.addToRolePolicy(new PolicyStatement({

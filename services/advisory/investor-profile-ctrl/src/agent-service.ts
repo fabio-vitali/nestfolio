@@ -3,6 +3,7 @@ import {
   dispatchAgentInvocation,
   assertOrchestratorOutput,
   DegradedAgentOutputError,
+  UnknownOperatingModeError,
   type AgentNodeResult,
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
@@ -53,11 +54,22 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       }
 
       const target = await resolveAgentRuntimeTarget();
+      // Throws UnknownOperatingModeError when missing — replaces the silent
+      // BALANCED fallback that masked the propagation regression tracked in
+      // docs/backlog/operating-mode-shape-empty-proposed-trades.md.
+      const operatingMode = subject.operatingMode as string | undefined;
+      if (!operatingMode) {
+        throw new UnknownOperatingModeError({
+          decisionId,
+          resolutionPath: 'investor-profile-ctrl agent-service.runPipeline → subject.operatingMode',
+          availableKeys: Object.keys(subject),
+        });
+      }
       const result = await dispatchAgentInvocation<Record<string, AgentNodeResult>>(target, {
         tenantId,
         decisionId,
         upstreamOutputs: {
-          operatingMode: (subject.operatingMode as string) ?? 'BALANCED',
+          operatingMode,
           investorProfile: subject.investorProfile ?? subject.context ?? {},
           portfolioState: subject.portfolioState ?? {},
         },

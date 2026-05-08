@@ -12,6 +12,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   dispatchAgentInvocation: jest.fn(),
   DegradedAgentOutputError: jest.requireActual('@nestfolio/agent-orchestrator').DegradedAgentOutputError,
   EmptyAgentResponseError: jest.requireActual('@nestfolio/agent-orchestrator').EmptyAgentResponseError,
+  UnknownOperatingModeError: jest.requireActual('@nestfolio/agent-orchestrator').UnknownOperatingModeError,
   assertOrchestratorOutput: jest.requireActual('@nestfolio/agent-orchestrator').assertOrchestratorOutput,
 }));
 
@@ -48,6 +49,7 @@ describe('portfolio-engine-ctrl agent-service', () => {
     const result = await service.runPipeline('evt-1', {
       tenantId: 't1',
       decisionId: 'dp-1',
+      operatingMode: 'BALANCED',
       taskToken: 'token',
       context: { riskCategory: 'MODERATE' },
     });
@@ -75,6 +77,7 @@ describe('portfolio-engine-ctrl agent-service', () => {
     await expect(service.runPipeline('evt-deg', {
       tenantId: 't1',
       decisionId: 'dp-deg',
+      operatingMode: 'BALANCED',
       taskToken: 'token',
     })).rejects.toThrow(DegradedAgentOutputError);
   });
@@ -84,7 +87,7 @@ describe('portfolio-engine-ctrl agent-service', () => {
 
     const service = createAgentService(deps);
     await expect(service.runPipeline('evt-2', {
-      tenantId: 't1', decisionId: 'dp-2', taskToken: 'token',
+      tenantId: 't1', decisionId: 'dp-2', operatingMode: 'BALANCED', taskToken: 'token',
     })).rejects.toThrow('Agent failure');
   });
 
@@ -98,6 +101,7 @@ describe('portfolio-engine-ctrl agent-service', () => {
     await service.runPipeline('evt-lock-1', {
       tenantId: 't1',
       decisionId: 'dp-lock',
+      operatingMode: 'BALANCED',
       taskToken: 'tok',
     });
 
@@ -139,10 +143,48 @@ describe('portfolio-engine-ctrl agent-service', () => {
     await expect(service.runPipeline('evt-dup', {
       tenantId: 't1',
       decisionId: 'dp-dup',
+      operatingMode: 'BALANCED',
       taskToken: 'tok',
     })).rejects.toThrow(DuplicateInvocationError);
 
     // AgentCore must NOT have been called on the duplicate
     expect(dispatchAgentInvocation).not.toHaveBeenCalled();
+  });
+
+  // Regression: silent BALANCED fallback was masking the propagation bug
+  // tracked in docs/backlog/operating-mode-shape-empty-proposed-trades.md.
+  it('throws UnknownOperatingModeError when subject.operatingMode is missing', async () => {
+    const { UnknownOperatingModeError } = await import('@nestfolio/agent-orchestrator');
+    const service = createAgentService(deps);
+    await expect(service.runPipeline('evt-no-mode', {
+      tenantId: 't1',
+      decisionId: 'dp-no-mode',
+      taskToken: 'tok',
+    })).rejects.toThrow(UnknownOperatingModeError);
+
+    expect(dispatchAgentInvocation).not.toHaveBeenCalled();
+  });
+
+  it('passes operatingMode verbatim into dispatchAgentInvocation upstreamOutputs', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+      'portfolio-construction': { ok: true, output: { allocations: [] } },
+      'rebalance-planner': { ok: true, output: { trades: [] } },
+    });
+
+    const service = createAgentService(deps);
+    const result = await service.runPipeline('evt-prop', {
+      tenantId: 't1',
+      decisionId: 'dp-prop',
+      operatingMode: 'AGGRESSIVE',
+      taskToken: 'tok',
+    });
+
+    expect(dispatchAgentInvocation).toHaveBeenCalledWith(
+      expect.stringMatching(/^arn:/),
+      expect.objectContaining({
+        upstreamOutputs: expect.objectContaining({ operatingMode: 'AGGRESSIVE' }),
+      }),
+    );
+    expect(result.metadata).toMatchObject({ modeUsed: 'AGGRESSIVE' });
   });
 });

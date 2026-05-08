@@ -61,7 +61,7 @@ function buildMemoryClient(): MemoryClient {
   return createMemoryClient({
     memoryId,
     region: process.env['AWS_REGION'] ?? 'us-east-1',
-    serviceName: 'advisory-narrative-ctrl',
+    serviceName: 'advisory-narrative',
   });
 }
 

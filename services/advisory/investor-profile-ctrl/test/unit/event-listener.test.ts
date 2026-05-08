@@ -26,6 +26,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   invokeOrchestrator: jest.fn(),
   createMemoryClient: jest.fn(),
   createNoOpMemoryClient: jest.fn(),
+  UnknownOperatingModeError: jest.requireActual('@nestfolio/agent-orchestrator').UnknownOperatingModeError,
 }));
 
 jest.mock('@nestfolio/event-processor', () => ({
@@ -91,7 +92,7 @@ describe('investor-profile-ctrl event-listener', () => {
         tenantId: 't1',
         decisionId: 'dp-1',
         taskToken: 'token-123',
-        investorProfile: { age: 35, income: 100000 },
+        investorProfile: { age: 35, income: 100000, operatingMode: 'BALANCED' },
         portfolioState: { totalValue: 50000 },
       },
     };
@@ -113,7 +114,10 @@ describe('investor-profile-ctrl event-listener', () => {
     );
 
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('investor preferences risk tolerance');
-    expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
+    // Memory persistence happens inside the AgentRuntime (graph.ts), not in the
+    // Lambda — see services/advisory/investor-profile-ctrl/agents/investor-profile/graph.ts
+    // The Lambda's previous wrap-write was a no-op (deduplicated by requestIdentifier).
+    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
   });
 
   it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
@@ -121,7 +125,12 @@ describe('investor-profile-ctrl event-listener', () => {
     mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('evt-dup'));
 
     const payload: EventPayload = {
-      subject: { tenantId: 't1', decisionId: 'dp-dup', taskToken: 'tok' },
+      subject: {
+        tenantId: 't1',
+        decisionId: 'dp-dup',
+        taskToken: 'tok',
+        investorProfile: { operatingMode: 'BALANCED' },
+      },
     };
 
     const dupCtx: EventContext = { ...baseCtx, eventId: 'evt-dup' };
@@ -140,9 +149,64 @@ describe('investor-profile-ctrl event-listener', () => {
         tenantId: 't1',
         decisionId: 'dp-1',
         taskToken: 'token-123',
+        investorProfile: { operatingMode: 'BALANCED' },
       },
     };
 
     await expect(handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx)).rejects.toThrow('Agent pipeline failed');
+  });
+
+  // Regression: silent BALANCED fallback was masking the propagation bug
+  // tracked in docs/backlog/operating-mode-shape-empty-proposed-trades.md.
+  it('throws UnknownOperatingModeError when subject.investorProfile.operatingMode is missing', async () => {
+    const { UnknownOperatingModeError } = await import('@nestfolio/agent-orchestrator');
+
+    const payload: EventPayload = {
+      subject: {
+        tenantId: 't1',
+        decisionId: 'dp-no-mode',
+        taskToken: 'tok',
+        investorProfile: { age: 35 },
+      },
+    };
+
+    await expect(handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx)).rejects.toThrow(UnknownOperatingModeError);
+    expect(mockRunPipeline).not.toHaveBeenCalled();
+  });
+
+  it('falls through to investorProfile.mandate.operatingMode when top-level is absent', async () => {
+    const payload: EventPayload = {
+      subject: {
+        tenantId: 't1',
+        decisionId: 'dp-mandate',
+        taskToken: 'tok',
+        investorProfile: { age: 35, mandate: { operatingMode: 'AGGRESSIVE' } },
+      },
+    };
+
+    await handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx);
+
+    expect(mockRunPipeline).toHaveBeenCalledWith(
+      'evt-1',
+      expect.objectContaining({ operatingMode: 'AGGRESSIVE' }),
+    );
+  });
+
+  it('passes operatingMode verbatim into runPipeline (regression — silent BALANCED narrowing)', async () => {
+    const payload: EventPayload = {
+      subject: {
+        tenantId: 't1',
+        decisionId: 'dp-prop',
+        taskToken: 'tok',
+        investorProfile: { age: 35, operatingMode: 'CONSERVATIVE' },
+      },
+    };
+
+    await handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx);
+
+    expect(mockRunPipeline).toHaveBeenCalledWith(
+      'evt-1',
+      expect.objectContaining({ operatingMode: 'CONSERVATIVE' }),
+    );
   });
 });

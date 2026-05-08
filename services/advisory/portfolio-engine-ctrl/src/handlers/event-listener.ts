@@ -5,7 +5,7 @@ import {
   type EventPayload, type EventContext, type WriteIntent,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-orchestrator';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError } from '@nestfolio/agent-orchestrator';
 import { KB_INGESTION_EVENT_TYPES } from '../domain';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
 
@@ -32,11 +32,32 @@ export const createHandlers = (deps: SfnCallbackDeps) => {
         session.searchLongTermMemory('allocation rationale decisions'),
       ]);
 
-      const investorProfile = investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {};
-      // operatingMode is wrapped at top level of the investor-profile-ctrl Memory
-      // record (see services/advisory/investor-profile-ctrl/src/handlers/event-listener.ts).
-      // BALANCED default covers cold-cache + non-INVESTOR_PROFILE_* trigger paths.
-      const operatingMode = (investorProfile.operatingMode as string) ?? 'BALANCED';
+      // AgentCore Memory has read-after-write eventual consistency on
+      // ListMemoryRecords (~10-30s lag observed empirically). Retry with
+      // backoff so a freshly-written investor-profile record from the prior
+      // SF stage is found before throwing. Tests can short-circuit by setting
+      // the MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE env to '0,0,0,0'.
+      let investorProfile: Record<string, unknown> = investorRecords[0]?.content
+        ? JSON.parse(investorRecords[0].content)
+        : {};
+      let operatingMode = investorProfile.operatingMode as string | undefined;
+      const retryDelays = (process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE
+        ?? '3000,5000,8000,12000')
+        .split(',').map((s) => parseInt(s.trim(), 10));
+      for (const delay of retryDelays) {
+        if (operatingMode) break;
+        if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+        const refreshed = await session.readUpstreamOutput('investor-profile');
+        investorProfile = refreshed[0]?.content ? JSON.parse(refreshed[0].content) : {};
+        operatingMode = investorProfile.operatingMode as string | undefined;
+      }
+      if (!operatingMode) {
+        throw new UnknownOperatingModeError({
+          decisionId,
+          resolutionPath: "session.readUpstreamOutput('investor-profile')[0].content.operatingMode (after 4 retries)",
+          availableKeys: Object.keys(investorProfile),
+        });
+      }
 
       let result: Record<string, unknown>;
       try {

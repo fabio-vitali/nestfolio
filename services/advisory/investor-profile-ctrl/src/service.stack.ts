@@ -111,12 +111,34 @@ export class InvestorProfileCtrlStack extends ServiceStack {
         MODEL_HAIKU_ID: modelHaikuId,
         TABLE_NAME: state.getTable().tableName,
         EVENT_BUS_NAME: this.eventBus.eventBusName,
+        MEMORY_ID: memoryId,
       },
     });
 
     // Grant the AgentRuntime role permission to emit trace envelopes to the
     // advisory bus (consumed by AgentTraceTrap in e2e feature tests).
     this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
+
+    // Grant the AgentRuntime role AgentCore Memory write permissions —
+    // graph.ts:writeAgentOutput runs in this container. Without this grant
+    // (and the matching MEMORY_ID env var above) buildMemoryClient() returns
+    // a no-op client and Memory writes silently disappear, leaving downstream
+    // readers with `Available keys=[]`. Surfaced 2026-05-08 while debugging
+    // operating-mode-shape-empty-proposed-trades.
+    agentRuntime.runtime.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        'bedrock-agentcore:CreateEvent',
+        'bedrock-agentcore:BatchCreateMemoryRecords',
+        'bedrock-agentcore:RetrieveMemoryRecords',
+        'bedrock-agentcore:GetMemoryRecord',
+        'bedrock-agentcore:ListMemoryRecords',
+        'bedrock-agentcore:ListEvents',
+        'bedrock-agentcore:ListActors',
+        'bedrock-agentcore:ListSessions',
+      ],
+      resources: ['*'],
+    }));
 
     const runtimeArn = agentRuntime.runtime.agentRuntimeArn;
     const agentRuntimeUrlParam = new StringParameter(this, 'AgentRuntimeUrlParam', {

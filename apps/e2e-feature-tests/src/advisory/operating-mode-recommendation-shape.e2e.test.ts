@@ -40,7 +40,12 @@ import { EventBridgeClient } from '@nestfolio/test-support';
  */
 
 const POLL_INTERVAL_MS = 5_000;
-const PACKET_TIMEOUT_MS = 240_000;
+// 360s budget per case: the chain runs four LangGraph agents sequentially,
+// CONSERVATIVE/AGGRESSIVE add Approach B mode-aware validation-feedback retries
+// (~12s each, up to 3 attempts), and portfolio-engine waits up to ~28s on
+// AgentCore Memory read-after-write. BALANCED satisfies validation on the
+// first attempt and finishes well within this budget.
+const PACKET_TIMEOUT_MS = 360_000;
 const CASES = [
   {
     mode: 'CONSERVATIVE' as const,
@@ -148,7 +153,7 @@ describe.each(CASES)('operating mode $mode — proposedTrades shape', (testCase)
     expect(equityWeight).toBeGreaterThanOrEqual(testCase.minEquityWeight);
     expect(equityWeight).toBeLessThanOrEqual(testCase.maxEquityWeight);
     expect(largestPositionWeight).toBeLessThanOrEqual(testCase.maxLargestPosition);
-  }, 360_000);
+  }, 480_000);
 });
 
 async function pollForCompletedPacket(
