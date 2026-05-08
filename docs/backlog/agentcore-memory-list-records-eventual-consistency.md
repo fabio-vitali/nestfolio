@@ -1,10 +1,15 @@
 ---
 id: agentcore-memory-list-records-eventual-consistency
-status: parking
+status: active
 type: bug
 notes: "AgentCore Memory ListMemoryRecords lag >40s; SF inter-stage cadence ~5s — propagate operatingMode through SF state instead."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Switching the Memory write API — writes are correct, only the read-side ListRecords lag matters."
+  - "Refactoring MemoryClient interface — Option A only changes who reads what, not the API."
+  - "Cross-decision Memory reads (searchTenantMemory, searchLongTermMemory) — those go through RetrieveMemoryRecords with semantic search; this workstream only changes intra-decision cross-stage envelope reads."
+  - "Backfilling envelope-field reads in advisory-narrative-ctrl/AssemblePacket — focus on operatingMode propagation; expand only if other fields are observed lagging."
+  - "Restoring 1/3 GREEN in operating-mode-recommendation-shape e2e by tweaking PACKET_TIMEOUT_MS only — that band-aid was rejected (see active workstream's validation_gate)."
 spec: null
 plan: null
 topic_memory: [project_agent_runtime_structured_output.md]

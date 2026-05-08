@@ -6,7 +6,7 @@
 
 ## ACTIVE
 
-- [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — operating-mode-recommendation-shape e2e: agent pipeline never materializes non-empty proposedTrades on dev
+- [agentcore-memory-list-records-eventual-consistency](backlog/agentcore-memory-list-records-eventual-consistency.md) [bug] — AgentCore Memory ListMemoryRecords lag >40s; SF inter-stage cadence ~5s — propagate operatingMode through SF state instead.
 
 ## QUEUED
 
@@ -15,7 +15,6 @@
 
 ## LATER
 
-- [agentcore-memory-list-records-eventual-consistency](backlog/agentcore-memory-list-records-eventual-consistency.md) [bug] — AgentCore Memory ListMemoryRecords lag >40s; SF inter-stage cadence ~5s — propagate operatingMode through SF state instead.
 - [backlog-frontmatter-add-first-observed-field](backlog/backlog-frontmatter-add-first-observed-field.md) [tooling] — Add first_observed: ISO-date field to backlog frontmatter; lint enforces presence on new files.
 - [bff-resolver-region-sweep](backlog/bff-resolver-region-sweep.md) [bug] — advisory-bff + ledger-bff mutation resolvers likely missing region field.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
@@ -50,10 +49,10 @@
 - 2026-05-08 — [deposit-page-pattern-a-to-pattern-b](backlog/deposit-page-pattern-a-to-pattern-b.md) [refactor] — deposit-page is the lone Pattern A holdout; full fix = client-UUID + URL routing + getDeposit recovery.
 - 2026-05-08 — [e2e-initiate-deposit-missing-deposit-id](backlog/e2e-initiate-deposit-missing-deposit-id.md) [bug] — fund-account + circuit-breaker e2e fail: initiateDeposit missing depositId (ID!)
 - 2026-05-08 — [investor-profile-domain-resplit](backlog/investor-profile-domain-resplit.md) [design] — Re-split Mandate as a sibling aggregate; relocate GUARDRAIL_TABLE policy into compliance-ctrl; introduce 3-tier event topology (carrier + semantic + lifecycle) via declarative onFieldChange extension to cdk-constructs.
+- 2026-05-08 — [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — operating-mode-recommendation-shape e2e: agent pipeline never materializes non-empty proposedTrades on dev
 - 2026-05-07 — [advisory-bff-on-decision-update-wss-closes-early](backlog/advisory-bff-on-decision-update-wss-closes-early.md) [bug] — WSS closes prematurely; e2e test hides bug via reload — must remove on fix.
 - 2026-05-07 — [backlog-redesign](backlog/backlog-redesign.md) [refactor] — Per-item backlog files + auto-generated index + backlog-lint enforcement; MEMORY duplication removed.
 - 2026-05-07 — [nestfolio-e2e-playwright-config-no-console-lint](backlog/nestfolio-e2e-playwright-config-no-console-lint.md) [bug] — Shipped 2026-05-07 — added // eslint-disable-next-line no-console comment matching the libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts:178 precedent.
 - 2026-05-07 — [portfolio-engine-graph-no-console-lint](backlog/portfolio-engine-graph-no-console-lint.md) [bug] — Shipped 2026-05-07 — added // eslint-disable-next-line no-console above the warn.
 - 2026-05-07 — [pr-pipeline-integration-tests](backlog/pr-pipeline-integration-tests.md) [infra] — Closed 2026-05-07 — implementation landed inline with the test-support extraction; backlog file lagged.
 - 2026-05-07 — [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Shipped 2026-05-07 — broadcaster + resolver now carry confirmedAt/rejectedAt/rejectionReason/confirmationRequired.
-- 2026-05-07 — [remaining-agent-orchestrators](backlog/remaining-agent-orchestrators.md) [refactor] — Naturally closed by Spec 2 + structured-output α/β/γ ship; no fresh workstream needed.
