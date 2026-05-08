@@ -66,16 +66,10 @@ async function processDecisionPacket(
       decisionPacketId,
       taskToken,
       mandateSnapshot: {
-        mandateId: 'NONE',
         level: 'ADVISORY',
-        monthlyTurnoverCapPercent: 0,
-        maxSingleTradePercent: 0,
-        equityRiskBandPercent: 0,
-        driftTriggerPercent: 0,
-        singleEtfConcentrationPercent: 0,
-        drawdownCircuitBreakerPercent: 0,
+        status: 'ACTIVE',
+        operatingMode: 'CONSERVATIVE',
         effectiveDate: new Date().toISOString(),
-        revokedAt: null,
       },
       status: 'BLOCKED',
       result: 'BLOCKED',
@@ -86,21 +80,10 @@ async function processDecisionPacket(
   }
 
   const mandate: MandateSnapshot = {
-    mandateId: mandateRecord.mandateId as string,
     level: mandateRecord.level as 'ADVISORY' | 'DISCRETIONARY',
-    monthlyTurnoverCapPercent: (mandateRecord.monthlyTurnoverCapPercent as number) ?? 25,
-    maxSingleTradePercent: (mandateRecord.maxSingleTradePercent as number) ?? 10,
-    equityRiskBandPercent: (mandateRecord.equityRiskBandPercent as number) ?? 6,
-    driftTriggerPercent: (mandateRecord.driftTriggerPercent as number) ?? 4,
-    singleEtfConcentrationPercent: (mandateRecord.singleEtfConcentrationPercent as number) ?? 30,
-    drawdownCircuitBreakerPercent: (mandateRecord.drawdownCircuitBreakerPercent as number) ?? 12,
+    status: (mandateRecord.status as 'ACTIVE' | 'REVOKED' | undefined) ?? 'ACTIVE',
+    operatingMode: mandateRecord.operatingMode as MandateSnapshot['operatingMode'],
     effectiveDate: mandateRecord.effectiveDate as string,
-    // INVESTOR_PROFILE_* projection no longer writes revokedAt — that field
-    // is owned exclusively by the MANDATE_REVOKED handler. Coerce undefined
-    // (column never set) to null so MandateValidator's `revokedAt !== null`
-    // gate doesn't false-positive on fresh-but-unrevoked rows.
-    revokedAt: (mandateRecord.revokedAt as string | undefined) ?? null,
-    status: mandateRecord.status as 'ACTIVE' | 'REVOKED' | undefined,
   };
 
   const proposedTrades = (subject.proposedTrades as ComplianceInput['proposedTrades']) ?? [];
