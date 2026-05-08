@@ -1,24 +1,17 @@
-import type { MandateLevel } from '@nestfolio/investor-adpt/domain';
 import { MandateValidator } from './mandate-validator';
 import { GuardrailEvaluator } from './guardrail-evaluator';
 import { SuitabilityChecker } from './suitability-checker';
 import { AuthorityResolver } from './authority-resolver';
 
+export type OperatingMode = 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
+export type RebalanceCadence = 'MONTHLY' | 'QUARTERLY';
+export type MandateLevel = 'ADVISORY' | 'DISCRETIONARY';
+
 export interface MandateSnapshot {
-  mandateId: string;
   level: MandateLevel;
-  monthlyTurnoverCapPercent: number;
-  maxSingleTradePercent: number;
-  equityRiskBandPercent: number;
-  driftTriggerPercent: number;
-  singleEtfConcentrationPercent: number;
-  drawdownCircuitBreakerPercent: number;
+  status: 'ACTIVE' | 'REVOKED';
+  operatingMode: OperatingMode;
   effectiveDate: string;
-  revokedAt: string | null;
-  // Lifecycle state. ACTIVE is the default; REVOKED is set by the
-  // MANDATE_REVOKED projection and short-circuits the rule engine
-  // (mandate-validator emits BLOCKED, authority-resolver returns L2).
-  status?: 'ACTIVE' | 'REVOKED';
 }
 
 export interface ComplianceInput {
