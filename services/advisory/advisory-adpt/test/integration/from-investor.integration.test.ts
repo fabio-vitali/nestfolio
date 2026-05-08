@@ -63,24 +63,24 @@ describe('advisory-adpt: Investor → Advisory forwarding', () => {
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 60_000);
 
-  it('should forward MANDATE_ACCEPTED from InvestorBus to AdvisoryBus', async () => {
+  it('should forward MANDATE_ISSUED from InvestorBus to AdvisoryBus', async () => {
     const trap = new EventBusTrap(ctx);
     await trap.deploy({
       bus: 'advisory',
-      detailType: 'MANDATE_ACCEPTED',
+      detailType: 'MANDATE_ISSUED',
     });
 
     await eb.putEvent({
       bus: 'investor',
       targetService: 'advisory-adpt',
-      detailType: 'MANDATE_ACCEPTED',
+      detailType: 'MANDATE_ISSUED',
       detail: {
         mandateId: `integ-mandate-${Date.now()}`,
       },
     });
 
     const event = await trap.waitForEvent<BusEventPayload>();
-    expect(event.detailType).toBe('MANDATE_ACCEPTED');
+    expect(event.detailType).toBe('MANDATE_ISSUED');
     expect(event.detail.context.tenantId).toBe(ctx.tenantId);
   }, 60_000);
 

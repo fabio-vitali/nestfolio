@@ -115,8 +115,8 @@ describe('investor-ctrl event-listener', () => {
       expect(t.channel).toBe('email');
     });
 
-    it('returns correct template for MANDATE_ACCEPTED', () => {
-      const t = getNotificationTemplate('MANDATE_ACCEPTED');
+    it('returns correct template for MANDATE_ISSUED', () => {
+      const t = getNotificationTemplate('MANDATE_ISSUED');
       expect(t.title).toBe('Investment Mandate Activated');
       expect(t.channel).toBe('push');
     });
@@ -156,7 +156,7 @@ describe('investor-ctrl event-listener', () => {
   describe('WriteIntents — non-ORDER_FILLED events', () => {
     const testCases = [
       { type: 'ONBOARDING_COMPLETED', expectedChannel: 'email' },
-      { type: 'MANDATE_ACCEPTED', expectedChannel: 'push' },
+      { type: 'MANDATE_ISSUED', expectedChannel: 'push' },
       { type: 'MANDATE_REVOKED', expectedChannel: 'push' },
       { type: 'DEPOSIT_INITIATED', expectedChannel: 'push' },
       { type: 'DECISION_APPROVED', expectedChannel: 'push' },
@@ -232,7 +232,7 @@ describe('investor-ctrl event-listener', () => {
   describe('key layout', () => {
     it('Notification overrides pk to Notification#tenantId#notificationId', async () => {
       const result = await harness.process([
-        fakeSqsRecord('MANDATE_ACCEPTED', {}, { tenantId: 'tenant-x', eventId: 'evt-x' }),
+        fakeSqsRecord('MANDATE_ISSUED', {}, { tenantId: 'tenant-x', eventId: 'evt-x' }),
       ]);
       expect(result.intents[0]).toMatchObject({
         overrides: expect.objectContaining({
@@ -372,7 +372,7 @@ describe('investor-ctrl event-listener', () => {
     it('processes multiple records in a batch', async () => {
       const result = await harness.process([
         fakeSqsRecord('ONBOARDING_COMPLETED', { userId: 'u1' }, { tenantId: 't1' }),
-        fakeSqsRecord('MANDATE_ACCEPTED', { userId: 'u2' }, { tenantId: 't2' }),
+        fakeSqsRecord('MANDATE_ISSUED', { userId: 'u2' }, { tenantId: 't2' }),
         fakeSqsRecord('ORDER_FILLED', { orderId: 'o1' }, { tenantId: 't3' }),
       ]);
       expect(result.metrics.EventProcessed).toBe(3);

@@ -27,7 +27,7 @@ export const AdvisoryIngestEventTypes = {
   // From Investor
   INVESTOR_PROFILE_CREATED: eventName('INVESTOR_PROFILE_CREATED'),
   INVESTOR_PROFILE_UPDATED: eventName('INVESTOR_PROFILE_UPDATED'),
-  MANDATE_ACCEPTED: eventName('MANDATE_ACCEPTED'),
+  MANDATE_ISSUED: eventName('MANDATE_ISSUED'),
   MANDATE_REVOKED: eventName('MANDATE_REVOKED'),
   // From Execution
   ORDER_FILLED: eventName('ORDER_FILLED'),

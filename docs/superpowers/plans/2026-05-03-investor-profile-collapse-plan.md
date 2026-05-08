@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace `investor-bff`'s multi-row InvestorProfile decomposition (separate `Goal#${goalId}`, `RiskProfile`, `Mandate`, `OperatingModeRecord`, `AccountMode`, `InvestorProfile` rows) with a single composite `InvestorProfile` row per investor carrying nested groups; collapse 8 per-field events to 2 (`INVESTOR_PROFILE_CREATED`/`UPDATED`); rewire `decision-workflow-ctrl` to start Step Functions directly from EventBridge with `executionName` dedup (removing `WorkflowTrigger` row + `TriggerIngress` Lambda); add a separate `MandateStatus` row owning the mandate lifecycle (emitting `MANDATE_ACCEPTED`/`MANDATE_REVOKED`); complete the half-implemented `revokeMandate` flow.
+**Goal:** Replace `investor-bff`'s multi-row InvestorProfile decomposition (separate `Goal#${goalId}`, `RiskProfile`, `Mandate`, `OperatingModeRecord`, `AccountMode`, `InvestorProfile` rows) with a single composite `InvestorProfile` row per investor carrying nested groups; collapse 8 per-field events to 2 (`INVESTOR_PROFILE_CREATED`/`UPDATED`); rewire `decision-workflow-ctrl` to start Step Functions directly from EventBridge with `executionName` dedup (removing `WorkflowTrigger` row + `TriggerIngress` Lambda); add a separate `MandateStatus` row owning the mandate lifecycle (emitting `MANDATE_ISSUED`/`MANDATE_REVOKED`); complete the half-implemented `revokeMandate` flow.
 
 **Architecture:** Nine-phase rollout. Phases 1-2 are the structural backbone (composite row write path + direct EB→SF). Phases 3-4 update consumers. Phase 5 closes the revoke gap with the `MandateStatus` sibling row. Phase 6 trims the cross-domain adapter forwarding rules. Phase 7 fixes the GraphQL surface + e2e tests. Phase 8 rotates docs + flow specs + service cards. Phase 9 is the hard cutover validation gate on dev (`feedback_no_deprecation.md` — dev is disposable, no migration code).
 
@@ -47,7 +47,7 @@ Per CLAUDE.md backlog discipline. If any of these surface during execution, invo
 **Modified — `investor-bff` (Phase 1, 5):**
 - `src/schema.graphql` — Goal/Mandate/RiskProfile/OperatingMode collapse to nested fields; `getGoals` removed; `updateGoal(input)` (no goalId)
 - `src/domain/models.ts` — `InvestorProfile` interface gains nested `goal`, `riskProfile`, `mandate` fields; standalone `Goal`/`Mandate`/`RiskProfile` interfaces stay (used as nested types)
-- `src/domain/events.ts` — drop GOAL_*/MANDATE_CREATED/MANDATE_UPDATED/RISK_PROFILE_*/OPERATING_MODE_SELECTED/OPERATING_MODE_CHANGED; add MANDATE_ACCEPTED
+- `src/domain/events.ts` — drop GOAL_*/MANDATE_CREATED/MANDATE_UPDATED/RISK_PROFILE_*/OPERATING_MODE_SELECTED/OPERATING_MODE_CHANGED; add MANDATE_ISSUED
 - `src/repositories/investor-profile.repository.ts` — rewrite setGoal/getGoals/updateGoal/grantMandate/setOperatingMode to operate on composite row; add `revokeMandateStatus()` for the sibling MandateStatus row
 - `src/transforms/onboarding-completed.ts` — collapse from 7 entities to 3 (composite InvestorProfile + MandateStatus + conditional Deposit)
 - `src/transforms/operating-mode-changed.ts` — write to composite row instead of OperatingModeRecord
@@ -75,12 +75,12 @@ Per CLAUDE.md backlog discipline. If any of these surface during execution, invo
 - `src/service.stack.ts` — Ingress eventTypes list
 
 **Modified — `investor-ctrl` (Phase 4):**
-- `src/handlers/event-listener.ts` — subscriptions: drop MANDATE_CREATED/GOAL_UPDATED/OPERATING_MODE_CHANGED, add MANDATE_ACCEPTED/MANDATE_REVOKED/INVESTOR_PROFILE_UPDATED
-- `src/services/notification-lifecycle.service.ts` — getNotificationContent map: drop MANDATE_CREATED, add MANDATE_ACCEPTED + MANDATE_REVOKED; new diff-detection branch for INVESTOR_PROFILE_UPDATED → fires Goal Updated / Operating Mode Changed via OldImage/NewImage compare
+- `src/handlers/event-listener.ts` — subscriptions: drop MANDATE_CREATED/GOAL_UPDATED/OPERATING_MODE_CHANGED, add MANDATE_ISSUED/MANDATE_REVOKED/INVESTOR_PROFILE_UPDATED
+- `src/services/notification-lifecycle.service.ts` — getNotificationContent map: drop MANDATE_CREATED, add MANDATE_ISSUED + MANDATE_REVOKED; new diff-detection branch for INVESTOR_PROFILE_UPDATED → fires Goal Updated / Operating Mode Changed via OldImage/NewImage compare
 - `src/service.stack.ts` — Ingress eventTypes list
 
 **Modified — `advisory-adpt` (Phase 6):**
-- `src/service.stack.ts` — `fromInvestorEvents` array: drop 7 old events, add 4 new (INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_ACCEPTED, MANDATE_REVOKED)
+- `src/service.stack.ts` — `fromInvestorEvents` array: drop 7 old events, add 4 new (INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED)
 - `src/domain/events.ts` — `AdvisoryIngestEventTypes`: same swap
 
 **Modified — Frontend + e2e (Phase 7):**
@@ -128,7 +128,7 @@ Per CLAUDE.md backlog discipline. If any of these surface during execution, invo
 
 `investor-ctrl` (Phase 4):
 - Rewrite `test/unit/event-listener.test.ts` + `test/unit/notification-lifecycle.service.test.ts` — diff-detection (Task 4.2 Step 5)
-- Rewrite `test/integration/onboarding-notification.integration.test.ts` — MANDATE_ACCEPTED/REVOKED + INVESTOR_PROFILE_UPDATED diff scenarios (Task 4.3)
+- Rewrite `test/integration/onboarding-notification.integration.test.ts` — MANDATE_ISSUED/REVOKED + INVESTOR_PROFILE_UPDATED diff scenarios (Task 4.3)
 
 `advisory-adpt` (Phase 6):
 - Rewrite `test/integration/from-investor.integration.test.ts` — assert new forwarded events (Task 6.1)
@@ -159,9 +159,9 @@ Per CLAUDE.md backlog discipline. If any of these surface during execution, invo
 
 ## Phase 1 — Composite InvestorProfile row + collapsed Egress
 
-**Goal:** investor-bff writes a single composite row on onboarding (replacing 7 entities), Egress emits `INVESTOR_PROFILE_CREATED`/`UPDATED` only (replacing 8 per-field events). All AppSync resolvers and the schema are aligned. Unit + integration tests rewritten. `MandateStatus` row design is in place but only emits `MANDATE_ACCEPTED` (revocation logic comes in Phase 5).
+**Goal:** investor-bff writes a single composite row on onboarding (replacing 7 entities), Egress emits `INVESTOR_PROFILE_CREATED`/`UPDATED` only (replacing 8 per-field events). All AppSync resolvers and the schema are aligned. Unit + integration tests rewritten. `MandateStatus` row design is in place but only emits `MANDATE_ISSUED` (revocation logic comes in Phase 5).
 
-### Task 1.1: Update `domain/events.ts` — drop per-field events, add MANDATE_ACCEPTED
+### Task 1.1: Update `domain/events.ts` — drop per-field events, add MANDATE_ISSUED
 
 **Files:**
 - Modify: `services/investor/investor-bff/src/domain/events.ts`
@@ -184,7 +184,7 @@ export const InvestorBffEventTypes = {
   ONBOARDING_COMPLETED: eventName('ONBOARDING_COMPLETED'),
   INVESTOR_PROFILE_CREATED: eventName('INVESTOR_PROFILE_CREATED'),
   INVESTOR_PROFILE_UPDATED: eventName('INVESTOR_PROFILE_UPDATED'),
-  MANDATE_ACCEPTED: eventName('MANDATE_ACCEPTED'),
+  MANDATE_ISSUED: eventName('MANDATE_ISSUED'),
   MANDATE_REVOKED: eventName('MANDATE_REVOKED'),
   DEPOSIT_INITIATED: eventName('DEPOSIT_INITIATED'),
   DEPOSIT_UPDATED: eventName('DEPOSIT_UPDATED'),
@@ -202,7 +202,7 @@ export const InvestorBffEventTypes = {
 } as const;
 ```
 
-Removed: `GOAL_CREATED`, `GOAL_UPDATED`, `RISK_PROFILE_CREATED`, `RISK_PROFILE_UPDATED`, `MANDATE_CREATED`, `MANDATE_UPDATED`, `OPERATING_MODE_SELECTED`, `OPERATING_MODE_CHANGED`. Added: `MANDATE_ACCEPTED`.
+Removed: `GOAL_CREATED`, `GOAL_UPDATED`, `RISK_PROFILE_CREATED`, `RISK_PROFILE_UPDATED`, `MANDATE_CREATED`, `MANDATE_UPDATED`, `OPERATING_MODE_SELECTED`, `OPERATING_MODE_CHANGED`. Added: `MANDATE_ISSUED`.
 
 - [ ] **Step 2: Run TypeScript build to surface every consumer**
 
@@ -213,7 +213,7 @@ Expected: FAIL with errors at every site referencing dropped event names. This i
 
 ```bash
 git add services/investor/investor-bff/src/domain/events.ts
-git commit -m "investor-bff: collapse per-field events to INVESTOR_PROFILE_*; add MANDATE_ACCEPTED"
+git commit -m "investor-bff: collapse per-field events to INVESTOR_PROFILE_*; add MANDATE_ISSUED"
 ```
 
 ### Task 1.2: Update domain models for composite shape
@@ -1310,7 +1310,7 @@ Open `services/investor/investor-bff/src/service.stack.ts`. Replace the `Egress`
           modify: InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
         },
         'MandateStatus': {
-          insert: InvestorBffEventTypes.MANDATE_ACCEPTED,
+          insert: InvestorBffEventTypes.MANDATE_ISSUED,
           modify: InvestorBffEventTypes.MANDATE_REVOKED,
         },
         'Deposit': {
@@ -1376,7 +1376,7 @@ expect(status).toMatchObject({ status: 'ACCEPTED', acceptedAt: expect.any(String
 // Two events emitted (composite + status), not 8
 const events = await trap.collect();
 const eventTypes = events.map((e) => e['detail-type']);
-expect(eventTypes).toEqual(expect.arrayContaining(['INVESTOR_PROFILE_CREATED', 'MANDATE_ACCEPTED']));
+expect(eventTypes).toEqual(expect.arrayContaining(['INVESTOR_PROFILE_CREATED', 'MANDATE_ISSUED']));
 expect(eventTypes).not.toContain('GOAL_CREATED');
 expect(eventTypes).not.toContain('RISK_PROFILE_CREATED');
 expect(eventTypes).not.toContain('MANDATE_CREATED');
@@ -2421,7 +2421,7 @@ git commit -m "compliance-ctrl: integration tests for INVESTOR_PROFILE_*+MANDATE
 ## Phase 4 — Notification-lifecycle redesign (`investor-ctrl`)
 
 **Goal:** `investor-ctrl` fires:
-- `MANDATE_ACCEPTED` → "Investment Mandate Activated" (replaces `MANDATE_CREATED`)
+- `MANDATE_ISSUED` → "Investment Mandate Activated" (replaces `MANDATE_CREATED`)
 - `MANDATE_REVOKED` → "Mandate Revoked" (NEW)
 - `INVESTOR_PROFILE_UPDATED` → diff-detect `goal.*` → "Goal Updated"; diff-detect `operatingMode` → "Operating Mode Changed"
 
@@ -2434,9 +2434,9 @@ Mandate lifecycle is dedicated events (no diff). Remaining diff-detection only f
 
 - [ ] **Step 1: Replace Ingress eventTypes**
 
-Find Ingress block. Drop `MANDATE_CREATED, GOAL_UPDATED, OPERATING_MODE_CHANGED`. Add `MANDATE_ACCEPTED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED`.
+Find Ingress block. Drop `MANDATE_CREATED, GOAL_UPDATED, OPERATING_MODE_CHANGED`. Add `MANDATE_ISSUED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED`.
 
-Final list: `ONBOARDING_COMPLETED, MANDATE_ACCEPTED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED, DEPOSIT_INITIATED, DECISION_APPROVED, ORDER_FILLED, BALANCE_UPDATED, ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED` (14 events).
+Final list: `ONBOARDING_COMPLETED, MANDATE_ISSUED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED, DEPOSIT_INITIATED, DECISION_APPROVED, ORDER_FILLED, BALANCE_UPDATED, ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED` (14 events).
 
 - [ ] **Step 2: Synth**
 
@@ -2453,7 +2453,7 @@ Run: `pnpm nx run investor-ctrl:synth`
 Open `services/investor/investor-ctrl/src/handlers/event-listener.ts`. Modify the `NOTIFICATION_TEMPLATES` constant:
 - DROP: `MANDATE_CREATED`, `GOAL_UPDATED`, `OPERATING_MODE_CHANGED`
 - ADD:
-  - `MANDATE_ACCEPTED`: `{ title: 'Investment Mandate Activated', body: 'Your investment mandate has been granted. We will start managing your portfolio.', channel: 'push' }`
+  - `MANDATE_ISSUED`: `{ title: 'Investment Mandate Activated', body: 'Your investment mandate has been granted. We will start managing your portfolio.', channel: 'push' }`
   - `MANDATE_REVOKED`: `{ title: 'Mandate Revoked', body: 'Your investment mandate has been revoked. No further automated trades will be authorized.', channel: 'push' }`
 - KEEP: `GOAL_UPDATED` template (used by diff-detection branch — keep title/body)
 - KEEP: `OPERATING_MODE_CHANGED` template (used by diff-detection branch)
@@ -2562,12 +2562,12 @@ return {
 
 Note: `payload.previousSubject` is the CDC OldImage, populated by event-processor's CDC publisher. If your event-processor version doesn't surface this, fall back to the raw EB event's `detail.previousSubject` field. **VERIFY** by reading `libs/event-processor/src/cdc/` — if `previousSubject` is not exposed, file via `backlog-add` and use a feature flag: skip diff (always fire both notifications) until OldImage propagation is wired through. For now, assume it works.
 
-- [ ] **Step 4: Add MANDATE_ACCEPTED + MANDATE_REVOKED to EVENT_TYPES**
+- [ ] **Step 4: Add MANDATE_ISSUED + MANDATE_REVOKED to EVENT_TYPES**
 
 ```typescript
 const EVENT_TYPES = [
   InvestorBffEventTypes.ONBOARDING_COMPLETED,
-  InvestorBffEventTypes.MANDATE_ACCEPTED,
+  InvestorBffEventTypes.MANDATE_ISSUED,
   InvestorBffEventTypes.MANDATE_REVOKED,
   InvestorBffEventTypes.DEPOSIT_INITIATED,
   AdvisoryCrossDomainEventTypes.DECISION_APPROVED,
@@ -2579,13 +2579,13 @@ const EVENT_TYPES = [
 ] as const;
 ```
 
-(Removed: `MANDATE_CREATED`, `GOAL_UPDATED`, `OPERATING_MODE_CHANGED`. Added: `MANDATE_ACCEPTED`, `MANDATE_REVOKED`.)
+(Removed: `MANDATE_CREATED`, `GOAL_UPDATED`, `OPERATING_MODE_CHANGED`. Added: `MANDATE_ISSUED`, `MANDATE_REVOKED`.)
 
 - [ ] **Step 5: Write/update unit tests**
 
 Open `services/investor/investor-ctrl/test/unit/services/notification-lifecycle.service.test.ts` (or wherever the relevant tests live). Add cases:
 
-- `MANDATE_ACCEPTED` → "Investment Mandate Activated" notification with notificationId=eventId
+- `MANDATE_ISSUED` → "Investment Mandate Activated" notification with notificationId=eventId
 - `MANDATE_REVOKED` → "Mandate Revoked" notification
 - `INVESTOR_PROFILE_UPDATED` with `goal.objective` change only → 1 notification (notificationId=eventId:goal)
 - `INVESTOR_PROFILE_UPDATED` with `operatingMode` change only → 1 notification (notificationId=eventId:mode)
@@ -2602,7 +2602,7 @@ Expected: PASS.
 
 ```bash
 git add services/investor/investor-ctrl/
-git commit -m "investor-ctrl: MANDATE_ACCEPTED/REVOKED notifications + INVESTOR_PROFILE_UPDATED diff-gate"
+git commit -m "investor-ctrl: MANDATE_ISSUED/REVOKED notifications + INVESTOR_PROFILE_UPDATED diff-gate"
 ```
 
 ### Task 4.3: Refactor investor-ctrl onboarding-notification integration test
@@ -2616,12 +2616,12 @@ Run: `grep -n "detailType:" services/investor/investor-ctrl/test/integration/onb
 
 Expected (from inventory): scenarios for `MANDATE_CREATED`, `GOAL_UPDATED`, `OPERATING_MODE_CHANGED` among others.
 
-- [ ] **Step 2: Replace MANDATE_CREATED scenario with MANDATE_ACCEPTED**
+- [ ] **Step 2: Replace MANDATE_CREATED scenario with MANDATE_ISSUED**
 
 ```typescript
-it('emits "Investment Mandate Activated" notification on MANDATE_ACCEPTED', async () => {
-  await emitEvent('MANDATE_ACCEPTED', { tenantId, userId, status: 'ACCEPTED', acceptedAt: '...' });
-  await waitForNotification({ tenantId, type: 'MANDATE_ACCEPTED' });
+it('emits "Investment Mandate Activated" notification on MANDATE_ISSUED', async () => {
+  await emitEvent('MANDATE_ISSUED', { tenantId, userId, status: 'ACCEPTED', acceptedAt: '...' });
+  await waitForNotification({ tenantId, type: 'MANDATE_ISSUED' });
   // notificationId = eventId (no diff suffix — dedicated event)
 });
 ```
@@ -2676,7 +2676,7 @@ The "Welcome to Nestfolio" notification is emitted from ONBOARDING_COMPLETED —
 
 ```bash
 git add services/investor/investor-ctrl/test/integration/onboarding-notification.integration.test.ts
-git commit -m "investor-ctrl: integration tests for MANDATE_ACCEPTED/REVOKED + INVESTOR_PROFILE_UPDATED diff notifications"
+git commit -m "investor-ctrl: integration tests for MANDATE_ISSUED/REVOKED + INVESTOR_PROFILE_UPDATED diff notifications"
 ```
 
 ### Acceptance criteria for Phase 4
@@ -2868,7 +2868,7 @@ Expected: at least 2 matches.
 
 ## Phase 6 — `advisory-adpt` cross-domain forwarding rule update
 
-**Goal:** Drop 7 old events from `fromInvestorEvents`, add 4 new (`INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_ACCEPTED`, `MANDATE_REVOKED`). Net: 7 → 4 events forwarded.
+**Goal:** Drop 7 old events from `fromInvestorEvents`, add 4 new (`INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_ISSUED`, `MANDATE_REVOKED`). Net: 7 → 4 events forwarded.
 
 ### Task 6.1: Update `advisory-adpt` event types + stack
 
@@ -2884,7 +2884,7 @@ Replace the `// From Investor` block:
 // From Investor
 INVESTOR_PROFILE_CREATED: eventName('INVESTOR_PROFILE_CREATED'),
 INVESTOR_PROFILE_UPDATED: eventName('INVESTOR_PROFILE_UPDATED'),
-MANDATE_ACCEPTED: eventName('MANDATE_ACCEPTED'),
+MANDATE_ISSUED: eventName('MANDATE_ISSUED'),
 MANDATE_REVOKED: eventName('MANDATE_REVOKED'),
 ```
 
@@ -2898,7 +2898,7 @@ Open `services/advisory/advisory-adpt/src/service.stack.ts`. Replace the `fromIn
 const fromInvestorEvents = [
   AdvisoryIngestEventTypes.INVESTOR_PROFILE_CREATED,
   AdvisoryIngestEventTypes.INVESTOR_PROFILE_UPDATED,
-  AdvisoryIngestEventTypes.MANDATE_ACCEPTED,
+  AdvisoryIngestEventTypes.MANDATE_ISSUED,
   AdvisoryIngestEventTypes.MANDATE_REVOKED,
 ];
 ```
@@ -3183,7 +3183,7 @@ Run: `awk '/^### .*Event Taxonomy/,/^## /' docs/architecture/SYSTEM-ARCHITECTURE
 
 In the event taxonomy table:
 - Replace `MANDATE_DEFINED` (typo) with `INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED`.
-- Add `MANDATE_ACCEPTED, MANDATE_REVOKED` to the User & Mandate row.
+- Add `MANDATE_ISSUED, MANDATE_REVOKED` to the User & Mandate row.
 - Drop `GOAL_CREATED, GOAL_UPDATED, RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED, OPERATING_MODE_SELECTED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED` from any row that lists them.
 
 (The §21 OQ "MANDATE_DEFINED typo" item from spec §5 is opportunistically resolved here.)
@@ -3210,7 +3210,7 @@ Replace 7-item list with 3-item list (composite InvestorProfile + MandateStatus 
 
 - [ ] **Step 2: Rewrite Phase 6 cross-domain forwards**
 
-Replace `GOAL_CREATED, RISK_PROFILE_CREATED, OPERATING_MODE_SELECTED, MANDATE_CREATED` with `INVESTOR_PROFILE_CREATED, MANDATE_ACCEPTED`.
+Replace `GOAL_CREATED, RISK_PROFILE_CREATED, OPERATING_MODE_SELECTED, MANDATE_CREATED` with `INVESTOR_PROFILE_CREATED, MANDATE_ISSUED`.
 
 - [ ] **Step 3: Update success_criteria + failure_modes**
 
@@ -3435,7 +3435,7 @@ Run a manual revocation against a deployed tenant:
 
 For a fresh tenant, post-onboarding:
 - Assert MandateStatus row INSERT.
-- Assert `MANDATE_ACCEPTED` event.
+- Assert `MANDATE_ISSUED` event.
 - Assert investor-ctrl "Investment Mandate Activated" notification.
 
 ### Acceptance criteria for Phase 9

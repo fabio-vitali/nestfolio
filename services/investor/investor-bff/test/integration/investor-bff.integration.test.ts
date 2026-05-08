@@ -59,7 +59,7 @@ describe('investor-bff', () => {
 
     // Deploy trap for all CDC event types emitted by investor-bff mutations
     // (post-collapse — composite row → INVESTOR_PROFILE_CREATED/UPDATED +
-    //  MandateStatus row → MANDATE_ACCEPTED/MANDATE_REVOKED).
+    //  MandateStatus row → MANDATE_ISSUED/MANDATE_REVOKED).
     await trap.deploy({
       bus: 'investor',
       detailType: [
@@ -67,7 +67,7 @@ describe('investor-bff', () => {
         'WITHDRAWAL_REQUESTED',
         'INVESTOR_PROFILE_CREATED',
         'INVESTOR_PROFILE_UPDATED',
-        'MANDATE_ACCEPTED',
+        'MANDATE_ISSUED',
         'MANDATE_REVOKED',
         'NOTIFICATION_READ',
       ],
@@ -294,7 +294,7 @@ describe('investor-bff', () => {
       expect(items.find((i) => String(i['sk']).startsWith('Goal#'))).toBeUndefined();
 
       // Event assertions — composite row → INVESTOR_PROFILE_CREATED;
-      // MandateStatus row → MANDATE_ACCEPTED. NEVER per-field events.
+      // MandateStatus row → MANDATE_ISSUED. NEVER per-field events.
       // waitForEvent polls SQS in a loop, robust to SQS-sample races where
       // a single drain() may not surface all messages.
       const created = await trap.waitForEvent({
@@ -302,11 +302,11 @@ describe('investor-bff', () => {
         timeoutMs: 60_000,
       });
       const accepted = await trap.waitForEvent({
-        detailType: 'MANDATE_ACCEPTED',
+        detailType: 'MANDATE_ISSUED',
         timeoutMs: 60_000,
       });
       expect(created.detailType).toBe('INVESTOR_PROFILE_CREATED');
-      expect(accepted.detailType).toBe('MANDATE_ACCEPTED');
+      expect(accepted.detailType).toBe('MANDATE_ISSUED');
 
       // Drain residual events to assert legacy per-field events are NOT emitted.
       const residual = (await trap.drain()).map((e) => e.detailType);

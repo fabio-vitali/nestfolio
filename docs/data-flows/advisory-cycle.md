@@ -69,7 +69,7 @@ sequenceDiagram
 
 ### Step 1: Cross-domain hop
 
-- **Event:** `INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | MANDATE_ACCEPTED | MANDATE_REVOKED`
+- **Event:** `INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | MANDATE_ISSUED | MANDATE_REVOKED`
 - **From:** InvestorBus
 - **To:** AdvisoryBus
 - **Via:** advisory-adpt EB rule (AdvisoryIngress-FromInvestor)

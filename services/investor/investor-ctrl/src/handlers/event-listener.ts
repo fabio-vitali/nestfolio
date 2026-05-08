@@ -28,7 +28,7 @@ const NOTIFICATION_TEMPLATES: Record<string, NotificationTemplate> = {
     body: 'Your account setup is complete. You can now start investing.',
     channel: 'email',
   },
-  MANDATE_ACCEPTED: {
+  MANDATE_ISSUED: {
     title: 'Investment Mandate Activated',
     body: 'Your investment mandate has been granted. We will start managing your portfolio.',
     channel: 'push',
@@ -112,7 +112,7 @@ function getCurrentPeriod(): string {
 
 const EVENT_TYPES = [
   InvestorBffEventTypes.ONBOARDING_COMPLETED,
-  InvestorBffEventTypes.MANDATE_ACCEPTED,
+  InvestorBffEventTypes.MANDATE_ISSUED,
   InvestorBffEventTypes.MANDATE_REVOKED,
   InvestorBffEventTypes.DEPOSIT_INITIATED,
   AdvisoryCrossDomainEventTypes.DECISION_APPROVED,

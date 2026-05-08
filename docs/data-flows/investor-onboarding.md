@@ -52,7 +52,7 @@ sequenceDiagram
     dashboard_bff->>+investor_ctrl: DEPOSIT_INITIATED
     investor_ctrl-)broker_ctrl: DEPOSIT_INITIATED (InvestorBus → ExecutionBus)
     broker_ctrl-)decision_workflow_ctrl: INVESTOR_PROFILE_CREATED (InvestorBus → AdvisoryBus)
-    broker_ctrl-)decision_workflow_ctrl: MANDATE_ACCEPTED (InvestorBus → AdvisoryBus)
+    broker_ctrl-)decision_workflow_ctrl: MANDATE_ISSUED (InvestorBus → AdvisoryBus)
     decision_workflow_ctrl->>+investor_bff: GO_LIVE_CONFIRMED
 ```
 
@@ -77,7 +77,7 @@ sequenceDiagram
 3. Deposit row (sk='Deposit#<id>', PUT, conditional only when capitalAmount > 0) --
    depositId, amountCents, currency
 
-- **Emits:** `CDC events from DDB Streams (declarative Egress, single emit per logical entity): - INVESTOR_PROFILE_CREATED (InvestorProfile:INSERT) -- advisory-adpt + dashboard-bff + compliance-ctrl subscribe - MANDATE_ACCEPTED (MandateStatus:INSERT) -- advisory-adpt + investor-ctrl subscribe - DEPOSIT_INITIATED (Deposit:INSERT, conditional) -- investor-ctrl + execution-adpt subscribe
+- **Emits:** `CDC events from DDB Streams (declarative Egress, single emit per logical entity): - INVESTOR_PROFILE_CREATED (InvestorProfile:INSERT) -- advisory-adpt + dashboard-bff + compliance-ctrl subscribe - MANDATE_ISSUED (MandateStatus:INSERT) -- advisory-adpt + investor-ctrl subscribe - DEPOSIT_INITIATED (Deposit:INSERT, conditional) -- investor-ctrl + execution-adpt subscribe
 `
 - **Idempotent:** yes
 
@@ -138,7 +138,7 @@ sequenceDiagram
 
 ### Step 10: Cross-domain hop
 
-- **Event:** `MANDATE_ACCEPTED`
+- **Event:** `MANDATE_ISSUED`
 - **From:** InvestorBus
 - **To:** AdvisoryBus
 - **Via:** advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
@@ -166,7 +166,7 @@ sequenceDiagram
 - Welcome notification delivered via investor-ctrl -> investor-bff materialization
 - Dashboard snapshot updated from INVESTOR_PROFILE_CREATED composite payload
 - If capitalAmount > 0, deposit routed to execution domain via execution-adpt
-- INVESTOR_PROFILE_CREATED + MANDATE_ACCEPTED forwarded to advisory domain via advisory-adpt
+- INVESTOR_PROFILE_CREATED + MANDATE_ISSUED forwarded to advisory domain via advisory-adpt
 - decision-workflow-ctrl starts exactly ONE advisory SF execution per onboarding (direct EB -> SF on INVESTOR_PROFILE_CREATED)
 
 ## Failure Modes
@@ -177,4 +177,4 @@ sequenceDiagram
 - **step 3 fails:** investor-bff ingress DLQ captures NOTIFICATION_CREATED; notification not visible in frontend
 - **step 4 fails:** dashboard-bff ingress DLQ captures INVESTOR_PROFILE_CREATED; dashboard stale until replay
 - **step 5 fails (conditional):** execution-adpt FromInvestorDLQ captures DEPOSIT_INITIATED; deposit not processed
-- **step 6 fails:** advisory-adpt FromInvestorDLQ captures INVESTOR_PROFILE_CREATED/MANDATE_ACCEPTED; initial advisory cycle not started until replay
+- **step 6 fails:** advisory-adpt FromInvestorDLQ captures INVESTOR_PROFILE_CREATED/MANDATE_ISSUED; initial advisory cycle not started until replay

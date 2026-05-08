@@ -12,10 +12,10 @@ Stack: services/investor/investor-ctrl/src/service.stack.ts
 
 ## Ingress Subscriptions (14)
 
-From investor-bff: ONBOARDING_COMPLETED, MANDATE_ACCEPTED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED, DEPOSIT_INITIATED
+From investor-bff: ONBOARDING_COMPLETED, MANDATE_ISSUED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED, DEPOSIT_INITIATED
 From investor-adpt: DECISION_APPROVED, ORDER_FILLED, BALANCE_UPDATED, ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED
 
-Post-collapse migration: legacy MANDATE_CREATED, GOAL_UPDATED, OPERATING_MODE_CHANGED triggers replaced by MANDATE_ACCEPTED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED. INVESTOR_PROFILE_UPDATED is processed by a bespoke diff-detect handler that derives goal-change / operating-mode-change notifications from the payload diff.
+Post-collapse migration: legacy MANDATE_CREATED, GOAL_UPDATED, OPERATING_MODE_CHANGED triggers replaced by MANDATE_ISSUED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED. INVESTOR_PROFILE_UPDATED is processed by a bespoke diff-detect handler that derives goal-change / operating-mode-change notifications from the payload diff.
 
 ## Egress (CDC)
 
@@ -27,7 +27,7 @@ Post-collapse migration: legacy MANDATE_CREATED, GOAL_UPDATED, OPERATING_MODE_CH
 ## Handlers
 
 - event-listener.ts (materializeToTable, errorEventType: INVESTOR_CTRL_FAILED)
-  - Tenant events templated via NOTIFICATION_TEMPLATES (ONBOARDING_COMPLETED, MANDATE_ACCEPTED, MANDATE_REVOKED, GOAL_UPDATED, DEPOSIT_INITIATED, OPERATING_MODE_CHANGED, DECISION_APPROVED, ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED) -> record('Notification')
+  - Tenant events templated via NOTIFICATION_TEMPLATES (ONBOARDING_COMPLETED, MANDATE_ISSUED, MANDATE_REVOKED, GOAL_UPDATED, DEPOSIT_INITIATED, OPERATING_MODE_CHANGED, DECISION_APPROVED, ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED) -> record('Notification')
   - ORDER_FILLED -> [record('Notification'), record('MonthlyReport')]
   - INVESTOR_PROFILE_UPDATED -> bespoke diff handler: emits up to 1 notification per detected change (goal.*, operatingMode) with id suffixed by the diffed field; no notification if no relevant diff
   - 3 system events (BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED) -> record('Notification', tenantId='SYSTEM')

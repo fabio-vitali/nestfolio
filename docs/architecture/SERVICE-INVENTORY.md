@@ -127,7 +127,7 @@ Each entry below uses the same structure:
 
 **Key events consumed.** `USER_REGISTERED`, `NOTIFICATION_CREATED`, `BALANCE_UPDATED`, `ONBOARDING_COMPLETED`, `GO_LIVE_CONFIRMED`, `BROKER_CIRCUIT_OPEN`, `BROKER_CIRCUIT_CLOSED`, `DEPOSIT_DETECTED`.
 
-**Key events emitted (Egress shapes — 6, post-collapse).** `InvestorProfile` → `INVESTOR_PROFILE_CREATED` / `INVESTOR_PROFILE_UPDATED`; `MandateStatus` → `MANDATE_ACCEPTED` / `MANDATE_REVOKED`; `Deposit` → `DEPOSIT_INITIATED` / `DEPOSIT_UPDATED`; `Withdrawal` → `WITHDRAWAL_REQUESTED` / `WITHDRAWAL_UPDATED`; `ExecutionModeChange` → `EXECUTION_MODE_CHANGED` / `EXECUTION_MODE_CHANGE_UPDATED`; `Notification` → `NOTIFICATION_READ`.
+**Key events emitted (Egress shapes — 6, post-collapse).** `InvestorProfile` → `INVESTOR_PROFILE_CREATED` / `INVESTOR_PROFILE_UPDATED`; `MandateStatus` → `MANDATE_ISSUED` / `MANDATE_REVOKED`; `Deposit` → `DEPOSIT_INITIATED` / `DEPOSIT_UPDATED`; `Withdrawal` → `WITHDRAWAL_REQUESTED` / `WITHDRAWAL_UPDATED`; `ExecutionModeChange` → `EXECUTION_MODE_CHANGED` / `EXECUTION_MODE_CHANGE_UPDATED`; `Notification` → `NOTIFICATION_READ`.
 
 Down from 9 entity shapes pre-collapse (Goal, RiskProfile, Mandate, OperatingModeRecord, InvestorProfile, Deposit, Withdrawal, ExecutionModeChange, Notification). The legacy GOAL_*, RISK_PROFILE_*, OPERATING_MODE_*, and MANDATE_CREATED/UPDATED events are gone — INVESTOR_PROFILE_UPDATED carries those mutations on the composite row.
 
@@ -152,11 +152,11 @@ Down from 9 entity shapes pre-collapse (Goal, RiskProfile, Mandate, OperatingMod
 
 **Responsibilities.** Investor registration; identity write side; notification fan-out (system → user channels) via NOTIFICATION_TEMPLATES; INVESTOR_PROFILE_UPDATED diff-detect handler that derives goal-change / operating-mode-change notifications from the composite payload diff.
 
-**Key events consumed (14).** `ONBOARDING_COMPLETED`, `MANDATE_ACCEPTED`, `MANDATE_REVOKED`, `INVESTOR_PROFILE_UPDATED`, `DEPOSIT_INITIATED`, `DECISION_APPROVED`, `ORDER_FILLED`, `BALANCE_UPDATED`, `ORDER_REJECTED`, `DECISION_BLOCKED`, `WITHDRAWAL_COMPLETED`, `BROKER_CIRCUIT_OPEN`, `BROKER_CIRCUIT_CLOSED`, `BROKER_HEAL_ESCALATED`.
+**Key events consumed (14).** `ONBOARDING_COMPLETED`, `MANDATE_ISSUED`, `MANDATE_REVOKED`, `INVESTOR_PROFILE_UPDATED`, `DEPOSIT_INITIATED`, `DECISION_APPROVED`, `ORDER_FILLED`, `BALANCE_UPDATED`, `ORDER_REJECTED`, `DECISION_BLOCKED`, `WITHDRAWAL_COMPLETED`, `BROKER_CIRCUIT_OPEN`, `BROKER_CIRCUIT_CLOSED`, `BROKER_HEAL_ESCALATED`.
 
 **Key events emitted.** `Notification` → `NOTIFICATION_CREATED` / `NOTIFICATION_UPDATED`; `MonthlyReport` → `MONTHLY_REPORT_CREATED` / `MONTHLY_REPORT_UPDATED`.
 
-**Architectural Evolution.** Notification-lifecycle redesigned 2026-05-03 (InvestorProfile collapse Phase 4): legacy MANDATE_CREATED + GOAL_UPDATED + OPERATING_MODE_CHANGED triggers replaced by MANDATE_ACCEPTED + MANDATE_REVOKED + INVESTOR_PROFILE_UPDATED (with diff-detect handler).
+**Architectural Evolution.** Notification-lifecycle redesigned 2026-05-03 (InvestorProfile collapse Phase 4): legacy MANDATE_CREATED + GOAL_UPDATED + OPERATING_MODE_CHANGED triggers replaced by MANDATE_ISSUED + MANDATE_REVOKED + INVESTOR_PROFILE_UPDATED (with diff-detect handler).
 
 **Health.** canonical.
 
@@ -395,7 +395,7 @@ Down from 9 entity shapes pre-collapse (Goal, RiskProfile, Mandate, OperatingMod
 **Why this service exists.** Pull-model cross-domain adapter for the Advisory domain. Subscribes to investor-bus + ledger-bus + execution-bus events the Advisory domain needs (mandate events, portfolio drift, order outcomes, etc.) and republishes onto advisory-bus.
 
 **Forwarding rules.**
-- Investor → Advisory (4 events post-collapse): `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_ACCEPTED`, `MANDATE_REVOKED`. Down from 7 (legacy: GOAL_*, RISK_PROFILE_*, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED).
+- Investor → Advisory (4 events post-collapse): `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_ISSUED`, `MANDATE_REVOKED`. Down from 7 (legacy: GOAL_*, RISK_PROFILE_*, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED).
 - Execution → Advisory (4): `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`.
 - Ledger → Advisory (2): `PORTFOLIO_UPDATED`, `PORTFOLIO_DRIFT_DETECTED`.
 

@@ -8,7 +8,7 @@ trigger: decision-workflow-ctrl receives one of 7 trigger events; EventBridge st
 steps:
   # -- Phase 0: Cross-domain trigger ingestion --
   # 4 of the 7 triggers originate from the investor domain and arrive via advisory-adpt
-  - cross_domain: INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | MANDATE_ACCEPTED | MANDATE_REVOKED
+  - cross_domain: INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | MANDATE_ISSUED | MANDATE_REVOKED
     from: InvestorBus
     to: AdvisoryBus
     via: advisory-adpt EB rule (AdvisoryIngress-FromInvestor)

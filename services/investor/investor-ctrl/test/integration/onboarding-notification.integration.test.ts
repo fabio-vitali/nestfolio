@@ -72,7 +72,7 @@ describe('investor-ctrl', () => {
         detail: { goal: 'RETIREMENT', riskTolerance: 'MODERATE' },
       },
       {
-        detailType: 'MANDATE_ACCEPTED',
+        detailType: 'MANDATE_ISSUED',
         detail: { mandateId: 'integ-mandate', level: 'DISCRETIONARY' },
       },
       {
