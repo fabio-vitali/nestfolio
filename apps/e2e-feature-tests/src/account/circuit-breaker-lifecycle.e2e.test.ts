@@ -15,6 +15,7 @@ import {
 } from '..';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { randomUUID } from 'crypto';
 import type { FeatureFlagsResponse } from '../helpers/graphql-types';
 
 describe('scenario 14 — circuit breaker lifecycle', () => {
@@ -63,7 +64,7 @@ describe('scenario 14 — circuit breaker lifecycle', () => {
       `mutation InitiateDeposit($input: DepositInput!) {
          initiateDeposit(input: $input) { depositId status }
        }`,
-      { input: { amountCents: 100_000, currency: 'USD' } },
+      { input: { depositId: randomUUID(), amountCents: 100_000, currency: 'USD' } },
     );
     expect(deposit.initiateDeposit.status).toBe('INITIATED');
 
@@ -92,7 +93,7 @@ describe('scenario 14 — circuit breaker lifecycle', () => {
         `mutation InitiateDeposit($input: DepositInput!) {
            initiateDeposit(input: $input) { depositId status }
          }`,
-        { input: { amountCents: 50_000, currency: 'USD' } },
+        { input: { depositId: randomUUID(), amountCents: 50_000, currency: 'USD' } },
       );
       fail('Expected mutation to be blocked by feature flag');
     } catch (err) {
@@ -122,7 +123,7 @@ describe('scenario 14 — circuit breaker lifecycle', () => {
       `mutation InitiateDeposit($input: DepositInput!) {
          initiateDeposit(input: $input) { depositId status }
        }`,
-      { input: { amountCents: 30_000, currency: 'USD' } },
+      { input: { depositId: randomUUID(), amountCents: 30_000, currency: 'USD' } },
     );
     expect(deposit2.initiateDeposit.status).toBe('INITIATED');
   }, 360_000); // full lifecycle — 6 min timeout

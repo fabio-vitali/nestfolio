@@ -11,10 +11,9 @@ _(none)_
 
 ## QUEUED
 
-1. [e2e-initiate-deposit-missing-deposit-id](backlog/e2e-initiate-deposit-missing-deposit-id.md) [bug] — fund-account + circuit-breaker e2e fail: initiateDeposit missing depositId (ID!)
-2. [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — operating-mode-recommendation-shape e2e: agent pipeline never materializes non-empty proposedTrades on dev
-3. [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [bug] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging.
-4. [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
+1. [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — operating-mode-recommendation-shape e2e: agent pipeline never materializes non-empty proposedTrades on dev
+2. [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [bug] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging.
+3. [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 
 ## LATER
 
@@ -48,6 +47,7 @@ _(none)_
 ## Recently Shipped (last 10)
 
 - 2026-05-08 — [deposit-page-pattern-a-to-pattern-b](backlog/deposit-page-pattern-a-to-pattern-b.md) [refactor] — deposit-page is the lone Pattern A holdout; full fix = client-UUID + URL routing + getDeposit recovery.
+- 2026-05-08 — [e2e-initiate-deposit-missing-deposit-id](backlog/e2e-initiate-deposit-missing-deposit-id.md) [bug] — fund-account + circuit-breaker e2e fail: initiateDeposit missing depositId (ID!)
 - 2026-05-08 — [investor-profile-domain-resplit](backlog/investor-profile-domain-resplit.md) [design] — Re-split Mandate as a sibling aggregate; relocate GUARDRAIL_TABLE policy into compliance-ctrl; introduce 3-tier event topology (carrier + semantic + lifecycle) via declarative onFieldChange extension to cdk-constructs.
 - 2026-05-07 — [advisory-bff-on-decision-update-wss-closes-early](backlog/advisory-bff-on-decision-update-wss-closes-early.md) [bug] — WSS closes prematurely; e2e test hides bug via reload — must remove on fix.
 - 2026-05-07 — [backlog-redesign](backlog/backlog-redesign.md) [refactor] — Per-item backlog files + auto-generated index + backlog-lint enforcement; MEMORY duplication removed.
@@ -56,4 +56,3 @@ _(none)_
 - 2026-05-07 — [pr-pipeline-integration-tests](backlog/pr-pipeline-integration-tests.md) [infra] — Closed 2026-05-07 — implementation landed inline with the test-support extraction; backlog file lagged.
 - 2026-05-07 — [publish-decision-update-omits-null-fields](backlog/publish-decision-update-omits-null-fields.md) [bug] — Shipped 2026-05-07 — broadcaster + resolver now carry confirmedAt/rejectedAt/rejectionReason/confirmationRequired.
 - 2026-05-07 — [remaining-agent-orchestrators](backlog/remaining-agent-orchestrators.md) [refactor] — Naturally closed by Spec 2 + structured-output α/β/γ ship; no fresh workstream needed.
-- 2026-05-07 — [silent-discard-unknown-operating-mode-narrowing](backlog/silent-discard-unknown-operating-mode-narrowing.md) [bug] — Shipped 2026-05-07 — added console.warn with structured payload (rawOperatingMode/tenantId/decisionId) before BALANCED narrowing in services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts. Five-condition guard: string + non-empty + not in {CONSERVATIVE,BALANCED,AGGRESSIVE}. TDD red→green.

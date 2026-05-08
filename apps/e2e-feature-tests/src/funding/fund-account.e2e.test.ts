@@ -13,6 +13,7 @@ import {
 import type { RecentActivityResponse } from '../helpers/graphql-types';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { randomUUID } from 'crypto';
 
 describe('scenario 1 — investor funds their account', () => {
   let ctx: TestContext;
@@ -58,7 +59,7 @@ describe('scenario 1 — investor funds their account', () => {
            initiatedAt
          }
        }`,
-      { input: { amountCents: 500_000, currency: 'USD' } },
+      { input: { depositId: randomUUID(), amountCents: 500_000, currency: 'USD' } },
     );
 
     expect(deposit.initiateDeposit.status).toBe('INITIATED');

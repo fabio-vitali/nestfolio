@@ -1,15 +1,24 @@
 ---
 id: e2e-initiate-deposit-missing-deposit-id
-status: queued
-rank: 1
+status: shipped
 type: bug
 notes: "fund-account + circuit-breaker e2e fail: initiateDeposit missing depositId (ID!)"
-references: []
-out_of_scope: []
+references:
+  - apps/e2e-feature-tests/src/funding/fund-account.e2e.test.ts#L49-L62
+  - apps/e2e-feature-tests/src/account/circuit-breaker-lifecycle.e2e.test.ts#L60-L67
+  - services/investor/investor-bff/src/schema.graphql#L182-L186
+out_of_scope:
+  - Schema change to make depositId server-generated (Option 2 in backlog) — keep production schema strict.
+  - Touching withdrawal call sites or any other GraphQL mutation that does not currently fail.
+  - Rerunning the full e2e suite — only the two affected suites (fund-account + circuit-breaker-lifecycle) need to gate.
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Against deployed dev (NESTFOLIO_INTEG_PREFIX=dev), both touched e2e suites pass:
+  - apps/e2e-feature-tests/src/funding/fund-account.e2e.test.ts — 1/1 PASS (79.7s, 2026-05-08)
+  - apps/e2e-feature-tests/src/account/circuit-breaker-lifecycle.e2e.test.ts — 2/2 PASS (48.4s, 2026-05-08)
+  Lint: pnpm nx run e2e-feature-tests:lint — 0 errors (warnings pre-existing in unrelated helpers).
 ---
 
 # E2E initiateDeposit tests missing required depositId field
