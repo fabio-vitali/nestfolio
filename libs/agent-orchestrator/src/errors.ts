@@ -64,3 +64,26 @@ export class EmptyAgentResponseError extends Error {
     this.missingOrEmptyKeys = args.missingOrEmptyKeys;
   }
 }
+
+// UnknownOperatingModeError: the operatingMode for a decision could not be
+//   resolved from the expected payload location. Replaces the silent
+//   `?? 'BALANCED'` fallback that was masking a propagation regression
+//   (see docs/backlog/operating-mode-shape-empty-proposed-trades.md). Throw
+//   loudly so SF surfaces a TaskFailure with a precise resolutionPath instead
+//   of the agent silently producing BALANCED-shape outputs under every mode.
+export class UnknownOperatingModeError extends Error {
+  readonly decisionId: string;
+  readonly resolutionPath: string;
+  readonly availableKeys: string[];
+  constructor(args: { decisionId: string; resolutionPath: string; availableKeys: string[] }) {
+    super(
+      `operatingMode missing for decision ${args.decisionId} at ${args.resolutionPath}. ` +
+        `Available keys=[${args.availableKeys.join(',')}]. ` +
+        `Refusing to silently default to BALANCED — fix the upstream propagation.`,
+    );
+    this.name = 'UnknownOperatingModeError';
+    this.decisionId = args.decisionId;
+    this.resolutionPath = args.resolutionPath;
+    this.availableKeys = args.availableKeys;
+  }
+}

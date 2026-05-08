@@ -33,6 +33,7 @@ export {
   DegradedAgentOutputError,
   DegradedStructuredOutputError,
   EmptyAgentResponseError,
+  UnknownOperatingModeError,
 } from './errors';
 export { assertOrchestratorOutput } from './assert-output';
 export { createOrchestrator, type CompiledGraph } from './create-orchestrator';
