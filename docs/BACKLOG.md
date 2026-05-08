@@ -15,6 +15,7 @@
 
 ## LATER
 
+- [agentcore-memory-list-records-eventual-consistency](backlog/agentcore-memory-list-records-eventual-consistency.md) [bug] — AgentCore Memory ListMemoryRecords lag >40s; SF inter-stage cadence ~5s — propagate operatingMode through SF state instead.
 - [backlog-frontmatter-add-first-observed-field](backlog/backlog-frontmatter-add-first-observed-field.md) [tooling] — Add first_observed: ISO-date field to backlog frontmatter; lint enforces presence on new files.
 - [bff-resolver-region-sweep](backlog/bff-resolver-region-sweep.md) [bug] — advisory-bff + ledger-bff mutation resolvers likely missing region field.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
