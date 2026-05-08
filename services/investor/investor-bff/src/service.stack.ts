@@ -22,6 +22,9 @@ export class InvestorBffStack extends ServiceStack {
           initiateDeposit: ['check-feature-flag.fn.js'],
           requestWithdrawal: ['check-feature-flag.fn.js'],
         },
+        extraSteps: {
+          getProfile: ['get-profile-mandate.fn.js'],
+        },
       }),
     });
 

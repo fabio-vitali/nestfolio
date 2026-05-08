@@ -1,97 +1,32 @@
-import { request, response } from '../../../src/graphql/js-function/get-profile.fn.js';
+import * as fn1 from '../../../src/graphql/js-function/get-profile.fn.js';
+import * as fn2 from '../../../src/graphql/js-function/get-profile-mandate.fn.js';
 
-describe('get-profile resolver', () => {
-  const stash = {
-    tenantId: 'tenant-1',
-    userId: 'user-1',
-    tableName: 'inv-bff',
+describe('getProfile pipeline resolver', () => {
+  const baseCtx = {
+    stash: { tenantId: 't1', userId: 'u1' },
+    prev: { result: { tenantId: 't1', userId: 'u1', email: 'u1@x', operatingMode: 'BALANCED', mandateId: 'm1', mandateLevel: 'DISCRETIONARY' } },
+    result: { mandateId: 'm1', level: 'DISCRETIONARY', status: 'ACTIVE', effectiveDate: '2026-05-08T00:00:00Z', revokedAt: null },
   };
 
-  describe('request', () => {
-    it('issues a BatchGetItem against two SKs of the composite InvestorProfile row', () => {
-      const op = request({ stash });
-
-      expect(op.operation).toBe('BatchGetItem');
-      expect(op.tables).toBeDefined();
-      expect(op.tables['inv-bff']).toBeDefined();
-      const keys = op.tables['inv-bff'].keys;
-      expect(keys).toHaveLength(2);
-      const pk = `InvestorProfile#${stash.tenantId}#${stash.userId}`;
-      expect(keys[0]).toEqual({ pk, sk: 'InvestorProfile' });
-      expect(keys[1]).toEqual({ pk, sk: 'MandateStatus' });
-    });
+  it('function 1: gets the InvestorProfile row', () => {
+    const req = fn1.request({ stash: { tenantId: 't1', userId: 'u1' } } as any);
+    expect(req.operation).toBe('GetItem');
+    expect(req.key.sk.S).toBe('InvestorProfile');
   });
 
-  describe('response', () => {
-    it('merges MandateStatus.status + revokedAt onto profile.mandate', () => {
-      const profile = {
-        sk: 'InvestorProfile',
-        __typename: 'InvestorProfile',
-        tenantId: 'tenant-1',
-        userId: 'user-1',
-        mandate: { mandateId: 'm-1', level: 'DISCRETIONARY', status: 'ACTIVE', revokedAt: null },
-      };
-      const mandateStatus = {
-        sk: 'MandateStatus',
-        __typename: 'MandateStatus',
-        status: 'REVOKED',
-        revokedAt: '2026-05-03T10:00:00.000Z',
-      };
-      const ctx = {
-        stash,
-        result: { data: { 'inv-bff': [profile, mandateStatus] } },
-      };
+  it('function 2: gets the Mandate row using the same pk', () => {
+    const req = fn2.request(baseCtx as any);
+    expect(req.operation).toBe('GetItem');
+    expect(req.key.sk.S).toBe('Mandate');
+    expect(req.key.pk.S).toBe('InvestorProfile#t1#u1');
+  });
 
-      const out = response(ctx);
-
-      expect(out.mandate.status).toBe('REVOKED');
-      expect(out.mandate.revokedAt).toBe('2026-05-03T10:00:00.000Z');
-      expect(out.mandate.level).toBe('DISCRETIONARY');
-      expect(out.mandate.mandateId).toBe('m-1');
-    });
-
-    it('returns profile with mandate untouched when MandateStatus is absent', () => {
-      const profile = {
-        sk: 'InvestorProfile',
-        __typename: 'InvestorProfile',
-        mandate: { mandateId: 'm-1', level: 'DISCRETIONARY', status: 'ACTIVE', revokedAt: null },
-      };
-      const ctx = {
-        stash,
-        result: { data: { 'inv-bff': [profile, null] } },
-      };
-
-      const out = response(ctx);
-
-      expect(out.mandate.status).toBe('ACTIVE');
-      expect(out.mandate.revokedAt).toBeNull();
-    });
-
-    it('throws "Profile not found" via util.error when InvestorProfile sk is absent', () => {
-      const ctx = {
-        stash,
-        result: { data: { 'inv-bff': [null, null] } },
-      };
-
-      expect(() => response(ctx)).toThrow('Profile not found');
-    });
-
-    it('rethrows ctx.error via util.error', () => {
-      const ctx = {
-        stash,
-        error: { message: 'boom', type: 'InternalError' },
-      };
-
-      expect(() => response(ctx)).toThrow('boom');
-    });
-
-    it('handles empty BatchGetItem result (data array missing) by erroring', () => {
-      const ctx = {
-        stash,
-        result: { data: {} },
-      };
-
-      expect(() => response(ctx)).toThrow('Profile not found');
+  it('function 2 response merges Mandate row into profile.mandate', () => {
+    const merged = fn2.response(baseCtx as any);
+    expect(merged.email).toBe('u1@x');
+    expect(merged.mandate).toEqual({
+      mandateId: 'm1', level: 'DISCRETIONARY', status: 'ACTIVE',
+      effectiveDate: '2026-05-08T00:00:00Z', revokedAt: null,
     });
   });
 });

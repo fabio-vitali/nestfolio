@@ -6,13 +6,13 @@ export function request(ctx) {
     operation: 'GetItem',
     key: util.dynamodb.toMapValues({
       pk: `InvestorProfile#${tenantId}#${userId}`,
-      sk: 'InvestorProfile',
+      sk: 'Mandate',
     }),
   };
 }
 
 export function response(ctx) {
   if (ctx.error) util.error(ctx.error.message, ctx.error.type);
-  if (!ctx.result) util.error('InvestorProfile not found', 'NotFound');
-  return ctx.result;
+  const profile = ctx.prev.result;
+  return { ...profile, mandate: ctx.result };
 }
