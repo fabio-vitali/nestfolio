@@ -66,16 +66,10 @@ async function processDecisionPacket(
       decisionPacketId,
       taskToken,
       mandateSnapshot: {
-        mandateId: 'NONE',
         level: 'ADVISORY',
-        monthlyTurnoverCapPercent: 0,
-        maxSingleTradePercent: 0,
-        equityRiskBandPercent: 0,
-        driftTriggerPercent: 0,
-        singleEtfConcentrationPercent: 0,
-        drawdownCircuitBreakerPercent: 0,
+        status: 'ACTIVE',
+        operatingMode: 'CONSERVATIVE',
         effectiveDate: new Date().toISOString(),
-        revokedAt: null,
       },
       status: 'BLOCKED',
       result: 'BLOCKED',
@@ -86,21 +80,10 @@ async function processDecisionPacket(
   }
 
   const mandate: MandateSnapshot = {
-    mandateId: mandateRecord.mandateId as string,
     level: mandateRecord.level as 'ADVISORY' | 'DISCRETIONARY',
-    monthlyTurnoverCapPercent: (mandateRecord.monthlyTurnoverCapPercent as number) ?? 25,
-    maxSingleTradePercent: (mandateRecord.maxSingleTradePercent as number) ?? 10,
-    equityRiskBandPercent: (mandateRecord.equityRiskBandPercent as number) ?? 6,
-    driftTriggerPercent: (mandateRecord.driftTriggerPercent as number) ?? 4,
-    singleEtfConcentrationPercent: (mandateRecord.singleEtfConcentrationPercent as number) ?? 30,
-    drawdownCircuitBreakerPercent: (mandateRecord.drawdownCircuitBreakerPercent as number) ?? 12,
+    status: (mandateRecord.status as 'ACTIVE' | 'REVOKED' | undefined) ?? 'ACTIVE',
+    operatingMode: mandateRecord.operatingMode as MandateSnapshot['operatingMode'],
     effectiveDate: mandateRecord.effectiveDate as string,
-    // INVESTOR_PROFILE_* projection no longer writes revokedAt — that field
-    // is owned exclusively by the MANDATE_REVOKED handler. Coerce undefined
-    // (column never set) to null so MandateValidator's `revokedAt !== null`
-    // gate doesn't false-positive on fresh-but-unrevoked rows.
-    revokedAt: (mandateRecord.revokedAt as string | undefined) ?? null,
-    status: mandateRecord.status as 'ACTIVE' | 'REVOKED' | undefined,
   };
 
   const proposedTrades = (subject.proposedTrades as ComplianceInput['proposedTrades']) ?? [];
@@ -157,53 +140,61 @@ async function processDecisionPacket(
   ];
 }
 
-function processInvestorProfileEvent(
+function processMandateIssued(
   payload: EventPayload,
   ctx: EventContext,
 ): WriteIntent {
-  const subject = payload.subject;
-  const tenantId = (subject?.tenantId as string) ?? ctx.tenantId;
-  const userId = (subject?.userId as string) ?? tenantId;
-  const mandate = (subject?.mandate ?? {}) as Record<string, unknown>;
-  const operatingMode = subject?.operatingMode as string | undefined;
+  const subject = payload.subject ?? {};
+  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
+  const userId = (subject.userId as string) ?? tenantId;
+  const mandateId = subject.mandateId as string;
+  const level = subject.level as MandateSnapshot['level'];
+  const operatingMode = subject.operatingMode as MandateSnapshot['operatingMode'];
+  const effectiveDate = subject.effectiveDate as string;
 
-  if (!mandate.mandateId || !mandate.level) {
+  if (!mandateId || !level || !operatingMode) {
     throw new NotRetryableError(
-      `Missing required mandate fields in INVESTOR_PROFILE_* payload: mandateId=${mandate.mandateId}, level=${mandate.level}`,
+      `MANDATE_ISSUED missing required fields: mandateId=${mandateId} level=${level} operatingMode=${operatingMode}`,
     );
   }
 
-  logger.info('MandateSnapshot projected from composite InvestorProfile event', {
-    tenantId,
-    userId,
-    eventType: ctx.eventType,
-    operatingMode,
-  });
+  logger.info('MandateSnapshot projected from MANDATE_ISSUED', { tenantId, userId, mandateId, level, operatingMode });
 
-  // SET-style update preserves any prior status='REVOKED' written by
-  // processMandateRevoked. ConditionExpression skips the write entirely when
-  // the row is already REVOKED — protects against SQS at-least-once
-  // redelivery of an INVESTOR_PROFILE_CREATED that arrives AFTER a
-  // MANDATE_REVOKED for the same user. The runtime catches
-  // ConditionalCheckFailedException as a no-op on event-processor's
-  // executeUpdate path.
+  // SET-style update skips when already REVOKED — protects against SQS at-least-once
+  // redelivery of MANDATE_ISSUED arriving after MANDATE_REVOKED.
   return update(
     'MandateSnapshot',
-    {
-      tenantId,
-      userId,
-      mandateId: mandate.mandateId,
-      level: mandate.level,
-      monthlyTurnoverCapPercent: (mandate.monthlyTurnoverCapPercent as number) ?? 25,
-      maxSingleTradePercent: (mandate.maxSingleTradePercent as number) ?? 10,
-      equityRiskBandPercent: (mandate.equityRiskBandPercent as number) ?? 6,
-      driftTriggerPercent: (mandate.driftTriggerPercent as number) ?? 4,
-      singleEtfConcentrationPercent: (mandate.singleEtfConcentrationPercent as number) ?? 30,
-      drawdownCircuitBreakerPercent: (mandate.drawdownCircuitBreakerPercent as number) ?? 12,
-      effectiveDate: mandate.effectiveDate as string,
-    },
+    { tenantId, userId, mandateId, level, status: 'ACTIVE', operatingMode, effectiveDate },
     {
       condition: 'attribute_not_exists(#mandate_status) OR #mandate_status <> :revoked',
+      conditionNames: { '#mandate_status': 'status' },
+      conditionValues: { ':revoked': 'REVOKED' },
+      overrides: { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' },
+    },
+  );
+}
+
+function processOperatingModeChanged(
+  payload: EventPayload,
+  ctx: EventContext,
+): WriteIntent {
+  const subject = payload.subject ?? {};
+  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
+  const userId = (subject.userId as string) ?? tenantId;
+  const operatingMode = subject.operatingMode as MandateSnapshot['operatingMode'];
+
+  if (!operatingMode) {
+    throw new NotRetryableError(`OPERATING_MODE_CHANGED missing operatingMode`);
+  }
+
+  logger.info('MandateSnapshot.operatingMode updated from OPERATING_MODE_CHANGED', { tenantId, userId, operatingMode });
+
+  // Patch only operatingMode — status/level are untouched. Skips if row is REVOKED.
+  return update(
+    'MandateSnapshot',
+    { tenantId, userId, operatingMode },
+    {
+      condition: 'attribute_exists(pk) AND #mandate_status <> :revoked',
       conditionNames: { '#mandate_status': 'status' },
       conditionValues: { ':revoked': 'REVOKED' },
       overrides: { pk: guardrailPolicyPk(tenantId, userId), sk: 'MandateSnapshot' },
@@ -248,16 +239,14 @@ export const createHandlers = (deps: EventListenerDeps) => {
   handlers[DecisionWorkflowEventTypes.RECOMMENDATION_PROPOSED] = (payload, ctx) =>
     processDecisionPacket(deps, payload, ctx);
 
-  // Composite InvestorProfile events carry mandate config in subject.mandate.*
-  // and operating mode in subject.operatingMode. Replaces legacy
-  // MANDATE_CREATED/UPDATED/OPERATING_MODE_CHANGED fan-out (Phase 3 of
-  // InvestorProfile collapse).
-  handlers[InvestorBffEventTypes.INVESTOR_PROFILE_CREATED] = (payload, ctx) =>
-    processInvestorProfileEvent(payload, ctx);
-  handlers[InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED] = (payload, ctx) =>
-    processInvestorProfileEvent(payload, ctx);
-
-  // MANDATE_REVOKED gates the rule engine via MandateSnapshot.status='REVOKED'.
+  // Semantic mandate events replace the old carrier INVESTOR_PROFILE_CREATED/UPDATED fan-out.
+  // MANDATE_ISSUED: project a fresh MandateSnapshot (operatingMode denormalized at issue time).
+  // OPERATING_MODE_CHANGED: patch only operatingMode on the existing snapshot.
+  // MANDATE_REVOKED: gate the rule engine via MandateSnapshot.status='REVOKED'.
+  handlers[InvestorBffEventTypes.MANDATE_ISSUED] = (payload, ctx) =>
+    processMandateIssued(payload, ctx);
+  handlers[InvestorBffEventTypes.OPERATING_MODE_CHANGED] = (payload, ctx) =>
+    processOperatingModeChanged(payload, ctx);
   handlers[InvestorBffEventTypes.MANDATE_REVOKED] = (payload, ctx) =>
     processMandateRevoked(payload, ctx);
 

@@ -308,20 +308,28 @@ describe('InvestorProfileRepository', () => {
     });
   });
 
-  describe('setOperatingMode (composite row)', () => {
-    it('issues a single UpdateItem on the InvestorProfile row', async () => {
-      mockSend.mockResolvedValueOnce({});
+  describe('setOperatingMode', () => {
+    it('updates operatingMode without touching mandate fields', async () => {
+      const send = jest.fn().mockResolvedValue({});
+      const repo = new InvestorProfileRepository('test-table');
+      (repo as any).docClient = { send };
+      await repo.setOperatingMode({ tenantId: 't1', userId: 'u1', region: 'us-east-1' } as any, 'AGGRESSIVE');
+      const cmd = send.mock.calls[0][0];
+      expect(cmd.input.UpdateExpression).toMatch(/SET operatingMode = :mode/);
+      expect(cmd.input.UpdateExpression).not.toMatch(/mandate\./);
+    });
+  });
 
-      const result = await repo.setOperatingMode(ctx('t1', 'u1'), 'AGGRESSIVE');
-
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      const call = mockSend.mock.calls[0][0];
-      expect(call._type).toBe('Update');
-      expect(call.input.Key).toEqual({ pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile' });
-      expect(call.input.UpdateExpression).toContain('operatingMode = :mode');
-      expect(call.input.ExpressionAttributeValues[':mode']).toBe('AGGRESSIVE');
-      expect(call.input.ConditionExpression).toBe('attribute_exists(pk)');
-      expect(result).toEqual({ mode: 'AGGRESSIVE' });
+  describe('revokeMandate (Mandate row)', () => {
+    it('writes status=REVOKED + revokedAt to sk=Mandate, conditional on status=ACTIVE', async () => {
+      const send = jest.fn().mockResolvedValue({});
+      const repo = new InvestorProfileRepository('test-table');
+      (repo as any).docClient = { send };
+      await repo.revokeMandate({ tenantId: 't1', userId: 'u1', region: 'us-east-1' } as any);
+      const cmd = send.mock.calls[0][0];
+      expect(cmd.input.Key.sk).toBe('Mandate');
+      expect(cmd.input.UpdateExpression).toMatch(/SET #status = :revoked/);
+      expect(cmd.input.ConditionExpression).toMatch(/#status = :active/);
     });
   });
 

@@ -17,7 +17,7 @@ notes: "Replaced multi-row InvestorProfile decomposition with single composite r
 
 SHIPPED 2026-05-04 on `main` (`4d4c5679..e60caf76`): replaced investor-bff multi-row InvestorProfile decomposition (separate Goal#/RiskProfile/Mandate/OperatingMode/AccountMode rows) with a single composite InvestorProfile row + sibling MandateStatus row owning lifecycle.
 
-Collapsed 8 per-field events to 2 (`INVESTOR_PROFILE_CREATED`/`UPDATED` + `MANDATE_ACCEPTED`/`REVOKED`). Rewired decision-workflow-ctrl to start SF directly from EventBridge (removed TriggerIngress Lambda + WorkflowTrigger DDB row + WORKFLOW_TRIGGER_CREATED event). Completed half-implemented `revokeMandate` flow (now writes only MandateStatus row → CDC emits MANDATE_REVOKED; composite InvestorProfile.mandate config preserved).
+Collapsed 8 per-field events to 2 (`INVESTOR_PROFILE_CREATED`/`UPDATED` + `MANDATE_ISSUED`/`REVOKED`). Rewired decision-workflow-ctrl to start SF directly from EventBridge (removed TriggerIngress Lambda + WorkflowTrigger DDB row + WORKFLOW_TRIGGER_CREATED event). Completed half-implemented `revokeMandate` flow (now writes only MandateStatus row → CDC emits MANDATE_REVOKED; composite InvestorProfile.mandate config preserved).
 
 Critical fixes during execution: (1) `user-registered.ts` → `skip()` (was pre-creating sparse row → ONBOARDING_COMPLETED Put became MODIFY → emitted UPDATED instead of CREATED); (2) Phase-2 SF wiring bug — UnpackTriggerEnvelope still read `$.subject.decisionId` from trigger events that don't carry one (legacy TriggerIngress used to mint it) → fixed via `States.UUID()` (commit `e60caf76`).
 

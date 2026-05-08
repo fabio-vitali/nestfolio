@@ -1,6 +1,6 @@
 # Investor Onboarding
 
-> New investor completes onboarding wizard; investor-bff materializes the composite InvestorProfile + MandateStatus rows; investor-ctrl sends welcome notification; conditional deposit triggers execution domain; initial advisory decision cycle triggered directly from INVESTOR_PROFILE_CREATED via advisory-adpt
+> New investor completes onboarding wizard; investor-bff materializes the composite InvestorProfile row + Mandate sibling row; emits INVESTOR_PROFILE_CREATED (carrier) + MANDATE_ISSUED (lifecycle) + DEPOSIT_INITIATED (conditional); investor-ctrl sends welcome notification via MANDATE_ISSUED subscription; initial advisory decision cycle triggered from INVESTOR_PROFILE_CREATED via advisory-adpt
 
 **Domains:** investor, execution, advisory
 
@@ -52,7 +52,7 @@ sequenceDiagram
     dashboard_bff->>+investor_ctrl: DEPOSIT_INITIATED
     investor_ctrl-)broker_ctrl: DEPOSIT_INITIATED (InvestorBus → ExecutionBus)
     broker_ctrl-)decision_workflow_ctrl: INVESTOR_PROFILE_CREATED (InvestorBus → AdvisoryBus)
-    broker_ctrl-)decision_workflow_ctrl: MANDATE_ACCEPTED (InvestorBus → AdvisoryBus)
+    broker_ctrl-)decision_workflow_ctrl: MANDATE_ISSUED (InvestorBus → AdvisoryBus)
     decision_workflow_ctrl->>+investor_bff: GO_LIVE_CONFIRMED
 ```
 
@@ -69,16 +69,14 @@ sequenceDiagram
 
 - **Receives:** `ONBOARDING_COMPLETED`
 - **Via:** InvestorBus -> SQS -> investor-bff-ingress
-- **State change:** transactWrite creates 2-3 records atomically: 1. InvestorProfile composite row (sk='InvestorProfile', PUT) -- single row holds
-   goal, riskProfile, operatingMode, mandate, accountMode, executionMode='simulation',
-   onboardingCompletedAt
-2. MandateStatus row (sk='MandateStatus', PUT) -- status='ACCEPTED', mandateLevel='ADVISORY',
-   acceptedAt; sole lifecycle row updated by revokeMandate()
-3. Deposit row (sk='Deposit#<id>', PUT, conditional only when capitalAmount > 0) --
-   depositId, amountCents, currency
-
-- **Emits:** `CDC events from DDB Streams (declarative Egress, single emit per logical entity): - INVESTOR_PROFILE_CREATED (InvestorProfile:INSERT) -- advisory-adpt + dashboard-bff + compliance-ctrl subscribe - MANDATE_ACCEPTED (MandateStatus:INSERT) -- advisory-adpt + investor-ctrl subscribe - DEPOSIT_INITIATED (Deposit:INSERT, conditional) -- investor-ctrl + execution-adpt subscribe
-`
+- **State change:** transactWrite creates 2-3 records atomically:
+  1. InvestorProfile composite row (sk='InvestorProfile', PUT) — single row holds goal, riskProfile, operatingMode, accountMode, executionMode='simulation', onboardingCompletedAt
+  2. Mandate sibling row (sk='Mandate', PUT) — level='ADVISORY', status='ISSUED', effectiveDate; sole lifecycle row mutated by revokeMandate()
+  3. Deposit row (sk='Deposit#<id>', PUT, conditional only when capitalAmount > 0) — depositId, amountCents, currency
+- **Emits (3-tier fan-out from DDB Streams, declarative Egress):**
+  - `INVESTOR_PROFILE_CREATED` (InvestorProfile:INSERT, carrier) — advisory-adpt + dashboard-bff subscribe
+  - `MANDATE_ISSUED` (Mandate:INSERT, lifecycle) — advisory-adpt + investor-ctrl + compliance-ctrl subscribe
+  - `DEPOSIT_INITIATED` (Deposit:INSERT, conditional) — investor-ctrl + execution-adpt subscribe
 - **Idempotent:** yes
 
 ### Step 3: investor-ctrl
@@ -138,7 +136,7 @@ sequenceDiagram
 
 ### Step 10: Cross-domain hop
 
-- **Event:** `MANDATE_ACCEPTED`
+- **Event:** `MANDATE_ISSUED`
 - **From:** InvestorBus
 - **To:** AdvisoryBus
 - **Via:** advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
@@ -161,20 +159,20 @@ sequenceDiagram
 
 ## Success Criteria
 
-- Composite InvestorProfile row + MandateStatus row persisted in investor-bff DDB table
+- Composite InvestorProfile row + Mandate sibling row (sk='Mandate') persisted in investor-bff DDB table
 - Conditional Deposit row written when capitalAmount > 0
 - Welcome notification delivered via investor-ctrl -> investor-bff materialization
 - Dashboard snapshot updated from INVESTOR_PROFILE_CREATED composite payload
 - If capitalAmount > 0, deposit routed to execution domain via execution-adpt
-- INVESTOR_PROFILE_CREATED + MANDATE_ACCEPTED forwarded to advisory domain via advisory-adpt
+- INVESTOR_PROFILE_CREATED + MANDATE_ISSUED forwarded to advisory domain via advisory-adpt
 - decision-workflow-ctrl starts exactly ONE advisory SF execution per onboarding (direct EB -> SF on INVESTOR_PROFILE_CREATED)
 
 ## Failure Modes
 
 - **step 1 fails:** Onboarding wizard incomplete; user can retry. No DDB write, no CDC
-- **step 2a fails:** investor-bff ingress DLQ captures ONBOARDING_COMPLETED; composite profile + MandateStatus rows not created until replay
+- **step 2a fails:** investor-bff ingress DLQ captures ONBOARDING_COMPLETED; composite profile + Mandate sibling rows not created until replay
 - **step 2b fails:** investor-ctrl ingress DLQ captures ONBOARDING_COMPLETED; welcome notification delayed
 - **step 3 fails:** investor-bff ingress DLQ captures NOTIFICATION_CREATED; notification not visible in frontend
 - **step 4 fails:** dashboard-bff ingress DLQ captures INVESTOR_PROFILE_CREATED; dashboard stale until replay
 - **step 5 fails (conditional):** execution-adpt FromInvestorDLQ captures DEPOSIT_INITIATED; deposit not processed
-- **step 6 fails:** advisory-adpt FromInvestorDLQ captures INVESTOR_PROFILE_CREATED/MANDATE_ACCEPTED; initial advisory cycle not started until replay
+- **step 6 fails:** advisory-adpt FromInvestorDLQ captures INVESTOR_PROFILE_CREATED/MANDATE_ISSUED; initial advisory cycle not started until replay

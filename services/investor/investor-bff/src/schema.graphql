@@ -8,8 +8,8 @@ type Query {
 
 type Mutation {
   updateGoal(input: GoalInput!): Goal!
-  updateMandate(input: MandateInput!): Mandate!
-  revokeMandate: MandateStatus!
+  updateOperatingMode(mode: OperatingMode!): InvestorProfile!
+  revokeMandate: Mandate!
   initiateDeposit(input: DepositInput!): Deposit!
   requestWithdrawal(input: WithdrawalInput!): WithdrawalRequest!
   requestAccountClosure: ClosureRequest!
@@ -106,20 +106,7 @@ type Mandate {
   mandateId: ID!
   level: MandateLevel!
   status: MandateStatusValue!
-  monthlyTurnoverCapPercent: Float!
-  maxSingleTradePercent: Float!
-  equityRiskBandPercent: Float!
-  driftTriggerPercent: Float!
-  singleEtfConcentrationPercent: Float!
-  drawdownCircuitBreakerPercent: Float!
-  rebalanceCadence: RebalanceCadence!
   effectiveDate: String!
-  revokedAt: String
-}
-
-type MandateStatus {
-  status: MandateStatusValue!
-  acceptedAt: String!
   revokedAt: String
 }
 
@@ -190,17 +177,6 @@ input GoalInput {
   currency: String
   timeHorizonMonths: Int
   targetReturn: Float
-}
-
-input MandateInput {
-  level: MandateLevel
-  monthlyTurnoverCapPercent: Float
-  maxSingleTradePercent: Float
-  equityRiskBandPercent: Float
-  driftTriggerPercent: Float
-  singleEtfConcentrationPercent: Float
-  drawdownCircuitBreakerPercent: Float
-  rebalanceCadence: RebalanceCadence
 }
 
 input DepositInput {

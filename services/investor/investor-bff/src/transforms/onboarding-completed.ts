@@ -2,7 +2,6 @@ import { skip, type WriteIntent, type EventPayload, type EventContext } from '@n
 import { getUUID, getTime, type TableEntry } from '@nestfolio/event-processor';
 import { InvestorProfileRepository } from '../repositories/investor-profile.repository';
 import { computeRiskProfile } from '../domain/risk-profile.service';
-import { resolveGuardrailParams } from '../domain/guardrail-params';
 
 interface OnboardingCompletedSubject {
   tenantId: string;
@@ -34,7 +33,6 @@ export async function onboardingCompleted(
   const depositId = getUUID();
   const mandateLevel =
     s.mandateLevel ?? (s.tenantId.startsWith('e2e-') ? 'ADVISORY' : 'DISCRETIONARY');
-  const guardrails = resolveGuardrailParams(s.operatingMode);
 
   await repo.transactWrite({
     TransactItems: [
@@ -65,20 +63,8 @@ export async function onboardingCompleted(
               toleranceResponse: risk.tolerance,
               experienceLevel: risk.experienceLevel,
             },
-            mandate: {
-              mandateId,
-              level: mandateLevel,
-              monthlyTurnoverCapPercent: guardrails.monthlyTurnoverCapPercent,
-              maxSingleTradePercent: guardrails.maxSingleTradePercent,
-              equityRiskBandPercent: guardrails.equityRiskBandPercent,
-              driftTriggerPercent: guardrails.driftTriggerPercent,
-              singleEtfConcentrationPercent: guardrails.singleEtfConcentrationPercent,
-              drawdownCircuitBreakerPercent: guardrails.drawdownCircuitBreakerPercent,
-              rebalanceCadence: guardrails.rebalanceCadence,
-              effectiveDate: now,
-              revokedAt: null,
-              status: 'ACTIVE',
-            },
+            mandateId,
+            mandateLevel,
             onboardingCompletedAt: now,
             createdAt: now,
             updatedAt: now,
@@ -91,13 +77,16 @@ export async function onboardingCompleted(
           TableName: tableName,
           Item: {
             pk,
-            sk: 'MandateStatus',
-            __typename: 'MandateStatus',
+            sk: 'Mandate',
+            __typename: 'Mandate',
             tenantId: s.tenantId,
             userId: s.userId,
             region: ctx.region,
-            status: 'ACCEPTED',
-            acceptedAt: now,
+            mandateId,
+            level: mandateLevel,
+            status: 'ACTIVE',
+            operatingMode: s.operatingMode,
+            effectiveDate: now,
             revokedAt: null,
             createdAt: now,
             updatedAt: now,

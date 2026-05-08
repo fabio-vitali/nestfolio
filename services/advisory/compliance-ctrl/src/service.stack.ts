@@ -14,8 +14,8 @@ export class ComplianceCtrlStack extends ServiceStack {
       state,
       eventTypes: [
         DecisionWorkflowEventTypes.RECOMMENDATION_PROPOSED,
-        InvestorBffEventTypes.INVESTOR_PROFILE_CREATED,
-        InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
+        InvestorBffEventTypes.MANDATE_ISSUED,
+        InvestorBffEventTypes.OPERATING_MODE_CHANGED,
         InvestorBffEventTypes.MANDATE_REVOKED,
       ],
     });

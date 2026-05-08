@@ -69,7 +69,7 @@ sequenceDiagram
 
 ### Step 1: Cross-domain hop
 
-- **Event:** `INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | MANDATE_ACCEPTED | MANDATE_REVOKED`
+- **Event:** `INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | MANDATE_ISSUED | MANDATE_REVOKED`
 - **From:** InvestorBus
 - **To:** AdvisoryBus
 - **Via:** advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
@@ -167,9 +167,9 @@ sequenceDiagram
 
 ### Step 16: compliance-ctrl
 
-- **Receives:** `DECISION_PACKET_CREATED | DECISION_PACKET_UPDATED`
+- **Receives:** `RECOMMENDATION_PROPOSED`
 - **Via:** AdvisoryBus -> SQS -> compliance-ctrl-Ingress
-- **State change:** Loads mandate snapshot from DDB (includes mode-derived guardrail thresholds); runs MandateValidator -> GuardrailEvaluator -> SuitabilityChecker -> AuthorityResolver (uses mode-specific maxSingleTradePercent, monthlyTurnoverCapPercent, singleEtfConcentrationPercent for L1/L2 resolution); writes ComplianceCheck + AuditArtifact records to DDB
+- **State change:** Loads GuardrailPolicy (MandateSnapshot) from DDB — projected earlier from `MANDATE_ISSUED` + `OPERATING_MODE_CHANGED` events; runs MandateValidator -> GuardrailEvaluator -> SuitabilityChecker -> AuthorityResolver (uses mode-specific maxSingleTradePercent, monthlyTurnoverCapPercent, singleEtfConcentrationPercent for L1/L2 resolution); writes ComplianceCheck + AuditArtifact records to DDB
 - **Emits:** `DECISION_APPROVED or DECISION_BLOCKED (CDC, field dispatch on ComplianceCheck.result — APPROVED->DECISION_APPROVED, BLOCKED->DECISION_BLOCKED), AUDIT_ARTIFACT (CDC, AuditArtifact:INSERT)`
 - **Idempotent:** yes
 

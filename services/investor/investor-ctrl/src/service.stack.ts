@@ -14,9 +14,10 @@ export class InvestorCtrlStack extends ServiceStack {
       state,
       eventTypes: [
         InvestorBffEventTypes.ONBOARDING_COMPLETED,
-        InvestorBffEventTypes.MANDATE_ACCEPTED,
+        InvestorBffEventTypes.MANDATE_ISSUED,
         InvestorBffEventTypes.MANDATE_REVOKED,
-        InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
+        InvestorBffEventTypes.OPERATING_MODE_CHANGED,
+        InvestorBffEventTypes.GOAL_UPDATED,
         InvestorBffEventTypes.DEPOSIT_INITIATED,
         InvestorIngestEventTypes.DECISION_APPROVED,
         InvestorIngestEventTypes.ORDER_FILLED,

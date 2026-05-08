@@ -5,6 +5,7 @@ import {
   collectAllEventTypes,
   extractFilters,
 } from '../../src/core/event-types';
+import type { EventTypesMap } from '../../src/core/event-types';
 
 describe('buildRuntimeConfig', () => {
   it('maps explicit per-action EventName strings', () => {
@@ -194,6 +195,52 @@ describe('extractFilters', () => {
     expect(result).toEqual([
       { typeName: 'Order', action: 'INSERT' },
       { typeName: 'Order', action: 'MODIFY' },
+    ]);
+  });
+});
+
+describe('onFieldChange ModifyEmission', () => {
+  const map: EventTypesMap = {
+    InvestorProfile: {
+      insert: eventName('INVESTOR_PROFILE_CREATED'),
+      modify: {
+        always: eventName('INVESTOR_PROFILE_UPDATED'),
+        onFieldChange: {
+          operatingMode: eventName('OPERATING_MODE_CHANGED'),
+          goal: eventName('GOAL_UPDATED'),
+        },
+      },
+    },
+  };
+
+  it('flattens onFieldChange into the runtime config under MODIFY action', () => {
+    const config = buildRuntimeConfig(map);
+    expect(config['InvestorProfile:MODIFY']).toEqual({
+      always: 'INVESTOR_PROFILE_UPDATED',
+      onFieldChange: {
+        operatingMode: 'OPERATING_MODE_CHANGED',
+        goal: 'GOAL_UPDATED',
+      },
+    });
+    expect(config['InvestorProfile:INSERT']).toBe('INVESTOR_PROFILE_CREATED');
+  });
+
+  it('collectAllEventTypes returns carrier + every semantic event', () => {
+    const types = collectAllEventTypes(map);
+    expect(types).toEqual(expect.arrayContaining([
+      'INVESTOR_PROFILE_CREATED',
+      'INVESTOR_PROFILE_UPDATED',
+      'OPERATING_MODE_CHANGED',
+      'GOAL_UPDATED',
+    ]));
+    expect(types).toHaveLength(4);
+  });
+
+  it('extractFilters emits one MODIFY filter per record-type even with onFieldChange', () => {
+    const filters = extractFilters(map);
+    expect(filters).toEqual([
+      { typeName: 'InvestorProfile', action: 'INSERT' },
+      { typeName: 'InvestorProfile', action: 'MODIFY' },
     ]);
   });
 });

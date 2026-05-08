@@ -28,7 +28,7 @@ const NOTIFICATION_TEMPLATES: Record<string, NotificationTemplate> = {
     body: 'Your account setup is complete. You can now start investing.',
     channel: 'email',
   },
-  MANDATE_ACCEPTED: {
+  MANDATE_ISSUED: {
     title: 'Investment Mandate Activated',
     body: 'Your investment mandate has been granted. We will start managing your portfolio.',
     channel: 'push',
@@ -110,11 +110,16 @@ function getCurrentPeriod(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Direct-subscription event types — each produces exactly one Notification.
+// OPERATING_MODE_CHANGED and GOAL_UPDATED are now emitted directly by investor-bff
+// CDC (Phase 1 diff-emit), making the old INVESTOR_PROFILE_UPDATED diff handler obsolete.
 const EVENT_TYPES = [
   InvestorBffEventTypes.ONBOARDING_COMPLETED,
-  InvestorBffEventTypes.MANDATE_ACCEPTED,
+  InvestorBffEventTypes.MANDATE_ISSUED,
   InvestorBffEventTypes.MANDATE_REVOKED,
   InvestorBffEventTypes.DEPOSIT_INITIATED,
+  InvestorBffEventTypes.OPERATING_MODE_CHANGED,
+  InvestorBffEventTypes.GOAL_UPDATED,
   AdvisoryCrossDomainEventTypes.DECISION_APPROVED,
   ExecutionCrossDomainEventTypes.ORDER_FILLED,
   LedgerCrossDomainEventTypes.BALANCE_UPDATED,
@@ -151,85 +156,6 @@ function buildNotificationRecord(tenantId: string, ctx: EventContext): WriteInte
     },
     { pk: `Notification#${tenantId}#${notificationId}`, sk: 'Notification' },
   );
-}
-
-/**
- * Build a Notification WriteIntent for a synthesised eventType derived from an
- * INVESTOR_PROFILE_UPDATED diff. The resulting notification id is suffixed with
- * the synthesised type so multiple notifications produced by the same source
- * event don't collide on (pk, sk).
- */
-function buildSynthesisedNotificationRecord(
-  tenantId: string,
-  ctx: EventContext,
-  syntheticType: string,
-): WriteIntent {
-  const notificationId = `${ctx.eventId}-${syntheticType}`;
-  const now = getTime();
-  const template = getNotificationTemplate(syntheticType);
-  return record(
-    'Notification',
-    {
-      __typename: 'Notification',
-      tenantId,
-      notificationId,
-      type: syntheticType,
-      title: template.title,
-      body: template.body,
-      channel: template.channel,
-      status: 'DELIVERED',
-      sourceEventId: ctx.eventId,
-      timestamp: now,
-      createdAt: now,
-      updatedAt: now,
-    },
-    { pk: `Notification#${tenantId}#${notificationId}`, sk: 'Notification' },
-  );
-}
-
-/**
- * Diff-detect goal.* and operatingMode changes between previous and new
- * InvestorProfile composite-row subjects. Returns 0–2 Notification WriteIntents.
- *
- * Behaviour:
- *   - previous undefined/null      → fire BOTH (treat as all fields newly appearing)
- *   - goal differs                 → fire GOAL_UPDATED notification
- *   - operatingMode differs        → fire OPERATING_MODE_CHANGED notification
- *   - neither differs              → no notifications
- *
- * Note: today's CDC envelope (libs/event-processor/src/pipelines/change-data-capture.ts)
- * does NOT propagate previousSubject from OldImage. Until that's wired, this helper
- * receives `previous = undefined` and falls back to the "fire both" branch on every
- * INVESTOR_PROFILE_UPDATED. Tracked in PARKING LOT.
- */
-export function deriveProfileUpdateNotifications(
-  previous: Record<string, unknown> | undefined | null,
-  next: Record<string, unknown>,
-  ctx: EventContext,
-): WriteIntent[] {
-  const tenantId = ctx.tenantId;
-
-  // Null/missing OldImage → cannot diff; fire both notifications conservatively.
-  if (previous === undefined || previous === null) {
-    return [
-      buildSynthesisedNotificationRecord(tenantId, ctx, 'GOAL_UPDATED'),
-      buildSynthesisedNotificationRecord(tenantId, ctx, 'OPERATING_MODE_CHANGED'),
-    ];
-  }
-
-  const intents: WriteIntent[] = [];
-
-  const prevGoal = JSON.stringify(previous['goal'] ?? null);
-  const nextGoal = JSON.stringify(next['goal'] ?? null);
-  if (prevGoal !== nextGoal) {
-    intents.push(buildSynthesisedNotificationRecord(tenantId, ctx, 'GOAL_UPDATED'));
-  }
-
-  if (previous['operatingMode'] !== next['operatingMode']) {
-    intents.push(buildSynthesisedNotificationRecord(tenantId, ctx, 'OPERATING_MODE_CHANGED'));
-  }
-
-  return intents;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -270,17 +196,6 @@ export const createHandlers = (_deps: EventListenerDeps) => ({
       },
     ]),
   ),
-  // INVESTOR_PROFILE_UPDATED is bespoke — diff-detect goal.* and operatingMode
-  // and emit 0–2 synthesised Notifications (GOAL_UPDATED / OPERATING_MODE_CHANGED).
-  [InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED]: async (
-    payload: EventPayload,
-    ctx: EventContext,
-  ): Promise<WriteIntent[]> => {
-    const next = (payload.subject ?? {}) as Record<string, unknown>;
-    const previous = ((payload as unknown as { previousSubject?: Record<string, unknown> | null })
-      .previousSubject) ?? undefined;
-    return deriveProfileUpdateNotifications(previous, next, ctx);
-  },
   ...Object.fromEntries(
     SYSTEM_EVENT_TYPES.map((type) => [
       type,

@@ -25,7 +25,7 @@ describe('AdvisoryAdptStack', () => {
         'detail-type': Match.arrayWith([
           'INVESTOR_PROFILE_CREATED',
           'INVESTOR_PROFILE_UPDATED',
-          'MANDATE_ACCEPTED',
+          'MANDATE_ISSUED',
           'MANDATE_REVOKED',
         ]),
       }),

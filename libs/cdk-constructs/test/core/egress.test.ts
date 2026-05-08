@@ -230,6 +230,51 @@ describe('Egress construct', () => {
     });
   });
 
+  describe('Egress — onFieldChange runtime config wiring', () => {
+    it('serializes ModifyEmission with onFieldChange to EVENT_TYPE_MAP env', () => {
+      const app = new App({ context: { prefix: 'test' } });
+      const stack = new ServiceStack(app, 'OnFieldChangeStack', {
+        prefix: 'test',
+        subsystem: 'test',
+        service: 'test-svc',
+        serviceDir: os.tmpdir(),
+      });
+      const state = new State(stack, 'State', { withTable: true });
+      new Egress(stack, 'Egress', {
+        state,
+        eventTypes: {
+          InvestorProfile: {
+            insert: eventName('INVESTOR_PROFILE_CREATED'),
+            modify: {
+              always: eventName('INVESTOR_PROFILE_UPDATED'),
+              onFieldChange: {
+                operatingMode: eventName('OPERATING_MODE_CHANGED'),
+                goal: eventName('GOAL_UPDATED'),
+              },
+            },
+          },
+        },
+      });
+      const template = Template.fromStack(stack);
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Environment: {
+          Variables: Match.objectLike({
+            EVENT_TYPE_MAP: Match.serializedJson(Match.objectLike({
+              'InvestorProfile:MODIFY': {
+                always: 'INVESTOR_PROFILE_UPDATED',
+                onFieldChange: {
+                  operatingMode: 'OPERATING_MODE_CHANGED',
+                  goal: 'GOAL_UPDATED',
+                },
+              },
+              'InvestorProfile:INSERT': 'INVESTOR_PROFILE_CREATED',
+            })),
+          }),
+        },
+      });
+    });
+  });
+
   describe('LambdaProfile integration', () => {
     it('applies profile lambdaProps to the publisher (reducerProps: 512 MB)', () => {
       const { template } = createEgress({

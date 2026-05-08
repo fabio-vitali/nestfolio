@@ -24,7 +24,7 @@ describe('investor-bff', () => {
   /**
    * Helper — fetch all rows under InvestorProfile#${tenantId}#${userId}.
    * Equivalent to the spec's `getInvestorProfileItems(tenantId, userId)`.
-   * The composite design has at most: 1× InvestorProfile + 1× MandateStatus +
+   * The composite design has at most: 1× InvestorProfile + 1× Mandate +
    * N× Deposit#/Withdrawal#/Notification#/ExecutionModeChange#/CashBalance.
    */
   async function getInvestorProfileItems(
@@ -58,8 +58,8 @@ describe('investor-bff', () => {
     cognitoSub = payload.sub;
 
     // Deploy trap for all CDC event types emitted by investor-bff mutations
-    // (post-collapse — composite row → INVESTOR_PROFILE_CREATED/UPDATED +
-    //  MandateStatus row → MANDATE_ACCEPTED/MANDATE_REVOKED).
+    // (post-resplit — composite row → INVESTOR_PROFILE_CREATED/UPDATED +
+    //  Mandate row → MANDATE_ISSUED/MANDATE_REVOKED).
     await trap.deploy({
       bus: 'investor',
       detailType: [
@@ -67,7 +67,7 @@ describe('investor-bff', () => {
         'WITHDRAWAL_REQUESTED',
         'INVESTOR_PROFILE_CREATED',
         'INVESTOR_PROFILE_UPDATED',
-        'MANDATE_ACCEPTED',
+        'MANDATE_ISSUED',
         'MANDATE_REVOKED',
         'NOTIFICATION_READ',
       ],
@@ -173,7 +173,7 @@ describe('investor-bff', () => {
       expect(notifItem!['title']).toBe('Integration test notification');
     }, 120_000);
 
-    it('should atomically write composite InvestorProfile + MandateStatus on ONBOARDING_COMPLETED', async () => {
+    it('should atomically write composite InvestorProfile + Mandate row on ONBOARDING_COMPLETED', async () => {
       const userId = cognitoSub;
       const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
 
@@ -212,12 +212,12 @@ describe('investor-bff', () => {
         },
       });
 
-      // Wait for the composite InvestorProfile row's `mandate` group to appear
-      // (last-written attribute in the transactWrite Put — its presence is the
-      // strongest signal the composite row is hydrated). Single long poll —
-      // jest's auto-retry would otherwise re-fire ONBOARDING_COMPLETED, turning
-      // the second Put into a CDC MODIFY (INVESTOR_PROFILE_UPDATED) instead of
-      // INSERT (INVESTOR_PROFILE_CREATED) and breaking the event assertion below.
+      // Wait for the composite InvestorProfile row's `mandateId` field to appear
+      // (set in the transactWrite Put — its presence signals the composite row is
+      // hydrated). Single long poll — jest's auto-retry would otherwise re-fire
+      // ONBOARDING_COMPLETED, turning the second Put into a CDC MODIFY
+      // (INVESTOR_PROFILE_UPDATED) instead of INSERT (INVESTOR_PROFILE_CREATED)
+      // and breaking the event assertion below.
       let profileItem: Record<string, unknown> | undefined;
       const deadline = Date.now() + 90_000;
       while (Date.now() < deadline) {
@@ -228,25 +228,29 @@ describe('investor-bff', () => {
             sk: 'InvestorProfile',
             timeoutMs: 5_000,
           });
-          if (profileItem['mandate']) break;
+          if (profileItem['mandateId']) break;
         } catch {
           // Row not yet materialized — keep polling within outer deadline.
         }
         await new Promise((r) => setTimeout(r, 2_000));
       }
-      if (!profileItem || !profileItem['mandate']) {
-        throw new Error(`InvestorProfile row with mandate group did not appear within 90s for pk=${pk}`);
+      if (!profileItem || !profileItem['mandateId']) {
+        throw new Error(`InvestorProfile row with mandateId did not appear within 90s for pk=${pk}`);
       }
 
-      // Composite assertions — ONE row, nested groups
+      // Composite assertions — TWO rows: InvestorProfile + Mandate
       const items = await getInvestorProfileItems(ctx.tenantId, userId);
       const profile = items.find((i) => i['sk'] === 'InvestorProfile')!;
-      const status = items.find((i) => i['sk'] === 'MandateStatus')!;
+      const mandateRow = items.find((i) => i['sk'] === 'Mandate')!;
 
       expect(profile).toBeDefined();
       expect(profile['__typename']).toBe('InvestorProfile');
       expect(profile['operatingMode']).toBe('BALANCED');
       expect(profile['onboardingCompletedAt']).toBeDefined();
+      // Post-resplit: InvestorProfile row mirrors mandateId + mandateLevel;
+      // no nested mandate.{guardrail fields} — those live in the Mandate row.
+      expect(profile['mandateId']).toBeDefined();
+      expect(profile['mandateLevel']).toBeDefined();
 
       expect(profile['goal']).toMatchObject({
         objective: 'GROWTH',
@@ -262,23 +266,15 @@ describe('investor-bff', () => {
         currency: 'USD',
       });
 
-      // Mandate config (BALANCED guardrails) lives nested under profile.mandate
-      const mandate = profile['mandate'] as Record<string, unknown>;
-      expect(mandate).toBeDefined();
-      expect(mandate['level']).toBeDefined();
-      expect(mandate['maxSingleTradePercent']).toBe(10);
-      expect(mandate['monthlyTurnoverCapPercent']).toBe(25);
-      expect(mandate['rebalanceCadence']).toBe('MONTHLY');
-      expect(mandate['equityRiskBandPercent']).toBe(6);
-      expect(mandate['driftTriggerPercent']).toBe(4);
-      expect(mandate['singleEtfConcentrationPercent']).toBe(30);
-      expect(mandate['drawdownCircuitBreakerPercent']).toBe(12);
-
-      // MandateStatus is a SIBLING row (lifecycle decoupled from config)
-      expect(status).toBeDefined();
-      expect(status['__typename']).toBe('MandateStatus');
-      expect(status['status']).toBe('ACCEPTED');
-      expect(status['acceptedAt']).toBeDefined();
+      // Mandate row (sk='Mandate') — lifecycle fields. Guardrail params
+      // are resolved at evaluation time from operatingMode by compliance-ctrl.
+      expect(mandateRow).toBeDefined();
+      expect(mandateRow['__typename']).toBe('Mandate');
+      expect(mandateRow['mandateId']).toBe(profile['mandateId']);
+      expect(mandateRow['level']).toBeDefined();
+      expect(mandateRow['status']).toBe('ACTIVE');
+      expect(mandateRow['operatingMode']).toBe('BALANCED');
+      expect(mandateRow['effectiveDate']).toBeDefined();
 
       // Deposit row (capitalAmount > 0)
       const deposit = items.find((i) => String(i['sk']).startsWith('Deposit#'));
@@ -286,15 +282,15 @@ describe('investor-bff', () => {
       expect(deposit!['amountCents']).toBe(100_000);
       expect(deposit!['status']).toBe('INITIATED');
 
-      // No per-entity rows should exist post-collapse
+      // No stale per-entity rows should exist post-resplit
       expect(items.find((i) => i['sk'] === 'RiskProfile')).toBeUndefined();
-      expect(items.find((i) => i['sk'] === 'Mandate')).toBeUndefined();
+      expect(items.find((i) => i['sk'] === 'MandateStatus')).toBeUndefined();
       expect(items.find((i) => i['sk'] === 'OperatingMode')).toBeUndefined();
       expect(items.find((i) => i['sk'] === 'AccountMode')).toBeUndefined();
       expect(items.find((i) => String(i['sk']).startsWith('Goal#'))).toBeUndefined();
 
       // Event assertions — composite row → INVESTOR_PROFILE_CREATED;
-      // MandateStatus row → MANDATE_ACCEPTED. NEVER per-field events.
+      // Mandate row → MANDATE_ISSUED. NEVER per-field events.
       // waitForEvent polls SQS in a loop, robust to SQS-sample races where
       // a single drain() may not surface all messages.
       const created = await trap.waitForEvent({
@@ -302,11 +298,11 @@ describe('investor-bff', () => {
         timeoutMs: 60_000,
       });
       const accepted = await trap.waitForEvent({
-        detailType: 'MANDATE_ACCEPTED',
+        detailType: 'MANDATE_ISSUED',
         timeoutMs: 60_000,
       });
       expect(created.detailType).toBe('INVESTOR_PROFILE_CREATED');
-      expect(accepted.detailType).toBe('MANDATE_ACCEPTED');
+      expect(accepted.detailType).toBe('MANDATE_ISSUED');
 
       // Drain residual events to assert legacy per-field events are NOT emitted.
       const residual = (await trap.drain()).map((e) => e.detailType);
@@ -354,17 +350,13 @@ describe('investor-bff', () => {
       expect(modeChangeItem!['toMode']).toBe('live');
     }, 120_000);
 
-    // TODO Phase 7: re-enable / replace once setOperatingMode mutation lands.
-    // OPERATING_MODE_CHANGED was an event-listener subscription that updated
-    // the standalone `Mandate` row's guardrail params. Post-collapse:
-    //   1. The InvestorProfile.mandate group is now updated via the
-    //      `updateMandate(input: MandateInput!)` mutation (no event-driven path).
-    //   2. event-listener.ts no longer subscribes to OPERATING_MODE_CHANGED
-    //      (Task 1.10 will drop the transform + handler subscription).
-    // Phase 7 may introduce a `setOperatingMode` mutation that updates
-    // profile.operatingMode + cascades guardrails — assertion shape will
-    // mirror the updateMandate test below.
-    it.skip('should update Mandate guardrail params on OPERATING_MODE_CHANGED', async () => {
+    // TODO Phase 7: re-enable / replace once updateOperatingMode → compliance-ctrl
+    // propagation is covered end-to-end here.
+    // Post-resplit: OPERATING_MODE_CHANGED is forwarded by advisory-adpt to AdvisoryBus
+    // where compliance-ctrl patches MandateSnapshot.operatingMode. The investor-bff
+    // side (profile.operatingMode update) is exercised via the updateOperatingMode
+    // mutation test. A cross-service E2E for the full chain is deferred.
+    it.skip('should propagate OPERATING_MODE_CHANGED to compliance-ctrl MandateSnapshot', async () => {
       // Intentionally empty — see TODO above.
     }, 120_000);
   });
@@ -564,88 +556,17 @@ describe('investor-bff', () => {
       expect(event.detailType).toBe('INVESTOR_PROFILE_UPDATED');
     }, 120_000);
 
-    it('should update mandate guardrails on composite row and emit INVESTOR_PROFILE_UPDATED', async () => {
+    it('should revoke mandate and flip Mandate row to REVOKED + emit MANDATE_REVOKED (no INVESTOR_PROFILE_UPDATED)', async () => {
       const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
 
-      // Pre-condition: composite InvestorProfile row with mandate group exists
-      // (created by ONBOARDING_COMPLETED materialization test above).
-      await table.waitForItem({
-        table: 'investor-bff',
-        pk,
-        sk: 'InvestorProfile',
-        timeoutMs: 30_000,
-      });
-
-      // updateMandate(input: MandateInput!) → patches profile.mandate.<field>
-      const result = await appsync.mutate<{
-        updateMandate: {
-          mandateId: string;
-          level: string;
-          status: string;
-          monthlyTurnoverCapPercent: number;
-          maxSingleTradePercent: number;
-          rebalanceCadence: string;
-        };
-      }>(
-        `
-        mutation UpdateMandate($input: MandateInput!) {
-          updateMandate(input: $input) {
-            mandateId
-            level
-            status
-            monthlyTurnoverCapPercent
-            maxSingleTradePercent
-            rebalanceCadence
-          }
-        }
-      `,
-        {
-          input: {
-            level: 'DISCRETIONARY',
-            monthlyTurnoverCapPercent: 10,
-            maxSingleTradePercent: 5,
-            rebalanceCadence: 'MONTHLY',
-          },
-        },
-      );
-
-      expect(result.updateMandate.level).toBe('DISCRETIONARY');
-      expect(result.updateMandate.monthlyTurnoverCapPercent).toBe(10);
-      expect(result.updateMandate.maxSingleTradePercent).toBe(5);
-
-      // Assert: composite row's mandate group updated in DDB
-      const profile = await table.waitForItem({
-        table: 'investor-bff',
-        pk,
-        sk: 'InvestorProfile',
-        timeoutMs: 30_000,
-      });
-      const mandate = profile['mandate'] as Record<string, unknown>;
-      expect(mandate['level']).toBe('DISCRETIONARY');
-      expect(mandate['monthlyTurnoverCapPercent']).toBe(10);
-      expect(mandate['rebalanceCadence']).toBe('MONTHLY');
-
-      // Assert: CDC event — modify on InvestorProfile row → INVESTOR_PROFILE_UPDATED
-      const event = await trap.waitForEvent({
-        detailType: 'INVESTOR_PROFILE_UPDATED',
-        timeoutMs: 60_000,
-      });
-      expect(event.detailType).toBe('INVESTOR_PROFILE_UPDATED');
-    }, 120_000);
-
-    it('should revoke mandate and flip MandateStatus to REVOKED + emit MANDATE_REVOKED (no INVESTOR_PROFILE_UPDATED)', async () => {
-      const pk = `InvestorProfile#${ctx.tenantId}#${cognitoSub}`;
-
-      // Snapshot the composite InvestorProfile row's mandate group + updatedAt
-      // BEFORE the revoke so we can later assert the composite row was NOT
-      // touched (Phase 5 design: revokeMandate writes only the MandateStatus
-      // sibling row, never the composite).
+      // Snapshot the composite InvestorProfile row's updatedAt BEFORE the revoke
+      // to assert it was NOT touched (post-resplit: revokeMandate writes only
+      // the Mandate sibling row, never the composite InvestorProfile row).
       const profileBefore = await table.waitForItem({
         table: 'investor-bff',
         pk,
         sk: 'InvestorProfile',
       });
-      const mandateBefore = profileBefore['mandate'] as Record<string, unknown> | undefined;
       const updatedAtBefore = profileBefore['updatedAt'];
 
       const result = await appsync.mutate<{
@@ -670,29 +591,25 @@ describe('investor-bff', () => {
       expect(result.revokeMandate.status).toBe('REVOKED');
       expect(result.revokeMandate.revokedAt).toBeTruthy();
 
-      // Assert: MandateStatus sibling row flipped to REVOKED
-      const status = await table.waitForItem({
+      // Assert: Mandate row (sk='Mandate') flipped to REVOKED
+      const mandateRow = await table.waitForItem({
         table: 'investor-bff',
         pk,
-        sk: 'MandateStatus',
+        sk: 'Mandate',
       });
-      expect(status['status']).toBe('REVOKED');
-      expect(status['revokedAt']).toBeTruthy();
+      expect(mandateRow['status']).toBe('REVOKED');
+      expect(mandateRow['revokedAt']).toBeTruthy();
 
-      // Assert: composite InvestorProfile row's mandate group NOT touched
-      // (raw row — get-profile.fn.js merges MandateStatus.status onto
-      // profile.mandate at read time, but the underlying composite row's
-      // mandate.status is preserved).
+      // Assert: composite InvestorProfile row NOT touched — revokeMandate.fn.js
+      // targets sk='Mandate' only, never the composite row.
       const profileAfter = await table.waitForItem({
         table: 'investor-bff',
         pk,
         sk: 'InvestorProfile',
       });
-      const mandateAfter = profileAfter['mandate'] as Record<string, unknown> | undefined;
-      expect(mandateAfter).toEqual(mandateBefore);
       expect(profileAfter['updatedAt']).toBe(updatedAtBefore);
 
-      // Assert: CDC modify on MandateStatus row → MANDATE_REVOKED
+      // Assert: CDC modify on Mandate row → MANDATE_REVOKED
       const event = await trap.waitForEvent({
         detailType: 'MANDATE_REVOKED',
         timeoutMs: 60_000,
@@ -701,12 +618,12 @@ describe('investor-bff', () => {
 
       // Note: "NO INVESTOR_PROFILE_UPDATED emitted" is enforced by
       // construction at the resolver level (revoke-mandate.fn.js targets
-      // sk='MandateStatus', never the composite InvestorProfile row) and is
+      // sk='Mandate', never the composite InvestorProfile row) and is
       // unit-tested in test/unit/graphql/revoke-mandate.test.ts. Adding a
       // negative-event assertion here would either be racy (drain only sees
       // the past) or destructive (drain consumes the buffer that subsequent
       // tests rely on). The composite-row no-touch invariant is asserted
-      // above via mandateAfter === mandateBefore on the raw DDB row.
+      // above via profileAfter['updatedAt'] === updatedAtBefore on the raw DDB row.
     }, 120_000);
 
     it('should reject double-revoke with InvalidState', async () => {
@@ -890,10 +807,10 @@ describe('investor-bff', () => {
       expect(result.getProfile.goal).toBeDefined();
       expect(result.getProfile.goal.objective).toBeTruthy();
       expect(result.getProfile.goal.currency).toBe('USD');
-      // Mandate nested group with status from MandateStatus sibling (resolver
-      // joins them) — see spec §"Read path" / Task 1.7. The prior describe
-      // ('AppSync mutations') ran revokeMandate against the same tenant, so
-      // MandateStatus.status is now 'REVOKED' — getProfile reflects that join.
+      // Mandate nested group — fetched from the Mandate sibling row (sk='Mandate')
+      // by the get-profile-mandate.fn.js pipeline step and merged onto the response.
+      // The prior describe ('AppSync mutations') ran revokeMandate, so
+      // Mandate.status is now 'REVOKED' — getProfile reflects that.
       expect(result.getProfile.mandate).toBeDefined();
       expect(result.getProfile.mandate.mandateId).toBeTruthy();
       expect(result.getProfile.mandate.status).toBe('REVOKED');

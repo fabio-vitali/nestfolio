@@ -10,12 +10,12 @@ Stack: services/investor/investor-ctrl/src/service.stack.ts
 - Egress: DynamoDB Streams -> Lambda (event-publisher, CDC)
 - Observability: addObservability({ ingress, egress })
 
-## Ingress Subscriptions (14)
+## Ingress Subscriptions (15)
 
-From investor-bff: ONBOARDING_COMPLETED, MANDATE_ACCEPTED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED, DEPOSIT_INITIATED
+From investor-bff: ONBOARDING_COMPLETED, MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED, GOAL_UPDATED, DEPOSIT_INITIATED
 From investor-adpt: DECISION_APPROVED, ORDER_FILLED, BALANCE_UPDATED, ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED, BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED
 
-Post-collapse migration: legacy MANDATE_CREATED, GOAL_UPDATED, OPERATING_MODE_CHANGED triggers replaced by MANDATE_ACCEPTED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED. INVESTOR_PROFILE_UPDATED is processed by a bespoke diff-detect handler that derives goal-change / operating-mode-change notifications from the payload diff.
+Post-resplit (2026-05-08): INVESTOR_PROFILE_UPDATED diff-detect handler removed. Now subscribes directly to semantic events (OPERATING_MODE_CHANGED, GOAL_UPDATED) and lifecycle events (MANDATE_ISSUED, MANDATE_REVOKED). Each event maps to its own NOTIFICATION_TEMPLATE entry — no payload inspection required.
 
 ## Egress (CDC)
 
@@ -27,10 +27,10 @@ Post-collapse migration: legacy MANDATE_CREATED, GOAL_UPDATED, OPERATING_MODE_CH
 ## Handlers
 
 - event-listener.ts (materializeToTable, errorEventType: INVESTOR_CTRL_FAILED)
-  - Tenant events templated via NOTIFICATION_TEMPLATES (ONBOARDING_COMPLETED, MANDATE_ACCEPTED, MANDATE_REVOKED, GOAL_UPDATED, DEPOSIT_INITIATED, OPERATING_MODE_CHANGED, DECISION_APPROVED, ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED) -> record('Notification')
+  - Tenant events templated via NOTIFICATION_TEMPLATES (ONBOARDING_COMPLETED, MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED, GOAL_UPDATED, DEPOSIT_INITIATED, DECISION_APPROVED, ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED) -> record('Notification')
   - ORDER_FILLED -> [record('Notification'), record('MonthlyReport')]
-  - INVESTOR_PROFILE_UPDATED -> bespoke diff handler: emits up to 1 notification per detected change (goal.*, operatingMode) with id suffixed by the diffed field; no notification if no relevant diff
   - 3 system events (BROKER_CIRCUIT_OPEN, BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED) -> record('Notification', tenantId='SYSTEM')
+  - No INVESTOR_PROFILE_UPDATED diff handler (removed in resplit 2026-05-08)
 - event-publisher.ts (changeDataCapture)
 
 ## DDB Entities
@@ -56,7 +56,7 @@ Unit (test/unit/):
 - notification.repository.test.ts
 
 Integration (test/integration/):
-- onboarding-notification.integration.test.ts (14 events, CDC verification, circuit breaker SYSTEM tenant, INVESTOR_PROFILE_UPDATED diff)
+- onboarding-notification.integration.test.ts (15 events, CDC verification, circuit breaker SYSTEM tenant, OPERATING_MODE_CHANGED + GOAL_UPDATED direct subscriptions)
 
 ## Dependencies
 

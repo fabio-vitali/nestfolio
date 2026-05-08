@@ -199,6 +199,25 @@ export class InvestorProfileRepository extends TableRepository {
     },
   );
 
+  readonly revokeMandate = this.log('revokeMandate',
+    async (ctx: RequestContext): Promise<{ status: 'REVOKED'; revokedAt: string }> => {
+      const pk = profilePk(ctx.tenantId, ctx.userId);
+      const now = getTime();
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk, sk: 'Mandate' },
+          UpdateExpression:
+            'SET #status = :revoked, revokedAt = :now, updatedAt = :now, #ts = :now',
+          ExpressionAttributeNames: { '#status': 'status', '#ts': 'timestamp' },
+          ExpressionAttributeValues: { ':revoked': 'REVOKED', ':now': now, ':active': 'ACTIVE' },
+          ConditionExpression: '#status = :active',
+        }),
+      );
+      return { status: 'REVOKED', revokedAt: now };
+    },
+  );
+
   readonly setExecutionMode = this.log('setExecutionMode',
     async (ctx: RequestContext, fromMode: ExecutionMode, toMode: ExecutionMode): Promise<Record<string, unknown>> => {
       const pk = profilePk(ctx.tenantId, ctx.userId);

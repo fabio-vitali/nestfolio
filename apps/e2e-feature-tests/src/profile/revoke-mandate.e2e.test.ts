@@ -20,10 +20,10 @@ describe('scenario 5 — investor revokes advisory mandate', () => {
   beforeEach(async () => {
     ctx = await createTestContext();
     tenant = await freshTenant(ctx);
-    // Arm BEFORE the fixture so we capture the MandateStatus row's INSERT-vs-MODIFY
+    // Arm BEFORE the fixture so we capture the Mandate row's INSERT-vs-MODIFY
     // CDC stream cleanly. We also include INVESTOR_PROFILE_UPDATED so we can later
-    // assert that revoke does NOT emit that event (revoke targets MandateStatus row,
-    // not the InvestorProfile composite row).
+    // assert that revoke does NOT emit that event (revoke targets the Mandate row
+    // at sk='Mandate', not the InvestorProfile composite row).
     trap = new EventBusTrap(ctx);
     await trap.deploy({
       bus: 'investor',
@@ -39,7 +39,7 @@ describe('scenario 5 — investor revokes advisory mandate', () => {
     await ctx.cleanup.runAll();
   }, 60_000);
 
-  it('revokeMandate returns MandateStatus and emits MANDATE_REVOKED only', async () => {
+  it('revokeMandate returns Mandate row and emits MANDATE_REVOKED only', async () => {
     const bff = bffClient(ctx, tenant);
 
     // Drain any onboarding-driven INVESTOR_PROFILE_UPDATED events from the trap
@@ -49,15 +49,19 @@ describe('scenario 5 — investor revokes advisory mandate', () => {
 
     const result = await bff.investor.mutate<{
       revokeMandate: {
+        mandateId: string;
+        level: string;
         status: 'ACTIVE' | 'REVOKED';
-        acceptedAt: string;
+        effectiveDate: string;
         revokedAt: string | null;
       };
     }>(
       `mutation RevokeMandate {
          revokeMandate {
+           mandateId
+           level
            status
-           acceptedAt
+           effectiveDate
            revokedAt
          }
        }`,
@@ -65,11 +69,12 @@ describe('scenario 5 — investor revokes advisory mandate', () => {
     );
 
     expect(result.revokeMandate.status).toBe('REVOKED');
-    expect(result.revokeMandate.acceptedAt).toBeTruthy();
+    expect(result.revokeMandate.mandateId).toBeTruthy();
+    expect(result.revokeMandate.effectiveDate).toBeTruthy();
     expect(result.revokeMandate.revokedAt).toBeTruthy();
     expect(new Date(result.revokeMandate.revokedAt as string).toString()).not.toBe('Invalid Date');
 
-    // Assert MANDATE_REVOKED event fires from the MandateStatus row's modify CDC.
+    // Assert MANDATE_REVOKED event fires from the Mandate row's (sk='Mandate') modify CDC.
     const revoked = await trap.waitForEvent({
       detailType: InvestorBffEventTypes.MANDATE_REVOKED,
       timeoutMs: 60_000,
@@ -77,7 +82,7 @@ describe('scenario 5 — investor revokes advisory mandate', () => {
     expect(revoked.detailType).toBe(InvestorBffEventTypes.MANDATE_REVOKED);
 
     // Assert NO INVESTOR_PROFILE_UPDATED event fires — revoke targets the
-    // MandateStatus row only, not the InvestorProfile composite row.
+    // Mandate row (sk='Mandate') only, not the InvestorProfile composite row.
     const remaining = await trap.drain();
     const profileUpdates = remaining.filter(
       (e) => e.detailType === InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,

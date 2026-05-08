@@ -1,24 +1,19 @@
 import { MandateValidator } from '../../src/rules/mandate-validator';
-import type { ComplianceInput } from '../../src/rules/rule-engine';
+import type { ComplianceInput, MandateSnapshot } from '../../src/rules/rule-engine';
 
-function buildInput(overrides: Partial<ComplianceInput['mandate']> = {}): ComplianceInput {
+const BASE_MANDATE: MandateSnapshot = {
+  level: 'DISCRETIONARY',
+  status: 'ACTIVE',
+  operatingMode: 'BALANCED',
+  effectiveDate: '2024-01-01T00:00:00.000Z',
+};
+
+function buildInput(mandateOverrides: Partial<MandateSnapshot> = {}): ComplianceInput {
   return {
     decisionPacketId: 'dp-1',
     tenantId: 't-1',
     userId: 'u-1',
-    mandate: {
-      mandateId: 'm-1',
-      level: 'DISCRETIONARY',
-      monthlyTurnoverCapPercent: 10,
-      maxSingleTradePercent: 5,
-      equityRiskBandPercent: 6,
-      driftTriggerPercent: 4,
-      singleEtfConcentrationPercent: 30,
-      drawdownCircuitBreakerPercent: 12,
-      effectiveDate: '2024-01-01T00:00:00.000Z',
-      revokedAt: null,
-      ...overrides,
-    },
+    mandate: { ...BASE_MANDATE, ...mandateOverrides },
     proposedTrades: [],
     portfolioValue: 100_000_00,
     riskScore: 5,
@@ -34,22 +29,12 @@ describe('MandateValidator', () => {
 
     expect(result.passed).toBe(true);
     expect(result.name).toBe('MANDATE_ACTIVE');
-  });
-
-  it('should fail when mandate is revoked', () => {
-    const result = validator.validate(
-      buildInput({ revokedAt: '2025-01-15T00:00:00.000Z' }),
-    );
-
-    expect(result.passed).toBe(false);
-    expect(result.details).toContain('revoked');
+    expect(result.details).toContain('active and in effect');
   });
 
   it('should fail when mandate effective date is in the future', () => {
     const futureDate = new Date(Date.now() + 86400000 * 30).toISOString();
-    const result = validator.validate(
-      buildInput({ effectiveDate: futureDate }),
-    );
+    const result = validator.validate(buildInput({ effectiveDate: futureDate }));
 
     expect(result.passed).toBe(false);
     expect(result.details).toContain('not yet effective');
@@ -65,13 +50,6 @@ describe('MandateValidator', () => {
       expect(result.details).toContain('revoked');
     });
 
-    it('should pass (MANDATE_ACTIVE) when status is undefined and mandate is otherwise active (legacy snapshots default to allowed)', () => {
-      const result = validator.validate(buildInput({ status: undefined }));
-
-      expect(result.passed).toBe(true);
-      expect(result.name).toBe('MANDATE_ACTIVE');
-    });
-
     it('should pass (MANDATE_ACTIVE) when status === ACTIVE explicitly', () => {
       const result = validator.validate(buildInput({ status: 'ACTIVE' }));
 
@@ -79,18 +57,27 @@ describe('MandateValidator', () => {
       expect(result.name).toBe('MANDATE_ACTIVE');
     });
 
-    it('REVOKED status takes precedence over revokedAt timestamp check', () => {
-      // Even with revokedAt set, status=REVOKED short-circuits with the
-      // dedicated MANDATE_REVOKED name (single source of truth).
+    it('should fail with name=MANDATE_REVOKED regardless of level when status === REVOKED', () => {
+      // Even an ADVISORY mandate with REVOKED status hits the REVOKED gate first.
       const result = validator.validate(
-        buildInput({
-          status: 'REVOKED',
-          revokedAt: '2025-01-15T00:00:00.000Z',
-        }),
+        buildInput({ status: 'REVOKED', level: 'ADVISORY' }),
       );
 
       expect(result.passed).toBe(false);
       expect(result.name).toBe('MANDATE_REVOKED');
     });
+  });
+
+  // ── operatingMode variations ─────────────────────────────────────────
+  describe('operatingMode passthrough', () => {
+    it.each(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE'] as const)(
+      'should pass for %s mode when mandate is active and effective',
+      (operatingMode) => {
+        const result = validator.validate(buildInput({ operatingMode }));
+
+        expect(result.passed).toBe(true);
+        expect(result.name).toBe('MANDATE_ACTIVE');
+      },
+    );
   });
 });

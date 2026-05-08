@@ -9,36 +9,29 @@ import {
 } from '@nestfolio/integration-testing';
 
 // compliance-ctrl resilience — verifies that the MandateSnapshot projection
-// from InvestorProfile composite events behaves correctly under SQS
-// at-least-once redelivery and out-of-order arrival.
+// from mandate lifecycle events behaves correctly under SQS at-least-once
+// redelivery and out-of-order arrival.
 //
 // State layout:
 //   pk: GuardrailPolicy#${tenantId}#${userId}
 //   sk: MandateSnapshot
 //
 // Two ingress paths under test:
-//   - INVESTOR_PROFILE_CREATED / _UPDATED → projects 8 guardrail fields
-//     (level, monthlyTurnoverCapPercent, maxSingleTradePercent, ...)
-//     Status is intentionally NOT set here — owned by MANDATE_REVOKED.
+//   - MANDATE_ISSUED  → projects {mandateId, level, status:'ACTIVE', operatingMode, effectiveDate}
+//     Numeric guardrail thresholds are no longer stored on the row —
+//     GuardrailEvaluator derives them from operatingMode via resolveGuardrailParams.
 //   - MANDATE_REVOKED → patches status='REVOKED' + revokedAt only
-//     (preserving guardrail fields).
+//     (preserving mandate fields: mandateId, level, operatingMode, effectiveDate).
 //
-// The ordering contract is documented in event-listener.ts:99-104: a late
-// INVESTOR_PROFILE_CREATED (e.g., SQS redelivery) must NOT clobber
-// MandateSnapshot.status='REVOKED'. The handler's ConditionExpression
-// guards this — these tests verify it end-to-end.
+// The ordering contract: a late MANDATE_ISSUED (e.g., SQS redelivery)
+// must NOT clobber MandateSnapshot.status='REVOKED'. The handler's
+// ConditionExpression guards this — these tests verify it end-to-end.
 
-const baseMandate = (mandateId: string) => ({
+const baseMandateIssued = (mandateId: string) => ({
   mandateId,
   level: 'DISCRETIONARY',
-  monthlyTurnoverCapPercent: 25,
-  maxSingleTradePercent: 10,
-  equityRiskBandPercent: 6,
-  driftTriggerPercent: 4,
-  singleEtfConcentrationPercent: 30,
-  drawdownCircuitBreakerPercent: 12,
+  operatingMode: 'BALANCED',
   effectiveDate: '2026-01-15T00:00:00.000Z',
-  revokedAt: null,
 });
 
 async function pollForMandateSnapshot(
@@ -67,7 +60,7 @@ async function pollForMandateSnapshot(
 // ── Idempotency ──────────────────────────────────────────────────────────
 
 describe('compliance-ctrl resilience: idempotency', () => {
-  it('duplicate INVESTOR_PROFILE_CREATED produces a single MandateSnapshot row', async () => {
+  it('duplicate MANDATE_ISSUED produces a single MandateSnapshot row', async () => {
     const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
@@ -76,21 +69,18 @@ describe('compliance-ctrl resilience: idempotency', () => {
 
       const userId = `idemp-user-${randomUUID()}`;
       const mandateId = `idemp-mandate-${randomUUID()}`;
-      const eventId = `idemp-profile-${randomUUID()}`;
+      const eventId = `idemp-mandate-issued-${randomUUID()}`;
       const detail = {
         tenantId: ctx.tenantId,
         userId,
-        mandate: baseMandate(mandateId),
-        goal: { type: 'RETIREMENT', horizonYears: 20 },
-        riskProfile: { score: 6, band: 'BALANCED' },
-        operatingMode: 'BALANCED',
+        ...baseMandateIssued(mandateId),
       };
 
       // First publish
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'compliance-ctrl',
-        detailType: 'INVESTOR_PROFILE_CREATED',
+        detailType: 'MANDATE_ISSUED',
         detail,
         eventId,
       });
@@ -105,7 +95,7 @@ describe('compliance-ctrl resilience: idempotency', () => {
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'compliance-ctrl',
-        detailType: 'INVESTOR_PROFILE_CREATED',
+        detailType: 'MANDATE_ISSUED',
         detail,
         eventId,
       });
@@ -136,18 +126,15 @@ describe('compliance-ctrl resilience: idempotency', () => {
       const userId = `idemp-revoke-${randomUUID()}`;
       const mandateId = `idemp-revoke-mandate-${randomUUID()}`;
 
-      // Seed
+      // Seed via MANDATE_ISSUED
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'compliance-ctrl',
-        detailType: 'INVESTOR_PROFILE_CREATED',
+        detailType: 'MANDATE_ISSUED',
         detail: {
           tenantId: ctx.tenantId,
           userId,
-          mandate: baseMandate(mandateId),
-          goal: { type: 'RETIREMENT', horizonYears: 20 },
-          riskProfile: { score: 6, band: 'BALANCED' },
-          operatingMode: 'BALANCED',
+          ...baseMandateIssued(mandateId),
         },
       });
       await pollForMandateSnapshot(table, ctx.tenantId, userId, (i) => i['mandateId'] === mandateId);
@@ -183,9 +170,10 @@ describe('compliance-ctrl resilience: idempotency', () => {
       });
       expect(final['status']).toBe('REVOKED');
       expect(final['revokedAt']).toBe(revokedAt);
-      // Guardrail fields preserved through the second revoke
+      // Mandate fields preserved through the second revoke
       expect(final['mandateId']).toBe(mandateId);
-      expect(final['maxSingleTradePercent']).toBe(10);
+      expect(final['level']).toBe('DISCRETIONARY');
+      expect(final['operatingMode']).toBe('BALANCED');
     } finally {
       await ctx.cleanup.runAll();
     }
@@ -193,20 +181,20 @@ describe('compliance-ctrl resilience: idempotency', () => {
 });
 
 // ── Order-Agnostic (SQS redelivery contract) ───────────────────────────
-// Documented contract per event-listener.ts:99-104: a late
-// INVESTOR_PROFILE_CREATED arriving AFTER the row has been REVOKED must
-// NOT clobber MandateSnapshot.status='REVOKED'. This is the realistic
-// SQS-at-least-once scenario: original create lands → revoke patches in
-// status=REVOKED → SQS redelivers the original create (typical 12-hour
-// visibility timeout window) → conditional write skips, REVOKED preserved.
+// Documented contract: a late MANDATE_ISSUED arriving AFTER the row has
+// been REVOKED must NOT clobber MandateSnapshot.status='REVOKED'. This is
+// the realistic SQS-at-least-once scenario:
+//   original MANDATE_ISSUED lands → MANDATE_REVOKED patches status=REVOKED
+//   → SQS redelivers the original MANDATE_ISSUED (typical 12-hour visibility
+//   timeout window) → conditional write skips, REVOKED preserved.
 //
-// Note: a "revoke before any create" ordering is NOT a real product
-// scenario (you cannot revoke a mandate that was never created), and the
-// system does not guarantee guardrail-field projection in that case.
+// Note: a "revoke before any issue" ordering is NOT a real product
+// scenario (you cannot revoke a mandate that was never issued), and the
+// system does not guarantee field projection in that case.
 // The contract under test is solely the REVOKED-preservation property.
 
 describe('compliance-ctrl resilience: order-agnostic (SQS redelivery)', () => {
-  it('CREATE → REVOKE → late-CREATE does not clobber MandateSnapshot.status=REVOKED', async () => {
+  it('ISSUE → REVOKE → late-ISSUE does not clobber MandateSnapshot.status=REVOKED', async () => {
     const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
@@ -216,31 +204,29 @@ describe('compliance-ctrl resilience: order-agnostic (SQS redelivery)', () => {
       const userId = `redelivery-user-${randomUUID()}`;
       const mandateId = `redelivery-mandate-${randomUUID()}`;
       const revokedAt = '2026-04-01T12:00:00.000Z';
-      const createEventId = `redelivery-create-${randomUUID()}`;
-      const createDetail = {
+      const issueEventId = `redelivery-issue-${randomUUID()}`;
+      const issueDetail = {
         tenantId: ctx.tenantId,
         userId,
-        mandate: baseMandate(mandateId),
-        goal: { type: 'RETIREMENT', horizonYears: 20 },
-        riskProfile: { score: 6, band: 'BALANCED' },
-        operatingMode: 'BALANCED',
+        ...baseMandateIssued(mandateId),
       };
 
-      // 1. Original CREATE — projects guardrail fields (no status set)
+      // 1. Original MANDATE_ISSUED — projects {mandateId, level, status:'ACTIVE', operatingMode, effectiveDate}
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'compliance-ctrl',
-        detailType: 'INVESTOR_PROFILE_CREATED',
-        detail: createDetail,
-        eventId: createEventId,
+        detailType: 'MANDATE_ISSUED',
+        detail: issueDetail,
+        eventId: issueEventId,
       });
       const projected = await pollForMandateSnapshot(
         table, ctx.tenantId, userId, (i) => i['mandateId'] === mandateId,
       );
-      expect(projected['status']).toBeUndefined();
-      expect(projected['maxSingleTradePercent']).toBe(10);
+      expect(projected['status']).toBe('ACTIVE');
+      expect(projected['level']).toBe('DISCRETIONARY');
+      expect(projected['operatingMode']).toBe('BALANCED');
 
-      // 2. REVOKE — patches status=REVOKED + revokedAt, preserving guardrails
+      // 2. REVOKE — patches status=REVOKED + revokedAt, preserving mandate fields
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'compliance-ctrl',
@@ -250,15 +236,18 @@ describe('compliance-ctrl resilience: order-agnostic (SQS redelivery)', () => {
       const revoked = await pollForMandateSnapshot(
         table, ctx.tenantId, userId, (i) => i['status'] === 'REVOKED',
       );
-      expect(revoked['maxSingleTradePercent']).toBe(10); // guardrails preserved
+      // Mandate fields (not just numeric thresholds) preserved through revoke
+      expect(revoked['mandateId']).toBe(mandateId);
+      expect(revoked['level']).toBe('DISCRETIONARY');
+      expect(revoked['operatingMode']).toBe('BALANCED');
 
-      // 3. SQS redelivery of the original CREATE (same eventId, same payload)
+      // 3. SQS redelivery of the original MANDATE_ISSUED (same eventId, same payload)
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'compliance-ctrl',
-        detailType: 'INVESTOR_PROFILE_CREATED',
-        detail: createDetail,
-        eventId: createEventId,
+        detailType: 'MANDATE_ISSUED',
+        detail: issueDetail,
+        eventId: issueEventId,
       });
 
       // Allow the redelivery to land and the handler to either skip
@@ -272,14 +261,13 @@ describe('compliance-ctrl resilience: order-agnostic (SQS redelivery)', () => {
         timeoutMs: 5_000,
       });
 
-      // The contract: the redelivered CREATE must NOT clobber REVOKED.
+      // The contract: the redelivered MANDATE_ISSUED must NOT clobber REVOKED.
       expect(final['status']).toBe('REVOKED');
       expect(final['revokedAt']).toBe(revokedAt);
-      // And guardrail fields remain intact for any subsequent rule evaluation.
+      // And mandate fields remain intact for any subsequent rule evaluation.
       expect(final['mandateId']).toBe(mandateId);
       expect(final['level']).toBe('DISCRETIONARY');
-      expect(final['maxSingleTradePercent']).toBe(10);
-      expect(final['monthlyTurnoverCapPercent']).toBe(25);
+      expect(final['operatingMode']).toBe('BALANCED');
 
       // Snapshot stays a single row throughout the lifecycle
       const count = await countItems(

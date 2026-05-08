@@ -1,10 +1,11 @@
 import type { ComplianceInput, CheckResult } from './rule-engine';
-
-/** Default concentration limit: no single position above 25% of portfolio */
-const DEFAULT_MAX_CONCENTRATION_PERCENT = 25;
+import { resolveGuardrailParams } from './guardrail-params';
 
 /**
  * Evaluates guardrail rules against the proposed trades.
+ * Thresholds are derived at evaluation time from mandate.operatingMode
+ * via resolveGuardrailParams — no numeric fields on MandateSnapshot.
+ *
  * Checks:
  * - Max single trade size (% of portfolio)
  * - Monthly turnover cap
@@ -23,7 +24,8 @@ export class GuardrailEvaluator {
 
   private checkSingleTradeSize(input: ComplianceInput): CheckResult {
     const { proposedTrades, portfolioValue, mandate } = input;
-    const maxPercent = mandate.maxSingleTradePercent;
+    const params = resolveGuardrailParams(mandate.operatingMode);
+    const maxPercent = params.maxSingleTradePercent;
     const maxAmountCents = (portfolioValue * maxPercent) / 100;
 
     for (const trade of proposedTrades) {
@@ -47,7 +49,8 @@ export class GuardrailEvaluator {
 
   private checkConcentrationLimit(input: ComplianceInput): CheckResult {
     const { proposedTrades, currentPositions, mandate } = input;
-    const maxConcentration = mandate.singleEtfConcentrationPercent ?? DEFAULT_MAX_CONCENTRATION_PERCENT;
+    const params = resolveGuardrailParams(mandate.operatingMode);
+    const maxConcentration = params.singleEtfConcentrationPercent;
 
     // Build a map of current weights
     const positionWeights = new Map<string, number>();
@@ -81,7 +84,8 @@ export class GuardrailEvaluator {
 
   private checkTurnoverCap(input: ComplianceInput): CheckResult {
     const { proposedTrades, portfolioValue, mandate } = input;
-    const maxTurnoverPercent = mandate.monthlyTurnoverCapPercent;
+    const params = resolveGuardrailParams(mandate.operatingMode);
+    const maxTurnoverPercent = params.monthlyTurnoverCapPercent;
     const maxTurnoverCents = (portfolioValue * maxTurnoverPercent) / 100;
 
     const totalTurnoverCents = proposedTrades.reduce(

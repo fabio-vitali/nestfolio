@@ -39,7 +39,7 @@ Report format:
 ```
 | Service | Event | Direction | Documented? | Flow Spec |
 |---------|-------|-----------|-------------|-----------|
-| compliance-ctrl | INVESTOR_PROFILE_CREATED | Ingress | Yes | advisory-cycle.flow.yaml |
+| compliance-ctrl | MANDATE_ISSUED | Ingress | Yes | investor-onboarding.flow.yaml |
 | decision-workflow-ctrl | DECISION_PACKET_CREATED | Egress | No | — |
 ```
 

@@ -4,13 +4,13 @@ Domain: advisory | Bus: advisoryBus
 Stack: services/advisory/compliance-ctrl/src/service.stack.ts
 
 ## State
-- DynamoDB table (streams enabled)
+- DynamoDB table (streams enabled). Stores GuardrailPolicy rows (MandateSnapshot): `{level, status, operatingMode, effectiveDate}`. GUARDRAIL_TABLE params (8 numeric thresholds per level) are hardcoded in `src/rules/guardrail-params.ts` — moved here from investor-bff in the domain resplit.
 
 ## Ingress
 - advisoryBus → compliance-ctrl-ingress (SQS → Lambda)
-  Subscriptions: RECOMMENDATION_PROPOSED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_REVOKED
+  Subscriptions: RECOMMENDATION_PROPOSED, MANDATE_ISSUED, OPERATING_MODE_CHANGED, MANDATE_REVOKED
 
-Post-collapse: legacy MANDATE_CREATED + MANDATE_UPDATED + OPERATING_MODE_CHANGED replaced by INVESTOR_PROFILE_CREATED + INVESTOR_PROFILE_UPDATED + MANDATE_REVOKED. The composite events carry the mandate sub-payload that MandateSnapshot is projected from; MANDATE_REVOKED sets MandateSnapshot.status='REVOKED' which the rule engine short-circuits on.
+Post-resplit (2026-05-08): subscribes to semantic/lifecycle events directly instead of carrier events. MANDATE_ISSUED bootstraps the GuardrailPolicy on onboarding; OPERATING_MODE_CHANGED re-projects the policy when mode changes; MANDATE_REVOKED sets MandateSnapshot.status='REVOKED'. No longer subscribes to INVESTOR_PROFILE_CREATED or INVESTOR_PROFILE_UPDATED.
 
 ## Egress
 - CDC: DynamoDB Streams → compliance-ctrl-egress (Lambda)
@@ -20,8 +20,9 @@ Post-collapse: legacy MANDATE_CREATED + MANDATE_UPDATED + OPERATING_MODE_CHANGED
 
 ## Handlers
 - event-listener.ts — Ingress event handler
-  - RECOMMENDATION_PROPOSED: loads MandateSnapshot from DDB, runs RuleEngine (MandateValidator + GuardrailEvaluator + SuitabilityChecker + AuthorityResolver), writes ComplianceCheck + AuditArtifact records. Requires `taskToken` on subject (SF callback to decision-workflow-ctrl on DECISION_APPROVED|BLOCKED). Throws NotRetryableError if taskToken missing or required fields absent.
-  - INVESTOR_PROFILE_CREATED / INVESTOR_PROFILE_UPDATED: projects GuardrailPolicy (MandateSnapshot) with 8 guardrail fields (level, monthlyTurnoverCapPercent, maxSingleTradePercent, equityRiskBandPercent, driftTriggerPercent, singleEtfConcentrationPercent, drawdownCircuitBreakerPercent, effectiveDate). Reads `mandate` + `operatingMode` from the composite payload.
+  - RECOMMENDATION_PROPOSED: loads GuardrailPolicy (MandateSnapshot) from DDB, runs RuleEngine (MandateValidator + GuardrailEvaluator + SuitabilityChecker + AuthorityResolver), writes ComplianceCheck + AuditArtifact records. Requires `taskToken` on subject (SF callback to decision-workflow-ctrl on DECISION_APPROVED|BLOCKED). Throws NotRetryableError if taskToken missing or required fields absent.
+  - MANDATE_ISSUED: projects GuardrailPolicy (MandateSnapshot `{level, status, operatingMode, effectiveDate}`) from the Mandate row payload. The 8 numeric guardrail thresholds are looked up from `guardrail-params.ts` by level + operatingMode.
+  - OPERATING_MODE_CHANGED: re-projects the GuardrailPolicy with the new operatingMode — updates the stored MandateSnapshot so the next RECOMMENDATION_PROPOSED uses the correct thresholds.
   - MANDATE_REVOKED: sets MandateSnapshot.status='REVOKED' + revokedAt; MandateValidator's REVOKED gate short-circuits the rule engine for any subsequent RECOMMENDATION_PROPOSED.
 - event-publisher.ts — Egress CDC publisher
 

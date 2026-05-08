@@ -1,5 +1,7 @@
 # Operating Mode Implementation Plan
 
+> **Partially superseded by [2026-05-08-investor-profile-domain-resplit-design.md](../specs/2026-05-08-investor-profile-domain-resplit-design.md)** — the parts dealing with mandate-on-InvestorProfile, MandateStatus sibling, and carrier-only event topology are reversed. Other parts (multi-row YAGNI removal, plural-Goal removal, version-field cleanup) remain canonical.
+
 **Status (2026-05-05):** Tasks 1, 2, 3, 4 SHIPPED on `main` (verified). Task 5 SHIPPED — E2E gate green 3/3 against deployed dev (CONSERVATIVE→L2, BALANCED→L1, AGGRESSIVE→L1) in 169s. Task 2b (operating-mode-change handler) was made moot by the 2026-05-04 InvestorProfile collapse — the OPERATING_MODE_CHANGED event no longer exists, but `updateOperatingMode` mutation re-derivation gap remains open and is filed in `docs/BACKLOG.md` PARKING LOT.
 
 > **⚠️ Post-collapse note:** This plan was authored before the 2026-05-04 InvestorProfile single-row collapse. References below to `OPERATING_MODE_CHANGED` event, `OperatingModeRecord` entity, separate `Mandate` row (`sk='Mandate'`), and `MANDATE_CREATED` / `MANDATE_UPDATED` events are stale. The collapse replaced these with a composite `InvestorProfile` row + `INVESTOR_PROFILE_CREATED` / `INVESTOR_PROFILE_UPDATED` events. The implementation correctly adapted (compliance-ctrl now ingests the composite events per `services/advisory/compliance-ctrl/CLAUDE.md`); the plan text remains for historical context only.

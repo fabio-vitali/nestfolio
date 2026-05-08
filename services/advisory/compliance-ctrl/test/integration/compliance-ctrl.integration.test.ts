@@ -68,43 +68,35 @@ describe('compliance-ctrl', () => {
     expect(subject['taskToken']).toBe(taskToken);
   }, 120_000);
 
-  // ── InvestorProfile composite events (compliance rules projection) ────
-  // Phase 3 of the InvestorProfile collapse replaced the legacy
-  // MANDATE_CREATED/UPDATED/OPERATING_MODE_CHANGED fan-out with a single
-  // composite INVESTOR_PROFILE_CREATED|UPDATED carrying mandate + goal +
-  // riskProfile + operatingMode in subject.
+  // ── Mandate lifecycle events (compliance rules projection) ────────────
+  // Post-resplit: INVESTOR_PROFILE_CREATED/UPDATED no longer feed compliance-ctrl.
+  // The handler now subscribes to three semantic mandate events:
+  //   MANDATE_ISSUED         → projects a fresh MandateSnapshot {mandateId, level, status:'ACTIVE', operatingMode, effectiveDate}
+  //   OPERATING_MODE_CHANGED → patches operatingMode on the existing snapshot
+  //   MANDATE_REVOKED        → patches status='REVOKED' + revokedAt
+  // Numeric guardrail thresholds (maxSingleTradePercent etc.) are no longer
+  // stored on the row — GuardrailEvaluator derives them at evaluation time
+  // from operatingMode via resolveGuardrailParams (guardrail-params.ts).
 
-  it('should project MandateSnapshot from INVESTOR_PROFILE_CREATED composite payload', async () => {
+  it('should project MandateSnapshot from MANDATE_ISSUED event', async () => {
     // Per-test unique userId — isolates the row so prior runs cannot pollute
     // it (the REVOKED-gate test below leaves `status: REVOKED`, and the
-    // composite-event projection's ConditionExpression deliberately skips
-    // re-init when REVOKED is set, so a shared row would cause this test
-    // to read a stale REVOKED row).
+    // MANDATE_ISSUED handler's ConditionExpression skips re-init when REVOKED
+    // is set, so a shared row would cause this test to read a stale REVOKED row).
     const userId = `integ-user-create-${Date.now()}`;
     const mandateId = `integ-mandate-${Date.now()}`;
 
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: 'INVESTOR_PROFILE_CREATED',
+      detailType: 'MANDATE_ISSUED',
       detail: {
         tenantId: ctx.tenantId,
         userId,
-        mandate: {
-          mandateId,
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 25,
-          maxSingleTradePercent: 10,
-          equityRiskBandPercent: 6,
-          driftTriggerPercent: 4,
-          singleEtfConcentrationPercent: 30,
-          drawdownCircuitBreakerPercent: 12,
-          effectiveDate: '2026-01-15T00:00:00.000Z',
-          revokedAt: null,
-        },
-        goal: { type: 'RETIREMENT', horizonYears: 20 },
-        riskProfile: { score: 6, band: 'BALANCED' },
+        mandateId,
+        level: 'DISCRETIONARY',
         operatingMode: 'BALANCED',
+        effectiveDate: '2026-01-15T00:00:00.000Z',
       },
     });
 
@@ -131,47 +123,29 @@ describe('compliance-ctrl', () => {
 
     expect(item['mandateId']).toBe(mandateId);
     expect(item['level']).toBe('DISCRETIONARY');
-    expect(item['monthlyTurnoverCapPercent']).toBe(25);
-    expect(item['maxSingleTradePercent']).toBe(10);
-    expect(item['equityRiskBandPercent']).toBe(6);
-    expect(item['driftTriggerPercent']).toBe(4);
-    expect(item['singleEtfConcentrationPercent']).toBe(30);
-    expect(item['drawdownCircuitBreakerPercent']).toBe(12);
-    // Status is intentionally NOT set on initial projection — owned by the
-    // MANDATE_REVOKED handler. AuthorityResolver and MandateValidator both
-    // treat undefined `status` as not-revoked (the row defaults to ACTIVE
-    // semantically). This contract protects against SQS at-least-once
-    // redelivery of INVESTOR_PROFILE_CREATED clobbering a REVOKED row.
-    expect(item['status']).toBeUndefined();
+    expect(item['operatingMode']).toBe('BALANCED');
+    expect(item['effectiveDate']).toBe('2026-01-15T00:00:00.000Z');
+    // MANDATE_ISSUED sets status='ACTIVE' directly (no separate REVOKED handler needed
+    // to initialize the row — the REVOKED condition protects against late redeliveries).
+    expect(item['status']).toBe('ACTIVE');
   }, 120_000);
 
-  it('should update MandateSnapshot from INVESTOR_PROFILE_UPDATED composite payload', async () => {
+  it('should patch MandateSnapshot.operatingMode on OPERATING_MODE_CHANGED event', async () => {
     const userId = `integ-user-update-${Date.now()}`;
     const mandateId = `integ-mandate-updated-${Date.now()}`;
 
-    // Seed via INVESTOR_PROFILE_CREATED first
+    // Seed via MANDATE_ISSUED first (CONSERVATIVE operating mode)
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: 'INVESTOR_PROFILE_CREATED',
+      detailType: 'MANDATE_ISSUED',
       detail: {
         tenantId: ctx.tenantId,
         userId,
-        mandate: {
-          mandateId,
-          level: 'ADVISORY',
-          monthlyTurnoverCapPercent: 10,
-          maxSingleTradePercent: 5,
-          equityRiskBandPercent: 4,
-          driftTriggerPercent: 2,
-          singleEtfConcentrationPercent: 20,
-          drawdownCircuitBreakerPercent: 8,
-          effectiveDate: '2026-01-15T00:00:00.000Z',
-          revokedAt: null,
-        },
-        goal: { type: 'RETIREMENT', horizonYears: 20 },
-        riskProfile: { score: 3, band: 'CONSERVATIVE' },
+        mandateId,
+        level: 'ADVISORY',
         operatingMode: 'CONSERVATIVE',
+        effectiveDate: '2026-01-15T00:00:00.000Z',
       },
     });
 
@@ -185,41 +159,27 @@ describe('compliance-ctrl', () => {
           sk: 'MandateSnapshot',
           timeoutMs: 5_000,
         });
-        if (seeded['mandateId'] === mandateId && seeded['level'] === 'ADVISORY') break;
+        if (seeded['mandateId'] === mandateId && seeded['operatingMode'] === 'CONSERVATIVE') break;
       } catch { /* not yet */ }
       await new Promise((r) => setTimeout(r, 2_000));
     }
-    if (!seeded || seeded['level'] !== 'ADVISORY') {
+    if (!seeded || seeded['operatingMode'] !== 'CONSERVATIVE') {
       throw new Error(`Initial MandateSnapshot did not seed for ${userId} within 60s`);
     }
 
-    // Now emit INVESTOR_PROFILE_UPDATED with broadened guardrails
+    // Now emit OPERATING_MODE_CHANGED — patches only operatingMode, leaves level/mandateId intact
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: 'INVESTOR_PROFILE_UPDATED',
+      detailType: 'OPERATING_MODE_CHANGED',
       detail: {
         tenantId: ctx.tenantId,
         userId,
-        mandate: {
-          mandateId,
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 40,
-          maxSingleTradePercent: 20,
-          equityRiskBandPercent: 10,
-          driftTriggerPercent: 6,
-          singleEtfConcentrationPercent: 35,
-          drawdownCircuitBreakerPercent: 15,
-          effectiveDate: '2026-01-15T00:00:00.000Z',
-          revokedAt: null,
-        },
-        goal: { type: 'WEALTH_GROWTH', horizonYears: 30 },
-        riskProfile: { score: 8, band: 'AGGRESSIVE' },
         operatingMode: 'AGGRESSIVE',
       },
     });
 
-    // Poll until the projection reflects the updated values
+    // Poll until the projection reflects the updated operatingMode
     let updated: Record<string, unknown> | undefined;
     const deadline = Date.now() + 60_000;
     while (Date.now() < deadline) {
@@ -230,58 +190,41 @@ describe('compliance-ctrl', () => {
           sk: 'MandateSnapshot',
           timeoutMs: 5_000,
         });
-        if (updated['level'] === 'DISCRETIONARY' && updated['maxSingleTradePercent'] === 20) break;
+        if (updated['operatingMode'] === 'AGGRESSIVE') break;
       } catch { /* not yet */ }
       await new Promise((r) => setTimeout(r, 2_000));
     }
 
     expect(updated!['mandateId']).toBe(mandateId);
-    expect(updated!['level']).toBe('DISCRETIONARY');
-    expect(updated!['monthlyTurnoverCapPercent']).toBe(40);
-    expect(updated!['maxSingleTradePercent']).toBe(20);
-    expect(updated!['equityRiskBandPercent']).toBe(10);
-    expect(updated!['driftTriggerPercent']).toBe(6);
-    expect(updated!['singleEtfConcentrationPercent']).toBe(35);
-    expect(updated!['drawdownCircuitBreakerPercent']).toBe(15);
-    // status field remains unset by INVESTOR_PROFILE_* projections — owned
-    // exclusively by the MANDATE_REVOKED handler.
-    expect(updated!['status']).toBeUndefined();
+    // level is unchanged — OPERATING_MODE_CHANGED only patches operatingMode
+    expect(updated!['level']).toBe('ADVISORY');
+    expect(updated!['operatingMode']).toBe('AGGRESSIVE');
+    // status field untouched by OPERATING_MODE_CHANGED
+    expect(updated!['status']).toBe('ACTIVE');
   }, 180_000);
 
   // ── MANDATE_REVOKED projection ────────────────────────────────────────
-  it('should set MandateSnapshot.status=REVOKED on MANDATE_REVOKED event preserving guardrails', async () => {
+  it('should set MandateSnapshot.status=REVOKED on MANDATE_REVOKED event', async () => {
     const userId = `integ-user-revoke-event-${Date.now()}`;
     const mandateId = `integ-mandate-revoke-${Date.now()}`;
     const revokedAt = '2026-05-03T10:00:00.000Z';
 
-    // 1. Seed MandateSnapshot via INVESTOR_PROFILE_CREATED.
+    // 1. Seed MandateSnapshot via MANDATE_ISSUED.
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: 'INVESTOR_PROFILE_CREATED',
+      detailType: 'MANDATE_ISSUED',
       detail: {
         tenantId: ctx.tenantId,
         userId,
-        mandate: {
-          mandateId,
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 25,
-          maxSingleTradePercent: 10,
-          equityRiskBandPercent: 6,
-          driftTriggerPercent: 4,
-          singleEtfConcentrationPercent: 30,
-          drawdownCircuitBreakerPercent: 12,
-          effectiveDate: '2026-01-15T00:00:00.000Z',
-          revokedAt: null,
-        },
-        goal: { type: 'RETIREMENT', horizonYears: 20 },
-        riskProfile: { score: 6, band: 'BALANCED' },
+        mandateId,
+        level: 'DISCRETIONARY',
         operatingMode: 'BALANCED',
+        effectiveDate: '2026-01-15T00:00:00.000Z',
       },
     });
 
-    // Wait for the row to land — initial projection writes guardrails but
-    // no `status` field (status is owned by MANDATE_REVOKED).
+    // Wait for the row to land — MANDATE_ISSUED projection sets status='ACTIVE'.
     let seeded: Record<string, unknown> | undefined;
     const seedDeadline = Date.now() + 60_000;
     while (Date.now() < seedDeadline) {
@@ -297,7 +240,7 @@ describe('compliance-ctrl', () => {
       await new Promise((r) => setTimeout(r, 2_000));
     }
     expect(seeded!['mandateId']).toBe(mandateId);
-    expect(seeded!['status']).toBeUndefined();
+    expect(seeded!['status']).toBe('ACTIVE');
 
     // 2. Emit MANDATE_REVOKED
     await eb.putEvent({
@@ -328,55 +271,40 @@ describe('compliance-ctrl', () => {
     }
     expect(revoked!['status']).toBe('REVOKED');
     expect(revoked!['revokedAt']).toBe(revokedAt);
-    // Critical: MANDATE_REVOKED must patch only status + revokedAt, leaving
-    // the guardrail fields projected by INVESTOR_PROFILE_CREATED intact.
-    // The previous PutItem-based projection wiped them, breaking any
-    // downstream RECOMMENDATION_PROPOSED rule evaluation.
+    // Critical: MANDATE_REVOKED must patch only status + revokedAt,
+    // leaving mandate fields (mandateId, level, operatingMode, effectiveDate)
+    // projected from MANDATE_ISSUED intact for downstream rule evaluation.
     expect(revoked!['mandateId']).toBe(mandateId);
     expect(revoked!['level']).toBe('DISCRETIONARY');
-    expect(revoked!['maxSingleTradePercent']).toBe(10);
-    expect(revoked!['monthlyTurnoverCapPercent']).toBe(25);
+    expect(revoked!['operatingMode']).toBe('BALANCED');
   }, 240_000);
 
   // ── REVOKED-blocks-cycle (rule engine gate) ──────────────────────────
   it('should return DECISION_BLOCKED with MANDATE_SCOPE violation on RECOMMENDATION_PROPOSED when MandateSnapshot.status=REVOKED', async () => {
     // Per-test unique userId — isolates this scenario's MandateSnapshot from
-    // late-arriving lambda invocations of other tests' INVESTOR_PROFILE_CREATED
+    // late-arriving lambda invocations of other tests' MANDATE_ISSUED events
     // (which would project the row back to ACTIVE and break the REVOKED gate).
     const userId = `integ-user-revoked-${Date.now()}`;
     const mandateId = `integ-mandate-revoked-block-${Date.now()}`;
     const revokedAt = '2026-05-03T11:00:00.000Z';
     const policyPk = `GuardrailPolicy#${ctx.tenantId}#${userId}`;
 
-    // Seed ACTIVE snapshot
+    // Seed ACTIVE snapshot via MANDATE_ISSUED
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: 'INVESTOR_PROFILE_CREATED',
+      detailType: 'MANDATE_ISSUED',
       detail: {
         tenantId: ctx.tenantId,
         userId,
-        mandate: {
-          mandateId,
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 25,
-          maxSingleTradePercent: 10,
-          equityRiskBandPercent: 6,
-          driftTriggerPercent: 4,
-          singleEtfConcentrationPercent: 30,
-          drawdownCircuitBreakerPercent: 12,
-          effectiveDate: '2026-01-15T00:00:00.000Z',
-          revokedAt: null,
-        },
-        goal: { type: 'RETIREMENT', horizonYears: 20 },
-        riskProfile: { score: 6, band: 'BALANCED' },
+        mandateId,
+        level: 'DISCRETIONARY',
         operatingMode: 'BALANCED',
+        effectiveDate: '2026-01-15T00:00:00.000Z',
       },
     });
 
-    // Wait for the seed to land — initial projection writes guardrails but
-    // no `status` field (owned by MANDATE_REVOKED). Mandate semantics:
-    // undefined status === ACTIVE for AuthorityResolver / RuleEngine.
+    // Wait for the seed to land — MANDATE_ISSUED sets status='ACTIVE'.
     // try/catch swallows the inner waitForItem timeout so jest.retryTimes(1)
     // doesn't double-fire the seed/revoke pair.
     let seeded: Record<string, unknown> | undefined;
@@ -481,37 +409,33 @@ describe('compliance-ctrl', () => {
   }, 300_000);
 
   // ── Authority Resolution ────────────────────────────────────────────
+  // Guardrail thresholds are now derived at evaluation time from operatingMode
+  // via resolveGuardrailParams (guardrail-params.ts). BALANCED mode:
+  //   maxSingleTradePercent=10, monthlyTurnoverCapPercent=25
+  // CONSERVATIVE mode: maxSingleTradePercent=5, monthlyTurnoverCapPercent=10
+  // Seed the MandateSnapshot via MANDATE_ISSUED; the RECOMMENDATION_PROPOSED
+  // trade size is calibrated to the mode-derived threshold.
 
   it('should resolve L1 authority for DISCRETIONARY+BALANCED when trade is within thresholds', async () => {
     // Per-test unique userId — isolates this scenario's MandateSnapshot pk
-    // from out-of-order lambda invocations of other tests' INVESTOR_PROFILE_*
+    // from out-of-order lambda invocations of other tests' MANDATE_ISSUED
     // events (which would overwrite a shared row mid-test).
     const userId = `integ-user-balanced-${Date.now()}`;
     const mandateId = `integ-mandate-balanced-${Date.now()}`;
     const policyPk = `GuardrailPolicy#${ctx.tenantId}#${userId}`;
 
+    // BALANCED mode — maxSingleTradePercent=10 (from guardrail-params.ts)
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: 'INVESTOR_PROFILE_CREATED',
+      detailType: 'MANDATE_ISSUED',
       detail: {
         tenantId: ctx.tenantId,
         userId,
-        mandate: {
-          mandateId,
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 25,
-          maxSingleTradePercent: 10,
-          equityRiskBandPercent: 6,
-          driftTriggerPercent: 4,
-          singleEtfConcentrationPercent: 30,
-          drawdownCircuitBreakerPercent: 12,
-          effectiveDate: '2026-01-01T00:00:00.000Z',
-          revokedAt: null,
-        },
-        goal: { type: 'RETIREMENT', horizonYears: 20 },
-        riskProfile: { score: 6, band: 'BALANCED' },
+        mandateId,
+        level: 'DISCRETIONARY',
         operatingMode: 'BALANCED',
+        effectiveDate: '2026-01-01T00:00:00.000Z',
       },
     });
 
@@ -537,8 +461,8 @@ describe('compliance-ctrl', () => {
 
     const decisionId = `integ-authority-balanced-${Date.now()}`;
 
-    // Send RECOMMENDATION_PROPOSED with a 6% trade (within BALANCED 10% limit).
-    // Pin userId so processDecisionPacket reads this test's MandateSnapshot.
+    // Send RECOMMENDATION_PROPOSED with a 6% trade (within BALANCED 10% limit
+    // → 6000 cents on 100000 portfolio = 6%). Guardrails derived from operatingMode.
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
@@ -591,28 +515,18 @@ describe('compliance-ctrl', () => {
     const mandateId = `integ-mandate-conservative-${Date.now()}`;
     const policyPk = `GuardrailPolicy#${ctx.tenantId}#${userId}`;
 
+    // CONSERVATIVE mode — maxSingleTradePercent=5 (from guardrail-params.ts)
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',
-      detailType: 'INVESTOR_PROFILE_CREATED',
+      detailType: 'MANDATE_ISSUED',
       detail: {
         tenantId: ctx.tenantId,
         userId,
-        mandate: {
-          mandateId,
-          level: 'DISCRETIONARY',
-          monthlyTurnoverCapPercent: 10,
-          maxSingleTradePercent: 5,
-          equityRiskBandPercent: 4,
-          driftTriggerPercent: 2,
-          singleEtfConcentrationPercent: 20,
-          drawdownCircuitBreakerPercent: 8,
-          effectiveDate: '2026-01-01T00:00:00.000Z',
-          revokedAt: null,
-        },
-        goal: { type: 'RETIREMENT', horizonYears: 20 },
-        riskProfile: { score: 3, band: 'CONSERVATIVE' },
+        mandateId,
+        level: 'DISCRETIONARY',
         operatingMode: 'CONSERVATIVE',
+        effectiveDate: '2026-01-01T00:00:00.000Z',
       },
     });
 
@@ -636,7 +550,8 @@ describe('compliance-ctrl', () => {
 
     const decisionId = `integ-authority-conservative-${Date.now()}`;
 
-    // 6% trade exceeds CONSERVATIVE 5% maxSingleTradePercent → L2 + BLOCKED.
+    // 6% trade (6000 cents on 100000) exceeds CONSERVATIVE 5% maxSingleTradePercent → L2 + BLOCKED.
+    // Threshold is derived from operatingMode='CONSERVATIVE' at rule-evaluation time.
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'compliance-ctrl',

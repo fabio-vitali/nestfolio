@@ -123,7 +123,7 @@ export class NotificationLifecycleService {
         body: 'Your account setup is complete. You can now start investing.',
         channel: 'email',
       },
-      MANDATE_ACCEPTED: {
+      MANDATE_ISSUED: {
         title: 'Investment Mandate Activated',
         body: 'Your investment mandate has been granted. We will start managing your portfolio.',
         channel: 'push',
