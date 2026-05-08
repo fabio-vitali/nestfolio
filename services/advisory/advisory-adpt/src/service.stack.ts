@@ -40,6 +40,7 @@ export class AdvisoryAdptStack extends ServiceStack {
       AdvisoryIngestEventTypes.INVESTOR_PROFILE_UPDATED,
       AdvisoryIngestEventTypes.MANDATE_ISSUED,
       AdvisoryIngestEventTypes.MANDATE_REVOKED,
+      AdvisoryIngestEventTypes.OPERATING_MODE_CHANGED,
     ];
     const fromInvestorRule = new Rule(this, 'AdvisoryIngress-FromInvestor', {
       eventBus: investorBus,
