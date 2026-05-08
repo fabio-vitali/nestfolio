@@ -34,6 +34,13 @@ export async function freshTenant(ctx: TestContext): Promise<FreshTenant> {
     Buffer.from(tokens.idToken.split('.')[1], 'base64url').toString(),
   ) as { sub: string };
 
+  // Align ctx.userId with the Cognito sub so synthetic events emitted via
+  // EventBridgeClient.putEvent carry the same userId in their envelope context
+  // as the AppSync-authenticated mutations did. Without this alignment,
+  // compliance-ctrl looks up MandateSnapshot by ctx.userId (= e2e-user-<tid>)
+  // while the snapshot was projected under the Cognito sub.
+  ctx.userId = payload.sub;
+
   return {
     tenantId: ctx.tenantId,
     userId: payload.sub,
