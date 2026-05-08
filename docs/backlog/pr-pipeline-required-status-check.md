@@ -1,17 +1,12 @@
 ---
 id: pr-pipeline-required-status-check
-status: active
+status: parking
 type: infra
-notes: "Throwaway-PR rehearsal of sandbox-integration-test + flip required-status-check on main."
+notes: "Throwaway-PR rehearsal + branch-protection toggle. BLOCKED on ci-pipeline-bring-up — pipeline has never produced a green run."
 references:
   - docs/superpowers/plans/2026-04-10-pr-integration-tests.md#task-4-end-to-end-verification
   - .github/workflows/pr-deploy.yml
-out_of_scope:
-  - "Modifying pr-deploy.yml — the rehearsal is pure verification + an admin toggle, no code change."
-  - "Touching deploy.yml (main → staging) integration test wiring — explicitly out of scope per parent ship's out_of_scope."
-  - "Tuning sandbox-pr-${PR_NUMBER} naming, prefix conventions, or NESTFOLIO_INTEG_PREFIX rename (separate item: rename-nestfolio-integ-prefix-to-prefix)."
-  - "Investigating any pre-existing test flakes the rehearsal surfaces — file via backlog-add and continue."
-  - "Cost optimization of the run-many-on-open behaviour (full deploy on first push). Defer until post-rehearsal review surfaces it as load-bearing."
+out_of_scope: []
 spec: null
 plan: docs/superpowers/plans/2026-04-10-pr-integration-tests.md
 topic_memory:
@@ -21,9 +16,11 @@ validation_gate: null
 
 # Rehearse PR pipeline + flip required-status-check
 
-Follow-up to `pr-pipeline-integration-tests` (shipped 2026-05-07). The `sandbox-integration-test` job has been on `main` since 2026-04-10 (`e981ccb1`) but no real PR has exercised it end-to-end yet, and `main` branch protection does not list it as a required check.
+**Status:** parked 2026-05-08 after rehearsal attempt (PR #1) surfaced that the entire CI pipeline has never run successfully. This rehearsal is the LAST step of a much larger bring-up workstream — see `ci-pipeline-bring-up`.
 
-Task 4 of `docs/superpowers/plans/2026-04-10-pr-integration-tests.md` defines the rehearsal:
+## Original rehearsal scope (preserved for when bring-up is done)
+
+Follow-up to `pr-pipeline-integration-tests` (shipped 2026-05-07). Task 4 of `docs/superpowers/plans/2026-04-10-pr-integration-tests.md`:
 
 1. Open a throwaway PR with a no-op change (whitespace edit in a service README).
 2. Observe `detect-affected → [security-scan, build-and-test] → sandbox-deploy → sandbox-integration-test` runs green.
@@ -32,6 +29,19 @@ Task 4 of `docs/superpowers/plans/2026-04-10-pr-integration-tests.md` defines th
 5. Close the PR, observe `pr-cleanup.yml` tears down `sandbox-pr-${PR_NUMBER}`.
 6. (Admin action) Mark `sandbox-integration-test` as a required status check on `main` branch protection.
 
-**Why parked:** rehearsal consumes ~15-30 min of CI + an AWS sandbox tear-up/teardown cycle. Not blocking — current PR-on-main behaviour already exercises the job; absence of required-status-check just means a red `sandbox-integration-test` doesn't auto-block merge today.
+## Why blocked
 
-**Cheapest next step:** the next legitimate PR on this repo (not a throwaway) will provide steps 1-2 for free. After that, only the branch-protection toggle remains, which is a 30-second admin action.
+The 2026-05-08 rehearsal attempt opened PR #1 (closed) and revealed:
+
+- **0 successful workflow runs ever** — `gh run list --status success` returns empty across all 5 workflows
+- **No `AWS_ROLE_ARN` secret** — repo + sandbox + staging environments all have empty secret stores
+- **OIDC IAM role exists in CDK** (`infrastructure/pipeline/src/github-role.stack.ts`) **but never deployed**
+- **Step 6 not possible without GitHub Pro** — branch protection on private repos is a Pro feature; API returns HTTP 403
+- **`build-and-test` blocked by charter check false-positives** — `tools/check-no-appsync-literals.mjs` flags 28 legitimate strings (runtime config, comments, test fixtures, the detector itself)
+- **`security-scan` reports 88 real `pnpm audit` vulns** (1 critical) — needs policy decision before it can ever go green
+- **`pr-audit.yml` missing `pnpm/action-setup`** — separate parking item: `pr-audit-workflow-missing-pnpm-install`
+- **`nestfolio-e2e.yml` blocked on same OIDC gap** — separate parking item: `nestfolio-e2e-workflow-no-aws-credentials`
+
+## Cheapest next step
+
+When `ci-pipeline-bring-up` ships (deploys `nestfolio-github-role`, sets `AWS_ROLE_ARN`, fixes charter check, decides security-scan policy), this rehearsal becomes the natural validation: the next legitimate PR on the repo provides steps 1-2 for free. Step 6 stays parked separately pending the GitHub Pro / make-public / CODEOWNERS-only decision in `ci-pipeline-bring-up`.
