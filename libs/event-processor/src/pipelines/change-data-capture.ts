@@ -16,7 +16,12 @@ type RuntimePassthrough = {
   passthrough: true;
 };
 
-type RuntimeMapping = string | RuntimeFieldDispatch | RuntimePassthrough;
+type RuntimeModifyEmission = {
+  always: string;
+  onFieldChange?: Record<string, string>;
+};
+
+type RuntimeMapping = string | RuntimeFieldDispatch | RuntimePassthrough | RuntimeModifyEmission;
 type RuntimeConfig = Record<string, RuntimeMapping>;
 
 export interface ChangeDataCaptureConfig {
@@ -29,18 +34,43 @@ export interface ChangeDataCaptureConfig {
   transform?: (record: StreamRecord, eventType: string) => Record<string, unknown>;
 }
 
-function resolveEventType(
+type Emission = { eventType: string; previousSubject?: Record<string, unknown> };
+
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== typeof b) return false;
+  if (a === null || b === null) return a === b;
+  if (typeof a !== 'object') return a === b;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) {
+    const arrB = b as unknown[];
+    if (a.length !== arrB.length) return false;
+    return a.every((v, i) => deepEqual(v, arrB[i]));
+  }
+  const ka = Object.keys(a as Record<string, unknown>);
+  const kb = Object.keys(b as Record<string, unknown>);
+  if (ka.length !== kb.length) return false;
+  const bObj = b as Record<string, unknown>;
+  return ka.every(k => k in bObj && deepEqual((a as Record<string, unknown>)[k], bObj[k]));
+}
+
+function resolveEmissions(
   record: StreamRecord,
+  ctx: StreamContext,
   eventName: string,
   config: RuntimeConfig,
-): string | null {
+): Emission[] {
   const key = `${record.__typename}:${eventName}`;
   const mapping = config[key];
   if (!mapping) {
     throw new Error(`Event name resolution failed: unmapped CDC record ${key}`);
   }
 
-  if (typeof mapping === 'string') return mapping;
+  // Discriminant order assumes the CDK-side EventTypesMap → RuntimeMapping
+  // serializer produces one shape per entry: string OR { passthrough } OR
+  // { always } OR { map } (FieldDispatch). The variants share no overlapping
+  // keys.
+  if (typeof mapping === 'string') return [{ eventType: mapping }];
 
   if ('passthrough' in mapping) {
     const raw = (record as Record<string, unknown>)[mapping.field] as string;
@@ -49,33 +79,49 @@ function resolveEventType(
     }
     // Strip composite-key suffix (e.g. 'BROKER_CIRCUIT_OPEN#2026-04-16T...' → 'BROKER_CIRCUIT_OPEN')
     const idx = raw.indexOf('#');
-    return idx > 0 ? raw.slice(0, idx) : raw;
+    return [{ eventType: idx > 0 ? raw.slice(0, idx) : raw }];
   }
 
-  // Field dispatch — null return for unmapped values is intentional
+  if ('always' in mapping) {
+    const emissions: Emission[] = [{ eventType: mapping.always }];
+    if (mapping.onFieldChange && ctx.oldImage && ctx.newImage) {
+      for (const [field, semanticType] of Object.entries(mapping.onFieldChange)) {
+        const oldVal = ctx.oldImage[field];
+        const newVal = ctx.newImage[field];
+        if (!deepEqual(oldVal, newVal)) {
+          emissions.push({ eventType: semanticType, previousSubject: ctx.oldImage });
+        }
+      }
+    }
+    return emissions;
+  }
+
+  // Field dispatch — empty array for unmapped values is intentional
   const value = (record as Record<string, unknown>)[mapping.field] as string;
-  return mapping.map[value] ?? mapping.default ?? null;
+  const eventType = mapping.map[value] ?? mapping.default ?? null;
+  return eventType ? [{ eventType }] : [];
 }
 
 function buildEntry(
   record: StreamRecord,
   ctx: StreamContext,
-  eventType: string,
+  emission: Emission,
   busName: string,
   serviceName: string,
   transform?: ChangeDataCaptureConfig['transform'],
 ): PutEventsRequestEntry {
-  const detail = {
+  const detail: Record<string, unknown> = {
     id: ctx.record.eventID ?? getUUID(),
-    type: eventType,
+    type: emission.eventType,
     timestamp: new Date().toISOString(),
-    subject: transform ? transform(record, eventType) : record,
+    subject: transform ? transform(record, emission.eventType) : record,
     context: {
       tenantId: record.tenantId,
       userId: record.userId,
       region: record.region,
     },
   };
+  if (emission.previousSubject) detail.previousSubject = emission.previousSubject;
 
   // Tag CDC events from test tenants so other services' EB rules filter them out
   const isTestTenant = record.tenantId?.startsWith('integ-');
@@ -86,7 +132,7 @@ function buildEntry(
   return {
     EventBusName: busName,
     Source: source,
-    DetailType: eventType,
+    DetailType: emission.eventType,
     Detail: JSON.stringify(detail),
   };
 }
@@ -100,18 +146,19 @@ export function changeDataCapture(
   const publisher = new EventBridgePublisher(busName, `${busName}@${serviceName}`);
 
   const processRecord = async (record: StreamRecord, ctx: StreamContext): Promise<void> => {
-    const eventType = resolveEventType(record, record.eventName, runtimeConfig);
-    if (!eventType) return;
-    const entry = buildEntry(record, ctx, eventType, busName, serviceName, config.transform);
-    await publisher.publish([entry]);
+    const emissions = resolveEmissions(record, ctx, record.eventName, runtimeConfig);
+    if (emissions.length === 0) return;
+    const entries = emissions.map(em => buildEntry(record, ctx, em, busName, serviceName, config.transform));
+    await publisher.publish(entries);
   };
 
   const processGroup = async (_groupKey: string, records: StreamRecord[], ctx: StreamContext): Promise<void> => {
     const entries: PutEventsRequestEntry[] = [];
     for (const record of records) {
-      const eventType = resolveEventType(record, record.eventName, runtimeConfig);
-      if (!eventType) continue;
-      entries.push(buildEntry(record, ctx, eventType, busName, serviceName, config.transform));
+      const emissions = resolveEmissions(record, ctx, record.eventName, runtimeConfig);
+      for (const em of emissions) {
+        entries.push(buildEntry(record, ctx, em, busName, serviceName, config.transform));
+      }
     }
     if (entries.length > 0) {
       await publisher.publish(entries);

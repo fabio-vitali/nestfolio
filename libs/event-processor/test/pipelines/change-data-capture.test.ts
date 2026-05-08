@@ -152,6 +152,107 @@ describe('changeDataCapture', () => {
     });
   });
 
+  describe('onFieldChange diff-emit (ModifyEmission)', () => {
+    it('emits carrier + matched semantic events when watched fields change', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'InvestorProfile:MODIFY': {
+          always: 'INVESTOR_PROFILE_UPDATED',
+          onFieldChange: { operatingMode: 'OPERATING_MODE_CHANGED', goal: 'GOAL_UPDATED' },
+        },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('MODIFY',
+            { pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile', __typename: 'InvestorProfile', tenantId: 't1', userId: 'u1', region: 'us-east-1', operatingMode: 'AGGRESSIVE', goal: { objective: 'RETIREMENT' } },
+            { oldImage: { pk: 'InvestorProfile#t1#u1', sk: 'InvestorProfile', __typename: 'InvestorProfile', tenantId: 't1', userId: 'u1', region: 'us-east-1', operatingMode: 'CONSERVATIVE', goal: { objective: 'RETIREMENT' } } },
+          ),
+        ],
+      });
+
+      expect(mockPublish).toHaveBeenCalledTimes(1);
+      const entries: Array<{ Detail: string; DetailType: string }> = mockPublish.mock.calls[0][0];
+      const types = entries.map(e => e.DetailType);
+      expect(types).toEqual(expect.arrayContaining(['INVESTOR_PROFILE_UPDATED', 'OPERATING_MODE_CHANGED']));
+      expect(types).not.toContain('GOAL_UPDATED');
+
+      const semantic = entries.find(e => e.DetailType === 'OPERATING_MODE_CHANGED')!;
+      const detail = JSON.parse(semantic.Detail);
+      expect(detail.subject.operatingMode).toBe('AGGRESSIVE');
+      expect(detail.previousSubject.operatingMode).toBe('CONSERVATIVE');
+
+      // Carrier must NOT carry previousSubject
+      const carrier = entries.find(e => e.DetailType === 'INVESTOR_PROFILE_UPDATED')!;
+      const carrierDetail = JSON.parse(carrier.Detail);
+      expect(carrierDetail.previousSubject).toBeUndefined();
+    });
+
+    it('emits only the carrier when no watched field changed', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'InvestorProfile:MODIFY': {
+          always: 'INVESTOR_PROFILE_UPDATED',
+          onFieldChange: { operatingMode: 'OPERATING_MODE_CHANGED' },
+        },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('MODIFY',
+            { pk: 'p', sk: 's', __typename: 'InvestorProfile', tenantId: 't', userId: 'u', region: 'r', operatingMode: 'BALANCED', email: 'new@x' },
+            { oldImage: { pk: 'p', sk: 's', __typename: 'InvestorProfile', tenantId: 't', userId: 'u', region: 'r', operatingMode: 'BALANCED', email: 'old@x' } },
+          ),
+        ],
+      });
+
+      const entries: Array<{ DetailType: string }> = mockPublish.mock.calls[0][0];
+      const types = entries.map(e => e.DetailType);
+      expect(types).toEqual(['INVESTOR_PROFILE_UPDATED']);
+    });
+
+    it('treats nested-object inequality as a change (deep equal)', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'InvestorProfile:MODIFY': {
+          always: 'INVESTOR_PROFILE_UPDATED',
+          onFieldChange: { goal: 'GOAL_UPDATED' },
+        },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('MODIFY',
+            { pk: 'p', sk: 's', __typename: 'InvestorProfile', tenantId: 't', userId: 'u', region: 'r', goal: { objective: 'RETIREMENT', timeHorizonMonths: 240 } },
+            { oldImage: { pk: 'p', sk: 's', __typename: 'InvestorProfile', tenantId: 't', userId: 'u', region: 'r', goal: { objective: 'RETIREMENT', timeHorizonMonths: 120 } } },
+          ),
+        ],
+      });
+
+      const entries: Array<{ DetailType: string }> = mockPublish.mock.calls[0][0];
+      const types = entries.map(e => e.DetailType);
+      expect(types).toEqual(expect.arrayContaining(['INVESTOR_PROFILE_UPDATED', 'GOAL_UPDATED']));
+    });
+
+    it('falls back to carrier-only when OldImage is missing (defensive)', async () => {
+      process.env.EVENT_TYPE_MAP = JSON.stringify({
+        'InvestorProfile:MODIFY': {
+          always: 'INVESTOR_PROFILE_UPDATED',
+          onFieldChange: { operatingMode: 'OPERATING_MODE_CHANGED' },
+        },
+      });
+      const handler = changeDataCapture();
+      await handler({
+        Records: [
+          fakeDdbStreamRecord('MODIFY',
+            { pk: 'p', sk: 's', __typename: 'InvestorProfile', tenantId: 't', userId: 'u', region: 'r', operatingMode: 'AGGRESSIVE' },
+          ),
+        ],
+      });
+
+      const entries: Array<{ DetailType: string }> = mockPublish.mock.calls[0][0];
+      const types = entries.map(e => e.DetailType);
+      expect(types).toEqual(['INVESTOR_PROFILE_UPDATED']);
+    });
+  });
+
   describe('advanced features', () => {
     it('applies transform when provided', async () => {
       process.env.EVENT_TYPE_MAP = JSON.stringify({
