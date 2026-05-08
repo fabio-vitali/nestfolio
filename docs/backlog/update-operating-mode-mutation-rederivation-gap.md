@@ -1,6 +1,7 @@
 ---
 id: update-operating-mode-mutation-rederivation-gap
-status: parking
+status: queued
+rank: 2
 type: bug
 references: []
 out_of_scope: []

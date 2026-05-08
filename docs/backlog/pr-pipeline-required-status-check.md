@@ -1,12 +1,19 @@
 ---
 id: pr-pipeline-required-status-check
-status: parking
+status: active
 type: infra
 notes: "Throwaway-PR rehearsal of sandbox-integration-test + flip required-status-check on main."
-references: []
-out_of_scope: []
+references:
+  - docs/superpowers/plans/2026-04-10-pr-integration-tests.md#task-4-end-to-end-verification
+  - .github/workflows/pr-deploy.yml
+out_of_scope:
+  - "Modifying pr-deploy.yml — the rehearsal is pure verification + an admin toggle, no code change."
+  - "Touching deploy.yml (main → staging) integration test wiring — explicitly out of scope per parent ship's out_of_scope."
+  - "Tuning sandbox-pr-${PR_NUMBER} naming, prefix conventions, or NESTFOLIO_INTEG_PREFIX rename (separate item: rename-nestfolio-integ-prefix-to-prefix)."
+  - "Investigating any pre-existing test flakes the rehearsal surfaces — file via backlog-add and continue."
+  - "Cost optimization of the run-many-on-open behaviour (full deploy on first push). Defer until post-rehearsal review surfaces it as load-bearing."
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-04-10-pr-integration-tests.md
 topic_memory:
   - project_ci_pipeline.md
 validation_gate: null

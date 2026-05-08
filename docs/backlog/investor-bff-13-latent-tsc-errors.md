@@ -1,6 +1,7 @@
 ---
 id: investor-bff-13-latent-tsc-errors
-status: parking
+status: queued
+rank: 4
 type: bug
 references: []
 out_of_scope: []

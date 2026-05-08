@@ -1,6 +1,7 @@
 ---
 id: advisory-empty-state-pending-decisions-count
-status: parking
+status: queued
+rank: 3
 type: bug
 references: []
 out_of_scope: []
