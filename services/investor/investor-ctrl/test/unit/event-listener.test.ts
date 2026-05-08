@@ -40,54 +40,10 @@ jest.mock('@nestfolio/event-processor', () => ({
 import { createTestHarness, fakeSqsRecord } from '@nestfolio/event-processor';
 import {
   createHandlers,
-  deriveProfileUpdateNotifications,
   getNotificationTemplate,
   type EventListenerDeps,
 } from '../../src/handlers/event-listener';
-import type { SQSRecord } from 'aws-lambda';
-import { randomUUID } from 'crypto';
 
-/**
- * Variant of fakeSqsRecord that ALSO writes `previousSubject` into the SQS
- * body — needed to exercise the INVESTOR_PROFILE_UPDATED diff-detection
- * branches in the handler. The production helper omits this field.
- */
-function fakeSqsRecordWithPrev(
-  eventType: string,
-  subject: Record<string, unknown>,
-  previousSubject: Record<string, unknown> | null | undefined,
-  opts?: { eventId?: string; tenantId?: string; userId?: string; region?: string },
-): SQSRecord {
-  const eventId = opts?.eventId ?? randomUUID();
-  const tenantId = opts?.tenantId ?? 'test-tenant';
-  const userId = opts?.userId ?? 'test-user';
-  const region = opts?.region ?? 'us-east-1';
-  return {
-    messageId: randomUUID(),
-    receiptHandle: '',
-    body: JSON.stringify({
-      detail: {
-        id: eventId,
-        type: eventType,
-        timestamp: new Date().toISOString(),
-        subject,
-        previousSubject,
-        context: { tenantId, userId, region },
-      },
-    }),
-    attributes: {
-      ApproximateReceiveCount: '1',
-      SentTimestamp: '',
-      SenderId: '',
-      ApproximateFirstReceiveTimestamp: '',
-    },
-    messageAttributes: {},
-    md5OfBody: '',
-    eventSource: 'aws:sqs',
-    eventSourceARN: 'arn:aws:sqs:us-east-1:000000000000:test-queue',
-    awsRegion: 'us-east-1',
-  };
-}
 
 describe('investor-ctrl event-listener', () => {
   const mockDeps: EventListenerDeps = {};
@@ -387,151 +343,49 @@ describe('investor-ctrl event-listener', () => {
     });
   });
 
-  describe('INVESTOR_PROFILE_UPDATED diff-detection', () => {
-    const ctx = {
-      eventId: 'evt-prof',
-      eventType: 'INVESTOR_PROFILE_UPDATED',
-      tenantId: 'tenant-prof',
-      userId: 'u1',
-      region: 'us-east-1',
-      timestamp: '2025-01-01T00:00:00.000Z',
-    } as const;
-
-    it('fires GOAL_UPDATED only when only goal changes', () => {
-      const prev = {
-        goal: { objective: 'RETIREMENT', targetAmountCents: 100_000 },
-        operatingMode: 'BALANCED',
-      };
-      const next = {
-        goal: { objective: 'INCOME', targetAmountCents: 100_000 },
-        operatingMode: 'BALANCED',
-      };
-      const intents = deriveProfileUpdateNotifications(prev, next, ctx);
-      expect(intents).toHaveLength(1);
-      expect(intents[0]).toMatchObject({
-        _tag: 'record',
-        typename: 'Notification',
-        fields: expect.objectContaining({
-          type: 'GOAL_UPDATED',
-          title: 'Goal Updated',
-          tenantId: 'tenant-prof',
-        }),
-      });
-    });
-
-    it('fires OPERATING_MODE_CHANGED only when only operatingMode changes', () => {
-      const prev = {
-        goal: { objective: 'RETIREMENT' },
-        operatingMode: 'BALANCED',
-      };
-      const next = {
-        goal: { objective: 'RETIREMENT' },
-        operatingMode: 'AGGRESSIVE',
-      };
-      const intents = deriveProfileUpdateNotifications(prev, next, ctx);
-      expect(intents).toHaveLength(1);
-      expect(intents[0]).toMatchObject({
+  describe('OPERATING_MODE_CHANGED handler', () => {
+    it('fires one OPERATING_MODE_CHANGED notification for the tenant', async () => {
+      const result = await harness.process([
+        fakeSqsRecord(
+          'OPERATING_MODE_CHANGED',
+          { operatingMode: 'AGGRESSIVE' },
+          { tenantId: 'tenant-omc', eventId: 'evt-omc' },
+        ),
+      ]);
+      expect(result.errors).toHaveLength(0);
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({
         _tag: 'record',
         typename: 'Notification',
         fields: expect.objectContaining({
           type: 'OPERATING_MODE_CHANGED',
           title: 'Operating Mode Changed',
+          tenantId: 'tenant-omc',
         }),
       });
     });
+  });
 
-    it('fires BOTH when goal and operatingMode both change', () => {
-      const prev = {
-        goal: { objective: 'RETIREMENT' },
-        operatingMode: 'BALANCED',
-      };
-      const next = {
-        goal: { objective: 'INCOME' },
-        operatingMode: 'AGGRESSIVE',
-      };
-      const intents = deriveProfileUpdateNotifications(prev, next, ctx);
-      expect(intents).toHaveLength(2);
-      const types = intents.map((i) =>
-        ((i as { fields: Record<string, unknown> }).fields['type']) as string,
-      );
-      expect(types).toEqual(expect.arrayContaining(['GOAL_UPDATED', 'OPERATING_MODE_CHANGED']));
-    });
-
-    it('fires NOTHING when neither goal nor operatingMode changes', () => {
-      const prev = {
-        goal: { objective: 'RETIREMENT' },
-        operatingMode: 'BALANCED',
-        otherField: 'a',
-      };
-      const next = {
-        goal: { objective: 'RETIREMENT' },
-        operatingMode: 'BALANCED',
-        otherField: 'b',
-      };
-      const intents = deriveProfileUpdateNotifications(prev, next, ctx);
-      expect(intents).toHaveLength(0);
-    });
-
-    it('fires BOTH when previousSubject is null (no OldImage)', () => {
-      const next = {
-        goal: { objective: 'RETIREMENT' },
-        operatingMode: 'BALANCED',
-      };
-      const intents = deriveProfileUpdateNotifications(null, next, ctx);
-      expect(intents).toHaveLength(2);
-      const types = intents.map((i) =>
-        ((i as { fields: Record<string, unknown> }).fields['type']) as string,
-      );
-      expect(types).toEqual(expect.arrayContaining(['GOAL_UPDATED', 'OPERATING_MODE_CHANGED']));
-    });
-
-    it('fires BOTH when previousSubject is undefined', () => {
-      const next = {
-        goal: { objective: 'RETIREMENT' },
-        operatingMode: 'BALANCED',
-      };
-      const intents = deriveProfileUpdateNotifications(undefined, next, ctx);
-      expect(intents).toHaveLength(2);
-    });
-
-    it('handler-level: end-to-end via harness with both fields changed', async () => {
+  describe('GOAL_UPDATED handler', () => {
+    it('fires one GOAL_UPDATED notification for the tenant', async () => {
       const result = await harness.process([
-        fakeSqsRecordWithPrev(
-          'INVESTOR_PROFILE_UPDATED',
-          { goal: { objective: 'INCOME' }, operatingMode: 'AGGRESSIVE' },
-          { goal: { objective: 'RETIREMENT' }, operatingMode: 'BALANCED' },
-          { tenantId: 'tenant-h', eventId: 'evt-h' },
+        fakeSqsRecord(
+          'GOAL_UPDATED',
+          { goal: { objective: 'INCOME' } },
+          { tenantId: 'tenant-gu', eventId: 'evt-gu' },
         ),
       ]);
       expect(result.errors).toHaveLength(0);
-      expect(result.intents).toHaveLength(2);
-      const types = result.intents.map((i) =>
-        ((i as { fields: Record<string, unknown> }).fields['type']) as string,
-      );
-      expect(types).toEqual(expect.arrayContaining(['GOAL_UPDATED', 'OPERATING_MODE_CHANGED']));
-      // Notification ids are suffixed by synthesised type to avoid pk collision
-      const pks = result.intents.map((i) =>
-        ((i as { overrides: Record<string, unknown> }).overrides['pk']) as string,
-      );
-      expect(pks).toEqual(
-        expect.arrayContaining([
-          'Notification#tenant-h#evt-h-GOAL_UPDATED',
-          'Notification#tenant-h#evt-h-OPERATING_MODE_CHANGED',
-        ]),
-      );
-    });
-
-    it('handler-level: end-to-end via harness with no OldImage fires BOTH', async () => {
-      const result = await harness.process([
-        fakeSqsRecordWithPrev(
-          'INVESTOR_PROFILE_UPDATED',
-          { goal: { objective: 'INCOME' }, operatingMode: 'AGGRESSIVE' },
-          null,
-          { tenantId: 'tenant-h2', eventId: 'evt-h2' },
-        ),
-      ]);
-      expect(result.errors).toHaveLength(0);
-      expect(result.intents).toHaveLength(2);
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]).toMatchObject({
+        _tag: 'record',
+        typename: 'Notification',
+        fields: expect.objectContaining({
+          type: 'GOAL_UPDATED',
+          title: 'Goal Updated',
+          tenantId: 'tenant-gu',
+        }),
+      });
     });
   });
 });
