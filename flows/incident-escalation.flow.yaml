@@ -20,9 +20,9 @@ steps:
   # ─── Path B: ESCALATION_TRIGGERED ────────────────────────────────────────
 
   - service: compliance-ctrl
-    receives: DECISION_PACKET_CREATED or DECISION_PACKET_UPDATED
+    receives: RECOMMENDATION_PROPOSED
     via: AdvisoryBus -> SQS -> compliance-ctrl-Ingress
-    state_change: Evaluates suitability and guardrail rules; if threshold breached, publishes ESCALATION_TRIGGERED directly to AdvisoryBus via event-listener/event-publisher Lambda
+    state_change: Evaluates suitability and guardrail rules against GuardrailPolicy (MandateSnapshot projected from MANDATE_ISSUED + OPERATING_MODE_CHANGED); if threshold breached, publishes ESCALATION_TRIGGERED directly to AdvisoryBus via event-listener/event-publisher Lambda
     emits: ESCALATION_TRIGGERED (direct PutEvents to AdvisoryBus; not in egress CDC config)
     idempotent: true
 
@@ -49,9 +49,9 @@ steps:
   # NOTE: investor-ctrl does NOT currently subscribe to INCIDENT_DETECTED,
   # INCIDENT_RESOLVED, ESCALATION_TRIGGERED, or ORDER_ESCALATED.
   # These events reach InvestorBus but have no downstream consumer — a known
-  # coverage gap. investor-ctrl triggerIngress only handles:
-  # ONBOARDING_COMPLETED, MANDATE_ISSUED, MANDATE_REVOKED, INVESTOR_PROFILE_UPDATED,
-  # DEPOSIT_INITIATED, DECISION_APPROVED, ORDER_FILLED, BALANCE_UPDATED,
+  # coverage gap. investor-ctrl triggerIngress handles (post-resplit 2026-05-08):
+  # ONBOARDING_COMPLETED, MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED,
+  # GOAL_UPDATED, DEPOSIT_INITIATED, DECISION_APPROVED, ORDER_FILLED, BALANCE_UPDATED,
   # ORDER_REJECTED, DECISION_BLOCKED, WITHDRAWAL_COMPLETED, BROKER_CIRCUIT_OPEN,
   # BROKER_CIRCUIT_CLOSED, BROKER_HEAL_ESCALATED.
 

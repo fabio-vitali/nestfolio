@@ -192,7 +192,7 @@ The branded `EventName` type lives at `libs/event-types/src/index.ts:2`. Event n
 
 | Category | Examples |
 |---|---|
-| User & Mandate | `INVESTOR_REGISTERED`, `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_ISSUED`, `MANDATE_REVOKED` |
+| User & Mandate | `INVESTOR_REGISTERED`, `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `OPERATING_MODE_CHANGED`, `GOAL_UPDATED`, `MANDATE_ISSUED`, `MANDATE_REVOKED` |
 | Portfolio State | `POSITION_OPENED`, `POSITION_CLOSED`, `PORTFOLIO_DRIFT_DETECTED` |
 | Decision & Planning | `DECISION_PACKET_CREATED`, `DECISION_PACKET_UPDATED`, `RECOMMENDATION_PROPOSED`, `RECOMMENDATION_APPROVED` |
 | Execution | `ORDER_INTENT_CREATED`, `ORDER_FILLED`, `ORDER_FAILED` |
@@ -200,6 +200,18 @@ The branded `EventName` type lives at `libs/event-types/src/index.ts:2`. Event n
 | Control Plane | `INCIDENT_OPENED`, `CIRCUIT_BREAKER_TRIPPED`, `MODEL_PROMOTED`, `TENANT_BUDGET_EXCEEDED` |
 
 The Control Plane category was inherited from the originally-planned `operations-ctrl` service which was absorbed into `advisory-ctrl` (see SERVICE-INVENTORY.md `advisory-ctrl` entry).
+
+**3-tier InvestorBus event topology (resplit 2026-05-08).** The `InvestorProfile` DDB row emits a layered fan-out on every `modify`:
+
+| Tier | Event | Always emitted? | Consumer pattern |
+|------|-------|-----------------|-----------------|
+| Carrier | `INVESTOR_PROFILE_UPDATED` | Yes (always on modify) | decision-workflow-ctrl trigger, dashboard-bff snapshot, advisory-adpt cross-domain forward |
+| Semantic | `OPERATING_MODE_CHANGED` | Only when `operatingMode` field changes | investor-ctrl notification, compliance-ctrl guardrail re-projection |
+| Semantic | `GOAL_UPDATED` | Only when `goal` field changes | investor-ctrl notification |
+| Lifecycle | `MANDATE_ISSUED` | On `Mandate` row INSERT | compliance-ctrl guardrail bootstrap, investor-ctrl notification, advisory-adpt forward |
+| Lifecycle | `MANDATE_REVOKED` | On `Mandate` row modify | compliance-ctrl guardrail tombstone, investor-ctrl notification |
+
+**When to add a semantic event vs reuse the carrier.** Add a semantic event when a subset of consumers needs to react to a specific field change without inspecting the full payload diff. This avoids coupling each consumer to the composite row's shape. Reuse the carrier when a consumer already reads the full row (e.g. dashboard snapshot). The `onFieldChange` declaration in the Egress construct is the authoritative configuration — each field listed there produces an additional event on top of the carrier.
 
 ---
 
@@ -318,7 +330,7 @@ Three modes — **Conservative**, **Balanced**, **Aggressive** — declare the o
 
 (Numbers above are illustrative MVP defaults from the recovered 2026-03-01 baseline; live parameters are declared in `services/advisory/compliance-ctrl/` and may have been adjusted.)
 
-**Mode change protocol.** A mandate event (`OPERATING_MODE_CHANGE_REQUESTED`) propagates through `investor-bff` → `advisory-adpt` → `advisory-bff` projection. The change takes effect on the **next decision cycle** — in-flight cycles continue under the previous mode.
+**Mode change protocol.** A `updateOperatingMode` GraphQL mutation writes the new `operatingMode` onto the composite `InvestorProfile` row in investor-bff. The Egress construct emits both `INVESTOR_PROFILE_UPDATED` (carrier) and `OPERATING_MODE_CHANGED` (semantic). compliance-ctrl subscribes to `OPERATING_MODE_CHANGED` and re-projects the `GuardrailPolicy` (MandateSnapshot) immediately. investor-ctrl sends a notification. The change takes effect on the **next decision cycle** — in-flight cycles continue under the previous mode.
 
 ### Open question: mode → agent behaviour wiring
 

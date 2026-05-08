@@ -123,15 +123,13 @@ Each entry below uses the same structure:
 
 **Why this service exists.** Backend-for-Frontend for the Investor MFE. Owns the GraphQL surface for investor profile + mandate management + cross-cutting feature flags (e.g. circuit-breaker UI gate). BFFs are the system-state read model for the UI (per user-memory `feedback_bff_is_read_model.md`).
 
-**Responsibilities.** Composite InvestorProfile projection (single DDB row holds goal, riskProfile, operatingMode, mandate, accountMode, executionMode); MandateStatus lifecycle row; feature-flag mutations (used by circuit-breaker — see user-memory `project_cb_appsync_auth.md`); cross-domain read aggregation via `investor-adpt`.
+**Responsibilities.** Composite InvestorProfile projection (single DDB row holds goal, riskProfile, operatingMode, mandate, accountMode, executionMode); Mandate sibling aggregate row (sk='Mandate'); feature-flag mutations (used by circuit-breaker — see user-memory `project_cb_appsync_auth.md`); cross-domain read aggregation via `investor-adpt`.
 
 **Key events consumed.** `USER_REGISTERED`, `NOTIFICATION_CREATED`, `BALANCE_UPDATED`, `ONBOARDING_COMPLETED`, `GO_LIVE_CONFIRMED`, `BROKER_CIRCUIT_OPEN`, `BROKER_CIRCUIT_CLOSED`, `DEPOSIT_DETECTED`.
 
-**Key events emitted (Egress shapes — 6, post-collapse).** `InvestorProfile` → `INVESTOR_PROFILE_CREATED` / `INVESTOR_PROFILE_UPDATED`; `MandateStatus` → `MANDATE_ISSUED` / `MANDATE_REVOKED`; `Deposit` → `DEPOSIT_INITIATED` / `DEPOSIT_UPDATED`; `Withdrawal` → `WITHDRAWAL_REQUESTED` / `WITHDRAWAL_UPDATED`; `ExecutionModeChange` → `EXECUTION_MODE_CHANGED` / `EXECUTION_MODE_CHANGE_UPDATED`; `Notification` → `NOTIFICATION_READ`.
+**Key events emitted (Egress shapes — post-resplit, 3-tier topology).** `InvestorProfile` row → `INVESTOR_PROFILE_CREATED` (INSERT) / `INVESTOR_PROFILE_UPDATED` (always on modify, carrier) / `OPERATING_MODE_CHANGED` (onFieldChange:operatingMode, semantic) / `GOAL_UPDATED` (onFieldChange:goal, semantic); `Mandate` row → `MANDATE_ISSUED` (INSERT, lifecycle) / `MANDATE_REVOKED` (modify, lifecycle); `Deposit` → `DEPOSIT_INITIATED` / `DEPOSIT_UPDATED`; `Withdrawal` → `WITHDRAWAL_REQUESTED` / `WITHDRAWAL_UPDATED`; `ExecutionModeChange` → `EXECUTION_MODE_CHANGED` / `EXECUTION_MODE_CHANGE_UPDATED`; `Notification` → `NOTIFICATION_READ`.
 
-Down from 9 entity shapes pre-collapse (Goal, RiskProfile, Mandate, OperatingModeRecord, InvestorProfile, Deposit, Withdrawal, ExecutionModeChange, Notification). The legacy GOAL_*, RISK_PROFILE_*, OPERATING_MODE_*, and MANDATE_CREATED/UPDATED events are gone — INVESTOR_PROFILE_UPDATED carries those mutations on the composite row.
-
-**State.** DDB projection table (composite InvestorProfile row + MandateStatus sibling row); AppSync GraphQL.
+**State.** DDB projection table (composite InvestorProfile row + Mandate sibling row, sk='Mandate'); AppSync GraphQL.
 
 **API surface.** AppSync GraphQL with Cognito-User-Pool authentication and IAM-signed write paths from sibling services. The `check-auth.fn.js` JS resolver detects IAM identity to bypass Cognito claims for cross-service mutations (per user-memory `project_cb_appsync_auth.md`).
 
@@ -150,13 +148,13 @@ Down from 9 entity shapes pre-collapse (Goal, RiskProfile, Mandate, OperatingMod
 
 **Why this service exists.** Owns the Investor identity + notification subsystem. Despite the `ctrl` suffix this service handles cross-cutting investor notifications — there is **no `notification-ctrl` service**, that vocabulary is sometimes invented in error (per user-memory `feedback_investor_ctrl_not_notification.md`).
 
-**Responsibilities.** Investor registration; identity write side; notification fan-out (system → user channels) via NOTIFICATION_TEMPLATES; INVESTOR_PROFILE_UPDATED diff-detect handler that derives goal-change / operating-mode-change notifications from the composite payload diff.
+**Responsibilities.** Investor registration; identity write side; notification fan-out (system → user channels) via NOTIFICATION_TEMPLATES. Each notification template maps directly to the triggering event — no diff detection needed because the 3-tier topology produces one semantic event per change type.
 
-**Key events consumed (14).** `ONBOARDING_COMPLETED`, `MANDATE_ISSUED`, `MANDATE_REVOKED`, `INVESTOR_PROFILE_UPDATED`, `DEPOSIT_INITIATED`, `DECISION_APPROVED`, `ORDER_FILLED`, `BALANCE_UPDATED`, `ORDER_REJECTED`, `DECISION_BLOCKED`, `WITHDRAWAL_COMPLETED`, `BROKER_CIRCUIT_OPEN`, `BROKER_CIRCUIT_CLOSED`, `BROKER_HEAL_ESCALATED`.
+**Key events consumed (15).** `ONBOARDING_COMPLETED`, `MANDATE_ISSUED`, `MANDATE_REVOKED`, `OPERATING_MODE_CHANGED`, `GOAL_UPDATED`, `DEPOSIT_INITIATED`, `DECISION_APPROVED`, `ORDER_FILLED`, `BALANCE_UPDATED`, `ORDER_REJECTED`, `DECISION_BLOCKED`, `WITHDRAWAL_COMPLETED`, `BROKER_CIRCUIT_OPEN`, `BROKER_CIRCUIT_CLOSED`, `BROKER_HEAL_ESCALATED`.
 
 **Key events emitted.** `Notification` → `NOTIFICATION_CREATED` / `NOTIFICATION_UPDATED`; `MonthlyReport` → `MONTHLY_REPORT_CREATED` / `MONTHLY_REPORT_UPDATED`.
 
-**Architectural Evolution.** Notification-lifecycle redesigned 2026-05-03 (InvestorProfile collapse Phase 4): legacy MANDATE_CREATED + GOAL_UPDATED + OPERATING_MODE_CHANGED triggers replaced by MANDATE_ISSUED + MANDATE_REVOKED + INVESTOR_PROFILE_UPDATED (with diff-detect handler).
+**Architectural Evolution.** Notification-lifecycle resplit 2026-05-08: legacy `INVESTOR_PROFILE_UPDATED` diff-detect handler removed. Now subscribes directly to semantic events (`OPERATING_MODE_CHANGED`, `GOAL_UPDATED`) and lifecycle events (`MANDATE_ISSUED`, `MANDATE_REVOKED`). 14 → 15 subscriptions (net: dropped `INVESTOR_PROFILE_UPDATED`, added `OPERATING_MODE_CHANGED` + `GOAL_UPDATED`).
 
 **Health.** canonical.
 
@@ -376,10 +374,10 @@ Down from 9 entity shapes pre-collapse (Goal, RiskProfile, Mandate, OperatingMod
 **Why this service exists.** The single gate between agent-proposed recommendations and execution. Rule-based (deterministic), **not** an LLM. Enforces mandate guardrails + operating-mode parameters (§14) on the assembled Decision Packet; classifies as L1 (auto-execute) / L2 (user-confirm) / Blocked.
 
 **Key events.**
-- Consumed: `RECOMMENDATION_PROPOSED`, `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_REVOKED`. Post-collapse, the composite events project the MandateSnapshot (with the 8 guardrail fields) that the rule engine consumes; MANDATE_REVOKED sets `status='REVOKED'`, which MandateValidator's REVOKED gate short-circuits the rule engine on.
+- Consumed: `RECOMMENDATION_PROPOSED`, `MANDATE_ISSUED`, `OPERATING_MODE_CHANGED`, `MANDATE_REVOKED`. The semantic and lifecycle events project the `GuardrailPolicy` (MandateSnapshot) that the rule engine consumes. `MANDATE_ISSUED` bootstraps the policy on first onboarding. `OPERATING_MODE_CHANGED` re-projects the 8 guardrail fields when the mode changes. `MANDATE_REVOKED` sets `MandateSnapshot.status='REVOKED'`, which MandateValidator's REVOKED gate short-circuits the rule engine on.
 - Emitted: `DECISION_APPROVED`, `DECISION_BLOCKED` (field-dispatch on `ComplianceCheck.result`), `AUDIT_ARTIFACT_CREATED`, `AUDIT_ARTIFACT_UPDATED`.
 
-**Architectural Evolution.** InvestorProfile collapse Phase 3 (2026-05-03): legacy MANDATE_CREATED + MANDATE_UPDATED + OPERATING_MODE_CHANGED triggers replaced by INVESTOR_PROFILE_CREATED + INVESTOR_PROFILE_UPDATED + MANDATE_REVOKED (the latter is the sole revocation lifecycle event from the MandateStatus row).
+**Architectural Evolution.** InvestorProfile collapse Phase 3 (2026-05-03): subscribed to carrier events (`INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`). Domain resplit (2026-05-08): swapped to semantic/lifecycle events — `MANDATE_ISSUED`, `OPERATING_MODE_CHANGED`, `MANDATE_REVOKED` — removing the dependency on the composite payload shape. The GUARDRAIL_TABLE policy is now owned entirely within compliance-ctrl (`src/rules/guardrail-params.ts`). MandateSnapshot shape: `{level, status, operatingMode, effectiveDate}`.
 
 **Health.** canonical.
 
@@ -395,11 +393,11 @@ Down from 9 entity shapes pre-collapse (Goal, RiskProfile, Mandate, OperatingMod
 **Why this service exists.** Pull-model cross-domain adapter for the Advisory domain. Subscribes to investor-bus + ledger-bus + execution-bus events the Advisory domain needs (mandate events, portfolio drift, order outcomes, etc.) and republishes onto advisory-bus.
 
 **Forwarding rules.**
-- Investor → Advisory (4 events post-collapse): `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_ISSUED`, `MANDATE_REVOKED`. Down from 7 (legacy: GOAL_*, RISK_PROFILE_*, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED).
+- Investor → Advisory (4 events): `INVESTOR_PROFILE_CREATED`, `INVESTOR_PROFILE_UPDATED`, `MANDATE_ISSUED`, `MANDATE_REVOKED`. The carrier (`INVESTOR_PROFILE_UPDATED`) is forwarded for decision-workflow-ctrl triggers; the lifecycle events are forwarded for compliance-ctrl guardrail management. Semantic events (`OPERATING_MODE_CHANGED`, `GOAL_UPDATED`) are NOT forwarded cross-domain — compliance-ctrl subscribes to them directly on InvestorBus via the advisory-adpt Ingress.
 - Execution → Advisory (4): `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED`, `DEPOSIT_DETECTED`.
 - Ledger → Advisory (2): `PORTFOLIO_UPDATED`, `PORTFOLIO_DRIFT_DETECTED`.
 
-**Architectural Evolution.** Pull-model inversion (`project_inverted_adapter_routing.md`); InvestorProfile collapse Phase 6 (2026-05-03) reduced the FromInvestor rule from 7 → 4 events.
+**Architectural Evolution.** Pull-model inversion (`project_inverted_adapter_routing.md`); InvestorProfile collapse Phase 6 (2026-05-03) reduced the FromInvestor rule from 7 → 4 events. Domain resplit (2026-05-08): forwarding count unchanged at 4; compliance-ctrl now receives `OPERATING_MODE_CHANGED` via its own Ingress subscription (not via advisory-adpt forwarding).
 
 **Health.** canonical.
 
