@@ -6,21 +6,18 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [investor-profile-domain-resplit](backlog/investor-profile-domain-resplit.md) [design] — Re-split Mandate as a sibling aggregate; relocate GUARDRAIL_TABLE policy into compliance-ctrl; introduce 3-tier event topology (carrier + semantic + lifecycle) via declarative onFieldChange extension to cdk-constructs.
 
 ## QUEUED
 
-1. [update-operating-mode-mutation-rederivation-gap](backlog/update-operating-mode-mutation-rederivation-gap.md) [bug] — No updateOperatingMode mutation; mode change won't re-derive guardrails.
-2. [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [bug] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging.
-3. [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
+1. [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [bug] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging.
+2. [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 
 ## LATER
 
 - [bff-resolver-region-sweep](backlog/bff-resolver-region-sweep.md) [bug] — advisory-bff + ledger-bff mutation resolvers likely missing region field.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [c4-frontend-representation](backlog/c4-frontend-representation.md) [tooling] — MFEs in C4 diagrams at C1 + C2 level (planned, not started).
-- [cdc-envelope-omits-previous-subject](backlog/cdc-envelope-omits-previous-subject.md) [bug] — OldImage read but never propagated; deriveProfileUpdateNotifications can't diff.
 - [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md) [infra] — Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md) [refactor] — Three callers — rule-of-three threshold; copies all do their own SigV4 setup.
