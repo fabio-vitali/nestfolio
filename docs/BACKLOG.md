@@ -19,6 +19,7 @@
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [c4-frontend-representation](backlog/c4-frontend-representation.md) [tooling] — MFEs in C4 diagrams at C1 + C2 level (planned, not started).
 - [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md) [infra] — Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model.
+- [e2e-initiate-deposit-missing-deposit-id](backlog/e2e-initiate-deposit-missing-deposit-id.md) [bug] — fund-account + circuit-breaker e2e fail: initiateDeposit missing depositId (ID!)
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md) [refactor] — Three callers — rule-of-three threshold; copies all do their own SigV4 setup.
 - [hoist-named-tool-retry-to-orchestrator](backlog/hoist-named-tool-retry-to-orchestrator.md) [refactor] — Only if advisory agents start showing the same Sonnet flakiness; not seen yet.
