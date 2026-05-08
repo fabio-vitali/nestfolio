@@ -28,8 +28,6 @@ jest.mock('@nestfolio/event-processor', () => ({
 process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
 process.env.MEMORY_ID = 'mem-test';
-// Skip the production read-after-write retry waits in unit tests.
-process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE = '0,0,0,0';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
@@ -39,10 +37,12 @@ describe('portfolio-engine-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
   const mockIngest = jest.fn();
   const mockWriteAgentOutput = jest.fn().mockResolvedValue(undefined);
-  // Default Memory record carries operatingMode at top level — mirrors the
-  // wrapper write at investor-profile-ctrl event-listener.ts line 57.
+  // operatingMode now arrives via subject.operatingMode (SF state propagation
+  // from InvokeInvestorProfile result). The Memory record holds the agent's
+  // full output context (goals, risk-assessment) but no longer carries
+  // operatingMode as the source-of-truth for shape.
   const mockReadUpstreamOutput = jest.fn().mockResolvedValue([
-    { content: JSON.stringify({ operatingMode: 'BALANCED', 'user-goals': {}, 'risk-assessment': {} }) },
+    { content: JSON.stringify({ 'user-goals': {}, 'risk-assessment': {} }) },
   ]);
   const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
@@ -77,7 +77,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
     mockReadUpstreamOutput.mockResolvedValue([
-      { content: JSON.stringify({ operatingMode: 'BALANCED', 'user-goals': {}, 'risk-assessment': {} }) },
+      { content: JSON.stringify({ 'user-goals': {}, 'risk-assessment': {} }) },
     ]);
     mockRunPipeline.mockResolvedValue({
       decisionId: 'dp-1',
@@ -93,6 +93,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
         tenantId: 't1',
         decisionId: 'dp-1',
         taskToken: 'token-123',
+        operatingMode: 'BALANCED',
         context: { riskCategory: 'MODERATE' },
       },
     };
@@ -106,7 +107,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('allocation rationale decisions');
     expect(mockRunPipeline).toHaveBeenCalledWith(
       'evt-1', // ctx.eventId
-      expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1' }),
+      expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1', operatingMode: 'BALANCED' }),
     );
     expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
   });
@@ -116,7 +117,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
     mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('evt-dup'));
 
     const payload: EventPayload = {
-      subject: { tenantId: 't1', decisionId: 'dp-dup', taskToken: 'tok' },
+      subject: { tenantId: 't1', decisionId: 'dp-dup', taskToken: 'tok', operatingMode: 'BALANCED' },
     };
 
     const dupCtx: EventContext = { ...baseCtx, eventId: 'evt-dup' };
@@ -146,22 +147,19 @@ describe('portfolio-engine-ctrl event-listener', () => {
     mockRunPipeline.mockRejectedValueOnce(new Error('Agent failed'));
 
     const payload: EventPayload = {
-      subject: { tenantId: 't1', decisionId: 'dp-1', taskToken: 'token' },
+      subject: { tenantId: 't1', decisionId: 'dp-1', taskToken: 'token', operatingMode: 'BALANCED' },
     };
 
     await expect(handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx)).rejects.toThrow('Agent failed');
   });
 
-  // Regression: silent BALANCED fallback was masking the propagation bug
-  // tracked in docs/backlog/operating-mode-shape-empty-proposed-trades.md.
-  // The handler MUST throw UnknownOperatingModeError when the upstream
-  // Memory record from investor-profile lacks operatingMode.
-  it('throws UnknownOperatingModeError when investor-profile Memory record is missing operatingMode (after retries)', async () => {
+  // operatingMode is now propagated via SF state on subject.operatingMode
+  // (decision-state-machine.ts wires it from $.agentResults.InvokeInvestorProfile.operatingMode).
+  // The handler MUST throw UnknownOperatingModeError if the field is missing
+  // from the subject — silent BALANCED fallback was masking propagation bugs
+  // (see docs/backlog/operating-mode-shape-empty-proposed-trades.md).
+  it('throws UnknownOperatingModeError when subject.operatingMode is missing', async () => {
     const { UnknownOperatingModeError } = await import('@nestfolio/agent-orchestrator');
-    // mockResolvedValue (not Once) so every retry attempt also returns missing.
-    mockReadUpstreamOutput.mockResolvedValue([
-      { content: JSON.stringify({ 'user-goals': {}, 'risk-assessment': {} }) },
-    ]);
 
     const payload: EventPayload = {
       subject: { tenantId: 't1', decisionId: 'dp-no-mode', taskToken: 'tok' },
@@ -171,55 +169,9 @@ describe('portfolio-engine-ctrl event-listener', () => {
     expect(mockRunPipeline).not.toHaveBeenCalled();
   });
 
-  it('throws UnknownOperatingModeError when investor-profile Memory is empty (after retries)', async () => {
-    const { UnknownOperatingModeError } = await import('@nestfolio/agent-orchestrator');
-    mockReadUpstreamOutput.mockResolvedValue([]);
-
+  it('passes operatingMode from subject through to runPipeline', async () => {
     const payload: EventPayload = {
-      subject: { tenantId: 't1', decisionId: 'dp-empty', taskToken: 'tok' },
-    };
-
-    await expect(handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx)).rejects.toThrow(UnknownOperatingModeError);
-    expect(mockRunPipeline).not.toHaveBeenCalled();
-  });
-
-  // Validates the read-after-write retry path: first investor-profile read
-  // empty (mirrors AgentCore Memory eventual consistency lag), retry succeeds.
-  // Should NOT throw. Note: readUpstreamOutput is also called for
-  // 'market-intelligence' — the retry only re-reads 'investor-profile'.
-  it('retries readUpstreamOutput("investor-profile") when first read is empty and succeeds on retry', async () => {
-    mockReadUpstreamOutput.mockImplementation(async (svc: string) => {
-      if (svc === 'market-intelligence') return [];
-      // investor-profile: first call empty, subsequent calls return the record
-      if (mockReadUpstreamOutput.mock.calls.filter((c) => c[0] === 'investor-profile').length <= 1) {
-        return [];
-      }
-      return [
-        { content: JSON.stringify({ operatingMode: 'CONSERVATIVE', 'user-goals': {}, 'risk-assessment': {} }) },
-      ];
-    });
-
-    const payload: EventPayload = {
-      subject: { tenantId: 't1', decisionId: 'dp-retry', taskToken: 'tok' },
-    };
-
-    await handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx);
-
-    const investorProfileCalls = mockReadUpstreamOutput.mock.calls.filter((c) => c[0] === 'investor-profile').length;
-    expect(investorProfileCalls).toBeGreaterThanOrEqual(2);
-    expect(mockRunPipeline).toHaveBeenCalledWith(
-      'evt-1',
-      expect.objectContaining({ operatingMode: 'CONSERVATIVE' }),
-    );
-  });
-
-  it('passes operatingMode from Memory through to runPipeline (regression — silent BALANCED narrowing)', async () => {
-    mockReadUpstreamOutput.mockResolvedValueOnce([
-      { content: JSON.stringify({ operatingMode: 'AGGRESSIVE', 'user-goals': {}, 'risk-assessment': {} }) },
-    ]);
-
-    const payload: EventPayload = {
-      subject: { tenantId: 't1', decisionId: 'dp-prop', taskToken: 'tok' },
+      subject: { tenantId: 't1', decisionId: 'dp-prop', taskToken: 'tok', operatingMode: 'AGGRESSIVE' },
     };
 
     await handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx);

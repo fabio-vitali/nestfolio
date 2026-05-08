@@ -5,7 +5,7 @@ import {
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-orchestrator';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError } from '@nestfolio/agent-orchestrator';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
 
 export interface SfnCallbackDeps {
@@ -22,6 +22,21 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
 
     logger.info('Processing GENERATE_NARRATIVE', { decisionId, tenantId });
 
+    // operatingMode is propagated through SF state from InvokeInvestorProfile
+    // (subject.operatingMode is wired in decision-state-machine.ts via
+    // $.agentResults.InvokeInvestorProfile.operatingMode). Reading it from the
+    // event subject avoids the >40s AgentCore Memory ListMemoryRecords
+    // eventual-consistency window — see
+    // docs/backlog/agentcore-memory-list-records-eventual-consistency.md.
+    const operatingMode = subject.operatingMode as string | undefined;
+    if (!operatingMode) {
+      throw new UnknownOperatingModeError({
+        decisionId,
+        resolutionPath: 'subject.operatingMode (propagated by SF from InvokeInvestorProfile result)',
+        availableKeys: Object.keys(subject),
+      });
+    }
+
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
     const [investorRecords, marketRecords, portfolioRecords, preferences, sessionHistory] = await Promise.all([
@@ -33,9 +48,6 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
     ]);
 
     const investorProfile = investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {};
-    // operatingMode wrapped at top level by investor-profile-ctrl (Phase 2).
-    // BALANCED default covers cold-cache + non-INVESTOR_PROFILE_* trigger paths.
-    const operatingMode = (investorProfile.operatingMode as string) ?? 'BALANCED';
 
     let result: Record<string, unknown>;
     try {

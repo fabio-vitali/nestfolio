@@ -32,12 +32,25 @@ export class DecisionWorkflowDefinition extends Construct {
 
     const { eventBus, serviceName } = props;
 
-    // Helper: create a waitForTaskToken state that publishes an event to EventBridge
+    // Helper: create a waitForTaskToken state that publishes an event to EventBridge.
+    // `extraSubject` adds JSONPath-resolved fields onto the subject envelope —
+    // used to propagate cross-stage envelope fields (e.g. operatingMode) read
+    // from prior agentResults instead of via AgentCore Memory ListMemoryRecords
+    // (which has a >40s eventual-consistency window — see
+    // docs/backlog/agentcore-memory-list-records-eventual-consistency.md).
     const createAgentInvocationState = (
       stateId: string,
       detailType: string,
-      timeout: Duration = Duration.minutes(10),
+      options: { extraSubject?: Record<string, string>; timeout?: Duration } = {},
     ): sfn.CustomState => {
+      const subject: Record<string, unknown> = {
+        'decisionId.$': '$.decisionId',
+        'tenantId.$': '$.tenantId',
+        'taskToken.$': '$$.Task.Token',
+      };
+      for (const [key, jsonPath] of Object.entries(options.extraSubject ?? {})) {
+        subject[`${key}.$`] = jsonPath;
+      }
       // CustomState because the CDK L2 EventBridgePutEvents task does not natively
       // support waitForTaskToken with $.Task.Token injection. We use raw ASL.
       return new sfn.CustomState(this, stateId, {
@@ -54,11 +67,7 @@ export class DecisionWorkflowDefinition extends Construct {
                   'id.$': 'States.UUID()',
                   'type': detailType,
                   'timestamp.$': '$$.State.EnteredTime',
-                  'subject': {
-                    'decisionId.$': '$.decisionId',
-                    'tenantId.$': '$.tenantId',
-                    'taskToken.$': '$$.Task.Token',
-                  },
+                  'subject': subject,
                   'context': {
                     'tenantId.$': '$.tenantId',
                     'userId.$': '$.userId',
@@ -68,7 +77,7 @@ export class DecisionWorkflowDefinition extends Construct {
               },
             ],
           },
-          TimeoutSeconds: timeout.toSeconds(),
+          TimeoutSeconds: (options.timeout ?? Duration.minutes(10)).toSeconds(),
           ResultPath: `$.agentResults.${stateId}`,
         },
       });
@@ -121,14 +130,21 @@ export class DecisionWorkflowDefinition extends Construct {
       'ANALYZE_MARKET',
     );
 
+    // Portfolio + Narrative both need operatingMode to drive shape. We pull it
+    // from `$.agentResults.InvokeInvestorProfile.operatingMode` (returned by
+    // investor-profile-ctrl's SendTaskSuccess output and re-hoisted into top-level
+    // SF state by MergeParallelOutputs below) so downstream Lambdas read it from
+    // their event subject directly — no Memory roundtrip.
     const invokePortfolioEngine = createAgentInvocationState(
       'InvokePortfolioEngine',
       'CONSTRUCT_PORTFOLIO',
+      { extraSubject: { operatingMode: '$.agentResults.InvokeInvestorProfile.operatingMode' } },
     );
 
     const invokeAdvisoryNarrative = createAgentInvocationState(
       'InvokeAdvisoryNarrative',
       'GENERATE_NARRATIVE',
+      { extraSubject: { operatingMode: '$.agentResults.InvokeInvestorProfile.operatingMode' } },
     );
 
     // --- Parallel: investor-profile + market-intelligence ---
@@ -141,6 +157,13 @@ export class DecisionWorkflowDefinition extends Construct {
 
     // --- Merge parallel outputs ---
 
+    // After Parallel, $.parallelResults is an array of branch outputs. Branch 0
+    // is InvokeInvestorProfile (added first below), so its agentResults live at
+    // $.parallelResults[0].agentResults.InvokeInvestorProfile. We re-hoist that
+    // back into top-level $.agentResults.InvokeInvestorProfile so subsequent
+    // Task subjects can reference $.agentResults.InvokeInvestorProfile.operatingMode.
+    // This is the propagation channel for Option A — see
+    // docs/backlog/agentcore-memory-list-records-eventual-consistency.md.
     const mergeParallelOutputs = new sfn.Pass(this, 'MergeParallelOutputs', {
       parameters: {
         'decisionId.$': '$.decisionId',
@@ -148,6 +171,11 @@ export class DecisionWorkflowDefinition extends Construct {
         'userId.$': '$.userId',
         'region.$': '$.region',
         'trigger.$': '$.trigger',
+        'agentResults': {
+          'InvokeInvestorProfile': {
+            'operatingMode.$': '$.parallelResults[0].agentResults.InvokeInvestorProfile.operatingMode',
+          },
+        },
       },
     });
 

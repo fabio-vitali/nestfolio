@@ -179,4 +179,27 @@ describe('DecisionWorkflowCtrlStack', () => {
     );
     expect(assemblePacketLambda).toBeDefined();
   });
+
+  // Phase 2 of agentcore-memory-list-records-eventual-consistency: the
+  // InvokePortfolioEngine and InvokeAdvisoryNarrative Task subjects must
+  // include 'operatingMode.$': '$.agentResults.InvokeInvestorProfile.operatingMode'
+  // so downstream Lambdas can read operatingMode from the event subject without
+  // a Memory roundtrip. MergeParallelOutputs must lift it from the Parallel
+  // result so the JSONPath resolves at runtime.
+  it('propagates operatingMode through SF state from InvokeInvestorProfile to downstream Tasks', () => {
+    const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
+    const definitionString = Object.values(stateMachines)[0]?.Properties?.DefinitionString;
+    expect(definitionString).toBeDefined();
+
+    // DefinitionString is a CFN intrinsic Fn::Join — assemble it to a single string for assertion.
+    const joinParts: any[] = (definitionString as any)['Fn::Join']?.[1] ?? [];
+    const definition = joinParts.map((p) => (typeof p === 'string' ? p : JSON.stringify(p))).join('');
+
+    // MergeParallelOutputs lifts operatingMode out of $.parallelResults[0].
+    expect(definition).toContain('"operatingMode.$":"$.parallelResults[0].agentResults.InvokeInvestorProfile.operatingMode"');
+
+    // InvokePortfolioEngine + InvokeAdvisoryNarrative subjects reference the lifted path.
+    const portfolioMatches = definition.match(/"operatingMode\.\$":"\$\.agentResults\.InvokeInvestorProfile\.operatingMode"/g) ?? [];
+    expect(portfolioMatches.length).toBeGreaterThanOrEqual(2);
+  });
 });

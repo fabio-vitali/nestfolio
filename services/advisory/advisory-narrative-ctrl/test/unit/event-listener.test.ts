@@ -19,6 +19,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   withFallback: jest.fn().mockImplementation((node) => node),
   createMemoryClient: jest.fn(),
   createNoOpMemoryClient: jest.fn(),
+  UnknownOperatingModeError: jest.requireActual('@nestfolio/agent-orchestrator').UnknownOperatingModeError,
 }));
 jest.mock('@nestfolio/event-processor', () => ({
   ...jest.requireActual('@nestfolio/event-processor'),
@@ -85,6 +86,7 @@ describe('advisory-narrative-ctrl event-listener', () => {
         tenantId: 't1',
         decisionId: 'dp-1',
         taskToken: 'token-123',
+        operatingMode: 'BALANCED',
         context: { riskCategory: 'MODERATE' },
       },
     };
@@ -100,7 +102,7 @@ describe('advisory-narrative-ctrl event-listener', () => {
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('session summaries');
     expect(mockRunPipeline).toHaveBeenCalledWith(
       'evt-1',
-      expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1' }),
+      expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1', operatingMode: 'BALANCED' }),
     );
     expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
   });
@@ -110,7 +112,7 @@ describe('advisory-narrative-ctrl event-listener', () => {
     mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('evt-dup'));
 
     const payload: EventPayload = {
-      subject: { tenantId: 't1', decisionId: 'dp-dup', taskToken: 'tok' },
+      subject: { tenantId: 't1', decisionId: 'dp-dup', taskToken: 'tok', operatingMode: 'BALANCED' },
     };
 
     const dupCtx: EventContext = { ...baseCtx, eventId: 'evt-dup' };
@@ -119,6 +121,33 @@ describe('advisory-narrative-ctrl event-listener', () => {
     expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
     expect(result.intents).toBeUndefined();
     expect(mockWriteAgentOutput).not.toHaveBeenCalled();
+  });
+
+  // operatingMode is propagated via SF state on subject.operatingMode (Phase 4
+  // of agentcore-memory-list-records-eventual-consistency). Replaces the silent
+  // `?? 'BALANCED'` fallback that previously masked propagation regressions.
+  it('throws UnknownOperatingModeError when subject.operatingMode is missing', async () => {
+    const { UnknownOperatingModeError } = await import('@nestfolio/agent-orchestrator');
+
+    const payload: EventPayload = {
+      subject: { tenantId: 't1', decisionId: 'dp-no-mode', taskToken: 'tok' },
+    };
+
+    await expect(handlers.GENERATE_NARRATIVE(payload, baseCtx)).rejects.toThrow(UnknownOperatingModeError);
+    expect(mockRunPipeline).not.toHaveBeenCalled();
+  });
+
+  it('passes operatingMode from subject through to runPipeline', async () => {
+    const payload: EventPayload = {
+      subject: { tenantId: 't1', decisionId: 'dp-prop', taskToken: 'tok', operatingMode: 'CONSERVATIVE' },
+    };
+
+    await handlers.GENERATE_NARRATIVE(payload, baseCtx);
+
+    expect(mockRunPipeline).toHaveBeenCalledWith(
+      'evt-1',
+      expect.objectContaining({ operatingMode: 'CONSERVATIVE' }),
+    );
   });
 
   it('should route DECISION_FEEDBACK to feedback correlator', async () => {
@@ -141,7 +170,7 @@ describe('advisory-narrative-ctrl event-listener', () => {
     mockRunPipeline.mockRejectedValueOnce(new Error('Agent failed'));
 
     const payload: EventPayload = {
-      subject: { tenantId: 't1', decisionId: 'dp-1', taskToken: 'token' },
+      subject: { tenantId: 't1', decisionId: 'dp-1', taskToken: 'token', operatingMode: 'BALANCED' },
     };
 
     await expect(handlers.GENERATE_NARRATIVE(payload, baseCtx)).rejects.toThrow('Agent failed');
