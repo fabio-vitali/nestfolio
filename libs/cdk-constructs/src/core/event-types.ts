@@ -15,7 +15,17 @@ export type Passthrough = {
   emits: EventName[];
 };
 
-export type ActionMapping = EventName | FieldDispatch | Passthrough;
+/**
+ * Modify-action emission with optional producer-side field-diff fan-out.
+ * `always` fires on any modify; `onFieldChange` fires additional semantic
+ * events when specific fields differ between OldImage and NewImage.
+ */
+export type ModifyEmission = {
+  always: EventName;
+  onFieldChange?: Record<string, EventName>;
+};
+
+export type ActionMapping = EventName | FieldDispatch | Passthrough | ModifyEmission;
 
 export type RecordTypeConfig = {
   insert?: ActionMapping;
@@ -38,7 +48,12 @@ export type RuntimePassthrough = {
   passthrough: true;
 };
 
-export type RuntimeMapping = string | RuntimeFieldDispatch | RuntimePassthrough;
+export type RuntimeModifyEmission = {
+  always: string;
+  onFieldChange?: Record<string, string>;
+};
+
+export type RuntimeMapping = string | RuntimeFieldDispatch | RuntimePassthrough | RuntimeModifyEmission;
 export type RuntimeConfig = Record<string, RuntimeMapping>;
 
 // ── Utility functions ─────────────────────────────────────────────
@@ -59,6 +74,12 @@ export function buildRuntimeConfig(eventTypes: EventTypesMap): RuntimeConfig {
         config[`${recordType}:${ddbAction}`] = mapping;
       } else if ('passthrough' in mapping) {
         config[`${recordType}:${ddbAction}`] = { field: mapping.field, passthrough: true };
+      } else if ('always' in mapping) {
+        const entry: RuntimeModifyEmission = { always: mapping.always };
+        if (mapping.onFieldChange) {
+          entry.onFieldChange = mapping.onFieldChange;
+        }
+        config[`${recordType}:${ddbAction}`] = entry;
       } else {
         const entry: RuntimeFieldDispatch = { field: mapping.field, map: mapping.map as Record<string, string> };
         if (mapping.default) entry.default = mapping.default as string;
@@ -83,6 +104,11 @@ export function collectAllEventTypes(eventTypes: EventTypesMap): EventName[] {
         types.push(mapping as EventName);
       } else if ('passthrough' in mapping) {
         types.push(...mapping.emits);
+      } else if ('always' in mapping) {
+        types.push(mapping.always);
+        if (mapping.onFieldChange) {
+          types.push(...Object.values(mapping.onFieldChange));
+        }
       } else {
         types.push(...Object.values(mapping.map));
         if (mapping.default) types.push(mapping.default);
