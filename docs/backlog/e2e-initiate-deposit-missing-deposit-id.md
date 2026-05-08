@@ -1,6 +1,7 @@
 ---
 id: e2e-initiate-deposit-missing-deposit-id
-status: parking
+status: queued
+rank: 1
 type: bug
 notes: "fund-account + circuit-breaker e2e fail: initiateDeposit missing depositId (ID!)"
 references: []

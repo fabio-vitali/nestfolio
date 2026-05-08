@@ -1,6 +1,7 @@
 ---
 id: operating-mode-shape-empty-proposed-trades
-status: parking
+status: queued
+rank: 2
 type: bug
 notes: "operating-mode-recommendation-shape e2e: agent pipeline never materializes non-empty proposedTrades on dev"
 references: []

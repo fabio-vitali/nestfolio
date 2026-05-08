@@ -11,8 +11,10 @@ _(none)_
 
 ## QUEUED
 
-1. [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [bug] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging.
-2. [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
+1. [e2e-initiate-deposit-missing-deposit-id](backlog/e2e-initiate-deposit-missing-deposit-id.md) [bug] — fund-account + circuit-breaker e2e fail: initiateDeposit missing depositId (ID!)
+2. [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — operating-mode-recommendation-shape e2e: agent pipeline never materializes non-empty proposedTrades on dev
+3. [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [bug] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging.
+4. [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 
 ## LATER
 
@@ -20,7 +22,6 @@ _(none)_
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [c4-frontend-representation](backlog/c4-frontend-representation.md) [tooling] — MFEs in C4 diagrams at C1 + C2 level (planned, not started).
 - [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md) [infra] — Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model.
-- [e2e-initiate-deposit-missing-deposit-id](backlog/e2e-initiate-deposit-missing-deposit-id.md) [bug] — fund-account + circuit-breaker e2e fail: initiateDeposit missing depositId (ID!)
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md) [refactor] — Three callers — rule-of-three threshold; copies all do their own SigV4 setup.
 - [hoist-named-tool-retry-to-orchestrator](backlog/hoist-named-tool-retry-to-orchestrator.md) [refactor] — Only if advisory agents start showing the same Sonnet flakiness; not seen yet.
@@ -30,7 +31,6 @@ _(none)_
 - [investor-adpt-legacy-event-name-entries-cleanup](backlog/investor-adpt-legacy-event-name-entries-cleanup.md) [refactor] — Remove unused InvestorCrossDomainEventTypes entries (GOAL_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED) from investor-adpt/src/domain/events.ts.
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
-- [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — operating-mode-recommendation-shape e2e: agent pipeline never materializes non-empty proposedTrades on dev
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
 - [pr-audit-workflow-missing-pnpm-install](backlog/pr-audit-workflow-missing-pnpm-install.md) [bug] — pr-audit.yml fails at 'Install dependencies' step — pnpm not on runner. Compare with pr-deploy.yml's pnpm/action-setup.
 - [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md) [infra] — Throwaway-PR rehearsal + branch-protection toggle. BLOCKED on ci-pipeline-bring-up — pipeline has never produced a green run.
