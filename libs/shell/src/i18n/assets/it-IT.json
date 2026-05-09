@@ -136,7 +136,10 @@
       "title": "Decisioni in Attesa",
       "emptyTitle": "Nessuna decisione in attesa",
       "emptyHint": "Le nuove raccomandazioni della consulenza appariranno qui.",
-      "errorTitle": "Impossibile caricare le decisioni"
+      "errorTitle": "Impossibile caricare le decisioni",
+      "generatingTitle": "L'agente sta generando raccomandazioni…",
+      "generatingHint": "Di solito richiede da 30 a 75 secondi. La lista si aggiornerà automaticamente.",
+      "generatingMore": "Generando {count} raccomandazione(i) aggiuntiva(e)…"
     },
     "detail": {
       "trades": "Operazioni Proposte",

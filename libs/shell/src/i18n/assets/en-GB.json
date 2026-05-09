@@ -136,7 +136,10 @@
       "title": "Pending Decisions",
       "emptyTitle": "No pending decisions",
       "emptyHint": "New advisory recommendations will appear here.",
-      "errorTitle": "Could not load decisions"
+      "errorTitle": "Could not load decisions",
+      "generatingTitle": "Agent is generating recommendations…",
+      "generatingHint": "This usually takes 30 to 75 seconds. The list will refresh automatically.",
+      "generatingMore": "Generating {count} additional recommendation(s)…"
     },
     "detail": {
       "trades": "Proposed Trades",
