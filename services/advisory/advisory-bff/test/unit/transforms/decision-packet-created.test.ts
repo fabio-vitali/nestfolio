@@ -1,8 +1,8 @@
-import { record } from '@nestfolio/event-processor';
+import { record, accumulate } from '@nestfolio/event-processor';
 import { decisionPacketCreated } from '../../../src/transforms/decision-packet-created';
 
 describe('decisionPacketCreated transform', () => {
-  it('should return record intent for DecisionSummary', () => {
+  it('returns [record, accumulate(-1)] for populated packet', () => {
     const uow = {
       event: {
         id: 'e1',
@@ -22,7 +22,8 @@ describe('decisionPacketCreated transform', () => {
       record: {},
     };
 
-    expect(decisionPacketCreated(uow as any)).toEqual(
+    const intents = decisionPacketCreated(uow as any);
+    expect(intents).toEqual([
       record('DecisionReadModel', {
         tenantId: 't1',
         decisionId: 'd1',
@@ -41,10 +42,15 @@ describe('decisionPacketCreated transform', () => {
         pk: 'Decision#t1#d1',
         sk: 'DecisionReadModel',
       }),
-    );
+      accumulate('AdvisoryStatus', {
+        field: 'inFlightCount',
+        increment: -1,
+        overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' },
+      }),
+    ]);
   });
 
-  it('should skip events with empty explanation AND empty trades (defence-in-depth against degraded-path producers)', () => {
+  it('returns undefined when both explanation and trades are empty (defence-in-depth against degraded-path producers)', () => {
     const uow = {
       event: {
         id: 'e2',
@@ -67,7 +73,7 @@ describe('decisionPacketCreated transform', () => {
     expect(decisionPacketCreated(uow as any)).toBeUndefined();
   });
 
-  it('should write when explanation is present even if trades are empty (decision-workflow-ctrl placeholder path)', () => {
+  it('returns [record, accumulate(-1)] when explanation is present even if trades are empty (decision-workflow-ctrl placeholder path)', () => {
     const uow = {
       event: {
         id: 'e3',
@@ -88,9 +94,15 @@ describe('decisionPacketCreated transform', () => {
     };
 
     const result = decisionPacketCreated(uow as any);
-    expect(result).toBeDefined();
-    expect((result as { fields: Record<string, unknown> }).fields.explanation).toBe(
-      'Decision pending — narrative placeholder.',
+    expect(Array.isArray(result)).toBe(true);
+    const intents = result as any[];
+    expect(intents[0].fields.explanation).toBe('Decision pending — narrative placeholder.');
+    expect(intents[1]).toEqual(
+      accumulate('AdvisoryStatus', {
+        field: 'inFlightCount',
+        increment: -1,
+        overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' },
+      }),
     );
   });
 });
