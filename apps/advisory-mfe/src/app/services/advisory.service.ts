@@ -10,6 +10,8 @@ import {
   CONFIRM_DECISION,
   REJECT_DECISION,
   ON_DECISION_UPDATE,
+  GET_ADVISORY_STATUS,
+  ON_ADVISORY_STATUS_UPDATE,
 } from '../graphql/advisory-bff.queries';
 import { LogoutOrchestrator } from '@nestfolio/shell';
 import type {
@@ -23,6 +25,13 @@ export interface PendingDecisionListItem {
   status: string;
   trigger: string;
   createdAt: string;
+}
+
+export interface AdvisoryStatusSnapshot {
+  tenantId: string;
+  inFlightCount: number;
+  lastTriggerAt: string | null;
+  updatedAt: string;
 }
 
 interface PendingDecisionsConnection {
@@ -46,6 +55,10 @@ export class AdvisoryService {
   private listSubscription: Subscription | null = null;
   private listReconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private listReconnectAttempts = 0;
+
+  private statusSubscription: Subscription | null = null;
+  private statusReconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  private statusReconnectAttempts = 0;
 
   subscribeToDecisionUpdates(
     tenantId: string,
@@ -137,6 +150,65 @@ export class AdvisoryService {
     if (this.listSubscription) {
       this.listSubscription.unsubscribe();
       this.listSubscription = null;
+    }
+  }
+
+  async getAdvisoryStatus(): Promise<AdvisoryStatusSnapshot | null> {
+    const data = await this.graphql.query<{ getAdvisoryStatus: AdvisoryStatusSnapshot | null }>(
+      GET_ADVISORY_STATUS,
+      {},
+    );
+    return data.getAdvisoryStatus ?? null;
+  }
+
+  subscribeToAdvisoryStatusUpdates(
+    tenantId: string,
+    onFrame: (snapshot: AdvisoryStatusSnapshot) => void,
+  ): void {
+    this.unsubscribeFromAdvisoryStatusUpdates();
+    this.statusReconnectAttempts = 0;
+    this.doSubscribeToStatus(tenantId, onFrame);
+  }
+
+  private doSubscribeToStatus(
+    tenantId: string,
+    onFrame: (snapshot: AdvisoryStatusSnapshot) => void,
+  ): void {
+    const obs = this.graphql.subscribe<{ onAdvisoryStatusUpdate: AdvisoryStatusSnapshot | null }>(
+      ON_ADVISORY_STATUS_UPDATE,
+      { tenantId },
+    );
+    this.statusSubscription = obs.subscribe({
+      next: (data) => {
+        if (data.onAdvisoryStatusUpdate) {
+          this.statusReconnectAttempts = 0;
+          onFrame(data.onAdvisoryStatusUpdate);
+        }
+      },
+      error: (err) => {
+        // eslint-disable-next-line no-console
+        console.error('Advisory status subscription error', err);
+        if (this.statusReconnectAttempts < AdvisoryService.MAX_RECONNECT_ATTEMPTS) {
+          this.statusReconnectAttempts++;
+          const delay = Math.min(5000 * Math.pow(2, this.statusReconnectAttempts - 1), 30_000);
+          this.statusReconnectTimeout = setTimeout(
+            () => this.doSubscribeToStatus(tenantId, onFrame),
+            delay,
+          );
+        }
+      },
+    });
+  }
+
+  unsubscribeFromAdvisoryStatusUpdates(): void {
+    if (this.statusReconnectTimeout !== null) {
+      clearTimeout(this.statusReconnectTimeout);
+      this.statusReconnectTimeout = null;
+    }
+    this.statusReconnectAttempts = 0;
+    if (this.statusSubscription) {
+      this.statusSubscription.unsubscribe();
+      this.statusSubscription = null;
     }
   }
 
