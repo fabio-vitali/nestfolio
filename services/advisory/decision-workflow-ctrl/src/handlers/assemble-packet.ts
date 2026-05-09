@@ -64,15 +64,24 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     // correct degenerate behavior when agents haven't yet produced structured
     // output.
     //
-    // The portfolio-engine handler stores `result['portfolio-construction']`
-    // verbatim under the key `allocations`, so the actual PortfolioConstruction
-    // payload is at `portfolioOutput.allocations` (an object) and the array of
-    // target allocations is at `portfolioOutput.allocations.allocations`. Map
-    // each allocation to ProposedTrade shape per advisory-bff schema
-    // (services/advisory/advisory-bff/src/schema.graphql:84). Phase 2 of the
-    // operating-mode workstream made `assetClass` mandatory on the agent's
-    // schema so the equityWeight derivation downstream is deterministic.
-    const construction = (portfolioOutput?.allocations as Record<string, unknown> | undefined) ?? {};
+    // Two writers land in the portfolio-engine namespace under the same
+    // requestIdentifier — AgentCore Memory does not always dedupe within its
+    // eventual-consistency window:
+    //   1. AgentRuntime (graph.ts) writes the orchestrator's raw output
+    //      keyed by node name: `{portfolio-construction:{allocations:[…]},
+    //      rebalance-planner:{trades:[…]}}`.
+    //   2. The Lambda's writeAgentOutput call writes the transformed runPipeline
+    //      result: `{decisionId, allocations:{allocations:[…]}, trades:{…}}`.
+    // Whichever record `[0]` returns is order-dependent. Extract from EITHER
+    // shape so the read site is robust to the pre-existing dual-writer
+    // (tracked separately — see project_advisory_pipeline_consolidation.md).
+    // Phase 2 of the operating-mode workstream made `assetClass` mandatory on
+    // the agent's schema so the equityWeight derivation downstream is
+    // deterministic.
+    const construction =
+      (portfolioOutput?.allocations as Record<string, unknown> | undefined)
+      ?? (portfolioOutput?.['portfolio-construction'] as Record<string, unknown> | undefined)
+      ?? {};
     const allocationsArray = (construction.allocations as Array<Record<string, unknown>> | undefined) ?? [];
     const portfolioValue = (construction.totalExposure as number | undefined) ?? 0;
     const proposedTrades = allocationsArray.map((a) => {
@@ -98,9 +107,17 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     // contract aligned (Spec 2 — direct record write + list-records read against
     // the same /agent/{tenant}/decisions/{decisionId} namespace), this read
     // returns the agent's structured output as the primary path.
+    // Same dual-writer fallback as portfolio above — narrativeOutput may be
+    // either the Lambda's transformed shape (`{rationale,summary,...}` at
+    // top level) or the AgentRuntime's raw shape
+    // (`{explainability:{rationale,summary,...}}` keyed by node name).
+    const narrativeContent =
+      (narrativeOutput?.explainability as Record<string, unknown> | undefined)
+      ?? narrativeOutput
+      ?? {};
     const explanation =
-      (narrativeOutput?.rationale as string | undefined) ??
-      (narrativeOutput?.summary as string | undefined) ??
+      (narrativeContent.rationale as string | undefined) ??
+      (narrativeContent.summary as string | undefined) ??
       `Decision pending — the advisory narrative for this ${trigger} trigger has not been persisted yet.`;
 
     // Materialize the DecisionPacket row with the synthesized content. CDC on
