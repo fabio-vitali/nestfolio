@@ -15,13 +15,21 @@ steps:
     emits: PORTFOLIO_DRIFT_DETECTED (CDC from DriftRecord insert)
     idempotent: true
 
-  # Step 2: Cross-domain hop — advisory-adpt pulls PORTFOLIO_DRIFT_DETECTED from LedgerBus
+  # Step 2a: Cross-domain hop — advisory-adpt pulls PORTFOLIO_DRIFT_DETECTED from LedgerBus
   # Source: services/advisory/advisory-adpt/src/service.stack.ts (AdvisoryIngress-FromLedger rule)
   # Note: LEDGER_PORTFOLIO_DRIFT_DETECTED maps to wire name 'PORTFOLIO_DRIFT_DETECTED'
   - cross_domain: PORTFOLIO_DRIFT_DETECTED
     from: LedgerBus
     to: AdvisoryBus
     via: advisory-adpt EB rule (AdvisoryIngress-FromLedger, DLQ FromLedgerDLQ 14d)
+
+  # Step 2b: Cross-domain hop — investor-adpt also pulls PORTFOLIO_DRIFT_DETECTED from LedgerBus
+  # Source: services/investor/investor-adpt/src/service.stack.ts (InvestorIngress-FromLedger rule)
+  # This path feeds dashboard-bff (pendingDecisionsCount +1) and advisory-bff (inFlightCount +1).
+  - cross_domain: PORTFOLIO_DRIFT_DETECTED
+    from: LedgerBus
+    to: InvestorBus
+    via: investor-adpt EB rule (InvestorIngress-FromLedger, DLQ FromLedgerDLQ 14d)
 
   # Step 3: decision-workflow-ctrl SF starts directly from EB → SF
   # Source: services/advisory/decision-workflow-ctrl/src/service.stack.ts (Orchestration.triggers)
@@ -34,6 +42,12 @@ steps:
     state_change: SF execution starts; decisionId minted in UnpackTriggerEnvelope; no DDB write at trigger time
     emits: nothing at this step (DecisionPacket row written by AssemblePacket later in the SF)
     idempotent: each user/system action produces exactly one trigger event
+
+  # Step 3b: advisory-bff and dashboard-bff update in-flight counters at trigger time
+  # (concurrent with step 3 — both receive PORTFOLIO_DRIFT_DETECTED via their respective buses)
+  # advisory-bff (AdvisoryBus): increments AdvisoryStatus.inFlightCount → ADVISORY_STATUS_UPDATED
+  # dashboard-bff (InvestorBus, via step 2b): increments AdvisoryStatus.pendingDecisionsCount
+  # Both counters decrement when the decision resolves (DECISION_PACKET_CREATED / DECISION_APPROVED / DECISION_BLOCKED).
 
   # Step 4: SF orchestration — Step Functions runs the 4-agent pipeline + compliance + user-confirm
   # Source: services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts

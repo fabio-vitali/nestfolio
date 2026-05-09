@@ -28,7 +28,7 @@ steps:
          depositId, amountCents, currency
     emits: >
       CDC events from DDB Streams (declarative Egress):
-      - INVESTOR_PROFILE_CREATED (InvestorProfile:INSERT, carrier) -- advisory-adpt + dashboard-bff subscribe
+      - INVESTOR_PROFILE_CREATED (InvestorProfile:INSERT, carrier) -- advisory-adpt + dashboard-bff subscribe; advisory-bff also subscribes (increments AdvisoryStatus.inFlightCount); dashboard-bff also increments pendingDecisionsCount
       - MANDATE_ISSUED (Mandate:INSERT, lifecycle) -- advisory-adpt + investor-ctrl + compliance-ctrl subscribe
       - DEPOSIT_INITIATED (Deposit:INSERT, conditional) -- investor-ctrl + execution-adpt subscribe
     idempotent: true

@@ -159,13 +159,32 @@ steps:
     to: InvestorBus
     via: investor-adpt EB rule (InvestorIngress-FromAdvisory)
 
+  # -- Phase 0b: advisory-bff tracks in-flight decisions at trigger time --
+  # Source: services/advisory/advisory-bff/src/transforms/decision-trigger-received.ts
+  # advisory-bff subscribes to all 7 TRIGGER_EVENT_TYPES (same list as SF above).
+  # On each trigger event: increments AdvisoryStatus.inFlightCount + sets lastTriggerAt.
+  # On DECISION_PACKET_CREATED: decrements inFlightCount (decision has landed in the read model).
+  # AdvisoryStatus changes are published via CDC → advisory-bff-egress → ADVISORY_STATUS_UPDATED,
+  # which the event-publisher broadcasts via publishAdvisoryStatusUpdate IAM mutation so
+  # the advisory MFE can subscribe onAdvisoryStatusUpdate and show a "N decisions in flight" badge
+  # without polling. UI receives the counter update before the full DecisionPacket is assembled.
+  - service: advisory-bff
+    receives: INVESTOR_PROFILE_CREATED | INVESTOR_PROFILE_UPDATED | PORTFOLIO_DRIFT_DETECTED | ORDER_FILLED | ORDER_REJECTED | ORDER_CANCELLED | DEPOSIT_DETECTED
+    via: AdvisoryBus -> SQS -> advisory-bff-Ingress
+    handler: event-listener.ts (decisionTriggerReceived → decision-trigger-received.ts)
+    state_change: Increments AdvisoryStatus.inFlightCount; sets lastTriggerAt; emits ADVISORY_STATUS_UPDATED via CDC
+    emits: ADVISORY_STATUS_UPDATED (CDC, AdvisoryStatus insert/modify)
+    idempotent: true
+
   # -- Phase 9b: BFF materialises for user-facing UI --
   - service: advisory-bff
-    receives: USER_CONFIRMATION_REQUESTED | DECISION_PACKET_CREATED | DECISION_APPROVED | DECISION_BLOCKED
+    receives: USER_CONFIRMATION_REQUESTED | DECISION_PACKET_CREATED | DECISION_APPROVED | DECISION_BLOCKED | DECISION_PACKET_UPDATED
     via: AdvisoryBus -> SQS -> advisory-bff-Ingress
     handler: event-listener.ts (materializeToTable)
-    state_change: Materialises DecisionReadModel for GraphQL queries; user sees decision in UI
-    emits: DECISION_READ_MODEL (CDC, DecisionReadModel) | USER_INTERACTION (CDC, UserInteraction)
+    state_change: >
+      Materialises DecisionReadModel for GraphQL queries; user sees decision in UI.
+      DECISION_PACKET_CREATED also decrements AdvisoryStatus.inFlightCount (counter closes at packet-creation time).
+    emits: DECISION_READ_MODEL_CREATED | DECISION_READ_MODEL_UPDATED (CDC, DecisionReadModel insert/modify) | USER_INTERACTION_CREATED (CDC, UserInteraction insert) | ADVISORY_STATUS_UPDATED (CDC, AdvisoryStatus modify on DECISION_PACKET_CREATED)
     idempotent: true
 
   # -- Phase 10: User responds via advisory-bff mutations --
