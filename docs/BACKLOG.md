@@ -6,7 +6,8 @@
 
 ## ACTIVE
 
-- [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [design] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging. Promoted 2026-05-09 to deliver in-flight UX with full BFF state-completeness (advisory-bff + dashboard-bff both project the in-flight state).
+_(none)_
+
 
 ## QUEUED
 
@@ -46,6 +47,7 @@
 
 ## Recently Shipped (last 10)
 
+- 2026-05-09 — [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [design] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging. Shipped 2026-05-09 on `feat/advisory-in-flight-projection` (33 commits) with full BFF state-completeness — advisory-bff + dashboard-bff both project the in-flight state.
 - 2026-05-09 — [agentcore-memory-list-records-eventual-consistency](backlog/agentcore-memory-list-records-eventual-consistency.md) [bug] — AgentCore Memory ListMemoryRecords lag >40s; SF inter-stage cadence ~5s — propagate operatingMode through SF state instead.
 - 2026-05-09 — [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — operating-mode-recommendation-shape e2e: agent pipeline never materializes non-empty proposedTrades on dev
 - 2026-05-08 — [deposit-page-pattern-a-to-pattern-b](backlog/deposit-page-pattern-a-to-pattern-b.md) [refactor] — deposit-page is the lone Pattern A holdout; full fix = client-UUID + URL routing + getDeposit recovery.
@@ -55,4 +57,3 @@
 - 2026-05-07 — [backlog-redesign](backlog/backlog-redesign.md) [refactor] — Per-item backlog files + auto-generated index + backlog-lint enforcement; MEMORY duplication removed.
 - 2026-05-07 — [nestfolio-e2e-playwright-config-no-console-lint](backlog/nestfolio-e2e-playwright-config-no-console-lint.md) [bug] — Shipped 2026-05-07 — added // eslint-disable-next-line no-console comment matching the libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts:178 precedent.
 - 2026-05-07 — [portfolio-engine-graph-no-console-lint](backlog/portfolio-engine-graph-no-console-lint.md) [bug] — Shipped 2026-05-07 — added // eslint-disable-next-line no-console above the warn.
-- 2026-05-07 — [pr-pipeline-integration-tests](backlog/pr-pipeline-integration-tests.md) [infra] — Closed 2026-05-07 — implementation landed inline with the test-support extraction; backlog file lagged.
