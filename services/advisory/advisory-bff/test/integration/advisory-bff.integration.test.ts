@@ -421,8 +421,23 @@ describe('advisory-bff', () => {
   // ── AdvisoryStatus in-flight projection ────────────────────────────
 
   describe('AdvisoryStatus in-flight projection', () => {
-    it('trigger event → AdvisoryStatus row created with inFlightCount=1', async () => {
+    it('trigger event → AdvisoryStatus row inFlightCount incremented', async () => {
       const pk = `T#${ctx.tenantId}`;
+
+      // Capture baseline before emitting — counter may already be negative from orphan-PACKET
+      // tests on the shared tenant (accepted spec §8 E1 edge case).
+      let baseCount = 0;
+      try {
+        const s = await table.waitForItem({
+          table: 'advisory-bff',
+          pk,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 5_000,
+        });
+        baseCount = Number(s['inFlightCount'] ?? 0);
+      } catch {
+        // row not yet present — treat as 0
+      }
 
       await eb.putEvent({
         bus: 'advisory',
@@ -431,9 +446,7 @@ describe('advisory-bff', () => {
         detail: { tenantId: ctx.tenantId },
       });
 
-      // Wait until the AdvisoryStatus row exists with inFlightCount >= 1.
-      // accumulate() does an atomic ADD, so the row may be created by an earlier test in
-      // the same tenant context — assert >= 1 rather than == 1.
+      // Wait until inFlightCount exceeds baseline (delta >= 1 rather than absolute >= 1).
       let item: Record<string, unknown> = {};
       const deadline = Date.now() + 60_000;
       while (Date.now() < deadline) {
@@ -444,7 +457,7 @@ describe('advisory-bff', () => {
             sk: 'AdvisoryStatus',
             timeoutMs: 5_000,
           });
-          if (Number(item['inFlightCount']) >= 1) break;
+          if (Number(item['inFlightCount']) > baseCount) break;
         } catch {
           // item not yet present — keep polling
         }
@@ -452,7 +465,7 @@ describe('advisory-bff', () => {
       }
 
       expect(item['__typename']).toBe('AdvisoryStatus');
-      expect(Number(item['inFlightCount'])).toBeGreaterThanOrEqual(1);
+      expect(Number(item['inFlightCount'])).toBeGreaterThan(baseCount);
     }, 120_000);
 
     it('trigger then DECISION_PACKET_CREATED → inFlightCount decremented, DecisionReadModel exists', async () => {
@@ -460,6 +473,21 @@ describe('advisory-bff', () => {
       const decisionId = `integ-inflight-${Date.now()}`;
       const statusPk = `T#${ctx.tenantId}`;
       const decisionPk = `Decision#${ctx.tenantId}#${decisionId}`;
+
+      // Capture baseline before emitting — counter may already be negative from orphan-PACKET
+      // tests on the shared tenant (accepted spec §8 E1 edge case).
+      let baseCount = 0;
+      try {
+        const s = await table.waitForItem({
+          table: 'advisory-bff',
+          pk: statusPk,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 5_000,
+        });
+        baseCount = Number(s['inFlightCount'] ?? 0);
+      } catch {
+        // row not yet present — treat as 0
+      }
 
       // Step 1: emit a trigger — increments inFlightCount
       await eb.putEvent({
@@ -469,8 +497,8 @@ describe('advisory-bff', () => {
         detail: { tenantId: ctx.tenantId },
       });
 
-      // Step 2: wait until AdvisoryStatus row exists (may already exist from prior test)
-      let beforeCount = 0;
+      // Step 2: wait until inFlightCount exceeds baseline (delta > 0 rather than absolute >= 1)
+      let beforeCount = baseCount;
       {
         const d = Date.now() + 60_000;
         while (Date.now() < d) {
@@ -482,14 +510,14 @@ describe('advisory-bff', () => {
               timeoutMs: 5_000,
             });
             beforeCount = Number(s['inFlightCount']);
-            if (beforeCount >= 1) break;
+            if (beforeCount > baseCount) break;
           } catch {
             // keep polling
           }
           await new Promise(r => setTimeout(r, 2_000));
         }
       }
-      expect(beforeCount).toBeGreaterThanOrEqual(1);
+      expect(beforeCount).toBeGreaterThan(baseCount);
 
       // Step 3: emit DECISION_PACKET_CREATED — decrements inFlightCount and creates DecisionReadModel
       await eb.putEvent({
