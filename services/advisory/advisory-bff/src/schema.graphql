@@ -4,6 +4,7 @@ type Query {
   getDecisionHistory(limit: Int, cursor: String): DecisionConnection!
   getAgentInvocations(decisionId: ID!): [AgentInvocation!]!
   getComplianceChecks(decisionId: ID!): [ComplianceCheck!]!
+  getAdvisoryStatus: AdvisoryStatus
 }
 
 type Mutation {
@@ -25,6 +26,12 @@ type Mutation {
     rejectedAt: String
     rejectionReason: String
   ): DecisionPacket! @aws_iam
+  publishAdvisoryStatusUpdate(
+    tenantId: ID!
+    inFlightCount: Int!
+    lastTriggerAt: String
+    updatedAt: String!
+  ): AdvisoryStatus! @aws_iam
 }
 
 type Subscription {
@@ -40,6 +47,10 @@ type Subscription {
   @aws_subscribe(mutations: ["confirmDecision", "rejectDecision", "publishDecisionUpdate"])
   @aws_cognito_user_pools
   @aws_iam
+  onAdvisoryStatusUpdate(tenantId: ID!): AdvisoryStatus
+    @aws_subscribe(mutations: ["publishAdvisoryStatusUpdate"])
+    @aws_cognito_user_pools
+    @aws_iam
 }
 
 enum DecisionStatus {
@@ -143,4 +154,11 @@ type DecisionConnection {
 type ViewReceipt {
   decisionId: ID!
   viewedAt: String!
+}
+
+type AdvisoryStatus @aws_cognito_user_pools @aws_iam {
+  tenantId: ID!
+  inFlightCount: Int!
+  lastTriggerAt: String
+  updatedAt: String!
 }
