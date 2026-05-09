@@ -278,10 +278,12 @@ describe('dashboard-bff', () => {
       expect(activityItem!['activityType']).toBe('DECISION_APPROVED');
     }, 120_000);
 
-    it('should accumulate AdvisoryStatus pendingDecisions on DECISION_PACKET_CREATED', async () => {
+    it('should NOT increment AdvisoryStatus on DECISION_PACKET_CREATED (Phase 2: trigger-driven)', async () => {
+      // Phase 2: pendingDecisionsCount is now incremented by SF trigger events (ORDER_*, DEPOSIT_DETECTED, etc.)
+      // DECISION_PACKET_CREATED no longer increments — it only records activity.
       const decisionId = `integ-dp-created-${Date.now()}`;
 
-      // Read current value before sending event (may already exist from DECISION_APPROVED test)
+      // Read current value before sending event
       let beforeValue = 0;
       try {
         const before = await table.waitForItem({
@@ -306,34 +308,36 @@ describe('dashboard-bff', () => {
         },
       });
 
-      // Poll until pendingDecisions increments from beforeValue
-      let item: Record<string, unknown> | undefined;
-      const deadline = Date.now() + 60_000;
-      while (Date.now() < deadline) {
-        item = await table.waitForItem({
+      // Wait for any side effects to settle, then assert count did NOT change
+      await new Promise(r => setTimeout(r, 5_000));
+      let afterValue = beforeValue;
+      try {
+        const after = await table.waitForItem({
           table: 'dashboard-bff',
           pk: `T#${ctx.tenantId}`,
           sk: 'AdvisoryStatus',
-          timeoutMs: 5_000,
+          timeoutMs: 2_000,
         });
-        if ((item['pendingDecisionsCount'] as number) > beforeValue) break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
+        afterValue = (after['pendingDecisionsCount'] as number) ?? 0;
+      } catch { /* item doesn't exist */ }
 
-      expect((item!['pendingDecisionsCount'] as number)).toBe(beforeValue + 1);
-    }, 120_000);
+      expect(afterValue).toBe(beforeValue);
+    }, 60_000);
 
-    it('should accumulate AdvisoryStatus pendingDecisions on USER_CONFIRMATION_REQUESTED', async () => {
+    it('should NOT increment AdvisoryStatus on USER_CONFIRMATION_REQUESTED (Phase 2: was double-count)', async () => {
+      // Phase 2: USER_CONFIRMATION_REQUESTED no longer increments — it only records activity.
       const decisionId = `integ-ucr-${Date.now()}`;
 
-      // Read current value before sending event
-      const before = await table.waitForItem({
-        table: 'dashboard-bff',
-        pk: `T#${ctx.tenantId}`,
-        sk: 'AdvisoryStatus',
-        timeoutMs: 5_000,
-      });
-      const beforeValue = (before['pendingDecisionsCount'] as number) ?? 0;
+      let beforeValue = 0;
+      try {
+        const before = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 2_000,
+        });
+        beforeValue = (before['pendingDecisionsCount'] as number) ?? 0;
+      } catch { /* item doesn't exist yet */ }
 
       await eb.putEvent({
         bus: 'investor',
@@ -345,22 +349,21 @@ describe('dashboard-bff', () => {
         },
       });
 
-      // Poll until pendingDecisions increments
-      let item: Record<string, unknown> | undefined;
-      const deadline = Date.now() + 60_000;
-      while (Date.now() < deadline) {
-        item = await table.waitForItem({
+      // Wait for any side effects to settle, then assert count did NOT change
+      await new Promise(r => setTimeout(r, 5_000));
+      let afterValue = beforeValue;
+      try {
+        const after = await table.waitForItem({
           table: 'dashboard-bff',
           pk: `T#${ctx.tenantId}`,
           sk: 'AdvisoryStatus',
-          timeoutMs: 5_000,
+          timeoutMs: 2_000,
         });
-        if ((item['pendingDecisionsCount'] as number) > beforeValue) break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
+        afterValue = (after['pendingDecisionsCount'] as number) ?? 0;
+      } catch { /* item doesn't exist */ }
 
-      expect((item!['pendingDecisionsCount'] as number)).toBe(beforeValue + 1);
-    }, 120_000);
+      expect(afterValue).toBe(beforeValue);
+    }, 60_000);
 
     it('should decrement AdvisoryStatus and create Activity on DECISION_BLOCKED', async () => {
       const decisionId = `integ-blocked-${Date.now()}`;
@@ -496,17 +499,16 @@ describe('dashboard-bff', () => {
       ]);
 
       // 3. AdvisoryStatus + Activity — DECISION_APPROVED decrements pendingDecisions,
-      //    so DECISION_PACKET_CREATED must increment first.
+      //    so a trigger event (Phase 2: ORDER_FILLED) must increment first.
       await eb.putEvent({
         bus: 'investor',
         targetService: 'dashboard-bff',
-        detailType: 'DECISION_PACKET_CREATED',
+        detailType: 'ORDER_FILLED',
         detail: {
-          decisionId: `query-test-dp-${Date.now()}`,
-          trigger: 'REBALANCE',
-          proposedTrades: [{ symbol: 'MSFT', action: 'BUY', quantity: 5 }],
-          explanation: 'Query test',
-          confirmationRequired: true,
+          orderId: `query-test-order-${Date.now()}`,
+          symbol: 'MSFT',
+          quantity: 5,
+          filledPrice: 300,
         },
       });
       // Wait for AdvisoryStatus to exist before sending DECISION_APPROVED
@@ -773,5 +775,137 @@ describe('dashboard-bff', () => {
 
       expect(result.getSimulationSummary).toBeNull();
     }, 60_000);
+  });
+
+  // ── AdvisoryStatus Phase 2: trigger-driven pendingDecisionsCount ────────
+  //
+  // Phase 2 shifts the counter from "packet-created" semantics to "SF trigger"
+  // semantics. The counter now increments on the 7 SF trigger events and
+  // decrements only on DECISION_APPROVED / DECISION_BLOCKED.
+
+  describe('AdvisoryStatus pendingDecisionsCount (Phase 2)', () => {
+    it('increments pendingDecisionsCount on DEPOSIT_DETECTED (trigger)', async () => {
+      let beforeValue = 0;
+      try {
+        const before = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 2_000,
+        });
+        beforeValue = (before['pendingDecisionsCount'] as number) ?? 0;
+      } catch { /* item may not exist */ }
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'DEPOSIT_DETECTED',
+        detail: { tenantId: ctx.tenantId, amountCents: 100_00, currency: 'USD' },
+      });
+
+      let item: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        item = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 5_000,
+        });
+        if ((item['pendingDecisionsCount'] as number) > beforeValue) break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+
+      expect((item!['pendingDecisionsCount'] as number)).toBe(beforeValue + 1);
+    }, 120_000);
+
+    it('increments pendingDecisionsCount on ORDER_FILLED (trigger)', async () => {
+      const before = await table.waitForItem({
+        table: 'dashboard-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 5_000,
+      });
+      const beforeValue = (before['pendingDecisionsCount'] as number) ?? 0;
+
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'ORDER_FILLED',
+        detail: { tenantId: ctx.tenantId, orderId: `integ-order-${Date.now()}`, symbol: 'AAPL', quantity: 5, filledPrice: 150 },
+      });
+
+      let item: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        item = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 5_000,
+        });
+        if ((item['pendingDecisionsCount'] as number) > beforeValue) break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+
+      expect((item!['pendingDecisionsCount'] as number)).toBe(beforeValue + 1);
+    }, 120_000);
+
+    it('decrements pendingDecisionsCount on DECISION_APPROVED', async () => {
+      // First increment via a trigger event to ensure there's something to decrement
+      const beforeTrigger = await table.waitForItem({
+        table: 'dashboard-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 5_000,
+      });
+      const beforeValue = (beforeTrigger['pendingDecisionsCount'] as number) ?? 0;
+
+      // Increment via ORDER_REJECTED trigger
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'ORDER_REJECTED',
+        detail: { tenantId: ctx.tenantId, orderId: `integ-reject-${Date.now()}`, reason: 'Insufficient funds' },
+      });
+
+      // Wait for increment
+      let afterIncrement: Record<string, unknown> | undefined;
+      const incrDeadline = Date.now() + 60_000;
+      while (Date.now() < incrDeadline) {
+        afterIncrement = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 5_000,
+        });
+        if ((afterIncrement['pendingDecisionsCount'] as number) > beforeValue) break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+      const incrementedValue = (afterIncrement!['pendingDecisionsCount'] as number);
+
+      // Now decrement via DECISION_APPROVED
+      await eb.putEvent({
+        bus: 'investor',
+        targetService: 'dashboard-bff',
+        detailType: 'DECISION_APPROVED',
+        detail: { tenantId: ctx.tenantId, decisionId: `integ-approved-phase2-${Date.now()}` },
+      });
+
+      let item: Record<string, unknown> | undefined;
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        item = await table.waitForItem({
+          table: 'dashboard-bff',
+          pk: `T#${ctx.tenantId}`,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 5_000,
+        });
+        if ((item['pendingDecisionsCount'] as number) < incrementedValue) break;
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+
+      expect((item!['pendingDecisionsCount'] as number)).toBe(incrementedValue - 1);
+    }, 120_000);
   });
 });
