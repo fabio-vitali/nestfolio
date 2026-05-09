@@ -36,6 +36,10 @@ export class AdvisoryBffStack extends ServiceStack {
           insert: AdvisoryBffEventTypes.DECISION_READ_MODEL_CREATED,
           modify: AdvisoryBffEventTypes.DECISION_READ_MODEL_UPDATED,
         },
+        'AdvisoryStatus': {
+          insert: AdvisoryBffEventTypes.ADVISORY_STATUS_UPDATED,
+          modify: AdvisoryBffEventTypes.ADVISORY_STATUS_UPDATED,
+        },
         'UserInteraction': {
           insert: AdvisoryBffEventTypes.USER_INTERACTION_CREATED,
           modify: AdvisoryBffEventTypes.USER_INTERACTION_UPDATED,
