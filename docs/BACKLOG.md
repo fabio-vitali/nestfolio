@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [design] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging. Promoted 2026-05-09 to deliver in-flight UX with full BFF state-completeness (advisory-bff + dashboard-bff both project the in-flight state).
 
 ## QUEUED
 
-1. [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [bug] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging.
-2. [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
+1. [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 
 ## LATER
 
