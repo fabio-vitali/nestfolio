@@ -53,6 +53,9 @@ describe('DecisionListComponent', () => {
       getPendingDecisions: jest.fn().mockResolvedValue(mockItems),
       subscribeToDecisionListUpdates: jest.fn(),
       unsubscribeFromDecisionListUpdates: jest.fn(),
+      getAdvisoryStatus: jest.fn().mockResolvedValue(null),
+      subscribeToAdvisoryStatusUpdates: jest.fn(),
+      unsubscribeFromAdvisoryStatusUpdates: jest.fn(),
     } as unknown as jest.Mocked<AdvisoryService>;
 
     await TestBed.configureTestingModule({
@@ -143,6 +146,15 @@ describe('DecisionListComponent', () => {
     await component.ngOnInit();
 
     expect(advisoryService.subscribeToDecisionListUpdates).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.any(Function),
+    );
+  });
+
+  it('passes tenantId from authStore to subscribeToAdvisoryStatusUpdates', async () => {
+    await component.ngOnInit();
+
+    expect(advisoryService.subscribeToAdvisoryStatusUpdates).toHaveBeenCalledWith(
       'tenant-1',
       expect.any(Function),
     );
@@ -266,6 +278,7 @@ describe('DecisionListComponent', () => {
     component.ngOnDestroy();
 
     expect(advisoryService.unsubscribeFromDecisionListUpdates).toHaveBeenCalled();
+    expect(advisoryService.unsubscribeFromAdvisoryStatusUpdates).toHaveBeenCalled();
   });
 
   it('skips subscription when authStore has no tenantId (still issues query)', async () => {
@@ -288,6 +301,7 @@ describe('DecisionListComponent', () => {
     await f.componentInstance.ngOnInit();
 
     expect(advisoryService.subscribeToDecisionListUpdates).not.toHaveBeenCalled();
+    expect(advisoryService.subscribeToAdvisoryStatusUpdates).not.toHaveBeenCalled();
     expect(advisoryService.getPendingDecisions).toHaveBeenCalled();
   });
 });
