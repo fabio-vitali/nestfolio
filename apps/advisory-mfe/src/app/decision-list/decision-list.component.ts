@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
@@ -130,6 +130,19 @@ export class DecisionListComponent implements OnInit, OnDestroy {
   readonly loading = signal<boolean>(false);
   readonly loaded = signal<boolean>(false);
   readonly error = signal<string | null>(null);
+  readonly inFlightCount = signal<number>(0);
+  readonly lastTriggerAt = signal<string | null>(null);
+
+  private static readonly STALENESS_MS = 5 * 60 * 1000;
+
+  readonly displayedInFlightCount = computed(() => {
+    const c = this.inFlightCount();
+    if (c <= 0) return 0;
+    const last = this.lastTriggerAt();
+    if (!last) return 0;
+    const ageMs = Date.now() - new Date(last).getTime();
+    return ageMs < DecisionListComponent.STALENESS_MS ? c : 0;
+  });
 
   // Mirrors services/advisory/advisory-bff/src/graphql/js-function/get-pending-decisions.fn.js
   // — keep in sync if backend filter changes.
@@ -149,16 +162,27 @@ export class DecisionListComponent implements OnInit, OnDestroy {
 
     const tenantId = this.authStore.user()?.tenantId;
     if (tenantId) {
-      // Pattern B (R1): attach subscription BEFORE the query fires so any frame
-      // that arrives during query resolution is reconciled, not lost.
+      // Pattern B (R1): subscriptions BEFORE the queries fire so frames
+      // delivered during query resolution are not lost.
       this.advisoryService.subscribeToDecisionListUpdates(tenantId, (frame) =>
         this.reconcile(frame),
       );
+      this.advisoryService.subscribeToAdvisoryStatusUpdates(tenantId, (snapshot) => {
+        this.inFlightCount.set(snapshot.inFlightCount);
+        this.lastTriggerAt.set(snapshot.lastTriggerAt);
+      });
     }
 
     try {
-      const items = await this.advisoryService.getPendingDecisions();
+      const [items, status] = await Promise.all([
+        this.advisoryService.getPendingDecisions(),
+        this.advisoryService.getAdvisoryStatus(),
+      ]);
       this.decisions.set(items);
+      if (status) {
+        this.inFlightCount.set(status.inFlightCount);
+        this.lastTriggerAt.set(status.lastTriggerAt);
+      }
       this.loaded.set(true);
     } catch (e: unknown) {
       this.error.set(parseError(e, 'errors.decision'));
@@ -169,6 +193,7 @@ export class DecisionListComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.advisoryService.unsubscribeFromDecisionListUpdates();
+    this.advisoryService.unsubscribeFromAdvisoryStatusUpdates();
   }
 
   private reconcile(frame: Decision): void {
