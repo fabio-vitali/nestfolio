@@ -118,3 +118,61 @@ describe('decision-publisher', () => {
     expect(postAppSyncMutation).not.toHaveBeenCalled();
   });
 });
+
+describe('AdvisoryStatus broadcast', () => {
+  beforeEach(() => (postAppSyncMutation as jest.Mock).mockReset().mockResolvedValue(undefined));
+
+  it('publishes AdvisoryStatus changes via publishAdvisoryStatusUpdate mutation', async () => {
+    await handler(streamEvent({
+      eventName: 'MODIFY',
+      oldImage: {
+        pk: 'T#tenant-1',
+        sk: 'AdvisoryStatus',
+        __typename: 'AdvisoryStatus',
+        inFlightCount: 1,
+        lastTriggerAt: '2026-05-09T09:59:00.000Z',
+        updatedAt: '2026-05-09T09:59:00.000Z',
+      },
+      newImage: {
+        pk: 'T#tenant-1',
+        sk: 'AdvisoryStatus',
+        __typename: 'AdvisoryStatus',
+        inFlightCount: 2,
+        lastTriggerAt: '2026-05-09T10:00:00.000Z',
+        updatedAt: '2026-05-09T10:00:00.000Z',
+      },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    const call = (postAppSyncMutation as jest.Mock).mock.calls[0][0];
+    expect(call.mutation).toContain('publishAdvisoryStatusUpdate');
+    expect(call.variables).toMatchObject({
+      tenantId: 'tenant-1',
+      inFlightCount: 2,
+      lastTriggerAt: '2026-05-09T10:00:00.000Z',
+      updatedAt: '2026-05-09T10:00:00.000Z',
+    });
+  });
+
+  it('skips AdvisoryStatus MODIFY when inFlightCount and lastTriggerAt are unchanged', async () => {
+    await handler(streamEvent({
+      eventName: 'MODIFY',
+      oldImage: {
+        pk: 'T#tenant-1',
+        sk: 'AdvisoryStatus',
+        __typename: 'AdvisoryStatus',
+        inFlightCount: 2,
+        lastTriggerAt: '2026-05-09T10:00:00.000Z',
+        updatedAt: '2026-05-09T09:59:00.000Z',
+      },
+      newImage: {
+        pk: 'T#tenant-1',
+        sk: 'AdvisoryStatus',
+        __typename: 'AdvisoryStatus',
+        inFlightCount: 2,
+        lastTriggerAt: '2026-05-09T10:00:00.000Z',
+        updatedAt: '2026-05-09T10:00:00.000Z',
+      },
+    }), {} as never, () => {});
+    expect(postAppSyncMutation).not.toHaveBeenCalled();
+  });
+});

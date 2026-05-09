@@ -53,6 +53,29 @@ const PUBLISH_DECISION_UPDATE = `
   }
 `;
 
+const PUBLISH_ADVISORY_STATUS_UPDATE = `
+  mutation PublishAdvisoryStatusUpdate(
+    $tenantId: ID!
+    $inFlightCount: Int!
+    $lastTriggerAt: String
+    $updatedAt: String!
+  ) {
+    publishAdvisoryStatusUpdate(
+      tenantId: $tenantId
+      inFlightCount: $inFlightCount
+      lastTriggerAt: $lastTriggerAt
+      updatedAt: $updatedAt
+    ) {
+      tenantId
+      inFlightCount
+      lastTriggerAt
+      updatedAt
+    }
+  }
+`;
+
+const extractTenantFromPk = (pk: string): string => pk.startsWith('T#') ? pk.slice(2) : pk;
+
 export const handler = broadcastFromStream({
   serviceName: 'advisory-bff',
   appsyncUrl: APPSYNC_URL,
@@ -79,6 +102,16 @@ export const handler = broadcastFromStream({
         confirmedAt: typeof item['confirmedAt'] === 'string' ? item['confirmedAt'] : null,
         rejectedAt: typeof item['rejectedAt'] === 'string' ? item['rejectedAt'] : null,
         rejectionReason: typeof item['rejectionReason'] === 'string' ? item['rejectionReason'] : null,
+      }),
+    },
+    AdvisoryStatus: {
+      mutation: PUBLISH_ADVISORY_STATUS_UPDATE,
+      whenChanged: ['inFlightCount', 'lastTriggerAt'],
+      mapImage: (item) => ({
+        tenantId: extractTenantFromPk(String(item['pk'] ?? '')),
+        inFlightCount: Number(item['inFlightCount'] ?? 0),
+        lastTriggerAt: typeof item['lastTriggerAt'] === 'string' ? item['lastTriggerAt'] : null,
+        updatedAt: String(item['updatedAt'] ?? new Date().toISOString()),
       }),
     },
   },
