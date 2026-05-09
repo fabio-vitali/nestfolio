@@ -109,7 +109,9 @@ describe('market-intelligence-ctrl event-listener', () => {
     );
 
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('market signals sector trends');
-    expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
+    // Memory persistence is owned by the AgentRuntime — the Lambda's
+    // wrap-write was removed (single-writer Memory contract).
+    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
   });
 
   it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {

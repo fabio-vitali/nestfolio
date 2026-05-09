@@ -111,7 +111,9 @@ describe('portfolio-engine-ctrl event-listener', () => {
       'evt-1', // ctx.eventId
       expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1', operatingMode: 'BALANCED' }),
     );
-    expect(mockWriteAgentOutput).toHaveBeenCalledWith(expect.objectContaining({ decisionId: 'dp-1' }));
+    // Memory persistence is owned by the AgentRuntime — the Lambda's
+    // wrap-write was removed (single-writer Memory contract).
+    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
   });
 
   it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {

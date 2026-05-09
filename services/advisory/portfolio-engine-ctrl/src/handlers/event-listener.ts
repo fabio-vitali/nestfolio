@@ -87,7 +87,17 @@ export const createHandlers = (deps: SfnCallbackDeps) => {
         throw error;
       }
 
-      await session.writeAgentOutput(result);
+      // Memory persistence happens inside the AgentRuntime (graph.ts:173) —
+      // mirrors the investor-profile-ctrl pattern. The previous Lambda
+      // wrap-write created a parallel record in the same namespace with a
+      // transformed shape ({decisionId, allocations, trades, metadata}),
+      // which AgentCore did NOT dedupe via requestIdentifier even though both
+      // writes used the same key. AssemblePacket then read whichever record
+      // ListMemoryRecords returned at [0] — order-dependent flake. Removing
+      // the wrap-write leaves a single canonical record (the AgentRuntime's
+      // raw output keyed by node name) and AssemblePacket extracts from
+      // result['portfolio-construction'].allocations as the source of truth.
+      void result;
 
       return {
         output: { decisionId, tenantId },
