@@ -33,15 +33,15 @@ import type { Decision } from '../stores/advisory.store';
         [title]="i18n.t('advisory.list.errorTitle')"
         [message]="i18n.t(error()!)"
       />
-    } @else if (decisions().length === 0) {
-      <nf-empty-state
-        icon="pi pi-chart-line"
-        [title]="i18n.t('advisory.list.emptyTitle')"
-        [message]="i18n.t('advisory.list.emptyHint')"
-      />
-    } @else {
+    } @else if (decisions().length > 0) {
       <div class="decision-list" data-testid="advisory-decision-list">
         <h2 class="list-title">{{ i18n.t('advisory.list.title') }}</h2>
+        @if (displayedInFlightCount() > 0) {
+          <div class="generating-banner" data-testid="advisory-generating-banner">
+            <span class="pi pi-spin pi-spinner"></span>
+            {{ i18n.t('advisory.list.generatingMore', { count: displayedInFlightCount() }) }}
+          </div>
+        }
         <ul class="items">
           @for (d of decisions(); track d.decisionId) {
             <li class="item">
@@ -63,6 +63,20 @@ import type { Decision } from '../stores/advisory.store';
           }
         </ul>
       </div>
+    } @else if (displayedInFlightCount() > 0) {
+      <div data-testid="advisory-generating-state">
+        <nf-empty-state
+          icon="pi pi-spin pi-spinner"
+          [title]="i18n.t('advisory.list.generatingTitle')"
+          [message]="i18n.t('advisory.list.generatingHint')"
+        />
+      </div>
+    } @else {
+      <nf-empty-state
+        icon="pi pi-chart-line"
+        [title]="i18n.t('advisory.list.emptyTitle')"
+        [message]="i18n.t('advisory.list.emptyHint')"
+      />
     }
   `,
   styles: [
@@ -117,6 +131,21 @@ import type { Decision } from '../stores/advisory.store';
       .item-date {
         font-size: 0.75rem;
         color: var(--p-surface-500);
+      }
+      .generating-banner {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.5rem;
+        background: var(--p-surface-50);
+        border: 1px dashed var(--p-primary-300);
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: var(--p-surface-700);
+      }
+      .generating-banner .pi-spinner {
+        color: var(--p-primary-500);
       }
     `,
   ],
