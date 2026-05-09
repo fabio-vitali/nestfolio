@@ -4,7 +4,17 @@ import { advisoryStatus } from '../../../src/transforms/advisory-status';
 
 type TestUow = UnitOfWork<BusEvent<Record<string, unknown>>>;
 
-describe('advisoryStatus transform', () => {
+const TRIGGER_EVENTS = [
+  'INVESTOR_PROFILE_CREATED',
+  'INVESTOR_PROFILE_UPDATED',
+  'PORTFOLIO_DRIFT_DETECTED',
+  'ORDER_FILLED',
+  'ORDER_REJECTED',
+  'ORDER_CANCELLED',
+  'DEPOSIT_DETECTED',
+];
+
+describe('advisoryStatus transform (post-Phase-2)', () => {
   const makeUow = (eventType: string): TestUow => ({
     event: {
       id: 'e1',
@@ -17,27 +27,19 @@ describe('advisoryStatus transform', () => {
     record: {},
   }) as unknown as TestUow;
 
-  it('should increment pendingDecisions for DECISION_PACKET_CREATED', () => {
-    expect(advisoryStatus(makeUow('DECISION_PACKET_CREATED'))).toEqual(
-      accumulate('AdvisoryStatus', {
-        field: 'pendingDecisionsCount',
-        increment: 1,
-        overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' },
-      }),
-    );
+  TRIGGER_EVENTS.forEach((trigger) => {
+    it(`increments pendingDecisionsCount on ${trigger}`, () => {
+      expect(advisoryStatus(makeUow(trigger))).toEqual(
+        accumulate('AdvisoryStatus', {
+          field: 'pendingDecisionsCount',
+          increment: 1,
+          overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' },
+        }),
+      );
+    });
   });
 
-  it('should increment pendingDecisions for USER_CONFIRMATION_REQUESTED', () => {
-    expect(advisoryStatus(makeUow('USER_CONFIRMATION_REQUESTED'))).toEqual(
-      accumulate('AdvisoryStatus', {
-        field: 'pendingDecisionsCount',
-        increment: 1,
-        overrides: { pk: 'T#t1', sk: 'AdvisoryStatus' },
-      }),
-    );
-  });
-
-  it('should decrement pendingDecisions for DECISION_APPROVED', () => {
+  it('decrements on DECISION_APPROVED', () => {
     expect(advisoryStatus(makeUow('DECISION_APPROVED'))).toEqual(
       accumulate('AdvisoryStatus', {
         field: 'pendingDecisionsCount',
@@ -47,7 +49,7 @@ describe('advisoryStatus transform', () => {
     );
   });
 
-  it('should decrement pendingDecisions for DECISION_BLOCKED', () => {
+  it('decrements on DECISION_BLOCKED', () => {
     expect(advisoryStatus(makeUow('DECISION_BLOCKED'))).toEqual(
       accumulate('AdvisoryStatus', {
         field: 'pendingDecisionsCount',
@@ -57,7 +59,15 @@ describe('advisoryStatus transform', () => {
     );
   });
 
-  it('should return undefined for unknown event types', () => {
+  it('does NOT increment on DECISION_PACKET_CREATED (replaced by trigger increment)', () => {
+    expect(advisoryStatus(makeUow('DECISION_PACKET_CREATED'))).toBeUndefined();
+  });
+
+  it('does NOT increment on USER_CONFIRMATION_REQUESTED (was double-count)', () => {
+    expect(advisoryStatus(makeUow('USER_CONFIRMATION_REQUESTED'))).toBeUndefined();
+  });
+
+  it('returns undefined for unknown event types', () => {
     expect(advisoryStatus(makeUow('UNKNOWN'))).toBeUndefined();
   });
 });
