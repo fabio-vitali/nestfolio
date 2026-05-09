@@ -98,6 +98,7 @@ export class InvestorAdptStack extends ServiceStack {
       InvestorIngestEventTypes.LEDGER_ENTRY_RECORDED,
       InvestorIngestEventTypes.RECONCILIATION_COMPLETED,
       InvestorIngestEventTypes.LEDGER_PROCESSING_FAILED,
+      InvestorIngestEventTypes.PORTFOLIO_DRIFT_DETECTED,
     ];
     const fromLedgerRule = new Rule(this, 'InvestorIngress-FromLedger', {
       eventBus: ledgerBus,
