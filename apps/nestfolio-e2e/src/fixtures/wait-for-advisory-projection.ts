@@ -77,7 +77,13 @@ export async function waitForAdvisoryDecisionRow(
       {},
       (result) => {
         const hasRow = (result.getPendingDecisions?.items?.length ?? 0) >= 1;
-        const inFlight = (result.getAdvisoryStatus?.inFlightCount ?? 0) >= 1;
+        // Both inFlightCount AND lastTriggerAt must be non-null: the advisory-bff
+        // handler issues two separate DDB writes (accumulate + update). The component's
+        // displayedInFlightCount() returns 0 if lastTriggerAt is null even when
+        // inFlightCount > 0, so we must wait for both writes to land.
+        const inFlight =
+          (result.getAdvisoryStatus?.inFlightCount ?? 0) >= 1 &&
+          result.getAdvisoryStatus?.lastTriggerAt != null;
         return hasRow || inFlight;
       },
       { timeoutMs: opts?.timeoutMs ?? 90_000, intervalMs: 2_000 },
