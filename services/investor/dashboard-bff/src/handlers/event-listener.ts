@@ -25,9 +25,9 @@ export function createHandlers() {
     [LedgerCrossDomainEventTypes.RECONCILIATION_COMPLETED]: (payload: EventPayload, ctx: EventContext) =>
       portfolioSummary(toUow(payload, ctx)),
     [AdvisoryCrossDomainEventTypes.DECISION_PACKET_CREATED]: (payload: EventPayload, ctx: EventContext) =>
-      advisoryStatus(toUow(payload, ctx)),
+      recentActivity(toUow(payload, ctx)),
     [AdvisoryCrossDomainEventTypes.USER_CONFIRMATION_REQUESTED]: (payload: EventPayload, ctx: EventContext) =>
-      advisoryStatus(toUow(payload, ctx)),
+      recentActivity(toUow(payload, ctx)),
     [AdvisoryCrossDomainEventTypes.DECISION_APPROVED]: (payload: EventPayload, ctx: EventContext) => [
       advisoryStatus(toUow(payload, ctx)),
       recentActivity(toUow(payload, ctx)),
@@ -38,14 +38,29 @@ export function createHandlers() {
     ],
     [LedgerCrossDomainEventTypes.LEDGER_ENTRY_RECORDED]: (payload: EventPayload, ctx: EventContext) =>
       timeTravelAvailability(toUow(payload, ctx)),
-    [InvestorBffEventTypes.INVESTOR_PROFILE_CREATED]: (payload: EventPayload, ctx: EventContext) =>
+    [InvestorBffEventTypes.INVESTOR_PROFILE_CREATED]: (payload: EventPayload, ctx: EventContext) => [
       investorSnapshot(toUow(payload, ctx)),
-    [InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED]: (payload: EventPayload, ctx: EventContext) =>
+      advisoryStatus(toUow(payload, ctx)),
+    ].filter((i): i is NonNullable<typeof i> => i != null),
+    [InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED]: (payload: EventPayload, ctx: EventContext) => [
       investorSnapshot(toUow(payload, ctx)),
-    [InvestorIngestEventTypes.DEPOSIT_DETECTED]: (payload: EventPayload, ctx: EventContext) =>
+      advisoryStatus(toUow(payload, ctx)),
+    ].filter((i): i is NonNullable<typeof i> => i != null),
+    [InvestorIngestEventTypes.DEPOSIT_DETECTED]: (payload: EventPayload, ctx: EventContext) => [
       recentActivity(toUow(payload, ctx)),
+      advisoryStatus(toUow(payload, ctx)),
+    ].filter((i): i is NonNullable<typeof i> => i != null),
     [InvestorIngestEventTypes.WITHDRAWAL_COMPLETED]: (payload: EventPayload, ctx: EventContext) =>
       recentActivity(toUow(payload, ctx)),
+    // Phase 2 — additional triggers for in-flight projection
+    [InvestorIngestEventTypes.ORDER_FILLED]: (payload: EventPayload, ctx: EventContext) =>
+      advisoryStatus(toUow(payload, ctx)),
+    [InvestorIngestEventTypes.ORDER_REJECTED]: (payload: EventPayload, ctx: EventContext) =>
+      advisoryStatus(toUow(payload, ctx)),
+    [InvestorIngestEventTypes.ORDER_CANCELLED]: (payload: EventPayload, ctx: EventContext) =>
+      advisoryStatus(toUow(payload, ctx)),
+    [InvestorIngestEventTypes.PORTFOLIO_DRIFT_DETECTED]: (payload: EventPayload, ctx: EventContext) =>
+      advisoryStatus(toUow(payload, ctx)),
   };
 }
 

@@ -5,10 +5,10 @@ import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import { InvestorIngestEventTypes } from '@nestfolio/investor-adpt/domain';
 
 describe('dashboard-bff event-listener', () => {
-  it('should export handlers for all 12 event types', () => {
+  it('should export handlers for all 16 event types', () => {
     const handlers = createHandlers();
 
-    expect(Object.keys(handlers)).toHaveLength(12);
+    expect(Object.keys(handlers)).toHaveLength(16);
 
     // Ledger events
     expect(handlers).toHaveProperty(LedgerCrossDomainEventTypes.BALANCE_UPDATED);
@@ -29,5 +29,11 @@ describe('dashboard-bff event-listener', () => {
     // Execution cross-domain events (via investor-adpt)
     expect(handlers).toHaveProperty(InvestorIngestEventTypes.DEPOSIT_DETECTED);
     expect(handlers).toHaveProperty(InvestorIngestEventTypes.WITHDRAWAL_COMPLETED);
+
+    // Phase 2 — in-flight projection triggers (via investor-adpt)
+    expect(handlers).toHaveProperty(InvestorIngestEventTypes.ORDER_FILLED);
+    expect(handlers).toHaveProperty(InvestorIngestEventTypes.ORDER_REJECTED);
+    expect(handlers).toHaveProperty(InvestorIngestEventTypes.ORDER_CANCELLED);
+    expect(handlers).toHaveProperty(InvestorIngestEventTypes.PORTFOLIO_DRIFT_DETECTED);
   });
 });
