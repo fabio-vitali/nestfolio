@@ -1,11 +1,15 @@
 ---
 id: non-investor-profile-trigger-operating-mode-lookup
-status: queued
-rank: 2
+status: active
 type: bug
-notes: "Non-INVESTOR_PROFILE_* SF triggers (DEPOSIT_DETECTED, ORDER_*, PORTFOLIO_DRIFT_DETECTED) reach investor-profile-ctrl without operatingMode."
+notes: "Non-INVESTOR_PROFILE_* SF triggers (DEPOSIT_DETECTED, ORDER_*, PORTFOLIO_DRIFT_DETECTED) reach investor-profile-ctrl without operatingMode. Promoted 2026-05-09 after rank-1 dropped — empirical evidence (50 dev SF executions: 27/50 fast-fail with UnknownOperatingModeError, 0 stuck on WaitForCompliance) shows this is THE blocker for non-PROFILE-triggered decision flows."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "INVESTOR_PROFILE_CREATED/UPDATED triggers (already work — 23/50 SUCCEEDED in dev sample today)"
+  - "e2e gate semantics changes (the e2e gate already passes on PROFILE-triggered packets; do not couple this fix to the gate)"
+  - "Removing the UnknownOperatingModeError throw (the explicit failure is the right contract — fix the upstream propagation)"
+  - "Broader trigger payload schema redesign (out-of-scope micro-refactor)"
+  - "SF state-machine restructure beyond a single lookup-step OR a single handler-side DDB read"
 spec: null
 plan: null
 topic_memory: []

@@ -6,14 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [non-investor-profile-trigger-operating-mode-lookup](backlog/non-investor-profile-trigger-operating-mode-lookup.md) [bug] — Non-INVESTOR_PROFILE_* SF triggers (DEPOSIT_DETECTED, ORDER_*, PORTFOLIO_DRIFT_DETECTED) reach investor-profile-ctrl without operatingMode. Promoted 2026-05-09 after rank-1 dropped — empirical evidence (50 dev SF executions: 27/50 fast-fail with UnknownOperatingModeError, 0 stuck on WaitForCompliance) shows this is THE blocker for non-PROFILE-triggered decision flows.
 
 ## QUEUED
 
-1. [decision-workflow-ctrl-sf-stuck-waitforcompliance](backlog/decision-workflow-ctrl-sf-stuck-waitforcompliance.md) [bug] — decision-workflow-ctrl SF starts but never completes — task token from compliance never callback. Blocks 3 of 4 failing e2e scenarios (11/12/13).
-2. [non-investor-profile-trigger-operating-mode-lookup](backlog/non-investor-profile-trigger-operating-mode-lookup.md) [bug] — Non-INVESTOR_PROFILE_* SF triggers (DEPOSIT_DETECTED, ORDER_*, PORTFOLIO_DRIFT_DETECTED) reach investor-profile-ctrl without operatingMode.
-3. [circuit-breaker-feature-flags-ui-gating](backlog/circuit-breaker-feature-flags-ui-gating.md) [bug] — scenario 14 e2e: getFeatureFlags stays all `enabled:true` after circuit breaker opens. UI never reflects the gated-mutation state.
+1. [circuit-breaker-feature-flags-ui-gating](backlog/circuit-breaker-feature-flags-ui-gating.md) [bug] — scenario 14 e2e: getFeatureFlags stays all `enabled:true` after circuit breaker opens. UI never reflects the gated-mutation state.
 
 ## LATER
 
