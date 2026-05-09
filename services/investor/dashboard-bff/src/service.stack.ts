@@ -39,6 +39,11 @@ export class DashboardBffStack extends ServiceStack {
         InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
         InvestorIngestEventTypes.DEPOSIT_DETECTED,
         InvestorIngestEventTypes.WITHDRAWAL_COMPLETED,
+        // Phase 2 — additional triggers for in-flight projection
+        InvestorIngestEventTypes.ORDER_FILLED,
+        InvestorIngestEventTypes.ORDER_REJECTED,
+        InvestorIngestEventTypes.ORDER_CANCELLED,
+        InvestorIngestEventTypes.PORTFOLIO_DRIFT_DETECTED,
       ],
     });
 
