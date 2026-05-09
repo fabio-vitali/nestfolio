@@ -8,7 +8,7 @@ import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discov
 import { MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { AdvisoryBffEventTypes } from './domain/events';
-import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
+import { DecisionWorkflowEventTypes, TRIGGER_EVENT_TYPES } from '@nestfolio/decision-workflow-ctrl/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
 
 export class AdvisoryBffStack extends ServiceStack {
@@ -25,6 +25,7 @@ export class AdvisoryBffStack extends ServiceStack {
         ComplianceEventTypes.DECISION_APPROVED,
         ComplianceEventTypes.DECISION_BLOCKED,
         DecisionWorkflowEventTypes.USER_CONFIRMATION_REQUESTED,
+        ...TRIGGER_EVENT_TYPES,
       ],
     });
 
