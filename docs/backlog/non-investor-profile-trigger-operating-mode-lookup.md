@@ -1,6 +1,7 @@
 ---
 id: non-investor-profile-trigger-operating-mode-lookup
-status: parking
+status: queued
+rank: 2
 type: bug
 notes: "Non-INVESTOR_PROFILE_* SF triggers (DEPOSIT_DETECTED, ORDER_*, PORTFOLIO_DRIFT_DETECTED) reach investor-profile-ctrl without operatingMode."
 references: []

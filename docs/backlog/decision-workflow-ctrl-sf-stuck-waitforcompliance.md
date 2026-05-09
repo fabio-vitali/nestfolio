@@ -1,6 +1,7 @@
 ---
 id: decision-workflow-ctrl-sf-stuck-waitforcompliance
-status: parking
+status: queued
+rank: 1
 type: bug
 notes: "decision-workflow-ctrl SF starts but never completes — task token from compliance never callback. Blocks 3 of 4 failing e2e scenarios (11/12/13)."
 references: []

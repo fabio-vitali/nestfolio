@@ -11,8 +11,9 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [decision-workflow-ctrl-sf-stuck-waitforcompliance](backlog/decision-workflow-ctrl-sf-stuck-waitforcompliance.md) [bug] — decision-workflow-ctrl SF starts but never completes — task token from compliance never callback. Blocks 3 of 4 failing e2e scenarios (11/12/13).
+2. [non-investor-profile-trigger-operating-mode-lookup](backlog/non-investor-profile-trigger-operating-mode-lookup.md) [bug] — Non-INVESTOR_PROFILE_* SF triggers (DEPOSIT_DETECTED, ORDER_*, PORTFOLIO_DRIFT_DETECTED) reach investor-profile-ctrl without operatingMode.
+3. [circuit-breaker-feature-flags-ui-gating](backlog/circuit-breaker-feature-flags-ui-gating.md) [bug] — scenario 14 e2e: getFeatureFlags stays all `enabled:true` after circuit breaker opens. UI never reflects the gated-mutation state.
 
 ## LATER
 
@@ -21,8 +22,6 @@ _(none)_
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [c4-frontend-representation](backlog/c4-frontend-representation.md) [tooling] — MFEs in C4 diagrams at C1 + C2 level (planned, not started).
 - [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md) [infra] — Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model.
-- [circuit-breaker-feature-flags-ui-gating](backlog/circuit-breaker-feature-flags-ui-gating.md) [bug] — scenario 14 e2e: getFeatureFlags stays all `enabled:true` after circuit breaker opens. UI never reflects the gated-mutation state.
-- [decision-workflow-ctrl-sf-stuck-waitforcompliance](backlog/decision-workflow-ctrl-sf-stuck-waitforcompliance.md) [bug] — decision-workflow-ctrl SF starts but never completes — task token from compliance never callback. Blocks 3 of 4 failing e2e scenarios (11/12/13).
 - [delete-deprecated-inject-advisory-update-fixture](backlog/delete-deprecated-inject-advisory-update-fixture.md) [refactor] — Delete @deprecated injectAdvisoryUpdate backdoor and migrate happy-path WSS sentinel test to a real-EB path.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md) [refactor] — Three callers — rule-of-three threshold; copies all do their own SigV4 setup.
@@ -32,7 +31,6 @@ _(none)_
 - [investor-adpt-legacy-event-name-entries-cleanup](backlog/investor-adpt-legacy-event-name-entries-cleanup.md) [refactor] — Remove unused InvestorCrossDomainEventTypes entries (GOAL_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED) from investor-adpt/src/domain/events.ts.
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
-- [non-investor-profile-trigger-operating-mode-lookup](backlog/non-investor-profile-trigger-operating-mode-lookup.md) [bug] — Non-INVESTOR_PROFILE_* SF triggers (DEPOSIT_DETECTED, ORDER_*, PORTFOLIO_DRIFT_DETECTED) reach investor-profile-ctrl without operatingMode.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [order-execution-flow-yaml-parse-error](backlog/order-execution-flow-yaml-parse-error.md) [bug] — flows/order-execution.flow.yaml line 154 fails YAML parse due to unquoted multi-colon string.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
