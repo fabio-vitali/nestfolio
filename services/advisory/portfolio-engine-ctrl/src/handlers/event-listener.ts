@@ -41,18 +41,33 @@ export const createHandlers = (deps: SfnCallbackDeps) => {
 
       const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
-      // Memory reads remain for the agent's full input context (goals,
-      // risk-assessment, market analysis, past rationale). These channels
-      // have higher tolerance for partial freshness than operatingMode does.
-      const [investorRecords, marketRecords, pastRationale] = await Promise.all([
+      // Memory reads still apply for the agent's full input context (goals,
+      // risk-assessment, market analysis, past rationale). AgentCore Memory
+      // has read-after-write eventual consistency on ListMemoryRecords
+      // (>40s window observed empirically). Retry with backoff so a freshly
+      // written investor-profile record from the prior SF stage is found
+      // before we invoke the agent with empty context. Tests can short-circuit
+      // by setting MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE to '0,0,0,0'.
+      // operatingMode is NOT gated on Memory — it comes via SF state above.
+      const [investorRecordsInitial, marketRecords, pastRationale] = await Promise.all([
         session.readUpstreamOutput('investor-profile'),
         session.readUpstreamOutput('market-intelligence'),
         session.searchLongTermMemory('allocation rationale decisions'),
       ]);
 
-      const investorProfile: Record<string, unknown> = investorRecords[0]?.content
+      let investorRecords = investorRecordsInitial;
+      let investorProfile: Record<string, unknown> = investorRecords[0]?.content
         ? JSON.parse(investorRecords[0].content)
         : {};
+      const retryDelays = (process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE
+        ?? '3000,5000,8000,12000')
+        .split(',').map((s) => parseInt(s.trim(), 10));
+      for (const delay of retryDelays) {
+        if (Object.keys(investorProfile).length > 0) break;
+        if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+        investorRecords = await session.readUpstreamOutput('investor-profile');
+        investorProfile = investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {};
+      }
 
       let result: Record<string, unknown>;
       try {

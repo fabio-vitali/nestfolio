@@ -19,6 +19,8 @@ jest.mock('../../src/repositories/decision-packet.repository', () => ({
 
 process.env.MEMORY_ID = 'mem-test';
 process.env.TABLE_NAME = 'test-table';
+// Short-circuit the Memory read-after-write retry waits in unit tests.
+process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE = '0,0,0,0';
 
 import { createAssemblePacketHandler } from '../../src/handlers/assemble-packet';
 

@@ -28,6 +28,8 @@ jest.mock('@nestfolio/event-processor', () => ({
 process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
 process.env.MEMORY_ID = 'mem-test';
+// Short-circuit the Memory read-after-write retry waits in unit tests.
+process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE = '0,0,0,0';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
@@ -167,6 +169,38 @@ describe('portfolio-engine-ctrl event-listener', () => {
 
     await expect(handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx)).rejects.toThrow(UnknownOperatingModeError);
     expect(mockRunPipeline).not.toHaveBeenCalled();
+  });
+
+  // Memory has >40s eventual-consistency on ListMemoryRecords. The Lambda
+  // retries until the upstream investor-profile record is non-empty. The agent
+  // gets degraded input (empty investorProfile) if reads return empty without
+  // retry — driving empty proposedTrades downstream.
+  it('retries readUpstreamOutput("investor-profile") when first read is empty and proceeds when retry returns content', async () => {
+    mockReadUpstreamOutput.mockImplementation(async (svc: string) => {
+      if (svc === 'market-intelligence') return [];
+      if (mockReadUpstreamOutput.mock.calls.filter((c) => c[0] === 'investor-profile').length <= 1) {
+        return [];
+      }
+      return [
+        { content: JSON.stringify({ 'user-goals': { goalType: 'GROWTH' }, 'risk-assessment': {} }) },
+      ];
+    });
+
+    const payload: EventPayload = {
+      subject: { tenantId: 't1', decisionId: 'dp-retry', taskToken: 'tok', operatingMode: 'CONSERVATIVE' },
+    };
+
+    await handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx);
+
+    const investorProfileCalls = mockReadUpstreamOutput.mock.calls.filter((c) => c[0] === 'investor-profile').length;
+    expect(investorProfileCalls).toBeGreaterThanOrEqual(2);
+    expect(mockRunPipeline).toHaveBeenCalledWith(
+      'evt-1',
+      expect.objectContaining({
+        operatingMode: 'CONSERVATIVE',
+        investorProfile: expect.objectContaining({ 'user-goals': { goalType: 'GROWTH' } }),
+      }),
+    );
   });
 
   it('passes operatingMode from subject through to runPipeline', async () => {

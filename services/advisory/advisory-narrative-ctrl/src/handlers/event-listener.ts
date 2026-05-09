@@ -39,13 +39,28 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
 
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
-    const [investorRecords, marketRecords, portfolioRecords, preferences, sessionHistory] = await Promise.all([
+    // Memory reads — AgentCore ListMemoryRecords has >40s eventual consistency
+    // window. Retry on the upstream `portfolio-engine` record (the most recent
+    // write in the chain — investor-profile/market-intelligence are typically
+    // converged by this stage). Tests short-circuit via the env override.
+    // operatingMode is NOT gated on Memory — it comes from subject above.
+    const [investorRecords, marketRecords, portfolioRecordsInitial, preferences, sessionHistory] = await Promise.all([
       session.readUpstreamOutput('investor-profile'),
       session.readUpstreamOutput('market-intelligence'),
       session.readUpstreamOutput('portfolio-engine'),
       session.searchLongTermMemory('narrative preferences communication style'),
       session.searchLongTermMemory('session summaries'),
     ]);
+
+    let portfolioRecords = portfolioRecordsInitial;
+    const retryDelays = (process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE
+      ?? '3000,5000,8000,12000')
+      .split(',').map((s) => parseInt(s.trim(), 10));
+    for (const delay of retryDelays) {
+      if (portfolioRecords[0]?.content) break;
+      if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+      portfolioRecords = await session.readUpstreamOutput('portfolio-engine');
+    }
 
     const investorProfile = investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {};
 

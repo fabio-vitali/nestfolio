@@ -30,9 +30,25 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
 
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
-    const [investorProfile, marketAnalysis, portfolio, narrative] = await Promise.all(
+    const [investorProfile, marketAnalysis, portfolioInitial, narrative] = await Promise.all(
       UPSTREAM_SERVICES.map((svc) => session.readUpstreamOutput(svc)),
     );
+
+    // AgentCore Memory ListMemoryRecords has >40s eventual-consistency window
+    // for fresh BatchCreateMemoryRecords writes. The `portfolio-engine` write
+    // is the most recent in the chain (just emitted by InvokePortfolioEngine →
+    // InvokeAdvisoryNarrative completes shortly before AssemblePacket runs).
+    // Retry on the portfolio record specifically — it drives proposedTrades.
+    // Tests short-circuit via MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE.
+    let portfolio = portfolioInitial;
+    const retryDelays = (process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE
+      ?? '3000,5000,8000,12000')
+      .split(',').map((s) => parseInt(s.trim(), 10));
+    for (const delay of retryDelays) {
+      if (portfolio[0]?.content) break;
+      if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+      portfolio = await session.readUpstreamOutput('portfolio-engine');
+    }
 
     const parse = (records: typeof investorProfile): Record<string, unknown> | null =>
       records[0]?.content ? JSON.parse(records[0].content) : null;
