@@ -19,6 +19,8 @@ jest.mock('../../src/repositories/decision-packet.repository', () => ({
 
 process.env.MEMORY_ID = 'mem-test';
 process.env.TABLE_NAME = 'test-table';
+// Short-circuit the Memory read-after-write retry waits in unit tests.
+process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE = '0,0,0,0';
 
 import { createAssemblePacketHandler } from '../../src/handlers/assemble-packet';
 
@@ -84,15 +86,21 @@ describe('assemble-packet handler', () => {
     );
   });
 
-  it('persists narrative.rationale onto the DecisionPacket as explanation (regression: empty .rationale broke e2e step 10)', async () => {
+  it('persists narrative.explainability.rationale onto the DecisionPacket as explanation (regression: empty .rationale broke e2e step 10)', async () => {
+    // AgentRuntime writes the orchestrator's raw output keyed by node name —
+    // see advisory-narrative graph.ts:132. The Lambda's wrap-write was removed
+    // (single-writer Memory contract). Explainability schema lives at
+    // `narrativeOutput.explainability` post-Phase-7.
     mockReadUpstream.mockImplementation((svc: string) => {
       if (svc === 'advisory-narrative') {
         return Promise.resolve([
           {
             content: JSON.stringify({
-              summary: 'short framing',
-              rationale: 'detailed reasoning behind the recommendation',
-              keyFactors: ['factor-1'],
+              explainability: {
+                summary: 'short framing',
+                rationale: 'detailed reasoning behind the recommendation',
+                keyFactors: ['factor-1'],
+              },
             }),
             score: 1,
             memoryRecordId: 'r-narr',
@@ -114,11 +122,11 @@ describe('assemble-packet handler', () => {
     );
   });
 
-  it('falls back to narrative.summary when rationale is missing', async () => {
+  it('falls back to narrative.explainability.summary when rationale is missing', async () => {
     mockReadUpstream.mockImplementation((svc: string) =>
       svc === 'advisory-narrative'
         ? Promise.resolve([
-            { content: JSON.stringify({ summary: 'fallback summary' }), score: 1, memoryRecordId: 'r-s' },
+            { content: JSON.stringify({ explainability: { summary: 'fallback summary' } }), score: 1, memoryRecordId: 'r-s' },
           ])
         : Promise.resolve([]),
     );
@@ -179,19 +187,18 @@ describe('assemble-packet handler', () => {
   });
 
   it('translates portfolio-engine allocations into proposedTrades', async () => {
-    // portfolio-engine handler writes its agent output as
-    // `{ decisionId, allocations: <PortfolioConstructionSchema>, trades: ..., metadata }`
-    // — see services/advisory/portfolio-engine-ctrl/src/agent-service.ts.
-    // assemble-packet must derive the assembler-shaped proposedTrades[] by
-    // mapping each PortfolioConstructionSchema.allocations[] entry. Phase 2
-    // added `assetClass` per allocation; assembler propagates it.
+    // AgentRuntime writes the orchestrator's raw output keyed by node name —
+    // see services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts:173.
+    // The Lambda's wrap-write was removed (single-writer Memory contract),
+    // so the PortfolioConstructionSchema lives at
+    // `portfolioOutput['portfolio-construction']`. Phase 2 added `assetClass`
+    // per allocation; assembler propagates it.
     mockReadUpstream.mockImplementation((svc: string) => {
       if (svc === 'portfolio-engine') {
         return Promise.resolve([
           {
             content: JSON.stringify({
-              decisionId: 'd-1',
-              allocations: {
+              'portfolio-construction': {
                 allocations: [
                   { instrument: 'AAPL', assetClass: 'EQUITY', targetWeight: 0.6, rationale: 'Growth' },
                   { instrument: 'BND', assetClass: 'FIXED_INCOME', targetWeight: 0.4, rationale: 'Ballast' },
@@ -201,8 +208,11 @@ describe('assemble-packet handler', () => {
                 riskMetrics: { concentrationRisk: 0.3, sectorDiversity: 0.7, largestPositionWeight: 0.6 },
                 confidence: 0.85,
               },
-              currentPositions: [{ ticker: 'MSFT', weight: 10 }],
-              metadata: { durationMs: 1000, modelTiers: ['opus'] },
+              'rebalance-planner': {
+                trades: [],
+                estimatedTurnover: 0.1,
+                confidence: 0.8,
+              },
             }),
             score: 1,
             memoryRecordId: 'r1',
@@ -223,7 +233,6 @@ describe('assemble-packet handler', () => {
       { symbol: 'AAPL', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 6_000_000, targetWeightPercent: 60, rationale: 'Growth' },
       { symbol: 'BND', assetClass: 'FIXED_INCOME', side: 'BUY', quantityOrAmountCents: 4_000_000, targetWeightPercent: 40, rationale: 'Ballast' },
     ]);
-    expect(result.currentPositions).toEqual([{ ticker: 'MSFT', weight: 10 }]);
     expect(result.portfolioValue).toBe(100_000);
     expect(result.riskScore).toBe(7);
   });

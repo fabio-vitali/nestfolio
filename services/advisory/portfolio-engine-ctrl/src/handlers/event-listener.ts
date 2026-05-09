@@ -24,39 +24,49 @@ export const createHandlers = (deps: SfnCallbackDeps) => {
 
       logger.info('Processing CONSTRUCT_PORTFOLIO', { decisionId, tenantId });
 
+      // operatingMode is propagated through SF state from the prior
+      // InvokeInvestorProfile stage (subject.operatingMode is wired in
+      // decision-state-machine.ts via $.agentResults.InvokeInvestorProfile.operatingMode).
+      // Reading it from the event subject avoids the >40s AgentCore Memory
+      // ListMemoryRecords eventual-consistency window — see
+      // docs/backlog/agentcore-memory-list-records-eventual-consistency.md.
+      const operatingMode = subject.operatingMode as string | undefined;
+      if (!operatingMode) {
+        throw new UnknownOperatingModeError({
+          decisionId,
+          resolutionPath: 'subject.operatingMode (propagated by SF from InvokeInvestorProfile result)',
+          availableKeys: Object.keys(subject),
+        });
+      }
+
       const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
-      const [investorRecords, marketRecords, pastRationale] = await Promise.all([
+      // Memory reads still apply for the agent's full input context (goals,
+      // risk-assessment, market analysis, past rationale). AgentCore Memory
+      // has read-after-write eventual consistency on ListMemoryRecords
+      // (>40s window observed empirically). Retry with backoff so a freshly
+      // written investor-profile record from the prior SF stage is found
+      // before we invoke the agent with empty context. Tests can short-circuit
+      // by setting MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE to '0,0,0,0'.
+      // operatingMode is NOT gated on Memory — it comes via SF state above.
+      const [investorRecordsInitial, marketRecords, pastRationale] = await Promise.all([
         session.readUpstreamOutput('investor-profile'),
         session.readUpstreamOutput('market-intelligence'),
         session.searchLongTermMemory('allocation rationale decisions'),
       ]);
 
-      // AgentCore Memory has read-after-write eventual consistency on
-      // ListMemoryRecords (~10-30s lag observed empirically). Retry with
-      // backoff so a freshly-written investor-profile record from the prior
-      // SF stage is found before throwing. Tests can short-circuit by setting
-      // the MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE env to '0,0,0,0'.
+      let investorRecords = investorRecordsInitial;
       let investorProfile: Record<string, unknown> = investorRecords[0]?.content
         ? JSON.parse(investorRecords[0].content)
         : {};
-      let operatingMode = investorProfile.operatingMode as string | undefined;
       const retryDelays = (process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE
         ?? '3000,5000,8000,12000')
         .split(',').map((s) => parseInt(s.trim(), 10));
       for (const delay of retryDelays) {
-        if (operatingMode) break;
+        if (Object.keys(investorProfile).length > 0) break;
         if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
-        const refreshed = await session.readUpstreamOutput('investor-profile');
-        investorProfile = refreshed[0]?.content ? JSON.parse(refreshed[0].content) : {};
-        operatingMode = investorProfile.operatingMode as string | undefined;
-      }
-      if (!operatingMode) {
-        throw new UnknownOperatingModeError({
-          decisionId,
-          resolutionPath: "session.readUpstreamOutput('investor-profile')[0].content.operatingMode (after 4 retries)",
-          availableKeys: Object.keys(investorProfile),
-        });
+        investorRecords = await session.readUpstreamOutput('investor-profile');
+        investorProfile = investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {};
       }
 
       let result: Record<string, unknown>;
@@ -77,7 +87,17 @@ export const createHandlers = (deps: SfnCallbackDeps) => {
         throw error;
       }
 
-      await session.writeAgentOutput(result);
+      // Memory persistence happens inside the AgentRuntime (graph.ts:173) —
+      // mirrors the investor-profile-ctrl pattern. The previous Lambda
+      // wrap-write created a parallel record in the same namespace with a
+      // transformed shape ({decisionId, allocations, trades, metadata}),
+      // which AgentCore did NOT dedupe via requestIdentifier even though both
+      // writes used the same key. AssemblePacket then read whichever record
+      // ListMemoryRecords returned at [0] — order-dependent flake. Removing
+      // the wrap-write leaves a single canonical record (the AgentRuntime's
+      // raw output keyed by node name) and AssemblePacket extracts from
+      // result['portfolio-construction'].allocations as the source of truth.
+      void result;
 
       return {
         output: { decisionId, tenantId },

@@ -5,7 +5,7 @@ import {
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-orchestrator';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError } from '@nestfolio/agent-orchestrator';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
 
 export interface SfnCallbackDeps {
@@ -22,9 +22,29 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
 
     logger.info('Processing GENERATE_NARRATIVE', { decisionId, tenantId });
 
+    // operatingMode is propagated through SF state from InvokeInvestorProfile
+    // (subject.operatingMode is wired in decision-state-machine.ts via
+    // $.agentResults.InvokeInvestorProfile.operatingMode). Reading it from the
+    // event subject avoids the >40s AgentCore Memory ListMemoryRecords
+    // eventual-consistency window — see
+    // docs/backlog/agentcore-memory-list-records-eventual-consistency.md.
+    const operatingMode = subject.operatingMode as string | undefined;
+    if (!operatingMode) {
+      throw new UnknownOperatingModeError({
+        decisionId,
+        resolutionPath: 'subject.operatingMode (propagated by SF from InvokeInvestorProfile result)',
+        availableKeys: Object.keys(subject),
+      });
+    }
+
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
-    const [investorRecords, marketRecords, portfolioRecords, preferences, sessionHistory] = await Promise.all([
+    // Memory reads — AgentCore ListMemoryRecords has >40s eventual consistency
+    // window. Retry on the upstream `portfolio-engine` record (the most recent
+    // write in the chain — investor-profile/market-intelligence are typically
+    // converged by this stage). Tests short-circuit via the env override.
+    // operatingMode is NOT gated on Memory — it comes from subject above.
+    const [investorRecords, marketRecords, portfolioRecordsInitial, preferences, sessionHistory] = await Promise.all([
       session.readUpstreamOutput('investor-profile'),
       session.readUpstreamOutput('market-intelligence'),
       session.readUpstreamOutput('portfolio-engine'),
@@ -32,10 +52,17 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
       session.searchLongTermMemory('session summaries'),
     ]);
 
+    let portfolioRecords = portfolioRecordsInitial;
+    const retryDelays = (process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE
+      ?? '3000,5000,8000,12000')
+      .split(',').map((s) => parseInt(s.trim(), 10));
+    for (const delay of retryDelays) {
+      if (portfolioRecords[0]?.content) break;
+      if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+      portfolioRecords = await session.readUpstreamOutput('portfolio-engine');
+    }
+
     const investorProfile = investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {};
-    // operatingMode wrapped at top level by investor-profile-ctrl (Phase 2).
-    // BALANCED default covers cold-cache + non-INVESTOR_PROFILE_* trigger paths.
-    const operatingMode = (investorProfile.operatingMode as string) ?? 'BALANCED';
 
     let result: Record<string, unknown>;
     try {
@@ -57,7 +84,12 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
       throw error;
     }
 
-    await session.writeAgentOutput(result);
+    // Memory persistence happens inside the AgentRuntime (graph.ts) — the
+    // previous Lambda wrap-write created a parallel record in the same
+    // namespace with a transformed shape that AgentCore did NOT dedupe via
+    // requestIdentifier. AssemblePacket then read whichever record came first
+    // — order-dependent flake. Mirrors investor-profile-ctrl pattern.
+    void result;
 
     return {
       output: { decisionId, tenantId },

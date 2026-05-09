@@ -64,8 +64,15 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
     // idempotency in BatchCreateMemoryRecordsCommand) is no longer needed.
     void result;
 
+    // Return operatingMode in the SF SendTaskSuccess output so downstream
+    // Task states (portfolio-engine, advisory-narrative) can read it from
+    // SF state (`$.agentResults.InvokeInvestorProfile.operatingMode`)
+    // without a Memory roundtrip. Closes the AgentCore Memory
+    // ListMemoryRecords eventual-consistency gap that previously blocked
+    // CONSERVATIVE+AGGRESSIVE e2e cases — see
+    // docs/backlog/agentcore-memory-list-records-eventual-consistency.md.
     return {
-      output: { decisionId, tenantId },
+      output: { decisionId, tenantId, operatingMode },
       intents: [record('AgentInvocation', { decisionId, tenantId, agentName: 'investor-profile' })],
     };
   },

@@ -99,7 +99,10 @@ describe('investor-profile-ctrl event-listener', () => {
 
     const result = await handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx);
 
-    expect(result.output).toEqual({ decisionId: 'dp-1', tenantId: 't1' });
+    // Output now carries operatingMode for downstream SF Task states to read
+    // (Option A — propagate via SF state to avoid the AgentCore Memory
+    // ListMemoryRecords eventual-consistency gap).
+    expect(result.output).toEqual({ decisionId: 'dp-1', tenantId: 't1', operatingMode: 'BALANCED' });
     expect(result.intents).toHaveLength(1);
 
     expect(mockRunPipeline).toHaveBeenCalledWith(

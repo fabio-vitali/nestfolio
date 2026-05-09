@@ -30,9 +30,25 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
 
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
-    const [investorProfile, marketAnalysis, portfolio, narrative] = await Promise.all(
+    const [investorProfile, marketAnalysis, portfolioInitial, narrative] = await Promise.all(
       UPSTREAM_SERVICES.map((svc) => session.readUpstreamOutput(svc)),
     );
+
+    // AgentCore Memory ListMemoryRecords has >40s eventual-consistency window
+    // for fresh BatchCreateMemoryRecords writes. The `portfolio-engine` write
+    // is the most recent in the chain (just emitted by InvokePortfolioEngine →
+    // InvokeAdvisoryNarrative completes shortly before AssemblePacket runs).
+    // Retry on the portfolio record specifically — it drives proposedTrades.
+    // Tests short-circuit via MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE.
+    let portfolio = portfolioInitial;
+    const retryDelays = (process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE
+      ?? '3000,5000,8000,12000')
+      .split(',').map((s) => parseInt(s.trim(), 10));
+    for (const delay of retryDelays) {
+      if (portfolio[0]?.content) break;
+      if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+      portfolio = await session.readUpstreamOutput('portfolio-engine');
+    }
 
     const parse = (records: typeof investorProfile): Record<string, unknown> | null =>
       records[0]?.content ? JSON.parse(records[0].content) : null;
@@ -48,15 +64,19 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     // correct degenerate behavior when agents haven't yet produced structured
     // output.
     //
-    // The portfolio-engine handler stores `result['portfolio-construction']`
-    // verbatim under the key `allocations`, so the actual PortfolioConstruction
-    // payload is at `portfolioOutput.allocations` (an object) and the array of
-    // target allocations is at `portfolioOutput.allocations.allocations`. Map
-    // each allocation to ProposedTrade shape per advisory-bff schema
+    // Single-writer Memory contract (post-Phase-7, this workstream): the
+    // AgentRuntime is the sole writer; the Lambda's redundant wrap-write was
+    // removed because AgentCore did not dedupe across writers despite a
+    // shared requestIdentifier. The portfolio-engine record now contains the
+    // orchestrator's raw output keyed by node name —
+    // `{portfolio-construction:{allocations,totalExposure,…},
+    //   rebalance-planner:{trades,…}}` — so the allocations array is at
+    // `portfolioOutput['portfolio-construction'].allocations`. Map each
+    // allocation to ProposedTrade shape per advisory-bff schema
     // (services/advisory/advisory-bff/src/schema.graphql:84). Phase 2 of the
     // operating-mode workstream made `assetClass` mandatory on the agent's
     // schema so the equityWeight derivation downstream is deterministic.
-    const construction = (portfolioOutput?.allocations as Record<string, unknown> | undefined) ?? {};
+    const construction = (portfolioOutput?.['portfolio-construction'] as Record<string, unknown> | undefined) ?? {};
     const allocationsArray = (construction.allocations as Array<Record<string, unknown>> | undefined) ?? [];
     const portfolioValue = (construction.totalExposure as number | undefined) ?? 0;
     const proposedTrades = allocationsArray.map((a) => {
@@ -74,17 +94,20 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     const riskScore = (investorProfileOutput?.riskScore as number | undefined) ?? 5;
 
     // The narrative agent's ExplainabilitySchema produces `rationale` (detailed
-    // reasoning) and `summary` (short framing). Map to the read model's
-    // `explanation` field — `rationale` first, fall back to `summary`. The
-    // final placeholder is defence-in-depth for the rare case where the upstream
-    // Memory read returns no record (e.g. transient AgentCore unavailability or
-    // an agent that ran but failed to persist its output). With the Memory client
-    // contract aligned (Spec 2 — direct record write + list-records read against
-    // the same /agent/{tenant}/decisions/{decisionId} namespace), this read
-    // returns the agent's structured output as the primary path.
+    // reasoning) and `summary` (short framing). The AgentRuntime writes its
+    // raw output keyed by node name — see
+    // services/advisory/advisory-narrative-ctrl/agents/advisory-narrative/graph.ts:132:
+    // `await session.writeAgentOutput({ explainability: shaped['explainability'].output })`
+    // — so the explainability schema lives at `narrativeOutput.explainability`.
+    // Map to the read model's `explanation` field — `rationale` first, fall
+    // back to `summary`. The final placeholder is defence-in-depth for the
+    // rare case where the upstream Memory read returns no record (e.g.
+    // transient AgentCore unavailability or an agent that ran but failed to
+    // persist its output).
+    const explainability = (narrativeOutput?.explainability as Record<string, unknown> | undefined) ?? {};
     const explanation =
-      (narrativeOutput?.rationale as string | undefined) ??
-      (narrativeOutput?.summary as string | undefined) ??
+      (explainability.rationale as string | undefined) ??
+      (explainability.summary as string | undefined) ??
       `Decision pending — the advisory narrative for this ${trigger} trigger has not been persisted yet.`;
 
     // Materialize the DecisionPacket row with the synthesized content. CDC on

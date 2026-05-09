@@ -39,7 +39,10 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
       throw error;
     }
 
-    await session.writeAgentOutput(result);
+    // Memory persistence happens inside the AgentRuntime (graph.ts) — the
+    // previous Lambda wrap-write created a parallel record that AgentCore
+    // did NOT dedupe via requestIdentifier. Mirrors investor-profile-ctrl.
+    void result;
 
     return {
       output: { decisionId, tenantId },
