@@ -1,6 +1,7 @@
 import { eventName } from '@nestfolio/event-types';
 
 export const AdvisoryBffEventTypes = {
+  ADVISORY_STATUS_UPDATED: eventName('ADVISORY_STATUS_UPDATED'),
   USER_CONFIRMED: eventName('USER_CONFIRMED'),
   USER_REJECTED: eventName('USER_REJECTED'),
   USER_VIEWED_EXPLANATION: eventName('USER_VIEWED_EXPLANATION'),
