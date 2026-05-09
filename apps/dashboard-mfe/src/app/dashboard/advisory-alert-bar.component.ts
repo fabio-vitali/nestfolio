@@ -10,7 +10,7 @@ import type { AdvisoryStatus } from '../stores/dashboard.store';
   standalone: true,
   imports: [CommonModule, RouterModule, ButtonModule],
   template: `
-    <div class="alert-bar">
+    <div class="alert-bar" data-testid="advisory-alert-bar">
       <div class="alert-content">
         <span class="pi pi-exclamation-triangle alert-icon"></span>
         <span class="alert-text">
