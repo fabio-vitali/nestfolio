@@ -417,4 +417,218 @@ describe('advisory-bff', () => {
       expect(event.detailType).toBe('USER_REJECTED');
     }, 120_000);
   });
+
+  // ── AdvisoryStatus in-flight projection ────────────────────────────
+
+  describe('AdvisoryStatus in-flight projection', () => {
+    it('trigger event → AdvisoryStatus row created with inFlightCount=1', async () => {
+      const pk = `T#${ctx.tenantId}`;
+
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DEPOSIT_DETECTED',
+        detail: { tenantId: ctx.tenantId },
+      });
+
+      // Wait until the AdvisoryStatus row exists with inFlightCount >= 1.
+      // accumulate() does an atomic ADD, so the row may be created by an earlier test in
+      // the same tenant context — assert >= 1 rather than == 1.
+      let item: Record<string, unknown> = {};
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        try {
+          item = await table.waitForItem({
+            table: 'advisory-bff',
+            pk,
+            sk: 'AdvisoryStatus',
+            timeoutMs: 5_000,
+          });
+          if (Number(item['inFlightCount']) >= 1) break;
+        } catch {
+          // item not yet present — keep polling
+        }
+        await new Promise(r => setTimeout(r, 2_000));
+      }
+
+      expect(item['__typename']).toBe('AdvisoryStatus');
+      expect(Number(item['inFlightCount'])).toBeGreaterThanOrEqual(1);
+    }, 120_000);
+
+    it('trigger then DECISION_PACKET_CREATED → inFlightCount decremented, DecisionReadModel exists', async () => {
+      // Use a unique decisionId so DecisionReadModel lookup is unambiguous.
+      const decisionId = `integ-inflight-${Date.now()}`;
+      const statusPk = `T#${ctx.tenantId}`;
+      const decisionPk = `Decision#${ctx.tenantId}#${decisionId}`;
+
+      // Step 1: emit a trigger — increments inFlightCount
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'ORDER_FILLED',
+        detail: { tenantId: ctx.tenantId },
+      });
+
+      // Step 2: wait until AdvisoryStatus row exists (may already exist from prior test)
+      let beforeCount = 0;
+      {
+        const d = Date.now() + 60_000;
+        while (Date.now() < d) {
+          try {
+            const s = await table.waitForItem({
+              table: 'advisory-bff',
+              pk: statusPk,
+              sk: 'AdvisoryStatus',
+              timeoutMs: 5_000,
+            });
+            beforeCount = Number(s['inFlightCount']);
+            if (beforeCount >= 1) break;
+          } catch {
+            // keep polling
+          }
+          await new Promise(r => setTimeout(r, 2_000));
+        }
+      }
+      expect(beforeCount).toBeGreaterThanOrEqual(1);
+
+      // Step 3: emit DECISION_PACKET_CREATED — decrements inFlightCount and creates DecisionReadModel
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+          trigger: 'ORDER_FILLED',
+          proposedTrades: [{ symbol: 'MSFT', action: 'BUY', quantity: 2 }],
+          explanation: 'In-flight projection integration test',
+          confirmationRequired: false,
+        },
+      });
+
+      // Step 4: poll until inFlightCount drops below beforeCount
+      let afterCount = beforeCount;
+      {
+        const d = Date.now() + 60_000;
+        while (Date.now() < d) {
+          try {
+            const s = await table.waitForItem({
+              table: 'advisory-bff',
+              pk: statusPk,
+              sk: 'AdvisoryStatus',
+              timeoutMs: 5_000,
+            });
+            afterCount = Number(s['inFlightCount']);
+            if (afterCount < beforeCount) break;
+          } catch {
+            // keep polling
+          }
+          await new Promise(r => setTimeout(r, 2_000));
+        }
+      }
+      expect(afterCount).toBeLessThan(beforeCount);
+
+      // Step 5: DecisionReadModel must also exist
+      await table.waitForItem({
+        table: 'advisory-bff',
+        pk: decisionPk,
+        sk: 'DecisionReadModel',
+        timeoutMs: 60_000,
+      });
+    }, 180_000);
+
+    it('two triggers + one PACKET → inFlightCount decremented by one from peak', async () => {
+      const decisionId = `integ-two-triggers-${Date.now()}`;
+      const statusPk = `T#${ctx.tenantId}`;
+
+      // Capture current inFlightCount before emitting anything
+      let baseCount = 0;
+      try {
+        const s = await table.waitForItem({
+          table: 'advisory-bff',
+          pk: statusPk,
+          sk: 'AdvisoryStatus',
+          timeoutMs: 5_000,
+        });
+        baseCount = Number(s['inFlightCount']);
+      } catch {
+        // row may not exist yet — treat as 0
+      }
+
+      // Emit two triggers
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DEPOSIT_DETECTED',
+        detail: { tenantId: ctx.tenantId },
+      });
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'ORDER_FILLED',
+        detail: { tenantId: ctx.tenantId },
+      });
+
+      // Wait until inFlightCount reaches at least baseCount + 2
+      const expectedPeak = baseCount + 2;
+      let peakCount = 0;
+      {
+        const d = Date.now() + 60_000;
+        while (Date.now() < d) {
+          try {
+            const s = await table.waitForItem({
+              table: 'advisory-bff',
+              pk: statusPk,
+              sk: 'AdvisoryStatus',
+              timeoutMs: 5_000,
+            });
+            peakCount = Number(s['inFlightCount']);
+            if (peakCount >= expectedPeak) break;
+          } catch {
+            // keep polling
+          }
+          await new Promise(r => setTimeout(r, 2_000));
+        }
+      }
+      expect(peakCount).toBeGreaterThanOrEqual(expectedPeak);
+
+      // Emit one DECISION_PACKET_CREATED — should decrement by 1
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+          trigger: 'DEPOSIT_DETECTED',
+          proposedTrades: [{ symbol: 'TSLA', action: 'BUY', quantity: 1 }],
+          explanation: 'Two-trigger integration test',
+          confirmationRequired: false,
+        },
+      });
+
+      // Poll until inFlightCount is exactly peakCount - 1
+      const expectedAfter = peakCount - 1;
+      let afterCount = peakCount;
+      {
+        const d = Date.now() + 60_000;
+        while (Date.now() < d) {
+          try {
+            const s = await table.waitForItem({
+              table: 'advisory-bff',
+              pk: statusPk,
+              sk: 'AdvisoryStatus',
+              timeoutMs: 5_000,
+            });
+            afterCount = Number(s['inFlightCount']);
+            if (afterCount <= expectedAfter) break;
+          } catch {
+            // keep polling
+          }
+          await new Promise(r => setTimeout(r, 2_000));
+        }
+      }
+      expect(afterCount).toBe(expectedAfter);
+    }, 180_000);
+  });
 });
