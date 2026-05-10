@@ -35,8 +35,9 @@ export class AdvisoryAdptStack extends ServiceStack {
       retentionPeriod: Duration.days(14),
       encryption: QueueEncryption.KMS_MANAGED,
     });
+    // INVESTOR_PROFILE_CREATED removed 2026-05-10 — zero advisoryBus consumers
+    // post-migration to ADVISORY_PIPELINE_READY-driven first decision.
     const fromInvestorEvents = [
-      AdvisoryIngestEventTypes.INVESTOR_PROFILE_CREATED,
       AdvisoryIngestEventTypes.INVESTOR_PROFILE_UPDATED,
       AdvisoryIngestEventTypes.MANDATE_ISSUED,
       AdvisoryIngestEventTypes.MANDATE_REVOKED,

@@ -23,10 +23,10 @@ describe('AdvisoryAdptStack', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({
         'detail-type': Match.arrayWith([
-          'INVESTOR_PROFILE_CREATED',
           'INVESTOR_PROFILE_UPDATED',
           'MANDATE_ISSUED',
           'MANDATE_REVOKED',
+          'OPERATING_MODE_CHANGED',
         ]),
       }),
     });

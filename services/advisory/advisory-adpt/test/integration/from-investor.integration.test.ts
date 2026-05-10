@@ -21,27 +21,6 @@ describe('advisory-adpt: Investor → Advisory forwarding', () => {
     await ctx.cleanup.runAll();
   }, 30_000);
 
-  it('should forward INVESTOR_PROFILE_CREATED from InvestorBus to AdvisoryBus', async () => {
-    const trap = new EventBusTrap(ctx);
-    await trap.deploy({
-      bus: 'advisory',
-      detailType: 'INVESTOR_PROFILE_CREATED',
-    });
-
-    await eb.putEvent({
-      bus: 'investor',
-      targetService: 'advisory-adpt',
-      detailType: 'INVESTOR_PROFILE_CREATED',
-      detail: {
-        investorProfileId: `integ-profile-${Date.now()}`,
-      },
-    });
-
-    const event = await trap.waitForEvent<BusEventPayload>();
-    expect(event.detailType).toBe('INVESTOR_PROFILE_CREATED');
-    expect(event.detail.context.tenantId).toBe(ctx.tenantId);
-  }, 60_000);
-
   it('should forward INVESTOR_PROFILE_UPDATED from InvestorBus to AdvisoryBus', async () => {
     const trap = new EventBusTrap(ctx);
     await trap.deploy({
