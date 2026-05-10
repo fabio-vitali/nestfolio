@@ -42,7 +42,7 @@ describe('DecisionWorkflowCtrlStack', () => {
     // The Orchestration construct now wires each trigger event directly to the SF
     // state machine via a separate EB Rule (one rule per event type).
     const expectedTriggers = [
-      'INVESTOR_PROFILE_CREATED',
+      'ADVISORY_PIPELINE_READY',
       'INVESTOR_PROFILE_UPDATED',
       'PORTFOLIO_DRIFT_DETECTED',
       'ORDER_FILLED',
@@ -63,7 +63,7 @@ describe('DecisionWorkflowCtrlStack', () => {
       const detailTypes = r.Properties?.EventPattern?.['detail-type'];
       if (!Array.isArray(detailTypes) || detailTypes.length !== 1) return false;
       return [
-        'INVESTOR_PROFILE_CREATED',
+        'ADVISORY_PIPELINE_READY',
         'INVESTOR_PROFILE_UPDATED',
         'PORTFOLIO_DRIFT_DETECTED',
         'ORDER_FILLED',
@@ -186,6 +186,41 @@ describe('DecisionWorkflowCtrlStack', () => {
   // so downstream Lambdas can read operatingMode from the event subject without
   // a Memory roundtrip. MergeParallelOutputs must lift it from the Parallel
   // result so the JSONPath resolves at runtime.
+  describe('MandateProjectorIngress', () => {
+    it('subscribes to MANDATE_ISSUED + OPERATING_MODE_CHANGED', () => {
+      template.hasResourceProperties('AWS::Events::Rule', {
+        EventPattern: Match.objectLike({
+          'detail-type': Match.arrayWith(['MANDATE_ISSUED', 'OPERATING_MODE_CHANGED']),
+        }),
+      });
+    });
+  });
+
+  describe('Egress emits ADVISORY_PIPELINE_READY on MandateSnapshot:INSERT', () => {
+    it('declares MandateSnapshot insert mapping in EVENT_TYPE_MAP env var', () => {
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Environment: Match.objectLike({
+          Variables: Match.objectLike({
+            EVENT_TYPE_MAP: Match.stringLikeRegexp('ADVISORY_PIPELINE_READY'),
+          }),
+        }),
+      });
+    });
+  });
+
+  describe('SF role has dynamodb:GetItem on State table', () => {
+    it('grants read', () => {
+      const policies = template.findResources('AWS::IAM::Policy');
+      const allStatements = Object.values(policies).flatMap(
+        (p: any) => p.Properties.PolicyDocument.Statement ?? [],
+      );
+      const actions = allStatements.flatMap((s: any) =>
+        Array.isArray(s.Action) ? s.Action : [s.Action],
+      );
+      expect(actions).toContain('dynamodb:GetItem');
+    });
+  });
+
   it('propagates operatingMode through SF state from InvokeInvestorProfile to downstream Tasks', () => {
     const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
     const definitionString = Object.values(stateMachines)[0]?.Properties?.DefinitionString;

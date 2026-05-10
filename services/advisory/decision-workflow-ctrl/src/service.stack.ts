@@ -11,6 +11,7 @@ import {
   TRIGGER_EVENT_TYPES,
   ALL_INBOUND_EVENT_TYPES,
   DecisionWorkflowEventTypes,
+  MANDATE_LIFECYCLE_EVENT_TYPES,
 } from './domain/events';
 import { NamingService, defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
 import { DecisionWorkflowDefinition } from './constructs/decision-state-machine';
@@ -139,6 +140,18 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     });
     orchestration.grantCallbackAccess(callbackIngress.handler);
 
+    // MandateProjectorIngress — projects MandateSnapshot rows so the SF can resolve
+    // operatingMode for ALL triggers via Direct DynamoDB GetItem (no Lambda).
+    const mandateProjectorIngress = new Ingress(this, 'MandateProjectorIngress', {
+      state,
+      eventTypes: [...MANDATE_LIFECYCLE_EVENT_TYPES],
+      entry: join(__dirname, 'handlers', 'mandate-projector.ts'),
+    });
+    void mandateProjectorIngress; // observability intentionally omitted — addObservability accepts only one ingress
+
+    // SF role: dynamodb:GetItem on the local State table for LookupMandateSnapshot.
+    state.getTable().grantReadData(orchestration.stateMachine);
+
     // --- Egress: CDC from DDB Streams ---
     const egress = new Egress(this, 'Egress', {
       state,
@@ -150,6 +163,10 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
         'AgentOutput': {
           insert: DecisionWorkflowEventTypes.AGENT_OUTPUT_CREATED,
           modify: DecisionWorkflowEventTypes.AGENT_OUTPUT_UPDATED,
+        },
+        'MandateSnapshot': {
+          insert: DecisionWorkflowEventTypes.ADVISORY_PIPELINE_READY,
+          // No modify entry — operatingMode changes do NOT re-trigger first decision.
         },
       },
     });
