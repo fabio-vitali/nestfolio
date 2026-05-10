@@ -44,6 +44,7 @@ export class DashboardBffStack extends ServiceStack {
         InvestorIngestEventTypes.ORDER_REJECTED,
         InvestorIngestEventTypes.ORDER_CANCELLED,
         InvestorIngestEventTypes.PORTFOLIO_DRIFT_DETECTED,
+        InvestorIngestEventTypes.ADVISORY_PIPELINE_READY,
       ],
     });
 

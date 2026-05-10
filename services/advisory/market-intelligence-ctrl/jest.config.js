@@ -14,6 +14,7 @@ module.exports = {
     '^@nestfolio/decision-workflow-ctrl/service$': '<rootDir>/../../advisory/decision-workflow-ctrl/src/domain/index.ts',
     '^@nestfolio/decision-workflow-ctrl/events$': '<rootDir>/../../advisory/decision-workflow-ctrl/src/domain/events.ts',
     '^@nestfolio/compliance-ctrl/service$': '<rootDir>/../../advisory/compliance-ctrl/src/domain/index.ts',
+    '^@nestfolio/investor-bff/events$': '<rootDir>/../../investor/investor-bff/src/domain/events.ts',
     '^@nestfolio/yahoo-finance-adpt/events$': '<rootDir>/../../advisory/yahoo-finance-adpt/src/domain/events.ts',
     '^@nestfolio/marketwatch-adpt/events$': '<rootDir>/../../advisory/marketwatch-adpt/src/domain/events.ts',
     '^@nestfolio/sec-edgar-adpt/events$': '<rootDir>/../../advisory/sec-edgar-adpt/src/domain/events.ts',
