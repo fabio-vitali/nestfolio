@@ -5,7 +5,7 @@ import { advisoryStatus } from '../../../src/transforms/advisory-status';
 type TestUow = UnitOfWork<BusEvent<Record<string, unknown>>>;
 
 const TRIGGER_EVENTS = [
-  'ADVISORY_PIPELINE_READY',
+  'MANDATE_SNAPSHOT_CREATED',
   'INVESTOR_PROFILE_UPDATED',
   'PORTFOLIO_DRIFT_DETECTED',
   'ORDER_FILLED',

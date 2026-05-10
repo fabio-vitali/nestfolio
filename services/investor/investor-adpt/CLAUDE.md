@@ -9,7 +9,7 @@ None (stateless adapter — EB Rule forwarding only)
 ## Cross-Domain Event Forwarding (Pull Model)
 - Advisory → Investor:
   Rule on advisoryBus → investorBus (DLQ: FromAdvisoryDLQ, 14-day retention, KMS encrypted)
-  Events: DECISION_PACKET_CREATED, USER_CONFIRMATION_REQUESTED, EXPLANATION_GENERATED, DECISION_APPROVED, DECISION_BLOCKED, ESCALATION_TRIGGERED, INCIDENT_DETECTED, INCIDENT_RESOLVED, ADVISORY_PIPELINE_READY (added 2026-05-10 — drives dashboard-bff pendingDecisionsCount)
+  Events: DECISION_PACKET_CREATED, USER_CONFIRMATION_REQUESTED, EXPLANATION_GENERATED, DECISION_APPROVED, DECISION_BLOCKED, ESCALATION_TRIGGERED, INCIDENT_DETECTED, INCIDENT_RESOLVED, MANDATE_SNAPSHOT_CREATED (added 2026-05-10 — drives dashboard-bff pendingDecisionsCount)
 
 - Execution → Investor:
   Rule on executionBus → investorBus (DLQ: FromExecutionDLQ, 14-day retention, KMS encrypted)

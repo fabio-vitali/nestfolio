@@ -5,7 +5,7 @@ import { decisionTriggerReceived } from '../../../src/transforms/decision-trigge
 type TestUow = UnitOfWork<BusEvent<{ tenantId: string }>>;
 
 const TRIGGER_EVENTS = [
-  'ADVISORY_PIPELINE_READY',
+  'MANDATE_SNAPSHOT_CREATED',
   'INVESTOR_PROFILE_UPDATED',
   'PORTFOLIO_DRIFT_DETECTED',
   'ORDER_FILLED',

@@ -42,7 +42,7 @@ describe('DecisionWorkflowCtrlStack', () => {
     // The Orchestration construct now wires each trigger event directly to the SF
     // state machine via a separate EB Rule (one rule per event type).
     const expectedTriggers = [
-      'ADVISORY_PIPELINE_READY',
+      'MANDATE_SNAPSHOT_CREATED',
       'INVESTOR_PROFILE_UPDATED',
       'PORTFOLIO_DRIFT_DETECTED',
       'ORDER_FILLED',
@@ -63,7 +63,7 @@ describe('DecisionWorkflowCtrlStack', () => {
       const detailTypes = r.Properties?.EventPattern?.['detail-type'];
       if (!Array.isArray(detailTypes) || detailTypes.length !== 1) return false;
       return [
-        'ADVISORY_PIPELINE_READY',
+        'MANDATE_SNAPSHOT_CREATED',
         'INVESTOR_PROFILE_UPDATED',
         'PORTFOLIO_DRIFT_DETECTED',
         'ORDER_FILLED',
@@ -196,12 +196,12 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
   });
 
-  describe('Egress emits ADVISORY_PIPELINE_READY on MandateSnapshot:INSERT', () => {
+  describe('Egress emits MANDATE_SNAPSHOT_CREATED on MandateSnapshot:INSERT', () => {
     it('declares MandateSnapshot insert mapping in EVENT_TYPE_MAP env var', () => {
       template.hasResourceProperties('AWS::Lambda::Function', {
         Environment: Match.objectLike({
           Variables: Match.objectLike({
-            EVENT_TYPE_MAP: Match.stringLikeRegexp('ADVISORY_PIPELINE_READY'),
+            EVENT_TYPE_MAP: Match.stringLikeRegexp('MANDATE_SNAPSHOT_CREATED'),
           }),
         }),
       });

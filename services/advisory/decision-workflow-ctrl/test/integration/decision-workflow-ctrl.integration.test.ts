@@ -13,14 +13,14 @@ import { SFNClient, ListExecutionsCommand } from '@aws-sdk/client-sfn';
  * decision-workflow-ctrl integration tests — direct EB → SF trigger paths.
  *
  * Handler groups tested:
- * 1. Direct EB → SF triggers (7): ADVISORY_PIPELINE_READY,
+ * 1. Direct EB → SF triggers (7): MANDATE_SNAPSHOT_CREATED,
  *    INVESTOR_PROFILE_UPDATED, PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED,
  *    ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED → SF execution started.
  * 2. MandateProjector ingress: MANDATE_ISSUED materialises a MandateSnapshot
- *    row in the local State table (subsequent CDC emits ADVISORY_PIPELINE_READY).
+ *    row in the local State table (subsequent CDC emits MANDATE_SNAPSHOT_CREATED).
  *
  * Post-2026-05-10 (operating-mode-lookup): INVESTOR_PROFILE_CREATED was
- * removed as an SF trigger, replaced by ADVISORY_PIPELINE_READY (the CDC of
+ * removed as an SF trigger, replaced by MANDATE_SNAPSHOT_CREATED (the CDC of
  * decision-workflow-ctrl's own MandateSnapshot:INSERT). The SF
  * unconditionally LookupMandateSnapshot via Direct DDB GetItem to resolve
  * operatingMode, eliminating the per-trigger payload-vs-projection branching.
@@ -114,9 +114,9 @@ describe('decision-workflow-ctrl', () => {
     await ctx.cleanup.runAll();
   }, 60_000);
 
-  // ── MANDATE_ISSUED → MandateSnapshot projection → ADVISORY_PIPELINE_READY → SF ──
+  // ── MANDATE_ISSUED → MandateSnapshot projection → MANDATE_SNAPSHOT_CREATED → SF ──
 
-  it('projects MandateSnapshot from MANDATE_ISSUED → emits ADVISORY_PIPELINE_READY → starts SF', async () => {
+  it('projects MandateSnapshot from MANDATE_ISSUED → emits MANDATE_SNAPSHOT_CREATED → starts SF', async () => {
     const userId = `integ-mandate-${Date.now()}`;
     const mandateId = `e2e-mandate-${Date.now()}`;
     const testStart = new Date();
@@ -143,7 +143,7 @@ describe('decision-workflow-ctrl', () => {
       timeoutMs: 30_000,
     });
 
-    // 2. CDC on that row's INSERT emits ADVISORY_PIPELINE_READY → SF starts.
+    // 2. CDC on that row's INSERT emits MANDATE_SNAPSHOT_CREATED → SF starts.
     const execution = await waitForSfExecution(sfn, {
       stateMachineArn,
       since: testStart,

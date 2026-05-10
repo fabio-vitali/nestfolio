@@ -199,31 +199,31 @@ export function withDecision(opts: {
  * scenarios should keep using `withDecision` for fast, deterministic seeding —
  * pick `withLiveDecision` only when verifying the AgentCore transport itself.
  *
- * Post-collapse (2026-05-10): the SF triggers on ADVISORY_PIPELINE_READY (CDC
+ * Post-collapse (2026-05-10): the SF triggers on MANDATE_SNAPSHOT_CREATED (CDC
  * of decision-workflow-ctrl-owned MandateSnapshot:INSERT) for first decisions,
  * or INVESTOR_PROFILE_UPDATED for re-decisions on profile edits. To get the
- * natural ADVISORY_PIPELINE_READY chain firing, this fixture publishes
+ * natural MANDATE_SNAPSHOT_CREATED chain firing, this fixture publishes
  * MANDATE_ISSUED (which the mandate-projector materialises into MandateSnapshot
- * → CDC → ADVISORY_PIPELINE_READY → SF). For re-decision triggers,
+ * → CDC → MANDATE_SNAPSHOT_CREATED → SF). For re-decision triggers,
  * INVESTOR_PROFILE_UPDATED is published directly.
  *
  * `expectedStatus` defaults to undefined (any packet counts). Set to
  * 'PENDING_CONFIRMATION' to verify the full L2 path through user_confirmation_requested.
  */
 export function withLiveDecision(opts?: {
-  trigger?: 'ADVISORY_PIPELINE_READY' | 'INVESTOR_PROFILE_UPDATED';
+  trigger?: 'MANDATE_SNAPSHOT_CREATED' | 'INVESTOR_PROFILE_UPDATED';
   operatingMode?: 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
   expectedStatus?: string;
   timeoutMs?: number;
   intervalMs?: number;
 }): Fixture {
   return async (_ctx, tenant, eb, bff) => {
-    const trigger = opts?.trigger ?? 'ADVISORY_PIPELINE_READY';
+    const trigger = opts?.trigger ?? 'MANDATE_SNAPSHOT_CREATED';
     const operatingMode = opts?.operatingMode ?? 'BALANCED';
-    if (trigger === 'ADVISORY_PIPELINE_READY') {
+    if (trigger === 'MANDATE_SNAPSHOT_CREATED') {
       // Natural chain: MANDATE_ISSUED → mandate-projector materialises a
       // MandateSnapshot row in decision-workflow-ctrl's local table →
-      // DDB-stream CDC emits ADVISORY_PIPELINE_READY → EB Rule starts the SF.
+      // DDB-stream CDC emits MANDATE_SNAPSHOT_CREATED → EB Rule starts the SF.
       // The SF unconditionally LookupMandateSnapshot via Direct DDB GetItem,
       // synthesizes investorProfile = { operatingMode }, and proceeds through
       // the 4-agent pipeline → DECISION_PACKET_CREATED → advisory-bff.

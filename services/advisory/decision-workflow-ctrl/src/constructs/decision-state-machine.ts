@@ -344,7 +344,7 @@ export class DecisionWorkflowDefinition extends Construct {
     });
 
     // Single-path operatingMode resolution. Every trigger event reaches this state
-    // — payload-vs-projection branching is gone. ADVISORY_PIPELINE_READY is the
+    // — payload-vs-projection branching is gone. MANDATE_SNAPSHOT_CREATED is the
     // CDC of THIS service's own MandateSnapshot:INSERT, so by the time the SF
     // starts the row is committed (read-your-write within service). For
     // INVESTOR_PROFILE_UPDATED + non-PROFILE triggers (DEPOSIT_DETECTED etc.),

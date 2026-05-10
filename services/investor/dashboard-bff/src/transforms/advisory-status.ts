@@ -2,7 +2,7 @@ import { accumulate, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
 const TRIGGER_TYPES = new Set<string>([
-  'ADVISORY_PIPELINE_READY',
+  'MANDATE_SNAPSHOT_CREATED',
   'INVESTOR_PROFILE_UPDATED',
   'PORTFOLIO_DRIFT_DETECTED',
   'ORDER_FILLED',

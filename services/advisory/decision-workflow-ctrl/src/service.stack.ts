@@ -166,7 +166,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
           modify: DecisionWorkflowEventTypes.AGENT_OUTPUT_UPDATED,
         },
         'MandateSnapshot': {
-          insert: DecisionWorkflowEventTypes.ADVISORY_PIPELINE_READY,
+          insert: DecisionWorkflowEventTypes.MANDATE_SNAPSHOT_CREATED,
           // No modify entry — operatingMode changes do NOT re-trigger first decision.
         },
       },

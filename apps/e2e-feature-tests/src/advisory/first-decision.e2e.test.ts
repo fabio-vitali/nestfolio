@@ -23,7 +23,7 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     tenant = await freshTenant(ctx);
     // Arm BEFORE any fixture — onboarded() publishes ONBOARDING_COMPLETED.
     // Subsequently withLiveDecision publishes MANDATE_ISSUED → mandate-projector
-    // materialises MandateSnapshot → CDC emits ADVISORY_PIPELINE_READY which
+    // materialises MandateSnapshot → CDC emits MANDATE_SNAPSHOT_CREATED which
     // is the SF trigger event for first decisions. We arm before applyFixtures
     // so any envelope in the window is captured and waitFor can filter by
     // correlationId.
@@ -37,7 +37,7 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     await ctx.cleanup.runAll();
   }, 60_000);
 
-  it('emits MANDATE_ISSUED → projection → ADVISORY_PIPELINE_READY drives the live advisory cycle through AgentCore and surfaces a decision', async () => {
+  it('emits MANDATE_ISSUED → projection → MANDATE_SNAPSHOT_CREATED drives the live advisory cycle through AgentCore and surfaces a decision', async () => {
     const result = await applyFixtures(ctx, tenant, [
       withLiveDecision(),
     ]);

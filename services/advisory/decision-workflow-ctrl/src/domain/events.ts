@@ -14,14 +14,14 @@ export const DecisionWorkflowEventTypes = {
   DECISION_WORKFLOW_FAILED: eventName('DECISION_WORKFLOW_FAILED'),
   AGENT_OUTPUT_CREATED: eventName('AGENT_OUTPUT_CREATED'),
   AGENT_OUTPUT_UPDATED: eventName('AGENT_OUTPUT_UPDATED'),
-  ADVISORY_PIPELINE_READY: eventName('ADVISORY_PIPELINE_READY'),
+  MANDATE_SNAPSHOT_CREATED: eventName('MANDATE_SNAPSHOT_CREATED'),
 } as const;
 
-// SF triggers. INVESTOR_PROFILE_CREATED removed: replaced by ADVISORY_PIPELINE_READY
+// SF triggers. INVESTOR_PROFILE_CREATED removed: replaced by MANDATE_SNAPSHOT_CREATED
 // (CDC of decision-workflow-ctrl-owned MandateSnapshot:INSERT — guarantees the
 // projection is committed before the SF starts → SF unconditionally LookupMandateSnapshot).
 export const TRIGGER_EVENT_TYPES = [
-  eventName('ADVISORY_PIPELINE_READY'),
+  eventName('MANDATE_SNAPSHOT_CREATED'),
   eventName('INVESTOR_PROFILE_UPDATED'),
   eventName('PORTFOLIO_DRIFT_DETECTED'),
   eventName('ORDER_FILLED'),

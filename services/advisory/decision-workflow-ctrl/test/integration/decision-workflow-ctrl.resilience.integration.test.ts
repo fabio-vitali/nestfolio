@@ -28,7 +28,7 @@ import {
 // "task already resolved" (libs/event-processor/src/pipelines/
 // resume-state-machine.ts:48-57). The DDB write happens regardless.
 //
-// NOT tested: trigger events that start SF executions (ADVISORY_PIPELINE_READY,
+// NOT tested: trigger events that start SF executions (MANDATE_SNAPSHOT_CREATED,
 // INVESTOR_PROFILE_UPDATED, etc.). Those run a separate path tested in the
 // main integration suite, and SF-start idempotency for AWS at-least-once
 // redelivery is a LOW-priority known gap (see BACKLOG PARKING LOT, 2026-05-03).

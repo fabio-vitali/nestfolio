@@ -14,7 +14,7 @@ None (stateless adapter -- EB Rule forwarding only)
 Rule on InvestorBus -> AdvisoryBus (DLQ: FromInvestorDLQ, 14-day retention, KMS encrypted)
 Events (4): INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED
 
-The carrier (INVESTOR_PROFILE_UPDATED) is forwarded for decision-workflow-ctrl re-decision triggers. MANDATE_ISSUED + OPERATING_MODE_CHANGED feed decision-workflow-ctrl's MandateProjectorIngress (operating-mode-lookup, 2026-05-10). MANDATE_REVOKED + OPERATING_MODE_CHANGED feed compliance-ctrl. INVESTOR_PROFILE_CREATED was dropped 2026-05-10 — zero advisoryBus consumers post-migration to ADVISORY_PIPELINE_READY-driven first decision.
+The carrier (INVESTOR_PROFILE_UPDATED) is forwarded for decision-workflow-ctrl re-decision triggers. MANDATE_ISSUED + OPERATING_MODE_CHANGED feed decision-workflow-ctrl's MandateProjectorIngress (operating-mode-lookup, 2026-05-10). MANDATE_REVOKED + OPERATING_MODE_CHANGED feed compliance-ctrl. INVESTOR_PROFILE_CREATED was dropped 2026-05-10 — zero advisoryBus consumers post-migration to MANDATE_SNAPSHOT_CREATED-driven first decision.
 
 ### Execution -> Advisory
 Rule on ExecutionBus -> AdvisoryBus (DLQ: FromExecutionDLQ, 14-day retention, KMS encrypted)

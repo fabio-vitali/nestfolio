@@ -9,13 +9,13 @@ Stack: services/investor/dashboard-bff/src/service.stack.ts
 ## Ingress
 - investorBus → dashboard-bff-ingress (SQS → Lambda)
   Subscriptions: BALANCE_UPDATED, PORTFOLIO_UPDATED, RECONCILIATION_COMPLETED, DECISION_PACKET_CREATED, USER_CONFIRMATION_REQUESTED, DECISION_APPROVED, DECISION_BLOCKED, LEDGER_ENTRY_RECORDED, INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED
-  + Phase 2 additions: ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, PORTFOLIO_DRIFT_DETECTED, DEPOSIT_DETECTED, ADVISORY_PIPELINE_READY (added 2026-05-10)
+  + Phase 2 additions: ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, PORTFOLIO_DRIFT_DETECTED, DEPOSIT_DETECTED, MANDATE_SNAPSHOT_CREATED (added 2026-05-10)
 
-The post-collapse subscription list replaces the legacy 6 per-entity events (GOAL_*, RISK_PROFILE_*, OPERATING_MODE_*) with the 2 composite events. The investor-snapshot transform reads goal, riskProfile, and operatingMode from the composite payload of INVESTOR_PROFILE_CREATED / INVESTOR_PROFILE_UPDATED. INVESTOR_PROFILE_CREATED stays subscribed for InvestorSnapshot materialization but no longer increments pendingDecisionsCount — the trigger-counting transform now uses ADVISORY_PIPELINE_READY (the SF first-decision trigger).
+The post-collapse subscription list replaces the legacy 6 per-entity events (GOAL_*, RISK_PROFILE_*, OPERATING_MODE_*) with the 2 composite events. The investor-snapshot transform reads goal, riskProfile, and operatingMode from the composite payload of INVESTOR_PROFILE_CREATED / INVESTOR_PROFILE_UPDATED. INVESTOR_PROFILE_CREATED stays subscribed for InvestorSnapshot materialization but no longer increments pendingDecisionsCount — the trigger-counting transform now uses MANDATE_SNAPSHOT_CREATED (the SF first-decision trigger).
 
 ## Transforms
 - advisory-status.ts — maintains AdvisoryStatus.pendingDecisionsCount:
-  - Increments (+1) on trigger events: ADVISORY_PIPELINE_READY, INVESTOR_PROFILE_UPDATED, PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED
+  - Increments (+1) on trigger events: MANDATE_SNAPSHOT_CREATED, INVESTOR_PROFILE_UPDATED, PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED
   - Decrements (−1) on DECISION_APPROVED, DECISION_BLOCKED
   - DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED no longer affect pendingDecisionsCount (repurposed to recent-activity.ts)
 - recent-activity.ts — dispatches DECISION_PACKET_CREATED and USER_CONFIRMATION_REQUESTED to the activity feed (phase 2 dispatch)

@@ -44,7 +44,7 @@ export class InvestorAdptStack extends ServiceStack {
       InvestorIngestEventTypes.ESCALATION_TRIGGERED,
       InvestorIngestEventTypes.INCIDENT_DETECTED,
       InvestorIngestEventTypes.INCIDENT_RESOLVED,
-      InvestorIngestEventTypes.ADVISORY_PIPELINE_READY,
+      InvestorIngestEventTypes.MANDATE_SNAPSHOT_CREATED,
     ];
     const fromAdvisoryRule = new Rule(this, 'InvestorIngress-FromAdvisory', {
       eventBus: advisoryBus,
