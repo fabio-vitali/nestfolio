@@ -199,50 +199,78 @@ export function withDecision(opts: {
  * scenarios should keep using `withDecision` for fast, deterministic seeding —
  * pick `withLiveDecision` only when verifying the AgentCore transport itself.
  *
- * Post-collapse (2026-05-03): the SF triggers on INVESTOR_PROFILE_CREATED /
- * INVESTOR_PROFILE_UPDATED — the single composite-row CDC event that replaced
- * the per-entity GOAL_/RISK_PROFILE_/MANDATE_/OPERATING_MODE_* fan-out.
+ * Post-collapse (2026-05-10): the SF triggers on ADVISORY_PIPELINE_READY (CDC
+ * of decision-workflow-ctrl-owned MandateSnapshot:INSERT) for first decisions,
+ * or INVESTOR_PROFILE_UPDATED for re-decisions on profile edits. To get the
+ * natural ADVISORY_PIPELINE_READY chain firing, this fixture publishes
+ * MANDATE_ISSUED (which the mandate-projector materialises into MandateSnapshot
+ * → CDC → ADVISORY_PIPELINE_READY → SF). For re-decision triggers,
+ * INVESTOR_PROFILE_UPDATED is published directly.
  *
  * `expectedStatus` defaults to undefined (any packet counts). Set to
  * 'PENDING_CONFIRMATION' to verify the full L2 path through user_confirmation_requested.
  */
 export function withLiveDecision(opts?: {
-  trigger?: 'INVESTOR_PROFILE_CREATED' | 'INVESTOR_PROFILE_UPDATED';
+  trigger?: 'ADVISORY_PIPELINE_READY' | 'INVESTOR_PROFILE_UPDATED';
+  operatingMode?: 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
   expectedStatus?: string;
   timeoutMs?: number;
   intervalMs?: number;
 }): Fixture {
   return async (_ctx, tenant, eb, bff) => {
-    const trigger = opts?.trigger ?? 'INVESTOR_PROFILE_CREATED';
-    // Publish directly on the advisory bus targeting decision-workflow-ctrl —
-    // it materialises a workflow-trigger row whose CDC starts the SF (Phase 2
-    // wired this directly: EB Rule on the trigger row's insert event →
-    // SF.start). The SF then drives the 4-agent pipeline →
-    // DECISION_PACKET_CREATED → advisory-bff materialisation.
-    // decisionId is keyed on ctx.eventId, so it also matches the correlationId
-    // emitted by every agent trace envelope in the SF chain.
-    await eb.putEvent({
-      bus: 'advisory',
-      targetService: 'decision-workflow-ctrl',
-      detailType: trigger,
-      detail: {
-        tenantId: tenant.tenantId,
-        userId: tenant.userId,
-        operatingMode: 'BALANCED',
-        accountMode: { mode: 'simulation', capitalAmount: 100_000, currency: 'USD' },
-        goal: { objective: 'GROWTH', targetAmountCents: 1_000_000, currency: 'USD', timeHorizonMonths: 120, targetReturn: 0.07 },
-        riskProfile: { score: 7, band: { minEquity: 0.5, maxEquity: 0.8 }, toleranceResponse: 'MEDIUM', experienceLevel: 'INTERMEDIATE' },
-        mandate: {
+    const trigger = opts?.trigger ?? 'ADVISORY_PIPELINE_READY';
+    const operatingMode = opts?.operatingMode ?? 'BALANCED';
+    if (trigger === 'ADVISORY_PIPELINE_READY') {
+      // Natural chain: MANDATE_ISSUED → mandate-projector materialises a
+      // MandateSnapshot row in decision-workflow-ctrl's local table →
+      // DDB-stream CDC emits ADVISORY_PIPELINE_READY → EB Rule starts the SF.
+      // The SF unconditionally LookupMandateSnapshot via Direct DDB GetItem,
+      // synthesizes investorProfile = { operatingMode }, and proceeds through
+      // the 4-agent pipeline → DECISION_PACKET_CREATED → advisory-bff.
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'decision-workflow-ctrl',
+        detailType: 'MANDATE_ISSUED',
+        detail: {
+          tenantId: tenant.tenantId,
+          userId: tenant.userId,
           mandateId: `e2e-mandate-${Date.now()}`,
           level: 'ADVISORY',
           status: 'ACTIVE',
+          operatingMode,
           monthlyTurnoverCapPercent: 10,
           maxSingleTradePercent: 5,
           rebalanceCadence: 'MONTHLY',
           effectiveDate: new Date().toISOString(),
         },
-      },
-    });
+      });
+    } else {
+      // Re-decision path: INVESTOR_PROFILE_UPDATED published directly. The
+      // MandateSnapshot projection is guaranteed materialised by then (an
+      // earlier MANDATE_ISSUED ran during onboarding).
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'decision-workflow-ctrl',
+        detailType: 'INVESTOR_PROFILE_UPDATED',
+        detail: {
+          tenantId: tenant.tenantId,
+          userId: tenant.userId,
+          operatingMode,
+          accountMode: { mode: 'simulation', capitalAmount: 100_000, currency: 'USD' },
+          goal: { objective: 'GROWTH', targetAmountCents: 1_000_000, currency: 'USD', timeHorizonMonths: 120, targetReturn: 0.07 },
+          riskProfile: { score: 7, band: { minEquity: 0.5, maxEquity: 0.8 }, toleranceResponse: 'MEDIUM', experienceLevel: 'INTERMEDIATE' },
+          mandate: {
+            mandateId: `e2e-mandate-${Date.now()}`,
+            level: 'ADVISORY',
+            status: 'ACTIVE',
+            monthlyTurnoverCapPercent: 10,
+            maxSingleTradePercent: 5,
+            rebalanceCadence: 'MONTHLY',
+            effectiveDate: new Date().toISOString(),
+          },
+        },
+      });
+    }
 
     const expectedStatus = opts?.expectedStatus;
     const result = await waitForGraphQL<DecisionHistoryResponse>(
