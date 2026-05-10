@@ -10,23 +10,23 @@ import {
 import { SFNClient, ListExecutionsCommand } from '@aws-sdk/client-sfn';
 
 /**
- * decision-workflow-ctrl integration tests — direct EB → SF trigger paths
- * (Phase 2 of InvestorProfile collapse).
+ * decision-workflow-ctrl integration tests — direct EB → SF trigger paths.
  *
  * Handler groups tested:
- * 1. Direct EB → SF triggers (7): INVESTOR_PROFILE_CREATED,
+ * 1. Direct EB → SF triggers (7): ADVISORY_PIPELINE_READY,
  *    INVESTOR_PROFILE_UPDATED, PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED,
  *    ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED → SF execution started.
+ * 2. MandateProjector ingress: MANDATE_ISSUED materialises a MandateSnapshot
+ *    row in the local State table (subsequent CDC emits ADVISORY_PIPELINE_READY).
  *
- * Phase 1 collapsed 6 fine-grained advisory inputs (MANDATE_CREATED,
- * GOAL_CREATED/UPDATED, RISK_PROFILE_CREATED/UPDATED, OPERATING_MODE_CHANGED)
- * into the composite INVESTOR_PROFILE_CREATED + INVESTOR_PROFILE_UPDATED
- * events emitted by investor-profile-svc. Phase 2 dropped the TriggerIngress
- * + WorkflowTrigger DDB row + WORKFLOW_TRIGGER_CREATED CDC step entirely:
- * each trigger event now starts the SF directly via a dedicated EB Rule.
+ * Post-2026-05-10 (operating-mode-lookup): INVESTOR_PROFILE_CREATED was
+ * removed as an SF trigger, replaced by ADVISORY_PIPELINE_READY (the CDC of
+ * decision-workflow-ctrl's own MandateSnapshot:INSERT). The SF
+ * unconditionally LookupMandateSnapshot via Direct DDB GetItem to resolve
+ * operatingMode, eliminating the per-trigger payload-vs-projection branching.
  *
  * Cross-domain triggers (PORTFOLIO_DRIFT_DETECTED + ORDER_* + DEPOSIT_DETECTED)
- * are unchanged from pre-Phase-2 — kept here as regression coverage.
+ * are unchanged — kept here as regression coverage.
  *
  * NOT tested here:
  *   CallbackIngress (sfn-callback.ts) — the resumeStateMachine pipeline requires
@@ -114,35 +114,83 @@ describe('decision-workflow-ctrl', () => {
     await ctx.cleanup.runAll();
   }, 60_000);
 
-  // ── INVESTOR_PROFILE_CREATED ─────────────────────────────────────────
+  // ── MANDATE_ISSUED → MandateSnapshot projection → ADVISORY_PIPELINE_READY → SF ──
 
-  it('starts SF on INVESTOR_PROFILE_CREATED', async () => {
-    const userId = `integ-investor-${Date.now()}`;
+  it('projects MandateSnapshot from MANDATE_ISSUED → emits ADVISORY_PIPELINE_READY → starts SF', async () => {
+    const userId = `integ-mandate-${Date.now()}`;
+    const mandateId = `e2e-mandate-${Date.now()}`;
     const testStart = new Date();
 
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
-      detailType: 'INVESTOR_PROFILE_CREATED',
+      detailType: 'MANDATE_ISSUED',
       detail: {
-        userId,
         tenantId: ctx.tenantId,
-        mandate: {
-          riskTolerance: 'MODERATE',
-          investmentHorizon: 'LONG_TERM',
-          targetReturn: 0.08,
-        },
-        goal: {
-          goalType: 'RETIREMENT',
-          targetAmount: 1_000_000,
-          targetDate: '2050-01-01',
-        },
-        riskProfile: {
-          score: 7,
-          band: 'MODERATE',
-        },
+        userId,
+        mandateId,
+        level: 'ADVISORY',
         operatingMode: 'BALANCED',
-        createdAt: new Date().toISOString(),
+        effectiveDate: new Date().toISOString(),
+      },
+    });
+
+    // 1. The mandate-projector ingress materialises a MandateSnapshot row.
+    await table.waitForItem({
+      table: 'decision-workflow-ctrl',
+      pk: `MandateSnapshot#${ctx.tenantId}#${userId}`,
+      sk: 'MandateSnapshot',
+      timeoutMs: 30_000,
+    });
+
+    // 2. CDC on that row's INSERT emits ADVISORY_PIPELINE_READY → SF starts.
+    const execution = await waitForSfExecution(sfn, {
+      stateMachineArn,
+      since: testStart,
+      timeoutMs: 90_000,
+    });
+    expect(execution.executionArn).toContain('decisionstatemachine');
+  }, 180_000);
+
+  // ── Non-PROFILE trigger after projection: SF can resolve operatingMode ──
+
+  it('non-PROFILE trigger (DEPOSIT_DETECTED) starts SF after MandateSnapshot exists', async () => {
+    const userId = `integ-deposit-mandate-${Date.now()}`;
+    const mandateId = `e2e-mandate-${Date.now()}`;
+
+    // Project MandateSnapshot first so the SF's LookupMandateSnapshot can resolve operatingMode.
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'MANDATE_ISSUED',
+      detail: {
+        tenantId: ctx.tenantId,
+        userId,
+        mandateId,
+        level: 'ADVISORY',
+        operatingMode: 'AGGRESSIVE',
+        effectiveDate: new Date().toISOString(),
+      },
+    });
+    await table.waitForItem({
+      table: 'decision-workflow-ctrl',
+      pk: `MandateSnapshot#${ctx.tenantId}#${userId}`,
+      sk: 'MandateSnapshot',
+      timeoutMs: 30_000,
+    });
+
+    // Now the deposit trigger — the SF resolves operatingMode via Direct DDB GetItem.
+    const testStart = new Date();
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'DEPOSIT_DETECTED',
+      detail: {
+        depositId: `integ-deposit-${Date.now()}`,
+        tenantId: ctx.tenantId,
+        userId,
+        amount: 5000,
+        currency: 'USD',
       },
     });
 
