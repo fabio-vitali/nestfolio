@@ -12,9 +12,9 @@ None (stateless adapter -- EB Rule forwarding only)
 
 ### Investor -> Advisory
 Rule on InvestorBus -> AdvisoryBus (DLQ: FromInvestorDLQ, 14-day retention, KMS encrypted)
-Events (4): INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED
+Events (4): INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED, OPERATING_MODE_CHANGED
 
-The carrier (INVESTOR_PROFILE_UPDATED) is forwarded for decision-workflow-ctrl triggers. The lifecycle events (MANDATE_ISSUED, MANDATE_REVOKED) are forwarded for advisory-domain consumers. OPERATING_MODE_CHANGED and GOAL_UPDATED (semantic events) are NOT forwarded cross-domain — compliance-ctrl subscribes to them directly via its own InvestorBus Ingress. Down from 7 (legacy: GOAL_CREATED, GOAL_UPDATED, RISK_PROFILE_CREATED, RISK_PROFILE_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED).
+The carrier (INVESTOR_PROFILE_UPDATED) is forwarded for decision-workflow-ctrl re-decision triggers. MANDATE_ISSUED + OPERATING_MODE_CHANGED feed decision-workflow-ctrl's MandateProjectorIngress (operating-mode-lookup, 2026-05-10). MANDATE_REVOKED + OPERATING_MODE_CHANGED feed compliance-ctrl. INVESTOR_PROFILE_CREATED was dropped 2026-05-10 — zero advisoryBus consumers post-migration to ADVISORY_PIPELINE_READY-driven first decision.
 
 ### Execution -> Advisory
 Rule on ExecutionBus -> AdvisoryBus (DLQ: FromExecutionDLQ, 14-day retention, KMS encrypted)
@@ -51,7 +51,7 @@ INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVO
 ## Tests
 
 - `test/service.stack.test.ts` -- CDK snapshot assertions (3 rules, 3 DLQs, tags)
-- `test/integration/from-investor.integration.test.ts` -- INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED forwarding
+- `test/integration/from-investor.integration.test.ts` -- INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED forwarding
 - `test/integration/from-execution.integration.test.ts` -- execution event forwarding
 - `test/integration/from-ledger.integration.test.ts` -- ledger event forwarding
 
