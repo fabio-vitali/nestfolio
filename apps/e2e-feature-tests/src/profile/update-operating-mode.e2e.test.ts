@@ -131,8 +131,9 @@ describe('scenario — investor switches operatingMode CONSERVATIVE → AGGRESSI
     ddbDoc = DynamoDBDocumentClient.from(ddbClient);
 
     // Wait for initial MandateSnapshot (CONSERVATIVE) to materialize in compliance-ctrl.
-    // Chain: onboarding-completed → investor-bff CDC INVESTOR_PROFILE_CREATED →
-    //        advisory-adpt → AdvisoryBus → compliance-ctrl putMandateSnapshot.
+    // Chain: onboarding-completed → investor-bff CDC MANDATE_ISSUED →
+    //        compliance-ctrl ingress (direct subscription on InvestorBus) →
+    //        compliance-ctrl putMandateSnapshot.
     await waitForMandateSnapshotMode(ddbDoc, complianceTableName, tenant.tenantId, tenant.userId, 'CONSERVATIVE');
   }, 180_000);
 

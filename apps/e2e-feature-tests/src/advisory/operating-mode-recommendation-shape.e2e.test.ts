@@ -18,8 +18,12 @@ import { EventBridgeClient } from '@nestfolio/test-support';
  *
  * Flow per mode:
  *   1. onboarded({ operatingMode: <mode> }) — composite InvestorProfile row carries the mode.
- *   2. Inline INVESTOR_PROFILE_CREATED publish (we cannot reuse withLiveDecision —
- *      it hardcodes operatingMode=BALANCED at apps/e2e-feature-tests/src/helpers/fixtures.ts:231).
+ *   2. Inline MANDATE_ISSUED publish carrying the desired operatingMode — the
+ *      natural chain materialises a MandateSnapshot row in
+ *      decision-workflow-ctrl's local table → CDC emits ADVISORY_PIPELINE_READY →
+ *      SF starts and reads operatingMode via Direct DDB GetItem
+ *      (LookupMandateSnapshot). withLiveDecision could be used too with the
+ *      `operatingMode` option, but inline keeps the test self-contained.
  *   3. SF starts, runs the 4-agent pipeline (investor-profile → market-intelligence
  *      → portfolio-engine → advisory-narrative → assemble → compliance → end).
  *   4. Wait for advisory-bff getDecision to surface a packet with non-empty proposedTrades.
@@ -107,25 +111,22 @@ describe.each(CASES)('operating mode $mode — proposedTrades shape', (testCase)
   it(`agents respect ${testCase.mode} envelope`, async () => {
     const eb = new EventBridgeClient(ctx);
 
-    // Inline publish — see helper-doc note above for why we don't use withLiveDecision.
+    // Publish MANDATE_ISSUED with the desired operatingMode — the natural
+    // chain (mandate-projector → MandateSnapshot:INSERT → CDC →
+    // ADVISORY_PIPELINE_READY → SF) propagates operatingMode into the SF
+    // state via Direct DDB GetItem (LookupMandateSnapshot).
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
-      detailType: 'INVESTOR_PROFILE_CREATED',
+      detailType: 'MANDATE_ISSUED',
       detail: {
         tenantId: tenant.tenantId,
         userId: tenant.userId,
+        mandateId: `e2e-mandate-${Date.now()}`,
+        level: 'DISCRETIONARY',
+        status: 'ACTIVE',
         operatingMode: testCase.mode,
-        accountMode: { mode: 'simulation', capitalAmount: 100_000, currency: 'USD' },
-        goal: { objective: 'GROWTH', targetAmountCents: 1_000_000, currency: 'USD', timeHorizonMonths: 120, targetReturn: 0.07 },
-        riskProfile: { score: 7, band: { minEquity: 0.5, maxEquity: 0.8 }, toleranceResponse: 'MEDIUM', experienceLevel: 'INTERMEDIATE' },
-        mandate: {
-          mandateId: `e2e-mandate-${Date.now()}`,
-          level: 'DISCRETIONARY',
-          status: 'ACTIVE',
-          operatingMode: testCase.mode,
-          effectiveDate: new Date().toISOString(),
-        },
+        effectiveDate: new Date().toISOString(),
       },
     });
 

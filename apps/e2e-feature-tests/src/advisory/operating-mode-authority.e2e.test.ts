@@ -21,8 +21,8 @@ import {
  *   1. onboarded(mode, mandateLevel: 'DISCRETIONARY') → investor-bff writes the
  *      composite InvestorProfile row (operatingMode on the row) + sibling Mandate
  *      row (slim: mandateId, level, status, operatingMode, effectiveDate) → CDC
- *      emits INVESTOR_PROFILE_CREATED → advisory-adpt forwards to AdvisoryBus →
- *      compliance-ctrl materializes MandateSnapshot{level, status, operatingMode, effectiveDate}.
+ *      emits MANDATE_ISSUED → compliance-ctrl subscribes directly on InvestorBus
+ *      and materializes its own MandateSnapshot{level, status, operatingMode, effectiveDate}.
  *   2. Synthetic RECOMMENDATION_PROPOSED on advisory bus carrying a controlled
  *      proposedTrade size + a unique decisionPacketId + a fake taskToken.
  *   3. compliance-ctrl ingests, runs RuleEngine — guardrail thresholds are derived

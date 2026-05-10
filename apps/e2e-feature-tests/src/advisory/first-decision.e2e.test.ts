@@ -21,11 +21,12 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
   beforeEach(async () => {
     ctx = await createTestContext();
     tenant = await freshTenant(ctx);
-    // Arm BEFORE any fixture — onboarded() publishes ONBOARDING_COMPLETED
-    // which materialises the composite InvestorProfile row, whose insert CDC
-    // emits a single INVESTOR_PROFILE_CREATED — the only SF trigger event for
-    // the onboarding flow. We arm before applyFixtures so any envelope in the
-    // window is captured and waitFor can filter by correlationId.
+    // Arm BEFORE any fixture — onboarded() publishes ONBOARDING_COMPLETED.
+    // Subsequently withLiveDecision publishes MANDATE_ISSUED → mandate-projector
+    // materialises MandateSnapshot → CDC emits ADVISORY_PIPELINE_READY which
+    // is the SF trigger event for first decisions. We arm before applyFixtures
+    // so any envelope in the window is captured and waitFor can filter by
+    // correlationId.
     investorProfileTrap = await AgentTraceTrap.arm(ctx, 'investorProfile');
     advisoryNarrativeTrap = await AgentTraceTrap.arm(ctx, 'advisoryNarrative');
     marketIntelligenceTrap = await AgentTraceTrap.arm(ctx, 'marketIntelligence');
@@ -36,9 +37,9 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     await ctx.cleanup.runAll();
   }, 60_000);
 
-  it('INVESTOR_PROFILE_CREATED drives the live advisory cycle through AgentCore and surfaces a decision', async () => {
+  it('emits MANDATE_ISSUED → projection → ADVISORY_PIPELINE_READY drives the live advisory cycle through AgentCore and surfaces a decision', async () => {
     const result = await applyFixtures(ctx, tenant, [
-      withLiveDecision({ trigger: 'INVESTOR_PROFILE_CREATED' }),
+      withLiveDecision(),
     ]);
 
     expect(result['decisionId']).toEqual(expect.any(String));
