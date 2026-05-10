@@ -113,6 +113,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     const decisionWorkflow = new DecisionWorkflowDefinition(this, 'DecisionWorkflow', {
       eventBus: this.eventBus,
       table: state.getTable(),
+      tableName: state.getTable().tableName,
       serviceName: this.serviceName,
       assemblePacketFnArn: assemblePacketFn.functionArn,
     });

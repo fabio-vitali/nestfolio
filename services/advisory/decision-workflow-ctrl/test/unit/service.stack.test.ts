@@ -221,6 +221,22 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
   });
 
+  it('SF definition contains single dynamodb:getItem step (LookupMandateSnapshot)', () => {
+    const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
+    const definitionString = Object.values(stateMachines)[0]?.Properties?.DefinitionString;
+    expect(definitionString).toBeDefined();
+
+    const joinParts: any[] = (definitionString as any)['Fn::Join']?.[1] ?? [];
+    const definition = joinParts.map((p) => (typeof p === 'string' ? p : JSON.stringify(p))).join('');
+
+    expect(definition).toContain('arn:aws:states:::dynamodb:getItem');
+    expect(definition).toContain('LookupMandateSnapshot');
+    expect(definition).toContain('SetInvestorProfile');
+    // The SF must use the synthesized $.investorProfile, NOT raw $.triggerContext, for InvokeInvestorProfile
+    expect(definition).toContain('"investorProfile.$":"$.investorProfile"');
+    expect(definition).not.toContain('"investorProfile.$":"$.triggerContext"');
+  });
+
   it('propagates operatingMode through SF state from InvokeInvestorProfile to downstream Tasks', () => {
     const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
     const definitionString = Object.values(stateMachines)[0]?.Properties?.DefinitionString;

@@ -7,6 +7,7 @@ import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 interface DecisionWorkflowDefinitionProps {
   readonly eventBus: IEventBus;
   readonly table: ITable;
+  readonly tableName: string;
   readonly serviceName: string;
   readonly assemblePacketFnArn: string;
 }
@@ -109,7 +110,7 @@ export class DecisionWorkflowDefinition extends Construct {
                   'decisionId.$': '$.decisionId',
                   'tenantId.$': '$.tenantId',
                   'taskToken.$': '$$.Task.Token',
-                  'investorProfile.$': '$.triggerContext',
+                  'investorProfile.$': '$.investorProfile',
                 },
                 'context': {
                   'tenantId.$': '$.tenantId',
@@ -342,9 +343,49 @@ export class DecisionWorkflowDefinition extends Construct {
       },
     });
 
+    // Single-path operatingMode resolution. Every trigger event reaches this state
+    // — payload-vs-projection branching is gone. ADVISORY_PIPELINE_READY is the
+    // CDC of THIS service's own MandateSnapshot:INSERT, so by the time the SF
+    // starts the row is committed (read-your-write within service). For
+    // INVESTOR_PROFILE_UPDATED + non-PROFILE triggers (DEPOSIT_DETECTED etc.),
+    // onboarding has long since materialised the projection.
+    const lookupMandateSnapshot = new sfn.CustomState(this, 'LookupMandateSnapshot', {
+      stateJson: {
+        Type: 'Task',
+        Resource: 'arn:aws:states:::dynamodb:getItem',
+        Parameters: {
+          TableName: props.tableName,
+          Key: {
+            pk: { 'S.$': "States.Format('MandateSnapshot#{}#{}', $.tenantId, $.userId)" },
+            sk: { S: 'MandateSnapshot' },
+          },
+        },
+        ResultSelector: {
+          'operatingMode.$': '$.Item.operatingMode.S',
+        },
+        ResultPath: '$.mandateSnapshot',
+      },
+    });
+
+    const setInvestorProfile = new sfn.Pass(this, 'SetInvestorProfile', {
+      parameters: {
+        'decisionId.$': '$.decisionId',
+        'tenantId.$': '$.tenantId',
+        'userId.$': '$.userId',
+        'region.$': '$.region',
+        'trigger.$': '$.trigger',
+        'triggerContext.$': '$.triggerContext',
+        'investorProfile': {
+          'operatingMode.$': '$.mandateSnapshot.operatingMode',
+        },
+      },
+    });
+
     // --- Wire the chain ---
 
     const definition = unpackTriggerEnvelope
+      .next(lookupMandateSnapshot)
+      .next(setInvestorProfile)
       .next(parallelProfiling)
       .next(mergeParallelOutputs)
       .next(invokePortfolioEngine)
