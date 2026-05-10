@@ -1,6 +1,6 @@
 schema_version: 1
 flow: investor-onboarding
-description: New investor completes onboarding wizard; investor-bff materializes the composite InvestorProfile row + Mandate sibling row (sk='Mandate'); emits INVESTOR_PROFILE_CREATED (carrier) + MANDATE_ISSUED (lifecycle) + DEPOSIT_INITIATED (conditional); investor-ctrl sends welcome notification via MANDATE_ISSUED subscription; compliance-ctrl bootstraps GuardrailPolicy from MANDATE_ISSUED; initial advisory decision cycle triggered from INVESTOR_PROFILE_CREATED via advisory-adpt
+description: New investor completes onboarding wizard; investor-bff materializes the composite InvestorProfile row + Mandate sibling row (sk='Mandate'); emits INVESTOR_PROFILE_CREATED (carrier) + MANDATE_ISSUED (lifecycle) + DEPOSIT_INITIATED (conditional); investor-ctrl sends welcome notification via MANDATE_ISSUED subscription; compliance-ctrl bootstraps GuardrailPolicy from MANDATE_ISSUED; initial advisory decision cycle triggered via MANDATE_ISSUED -> mandate-projector -> MandateSnapshot:INSERT -> CDC -> ADVISORY_PIPELINE_READY -> SF (decision-workflow-ctrl)
 domains: [investor, execution, advisory]
 
 trigger: onboarding-bff emits ONBOARDING_COMPLETED (CDC from OnboardingCompleted:INSERT)
@@ -82,21 +82,33 @@ steps:
     emits: broker-specific events (depends on broker adapter)
     idempotent: true
 
-  # --- Phase 6: Cross-domain to advisory (initial decision cycle, direct EB -> SF) ---
-  - cross_domain: INVESTOR_PROFILE_CREATED
-    from: InvestorBus
-    to: AdvisoryBus
-    via: advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
-
+  # --- Phase 6: Cross-domain to advisory (initial decision cycle) ---
+  # Post-2026-05-10: INVESTOR_PROFILE_CREATED is no longer forwarded
+  # (advisory-adpt's FromInvestor rule was trimmed). MANDATE_ISSUED is the
+  # carrier for the first-decision chain.
   - cross_domain: MANDATE_ISSUED
     from: InvestorBus
     to: AdvisoryBus
     via: advisory-adpt EB rule (AdvisoryIngress-FromInvestor)
 
   - service: decision-workflow-ctrl
-    receives: INVESTOR_PROFILE_CREATED
+    receives: MANDATE_ISSUED
+    via: AdvisoryBus -> SQS -> MandateProjectorIngress (handlers/mandate-projector.ts)
+    state_change: materializeToTable writes a MandateSnapshot row (pk=MandateSnapshot#{tenantId}#{userId}, sk=MandateSnapshot) carrying operatingMode + level + status='ACTIVE'
+    emits: MandateSnapshot:INSERT (DDB Streams)
+    idempotent: true
+
+  - service: decision-workflow-ctrl
+    receives: MandateSnapshot:INSERT (CDC, internal)
+    via: DDB Streams -> Egress Lambda -> AdvisoryBus (declarative eventTypes mapping)
+    state_change: Egress publishes ADVISORY_PIPELINE_READY on advisoryBus
+    emits: ADVISORY_PIPELINE_READY
+    idempotent: true
+
+  - service: decision-workflow-ctrl
+    receives: ADVISORY_PIPELINE_READY
     via: AdvisoryBus -> EventBridge target -> Step Functions (direct EB -> SF)
-    state_change: SF.StartExecution starts the initial advisory decision cycle for the new investor
+    state_change: SF.StartExecution starts the initial advisory decision cycle. The SF unconditionally LookupMandateSnapshot via Direct DDB GetItem (no Lambda) to resolve operatingMode for downstream agents
     emits: agent-pipeline events (DECISION_PACKET_CREATED downstream)
     idempotent: true
 
@@ -117,8 +129,8 @@ success_criteria:
   - Welcome notification delivered via investor-ctrl -> investor-bff materialization
   - Dashboard snapshot updated from INVESTOR_PROFILE_CREATED composite payload
   - If capitalAmount > 0, deposit routed to execution domain via execution-adpt
-  - INVESTOR_PROFILE_CREATED + MANDATE_ISSUED forwarded to advisory domain via advisory-adpt
-  - decision-workflow-ctrl starts exactly ONE advisory SF execution per onboarding (direct EB -> SF on INVESTOR_PROFILE_CREATED)
+  - MANDATE_ISSUED forwarded to advisory domain via advisory-adpt (INVESTOR_PROFILE_CREATED is no longer forwarded — zero advisoryBus consumers post-migration)
+  - decision-workflow-ctrl projects MandateSnapshot from MANDATE_ISSUED, then starts exactly ONE advisory SF execution per onboarding via direct EB -> SF on the resulting ADVISORY_PIPELINE_READY CDC event
 
 failure_modes:
   - step 1 fails: Onboarding wizard incomplete; user can retry. No DDB write, no CDC
@@ -127,4 +139,5 @@ failure_modes:
   - step 3 fails: investor-bff ingress DLQ captures NOTIFICATION_CREATED; notification not visible in frontend
   - step 4 fails: dashboard-bff ingress DLQ captures INVESTOR_PROFILE_CREATED; dashboard stale until replay
   - step 5 fails (conditional): execution-adpt FromInvestorDLQ captures DEPOSIT_INITIATED; deposit not processed
-  - step 6 fails: advisory-adpt FromInvestorDLQ captures INVESTOR_PROFILE_CREATED/MANDATE_ISSUED; initial advisory cycle not started until replay
+  - step 6 fails: advisory-adpt FromInvestorDLQ captures MANDATE_ISSUED; initial advisory cycle not started until replay
+  - mandate-projector ingress fails: decision-workflow-ctrl-MandateProjectorIngress DLQ captures MANDATE_ISSUED; MandateSnapshot row not materialized; ADVISORY_PIPELINE_READY never emitted; SF never starts until replay
