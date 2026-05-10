@@ -20,7 +20,7 @@ import { EventBridgeClient } from '@nestfolio/test-support';
  *   1. onboarded({ operatingMode: <mode> }) — composite InvestorProfile row carries the mode.
  *   2. Inline MANDATE_ISSUED publish carrying the desired operatingMode — the
  *      natural chain materialises a MandateSnapshot row in
- *      decision-workflow-ctrl's local table → CDC emits ADVISORY_PIPELINE_READY →
+ *      decision-workflow-ctrl's local table → CDC emits MANDATE_SNAPSHOT_CREATED →
  *      SF starts and reads operatingMode via Direct DDB GetItem
  *      (LookupMandateSnapshot). withLiveDecision could be used too with the
  *      `operatingMode` option, but inline keeps the test self-contained.
@@ -113,7 +113,7 @@ describe.each(CASES)('operating mode $mode — proposedTrades shape', (testCase)
 
     // Publish MANDATE_ISSUED with the desired operatingMode — the natural
     // chain (mandate-projector → MandateSnapshot:INSERT → CDC →
-    // ADVISORY_PIPELINE_READY → SF) propagates operatingMode into the SF
+    // MANDATE_SNAPSHOT_CREATED → SF) propagates operatingMode into the SF
     // state via Direct DDB GetItem (LookupMandateSnapshot).
     await eb.putEvent({
       bus: 'advisory',

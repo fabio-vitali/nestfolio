@@ -52,11 +52,25 @@ steps:
     emits: none
     idempotent: true
 
-  # --- Phase 4: dashboard-bff updates investor snapshot ---
+  # --- Phase 4: dashboard-bff updates investor snapshot + in-flight badge ---
   - service: dashboard-bff
     receives: INVESTOR_PROFILE_CREATED
     via: InvestorBus -> SQS -> dashboard-bff-ingress
     state_change: Updates investor snapshot read model from the composite InvestorProfile payload (operatingMode, goal, riskProfile)
+    emits: none
+    idempotent: true
+
+  # Phase 4b: dashboard-bff also subscribes to MANDATE_ISSUED on investorBus
+  # (no cross-domain hop). The advisory-status transform increments
+  # AdvisoryStatus.pendingDecisionsCount on MANDATE_ISSUED — the canonical
+  # investor-domain mandate-lifecycle signal that drives the in-flight badge.
+  # decision-workflow-ctrl's MANDATE_SNAPSHOT_CREATED (advisory-domain) is the
+  # SF first-decision trigger and is intentionally NOT plumbed cross-domain to
+  # dashboard-bff — the badge stays inside the investor domain.
+  - service: dashboard-bff
+    receives: MANDATE_ISSUED
+    via: InvestorBus -> SQS -> dashboard-bff-ingress
+    state_change: Increments AdvisoryStatus.pendingDecisionsCount via advisory-status transform
     emits: none
     idempotent: true
 
