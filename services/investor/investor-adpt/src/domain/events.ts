@@ -1,21 +1,14 @@
 import { eventName } from '@nestfolio/event-types';
 
 /**
- * Cross-domain event types published by the investor domain.
- * These are the events that other domains may consume.
+ * Cross-domain event names that downstream domains import from investor-adpt.
+ * Most outbound investor events are owned by other maps (InvestorBffEventTypes,
+ * BrokerCtrlInboundEventTypes, ExecutionIngestEventTypes); this map exists only
+ * for the names imported by name from `@nestfolio/investor-adpt/domain`.
  */
 export const InvestorCrossDomainEventTypes = {
-  // → Advisory
-  GOAL_UPDATED: eventName('GOAL_UPDATED'),
-  RISK_PROFILE_UPDATED: eventName('RISK_PROFILE_UPDATED'),
-  OPERATING_MODE_CHANGED: eventName('OPERATING_MODE_CHANGED'),
-  MANDATE_CREATED: eventName('MANDATE_CREATED'),
-  MANDATE_UPDATED: eventName('MANDATE_UPDATED'),
-  // → Execution
-  DEPOSIT_INITIATED: eventName('DEPOSIT_INITIATED'),
-  WITHDRAWAL_REQUESTED: eventName('WITHDRAWAL_REQUESTED'),
+  // → Execution (consumed by execution-ctrl/handlers/event-listener.ts)
   ACCOUNT_CLOSURE_REQUESTED: eventName('ACCOUNT_CLOSURE_REQUESTED'),
-  EXECUTION_MODE_CHANGED: eventName('EXECUTION_MODE_CHANGED'),
 } as const;
 
 /**
