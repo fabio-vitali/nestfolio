@@ -125,50 +125,11 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
   });
 
-  it('sets custom extraction on InvestorPreferenceLearner strategy', () => {
+  it('declares no MemoryStrategies — runtime path writes to /{service}/{tenantId}/decisions/{decisionId}, none of the legacy strategy namespaces overlap', () => {
     const memory = template.findResources('AWS::BedrockAgentCore::Memory');
-    const strategies = Object.values(memory)[0]?.Properties?.MemoryStrategies ?? [];
-    const investorPref = strategies.find((s: any) => s.CustomMemoryStrategy?.Name === 'InvestorPreferenceLearner');
-    expect(investorPref).toBeDefined();
-    const config = investorPref?.CustomMemoryStrategy?.Configuration?.UserPreferenceOverride;
-    expect(config?.Extraction?.AppendToPrompt).toContain('risk tolerance');
-    expect(config?.Consolidation?.AppendToPrompt).toContain('newer statements override');
-  });
-
-  it('sets custom extraction on AllocationRationaleExtractor strategy', () => {
-    const memory = template.findResources('AWS::BedrockAgentCore::Memory');
-    const strategies = Object.values(memory)[0]?.Properties?.MemoryStrategies ?? [];
-    const allocRationale = strategies.find((s: any) => s.CustomMemoryStrategy?.Name === 'AllocationRationaleExtractor');
-    expect(allocRationale).toBeDefined();
-    const config = allocRationale?.CustomMemoryStrategy?.Configuration?.SemanticOverride;
-    expect(config?.Extraction?.AppendToPrompt).toContain('allocation rationale');
-    expect(config?.Consolidation?.AppendToPrompt).toContain('reasoning chain');
-  });
-
-  it('sets custom extraction on NarrativePreferenceLearner strategy', () => {
-    const memory = template.findResources('AWS::BedrockAgentCore::Memory');
-    const strategies = Object.values(memory)[0]?.Properties?.MemoryStrategies ?? [];
-    const narrativePref = strategies.find((s: any) => s.CustomMemoryStrategy?.Name === 'NarrativePreferenceLearner');
-    expect(narrativePref).toBeDefined();
-    const config = narrativePref?.CustomMemoryStrategy?.Configuration?.UserPreferenceOverride;
-    expect(config?.Extraction?.AppendToPrompt).toContain('communication preferences');
-    expect(config?.Consolidation?.AppendToPrompt).toContain('most recent signals');
-  });
-
-  it('does not set custom extraction on MarketSignalExtractor strategy', () => {
-    const memory = template.findResources('AWS::BedrockAgentCore::Memory');
-    const strategies = Object.values(memory)[0]?.Properties?.MemoryStrategies ?? [];
-    const marketSignal = strategies.find((s: any) => s.SemanticMemoryStrategy?.Name === 'MarketSignalExtractor');
-    expect(marketSignal).toBeDefined();
-    expect(marketSignal?.CustomMemoryStrategy).toBeUndefined();
-  });
-
-  it('does not set custom extraction on NarrativeSessionSummarizer strategy', () => {
-    const memory = template.findResources('AWS::BedrockAgentCore::Memory');
-    const strategies = Object.values(memory)[0]?.Properties?.MemoryStrategies ?? [];
-    const summarizer = strategies.find((s: any) => s.SummaryMemoryStrategy?.Name === 'NarrativeSessionSummarizer');
-    expect(summarizer).toBeDefined();
-    expect(summarizer?.CustomMemoryStrategy).toBeUndefined();
+    const strategies = Object.values(memory)[0]?.Properties?.MemoryStrategies;
+    // Either omitted entirely, or explicitly empty — both are accepted as "no strategies".
+    expect(strategies === undefined || (Array.isArray(strategies) && strategies.length === 0)).toBe(true);
   });
 
   it('creates an AssemblePacket Lambda with MEMORY_ID env var', () => {

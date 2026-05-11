@@ -11,11 +11,10 @@ _(none)_
 
 ## QUEUED
 
-1. [vestigial-memorystrategy-decision-workflow-ctrl](backlog/vestigial-memorystrategy-decision-workflow-ctrl.md) [refactor] — 5 MemoryStrategy entries in service.stack.ts that are no longer fed.
-2. [investor-adpt-legacy-event-name-entries-cleanup](backlog/investor-adpt-legacy-event-name-entries-cleanup.md) [refactor] — Remove unused InvestorCrossDomainEventTypes entries (GOAL_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED) from investor-adpt/src/domain/events.ts.
-3. [with-live-decision-fixture-hardcodes-balanced](backlog/with-live-decision-fixture-hardcodes-balanced.md) [refactor] — Tiny refactor — add operatingMode option, propagate to event detail.
-4. [pr-audit-workflow-missing-pnpm-install](backlog/pr-audit-workflow-missing-pnpm-install.md) [bug] — pr-audit.yml fails at 'Install dependencies' step — pnpm not on runner. Compare with pr-deploy.yml's pnpm/action-setup.
-5. [integration-suite-slowness-architecture-levers](backlog/integration-suite-slowness-architecture-levers.md) [refactor] — Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review).
+1. [investor-adpt-legacy-event-name-entries-cleanup](backlog/investor-adpt-legacy-event-name-entries-cleanup.md) [refactor] — Remove unused InvestorCrossDomainEventTypes entries (GOAL_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED) from investor-adpt/src/domain/events.ts.
+2. [with-live-decision-fixture-hardcodes-balanced](backlog/with-live-decision-fixture-hardcodes-balanced.md) [refactor] — Tiny refactor — add operatingMode option, propagate to event detail.
+3. [pr-audit-workflow-missing-pnpm-install](backlog/pr-audit-workflow-missing-pnpm-install.md) [bug] — pr-audit.yml fails at 'Install dependencies' step — pnpm not on runner. Compare with pr-deploy.yml's pnpm/action-setup.
+4. [integration-suite-slowness-architecture-levers](backlog/integration-suite-slowness-architecture-levers.md) [refactor] — Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review).
 
 ## LATER
 
@@ -56,4 +55,4 @@ _(none)_
 - 2026-05-11 — [non-investor-profile-trigger-operating-mode-lookup](backlog/non-investor-profile-trigger-operating-mode-lookup.md) [bug] — Non-INVESTOR_PROFILE_* SF triggers (DEPOSIT_DETECTED, ORDER_*, PORTFOLIO_DRIFT_DETECTED) reach investor-profile-ctrl without operatingMode. Promoted 2026-05-09 after rank-1 dropped — empirical evidence (50 dev SF executions: 27/50 fast-fail with UnknownOperatingModeError, 0 stuck on WaitForCompliance) shows this is THE blocker for non-PROFILE-triggered decision flows.
 - 2026-05-11 — [onboarding-mfe-chat-component-spec-drift](backlog/onboarding-mfe-chat-component-spec-drift.md) [bug] — 9+ unit tests in apps/onboarding-mfe/test/app/onboarding-chat.component.spec.ts fail against the current component; spec encodes an older streaming/headers/CTA contract.
 - 2026-05-11 — [order-execution-flow-yaml-parse-error](backlog/order-execution-flow-yaml-parse-error.md) [bug] — flows/order-execution.flow.yaml line 154 fails YAML parse due to unquoted multi-colon string.
-- 2026-05-09 — [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [design] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging. Shipped 2026-05-09 on `feat/advisory-in-flight-projection` (33 commits) with full BFF state-completeness — advisory-bff + dashboard-bff both project the in-flight state.
+- 2026-05-11 — [vestigial-memorystrategy-decision-workflow-ctrl](backlog/vestigial-memorystrategy-decision-workflow-ctrl.md) [refactor] — 5 MemoryStrategy entries in service.stack.ts that are no longer fed.
