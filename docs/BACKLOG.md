@@ -10,8 +10,7 @@
 
 ## QUEUED
 
-_(none)_
-
+1. [advisory-narrative-ctrl-tightening-cold-start-flake](backlog/advisory-narrative-ctrl-tightening-cold-start-flake.md) [bug] — Lever 1 attempted to tighten waitForItem 60s -> 20s on advisory-narrative-ctrl integration test (sync handler write path). 20s timed out under cold-start; 30s also failed in a 53min run. Reverted to 60s for ship. Needs investigation: either the write isn't truly synchronous in the handler, or cold-start tax is materially larger than dossier estimated. The two sibling agent-ctrls (investor-profile-ctrl, market-intelligence-ctrl) tightened cleanly at 20s.
 
 ## LATER
 
