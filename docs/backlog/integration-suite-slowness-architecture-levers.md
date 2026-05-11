@@ -1,12 +1,19 @@
 ---
 id: integration-suite-slowness-architecture-levers
-status: queued
-rank: 6
+status: active
 type: refactor
-notes: "Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review)."
-references: []
-out_of_scope: []
-spec: null
+notes: "Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review). Active workstream is Lever 1 only (predicate primitive + sweep + 3 timeout tightenings); Levers 2–5 will be refiled as separate queued entries on ship."
+references:
+  - docs/superpowers/specs/2026-05-11-integration-suite-lever-1-design.md
+out_of_scope:
+  - "Lever 2 (adapter Lambda cold-start warmup)"
+  - "Lever 3 (ledger-ctrl resilience it.each consolidation)"
+  - "Lever 4 (--parallel=4)"
+  - "Lever 5 (CDK bundling tax in the unit suite)"
+  - "Production handler / transform / infra changes"
+  - "Async predicates or cross-resource waits in test-support"
+  - "Re-measure-only PR (measurement is the validation gate of this workstream)"
+spec: docs/superpowers/specs/2026-05-11-integration-suite-lever-1-design.md
 plan: null
 topic_memory: []
 validation_gate: null

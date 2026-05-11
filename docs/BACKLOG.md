@@ -6,12 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [integration-suite-slowness-architecture-levers](backlog/integration-suite-slowness-architecture-levers.md) [refactor] — Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review). Active workstream is Lever 1 only (predicate primitive + sweep + 3 timeout tightenings); Levers 2–5 will be refiled as separate queued entries on ship.
 
 ## QUEUED
 
-1. [integration-suite-slowness-architecture-levers](backlog/integration-suite-slowness-architecture-levers.md) [refactor] — Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review).
+_(none)_
+
 
 ## LATER
 
