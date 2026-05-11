@@ -1,9 +1,9 @@
 ---
 id: integration-suite-slowness-architecture-levers
-status: parking
-rank: null
+status: queued
+rank: 6
 type: refactor
-notes: "Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Parked until rank 1-6 are closed."
+notes: "Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review)."
 references: []
 out_of_scope: []
 spec: null

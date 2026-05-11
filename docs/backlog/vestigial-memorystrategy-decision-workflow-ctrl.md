@@ -1,6 +1,7 @@
 ---
 id: vestigial-memorystrategy-decision-workflow-ctrl
-status: parking
+status: queued
+rank: 2
 type: refactor
 references: []
 out_of_scope: []

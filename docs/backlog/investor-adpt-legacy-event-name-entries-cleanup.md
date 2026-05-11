@@ -1,10 +1,10 @@
 ---
 id: investor-adpt-legacy-event-name-entries-cleanup
-status: parking
+status: queued
 type: refactor
 references: []
 out_of_scope: []
-rank: null
+rank: 3
 spec: null
 plan: null
 topic_memory: []

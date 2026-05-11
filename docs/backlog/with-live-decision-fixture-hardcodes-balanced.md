@@ -1,6 +1,7 @@
 ---
 id: with-live-decision-fixture-hardcodes-balanced
-status: parking
+status: queued
+rank: 4
 type: refactor
 references: []
 out_of_scope: []

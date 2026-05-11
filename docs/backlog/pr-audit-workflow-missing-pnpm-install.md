@@ -1,6 +1,7 @@
 ---
 id: pr-audit-workflow-missing-pnpm-install
-status: parking
+status: queued
+rank: 5
 type: bug
 notes: "pr-audit.yml fails at 'Install dependencies' step — pnpm not on runner. Compare with pr-deploy.yml's pnpm/action-setup."
 references: []

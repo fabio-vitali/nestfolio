@@ -1,6 +1,7 @@
 ---
 id: order-execution-flow-yaml-parse-error
-status: parking
+status: queued
+rank: 1
 type: bug
 notes: "flows/order-execution.flow.yaml line 154 fails YAML parse due to unquoted multi-colon string."
 references: []

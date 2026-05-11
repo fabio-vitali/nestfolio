@@ -11,8 +11,12 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [order-execution-flow-yaml-parse-error](backlog/order-execution-flow-yaml-parse-error.md) [bug] — flows/order-execution.flow.yaml line 154 fails YAML parse due to unquoted multi-colon string.
+2. [vestigial-memorystrategy-decision-workflow-ctrl](backlog/vestigial-memorystrategy-decision-workflow-ctrl.md) [refactor] — 5 MemoryStrategy entries in service.stack.ts that are no longer fed.
+3. [investor-adpt-legacy-event-name-entries-cleanup](backlog/investor-adpt-legacy-event-name-entries-cleanup.md) [refactor] — Remove unused InvestorCrossDomainEventTypes entries (GOAL_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED) from investor-adpt/src/domain/events.ts.
+4. [with-live-decision-fixture-hardcodes-balanced](backlog/with-live-decision-fixture-hardcodes-balanced.md) [refactor] — Tiny refactor — add operatingMode option, propagate to event detail.
+5. [pr-audit-workflow-missing-pnpm-install](backlog/pr-audit-workflow-missing-pnpm-install.md) [bug] — pr-audit.yml fails at 'Install dependencies' step — pnpm not on runner. Compare with pr-deploy.yml's pnpm/action-setup.
+6. [integration-suite-slowness-architecture-levers](backlog/integration-suite-slowness-architecture-levers.md) [refactor] — Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review).
 
 ## LATER
 
@@ -25,18 +29,13 @@ _(none)_
 - [delete-deprecated-inject-advisory-update-fixture](backlog/delete-deprecated-inject-advisory-update-fixture.md) [refactor] — Delete @deprecated injectAdvisoryUpdate backdoor and migrate happy-path WSS sentinel test to a real-EB path.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md) [refactor] — Three callers — rule-of-three threshold; copies all do their own SigV4 setup.
-- [hoist-named-tool-retry-to-orchestrator](backlog/hoist-named-tool-retry-to-orchestrator.md) [refactor] — Only if advisory agents start showing the same Sonnet flakiness; not seen yet.
 - [host-runtime-config-json-regeneration-silently-optional](backlog/host-runtime-config-json-regeneration-silently-optional.md) [bug] — Two latent bugs: deploy.sh skips config regen + build doesn't copy file.
-- [integration-suite-slowness-architecture-levers](backlog/integration-suite-slowness-architecture-levers.md) [refactor] — Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Parked until rank 1-6 are closed.
 - [integration-test-mock-resilience](backlog/integration-test-mock-resilience.md) [tooling] — DESIGN IN PROGRESS (2026-04-16) — partly superseded by 2026-05-05 bootstrap uplift; FakeLlm + SsmOverride remain unstarted.
-- [investor-adpt-legacy-event-name-entries-cleanup](backlog/investor-adpt-legacy-event-name-entries-cleanup.md) [refactor] — Remove unused InvestorCrossDomainEventTypes entries (GOAL_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED) from investor-adpt/src/domain/events.ts.
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
-- [order-execution-flow-yaml-parse-error](backlog/order-execution-flow-yaml-parse-error.md) [bug] — flows/order-execution.flow.yaml line 154 fails YAML parse due to unquoted multi-colon string.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
-- [pr-audit-workflow-missing-pnpm-install](backlog/pr-audit-workflow-missing-pnpm-install.md) [bug] — pr-audit.yml fails at 'Install dependencies' step — pnpm not on runner. Compare with pr-deploy.yml's pnpm/action-setup.
 - [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md) [infra] — Throwaway-PR rehearsal + branch-protection toggle. BLOCKED on ci-pipeline-bring-up — pipeline has never produced a green run.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [reit-vs-equity-equity-weight-ambiguity](backlog/reit-vs-equity-equity-weight-ambiguity.md) [bug] — Test filters EQUITY only; agent prompt allows optional REIT-as-equity.
@@ -45,8 +44,6 @@ _(none)_
 - [sweep-stale-local-branches-worktrees](backlog/sweep-stale-local-branches-worktrees.md) [tooling] — 16 unmerged feat/refactor branches + 2 worktrees; ~15 min chore.
 - [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
-- [vestigial-memorystrategy-decision-workflow-ctrl](backlog/vestigial-memorystrategy-decision-workflow-ctrl.md) [refactor] — 5 MemoryStrategy entries in service.stack.ts that are no longer fed.
-- [with-live-decision-fixture-hardcodes-balanced](backlog/with-live-decision-fixture-hardcodes-balanced.md) [refactor] — Tiny refactor — add operatingMode option, propagate to event detail.
 - [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
 
 ## Recently Shipped (last 10)
