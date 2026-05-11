@@ -11,8 +11,7 @@ _(none)_
 
 ## QUEUED
 
-1. [pr-audit-workflow-missing-pnpm-install](backlog/pr-audit-workflow-missing-pnpm-install.md) [bug] — pr-audit.yml fails at 'Install dependencies' step — pnpm not on runner. Compare with pr-deploy.yml's pnpm/action-setup.
-2. [integration-suite-slowness-architecture-levers](backlog/integration-suite-slowness-architecture-levers.md) [refactor] — Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review).
+1. [integration-suite-slowness-architecture-levers](backlog/integration-suite-slowness-architecture-levers.md) [refactor] — Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review).
 
 ## LATER
 
