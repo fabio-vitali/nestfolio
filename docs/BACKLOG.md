@@ -13,7 +13,8 @@ _(none)_
 
 1. [onboarding-mfe-chat-component-spec-drift](backlog/onboarding-mfe-chat-component-spec-drift.md) [bug] — 9+ unit tests in apps/onboarding-mfe/test/app/onboarding-chat.component.spec.ts fail against the current component; spec encodes an older streaming/headers/CTA contract.
 2. [e2e-feature-tests-test-target-runs-e2e-without-vm-modules](backlog/e2e-feature-tests-test-target-runs-e2e-without-vm-modules.md) [bug] — `nx run-many -t test` picks up apps/e2e-feature-tests:test which runs all e2e files via @nx/jest:jest without --experimental-vm-modules, so every dynamic import fails.
-3. [investor-ctrl-notification-created-not-emitted-on-profile-diff](backlog/investor-ctrl-notification-created-not-emitted-on-profile-diff.md) [bug] — Tests publish synthetic INVESTOR_PROFILE_UPDATED but post-resplit handler subscribes to atomic OPERATING_MODE_CHANGED / GOAL_UPDATED events emitted by investor-bff CDC `onFieldChange`. Direct EB injection bypasses DDB → CDC never fires → notification never emitted.
+3. [investor-bff-double-revoke-assertion-mismatch](backlog/investor-bff-double-revoke-assertion-mismatch.md) [bug] — After acceptedAt fix unblocked the double-revoke path, the test now fails on regex mismatch — resolver surfaces raw DDB ConditionalCheckFailedException, not the InvalidState/not-active/already-revoked language the assertion expected.
+4. [investor-ctrl-notification-created-not-emitted-on-profile-diff](backlog/investor-ctrl-notification-created-not-emitted-on-profile-diff.md) [bug] — Tests publish synthetic INVESTOR_PROFILE_UPDATED but post-resplit handler subscribes to atomic OPERATING_MODE_CHANGED / GOAL_UPDATED events emitted by investor-bff CDC `onFieldChange`. Direct EB injection bypasses DDB → CDC never fires → notification never emitted.
 
 ## LATER
 
@@ -32,7 +33,6 @@ _(none)_
 - [integration-test-mock-resilience](backlog/integration-test-mock-resilience.md) [tooling] — DESIGN IN PROGRESS (2026-04-16) — partly superseded by 2026-05-05 bootstrap uplift; FakeLlm + SsmOverride remain unstarted.
 - [investor-adpt-legacy-event-name-entries-cleanup](backlog/investor-adpt-legacy-event-name-entries-cleanup.md) [refactor] — Remove unused InvestorCrossDomainEventTypes entries (GOAL_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED) from investor-adpt/src/domain/events.ts.
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
-- [investor-bff-double-revoke-assertion-mismatch](backlog/investor-bff-double-revoke-assertion-mismatch.md) [bug] — After acceptedAt fix unblocked the double-revoke path, the test now fails on regex mismatch — resolver surfaces raw DDB ConditionalCheckFailedException, not the InvalidState/not-active/already-revoked language the assertion expected.
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [order-execution-flow-yaml-parse-error](backlog/order-execution-flow-yaml-parse-error.md) [bug] — flows/order-execution.flow.yaml line 154 fails YAML parse due to unquoted multi-colon string.

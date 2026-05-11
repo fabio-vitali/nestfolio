@@ -1,7 +1,7 @@
 ---
 id: investor-bff-double-revoke-assertion-mismatch
-status: parking
-rank: null
+status: queued
+rank: 4
 type: bug
 notes: "After acceptedAt fix unblocked the double-revoke path, the test now fails on regex mismatch — resolver surfaces raw DDB ConditionalCheckFailedException, not the InvalidState/not-active/already-revoked language the assertion expected."
 references: []
