@@ -1,15 +1,16 @@
 ---
 id: investor-ctrl-notification-created-not-emitted-on-profile-diff
-status: queued
-rank: 6
+status: shipped
+rank: null
 type: bug
 notes: "Tests publish synthetic INVESTOR_PROFILE_UPDATED but post-resplit handler subscribes to atomic OPERATING_MODE_CHANGED / GOAL_UPDATED events emitted by investor-bff CDC `onFieldChange`. Direct EB injection bypasses DDB → CDC never fires → notification never emitted."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Cross-service E2E for InvestorProfile update → notification chain (belongs in apps/e2e-feature-tests)"
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "investor-ctrl test 42/42 + test-integration 19/19 GREEN on main 2026-05-11. Took Option B: added GOAL_UPDATED + OPERATING_MODE_CHANGED to the existing it.each parametrized block (1 event → 1 notification, same template path as the other 10), deleted the obsolete diff-detect describe block (handler removed in resplit, fallback branch doesn't exist anymore). Wall-clock dropped from 1175s → 276s — ~15 min reclaimed, matches backlog's ~18 min prediction."
 ---
 
 # `NOTIFICATION_CREATED` never emitted — test injects synthetic event that bypasses CDC
