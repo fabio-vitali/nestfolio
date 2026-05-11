@@ -213,3 +213,136 @@ describe('TableAssertions.waitForItem — match parameter', () => {
     });
   });
 });
+
+describe('TableAssertions.waitForItem — predicate parameter', () => {
+  it('returns item when predicate returns true', async () => {
+    ddbMock.on(GetItemCommand).resolves({
+      Item: marshalledItem({ pk: 'D#1', sk: 'Readmodel', status: 'APPROVED' }),
+    });
+
+    const assertions = new TableAssertions(makeCtx());
+    const item = await assertions.waitForItem({
+      table: 'advisory-bff',
+      pk: 'D#1',
+      sk: 'Readmodel',
+      predicate: (i) => i['status'] === 'APPROVED',
+      description: 'status === APPROVED',
+    });
+    expect(item['status']).toBe('APPROVED');
+  });
+
+  it('keeps polling when predicate returns false, resolves once it returns true', async () => {
+    ddbMock
+      .on(GetItemCommand)
+      .resolvesOnce({ Item: marshalledItem({ pk: 'D#1', sk: 'Readmodel', status: 'PENDING' }) })
+      .resolvesOnce({ Item: marshalledItem({ pk: 'D#1', sk: 'Readmodel', status: 'PENDING' }) })
+      .resolves({ Item: marshalledItem({ pk: 'D#1', sk: 'Readmodel', status: 'APPROVED' }) });
+
+    const assertions = new TableAssertions(makeCtx());
+    const item = await assertions.waitForItem({
+      table: 'advisory-bff',
+      pk: 'D#1',
+      sk: 'Readmodel',
+      predicate: (i) => i['status'] === 'APPROVED',
+    });
+    expect(item['status']).toBe('APPROVED');
+  });
+
+  it('AND-combines match and predicate: both must be satisfied', async () => {
+    ddbMock
+      .on(GetItemCommand)
+      .resolvesOnce({ Item: marshalledItem({ pk: 'D#1', sk: 'Readmodel', kind: 'X', status: 'PENDING' }) })
+      .resolves({ Item: marshalledItem({ pk: 'D#1', sk: 'Readmodel', kind: 'X', status: 'APPROVED' }) });
+
+    const assertions = new TableAssertions(makeCtx());
+    const item = await assertions.waitForItem({
+      table: 'advisory-bff',
+      pk: 'D#1',
+      sk: 'Readmodel',
+      match: { kind: 'X' },
+      predicate: (i) => i['status'] === 'APPROVED',
+    });
+    expect(item['status']).toBe('APPROVED');
+  });
+
+  it('on timeout: error includes last observed item and predicate description', async () => {
+    ddbMock.on(GetItemCommand).resolves({
+      Item: marshalledItem({ pk: 'D#1', sk: 'Readmodel', status: 'PENDING' }),
+    });
+
+    const assertions = new TableAssertions(makeCtx());
+    await expect(assertions.waitForItem({
+      table: 'advisory-bff',
+      pk: 'D#1',
+      sk: 'Readmodel',
+      timeoutMs: 200,
+      pollIntervalMs: 50,
+      predicate: (i) => i['status'] === 'APPROVED',
+      description: 'status === APPROVED',
+    })).rejects.toThrow(/predicate: "status === APPROVED".*Last item.*"status":"PENDING"/s);
+  });
+
+  it('on timeout with no description: predicate label says "(unlabeled)"', async () => {
+    ddbMock.on(GetItemCommand).resolves({
+      Item: marshalledItem({ pk: 'D#1', sk: 'Readmodel', status: 'PENDING' }),
+    });
+
+    const assertions = new TableAssertions(makeCtx());
+    await expect(assertions.waitForItem({
+      table: 'advisory-bff',
+      pk: 'D#1',
+      sk: 'Readmodel',
+      timeoutMs: 200,
+      pollIntervalMs: 50,
+      predicate: (i) => i['status'] === 'APPROVED',
+    })).rejects.toThrow(/predicate: "\(unlabeled\)"/);
+  });
+
+  it('on timeout with no item ever observed: Last item label says "(never observed)"', async () => {
+    ddbMock.on(GetItemCommand).resolves({ Item: undefined });
+
+    const assertions = new TableAssertions(makeCtx());
+    await expect(assertions.waitForItem({
+      table: 'advisory-bff',
+      pk: 'D#1',
+      sk: 'Readmodel',
+      timeoutMs: 200,
+      pollIntervalMs: 50,
+      predicate: (i) => i['status'] === 'APPROVED',
+      description: 'status === APPROVED',
+    })).rejects.toThrow(/Last item: \(never observed\)/);
+  });
+
+  it('predicate exceptions surface immediately (not retried)', async () => {
+    ddbMock.on(GetItemCommand).resolves({
+      Item: marshalledItem({ pk: 'D#1', sk: 'Readmodel' }),
+    });
+
+    const assertions = new TableAssertions(makeCtx());
+    await expect(assertions.waitForItem({
+      table: 'advisory-bff',
+      pk: 'D#1',
+      sk: 'Readmodel',
+      timeoutMs: 1_000,
+      predicate: () => { throw new Error('boom'); },
+    })).rejects.toThrow('boom');
+  });
+
+  it('AND-combines: when match fails (and predicate would pass), still retries until match passes', async () => {
+    ddbMock
+      .on(GetItemCommand)
+      .resolvesOnce({ Item: marshalledItem({ pk: 'D#1', sk: 'Readmodel', kind: 'Y', status: 'APPROVED' }) })
+      .resolves({ Item: marshalledItem({ pk: 'D#1', sk: 'Readmodel', kind: 'X', status: 'APPROVED' }) });
+
+    const assertions = new TableAssertions(makeCtx());
+    const item = await assertions.waitForItem({
+      table: 'advisory-bff',
+      pk: 'D#1',
+      sk: 'Readmodel',
+      match: { kind: 'X' },
+      predicate: (i) => i['status'] === 'APPROVED',
+    });
+    expect(item['kind']).toBe('X');
+    expect(item['status']).toBe('APPROVED');
+  });
+});
