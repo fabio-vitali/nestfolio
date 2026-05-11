@@ -77,7 +77,7 @@ describe('market-intelligence-ctrl: ANALYZE_MARKET → AgentInvocation DDB write
     const item = await table.waitForItem({
       table: 'market-intelligence-ctrl',
       pk: `DECISION#${decisionId}`,
-      timeoutMs: 60_000,
+      timeoutMs: 20_000,
     });
 
     expect(item['__typename']).toBe('AgentInvocation');

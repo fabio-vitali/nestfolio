@@ -88,7 +88,7 @@ describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DD
     const item = await table.waitForItem({
       table: 'investor-profile-ctrl',
       pk: `DECISION#${decisionId}`,
-      timeoutMs: 60_000,
+      timeoutMs: 20_000,
     });
 
     expect(item['__typename']).toBe('AgentInvocation');

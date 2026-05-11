@@ -28,7 +28,7 @@ function createTimingConfig(overrides?: Partial<TimingConfig>): TimingConfig {
   const multiplier = Number(process.env.INTEG_TIMEOUT_MULTIPLIER) || 1;
   return {
     eventTimeout: overrides?.eventTimeout ?? 45_000 * multiplier,
-    pollInterval: overrides?.pollInterval ?? 2_000,
+    pollInterval: overrides?.pollInterval ?? 500,
     canaryTimeout: overrides?.canaryTimeout ?? 30_000 * multiplier,
     putEventRetries: overrides?.putEventRetries ?? 3,
     putEventBackoffMs: overrides?.putEventBackoffMs ?? 500,

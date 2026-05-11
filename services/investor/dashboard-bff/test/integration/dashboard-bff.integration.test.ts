@@ -79,18 +79,13 @@ describe('dashboard-bff', () => {
         },
       });
 
-      let item: Record<string, unknown> | undefined;
-      const deadline = Date.now() + 60_000;
-      while (Date.now() < deadline) {
-        item = await table.waitForItem({
-          table: 'dashboard-bff',
-          pk: `T#${ctx.tenantId}`,
-          sk: 'InvestorSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (item['goalType'] === 'INCOME' && item['riskLevel'] === '9' && item['operatingMode'] === 'AGGRESSIVE') break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
+      const item = await table.waitForItem({
+        table: 'dashboard-bff',
+        pk: `T#${ctx.tenantId}`,
+        sk: 'InvestorSnapshot',
+        timeoutMs: 60_000,
+        match: { goalType: 'INCOME', riskLevel: '9', operatingMode: 'AGGRESSIVE' },
+      });
 
       expect(item!['__typename']).toBe('InvestorSnapshot');
       expect(item!['goalType']).toBe('INCOME');

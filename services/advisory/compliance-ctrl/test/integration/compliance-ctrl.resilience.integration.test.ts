@@ -41,20 +41,14 @@ async function pollForMandateSnapshot(
   predicate: (item: Record<string, unknown>) => boolean,
   timeoutMs = 60_000,
 ): Promise<Record<string, unknown>> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const item = await table.waitForItem({
-        table: 'compliance-ctrl',
-        pk: `GuardrailPolicy#${tenantId}#${userId}`,
-        sk: 'MandateSnapshot',
-        timeoutMs: 5_000,
-      });
-      if (predicate(item)) return item;
-    } catch { /* not yet */ }
-    await new Promise((r) => setTimeout(r, 2_000));
-  }
-  throw new Error(`pollForMandateSnapshot: predicate did not become true within ${timeoutMs}ms`);
+  return table.waitForItem({
+    table: 'compliance-ctrl',
+    pk: `GuardrailPolicy#${tenantId}#${userId}`,
+    sk: 'MandateSnapshot',
+    timeoutMs,
+    predicate,
+    description: 'MandateSnapshot predicate',
+  });
 }
 
 // ── Idempotency ──────────────────────────────────────────────────────────

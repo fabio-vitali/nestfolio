@@ -64,7 +64,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
 
       expect(item['__typename']).toBe('DecisionReadModel');
@@ -95,7 +95,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
 
       // Now send DECISION_APPROVED — update() with condition: attribute_exists(pk)
@@ -109,21 +109,16 @@ describe('advisory-bff', () => {
         },
       });
 
-      // Poll until status flips to APPROVED (waitForItem only checks existence, not value)
-      const deadline = Date.now() + 60_000;
-      let item: Record<string, unknown> | undefined;
-      while (Date.now() < deadline) {
-        item = await table.waitForItem({
-          table: 'advisory-bff',
-          pk: `Decision#${ctx.tenantId}#${decisionId}`,
-          sk: 'DecisionReadModel',
-          timeoutMs: 5_000,
-        });
-        if (item['status'] === 'APPROVED') break;
-        await new Promise(r => setTimeout(r, 3_000));
-      }
+      // Wait for status flip to APPROVED (single primitive call replaces outer poll loop)
+      const item = await table.waitForItem({
+        table: 'advisory-bff',
+        pk: `Decision#${ctx.tenantId}#${decisionId}`,
+        sk: 'DecisionReadModel',
+        timeoutMs: 30_000,
+        match: { status: 'APPROVED' },
+      });
 
-      expect(item!['status']).toBe('APPROVED');
+      expect(item['status']).toBe('APPROVED');
     }, 120_000);
 
     it('should update DecisionSummary to COMPLIANCE_REVIEW on DECISION_PACKET_UPDATED', async () => {
@@ -149,7 +144,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
 
       // Now publish DECISION_PACKET_UPDATED
@@ -163,16 +158,14 @@ describe('advisory-bff', () => {
         },
       });
 
-      // Poll until status changes from PENDING to COMPLIANCE_REVIEW
-      let item: Record<string, unknown> = {};
-      const d = Date.now() + 60_000;
-      while (Date.now() < d) {
-        item = await table.waitForItem({
-          table: 'advisory-bff', pk: `Decision#${ctx.tenantId}#${decisionId}`, sk: 'DecisionReadModel', timeoutMs: 5_000,
-        });
-        if (item['status'] === 'COMPLIANCE_REVIEW') break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
+      // Wait for status flip to COMPLIANCE_REVIEW (single primitive call replaces outer poll loop)
+      const item = await table.waitForItem({
+        table: 'advisory-bff',
+        pk: `Decision#${ctx.tenantId}#${decisionId}`,
+        sk: 'DecisionReadModel',
+        timeoutMs: 30_000,
+        match: { status: 'COMPLIANCE_REVIEW' },
+      });
       expect(item['status']).toBe('COMPLIANCE_REVIEW');
     }, 120_000);
 
@@ -197,7 +190,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
 
       await eb.putEvent({
@@ -210,15 +203,14 @@ describe('advisory-bff', () => {
         },
       });
 
-      let item: Record<string, unknown> = {};
-      const d = Date.now() + 60_000;
-      while (Date.now() < d) {
-        item = await table.waitForItem({
-          table: 'advisory-bff', pk: `Decision#${ctx.tenantId}#${decisionId}`, sk: 'DecisionReadModel', timeoutMs: 5_000,
-        });
-        if (item['status'] === 'BLOCKED') break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
+      // Wait for status flip to BLOCKED (single primitive call replaces outer poll loop)
+      const item = await table.waitForItem({
+        table: 'advisory-bff',
+        pk: `Decision#${ctx.tenantId}#${decisionId}`,
+        sk: 'DecisionReadModel',
+        timeoutMs: 30_000,
+        match: { status: 'BLOCKED' },
+      });
       expect(item['status']).toBe('BLOCKED');
     }, 120_000);
 
@@ -243,7 +235,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
 
       await eb.putEvent({
@@ -256,15 +248,14 @@ describe('advisory-bff', () => {
         },
       });
 
-      let item: Record<string, unknown> = {};
-      const d = Date.now() + 60_000;
-      while (Date.now() < d) {
-        item = await table.waitForItem({
-          table: 'advisory-bff', pk: `Decision#${ctx.tenantId}#${decisionId}`, sk: 'DecisionReadModel', timeoutMs: 5_000,
-        });
-        if (item['status'] === 'AWAITING_CONFIRMATION') break;
-        await new Promise(r => setTimeout(r, 2_000));
-      }
+      // Wait for status flip to AWAITING_CONFIRMATION (single primitive call replaces outer poll loop)
+      const item = await table.waitForItem({
+        table: 'advisory-bff',
+        pk: `Decision#${ctx.tenantId}#${decisionId}`,
+        sk: 'DecisionReadModel',
+        timeoutMs: 30_000,
+        match: { status: 'AWAITING_CONFIRMATION' },
+      });
       expect(item['status']).toBe('AWAITING_CONFIRMATION');
     }, 120_000);
   });
@@ -290,7 +281,7 @@ describe('advisory-bff', () => {
           confirmationRequired: true,
         },
       });
-      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 60_000 });
+      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000 });
 
       await eb.putEvent({
         bus: 'advisory',
@@ -298,15 +289,14 @@ describe('advisory-bff', () => {
         detailType: 'USER_CONFIRMATION_REQUESTED',
         detail: { tenantId: ctx.tenantId, decisionId },
       });
-      // Wait for status to become AWAITING_CONFIRMATION
-      {
-        const d = Date.now() + 60_000;
-        while (Date.now() < d) {
-          const item = await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 5_000 });
-          if (item['status'] === 'AWAITING_CONFIRMATION') break;
-          await new Promise(r => setTimeout(r, 2_000));
-        }
-      }
+      // Wait for status to become AWAITING_CONFIRMATION (single primitive call replaces outer poll loop)
+      await table.waitForItem({
+        table: 'advisory-bff',
+        pk,
+        sk: 'DecisionReadModel',
+        timeoutMs: 30_000,
+        match: { status: 'AWAITING_CONFIRMATION' },
+      });
 
       // Execute confirmDecision mutation
       const result = await appsync.mutate<{
@@ -338,7 +328,7 @@ describe('advisory-bff', () => {
       // Assert: CDC emits USER_CONFIRMED on EventBridge
       const event = await trap.waitForEvent({
         detailType: 'USER_CONFIRMED',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
       expect(event.detailType).toBe('USER_CONFIRMED');
     }, 120_000);
@@ -362,7 +352,7 @@ describe('advisory-bff', () => {
           confirmationRequired: true,
         },
       });
-      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 60_000 });
+      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000 });
 
       await eb.putEvent({
         bus: 'advisory',
@@ -370,14 +360,14 @@ describe('advisory-bff', () => {
         detailType: 'USER_CONFIRMATION_REQUESTED',
         detail: { tenantId: ctx.tenantId, decisionId },
       });
-      {
-        const d = Date.now() + 60_000;
-        while (Date.now() < d) {
-          const item = await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 5_000 });
-          if (item['status'] === 'AWAITING_CONFIRMATION') break;
-          await new Promise(r => setTimeout(r, 2_000));
-        }
-      }
+      // Wait for status to become AWAITING_CONFIRMATION (single primitive call replaces outer poll loop)
+      await table.waitForItem({
+        table: 'advisory-bff',
+        pk,
+        sk: 'DecisionReadModel',
+        timeoutMs: 30_000,
+        match: { status: 'AWAITING_CONFIRMATION' },
+      });
 
       // Execute rejectDecision mutation
       const result = await appsync.mutate<{
@@ -412,7 +402,7 @@ describe('advisory-bff', () => {
       // Assert: CDC emits USER_REJECTED on EventBridge
       const event = await trap.waitForEvent({
         detailType: 'USER_REJECTED',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
       expect(event.detailType).toBe('USER_REJECTED');
     }, 120_000);
@@ -446,23 +436,15 @@ describe('advisory-bff', () => {
         detail: { tenantId: ctx.tenantId },
       });
 
-      // Wait until inFlightCount exceeds baseline (delta >= 1 rather than absolute >= 1).
-      let item: Record<string, unknown> = {};
-      const deadline = Date.now() + 60_000;
-      while (Date.now() < deadline) {
-        try {
-          item = await table.waitForItem({
-            table: 'advisory-bff',
-            pk,
-            sk: 'AdvisoryStatus',
-            timeoutMs: 5_000,
-          });
-          if (Number(item['inFlightCount']) > baseCount) break;
-        } catch {
-          // item not yet present — keep polling
-        }
-        await new Promise(r => setTimeout(r, 2_000));
-      }
+      // Wait until inFlightCount exceeds baseline (single primitive call replaces outer poll loop)
+      const item = await table.waitForItem({
+        table: 'advisory-bff',
+        pk,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 30_000,
+        predicate: (i) => Number(i['inFlightCount']) > baseCount,
+        description: `Number(inFlightCount) > ${baseCount}`,
+      });
 
       expect(item['__typename']).toBe('AdvisoryStatus');
       expect(Number(item['inFlightCount'])).toBeGreaterThan(baseCount);
@@ -497,26 +479,16 @@ describe('advisory-bff', () => {
         detail: { tenantId: ctx.tenantId },
       });
 
-      // Step 2: wait until inFlightCount exceeds baseline (delta > 0 rather than absolute >= 1)
-      let beforeCount = baseCount;
-      {
-        const d = Date.now() + 60_000;
-        while (Date.now() < d) {
-          try {
-            const s = await table.waitForItem({
-              table: 'advisory-bff',
-              pk: statusPk,
-              sk: 'AdvisoryStatus',
-              timeoutMs: 5_000,
-            });
-            beforeCount = Number(s['inFlightCount']);
-            if (beforeCount > baseCount) break;
-          } catch {
-            // keep polling
-          }
-          await new Promise(r => setTimeout(r, 2_000));
-        }
-      }
+      // Step 2: wait until inFlightCount exceeds baseline (single primitive call replaces outer poll loop)
+      const beforeItem = await table.waitForItem({
+        table: 'advisory-bff',
+        pk: statusPk,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 30_000,
+        predicate: (i) => Number(i['inFlightCount']) > baseCount,
+        description: `Number(inFlightCount) > ${baseCount}`,
+      });
+      const beforeCount = Number(beforeItem['inFlightCount']);
       expect(beforeCount).toBeGreaterThan(baseCount);
 
       // Step 3: emit DECISION_PACKET_CREATED — decrements inFlightCount and creates DecisionReadModel
@@ -534,26 +506,16 @@ describe('advisory-bff', () => {
         },
       });
 
-      // Step 4: poll until inFlightCount drops below beforeCount
-      let afterCount = beforeCount;
-      {
-        const d = Date.now() + 60_000;
-        while (Date.now() < d) {
-          try {
-            const s = await table.waitForItem({
-              table: 'advisory-bff',
-              pk: statusPk,
-              sk: 'AdvisoryStatus',
-              timeoutMs: 5_000,
-            });
-            afterCount = Number(s['inFlightCount']);
-            if (afterCount < beforeCount) break;
-          } catch {
-            // keep polling
-          }
-          await new Promise(r => setTimeout(r, 2_000));
-        }
-      }
+      // Step 4: poll until inFlightCount drops below beforeCount (single primitive call replaces outer poll loop)
+      const afterItem = await table.waitForItem({
+        table: 'advisory-bff',
+        pk: statusPk,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 30_000,
+        predicate: (i) => Number(i['inFlightCount']) < beforeCount,
+        description: `Number(inFlightCount) < ${beforeCount}`,
+      });
+      const afterCount = Number(afterItem['inFlightCount']);
       expect(afterCount).toBeLessThan(beforeCount);
 
       // Step 5: DecisionReadModel must also exist
@@ -561,7 +523,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: decisionPk,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
     }, 180_000);
 
@@ -597,27 +559,17 @@ describe('advisory-bff', () => {
         detail: { tenantId: ctx.tenantId },
       });
 
-      // Wait until inFlightCount reaches at least baseCount + 2
+      // Wait until inFlightCount reaches at least baseCount + 2 (single primitive call replaces outer poll loop)
       const expectedPeak = baseCount + 2;
-      let peakCount = 0;
-      {
-        const d = Date.now() + 60_000;
-        while (Date.now() < d) {
-          try {
-            const s = await table.waitForItem({
-              table: 'advisory-bff',
-              pk: statusPk,
-              sk: 'AdvisoryStatus',
-              timeoutMs: 5_000,
-            });
-            peakCount = Number(s['inFlightCount']);
-            if (peakCount >= expectedPeak) break;
-          } catch {
-            // keep polling
-          }
-          await new Promise(r => setTimeout(r, 2_000));
-        }
-      }
+      const peakItem = await table.waitForItem({
+        table: 'advisory-bff',
+        pk: statusPk,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 30_000,
+        predicate: (i) => Number(i['inFlightCount']) >= expectedPeak,
+        description: `Number(inFlightCount) >= ${expectedPeak}`,
+      });
+      const peakCount = Number(peakItem['inFlightCount']);
       expect(peakCount).toBeGreaterThanOrEqual(expectedPeak);
 
       // Emit one DECISION_PACKET_CREATED — should decrement by 1
@@ -635,27 +587,17 @@ describe('advisory-bff', () => {
         },
       });
 
-      // Poll until inFlightCount is exactly peakCount - 1
+      // Poll until inFlightCount is exactly peakCount - 1 (single primitive call replaces outer poll loop)
       const expectedAfter = peakCount - 1;
-      let afterCount = peakCount;
-      {
-        const d = Date.now() + 60_000;
-        while (Date.now() < d) {
-          try {
-            const s = await table.waitForItem({
-              table: 'advisory-bff',
-              pk: statusPk,
-              sk: 'AdvisoryStatus',
-              timeoutMs: 5_000,
-            });
-            afterCount = Number(s['inFlightCount']);
-            if (afterCount <= expectedAfter) break;
-          } catch {
-            // keep polling
-          }
-          await new Promise(r => setTimeout(r, 2_000));
-        }
-      }
+      const afterItem = await table.waitForItem({
+        table: 'advisory-bff',
+        pk: statusPk,
+        sk: 'AdvisoryStatus',
+        timeoutMs: 30_000,
+        predicate: (i) => Number(i['inFlightCount']) <= expectedAfter,
+        description: `Number(inFlightCount) <= ${expectedAfter}`,
+      });
+      const afterCount = Number(afterItem['inFlightCount']);
       expect(afterCount).toBe(expectedAfter);
     }, 180_000);
   });

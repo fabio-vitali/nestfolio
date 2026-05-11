@@ -46,25 +46,25 @@ export class TableAssertions {
     timeoutMs?: number;
     pollIntervalMs?: number;
     match?: Record<string, unknown>;
+    predicate?: (item: Record<string, unknown>) => boolean;
+    description?: string;
   }): Promise<Record<string, unknown>> {
     const timeout = params.timeoutMs ?? this.ctx.timings.eventTimeout;
     const pollInterval = params.pollIntervalMs ?? this.ctx.timings.pollInterval;
     const deadline = Date.now() + timeout;
     const tableName = await this.ctx.ssm.tableName(params.table);
 
+    let lastObserved: Record<string, unknown> | undefined;
+
     while (Date.now() < deadline) {
+      let item: Record<string, unknown> | undefined;
+
       if (params.sk) {
         const result = await this.client.send(new GetItemCommand({
           TableName: tableName,
           Key: marshall({ pk: params.pk, sk: params.sk }),
         }));
-        if (result.Item) {
-          const item = unmarshall(result.Item);
-          if (!params.match || Object.entries(params.match).every(([k, v]) => item[k] === v)) {
-            this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
-            return item;
-          }
-        }
+        if (result.Item) item = unmarshall(result.Item);
       } else {
         const result = await this.client.send(new QueryCommand({
           TableName: tableName,
@@ -72,12 +72,16 @@ export class TableAssertions {
           ExpressionAttributeValues: marshall({ ':pk': params.pk }),
           Limit: 1,
         }));
-        if (result.Items?.length) {
-          const item = unmarshall(result.Items[0]);
-          if (!params.match || Object.entries(params.match).every(([k, v]) => item[k] === v)) {
-            this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
-            return item;
-          }
+        if (result.Items?.length) item = unmarshall(result.Items[0]);
+      }
+
+      if (item) {
+        lastObserved = item;
+        const matchOk = !params.match || Object.entries(params.match).every(([k, v]) => item![k] === v);
+        const predicateOk = !params.predicate || params.predicate(item);
+        if (matchOk && predicateOk) {
+          this.observed.push({ tableName, pk: item['pk'] as string, sk: item['sk'] as string });
+          return item;
         }
       }
 
@@ -85,7 +89,11 @@ export class TableAssertions {
     }
 
     const matchDesc = params.match ? ` match=${JSON.stringify(params.match)}` : '';
-    throw new Error(`TableAssertions: timeout waiting for item pk=${params.pk} sk=${params.sk ?? '(any)'}${matchDesc} in ${params.table} after ${timeout}ms`);
+    const predDesc = params.predicate ? ` predicate: "${params.description ?? '(unlabeled)'}"` : '';
+    const lastDesc = lastObserved ? JSON.stringify(lastObserved) : '(never observed)';
+    throw new Error(
+      `TableAssertions: timeout waiting for item pk=${params.pk} sk=${params.sk ?? '(any)'}${matchDesc}${predDesc} in ${params.table} after ${timeout}ms. Last item: ${lastDesc}`
+    );
   }
 
   async queryItems(params: {

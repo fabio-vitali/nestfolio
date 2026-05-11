@@ -26,7 +26,7 @@ async function waitForEntryCount(
   while (Date.now() < deadline) {
     const count = await countItems(table, 'ledger-ctrl', pk, 'Event#');
     if (count >= minCount) return;
-    await new Promise((r) => setTimeout(r, 3_000));
+    await new Promise((r) => setTimeout(r, 500));
   }
   throw new Error(`waitForEntryCount: timeout waiting for ${minCount} entries`);
 }
@@ -43,6 +43,28 @@ async function waitForSnapshot(
     pk: `Account#${tenantId}#${streamType}`,
     sk: 'Snapshot#latest',
     timeoutMs,
+  });
+}
+
+/**
+ * Poll until the Snapshot#latest row's lastEventSequence reaches at least
+ * `minSequence`. The reducer stores this field directly from AccountState,
+ * so it increments once per processed LedgerEntry.
+ */
+async function waitForSnapshotWithCount(
+  table: TableAssertions,
+  tenantId: string,
+  streamType: string,
+  minSequence: number,
+  timeoutMs = 30_000,
+): Promise<void> {
+  await table.waitForItem({
+    table: 'ledger-ctrl',
+    pk: `Account#${tenantId}#${streamType}`,
+    sk: 'Snapshot#latest',
+    timeoutMs,
+    predicate: (item) => Number(item['lastEventSequence']) >= minSequence,
+    description: `snapshot lastEventSequence >= ${minSequence}`,
   });
 }
 
@@ -249,8 +271,8 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
         },
       });
 
-      // Wait for snapshot to incorporate the fill
-      await new Promise((r) => setTimeout(r, 30_000));
+      // Poll until snapshot has processed both events (lastEventSequence >= 2)
+      await waitForSnapshotWithCount(tableA, ctxA.tenantId, 'actual', 2);
       const snapshotA = await snapshotState(
         tableA, 'ledger-ctrl', `Account#${ctxA.tenantId}#actual`, 'Snapshot#',
       );
@@ -289,7 +311,8 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
           },
         });
 
-        await new Promise((r) => setTimeout(r, 30_000));
+        // Poll until snapshot has processed both events (lastEventSequence >= 2)
+        await waitForSnapshotWithCount(tableB, ctxB.tenantId, 'actual', 2);
         const snapshotB = await snapshotState(
           tableB, 'ledger-ctrl', `Account#${ctxB.tenantId}#actual`, 'Snapshot#',
         );
@@ -351,19 +374,18 @@ describe('ledger-ctrl resilience: order-agnostic full shuffle', () => {
       const tableA = new TableAssertions(ctxA);
       tableA.registerCleanup();
 
-      for (const evt of events) {
+      for (let i = 0; i < events.length; i++) {
         await ebA.putEvent({
           bus: 'ledger',
           targetService: 'ledger-ctrl',
-          detailType: evt.detailType,
-          detail: evt.detail('A'),
+          detailType: events[i].detailType,
+          detail: events[i].detail('A'),
         });
-        // Wait between events for sequential processing
-        await new Promise((r) => setTimeout(r, 10_000));
+        // Poll until this event is ingested before sending the next
+        await waitForEntryCount(tableA, ctxA.tenantId, 'actual', i + 1);
       }
-      await waitForEntryCount(tableA, ctxA.tenantId, 'actual', 3);
-      // Allow reducer to process all entries into snapshot
-      await new Promise((r) => setTimeout(r, 30_000));
+      // Poll until snapshot has incorporated all 3 entries (lastEventSequence >= 3)
+      await waitForSnapshotWithCount(tableA, ctxA.tenantId, 'actual', 3);
       const snapshotA = await snapshotState(
         tableA, 'ledger-ctrl', `Account#${ctxA.tenantId}#actual`, 'Snapshot#',
       );
@@ -376,17 +398,18 @@ describe('ledger-ctrl resilience: order-agnostic full shuffle', () => {
         const tableB = new TableAssertions(ctxB);
         tableB.registerCleanup();
 
-        for (const evt of shuffled) {
+        for (let i = 0; i < shuffled.length; i++) {
           await ebB.putEvent({
             bus: 'ledger',
             targetService: 'ledger-ctrl',
-            detailType: evt.detailType,
-            detail: evt.detail('B'),
+            detailType: shuffled[i].detailType,
+            detail: shuffled[i].detail('B'),
           });
-          await new Promise((r) => setTimeout(r, 10_000));
+          // Poll until this event is ingested before sending the next
+          await waitForEntryCount(tableB, ctxB.tenantId, 'actual', i + 1);
         }
-        await waitForEntryCount(tableB, ctxB.tenantId, 'actual', 3);
-        await new Promise((r) => setTimeout(r, 30_000));
+        // Poll until snapshot has incorporated all 3 entries (lastEventSequence >= 3)
+        await waitForSnapshotWithCount(tableB, ctxB.tenantId, 'actual', 3);
         const snapshotB = await snapshotState(
           tableB, 'ledger-ctrl', `Account#${ctxB.tenantId}#actual`, 'Snapshot#',
         );
