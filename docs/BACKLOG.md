@@ -12,7 +12,6 @@ _(none)_
 ## QUEUED
 
 1. [onboarding-mfe-chat-component-spec-drift](backlog/onboarding-mfe-chat-component-spec-drift.md) [bug] — 9+ unit tests in apps/onboarding-mfe/test/app/onboarding-chat.component.spec.ts fail against the current component; spec encodes an older streaming/headers/CTA contract.
-2. [e2e-feature-tests-test-target-runs-e2e-without-vm-modules](backlog/e2e-feature-tests-test-target-runs-e2e-without-vm-modules.md) [bug] — `nx run-many -t test` picks up apps/e2e-feature-tests:test which runs all e2e files via @nx/jest:jest without --experimental-vm-modules, so every dynamic import fails.
 
 ## LATER
 
@@ -53,6 +52,7 @@ _(none)_
 
 - 2026-05-11 — [agent-ctrl-integration-tests-decision-row-missing](backlog/agent-ctrl-integration-tests-decision-row-missing.md) [bug] — 3 agent-ctrl integration tests time out 60s waiting for `pk=DECISION#…`. Root cause: handlers throw UnknownOperatingModeError before DDB write because tests don't include `operatingMode` in event subject. Post-ship fixture rot from `non-investor-profile-trigger-operating-mode-lookup` workstream.
 - 2026-05-11 — [broker-ctrl-sim-deposit-normalizer-missing-amount-field](backlog/broker-ctrl-sim-deposit-normalizer-missing-amount-field.md) [bug] — Tests assert `amount` but normalizer correctly writes `amountCents` (ledger convention). Production-correct; tests are stale. Surfaced cross-domain field-name inconsistency.
+- 2026-05-11 — [e2e-feature-tests-test-target-runs-e2e-without-vm-modules](backlog/e2e-feature-tests-test-target-runs-e2e-without-vm-modules.md) [bug] — `nx run-many -t test` picks up apps/e2e-feature-tests:test which runs all e2e files via @nx/jest:jest without --experimental-vm-modules, so every dynamic import fails.
 - 2026-05-11 — [investor-bff-double-revoke-assertion-mismatch](backlog/investor-bff-double-revoke-assertion-mismatch.md) [bug] — After acceptedAt fix unblocked the double-revoke path, the test now fails on regex mismatch — resolver surfaces raw DDB ConditionalCheckFailedException, not the InvalidState/not-active/already-revoked language the assertion expected.
 - 2026-05-11 — [investor-bff-mandate-accepted-at-field-undefined](backlog/investor-bff-mandate-accepted-at-field-undefined.md) [bug] — Test mutation selects Mandate.acceptedAt; the field was deleted from schema in commit e283b5f5 (2026-05-08 resplit). Test fixture rot + stale TypeScript MandateStatus interface in src/domain/models.ts.
 - 2026-05-11 — [investor-ctrl-notification-created-not-emitted-on-profile-diff](backlog/investor-ctrl-notification-created-not-emitted-on-profile-diff.md) [bug] — Tests publish synthetic INVESTOR_PROFILE_UPDATED but post-resplit handler subscribes to atomic OPERATING_MODE_CHANGED / GOAL_UPDATED events emitted by investor-bff CDC `onFieldChange`. Direct EB injection bypasses DDB → CDC never fires → notification never emitted.
@@ -60,4 +60,3 @@ _(none)_
 - 2026-05-09 — [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [design] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging. Shipped 2026-05-09 on `feat/advisory-in-flight-projection` (33 commits) with full BFF state-completeness — advisory-bff + dashboard-bff both project the in-flight state.
 - 2026-05-09 — [agentcore-memory-list-records-eventual-consistency](backlog/agentcore-memory-list-records-eventual-consistency.md) [bug] — AgentCore Memory ListMemoryRecords lag >40s; SF inter-stage cadence ~5s — propagate operatingMode through SF state instead.
 - 2026-05-09 — [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — operating-mode-recommendation-shape e2e: agent pipeline never materializes non-empty proposedTrades on dev
-- 2026-05-08 — [deposit-page-pattern-a-to-pattern-b](backlog/deposit-page-pattern-a-to-pattern-b.md) [refactor] — deposit-page is the lone Pattern A holdout; full fix = client-UUID + URL routing + getDeposit recovery.

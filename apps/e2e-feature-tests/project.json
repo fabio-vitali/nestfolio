@@ -12,14 +12,6 @@
         "color": true
       }
     },
-    "test": {
-      "executor": "@nx/jest:jest",
-      "options": {
-        "jestConfig": "apps/e2e-feature-tests/jest.config.js",
-        "passWithNoTests": false,
-        "testPathPattern": "/test/"
-      }
-    },
     "lint": {
       "executor": "@nx/eslint:lint"
     }

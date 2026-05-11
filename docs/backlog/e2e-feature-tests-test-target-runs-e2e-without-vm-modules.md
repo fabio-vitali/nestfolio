@@ -1,15 +1,16 @@
 ---
 id: e2e-feature-tests-test-target-runs-e2e-without-vm-modules
-status: queued
-rank: 3
+status: shipped
+rank: null
 type: bug
 notes: "`nx run-many -t test` picks up apps/e2e-feature-tests:test which runs all e2e files via @nx/jest:jest without --experimental-vm-modules, so every dynamic import fails."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "nestfolio-e2e target audit (other e2e app, already has no `test` target — already aligned)"
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Took Option 1 (drop) — consistent with workspace precedent (nestfolio-e2e also has no `test` target). Verified `nx show project e2e-feature-tests` reports only [test-e2e-features, lint]; `nx show projects --with-target=test` correctly excludes the project. `test-e2e-features` (the real entry point with NODE_OPTIONS=--experimental-vm-modules) unchanged."
 ---
 
 # `e2e-feature-tests:test` target is the wrong shape — fails the whole-workspace `test` run
