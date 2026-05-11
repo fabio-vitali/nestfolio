@@ -1,15 +1,16 @@
 ---
 id: investor-bff-mandate-accepted-at-field-undefined
-status: queued
-rank: 5
+status: shipped
+rank: null
 type: bug
 notes: "Test mutation selects Mandate.acceptedAt; the field was deleted from schema in commit e283b5f5 (2026-05-08 resplit). Test fixture rot + stale TypeScript MandateStatus interface in src/domain/models.ts."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Resolver error-translation contract — see investor-bff-double-revoke-assertion-mismatch"
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "investor-bff test 100/100 unit GREEN + test-integration 17/19 GREEN on main 2026-05-11. Fix shape applied: removed 4 acceptedAt mentions across 2 revokeMandate test mutations (Fix shape said 3; counted the 4th as a paired TS annotation, same revokeMandate sites) + deleted MandateStatus interface in domain/models.ts:78-86. The named failing tests #1 (revoke mandate) + #3 (getProfile) now PASS. Named failing test #2 (double-revoke InvalidState) still fails but for a different reason than the Fix shape predicted — resolver throws raw DDB ConditionalCheckFailedException, not friendly InvalidState. Filed separately as investor-bff-double-revoke-assertion-mismatch (parking lot). 1 pre-existing test skipped (compliance MandateSnapshot propagation, unrelated)."
 ---
 
 # `Mandate.acceptedAt` deleted from schema; investor-bff test mutations + stale TS interface left behind

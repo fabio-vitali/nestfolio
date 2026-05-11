@@ -75,16 +75,6 @@ export interface InvestorProfile {
   readonly updatedAt: string;
 }
 
-/** Mandate lifecycle status row — single row per (tenantId, userId). */
-export interface MandateStatus {
-  readonly tenantId: string;
-  readonly userId: string;
-  readonly status: 'ACCEPTED' | 'REVOKED';
-  readonly acceptedAt: string;
-  readonly revokedAt: string | null;
-  readonly region: string;
-}
-
 /** Written to DDB when the investor switches execution mode; triggers EXECUTION_MODE_CHANGED via CDC. */
 export interface ExecutionModeChange {
   readonly changeId: string;

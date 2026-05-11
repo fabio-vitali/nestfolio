@@ -572,7 +572,6 @@ describe('investor-bff', () => {
       const result = await appsync.mutate<{
         revokeMandate: {
           status: string;
-          acceptedAt: string;
           revokedAt: string;
         };
       }>(
@@ -580,7 +579,6 @@ describe('investor-bff', () => {
         mutation RevokeMandate {
           revokeMandate {
             status
-            acceptedAt
             revokedAt
           }
         }
@@ -632,13 +630,12 @@ describe('investor-bff', () => {
       // status=ACCEPTED fails because status is now REVOKED).
       await expect(
         appsync.mutate<{
-          revokeMandate: { status: string; acceptedAt: string; revokedAt: string };
+          revokeMandate: { status: string; revokedAt: string };
         }>(
           `
           mutation RevokeMandate {
             revokeMandate {
               status
-              acceptedAt
               revokedAt
             }
           }
