@@ -1,7 +1,7 @@
 ---
 id: agent-ctrl-integration-tests-decision-row-missing
-status: queued
-rank: 4
+status: shipped
+rank: null
 type: bug
 notes: "3 agent-ctrl integration tests time out 60s waiting for `pk=DECISION#…`. Root cause: handlers throw UnknownOperatingModeError before DDB write because tests don't include `operatingMode` in event subject. Post-ship fixture rot from `non-investor-profile-trigger-operating-mode-lookup` workstream."
 references: []
@@ -9,7 +9,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "advisory-narrative-ctrl + portfolio-engine-ctrl + investor-profile-ctrl: test 99/99 + test-integration 3/3 GREEN on main 2026-05-11. Added operatingMode: 'BALANCED' to the 3 failing eb.putEvent fixtures (top-level for narrative+portfolio, nested under investorProfile for profile)."
 ---
 
 # Agent-controller integration tests: handlers throw `UnknownOperatingModeError` before DDB write

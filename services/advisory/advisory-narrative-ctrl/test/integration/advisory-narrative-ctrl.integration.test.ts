@@ -69,6 +69,7 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
         tenantId: ctx.tenantId,
         decisionId,
         taskToken: 'integ-task-token',
+        operatingMode: 'BALANCED',
       },
     });
 

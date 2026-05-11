@@ -95,6 +95,7 @@ describe('portfolio-engine-ctrl: CONSTRUCT_PORTFOLIO → AgentInvocation DDB wri
         tenantId: ctx.tenantId,
         decisionId,
         taskToken: 'integ-task-token',
+        operatingMode: 'BALANCED',
         context: {},
       },
     });

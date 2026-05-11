@@ -74,6 +74,7 @@ describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DD
           income: 120000,
           liquidAssets: 80000,
           investmentExperience: 'MODERATE',
+          operatingMode: 'BALANCED',
         },
         portfolioState: {
           totalValue: 200000,
