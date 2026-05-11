@@ -218,25 +218,14 @@ describe('investor-bff', () => {
       // ONBOARDING_COMPLETED, turning the second Put into a CDC MODIFY
       // (INVESTOR_PROFILE_UPDATED) instead of INSERT (INVESTOR_PROFILE_CREATED)
       // and breaking the event assertion below.
-      let profileItem: Record<string, unknown> | undefined;
-      const deadline = Date.now() + 90_000;
-      while (Date.now() < deadline) {
-        try {
-          profileItem = await table.waitForItem({
-            table: 'investor-bff',
-            pk,
-            sk: 'InvestorProfile',
-            timeoutMs: 5_000,
-          });
-          if (profileItem['mandateId']) break;
-        } catch {
-          // Row not yet materialized — keep polling within outer deadline.
-        }
-        await new Promise((r) => setTimeout(r, 2_000));
-      }
-      if (!profileItem || !profileItem['mandateId']) {
-        throw new Error(`InvestorProfile row with mandateId did not appear within 90s for pk=${pk}`);
-      }
+      const profileItem = await table.waitForItem({
+        table: 'investor-bff',
+        pk,
+        sk: 'InvestorProfile',
+        predicate: (i) => !!i['mandateId'],
+        description: 'InvestorProfile row with mandateId',
+        timeoutMs: 90_000,
+      });
 
       // Composite assertions — TWO rows: InvestorProfile + Mandate
       const items = await getInvestorProfileItems(ctx.tenantId, userId);
@@ -734,17 +723,14 @@ describe('investor-bff', () => {
       // Wait for the goal group to be present (last-written portion of the
       // transactWrite Put — its presence is the strongest signal the
       // composite row is hydrated).
-      const deadline = Date.now() + 90_000;
-      while (Date.now() < deadline) {
-        const item = await table.waitForItem({
-          table: 'investor-bff',
-          pk: profilePk(),
-          sk: 'InvestorProfile',
-          timeoutMs: 5_000,
-        });
-        if (item['operatingMode'] === 'BALANCED' && item['goal']) break;
-        await new Promise((r) => setTimeout(r, 2_000));
-      }
+      await table.waitForItem({
+        table: 'investor-bff',
+        pk: profilePk(),
+        sk: 'InvestorProfile',
+        predicate: (i) => i['operatingMode'] === 'BALANCED' && !!i['goal'],
+        description: 'InvestorProfile row with operatingMode=BALANCED and goal',
+        timeoutMs: 90_000,
+      });
     }, 120_000);
 
     it('should return composite InvestorProfile via getProfile', async () => {
