@@ -1,15 +1,16 @@
 ---
 id: onboarding-mfe-chat-component-spec-drift
-status: queued
-rank: 2
+status: shipped
+rank: null
 type: bug
 notes: "9+ unit tests in apps/onboarding-mfe/test/app/onboarding-chat.component.spec.ts fail against the current component; spec encodes an older streaming/headers/CTA contract."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "No component code changes — current shape (static headers, async mountRenderer, warn-then-navigate CTA) is intentional with inline comments justifying each"
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "onboarding-mfe test 71/71 GREEN on main 2026-05-11. Component design choices kept (verified intentional via inline comments): headers static object literal, mountRenderer async via setTimeout 0, CTA warn-then-navigate-anyway. Spec rewrites: (a) added drainMicrotasks helper for runAgent's async fetchAuthSession boundary, (b) renamed phase_index → phaseIndex in STATE_SNAPSHOT, (c) updated timeout assertion 15s → 45s (TIMEOUT_MS), (d) toolName → toolCallName in TOOL_CALL_START (AG-UI contract), (e) headers factory → static object assertions, (f) CTA error-path: warns+navigates instead of error+abort, (g) claim-absent path: 1 local-mark updateUser call, not zero."
 ---
 
 # `OnboardingChatComponent` unit spec is out of sync with the component

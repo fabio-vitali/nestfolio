@@ -11,7 +11,8 @@ _(none)_
 
 ## QUEUED
 
-1. [onboarding-mfe-chat-component-spec-drift](backlog/onboarding-mfe-chat-component-spec-drift.md) [bug] — 9+ unit tests in apps/onboarding-mfe/test/app/onboarding-chat.component.spec.ts fail against the current component; spec encodes an older streaming/headers/CTA contract.
+_(none)_
+
 
 ## LATER
 
@@ -57,6 +58,6 @@ _(none)_
 - 2026-05-11 — [investor-bff-mandate-accepted-at-field-undefined](backlog/investor-bff-mandate-accepted-at-field-undefined.md) [bug] — Test mutation selects Mandate.acceptedAt; the field was deleted from schema in commit e283b5f5 (2026-05-08 resplit). Test fixture rot + stale TypeScript MandateStatus interface in src/domain/models.ts.
 - 2026-05-11 — [investor-ctrl-notification-created-not-emitted-on-profile-diff](backlog/investor-ctrl-notification-created-not-emitted-on-profile-diff.md) [bug] — Tests publish synthetic INVESTOR_PROFILE_UPDATED but post-resplit handler subscribes to atomic OPERATING_MODE_CHANGED / GOAL_UPDATED events emitted by investor-bff CDC `onFieldChange`. Direct EB injection bypasses DDB → CDC never fires → notification never emitted.
 - 2026-05-11 — [non-investor-profile-trigger-operating-mode-lookup](backlog/non-investor-profile-trigger-operating-mode-lookup.md) [bug] — Non-INVESTOR_PROFILE_* SF triggers (DEPOSIT_DETECTED, ORDER_*, PORTFOLIO_DRIFT_DETECTED) reach investor-profile-ctrl without operatingMode. Promoted 2026-05-09 after rank-1 dropped — empirical evidence (50 dev SF executions: 27/50 fast-fail with UnknownOperatingModeError, 0 stuck on WaitForCompliance) shows this is THE blocker for non-PROFILE-triggered decision flows.
+- 2026-05-11 — [onboarding-mfe-chat-component-spec-drift](backlog/onboarding-mfe-chat-component-spec-drift.md) [bug] — 9+ unit tests in apps/onboarding-mfe/test/app/onboarding-chat.component.spec.ts fail against the current component; spec encodes an older streaming/headers/CTA contract.
 - 2026-05-09 — [advisory-empty-state-pending-decisions-count](backlog/advisory-empty-state-pending-decisions-count.md) [design] — UX bug — empty state shown when pendingDecisionsCount > 0 and list is lagging. Shipped 2026-05-09 on `feat/advisory-in-flight-projection` (33 commits) with full BFF state-completeness — advisory-bff + dashboard-bff both project the in-flight state.
 - 2026-05-09 — [agentcore-memory-list-records-eventual-consistency](backlog/agentcore-memory-list-records-eventual-consistency.md) [bug] — AgentCore Memory ListMemoryRecords lag >40s; SF inter-stage cadence ~5s — propagate operatingMode through SF state instead.
-- 2026-05-09 — [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — operating-mode-recommendation-shape e2e: agent pipeline never materializes non-empty proposedTrades on dev

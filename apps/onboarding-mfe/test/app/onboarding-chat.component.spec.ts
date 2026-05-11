@@ -50,6 +50,14 @@ jest.mock('@ag-ui/client', () => ({
 
 const mockAuthStore = { user: () => ({ tenantId: 'tenant-xyz' }) };
 
+// runAgent() is async — it awaits fetchAuthSession() before subscribing to
+// mockHttpAgent.run(). Tests that push events on the mock Subject must first
+// drain the microtask queue so the subscription is in place.
+const drainMicrotasks = async () => {
+  await Promise.resolve();
+  await Promise.resolve();
+};
+
 describe('OnboardingChatComponent', () => {
   let fixture: ComponentFixture<OnboardingChatComponent>;
   let component: OnboardingChatComponent;
@@ -134,29 +142,32 @@ describe('OnboardingChatComponent', () => {
     expect(component.isStreaming()).toBe(true);
   });
 
-  it('sets isStreaming false when stream completes', () => {
+  it('sets isStreaming false when stream completes', async () => {
     const sub$ = new Subject<unknown>();
     mockHttpAgent.run.mockReturnValue(sub$.asObservable());
     component.inputValue.set('Hello');
     component.sendMessage();
+    await drainMicrotasks();
     sub$.complete();
     expect(component.isStreaming()).toBe(false);
   });
 
-  it('sets errorMessage on stream error', () => {
+  it('sets errorMessage on stream error', async () => {
     const sub$ = new Subject<unknown>();
     mockHttpAgent.run.mockReturnValue(sub$.asObservable());
     component.inputValue.set('Hello');
     component.sendMessage();
+    await drainMicrotasks();
     sub$.error(new Error('network failure'));
     expect(component.errorMessage()).toBeTruthy();
   });
 
-  it('appends assistant text message on TEXT_MESSAGE_CONTENT event', () => {
+  it('appends assistant text message on TEXT_MESSAGE_CONTENT event', async () => {
     const sub$ = new Subject<unknown>();
     mockHttpAgent.run.mockReturnValue(sub$.asObservable());
     component.inputValue.set('Ciao');
     component.sendMessage();
+    await drainMicrotasks();
 
     sub$.next({ type: 'TEXT_MESSAGE_START', messageId: 'msg-1' });
     sub$.next({ type: 'TEXT_MESSAGE_CONTENT', delta: 'Benvenuto' });
@@ -168,13 +179,17 @@ describe('OnboardingChatComponent', () => {
     expect(assistantMsgs[0].content).toBe('Benvenuto');
   });
 
-  it('updates phaseIndex from STATE_SNAPSHOT event', () => {
+  it('updates phaseIndex from STATE_SNAPSHOT event', async () => {
     const sub$ = new Subject<unknown>();
     mockHttpAgent.run.mockReturnValue(sub$.asObservable());
     component.inputValue.set('Go');
     component.sendMessage();
+    await drainMicrotasks();
 
-    sub$.next({ type: 'STATE_SNAPSHOT', snapshot: { phase_index: 3 } });
+    // Component reads `phaseIndex` (camelCase) from the snapshot payload — see
+    // STATE_SNAPSHOT branch in runAgent (snake_case `phase_index` was the
+    // pre-rewrite contract).
+    sub$.next({ type: 'STATE_SNAPSHOT', snapshot: { phaseIndex: 3 } });
     sub$.complete();
 
     expect(component.phaseIndex()).toBe(3);
@@ -182,12 +197,17 @@ describe('OnboardingChatComponent', () => {
 
   // ── Error handling ─────────────────────────────────────────────────────────
 
-  it('shows loading indicator after 3s delay', () => {
-    jest.useFakeTimers();
+  it('shows loading indicator after 3s delay', async () => {
+    jest.useFakeTimers({ doNotFake: ['queueMicrotask'] });
     const sub$ = new Subject<unknown>();
     mockHttpAgent.run.mockReturnValue(sub$.asObservable());
     component.inputValue.set('Hello');
     component.sendMessage();
+
+    // runAgent awaits fetchAuthSession BEFORE setting the loadingTimer —
+    // drain microtasks so the setTimeout is actually scheduled before we
+    // advance fake timers.
+    await drainMicrotasks();
 
     expect(component.showLoading()).toBe(false);
     jest.advanceTimersByTime(3000);
@@ -196,14 +216,18 @@ describe('OnboardingChatComponent', () => {
     sub$.complete();
   });
 
-  it('shows timeout message after 15s', () => {
-    jest.useFakeTimers();
+  it('shows timeout message after the configured timeout (45s)', async () => {
+    jest.useFakeTimers({ doNotFake: ['queueMicrotask'] });
     const sub$ = new Subject<unknown>();
     mockHttpAgent.run.mockReturnValue(sub$.asObservable());
     component.inputValue.set('Hello');
     component.sendMessage();
 
-    jest.advanceTimersByTime(15000);
+    await drainMicrotasks();
+
+    // TIMEOUT_MS in the component is 45_000 (covers cold-start + 2
+    // sequential Bedrock invocations + optional KB follow-up).
+    jest.advanceTimersByTime(45_000);
     expect(component.timedOut()).toBe(true);
     expect(component.isStreaming()).toBe(false);
   });
@@ -225,36 +249,41 @@ describe('OnboardingChatComponent', () => {
 
   // ── Bridge wiring ──────────────────────────────────────────────────────────
 
-  it('passes the absolute copilotApiUrl to HttpAgent', () => {
+  it('passes the absolute copilotApiUrl to HttpAgent', async () => {
+    await drainMicrotasks();
     const { HttpAgent } = require('@ag-ui/client');
     expect(HttpAgent).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'https://example.cloudfront.net/api/copilotkit' }),
     );
   });
 
-  it('provides a headers factory that includes Bearer token + session-id', async () => {
+  // Headers are passed as a STATIC object literal (Authorization + session-id),
+  // refreshed by virtue of HttpAgent being reconstructed per runAgent() call —
+  // not as a factory function. The factory shape was the pre-rewrite contract;
+  // current component fetches the access token in runAgent() and inlines the
+  // headers into the HttpAgent constructor.
+  it('includes Bearer token + session-id in the static headers object', async () => {
+    await drainMicrotasks();
     const { HttpAgent } = require('@ag-ui/client');
-    const call = HttpAgent.mock.calls.at(-1)[0] as { headers?: () => Promise<Record<string, string>> };
-    expect(typeof call.headers).toBe('function');
-    const headers = await call.headers!();
-    expect(headers['Authorization']).toBe('Bearer fake-access-token');
-    expect(headers['x-amzn-bedrock-agentcore-runtime-session-id']).toMatch(/^tenant-xyz\/.+/);
+    const call = HttpAgent.mock.calls.at(-1)[0] as { headers: Record<string, string> };
+    expect(call.headers['Authorization']).toBe('Bearer fake-access-token');
+    expect(call.headers['x-amzn-bedrock-agentcore-runtime-session-id']).toMatch(/^tenant-xyz\/.+/);
   });
 
   it('persists the sessionId part across remounts via sessionStorage', async () => {
+    await drainMicrotasks();
     const { HttpAgent } = require('@ag-ui/client');
-    const firstCall = HttpAgent.mock.calls.at(-1)[0] as { headers: () => Promise<Record<string, string>> };
-    const firstHeaders = await firstCall.headers();
-    const firstSid = firstHeaders['x-amzn-bedrock-agentcore-runtime-session-id'];
+    const firstCall = HttpAgent.mock.calls.at(-1)[0] as { headers: Record<string, string> };
+    const firstSid = firstCall.headers['x-amzn-bedrock-agentcore-runtime-session-id'];
 
     // Remount the component (destroy + recreate).
     fixture.destroy();
     fixture = TestBed.createComponent(OnboardingChatComponent);
     fixture.detectChanges();
+    await drainMicrotasks();
 
-    const secondCall = HttpAgent.mock.calls.at(-1)[0] as { headers: () => Promise<Record<string, string>> };
-    const secondHeaders = await secondCall.headers();
-    expect(secondHeaders['x-amzn-bedrock-agentcore-runtime-session-id']).toBe(firstSid);
+    const secondCall = HttpAgent.mock.calls.at(-1)[0] as { headers: Record<string, string> };
+    expect(secondCall.headers['x-amzn-bedrock-agentcore-runtime-session-id']).toBe(firstSid);
   });
 
   // ── mountRenderer integration test ────────────────────────────────────────
@@ -271,7 +300,10 @@ describe('OnboardingChatComponent', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    sub$.next({ type: 'TOOL_CALL_START', toolCallId: 'tc-1', toolName: 'render_options' });
+    // AG-UI's ToolCallStartEvent uses `toolCallName` (not `toolName`). The
+    // previous reader-shape was renamed during the rewrite — see comment in
+    // onboarding-chat.component.ts under TOOL_CALL_START.
+    sub$.next({ type: 'TOOL_CALL_START', toolCallId: 'tc-1', toolCallName: 'render_options' });
     sub$.next({ type: 'TOOL_CALL_ARGS', delta: JSON.stringify({ title: 'Pick one', options: [{ id: 'GROWTH', label: 'Growth' }] }) });
     sub$.next({ type: 'TOOL_CALL_END' });
     sub$.next({ type: 'RUN_FINISHED' });
@@ -401,23 +433,45 @@ describe('OnboardingChatComponent — CTA renderer click', () => {
     });
     const router = TestBed.inject(require('@angular/router').Router);
     const navigateSpy = jest.spyOn(router, 'navigate').mockResolvedValue(true);
+    mockUpdateUser.mockClear();
 
     await component.onCtaClick('complete');
 
-    // updateUser is NOT called when the claim is absent
-    expect(mockUpdateUser).not.toHaveBeenCalled();
+    // Current contract: component always sets the local timestamp BEFORE the
+    // refresh attempt (so the route guard sees onboarding as complete even if
+    // the Cognito claim is lagging). When the refreshed claim is absent there
+    // is no SECOND updateUser call — exactly one local-mark call.
+    expect(mockUpdateUser).toHaveBeenCalledTimes(1);
+    expect(mockUpdateUser).toHaveBeenCalledWith(
+      expect.objectContaining({ onboardingCompletedAt: expect.any(String) }),
+    );
     expect(navigateSpy).toHaveBeenCalledWith(['/dashboard']);
   });
 
-  it('onCtaClick() sets errorMessage and does NOT navigate when fetchAuthSession rejects', async () => {
+  // Design intent (onboarding-chat.component.ts:411-433): the agent has
+  // already committed mandate_consent → ONBOARDING_COMPLETED, and the
+  // component locally marks `authStore.updateUser({ onboardingCompletedAt })`
+  // BEFORE attempting the force-refresh. A Cognito outage at this point must
+  // NOT bounce the user back to onboarding — the local mark is sufficient for
+  // the route guard, and the refresh is best-effort. So fetchAuthSession
+  // rejection is logged + swallowed, and navigation proceeds anyway.
+  it('onCtaClick() navigates to /dashboard even when fetchAuthSession rejects (best-effort refresh)', async () => {
     jest.requireMock('aws-amplify/auth').fetchAuthSession.mockRejectedValueOnce(new Error('cognito-down'));
     const router = TestBed.inject(require('@angular/router').Router);
     const navigateSpy = jest.spyOn(router, 'navigate').mockResolvedValue(true);
+    // Local mark happens before the refresh attempt — capture it for assertion.
+    mockUpdateUser.mockClear();
 
     await component.onCtaClick('complete');
 
-    expect(component.errorMessage()).toBeTruthy();
-    expect(navigateSpy).not.toHaveBeenCalled();
+    // Local mark fired before the failed refresh
+    expect(mockUpdateUser).toHaveBeenCalledWith(
+      expect.objectContaining({ onboardingCompletedAt: expect.any(String) }),
+    );
+    // errorMessage stays null — this is a best-effort path, not a user-visible failure
+    expect(component.errorMessage()).toBeNull();
+    // Navigation proceeds regardless
+    expect(navigateSpy).toHaveBeenCalledWith(['/dashboard']);
   });
 });
 
