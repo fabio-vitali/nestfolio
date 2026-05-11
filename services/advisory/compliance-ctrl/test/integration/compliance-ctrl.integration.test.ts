@@ -103,23 +103,13 @@ describe('compliance-ctrl', () => {
     // Poll for THIS test's mandateId — handler may run multiple times if the
     // SQS Lambda redelivers, but each carries the same mandateId so the
     // assertion is stable.
-    let item: Record<string, unknown> | undefined;
-    const deadline = Date.now() + 90_000;
-    while (Date.now() < deadline) {
-      try {
-        item = await table.waitForItem({
-          table: 'compliance-ctrl',
-          pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
-          sk: 'MandateSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (item['mandateId'] === mandateId) break;
-      } catch { /* not yet */ }
-      await new Promise((r) => setTimeout(r, 2_000));
-    }
-    if (!item || item['mandateId'] !== mandateId) {
-      throw new Error(`MandateSnapshot did not project mandateId=${mandateId} within 90s`);
-    }
+    const item = await table.waitForItem({
+      table: 'compliance-ctrl',
+      pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
+      sk: 'MandateSnapshot',
+      timeoutMs: 90_000,
+      match: { mandateId },
+    });
 
     expect(item['mandateId']).toBe(mandateId);
     expect(item['level']).toBe('DISCRETIONARY');
@@ -149,23 +139,13 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    let seeded: Record<string, unknown> | undefined;
-    const seedDeadline = Date.now() + 60_000;
-    while (Date.now() < seedDeadline) {
-      try {
-        seeded = await table.waitForItem({
-          table: 'compliance-ctrl',
-          pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
-          sk: 'MandateSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (seeded['mandateId'] === mandateId && seeded['operatingMode'] === 'CONSERVATIVE') break;
-      } catch { /* not yet */ }
-      await new Promise((r) => setTimeout(r, 2_000));
-    }
-    if (!seeded || seeded['operatingMode'] !== 'CONSERVATIVE') {
-      throw new Error(`Initial MandateSnapshot did not seed for ${userId} within 60s`);
-    }
+    const seeded = await table.waitForItem({
+      table: 'compliance-ctrl',
+      pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
+      sk: 'MandateSnapshot',
+      timeoutMs: 60_000,
+      match: { mandateId, operatingMode: 'CONSERVATIVE' },
+    });
 
     // Now emit OPERATING_MODE_CHANGED — patches only operatingMode, leaves level/mandateId intact
     await eb.putEvent({
@@ -180,22 +160,15 @@ describe('compliance-ctrl', () => {
     });
 
     // Poll until the projection reflects the updated operatingMode
-    let updated: Record<string, unknown> | undefined;
-    const deadline = Date.now() + 60_000;
-    while (Date.now() < deadline) {
-      try {
-        updated = await table.waitForItem({
-          table: 'compliance-ctrl',
-          pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
-          sk: 'MandateSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (updated['operatingMode'] === 'AGGRESSIVE') break;
-      } catch { /* not yet */ }
-      await new Promise((r) => setTimeout(r, 2_000));
-    }
+    const updated = await table.waitForItem({
+      table: 'compliance-ctrl',
+      pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
+      sk: 'MandateSnapshot',
+      timeoutMs: 60_000,
+      match: { operatingMode: 'AGGRESSIVE' },
+    });
 
-    expect(updated!['mandateId']).toBe(mandateId);
+    expect(updated['mandateId']).toBe(mandateId);
     // level is unchanged — OPERATING_MODE_CHANGED only patches operatingMode
     expect(updated!['level']).toBe('ADVISORY');
     expect(updated!['operatingMode']).toBe('AGGRESSIVE');
@@ -225,22 +198,15 @@ describe('compliance-ctrl', () => {
     });
 
     // Wait for the row to land — MANDATE_ISSUED projection sets status='ACTIVE'.
-    let seeded: Record<string, unknown> | undefined;
-    const seedDeadline = Date.now() + 60_000;
-    while (Date.now() < seedDeadline) {
-      try {
-        seeded = await table.waitForItem({
-          table: 'compliance-ctrl',
-          pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
-          sk: 'MandateSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (seeded['mandateId'] === mandateId) break;
-      } catch { /* not yet */ }
-      await new Promise((r) => setTimeout(r, 2_000));
-    }
-    expect(seeded!['mandateId']).toBe(mandateId);
-    expect(seeded!['status']).toBe('ACTIVE');
+    const seeded = await table.waitForItem({
+      table: 'compliance-ctrl',
+      pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
+      sk: 'MandateSnapshot',
+      timeoutMs: 60_000,
+      match: { mandateId },
+    });
+    expect(seeded['mandateId']).toBe(mandateId);
+    expect(seeded['status']).toBe('ACTIVE');
 
     // 2. Emit MANDATE_REVOKED
     await eb.putEvent({
@@ -255,28 +221,21 @@ describe('compliance-ctrl', () => {
     });
 
     // 3. Poll for status=REVOKED
-    let revoked: Record<string, unknown> | undefined;
-    const revokeDeadline = Date.now() + 60_000;
-    while (Date.now() < revokeDeadline) {
-      try {
-        revoked = await table.waitForItem({
-          table: 'compliance-ctrl',
-          pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
-          sk: 'MandateSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (revoked['status'] === 'REVOKED') break;
-      } catch { /* not yet */ }
-      await new Promise((r) => setTimeout(r, 2_000));
-    }
-    expect(revoked!['status']).toBe('REVOKED');
-    expect(revoked!['revokedAt']).toBe(revokedAt);
+    const revoked = await table.waitForItem({
+      table: 'compliance-ctrl',
+      pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
+      sk: 'MandateSnapshot',
+      timeoutMs: 60_000,
+      match: { status: 'REVOKED' },
+    });
+    expect(revoked['status']).toBe('REVOKED');
+    expect(revoked['revokedAt']).toBe(revokedAt);
     // Critical: MANDATE_REVOKED must patch only status + revokedAt,
     // leaving mandate fields (mandateId, level, operatingMode, effectiveDate)
     // projected from MANDATE_ISSUED intact for downstream rule evaluation.
-    expect(revoked!['mandateId']).toBe(mandateId);
-    expect(revoked!['level']).toBe('DISCRETIONARY');
-    expect(revoked!['operatingMode']).toBe('BALANCED');
+    expect(revoked['mandateId']).toBe(mandateId);
+    expect(revoked['level']).toBe('DISCRETIONARY');
+    expect(revoked['operatingMode']).toBe('BALANCED');
   }, 240_000);
 
   // ── REVOKED-blocks-cycle (rule engine gate) ──────────────────────────
@@ -305,25 +264,14 @@ describe('compliance-ctrl', () => {
     });
 
     // Wait for the seed to land — MANDATE_ISSUED sets status='ACTIVE'.
-    // try/catch swallows the inner waitForItem timeout so jest.retryTimes(1)
-    // doesn't double-fire the seed/revoke pair.
-    let seeded: Record<string, unknown> | undefined;
-    const seedDeadline = Date.now() + 90_000;
-    while (Date.now() < seedDeadline) {
-      try {
-        seeded = await table.waitForItem({
-          table: 'compliance-ctrl',
-          pk: policyPk,
-          sk: 'MandateSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (seeded['mandateId'] === mandateId && seeded['status'] !== 'REVOKED') break;
-      } catch { /* not yet */ }
-      await new Promise((r) => setTimeout(r, 2_000));
-    }
-    if (!seeded || seeded['mandateId'] !== mandateId || seeded['status'] === 'REVOKED') {
-      throw new Error(`MandateSnapshot did not seed for ${policyPk} within 90s`);
-    }
+    const seeded = await table.waitForItem({
+      table: 'compliance-ctrl',
+      pk: policyPk,
+      sk: 'MandateSnapshot',
+      timeoutMs: 90_000,
+      predicate: (i) => i['mandateId'] === mandateId && i['status'] !== 'REVOKED',
+      description: `mandateId=${mandateId} with status≠REVOKED`,
+    });
 
     // Revoke
     await eb.putEvent({
@@ -338,21 +286,14 @@ describe('compliance-ctrl', () => {
     });
 
     // Wait for REVOKED
-    let revoked: Record<string, unknown> | undefined;
-    const revokeDeadline = Date.now() + 90_000;
-    while (Date.now() < revokeDeadline) {
-      try {
-        revoked = await table.waitForItem({
-          table: 'compliance-ctrl',
-          pk: policyPk,
-          sk: 'MandateSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (revoked['status'] === 'REVOKED') break;
-      } catch { /* not yet */ }
-      await new Promise((r) => setTimeout(r, 2_000));
-    }
-    expect(revoked!['status']).toBe('REVOKED');
+    const revoked = await table.waitForItem({
+      table: 'compliance-ctrl',
+      pk: policyPk,
+      sk: 'MandateSnapshot',
+      timeoutMs: 90_000,
+      match: { status: 'REVOKED' },
+    });
+    expect(revoked['status']).toBe('REVOKED');
 
     // Now run a decision cycle — must be BLOCKED with MANDATE_SCOPE violation
     const decisionId = `integ-decision-revoked-${Date.now()}`;
@@ -439,25 +380,14 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    // Wait for THIS test's mandateId to land — try/catch swallows the inner
-    // timeout so jest.retryTimes(1) doesn't re-fire the seed/decision pair.
-    let seeded: Record<string, unknown> | undefined;
-    const seedDeadline = Date.now() + 90_000;
-    while (Date.now() < seedDeadline) {
-      try {
-        seeded = await table.waitForItem({
-          table: 'compliance-ctrl',
-          pk: policyPk,
-          sk: 'MandateSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (seeded['mandateId'] === mandateId) break;
-      } catch { /* not yet */ }
-      await new Promise((r) => setTimeout(r, 2_000));
-    }
-    if (!seeded || seeded['mandateId'] !== mandateId) {
-      throw new Error(`MandateSnapshot did not project mandateId=${mandateId} for ${policyPk} within 90s`);
-    }
+    // Wait for THIS test's mandateId to land.
+    await table.waitForItem({
+      table: 'compliance-ctrl',
+      pk: policyPk,
+      sk: 'MandateSnapshot',
+      timeoutMs: 90_000,
+      match: { mandateId },
+    });
 
     const decisionId = `integ-authority-balanced-${Date.now()}`;
 
@@ -530,23 +460,13 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    let seeded: Record<string, unknown> | undefined;
-    const seedDeadline = Date.now() + 90_000;
-    while (Date.now() < seedDeadline) {
-      try {
-        seeded = await table.waitForItem({
-          table: 'compliance-ctrl',
-          pk: policyPk,
-          sk: 'MandateSnapshot',
-          timeoutMs: 5_000,
-        });
-        if (seeded['mandateId'] === mandateId) break;
-      } catch { /* not yet */ }
-      await new Promise((r) => setTimeout(r, 2_000));
-    }
-    if (!seeded || seeded['mandateId'] !== mandateId) {
-      throw new Error(`MandateSnapshot did not project mandateId=${mandateId} for ${policyPk} within 90s`);
-    }
+    await table.waitForItem({
+      table: 'compliance-ctrl',
+      pk: policyPk,
+      sk: 'MandateSnapshot',
+      timeoutMs: 90_000,
+      match: { mandateId },
+    });
 
     const decisionId = `integ-authority-conservative-${Date.now()}`;
 
