@@ -61,7 +61,7 @@ describe('compliance-ctrl', () => {
     // ComplianceCheck row → CDC subject on DECISION_APPROVED|BLOCKED so the SF
     // callback Lambda can call SendTaskSuccess. Without this round-trip the
     // decision-workflow-ctrl state machine remains stuck at WaitForCompliance.
-    const event = await trap.waitForEvent({ timeoutMs: 90_000 });
+    const event = await trap.waitForEvent({ timeoutMs: 30_000 });
     expect(['DECISION_APPROVED', 'DECISION_BLOCKED']).toContain(event.detailType);
     const detail = event.detail as Record<string, unknown>;
     const subject = detail.subject as Record<string, unknown>;
