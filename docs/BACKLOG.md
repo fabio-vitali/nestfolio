@@ -11,7 +11,12 @@ _(none)_
 
 ## QUEUED
 
-1. [circuit-breaker-feature-flags-ui-gating](backlog/circuit-breaker-feature-flags-ui-gating.md) [bug] — scenario 14 e2e: getFeatureFlags stays all `enabled:true` after circuit breaker opens. UI never reflects the gated-mutation state.
+1. [broker-ctrl-sim-deposit-normalizer-missing-amount-field](backlog/broker-ctrl-sim-deposit-normalizer-missing-amount-field.md) [bug] — Tests assert `amount` but normalizer correctly writes `amountCents` (ledger convention). Production-correct; tests are stale. Surfaced cross-domain field-name inconsistency.
+2. [onboarding-mfe-chat-component-spec-drift](backlog/onboarding-mfe-chat-component-spec-drift.md) [bug] — 9+ unit tests in apps/onboarding-mfe/test/app/onboarding-chat.component.spec.ts fail against the current component; spec encodes an older streaming/headers/CTA contract.
+3. [e2e-feature-tests-test-target-runs-e2e-without-vm-modules](backlog/e2e-feature-tests-test-target-runs-e2e-without-vm-modules.md) [bug] — `nx run-many -t test` picks up apps/e2e-feature-tests:test which runs all e2e files via @nx/jest:jest without --experimental-vm-modules, so every dynamic import fails.
+4. [agent-ctrl-integration-tests-decision-row-missing](backlog/agent-ctrl-integration-tests-decision-row-missing.md) [bug] — 3 agent-ctrl integration tests time out 60s waiting for `pk=DECISION#…`. Root cause: handlers throw UnknownOperatingModeError before DDB write because tests don't include `operatingMode` in event subject. Post-ship fixture rot from `non-investor-profile-trigger-operating-mode-lookup` workstream.
+5. [investor-bff-mandate-accepted-at-field-undefined](backlog/investor-bff-mandate-accepted-at-field-undefined.md) [bug] — Test mutation selects Mandate.acceptedAt; the field was deleted from schema in commit e283b5f5 (2026-05-08 resplit). Test fixture rot + stale TypeScript MandateStatus interface in src/domain/models.ts.
+6. [investor-ctrl-notification-created-not-emitted-on-profile-diff](backlog/investor-ctrl-notification-created-not-emitted-on-profile-diff.md) [bug] — Tests publish synthetic INVESTOR_PROFILE_UPDATED but post-resplit handler subscribes to atomic OPERATING_MODE_CHANGED / GOAL_UPDATED events emitted by investor-bff CDC `onFieldChange`. Direct EB injection bypasses DDB → CDC never fires → notification never emitted.
 
 ## LATER
 
@@ -20,11 +25,13 @@ _(none)_
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [c4-frontend-representation](backlog/c4-frontend-representation.md) [tooling] — MFEs in C4 diagrams at C1 + C2 level (planned, not started).
 - [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md) [infra] — Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model.
+- [circuit-breaker-feature-flags-ui-gating](backlog/circuit-breaker-feature-flags-ui-gating.md) [bug] — scenario 14 e2e: getFeatureFlags stays all `enabled:true` after circuit breaker opens. UI never reflects the gated-mutation state.
 - [delete-deprecated-inject-advisory-update-fixture](backlog/delete-deprecated-inject-advisory-update-fixture.md) [refactor] — Delete @deprecated injectAdvisoryUpdate backdoor and migrate happy-path WSS sentinel test to a real-EB path.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md) [refactor] — Three callers — rule-of-three threshold; copies all do their own SigV4 setup.
 - [hoist-named-tool-retry-to-orchestrator](backlog/hoist-named-tool-retry-to-orchestrator.md) [refactor] — Only if advisory agents start showing the same Sonnet flakiness; not seen yet.
 - [host-runtime-config-json-regeneration-silently-optional](backlog/host-runtime-config-json-regeneration-silently-optional.md) [bug] — Two latent bugs: deploy.sh skips config regen + build doesn't copy file.
+- [integration-suite-slowness-architecture-levers](backlog/integration-suite-slowness-architecture-levers.md) [refactor] — Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Parked until rank 1-6 are closed.
 - [integration-test-mock-resilience](backlog/integration-test-mock-resilience.md) [tooling] — DESIGN IN PROGRESS (2026-04-16) — partly superseded by 2026-05-05 bootstrap uplift; FakeLlm + SsmOverride remain unstarted.
 - [investor-adpt-legacy-event-name-entries-cleanup](backlog/investor-adpt-legacy-event-name-entries-cleanup.md) [refactor] — Remove unused InvestorCrossDomainEventTypes entries (GOAL_UPDATED, OPERATING_MODE_CHANGED, MANDATE_CREATED, MANDATE_UPDATED) from investor-adpt/src/domain/events.ts.
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
