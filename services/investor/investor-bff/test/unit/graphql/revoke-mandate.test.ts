@@ -18,4 +18,15 @@ describe('revokeMandate resolver', () => {
   it('returns the full Mandate row from response', () => {
     expect(response(baseCtx as any)).toEqual(baseCtx.result);
   });
+
+  it('translates DDB ConditionalCheckFailedException into InvalidState', () => {
+    const errCtx = {
+      ...baseCtx,
+      error: {
+        type: 'DynamoDB:ConditionalCheckFailedException',
+        message: 'The conditional request failed',
+      },
+    };
+    expect(() => response(errCtx as any)).toThrow(/InvalidState|not active/);
+  });
 });

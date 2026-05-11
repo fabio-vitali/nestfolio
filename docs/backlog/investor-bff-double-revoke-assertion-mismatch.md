@@ -1,15 +1,16 @@
 ---
 id: investor-bff-double-revoke-assertion-mismatch
-status: queued
-rank: 4
+status: shipped
+rank: null
 type: bug
 notes: "After acceptedAt fix unblocked the double-revoke path, the test now fails on regex mismatch — resolver surfaces raw DDB ConditionalCheckFailedException, not the InvalidState/not-active/already-revoked language the assertion expected."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Sibling 'wrong-state' resolvers (updateGoal precondition failures, etc.) — only revoke-mandate is failing"
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "investor-bff test 66/66 + test-integration 18/19 GREEN on main 2026-05-11 (1 pre-existing skip on compliance MandateSnapshot propagation, unrelated). Translated DDB ConditionalCheckFailedException to InvalidState in revoke-mandate.fn.js response handler; added matching unit test. Deployed to dev sandbox before integration verification."
 ---
 
 # `should reject double-revoke with InvalidState` regex mismatches actual resolver error

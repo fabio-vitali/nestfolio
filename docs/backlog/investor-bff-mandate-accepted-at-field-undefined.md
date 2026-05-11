@@ -10,7 +10,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: "investor-bff test 100/100 unit GREEN + test-integration 17/19 GREEN on main 2026-05-11. Fix shape applied: removed 4 acceptedAt mentions across 2 revokeMandate test mutations (Fix shape said 3; counted the 4th as a paired TS annotation, same revokeMandate sites) + deleted MandateStatus interface in domain/models.ts:78-86. The named failing tests #1 (revoke mandate) + #3 (getProfile) now PASS. Named failing test #2 (double-revoke InvalidState) still fails but for a different reason than the Fix shape predicted — resolver throws raw DDB ConditionalCheckFailedException, not friendly InvalidState. Filed separately as investor-bff-double-revoke-assertion-mismatch (parking lot). 1 pre-existing test skipped (compliance MandateSnapshot propagation, unrelated)."
+validation_gate: "investor-bff test 66/66 unit GREEN + test-integration 18/19 GREEN on main 2026-05-11 (1 pre-existing skip on compliance MandateSnapshot propagation, unrelated). Fix shape applied: removed 4 acceptedAt mentions across 2 revokeMandate test mutations (Fix shape said 3; counted the 4th as a paired TS annotation, same revokeMandate sites) + deleted MandateStatus interface in domain/models.ts:78-86. All 3 named failing tests now PASS — test #2 (double-revoke InvalidState) green after sister workstream investor-bff-double-revoke-assertion-mismatch translated the resolver error."
 ---
 
 # `Mandate.acceptedAt` deleted from schema; investor-bff test mutations + stale TS interface left behind

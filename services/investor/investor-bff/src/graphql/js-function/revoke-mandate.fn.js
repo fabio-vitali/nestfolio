@@ -27,6 +27,11 @@ export function request(ctx) {
 }
 
 export function response(ctx) {
-  if (ctx.error) util.error(ctx.error.message, ctx.error.type);
+  if (ctx.error) {
+    if (ctx.error.type === 'DynamoDB:ConditionalCheckFailedException') {
+      util.error('Mandate is not active (already revoked or never issued)', 'InvalidState');
+    }
+    util.error(ctx.error.message, ctx.error.type);
+  }
   return ctx.result;
 }
