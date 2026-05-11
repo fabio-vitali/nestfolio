@@ -1,22 +1,23 @@
 ---
 id: integration-suite-slowness-architecture-levers
-status: active
+status: shipped
 type: refactor
-notes: "Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review). Active workstream is Lever 1 only (predicate primitive + sweep + 3 timeout tightenings); Levers 2–5 will be refiled as separate queued entries on ship."
+notes: "Diagnostic dossier on integration-suite wall-clock. Originally scoped as Lever 1 only; expanded mid-flight to Levers 1+3 after the per-lever measurement protocol proved too costly (each measurement ~45 min). Levers 2 (dropped — mechanism didn't help), 4 (queued — blocked on reconciliation idempotency race), 5 (queued — unit-suite scope) refiled as separate entries."
 references:
   - docs/superpowers/specs/2026-05-11-integration-suite-lever-1-design.md
+  - docs/superpowers/plans/2026-05-11-integration-suite-lever-1.md
 out_of_scope:
-  - "Lever 2 (adapter Lambda cold-start warmup)"
-  - "Lever 3 (ledger-ctrl resilience it.each consolidation)"
-  - "Lever 4 (--parallel=4)"
-  - "Lever 5 (CDK bundling tax in the unit suite)"
+  - "Lever 2 (adapter Lambda cold-start warmup) — DROPPED on scoping (mechanism doesn't reduce suite wall-clock)"
+  - "Lever 4 (--parallel=4) — refiled as queued; blocked on reconciliation-ctrl idempotency race"
+  - "Lever 5 (CDK bundling tax in the unit suite) — refiled as queued"
   - "Production handler / transform / infra changes"
   - "Async predicates or cross-resource waits in test-support"
-  - "Re-measure-only PR (measurement is the validation gate of this workstream)"
+  - "advisory-narrative-ctrl timeout tightening — deferred (20s flaked under cold-start)"
 spec: docs/superpowers/specs/2026-05-11-integration-suite-lever-1-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-11-integration-suite-lever-1.md
 topic_memory: []
-validation_gate: null
+validation_gate: "Lever 1+3 shipped at --parallel=2: pre-baseline 50:20 → post 44:33 (∆ −5:46, ≈11.5% suite wall-clock). 27/27 projects green. Per-suite headliners: advisory-bff sweep saved ≈110s (dossier estimate), ledger-ctrl resilience 489.7s → 381.6s (Lever 3 saved ≈108s). At --parallel=4 the suite ran in 21:12 (validates Lever 4 ceiling), but exposed a real reconciliation-ctrl idempotency race under contention — filed as P1, blocks --parallel=4 default. Two production-correctness findings surfaced during shipping: (1) reconciliation-ctrl race, (2) SSM cleanup leak class — both filed as separate backlog entries."
+closed: "2026-05-12"
 ---
 
 # Integration suite wall-clock: distinct levers and measurable reclaim
