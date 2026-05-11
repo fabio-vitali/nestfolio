@@ -151,5 +151,5 @@ failure_modes:
   - step 5b-poll fails: OrderPollingStateMachine timeout (24h); AlpacaOrderResult stuck in PLACED status
   - step 6 fails: broker-ctrl CallbackIngress DLQ; SF task token not resolved, times out triggering HandleTimeout
   - step 7 fails: SF transient retry exhausted (3 retries with 5s/15s/45s backoff); MarkFailed writes NormalizedEvent ORDER_REJECTED
-  - step 7 timeout: 300s adapter timeout triggers HandleTimeout — parallel: open circuit breaker, escalate order (ORDER_ESCALATED + BROKER_CIRCUIT_OPEN via CDC)
+  - "step 7 timeout: 300s adapter timeout triggers HandleTimeout — parallel: open circuit breaker, escalate order (ORDER_ESCALATED + BROKER_CIRCUIT_OPEN via CDC)"
   - step 8+ fails: cross-domain adapter DLQs (ledger-adpt, advisory-adpt, investor-adpt); downstream domains not notified
