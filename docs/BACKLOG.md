@@ -11,9 +11,8 @@ _(none)_
 
 ## QUEUED
 
-1. [with-live-decision-fixture-hardcodes-balanced](backlog/with-live-decision-fixture-hardcodes-balanced.md) [refactor] — Tiny refactor — add operatingMode option, propagate to event detail.
-2. [pr-audit-workflow-missing-pnpm-install](backlog/pr-audit-workflow-missing-pnpm-install.md) [bug] — pr-audit.yml fails at 'Install dependencies' step — pnpm not on runner. Compare with pr-deploy.yml's pnpm/action-setup.
-3. [integration-suite-slowness-architecture-levers](backlog/integration-suite-slowness-architecture-levers.md) [refactor] — Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review).
+1. [pr-audit-workflow-missing-pnpm-install](backlog/pr-audit-workflow-missing-pnpm-install.md) [bug] — pr-audit.yml fails at 'Install dependencies' step — pnpm not on runner. Compare with pr-deploy.yml's pnpm/action-setup.
+2. [integration-suite-slowness-architecture-levers](backlog/integration-suite-slowness-architecture-levers.md) [refactor] — Diagnostic dossier on integration-suite wall-clock. Five distinct levers identified, each with measurable reclaim. Promoted 2026-05-11 after original ranks 1-6 closed (boundary review).
 
 ## LATER
 
