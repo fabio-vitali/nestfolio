@@ -349,16 +349,6 @@ describe('investor-bff', () => {
       expect(modeChangeItem).toBeDefined();
       expect(modeChangeItem!['toMode']).toBe('live');
     }, 120_000);
-
-    // TODO Phase 7: re-enable / replace once updateOperatingMode → compliance-ctrl
-    // propagation is covered end-to-end here.
-    // Post-resplit: OPERATING_MODE_CHANGED is forwarded by advisory-adpt to AdvisoryBus
-    // where compliance-ctrl patches MandateSnapshot.operatingMode. The investor-bff
-    // side (profile.operatingMode update) is exercised via the updateOperatingMode
-    // mutation test. A cross-service E2E for the full chain is deferred.
-    it.skip('should propagate OPERATING_MODE_CHANGED to compliance-ctrl MandateSnapshot', async () => {
-      // Intentionally empty — see TODO above.
-    }, 120_000);
   });
 
   // ── AppSync Mutations ───────────────────────────────────────────────
