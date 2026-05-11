@@ -1,7 +1,7 @@
 ---
 id: broker-ctrl-sim-deposit-normalizer-missing-amount-field
-status: queued
-rank: 1
+status: shipped
+rank: null
 type: bug
 notes: "Tests assert `amount` but normalizer correctly writes `amountCents` (ledger convention). Production-correct; tests are stale. Surfaced cross-domain field-name inconsistency."
 references: []
@@ -9,7 +9,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "broker-ctrl unit 58/58 + test-integration 9/9 GREEN on main 2026-05-11 (commit pending). 3 assertions renamed amount→amountCents across the failing DEPOSIT_DETECTED unit + CDC integration test."
 ---
 
 # `SIM_DEPOSIT_COMPLETED` normalizer test asserts wrong field name (`amount` vs `amountCents`)

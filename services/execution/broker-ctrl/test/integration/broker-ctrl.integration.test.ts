@@ -85,7 +85,7 @@ describe('broker-ctrl', () => {
 
       expect(item['__typename']).toBe('NormalizedEvent');
       expect(item['tenantId']).toBe(ctx.tenantId);
-      expect(item['amount']).toBe(100000);
+      expect(item['amountCents']).toBe(100000);
       expect(item['currency']).toBe('USD');
       expect(item['executionMode']).toBe('simulation');
 
@@ -97,7 +97,7 @@ describe('broker-ctrl', () => {
       const context = cdcEvent.detail['context'] as Record<string, unknown>;
       expect(context['tenantId']).toBe(ctx.tenantId);
       const subject = cdcEvent.detail['subject'] as Record<string, unknown>;
-      expect(subject['amount']).toBe(100000);
+      expect(subject['amountCents']).toBe(100000);
     }, 120_000);
 
     it('should normalize SIM_WITHDRAWAL_COMPLETED to NormalizedEvent and emit WITHDRAWAL_COMPLETED via CDC', async () => {

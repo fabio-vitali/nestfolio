@@ -730,7 +730,7 @@ describe('Deposit/Withdrawal Normalizer Integration', () => {
     expect(item).toMatchObject({
       __typename: 'NormalizedEvent',
       tenantId: 't-1',
-      amount: 10000,
+      amountCents: 10000,
       currency: 'USD',
       executionMode: 'simulation',
       pk: 'NormalizedEvent#t-1#dep-1',
