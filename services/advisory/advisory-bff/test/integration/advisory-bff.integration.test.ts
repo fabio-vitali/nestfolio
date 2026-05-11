@@ -64,7 +64,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
 
       expect(item['__typename']).toBe('DecisionReadModel');
@@ -95,7 +95,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
 
       // Now send DECISION_APPROVED — update() with condition: attribute_exists(pk)
@@ -114,7 +114,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
         match: { status: 'APPROVED' },
       });
 
@@ -144,7 +144,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
 
       // Now publish DECISION_PACKET_UPDATED
@@ -163,7 +163,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
         match: { status: 'COMPLIANCE_REVIEW' },
       });
       expect(item['status']).toBe('COMPLIANCE_REVIEW');
@@ -190,7 +190,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
 
       await eb.putEvent({
@@ -208,7 +208,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
         match: { status: 'BLOCKED' },
       });
       expect(item['status']).toBe('BLOCKED');
@@ -235,7 +235,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
 
       await eb.putEvent({
@@ -253,7 +253,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
         match: { status: 'AWAITING_CONFIRMATION' },
       });
       expect(item['status']).toBe('AWAITING_CONFIRMATION');
@@ -281,7 +281,7 @@ describe('advisory-bff', () => {
           confirmationRequired: true,
         },
       });
-      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 60_000 });
+      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000 });
 
       await eb.putEvent({
         bus: 'advisory',
@@ -294,7 +294,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
         match: { status: 'AWAITING_CONFIRMATION' },
       });
 
@@ -328,7 +328,7 @@ describe('advisory-bff', () => {
       // Assert: CDC emits USER_CONFIRMED on EventBridge
       const event = await trap.waitForEvent({
         detailType: 'USER_CONFIRMED',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
       expect(event.detailType).toBe('USER_CONFIRMED');
     }, 120_000);
@@ -352,7 +352,7 @@ describe('advisory-bff', () => {
           confirmationRequired: true,
         },
       });
-      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 60_000 });
+      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000 });
 
       await eb.putEvent({
         bus: 'advisory',
@@ -365,7 +365,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
         match: { status: 'AWAITING_CONFIRMATION' },
       });
 
@@ -402,7 +402,7 @@ describe('advisory-bff', () => {
       // Assert: CDC emits USER_REJECTED on EventBridge
       const event = await trap.waitForEvent({
         detailType: 'USER_REJECTED',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
       expect(event.detailType).toBe('USER_REJECTED');
     }, 120_000);
@@ -441,7 +441,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk,
         sk: 'AdvisoryStatus',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
         predicate: (i) => Number(i['inFlightCount']) > baseCount,
         description: `Number(inFlightCount) > ${baseCount}`,
       });
@@ -484,7 +484,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: statusPk,
         sk: 'AdvisoryStatus',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
         predicate: (i) => Number(i['inFlightCount']) > baseCount,
         description: `Number(inFlightCount) > ${baseCount}`,
       });
@@ -511,7 +511,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: statusPk,
         sk: 'AdvisoryStatus',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
         predicate: (i) => Number(i['inFlightCount']) < beforeCount,
         description: `Number(inFlightCount) < ${beforeCount}`,
       });
@@ -523,7 +523,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: decisionPk,
         sk: 'DecisionReadModel',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
     }, 180_000);
 
@@ -565,7 +565,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: statusPk,
         sk: 'AdvisoryStatus',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
         predicate: (i) => Number(i['inFlightCount']) >= expectedPeak,
         description: `Number(inFlightCount) >= ${expectedPeak}`,
       });
@@ -593,7 +593,7 @@ describe('advisory-bff', () => {
         table: 'advisory-bff',
         pk: statusPk,
         sk: 'AdvisoryStatus',
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
         predicate: (i) => Number(i['inFlightCount']) <= expectedAfter,
         description: `Number(inFlightCount) <= ${expectedAfter}`,
       });
