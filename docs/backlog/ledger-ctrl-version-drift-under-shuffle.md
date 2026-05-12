@@ -1,16 +1,18 @@
 ---
 id: ledger-ctrl-version-drift-under-shuffle
-status: parking
+status: shipped
 type: bug
-notes: "ledger-ctrl AccountSnapshot.version increments one extra time under at-least-once redelivery: same lastEventSequence (3), different version (3 vs 2). Surfaced by --parallel=8 order-agnostic full-shuffle resilience test (2026-05-13). Real prod-correctness gap symmetric to reconciliation-ctrl content-key fix."
+notes: "RECLASSIFIED + RESOLVED 2026-05-13. Initially filed as a handler-idempotency bug (analogous to reconciliation-ctrl content-key). On investigation, `version` turned out to be an internal optimistic-lock counter (see replay-and-reduce.ts) with NO CDC consumer reading it. The drift is real but cosmetic at the assertion layer. Fixed by adding `version` to DYNAMIC_FIELDS in libs/integration-testing/src/resilience.ts."
 references:
   - "services/ledger/ledger-ctrl/test/integration/ledger-ctrl.resilience.integration.test.ts:418"
-  - "libs/integration-testing/src/resilience.ts:69"
-out_of_scope: []
+  - "libs/integration-testing/src/resilience.ts:9"
+  - "libs/event-processor/src/pipelines/replay-and-reduce.ts:98"
+out_of_scope:
+  - "Rewriting the version-increment logic in replay-and-reduce.ts. The current `currentVersion + 1` is correct for its purpose (optimistic concurrency control on the reducer); it just happens to drift between equivalent runs. No consumer-visible effect."
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Re-run --parallel=8 integration suite. The ledger-ctrl resilience shuffle test should no longer retry on the version-comparison branch. Other trap-empty retries on this run trace to a different family (cross-file Jest-session / load-induced propagation delay)."
 ---
 
 # ledger-ctrl AccountSnapshot.version drift under at-least-once redelivery
@@ -50,3 +52,11 @@ If `version` is read by downstream consumers (BFF subscriptions, optimistic conc
 ## Cheapest first read
 
 `services/ledger/ledger-ctrl/src/handlers/event-listener.ts` — grep for `version` increments and check guard conditions.
+
+## Resolution
+
+Investigation showed the `version` field is owned by `libs/event-processor/src/pipelines/replay-and-reduce.ts:98` (`nextVersion = currentVersion + 1` per reducer materialization). It's used at line 123 as the optimistic-lock condition (`ConditionExpression: 'attribute_not_exists(pk) OR version = :v'`) so two concurrent reducer invocations on the same group conflict cleanly. Under at-least-once stream delivery, batching is non-deterministic — 3 events may be reduced in 2 batches (`version: 2`) or 3 batches (`version: 3`). Both produce identical semantic state.
+
+No service reads `AccountSnapshot.version` for any consumer behavior. Confirmed via `grep -rn "\.version" services` — the only readers are `broker-sim-adpt/repositories/virtual-ledger.repository.ts` and `broker-sim-adpt/services/simulation-engine.service.ts`, both for *their own local* optimistic locking, not on AccountSnapshot.
+
+Fixed by adding `version` to `DYNAMIC_FIELDS` in `libs/integration-testing/src/resilience.ts` so equivalence comparisons strip it.
