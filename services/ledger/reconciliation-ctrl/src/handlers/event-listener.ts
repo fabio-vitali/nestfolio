@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { materializeToTable, record, skip, type WriteIntent, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { requireEnv, logger } from '@nestfolio/event-processor';
@@ -61,6 +62,30 @@ function isFresh(snapshot: CachedPositionSnapshot, stalenessMs: number): boolean
 }
 
 // ---------------------------------------------------------------------------
+// Content-derived reconciliationId
+// ---------------------------------------------------------------------------
+
+// Reconciliation is a pure function of (intentPositions, settlementPositions).
+// Deriving the id from those positions instead of from ctx.eventId makes the
+// idempotency key stable across at-least-once redelivery of EITHER cache event
+// (e.g. ALPACA_ACCOUNT_SNAPSHOT redelivered after PORTFOLIO_UPDATED has cached
+// Intent). Same content → same id → CCFE on the second PutItem → dedup. Two
+// distinct logical states (different positions) → distinct ids → distinct
+// reconciliations, as intended.
+function deriveReconciliationId(intent: PositionEntry[], settlement: PositionEntry[]): string {
+  const canonical = (positions: PositionEntry[]): string =>
+    JSON.stringify(
+      [...positions].sort((a, b) => a.instrument.localeCompare(b.instrument)),
+    );
+  return createHash('sha256')
+    .update(canonical(intent))
+    .update('|')
+    .update(canonical(settlement))
+    .digest('hex')
+    .slice(0, 32);
+}
+
+// ---------------------------------------------------------------------------
 // Cache-and-compare reconciliation
 // ---------------------------------------------------------------------------
 
@@ -72,7 +97,6 @@ async function cacheAndReconcile(
   ctx: EventContext,
 ): Promise<WriteIntent | WriteIntent[]> {
   const tenantId = ctx.tenantId;
-  const reconciliationId = ctx.eventId;
 
   // 1. Cache our side
   await deps.repository.putPositionSnapshot(tenantId, mySide, myPositions, sourceEventType);
@@ -92,6 +116,7 @@ async function cacheAndReconcile(
   // 4. Both sides available — reconcile
   const intentPositions = mySide === 'Intent' ? myPositions : otherSnapshot.positions;
   const settlementPositions = mySide === 'Settlement' ? myPositions : otherSnapshot.positions;
+  const reconciliationId = deriveReconciliationId(intentPositions, settlementPositions);
 
   const portfolioId = tenantId;
   const result = await deps.reconciliationService.reconcile(reconciliationId, {

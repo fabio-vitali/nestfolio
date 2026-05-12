@@ -130,7 +130,8 @@ describe('reconciliation-ctrl event-listener', () => {
         }, { tenantId: 't1', eventId: 'evt-1' }),
       ]);
 
-      expect(reconcileSpy).toHaveBeenCalledWith('evt-1', expect.objectContaining({
+      // reconciliationId is a content hash, not ctx.eventId.
+      expect(reconcileSpy).toHaveBeenCalledWith(expect.stringMatching(/^[a-f0-9]{32}$/), expect.objectContaining({
         intentPositions: [{ instrument: 'AAPL', quantity: 100 }],
         settlementPositions: [{ instrument: 'AAPL', quantity: 90 }],
       }));
@@ -177,7 +178,7 @@ describe('reconciliation-ctrl event-listener', () => {
       ]);
 
       expect(putSnapshotSpy).toHaveBeenCalledWith('t1', 'Settlement', [{ instrument: 'AAPL', quantity: 95 }], 'ALPACA_ACCOUNT_SNAPSHOT');
-      expect(reconcileSpy).toHaveBeenCalledWith('evt-2', expect.objectContaining({
+      expect(reconcileSpy).toHaveBeenCalledWith(expect.stringMatching(/^[a-f0-9]{32}$/), expect.objectContaining({
         intentPositions: [{ instrument: 'AAPL', quantity: 100 }],
         settlementPositions: [{ instrument: 'AAPL', quantity: 95 }],
       }));
