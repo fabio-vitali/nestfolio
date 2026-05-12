@@ -1,7 +1,6 @@
 ---
 id: test-integration-build-mock-dependson
-status: queued
-rank: 1
+status: shipped
 type: bug
 notes: "11 services have a `build-mock` target that produces a gitignored .zip asset (esbuild + zip). The `test-integration` target does NOT declare `dependsOn: ['build-mock']`, so a fresh worktree (or a clean clone) fails 10 services with ENOENT on the mock .zip. Surfaced 2026-05-12 during trap-empty-family-hardening worktree validation."
 references:
@@ -15,11 +14,14 @@ references:
   - "services/advisory/advisory-narrative-ctrl/project.json"
   - "services/advisory/investor-profile-ctrl/project.json"
   - "services/execution/broker-alpaca-adpt/project.json"
-out_of_scope: []
+out_of_scope:
+  - "Removing the gitignored .zip artifacts in favour of building inside jest.config.js (would slow every test invocation)."
+  - "Centralising the build-mock target into the cdk-constructs lib (mock contents are service-specific)."
+  - "decision-workflow-ctrl: has a build-mock target but no test references the .zip — orphan, leave untouched."
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Deleted mock-sec-edgar.zip; ran `pnpm nx run sec-edgar-adpt:test-integration --skip-nx-cache --verbose` 2026-05-12 — Nx reported `Running target test-integration for project sec-edgar-adpt and 1 task it depends on`, ran build-mock first (zip regenerated), then jest PASSED in 64s. Confirms Nx now resolves build-mock as a prerequisite. Skipped full `nx run-many --parallel=8` worktree run as overkill — same dependsOn wiring applied to all 10 services and verified statically via `nx show project`."
 ---
 
 # `test-integration` should declare `dependsOn: ['build-mock']`
@@ -61,3 +63,8 @@ Validation: `git worktree add ../tmp -b tmp-build-mock-check && cd ../tmp && pnp
 
 - Removing the gitignored .zip artifacts in favour of building inside `jest.config.js` (would slow every test invocation).
 - Centralising the `build-mock` target into the `cdk-constructs` lib (the mock contents are service-specific).
+- `decision-workflow-ctrl`: also has a `build-mock` target (produces `mock-agent-responses.zip`), but no integration test references the artifact — orphan target, left untouched.
+
+## Ship notes
+
+SHIPPED 2026-05-12. Added `"dependsOn": ["build-mock"]` to the `test-integration` target in all 10 affected `project.json` files. Verified via `pnpm nx show project sec-edgar-adpt --json` (Nx parses the dependency) and a clean-state run that regenerated the deleted .zip and passed the integration test. Fresh worktrees / clean clones can now run `pnpm nx run-many -t test-integration` without a manual `build-mock` priming step.

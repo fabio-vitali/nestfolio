@@ -29,6 +29,7 @@
     },
     "test-integration": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build-mock"],
       "options": {
         "command": "pnpm jest --config services/advisory/investor-profile-ctrl/jest.integration.config.js --passWithNoTests",
         "env": { "NODE_OPTIONS": "--experimental-vm-modules" },
