@@ -64,8 +64,16 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
       },
     });
 
-    // agent-service writes IN_PROGRESS record directly to DDB before calling the agent pipeline:
-    // pk: DECISION#<decisionId>, sk: INV#<uuid>, agentName: 'explainability'
+    // 60 s is architecturally required, NOT a cold-start hedge. The handler
+    // runs 5 parallel AgentCore Memory reads + a 4-iteration retry loop on the
+    // upstream portfolio-engine record (3+5+8+12 = 28 s of forced sleep when
+    // the record is missing, which it always is in integration where SF is
+    // bypassed) BEFORE agentService.runPipeline writes the IN_PROGRESS row at
+    // services/advisory/advisory-narrative-ctrl/src/agent-service.ts:38-47.
+    // Typical observed wall-clock: 30-40 s. See
+    // docs/backlog/advisory-narrative-ctrl-tightening-cold-start-flake.md for
+    // the full investigation and follow-up fix paths.
+    // pk: DECISION#<decisionId>, sk: INV#<eventId>, agentName: 'explainability'
     const item = await table.waitForItem({
       table: 'advisory-narrative-ctrl',
       pk: `DECISION#${decisionId}`,
