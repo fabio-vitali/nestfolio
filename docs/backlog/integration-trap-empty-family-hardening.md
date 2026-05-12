@@ -1,7 +1,7 @@
 ---
 id: integration-trap-empty-family-hardening
-status: queued
-rank: 1
+status: active
+rank: null
 type: refactor
 notes: "5-7 trap-timeout `Captured-but-unmatched buffer: []` flakes at --parallel=8 share root causes: trap canary verifies trap-rule but not cross-bus forwarding path; jest.retryTimes(1) orphans trap rules in afterAll-cleanup tests; AWS API rule-churn pressure under high parallelism. Lever 4 shipped at --parallel=8 with these absorbed by jest retry; this workstream eliminates them at the source."
 references:
@@ -9,8 +9,12 @@ references:
   - "libs/integration-testing/src/jest.integration.setup.ts:2"
   - "docs/backlog/advisory-adpt-from-investor-mandate-issued-sequential-flake.md"
   - "docs/backlog/investor-ctrl-circuit-breaker-notification-flake.md"
-out_of_scope: []
-spec: null
+out_of_scope:
+  - "Replacing EventBridge with a different test event capture mechanism"
+  - "Cross-account rule replication tests (single-account dev sandbox is the workstream's scope)"
+  - "Pre-existing non-trap-empty flakes (e.g. broker-ctrl pairwise SIM_DEPOSIT/WITHDRAWAL only if it turns out to be a different family)"
+  - "Removing jest.retryTimes(1) — keeping it as belt-and-suspenders post-fix"
+spec: docs/superpowers/specs/2026-05-12-trap-empty-family-hardening-design.md
 plan: null
 topic_memory: []
 validation_gate: null

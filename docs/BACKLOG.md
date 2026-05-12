@@ -6,15 +6,13 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [integration-trap-empty-family-hardening](backlog/integration-trap-empty-family-hardening.md) [refactor] — 5-7 trap-timeout `Captured-but-unmatched buffer: []` flakes at --parallel=8 share root causes: trap canary verifies trap-rule but not cross-bus forwarding path; jest.retryTimes(1) orphans trap rules in afterAll-cleanup tests; AWS API rule-churn pressure under high parallelism. Lever 4 shipped at --parallel=8 with these absorbed by jest retry; this workstream eliminates them at the source.
 
 ## QUEUED
 
-1. [integration-trap-empty-family-hardening](backlog/integration-trap-empty-family-hardening.md) [refactor] — 5-7 trap-timeout `Captured-but-unmatched buffer: []` flakes at --parallel=8 share root causes: trap canary verifies trap-rule but not cross-bus forwarding path; jest.retryTimes(1) orphans trap rules in afterAll-cleanup tests; AWS API rule-churn pressure under high parallelism. Lever 4 shipped at --parallel=8 with these absorbed by jest retry; this workstream eliminates them at the source.
-2. [integration-test-ssm-cleanup-hardening-on-abort](backlog/integration-test-ssm-cleanup-hardening-on-abort.md) [refactor] — Class of test-cleanup leak: when a test's body throws (or its Jest deadline expires) before reaching afterAll, SsmOverrideFixture's restore step is skipped — leaving the canonical SSM pointed at a mock URL. Next test run's beforeAll then fails the ARN-prefix check. Seen across investor-profile-ctrl, advisory-narrative-ctrl, portfolio-engine-ctrl during Lever 1 work.
-3. [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
-4. [advisory-narrative-ctrl-tightening-cold-start-flake](backlog/advisory-narrative-ctrl-tightening-cold-start-flake.md) [bug] — Lever 1 attempted to tighten waitForItem 60s -> 20s on advisory-narrative-ctrl integration test (sync handler write path). 20s timed out under cold-start; 30s also failed in a 53min run. Reverted to 60s for ship. Needs investigation: either the write isn't truly synchronous in the handler, or cold-start tax is materially larger than dossier estimated. The two sibling agent-ctrls (investor-profile-ctrl, market-intelligence-ctrl) tightened cleanly at 20s.
+1. [integration-test-ssm-cleanup-hardening-on-abort](backlog/integration-test-ssm-cleanup-hardening-on-abort.md) [refactor] — Class of test-cleanup leak: when a test's body throws (or its Jest deadline expires) before reaching afterAll, SsmOverrideFixture's restore step is skipped — leaving the canonical SSM pointed at a mock URL. Next test run's beforeAll then fails the ARN-prefix check. Seen across investor-profile-ctrl, advisory-narrative-ctrl, portfolio-engine-ctrl during Lever 1 work.
+2. [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
+3. [advisory-narrative-ctrl-tightening-cold-start-flake](backlog/advisory-narrative-ctrl-tightening-cold-start-flake.md) [bug] — Lever 1 attempted to tighten waitForItem 60s -> 20s on advisory-narrative-ctrl integration test (sync handler write path). 20s timed out under cold-start; 30s also failed in a 53min run. Reverted to 60s for ship. Needs investigation: either the write isn't truly synchronous in the handler, or cold-start tax is materially larger than dossier estimated. The two sibling agent-ctrls (investor-profile-ctrl, market-intelligence-ctrl) tightened cleanly at 20s.
 
 ## LATER
 
