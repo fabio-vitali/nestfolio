@@ -72,11 +72,20 @@ function isFresh(snapshot: CachedPositionSnapshot, stalenessMs: number): boolean
 // Intent). Same content → same id → CCFE on the second PutItem → dedup. Two
 // distinct logical states (different positions) → distinct ids → distinct
 // reconciliations, as intended.
+//
+// Canonicalization caveat: positions may arrive from two sources — freshly
+// normalized in-handler, OR retrieved from the position-cache row in DDB. The
+// DDB SDK reconstructs object attributes without a guaranteed key order, so
+// JSON.stringify on raw entries can produce DIFFERENT strings for the SAME
+// {instrument, quantity} pair depending on the source. Avoid this by
+// formatting each entry as `${instrument}:${quantity}` (no JSON, no object
+// key order) before joining.
 function deriveReconciliationId(intent: PositionEntry[], settlement: PositionEntry[]): string {
   const canonical = (positions: PositionEntry[]): string =>
-    JSON.stringify(
-      [...positions].sort((a, b) => a.instrument.localeCompare(b.instrument)),
-    );
+    [...positions]
+      .sort((a, b) => a.instrument.localeCompare(b.instrument))
+      .map((p) => `${p.instrument}:${p.quantity}`)
+      .join(',');
   return createHash('sha256')
     .update(canonical(intent))
     .update('|')
