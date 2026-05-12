@@ -1,6 +1,7 @@
 ---
 id: test-integration-build-mock-dependson
-status: parking
+status: queued
+rank: 1
 type: bug
 notes: "11 services have a `build-mock` target that produces a gitignored .zip asset (esbuild + zip). The `test-integration` target does NOT declare `dependsOn: ['build-mock']`, so a fresh worktree (or a clean clone) fails 10 services with ENOENT on the mock .zip. Surfaced 2026-05-12 during trap-empty-family-hardening worktree validation."
 references:

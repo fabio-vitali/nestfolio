@@ -1,6 +1,7 @@
 ---
 id: integration-test-mock-resilience
-status: parking
+status: queued
+rank: 3
 type: tooling
 references: []
 out_of_scope: []
@@ -9,7 +10,7 @@ plan: null
 topic_memory:
   - project_mock_resilience.md
 validation_gate: null
-notes: "DESIGN IN PROGRESS (2026-04-16) — partly superseded by 2026-05-05 bootstrap uplift; FakeLlm + SsmOverride remain unstarted."
+notes: "DESIGN IN PROGRESS (2026-04-16) — partly superseded by 2026-05-05 bootstrap uplift. SsmOverride hardened 2026-05-12 in integration-test-ssm-cleanup-hardening-on-abort (auto crash recovery via .backup); that sub-scope is now done. FakeLlm remains unstarted. Dossier needs scope refresh before next pickup."
 ---
 
 # Integration test mock resilience

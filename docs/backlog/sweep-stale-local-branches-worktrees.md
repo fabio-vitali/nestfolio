@@ -1,6 +1,7 @@
 ---
 id: sweep-stale-local-branches-worktrees
-status: parking
+status: queued
+rank: 2
 type: tooling
 references: []
 out_of_scope: []

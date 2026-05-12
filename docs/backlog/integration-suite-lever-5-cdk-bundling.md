@@ -1,7 +1,6 @@
 ---
 id: integration-suite-lever-5-cdk-bundling
-status: queued
-rank: 7
+status: parking
 type: refactor
 notes: "cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern."
 references: []
