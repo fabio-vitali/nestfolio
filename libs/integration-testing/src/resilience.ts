@@ -1,9 +1,18 @@
 import type { TableAssertions } from './fixtures/table-assertions';
 
+// Fields that vary between runs without changing semantic state — strip
+// before equivalence comparisons. `version` is an optimistic-lock counter
+// (see replay-and-reduce.ts: `nextVersion = currentVersion + 1` per reducer
+// invocation), incremented per materialization batch rather than per event.
+// Under at-least-once stream delivery the same logical state may produce
+// version=2 in one run and version=3 in another depending on how DDB Streams
+// batches records. No CDC consumer reads `version`; it stays internal to
+// the optimistic-lock condition in `replay-and-reduce.ts`.
 const DYNAMIC_FIELDS = new Set([
   'pk', 'sk', 'tenantId', 'userId',
   'createdAt', 'updatedAt', 'timestamp', 'snapshotAt',
   'ttl', 'eventId', 'sourceEventId', 'sequenceNo',
+  'version',
 ]);
 
 export function stripDynamicFields(
