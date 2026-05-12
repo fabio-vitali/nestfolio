@@ -1,12 +1,18 @@
 ---
 id: integration-test-ssm-cleanup-hardening-on-abort
-status: queued
-rank: 6
+status: active
 type: refactor
 notes: "Class of test-cleanup leak: when a test's body throws (or its Jest deadline expires) before reaching afterAll, SsmOverrideFixture's restore step is skipped — leaving the canonical SSM pointed at a mock URL. Next test run's beforeAll then fails the ARN-prefix check. Seen across investor-profile-ctrl, advisory-narrative-ctrl, portfolio-engine-ctrl during Lever 1 work."
 references: []
-out_of_scope: []
-spec: null
+out_of_scope:
+  - "Multi-worker contention on the same SSM param — each service has a distinct param namespace; Jest serialises that service's suites in practice."
+  - "Replacing .backup with a tmp-file mechanism (Option 2 in original dossier) — .backup already provides durable crash-state."
+  - "Jest globalSetup boot sweeper (Option 4 in original dossier) — fixture-internal recovery covers every call site that uses the fixture, by construction."
+  - "Pattern B (adapter) call sites — already self-heal via existing .backup branch; touching them is churn."
+  - "Generalising beyond SSM parameters — other test-cleanup leak classes (DDB rows, EB rules, IAM grants) have their own fixtures; file separately when they surface."
+  - "Static recoverOrphans(ctx, paramNames[]) helper — auto-on-override recovery covers every failure mode."
+  - "Process-level on('exit') / SIGTERM handlers — async work in exit handlers is unreliable; durable .backup SSM param is authoritative."
+spec: docs/superpowers/specs/2026-05-12-integration-test-ssm-cleanup-hardening-on-abort-design.md
 plan: null
 topic_memory: []
 validation_gate: null
