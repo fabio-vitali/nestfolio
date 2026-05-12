@@ -150,4 +150,111 @@ describe('SsmOverrideFixture', () => {
 
     expect(mockDestroy).toHaveBeenCalledTimes(1);
   });
+
+  describe('overrideAndDeriveRestore', () => {
+    it('derives restoreTo from canonical on first run (no .backup)', async () => {
+      (PutParameterCommand as unknown as jest.Mock).mockClear();
+      // paramExists(.backup) → not found
+      mockSend.mockRejectedValueOnce(new Error('ParameterNotFound'));
+      // GetParameter(main) → canonical ARN
+      const ARN = 'arn:aws:bedrock-agentcore-runtime:us-east-1:111:runtime/foo';
+      mockSend.mockResolvedValueOnce({ Parameter: { Value: ARN } });
+      // PutParameter(.backup) → ok
+      mockSend.mockResolvedValueOnce({});
+      // PutParameter(main with mock) → ok
+      mockSend.mockResolvedValueOnce({});
+
+      const fixture = new SsmOverrideFixture(mockCtx);
+      await fixture.overrideAndDeriveRestore({
+        paramName: PARAM,
+        testValue: MOCK_VALUE,
+        expectedRestorePrefix: 'arn:',
+        waitMs: 0,
+      });
+
+      const putCalls = (PutParameterCommand as unknown as jest.Mock).mock.calls;
+      expect(putCalls[0][0]).toMatchObject({ Name: BACKUP, Value: ARN });
+      expect(putCalls[1][0]).toMatchObject({ Name: PARAM, Value: MOCK_VALUE });
+      expect(mockCleanup.register).toHaveBeenCalledWith('SsmOverrideFixture', expect.any(Function));
+    });
+
+    it('recovers from a prior crash via .backup, repairing canonical and deriving restoreTo from .backup', async () => {
+      (PutParameterCommand as unknown as jest.Mock).mockClear();
+      (DeleteParameterCommand as unknown as jest.Mock).mockClear();
+      const ARN = 'arn:aws:bedrock-agentcore-runtime:us-east-1:111:runtime/foo';
+      // paramExists(.backup) → found
+      mockSend.mockResolvedValueOnce({ Parameter: { Value: ARN } });
+      // GetParameter(.backup) → valid ARN
+      mockSend.mockResolvedValueOnce({ Parameter: { Value: ARN } });
+      // PutParameter(main, ARN) — repair canonical from .backup
+      mockSend.mockResolvedValueOnce({});
+      // PutParameter(main, MOCK_VALUE) — testValue write
+      mockSend.mockResolvedValueOnce({});
+
+      const fixture = new SsmOverrideFixture(mockCtx);
+      await fixture.overrideAndDeriveRestore({
+        paramName: PARAM,
+        testValue: MOCK_VALUE,
+        expectedRestorePrefix: 'arn:',
+        waitMs: 0,
+      });
+
+      const putCalls = (PutParameterCommand as unknown as jest.Mock).mock.calls;
+      // 1st PutParam: repair canonical from .backup (ARN)
+      expect(putCalls[0][0]).toMatchObject({ Name: PARAM, Value: ARN });
+      // 2nd PutParam: write testValue
+      expect(putCalls[1][0]).toMatchObject({ Name: PARAM, Value: MOCK_VALUE });
+      // No .backup write (existing .backup left in place)
+      expect(putCalls.filter((c: any[]) => c[0].Name === BACKUP)).toHaveLength(0);
+      // No DeleteParameter calls during override (.backup is deleted only on restore)
+      expect((DeleteParameterCommand as unknown as jest.Mock).mock.calls).toHaveLength(0);
+
+      expect(mockCleanup.register).toHaveBeenCalledWith('SsmOverrideFixture', expect.any(Function));
+    });
+
+    it('refuses to proceed when both .backup and canonical are corrupt', async () => {
+      (PutParameterCommand as unknown as jest.Mock).mockClear();
+      (DeleteParameterCommand as unknown as jest.Mock).mockClear();
+      // paramExists(.backup) → found
+      mockSend.mockResolvedValueOnce({ Parameter: { Value: POISONED_VALUE } });
+      // GetParameter(.backup) → poisoned mock URL (not 'arn:'-prefixed)
+      mockSend.mockResolvedValueOnce({ Parameter: { Value: POISONED_VALUE } });
+      // GetParameter(main) → also poisoned (for error-message enrichment)
+      mockSend.mockResolvedValueOnce({ Parameter: { Value: POISONED_VALUE } });
+
+      const fixture = new SsmOverrideFixture(mockCtx);
+
+      await expect(fixture.overrideAndDeriveRestore({
+        paramName: PARAM,
+        testValue: MOCK_VALUE,
+        expectedRestorePrefix: 'arn:',
+        waitMs: 0,
+      })).rejects.toThrow(/refusing to recover.*\.backup value 'https:\/\/stale-mock.*live canonical is 'https:\/\/stale-mock/);
+
+      // No writes attempted, no cleanup registered
+      expect((PutParameterCommand as unknown as jest.Mock).mock.calls).toHaveLength(0);
+      expect((DeleteParameterCommand as unknown as jest.Mock).mock.calls).toHaveLength(0);
+      expect(mockCleanup.register).not.toHaveBeenCalled();
+    });
+
+    it('throws Re-deploy error when no .backup exists and canonical fails prefix check', async () => {
+      (PutParameterCommand as unknown as jest.Mock).mockClear();
+      // paramExists(.backup) → not found
+      mockSend.mockRejectedValueOnce(new Error('ParameterNotFound'));
+      // GetParameter(main) → poisoned mock URL
+      mockSend.mockResolvedValueOnce({ Parameter: { Value: POISONED_VALUE } });
+
+      const fixture = new SsmOverrideFixture(mockCtx);
+
+      await expect(fixture.overrideAndDeriveRestore({
+        paramName: PARAM,
+        testValue: MOCK_VALUE,
+        expectedRestorePrefix: 'arn:',
+        waitMs: 0,
+      })).rejects.toThrow(/expected canonical SSM value.*to start with 'arn:'.*Re-deploy the relevant stack/);
+
+      expect((PutParameterCommand as unknown as jest.Mock).mock.calls).toHaveLength(0);
+      expect(mockCleanup.register).not.toHaveBeenCalled();
+    });
+  });
 });

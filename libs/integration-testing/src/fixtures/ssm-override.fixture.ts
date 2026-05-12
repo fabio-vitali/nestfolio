@@ -81,6 +81,107 @@ export class SsmOverrideFixture {
     this.ctx.cleanup.register('SsmOverrideFixture', () => this.restore());
   }
 
+  /**
+   * Like override(), but derives restoreTo by reading the canonical SSM value
+   * (after a .backup-driven crash recovery step). Use this when the canonical
+   * value is dynamic (e.g. an ARN minted by CDK) — pass expectedRestorePrefix
+   * to validate the canonical is well-formed.
+   *
+   * Crash-recovery: if ${paramName}.backup exists from a prior crashed run,
+   * its value is used to repair the canonical AND becomes restoreTo (the
+   * presence of .backup is treated as authoritative — canonical could have
+   * been corrupted by the crashed run).
+   */
+  async overrideAndDeriveRestore(params: {
+    paramName: string;
+    testValue: string;
+    /** Required: prefix the canonical value MUST start with (e.g. 'arn:'). */
+    expectedRestorePrefix: string;
+    waitMs?: number;
+  }): Promise<void> {
+    this.paramName = params.paramName;
+    this.backupParamName = `${params.paramName}.backup`;
+
+    const backupExists = await this.paramExists(this.backupParamName);
+
+    let restoreTo: string;
+    if (backupExists) {
+      // Recovery path — a prior run crashed mid-override. .backup is the truth.
+      const backupResult = await this.client.send(new GetParameterCommand({
+        Name: this.backupParamName,
+      }));
+      const backupValue = backupResult.Parameter?.Value;
+      if (!backupValue || !backupValue.startsWith(params.expectedRestorePrefix)) {
+        // Read live canonical too so the error message has full state
+        let liveCanonical: string | undefined;
+        try {
+          const live = await this.client.send(new GetParameterCommand({
+            Name: params.paramName,
+          }));
+          liveCanonical = live.Parameter?.Value;
+        } catch {
+          // ignore — surface what we have
+        }
+        throw new Error(
+          `SsmOverrideFixture: refusing to recover ${params.paramName} — ` +
+          `.backup value '${backupValue}' does not start with '${params.expectedRestorePrefix}', ` +
+          `and live canonical is '${liveCanonical}'. ` +
+          `Both values are corrupt; restore manually before re-running tests: ` +
+          `aws ssm put-parameter --name '${params.paramName}' --value '<canonical>' --type String --overwrite && ` +
+          `aws ssm delete-parameter --name '${this.backupParamName}'`,
+        );
+      }
+      restoreTo = backupValue;
+      // Repair canonical from .backup (canonical may currently hold a stale mock URL)
+      await this.client.send(new PutParameterCommand({
+        Name: params.paramName,
+        Value: backupValue,
+        Type: 'String',
+        Overwrite: true,
+      }));
+      // Leave .backup in place — the standard override path below will reuse it
+      // (backupExists branch skips re-writing .backup).
+    } else {
+      // No .backup — derive restoreTo from canonical
+      const canonical = await this.client.send(new GetParameterCommand({
+        Name: params.paramName,
+      }));
+      const canonicalValue = canonical.Parameter?.Value;
+      if (!canonicalValue || !canonicalValue.startsWith(params.expectedRestorePrefix)) {
+        throw new Error(
+          `SsmOverrideFixture: expected canonical SSM value for ${params.paramName} ` +
+          `to start with '${params.expectedRestorePrefix}', got: '${canonicalValue}'. ` +
+          `Stack may not be deployed, or a prior test run left a non-canonical value behind. ` +
+          `Re-deploy the relevant stack before re-running integration tests.`,
+        );
+      }
+      restoreTo = canonicalValue;
+      // Write .backup from validated canonical
+      await this.client.send(new PutParameterCommand({
+        Name: this.backupParamName,
+        Value: restoreTo,
+        Type: 'String',
+        Overwrite: true,
+      }));
+    }
+
+    this.restoreTo = restoreTo;
+
+    // Write testValue over canonical
+    await this.client.send(new PutParameterCommand({
+      Name: params.paramName,
+      Value: params.testValue,
+      Type: 'String',
+      Overwrite: true,
+    }));
+
+    // Wait for parameterStoreTtl expiry
+    const waitMs = params.waitMs ?? 6_000;
+    await new Promise(resolve => setTimeout(resolve, waitMs));
+
+    this.ctx.cleanup.register('SsmOverrideFixture', () => this.restore());
+  }
+
   async restore(): Promise<void> {
     try {
       if (!this.paramName || !this.backupParamName || !this.restoreTo) return;
