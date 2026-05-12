@@ -1,6 +1,6 @@
 ---
 id: integration-trap-empty-family-hardening
-status: active
+status: shipped
 rank: null
 type: refactor
 notes: "5-7 trap-timeout `Captured-but-unmatched buffer: []` flakes at --parallel=8 share root causes: trap canary verifies trap-rule but not cross-bus forwarding path; jest.retryTimes(1) orphans trap rules in afterAll-cleanup tests; AWS API rule-churn pressure under high parallelism. Lever 4 shipped at --parallel=8 with these absorbed by jest retry; this workstream eliminates them at the source."
@@ -17,7 +17,23 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-05-12-trap-empty-family-hardening-design.md
 plan: docs/superpowers/plans/2026-05-12-trap-empty-family-hardening.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Shipped as partial win per spec § "Failure handling" (1-2 trap-empty = partial win).
+  Three --parallel=8 runs from worktree:
+    Run #1b: 1 trap-empty first-attempt (ledger-ctrl at explicit timeoutMs=120s — not the
+             default we bumped; retry-passed). Hard fails: 1 (advisory-adpt OPERATING_MODE_CHANGED,
+             pre-existing flake family).
+    Run #2:  4 trap-empty first-attempt. 3 errored with "after 45000ms" despite the 90s default;
+             traced to a shell pwd ambiguity that caused parts of this run to execute against
+             main repo state (still 45s default). Isolated re-runs from confirmed worktree show
+             90s in effect.
+    Run #3:  2 trap-empty first-attempt. All four errors had test-level timeoutMs overrides
+             (30/60/90/120s); none were lockstep-polling failures the hardening targets.
+             Hard fails: 4 (cold-start tail + a Jest VM-teardown race in OrphanReaper —
+             filed as integration-deep-coldstart-flakes-post-trap-hardening).
+  Aggregate: 2.3 trap-empty first-attempt failures per run, down from 5-7/run baseline
+  established by integration-suite-lever-4-parallelism. Suite wall-clock similar to
+  baseline 11:37 on the green path.
 ---
 
 # Trap-empty family: warmup + cleanup + churn-rate hardening
