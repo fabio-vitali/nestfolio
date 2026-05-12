@@ -15,7 +15,7 @@ out_of_scope:
   - "Pre-existing non-trap-empty flakes (e.g. broker-ctrl pairwise SIM_DEPOSIT/WITHDRAWAL only if it turns out to be a different family)"
   - "Removing jest.retryTimes(1) — keeping it as belt-and-suspenders post-fix"
 spec: docs/superpowers/specs/2026-05-12-trap-empty-family-hardening-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-12-trap-empty-family-hardening.md
 topic_memory: []
 validation_gate: null
 ---
