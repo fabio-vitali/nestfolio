@@ -7,6 +7,7 @@ import {
   ReceiveMessageCommand, GetQueueAttributesCommand,
   SetQueueAttributesCommand, DeleteMessageBatchCommand,
 } from '@aws-sdk/client-sqs';
+import { jitter } from '@nestfolio/test-support';
 import type { TestContext } from '@nestfolio/test-support';
 
 export interface CapturedEvent<TDetail = Record<string, unknown>> {
@@ -237,7 +238,7 @@ export class EventBusTrap {
       }
 
       if (fresh.length === 0) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        await new Promise(resolve => setTimeout(resolve, jitter(pollInterval)));
       }
     }
 
