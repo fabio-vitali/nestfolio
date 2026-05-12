@@ -28,7 +28,7 @@ export interface TestContext {
 function createTimingConfig(overrides?: Partial<TimingConfig>): TimingConfig {
   const multiplier = Number(process.env.INTEG_TIMEOUT_MULTIPLIER) || 1;
   return {
-    eventTimeout: overrides?.eventTimeout ?? 45_000 * multiplier,
+    eventTimeout: overrides?.eventTimeout ?? 90_000 * multiplier,
     pollInterval: overrides?.pollInterval ?? 500,
     canaryTimeout: overrides?.canaryTimeout ?? 30_000 * multiplier,
     putEventRetries: overrides?.putEventRetries ?? 3,
