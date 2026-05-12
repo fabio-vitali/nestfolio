@@ -13,7 +13,6 @@ import {
   MockApiFixture,
   SsmOverrideFixture,
 } from '@nestfolio/integration-testing';
-import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 //
@@ -43,20 +42,13 @@ beforeAll(async () => {
   const mockApi = new MockApiFixture(sharedCtx);
   const zipPath = join(__dirname, '..', 'mocks', 'mock-agent-runtime.zip');
   const mockUrl = await mockApi.deploy({ name: 'mock-agent-runtime', handlerAsset: readFileSync(zipPath) });
-  const paramName = `/nestfolio/${sharedCtx.prefix}-portfolio-engine-ctrl/agent/runtimeUrl`;
-  const ssm = new SSMClient({ region: sharedCtx.region });
-  const canonical = await ssm.send(new GetParameterCommand({ Name: paramName }));
-  const restoreTo = canonical.Parameter!.Value!;
-  if (!restoreTo.startsWith('arn:')) {
-    throw new Error(
-      `Expected canonical SSM value to be an AgentCore runtime ARN, got: ${restoreTo}. ` +
-      `Stack may not be deployed, or a prior test run left a mock URL behind. ` +
-      `Re-deploy portfolio-engine-ctrl before re-running integration tests.`,
-    );
-  }
 
   const ssmOverride = new SsmOverrideFixture(sharedCtx);
-  await ssmOverride.override({ paramName, testValue: mockUrl, restoreTo });
+  await ssmOverride.overrideAndDeriveRestore({
+    paramName: `/nestfolio/${sharedCtx.prefix}-portfolio-engine-ctrl/agent/runtimeUrl`,
+    testValue: mockUrl,
+    expectedRestorePrefix: 'arn:',
+  });
 }, 120_000);
 
 afterAll(async () => {
