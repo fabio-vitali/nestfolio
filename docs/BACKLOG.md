@@ -6,7 +6,7 @@
 
 ## ACTIVE
 
-- [integration-suite-lever-4-parallelism](backlog/integration-suite-lever-4-parallelism.md) [tooling] — Ratify --parallel=4 for integration suite. Unblocked by reconciliation-ctrl-idempotency-race-under-parallel-load ship (2026-05-13). CI workflow (.github/workflows/pr-deploy.yml:127,129) is already at --parallel=4 — this workstream is the validation-gate proof + backlog narrative; no CI config change.
+- [integration-suite-lever-4-parallelism](backlog/integration-suite-lever-4-parallelism.md) [tooling] — Adopt --parallel=8 for integration suite + close P1 prod-correctness findings exposed by it. 10-min wall-clock budget (per user) targets PR/local validation cadence. --parallel=8 measured at 11:37 wall-clock with 6 retries (3 advisory-adpt filed separately, 1 reconciliation-ctrl content-key gap fixed here, 1 ledger-ctrl version drift filed P1, 1 investor-ctrl flake filed P3).
 
 ## QUEUED
 
@@ -24,11 +24,14 @@
 - [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md) [infra] — Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model.
 - [circuit-breaker-feature-flags-ui-gating](backlog/circuit-breaker-feature-flags-ui-gating.md) [bug] — scenario 14 e2e: getFeatureFlags stays all `enabled:true` after circuit breaker opens. UI never reflects the gated-mutation state.
 - [delete-deprecated-inject-advisory-update-fixture](backlog/delete-deprecated-inject-advisory-update-fixture.md) [refactor] — Delete @deprecated injectAdvisoryUpdate backdoor and migrate happy-path WSS sentinel test to a real-EB path.
+- [event-processor-explicit-idempotency-api](backlog/event-processor-explicit-idempotency-api.md) [refactor] — event-processor `record()` defaults to event-id-scoped idempotency silently; misuse is a common source of at-least-once bugs (reconciliation-ctrl content-key fix, ledger-ctrl version drift hint at the pattern). Add explicit API distinction to make the choice harder to miss.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md) [refactor] — Three callers — rule-of-three threshold; copies all do their own SigV4 setup.
 - [host-runtime-config-json-regeneration-silently-optional](backlog/host-runtime-config-json-regeneration-silently-optional.md) [bug] — Two latent bugs: deploy.sh skips config regen + build doesn't copy file.
 - [integration-test-mock-resilience](backlog/integration-test-mock-resilience.md) [tooling] — DESIGN IN PROGRESS (2026-04-16) — partly superseded by 2026-05-05 bootstrap uplift; FakeLlm + SsmOverride remain unstarted.
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
+- [investor-ctrl-circuit-breaker-notification-flake](backlog/investor-ctrl-circuit-breaker-notification-flake.md) [bug] — investor-ctrl circuit-breaker notification test times out 90s waiting for NOTIFICATION_CREATED at --parallel=8. Trap buffer empty. Same shape as advisory-adpt cross-file-Jest-session flake but in a different service. Surfaced 2026-05-13.
+- [ledger-ctrl-version-drift-under-shuffle](backlog/ledger-ctrl-version-drift-under-shuffle.md) [bug] — ledger-ctrl AccountSnapshot.version increments one extra time under at-least-once redelivery: same lastEventSequence (3), different version (3 vs 2). Surfaced by --parallel=8 order-agnostic full-shuffle resilience test (2026-05-13). Real prod-correctness gap symmetric to reconciliation-ctrl content-key fix.
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
