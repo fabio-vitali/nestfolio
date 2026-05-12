@@ -11,7 +11,6 @@ import {
   MockApiFixture,
   SsmOverrideFixture,
 } from '@nestfolio/integration-testing';
-import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 
 describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DDB write + CDC', () => {
   let ctx: TestContext;
@@ -29,20 +28,12 @@ describe('investor-profile-ctrl: ANALYZE_INVESTOR_PROFILE → AgentInvocation DD
       handlerAsset: readFileSync(zipPath),
     });
 
-    const paramName = `/nestfolio/${ctx.prefix}-investor-profile-ctrl/agent/runtimeUrl`;
-    const ssm = new SSMClient({ region: ctx.region });
-    const canonical = await ssm.send(new GetParameterCommand({ Name: paramName }));
-    const restoreTo = canonical.Parameter!.Value!;
-    if (!restoreTo.startsWith('arn:')) {
-      throw new Error(
-        `Expected canonical SSM value to be an AgentCore runtime ARN, got: ${restoreTo}. ` +
-        `Stack may not be deployed, or a prior test run left a mock URL behind. ` +
-        `Re-deploy investor-profile-ctrl before re-running integration tests.`,
-      );
-    }
-
     const ssmOverride = new SsmOverrideFixture(ctx);
-    await ssmOverride.override({ paramName, testValue: mockUrl, restoreTo });
+    await ssmOverride.overrideAndDeriveRestore({
+      paramName: `/nestfolio/${ctx.prefix}-investor-profile-ctrl/agent/runtimeUrl`,
+      testValue: mockUrl,
+      expectedRestorePrefix: 'arn:',
+    });
 
     eb = new EventBridgeClient(ctx);
     table = new TableAssertions(ctx);
