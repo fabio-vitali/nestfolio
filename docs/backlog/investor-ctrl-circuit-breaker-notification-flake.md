@@ -1,6 +1,7 @@
 ---
 id: investor-ctrl-circuit-breaker-notification-flake
-status: parking
+status: queued
+rank: 4
 type: bug
 notes: "investor-ctrl circuit-breaker notification test times out 90s waiting for NOTIFICATION_CREATED at --parallel=8. Trap buffer empty. Same shape as advisory-adpt cross-file-Jest-session flake but in a different service. Surfaced 2026-05-13."
 references:
