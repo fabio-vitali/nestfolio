@@ -124,7 +124,7 @@ jobs:
         run: |
           IS_FULL="${{ needs.detect-affected.outputs.is_full_deploy }}"
           if [ "$IS_FULL" = "true" ]; then
-            pnpm nx run-many -t test-integration --parallel=4
+            pnpm nx run-many -t test-integration --parallel=8
           else
-            pnpm nx affected -t test-integration --base=origin/main --parallel=4
+            pnpm nx affected -t test-integration --base=origin/main --parallel=8
           fi
