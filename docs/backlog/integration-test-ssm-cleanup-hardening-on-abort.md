@@ -1,6 +1,7 @@
 ---
 id: integration-test-ssm-cleanup-hardening-on-abort
-status: active
+status: shipped
+closed: "2026-05-12"
 type: refactor
 notes: "Class of test-cleanup leak: when a test's body throws (or its Jest deadline expires) before reaching afterAll, SsmOverrideFixture's restore step is skipped — leaving the canonical SSM pointed at a mock URL. Next test run's beforeAll then fails the ARN-prefix check. Seen across investor-profile-ctrl, advisory-narrative-ctrl, portfolio-engine-ctrl during Lever 1 work."
 references: []
@@ -13,9 +14,9 @@ out_of_scope:
   - "Static recoverOrphans(ctx, paramNames[]) helper — auto-on-override recovery covers every failure mode."
   - "Process-level on('exit') / SIGTERM handlers — async work in exit handlers is unreliable; durable .backup SSM param is authoritative."
 spec: docs/superpowers/specs/2026-05-12-integration-test-ssm-cleanup-hardening-on-abort-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-12-integration-test-ssm-cleanup-hardening-on-abort.md
 topic_memory: []
-validation_gate: null
+validation_gate: "4 mocked-SSM unit tests added in libs/integration-testing/test/fixtures/ssm-override.fixture.test.ts (happy / .backup recovery / double-corruption / no-.backup canonical-corrupt) — all green via pnpm nx run integration-testing:test (10/10 fixture suite, 54/54 lib suite). E2E gate: NESTFOLIO_INTEG_PREFIX=dev pnpm nx run-many -t test-integration --projects=investor-profile-ctrl,advisory-narrative-ctrl,portfolio-engine-ctrl,market-intelligence-ctrl green on dev account 771924376645 — 8/8 suites pass (longest 356s on investor-profile-ctrl resilience). Spot-check: all 4 services' .backup parameters cleaned up after run; all 4 canonicals restored to ARN. Pre-ship dev SSM survey: all canonicals were already valid ARNs and no .backup orphans, so the recovery branch wasn't exercised on real AWS — that branch is covered by the unit tests."
 ---
 
 # Integration-test SSM cleanup hardening on abort
@@ -57,3 +58,29 @@ After fix:
 ## Why this is P2 not P1
 
 The reconciliation-ctrl idempotency race (separate backlog entry) is a production correctness bug. This SSM leak is a test-infrastructure quality-of-life issue — it never affects production, only slows down test iteration.
+
+## Ship narrative (2026-05-12)
+
+The fix was tighter than the dossier predicted. Code archaeology revealed the fixture **already** wrote a durable `${paramName}.backup` SSM parameter — durable crash-state was already half-built. What was missing was the **recovery** half: nothing read `.backup` on entry to restore canonical, so the leak was never self-healing.
+
+Of the 17 grep matches for `SsmOverrideFixture`, only 15 were test-file call sites (4 were prod `service.stack.ts` comments). Those 15 split:
+- **Pattern A (8 files):** agent-ctrl trio + `market-intelligence-ctrl`, each `*.integration.test.ts` + `*.resilience.integration.test.ts`. Call site read canonical SSM, asserted `startsWith('arn:')`, passed derived value as `restoreTo`. That pre-fixture read was the failure point — it fired before any crash-recovery could run.
+- **Pattern B (7 files):** all adapters, passing a hardcoded literal `restoreTo`. Already self-heal because the existing `backupExists` branch skips the corruption check when `.backup` is present.
+
+So the fix touched the lib + only the 8 Pattern A files. The new `overrideAndDeriveRestore({ paramName, testValue, expectedRestorePrefix })` method consumes `.backup` on entry: if present, it validates the prefix, repairs canonical from `.backup`, and uses the recovered value as `restoreTo`. If absent, it falls back to reading canonical (existing behaviour). The standard override path then runs unchanged.
+
+**Validation gate sequence:**
+1. 4 mocked-SSM unit tests added — all 4 pass (covering happy / recovery / double-corruption / no-backup canonical-corrupt). Full `integration-testing:test` target: 54/54.
+2. End-to-end on dev account: `pnpm nx run-many -t test-integration` for the 4 services. **First run failed for an orthogonal reason** — the `test-integration` Nx target doesn't declare `dependsOn: ['build-mock']`, so a fresh worktree had no `mock-agent-runtime.zip` files. This is exactly the `test-integration-build-mock-dependson` backlog entry (filed 2026-05-12). After `pnpm nx run-many -t build-mock` for the 4 services, all 8 integration suites passed (longest: 356s on `investor-profile-ctrl.resilience.integration.test.ts`).
+3. SSM spot-check post-run: 4/4 `.backup` parameters cleaned up; 4/4 canonical params restored to ARN.
+
+**What was NOT exercised on real AWS:** the dev account had no orphaned `.backup` parameters and no corrupted canonicals at the start of the run, so the `.backup`-recovery branch fired only in the unit tests. That branch is correctly tested at the mock layer; the next real crash will be the integration test of the recovery path.
+
+**Commits on `feat/ssm-cleanup-hardening-on-abort`:**
+- `f83c0899` — `feat(integration-testing): add SsmOverrideFixture.overrideAndDeriveRestore with .backup-driven crash recovery`
+- `c47f71847` — `test(investor-profile-ctrl): adopt SsmOverrideFixture.overrideAndDeriveRestore`
+- `e6e8be97` — `test(advisory-narrative-ctrl): adopt SsmOverrideFixture.overrideAndDeriveRestore`
+- `353f8eebc` — `test(portfolio-engine-ctrl): adopt SsmOverrideFixture.overrideAndDeriveRestore`
+- `07963e3e` — `test(market-intelligence-ctrl): adopt SsmOverrideFixture.overrideAndDeriveRestore`
+
+Each migration: ~17 lines saved per service (10 line additions vs 27-28 deletions). Total +208/-138 lines across the workstream including the new method + tests.
