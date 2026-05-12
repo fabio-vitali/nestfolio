@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { CleanupRegistry } from './cleanup';
 import { SsmCache } from './ssm-cache';
 
@@ -54,6 +55,12 @@ export async function createTestContext(options?: {
   const prefix = options?.prefix ?? process.env.NESTFOLIO_INTEG_PREFIX ?? 'dev';
   const region = options?.region ?? 'us-east-1';
   const timestamp = Date.now();
+  // Date.now() alone collides under --parallel=N when two test workers create a
+  // context within the same millisecond. The trap's EB rule filters by
+  // detail.context.tenantId, so a collision causes one trap to capture the
+  // other test's events. Suffix with UUID entropy. The `integ-` prefix is
+  // load-bearing: CDC publishers test-tag events on it (see change-data-capture.ts).
+  const entropy = randomUUID().slice(0, 8);
   const cleanup = new CleanupRegistry();
   const ssm = new SsmCache(prefix, region);
 
@@ -63,8 +70,8 @@ export async function createTestContext(options?: {
   });
 
   return {
-    tenantId: `integ-${timestamp}`,
-    userId: `integ-user-${timestamp}`,
+    tenantId: `integ-${timestamp}-${entropy}`,
+    userId: `integ-user-${timestamp}-${entropy}`,
     prefix,
     region,
     ssm,

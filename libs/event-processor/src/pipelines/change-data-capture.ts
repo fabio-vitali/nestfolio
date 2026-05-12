@@ -1,3 +1,13 @@
+// Emission contract: AT-LEAST-ONCE.
+//
+// `detail.id` carries the DDB Stream `eventID`, which is stable per stream
+// record but the same record can be delivered to the egress Lambda more than
+// once: bisectBatchOnError + retryAttempts:3, shard rebalances under load,
+// and Lambda transient throttling all republish previously-processed records.
+// We do not dedup at egress — the platform contract is consumer-side
+// idempotency via `record()`'s `attribute_not_exists(pk)`, which absorbs
+// duplicate deliveries at write time on consumer tables. Tests asserting
+// EB-layer at-most-once will flake under load.
 import type { DynamoDBStreamEvent } from 'aws-lambda';
 import type { PutEventsRequestEntry } from '@aws-sdk/client-eventbridge';
 import type { StreamRecord, StreamContext } from '../types/stream-types';
