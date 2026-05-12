@@ -6,4 +6,7 @@ module.exports = {
   transform: {
     '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json', diagnostics: false }],
   },
+  moduleNameMapper: {
+    '^@nestfolio/test-support$': '<rootDir>/../test-support/src/index.ts',
+  },
 };

@@ -102,3 +102,43 @@ For end-to-end feature tests (cross-domain, black-box via BFF GraphQL), use the 
 - NEVER test handlers without the event-processor harness
 - NEVER mock pipeline internals — test through the harness
 - NEVER skip CDK assertion tests for stack changes
+
+## Trap-fixture cleanup pattern
+
+When using `EventBusTrap`, follow **one** of these two patterns:
+
+### Pattern A — shared trap (preferred for read-only assertions)
+
+```ts
+let ctx: TestContext;
+let trap: EventBusTrap;
+
+beforeAll(async () => {
+  ctx = await createTestContext();
+  trap = new EventBusTrap(ctx);
+  await trap.deploy({ bus: 'advisory', detailType: 'MANDATE_ISSUED' });
+});
+
+afterAll(async () => {
+  await ctx.cleanup.runAll();
+});
+```
+
+### Pattern B — fresh ctx per test (preferred for resilience / idempotency assertions)
+
+```ts
+it('handles redelivery idempotently', async () => {
+  const ctx = await createTestContext();
+  try {
+    const trap = new EventBusTrap(ctx);
+    await trap.deploy({ bus: 'advisory', detailType: 'MANDATE_ISSUED' });
+    // ... test body
+  } finally {
+    await ctx.cleanup.runAll();
+  }
+});
+```
+
+### Never `beforeEach`+`afterAll`
+
+`beforeEach`-created traps leak their EB rule + SQS queue on `jest.retryTimes(1)` retries until `OrphanReaper` runs (1+ hour later). Each retry roughly doubles rule churn on the bus.
