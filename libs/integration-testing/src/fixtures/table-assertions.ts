@@ -1,5 +1,6 @@
 import { DynamoDBClient, GetItemCommand, QueryCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall, marshall } from '@aws-sdk/util-dynamodb';
+import { jitter } from '@nestfolio/test-support';
 import type { TestContext } from '@nestfolio/test-support';
 
 export class TableAssertions {
@@ -85,7 +86,7 @@ export class TableAssertions {
         }
       }
 
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      await new Promise(resolve => setTimeout(resolve, jitter(pollInterval)));
     }
 
     const matchDesc = params.match ? ` match=${JSON.stringify(params.match)}` : '';
