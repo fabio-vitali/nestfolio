@@ -177,6 +177,15 @@ describe('investor-bff', () => {
       const userId = cognitoSub;
       const pk = `InvestorProfile#${ctx.tenantId}#${userId}`;
 
+      // Clear any rows under this pk so jest.retryTimes(1) finds a clean slate.
+      // Without this, a retry triggered by a downstream throw (e.g. the inner
+      // waitForEvent timing out) would re-fire ONBOARDING_COMPLETED against the
+      // row that the first attempt already wrote — turning the second Put into
+      // a CDC MODIFY and emitting INVESTOR_PROFILE_UPDATED instead of CREATED.
+      // Downstream tests in this suite that read by cognitoSub are unaffected;
+      // they observe the row this test re-creates.
+      await new StateResetFixture(ctx).reset([{ table: 'investor-bff', pk }]);
+
       // Mirror production flow: USER_REGISTERED then ONBOARDING_COMPLETED.
       // user-registered returns skip(), so onboarding-completed's transactWrite
       // is the first writer of the composite row — its Put surfaces as a CDC
@@ -281,14 +290,16 @@ describe('investor-bff', () => {
       // Event assertions — composite row → INVESTOR_PROFILE_CREATED;
       // Mandate row → MANDATE_ISSUED. NEVER per-field events.
       // waitForEvent polls SQS in a loop, robust to SQS-sample races where
-      // a single drain() may not surface all messages.
+      // a single drain() may not surface all messages. 90s matches the
+      // ctx.timings.eventTimeout default — CDC for two rows in one transactWrite
+      // can straddle DDB stream batches and exceed a 60s budget.
       const created = await trap.waitForEvent({
         detailType: 'INVESTOR_PROFILE_CREATED',
-        timeoutMs: 60_000,
+        timeoutMs: 90_000,
       });
       const accepted = await trap.waitForEvent({
         detailType: 'MANDATE_ISSUED',
-        timeoutMs: 60_000,
+        timeoutMs: 90_000,
       });
       expect(created.detailType).toBe('INVESTOR_PROFILE_CREATED');
       expect(accepted.detailType).toBe('MANDATE_ISSUED');
