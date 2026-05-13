@@ -1,6 +1,7 @@
 ---
 id: host-runtime-config-json-regeneration-silently-optional
-status: parking
+status: queued
+rank: 2
 type: bug
 references: []
 out_of_scope: []

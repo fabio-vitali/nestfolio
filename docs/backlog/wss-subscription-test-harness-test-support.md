@@ -1,6 +1,7 @@
 ---
 id: wss-subscription-test-harness-test-support
-status: parking
+status: queued
+rank: 4
 type: tooling
 references: []
 out_of_scope: []

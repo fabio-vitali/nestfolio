@@ -1,7 +1,7 @@
 ---
 id: circuit-breaker-feature-flags-ui-gating
-status: parking
-rank: null
+status: queued
+rank: 1
 type: bug
 notes: "scenario 14 e2e: getFeatureFlags stays all `enabled:true` after circuit breaker opens. UI never reflects the gated-mutation state."
 references: []

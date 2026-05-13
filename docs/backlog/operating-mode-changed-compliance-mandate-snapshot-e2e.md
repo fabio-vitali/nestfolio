@@ -1,7 +1,7 @@
 ---
 id: operating-mode-changed-compliance-mandate-snapshot-e2e
-status: parking
-rank: null
+status: queued
+rank: 6
 type: design
 notes: "Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested."
 references:

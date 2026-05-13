@@ -1,6 +1,7 @@
 ---
 id: reit-vs-equity-equity-weight-ambiguity
-status: parking
+status: queued
+rank: 7
 type: bug
 references: []
 out_of_scope: []

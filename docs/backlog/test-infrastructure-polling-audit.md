@@ -1,6 +1,7 @@
 ---
 id: test-infrastructure-polling-audit
-status: parking
+status: queued
+rank: 5
 type: refactor
 references: []
 out_of_scope: []

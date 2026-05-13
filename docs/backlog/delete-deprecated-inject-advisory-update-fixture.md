@@ -1,6 +1,7 @@
 ---
 id: delete-deprecated-inject-advisory-update-fixture
-status: parking
+status: queued
+rank: 3
 type: refactor
 notes: "Delete @deprecated injectAdvisoryUpdate backdoor and migrate happy-path WSS sentinel test to a real-EB path."
 references: []

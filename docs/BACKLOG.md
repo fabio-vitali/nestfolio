@@ -11,8 +11,15 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [circuit-breaker-feature-flags-ui-gating](backlog/circuit-breaker-feature-flags-ui-gating.md) [bug] — scenario 14 e2e: getFeatureFlags stays all `enabled:true` after circuit breaker opens. UI never reflects the gated-mutation state.
+2. [host-runtime-config-json-regeneration-silently-optional](backlog/host-runtime-config-json-regeneration-silently-optional.md) [bug] — Two latent bugs: deploy.sh skips config regen + build doesn't copy file.
+3. [delete-deprecated-inject-advisory-update-fixture](backlog/delete-deprecated-inject-advisory-update-fixture.md) [refactor] — Delete @deprecated injectAdvisoryUpdate backdoor and migrate happy-path WSS sentinel test to a real-EB path.
+4. [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
+5. [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
+6. [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
+7. [reit-vs-equity-equity-weight-ambiguity](backlog/reit-vs-equity-equity-weight-ambiguity.md) [bug] — Test filters EQUITY only; agent prompt allows optional REIT-as-equity.
+8. [advisory-narrative-latency-budget-overshoot-e2e](backlog/advisory-narrative-latency-budget-overshoot-e2e.md) [bug] — 2 of 3 narrative-latency e2e assertions overshoot ~4% over the 20s budget on the deployed dev pipeline.
+9. [revoke-mandate-e2e-timeout-flake](backlog/revoke-mandate-e2e-timeout-flake.md) [bug] — revoke-mandate e2e scenario times out intermittently against deployed dev — root cause unknown, not in the operating-mode or compliance subsystems.
 
 ## LATER
 
@@ -24,28 +31,21 @@ _(none)_
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.
 - [c4-frontend-representation](backlog/c4-frontend-representation.md) [tooling] — MFEs in C4 diagrams at C1 + C2 level (planned, not started).
 - [ci-pipeline-bring-up](backlog/ci-pipeline-bring-up.md) [infra] — Bring all 5 GitHub workflows green for the first time — OIDC role deploy, secrets, charter check, security policy, no-Pro gating model.
-- [circuit-breaker-feature-flags-ui-gating](backlog/circuit-breaker-feature-flags-ui-gating.md) [bug] — scenario 14 e2e: getFeatureFlags stays all `enabled:true` after circuit breaker opens. UI never reflects the gated-mutation state.
-- [delete-deprecated-inject-advisory-update-fixture](backlog/delete-deprecated-inject-advisory-update-fixture.md) [refactor] — Delete @deprecated injectAdvisoryUpdate backdoor and migrate happy-path WSS sentinel test to a real-EB path.
 - [event-processor-explicit-idempotency-api](backlog/event-processor-explicit-idempotency-api.md) [refactor] — event-processor `record()` defaults to event-id-scoped idempotency silently; misuse is a common source of at-least-once bugs (reconciliation-ctrl content-key fix, ledger-ctrl version drift hint at the pattern). Add explicit API distinction to make the choice harder to miss.
 - [execution-ctrl-mandate-recheck-order-boundary](backlog/execution-ctrl-mandate-recheck-order-boundary.md) [refactor] — Defense-in-depth — re-read mandate before broker submission on L1 auto-execute.
 - [generalise-appsync-iam-publisher-lib](backlog/generalise-appsync-iam-publisher-lib.md) [refactor] — Three callers — rule-of-three threshold; copies all do their own SigV4 setup.
-- [host-runtime-config-json-regeneration-silently-optional](backlog/host-runtime-config-json-regeneration-silently-optional.md) [bug] — Two latent bugs: deploy.sh skips config regen + build doesn't copy file.
 - [integration-deep-coldstart-flakes-post-trap-hardening](backlog/integration-deep-coldstart-flakes-post-trap-hardening.md) [bug] — Trap-empty hardening reduced lockstep-polling flakes from 5-7/run baseline to ~2/run average. Residual flakes have a different signature: cold-start-bound paths whose tests already use explicit `timeoutMs` overrides of 90-300s, and a Jest VM-teardown race in OrphanReaper. Filed as a single umbrella because the cases share the cold-start cause, not because they share a fix.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [integration-test-mock-resilience](backlog/integration-test-mock-resilience.md) [tooling] — Demoted to LATER 2026-05-12 per its own ship-trigger ('Promote when integration test flakiness on agent-bound suites or per-suite SSM overrides becomes load-bearing'). Piece 2 (StateResetFixture) superseded by 2026-05-05 bootstrap uplift; piece 3 (SsmOverride) effectively closed by 2026-05-12 integration-test-ssm-cleanup-hardening-on-abort. Only piece 1 (FakeLlm via env var in agent-factory) remains, and it's not currently load-bearing — agent flakiness is being mitigated structurally (orchestrator retry/fallback, prompt cleanup) rather than via test-time fakes. Promote again when a concrete agent-bound integration flake demands it.
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
-- [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
 - [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md) [infra] — Throwaway-PR rehearsal + branch-protection toggle. BLOCKED on ci-pipeline-bring-up — pipeline has never produced a green run.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
-- [reit-vs-equity-equity-weight-ambiguity](backlog/reit-vs-equity-equity-weight-ambiguity.md) [bug] — Test filters EQUITY only; agent prompt allows optional REIT-as-equity.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
 - [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md) [refactor] — LOW priority post-collapse — defer until EB redelivery is observed empirically.
-- [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
-- [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
 
 ## Recently Shipped (last 10)
 
