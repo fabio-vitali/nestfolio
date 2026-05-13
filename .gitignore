@@ -5,7 +5,10 @@ package-lock.json
 # Build outputs
 dist/
 tmp/
+tmp-*/
 .nx/
+node-compile-cache/
+nx-native-file-cache-*/
 
 # IDE
 .idea/
