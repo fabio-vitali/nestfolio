@@ -11,12 +11,8 @@ _(none)_
 
 ## QUEUED
 
-1. [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
-2. [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
-3. [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
-4. [reit-vs-equity-equity-weight-ambiguity](backlog/reit-vs-equity-equity-weight-ambiguity.md) [bug] — Test filters EQUITY only; agent prompt allows optional REIT-as-equity.
-5. [advisory-narrative-latency-budget-overshoot-e2e](backlog/advisory-narrative-latency-budget-overshoot-e2e.md) [bug] — 2 of 3 narrative-latency e2e assertions overshoot ~4% over the 20s budget on the deployed dev pipeline.
-6. [revoke-mandate-e2e-timeout-flake](backlog/revoke-mandate-e2e-timeout-flake.md) [bug] — revoke-mandate e2e scenario times out intermittently against deployed dev — root cause unknown, not in the operating-mode or compliance subsystems.
+1. [advisory-narrative-latency-budget-overshoot-e2e](backlog/advisory-narrative-latency-budget-overshoot-e2e.md) [bug] — 2 of 3 narrative-latency e2e assertions overshoot ~4% over the 20s budget on the deployed dev pipeline.
+2. [revoke-mandate-e2e-timeout-flake](backlog/revoke-mandate-e2e-timeout-flake.md) [bug] — revoke-mandate e2e scenario times out intermittently against deployed dev — root cause unknown, not in the operating-mode or compliance subsystems.
 
 ## LATER
 
@@ -37,12 +33,15 @@ _(none)_
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
+- [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
 - [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md) [infra] — Throwaway-PR rehearsal + branch-protection toggle. BLOCKED on ci-pipeline-bring-up — pipeline has never produced a green run.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
 - [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md) [refactor] — LOW priority post-collapse — defer until EB redelivery is observed empirically.
+- [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
+- [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
 
 ## Recently Shipped (last 10)
 
