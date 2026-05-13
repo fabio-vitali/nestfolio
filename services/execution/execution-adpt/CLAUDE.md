@@ -36,9 +36,8 @@ None (no Lambda handlers — pure EB Rule forwarding)
 
 ## Tests
 - `test/service.stack.test.ts` — CDK assertions (2 rules, DLQs, tags)
-- `test/integration/from-advisory.integration.test.ts` — DECISION_APPROVED forwarding
-- `test/integration/from-investor.integration.test.ts` — EXECUTION_MODE_CHANGED forwarding
+
+Domain adapters are pure EB rule forwarders (no handlers, no DDB). Per-adapter integration tests were removed 2026-05-13 — coverage is the CDK snapshot test + e2e flows that cross the forwarding hop via downstream consumers.
 
 ## Dependencies
 - libs: cdk-constructs (core, observability, extensions), event-types
-- test libs: test-support, integration-testing

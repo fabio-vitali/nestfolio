@@ -51,13 +51,10 @@ INVESTOR_PROFILE_CREATED, INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVO
 ## Tests
 
 - `test/service.stack.test.ts` -- CDK snapshot assertions (3 rules, 3 DLQs, tags)
-- `test/integration/from-investor.integration.test.ts` -- INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, MANDATE_REVOKED forwarding
-- `test/integration/from-execution.integration.test.ts` -- execution event forwarding
-- `test/integration/from-ledger.integration.test.ts` -- ledger event forwarding
+
+Domain adapters are pure EB rule forwarders (no handlers, no DDB). The CDK snapshot test verifies rule shape; e2e feature tests exercise the forwarding hop end-to-end via downstream consumers. Per-adapter integration tests were removed 2026-05-13 — they hit an EventBridge rule-propagation race in `EventBusTrap` that was inherent to ephemeral test-time rules and could not be eliminated without bus-level architectural change.
 
 ## Dependencies
 
 - `@nestfolio/cdk-constructs` (core, observability, extensions)
 - `@nestfolio/event-types` (eventName branded type)
-- `@nestfolio/test-support` (integration tests)
-- `@nestfolio/integration-testing` (EventBusTrap)

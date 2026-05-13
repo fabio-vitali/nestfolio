@@ -28,7 +28,8 @@ All 3 rules use $or pattern: non-integration-test source OR integration-test:inv
 
 ## Tests
 - Unit: test/unit/service.stack.test.ts
-- Integration: test/integration/from-advisory.integration.test.ts, from-execution.integration.test.ts, from-ledger.integration.test.ts
+
+Domain adapters are pure EB rule forwarders (no handlers, no DDB). Per-adapter integration tests were removed 2026-05-13 — coverage is the CDK snapshot test + e2e flows that cross the forwarding hop via downstream consumers.
 
 ## Dependencies
 - libs: cdk-constructs (core, observability, extensions), event-types

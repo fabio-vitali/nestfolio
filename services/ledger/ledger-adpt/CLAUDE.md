@@ -21,7 +21,8 @@ None (stateless adapter — EB Rule forwarding only)
 
 ## Tests
 - service.stack.test.ts
-- integration/ledger-adpt.integration.test.ts
+
+Domain adapters are pure EB rule forwarders (no handlers, no DDB). Per-adapter integration tests were removed 2026-05-13 — coverage is the CDK snapshot test + e2e flows that cross the forwarding hop via downstream consumers.
 
 ## Dependencies
 - libs: cdk-constructs (core, observability, extensions)
