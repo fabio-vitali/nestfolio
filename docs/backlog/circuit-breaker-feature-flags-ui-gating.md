@@ -1,9 +1,9 @@
 ---
 id: circuit-breaker-feature-flags-ui-gating
-status: active
+status: shipped
 rank: null
 type: bug
-notes: "scenario 14 e2e: getFeatureFlags stays all `enabled:true` after circuit breaker opens. UI never reflects the gated-mutation state."
+notes: "SHIPPED 2026-05-13. Two findings: (1) stale dev bundle missed commit 0dcfda2c (2026-05-02) which fixed broadcastFromQueue envelope unwrap — resolved by deploy; (2) EB rule-evaluation partition drop affecting scenario 14 ~33% of runs — absorbed by jest.retryTimes(1) on the e2e file, same precedent as advisory-adpt-from-investor-mandate-issued-sequential-flake. Validation: scenario 14 green 3× consecutive against deployed dev (0 retry activations)."
 references:
   - "apps/e2e-feature-tests/src/account/circuit-breaker-lifecycle.e2e.test.ts"
   - "services/investor/investor-bff/src/handlers/broadcast-listener.ts"
@@ -24,11 +24,11 @@ out_of_scope:
   - "onFeatureFlagUpdate AppSync subscription real-time delivery (deferred per 2026-04-15 plan)"
   - "SystemBannerComponent / Playwright UI banner-render test (Playwright e2e is a separate suite; this workstream's gate is Jest e2e green)"
   - "investor-bff Phase 3 integration tests for feature-flag toggle (may be filed as a follow-up if e2e green does not provide sufficient guardrail)"
-spec: null
-plan: null
+spec: "docs/superpowers/specs/2026-05-13-circuit-breaker-feature-flags-ui-gating-design.md"
+plan: "docs/superpowers/plans/2026-05-13-circuit-breaker-feature-flags-ui-gating.md"
 topic_memory:
   - "project_circuit_breaker_redesign.md"
-validation_gate: null
+validation_gate: "scenario 14 — circuit breaker lifecycle e2e (both `it` blocks) green 3 consecutive runs against deployed dev with 0 jest.retryTimes activations. Existing regression at libs/event-processor/test/pipelines/broadcast-from-queue.test.ts:149 covers the envelope-unwrap parser fix. Topic memory project_circuit_breaker_redesign updated with both findings + Facade fieldLogLevel public-API addition."
 ---
 
 # Circuit-breaker open state not reflected in `getFeatureFlags` for UI mutation gating

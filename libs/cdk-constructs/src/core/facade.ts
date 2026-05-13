@@ -12,6 +12,7 @@ import {
   Resolver,
   BaseDataSource,
   CfnGraphQLApi,
+  FieldLogLevel,
 } from 'aws-cdk-lib/aws-appsync';
 import { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { IUserPool, UserPool } from 'aws-cdk-lib/aws-cognito';
@@ -47,6 +48,8 @@ export interface FacadeProps {
   readonly wafRateLimit?: number;
   /** When true, adds IAM as an additional authorization mode alongside Cognito User Pool. Required for Lambda-to-AppSync mutations using @aws_iam directives. */
   readonly enableIamAuth?: boolean;
+  /** When set, enables AppSync field-level logging at the given level. Logs flow to a default CloudWatch role/log group provisioned by CDK. */
+  readonly fieldLogLevel?: FieldLogLevel;
 }
 
 export class Facade extends Construct {
@@ -90,6 +93,9 @@ export class Facade extends Construct {
           : undefined,
       },
       queryDepthLimit: depthLimit,
+      ...(props.fieldLogLevel !== undefined
+        ? { logConfig: { fieldLogLevel: props.fieldLogLevel } }
+        : {}),
     });
     this.graphqlUrl = this.api.graphqlUrl;
 

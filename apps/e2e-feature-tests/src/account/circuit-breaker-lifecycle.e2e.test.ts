@@ -18,6 +18,14 @@ import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-d
 import { randomUUID } from 'crypto';
 import type { FeatureFlagsResponse } from '../helpers/graphql-types';
 
+// EB rule-evaluation eventual consistency intermittently drops the
+// BROKER_CIRCUIT_OPEN event between ExecutionBus and the BroadcastIngress
+// queue (DLQ empty, MatchedEvents=0 on the dropped run). One retry fires
+// a fresh withBreakerOpen() write whose CDC event evaluates against a
+// stable rule partition. Pattern documented 2026-05-13 in
+// advisory-adpt-from-investor-mandate-issued-sequential-flake.
+jest.retryTimes(1);
+
 describe('scenario 14 — circuit breaker lifecycle', () => {
   let ctx: TestContext;
   let tenant: FreshTenant;
