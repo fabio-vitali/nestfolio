@@ -366,7 +366,19 @@ for TARGET_IDX in $(seq 0 $((TARGET_COUNT - 1))); do
   # web/distributionId). The deploy-shell Nx target also rewrites the
   # dev federation.manifest.json into a prod manifest in dist before
   # the s3 sync.
-  if is_service_included "investor-web"; then
+  #
+  # Trigger: investor-web OR any of the 4 facade-bearing BFFs in --services.
+  # The BFFs publish `api/graphqlUrl` SSM exports which fetch-runtime-config.sh
+  # reads to write the shell's `appsyncGraphqlUrls` in `assets/config.json`.
+  # If a BFF stack is destroy+recreated (AppSync API ID rotates), the deployed
+  # shell would otherwise keep stale URLs because Phase 4c wouldn't fire on a
+  # BFF-only --services filter.
+  PHASE4C_TRIGGER="false"
+  if is_service_included "investor-web"; then PHASE4C_TRIGGER="true"; fi
+  for bff in investor-bff advisory-bff ledger-bff dashboard-bff; do
+    if is_service_included "$bff"; then PHASE4C_TRIGGER="true"; break; fi
+  done
+  if [ "$PHASE4C_TRIGGER" = "true" ]; then
     echo ""
     echo "Phase 4c (shell upload):"
     # Scope CDK_DEFAULT_REGION to the nx subprocess only — `export` would

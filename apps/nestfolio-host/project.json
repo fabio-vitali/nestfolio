@@ -72,7 +72,8 @@
           "dev": true
         }
       },
-      "defaultConfiguration": "production"
+      "defaultConfiguration": "production",
+      "cache": false
     },
     "build": {
       "executor": "nx:run-commands",
@@ -82,7 +83,7 @@
         { "dependentTasksOutputFiles": "**/*", "transitive": false }
       ],
       "outputs": ["{workspaceRoot}/dist/apps/{projectName}"],
-      "cache": true,
+      "cache": false,
       "options": {
         "cwd": "{workspaceRoot}",
         "commands": [
