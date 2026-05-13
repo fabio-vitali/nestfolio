@@ -1,6 +1,7 @@
 import { join } from 'path';
 import { Construct } from 'constructs';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { FieldLogLevel } from 'aws-cdk-lib/aws-appsync';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Facade, discoverJsResolvers } from '@nestfolio/cdk-constructs/core';
 import { MfeBucket } from '@nestfolio/cdk-constructs/extensions';
 import { InvestorBffEventTypes } from './domain/events';
@@ -16,6 +17,7 @@ export class InvestorBffStack extends ServiceStack {
     const facade = new Facade(this, 'Facade', {
       state,
       enableIamAuth: true,
+      fieldLogLevel: FieldLogLevel.ALL,
       jsResolvers: discoverJsResolvers(__dirname, {
         noneDataSource: ['requestAccountClosure'],
         preSteps: {
