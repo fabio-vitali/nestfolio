@@ -5,7 +5,7 @@ import { DashboardPage } from '../pages/dashboard.page';
 import { InvestorPage } from '../pages/investor.page';
 import { AdvisoryPage } from '../pages/advisory.page';
 import { HostPage } from '../pages/host.page';
-import { injectAdvisoryUpdate } from '../fixtures/inject-advisory-update';
+import { injectDashboardBffTriggerEvent } from '../fixtures/inject-advisory-update';
 import { waitForAdvisoryDecisionRow } from '../fixtures/wait-for-advisory-projection';
 // Spike 1.3 concluded `initiateDeposit` defaults to ENABLED when no flag row
 // exists, so Phase 4 Task 4.2 was skipped. The import below stays commented;
@@ -133,8 +133,8 @@ test('new-investor-happy-path: onboarding → deposit → decision → logout', 
   });
 
   // Step 8 — pending-decisions counter advances on the dashboard, AND a
-  //          subsequent IAM-signed publishDashboardUpdate broadcast reaches
-  //          the live subscription without a page reload (WSS path proof).
+  //          subsequent dashboard-bff-scoped DEPOSIT_DETECTED reaches the
+  //          live subscription without a page reload (WSS path proof).
   await test.step('decision pipeline triggers + WSS live-update verified', async () => {
     await authedPage.goto('/dashboard');
     await dashboard.waitForLoaded();
@@ -143,12 +143,14 @@ test('new-investor-happy-path: onboarding → deposit → decision → logout', 
     await dashboard.waitForPendingDecisionsAtLeast(1, 180_000);
     const baseline = await dashboard.getCurrentPendingDecisions();
 
-    // Inject a sentinel value the pipeline never produces. The dashboard is
-    // mounted with an active subscription; the only way `.alert-text` updates
-    // to this value (no reload) is via the onDashboardUpdate WSS broadcast.
-    const sentinel = baseline + 100;
-    await injectAdvisoryUpdate(ctx, tenant.tenantId, sentinel);
-    await dashboard.waitForPendingDecisionsExactly(sentinel, 30_000);
+    // Fire a real DEPOSIT_DETECTED scoped to dashboard-bff only (source
+    // `integration-test:dashboard-bff` — passes dashboard-bff's $or Ingress
+    // filter but is dropped by advisory-adpt, so no agent pipeline cost).
+    // The dashboard is mounted with an active subscription; with no page
+    // reload between this inject and the assert below, the only path the
+    // count update can travel is the `onDashboardUpdate` WSS broadcast.
+    await injectDashboardBffTriggerEvent(ctx, tenant);
+    await dashboard.waitForPendingDecisionsAtLeast(baseline + 1, 30_000);
 
     // Wait for advisory-bff's projection to actually carry the decision row
     // the dashboard counter is announcing. The two projections run in

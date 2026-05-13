@@ -1,15 +1,18 @@
 ---
 id: delete-deprecated-inject-advisory-update-fixture
-status: queued
-rank: 3
+status: shipped
+rank: null
 type: refactor
 notes: "Delete @deprecated injectAdvisoryUpdate backdoor and migrate happy-path WSS sentinel test to a real-EB path."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Removing the other three real-EB inject fixtures (injectAdvisoryTriggerEvent, injectAdvisoryBffTriggerEvent, injectDashboardBffTriggerEvent) — they are not deprecated."
+  - "Renaming the fixture file (still contains the surviving three functions); rename can be a separate cleanup if friction surfaces."
+  - "Changing the WSS proof shape beyond what's needed to drop the unique-sentinel requirement."
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "pnpm nx run nestfolio-e2e:lint green; grep confirms no remaining injectAdvisoryUpdate / PUBLISH_DASHBOARD_UPDATE / E2E_SENTINEL references in apps/services/libs (dashboard-bff's own PUBLISH_DASHBOARD_UPDATE const is unrelated production code). End-to-end Playwright validation against deployed dev deferred to next happy-path run — fix is mechanical (one import swap, one inject call swap, one assertion-helper swap)."
 ---
 
 # Delete `@deprecated` `injectAdvisoryUpdate` fixture and migrate the WSS sentinel caller

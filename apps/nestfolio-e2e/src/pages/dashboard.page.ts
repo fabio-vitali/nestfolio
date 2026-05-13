@@ -22,10 +22,11 @@ export class DashboardPage {
    *   "<i18n: advisory.pendingDecisions>: <N>"
    * Match the trailing integer regardless of the localised label.
    *
-   * NOTE: this passes when EITHER the initial getDashboard query OR a WSS
-   * frame populates the count. To explicitly verify the WSS live-update
-   * path (no page reload), use waitForPendingDecisionsExactly after
-   * injecting a sentinel value via injectAdvisoryUpdate.
+   * NOTE: passes when EITHER the initial getDashboard query OR a WSS frame
+   * populates the count. To prove the WSS live-update path specifically,
+   * call this after a real-EB inject WITHOUT navigating between inject and
+   * assert — the only path the new value can travel without a reload is the
+   * onDashboardUpdate broadcast.
    */
   async waitForPendingDecisionsAtLeast(n: number, timeout = 180_000): Promise<void> {
     await expect(async () => {
@@ -45,17 +46,4 @@ export class DashboardPage {
     return match ? parseInt(match[1], 10) : 0;
   }
 
-  /**
-   * Wait for the pending-decisions counter to reach EXACTLY n. Used to
-   * verify the WSS live-update path: inject a sentinel value (one the
-   * pipeline never produces) via SigV4 against publishDashboardUpdate;
-   * if WSS works, the dashboard's subscription delivers the broadcast and
-   * the store updates without a page reload.
-   */
-  async waitForPendingDecisionsExactly(n: number, timeout = 30_000): Promise<void> {
-    await expect(async () => {
-      const count = await this.getCurrentPendingDecisions();
-      expect(count).toBe(n);
-    }).toPass({ timeout, intervals: [500, 1000, 2000] });
-  }
 }
