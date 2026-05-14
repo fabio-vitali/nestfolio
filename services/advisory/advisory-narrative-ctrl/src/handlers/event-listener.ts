@@ -5,7 +5,7 @@ import {
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError } from '@nestfolio/agent-orchestrator';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError, wrapAgentOutput } from '@nestfolio/agent-orchestrator';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
 
 export interface SfnCallbackDeps {
@@ -39,30 +39,21 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
 
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
-    // Memory reads — AgentCore ListMemoryRecords has >40s eventual consistency
-    // window. Retry on the upstream `portfolio-engine` record (the most recent
-    // write in the chain — investor-profile/market-intelligence are typically
-    // converged by this stage). Tests short-circuit via the env override.
-    // operatingMode is NOT gated on Memory — it comes from subject above.
-    const [investorRecords, marketRecords, portfolioRecordsInitial, preferences, sessionHistory] = await Promise.all([
-      session.readUpstreamOutput('investor-profile'),
-      session.readUpstreamOutput('market-intelligence'),
-      session.readUpstreamOutput('portfolio-engine'),
+    // Long-term recall reads (preferences + session history). These return []
+    // today and will be populated by Phase B (long-term Memory strategies).
+    const [preferences, sessionHistory] = await Promise.all([
       session.searchLongTermMemory('narrative preferences communication style'),
       session.searchLongTermMemory('session summaries'),
     ]);
 
-    let portfolioRecords = portfolioRecordsInitial;
-    const retryDelays = (process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE
-      ?? '3000,5000,8000,12000')
-      .split(',').map((s) => parseInt(s.trim(), 10));
-    for (const delay of retryDelays) {
-      if (portfolioRecords[0]?.content) break;
-      if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
-      portfolioRecords = await session.readUpstreamOutput('portfolio-engine');
-    }
-
-    const investorProfile = investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {};
+    // Inter-agent ephemeral handoff: upstream outputs arrive via SF state
+    // Parameters from $.agentResults.<Upstream>.agentOutput. No Memory reads,
+    // no eventual-consistency wait. Empty/null upstreams are tolerated; the
+    // agent input simply has empty objects in those slots (matches the
+    // pre-migration Memory-empty behavior).
+    const investorProfile = (subject.investorProfile as Record<string, unknown> | undefined) ?? {};
+    const marketAnalysis = (subject.marketAnalysis as Record<string, unknown> | undefined) ?? {};
+    const portfolio = (subject.portfolio as Record<string, unknown> | undefined) ?? {};
 
     let result: Record<string, unknown>;
     try {
@@ -71,8 +62,8 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
         decisionId,
         operatingMode,
         investorProfile,
-        marketAnalysis: marketRecords[0]?.content ? JSON.parse(marketRecords[0].content) : {},
-        portfolio: portfolioRecords[0]?.content ? JSON.parse(portfolioRecords[0].content) : {},
+        marketAnalysis,
+        portfolio,
         preferences: preferences.map(r => r.content),
         sessionHistory: sessionHistory.map(r => r.content),
       });
@@ -84,15 +75,12 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
       throw error;
     }
 
-    // Memory persistence happens inside the AgentRuntime (graph.ts) — the
-    // previous Lambda wrap-write created a parallel record in the same
-    // namespace with a transformed shape that AgentCore did NOT dedupe via
-    // requestIdentifier. AssemblePacket then read whichever record came first
-    // — order-dependent flake. Mirrors investor-profile-ctrl pattern.
-    void result;
+    // Wrap result for SF state with size guard (currently inline-only;
+    // throws OutputTooLargeError if >25 KB — file follow-up if observed).
+    const wrapped = wrapAgentOutput(result);
 
     return {
-      output: { decisionId, tenantId },
+      output: { decisionId, tenantId, agentOutput: wrapped.value },
       intents: [record('AgentInvocation', { decisionId, tenantId, agentName: 'advisory-narrative' })],
     };
   },

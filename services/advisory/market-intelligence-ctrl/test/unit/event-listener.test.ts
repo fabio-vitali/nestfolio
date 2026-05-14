@@ -27,6 +27,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   withFallback: jest.fn().mockImplementation((node) => node),
   createMemoryClient: jest.fn(),
   createNoOpMemoryClient: jest.fn(),
+  wrapAgentOutput: jest.requireActual('@nestfolio/agent-orchestrator').wrapAgentOutput,
 }));
 
 jest.mock('@nestfolio/event-processor', () => ({
@@ -41,24 +42,21 @@ process.env.MEMORY_ID = 'mem-test';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
+import type { MemoryClient } from '@nestfolio/agent-orchestrator';
 import { createHandlers, type SfnCallbackDeps } from '../../src/handlers/event-listener';
 
 describe('market-intelligence-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
-  const mockWriteAgentOutput = jest.fn().mockResolvedValue(undefined);
-  const mockReadUpstreamOutput = jest.fn().mockResolvedValue([]);
   const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
   const mockDeps: SfnCallbackDeps = {
     agentService: { runPipeline: mockRunPipeline },
     memoryClient: {
       openDecisionSession: jest.fn().mockReturnValue({
-        writeAgentOutput: mockWriteAgentOutput,
-        readUpstreamOutput: mockReadUpstreamOutput,
         searchLongTermMemory: mockSearchLongTermMemory,
       }),
       searchTenantMemory: jest.fn().mockResolvedValue([]),
-    } as SfnCallbackDeps['memoryClient'],
+    } satisfies Partial<MemoryClient> as MemoryClient,
   };
 
   const handlers = createHandlers(mockDeps);
@@ -75,17 +73,19 @@ describe('market-intelligence-ctrl event-listener', () => {
     record: {},
   };
 
+  const defaultAgentResult = {
+    decisionId: 'dp-1',
+    signals: [{ type: 'momentum', ticker: 'SPY', sentiment: 'BULLISH', confidence: 0.8, source: 'technical' }],
+    tickersMentioned: ['SPY'],
+    marketOutlook: 'Bullish momentum',
+    confidenceScore: 0.85,
+    metadata: { durationMs: 900, modelTier: 'sonnet' },
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
-    mockRunPipeline.mockResolvedValue({
-      decisionId: 'dp-1',
-      signals: [{ type: 'momentum', ticker: 'SPY', sentiment: 'BULLISH', confidence: 0.8, source: 'technical' }],
-      tickersMentioned: ['SPY'],
-      marketOutlook: 'Bullish momentum',
-      confidenceScore: 0.85,
-      metadata: { durationMs: 900, modelTier: 'sonnet' },
-    });
+    mockRunPipeline.mockResolvedValue(defaultAgentResult);
   });
 
   it('should run agent pipeline and return output with intents', async () => {
@@ -100,7 +100,14 @@ describe('market-intelligence-ctrl event-listener', () => {
 
     const result = await handlers.ANALYZE_MARKET(payload, baseCtx);
 
-    expect(result.output).toEqual({ decisionId: 'dp-1', tenantId: 't1' });
+    // Output now carries agentOutput so downstream SF Task states
+    // (portfolio-engine, advisory-narrative) and AssembleDecisionPacket can
+    // read the market analysis via $.agentResults.InvokeMarketIntelligence.agentOutput.
+    expect(result.output).toEqual({
+      decisionId: 'dp-1',
+      tenantId: 't1',
+      agentOutput: defaultAgentResult,
+    });
     expect(result.intents).toHaveLength(1);
 
     expect(mockRunPipeline).toHaveBeenCalledWith(
@@ -109,9 +116,9 @@ describe('market-intelligence-ctrl event-listener', () => {
     );
 
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('market signals sector trends');
-    // Memory persistence is owned by the AgentRuntime — the Lambda's
-    // wrap-write was removed (single-writer Memory contract).
-    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
+    // Memory persistence is owned by the AgentRuntime — writeAgentOutput has
+    // been dropped from MemoryClient entirely (Phase A inter-agent state handoff
+    // moved to SF state).
   });
 
   it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
@@ -127,7 +134,28 @@ describe('market-intelligence-ctrl event-listener', () => {
 
     expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
     expect(result.intents).toBeUndefined();
-    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
+  });
+
+  it('returns the agent result inside SF output for downstream consumers', async () => {
+    const fakeResult = {
+      decisionId: 'dp-agent-out',
+      signals: [{ type: 'sentiment', ticker: 'NVDA', sentiment: 'BULLISH', confidence: 0.92, source: 'news' }],
+      tickersMentioned: ['NVDA', 'AMD'],
+      sectors: { technology: 'BULLISH', energy: 'NEUTRAL' },
+      marketOutlook: 'Strong tech momentum',
+      outlook: 'BULLISH',
+      confidenceScore: 0.91,
+      metadata: { durationMs: 700, modelTier: 'sonnet' },
+    };
+    mockRunPipeline.mockResolvedValueOnce(fakeResult);
+
+    const payload: EventPayload = {
+      subject: { tenantId: 't1', decisionId: 'dp-agent-out', taskToken: 'tok' },
+    };
+
+    const result = await handlers.ANALYZE_MARKET(payload, baseCtx);
+
+    expect(result.output.agentOutput).toEqual(fakeResult);
   });
 
   it('should propagate agent errors', async () => {

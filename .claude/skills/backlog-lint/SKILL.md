@@ -1,6 +1,6 @@
 ---
 name: backlog-lint
-description: Validate docs/backlog/ frontmatter against the 7 invariants and (with --fix) regenerate docs/BACKLOG.md from frontmatter and related_workstreams in topic dossiers. Use at every workstream ship and on demand.
+description: Validate docs/backlog/ frontmatter against the 8 invariants and (with --fix) regenerate docs/BACKLOG.md from frontmatter and related_workstreams in topic dossiers. Use at every workstream ship and on demand.
 ---
 
 ## When this skill applies
@@ -14,7 +14,7 @@ Invoke when:
 
 ## What it enforces
 
-7 rules over `docs/backlog/<id>.md`:
+8 rules over `docs/backlog/<id>.md`:
 
 1. `id` matches filename.
 2. At most one file has `status: active` (zero is allowed between workstreams).
@@ -23,6 +23,7 @@ Invoke when:
 5. `status: shipped` ⇒ `validation_gate` non-empty.
 6. `status: queued` ⇒ `rank` set + unique among queued.
 7. `docs/BACKLOG.md` matches the auto-generated rendering of frontmatter.
+8. `status: queued` ⇒ body must NOT contain "Promote when/on/once/until/after/only" trigger language. If a promotion trigger remains unmet, item belongs in `parking`. To promote: remove the trigger sentence and document in body why the trigger fired.
 
 ## What `--fix` does
 

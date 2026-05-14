@@ -3,12 +3,9 @@ import {
   createOrchestrator,
   invokeOrchestrator,
   createKBClient,
-  createMemoryClient,
-  createNoOpMemoryClient,
   type AgentInvocation,
   type CompiledGraph,
   type KBClient,
-  type MemoryClient,
   type TraceEmitter,
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
@@ -56,16 +53,6 @@ function buildKBClient(): KBClient | null {
   return createKBClient({ knowledgeBaseId: kbId, region: process.env['AWS_REGION'] ?? 'us-east-1' });
 }
 
-function buildMemoryClient(): MemoryClient {
-  const memoryId = process.env['MEMORY_ID'];
-  if (!memoryId) return createNoOpMemoryClient();
-  return createMemoryClient({
-    memoryId,
-    region: process.env['AWS_REGION'] ?? 'us-east-1',
-    serviceName: 'portfolio-engine',
-  });
-}
-
 function buildTools() {
   const tableName = process.env['TABLE_NAME'];
   if (!tableName) throw new Error('TABLE_NAME is required for portfolio-engine tools');
@@ -81,8 +68,6 @@ export async function invokePortfolioEngine(
   payload: AgentInvocation,
   emitter?: TraceEmitter,
 ): Promise<Record<string, unknown>> {
-  const memory = buildMemoryClient();
-  const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
   const kb = buildKBClient();
 
   const seed = JSON.stringify(payload.upstreamOutputs);
@@ -151,28 +136,6 @@ export async function invokePortfolioEngine(
         }
       : undefined,
   );
-
-  // Persist to memory — Phase β (Spec 4, 2026-05-06): only write when every
-  // agent's wave-node entry is `ok: true`. A partial-degraded cycle no longer
-  // poisons AgentCore Memory for downstream agents. The discriminant is
-  // stripped before writing because Memory consumers expect raw outputs.
-  //
-  // Iterate only EXPECTED agent keys — `result` also carries LangGraph state
-  // metadata (`input` as string, etc.) that must NOT be treated as a
-  // discriminant. Mirrors agent-service.ts commit 97d41a36 (2026-05-07).
-  if (!('serviceUnavailable' in result)) {
-    const expectedAgentKeys = ['portfolio-construction', 'rebalance-planner'] as const;
-    const allOk = expectedAgentKeys.every((k) => {
-      const v = (result as Record<string, unknown>)[k];
-      return typeof v === 'object' && v !== null && (v as { ok?: boolean }).ok === true;
-    });
-    if (allOk) {
-      const stripped = Object.fromEntries(
-        expectedAgentKeys.map((k) => [k, ((result as Record<string, unknown>)[k] as { output: Record<string, unknown> }).output]),
-      );
-      await session.writeAgentOutput(stripped);
-    }
-  }
 
   return result;
 }

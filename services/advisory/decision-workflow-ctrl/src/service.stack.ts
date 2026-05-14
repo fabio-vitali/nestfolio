@@ -38,16 +38,16 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
       stringValue: memory.memoryId,
     });
 
-    // AssemblePacket Lambda — reads all 4 agent outputs from Memory at assembly time
+    // AssemblePacket Lambda — reads all 4 agent outputs from the SF state Parameters
+    // payload (post-Phase-A 2026-05-14). No Memory reads, no eventual-consistency
+    // retry loop. See docs/backlog/inter-agent-state-handoff-sf-vs-memory.md.
     const assemblePacketFn = new NodejsFunction(this, 'AssemblePacket', {
       ...defaultLambdaProps(this),
       entry: join(__dirname, 'handlers', 'assemble-packet.ts'),
       environment: {
-        MEMORY_ID: memory.memoryId,
         TABLE_NAME: state.getTable().tableName,
       },
     });
-    memory.grantRead(assemblePacketFn);
     state.getTable().grantWriteData(assemblePacketFn);
 
     // --- Decision Orchestration ---

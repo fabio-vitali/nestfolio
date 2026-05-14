@@ -131,21 +131,37 @@ export class DecisionWorkflowDefinition extends Construct {
       'ANALYZE_MARKET',
     );
 
-    // Portfolio + Narrative both need operatingMode to drive shape. We pull it
-    // from `$.agentResults.InvokeInvestorProfile.operatingMode` (returned by
-    // investor-profile-ctrl's SendTaskSuccess output and re-hoisted into top-level
-    // SF state by MergeParallelOutputs below) so downstream Lambdas read it from
-    // their event subject directly — no Memory roundtrip.
+    // Portfolio + Narrative both need upstream outputs (investor profile, market
+    // analysis, prior allocations) to drive their reasoning. We pull them from
+    // `$.agentResults.<Upstream>.agentOutput` (returned by the upstream's
+    // SendTaskSuccess and re-hoisted into top-level SF state by
+    // MergeParallelOutputs below) so downstream Lambdas read them from their
+    // event subject directly — no AgentCore Memory roundtrip. This eliminates
+    // the >40s eventual-consistency window that previously required a 28s retry
+    // sleep — see docs/backlog/inter-agent-state-handoff-sf-vs-memory.md.
     const invokePortfolioEngine = createAgentInvocationState(
       'InvokePortfolioEngine',
       'CONSTRUCT_PORTFOLIO',
-      { extraSubject: { operatingMode: '$.agentResults.InvokeInvestorProfile.operatingMode' } },
+      {
+        extraSubject: {
+          operatingMode: '$.agentResults.InvokeInvestorProfile.operatingMode',
+          investorProfile: '$.agentResults.InvokeInvestorProfile.agentOutput',
+          marketAnalysis: '$.agentResults.InvokeMarketIntelligence.agentOutput',
+        },
+      },
     );
 
     const invokeAdvisoryNarrative = createAgentInvocationState(
       'InvokeAdvisoryNarrative',
       'GENERATE_NARRATIVE',
-      { extraSubject: { operatingMode: '$.agentResults.InvokeInvestorProfile.operatingMode' } },
+      {
+        extraSubject: {
+          operatingMode: '$.agentResults.InvokeInvestorProfile.operatingMode',
+          investorProfile: '$.agentResults.InvokeInvestorProfile.agentOutput',
+          marketAnalysis: '$.agentResults.InvokeMarketIntelligence.agentOutput',
+          portfolio: '$.agentResults.InvokePortfolioEngine.agentOutput',
+        },
+      },
     );
 
     // --- Parallel: investor-profile + market-intelligence ---
@@ -159,12 +175,13 @@ export class DecisionWorkflowDefinition extends Construct {
     // --- Merge parallel outputs ---
 
     // After Parallel, $.parallelResults is an array of branch outputs. Branch 0
-    // is InvokeInvestorProfile (added first below), so its agentResults live at
-    // $.parallelResults[0].agentResults.InvokeInvestorProfile. We re-hoist that
-    // back into top-level $.agentResults.InvokeInvestorProfile so subsequent
-    // Task subjects can reference $.agentResults.InvokeInvestorProfile.operatingMode.
-    // This is the propagation channel for Option A — see
-    // docs/backlog/agentcore-memory-list-records-eventual-consistency.md.
+    // is InvokeInvestorProfile (added first below), branch 1 is
+    // InvokeMarketIntelligence. We re-hoist each branch's agentResults back into
+    // top-level $.agentResults.<StateId> so subsequent Task subjects can
+    // reference $.agentResults.InvokeInvestorProfile.operatingMode and
+    // $.agentResults.<Upstream>.agentOutput. This is the propagation channel
+    // for inter-agent state handoff Phase A — see
+    // docs/backlog/inter-agent-state-handoff-sf-vs-memory.md.
     const mergeParallelOutputs = new sfn.Pass(this, 'MergeParallelOutputs', {
       parameters: {
         'decisionId.$': '$.decisionId',
@@ -175,6 +192,10 @@ export class DecisionWorkflowDefinition extends Construct {
         'agentResults': {
           'InvokeInvestorProfile': {
             'operatingMode.$': '$.parallelResults[0].agentResults.InvokeInvestorProfile.operatingMode',
+            'agentOutput.$': '$.parallelResults[0].agentResults.InvokeInvestorProfile.agentOutput',
+          },
+          'InvokeMarketIntelligence': {
+            'agentOutput.$': '$.parallelResults[1].agentResults.InvokeMarketIntelligence.agentOutput',
           },
         },
       },
@@ -206,6 +227,14 @@ export class DecisionWorkflowDefinition extends Construct {
             'trigger.$': '$.trigger',
             'triggerEventId.$': '$.decisionId',
             'executionArn.$': '$$.Execution.Id',
+            // Inter-agent state handoff Phase A: pass the 4 agent outputs in
+            // directly so assemble-packet.ts (Task 3) reads them from event,
+            // not from AgentCore Memory ListMemoryRecords. See
+            // docs/backlog/inter-agent-state-handoff-sf-vs-memory.md.
+            'investorProfile.$': '$.agentResults.InvokeInvestorProfile.agentOutput',
+            'marketAnalysis.$': '$.agentResults.InvokeMarketIntelligence.agentOutput',
+            'portfolio.$': '$.agentResults.InvokePortfolioEngine.agentOutput',
+            'narrative.$': '$.agentResults.InvokeAdvisoryNarrative.agentOutput',
           },
         },
         ResultSelector: {

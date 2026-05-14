@@ -27,6 +27,7 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   createMemoryClient: jest.fn(),
   createNoOpMemoryClient: jest.fn(),
   UnknownOperatingModeError: jest.requireActual('@nestfolio/agent-orchestrator').UnknownOperatingModeError,
+  wrapAgentOutput: jest.requireActual('@nestfolio/agent-orchestrator').wrapAgentOutput,
 }));
 
 jest.mock('@nestfolio/event-processor', () => ({
@@ -41,24 +42,21 @@ process.env.MEMORY_ID = 'mem-test';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
+import type { MemoryClient } from '@nestfolio/agent-orchestrator';
 import { createHandlers, type SfnCallbackDeps } from '../../src/handlers/event-listener';
 
 describe('investor-profile-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
-  const mockWriteAgentOutput = jest.fn().mockResolvedValue(undefined);
-  const mockReadUpstreamOutput = jest.fn().mockResolvedValue([]);
   const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
   const mockDeps: SfnCallbackDeps = {
     agentService: { runPipeline: mockRunPipeline },
     memoryClient: {
       openDecisionSession: jest.fn().mockReturnValue({
-        writeAgentOutput: mockWriteAgentOutput,
-        readUpstreamOutput: mockReadUpstreamOutput,
         searchLongTermMemory: mockSearchLongTermMemory,
       }),
       searchTenantMemory: jest.fn().mockResolvedValue([]),
-    } as SfnCallbackDeps['memoryClient'],
+    } satisfies Partial<MemoryClient> as MemoryClient,
   };
 
   const handlers = createHandlers(mockDeps);
@@ -75,15 +73,17 @@ describe('investor-profile-ctrl event-listener', () => {
     record: {},
   };
 
+  const defaultAgentResult = {
+    decisionId: 'dp-1',
+    goals: { goals: ['retirement'], timeHorizon: '10 years', riskWillingness: 'moderate', confidence: 0.9 },
+    risk: { riskScore: 45, riskCategory: 'MODERATE', regulatoryFlags: [], suitabilityAssessment: 'Suitable', confidence: 0.85 },
+    metadata: { durationMs: 1200, modelTiers: ['haiku', 'opus'] },
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
-    mockRunPipeline.mockResolvedValue({
-      decisionId: 'dp-1',
-      goals: { goals: ['retirement'], timeHorizon: '10 years', riskWillingness: 'moderate', confidence: 0.9 },
-      risk: { riskScore: 45, riskCategory: 'MODERATE', regulatoryFlags: [], suitabilityAssessment: 'Suitable', confidence: 0.85 },
-      metadata: { durationMs: 1200, modelTiers: ['haiku', 'opus'] },
-    });
+    mockRunPipeline.mockResolvedValue(defaultAgentResult);
   });
 
   it('should run agent pipeline and return output with intents', async () => {
@@ -99,10 +99,17 @@ describe('investor-profile-ctrl event-listener', () => {
 
     const result = await handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx);
 
-    // Output now carries operatingMode for downstream SF Task states to read
-    // (Option A — propagate via SF state to avoid the AgentCore Memory
-    // ListMemoryRecords eventual-consistency gap).
-    expect(result.output).toEqual({ decisionId: 'dp-1', tenantId: 't1', operatingMode: 'BALANCED' });
+    // Output carries operatingMode for downstream SF Task states + agentOutput
+    // so Wave 1 (portfolio-engine) and Wave 2 (advisory-narrative) plus
+    // AssembleDecisionPacket can read the result via SF state
+    // ($.agentResults.InvokeInvestorProfile.agentOutput) — Option A,
+    // avoiding the AgentCore Memory ListMemoryRecords eventual-consistency gap.
+    expect(result.output).toEqual({
+      decisionId: 'dp-1',
+      tenantId: 't1',
+      operatingMode: 'BALANCED',
+      agentOutput: defaultAgentResult,
+    });
     expect(result.intents).toHaveLength(1);
 
     expect(mockRunPipeline).toHaveBeenCalledWith(
@@ -118,9 +125,8 @@ describe('investor-profile-ctrl event-listener', () => {
 
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('investor preferences risk tolerance');
     // Memory persistence happens inside the AgentRuntime (graph.ts), not in the
-    // Lambda — see services/advisory/investor-profile-ctrl/agents/investor-profile/graph.ts
-    // The Lambda's previous wrap-write was a no-op (deduplicated by requestIdentifier).
-    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
+    // Lambda — and the writeAgentOutput method has been dropped from MemoryClient
+    // entirely (Phase A inter-agent state handoff moved to SF state).
   });
 
   it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
@@ -141,7 +147,6 @@ describe('investor-profile-ctrl event-listener', () => {
 
     expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
     expect(result.intents).toBeUndefined();
-    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
   });
 
   it('should propagate agent errors', async () => {
@@ -193,6 +198,30 @@ describe('investor-profile-ctrl event-listener', () => {
       'evt-1',
       expect.objectContaining({ operatingMode: 'AGGRESSIVE' }),
     );
+  });
+
+  it('returns the agent result inside SF output for downstream consumers', async () => {
+    const fakeResult = {
+      decisionId: 'dp-agent-out',
+      goals: { goals: ['college'], timeHorizon: '5 years', riskWillingness: 'moderate', confidence: 0.7 },
+      risk: { riskScore: 60, riskCategory: 'MODERATE', regulatoryFlags: [], suitabilityAssessment: 'Suitable', confidence: 0.9 },
+      investorClassification: 'RETAIL',
+      metadata: { durationMs: 800, modelTiers: ['haiku', 'opus'] },
+    };
+    mockRunPipeline.mockResolvedValueOnce(fakeResult);
+
+    const payload: EventPayload = {
+      subject: {
+        tenantId: 't1',
+        decisionId: 'dp-agent-out',
+        taskToken: 'tok',
+        investorProfile: { age: 40, operatingMode: 'BALANCED' },
+      },
+    };
+
+    const result = await handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx);
+
+    expect(result.output.agentOutput).toEqual(fakeResult);
   });
 
   it('passes operatingMode verbatim into runPipeline (regression — silent BALANCED narrowing)', async () => {

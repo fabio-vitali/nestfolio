@@ -36,6 +36,7 @@
 16. [Circuit Breakers](#16-circuit-breakers)
 17. [AgentCore Memory Contract](#17-agentcore-memory-contract)
     - 17.1 [Architectural Evolution — Current implementation diverges from contract](#171-architectural-evolution--current-implementation-diverges-from-contract)
+    - 17.2 [Architectural Evolution — Inter-agent handoff moved to Step Functions state](#172-architectural-evolution--inter-agent-handoff-moved-to-step-functions-state)
 18. [Cross-Domain Routing](#18-cross-domain-routing)
 19. [Knowledge Bases](#19-knowledge-bases)
 20. [Frontend Topology](#20-frontend-topology)
@@ -128,7 +129,7 @@ The system runs **6 production AI agents** organised in a layered topology.
 
 ### Orchestrator layer
 
-`decision-workflow-ctrl` — Step Functions state machine that triggers the 4 advisory agents in parallel, persists results to AgentCore Memory, then assembles the Decision Packet. Cite: `services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts`, `services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts`.
+`decision-workflow-ctrl` — Step Functions state machine that triggers the 4 advisory agents (parallel then sequential), plumbs their outputs through SF state Parameters (§17.2), then assembles the Decision Packet. Cite: `services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts`, `services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts`.
 
 ### Intelligence layer (4 agent-ctrl services, each hosting its own AgentCore Runtime)
 
@@ -392,7 +393,7 @@ Where `actorId` is `tenantId`, and `scope` is one of:
 
 | Scope | Lifetime | Purpose |
 |---|---|---|
-| `decisions/{decisionId}` | short-term | Per-decision agent inputs/outputs; written by upstream agent ctrls, read by `decision-workflow-ctrl`'s `AssemblePacket` |
+| `decisions/{decisionId}` | (deprecated 2026-05-14, see §17.2) | Previously per-decision agent inputs/outputs; replaced by Step Functions state-based handoff |
 | `preferences` | long-term | Investor preference extraction across cycles |
 | `signals` | long-term | Market signal extraction with cross-decision shelf life |
 | `rationale` | long-term | Recommendation rationale archive for explainability |
@@ -407,10 +408,10 @@ Each namespace has an extraction strategy attached at Memory provisioning time. 
 `libs/agent-orchestrator/src/memory/memory-client.ts` exposes:
 
 - `openDecisionSession(tenantId, decisionId)` → returns a `DecisionSession` with:
-  - `writeAgentOutput(output)` — writes the agent's output for this decision.
-  - `readUpstreamOutput(upstreamService)` — reads outputs from another service for the same decision.
   - `searchLongTermMemory(query, topK)` — searches the long-term namespaces.
 - `searchTenantMemory(tenantId, query, topK)` — top-level long-term search.
+
+The inter-agent ephemeral handoff that previously used `writeAgentOutput`/`readUpstreamOutput` against `decisions/{decisionId}` is now via Step Functions state — see §17.2.
 
 ### 17.1 Architectural Evolution — Current implementation diverges from contract
 
@@ -424,6 +425,18 @@ Reads find what writes produce. The placeholder fallback in `decision-workflow-c
 `searchLongTermMemory` and `searchTenantMemory` continue to use `RetrieveMemoryRecordsCommand` with a `searchQuery` — semantic recall is the correct semantic over the long-term namespaces (`preferences`, `signals`, `rationale`) where Bedrock extraction strategies are attached.
 
 Note on SDK shape: `BatchCreateMemoryRecordsCommand` records take `namespaces: string[]` (plural array) per `MemoryRecordCreateInput`; `ListMemoryRecordsCommand` takes `namespace: string` (singular). The asymmetry is SDK-mandated.
+
+### 17.2 Architectural Evolution — Inter-agent handoff moved to Step Functions state
+
+**Resolved 2026-05-14 (Phase A of `inter-agent-state-handoff-sf-vs-memory`).** AgentCore Memory's >40s `ListMemoryRecords` eventual-consistency window made the decision-scoped namespace unsuitable for synchronous inter-agent ephemeral handoff. A 28s retry sleep loop in `services/advisory/advisory-narrative-ctrl/src/handlers/event-listener.ts` mitigated the worst case but caused a 3x latency regression (p50 13s → 49s) since 2026-05-09.
+
+**New model:**
+- Each agent's Lambda handler returns the agent result inside `output.agentOutput`. `resumeStateMachine` calls `SendTaskSuccessCommand` with this payload. SF captures it at `$.agentResults.<UpstreamStateId>.agentOutput`.
+- Downstream tasks plumb upstream outputs through `Parameters` blocks: `'investorProfile.$': '$.agentResults.InvokeInvestorProfile.agentOutput'`. Each downstream agent reads its upstream context from its event subject — no Memory call.
+- `services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts` reads all 4 agent outputs from its event payload directly.
+- Runtime size guard at `libs/agent-orchestrator/src/wrap-agent-output.ts`: throws `OutputTooLargeError` if a single agent output exceeds 25 KB (4x current p99 headroom). If observed in production, a follow-up wires an S3-pointer fallback.
+
+The `MemoryClient.writeAgentOutput` and `readUpstreamOutput` methods are removed; the corresponding `BatchCreateMemoryRecords` and `ListMemoryRecords` IAM grants are dropped from the 4 advisory agent service stacks. The `agentcore.Memory` construct itself remains — long-term recall (the `searchLongTermMemory` and `searchTenantMemory` callers) still depends on it. Phase B (`inter-agent-state-handoff-sf-vs-memory` workstream, separate plan) wires Bedrock MemoryStrategies on the `preferences`, `signals`, and `rationale` long-term namespaces.
 
 ---
 

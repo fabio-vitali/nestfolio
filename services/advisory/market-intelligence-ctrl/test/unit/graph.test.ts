@@ -2,8 +2,6 @@
 const mockAgentNode = jest.fn();
 const mockKBRetrieve = jest.fn();
 const mockMemorySession = {
-  writeAgentOutput: jest.fn(),
-  readUpstreamOutput: jest.fn().mockResolvedValue([]),
   searchLongTermMemory: jest.fn().mockResolvedValue([]),
 };
 
@@ -80,22 +78,6 @@ describe('market-intelligence-ctrl structured graph', () => {
     // services). The bare signals/marketOutlook live under .output.
     expect(result).toHaveProperty('market-research');
     expect((result as { 'market-research': { ok: boolean; output: { signals: unknown[] } } })['market-research'].output).toHaveProperty('signals');
-  });
-
-  it('writes output to memory', async () => {
-    mockKBRetrieve.mockResolvedValue([]);
-    mockAgentNode.mockResolvedValue({
-      signals: [{ type: 'test', ticker: 'VTI', sentiment: 'NEUTRAL', confidence: 0.5, source: 'test' }],
-      tickersMentioned: ['VTI'],
-      marketOutlook: 'Neutral market conditions with mixed economic signals across sectors',
-      confidenceScore: 0.6,
-    });
-
-    await invokeMarketResearch({ tenantId: 't1', decisionId: 'd1', upstreamOutputs: {} });
-
-    expect(mockMemorySession.writeAgentOutput).toHaveBeenCalledWith(
-      expect.objectContaining({ 'market-research': expect.objectContaining({ signals: expect.any(Array) }) }),
-    );
   });
 
   it('injects market-data and instrument-universe into the agent prompt', async () => {

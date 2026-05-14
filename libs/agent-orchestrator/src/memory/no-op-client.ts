@@ -1,12 +1,6 @@
 import type { MemoryClient, DecisionSession, MemoryRecord } from './memory-client';
 
 const noOpSession: DecisionSession = {
-  async writeAgentOutput(): Promise<void> {
-    /* no-op */
-  },
-  async readUpstreamOutput(): Promise<MemoryRecord[]> {
-    return [];
-  },
   async searchLongTermMemory(): Promise<MemoryRecord[]> {
     return [];
   },

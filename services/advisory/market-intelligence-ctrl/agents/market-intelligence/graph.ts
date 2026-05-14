@@ -6,13 +6,10 @@ import {
   withRetry,
   withFallback,
   createKBClient,
-  createMemoryClient,
-  createNoOpMemoryClient,
   invokeOrchestrator,
   type AgentInvocation,
   type AgentNodeResult,
   type KBClient,
-  type MemoryClient,
   type TraceEmitter,
 } from '@nestfolio/agent-orchestrator';
 import { marketResearchConfig } from '../../src/agents/market-research.config';
@@ -53,22 +50,10 @@ function buildKBClient(): KBClient | null {
   return createKBClient({ knowledgeBaseId: kbId, region: process.env['AWS_REGION'] ?? 'us-east-1' });
 }
 
-function buildMemoryClient(): MemoryClient {
-  const memoryId = process.env['MEMORY_ID'];
-  if (!memoryId) return createNoOpMemoryClient();
-  return createMemoryClient({
-    memoryId,
-    region: process.env['AWS_REGION'] ?? 'us-east-1',
-    serviceName: 'market-intelligence',
-  });
-}
-
 export async function invokeMarketResearch(
   payload: AgentInvocation,
   emitter?: TraceEmitter,
 ): Promise<Record<string, unknown>> {
-  const memory = buildMemoryClient();
-  const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
   const kb = buildKBClient();
 
   // 1. Retrieve market intelligence from KB (news, sentiment, macro)
@@ -113,18 +98,13 @@ export async function invokeMarketResearch(
     throw new Error(`Market-intelligence orchestrator unavailable: ${(result as { reason?: string }).reason ?? 'unknown'}`);
   }
 
-  // Phase β (Spec 4, 2026-05-06): graph now returns
-  // `{ input, marketResearch: AgentNodeResult }`. Re-shape to the
-  // hyphenated agent key the rest of the system expects ('market-research')
-  // and apply the all-or-nothing Memory write rule.
+  // Re-shape to the hyphenated agent key the rest of the system expects
+  // ('market-research'). The discriminant `{ok, output, ...}` envelope is
+  // preserved so agent-service.ts can apply the discriminant check.
   const marketResearch = (result as { marketResearch?: AgentNodeResult }).marketResearch;
   const shaped: Record<string, AgentNodeResult> = {
     'market-research': marketResearch ?? { ok: false, reason: 'graph returned no marketResearch entry', fallback: {} },
   };
-
-  if (shaped['market-research'].ok) {
-    await session.writeAgentOutput({ 'market-research': shaped['market-research'].output });
-  }
 
   return shaped;
 }

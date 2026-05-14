@@ -82,4 +82,17 @@ describe('PortfolioEngineCtrlStack', () => {
     );
     expect(actions).toContain('events:PutEvents');
   });
+
+  it('grants RetrieveMemoryRecords but not BatchCreate/ListMemoryRecords (inter-agent state via SF, not Memory)', () => {
+    const policies = template.findResources('AWS::IAM::Policy');
+    const allStatements = Object.values(policies).flatMap(
+      (p: any) => p.Properties.PolicyDocument.Statement ?? [],
+    );
+    const actions = allStatements.flatMap((s: any) =>
+      Array.isArray(s.Action) ? s.Action : [s.Action],
+    );
+    expect(actions).toContain('bedrock-agentcore:RetrieveMemoryRecords');
+    expect(actions).not.toContain('bedrock-agentcore:BatchCreateMemoryRecords');
+    expect(actions).not.toContain('bedrock-agentcore:ListMemoryRecords');
+  });
 });

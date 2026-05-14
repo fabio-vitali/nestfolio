@@ -5,7 +5,7 @@ import {
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError } from '@nestfolio/agent-orchestrator';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError, wrapAgentOutput } from '@nestfolio/agent-orchestrator';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
 
 export interface SfnCallbackDeps {
@@ -62,17 +62,19 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
     // includes operatingMode at the top level so this Lambda's previous
     // wrap-write (which was silently deduplicated by `requestIdentifier`
     // idempotency in BatchCreateMemoryRecordsCommand) is no longer needed.
-    void result;
 
-    // Return operatingMode in the SF SendTaskSuccess output so downstream
-    // Task states (portfolio-engine, advisory-narrative) can read it from
-    // SF state (`$.agentResults.InvokeInvestorProfile.operatingMode`)
-    // without a Memory roundtrip. Closes the AgentCore Memory
-    // ListMemoryRecords eventual-consistency gap that previously blocked
-    // CONSERVATIVE+AGGRESSIVE e2e cases — see
+    // Return operatingMode AND the full agent result in the SF SendTaskSuccess
+    // output so downstream Task states (portfolio-engine, advisory-narrative)
+    // and AssembleDecisionPacket can read them from SF state
+    // (`$.agentResults.InvokeInvestorProfile.operatingMode` and
+    //  `$.agentResults.InvokeInvestorProfile.agentOutput`) without a Memory
+    // roundtrip. Closes the AgentCore Memory ListMemoryRecords
+    // eventual-consistency gap that previously blocked CONSERVATIVE+AGGRESSIVE
+    // e2e cases — see
     // docs/backlog/agentcore-memory-list-records-eventual-consistency.md.
+    const wrapped = wrapAgentOutput(result);
     return {
-      output: { decisionId, tenantId, operatingMode },
+      output: { decisionId, tenantId, operatingMode, agentOutput: wrapped.value },
       intents: [record('AgentInvocation', { decisionId, tenantId, agentName: 'investor-profile' })],
     };
   },

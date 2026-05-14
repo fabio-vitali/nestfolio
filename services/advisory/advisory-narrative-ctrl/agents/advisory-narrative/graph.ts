@@ -5,13 +5,10 @@ import {
   withRetry,
   withFallback,
   createKBClient,
-  createMemoryClient,
-  createNoOpMemoryClient,
   invokeOrchestrator,
   type AgentInvocation,
   type AgentNodeResult,
   type KBClient,
-  type MemoryClient,
   type TraceEmitter,
 } from '@nestfolio/agent-orchestrator';
 import { explainabilityConfig } from '../../src/agents/explainability.config';
@@ -55,22 +52,10 @@ function buildKBClient(): KBClient | null {
   });
 }
 
-function buildMemoryClient(): MemoryClient {
-  const memoryId = process.env['MEMORY_ID'];
-  if (!memoryId) return createNoOpMemoryClient();
-  return createMemoryClient({
-    memoryId,
-    region: process.env['AWS_REGION'] ?? 'us-east-1',
-    serviceName: 'advisory-narrative',
-  });
-}
-
 export async function invokeNarrative(
   payload: AgentInvocation,
   emitter?: TraceEmitter,
 ): Promise<Record<string, unknown>> {
-  const memory = buildMemoryClient();
-  const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
   const kb = buildKBClient();
 
   let kbContext = '';
@@ -125,12 +110,6 @@ export async function invokeNarrative(
   const shaped: Record<string, AgentNodeResult> = {
     explainability: explainability ?? { ok: false, reason: 'graph returned no explainability entry', fallback: {} },
   };
-
-  // Memory write is all-or-nothing: skip on degraded paths so a partial cycle
-  // does not poison Memory for downstream consumers.
-  if (shaped['explainability'].ok) {
-    await session.writeAgentOutput({ explainability: shaped['explainability'].output });
-  }
 
   return shaped;
 }

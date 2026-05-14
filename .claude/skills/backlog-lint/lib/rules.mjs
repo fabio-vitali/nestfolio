@@ -21,6 +21,17 @@ export function ruleSingleActive(files) {
   return [];
 }
 
+export function rulePromotionTriggerGated(file) {
+  if (file.frontmatter?.status !== 'queued') return [];
+  const body = file.body ?? '';
+  const m = body.match(/\bPromote\s+(when|on|once|until|after|only)\b[^.\n]*/i);
+  if (m) {
+    return [v('promotion-trigger-gated', file,
+      `${file.id}: queued but body has unmet promotion trigger — "${m[0].trim()}". Either remove the sentence (trigger fired — document why in body) or revert to status: parking.`)];
+  }
+  return [];
+}
+
 export function ruleQueuedRanks(files) {
   const queued = files.filter(f => f.frontmatter?.status === 'queued');
   const violations = [];
