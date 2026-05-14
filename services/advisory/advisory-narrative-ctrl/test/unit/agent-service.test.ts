@@ -24,7 +24,14 @@ import {
 
 describe('advisory-narrative-ctrl agent-service', () => {
   const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-  const deps = { docClient, tableName: 'test-table' };
+  const noopMemoryClient = {
+    openDecisionSession: jest.fn().mockReturnValue({
+      emitLongTermEvent: jest.fn().mockResolvedValue(undefined),
+      searchLongTermMemory: jest.fn().mockResolvedValue([]),
+    }),
+    searchTenantMemory: jest.fn().mockResolvedValue([]),
+  };
+  const deps = { docClient, tableName: 'test-table', memoryClient: noopMemoryClient };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -150,5 +157,61 @@ describe('advisory-narrative-ctrl agent-service', () => {
     })).rejects.toThrow(DuplicateInvocationError);
 
     expect(dispatchAgentInvocation).not.toHaveBeenCalled();
+  });
+
+  describe('Phase B — emitLongTermEvent integration', () => {
+    it('emits one event to rationale namespace after successful validation', async () => {
+      (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+        'explainability': { ok: true, output: { narrative: 'You should diversify...', tone: 'measured' } },
+      });
+
+      const emitMock = jest.fn().mockResolvedValue(undefined);
+      const memoryClient = {
+        openDecisionSession: jest.fn().mockReturnValue({
+          emitLongTermEvent: emitMock,
+          searchLongTermMemory: jest.fn().mockResolvedValue([]),
+        }),
+        searchTenantMemory: jest.fn().mockResolvedValue([]),
+      };
+
+      const service = createAgentService({ ...deps, memoryClient });
+      await service.runPipeline('evt-1', {
+        tenantId: 't1',
+        decisionId: 'd1',
+        operatingMode: 'BALANCED',
+        taskToken: 'tok',
+      });
+
+      expect(memoryClient.openDecisionSession).toHaveBeenCalledWith('t1', 'd1');
+      expect(emitMock).toHaveBeenCalledTimes(1);
+      expect(emitMock).toHaveBeenCalledWith({
+        namespace: 'rationale',
+        payload: expect.objectContaining({
+          narrative: expect.stringContaining('You should'),
+          tone: 'measured',
+        }),
+      });
+    });
+
+    it('does NOT emit when explainability output is degraded', async () => {
+      (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+        'explainability': { ok: false, reason: 'empty' },
+      });
+
+      const emitMock = jest.fn().mockResolvedValue(undefined);
+      const memoryClient = {
+        openDecisionSession: jest.fn().mockReturnValue({
+          emitLongTermEvent: emitMock,
+          searchLongTermMemory: jest.fn().mockResolvedValue([]),
+        }),
+        searchTenantMemory: jest.fn().mockResolvedValue([]),
+      };
+
+      const service = createAgentService({ ...deps, memoryClient });
+      await expect(
+        service.runPipeline('evt-2', { tenantId: 't1', decisionId: 'd2', operatingMode: 'BALANCED', taskToken: 'tok' }),
+      ).rejects.toThrow();
+      expect(emitMock).not.toHaveBeenCalled();
+    });
   });
 });
