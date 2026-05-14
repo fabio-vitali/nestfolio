@@ -64,6 +64,14 @@ describe('createNoOpMemoryClient', () => {
     const result = await client.searchTenantMemory('t', 'preferences', 'query');
     expect(result).toEqual([]);
   });
+
+  it('emitLongTermEvent resolves to undefined and side-effects nothing', async () => {
+    const client = createNoOpMemoryClient();
+    const session = client.openDecisionSession('tenant-a', 'dec-1');
+    await expect(
+      session.emitLongTermEvent({ namespace: 'rationale', payload: { x: 1 } })
+    ).resolves.toBeUndefined();
+  });
 });
 
 describe('searchLongTermMemory namespace path', () => {
