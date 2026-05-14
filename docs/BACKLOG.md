@@ -39,6 +39,7 @@
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
 - [rename-nestfolio-integ-prefix-to-prefix](backlog/rename-nestfolio-integ-prefix-to-prefix.md) [refactor] — Verbose NESTFOLIO_INTEG_ namespace is friction; rename atomically + sweep docs.
 - [sf-start-idempotency-at-least-once-redelivery](backlog/sf-start-idempotency-at-least-once-redelivery.md) [refactor] — LOW priority post-collapse — defer until EB redelivery is observed empirically.
+- [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md) [refactor] — 6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords
 - [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
 - [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
