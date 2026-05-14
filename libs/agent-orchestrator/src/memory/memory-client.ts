@@ -3,6 +3,8 @@ import {
   RetrieveMemoryRecordsCommand,
 } from '@aws-sdk/client-bedrock-agentcore';
 
+export type LongTermNamespace = 'preferences' | 'signals' | 'rationale';
+
 export interface MemoryClientConfig {
   memoryId: string;
   region: string;
@@ -15,13 +17,28 @@ export interface MemoryRecord {
   memoryRecordId: string;
 }
 
+export interface EmitLongTermEventInput {
+  namespace: LongTermNamespace;
+  payload: Record<string, unknown>;
+}
+
 export interface DecisionSession {
-  searchLongTermMemory(query: string, topK?: number): Promise<MemoryRecord[]>;
+  searchLongTermMemory(
+    namespace: LongTermNamespace,
+    query: string,
+    topK?: number,
+  ): Promise<MemoryRecord[]>;
+  emitLongTermEvent(input: EmitLongTermEventInput): Promise<void>;
 }
 
 export interface MemoryClient {
   openDecisionSession(tenantId: string, decisionId: string): DecisionSession;
-  searchTenantMemory(tenantId: string, query: string, topK?: number): Promise<MemoryRecord[]>;
+  searchTenantMemory(
+    tenantId: string,
+    namespace: LongTermNamespace,
+    query: string,
+    topK?: number,
+  ): Promise<MemoryRecord[]>;
 }
 
 export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
@@ -30,26 +47,39 @@ export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
   return {
     openDecisionSession(tenantId: string, _decisionId: string): DecisionSession {
       return {
-        async searchLongTermMemory(query: string, topK = 5): Promise<MemoryRecord[]> {
-          const namespace = `/${config.serviceName}/${tenantId}`;
+        async searchLongTermMemory(
+          namespace: LongTermNamespace,
+          query: string,
+          topK = 5,
+        ): Promise<MemoryRecord[]> {
+          const ns = `/${config.serviceName}/${tenantId}/${namespace}`;
           const resp = await client.send(
             new RetrieveMemoryRecordsCommand({
               memoryId: config.memoryId,
-              namespace,
+              namespace: ns,
               searchCriteria: { searchQuery: query, topK },
             })
           );
           return (resp.memoryRecordSummaries ?? []).map(mapRecord);
         },
+        async emitLongTermEvent(_input: EmitLongTermEventInput): Promise<void> {
+          // Implemented in Task 2. Stub returns void so this task compiles.
+          return;
+        },
       };
     },
 
-    async searchTenantMemory(tenantId: string, query: string, topK = 5): Promise<MemoryRecord[]> {
-      const namespace = `/${config.serviceName}/${tenantId}`;
+    async searchTenantMemory(
+      tenantId: string,
+      namespace: LongTermNamespace,
+      query: string,
+      topK = 5,
+    ): Promise<MemoryRecord[]> {
+      const ns = `/${config.serviceName}/${tenantId}/${namespace}`;
       const resp = await client.send(
         new RetrieveMemoryRecordsCommand({
           memoryId: config.memoryId,
-          namespace,
+          namespace: ns,
           searchCriteria: { searchQuery: query, topK },
         })
       );
