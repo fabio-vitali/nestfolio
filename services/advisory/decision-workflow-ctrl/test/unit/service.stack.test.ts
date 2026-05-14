@@ -132,13 +132,25 @@ describe('DecisionWorkflowCtrlStack', () => {
     expect(strategies === undefined || (Array.isArray(strategies) && strategies.length === 0)).toBe(true);
   });
 
-  it('creates an AssemblePacket Lambda with MEMORY_ID env var', () => {
+  it('creates an AssemblePacket Lambda without MEMORY_ID env var (post-Phase-A: agent outputs arrive via SF state Parameters, not Memory)', () => {
     const lambdas = template.findResources('AWS::Lambda::Function');
     const assemblePacketLambda = Object.values(lambdas).find(
-      (l: any) => l.Properties.Handler?.includes('assemble-packet') ||
-                   l.Properties.Environment?.Variables?.MEMORY_ID,
-    );
+      (l: any) =>
+        typeof l.Properties.Description === 'string'
+          ? l.Properties.Description.includes('AssemblePacket')
+          : false,
+    ) ?? Object.entries(lambdas).find(
+      ([logicalId]) => logicalId.includes('AssemblePacket'),
+    )?.[1];
     expect(assemblePacketLambda).toBeDefined();
+    // MEMORY_ID was dropped in Phase A of inter-agent-state-handoff-sf-vs-memory.
+    expect(
+      (assemblePacketLambda as any).Properties.Environment?.Variables?.MEMORY_ID,
+    ).toBeUndefined();
+    // TABLE_NAME is still required for the DecisionPacketRepository write.
+    expect(
+      (assemblePacketLambda as any).Properties.Environment?.Variables?.TABLE_NAME,
+    ).toBeDefined();
   });
 
   // Phase 2 of agentcore-memory-list-records-eventual-consistency: the
