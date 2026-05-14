@@ -1,6 +1,7 @@
 ---
 id: long-term-recall-e2e-cross-decision
-status: parking
+status: queued
+rank: 15
 type: tooling
 notes: "Phase B's originally-planned long-term-recall.e2e.test.ts — needs stable-tenant fixture before the test can prove cross-decision extraction."
 references: []
@@ -34,9 +35,9 @@ Cheapest next step: extend `fresh-tenant.ts` (or add a sibling helper) to suppor
 
 Alternative: write the new scenario as a Node script under `apps/e2e-feature-tests/scripts/` rather than a Jest test, so the 5-minute wait doesn't pollute the standard suite.
 
-## When to promote
+## Why queued
 
-When prod tenant data starts accumulating (or before a customer-facing demo), this becomes the validation gate for "long-term recall actually works for returning users." Until then, the synthetic smoke test holds the line.
+Required to make `apps/e2e-feature-tests` truly green for the Phase B contract. Without this scenario, the e2e suite has no automated proof that cross-decision recall works — only a one-shot synthetic smoke test that fired on the ship day and isn't re-run by CI. Sized below `revoke-mandate-e2e-timeout-flake` (rank 9, breaks an existing scenario) and above `advisory-narrative-agentcore-latency-residual` (rank 20, blocks the gen_ai latency assertion).
 
 ## Related
 

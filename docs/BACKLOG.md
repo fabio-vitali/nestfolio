@@ -12,7 +12,8 @@ _(none)_
 ## QUEUED
 
 1. [revoke-mandate-e2e-timeout-flake](backlog/revoke-mandate-e2e-timeout-flake.md) [bug] — revoke-mandate e2e scenario times out intermittently against deployed dev — root cause unknown, not in the operating-mode or compliance subsystems.
-2. [advisory-narrative-agentcore-latency-residual](backlog/advisory-narrative-agentcore-latency-residual.md) [bug] — Steady-state 22-30s narrative orchestrator; not cold-start. Phase A removed 28s retry but uncovered a UX-blocking inference floor. Promoted to QUEUED after Phase B.
+2. [long-term-recall-e2e-cross-decision](backlog/long-term-recall-e2e-cross-decision.md) [tooling] — Phase B's originally-planned long-term-recall.e2e.test.ts — needs stable-tenant fixture before the test can prove cross-decision extraction.
+3. [advisory-narrative-agentcore-latency-residual](backlog/advisory-narrative-agentcore-latency-residual.md) [bug] — Steady-state 22-30s narrative orchestrator; not cold-start. Phase A removed 28s retry but uncovered a UX-blocking inference floor. Promoted to QUEUED after Phase B.
 
 ## LATER
 
@@ -32,7 +33,6 @@ _(none)_
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [integration-test-mock-resilience](backlog/integration-test-mock-resilience.md) [tooling] — Demoted to LATER 2026-05-12 per its own ship-trigger ('Promote when integration test flakiness on agent-bound suites or per-suite SSM overrides becomes load-bearing'). Piece 2 (StateResetFixture) superseded by 2026-05-05 bootstrap uplift; piece 3 (SsmOverride) effectively closed by 2026-05-12 integration-test-ssm-cleanup-hardening-on-abort. Only piece 1 (FakeLlm via env var in agent-factory) remains, and it's not currently load-bearing — agent flakiness is being mitigated structurally (orchestrator retry/fallback, prompt cleanup) rather than via test-time fakes. Promote again when a concrete agent-bound integration flake demands it.
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
-- [long-term-recall-e2e-cross-decision](backlog/long-term-recall-e2e-cross-decision.md) [tooling] — Phase B's originally-planned long-term-recall.e2e.test.ts — needs stable-tenant fixture before the test can prove cross-decision extraction.
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
