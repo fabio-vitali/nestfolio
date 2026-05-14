@@ -25,9 +25,17 @@ import {
 
 describe('portfolio-engine-ctrl agent-service', () => {
   const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+  const noopMemoryClient = {
+    openDecisionSession: jest.fn().mockReturnValue({
+      emitLongTermEvent: jest.fn().mockResolvedValue(undefined),
+      searchLongTermMemory: jest.fn().mockResolvedValue([]),
+    }),
+    searchTenantMemory: jest.fn().mockResolvedValue([]),
+  };
   const deps = {
     docClient,
     tableName: 'test-table',
+    memoryClient: noopMemoryClient,
   };
 
   beforeEach(() => {
@@ -186,5 +194,65 @@ describe('portfolio-engine-ctrl agent-service', () => {
       }),
     );
     expect(result.metadata).toMatchObject({ modeUsed: 'AGGRESSIVE' });
+  });
+
+  describe('Phase B — emitLongTermEvent integration', () => {
+    it('emits one event to rationale namespace after successful validation', async () => {
+      (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+        'portfolio-construction': { ok: true, output: { allocations: [{ ticker: 'VOO', weight: 0.6 }] } },
+        'rebalance-planner': { ok: true, output: { trades: [{ ticker: 'VOO', side: 'BUY', qty: 10 }] } },
+      });
+
+      const emitMock = jest.fn().mockResolvedValue(undefined);
+      const memoryClient = {
+        openDecisionSession: jest.fn().mockReturnValue({
+          emitLongTermEvent: emitMock,
+          searchLongTermMemory: jest.fn().mockResolvedValue([]),
+        }),
+        searchTenantMemory: jest.fn().mockResolvedValue([]),
+      };
+
+      const service = createAgentService({ ...deps, memoryClient });
+      await service.runPipeline('evt-1', {
+        tenantId: 't1',
+        decisionId: 'd1',
+        operatingMode: 'BALANCED',
+        taskToken: 'tok',
+      });
+
+      expect(memoryClient.openDecisionSession).toHaveBeenCalledWith('t1', 'd1');
+      expect(emitMock).toHaveBeenCalledTimes(1);
+      expect(emitMock).toHaveBeenCalledWith({
+        namespace: 'rationale',
+        payload: expect.objectContaining({
+          allocations: expect.objectContaining({ allocations: expect.any(Array) }),
+          trades: expect.objectContaining({ trades: expect.any(Array) }),
+          modeUsed: 'BALANCED',
+        }),
+      });
+    });
+
+    it('does NOT emit when output is degraded', async () => {
+      (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+        'portfolio-construction': { ok: false, reason: 'empty' },
+        'rebalance-planner': { ok: true, output: { trades: [] } },
+      });
+
+      const emitMock = jest.fn().mockResolvedValue(undefined);
+      const memoryClient = {
+        openDecisionSession: jest.fn().mockReturnValue({
+          emitLongTermEvent: emitMock,
+          searchLongTermMemory: jest.fn().mockResolvedValue([]),
+        }),
+        searchTenantMemory: jest.fn().mockResolvedValue([]),
+      };
+
+      const service = createAgentService({ ...deps, memoryClient });
+      // Minimal payload — assertOrchestratorOutput throws before fields are read.
+      await expect(
+        service.runPipeline('evt-2', { tenantId: 't1', decisionId: 'd2', operatingMode: 'BALANCED', taskToken: 'tok' }),
+      ).rejects.toThrow();
+      expect(emitMock).not.toHaveBeenCalled();
+    });
   });
 });
