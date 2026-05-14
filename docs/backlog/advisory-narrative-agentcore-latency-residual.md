@@ -2,7 +2,7 @@
 id: advisory-narrative-agentcore-latency-residual
 status: parking
 type: bug
-notes: "Phase A removed 28s Memory retry; narrative AgentCore orchestrator still ~22-28s (above 20s test budget assuming 15s baseline)"
+notes: "Steady-state 22-30s narrative orchestrator; not cold-start. Phase A removed 28s retry but uncovered a UX-blocking inference floor."
 references: []
 out_of_scope: []
 spec: null
@@ -11,51 +11,42 @@ topic_memory: []
 validation_gate: null
 ---
 
-# advisory-narrative AgentCore residual latency — uncovered by Phase A
+# advisory-narrative AgentCore steady-state latency floor — uncovered by Phase A
 
 Surfaced 2026-05-14 during Phase A validation gate (commit-range `f0fbf2d3..0cec306f` on `feat/inter-agent-sf-state-phase-a`).
 
-## Evidence
+## Finding
 
 Phase A successfully removed the 28s Memory retry sleep (verified by `git diff` on `advisory-narrative-ctrl/src/handlers/event-listener.ts` and by absence of `writeAgentOutput`/`BatchCreate` in AgentRuntime CloudWatch logs after dev deploy).
 
-After deploy, e2e validation gate (`first-decision.e2e.test.ts` line 113) asserts `narrative['gen_ai.invocation.latency_ms'] < 20_000`. Observed:
+The latency observed AFTER the fix is NOT a cold start. Across 20+ orchestrator invocations spanning ~30 minutes of AgentRuntime activity on dev, `Orchestrator invocation completed.duration` distribution was 22-37s with no meaningful cold-vs-warm delta. That's the steady-state inference cost for a single narrative request.
 
-| Run | Lambda condition | gen_ai.invocation.latency_ms | Lambda Duration |
-|---|---|---|---|
-| 1 (cold AgentCore) | Cold | 28109 ms | 29570 ms |
-| 1 (cold AgentCore) | Cold | 25852 ms | 27601 ms |
-| 2 (warm AgentCore) | Cold Lambda, warm container | 22961 ms | (similar) |
+If 22-30s is the steady-state floor for a single narrative call, the architecture cannot serve real users in a synchronous decision flow. This was a pre-existing problem hidden behind the 28s Memory retry; Phase A made it visible.
 
-`gen_ai.invocation.latency_ms` equals the **orchestrator's** `Orchestrator invocation completed.duration` (single LLM call, Sonnet, structured-output validated). No retry sleep. No Memory I/O.
+## Likely contributors (need targeted measurement, not speculation)
 
-## Why this is a regression worth filing
+1. **withRetry wrapper firing.** `services/advisory/advisory-narrative-ctrl/agents/advisory-narrative/graph.ts:19-27` wraps `createAgentNode(explainabilityConfig)` with `withRetry({ maxAttempts: 2, escalationPath: ['sonnet', 'opus'] })`. If `narrativeValidationRule` rejects the first Sonnet output, the orchestrator does a second LLM call — potentially with Opus. Two sequential calls at ~10-15s each = the observed 22-30s. **Check `narrative.llmCalls.length` in a real AgentTraceEnvelope** — if `>1`, retries are firing routinely (validation is too strict) rather than catching pathological cases.
 
-`apps/e2e-feature-tests/src/helpers/agent-trace-trap.ts:40-43` budget comment states:
+2. **Large prompt prefill.** The orchestrator input is `Decision ${decisionId} context: ${JSON.stringify(payload.upstreamOutputs)}` + operating-mode framing + KB context. After Phase A, `upstreamOutputs` carries 3 full upstream agent outputs (investor profile + market analysis + portfolio) inline. That can be 10-25 KB of JSON, which is several thousand input tokens. Sonnet prefill at 8k-10k input tokens costs ~5-10s before any output. Check `gen_ai.usage.input_tokens` in a real envelope.
 
-> Narrative is a single Sonnet invocation behind a Lambda Ingress — cold starts + Bedrock jitter push p95 close to 15s. Budget holds 20s headroom to catch pathological regressions without flaking on normal variance.
+3. **Output length.** The narrative response is multi-paragraph structured JSON (explainability rationale, summary, key drivers, risks). At Sonnet's ~50-80 tokens/sec output rate, 800-1500 output tokens = 10-30s decode. Realistic for the schema as written.
 
-The budget assumed ~15s baseline. Today's baseline is 22-28s. The ~7-13s overhead sat hidden behind the 28s Memory retry until Phase A removed the retry. The math:
+## Cheapest next diagnostic
 
-- Pre-Phase-A p95 ~56s = 28s retry + 28s narrative orchestrator.
-- Spec target was <22s, which implied a ~15-20s narrative orchestrator.
-- Reality is ~22-28s narrative orchestrator. Phase A's structural fix landed cleanly but the gate threshold was based on an outdated baseline.
+Print the AgentTraceEnvelope from one e2e run by adding a logger.info to the test's `narrativeTraces[0]` immediately before the assertion. Capture `narrative.llmCalls.length`, each `latencyMs`, and the model tier. That single data point distinguishes #1 (≥2 calls) from #2+#3 (1 call but slow).
 
-## Hypotheses for the 7-13s overhead
+## Decisions to make AFTER measurement (NOT before)
 
-1. **AgentRuntime container cold start** — orchestrator duration is reported by the agent process inside the container; if the container's first request blocks on model warm-up the orchestrator clock starts before model availability.
-2. **Larger prompt** — Phase A inlines investorProfile/marketAnalysis/portfolio into the event subject. If the AgentRuntime now receives a bigger structured input, Sonnet prefill latency grows. Worth measuring `gen_ai.usage.input_tokens` before/after.
-3. **withFallback retry** — `agent-orchestrator/src/agent-factory.ts` wraps `createAgentNode` with `withFallback(withRetry(withValidation(...)))`. A silent fallback path (e.g., structured-output validation failure → retry) could add a full LLM call inside one orchestrator invocation. Worth checking AgentRuntime DEBUG logs for retry markers.
-4. **Sonnet model latency drift** — Bedrock-side; not in our control.
+- **If #1 (retries firing routinely):** loosen `narrativeValidationRule` so it doesn't reject valid Sonnet output; OR raise structured-output reliability via prompt engineering; OR drop the second-attempt Opus escalation if Opus is too slow for the budget.
+- **If #2 (prompt prefill dominant):** stop inlining full upstream outputs; pass references (decision ID + tenant ID) and let the narrative agent fetch only what it needs; OR compress upstream outputs to relevant fields before injection.
+- **If #3 (output length dominant):** tighten the explainability schema (fewer required fields); OR move narrative generation off the synchronous decision path (emit a DECISION_PACKET_CREATED event without the narrative, generate it async, update the row).
 
-## Cheapest next step
+## Why this is UX-blocking, not just budget-blocking
 
-Open the narrative AgentRuntime DEBUG logs for one e2e run, grep for retry/fallback/validation markers, and check `gen_ai.usage.input_tokens`. ~15 minutes.
+The advisory pipeline is a 4-agent fan-out + assemble. End-to-end p95 today must be **~30s + narrative duration**. With narrative at 22-30s, total is 50-60s. No user will wait that long for "your portfolio recommendation". This is the actual architecture problem to solve.
 
-## Decision point
+The original e2e test budget at 20s was correct as a regression canary, NOT something to widen. Widening the budget would normalize a UX-blocking floor.
 
-Two paths forward, both reasonable:
-- **(a) Adjust the budget** to reflect today's reality (e.g., 30_000ms for narrative). Acknowledge Phase A as shipped — the 28s retry is gone, latency dropped 50%, the structural migration to SF state is clean.
-- **(b) Investigate the residual** before declaring Phase A shipped. Hypotheses #1-#3 above each have cheap diagnostics.
+## Phase A ship status
 
-User to decide which path is acceptable for the active workstream's ship criteria.
+Phase A's structural work (SF state Parameters, MemoryClient slim, IAM grant drop, doc updates) is done correctly. The bedrock-agentcore-latency-residual is a *separately scoped* problem that the Phase A test budget happens to detect. Ship decision belongs to the user.

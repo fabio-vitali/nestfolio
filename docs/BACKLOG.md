@@ -14,7 +14,7 @@
 
 ## LATER
 
-- [advisory-narrative-agentcore-latency-residual](backlog/advisory-narrative-agentcore-latency-residual.md) [bug] — Phase A removed 28s Memory retry; narrative AgentCore orchestrator still ~22-28s (above 20s test budget assuming 15s baseline)
+- [advisory-narrative-agentcore-latency-residual](backlog/advisory-narrative-agentcore-latency-residual.md) [bug] — Steady-state 22-30s narrative orchestrator; not cold-start. Phase A removed 28s retry but uncovered a UX-blocking inference floor.
 - [advisory-narrative-ctrl-eager-write-refactor](backlog/advisory-narrative-ctrl-eager-write-refactor.md) [refactor] — Refactor advisory-narrative-ctrl handler to write AgentInvocation HEAD row eagerly before Memory reads, so integration tests see the row in ~5s instead of ~30-40s.
 - [advisory-narrative-ctrl-memory-retry-env-plumb](backlog/advisory-narrative-ctrl-memory-retry-env-plumb.md) [tooling] — Plumb MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE as Lambda env var on dev so integration test can tighten waitForItem 60s→10s. Risk: dev/prod Memory-consistency skew.
 - [advisory-narrative-latency-budget-overshoot-e2e](backlog/advisory-narrative-latency-budget-overshoot-e2e.md) [bug] — Symptom of a larger architectural issue. Original framing (4% overshoot, bump budget) is wrong: actual regression is ~3x (p50 13s→49s) caused by 28s retry-sleep loop added in 4960a10d. Root-cause fix tracked in design item: inter-agent-state-handoff-sf-vs-memory.
