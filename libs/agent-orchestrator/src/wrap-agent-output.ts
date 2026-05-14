@@ -12,7 +12,7 @@ export const INLINE_SIZE_THRESHOLD_BYTES = 25_000;
 
 export class OutputTooLargeError extends Error {
   constructor(public readonly actualBytes: number) {
-    super(`Agent output (${actualBytes} bytes) exceeds 25000 bytes inline threshold for SF state`);
+    super(`Agent output (${actualBytes} bytes) exceeds ${INLINE_SIZE_THRESHOLD_BYTES} bytes inline threshold for SF state`);
     this.name = 'OutputTooLargeError';
   }
 }
@@ -23,8 +23,9 @@ export type WrappedAgentOutput =
 
 export function wrapAgentOutput(output: Record<string, unknown>): WrappedAgentOutput {
   const serialized = JSON.stringify(output);
-  if (serialized.length > INLINE_SIZE_THRESHOLD_BYTES) {
-    throw new OutputTooLargeError(serialized.length);
+  const byteLength = Buffer.byteLength(serialized, 'utf8');
+  if (byteLength > INLINE_SIZE_THRESHOLD_BYTES) {
+    throw new OutputTooLargeError(byteLength);
   }
   return { kind: 'inline', value: output };
 }
