@@ -24,9 +24,17 @@ import {
 
 describe('market-intelligence-ctrl agent-service', () => {
   const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+  const noopMemoryClient = {
+    openDecisionSession: jest.fn().mockReturnValue({
+      emitLongTermEvent: jest.fn().mockResolvedValue(undefined),
+      searchLongTermMemory: jest.fn().mockResolvedValue([]),
+    }),
+    searchTenantMemory: jest.fn().mockResolvedValue([]),
+  };
   const deps = {
     docClient,
     tableName: 'test-table',
+    memoryClient: noopMemoryClient,
   };
 
   beforeEach(() => {
@@ -157,5 +165,63 @@ describe('market-intelligence-ctrl agent-service', () => {
     })).rejects.toThrow(DuplicateInvocationError);
 
     expect(dispatchAgentInvocation).not.toHaveBeenCalled();
+  });
+
+  describe('Phase B — emitLongTermEvent integration', () => {
+    it('emits one event to signals namespace after successful validation', async () => {
+      (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+        'market-research': {
+          ok: true,
+          output: { signals: [{ sector: 'TECH', strength: 0.8 }], tickersMentioned: [], marketOutlook: '', confidenceScore: 0 },
+        },
+      });
+
+      const emitMock = jest.fn().mockResolvedValue(undefined);
+      const memoryClient = {
+        openDecisionSession: jest.fn().mockReturnValue({
+          emitLongTermEvent: emitMock,
+          searchLongTermMemory: jest.fn().mockResolvedValue([]),
+        }),
+        searchTenantMemory: jest.fn().mockResolvedValue([]),
+      };
+
+      const service = createAgentService({ ...deps, memoryClient });
+      await service.runPipeline('evt-1', {
+        tenantId: 't1',
+        decisionId: 'd1',
+        operatingMode: 'BALANCED',
+        taskToken: 'tok',
+      });
+
+      expect(memoryClient.openDecisionSession).toHaveBeenCalledWith('t1', 'd1');
+      expect(emitMock).toHaveBeenCalledTimes(1);
+      expect(emitMock).toHaveBeenCalledWith({
+        namespace: 'signals',
+        payload: expect.objectContaining({
+          marketResearch: expect.objectContaining({ signals: expect.any(Array) }),
+        }),
+      });
+    });
+
+    it('does NOT emit when output is degraded', async () => {
+      (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+        'market-research': { ok: false, reason: 'timeout' },
+      });
+
+      const emitMock = jest.fn().mockResolvedValue(undefined);
+      const memoryClient = {
+        openDecisionSession: jest.fn().mockReturnValue({
+          emitLongTermEvent: emitMock,
+          searchLongTermMemory: jest.fn().mockResolvedValue([]),
+        }),
+        searchTenantMemory: jest.fn().mockResolvedValue([]),
+      };
+
+      const service = createAgentService({ ...deps, memoryClient });
+      await expect(
+        service.runPipeline('evt-2', { tenantId: 't1', decisionId: 'd2', operatingMode: 'BALANCED', taskToken: 'tok' }),
+      ).rejects.toThrow();
+      expect(emitMock).not.toHaveBeenCalled();
+    });
   });
 });
