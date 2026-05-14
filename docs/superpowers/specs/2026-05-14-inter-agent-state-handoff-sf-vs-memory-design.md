@@ -1,7 +1,7 @@
 # Inter-agent state handoff — SF state + AgentCore Memory strategies — Design
 
 **Workstream:** `inter-agent-state-handoff-sf-vs-memory` (backlog)
-**Status:** parking → promote to active when this spec is approved
+**Status:** active — Phase A SHIPPED 2026-05-14 (commit `676dd75c`, PR #6); Phase B in design
 **Topic memory:** none yet (will create one for this workstream after Phase A ships)
 **Type:** design
 **Phasing:** A (latency fix) ships first, B (long-term recall) follows in a separate PR.
@@ -27,7 +27,7 @@ Concurrent investigation also surfaced that `docs/architecture/SYSTEM-ARCHITECTU
 
 **Part A (urgent — fixes 3x latency regression):** Migrate inter-agent ephemeral output handoff for the 4 advisory agents from AgentCore Memory (eventual-consistency) to Step Functions state (synchronous, deterministic). Delete the 28s retry loop. Daily p95 narrative latency returns to <22s.
 
-**Part B (long-pending — wires up §17 architecture intent):** Provision Bedrock MemoryStrategies on the 3 documented long-term namespaces (`preferences`, `signals`, `rationale`) and emit `CreateEvent` calls from agents that those strategies extract from. The 6 existing `searchLongTermMemory` callers start returning real cross-decision data.
+**Part B (long-pending — wires up §17 architecture intent):** Provision Bedrock MemoryStrategies on the 3 documented long-term namespaces (`preferences`, `signals`, `rationale`) and emit `CreateEvent` calls from agents that those strategies extract from. The existing `searchLongTermMemory` callers (6 today, 5 after the narrative orphan-caller merge) start returning real cross-decision data.
 
 ## Non-goals (Out of scope)
 
@@ -89,36 +89,74 @@ Memory infra and `MemoryClient` class remain in place for Part B.
 
 ### Part B — Long-term Memory Strategy implementation
 
-**3 strategies provisioned on the existing `agentcore.Memory` construct** in `services/advisory/decision-workflow-ctrl/src/service.stack.ts`:
+**3 strategies provisioned on the existing `agentcore.Memory` construct** in `services/advisory/decision-workflow-ctrl/src/service.stack.ts` — one strategy per memory-type, attached to one or more namespace patterns. Bedrock's `{actorId}` template resolves to `tenantId` at runtime; extracted records are stored at the source namespace.
 
-| Namespace | Strategy purpose | Source events | Strategy type |
+| Strategy | Type | Namespace pattern(s) | Source agents |
 |---|---|---|---|
-| `/{service}/{tenantId}/preferences` | Investor preference extraction across cycles | investor-profile output (risk tolerance, goals); narrative output (communication style) | `USER_PREFERENCE_MEMORY` (Bedrock built-in) |
-| `/{service}/{tenantId}/signals` | Market signal extraction with cross-decision shelf life | market-intelligence output (sector trends, signal strength) | `SEMANTIC_MEMORY` with custom prompt |
-| `/{service}/{tenantId}/rationale` | Recommendation rationale archive for explainability | portfolio-engine output (allocation reasoning); narrative output (decision narratives) | `SEMANTIC_MEMORY` with custom prompt |
+| `InvestorPreferenceLearner` | `USER_PREFERENCE_MEMORY` | `/investor-profile-ctrl/{actorId}/preferences` | investor-profile |
+| `MarketSignalExtractor` | `SEMANTIC_MEMORY` (custom prompt) | `/market-intelligence-ctrl/{actorId}/signals` | market-intelligence |
+| `RationaleArchivist` | `SEMANTIC_MEMORY` (custom prompt) | `/portfolio-engine-ctrl/{actorId}/rationale`, `/advisory-narrative-ctrl/{actorId}/rationale` | portfolio-engine + advisory-narrative |
 
 `/{service}/{tenantId}/sessions/{sessionId}` — out of scope (onboarding wizard).
 
-**Event emission (write side).** Each agent's `graph.ts` adds one call after successful structured-output validation:
+**MemoryClient API shape.** Both write and read take an explicit `namespace` argument; the calling service is inferred from the `MemoryClient` config so retrieval queries the calling service's namespace.
 
 ```ts
+// Write
 await session.emitLongTermEvent({
-  eventType: 'AGENT_OUTPUT',
+  namespace: 'preferences', // 'preferences' | 'signals' | 'rationale'
   payload: shapedOutput,
-  agentName: SERVICE_NAME,
 });
+
+// Read
+const records = await session.searchLongTermMemory(
+  'rationale',                       // namespace
+  'prior decision narratives',       // semantic query
+  3,                                 // topK (optional, default 5)
+);
 ```
 
-`emitLongTermEvent` is a new method on `MemoryClient` that wraps `CreateEventCommand`. Distributed ownership: each agent emits its own event after its own successful invocation. Failed / empty / degraded outputs do NOT emit (matches the existing Phase β discriminant check from commit `97d41a36` — no garbage in the strategy input).
+`emitLongTermEvent` is a new method on `MemoryClient` that wraps `CreateEventCommand`. `sessionId` on the `CreateEvent` call is set to `decisionId` — each decision cycle is one session, and strategies consolidate across sessions = across decisions. Distributed ownership: each agent emits its own event after its own successful structured-output validation. Failed / empty / degraded outputs do NOT emit (matches the existing Phase β discriminant check from commit `97d41a36`).
 
-**Retrieval (read side, unchanged).** The 6 existing `searchLongTermMemory` callers continue using `RetrieveMemoryRecordsCommand` with `searchCriteria.searchQuery`. Once strategies are provisioned and events flow, they start returning extracted records naturally.
+**Emit table — one emit per agent per decision cycle:**
+
+| Agent | Namespace | Payload |
+|---|---|---|
+| investor-profile | `preferences` | the validated InvestorProfile structured output |
+| market-intelligence | `signals` | the validated MarketAnalysis structured output |
+| portfolio-engine | `rationale` | the validated Portfolio allocation + reasoning |
+| advisory-narrative | `rationale` | `{ narrative, tone }` from the validated Narrative output |
+
+**Retrieval call sites — 5 post-Phase-B (sites 5+6 in narrative listener merged into one `rationale` call):**
+
+| # | Caller | Namespace | Query string |
+|---|---|---|---|
+| 1 | `investor-profile-ctrl/agents/investor-profile/graph.ts:77` | `preferences` | `prior risk assessments for tenant ${tenantId}` |
+| 2 | `investor-profile-ctrl/src/handlers/event-listener.ts:25` | `preferences` | `investor preferences risk tolerance` |
+| 3 | `market-intelligence-ctrl/src/handlers/event-listener.ts:25` | `signals` | `market signals sector trends` |
+| 4 | `portfolio-engine-ctrl/src/handlers/event-listener.ts:45` | `rationale` | `allocation rationale decisions` |
+| 5 | `advisory-narrative-ctrl/src/handlers/event-listener.ts:45-46` | `rationale` | `prior decision narratives and communication style` *(replaces today's 2 calls — `'narrative preferences communication style'` + `'session summaries'`)* |
+
+**Extraction & consolidation prompts (Haiku, per OQ #2):**
+
+- `preferences` (USER_PREFERENCE_MEMORY):
+  - Extraction: *"Extract investor preferences: risk tolerance level, asset class preferences, ESG constraints, liquidity needs, time horizon, and stated return targets. One fact per record. Ignore mechanical decision details."*
+  - Consolidation: *"Newer statements override older for the same dimension. Flag contradictions (e.g., high growth vs conservative)."*
+- `signals` (SEMANTIC_MEMORY):
+  - Extraction: *"Extract market signals with cross-decision shelf life: sector trends, regime indicators, signal strength, and direction. Ignore one-off intraday noise. One signal per record."*
+  - Consolidation: SEMANTIC default.
+- `rationale` (SEMANTIC_MEMORY):
+  - Extraction: *"Extract recommendation rationale: which assets were weighted and why, which constraints were binding, what trade-offs were chosen, and the investor-facing narrative summary including tone. One rationale per record, scoped to the decision it explains."*
+  - Consolidation: *"Consolidate chronologically. Preserve the reasoning chain — don't collapse distinct decisions into a summary."*
+
+Prompts are starting points; OQ #1 (iterate against real e2e sample data) still applies.
 
 **IAM grants in `decision-workflow-ctrl/service.stack.ts`:**
 - Memory execution role: restore Bedrock `InvokeModel` permission for extraction prompts (reverses part of `3f6eea0e`)
-- Each agent runtime: keep `RetrieveMemoryRecords`; add `CreateEvent`; drop `BatchCreateMemoryRecords` (gone with Part A)
+- Each of the 4 agent runtimes: keep `RetrieveMemoryRecords`; add `CreateEvent`. `BatchCreateMemoryRecords` and `ListMemoryRecords` are already gone (Phase A).
 
 **Extraction lag tolerance.** Strategies are async — extraction completes seconds-to-minutes after the source event. This is fine because:
-1. Inter-agent handoff no longer waits on Memory (Part A solves that)
+1. Inter-agent handoff no longer waits on Memory (Phase A solved that)
 2. `searchLongTermMemory` callers all handle empty results gracefully (`tenantHistory.length > 0 ? historyContext : ''`)
 3. Cross-decision recall is inherently a "previous decisions" feature; in-flight decisions wouldn't appear in their own long-term recall anyway
 
@@ -146,12 +184,14 @@ await session.emitLongTermEvent({
 - `advisory-narrative-latency-budget-overshoot-e2e` flips to `shipped` (Phase A is its blocker dossier)
 
 **Phase B — long-term recall (1 PR, single dev deploy; depends on Phase A shipped):**
-1. Restore Bedrock `InvokeModel` IAM permission on Memory execution role.
-2. Provision 3 MemoryStrategies on `agentcore.Memory`: `preferences` (`USER_PREFERENCE_MEMORY`), `signals` + `rationale` (`SEMANTIC_MEMORY` with custom prompts).
-3. Add `MemoryClient.emitLongTermEvent` method wrapping `CreateEventCommand`.
-4. Update each of 4 agent `graph.ts` files: call `emitLongTermEvent` after successful structured output (matching Phase β discriminant check).
-5. Add `CreateEvent` IAM grant to each agent service stack.
-6. Iterate custom extraction prompts for `signals` + `rationale` against sample data.
+1. Restore Bedrock `InvokeModel` IAM permission on Memory execution role in `decision-workflow-ctrl`.
+2. Provision 3 MemoryStrategies on `agentcore.Memory` per the table above: `InvestorPreferenceLearner` (single namespace), `MarketSignalExtractor` (single namespace), `RationaleArchivist` (two namespaces). Wire the extraction & consolidation prompts.
+3. Extend `MemoryClient`: add `emitLongTermEvent({ namespace, payload })` wrapping `CreateEventCommand` with `sessionId = decisionId`; change `searchLongTermMemory` signature to `(namespace, query, topK?)` and update the namespace path it queries to `/{service}/{tenantId}/{namespace}`. Mirror both methods in `no-op-client.ts`.
+4. Wire emits in each agent `graph.ts` after successful structured-output validation (4 emit sites: investor-profile→preferences, market-intelligence→signals, portfolio-engine→rationale, advisory-narrative→rationale).
+5. Update the 5 retrieval call sites per the table above (sites 5+6 merge in narrative listener).
+6. Add `CreateEvent` IAM grant per agent service stack; restate `RetrieveMemoryRecords` grant.
+7. Update unit tests: mocks for `emitLongTermEvent`, assertions it fires once on success and zero times on degraded output; updated namespace-parameter assertions for `searchLongTermMemory`.
+8. Iterate custom extraction prompts for `signals` + `rationale` against sample data (deferred OQ #1).
 
 **Phase B validation gate:**
 - Run e2e for the same tenant 5 times in a row
@@ -173,8 +213,8 @@ await session.emitLongTermEvent({
 |---|---|---|
 | advisory-narrative-ctrl | `test/unit/event-listener.test.ts`, `test/unit/agent-service.test.ts` | Replace `mockReadUpstreamOutput` with subject-based fixtures. Delete retry-loop tests. |
 | portfolio-engine-ctrl | `test/unit/event-listener.test.ts`, `test/unit/graph.test.ts` | Same shape; delete `'retries readUpstreamOutput("investor-profile")...'` test at line 180. |
-| investor-profile-ctrl, market-intelligence-ctrl | `test/unit/event-listener.test.ts`, `test/unit/graph.test.ts` (Phase B only) | Add `mockEmitLongTermEvent`; assert it's called exactly once on successful structured output, NOT called on degraded/failed output. |
-| decision-workflow-ctrl | `test/unit/assemble-packet.test.ts`, `test/unit/decision-state-machine.test.ts` | AssemblePacket: replace `mockReadUpstream` with `event.detail` fixtures. State machine: CDK assertions on new `Parameters` blocks. Phase B: assertions on MemoryStrategy resources + `InvokeModel` IAM grant. |
+| All 4 advisory agents (investor-profile, market-intelligence, portfolio-engine, advisory-narrative) | `test/unit/event-listener.test.ts`, `test/unit/graph.test.ts` (Phase B only) | Add `mockEmitLongTermEvent`; assert it's called exactly once with the right `namespace` on successful structured output, NOT called on degraded/failed output. Update `mockSearchLongTermMemory` invocation assertions to include the new `namespace` arg. For advisory-narrative, assert the merged single `rationale` call replaces the two previous calls. |
+| decision-workflow-ctrl | `test/unit/assemble-packet.test.ts`, `test/unit/decision-state-machine.test.ts`, `test/unit/service.stack.test.ts` | AssemblePacket: replace `mockReadUpstream` with `event.detail` fixtures. State machine: CDK assertions on new `Parameters` blocks. Phase B: assertions on the 3 MemoryStrategy resources (type, namespace patterns, prompts) + `InvokeModel` IAM grant on Memory execution role. |
 | agent-orchestrator lib | New test for runtime 25 KB size guard (mock SendTaskSuccess body, assert S3 write + pointer substitution when threshold crossed). | |
 
 ### Integration tests
@@ -208,7 +248,7 @@ Existing per-service integration tests (`advisory-narrative-ctrl.integration.tes
 
 | # | Question | Resolution path |
 |---|---|---|
-| 1 | Exact extraction prompts for `signals` + `rationale` | Iterate during Phase B with sample data from real e2e runs; commit prompt files alongside CDK strategy provisioning. |
+| 1 | Refinement of `signals` + `rationale` extraction prompts | Starting prompts defined in Part B; iterate during Phase B with sample data from real e2e runs and tighten if extraction quality is poor. |
 | 2 | Bedrock model for extraction strategies | Default to Haiku (cost-optimal for extraction; matches `agentcore-cost-safeguards` posture); revisit if quality insufficient. |
 | 3 | SF state plumbing syntax (JSONata vs JSONPath in `Parameters` blocks) | Match existing pattern in `decision-state-machine.ts:113` (raw ASL with JSONPath like `'investorProfile.$': '$.investorProfile'`). |
 | 4 | Runtime size guard fallback bucket | Reuse a per-agent KB bucket OR provision dedicated `agent-outputs-overflow` with 7-day lifecycle. Plan-time decision based on whether the guard ever fires. |
