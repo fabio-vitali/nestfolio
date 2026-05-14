@@ -5,7 +5,7 @@ import {
   type EventPayload, type EventContext,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient } from '@nestfolio/agent-orchestrator';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, wrapAgentOutput } from '@nestfolio/agent-orchestrator';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
 
 export interface SfnCallbackDeps {
@@ -42,10 +42,17 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
     // Memory persistence happens inside the AgentRuntime (graph.ts) — the
     // previous Lambda wrap-write created a parallel record that AgentCore
     // did NOT dedupe via requestIdentifier. Mirrors investor-profile-ctrl.
-    void result;
 
+    // Return the full agent result in the SF SendTaskSuccess output so
+    // downstream Task states (portfolio-engine, advisory-narrative) and
+    // AssembleDecisionPacket can read it from SF state
+    // (`$.agentResults.InvokeMarketIntelligence.agentOutput`) without a
+    // Memory roundtrip. Closes the AgentCore Memory ListMemoryRecords
+    // eventual-consistency gap — see
+    // docs/backlog/agentcore-memory-list-records-eventual-consistency.md.
+    const wrapped = wrapAgentOutput(result);
     return {
-      output: { decisionId, tenantId },
+      output: { decisionId, tenantId, agentOutput: wrapped.value },
       intents: [record('AgentInvocation', { decisionId, tenantId, agentName: 'market-intelligence' })],
     };
   },
