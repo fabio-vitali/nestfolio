@@ -42,24 +42,21 @@ process.env.MEMORY_ID = 'mem-test';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
+import type { MemoryClient } from '@nestfolio/agent-orchestrator';
 import { createHandlers, type SfnCallbackDeps } from '../../src/handlers/event-listener';
 
 describe('market-intelligence-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
-  const mockWriteAgentOutput = jest.fn().mockResolvedValue(undefined);
-  const mockReadUpstreamOutput = jest.fn().mockResolvedValue([]);
   const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
   const mockDeps: SfnCallbackDeps = {
     agentService: { runPipeline: mockRunPipeline },
     memoryClient: {
       openDecisionSession: jest.fn().mockReturnValue({
-        writeAgentOutput: mockWriteAgentOutput,
-        readUpstreamOutput: mockReadUpstreamOutput,
         searchLongTermMemory: mockSearchLongTermMemory,
       }),
       searchTenantMemory: jest.fn().mockResolvedValue([]),
-    } as SfnCallbackDeps['memoryClient'],
+    } satisfies Partial<MemoryClient> as MemoryClient,
   };
 
   const handlers = createHandlers(mockDeps);
@@ -119,9 +116,9 @@ describe('market-intelligence-ctrl event-listener', () => {
     );
 
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('market signals sector trends');
-    // Memory persistence is owned by the AgentRuntime — the Lambda's
-    // wrap-write was removed (single-writer Memory contract).
-    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
+    // Memory persistence is owned by the AgentRuntime — writeAgentOutput has
+    // been dropped from MemoryClient entirely (Phase A inter-agent state handoff
+    // moved to SF state).
   });
 
   it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
@@ -137,7 +134,6 @@ describe('market-intelligence-ctrl event-listener', () => {
 
     expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
     expect(result.intents).toBeUndefined();
-    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
   });
 
   it('returns the agent result inside SF output for downstream consumers', async () => {

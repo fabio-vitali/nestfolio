@@ -5,8 +5,6 @@ jest.mock('@aws-sdk/client-bedrock-agentcore', () => {
   const sendMock = jest.fn();
   return {
     BedrockAgentCoreClient: jest.fn(() => ({ send: sendMock })),
-    BatchCreateMemoryRecordsCommand: jest.fn((input) => ({ input, __type: 'BatchCreateMemoryRecords' })),
-    ListMemoryRecordsCommand: jest.fn((input) => ({ input, __type: 'ListMemoryRecords' })),
     RetrieveMemoryRecordsCommand: jest.fn((input) => ({ input, __type: 'RetrieveMemory' })),
     __sendMock: sendMock,
   };
@@ -24,59 +22,7 @@ describe('createMemoryClient', () => {
   beforeEach(() => sendMock.mockReset());
 
   describe('openDecisionSession', () => {
-    it('writeAgentOutput sends BatchCreateMemoryRecordsCommand against the decision namespace', async () => {
-      sendMock.mockResolvedValue({});
-      const client = createMemoryClient(config);
-      const session = client.openDecisionSession('tenant-1', 'dec-42');
-
-      await session.writeAgentOutput({ goals: 'conservative' });
-
-      expect(sendMock).toHaveBeenCalledTimes(1);
-      const cmd = sendMock.mock.calls[0][0];
-      expect(cmd.__type).toBe('BatchCreateMemoryRecords');
-      expect(cmd.input.memoryId).toBe('mem-123');
-      expect(cmd.input.records).toHaveLength(1);
-      expect(cmd.input.records[0].namespaces[0]).toBe('/investor-profile/tenant-1/decisions/dec-42');
-      expect(cmd.input.records[0].content.text).toBe(JSON.stringify({ goals: 'conservative' }));
-    });
-
-    it('readUpstreamOutput sends ListMemoryRecordsCommand against the upstream service namespace', async () => {
-      sendMock.mockResolvedValue({
-        memoryRecordSummaries: [
-          {
-            content: { text: '{"signals":[]}' },
-            score: 0.95,
-            memoryRecordId: 'rec-1',
-          },
-        ],
-      });
-      const client = createMemoryClient(config);
-      const session = client.openDecisionSession('tenant-1', 'dec-42');
-
-      const records = await session.readUpstreamOutput('market-intelligence');
-
-      expect(sendMock).toHaveBeenCalledTimes(1);
-      const cmd = sendMock.mock.calls[0][0];
-      expect(cmd.__type).toBe('ListMemoryRecords');
-      expect(cmd.input.memoryId).toBe('mem-123');
-      expect(cmd.input.namespace).toBe('/market-intelligence/tenant-1/decisions/dec-42');
-      expect(records).toHaveLength(1);
-      expect(records[0].score).toBe(0.95);
-      expect(records[0].memoryRecordId).toBe('rec-1');
-      expect(records[0].content).toBe('{"signals":[]}');
-    });
-
-    it('readUpstreamOutput returns empty array when namespace has no records', async () => {
-      sendMock.mockResolvedValue({ memoryRecordSummaries: undefined });
-      const client = createMemoryClient(config);
-      const session = client.openDecisionSession('tenant-1', 'dec-42');
-
-      const records = await session.readUpstreamOutput('portfolio-engine');
-
-      expect(records).toEqual([]);
-    });
-
-    it('searchLongTermMemory still uses RetrieveMemoryRecordsCommand with searchQuery', async () => {
+    it('searchLongTermMemory uses RetrieveMemoryRecordsCommand with searchQuery', async () => {
       sendMock.mockResolvedValue({ memoryRecordSummaries: [] });
       const client = createMemoryClient(config);
       const session = client.openDecisionSession('tenant-1', 'dec-42');
@@ -91,7 +37,7 @@ describe('createMemoryClient', () => {
     });
   });
 
-  it('searchTenantMemory still uses RetrieveMemoryRecordsCommand with searchQuery', async () => {
+  it('searchTenantMemory uses RetrieveMemoryRecordsCommand with searchQuery', async () => {
     sendMock.mockResolvedValue({ memoryRecordSummaries: [] });
     const client = createMemoryClient(config);
 
@@ -105,16 +51,10 @@ describe('createMemoryClient', () => {
 });
 
 describe('createNoOpMemoryClient', () => {
-  it('writeAgentOutput resolves without error', async () => {
+  it('searchLongTermMemory returns empty array', async () => {
     const client = createNoOpMemoryClient();
     const session = client.openDecisionSession('t', 'd');
-    await expect(session.writeAgentOutput({})).resolves.toBeUndefined();
-  });
-
-  it('readUpstreamOutput returns empty array', async () => {
-    const client = createNoOpMemoryClient();
-    const session = client.openDecisionSession('t', 'd');
-    const result = await session.readUpstreamOutput('any-service');
+    const result = await session.searchLongTermMemory('any');
     expect(result).toEqual([]);
   });
 
