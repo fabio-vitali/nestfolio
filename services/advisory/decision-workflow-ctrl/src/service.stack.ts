@@ -39,14 +39,20 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     const haikuModel = new BedrockFoundationModel(modelHaikuId);
 
     // --- AgentCore Memory ---
-    // Three long-term MemoryStrategies (Phase B — inter-agent-state-handoff):
+    // Four long-term MemoryStrategies (Phase B — inter-agent-state-handoff):
     //   1. InvestorPreferenceLearner (USER_PREFERENCE_MEMORY, Haiku extraction + consolidation)
     //      Namespace: /investor-profile-ctrl/{actorId}/preferences
     //   2. MarketSignalExtractor (SEMANTIC_MEMORY, Haiku extraction only)
     //      Namespace: /market-intelligence-ctrl/{actorId}/signals
-    //   3. RationaleArchivist (SEMANTIC_MEMORY, Haiku extraction + consolidation)
-    //      Namespaces: /portfolio-engine-ctrl/{actorId}/rationale
-    //                  /advisory-narrative-ctrl/{actorId}/rationale
+    //   3. PortfolioRationaleArchivist (SEMANTIC_MEMORY, Haiku extraction + consolidation)
+    //      Namespace: /portfolio-engine-ctrl/{actorId}/rationale
+    //   4. NarrativeRationaleArchivist (SEMANTIC_MEMORY, Haiku extraction + consolidation)
+    //      Namespace: /advisory-narrative-ctrl/{actorId}/rationale
+    //
+    // Note: AWS AgentCore enforces a hard limit of 1 namespace per MemoryStrategy
+    // (surfaced at deploy: "Member must have length less than or equal to 1").
+    // The original unified RationaleArchivist with 2 namespaces synthesised valid CFN
+    // but was rejected at deploy time. Split into two strategies with identical prompts.
     //
     // Strategies stay empty until the 4 agent services start emitting via
     // MemoryClient.emitLongTermEvent (Tasks 6-9). The runtime path (libs/agent-orchestrator
@@ -89,11 +95,26 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
           },
         }),
         agentcore.MemoryStrategy.usingSemantic({
-          name: 'RationaleArchivist',
-          namespaces: [
-            '/portfolio-engine-ctrl/{actorId}/rationale',
-            '/advisory-narrative-ctrl/{actorId}/rationale',
-          ],
+          name: 'PortfolioRationaleArchivist',
+          namespaces: ['/portfolio-engine-ctrl/{actorId}/rationale'],
+          customExtraction: {
+            model: haikuModel,
+            appendToPrompt:
+              'Extract recommendation rationale: which assets were weighted and ' +
+              'why, which constraints were binding, what trade-offs were chosen, ' +
+              'and the investor-facing narrative summary including tone. One ' +
+              'rationale per record, scoped to the decision it explains.',
+          },
+          customConsolidation: {
+            model: haikuModel,
+            appendToPrompt:
+              "Consolidate chronologically. Preserve the reasoning chain — " +
+              "don't collapse distinct decisions into a summary.",
+          },
+        }),
+        agentcore.MemoryStrategy.usingSemantic({
+          name: 'NarrativeRationaleArchivist',
+          namespaces: ['/advisory-narrative-ctrl/{actorId}/rationale'],
           customExtraction: {
             model: haikuModel,
             appendToPrompt:
