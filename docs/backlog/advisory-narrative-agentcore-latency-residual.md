@@ -1,8 +1,9 @@
 ---
 id: advisory-narrative-agentcore-latency-residual
-status: parking
+status: queued
+rank: 20
 type: bug
-notes: "Steady-state 22-30s narrative orchestrator; not cold-start. Phase A removed 28s retry but uncovered a UX-blocking inference floor."
+notes: "Steady-state 22-30s narrative orchestrator; not cold-start. Phase A removed 28s retry but uncovered a UX-blocking inference floor. Promoted to QUEUED after Phase B."
 references: []
 out_of_scope: []
 spec: null

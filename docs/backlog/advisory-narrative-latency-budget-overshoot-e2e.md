@@ -1,8 +1,8 @@
 ---
 id: advisory-narrative-latency-budget-overshoot-e2e
-status: parking
+status: shipped
 type: bug
-notes: "Symptom of a larger architectural issue. Original framing (4% overshoot, bump budget) is wrong: actual regression is ~3x (p50 13s→49s) caused by 28s retry-sleep loop added in 4960a10d. Root-cause fix tracked in design item: inter-agent-state-handoff-sf-vs-memory."
+notes: "SHIPPED 2026-05-14 — named root cause (28s Memory retry, commit 4960a10d) deleted on feat/inter-agent-sf-state-phase-a. Residual 22-30s steady-state floor is separately scoped (queued rank 20)."
 references:
   - "apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts:113-115"
   - "apps/e2e-feature-tests/src/advisory/reconciliation-correction.e2e.test.ts:130-132"
@@ -11,7 +11,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "SHIPPED 2026-05-14 — Phase A of inter-agent-state-handoff-sf-vs-memory deleted the 28s Memory retry sleep loop in advisory-narrative-ctrl/src/handlers/event-listener.ts (verified by code review AND by absence of writeAgentOutput/BatchCreate calls in /aws/bedrock-agentcore/runtimes/advisory_narrative_agents-* CloudWatch logs). Daily p95 narrative-ingress Lambda Duration dropped from ~56s (2026-05-09 regression) to ~22-30s (steady-state observed across 20+ invocations). The named root cause is closed. The remaining 22-30s floor is a separately-scoped UX-blocking inference latency tracked as queued workstream [[advisory-narrative-agentcore-latency-residual]] rank 20 — promoted to QUEUED after Phase B per user direction 2026-05-14. The original e2e test budget of 20s is still failing after Phase A (~22-28s observed), and the failure is honest evidence of the residual; budget intentionally NOT widened."
 ---
 
 # Advisory-narrative `gen_ai.invocation.latency_ms` budget overshoots in e2e gate
@@ -46,3 +46,9 @@ CloudWatch `AWS/Lambda Duration` for narrative ingress (filtered to invocations 
 **Real fix tracked separately:** [[inter-agent-state-handoff-sf-vs-memory]] — design item to migrate the inter-agent ephemeral handoff (portfolio → narrative, etc.) off AgentCore Memory and onto Step Functions state, where it belongs. Long-term semantic memory (`searchLongTermMemory` calls) stays on AgentCore Memory.
 
 This e2e-frame bug ships when that design ships. Parked until then.
+
+## Ship 2026-05-14
+
+Phase A of `inter-agent-state-handoff-sf-vs-memory` shipped on `feat/inter-agent-sf-state-phase-a`. Commit-range `f0fbf2d3..HEAD`. The 28s Memory retry-sleep loop is deleted. p95 narrative-ingress Lambda Duration returned from ~56s to ~22-30s within minutes of dev deploy (verified by tailing AgentRuntime container logs across 20+ invocations).
+
+The original 20s e2e budget still fails because a separate steady-state inference floor (22-30s) was hidden behind the retry. That residual is filed as [[advisory-narrative-agentcore-latency-residual]] (status: queued, rank 20, executed after Phase B). The named root cause of THIS dossier is closed; the budget is intentionally NOT widened — its failing assertion is the canary for the next workstream.

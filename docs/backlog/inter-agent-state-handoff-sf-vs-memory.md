@@ -66,6 +66,26 @@ Precedent: commit `fa7f0a17` (2026-05-09) already moved `operatingMode` from Mem
 - `services/advisory/market-intelligence-ctrl` — produces market analysis output
 - `services/advisory/advisory-narrative-ctrl` — consumes all three; the loudest victim of the current architecture
 
-## Promote when
+## Phase A — SHIPPED 2026-05-14
 
-Design brainstorm completes and produces a spec. Implementation gets queued separately. (Note: this trigger sentence is intentionally vague because the workstream is still in design discovery — the lint rule for QUEUED items will block premature promotion.)
+Phase A landed on branch `feat/inter-agent-sf-state-phase-a`. Commit-range `f0fbf2d3..HEAD` (16 substantive commits + revert + dossier rewrites). Five advisory service stacks deployed to dev sandbox (all UPDATE_COMPLETE: decision-workflow-ctrl, advisory-narrative-ctrl, portfolio-engine-ctrl, investor-profile-ctrl, market-intelligence-ctrl).
+
+What Phase A delivered:
+- 4 advisory agents now read upstream context from SF state subject (no Memory reads for inter-agent handoff).
+- AssemblePacket reads 4 agent outputs from its event payload.
+- Runtime size guard `wrapAgentOutput` (25KB UTF-8 byte threshold) at `libs/agent-orchestrator/src/wrap-agent-output.ts`.
+- `MemoryClient.writeAgentOutput` and `readUpstreamOutput` removed from the lib.
+- `BatchCreateMemoryRecords` and `ListMemoryRecords` IAM grants dropped from the 4 advisory service stacks.
+- Dead `session.writeAgentOutput(...)` calls removed from 4 agent graph.ts files.
+- `docs/architecture/SYSTEM-ARCHITECTURE.md` §17 namespace table + new §17.2 + §7 line 131 updated.
+
+Validation finding: the 28s Memory retry IS gone (verified by code review AND by absence of writeAgentOutput/BatchCreate in CloudWatch AgentRuntime logs across 20+ invocations). Daily p95 narrative-ingress Lambda Duration dropped from ~56s to ~22-30s within minutes of deploy. The e2e test's 20s budget still fails because a separately-scoped 22-30s steady-state inference floor was hidden behind the retry — tracked as queued workstream [[advisory-narrative-agentcore-latency-residual]] rank 20, scheduled after Phase B per user direction 2026-05-14.
+
+Three follow-up items filed during execution:
+- [[stale-memory-write-comments-phase-a-cleanup]] — 6 stale comment locations in adjacent files (parking)
+- [[portfolio-engine-service-unavailable-asymmetric-handling]] — pre-existing asymmetry surfaced by Task 7 (parking)
+- [[advisory-narrative-agentcore-latency-residual]] — UX-blocking inference floor (queued, rank 20)
+
+## Phase B — remains
+
+Phase B wires Bedrock MemoryStrategies on the `preferences`, `signals`, and `rationale` long-term namespaces so the 6 surviving `searchLongTermMemory` callers begin returning non-empty results. Workstream stays `status: active`. Plan will be written in a fresh session after Phase A is on `main` for a few days. The `agentcore.Memory` construct + `RetrieveMemoryRecords` IAM grants are intentionally preserved for Phase B.
