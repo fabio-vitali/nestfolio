@@ -214,4 +214,66 @@ describe('DecisionWorkflowCtrlStack', () => {
     const portfolioMatches = definition.match(/"operatingMode\.\$":"\$\.agentResults\.InvokeInvestorProfile\.operatingMode"/g) ?? [];
     expect(portfolioMatches.length).toBeGreaterThanOrEqual(2);
   });
+
+  // Phase A of inter-agent-state-handoff-sf-vs-memory: agent outputs flow through
+  // Step Functions state via `$.agentResults.<StateId>.agentOutput` instead of via
+  // AgentCore Memory ListMemoryRecords (which has a >40s eventual-consistency
+  // window — see docs/backlog/agentcore-memory-list-records-eventual-consistency.md).
+  // Task 2 plumbs upstream agentOutput onto downstream task subjects and into
+  // AssembleDecisionPacket's Lambda Payload.
+  describe('Inter-agent state handoff (Phase A — Task 2)', () => {
+    // Helper: parse the SF DefinitionString back to a JSON object so we can
+    // address individual states by name. The DefinitionString is a CFN Fn::Join
+    // mixing JSON-string fragments with CFN intrinsic Refs (e.g. {Ref: ...}).
+    // We swap each intrinsic out for a synthetic string token before parsing.
+    const getStateMachineDefinition = (): any => {
+      const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
+      const definitionString = Object.values(stateMachines)[0]?.Properties?.DefinitionString;
+      const joinParts: any[] = (definitionString as any)['Fn::Join']?.[1] ?? [];
+      const joined = joinParts
+        .map((p, i) => (typeof p === 'string' ? p : `__CFN_INTRINSIC_${i}__`))
+        .join('');
+      return JSON.parse(joined);
+    };
+
+    it('plumbs all 4 agent outputs into AssembleDecisionPacket invocation Parameters', () => {
+      const definition = getStateMachineDefinition();
+      const assemblePacketState = definition.States['AssembleDecisionPacket'];
+      expect(assemblePacketState.Parameters.Payload).toMatchObject({
+        'investorProfile.$': '$.agentResults.InvokeInvestorProfile.agentOutput',
+        'marketAnalysis.$': '$.agentResults.InvokeMarketIntelligence.agentOutput',
+        'portfolio.$': '$.agentResults.InvokePortfolioEngine.agentOutput',
+        'narrative.$': '$.agentResults.InvokeAdvisoryNarrative.agentOutput',
+      });
+    });
+
+    it('plumbs investor-profile agentOutput into PortfolioEngine subject', () => {
+      const definition = getStateMachineDefinition();
+      const portfolioInvocation = definition.States['InvokePortfolioEngine'];
+      const subject = portfolioInvocation.Parameters.Entries[0].Detail.subject;
+      expect(subject['investorProfile.$']).toBe('$.agentResults.InvokeInvestorProfile.agentOutput');
+      expect(subject['marketAnalysis.$']).toBe('$.agentResults.InvokeMarketIntelligence.agentOutput');
+    });
+
+    it('plumbs investor-profile + market-intelligence + portfolio agentOutputs into AdvisoryNarrative subject', () => {
+      const definition = getStateMachineDefinition();
+      const narrativeInvocation = definition.States['InvokeAdvisoryNarrative'];
+      const subject = narrativeInvocation.Parameters.Entries[0].Detail.subject;
+      expect(subject['investorProfile.$']).toBe('$.agentResults.InvokeInvestorProfile.agentOutput');
+      expect(subject['marketAnalysis.$']).toBe('$.agentResults.InvokeMarketIntelligence.agentOutput');
+      expect(subject['portfolio.$']).toBe('$.agentResults.InvokePortfolioEngine.agentOutput');
+    });
+
+    it('MergeParallelOutputs lifts agentOutput from both parallel branches so downstream JSONPaths resolve', () => {
+      const definition = getStateMachineDefinition();
+      const merge = definition.States['MergeParallelOutputs'];
+      const agentResults = merge.Parameters.agentResults;
+      expect(agentResults.InvokeInvestorProfile['agentOutput.$']).toBe(
+        '$.parallelResults[0].agentResults.InvokeInvestorProfile.agentOutput',
+      );
+      expect(agentResults.InvokeMarketIntelligence['agentOutput.$']).toBe(
+        '$.parallelResults[1].agentResults.InvokeMarketIntelligence.agentOutput',
+      );
+    });
+  });
 });
