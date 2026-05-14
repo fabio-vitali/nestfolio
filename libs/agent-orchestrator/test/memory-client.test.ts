@@ -6,6 +6,7 @@ jest.mock('@aws-sdk/client-bedrock-agentcore', () => {
   return {
     BedrockAgentCoreClient: jest.fn(() => ({ send: sendMock })),
     RetrieveMemoryRecordsCommand: jest.fn((input) => ({ input, __type: 'RetrieveMemory' })),
+    CreateEventCommand: jest.fn((input) => ({ input, __type: 'CreateEvent' })),
     __sendMock: sendMock,
   };
 });
@@ -90,5 +91,59 @@ describe('searchLongTermMemory namespace path', () => {
       'preferences', 'signals', 'rationale',
     ];
     expect(validNamespaces).toHaveLength(3);
+  });
+});
+
+describe('emitLongTermEvent', () => {
+  beforeEach(() => sendMock.mockReset());
+
+  it('sends CreateEvent with actorId=tenantId, sessionId=decisionId, conversational payload', async () => {
+    sendMock.mockResolvedValue({ event: { eventId: 'e1' } });
+    const client = createMemoryClient({
+      memoryId: 'mem-1',
+      region: 'us-east-1',
+      serviceName: 'investor-profile',
+    });
+    const session = client.openDecisionSession('tenant-a', 'dec-42');
+
+    await session.emitLongTermEvent({
+      namespace: 'preferences',
+      payload: { goals: ['retirement'], risk: { riskScore: 45 } },
+    });
+
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    const cmd = sendMock.mock.calls[0][0];
+    expect(cmd.__type).toBe('CreateEvent');
+    expect(cmd.input.memoryId).toBe('mem-1');
+    expect(cmd.input.actorId).toBe('tenant-a');
+    expect(cmd.input.sessionId).toBe('dec-42');
+    expect(cmd.input.eventTimestamp).toBeInstanceOf(Date);
+    expect(cmd.input.payload).toEqual([
+      expect.objectContaining({
+        conversational: expect.objectContaining({
+          role: 'ASSISTANT',
+          content: expect.objectContaining({
+            text: expect.stringContaining('"goals":["retirement"]'),
+          }),
+        }),
+      }),
+    ]);
+  });
+
+  it('does not throw if the SDK call fails (best-effort semantics)', async () => {
+    sendMock.mockRejectedValue(new Error('throttled'));
+    const client = createMemoryClient({
+      memoryId: 'mem-1',
+      region: 'us-east-1',
+      serviceName: 'investor-profile',
+    });
+    const session = client.openDecisionSession('tenant-a', 'dec-42');
+
+    await expect(
+      session.emitLongTermEvent({
+        namespace: 'preferences',
+        payload: { goals: [] },
+      })
+    ).resolves.toBeUndefined();
   });
 });

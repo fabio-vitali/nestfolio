@@ -1,5 +1,6 @@
 import {
   BedrockAgentCoreClient,
+  CreateEventCommand,
   RetrieveMemoryRecordsCommand,
 } from '@aws-sdk/client-bedrock-agentcore';
 
@@ -45,7 +46,7 @@ export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
   const client = new BedrockAgentCoreClient({ region: config.region });
 
   return {
-    openDecisionSession(tenantId: string, _decisionId: string): DecisionSession {
+    openDecisionSession(tenantId: string, decisionId: string): DecisionSession {
       return {
         async searchLongTermMemory(
           namespace: LongTermNamespace,
@@ -62,9 +63,41 @@ export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
           );
           return (resp.memoryRecordSummaries ?? []).map(mapRecord);
         },
-        async emitLongTermEvent(_input: EmitLongTermEventInput): Promise<void> {
-          // Implemented in Task 2. Stub returns void so this task compiles.
-          return;
+        async emitLongTermEvent(input: EmitLongTermEventInput): Promise<void> {
+          // decisionId is captured from the enclosing openDecisionSession call.
+          // Best-effort emit. Failures are logged but do not throw — long-term
+          // recall is non-critical to the agent's success path. See
+          // docs/superpowers/specs/2026-05-14-inter-agent-state-handoff-sf-vs-memory-design.md.
+          try {
+            await client.send(
+              new CreateEventCommand({
+                memoryId: config.memoryId,
+                actorId: tenantId,
+                sessionId: decisionId,
+                eventTimestamp: new Date(),
+                payload: [
+                  {
+                    conversational: {
+                      role: 'ASSISTANT',
+                      content: { text: JSON.stringify(input.payload) },
+                    },
+                  },
+                ],
+                // Bedrock matches the strategy whose declared namespace pattern
+                // resolves to this event's effective path:
+                // /{serviceName}/{actorId}/{namespace}. The namespace is implied
+                // by the strategy declaration in decision-workflow-ctrl's
+                // service.stack.ts — CreateEvent itself does not take a
+                // namespace field.
+              })
+            );
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn('emitLongTermEvent failed', {
+              namespace: input.namespace,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
         },
       };
     },
