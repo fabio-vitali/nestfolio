@@ -98,10 +98,9 @@ export async function invokeMarketResearch(
     throw new Error(`Market-intelligence orchestrator unavailable: ${(result as { reason?: string }).reason ?? 'unknown'}`);
   }
 
-  // Phase β (Spec 4, 2026-05-06): graph now returns
-  // `{ input, marketResearch: AgentNodeResult }`. Re-shape to the
-  // hyphenated agent key the rest of the system expects ('market-research')
-  // and apply the all-or-nothing Memory write rule.
+  // Re-shape to the hyphenated agent key the rest of the system expects
+  // ('market-research'). The discriminant `{ok, output, ...}` envelope is
+  // preserved so agent-service.ts can apply the discriminant check.
   const marketResearch = (result as { marketResearch?: AgentNodeResult }).marketResearch;
   const shaped: Record<string, AgentNodeResult> = {
     'market-research': marketResearch ?? { ok: false, reason: 'graph returned no marketResearch entry', fallback: {} },
