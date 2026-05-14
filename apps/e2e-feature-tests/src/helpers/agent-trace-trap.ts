@@ -37,10 +37,12 @@ export type AgentKey = keyof typeof AGENT_TRACE_EVENTS;
  * Override per-env via `AGENT_LATENCY_BUDGET_MS_<AGENT_KEY>`.
  */
 const DEFAULT_LATENCY_BUDGETS_MS = {
-  // Narrative is a single Sonnet invocation behind a Lambda Ingress — cold
-  // starts + Bedrock jitter push p95 close to 15s. Budget holds 20s headroom
-  // to catch pathological regressions without flaking on normal variance.
-  advisoryNarrative: 20_000,
+  // Narrative is a single Sonnet invocation behind a Lambda Ingress, wrapped
+  // by LangGraph + structured-output validation. Observed p95 ~25-30s after
+  // Phase A landed (2026-05-14): inlined upstream agent outputs into the
+  // prompt + Bedrock prefill/decode for ~1k output tokens. 35s budget holds
+  // ~5s headroom over p95 to catch pathological regressions without flaking.
+  advisoryNarrative: 35_000,
   portfolioEngine: 45_000,
   investorProfile: 30_000,
   // market-intelligence fetches live market data and news via tool calls;
