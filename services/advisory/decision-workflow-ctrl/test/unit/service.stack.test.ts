@@ -231,13 +231,19 @@ describe('DecisionWorkflowCtrlStack', () => {
     // Bedrock AgentCore Memory invokes the configured extraction model under
     // an execution role. Without this grant, MemoryStrategies silently fail to
     // extract — symptom: searchLongTermMemory returns [] forever.
+    //
+    // Resource is Fn::Join because the ARN is a template-literal that concatenates
+    // a static prefix with an SSM resolve token (StringParameter.valueForStringParameter).
+    // CDK synthesises: {"Fn::Join":["",["arn:aws:bedrock:*:*:inference-profile/",{"Ref":"...SSM..."}]]}
+    // Asserting the Fn::Join shape ensures a regression that replaces the scoped ARN
+    // with a bare "*" wildcard would fail this test.
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: Match.objectLike({
         Statement: Match.arrayWith([
           Match.objectLike({
             Effect: 'Allow',
             Action: 'bedrock:InvokeModel',
-            Resource: Match.anyValue(),
+            Resource: { 'Fn::Join': Match.anyValue() },
           }),
         ]),
       }),

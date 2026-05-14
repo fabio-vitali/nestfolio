@@ -66,8 +66,6 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     // is the established pattern for cross-region inference profiles.
     const haikuInferenceProfileArn = `arn:aws:bedrock:*:*:inference-profile/${modelHaikuId}`;
 
-    // memory.executionRole is always set by the Memory constructor for non-imported
-    // instances. The optional typing is an interface artefact for imported memories.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     memory.executionRole!.addToPrincipalPolicy(new PolicyStatement({
       effect: Effect.ALLOW,
