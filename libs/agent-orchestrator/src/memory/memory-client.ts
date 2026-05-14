@@ -1,8 +1,11 @@
+import { Logger } from '@aws-lambda-powertools/logger';
 import {
   BedrockAgentCoreClient,
   CreateEventCommand,
   RetrieveMemoryRecordsCommand,
 } from '@aws-sdk/client-bedrock-agentcore';
+
+const logger = new Logger({ serviceName: 'agent-orchestrator' });
 
 export type LongTermNamespace = 'preferences' | 'signals' | 'rationale';
 
@@ -64,10 +67,10 @@ export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
           return (resp.memoryRecordSummaries ?? []).map(mapRecord);
         },
         async emitLongTermEvent(input: EmitLongTermEventInput): Promise<void> {
-          // decisionId is captured from the enclosing openDecisionSession call.
-          // Best-effort emit. Failures are logged but do not throw — long-term
-          // recall is non-critical to the agent's success path. See
-          // docs/superpowers/specs/2026-05-14-inter-agent-state-handoff-sf-vs-memory-design.md.
+          // Best-effort SDK emit. Failures are logged but do not throw — long-term
+          // recall is non-critical to the agent's success path.
+          // Serialisation errors throw synchronously so callers see them in dev.
+          const serialised = JSON.stringify(input.payload);
           try {
             await client.send(
               new CreateEventCommand({
@@ -79,21 +82,14 @@ export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
                   {
                     conversational: {
                       role: 'ASSISTANT',
-                      content: { text: JSON.stringify(input.payload) },
+                      content: { text: serialised },
                     },
                   },
                 ],
-                // Bedrock matches the strategy whose declared namespace pattern
-                // resolves to this event's effective path:
-                // /{serviceName}/{actorId}/{namespace}. The namespace is implied
-                // by the strategy declaration in decision-workflow-ctrl's
-                // service.stack.ts — CreateEvent itself does not take a
-                // namespace field.
               })
             );
           } catch (err) {
-            // eslint-disable-next-line no-console
-            console.warn('emitLongTermEvent failed', {
+            logger.warn('emitLongTermEvent failed', {
               namespace: input.namespace,
               error: err instanceof Error ? err.message : String(err),
             });
