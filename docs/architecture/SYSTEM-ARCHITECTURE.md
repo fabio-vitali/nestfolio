@@ -129,7 +129,7 @@ The system runs **6 production AI agents** organised in a layered topology.
 
 ### Orchestrator layer
 
-`decision-workflow-ctrl` — Step Functions state machine that triggers the 4 advisory agents in parallel, persists results to AgentCore Memory, then assembles the Decision Packet. Cite: `services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts`, `services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts`.
+`decision-workflow-ctrl` — Step Functions state machine that triggers the 4 advisory agents (parallel then sequential), plumbs their outputs through SF state Parameters (§17.2), then assembles the Decision Packet. Cite: `services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts`, `services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts`.
 
 ### Intelligence layer (4 agent-ctrl services, each hosting its own AgentCore Runtime)
 
