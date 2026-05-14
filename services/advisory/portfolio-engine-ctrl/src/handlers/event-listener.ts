@@ -5,7 +5,7 @@ import {
   type EventPayload, type EventContext, type WriteIntent,
   requireEnv, logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError } from '@nestfolio/agent-orchestrator';
+import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError, wrapAgentOutput } from '@nestfolio/agent-orchestrator';
 import { KB_INGESTION_EVENT_TYPES } from '../domain';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
 
@@ -41,33 +41,15 @@ export const createHandlers = (deps: SfnCallbackDeps) => {
 
       const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
-      // Memory reads still apply for the agent's full input context (goals,
-      // risk-assessment, market analysis, past rationale). AgentCore Memory
-      // has read-after-write eventual consistency on ListMemoryRecords
-      // (>40s window observed empirically). Retry with backoff so a freshly
-      // written investor-profile record from the prior SF stage is found
-      // before we invoke the agent with empty context. Tests can short-circuit
-      // by setting MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE to '0,0,0,0'.
-      // operatingMode is NOT gated on Memory — it comes via SF state above.
-      const [investorRecordsInitial, marketRecords, pastRationale] = await Promise.all([
-        session.readUpstreamOutput('investor-profile'),
-        session.readUpstreamOutput('market-intelligence'),
-        session.searchLongTermMemory('allocation rationale decisions'),
-      ]);
+      // Long-term recall (returns [] today; Phase B populates).
+      const pastRationale = await session.searchLongTermMemory('allocation rationale decisions');
 
-      let investorRecords = investorRecordsInitial;
-      let investorProfile: Record<string, unknown> = investorRecords[0]?.content
-        ? JSON.parse(investorRecords[0].content)
-        : {};
-      const retryDelays = (process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE
-        ?? '3000,5000,8000,12000')
-        .split(',').map((s) => parseInt(s.trim(), 10));
-      for (const delay of retryDelays) {
-        if (Object.keys(investorProfile).length > 0) break;
-        if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
-        investorRecords = await session.readUpstreamOutput('investor-profile');
-        investorProfile = investorRecords[0]?.content ? JSON.parse(investorRecords[0].content) : {};
-      }
+      // Inter-agent ephemeral handoff via SF state. Upstream outputs arrive
+      // through subject.{investorProfile, marketAnalysis} (plumbed via
+      // SF Parameters from $.agentResults.<Upstream>.agentOutput). No Memory
+      // reads for upstream context, no retry sleep.
+      const investorProfile = (subject.investorProfile as Record<string, unknown> | undefined) ?? {};
+      const marketAnalysis = (subject.marketAnalysis as Record<string, unknown> | undefined) ?? {};
 
       let result: Record<string, unknown>;
       try {
@@ -76,7 +58,7 @@ export const createHandlers = (deps: SfnCallbackDeps) => {
           decisionId,
           operatingMode,
           investorProfile,
-          marketAnalysis: marketRecords[0]?.content ? JSON.parse(marketRecords[0].content) : {},
+          marketAnalysis,
           pastRationale: pastRationale.map(r => r.content),
         });
       } catch (error) {
@@ -87,20 +69,10 @@ export const createHandlers = (deps: SfnCallbackDeps) => {
         throw error;
       }
 
-      // Memory persistence happens inside the AgentRuntime (graph.ts:173) —
-      // mirrors the investor-profile-ctrl pattern. The previous Lambda
-      // wrap-write created a parallel record in the same namespace with a
-      // transformed shape ({decisionId, allocations, trades, metadata}),
-      // which AgentCore did NOT dedupe via requestIdentifier even though both
-      // writes used the same key. AssemblePacket then read whichever record
-      // ListMemoryRecords returned at [0] — order-dependent flake. Removing
-      // the wrap-write leaves a single canonical record (the AgentRuntime's
-      // raw output keyed by node name) and AssemblePacket extracts from
-      // result['portfolio-construction'].allocations as the source of truth.
-      void result;
+      const wrapped = wrapAgentOutput(result);
 
       return {
-        output: { decisionId, tenantId },
+        output: { decisionId, tenantId, agentOutput: wrapped.value },
         intents: [record('AgentInvocation', { decisionId, tenantId, agentName: 'portfolio-engine' })],
       };
     },

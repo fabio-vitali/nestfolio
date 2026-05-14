@@ -19,6 +19,8 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   createMemoryClient: jest.fn(),
   createNoOpMemoryClient: jest.fn(),
   UnknownOperatingModeError: jest.requireActual('@nestfolio/agent-orchestrator').UnknownOperatingModeError,
+  wrapAgentOutput: jest.requireActual('@nestfolio/agent-orchestrator').wrapAgentOutput,
+  OutputTooLargeError: jest.requireActual('@nestfolio/agent-orchestrator').OutputTooLargeError,
 }));
 jest.mock('@nestfolio/event-processor', () => ({
   ...jest.requireActual('@nestfolio/event-processor'),
@@ -28,24 +30,15 @@ jest.mock('@nestfolio/event-processor', () => ({
 process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
 process.env.MEMORY_ID = 'mem-test';
-// Short-circuit the Memory read-after-write retry waits in unit tests.
-process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE = '0,0,0,0';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
+import type { MemoryClient } from '@nestfolio/agent-orchestrator';
 import { createHandlers, type SfnCallbackDeps } from '../../src/handlers/event-listener';
 
 describe('portfolio-engine-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
   const mockIngest = jest.fn();
-  const mockWriteAgentOutput = jest.fn().mockResolvedValue(undefined);
-  // operatingMode now arrives via subject.operatingMode (SF state propagation
-  // from InvokeInvestorProfile result). The Memory record holds the agent's
-  // full output context (goals, risk-assessment) but no longer carries
-  // operatingMode as the source-of-truth for shape.
-  const mockReadUpstreamOutput = jest.fn().mockResolvedValue([
-    { content: JSON.stringify({ 'user-goals': {}, 'risk-assessment': {} }) },
-  ]);
   const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
   const mockDeps: SfnCallbackDeps = {
@@ -53,12 +46,10 @@ describe('portfolio-engine-ctrl event-listener', () => {
     kbIngestionHandler: { ingest: mockIngest },
     memoryClient: {
       openDecisionSession: jest.fn().mockReturnValue({
-        writeAgentOutput: mockWriteAgentOutput,
-        readUpstreamOutput: mockReadUpstreamOutput,
         searchLongTermMemory: mockSearchLongTermMemory,
       }),
       searchTenantMemory: jest.fn().mockResolvedValue([]),
-    } as SfnCallbackDeps['memoryClient'],
+    } satisfies Partial<MemoryClient> as MemoryClient,
   };
 
   const handlers = createHandlers(mockDeps);
@@ -78,9 +69,6 @@ describe('portfolio-engine-ctrl event-listener', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSend.mockResolvedValue({});
-    mockReadUpstreamOutput.mockResolvedValue([
-      { content: JSON.stringify({ 'user-goals': {}, 'risk-assessment': {} }) },
-    ]);
     mockRunPipeline.mockResolvedValue({
       decisionId: 'dp-1',
       allocations: { allocations: [{ instrument: 'VTI', targetWeight: 0.6 }] },
@@ -96,24 +84,75 @@ describe('portfolio-engine-ctrl event-listener', () => {
         decisionId: 'dp-1',
         taskToken: 'token-123',
         operatingMode: 'BALANCED',
-        context: { riskCategory: 'MODERATE' },
+        investorProfile: { 'user-goals': { goalType: 'GROWTH' }, 'risk-assessment': { riskCategory: 'MODERATE' } },
+        marketAnalysis: { sectors: [{ name: 'tech', outlook: 'bullish' }] },
       },
     };
 
     const result = await handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx);
 
-    expect(result.output).toEqual({ decisionId: 'dp-1', tenantId: 't1' });
+    expect(result.output).toMatchObject({ decisionId: 'dp-1', tenantId: 't1' });
     expect(result.intents).toHaveLength(1);
-    expect(mockReadUpstreamOutput).toHaveBeenCalledWith('investor-profile');
-    expect(mockReadUpstreamOutput).toHaveBeenCalledWith('market-intelligence');
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('allocation rationale decisions');
     expect(mockRunPipeline).toHaveBeenCalledWith(
       'evt-1', // ctx.eventId
-      expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1', operatingMode: 'BALANCED' }),
+      expect.objectContaining({
+        tenantId: 't1',
+        decisionId: 'dp-1',
+        operatingMode: 'BALANCED',
+        investorProfile: { 'user-goals': { goalType: 'GROWTH' }, 'risk-assessment': { riskCategory: 'MODERATE' } },
+        marketAnalysis: { sectors: [{ name: 'tech', outlook: 'bullish' }] },
+      }),
     );
-    // Memory persistence is owned by the AgentRuntime — the Lambda's
-    // wrap-write was removed (single-writer Memory contract).
-    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
+  });
+
+  it('returns the agent result inside SF output for downstream consumers', async () => {
+    const fakeAgentResult = {
+      'portfolio-construction': { allocations: [{ instrument: 'VTI', targetWeight: 0.6 }] },
+      'rebalance-planner': { trades: [{ action: 'BUY', instrument: 'VTI' }] },
+    };
+    mockRunPipeline.mockResolvedValueOnce(fakeAgentResult);
+
+    const payload: EventPayload = {
+      subject: {
+        tenantId: 't1',
+        decisionId: 'd1',
+        taskToken: 'tt1',
+        operatingMode: 'BALANCED',
+        investorProfile: { 'user-goals': {} },
+        marketAnalysis: { sectors: [] },
+      },
+    };
+
+    const result = await handlers.CONSTRUCT_PORTFOLIO(payload, { ...baseCtx, eventId: 'evt-out' });
+
+    expect(result.output).toMatchObject({
+      decisionId: 'd1',
+      tenantId: 't1',
+      agentOutput: fakeAgentResult,
+    });
+  });
+
+  it('tolerates missing upstream slots on subject (empty objects)', async () => {
+    const payload: EventPayload = {
+      subject: {
+        tenantId: 't1',
+        decisionId: 'dp-empty',
+        taskToken: 'tok',
+        operatingMode: 'BALANCED',
+        // No investorProfile / marketAnalysis
+      },
+    };
+
+    await handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx);
+
+    expect(mockRunPipeline).toHaveBeenCalledWith(
+      'evt-1',
+      expect.objectContaining({
+        investorProfile: {},
+        marketAnalysis: {},
+      }),
+    );
   });
 
   it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
@@ -129,7 +168,6 @@ describe('portfolio-engine-ctrl event-listener', () => {
 
     expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
     expect(result.intents).toBeUndefined();
-    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
   });
 
   it('should route SEC_PROSPECTUS_UPDATED to KB ingestion', async () => {
@@ -171,38 +209,6 @@ describe('portfolio-engine-ctrl event-listener', () => {
 
     await expect(handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx)).rejects.toThrow(UnknownOperatingModeError);
     expect(mockRunPipeline).not.toHaveBeenCalled();
-  });
-
-  // Memory has >40s eventual-consistency on ListMemoryRecords. The Lambda
-  // retries until the upstream investor-profile record is non-empty. The agent
-  // gets degraded input (empty investorProfile) if reads return empty without
-  // retry — driving empty proposedTrades downstream.
-  it('retries readUpstreamOutput("investor-profile") when first read is empty and proceeds when retry returns content', async () => {
-    mockReadUpstreamOutput.mockImplementation(async (svc: string) => {
-      if (svc === 'market-intelligence') return [];
-      if (mockReadUpstreamOutput.mock.calls.filter((c) => c[0] === 'investor-profile').length <= 1) {
-        return [];
-      }
-      return [
-        { content: JSON.stringify({ 'user-goals': { goalType: 'GROWTH' }, 'risk-assessment': {} }) },
-      ];
-    });
-
-    const payload: EventPayload = {
-      subject: { tenantId: 't1', decisionId: 'dp-retry', taskToken: 'tok', operatingMode: 'CONSERVATIVE' },
-    };
-
-    await handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx);
-
-    const investorProfileCalls = mockReadUpstreamOutput.mock.calls.filter((c) => c[0] === 'investor-profile').length;
-    expect(investorProfileCalls).toBeGreaterThanOrEqual(2);
-    expect(mockRunPipeline).toHaveBeenCalledWith(
-      'evt-1',
-      expect.objectContaining({
-        operatingMode: 'CONSERVATIVE',
-        investorProfile: expect.objectContaining({ 'user-goals': { goalType: 'GROWTH' } }),
-      }),
-    );
   });
 
   it('passes operatingMode from subject through to runPipeline', async () => {
