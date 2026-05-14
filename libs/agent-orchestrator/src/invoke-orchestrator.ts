@@ -39,6 +39,27 @@ export async function invokeOrchestrator(
     return result;
   } finally {
     const envelope = tracer.build(status);
+    logger.info('Orchestrator envelope summary', {
+      status,
+      latencyMs: envelope['gen_ai.invocation.latency_ms'],
+      llmCallCount: envelope.llmCalls.length,
+      inputTokensTotal: envelope.llmCalls.reduce(
+        (sum, call) => sum + call['gen_ai.usage.input_tokens'],
+        0,
+      ),
+      outputTokensTotal: envelope.llmCalls.reduce(
+        (sum, call) => sum + call['gen_ai.usage.output_tokens'],
+        0,
+      ),
+      perCall: envelope.llmCalls.map((call) => ({
+        node: call.nodeName,
+        model: call['gen_ai.request.model'],
+        inputTokens: call['gen_ai.usage.input_tokens'],
+        outputTokens: call['gen_ai.usage.output_tokens'],
+        latencyMs: call.latencyMs,
+        escalatedFromTier: call.escalatedFromTier,
+      })),
+    });
     // Narrow via the discriminant: if emitter is present, the type system
     // guarantees `agent` and `correlationId` are also present (see InvokeOptions).
     if (options?.emitter) {
