@@ -5,6 +5,7 @@ import {
   DegradedAgentOutputError,
   UnknownOperatingModeError,
   type AgentNodeResult,
+  type MemoryClient,
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
@@ -12,6 +13,7 @@ import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
 export interface AgentServiceDeps {
   readonly docClient: DynamoDBDocumentClient;
   readonly tableName: string;
+  readonly memoryClient: MemoryClient;
 }
 
 export class DuplicateInvocationError extends Error {
@@ -109,6 +111,18 @@ export const createAgentService = (deps: AgentServiceDeps) => {
 
       const goals = (result['user-goals'] as { ok: true; output: Record<string, unknown> }).output;
       const risk = (result['risk-assessment'] as { ok: true; output: Record<string, unknown> }).output;
+
+      // Phase B (inter-agent-state-handoff-sf-vs-memory): emit one long-term
+      // event after successful structured-output validation. Bedrock's
+      // USER_PREFERENCE_MEMORY strategy on /investor-profile-ctrl/{tenantId}/
+      // preferences extracts investor preferences across decision cycles.
+      // Best-effort — emitLongTermEvent catches + logs on SDK failure.
+      await deps.memoryClient
+        .openDecisionSession(tenantId, decisionId)
+        .emitLongTermEvent({
+          namespace: 'preferences',
+          payload: { goals, risk },
+        });
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();

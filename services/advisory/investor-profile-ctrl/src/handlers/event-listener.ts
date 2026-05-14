@@ -22,7 +22,7 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
     logger.info('Processing ANALYZE_INVESTOR_PROFILE', { decisionId, tenantId });
 
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
-    const tenantHistory = await session.searchLongTermMemory('investor preferences risk tolerance');
+    const tenantHistory = await session.searchLongTermMemory('preferences', 'investor preferences risk tolerance');
 
     // Extract operatingMode from the InvestorProfile payload SF passes via
     // subject.investorProfile (composite InvestorProfile row carries it post-collapse).
@@ -87,11 +87,11 @@ const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-const agentService = createAgentService({ docClient, tableName: TABLE_NAME });
-
 const memoryClient = process.env.MEMORY_ID
   ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: 'investor-profile' })
   : createNoOpMemoryClient();
+
+const agentService = createAgentService({ docClient, tableName: TABLE_NAME, memoryClient });
 
 const deps: SfnCallbackDeps = { agentService, memoryClient };
 
