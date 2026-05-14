@@ -56,9 +56,9 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
 
     // Model SSM params from advisory-hub
     const hubNaming = new NamingService({ prefix: props.prefix, subsystem: 'advisory', service: 'advisory-hub' });
-    const modelSonnetId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/sonnet'));
+    const modelHaikuId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/haiku'));
 
-    ingress.handler.addEnvironment('MODEL_SONNET_SSM', hubNaming.ssmParameterPath('models/sonnet'));
+    ingress.handler.addEnvironment('MODEL_HAIKU_SSM', hubNaming.ssmParameterPath('models/haiku'));
 
     // Memory ID from decision-workflow-ctrl SSM
     const workflowNaming = new NamingService({
@@ -87,12 +87,12 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
     const agentRuntime = new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'advisory_narrative_agents',
       agentCodePath: join(__dirname, '..', 'agents', 'advisory-narrative'),
-      description: 'explainability (Sonnet, 8192 tokens) agent with feedback loop KB',
+      description: 'explainability (Haiku 4.5, 8192 tokens) agent with feedback loop KB',
       state,
-      modelIds: [modelSonnetId],
+      modelIds: [modelHaikuId],
       toolTargets: [],
       environmentVariables: {
-        MODEL_SONNET_ID: modelSonnetId,
+        MODEL_HAIKU_ID: modelHaikuId,
         TABLE_NAME: state.getTable().tableName,
         EVENT_BUS_NAME: this.eventBus.eventBusName,
         MEMORY_ID: memoryId,
@@ -143,13 +143,13 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       ingress,
       egress,
       monitorBedrock: true,
-      bedrockModelIds: [modelSonnetId],
+      bedrockModelIds: [modelHaikuId],
     });
 
     // Per-service Bedrock usage alarms (P1 — 2026-04-28 cost safeguards).
     new BedrockUsageAlarms(this, 'BedrockAlarms', {
       serviceName: 'advisory-narrative-ctrl',
-      modelIds: [modelSonnetId],
+      modelIds: [modelHaikuId],
       alertTopic: importCostAlertTopic(
         this, 'CostAlertTopic',
         `/nestfolio/${props.prefix}-investor/cost-controls/alertTopicArn`,
