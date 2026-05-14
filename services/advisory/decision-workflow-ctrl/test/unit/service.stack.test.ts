@@ -227,6 +227,23 @@ describe('DecisionWorkflowCtrlStack', () => {
     expect(portfolioMatches.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('grants bedrock:InvokeModel to the Memory execution role for strategy extraction', () => {
+    // Bedrock AgentCore Memory invokes the configured extraction model under
+    // an execution role. Without this grant, MemoryStrategies silently fail to
+    // extract — symptom: searchLongTermMemory returns [] forever.
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: Match.objectLike({
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Effect: 'Allow',
+            Action: 'bedrock:InvokeModel',
+            Resource: Match.anyValue(),
+          }),
+        ]),
+      }),
+    });
+  });
+
   // Phase A of inter-agent-state-handoff-sf-vs-memory: agent outputs flow through
   // Step Functions state via `$.agentResults.<StateId>.agentOutput` instead of via
   // AgentCore Memory ListMemoryRecords (which has a >40s eventual-consistency

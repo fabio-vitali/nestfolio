@@ -1,6 +1,7 @@
 import { join } from 'path';
 import { Construct } from 'constructs';
 import { Duration } from 'aws-cdk-lib';
+import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
@@ -11,7 +12,7 @@ import {
   DecisionWorkflowEventTypes,
   MANDATE_LIFECYCLE_EVENT_TYPES,
 } from './domain/events';
-import { defaultLambdaProps } from '@nestfolio/cdk-constructs/utils';
+import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 import { DecisionWorkflowDefinition } from './constructs/decision-state-machine';
 
 export class DecisionWorkflowCtrlStack extends ServiceStack {
@@ -37,6 +38,42 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
       parameterName: this.naming.ssmParameterPath('memory/id'),
       stringValue: memory.memoryId,
     });
+
+    // --- Bedrock extraction model grant for MemoryStrategies (Phase B) ---
+    // Haiku per OQ #2 of the Phase B design spec (cost-optimal for extraction;
+    // aligns with agentcore-cost-safeguards posture). Restored by Phase B,
+    // after 3f6eea0e (2026-05-11) removed it alongside vestigial strategies.
+    //
+    // The alpha construct property is `memory.executionRole?: iam.IRole`.
+    // The JS constructor always sets it via `props.executionRole ?? this._createMemoryRole()`
+    // (verified in node_modules/.../memory/memory.js:513), so for `new Memory(...)` it is
+    // always defined. The `?` in the TypeScript interface covers imported memories only.
+    //
+    // Without this grant, MemoryStrategies (Task 5) silently fail to extract —
+    // symptom: searchLongTermMemory returns [] forever.
+    const hubNaming = new NamingService({
+      prefix: props.prefix,
+      subsystem: 'advisory',
+      service: 'advisory-hub',
+    });
+    const modelHaikuId = StringParameter.valueForStringParameter(
+      this,
+      hubNaming.ssmParameterPath('models/haiku'),
+    );
+    // Inference profile ARN pattern matches the repo convention in
+    // libs/cdk-constructs/src/extensions/agent-runtime.ts:buildBedrockModelResources.
+    // SSM deploy-time token → can't inspect literal at synth; wildcard region/account
+    // is the established pattern for cross-region inference profiles.
+    const haikuInferenceProfileArn = `arn:aws:bedrock:*:*:inference-profile/${modelHaikuId}`;
+
+    // memory.executionRole is always set by the Memory constructor for non-imported
+    // instances. The optional typing is an interface artefact for imported memories.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    memory.executionRole!.addToPrincipalPolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['bedrock:InvokeModel'],
+      resources: [haikuInferenceProfileArn],
+    }));
 
     // AssemblePacket Lambda — reads all 4 agent outputs from the SF state Parameters
     // payload (post-Phase-A 2026-05-14). No Memory reads, no eventual-consistency
