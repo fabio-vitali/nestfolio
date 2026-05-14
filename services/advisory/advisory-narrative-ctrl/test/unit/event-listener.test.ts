@@ -20,6 +20,8 @@ jest.mock('@nestfolio/agent-orchestrator', () => ({
   createMemoryClient: jest.fn(),
   createNoOpMemoryClient: jest.fn(),
   UnknownOperatingModeError: jest.requireActual('@nestfolio/agent-orchestrator').UnknownOperatingModeError,
+  wrapAgentOutput: jest.requireActual('@nestfolio/agent-orchestrator').wrapAgentOutput,
+  OutputTooLargeError: jest.requireActual('@nestfolio/agent-orchestrator').OutputTooLargeError,
 }));
 jest.mock('@nestfolio/event-processor', () => ({
   ...jest.requireActual('@nestfolio/event-processor'),
@@ -29,8 +31,6 @@ jest.mock('@nestfolio/event-processor', () => ({
 process.env.TABLE_NAME = 'test-table';
 process.env.BUS_NAME = 'test-bus';
 process.env.MEMORY_ID = 'mem-test';
-// Short-circuit the Memory read-after-write retry waits in unit tests.
-process.env.MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE = '0,0,0,0';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
@@ -39,8 +39,6 @@ import { createHandlers, type SfnCallbackDeps } from '../../src/handlers/event-l
 describe('advisory-narrative-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
   const mockProcess = jest.fn();
-  const mockWriteAgentOutput = jest.fn().mockResolvedValue(undefined);
-  const mockReadUpstreamOutput = jest.fn().mockResolvedValue([]);
   const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
   const mockDeps: SfnCallbackDeps = {
@@ -48,12 +46,10 @@ describe('advisory-narrative-ctrl event-listener', () => {
     feedbackCorrelator: { process: mockProcess },
     memoryClient: {
       openDecisionSession: jest.fn().mockReturnValue({
-        writeAgentOutput: mockWriteAgentOutput,
-        readUpstreamOutput: mockReadUpstreamOutput,
         searchLongTermMemory: mockSearchLongTermMemory,
       }),
       searchTenantMemory: jest.fn().mockResolvedValue([]),
-    } as SfnCallbackDeps['memoryClient'],
+    } as unknown as SfnCallbackDeps['memoryClient'],
   };
 
   const handlers = createHandlers(mockDeps);
@@ -89,26 +85,79 @@ describe('advisory-narrative-ctrl event-listener', () => {
         decisionId: 'dp-1',
         taskToken: 'token-123',
         operatingMode: 'BALANCED',
-        context: { riskCategory: 'MODERATE' },
+        investorProfile: { riskScore: 0.5, riskCategory: 'MODERATE' },
+        marketAnalysis: { sectors: [{ name: 'tech', outlook: 'bullish' }] },
+        portfolio: { allocations: [{ symbol: 'VTI', weight: 0.6 }] },
       },
     };
 
     const result = await handlers.GENERATE_NARRATIVE(payload, baseCtx);
 
-    expect(result.output).toEqual({ decisionId: 'dp-1', tenantId: 't1' });
+    expect(result.output).toMatchObject({ decisionId: 'dp-1', tenantId: 't1' });
     expect(result.intents).toHaveLength(1);
-    expect(mockReadUpstreamOutput).toHaveBeenCalledWith('investor-profile');
-    expect(mockReadUpstreamOutput).toHaveBeenCalledWith('market-intelligence');
-    expect(mockReadUpstreamOutput).toHaveBeenCalledWith('portfolio-engine');
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('narrative preferences communication style');
     expect(mockSearchLongTermMemory).toHaveBeenCalledWith('session summaries');
     expect(mockRunPipeline).toHaveBeenCalledWith(
       'evt-1',
-      expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1', operatingMode: 'BALANCED' }),
+      expect.objectContaining({
+        tenantId: 't1',
+        decisionId: 'dp-1',
+        operatingMode: 'BALANCED',
+        investorProfile: { riskScore: 0.5, riskCategory: 'MODERATE' },
+        marketAnalysis: { sectors: [{ name: 'tech', outlook: 'bullish' }] },
+        portfolio: { allocations: [{ symbol: 'VTI', weight: 0.6 }] },
+      }),
     );
-    // Memory persistence is owned by the AgentRuntime — the Lambda's
-    // wrap-write was removed (single-writer Memory contract).
-    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
+  });
+
+  it('returns the agent result inside SF output for downstream consumers', async () => {
+    const fakeAgentResult = {
+      explainability: { rationale: 'because...', summary: 'short' },
+    };
+    mockRunPipeline.mockResolvedValueOnce(fakeAgentResult);
+
+    const payload: EventPayload = {
+      subject: {
+        tenantId: 't1',
+        decisionId: 'd1',
+        taskToken: 'tt1',
+        operatingMode: 'BALANCED',
+        investorProfile: { riskScore: 0.5 },
+        marketAnalysis: { sectors: [] },
+        portfolio: { allocations: [] },
+      },
+    };
+
+    const result = await handlers.GENERATE_NARRATIVE(payload, { ...baseCtx, eventId: 'evt-out' });
+
+    expect(result.output).toMatchObject({
+      decisionId: 'd1',
+      tenantId: 't1',
+      agentOutput: fakeAgentResult,
+    });
+  });
+
+  it('tolerates missing upstream slots on subject (empty objects)', async () => {
+    const payload: EventPayload = {
+      subject: {
+        tenantId: 't1',
+        decisionId: 'dp-empty',
+        taskToken: 'tok',
+        operatingMode: 'BALANCED',
+        // No investorProfile / marketAnalysis / portfolio
+      },
+    };
+
+    await handlers.GENERATE_NARRATIVE(payload, baseCtx);
+
+    expect(mockRunPipeline).toHaveBeenCalledWith(
+      'evt-1',
+      expect.objectContaining({
+        investorProfile: {},
+        marketAnalysis: {},
+        portfolio: {},
+      }),
+    );
   });
 
   it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
@@ -124,7 +173,6 @@ describe('advisory-narrative-ctrl event-listener', () => {
 
     expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
     expect(result.intents).toBeUndefined();
-    expect(mockWriteAgentOutput).not.toHaveBeenCalled();
   });
 
   // operatingMode is propagated via SF state on subject.operatingMode (Phase 4
