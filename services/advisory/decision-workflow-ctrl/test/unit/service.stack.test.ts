@@ -130,16 +130,18 @@ describe('DecisionWorkflowCtrlStack', () => {
     // aws-bedrockagentcore.generated.js. The alpha construct's render() produces camelCase
     // JS objects; the CfnMemory toCloudFormation mapper uppercases every key before
     // writing the template, so assertions must use PascalCase throughout.
+    const getStrategies = () => {
+      const memory = template.findResources('AWS::BedrockAgentCore::Memory');
+      return (Object.values(memory)[0] as any)?.Properties?.MemoryStrategies ?? [];
+    };
 
     it('attaches 3 strategies to the Memory resource', () => {
-      const memory = template.findResources('AWS::BedrockAgentCore::Memory');
-      const strategies = (Object.values(memory)[0] as any)?.Properties?.MemoryStrategies ?? [];
+      const strategies = getStrategies();
       expect(strategies).toHaveLength(3);
     });
 
     it('attaches InvestorPreferenceLearner with USER_PREFERENCE_MEMORY type, custom Haiku extraction + consolidation', () => {
-      const memory = template.findResources('AWS::BedrockAgentCore::Memory');
-      const strategies = (Object.values(memory)[0] as any)?.Properties?.MemoryStrategies ?? [];
+      const strategies = getStrategies();
       const learner = strategies.find(
         (s: any) => s.CustomMemoryStrategy?.Name === 'InvestorPreferenceLearner',
       );
@@ -153,8 +155,7 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
 
     it('attaches MarketSignalExtractor with SEMANTIC_MEMORY type, custom Haiku extraction only', () => {
-      const memory = template.findResources('AWS::BedrockAgentCore::Memory');
-      const strategies = (Object.values(memory)[0] as any)?.Properties?.MemoryStrategies ?? [];
+      const strategies = getStrategies();
       const extractor = strategies.find(
         (s: any) => s.CustomMemoryStrategy?.Name === 'MarketSignalExtractor',
       );
@@ -167,8 +168,7 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
 
     it('attaches RationaleArchivist with SEMANTIC_MEMORY type, custom Haiku extraction + consolidation, two namespace patterns', () => {
-      const memory = template.findResources('AWS::BedrockAgentCore::Memory');
-      const strategies = (Object.values(memory)[0] as any)?.Properties?.MemoryStrategies ?? [];
+      const strategies = getStrategies();
       const archivist = strategies.find(
         (s: any) => s.CustomMemoryStrategy?.Name === 'RationaleArchivist',
       );

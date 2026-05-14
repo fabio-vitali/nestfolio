@@ -25,6 +25,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     // --- Haiku model SSM lookup (shared by Memory strategies + IAM grant) ---
     // Haiku per OQ #2 of the Phase B design spec (cost-optimal for extraction;
     // aligns with agentcore-cost-safeguards posture).
+    // advisory-hub owns the cross-service model SSM parameters; read from its namespace.
     const hubNaming = new NamingService({
       prefix: props.prefix,
       subsystem: 'advisory',
@@ -34,6 +35,8 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
       this,
       hubNaming.ssmParameterPath('models/haiku'),
     );
+    // BedrockFoundationModel is a plain value object (not a Construct) — safe to share.
+    const haikuModel = new BedrockFoundationModel(modelHaikuId);
 
     // --- AgentCore Memory ---
     // Three long-term MemoryStrategies (Phase B — inter-agent-state-handoff):
@@ -59,7 +62,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
           name: 'InvestorPreferenceLearner',
           namespaces: ['/investor-profile-ctrl/{actorId}/preferences'],
           customExtraction: {
-            model: new BedrockFoundationModel(modelHaikuId),
+            model: haikuModel,
             appendToPrompt:
               'Extract investor preferences: risk tolerance level, asset class ' +
               'preferences, ESG constraints, liquidity needs, time horizon, and ' +
@@ -67,7 +70,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
               'decision details.',
           },
           customConsolidation: {
-            model: new BedrockFoundationModel(modelHaikuId),
+            model: haikuModel,
             appendToPrompt:
               'When consolidating investor preferences, newer statements override ' +
               'older ones for the same dimension. Flag contradictions (e.g., high ' +
@@ -78,7 +81,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
           name: 'MarketSignalExtractor',
           namespaces: ['/market-intelligence-ctrl/{actorId}/signals'],
           customExtraction: {
-            model: new BedrockFoundationModel(modelHaikuId),
+            model: haikuModel,
             appendToPrompt:
               'Extract market signals with cross-decision shelf life: sector ' +
               'trends, regime indicators, signal strength, and direction. Ignore ' +
@@ -92,7 +95,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
             '/advisory-narrative-ctrl/{actorId}/rationale',
           ],
           customExtraction: {
-            model: new BedrockFoundationModel(modelHaikuId),
+            model: haikuModel,
             appendToPrompt:
               'Extract recommendation rationale: which assets were weighted and ' +
               'why, which constraints were binding, what trade-offs were chosen, ' +
@@ -100,7 +103,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
               'rationale per record, scoped to the decision it explains.',
           },
           customConsolidation: {
-            model: new BedrockFoundationModel(modelHaikuId),
+            model: haikuModel,
             appendToPrompt:
               "Consolidate chronologically. Preserve the reasoning chain — " +
               "don't collapse distinct decisions into a summary.",
