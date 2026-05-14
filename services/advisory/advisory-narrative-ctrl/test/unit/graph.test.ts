@@ -1,8 +1,6 @@
 const mockAgentNode = jest.fn();
 const mockKBRetrieve = jest.fn();
 const mockMemorySession = {
-  writeAgentOutput: jest.fn(),
-  readUpstreamOutput: jest.fn().mockResolvedValue([]),
   searchLongTermMemory: jest.fn().mockResolvedValue([]),
 };
 
@@ -80,27 +78,4 @@ describe('advisory-narrative-ctrl structured graph', () => {
     expect((result as { explainability: { ok: boolean; output: { summary: string } } }).explainability.output).toHaveProperty('summary');
   });
 
-  it('writes output to memory after successful invocation', async () => {
-    mockKBRetrieve.mockResolvedValue([]);
-    mockAgentNode.mockResolvedValue({
-      summary: 'Summary here for testing writing.',
-      rationale: 'Rationale here for testing.',
-      keyFactors: ['factor'],
-      tone: 'neutral',
-      wordCount: 50,
-      confidence: 0.7,
-    });
-
-    await invokeNarrative({
-      tenantId: 't1',
-      decisionId: 'd1',
-      upstreamOutputs: { input: 'Explain' },
-    });
-
-    expect(mockMemorySession.writeAgentOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        explainability: expect.objectContaining({ summary: expect.any(String) }),
-      }),
-    );
-  });
 });

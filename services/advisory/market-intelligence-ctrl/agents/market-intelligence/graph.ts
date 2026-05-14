@@ -6,13 +6,10 @@ import {
   withRetry,
   withFallback,
   createKBClient,
-  createMemoryClient,
-  createNoOpMemoryClient,
   invokeOrchestrator,
   type AgentInvocation,
   type AgentNodeResult,
   type KBClient,
-  type MemoryClient,
   type TraceEmitter,
 } from '@nestfolio/agent-orchestrator';
 import { marketResearchConfig } from '../../src/agents/market-research.config';
@@ -53,22 +50,10 @@ function buildKBClient(): KBClient | null {
   return createKBClient({ knowledgeBaseId: kbId, region: process.env['AWS_REGION'] ?? 'us-east-1' });
 }
 
-function buildMemoryClient(): MemoryClient {
-  const memoryId = process.env['MEMORY_ID'];
-  if (!memoryId) return createNoOpMemoryClient();
-  return createMemoryClient({
-    memoryId,
-    region: process.env['AWS_REGION'] ?? 'us-east-1',
-    serviceName: 'market-intelligence',
-  });
-}
-
 export async function invokeMarketResearch(
   payload: AgentInvocation,
   emitter?: TraceEmitter,
 ): Promise<Record<string, unknown>> {
-  const memory = buildMemoryClient();
-  const session = memory.openDecisionSession(payload.tenantId, payload.decisionId);
   const kb = buildKBClient();
 
   // 1. Retrieve market intelligence from KB (news, sentiment, macro)
@@ -121,10 +106,6 @@ export async function invokeMarketResearch(
   const shaped: Record<string, AgentNodeResult> = {
     'market-research': marketResearch ?? { ok: false, reason: 'graph returned no marketResearch entry', fallback: {} },
   };
-
-  if (shaped['market-research'].ok) {
-    await session.writeAgentOutput({ 'market-research': shaped['market-research'].output });
-  }
 
   return shaped;
 }

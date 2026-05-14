@@ -103,33 +103,6 @@ export async function invokeInvestorProfile(
     throw new Error(`Agent orchestrator unavailable: ${unavailable.reason}`);
   }
 
-  // 4. Persist to memory — Phase β (Spec 4, 2026-05-06): only write when every
-  // agent's wave-node entry is `ok: true`. Strip the discriminant before
-  // writing; Memory consumers expect raw outputs. Include `operatingMode` at
-  // the top level so downstream agents (portfolio-engine, advisory-narrative)
-  // and AssemblePacket can read it from this single Memory record. Replaces
-  // the no-op Lambda-side wrap-write (the `requestIdentifier` idempotency in
-  // BatchCreateMemoryRecordsCommand silently dropped the second write).
-  //
-  // Iterate only EXPECTED agent keys — `result` also carries LangGraph state
-  // metadata (`input` as string, etc.) that must NOT be treated as a
-  // discriminant. Mirrors the agent-service.ts fix from commit 97d41a36
-  // (2026-05-07) — the same bug existed here and silently skipped every
-  // Memory write because `result.input` (string) failed the `ok === true`
-  // check, leaving downstream readers with `Available keys=[]`.
-  const expectedAgentKeys = ['user-goals', 'risk-assessment'] as const;
-  const allOk = expectedAgentKeys.every((k) => {
-    const v = (result as Record<string, unknown>)[k];
-    return typeof v === 'object' && v !== null && (v as { ok?: boolean }).ok === true;
-  });
-  if (allOk) {
-    const stripped = Object.fromEntries(
-      expectedAgentKeys.map((k) => [k, ((result as Record<string, unknown>)[k] as { output: Record<string, unknown> }).output]),
-    );
-    const operatingMode = (payload.upstreamOutputs as Record<string, unknown> | undefined)?.['operatingMode'];
-    await session.writeAgentOutput({ operatingMode, ...stripped });
-  }
-
   return result;
 }
 

@@ -3,8 +3,6 @@ const mockCreateOrchestrator = jest.fn();
 const mockInvokeOrchestrator = jest.fn();
 const mockKBRetrieve = jest.fn();
 const mockMemorySession = {
-  writeAgentOutput: jest.fn(),
-  readUpstreamOutput: jest.fn().mockResolvedValue([]),
   searchLongTermMemory: jest.fn().mockResolvedValue([]),
 };
 
@@ -154,45 +152,6 @@ describe('portfolio-engine-ctrl orchestrator graph', () => {
     const passedInput = mockInvokeOrchestrator.mock.calls[0][1].input as string;
     expect(passedInput).toContain('Portfolio snapshot:');
     expect(passedInput).toContain('"totalValue": 50000');
-  });
-
-  it('writes output to memory when every wave-node entry is ok:true', async () => {
-    mockKBRetrieve.mockResolvedValue([]);
-    mockInvokeOrchestrator.mockResolvedValue({
-      'portfolio-construction': { ok: true, output: { allocations: [{ instrument: 'VTI' }] } },
-      'rebalance-planner': { ok: true, output: { trades: [] } },
-    });
-
-    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
-    jest.isolateModules(() => {
-      const mod = require('../../agents/portfolio-engine/graph');
-      invokePortfolioEngine = mod.invokePortfolioEngine;
-    });
-
-    await invokePortfolioEngine!({ tenantId: 't1', decisionId: 'd1', upstreamOutputs: {} });
-
-    expect(mockMemorySession.writeAgentOutput).toHaveBeenCalledWith({
-      'portfolio-construction': { allocations: [{ instrument: 'VTI' }] },
-      'rebalance-planner': { trades: [] },
-    });
-  });
-
-  it('skips Memory write when any wave-node entry is ok:false (Phase β fail-fast)', async () => {
-    mockKBRetrieve.mockResolvedValue([]);
-    mockInvokeOrchestrator.mockResolvedValue({
-      'portfolio-construction': { ok: true, output: { allocations: [{ instrument: 'VTI' }] } },
-      'rebalance-planner': { ok: false, reason: 'Error: timeout', fallback: { trades: [] } },
-    });
-
-    let invokePortfolioEngine: ((...args: unknown[]) => Promise<unknown>) | undefined;
-    jest.isolateModules(() => {
-      const mod = require('../../agents/portfolio-engine/graph');
-      invokePortfolioEngine = mod.invokePortfolioEngine;
-    });
-
-    await invokePortfolioEngine!({ tenantId: 't1', decisionId: 'd1', upstreamOutputs: {} });
-
-    expect(mockMemorySession.writeAgentOutput).not.toHaveBeenCalled();
   });
 
   it('passes operatingMode to invokeOrchestrator alongside input', async () => {
