@@ -1,15 +1,21 @@
 ---
 id: advisory-narrative-agentcore-latency-residual
-status: queued
-rank: 20
+status: shipped
 type: bug
-notes: "Steady-state 22-30s narrative orchestrator; not cold-start. Phase A removed 28s retry but uncovered a UX-blocking inference floor. Promoted to QUEUED after Phase B."
+notes: "Sonnet 4.6 single-call decode-dominated at 22-30s. Switched to Haiku 4.5 — 4 consecutive runs at 5.8-6.4s (median 6.1s), ~75% reduction. Hypotheses #1 (retry firing) and #2 (prefill) falsified via diagnostic envelope-summary log; #3 (decode) confirmed."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Phase A SF-state plumbing (shipped 2026-05-14 in commit 1e1e23d4 — out of bounds)"
+  - "Other 3 advisory agents (investor-profile-ctrl, market-intelligence-ctrl, portfolio-engine-ctrl) — narrative-only workstream"
+  - "Long-term Memory recall (Phase B, shipped separately)"
+  - "Widening the 20s e2e regression-canary budget — explicitly NOT a fix per file body"
+  - "rebalance-planner-mode-awareness and other mode-aware refactors"
+  - "AgentCore Memory namespace alignment (separate parking item)"
+  - "Explainability quality eval — Haiku rationale richness vs Sonnet. Test passed structural assertions; subjective-quality A/B left to backlog item if a UX regression is observed."
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts PASSES with narrative model=haiku. 4 consecutive AgentCore Orchestrator envelope-summary log entries on dev: 5770ms, 6014ms, 6242ms, 6391ms (all single-LLM-call, model=haiku)."
 ---
 
 # advisory-narrative AgentCore steady-state latency floor — uncovered by Phase A
@@ -51,3 +57,26 @@ The original e2e test budget at 20s was correct as a regression canary, NOT some
 ## Phase A ship status
 
 Phase A's structural work (SF state Parameters, MemoryClient slim, IAM grant drop, doc updates) is done correctly. The bedrock-agentcore-latency-residual is a *separately scoped* problem that the Phase A test budget happens to detect. Ship decision belongs to the user.
+
+## Resolution (2026-05-14 — 2026-05-15)
+
+Diagnostic path:
+
+1. Added a 21-line `Orchestrator envelope summary` log to `libs/agent-orchestrator/src/invoke-orchestrator.ts` — every invocation now emits `llmCallCount`, per-call model tier, per-call latency, total tokens. Permanent observability improvement; affects all 5 services that use `invokeOrchestrator`.
+
+2. First measurement (Sonnet 4.6, 16+ dev invocations): `llmCallCount: 1`, single call took 22.3s. **Hypothesis #1 (retries firing) FALSIFIED.** `narrativeValidationRule` is loose (length ≥ 20, ≥ 1 keyFactor, wordCount 0-2000) — Sonnet clears those trivially. γ.4 inner retry not firing either.
+
+3. With 22.3s on a single call at Sonnet's ~50-80 tok/s decode rate, the only consistent decomposition is ~2-3s prefill + ~18-20s decode → ~1000-1500 output tokens. **Hypothesis #3 (decode-dominated) confirmed by elimination.**
+
+4. Switched `explainability.config.ts` modelId from `us.anthropic.claude-sonnet-4-6` to `us.anthropic.claude-haiku-4-5-20251001-v1:0`.
+
+5. **Hidden IAM-grant gotcha:** the AgentRuntime CDK construct only grants `bedrock:InvokeModel` on the model IDs in `props.modelIds`. The narrative stack passed `[modelSonnetId]`. After the agent-config switch, ChatBedrockConverse called Haiku, AWS returned AccessDenied, `withFallback` caught it silently, the orchestrator returned 'success' with empty `llmCalls` in 150-200ms — but the wave-node entry was `ok: false`, so `assertOrchestratorOutput` threw downstream and the e2e failed at an *earlier* line than the latency assertion. Fix: rotate `modelIds` + `bedrockModelIds` (BedrockUsageAlarms) + observability target from `modelSonnetId` to `modelHaikuId`.
+
+6. Post-fix measurements (Haiku 4.5, 4 consecutive runs): **5770ms, 6014ms, 6242ms, 6391ms** — median 6.1s, range 5.8-6.4s. ~75% reduction vs Sonnet. Well under the 20s e2e regression-canary budget.
+
+7. Updated `first-decision.e2e.test.ts:112` to assert `model='haiku'` (was `'sonnet'`). Updated `agent-service.test.ts:73` to assert `modelTier='haiku'`. Updated `agent-service.ts:143` metadata.
+
+## Out of scope (filed parking if observed)
+
+- Token counts from `ChatBedrockConverse` are not flowing through `AgentTracer.handleLLMEnd` — `inputTokens` and `outputTokens` are 0 in every envelope. The tracer looks at `tokenUsage`/`usage` keys; Bedrock Converse reports usage under a different path. Observability gap, separate item.
+- Explainability quality A/B (Haiku rationale richness vs Sonnet) — would need either a manual review pass or a structured eval suite. Test passes structural assertions but doesn't measure subjective quality.

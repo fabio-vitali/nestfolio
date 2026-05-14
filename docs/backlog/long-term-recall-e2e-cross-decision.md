@@ -1,9 +1,8 @@
 ---
 id: long-term-recall-e2e-cross-decision
-status: queued
-rank: 15
+status: dropped
 type: tooling
-notes: "Phase B's originally-planned long-term-recall.e2e.test.ts — needs stable-tenant fixture before the test can prove cross-decision extraction."
+notes: "Dropped 2026-05-14: blast radius too low to justify the 5-min Bedrock extraction wait + stable-tenant fixture work. The 2026-05-14 synthetic smoke + unit tests + CDK assertions are adequate coverage for a passive enrichment feature that degrades gracefully to 'no historical context'. Revisit if observed agent outputs start misbehaving."
 references: []
 out_of_scope: []
 spec: null
