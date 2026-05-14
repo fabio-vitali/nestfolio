@@ -28,7 +28,15 @@ Thumbs.db
 # CDK
 cdk.out/
 cdk.out.*/
+# cdk.out<random-suffix>/ — created by `new App()` in service.stack.test.ts
+# files when Jest workers run in parallel (no explicit outdir on the App).
+cdk.out*/
 cdk.context.json
+
+# Jest scratch (leaked by `forceExit: true` in nx.json test target — workers
+# die before `finally` cleanup runs, leaving haste-map cache + empty mkdtemp
+# dirs in cwd. Filed as parking: jest-worker-scratch-leak-on-force-exit).
+jest_dx/
 
 # Coverage
 coverage/
