@@ -88,10 +88,8 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       effect: Effect.ALLOW,
       actions: [
         'bedrock-agentcore:CreateEvent',
-        'bedrock-agentcore:BatchCreateMemoryRecords',
         'bedrock-agentcore:RetrieveMemoryRecords',
         'bedrock-agentcore:GetMemoryRecord',
-        'bedrock-agentcore:ListMemoryRecords',
         'bedrock-agentcore:ListEvents',
         'bedrock-agentcore:ListActors',
         'bedrock-agentcore:ListSessions',
@@ -133,17 +131,14 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     // Grant the AgentRuntime role permission to emit trace envelopes to the advisory bus.
     this.eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal);
 
-    // Grant the AgentRuntime role AgentCore Memory write permissions —
-    // graph.ts:writeAgentOutput runs in this container. See
-    // investor-profile-ctrl service.stack.ts for the rationale.
+    // Grant the AgentRuntime role AgentCore Memory read permissions
+    // (long-term memory retrieval via searchLongTermMemory).
     agentRuntime.runtime.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
       effect: Effect.ALLOW,
       actions: [
         'bedrock-agentcore:CreateEvent',
-        'bedrock-agentcore:BatchCreateMemoryRecords',
         'bedrock-agentcore:RetrieveMemoryRecords',
         'bedrock-agentcore:GetMemoryRecord',
-        'bedrock-agentcore:ListMemoryRecords',
         'bedrock-agentcore:ListEvents',
         'bedrock-agentcore:ListActors',
         'bedrock-agentcore:ListSessions',
