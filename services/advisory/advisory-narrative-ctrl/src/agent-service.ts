@@ -140,7 +140,7 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         ),
       }));
 
-      return { decisionId, ...explainability, metadata: { durationMs, modelTier: 'sonnet' } };
+      return { decisionId, ...explainability, metadata: { durationMs, modelTier: 'haiku' } };
     },
   };
 };

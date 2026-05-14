@@ -70,7 +70,7 @@ describe('advisory-narrative-ctrl agent-service', () => {
       summary: expect.any(String),
       rationale: expect.any(String),
       keyFactors: expect.any(Array),
-      metadata: expect.objectContaining({ modelTier: 'sonnet' }),
+      metadata: expect.objectContaining({ modelTier: 'haiku' }),
     });
     expect(ddbMock).toHaveReceivedCommandTimes(PutCommand, 3);
     expect(dispatchAgentInvocation).toHaveBeenCalledWith(
