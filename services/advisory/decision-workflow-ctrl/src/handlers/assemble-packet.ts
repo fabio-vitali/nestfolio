@@ -56,7 +56,7 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     const portfolioValue = (construction.totalExposure as number | undefined) ?? 0;
 
     // Map allocations → ProposedTrade shape per advisory-bff schema
-    // (services/advisory/advisory-bff/src/schema.graphql:84). Phase 2 of the
+    // (services/advisory/advisory-bff/src/schema.graphql, ProposedTrade type). Phase 2 of the
     // operating-mode workstream made `assetClass` mandatory on the agent's schema
     // so the equityWeight derivation downstream is deterministic.
     const proposedTrades = allocationsArray.map((a) => {
@@ -75,7 +75,7 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
 
     // Narrative output schema: agent's writeAgentOutput previously persisted
     // {explainability: shaped['explainability'].output} — the same shape now
-    // arrives directly through SF state. See narrative graph.ts:132.
+    // arrives directly through SF state. See narrative graph.ts.
     // `rationale` first, fall back to `summary`. Final placeholder is
     // defence-in-depth for the degraded-output path.
     const explainability = (narrative?.explainability as Record<string, unknown> | undefined) ?? {};
