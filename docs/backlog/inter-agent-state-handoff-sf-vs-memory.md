@@ -1,16 +1,29 @@
 ---
 id: inter-agent-state-handoff-sf-vs-memory
-status: parking
+status: active
 type: design
-notes: "Migrate inter-agent ephemeral handoff (portfolio→narrative, etc.) off AgentCore Memory onto Step Functions state. Keep Memory for long-term semantic recall. Driver: 3x latency regression in narrative agent."
+notes: "Two-phase design: A=migrate inter-agent handoff to SF state (latency fix); B=wire up long-term Memory strategies (preferences/signals/rationale). Spec approved 2026-05-14; ready for writing-plans."
 references:
+  - "docs/superpowers/specs/2026-05-14-inter-agent-state-handoff-sf-vs-memory-design.md"
   - "services/advisory/advisory-narrative-ctrl/src/handlers/event-listener.ts"
   - "services/advisory/advisory-narrative-ctrl/CLAUDE.md"
   - "services/advisory/portfolio-engine-ctrl/CLAUDE.md"
   - "services/advisory/decision-workflow-ctrl/src/service.stack.ts"
+  - "services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts"
+  - "docs/architecture/SYSTEM-ARCHITECTURE.md"
   - "docs/backlog/advisory-narrative-latency-budget-overshoot-e2e.md"
-out_of_scope: []
-spec: null
+out_of_scope:
+  - "Onboarding-bff Memory usage (different domain, namespace patterns)"
+  - "sessions/{sessionId} long-term namespace (onboarding wizard scope)"
+  - "Migrating Lambda-side resilience/idempotency patterns (already shipped c9dae7db)"
+  - "Backfilling historical decision data into long-term namespaces"
+  - "Removing the agentcore.Memory infra construct (Part B uses it)"
+  - "Touching KB ingestion paths"
+  - "Cross-tenant Memory analytics or aggregation"
+  - "Production rollout sequencing (dev-first; prod posture decided separately)"
+  - "Bumping advisoryNarrative latency budget (the budget is correct; latency is the bug)"
+  - "Reviving the old CreateEvent + RetrieveMemoryRecords path that Spec 2 replaced for short-term"
+spec: docs/superpowers/specs/2026-05-14-inter-agent-state-handoff-sf-vs-memory-design.md
 plan: null
 topic_memory: []
 validation_gate: null

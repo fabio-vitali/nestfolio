@@ -6,8 +6,7 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [inter-agent-state-handoff-sf-vs-memory](backlog/inter-agent-state-handoff-sf-vs-memory.md) [design] — Two-phase design: A=migrate inter-agent handoff to SF state (latency fix); B=wire up long-term Memory strategies (preferences/signals/rationale). Spec approved 2026-05-14; ready for writing-plans.
 
 ## QUEUED
 
@@ -30,7 +29,6 @@ _(none)_
 - [integration-deep-coldstart-flakes-post-trap-hardening](backlog/integration-deep-coldstart-flakes-post-trap-hardening.md) [bug] — Trap-empty hardening reduced lockstep-polling flakes from 5-7/run baseline to ~2/run average. Residual flakes have a different signature: cold-start-bound paths whose tests already use explicit `timeoutMs` overrides of 90-300s, and a Jest VM-teardown race in OrphanReaper. Filed as a single umbrella because the cases share the cold-start cause, not because they share a fix.
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [integration-test-mock-resilience](backlog/integration-test-mock-resilience.md) [tooling] — Demoted to LATER 2026-05-12 per its own ship-trigger ('Promote when integration test flakiness on agent-bound suites or per-suite SSM overrides becomes load-bearing'). Piece 2 (StateResetFixture) superseded by 2026-05-05 bootstrap uplift; piece 3 (SsmOverride) effectively closed by 2026-05-12 integration-test-ssm-cleanup-hardening-on-abort. Only piece 1 (FakeLlm via env var in agent-factory) remains, and it's not currently load-bearing — agent flakiness is being mitigated structurally (orchestrator retry/fallback, prompt cleanup) rather than via test-time fakes. Promote again when a concrete agent-bound integration flake demands it.
-- [inter-agent-state-handoff-sf-vs-memory](backlog/inter-agent-state-handoff-sf-vs-memory.md) [design] — Migrate inter-agent ephemeral handoff (portfolio→narrative, etc.) off AgentCore Memory onto Step Functions state. Keep Memory for long-term semantic recall. Driver: 3x latency regression in narrative agent.
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
