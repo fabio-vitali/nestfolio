@@ -291,23 +291,28 @@ describe('DecisionWorkflowCtrlStack', () => {
     expect(portfolioMatches.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('grants bedrock:InvokeModel to the Memory execution role for strategy extraction', () => {
-    // Bedrock AgentCore Memory invokes the configured extraction model under
-    // an execution role. Without this grant, MemoryStrategies silently fail to
-    // extract — symptom: searchLongTermMemory returns [] forever.
+  it('grants bedrock:InvokeModel + WithResponseStream on inference-profile + foundation-model resources', () => {
+    // Cross-region inference profiles route to foundation models — both
+    // ARNs must be granted, matching agent-runtime.ts's buildBedrockModelResources
+    // pattern. AWS deploy fails with "Role does not have access for the specified
+    // model" if either is missing.
     //
-    // Resource is Fn::Join because the ARN is a template-literal that concatenates
-    // a static prefix with an SSM resolve token (StringParameter.valueForStringParameter).
+    // The inference-profile ARN is Fn::Join because it concatenates a static prefix
+    // with an SSM resolve token (StringParameter.valueForStringParameter).
     // CDK synthesises: {"Fn::Join":["",["arn:aws:bedrock:*:*:inference-profile/",{"Ref":"...SSM..."}]]}
-    // Asserting the Fn::Join shape ensures a regression that replaces the scoped ARN
-    // with a bare "*" wildcard would fail this test.
+    // The foundation-model/* ARN is a plain string.
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: Match.objectLike({
         Statement: Match.arrayWith([
           Match.objectLike({
             Effect: 'Allow',
-            Action: 'bedrock:InvokeModel',
-            Resource: { 'Fn::Join': Match.anyValue() },
+            Action: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+            Resource: Match.arrayWith([
+              // inference-profile ARN with SSM-resolved model id
+              { 'Fn::Join': Match.anyValue() },
+              // foundation-model wildcard
+              'arn:aws:bedrock:*::foundation-model/*',
+            ]),
           }),
         ]),
       }),

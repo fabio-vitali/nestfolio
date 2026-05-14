@@ -152,13 +152,22 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     // libs/cdk-constructs/src/extensions/agent-runtime.ts:buildBedrockModelResources.
     // SSM deploy-time token → can't inspect literal at synth; wildcard region/account
     // is the established pattern for cross-region inference profiles.
-    const haikuInferenceProfileArn = `arn:aws:bedrock:*:*:inference-profile/${modelHaikuId}`;
+    // IAM grant for Bedrock InvokeModel. Cross-region inference profiles
+    // (e.g., us.anthropic.claude-haiku-4-5-...) route to base models across
+    // multiple regions, so scoping to a single-region foundation-model ARN
+    // would break routing. The pair (profile ARN + foundation-model/*) is
+    // the established repo pattern — see
+    // libs/cdk-constructs/src/extensions/agent-runtime.ts:buildBedrockModelResources.
+    const memoryModelResources = [
+      `arn:aws:bedrock:*:*:inference-profile/${modelHaikuId}`,
+      `arn:aws:bedrock:*::foundation-model/*`,
+    ];
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     memory.executionRole!.addToPrincipalPolicy(new PolicyStatement({
       effect: Effect.ALLOW,
-      actions: ['bedrock:InvokeModel'],
-      resources: [haikuInferenceProfileArn],
+      actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+      resources: memoryModelResources,
     }));
 
     // AssemblePacket Lambda — reads all 4 agent outputs from the SF state Parameters
