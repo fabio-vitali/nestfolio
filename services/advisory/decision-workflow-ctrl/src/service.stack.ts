@@ -5,6 +5,7 @@ import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
+import { BedrockFoundationModel } from '@aws-cdk/aws-bedrock-alpha';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress, Orchestration } from '@nestfolio/cdk-constructs/core';
 import {
   TRIGGER_EVENT_TYPES,
@@ -21,36 +22,9 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
 
     const state = new State(this, 'State');
 
-    // --- AgentCore Memory ---
-    // Per-decision short-term store only. The runtime path (libs/agent-orchestrator
-    // memory-client.ts) writes to `/{serviceName}/{tenantId}/decisions/{decisionId}`
-    // via BatchCreateMemoryRecords + ListMemoryRecords. No MemoryStrategy is fed
-    // by that path, so none is provisioned. Cross-decision learning would require
-    // a design workstream to align strategy namespaces with runtime writes.
-    const memory = new agentcore.Memory(this, 'AgentMemory', {
-      memoryName: `nestfolio_${props.prefix}_agent_memory`,
-      description: 'Per-decision short-term agent memory (no long-term strategies)',
-      expirationDuration: Duration.days(90),
-    });
-
-    // Export memoryId via SSM for agent service stacks
-    new StringParameter(this, 'MemoryIdParam', {
-      parameterName: this.naming.ssmParameterPath('memory/id'),
-      stringValue: memory.memoryId,
-    });
-
-    // --- Bedrock extraction model grant for MemoryStrategies (Phase B) ---
+    // --- Haiku model SSM lookup (shared by Memory strategies + IAM grant) ---
     // Haiku per OQ #2 of the Phase B design spec (cost-optimal for extraction;
-    // aligns with agentcore-cost-safeguards posture). Restored by Phase B,
-    // after 3f6eea0e (2026-05-11) removed it alongside vestigial strategies.
-    //
-    // The alpha construct property is `memory.executionRole?: iam.IRole`.
-    // The JS constructor always sets it via `props.executionRole ?? this._createMemoryRole()`
-    // (verified in node_modules/.../memory/memory.js:513), so for `new Memory(...)` it is
-    // always defined. The `?` in the TypeScript interface covers imported memories only.
-    //
-    // Without this grant, MemoryStrategies (Task 5) silently fail to extract —
-    // symptom: searchLongTermMemory returns [] forever.
+    // aligns with agentcore-cost-safeguards posture).
     const hubNaming = new NamingService({
       prefix: props.prefix,
       subsystem: 'advisory',
@@ -60,6 +34,96 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
       this,
       hubNaming.ssmParameterPath('models/haiku'),
     );
+
+    // --- AgentCore Memory ---
+    // Three long-term MemoryStrategies (Phase B — inter-agent-state-handoff):
+    //   1. InvestorPreferenceLearner (USER_PREFERENCE_MEMORY, Haiku extraction + consolidation)
+    //      Namespace: /investor-profile-ctrl/{actorId}/preferences
+    //   2. MarketSignalExtractor (SEMANTIC_MEMORY, Haiku extraction only)
+    //      Namespace: /market-intelligence-ctrl/{actorId}/signals
+    //   3. RationaleArchivist (SEMANTIC_MEMORY, Haiku extraction + consolidation)
+    //      Namespaces: /portfolio-engine-ctrl/{actorId}/rationale
+    //                  /advisory-narrative-ctrl/{actorId}/rationale
+    //
+    // Strategies stay empty until the 4 agent services start emitting via
+    // MemoryClient.emitLongTermEvent (Tasks 6-9). The runtime path (libs/agent-orchestrator
+    // memory-client.ts) still writes short-term records to:
+    //   /{serviceName}/{tenantId}/decisions/{decisionId}
+    // via BatchCreateMemoryRecords + ListMemoryRecords — that path is orthogonal.
+    const memory = new agentcore.Memory(this, 'AgentMemory', {
+      memoryName: `nestfolio_${props.prefix}_agent_memory`,
+      description: 'Long-term cross-decision recall (preferences/signals/rationale)',
+      expirationDuration: Duration.days(90),
+      memoryStrategies: [
+        agentcore.MemoryStrategy.usingUserPreference({
+          name: 'InvestorPreferenceLearner',
+          namespaces: ['/investor-profile-ctrl/{actorId}/preferences'],
+          customExtraction: {
+            model: new BedrockFoundationModel(modelHaikuId),
+            appendToPrompt:
+              'Extract investor preferences: risk tolerance level, asset class ' +
+              'preferences, ESG constraints, liquidity needs, time horizon, and ' +
+              'stated return targets. One fact per record. Ignore mechanical ' +
+              'decision details.',
+          },
+          customConsolidation: {
+            model: new BedrockFoundationModel(modelHaikuId),
+            appendToPrompt:
+              'When consolidating investor preferences, newer statements override ' +
+              'older ones for the same dimension. Flag contradictions (e.g., high ' +
+              'growth vs conservative).',
+          },
+        }),
+        agentcore.MemoryStrategy.usingSemantic({
+          name: 'MarketSignalExtractor',
+          namespaces: ['/market-intelligence-ctrl/{actorId}/signals'],
+          customExtraction: {
+            model: new BedrockFoundationModel(modelHaikuId),
+            appendToPrompt:
+              'Extract market signals with cross-decision shelf life: sector ' +
+              'trends, regime indicators, signal strength, and direction. Ignore ' +
+              'one-off intraday noise. One signal per record.',
+          },
+        }),
+        agentcore.MemoryStrategy.usingSemantic({
+          name: 'RationaleArchivist',
+          namespaces: [
+            '/portfolio-engine-ctrl/{actorId}/rationale',
+            '/advisory-narrative-ctrl/{actorId}/rationale',
+          ],
+          customExtraction: {
+            model: new BedrockFoundationModel(modelHaikuId),
+            appendToPrompt:
+              'Extract recommendation rationale: which assets were weighted and ' +
+              'why, which constraints were binding, what trade-offs were chosen, ' +
+              'and the investor-facing narrative summary including tone. One ' +
+              'rationale per record, scoped to the decision it explains.',
+          },
+          customConsolidation: {
+            model: new BedrockFoundationModel(modelHaikuId),
+            appendToPrompt:
+              "Consolidate chronologically. Preserve the reasoning chain — " +
+              "don't collapse distinct decisions into a summary.",
+          },
+        }),
+      ],
+    });
+
+    // Export memoryId via SSM for agent service stacks
+    new StringParameter(this, 'MemoryIdParam', {
+      parameterName: this.naming.ssmParameterPath('memory/id'),
+      stringValue: memory.memoryId,
+    });
+
+    // --- Bedrock extraction model grant for MemoryStrategies (Phase B) ---
+    // The alpha construct property is `memory.executionRole?: iam.IRole`.
+    // The JS constructor always sets it via `props.executionRole ?? this._createMemoryRole()`
+    // (verified in node_modules/.../memory/memory.js:513), so for `new Memory(...)` it is
+    // always defined. The `?` in the TypeScript interface covers imported memories only.
+    //
+    // Without this grant, MemoryStrategies silently fail to extract —
+    // symptom: searchLongTermMemory returns [] forever.
+    //
     // Inference profile ARN pattern matches the repo convention in
     // libs/cdk-constructs/src/extensions/agent-runtime.ts:buildBedrockModelResources.
     // SSM deploy-time token → can't inspect literal at synth; wildcard region/account

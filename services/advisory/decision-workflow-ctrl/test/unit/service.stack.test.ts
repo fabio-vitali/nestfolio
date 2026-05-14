@@ -125,11 +125,62 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
   });
 
-  it('declares no MemoryStrategies — runtime path writes to /{service}/{tenantId}/decisions/{decisionId}, none of the legacy strategy namespaces overlap', () => {
-    const memory = template.findResources('AWS::BedrockAgentCore::Memory');
-    const strategies = Object.values(memory)[0]?.Properties?.MemoryStrategies;
-    // Either omitted entirely, or explicitly empty — both are accepted as "no strategies".
-    expect(strategies === undefined || (Array.isArray(strategies) && strategies.length === 0)).toBe(true);
+  describe('Phase B — Long-term MemoryStrategies', () => {
+    // CFN serialises all property names as PascalCase via the generated converters in
+    // aws-bedrockagentcore.generated.js. The alpha construct's render() produces camelCase
+    // JS objects; the CfnMemory toCloudFormation mapper uppercases every key before
+    // writing the template, so assertions must use PascalCase throughout.
+
+    it('attaches 3 strategies to the Memory resource', () => {
+      const memory = template.findResources('AWS::BedrockAgentCore::Memory');
+      const strategies = (Object.values(memory)[0] as any)?.Properties?.MemoryStrategies ?? [];
+      expect(strategies).toHaveLength(3);
+    });
+
+    it('attaches InvestorPreferenceLearner with USER_PREFERENCE_MEMORY type, custom Haiku extraction + consolidation', () => {
+      const memory = template.findResources('AWS::BedrockAgentCore::Memory');
+      const strategies = (Object.values(memory)[0] as any)?.Properties?.MemoryStrategies ?? [];
+      const learner = strategies.find(
+        (s: any) => s.CustomMemoryStrategy?.Name === 'InvestorPreferenceLearner',
+      );
+      expect(learner).toBeDefined();
+      const cfg = learner?.CustomMemoryStrategy?.Configuration?.UserPreferenceOverride;
+      expect(cfg?.Extraction?.AppendToPrompt).toContain('risk tolerance');
+      expect(cfg?.Consolidation?.AppendToPrompt).toContain('newer statements override');
+      expect(learner?.CustomMemoryStrategy?.Namespaces).toEqual([
+        '/investor-profile-ctrl/{actorId}/preferences',
+      ]);
+    });
+
+    it('attaches MarketSignalExtractor with SEMANTIC_MEMORY type, custom Haiku extraction only', () => {
+      const memory = template.findResources('AWS::BedrockAgentCore::Memory');
+      const strategies = (Object.values(memory)[0] as any)?.Properties?.MemoryStrategies ?? [];
+      const extractor = strategies.find(
+        (s: any) => s.CustomMemoryStrategy?.Name === 'MarketSignalExtractor',
+      );
+      expect(extractor).toBeDefined();
+      const cfg = extractor?.CustomMemoryStrategy?.Configuration?.SemanticOverride;
+      expect(cfg?.Extraction?.AppendToPrompt).toContain('cross-decision shelf life');
+      expect(extractor?.CustomMemoryStrategy?.Namespaces).toEqual([
+        '/market-intelligence-ctrl/{actorId}/signals',
+      ]);
+    });
+
+    it('attaches RationaleArchivist with SEMANTIC_MEMORY type, custom Haiku extraction + consolidation, two namespace patterns', () => {
+      const memory = template.findResources('AWS::BedrockAgentCore::Memory');
+      const strategies = (Object.values(memory)[0] as any)?.Properties?.MemoryStrategies ?? [];
+      const archivist = strategies.find(
+        (s: any) => s.CustomMemoryStrategy?.Name === 'RationaleArchivist',
+      );
+      expect(archivist).toBeDefined();
+      const cfg = archivist?.CustomMemoryStrategy?.Configuration?.SemanticOverride;
+      expect(cfg?.Extraction?.AppendToPrompt).toContain('investor-facing narrative');
+      expect(cfg?.Consolidation?.AppendToPrompt).toContain('reasoning chain');
+      expect(archivist?.CustomMemoryStrategy?.Namespaces).toEqual([
+        '/portfolio-engine-ctrl/{actorId}/rationale',
+        '/advisory-narrative-ctrl/{actorId}/rationale',
+      ]);
+    });
   });
 
   it('creates an AssemblePacket Lambda without MEMORY_ID env var (post-Phase-A: agent outputs arrive via SF state Parameters, not Memory)', () => {
