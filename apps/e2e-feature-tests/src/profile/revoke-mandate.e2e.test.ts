@@ -12,6 +12,16 @@ import {
   type FreshTenant,
 } from '..';
 
+// Trap-side EB rule-evaluation partition drop: trap.deploy()'s canary
+// confirms rule activation on ONE EB partition, but the CDC-emitted
+// MANDATE_REVOKED PutEvents may evaluate on a partition that hasn't yet
+// seen the new rule — captured-buffer stays empty, waitForEvent times
+// out at 60s. One retry fires a fresh trap whose rule is older and has
+// propagated. Same precedent as
+// circuit-breaker-feature-flags-ui-gating (2026-05-13) and
+// advisory-adpt-from-investor-mandate-issued-sequential-flake (2026-05-13).
+jest.retryTimes(1);
+
 describe('scenario 5 — investor revokes advisory mandate', () => {
   let ctx: TestContext;
   let tenant: FreshTenant;

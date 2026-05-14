@@ -11,9 +11,8 @@ _(none)_
 
 ## QUEUED
 
-1. [revoke-mandate-e2e-timeout-flake](backlog/revoke-mandate-e2e-timeout-flake.md) [bug] — revoke-mandate e2e scenario times out intermittently against deployed dev — root cause unknown, not in the operating-mode or compliance subsystems.
-2. [long-term-recall-e2e-cross-decision](backlog/long-term-recall-e2e-cross-decision.md) [tooling] — Phase B's originally-planned long-term-recall.e2e.test.ts — needs stable-tenant fixture before the test can prove cross-decision extraction.
-3. [advisory-narrative-agentcore-latency-residual](backlog/advisory-narrative-agentcore-latency-residual.md) [bug] — Steady-state 22-30s narrative orchestrator; not cold-start. Phase A removed 28s retry but uncovered a UX-blocking inference floor. Promoted to QUEUED after Phase B.
+1. [long-term-recall-e2e-cross-decision](backlog/long-term-recall-e2e-cross-decision.md) [tooling] — Phase B's originally-planned long-term-recall.e2e.test.ts — needs stable-tenant fixture before the test can prove cross-decision extraction.
+2. [advisory-narrative-agentcore-latency-residual](backlog/advisory-narrative-agentcore-latency-residual.md) [bug] — Steady-state 22-30s narrative orchestrator; not cold-start. Phase A removed 28s retry but uncovered a UX-blocking inference floor. Promoted to QUEUED after Phase B.
 
 ## LATER
 
