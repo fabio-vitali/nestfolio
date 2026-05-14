@@ -42,10 +42,12 @@ export { invokeOrchestrator } from './invoke-orchestrator';
 export {
   createMemoryClient,
   createNoOpMemoryClient,
+  type LongTermNamespace,
   type MemoryClient,
   type MemoryClientConfig,
   type DecisionSession,
   type MemoryRecord,
+  type EmitLongTermEventInput,
 } from './memory';
 
 export { createAgentServer, type AgentHandler } from './agent-server';

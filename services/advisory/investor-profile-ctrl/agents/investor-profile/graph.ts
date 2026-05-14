@@ -75,6 +75,7 @@ export async function invokeInvestorProfile(
 
   // 2. Read tenant history from long-term memory
   const tenantHistory = await session.searchLongTermMemory(
+    'preferences',
     `prior risk assessments for tenant ${payload.tenantId}`,
     3,
   );

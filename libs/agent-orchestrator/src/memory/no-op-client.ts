@@ -1,8 +1,11 @@
-import type { MemoryClient, DecisionSession, MemoryRecord } from './memory-client';
+import type { MemoryClient, DecisionSession, MemoryRecord, EmitLongTermEventInput } from './memory-client';
 
 const noOpSession: DecisionSession = {
   async searchLongTermMemory(): Promise<MemoryRecord[]> {
     return [];
+  },
+  async emitLongTermEvent(_input: EmitLongTermEventInput): Promise<void> {
+    return;
   },
 };
 

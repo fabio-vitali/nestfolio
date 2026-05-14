@@ -37,6 +37,7 @@
 17. [AgentCore Memory Contract](#17-agentcore-memory-contract)
     - 17.1 [Architectural Evolution — Current implementation diverges from contract](#171-architectural-evolution--current-implementation-diverges-from-contract)
     - 17.2 [Architectural Evolution — Inter-agent handoff moved to Step Functions state](#172-architectural-evolution--inter-agent-handoff-moved-to-step-functions-state)
+    - 17.3 [Architectural Evolution — Long-term recall wired (Phase B)](#173-architectural-evolution--long-term-recall-wired-phase-b)
 18. [Cross-Domain Routing](#18-cross-domain-routing)
 19. [Knowledge Bases](#19-knowledge-bases)
 20. [Frontend Topology](#20-frontend-topology)
@@ -437,6 +438,25 @@ Note on SDK shape: `BatchCreateMemoryRecordsCommand` records take `namespaces: s
 - Runtime size guard at `libs/agent-orchestrator/src/wrap-agent-output.ts`: throws `OutputTooLargeError` if a single agent output exceeds 25 KB (4x current p99 headroom). If observed in production, a follow-up wires an S3-pointer fallback.
 
 The `MemoryClient.writeAgentOutput` and `readUpstreamOutput` methods are removed; the corresponding `BatchCreateMemoryRecords` and `ListMemoryRecords` IAM grants are dropped from the 4 advisory agent service stacks. The `agentcore.Memory` construct itself remains — long-term recall (the `searchLongTermMemory` and `searchTenantMemory` callers) still depends on it. Phase B (`inter-agent-state-handoff-sf-vs-memory` workstream, separate plan) wires Bedrock MemoryStrategies on the `preferences`, `signals`, and `rationale` long-term namespaces.
+
+### 17.3 Architectural Evolution — Long-term recall wired (Phase B)
+
+**Resolved 2026-05-14 (Phase B of `inter-agent-state-handoff-sf-vs-memory`).** 4 Bedrock MemoryStrategies provisioned on the shared `agentcore.Memory` construct in `decision-workflow-ctrl/src/service.stack.ts`. Each strategy attaches to exactly one namespace (AWS constraint: max 1 namespace per strategy).
+
+| Strategy | Type | Namespace | Source agent |
+|---|---|---|---|
+| `InvestorPreferenceLearner` | USER_PREFERENCE_MEMORY | `/investor-profile-ctrl/{actorId}/preferences` | investor-profile |
+| `MarketSignalExtractor` | SEMANTIC_MEMORY | `/market-intelligence-ctrl/{actorId}/signals` | market-intelligence |
+| `PortfolioRationaleArchivist` | SEMANTIC_MEMORY | `/portfolio-engine-ctrl/{actorId}/rationale` | portfolio-engine |
+| `NarrativeRationaleArchivist` | SEMANTIC_MEMORY | `/advisory-narrative-ctrl/{actorId}/rationale` | advisory-narrative |
+
+Each agent's `agent-service.ts` emits one `CreateEvent` via `MemoryClient.emitLongTermEvent({ namespace, payload })` after successful `assertOrchestratorOutput` validation. `sessionId = decisionId`, conversational ASSISTANT payload carrying the validated structured output as JSON. Best-effort: failures logged via Powertools Logger, never throw.
+
+`searchLongTermMemory(namespace, query, topK?)` queries `/{service}/{tenantId}/{namespace}` and returns extracted records. 5 caller sites (down from 6 pre-Phase-B: advisory-narrative's two retrieval calls merged into one `rationale` query as the narrative agent no longer emits to its own preferences namespace).
+
+Extraction model: Haiku (`us.anthropic.claude-haiku-4-5-20251001-v1:0`). The Memory execution role grants `bedrock:InvokeModel + InvokeModelWithResponseStream` on `inference-profile/$haiku + foundation-model/*` (both ARNs required — cross-region inference profiles route to base models across regions).
+
+Pipeline validated end-to-end on dev 2026-05-14 via synthetic CreateEvent + 60s extraction wait + RetrieveMemoryRecords smoke test: 3 coherent extracted records returned (NOT raw JSON), confirming the InvokeModel grant is effective at runtime.
 
 ---
 

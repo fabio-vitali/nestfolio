@@ -123,7 +123,7 @@ describe('investor-profile-ctrl event-listener', () => {
       expect.not.objectContaining({ taskToken: expect.anything() }),
     );
 
-    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('investor preferences risk tolerance');
+    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('preferences', 'investor preferences risk tolerance');
     // Memory persistence happens inside the AgentRuntime (graph.ts), not in the
     // Lambda — and the writeAgentOutput method has been dropped from MemoryClient
     // entirely (Phase A inter-agent state handoff moved to SF state).

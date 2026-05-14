@@ -65,6 +65,11 @@ describe('investor-profile-ctrl orchestrator graph', () => {
     });
 
     expect(mockKBRetrieve).toHaveBeenCalled();
+    expect(mockMemorySession.searchLongTermMemory).toHaveBeenCalledWith(
+      'preferences',
+      expect.stringContaining('prior risk assessments'),
+      3,
+    );
     expect(mockInvokeOrchestrator).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({ input: expect.stringContaining('FINRA 2111') }),

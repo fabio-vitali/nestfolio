@@ -22,7 +22,7 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
     logger.info('Processing ANALYZE_MARKET', { decisionId, tenantId });
 
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
-    const tenantHistory = await session.searchLongTermMemory('market signals sector trends');
+    const tenantHistory = await session.searchLongTermMemory('signals', 'market signals sector trends');
 
     let result: Record<string, unknown>;
     try {
@@ -65,11 +65,11 @@ const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-const agentService = createAgentService({ docClient, tableName: TABLE_NAME });
-
 const memoryClient = process.env.MEMORY_ID
   ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: 'market-intelligence' })
   : createNoOpMemoryClient();
+
+const agentService = createAgentService({ docClient, tableName: TABLE_NAME, memoryClient });
 
 const deps: SfnCallbackDeps = { agentService, memoryClient };
 

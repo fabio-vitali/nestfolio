@@ -115,7 +115,7 @@ describe('market-intelligence-ctrl event-listener', () => {
       expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1' }),
     );
 
-    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('market signals sector trends');
+    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('signals', 'market signals sector trends');
     // Memory persistence is owned by the AgentRuntime — writeAgentOutput has
     // been dropped from MemoryClient entirely (Phase A inter-agent state handoff
     // moved to SF state).

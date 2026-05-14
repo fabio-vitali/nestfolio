@@ -4,6 +4,7 @@ import {
   assertOrchestratorOutput,
   DegradedAgentOutputError,
   type AgentNodeResult,
+  type MemoryClient,
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
@@ -11,6 +12,7 @@ import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
 export interface AgentServiceDeps {
   readonly docClient: DynamoDBDocumentClient;
   readonly tableName: string;
+  readonly memoryClient: MemoryClient;
 }
 
 export class DuplicateInvocationError extends Error {
@@ -66,8 +68,7 @@ export const createAgentService = (deps: AgentServiceDeps) => {
           investorProfile: subject.investorProfile ?? {},
           marketAnalysis: subject.marketAnalysis ?? {},
           portfolio: subject.portfolio ?? {},
-          preferences: subject.preferences ?? [],
-          sessionHistory: subject.sessionHistory ?? [],
+          priorNarratives: subject.priorNarratives ?? [],
         },
       });
 
@@ -104,6 +105,19 @@ export const createAgentService = (deps: AgentServiceDeps) => {
       );
 
       const explainability = (result['explainability'] as { ok: true; output: Record<string, unknown> }).output;
+
+      // Phase B (inter-agent-state-handoff-sf-vs-memory): emit one long-term
+      // event after successful structured-output validation. Narrative writes
+      // go ONLY to the rationale namespace (not preferences) per design spec
+      // Part B; the preferences strategy is fed exclusively by
+      // investor-profile-ctrl. Best-effort — emitLongTermEvent catches + logs
+      // on SDK failure.
+      await deps.memoryClient
+        .openDecisionSession(tenantId, decisionId)
+        .emitLongTermEvent({
+          namespace: 'rationale',
+          payload: explainability,
+        });
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();

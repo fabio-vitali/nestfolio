@@ -96,8 +96,11 @@ describe('advisory-narrative-ctrl event-listener', () => {
 
     expect(result.output).toMatchObject({ decisionId: 'dp-1', tenantId: 't1' });
     expect(result.intents).toHaveLength(1);
-    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('narrative preferences communication style');
-    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('session summaries');
+    expect(mockSearchLongTermMemory).toHaveBeenCalledTimes(1);
+    expect(mockSearchLongTermMemory).toHaveBeenCalledWith(
+      'rationale',
+      'prior decision narratives and communication style',
+    );
     expect(mockRunPipeline).toHaveBeenCalledWith(
       'evt-1',
       expect.objectContaining({
@@ -227,5 +230,51 @@ describe('advisory-narrative-ctrl event-listener', () => {
     };
 
     await expect(handlers.GENERATE_NARRATIVE(payload, baseCtx)).rejects.toThrow('Agent failed');
+  });
+
+  describe('Phase B — sites 5+6 merged into single rationale query', () => {
+    const phasePayload: EventPayload = {
+      subject: {
+        tenantId: 't1',
+        decisionId: 'd1',
+        operatingMode: 'BALANCED',
+        investorProfile: { age: 35 },
+        marketAnalysis: { signals: [] },
+        portfolio: { allocations: [] },
+      },
+    };
+    const phaseCtx: EventContext = { ...baseCtx, eventId: 'evt-narr-1' };
+
+    beforeEach(() => {
+      mockSearchLongTermMemory.mockReset();
+      mockRunPipeline.mockReset();
+      mockSearchLongTermMemory.mockResolvedValue([]);
+      mockRunPipeline.mockResolvedValue({ output: { decisionId: 'd1', narrative: 'ok' } });
+    });
+
+    it('calls searchLongTermMemory exactly once with rationale namespace', async () => {
+      await handlers.GENERATE_NARRATIVE(phasePayload, phaseCtx);
+      expect(mockSearchLongTermMemory).toHaveBeenCalledTimes(1);
+      expect(mockSearchLongTermMemory).toHaveBeenCalledWith(
+        'rationale',
+        'prior decision narratives and communication style',
+      );
+    });
+
+    it('passes the rationale recall content into runPipeline as priorNarratives', async () => {
+      mockSearchLongTermMemory.mockResolvedValueOnce([
+        { content: 'Previous cycle suggested cautious tone', score: 0.9, memoryRecordId: 'r1' },
+      ]);
+      await handlers.GENERATE_NARRATIVE(phasePayload, phaseCtx);
+      expect(mockRunPipeline).toHaveBeenCalledWith(
+        'evt-narr-1',
+        expect.objectContaining({
+          priorNarratives: ['Previous cycle suggested cautious tone'],
+        }),
+      );
+      const lastCallArgs = mockRunPipeline.mock.calls.at(-1)?.[1] ?? {};
+      expect('preferences' in lastCallArgs).toBe(false);
+      expect('sessionHistory' in lastCallArgs).toBe(false);
+    });
   });
 });

@@ -25,9 +25,17 @@ import {
 
 describe('investor-profile-ctrl agent-service', () => {
   const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+  const noopMemoryClient = {
+    openDecisionSession: jest.fn().mockReturnValue({
+      emitLongTermEvent: jest.fn().mockResolvedValue(undefined),
+      searchLongTermMemory: jest.fn().mockResolvedValue([]),
+    }),
+    searchTenantMemory: jest.fn().mockResolvedValue([]),
+  };
   const deps = {
     docClient,
     tableName: 'test-table',
+    memoryClient: noopMemoryClient,
   };
 
   beforeEach(() => {
@@ -190,5 +198,71 @@ describe('investor-profile-ctrl agent-service', () => {
         upstreamOutputs: expect.objectContaining({ operatingMode: 'CONSERVATIVE' }),
       }),
     );
+  });
+
+  describe('Phase B — emitLongTermEvent integration', () => {
+    it('emits one event to preferences namespace after successful validation', async () => {
+      (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+        'user-goals': { ok: true, output: { goals: ['retirement'] } },
+        'risk-assessment': { ok: true, output: { riskScore: 45, riskCategory: 'MODERATE' } },
+      });
+
+      const emitMock = jest.fn().mockResolvedValue(undefined);
+      const memoryClient = {
+        openDecisionSession: jest.fn().mockReturnValue({
+          emitLongTermEvent: emitMock,
+          searchLongTermMemory: jest.fn().mockResolvedValue([]),
+        }),
+        searchTenantMemory: jest.fn().mockResolvedValue([]),
+      };
+
+      const service = createAgentService({ ...deps, memoryClient });
+      await service.runPipeline('evt-1', {
+        tenantId: 't1',
+        decisionId: 'd1',
+        operatingMode: 'BALANCED',
+        taskToken: 'tok',
+        investorProfile: { age: 35 },
+        portfolioState: { totalValue: 50000 },
+      });
+
+      expect(memoryClient.openDecisionSession).toHaveBeenCalledWith('t1', 'd1');
+      expect(emitMock).toHaveBeenCalledTimes(1);
+      expect(emitMock).toHaveBeenCalledWith({
+        namespace: 'preferences',
+        payload: expect.objectContaining({
+          goals: expect.objectContaining({ goals: ['retirement'] }),
+          risk: expect.objectContaining({ riskScore: 45 }),
+        }),
+      });
+    });
+
+    it('does NOT emit when structured output is degraded (discriminant check throws)', async () => {
+      (dispatchAgentInvocation as jest.Mock).mockResolvedValue({
+        'user-goals': { ok: false, reason: 'empty' },
+        'risk-assessment': { ok: true, output: { riskScore: 45 } },
+      });
+
+      const emitMock = jest.fn().mockResolvedValue(undefined);
+      const memoryClient = {
+        openDecisionSession: jest.fn().mockReturnValue({
+          emitLongTermEvent: emitMock,
+          searchLongTermMemory: jest.fn().mockResolvedValue([]),
+        }),
+        searchTenantMemory: jest.fn().mockResolvedValue([]),
+      };
+
+      const service = createAgentService({ ...deps, memoryClient });
+      await expect(
+        service.runPipeline('evt-2', {
+          tenantId: 't1',
+          decisionId: 'd2',
+          operatingMode: 'BALANCED',
+          taskToken: 'tok',
+        }),
+      ).rejects.toThrow();
+
+      expect(emitMock).not.toHaveBeenCalled();
+    });
   });
 });

@@ -125,11 +125,75 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
   });
 
-  it('declares no MemoryStrategies — runtime path writes to /{service}/{tenantId}/decisions/{decisionId}, none of the legacy strategy namespaces overlap', () => {
-    const memory = template.findResources('AWS::BedrockAgentCore::Memory');
-    const strategies = Object.values(memory)[0]?.Properties?.MemoryStrategies;
-    // Either omitted entirely, or explicitly empty — both are accepted as "no strategies".
-    expect(strategies === undefined || (Array.isArray(strategies) && strategies.length === 0)).toBe(true);
+  describe('Phase B — Long-term MemoryStrategies', () => {
+    // CFN serialises all property names as PascalCase via the generated converters in
+    // aws-bedrockagentcore.generated.js. The alpha construct's render() produces camelCase
+    // JS objects; the CfnMemory toCloudFormation mapper uppercases every key before
+    // writing the template, so assertions must use PascalCase throughout.
+    const getStrategies = () => {
+      const memory = template.findResources('AWS::BedrockAgentCore::Memory');
+      return (Object.values(memory)[0] as any)?.Properties?.MemoryStrategies ?? [];
+    };
+
+    it('attaches 4 strategies to the Memory resource', () => {
+      const strategies = getStrategies();
+      expect(strategies).toHaveLength(4);
+    });
+
+    it('attaches InvestorPreferenceLearner with USER_PREFERENCE_MEMORY type, custom Haiku extraction + consolidation', () => {
+      const strategies = getStrategies();
+      const learner = strategies.find(
+        (s: any) => s.CustomMemoryStrategy?.Name === 'InvestorPreferenceLearner',
+      );
+      expect(learner).toBeDefined();
+      const cfg = learner?.CustomMemoryStrategy?.Configuration?.UserPreferenceOverride;
+      expect(cfg?.Extraction?.AppendToPrompt).toContain('risk tolerance');
+      expect(cfg?.Consolidation?.AppendToPrompt).toContain('newer statements override');
+      expect(learner?.CustomMemoryStrategy?.Namespaces).toEqual([
+        '/investor-profile-ctrl/{actorId}/preferences',
+      ]);
+    });
+
+    it('attaches MarketSignalExtractor with SEMANTIC_MEMORY type, custom Haiku extraction only', () => {
+      const strategies = getStrategies();
+      const extractor = strategies.find(
+        (s: any) => s.CustomMemoryStrategy?.Name === 'MarketSignalExtractor',
+      );
+      expect(extractor).toBeDefined();
+      const cfg = extractor?.CustomMemoryStrategy?.Configuration?.SemanticOverride;
+      expect(cfg?.Extraction?.AppendToPrompt).toContain('cross-decision shelf life');
+      expect(extractor?.CustomMemoryStrategy?.Namespaces).toEqual([
+        '/market-intelligence-ctrl/{actorId}/signals',
+      ]);
+    });
+
+    it('attaches PortfolioRationaleArchivist with SEMANTIC_MEMORY type, custom Haiku extraction + consolidation', () => {
+      const strategies = getStrategies();
+      const archivist = strategies.find(
+        (s: any) => s.CustomMemoryStrategy?.Name === 'PortfolioRationaleArchivist',
+      );
+      expect(archivist).toBeDefined();
+      const cfg = archivist?.CustomMemoryStrategy?.Configuration?.SemanticOverride;
+      expect(cfg?.Extraction?.AppendToPrompt).toContain('investor-facing narrative');
+      expect(cfg?.Consolidation?.AppendToPrompt).toContain('reasoning chain');
+      expect(archivist?.CustomMemoryStrategy?.Namespaces).toEqual([
+        '/portfolio-engine-ctrl/{actorId}/rationale',
+      ]);
+    });
+
+    it('attaches NarrativeRationaleArchivist with SEMANTIC_MEMORY type, custom Haiku extraction + consolidation', () => {
+      const strategies = getStrategies();
+      const archivist = strategies.find(
+        (s: any) => s.CustomMemoryStrategy?.Name === 'NarrativeRationaleArchivist',
+      );
+      expect(archivist).toBeDefined();
+      const cfg = archivist?.CustomMemoryStrategy?.Configuration?.SemanticOverride;
+      expect(cfg?.Extraction?.AppendToPrompt).toContain('investor-facing narrative');
+      expect(cfg?.Consolidation?.AppendToPrompt).toContain('reasoning chain');
+      expect(archivist?.CustomMemoryStrategy?.Namespaces).toEqual([
+        '/advisory-narrative-ctrl/{actorId}/rationale',
+      ]);
+    });
   });
 
   it('creates an AssemblePacket Lambda without MEMORY_ID env var (post-Phase-A: agent outputs arrive via SF state Parameters, not Memory)', () => {
@@ -225,6 +289,34 @@ describe('DecisionWorkflowCtrlStack', () => {
     // InvokePortfolioEngine + InvokeAdvisoryNarrative subjects reference the lifted path.
     const portfolioMatches = definition.match(/"operatingMode\.\$":"\$\.agentResults\.InvokeInvestorProfile\.operatingMode"/g) ?? [];
     expect(portfolioMatches.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('grants bedrock:InvokeModel + WithResponseStream on inference-profile + foundation-model resources', () => {
+    // Cross-region inference profiles route to foundation models — both
+    // ARNs must be granted, matching agent-runtime.ts's buildBedrockModelResources
+    // pattern. AWS deploy fails with "Role does not have access for the specified
+    // model" if either is missing.
+    //
+    // The inference-profile ARN is Fn::Join because it concatenates a static prefix
+    // with an SSM resolve token (StringParameter.valueForStringParameter).
+    // CDK synthesises: {"Fn::Join":["",["arn:aws:bedrock:*:*:inference-profile/",{"Ref":"...SSM..."}]]}
+    // The foundation-model/* ARN is a plain string.
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: Match.objectLike({
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Effect: 'Allow',
+            Action: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+            Resource: Match.arrayWith([
+              // inference-profile ARN with SSM-resolved model id
+              { 'Fn::Join': Match.anyValue() },
+              // foundation-model wildcard
+              'arn:aws:bedrock:*::foundation-model/*',
+            ]),
+          }),
+        ]),
+      }),
+    });
   });
 
   // Phase A of inter-agent-state-handoff-sf-vs-memory: agent outputs flow through

@@ -1,8 +1,8 @@
 ---
 id: inter-agent-state-handoff-sf-vs-memory
-status: active
+status: shipped
 type: design
-notes: "Two-phase design: A=migrate inter-agent handoff to SF state (latency fix); B=wire up long-term Memory strategies (preferences/signals/rationale). Spec approved 2026-05-14; ready for writing-plans."
+notes: "Two-phase design: A=migrate inter-agent handoff to SF state (latency fix); B=wire up long-term Memory strategies (preferences/signals/rationale). Both phases shipped 2026-05-14."
 references:
   - "docs/superpowers/specs/2026-05-14-inter-agent-state-handoff-sf-vs-memory-design.md"
   - "services/advisory/advisory-narrative-ctrl/src/handlers/event-listener.ts"
@@ -23,10 +23,19 @@ out_of_scope:
   - "Production rollout sequencing (dev-first; prod posture decided separately)"
   - "Bumping advisoryNarrative latency budget (the budget is correct; latency is the bug)"
   - "Reviving the old CreateEvent + RetrieveMemoryRecords path that Spec 2 replaced for short-term"
+  - "Cross-decision e2e gate (e2e harness uses fresh tenants per run; synthetic smoke test substituted)"
 spec: docs/superpowers/specs/2026-05-14-inter-agent-state-handoff-sf-vs-memory-design.md
-plan: null
-topic_memory: []
-validation_gate: null
+plan: docs/superpowers/plans/2026-05-14-inter-agent-state-handoff-phase-b.md
+topic_memory: [project_inter_agent_state_handoff.md]
+validation_gate: |
+  Phase B SHIPPED 2026-05-14 on worktree `worktree-phase-b-inter-agent-handoff` (9 commits, 388e9940 HEAD).
+  Smoke test (substituted for original 5x-e2e + 5-min plan because e2e harness uses fresh tenants per run, incompatible with cross-decision validation):
+    - Synthetic CreateEvent against /investor-profile-ctrl/e2e-smoke-tenant-1778783791/preferences with realistic investor-profile payload.
+    - 60s extraction wait.
+    - RetrieveMemoryRecords returned 3 coherent extracted records ("Moderate risk tolerance", "Investment time horizon of 10 years", "Goal to retire at age 65") — NOT raw JSON pass-through, confirming Bedrock Haiku extraction is effective at runtime.
+  CDK assertion tests cover all 4 strategies (count + name + type + namespace + prompt fragments) + InvokeModel grant (both ARN forms).
+  Unit tests cover emit+retrieval per agent (104 tests across 4 advisory ctrls + agent-orchestrator lib).
+  Phase A latency posture preserved (deploy did not change Phase A's SF state path).
 ---
 
 # Inter-agent state handoff: Step Functions state vs AgentCore Memory
@@ -86,6 +95,37 @@ Three follow-up items filed during execution:
 - [[portfolio-engine-service-unavailable-asymmetric-handling]] — pre-existing asymmetry surfaced by Task 7 (parking)
 - [[advisory-narrative-agentcore-latency-residual]] — UX-blocking inference floor (queued, rank 20)
 
-## Phase B — remains
+## Phase B — SHIPPED 2026-05-14 (worktree branch, 9 commits)
 
-Phase B wires Bedrock MemoryStrategies on the `preferences`, `signals`, and `rationale` long-term namespaces so the 6 surviving `searchLongTermMemory` callers begin returning non-empty results. Workstream stays `status: active`. Plan will be written in a fresh session after Phase A is on `main` for a few days. The `agentcore.Memory` construct + `RetrieveMemoryRecords` IAM grants are intentionally preserved for Phase B.
+Provisioned 4 Bedrock MemoryStrategies on the shared `agentcore.Memory` construct (was planned as 3; AWS API constraint `memoryStrategies.namespaces.length <= 1` forced the RationaleArchivist split). All 4 ACTIVE on `nestfolio_dev_agent_memory-lNTRtBDaa0` post-deploy:
+
+- `InvestorPreferenceLearner` (USER_PREFERENCE_MEMORY) → `/investor-profile-ctrl/{actorId}/preferences`
+- `MarketSignalExtractor` (SEMANTIC_MEMORY, custom Haiku prompt) → `/market-intelligence-ctrl/{actorId}/signals`
+- `PortfolioRationaleArchivist` (SEMANTIC_MEMORY, custom Haiku prompt) → `/portfolio-engine-ctrl/{actorId}/rationale`
+- `NarrativeRationaleArchivist` (SEMANTIC_MEMORY, custom Haiku prompt, same prompt as Portfolio) → `/advisory-narrative-ctrl/{actorId}/rationale`
+
+### Code surface
+
+- `libs/agent-orchestrator/src/memory/memory-client.ts` — `LongTermNamespace` literal union, `emitLongTermEvent({ namespace, payload })` (wraps `CreateEventCommand`, best-effort via Powertools Logger, `sessionId = decisionId`), `searchLongTermMemory(namespace, query, topK?)` (queries `/{service}/{tenantId}/{namespace}`).
+- `libs/agent-orchestrator/src/memory/no-op-client.ts` — mirrors the same shape.
+- `services/advisory/decision-workflow-ctrl/src/service.stack.ts` — 4 strategies + `BedrockFoundationModel(modelHaikuId)` + Memory execution role `InvokeModel` grant on both ARN forms.
+- All 4 advisory ctrls' `agent-service.ts` — one emit immediately after `assertOrchestratorOutput`. Namespaces per agent: investor-profile→preferences, market-intelligence→signals, portfolio-engine→rationale, advisory-narrative→rationale.
+- All 4 advisory ctrls' `handlers/event-listener.ts` — `searchLongTermMemory` calls updated for the new `namespace` arg. advisory-narrative-ctrl: sites 5+6 merged into one rationale query, agent input field renamed from `{ preferences, sessionHistory }` to `priorNarratives`.
+
+### Deploy-time pivots
+
+Two AWS-API constraints surfaced after CDK synth + unit tests passed:
+
+1. `memoryStrategies.namespaces` length ≤ 1. RationaleArchivist split (commit `a74912b2`).
+2. Cross-region inference profiles route to base models across regions; IAM `InvokeModel` needs `foundation-model/*` wildcard in addition to the profile ARN (commit `388e9940`).
+
+Both fixes are codified in CDK assertion tests; the previous tests passed because the constraints were only enforced at deploy time, not at synth.
+
+### Out-of-scope follow-ups (filed as parking)
+
+- Cross-decision e2e gate (`long-term-recall.e2e.test.ts`) — requires stable-tenant e2e fixtures the current harness doesn't support. The validation_gate substituted a focused synthetic smoke test that exercised the same Memory pipeline end-to-end.
+- Phase B introduces no remediation for the residual ~22-28s narrative inference floor — that's tracked separately as `advisory-narrative-agentcore-latency-residual` (queued, rank 20).
+
+### Topic memory
+
+[[project-inter-agent-state-handoff]] — updated for Phase B ship.

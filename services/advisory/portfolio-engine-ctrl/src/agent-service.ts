@@ -5,6 +5,7 @@ import {
   DegradedAgentOutputError,
   UnknownOperatingModeError,
   type AgentNodeResult,
+  type MemoryClient,
 } from '@nestfolio/agent-orchestrator';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
@@ -12,6 +13,7 @@ import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
 export interface AgentServiceDeps {
   readonly docClient: DynamoDBDocumentClient;
   readonly tableName: string;
+  readonly memoryClient: MemoryClient;
 }
 
 export class DuplicateInvocationError extends Error {
@@ -114,6 +116,18 @@ export const createAgentService = (deps: AgentServiceDeps) => {
 
       const allocations = (result['portfolio-construction'] as { ok: true; output: Record<string, unknown> }).output;
       const trades = (result['rebalance-planner'] as { ok: true; output: Record<string, unknown> }).output;
+
+      // Phase B (inter-agent-state-handoff-sf-vs-memory): emit one long-term
+      // event after successful structured-output validation. Bedrock's
+      // SEMANTIC_MEMORY strategy on /portfolio-engine-ctrl/{tenantId}/
+      // rationale extracts allocation rationale across decision cycles.
+      // Best-effort — emitLongTermEvent catches + logs on SDK failure.
+      await deps.memoryClient
+        .openDecisionSession(tenantId, decisionId)
+        .emitLongTermEvent({
+          namespace: 'rationale',
+          payload: { allocations, trades, modeUsed: operatingMode },
+        });
 
       const completedAt = new Date().toISOString();
       const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime();

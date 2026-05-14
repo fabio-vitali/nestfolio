@@ -42,7 +42,7 @@ export const createHandlers = (deps: SfnCallbackDeps) => {
       const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
       // Long-term recall (returns [] today; Phase B populates).
-      const pastRationale = await session.searchLongTermMemory('allocation rationale decisions');
+      const pastRationale = await session.searchLongTermMemory('rationale', 'allocation rationale decisions');
 
       // Inter-agent ephemeral handoff via SF state. Upstream outputs arrive
       // through subject.{investorProfile, marketAnalysis} (plumbed via
@@ -99,17 +99,17 @@ const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-const agentService = createAgentService({ docClient, tableName: TABLE_NAME });
+const memoryClient = process.env.MEMORY_ID
+  ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: 'portfolio-engine' })
+  : createNoOpMemoryClient();
+
+const agentService = createAgentService({ docClient, tableName: TABLE_NAME, memoryClient });
 
 const kbIngestionHandler = {
   ingest: async (_event: Record<string, unknown>, _eventType: string) => {
     // Delegated to kb-ingestion-handler Lambda via Ingress routing
   },
 };
-
-const memoryClient = process.env.MEMORY_ID
-  ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: 'portfolio-engine' })
-  : createNoOpMemoryClient();
 
 const deps: SfnCallbackDeps = { agentService, kbIngestionHandler, memoryClient };
 

@@ -93,7 +93,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
 
     expect(result.output).toMatchObject({ decisionId: 'dp-1', tenantId: 't1' });
     expect(result.intents).toHaveLength(1);
-    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('allocation rationale decisions');
+    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('rationale', 'allocation rationale decisions');
     expect(mockRunPipeline).toHaveBeenCalledWith(
       'evt-1', // ctx.eventId
       expect.objectContaining({

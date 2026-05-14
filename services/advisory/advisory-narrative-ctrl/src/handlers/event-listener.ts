@@ -39,12 +39,16 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
 
     const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
 
-    // Long-term recall reads (preferences + session history). These return []
-    // today and will be populated by Phase B (long-term Memory strategies).
-    const [preferences, sessionHistory] = await Promise.all([
-      session.searchLongTermMemory('narrative preferences communication style'),
-      session.searchLongTermMemory('session summaries'),
-    ]);
+    // Phase B (inter-agent-state-handoff-sf-vs-memory): the previous two
+    // retrieval sites (preferences/communication-style + session summaries)
+    // merged into one rationale query. Narrative no longer writes to its
+    // own preferences namespace; the rationale namespace carries both prior
+    // decision narratives and the tone signals a returning narrative agent
+    // uses to maintain stylistic consistency.
+    const priorNarratives = await session.searchLongTermMemory(
+      'rationale',
+      'prior decision narratives and communication style',
+    );
 
     // Inter-agent ephemeral handoff: upstream outputs arrive via SF state
     // Parameters from $.agentResults.<Upstream>.agentOutput. No Memory reads,
@@ -64,8 +68,7 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
         investorProfile,
         marketAnalysis,
         portfolio,
-        preferences: preferences.map(r => r.content),
-        sessionHistory: sessionHistory.map(r => r.content),
+        priorNarratives: priorNarratives.map(r => r.content),
       });
     } catch (error) {
       if (error instanceof DuplicateInvocationError) {
@@ -102,8 +105,6 @@ const TABLE_NAME = requireEnv('TABLE_NAME');
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-const agentService = createAgentService({ docClient, tableName: TABLE_NAME });
-
 const feedbackCorrelator = {
   process: async (_event: Record<string, unknown>) => {
     // Delegated to feedback-correlator — invoked inline here
@@ -114,6 +115,8 @@ const feedbackCorrelator = {
 const memoryClient = process.env.MEMORY_ID
   ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: 'advisory-narrative' })
   : createNoOpMemoryClient();
+
+const agentService = createAgentService({ docClient, tableName: TABLE_NAME, memoryClient });
 
 const deps: SfnCallbackDeps = { agentService, feedbackCorrelator, memoryClient };
 
