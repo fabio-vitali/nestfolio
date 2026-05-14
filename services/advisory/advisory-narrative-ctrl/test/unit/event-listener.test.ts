@@ -34,6 +34,7 @@ process.env.MEMORY_ID = 'mem-test';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
+import type { MemoryClient } from '@nestfolio/agent-orchestrator';
 import { createHandlers, type SfnCallbackDeps } from '../../src/handlers/event-listener';
 
 describe('advisory-narrative-ctrl event-listener', () => {
@@ -49,7 +50,7 @@ describe('advisory-narrative-ctrl event-listener', () => {
         searchLongTermMemory: mockSearchLongTermMemory,
       }),
       searchTenantMemory: jest.fn().mockResolvedValue([]),
-    } as unknown as SfnCallbackDeps['memoryClient'],
+    } satisfies Partial<MemoryClient> as MemoryClient,
   };
 
   const handlers = createHandlers(mockDeps);
