@@ -91,11 +91,16 @@ Memory infra and `MemoryClient` class remain in place for Part B.
 
 **3 strategies provisioned on the existing `agentcore.Memory` construct** in `services/advisory/decision-workflow-ctrl/src/service.stack.ts` — one strategy per memory-type, attached to one or more namespace patterns. Bedrock's `{actorId}` template resolves to `tenantId` at runtime; extracted records are stored at the source namespace.
 
-| Strategy | Type | Namespace pattern(s) | Source agents |
+**Strategy provisioning (4 strategies; per-AWS-API-constraint MAX 1 namespace per strategy — see Part B addendum below):**
+
+| Strategy | Type | Namespace pattern | Source agent |
 |---|---|---|---|
 | `InvestorPreferenceLearner` | `USER_PREFERENCE_MEMORY` | `/investor-profile-ctrl/{actorId}/preferences` | investor-profile |
 | `MarketSignalExtractor` | `SEMANTIC_MEMORY` (custom prompt) | `/market-intelligence-ctrl/{actorId}/signals` | market-intelligence |
-| `RationaleArchivist` | `SEMANTIC_MEMORY` (custom prompt) | `/portfolio-engine-ctrl/{actorId}/rationale`, `/advisory-narrative-ctrl/{actorId}/rationale` | portfolio-engine + advisory-narrative |
+| `PortfolioRationaleArchivist` | `SEMANTIC_MEMORY` (custom prompt) | `/portfolio-engine-ctrl/{actorId}/rationale` | portfolio-engine |
+| `NarrativeRationaleArchivist` | `SEMANTIC_MEMORY` (custom prompt) | `/advisory-narrative-ctrl/{actorId}/rationale` | advisory-narrative |
+
+The two rationale strategies share the same extraction + consolidation prompts.
 
 `/{service}/{tenantId}/sessions/{sessionId}` — out of scope (onboarding wizard).
 
@@ -159,6 +164,16 @@ Prompts are starting points; OQ #1 (iterate against real e2e sample data) still 
 1. Inter-agent handoff no longer waits on Memory (Phase A solved that)
 2. `searchLongTermMemory` callers all handle empty results gracefully (`tenantHistory.length > 0 ? historyContext : ''`)
 3. Cross-decision recall is inherently a "previous decisions" feature; in-flight decisions wouldn't appear in their own long-term recall anyway
+
+### Part B addendum — AWS API constraints surfaced at deploy time (2026-05-14 ship)
+
+Two AWS API constraints surfaced during the Phase B dev deploy that were not visible at synth time:
+
+1. **`memoryStrategies.namespaces` length ≤ 1.** CFN accepts an array, but the AgentCoreControl API rejects any strategy with more than one namespace pattern. The unified `RationaleArchivist` (2 namespaces: `/portfolio-engine-ctrl/.../rationale` + `/advisory-narrative-ctrl/.../rationale`) was split into `PortfolioRationaleArchivist` + `NarrativeRationaleArchivist`, sharing identical prompts. Fix: commit `a74912b2`.
+
+2. **Inference profiles route to foundation models across regions.** The Memory execution role's `bedrock:InvokeModel` grant must cover BOTH the inference-profile ARN AND a `foundation-model/*` wildcard. Granting only the profile yields a runtime `Role does not have access for the specified model` at UpdateMemory time. Fix: commit `388e9940`. Pattern matches the established repo precedent at `libs/cdk-constructs/src/extensions/agent-runtime.ts:buildBedrockModelResources`.
+
+Both findings codified as CDK assertion tests after the fix so a regression would fail at synth + unit-test time.
 
 ## Rollout & migration order
 
