@@ -11,9 +11,8 @@ _(none)_
 
 ## QUEUED
 
-1. [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
-2. [agent-pipeline-task-token-timeout-observability](backlog/agent-pipeline-task-token-timeout-observability.md) [spec] — e2e scenarios 11+12 fail silently — resumeStateMachine swallows TaskTimedOut as INFO. Split swallow path: TaskDoesNotExist→INFO, TaskTimedOut/InvalidToken→ERROR + processingLagMs.
-3. [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out; blocks e2e scenarios 11+12 green gate. Depends on observability workstream landing first.
+1. [agent-pipeline-task-token-timeout-observability](backlog/agent-pipeline-task-token-timeout-observability.md) [spec] — e2e scenarios 11+12 fail silently — resumeStateMachine swallows TaskTimedOut as INFO. Split swallow path: TaskDoesNotExist→INFO, TaskTimedOut/InvalidToken→ERROR + processingLagMs.
+2. [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out; blocks e2e scenarios 11+12 green gate. Depends on observability workstream landing first.
 
 ## LATER
 
@@ -36,6 +35,7 @@ _(none)_
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 - [jest-worker-scratch-leak-on-force-exit](backlog/jest-worker-scratch-leak-on-force-exit.md) [bug] — Every test run leaks scratch dirs in repo root (jest_dx, empty 20-char-hex dirs, cdk.out<random>). Root cause: nx.json forceExit:true kills workers before cleanup. Third recurrence.
 - [ledger-ctrl-2-latent-tsc-errors](backlog/ledger-ctrl-2-latent-tsc-errors.md) [bug] — Two latent tsc --noEmit errors in services/ledger/ledger-ctrl/src/repositories/ledger.repository.ts:79 and :185 — `'timestamp' does not exist in type 'TableEntry'`. Surfaced 2026-05-15 during the ledger-ctrl-simulated-trade-quantity-undefined ship. Not a deploy or test blocker (esbuild strips types; ts-jest is lenient on excess-property in nested generics). Same class as investor-bff-13-latent-tsc-errors.
+- [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — Moved to LATER 2026-05-15 — investigation revealed scope is full CI bring-up (OIDC IAM role + secret provisioning), not a workflow YAML edit. Deferred to dedicated CI-pipeline workstream once the system is stable.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
