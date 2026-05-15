@@ -1,19 +1,31 @@
 ---
 id: ledger-ctrl-simulated-trade-quantity-undefined
-status: parking
+status: shipped
 type: bug
 notes: "100% failure rate on simulated ORDER_FILLED writes in ledger-ctrl. Root cause: schema mismatch between advisory's DECISION_PACKET_CREATED wire-shape (`proposedTrades[].quantityOrAmountCents`) and ledger-ctrl's `ProposedTrade.quantity` reader. `trade.quantity` is undefined at runtime, DocumentClient marshaller throws. Surfaced 2026-05-15 during Bug 2 investigation."
 references:
   - services/ledger/ledger-ctrl/src/handlers/event-listener.ts
   - services/ledger/ledger-ctrl/src/services/shadow-fill.service.ts
   - services/advisory/decision-workflow-ctrl/src
+out_of_scope:
+  - "Redesigning the quantityOrAmountCents OR-encoded shape into two explicit fields (separate refactor, orthogonal to closing the 100% failure rate)"
+  - "Adding a simulated-portfolio e2e assertion (filed separately if needed)"
+  - "Touching the actual-stream path (already healthy, distinct code path)"
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-05-15-ledger-ctrl-simulated-trade-quantity.md
 topic_memory: [project_event_wiring_gaps.md]
-validation_gate: null
+validation_gate: "Pre-deploy: 72 `removeUndefinedValues` marshaller errors in the 30-min window before deploy on dev. Post-deploy: 0 marshaller errors in the 5-min window covering a fresh accept-decision e2e run (which PASSED at 128.7s). DDB verification: simulated LedgerEntry rows now carry both `quantity` (derived shares) and `amountCents` (source cents) with the math checking out (BND: 22 cents / $72.30 = 0.00304 shares; EFA: 10 cents / $78.90 = 0.00127 shares). Unit suite: 16 suites / 100 tests all green (was 15/98 baseline + 2 new shadow-fill tests)."
 ---
 
 # ledger-ctrl simulated ORDER_FILLED — `trade.quantity` undefined
+
+## Resolution (SHIPPED 2026-05-15)
+
+Two-file fix in ledger-ctrl: aligned `ProposedTrade.quantity` → `quantityOrAmountCents` (the canonical wire shape used by 5 other services: `decision-workflow-ctrl/assemble-packet`, `decision-packet.repository`, `compliance-ctrl/rule-engine` + 3 rule modules, and the e2e fixture). Added `derivedQuantity = (amountCents / 100) / fillPrice` to `ShadowFillService.simulateFill`. `processSimulationEvent` now persists both `quantity` (derived shares) and `amountCents` (source cents) on the LedgerEntry payload for audit-trail clarity.
+
+**Validated against deployed dev:** pre-deploy 72 marshaller errors in 30-min window → 0 errors in the 5-min window post-deploy covering a fresh `accept-decision` e2e run. DDB inspection confirms the new payload shape with consistent math (e.g. BND: 22 cents / $72.30 = 0.00304 shares).
+
+**Side-finding (filed separately):** `tsc --noEmit` on `services/ledger/ledger-ctrl/tsconfig.json` surfaces 2 pre-existing latent errors in `repositories/ledger.repository.ts:79,185` (`'timestamp' does not exist in type 'TableEntry'`). Not introduced by this fix; not blocking deploy (esbuild + ts-jest are lenient). Same class as [[investor-bff-13-latent-tsc-errors]] — should be filed as a similar parking item if not already covered.
 
 ## What surfaced
 
