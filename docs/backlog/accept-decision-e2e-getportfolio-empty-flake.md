@@ -1,9 +1,8 @@
 ---
 id: accept-decision-e2e-getportfolio-empty-flake
-status: queued
-rank: 1
+status: shipped
 type: bug
-notes: "Two compounding ledger-ctrl bugs: (1) 100% failure rate on simulated ORDER_FILLED writes (DocumentClient marshaller rejects quantity:undefined); (2) ledger-ctrl Egress + ledger-bff Ingress chain dormant — Reducer fires but downstream propagation silent. accept-decision passes ~50% on rerun due to race; deterministic root cause confirmed via CloudWatch."
+notes: "Resolved by redeploy on 2026-05-15 — 20-day-old ledger-ctrl + ledger-bff Lambdas were stale relative to main. Same deploy-skew pattern as e2e-advisory-pipeline-empty-outputs-post-phase-b shipped earlier same day. 4/4 consecutive scenario 6 isolation passes after redeploy. The dossier's secondary claim of a dormant Egress→BFF Ingress chain was a CloudWatch grep-filter methodology gap — the chain WAS firing; the tenant-ID filter just missed it. Bug 1 (simulated trade marshaller failure) split out as a separate parking item — distinct root cause (schema mismatch), no e2e blocker."
 references:
   - services/ledger/ledger-ctrl/src/handlers/event-listener.ts
   - services/ledger/ledger-ctrl/src/repositories
@@ -14,13 +13,48 @@ out_of_scope:
   - "Test-side polling refactors (test-infrastructure-polling-audit covers this)"
   - "Broker-alpaca-adpt resilience tests (separate parking item)"
   - "Replacing the AppSync data-source for getPortfolio (cheapest fix is to make the underlying chain work, not to bypass it)"
+  - "ledger-ctrl simulated ORDER_FILLED marshaller failure (split out to ledger-ctrl-simulated-trade-quantity-undefined parking item — distinct root cause, no e2e blocker)"
 spec: null
 plan: null
 topic_memory: [project_e2e_feature_tests.md, project_event_wiring_gaps.md]
-validation_gate: null
+validation_gate: "4 consecutive scenario 6 isolation passes (89.7s, 71.5s, 77.2s, 27.5s) after `AWS_PROFILE=nestfolio-dev bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=ledger-ctrl,ledger-bff`. CloudWatch in the 20-min window post-redeploy: ledger-ctrl Ingress 309 events, Reducer 33, SnapshotPublisher 33, Egress 25, ledger-bff Ingress 173 — full Egress→BFF Ingress chain confirmed firing."
 ---
 
 # Ledger-ctrl ORDER_FILLED write + Egress chain — deterministic bugs surfacing as accept-decision flake
+
+## Resolution (SHIPPED 2026-05-15)
+
+**Root cause: deploy skew.** `dev-ledger-ctrl-*` + `dev-ledger-bff-*` Lambdas were 20 days old (last deploy 2026-04-25). The fix was simply:
+
+```
+AWS_PROFILE=nestfolio-dev bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=ledger-ctrl,ledger-bff
+```
+
+After redeploy, scenario 6 passed **4/4 consecutive isolation runs** (89.7s, 71.5s, 77.2s, 27.5s — all well under the 120s test budget). This is the same pattern as [[e2e-advisory-pipeline-empty-outputs-post-phase-b]] shipped earlier the same day: parallel deploy-skew producing consumer-side runtime divergence from `main`.
+
+**The dossier's secondary claim — "ledger-ctrl Egress + ledger-bff Ingress chain dormant" — was a CloudWatch grep-filter methodology gap.** The grep was filtered too narrowly by tenant ID, and the BFF Ingress logs don't always include the tenant ID in the searched shape. Querying the log groups without that filter shows the chain firing healthily (309 / 33 / 33 / 25 / 173 events across the 5 Lambdas in the 20-min window covering the 4 passing runs).
+
+**Two findings split out:**
+
+1. **Bug 1 (split out)** — The 100% simulated-write marshaller failure is REAL and STILL PRESENT post-redeploy. Distinct root cause: schema mismatch between advisory's `proposedTrades[].quantityOrAmountCents` wire shape and ledger-ctrl's `ProposedTrade.quantity` reader. Filed as [[ledger-ctrl-simulated-trade-quantity-undefined]] (parking — no e2e blocker since no e2e asserts on simulated portfolios today).
+
+2. **Methodology lesson (added to `feedback_flake_means_broken` mental model)** — A "100% failure rate on simulated stream" alongside a working "actual stream" is NOT the same root cause as the user-visible flake. They can co-exist. Always confirm the failing-tenant trace covers the exact assertion path before bundling.
+
+## Validation evidence
+
+| Run | Duration | Result |
+|---|---|---|
+| 1 | 89.7s | PASS |
+| 2 | 71.5s | PASS |
+| 3 | 77.2s | PASS |
+| 4 | 27.5s (warm) | PASS |
+
+CloudWatch chain activity (post-redeploy, 20-min window):
+- ledger-ctrl IngressHandler: 309 events
+- ledger-ctrl ReducerFn: 33 events
+- ledger-ctrl SnapshotPublisherFn: 33 events
+- ledger-ctrl EgressPublisher: 25 events
+- ledger-bff IngressHandler: 173 events
 
 ## What surfaced
 
