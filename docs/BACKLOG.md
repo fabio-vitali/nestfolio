@@ -11,12 +11,10 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [accept-decision-e2e-getportfolio-empty-flake](backlog/accept-decision-e2e-getportfolio-empty-flake.md) [bug] — Two compounding ledger-ctrl bugs: (1) 100% failure rate on simulated ORDER_FILLED writes (DocumentClient marshaller rejects quantity:undefined); (2) ledger-ctrl Egress + ledger-bff Ingress chain dormant — Reducer fires but downstream propagation silent. accept-decision passes ~50% on rerun due to race; deterministic root cause confirmed via CloudWatch.
 
 ## LATER
 
-- [accept-decision-e2e-getportfolio-empty-flake](backlog/accept-decision-e2e-getportfolio-empty-flake.md) [bug] — accept-decision.e2e scenario 6: full-suite run 2026-05-15 timed out waiting for ledger-bff getPortfolio to surface VTI position (705s overall, last result empty); isolated rerun PASSED in 110s — flake on the ORDER_FILLED → ledger-ctrl Reducer → ledger-bff path.
 - [advisory-narrative-ctrl-eager-write-refactor](backlog/advisory-narrative-ctrl-eager-write-refactor.md) [refactor] — Refactor advisory-narrative-ctrl handler to write AgentInvocation HEAD row eagerly before Memory reads, so integration tests see the row in ~5s instead of ~30-40s.
 - [advisory-narrative-ctrl-memory-retry-env-plumb](backlog/advisory-narrative-ctrl-memory-retry-env-plumb.md) [tooling] — Plumb MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE as Lambda env var on dev so integration test can tighten waitForItem 60s→10s. Risk: dev/prod Memory-consistency skew.
 - [advisory-phase-ab-integration-coverage](backlog/advisory-phase-ab-integration-coverage.md) [tooling] — Phase A SF state + Phase B Memory emit/retrieval have unit + manual smoke coverage but no integration tests — gap surfaced post-Phase-B ship.
