@@ -227,7 +227,7 @@ describe('investor-bff', () => {
       // ONBOARDING_COMPLETED, turning the second Put into a CDC MODIFY
       // (INVESTOR_PROFILE_UPDATED) instead of INSERT (INVESTOR_PROFILE_CREATED)
       // and breaking the event assertion below.
-      const profileItem = await table.waitForItem({
+      await table.waitForItem({
         table: 'investor-bff',
         pk,
         sk: 'InvestorProfile',

@@ -21,6 +21,7 @@ import {
   resolveAgentRuntimeTarget,
   dispatchAgentInvocation,
   DegradedAgentOutputError,
+  UnknownOperatingModeError,
 } from '@nestfolio/agent-orchestrator';
 
 describe('investor-profile-ctrl agent-service', () => {
@@ -167,7 +168,6 @@ describe('investor-profile-ctrl agent-service', () => {
   // Regression: silent BALANCED fallback was masking the propagation bug
   // tracked in docs/backlog/operating-mode-shape-empty-proposed-trades.md.
   it('throws UnknownOperatingModeError when subject.operatingMode is missing', async () => {
-    const { UnknownOperatingModeError } = await import('@nestfolio/agent-orchestrator');
     const service = createAgentService(deps);
     await expect(service.runPipeline('evt-no-mode', {
       tenantId: 't1',

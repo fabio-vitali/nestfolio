@@ -33,7 +33,7 @@ process.env.MEMORY_ID = 'mem-test';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
-import type { MemoryClient } from '@nestfolio/agent-orchestrator';
+import { type MemoryClient, UnknownOperatingModeError } from '@nestfolio/agent-orchestrator';
 import { createHandlers, type SfnCallbackDeps } from '../../src/handlers/event-listener';
 
 describe('portfolio-engine-ctrl event-listener', () => {
@@ -201,8 +201,6 @@ describe('portfolio-engine-ctrl event-listener', () => {
   // from the subject — silent BALANCED fallback was masking propagation bugs
   // (see docs/backlog/operating-mode-shape-empty-proposed-trades.md).
   it('throws UnknownOperatingModeError when subject.operatingMode is missing', async () => {
-    const { UnknownOperatingModeError } = await import('@nestfolio/agent-orchestrator');
-
     const payload: EventPayload = {
       subject: { tenantId: 't1', decisionId: 'dp-no-mode', taskToken: 'tok' },
     };
