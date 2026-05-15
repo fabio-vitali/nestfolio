@@ -11,8 +11,7 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [e2e-advisory-pipeline-empty-outputs-post-phase-b](backlog/e2e-advisory-pipeline-empty-outputs-post-phase-b.md) [bug] — e2e gate: 2/22 suites red on main 2026-05-15 — SF executions SUCCEED but agents return structurally-valid empty content; proposedTrades=[] across all 3 operating modes + drift decision invisible.
 
 ## LATER
 
