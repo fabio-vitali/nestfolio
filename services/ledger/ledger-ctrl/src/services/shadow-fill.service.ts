@@ -8,21 +8,21 @@ const provider: MarketDataProvider = new CachedMarketDataProvider(
 export interface ProposedTrade {
   readonly symbol: string;
   readonly side: 'BUY' | 'SELL';
-  readonly quantity: number;
+  readonly quantityOrAmountCents: number;
 }
 
 export interface FillResult {
   readonly price: number;
+  readonly derivedQuantity: number;
   readonly totalValue: number;
 }
 
 export class ShadowFillService {
   async simulateFill(trade: ProposedTrade): Promise<FillResult> {
     const price = await this.getPrice(trade.symbol);
-    return {
-      price,
-      totalValue: trade.quantity * price,
-    };
+    const totalValue = trade.quantityOrAmountCents / 100;
+    const derivedQuantity = totalValue / price;
+    return { price, derivedQuantity, totalValue };
   }
 
   async getPrice(symbol: string): Promise<number> {
