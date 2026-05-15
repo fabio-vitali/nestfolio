@@ -157,17 +157,20 @@ describe('assemble-packet handler', () => {
     expect(result.riskScore).toBe(5);
   });
 
-  it('translates portfolio-engine allocations into proposedTrades', async () => {
-    // AgentRuntime returns the orchestrator's raw output keyed by node name —
-    // see services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts:173.
-    // PortfolioConstructionSchema lives at portfolio['portfolio-construction'].
-    // Phase 2 added `assetClass` per allocation; assembler propagates it.
+  it('translates portfolio-engine allocations into proposedTrades (post-Phase-A shape)', async () => {
+    // Phase A migrated inter-agent handoff to SF state.
+    // portfolio-engine-ctrl/src/agent-service.ts returns top-level
+    // { decisionId, allocations, trades, metadata } — the LangGraph node-keyed
+    // outputs (portfolio-construction / rebalance-planner) are renamed by the
+    // agent-service layer before they reach SF state. The handler must read
+    // portfolio.allocations.allocations, NOT portfolio['portfolio-construction'].allocations.
     const result = await handler({
       ...baseEvent,
       investorProfile: { riskScore: 7 },
       marketAnalysis: null,
       portfolio: {
-        'portfolio-construction': {
+        decisionId: 'd-1',
+        allocations: {
           allocations: [
             { instrument: 'AAPL', assetClass: 'EQUITY', targetWeight: 0.6, rationale: 'Growth' },
             { instrument: 'BND', assetClass: 'FIXED_INCOME', targetWeight: 0.4, rationale: 'Ballast' },
@@ -177,11 +180,12 @@ describe('assemble-packet handler', () => {
           riskMetrics: { concentrationRisk: 0.3, sectorDiversity: 0.7, largestPositionWeight: 0.6 },
           confidence: 0.85,
         },
-        'rebalance-planner': {
+        trades: {
           trades: [],
           estimatedTurnover: 0.1,
           confidence: 0.8,
         },
+        metadata: { durationMs: 1234, modeUsed: 'BALANCED' },
       },
       narrative: null,
     });

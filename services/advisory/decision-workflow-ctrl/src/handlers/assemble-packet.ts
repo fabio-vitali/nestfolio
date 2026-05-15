@@ -47,13 +47,15 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     // upstream agent failed to produce structured output (DegradedAgentOutputError
     // path) — they keep the decision packet creatable in degraded states.
 
-    // Portfolio output schema: AgentRuntime returns
-    // {portfolio-construction:{allocations,totalExposure,…},
-    //  rebalance-planner:{trades,…}}
-    // — see services/advisory/portfolio-engine-ctrl/agents/portfolio-engine/graph.ts.
-    const construction = (portfolio?.['portfolio-construction'] as Record<string, unknown> | undefined) ?? {};
-    const allocationsArray = (construction.allocations as Array<Record<string, unknown>> | undefined) ?? [];
-    const portfolioValue = (construction.totalExposure as number | undefined) ?? 0;
+    // Portfolio output schema (post-Phase-A, 2026-05-14): portfolio-engine-ctrl's
+    // agent-service.ts returns { decisionId, allocations, trades, metadata }
+    // at the top level. The LangGraph node-keyed outputs (portfolio-construction /
+    // rebalance-planner) are renamed by the agent-service layer; the SF plumbs
+    // that return value through as `portfolio` here, so we read
+    // portfolio.allocations.{allocations,totalExposure,…} — NOT portfolio['portfolio-construction'].
+    const allocationEnvelope = (portfolio?.allocations as Record<string, unknown> | undefined) ?? {};
+    const allocationsArray = (allocationEnvelope.allocations as Array<Record<string, unknown>> | undefined) ?? [];
+    const portfolioValue = (allocationEnvelope.totalExposure as number | undefined) ?? 0;
 
     // Map allocations → ProposedTrade shape per advisory-bff schema
     // (services/advisory/advisory-bff/src/schema.graphql, ProposedTrade type). Phase 2 of the
