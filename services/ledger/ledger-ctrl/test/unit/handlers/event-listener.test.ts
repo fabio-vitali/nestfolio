@@ -139,8 +139,8 @@ describe('ledger-ctrl event-listener handler', () => {
         tenantId: 't1',
         decisionPacketId: 'dp-1',
         proposedTrades: [
-          { symbol: 'VTI', side: 'BUY', quantity: 10 },
-          { symbol: 'SPY', side: 'BUY', quantity: 5 },
+          { symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 1_000_000 },
+          { symbol: 'SPY', side: 'BUY', quantityOrAmountCents:   500_000 },
         ],
       }, { tenantId: 't1' }),
     ]);
@@ -174,15 +174,15 @@ describe('ledger-ctrl event-listener handler', () => {
         tenantId: 't1',
         decisionPacketId: 'dp-dup',
         proposedTrades: [
-          { symbol: 'VTI', side: 'BUY', quantity: 10 },
-          { symbol: 'SPY', side: 'BUY', quantity: 5 },
+          { symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 1_000_000 },
+          { symbol: 'SPY', side: 'BUY', quantityOrAmountCents:   500_000 },
         ],
       }, { tenantId: 't1' }),
     ]);
     expect(result.batchItemFailures).toHaveLength(0);
   });
 
-  it('should use deterministic simulation event IDs', async () => {
+  it('should use deterministic simulation event IDs and persist derived quantity + source amountCents', async () => {
     mockSend.mockResolvedValue({ Items: [], Attributes: { lastSequence: 1 } });
 
     await harness.process([
@@ -190,21 +190,26 @@ describe('ledger-ctrl event-listener handler', () => {
         tenantId: 't1',
         decisionPacketId: 'dp-det',
         proposedTrades: [
-          { symbol: 'VTI', side: 'BUY', quantity: 10 },
+          // Unknown symbol → fallback price 100.0 → clean derivedQuantity math:
+          // 100_000 cents / $100/share = 10 shares.
+          { symbol: 'TEST-FAKE-SYM', side: 'BUY', quantityOrAmountCents: 100_000 },
         ],
       }, { tenantId: 't1', eventId: 'evt-det-1' }),
     ]);
 
-    // Check PutCommand was called with deterministic eventId
     const { PutCommand } = jest.requireMock('@aws-sdk/lib-dynamodb') as { PutCommand: jest.Mock };
     const putCalls = PutCommand.mock.calls;
     const ledgerPut = putCalls.find(
-      (c: Array<Record<string, unknown>>) => (c[0] as Record<string, Record<string, string>>)?.['Item']?.['sk'] === 'Event#evt-det-1-sim-VTI',
+      (c: Array<Record<string, unknown>>) => (c[0] as Record<string, Record<string, string>>)?.['Item']?.['sk'] === 'Event#evt-det-1-sim-TEST-FAKE-SYM',
     );
     expect(ledgerPut).toBeDefined();
-    const item = (ledgerPut as Array<Record<string, Record<string, string>>>)[0]['Item'];
-    expect(item['eventId']).toBe('evt-det-1-sim-VTI');
-    expect(item['sourceEventId']).toBe('evt-det-1-sim-VTI');
+    const item = (ledgerPut as Array<Record<string, Record<string, unknown>>>)[0]['Item'];
+    expect(item['eventId']).toBe('evt-det-1-sim-TEST-FAKE-SYM');
+    expect(item['sourceEventId']).toBe('evt-det-1-sim-TEST-FAKE-SYM');
+    const payload = item['payload'] as Record<string, unknown>;
+    expect(payload['quantity']).toBe(10);
+    expect(payload['amountCents']).toBe(100_000);
+    expect(payload['fillPrice']).toBe(100.0);
   });
 
   it('should skip unknown event types', async () => {
