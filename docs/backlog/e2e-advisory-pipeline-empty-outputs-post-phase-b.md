@@ -75,11 +75,19 @@ Per feedback `e2e-gaps-queued-not-parking`: anything blocking `apps/e2e-feature-
 
 Note: pre-existing dossiers `operating-mode-shape-empty-proposed-trades` (shipped 2026-05-06, partial) and `non-investor-profile-trigger-operating-mode-lookup` (shipped 2026-05-10) had validation gates claiming **"all 3 modes GREEN"** and **"30/33 e2e suites PASS"** — that's the GREEN baseline this dossier regresses from. Phase A+B (2026-05-14) is the most recent intervening change.
 
+## Rerun 2026-05-15 (confirms determinism)
+
+A second run scoped to just the two failing files (`--testPathPatterns='rebalance-on-drift|operating-mode-recommendation-shape'`) repeated the same 4 failures:
+
+- operating-mode × 3 modes: identical "No DecisionPacket with non-empty proposedTrades materialized within 360000ms" against fresh tenants `e2e-1778840686625-36d8a6d6` / `e2e-1778841063430-053c978f` / `e2e-1778841458874-98f4dca8`.
+- rebalance-on-drift: **failed earlier**, in the `funded()` fixture — "CashBalance not materialized within 60s". The underlying deposit→ledger CashBalance projection is also degraded, broadening scope beyond the advisory agents alone.
+
+Conclusion: deterministic post-Phase-B regression. **Not an LLM flake.**
+
 ## Cheapest next step
 
-1. Re-run **only** the 2 failing files to confirm determinism vs flake (allowed per feedback `always-rerun-e2e`).
-2. If deterministic, isolate Phase B vs deploy-skew: diff the deployed Lambda code timestamps for `dev-portfolio-engine-ctrl-event-listener` against the local Phase B commit; if deployed predates Phase B, this is a deploy-skew flake — just redeploy. If deployed includes Phase B, it's a true Phase B regression.
-3. Inspect AgentRuntime CloudWatch logs (`/aws/bedrock-agentcore/runtime/dev-portfolio-engine-ctrl-*`) for one of the empty-output executions — the AgentCore-side trace will show whether the LangGraph emitted empty values or whether they were stripped client-side.
-4. Drift sub-case: query DDB `dev-decision-workflow-ctrl-table` directly for `decisionId` from exec `71e75bba-…` to determine whether the DecisionPacket row exists or was never persisted.
+1. Isolate Phase B vs deploy-skew: diff the deployed Lambda code timestamps for `dev-portfolio-engine-ctrl-event-listener` (and `dev-ledger-*` for the drift sub-case) against the local Phase B commit `d1fadfc1`; if deployed predates Phase B, this is a deploy-skew flake — just redeploy. If deployed includes Phase B, it's a true Phase B regression.
+2. Inspect AgentRuntime CloudWatch logs (`/aws/bedrock-agentcore/runtime/dev-portfolio-engine-ctrl-*`) for one of the empty-output executions — the AgentCore-side trace will show whether the LangGraph emitted empty values or whether they were stripped client-side.
+3. Drift sub-case: query DDB `dev-decision-workflow-ctrl-table` directly for `decisionId` from exec `71e75bba-…` to determine whether the DecisionPacket row exists or was never persisted. Separately inspect `dev-ledger-*` Lambda logs for the second rerun's `funded()` failure — the fixture failure points at a ledger-side regression too.
 
 Pivot to `superpowers:writing-plans` + worktree (`feedback_worktree_first_no_commits_on_main`) once the failing layer is pinned.
