@@ -1,9 +1,8 @@
 ---
 id: agent-pipeline-task-token-timeout-observability
-status: queued
+status: active
 type: spec
-rank: 2
-notes: "e2e scenarios 11+12 fail silently — resumeStateMachine swallows TaskTimedOut as INFO. Split swallow path: TaskDoesNotExist→INFO, TaskTimedOut/InvalidToken→ERROR + processingLagMs."
+notes: "e2e scenarios 11+12 fail silently — resumeStateMachine swallows TaskTimedOut as INFO. Split swallow path: TaskDoesNotExist→INFO, TaskTimedOut/InvalidToken→ERROR + processingLagMs. Code merged in PR #13 (03d05b6f); executing validation gate now (deploy + e2e + CloudWatch confirm)."
 references:
   - libs/event-processor/src/pipelines/resume-state-machine.ts
   - libs/event-processor/test/pipelines/resume-state-machine.test.ts

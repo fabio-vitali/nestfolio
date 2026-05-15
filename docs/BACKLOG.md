@@ -6,14 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [agent-pipeline-task-token-timeout-observability](backlog/agent-pipeline-task-token-timeout-observability.md) [spec] — e2e scenarios 11+12 fail silently — resumeStateMachine swallows TaskTimedOut as INFO. Split swallow path: TaskDoesNotExist→INFO, TaskTimedOut/InvalidToken→ERROR + processingLagMs. Code merged in PR #13 (03d05b6f); executing validation gate now (deploy + e2e + CloudWatch confirm).
 
 ## QUEUED
 
-1. [agent-pipeline-task-token-timeout-observability](backlog/agent-pipeline-task-token-timeout-observability.md) [spec] — e2e scenarios 11+12 fail silently — resumeStateMachine swallows TaskTimedOut as INFO. Split swallow path: TaskDoesNotExist→INFO, TaskTimedOut/InvalidToken→ERROR + processingLagMs.
-2. [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out; blocks e2e scenarios 11+12 green gate. Depends on observability workstream landing first.
-3. [scenario-12-rebalance-on-drift-missing-mandate-fixture](backlog/scenario-12-rebalance-on-drift-missing-mandate-fixture.md) [bug] — e2e scenario 12 (rebalance-on-drift) fails: fixture omits MANDATE_ISSUED so MandateSnapshot never projected; SF LookupMandateSnapshot returns empty Item; $.Item.operatingMode.S JSONPath fails with States.Runtime. Test-side fix: add withLiveDecision() or equivalent emission to beforeEach.
+1. [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out; blocks e2e scenarios 11+12 green gate. Depends on observability workstream landing first.
+2. [scenario-12-rebalance-on-drift-missing-mandate-fixture](backlog/scenario-12-rebalance-on-drift-missing-mandate-fixture.md) [bug] — e2e scenario 12 (rebalance-on-drift) fails: fixture omits MANDATE_ISSUED so MandateSnapshot never projected; SF LookupMandateSnapshot returns empty Item; $.Item.operatingMode.S JSONPath fails with States.Runtime. Test-side fix: add withLiveDecision() or equivalent emission to beforeEach.
 
 ## LATER
 
