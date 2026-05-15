@@ -1,9 +1,8 @@
 ---
 id: e2e-advisory-pipeline-empty-outputs-post-phase-b
-status: queued
-rank: 1
+status: shipped
 type: bug
-notes: "e2e gate: 2/22 suites red on main 2026-05-15 — SF executions SUCCEED but agents return structurally-valid empty content; proposedTrades=[] across all 3 operating modes + drift decision invisible."
+notes: "e2e gate: 2/22 suites red on main 2026-05-15 — root cause: AssemblePacket read obsolete portfolio['portfolio-construction'] key while Phase A renamed it to top-level allocations. Plus a parallel deploy-skew on portfolio-engine + ledger services. Fixed + redeployed; 4/4 GREEN."
 references:
   - services/advisory/portfolio-engine-ctrl/src/agent-service.ts
   - services/advisory/decision-workflow-ctrl/src/handlers/assemble-packet.ts
@@ -16,11 +15,41 @@ out_of_scope:
   - "Re-tuning mode envelope tolerances or POM polling intervals (UI/test-side band-aids)"
   - "Reverting Phase B commit d1fadfc1 wholesale (find the specific regression first)"
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-05-15-assemble-packet-agent-output-key-rename.md
 topic_memory:
   - project_agent_runtime_structured_output.md
   - project_inter_agent_state_handoff.md
-validation_gate: null
+validation_gate: |
+  Two distinct contributors, both addressed:
+
+  (1) Deploy-skew. Portfolio-engine AgentCore runtime + 4 advisory Lambdas
+  were last deployed 2026-05-14 14:17-14:18 UTC, predating Phase A (Phase A
+  merged 2026-05-14 15:49 UTC). Redeployed advisory-{portfolio-engine,
+  investor-profile, market-intelligence, narrative}-ctrl and decision-
+  workflow-ctrl. After this redeploy, rebalance-on-drift went GREEN (98s)
+  but operating-mode still timed out — same empty proposedTrades —
+  surfacing the second contributor.
+
+  (2) AssemblePacket consumer-side key-rename bug. Phase A renamed the
+  top-level agent output keys in
+  services/advisory/portfolio-engine-ctrl/src/agent-service.ts:146-151
+  from the LangGraph node names (portfolio-construction / rebalance-planner)
+  to semantic names (allocations / trades), but the AssemblePacket handler
+  was never updated to follow the rename. It kept reading
+  portfolio['portfolio-construction'].allocations, which is now undefined
+  → defence-in-depth `?? {}` masked the error → allocationsArray = [] →
+  every DecisionPacket landed with proposedTrades=[] in dev. Fix at
+  commit 9f0fd468 changed the lookup to portfolio.allocations.allocations
+  and renamed the local variable from `construction` to `allocationEnvelope`.
+
+  E2e gate post-fix (NESTFOLIO_INTEG_PREFIX=dev, 2026-05-15):
+  - rebalance-on-drift.e2e.test.ts: PASS in 118s
+  - operating-mode-recommendation-shape.e2e.test.ts: PASS in 273s
+    (all 3 modes — CONSERVATIVE, BALANCED, AGGRESSIVE — within envelope)
+  - Test Suites: 2 passed, 2 total / Tests: 4 passed, 4 total
+
+  Ship commits (worktree fix/assemble-packet-agent-output-key):
+  - 9f0fd468 fix(decision-workflow-ctrl): read post-Phase-A agent-output shape in AssemblePacket
 ---
 
 # e2e advisory pipeline emits empty outputs post-Phase-B

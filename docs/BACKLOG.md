@@ -11,7 +11,8 @@ _(none)_
 
 ## QUEUED
 
-1. [e2e-advisory-pipeline-empty-outputs-post-phase-b](backlog/e2e-advisory-pipeline-empty-outputs-post-phase-b.md) [bug] — e2e gate: 2/22 suites red on main 2026-05-15 — SF executions SUCCEED but agents return structurally-valid empty content; proposedTrades=[] across all 3 operating modes + drift decision invisible.
+_(none)_
+
 
 ## LATER
 
@@ -50,6 +51,7 @@ _(none)_
 ## Recently Shipped (last 10)
 
 - 2026-05-15 — [advisory-narrative-agentcore-latency-residual](backlog/advisory-narrative-agentcore-latency-residual.md) [bug] — Sonnet 4.6 single-call decode-dominated at 22-30s. Switched to Haiku 4.5 — 4 consecutive runs at 5.8-6.4s (median 6.1s), ~75% reduction. Hypotheses #1 (retry firing) and #2 (prefill) falsified via diagnostic envelope-summary log; #3 (decode) confirmed.
+- 2026-05-15 — [e2e-advisory-pipeline-empty-outputs-post-phase-b](backlog/e2e-advisory-pipeline-empty-outputs-post-phase-b.md) [bug] — e2e gate: 2/22 suites red on main 2026-05-15 — root cause: AssemblePacket read obsolete portfolio['portfolio-construction'] key while Phase A renamed it to top-level allocations. Plus a parallel deploy-skew on portfolio-engine + ledger services. Fixed + redeployed; 4/4 GREEN.
 - 2026-05-14 — [advisory-narrative-latency-budget-overshoot-e2e](backlog/advisory-narrative-latency-budget-overshoot-e2e.md) [bug] — SHIPPED 2026-05-14 — named root cause (28s Memory retry, commit 4960a10d) deleted on feat/inter-agent-sf-state-phase-a. Residual 22-30s steady-state floor is separately scoped (queued rank 20).
 - 2026-05-14 — [inter-agent-state-handoff-sf-vs-memory](backlog/inter-agent-state-handoff-sf-vs-memory.md) [design] — Two-phase design: A=migrate inter-agent handoff to SF state (latency fix); B=wire up long-term Memory strategies (preferences/signals/rationale). Both phases shipped 2026-05-14.
 - 2026-05-14 — [revoke-mandate-e2e-timeout-flake](backlog/revoke-mandate-e2e-timeout-flake.md) [bug] — SHIPPED 2026-05-14. Trap-side EB rule-evaluation partition propagation race (`Captured-but-unmatched buffer: []`). Resolved via `jest.retryTimes(1)` — same precedent as circuit-breaker-feature-flags-ui-gating + advisory-adpt-from-investor-mandate-issued-sequential-flake (both 2026-05-13).
@@ -58,4 +60,3 @@ _(none)_
 - 2026-05-13 — [circuit-breaker-feature-flags-ui-gating](backlog/circuit-breaker-feature-flags-ui-gating.md) [bug] — SHIPPED 2026-05-13. Two findings: (1) stale dev bundle missed commit 0dcfda2c (2026-05-02) which fixed broadcastFromQueue envelope unwrap — resolved by deploy; (2) EB rule-evaluation partition drop affecting scenario 14 ~33% of runs — absorbed by jest.retryTimes(1) on the e2e file, same precedent as advisory-adpt-from-investor-mandate-issued-sequential-flake. Validation: scenario 14 green 3× consecutive against deployed dev (0 retry activations).
 - 2026-05-13 — [delete-deprecated-inject-advisory-update-fixture](backlog/delete-deprecated-inject-advisory-update-fixture.md) [refactor] — Delete @deprecated injectAdvisoryUpdate backdoor and migrate happy-path WSS sentinel test to a real-EB path.
 - 2026-05-13 — [host-runtime-config-json-regeneration-silently-optional](backlog/host-runtime-config-json-regeneration-silently-optional.md) [bug] — Bug 1 shipped; Bug 2 split out — initial fix attempts found ineffective during self-check (.gitignore on config.json defeats input-based cache invalidation).
-- 2026-05-13 — [investor-bff-onboarding-jest-retry-pollution](backlog/investor-bff-onboarding-jest-retry-pollution.md) [bug] — investor-bff `should atomically write composite InvestorProfile + Mandate row on ONBOARDING_COMPLETED` failed first on `waitForEvent('MANDATE_ISSUED')` at 60s. Jest auto-retry re-fired both events with the same userId (cognitoSub), turning the second ONBOARDING_COMPLETED Put into a CDC MODIFY → emit INVESTOR_PROFILE_UPDATED instead of INVESTOR_PROFILE_CREATED. The retry's `waitForEvent('INVESTOR_PROFILE_CREATED')` then timed out at 60s. Fix: (1) StateResetFixture clears the row pk at test start so every attempt sees a clean slate, (2) bump inner waitForEvent timeouts 60s→90s to match eventTimeout default. cognitoSub preserved so downstream tests in the suite still find the row.
