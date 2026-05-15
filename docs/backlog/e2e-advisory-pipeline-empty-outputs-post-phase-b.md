@@ -63,11 +63,28 @@ The SF treats this as success (no `DegradedAgentOutputError`, no `assertOrchestr
 
 For the drift test, exec `71e75bba-7f9f-a0eb-7b0d-53d9913aa866_…` started 2026-05-15T11:01:06+02:00 with `type: PORTFOLIO_DRIFT_DETECTED, tenantId: e2e-1778835591619-3ba5ebf0` and traversed states: LookupMandateSnapshot → InvokeInvestorProfile → InvokeMarketIntelligence → InvokePortfolioEngine → InvokeAdvisoryNarrative → AssembleDecisionPacket → WaitForCompliance → RequestUserConfirmation (currently paused at the last). AssembleDecisionPacket exited normally, but `getDecisionHistory` for the same tenant returns no PORTFOLIO_DRIFT_DETECTED row.
 
-## Hypothesis (priority order)
+## Hypothesis — REVISED 2026-05-15 to deploy-skew
 
-1. **Phase B (commit `d1fadfc1`, 2026-05-14, "feat(advisory): inter-agent state handoff Phase B (long-term Memory recall)") regressed the agents' structured-output return path.** Phase B touched `agent-service.ts` in all 4 advisory ctrl services to emit `emitLongTermEvent` after `assertOrchestratorOutput`, plus added `searchLongTermMemory(namespace, …)` call sites in event-listeners. Phase A (commit `676dd75c`, same day) migrated inter-agent handoff to SF state and dropped `MemoryClient.writeAgentOutput` — the agent_factory / LangGraph state-shape may have lost a field the AssemblePacket schema still expects empty-by-default.
-2. **`wrapAgentOutput` (new in Phase B, `libs/agent-orchestrator/src/wrap-agent-output.ts`) strips/transforms content.** The agent returns are passed through `wrapAgentOutput` before SF state plumbing — if it discriminates on a missing-since-Phase-B key, the wrapped output may have empty `output` fields while keeping the discriminant happy.
-3. **Drift-specific: DECISION_PACKET_CREATED CDC didn't fire, or advisory-bff transform dropped the row.** AssembleDecisionPacket Lambda may have returned success but the underlying `decisionPacketRepository.createDecisionPacket` putIfNotExists short-circuited (decisionId reuse?), or CDC stream lag exceeded the 240s test budget.
+Compared committed Phase A (`676dd75c`, 2026-05-14 15:49 UTC) and Phase B (`1e1e23d4`, 2026-05-14 19:21 UTC) timestamps against deployed dev artifacts:
+
+| Component (dev) | LastModified UTC | Position |
+|---|---|---|
+| `portfolio_engine_agents` AgentCore runtime | 2026-05-14 14:17 | **pre-Phase A** |
+| `dev-portfolio-engine-ctrl-IngressHandler` Lambda | 2026-05-14 14:18 | **pre-Phase A** |
+| `dev-decision-workflow-ctrl-AssemblePacket` Lambda | 2026-05-14 14:17 | **pre-Phase A** |
+| `investor_profile_agents` runtime + Lambda | 2026-05-14 18:24 | Phase A only |
+| `market_intelligence_agents` runtime | 2026-05-14 18:29 | Phase A only |
+| `advisory_narrative_agents` runtime + Lambda | 2026-05-14 22:08 | Phase A + B |
+
+**Root cause: deploy skew.** The portfolio-engine AgentCore runtime + Lambda predate Phase A by ~90 minutes; the AssemblePacket Lambda is also pre-Phase A. Phase A migrated inter-agent handoff to SF state (`$.agentResults.<Upstream>.agentOutput`); the SF state machine was updated, but the portfolio-engine runtime that produces those outputs was never redeployed. That explains why the SF SUCCEEDS with empty `allocations` / `trades`: the older portfolio-engine returns a Memory-write-shaped payload that the new SF accepts under the `agentOutput` Parameters key but with empty content per the new schema.
+
+This is fixable with a `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=portfolio-engine-ctrl,investor-profile-ctrl,market-intelligence-ctrl,advisory-narrative-ctrl,decision-workflow-ctrl` and a re-run.
+
+Earlier hypotheses (kept for history): a true Phase B regression in `agent-service.ts` / `wrapAgentOutput`, or a CDC/advisory-bff transform issue for the drift sub-case. Both are downstream of the skew — verify after redeploy.
+
+## Drift `funded()` sub-case
+
+The drift test rerun failed in the `funded()` fixture: "CashBalance not materialized within 60s". The ledger Lambdas (`dev-ledger-ctrl-*`) all have LastModified of 2026-04-25 — a 20-day-old deploy. Same deploy-skew family; redeploy ledger if the drift test still fails after the advisory redeploy.
 
 ## Why this should be QUEUED rank 1
 
