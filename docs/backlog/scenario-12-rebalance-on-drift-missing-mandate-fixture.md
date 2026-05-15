@@ -1,8 +1,8 @@
 ---
 id: scenario-12-rebalance-on-drift-missing-mandate-fixture
-status: active
+status: shipped
 type: bug
-notes: "e2e scenario 12 (rebalance-on-drift) fails: beforeEach fixtures [onboarded, funded, withHoldings] do not wait for MandateSnapshot projection before test body emits PORTFOLIO_DRIFT_DETECTED. SF LookupMandateSnapshot returns empty Item; $.Item.operatingMode.S JSONPath fails with States.Runtime. Reproduced 2026-05-16 (execution 6c4559d0). Applying dossier's proposed fix: add withLiveDecision() to beforeEach + drop stale advisory-ctrl from targetService."
+notes: "Fixed 2026-05-16. beforeEach now ends with withLiveDecision() so the natural MANDATE_ISSUED → projection → MANDATE_SNAPSHOT_CREATED chain completes before the test body emits PORTFOLIO_DRIFT_DETECTED. Also dropped the stale 'advisory-ctrl' from targetService (removed in Spec 2 2026-04-30). e2e re-run passed in 148s (previously failed at 240s timeout)."
 references:
   - apps/e2e-feature-tests/src/advisory/rebalance-on-drift.e2e.test.ts
   - apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts
@@ -15,7 +15,7 @@ plan: null
 topic_memory:
   - project_e2e_feature_tests.md
   - project_investor_profile_collapse.md
-validation_gate: null
+validation_gate: "scenario 12 (rebalance-on-drift.e2e.test.ts) passed in 148s against deployed dev on 2026-05-16. Previously failed at the 240s waitForGraphQL timeout (SF execution 6c4559d0 errored at LookupMandateSnapshot with empty Item, JSONPath $.Item.operatingMode.S failure). The withLiveDecision() addition drives the first decision cycle to completion so the MandateSnapshot projection materialises before the drift event fires; the SF then finds the row and proceeds through the 4-agent pipeline."
 ---
 
 # scenario-12 rebalance-on-drift: missing MANDATE_ISSUED fixture
@@ -53,6 +53,13 @@ Compare scenario 11 (`first-decision.e2e.test.ts:41`) which uses `withLiveDecisi
 3. Then emit `PORTFOLIO_DRIFT_DETECTED` and assert a second decision appears with that trigger.
 4. Remove `'advisory-ctrl'` from `targetService` array (and update the stale comment).
 
-## Why "queued" and not "active"
+## Ship (2026-05-16)
 
-Single-file test fix; valid independent workstream but the architectural backlog-trap (rank 3) is higher value because it affects multiple scenarios and production behaviour.
+Applied the dossier's proposed fix verbatim:
+
+- `apps/e2e-feature-tests/src/advisory/rebalance-on-drift.e2e.test.ts`:
+  - Imported `withLiveDecision`.
+  - Appended `withLiveDecision()` to the `beforeEach` fixtures list (after `onboarded`/`funded`/`withHoldings`). Raised `beforeEach` timeout from 240s → 300s to fit the first decision cycle.
+  - Dropped `'advisory-ctrl'` from `targetService` and rewrote the stale comment (advisory-ctrl was removed 2026-04-30 in Spec 2).
+
+Validation: scenario 12 passed in 148s against deployed dev. Previous run (same commit, no fix) failed at the 240s timeout — SF execution `6c4559d0` errored at `LookupMandateSnapshot` with empty Item + JSONPath failure on `$.Item.operatingMode.S`, exactly as the dossier described.

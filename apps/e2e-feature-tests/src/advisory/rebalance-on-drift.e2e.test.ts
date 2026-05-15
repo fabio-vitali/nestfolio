@@ -9,6 +9,7 @@ import {
   onboarded,
   funded,
   withHoldings,
+  withLiveDecision,
   bffClient,
   waitForGraphQL,
   type FreshTenant,
@@ -32,8 +33,14 @@ describe('scenario 12 — portfolio drift surfaces a rebalance decision', () => 
         { symbol: 'VTI', quantity: 50, fillPrice: 200 },
         { symbol: 'BND', quantity: 10, fillPrice: 80 },
       ]),
+      // Drive the first decision cycle to completion so the MandateSnapshot
+      // projection materialises before the test body emits PORTFOLIO_DRIFT_DETECTED.
+      // Without this, decision-workflow-ctrl's SF hits LookupMandateSnapshot
+      // before the projector has written the row and fails the
+      // $.Item.operatingMode.S JSONPath extraction.
+      withLiveDecision(),
     ]);
-  }, 240_000);
+  }, 300_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();
@@ -43,16 +50,15 @@ describe('scenario 12 — portfolio drift surfaces a rebalance decision', () => 
     const bff = bffClient(ctx, tenant);
     const eb = new EventBridgeClient(ctx);
 
-    // TRIGGER: synthetic drift detection on advisory bus. Fanned to BOTH
-    // advisory-ctrl (subscribes via its own ingress and publishes the
-    // DecisionPacket surfaced by advisory-bff.getDecisionHistory) AND
-    // decision-workflow-ctrl (starts the Step Function that invokes the
-    // portfolio-engine AgentRuntime). Both services key their decisionId
-    // on ctx.eventId so the envelope's correlationId matches the
-    // DecisionPacket decisionId.
+    // TRIGGER: synthetic drift detection on advisory bus. decision-workflow-ctrl
+    // starts the Step Function that runs the 4-agent pipeline and publishes
+    // DECISION_PACKET_CREATED; advisory-bff projects that into the
+    // DecisionPacket surfaced by getDecisionHistory. The SF keys decisionId
+    // on ctx.eventId so envelope correlationId matches the DecisionPacket
+    // decisionId. (advisory-ctrl was removed 2026-04-30 in Spec 2.)
     await eb.putEvent({
       bus: 'advisory',
-      targetService: ['advisory-ctrl', 'decision-workflow-ctrl'],
+      targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_DRIFT_DETECTED',
       detail: {
         tenantId: tenant.tenantId,
