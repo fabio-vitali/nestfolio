@@ -1,6 +1,7 @@
 ---
 id: nestfolio-e2e-workflow-no-aws-credentials
-status: parking
+status: queued
+rank: 1
 type: bug
 notes: "nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring."
 references: []
@@ -26,4 +27,4 @@ Env shows `NESTFOLIO_INTEG_PREFIX=dev` — the workflow is configured to point P
 
 Independent of the active rehearsal: `nestfolio-e2e.yml` runs Playwright e2e against a deployed environment; failure here just means the Playwright check is missing. Does NOT affect `pr-deploy.yml` → `sandbox-integration-test`, which is what the active workstream validates.
 
-Promote when the e2e check is being relied on as a gate, or when the next deployed-env regression slips through to staging that Playwright would have caught. Cheapest fix likely: copy the OIDC `role-to-assume` block from `pr-deploy.yml` (which works) into `nestfolio-e2e.yml`.
+Promoted to queued 2026-05-15 per `feedback_e2e_gaps_queued_not_parking` — `apps/nestfolio-e2e` cannot be truly green in CI until this is fixed. Cheapest fix path: copy the OIDC `role-to-assume` block from `pr-deploy.yml` (which works) into `nestfolio-e2e.yml`.

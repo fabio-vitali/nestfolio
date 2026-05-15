@@ -11,8 +11,7 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
 
 ## LATER
 
@@ -34,7 +33,7 @@ _(none)_
 - [integration-test-mock-resilience](backlog/integration-test-mock-resilience.md) [tooling] — Demoted to LATER 2026-05-12 per its own ship-trigger ('Promote when integration test flakiness on agent-bound suites or per-suite SSM overrides becomes load-bearing'). Piece 2 (StateResetFixture) superseded by 2026-05-05 bootstrap uplift; piece 3 (SsmOverride) effectively closed by 2026-05-12 integration-test-ssm-cleanup-hardening-on-abort. Only piece 1 (FakeLlm via env var in agent-factory) remains, and it's not currently load-bearing — agent flakiness is being mitigated structurally (orchestrator retry/fallback, prompt cleanup) rather than via test-time fakes. Promote again when a concrete agent-bound integration flake demands it.
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
 - [jest-worker-scratch-leak-on-force-exit](backlog/jest-worker-scratch-leak-on-force-exit.md) [bug] — Every test run leaks scratch dirs in repo root (jest_dx, empty 20-char-hex dirs, cdk.out<random>). Root cause: nx.json forceExit:true kills workers before cleanup. Third recurrence.
-- [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
+- [ledger-ctrl-2-latent-tsc-errors](backlog/ledger-ctrl-2-latent-tsc-errors.md) [bug] — Two latent tsc --noEmit errors in services/ledger/ledger-ctrl/src/repositories/ledger.repository.ts:79 and :185 — `'timestamp' does not exist in type 'TableEntry'`. Surfaced 2026-05-15 during the ledger-ctrl-simulated-trade-quantity-undefined ship. Not a deploy or test blocker (esbuild strips types; ts-jest is lenient on excess-property in nested generics). Same class as investor-bff-13-latent-tsc-errors.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
