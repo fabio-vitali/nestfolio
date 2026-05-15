@@ -10,26 +10,39 @@
 // --root defaults to the current working directory (workspace root). Tests
 // pass a tmpdir.
 //
-// Scope:
+// Scope: production source only.
 //   - apps/**/*.{ts,html,json,js,mjs}
 //   - libs/shell/**, libs/frontend-deps/**, libs/ui/** (same extensions)
 // Excluded path fragments:
-//   - node_modules, dist, cdk.out, .worktrees, .nx, coverage
+//   - node_modules, dist, cdk.out, .worktrees, .nx, coverage, test (test
+//     fixtures legitimately reference these URLs to assert routing logic)
+// Excluded basenames: *.spec.ts, *.test.ts (same reason as test/ dirs)
+// Excluded specific paths:
+//   - apps/nestfolio-host/public/assets/config.json — deploy-time artifact
+//     (gitignored). Not part of source.
+//   - libs/shell/src/graphql/wss-debug-probe.ts — file IS the URL detector;
+//     the regex pattern must remain in source.
+// Comment lines (// …, * … inside /* */) are skipped: JSDoc that documents
+// the URL-shape transform isn't a §7 R6 violation.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 const FORBIDDEN = /(appsync-api|appsync-realtime-api|\.amazonaws\.com)/;
 const EXTS = new Set(['.ts', '.html', '.json', '.js', '.mjs']);
-const EXCLUDE_FRAGMENTS = ['node_modules', 'dist', 'cdk.out', '.worktrees', '.nx', 'coverage'];
+const EXCLUDE_FRAGMENTS = ['node_modules', 'dist', 'cdk.out', '.worktrees', '.nx', 'coverage', 'test'];
 const SCOPED_DIRS = [
   'apps',
   'libs/shell',
   'libs/frontend-deps',
   'libs/ui',
 ];
-const EXCLUDED_BASENAMES = new Set();
-const EXCLUDED_REL_PATHS = new Set();
+const EXCLUDED_BASENAME_SUFFIXES = ['.spec.ts', '.test.ts'];
+const EXCLUDED_REL_PATHS = new Set([
+  'apps/nestfolio-host/public/assets/config.json',
+  'libs/shell/src/graphql/wss-debug-probe.ts',
+]);
+const COMMENT_LINE = /^\s*(\/\/|\*)/;
 
 function parseArgs(argv) {
   let root = process.cwd();
@@ -48,7 +61,7 @@ function* walk(dir) {
     const p = join(dir, e.name);
     if (e.isDirectory()) yield* walk(p);
     else if (e.isFile()) {
-      if (EXCLUDED_BASENAMES.has(e.name)) continue;
+      if (EXCLUDED_BASENAME_SUFFIXES.some(s => e.name.endsWith(s))) continue;
       const dot = e.name.lastIndexOf('.');
       const ext = dot >= 0 ? e.name.slice(dot) : '';
       if (EXTS.has(ext)) yield p;
@@ -66,8 +79,10 @@ function scan(scopedRoot, root) {
     catch { continue; }
     const lines = text.split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
-      const m = lines[i].match(FORBIDDEN);
-      if (m) hits.push({ file: rel, line: i + 1, match: m[0], snippet: lines[i].trim().slice(0, 200) });
+      const line = lines[i];
+      if (COMMENT_LINE.test(line)) continue;
+      const m = line.match(FORBIDDEN);
+      if (m) hits.push({ file: rel, line: i + 1, match: m[0], snippet: line.trim().slice(0, 200) });
     }
   }
   return hits;

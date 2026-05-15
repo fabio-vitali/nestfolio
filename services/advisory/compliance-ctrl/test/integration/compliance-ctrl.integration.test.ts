@@ -139,7 +139,7 @@ describe('compliance-ctrl', () => {
       },
     });
 
-    const seeded = await table.waitForItem({
+    await table.waitForItem({
       table: 'compliance-ctrl',
       pk: `GuardrailPolicy#${ctx.tenantId}#${userId}`,
       sk: 'MandateSnapshot',
@@ -264,7 +264,7 @@ describe('compliance-ctrl', () => {
     });
 
     // Wait for the seed to land — MANDATE_ISSUED sets status='ACTIVE'.
-    const seeded = await table.waitForItem({
+    await table.waitForItem({
       table: 'compliance-ctrl',
       pk: policyPk,
       sk: 'MandateSnapshot',

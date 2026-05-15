@@ -34,7 +34,7 @@ process.env.MEMORY_ID = 'mem-test';
 
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
-import type { MemoryClient } from '@nestfolio/agent-orchestrator';
+import { type MemoryClient, UnknownOperatingModeError } from '@nestfolio/agent-orchestrator';
 import { createHandlers, type SfnCallbackDeps } from '../../src/handlers/event-listener';
 
 describe('advisory-narrative-ctrl event-listener', () => {
@@ -183,8 +183,6 @@ describe('advisory-narrative-ctrl event-listener', () => {
   // of agentcore-memory-list-records-eventual-consistency). Replaces the silent
   // `?? 'BALANCED'` fallback that previously masked propagation regressions.
   it('throws UnknownOperatingModeError when subject.operatingMode is missing', async () => {
-    const { UnknownOperatingModeError } = await import('@nestfolio/agent-orchestrator');
-
     const payload: EventPayload = {
       subject: { tenantId: 't1', decisionId: 'dp-no-mode', taskToken: 'tok' },
     };
