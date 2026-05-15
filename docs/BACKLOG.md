@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [scenario-12-rebalance-on-drift-missing-mandate-fixture](backlog/scenario-12-rebalance-on-drift-missing-mandate-fixture.md) [bug] — e2e scenario 12 (rebalance-on-drift) fails: beforeEach fixtures [onboarded, funded, withHoldings] do not wait for MandateSnapshot projection before test body emits PORTFOLIO_DRIFT_DETECTED. SF LookupMandateSnapshot returns empty Item; $.Item.operatingMode.S JSONPath fails with States.Runtime. Reproduced 2026-05-16 (execution 6c4559d0). Applying dossier's proposed fix: add withLiveDecision() to beforeEach + drop stale advisory-ctrl from targetService.
 
 ## QUEUED
 
 1. [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out; blocks e2e scenarios 11+12 green gate. Depends on observability workstream landing first.
-2. [scenario-12-rebalance-on-drift-missing-mandate-fixture](backlog/scenario-12-rebalance-on-drift-missing-mandate-fixture.md) [bug] — e2e scenario 12 (rebalance-on-drift) fails: fixture omits MANDATE_ISSUED so MandateSnapshot never projected; SF LookupMandateSnapshot returns empty Item; $.Item.operatingMode.S JSONPath fails with States.Runtime. Test-side fix: add withLiveDecision() or equivalent emission to beforeEach.
 
 ## LATER
 

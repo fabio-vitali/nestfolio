@@ -1,9 +1,8 @@
 ---
 id: scenario-12-rebalance-on-drift-missing-mandate-fixture
-status: queued
+status: active
 type: bug
-rank: 4
-notes: "e2e scenario 12 (rebalance-on-drift) fails: fixture omits MANDATE_ISSUED so MandateSnapshot never projected; SF LookupMandateSnapshot returns empty Item; $.Item.operatingMode.S JSONPath fails with States.Runtime. Test-side fix: add withLiveDecision() or equivalent emission to beforeEach."
+notes: "e2e scenario 12 (rebalance-on-drift) fails: beforeEach fixtures [onboarded, funded, withHoldings] do not wait for MandateSnapshot projection before test body emits PORTFOLIO_DRIFT_DETECTED. SF LookupMandateSnapshot returns empty Item; $.Item.operatingMode.S JSONPath fails with States.Runtime. Reproduced 2026-05-16 (execution 6c4559d0). Applying dossier's proposed fix: add withLiveDecision() to beforeEach + drop stale advisory-ctrl from targetService."
 references:
   - apps/e2e-feature-tests/src/advisory/rebalance-on-drift.e2e.test.ts
   - apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts
