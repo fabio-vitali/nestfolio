@@ -12,6 +12,8 @@ _(none)_
 ## QUEUED
 
 1. [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — nestfolio-e2e.yml fails at aws-actions/configure-aws-credentials — no OIDC role or PR-event lacks credentials wiring.
+2. [agent-pipeline-task-token-timeout-observability](backlog/agent-pipeline-task-token-timeout-observability.md) [spec] — e2e scenarios 11+12 fail silently — resumeStateMachine swallows TaskTimedOut as INFO. Split swallow path: TaskDoesNotExist→INFO, TaskTimedOut/InvalidToken→ERROR + processingLagMs.
+3. [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out; blocks e2e scenarios 11+12 green gate. Depends on observability workstream landing first.
 
 ## LATER
 

@@ -5,6 +5,7 @@ import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import type { SQSEvent } from 'aws-lambda';
 import { resumeStateMachine } from '../../src/pipelines/resume-state-machine';
 import { record } from '../../src/intents/record';
+import { logger } from '../../src/internal';
 
 const sfnMock = mockClient(SFNClient);
 const ddbMock = mockClient(DynamoDBDocumentClient);
@@ -185,7 +186,7 @@ describe('resumeStateMachine', () => {
     });
   });
 
-  it('treats SendTaskSuccess TaskTimedOut as success (duplicate event)', async () => {
+  it('logs ERROR + processingLagMs when SendTaskSuccess returns TaskTimedOut', async () => {
     const taskTimedOut = new Error('Task already closed');
     taskTimedOut.name = 'TaskTimedOut';
     sfnMock.on(SendTaskSuccessCommand).rejects(taskTimedOut);
@@ -199,12 +200,26 @@ describe('resumeStateMachine', () => {
 
     const result = await handler(makeSqsEvent('TEST_EVENT', { taskToken: 'tok-dup-1' }));
 
-    // Lambda should succeed — no batch item failure, no SendTaskFailure call
+    // Behaviour unchanged: skip(), no batch item failure, no SendTaskFailure call.
     expect(result.batchItemFailures).toHaveLength(0);
     expect(sfnMock).not.toHaveReceivedCommand(SendTaskFailureCommand);
+
+    // Observability change: ERROR with processingLagMs and sfnErrorName.
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining('agent-pipeline backlog or token regression'),
+      expect.objectContaining({
+        sfnErrorName: 'TaskTimedOut',
+        taskTokenPrefix: 'tok-dup-1',
+        processingLagMs: expect.any(Number),
+      }),
+    );
+    expect(logger.info).not.toHaveBeenCalledWith(
+      expect.stringContaining('genuine duplicate'),
+      expect.anything(),
+    );
   });
 
-  it('treats SendTaskSuccess InvalidToken as success (duplicate event)', async () => {
+  it('logs ERROR when SendTaskSuccess returns InvalidToken', async () => {
     const invalidToken = new Error('Invalid token');
     invalidToken.name = 'InvalidToken';
     sfnMock.on(SendTaskSuccessCommand).rejects(invalidToken);
@@ -220,9 +235,13 @@ describe('resumeStateMachine', () => {
 
     expect(result.batchItemFailures).toHaveLength(0);
     expect(sfnMock).not.toHaveReceivedCommand(SendTaskFailureCommand);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining('agent-pipeline backlog or token regression'),
+      expect.objectContaining({ sfnErrorName: 'InvalidToken' }),
+    );
   });
 
-  it('treats SendTaskSuccess TaskDoesNotExist as success (duplicate event)', async () => {
+  it('logs INFO (genuine duplicate) when SendTaskSuccess returns TaskDoesNotExist', async () => {
     const taskGone = new Error('Task does not exist');
     taskGone.name = 'TaskDoesNotExist';
     sfnMock.on(SendTaskSuccessCommand).rejects(taskGone);
@@ -238,6 +257,14 @@ describe('resumeStateMachine', () => {
 
     expect(result.batchItemFailures).toHaveLength(0);
     expect(sfnMock).not.toHaveReceivedCommand(SendTaskFailureCommand);
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('genuine duplicate'),
+      expect.objectContaining({ eventType: 'TEST_EVENT' }),
+    );
+    expect(logger.error).not.toHaveBeenCalledWith(
+      expect.stringContaining('agent-pipeline backlog or token regression'),
+      expect.anything(),
+    );
   });
 
   it('still propagates other SendTaskSuccess errors', async () => {
