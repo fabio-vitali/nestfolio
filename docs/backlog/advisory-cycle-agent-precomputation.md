@@ -1,8 +1,9 @@
 ---
 id: advisory-cycle-agent-precomputation
-status: parking
+status: queued
 type: design
-notes: "Alternative to the per-cycle agent model: investor-profile + market-intelligence move to continuous projection (run on change events, write snapshots, cycle reads them). Sibling to the pipeline-trap architectural fix."
+rank: 1
+notes: "Alternative to the per-cycle agent model: investor-profile + market-intelligence move to continuous projection (run on change events, write snapshots, cycle reads them). Halves the agent-pipeline-trap surface and may unblock e2e scenarios 11+12 alone."
 references:
   - docs/backlog/agent-pipeline-backlog-trap-architectural.md
   - docs/data-flows/advisory-cycle.md
@@ -65,13 +66,18 @@ Stop invoking `investor-profile-ctrl` and `market-intelligence-ctrl` once per cy
 
 Decision sequencing: the other issue is `queued`, `rank: 3`, blocked on observability data. This one doesn't depend on observability. They can be reviewed and ranked independently.
 
-## Promote when
+## Promotion note
 
-Promote to `queued` after confirming both of these:
-1. **Investigation:** read `portfolio-engine-ctrl`'s prompt + handler to determine whether it actually depends on IP's case-specific framing or whether it can work from a generic `InvestorProfileSnapshot`. One-shot read, no code change.
-2. **Product judgement:** confirm that a 15-min-stale market window is acceptable for the decision classes the cycle serves (rebalance, drift, deposit). Not a code question.
+Promoted from `parking` to `queued` (rank 1) on 2026-05-16 by user direction. The partial-substitution analysis vs. `agent-pipeline-backlog-trap-architectural` showed strong composition: this proposal halves the trap's queue surface (IP+MI exit the cycle entirely) and may unblock e2e scenarios 11+12 alone, even before the wiring fix lands. Cost-side win is order-of-magnitude regardless. See `## Cross-reference` below for the full breakdown.
 
-If both clear, promote and request a full design spec at `docs/superpowers/specs/<date>-advisory-cycle-agent-precomputation-design.md`. The spec should cover: snapshot schema details, new event contracts, migration phases (shadow mode → cutover), the trigger-race resolution choice, snapshot-freshness validation gates, and the e2e fixture impact.
+## First spec-phase tasks (before drafting the design spec)
+
+These are not promotion gates — they are the first units of work once this is picked up.
+
+1. **Prompt-dependency investigation.** Read `portfolio-engine-ctrl`'s prompt + handler to determine whether it depends on IP's case-specific framing or whether it can work from a generic `InvestorProfileSnapshot`. One-shot read, no code change. Outcome shapes the snapshot schema.
+2. **Market-freshness product call.** Confirm a 15-min-stale `MarketSnapshot` is acceptable for the decision classes the cycle serves (rebalance, drift, deposit). Not a code question — informs the per-field refresh-cadence tiering.
+
+Once those are answered, draft `docs/superpowers/specs/<date>-advisory-cycle-agent-precomputation-design.md` covering: snapshot schema details, new event contracts, migration phases (shadow mode → cutover), the trigger-race resolution choice, snapshot-freshness validation gates, and the e2e fixture impact.
 
 ## Open questions to answer in the spec
 

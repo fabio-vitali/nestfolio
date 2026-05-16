@@ -59,3 +59,16 @@ Blocked by `agent-pipeline-task-token-timeout-observability` (rank 1). We need t
 
 - Phase A/B inter-agent state handoff is a separate workstream and is correct as designed. The architectural fix should reduce processing lag, not redesign agent state propagation.
 - Long-term Memory writes (Phase B) — out of scope here. If they are the dominant latency contributor, file separately.
+
+## Sibling: `advisory-cycle-agent-precomputation` (partial substitute)
+
+Tracked at `docs/backlog/advisory-cycle-agent-precomputation.md` (queued, rank 1 as of 2026-05-16). That proposal moves `investor-profile-ctrl` and `market-intelligence-ctrl` out of the cycle entirely (continuous projection on change events, cycle reads snapshots).
+
+- **For IP+MI:** the trap dissolves — there is no per-cycle invocation, so no per-cycle queue. The three-knob tension disappears for these two services.
+- **For `portfolio-engine-ctrl` + `advisory-narrative-ctrl`:** the trap is unchanged. They remain case-specific and stay in the cycle.
+- **Practical e2e impact:** halves the per-cycle agent message volume (40 → 20 at current e2e fan-out). May be enough to take scenarios 11+12 green even before this wiring fix ships — an empirical claim the observability data should resolve.
+- **Composition if both ship:** zero per-cycle agent queueing for half the agents (precomputation), well-tuned wiring for the other half (this work). Best outcome.
+- **If precomputation alone ships:** PE+AN still face the same structural trap; load growth resurfaces it. This wiring fix remains the durable answer for those two.
+- **If this wiring fix alone ships:** trap is solved for all 4 agents, but precomputation's order-of-magnitude cost win on IP+MI is left on the table.
+
+The two are independent and can ship in either order. Promote-ordering reflects expected highest near-term leverage (precomputation unblocks e2e + cuts cost), not architectural priority.
