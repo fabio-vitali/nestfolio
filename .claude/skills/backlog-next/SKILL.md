@@ -1,13 +1,14 @@
 ---
 name: backlog-next
-description: User-triggered router (`/backlog-next`) — picks the next backlog item from docs/BACKLOG.md, classifies its complexity (doc-layer / simple / complex), enforces preflight/postflight gates, and routes the closing phase to deploy + nx-affected validation. Invoke ONLY when the user explicitly types `/backlog-next` or names this skill directly; do NOT auto-invoke from natural phrasing like "what's next?" or session-start heuristics.
+description: Workstream router for starting the next backlog item. Picks from docs/BACKLOG.md, classifies complexity (doc-layer / simple / complex), enforces preflight/postflight gates, and routes the closing phase to deploy + nx-affected validation + finishing-a-development-branch.
+disable-model-invocation: true
 ---
 
 ## When to invoke
 
-**ONLY when the user explicitly types `/backlog-next`** (or directly names this skill). Do NOT auto-invoke from "what's next?", session start, or after a ship — the user wants explicit control over when this routing runs.
+User-triggered via `/backlog-next` only. `disable-model-invocation: true` in the frontmatter mechanically blocks auto-invocation and preloading into subagents — agents cannot trigger this skill from natural phrasing.
 
-If `/backlog-next` fires while an ACTIVE workstream is already in flight, the agent should report that state and ask whether to resume or switch, not silently start a second workstream. Side-findings mid-execution still go through `backlog-add`, never this skill.
+If `/backlog-next` fires while an ACTIVE workstream is already in flight, report that state and ask whether to resume or switch — do NOT silently start a second workstream. Side-findings mid-execution go through `backlog-add`, never this skill.
 
 ## Procedure
 
@@ -33,7 +34,9 @@ Read `docs/BACKLOG.md`. If exactly one item is `status: active`, resume it. Othe
 |------|----------|---------------|
 | **Doc-layer** | Only touches `docs/backlog/`, `MEMORY.md`, `BACKLOG.md`. | `main`. See [[feedback-docs-backlog-commits-go-to-main]]. |
 | **Simple** | Single service or single MFE, no large blast radius. Multi-file/multi-line is fine. **Disqualifiers:** requires deploy + e2e validation gate, OR changes a public interface (event contract, CDK construct API, flow spec, shared lib export), OR introduces an architectural decision worth surfacing. | `main`. See [[feedback-simple-fixes-stay-on-main]]. |
-| **Complex** | `type ∈ {design, spec}`, OR `requires_deploy: true` in frontmatter, OR crosses services/domains, OR hits a disqualifier above. | **Worktree FIRST**. See [[feedback-worktree-first-no-commits-on-main]]. |
+| **Complex** | The workstream will produce **code or infra changes** (not just docs): `requires_deploy: true` in frontmatter, OR crosses services/domains, OR hits a Simple-lane disqualifier above, OR a `type: design`/`type: spec` workstream whose done-definition includes an implementation commit (not just the spec doc). | **Worktree FIRST**. See [[feedback-worktree-first-no-commits-on-main]]. |
+
+**Edge case — spec-only design workstreams stay Doc-layer.** A `type: design` or `type: spec` workstream whose done-definition is "spec or design doc exists, reviewed, lands in `docs/superpowers/specs/`" produces only doc files. That ships on `main` as Doc-layer. The follow-up implementation workstream (which will produce code) gets its own backlog file and goes through Complex.
 
 If midway you realize the lane was wrong (started Simple, architectural decision surfaces), STOP and upgrade. See [[feedback-pivot-to-worktree]].
 
@@ -90,7 +93,7 @@ bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=<from-dete
 pnpm nx affected -t test-integration --base=origin/main
 ```
 
-Then run only the **involved** `apps/e2e-feature-tests` scenarios — pick from the workstream's context (which flows/services it touched). **NEVER the full e2e suite. NEVER Playwright.** See [[feedback-always-rerun-e2e]]. Dev-account operations need no confirmation — see [[feedback-sole-dev-no-shared-caution]].
+Then run only the **involved** `apps/e2e-feature-tests` scenarios — pick from the workstream's context (which flows/services it touched). **NEVER the full e2e suite. NEVER Playwright.** See [[feedback-always-rerun-e2e]]. If any scenario fails-then-passes on a rerun, pull CloudWatch evidence from the failing window before continuing and run a second confirmation pass — flakes are real failures, not noise. See [[feedback-flake-means-broken]]. Dev-account operations need no confirmation — see [[feedback-sole-dev-no-shared-caution]].
 
 **6.5 Ship the backlog file.** Edit `docs/backlog/<id>.md` → `status: shipped`, fill `validation_gate:` with concrete evidence (commit SHA, deploy log line, integ/e2e command output). Commit.
 
@@ -108,11 +111,11 @@ Hard-fails if: working tree is dirty, `backlog-lint` violates a rule, the shippe
 
 ## Common mistakes
 
-- **Skipping preflight.** The "just one quick frontmatter tweak on main before the worktree" is the start of every cascade.
-- **Reimplementing `finishing-a-development-branch`.** This skill routes to it; do not `gh pr merge` manually.
+- **Skipping preflight or postflight.** Both are hard gates, not advisory. The "just one quick frontmatter tweak on main before the worktree" is the start of every cascade; declaring shipped without postflight is how stale worktrees and unpushed main commits accumulate.
+- **Reimplementing `finishing-a-development-branch`.** This skill routes to it — do NOT run `gh pr create` + `gh pr merge --squash` manually in the closing phase. The skill knows about branch deletion, fast-forward reconciliation, and `gh pr merge --delete-branch` ordering.
 - **Auto-promoting LATER → QUEUED.** Promotion is a judgment call — do it manually at the boundary review.
 - **Splitting source from derived across PRs.** Both ship in the same workstream. See `doc-derivation-paths.md`.
-- **Dismissing flakes.** See [[feedback-flake-means-broken]]. E2E flakes are QUEUED, never parking — see [[feedback-e2e-gaps-queued-not-parking]].
+- **Dismissing flakes after one rerun.** See [[feedback-flake-means-broken]]. If a scoped e2e scenario fails-then-passes, pull evidence from the failing window before continuing; a confirmation rerun is required, not optional. E2E flakes are QUEUED, never parking — see [[feedback-e2e-gaps-queued-not-parking]].
 
 ## Related
 
