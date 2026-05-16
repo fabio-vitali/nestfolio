@@ -1,9 +1,9 @@
 schema_version: 1
 flow: advisory-cycle
-description: Advisory decision cycle — Step Functions orchestrates 4 LangGraph agents (2 parallel + 2 sequential), assembles outputs via AgentCore Memory, runs compliance check, then optionally requests user confirmation before forwarding to execution
-domains: [advisory, investor, execution]
+description: Advisory decision cycle — Step Functions orchestrates 4 LangGraph agents (2 parallel + 2 sequential), assembles a DecisionPacket from agent outputs read directly off SF state, runs compliance check, then optionally requests user confirmation before forwarding to execution and ledger
+domains: [advisory, investor, execution, ledger]
 
-trigger: decision-workflow-ctrl receives one of 7 trigger events; EventBridge starts the Step Functions execution directly via a native target.
+trigger: decision-workflow-ctrl receives one of 7 trigger events (MANDATE_SNAPSHOT_CREATED, INVESTOR_PROFILE_UPDATED, PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED); EventBridge starts the Step Functions execution directly via a native target (no Lambda hop).
 
 steps:
   # -- Phase 0: Cross-domain trigger ingestion --
@@ -55,10 +55,9 @@ steps:
   - service: investor-profile-ctrl
     receives: ANALYZE_INVESTOR_PROFILE
     via: AdvisoryBus -> SQS -> investor-profile-ctrl-Ingress
-    state_change: LangGraph agent (Opus model) analyzes investor profile using Regulatory KB; writes AgentInvocation and ReasoningOutput records; stores output to AgentCore Memory
+    state_change: LangGraph investor-profile agent (Haiku goals + Opus risk-assessment, parallel) runs against Regulatory KB; writes AgentInvocation and ReasoningOutput records; returns {operatingMode, agentOutput} to SF via SendTaskSuccess (resumeStateMachine pipeline). No AgentCore Memory write on the critical path (Phase-A 2026-05-14).
     emits: GOAL_INTERPRETATION_PRODUCED (CDC, AgentInvocation:INSERT), RISK_EVALUATION_PRODUCED (CDC, ReasoningOutput:INSERT)
     idempotent: false
-    note: Agent also emits INVESTOR_PROFILE_COMPLETED explicitly via event-publisher tool to resume SF
 
   # Phase 2b: Parallel branch 2 — Market Intelligence Agent
   - service: decision-workflow-ctrl
@@ -68,10 +67,9 @@ steps:
   - service: market-intelligence-ctrl
     receives: ANALYZE_MARKET
     via: AdvisoryBus -> SQS -> market-intelligence-ctrl-Ingress
-    state_change: LangGraph agent (Sonnet model) retrieves market data from Market KB (5 feed sources); writes AgentInvocation record; stores output to AgentCore Memory
-    emits: MARKET_SIGNAL_DETECTED (CDC, AgentInvocation:INSERT)
+    state_change: LangGraph market-intelligence agent (Sonnet, single-node graph) runs against Market KB (5 feed sources) plus deterministic in-process context (market-data + instrument-universe pre-fetched before the agent invokes); writes AgentInvocation record; returns agentOutput to SF via SendTaskSuccess. No AgentCore Memory write on the critical path.
+    emits: MARKET_SIGNAL_DETECTED (CDC, AgentInvocation:INSERT), MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED (EventBridgeTraceEmitter)
     idempotent: false
-    note: Agent also emits MARKET_ANALYSIS_COMPLETED explicitly via event-publisher tool to resume SF
 
   # Phase 2c: Sequential — Portfolio Construction Agent (after parallel merge)
   - service: decision-workflow-ctrl
@@ -81,10 +79,9 @@ steps:
   - service: portfolio-engine-ctrl
     receives: CONSTRUCT_PORTFOLIO
     via: AdvisoryBus -> SQS -> portfolio-engine-ctrl-Ingress
-    state_change: LangGraph agent (Opus model) constructs optimal portfolio using Fund KB, portfolio-lookup tool; writes AgentInvocation and ReasoningOutput records; stores output to AgentCore Memory
+    state_change: LangGraph portfolio-construction agent (Opus) runs against Fund KB; reads upstream agent outputs (operatingMode + investor-profile + market-analysis) directly from SF state Parameters — no AgentCore Memory roundtrip since Phase-A 2026-05-14; writes AgentInvocation and ReasoningOutput records; returns {allocations, trades, metadata} to SF via SendTaskSuccess.
     emits: PORTFOLIO_CONSTRUCTION_PROPOSED (CDC, AgentInvocation:INSERT), REBALANCE_PLAN_PRODUCED (CDC, ReasoningOutput:INSERT)
     idempotent: false
-    note: Agent also emits PORTFOLIO_COMPLETED explicitly via event-publisher tool to resume SF
 
   # Phase 2d: Sequential — Narrative Agent (after portfolio)
   - service: decision-workflow-ctrl
@@ -94,31 +91,27 @@ steps:
   - service: advisory-narrative-ctrl
     receives: GENERATE_NARRATIVE
     via: AdvisoryBus -> SQS -> advisory-narrative-ctrl-Ingress
-    state_change: LangGraph agent (Sonnet model) generates human-readable explanation using Explainability KB; writes ReasoningOutput record; stores output to AgentCore Memory
+    state_change: LangGraph narrative agent (Haiku 4.5) runs against Explainability KB; reads upstream agent outputs from SF state Parameters; writes ReasoningOutput record carrying the explanation; returns agentOutput to SF via SendTaskSuccess.
     emits: EXPLANATION_GENERATED (CDC, ReasoningOutput:INSERT)
     idempotent: false
-    note: Agent also emits NARRATIVE_COMPLETED explicitly via event-publisher tool to resume SF
 
-  # -- Phase 3: Agent completion callbacks --
+  # -- Phase 3: Assemble Decision Packet --
+  # NOTE: pre-Phase-A there was a separate *_COMPLETED callback step here that wrote AgentOutput
+  # records — AGENT_COMPLETION_EVENT_TYPES is still declared in decision-workflow-ctrl/src/domain/events.ts
+  # and registered in sfn-callback.ts but is vestigial and unreachable in production since 2026-05-14.
   - service: decision-workflow-ctrl
-    receives: INVESTOR_PROFILE_COMPLETED | MARKET_ANALYSIS_COMPLETED | PORTFOLIO_COMPLETED | NARRATIVE_COMPLETED
-    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-CallbackIngress
-    handler: sfn-callback.ts (resumeStateMachine)
-    state_change: SendTaskSuccess resumes SF; writes AgentOutput record to DDB per agent completion
-    emits: AGENT_OUTPUT_CREATED (CDC, AgentOutput:INSERT auto-expand)
+    action: SF invokes AssemblePacket Lambda (lambda:invoke, synchronous — NOT waitForTaskToken)
+    handler: handlers/assemble-packet.ts
+    state_change: >
+      Reads all 4 agent outputs from SF state Parameters ($.agentResults.<Upstream>.agentOutput) —
+      no AgentCore Memory reads since Phase-A 2026-05-14. Builds proposedTrades from
+      portfolio.allocations; extracts explanation from narrative.explainability.rationale
+      (fallback summary). Writes DecisionPacket row with status='PENDING' via putIfNotExists
+      (idempotent under SF retries).
+    emits: DECISION_PACKET_CREATED (CDC, DecisionPacket:INSERT)
     idempotent: true
 
-  # -- Phase 4: Assemble Decision Packet --
-  - service: decision-workflow-ctrl
-    action: SF invokes AssemblePacket Lambda (lambda:invoke, not waitForTaskToken)
-    state_change: Reads all 4 agent outputs from AgentCore Memory (investor-profile, market-intelligence, portfolio-engine, advisory-narrative); returns assembled packet to SF state
-
-  # -- Phase 5: Publish Recommendation --
-  - service: decision-workflow-ctrl
-    action: SF emits RECOMMENDATION_PROPOSED via EventBridge putEvents (fire-and-forget, NOT waitForTaskToken)
-    emits: RECOMMENDATION_PROPOSED (SF EventBridge integration)
-
-  # -- Phase 6: Wait for Compliance --
+  # -- Phase 4: Wait for Compliance --
   - service: decision-workflow-ctrl
     action: SF emits RECOMMENDATION_PROPOSED with awaitingCompliance=true via EventBridge putEvents.waitForTaskToken; waits up to 24h for compliance result
     emits: RECOMMENDATION_PROPOSED (SF EventBridge integration with taskToken)
@@ -258,21 +251,18 @@ steps:
     via: execution-adpt EB rule (ExecutionIngress-FromAdvisory)
 
 success_criteria:
-  - All 4 agent tasks complete and agent outputs stored to AgentCore Memory
-  - AssemblePacket Lambda successfully reads all 4 outputs from Memory
-  - RECOMMENDATION_PROPOSED emitted and compliance check runs
-  - Compliance check produces DECISION_APPROVED (L1 auto-approve) or routes to user confirmation (L2)
-  - For L2 path: USER_CONFIRMATION_REQUESTED reaches investor domain; user confirms via advisory-bff
-  - DECISION_APPROVED reaches execution domain via execution-adpt for order execution
+  - All 4 agent tasks return via SendTaskSuccess within their 600s windows
+  - AssemblePacket writes a DecisionPacket row; CDC emits DECISION_PACKET_CREATED reaching advisory-bff (UI), ledger-adpt (audit), and investor-bff (decision history)
+  - compliance-ctrl emits exactly one of DECISION_APPROVED / DECISION_BLOCKED
+  - For L1 approved DecisionPacket.status='APPROVED' and DECISION_APPROVED reaches ExecutionBus
+  - For L2 approved confirmDecision/rejectDecision mutation lands within 72h; USER_CONFIRMED causes DECISION_APPROVED propagation; USER_REJECTED ends the cycle with no execution
 
 failure_modes:
-  - step 1 (trigger ingestion) fails: EventBridge → SF native target invocation fails or is throttled; SF not started; trigger event sits on the source bus DLQ if a downstream rule failure cascades back
-  - step 2a/2b (parallel agents) fails: Agent Lambda fails or times out (10min default); SF task token expires; branch fails
-  - step 2c (portfolio engine) fails: SF task token timeout; PortfolioEngine branch fails
-  - step 2d (narrative agent) fails: SF task token timeout; AdvisoryNarrative branch fails
-  - step 3 (agent callbacks) fails: CallbackIngress DLQ; SF stuck waiting; eventually times out (72h SF timeout)
-  - step 4 (assemble packet) fails: Lambda invocation fails; SF catches error
-  - step 6 (compliance) fails: compliance-ctrl Ingress DLQ; WaitForCompliance times out (24h)
-  - step 7 (compliance callback) fails: CallbackIngress DLQ; SF stuck waiting
-  - step 9 (user confirmation) fails: USER_CONFIRMATION_REQUESTED not forwarded (investor-adpt FromAdvisoryDLQ); user never sees request; SF times out (72h)
-  - step 11 (user callback) fails: CallbackIngress DLQ; SF stuck waiting
+  - trigger ingestion fails: EventBridge → SF native target invocation fails or is throttled; SF not started; trigger event sits on source-bus DLQ. No automatic retry of the cycle; manual replay.
+  - agent invocation (IP/MI/PE/AN) fails or stalls past 600s: TaskTimedOut fires; agent ctrl Lambda's resume-state-machine pipeline logs ERROR with processingLagMs (since 2026-05-16) when SendTaskSuccess fires against an expired token; architectural follow-up tracked in docs/backlog/agent-pipeline-backlog-trap-architectural.md.
+  - agent Lambda exception: SendTaskFailure fires; SF state catches and the cycle fails with DECISION_WORKFLOW_FAILED.
+  - AssemblePacket fails: Lambda invocation error; SF state catches the error. Cycle ends without a DecisionPacket row. No retry.
+  - compliance fails: compliance-ctrl Ingress DLQ; WaitForCompliance times out at 24h. Manual DLQ replay; SF can resume only if token is still valid (won't be after 24h).
+  - compliance callback fails: CallbackIngress DLQ; SF stuck waiting; eventually times out at 24h. Manual replay (token-lag risk applies).
+  - user confirmation cross-bus hop fails: investor-adpt FromAdvisoryDLQ accumulates; user never sees the request. SF will time out at 72h.
+  - user callback fails: CallbackIngress DLQ; SF stuck waiting. Manual replay within the 72h window.
