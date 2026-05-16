@@ -12,11 +12,8 @@ _(none)_
 ## QUEUED
 
 1. [advisory-cycle-agent-precomputation](backlog/advisory-cycle-agent-precomputation.md) [design] — Alternative to the per-cycle agent model: investor-profile + market-intelligence move to continuous projection (run on change events, write snapshots, cycle reads them). Halves the agent-pipeline-trap surface and may unblock e2e scenarios 11+12 alone.
-2. [agentcore-memory-consolidation-off](backlog/agentcore-memory-consolidation-off.md) [refactor] — Disable Haiku consolidation on 3 of 4 Phase B MemoryStrategies; ~$30/mo savings
+2. [bedrock-cost-reduction-may-2026](backlog/bedrock-cost-reduction-may-2026.md) [refactor] — 5-lever Bedrock cost-reduction package — Phase B MemoryStrategies + Opus downgrades; ~$100/mo savings
 3. [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out; blocks e2e scenarios 11+12 green gate. Depends on observability workstream landing first.
-4. [opus-to-sonnet-risk-assessment](backlog/opus-to-sonnet-risk-assessment.md) [refactor] — Flip investor-profile-ctrl risk-assessment Opus → Sonnet; ~$50/mo savings
-5. [agentcore-memory-merge-rationale-strategies](backlog/agentcore-memory-merge-rationale-strategies.md) [refactor] — Merge duplicate PortfolioRationaleArchivist + NarrativeRationaleArchivist; ~$15/mo savings
-6. [agentcore-memory-market-signal-to-managed-semantic](backlog/agentcore-memory-market-signal-to-managed-semantic.md) [refactor] — Swap MarketSignalExtractor from CUSTOM Haiku to managed SEMANTIC; ~$5/mo savings
 
 ## LATER
 
@@ -43,7 +40,6 @@ _(none)_
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — Moved to LATER 2026-05-15 — investigation revealed scope is full CI bring-up (OIDC IAM role + secret provisioning), not a workflow YAML edit. Deferred to dedicated CI-pipeline workstream once the system is stable.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
-- [opus-to-sonnet-portfolio-construction](backlog/opus-to-sonnet-portfolio-construction.md) [refactor] — Companion to opus-to-sonnet-risk-assessment; promote after risk-assessment proves stable
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
 - [portfolio-engine-service-unavailable-asymmetric-handling](backlog/portfolio-engine-service-unavailable-asymmetric-handling.md) [bug] — portfolio-engine graph returns serviceUnavailable instead of throwing; other 3 advisory agents throw
 - [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md) [infra] — Throwaway-PR rehearsal + branch-protection toggle. BLOCKED on ci-pipeline-bring-up — pipeline has never produced a green run.
