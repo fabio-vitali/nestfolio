@@ -46,7 +46,9 @@ E2e gate scenarios `apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.
 
 ## Why "queued" and not "active"
 
-Blocked by `agent-pipeline-task-token-timeout-observability` (rank 1). We need the new ERROR logs landed and a second e2e run captured so the redesign is informed by `processingLagMs` distribution, not by assumption. The choice between "raise concurrency", "shorten visibility", "switch to direct SF→AgentCore sync invoke", or some combination, depends on that data.
+Original blocker (observability) is resolved: `agent-pipeline-task-token-timeout-observability` shipped 2026-05-16 and an e2e re-run produced the first concrete data point — `processingLagMs=1,800,450` (~30 min, 3× the 600 s SF window) on `dev-investor-profile-ctrl` IngressHandler. The trap hypothesis is now empirically confirmed, not assumed; the four design questions below can be answered with real distribution data on the next runs.
+
+Now ranked behind `advisory-cycle-agent-precomputation` (rank 1) because that proposal dissolves the trap surface for IP+MI entirely (see § Sibling below) and may unblock e2e scenarios 11+12 alone — making this fix less urgent for the e2e gate. This work remains the durable answer for `portfolio-engine-ctrl` + `advisory-narrative-ctrl` (case-specific, cannot be precomputed) and for load growth, so it stays queued, not dropped. Promote to active when either: (a) precomputation ships and PE/AN trap behaviour is the remaining blocker, or (b) cycle load grows past current dev fan-out independent of precomputation timing.
 
 ## Design questions to resolve (in the spec phase)
 
