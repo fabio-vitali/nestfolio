@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 User-triggered via `/backlog-next` only. `disable-model-invocation: true` in the frontmatter mechanically blocks auto-invocation and preloading into subagents — agents cannot trigger this skill from natural phrasing.
 
+Accepts an optional `<id>` argument (`/backlog-next <id>`) that overrides the deterministic rank pick in Step 1. Without an argument, the default rule applies (resume single ACTIVE, else top-ranked QUEUED). The argument does NOT bypass any status rules — see Step 1 for the per-status dispatch.
+
 If `/backlog-next` fires while an ACTIVE workstream is already in flight, report that state and ask whether to resume or switch — do NOT silently start a second workstream. Side-findings mid-execution go through `backlog-add`, never this skill.
 
 ## Procedure
@@ -22,7 +24,19 @@ Hard-fails if: working tree is dirty, local `main` is ahead of `origin/main`, `b
 
 ### 1. Pick the item
 
-Read `docs/BACKLOG.md`. If exactly one item is `status: active`, resume it. Otherwise pick the top-ranked QUEUED item. Read `docs/backlog/<id>.md`.
+**Default (no argument).** Read `docs/BACKLOG.md`. If exactly one item is `status: active`, resume it. Otherwise pick the top-ranked QUEUED item. Read `docs/backlog/<id>.md`.
+
+**With `<id>` argument (`/backlog-next <id>`).** The argument overrides the rank pick. Locate `docs/backlog/<id>.md` and dispatch by status:
+
+| Status | Action |
+|---|---|
+| `queued` | Proceed with this item regardless of `rank`. Rank stays as-is. |
+| `active` | Fall back to the ACTIVE-in-flight guidance in "When to invoke" — report state, ask resume vs switch. |
+| `parking` | **Refuse.** Rule 8: parking entries carry unmet trigger language. Tell the user to remove the trigger sentence, document why it fired, then promote via `backlog-add` (or hand-edit to `status: queued` with a `rank`) and re-run `/backlog-next <id>`. Do NOT silently promote. |
+| `shipped` or `dropped` | Almost always a typo. Warn loudly with the file's `validation_gate:` (shipped) or drop reason, and ask for confirmation before doing anything. |
+| not found | Warn, list close matches from `ls docs/backlog/` (use the closest filename stems), and ask for clarification. Do NOT fall back to the default rank pick. |
+
+Then proceed to Step 2.
 
 ### 2. Verify references
 
