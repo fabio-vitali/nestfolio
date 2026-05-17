@@ -4,7 +4,7 @@ Domain: advisory | Bus: advisoryBus
 Stack: services/advisory/investor-profile-ctrl/src/service.stack.ts
 
 ## State
-- DynamoDB table (streams enabled)
+- DynamoDB table (streams enabled). Holds AgentInvocation + ReasoningOutput rows plus the continuously-projected InvestorProfileSnapshot row (pk=`InvestorProfileSnapshot#{tenantId}#{userId}`, sk='InvestorProfileSnapshot').
 
 ## KnowledgeBase
 - RegulatoryKB: Regulatory frameworks, suitability rules, compliance precedents
@@ -14,42 +14,59 @@ Stack: services/advisory/investor-profile-ctrl/src/service.stack.ts
 
 ## Ingress
 - advisoryBus -> investor-profile-ctrl-ingress (SQS -> Lambda)
-  Subscriptions: ANALYZE_INVESTOR_PROFILE, DECISION_BLOCKED, DECISION_APPROVED
-  Grants: AgentCore Memory API
+  Subscriptions: INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, OPERATING_MODE_CHANGED, DECISION_BLOCKED, DECISION_APPROVED
+  Profile: agentProps (1024 MB / 5min timeout / batchSize 1 / concurrency 5)
+  Grants: AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
+  Pattern: materializeToTable (continuous projection — snapshot writer)
+  errorEventType: INVESTOR_PROFILE_CTRL_FAILED
 
 ## Egress
 - CDC: DynamoDB Streams -> investor-profile-ctrl-egress (Lambda)
   Emits:
   - AgentInvocation -> GOAL_INTERPRETATION_PRODUCED (insert only)
   - ReasoningOutput -> RISK_EVALUATION_PRODUCED (insert only)
+  - InvestorProfileSnapshot -> INVESTOR_PROFILE_SNAPSHOT_CREATED (insert), INVESTOR_PROFILE_SNAPSHOT_UPDATED (modify)
 
 ## AgentRuntime
 Agent folder: agents/investor-profile/
 - investor_profile_agents: user-goals (Haiku) + risk-assessment (Opus) parallel orchestration
   Models: Opus, Haiku (SSM from advisory-hub)
   Tools: none (RAG only)
+  PutEvents grant: eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal)
+  SSM runtime URL param: `/nestfolio/${prefix}-investor-profile-ctrl/agent/runtimeUrl`
 
 ## Standalone Lambdas
 - KBIngestion: Ingests compliance precedents into RegulatoryKB (triggered by DECISION_BLOCKED, DECISION_APPROVED)
 
 ## Handlers
-- event-listener.ts -- Ingress event handler (ANALYZE_INVESTOR_PROFILE)
-- event-publisher.ts -- Egress CDC publisher
+- event-listener.ts -- Ingress snapshot writer (materializeToTable). Each trigger event resolves operatingMode + runs the agent + records both an AgentInvocation row and an InvestorProfileSnapshot row keyed by (tenantId, userId). DuplicateInvocationError → deduplicated short-circuit. UnknownOperatingModeError is thrown when neither subject.operatingMode nor subject.mandate.operatingMode is present.
+- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline)
 - kb-ingestion-handler.ts -- KB ingestion for regulatory precedents
 
 ## Event Types (domain/events.ts)
-- InvestorProfileEventTypes: INVESTOR_PROFILE_COMPLETED, GOAL_INTERPRETATION_PRODUCED, RISK_EVALUATION_PRODUCED
-- HANDLED_EVENT_TYPES: ANALYZE_INVESTOR_PROFILE
-- KB_INGESTION_EVENT_TYPES: DECISION_BLOCKED, DECISION_APPROVED
+- InvestorProfileEventTypes (outbound): GOAL_INTERPRETATION_PRODUCED, RISK_EVALUATION_PRODUCED, INVESTOR_PROFILE_AGENT_INVOCATION_TRACED, INVESTOR_PROFILE_SNAPSHOT_CREATED, INVESTOR_PROFILE_SNAPSHOT_UPDATED
+- HANDLED_EVENT_TYPES (inbound triggers): INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, OPERATING_MODE_CHANGED
+- KB_INGESTION_EVENT_TYPES (inbound, KB-only): DECISION_BLOCKED, DECISION_APPROVED
+
+## IAM trace
+- Memory API: CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions (resources: *)
+- InvokeAgentRuntime on runtime ARN + endpoint sub-resource
+- KB bucket write + bedrock-knowledge-base StartIngestionJob (KBIngestion only)
+- **NO `states:SendTask*` grants.** Post-precomputation, this service no longer resumes per-cycle SF callbacks — it materializes a snapshot row and DWC's SnapshotProjectorIngress + SF read it via DDB GetItem. Lockdown asserted workspace-wide by Task 12's CDK invariant test.
 
 ## Tests
-- agent-service.test.ts
-- event-listener.test.ts
-- graph.test.ts
-- kb-ingestion-handler.test.ts
-- service.stack.test.ts
+- test/unit/agent-service.test.ts
+- test/unit/event-listener.test.ts
+- test/unit/graph.test.ts
+- test/unit/kb-ingestion-handler.test.ts
+- test/unit/service.stack.test.ts
+- test/unit/agents/* (fallbacks, golden-fixtures, schemas, validation)
+- test/integration/investor-profile-ctrl.integration.test.ts
+- test/integration/investor-profile-ctrl.resilience.integration.test.ts
 
 ## Dependencies
-- libs: cdk-constructs (core, extensions, utils), event-processor
+- libs: cdk-constructs (core, extensions, utils), event-processor, agent-orchestrator, event-types
+- Cross-service event-type imports: investor-bff (INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, OPERATING_MODE_CHANGED), compliance-ctrl (DECISION_BLOCKED, DECISION_APPROVED)
 - SSM: advisory-hub (models/opus, models/haiku), decision-workflow-ctrl (memory/id)
-- AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListMemoryRecords, ListEvents, ListActors, ListSessions)
+- AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions)
+- AgentCore Runtime (InvokeAgentRuntime)
