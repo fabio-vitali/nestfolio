@@ -38,7 +38,7 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
   1. **UnpackTriggerEnvelope** (Pass) — flattens {subject.decisionId, subject.tenantId, context.userId, context.region} to top-level SF state so every putEvents task state can emit the event-processor envelope.
   2. **ParallelProjections** (Parallel) — two branches:
      - Branch A: **ResolveInvestorProfile** (Choice) — when the trigger payload carries an InvestorProfile body, hoist it; otherwise read the DWC-local InvestorProfileSnapshot via Direct DDB GetItem (payload-first → projection-fallback).
-     - Branch B: **LookupMarketSnapshot** (DDB GetItem) — always reads MarketSnapshot for the region; market signals are a global projection so there's no payload-first path.
+     - Branch B: **LookupMarketSnapshot** (DDB GetItem, captures raw response on `$.marketSnapshotResponse`) → **CheckMarketSnapshotPresent** (Choice on `isPresent($.marketSnapshotResponse.Item)`) → **ExtractMarketSnapshot** (Pass, lifts the real `agentOutput`) on hit, or **HandleMissingMarketSnapshot** (Pass, seeds `{ agentOutput: {} }`) on miss. The Choice-on-isPresent shape is the workaround for SF `States.Runtime` (raised by missing JSONPath) being uncatchable. PE+AN tolerate empty marketAnalysis via `?? {}` so absent market context degrades the decision rather than aborting the cycle. No payload-first path (market signals are a global projection).
   3. **MergeProjections** (Pass) — joins the two branches.
   4. **ResolveMandateSnapshot** (Choice) — when the trigger payload carries an operatingMode hint, hoist; otherwise **LookupMandateSnapshot** (DDB GetItem) + **SetInvestorProfile** (Pass).
   5. PE + AN waitForTaskToken steps (SendTaskSuccess on AgentCompletion CDC, SendTaskFailure on AgentFailure CDC).

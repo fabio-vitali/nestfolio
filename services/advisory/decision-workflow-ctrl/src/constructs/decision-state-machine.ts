@@ -3,6 +3,7 @@ import { Duration } from 'aws-cdk-lib';
 import { IEventBus } from 'aws-cdk-lib/aws-events';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
+import * as sfnTasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
 
 interface DecisionWorkflowDefinitionProps {
   readonly eventBus: IEventBus;
@@ -382,30 +383,47 @@ export class DecisionWorkflowDefinition extends Construct {
     // (B) LookupMarketSnapshot — always GetItem. Market signals are a global
     //     projection keyed by region; we never hoist from trigger payload
     //     because no trigger carries market analysis.
-    const lookupMarketSnapshot = new sfn.CustomState(this, 'LookupMarketSnapshot', {
-      stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::dynamodb:getItem',
-        Parameters: {
-          TableName: props.tableName,
-          Key: {
-            pk: { 'S.$': "States.Format('MarketSnapshot#{}', $.region)" },
-            sk: { S: 'MarketSnapshot' },
-          },
-        },
-        ResultSelector: {
-          'agentOutput.$': '$.Item.agentOutput.M',
-        },
-        ResultPath: '$.agentResults.InvokeMarketIntelligence',
+    //
+    //     Fault-tolerance: a missing MarketSnapshot row produces an SF
+    //     States.Runtime when extracting $.Item.agentOutput.M, which is
+    //     UNCATCHABLE per AWS docs ("aren't catchable using Retry or Catch").
+    //     We instead capture the raw GetItem response on $.marketSnapshotResponse
+    //     (no ResultSelector — that's the part that would raise), then use a
+    //     Choice on isPresent($.Item) to branch: ExtractMarketSnapshot lifts the
+    //     real agentOutput on the hit path, HandleMissingMarketSnapshot seeds
+    //     an empty default on the miss path. PE+AN tolerate empty marketAnalysis
+    //     via `?? {}` (event-listener.ts in each), so absent market context
+    //     degrades the decision rather than aborting the cycle.
+    const lookupMarketSnapshot = new sfnTasks.DynamoGetItem(this, 'LookupMarketSnapshot', {
+      table: props.table,
+      key: {
+        pk: sfnTasks.DynamoAttributeValue.fromString(
+          sfn.JsonPath.format('MarketSnapshot#{}', sfn.JsonPath.stringAt('$.region')),
+        ),
+        sk: sfnTasks.DynamoAttributeValue.fromString('MarketSnapshot'),
       },
+      resultPath: '$.marketSnapshotResponse',
     });
+    const extractMarketSnapshot = new sfn.Pass(this, 'ExtractMarketSnapshot', {
+      parameters: {
+        'agentOutput.$': '$.marketSnapshotResponse.Item.agentOutput.M',
+      },
+      resultPath: '$.agentResults.InvokeMarketIntelligence',
+    });
+    const handleMissingMarketSnapshot = new sfn.Pass(this, 'HandleMissingMarketSnapshot', {
+      result: sfn.Result.fromObject({ agentOutput: {} }),
+      resultPath: '$.agentResults.InvokeMarketIntelligence',
+    });
+    const checkMarketSnapshotPresent = new sfn.Choice(this, 'CheckMarketSnapshotPresent')
+      .when(sfn.Condition.isPresent('$.marketSnapshotResponse.Item'), extractMarketSnapshot)
+      .otherwise(handleMissingMarketSnapshot);
 
     // (C) Parallel: run the IP Choice + Market lookup concurrently.
     const parallelProjections = new sfn.Parallel(this, 'ParallelProjections', {
       resultPath: '$.parallelResults',
     });
     parallelProjections.branch(resolveInvestorProfile);
-    parallelProjections.branch(lookupMarketSnapshot);
+    parallelProjections.branch(lookupMarketSnapshot.next(checkMarketSnapshotPresent));
 
     // (D) MergeProjections — lift each branch's result back into top-level
     //     $.agentResults.<StateId>.agentOutput so PE+AN subjects can reference

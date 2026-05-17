@@ -3,8 +3,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Rule, Schedule, RuleTargetInput } from 'aws-cdk-lib/aws-events';
 import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
-import { CustomResource, Duration } from 'aws-cdk-lib';
-import { Provider } from 'aws-cdk-lib/custom-resources';
+import { Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
@@ -96,31 +95,6 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
           event: RuleTargetInput.fromObject({}),
         }),
       ],
-    });
-
-    // Bootstrap custom resource. On stack Create only, this Lambda emits a
-    // synthetic MARKET_SNAPSHOT_REFRESH_TICK and polls until the MarketSnapshot
-    // row materialises (5-minute deadline). Without it, the first decision
-    // cycle after a fresh deploy could race the 15-minute schedule and
-    // LookupMarketSnapshot a missing row. Update/Delete are no-ops.
-    const bootstrapSnapshotFn = new NodejsFunction(this, 'BootstrapSnapshotFn', {
-      ...defaultLambdaProps(this),
-      entry: join(__dirname, 'handlers', 'bootstrap-snapshot.ts'),
-      // Lambda must outlive the 5-minute polling deadline inside the handler.
-      timeout: Duration.minutes(6),
-      environment: {
-        BUS_NAME: this.eventBus.eventBusName,
-        TABLE_NAME: state.getTable().tableName,
-      },
-    });
-    state.getTable().grantReadData(bootstrapSnapshotFn);
-    this.eventBus.grantPutEventsTo(bootstrapSnapshotFn);
-
-    const bootstrapProvider = new Provider(this, 'BootstrapSnapshotProvider', {
-      onEventHandler: bootstrapSnapshotFn,
-    });
-    new CustomResource(this, 'BootstrapSnapshotResource', {
-      serviceToken: bootstrapProvider.serviceToken,
     });
 
     // KB ingestion Lambda (separate from event-listener)
@@ -224,7 +198,7 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     this.addObservability({
       ingress,
       egress,
-      extraLambdas: [kbIngestionFn, scheduledEmitter, bootstrapSnapshotFn],
+      extraLambdas: [kbIngestionFn, scheduledEmitter],
       monitorBedrock: true,
       bedrockModelIds: [modelSonnetId],
     });

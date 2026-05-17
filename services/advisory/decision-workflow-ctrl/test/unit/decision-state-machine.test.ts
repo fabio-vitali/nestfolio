@@ -86,18 +86,53 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(state.ResultPath).toBe('$.agentResults.InvokeInvestorProfile');
   });
 
-  it('adds LookupMarketSnapshot — DDB GetItem on MarketSnapshot key, ResultPath under agentResults.InvokeMarketIntelligence', () => {
+  it('adds LookupMarketSnapshot — DDB GetItem on MarketSnapshot key, captures full response on $.marketSnapshotResponse (no ResultSelector — that would raise the uncatchable States.Runtime on absent rows)', () => {
     const branchStates = definition.States.ParallelProjections.Branches[1].States;
     const state = branchStates.LookupMarketSnapshot;
     expect(state).toBeDefined();
     expect(state.Type).toBe('Task');
-    expect(state.Resource).toBe('arn:aws:states:::dynamodb:getItem');
+    // sfnTasks.DynamoGetItem renders Resource via { Fn::Sub } using the
+    // aws-partition intrinsic, so the partition slot is a CFN ref token here.
+    expect(state.Resource).toMatch(/states:::dynamodb:getItem$/);
     expect(state.Parameters.Key.pk['S.$']).toBe(
       "States.Format('MarketSnapshot#{}', $.region)",
     );
     expect(state.Parameters.Key.sk.S).toBe('MarketSnapshot');
-    expect(state.ResultSelector['agentOutput.$']).toBe('$.Item.agentOutput.M');
-    expect(state.ResultPath).toBe('$.agentResults.InvokeMarketIntelligence');
+    // No ResultSelector — extracting $.Item.agentOutput.M on a missing row
+    // raises States.Runtime, which AWS docs say is NOT catchable. Defer the
+    // extraction to a downstream Pass guarded by a Choice on isPresent.
+    expect(state.ResultSelector).toBeUndefined();
+    expect(state.ResultPath).toBe('$.marketSnapshotResponse');
+    expect(state.Next).toBe('CheckMarketSnapshotPresent');
+  });
+
+  it('Branch B fault-tolerance: Choice on $.marketSnapshotResponse.Item → ExtractMarketSnapshot or HandleMissingMarketSnapshot (both write empty-tolerant shape under $.agentResults.InvokeMarketIntelligence)', () => {
+    const branchStates = definition.States.ParallelProjections.Branches[1].States;
+
+    const choice = branchStates.CheckMarketSnapshotPresent;
+    expect(choice).toBeDefined();
+    expect(choice.Type).toBe('Choice');
+    expect(choice.Choices).toHaveLength(1);
+    expect(choice.Choices[0].Variable).toBe('$.marketSnapshotResponse.Item');
+    expect(choice.Choices[0].IsPresent).toBe(true);
+    expect(choice.Choices[0].Next).toBe('ExtractMarketSnapshot');
+    expect(choice.Default).toBe('HandleMissingMarketSnapshot');
+
+    const extract = branchStates.ExtractMarketSnapshot;
+    expect(extract).toBeDefined();
+    expect(extract.Type).toBe('Pass');
+    expect(extract.Parameters['agentOutput.$']).toBe(
+      '$.marketSnapshotResponse.Item.agentOutput.M',
+    );
+    expect(extract.ResultPath).toBe('$.agentResults.InvokeMarketIntelligence');
+    expect(extract.End).toBe(true);
+
+    const fallback = branchStates.HandleMissingMarketSnapshot;
+    expect(fallback).toBeDefined();
+    expect(fallback.Type).toBe('Pass');
+    expect(fallback.Result).toEqual({ agentOutput: {} });
+    expect(fallback.ResultPath).toBe('$.agentResults.InvokeMarketIntelligence');
+    expect(fallback.End).toBe(true);
   });
 
   it('adds ParallelProjections — Parallel with two branches (IP Choice + Market lookup), resultPath $.parallelResults', () => {

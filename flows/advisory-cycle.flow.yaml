@@ -337,7 +337,7 @@ steps:
     via: execution-adpt EB rule (ExecutionIngress-FromAdvisory)
 
 success_criteria:
-  - InvestorProfileSnapshot + MarketSnapshot projections exist in DWC-local DDB before the cycle begins (continuously materialised; MarketSnapshot bootstrapped on stack Create)
+  - InvestorProfileSnapshot + MarketSnapshot projections exist in DWC-local DDB before the cycle begins (continuously materialised). Absent MarketSnapshot is tolerated — SF Branch B routes via Choice on isPresent($.marketSnapshotResponse.Item): ExtractMarketSnapshot on hit, HandleMissingMarketSnapshot (empty agentOutput default) on miss; PE+AN degrade gracefully.
   - SF resolves both snapshots via Direct DDB GetItem (no IP/MI agent invocation per cycle)
   - PE + AN agents return via materializeToTable AgentCompletion CDC within their windows; PORTFOLIO_COMPLETED / NARRATIVE_COMPLETED reach DWC's CallbackIngress and SendTaskSuccess resumes the SF
   - AssemblePacket writes a DecisionPacket row; CDC emits DECISION_PACKET_CREATED reaching advisory-bff (UI), ledger-adpt (audit), and investor-bff (decision history)
@@ -348,7 +348,7 @@ success_criteria:
 failure_modes:
   - trigger ingestion fails: EventBridge → SF native target invocation fails or is throttled; SF not started; trigger event sits on source-bus DLQ. No automatic retry of the cycle; manual replay.
   - InvestorProfileSnapshot missing at cycle start (IP-ctrl Ingress DLQ accumulating, or new tenant never went through onboarding): SF Branch A's Choice payload-first path is the safety net only when the trigger payload carries the IP body; otherwise the Direct DDB GetItem returns no row and SF state catches the error.
-  - MarketSnapshot missing at cycle start (MI-ctrl Ingress DLQ, or pre-bootstrap race): the BootstrapSnapshotFn custom resource closes the cold-start window; otherwise Direct DDB GetItem returns no row and SF state catches the error.
+  - MarketSnapshot missing at cycle start (MI-ctrl Ingress DLQ, scheduler-broken, Bedrock outage, or fresh-deploy 15-min window): LookupMarketSnapshot captures the raw GetItem response on $.marketSnapshotResponse (no ResultSelector — that would raise the uncatchable States.Runtime on missing rows), then CheckMarketSnapshotPresent (Choice on isPresent($.marketSnapshotResponse.Item)) routes to HandleMissingMarketSnapshot, a Pass that seeds `{ agentOutput: {} }` on $.agentResults.InvokeMarketIntelligence. PE+AN read `subject.marketAnalysis ?? {}` so absent market context degrades the decision rather than aborting the cycle. Hit path: ExtractMarketSnapshot lifts $.marketSnapshotResponse.Item.agentOutput.M into the same shape.
   - SnapshotProjectorIngress fails (DWC-local mirror falls behind IP/MI source rows): DWC's SF reads a stale snapshot until the SQS retry succeeds; missing subject.agentOutput → NotRetryableError so corrupt envelopes go straight to DLQ.
   - PE / AN agent invocation fails (Lambda exception, AgentCore degraded response): handler writes AgentFailure row → CDC emits PORTFOLIO_FAILED / NARRATIVE_FAILED → CallbackIngress calls SendTaskFailure → SF state catches and the cycle fails with DECISION_WORKFLOW_FAILED.
   - PE / AN agent stalls past waitForTaskToken window: SF TaskTimedOut fires; CDC-based completion event arriving after the timeout is logged and ignored. Manual replay; no auto-retry.
