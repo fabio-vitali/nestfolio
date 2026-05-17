@@ -67,7 +67,7 @@ export function onboarded(overrides?: {
   currency?: string;
   mandateLevel?: 'ADVISORY' | 'DISCRETIONARY';
 }): Fixture {
-  return async (_ctx, tenant, eb, bff) => {
+  return async (ctx, tenant, eb, bff) => {
     await eb.putEvent({
       bus: 'investor',
       targetService: 'investor-bff',
@@ -108,7 +108,33 @@ export function onboarded(overrides?: {
       (r) => !!r.getProfile?.tenantId,
       { timeoutMs: 60_000 },
     );
-    return {};
+
+    // Poll for InvestorProfileSnapshot materialisation in investor-profile-ctrl's
+    // table. Post-precomputation refactor, the IP agent runs on
+    // INVESTOR_PROFILE_UPDATED / MANDATE_ISSUED / OPERATING_MODE_CHANGED and writes
+    // an InvestorProfileSnapshot row. The DWC SnapshotProjectorIngress mirrors it
+    // into DWC's table where the per-cycle SF reads it. Without this wait, the
+    // first decision cycle in a test races the IP precomputation.
+    const ipTableName = await ctx.ssm.tableName('investor-profile-ctrl');
+    const ddbClient = new DynamoDBClient({ region: ctx.region });
+    const ddbDoc = DynamoDBDocumentClient.from(ddbClient);
+    try {
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        const r = await ddbDoc.send(new GetCommand({
+          TableName: ipTableName,
+          Key: {
+            pk: `InvestorProfileSnapshot#${tenant.tenantId}#${tenant.userId}`,
+            sk: 'InvestorProfileSnapshot',
+          },
+        }));
+        if (r.Item) return {};
+        await new Promise(res => setTimeout(res, 2_000));
+      }
+      throw new Error('onboarded(): InvestorProfileSnapshot not materialised within 60s');
+    } finally {
+      ddbClient.destroy();
+    }
   };
 }
 
@@ -283,6 +309,12 @@ export function withLiveDecision(opts?: {
         if (!expectedStatus) return true;
         return items.some((i) => i.status === expectedStatus);
       },
+      // On dev the per-cycle SF runs 90–110s (parallel projection lookups +
+      // PE invoke + AN invoke + compliance wait) and advisory-bff's CDC
+      // publisher adds another 5–20s before getDecisionHistory surfaces it.
+      // 180s leaves headroom on warm-Lambda paths and covers a single PE/AN
+      // retry on dev. Tightening further requires reducing the actual
+      // end-to-end cycle latency, not just the test timeout.
       { timeoutMs: opts?.timeoutMs ?? 180_000, intervalMs: opts?.intervalMs ?? 5_000 },
     );
 

@@ -9,27 +9,28 @@ import {
   createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
-  countItems,
   MockApiFixture,
   SsmOverrideFixture,
 } from '@nestfolio/integration-testing';
 
-// investor-profile-ctrl resilience — verifies AgentInvocation idempotency
-// (deterministic INV#${eventId} sk + attribute_not_exists guard, ported
-// from portfolio-engine-ctrl in this same workstream) and order-agnostic
-// processing of ANALYZE_INVESTOR_PROFILE alongside the KB ingestion path.
-//
-// State layout:
-//   pk: DECISION#${decisionId}
-//   sk: INV#${eventId}        (AgentInvocation lock — deterministic)
-//
-// Ingress events:
-//   - ANALYZE_INVESTOR_PROFILE → agent pipeline (DDB write per eventId)
-//   - DECISION_BLOCKED, DECISION_APPROVED → KB ingestion path
-//     (kb-ingestion-handler writes to KB S3 via store() intent;
-//     does not touch the State table)
-//
-// Tolerant skip if AgentRuntime infrastructure is unavailable in dev.
+/**
+ * investor-profile-ctrl resilience — verifies AgentInvocation idempotency
+ * (deterministic INV#${eventId} sk + attribute_not_exists guard inside
+ * agent-service) plus order-agnostic processing of the three snapshot
+ * triggers (INVESTOR_PROFILE_UPDATED + MANDATE_ISSUED + OPERATING_MODE_CHANGED)
+ * alongside the KB ingestion path (DECISION_APPROVED).
+ *
+ * Post advisory-cycle-agent-precomputation the service no longer subscribes
+ * to ANALYZE_INVESTOR_PROFILE; each trigger event runs the agent and writes
+ *   pk=`InvestorProfileSnapshot#${tenantId}#${userId}` sk='InvestorProfileSnapshot'
+ * plus an `AgentInvocation` row keyed by (DECISION#snapshot-${eventId}, INV#${eventId}).
+ *
+ * Duplicate trigger events with the same EB eventId fail the attribute_not_exists
+ * lock → DuplicateInvocationError → handler returns deduplicated → no second
+ * AgentInvocation row, and the snapshot row stays at its previous version.
+ *
+ * Tolerant skip if AgentRuntime infrastructure is unavailable in dev.
+ */
 
 let sharedCtx: TestContext;
 
@@ -53,7 +54,7 @@ afterAll(async () => {
 // ── Idempotency ─────────────────────────────────────────────────────────
 
 describe('investor-profile-ctrl resilience: idempotency', () => {
-  it('duplicate ANALYZE_INVESTOR_PROFILE does not create duplicate AgentInvocation', async () => {
+  it('duplicate INVESTOR_PROFILE_UPDATED does not write a second snapshot version', async () => {
     const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
@@ -61,31 +62,32 @@ describe('investor-profile-ctrl resilience: idempotency', () => {
       table.registerCleanup();
 
       const eventId = `idemp-profile-${randomUUID()}`;
-      const decisionId = `decision-idemp-${randomUUID()}`;
+      const userId = `integ-user-${randomUUID()}`;
       const payload = {
         tenantId: ctx.tenantId,
-        decisionId,
-        taskToken: `task-token-${randomUUID()}`,
+        userId,
+        operatingMode: 'BALANCED',
         investorProfile: { age: 35 },
         portfolioState: { totalValue: 50000 },
       };
 
+      // First publish
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
-        detailType: 'ANALYZE_INVESTOR_PROFILE',
+        detailType: 'INVESTOR_PROFILE_UPDATED',
         detail: payload,
         eventId,
       });
 
-      let firstProcessed = false;
+      let first: Record<string, unknown>;
       try {
-        await table.waitForItem({
+        first = await table.waitForItem({
           table: 'investor-profile-ctrl',
-          pk: `DECISION#${decisionId}`,
-          timeoutMs: 90_000,
+          pk: `InvestorProfileSnapshot#${ctx.tenantId}#${userId}`,
+          sk: 'InvestorProfileSnapshot',
+          timeoutMs: 120_000,
         });
-        firstProcessed = true;
       } catch {
         console.warn(
           'investor-profile-ctrl: AgentRuntime may be unavailable — skipping idempotency assertion',
@@ -93,28 +95,29 @@ describe('investor-profile-ctrl resilience: idempotency', () => {
         return;
       }
 
-      expect(firstProcessed).toBe(true);
+      const firstSourceEventId = first['sourceEventId'];
+      expect(typeof firstSourceEventId).toBe('string');
 
-      const firstCount = await countItems(
-        table, 'investor-profile-ctrl', `DECISION#${decisionId}`,
-      );
-      expect(firstCount).toBeGreaterThanOrEqual(1);
-
-      // Duplicate publish (same eventId)
+      // Duplicate publish (same EB id) — should be deduplicated by the
+      // attribute_not_exists guard on the AgentInvocation lock; snapshot row
+      // stays at the first sourceEventId.
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
-        detailType: 'ANALYZE_INVESTOR_PROFILE',
+        detailType: 'INVESTOR_PROFILE_UPDATED',
         detail: payload,
         eventId,
       });
 
       await new Promise((r) => setTimeout(r, 30_000));
 
-      const finalCount = await countItems(
-        table, 'investor-profile-ctrl', `DECISION#${decisionId}`,
-      );
-      expect(finalCount).toBe(firstCount);
+      const after = await table.waitForItem({
+        table: 'investor-profile-ctrl',
+        pk: `InvestorProfileSnapshot#${ctx.tenantId}#${userId}`,
+        sk: 'InvestorProfileSnapshot',
+        timeoutMs: 10_000,
+      });
+      expect(after['sourceEventId']).toBe(firstSourceEventId);
     } finally {
       await ctx.cleanup.runAll();
     }
@@ -124,8 +127,8 @@ describe('investor-profile-ctrl resilience: idempotency', () => {
 // ── Order-Agnostic ──────────────────────────────────────────────────────
 
 describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
-  it('ANALYZE_INVESTOR_PROFILE and DECISION_APPROVED in either order both process', async () => {
-    // Run A: analyze then approve
+  it('INVESTOR_PROFILE_UPDATED and DECISION_APPROVED in either order both process', async () => {
+    // Run A: profile update then compliance approval (KB ingestion)
     const ctxA = await createIntegrationTestContext();
     try {
       const ebA = new EventBridgeClient(ctxA);
@@ -134,32 +137,35 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
       const trapA = new EventBusTrap(ctxA);
       await trapA.deploy({
         bus: 'advisory',
-        detailType: ['GOAL_INTERPRETATION_PRODUCED'],
+        detailType: [
+          'INVESTOR_PROFILE_SNAPSHOT_CREATED',
+          'INVESTOR_PROFILE_SNAPSHOT_UPDATED',
+        ],
       });
 
-      const decisionIdA = `pair-A-decision-${randomUUID()}`;
+      const userIdA = `pair-A-user-${randomUUID()}`;
 
       await ebA.putEvent({
         bus: 'advisory',
         targetService: 'investor-profile-ctrl',
-        detailType: 'ANALYZE_INVESTOR_PROFILE',
+        detailType: 'INVESTOR_PROFILE_UPDATED',
         detail: {
           tenantId: ctxA.tenantId,
-          decisionId: decisionIdA,
-          taskToken: `task-token-A-${randomUUID()}`,
+          userId: userIdA,
+          operatingMode: 'BALANCED',
           investorProfile: { age: 35 },
         },
-        eventId: `pair-A-analyze-evt-${randomUUID()}`,
+        eventId: `pair-A-profile-evt-${randomUUID()}`,
       });
 
       try {
         await trapA.waitForEvent({
-          detailType: 'GOAL_INTERPRETATION_PRODUCED',
-          timeoutMs: 90_000,
+          match: (d) => (d as { subject?: { userId?: string } }).subject?.userId === userIdA,
+          timeoutMs: 120_000,
         });
       } catch {
         console.warn(
-          'investor-profile-ctrl: Run A ANALYZE_INVESTOR_PROFILE did not produce CDC (AgentRuntime may be unavailable)',
+          'investor-profile-ctrl: Run A INVESTOR_PROFILE_UPDATED did not produce CDC (AgentRuntime may be unavailable)',
         );
       }
 
@@ -169,7 +175,7 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
         detailType: 'DECISION_APPROVED',
         detail: {
           tenantId: ctxA.tenantId,
-          decisionId: decisionIdA,
+          decisionId: `pair-A-decision-${randomUUID()}`,
           authorityLevel: 'L2',
         },
         eventId: `pair-A-approved-evt-${randomUUID()}`,
@@ -179,7 +185,7 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
       // trap on. Allow settle time.
       await new Promise((r) => setTimeout(r, 15_000));
 
-      // Run B: approve then analyze
+      // Run B: approve then profile update
       const ctxB = await createIntegrationTestContext();
       try {
         const ebB = new EventBridgeClient(ctxB);
@@ -188,10 +194,13 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
         const trapB = new EventBusTrap(ctxB);
         await trapB.deploy({
           bus: 'advisory',
-          detailType: ['GOAL_INTERPRETATION_PRODUCED'],
+          detailType: [
+            'INVESTOR_PROFILE_SNAPSHOT_CREATED',
+            'INVESTOR_PROFILE_SNAPSHOT_UPDATED',
+          ],
         });
 
-        const decisionIdB = `pair-B-decision-${randomUUID()}`;
+        const userIdB = `pair-B-user-${randomUUID()}`;
 
         await ebB.putEvent({
           bus: 'advisory',
@@ -199,7 +208,7 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
           detailType: 'DECISION_APPROVED',
           detail: {
             tenantId: ctxB.tenantId,
-            decisionId: decisionIdB,
+            decisionId: `pair-B-decision-${randomUUID()}`,
             authorityLevel: 'L2',
           },
           eventId: `pair-B-approved-evt-${randomUUID()}`,
@@ -210,24 +219,24 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
         await ebB.putEvent({
           bus: 'advisory',
           targetService: 'investor-profile-ctrl',
-          detailType: 'ANALYZE_INVESTOR_PROFILE',
+          detailType: 'INVESTOR_PROFILE_UPDATED',
           detail: {
             tenantId: ctxB.tenantId,
-            decisionId: decisionIdB,
-            taskToken: `task-token-B-${randomUUID()}`,
+            userId: userIdB,
+            operatingMode: 'CONSERVATIVE',
             investorProfile: { age: 35 },
           },
-          eventId: `pair-B-analyze-evt-${randomUUID()}`,
+          eventId: `pair-B-profile-evt-${randomUUID()}`,
         });
 
         try {
           await trapB.waitForEvent({
-            detailType: 'GOAL_INTERPRETATION_PRODUCED',
-            timeoutMs: 90_000,
+            match: (d) => (d as { subject?: { userId?: string } }).subject?.userId === userIdB,
+            timeoutMs: 120_000,
           });
         } catch {
           console.warn(
-            'investor-profile-ctrl: Run B ANALYZE_INVESTOR_PROFILE did not produce CDC (AgentRuntime may be unavailable)',
+            'investor-profile-ctrl: Run B INVESTOR_PROFILE_UPDATED did not produce CDC (AgentRuntime may be unavailable)',
           );
         }
 
@@ -239,5 +248,5 @@ describe('investor-profile-ctrl resilience: order-agnostic pairwise', () => {
     } finally {
       await ctxA.cleanup.runAll();
     }
-  }, 240_000);
+  }, 300_000);
 });

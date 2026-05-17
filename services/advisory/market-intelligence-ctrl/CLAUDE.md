@@ -4,7 +4,7 @@ Domain: advisory | Bus: advisoryBus
 Stack: services/advisory/market-intelligence-ctrl/src/service.stack.ts
 
 ## State
-- DynamoDB table (streams enabled)
+- DynamoDB table (streams enabled). Holds AgentInvocation rows plus the continuously-projected MarketSnapshot row (one per region, keyed pk=`MarketSnapshot#{region}`, sk='MarketSnapshot').
 
 ## KnowledgeBase
 - MarketKB: Market news, sentiment, macro indicators from 5 feed sources
@@ -14,13 +14,22 @@ Stack: services/advisory/market-intelligence-ctrl/src/service.stack.ts
 
 ## Ingress
 - advisoryBus -> market-intelligence-ctrl-ingress (SQS -> Lambda)
-  Subscriptions: ANALYZE_MARKET, YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED
-  Grants: AgentCore Memory API
+  Subscriptions (fast tier): YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED
+  Subscriptions (slow tier): MARKET_SNAPSHOT_REFRESH_TICK
+  Profile: agentProps (1024 MB / 5min timeout / batchSize 1 / concurrency 5)
+  Grants: AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
+  Pattern: materializeToTable (continuous projection — snapshot writer)
+  errorEventType: MARKET_INTELLIGENCE_CTRL_FAILED
+
+## Schedule
+- MarketSnapshotRefreshTick (EventBridge Rule): rate(15 minutes) -> ScheduledEmitter Lambda -> PutEvents(MARKET_SNAPSHOT_REFRESH_TICK) on advisoryBus. The Lambda emitter builds a structured event-processor envelope (the native EB->EventBus target cannot construct envelopes inline).
+- BootstrapSnapshotProvider (CDK CustomResource): on stack Create only, the BootstrapSnapshotFn emits a synthetic MARKET_SNAPSHOT_REFRESH_TICK and polls DDB until the MarketSnapshot row materializes (5-minute deadline). Without it, the first decision cycle on a fresh deploy races the 15-minute schedule and would LookupMarketSnapshot a missing row. Update/Delete are no-ops.
 
 ## Egress
 - CDC: DynamoDB Streams -> market-intelligence-ctrl-egress (Lambda)
   Emits:
   - AgentInvocation -> MARKET_SIGNAL_DETECTED (insert only)
+  - MarketSnapshot -> MARKET_SNAPSHOT_UPDATED (insert AND modify — every fast-tier write or slow-tier rebuild emits one notification)
 
 ## AgentRuntime
 Agent folder: agents/market-intelligence/
@@ -31,23 +40,34 @@ Agent folder: agents/market-intelligence/
   Graph: single-node StateGraph wrapping agentNode (withFallback(withRetry(withValidation(createAgentNode)))), invoked via invokeOrchestrator
   TraceEmitter: EventBridgeTraceEmitter (source `agent-orchestrator@market-intelligence-ctrl`, detailType MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED)
   PutEvents grant: eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal)
-  SSM runtime URL override param: `/nestfolio/${prefix}-market-intelligence-ctrl/agent/runtimeUrl`
+  SSM runtime URL param: `/nestfolio/${prefix}-market-intelligence-ctrl/agent/runtimeUrl`
 
 ## Standalone Lambdas
 - KBIngestion: Ingests feed data into MarketKB (triggered by 5 feed ingestion events)
+- ScheduledEmitter: 15-minute tick emitter Lambda (above)
+- BootstrapSnapshotFn: One-shot tick + poll on stack create (above)
 
 ## Handlers
-- event-listener.ts -- Ingress event handler (ANALYZE_MARKET)
-- event-publisher.ts -- Egress CDC publisher
+- event-listener.ts -- Ingress snapshot writer (materializeToTable). Each feed event or tick runs the agent and records both an AgentInvocation row and the MarketSnapshot row keyed by region.
+- event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline)
 - kb-ingestion-handler.ts -- KB ingestion for 5 market feed sources
+- scheduled-emitter.ts -- EventBridge schedule target: PutEvents a MARKET_SNAPSHOT_REFRESH_TICK envelope
+- bootstrap-snapshot.ts -- CFN custom-resource handler (one-shot bootstrap on Create)
 - agents/tools/market-data.ts -- Market data factory (in-process, called from agents/market-intelligence/graph.ts)
 - agents/tools/instrument-universe.ts -- Instrument universe factory (in-process)
 - agents/tools/format-context.ts -- Helper to serialize tool output as labelled prompt sections
 
 ## Event Types (domain/events.ts)
-- MarketIntelligenceEventTypes (outbound): MARKET_ANALYSIS_COMPLETED, MARKET_SIGNAL_DETECTED, MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED
-- HANDLED_EVENT_TYPES (inbound): ANALYZE_MARKET
-- FEED_INGESTION_EVENT_TYPES (inbound): YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED
+- MarketIntelligenceEventTypes (outbound): MARKET_SIGNAL_DETECTED, MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED, MARKET_SNAPSHOT_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK
+- HANDLED_EVENT_TYPES (inbound): YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED, MARKET_SNAPSHOT_REFRESH_TICK
+- FEED_INGESTION_EVENT_TYPES (KB-routed): YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED, FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED
+
+## IAM trace
+- Memory API: CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions (resources: *)
+- InvokeAgentRuntime on runtime ARN + endpoint sub-resource
+- PutEvents to advisoryBus (ScheduledEmitter + BootstrapSnapshotFn + AgentRuntime principal)
+- DDB ReadData on local State table (BootstrapSnapshotFn only — for the polling loop)
+- **NO `states:SendTask*` grants.** Post-precomputation, this service no longer resumes per-cycle SF callbacks — it materializes a snapshot row and DWC's SnapshotProjectorIngress + SF read it via DDB GetItem. Lockdown asserted workspace-wide by Task 12's CDK invariant test.
 
 ## Tests
 - test/unit/agent-service.test.ts
@@ -55,17 +75,14 @@ Agent folder: agents/market-intelligence/
 - test/unit/graph.test.ts
 - test/unit/kb-ingestion-handler.test.ts
 - test/unit/service.stack.test.ts
-- test/unit/agents/fallbacks.test.ts
-- test/unit/agents/format-context.test.ts
-- test/unit/agents/golden-fixtures.test.ts
-- test/unit/agents/schemas.test.ts
-- test/unit/agents/validation.test.ts
-- test/unit/tools/instrument-universe.test.ts
-- test/unit/tools/market-data.test.ts
+- test/unit/agents/* (fallbacks, format-context, golden-fixtures, schemas, validation)
+- test/unit/tools/* (instrument-universe, market-data)
 - test/integration/market-intelligence-ctrl.integration.test.ts
+- test/integration/market-intelligence-ctrl.resilience.integration.test.ts
 
 ## Dependencies
 - libs: cdk-constructs (core, extensions, utils), event-processor, agent-orchestrator, event-types, test-support, integration-testing
+- Cross-service event-type imports: yahoo-finance-adpt, marketwatch-adpt, sec-edgar-adpt, fred-adpt, alpha-vantage-adpt (5 feed sources)
 - SSM: advisory-hub (models/sonnet), decision-workflow-ctrl (memory/id), market-intelligence-ctrl (agent/runtimeUrl)
-- AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListMemoryRecords, ListEvents, ListActors, ListSessions)
+- AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions)
 - AgentCore Runtime (InvokeAgentRuntime)

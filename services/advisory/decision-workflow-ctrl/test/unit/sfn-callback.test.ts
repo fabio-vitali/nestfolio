@@ -16,11 +16,14 @@ process.env.BUS_NAME = 'test-bus';
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import {
   AGENT_COMPLETION_EVENT_TYPES,
+  AGENT_FAILURE_EVENT_TYPES,
   COMPLIANCE_EVENT_TYPES,
   USER_RESPONSE_EVENT_TYPES,
 } from '../../src/domain/events';
 
-// Re-create the handler factory from sfn-callback.ts to test handler logic directly
+// Re-create the handler factory from sfn-callback.ts to test handler logic
+// directly. Failure handlers throw — that throw is what causes the
+// resumeStateMachine wrapper to invoke SendTaskFailureCommand at runtime.
 import { record, update, asTenantId, asUserId } from '@nestfolio/event-processor';
 
 function createHandlers() {
@@ -30,14 +33,28 @@ function createHandlers() {
   for (const type of AGENT_COMPLETION_EVENT_TYPES) {
     handlers[type] = async (payload: EventPayload, ctx: EventContext) => {
       const subject = payload.subject ?? {};
+      const decisionId = subject.decisionId as string;
+      const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
+      const agentOutput = (subject.agentOutput as Record<string, unknown>) ?? {};
       return {
-        output: { decisionId: subject.decisionId },
+        output: { decisionId, agentOutput },
         intents: [record('AgentOutput', {
-          decisionId: subject.decisionId as string,
+          decisionId,
           eventType: ctx.eventType,
-          tenantId: (subject.tenantId as string) ?? ctx.tenantId,
+          tenantId,
         })],
       };
+    };
+  }
+
+  for (const type of AGENT_FAILURE_EVENT_TYPES) {
+    handlers[type] = async (payload: EventPayload, _ctx: EventContext) => {
+      const subject = payload.subject ?? {};
+      const errorType = (subject.errorType as string | undefined) ?? 'UnknownError';
+      const errorMessage = (subject.errorMessage as string | undefined) ?? 'unknown';
+      const err = new Error(errorMessage);
+      err.name = errorType;
+      throw err;
     };
   }
 
@@ -95,6 +112,7 @@ const baseCtx = (eventType: string): EventContext => ({
   timestamp: new Date().toISOString(),
   receiveCount: 1,
   serviceName: 'decision-workflow-ctrl',
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   record: {} as any,
 });
 
@@ -104,37 +122,108 @@ describe('decision-workflow-ctrl sfn-callback (resumeStateMachine)', () => {
   // --- Agent completion events ---
 
   describe('agent completion events', () => {
-    it('should return output with decisionId and AgentOutput record intent', async () => {
+    it('PORTFOLIO_COMPLETED returns output with decisionId + agentOutput from subject', async () => {
       const payload: EventPayload = {
         subject: {
           decisionId: 'dp-1',
           tenantId: 't1',
-          taskToken: 'token-abc',
+          taskToken: 'token-pe',
+          agentOutput: { allocations: { allocations: [], totalExposure: 1.0 } },
         },
       };
 
-      const result = await handlers.INVESTOR_PROFILE_COMPLETED(payload, baseCtx('INVESTOR_PROFILE_COMPLETED'));
+      const result = await handlers.PORTFOLIO_COMPLETED(payload, baseCtx('PORTFOLIO_COMPLETED'));
 
-      expect(result.output).toEqual({ decisionId: 'dp-1' });
-      expect(result.intents).toHaveLength(1);
-      expect(result.intents[0]).toEqual({
-        _tag: 'record',
-        typename: 'AgentOutput',
-        fields: { decisionId: 'dp-1', eventType: 'INVESTOR_PROFILE_COMPLETED', tenantId: 't1' },
-        overrides: undefined,
+      expect(result.output).toEqual({
+        decisionId: 'dp-1',
+        agentOutput: { allocations: { allocations: [], totalExposure: 1.0 } },
       });
+      // The resumeStateMachine wrapper JSON.stringifies result.output as the
+      // SF SendTaskSuccess output — confirm the JSON contains the agent payload.
+      expect(JSON.stringify(result.output)).toContain('allocations');
+      expect(result.intents).toHaveLength(1);
+      expect(result.intents[0]._tag).toBe('record');
     });
 
-    it('should handle all 4 agent completion event types', async () => {
-      expect(AGENT_COMPLETION_EVENT_TYPES).toHaveLength(4);
-      for (const type of AGENT_COMPLETION_EVENT_TYPES) {
-        const payload: EventPayload = {
-          subject: { decisionId: 'dp-1', tenantId: 't1', taskToken: 'tok' },
-        };
-        const result = await handlers[type](payload, baseCtx(type));
-        expect(result.output.decisionId).toBe('dp-1');
-        expect(result.intents[0]._tag).toBe('record');
-      }
+    it('NARRATIVE_COMPLETED returns output with decisionId + agentOutput from subject', async () => {
+      const payload: EventPayload = {
+        subject: {
+          decisionId: 'dp-1',
+          tenantId: 't1',
+          taskToken: 'token-an',
+          agentOutput: { explanation: 'because diversification' },
+        },
+      };
+
+      const result = await handlers.NARRATIVE_COMPLETED(payload, baseCtx('NARRATIVE_COMPLETED'));
+
+      expect(result.output).toEqual({
+        decisionId: 'dp-1',
+        agentOutput: { explanation: 'because diversification' },
+      });
+      expect(JSON.stringify(result.output)).toContain('explanation');
+    });
+
+    it('only PORTFOLIO_COMPLETED + NARRATIVE_COMPLETED remain as agent completions', () => {
+      expect(AGENT_COMPLETION_EVENT_TYPES).toHaveLength(2);
+      expect([...AGENT_COMPLETION_EVENT_TYPES]).toEqual(
+        expect.arrayContaining(['PORTFOLIO_COMPLETED', 'NARRATIVE_COMPLETED']),
+      );
+    });
+
+    it('does not have handlers for INVESTOR_PROFILE_COMPLETED or MARKET_ANALYSIS_COMPLETED', () => {
+      expect(handlers.INVESTOR_PROFILE_COMPLETED).toBeUndefined();
+      expect(handlers.MARKET_ANALYSIS_COMPLETED).toBeUndefined();
+    });
+  });
+
+  // --- Agent failure events ---
+
+  describe('agent failure events', () => {
+    it('PORTFOLIO_FAILED throws Error with name=errorType, message=errorMessage', async () => {
+      const payload: EventPayload = {
+        subject: {
+          decisionId: 'dp-1',
+          tenantId: 't1',
+          taskToken: 'token-pe',
+          errorType: 'BedrockThrottle',
+          errorMessage: 'Bedrock throttle',
+        },
+      };
+
+      await expect(handlers.PORTFOLIO_FAILED(payload, baseCtx('PORTFOLIO_FAILED')))
+        .rejects.toMatchObject({ name: 'BedrockThrottle', message: 'Bedrock throttle' });
+    });
+
+    it('NARRATIVE_FAILED throws Error with name=errorType, message=errorMessage', async () => {
+      const payload: EventPayload = {
+        subject: {
+          decisionId: 'dp-1',
+          tenantId: 't1',
+          taskToken: 'token-an',
+          errorType: 'AgentRuntimeError',
+          errorMessage: 'something snapped',
+        },
+      };
+
+      await expect(handlers.NARRATIVE_FAILED(payload, baseCtx('NARRATIVE_FAILED')))
+        .rejects.toMatchObject({ name: 'AgentRuntimeError', message: 'something snapped' });
+    });
+
+    it('falls back to UnknownError / "unknown" when subject lacks error fields', async () => {
+      const payload: EventPayload = {
+        subject: { decisionId: 'dp-1', tenantId: 't1', taskToken: 'tok' },
+      };
+
+      await expect(handlers.PORTFOLIO_FAILED(payload, baseCtx('PORTFOLIO_FAILED')))
+        .rejects.toMatchObject({ name: 'UnknownError', message: 'unknown' });
+    });
+
+    it('exposes PORTFOLIO_FAILED + NARRATIVE_FAILED as the failure set', () => {
+      expect(AGENT_FAILURE_EVENT_TYPES).toHaveLength(2);
+      expect([...AGENT_FAILURE_EVENT_TYPES]).toEqual(
+        expect.arrayContaining(['PORTFOLIO_FAILED', 'NARRATIVE_FAILED']),
+      );
     });
   });
 

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   EventBridgeClient,
   type TestContext,
@@ -339,6 +340,112 @@ describe('decision-workflow-ctrl', () => {
         tenantId: ctx.tenantId,
         symbol: 'TSLA',
         reason: 'Margin',
+      },
+    });
+
+    const execution = await waitForSfExecution(sfn, {
+      stateMachineArn,
+      since: testStart,
+      timeoutMs: 90_000,
+    });
+    expect(execution.executionArn).toContain('decisionstatemachine');
+  }, 180_000);
+
+  // ── CallbackIngress: PORTFOLIO_COMPLETED → AgentOutput row ───────────
+  //
+  // Post advisory-cycle-agent-precomputation Task 10: PORTFOLIO_COMPLETED
+  // and NARRATIVE_COMPLETED are the only completion events that resume the
+  // SF (IP and MI now precompute snapshots). The handler writes an
+  // AgentOutput row at pk=`T#${tenantId}`, sk=`AgentOutput#${eventId}`
+  // BEFORE calling SendTaskSuccess. With a synthetic taskToken the SF call
+  // fails with InvalidToken, which the pipeline tolerates — the DDB write
+  // is the verifiable contract.
+
+  const fakeTaskToken = (label: string) =>
+    `ARN-fake-${label}-${randomUUID()}-${'x'.repeat(64)}`;
+
+  it('CallbackIngress writes AgentOutput row on PORTFOLIO_COMPLETED', async () => {
+    const decisionId = `cb-pc-${randomUUID()}`;
+    const eventId = `cb-pc-evt-${randomUUID()}`;
+
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'PORTFOLIO_COMPLETED',
+      detail: {
+        tenantId: ctx.tenantId,
+        decisionId,
+        taskToken: fakeTaskToken('pc'),
+        agentOutput: { proposedTrades: [{ symbol: 'SPY', side: 'BUY', quantity: 5 }] },
+      },
+      eventId,
+    });
+
+    const row = await table.waitForItem({
+      table: 'decision-workflow-ctrl',
+      pk: `T#${ctx.tenantId}`,
+      sk: `AgentOutput#${eventId}`,
+      timeoutMs: 60_000,
+    });
+    expect(row['__typename']).toBe('AgentOutput');
+    expect(row['decisionId']).toBe(decisionId);
+  }, 120_000);
+
+  it('CallbackIngress writes AgentOutput row on NARRATIVE_COMPLETED', async () => {
+    const decisionId = `cb-nc-${randomUUID()}`;
+    const eventId = `cb-nc-evt-${randomUUID()}`;
+
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'NARRATIVE_COMPLETED',
+      detail: {
+        tenantId: ctx.tenantId,
+        decisionId,
+        taskToken: fakeTaskToken('nc'),
+        agentOutput: { explanation: 'integration narrative output' },
+      },
+      eventId,
+    });
+
+    const row = await table.waitForItem({
+      table: 'decision-workflow-ctrl',
+      pk: `T#${ctx.tenantId}`,
+      sk: `AgentOutput#${eventId}`,
+      timeoutMs: 60_000,
+    });
+    expect(row['__typename']).toBe('AgentOutput');
+    expect(row['decisionId']).toBe(decisionId);
+  }, 120_000);
+
+  // ── Payload-first Choice: trigger payload carries operatingMode ────
+  //
+  // The SF's ResolveMandateSnapshot Choice prefers an inline operatingMode
+  // on the trigger envelope over the MandateSnapshot projection. This test
+  // sends INVESTOR_PROFILE_UPDATED carrying operatingMode=AGGRESSIVE
+  // inline; even if a MandateSnapshot with a different operatingMode were
+  // present, the SF should hoist the payload value.
+  //
+  // Verification here is at the start-of-SF level — full payload-vs-projection
+  // assertion requires reading the SF execution state, which is covered by
+  // unit tests on decision-state-machine.test.ts and by the Playwright UI
+  // e2e suite. Here we assert the SF starts cleanly (operatingMode resolves
+  // without LookupMandateSnapshot's fallback failing).
+
+  it('payload-first Choice: SF starts on INVESTOR_PROFILE_UPDATED carrying inline operatingMode (no pre-seeded MandateSnapshot)', async () => {
+    const userId = `payload-first-${randomUUID()}`;
+    const testStart = new Date();
+
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'INVESTOR_PROFILE_UPDATED',
+      detail: {
+        userId,
+        tenantId: ctx.tenantId,
+        operatingMode: 'AGGRESSIVE',
+        investorProfile: { riskScore: 90 },
+        updatedAt: new Date().toISOString(),
       },
     });
 

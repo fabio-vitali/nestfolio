@@ -5,8 +5,8 @@ import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { InvestorProfileEventTypes } from './domain/events';
-import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { ComplianceEventTypes } from '@nestfolio/compliance-ctrl/events';
+import { InvestorBffEventTypes } from '@nestfolio/investor-bff/events';
 import {
   AgentRuntime, KnowledgeBase,
   BedrockUsageAlarms, importCostAlertTopic,
@@ -25,13 +25,17 @@ export class InvestorProfileCtrlStack extends ServiceStack {
       description: 'Regulatory frameworks, suitability rules, compliance precedents',
     });
 
-    // Ingress: trigger event + KB ingestion events.
-    // Uses agentProps because the handler dispatches to Bedrock (Opus + Haiku) —
+    // Ingress: continuous-projection triggers + KB ingestion events.
+    // Subscribes to investor-domain mutations that drive InvestorProfileSnapshot
+    // materialization (Task 3 of advisory-cycle-agent-precomputation). Uses
+    // agentProps because the handler dispatches to Bedrock (Opus + Haiku) —
     // 1024 MB / 5min timeout / batchSize 1 / concurrency capped at 5.
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
-        DecisionWorkflowEventTypes.ANALYZE_INVESTOR_PROFILE,
+        InvestorBffEventTypes.INVESTOR_PROFILE_UPDATED,
+        InvestorBffEventTypes.MANDATE_ISSUED,
+        InvestorBffEventTypes.OPERATING_MODE_CHANGED,
         ComplianceEventTypes.DECISION_BLOCKED,
         ComplianceEventTypes.DECISION_APPROVED,
       ],
@@ -47,6 +51,10 @@ export class InvestorProfileCtrlStack extends ServiceStack {
       eventTypes: {
         'AgentInvocation': { insert: InvestorProfileEventTypes.GOAL_INTERPRETATION_PRODUCED },
         'ReasoningOutput': { insert: InvestorProfileEventTypes.RISK_EVALUATION_PRODUCED },
+        'InvestorProfileSnapshot': {
+          insert: InvestorProfileEventTypes.INVESTOR_PROFILE_SNAPSHOT_CREATED,
+          modify: InvestorProfileEventTypes.INVESTOR_PROFILE_SNAPSHOT_UPDATED,
+        },
       },
     });
 
@@ -144,14 +152,10 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     // (at invoke time the SDK targets .../runtime-endpoint/DEFAULT).
     agentRuntime.grantInvoke(ingress.handler);
 
-    // resumeStateMachine pipeline calls SendTaskSuccess/SendTaskFailure on
-    // whatever state machine issued the task token. Task tokens are opaque
-    // and self-authenticating, so '*' is the canonical resource.
-    ingress.handler.addToRolePolicy(new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ['states:SendTaskSuccess', 'states:SendTaskFailure', 'states:SendTaskHeartbeat'],
-      resources: ['*'],
-    }));
+    // NOTE: No states:SendTask* grants. Post advisory-cycle-agent-precomputation,
+    // the handler uses materializeToTable (continuous projection) and no longer
+    // resumes a per-cycle SF callback. The full callback-IAM lockdown is asserted
+    // workspace-wide by Task 12's invariant test.
 
     this.addObservability({
       ingress,

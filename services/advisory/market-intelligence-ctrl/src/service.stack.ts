@@ -1,11 +1,14 @@
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { Rule, Schedule, RuleTargetInput } from 'aws-cdk-lib/aws-events';
+import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
+import { CustomResource, Duration } from 'aws-cdk-lib';
+import { Provider } from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import { ServiceStack, ServiceStackProps, State, Ingress, Egress } from '@nestfolio/cdk-constructs/core';
 import { MarketIntelligenceEventTypes } from './domain/events';
-import { DecisionWorkflowEventTypes } from '@nestfolio/decision-workflow-ctrl/events';
 import { YahooFinanceAdptEventTypes } from '@nestfolio/yahoo-finance-adpt/events';
 import { MarketwatchAdptEventTypes } from '@nestfolio/marketwatch-adpt/events';
 import { SecEdgarAdptEventTypes } from '@nestfolio/sec-edgar-adpt/events';
@@ -29,10 +32,12 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
       description: 'Market news, sentiment, macro indicators from 5 feed sources',
     });
 
-    // Ingress: trigger event + 5 feed ingestion events
+    // Ingress: 5 feed ingestion events (fast tier) + scheduled tick (slow tier).
+    // Post advisory-cycle-agent-precomputation, this service no longer handles
+    // a per-cycle ANALYZE_MARKET trigger — it continuously projects a
+    // MarketSnapshot row from feed events and from a 15-minute refresh tick.
     // Uses agentProps because the handler dispatches to Bedrock (Sonnet) via
-    // AgentCore — invocations can take 50–130s (p95). Without this profile the
-    // Lambda times out at 30s, leaving the SF task token unreturned.
+    // AgentCore — invocations can take 50–130s (p95).
     const ingress = new Ingress(this, 'Ingress', {
       state,
       profile: agentProps,
@@ -40,21 +45,82 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
         paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       },
       eventTypes: [
-        DecisionWorkflowEventTypes.ANALYZE_MARKET,
         YahooFinanceAdptEventTypes.YAHOO_FINANCE_UPDATED,
         MarketwatchAdptEventTypes.MARKETWATCH_UPDATED,
         SecEdgarAdptEventTypes.SEC_8K_FILED,
         FredAdptEventTypes.FRED_INDICATORS_UPDATED,
         AlphaVantageAdptEventTypes.ALPHA_VANTAGE_NEWS_UPDATED,
+        MarketIntelligenceEventTypes.MARKET_SNAPSHOT_REFRESH_TICK,
       ],
     });
 
-    // Egress: CDC events
+    // Egress: CDC events.
+    // - AgentInvocation row: legacy MARKET_SIGNAL_DETECTED event (insert only).
+    // - MarketSnapshot row: continuous-projection MARKET_SNAPSHOT_UPDATED on
+    //   both INSERT and MODIFY — every fast-tier feed write or slow-tier
+    //   rebuild emits one downstream notification.
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
         'AgentInvocation': { insert: MarketIntelligenceEventTypes.MARKET_SIGNAL_DETECTED },
+        'MarketSnapshot': {
+          insert: MarketIntelligenceEventTypes.MARKET_SNAPSHOT_UPDATED,
+          modify: MarketIntelligenceEventTypes.MARKET_SNAPSHOT_UPDATED,
+        },
       },
+    });
+
+    // Scheduled tick (slow tier): every 15 minutes, publish a
+    // MARKET_SNAPSHOT_REFRESH_TICK envelope onto the advisory bus. The Ingress
+    // above subscribes to it. We use a tiny Lambda emitter because the CDK
+    // EventBridge `EventBus` target forwards the originating event verbatim
+    // and can't construct a structured event-processor envelope inline.
+    const scheduledEmitter = new NodejsFunction(this, 'ScheduledEmitter', {
+      ...defaultLambdaProps(this),
+      entry: join(__dirname, 'handlers', 'scheduled-emitter.ts'),
+      timeout: Duration.seconds(30),
+      environment: {
+        BUS_NAME: this.eventBus.eventBusName,
+      },
+    });
+    this.eventBus.grantPutEventsTo(scheduledEmitter);
+
+    new Rule(this, 'MarketSnapshotRefreshTick', {
+      schedule: Schedule.rate(Duration.minutes(15)),
+      description: 'Publishes MARKET_SNAPSHOT_REFRESH_TICK every 15 minutes for slow-tier MarketSnapshot rebuilds.',
+      targets: [
+        new LambdaFunction(scheduledEmitter, {
+          // RuleTargetInput is unused by the handler (which builds the envelope
+          // itself), but supplying an empty object keeps the EventBridge entry
+          // payload deterministic across runs.
+          event: RuleTargetInput.fromObject({}),
+        }),
+      ],
+    });
+
+    // Bootstrap custom resource. On stack Create only, this Lambda emits a
+    // synthetic MARKET_SNAPSHOT_REFRESH_TICK and polls until the MarketSnapshot
+    // row materialises (5-minute deadline). Without it, the first decision
+    // cycle after a fresh deploy could race the 15-minute schedule and
+    // LookupMarketSnapshot a missing row. Update/Delete are no-ops.
+    const bootstrapSnapshotFn = new NodejsFunction(this, 'BootstrapSnapshotFn', {
+      ...defaultLambdaProps(this),
+      entry: join(__dirname, 'handlers', 'bootstrap-snapshot.ts'),
+      // Lambda must outlive the 5-minute polling deadline inside the handler.
+      timeout: Duration.minutes(6),
+      environment: {
+        BUS_NAME: this.eventBus.eventBusName,
+        TABLE_NAME: state.getTable().tableName,
+      },
+    });
+    state.getTable().grantReadData(bootstrapSnapshotFn);
+    this.eventBus.grantPutEventsTo(bootstrapSnapshotFn);
+
+    const bootstrapProvider = new Provider(this, 'BootstrapSnapshotProvider', {
+      onEventHandler: bootstrapSnapshotFn,
+    });
+    new CustomResource(this, 'BootstrapSnapshotResource', {
+      serviceToken: bootstrapProvider.serviceToken,
     });
 
     // KB ingestion Lambda (separate from event-listener)
@@ -150,17 +216,15 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
     // (covers both runtime ARN and its endpoint sub-resource).
     agentRuntime.grantInvoke(ingress.handler);
 
-    // resumeStateMachine pipeline callback permissions (see investor-profile-ctrl).
-    ingress.handler.addToRolePolicy(new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ['states:SendTaskSuccess', 'states:SendTaskFailure', 'states:SendTaskHeartbeat'],
-      resources: ['*'],
-    }));
+    // NOTE: No states:SendTask* grants. Post advisory-cycle-agent-precomputation,
+    // the handler uses materializeToTable (continuous projection) and no longer
+    // resumes a per-cycle SF callback. The full callback-IAM lockdown is asserted
+    // workspace-wide by Task 12's invariant test.
 
     this.addObservability({
       ingress,
       egress,
-      extraLambdas: [kbIngestionFn],
+      extraLambdas: [kbIngestionFn, scheduledEmitter, bootstrapSnapshotFn],
       monitorBedrock: true,
       bedrockModelIds: [modelSonnetId],
     });

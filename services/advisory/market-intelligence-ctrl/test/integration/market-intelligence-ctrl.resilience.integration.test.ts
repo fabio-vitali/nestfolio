@@ -9,27 +9,23 @@ import {
   createIntegrationTestContext,
   EventBusTrap,
   TableAssertions,
-  countItems,
   MockApiFixture,
   SsmOverrideFixture,
 } from '@nestfolio/integration-testing';
 
-// market-intelligence-ctrl resilience — verifies AgentInvocation idempotency
-// (deterministic INV#${eventId} sk + attribute_not_exists guard, ported
-// from portfolio-engine-ctrl in this same workstream) and order-agnostic
-// processing of ANALYZE_MARKET alongside the KB ingestion path.
-//
-// State layout:
-//   pk: DECISION#${decisionId}
-//   sk: INV#${eventId}        (AgentInvocation lock — deterministic)
-//
-// Ingress events:
-//   - ANALYZE_MARKET → agent pipeline (DDB write per eventId)
-//   - YAHOO_FINANCE_UPDATED, MARKETWATCH_UPDATED, SEC_8K_FILED,
-//     FRED_INDICATORS_UPDATED, ALPHA_VANTAGE_NEWS_UPDATED → KB ingestion
-//     (store() intent to S3; does not touch State table)
-//
-// Tolerant skip if AgentRuntime infrastructure is unavailable in dev.
+/**
+ * market-intelligence-ctrl resilience — verifies AgentInvocation idempotency
+ * (deterministic INV#${eventId} sk + attribute_not_exists guard) and
+ * order-agnostic processing of feed events + scheduled refresh ticks.
+ *
+ * Post advisory-cycle-agent-precomputation the service no longer subscribes
+ * to ANALYZE_MARKET. The MarketSnapshot row (one per region) is the unit of
+ * idempotency: duplicate trigger events (same EB id) fail the
+ * attribute_not_exists lock and the snapshot's fastComponentsAt timestamp
+ * does not advance.
+ *
+ * Tolerant skip if AgentRuntime infrastructure is unavailable in dev.
+ */
 
 let sharedCtx: TestContext;
 
@@ -53,38 +49,38 @@ afterAll(async () => {
 // ── Idempotency ─────────────────────────────────────────────────────────
 
 describe('market-intelligence-ctrl resilience: idempotency', () => {
-  it('duplicate ANALYZE_MARKET does not create duplicate AgentInvocation', async () => {
+  it('duplicate fast-tier feed event (same EB eventId) does not advance fastComponentsAt', async () => {
     const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
       table.registerCleanup();
 
-      const eventId = `idemp-market-${randomUUID()}`;
-      const decisionId = `decision-idemp-${randomUUID()}`;
-      const payload = {
-        tenantId: ctx.tenantId,
-        decisionId,
-        taskToken: `task-token-${randomUUID()}`,
-        upstreamOutputs: { investorProfile: { riskScore: 45 } },
-      };
+      const region = process.env.AWS_REGION ?? 'us-east-1';
+      const eventId = `resilience-yahoo-${randomUUID()}`;
 
+      // First publish
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'market-intelligence-ctrl',
-        detailType: 'ANALYZE_MARKET',
-        detail: payload,
+        detailType: 'YAHOO_FINANCE_UPDATED',
+        detail: { region, tickers: ['SPY'] },
         eventId,
       });
 
-      let firstProcessed = false;
+      let firstFastAt: unknown;
       try {
-        await table.waitForItem({
+        const first = await table.waitForItem({
           table: 'market-intelligence-ctrl',
-          pk: `DECISION#${decisionId}`,
-          timeoutMs: 90_000,
+          pk: `MarketSnapshot#${region}`,
+          sk: 'MarketSnapshot',
+          predicate: (item) =>
+            Array.isArray(item['sourceEventIds']) &&
+            (item['sourceEventIds'] as string[]).includes(eventId),
+          description: 'first publish lands eventId in sourceEventIds',
+          timeoutMs: 120_000,
         });
-        firstProcessed = true;
+        firstFastAt = first['fastComponentsAt'];
       } catch {
         console.warn(
           'market-intelligence-ctrl: AgentRuntime may be unavailable — skipping idempotency assertion',
@@ -92,28 +88,24 @@ describe('market-intelligence-ctrl resilience: idempotency', () => {
         return;
       }
 
-      expect(firstProcessed).toBe(true);
-
-      const firstCount = await countItems(
-        table, 'market-intelligence-ctrl', `DECISION#${decisionId}`,
-      );
-      expect(firstCount).toBeGreaterThanOrEqual(1);
-
-      // Duplicate publish (same eventId)
+      // Duplicate publish (same eventId) — should be a no-op.
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'market-intelligence-ctrl',
-        detailType: 'ANALYZE_MARKET',
-        detail: payload,
+        detailType: 'YAHOO_FINANCE_UPDATED',
+        detail: { region, tickers: ['SPY'] },
         eventId,
       });
 
       await new Promise((r) => setTimeout(r, 30_000));
 
-      const finalCount = await countItems(
-        table, 'market-intelligence-ctrl', `DECISION#${decisionId}`,
-      );
-      expect(finalCount).toBe(firstCount);
+      const after = await table.waitForItem({
+        table: 'market-intelligence-ctrl',
+        pk: `MarketSnapshot#${region}`,
+        sk: 'MarketSnapshot',
+        timeoutMs: 10_000,
+      });
+      expect(after['fastComponentsAt']).toBe(firstFastAt);
     } finally {
       await ctx.cleanup.runAll();
     }
@@ -123,110 +115,84 @@ describe('market-intelligence-ctrl resilience: idempotency', () => {
 // ── Order-Agnostic ──────────────────────────────────────────────────────
 
 describe('market-intelligence-ctrl resilience: order-agnostic pairwise', () => {
-  it('ANALYZE_MARKET and YAHOO_FINANCE_UPDATED in either order both process', async () => {
-    // Run A: analyze then KB-ingest
+  it('fast-tier feed + slow-tier tick in either order both process', async () => {
+    // Run A: feed then tick
     const ctxA = await createIntegrationTestContext();
     try {
       const ebA = new EventBridgeClient(ctxA);
       const tableA = new TableAssertions(ctxA);
       tableA.registerCleanup();
       const trapA = new EventBusTrap(ctxA);
-      await trapA.deploy({
-        bus: 'advisory',
-        detailType: ['MARKET_SIGNAL_DETECTED'],
-      });
+      await trapA.deploy({ bus: 'advisory', detailType: ['MARKET_SNAPSHOT_UPDATED'] });
 
-      const decisionIdA = `pair-A-decision-${randomUUID()}`;
-      const articleIdA = `pair-A-article-${randomUUID()}`;
+      const region = process.env.AWS_REGION ?? 'us-east-1';
 
       await ebA.putEvent({
         bus: 'advisory',
         targetService: 'market-intelligence-ctrl',
-        detailType: 'ANALYZE_MARKET',
-        detail: {
-          tenantId: ctxA.tenantId,
-          decisionId: decisionIdA,
-          taskToken: `task-token-A-${randomUUID()}`,
-          upstreamOutputs: {},
-        },
-        eventId: `pair-A-analyze-evt-${randomUUID()}`,
+        detailType: 'YAHOO_FINANCE_UPDATED',
+        detail: { region, tickers: ['VTI'] },
+        eventId: `pair-A-feed-${randomUUID()}`,
       });
-
       try {
-        await trapA.waitForEvent({
-          detailType: 'MARKET_SIGNAL_DETECTED',
-          timeoutMs: 90_000,
-        });
+        await trapA.waitForEvent({ detailType: 'MARKET_SNAPSHOT_UPDATED', timeoutMs: 120_000 });
       } catch {
         console.warn(
-          'market-intelligence-ctrl: Run A ANALYZE_MARKET did not produce CDC (AgentRuntime may be unavailable)',
+          'market-intelligence-ctrl: Run A feed event did not produce CDC (AgentRuntime may be unavailable)',
         );
       }
 
       await ebA.putEvent({
         bus: 'advisory',
         targetService: 'market-intelligence-ctrl',
-        detailType: 'YAHOO_FINANCE_UPDATED',
-        detail: {
-          articleId: articleIdA,
-          content: 'Test market news content for resilience test',
-        },
-        eventId: `pair-A-yahoo-evt-${randomUUID()}`,
+        detailType: 'MARKET_SNAPSHOT_REFRESH_TICK',
+        detail: { region },
       });
+      try {
+        await trapA.waitForEvent({ detailType: 'MARKET_SNAPSHOT_UPDATED', timeoutMs: 120_000 });
+      } catch {
+        console.warn(
+          'market-intelligence-ctrl: Run A refresh tick did not produce CDC (AgentRuntime may be unavailable)',
+        );
+      }
 
-      // KB ingestion writes to S3 via store() intent — no CDC signal to
-      // trap on. Allow settle time.
-      await new Promise((r) => setTimeout(r, 15_000));
-
-      // Run B: KB-ingest then analyze
+      // Run B: tick then feed
       const ctxB = await createIntegrationTestContext();
       try {
         const ebB = new EventBridgeClient(ctxB);
         const tableB = new TableAssertions(ctxB);
         tableB.registerCleanup();
         const trapB = new EventBusTrap(ctxB);
-        await trapB.deploy({
-          bus: 'advisory',
-          detailType: ['MARKET_SIGNAL_DETECTED'],
-        });
+        await trapB.deploy({ bus: 'advisory', detailType: ['MARKET_SNAPSHOT_UPDATED'] });
 
-        const decisionIdB = `pair-B-decision-${randomUUID()}`;
-        const articleIdB = `pair-B-article-${randomUUID()}`;
+        await ebB.putEvent({
+          bus: 'advisory',
+          targetService: 'market-intelligence-ctrl',
+          detailType: 'MARKET_SNAPSHOT_REFRESH_TICK',
+          detail: { region },
+        });
+        try {
+          await trapB.waitForEvent({ detailType: 'MARKET_SNAPSHOT_UPDATED', timeoutMs: 120_000 });
+        } catch {
+          console.warn(
+            'market-intelligence-ctrl: Run B refresh tick did not produce CDC (AgentRuntime may be unavailable)',
+          );
+        }
+
+        await new Promise((r) => setTimeout(r, 5_000));
 
         await ebB.putEvent({
           bus: 'advisory',
           targetService: 'market-intelligence-ctrl',
           detailType: 'YAHOO_FINANCE_UPDATED',
-          detail: {
-            articleId: articleIdB,
-            content: 'Test market news content for resilience test',
-          },
-          eventId: `pair-B-yahoo-evt-${randomUUID()}`,
+          detail: { region, tickers: ['VEA'] },
+          eventId: `pair-B-feed-${randomUUID()}`,
         });
-
-        await new Promise((r) => setTimeout(r, 10_000));
-
-        await ebB.putEvent({
-          bus: 'advisory',
-          targetService: 'market-intelligence-ctrl',
-          detailType: 'ANALYZE_MARKET',
-          detail: {
-            tenantId: ctxB.tenantId,
-            decisionId: decisionIdB,
-            taskToken: `task-token-B-${randomUUID()}`,
-            upstreamOutputs: {},
-          },
-          eventId: `pair-B-analyze-evt-${randomUUID()}`,
-        });
-
         try {
-          await trapB.waitForEvent({
-            detailType: 'MARKET_SIGNAL_DETECTED',
-            timeoutMs: 90_000,
-          });
+          await trapB.waitForEvent({ detailType: 'MARKET_SNAPSHOT_UPDATED', timeoutMs: 120_000 });
         } catch {
           console.warn(
-            'market-intelligence-ctrl: Run B ANALYZE_MARKET did not produce CDC (AgentRuntime may be unavailable)',
+            'market-intelligence-ctrl: Run B feed event did not produce CDC (AgentRuntime may be unavailable)',
           );
         }
 
@@ -238,5 +204,5 @@ describe('market-intelligence-ctrl resilience: order-agnostic pairwise', () => {
     } finally {
       await ctxA.cleanup.runAll();
     }
-  }, 240_000);
+  }, 360_000);
 });

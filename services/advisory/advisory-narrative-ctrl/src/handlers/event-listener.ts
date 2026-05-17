@@ -1,26 +1,55 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import {
-  resumeStateMachine, record,
-  type EventPayload, type EventContext,
-  requireEnv, logger,
+  materializeToTable,
+  record,
+  NotRetryableError,
+  type EventPayload,
+  type EventContext,
+  type WriteIntent,
+  requireEnv,
+  logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError, wrapAgentOutput } from '@nestfolio/agent-orchestrator';
+import {
+  createMemoryClient,
+  createNoOpMemoryClient,
+  type MemoryClient,
+  UnknownOperatingModeError,
+  wrapAgentOutput,
+} from '@nestfolio/agent-orchestrator';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
+import {
+  AGENT_COMPLETION_PK, AGENT_COMPLETION_SK,
+  AGENT_FAILURE_PK, AGENT_FAILURE_SK,
+} from '../repositories/agent-completion.repository';
 
-export interface SfnCallbackDeps {
+const AGENT_NAME = 'advisory-narrative';
+
+export interface IngressDeps {
   readonly agentService: { runPipeline: (eventId: string, event: Record<string, unknown>) => Promise<Record<string, unknown>> };
   readonly feedbackCorrelator: { process: (event: Record<string, unknown>) => Promise<void> };
   readonly memoryClient: MemoryClient;
 }
 
-export const createHandlers = (deps: SfnCallbackDeps) => ({
-  GENERATE_NARRATIVE: async (payload: EventPayload, ctx: EventContext) => {
+// The event-processor ingestion engine's normalize-handler expects a
+// `WriteIntent | WriteIntent[]` (libs/event-processor/src/engine/normalize-handler.ts).
+// Returning a wrapper object like `{ output, intents }` made toArray() treat the
+// wrapper as a single bogus intent (tag undefined → "intent result success:false"),
+// surfaced by Task 19's MarketSnapshot bootstrap on first deploy.
+export const createHandlers = (deps: IngressDeps) => ({
+  GENERATE_NARRATIVE: async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
     const subject = payload.subject ?? {};
-    const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
+    const tenantId = (subject.tenantId as string) ?? (ctx.tenantId as unknown as string);
     const decisionId = subject.decisionId as string;
+    const taskToken = subject.taskToken as string | undefined;
 
-    logger.info('Processing GENERATE_NARRATIVE', { decisionId, tenantId });
+    if (!taskToken) {
+      throw new NotRetryableError(
+        `GENERATE_NARRATIVE missing subject.taskToken for decisionId=${decisionId}`,
+      );
+    }
+
+    logger.info('Processing GENERATE_NARRATIVE', { decisionId, tenantId, eventId: ctx.eventId });
 
     // operatingMode is propagated through SF state from InvokeInvestorProfile
     // (subject.operatingMode is wired in decision-state-machine.ts via
@@ -59,9 +88,8 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
     const marketAnalysis = (subject.marketAnalysis as Record<string, unknown> | undefined) ?? {};
     const portfolio = (subject.portfolio as Record<string, unknown> | undefined) ?? {};
 
-    let result: Record<string, unknown>;
     try {
-      result = await deps.agentService.runPipeline(ctx.eventId, {
+      const result = await deps.agentService.runPipeline(ctx.eventId, {
         tenantId,
         decisionId,
         operatingMode,
@@ -70,31 +98,70 @@ export const createHandlers = (deps: SfnCallbackDeps) => ({
         portfolio,
         priorNarratives: priorNarratives.map(r => r.content),
       });
-    } catch (error) {
-      if (error instanceof DuplicateInvocationError) {
+
+      // Size guard only — `wrapAgentOutput` throws OutputTooLargeError if
+      // the agent output exceeds 25 KB. The wrapped value is no longer
+      // returned to SF (handlers must return WriteIntent[]); DWC reads the
+      // full result back from the AgentCompletion row via CDC. The wrapper
+      // itself is now vestigial — see backlog/an-ctrl-wrap-agent-output-vestigial.md.
+      wrapAgentOutput(result);
+
+      return [
+        record('AgentInvocation', { decisionId, tenantId, agentName: AGENT_NAME }),
+        record(
+          'AgentCompletion',
+          {
+            decisionId,
+            tenantId,
+            agentName: AGENT_NAME,
+            taskToken,
+            agentOutput: result,
+            completedAt: new Date().toISOString(),
+          },
+          { pk: AGENT_COMPLETION_PK(decisionId), sk: AGENT_COMPLETION_SK(AGENT_NAME) },
+        ),
+      ];
+    } catch (err) {
+      if (err instanceof DuplicateInvocationError) {
         logger.info('Duplicate GENERATE_NARRATIVE event, skipping', { eventId: ctx.eventId, decisionId });
-        return { output: { decisionId, tenantId, deduplicated: true } };
+        return [];
       }
-      throw error;
+      // Caught error path: emit AgentFailure CDC row instead of rethrowing.
+      // Re-throwing would trigger SQS retry, which would re-invoke the agent
+      // on the SAME task token — wrong. CallbackIngress (DWC, Task 10) decides
+      // retry policy based on the NARRATIVE_FAILED event we emit via CDC.
+      const error = err as Error;
+      logger.error('Agent run failed; emitting AgentFailure', {
+        decisionId,
+        eventId: ctx.eventId,
+        errorType: error.name,
+        errorMessage: error.message,
+      });
+      return [
+        record(
+          'AgentFailure',
+          {
+            decisionId,
+            tenantId,
+            agentName: AGENT_NAME,
+            taskToken,
+            errorType: error.name ?? 'UnknownError',
+            errorMessage: error.message,
+            failedAt: new Date().toISOString(),
+          },
+          { pk: AGENT_FAILURE_PK(decisionId), sk: AGENT_FAILURE_SK(AGENT_NAME) },
+        ),
+      ];
     }
-
-    // Wrap result for SF state with size guard (currently inline-only;
-    // throws OutputTooLargeError if >25 KB — file follow-up if observed).
-    const wrapped = wrapAgentOutput(result);
-
-    return {
-      output: { decisionId, tenantId, agentOutput: wrapped.value },
-      intents: [record('AgentInvocation', { decisionId, tenantId, agentName: 'advisory-narrative' })],
-    };
   },
 
-  DECISION_FEEDBACK: async (payload: EventPayload, ctx: EventContext) => {
+  DECISION_FEEDBACK: async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
     logger.info('Processing DECISION_FEEDBACK', { eventType: ctx.eventType });
     await deps.feedbackCorrelator.process({
       type: ctx.eventType,
       subject: payload.subject,
     } as Record<string, unknown>);
-    return { output: { eventType: ctx.eventType, status: 'processed' } };
+    return [];
   },
 });
 
@@ -113,14 +180,14 @@ const feedbackCorrelator = {
 };
 
 const memoryClient = process.env.MEMORY_ID
-  ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: 'advisory-narrative' })
+  ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: AGENT_NAME })
   : createNoOpMemoryClient();
 
 const agentService = createAgentService({ docClient, tableName: TABLE_NAME, memoryClient });
 
-const deps: SfnCallbackDeps = { agentService, feedbackCorrelator, memoryClient };
+const deps: IngressDeps = { agentService, feedbackCorrelator, memoryClient };
 
-export const handler = resumeStateMachine({
+export const handler = materializeToTable({
   serviceName: 'advisory-narrative-ctrl',
   handlers: createHandlers(deps),
   errorEventType: 'ADVISORY_NARRATIVE_CTRL_FAILED',

@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { randomUUID } from 'node:crypto';
 import {
   EventBridgeClient,
   type TestContext,
@@ -10,6 +11,7 @@ import {
   TableAssertions,
   MockApiFixture,
   SsmOverrideFixture,
+  DdbSeedFixture,
 } from '@nestfolio/integration-testing';
 
 describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB write + CDC', () => {
@@ -41,7 +43,11 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
     trap = new EventBusTrap(ctx);
     await trap.deploy({
       bus: 'advisory',
-      detailType: ['EXPLANATION_GENERATED'],
+      detailType: [
+        'EXPLANATION_GENERATED',
+        'NARRATIVE_COMPLETED',
+        'NARRATIVE_FAILED',
+      ],
     });
   }, 120_000);
 
@@ -90,5 +96,100 @@ describe('advisory-narrative-ctrl: GENERATE_NARRATIVE → AgentInvocation DDB wr
       detailType: 'EXPLANATION_GENERATED',
     });
     expect(cdcEvent.detailType).toBe('EXPLANATION_GENERATED');
+  }, 120_000);
+
+  // ── NARRATIVE_COMPLETED emission (Task 7 callback refactor) ─────────
+  //
+  // The handler writes an AgentCompletion row (pk=`AgentCompletion#${decisionId}`,
+  // sk=`AgentCompletion#explainability`) on success; Egress CDC emits
+  // NARRATIVE_COMPLETED with taskToken + agentOutput on subject. DWC's
+  // CallbackIngress consumes it to call states:SendTaskSuccess.
+
+  it('emits NARRATIVE_COMPLETED with taskToken + agentOutput on subject after GENERATE_NARRATIVE success', async () => {
+    const decisionId = `integ-an-completed-${randomUUID()}`;
+    const taskToken = `task-token-${randomUUID()}`;
+
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'advisory-narrative-ctrl',
+      detailType: 'GENERATE_NARRATIVE',
+      detail: {
+        tenantId: ctx.tenantId,
+        decisionId,
+        taskToken,
+        operatingMode: 'BALANCED',
+      },
+    });
+
+    let completion: Record<string, unknown>;
+    try {
+      completion = await table.waitForItem({
+        table: 'advisory-narrative-ctrl',
+        pk: `AgentCompletion#${decisionId}`,
+        sk: `AgentCompletion#explainability`,
+        timeoutMs: 180_000,
+      });
+    } catch {
+      console.warn(
+        'advisory-narrative-ctrl: AgentRuntime may be unavailable — skipping NARRATIVE_COMPLETED assertion',
+      );
+      return;
+    }
+
+    expect(completion['__typename']).toBe('AgentCompletion');
+    expect(completion['decisionId']).toBe(decisionId);
+    expect(completion['taskToken']).toBe(taskToken);
+    expect(completion['agentOutput']).toBeTruthy();
+
+    const cdcEvent = await trap.waitForEvent<{
+      subject: { decisionId: string; taskToken: string; agentOutput: unknown };
+    }>({
+      detailType: 'NARRATIVE_COMPLETED',
+      match: (d) => d.subject?.decisionId === decisionId,
+      timeoutMs: 60_000,
+    });
+    expect(cdcEvent.detail.subject.taskToken).toBe(taskToken);
+    expect(cdcEvent.detail.subject.agentOutput).toBeTruthy();
+  }, 240_000);
+
+  // ── NARRATIVE_FAILED CDC chain ──────────────────────────────────────
+  //
+  // We seed an AgentFailure row directly to verify the egress CDC →
+  // NARRATIVE_FAILED contract. The handler-side path (caught error →
+  // AgentFailure intent) is covered by unit tests.
+
+  it('emits NARRATIVE_FAILED on AgentFailure row insert (CDC contract)', async () => {
+    const decisionId = `integ-an-failed-${randomUUID()}`;
+    const taskToken = `task-token-${randomUUID()}`;
+    const seed = new DdbSeedFixture(ctx);
+
+    await seed.seed({
+      table: 'advisory-narrative-ctrl',
+      items: [
+        {
+          pk: `AgentFailure#${decisionId}`,
+          sk: `AgentFailure#explainability`,
+          __typename: 'AgentFailure',
+          decisionId,
+          tenantId: ctx.tenantId,
+          agentName: 'explainability',
+          taskToken,
+          errorType: 'AgentOrchestratorError',
+          errorMessage: 'simulated failure for integration coverage',
+          failedAt: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const cdcEvent = await trap.waitForEvent<{
+      subject: { decisionId: string; taskToken: string; errorType: string; errorMessage: string };
+    }>({
+      detailType: 'NARRATIVE_FAILED',
+      match: (d) => d.subject?.decisionId === decisionId,
+      timeoutMs: 60_000,
+    });
+    expect(cdcEvent.detail.subject.taskToken).toBe(taskToken);
+    expect(cdcEvent.detail.subject.errorType).toBe('AgentOrchestratorError');
+    expect(cdcEvent.detail.subject.errorMessage).toBe('simulated failure for integration coverage');
   }, 120_000);
 });

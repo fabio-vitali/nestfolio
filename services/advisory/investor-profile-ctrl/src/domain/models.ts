@@ -33,3 +33,25 @@ export interface ReasoningOutput {
   readonly confidence: number;
   readonly createdAt: string;
 }
+
+export interface InvestorProfileSnapshotRow {
+  readonly pk: string;                              // `InvestorProfileSnapshot#${tenantId}#${userId}`
+  readonly sk: 'InvestorProfileSnapshot';
+  readonly __typename: 'InvestorProfileSnapshot';
+  readonly tenantId: string;
+  readonly userId: string;
+  readonly agentOutput: {
+    readonly goals: ReadonlyArray<string>;
+    readonly timeHorizon: string;
+    readonly riskWillingness: string;
+    readonly riskScore: number;
+    readonly riskCategory: 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE';
+    readonly regulatoryFlags: ReadonlyArray<string>;
+    readonly suitabilityAssessment: string;
+    readonly confidence: number;
+  };
+  readonly sourceEventId: string;
+  readonly sourceEventType: 'INVESTOR_PROFILE_UPDATED' | 'MANDATE_ISSUED' | 'OPERATING_MODE_CHANGED';
+  readonly agentInvocationId: string;
+  readonly updatedAt: string;
+}

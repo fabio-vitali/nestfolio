@@ -95,4 +95,41 @@ describe('PortfolioEngineCtrlStack', () => {
     expect(actions).not.toContain('bedrock-agentcore:BatchCreateMemoryRecords');
     expect(actions).not.toContain('bedrock-agentcore:ListMemoryRecords');
   });
+
+  it('does not grant states:SendTaskSuccess or states:SendTaskFailure to any role', () => {
+    // Post advisory-cycle-agent-precomputation Task 6: PE-ctrl emits
+    // AgentCompletion / AgentFailure CDC rows; DWC's CallbackIngress owns
+    // the states:SendTask* grants exclusively.
+    const policies = template.findResources('AWS::IAM::Policy');
+    for (const policy of Object.values(policies)) {
+      const statements: any[] =
+        (policy as any).Properties?.PolicyDocument?.Statement ?? [];
+      for (const stmt of statements) {
+        const actions: string[] = Array.isArray(stmt.Action)
+          ? stmt.Action
+          : [stmt.Action];
+        expect(actions).not.toContain('states:SendTaskSuccess');
+        expect(actions).not.toContain('states:SendTaskFailure');
+        expect(actions).not.toContain('states:SendTaskHeartbeat');
+      }
+    }
+  });
+
+  it('emits PORTFOLIO_COMPLETED on AgentCompletion:INSERT and PORTFOLIO_FAILED on AgentFailure:INSERT', () => {
+    // Egress construct declares CDC mappings via EVENT_TYPE_MAP env var on the
+    // publisher Lambda (JSON-encoded). Verify both completion + failure rows
+    // are present alongside the pre-existing mappings.
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    const egressLambdaEntry = Object.values(lambdas).find((l: any) => {
+      const vars = l.Properties?.Environment?.Variables ?? {};
+      return typeof vars.EVENT_TYPE_MAP === 'string'
+        && vars.EVENT_TYPE_MAP.includes('AgentCompletion');
+    }) as any;
+    expect(egressLambdaEntry).toBeDefined();
+    const map = egressLambdaEntry.Properties.Environment.Variables.EVENT_TYPE_MAP as string;
+    expect(map).toContain('AgentCompletion');
+    expect(map).toContain('PORTFOLIO_COMPLETED');
+    expect(map).toContain('AgentFailure');
+    expect(map).toContain('PORTFOLIO_FAILED');
+  });
 });

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   EventBridgeClient,
+  createTestContext,
 } from '@nestfolio/test-support';
 import {
   createIntegrationTestContext,
@@ -13,13 +14,18 @@ import {
 // decision-workflow-ctrl resilience — verifies CallbackIngress (sfn-callback)
 // behaviour under SQS at-least-once redelivery and out-of-order arrival.
 //
-// Tested ingress: agent completion events (INVESTOR_PROFILE_COMPLETED,
-// MARKET_ANALYSIS_COMPLETED, PORTFOLIO_COMPLETED, NARRATIVE_COMPLETED).
-// Each handler emits a `record('AgentOutput', ...)` write whose default
-// keys are pk=`T#${tenantId}`, sk=`AgentOutput#${eventId}` with a
+// Post advisory-cycle-agent-precomputation, IP and MI no longer emit
+// completion events (they precompute snapshots). Only PE + AN run on per-cycle
+// task tokens and emit PORTFOLIO_COMPLETED / NARRATIVE_COMPLETED on success
+// and PORTFOLIO_FAILED / NARRATIVE_FAILED on caught error. DWC's
+// CallbackIngress consumes these to call states:SendTaskSuccess /
+// states:SendTaskFailure.
+//
+// Each completion handler emits a `record('AgentOutput', ...)` write whose
+// default keys are pk=`T#${tenantId}`, sk=`AgentOutput#${eventId}` with a
 // ConditionExpression `attribute_not_exists(pk)` — so the framework already
-// dedups identical eventIds at the DDB layer. These tests prove the
-// guarantee end-to-end.
+// dedups identical eventIds at the DDB layer. These tests prove the guarantee
+// end-to-end.
 //
 // SF task-token behaviour: the `resumeStateMachine` pipeline calls
 // SendTaskSuccess for each callback. The test passes a synthetic taskToken
@@ -42,26 +48,27 @@ const fakeTaskToken = (label: string) =>
 // ── Idempotency ──────────────────────────────────────────────────────────
 
 describe('decision-workflow-ctrl resilience: idempotency', () => {
-  it('duplicate INVESTOR_PROFILE_COMPLETED produces a single AgentOutput row', async () => {
+  it('duplicate PORTFOLIO_COMPLETED produces a single AgentOutput row', async () => {
     const ctx = await createIntegrationTestContext();
     try {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
       table.registerCleanup();
 
-      const eventId = `idemp-ipc-${randomUUID()}`;
+      const eventId = `idemp-pc-${randomUUID()}`;
       const decisionId = `idemp-decision-${randomUUID()}`;
       const detail = {
         tenantId: ctx.tenantId,
         decisionId,
-        taskToken: fakeTaskToken('ipc'),
+        taskToken: fakeTaskToken('pc'),
+        agentOutput: { proposedTrades: [] },
       };
 
       // First publish — handler writes AgentOutput at sk=`AgentOutput#${eventId}`
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'decision-workflow-ctrl',
-        detailType: 'INVESTOR_PROFILE_COMPLETED',
+        detailType: 'PORTFOLIO_COMPLETED',
         detail,
         eventId,
       });
@@ -84,7 +91,7 @@ describe('decision-workflow-ctrl resilience: idempotency', () => {
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'decision-workflow-ctrl',
-        detailType: 'INVESTOR_PROFILE_COMPLETED',
+        detailType: 'PORTFOLIO_COMPLETED',
         detail,
         eventId,
       });
@@ -170,64 +177,74 @@ describe('decision-workflow-ctrl resilience: idempotency', () => {
 // final-state shape (snapshot equality after stripping dynamic fields).
 
 describe('decision-workflow-ctrl resilience: order-agnostic', () => {
-  it('INVESTOR_PROFILE_COMPLETED and MARKET_ANALYSIS_COMPLETED in either order both produce AgentOutput rows', async () => {
+  it('PORTFOLIO_COMPLETED and NARRATIVE_COMPLETED in either order both produce AgentOutput rows', async () => {
     const runOrder = async (
       ctx: Awaited<ReturnType<typeof createTestContext>>,
-      ordering: 'profile-first' | 'market-first',
-    ): Promise<{ ipcId: string; macId: string; snapshot: Record<string, unknown>[] }> => {
+      ordering: 'portfolio-first' | 'narrative-first',
+    ): Promise<{ pcId: string; ncId: string; snapshot: Record<string, unknown>[] }> => {
       const eb = new EventBridgeClient(ctx);
       const table = new TableAssertions(ctx);
       table.registerCleanup();
 
       const decisionId = `pair-decision-${randomUUID()}`;
-      const ipcId = `pair-ipc-${randomUUID()}`;
-      const macId = `pair-mac-${randomUUID()}`;
-      const ipcEvent = {
+      const pcId = `pair-pc-${randomUUID()}`;
+      const ncId = `pair-nc-${randomUUID()}`;
+      const pcEvent = {
         bus: 'advisory' as const,
         targetService: 'decision-workflow-ctrl',
-        detailType: 'INVESTOR_PROFILE_COMPLETED',
-        detail: { tenantId: ctx.tenantId, decisionId, taskToken: fakeTaskToken('ipc') },
-        eventId: ipcId,
+        detailType: 'PORTFOLIO_COMPLETED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+          taskToken: fakeTaskToken('pc'),
+          agentOutput: { proposedTrades: [] },
+        },
+        eventId: pcId,
       };
-      const macEvent = {
+      const ncEvent = {
         bus: 'advisory' as const,
         targetService: 'decision-workflow-ctrl',
-        detailType: 'MARKET_ANALYSIS_COMPLETED',
-        detail: { tenantId: ctx.tenantId, decisionId, taskToken: fakeTaskToken('mac') },
-        eventId: macId,
+        detailType: 'NARRATIVE_COMPLETED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+          taskToken: fakeTaskToken('nc'),
+          agentOutput: { explanation: 'narrative body' },
+        },
+        eventId: ncId,
       };
 
-      if (ordering === 'profile-first') {
-        await eb.putEvent(ipcEvent);
-        await eb.putEvent(macEvent);
+      if (ordering === 'portfolio-first') {
+        await eb.putEvent(pcEvent);
+        await eb.putEvent(ncEvent);
       } else {
-        await eb.putEvent(macEvent);
-        await eb.putEvent(ipcEvent);
+        await eb.putEvent(ncEvent);
+        await eb.putEvent(pcEvent);
       }
 
       await table.waitForItem({
         table: 'decision-workflow-ctrl',
         pk: `T#${ctx.tenantId}`,
-        sk: `AgentOutput#${ipcId}`,
+        sk: `AgentOutput#${pcId}`,
         timeoutMs: 60_000,
       });
       await table.waitForItem({
         table: 'decision-workflow-ctrl',
         pk: `T#${ctx.tenantId}`,
-        sk: `AgentOutput#${macId}`,
+        sk: `AgentOutput#${ncId}`,
         timeoutMs: 60_000,
       });
 
       const snapshot = await snapshotState(
         table, 'decision-workflow-ctrl', `T#${ctx.tenantId}`, 'AgentOutput#',
       );
-      return { ipcId, macId, snapshot };
+      return { pcId, ncId, snapshot };
     };
 
     const ctxA = await createIntegrationTestContext();
     let snapshotA: Record<string, unknown>[];
     try {
-      ({ snapshot: snapshotA } = await runOrder(ctxA, 'profile-first'));
+      ({ snapshot: snapshotA } = await runOrder(ctxA, 'portfolio-first'));
       expect(snapshotA.length).toBe(2);
     } finally {
       await ctxA.cleanup.runAll();
@@ -236,7 +253,7 @@ describe('decision-workflow-ctrl resilience: order-agnostic', () => {
     const ctxB = await createIntegrationTestContext();
     let snapshotB: Record<string, unknown>[];
     try {
-      ({ snapshot: snapshotB } = await runOrder(ctxB, 'market-first'));
+      ({ snapshot: snapshotB } = await runOrder(ctxB, 'narrative-first'));
       expect(snapshotB.length).toBe(2);
     } finally {
       await ctxB.cleanup.runAll();

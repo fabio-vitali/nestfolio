@@ -1,83 +1,117 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import {
-  resumeStateMachine, record,
-  type EventPayload, type EventContext,
-  requireEnv, logger,
+  materializeToTable,
+  record,
+  type EventPayload,
+  type EventContext,
+  type WriteIntent,
+  requireEnv,
+  logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, UnknownOperatingModeError, wrapAgentOutput } from '@nestfolio/agent-orchestrator';
+import {
+  createMemoryClient,
+  createNoOpMemoryClient,
+  type MemoryClient,
+  UnknownOperatingModeError,
+} from '@nestfolio/agent-orchestrator';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
+import {
+  investorProfileSnapshotPk,
+  INVESTOR_PROFILE_SNAPSHOT_SK,
+} from '../repositories/investor-profile-snapshot.repository';
 
-export interface SfnCallbackDeps {
+export interface IngressDeps {
   readonly agentService: { runPipeline: (eventId: string, event: Record<string, unknown>) => Promise<Record<string, unknown>> };
   readonly memoryClient: MemoryClient;
 }
 
-export const createHandlers = (deps: SfnCallbackDeps) => ({
-  ANALYZE_INVESTOR_PROFILE: async (payload: EventPayload, ctx: EventContext) => {
-    const subject = payload.subject ?? {};
-    const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-    const decisionId = subject.decisionId as string;
+type SourceEventType =
+  | 'INVESTOR_PROFILE_UPDATED'
+  | 'MANDATE_ISSUED'
+  | 'OPERATING_MODE_CHANGED';
 
-    logger.info('Processing ANALYZE_INVESTOR_PROFILE', { decisionId, tenantId });
+// The event-processor ingestion engine's normalize-handler expects a
+// `WriteIntent | WriteIntent[]` (libs/event-processor/src/engine/normalize-handler.ts).
+// Returning a wrapper object like `{ output, intents }` made toArray() treat the
+// wrapper as a single bogus intent (tag undefined → "intent result success:false"),
+// surfaced by Task 19's MarketSnapshot bootstrap on first deploy.
+async function runSnapshotAgent(
+  deps: IngressDeps,
+  payload: EventPayload,
+  ctx: EventContext,
+  sourceEventType: SourceEventType,
+): Promise<WriteIntent[]> {
+  const subject = (payload.subject ?? {}) as Record<string, unknown>;
+  const tenantId = (subject.tenantId as string | undefined) ?? (ctx.tenantId as unknown as string);
+  // userId defaults to tenantId in the precomputation model: an investor
+  // profile is owned by the tenant principal, so the snapshot's natural key is
+  // (tenantId, userId) with userId === tenantId when the upstream event does
+  // not carry an explicit userId field.
+  const userId = (subject.userId as string | undefined) ?? tenantId;
 
-    const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
-    const tenantHistory = await session.searchLongTermMemory('preferences', 'investor preferences risk tolerance');
+  const operatingMode = (subject.operatingMode as string | undefined)
+    ?? ((subject.mandate as Record<string, unknown> | undefined)?.operatingMode as string | undefined);
 
-    // Extract operatingMode from the InvestorProfile payload SF passes via
-    // subject.investorProfile (composite InvestorProfile row carries it post-collapse).
-    // Throws UnknownOperatingModeError if missing — silent BALANCED fallback was
-    // masking the propagation regression tracked in
-    // docs/backlog/operating-mode-shape-empty-proposed-trades.md.
-    const investorProfile = (subject.investorProfile as Record<string, unknown> | undefined) ?? {};
-    const operatingMode = (investorProfile.operatingMode as string | undefined)
-      ?? ((investorProfile.mandate as Record<string, unknown> | undefined)?.operatingMode as string | undefined);
-    if (!operatingMode) {
-      throw new UnknownOperatingModeError({
-        decisionId,
-        resolutionPath: 'subject.investorProfile.operatingMode || subject.investorProfile.mandate.operatingMode',
-        availableKeys: Object.keys(investorProfile),
-      });
+  if (!operatingMode) {
+    throw new UnknownOperatingModeError({
+      decisionId: `snapshot:${sourceEventType}:${tenantId}:${userId}`,
+      resolutionPath: 'subject.operatingMode || subject.mandate.operatingMode',
+      availableKeys: Object.keys(subject),
+    });
+  }
+
+  logger.info(`Processing ${sourceEventType} for snapshot rebuild`, { tenantId, userId, eventId: ctx.eventId });
+
+  const session = deps.memoryClient.openDecisionSession(tenantId, `snapshot-${ctx.eventId}`);
+  const tenantHistory = await session.searchLongTermMemory('preferences', 'investor preferences risk tolerance');
+
+  let result: Record<string, unknown>;
+  try {
+    result = await deps.agentService.runPipeline(ctx.eventId, {
+      tenantId,
+      decisionId: `snapshot-${ctx.eventId}`,
+      operatingMode,
+      investorProfile: subject,
+      portfolioState: {},
+      tenantHistory: tenantHistory.map((r: { content: unknown }) => r.content),
+    });
+  } catch (error) {
+    if (error instanceof DuplicateInvocationError) {
+      logger.info(`Duplicate ${sourceEventType} event, skipping`, { eventId: ctx.eventId });
+      return [];
     }
+    throw error;
+  }
 
-    let result: Record<string, unknown>;
-    try {
-      result = await deps.agentService.runPipeline(ctx.eventId, {
+  return [
+    record('AgentInvocation', {
+      decisionId: `snapshot-${ctx.eventId}`,
+      tenantId,
+      agentName: 'investor-profile',
+    }),
+    record(
+      'InvestorProfileSnapshot',
+      {
         tenantId,
-        decisionId,
-        operatingMode,
-        investorProfile,
-        portfolioState: subject.portfolioState ?? {},
-        tenantHistory: tenantHistory.map(r => r.content),
-      });
-    } catch (error) {
-      if (error instanceof DuplicateInvocationError) {
-        logger.info('Duplicate ANALYZE_INVESTOR_PROFILE event, skipping', { eventId: ctx.eventId, decisionId });
-        return { output: { decisionId, tenantId, deduplicated: true } };
-      }
-      throw error;
-    }
+        userId,
+        agentOutput: result,
+        sourceEventId: ctx.eventId,
+        sourceEventType,
+        agentInvocationId: ctx.eventId,
+      },
+      { pk: investorProfileSnapshotPk(tenantId, userId), sk: INVESTOR_PROFILE_SNAPSHOT_SK },
+    ),
+  ];
+}
 
-    // Memory persistence happens inside the AgentRuntime (graph.ts:117) — it
-    // includes operatingMode at the top level so this Lambda's previous
-    // wrap-write (which was silently deduplicated by `requestIdentifier`
-    // idempotency in BatchCreateMemoryRecordsCommand) is no longer needed.
-
-    // Return operatingMode AND the full agent result in the SF SendTaskSuccess
-    // output so downstream Task states (portfolio-engine, advisory-narrative)
-    // and AssembleDecisionPacket can read them from SF state
-    // (`$.agentResults.InvokeInvestorProfile.operatingMode` and
-    //  `$.agentResults.InvokeInvestorProfile.agentOutput`) without a Memory
-    // roundtrip. Closes the AgentCore Memory ListMemoryRecords
-    // eventual-consistency gap that previously blocked CONSERVATIVE+AGGRESSIVE
-    // e2e cases — see
-    // docs/backlog/agentcore-memory-list-records-eventual-consistency.md.
-    const wrapped = wrapAgentOutput(result);
-    return {
-      output: { decisionId, tenantId, operatingMode, agentOutput: wrapped.value },
-      intents: [record('AgentInvocation', { decisionId, tenantId, agentName: 'investor-profile' })],
-    };
-  },
+export const createHandlers = (deps: IngressDeps) => ({
+  INVESTOR_PROFILE_UPDATED: (p: EventPayload, c: EventContext) =>
+    runSnapshotAgent(deps, p, c, 'INVESTOR_PROFILE_UPDATED'),
+  MANDATE_ISSUED: (p: EventPayload, c: EventContext) =>
+    runSnapshotAgent(deps, p, c, 'MANDATE_ISSUED'),
+  OPERATING_MODE_CHANGED: (p: EventPayload, c: EventContext) =>
+    runSnapshotAgent(deps, p, c, 'OPERATING_MODE_CHANGED'),
 });
 
 // --- Production wiring ---
@@ -93,9 +127,9 @@ const memoryClient = process.env.MEMORY_ID
 
 const agentService = createAgentService({ docClient, tableName: TABLE_NAME, memoryClient });
 
-const deps: SfnCallbackDeps = { agentService, memoryClient };
+const deps: IngressDeps = { agentService, memoryClient };
 
-export const handler = resumeStateMachine({
+export const handler = materializeToTable({
   serviceName: 'investor-profile-ctrl',
   handlers: createHandlers(deps),
   errorEventType: 'INVESTOR_PROFILE_CTRL_FAILED',
