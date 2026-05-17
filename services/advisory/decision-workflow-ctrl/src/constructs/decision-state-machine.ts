@@ -356,6 +356,12 @@ export class DecisionWorkflowDefinition extends Construct {
         // any missing field, so a partial shape is fine for the happy path.
         // The fields here mirror what INVESTOR_PROFILE_UPDATED carries on its
         // subject (see investor-profile-ctrl/src/handlers/event-listener.ts).
+        // Sentinel defaults — trigger payload doesn't carry these; PE+AN treat
+        // them opaquely. Specifically: `riskWillingness`, `riskCategory`,
+        // `regulatoryFlags`, `suitabilityAssessment`, `confidence` are literal
+        // placeholders here, NOT JSONPath reads. If a future change starts
+        // asserting on any of these, swap the literal for a JSONPath or drop
+        // the field — see plan §Open Question #3.
         agentOutput: {
           'goals.$': '$.triggerContext.goal',
           'timeHorizon.$': '$.triggerContext.goal.timeHorizonMonths',
@@ -458,6 +464,11 @@ export class DecisionWorkflowDefinition extends Construct {
         'region.$': '$.region',
         'trigger.$': '$.trigger',
         'triggerContext.$': '$.triggerContext',
+        // Preserve agentResults through the mandate-lookup branch so PE+AN can
+        // still resolve $.agentResults.InvokeInvestorProfile.agentOutput +
+        // $.agentResults.InvokeMarketIntelligence.agentOutput downstream.
+        // Pass-only state replaces top-level state; without this line the
+        // ParallelProjections + MergeProjections output would be dropped here.
         'agentResults.$': '$.agentResults',
         'investorProfile': {
           'operatingMode.$': '$.mandateSnapshot.operatingMode',
@@ -473,6 +484,8 @@ export class DecisionWorkflowDefinition extends Construct {
         'region.$': '$.region',
         'trigger.$': '$.trigger',
         'triggerContext.$': '$.triggerContext',
+        // Preserve agentResults through the mandate-hoist branch — same reason
+        // as SetInvestorProfile above (Pass replaces top-level state).
         'agentResults.$': '$.agentResults',
         'investorProfile': {
           'operatingMode.$': '$.triggerContext.operatingMode',
