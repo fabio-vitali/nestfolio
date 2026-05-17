@@ -44,7 +44,9 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     // Three long-term MemoryStrategies (Phase B — inter-agent-state-handoff):
     //   1. InvestorPreferenceLearner (USER_PREFERENCE_MEMORY, Haiku extraction only)
     //      Namespace: /investor-profile-ctrl/{actorId}/preferences
-    //   2. MarketSignalExtractor (SEMANTIC_MEMORY, managed extraction)
+    //   2. MarketSignals (SEMANTIC_MEMORY, managed extraction; renamed from
+    //      MarketSignalExtractor 2026-05-18 because AWS forbids in-place
+    //      type changes on AgentCore MemoryStrategies)
     //      Namespace: /market-intelligence-ctrl/{actorId}/signals
     //   3. RationaleArchivist (SEMANTIC_MEMORY, Haiku extraction only)
     //      Namespace: /shared-rationale/{actorId}/rationale
@@ -78,8 +80,15 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
               'decision details.',
           },
         }),
+        // Renamed from MarketSignalExtractor in the Phase 1 cost-reduction
+        // workstream (2026-05-18). AWS rejects in-place type changes on an
+        // AgentCore MemoryStrategy, and switching from CUSTOM (Haiku extraction)
+        // to managed SEMANTIC is a top-level CFN-resource-type swap
+        // (CustomMemoryStrategy → SemanticMemoryStrategy). Rename forces CFN
+        // delete+create. Same namespace template, so consumers (MI-ctrl emit
+        // path) need no change.
         agentcore.MemoryStrategy.usingSemantic({
-          name: 'MarketSignalExtractor',
+          name: 'MarketSignals',
           namespaces: ['/market-intelligence-ctrl/{actorId}/signals'],
         }),
         agentcore.MemoryStrategy.usingSemantic({

@@ -176,12 +176,10 @@ describe('DecisionWorkflowCtrlStack', () => {
       ]);
     });
 
-    it('attaches MarketSignalExtractor with managed SEMANTIC type (no custom extraction)', () => {
+    it('attaches MarketSignals with managed SEMANTIC type (no custom extraction)', () => {
       const strategies = getStrategies();
       const extractor = strategies.find(
-        (s: any) =>
-          s.SemanticMemoryStrategy?.Name === 'MarketSignalExtractor' ||
-          s.CustomMemoryStrategy?.Name === 'MarketSignalExtractor',
+        (s: any) => s.SemanticMemoryStrategy?.Name === 'MarketSignals',
       );
       expect(extractor).toBeDefined();
       // Managed (non-custom) shape: SemanticMemoryStrategy with no customExtraction config.
