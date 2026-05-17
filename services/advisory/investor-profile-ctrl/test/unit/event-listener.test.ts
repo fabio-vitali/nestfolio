@@ -43,13 +43,13 @@ process.env.MEMORY_ID = 'mem-test';
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
 import { type MemoryClient, UnknownOperatingModeError } from '@nestfolio/agent-orchestrator';
-import { createHandlers, type SfnCallbackDeps } from '../../src/handlers/event-listener';
+import { createHandlers, type IngressDeps } from '../../src/handlers/event-listener';
 
 describe('investor-profile-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
   const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
-  const mockDeps: SfnCallbackDeps = {
+  const mockDeps: IngressDeps = {
     agentService: { runPipeline: mockRunPipeline },
     memoryClient: {
       openDecisionSession: jest.fn().mockReturnValue({
@@ -61,23 +61,28 @@ describe('investor-profile-ctrl event-listener', () => {
 
   const handlers = createHandlers(mockDeps);
 
-  const baseCtx: EventContext = {
+  const makeCtx = (overrides: Partial<EventContext> = {}): EventContext => ({
     eventId: 'evt-1',
-    eventType: 'ANALYZE_INVESTOR_PROFILE',
+    eventType: 'INVESTOR_PROFILE_UPDATED',
     tenantId: asTenantId('t1'),
-    userId: asUserId('test-user'),
+    userId: asUserId('u1'),
     region: 'us-east-1',
     timestamp: new Date().toISOString(),
     receiveCount: 1,
     serviceName: 'investor-profile-ctrl',
     record: {},
-  };
+    ...overrides,
+  });
 
   const defaultAgentResult = {
-    decisionId: 'dp-1',
-    goals: { goals: ['retirement'], timeHorizon: '10 years', riskWillingness: 'moderate', confidence: 0.9 },
-    risk: { riskScore: 45, riskCategory: 'MODERATE', regulatoryFlags: [], suitabilityAssessment: 'Suitable', confidence: 0.85 },
-    metadata: { durationMs: 1200, modelTiers: ['haiku', 'opus'] },
+    goals: ['retirement'],
+    timeHorizon: '10+ years',
+    riskWillingness: 'moderate',
+    riskScore: 55,
+    riskCategory: 'MODERATE' as const,
+    regulatoryFlags: [],
+    suitabilityAssessment: 'OK',
+    confidence: 0.88,
   };
 
   beforeEach(() => {
@@ -86,157 +91,166 @@ describe('investor-profile-ctrl event-listener', () => {
     mockRunPipeline.mockResolvedValue(defaultAgentResult);
   });
 
-  it('should run agent pipeline and return output with intents', async () => {
-    const payload: EventPayload = {
-      subject: {
-        tenantId: 't1',
-        decisionId: 'dp-1',
-        taskToken: 'token-123',
-        investorProfile: { age: 35, income: 100000, operatingMode: 'BALANCED' },
-        portfolioState: { totalValue: 50000 },
-      },
-    };
+  describe('INVESTOR_PROFILE_UPDATED handler', () => {
+    it('runs the agent and emits an InvestorProfileSnapshot write intent', async () => {
+      const payload: EventPayload = {
+        subject: {
+          tenantId: 't1',
+          userId: 'u1',
+          operatingMode: 'BALANCED',
+          goal: {},
+          riskProfile: {},
+        },
+      };
 
-    const result = await handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx);
+      const result = await handlers.INVESTOR_PROFILE_UPDATED(payload, makeCtx());
 
-    // Output carries operatingMode for downstream SF Task states + agentOutput
-    // so Wave 1 (portfolio-engine) and Wave 2 (advisory-narrative) plus
-    // AssembleDecisionPacket can read the result via SF state
-    // ($.agentResults.InvokeInvestorProfile.agentOutput) — Option A,
-    // avoiding the AgentCore Memory ListMemoryRecords eventual-consistency gap.
-    expect(result.output).toEqual({
-      decisionId: 'dp-1',
-      tenantId: 't1',
-      operatingMode: 'BALANCED',
-      agentOutput: defaultAgentResult,
+      expect(mockRunPipeline).toHaveBeenCalledWith(
+        'evt-1',
+        expect.objectContaining({ tenantId: 't1', operatingMode: 'BALANCED' }),
+      );
+      expect(result.intents).toEqual([
+        expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
+        expect.objectContaining({
+          _tag: 'record',
+          typename: 'InvestorProfileSnapshot',
+          fields: expect.objectContaining({
+            tenantId: 't1',
+            userId: 'u1',
+            sourceEventType: 'INVESTOR_PROFILE_UPDATED',
+            sourceEventId: 'evt-1',
+          }),
+        }),
+      ]);
+      expect(mockSearchLongTermMemory).toHaveBeenCalledWith('preferences', 'investor preferences risk tolerance');
     });
-    expect(result.intents).toHaveLength(1);
 
-    expect(mockRunPipeline).toHaveBeenCalledWith(
-      'evt-1',
-      expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1' }),
-    );
+    it('throws UnknownOperatingModeError when operatingMode is absent', async () => {
+      const payload: EventPayload = {
+        subject: { tenantId: 't1', userId: 'u1' },
+      };
 
-    // taskToken should NOT be passed to runPipeline (pipeline handles SFN resume)
-    expect(mockRunPipeline).toHaveBeenCalledWith(
-      'evt-1',
-      expect.not.objectContaining({ taskToken: expect.anything() }),
-    );
+      await expect(
+        handlers.INVESTOR_PROFILE_UPDATED(payload, makeCtx()),
+      ).rejects.toThrow(UnknownOperatingModeError);
+      expect(mockRunPipeline).not.toHaveBeenCalled();
+    });
 
-    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('preferences', 'investor preferences risk tolerance');
-    // Memory persistence happens inside the AgentRuntime (graph.ts), not in the
-    // Lambda — and the writeAgentOutput method has been dropped from MemoryClient
-    // entirely (Phase A inter-agent state handoff moved to SF state).
+    it('falls through to subject.mandate.operatingMode when top-level is absent', async () => {
+      const payload: EventPayload = {
+        subject: {
+          tenantId: 't1',
+          userId: 'u1',
+          mandate: { operatingMode: 'AGGRESSIVE' },
+        },
+      };
+
+      await handlers.INVESTOR_PROFILE_UPDATED(payload, makeCtx());
+
+      expect(mockRunPipeline).toHaveBeenCalledWith(
+        'evt-1',
+        expect.objectContaining({ operatingMode: 'AGGRESSIVE' }),
+      );
+    });
+
+    it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
+      const { DuplicateInvocationError } = await import('../../src/agent-service');
+      mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('evt-dup'));
+
+      const payload: EventPayload = {
+        subject: { tenantId: 't1', userId: 'u1', operatingMode: 'BALANCED' },
+      };
+
+      const result = await handlers.INVESTOR_PROFILE_UPDATED(
+        payload,
+        makeCtx({ eventId: 'evt-dup' }),
+      );
+
+      expect(result.output).toMatchObject({ tenantId: 't1', userId: 'u1', deduplicated: true });
+      expect((result as { intents?: unknown }).intents).toBeUndefined();
+    });
+
+    it('propagates non-duplicate agent errors', async () => {
+      mockRunPipeline.mockRejectedValueOnce(new Error('Agent pipeline failed'));
+
+      const payload: EventPayload = {
+        subject: { tenantId: 't1', userId: 'u1', operatingMode: 'BALANCED' },
+      };
+
+      await expect(
+        handlers.INVESTOR_PROFILE_UPDATED(payload, makeCtx()),
+      ).rejects.toThrow('Agent pipeline failed');
+    });
   });
 
-  it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
-    const { DuplicateInvocationError } = await import('../../src/agent-service');
-    mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('evt-dup'));
+  describe('MANDATE_ISSUED handler', () => {
+    it('runs the agent and emits an InvestorProfileSnapshot intent with sourceEventType=MANDATE_ISSUED', async () => {
+      const payload: EventPayload = {
+        subject: {
+          tenantId: 't1',
+          userId: 'u1',
+          operatingMode: 'CONSERVATIVE',
+          mandate: { operatingMode: 'CONSERVATIVE' },
+        },
+      };
 
-    const payload: EventPayload = {
-      subject: {
-        tenantId: 't1',
-        decisionId: 'dp-dup',
-        taskToken: 'tok',
-        investorProfile: { operatingMode: 'BALANCED' },
-      },
-    };
+      const result = await handlers.MANDATE_ISSUED(
+        payload,
+        makeCtx({ eventType: 'MANDATE_ISSUED', eventId: 'evt-mandate-1' }),
+      );
 
-    const dupCtx: EventContext = { ...baseCtx, eventId: 'evt-dup' };
-    const result = await handlers.ANALYZE_INVESTOR_PROFILE(payload, dupCtx);
-
-    expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
-    expect(result.intents).toBeUndefined();
+      expect(mockRunPipeline).toHaveBeenCalledWith(
+        'evt-mandate-1',
+        expect.objectContaining({ tenantId: 't1', operatingMode: 'CONSERVATIVE' }),
+      );
+      expect(result.intents).toEqual([
+        expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
+        expect.objectContaining({
+          _tag: 'record',
+          typename: 'InvestorProfileSnapshot',
+          fields: expect.objectContaining({
+            tenantId: 't1',
+            userId: 'u1',
+            sourceEventType: 'MANDATE_ISSUED',
+            sourceEventId: 'evt-mandate-1',
+          }),
+        }),
+      ]);
+    });
   });
 
-  it('should propagate agent errors', async () => {
-    mockRunPipeline.mockRejectedValueOnce(new Error('Agent pipeline failed'));
+  describe('OPERATING_MODE_CHANGED handler', () => {
+    it('runs the agent and emits an InvestorProfileSnapshot intent with sourceEventType=OPERATING_MODE_CHANGED', async () => {
+      const payload: EventPayload = {
+        subject: {
+          tenantId: 't1',
+          userId: 'u1',
+          operatingMode: 'AGGRESSIVE',
+        },
+      };
 
-    const payload: EventPayload = {
-      subject: {
-        tenantId: 't1',
-        decisionId: 'dp-1',
-        taskToken: 'token-123',
-        investorProfile: { operatingMode: 'BALANCED' },
-      },
-    };
+      const result = await handlers.OPERATING_MODE_CHANGED(
+        payload,
+        makeCtx({ eventType: 'OPERATING_MODE_CHANGED', eventId: 'evt-mode-1' }),
+      );
 
-    await expect(handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx)).rejects.toThrow('Agent pipeline failed');
-  });
-
-  // Regression: silent BALANCED fallback was masking the propagation bug
-  // tracked in docs/backlog/operating-mode-shape-empty-proposed-trades.md.
-  it('throws UnknownOperatingModeError when subject.investorProfile.operatingMode is missing', async () => {
-    const payload: EventPayload = {
-      subject: {
-        tenantId: 't1',
-        decisionId: 'dp-no-mode',
-        taskToken: 'tok',
-        investorProfile: { age: 35 },
-      },
-    };
-
-    await expect(handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx)).rejects.toThrow(UnknownOperatingModeError);
-    expect(mockRunPipeline).not.toHaveBeenCalled();
-  });
-
-  it('falls through to investorProfile.mandate.operatingMode when top-level is absent', async () => {
-    const payload: EventPayload = {
-      subject: {
-        tenantId: 't1',
-        decisionId: 'dp-mandate',
-        taskToken: 'tok',
-        investorProfile: { age: 35, mandate: { operatingMode: 'AGGRESSIVE' } },
-      },
-    };
-
-    await handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx);
-
-    expect(mockRunPipeline).toHaveBeenCalledWith(
-      'evt-1',
-      expect.objectContaining({ operatingMode: 'AGGRESSIVE' }),
-    );
-  });
-
-  it('returns the agent result inside SF output for downstream consumers', async () => {
-    const fakeResult = {
-      decisionId: 'dp-agent-out',
-      goals: { goals: ['college'], timeHorizon: '5 years', riskWillingness: 'moderate', confidence: 0.7 },
-      risk: { riskScore: 60, riskCategory: 'MODERATE', regulatoryFlags: [], suitabilityAssessment: 'Suitable', confidence: 0.9 },
-      investorClassification: 'RETAIL',
-      metadata: { durationMs: 800, modelTiers: ['haiku', 'opus'] },
-    };
-    mockRunPipeline.mockResolvedValueOnce(fakeResult);
-
-    const payload: EventPayload = {
-      subject: {
-        tenantId: 't1',
-        decisionId: 'dp-agent-out',
-        taskToken: 'tok',
-        investorProfile: { age: 40, operatingMode: 'BALANCED' },
-      },
-    };
-
-    const result = await handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx);
-
-    expect(result.output.agentOutput).toEqual(fakeResult);
-  });
-
-  it('passes operatingMode verbatim into runPipeline (regression — silent BALANCED narrowing)', async () => {
-    const payload: EventPayload = {
-      subject: {
-        tenantId: 't1',
-        decisionId: 'dp-prop',
-        taskToken: 'tok',
-        investorProfile: { age: 35, operatingMode: 'CONSERVATIVE' },
-      },
-    };
-
-    await handlers.ANALYZE_INVESTOR_PROFILE(payload, baseCtx);
-
-    expect(mockRunPipeline).toHaveBeenCalledWith(
-      'evt-1',
-      expect.objectContaining({ operatingMode: 'CONSERVATIVE' }),
-    );
+      expect(mockRunPipeline).toHaveBeenCalledWith(
+        'evt-mode-1',
+        expect.objectContaining({ tenantId: 't1', operatingMode: 'AGGRESSIVE' }),
+      );
+      expect(result.intents).toEqual([
+        expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
+        expect.objectContaining({
+          _tag: 'record',
+          typename: 'InvestorProfileSnapshot',
+          fields: expect.objectContaining({
+            tenantId: 't1',
+            userId: 'u1',
+            sourceEventType: 'OPERATING_MODE_CHANGED',
+            sourceEventId: 'evt-mode-1',
+          }),
+        }),
+      ]);
+    });
   });
 });
