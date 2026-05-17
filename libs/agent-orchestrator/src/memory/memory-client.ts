@@ -13,6 +13,15 @@ export interface MemoryClientConfig {
   memoryId: string;
   region: string;
   serviceName: string;
+  /**
+   * Optional override for the leading path component of the long-term memory
+   * namespace. When set, replaces `serviceName` in the namespace path
+   * `/<prefix>/<tenantId>/<namespace>`. Used to share a namespace across
+   * services (e.g., the merged `shared-rationale` strategy owned by both
+   * portfolio-engine-ctrl and advisory-narrative-ctrl). Defaults to
+   * `serviceName` for back-compat.
+   */
+  namespacePrefix?: string;
 }
 
 export interface MemoryRecord {
@@ -47,6 +56,7 @@ export interface MemoryClient {
 
 export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
   const client = new BedrockAgentCoreClient({ region: config.region });
+  const nsPrefix = config.namespacePrefix ?? config.serviceName;
 
   return {
     openDecisionSession(tenantId: string, decisionId: string): DecisionSession {
@@ -56,7 +66,7 @@ export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
           query: string,
           topK = 5,
         ): Promise<MemoryRecord[]> {
-          const ns = `/${config.serviceName}/${tenantId}/${namespace}`;
+          const ns = `/${nsPrefix}/${tenantId}/${namespace}`;
           const resp = await client.send(
             new RetrieveMemoryRecordsCommand({
               memoryId: config.memoryId,
@@ -104,7 +114,7 @@ export function createMemoryClient(config: MemoryClientConfig): MemoryClient {
       query: string,
       topK = 5,
     ): Promise<MemoryRecord[]> {
-      const ns = `/${config.serviceName}/${tenantId}/${namespace}`;
+      const ns = `/${nsPrefix}/${tenantId}/${namespace}`;
       const resp = await client.send(
         new RetrieveMemoryRecordsCommand({
           memoryId: config.memoryId,
