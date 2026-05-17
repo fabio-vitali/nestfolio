@@ -82,7 +82,10 @@ describe('market-intelligence-ctrl event-listener', () => {
 
       expect(mockRunPipeline).toHaveBeenCalledWith(
         'tick-1',
-        expect.objectContaining({ region: 'us-east-1', tier: 'slow' }),
+        expect.objectContaining({
+          subject: expect.objectContaining({ region: 'us-east-1', decisionId: 'snapshot-tick-1' }),
+          context: expect.objectContaining({ tenantId: expect.any(String) }),
+        }),
       );
 
       expect(result.intents).toEqual(expect.arrayContaining([
@@ -156,7 +159,13 @@ describe('market-intelligence-ctrl event-listener', () => {
 
       expect(mockRunPipeline).toHaveBeenCalledWith(
         `feed-${eventType}-1`,
-        expect.objectContaining({ region: 'us-east-1', tier: 'fast' }),
+        expect.objectContaining({
+          subject: expect.objectContaining({
+            region: 'us-east-1',
+            decisionId: `snapshot-feed-${eventType}-1`,
+          }),
+          context: expect.objectContaining({ tenantId: expect.any(String) }),
+        }),
       );
 
       const snapshotIntent = result.intents?.find(

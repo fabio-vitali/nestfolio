@@ -53,9 +53,19 @@ async function runMarketAgent(
     eventId: ctx.eventId,
   });
 
+  // agent-service.runPipeline + invokeAgentCore build `runtimeSessionId = ${tenantId}/${decisionId}`,
+  // which Bedrock AgentCore requires to be >= 33 chars. Region-scoped snapshot rebuilds have no
+  // natural decisionId, so synthesize one from the eventId (UUID, ~36 chars). tenantId 'SYSTEM' is
+  // the convention used by scheduled-tick + bootstrap envelopes.
+  const decisionId = `snapshot-${ctx.eventId}`;
+  const tenantId = (ctx.tenantId as string | undefined) ?? 'SYSTEM';
+
   let result: Record<string, unknown>;
   try {
-    result = await deps.agentService.runPipeline(ctx.eventId, { region, tier });
+    result = await deps.agentService.runPipeline(ctx.eventId, {
+      subject: { region, decisionId },
+      context: { tenantId, userId: 'SYSTEM', region },
+    });
   } catch (error) {
     if (error instanceof DuplicateInvocationError) {
       logger.info(`Duplicate ${ctx.eventType} event, skipping`, { eventId: ctx.eventId });
