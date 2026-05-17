@@ -28,7 +28,7 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     // Ingress: continuous-projection triggers + KB ingestion events.
     // Subscribes to investor-domain mutations that drive InvestorProfileSnapshot
     // materialization (Task 3 of advisory-cycle-agent-precomputation). Uses
-    // agentProps because the handler dispatches to Bedrock (Opus + Haiku) —
+    // agentProps because the handler dispatches to Bedrock (Sonnet + Haiku) —
     // 1024 MB / 5min timeout / batchSize 1 / concurrency capped at 5.
     const ingress = new Ingress(this, 'Ingress', {
       state,
@@ -73,12 +73,17 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     kb.bucket.grantWrite(kbIngestionFn);
     kbIngestionFn.addToRolePolicy(kb.triggerSyncPolicy());
 
-    // Model SSM params from advisory-hub
+    // Model SSM params from advisory-hub.
+    // risk-assessment flipped from Opus → Sonnet 4.6 in Lever C of bedrock-cost-
+    // reduction-may-2026 (2026-05-17). user-goals stays on Haiku. The Opus
+    // model is no longer used by this service, so its IAM grant + env var
+    // were removed (Lever C IAM hardening, 2026-05-18 — first deploy of Lever
+    // C failed with AccessDeniedException because Sonnet was not granted).
     const hubNaming = new NamingService({ prefix: props.prefix, subsystem: 'advisory', service: 'advisory-hub' });
-    const modelOpusId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/opus'));
+    const modelSonnetId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/sonnet'));
     const modelHaikuId = StringParameter.valueForStringParameter(this, hubNaming.ssmParameterPath('models/haiku'));
 
-    ingress.handler.addEnvironment('MODEL_OPUS_SSM', hubNaming.ssmParameterPath('models/opus'));
+    ingress.handler.addEnvironment('MODEL_SONNET_SSM', hubNaming.ssmParameterPath('models/sonnet'));
     ingress.handler.addEnvironment('MODEL_HAIKU_SSM', hubNaming.ssmParameterPath('models/haiku'));
 
     // Memory ID from decision-workflow-ctrl SSM
@@ -108,12 +113,12 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     const agentRuntime = new AgentRuntime(this, 'AgentRuntime', {
       runtimeName: 'investor_profile_agents',
       agentCodePath: join(__dirname, '..', 'agents', 'investor-profile'),
-      description: 'user-goals (Haiku) + risk-assessment (Opus) parallel orchestration',
+      description: 'user-goals (Haiku) + risk-assessment (Sonnet 4.6) parallel orchestration',
       state,
-      modelIds: [modelOpusId, modelHaikuId],
+      modelIds: [modelSonnetId, modelHaikuId],
       toolTargets: [],
       environmentVariables: {
-        MODEL_OPUS_ID: modelOpusId,
+        MODEL_SONNET_ID: modelSonnetId,
         MODEL_HAIKU_ID: modelHaikuId,
         TABLE_NAME: state.getTable().tableName,
         EVENT_BUS_NAME: this.eventBus.eventBusName,
@@ -162,13 +167,13 @@ export class InvestorProfileCtrlStack extends ServiceStack {
       egress,
       extraLambdas: [kbIngestionFn],
       monitorBedrock: true,
-      bedrockModelIds: [modelOpusId, modelHaikuId],
+      bedrockModelIds: [modelSonnetId, modelHaikuId],
     });
 
     // Per-service Bedrock usage alarms (P1 — 2026-04-28 cost safeguards).
     new BedrockUsageAlarms(this, 'BedrockAlarms', {
       serviceName: 'investor-profile-ctrl',
-      modelIds: [modelOpusId, modelHaikuId],
+      modelIds: [modelSonnetId, modelHaikuId],
       alertTopic: importCostAlertTopic(
         this, 'CostAlertTopic',
         `/nestfolio/${props.prefix}-investor/cost-controls/alertTopicArn`,
