@@ -18,6 +18,7 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
   Profile: agentProps (1024 MB / 5min timeout / batchSize 1 / concurrency 5)
   Grants: AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
   Pattern: materializeToTable. The handler runs the agent and emits either an AgentCompletion row (success) or an AgentFailure row (caught error) — it does NOT call states:SendTask*. The SF callback is performed by DWC's CallbackIngress consuming the resulting PORTFOLIO_COMPLETED / PORTFOLIO_FAILED events.
+  MemoryClient: createMemoryClient({ namespacePrefix: 'shared-rationale' }) — writes to DWC's RationaleArchivist namespace (/shared-rationale/{actorId}/rationale).
   errorEventType: PORTFOLIO_ENGINE_CTRL_FAILED
 
 ## Egress

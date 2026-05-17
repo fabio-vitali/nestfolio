@@ -136,7 +136,7 @@ The system runs **6 production AI agents** organised in a layered topology.
 
 | Service | Original 6-agent role(s) | Cluster | Default model |
 |---|---|---|---|
-| `investor-profile-ctrl` | User & Goals + Risk Assessment | Investor profile inference | Sonnet 4.6 (Haiku tier available) |
+| `investor-profile-ctrl` | User & Goals + Risk Assessment | Investor profile inference | user-goals: Haiku; risk-assessment: Sonnet 4.6 (changed from Opus 2026-05-18) |
 | `market-intelligence-ctrl` | Market & Research | Market signal extraction | Sonnet 4.6 |
 | `portfolio-engine-ctrl` | Portfolio Construction + Rebalance Planner | Allocation + rebalance proposals | Sonnet 4.6 |
 | `advisory-narrative-ctrl` | Recommendation & Explainability | Recommendation rationale + explainability | Sonnet 4.6 |
@@ -441,14 +441,15 @@ The `MemoryClient.writeAgentOutput` and `readUpstreamOutput` methods are removed
 
 ### 17.3 Architectural Evolution — Long-term recall wired (Phase B)
 
-**Resolved 2026-05-14 (Phase B of `inter-agent-state-handoff-sf-vs-memory`).** 4 Bedrock MemoryStrategies provisioned on the shared `agentcore.Memory` construct in `decision-workflow-ctrl/src/service.stack.ts`. Each strategy attaches to exactly one namespace (AWS constraint: max 1 namespace per strategy).
+**Resolved 2026-05-14 (Phase B of `inter-agent-state-handoff-sf-vs-memory`).** 3 Bedrock MemoryStrategies provisioned on the shared `agentcore.Memory` construct in `decision-workflow-ctrl/src/service.stack.ts`. Each strategy attaches to exactly one namespace (AWS constraint: max 1 namespace per strategy).
 
-| Strategy | Type | Namespace | Source agent |
-|---|---|---|---|
-| `InvestorPreferenceLearner` | USER_PREFERENCE_MEMORY | `/investor-profile-ctrl/{actorId}/preferences` | investor-profile |
-| `MarketSignalExtractor` | SEMANTIC_MEMORY | `/market-intelligence-ctrl/{actorId}/signals` | market-intelligence |
-| `PortfolioRationaleArchivist` | SEMANTIC_MEMORY | `/portfolio-engine-ctrl/{actorId}/rationale` | portfolio-engine |
-| `NarrativeRationaleArchivist` | SEMANTIC_MEMORY | `/advisory-narrative-ctrl/{actorId}/rationale` | advisory-narrative |
+**Updated 2026-05-18 (Phase 1 cost reduction).** Two separate rationale strategies (`PortfolioRationaleArchivist`, `NarrativeRationaleArchivist`) collapsed into a single `RationaleArchivist` with a shared namespace. `MarketSignalExtractor` changed from custom Haiku extraction to managed SEMANTIC extraction. `customConsolidation` removed from `InvestorPreferenceLearner` and `RationaleArchivist`. portfolio-engine-ctrl and advisory-narrative-ctrl both configure `MemoryClient` with `namespacePrefix: 'shared-rationale'` to write to the shared namespace; producer attribution is stored in the record payload.
+
+| Strategy | Type | Namespace | Source agents | Extraction |
+|---|---|---|---|---|
+| `InvestorPreferenceLearner` | USER_PREFERENCE_MEMORY | `/investor-profile-ctrl/{actorId}/preferences` | investor-profile | custom Haiku extraction |
+| `MarketSignalExtractor` | SEMANTIC_MEMORY | `/market-intelligence-ctrl/{actorId}/signals` | market-intelligence | managed (no custom extraction) |
+| `RationaleArchivist` | SEMANTIC_MEMORY | `/shared-rationale/{actorId}/rationale` | portfolio-engine, advisory-narrative | custom Haiku extraction |
 
 Each agent's `agent-service.ts` emits one `CreateEvent` via `MemoryClient.emitLongTermEvent({ namespace, payload })` after successful `assertOrchestratorOutput` validation. `sessionId = decisionId`, conversational ASSISTANT payload carrying the validated structured output as JSON. Best-effort: failures logged via Powertools Logger, never throw.
 

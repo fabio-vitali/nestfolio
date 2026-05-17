@@ -73,7 +73,7 @@ Removed (Task 11): ANALYZE_INVESTOR_PROFILE, ANALYZE_MARKET, INVESTOR_PROFILE_CO
 - DDB Write granted to AssemblePacket Lambda (persists DecisionPacket).
 - PutEvents granted to the SF role (emits CONSTRUCT_PORTFOLIO, GENERATE_NARRATIVE, RECOMMENDATION_PROPOSED, etc.).
 - **`states:SendTaskSuccess` + `states:SendTaskFailure`: granted to CallbackIngress only** — DWC is the sole holder of SF callback IAM in the workspace (asserted by Task 12's invariant test).
-- AgentCore Memory: 4 long-term MemoryStrategies (InvestorPreferenceLearner, MarketSignalExtractor, PortfolioRationaleArchivist, NarrativeRationaleArchivist) — Bedrock InvokeModel granted to the Memory execution role for cross-region Haiku inference profile.
+- AgentCore Memory: 3 long-term MemoryStrategies (InvestorPreferenceLearner, MarketSignalExtractor, RationaleArchivist) — Bedrock InvokeModel granted to the Memory execution role for cross-region Haiku inference profile. RationaleArchivist uses namespace /shared-rationale/{actorId}/rationale, shared by portfolio-engine-ctrl + advisory-narrative-ctrl.
 
 ## Tests
 - test/unit/assemble-packet.test.ts

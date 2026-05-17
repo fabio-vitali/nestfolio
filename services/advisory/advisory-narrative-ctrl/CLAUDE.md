@@ -18,6 +18,7 @@ Stack: services/advisory/advisory-narrative-ctrl/src/service.stack.ts
   Profile: agentProps (1024 MB / 5min timeout — Sonnet invocations are 50–130s p95; the default 30s timeout would leave the SF task token unreturned)
   Grants: KB bucket read/write, Bedrock KB sync, AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
   Pattern: materializeToTable. GENERATE_NARRATIVE runs the agent and emits AgentCompletion (success) / AgentFailure (caught error) rows. DECISION_FEEDBACK is routed through feedback-correlator to annotate decisions + sync the KB corpus.
+  MemoryClient: createMemoryClient({ namespacePrefix: 'shared-rationale' }) — writes to DWC's RationaleArchivist namespace (/shared-rationale/{actorId}/rationale).
   errorEventType: ADVISORY_NARRATIVE_CTRL_FAILED
 
 ## Egress
