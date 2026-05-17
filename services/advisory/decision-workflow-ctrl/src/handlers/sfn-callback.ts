@@ -42,11 +42,15 @@ const createHandlers = () => {
   // Agent failure (PE / AN): throw an Error with name=errorType, message=errorMessage.
   // resumeStateMachine's wrapper catches and calls SendTaskFailureCommand with
   // error=err.name, cause=err.message so the SF fails the corresponding task.
+  // Generates handlers for: PORTFOLIO_FAILED, NARRATIVE_FAILED — see AGENT_FAILURE_EVENT_TYPES.
   for (const type of AGENT_FAILURE_EVENT_TYPES) {
     handlers[type] = async (payload: EventPayload, _ctx: EventContext) => {
       const subject = payload.subject ?? {};
       const errorType = (subject.errorType as string | undefined) ?? 'UnknownError';
       const errorMessage = (subject.errorMessage as string | undefined) ?? 'unknown';
+      // See libs/event-processor/src/pipelines/resume-state-machine.ts:78-100 —
+      // pipeline reads err.name into SendTaskFailureCommand.error and err.message
+      // into SendTaskFailureCommand.cause when the handler throws.
       const err = new Error(errorMessage);
       err.name = errorType;
       throw err;
