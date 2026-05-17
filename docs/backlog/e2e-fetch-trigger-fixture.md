@@ -1,15 +1,9 @@
 ---
 id: e2e-fetch-trigger-fixture
-status: queued
+status: dropped
 type: tooling
-rank: 4
-notes: "Shared e2e fixture publishing FETCH_REQUESTED to advisory bus so tests can prime fred/alpha-vantage/marketwatch/sec-edgar/yahoo-finance adapters before exercising agents — schedules stay DISABLED in dev."
-references:
-  - libs/test-support/src/fixtures/event-bridge-client.ts
-  - apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts
-  - apps/e2e-feature-tests/src/helpers/fixtures.ts
-  - services/advisory/fred-adpt/src/service.stack.ts
-  - services/advisory/alpha-vantage-adpt/src/service.stack.ts
+notes: "Dropped 2026-05-17 — premature abstraction. Publishing FETCH_REQUESTED is a 6-line inline PutEvents call using the existing EventBridgeClient; each adapter's payload differs (FRED series vs AV symbols vs SEC CIKs vs ticker arrays), so any generic helper degenerates to Record<string, unknown>. Rule-of-three not met (zero callers). When a fresh-feed-data scenario gets written, the author inlines putEvent."
+references: []
 out_of_scope: []
 spec: null
 plan: null
