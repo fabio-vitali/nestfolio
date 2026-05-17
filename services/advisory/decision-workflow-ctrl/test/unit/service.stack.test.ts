@@ -272,7 +272,9 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
   });
 
-  it('SF definition contains single dynamodb:getItem step (LookupMandateSnapshot)', () => {
+  it('SF definition contains the three dynamodb:getItem steps (LookupMandateSnapshot + LookupInvestorProfileSnapshot + LookupMarketSnapshot)', () => {
+    // Post-precomputation rewire: in addition to the existing mandate lookup,
+    // the SF now reads InvestorProfile + Market snapshot rows from its own table.
     const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
     const definitionString = Object.values(stateMachines)[0]?.Properties?.DefinitionString;
     expect(definitionString).toBeDefined();
@@ -282,13 +284,16 @@ describe('DecisionWorkflowCtrlStack', () => {
 
     expect(definition).toContain('arn:aws:states:::dynamodb:getItem');
     expect(definition).toContain('LookupMandateSnapshot');
+    expect(definition).toContain('LookupInvestorProfileSnapshot');
+    expect(definition).toContain('LookupMarketSnapshot');
     expect(definition).toContain('SetInvestorProfile');
-    // The SF must use the synthesized $.investorProfile, NOT raw $.triggerContext, for InvokeInvestorProfile
-    expect(definition).toContain('"investorProfile.$":"$.investorProfile"');
-    expect(definition).not.toContain('"investorProfile.$":"$.triggerContext"');
+    // The mandate-resolution branches both set the synthesized $.investorProfile —
+    // either hoisted from $.triggerContext.operatingMode or read from the mandate row.
+    // PE + AN read $.investorProfile.operatingMode downstream.
+    expect(definition).toContain('"operatingMode.$":"$.investorProfile.operatingMode"');
   });
 
-  it('propagates operatingMode through SF state from InvokeInvestorProfile to downstream Tasks', () => {
+  it('propagates operatingMode through SF state via ResolveMandateSnapshot to PE + AN', () => {
     const stateMachines = template.findResources('AWS::StepFunctions::StateMachine');
     const definitionString = Object.values(stateMachines)[0]?.Properties?.DefinitionString;
     expect(definitionString).toBeDefined();
@@ -297,12 +302,16 @@ describe('DecisionWorkflowCtrlStack', () => {
     const joinParts: any[] = (definitionString as any)['Fn::Join']?.[1] ?? [];
     const definition = joinParts.map((p) => (typeof p === 'string' ? p : JSON.stringify(p))).join('');
 
-    // MergeParallelOutputs lifts operatingMode out of $.parallelResults[0].
-    expect(definition).toContain('"operatingMode.$":"$.parallelResults[0].agentResults.InvokeInvestorProfile.operatingMode"');
+    // After the precomputation rewire, operatingMode comes from one of two paths:
+    //   1. HoistMandateFromTrigger lifts from $.triggerContext.operatingMode
+    //   2. SetInvestorProfile lifts from $.mandateSnapshot.operatingMode (read by LookupMandateSnapshot)
+    // Either way it ends up at $.investorProfile.operatingMode, which PE + AN read.
+    expect(definition).toContain('"operatingMode.$":"$.triggerContext.operatingMode"');
+    expect(definition).toContain('"operatingMode.$":"$.mandateSnapshot.operatingMode"');
 
-    // InvokePortfolioEngine + InvokeAdvisoryNarrative subjects reference the lifted path.
-    const portfolioMatches = definition.match(/"operatingMode\.\$":"\$\.agentResults\.InvokeInvestorProfile\.operatingMode"/g) ?? [];
-    expect(portfolioMatches.length).toBeGreaterThanOrEqual(2);
+    // InvokePortfolioEngine + InvokeAdvisoryNarrative subjects reference $.investorProfile.operatingMode.
+    const downstreamMatches = definition.match(/"operatingMode\.\$":"\$\.investorProfile\.operatingMode"/g) ?? [];
+    expect(downstreamMatches.length).toBeGreaterThanOrEqual(2);
   });
 
   it('grants bedrock:InvokeModel + WithResponseStream on inference-profile + foundation-model resources', () => {
@@ -382,9 +391,11 @@ describe('DecisionWorkflowCtrlStack', () => {
       expect(subject['portfolio.$']).toBe('$.agentResults.InvokePortfolioEngine.agentOutput');
     });
 
-    it('MergeParallelOutputs lifts agentOutput from both parallel branches so downstream JSONPaths resolve', () => {
+    it('MergeProjections lifts agentOutput from both parallel branches so downstream JSONPaths resolve', () => {
+      // Renamed from MergeParallelOutputs in the agent-precomputation rewire — IP + Market
+      // are now precomputed DDB snapshot reads, not waitForTaskToken agent calls.
       const definition = getStateMachineDefinition();
-      const merge = definition.States['MergeParallelOutputs'];
+      const merge = definition.States['MergeProjections'];
       const agentResults = merge.Parameters.agentResults;
       expect(agentResults.InvokeInvestorProfile['agentOutput.$']).toBe(
         '$.parallelResults[0].agentResults.InvokeInvestorProfile.agentOutput',
