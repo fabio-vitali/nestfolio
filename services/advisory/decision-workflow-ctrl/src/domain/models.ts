@@ -31,21 +31,21 @@ export interface DecisionPacket {
 }
 
 export interface InvestorProfileSnapshotProjectionRow {
-  pk: string;                              // `InvestorProfileSnapshot#${tenantId}#${userId}`
-  sk: 'InvestorProfileSnapshot';
-  __typename: 'InvestorProfileSnapshot';
-  tenantId: string;
-  userId: string;
-  agentOutput: Record<string, unknown>;
-  sourceEventId: string;
-  updatedAt: string;
+  readonly pk: string;                              // `InvestorProfileSnapshot#${tenantId}#${userId}`
+  readonly sk: 'InvestorProfileSnapshot';
+  readonly __typename: 'InvestorProfileSnapshot';
+  readonly tenantId: string;
+  readonly userId: string;
+  readonly agentOutput: Record<string, unknown>;
+  readonly sourceEventId: string;
+  readonly updatedAt: string;
 }
 
 export interface MarketSnapshotProjectionRow {
-  pk: string;                              // `MarketSnapshot#${region}`
-  sk: 'MarketSnapshot';
-  __typename: 'MarketSnapshot';
-  region: string;
-  agentOutput: Record<string, unknown>;
-  updatedAt: string;
+  readonly pk: string;                              // `MarketSnapshot#${region}`
+  readonly sk: 'MarketSnapshot';
+  readonly __typename: 'MarketSnapshot';
+  readonly region: string;
+  readonly agentOutput: Record<string, unknown>;
+  readonly updatedAt: string;
 }

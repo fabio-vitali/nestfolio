@@ -36,24 +36,24 @@ export interface ReasoningOutput {
 }
 
 export interface MarketSnapshotRow {
-  pk: string;                              // `MarketSnapshot#${region}`
-  sk: 'MarketSnapshot';
-  __typename: 'MarketSnapshot';
-  region: string;
-  agentOutput: {
-    signals: Array<{
-      type: string;
-      ticker: string;
-      sentiment: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
-      confidence: number;
-      source: string;
+  readonly pk: string;                              // `MarketSnapshot#${region}`
+  readonly sk: 'MarketSnapshot';
+  readonly __typename: 'MarketSnapshot';
+  readonly region: string;
+  readonly agentOutput: {
+    readonly signals: ReadonlyArray<{
+      readonly type: string;
+      readonly ticker: string;
+      readonly sentiment: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+      readonly confidence: number;
+      readonly source: string;
     }>;
-    tickersMentioned: string[];
-    marketOutlook: string;
-    confidenceScore: number;
+    readonly tickersMentioned: ReadonlyArray<string>;
+    readonly marketOutlook: string;
+    readonly confidenceScore: number;
   };
-  fastComponentsAt: string;
-  slowComponentsAt: string;
-  sourceEventIds: string[];                // ring buffer, last 20
-  updatedAt: string;
+  readonly fastComponentsAt: string;
+  readonly slowComponentsAt: string;
+  readonly sourceEventIds: ReadonlyArray<string>;   // ring buffer, last 20
+  readonly updatedAt: string;
 }

@@ -36,26 +36,26 @@ export interface FeedbackAnnotation {
 }
 
 export interface AgentCompletionRow {
-  pk: string;                              // `AgentCompletion#${decisionId}`
-  sk: string;                              // `AgentCompletion#${agentName}`
-  __typename: 'AgentCompletion';
-  decisionId: string;
-  tenantId: string;
-  agentName: 'advisory-narrative';
-  taskToken: string;
-  agentOutput: Record<string, unknown>;
-  completedAt: string;
+  readonly pk: string;                              // `AgentCompletion#${decisionId}`
+  readonly sk: string;                              // `AgentCompletion#${agentName}`
+  readonly __typename: 'AgentCompletion';
+  readonly decisionId: string;
+  readonly tenantId: string;
+  readonly agentName: 'advisory-narrative';
+  readonly taskToken: string;
+  readonly agentOutput: Record<string, unknown>;
+  readonly completedAt: string;
 }
 
 export interface AgentFailureRow {
-  pk: string;                              // `AgentFailure#${decisionId}`
-  sk: string;                              // `AgentFailure#${agentName}`
-  __typename: 'AgentFailure';
-  decisionId: string;
-  tenantId: string;
-  agentName: 'advisory-narrative';
-  taskToken: string;
-  errorType: string;
-  errorMessage: string;
-  failedAt: string;
+  readonly pk: string;                              // `AgentFailure#${decisionId}`
+  readonly sk: string;                              // `AgentFailure#${agentName}`
+  readonly __typename: 'AgentFailure';
+  readonly decisionId: string;
+  readonly tenantId: string;
+  readonly agentName: 'advisory-narrative';
+  readonly taskToken: string;
+  readonly errorType: string;
+  readonly errorMessage: string;
+  readonly failedAt: string;
 }

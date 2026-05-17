@@ -35,23 +35,23 @@ export interface ReasoningOutput {
 }
 
 export interface InvestorProfileSnapshotRow {
-  pk: string;                              // `InvestorProfileSnapshot#${tenantId}#${userId}`
-  sk: 'InvestorProfileSnapshot';
-  __typename: 'InvestorProfileSnapshot';
-  tenantId: string;
-  userId: string;
-  agentOutput: {
-    goals: string[];
-    timeHorizon: string;
-    riskWillingness: string;
-    riskScore: number;
-    riskCategory: 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE';
-    regulatoryFlags: string[];
-    suitabilityAssessment: string;
-    confidence: number;
+  readonly pk: string;                              // `InvestorProfileSnapshot#${tenantId}#${userId}`
+  readonly sk: 'InvestorProfileSnapshot';
+  readonly __typename: 'InvestorProfileSnapshot';
+  readonly tenantId: string;
+  readonly userId: string;
+  readonly agentOutput: {
+    readonly goals: ReadonlyArray<string>;
+    readonly timeHorizon: string;
+    readonly riskWillingness: string;
+    readonly riskScore: number;
+    readonly riskCategory: 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE';
+    readonly regulatoryFlags: ReadonlyArray<string>;
+    readonly suitabilityAssessment: string;
+    readonly confidence: number;
   };
-  sourceEventId: string;
-  sourceEventType: 'INVESTOR_PROFILE_UPDATED' | 'MANDATE_ISSUED' | 'OPERATING_MODE_CHANGED';
-  agentInvocationId: string;
-  updatedAt: string;
+  readonly sourceEventId: string;
+  readonly sourceEventType: 'INVESTOR_PROFILE_UPDATED' | 'MANDATE_ISSUED' | 'OPERATING_MODE_CHANGED';
+  readonly agentInvocationId: string;
+  readonly updatedAt: string;
 }
