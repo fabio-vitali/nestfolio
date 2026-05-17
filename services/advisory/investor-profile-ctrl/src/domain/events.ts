@@ -2,7 +2,6 @@ import { eventName } from '@nestfolio/event-types';
 
 /** Events PUBLISHED by investor-profile-ctrl */
 export const InvestorProfileEventTypes = {
-  INVESTOR_PROFILE_COMPLETED: eventName('INVESTOR_PROFILE_COMPLETED'),
   GOAL_INTERPRETATION_PRODUCED: eventName('GOAL_INTERPRETATION_PRODUCED'),
   RISK_EVALUATION_PRODUCED: eventName('RISK_EVALUATION_PRODUCED'),
   INVESTOR_PROFILE_AGENT_INVOCATION_TRACED: eventName('INVESTOR_PROFILE_AGENT_INVOCATION_TRACED'),
