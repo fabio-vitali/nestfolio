@@ -1,11 +1,16 @@
 ---
 id: bedrock-cost-reduction-may-2026
-status: queued
+status: active
 rank: 2
 type: refactor
 notes: "5-lever Bedrock cost-reduction package — Phase B MemoryStrategies + Opus downgrades; ~$100/mo savings"
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Lever D (portfolio-construction Opus→Sonnet) — Phase 2, gated on a stable week of Lever C in dev"
+  - "AGENT_MODEL_OVERRIDE Haiku-floor exemption logic in libs/agent-orchestrator/src/agent-factory.ts — already shipped (project_agentcore_cost_safeguards.md), not touched here"
+  - "AgentTracer token-extraction bug for ChatBedrockConverse (parking item agent-tracer-bedrock-converse-token-extraction) — observability gap, distinct from cost reduction"
+  - "Cost Explorer dashboards / alerts / budgets — out-of-scope; validation reads CloudWatch Bedrock metrics directly"
+  - "P2 cost safeguards deferred in project_agentcore_cost_safeguards.md — separate workstream"
 spec: null
 plan: null
 topic_memory:
