@@ -42,14 +42,15 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
 
     // --- AgentCore Memory ---
     // Four long-term MemoryStrategies (Phase B — inter-agent-state-handoff):
-    //   1. InvestorPreferenceLearner (USER_PREFERENCE_MEMORY, Haiku extraction + consolidation)
+    //   1. InvestorPreferenceLearner (USER_PREFERENCE_MEMORY, Haiku extraction only)
     //      Namespace: /investor-profile-ctrl/{actorId}/preferences
     //   2. MarketSignalExtractor (SEMANTIC_MEMORY, Haiku extraction only)
     //      Namespace: /market-intelligence-ctrl/{actorId}/signals
-    //   3. PortfolioRationaleArchivist (SEMANTIC_MEMORY, Haiku extraction + consolidation)
+    //   3. PortfolioRationaleArchivist (SEMANTIC_MEMORY, Haiku extraction only)
     //      Namespace: /portfolio-engine-ctrl/{actorId}/rationale
     //   4. NarrativeRationaleArchivist (SEMANTIC_MEMORY, Haiku extraction + consolidation)
     //      Namespace: /advisory-narrative-ctrl/{actorId}/rationale
+    //      (consolidation dropped in Lever B — strategy collapsed in next commit)
     //
     // Note: AWS AgentCore enforces a hard limit of 1 namespace per MemoryStrategy
     // (surfaced at deploy: "Member must have length less than or equal to 1").
@@ -77,13 +78,6 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
               'stated return targets. One fact per record. Ignore mechanical ' +
               'decision details.',
           },
-          customConsolidation: {
-            model: haikuModel,
-            appendToPrompt:
-              'When consolidating investor preferences, newer statements override ' +
-              'older ones for the same dimension. Flag contradictions (e.g., high ' +
-              'growth vs conservative).',
-          },
         }),
         agentcore.MemoryStrategy.usingSemantic({
           name: 'MarketSignalExtractor',
@@ -106,12 +100,6 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
               'why, which constraints were binding, what trade-offs were chosen, ' +
               'and the investor-facing narrative summary including tone. One ' +
               'rationale per record, scoped to the decision it explains.',
-          },
-          customConsolidation: {
-            model: haikuModel,
-            appendToPrompt:
-              "Consolidate chronologically. Preserve the reasoning chain — " +
-              "don't collapse distinct decisions into a summary.",
           },
         }),
         agentcore.MemoryStrategy.usingSemantic({

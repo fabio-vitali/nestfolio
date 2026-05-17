@@ -162,7 +162,7 @@ describe('DecisionWorkflowCtrlStack', () => {
       expect(strategies).toHaveLength(4);
     });
 
-    it('attaches InvestorPreferenceLearner with USER_PREFERENCE_MEMORY type, custom Haiku extraction + consolidation', () => {
+    it('attaches InvestorPreferenceLearner with USER_PREFERENCE_MEMORY type, custom Haiku extraction only', () => {
       const strategies = getStrategies();
       const learner = strategies.find(
         (s: any) => s.CustomMemoryStrategy?.Name === 'InvestorPreferenceLearner',
@@ -170,7 +170,7 @@ describe('DecisionWorkflowCtrlStack', () => {
       expect(learner).toBeDefined();
       const cfg = learner?.CustomMemoryStrategy?.Configuration?.UserPreferenceOverride;
       expect(cfg?.Extraction?.AppendToPrompt).toContain('risk tolerance');
-      expect(cfg?.Consolidation?.AppendToPrompt).toContain('newer statements override');
+      expect(cfg?.Consolidation).toBeUndefined();
       expect(learner?.CustomMemoryStrategy?.Namespaces).toEqual([
         '/investor-profile-ctrl/{actorId}/preferences',
       ]);
@@ -189,7 +189,7 @@ describe('DecisionWorkflowCtrlStack', () => {
       ]);
     });
 
-    it('attaches PortfolioRationaleArchivist with SEMANTIC_MEMORY type, custom Haiku extraction + consolidation', () => {
+    it('attaches PortfolioRationaleArchivist with SEMANTIC_MEMORY type, custom Haiku extraction only', () => {
       const strategies = getStrategies();
       const archivist = strategies.find(
         (s: any) => s.CustomMemoryStrategy?.Name === 'PortfolioRationaleArchivist',
@@ -197,7 +197,7 @@ describe('DecisionWorkflowCtrlStack', () => {
       expect(archivist).toBeDefined();
       const cfg = archivist?.CustomMemoryStrategy?.Configuration?.SemanticOverride;
       expect(cfg?.Extraction?.AppendToPrompt).toContain('investor-facing narrative');
-      expect(cfg?.Consolidation?.AppendToPrompt).toContain('reasoning chain');
+      expect(cfg?.Consolidation).toBeUndefined();
       expect(archivist?.CustomMemoryStrategy?.Namespaces).toEqual([
         '/portfolio-engine-ctrl/{actorId}/rationale',
       ]);
