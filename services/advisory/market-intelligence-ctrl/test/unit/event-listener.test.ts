@@ -15,19 +15,9 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@aws-sdk/client-sfn', () => ({
-  SFNClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
-  SendTaskSuccessCommand: jest.fn(),
-  SendTaskFailureCommand: jest.fn(),
-}));
-
 jest.mock('@nestfolio/agent-orchestrator', () => ({
-  createAgentNode: jest.fn().mockReturnValue(jest.fn()),
-  withRetry: jest.fn().mockImplementation((node) => node),
-  withFallback: jest.fn().mockImplementation((node) => node),
   createMemoryClient: jest.fn(),
   createNoOpMemoryClient: jest.fn(),
-  wrapAgentOutput: jest.requireActual('@nestfolio/agent-orchestrator').wrapAgentOutput,
 }));
 
 jest.mock('@nestfolio/event-processor', () => ({
@@ -43,43 +33,36 @@ process.env.MEMORY_ID = 'mem-test';
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId } from '@nestfolio/event-processor';
 import type { MemoryClient } from '@nestfolio/agent-orchestrator';
-import { createHandlers, type SfnCallbackDeps } from '../../src/handlers/event-listener';
+import { createHandlers, type IngressDeps } from '../../src/handlers/event-listener';
 
 describe('market-intelligence-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
-  const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
-  const mockDeps: SfnCallbackDeps = {
+  const mockDeps: IngressDeps = {
     agentService: { runPipeline: mockRunPipeline },
-    memoryClient: {
-      openDecisionSession: jest.fn().mockReturnValue({
-        searchLongTermMemory: mockSearchLongTermMemory,
-      }),
-      searchTenantMemory: jest.fn().mockResolvedValue([]),
-    } satisfies Partial<MemoryClient> as MemoryClient,
+    memoryClient: {} as MemoryClient,
   };
 
   const handlers = createHandlers(mockDeps);
 
-  const baseCtx: EventContext = {
+  const makeCtx = (overrides: Partial<EventContext> = {}): EventContext => ({
     eventId: 'evt-1',
-    eventType: 'ANALYZE_MARKET',
-    tenantId: asTenantId('t1'),
-    userId: asUserId('test-user'),
+    eventType: 'YAHOO_FINANCE_UPDATED',
+    tenantId: asTenantId('SYSTEM'),
+    userId: asUserId('system'),
     region: 'us-east-1',
     timestamp: new Date().toISOString(),
     receiveCount: 1,
     serviceName: 'market-intelligence-ctrl',
     record: {},
-  };
+    ...overrides,
+  });
 
   const defaultAgentResult = {
-    decisionId: 'dp-1',
-    signals: [{ type: 'momentum', ticker: 'SPY', sentiment: 'BULLISH', confidence: 0.8, source: 'technical' }],
-    tickersMentioned: ['SPY'],
-    marketOutlook: 'Bullish momentum',
-    confidenceScore: 0.85,
-    metadata: { durationMs: 900, modelTier: 'sonnet' },
+    signals: [],
+    tickersMentioned: [],
+    marketOutlook: 'neutral',
+    confidenceScore: 0.7,
   };
 
   beforeEach(() => {
@@ -88,87 +71,124 @@ describe('market-intelligence-ctrl event-listener', () => {
     mockRunPipeline.mockResolvedValue(defaultAgentResult);
   });
 
-  it('should run agent pipeline and return output with intents', async () => {
-    const payload: EventPayload = {
-      subject: {
-        tenantId: 't1',
-        decisionId: 'dp-1',
-        taskToken: 'token-123',
-        upstreamOutputs: { investorProfile: { riskScore: 45 } },
-      },
-    };
+  describe('MARKET_SNAPSHOT_REFRESH_TICK handler (slow-tier)', () => {
+    it('runs the slow-tier rebuild and emits MarketSnapshot record intent with both fastComponentsAt and slowComponentsAt set', async () => {
+      const payload: EventPayload = {
+        subject: { region: 'us-east-1' },
+      };
 
-    const result = await handlers.ANALYZE_MARKET(payload, baseCtx);
+      const ctx = makeCtx({ eventType: 'MARKET_SNAPSHOT_REFRESH_TICK', eventId: 'tick-1' });
+      const result = await handlers.MARKET_SNAPSHOT_REFRESH_TICK(payload, ctx);
 
-    // Output now carries agentOutput so downstream SF Task states
-    // (portfolio-engine, advisory-narrative) and AssembleDecisionPacket can
-    // read the market analysis via $.agentResults.InvokeMarketIntelligence.agentOutput.
-    expect(result.output).toEqual({
-      decisionId: 'dp-1',
-      tenantId: 't1',
-      agentOutput: defaultAgentResult,
+      expect(mockRunPipeline).toHaveBeenCalledWith(
+        'tick-1',
+        expect.objectContaining({ region: 'us-east-1', tier: 'slow' }),
+      );
+
+      expect(result.intents).toEqual(expect.arrayContaining([
+        expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
+        expect.objectContaining({
+          _tag: 'record',
+          typename: 'MarketSnapshot',
+          fields: expect.objectContaining({
+            region: 'us-east-1',
+            slowComponentsAt: expect.any(String),
+            fastComponentsAt: expect.any(String),
+            sourceEventIds: ['tick-1'],
+          }),
+          overrides: expect.objectContaining({
+            pk: 'MarketSnapshot#us-east-1',
+            sk: 'MarketSnapshot',
+          }),
+        }),
+      ]));
     });
-    expect(result.intents).toHaveLength(1);
 
-    expect(mockRunPipeline).toHaveBeenCalledWith(
-      'evt-1',
-      expect.objectContaining({ tenantId: 't1', decisionId: 'dp-1' }),
+    it('falls back to AWS_REGION / us-east-1 when subject.region is absent', async () => {
+      const payload: EventPayload = { subject: {} };
+      const ctx = makeCtx({ eventType: 'MARKET_SNAPSHOT_REFRESH_TICK', eventId: 'tick-2' });
+
+      const result = await handlers.MARKET_SNAPSHOT_REFRESH_TICK(payload, ctx);
+
+      const snapshotIntent = result.intents?.find(
+        (i): i is { _tag: 'record'; typename: string; fields: Record<string, unknown>; overrides?: { pk?: string; sk?: string } } =>
+          (i as { typename?: string }).typename === 'MarketSnapshot',
+      );
+      expect(snapshotIntent).toBeDefined();
+      expect(snapshotIntent!.fields.region).toBe(process.env.AWS_REGION ?? 'us-east-1');
+    });
+
+    it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
+      const { DuplicateInvocationError } = await import('../../src/agent-service');
+      mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('tick-dup'));
+
+      const payload: EventPayload = { subject: { region: 'us-east-1' } };
+      const ctx = makeCtx({ eventType: 'MARKET_SNAPSHOT_REFRESH_TICK', eventId: 'tick-dup' });
+
+      const result = await handlers.MARKET_SNAPSHOT_REFRESH_TICK(payload, ctx);
+
+      expect(result.output).toMatchObject({ region: 'us-east-1', deduplicated: true });
+      expect((result as { intents?: unknown }).intents).toBeUndefined();
+    });
+
+    it('propagates non-duplicate agent errors', async () => {
+      mockRunPipeline.mockRejectedValueOnce(new Error('Agent pipeline failed'));
+
+      const payload: EventPayload = { subject: { region: 'us-east-1' } };
+      const ctx = makeCtx({ eventType: 'MARKET_SNAPSHOT_REFRESH_TICK', eventId: 'tick-err' });
+
+      await expect(handlers.MARKET_SNAPSHOT_REFRESH_TICK(payload, ctx)).rejects.toThrow('Agent pipeline failed');
+    });
+  });
+
+  describe.each([
+    ['YAHOO_FINANCE_UPDATED'],
+    ['MARKETWATCH_UPDATED'],
+    ['SEC_8K_FILED'],
+    ['FRED_INDICATORS_UPDATED'],
+    ['ALPHA_VANTAGE_NEWS_UPDATED'],
+  ] as const)('%s handler (fast-tier)', (eventType) => {
+    it('runs the agent and emits a MarketSnapshot update intent with fastComponentsAt set', async () => {
+      const payload: EventPayload = { subject: { region: 'us-east-1' } };
+      const ctx = makeCtx({ eventType, eventId: `feed-${eventType}-1` });
+
+      const result = await handlers[eventType](payload, ctx);
+
+      expect(mockRunPipeline).toHaveBeenCalledWith(
+        `feed-${eventType}-1`,
+        expect.objectContaining({ region: 'us-east-1', tier: 'fast' }),
+      );
+
+      const snapshotIntent = result.intents?.find(
+        (i): i is { _tag: 'update'; typename: string; updates: Record<string, unknown>; overrides?: { pk?: string; sk?: string } } =>
+          (i as { typename?: string }).typename === 'MarketSnapshot',
+      );
+      expect(snapshotIntent).toBeDefined();
+      expect(snapshotIntent!._tag).toBe('update');
+      expect(snapshotIntent!.updates.fastComponentsAt).toBeDefined();
+      expect(snapshotIntent!.updates.sourceEventIds).toEqual([`feed-${eventType}-1`]);
+      // Fast-tier MUST NOT touch slowComponentsAt.
+      expect(snapshotIntent!.updates).not.toHaveProperty('slowComponentsAt');
+      expect(snapshotIntent!.overrides).toMatchObject({
+        pk: 'MarketSnapshot#us-east-1',
+        sk: 'MarketSnapshot',
+      });
+    });
+  });
+
+  it('always emits an AgentInvocation record alongside the snapshot write', async () => {
+    const payload: EventPayload = { subject: { region: 'us-east-1' } };
+    const ctx = makeCtx({ eventType: 'YAHOO_FINANCE_UPDATED', eventId: 'feed-inv-1' });
+
+    const result = await handlers.YAHOO_FINANCE_UPDATED(payload, ctx);
+
+    const agentInvocation = result.intents?.find(
+      (i) => (i as { typename?: string }).typename === 'AgentInvocation',
     );
-
-    expect(mockSearchLongTermMemory).toHaveBeenCalledWith('signals', 'market signals sector trends');
-    // Memory persistence is owned by the AgentRuntime — writeAgentOutput has
-    // been dropped from MemoryClient entirely (Phase A inter-agent state handoff
-    // moved to SF state).
-  });
-
-  it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
-    const { DuplicateInvocationError } = await import('../../src/agent-service');
-    mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('evt-dup'));
-
-    const payload: EventPayload = {
-      subject: { tenantId: 't1', decisionId: 'dp-dup', taskToken: 'tok' },
-    };
-
-    const dupCtx: EventContext = { ...baseCtx, eventId: 'evt-dup' };
-    const result = await handlers.ANALYZE_MARKET(payload, dupCtx);
-
-    expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
-    expect(result.intents).toBeUndefined();
-  });
-
-  it('returns the agent result inside SF output for downstream consumers', async () => {
-    const fakeResult = {
-      decisionId: 'dp-agent-out',
-      signals: [{ type: 'sentiment', ticker: 'NVDA', sentiment: 'BULLISH', confidence: 0.92, source: 'news' }],
-      tickersMentioned: ['NVDA', 'AMD'],
-      sectors: { technology: 'BULLISH', energy: 'NEUTRAL' },
-      marketOutlook: 'Strong tech momentum',
-      outlook: 'BULLISH',
-      confidenceScore: 0.91,
-      metadata: { durationMs: 700, modelTier: 'sonnet' },
-    };
-    mockRunPipeline.mockResolvedValueOnce(fakeResult);
-
-    const payload: EventPayload = {
-      subject: { tenantId: 't1', decisionId: 'dp-agent-out', taskToken: 'tok' },
-    };
-
-    const result = await handlers.ANALYZE_MARKET(payload, baseCtx);
-
-    expect(result.output.agentOutput).toEqual(fakeResult);
-  });
-
-  it('should propagate agent errors', async () => {
-    mockRunPipeline.mockRejectedValueOnce(new Error('Agent pipeline failed'));
-
-    const payload: EventPayload = {
-      subject: {
-        tenantId: 't1',
-        decisionId: 'dp-1',
-        taskToken: 'token-123',
-      },
-    };
-
-    await expect(handlers.ANALYZE_MARKET(payload, baseCtx)).rejects.toThrow('Agent pipeline failed');
+    expect(agentInvocation).toMatchObject({
+      _tag: 'record',
+      typename: 'AgentInvocation',
+      fields: expect.objectContaining({ agentName: 'market-intelligence' }),
+    });
   });
 });

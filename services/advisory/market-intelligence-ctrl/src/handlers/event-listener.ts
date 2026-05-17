@@ -1,61 +1,120 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import {
-  resumeStateMachine, record,
-  type EventPayload, type EventContext,
-  requireEnv, logger,
+  materializeToTable,
+  record,
+  update,
+  type EventPayload,
+  type EventContext,
+  type WriteIntent,
+  requireEnv,
+  logger,
 } from '@nestfolio/event-processor';
-import { createMemoryClient, createNoOpMemoryClient, type MemoryClient, wrapAgentOutput } from '@nestfolio/agent-orchestrator';
+import {
+  createMemoryClient,
+  createNoOpMemoryClient,
+  type MemoryClient,
+} from '@nestfolio/agent-orchestrator';
 import { createAgentService, DuplicateInvocationError } from '../agent-service';
+import {
+  marketSnapshotPk,
+  MARKET_SNAPSHOT_SK,
+} from '../repositories/market-snapshot.repository';
 
-export interface SfnCallbackDeps {
+export interface IngressDeps {
   readonly agentService: { runPipeline: (eventId: string, event: Record<string, unknown>) => Promise<Record<string, unknown>> };
   readonly memoryClient: MemoryClient;
 }
 
-export const createHandlers = (deps: SfnCallbackDeps) => ({
-  ANALYZE_MARKET: async (payload: EventPayload, ctx: EventContext) => {
-    const subject = payload.subject ?? {};
-    const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
-    const decisionId = subject.decisionId as string;
+type Tier = 'fast' | 'slow';
 
-    logger.info('Processing ANALYZE_MARKET', { decisionId, tenantId });
+type SnapshotHandlerOutput =
+  | { output: { region: string; tier: Tier }; intents: WriteIntent[] }
+  | { output: { region: string; deduplicated: true } };
 
-    const session = deps.memoryClient.openDecisionSession(tenantId, decisionId);
-    const tenantHistory = await session.searchLongTermMemory('signals', 'market signals sector trends');
+async function runMarketAgent(
+  deps: IngressDeps,
+  payload: EventPayload,
+  ctx: EventContext,
+  tier: Tier,
+): Promise<SnapshotHandlerOutput> {
+  const subject = (payload.subject ?? {}) as Record<string, unknown>;
+  const region = (subject.region as string | undefined)
+    ?? process.env.AWS_REGION
+    ?? 'us-east-1';
 
-    let result: Record<string, unknown>;
-    try {
-      result = await deps.agentService.runPipeline(ctx.eventId, {
-        tenantId,
-        decisionId,
-        tenantHistory: tenantHistory.map(r => r.content),
-      });
-    } catch (error) {
-      if (error instanceof DuplicateInvocationError) {
-        logger.info('Duplicate ANALYZE_MARKET event, skipping', { eventId: ctx.eventId, decisionId });
-        return { output: { decisionId, tenantId, deduplicated: true } };
-      }
-      throw error;
+  logger.info(`Processing ${ctx.eventType} for MarketSnapshot rebuild`, {
+    region,
+    tier,
+    eventId: ctx.eventId,
+  });
+
+  let result: Record<string, unknown>;
+  try {
+    result = await deps.agentService.runPipeline(ctx.eventId, { region, tier });
+  } catch (error) {
+    if (error instanceof DuplicateInvocationError) {
+      logger.info(`Duplicate ${ctx.eventType} event, skipping`, { eventId: ctx.eventId });
+      return { output: { region, deduplicated: true } };
     }
+    throw error;
+  }
 
-    // Memory persistence happens inside the AgentRuntime (graph.ts) — the
-    // previous Lambda wrap-write created a parallel record that AgentCore
-    // did NOT dedupe via requestIdentifier. Mirrors investor-profile-ctrl.
+  const now = new Date().toISOString();
+  const intents: WriteIntent[] = [
+    record('AgentInvocation', {
+      decisionId: `snapshot-${ctx.eventId}`,
+      agentName: 'market-intelligence',
+    }),
+  ];
 
-    // Return the full agent result in the SF SendTaskSuccess output so
-    // downstream Task states (portfolio-engine, advisory-narrative) and
-    // AssembleDecisionPacket can read it from SF state
-    // (`$.agentResults.InvokeMarketIntelligence.agentOutput`) without a
-    // Memory roundtrip. Closes the AgentCore Memory ListMemoryRecords
-    // eventual-consistency gap — see
-    // docs/backlog/agentcore-memory-list-records-eventual-consistency.md.
-    const wrapped = wrapAgentOutput(result);
-    return {
-      output: { decisionId, tenantId, agentOutput: wrapped.value },
-      intents: [record('AgentInvocation', { decisionId, tenantId, agentName: 'market-intelligence' })],
-    };
-  },
+  if (tier === 'slow') {
+    intents.push(
+      record(
+        'MarketSnapshot',
+        {
+          region,
+          agentOutput: result,
+          slowComponentsAt: now,
+          fastComponentsAt: now,
+          sourceEventIds: [ctx.eventId],
+          updatedAt: now,
+        },
+        { pk: marketSnapshotPk(region), sk: MARKET_SNAPSHOT_SK },
+      ),
+    );
+  } else {
+    // Fast-tier partial refresh. NOTE on `sourceEventIds`: the plan calls for
+    // appending to a ring buffer (last 20), but `update()` does not natively
+    // implement DDB `list_append`. Accepted overwrite semantics per the plan
+    // footer Open Question — each fast-tier rebuild stores only the latest
+    // source event id. A future iteration can add list-append support to the
+    // update intent if the ring buffer becomes required for observability.
+    intents.push(
+      update(
+        'MarketSnapshot',
+        {
+          region,
+          agentOutput: result,
+          fastComponentsAt: now,
+          updatedAt: now,
+          sourceEventIds: [ctx.eventId],
+        },
+        { overrides: { pk: marketSnapshotPk(region), sk: MARKET_SNAPSHOT_SK } },
+      ),
+    );
+  }
+
+  return { output: { region, tier }, intents };
+}
+
+export const createHandlers = (deps: IngressDeps) => ({
+  YAHOO_FINANCE_UPDATED:        (p: EventPayload, c: EventContext) => runMarketAgent(deps, p, c, 'fast'),
+  MARKETWATCH_UPDATED:          (p: EventPayload, c: EventContext) => runMarketAgent(deps, p, c, 'fast'),
+  SEC_8K_FILED:                 (p: EventPayload, c: EventContext) => runMarketAgent(deps, p, c, 'fast'),
+  FRED_INDICATORS_UPDATED:      (p: EventPayload, c: EventContext) => runMarketAgent(deps, p, c, 'fast'),
+  ALPHA_VANTAGE_NEWS_UPDATED:   (p: EventPayload, c: EventContext) => runMarketAgent(deps, p, c, 'fast'),
+  MARKET_SNAPSHOT_REFRESH_TICK: (p: EventPayload, c: EventContext) => runMarketAgent(deps, p, c, 'slow'),
 });
 
 // --- Production wiring ---
@@ -71,9 +130,9 @@ const memoryClient = process.env.MEMORY_ID
 
 const agentService = createAgentService({ docClient, tableName: TABLE_NAME, memoryClient });
 
-const deps: SfnCallbackDeps = { agentService, memoryClient };
+const deps: IngressDeps = { agentService, memoryClient };
 
-export const handler = resumeStateMachine({
+export const handler = materializeToTable({
   serviceName: 'market-intelligence-ctrl',
   handlers: createHandlers(deps),
   errorEventType: 'MARKET_INTELLIGENCE_CTRL_FAILED',
