@@ -35,11 +35,17 @@ export const MANDATE_LIFECYCLE_EVENT_TYPES = [
   InvestorBffEventTypes.OPERATING_MODE_CHANGED,
 ] as const;
 
+// Post-precomputation rewire: IP + MI are now precomputed projections (no per-cycle
+// agent invocation, no SF waitForTaskToken). Only PE + AN still emit completions
+// that resume the SF via SendTaskSuccess; failures resume via SendTaskFailure.
 export const AGENT_COMPLETION_EVENT_TYPES = [
-  eventName('INVESTOR_PROFILE_COMPLETED'),
-  eventName('MARKET_ANALYSIS_COMPLETED'),
   eventName('PORTFOLIO_COMPLETED'),
   eventName('NARRATIVE_COMPLETED'),
+] as const;
+
+export const AGENT_FAILURE_EVENT_TYPES = [
+  eventName('PORTFOLIO_FAILED'),
+  eventName('NARRATIVE_FAILED'),
 ] as const;
 
 export const COMPLIANCE_EVENT_TYPES = [
@@ -54,6 +60,7 @@ export const USER_RESPONSE_EVENT_TYPES = [
 
 export const ALL_INBOUND_EVENT_TYPES = [
   ...AGENT_COMPLETION_EVENT_TYPES,
+  ...AGENT_FAILURE_EVENT_TYPES,
   ...COMPLIANCE_EVENT_TYPES,
   ...USER_RESPONSE_EVENT_TYPES,
 ] as const;

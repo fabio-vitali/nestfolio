@@ -95,16 +95,36 @@ describe('DecisionWorkflowCtrlStack', () => {
     expect(synthesized).not.toContain('WORKFLOW_TRIGGER_UPDATED');
   });
 
-  it('creates a CallbackIngress rule subscribing to agent / compliance / user-response events', () => {
-    // Single Ingress matches all 8 ALL_INBOUND_EVENT_TYPES via Match.anyOf.
+  it('creates a CallbackIngress rule subscribing to PE/AN completions + failures + compliance + user-response events', () => {
+    // Post-precomputation rewire: IP + MI no longer emit *_COMPLETED on the per-cycle path.
+    // CallbackIngress now subscribes to PORTFOLIO_COMPLETED/FAILED, NARRATIVE_COMPLETED/FAILED,
+    // DECISION_APPROVED/BLOCKED, USER_CONFIRMED/REJECTED (8 event types).
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({
-        'detail-type': Match.arrayWith(['INVESTOR_PROFILE_COMPLETED']),
+        'detail-type': Match.arrayWith([
+          'PORTFOLIO_COMPLETED',
+          'NARRATIVE_COMPLETED',
+          'PORTFOLIO_FAILED',
+          'NARRATIVE_FAILED',
+          'DECISION_APPROVED',
+          'DECISION_BLOCKED',
+          'USER_CONFIRMED',
+          'USER_REJECTED',
+        ]),
       }),
     });
   });
 
-  it('grants SFN task response to the callback ingress handler', () => {
+  it('does NOT subscribe to INVESTOR_PROFILE_COMPLETED or MARKET_ANALYSIS_COMPLETED (precomputed projections)', () => {
+    const rules = template.findResources('AWS::Events::Rule');
+    const allDetailTypes = Object.values(rules).flatMap((r: any) =>
+      r.Properties?.EventPattern?.['detail-type'] ?? [],
+    );
+    expect(allDetailTypes).not.toContain('INVESTOR_PROFILE_COMPLETED');
+    expect(allDetailTypes).not.toContain('MARKET_ANALYSIS_COMPLETED');
+  });
+
+  it('grants SFN task response (Success + Failure) to the callback ingress handler', () => {
     const policies = template.findResources('AWS::IAM::Policy');
     const allStatements = Object.values(policies).flatMap(
       (p: any) => p.Properties.PolicyDocument.Statement ?? [],
@@ -112,7 +132,9 @@ describe('DecisionWorkflowCtrlStack', () => {
     const actions = allStatements.flatMap((s: any) =>
       Array.isArray(s.Action) ? s.Action : [s.Action],
     );
+    // After Task 12 (workspace-wide invariant), DWC is the sole holder of these grants.
     expect(actions).toContain('states:SendTaskSuccess');
+    expect(actions).toContain('states:SendTaskFailure');
   });
 
   it('creates an AgentCore Memory resource', () => {
