@@ -115,6 +115,8 @@ Then run only the **involved** `apps/e2e-feature-tests` scenarios — pick from 
 
 **6.7 Complex lane only:** route to `superpowers:finishing-a-development-branch` for merge / PR / branch cleanup. Do NOT handle the merge manually.
 
+**6.8 Complex lane only — exit the worktree session.** After `finishing-a-development-branch` returns, call `ExitWorktree`. The merge skill cleans up the on-disk worktree and feature branch, but the Claude Code worktree **session** is harness state and must be exited explicitly. Skipping this means the next `/backlog-next` fails at Step 4 with `Already in a worktree session. Use ExitWorktree to leave it before entering another.` Postflight cannot detect this (Node can't see harness session state), so the discipline lives here.
+
 ### 7. Postflight (enforced)
 
 ```bash
@@ -130,6 +132,7 @@ Hard-fails if: working tree is dirty, `backlog-lint` violates a rule, the shippe
 - **Auto-promoting LATER → QUEUED.** Promotion is a judgment call — do it manually at the boundary review.
 - **Splitting source from derived across PRs.** Both ship in the same workstream. See `doc-derivation-paths.md`.
 - **Dismissing flakes after one rerun.** See [[feedback-flake-means-broken]]. If a scoped e2e scenario fails-then-passes, pull evidence from the failing window before continuing; a confirmation rerun is required, not optional. E2E flakes are QUEUED, never parking — see [[feedback-e2e-gaps-queued-not-parking]].
+- **Forgetting `ExitWorktree` after the merge skill returns.** Step 6.8 is the only place that catches this; postflight can't see harness session state, so the failure only surfaces on the next `/backlog-next` at `EnterWorktree`.
 
 ## Related
 
