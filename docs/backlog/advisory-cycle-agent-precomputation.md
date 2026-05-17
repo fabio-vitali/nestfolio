@@ -1,9 +1,8 @@
 ---
 id: advisory-cycle-agent-precomputation
-status: queued
+status: shipped
 type: design
-rank: 1
-notes: "Alternative to the per-cycle agent model: investor-profile + market-intelligence move to continuous projection (run on change events, write snapshots, cycle reads them). Halves the agent-pipeline-trap surface and may unblock e2e scenarios 11+12 alone."
+notes: "Design spec for moving IP+MI to continuous projection + refactoring PE+AN callbacks to event-driven CallbackIngress. After implementation, decision-workflow-ctrl will be the sole caller of states:SendTaskSuccess/SendTaskFailure."
 references:
   - docs/backlog/agent-pipeline-backlog-trap-architectural.md
   - docs/data-flows/advisory-cycle.md
@@ -15,18 +14,19 @@ references:
   - services/advisory/market-intelligence-ctrl/src/service.stack.ts
   - services/advisory/compliance-ctrl/src/service.stack.ts
 out_of_scope:
-  - "portfolio-engine-ctrl and advisory-narrative-ctrl (case-specific; cannot be precomputed)"
+  - "PE+AN as agent runs stay in cycle (only callback transport changes)"
+  - "PE+AN queue-trap timing knobs (covered by agent-pipeline-backlog-trap-architectural)"
   - "KB ingestion paths (Regulatory KB, Market KB)"
   - "AgentCore Memory namespace changes (Phase-A handoff is correct as designed)"
   - "Authority resolution / operating-mode logic (already lives in MandateSnapshot + compliance-ctrl)"
   - "Production rollout sequencing (dev-first; prod posture decided separately)"
   - "Cross-region or multi-region snapshot replication"
   - "Snapshot retention / archival policy"
-  - "Pipeline-wiring tuning for the remaining 2 agents (covered by agent-pipeline-backlog-trap-architectural)"
-spec: null
+  - "Compliance + user-confirmation callback paths (already follow target pattern)"
+spec: docs/superpowers/specs/2026-05-17-advisory-cycle-agent-precomputation-design.md
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Design spec landed at docs/superpowers/specs/2026-05-17-advisory-cycle-agent-precomputation-design.md (commits 7ab2e8cc + b3cf25e3). Spec covers: (1) IP+MI precomputation via per-change snapshots, (2) payload-first projection reads in SF (IP/Mandate Choice + Market GetItem), (3) PE+AN callback refactor — emit *_COMPLETED/*_FAILED via CDC, CallbackIngress resumes SF. Implementation workstream filed as advisory-cycle-agent-precomputation-impl."
 ---
 
 # Advisory cycle — investor-profile + market-intelligence precomputation
