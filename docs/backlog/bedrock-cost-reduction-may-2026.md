@@ -1,6 +1,6 @@
 ---
 id: bedrock-cost-reduction-may-2026
-status: active
+status: shipped
 rank: 2
 type: refactor
 notes: "5-lever Bedrock cost-reduction package — Phase B MemoryStrategies + Opus downgrades; ~$100/mo savings"
@@ -12,12 +12,43 @@ out_of_scope:
   - "Cost Explorer dashboards / alerts / budgets — out-of-scope; validation reads CloudWatch Bedrock metrics directly"
   - "P2 cost safeguards deferred in project_agentcore_cost_safeguards.md — separate workstream"
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-05-17-bedrock-cost-reduction-phase-1.md
 topic_memory:
   - project_agentcore_cost_safeguards.md
   - project_inter_agent_state_handoff.md
   - project_agent_runtime_structured_output.md
-validation_gate: null
+validation_gate: |
+  Phase 1 levers A+B+C+E shipped on branch worktree-bedrock-cost-reduction-may-2026, deployed to dev 2026-05-18.
+
+  Commits (worktree-bedrock-cost-reduction-may-2026):
+    f007a0b7  chore(backlog): adopt → active
+    0828b7ee  docs(plans): Phase 1 plan
+    0e63fa7e  feat(agent-orchestrator): namespacePrefix
+    ed5f3439  refactor(DWC): Lever A drop consolidation
+    c2c6b3a6  refactor(DWC): Lever B merge rationale strategies
+    944020ca  refactor(advisory): Lever B PE+AN MemoryClient
+    3b1045f8  refactor(DWC): Lever E MarketSignals managed (renamed for CFN rebuild)
+    86be7795  refactor(IP-ctrl): Lever C Opus→Sonnet risk-assessment
+    fcb98f45  docs: regen service cards + SYSTEM-ARCHITECTURE + C4
+    2e37d41e  fix(DWC): rename MarketSignalExtractor → MarketSignals (CFN type-change rebuild)
+    e09b2393  fix(IP-ctrl): Bedrock IAM grant Sonnet (Lever C IAM hardening, surfaced by e2e #1-2)
+
+  Deploys (dev sandbox, 2026-05-18 ~00:11-00:37 CEST = ~22:11-22:37 UTC):
+    dev-decision-workflow-ctrl  Memory rebuild (3 strategies, RationaleArchivist shared namespace, MarketSignals managed) — Stack ARN 0ebbddc0-2f9d-11f1-876e-0eddb6105365
+    dev-portfolio-engine-ctrl   no changes (deployed in orphan parallel run; same code already live)
+    dev-advisory-narrative-ctrl no changes (same)
+    dev-investor-profile-ctrl   Sonnet IAM hardening — Stack ARN 24ec3f00-302d-11f1-8a5a-12e72919f029
+
+  Validation:
+    nx affected -t test,lint           PASS  11 projects (full unit + lint sweep)
+    nx affected -t test-integration    PASS  8 projects, 5 tests (advisory pipeline + onboarding-bff)
+    first-decision e2e (rerun #4)      PASS  205s, non-empty proposedTrades materialised, full SF cycle through AgentCore
+    CloudWatch IP-ctrl IngressHandler  16s cold-start invocation completed successfully with Sonnet (response 3777 bytes); confirms Lever C IAM grant works end-to-end
+
+  Known limitations (filed):
+    e2e-cold-deploy-an-trace-flake (queued rank 4) — first-decision e2e fails on the very first run after a fresh deploy when all advisory Lambdas are cold; AgentTraceTrap.waitFor times out for advisoryNarrative trace. Rerun on warm Lambdas is green. Test-infrastructure timing race; independent of Phase 1 cost reduction.
+
+  CloudWatch Bedrock cost validation (Haiku ≥50% drop / Opus ~50% drop) deferred to weekly observation; Phase 1 ship gate is the green e2e + integration suite + clean deploys.
 ---
 
 # Bedrock cost-reduction package (May 2026)
