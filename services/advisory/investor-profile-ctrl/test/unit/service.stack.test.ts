@@ -93,4 +93,61 @@ describe('InvestorProfileCtrlStack', () => {
     expect(actions).not.toContain('bedrock-agentcore:BatchCreateMemoryRecords');
     expect(actions).not.toContain('bedrock-agentcore:ListMemoryRecords');
   });
+
+  it('subscribes to INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, OPERATING_MODE_CHANGED — not ANALYZE_INVESTOR_PROFILE', () => {
+    template.hasResourceProperties('AWS::Events::Rule', {
+      EventPattern: Match.objectLike({
+        'detail-type': Match.arrayWith([
+          'INVESTOR_PROFILE_UPDATED',
+          'MANDATE_ISSUED',
+          'OPERATING_MODE_CHANGED',
+        ]),
+      }),
+    });
+    // Negative assertion: no rule subscribes to ANALYZE_INVESTOR_PROFILE
+    const rules = template.findResources('AWS::Events::Rule');
+    for (const rule of Object.values(rules)) {
+      const detailTypes: string[] =
+        (rule as any).Properties?.EventPattern?.['detail-type'] ?? [];
+      expect(detailTypes).not.toContain('ANALYZE_INVESTOR_PROFILE');
+    }
+  });
+
+  it('does not grant states:SendTaskSuccess or states:SendTaskFailure to any role', () => {
+    const policies = template.findResources('AWS::IAM::Policy');
+    for (const policy of Object.values(policies)) {
+      const statements: any[] =
+        (policy as any).Properties?.PolicyDocument?.Statement ?? [];
+      for (const stmt of statements) {
+        const actions: string[] = Array.isArray(stmt.Action)
+          ? stmt.Action
+          : [stmt.Action];
+        expect(actions).not.toContain('states:SendTaskSuccess');
+        expect(actions).not.toContain('states:SendTaskFailure');
+        expect(actions).not.toContain('states:SendTaskHeartbeat');
+      }
+    }
+  });
+
+  it('emits INVESTOR_PROFILE_SNAPSHOT_CREATED on InvestorProfileSnapshot:INSERT and _UPDATED on MODIFY', () => {
+    // Egress construct declares CDC mappings via EVENT_TYPE_MAP env var on the publisher Lambda.
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: Match.objectLike({
+        Variables: Match.objectLike({
+          EVENT_TYPE_MAP: Match.stringLikeRegexp('InvestorProfileSnapshot'),
+        }),
+      }),
+    });
+    // Verify the actual mapping values are present in the JSON-encoded env var.
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    const egressLambdaEntry = Object.values(lambdas).find((l: any) => {
+      const vars = l.Properties?.Environment?.Variables ?? {};
+      return typeof vars.EVENT_TYPE_MAP === 'string'
+        && vars.EVENT_TYPE_MAP.includes('InvestorProfileSnapshot');
+    }) as any;
+    expect(egressLambdaEntry).toBeDefined();
+    const map = egressLambdaEntry.Properties.Environment.Variables.EVENT_TYPE_MAP as string;
+    expect(map).toContain('INVESTOR_PROFILE_SNAPSHOT_CREATED');
+    expect(map).toContain('INVESTOR_PROFILE_SNAPSHOT_UPDATED');
+  });
 });
