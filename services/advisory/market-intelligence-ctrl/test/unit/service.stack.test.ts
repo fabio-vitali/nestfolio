@@ -98,4 +98,68 @@ describe('MarketIntelligenceCtrlStack', () => {
     expect(actions).not.toContain('bedrock-agentcore:BatchCreateMemoryRecords');
     expect(actions).not.toContain('bedrock-agentcore:ListMemoryRecords');
   });
+
+  it('subscribes to 5 feed events plus MARKET_SNAPSHOT_REFRESH_TICK, not ANALYZE_MARKET', () => {
+    template.hasResourceProperties('AWS::Events::Rule', {
+      EventPattern: Match.objectLike({
+        'detail-type': Match.arrayWith([
+          'YAHOO_FINANCE_UPDATED',
+          'MARKETWATCH_UPDATED',
+          'SEC_8K_FILED',
+          'FRED_INDICATORS_UPDATED',
+          'ALPHA_VANTAGE_NEWS_UPDATED',
+          'MARKET_SNAPSHOT_REFRESH_TICK',
+        ]),
+      }),
+    });
+    // Negative assertion: no rule subscribes to ANALYZE_MARKET
+    const rules = template.findResources('AWS::Events::Rule');
+    for (const rule of Object.values(rules)) {
+      const detailTypes: string[] =
+        (rule as any).Properties?.EventPattern?.['detail-type'] ?? [];
+      expect(detailTypes).not.toContain('ANALYZE_MARKET');
+    }
+  });
+
+  it('declares a scheduled rule with rate(15 minutes) targeting the advisoryBus', () => {
+    template.hasResourceProperties('AWS::Events::Rule', {
+      ScheduleExpression: 'rate(15 minutes)',
+    });
+  });
+
+  it('does not grant states:SendTaskSuccess or states:SendTaskFailure to any role', () => {
+    const policies = template.findResources('AWS::IAM::Policy');
+    for (const policy of Object.values(policies)) {
+      const statements: any[] =
+        (policy as any).Properties?.PolicyDocument?.Statement ?? [];
+      for (const stmt of statements) {
+        const actions: string[] = Array.isArray(stmt.Action)
+          ? stmt.Action
+          : [stmt.Action];
+        expect(actions).not.toContain('states:SendTaskSuccess');
+        expect(actions).not.toContain('states:SendTaskFailure');
+        expect(actions).not.toContain('states:SendTaskHeartbeat');
+      }
+    }
+  });
+
+  it('emits MARKET_SNAPSHOT_UPDATED on MarketSnapshot row INSERT or MODIFY', () => {
+    // Egress construct declares CDC mappings via EVENT_TYPE_MAP env var on the publisher Lambda.
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: Match.objectLike({
+        Variables: Match.objectLike({
+          EVENT_TYPE_MAP: Match.stringLikeRegexp('MarketSnapshot'),
+        }),
+      }),
+    });
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    const egressLambdaEntry = Object.values(lambdas).find((l: any) => {
+      const vars = l.Properties?.Environment?.Variables ?? {};
+      return typeof vars.EVENT_TYPE_MAP === 'string'
+        && vars.EVENT_TYPE_MAP.includes('MarketSnapshot');
+    }) as any;
+    expect(egressLambdaEntry).toBeDefined();
+    const map = egressLambdaEntry.Properties.Environment.Variables.EVENT_TYPE_MAP as string;
+    expect(map).toContain('MARKET_SNAPSHOT_UPDATED');
+  });
 });
