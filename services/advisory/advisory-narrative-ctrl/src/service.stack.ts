@@ -46,11 +46,19 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
     ingress.handler.addEnvironment('KB_ID', kb.knowledgeBaseId);
     ingress.handler.addEnvironment('KB_DATA_SOURCE_ID', kb.dataSourceId);
 
-    // Egress: CDC events
+    // Egress: CDC events.
+    //
+    // Post advisory-cycle-agent-precomputation Task 7: the handler emits
+    // AgentCompletion / AgentFailure rows instead of resuming a SF callback
+    // directly. The Egress maps those rows to NARRATIVE_COMPLETED /
+    // NARRATIVE_FAILED, which DWC's CallbackIngress (Task 10) consumes to call
+    // states:SendTaskSuccess / states:SendTaskFailure.
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
         'ReasoningOutput': { insert: NarrativeEventTypes.EXPLANATION_GENERATED },
+        'AgentCompletion': { insert: NarrativeEventTypes.NARRATIVE_COMPLETED },
+        'AgentFailure':    { insert: NarrativeEventTypes.NARRATIVE_FAILED },
       },
     });
 
@@ -128,12 +136,12 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
     // (covers both runtime ARN and its endpoint sub-resource).
     agentRuntime.grantInvoke(ingress.handler);
 
-    // resumeStateMachine pipeline callback permissions (see investor-profile-ctrl).
-    ingress.handler.addToRolePolicy(new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ['states:SendTaskSuccess', 'states:SendTaskFailure', 'states:SendTaskHeartbeat'],
-      resources: ['*'],
-    }));
+    // NOTE: No states:SendTask* grants. Post advisory-cycle-agent-precomputation,
+    // the handler uses materializeToTable and emits AgentCompletion/AgentFailure
+    // CDC rows. DWC's CallbackIngress consumes the resulting NARRATIVE_COMPLETED
+    // / NARRATIVE_FAILED events and owns the states:SendTask* IAM grants. The
+    // full callback-IAM lockdown is asserted workspace-wide by Task 12's
+    // invariant test.
 
     // Grant the AgentRuntime role permission to emit trace envelopes to the
     // advisory bus (consumed by e2e AgentTraceTrap and contract test assertions).
