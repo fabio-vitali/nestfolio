@@ -1,7 +1,6 @@
 ---
 id: marketsnapshot-fault-tolerant-cycle
-status: queued
-rank: 1
+status: active
 type: refactor
 notes: "Tolerate absent MarketSnapshot in DWC SF and delete the bootstrap CustomResource that papered over it"
 references:
@@ -12,7 +11,9 @@ references:
   - services/advisory/market-intelligence-ctrl/src/service.stack.ts
   - services/advisory/portfolio-engine-ctrl/src/handlers/event-listener.ts
   - services/advisory/advisory-narrative-ctrl/src/handlers/event-listener.ts
-out_of_scope: []
+out_of_scope:
+  - "Staleness alarm — cycle-entry CloudWatch metric MarketSnapshotAgeSeconds = now - $.Item.slowComponentsAt with alarm at ~6h. Tracked separately; the right place to surface 'scheduler is broken' once absent is tolerable."
+  - "InvestorProfileSnapshot fault-tolerance — SF already has payload-first ResolveInvestorProfile Choice (HoistInvestorProfileFromTrigger) that bypasses the lookup when the trigger carries the profile. Narrower edge case. Revisit if it becomes a real failure mode."
 spec: null
 plan: null
 topic_memory: []
