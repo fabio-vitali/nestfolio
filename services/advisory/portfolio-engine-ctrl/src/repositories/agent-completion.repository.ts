@@ -1,0 +1,23 @@
+// AgentCompletion / AgentFailure row key helpers.
+//
+// portfolio-engine-ctrl writes one of these rows per CONSTRUCT_PORTFOLIO event:
+//   - AgentCompletion on successful agent run (carries taskToken + agentOutput)
+//   - AgentFailure    on caught agent error  (carries taskToken + errorType/Message)
+//
+// The Egress CDC publisher emits PORTFOLIO_COMPLETED / PORTFOLIO_FAILED on INSERT,
+// which DWC's CallbackIngress (Task 10) consumes to call states:SendTaskSuccess /
+// states:SendTaskFailure. PE-ctrl's Lambda role therefore no longer needs
+// states:SendTask* grants — those move exclusively to DWC.
+//
+// Writes go through the standard event-processor `record()` intent; this file
+// deliberately exposes only key formulas (no custom SDK code).
+
+export const AGENT_COMPLETION_PK = (decisionId: string): string =>
+  `AgentCompletion#${decisionId}`;
+export const AGENT_COMPLETION_SK = (agentName: string): string =>
+  `AgentCompletion#${agentName}`;
+
+export const AGENT_FAILURE_PK = (decisionId: string): string =>
+  `AgentFailure#${decisionId}`;
+export const AGENT_FAILURE_SK = (agentName: string): string =>
+  `AgentFailure#${agentName}`;

@@ -41,12 +41,20 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       },
     });
 
-    // Egress: CDC events
+    // Egress: CDC events.
+    //
+    // Post advisory-cycle-agent-precomputation Task 6: the handler emits
+    // AgentCompletion / AgentFailure rows instead of resuming a SF callback
+    // directly. The Egress maps those rows to PORTFOLIO_COMPLETED /
+    // PORTFOLIO_FAILED, which DWC's CallbackIngress (Task 10) consumes to call
+    // states:SendTaskSuccess / states:SendTaskFailure.
     const egress = new Egress(this, 'Egress', {
       state,
       eventTypes: {
         'AgentInvocation': { insert: PortfolioEngineEventTypes.PORTFOLIO_CONSTRUCTION_PROPOSED },
         'ReasoningOutput': { insert: PortfolioEngineEventTypes.REBALANCE_PLAN_PRODUCED },
+        'AgentCompletion': { insert: PortfolioEngineEventTypes.PORTFOLIO_COMPLETED },
+        'AgentFailure':    { insert: PortfolioEngineEventTypes.PORTFOLIO_FAILED },
       },
     });
 
@@ -146,12 +154,12 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       resources: ['*'],
     }));
 
-    // resumeStateMachine pipeline callback permissions (see investor-profile-ctrl).
-    ingress.handler.addToRolePolicy(new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ['states:SendTaskSuccess', 'states:SendTaskFailure', 'states:SendTaskHeartbeat'],
-      resources: ['*'],
-    }));
+    // NOTE: No states:SendTask* grants. Post advisory-cycle-agent-precomputation,
+    // the handler uses materializeToTable and emits AgentCompletion/AgentFailure
+    // CDC rows. DWC's CallbackIngress consumes the resulting PORTFOLIO_COMPLETED
+    // / PORTFOLIO_FAILED events and owns the states:SendTask* IAM grants. The
+    // full callback-IAM lockdown is asserted workspace-wide by Task 12's
+    // invariant test.
 
     this.addObservability({
       ingress,
