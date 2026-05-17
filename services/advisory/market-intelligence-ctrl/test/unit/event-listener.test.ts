@@ -88,7 +88,7 @@ describe('market-intelligence-ctrl event-listener', () => {
         }),
       );
 
-      expect(result.intents).toEqual(expect.arrayContaining([
+      expect(result).toEqual(expect.arrayContaining([
         expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
         expect.objectContaining({
           _tag: 'record',
@@ -113,7 +113,7 @@ describe('market-intelligence-ctrl event-listener', () => {
 
       const result = await handlers.MARKET_SNAPSHOT_REFRESH_TICK(payload, ctx);
 
-      const snapshotIntent = result.intents?.find(
+      const snapshotIntent = result.find(
         (i): i is { _tag: 'record'; typename: string; fields: Record<string, unknown>; overrides?: { pk?: string; sk?: string } } =>
           (i as { typename?: string }).typename === 'MarketSnapshot',
       );
@@ -130,8 +130,7 @@ describe('market-intelligence-ctrl event-listener', () => {
 
       const result = await handlers.MARKET_SNAPSHOT_REFRESH_TICK(payload, ctx);
 
-      expect(result.output).toMatchObject({ region: 'us-east-1', deduplicated: true });
-      expect((result as { intents?: unknown }).intents).toBeUndefined();
+      expect(result).toEqual([]);
     });
 
     it('propagates non-duplicate agent errors', async () => {
@@ -168,7 +167,7 @@ describe('market-intelligence-ctrl event-listener', () => {
         }),
       );
 
-      const snapshotIntent = result.intents?.find(
+      const snapshotIntent = result.find(
         (i): i is { _tag: 'update'; typename: string; updates: Record<string, unknown>; overrides?: { pk?: string; sk?: string } } =>
           (i as { typename?: string }).typename === 'MarketSnapshot',
       );
@@ -194,8 +193,7 @@ describe('market-intelligence-ctrl event-listener', () => {
 
     const result = await handlers.YAHOO_FINANCE_UPDATED(payload, ctx);
 
-    expect(result.output).toMatchObject({ region: 'us-east-1', deduplicated: true });
-    expect((result as { intents?: unknown }).intents).toBeUndefined();
+    expect(result).toEqual([]);
   });
 
   it('always emits an AgentInvocation record alongside the snapshot write', async () => {
@@ -204,8 +202,8 @@ describe('market-intelligence-ctrl event-listener', () => {
 
     const result = await handlers.YAHOO_FINANCE_UPDATED(payload, ctx);
 
-    const agentInvocation = result.intents?.find(
-      (i) => (i as { typename?: string }).typename === 'AgentInvocation',
+    const agentInvocation = (result as Array<{ typename?: string }>).find(
+      (i) => i.typename === 'AgentInvocation',
     );
     expect(agentInvocation).toMatchObject({
       _tag: 'record',

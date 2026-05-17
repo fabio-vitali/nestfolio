@@ -32,16 +32,17 @@ export interface IngressDeps {
 
 type Tier = 'fast' | 'slow';
 
-type SnapshotHandlerOutput =
-  | { output: { region: string; tier: Tier }; intents: WriteIntent[] }
-  | { output: { region: string; deduplicated: true } };
-
+// The event-processor ingestion engine's normalize-handler expects a
+// `WriteIntent | WriteIntent[]` (libs/event-processor/src/engine/normalize-handler.ts).
+// Returning a wrapper object like `{ output, intents }` made toArray() treat the
+// wrapper as a single bogus intent (tag undefined → "intent result success:false"),
+// surfaced by Task 19's MarketSnapshot bootstrap on first deploy.
 async function runMarketAgent(
   deps: IngressDeps,
   payload: EventPayload,
   ctx: EventContext,
   tier: Tier,
-): Promise<SnapshotHandlerOutput> {
+): Promise<WriteIntent[]> {
   const subject = (payload.subject ?? {}) as Record<string, unknown>;
   const region = (subject.region as string | undefined)
     ?? process.env.AWS_REGION
@@ -69,7 +70,7 @@ async function runMarketAgent(
   } catch (error) {
     if (error instanceof DuplicateInvocationError) {
       logger.info(`Duplicate ${ctx.eventType} event, skipping`, { eventId: ctx.eventId });
-      return { output: { region, deduplicated: true } };
+      return [];
     }
     throw error;
   }
@@ -119,7 +120,7 @@ async function runMarketAgent(
     );
   }
 
-  return { output: { region, tier }, intents };
+  return intents;
 }
 
 export const createHandlers = (deps: IngressDeps) => ({

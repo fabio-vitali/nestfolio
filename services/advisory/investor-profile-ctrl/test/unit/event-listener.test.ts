@@ -100,7 +100,7 @@ describe('investor-profile-ctrl event-listener', () => {
         'evt-1',
         expect.objectContaining({ tenantId: 't1', operatingMode: 'BALANCED' }),
       );
-      expect(result.intents).toEqual([
+      expect(result).toEqual([
         expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
         expect.objectContaining({
           _tag: 'record',
@@ -144,7 +144,7 @@ describe('investor-profile-ctrl event-listener', () => {
       );
     });
 
-    it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
+    it('returns an empty intent array when DuplicateInvocationError is thrown', async () => {
       const { DuplicateInvocationError } = await import('../../src/agent-service');
       mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('evt-dup'));
 
@@ -157,8 +157,7 @@ describe('investor-profile-ctrl event-listener', () => {
         makeCtx({ eventId: 'evt-dup' }),
       );
 
-      expect(result.output).toMatchObject({ tenantId: 't1', userId: 'u1', deduplicated: true });
-      expect((result as { intents?: unknown }).intents).toBeUndefined();
+      expect(result).toEqual([]);
     });
 
     it('propagates non-duplicate agent errors', async () => {
@@ -194,7 +193,7 @@ describe('investor-profile-ctrl event-listener', () => {
         'evt-mandate-1',
         expect.objectContaining({ tenantId: 't1', operatingMode: 'CONSERVATIVE' }),
       );
-      expect(result.intents).toEqual([
+      expect(result).toEqual([
         expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
         expect.objectContaining({
           _tag: 'record',
@@ -229,7 +228,7 @@ describe('investor-profile-ctrl event-listener', () => {
         'evt-mode-1',
         expect.objectContaining({ tenantId: 't1', operatingMode: 'AGGRESSIVE' }),
       );
-      expect(result.intents).toEqual([
+      expect(result).toEqual([
         expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
         expect.objectContaining({
           _tag: 'record',

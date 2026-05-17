@@ -31,16 +31,17 @@ type SourceEventType =
   | 'MANDATE_ISSUED'
   | 'OPERATING_MODE_CHANGED';
 
-type SnapshotHandlerOutput =
-  | { output: { tenantId: string; userId: string; sourceEventType: SourceEventType }; intents: WriteIntent[] }
-  | { output: { tenantId: string; userId: string; deduplicated: true } };
-
+// The event-processor ingestion engine's normalize-handler expects a
+// `WriteIntent | WriteIntent[]` (libs/event-processor/src/engine/normalize-handler.ts).
+// Returning a wrapper object like `{ output, intents }` made toArray() treat the
+// wrapper as a single bogus intent (tag undefined → "intent result success:false"),
+// surfaced by Task 19's MarketSnapshot bootstrap on first deploy.
 async function runSnapshotAgent(
   deps: IngressDeps,
   payload: EventPayload,
   ctx: EventContext,
   sourceEventType: SourceEventType,
-): Promise<SnapshotHandlerOutput> {
+): Promise<WriteIntent[]> {
   const subject = (payload.subject ?? {}) as Record<string, unknown>;
   const tenantId = (subject.tenantId as string | undefined) ?? (ctx.tenantId as unknown as string);
   // userId defaults to tenantId in the precomputation model: an investor
@@ -78,33 +79,30 @@ async function runSnapshotAgent(
   } catch (error) {
     if (error instanceof DuplicateInvocationError) {
       logger.info(`Duplicate ${sourceEventType} event, skipping`, { eventId: ctx.eventId });
-      return { output: { tenantId, userId, deduplicated: true } };
+      return [];
     }
     throw error;
   }
 
-  return {
-    output: { tenantId, userId, sourceEventType },
-    intents: [
-      record('AgentInvocation', {
-        decisionId: `snapshot-${ctx.eventId}`,
+  return [
+    record('AgentInvocation', {
+      decisionId: `snapshot-${ctx.eventId}`,
+      tenantId,
+      agentName: 'investor-profile',
+    }),
+    record(
+      'InvestorProfileSnapshot',
+      {
         tenantId,
-        agentName: 'investor-profile',
-      }),
-      record(
-        'InvestorProfileSnapshot',
-        {
-          tenantId,
-          userId,
-          agentOutput: result,
-          sourceEventId: ctx.eventId,
-          sourceEventType,
-          agentInvocationId: ctx.eventId,
-        },
-        { pk: investorProfileSnapshotPk(tenantId, userId), sk: INVESTOR_PROFILE_SNAPSHOT_SK },
-      ),
-    ],
-  };
+        userId,
+        agentOutput: result,
+        sourceEventId: ctx.eventId,
+        sourceEventType,
+        agentInvocationId: ctx.eventId,
+      },
+      { pk: investorProfileSnapshotPk(tenantId, userId), sk: INVESTOR_PROFILE_SNAPSHOT_SK },
+    ),
+  ];
 }
 
 export const createHandlers = (deps: IngressDeps) => ({

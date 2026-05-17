@@ -31,13 +31,13 @@ export interface IngressDeps {
   readonly memoryClient: MemoryClient;
 }
 
-type GenerateNarrativeOutput =
-  | { output: { decisionId: string; tenantId: string; agentOutput: unknown }; intents: WriteIntent[] }
-  | { output: { decisionId: string; tenantId: string; failed: true }; intents: WriteIntent[] }
-  | { output: { decisionId: string; tenantId: string; deduplicated: true } };
-
+// The event-processor ingestion engine's normalize-handler expects a
+// `WriteIntent | WriteIntent[]` (libs/event-processor/src/engine/normalize-handler.ts).
+// Returning a wrapper object like `{ output, intents }` made toArray() treat the
+// wrapper as a single bogus intent (tag undefined → "intent result success:false"),
+// surfaced by Task 19's MarketSnapshot bootstrap on first deploy.
 export const createHandlers = (deps: IngressDeps) => ({
-  GENERATE_NARRATIVE: async (payload: EventPayload, ctx: EventContext): Promise<GenerateNarrativeOutput> => {
+  GENERATE_NARRATIVE: async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
     const subject = payload.subject ?? {};
     const tenantId = (subject.tenantId as string) ?? (ctx.tenantId as unknown as string);
     const decisionId = subject.decisionId as string;
@@ -99,32 +99,32 @@ export const createHandlers = (deps: IngressDeps) => ({
         priorNarratives: priorNarratives.map(r => r.content),
       });
 
-      // Wrap result for SF state with size guard (currently inline-only;
-      // throws OutputTooLargeError if >25 KB — file follow-up if observed).
-      const wrapped = wrapAgentOutput(result);
+      // Size guard only — `wrapAgentOutput` throws OutputTooLargeError if
+      // the agent output exceeds 25 KB. The wrapped value is no longer
+      // returned to SF (handlers must return WriteIntent[]); DWC reads the
+      // full result back from the AgentCompletion row via CDC. The wrapper
+      // itself is now vestigial — see backlog/an-ctrl-wrap-agent-output-vestigial.md.
+      wrapAgentOutput(result);
 
-      return {
-        output: { decisionId, tenantId, agentOutput: wrapped.value },
-        intents: [
-          record('AgentInvocation', { decisionId, tenantId, agentName: AGENT_NAME }),
-          record(
-            'AgentCompletion',
-            {
-              decisionId,
-              tenantId,
-              agentName: AGENT_NAME,
-              taskToken,
-              agentOutput: result,
-              completedAt: new Date().toISOString(),
-            },
-            { pk: AGENT_COMPLETION_PK(decisionId), sk: AGENT_COMPLETION_SK(AGENT_NAME) },
-          ),
-        ],
-      };
+      return [
+        record('AgentInvocation', { decisionId, tenantId, agentName: AGENT_NAME }),
+        record(
+          'AgentCompletion',
+          {
+            decisionId,
+            tenantId,
+            agentName: AGENT_NAME,
+            taskToken,
+            agentOutput: result,
+            completedAt: new Date().toISOString(),
+          },
+          { pk: AGENT_COMPLETION_PK(decisionId), sk: AGENT_COMPLETION_SK(AGENT_NAME) },
+        ),
+      ];
     } catch (err) {
       if (err instanceof DuplicateInvocationError) {
         logger.info('Duplicate GENERATE_NARRATIVE event, skipping', { eventId: ctx.eventId, decisionId });
-        return { output: { decisionId, tenantId, deduplicated: true } };
+        return [];
       }
       // Caught error path: emit AgentFailure CDC row instead of rethrowing.
       // Re-throwing would trigger SQS retry, which would re-invoke the agent
@@ -137,34 +137,31 @@ export const createHandlers = (deps: IngressDeps) => ({
         errorType: error.name,
         errorMessage: error.message,
       });
-      return {
-        output: { decisionId, tenantId, failed: true },
-        intents: [
-          record(
-            'AgentFailure',
-            {
-              decisionId,
-              tenantId,
-              agentName: AGENT_NAME,
-              taskToken,
-              errorType: error.name ?? 'UnknownError',
-              errorMessage: error.message,
-              failedAt: new Date().toISOString(),
-            },
-            { pk: AGENT_FAILURE_PK(decisionId), sk: AGENT_FAILURE_SK(AGENT_NAME) },
-          ),
-        ],
-      };
+      return [
+        record(
+          'AgentFailure',
+          {
+            decisionId,
+            tenantId,
+            agentName: AGENT_NAME,
+            taskToken,
+            errorType: error.name ?? 'UnknownError',
+            errorMessage: error.message,
+            failedAt: new Date().toISOString(),
+          },
+          { pk: AGENT_FAILURE_PK(decisionId), sk: AGENT_FAILURE_SK(AGENT_NAME) },
+        ),
+      ];
     }
   },
 
-  DECISION_FEEDBACK: async (payload: EventPayload, ctx: EventContext) => {
+  DECISION_FEEDBACK: async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
     logger.info('Processing DECISION_FEEDBACK', { eventType: ctx.eventType });
     await deps.feedbackCorrelator.process({
       type: ctx.eventType,
       subject: payload.subject,
     } as Record<string, unknown>);
-    return { output: { eventType: ctx.eventType, status: 'processed' } };
+    return [];
   },
 });
 

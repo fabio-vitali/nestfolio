@@ -84,9 +84,8 @@ describe('portfolio-engine-ctrl event-listener', () => {
         },
       };
 
-      const result = await handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx);
+      await handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx);
 
-      expect(result.output).toMatchObject({ decisionId: 'dp-1', tenantId: 't1' });
       expect(mockSearchLongTermMemory).toHaveBeenCalledWith('rationale', 'allocation rationale decisions');
       expect(mockRunPipeline).toHaveBeenCalledWith(
         'evt-1',
@@ -120,7 +119,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
 
       const result = await handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx);
 
-      expect(result.intents).toEqual([
+      expect(result).toEqual([
         expect.objectContaining({
           _tag: 'record',
           typename: 'AgentInvocation',
@@ -144,7 +143,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
       ]);
     });
 
-    it('returns the agent result inside SF output for downstream consumers', async () => {
+    it('emits AgentCompletion intent carrying the full agentOutput for downstream consumers', async () => {
       const fakeAgentResult = {
         'portfolio-construction': { allocations: [{ instrument: 'VTI', targetWeight: 0.6 }] },
         'rebalance-planner': { trades: [{ action: 'BUY', instrument: 'VTI' }] },
@@ -164,7 +163,12 @@ describe('portfolio-engine-ctrl event-listener', () => {
 
       const result = await handlers.CONSTRUCT_PORTFOLIO(payload, { ...baseCtx, eventId: 'evt-out' });
 
-      expect(result.output).toMatchObject({
+      const completion = result.find(
+        (i): i is { _tag: 'record'; typename: string; fields: Record<string, unknown> } =>
+          (i as { typename?: string }).typename === 'AgentCompletion',
+      );
+      expect(completion).toBeDefined();
+      expect(completion!.fields).toMatchObject({
         decisionId: 'd1',
         tenantId: 't1',
         agentOutput: fakeAgentResult,
@@ -217,8 +221,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
 
       const result = await handlers.CONSTRUCT_PORTFOLIO(payload, baseCtx);
 
-      expect(result.output).toMatchObject({ decisionId: 'd1', tenantId: 't1', failed: true });
-      expect(result.intents).toEqual([
+      expect(result).toEqual([
         expect.objectContaining({
           _tag: 'record',
           typename: 'AgentFailure',
@@ -234,7 +237,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
       ]);
     });
 
-    it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
+    it('returns an empty intent array when DuplicateInvocationError is thrown', async () => {
       const { DuplicateInvocationError } = await import('../../src/agent-service');
       mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('evt-dup'));
 
@@ -245,8 +248,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
       const dupCtx: EventContext = { ...baseCtx, eventId: 'evt-dup' };
       const result = await handlers.CONSTRUCT_PORTFOLIO(payload, dupCtx);
 
-      expect(result.output).toMatchObject({ decisionId: 'dp-dup', tenantId: 't1', deduplicated: true });
-      expect(result.intents).toBeUndefined();
+      expect(result).toEqual([]);
     });
 
     it('throws NotRetryableError when subject.taskToken is missing', async () => {
@@ -275,7 +277,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
   });
 
   describe('KB-ingestion handlers', () => {
-    it('routes SEC_PROSPECTUS_UPDATED to KB ingestion', async () => {
+    it('routes SEC_PROSPECTUS_UPDATED to KB ingestion (no intents emitted)', async () => {
       const kbCtx: EventContext = { ...baseCtx, eventType: 'SEC_PROSPECTUS_UPDATED' };
       const payload: EventPayload = {
         subject: { filingId: 'f-1', content: 'Prospectus content' },
@@ -283,7 +285,7 @@ describe('portfolio-engine-ctrl event-listener', () => {
 
       const result = await handlers.SEC_PROSPECTUS_UPDATED(payload, kbCtx);
 
-      expect(result.output).toEqual({ eventType: 'SEC_PROSPECTUS_UPDATED', status: 'ingested' });
+      expect(result).toEqual([]);
       expect(mockIngest).toHaveBeenCalled();
     });
   });

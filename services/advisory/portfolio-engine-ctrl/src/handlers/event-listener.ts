@@ -31,14 +31,14 @@ export interface IngressDeps {
   readonly memoryClient: MemoryClient;
 }
 
-type CompletionHandlerOutput =
-  | { output: { decisionId: string; tenantId: string; agentOutput: Record<string, unknown> }; intents: WriteIntent[] }
-  | { output: { decisionId: string; tenantId: string; failed: true }; intents: WriteIntent[] }
-  | { output: { decisionId: string; tenantId: string; deduplicated: true } };
-
+// The event-processor ingestion engine's normalize-handler expects a
+// `WriteIntent | WriteIntent[]` (libs/event-processor/src/engine/normalize-handler.ts).
+// Returning a wrapper object like `{ output, intents }` made toArray() treat the
+// wrapper as a single bogus intent (tag undefined → "intent result success:false"),
+// surfaced by Task 19's MarketSnapshot bootstrap on first deploy.
 export const createHandlers = (deps: IngressDeps) => {
-  const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<{ output: Record<string, unknown>; intents?: WriteIntent[] }>> = {
-    CONSTRUCT_PORTFOLIO: async (payload: EventPayload, ctx: EventContext): Promise<CompletionHandlerOutput> => {
+  const handlers: Record<string, (payload: EventPayload, ctx: EventContext) => Promise<WriteIntent[]>> = {
+    CONSTRUCT_PORTFOLIO: async (payload: EventPayload, ctx: EventContext): Promise<WriteIntent[]> => {
       const subject = payload.subject ?? {};
       const tenantId = (subject.tenantId as string) ?? (ctx.tenantId as unknown as string);
       const decisionId = subject.decisionId as string;
@@ -89,28 +89,25 @@ export const createHandlers = (deps: IngressDeps) => {
           pastRationale: pastRationale.map(r => r.content),
         });
 
-        return {
-          output: { decisionId, tenantId, agentOutput: result },
-          intents: [
-            record('AgentInvocation', { decisionId, tenantId, agentName: AGENT_NAME }),
-            record(
-              'AgentCompletion',
-              {
-                decisionId,
-                tenantId,
-                agentName: AGENT_NAME,
-                taskToken,
-                agentOutput: result,
-                completedAt: new Date().toISOString(),
-              },
-              { pk: AGENT_COMPLETION_PK(decisionId), sk: AGENT_COMPLETION_SK(AGENT_NAME) },
-            ),
-          ],
-        };
+        return [
+          record('AgentInvocation', { decisionId, tenantId, agentName: AGENT_NAME }),
+          record(
+            'AgentCompletion',
+            {
+              decisionId,
+              tenantId,
+              agentName: AGENT_NAME,
+              taskToken,
+              agentOutput: result,
+              completedAt: new Date().toISOString(),
+            },
+            { pk: AGENT_COMPLETION_PK(decisionId), sk: AGENT_COMPLETION_SK(AGENT_NAME) },
+          ),
+        ];
       } catch (err) {
         if (err instanceof DuplicateInvocationError) {
           logger.info('Duplicate CONSTRUCT_PORTFOLIO event, skipping', { eventId: ctx.eventId, decisionId });
-          return { output: { decisionId, tenantId, deduplicated: true } };
+          return [];
         }
         // Caught error path: emit AgentFailure CDC row instead of rethrowing.
         // Re-throwing would trigger SQS retry, which would re-invoke the agent
@@ -123,36 +120,34 @@ export const createHandlers = (deps: IngressDeps) => {
           errorType: error.name,
           errorMessage: error.message,
         });
-        return {
-          output: { decisionId, tenantId, failed: true },
-          intents: [
-            record(
-              'AgentFailure',
-              {
-                decisionId,
-                tenantId,
-                agentName: AGENT_NAME,
-                taskToken,
-                errorType: error.name ?? 'UnknownError',
-                errorMessage: error.message,
-                failedAt: new Date().toISOString(),
-              },
-              { pk: AGENT_FAILURE_PK(decisionId), sk: AGENT_FAILURE_SK(AGENT_NAME) },
-            ),
-          ],
-        };
+        return [
+          record(
+            'AgentFailure',
+            {
+              decisionId,
+              tenantId,
+              agentName: AGENT_NAME,
+              taskToken,
+              errorType: error.name ?? 'UnknownError',
+              errorMessage: error.message,
+              failedAt: new Date().toISOString(),
+            },
+            { pk: AGENT_FAILURE_PK(decisionId), sk: AGENT_FAILURE_SK(AGENT_NAME) },
+          ),
+        ];
       }
     },
   };
 
-  // KB ingestion events — routed through this listener, delegate to the ingestion handler
+  // KB ingestion events — routed through this listener, delegate to the ingestion handler.
+  // No intents to emit; the side-effect happens inside kbIngestionHandler.ingest.
   for (const eventType of KB_INGESTION_EVENT_TYPES) {
     handlers[eventType] = async (payload, ctx) => {
       await deps.kbIngestionHandler.ingest(
         { type: ctx.eventType, subject: payload.subject } as Record<string, unknown>,
         ctx.eventType,
       );
-      return { output: { eventType: ctx.eventType, status: 'ingested' } };
+      return [];
     };
   }
 
