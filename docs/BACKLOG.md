@@ -6,8 +6,7 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [advisory-cycle-agent-precomputation-impl](backlog/advisory-cycle-agent-precomputation-impl.md) [feature] — Implementation of the advisory-cycle-agent-precomputation design spec. IP+MI exit the per-cycle pipeline (continuous projection). PE+AN refactor to emit *_COMPLETED/*_FAILED via CDC; CallbackIngress becomes sole SF callback caller. SF gains payload-first Choice states for IP and Mandate projection reads.
 
 ## QUEUED
 
