@@ -48,9 +48,6 @@
       "@nestfolio/decision-workflow-ctrl/events": [
         "services/advisory/decision-workflow-ctrl/src/domain/events.ts"
       ],
-      "@nestfolio/decision-workflow-ctrl/stack": [
-        "services/advisory/decision-workflow-ctrl/src/service.stack.ts"
-      ],
       "@nestfolio/yahoo-finance-adpt/events": [
         "services/advisory/yahoo-finance-adpt/src/domain/events.ts"
       ],
@@ -65,26 +62,14 @@
       "@nestfolio/portfolio-engine-ctrl/events": [
         "services/advisory/portfolio-engine-ctrl/src/domain/events.ts"
       ],
-      "@nestfolio/portfolio-engine-ctrl/stack": [
-        "services/advisory/portfolio-engine-ctrl/src/service.stack.ts"
-      ],
       "@nestfolio/advisory-narrative-ctrl/events": [
         "services/advisory/advisory-narrative-ctrl/src/domain/events.ts"
-      ],
-      "@nestfolio/advisory-narrative-ctrl/stack": [
-        "services/advisory/advisory-narrative-ctrl/src/service.stack.ts"
       ],
       "@nestfolio/investor-profile-ctrl/events": [
         "services/advisory/investor-profile-ctrl/src/domain/events.ts"
       ],
-      "@nestfolio/investor-profile-ctrl/stack": [
-        "services/advisory/investor-profile-ctrl/src/service.stack.ts"
-      ],
       "@nestfolio/market-intelligence-ctrl/events": [
         "services/advisory/market-intelligence-ctrl/src/domain/events.ts"
-      ],
-      "@nestfolio/market-intelligence-ctrl/stack": [
-        "services/advisory/market-intelligence-ctrl/src/service.stack.ts"
       ],
       "@nestfolio/execution-ctrl/events": [
         "services/execution/execution-ctrl/src/domain/events.ts"
