@@ -91,7 +91,9 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     const state = branchStates.LookupMarketSnapshot;
     expect(state).toBeDefined();
     expect(state.Type).toBe('Task');
-    expect(state.Resource).toBe('arn:aws:states:::dynamodb:getItem');
+    // sfnTasks.DynamoGetItem renders Resource via { Fn::Sub } using the
+    // aws-partition intrinsic, so the partition slot is a CFN ref token here.
+    expect(state.Resource).toMatch(/states:::dynamodb:getItem$/);
     expect(state.Parameters.Key.pk['S.$']).toBe(
       "States.Format('MarketSnapshot#{}', $.region)",
     );

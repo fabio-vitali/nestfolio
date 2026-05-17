@@ -3,6 +3,7 @@ import { Duration } from 'aws-cdk-lib';
 import { IEventBus } from 'aws-cdk-lib/aws-events';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
+import * as sfnTasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
 
 interface DecisionWorkflowDefinitionProps {
   readonly eventBus: IEventBus;
@@ -388,38 +389,29 @@ export class DecisionWorkflowDefinition extends Construct {
     //     seeds an empty agentOutput. PE+AN tolerate empty marketAnalysis via
     //     `?? {}` (event-listener.ts in each), so absent market context
     //     degrades the decision rather than aborting the cycle.
-    const lookupMarketSnapshot = new sfn.CustomState(this, 'LookupMarketSnapshot', {
-      stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::dynamodb:getItem',
-        Parameters: {
-          TableName: props.tableName,
-          Key: {
-            pk: { 'S.$': "States.Format('MarketSnapshot#{}', $.region)" },
-            sk: { S: 'MarketSnapshot' },
-          },
-        },
-        ResultSelector: {
-          'agentOutput.$': '$.Item.agentOutput.M',
-        },
-        ResultPath: '$.agentResults.InvokeMarketIntelligence',
-        // End: true short-circuits the Next that the .next() chain below
-        // injects — CustomState.toStateJson() spreads user stateJson AFTER
-        // renderNextEnd(), so user keys win. .next() is used purely so CDK's
-        // branch graph walker discovers HandleMissingMarketSnapshot.
-        End: true,
-        Catch: [
-          {
-            ErrorEquals: ['States.Runtime', 'States.TaskFailed'],
-            Next: 'HandleMissingMarketSnapshot',
-            ResultPath: null,
-          },
-        ],
+    //     DynamoGetItem (not CustomState) so we can use .addCatch() — ASL
+    //     forbids both Next and End on the same state, which a CustomState +
+    //     .next(handler) pattern would otherwise produce.
+    const lookupMarketSnapshot = new sfnTasks.DynamoGetItem(this, 'LookupMarketSnapshot', {
+      table: props.table,
+      key: {
+        pk: sfnTasks.DynamoAttributeValue.fromString(
+          sfn.JsonPath.format('MarketSnapshot#{}', sfn.JsonPath.stringAt('$.region')),
+        ),
+        sk: sfnTasks.DynamoAttributeValue.fromString('MarketSnapshot'),
       },
+      resultSelector: {
+        'agentOutput.$': '$.Item.agentOutput.M',
+      },
+      resultPath: '$.agentResults.InvokeMarketIntelligence',
     });
     const handleMissingMarketSnapshot = new sfn.Pass(this, 'HandleMissingMarketSnapshot', {
       result: sfn.Result.fromObject({ agentOutput: {} }),
       resultPath: '$.agentResults.InvokeMarketIntelligence',
+    });
+    lookupMarketSnapshot.addCatch(handleMissingMarketSnapshot, {
+      errors: ['States.Runtime', 'States.TaskFailed'],
+      resultPath: sfn.JsonPath.DISCARD,
     });
 
     // (C) Parallel: run the IP Choice + Market lookup concurrently.
@@ -427,9 +419,7 @@ export class DecisionWorkflowDefinition extends Construct {
       resultPath: '$.parallelResults',
     });
     parallelProjections.branch(resolveInvestorProfile);
-    parallelProjections.branch(
-      sfn.Chain.start(lookupMarketSnapshot).next(handleMissingMarketSnapshot),
-    );
+    parallelProjections.branch(lookupMarketSnapshot);
 
     // (D) MergeProjections — lift each branch's result back into top-level
     //     $.agentResults.<StateId>.agentOutput so PE+AN subjects can reference
