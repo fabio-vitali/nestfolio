@@ -44,7 +44,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     // Three long-term MemoryStrategies (Phase B — inter-agent-state-handoff):
     //   1. InvestorPreferenceLearner (USER_PREFERENCE_MEMORY, Haiku extraction only)
     //      Namespace: /investor-profile-ctrl/{actorId}/preferences
-    //   2. MarketSignalExtractor (SEMANTIC_MEMORY, Haiku extraction only)
+    //   2. MarketSignalExtractor (SEMANTIC_MEMORY, managed extraction)
     //      Namespace: /market-intelligence-ctrl/{actorId}/signals
     //   3. RationaleArchivist (SEMANTIC_MEMORY, Haiku extraction only)
     //      Namespace: /shared-rationale/{actorId}/rationale
@@ -81,13 +81,6 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
         agentcore.MemoryStrategy.usingSemantic({
           name: 'MarketSignalExtractor',
           namespaces: ['/market-intelligence-ctrl/{actorId}/signals'],
-          customExtraction: {
-            model: haikuModel,
-            appendToPrompt:
-              'Extract market signals with cross-decision shelf life: sector ' +
-              'trends, regime indicators, signal strength, and direction. Ignore ' +
-              'one-off intraday noise. One signal per record.',
-          },
         }),
         agentcore.MemoryStrategy.usingSemantic({
           name: 'RationaleArchivist',

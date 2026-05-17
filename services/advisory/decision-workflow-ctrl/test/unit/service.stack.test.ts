@@ -176,15 +176,18 @@ describe('DecisionWorkflowCtrlStack', () => {
       ]);
     });
 
-    it('attaches MarketSignalExtractor with SEMANTIC_MEMORY type, custom Haiku extraction only', () => {
+    it('attaches MarketSignalExtractor with managed SEMANTIC type (no custom extraction)', () => {
       const strategies = getStrategies();
       const extractor = strategies.find(
-        (s: any) => s.CustomMemoryStrategy?.Name === 'MarketSignalExtractor',
+        (s: any) =>
+          s.SemanticMemoryStrategy?.Name === 'MarketSignalExtractor' ||
+          s.CustomMemoryStrategy?.Name === 'MarketSignalExtractor',
       );
       expect(extractor).toBeDefined();
-      const cfg = extractor?.CustomMemoryStrategy?.Configuration?.SemanticOverride;
-      expect(cfg?.Extraction?.AppendToPrompt).toContain('cross-decision shelf life');
-      expect(extractor?.CustomMemoryStrategy?.Namespaces).toEqual([
+      // Managed (non-custom) shape: SemanticMemoryStrategy with no customExtraction config.
+      expect(extractor?.SemanticMemoryStrategy).toBeDefined();
+      expect(extractor?.CustomMemoryStrategy).toBeUndefined();
+      expect(extractor?.SemanticMemoryStrategy?.Namespaces).toEqual([
         '/market-intelligence-ctrl/{actorId}/signals',
       ]);
     });
