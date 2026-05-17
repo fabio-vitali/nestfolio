@@ -121,9 +121,20 @@ describe('MarketIntelligenceCtrlStack', () => {
     }
   });
 
-  it('declares a scheduled rule with rate(15 minutes) targeting the advisoryBus', () => {
+  it('declares a scheduled rule with rate(15 minutes) targeting the scheduled-emitter Lambda', () => {
+    // Pin both the rate AND the target so a future change that repointed the
+    // schedule at a different Lambda (or dropped the emitter entirely) fails loudly.
     template.hasResourceProperties('AWS::Events::Rule', {
       ScheduleExpression: 'rate(15 minutes)',
+      Targets: Match.arrayWith([
+        Match.objectLike({
+          Arn: Match.objectLike({
+            'Fn::GetAtt': Match.arrayWith([
+              Match.stringLikeRegexp('^ScheduledEmitter'),
+            ]),
+          }),
+        }),
+      ]),
     });
   });
 
