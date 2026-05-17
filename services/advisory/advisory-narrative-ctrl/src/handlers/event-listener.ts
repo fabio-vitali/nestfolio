@@ -25,7 +25,7 @@ import {
 
 const AGENT_NAME = 'advisory-narrative';
 
-export interface SfnCallbackDeps {
+export interface IngressDeps {
   readonly agentService: { runPipeline: (eventId: string, event: Record<string, unknown>) => Promise<Record<string, unknown>> };
   readonly feedbackCorrelator: { process: (event: Record<string, unknown>) => Promise<void> };
   readonly memoryClient: MemoryClient;
@@ -36,7 +36,7 @@ type GenerateNarrativeOutput =
   | { output: { decisionId: string; tenantId: string; failed: true }; intents: WriteIntent[] }
   | { output: { decisionId: string; tenantId: string; deduplicated: true } };
 
-export const createHandlers = (deps: SfnCallbackDeps) => ({
+export const createHandlers = (deps: IngressDeps) => ({
   GENERATE_NARRATIVE: async (payload: EventPayload, ctx: EventContext): Promise<GenerateNarrativeOutput> => {
     const subject = payload.subject ?? {};
     const tenantId = (subject.tenantId as string) ?? (ctx.tenantId as unknown as string);
@@ -188,7 +188,7 @@ const memoryClient = process.env.MEMORY_ID
 
 const agentService = createAgentService({ docClient, tableName: TABLE_NAME, memoryClient });
 
-const deps: SfnCallbackDeps = { agentService, feedbackCorrelator, memoryClient };
+const deps: IngressDeps = { agentService, feedbackCorrelator, memoryClient };
 
 export const handler = materializeToTable({
   serviceName: 'advisory-narrative-ctrl',

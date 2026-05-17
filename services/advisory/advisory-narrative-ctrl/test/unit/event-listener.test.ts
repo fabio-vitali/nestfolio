@@ -8,11 +8,6 @@ jest.mock('@aws-sdk/lib-dynamodb', () => ({
   DynamoDBDocumentClient: { from: jest.fn().mockImplementation(() => ({ send: mockSend })) },
   PutCommand: jest.fn().mockImplementation((input) => ({ _type: 'Put', input })),
 }));
-jest.mock('@aws-sdk/client-sfn', () => ({
-  SFNClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
-  SendTaskSuccessCommand: jest.fn(),
-  SendTaskFailureCommand: jest.fn(),
-}));
 jest.mock('@nestfolio/agent-orchestrator', () => ({
   createAgentNode: jest.fn().mockReturnValue(jest.fn()),
   withRetry: jest.fn().mockImplementation((node) => node),
@@ -35,14 +30,14 @@ process.env.MEMORY_ID = 'mem-test';
 import type { EventPayload, EventContext } from '@nestfolio/event-processor';
 import { asTenantId, asUserId, NotRetryableError } from '@nestfolio/event-processor';
 import { type MemoryClient, UnknownOperatingModeError } from '@nestfolio/agent-orchestrator';
-import { createHandlers, type SfnCallbackDeps } from '../../src/handlers/event-listener';
+import { createHandlers, type IngressDeps } from '../../src/handlers/event-listener';
 
 describe('advisory-narrative-ctrl event-listener', () => {
   const mockRunPipeline = jest.fn();
   const mockProcess = jest.fn();
   const mockSearchLongTermMemory = jest.fn().mockResolvedValue([]);
 
-  const mockDeps: SfnCallbackDeps = {
+  const mockDeps: IngressDeps = {
     agentService: { runPipeline: mockRunPipeline },
     feedbackCorrelator: { process: mockProcess },
     memoryClient: {
