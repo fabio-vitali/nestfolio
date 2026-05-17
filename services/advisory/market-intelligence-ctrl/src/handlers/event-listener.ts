@@ -23,6 +23,10 @@ import {
 
 export interface IngressDeps {
   readonly agentService: { runPipeline: (eventId: string, event: Record<string, unknown>) => Promise<Record<string, unknown>> };
+  // Retained — not used directly by runMarketAgent (the snapshot writer is
+  // region-scoped and has no tenant/decision identity for a Memory session).
+  // Passed to agentService internally for Memory persistence via
+  // emitLongTermEvent after agent invocation (see agent-service.ts).
   readonly memoryClient: MemoryClient;
 }
 

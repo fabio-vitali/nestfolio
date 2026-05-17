@@ -176,6 +176,19 @@ describe('market-intelligence-ctrl event-listener', () => {
     });
   });
 
+  it('fast-tier handler returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
+    const { DuplicateInvocationError } = await import('../../src/agent-service');
+    mockRunPipeline.mockRejectedValueOnce(new DuplicateInvocationError('feed-dup-1'));
+
+    const payload: EventPayload = { subject: { region: 'us-east-1' } };
+    const ctx = makeCtx({ eventType: 'YAHOO_FINANCE_UPDATED', eventId: 'feed-dup-1' });
+
+    const result = await handlers.YAHOO_FINANCE_UPDATED(payload, ctx);
+
+    expect(result.output).toMatchObject({ region: 'us-east-1', deduplicated: true });
+    expect((result as { intents?: unknown }).intents).toBeUndefined();
+  });
+
   it('always emits an AgentInvocation record alongside the snapshot write', async () => {
     const payload: EventPayload = { subject: { region: 'us-east-1' } };
     const ctx = makeCtx({ eventType: 'YAHOO_FINANCE_UPDATED', eventId: 'feed-inv-1' });
