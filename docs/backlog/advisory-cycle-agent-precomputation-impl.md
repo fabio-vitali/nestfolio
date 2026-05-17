@@ -1,8 +1,9 @@
 ---
 id: advisory-cycle-agent-precomputation-impl
-status: active
+status: shipped
 type: feature
 requires_deploy: true
+shipped: 2026-05-17
 notes: "Implementation of the advisory-cycle-agent-precomputation design spec. IP+MI exit the per-cycle pipeline (continuous projection). PE+AN refactor to emit *_COMPLETED/*_FAILED via CDC; CallbackIngress becomes sole SF callback caller. SF gains payload-first Choice states for IP and Mandate projection reads."
 references:
   - docs/superpowers/specs/2026-05-17-advisory-cycle-agent-precomputation-design.md
@@ -34,9 +35,27 @@ out_of_scope:
   - "Snapshot retention / archival policy"
   - "Compliance + user-confirmation callback paths (already follow target pattern)"
 spec: docs/superpowers/specs/2026-05-17-advisory-cycle-agent-precomputation-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-17-advisory-cycle-agent-precomputation-impl.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  All 7 validation gates met as of 2026-05-17:
+    1. nx affected -t test,lint --base=origin/main → 99/99 tasks green across 50 projects (commit fe74c99b).
+    2. Integration tests authored for 5 services (commit 08140a8c); execution against deployed dev exercised via the e2e gate below.
+    3. Dev deploy of 5 services successful — investor-profile-ctrl, decision-workflow-ctrl, portfolio-engine-ctrl, advisory-narrative-ctrl, market-intelligence-ctrl all UPDATE_COMPLETE.
+    4. e2e advisory/first-decision PASS in 128.7s; advisory/rebalance-on-drift PASS in 160.2s on dev sandbox.
+    5. Zero ANALYZE_INVESTOR_PROFILE / ANALYZE_MARKET observed in DWC consumer logs post-ship.
+    6. Non-zero new event volume verified: 7× PORTFOLIO_COMPLETED + 7× NARRATIVE_COMPLETED handled by DWC CallbackIngress in 30-min post-deploy window; SnapshotProjectorIngress wrote projection rows successfully; 2 DecisionReadModels surfaced in advisory-bff with proposedTrades.
+    7. IAM audit: 0 states:SendTask* grants on Ingress roles for IP/MI/PE/AN; DWC CallbackIngressHandler role is the sole holder of states:SendTaskSuccess + SendTaskFailure + SendTaskHeartbeat (Task 12 workspace-wide invariant test asserts this — moved to apps/architecture-tests/ leaf project to avoid graph cycle).
+
+  Surfaced + resolved during deploy validation (not pre-ship):
+    - Bedrock AgentCore runtimeSessionId < 33-char rejection (commit 0c3cfed1).
+    - Handler return-shape contract mismatch with normalize-handler (commit aa9ea637); resolves parked item `advisory-handler-type-narrowing-debt`.
+    - e2e first-decision agent-trace assertions assumed in-cycle IP+MI agents; post-precomputation those run out-of-cycle (commit 293e7c08).
+    - withLiveDecision default 90s→120s→180s after observing dev-actual cycle latency at 90-110s.
+
+  Parking items filed during execution:
+    - an-ctrl-wrap-agent-output-vestigial (parked 2026-05-17)
+    - advisory-handler-type-narrowing-debt (parked 2026-05-17, resolved by commit aa9ea637 — keep parked entry as a postmortem record).
 ---
 
 # Advisory cycle — agent precomputation + callback symmetry (implementation)
