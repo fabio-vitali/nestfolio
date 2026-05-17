@@ -29,3 +29,23 @@ export interface DecisionPacket {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
+
+export interface InvestorProfileSnapshotProjectionRow {
+  pk: string;                              // `InvestorProfileSnapshot#${tenantId}#${userId}`
+  sk: 'InvestorProfileSnapshot';
+  __typename: 'InvestorProfileSnapshot';
+  tenantId: string;
+  userId: string;
+  agentOutput: Record<string, unknown>;
+  sourceEventId: string;
+  updatedAt: string;
+}
+
+export interface MarketSnapshotProjectionRow {
+  pk: string;                              // `MarketSnapshot#${region}`
+  sk: 'MarketSnapshot';
+  __typename: 'MarketSnapshot';
+  region: string;
+  agentOutput: Record<string, unknown>;
+  updatedAt: string;
+}

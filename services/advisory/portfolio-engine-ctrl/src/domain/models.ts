@@ -42,3 +42,28 @@ export interface PortfolioSnapshot {
   }>;
   readonly totalValue: number;
 }
+
+export interface AgentCompletionRow {
+  pk: string;                              // `AgentCompletion#${decisionId}`
+  sk: string;                              // `AgentCompletion#${agentName}`
+  __typename: 'AgentCompletion';
+  decisionId: string;
+  tenantId: string;
+  agentName: 'portfolio-engine';
+  taskToken: string;
+  agentOutput: Record<string, unknown>;
+  completedAt: string;
+}
+
+export interface AgentFailureRow {
+  pk: string;                              // `AgentFailure#${decisionId}`
+  sk: string;                              // `AgentFailure#${agentName}`
+  __typename: 'AgentFailure';
+  decisionId: string;
+  tenantId: string;
+  agentName: 'portfolio-engine';
+  taskToken: string;
+  errorType: string;
+  errorMessage: string;
+  failedAt: string;
+}

@@ -34,3 +34,26 @@ export interface ReasoningOutput {
   readonly confidence: number;
   readonly createdAt: string;
 }
+
+export interface MarketSnapshotRow {
+  pk: string;                              // `MarketSnapshot#${region}`
+  sk: 'MarketSnapshot';
+  __typename: 'MarketSnapshot';
+  region: string;
+  agentOutput: {
+    signals: Array<{
+      type: string;
+      ticker: string;
+      sentiment: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+      confidence: number;
+      source: string;
+    }>;
+    tickersMentioned: string[];
+    marketOutlook: string;
+    confidenceScore: number;
+  };
+  fastComponentsAt: string;
+  slowComponentsAt: string;
+  sourceEventIds: string[];                // ring buffer, last 20
+  updatedAt: string;
+}

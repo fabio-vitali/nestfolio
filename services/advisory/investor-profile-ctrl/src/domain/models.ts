@@ -33,3 +33,25 @@ export interface ReasoningOutput {
   readonly confidence: number;
   readonly createdAt: string;
 }
+
+export interface InvestorProfileSnapshotRow {
+  pk: string;                              // `InvestorProfileSnapshot#${tenantId}#${userId}`
+  sk: 'InvestorProfileSnapshot';
+  __typename: 'InvestorProfileSnapshot';
+  tenantId: string;
+  userId: string;
+  agentOutput: {
+    goals: string[];
+    timeHorizon: string;
+    riskWillingness: string;
+    riskScore: number;
+    riskCategory: 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE';
+    regulatoryFlags: string[];
+    suitabilityAssessment: string;
+    confidence: number;
+  };
+  sourceEventId: string;
+  sourceEventType: 'INVESTOR_PROFILE_UPDATED' | 'MANDATE_ISSUED' | 'OPERATING_MODE_CHANGED';
+  agentInvocationId: string;
+  updatedAt: string;
+}

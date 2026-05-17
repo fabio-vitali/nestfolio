@@ -34,3 +34,28 @@ export interface FeedbackAnnotation {
   readonly riskCategory: string;
   readonly annotatedAt: string;
 }
+
+export interface AgentCompletionRow {
+  pk: string;                              // `AgentCompletion#${decisionId}`
+  sk: string;                              // `AgentCompletion#${agentName}`
+  __typename: 'AgentCompletion';
+  decisionId: string;
+  tenantId: string;
+  agentName: 'advisory-narrative';
+  taskToken: string;
+  agentOutput: Record<string, unknown>;
+  completedAt: string;
+}
+
+export interface AgentFailureRow {
+  pk: string;                              // `AgentFailure#${decisionId}`
+  sk: string;                              // `AgentFailure#${agentName}`
+  __typename: 'AgentFailure';
+  decisionId: string;
+  tenantId: string;
+  agentName: 'advisory-narrative';
+  taskToken: string;
+  errorType: string;
+  errorMessage: string;
+  failedAt: string;
+}
