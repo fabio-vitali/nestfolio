@@ -13,6 +13,7 @@ _(none)_
 
 1. [bedrock-cost-reduction-may-2026](backlog/bedrock-cost-reduction-may-2026.md) [refactor] — 5-lever Bedrock cost-reduction package — Phase B MemoryStrategies + Opus downgrades; ~$100/mo savings
 2. [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out; blocks e2e scenarios 11+12 green gate. Depends on observability workstream landing first.
+3. [e2e-fetch-trigger-fixture](backlog/e2e-fetch-trigger-fixture.md) [tooling] — Shared e2e fixture publishing FETCH_REQUESTED to advisory bus so tests can prime fred/alpha-vantage/marketwatch/sec-edgar/yahoo-finance adapters before exercising agents — schedules stay DISABLED in dev.
 
 ## LATER
 
