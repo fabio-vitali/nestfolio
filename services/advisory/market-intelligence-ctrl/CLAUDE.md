@@ -23,7 +23,7 @@ Stack: services/advisory/market-intelligence-ctrl/src/service.stack.ts
 
 ## Schedule
 - MarketSnapshotRefreshTick (EventBridge Rule): rate(15 minutes) -> ScheduledEmitter Lambda -> PutEvents(MARKET_SNAPSHOT_REFRESH_TICK) on advisoryBus. The Lambda emitter builds a structured event-processor envelope (the native EB->EventBus target cannot construct envelopes inline).
-- BootstrapSnapshotProvider (CDK CustomResource): on stack Create only, the BootstrapSnapshotFn emits a synthetic MARKET_SNAPSHOT_REFRESH_TICK and polls DDB until the MarketSnapshot row materializes (5-minute deadline). Without it, the first decision cycle on a fresh deploy races the 15-minute schedule and would LookupMarketSnapshot a missing row. Update/Delete are no-ops.
+- Fault-tolerance contract: a fresh deploy can leave the MarketSnapshot row absent for up to 15 minutes (and a scheduler-disabled / Bedrock-outage / row-eviction scenario can produce the same state at any time). DWC's SF tolerates this — `LookupMarketSnapshot` Catches the missing-Item failure and routes to `HandleMissingMarketSnapshot` (empty agentOutput default). PE+AN read `subject.marketAnalysis ?? {}` so absent market context degrades the decision rather than aborting the cycle.
 
 ## Egress
 - CDC: DynamoDB Streams -> market-intelligence-ctrl-egress (Lambda)
@@ -45,14 +45,12 @@ Agent folder: agents/market-intelligence/
 ## Standalone Lambdas
 - KBIngestion: Ingests feed data into MarketKB (triggered by 5 feed ingestion events)
 - ScheduledEmitter: 15-minute tick emitter Lambda (above)
-- BootstrapSnapshotFn: One-shot tick + poll on stack create (above)
 
 ## Handlers
 - event-listener.ts -- Ingress snapshot writer (materializeToTable). Each feed event or tick runs the agent and records both an AgentInvocation row and the MarketSnapshot row keyed by region.
 - event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline)
 - kb-ingestion-handler.ts -- KB ingestion for 5 market feed sources
 - scheduled-emitter.ts -- EventBridge schedule target: PutEvents a MARKET_SNAPSHOT_REFRESH_TICK envelope
-- bootstrap-snapshot.ts -- CFN custom-resource handler (one-shot bootstrap on Create)
 - agents/tools/market-data.ts -- Market data factory (in-process, called from agents/market-intelligence/graph.ts)
 - agents/tools/instrument-universe.ts -- Instrument universe factory (in-process)
 - agents/tools/format-context.ts -- Helper to serialize tool output as labelled prompt sections
@@ -65,8 +63,7 @@ Agent folder: agents/market-intelligence/
 ## IAM trace
 - Memory API: CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions (resources: *)
 - InvokeAgentRuntime on runtime ARN + endpoint sub-resource
-- PutEvents to advisoryBus (ScheduledEmitter + BootstrapSnapshotFn + AgentRuntime principal)
-- DDB ReadData on local State table (BootstrapSnapshotFn only — for the polling loop)
+- PutEvents to advisoryBus (ScheduledEmitter + AgentRuntime principal)
 - **NO `states:SendTask*` grants.** Post-precomputation, this service no longer resumes per-cycle SF callbacks — it materializes a snapshot row and DWC's SnapshotProjectorIngress + SF read it via DDB GetItem. Lockdown asserted workspace-wide by Task 12's CDK invariant test.
 
 ## Tests

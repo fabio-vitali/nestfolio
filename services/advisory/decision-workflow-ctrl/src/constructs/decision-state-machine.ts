@@ -382,6 +382,12 @@ export class DecisionWorkflowDefinition extends Construct {
     // (B) LookupMarketSnapshot — always GetItem. Market signals are a global
     //     projection keyed by region; we never hoist from trigger payload
     //     because no trigger carries market analysis.
+    //     Catch path: a missing row (States.Runtime from path resolution
+    //     failure on $.Item.agentOutput.M) or a transient DDB failure
+    //     (States.TaskFailed) routes to HandleMissingMarketSnapshot, which
+    //     seeds an empty agentOutput. PE+AN tolerate empty marketAnalysis via
+    //     `?? {}` (event-listener.ts in each), so absent market context
+    //     degrades the decision rather than aborting the cycle.
     const lookupMarketSnapshot = new sfn.CustomState(this, 'LookupMarketSnapshot', {
       stateJson: {
         Type: 'Task',
@@ -397,7 +403,23 @@ export class DecisionWorkflowDefinition extends Construct {
           'agentOutput.$': '$.Item.agentOutput.M',
         },
         ResultPath: '$.agentResults.InvokeMarketIntelligence',
+        // End: true short-circuits the Next that the .next() chain below
+        // injects — CustomState.toStateJson() spreads user stateJson AFTER
+        // renderNextEnd(), so user keys win. .next() is used purely so CDK's
+        // branch graph walker discovers HandleMissingMarketSnapshot.
+        End: true,
+        Catch: [
+          {
+            ErrorEquals: ['States.Runtime', 'States.TaskFailed'],
+            Next: 'HandleMissingMarketSnapshot',
+            ResultPath: null,
+          },
+        ],
       },
+    });
+    const handleMissingMarketSnapshot = new sfn.Pass(this, 'HandleMissingMarketSnapshot', {
+      result: sfn.Result.fromObject({ agentOutput: {} }),
+      resultPath: '$.agentResults.InvokeMarketIntelligence',
     });
 
     // (C) Parallel: run the IP Choice + Market lookup concurrently.
@@ -405,7 +427,9 @@ export class DecisionWorkflowDefinition extends Construct {
       resultPath: '$.parallelResults',
     });
     parallelProjections.branch(resolveInvestorProfile);
-    parallelProjections.branch(lookupMarketSnapshot);
+    parallelProjections.branch(
+      sfn.Chain.start(lookupMarketSnapshot).next(handleMissingMarketSnapshot),
+    );
 
     // (D) MergeProjections — lift each branch's result back into top-level
     //     $.agentResults.<StateId>.agentOutput so PE+AN subjects can reference

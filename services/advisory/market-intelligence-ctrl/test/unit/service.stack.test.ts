@@ -154,69 +154,21 @@ describe('MarketIntelligenceCtrlStack', () => {
     }
   });
 
-  describe('MarketSnapshot bootstrap custom resource', () => {
-    it('creates a Provider-fronted custom resource backed by the bootstrap Lambda', () => {
-      // Provider creates an AWS::CloudFormation::CustomResource via its serviceToken.
-      const customResources = template.findResources('AWS::CloudFormation::CustomResource');
-      const bootstrapResource = Object.entries(customResources).find(
-        ([id]) => id.includes('BootstrapSnapshotResource'),
-      );
-      expect(bootstrapResource).toBeDefined();
+  it('does not synthesize any BootstrapSnapshot resources — DWC SF tolerates absent MarketSnapshot via Catch', () => {
+    // The bootstrap custom resource solved only the 15-min-post-fresh-deploy race;
+    // scheduler-disabled / Bedrock-outage / row-eviction produce the same "absent"
+    // state on a long-running stack. DWC SF's LookupMarketSnapshot now Catches the
+    // missing-Item failure and routes to HandleMissingMarketSnapshot (empty default).
+    // PE+AN tolerate empty marketAnalysis via `?? {}`. The bootstrap is obsolete.
+    const customResources = template.findResources('AWS::CloudFormation::CustomResource');
+    const lambdas = template.findResources('AWS::Lambda::Function');
+    const roles = template.findResources('AWS::IAM::Role');
 
-      const [, resource] = bootstrapResource!;
-      const serviceToken = (resource as any).Properties?.ServiceToken;
-      expect(serviceToken).toBeDefined();
-      // ServiceToken is the framework Lambda created by the Provider construct.
-      const tokenRef = JSON.stringify(serviceToken);
-      expect(tokenRef).toMatch(/BootstrapSnapshotProvider/);
-    });
-
-    it('declares a bootstrap Lambda with a >= 5-minute timeout', () => {
-      const lambdas = template.findResources('AWS::Lambda::Function');
-      const bootstrapEntry = Object.entries(lambdas).find(([id]) =>
-        id.startsWith('BootstrapSnapshotFn'),
-      );
-      expect(bootstrapEntry).toBeDefined();
-      const [, fn] = bootstrapEntry!;
-      const timeout = (fn as any).Properties?.Timeout;
-      expect(typeof timeout).toBe('number');
-      expect(timeout).toBeGreaterThanOrEqual(300);
-    });
-
-    it('grants dynamodb:GetItem on the state table and events:PutEvents on the advisory bus to the bootstrap Lambda', () => {
-      // The bootstrap Lambda's role has policies attached granting read on the
-      // state table and PutEvents on the advisoryBus. We assert both actions
-      // appear in a policy whose Roles array references the bootstrap Lambda.
-      const lambdas = template.findResources('AWS::Lambda::Function');
-      const bootstrapLogicalId = Object.keys(lambdas).find((id) =>
-        id.startsWith('BootstrapSnapshotFn'),
-      );
-      expect(bootstrapLogicalId).toBeDefined();
-
-      // Find the IAM Role for the bootstrap Lambda
-      const roles = template.findResources('AWS::IAM::Role');
-      const bootstrapRoleId = Object.keys(roles).find((id) =>
-        id.startsWith('BootstrapSnapshotFnServiceRole'),
-      );
-      expect(bootstrapRoleId).toBeDefined();
-
-      // Find the inline policies attached to that role
-      const policies = template.findResources('AWS::IAM::Policy');
-      const bootstrapPolicies = Object.values(policies).filter((p: any) => {
-        const roles: any[] = p.Properties?.Roles ?? [];
-        return roles.some((r) => r?.Ref === bootstrapRoleId);
-      });
-      expect(bootstrapPolicies.length).toBeGreaterThan(0);
-
-      const allStatements = bootstrapPolicies.flatMap(
-        (p: any) => p.Properties.PolicyDocument.Statement ?? [],
-      );
-      const allActions = allStatements.flatMap((s: any) =>
-        Array.isArray(s.Action) ? s.Action : [s.Action],
-      );
-      expect(allActions).toContain('dynamodb:GetItem');
-      expect(allActions).toContain('events:PutEvents');
-    });
+    expect(
+      Object.keys(customResources).filter((id) => id.includes('BootstrapSnapshot')),
+    ).toEqual([]);
+    expect(Object.keys(lambdas).filter((id) => id.includes('BootstrapSnapshot'))).toEqual([]);
+    expect(Object.keys(roles).filter((id) => id.includes('BootstrapSnapshot'))).toEqual([]);
   });
 
   it('emits MARKET_SNAPSHOT_UPDATED on MarketSnapshot row INSERT or MODIFY', () => {

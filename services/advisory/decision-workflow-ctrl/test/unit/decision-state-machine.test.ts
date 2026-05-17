@@ -100,6 +100,31 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(state.ResultPath).toBe('$.agentResults.InvokeMarketIntelligence');
   });
 
+  it('LookupMarketSnapshot Catch routes missing-row / task-failed errors to HandleMissingMarketSnapshot with an empty agentOutput default', () => {
+    const branchStates = definition.States.ParallelProjections.Branches[1].States;
+    const lookup = branchStates.LookupMarketSnapshot;
+    expect(Array.isArray(lookup.Catch)).toBe(true);
+    expect(lookup.Catch.length).toBeGreaterThanOrEqual(1);
+
+    const catchClause = lookup.Catch[0];
+    expect(catchClause.ErrorEquals).toEqual(
+      expect.arrayContaining(['States.Runtime', 'States.TaskFailed']),
+    );
+    expect(catchClause.Next).toBe('HandleMissingMarketSnapshot');
+    // ResultPath: null discards the error payload so the Pass starts from the
+    // original SF input (decisionId, tenantId, region, etc. preserved).
+    expect(catchClause.ResultPath).toBeNull();
+
+    const fallback = branchStates.HandleMissingMarketSnapshot;
+    expect(fallback).toBeDefined();
+    expect(fallback.Type).toBe('Pass');
+    expect(fallback.Result).toEqual({ agentOutput: {} });
+    expect(fallback.ResultPath).toBe('$.agentResults.InvokeMarketIntelligence');
+    // Terminal in the Parallel branch — MergeProjections runs at the outer
+    // scope after the Parallel completes.
+    expect(fallback.End).toBe(true);
+  });
+
   it('adds ParallelProjections — Parallel with two branches (IP Choice + Market lookup), resultPath $.parallelResults', () => {
     const state = definition.States.ParallelProjections;
     expect(state).toBeDefined();
