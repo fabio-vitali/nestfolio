@@ -1,13 +1,12 @@
 ---
 id: marketsnapshot-fault-tolerant-cycle
-status: active
+status: shipped
 type: refactor
 notes: "Tolerate absent MarketSnapshot in DWC SF and delete the bootstrap CustomResource that papered over it"
 references:
   - docs/backlog/advisory-cycle-agent-precomputation-impl.md
   - docs/superpowers/specs/2026-05-17-advisory-cycle-agent-precomputation-design.md
   - services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
-  - services/advisory/market-intelligence-ctrl/src/handlers/bootstrap-snapshot.ts
   - services/advisory/market-intelligence-ctrl/src/service.stack.ts
   - services/advisory/portfolio-engine-ctrl/src/handlers/event-listener.ts
   - services/advisory/advisory-narrative-ctrl/src/handlers/event-listener.ts
@@ -17,7 +16,17 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Code: 4 commits on `worktree-marketsnapshot-fault-tolerant-cycle` —
+    - f4d6b4c0 feat(advisory): tolerate absent MarketSnapshot + delete bootstrap CR
+    - 5989eda6 docs(advisory): regen C4 + advisory-cycle flow post-bootstrap removal
+    - efcdbac5 fix(advisory): use DynamoGetItem for LookupMarketSnapshot Catch  (intermediate — Catch later replaced)
+    - ec6e7c20 fix(advisory): redesign LookupMarketSnapshot fault-tolerance with Choice on isPresent
+  Design pivot: initial Catch-on-States.Runtime approach reached deploy but did not actually fire in dev — empirically validated via synthetic SF execution that ExecutionFailed with `States.Runtime: JSONPath '$.Item.agentOutput.M' could not be found`. AWS Step Functions docs confirm `States.Runtime` is not catchable. Final design captures the raw GetItem response on `$.marketSnapshotResponse` and routes via `CheckMarketSnapshotPresent` (Choice on `isPresent($.marketSnapshotResponse.Item)`).
+  Tests: `pnpm nx test decision-workflow-ctrl` 88/88; `pnpm nx test market-intelligence-ctrl` 66/66; `pnpm nx affected -t test,lint --base=origin/main` 9 projects green.
+  Deploy: dev account 771924376645 — dev-decision-workflow-ctrl UPDATE_COMPLETE at 22:54:47 (Choice-based redeploy); dev-market-intelligence-ctrl UPDATE_COMPLETE at 22:35 with no BootstrapSnapshot resources (`describe-stack-resources` returns []).
+  Validation: synthetic SF execution `validation-choice-1779051336` against deleted MarketSnapshot row — HandleMissingMarketSnapshot entered at event id 20, ParallelStateSucceeded, cycle proceeded to MergeProjections + LookupMandateSnapshot.
+  E2E: `apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts` PASS in 170.26s on the Choice-based redeploy (rerun after the empirical-validation pivot).
 ---
 
 # MarketSnapshot fault-tolerant cycle (delete bootstrap CR)
