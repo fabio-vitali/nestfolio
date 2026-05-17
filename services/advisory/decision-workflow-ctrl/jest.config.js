@@ -12,6 +12,8 @@ module.exports = {
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
     '^@nestfolio/investor-adpt/domain$': '<rootDir>/../../investor/investor-adpt/src/domain/index.ts',
     '^@nestfolio/investor-bff/events$': '<rootDir>/../../investor/investor-bff/src/domain/events.ts',
+    '^@nestfolio/investor-profile-ctrl/events$': '<rootDir>/../../advisory/investor-profile-ctrl/src/domain/events.ts',
+    '^@nestfolio/market-intelligence-ctrl/events$': '<rootDir>/../../advisory/market-intelligence-ctrl/src/domain/events.ts',
     '^@nestfolio/advisory-bff/events$': '<rootDir>/../../advisory/advisory-bff/src/domain/events.ts',
     '^@nestfolio/advisory-bff/service$': '<rootDir>/../../advisory/advisory-bff/src/domain/index.ts',
     '^@nestfolio/compliance-ctrl/events$': '<rootDir>/../../advisory/compliance-ctrl/src/domain/events.ts',

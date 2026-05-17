@@ -13,6 +13,8 @@ import {
   DecisionWorkflowEventTypes,
   MANDATE_LIFECYCLE_EVENT_TYPES,
 } from './domain/events';
+import { InvestorProfileEventTypes } from '@nestfolio/investor-profile-ctrl/events';
+import { MarketIntelligenceEventTypes } from '@nestfolio/market-intelligence-ctrl/events';
 import { defaultLambdaProps, NamingService } from '@nestfolio/cdk-constructs/utils';
 import { DecisionWorkflowDefinition } from './constructs/decision-state-machine';
 
@@ -223,6 +225,21 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
       entry: join(__dirname, 'handlers', 'mandate-projector.ts'),
     });
     void mandateProjectorIngress; // observability intentionally omitted — addObservability accepts only one ingress
+
+    // SnapshotProjectorIngress — projects DWC-local InvestorProfileSnapshot +
+    // MarketSnapshot rows from IP-ctrl and MI-ctrl snapshot events so the SF
+    // (Task 9) can read pre-computed agent outputs via Direct DDB GetItem
+    // without cross-service IAM grants.
+    const snapshotProjectorIngress = new Ingress(this, 'SnapshotProjectorIngress', {
+      state,
+      eventTypes: [
+        InvestorProfileEventTypes.INVESTOR_PROFILE_SNAPSHOT_CREATED,
+        InvestorProfileEventTypes.INVESTOR_PROFILE_SNAPSHOT_UPDATED,
+        MarketIntelligenceEventTypes.MARKET_SNAPSHOT_UPDATED,
+      ],
+      entry: join(__dirname, 'handlers', 'snapshot-projector.ts'),
+    });
+    void snapshotProjectorIngress; // observability intentionally omitted — addObservability accepts only one ingress
 
     // SF role: dynamodb:GetItem on the local State table for LookupMandateSnapshot.
     state.getTable().grantReadData(orchestration.stateMachine);

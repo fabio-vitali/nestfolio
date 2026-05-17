@@ -1,0 +1,143 @@
+import { createHandlers } from '../../src/handlers/snapshot-projector';
+import {
+  PROJECTED_IP_SNAPSHOT_SK,
+  PROJECTED_MARKET_SNAPSHOT_SK,
+  projectedIpSnapshotPk,
+  projectedMarketSnapshotPk,
+} from '../../src/repositories/projected-snapshot.repository';
+import type { EventContext, EventPayload } from '@nestfolio/event-processor';
+
+const ctx = (eventType: string, overrides: Partial<EventContext> = {}): EventContext => ({
+  eventId: 'evt-1', eventType, tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1',
+  ...overrides,
+} as EventContext);
+
+const payload = (subject: Record<string, unknown>): EventPayload => ({
+  subject,
+  context: { tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1' },
+} as EventPayload);
+
+describe('snapshot-projector', () => {
+  const handlers = createHandlers();
+
+  it('INVESTOR_PROFILE_SNAPSHOT_CREATED → record() with InvestorProfileSnapshot row', async () => {
+    const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
+      payload({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        agentOutput: { riskScore: 55, riskTolerance: 'MODERATE' },
+        sourceEventId: 'src-e1',
+      }),
+      ctx('INVESTOR_PROFILE_SNAPSHOT_CREATED'),
+    );
+    const intent = Array.isArray(result) ? result[0] : result;
+    expect(intent._tag).toBe('record');
+    expect(intent.typename).toBe('InvestorProfileSnapshot');
+    expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.pk).toBe(
+      projectedIpSnapshotPk('tenant-1', 'user-1'),
+    );
+    expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.sk).toBe(PROJECTED_IP_SNAPSHOT_SK);
+    const fields = (intent as { fields: Record<string, unknown> }).fields;
+    expect(fields.tenantId).toBe('tenant-1');
+    expect(fields.userId).toBe('user-1');
+    expect(fields.agentOutput).toEqual({ riskScore: 55, riskTolerance: 'MODERATE' });
+    expect(fields.sourceEventId).toBe('src-e1');
+    expect(typeof fields.updatedAt).toBe('string');
+  });
+
+  it('INVESTOR_PROFILE_SNAPSHOT_CREATED falls back to ctx.eventId when sourceEventId missing', async () => {
+    const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
+      payload({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        agentOutput: { riskScore: 50 },
+      }),
+      ctx('INVESTOR_PROFILE_SNAPSHOT_CREATED', { eventId: 'fallback-evt' }),
+    );
+    const intent = Array.isArray(result) ? result[0] : result;
+    expect((intent as { fields: Record<string, unknown> }).fields.sourceEventId).toBe('fallback-evt');
+  });
+
+  it('INVESTOR_PROFILE_SNAPSHOT_UPDATED → update() with InvestorProfileSnapshot row keyed via overrides', async () => {
+    const result = await handlers.INVESTOR_PROFILE_SNAPSHOT_UPDATED(
+      payload({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        agentOutput: { riskScore: 70 },
+        sourceEventId: 'src-e2',
+      }),
+      ctx('INVESTOR_PROFILE_SNAPSHOT_UPDATED'),
+    );
+    const intent = Array.isArray(result) ? result[0] : result;
+    expect(intent._tag).toBe('update');
+    expect(intent.typename).toBe('InvestorProfileSnapshot');
+    expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.pk).toBe(
+      projectedIpSnapshotPk('tenant-1', 'user-1'),
+    );
+    expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.sk).toBe(PROJECTED_IP_SNAPSHOT_SK);
+    const updates = (intent as { updates: Record<string, unknown> }).updates;
+    expect(updates.agentOutput).toEqual({ riskScore: 70 });
+    expect(updates.sourceEventId).toBe('src-e2');
+  });
+
+  it('IP snapshot handlers throw NotRetryableError when agentOutput missing', async () => {
+    await expect(
+      handlers.INVESTOR_PROFILE_SNAPSHOT_CREATED(
+        payload({ tenantId: 'tenant-1', userId: 'user-1' }),
+        ctx('INVESTOR_PROFILE_SNAPSHOT_CREATED'),
+      ),
+    ).rejects.toThrow(/agentOutput/);
+    await expect(
+      handlers.INVESTOR_PROFILE_SNAPSHOT_UPDATED(
+        payload({ tenantId: 'tenant-1', userId: 'user-1' }),
+        ctx('INVESTOR_PROFILE_SNAPSHOT_UPDATED'),
+      ),
+    ).rejects.toThrow(/agentOutput/);
+  });
+
+  it('MARKET_SNAPSHOT_UPDATED → record() with MarketSnapshot row keyed by region', async () => {
+    const result = await handlers.MARKET_SNAPSHOT_UPDATED(
+      payload({
+        region: 'us-east-1',
+        agentOutput: { signals: ['risk-on'], regime: 'BULL' },
+        fastComponentsAt: '2026-05-17T12:00:00Z',
+      }),
+      ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
+    );
+    const intent = Array.isArray(result) ? result[0] : result;
+    expect(intent._tag).toBe('record');
+    expect(intent.typename).toBe('MarketSnapshot');
+    expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.pk).toBe(
+      projectedMarketSnapshotPk('us-east-1'),
+    );
+    expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.sk).toBe(PROJECTED_MARKET_SNAPSHOT_SK);
+    const fields = (intent as { fields: Record<string, unknown> }).fields;
+    expect(fields.region).toBe('us-east-1');
+    expect(fields.agentOutput).toEqual({ signals: ['risk-on'], regime: 'BULL' });
+    expect(typeof fields.updatedAt).toBe('string');
+    // Field-level pk/sk are NOT set — they come from overrides only.
+    expect(fields.pk).toBeUndefined();
+    expect(fields.sk).toBeUndefined();
+  });
+
+  it('MARKET_SNAPSHOT_UPDATED defaults region to us-east-1 when subject.region missing', async () => {
+    const result = await handlers.MARKET_SNAPSHOT_UPDATED(
+      payload({ agentOutput: { signals: [] } }),
+      ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
+    );
+    const intent = Array.isArray(result) ? result[0] : result;
+    expect((intent as { fields: Record<string, unknown> }).fields.region).toBe('us-east-1');
+    expect((intent as { overrides?: { pk?: string } }).overrides?.pk).toBe(
+      projectedMarketSnapshotPk('us-east-1'),
+    );
+  });
+
+  it('MARKET_SNAPSHOT_UPDATED throws NotRetryableError when agentOutput missing', async () => {
+    await expect(
+      handlers.MARKET_SNAPSHOT_UPDATED(
+        payload({ region: 'us-east-1' }),
+        ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
+      ),
+    ).rejects.toThrow(/agentOutput/);
+  });
+});

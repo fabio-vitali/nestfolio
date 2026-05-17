@@ -233,6 +233,20 @@ describe('DecisionWorkflowCtrlStack', () => {
     });
   });
 
+  describe('SnapshotProjectorIngress', () => {
+    it('subscribes to INVESTOR_PROFILE_SNAPSHOT_{CREATED,UPDATED} + MARKET_SNAPSHOT_UPDATED', () => {
+      template.hasResourceProperties('AWS::Events::Rule', {
+        EventPattern: Match.objectLike({
+          'detail-type': Match.arrayWith([
+            'INVESTOR_PROFILE_SNAPSHOT_CREATED',
+            'INVESTOR_PROFILE_SNAPSHOT_UPDATED',
+            'MARKET_SNAPSHOT_UPDATED',
+          ]),
+        }),
+      });
+    });
+  });
+
   describe('Egress emits MANDATE_SNAPSHOT_CREATED on MandateSnapshot:INSERT', () => {
     it('declares MandateSnapshot insert mapping in EVENT_TYPE_MAP env var', () => {
       template.hasResourceProperties('AWS::Lambda::Function', {
