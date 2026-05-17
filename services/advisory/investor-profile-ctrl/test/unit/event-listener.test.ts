@@ -15,19 +15,10 @@ jest.mock('@aws-sdk/lib-dynamodb', () => {
   };
 });
 
-jest.mock('@aws-sdk/client-sfn', () => ({
-  SFNClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
-  SendTaskSuccessCommand: jest.fn(),
-  SendTaskFailureCommand: jest.fn(),
-}));
-
 jest.mock('@nestfolio/agent-orchestrator', () => ({
-  createOrchestrator: jest.fn().mockReturnValue({ invoke: jest.fn() }),
-  invokeOrchestrator: jest.fn(),
   createMemoryClient: jest.fn(),
   createNoOpMemoryClient: jest.fn(),
   UnknownOperatingModeError: jest.requireActual('@nestfolio/agent-orchestrator').UnknownOperatingModeError,
-  wrapAgentOutput: jest.requireActual('@nestfolio/agent-orchestrator').wrapAgentOutput,
 }));
 
 jest.mock('@nestfolio/event-processor', () => ({
