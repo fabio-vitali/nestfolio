@@ -1,9 +1,9 @@
 schema_version: 1
 flow: advisory-cycle
-description: Advisory decision cycle — Step Functions orchestrates 4 LangGraph agents (2 parallel + 2 sequential), assembles a DecisionPacket from agent outputs read directly off SF state, runs compliance check, then optionally requests user confirmation before forwarding to execution and ledger
+description: Advisory decision cycle — Step Functions orchestrates 2 sequential agents (Portfolio Engine → Narrative). Investor-profile and market-intelligence outputs are precomputed snapshots — the SF reads them from DWC-local DDB projections via Direct DDB GetItem (no per-cycle agent invocation). PE + AN are the only waitForTaskToken hops; their CDC-emitted PORTFOLIO_COMPLETED/NARRATIVE_COMPLETED (and *_FAILED) events resume the SF via DWC's CallbackIngress. AssembleDecisionPacket reads agent outputs from SF state, runs compliance check, then optionally requests user confirmation before forwarding to execution and ledger.
 domains: [advisory, investor, execution, ledger]
 
-trigger: decision-workflow-ctrl receives one of 7 trigger events (MANDATE_SNAPSHOT_CREATED, INVESTOR_PROFILE_UPDATED, PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED); EventBridge starts the Step Functions execution directly via a native target (no Lambda hop).
+trigger: decision-workflow-ctrl receives one of 7 trigger events (MANDATE_SNAPSHOT_CREATED, INVESTOR_PROFILE_UPDATED, PORTFOLIO_DRIFT_DETECTED, ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED, DEPOSIT_DETECTED); EventBridge starts the Step Functions execution directly via a native target (no Lambda hop). Pre-cycle snapshots (InvestorProfileSnapshot + MarketSnapshot) are continuously materialised in DWC-local DDB by SnapshotProjectorIngress so the SF can resolve them via Direct DDB GetItem without invoking IP/MI agents.
 
 steps:
   # -- Phase 0: Cross-domain trigger ingestion --
@@ -18,14 +18,70 @@ steps:
     to: AdvisoryBus
     via: advisory-adpt EB rule (AdvisoryIngress-FromExecution)
 
-  # -- Phase 0a: First-decision projection --
+  # -- Phase 0a: First-decision projection (MandateSnapshot) --
   # MANDATE_ISSUED feeds the local mandate-projector → MandateSnapshot row →
   # CDC emits MANDATE_SNAPSHOT_CREATED (the canonical first-decision trigger).
   - service: decision-workflow-ctrl
-    receives: MANDATE_ISSUED
+    receives: MANDATE_ISSUED | OPERATING_MODE_CHANGED
     via: AdvisoryBus -> SQS -> MandateProjectorIngress (handlers/mandate-projector.ts)
-    state_change: materializeToTable writes MandateSnapshot row with operatingMode + level + status='ACTIVE'
-    emits: MANDATE_SNAPSHOT_CREATED (via Egress CDC on MandateSnapshot:INSERT)
+    state_change: materializeToTable writes MandateSnapshot row with operatingMode + level + status='ACTIVE' (MANDATE_ISSUED → record; OPERATING_MODE_CHANGED → update operatingMode)
+    emits: MANDATE_SNAPSHOT_CREATED (via Egress CDC on MandateSnapshot:INSERT only — operatingMode changes do NOT re-trigger the first decision)
+    idempotent: true
+
+  # -- Phase 0a-bis: InvestorProfileSnapshot continuous projection (pre-cycle) --
+  # IP-ctrl subscribes to investor-domain mutations and continuously materialises
+  # an InvestorProfileSnapshot row (one per (tenantId, userId)). CDC emits
+  # INVESTOR_PROFILE_SNAPSHOT_CREATED / UPDATED on every change. DWC's
+  # SnapshotProjectorIngress mirrors the snapshot into its own table so the SF
+  # can resolve the IP agent output via Direct DDB GetItem — no per-cycle agent invocation.
+  - service: investor-profile-ctrl
+    receives: INVESTOR_PROFILE_UPDATED | MANDATE_ISSUED | OPERATING_MODE_CHANGED
+    via: AdvisoryBus -> SQS -> investor-profile-ctrl-Ingress
+    state_change: >
+      LangGraph investor-profile agent (Haiku goals + Opus risk-assessment, parallel) runs once per
+      input event against the Regulatory KB; materializeToTable writes the InvestorProfileSnapshot
+      row carrying the full agent output (operatingMode + goalInterpretation + riskEvaluation).
+      No AgentCore Memory write on the critical path; no SF callback (pre-cycle precomputation).
+    emits: INVESTOR_PROFILE_SNAPSHOT_CREATED (CDC, InvestorProfileSnapshot:INSERT) | INVESTOR_PROFILE_SNAPSHOT_UPDATED (CDC, InvestorProfileSnapshot:MODIFY)
+    idempotent: true
+
+  - service: decision-workflow-ctrl
+    receives: INVESTOR_PROFILE_SNAPSHOT_CREATED | INVESTOR_PROFILE_SNAPSHOT_UPDATED
+    via: AdvisoryBus -> SQS -> SnapshotProjectorIngress (handlers/snapshot-projector.ts)
+    state_change: >
+      materializeToTable mirrors IP-ctrl's snapshot into DWC's own DDB table as the
+      InvestorProfileSnapshot row (pk=`InvestorProfileSnapshot#{tenantId}#{userId}`,
+      sk='InvestorProfileSnapshot'). The SF reads this via Direct DDB GetItem during
+      the cycle. CREATED → record; UPDATED → update. Missing subject.agentOutput → NotRetryableError.
+    emits: (none — local projection)
+    idempotent: true
+
+  # -- Phase 0a-ter: MarketSnapshot continuous projection (pre-cycle) --
+  # MI-ctrl subscribes to 5 market-feed events plus a 15-minute MARKET_SNAPSHOT_REFRESH_TICK
+  # schedule; each fast-tier feed write or slow-tier rebuild runs the agent and
+  # materialises a MarketSnapshot row keyed by region. CDC emits MARKET_SNAPSHOT_UPDATED
+  # (on both INSERT and MODIFY). DWC's SnapshotProjectorIngress mirrors it.
+  - service: market-intelligence-ctrl
+    receives: YAHOO_FINANCE_UPDATED | MARKETWATCH_UPDATED | SEC_8K_FILED | FRED_INDICATORS_UPDATED | ALPHA_VANTAGE_NEWS_UPDATED | MARKET_SNAPSHOT_REFRESH_TICK
+    via: AdvisoryBus -> SQS -> market-intelligence-ctrl-Ingress
+    state_change: >
+      LangGraph market-intelligence agent (Sonnet) runs against the Market KB plus deterministic
+      in-process context (market-data + instrument-universe pre-fetch); materializeToTable
+      writes the MarketSnapshot row (one per region) carrying the agent output. Also writes
+      legacy AgentInvocation row (emits MARKET_SIGNAL_DETECTED on insert only). Slow-tier tick
+      (every 15 min) backstops idle feed periods; on stack Create a BootstrapSnapshotFn custom
+      resource emits a synthetic tick and polls until the row materialises (5-min deadline).
+    emits: MARKET_SNAPSHOT_UPDATED (CDC, MarketSnapshot:INSERT and MODIFY) | MARKET_SIGNAL_DETECTED (CDC, AgentInvocation:INSERT) | MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED (EventBridgeTraceEmitter)
+    idempotent: true
+
+  - service: decision-workflow-ctrl
+    receives: MARKET_SNAPSHOT_UPDATED
+    via: AdvisoryBus -> SQS -> SnapshotProjectorIngress (handlers/snapshot-projector.ts)
+    state_change: >
+      materializeToTable mirrors MI-ctrl's snapshot into DWC's own DDB table as the
+      MarketSnapshot row (pk=`MarketSnapshot#{region}`, sk='MarketSnapshot'). The SF
+      reads this via Direct DDB GetItem during the cycle. Missing subject.agentOutput → NotRetryableError.
+    emits: (none — local projection)
     idempotent: true
 
   # -- Phase 1: Direct EB -> SF --
@@ -43,47 +99,64 @@ steps:
     emits: (none -- SF internal)
     idempotent: false  # duplicate trigger events start duplicate executions
 
-  # -- Phase 2: Step Functions dispatches agent tasks --
+  # -- Phase 2: Step Functions resolves snapshots + dispatches PE+AN tasks --
   # SF state machine definition: decision-state-machine.ts
-  # Flow: Parallel(InvestorProfile + MarketIntelligence) -> PortfolioEngine -> AdvisoryNarrative
+  # Flow (post-precomputation):
+  #   ParallelProjections (Branch A: InvestorProfile payload-first → snapshot fallback,
+  #                        Branch B: LookupMarketSnapshot via Direct DDB GetItem)
+  #   → MergeProjections
+  #   → ResolveMandateSnapshot (payload-first → LookupMandateSnapshot via DDB GetItem)
+  #   → PortfolioEngine (waitForTaskToken)
+  #   → AdvisoryNarrative (waitForTaskToken)
+  #   → AssembleDecisionPacket → Compliance → User-Confirm (L2)
 
-  # Phase 2a: Parallel branch 1 — Investor Profile Agent
+  # Phase 2a: SF resolves InvestorProfile (Direct DDB GetItem on DWC-local InvestorProfileSnapshot)
   - service: decision-workflow-ctrl
-    action: SF emits ANALYZE_INVESTOR_PROFILE via EventBridge putEvents.waitForTaskToken
-    emits: ANALYZE_INVESTOR_PROFILE (SF EventBridge integration with taskToken)
+    action: SF ParallelProjections Branch A — Choice (payload-first hoist when trigger carries an InvestorProfile body) else Direct DDB GetItem on InvestorProfileSnapshot (pk=`InvestorProfileSnapshot#{tenantId}#{userId}`, sk='InvestorProfileSnapshot'). No event emitted; no Lambda invoked.
+    state_change: SF state Parameters carry investorProfile.agentOutput (operatingMode + goalInterpretation + riskEvaluation) for downstream PE + AN steps.
 
-  - service: investor-profile-ctrl
-    receives: ANALYZE_INVESTOR_PROFILE
-    via: AdvisoryBus -> SQS -> investor-profile-ctrl-Ingress
-    state_change: LangGraph investor-profile agent (Haiku goals + Opus risk-assessment, parallel) runs against Regulatory KB; writes AgentInvocation and ReasoningOutput records; returns {operatingMode, agentOutput} to SF via SendTaskSuccess (resumeStateMachine pipeline). No AgentCore Memory write on the critical path (Phase-A 2026-05-14).
-    emits: GOAL_INTERPRETATION_PRODUCED (CDC, AgentInvocation:INSERT), RISK_EVALUATION_PRODUCED (CDC, ReasoningOutput:INSERT)
-    idempotent: false
-
-  # Phase 2b: Parallel branch 2 — Market Intelligence Agent
+  # Phase 2b: SF resolves Market snapshot (Direct DDB GetItem on DWC-local MarketSnapshot)
   - service: decision-workflow-ctrl
-    action: SF emits ANALYZE_MARKET via EventBridge putEvents.waitForTaskToken (parallel with 2a)
-    emits: ANALYZE_MARKET (SF EventBridge integration with taskToken)
+    action: SF ParallelProjections Branch B — Direct DDB GetItem on MarketSnapshot (pk=`MarketSnapshot#{region}`, sk='MarketSnapshot'). No payload-first path (market signals are a global projection). No event emitted; no Lambda invoked.
+    state_change: SF state Parameters carry marketSnapshot.agentOutput for downstream PE + AN steps.
 
-  - service: market-intelligence-ctrl
-    receives: ANALYZE_MARKET
-    via: AdvisoryBus -> SQS -> market-intelligence-ctrl-Ingress
-    state_change: LangGraph market-intelligence agent (Sonnet, single-node graph) runs against Market KB (5 feed sources) plus deterministic in-process context (market-data + instrument-universe pre-fetched before the agent invokes); writes AgentInvocation record; returns agentOutput to SF via SendTaskSuccess. No AgentCore Memory write on the critical path.
-    emits: MARKET_SIGNAL_DETECTED (CDC, AgentInvocation:INSERT), MARKET_INTELLIGENCE_AGENT_INVOCATION_TRACED (EventBridgeTraceEmitter)
-    idempotent: false
-
-  # Phase 2c: Sequential — Portfolio Construction Agent (after parallel merge)
+  # Phase 2c: SF resolves MandateSnapshot (Direct DDB GetItem; payload-first when trigger carries operatingMode hint)
   - service: decision-workflow-ctrl
-    action: SF emits CONSTRUCT_PORTFOLIO via EventBridge putEvents.waitForTaskToken (after parallel branches complete)
+    action: SF ResolveMandateSnapshot — Choice (payload-first hoist when trigger carries operatingMode) else LookupMandateSnapshot via Direct DDB GetItem. No event emitted.
+    state_change: SF state Parameters carry mandateSnapshot (operatingMode + level + status='ACTIVE').
+
+  # Phase 2d: Sequential — Portfolio Construction Agent
+  - service: decision-workflow-ctrl
+    action: SF emits CONSTRUCT_PORTFOLIO via EventBridge putEvents.waitForTaskToken
     emits: CONSTRUCT_PORTFOLIO (SF EventBridge integration with taskToken)
 
   - service: portfolio-engine-ctrl
     receives: CONSTRUCT_PORTFOLIO
     via: AdvisoryBus -> SQS -> portfolio-engine-ctrl-Ingress
-    state_change: LangGraph portfolio-construction agent (Opus) runs against Fund KB; reads upstream agent outputs (operatingMode + investor-profile + market-analysis) directly from SF state Parameters — no AgentCore Memory roundtrip since Phase-A 2026-05-14; writes AgentInvocation and ReasoningOutput records; returns {allocations, trades, metadata} to SF via SendTaskSuccess.
-    emits: PORTFOLIO_CONSTRUCTION_PROPOSED (CDC, AgentInvocation:INSERT), REBALANCE_PLAN_PRODUCED (CDC, ReasoningOutput:INSERT)
+    state_change: >
+      LangGraph portfolio-construction agent (Opus) runs against Fund KB; reads
+      upstream agent outputs (operatingMode + investor-profile + market-analysis)
+      directly from SF state Parameters (no AgentCore Memory roundtrip);
+      materializeToTable writes AgentCompletion row on success (carries taskToken
+      + agentOutput {allocations, trades, metadata}) or AgentFailure row on failure
+      (carries taskToken + errorCode + cause). No states:SendTask* IAM grant on this service;
+      the CDC event from the Egress is the sole bridge back to the SF.
+    emits: PORTFOLIO_COMPLETED (CDC, AgentCompletion:INSERT) | PORTFOLIO_FAILED (CDC, AgentFailure:INSERT) | PORTFOLIO_CONSTRUCTION_PROPOSED (CDC, AgentInvocation:INSERT, legacy)
     idempotent: false
 
-  # Phase 2d: Sequential — Narrative Agent (after portfolio)
+  - service: decision-workflow-ctrl
+    receives: PORTFOLIO_COMPLETED | PORTFOLIO_FAILED
+    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-CallbackIngress
+    handler: sfn-callback.ts (resumeStateMachine)
+    state_change: >
+      PORTFOLIO_COMPLETED: SendTaskSuccess resumes SF with agentOutput; sfn-callback also
+      persists an AgentOutput record for the cycle.
+      PORTFOLIO_FAILED: SendTaskFailure with errorCode + cause; SF state catches and
+      the cycle ends as DECISION_WORKFLOW_FAILED.
+    emits: AGENT_OUTPUT_CREATED | AGENT_OUTPUT_UPDATED (CDC, AgentOutput insert/modify, on success path)
+    idempotent: true
+
+  # Phase 2e: Sequential — Narrative Agent (after portfolio)
   - service: decision-workflow-ctrl
     action: SF emits GENERATE_NARRATIVE via EventBridge putEvents.waitForTaskToken
     emits: GENERATE_NARRATIVE (SF EventBridge integration with taskToken)
@@ -91,23 +164,36 @@ steps:
   - service: advisory-narrative-ctrl
     receives: GENERATE_NARRATIVE
     via: AdvisoryBus -> SQS -> advisory-narrative-ctrl-Ingress
-    state_change: LangGraph narrative agent (Haiku 4.5) runs against Explainability KB; reads upstream agent outputs from SF state Parameters; writes ReasoningOutput record carrying the explanation; returns agentOutput to SF via SendTaskSuccess.
-    emits: EXPLANATION_GENERATED (CDC, ReasoningOutput:INSERT)
+    state_change: >
+      LangGraph narrative agent (Haiku 4.5) runs against Explainability KB; reads
+      upstream agent outputs from SF state Parameters; materializeToTable writes
+      AgentCompletion row on success (carries taskToken + agentOutput carrying explanation)
+      or AgentFailure row on failure. No states:SendTask* IAM grant on this service.
+    emits: NARRATIVE_COMPLETED (CDC, AgentCompletion:INSERT) | NARRATIVE_FAILED (CDC, AgentFailure:INSERT) | EXPLANATION_GENERATED (CDC, ReasoningOutput:INSERT)
     idempotent: false
 
+  - service: decision-workflow-ctrl
+    receives: NARRATIVE_COMPLETED | NARRATIVE_FAILED
+    via: AdvisoryBus -> SQS -> decision-workflow-ctrl-CallbackIngress
+    handler: sfn-callback.ts (resumeStateMachine)
+    state_change: >
+      NARRATIVE_COMPLETED: SendTaskSuccess resumes SF with agentOutput (explanation);
+      sfn-callback persists an AgentOutput record.
+      NARRATIVE_FAILED: SendTaskFailure; SF state catches and the cycle ends as DECISION_WORKFLOW_FAILED.
+    emits: AGENT_OUTPUT_CREATED | AGENT_OUTPUT_UPDATED (CDC, AgentOutput insert/modify, on success path)
+    idempotent: true
+
   # -- Phase 3: Assemble Decision Packet --
-  # NOTE: pre-Phase-A there was a separate *_COMPLETED callback step here that wrote AgentOutput
-  # records — AGENT_COMPLETION_EVENT_TYPES is still declared in decision-workflow-ctrl/src/domain/events.ts
-  # and registered in sfn-callback.ts but is vestigial and unreachable in production since 2026-05-14.
   - service: decision-workflow-ctrl
     action: SF invokes AssemblePacket Lambda (lambda:invoke, synchronous — NOT waitForTaskToken)
     handler: handlers/assemble-packet.ts
     state_change: >
-      Reads all 4 agent outputs from SF state Parameters ($.agentResults.<Upstream>.agentOutput) —
-      no AgentCore Memory reads since Phase-A 2026-05-14. Builds proposedTrades from
-      portfolio.allocations; extracts explanation from narrative.explainability.rationale
-      (fallback summary). Writes DecisionPacket row with status='PENDING' via putIfNotExists
-      (idempotent under SF retries).
+      Reads all 4 agent outputs from SF state Parameters — investor-profile + market
+      from the precomputed snapshots resolved in Phase 2a/2b, portfolio + narrative
+      from the waitForTaskToken callbacks. No AgentCore Memory reads. Builds
+      proposedTrades from portfolio.allocations; extracts explanation from
+      narrative.explainability.rationale (fallback summary). Writes DecisionPacket
+      row with status='PENDING' via putIfNotExists (idempotent under SF retries).
     emits: DECISION_PACKET_CREATED (CDC, DecisionPacket:INSERT)
     idempotent: true
 
@@ -251,7 +337,9 @@ steps:
     via: execution-adpt EB rule (ExecutionIngress-FromAdvisory)
 
 success_criteria:
-  - All 4 agent tasks return via SendTaskSuccess within their 600s windows
+  - InvestorProfileSnapshot + MarketSnapshot projections exist in DWC-local DDB before the cycle begins (continuously materialised; MarketSnapshot bootstrapped on stack Create)
+  - SF resolves both snapshots via Direct DDB GetItem (no IP/MI agent invocation per cycle)
+  - PE + AN agents return via materializeToTable AgentCompletion CDC within their windows; PORTFOLIO_COMPLETED / NARRATIVE_COMPLETED reach DWC's CallbackIngress and SendTaskSuccess resumes the SF
   - AssemblePacket writes a DecisionPacket row; CDC emits DECISION_PACKET_CREATED reaching advisory-bff (UI), ledger-adpt (audit), and investor-bff (decision history)
   - compliance-ctrl emits exactly one of DECISION_APPROVED / DECISION_BLOCKED
   - For L1 approved DecisionPacket.status='APPROVED' and DECISION_APPROVED reaches ExecutionBus
@@ -259,8 +347,11 @@ success_criteria:
 
 failure_modes:
   - trigger ingestion fails: EventBridge → SF native target invocation fails or is throttled; SF not started; trigger event sits on source-bus DLQ. No automatic retry of the cycle; manual replay.
-  - agent invocation (IP/MI/PE/AN) fails or stalls past 600s: TaskTimedOut fires; agent ctrl Lambda's resume-state-machine pipeline logs ERROR with processingLagMs (since 2026-05-16) when SendTaskSuccess fires against an expired token; architectural follow-up tracked in docs/backlog/agent-pipeline-backlog-trap-architectural.md.
-  - agent Lambda exception: SendTaskFailure fires; SF state catches and the cycle fails with DECISION_WORKFLOW_FAILED.
+  - InvestorProfileSnapshot missing at cycle start (IP-ctrl Ingress DLQ accumulating, or new tenant never went through onboarding): SF Branch A's Choice payload-first path is the safety net only when the trigger payload carries the IP body; otherwise the Direct DDB GetItem returns no row and SF state catches the error.
+  - MarketSnapshot missing at cycle start (MI-ctrl Ingress DLQ, or pre-bootstrap race): the BootstrapSnapshotFn custom resource closes the cold-start window; otherwise Direct DDB GetItem returns no row and SF state catches the error.
+  - SnapshotProjectorIngress fails (DWC-local mirror falls behind IP/MI source rows): DWC's SF reads a stale snapshot until the SQS retry succeeds; missing subject.agentOutput → NotRetryableError so corrupt envelopes go straight to DLQ.
+  - PE / AN agent invocation fails (Lambda exception, AgentCore degraded response): handler writes AgentFailure row → CDC emits PORTFOLIO_FAILED / NARRATIVE_FAILED → CallbackIngress calls SendTaskFailure → SF state catches and the cycle fails with DECISION_WORKFLOW_FAILED.
+  - PE / AN agent stalls past waitForTaskToken window: SF TaskTimedOut fires; CDC-based completion event arriving after the timeout is logged and ignored. Manual replay; no auto-retry.
   - AssemblePacket fails: Lambda invocation error; SF state catches the error. Cycle ends without a DecisionPacket row. No retry.
   - compliance fails: compliance-ctrl Ingress DLQ; WaitForCompliance times out at 24h. Manual DLQ replay; SF can resume only if token is still valid (won't be after 24h).
   - compliance callback fails: CallbackIngress DLQ; SF stuck waiting; eventually times out at 24h. Manual replay (token-lag risk applies).

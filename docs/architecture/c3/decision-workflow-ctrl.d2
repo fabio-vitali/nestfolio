@@ -4,9 +4,33 @@ title: "Decision Workflow\nCTRL\n[State Machine · Agent Memory]" {
   style: { font-size: 40; bold: true; fill: transparent; stroke: transparent }
 }
 
-ingress: "CallbackIngress" {
+callback-ingress: "CallbackIngress" {
   style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
   rule: "EventBridge Rule" { class: aws-eventbridge }
+  sqs: "SQS Queue" { class: aws-sqs }
+  dlq: "DLQ" { class: aws-dlq }
+  handler: "Lambda" { class: aws-lambda }
+
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
+}
+
+mandate-projector-ingress: "MandateProjectorIngress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+  rule: "EventBridge Rule" { class: aws-eventbridge }
+  sqs: "SQS Queue" { class: aws-sqs }
+  dlq: "DLQ" { class: aws-dlq }
+  handler: "Lambda" { class: aws-lambda }
+
+  rule -> sqs: Subscribe
+  sqs -> handler: Invoke
+  sqs -> dlq: On failure
+}
+
+snapshot-projector-ingress: "SnapshotProjectorIngress" {
+  style: { fill: "#FFF8E1"; stroke: "#FFC107"; border-radius: 12; font-size: 28 }
+  rule: "EventBridge Rule\n[3 events]" { class: aws-eventbridge }
   sqs: "SQS Queue" { class: aws-sqs }
   dlq: "DLQ" { class: aws-dlq }
   handler: "Lambda" { class: aws-lambda }
@@ -46,8 +70,10 @@ agent-memory: "AgentCore Memory" {
 assemble-packet: "Lambda\n[AssemblePacket]" { class: aws-lambda }
 
 # Flows
-ingress.handler -> state.table: Read/Write
+callback-ingress.handler -> state.table: Read/Write
+mandate-projector-ingress.handler -> state.table: Read/Write
+snapshot-projector-ingress.handler -> state.table: Read/Write
 state.stream -> egress.processor: Trigger
-ingress.handler -> decision-state-machine.state-machine: Execute
+callback-ingress.handler -> decision-state-machine.state-machine: Execute
 decision-state-machine.state-machine -> state.table: Read/Write
 decision-state-machine.state-machine -> agent-memory.memory: Store
