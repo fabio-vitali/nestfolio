@@ -68,7 +68,7 @@ describe('investor-profile-ctrl agent-service', () => {
       decisionId: 'dp-1',
       goals: expect.objectContaining({ goals: ['retirement'] }),
       risk: expect.objectContaining({ riskScore: 45 }),
-      metadata: expect.objectContaining({ modelTiers: ['haiku', 'opus'] }),
+      metadata: expect.objectContaining({ modelTiers: ['haiku', 'sonnet'] }),
     });
 
     // Should have called PutCommand twice (IN_PROGRESS + COMPLETED)
