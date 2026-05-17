@@ -309,7 +309,13 @@ export function withLiveDecision(opts?: {
         if (!expectedStatus) return true;
         return items.some((i) => i.status === expectedStatus);
       },
-      { timeoutMs: opts?.timeoutMs ?? 90_000, intervalMs: opts?.intervalMs ?? 5_000 },
+      // On dev the per-cycle SF runs 90–110s (parallel projection lookups +
+      // PE invoke + AN invoke + compliance wait) and advisory-bff's CDC
+      // publisher adds another 5–20s before getDecisionHistory surfaces it.
+      // 180s leaves headroom on warm-Lambda paths and covers a single PE/AN
+      // retry on dev. Tightening further requires reducing the actual
+      // end-to-end cycle latency, not just the test timeout.
+      { timeoutMs: opts?.timeoutMs ?? 180_000, intervalMs: opts?.intervalMs ?? 5_000 },
     );
 
     const items = result.getDecisionHistory.items;

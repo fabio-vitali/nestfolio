@@ -14,22 +14,17 @@ import { AgentTraceTrap } from '../helpers/agent-trace-trap';
 describe('scenario 11 — investor sees first advisory decision after onboarding (live AgentCore pipeline)', () => {
   let ctx: TestContext;
   let tenant: FreshTenant;
-  let investorProfileTrap: AgentTraceTrap<'investorProfile'>;
   let advisoryNarrativeTrap: AgentTraceTrap<'advisoryNarrative'>;
-  let marketIntelligenceTrap: AgentTraceTrap<'marketIntelligence'>;
 
   beforeEach(async () => {
     ctx = await createTestContext();
     tenant = await freshTenant(ctx);
-    // Arm BEFORE any fixture — onboarded() publishes ONBOARDING_COMPLETED.
-    // Subsequently withLiveDecision publishes MANDATE_ISSUED → mandate-projector
-    // materialises MandateSnapshot → CDC emits MANDATE_SNAPSHOT_CREATED which
-    // is the SF trigger event for first decisions. We arm before applyFixtures
-    // so any envelope in the window is captured and waitFor can filter by
-    // correlationId.
-    investorProfileTrap = await AgentTraceTrap.arm(ctx, 'investorProfile');
+    // Post-precomputation: only advisory-narrative agent runs in the per-cycle SF.
+    // investor-profile + market-intelligence are continuous-projection writers
+    // out-of-cycle (see plan §Task 9, §Task 13). Their snapshot rows are pre-
+    // materialised by onboarded() (waits for InvestorProfileSnapshot) and by
+    // MarketSnapshot bootstrap CR on stack create.
     advisoryNarrativeTrap = await AgentTraceTrap.arm(ctx, 'advisoryNarrative');
-    marketIntelligenceTrap = await AgentTraceTrap.arm(ctx, 'marketIntelligence');
     await applyFixtures(ctx, tenant, [onboarded()]);
   }, 180_000);
 
@@ -50,45 +45,16 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
 
     const decisionId = result['decisionId'] as string;
 
-    // investor-profile agent is invoked by decision-workflow-ctrl's SF
-    // (ParallelProfiling state) with payload.decisionId = ctx.eventId, which
-    // matches the decisionId advisory-bff surfaces via getDecisionHistory.
-    const traces = await investorProfileTrap.waitFor({
-      correlationId: decisionId,
-      timeoutMs: 240_000,
-    });
-    const envelope = traces[0].envelope;
-
-    expect(envelope.status).toBe('success');
-    // Tolerate chain_error (LangChain structured-output parser retries; these
-    // trigger the agent's built-in fallback escalation, which is the
-    // intended resilience path). Fail only on llm_error (Bedrock infra
-    // failures: IAM, validation, quota — nothing here can route around them).
-    const llmErrors = envelope.errors.filter((e) => e.kind === 'llm_error');
-    expect(llmErrors).toHaveLength(0);
-    expect(envelope.toolCalls).toHaveLength(0);
-    expect(envelope.llmCalls.length).toBeGreaterThanOrEqual(1);
-
-    const models = new Set(envelope.llmCalls.map((l) => l['gen_ai.request.model']));
-    expect(models.has('opus') || models.has('haiku') || models.has('sonnet')).toBe(true);
-
-    expect(envelope['gen_ai.invocation.latency_ms']).toBeLessThan(
-      investorProfileTrap.getLatencyBudget(),
-    );
-
-    const miTraces = await marketIntelligenceTrap.waitFor({
-      correlationId: decisionId,
-      timeoutMs: 240_000,
-    });
-    const miEnvelope = miTraces[0].envelope;
-
-    expect(miEnvelope.status).toBe('success');
-    const miLlmErrors = miEnvelope.errors.filter((e) => e.kind === 'llm_error');
-    expect(miLlmErrors).toHaveLength(0);
-    expect(miEnvelope.llmCalls.length).toBeGreaterThanOrEqual(1);
-    expect(miEnvelope['gen_ai.invocation.latency_ms']).toBeLessThan(
-      marketIntelligenceTrap.getLatencyBudget(),
-    );
+    // Post-precomputation architecture: investor-profile + market-intelligence
+    // agents run OUT-of-cycle (on MANDATE_ISSUED / feed events / 15-min tick),
+    // not as SF states. Their traces are correlated to their own snapshot
+    // invocation ids (`snapshot-<eventId>`), not the cycle's decisionId. The
+    // pre-computation contract is already verified by `onboarded()` which
+    // blocks on InvestorProfileSnapshot materialisation in IP-ctrl's table,
+    // and by the MarketSnapshot bootstrap CustomResource on stack create.
+    // This scenario only asserts the in-cycle agents (advisory-narrative below;
+    // portfolio-engine's success is inferred from the decision surfacing with
+    // proposedTrades). See plan §Task 9 (SF rewrite) + §Task 13 (fixtures).
 
     // advisory-narrative-ctrl runs as the final explainability wave in the SF
     // chain (after profiling + construction waves complete). It receives the
