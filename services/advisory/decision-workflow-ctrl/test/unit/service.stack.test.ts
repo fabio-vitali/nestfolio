@@ -157,9 +157,9 @@ describe('DecisionWorkflowCtrlStack', () => {
       return (Object.values(memory)[0] as any)?.Properties?.MemoryStrategies ?? [];
     };
 
-    it('attaches 4 strategies to the Memory resource', () => {
+    it('attaches 3 strategies to the Memory resource (post Lever B merge)', () => {
       const strategies = getStrategies();
-      expect(strategies).toHaveLength(4);
+      expect(strategies).toHaveLength(3);
     });
 
     it('attaches InvestorPreferenceLearner with USER_PREFERENCE_MEMORY type, custom Haiku extraction only', () => {
@@ -189,31 +189,17 @@ describe('DecisionWorkflowCtrlStack', () => {
       ]);
     });
 
-    it('attaches PortfolioRationaleArchivist with SEMANTIC_MEMORY type, custom Haiku extraction only', () => {
+    it('attaches RationaleArchivist with SEMANTIC_MEMORY type, custom Haiku extraction only, shared namespace', () => {
       const strategies = getStrategies();
       const archivist = strategies.find(
-        (s: any) => s.CustomMemoryStrategy?.Name === 'PortfolioRationaleArchivist',
+        (s: any) => s.CustomMemoryStrategy?.Name === 'RationaleArchivist',
       );
       expect(archivist).toBeDefined();
       const cfg = archivist?.CustomMemoryStrategy?.Configuration?.SemanticOverride;
       expect(cfg?.Extraction?.AppendToPrompt).toContain('investor-facing narrative');
       expect(cfg?.Consolidation).toBeUndefined();
       expect(archivist?.CustomMemoryStrategy?.Namespaces).toEqual([
-        '/portfolio-engine-ctrl/{actorId}/rationale',
-      ]);
-    });
-
-    it('attaches NarrativeRationaleArchivist with SEMANTIC_MEMORY type, custom Haiku extraction + consolidation', () => {
-      const strategies = getStrategies();
-      const archivist = strategies.find(
-        (s: any) => s.CustomMemoryStrategy?.Name === 'NarrativeRationaleArchivist',
-      );
-      expect(archivist).toBeDefined();
-      const cfg = archivist?.CustomMemoryStrategy?.Configuration?.SemanticOverride;
-      expect(cfg?.Extraction?.AppendToPrompt).toContain('investor-facing narrative');
-      expect(cfg?.Consolidation?.AppendToPrompt).toContain('reasoning chain');
-      expect(archivist?.CustomMemoryStrategy?.Namespaces).toEqual([
-        '/advisory-narrative-ctrl/{actorId}/rationale',
+        '/shared-rationale/{actorId}/rationale',
       ]);
     });
   });

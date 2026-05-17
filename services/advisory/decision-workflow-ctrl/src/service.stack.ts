@@ -41,21 +41,20 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     const haikuModel = new BedrockFoundationModel(modelHaikuId);
 
     // --- AgentCore Memory ---
-    // Four long-term MemoryStrategies (Phase B — inter-agent-state-handoff):
+    // Three long-term MemoryStrategies (Phase B — inter-agent-state-handoff):
     //   1. InvestorPreferenceLearner (USER_PREFERENCE_MEMORY, Haiku extraction only)
     //      Namespace: /investor-profile-ctrl/{actorId}/preferences
     //   2. MarketSignalExtractor (SEMANTIC_MEMORY, Haiku extraction only)
     //      Namespace: /market-intelligence-ctrl/{actorId}/signals
-    //   3. PortfolioRationaleArchivist (SEMANTIC_MEMORY, Haiku extraction only)
-    //      Namespace: /portfolio-engine-ctrl/{actorId}/rationale
-    //   4. NarrativeRationaleArchivist (SEMANTIC_MEMORY, Haiku extraction + consolidation)
-    //      Namespace: /advisory-narrative-ctrl/{actorId}/rationale
-    //      (consolidation dropped in Lever B — strategy collapsed in next commit)
+    //   3. RationaleArchivist (SEMANTIC_MEMORY, Haiku extraction only)
+    //      Namespace: /shared-rationale/{actorId}/rationale
+    //      Shared by portfolio-engine-ctrl + advisory-narrative-ctrl; both
+    //      configure MemoryClient with namespacePrefix: 'shared-rationale'.
+    //      Producer attribution lives in the record payload.
     //
-    // Note: AWS AgentCore enforces a hard limit of 1 namespace per MemoryStrategy
-    // (surfaced at deploy: "Member must have length less than or equal to 1").
-    // The original unified RationaleArchivist with 2 namespaces synthesised valid CFN
-    // but was rejected at deploy time. Split into two strategies with identical prompts.
+    // AgentCore enforces 1 namespace per MemoryStrategy. The two rationale
+    // strategies (Portfolio + Narrative) collapsed into one shared-namespace
+    // strategy with producer attribution stored as a record payload field.
     //
     // Strategies stay empty until the 4 agent services start emitting via
     // MemoryClient.emitLongTermEvent (Tasks 6-9). The runtime path (libs/agent-orchestrator
@@ -91,8 +90,8 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
           },
         }),
         agentcore.MemoryStrategy.usingSemantic({
-          name: 'PortfolioRationaleArchivist',
-          namespaces: ['/portfolio-engine-ctrl/{actorId}/rationale'],
+          name: 'RationaleArchivist',
+          namespaces: ['/shared-rationale/{actorId}/rationale'],
           customExtraction: {
             model: haikuModel,
             appendToPrompt:
@@ -100,24 +99,6 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
               'why, which constraints were binding, what trade-offs were chosen, ' +
               'and the investor-facing narrative summary including tone. One ' +
               'rationale per record, scoped to the decision it explains.',
-          },
-        }),
-        agentcore.MemoryStrategy.usingSemantic({
-          name: 'NarrativeRationaleArchivist',
-          namespaces: ['/advisory-narrative-ctrl/{actorId}/rationale'],
-          customExtraction: {
-            model: haikuModel,
-            appendToPrompt:
-              'Extract recommendation rationale: which assets were weighted and ' +
-              'why, which constraints were binding, what trade-offs were chosen, ' +
-              'and the investor-facing narrative summary including tone. One ' +
-              'rationale per record, scoped to the decision it explains.',
-          },
-          customConsolidation: {
-            model: haikuModel,
-            appendToPrompt:
-              "Consolidate chronologically. Preserve the reasoning chain — " +
-              "don't collapse distinct decisions into a summary.",
           },
         }),
       ],
@@ -160,7 +141,7 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
       resources: memoryModelResources,
     }));
 
-    // AssemblePacket Lambda — reads all 4 agent outputs from the SF state Parameters
+    // AssemblePacket Lambda — reads agent outputs from the SF state Parameters
     // payload (post-Phase-A 2026-05-14). No Memory reads, no eventual-consistency
     // retry loop. See docs/backlog/inter-agent-state-handoff-sf-vs-memory.md.
     const assemblePacketFn = new NodejsFunction(this, 'AssemblePacket', {
