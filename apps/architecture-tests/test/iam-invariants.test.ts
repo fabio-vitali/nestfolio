@@ -10,13 +10,16 @@
  * machine listens via its own CallbackIngress.
  *
  * Per-service stack tests already assert the negation per service. This
- * workspace-wide test is the cross-cutting backstop.
+ * workspace-wide test is the cross-cutting backstop, located in a leaf
+ * Nx application (`apps/architecture-tests`) so importing sibling service
+ * stack classes does not introduce a project-graph cycle into the
+ * `cdk-constructs` library — nothing else depends on `apps/architecture-tests`.
  *
- * The eslint-disable below is intentional: this file is a workspace-wide
- * backstop that *must* import sibling service stack classes to synth them
- * and inspect their CloudFormation IAM policies. The structural circular
- * dependency exists only in this test (no production code in cdk-constructs
- * depends on any service), so the boundary rule is suppressed here only.
+ * The eslint-disable below is intentional: the @nx/enforce-module-boundaries
+ * rule forbids importing application projects, and Nestfolio services are
+ * tagged `type:app`. This file is the one place where workspace-wide IAM
+ * invariants legitimately need to synth sibling service stacks and inspect
+ * their CloudFormation. No production code anywhere depends on this project.
  */
 /* eslint-disable @nx/enforce-module-boundaries */
 import { join } from 'path';
@@ -47,6 +50,7 @@ function policyGrantsSfActions(policy: any): string[] {
 }
 
 function serviceDirFor(service: string): string {
+  // __dirname is apps/architecture-tests/test; service dir is services/advisory/<service>/src.
   return join(__dirname, '..', '..', '..', 'services', 'advisory', service, 'src');
 }
 
