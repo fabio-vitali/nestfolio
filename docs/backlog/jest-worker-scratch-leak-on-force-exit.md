@@ -43,6 +43,16 @@ Surfaced 2026-05-15 (third recurrence). Each test run leaks ~5-15 directories in
 
 `.gitignore` updated to cover `cdk.out*/` (no-dot wildcard) + `jest_dx/`. Manual cleanup needed for `[0-9a-f]{20}/` empty dirs and `nx-native-file-cache-*/` accumulation.
 
+## 2026-05-18 follow-up: orphan-process angle (independent of `forceExit`)
+
+During `agent-pipeline-backlog-trap-impl` ship, the leak recurred at a much higher rate than `forceExit` alone explains. Process inspection found a **40-day zombie** `nx run-many -t test-integration --parallel=4` (PID 48621, etime `40-13:07:22` as of 2026-05-18 14:01 local) continuously spawning Jest workers. Each spawn dumps `cdk.out<rand>/`, `tmp-<pid>-<rand>/`, and pollutes `pnpm-lock.yaml` with `tmp-NNN` `importers:` entries (because pnpm-workspace globs `services/**` + `libs/*` + `tools/*` + `apps/*` but NOT root-level `tmp-*` — yet pnpm DOES still index them when it scans cwd for an `add` operation).
+
+Net effect: `/backlog-next` postflight's `tree-clean` gate failed in a loop — `rm -rf tmp-*` + `git restore pnpm-lock.yaml` only succeeded when timed to outrace the next worker spawn.
+
+**New fix candidate (5):** add a `pnpm prepare` / `prebuild` script that prunes orphan `nx`/`jest` processes older than ~1h before `nx run-many` proceeds. Or: an nx daemon affinity check that refuses to start a new `nx run-many` while a same-target run is already in flight on this host. Neither addresses the underlying `forceExit` design issue — they just stop the leak compounding indefinitely when a test run is left dangling.
+
+**Investigation pointer**: search shell history or `ps -A -o lstart,pid,command` for the 2026-04-08 09:00-ish window when PID 48621 started. The terminal that launched it probably crashed or was force-quit without cleaning up the child.
+
 ## Real fix candidates (when promoted)
 
 1. **Remove `forceExit: true` from nx.json**, then `nx run-many --target=test` to verify nothing hangs. If hangs surface, find the offending unclosed-handle (likely a Lambda powertools logger flush, an AWS SDK client, or a node-fetch keep-alive socket) and fix at source.
