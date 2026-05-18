@@ -36,7 +36,11 @@ import { waitForGraphQL } from '../../src/helpers/wait-for-graphql';
 
 describe('fixtures — onboarded', () => {
   it('publishes USER_REGISTERED, waits for profile, then publishes ONBOARDING_COMPLETED', async () => {
-    const ctx = { tenantId: 'tenant-1', region: 'us-east-1' } as any;
+    const ctx = {
+      tenantId: 'tenant-1',
+      region: 'us-east-1',
+      ssm: { tableName: jest.fn().mockResolvedValue('test-table') },
+    } as any;
     const tenant = { tenantId: 'tenant-1', userId: 'user-1', idToken: '', accessToken: '', cognitoTokens: {} as any };
     const eb = { putEvent: jest.fn().mockResolvedValue(undefined) };
     (EventBridgeClient as unknown as jest.Mock).mockImplementation(() => eb);
