@@ -328,30 +328,40 @@ export class DecisionWorkflowDefinition extends Construct {
     //     partial shape is therefore acceptable for the trigger-payload happy
     //     path. See plan §Open Question #3.
 
-    const lookupInvestorProfileSnapshot = new sfn.CustomState(this, 'LookupInvestorProfileSnapshot', {
-      stateJson: {
-        Type: 'Task',
-        Resource: 'arn:aws:states:::dynamodb:getItem',
-        Parameters: {
-          TableName: props.tableName,
-          Key: {
-            pk: { 'S.$': "States.Format('InvestorProfileSnapshot#{}#{}', $.tenantId, $.userId)" },
-            sk: { S: 'InvestorProfileSnapshot' },
-          },
-        },
-        // SF DDB integration returns Item in raw DDB attribute-typed wire format
-        // ({S, N, M, L, ...}). `.M` extracts the map's nested object; PE+AN
-        // treat the value as opaque (defaults via `?? {}`), so the
-        // unmarshalled-vs-wrapped shape is not load-bearing today. If a future
-        // change in PE/AN starts depending on a specific snapshot field, swap
-        // this for a per-field projection (e.g. `riskScore.$': '$.Item.agentOutput.M.riskScore.N`)
-        // or an unmarshalling Pass — see plan §Open Question #3.
-        ResultSelector: {
-          'agentOutput.$': '$.Item.agentOutput.M',
-        },
-        ResultPath: '$.agentResults.InvokeInvestorProfile',
+    // Fault-tolerance: a missing InvestorProfileSnapshot row produces a
+    // States.Runtime when a ResultSelector tries to extract $.Item.agentOutput.M,
+    // and States.Runtime is NOT catchable per AWS docs. Capture the raw GetItem
+    // response on $.investorProfileSnapshotResponse (no ResultSelector), then use
+    // a Choice on isPresent($.Item) to branch — symmetric with the Market branch
+    // below. PE+AN tolerate empty investorProfile via `?? {}`, so the absent path
+    // degrades the decision rather than aborting the cycle.
+    const lookupInvestorProfileSnapshot = new sfnTasks.DynamoGetItem(this, 'LookupInvestorProfileSnapshot', {
+      table: props.table,
+      key: {
+        pk: sfnTasks.DynamoAttributeValue.fromString(
+          sfn.JsonPath.format(
+            'InvestorProfileSnapshot#{}#{}',
+            sfn.JsonPath.stringAt('$.tenantId'),
+            sfn.JsonPath.stringAt('$.userId'),
+          ),
+        ),
+        sk: sfnTasks.DynamoAttributeValue.fromString('InvestorProfileSnapshot'),
       },
+      resultPath: '$.investorProfileSnapshotResponse',
     });
+    const extractInvestorProfileSnapshot = new sfn.Pass(this, 'ExtractInvestorProfileSnapshot', {
+      parameters: {
+        'agentOutput.$': '$.investorProfileSnapshotResponse.Item.agentOutput.M',
+      },
+      resultPath: '$.agentResults.InvokeInvestorProfile',
+    });
+    const handleMissingInvestorProfileSnapshot = new sfn.Pass(this, 'HandleMissingInvestorProfileSnapshot', {
+      result: sfn.Result.fromObject({ agentOutput: {} }),
+      resultPath: '$.agentResults.InvokeInvestorProfile',
+    });
+    const checkInvestorProfileSnapshotPresent = new sfn.Choice(this, 'CheckInvestorProfileSnapshotPresent')
+      .when(sfn.Condition.isPresent('$.investorProfileSnapshotResponse.Item'), extractInvestorProfileSnapshot)
+      .otherwise(handleMissingInvestorProfileSnapshot);
 
     const hoistInvestorProfileFromTrigger = new sfn.Pass(this, 'HoistInvestorProfileFromTrigger', {
       parameters: {
@@ -381,7 +391,7 @@ export class DecisionWorkflowDefinition extends Construct {
 
     const resolveInvestorProfile = new sfn.Choice(this, 'ResolveInvestorProfile')
       .when(sfn.Condition.isPresent('$.triggerContext.goal'), hoistInvestorProfileFromTrigger)
-      .otherwise(lookupInvestorProfileSnapshot);
+      .otherwise(lookupInvestorProfileSnapshot.next(checkInvestorProfileSnapshotPresent));
 
     // (B) LookupMarketSnapshot — always GetItem. Market signals are a global
     //     projection keyed by region; we never hoist from trigger payload

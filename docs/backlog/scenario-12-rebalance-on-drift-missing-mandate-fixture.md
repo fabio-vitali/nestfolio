@@ -1,7 +1,6 @@
 ---
 id: scenario-12-rebalance-on-drift-missing-mandate-fixture
-status: queued
-rank: 11
+status: shipped
 type: bug
 notes: "Reopened 2026-05-18 after fresh e2e run RED on main. The 2026-05-16 fixture fix (adding withLiveDecision() before the drift event) is still structurally correct — it materialises MandateSnapshot for the drift-event SF. Today's failure is on a different cycle: withLiveDecision()'s OWN prep SF fails with the same States.Runtime defect class that bit operating-mode-shape today, but on LookupInvestorProfileSnapshot. The InvestorProfileSnapshot CDC projection has not caught up when MANDATE_SNAPSHOT_CREATED triggers the SF on a fresh tenant. Fix is in decision-state-machine.ts, not in the test."
 references:
@@ -12,11 +11,20 @@ out_of_scope:
   - "Changing the SF LookupMandateSnapshot to tolerate missing operatingMode (would mask a real propagation failure; the May-16 fix is correct for that branch)"
   - "Test-side retry of withLiveDecision() — the SF must not raise States.Runtime on absent snapshot rows; fixing it test-side masks the prod-relevant race"
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-05-18-fix-investor-profile-snapshot-states-runtime.md
 topic_memory:
   - project_e2e_feature_tests.md
   - project_investor_profile_collapse.md
-validation_gate: null
+validation_gate: |
+  Shipped 2026-05-18 — cross-resolved by operating-mode-shape-empty-proposed-trades
+  fix (worktree branch worktree-fix-investor-profile-snapshot-states-runtime).
+  Same Choice-on-isPresent fix for LookupInvestorProfileSnapshot resolves both items.
+  Commits: 0d4b0efb / 71a5dff0 / e9a7d889. Deploy CFN
+  stack/dev-decision-workflow-ctrl/0ebbddc0-2f9d-11f1-876e-0eddb6105365.
+  E2E (scoped): rebalance-on-drift 1/1 GREEN in 163s — withLiveDecision() prep
+  cycle now tolerates absent InvestorProfileSnapshot, PORTFOLIO_DRIFT_DETECTED
+  triggers rebalance decision end-to-end. No fixture changes were required;
+  the May-16 withLiveDecision() addition remains correct and in place.
 ---
 
 # scenario-12 rebalance-on-drift — `withLiveDecision()` prep cycle fails on InvestorProfileSnapshot race (regression 2026-05-18)
