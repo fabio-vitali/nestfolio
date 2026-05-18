@@ -1,9 +1,9 @@
 ---
 id: agent-pipeline-backlog-trap-architectural
-status: active
+status: shipped
 type: design
 rank: null
-notes: "Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop. Adopted ACTIVE 2026-05-18 same-day-after-unpark: post-precomputation e2e run on deployed dev produced PE-only trap evidence (PE IngressQueue 810 visible + 4 in-flight while IP/MI/AN/DWC IngressQueues all 0). PE handler is healthy (178 unique decisions drained cleanly in 15min ≈ 0.2 msg/s — matches the dossier's predicted 0.33 msg/s ceiling); the structural three-knob mismatch is the bottleneck. Precomputation dissolved IP/MI surface but concentrated demand on PE. Dev PE IngressQueue purged at adoption to clear stale task-token-dead messages — does not address structural cause."
+notes: "Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop. Adopted ACTIVE 2026-05-18 same-day-after-unpark: post-precomputation e2e run on deployed dev produced PE-only trap evidence (PE IngressQueue 810 visible + 4 in-flight while IP/MI/AN/DWC IngressQueues all 0). PE handler is healthy (178 unique decisions drained cleanly in 15min ≈ 0.2 msg/s — matches the dossier's predicted 0.33 msg/s ceiling); the structural three-knob mismatch is the bottleneck. Precomputation dissolved IP/MI surface but concentrated demand on PE. Dev PE IngressQueue purged at adoption to clear stale task-token-dead messages — does not address structural cause. Shipped 2026-05-18 as type:design (Doc-layer): synth-time invariant via agentProfile() helper encodes the three-knob agreement; model-agnostic by construction; SQS batching considered + rejected in §5.1. Implementation tracked separately."
 references:
   - libs/event-processor/src/pipelines/resume-state-machine.ts
   - services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
@@ -20,13 +20,18 @@ out_of_scope:
   - Compliance-ctrl or AssemblePacket state changes.
   - The separate publisher-side bug tracked in `update-operating-mode-cdc-silent` (independent root cause, independent test scenario).
   - F1/F3 prevention via test gating — the architectural fix should make scenarios 11+12 deterministically green; gating heuristics are out of scope.
-spec: null
+spec: docs/superpowers/specs/2026-05-18-agent-pipeline-backlog-trap-architectural-design.md
 plan: null
 topic_memory:
   - project_e2e_feature_tests.md
   - project_inter_agent_state_handoff.md
   - project_lambda_profile_system.md
-validation_gate: null
+validation_gate: |
+  Spec written, self-reviewed (two factual fixes applied), and user-approved 2026-05-18.
+  - Spec commit: 157badd9 docs(specs): agent-pipeline backlog trap architectural fix
+  - §5.1 batching-rejection commit: 50664433 docs(specs): add §5.1 rejecting SQS batching as a lever for agent pattern
+  - Spec path: docs/superpowers/specs/2026-05-18-agent-pipeline-backlog-trap-architectural-design.md
+  - Implementation workstream filed separately for Complex-lane execution.
 ---
 
 # Agent-pipeline backlog trap (architectural)
