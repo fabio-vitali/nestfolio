@@ -1,8 +1,8 @@
 ---
 id: backlog-frontmatter-add-first-observed-field
-status: parking
+status: dropped
 type: tooling
-notes: "Add first_observed: ISO-date field to backlog frontmatter; lint enforces presence on new files."
+notes: "Dropped 2026-05-18 — verified no current workflow depends on a structured first_observed field. Boundary review (LATER section) shows no dates; Recently Shipped uses git ship-date via gitClosedDate fallback. Body prose carries inline dates where they matter. Re-file if/when an age-based aging rule or automated drift check needs it."
 references: []
 out_of_scope: []
 spec: null
