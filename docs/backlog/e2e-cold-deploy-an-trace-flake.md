@@ -1,16 +1,22 @@
 ---
 id: e2e-cold-deploy-an-trace-flake
-status: queued
-rank: 4
+status: shipped
+rank: null
 type: bug
-notes: "first-decision e2e flakes on the first run after a fresh deploy when all advisory-pipeline Lambdas are cold; AgentTraceTrap times out at 240s for advisoryNarrative trace (CloudWatch shows AN handler ran in 500ms, trace seems to land after the trap stopped collecting)"
-references: []
-out_of_scope: []
+notes: "first-decision e2e flakes on the first run after a fresh deploy when all advisory-pipeline Lambdas are cold; AgentTraceTrap times out at 240s for advisoryNarrative trace (CloudWatch shows AN handler ran in 500ms, trace seems to land after the trap stopped collecting). Fix: EventBusTrap.drain() switched from SQS short-poll (WaitTimeSeconds=0) to long-poll (WaitTimeSeconds=1); MessageRetentionPeriod 300s → 900s."
+references:
+  - "libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts:50"
+  - "libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts:266"
+  - "apps/e2e-feature-tests/src/helpers/agent-trace-trap.ts:88"
+out_of_scope:
+  - "Cold-deploy validation run — flake repro requires forcing cold Lambdas (every service redeploy) and an immediate e2e run; not feasible in the same workstream. Next natural cold-deploy validation will confirm or refute the fix."
+  - "Adding `since:` lookback to AgentTraceTrap.waitFor (mentioned in original 'cheapest next step') — current EB→SQS pipe buffers events between deploy() and waitFor() already; lookback added complexity for no observed benefit"
+  - "Changing the misleading 'Common cause: .arm() was called AFTER the trigger' error message — keep as-is; still accurate for the common arm-order mistake even if it didn't apply to this specific failure"
 spec: null
 plan: null
 topic_memory:
   - project_e2e_feature_tests.md
-validation_gate: null
+validation_gate: "EventBusTrap.drain() now uses SQS long-poll (canonical AWS guidance — short-poll samples a subset of servers per call, so a single message can be intermittently invisible across tight 1s polling loops). MessageRetentionPeriod bumped to 900s (test wall-clock observed 374s approached the previous 300s floor). Unit test `drain uses SQS long-poll (WaitTimeSeconds=1)` added in `libs/integration-testing/test/fixtures/event-bus-trap.test.ts:96`. `pnpm nx affected -t test,lint --base=origin/main` GREEN across 26 projects. No Lambda redeploy needed (deploy-paths.md notes `libs/integration-testing/**` is 'for the harness, not the Lambdas'). Cold-deploy validation deferred to the next natural cold-Lambda window."
 ---
 
 # first-decision e2e: AgentTraceTrap times out on cold-deploy first run

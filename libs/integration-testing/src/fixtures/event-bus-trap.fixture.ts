@@ -44,12 +44,16 @@ export class EventBusTrap {
     const suffix = Math.random().toString(36).slice(2, 8);
     const trapId = `integ-trap-${timestamp}-${suffix}`;
 
-    // Create SQS queue
+    // Create SQS queue. MessageRetentionPeriod is 900s (15min) so events
+    // emitted early in a long test cannot expire before a late drain() picks
+    // them up. Surfaced 2026-05-18: first-decision.e2e total wall-clock 374s
+    // approached the previous 300s retention floor and the AN trace landed
+    // un-drained.
     const createResult = await this.sqs.send(new CreateQueueCommand({
       QueueName: trapId,
       Attributes: {
         VisibilityTimeout: '60',
-        MessageRetentionPeriod: '300',
+        MessageRetentionPeriod: '900',
       },
     }));
     this.queueUrl = createResult.QueueUrl!;
@@ -260,7 +264,13 @@ export class EventBusTrap {
   }
 
   async drain(): Promise<CapturedEvent[]> {
-    const fresh = await this.consumeMessages(0);
+    // Long-poll (WaitTimeSeconds=1) instead of short-poll. SQS short-poll
+    // samples only a subset of servers per call, so a single message can be
+    // intermittently invisible on tight polling loops — observed on
+    // cold-deploy first-decision.e2e 2026-05-18 where the AN trace landed in
+    // the queue but waitFor short-polled past it for 240s. Long-poll is the
+    // canonical AWS guidance and paces the loop without an extra sleep.
+    const fresh = await this.consumeMessages(1);
     const events: CapturedEvent[] = [...this.captured, ...fresh];
     this.captured = [];
     return events;

@@ -91,6 +91,22 @@ describe('EventBusTrap dedup + auto-delete', () => {
     expect(result).toHaveLength(1);
     expect(result[0].detailType).toBe('EVENT_Y');
   });
+
+  it('drain uses SQS long-poll (WaitTimeSeconds=1) to avoid short-poll misses', async () => {
+    const trap = new EventBusTrap(makeCtx());
+    (trap as unknown as { queueUrl: string }).queueUrl = 'https://sqs.test/queue';
+
+    sqsMock.on(ReceiveMessageCommand).resolves({ Messages: [] });
+    sqsMock.on(DeleteMessageBatchCommand).resolves({});
+
+    await trap.drain();
+
+    expect(sqsMock).toHaveReceivedCommandWith(ReceiveMessageCommand, {
+      QueueUrl: 'https://sqs.test/queue',
+      MaxNumberOfMessages: 10,
+      WaitTimeSeconds: 1,
+    });
+  });
 });
 
 describe('EventBusTrap.waitForEvent match predicate', () => {
