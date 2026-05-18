@@ -217,6 +217,18 @@ INVARIANT:  visibilityTimeout ≤ ux × 2
 
 **Why `visibilityMultiplier = 4` default** (not the CDK 6×): satisfies the invariant for typical `(p90, ux)` shapes. 4 retries within visibility before DLQ. Authors can override but the invariant catches any unsafe override.
 
+### 5.1 Why not tune SQS→Lambda batching?
+
+A natural question: would raising `sqsBatchSize` (currently 1) or `sqsMaxBatchingWindow` (currently 0s) help? Considered and rejected for this pattern:
+
+1. **Per-call latency dominates invocation overhead.** Batching pays off when per-message work is small and Lambda invocation cost (cold start, warm-up) is comparable. Agent calls are 25-30s; the ~100ms warm-invocation cost is 0.4% of the work. Batching solves the wrong problem.
+2. **Batching amplifies tail latency.** With `batchSize=N` and in-process `Promise.all`, the SQS-visible completion time equals the *slowest* agent call in the batch, not the average. A batch of 10 with one slow agent (60s) and nine fast ones (10s) resolves all ten SF task tokens at 60s. The SF deadline calculation would have to use `batch-p99` rather than `per-call p90`, strictly worsening the invariant math.
+3. **Equivalent throughput is already in the concurrency lever.** `batchSize=N, concurrency=C` (parallel) gives `N × C / p90` effective rate — identical to `batchSize=1, concurrency=N×C`. The spec uses the latter because it has no tail-amplification penalty.
+4. **`maxBatchingWindow > 0` adds queue-side latency.** Waiting to fill a batch directly trades against the SF deadline. For a deadline-bound pipeline, set it to 0.
+5. **Batching complicates per-token error isolation.** Each SQS message carries one SF task token (via materializeToTable → CDC → DWC callback). With `batchSize > 1` the Lambda must implement `reportBatchItemFailures` so one bad agent call doesn't roll back the other N-1 successful writes. Not impossible, but added surface area without throughput gain.
+
+**Decision**: keep `sqsBatchSize: 1` and `sqsMaxBatchingWindow: Duration.seconds(0)` in `agentProfile`. Lambda concurrency remains the sole throughput knob. Batching is the right lever for throughput-bound, latency-insensitive, fast-per-message workloads (CDC, projection materializers, hub fan-outs) — agent invocation is the opposite shape.
+
 ## 6. Initial values (PE + AN)
 
 From CloudWatch Logs Insights, dev account, 7-day window ending 2026-05-18:
