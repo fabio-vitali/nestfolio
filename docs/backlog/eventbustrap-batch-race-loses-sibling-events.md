@@ -1,14 +1,18 @@
 ---
 id: eventbustrap-batch-race-loses-sibling-events
-status: queued
+status: active
 type: bug
-rank: 1
+rank: null
 notes: "EventBusTrap.waitForEvent returns mid-loop on first match, leaving later events in the same SQS batch unbuffered and lost — flakes update-operating-mode.e2e.test.ts:182 when both events from one CDC batch arrive in one SQS receive."
 references:
   - libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts
   - apps/e2e-feature-tests/src/profile/update-operating-mode.e2e.test.ts
   - docs/backlog/update-operating-mode-cdc-silent.md
-out_of_scope: []
+out_of_scope:
+  - Redesigning consumeMessages / SQS receive semantics (long-poll, batch sizing, visibility timeout). Only the buffer-loss bug.
+  - Adding integration coverage on the trap itself beyond what the fix needs to assert. Possible follow-up.
+  - Re-litigating the stale-bundle root cause from update-operating-mode-cdc-silent.
+  - Retrofitting jest.retryTimes(1) onto update-operating-mode.e2e — the goal is to fix the trap so retries are not needed.
 spec: null
 plan: null
 topic_memory:
