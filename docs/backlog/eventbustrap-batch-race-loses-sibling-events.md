@@ -1,9 +1,9 @@
 ---
 id: eventbustrap-batch-race-loses-sibling-events
-status: active
+status: shipped
 type: bug
 rank: null
-notes: "EventBusTrap.waitForEvent returns mid-loop on first match, leaving later events in the same SQS batch unbuffered and lost — flakes update-operating-mode.e2e.test.ts:182 when both events from one CDC batch arrive in one SQS receive."
+notes: "EventBusTrap.waitForEvent returned mid-loop on first match, orphaning sibling events from the same SQS receive (which consumeMessages had already deleted). Fixed by buffering the whole batch before returning."
 references:
   - libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts
   - apps/e2e-feature-tests/src/profile/update-operating-mode.e2e.test.ts
@@ -18,7 +18,11 @@ plan: null
 topic_memory:
   - project_operating_mode.md
   - project_e2e_feature_tests.md
-validation_gate: null
+validation_gate: |
+  Shipped 2026-05-19 in PR #17 (squash-merge commit 6ed5d9d0).
+  Unit: pnpm nx run integration-testing:test — 57/57 PASS (8 suites). Two RED→GREEN tests added covering 2-event and 3-event batch cases. Both failed before the fix (TypeError + empty buffer assertion), both green after.
+  E2E gate: pnpm nx run e2e-feature-tests:test-e2e-features --testPathPatterns 'update-operating-mode' 3/3 consecutive PASS against deployed dev — 113s, 67s, 67s. The 113s first run vs 67s steady-state suggests we did hit the race path at least once; fix held.
+  Skipped: full apps/e2e-feature-tests sweep (per the scoped-rerun rule). Last unscoped run pre-fix was 32/33; this test was the only failure.
 ---
 
 # EventBusTrap batch-race loses sibling events

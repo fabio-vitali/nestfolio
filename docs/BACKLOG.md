@@ -6,7 +6,8 @@
 
 ## ACTIVE
 
-- [eventbustrap-batch-race-loses-sibling-events](backlog/eventbustrap-batch-race-loses-sibling-events.md) [bug] — EventBusTrap.waitForEvent returns mid-loop on first match, leaving later events in the same SQS batch unbuffered and lost — flakes update-operating-mode.e2e.test.ts:182 when both events from one CDC batch arrive in one SQS receive.
+_(none)_
+
 
 ## QUEUED
 
@@ -57,6 +58,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-05-19 — [eventbustrap-batch-race-loses-sibling-events](backlog/eventbustrap-batch-race-loses-sibling-events.md) [bug] — EventBusTrap.waitForEvent returned mid-loop on first match, orphaning sibling events from the same SQS receive (which consumeMessages had already deleted). Fixed by buffering the whole batch before returning.
 - 2026-05-18 — [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop. Adopted ACTIVE 2026-05-18 same-day-after-unpark: post-precomputation e2e run on deployed dev produced PE-only trap evidence (PE IngressQueue 810 visible + 4 in-flight while IP/MI/AN/DWC IngressQueues all 0). PE handler is healthy (178 unique decisions drained cleanly in 15min ≈ 0.2 msg/s — matches the dossier's predicted 0.33 msg/s ceiling); the structural three-knob mismatch is the bottleneck. Precomputation dissolved IP/MI surface but concentrated demand on PE. Dev PE IngressQueue purged at adoption to clear stale task-token-dead messages — does not address structural cause. Shipped 2026-05-18 as type:design (Doc-layer): synth-time invariant via agentProfile() helper encodes the three-knob agreement; model-agnostic by construction; SQS batching considered + rejected in §5.1. Implementation tracked separately.
 - 2026-05-18 — [agent-pipeline-backlog-trap-impl](backlog/agent-pipeline-backlog-trap-impl.md) [refactor] — Implementation of the agent-pipeline-backlog-trap-architectural design spec. Added agentProfile() synth-time invariant helper, extended LambdaProfile with visibilityTimeout, wired Ingress fallback rung, replaced agentProps at PE+AN call sites, threaded per-agent UX budget into DWC's two agent-invoke SF states. SHIPPED 2026-05-18: scenarios 11+12 3/3 green on deployed dev.
 - 2026-05-18 — [bedrock-cost-reduction-may-2026](backlog/bedrock-cost-reduction-may-2026.md) [refactor] — 5-lever Bedrock cost-reduction package — Phase B MemoryStrategies + Opus downgrades; ~$100/mo savings
@@ -66,4 +68,3 @@ _(none)_
 - 2026-05-18 — [update-operating-mode-cdc-silent](backlog/update-operating-mode-cdc-silent.md) [bug] — updateOperatingMode mutation succeeds (DDB UpdateItem returns AGGRESSIVE row) but neither INVESTOR_PROFILE_UPDATED (carrier) nor OPERATING_MODE_CHANGED (semantic) reach the investor bus within 60s — empty EventBusTrap buffer. Blocks update-operating-mode.e2e.test.ts which is the only e2e covering the mode re-derivation chain.
 - 2026-05-17 — [advisory-cycle-agent-precomputation-impl](backlog/advisory-cycle-agent-precomputation-impl.md) [feature] — Implementation of the advisory-cycle-agent-precomputation design spec. IP+MI exit the per-cycle pipeline (continuous projection). PE+AN refactor to emit *_COMPLETED/*_FAILED via CDC; CallbackIngress becomes sole SF callback caller. SF gains payload-first Choice states for IP and Mandate projection reads.
 - 2026-05-17 — [advisory-cycle-agent-precomputation](backlog/advisory-cycle-agent-precomputation.md) [design] — Design spec for moving IP+MI to continuous projection + refactoring PE+AN callbacks to event-driven CallbackIngress. After implementation, decision-workflow-ctrl will be the sole caller of states:SendTaskSuccess/SendTaskFailure.
-- 2026-05-17 — [marketsnapshot-fault-tolerant-cycle](backlog/marketsnapshot-fault-tolerant-cycle.md) [refactor] — Tolerate absent MarketSnapshot in DWC SF and delete the bootstrap CustomResource that papered over it
