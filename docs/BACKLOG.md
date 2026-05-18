@@ -6,12 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [update-operating-mode-cdc-silent](backlog/update-operating-mode-cdc-silent.md) [bug] — updateOperatingMode mutation succeeds (DDB UpdateItem returns AGGRESSIVE row) but neither INVESTOR_PROFILE_UPDATED (carrier) nor OPERATING_MODE_CHANGED (semantic) reach the investor bus within 60s — empty EventBusTrap buffer. Blocks update-operating-mode.e2e.test.ts which is the only e2e covering the mode re-derivation chain.
 
 ## QUEUED
 
-1. [update-operating-mode-cdc-silent](backlog/update-operating-mode-cdc-silent.md) [bug] — updateOperatingMode mutation succeeds (DDB UpdateItem returns AGGRESSIVE row) but neither INVESTOR_PROFILE_UPDATED (carrier) nor OPERATING_MODE_CHANGED (semantic) reach the investor bus within 60s — empty EventBusTrap buffer. Blocks update-operating-mode.e2e.test.ts which is the only e2e covering the mode re-derivation chain.
+_(none)_
+
 
 ## LATER
 
