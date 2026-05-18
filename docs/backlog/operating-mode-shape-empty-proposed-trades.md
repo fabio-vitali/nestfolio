@@ -1,7 +1,6 @@
 ---
 id: operating-mode-shape-empty-proposed-trades
-status: queued
-rank: 10
+status: active
 type: bug
 notes: "Reopened 2026-05-18 after fresh e2e run RED on main. BALANCED + AGGRESSIVE timed out at 360s polling for non-empty proposedTrades; CONSERVATIVE passed by timing luck. Root cause is NOT empty proposedTrades materialisation — it is a fail-closed SF JSONPath: LookupInvestorProfileSnapshot raises States.Runtime when the InvestorProfileSnapshot projection has not caught up by the time MANDATE_SNAPSHOT_CREATED triggers the decision-state-machine. Same defect class as the LookupMandateSnapshot Catch-on-Runtime bug (memory feedback_states_runtime_uncatchable, 2026-05-17). Fix pattern is already proven on the Market branch."
 references:

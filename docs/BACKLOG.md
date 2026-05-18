@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — Reopened 2026-05-18 after fresh e2e run RED on main. BALANCED + AGGRESSIVE timed out at 360s polling for non-empty proposedTrades; CONSERVATIVE passed by timing luck. Root cause is NOT empty proposedTrades materialisation — it is a fail-closed SF JSONPath: LookupInvestorProfileSnapshot raises States.Runtime when the InvestorProfileSnapshot projection has not caught up by the time MANDATE_SNAPSHOT_CREATED triggers the decision-state-machine. Same defect class as the LookupMandateSnapshot Catch-on-Runtime bug (memory feedback_states_runtime_uncatchable, 2026-05-17). Fix pattern is already proven on the Market branch.
 
 ## QUEUED
 
-1. [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — Reopened 2026-05-18 after fresh e2e run RED on main. BALANCED + AGGRESSIVE timed out at 360s polling for non-empty proposedTrades; CONSERVATIVE passed by timing luck. Root cause is NOT empty proposedTrades materialisation — it is a fail-closed SF JSONPath: LookupInvestorProfileSnapshot raises States.Runtime when the InvestorProfileSnapshot projection has not caught up by the time MANDATE_SNAPSHOT_CREATED triggers the decision-state-machine. Same defect class as the LookupMandateSnapshot Catch-on-Runtime bug (memory feedback_states_runtime_uncatchable, 2026-05-17). Fix pattern is already proven on the Market branch.
-2. [scenario-12-rebalance-on-drift-missing-mandate-fixture](backlog/scenario-12-rebalance-on-drift-missing-mandate-fixture.md) [bug] — Reopened 2026-05-18 after fresh e2e run RED on main. The 2026-05-16 fixture fix (adding withLiveDecision() before the drift event) is still structurally correct — it materialises MandateSnapshot for the drift-event SF. Today's failure is on a different cycle: withLiveDecision()'s OWN prep SF fails with the same States.Runtime defect class that bit operating-mode-shape today, but on LookupInvestorProfileSnapshot. The InvestorProfileSnapshot CDC projection has not caught up when MANDATE_SNAPSHOT_CREATED triggers the SF on a fresh tenant. Fix is in decision-state-machine.ts, not in the test.
+1. [scenario-12-rebalance-on-drift-missing-mandate-fixture](backlog/scenario-12-rebalance-on-drift-missing-mandate-fixture.md) [bug] — Reopened 2026-05-18 after fresh e2e run RED on main. The 2026-05-16 fixture fix (adding withLiveDecision() before the drift event) is still structurally correct — it materialises MandateSnapshot for the drift-event SF. Today's failure is on a different cycle: withLiveDecision()'s OWN prep SF fails with the same States.Runtime defect class that bit operating-mode-shape today, but on LookupInvestorProfileSnapshot. The InvestorProfileSnapshot CDC projection has not caught up when MANDATE_SNAPSHOT_CREATED triggers the SF on a fresh tenant. Fix is in decision-state-machine.ts, not in the test.
 
 ## LATER
 
