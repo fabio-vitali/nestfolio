@@ -167,6 +167,64 @@ describe('EventBusTrap.waitForEvent match predicate', () => {
     expect(after[0].detail.subject.trigger).toBe('GOAL_CREATED');
   });
 
+  it('buffers trailing fresh SQS events when an earlier one matches the filter', async () => {
+    // Regression: a single SQS receive returning [match, non-match] used to
+    // return mid-loop without buffering the trailing event, losing it to
+    // future waitForEvent calls. Reproduces the update-operating-mode.e2e
+    // line-182 timeout where OPERATING_MODE_CHANGED + INVESTOR_PROFILE_UPDATED
+    // arrive in one CDC batch.
+    const trap = new EventBusTrap(makeCtx());
+    (trap as unknown as { queueUrl: string }).queueUrl = 'https://sqs.test/queue';
+
+    sqsMock.on(ReceiveMessageCommand).resolvesOnce({
+      Messages: [
+        makeMessage('m1', 'OPERATING_MODE_CHANGED'),
+        makeMessage('m2', 'INVESTOR_PROFILE_UPDATED'),
+      ],
+    });
+    sqsMock.on(DeleteMessageBatchCommand).resolves({});
+
+    const first = await trap.waitForEvent({
+      detailType: 'OPERATING_MODE_CHANGED',
+      timeoutMs: 1_000,
+    });
+    expect(first.detailType).toBe('OPERATING_MODE_CHANGED');
+
+    // The trailing INVESTOR_PROFILE_UPDATED must survive in the buffer so
+    // the next waitForEvent call resolves immediately rather than timing out
+    // against a now-empty SQS queue (the message was already deleted in the
+    // first receive).
+    const second = await trap.waitForEvent({
+      detailType: 'INVESTOR_PROFILE_UPDATED',
+      timeoutMs: 1_000,
+    });
+    expect(second.detailType).toBe('INVESTOR_PROFILE_UPDATED');
+  });
+
+  it('buffers all later fresh events when the first matches', async () => {
+    // Stronger variant: 3 events in one batch, first matches. The other 2
+    // must both end up in the captured buffer in arrival order.
+    const trap = new EventBusTrap(makeCtx());
+    (trap as unknown as { queueUrl: string }).queueUrl = 'https://sqs.test/queue';
+
+    sqsMock.on(ReceiveMessageCommand).resolvesOnce({
+      Messages: [
+        makeMessage('a', 'EVENT_A'),
+        makeMessage('b', 'EVENT_B'),
+        makeMessage('c', 'EVENT_C'),
+      ],
+    });
+    sqsMock.on(DeleteMessageBatchCommand).resolves({});
+
+    const matched = await trap.waitForEvent({ detailType: 'EVENT_A', timeoutMs: 1_000 });
+    expect(matched.detailType).toBe('EVENT_A');
+
+    const buffer = (trap as unknown as {
+      captured: { detailType: string }[];
+    }).captured;
+    expect(buffer.map((e) => e.detailType)).toEqual(['EVENT_B', 'EVENT_C']);
+  });
+
   it('times out when no buffered or fresh event satisfies the predicate', async () => {
     const trap = new EventBusTrap(makeCtx());
     (trap as unknown as { queueUrl: string }).queueUrl = 'https://sqs.test/queue';

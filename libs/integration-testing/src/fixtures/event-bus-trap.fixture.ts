@@ -233,13 +233,18 @@ export class EventBusTrap {
         Math.min(5, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))),
       );
 
+      // Process the whole batch before returning so trailing events from the
+      // same SQS receive are not lost. SQS deletes the entire batch in
+      // consumeMessages, so an early return mid-loop would orphan the rest.
+      let matched: CapturedEvent | undefined;
       for (const event of fresh) {
-        if (satisfies(event)) {
-          return event as CapturedEvent<TDetail>;
+        if (!matched && satisfies(event)) {
+          matched = event;
+          continue;
         }
-        // Buffer non-matching events for a future waitForEvent call
         this.captured.push(event);
       }
+      if (matched) return matched as CapturedEvent<TDetail>;
 
       if (fresh.length === 0) {
         await new Promise(resolve => setTimeout(resolve, jitter(pollInterval)));
