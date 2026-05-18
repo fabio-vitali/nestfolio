@@ -140,7 +140,7 @@ export const createAgentService = (deps: AgentServiceDeps) => {
         decisionId,
         goals,
         risk,
-        metadata: { durationMs, modelTiers: ['haiku', 'opus'] },
+        metadata: { durationMs, modelTiers: ['haiku', 'sonnet'] },
       };
     },
   };

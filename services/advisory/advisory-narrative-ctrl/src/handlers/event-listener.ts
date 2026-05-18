@@ -180,7 +180,12 @@ const feedbackCorrelator = {
 };
 
 const memoryClient = process.env.MEMORY_ID
-  ? createMemoryClient({ memoryId: process.env.MEMORY_ID, region: process.env.AWS_REGION ?? 'us-east-1', serviceName: AGENT_NAME })
+  ? createMemoryClient({
+      memoryId: process.env.MEMORY_ID,
+      region: process.env.AWS_REGION ?? 'us-east-1',
+      serviceName: AGENT_NAME,
+      namespacePrefix: 'shared-rationale',
+    })
   : createNoOpMemoryClient();
 
 const agentService = createAgentService({ docClient, tableName: TABLE_NAME, memoryClient });

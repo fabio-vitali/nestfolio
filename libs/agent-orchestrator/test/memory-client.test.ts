@@ -102,6 +102,41 @@ describe('searchLongTermMemory namespace path', () => {
   });
 });
 
+describe('createMemoryClient namespacePrefix', () => {
+  beforeEach(() => sendMock.mockReset());
+
+  it('uses serviceName for namespace path when namespacePrefix is absent (back-compat)', async () => {
+    sendMock.mockResolvedValue({ memoryRecordSummaries: [] });
+    const client = createMemoryClient({ memoryId: 'mem-1', region: 'us-east-1', serviceName: 'foo-service' });
+    await client.openDecisionSession('t1', 'd1').searchLongTermMemory('rationale', 'q');
+    const cmd = sendMock.mock.calls[0][0];
+    expect(cmd.input.namespace).toBe('/foo-service/t1/rationale');
+  });
+
+  it('prefers namespacePrefix over serviceName for namespace path when both present', async () => {
+    sendMock.mockResolvedValue({ memoryRecordSummaries: [] });
+    const client = createMemoryClient({
+      memoryId: 'mem-1',
+      region: 'us-east-1',
+      serviceName: 'foo-service',
+      namespacePrefix: 'shared-rationale',
+    });
+    await client.openDecisionSession('t1', 'd1').searchLongTermMemory('rationale', 'q');
+    const cmd = sendMock.mock.calls[0][0];
+    expect(cmd.input.namespace).toBe('/shared-rationale/t1/rationale');
+  });
+
+  it('also applies namespacePrefix to searchTenantMemory', async () => {
+    sendMock.mockResolvedValue({ memoryRecordSummaries: [] });
+    const client = createMemoryClient({
+      memoryId: 'mem-1', region: 'us-east-1', serviceName: 'foo-service', namespacePrefix: 'shared-rationale',
+    });
+    await client.searchTenantMemory('t1', 'rationale', 'q');
+    const cmd = sendMock.mock.calls[0][0];
+    expect(cmd.input.namespace).toBe('/shared-rationale/t1/rationale');
+  });
+});
+
 describe('emitLongTermEvent', () => {
   beforeEach(() => sendMock.mockReset());
 

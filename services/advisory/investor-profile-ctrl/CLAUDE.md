@@ -29,8 +29,9 @@ Stack: services/advisory/investor-profile-ctrl/src/service.stack.ts
 
 ## AgentRuntime
 Agent folder: agents/investor-profile/
-- investor_profile_agents: user-goals (Haiku) + risk-assessment (Opus) parallel orchestration
-  Models: Opus, Haiku (SSM from advisory-hub)
+- investor_profile_agents: user-goals (Haiku) + risk-assessment (Sonnet 4.6) parallel orchestration
+  Note: risk-assessment agent uses hardcoded us.anthropic.claude-sonnet-4-6 (not SSM-resolved). CDK stack wires MODEL_OPUS_ID env var (legacy) but risk-assessment.config.ts no longer reads it. modelTiers metadata: ['haiku', 'sonnet'].
+  Models: Opus (CDK grant only — unused by agent), Haiku (SSM from advisory-hub)
   Tools: none (RAG only)
   PutEvents grant: eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal)
   SSM runtime URL param: `/nestfolio/${prefix}-investor-profile-ctrl/agent/runtimeUrl`
