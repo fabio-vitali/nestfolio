@@ -25,6 +25,14 @@ describe('lambda-profiles — module contract', () => {
     expect(full.sqsBatchSize).toBe(10);
     expect(full.ddbStreamBatchSize).toBe(50);
   });
+
+  it('LambdaProfile allows optional visibilityTimeout', () => {
+    const withVisibility: LambdaProfile = {
+      lambdaProps: { timeout: Duration.seconds(60) },
+      visibilityTimeout: Duration.seconds(240),
+    };
+    expect(withVisibility.visibilityTimeout).toEqual(Duration.seconds(240));
+  });
 });
 
 describe('handlerProps — default event handler profile', () => {

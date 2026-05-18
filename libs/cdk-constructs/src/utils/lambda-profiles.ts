@@ -55,12 +55,15 @@ export const PARAMS_AND_SECRETS_LAYER: ParamsAndSecretsLayerVersion = ParamsAndS
  *   `ddbStreamParallelizationFactor` — applied by `Egress` to its
  *   `DynamoEventSource`, and also usable directly on standalone
  *   `DynamoEventSource` instances via property access.
+ * - `visibilityTimeout` — applied by `Ingress` to its SQS Queue. When unset,
+ *   `Ingress` auto-calculates `6 × lambdaTimeout`.
  */
 export interface LambdaProfile {
   lambdaProps: Partial<NodejsFunctionProps>;
   sqsBatchSize?: number;
   sqsMaxBatchingWindow?: Duration;
   sqsMaxConcurrency?: number;
+  visibilityTimeout?: Duration;
   ddbStreamBatchSize?: number;
   ddbStreamMaxBatchingWindow?: Duration;
   ddbStreamParallelizationFactor?: number;

@@ -137,9 +137,8 @@ If MISSING, create the file with the test below as its sole content (skeleton im
 If creating: write the full file `libs/cdk-constructs/test/core/ingress.test.ts`:
 
 ```ts
-import { App, Duration, Stack } from 'aws-cdk-lib';
+import { App, Duration } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import { EventBus } from 'aws-cdk-lib/aws-events';
 import { Construct } from 'constructs';
 import { Ingress } from '../../src/core/ingress';
 import { ServiceStack } from '../../src/core/service-stack';
@@ -173,27 +172,20 @@ describe('Ingress — profile.visibilityTimeout fallback', () => {
     template.hasResourceProperties('AWS::SQS::Queue', { VisibilityTimeout: 240 });
   });
 
-  it('explicit prop overrides profile.visibilityTimeout', () => {
-    // Direct construction without TestServiceStack — re-enter Ingress with explicit prop
-    // (we keep the test minimal; full prop-level coverage lives in the helper's own tests)
+  it('falls back to 6× lambdaTimeout when neither prop nor profile sets visibility', () => {
     const app = new App();
-    const stack = new Stack(app, 'S2');
-    const bus = new EventBus(stack, 'Bus');
-    // Skipped: full ServiceStack wiring duplicated above. The precedence behaviour
-    // is exercised by Task 6's PE snapshot assertion (props.visibilityTimeout NOT
-    // set, profile.visibilityTimeout = 196s ⇒ Queue VisibilityTimeout: 196).
-    expect(bus).toBeDefined();
-  });
-
-  it('falls back to 6× lambdaTimeout when neither prop nor profile sets it', () => {
-    const app = new App();
-    const stack = new TestServiceStack(app, 'S3', {
+    const stack = new TestServiceStack(app, 'S2', {
       lambdaProps: { timeout: Duration.seconds(30) },
     });
     const template = Template.fromStack(stack);
     template.hasResourceProperties('AWS::SQS::Queue', { VisibilityTimeout: 180 });
   });
 });
+
+// Precedence note: `props.visibilityTimeout` over `profile.visibilityTimeout` is
+// covered by the EXISTING Ingress code path (the `props.visibilityTimeout ?? ...`
+// chain predates this change). The only NEW behavior is profile→queue plumbing,
+// which the two tests above exercise.
 ```
 
 Also create `libs/cdk-constructs/test/fixtures/noop-handler.ts`:
