@@ -72,18 +72,53 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(state.Parameters?.agentOutput).toBeDefined();
   });
 
-  it('adds LookupInvestorProfileSnapshot — DDB GetItem on InvestorProfileSnapshot key, ResultPath under agentResults.InvokeInvestorProfile', () => {
+  it('adds LookupInvestorProfileSnapshot — DDB GetItem on InvestorProfileSnapshot key, captures full response on $.investorProfileSnapshotResponse (no ResultSelector — that would raise the uncatchable States.Runtime on absent rows)', () => {
     const branchStates = definition.States.ParallelProjections.Branches[0].States;
     const state = branchStates.LookupInvestorProfileSnapshot;
     expect(state).toBeDefined();
     expect(state.Type).toBe('Task');
-    expect(state.Resource).toBe('arn:aws:states:::dynamodb:getItem');
+    // sfnTasks.DynamoGetItem renders Resource via { Fn::Sub } using the
+    // aws-partition intrinsic, so the partition slot is a CFN ref token here.
+    expect(state.Resource).toMatch(/states:::dynamodb:getItem$/);
     expect(state.Parameters.Key.pk['S.$']).toBe(
       "States.Format('InvestorProfileSnapshot#{}#{}', $.tenantId, $.userId)",
     );
     expect(state.Parameters.Key.sk.S).toBe('InvestorProfileSnapshot');
-    expect(state.ResultSelector['agentOutput.$']).toBe('$.Item.agentOutput.M');
-    expect(state.ResultPath).toBe('$.agentResults.InvokeInvestorProfile');
+    // No ResultSelector — extracting $.Item.agentOutput.M on a missing row
+    // raises States.Runtime, which AWS docs say is NOT catchable. Defer the
+    // extraction to a downstream Pass guarded by a Choice on isPresent.
+    expect(state.ResultSelector).toBeUndefined();
+    expect(state.ResultPath).toBe('$.investorProfileSnapshotResponse');
+    expect(state.Next).toBe('CheckInvestorProfileSnapshotPresent');
+  });
+
+  it('Branch A fault-tolerance: Choice on $.investorProfileSnapshotResponse.Item → ExtractInvestorProfileSnapshot or HandleMissingInvestorProfileSnapshot (both write empty-tolerant shape under $.agentResults.InvokeInvestorProfile)', () => {
+    const branchStates = definition.States.ParallelProjections.Branches[0].States;
+
+    const choice = branchStates.CheckInvestorProfileSnapshotPresent;
+    expect(choice).toBeDefined();
+    expect(choice.Type).toBe('Choice');
+    expect(choice.Choices).toHaveLength(1);
+    expect(choice.Choices[0].Variable).toBe('$.investorProfileSnapshotResponse.Item');
+    expect(choice.Choices[0].IsPresent).toBe(true);
+    expect(choice.Choices[0].Next).toBe('ExtractInvestorProfileSnapshot');
+    expect(choice.Default).toBe('HandleMissingInvestorProfileSnapshot');
+
+    const extract = branchStates.ExtractInvestorProfileSnapshot;
+    expect(extract).toBeDefined();
+    expect(extract.Type).toBe('Pass');
+    expect(extract.Parameters['agentOutput.$']).toBe(
+      '$.investorProfileSnapshotResponse.Item.agentOutput.M',
+    );
+    expect(extract.ResultPath).toBe('$.agentResults.InvokeInvestorProfile');
+    expect(extract.End).toBe(true);
+
+    const fallback = branchStates.HandleMissingInvestorProfileSnapshot;
+    expect(fallback).toBeDefined();
+    expect(fallback.Type).toBe('Pass');
+    expect(fallback.Result).toEqual({ agentOutput: {} });
+    expect(fallback.ResultPath).toBe('$.agentResults.InvokeInvestorProfile');
+    expect(fallback.End).toBe(true);
   });
 
   it('adds LookupMarketSnapshot — DDB GetItem on MarketSnapshot key, captures full response on $.marketSnapshotResponse (no ResultSelector — that would raise the uncatchable States.Runtime on absent rows)', () => {
