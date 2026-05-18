@@ -15,7 +15,7 @@ Stack: services/advisory/advisory-narrative-ctrl/src/service.stack.ts
 ## Ingress
 - advisoryBus -> advisory-narrative-ctrl-ingress (SQS -> Lambda)
   Subscriptions: GENERATE_NARRATIVE, DECISION_FEEDBACK
-  Profile: agentProps (1024 MB / 5min timeout — Sonnet invocations are 50–130s p95; the default 30s timeout would leave the SF task token unreturned)
+  Profile: agentProfile({ p90=35_000ms, burst=40, ux=AGENT_BUDGETS.ADVISORY_NARRATIVE_UX_SEC=120s }) → 1024 MB / 58s timeout / batchSize 1 / concurrency 12 / visibility 232s. P90 raised from observed 29.7s to 35s so the Lambda timeout covers p99=53.7s.
   Grants: KB bucket read/write, Bedrock KB sync, AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
   Pattern: materializeToTable. GENERATE_NARRATIVE runs the agent and emits AgentCompletion (success) / AgentFailure (caught error) rows. DECISION_FEEDBACK is routed through feedback-correlator to annotate decisions + sync the KB corpus.
   MemoryClient: createMemoryClient({ namespacePrefix: 'shared-rationale' }) — writes to DWC's RationaleArchivist namespace (/shared-rationale/{actorId}/rationale).
