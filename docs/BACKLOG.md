@@ -11,7 +11,8 @@ _(none)_
 
 ## QUEUED
 
-1. [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out; blocks e2e scenarios 11+12 green gate. Depends on observability workstream landing first.
+_(none)_
+
 
 ## LATER
 
@@ -19,6 +20,7 @@ _(none)_
 - [advisory-narrative-ctrl-eager-write-refactor](backlog/advisory-narrative-ctrl-eager-write-refactor.md) [refactor] — Refactor advisory-narrative-ctrl handler to write AgentInvocation HEAD row eagerly before Memory reads, so integration tests see the row in ~5s instead of ~30-40s.
 - [advisory-narrative-ctrl-memory-retry-env-plumb](backlog/advisory-narrative-ctrl-memory-retry-env-plumb.md) [tooling] — Plumb MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE as Lambda env var on dev so integration test can tighten waitForItem 60s→10s. Risk: dev/prod Memory-consistency skew.
 - [advisory-phase-ab-integration-coverage](backlog/advisory-phase-ab-integration-coverage.md) [tooling] — Phase A SF state + Phase B Memory emit/retrieval have unit + manual smoke coverage but no integration tests — gap surfaced post-Phase-B ship.
+- [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out. Parked 2026-05-18: precomputation shipped (IP+MI exit cycle), e2e scenarios 11+12 green on warm Lambdas, PE/AN trap not the remaining blocker. Durable answer for PE/AN + load growth — promote when trigger fires.
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
 - [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md) [refactor] — advisory-narrative-ctrl handler still wraps result via wrapAgentOutput but the wrap is unread after the callback refactor
 - [backlog-frontmatter-add-first-observed-field](backlog/backlog-frontmatter-add-first-observed-field.md) [tooling] — Add first_observed: ISO-date field to backlog frontmatter; lint enforces presence on new files.

@@ -1,9 +1,9 @@
 ---
 id: agent-pipeline-backlog-trap-architectural
-status: queued
+status: parking
 type: design
-rank: 3
-notes: "Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out; blocks e2e scenarios 11+12 green gate. Depends on observability workstream landing first."
+rank: null
+notes: "Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out. Parked 2026-05-18: precomputation shipped (IP+MI exit cycle), e2e scenarios 11+12 green on warm Lambdas, PE/AN trap not the remaining blocker. Durable answer for PE/AN + load growth — promote when trigger fires."
 references:
   - libs/event-processor/src/pipelines/resume-state-machine.ts
   - services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
@@ -44,11 +44,20 @@ Evidence: 414 inflight on investor-profile-ctrl IngressQueue, 386 visible on mar
 
 E2e gate scenarios `apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts` (scenario 11) and `apps/e2e-feature-tests/src/advisory/rebalance-on-drift.e2e.test.ts` (scenario 12). Both fail with `waitForGraphQL` timeout on `getDecisionHistory`.
 
-## Why "queued" and not "active"
+## Status: parking (2026-05-18)
 
-Original blocker (observability) is resolved: `agent-pipeline-task-token-timeout-observability` shipped 2026-05-16 and an e2e re-run produced the first concrete data point — `processingLagMs=1,800,450` (~30 min, 3× the 600 s SF window) on `dev-investor-profile-ctrl` IngressHandler. The trap hypothesis is now empirically confirmed, not assumed; the four design questions below can be answered with real distribution data on the next runs.
+Original blocker (observability) is resolved: `agent-pipeline-task-token-timeout-observability` shipped 2026-05-16 and produced the first concrete data point — `processingLagMs=1,800,450` (~30 min, 3× the 600 s SF window) on `dev-investor-profile-ctrl` IngressHandler. The trap hypothesis is empirically confirmed, not assumed.
 
-Now ranked behind `advisory-cycle-agent-precomputation` (rank 1) because that proposal dissolves the trap surface for IP+MI entirely (see § Sibling below) and may unblock e2e scenarios 11+12 alone — making this fix less urgent for the e2e gate. This work remains the durable answer for `portfolio-engine-ctrl` + `advisory-narrative-ctrl` (case-specific, cannot be precomputed) and for load growth, so it stays queued, not dropped. Promote to active when either: (a) precomputation ships and PE/AN trap behaviour is the remaining blocker, or (b) cycle load grows past current dev fan-out independent of precomputation timing.
+**Parked because the trigger conditions are unmet as of 2026-05-18:**
+
+- `advisory-cycle-agent-precomputation` shipped 2026-05-17 — IP+MI exit the per-cycle pipeline (continuous projection), dissolving the trap surface for half the agents. The dossier's prediction that precomputation alone "may unblock e2e scenarios 11+12" was borne out.
+- E2e scenarios 11 + 12 are green on warm Lambdas post-precomputation. Scenario 12 passed at 148s (2026-05-16, after fixture fix). Scenario 11 first-decision flaked on cold-deploy 2026-05-18 with a **test-harness drain race** (EventBusTrap SQS short-poll), not pipeline backlog — fix shipped same day (`e2e-cold-deploy-an-trace-flake`, long-poll + 900s retention). Warm-Lambda rerun #4: PASSED 205s.
+- PE/AN trap is therefore **not** the current e2e blocker. Compound trigger (a) — "precomputation ships AND PE/AN trap is the remaining blocker" — first clause met, second clause not.
+- Trigger (b) — "cycle load grows past current dev fan-out independent of precomputation timing" — no growth observed.
+
+**This work remains the durable answer** for `portfolio-engine-ctrl` + `advisory-narrative-ctrl` (case-specific, cannot be precomputed) and for load growth.
+
+**Promote to queued when:** either (a) PE/AN trap behaviour becomes the e2e gate's remaining blocker (e.g. observed `processingLagMs` > 600,000 on PE/AN IngressHandler in CloudWatch correlated with a red scenario 11/12), or (b) cycle load grows past current dev fan-out (~40 messages) independent of precomputation timing.
 
 ## Design questions to resolve (in the spec phase)
 
