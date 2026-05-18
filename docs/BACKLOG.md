@@ -11,8 +11,7 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [eventbustrap-batch-race-loses-sibling-events](backlog/eventbustrap-batch-race-loses-sibling-events.md) [bug] — EventBusTrap.waitForEvent returns mid-loop on first match, leaving later events in the same SQS batch unbuffered and lost — flakes update-operating-mode.e2e.test.ts:182 when both events from one CDC batch arrive in one SQS receive.
 
 ## LATER
 
