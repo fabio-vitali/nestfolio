@@ -128,4 +128,25 @@ describe('AdvisoryNarrativeCtrlStack', () => {
     expect(map).toContain('AgentFailure');
     expect(map).toContain('NARRATIVE_FAILED');
   });
+
+  it('Ingress SQS Queue has VisibilityTimeout=232 (agentProfile derivation: lambdaTimeout 58s × 4)', () => {
+    const queues = template.findResources('AWS::SQS::Queue', {
+      Properties: { VisibilityTimeout: 232 },
+    });
+    expect(Object.keys(queues).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Ingress Lambda has Timeout=58 (agentProfile: ceil(p90×1.5)+5 where p90=35s — raised from 30s to cover observed p99=53.7s)', () => {
+    const lambdas = template.findResources('AWS::Lambda::Function', {
+      Properties: { Timeout: 58 },
+    });
+    expect(Object.keys(lambdas).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Ingress EventSourceMapping has MaximumConcurrency=12 (agentProfile: ceil(40×35/120))', () => {
+    const esms = template.findResources('AWS::Lambda::EventSourceMapping', {
+      Properties: { ScalingConfig: { MaximumConcurrency: 12 } },
+    });
+    expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
+  });
 });

@@ -9,7 +9,8 @@ import {
   AgentRuntime, KnowledgeBase,
   BedrockUsageAlarms, importCostAlertTopic,
 } from '@nestfolio/cdk-constructs/extensions';
-import { agentProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
+import { agentProfile, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
+import { AGENT_BUDGETS } from '@nestfolio/decision-workflow-ctrl/agent-budgets';
 
 export class AdvisoryNarrativeCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -23,13 +24,17 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       description: 'Financial literacy content, communication templates, feedback-driven corpus',
     });
 
-    // Ingress: trigger + feedback events
-    // Uses agentProps because the handler dispatches to Bedrock (Sonnet) via
-    // AgentCore — invocations can take 50–130s (p95). Without this profile the
-    // Lambda times out at 30s, leaving the SF task token unreturned.
+    // Ingress: trigger + feedback events.
+    // Uses agentProfile() because this is one of the two per-cycle deadline-bound
+    // agent calls. agentLatencyP90Ms=35_000 (raised from observed p90=29.7s to
+    // cover p99=53.7s — see spec §10 OQ #2 + plan decision #2).
     const ingress = new Ingress(this, 'Ingress', {
       state,
-      profile: agentProps,
+      profile: agentProfile({
+        agentLatencyP90Ms: 35_000,
+        expectedBurstSize: 40,
+        uxBudgetSeconds: AGENT_BUDGETS.ADVISORY_NARRATIVE_UX_SEC,
+      }),
       eventTypes: [
         DecisionWorkflowEventTypes.GENERATE_NARRATIVE,
         DecisionWorkflowEventTypes.DECISION_FEEDBACK,
