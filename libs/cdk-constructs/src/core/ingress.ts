@@ -35,7 +35,7 @@ export interface IngressProps {
   /** Maximum concurrent Lambda invocations from the SQS event source. Unset = no cap. */
   maxConcurrency?: number;
   maxRetries?: number;
-  /** Visibility timeout for the SQS queue. If not set but lambdaTimeout is provided, auto-calculated as 6x lambdaTimeout. */
+  /** Visibility timeout for the SQS queue. Precedence: explicit prop > profile.visibilityTimeout > 6× effectiveLambdaTimeout. */
   visibilityTimeout?: Duration;
   /** Lambda timeout. Used to auto-calculate visibilityTimeout = 6 x lambdaTimeout when visibilityTimeout is not set. */
   lambdaTimeout?: Duration;
@@ -114,6 +114,7 @@ export class Ingress extends Construct {
       ?? (profileLambdaProps.timeout as Duration | undefined)
       ?? Duration.seconds(30);
     const visibilityTimeout = props.visibilityTimeout
+      ?? props.profile?.visibilityTimeout
       ?? Duration.seconds(6 * effectiveLambdaTimeout.toSeconds());
 
     this.queue = new Queue(this, 'Queue', {

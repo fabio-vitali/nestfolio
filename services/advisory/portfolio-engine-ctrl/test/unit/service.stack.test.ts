@@ -115,6 +115,29 @@ describe('PortfolioEngineCtrlStack', () => {
     }
   });
 
+  it('Ingress SQS Queue has VisibilityTimeout=196 (agentProfile derivation: lambdaTimeout 49s × 4)', () => {
+    // Ingress-side queue. Match on the visibility-timeout value rather than logical-id to keep
+    // the test robust to refactors. The DLQ has a different shape (14-day retention).
+    const queues = template.findResources('AWS::SQS::Queue', {
+      Properties: { VisibilityTimeout: 196 },
+    });
+    expect(Object.keys(queues).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Ingress Lambda has Timeout=49 (agentProfile: ceil(p90×1.5)+5 where p90=29s)', () => {
+    const lambdas = template.findResources('AWS::Lambda::Function', {
+      Properties: { Timeout: 49 },
+    });
+    expect(Object.keys(lambdas).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Ingress EventSourceMapping has MaximumConcurrency=10 (agentProfile: ceil(40×29/120))', () => {
+    const esms = template.findResources('AWS::Lambda::EventSourceMapping', {
+      Properties: { ScalingConfig: { MaximumConcurrency: 10 } },
+    });
+    expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
+  });
+
   it('emits PORTFOLIO_COMPLETED on AgentCompletion:INSERT and PORTFOLIO_FAILED on AgentFailure:INSERT', () => {
     // Egress construct declares CDC mappings via EVENT_TYPE_MAP env var on the
     // publisher Lambda (JSON-encoded). Verify both completion + failure rows

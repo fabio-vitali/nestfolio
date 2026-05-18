@@ -314,4 +314,42 @@ describe('Ingress construct', () => {
       expect(handlerFn!.Properties.Layers.length).toBeGreaterThan(0);
     });
   });
+
+  describe('profile.visibilityTimeout fallback', () => {
+    it('uses profile.visibilityTimeout when explicit prop is absent', () => {
+      const { template } = createIngress({
+        ingressOverrides: {
+          profile: {
+            lambdaProps: { timeout: Duration.seconds(60) },
+            visibilityTimeout: Duration.seconds(240),
+          },
+        },
+      });
+      template.hasResourceProperties('AWS::SQS::Queue', { VisibilityTimeout: 240 });
+    });
+
+    it('falls back to 6× lambdaTimeout when neither explicit prop nor profile sets visibility', () => {
+      const { template } = createIngress({
+        ingressOverrides: {
+          profile: {
+            lambdaProps: { timeout: Duration.seconds(30) },
+          },
+        },
+      });
+      template.hasResourceProperties('AWS::SQS::Queue', { VisibilityTimeout: 180 });
+    });
+
+    it('explicit visibilityTimeout takes precedence over profile.visibilityTimeout', () => {
+      const { template } = createIngress({
+        ingressOverrides: {
+          profile: {
+            lambdaProps: { timeout: Duration.seconds(60) },
+            visibilityTimeout: Duration.seconds(240),
+          },
+          visibilityTimeout: Duration.seconds(120),
+        },
+      });
+      template.hasResourceProperties('AWS::SQS::Queue', { VisibilityTimeout: 120 });
+    });
+  });
 });

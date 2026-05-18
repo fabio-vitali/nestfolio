@@ -41,7 +41,7 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
      - Branch B: **LookupMarketSnapshot** (DDB GetItem, captures raw response on `$.marketSnapshotResponse`) → **CheckMarketSnapshotPresent** (Choice on `isPresent($.marketSnapshotResponse.Item)`) → **ExtractMarketSnapshot** (Pass, lifts the real `agentOutput`) on hit, or **HandleMissingMarketSnapshot** (Pass, seeds `{ agentOutput: {} }`) on miss. The Choice-on-isPresent shape is the workaround for SF `States.Runtime` (raised by missing JSONPath) being uncatchable. PE+AN tolerate empty marketAnalysis via `?? {}` so absent market context degrades the decision rather than aborting the cycle. No payload-first path (market signals are a global projection).
   3. **MergeProjections** (Pass) — joins the two branches.
   4. **ResolveMandateSnapshot** (Choice) — when the trigger payload carries an operatingMode hint, hoist; otherwise **LookupMandateSnapshot** (DDB GetItem) + **SetInvestorProfile** (Pass).
-  5. PE + AN waitForTaskToken steps (SendTaskSuccess on AgentCompletion CDC, SendTaskFailure on AgentFailure CDC).
+  5. PE + AN waitForTaskToken steps with explicit TimeoutSeconds = AGENT_BUDGETS.{PORTFOLIO_ENGINE,ADVISORY_NARRATIVE}_UX_SEC (120s each). PE+AN service stacks consume the same constants via `@nestfolio/decision-workflow-ctrl/agent-budgets` so the SF deadline + Lambda timeout + SQS visibility stay synchronised — the agentProfile() helper asserts the invariant at synth time. SendTaskSuccess on AgentCompletion CDC, SendTaskFailure on AgentFailure CDC.
   6. **AssembleDecisionPacket** (CustomState invoking AssemblePacket Lambda, ResultPath=DISCARD to preserve userId/region through compliance + user-confirm phases).
 - Callback access granted to CallbackIngress handler via `orchestration.grantCallbackAccess(callbackIngress.handler)`.
 - Auto-named executions (no executionName field — AWS doesn't expose per-target Name for the native EB→SF integration). At-least-once redelivery risk is theoretical and unobserved post-collapse.
@@ -92,3 +92,7 @@ Removed (Task 11): ANALYZE_INVESTOR_PROFILE, ANALYZE_MARKET, INVESTOR_PROFILE_CO
 - Cross-service event-type imports: investor-profile-ctrl (INVESTOR_PROFILE_SNAPSHOT_*), market-intelligence-ctrl (MARKET_SNAPSHOT_UPDATED), investor-bff (MANDATE_ISSUED, OPERATING_MODE_CHANGED)
 - SSM: advisory-hub (models/haiku)
 - CDK alpha: @aws-cdk/aws-bedrock-agentcore-alpha, @aws-cdk/aws-bedrock-alpha
+
+## Exports (package subpaths)
+- `./events` — domain event types.
+- `./agent-budgets` — `AGENT_BUDGETS` constants (PE+AN UX budgets, shared with the agent service stacks).

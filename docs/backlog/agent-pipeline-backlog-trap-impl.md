@@ -1,9 +1,9 @@
 ---
 id: agent-pipeline-backlog-trap-impl
-status: queued
+status: shipped
 type: refactor
-rank: 1
-notes: "Implementation of the agent-pipeline-backlog-trap-architectural design spec. Adds agentProfile() synth-time invariant helper, extends LambdaProfile with visibilityTimeout, wires Ingress fallback rung, replaces agentProps at PE+AN call sites, threads per-agent UX budget into DWC's two agent-invoke SF states. Unblocks e2e scenarios 11 (first-decision) + 12 (rebalance-on-drift). Complex-lane (worktree + PR)."
+rank: null
+notes: "Implementation of the agent-pipeline-backlog-trap-architectural design spec. Added agentProfile() synth-time invariant helper, extended LambdaProfile with visibilityTimeout, wired Ingress fallback rung, replaced agentProps at PE+AN call sites, threaded per-agent UX budget into DWC's two agent-invoke SF states. SHIPPED 2026-05-18: scenarios 11+12 3/3 green on deployed dev."
 references:
   - docs/superpowers/specs/2026-05-18-agent-pipeline-backlog-trap-architectural-design.md
   - libs/cdk-constructs/src/utils/lambda-profiles.ts
@@ -26,11 +26,22 @@ out_of_scope:
   - The publisher-side bug tracked in `update-operating-mode-cdc-silent`.
   - F1/F3 test-gating heuristics.
 spec: docs/superpowers/specs/2026-05-18-agent-pipeline-backlog-trap-architectural-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-18-agent-pipeline-backlog-trap-impl.md
 topic_memory:
   - project_e2e_feature_tests.md
   - project_lambda_profile_system.md
-validation_gate: null
+validation_gate: |
+  cdk-constructs unit tests green (lambda-profiles 48 tests + ingress 28 tests + agentProfile invariant) — commits 807ece42, dc5b6a0f, fadf35b3.
+  decision-state-machine.test.ts green (TimeoutSeconds=120 assertions on InvokePortfolioEngine + InvokeAdvisoryNarrative) — commit 58522164.
+  portfolio-engine-ctrl service.stack.test.ts green (VisibilityTimeout=196 / Timeout=49 / MaximumConcurrency=10) — commit 2d84bf51.
+  advisory-narrative-ctrl service.stack.test.ts green (VisibilityTimeout=232 / Timeout=58 / MaximumConcurrency=12) — commit aee84363.
+  eslint @nx/enforce-module-boundaries allow-list extended for @nestfolio/.+/agent-budgets — commit 4822d902.
+  pnpm nx affected -t test,lint --base=origin/main: 47 projects green / 0 fail.
+  Deployed to dev 2026-05-18 via deploy.sh sandbox --prefix=dev --services=decision-workflow-ctrl,portfolio-engine-ctrl,advisory-narrative-ctrl (61.35s / 137.26s / 137.35s) — log /tmp/agent-pipeline-trap-deploy.log.
+  PE IngressQueue purged post-deploy to clear stale task-token-dead messages.
+  e2e scenario 11 (first-decision): 3/3 consecutive PASS — durations 173s, 147s, 157s.
+  e2e scenario 12 (rebalance-on-drift): 3/3 consecutive PASS — durations 267s, 221s, 189s.
+  No TaskTimedOut / Lambda timeout events surfaced during the 6 e2e runs (e2e would have failed the AgentTraceTrap timeout otherwise).
 ---
 
 # Agent-pipeline backlog trap — implementation

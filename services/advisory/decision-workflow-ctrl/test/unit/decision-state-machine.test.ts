@@ -223,6 +223,16 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(subject['portfolio.$']).toBe('$.agentResults.InvokePortfolioEngine.agentOutput');
   });
 
+  it('sets TimeoutSeconds on InvokePortfolioEngine to AGENT_BUDGETS.PORTFOLIO_ENGINE_UX_SEC', () => {
+    const state = definition.States.InvokePortfolioEngine;
+    expect(state.TimeoutSeconds).toBe(120);
+  });
+
+  it('sets TimeoutSeconds on InvokeAdvisoryNarrative to AGENT_BUDGETS.ADVISORY_NARRATIVE_UX_SEC', () => {
+    const state = definition.States.InvokeAdvisoryNarrative;
+    expect(state.TimeoutSeconds).toBe(120);
+  });
+
   it('PE + AN read operatingMode from $.investorProfile.operatingMode (post-ResolveMandateSnapshot)', () => {
     // After ResolveMandateSnapshot, operatingMode lives at $.investorProfile.operatingMode
     // (either hoisted from triggerContext or set by SetInvestorProfile via mandateSnapshot).

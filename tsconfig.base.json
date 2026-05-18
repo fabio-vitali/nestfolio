@@ -48,6 +48,9 @@
       "@nestfolio/decision-workflow-ctrl/events": [
         "services/advisory/decision-workflow-ctrl/src/domain/events.ts"
       ],
+      "@nestfolio/decision-workflow-ctrl/agent-budgets": [
+        "services/advisory/decision-workflow-ctrl/src/agent-budgets.ts"
+      ],
       "@nestfolio/yahoo-finance-adpt/events": [
         "services/advisory/yahoo-finance-adpt/src/domain/events.ts"
       ],

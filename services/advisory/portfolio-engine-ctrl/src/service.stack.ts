@@ -11,7 +11,8 @@ import {
   AgentRuntime, KnowledgeBase,
   BedrockUsageAlarms, importCostAlertTopic,
 } from '@nestfolio/cdk-constructs/extensions';
-import { agentProps, defaultLambdaProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
+import { agentProfile, defaultLambdaProps, NamingService, PARAMS_AND_SECRETS_LAYER } from '@nestfolio/cdk-constructs/utils';
+import { AGENT_BUDGETS } from '@nestfolio/decision-workflow-ctrl/agent-budgets';
 
 export class PortfolioEngineCtrlStack extends ServiceStack {
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
@@ -26,8 +27,11 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
     });
 
     // Ingress: trigger + KB ingestion events.
-    // Uses agentProps because the handler dispatches to Bedrock (Opus + Sonnet) —
-    // 1024 MB / 5min timeout / batchSize 1 / concurrency capped at 5.
+    // Uses agentProfile() because this is one of the two per-cycle deadline-bound
+    // agent calls — see docs/superpowers/specs/2026-05-18-agent-pipeline-backlog-trap-architectural-design.md.
+    // The helper derives Lambda timeout, SQS concurrency and visibility timeout
+    // from p90 latency, expected burst size, and the SF UX budget; the synth
+    // fails loud if the three drift apart.
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
@@ -35,7 +39,11 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
         SecEdgarAdptEventTypes.SEC_PROSPECTUS_UPDATED,
         SecEdgarAdptEventTypes.SEC_10K_UPDATED,
       ],
-      profile: agentProps,
+      profile: agentProfile({
+        agentLatencyP90Ms: 29_000,
+        expectedBurstSize: 40,
+        uxBudgetSeconds: AGENT_BUDGETS.PORTFOLIO_ENGINE_UX_SEC,
+      }),
       lambdaProps: {
         paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       },

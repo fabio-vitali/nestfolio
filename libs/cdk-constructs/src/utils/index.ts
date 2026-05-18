@@ -11,4 +11,6 @@ export {
   adapterProps,
   reducerProps,
   agentProps,
+  AgentProfileInputs,
+  agentProfile,
 } from './lambda-profiles';

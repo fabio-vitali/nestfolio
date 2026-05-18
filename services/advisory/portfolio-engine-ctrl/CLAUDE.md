@@ -15,7 +15,7 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
 ## Ingress
 - advisoryBus -> portfolio-engine-ctrl-ingress (SQS -> Lambda)
   Subscriptions: CONSTRUCT_PORTFOLIO, SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
-  Profile: agentProps (1024 MB / 5min timeout / batchSize 1 / concurrency 5)
+  Profile: agentProfile({ p90=29_000ms, burst=40, ux=AGENT_BUDGETS.PORTFOLIO_ENGINE_UX_SEC=120s }) → 1024 MB / 49s timeout / batchSize 1 / concurrency 10 / visibility 196s
   Grants: AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
   Pattern: materializeToTable. The handler runs the agent and emits either an AgentCompletion row (success) or an AgentFailure row (caught error) — it does NOT call states:SendTask*. The SF callback is performed by DWC's CallbackIngress consuming the resulting PORTFOLIO_COMPLETED / PORTFOLIO_FAILED events.
   MemoryClient: createMemoryClient({ namespacePrefix: 'shared-rationale' }) — writes to DWC's RationaleArchivist namespace (/shared-rationale/{actorId}/rationale).

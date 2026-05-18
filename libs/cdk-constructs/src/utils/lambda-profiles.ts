@@ -55,12 +55,15 @@ export const PARAMS_AND_SECRETS_LAYER: ParamsAndSecretsLayerVersion = ParamsAndS
  *   `ddbStreamParallelizationFactor` — applied by `Egress` to its
  *   `DynamoEventSource`, and also usable directly on standalone
  *   `DynamoEventSource` instances via property access.
+ * - `visibilityTimeout` — applied by `Ingress` to its SQS Queue. When unset,
+ *   `Ingress` auto-calculates `6 × lambdaTimeout`.
  */
 export interface LambdaProfile {
   lambdaProps: Partial<NodejsFunctionProps>;
   sqsBatchSize?: number;
   sqsMaxBatchingWindow?: Duration;
   sqsMaxConcurrency?: number;
+  visibilityTimeout?: Duration;
   ddbStreamBatchSize?: number;
   ddbStreamMaxBatchingWindow?: Duration;
   ddbStreamParallelizationFactor?: number;
@@ -184,3 +187,88 @@ export const agentProps: LambdaProfile = {
   sqsMaxBatchingWindow: Duration.seconds(0),
   sqsMaxConcurrency: 5,
 };
+
+/**
+ * Inputs to {@link agentProfile} — three meaningful, defensible numbers
+ * the author can derive from CloudWatch evidence.
+ *
+ * The helper derives `(lambdaTimeout, sqsMaxConcurrency, visibilityTimeout)`
+ * from these and asserts the invariant
+ *
+ *     visibilityTimeoutSec ≤ uxBudgetSeconds × 2
+ *
+ * at synth time, so the three knobs cannot drift apart silently.
+ *
+ * See `docs/superpowers/specs/2026-05-18-agent-pipeline-backlog-trap-architectural-design.md`
+ * for the full derivation + rationale.
+ */
+export interface AgentProfileInputs {
+  /** P90 latency of the agent invocation, in milliseconds. Plan around the slow tail. */
+  agentLatencyP90Ms: number;
+  /** Max simultaneous messages the queue may hold from realistic fan-out. Size for 2× observed peak. */
+  expectedBurstSize: number;
+  /** Time the SF state can spend before the user perceives the decision as failed. Must match the SF's TimeoutSeconds for this agent. */
+  uxBudgetSeconds: number;
+  /** SQS retries allowed within the visibility window. Default 4 (the CDK 6× default would violate the invariant for typical (p90, ux) shapes). */
+  visibilityMultiplier?: number;
+  /** Bundling escape hatch — defaults to externalModules=[] (PE+AN bundle @aws-sdk/* — see agentProps note). */
+  bundling?: NodejsFunctionProps['bundling'];
+}
+
+/**
+ * Deadline-bound Bedrock/LLM-calling Lambda profile. The hidden three-knob
+ * agreement between SF `TimeoutSeconds`, SQS `visibilityTimeout`, and Lambda
+ * `sqsMaxConcurrency` becomes an explicit, checked invariant.
+ *
+ * Use for: any Lambda whose execution time directly determines whether an
+ * upstream SF task token is honoured — today, portfolio-engine-ctrl and
+ * advisory-narrative-ctrl. NOT for continuous projection writers (those keep
+ * using `agentProps`).
+ *
+ * @throws when `visibilityTimeoutSec > uxBudgetSeconds × 2` — drop the
+ *   `visibilityMultiplier` or raise `uxBudgetSeconds`.
+ */
+export function agentProfile(inputs: AgentProfileInputs): LambdaProfile {
+  if (inputs.agentLatencyP90Ms <= 0) throw new Error('agentProfile: agentLatencyP90Ms must be > 0');
+  if (inputs.expectedBurstSize <= 0) throw new Error('agentProfile: expectedBurstSize must be > 0');
+  if (inputs.uxBudgetSeconds <= 0) throw new Error('agentProfile: uxBudgetSeconds must be > 0');
+  const visibilityMultiplier = inputs.visibilityMultiplier ?? 4;
+  if (visibilityMultiplier < 1) throw new Error('agentProfile: visibilityMultiplier must be >= 1');
+
+  const p90Sec = inputs.agentLatencyP90Ms / 1000;
+  const lambdaTimeoutSec = Math.ceil(p90Sec * 1.5) + 5;
+  const sqsMaxConcurrency = Math.max(
+    1,
+    Math.ceil(inputs.expectedBurstSize * p90Sec / inputs.uxBudgetSeconds),
+  );
+  const visibilitySec = lambdaTimeoutSec * visibilityMultiplier;
+
+  if (visibilitySec > inputs.uxBudgetSeconds * 2) {
+    throw new Error(
+      `agentProfile invariant violated: visibilityTimeoutSec=${visibilitySec} > uxBudgetSeconds×2=${inputs.uxBudgetSeconds * 2}. ` +
+      `Lower visibilityMultiplier (currently ${visibilityMultiplier}) or raise uxBudgetSeconds (currently ${inputs.uxBudgetSeconds}).`,
+    );
+  }
+
+  return {
+    lambdaProps: {
+      ...BASE_LAMBDA_PROPS,
+      memorySize: 1024,
+      timeout: Duration.seconds(lambdaTimeoutSec),
+      bundling: inputs.bundling ?? {
+        ...BASE_LAMBDA_PROPS.bundling,
+        // Bundle every @aws-sdk/* package — DO NOT externalize. The Node 24
+        // Lambda runtime ships an older snapshot of the AWS SDK; agent
+        // Lambdas use `@nestfolio/agent-orchestrator` which calls the
+        // recently-added `BatchCreateMemoryRecordsCommand` from
+        // `@aws-sdk/client-bedrock-agentcore`. Externalizing produces
+        // `TypeError: <ns>.BatchCreateMemoryRecordsCommand is not a constructor`.
+        externalModules: [],
+      },
+    },
+    sqsBatchSize: 1,
+    sqsMaxBatchingWindow: Duration.seconds(0),
+    sqsMaxConcurrency,
+    visibilityTimeout: Duration.seconds(visibilitySec),
+  };
+}

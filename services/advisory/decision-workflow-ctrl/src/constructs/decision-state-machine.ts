@@ -4,6 +4,7 @@ import { IEventBus } from 'aws-cdk-lib/aws-events';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import * as sfnTasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
+import { AGENT_BUDGETS } from '../agent-budgets';
 
 interface DecisionWorkflowDefinitionProps {
   readonly eventBus: IEventBus;
@@ -121,6 +122,7 @@ export class DecisionWorkflowDefinition extends Construct {
       'InvokePortfolioEngine',
       'CONSTRUCT_PORTFOLIO',
       {
+        timeout: Duration.seconds(AGENT_BUDGETS.PORTFOLIO_ENGINE_UX_SEC),
         extraSubject: {
           operatingMode: '$.investorProfile.operatingMode',
           investorProfile: '$.agentResults.InvokeInvestorProfile.agentOutput',
@@ -133,6 +135,7 @@ export class DecisionWorkflowDefinition extends Construct {
       'InvokeAdvisoryNarrative',
       'GENERATE_NARRATIVE',
       {
+        timeout: Duration.seconds(AGENT_BUDGETS.ADVISORY_NARRATIVE_UX_SEC),
         extraSubject: {
           operatingMode: '$.investorProfile.operatingMode',
           investorProfile: '$.agentResults.InvokeInvestorProfile.agentOutput',
