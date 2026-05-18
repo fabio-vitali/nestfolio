@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [agent-pipeline-backlog-trap-impl](backlog/agent-pipeline-backlog-trap-impl.md) [refactor] — Implementation of the agent-pipeline-backlog-trap-architectural design spec. Adds agentProfile() synth-time invariant helper, extends LambdaProfile with visibilityTimeout, wires Ingress fallback rung, replaces agentProps at PE+AN call sites, threads per-agent UX budget into DWC's two agent-invoke SF states. Unblocks e2e scenarios 11 (first-decision) + 12 (rebalance-on-drift). Complex-lane (worktree + PR).
 
 ## QUEUED
 
-1. [agent-pipeline-backlog-trap-impl](backlog/agent-pipeline-backlog-trap-impl.md) [refactor] — Implementation of the agent-pipeline-backlog-trap-architectural design spec. Adds agentProfile() synth-time invariant helper, extends LambdaProfile with visibilityTimeout, wires Ingress fallback rung, replaces agentProps at PE+AN call sites, threads per-agent UX budget into DWC's two agent-invoke SF states. Unblocks e2e scenarios 11 (first-decision) + 12 (rebalance-on-drift). Complex-lane (worktree + PR).
-2. [update-operating-mode-cdc-silent](backlog/update-operating-mode-cdc-silent.md) [bug] — updateOperatingMode mutation succeeds (DDB UpdateItem returns AGGRESSIVE row) but neither INVESTOR_PROFILE_UPDATED (carrier) nor OPERATING_MODE_CHANGED (semantic) reach the investor bus within 60s — empty EventBusTrap buffer. Blocks update-operating-mode.e2e.test.ts which is the only e2e covering the mode re-derivation chain.
+1. [update-operating-mode-cdc-silent](backlog/update-operating-mode-cdc-silent.md) [bug] — updateOperatingMode mutation succeeds (DDB UpdateItem returns AGGRESSIVE row) but neither INVESTOR_PROFILE_UPDATED (carrier) nor OPERATING_MODE_CHANGED (semantic) reach the investor bus within 60s — empty EventBusTrap buffer. Blocks update-operating-mode.e2e.test.ts which is the only e2e covering the mode re-derivation chain.
 
 ## LATER
 

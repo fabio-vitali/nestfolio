@@ -1,8 +1,8 @@
 ---
 id: agent-pipeline-backlog-trap-impl
-status: queued
+status: active
 type: refactor
-rank: 1
+rank: null
 notes: "Implementation of the agent-pipeline-backlog-trap-architectural design spec. Adds agentProfile() synth-time invariant helper, extends LambdaProfile with visibilityTimeout, wires Ingress fallback rung, replaces agentProps at PE+AN call sites, threads per-agent UX budget into DWC's two agent-invoke SF states. Unblocks e2e scenarios 11 (first-decision) + 12 (rebalance-on-drift). Complex-lane (worktree + PR)."
 references:
   - docs/superpowers/specs/2026-05-18-agent-pipeline-backlog-trap-architectural-design.md
