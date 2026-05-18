@@ -1,7 +1,7 @@
 import { Duration } from 'aws-cdk-lib';
 import { Runtime, Architecture } from 'aws-cdk-lib/aws-lambda';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
-import { LambdaProfile, handlerProps, adapterProps, reducerProps, agentProps, PARAMS_AND_SECRETS_LAYER } from '../../src/utils/lambda-profiles';
+import { LambdaProfile, handlerProps, adapterProps, reducerProps, agentProps, PARAMS_AND_SECRETS_LAYER, agentProfile, AgentProfileInputs } from '../../src/utils/lambda-profiles';
 
 describe('lambda-profiles — module contract', () => {
   it('exports LambdaProfile type so it can be imported by constructs', () => {
@@ -174,5 +174,110 @@ describe('lambda-profiles — barrel export', () => {
     type Profile = import('../../src/utils').LambdaProfile;
     const check: Profile = { lambdaProps: {} };
     expect(check).toBeDefined();
+  });
+});
+
+describe('agentProfile — deadline-bound agent Lambda profile', () => {
+  const baseInputs: AgentProfileInputs = {
+    agentLatencyP90Ms: 29_000,
+    expectedBurstSize: 40,
+    uxBudgetSeconds: 120,
+  };
+
+  describe('derivations', () => {
+    it('derives lambdaTimeout = ceil(p90 × 1.5) + 5 seconds', () => {
+      const profile = agentProfile(baseInputs);
+      // p90 = 29s → ceil(29 × 1.5) + 5 = ceil(43.5) + 5 = 49
+      expect(profile.lambdaProps.timeout).toEqual(Duration.seconds(49));
+    });
+
+    it('derives sqsMaxConcurrency = max(1, ceil(burst × p90 / ux))', () => {
+      const profile = agentProfile(baseInputs);
+      // ceil(40 × 29 / 120) = ceil(9.666...) = 10
+      expect(profile.sqsMaxConcurrency).toBe(10);
+    });
+
+    it('derives visibilityTimeout = lambdaTimeout × visibilityMultiplier (default 4)', () => {
+      const profile = agentProfile(baseInputs);
+      // 49 × 4 = 196
+      expect(profile.visibilityTimeout).toEqual(Duration.seconds(196));
+    });
+
+    it('respects visibilityMultiplier override', () => {
+      const profile = agentProfile({ ...baseInputs, visibilityMultiplier: 3 });
+      // 49 × 3 = 147
+      expect(profile.visibilityTimeout).toEqual(Duration.seconds(147));
+    });
+
+    it('clamps sqsMaxConcurrency lower bound to 1 for tiny burst/p90 inputs', () => {
+      const profile = agentProfile({ agentLatencyP90Ms: 100, expectedBurstSize: 1, uxBudgetSeconds: 600 });
+      // ceil(1 × 0.1 / 600) = ceil(0.000166) = 1 → max(1, 1) = 1
+      expect(profile.sqsMaxConcurrency).toBe(1);
+    });
+
+    it('matches AN spec values (p90=35_000, burst=40, ux=120, m=4)', () => {
+      const profile = agentProfile({ agentLatencyP90Ms: 35_000, expectedBurstSize: 40, uxBudgetSeconds: 120 });
+      // p90=35 → lambdaTimeout=ceil(52.5)+5=58
+      // concurrency=ceil(40×35/120)=ceil(11.666)=12
+      // visibility=58×4=232
+      expect(profile.lambdaProps.timeout).toEqual(Duration.seconds(58));
+      expect(profile.sqsMaxConcurrency).toBe(12);
+      expect(profile.visibilityTimeout).toEqual(Duration.seconds(232));
+    });
+  });
+
+  describe('input validation', () => {
+    it('throws when agentLatencyP90Ms <= 0', () => {
+      expect(() => agentProfile({ ...baseInputs, agentLatencyP90Ms: 0 }))
+        .toThrow(/agentLatencyP90Ms must be > 0/);
+    });
+
+    it('throws when expectedBurstSize <= 0', () => {
+      expect(() => agentProfile({ ...baseInputs, expectedBurstSize: 0 }))
+        .toThrow(/expectedBurstSize must be > 0/);
+    });
+
+    it('throws when uxBudgetSeconds <= 0', () => {
+      expect(() => agentProfile({ ...baseInputs, uxBudgetSeconds: 0 }))
+        .toThrow(/uxBudgetSeconds must be > 0/);
+    });
+
+    it('throws when visibilityMultiplier < 1', () => {
+      expect(() => agentProfile({ ...baseInputs, visibilityMultiplier: 0 }))
+        .toThrow(/visibilityMultiplier must be >= 1/);
+    });
+  });
+
+  describe('invariant: visibilityTimeoutSec ≤ uxBudgetSeconds × 2', () => {
+    it('throws with the failing inequality when ux is too short for the derived visibility', () => {
+      // ux=10, p90=29 → lambdaTimeout=49, visibility=196, ux×2=20, 196>20 → throws
+      expect(() => agentProfile({ agentLatencyP90Ms: 29_000, expectedBurstSize: 40, uxBudgetSeconds: 10 }))
+        .toThrow(/visibilityTimeoutSec=196 > uxBudgetSeconds×2=20/);
+    });
+
+    it('accepts ux exactly at the invariant boundary', () => {
+      // visibility = 196, ux × 2 = 196 → equality passes
+      expect(() => agentProfile({ agentLatencyP90Ms: 29_000, expectedBurstSize: 40, uxBudgetSeconds: 98 }))
+        .not.toThrow();
+    });
+  });
+
+  describe('static shape', () => {
+    it('returns sqsBatchSize=1 and sqsMaxBatchingWindow=0 (deadline-bound, no batching)', () => {
+      const profile = agentProfile(baseInputs);
+      expect(profile.sqsBatchSize).toBe(1);
+      expect(profile.sqsMaxBatchingWindow).toEqual(Duration.seconds(0));
+    });
+
+    it('uses 1024 MB memory and bundles @aws-sdk/* by default (matches old agentProps)', () => {
+      const profile = agentProfile(baseInputs);
+      expect(profile.lambdaProps.memorySize).toBe(1024);
+      expect(profile.lambdaProps.bundling?.externalModules).toEqual([]);
+    });
+
+    it('respects custom bundling override', () => {
+      const profile = agentProfile({ ...baseInputs, bundling: { externalModules: ['custom-package'] } });
+      expect(profile.lambdaProps.bundling?.externalModules).toEqual(['custom-package']);
+    });
   });
 });
