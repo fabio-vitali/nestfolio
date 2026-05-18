@@ -1,9 +1,9 @@
 ---
 id: agent-pipeline-backlog-trap-architectural
-status: parking
+status: active
 type: design
 rank: null
-notes: "Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop: messages process after the 600s SF task token times out. Parked 2026-05-18: precomputation shipped (IP+MI exit cycle), e2e scenarios 11+12 green on warm Lambdas, PE/AN trap not the remaining blocker. Durable answer for PE/AN + load growth — promote when trigger fires."
+notes: "Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop. Adopted ACTIVE 2026-05-18 same-day-after-unpark: post-precomputation e2e run on deployed dev produced PE-only trap evidence (PE IngressQueue 810 visible + 4 in-flight while IP/MI/AN/DWC IngressQueues all 0). PE handler is healthy (178 unique decisions drained cleanly in 15min ≈ 0.2 msg/s — matches the dossier's predicted 0.33 msg/s ceiling); the structural three-knob mismatch is the bottleneck. Precomputation dissolved IP/MI surface but concentrated demand on PE. Dev PE IngressQueue purged at adoption to clear stale task-token-dead messages — does not address structural cause."
 references:
   - libs/event-processor/src/pipelines/resume-state-machine.ts
   - services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
@@ -12,7 +12,14 @@ references:
   - services/advisory/portfolio-engine-ctrl/src/service.stack.ts
   - services/advisory/advisory-narrative-ctrl/src/service.stack.ts
   - libs/cdk-constructs/src/utils/lambda-profiles.ts
-out_of_scope: []
+out_of_scope:
+  - Inter-agent state handoff redesign (Phase A/B is correct as designed; this fix touches transport wiring only).
+  - Long-term Memory write latency on PE/AN — file separately if it turns out to be the dominant per-cycle latency contributor.
+  - Re-introducing IP/MI to the per-cycle path — precomputation shipped 2026-05-17 and stays.
+  - Test-harness changes (EventBusTrap, AgentTraceTrap, fixture polling budgets).
+  - Compliance-ctrl or AssemblePacket state changes.
+  - The separate publisher-side bug tracked in `update-operating-mode-cdc-silent` (independent root cause, independent test scenario).
+  - F1/F3 prevention via test gating — the architectural fix should make scenarios 11+12 deterministically green; gating heuristics are out of scope.
 spec: null
 plan: null
 topic_memory:
@@ -44,20 +51,52 @@ Evidence: 414 inflight on investor-profile-ctrl IngressQueue, 386 visible on mar
 
 E2e gate scenarios `apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts` (scenario 11) and `apps/e2e-feature-tests/src/advisory/rebalance-on-drift.e2e.test.ts` (scenario 12). Both fail with `waitForGraphQL` timeout on `getDecisionHistory`.
 
-## Status: parking (2026-05-18)
+## Status: active (2026-05-18, adopted same-day-after-unpark)
 
-Original blocker (observability) is resolved: `agent-pipeline-task-token-timeout-observability` shipped 2026-05-16 and produced the first concrete data point — `processingLagMs=1,800,450` (~30 min, 3× the 600 s SF window) on `dev-investor-profile-ctrl` IngressHandler. The trap hypothesis is empirically confirmed, not assumed.
+Adopted ACTIVE after `do all` confirmation. Dev PE IngressQueue purged at adoption (810 → 0) to clear stale task-token-dead messages — pure containment, the structural fix is the whole point of this workstream.
 
-**Parked because the trigger conditions are unmet as of 2026-05-18:**
+## Out of scope (mirrors frontmatter `out_of_scope`)
 
-- `advisory-cycle-agent-precomputation` shipped 2026-05-17 — IP+MI exit the per-cycle pipeline (continuous projection), dissolving the trap surface for half the agents. The dossier's prediction that precomputation alone "may unblock e2e scenarios 11+12" was borne out.
-- E2e scenarios 11 + 12 are green on warm Lambdas post-precomputation. Scenario 12 passed at 148s (2026-05-16, after fixture fix). Scenario 11 first-decision flaked on cold-deploy 2026-05-18 with a **test-harness drain race** (EventBusTrap SQS short-poll), not pipeline backlog — fix shipped same day (`e2e-cold-deploy-an-trace-flake`, long-poll + 900s retention). Warm-Lambda rerun #4: PASSED 205s.
-- PE/AN trap is therefore **not** the current e2e blocker. Compound trigger (a) — "precomputation ships AND PE/AN trap is the remaining blocker" — first clause met, second clause not.
-- Trigger (b) — "cycle load grows past current dev fan-out independent of precomputation timing" — no growth observed.
+- Inter-agent state handoff redesign — Phase A/B is correct as designed; this fix touches transport wiring only.
+- Long-term Memory write latency on PE/AN — file separately if it turns out to be the dominant per-cycle latency contributor.
+- Re-introducing IP/MI to the per-cycle path — precomputation shipped 2026-05-17 and stays.
+- Test-harness changes (EventBusTrap, AgentTraceTrap, fixture polling budgets).
+- Compliance-ctrl or AssemblePacket state changes.
+- The separate publisher-side bug tracked in `update-operating-mode-cdc-silent` (independent root cause, independent test scenario).
+- F1/F3 prevention via test gating — the architectural fix should make scenarios 11+12 deterministically green; gating heuristics are out of scope.
 
-**This work remains the durable answer** for `portfolio-engine-ctrl` + `advisory-narrative-ctrl` (case-specific, cannot be precomputed) and for load growth.
+## Surfacing run — 2026-05-18 (the parking-invalidator)
 
-**Promote to queued when:** either (a) PE/AN trap behaviour becomes the e2e gate's remaining blocker (e.g. observed `processingLagMs` > 600,000 on PE/AN IngressHandler in CloudWatch correlated with a red scenario 11/12), or (b) cycle load grows past current dev fan-out (~40 messages) independent of precomputation timing.
+Parked at start of day under the rationale "precomputation dissolves the trap surface and scenario 11/12 are green on warm Lambdas." The first post-merge e2e run (2026-05-18 ~10:30 local, against deployed-dev after `14b61dc7` Phase 1 cost-reduction merge) invalidated both clauses for PE specifically. Compound trigger (a) is now met with hard evidence:
+
+**E2e failures (this run):**
+- `apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts` — `waitForGraphQL` timeout 180s on `getDecisionHistory`.
+- `apps/e2e-feature-tests/src/advisory/rebalance-on-drift.e2e.test.ts` — `waitForGraphQL` timeout 180s on `getDecisionHistory` inside `withLiveDecision()` in `beforeEach`.
+
+**SF evidence** (`dev-decision-workflow-ctrl-decisionstatemachine` execution `9a440515-cae4-5f2c-39f0-8cd0146cb075_6c6d5d64-22a9-9b38-a202-1f22bc40afcf`, started `2026-05-18T08:41:26.878Z`, FAILED `2026-05-18T08:51:27.163Z`):
+- Last event: `TaskTimedOut` at id=39 on `events:putEvents.waitForTaskToken` for `CONSTRUCT_PORTFOLIO`, `error: States.Timeout`. Then `ExecutionFailed` id=40.
+- 5+ sibling executions started within 200ms at `08:41:26` all FAILED at the 10-min boundary at the same `putEvents.waitForTaskToken` state. Input subject: `{__typename: 'DriftRecord', sk: 'DriftRecord#BND'}` for tenant `e2e-1779093146977-0d55011f` — i.e. real reconciliation-driven drift fan-out, not synthetic e2e events.
+
+**Queue evidence** (snapshot taken `2026-05-18 ~11:30 local`, after the e2e run finished):
+
+| Service IngressQueue | Visible | Not visible (in-flight) |
+|---|---|---|
+| `investor-profile-ctrl` | 0 | 0 |
+| `market-intelligence-ctrl` | 0 | 0 |
+| **`portfolio-engine-ctrl`** | **810** | **4** |
+| `advisory-narrative-ctrl` | 0 | 0 |
+| `decision-workflow-ctrl` | 0 | 0 |
+
+**PE handler is healthy** — CloudWatch Logs Insights on `/aws/lambda/dev-portfolio-engine-ctrl-IngressHandler*` 2026-05-18 08:40-08:55 UTC: 178 distinct `decisionId` values processed cleanly, AgentCore Runtime returning 16-17 KB responses (`responseBytes`), handler exiting with `success:true`. Drain rate ≈ 178/900s = **0.2 msg/s**, matching the dossier's predicted 0.33 msg/s ceiling. This is structural, not a code regression — Lever B's MemoryStrategies redesign (`944020ca`/`c2c6b3a6`) did not break PE; it just doesn't help throughput.
+
+**Why precomputation didn't fix scenario 11+12:**
+- Precomputation removes IP+MI per-cycle messages. IP/MI queues confirmed empty.
+- PE+AN remain per-cycle (case-specific, non-precomputable). PE-only queue now absorbs the entire per-cycle agent demand for ALL concurrent SFs.
+- Reconciliation-driven drift fan-out produces more SF executions than the e2e fixture alone would (DriftRecord per instrument × tenants).
+- AN queue stays empty because the SF gates AN behind PE completion — PE bottleneck masks AN's own throughput.
+
+**Cheapest containment** (NOT the architectural fix — just to unjam dev for follow-up e2e):
+- Purge `dev-portfolio-engine-ctrl-IngressQueue26236266-pZkiWAJicW2A` to evict stale messages whose task tokens already died. **Requires user confirmation** (queue mutation; not in the dev-introspection pre-authorization list).
 
 ## Design questions to resolve (in the spec phase)
 
