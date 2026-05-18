@@ -1,6 +1,6 @@
 ---
 id: operating-mode-shape-empty-proposed-trades
-status: active
+status: shipped
 type: bug
 notes: "Reopened 2026-05-18 after fresh e2e run RED on main. BALANCED + AGGRESSIVE timed out at 360s polling for non-empty proposedTrades; CONSERVATIVE passed by timing luck. Root cause is NOT empty proposedTrades materialisation — it is a fail-closed SF JSONPath: LookupInvestorProfileSnapshot raises States.Runtime when the InvestorProfileSnapshot projection has not caught up by the time MANDATE_SNAPSHOT_CREATED triggers the decision-state-machine. Same defect class as the LookupMandateSnapshot Catch-on-Runtime bug (memory feedback_states_runtime_uncatchable, 2026-05-17). Fix pattern is already proven on the Market branch."
 references:
@@ -12,11 +12,24 @@ out_of_scope:
   - "Refactoring AssemblePacket / advisory-bff transform topology — only fix the direct cause"
   - "Test-side polling refactors (test-infrastructure-polling-audit covers this)"
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-05-18-fix-investor-profile-snapshot-states-runtime.md
 topic_memory:
   - project_agent_runtime_structured_output.md
   - project_e2e_feature_tests.md
-validation_gate: null
+validation_gate: |
+  Shipped 2026-05-18 on worktree branch worktree-fix-investor-profile-snapshot-states-runtime.
+  Commits: 0d4b0efb (test RED), 71a5dff0 (impl GREEN), e9a7d889 (CLAUDE.md).
+  Unit: decision-workflow-ctrl 90/90 tests pass (incl. 2 new tests asserting
+  CheckInvestorProfileSnapshotPresent + Extract/HandleMissing Pass states).
+  nx affected -t test,lint --base=origin/main: 8 projects green, 14 tasks, 8 cached.
+  Deploy: dev-decision-workflow-ctrl stack updated in 67.53s (CFN ARN
+  stack/dev-decision-workflow-ctrl/0ebbddc0-2f9d-11f1-876e-0eddb6105365) — new SF
+  states CheckInvestorProfileSnapshotPresent + ExtractInvestorProfileSnapshot +
+  HandleMissingInvestorProfileSnapshot live on dev.
+  E2E (scoped): operating-mode-recommendation-shape 3/3 GREEN in 272s —
+  CONSERVATIVE count=5 equityWeight=0.20 largestPositionWeight=0.10,
+  BALANCED count=8/0.59/0.15, AGGRESSIVE count=9/0.80/0.25 (all mode-correlated,
+  non-empty proposedTrades).
 ---
 
 # operating-mode-recommendation-shape e2e — empty proposedTrades (regression 2026-05-18)
