@@ -23,7 +23,7 @@ out_of_scope:
   - Adding a per-deploy override mechanism (env var, SSM, etc.) for cost-cap or canary purposes. AGENT_MODEL_OVERRIDE was never used and is being removed precisely to avoid carrying a feature that's never exercised. If a future need arises, design it then.
   - Onboarding-bff agent's own model wiring (separate from advisory; comment reference only).
 spec: docs/superpowers/specs/2026-05-19-simplify-agent-orchestrator-model-knob-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-19-simplify-agent-orchestrator-model-knob.md
 topic_memory:
   - project_agent_orchestrators.md
   - project_agent_runtime_structured_output.md
