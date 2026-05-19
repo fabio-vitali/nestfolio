@@ -11,7 +11,16 @@
  *
  * @type {import('jest').Config}
  */
+// Sanitize TMPDIR before jest computes its haste-map cacheDirectory and
+// before any tool that defaults to os.tmpdir() (CDK, tsx, etc.). Belt to
+// the .npmrc node-options braces; this file is evaluated by nx-console's
+// direct jest invocations too, which bypass .npmrc.
+require('./tools/safe-tmpdir.cjs');
+const path = require('node:path');
+const os = require('node:os');
+
 const preset = {
+  cacheDirectory: path.join(os.tmpdir(), 'jest-nestfolio'),
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
