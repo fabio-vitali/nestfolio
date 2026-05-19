@@ -36,40 +36,6 @@ describe('withRetry', () => {
     expect(node).toHaveBeenCalledTimes(1);
   });
 
-  it('applies escalation path by modifying state __escalationTier', async () => {
-    const calls: Record<string, unknown>[] = [];
-    const node = jest.fn().mockImplementation(async (state: Record<string, unknown>) => {
-      calls.push({ ...state });
-      throw new ValidationError(['fail']);
-    });
-    const wrapped = withRetry(node, {
-      maxAttempts: 3,
-      escalationPath: ['haiku', 'sonnet', 'opus'],
-    });
-    await expect(wrapped({ input: 'test' })).rejects.toThrow(ValidationError);
-    expect(calls[0].__escalationTier).toBeUndefined();
-    expect(calls[1].__escalationTier).toBe('sonnet');
-    expect(calls[2].__escalationTier).toBe('opus');
-  });
-
-  it('reverts to original model when escalation path is shorter than maxAttempts', async () => {
-    const calls: Record<string, unknown>[] = [];
-    const node = jest.fn().mockImplementation(async (state: Record<string, unknown>) => {
-      calls.push({ ...state });
-      throw new ValidationError(['fail']);
-    });
-    const wrapped = withRetry(node, {
-      maxAttempts: 4,
-      escalationPath: ['haiku', 'sonnet'],
-    });
-    await expect(wrapped({ input: 'test' })).rejects.toThrow(ValidationError);
-    expect(calls).toHaveLength(4);
-    expect(calls[0].__escalationTier).toBeUndefined();
-    expect(calls[1].__escalationTier).toBe('sonnet');
-    expect(calls[2].__escalationTier).toBeUndefined();
-    expect(calls[3].__escalationTier).toBeUndefined();
-  });
-
   it('writes __retryAttempt to state on every attempt (0, 1, 2, …)', async () => {
     const calls: Record<string, unknown>[] = [];
     const node = jest.fn().mockImplementation(async (state: Record<string, unknown>) => {
@@ -115,6 +81,25 @@ describe('withRetry', () => {
     const wrapped = withRetry(node, { maxAttempts: 3 });
     await wrapped({ input: 'test' });
     expect(calls[1].__retryFeedback).toBe('err1\nerr2');
+  });
+
+  it('regression: __retryFeedback survives the retry loop when ValidationError carries feedback (withValidation → withRetry contract)', async () => {
+    // Spec §4.10 — preserves the withValidation feedback path so future
+    // cleanups cannot silently sever the loop.
+    const seen: Array<{ feedback: unknown; attempt: unknown }> = [];
+    const node = jest.fn()
+      .mockImplementationOnce(async (state: Record<string, unknown>) => {
+        seen.push({ feedback: state['__retryFeedback'], attempt: state['__retryAttempt'] });
+        throw new ValidationError(['bad'], { feedback: 'fix field X' });
+      })
+      .mockImplementationOnce(async (state: Record<string, unknown>) => {
+        seen.push({ feedback: state['__retryFeedback'], attempt: state['__retryAttempt'] });
+        return { value: 'recovered' };
+      });
+    const wrapped = withRetry(node, { maxAttempts: 2 });
+    await wrapped({ input: 'go' });
+    expect(seen[0]).toEqual({ feedback: undefined, attempt: 0 });
+    expect(seen[1]).toEqual({ feedback: 'fix field X', attempt: 1 });
   });
 
   it('still does not retry on non-ValidationError', async () => {

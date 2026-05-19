@@ -5,7 +5,7 @@ export function withRetry(
   node: AgentNodeFn,
   options: RetryOptions,
 ): AgentNodeFn {
-  const { maxAttempts, escalationPath } = options;
+  const { maxAttempts } = options;
 
   return async (state, config) => {
     let lastError: Error | undefined;
@@ -14,9 +14,6 @@ export function withRetry(
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const enriched: Record<string, unknown> = { ...workingState, __retryAttempt: attempt };
-        if (escalationPath && attempt > 0 && attempt < escalationPath.length) {
-          enriched['__escalationTier'] = escalationPath[attempt];
-        }
         return await node(enriched, config);
       } catch (error) {
         if (error instanceof ValidationError) {
