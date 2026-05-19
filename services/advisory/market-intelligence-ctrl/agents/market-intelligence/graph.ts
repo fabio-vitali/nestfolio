@@ -22,7 +22,7 @@ import { formatToolContext } from '../../src/agents/tools/format-context';
 const agentNode = withFallback(
   withRetry(
     withValidation(createAgentNode(marketResearchConfig), marketResearchValidationRule),
-    { maxAttempts: 3, escalationPath: ['sonnet'] },
+    { maxAttempts: 3 },
   ),
   marketResearchFallback,
 );
