@@ -1,7 +1,6 @@
 import { BaseCallbackHandler } from '@langchain/core/callbacks/base';
 import type { Serialized } from '@langchain/core/load/serializable';
 import type { LLMResult } from '@langchain/core/outputs';
-import type { ModelTier } from './types';
 
 export interface AgentTraceEnvelope {
   'gen_ai.invocation.started_at': string;
@@ -16,10 +15,6 @@ export interface AgentTraceEnvelope {
     'gen_ai.usage.output_tokens': number;
     'gen_ai.operation.name': 'chat';
     latencyMs: number;
-    // Set only when the current tier strictly outranks the previous one
-    // (haiku < sonnet < opus). Fallbacks / de-escalations / unknown-tier
-    // transitions leave this undefined.
-    escalatedFromTier?: ModelTier;
   }>;
   toolCalls: Array<{
     nodeName: string;
@@ -41,17 +36,6 @@ export interface AgentTraceEventDetail {
   emittedAt: string;
 }
 
-// Temporary bridge for escalatedFromTier; removed in Task 8.
-function tierOf(modelId: string): ModelTier | undefined {
-  if (modelId.includes('haiku')) return 'haiku';
-  if (modelId.includes('sonnet')) return 'sonnet';
-  if (modelId.includes('opus')) return 'opus';
-  return undefined;
-}
-
-// Tier rank for rank-based escalation detection. Used only when both the
-// previous and current tier are known ModelTiers.
-const TIER_RANK: Record<ModelTier, number> = { haiku: 0, sonnet: 1, opus: 2 };
 
 export class AgentTracer extends BaseCallbackHandler {
   name = 'agent-tracer';
@@ -68,7 +52,6 @@ export class AgentTracer extends BaseCallbackHandler {
   // AND the authoritative lookup for "which node owns run X" — used by
   // LLM / tool callbacks via their `parentRunId` argument.
   private readonly pendingChains = new Map<string, { nodeName: string; startedAt: string }>();
-  private lastTier?: string;
 
   // Node ownership for LLM/tool runs is resolved via `parentRunId` — the runId
   // of the chain that invoked them. No shared `currentNode` field: when two
@@ -122,19 +105,6 @@ export class AgentTracer extends BaseCallbackHandler {
     const rawUsage =
       (output.llmOutput as { tokenUsage?: Record<string, number>; usage?: Record<string, number> } | undefined);
     const usage = rawUsage?.tokenUsage ?? rawUsage?.usage ?? {};
-    // Rank-based escalation: only set when BOTH ids parse to a known tier AND
-    // the new tier strictly outranks the previous one. Until escalatedFromTier
-    // is removed entirely in the next task, this gate keeps the feature
-    // working for tier-named models and gracefully degrades to `undefined`
-    // for non-tier ids (Nova/Llama/etc).
-    const prev = this.lastTier;
-    const cur = pending.model;
-    const prevTier = prev && prev !== 'unknown' ? tierOf(prev) : undefined;
-    const curTier = cur && cur !== 'unknown' ? tierOf(cur) : undefined;
-    const escalatedFromTier =
-      prevTier && curTier && TIER_RANK[curTier] > TIER_RANK[prevTier]
-        ? prevTier
-        : undefined;
     this.llmCalls.push({
       nodeName: pending.node ?? 'unknown',
       'gen_ai.request.model': pending.model,
@@ -142,9 +112,7 @@ export class AgentTracer extends BaseCallbackHandler {
       'gen_ai.usage.output_tokens': Number(usage.output_tokens ?? usage.completionTokens ?? 0),
       'gen_ai.operation.name': 'chat',
       latencyMs: Date.now() - pending.startedAtMs,
-      escalatedFromTier,
     });
-    this.lastTier = pending.model;
   }
 
   handleLLMError(err: Error, runId: string): void {

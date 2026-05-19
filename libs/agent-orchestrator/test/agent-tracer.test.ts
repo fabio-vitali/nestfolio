@@ -118,41 +118,6 @@ describe('AgentTracer LangChain callbacks', () => {
     expect(env.llmCalls[0]['gen_ai.usage.input_tokens']).toBe(100);
     expect(env.llmCalls[0]['gen_ai.usage.output_tokens']).toBe(50);
     expect(env.llmCalls[0]['gen_ai.operation.name']).toBe('chat');
-    expect(env.llmCalls[0].escalatedFromTier).toBeUndefined();
-  });
-
-  it('records escalatedFromTier when successive LLM calls escalate upward', () => {
-    const tracer = new AgentTracer();
-    tracer.handleLLMStart({ kwargs: { model: 'haiku-x' } } as any, [], 'run-1');
-    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-1');
-    tracer.handleLLMStart({ kwargs: { model: 'sonnet-x' } } as any, [], 'run-2');
-    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-2');
-    const env = tracer.build('success');
-    expect(env.llmCalls).toHaveLength(2);
-    expect(env.llmCalls[1].escalatedFromTier).toBe('haiku');
-  });
-
-  it('leaves escalatedFromTier undefined when tier de-escalates (e.g. opus→sonnet)', () => {
-    // The field means "escalated from", not "differs from". A fallback to a
-    // cheaper tier must not masquerade as escalation.
-    const tracer = new AgentTracer();
-    tracer.handleLLMStart({ kwargs: { model: 'opus-x' } } as any, [], 'run-1');
-    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-1');
-    tracer.handleLLMStart({ kwargs: { model: 'sonnet-x' } } as any, [], 'run-2');
-    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-2');
-    const env = tracer.build('success');
-    expect(env.llmCalls[1].escalatedFromTier).toBeUndefined();
-  });
-
-  it('leaves escalatedFromTier undefined when either tier is unknown', () => {
-    const tracer = new AgentTracer();
-    tracer.handleLLMStart({ kwargs: { model: 'nova-pro' } } as any, [], 'run-1');
-    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-1');
-    tracer.handleLLMStart({ kwargs: { model: 'sonnet-x' } } as any, [], 'run-2');
-    tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-2');
-    const env = tracer.build('success');
-    expect(env.llmCalls[0]['gen_ai.request.model']).toBe('nova-pro');
-    expect(env.llmCalls[1].escalatedFromTier).toBeUndefined();
   });
 
   it('attributes LLM calls to the correct node when two nodes run in parallel', () => {

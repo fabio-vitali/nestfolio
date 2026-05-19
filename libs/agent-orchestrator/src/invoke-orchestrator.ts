@@ -57,7 +57,6 @@ export async function invokeOrchestrator(
         inputTokens: call['gen_ai.usage.input_tokens'],
         outputTokens: call['gen_ai.usage.output_tokens'],
         latencyMs: call.latencyMs,
-        escalatedFromTier: call.escalatedFromTier,
       })),
     });
     // Narrow via the discriminant: if emitter is present, the type system
