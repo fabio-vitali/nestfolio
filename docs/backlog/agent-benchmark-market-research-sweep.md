@@ -1,6 +1,7 @@
 ---
 id: agent-benchmark-market-research-sweep
-status: parking
+status: queued
+rank: 10
 type: tooling
 notes: "market-research not swept at agent-benchmark-skill ship — IP+MI now continuous projection, e2e doesn't fire MI."
 references: []
@@ -24,7 +25,7 @@ Surfaced 2026-05-19 during `agent-benchmark-skill` ship. The full sweep covered 
 5. Re-run: `AWS_PROFILE=nestfolio-dev node -r ./tools/register-paths.js --import tsx scripts/benchmark-agents/run.ts --task market-research --iterations 3`
 6. Write the per-task `evaluation.md`, append a "market-research postscript" section to the existing `cross-task-report.md`.
 
-Promote when there's appetite to complete the 6/6 benchmark coverage.
+Promoted 2026-05-20: user opted to complete 6/6 benchmark coverage as the next-up tooling slot.
 
 ## References
 

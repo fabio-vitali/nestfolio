@@ -11,8 +11,8 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [agent-benchmark-market-research-sweep](backlog/agent-benchmark-market-research-sweep.md) [tooling] — market-research not swept at agent-benchmark-skill ship — IP+MI now continuous projection, e2e doesn't fire MI.
+2. [bedrock-dev-model-access-audit](backlog/bedrock-dev-model-access-audit.md) [infra] — 5 modelIds returned ValidationException/AccessDeniedException on dev — verify Bedrock model access for sonnet-4-7, opus-4-7, nova-premier, llama3-3, mistral.
 
 ## LATER
 
@@ -20,11 +20,9 @@ _(none)_
 - [advisory-narrative-ctrl-eager-write-refactor](backlog/advisory-narrative-ctrl-eager-write-refactor.md) [refactor] — Refactor advisory-narrative-ctrl handler to write AgentInvocation HEAD row eagerly before Memory reads, so integration tests see the row in ~5s instead of ~30-40s.
 - [advisory-narrative-ctrl-memory-retry-env-plumb](backlog/advisory-narrative-ctrl-memory-retry-env-plumb.md) [tooling] — Plumb MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE as Lambda env var on dev so integration test can tighten waitForItem 60s→10s. Risk: dev/prod Memory-consistency skew.
 - [advisory-phase-ab-integration-coverage](backlog/advisory-phase-ab-integration-coverage.md) [tooling] — Phase A SF state + Phase B Memory emit/retrieval have unit + manual smoke coverage but no integration tests — gap surfaced post-Phase-B ship.
-- [agent-benchmark-market-research-sweep](backlog/agent-benchmark-market-research-sweep.md) [tooling] — market-research not swept at agent-benchmark-skill ship — IP+MI now continuous projection, e2e doesn't fire MI.
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
 - [an-ctrl-wrap-agent-output-vestigial](backlog/an-ctrl-wrap-agent-output-vestigial.md) [refactor] — advisory-narrative-ctrl handler still wraps result via wrapAgentOutput but the wrap is unread after the callback refactor
 - [backlog-next-closing-phase-friction](backlog/backlog-next-closing-phase-friction.md) [bug] — Two /backlog-next closing-phase UX bugs: (A) postflight tree-clean check passes only by lucky timing when background mutators are active — TWO distinct upstream mutators observed: A.1 jest-worker scratch leak (tmp-<pid>-<rand>/), A.2 Nx daemon socket-dir CWD fallback (<20-hex>/ leaked after each restart). NX_SOCKET_DIR=$TMPDIR sidesteps A.2 entirely. (B) ExitWorktree's 'permanently delete' warning fires routinely after a squash-merge even though the work IS preserved on origin/main.
-- [bedrock-dev-model-access-audit](backlog/bedrock-dev-model-access-audit.md) [infra] — 5 modelIds returned ValidationException/AccessDeniedException on dev — verify Bedrock model access for sonnet-4-7, opus-4-7, nova-premier, llama3-3, mistral.
 - [bff-resolver-region-sweep](backlog/bff-resolver-region-sweep.md) [bug] — advisory-bff + ledger-bff mutation resolvers likely missing region field.
 - [broker-alpaca-adpt-resilience-trap-collapse](backlog/broker-alpaca-adpt-resilience-trap-collapse.md) [refactor] — broker-alpaca-adpt.resilience.integration.test.ts creates 2 EventBusTrap rules in beforeAll — same anti-pattern that caused advisory-adpt + investor-adpt EB-rule-propagation flakes (shipped 2026-05-13). Hasn't been observed flaking yet; pre-emptive collapse to 1-trap-with-2-detailtypes.
 - [bump-tsconfig-es2022-to-es2023](backlog/bump-tsconfig-es2022-to-es2023.md) [tooling] — Enable .toSpliced/.toReversed/.with workspace-wide; promote on second use case.

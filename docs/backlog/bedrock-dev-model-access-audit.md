@@ -1,6 +1,7 @@
 ---
 id: bedrock-dev-model-access-audit
-status: parking
+status: queued
+rank: 20
 type: infra
 notes: "5 modelIds returned ValidationException/AccessDeniedException on dev — verify Bedrock model access for sonnet-4-7, opus-4-7, nova-premier, llama3-3, mistral."
 references: []
@@ -33,7 +34,7 @@ Surfaced 2026-05-19 during `agent-benchmark-skill` full sweep. 5 sweep modelIds 
 4. Update `scripts/benchmark-agents/tasks/*.bench.ts` modelIds to the canonical forms.
 5. Re-run the affected sweeps and re-write the per-task evaluations.
 
-Promote when there's appetite to complete the multi-vendor benchmark or when a follow-on workstream depends on one of these models (e.g. Llama 3.3 for explainability, sonnet-4-7 as an opus-4-6 alternative for portfolio-construction).
+Promoted 2026-05-20: user opted to expand benchmark coverage to multi-vendor as part of the agent-benchmark follow-up wave.
 
 ## Cross-reference
 
