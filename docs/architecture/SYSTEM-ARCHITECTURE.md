@@ -153,7 +153,7 @@ Each of these services has its own AgentRuntime construct (`libs/cdk-constructs/
 
 ### Models
 
-All agents target Bedrock Claude inference profiles via `libs/agent-orchestrator/`. Default: `us.anthropic.claude-sonnet-4-6`. Cost-pressure downgrade path (Sonnet → Haiku) is implemented via `libs/agent-orchestrator/src/tier-escalation.ts`.
+All agents target Bedrock Claude inference profiles via `libs/agent-orchestrator/`. Each `*.config.ts` carries an explicit `modelId` (full inference-profile id, e.g. `us.anthropic.claude-sonnet-4-6`); `agent-factory.ts` passes it verbatim to `ChatBedrockConverse`. No runtime tier escalation, no env-var override — model choice per task lives entirely in the AgentConfig.
 
 ### 7.1 Architectural Evolution — 6→4 advisory agent decomposition
 
