@@ -244,9 +244,6 @@ importers:
       '@aws-sdk/client-cloudwatch-logs':
         specifier: ^3.1050.0
         version: 3.1050.0
-      '@aws-sdk/client-pricing':
-        specifier: ^3.1050.0
-        version: 3.1050.0
       '@aws-sdk/client-secrets-manager':
         specifier: ^3.1029.0
         version: 3.1029.0
@@ -1105,10 +1102,6 @@ packages:
 
   '@aws-sdk/client-personalize-events@3.982.0':
     resolution: {integrity: sha512-JllssIZCPxAgYy4gkIM2e/kXxWT0xQzzZd5y9rRStm0bl5MiLAxzX4q9WhGG7glyB++EuhYskiT1N+DzyM5nTw==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/client-pricing@3.1050.0':
-    resolution: {integrity: sha512-0oqjRX5KrqCqrXviUgrZuTpVbuviNoVJGp5YCI4SqqRMiACYjIuiCx49K9pGYYbQGaI4kcIROrOcSZX21IFvUg==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-s3@3.1011.0':
@@ -13398,19 +13391,6 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - aws-crt
-
-  '@aws-sdk/client-pricing@3.1050.0':
-    dependencies:
-      '@aws-crypto/sha256-browser': 5.2.0
-      '@aws-crypto/sha256-js': 5.2.0
-      '@aws-sdk/core': 3.974.12
-      '@aws-sdk/credential-provider-node': 3.972.43
-      '@aws-sdk/types': 3.973.8
-      '@smithy/core': 3.24.3
-      '@smithy/fetch-http-handler': 5.4.3
-      '@smithy/node-http-handler': 4.7.3
-      '@smithy/types': 4.13.1
-      tslib: 2.8.1
 
   '@aws-sdk/client-s3@3.1011.0':
     dependencies:
