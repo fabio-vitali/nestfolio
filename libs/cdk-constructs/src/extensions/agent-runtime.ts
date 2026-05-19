@@ -52,16 +52,6 @@ export class AgentRuntime extends Construct {
   constructor(scope: Construct, id: string, props: AgentRuntimeProps) {
     super(scope, id);
 
-    // Temporary cost-cap downgrade override. Read once at synth time from CDK
-    // context (`--context agentModelOverride=haiku`) and merged into the
-    // runtime container's env. Consumed by libs/agent-orchestrator's
-    // applyOverride() helper. Unset = no-op. Per-AgentRuntime overrides via
-    // props.environmentVariables win over the context value.
-    const overrideContext = scope.node.tryGetContext('agentModelOverride');
-    const overrideEnv: Record<string, string> = overrideContext
-      ? { AGENT_MODEL_OVERRIDE: String(overrideContext) }
-      : {};
-
     // Create Runtime (container-based -- requires Dockerfile in agentCodePath)
     this.runtime = new agentcore.Runtime(this, 'Runtime', {
       runtimeName: props.runtimeName,
@@ -75,7 +65,7 @@ export class AgentRuntime extends Construct {
             ),
           }
         : {}),
-      environmentVariables: { ...overrideEnv, ...props.environmentVariables },
+      environmentVariables: { ...props.environmentVariables },
       lifecycleConfiguration: {
         idleRuntimeSessionTimeout: props.idleTimeout ?? Duration.minutes(15),
         maxLifetime: props.maxLifetime ?? Duration.hours(4),
