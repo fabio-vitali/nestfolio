@@ -108,8 +108,6 @@ Read each `raw-results.json`. Write `benchmarks/tasks/<task>/<same-ISO>/evaluati
 
    > Recommend changing `modelId` in `<configFilePath>` from `<current>` to `<recommended>`.
 
-   For portfolio-construction (builder function), append: "modelId is shared across all 3 OperatingModes — single edit applies everywhere."
-
 ### 6. Cross-task report
 
 After all requested tasks finish, write `benchmarks/_summary/<ISO>/cross-task-report.md`:
@@ -133,8 +131,9 @@ After all requested tasks finish, write `benchmarks/_summary/<ISO>/cross-task-re
 4. **Iteration-noise caveat** — if any (task, model) has `(maxLat − minLat) / medianLat > 0.3` OR `(maxCost − minCost) / medianCost > 0.3`, recommend rerunning that subset with `--iterations 5` before treating the median as basis for the production edit.
 5. **Cross-cutting observations** — patterns visible only across tasks (e.g. "Nova Pro faster than Sonnet 4.6 on structured-output across all 5 task types tried").
 6. **Action items** — concrete edit list:
-   - Static-export tasks (5 of 6): "`<configFilePath>` — change `modelId` from `<current>` to `<recommended>`."
-   - portfolio-construction (builder function): "`<configFilePath>` — change `modelId` value inside `buildPortfolioConstructionConfig` (applies to all 3 modes)."
+   - "`<configFilePath>` — change `modelId` from `<current>` to `<recommended>`."
+
+   All 6 task configs export a top-level object with the `modelId` field at the top — a uniform single-line Edit applies in every case.
 
 ### 7. PII guard (mirrors spec §4.2)
 
@@ -166,10 +165,7 @@ If the filtered list is empty, say so and stop. Otherwise, invoke `AskUserQuesti
   2. **Apply selected** — Ask a follow-up `AskUserQuestion` with one option per candidate (multiSelect), labelled `<task> → <recommended>` and tagged `(noise-flagged)` where applicable. Then Edit only the chosen rows.
   3. **Skip all** — Make no edits. The report stands as a read-only recommendation.
 
-For each candidate the user approves, use the `Edit` tool:
-
-- **Static-export tasks (5 of 6):** find the `modelId: '<current>'` line in `<configFilePath>` and replace `<current>` with `<recommended>`.
-- **portfolio-construction (builder function):** find the `modelId` literal inside `buildPortfolioConstructionConfig` in `services/advisory/portfolio-engine-ctrl/src/agents/portfolio-construction.config.ts` and replace it. State explicitly in chat: "This single edit applies to all 3 OperatingModes (CONSERVATIVE / BALANCED / AGGRESSIVE)."
+For each candidate the user approves, use the `Edit` tool: find the `modelId: '<current>'` line in `<configFilePath>` and replace `<current>` with `<recommended>`. All 6 configs share the same shape — a top-level object whose `modelId` field is the unique target.
 
 After Edits land, report:
 - The list of files edited (one path per line).
