@@ -5,7 +5,6 @@ import { createAgentNode } from './agent-factory';
 import { withValidation, type AgentNodeFn } from './with-validation';
 import { withRetry } from './with-retry';
 import { withFallback, type AgentNodeWithFallback } from './with-fallback';
-import { buildEscalationPath } from './tier-escalation';
 
 export interface CompiledGraph {
   invoke(
@@ -41,12 +40,7 @@ export function createOrchestrator<K extends string, TState>(
       bareNode = withValidation(bareNode, validationRules[key]);
     }
 
-    // Determine escalation path from model ID
-    const tier = agentConfig.modelId.includes('haiku') ? 'haiku'
-      : agentConfig.modelId.includes('opus') ? 'opus' : 'sonnet';
-    const escalationPath = buildEscalationPath(tier as any);
-
-    bareNode = withRetry(bareNode, { ...defaultRetry, escalationPath });
+    bareNode = withRetry(bareNode, defaultRetry);
 
     if (fallbacks?.[key]) {
       nodeMap[key] = withFallback(bareNode, fallbacks[key] as any);
