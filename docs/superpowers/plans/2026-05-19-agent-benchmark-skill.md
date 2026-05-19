@@ -6,7 +6,7 @@
 
 **Architecture:** A committed `scripts/benchmark-agents/` tree holds a shared TS runner (`run.ts`), pricing/fixture support scripts, and 6 thin per-task `*.bench.ts` configs that import each production `AgentConfig` directly from `services/advisory/.../src/agents/*.config.ts`. A committed `.claude/skills/benchmark-agents/SKILL.md` is the orchestration playbook Claude follows when `/benchmark-agents` fires. All artifacts (fixtures, pricing cache, raw results, evaluation markdown) land under a gitignored `benchmarks/` tree. The runner invokes `ChatBedrockConverse.withStructuredOutput(schema, { includeRaw: true })` locally against the dev sandbox; the prompt is replayed verbatim from a Bedrock-invocation-log capture so prompt-substitution drift is impossible.
 
-**Tech Stack:** TypeScript, `tsx` (TS script runner), `@langchain/aws` (`ChatBedrockConverse`), `@aws-sdk/client-pricing` (free Price List Query API), `@aws-sdk/client-cloudwatch-logs` (Logs Insights), pnpm, Jest + ts-jest (workspace test runner — `jest.preset.js` at repo root).
+**Tech Stack:** TypeScript, `tsx` (TS script runner), `@langchain/aws` (`ChatBedrockConverse`), `@aws-sdk/client-cloudwatch-logs` (Logs Insights), pnpm, Jest + ts-jest (workspace test runner — `jest.preset.js` at repo root). Pricing comes from a checked-in manifest (`scripts/benchmark-agents/pricing.manifest.json`), not the AWS Price List API — discovered during Task 5 implementation that the API uses display names (not model IDs) AND has no Claude 4.x entries, making it unusable for this benchmark's primary sweep targets. Manifest maintenance is manual (Bedrock pricing changes ~3–4× per year).
 
 ---
 
@@ -727,31 +727,74 @@ git commit -m "feat(benchmark-agents): timings helpers"
 
 ---
 
-## Task 5: refresh-pricing.ts (Price List API)
+## Task 5: refresh-pricing.ts (manifest-based)
 
 **Files:**
+- Create: `scripts/benchmark-agents/pricing.manifest.json` (checked into source — committed)
 - Modify: `scripts/benchmark-agents/refresh-pricing.ts`
 
-- [ ] **Step 1: Implement refresh-pricing.ts**
+**Why a manifest, not the AWS Price List API:** Investigated during this task — the Pricing API filters on `model` use human-readable display names (`"Nova Pro"`, `"Mistral Large 2407"`) not API model IDs, AND it has zero Claude 4.x entries (provider=Anthropic returns only Claude 2/3 family). Without Claude 4.x pricing, the benchmark cannot compute cost for the primary sweep targets. A checked-in manifest is the pragmatic alternative — Bedrock pricing changes 3–4× per year, manual maintenance is cheap, and the manifest stays auditable in git history.
+
+- [ ] **Step 1: Create the manifest**
+
+`scripts/benchmark-agents/pricing.manifest.json` — keyed by canonical Bedrock modelId. Use the base modelId (no `us./eu./apac.` prefix) where possible so `baseModelIdFor`'s fallback in `pricing-loader.ts` resolves both forms. Numbers are USD per million tokens; source AWS Bedrock public pricing as of the manifest's last touch date.
+
+```json
+{
+  "lastUpdated": "2026-05-19",
+  "source": "https://aws.amazon.com/bedrock/pricing/",
+  "notes": "Manually maintained. Bedrock public list pricing changes 3-4x per year. Re-check on quarterly cadence or when a sweep flags suspicious cost numbers. Numbers are USD per million tokens.",
+  "models": {
+    "anthropic.claude-haiku-4-5-20251001": { "inputUSDPerMTok": 1.0,  "outputUSDPerMTok": 5.0  },
+    "anthropic.claude-sonnet-4-6":         { "inputUSDPerMTok": 3.0,  "outputUSDPerMTok": 15.0 },
+    "anthropic.claude-sonnet-4-7":         { "inputUSDPerMTok": 3.0,  "outputUSDPerMTok": 15.0 },
+    "anthropic.claude-opus-4-6":           { "inputUSDPerMTok": 15.0, "outputUSDPerMTok": 75.0 },
+    "anthropic.claude-opus-4-7":           { "inputUSDPerMTok": 15.0, "outputUSDPerMTok": 75.0 },
+    "amazon.nova-lite":                    { "inputUSDPerMTok": 0.06, "outputUSDPerMTok": 0.24 },
+    "amazon.nova-pro":                     { "inputUSDPerMTok": 0.80, "outputUSDPerMTok": 3.20 },
+    "amazon.nova-premier":                 { "inputUSDPerMTok": 2.50, "outputUSDPerMTok": 12.50 },
+    "meta.llama3-3-70b-instruct":          { "inputUSDPerMTok": 0.72, "outputUSDPerMTok": 0.72 },
+    "mistral.mistral-large-2407":          { "inputUSDPerMTok": 2.0,  "outputUSDPerMTok": 6.0  }
+  }
+}
+```
+
+Verify the numbers against https://aws.amazon.com/bedrock/pricing/ before committing. If a row is materially wrong (>2× off), update it. The implementer is encouraged to spot-check 2 entries against the live pricing page, but does not need to verify every number — this is a manual artifact and corrections are cheap.
+
+- [ ] **Step 2: Implement refresh-pricing.ts**
 
 ```typescript
 #!/usr/bin/env tsx
-/* refresh-pricing.ts — fetches Bedrock per-token pricing from the AWS Price List
- * Query API and writes benchmarks/cache/pricing.json.
+/* refresh-pricing.ts — copies the checked-in pricing manifest to
+ * benchmarks/cache/pricing.json with the current timestamp. The AWS Pricing
+ * API is NOT used (see Task 5 prelude — display-name filter + no Claude 4.x
+ * coverage). The manifest at scripts/benchmark-agents/pricing.manifest.json
+ * is the source of truth; update it manually when AWS revises Bedrock public
+ * pricing.
  *
- * Resolves the union of sweep modelIds from `scripts/benchmark-agents/tasks/*.bench.ts`
- * via dynamic import, so adding a 7th bench file or a new sweep model auto-picks-up
- * with no edits here.
+ * Verifies every sweep modelId (across the 6 bench configs) resolves either
+ * literally or via baseModelIdFor() — that's the structural gate keeping the
+ * manifest aligned with whatever the bench configs currently sweep.
  */
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { PricingClient, GetProductsCommand } from '@aws-sdk/client-pricing';
 import { baseModelIdFor } from './pricing-loader';
 import type { PricingCache } from './lib/types';
 
 const TASKS_DIR = path.resolve('scripts/benchmark-agents/tasks');
+const MANIFEST_PATH = path.resolve('scripts/benchmark-agents/pricing.manifest.json');
 const OUT_PATH = path.resolve('benchmarks/cache/pricing.json');
+
+interface ManifestFile {
+  readonly lastUpdated: string;
+  readonly source: string;
+  readonly notes?: string;
+  readonly models: Record<
+    string,
+    { readonly inputUSDPerMTok: number; readonly outputUSDPerMTok: number }
+  >;
+}
 
 async function collectModelIds(): Promise<string[]> {
   const files = (await fs.readdir(TASKS_DIR)).filter((f) => f.endsWith('.bench.ts'));
@@ -765,72 +808,29 @@ async function collectModelIds(): Promise<string[]> {
   return [...set];
 }
 
-interface PriceDimension {
-  pricePerUnit?: { USD?: string };
-  description?: string;
-  unit?: string;
-}
-
-async function fetchPriceForModel(
-  client: PricingClient,
-  modelId: string,
-): Promise<{ inputUSDPerMTok: number; outputUSDPerMTok: number } | null> {
-  // Bedrock products live under ServiceCode 'AmazonBedrock'.
-  const cmd = new GetProductsCommand({
-    ServiceCode: 'AmazonBedrock',
-    Filters: [{ Type: 'TERM_MATCH', Field: 'model', Value: modelId }],
-    MaxResults: 100,
-  });
-  const resp = await client.send(cmd);
-  if (!resp.PriceList || resp.PriceList.length === 0) return null;
-  let input = NaN;
-  let output = NaN;
-  for (const raw of resp.PriceList) {
-    const product = JSON.parse(typeof raw === 'string' ? raw : (raw as unknown as string));
-    const terms = (product?.terms?.OnDemand ?? {}) as Record<
-      string,
-      { priceDimensions?: Record<string, PriceDimension> }
-    >;
-    for (const term of Object.values(terms)) {
-      for (const dim of Object.values(term.priceDimensions ?? {})) {
-        const usd = Number(dim.pricePerUnit?.USD ?? 'NaN');
-        const desc = (dim.description ?? '').toLowerCase();
-        if (!Number.isFinite(usd)) continue;
-        // Per-1k-tokens dimensions need × 1000 to land at USD/MTok.
-        const unit = (dim.unit ?? '').toLowerCase();
-        const usdPerMTok = unit.includes('1k tokens') ? usd * 1000 : usd * 1_000_000;
-        if (desc.includes('input')) input = usdPerMTok;
-        else if (desc.includes('output')) output = usdPerMTok;
-      }
-    }
-  }
-  if (!Number.isFinite(input) || !Number.isFinite(output)) return null;
-  return { inputUSDPerMTok: input, outputUSDPerMTok: output };
-}
-
 async function main(): Promise<void> {
+  const manifest = JSON.parse(await fs.readFile(MANIFEST_PATH, 'utf8')) as ManifestFile;
   const sweepIds = await collectModelIds();
-  console.log(`[refresh-pricing] resolving ${sweepIds.length} sweep modelIds`);
-  const client = new PricingClient({ region: 'us-east-1' });
+  console.log(`[refresh-pricing] manifest lastUpdated=${manifest.lastUpdated}`);
+  console.log(`[refresh-pricing] verifying ${sweepIds.length} sweep modelIds against manifest`);
+
   const out: PricingCache = { fetchedAt: new Date().toISOString(), models: {} };
   const misses: string[] = [];
   for (const id of sweepIds) {
-    const literal = await fetchPriceForModel(client, id);
-    if (literal) {
-      out.models[id] = literal;
+    const literal = manifest.models[id];
+    const base = manifest.models[baseModelIdFor(id)];
+    const entry = literal ?? base;
+    if (!entry) {
+      misses.push(`${id} (also missed base ${baseModelIdFor(id)})`);
       continue;
     }
-    const base = baseModelIdFor(id);
-    const fallback = await fetchPriceForModel(client, base);
-    if (fallback) {
-      out.models[base] = fallback;
-      continue;
-    }
-    misses.push(`${id} (also missed base ${base})`);
+    // Cache under the form that resolved (literal preferred over base).
+    out.models[literal ? id : baseModelIdFor(id)] = entry;
   }
   if (misses.length > 0) {
-    console.error('[refresh-pricing] no pricing found for:');
+    console.error('[refresh-pricing] manifest missing entries for:');
     for (const m of misses) console.error(`  - ${m}`);
+    console.error(`  Edit ${MANIFEST_PATH} and rerun.`);
     process.exit(1);
   }
   await fs.mkdir(path.dirname(OUT_PATH), { recursive: true });
@@ -844,28 +844,48 @@ main().catch((err) => {
 });
 ```
 
-- [ ] **Step 2: Smoke-test against AWS**
+- [ ] **Step 3: Remove the now-unused dep**
 
 ```bash
-AWS_PROFILE=nestfolio-dev pnpm tsx scripts/benchmark-agents/refresh-pricing.ts
+pnpm remove -D -w @aws-sdk/client-pricing
 ```
 
-Expected: writes `benchmarks/cache/pricing.json` containing one entry per unique sweep modelId across the 6 bench configs. If any modelId mistypos (e.g. `meta.llama-3-3-...` vs `meta.llama3-3-...`), the script exits non-zero — that's the verification gate spec §5 calls for. Fix the bench config, rerun.
+The `@aws-sdk/client-cloudwatch-logs` dep stays — Task 6 uses it.
 
-- [ ] **Step 3: Sanity-check the cache**
+- [ ] **Step 4: Smoke-test (no AWS profile needed — the script is offline)**
+
+```bash
+pnpm tsx scripts/benchmark-agents/refresh-pricing.ts
+```
+
+Or if `pnpm tsx` fails on the dynamic-import chain because a production AgentConfig file does a RUNTIME (not type-only) import from `@nestfolio/agent-orchestrator`:
+
+```bash
+node -r ./tools/register-paths.js --import tsx scripts/benchmark-agents/refresh-pricing.ts
+```
+
+Expected outcomes:
+1. **Best case** — exits 0, writes `benchmarks/cache/pricing.json` with one entry per unique sweep modelId.
+2. **Missing-entry case** — exits 1 with a list. Add the missing rows to `pricing.manifest.json` and rerun.
+
+- [ ] **Step 5: Sanity-check the cache**
 
 ```bash
 cat benchmarks/cache/pricing.json | head -40
 ```
 
-Verify the numbers are in the expected order of magnitude (opus around $15/MTok input + $75 output; sonnet ~$3 + $15; haiku ~$0.8 + $4; Nova Pro ~$0.8 + $3.2).
+Numbers should match what's in the manifest — `refresh-pricing.ts` does not transform values.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add scripts/benchmark-agents/refresh-pricing.ts
-git commit -m "feat(benchmark-agents): refresh-pricing with inference-profile fallback"
+git add scripts/benchmark-agents/pricing.manifest.json \
+        scripts/benchmark-agents/refresh-pricing.ts \
+        package.json pnpm-lock.yaml
+git commit -m "feat(benchmark-agents): pricing manifest + refresh-pricing"
 ```
+
+The `benchmarks/cache/pricing.json` itself is gitignored — do NOT stage it.
 
 ---
 
