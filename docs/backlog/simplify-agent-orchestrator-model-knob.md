@@ -1,6 +1,6 @@
 ---
 id: simplify-agent-orchestrator-model-knob
-status: active
+status: shipped
 type: design
 rank: null
 notes: "Remove runtime model-tier escalation (__escalationTier + escalationPath + buildEscalationPath + tier-escalation.ts) and the AGENT_MODEL_OVERRIDE cost-cap downgrade (MODEL_ID_MAP + TIER_ORDER + detectTier + applyOverride) from libs/agent-orchestrator. After this lands, each *.config.ts's modelId is the ONLY model knob — used verbatim, no closed-set tier semantics, no runtime mutation. Unblocks the agent-benchmark-skill workstream by simplifying the system to the shape the benchmark assumes (raw modelId per task)."
@@ -27,7 +27,16 @@ plan: docs/superpowers/plans/2026-05-19-simplify-agent-orchestrator-model-knob.m
 topic_memory:
   - project_agent_orchestrators.md
   - project_agent_runtime_structured_output.md
-validation_gate: null
+validation_gate: |
+  Branch worktree-simplify-agent-orchestrator-model-knob, HEAD e39d662e (16 commits ahead of origin/main: db974a32 plan; dcf2e855 plan-addendum Task 13; bf1de97d-0a9fe670 tasks 2-12 implementation; abde500d task 13 e2e; e39d662e doc derivation regen).
+  pnpm nx affected -t test --base=origin/main → PASS, 35 projects.
+  pnpm nx affected -t lint --base=origin/main → PASS, 37 projects, 0 errors (24 pre-existing warnings outside this workstream).
+  pnpm nx affected -t type-check → No tasks (no project in affected set has the target — acceptable, build/test exercise tsc).
+  Deploy `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=investor-profile-ctrl,market-intelligence-ctrl,portfolio-engine-ctrl,advisory-narrative-ctrl` succeeded across all 4 services (parallel keychain race required sequential redeploy of AN+PE; both ✅ on retry).
+  Scoped e2e against deployed dev:
+    - apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts → PASS (138.8s) — full advisory pipeline exercised end-to-end with raw `gen_ai.request.model` id `us.anthropic.claude-haiku-4-5-20251001-v1:0`.
+    - apps/e2e-feature-tests/src/advisory/rebalance-on-drift.e2e.test.ts → PASS (149.5s) — portfolio-engine raw-id assertion (`us.anthropic.claude-opus-4-6-v1` OR `us.anthropic.claude-sonnet-4-6`) holds against live trace.
+  Orphan grep across services/, libs/, infrastructure/, apps/ for ModelTier, escalationPath, buildEscalationPath, escalatedFromTier, MODEL_ID_MAP, extractModelTier, tier-escalation → zero hits. AGENT_MODEL_OVERRIDE grep across advisory paths → zero hits (only onboarding-bff's own override remains, out-of-scope per spec §3).
 ---
 
 # Simplify agent-orchestrator model knob
