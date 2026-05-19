@@ -11,11 +11,8 @@ export interface AgentConfig<T extends z.ZodType> {
   readonly promptTemplate: string;
 }
 
-export type ModelTier = 'haiku' | 'sonnet' | 'opus';
-
 export interface RetryOptions {
   readonly maxAttempts: number;
-  readonly escalationPath?: ModelTier[];
 }
 
 export interface ValidationResult {

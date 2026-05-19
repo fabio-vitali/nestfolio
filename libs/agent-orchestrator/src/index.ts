@@ -3,7 +3,6 @@
 export {
   type AgentConfig,
   type AgentInvocation,
-  type ModelTier,
   type RetryOptions,
   type ValidationContext,
   type ValidationResult,
