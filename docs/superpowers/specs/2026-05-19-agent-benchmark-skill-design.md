@@ -1,7 +1,7 @@
 # Agent benchmark skill — design spec
 
 **Date**: 2026-05-19
-**Backlog**: `docs/backlog/agent-benchmark-skill.md` (currently `status: parking` — promotes once the dependency below ships)
+**Backlog**: `docs/backlog/agent-benchmark-skill.md` (`status: queued`, `rank: 1` — sequenced behind the dependency below)
 **Type**: design
 **Depends on**: `simplify-agent-orchestrator-model-knob` (`docs/backlog/simplify-agent-orchestrator-model-knob.md` + `docs/superpowers/specs/2026-05-19-simplify-agent-orchestrator-model-knob-design.md`). That workstream removes the global `MODEL_ID_MAP` + escalation + `AGENT_MODEL_OVERRIDE` machinery, leaving each `*.config.ts`'s `modelId: string` as the unambiguous single source of truth. This spec is written **as if that workstream has already shipped** — it does not paper over the legacy escalation/override surface.
 **Follow-up**: implementation plan filed separately at writing-plans handoff (post-dependency ship)
@@ -135,6 +135,10 @@ benchmarks/                                              # gitignored ENTIRELY
 
 `benchmarks/` is added to `.gitignore` in the implementation plan.
 
+**PII handling**: captured fixtures contain real onboarding answers (goals, income, risk tolerance) and real upstream wave outputs (market snapshots, investor profiles). The `benchmarks/` tree is gitignored end-to-end. Implementation rule: do not paste fixture content or raw model output into chat, PR descriptions, external review tools, or any non-local report surface. Per-task `evaluation.md` and the `cross-task-report.md` may quote schema-pass/fail signals and short structural excerpts but must not echo full prompt bodies or full structured outputs.
+
+**Import boundary**: each `tasks/<task>.bench.ts` imports from `services/advisory/<service>/src/agents/…` and from `libs/agent-orchestrator`. The pre-commit hook validates `nx-enforce-module-boundaries`. The implementation plan must (a) confirm `scripts/**` either sits outside the boundary graph or carries a tag (e.g. `scope:tool`) that is allowed to depend on `scope:service` + `scope:lib`, and (b) verify `pnpm nx build` and the pre-commit hook stay green on a no-op bench-config skeleton commit *before* fleshing out the runner. If the existing boundary config forbids `scripts → services`, prefer adding a permissive rule for `scope:tool → scope:service` over duplicating the production exports into the script.
+
 ### 4.3 Per-task bench config shape
 
 Each `scripts/benchmark-agents/tasks/<task>.bench.ts` imports the production `AgentConfig` (or builder) from the matching `*.config.ts` and adds metadata + the sweep list + an optional `validationRule` import for richer signal capture (§6.3):
@@ -206,7 +210,7 @@ AWS_PROFILE=nestfolio-dev aws bedrock list-foundation-models --region us-east-1 
 
 Standalone. Args: `--task <name>`. Captures the **literal post-substitution prompt** Bedrock saw in a recent dev decision cycle, not the pre-substitution `state.input`. Rationale: the `AgentTraceEnvelope` interface in `libs/agent-orchestrator/src/agent-tracer.ts` carries no `nodeInput` or rendered-prompt field (verified — the envelope has `llmCalls`, `toolCalls`, `nodeSequence`, `errors`, but never the prompt body). Reconstructing the prompt offline would require replicating each service handler's enrichment logic (memory context, KB retrieval, mode framing, upstream wave outputs). Replaying the captured prompt verbatim avoids all of that.
 
-**Prerequisite (one-time setup, documented in the implementation plan)**: Bedrock model invocation logging must be enabled on the dev account, with CloudWatch as a destination. AWS console → Bedrock → Settings → Model invocation logging → enable → CloudWatch log group (e.g. `/aws/bedrock/dev-invocations`). Each model call produces a log entry containing the full request body (including the prompt text) and response.
+**Prerequisite (P0 implementation-plan step, NOT an afterthought)**: Bedrock model invocation logging must be enabled on the dev account before `capture-fixture.ts` can produce a single fixture. The implementation plan's §11 sequence calls this out as step 0 — it is one-time AWS console work, not a code change. AWS console → Bedrock → Settings → Model invocation logging → enable → CloudWatch log group. The exact log group name and entry JSON schema are AWS-controlled; pin both at implementation time (likely `/aws/bedrock/dev-invocations` and a request/response envelope with `modelId`, `input.messages[]`, `output.message.content[]`, `inferenceConfig`) before authoring the Logs Insights query in §6.1 step 3. Each model call produces a log entry containing the full request body (including the prompt text) and response.
 
 **Capture algorithm**:
 
@@ -251,6 +255,8 @@ Standalone. No args. Calls AWS Price List Query API (`pricing.us-east-1.amazonaw
 ```
 
 The AWS Price List API is **free of charge**. Latency budget: ~5s for ~10 models.
+
+**Inference-profile fallback**: cross-region inference-profile IDs (e.g. `us.anthropic.claude-sonnet-4-6`) typically do not have their own Price List SKU — pricing is anchored to the base model (`anthropic.claude-sonnet-4-6`). `refresh-pricing.ts` must, for each sweep modelId, first attempt the literal lookup, and on miss fall back to the base modelId (strip the `us.`/`eu.`/`apac.` prefix and any `-v1:0` suffix). The cache stores both the literal sweep modelId and the resolved base modelId so `pricing-loader.ts` can do a single lookup at run time. The script fails loudly only when **both** the literal and the derived base modelId miss — that is the genuine "this model has no public pricing yet" signal.
 
 ### 6.3 `run.ts`
 
@@ -346,7 +352,7 @@ Invocation forms:
 - `/benchmark-agents --iterations <N>` — overrides default iteration count.
 - Combinations allowed: `/benchmark-agents portfolio-construction --iterations 5`.
 
-The argv allowlist contains the 6 task names: `user-goals`, `risk-assessment`, `market-research`, `portfolio-construction`, `rebalance-planner`, `explainability`. Any other value is rejected — keeps `onboarding-bff` and arbitrary names from sneaking in.
+The argv allowlist is **derived at parse time** by globbing `scripts/benchmark-agents/tasks/*.bench.ts` and reading each file's exported `benchConfig.taskName`. Any name not present in that set is rejected — keeps `onboarding-bff` and arbitrary names from sneaking in. Adding a 7th agent in the future means dropping a 7th bench config file; nothing else needs editing. (The SKILL.md must not hardcode the 6 names — that's the drift trap.)
 
 **Argv parsing happens at the skill layer, not the runner layer.** The skill SKILL.md instructs Claude to parse the `/benchmark-agents` argv (comma-list of tasks + `--iterations` flag), validate against the 6-name allowlist, then invoke `run.ts` **once per task** in sequence. `run.ts --task <name>` is single-valued — it has no comma-list parsing. This split keeps the runner dumb (one task, one model sweep, one results file) and concentrates orchestration in the skill where Claude can recover from a per-task failure without losing the others.
 
@@ -365,7 +371,8 @@ Skill instructs Claude to:
      - **Final recommendation.** Explicit reasoning over quality / cost / latency anchored in this task's role. Example: "*portfolio-construction outputs the portfolio allocation — quality dominates cost. `sonnet-4-7` passed all three gates 3/3 with X% lower latency and Y% lower cost than the current opus-4-6 default. Recommend changing `modelId` inside `buildPortfolioConstructionConfig` in `services/advisory/portfolio-engine-ctrl/src/agents/portfolio-construction.config.ts` from `us.anthropic.claude-opus-4-6-v1` to `us.anthropic.claude-sonnet-4-7`. (Builder function — same modelId applies across all 3 OperatingModes.)*"
 5. **Cross-task summary.** After all requested tasks are done, write `benchmarks/_summary/<ISO>/cross-task-report.md`:
    - **Per-task recommendation snapshot.** Table: task | service | current model | recommended model | quality verdict | cost delta per call | latency delta per call | config file to edit.
-   - **Projected cost-per-decision-cycle delta.** Sums each task's per-call cost across one decision-workflow run (1 call per task per cycle) → "$X today vs $Y recommended".
+   - **Projected cost-per-decision-cycle delta.** Sums each task's *effective* per-call cost across one decision-workflow run. The effective call factor per (task, model) is `2 - notDegradedRate` — production retries the call (REINFORCE_SUFFIX path) when first-attempt output is degraded, so a model with `notDegradedRate = 1.0` costs `1×` per cycle while one with `notDegradedRate = 0.5` costs `1.5×`. Render as: "$X today vs $Y recommended (assumes 1 call per task per cycle scaled by `2 − notDegradedRate`)". Models with `notDegradedRate < 0.7` are flagged as "retry-heavy — projected cost has high variance" in the comment column.
+   - **Iteration-noise caveat.** If any (task, model) combo has `(maxLatencyMs − minLatencyMs) / medianLatencyMs > 0.3` OR `(maxCostUSD − minCostUSD) / medianCostUSD > 0.3` at the default 3 iterations, the report explicitly recommends rerunning that subset with `--iterations 5` (or higher) before treating the median as a basis for the production edit. Same threshold gates the final recommendation: a recommendation that flips the model choice must be backed by a low-variance sweep on that combo, not by a noisy 3-iteration median.
    - **Cross-cutting observations.** Patterns visible only when looking across tasks (e.g. "Nova Pro consistently faster than Sonnet 4.6 on structured-output across all 5 task types tried", or "Llama 3.3 70B failed schema 2/3 on explainability → not viable anywhere").
    - **Action items.** Concrete edit list, one entry per task whose recommendation differs from current. Format:
      - **Static-export tasks** (5 of 6): `services/advisory/<service>/src/agents/<task>.config.ts` — change `modelId` from `<current>` to `<recommended>`. (Single-line edit, identifiable by the unique `modelId:` line in the file.)
@@ -397,10 +404,11 @@ Claude never edits any `*.config.ts` from within the skill — recommendations a
 
 The plan will sequence roughly:
 
-1. Skeleton — types, directory layout, the **6 per-task bench configs** (compile-only, no execution yet). Each bench config imports the production `AgentConfig` from `services/advisory/.../src/agents/<task>.config.ts`.
-2. `refresh-pricing.ts` + `pricing-loader.ts` (independent, easy to test).
-3. `capture-fixture.ts` (needs CloudWatch perms — verify against dev account). Per-task fixture, sourced from the matching AgentTracer envelope `nodeInput`.
+0. **AWS prerequisite (manual, one-time)** — enable Bedrock model invocation logging on dev account `771924376645`, region `us-east-1`, destination CloudWatch. Pin the resulting log group name and entry schema. Without this, step 3 cannot produce a single fixture. This is a gate on the entire workstream — file it as a checkbox in the plan, not an implementation task.
+1. Skeleton — types, directory layout, the **6 per-task bench configs** (compile-only, no execution yet). Each bench config imports the production `AgentConfig` from `services/advisory/.../src/agents/<task>.config.ts`. **Verify `pnpm nx build` and the pre-commit hook stay green on this commit** before going further — that is the import-boundary smoke test (§4.2). If they fail, fix the `nx-enforce-module-boundaries` rule first.
+2. `refresh-pricing.ts` + `pricing-loader.ts` (independent, easy to test). Verify the inference-profile → base-modelId fallback (§6.2) lands a price for every Claude row in the sweep.
+3. `capture-fixture.ts` (needs CloudWatch perms — verify against dev account). Per-task fixture is the verbatim post-substitution prompt captured from the Bedrock invocation log group (§6.1).
 4. `run.ts` — single task, single model first; expand to full sweep.
-5. The skill `SKILL.md` (Claude-side orchestration).
+5. The skill `SKILL.md` (Claude-side orchestration). Allowlist derived from `tasks/*.bench.ts` glob, not hardcoded (§8).
 6. End-to-end dry run on `explainability` first (cheapest sweep — current model is haiku, narrative output, least production-critical fallback if a script bug runs up cost).
 7. Full sweep across all 6 tasks.
