@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [simplify-agent-orchestrator-model-knob](backlog/simplify-agent-orchestrator-model-knob.md) [design] — Remove runtime model-tier escalation (__escalationTier + escalationPath + buildEscalationPath + tier-escalation.ts) and the AGENT_MODEL_OVERRIDE cost-cap downgrade (MODEL_ID_MAP + TIER_ORDER + detectTier + applyOverride) from libs/agent-orchestrator. After this lands, each *.config.ts's modelId is the ONLY model knob — used verbatim, no closed-set tier semantics, no runtime mutation. Unblocks the agent-benchmark-skill workstream by simplifying the system to the shape the benchmark assumes (raw modelId per task).
 
 ## QUEUED
 
-_(none)_
-
+1. [agent-benchmark-skill](backlog/agent-benchmark-skill.md) [design] — Benchmark skill + shared TS runner + per-task bench configs that sweep multiple Bedrock models against each of the 6 production AgentConfigs across the 4 LangGraph advisory services (user-goals, risk-assessment, market-research, portfolio-construction, rebalance-planner, explainability) using locally-invoked withStructuredOutput() calls against the dev sandbox (AWS_PROFILE=nestfolio-dev). The unit of work is the AgentConfig, not the service — each task has its own modelId, schema, prompt, and gets its own one-line config-file recommendation. Each script captures latency / token usage / schema-pass / raw output per iteration; Claude orchestrates the sweep and writes per-task + cross-task evaluation reports under gitignored benchmarks/. Onboarding-bff explicitly excluded. Sequenced behind `simplify-agent-orchestrator-model-knob` — that workstream removes the MODEL_ID_MAP + escalation + override machinery; this spec is written for the post-simplification system shape (config.ts modelId as the only model knob).
 
 ## LATER
 
