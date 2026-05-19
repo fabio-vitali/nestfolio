@@ -22,7 +22,7 @@ out_of_scope:
   - Cost-per-token computation by reading the AWS billing line items — benchmark uses the free AWS Pricing API (List API) instead.
   - Frontend / e2e impact — purely a developer-side skill.
 spec: docs/superpowers/specs/2026-05-19-agent-benchmark-skill-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-19-agent-benchmark-skill.md
 topic_memory:
   - project_agent_orchestrators.md
   - project_agent_runtime_structured_output.md
