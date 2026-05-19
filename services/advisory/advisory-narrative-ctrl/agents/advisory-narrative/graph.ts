@@ -21,7 +21,7 @@ const agentNode = withFallback(
       createAgentNode(explainabilityConfig),
       narrativeValidationRule,
     ),
-    { maxAttempts: 2, escalationPath: ['sonnet', 'opus'] },
+    { maxAttempts: 2 },
   ),
   narrativeFallback,
 );
