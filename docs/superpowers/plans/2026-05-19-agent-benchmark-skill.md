@@ -6,7 +6,7 @@
 
 **Architecture:** A committed `scripts/benchmark-agents/` tree holds a shared TS runner (`run.ts`), pricing/fixture support scripts, and 6 thin per-task `*.bench.ts` configs that import each production `AgentConfig` directly from `services/advisory/.../src/agents/*.config.ts`. A committed `.claude/skills/benchmark-agents/SKILL.md` is the orchestration playbook Claude follows when `/benchmark-agents` fires. All artifacts (fixtures, pricing cache, raw results, evaluation markdown) land under a gitignored `benchmarks/` tree. The runner invokes `ChatBedrockConverse.withStructuredOutput(schema, { includeRaw: true })` locally against the dev sandbox; the prompt is replayed verbatim from a Bedrock-invocation-log capture so prompt-substitution drift is impossible.
 
-**Tech Stack:** TypeScript, `tsx` (TS script runner), `@langchain/aws` (`ChatBedrockConverse`), `@aws-sdk/client-pricing` (free Price List Query API), `@aws-sdk/client-cloudwatch-logs` (Logs Insights), pnpm, vitest (existing harness for the two pure helpers).
+**Tech Stack:** TypeScript, `tsx` (TS script runner), `@langchain/aws` (`ChatBedrockConverse`), `@aws-sdk/client-pricing` (free Price List Query API), `@aws-sdk/client-cloudwatch-logs` (Logs Insights), pnpm, Jest + ts-jest (workspace test runner — `jest.preset.js` at repo root).
 
 ---
 
@@ -274,17 +274,57 @@ git commit -m "feat(benchmark-agents): scaffold runner + 6 bench configs"
 
 ---
 
-## Task 2: Shared types
+## Task 2: Shared types (TDD)
 
 **Files:**
 - Modify: `scripts/benchmark-agents/lib/types.ts`
 - Create: `scripts/benchmark-agents/lib/types.test.ts`
+- Create: `scripts/benchmark-agents/jest.config.ts`
+- Create: `scripts/benchmark-agents/tsconfig.spec.json`
+
+The workspace uses Jest + ts-jest (NOT vitest — vitest is not installed). The shared preset is at the repo root (`jest.preset.js`). Since `scripts/benchmark-agents/` is not an Nx project, we configure a small standalone jest config that picks up the workspace preset; this lets Tasks 2/3/4's TDD tests run via `pnpm jest --config scripts/benchmark-agents/jest.config.ts`.
+
+- [ ] **Step 0: Add the jest config + tsconfig.spec.json (one-time)**
+
+`scripts/benchmark-agents/jest.config.ts`:
+
+```typescript
+import basePreset from '../../jest.preset.js';
+
+export default {
+  ...basePreset,
+  displayName: 'benchmark-agents',
+  rootDir: '.',
+  testEnvironment: 'node',
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
+  },
+  testMatch: ['<rootDir>/**/*.test.ts'],
+};
+```
+
+`scripts/benchmark-agents/tsconfig.spec.json`:
+
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "module": "commonjs",
+    "types": ["jest", "node"],
+    "esModuleInterop": true
+  },
+  "include": [
+    "**/*.test.ts",
+    "**/*.ts"
+  ]
+}
+```
 
 - [ ] **Step 1: Write the failing test**
 
 ```typescript
 // scripts/benchmark-agents/lib/types.test.ts
-import { describe, it, expect } from 'vitest';
 import type { IterationResult, ModelSweep, RawResults, TaskBenchConfig } from './types';
 
 describe('types', () => {
@@ -344,10 +384,10 @@ describe('types', () => {
 - [ ] **Step 2: Run test to confirm failure**
 
 ```bash
-pnpm vitest run scripts/benchmark-agents/lib/types.test.ts
+pnpm jest --config scripts/benchmark-agents/jest.config.ts lib/types.test.ts
 ```
 
-Expected: FAIL ("module has no exports").
+Expected: FAIL (TypeScript compilation error — types not exported yet).
 
 - [ ] **Step 3: Implement types**
 
@@ -448,7 +488,7 @@ export interface FixtureFile {
 - [ ] **Step 4: Run test to confirm pass**
 
 ```bash
-pnpm vitest run scripts/benchmark-agents/lib/types.test.ts
+pnpm jest --config scripts/benchmark-agents/jest.config.ts lib/types.test.ts
 ```
 
 Expected: PASS, all 3 cases green.
@@ -456,8 +496,8 @@ Expected: PASS, all 3 cases green.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add scripts/benchmark-agents/lib/types.ts scripts/benchmark-agents/lib/types.test.ts
-git commit -m "feat(benchmark-agents): shared types"
+git add scripts/benchmark-agents/lib/types.ts scripts/benchmark-agents/lib/types.test.ts scripts/benchmark-agents/jest.config.ts scripts/benchmark-agents/tsconfig.spec.json
+git commit -m "feat(benchmark-agents): shared types + jest harness"
 ```
 
 ---
@@ -472,7 +512,6 @@ git commit -m "feat(benchmark-agents): shared types"
 
 ```typescript
 // scripts/benchmark-agents/pricing-loader.test.ts
-import { describe, it, expect } from 'vitest';
 import { baseModelIdFor, computeCostUSD } from './pricing-loader';
 import type { PricingCache } from './lib/types';
 
@@ -520,10 +559,10 @@ describe('computeCostUSD', () => {
 - [ ] **Step 2: Run test to confirm failure**
 
 ```bash
-pnpm vitest run scripts/benchmark-agents/pricing-loader.test.ts
+pnpm jest --config scripts/benchmark-agents/jest.config.ts pricing-loader.test.ts
 ```
 
-Expected: FAIL ("module has no exports").
+Expected: FAIL (TS compile error — `baseModelIdFor` / `computeCostUSD` not exported).
 
 - [ ] **Step 3: Implement pricing-loader.ts**
 
@@ -581,7 +620,7 @@ export function loadPricingCache(): PricingCache {
 - [ ] **Step 4: Run test to confirm pass**
 
 ```bash
-pnpm vitest run scripts/benchmark-agents/pricing-loader.test.ts
+pnpm jest --config scripts/benchmark-agents/jest.config.ts pricing-loader.test.ts
 ```
 
 Expected: PASS, all 7 cases green.
@@ -605,7 +644,6 @@ git commit -m "feat(benchmark-agents): pricing-loader with inference-profile fal
 
 ```typescript
 // scripts/benchmark-agents/lib/timings.test.ts
-import { describe, it, expect } from 'vitest';
 import { asRate, hrtimeMsAround, median } from './timings';
 
 describe('median', () => {
@@ -643,7 +681,7 @@ describe('hrtimeMsAround', () => {
 - [ ] **Step 2: Run test to confirm failure**
 
 ```bash
-pnpm vitest run scripts/benchmark-agents/lib/timings.test.ts
+pnpm jest --config scripts/benchmark-agents/jest.config.ts lib/timings.test.ts
 ```
 
 Expected: FAIL.
@@ -675,7 +713,7 @@ export async function hrtimeMsAround<T>(
 - [ ] **Step 4: Run test to confirm pass**
 
 ```bash
-pnpm vitest run scripts/benchmark-agents/lib/timings.test.ts
+pnpm jest --config scripts/benchmark-agents/jest.config.ts lib/timings.test.ts
 ```
 
 Expected: PASS.
