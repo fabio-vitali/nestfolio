@@ -11,7 +11,8 @@ _(none)_
 
 ## QUEUED
 
-1. [agent-benchmark-market-research-sweep](backlog/agent-benchmark-market-research-sweep.md) [tooling] — market-research not swept at agent-benchmark-skill ship — IP+MI now continuous projection, e2e doesn't fire MI.
+_(none)_
+
 
 ## LATER
 
@@ -58,6 +59,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
+- 2026-05-20 — [agent-benchmark-market-research-sweep](backlog/agent-benchmark-market-research-sweep.md) [tooling] — market-research swept 2026-05-20 — 4 models × 3 iterations against captured 15-min-tick prompt; Nova Pro recommended pending confirmation rerun + signal-coverage check.
 - 2026-05-20 — [bedrock-dev-model-access-audit](backlog/bedrock-dev-model-access-audit.md) [infra] — 5 modelIds returned ValidationException/AccessDeniedException on dev — verify Bedrock model access for sonnet-4-7, opus-4-7, nova-premier, llama3-3, mistral.
 - 2026-05-19 — [agent-benchmark-skill](backlog/agent-benchmark-skill.md) [design] — Benchmark skill + shared TS runner + per-task bench configs that sweep multiple Bedrock models against each of the 6 production AgentConfigs across the 4 LangGraph advisory services (user-goals, risk-assessment, market-research, portfolio-construction, rebalance-planner, explainability) using locally-invoked withStructuredOutput() calls against the dev sandbox (AWS_PROFILE=nestfolio-dev). The unit of work is the AgentConfig, not the service — each task has its own modelId, schema, prompt, and gets its own one-line config-file recommendation. Each script captures latency / token usage / schema-pass / raw output per iteration; Claude orchestrates the sweep and writes per-task + cross-task evaluation reports under gitignored benchmarks/. Onboarding-bff explicitly excluded. Sequenced behind `simplify-agent-orchestrator-model-knob` — that workstream removes the MODEL_ID_MAP + escalation + override machinery; this spec is written for the post-simplification system shape (config.ts modelId as the only model knob).
 - 2026-05-19 — [eventbustrap-batch-race-loses-sibling-events](backlog/eventbustrap-batch-race-loses-sibling-events.md) [bug] — EventBusTrap.waitForEvent returned mid-loop on first match, orphaning sibling events from the same SQS receive (which consumeMessages had already deleted). Fixed by buffering the whole batch before returning.
@@ -67,4 +69,3 @@ _(none)_
 - 2026-05-18 — [bedrock-cost-reduction-may-2026](backlog/bedrock-cost-reduction-may-2026.md) [refactor] — 5-lever Bedrock cost-reduction package — Phase B MemoryStrategies + Opus downgrades; ~$100/mo savings
 - 2026-05-18 — [e2e-cold-deploy-an-trace-flake](backlog/e2e-cold-deploy-an-trace-flake.md) [bug] — first-decision e2e flakes on the first run after a fresh deploy when all advisory-pipeline Lambdas are cold; AgentTraceTrap times out at 240s for advisoryNarrative trace (CloudWatch shows AN handler ran in 500ms, trace seems to land after the trap stopped collecting). Fix: EventBusTrap.drain() switched from SQS short-poll (WaitTimeSeconds=0) to long-poll (WaitTimeSeconds=1); MessageRetentionPeriod 300s → 900s.
 - 2026-05-18 — [operating-mode-shape-empty-proposed-trades](backlog/operating-mode-shape-empty-proposed-trades.md) [bug] — Reopened 2026-05-18 after fresh e2e run RED on main. BALANCED + AGGRESSIVE timed out at 360s polling for non-empty proposedTrades; CONSERVATIVE passed by timing luck. Root cause is NOT empty proposedTrades materialisation — it is a fail-closed SF JSONPath: LookupInvestorProfileSnapshot raises States.Runtime when the InvestorProfileSnapshot projection has not caught up by the time MANDATE_SNAPSHOT_CREATED triggers the decision-state-machine. Same defect class as the LookupMandateSnapshot Catch-on-Runtime bug (memory feedback_states_runtime_uncatchable, 2026-05-17). Fix pattern is already proven on the Market branch.
-- 2026-05-18 — [scenario-12-rebalance-on-drift-missing-mandate-fixture](backlog/scenario-12-rebalance-on-drift-missing-mandate-fixture.md) [bug] — Reopened 2026-05-18 after fresh e2e run RED on main. The 2026-05-16 fixture fix (adding withLiveDecision() before the drift event) is still structurally correct — it materialises MandateSnapshot for the drift-event SF. Today's failure is on a different cycle: withLiveDecision()'s OWN prep SF fails with the same States.Runtime defect class that bit operating-mode-shape today, but on LookupInvestorProfileSnapshot. The InvestorProfileSnapshot CDC projection has not caught up when MANDATE_SNAPSHOT_CREATED triggers the SF on a fresh tenant. Fix is in decision-state-machine.ts, not in the test.

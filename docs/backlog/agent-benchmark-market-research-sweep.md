@@ -1,15 +1,22 @@
 ---
 id: agent-benchmark-market-research-sweep
-status: queued
-rank: 10
+status: shipped
+rank: null
 type: tooling
-notes: "market-research not swept at agent-benchmark-skill ship — IP+MI now continuous projection, e2e doesn't fire MI."
+notes: "market-research swept 2026-05-20 — 4 models × 3 iterations against captured 15-min-tick prompt; Nova Pro recommended pending confirmation rerun + signal-coverage check."
 references: []
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  - Fixture captured from natural 15-min MARKET_SNAPSHOT_REFRESH_TICK invocation: benchmarks/fixtures/market-research.input.json (capturedAt 2026-05-19T22:29:06.198Z, 4328-char prompt, modelId us.anthropic.claude-sonnet-4-6).
+  - Sweep complete: 4 models × 3 iterations = 12 calls. raw-results: benchmarks/tasks/market-research/2026-05-19T22-29-42-249Z/raw-results.json. Total sweep cost $0.389.
+  - Per-task evaluation written: benchmarks/tasks/market-research/2026-05-19T22-29-42-249Z/evaluation.md.
+  - Cross-task report appended (§7 postscript): benchmarks/_summary/2026-05-19T21-15-00Z/cross-task-report.md.
+  - Aggregate results — Sonnet 4.6 (current): 3/3 schema, 3/3 not-degraded, median 21677ms, $0.0251/call. Opus 4.6: 3/3, median 17820ms, $0.1015/call (4.1× Sonnet cost). Nova Pro: 3/3, median 4707ms, $0.0031/call (8.2× cheaper, 4.6× faster, latency variance 49% — confirmation rerun gated). Nova Premier: 0/3 ResourceNotFoundException (matches bedrock-dev-model-access-audit shipped 2026-05-20).
+  - Recommendation: change market-research.config.ts modelId from us.anthropic.claude-sonnet-4-6 to amazon.nova-pro-v1:0, gated on confirmation rerun at --iterations 5 + downstream MarketSnapshot signal-coverage check (Nova Pro produces 5 signals vs Sonnet/Opus 9; coverage narrower on TLT/GLD/EFA/EEM).
+  - No code/infra changes; benchmarks/ tree is gitignored end-to-end (per agent-benchmark-skill design spec §4.2). Only committed mutation is this backlog file's status + the regenerated docs/BACKLOG.md.
 ---
 
 # agent-benchmark — market-research sweep gap
