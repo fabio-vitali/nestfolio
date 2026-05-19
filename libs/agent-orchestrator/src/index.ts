@@ -15,7 +15,7 @@ export {
 } from './types';
 
 export { type AgentNodeFn } from './with-validation';
-export { createAgentNode } from './agent-factory';
+export { createAgentNode, looksDegraded } from './agent-factory';
 export { withValidation } from './with-validation';
 export { withRetry } from './with-retry';
 export {

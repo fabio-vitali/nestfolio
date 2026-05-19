@@ -1,8 +1,6 @@
 ---
 id: agent-benchmark-skill
-status: queued
 type: design
-rank: 1
 notes: "Benchmark skill + shared TS runner + per-task bench configs that sweep multiple Bedrock models against each of the 6 production AgentConfigs across the 4 LangGraph advisory services (user-goals, risk-assessment, market-research, portfolio-construction, rebalance-planner, explainability) using locally-invoked withStructuredOutput() calls against the dev sandbox (AWS_PROFILE=nestfolio-dev). The unit of work is the AgentConfig, not the service — each task has its own modelId, schema, prompt, and gets its own one-line config-file recommendation. Each script captures latency / token usage / schema-pass / raw output per iteration; Claude orchestrates the sweep and writes per-task + cross-task evaluation reports under gitignored benchmarks/. Onboarding-bff explicitly excluded. Sequenced behind `simplify-agent-orchestrator-model-knob` — that workstream removes the MODEL_ID_MAP + escalation + override machinery; this spec is written for the post-simplification system shape (config.ts modelId as the only model knob)."
 references:
   - libs/agent-orchestrator/src/agent-factory.ts
@@ -23,12 +21,42 @@ out_of_scope:
   - Cost-per-token computation by reading the AWS billing line items — benchmark uses the free AWS Pricing API (List API) instead.
   - Frontend / e2e impact — purely a developer-side skill.
 spec: docs/superpowers/specs/2026-05-19-agent-benchmark-skill-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-19-agent-benchmark-skill.md
 topic_memory:
   - project_agent_orchestrators.md
   - project_agent_runtime_structured_output.md
   - project_lambda_profile_system.md
-validation_gate: null
+status: shipped
+validation_gate: |
+  Shipped 2026-05-19. Implementation: 9 commits f545fce0..f855ac72 on branch worktree-agent-benchmark-skill.
+  Final reviewer verdict: Ready to ship. Jest harness 15/15 green; lint clean across 5 advisory projects;
+  refresh-pricing.ts writes a 10-entry pricing.json from the checked-in manifest.
+
+  Full sweep run 2026-05-19T21 — 5 of 6 agents (market-research skipped: IP+MI moved to continuous
+  projection per advisory-cycle-agent-precomputation-impl, no recent dev invocation existed). Per-task
+  total cost = $0.93 (well below the spec's $7-$20 estimate; smaller fixtures + zero-cost failed rows).
+
+  Per-task evaluations (5):
+    benchmarks/tasks/user-goals/2026-05-19T21-06-50-892Z/evaluation.md
+    benchmarks/tasks/risk-assessment/2026-05-19T21-07-46-127Z/evaluation.md
+    benchmarks/tasks/portfolio-construction/2026-05-19T21-09-39-575Z/evaluation.md
+    benchmarks/tasks/rebalance-planner/2026-05-19T21-11-29-611Z/evaluation.md
+    benchmarks/tasks/explainability/2026-05-19T21-13-34-934Z/evaluation.md
+
+  Cross-task report:
+    benchmarks/_summary/2026-05-19T21-15-00Z/cross-task-report.md
+
+  Headline result: applying all 5 recommendations cuts cost-per-decision-cycle from $0.165 to $0.031 (81%
+  reduction on the swept 5 agents, BALANCED mode, fixture-derived; 1 call per agent assumed).
+  Recommendations all surface in the cross-task §5 action items — humans review + edit each *.config.ts
+  in a follow-on PR per spec §3.
+
+  Known gaps (filed as follow-ups, not blockers):
+    - market-research not swept (MI continuous projection trigger)
+    - 5 modelIds returned ValidationException/AccessDeniedException on dev (sonnet-4-7, opus-4-7,
+      nova-premier, llama3-3-70b, mistral-large-2407) — Bedrock model access not granted on dev account
+      OR inference-profile form has shifted
+    - Pricing manifest hand-transcribed (no live verification — AWS pricing page is JS-rendered)
 ---
 
 # Agent benchmark skill

@@ -1,0 +1,17 @@
+{
+  "lastUpdated": "2026-05-19",
+  "source": "https://aws.amazon.com/bedrock/pricing/",
+  "notes": "Manually maintained. Bedrock public list pricing changes 3-4x per year. Re-check on quarterly cadence or when a sweep flags suspicious cost numbers. Numbers are USD per million tokens.",
+  "models": {
+    "anthropic.claude-haiku-4-5-20251001": { "inputUSDPerMTok": 1.0,  "outputUSDPerMTok": 5.0  },
+    "anthropic.claude-sonnet-4-6":         { "inputUSDPerMTok": 3.0,  "outputUSDPerMTok": 15.0 },
+    "anthropic.claude-sonnet-4-7":         { "inputUSDPerMTok": 3.0,  "outputUSDPerMTok": 15.0 },
+    "anthropic.claude-opus-4-6":           { "inputUSDPerMTok": 15.0, "outputUSDPerMTok": 75.0 },
+    "anthropic.claude-opus-4-7":           { "inputUSDPerMTok": 15.0, "outputUSDPerMTok": 75.0 },
+    "amazon.nova-lite":                    { "inputUSDPerMTok": 0.06, "outputUSDPerMTok": 0.24 },
+    "amazon.nova-pro":                     { "inputUSDPerMTok": 0.80, "outputUSDPerMTok": 3.20 },
+    "amazon.nova-premier":                 { "inputUSDPerMTok": 2.50, "outputUSDPerMTok": 12.50 },
+    "meta.llama3-3-70b-instruct":          { "inputUSDPerMTok": 0.72, "outputUSDPerMTok": 0.72 },
+    "mistral.mistral-large-2407":          { "inputUSDPerMTok": 2.0,  "outputUSDPerMTok": 6.0  }
+  }
+}

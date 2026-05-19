@@ -76,3 +76,7 @@ pnpm-debug.log*
 vitest.config.*.timestamp*
 
 apps/nestfolio-host/public/assets/config.json
+
+# Agent benchmark artifacts (raw results, captured prompts, pricing cache).
+# Gitignored end-to-end per docs/superpowers/specs/2026-05-19-agent-benchmark-skill-design.md §4.2.
+benchmarks/
