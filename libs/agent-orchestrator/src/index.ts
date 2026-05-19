@@ -24,7 +24,6 @@ export {
   type AgentNodeResult,
   type AgentNodeWithFallback,
 } from './with-fallback';
-export { buildEscalationPath } from './tier-escalation';
 export {
   formatStructuredOutputPrompt,
   type StructuredOutputPromptSpec,
