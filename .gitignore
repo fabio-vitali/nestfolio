@@ -1,5 +1,8 @@
 # Dependencies
-node_modules/
+# Match both real directories and symlink form. Worktrees from /backlog-next
+# symlink the top-level node_modules to the main checkout; `node_modules/`
+# alone misses the symlink and leaves it as an untracked entry.
+node_modules
 package-lock.json
 
 # Build outputs
