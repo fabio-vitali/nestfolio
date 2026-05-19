@@ -10,9 +10,8 @@ export interface AgentTraceEnvelope {
   status: 'success' | 'error';
   llmCalls: Array<{
     nodeName: string;
-    // `'unknown'` signals an unrecognised Bedrock model id — fail loudly rather
-    // than silently mis-classifying a new tier as sonnet.
-    'gen_ai.request.model': ModelTier | 'unknown';
+    // Raw Bedrock model id; `'unknown'` when extraction fails.
+    'gen_ai.request.model': string;
     'gen_ai.usage.input_tokens': number;
     'gen_ai.usage.output_tokens': number;
     'gen_ai.operation.name': 'chat';
@@ -42,6 +41,14 @@ export interface AgentTraceEventDetail {
   emittedAt: string;
 }
 
+// Temporary bridge for escalatedFromTier; removed in Task 8.
+function tierOf(modelId: string): ModelTier | undefined {
+  if (modelId.includes('haiku')) return 'haiku';
+  if (modelId.includes('sonnet')) return 'sonnet';
+  if (modelId.includes('opus')) return 'opus';
+  return undefined;
+}
+
 // Tier rank for rank-based escalation detection. Used only when both the
 // previous and current tier are known ModelTiers.
 const TIER_RANK: Record<ModelTier, number> = { haiku: 0, sonnet: 1, opus: 2 };
@@ -54,14 +61,14 @@ export class AgentTracer extends BaseCallbackHandler {
   private readonly toolCalls: AgentTraceEnvelope['toolCalls'] = [];
   private readonly nodeSequence: AgentTraceEnvelope['nodeSequence'] = [];
   private readonly errors: AgentTraceEnvelope['errors'] = [];
-  private readonly pendingLlm = new Map<string, { model: ModelTier | 'unknown'; startedAtMs: number; node?: string }>();
+  private readonly pendingLlm = new Map<string, { model: string; startedAtMs: number; node?: string }>();
   private readonly pendingTool = new Map<string, { toolName: string; startedAtMs: number; argKeys: string[]; node?: string }>();
   // Keyed by LangChain runId. Acts as BOTH the node-sequence buffer (so
   // parallel chain start/end cannot mis-attribute completedAt timestamps)
   // AND the authoritative lookup for "which node owns run X" — used by
   // LLM / tool callbacks via their `parentRunId` argument.
   private readonly pendingChains = new Map<string, { nodeName: string; startedAt: string }>();
-  private lastTier?: ModelTier | 'unknown';
+  private lastTier?: string;
 
   // Node ownership for LLM/tool runs is resolved via `parentRunId` — the runId
   // of the chain that invoked them. No shared `currentNode` field: when two
@@ -104,7 +111,7 @@ export class AgentTracer extends BaseCallbackHandler {
     _tags?: string[],
     metadata?: Record<string, unknown>,
   ): void {
-    const model = extractModelTier(llm, extraParams, metadata);
+    const model = extractModelId(llm, extraParams, metadata);
     this.pendingLlm.set(runId, { model, startedAtMs: Date.now(), node: this.nodeFor(parentRunId) });
   }
 
@@ -115,15 +122,18 @@ export class AgentTracer extends BaseCallbackHandler {
     const rawUsage =
       (output.llmOutput as { tokenUsage?: Record<string, number>; usage?: Record<string, number> } | undefined);
     const usage = rawUsage?.tokenUsage ?? rawUsage?.usage ?? {};
-    // Rank-based escalation: only set when both tiers are known AND the new
-    // tier strictly outranks the previous one. Fallbacks (opus→sonnet) and
-    // unknown-tier transitions leave escalatedFromTier undefined — the field
-    // means "escalated from", not "differs from".
+    // Rank-based escalation: only set when BOTH ids parse to a known tier AND
+    // the new tier strictly outranks the previous one. Until escalatedFromTier
+    // is removed entirely in the next task, this gate keeps the feature
+    // working for tier-named models and gracefully degrades to `undefined`
+    // for non-tier ids (Nova/Llama/etc).
     const prev = this.lastTier;
     const cur = pending.model;
+    const prevTier = prev && prev !== 'unknown' ? tierOf(prev) : undefined;
+    const curTier = cur && cur !== 'unknown' ? tierOf(cur) : undefined;
     const escalatedFromTier =
-      prev && prev !== 'unknown' && cur !== 'unknown' && TIER_RANK[cur] > TIER_RANK[prev]
-        ? prev
+      prevTier && curTier && TIER_RANK[curTier] > TIER_RANK[prevTier]
+        ? prevTier
         : undefined;
     this.llmCalls.push({
       nodeName: pending.node ?? 'unknown',
@@ -219,33 +229,32 @@ export function extractNodeName(chain: Serialized | undefined): string | undefin
   return undefined;
 }
 
-export function extractModelTier(
+export function extractModelId(
   llm: Serialized | undefined,
   extraParams?: Record<string, unknown>,
   metadata?: Record<string, unknown>,
-): ModelTier | 'unknown' {
+): string {
   if (!llm) return 'unknown';
   const kwargs = (llm as { kwargs?: { model?: string; modelName?: string; model_id?: string } }).kwargs;
-  // Primary: known kwargs keys (portable across LangChain chat models).
   const kwargsModelId = kwargs?.model ?? kwargs?.modelName ?? kwargs?.model_id ?? '';
-  const fromKwargs = classifyTier(kwargsModelId);
-  if (fromKwargs !== 'unknown') return fromKwargs;
+  if (kwargsModelId) return kwargsModelId;
   // Secondary: LangChain's tracing metadata often carries the model id under
   // ls_model_name (LangSmith convention) or invocation_params.model.
-  const fromExtra = classifyTier(JSON.stringify(extraParams ?? {}));
-  if (fromExtra !== 'unknown') return fromExtra;
-  const fromMeta = classifyTier(JSON.stringify(metadata ?? {}));
-  if (fromMeta !== 'unknown') return fromMeta;
-  // Fallback: scan the entire Serialized for tier keywords before giving up.
-  // Intentionally does NOT default to sonnet.
-  return classifyTier(JSON.stringify(llm));
+  const fromExtra = pickModelIdFromBag(extraParams);
+  if (fromExtra) return fromExtra;
+  const fromMeta = pickModelIdFromBag(metadata);
+  if (fromMeta) return fromMeta;
+  return 'unknown';
 }
 
-function classifyTier(text: string): ModelTier | 'unknown' {
-  if (/haiku/i.test(text)) return 'haiku';
-  if (/opus/i.test(text)) return 'opus';
-  if (/sonnet/i.test(text)) return 'sonnet';
-  return 'unknown';
+function pickModelIdFromBag(bag: Record<string, unknown> | undefined): string | undefined {
+  if (!bag) return undefined;
+  const direct = (bag as { model?: string; ls_model_name?: string }).model
+    ?? (bag as { ls_model_name?: string }).ls_model_name;
+  if (typeof direct === 'string' && direct) return direct;
+  const invocation = (bag as { invocation_params?: { model?: string } }).invocation_params;
+  if (invocation?.model) return invocation.model;
+  return undefined;
 }
 
 export function extractToolName(tool: Serialized | undefined): string {

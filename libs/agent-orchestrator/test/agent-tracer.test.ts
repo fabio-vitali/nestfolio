@@ -1,4 +1,4 @@
-import { AgentTracer, extractNodeName, extractModelTier, extractToolName } from '../src/agent-tracer';
+import { AgentTracer, extractNodeName, extractModelId, extractToolName } from '../src/agent-tracer';
 
 describe('AgentTracer.build()', () => {
   it('returns envelope with empty arrays and success status when nothing observed', () => {
@@ -27,31 +27,35 @@ describe('extract helpers', () => {
     expect(extractNodeName({ id: ['langchain', 'nodes', 'goalExtraction'] } as any)).toBe('goalExtraction');
     expect(extractNodeName(undefined)).toBeUndefined();
   });
-  it('extractModelTier maps Bedrock inference profile ids to tier names', () => {
-    expect(extractModelTier({ kwargs: { model: 'us.anthropic.claude-haiku-4-5' } } as any)).toBe('haiku');
-    expect(extractModelTier({ kwargs: { model: 'us.anthropic.claude-opus-4-7' } } as any)).toBe('opus');
-    expect(extractModelTier({ kwargs: { model: 'us.anthropic.claude-sonnet-4-6' } } as any)).toBe('sonnet');
-    expect(extractModelTier({ kwargs: { model: 'us.anthropic.claude-sonnet-4-7' } } as any)).toBe('sonnet');
-    expect(extractModelTier({ kwargs: {} } as any)).toBe('unknown');
-    expect(extractModelTier({ kwargs: { model: 'us.amazon.nova-pro-v1:0' } } as any)).toBe('unknown');
+  it('extractModelId returns the raw Bedrock inference profile id (kwargs.model path)', () => {
+    expect(extractModelId({ kwargs: { model: 'us.anthropic.claude-haiku-4-5' } } as any))
+      .toBe('us.anthropic.claude-haiku-4-5');
+    expect(extractModelId({ kwargs: { model: 'us.anthropic.claude-opus-4-7' } } as any))
+      .toBe('us.anthropic.claude-opus-4-7');
+    expect(extractModelId({ kwargs: { model: 'us.anthropic.claude-sonnet-4-6' } } as any))
+      .toBe('us.anthropic.claude-sonnet-4-6');
+    expect(extractModelId({ kwargs: {} } as any)).toBe('unknown');
+    // Non-Claude models: previously classified as 'unknown'; now returned raw.
+    expect(extractModelId({ kwargs: { model: 'us.amazon.nova-pro-v1:0' } } as any))
+      .toBe('us.amazon.nova-pro-v1:0');
   });
-  it('extractModelTier falls back to extraParams and metadata when kwargs.model is absent', () => {
+  it('extractModelId falls back to extraParams.invocation_params.model and metadata.ls_model_name when kwargs.model is absent', () => {
     // ChatBedrockConverse invoked via withStructuredOutput omits kwargs.model;
     // LangChain surfaces the id via extraParams.invocation_params.model and
-    // metadata.ls_model_name. Classifier must cover these paths.
+    // metadata.ls_model_name. Both paths must return the raw id verbatim.
     expect(
-      extractModelTier(
+      extractModelId(
         { id: ['langchain', 'chat_models', 'RunnableSequence'] } as any,
         { invocation_params: { model: 'us.anthropic.claude-opus-4-6-v1' } },
       ),
-    ).toBe('opus');
+    ).toBe('us.anthropic.claude-opus-4-6-v1');
     expect(
-      extractModelTier(
+      extractModelId(
         { kwargs: {} } as any,
         undefined,
         { ls_model_name: 'us.anthropic.claude-sonnet-4-6' },
       ),
-    ).toBe('sonnet');
+    ).toBe('us.anthropic.claude-sonnet-4-6');
   });
   it('extractToolName reads kwargs.name first, then last id segment', () => {
     expect(extractToolName({ kwargs: { name: 'portfolio-lookup' } } as any)).toBe('portfolio-lookup');
@@ -110,7 +114,7 @@ describe('AgentTracer LangChain callbacks', () => {
     );
     const env = tracer.build('success');
     expect(env.llmCalls).toHaveLength(1);
-    expect(env.llmCalls[0]['gen_ai.request.model']).toBe('sonnet');
+    expect(env.llmCalls[0]['gen_ai.request.model']).toBe('us.anthropic.claude-sonnet-4-6');
     expect(env.llmCalls[0]['gen_ai.usage.input_tokens']).toBe(100);
     expect(env.llmCalls[0]['gen_ai.usage.output_tokens']).toBe(50);
     expect(env.llmCalls[0]['gen_ai.operation.name']).toBe('chat');
@@ -147,7 +151,7 @@ describe('AgentTracer LangChain callbacks', () => {
     tracer.handleLLMStart({ kwargs: { model: 'sonnet-x' } } as any, [], 'run-2');
     tracer.handleLLMEnd({ generations: [], llmOutput: {} } as any, 'run-2');
     const env = tracer.build('success');
-    expect(env.llmCalls[0]['gen_ai.request.model']).toBe('unknown');
+    expect(env.llmCalls[0]['gen_ai.request.model']).toBe('nova-pro');
     expect(env.llmCalls[1].escalatedFromTier).toBeUndefined();
   });
 
@@ -168,8 +172,8 @@ describe('AgentTracer LangChain callbacks', () => {
     const env = tracer.build('success');
     expect(env.llmCalls).toHaveLength(2);
     const byNode = Object.fromEntries(env.llmCalls.map((c) => [c.nodeName, c]));
-    expect(byNode['nodeA']['gen_ai.request.model']).toBe('sonnet');
-    expect(byNode['nodeB']['gen_ai.request.model']).toBe('haiku');
+    expect(byNode['nodeA']['gen_ai.request.model']).toBe('sonnet-x');
+    expect(byNode['nodeB']['gen_ai.request.model']).toBe('haiku-x');
   });
 
   it('attributes tool calls to the correct node when two nodes run in parallel', () => {
