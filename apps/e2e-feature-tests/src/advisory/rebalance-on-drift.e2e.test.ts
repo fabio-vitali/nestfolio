@@ -93,7 +93,10 @@ describe('scenario 12 — portfolio drift surfaces a rebalance decision', () => 
     expect(envelope.llmCalls.length).toBeGreaterThanOrEqual(1);
 
     const models = new Set(envelope.llmCalls.map((l) => l['gen_ai.request.model']));
-    expect(models.has('opus') || models.has('sonnet')).toBe(true);
+    expect(
+      models.has('us.anthropic.claude-opus-4-6-v1') ||
+        models.has('us.anthropic.claude-sonnet-4-6'),
+    ).toBe(true);
 
     expect(envelope['gen_ai.invocation.latency_ms']).toBeLessThan(portfolioTrap.getLatencyBudget());
   });

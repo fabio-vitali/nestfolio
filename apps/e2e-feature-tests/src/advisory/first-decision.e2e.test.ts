@@ -75,7 +75,9 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     expect(narrativeLlmErrors).toHaveLength(0);
     expect(narrative.toolCalls).toHaveLength(0);
     expect(narrative.llmCalls.length).toBeGreaterThanOrEqual(1);
-    expect(narrative.llmCalls[0]['gen_ai.request.model']).toBe('haiku');
+    expect(narrative.llmCalls[0]['gen_ai.request.model']).toBe(
+      'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+    );
     expect(narrative['gen_ai.invocation.latency_ms']).toBeLessThan(
       advisoryNarrativeTrap.getLatencyBudget(),
     );
