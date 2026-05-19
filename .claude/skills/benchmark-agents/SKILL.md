@@ -114,11 +114,25 @@ Read each `raw-results.json`. Write `benchmarks/tasks/<task>/<same-ISO>/evaluati
 
 After all requested tasks finish, write `benchmarks/_summary/<ISO>/cross-task-report.md`:
 
-1. **Recommendation snapshot table** — `| task | service | current model | recommended model | quality verdict | cost Δ/call | latency Δ/call | configFilePath |`.
-2. **Projected cost-per-decision-cycle delta** — sum each task's effective per-call cost across one cycle. Effective factor per (task, model) = `2 − (notDegraded count / iterations)`. Render: "$X today vs $Y recommended". Models with `notDegradedRate < 0.7` flagged "retry-heavy — high variance".
-3. **Iteration-noise caveat** — if any (task, model) has `(maxLat − minLat) / medianLat > 0.3` OR `(maxCost − minCost) / medianCost > 0.3`, recommend rerunning that subset with `--iterations 5` before treating the median as basis for the production edit.
-4. **Cross-cutting observations** — patterns visible only across tasks (e.g. "Nova Pro faster than Sonnet 4.6 on structured-output across all 5 task types tried").
-5. **Action items** — concrete edit list:
+1. **Recommendation snapshot table** — `| task | service | current model | recommended model | current quality | recommended quality | cost Δ/call | latency Δ/call | configFilePath |`.
+
+   `current quality` and `recommended quality` are 1-line semantic summaries drawn from each per-task `evaluation.md` §3 Per-model — never copy raw outputs; use structural metrics (e.g. "9 signals, 723-char outlook" vs "5 signals, 281-char outlook, drops TLT/GLD/EFA/EEM"). The PII guard in §7 applies — these are *structural* observations about the output, not the output text itself.
+
+2. **Side-by-side quality matrix** — per task, two short blocks contrasting current vs recommended on the semantic dimensions that matter for that task's role. The market-research postscript §7.5 (`benchmarks/_summary/2026-05-19T21-15-00Z/cross-task-report.md`) is the canonical shape — generalise it across every task in the sweep. Format per task:
+
+   ```
+   ### <task>
+   - **<current model>:** <semantic dimensions: count of signals / length of narrative / coverage of input items / confidence calibration / etc.>
+   - **<recommended model>:** <same dimensions, contrasted>
+   - **Tradeoff:** <one-line summary of what's lost vs gained semantically>
+   ```
+
+   For tasks where current === recommended (no downgrade proposed), state "no change recommended" and skip the contrast.
+
+3. **Projected cost-per-decision-cycle delta** — sum each task's effective per-call cost across one cycle. Effective factor per (task, model) = `2 − (notDegraded count / iterations)`. Render: "$X today vs $Y recommended". Models with `notDegradedRate < 0.7` flagged "retry-heavy — high variance".
+4. **Iteration-noise caveat** — if any (task, model) has `(maxLat − minLat) / medianLat > 0.3` OR `(maxCost − minCost) / medianCost > 0.3`, recommend rerunning that subset with `--iterations 5` before treating the median as basis for the production edit.
+5. **Cross-cutting observations** — patterns visible only across tasks (e.g. "Nova Pro faster than Sonnet 4.6 on structured-output across all 5 task types tried").
+6. **Action items** — concrete edit list:
    - Static-export tasks (5 of 6): "`<configFilePath>` — change `modelId` from `<current>` to `<recommended>`."
    - portfolio-construction (builder function): "`<configFilePath>` — change `modelId` value inside `buildPortfolioConstructionConfig` (applies to all 3 modes)."
 
@@ -130,10 +144,36 @@ After all requested tasks finish, write `benchmarks/_summary/<ISO>/cross-task-re
 
 ### 8. Reporting back
 
-When done, tell the user:
+When done with §7, tell the user:
 - Tasks swept + iteration count.
 - The path to each `evaluation.md`.
 - The path to `cross-task-report.md`.
 - Total estimated cost across all `aggregates.totalCostUSD`.
 
-Do NOT edit `*.config.ts`. Recommendations are read-only output.
+### 9. Propose applying the recommended config edits
+
+After reporting back, build an `applyCandidates` list from the cross-task report's **"Action items"** subsection (item 6 of §6). Filter:
+
+- **Drop** any candidate where `notDegradedRate < 0.7` on the recommended model. Report which were dropped and why.
+- **Tag** (do not drop) any candidate that the cross-task report flagged under **"Iteration-noise caveat"** (item 4 of §6) — these are eligible but require explicit opt-in.
+
+If the filtered list is empty, say so and stop. Otherwise, invoke `AskUserQuestion` with one question:
+
+- **Question:** "Apply the recommended `modelId` edits to production configs?"
+- **Header:** "Apply edits"
+- **Options** (single-select, no `multiSelect`):
+  1. **Apply all** *(Recommended only if no candidate is noise-flagged)* — Edit every `configFilePath` to swap `modelId` from current → recommended.
+  2. **Apply selected** — Ask a follow-up `AskUserQuestion` with one option per candidate (multiSelect), labelled `<task> → <recommended>` and tagged `(noise-flagged)` where applicable. Then Edit only the chosen rows.
+  3. **Skip all** — Make no edits. The report stands as a read-only recommendation.
+
+For each candidate the user approves, use the `Edit` tool:
+
+- **Static-export tasks (5 of 6):** find the `modelId: '<current>'` line in `<configFilePath>` and replace `<current>` with `<recommended>`.
+- **portfolio-construction (builder function):** find the `modelId` literal inside `buildPortfolioConstructionConfig` in `services/advisory/portfolio-engine-ctrl/src/agents/portfolio-construction.config.ts` and replace it. State explicitly in chat: "This single edit applies to all 3 OperatingModes (CONSERVATIVE / BALANCED / AGGRESSIVE)."
+
+After Edits land, report:
+- The list of files edited (one path per line).
+- A reminder that the change is local-only — no commit, no deploy. The user owns staging, PR, and CI gating.
+- A reminder to run the relevant integration test for each touched agent before merging.
+
+Do NOT chain into `git add` / `git commit` / `pnpm nx test` automatically. The skill's surface ends at the Edit calls; downstream verification + commit is the user's call.
