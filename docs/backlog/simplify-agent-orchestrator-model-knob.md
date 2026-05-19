@@ -8,7 +8,6 @@ references:
   - libs/agent-orchestrator/src/agent-factory.ts
   - libs/agent-orchestrator/src/with-retry.ts
   - libs/agent-orchestrator/src/create-orchestrator.ts
-  - libs/agent-orchestrator/src/tier-escalation.ts
   - libs/agent-orchestrator/src/types.ts
   - libs/agent-orchestrator/src/agent-tracer.ts
   - libs/agent-orchestrator/src/index.ts
