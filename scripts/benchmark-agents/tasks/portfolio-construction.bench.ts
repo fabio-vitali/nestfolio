@@ -11,9 +11,7 @@ export const benchConfig = {
   validationRule: portfolioValidationRule,
   models: [
     'us.anthropic.claude-sonnet-4-6',
-    'us.anthropic.claude-sonnet-4-7',
     'us.anthropic.claude-opus-4-6-v1',
-    'us.anthropic.claude-opus-4-7',
-    'amazon.nova-premier-v1:0',
+    'us.amazon.nova-premier-v1:0',
   ],
 };

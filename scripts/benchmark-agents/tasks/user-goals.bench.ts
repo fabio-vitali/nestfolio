@@ -10,7 +10,6 @@ export const benchConfig = {
   models: [
     'us.anthropic.claude-haiku-4-5-20251001-v1:0',
     'us.anthropic.claude-sonnet-4-6',
-    'us.anthropic.claude-sonnet-4-7',
     'amazon.nova-lite-v1:0',
     'amazon.nova-pro-v1:0',
   ],
