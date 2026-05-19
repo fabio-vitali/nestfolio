@@ -35,8 +35,9 @@ export function buildOnboardingGraph(deps: GraphDeps) {
   const model = new ChatBedrockConverse({
     // Bedrock requires inference profile IDs (the `us.` prefix) for Claude
     // Sonnet 4.x in us-east-1; passing a base model id returns
-    // `ValidationException` with no message body. Mirrors the
-    // `MODEL_ID_MAP.sonnet` value in libs/agent-orchestrator/src/agent-factory.ts.
+    // `ValidationException` with no message body. The default below mirrors
+    // the explicit `modelId` strings used by the advisory AgentConfigs in
+    // services/advisory/*/src/agents/*.config.ts.
     model: overrideId ?? deps.modelId ?? 'us.anthropic.claude-sonnet-4-6',
     region: deps.region ?? 'us-east-1',
     maxTokens: ONBOARDING_MAX_TOKENS,
