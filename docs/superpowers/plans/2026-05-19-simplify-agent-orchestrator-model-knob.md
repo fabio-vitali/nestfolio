@@ -853,7 +853,80 @@ Note: This task ONLY renames + refactors the extractor. The `escalatedFromTier` 
 
 ---
 
-## Task 13: Final CI gates — `nx affected` across the workstream
+## Task 13: Update closed-set tier assertions in advisory e2e tests
+
+**Files:**
+- Modify: `apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts`
+- Modify: `apps/e2e-feature-tests/src/advisory/rebalance-on-drift.e2e.test.ts`
+
+Surfaced during Task 1 diligence: two e2e files assert `gen_ai.request.model` against the closed-set tier literals (`'haiku'`, `'sonnet'`, `'opus'`). After this refactor the envelope field carries the raw Bedrock model id. The `/backlog-next` closing-phase scoped e2e gate would fail unless these flip in the same PR. See spec §7 step 1c.
+
+- [ ] **Step 1: Edit `apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts:78`.**
+
+  The narrative agent uses `explainabilityConfig` (haiku). Change:
+
+  ```typescript
+      expect(narrative.llmCalls[0]['gen_ai.request.model']).toBe('haiku');
+  ```
+
+  to (raw inference-profile id, must match the `modelId` value in `services/advisory/advisory-narrative-ctrl/src/agents/explainability.config.ts`):
+
+  ```typescript
+      expect(narrative.llmCalls[0]['gen_ai.request.model']).toBe(
+        'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+      );
+  ```
+
+  Verify the config's `modelId` before committing. If `explainability.config.ts` has been edited since this plan was written, use the string IS in the config — assertion must mirror production, not a hardcoded guess.
+
+- [ ] **Step 2: Edit `apps/e2e-feature-tests/src/advisory/rebalance-on-drift.e2e.test.ts:95-96`.**
+
+  The portfolio-engine trap captures both portfolio-engine agents (`portfolio-construction` = opus, `rebalance-planner` = sonnet). Change:
+
+  ```typescript
+      const models = new Set(envelope.llmCalls.map((l) => l['gen_ai.request.model']));
+      expect(models.has('opus') || models.has('sonnet')).toBe(true);
+  ```
+
+  to:
+
+  ```typescript
+      const models = new Set(envelope.llmCalls.map((l) => l['gen_ai.request.model']));
+      expect(
+        models.has('us.anthropic.claude-opus-4-6-v1') ||
+          models.has('us.anthropic.claude-sonnet-4-6'),
+      ).toBe(true);
+  ```
+
+  Verify each agent's actual `modelId` in `services/advisory/portfolio-engine-ctrl/src/agents/portfolio-construction.config.ts` and `…/rebalance-planner.config.ts`. The intent is "either of the portfolio-engine agents' models shows up in the trace" — it must still pass with the production strings.
+
+- [ ] **Step 3: Confirm no other e2e test asserts on the closed-set tier vocabulary.**
+
+  ```bash
+  grep -rn "gen_ai\.request\.model" apps/ services/ libs/ 2>/dev/null \
+    | grep -v dist | grep -v node_modules | grep -v test/agent-tracer
+  ```
+
+  Expected after Steps 1-2: only the two e2e files just updated + production usage in `libs/agent-orchestrator/src/agent-tracer.ts` and `libs/agent-orchestrator/src/invoke-orchestrator.ts`. Any other test asserting on the closed-set literals → flag and apply the same flip.
+
+- [ ] **Step 4: Type-check the e2e project.**
+
+  ```bash
+  pnpm nx run e2e-feature-tests:type-check
+  ```
+
+  Expected: PASS. E2E tests do not run locally — they fire in the closing-phase scoped gate against deployed dev.
+
+- [ ] **Step 5: Commit.**
+
+  ```bash
+  git add apps/e2e-feature-tests/src/advisory/first-decision.e2e.test.ts apps/e2e-feature-tests/src/advisory/rebalance-on-drift.e2e.test.ts
+  git commit -m "test(e2e): flip advisory gen_ai.request.model assertions to raw model ids"
+  ```
+
+---
+
+## Task 14: Final CI gates — `nx affected` across the workstream
 
 **Files:** none modified.
 
@@ -917,8 +990,9 @@ Note: This task ONLY renames + refactors the extractor. The `escalatedFromTier` 
    - §4.8 (service-side updates) — Tasks 5, 6, 12 ✓
    - §4.9 (CDK wiring deletion) — Task 11 ✓
    - §4.10 (tests) — split across Tasks 2, 3, 7, 8, 9 ✓
-   - §5 (Validation) — `nx affected` covered by Task 13; deploy + scoped e2e covered by `/backlog-next` closing phase
+   - §5 (Validation) — `nx affected` covered by Task 14; e2e assertion flips covered by Task 13; deploy + scoped e2e run covered by `/backlog-next` closing phase
    - §7 (Implementation order) — followed bottom-up (consumers first, then symbols, then CDK, then comments) so every commit leaves the tree compile-clean
+   - §7 step 1c (e2e closed-set tier assertions) — Task 13 (added after Task 1 diligence surfaced 2 e2e files asserting `'haiku'`/`'opus'`/`'sonnet'` literals)
 
 2. **Placeholder scan.** Grep this plan file for placeholder patterns:
 
