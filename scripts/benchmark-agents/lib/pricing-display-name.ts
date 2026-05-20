@@ -18,7 +18,7 @@ export interface PricingIdentity {
 }
 
 function stripRegion(modelId: string): string {
-  return modelId.replace(/^(us|eu|apac)\./, '');
+  return modelId.replace(/^(us|eu|apac|global)\./, '');
 }
 
 function anthropic(modelId: string): PricingIdentity {

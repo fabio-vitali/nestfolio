@@ -11,6 +11,7 @@ const cache: PricingCache = {
       serviceCode: 'AmazonBedrockFoundationModels',
       inputUsagetype: 'USE1-MP:USE1_InputTokenCount_Global-Units',
       outputUsagetype: 'USE1-MP:USE1_OutputTokenCount_Global-Units',
+      regionCode: 'us-east-1',
     },
     'us.amazon.nova-pro-v1:0': {
       inputUSDPerMTok: 0.8,
@@ -19,6 +20,7 @@ const cache: PricingCache = {
       serviceCode: 'AmazonBedrock',
       inputUsagetype: 'USE1-NovaPro-input-tokens',
       outputUsagetype: 'USE1-NovaPro-output-tokens',
+      regionCode: 'us-east-1',
     },
   },
 };

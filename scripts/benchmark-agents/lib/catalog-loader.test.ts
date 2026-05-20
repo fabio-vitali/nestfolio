@@ -64,4 +64,36 @@ describe('dedupeUsStarPreference', () => {
       'us.anthropic.claude-sonnet-4-6',
     ]);
   });
+
+  describe('global.* prefix (Fix B)', () => {
+    it('drops global.X when us.X exists (us.* preferred)', () => {
+      const input = [
+        'us.anthropic.claude-sonnet-4-6',
+        'global.anthropic.claude-sonnet-4-6',
+      ];
+      expect(dedupeUsStarPreference(input)).toEqual(['us.anthropic.claude-sonnet-4-6']);
+    });
+
+    it('keeps global.X when no us.X variant exists', () => {
+      const input = ['global.anthropic.claude-opus-4-6-v1'];
+      expect(dedupeUsStarPreference(input)).toEqual(['global.anthropic.claude-opus-4-6-v1']);
+    });
+
+    it('drops bare X when only global.X exists', () => {
+      const input = [
+        'anthropic.claude-opus-4-6-v1',
+        'global.anthropic.claude-opus-4-6-v1',
+      ];
+      expect(dedupeUsStarPreference(input)).toEqual(['global.anthropic.claude-opus-4-6-v1']);
+    });
+
+    it('drops bare X when both us.X and global.X exist', () => {
+      const input = [
+        'anthropic.claude-sonnet-4-6',
+        'us.anthropic.claude-sonnet-4-6',
+        'global.anthropic.claude-sonnet-4-6',
+      ];
+      expect(dedupeUsStarPreference(input)).toEqual(['us.anthropic.claude-sonnet-4-6']);
+    });
+  });
 });

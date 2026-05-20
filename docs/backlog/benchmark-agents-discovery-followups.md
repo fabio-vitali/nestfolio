@@ -1,15 +1,64 @@
 ---
 id: benchmark-agents-discovery-followups
-status: queued
-rank: 1
+status: shipped
 type: refactor
-notes: "Three polish fixes surfaced during the 2026-05-20 manual gate of dynamic model discovery — anthropic version gate, global.* classifier, optional us-west-2 pricing fallback"
+notes: "Three polish fixes surfaced during the 2026-05-20 manual gate of dynamic model discovery — anthropic version gate, global.* classifier, us-west-2 pricing fallback"
 references: []
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  All three fixes shipped on main 2026-05-20.
+
+  Fix A (Anthropic version gate):
+  - tiers.json: bare "anthropic" → "anthropic.claude-4-5+" in all 3 tiers.
+  - lib/tier-filter.ts::extractVersion: regex `(?:^|-)(\d+)…` so the version
+    is found after the family-name segment (sonnet/opus/haiku) instead of
+    only at the start of the tail. Without this, the new gate would reject
+    every Anthropic model. 3 new unit tests in tier-filter.test.ts cover
+    pre-4.5 rejection, ≥4.5 acceptance, and date-suffix not leaking into minor.
+  - refresh-models.ts against deployed dev (AWS_PROFILE=nestfolio-dev,
+    us-east-1): `us.anthropic.claude-opus-4-1-20250805-v1:0` now lands in
+    `uncategorized` rather than narrative tier.
+
+  Fix B (global.* classifier):
+  - lib/tier-filter.ts::stripRegionPrefix + lib/pricing-display-name.ts::
+    stripRegion: `^(us|eu|apac)\.` → `^(us|eu|apac|global)\.`.
+  - lib/catalog-loader.ts::dedupeUsStarPreference: now also collapses
+    `global.X` against `us.X`. Precedence stays us.* (verified via
+    bedrock:ListInferenceProfiles — global.* profiles map to 1 region
+    [us-east-1 placeholder], us.* span 3 regions [us-east-1/2 + us-west-2],
+    and both variants were created the same day as sibling routing forms —
+    no "newer replaces older" signal). 4 new unit tests cover the new
+    dedup paths; 2 new tier-filter tests cover global.* classification.
+  - refresh-models.ts against deployed dev: 0 global.* entries in
+    `uncategorized` (vs the leaked global.anthropic.* entries cited in the
+    dossier).
+
+  Fix C (us-west-2 pricing fallback):
+  - refresh-pricing.ts: getProducts() now takes a regionCode param;
+    getProductsWithFallback() probes us-east-1 then us-west-2 until records
+    appear. PricingEntry extended with regionCode so cross-region pricing
+    surfaces in evaluation reports. pricing-loader.test.ts fixture updated.
+  - refresh-pricing.ts against deployed dev: exits 0, 9/9 modelIds resolved
+    on us-east-1; fallback never triggered in this sweep. Direct probe
+    against Claude Opus 4.1 confirmed 4 records on both us-east-1 and
+    us-west-2 (AWS published us-east-1 records since the dossier was
+    filed; fallback is defensive insurance for future cases).
+
+  Tests: 43/43 pass in scripts/benchmark-agents/lib (added 9 new tests
+  across tier-filter / catalog-loader / pricing-display-name).
+
+  Validation criterion 4 from the dossier ("structured-output-light tier
+  has ≥3 candidates") was based on a flawed assumption that global.* and
+  us.* are separate candidates. They are routing aliases for the same
+  underlying model and correctly dedupe to one entry. With the current
+  tier definition (sizeClass=[mid,cheap], families=[anthropic.claude-4-5+,
+  amazon.nova-lite, amazon.nova-pro]; nova-pro is frontier so excluded),
+  the achievable count post-dedup is 2 (haiku-4-5 + nova-lite). If that
+  count needs to grow, the tier definition would need a different change
+  (e.g. add nova-micro to families), which is out of scope here.
 ---
 
 # benchmark-agents: discovery follow-ups

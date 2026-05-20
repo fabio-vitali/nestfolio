@@ -15,6 +15,10 @@ import { pickOnDemandPrice, type PricingRecord } from './lib/usagetype-picker';
 import type { ModelsCache, PricingCache, PricingEntry, TaskBenchConfig } from './lib/types';
 
 const REGION = 'us-east-1';
+// AWS publishes on-demand pricing for some models (notably some legacy Anthropic
+// inference profiles like Opus 4.1) ONLY in us-west-2. Probed after us-east-1
+// returns zero records so the primary region keeps its precedence in reports.
+const FALLBACK_REGIONS: readonly string[] = ['us-west-2'];
 const MODELS_CACHE_PATH = path.resolve('benchmarks/cache/models.json');
 const PRICING_OUT_PATH = path.resolve('benchmarks/cache/pricing.json');
 const TASKS_DIR = path.resolve('scripts/benchmark-agents/tasks');
@@ -34,13 +38,14 @@ async function getProducts(
   serviceCode: string,
   identityField: string,
   identityValue: string,
+  regionCode: string,
 ): Promise<PricingRecord[]> {
   const out = await client.send(
     new GetProductsCommand({
       ServiceCode: serviceCode,
       Filters: [
         { Type: 'TERM_MATCH', Field: identityField, Value: identityValue },
-        { Type: 'TERM_MATCH', Field: 'regionCode', Value: REGION },
+        { Type: 'TERM_MATCH', Field: 'regionCode', Value: regionCode },
       ],
     }),
   );
@@ -67,6 +72,22 @@ async function getProducts(
   return records;
 }
 
+/** Probe regions in order until one returns records. Returns the records plus
+ * the region they came from so callers can surface cross-region pricing. */
+async function getProductsWithFallback(
+  client: PricingClient,
+  serviceCode: string,
+  identityField: string,
+  identityValue: string,
+): Promise<{ records: PricingRecord[]; regionCode: string }> {
+  const regions = [REGION, ...FALLBACK_REGIONS];
+  for (const regionCode of regions) {
+    const records = await getProducts(client, serviceCode, identityField, identityValue, regionCode);
+    if (records.length > 0) return { records, regionCode };
+  }
+  return { records: [], regionCode: REGION };
+}
+
 async function main(): Promise<void> {
   // Universe = union of (tier candidates from models.json) + (production modelIds from bench.ts files)
   const modelsCache = JSON.parse(await fs.readFile(MODELS_CACHE_PATH, 'utf8')) as ModelsCache;
@@ -82,7 +103,7 @@ async function main(): Promise<void> {
   for (const modelId of universe) {
     const id = resolvePricingIdentity(modelId);
     process.stdout.write(`  ${modelId}…`);
-    const records = await getProducts(
+    const { records, regionCode } = await getProductsWithFallback(
       client,
       id.serviceCode,
       id.identityField,
@@ -102,9 +123,11 @@ async function main(): Promise<void> {
         serviceCode: id.serviceCode,
         inputUsagetype: prices.inputUsagetype,
         outputUsagetype: prices.outputUsagetype,
+        regionCode,
       };
       (out.models as Record<string, PricingEntry>)[modelId] = entry;
-      process.stdout.write(` $${prices.inputUSDPerMTok}/$${prices.outputUSDPerMTok}\n`);
+      const regionTag = regionCode === REGION ? '' : ` [${regionCode}]`;
+      process.stdout.write(` $${prices.inputUSDPerMTok}/$${prices.outputUSDPerMTok}${regionTag}\n`);
     } catch (err) {
       unresolved.push(modelId);
       process.stdout.write(` PICKER ERROR: ${(err as Error).message}\n`);

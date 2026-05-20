@@ -61,4 +61,14 @@ describe('resolvePricingIdentity', () => {
   it('throws for unknown vendor', () => {
     expect(() => resolvePricingIdentity('foo.bar-v1:0')).toThrow(/unmapped/);
   });
+
+  describe('global.* region prefix (Fix B)', () => {
+    it('resolves global.anthropic.* like us.anthropic.*', () => {
+      expect(resolvePricingIdentity('global.anthropic.claude-sonnet-4-6')).toEqual({
+        serviceCode: 'AmazonBedrockFoundationModels',
+        identityField: 'servicename',
+        identityValue: 'Claude Sonnet 4.6 (Amazon Bedrock Edition)',
+      });
+    });
+  });
 });

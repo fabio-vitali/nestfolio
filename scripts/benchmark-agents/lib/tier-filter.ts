@@ -20,7 +20,7 @@ export interface CatalogEntry {
 type TiersJson = typeof tiersJson;
 
 function stripRegionPrefix(modelId: string): string {
-  return modelId.replace(/^(us|eu|apac)\./, '');
+  return modelId.replace(/^(us|eu|apac|global)\./, '');
 }
 
 /** Parse a version-gate from a "vendor.family-N-M+" string into a comparator.
@@ -49,17 +49,19 @@ function parseFamilyMatcher(raw: string): FamilyMatcher {
   return { raw, prefix: raw, minMajor: null, minMinor: 0 };
 }
 
-/** Extract version numbers from a modelId. Heuristic: first "<vendor.family><N>" or
- * "<vendor.family>-<N>" or "<vendor.family>-<N>-<M>" suffix after the family prefix.
- * Returns null if no version detected. */
+/** Extract version numbers from a modelId. The version may sit immediately after
+ * the family prefix (e.g. `meta.llama` + `3-3-70b…`) OR after an intermediate
+ * family-name segment (e.g. `anthropic.claude-` + `sonnet-4-6` — Anthropic puts
+ * the family name (sonnet/opus/haiku) between the vendor prefix and the version).
+ * Pick the first numeric run that is either at the start of the tail or
+ * preceded by a dash. The second number must NOT be followed by `\d` or `b`
+ * (avoids treating a param-count token like `70b` as a minor version, and
+ * avoids gluing a date suffix `-20251001` onto the minor). */
 function extractVersion(modelId: string, prefix: string): { major: number; minor: number } | null {
   const stripped = stripRegionPrefix(modelId);
   if (!stripped.startsWith(prefix)) return null;
   const tail = stripped.slice(prefix.length);
-  // accept "3-3", "3.3", "3", "4-maverick-17b" — pick first numeric run + optional second.
-  // The second number must NOT be followed by 'b' (that's a parameter-count size token,
-  // not a minor version: llama3-70b is Llama 3.0 70B, not Llama 3.70).
-  const m = /^(\d+)(?:[.\-](\d+)(?![\db]))?/.exec(tail);
+  const m = /(?:^|-)(\d+)(?:[.\-](\d+)(?![\db]))?/.exec(tail);
   if (!m) return null;
   return { major: Number(m[1]), minor: m[2] !== undefined ? Number(m[2]) : 0 };
 }

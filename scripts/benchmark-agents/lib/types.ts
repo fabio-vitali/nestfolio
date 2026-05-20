@@ -82,6 +82,10 @@ export interface PricingEntry {
   readonly serviceCode: 'AmazonBedrock' | 'AmazonBedrockFoundationModels';
   readonly inputUsagetype: string;
   readonly outputUsagetype: string;
+  // Region the Pricing API returned the on-demand record for. Surfaces
+  // cross-region pricing in evaluation reports for models that only publish
+  // pricing in us-west-2 (e.g. some legacy Anthropic profiles).
+  readonly regionCode: string;
 }
 
 export interface PricingCache {
