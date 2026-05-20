@@ -8,6 +8,7 @@
  */
 
 import { execSync } from 'node:child_process';
+import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { looksDegraded } from '@nestfolio/agent-orchestrator';
@@ -19,13 +20,47 @@ import type {
   IterationResult,
   ModelSweep,
   ModelSweepAggregates,
+  ModelsCache,
   RawResults,
   TaskBenchConfig,
+  Tier,
 } from './lib/types';
 
 const TASKS_DIR = path.resolve('scripts/benchmark-agents/tasks');
 const RESULTS_ROOT = path.resolve('benchmarks/tasks');
 const PRICING_PATH = path.resolve('benchmarks/cache/pricing.json');
+const MODELS_CACHE_PATH = path.resolve('benchmarks/cache/models.json');
+
+function loadModelsCache(): ModelsCache {
+  if (!fsSync.existsSync(MODELS_CACHE_PATH)) {
+    throw new Error(
+      `models cache missing at ${MODELS_CACHE_PATH} — run scripts/benchmark-agents/refresh-models.ts`,
+    );
+  }
+  return JSON.parse(fsSync.readFileSync(MODELS_CACHE_PATH, 'utf8')) as ModelsCache;
+}
+
+function resolveSweepSet(
+  bench: { tier: Tier; productionConfig: { modelId: string } },
+  cache: ModelsCache,
+): readonly string[] {
+  const candidates = cache.tiers[bench.tier];
+  if (!candidates) {
+    throw new Error(`tier ${bench.tier} not found in models.json. Re-run refresh-models.ts.`);
+  }
+  const top5 = candidates.slice(0, 5);
+  const productionModelId = bench.productionConfig.modelId;
+  const sweep = new Set<string>(top5);
+  if (cache.excluded[productionModelId]) {
+    console.warn(
+      `[run] WARNING: production modelId ${productionModelId} is excluded ` +
+        `(${cache.excluded[productionModelId]}). Sweep continues without anchor.`,
+    );
+  } else {
+    sweep.add(productionModelId);
+  }
+  return [...sweep];
+}
 
 interface Args {
   readonly task: string;
@@ -106,14 +141,17 @@ async function main(): Promise<void> {
   const bench = mod.benchConfig;
   const fixtureRaw = await fs.readFile(path.resolve(bench.fixturePath), 'utf8');
   const fixture = JSON.parse(fixtureRaw) as FixtureFile;
+  const modelsCache = loadModelsCache();
+  const modelsToSweep = resolveSweepSet(bench, modelsCache);
   console.log(
-    `[run] task=${bench.taskName} models=${bench.models.length} iterations=${args.iterations}`,
+    `[run] task=${bench.taskName} models=${modelsToSweep.length} iterations=${args.iterations}`,
   );
+  console.log(`[run] modelsToSweep (${modelsToSweep.length}): ${modelsToSweep.join(', ')}`);
 
   const startedAt = new Date().toISOString();
   const sweeps: ModelSweep[] = [];
 
-  for (const modelId of bench.models) {
+  for (const modelId of modelsToSweep) {
     console.log(`[run] sweeping ${modelId}`);
     const iters: IterationResult[] = [];
     for (let ix = 0; ix < args.iterations; ix++) {
