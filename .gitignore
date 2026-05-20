@@ -8,23 +8,7 @@ package-lock.json
 # Build outputs
 dist/
 tmp/
-tmp-*/
 .nx/
-node-compile-cache/
-nx-native-file-cache-*/
-v8-compile-cache-*/
-
-# Stray empty `handlers/` dir at repo root — leaked by a CDK synth/test path
-# whose serviceDir defaults to process.cwd() (egress.test.ts uses os.tmpdir()
-# correctly; the actual leaker is unknown). Filed as parking:
-# handlers-dir-leak-at-repo-root.
-handlers/
-
-# Nx daemon CWD-fallback socket dirs — leaked when nx-console wipes the OS
-# temp area and the daemon falls back to repo root (tmp-dir.js:51-55).
-# Each LOCK_FILES_CHANGED restart leaves an empty <20-hex>/ behind. See
-# docs/backlog/backlog-next-closing-phase-friction.md § A.2.
-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/
 
 # IDE
 .idea/
@@ -43,23 +27,7 @@ Thumbs.db
 
 # CDK
 cdk.out/
-cdk.out.*/
-# cdk.out<random-suffix>/ — created by `new App()` in service.stack.test.ts
-# files when Jest workers run in parallel (no explicit outdir on the App).
-cdk.out*/
 cdk.context.json
-
-# Jest scratch (leaked by `forceExit: true` in nx.json test target — workers
-# die before `finally` cleanup runs, leaving haste-map cache + empty mkdtemp
-# dirs in cwd. Filed as parking: jest-worker-scratch-leak-on-force-exit).
-jest_dx/
-jest-nestfolio/
-
-# nx daemon plugin worker sockets — `plugin<pid>-<n>-<n>.<n>.sock` files leak
-# at repo root when the daemon's TMPDIR resolves empty at spawn time. Belt &
-# suspenders: the safe-tmpdir.cjs preload pins NX_DAEMON_SOCKET_DIR so this
-# shouldn't trigger; this pattern is the safety net.
-plugin[0-9]*-[0-9]*-[0-9]*.[0-9]*.sock
 
 # Coverage
 coverage/
