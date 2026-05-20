@@ -13,6 +13,7 @@ _(none)_
 
 1. [benchmark-agents-pricing-region-fallback](backlog/benchmark-agents-pricing-region-fallback.md) [bug] — refresh-pricing fails when AWS publishes pricing only in us-west-2 (e.g. claude-opus-4-1-20250805)
 2. [benchmark-agents-global-prefix-classifier](backlog/benchmark-agents-global-prefix-classifier.md) [bug] — tier-filter does not strip global.* prefix; global.* IDs go to uncategorized
+3. [benchmark-agents-anthropic-version-gate](backlog/benchmark-agents-anthropic-version-gate.md) [refactor] — tiers.json gates Meta by version (llama3-3+, llama4+) but accepts ANY anthropic.* — Opus 4.1 from Aug 2025 still passes the narrative tier filter
 
 ## LATER
 
