@@ -19,7 +19,7 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
   Grants: AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
   Pattern: materializeToTable. The handler runs the agent and emits either an AgentCompletion row (success) or an AgentFailure row (caught error) — it does NOT call states:SendTask*. The SF callback is performed by DWC's CallbackIngress consuming the resulting PORTFOLIO_COMPLETED / PORTFOLIO_FAILED events.
   MemoryClient: createMemoryClient({ namespacePrefix: 'shared-rationale' }) — writes to DWC's RationaleArchivist namespace (/shared-rationale/{actorId}/rationale).
-  errorEventType: PORTFOLIO_ENGINE_CTRL_FAILED
+  errorEventType: 'PORTFOLIO_ENGINE_CTRL_FAILED' (literal string in event-listener.ts materializeToTable call; not exported from domain/events.ts)
 
 ## Egress
 - CDC: DynamoDB Streams -> portfolio-engine-ctrl-egress (Lambda)
@@ -33,23 +33,24 @@ Stack: services/advisory/portfolio-engine-ctrl/src/service.stack.ts
 
 ## AgentRuntime
 Agent folder: agents/portfolio-engine/
-- portfolio_engine_agents: portfolio-construction (Opus) + rebalance-planner (Sonnet) parallel orchestration
-  Models: Opus, Sonnet (SSM from advisory-hub)
+- portfolio_engine_agents: portfolio-construction + rebalance-planner parallel orchestration
+  Models: SSM-resolved at deploy time from advisory-hub (models/opus, models/sonnet); the SSM values are passed to the runtime container, but the canonical per-agent modelIds live in src/agents/*.config.ts
   Tools: none wired to AgentRuntime (Gateway)
   Context augmentation: portfolio-lookup (in-process, deterministic pre-fetch via agents/portfolio-engine/graph.ts)
   TraceEmitter: EventBridgeTraceEmitter (source `agent-orchestrator@portfolio-engine-ctrl`, detailType PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED)
   PutEvents grant: eventBus.grantPutEventsTo(agentRuntime.runtime.grantPrincipal)
   SSM runtime URL param: `/nestfolio/${prefix}-portfolio-engine-ctrl/agent/runtimeUrl`
+  Agents:
+  - portfolio-construction (model: us.anthropic.claude-sonnet-4-6)
+  - rebalance-planner (model: amazon.nova-pro-v1:0)
 
 ## Standalone Lambdas
-- KBIngestion: Ingests SEC prospectus/10-K data into FundKB (triggered by SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED)
+- KBIngestion: Ingests SEC prospectus/10-K data into FundKB (triggered by SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED). Grants: kb.bucket write, kb.triggerSyncPolicy() (StartIngestionJob).
 
 ## Handlers
 - event-listener.ts -- Ingress: dispatches CONSTRUCT_PORTFOLIO through the agent and records AgentCompletion (success) or AgentFailure (caught error) rows. SEC ingestion events are routed through to kb-ingestion-handler.
 - event-publisher.ts -- Egress CDC publisher (changeDataCapture pipeline)
 - kb-ingestion-handler.ts -- KB ingestion for SEC filing data
-- agents/tools/portfolio-lookup.ts -- Portfolio positions factory (in-process, called from agents/portfolio-engine/graph.ts)
-- agents/tools/format-context.ts -- Helper to serialize tool output as labelled prompt sections
 
 ## Event Types (domain/events.ts)
 - PortfolioEngineEventTypes (outbound): PORTFOLIO_COMPLETED, PORTFOLIO_FAILED, PORTFOLIO_CONSTRUCTION_PROPOSED, REBALANCE_PLAN_PRODUCED, PORTFOLIO_ENGINE_AGENT_INVOCATION_TRACED
@@ -57,26 +58,34 @@ Agent folder: agents/portfolio-engine/
 - KB_INGESTION_EVENT_TYPES (KB-routed): SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED
 
 ## IAM trace
-- Memory API: CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions (resources: *)
-- InvokeAgentRuntime on runtime ARN + endpoint sub-resource
-- KB bucket write + bedrock-knowledge-base StartIngestionJob (KBIngestion only)
+- Memory API on Ingress handler: CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions (resources: *)
+- Memory API on AgentRuntime grantPrincipal: same six actions (resources: *) — for long-term-memory search inside the runtime
+- InvokeAgentRuntime granted to Ingress handler via agentRuntime.grantInvoke (covers runtime ARN + endpoint sub-resource)
+- AgentRuntime grantPrincipal granted advisoryBus PutEvents (trace envelopes)
+- KBIngestion: kb.bucket write + kb.triggerSyncPolicy() (StartIngestionJob)
 - **NO `states:SendTask*` grants.** Post-precomputation Task 6, the handler emits AgentCompletion/AgentFailure CDC rows; DWC's CallbackIngress owns the states:SendTask* grants and performs the SF resume. Lockdown asserted workspace-wide by Task 12's CDK invariant test.
+- BedrockUsageAlarms: per-service cost alarms wired to imported cost alert topic (`/nestfolio/${prefix}-investor/cost-controls/alertTopicArn`)
 
 ## Tests
 - test/unit/agent-service.test.ts
 - test/unit/event-listener.test.ts
 - test/unit/graph.test.ts
 - test/unit/kb-ingestion-handler.test.ts
-- test/unit/portfolio-lookup.test.ts (factory, imports from src/agents/tools/)
+- test/unit/portfolio-lookup.test.ts
 - test/unit/prompts.test.ts
 - test/unit/service.stack.test.ts
-- test/unit/agents/* (format-context, etc.)
+- test/unit/agents/fallbacks.test.ts
+- test/unit/agents/format-context.test.ts
+- test/unit/agents/golden-fixtures.test.ts
+- test/unit/agents/prompts.test.ts
+- test/unit/agents/schemas.test.ts
+- test/unit/agents/validation.test.ts
 - test/integration/portfolio-engine-ctrl.integration.test.ts
 - test/integration/portfolio-engine-ctrl.resilience.integration.test.ts
 
 ## Dependencies
 - libs: cdk-constructs (core, extensions, utils), event-processor, agent-orchestrator, event-types
-- Cross-service event-type imports: decision-workflow-ctrl (CONSTRUCT_PORTFOLIO), sec-edgar-adpt (SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED)
+- Cross-service event-type imports: decision-workflow-ctrl (CONSTRUCT_PORTFOLIO, AGENT_BUDGETS), sec-edgar-adpt (SEC_PROSPECTUS_UPDATED, SEC_10K_UPDATED)
 - SSM: advisory-hub (models/opus, models/sonnet), decision-workflow-ctrl (memory/id)
 - AgentCore Memory API (CreateEvent, RetrieveMemoryRecords, GetMemoryRecord, ListEvents, ListActors, ListSessions)
 - AgentCore Runtime (InvokeAgentRuntime)

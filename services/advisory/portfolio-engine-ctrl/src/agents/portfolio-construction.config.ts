@@ -6,7 +6,7 @@ export const portfolioConstructionConfig: Omit<
   AgentConfig<typeof PortfolioConstructionSchema>,
   'promptTemplate'
 > = {
-  modelId: 'us.anthropic.claude-opus-4-6-v1',
+  modelId: 'us.anthropic.claude-sonnet-4-6',
   maxTokens: 4096,
   temperature: 0.1,
   schema: PortfolioConstructionSchema,
