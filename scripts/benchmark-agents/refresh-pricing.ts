@@ -1,74 +1,124 @@
 #!/usr/bin/env tsx
-/* refresh-pricing.ts — copies the checked-in pricing manifest to
- * benchmarks/cache/pricing.json with the current timestamp. The AWS Pricing
- * API is NOT used (investigation during Task 5 showed display-name filter +
- * no Claude 4.x coverage). The manifest at scripts/benchmark-agents/pricing.manifest.json
- * is the source of truth; update it manually when AWS revises Bedrock public
- * pricing.
+/* refresh-pricing.ts — query AWS Pricing API for on-demand token prices for
+ * every modelId in models.json (across all tiers) + every production modelId
+ * from the 6 task bench configs. Write benchmarks/cache/pricing.json.
  *
- * Verifies every sweep modelId (across the 6 bench configs) resolves either
- * literally or via baseModelIdFor() — that's the structural gate keeping the
- * manifest aligned with whatever the bench configs currently sweep.
+ * No fallback / overrides file: if the Pricing API has no record for a
+ * modelId, this script exits 1 with an explicit list.
  */
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { baseModelIdFor } from './pricing-loader';
-import type { PricingCache } from './lib/types';
+import { PricingClient, GetProductsCommand } from '@aws-sdk/client-pricing';
+import { resolvePricingIdentity } from './lib/pricing-display-name';
+import { pickOnDemandPrice, type PricingRecord } from './lib/usagetype-picker';
+import type { ModelsCache, PricingCache, PricingEntry, TaskBenchConfig } from './lib/types';
 
+const REGION = 'us-east-1';
+const MODELS_CACHE_PATH = path.resolve('benchmarks/cache/models.json');
+const PRICING_OUT_PATH = path.resolve('benchmarks/cache/pricing.json');
 const TASKS_DIR = path.resolve('scripts/benchmark-agents/tasks');
-const MANIFEST_PATH = path.resolve('scripts/benchmark-agents/pricing.manifest.json');
-const OUT_PATH = path.resolve('benchmarks/cache/pricing.json');
 
-interface ManifestFile {
-  readonly lastUpdated: string;
-  readonly source: string;
-  readonly notes?: string;
-  readonly models: Record<
-    string,
-    { readonly inputUSDPerMTok: number; readonly outputUSDPerMTok: number }
-  >;
-}
-
-async function collectModelIds(): Promise<string[]> {
+async function collectProductionModelIds(): Promise<readonly string[]> {
   const files = (await fs.readdir(TASKS_DIR)).filter((f) => f.endsWith('.bench.ts'));
   const set = new Set<string>();
   for (const f of files) {
-    const mod = (await import(path.join(TASKS_DIR, f))) as {
-      benchConfig: { models: readonly string[] };
-    };
-    for (const m of mod.benchConfig.models) set.add(m);
+    const mod = (await import(path.join(TASKS_DIR, f))) as { benchConfig: TaskBenchConfig };
+    set.add(mod.benchConfig.productionConfig.modelId);
   }
   return [...set];
 }
 
-async function main(): Promise<void> {
-  const manifest = JSON.parse(await fs.readFile(MANIFEST_PATH, 'utf8')) as ManifestFile;
-  const sweepIds = await collectModelIds();
-  console.log(`[refresh-pricing] manifest lastUpdated=${manifest.lastUpdated}`);
-  console.log(`[refresh-pricing] verifying ${sweepIds.length} sweep modelIds against manifest`);
+async function getProducts(
+  client: PricingClient,
+  serviceCode: string,
+  identityField: string,
+  identityValue: string,
+): Promise<PricingRecord[]> {
+  const out = await client.send(
+    new GetProductsCommand({
+      ServiceCode: serviceCode,
+      Filters: [
+        { Type: 'TERM_MATCH', Field: identityField, Value: identityValue },
+        { Type: 'TERM_MATCH', Field: 'regionCode', Value: REGION },
+      ],
+    }),
+  );
+  const records: PricingRecord[] = [];
+  for (const raw of out.PriceList ?? []) {
+    const item = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const usagetype = item.product?.attributes?.usagetype as string | undefined;
+    const terms = (item.terms?.OnDemand ?? {}) as Record<
+      string,
+      { priceDimensions?: Record<string, { pricePerUnit?: { USD?: string } }> }
+    >;
+    for (const tval of Object.values(terms)) {
+      for (const dim of Object.values(tval.priceDimensions ?? {})) {
+        const usd = dim.pricePerUnit?.USD;
+        if (usagetype && usd !== undefined) {
+          records.push({ usagetype, pricePerUnit: Number(usd) });
+        }
+      }
+    }
+  }
+  return records;
+}
 
+async function main(): Promise<void> {
+  // Universe = union of (tier candidates from models.json) + (production modelIds from bench.ts files)
+  const modelsCache = JSON.parse(await fs.readFile(MODELS_CACHE_PATH, 'utf8')) as ModelsCache;
+  const tierIds = Object.values(modelsCache.tiers).flat();
+  const productionIds = await collectProductionModelIds();
+  const universe = [...new Set<string>([...tierIds, ...productionIds])];
+  console.log(`[refresh-pricing] resolving ${universe.length} modelIds via AWS Pricing API`);
+
+  const client = new PricingClient({ region: REGION });
   const out: PricingCache = { fetchedAt: new Date().toISOString(), models: {} };
-  const misses: string[] = [];
-  for (const id of sweepIds) {
-    const literal = manifest.models[id];
-    const base = manifest.models[baseModelIdFor(id)];
-    const entry = literal ?? base;
-    if (!entry) {
-      misses.push(`${id} (also missed base ${baseModelIdFor(id)})`);
+  const unresolved: string[] = [];
+
+  for (const modelId of universe) {
+    const id = resolvePricingIdentity(modelId);
+    process.stdout.write(`  ${modelId}…`);
+    const records = await getProducts(
+      client,
+      id.serviceCode,
+      id.identityField,
+      id.identityValue,
+    );
+    if (records.length === 0) {
+      unresolved.push(modelId);
+      process.stdout.write(' NO RECORDS\n');
       continue;
     }
-    out.models[literal ? id : baseModelIdFor(id)] = entry;
+    try {
+      const prices = pickOnDemandPrice(records, modelId, id.serviceCode);
+      const entry: PricingEntry = {
+        inputUSDPerMTok: prices.inputUSDPerMTok,
+        outputUSDPerMTok: prices.outputUSDPerMTok,
+        source: 'aws-pricing-api',
+        serviceCode: id.serviceCode,
+        inputUsagetype: prices.inputUsagetype,
+        outputUsagetype: prices.outputUsagetype,
+      };
+      (out.models as Record<string, PricingEntry>)[modelId] = entry;
+      process.stdout.write(` $${prices.inputUSDPerMTok}/$${prices.outputUSDPerMTok}\n`);
+    } catch (err) {
+      unresolved.push(modelId);
+      process.stdout.write(` PICKER ERROR: ${(err as Error).message}\n`);
+    }
   }
-  if (misses.length > 0) {
-    console.error('[refresh-pricing] manifest missing entries for:');
-    for (const m of misses) console.error(`  - ${m}`);
-    console.error(`  Edit ${MANIFEST_PATH} and rerun.`);
+
+  if (unresolved.length > 0) {
+    console.error('[refresh-pricing] AWS Pricing API missing on-demand entries for:');
+    for (const m of unresolved) console.error(`  - ${m}`);
+    console.error('Either remove these models from tiers.json / production configs');
+    console.error('or wait for AWS to publish them.');
     process.exit(1);
   }
-  await fs.mkdir(path.dirname(OUT_PATH), { recursive: true });
-  await fs.writeFile(OUT_PATH, JSON.stringify(out, null, 2));
-  console.log(`[refresh-pricing] wrote ${OUT_PATH} (${Object.keys(out.models).length} entries)`);
+
+  await fs.mkdir(path.dirname(PRICING_OUT_PATH), { recursive: true });
+  await fs.writeFile(PRICING_OUT_PATH, JSON.stringify(out, null, 2));
+  console.log(`[refresh-pricing] wrote ${PRICING_OUT_PATH} (${Object.keys(out.models).length} entries)`);
 }
 
 main().catch((err) => {
