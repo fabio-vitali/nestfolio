@@ -6,8 +6,7 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [benchmark-agents-dynamic-model-discovery](backlog/benchmark-agents-dynamic-model-discovery.md) [tooling] — Replace hardcoded per-task models[] arrays + pricing.manifest.json with discovery layer (tier filter + Bedrock ListFoundationModels + account-access probe + AWS Pricing API). Cures Nova-Premier-class drift.
 
 ## QUEUED
 
