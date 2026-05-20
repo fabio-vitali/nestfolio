@@ -121,16 +121,15 @@ export class DecisionWorkflowCtrlStack extends ServiceStack {
     // Without this grant, MemoryStrategies silently fail to extract —
     // symptom: searchLongTermMemory returns [] forever.
     //
-    // Inference profile ARN pattern matches the repo convention in
-    // libs/cdk-constructs/src/extensions/agent-runtime.ts:buildBedrockModelResources.
     // SSM deploy-time token → can't inspect literal at synth; wildcard region/account
-    // is the established pattern for cross-region inference profiles.
-    // IAM grant for Bedrock InvokeModel. Cross-region inference profiles
-    // (e.g., us.anthropic.claude-haiku-4-5-...) route to base models across
-    // multiple regions, so scoping to a single-region foundation-model ARN
-    // would break routing. The pair (profile ARN + foundation-model/*) is
-    // the established repo pattern — see
-    // libs/cdk-constructs/src/extensions/agent-runtime.ts:buildBedrockModelResources.
+    // is required for cross-region inference profiles, which route to base
+    // models across multiple regions (scoping to a single-region
+    // foundation-model ARN would break routing). The pair (specific
+    // profile ARN + foundation-model/*) is intentionally tight for this
+    // Memory-execution role — DWC invokes a fixed Haiku profile, so we
+    // don't widen here. (Agent-side runtimes use a broader grant in
+    // libs/cdk-constructs/src/extensions/agent-runtime.ts to keep
+    // benchmark-driven model swaps deploy-free.)
     const memoryModelResources = [
       `arn:aws:bedrock:*:*:inference-profile/${modelHaikuId}`,
       `arn:aws:bedrock:*::foundation-model/*`,

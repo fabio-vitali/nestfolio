@@ -72,14 +72,21 @@ export class AgentRuntime extends Construct {
       },
     });
 
-    // Grant Bedrock model access. Cross-region inference profile IDs (us.* /
-    // global.*) require permission on BOTH the profile resource and the
-    // underlying foundation model across all regions the profile routes to.
-    for (const modelId of props.modelIds ?? []) {
+    // Grant Bedrock model access. Dev/non-prod widens to all Bedrock models
+    // (inference-profile/* + foundation-model/*) so that benchmark-driven
+    // model swaps (e.g. /benchmark-agents recommendations applied via Edit)
+    // don't require a CDK redeploy of the IAM allowlist. Cost guards (Haiku
+    // floor + per-service alarms) handle spend at a different layer.
+    // modelIds is now informational — kept on the props so callers still
+    // declare intent and so a future tightening can scope per-modelId again.
+    if (props.modelIds && props.modelIds.length > 0) {
       this.runtime.grantPrincipal.addToPrincipalPolicy(
         new iam.PolicyStatement({
           actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
-          resources: buildBedrockModelResources(modelId),
+          resources: [
+            'arn:aws:bedrock:*:*:inference-profile/*',
+            'arn:aws:bedrock:*::foundation-model/*',
+          ],
         }),
       );
     }
@@ -141,23 +148,3 @@ export class AgentRuntime extends Construct {
   }
 }
 
-/**
- * Build the Bedrock resource ARNs for a model id. Consumers commonly pass
- * SSM deploy-time tokens (advisory-hub stores cross-region inference profile
- * ids like "us.anthropic.claude-opus-4-6-v1"), so we can't branch on the
- * literal value at synth time. Unconditionally grant permission on:
- *   1. The inference-profile ARN keyed by the (possibly-prefixed) model id.
- *   2. All foundation-model ARNs — a cross-region inference profile routes
- *      to the underlying base model across multiple regions, so scoping to a
- *      single-region foundation-model ARN would break routing. `foundation-
- *      model/*` is an acceptable compromise: the resource type is already
- *      scoped, and the profile grant above is the tight half of the pair.
- * Base-model-only consumers (no us./global. prefix) will have a profile ARN
- * that never matches — harmless; the foundation-model wildcard covers them.
- */
-function buildBedrockModelResources(modelId: string): string[] {
-  return [
-    `arn:aws:bedrock:*:*:inference-profile/${modelId}`,
-    `arn:aws:bedrock:*::foundation-model/*`,
-  ];
-}
