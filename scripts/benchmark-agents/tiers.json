@@ -1,0 +1,18 @@
+{
+  "narrative": {
+    "description": "Long-form prose generation (explainability, market outlook narrative).",
+    "families": ["anthropic", "amazon.nova-pro", "amazon.nova-premier", "meta.llama3-3+", "meta.llama4+"],
+    "sizeClass": ["frontier", "mid"],
+    "minContextWindow": 32000
+  },
+  "structured-output-frontier": {
+    "description": "High-stakes JSON outputs where quality > cost (portfolio construction, rebalance planning, risk assessment).",
+    "families": ["anthropic", "amazon.nova-pro", "amazon.nova-premier"],
+    "sizeClass": ["frontier"]
+  },
+  "structured-output-light": {
+    "description": "Small structured extractions / classifier-ish tasks (user-goals).",
+    "families": ["anthropic", "amazon.nova-lite", "amazon.nova-pro"],
+    "sizeClass": ["mid", "cheap"]
+  }
+}
