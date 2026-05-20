@@ -1,6 +1,7 @@
 ---
 id: benchmark-agents-global-prefix-classifier
-status: parking
+status: queued
+rank: 2
 type: bug
 notes: "tier-filter does not strip global.* prefix; global.* IDs go to uncategorized"
 references: []

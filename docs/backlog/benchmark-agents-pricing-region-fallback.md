@@ -1,6 +1,7 @@
 ---
 id: benchmark-agents-pricing-region-fallback
-status: parking
+status: queued
+rank: 1
 type: bug
 notes: "refresh-pricing fails when AWS publishes pricing only in us-west-2 (e.g. claude-opus-4-1-20250805)"
 references: []
