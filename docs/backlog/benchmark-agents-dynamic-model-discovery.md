@@ -1,10 +1,11 @@
 ---
 id: benchmark-agents-dynamic-model-discovery
-status: active
+status: shipped
 type: tooling
 notes: "Replace hardcoded per-task models[] arrays + pricing.manifest.json with discovery layer (tier filter + Bedrock ListFoundationModels + account-access probe + AWS Pricing API). Cures Nova-Premier-class drift."
 references:
   - docs/superpowers/specs/2026-05-20-benchmark-agents-dynamic-model-discovery-design.md
+  - docs/superpowers/plans/2026-05-20-benchmark-agents-dynamic-model-discovery.md
 out_of_scope:
   - "AWS MCP server install (aws CLI + SDK sufficient)."
   - "Auto-categorising new model families into tiers — tiers.json edits stay human-driven."
@@ -14,9 +15,9 @@ out_of_scope:
   - "Editing past benchmark reports under benchmarks/_summary/<ISO>/ — frozen historical artifacts."
   - "Production runtime model selection (agent-orchestrator model knob, escalation tiers) — orthogonal workstream."
 spec: docs/superpowers/specs/2026-05-20-benchmark-agents-dynamic-model-discovery-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-20-benchmark-agents-dynamic-model-discovery.md
 topic_memory: []
-validation_gate: null
+validation_gate: "Manual gate against deployed dev (2026-05-20): refresh-models.ts wrote models.json (narrative=7 / structured-output-frontier=5 / structured-output-light=2 candidates, 25+ entries in excluded with explicit reasons); refresh-pricing.ts wrote pricing.json for 9/9 in-scope modelIds via AWS Pricing API (1 us-west-2-only model filed as benchmark-agents-pricing-region-fallback); resolveSweepSet wired all 6 bench configs to correct tier + production anchor. Jest 33/33, tsc no new errors."
 ---
 
 # benchmark-agents — dynamic Bedrock model discovery
