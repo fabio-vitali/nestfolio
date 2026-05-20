@@ -56,8 +56,10 @@ function extractVersion(modelId: string, prefix: string): { major: number; minor
   const stripped = stripRegionPrefix(modelId);
   if (!stripped.startsWith(prefix)) return null;
   const tail = stripped.slice(prefix.length);
-  // accept "3-3", "3.3", "3", "4-maverick-17b" — pick first numeric run + optional second
-  const m = /^(\d+)(?:[.\-](\d+))?/.exec(tail);
+  // accept "3-3", "3.3", "3", "4-maverick-17b" — pick first numeric run + optional second.
+  // The second number must NOT be followed by 'b' (that's a parameter-count size token,
+  // not a minor version: llama3-70b is Llama 3.0 70B, not Llama 3.70).
+  const m = /^(\d+)(?:[.\-](\d+)(?![\db]))?/.exec(tail);
   if (!m) return null;
   return { major: Number(m[1]), minor: m[2] !== undefined ? Number(m[2]) : 0 };
 }

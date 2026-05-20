@@ -10,6 +10,7 @@ const catalog: readonly CatalogEntry[] = [
   { modelId: 'us.amazon.nova-micro-v1:0',      sizeClass: 'cheap',    contextWindow: 128000 },
   { modelId: 'meta.llama3-3-70b-instruct-v1:0', sizeClass: 'frontier', contextWindow: 128000 },
   { modelId: 'meta.llama3-1-8b-instruct-v1:0',  sizeClass: 'cheap',    contextWindow: 8000 },
+  { modelId: 'meta.llama3-70b-instruct-v1:0',   sizeClass: 'frontier', contextWindow: 128000 },
 ];
 
 describe('filterCatalogByTier', () => {
@@ -23,6 +24,9 @@ describe('filterCatalogByTier', () => {
     expect(out).not.toContain('us.amazon.nova-lite-v1:0'); // not in narrative families
     expect(out).not.toContain('us.amazon.nova-micro-v1:0'); // cheap, not in sizeClass
     expect(out).not.toContain('meta.llama3-1-8b-instruct-v1:0'); // contextWindow < 32k AND too old
+    // Regression: '70' in 'llama3-70b' is a parameter-count size token, NOT a minor
+    // version. The model is Llama 3.0 70B, which fails the 'meta.llama3-3+' version gate.
+    expect(out).not.toContain('meta.llama3-70b-instruct-v1:0');
   });
 
   it('structured-output-frontier matches Anthropic + Nova-Pro + Nova-Premier at frontier only', () => {
