@@ -53,6 +53,13 @@ cdk.context.json
 # die before `finally` cleanup runs, leaving haste-map cache + empty mkdtemp
 # dirs in cwd. Filed as parking: jest-worker-scratch-leak-on-force-exit).
 jest_dx/
+jest-nestfolio/
+
+# nx daemon plugin worker sockets — `plugin<pid>-<n>-<n>.<n>.sock` files leak
+# at repo root when the daemon's TMPDIR resolves empty at spawn time. Belt &
+# suspenders: the safe-tmpdir.cjs preload pins NX_DAEMON_SOCKET_DIR so this
+# shouldn't trigger; this pattern is the safety net.
+plugin[0-9]*-[0-9]*-[0-9]*.[0-9]*.sock
 
 # Coverage
 coverage/
