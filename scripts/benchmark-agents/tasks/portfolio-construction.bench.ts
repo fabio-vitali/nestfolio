@@ -9,9 +9,5 @@ export const benchConfig = {
   fixturePath: 'benchmarks/fixtures/portfolio-construction.input.json',
   productionConfig: buildPortfolioConstructionConfig('BALANCED'),
   validationRule: portfolioValidationRule,
-  models: [
-    'us.anthropic.claude-sonnet-4-6',
-    'us.anthropic.claude-opus-4-6-v1',
-    'us.amazon.nova-premier-v1:0',
-  ],
+  tier: 'structured-output-frontier' as const,
 };

@@ -7,10 +7,5 @@ export const benchConfig = {
   fixturePath: 'benchmarks/fixtures/market-research.input.json',
   productionConfig: marketResearchConfig,
   validationRule: null as const,
-  models: [
-    'us.anthropic.claude-sonnet-4-6',
-    'us.anthropic.claude-opus-4-6-v1',
-    'amazon.nova-pro-v1:0',
-    'us.amazon.nova-premier-v1:0',
-  ],
+  tier: 'narrative' as const,
 };

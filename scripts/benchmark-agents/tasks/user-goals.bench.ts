@@ -7,10 +7,5 @@ export const benchConfig = {
   fixturePath: 'benchmarks/fixtures/user-goals.input.json',
   productionConfig: userGoalsConfig,
   validationRule: null as const,
-  models: [
-    'us.anthropic.claude-haiku-4-5-20251001-v1:0',
-    'us.anthropic.claude-sonnet-4-6',
-    'amazon.nova-lite-v1:0',
-    'amazon.nova-pro-v1:0',
-  ],
+  tier: 'structured-output-light' as const,
 };
