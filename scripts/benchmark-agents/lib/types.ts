@@ -1,5 +1,8 @@
 import type { AgentConfig, ValidationRule } from '@nestfolio/agent-orchestrator';
 import type { z } from 'zod';
+import tiersJson from '../tiers.json' with { type: 'json' };
+
+export type Tier = keyof typeof tiersJson;
 
 export type TaskName =
   | 'user-goals'
@@ -25,7 +28,7 @@ export interface TaskBenchConfig<T extends z.ZodType = z.ZodType> {
   readonly operatingMode?: OperatingMode;
   readonly productionConfig: AgentConfig<T>;
   readonly validationRule: ValidationRule<unknown> | null;
-  readonly models: readonly string[];
+  readonly tier: Tier;
 }
 
 export interface IterationResult {
@@ -72,12 +75,18 @@ export interface RawResults {
   readonly models: readonly ModelSweep[];
 }
 
+export interface PricingEntry {
+  readonly inputUSDPerMTok: number;
+  readonly outputUSDPerMTok: number;
+  readonly source: 'aws-pricing-api';
+  readonly serviceCode: 'AmazonBedrock' | 'AmazonBedrockFoundationModels';
+  readonly inputUsagetype: string;
+  readonly outputUsagetype: string;
+}
+
 export interface PricingCache {
   readonly fetchedAt: string;
-  readonly models: Record<
-    string,
-    { readonly inputUSDPerMTok: number; readonly outputUSDPerMTok: number }
-  >;
+  readonly models: Record<string, PricingEntry>;
 }
 
 export interface FixtureFile {
@@ -86,4 +95,19 @@ export interface FixtureFile {
   readonly logStreamName: string;
   readonly promptPrefixHash: string;
   readonly prompt: string;
+}
+
+export type ExcludedReason =
+  | 'sizeClass-unknown: no vendor classification'
+  | 'no model access grant'
+  | 'invalid modelId form (region/profile suffix shift)'
+  | 'not available in region'
+  | `probe-failed: ${string}`;
+
+export interface ModelsCache {
+  readonly fetchedAt: string;
+  readonly tiersHash: string;
+  readonly tiers: Record<Tier, readonly string[]>;
+  readonly excluded: Record<string, ExcludedReason>;
+  readonly uncategorized: readonly string[];
 }
