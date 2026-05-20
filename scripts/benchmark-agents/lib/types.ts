@@ -1,6 +1,6 @@
 import type { AgentConfig, ValidationRule } from '@nestfolio/agent-orchestrator';
 import type { z } from 'zod';
-import tiersJson from '../tiers.json' with { type: 'json' };
+import tiersJson from '../tiers.json';
 
 export type Tier = keyof typeof tiersJson;
 
