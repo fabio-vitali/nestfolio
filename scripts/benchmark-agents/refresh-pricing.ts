@@ -46,7 +46,10 @@ async function getProducts(
   );
   const records: PricingRecord[] = [];
   for (const raw of out.PriceList ?? []) {
-    const item = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    // The SDK's __DocumentType wrapper is an object whose toString() yields the
+    // JSON payload; typeof is 'object' but direct property access returns undefined.
+    // Always String()-cast before JSON.parse so both string and wrapper variants parse.
+    const item = JSON.parse(typeof raw === 'string' ? raw : String(raw));
     const usagetype = item.product?.attributes?.usagetype as string | undefined;
     const terms = (item.terms?.OnDemand ?? {}) as Record<
       string,
