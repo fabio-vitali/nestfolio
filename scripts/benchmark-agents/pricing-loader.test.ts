@@ -1,42 +1,44 @@
-import { baseModelIdFor, computeCostUSD } from './pricing-loader';
+import { computeCostUSD } from './pricing-loader';
 import type { PricingCache } from './lib/types';
 
 const cache: PricingCache = {
-  fetchedAt: '2026-05-19T00:00:00Z',
+  fetchedAt: '2026-05-20T00:00:00Z',
   models: {
-    'anthropic.claude-sonnet-4-6': { inputUSDPerMTok: 3.0, outputUSDPerMTok: 15.0 },
-    'us.anthropic.claude-opus-4-6-v1': { inputUSDPerMTok: 15.0, outputUSDPerMTok: 75.0 },
-    'amazon.nova-pro': { inputUSDPerMTok: 0.8, outputUSDPerMTok: 3.2 },
+    'us.anthropic.claude-sonnet-4-6': {
+      inputUSDPerMTok: 3.0,
+      outputUSDPerMTok: 15.0,
+      source: 'aws-pricing-api',
+      serviceCode: 'AmazonBedrockFoundationModels',
+      inputUsagetype: 'USE1-MP:USE1_InputTokenCount_Global-Units',
+      outputUsagetype: 'USE1-MP:USE1_OutputTokenCount_Global-Units',
+    },
+    'us.amazon.nova-pro-v1:0': {
+      inputUSDPerMTok: 0.8,
+      outputUSDPerMTok: 3.2,
+      source: 'aws-pricing-api',
+      serviceCode: 'AmazonBedrock',
+      inputUsagetype: 'USE1-NovaPro-input-tokens',
+      outputUsagetype: 'USE1-NovaPro-output-tokens',
+    },
   },
 };
 
-describe('baseModelIdFor', () => {
-  it('strips us. inference-profile prefix', () => {
-    expect(baseModelIdFor('us.anthropic.claude-sonnet-4-6')).toBe('anthropic.claude-sonnet-4-6');
-  });
-  it('strips -v1:0 suffix on Nova-style ids', () => {
-    expect(baseModelIdFor('amazon.nova-pro-v1:0')).toBe('amazon.nova-pro');
-    expect(baseModelIdFor('amazon.nova-lite-v1:0')).toBe('amazon.nova-lite');
-  });
-  it('leaves already-bare ids untouched', () => {
-    expect(baseModelIdFor('meta.llama3-3-70b-instruct')).toBe('meta.llama3-3-70b-instruct');
-  });
-});
-
 describe('computeCostUSD', () => {
-  it('uses literal modelId when present in cache', () => {
-    const usd = computeCostUSD(cache, 'us.anthropic.claude-opus-4-6-v1', 1_000_000, 500_000);
-    expect(usd).toBeCloseTo(52.5, 4);
+  it('computes cost for an exact-key match (Sonnet 4.6, 1000 in + 500 out)', () => {
+    const cost = computeCostUSD(cache, 'us.anthropic.claude-sonnet-4-6', 1000, 500);
+    // 1000/1M * 3.0 + 500/1M * 15.0 = 0.003 + 0.0075 = 0.0105
+    expect(cost).toBeCloseTo(0.0105);
   });
-  it('falls back to base modelId when literal misses', () => {
-    const usd = computeCostUSD(cache, 'us.anthropic.claude-sonnet-4-6', 1_000_000, 1_000_000);
-    expect(usd).toBeCloseTo(18.0, 4);
+
+  it('throws when modelId has no entry — caller must rerun refresh-pricing', () => {
+    expect(() => computeCostUSD(cache, 'us.anthropic.claude-haiku-4-5-20251001', 100, 50)).toThrow(
+      /no pricing entry/,
+    );
   });
-  it('strips both prefix and -v1:0 to find Nova base', () => {
-    const usd = computeCostUSD(cache, 'amazon.nova-pro-v1:0', 500_000, 500_000);
-    expect(usd).toBeCloseTo(2.0, 4);
-  });
-  it('throws when both literal and base miss', () => {
-    expect(() => computeCostUSD(cache, 'us.anthropic.claude-mystery-99', 1, 1)).toThrow(/no pricing/);
+
+  it('Nova Pro cost reflects per-MTok rates', () => {
+    const cost = computeCostUSD(cache, 'us.amazon.nova-pro-v1:0', 1_000_000, 1_000_000);
+    // 1.0 * 0.8 + 1.0 * 3.2 = 4.0
+    expect(cost).toBeCloseTo(4.0);
   });
 });
