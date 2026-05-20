@@ -5,7 +5,7 @@ description: Sweep multiple Bedrock models against each of the 6 production Agen
 
 ## What this skill does
 
-For each requested task, runs `scripts/benchmark-agents/run.ts` — which sweeps that task's `models[]` against its captured production prompt — then Claude reads the resulting `raw-results.json` and writes an `evaluation.md`. After all requested tasks complete, Claude writes a cross-task `cross-task-report.md`.
+For each requested task, runs `scripts/benchmark-agents/run.ts` — which sweeps that task's `tier` against its captured production prompt — then Claude reads the resulting `raw-results.json` and writes an `evaluation.md`. After all requested tasks complete, Claude writes a cross-task `cross-task-report.md`.
 
 All artifacts land under `benchmarks/` (gitignored end-to-end). No `*.config.ts` files are edited by this skill — recommendations are read-only output that humans apply in a follow-on PR.
 
@@ -46,6 +46,14 @@ echo "${AWS_PROFILE:-}"
 
 Must print `nestfolio-dev`. If empty or different, ask the user to set it. Verify `pnpm` is on PATH.
 
+**Models cache:** If `benchmarks/cache/models.json` is missing, older than 30 days, or its `tiersHash` differs from `sha256(scripts/benchmark-agents/tiers.json)`, run:
+
+```bash
+node -r ./tools/register-paths.js --import tsx scripts/benchmark-agents/refresh-models.ts
+```
+
+This calls `bedrock:ListFoundationModels` + `bedrock:ListInferenceProfiles` + a 1-token Converse probe per candidate. Total cost <$0.01 per refresh. Writes `benchmarks/cache/models.json` with per-tier candidate lists and an `excluded` map of inaccessible / deprecated modelIds.
+
 ### 2. Fixtures
 
 For each requested task, check whether the fixture file already exists:
@@ -66,15 +74,19 @@ If the script reports a missing log group (`ResourceNotFoundException` on `/aws/
 
 ### 3. Pricing
 
-If `benchmarks/cache/pricing.json` is missing or older than 7 days, run:
+If `benchmarks/cache/pricing.json` is missing or older than 7 days (or if `refresh-models.ts` regenerated `models.json` this invocation), run:
 
 ```bash
 node -r ./tools/register-paths.js --import tsx scripts/benchmark-agents/refresh-pricing.ts
 ```
 
-(No AWS profile needed — the script reads `scripts/benchmark-agents/pricing.manifest.json` checked into source, no API call.)
+The script queries the AWS Pricing API (`AmazonBedrockFoundationModels` for Anthropic / Cohere / Jamba; `AmazonBedrock` for everything else) and writes us-east-1 on-demand token prices to `pricing.json`. If any modelId in `models.json.tiers` or any current production modelId has no Pricing API record, the script exits non-zero with the list — resolve by removing the offending model from `tiers.json` or waiting for AWS to publish.
+
+Requires `AWS_PROFILE=nestfolio-dev` (the repo-root `.env` already carries this — no manual prefix needed for npm/pnpm-driven calls).
 
 ### 4. Sweep loop (one task at a time, sequential)
+
+For each requested task, `run.ts` reads the task's `bench.tier` field, resolves the top 5 candidates from `benchmarks/cache/models.json[tier]`, and unions the current production modelId (from `bench.productionConfig.modelId`). Net sweep set: 5–6 modelIds per task per invocation. If the production modelId is in `cache.excluded`, the sweep emits a WARN line and proceeds without the anchor — the cross-task report will note this.
 
 For each requested task:
 
