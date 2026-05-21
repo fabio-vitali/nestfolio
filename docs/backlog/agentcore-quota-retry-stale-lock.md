@@ -1,6 +1,6 @@
 ---
 id: agentcore-quota-retry-stale-lock
-status: active
+status: shipped
 type: bug
 rank: null
 notes: "Correctness gap in shipped agentcore-invocation-resilience: the eager AgentInvocation IN_PROGRESS idempotency lock (written before the agent invoke) is never released on a maxVms/throttle rejection, so the SQS redrive short-circuits as DuplicateInvocationError and never re-runs the agent — the snapshot is permanently lost despite the retry. Fix: release the lock on gate-rejection errors."
@@ -11,7 +11,7 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Deployed investor-profile-ctrl to dev 2026-05-21. Unit: agent-service 12/12 incl. 3 new lock-release tests (ServiceQuotaExceededException + ThrottlingException release the lock; generic dispatch error does not); full IP-ctrl suite 68/68. E2e regression: accept-decision + request-closure + update-goal 3/3 green on deployed dev. The maxVms-recovery path itself is unit-proven — maxVms cannot be deterministically forced e2e."
 ---
 
 # AgentCore quota retry defeated by stale idempotency lock
