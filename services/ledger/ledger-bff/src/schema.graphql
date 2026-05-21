@@ -21,7 +21,7 @@ type Portfolio {
 
 type Position {
   symbol: String!
-  quantity: Int!
+  quantity: Float!
   averageCostBasis: Float!
   totalCostBasis: Float!
   lastFillPrice: Float!
@@ -60,7 +60,7 @@ type SimulationComparison {
 
 type PositionDiff {
   symbol: String!
-  actualQuantity: Int!
-  simulatedQuantity: Int!
-  quantityDiff: Int!
+  actualQuantity: Float!
+  simulatedQuantity: Float!
+  quantityDiff: Float!
 }
