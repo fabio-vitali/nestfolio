@@ -6,7 +6,8 @@
 
 ## ACTIVE
 
-- [agentcore-invocation-resilience](backlog/agentcore-invocation-resilience.md) [spec] — AgentCore InvokeAgentRuntime resilience: (A) reclassify ServiceQuotaExceededException/ThrottlingException as retryable in event-processor so SQS native redrive recovers maxVms hits; (B) tune IP-ctrl ingress (Lambda 300s→150s, SQS visibility 1800s→240s) + widen onboarded() fixture budget 60s→360s. Folds in the ledger-bff quantity Int!→Float! schema fix. Root-caused from 2026-05-21 e2e feature-suite failures.
+_(none)_
+
 
 ## QUEUED
 
@@ -58,6 +59,7 @@
 
 ## Recently Shipped (last 10)
 
+- 2026-05-21 — [agentcore-invocation-resilience](backlog/agentcore-invocation-resilience.md) [spec] — AgentCore InvokeAgentRuntime resilience: (A) reclassify ServiceQuotaExceededException/ThrottlingException as retryable in event-processor so SQS native redrive recovers maxVms hits; (B) tune IP-ctrl ingress (Lambda 300s→150s, SQS visibility 1800s→240s) + widen onboarded() fixture budget 60s→360s. Folds in the ledger-bff quantity Int!→Float! schema fix. Root-caused from 2026-05-21 e2e feature-suite failures.
 - 2026-05-20 — [agent-benchmark-market-research-sweep](backlog/agent-benchmark-market-research-sweep.md) [tooling] — market-research swept 2026-05-20 — 4 models × 3 iterations against captured 15-min-tick prompt; Nova Pro recommended pending confirmation rerun + signal-coverage check.
 - 2026-05-20 — [bedrock-dev-model-access-audit](backlog/bedrock-dev-model-access-audit.md) [infra] — 5 modelIds returned ValidationException/AccessDeniedException on dev — verify Bedrock model access for sonnet-4-7, opus-4-7, nova-premier, llama3-3, mistral.
 - 2026-05-20 — [benchmark-agents-discovery-followups](backlog/benchmark-agents-discovery-followups.md) [refactor] — Three polish fixes surfaced during the 2026-05-20 manual gate of dynamic model discovery — anthropic version gate, global.* classifier, us-west-2 pricing fallback
@@ -67,4 +69,3 @@
 - 2026-05-19 — [eventbustrap-batch-race-loses-sibling-events](backlog/eventbustrap-batch-race-loses-sibling-events.md) [bug] — EventBusTrap.waitForEvent returned mid-loop on first match, orphaning sibling events from the same SQS receive (which consumeMessages had already deleted). Fixed by buffering the whole batch before returning.
 - 2026-05-19 — [simplify-agent-orchestrator-model-knob](backlog/simplify-agent-orchestrator-model-knob.md) [design] — Remove runtime model-tier escalation (__escalationTier + escalationPath + buildEscalationPath + tier-escalation.ts) and the AGENT_MODEL_OVERRIDE cost-cap downgrade (MODEL_ID_MAP + TIER_ORDER + detectTier + applyOverride) from libs/agent-orchestrator. After this lands, each *.config.ts's modelId is the ONLY model knob — used verbatim, no closed-set tier semantics, no runtime mutation. Unblocks the agent-benchmark-skill workstream by simplifying the system to the shape the benchmark assumes (raw modelId per task).
 - 2026-05-18 — [agent-pipeline-backlog-trap-architectural](backlog/agent-pipeline-backlog-trap-architectural.md) [design] — Architectural fix for SF→EB→SQS→Lambda→AgentCore→SendTaskSuccess hop. Adopted ACTIVE 2026-05-18 same-day-after-unpark: post-precomputation e2e run on deployed dev produced PE-only trap evidence (PE IngressQueue 810 visible + 4 in-flight while IP/MI/AN/DWC IngressQueues all 0). PE handler is healthy (178 unique decisions drained cleanly in 15min ≈ 0.2 msg/s — matches the dossier's predicted 0.33 msg/s ceiling); the structural three-knob mismatch is the bottleneck. Precomputation dissolved IP/MI surface but concentrated demand on PE. Dev PE IngressQueue purged at adoption to clear stale task-token-dead messages — does not address structural cause. Shipped 2026-05-18 as type:design (Doc-layer): synth-time invariant via agentProfile() helper encodes the three-knob agreement; model-agnostic by construction; SQS batching considered + rejected in §5.1. Implementation tracked separately.
-- 2026-05-18 — [agent-pipeline-backlog-trap-impl](backlog/agent-pipeline-backlog-trap-impl.md) [refactor] — Implementation of the agent-pipeline-backlog-trap-architectural design spec. Added agentProfile() synth-time invariant helper, extended LambdaProfile with visibilityTimeout, wired Ingress fallback rung, replaced agentProps at PE+AN call sites, threaded per-agent UX budget into DWC's two agent-invoke SF states. SHIPPED 2026-05-18: scenarios 11+12 3/3 green on deployed dev.

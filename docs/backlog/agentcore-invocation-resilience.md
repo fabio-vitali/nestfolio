@@ -1,6 +1,6 @@
 ---
 id: agentcore-invocation-resilience
-status: active
+status: shipped
 type: spec
 rank: null
 notes: "AgentCore InvokeAgentRuntime resilience: (A) reclassify ServiceQuotaExceededException/ThrottlingException as retryable in event-processor so SQS native redrive recovers maxVms hits; (B) tune IP-ctrl ingress (Lambda 300s→150s, SQS visibility 1800s→240s) + widen onboarded() fixture budget 60s→360s. Folds in the ledger-bff quantity Int!→Float! schema fix. Root-caused from 2026-05-21 e2e feature-suite failures."
@@ -19,7 +19,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-05-21-agentcore-invocation-resilience-design.md
 plan: docs/superpowers/plans/2026-05-21-agentcore-invocation-resilience.md
 topic_memory: []
-validation_gate: null
+validation_gate: "Deployed to dev (investor-profile-ctrl + ledger-bff) 2026-05-21. E2e gate accept-decision + request-closure + update-goal 3/3 green × 3 consecutive runs (9/9). Unit: event-processor isRetryable 6/6, IP-ctrl service.stack CDK 12/12, ledger-bff 39/39, e2e fixtures.test 5/5."
 ---
 
 # AgentCore invocation resilience
