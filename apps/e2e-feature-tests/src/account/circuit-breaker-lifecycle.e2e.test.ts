@@ -51,7 +51,7 @@ describe('scenario 14 — circuit breaker lifecycle', () => {
     tenant = await freshTenant(ctx);
     await resetFeatureFlags();
     await applyFixtures(ctx, tenant, [onboarded(), funded({ cashBalanceCents: 500_000 })]);
-  }, 180_000);
+  }, 600_000);
 
   afterEach(async () => {
     try {

@@ -25,7 +25,7 @@ describe('scenario 9 — investor marks notification as read', () => {
       withNotification({ title: 'E2E notification', body: 'hello' }),
     ]);
     notificationId = result.notificationId as string;
-  }, 120_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();

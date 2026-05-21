@@ -22,7 +22,7 @@ describe('scenario 10 — investor requests account closure', () => {
       onboarded(),
       funded({ cashBalanceCents: 500_000 }),
     ]);
-  }, 120_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();

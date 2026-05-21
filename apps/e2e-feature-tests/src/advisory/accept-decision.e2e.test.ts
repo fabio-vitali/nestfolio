@@ -31,7 +31,7 @@ describe('scenario 6 — investor accepts decision and sees it executed', () => 
       }),
     ]);
     decisionId = result.decisionId as string;
-  }, 120_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();

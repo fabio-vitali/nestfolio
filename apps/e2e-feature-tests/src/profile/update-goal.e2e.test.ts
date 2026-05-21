@@ -19,7 +19,7 @@ describe('scenario 3 — investor updates investment goal', () => {
     ctx = await createTestContext();
     tenant = await freshTenant(ctx);
     await applyFixtures(ctx, tenant, [onboarded()]);
-  }, 120_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();

@@ -25,7 +25,7 @@ describe('scenario 8 — investor views decision explanation', () => {
       withDecision({ trigger: 'INITIAL_ALLOCATION' }),
     ]);
     decisionId = result.decisionId as string;
-  }, 120_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();

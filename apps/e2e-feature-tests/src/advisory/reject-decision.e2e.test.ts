@@ -25,7 +25,7 @@ describe('scenario 7 — investor rejects decision', () => {
       withDecision({ trigger: 'REBALANCE' }),
     ]);
     decisionId = result.decisionId as string;
-  }, 120_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();

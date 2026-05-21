@@ -123,7 +123,7 @@ describe.each([
     // Wait for MandateSnapshot to materialize in compliance-ctrl
     // (onboarded → investor-bff CDC → InvestorBus → advisory-adpt → AdvisoryBus → compliance-ctrl)
     await waitForMandateSnapshot(ddbDoc, complianceTableName, tenant.tenantId, tenant.userId);
-  }, 180_000);
+  }, 600_000);
 
   afterEach(async () => {
     ddbClient?.destroy();

@@ -119,7 +119,13 @@ export function onboarded(overrides?: {
     const ddbClient = new DynamoDBClient({ region: ctx.region });
     const ddbDoc = DynamoDBDocumentClient.from(ddbClient);
     try {
-      const deadline = Date.now() + 60_000;
+      // 360s budget: the IP-ctrl AgentCore invoke can hit the account maxVms
+      // quota; when it does, the event-processor (with quota errors now
+      // retryable) lets SQS redrive the message. One full native redrive is
+      // IP-ctrl ingress visibility timeout (240s) + agent invoke (~90s p99) +
+      // CDC/EB/adapter (~20s). See
+      // docs/superpowers/specs/2026-05-21-agentcore-invocation-resilience-design.md
+      const deadline = Date.now() + 360_000;
       while (Date.now() < deadline) {
         const r = await ddbDoc.send(new GetCommand({
           TableName: ipTableName,
@@ -131,7 +137,7 @@ export function onboarded(overrides?: {
         if (r.Item) return {};
         await new Promise(res => setTimeout(res, 2_000));
       }
-      throw new Error('onboarded(): InvestorProfileSnapshot not materialised within 60s');
+      throw new Error('onboarded(): InvestorProfileSnapshot not materialised within 360s');
     } finally {
       ddbClient.destroy();
     }

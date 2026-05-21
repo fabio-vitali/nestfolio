@@ -26,7 +26,7 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     // MarketSnapshot bootstrap CR on stack create.
     advisoryNarrativeTrap = await AgentTraceTrap.arm(ctx, 'advisoryNarrative');
     await applyFixtures(ctx, tenant, [onboarded()]);
-  }, 180_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();

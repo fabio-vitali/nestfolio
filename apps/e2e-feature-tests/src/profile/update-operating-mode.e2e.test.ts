@@ -135,7 +135,7 @@ describe('scenario — investor switches operatingMode CONSERVATIVE → AGGRESSI
     //        compliance-ctrl ingress (direct subscription on InvestorBus) →
     //        compliance-ctrl putMandateSnapshot.
     await waitForMandateSnapshotMode(ddbDoc, complianceTableName, tenant.tenantId, tenant.userId, 'CONSERVATIVE');
-  }, 180_000);
+  }, 600_000);
 
   afterEach(async () => {
     ddbClient?.destroy();

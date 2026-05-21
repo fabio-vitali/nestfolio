@@ -40,7 +40,7 @@ describe('scenario 12 — portfolio drift surfaces a rebalance decision', () => 
       // $.Item.operatingMode.S JSONPath extraction.
       withLiveDecision(),
     ]);
-  }, 300_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();

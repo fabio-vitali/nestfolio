@@ -42,7 +42,7 @@ describe('scenario 2 — investor withdraws cash', () => {
       onboarded(),
       funded({ cashBalanceCents: 2_000_000 }),
     ]);
-  }, 120_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();

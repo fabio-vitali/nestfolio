@@ -46,7 +46,7 @@ describe('scenario 13 — reconciliation discrepancy surfaces corrective decisio
     ddbClient = new DynamoDBClient({ region: ctx.region });
     ddbDoc = DynamoDBDocumentClient.from(ddbClient);
     tableName = await ctx.ssm.tableName('reconciliation-ctrl');
-  }, 240_000);
+  }, 600_000);
 
   afterEach(async () => {
     ddbClient?.destroy();

@@ -102,7 +102,7 @@ describe.each(CASES)('operating mode $mode — proposedTrades shape', (testCase)
         mandateLevel: 'DISCRETIONARY',
       }),
     ]);
-  }, 180_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();

@@ -38,7 +38,7 @@ describe('scenario 1 — investor funds their account', () => {
     tenant = await freshTenant(ctx);
     await resetFeatureFlags();
     await applyFixtures(ctx, tenant, [onboarded()]);
-  }, 120_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();

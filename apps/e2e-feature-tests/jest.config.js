@@ -5,7 +5,11 @@ module.exports = {
   testEnvironment: 'node',
   rootDir: '.',
   testMatch: ['<rootDir>/src/**/*.e2e.test.ts', '<rootDir>/test/**/*.test.ts'],
-  testTimeout: 300_000,
+  // 600s ceiling: onboarded() polls up to 360s for the IP-ctrl snapshot (one
+  // full SQS native redrive on maxVms saturation) — see the
+  // agentcore-invocation-resilience spec. Hooks/tests that need more set an
+  // explicit per-hook timeout.
+  testTimeout: 600_000,
   maxWorkers: 1,
   globalTeardown: '<rootDir>/jest.global-teardown.ts',
   moduleNameMapper: {

@@ -43,7 +43,7 @@ describe('scenario 5 — investor revokes advisory mandate', () => {
       ],
     });
     await applyFixtures(ctx, tenant, [onboarded()]);
-  }, 120_000);
+  }, 600_000);
 
   afterEach(async () => {
     await ctx.cleanup.runAll();
