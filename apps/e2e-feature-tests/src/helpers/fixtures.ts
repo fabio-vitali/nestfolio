@@ -108,13 +108,23 @@ export function onboarded(overrides?: {
       (r) => !!r.getProfile?.tenantId,
       { timeoutMs: 60_000 },
     );
+    return {};
+  };
+}
 
-    // Poll for InvestorProfileSnapshot materialisation in investor-profile-ctrl's
-    // table. Post-precomputation refactor, the IP agent runs on
-    // INVESTOR_PROFILE_UPDATED / MANDATE_ISSUED / OPERATING_MODE_CHANGED and writes
-    // an InvestorProfileSnapshot row. The DWC SnapshotProjectorIngress mirrors it
-    // into DWC's table where the per-cycle SF reads it. Without this wait, the
-    // first decision cycle in a test races the IP precomputation.
+/**
+ * Waits for the InvestorProfileSnapshot row that IP-ctrl's Bedrock AgentCore
+ * agent writes after onboarding (user-goals Haiku + risk-assessment Sonnet).
+ *
+ * Compose this AFTER onboarded() ONLY in scenarios that drive a real
+ * decision-workflow-ctrl cycle: the DWC per-cycle Step Function reads the
+ * DWC-local mirror of this snapshot (materialised by SnapshotProjectorIngress
+ * CDC), so the snapshot must exist before the cycle triggers. Scenarios that
+ * just need an onboarded tenant — or use the synthetic withDecision() that
+ * short-circuits the SF — must NOT compose this: it costs agent-invoke latency.
+ */
+export function withProfileSnapshot(): Fixture {
+  return async (ctx, tenant, _eb, _bff) => {
     const ipTableName = await ctx.ssm.tableName('investor-profile-ctrl');
     const ddbClient = new DynamoDBClient({ region: ctx.region });
     const ddbDoc = DynamoDBDocumentClient.from(ddbClient);
@@ -137,7 +147,7 @@ export function onboarded(overrides?: {
         if (r.Item) return {};
         await new Promise(res => setTimeout(res, 2_000));
       }
-      throw new Error('onboarded(): InvestorProfileSnapshot not materialised within 360s');
+      throw new Error('withProfileSnapshot(): InvestorProfileSnapshot not materialised within 360s');
     } finally {
       ddbClient.destroy();
     }

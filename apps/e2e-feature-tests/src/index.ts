@@ -7,6 +7,7 @@ export {
   funded,
   withDecision,
   withLiveDecision,
+  withProfileSnapshot,
   withNotification,
   withHoldings,
   withBreakerOpen,
