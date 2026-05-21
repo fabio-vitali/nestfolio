@@ -13,7 +13,7 @@ out_of_scope:
   - "Fixing the upstream jest-worker scratch leak at its source (forceExit:true in nx.json) — that is the separately-queued workstream jest-worker-scratch-leak-on-force-exit (rank 2). This workstream makes the postflight GATE robust against the leak, it does not remove the leak."
   - "Changing the Nx daemon's CWD-fallback behaviour inside node_modules/nx — upstream code, not ours."
   - "Killing or supervising orphan/zombie nx/jest processes as a runtime daemon — at most postflight surfaces them as a warning."
-spec: null
+spec: docs/superpowers/specs/2026-05-21-backlog-next-closing-phase-friction-design.md
 plan: null
 topic_memory: []
 validation_gate: null
