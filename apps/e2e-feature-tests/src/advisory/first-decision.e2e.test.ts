@@ -6,6 +6,7 @@ import {
   freshTenant,
   applyFixtures,
   onboarded,
+  withProfileSnapshot,
   withLiveDecision,
   type FreshTenant,
 } from '..';
@@ -22,10 +23,10 @@ describe('scenario 11 — investor sees first advisory decision after onboarding
     // Post-precomputation: only advisory-narrative agent runs in the per-cycle SF.
     // investor-profile + market-intelligence are continuous-projection writers
     // out-of-cycle (see plan §Task 9, §Task 13). Their snapshot rows are pre-
-    // materialised by onboarded() (waits for InvestorProfileSnapshot) and by
+    // materialised by withProfileSnapshot() and by
     // MarketSnapshot bootstrap CR on stack create.
     advisoryNarrativeTrap = await AgentTraceTrap.arm(ctx, 'advisoryNarrative');
-    await applyFixtures(ctx, tenant, [onboarded()]);
+    await applyFixtures(ctx, tenant, [onboarded(), withProfileSnapshot()]);
   }, 600_000);
 
   afterEach(async () => {

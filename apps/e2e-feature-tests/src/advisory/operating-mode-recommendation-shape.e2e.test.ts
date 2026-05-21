@@ -6,6 +6,7 @@ import {
   freshTenant,
   applyFixtures,
   onboarded,
+  withProfileSnapshot,
   bffClient,
   type FreshTenant,
 } from '..';
@@ -101,6 +102,7 @@ describe.each(CASES)('operating mode $mode — proposedTrades shape', (testCase)
         capitalAmount: 100_000,
         mandateLevel: 'DISCRETIONARY',
       }),
+      withProfileSnapshot(),
     ]);
   }, 600_000);
 

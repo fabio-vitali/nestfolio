@@ -7,6 +7,7 @@ import {
   freshTenant,
   applyFixtures,
   onboarded,
+  withProfileSnapshot,
   funded,
   withHoldings,
   withLiveDecision,
@@ -28,6 +29,7 @@ describe('scenario 12 — portfolio drift surfaces a rebalance decision', () => 
     portfolioTrap = await AgentTraceTrap.arm(ctx, 'portfolioEngine');
     await applyFixtures(ctx, tenant, [
       onboarded(),
+      withProfileSnapshot(),
       funded({ cashBalanceCents: 2_000_000 }),
       withHoldings([
         { symbol: 'VTI', quantity: 50, fillPrice: 200 },
