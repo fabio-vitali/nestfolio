@@ -14,7 +14,7 @@
  * Exit code 0 on success, 1 on any failure.
  */
 import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const REPO_ROOT = execSync('git rev-parse --show-toplevel').toString().trim();
@@ -131,5 +131,19 @@ if (failures.length > 0) {
   console.error('\nFix the surfaced state before starting a new workstream. Do not bypass.');
   process.exit(1);
 }
+
+// 5. On success only: persist a git-status snapshot for postflight's
+// delta-check, and stop the Nx daemon so its next start rebinds a clean
+// socket (mitigates the daemon CWD-fallback hex-dir leak).
+const snapshotPath = join(
+  sh('git rev-parse --path-format=absolute --git-common-dir'),
+  'backlog-next-snapshot.json',
+);
+writeFileSync(
+  snapshotPath,
+  JSON.stringify({ timestamp: new Date().toISOString(), status }, null, 2),
+);
+
+shSafe('pnpm nx daemon --stop');
 
 console.log('✓ Preflight passed: tree clean, main = origin/main, backlog-lint green, no stale worktrees.');
