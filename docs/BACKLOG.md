@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [jest-worker-scratch-leak-on-force-exit](backlog/jest-worker-scratch-leak-on-force-exit.md) [bug] — Every test run leaks scratch dirs in repo root (jest_dx, empty 20-char-hex dirs, cdk.out<random>). Root cause: nx.json forceExit:true kills workers before cleanup. Third recurrence.
 
 ## QUEUED
 
-1. [jest-worker-scratch-leak-on-force-exit](backlog/jest-worker-scratch-leak-on-force-exit.md) [bug] — Every test run leaks scratch dirs in repo root (jest_dx, empty 20-char-hex dirs, cdk.out<random>). Root cause: nx.json forceExit:true kills workers before cleanup. Third recurrence.
-2. [bff-resolver-region-sweep](backlog/bff-resolver-region-sweep.md) [bug] — advisory-bff + ledger-bff mutation resolvers likely missing region field.
+1. [bff-resolver-region-sweep](backlog/bff-resolver-region-sweep.md) [bug] — advisory-bff + ledger-bff mutation resolvers likely missing region field.
 
 ## LATER
 
