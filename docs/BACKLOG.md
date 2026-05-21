@@ -6,7 +6,8 @@
 
 ## ACTIVE
 
-- [jest-worker-scratch-leak-on-force-exit](backlog/jest-worker-scratch-leak-on-force-exit.md) [bug] — Every test run leaks scratch dirs in repo root (jest_dx, empty 20-char-hex dirs, cdk.out<random>). Root cause: nx.json forceExit:true kills workers before cleanup. Third recurrence.
+_(none)_
+
 
 ## QUEUED
 
