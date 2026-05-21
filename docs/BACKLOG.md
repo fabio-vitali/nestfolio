@@ -6,14 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [backlog-next-closing-phase-friction](backlog/backlog-next-closing-phase-friction.md) [bug] — Two /backlog-next closing-phase UX bugs: (A) postflight tree-clean check passes only by lucky timing when background mutators are active — TWO distinct upstream mutators observed: A.1 jest-worker scratch leak (tmp-<pid>-<rand>/), A.2 Nx daemon socket-dir CWD fallback (<20-hex>/ leaked after each restart). NX_SOCKET_DIR=$TMPDIR sidesteps A.2 entirely. (B) ExitWorktree's 'permanently delete' warning fires routinely after a squash-merge even though the work IS preserved on origin/main.
 
 ## QUEUED
 
-1. [backlog-next-closing-phase-friction](backlog/backlog-next-closing-phase-friction.md) [bug] — Two /backlog-next closing-phase UX bugs: (A) postflight tree-clean check passes only by lucky timing when background mutators are active — TWO distinct upstream mutators observed: A.1 jest-worker scratch leak (tmp-<pid>-<rand>/), A.2 Nx daemon socket-dir CWD fallback (<20-hex>/ leaked after each restart). NX_SOCKET_DIR=$TMPDIR sidesteps A.2 entirely. (B) ExitWorktree's 'permanently delete' warning fires routinely after a squash-merge even though the work IS preserved on origin/main.
-2. [jest-worker-scratch-leak-on-force-exit](backlog/jest-worker-scratch-leak-on-force-exit.md) [bug] — Every test run leaks scratch dirs in repo root (jest_dx, empty 20-char-hex dirs, cdk.out<random>). Root cause: nx.json forceExit:true kills workers before cleanup. Third recurrence.
-3. [bff-resolver-region-sweep](backlog/bff-resolver-region-sweep.md) [bug] — advisory-bff + ledger-bff mutation resolvers likely missing region field.
+1. [jest-worker-scratch-leak-on-force-exit](backlog/jest-worker-scratch-leak-on-force-exit.md) [bug] — Every test run leaks scratch dirs in repo root (jest_dx, empty 20-char-hex dirs, cdk.out<random>). Root cause: nx.json forceExit:true kills workers before cleanup. Third recurrence.
+2. [bff-resolver-region-sweep](backlog/bff-resolver-region-sweep.md) [bug] — advisory-bff + ledger-bff mutation resolvers likely missing region field.
 
 ## LATER
 

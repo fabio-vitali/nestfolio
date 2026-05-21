@@ -1,15 +1,18 @@
 ---
 id: backlog-next-closing-phase-friction
-status: queued
+status: active
 type: bug
-rank: 1
 notes: "Two /backlog-next closing-phase UX bugs: (A) postflight tree-clean check passes only by lucky timing when background mutators are active — TWO distinct upstream mutators observed: A.1 jest-worker scratch leak (tmp-<pid>-<rand>/), A.2 Nx daemon socket-dir CWD fallback (<20-hex>/ leaked after each restart). NX_SOCKET_DIR=$TMPDIR sidesteps A.2 entirely. (B) ExitWorktree's 'permanently delete' warning fires routinely after a squash-merge even though the work IS preserved on origin/main."
 references:
   - .claude/skills/backlog-next/postflight.mjs
   - .claude/skills/backlog-next/preflight.mjs
   - .claude/skills/finishing-a-development-branch
   - node_modules/nx/src/daemon/tmp-dir.js
-out_of_scope: []
+out_of_scope:
+  - "Editing the ExitWorktree harness tool itself — it is Claude Code harness code, not in this repo. The dossier's literal (B) fix (cherry-equivalence check inside ExitWorktree) cannot be made here; (B) is addressed only insofar as repo-side files (SKILL.md guidance) can."
+  - "Fixing the upstream jest-worker scratch leak at its source (forceExit:true in nx.json) — that is the separately-queued workstream jest-worker-scratch-leak-on-force-exit (rank 2). This workstream makes the postflight GATE robust against the leak, it does not remove the leak."
+  - "Changing the Nx daemon's CWD-fallback behaviour inside node_modules/nx — upstream code, not ours."
+  - "Killing or supervising orphan/zombie nx/jest processes as a runtime daemon — at most postflight surfaces them as a warning."
 spec: null
 plan: null
 topic_memory: []
