@@ -1,7 +1,8 @@
 ---
 id: jest-worker-scratch-leak-on-force-exit
-status: parking
+status: queued
 type: bug
+rank: 2
 notes: "Every test run leaks scratch dirs in repo root (jest_dx, empty 20-char-hex dirs, cdk.out<random>). Root cause: nx.json forceExit:true kills workers before cleanup. Third recurrence."
 references: []
 out_of_scope: []
@@ -62,11 +63,14 @@ Net effect: `/backlog-next` postflight's `tree-clean` gate failed in a loop — 
 
 Prefer (1) — root-cause fix. If hangs are intractable, fall back to (2)+(3).
 
-## Why parking, not queued
+## Promotion (2026-05-21)
 
-- Not blocking any e2e or integration suite.
-- `.gitignore` now hides the worst offenders from `git status`.
-- Investigation is open-ended (need to identify which unclosed handle requires `forceExit`).
+Promoted from parking at a boundary review — QUEUED was empty after the
+`e2e-fixture-agentcore-synchronous-coupling` ship and the user picked this item
+directly (ranked behind [[backlog-next-closing-phase-friction]], which makes the
+postflight *gate* robust; this item fixes the *leak* at its source). Investigation
+remains open-ended: removing `forceExit: true` may surface hanging unclosed
+handles that scoping must run down.
 
 ## Related
 

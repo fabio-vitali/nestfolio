@@ -1,7 +1,8 @@
 ---
 id: backlog-next-closing-phase-friction
-status: parking
+status: queued
 type: bug
+rank: 1
 notes: "Two /backlog-next closing-phase UX bugs: (A) postflight tree-clean check passes only by lucky timing when background mutators are active — TWO distinct upstream mutators observed: A.1 jest-worker scratch leak (tmp-<pid>-<rand>/), A.2 Nx daemon socket-dir CWD fallback (<20-hex>/ leaked after each restart). NX_SOCKET_DIR=$TMPDIR sidesteps A.2 entirely. (B) ExitWorktree's 'permanently delete' warning fires routinely after a squash-merge even though the work IS preserved on origin/main."
 references:
   - .claude/skills/backlog-next/postflight.mjs
@@ -93,14 +94,18 @@ If NOT cherry-preserved, keep the current refusal.
 
 Both are surfaced repeatedly because /backlog-next is the user-facing workhorse for Complex-lane ships.
 
-## Why parking, not queued
+## Promotion (2026-05-21)
 
-- Neither blocks shipping. Operator can manually `rm -rf` + `git restore` (A.1) / `find . -maxdepth 1 -type d -empty -regex './[0-9a-f]\{20\}' -delete` (A.2), or verify the squash sha then override (B). All worked here.
-- A.1's upstream ([[jest-worker-scratch-leak-on-force-exit]]) is itself parking — promoting a check that papers over an upstream leak is premature until the leak itself is addressed.
-- A.2 has a free one-liner workaround today (`export NX_SOCKET_DIR="$TMPDIR"`). Promotion would only formalise it inside /backlog-next preflight.
-- (B) is a low-impact UX paper-cut, not a correctness bug.
-
-Promote when /backlog-next is being meaningfully reworked for any reason — all three fixes (delta-check, NX_SOCKET_DIR env, cherry-equivalent ExitWorktree) are < 30 LOC each.
+Promoted from parking at a boundary review — QUEUED was empty after the
+`e2e-fixture-agentcore-synchronous-coupling` ship and the user picked this item
+directly. The (B) ExitWorktree friction was hit live during that ship's closing
+phase: a fast-forward merge left `main` 5 commits ahead of `origin/main`, and
+`ExitWorktree action: "remove"` warned it would "discard 5 commits permanently"
+even though every commit was reachable from local `main`. The three fixes
+(delta-check postflight, `NX_SOCKET_DIR` env in preflight, cherry-equivalent
+ExitWorktree downgrade) remain small — but note (B) targets the **ExitWorktree
+harness tool**, which is not repo code; scoping must confirm what is actually
+fixable from this repository versus what is an upstream harness request.
 
 ## Related
 

@@ -1,7 +1,8 @@
 ---
 id: bff-resolver-region-sweep
-status: parking
+status: queued
 type: bug
+rank: 3
 references: []
 out_of_scope: []
 spec: null
