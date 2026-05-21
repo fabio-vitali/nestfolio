@@ -6,13 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [agentcore-invocation-resilience](backlog/agentcore-invocation-resilience.md) [spec] — AgentCore InvokeAgentRuntime resilience: (A) reclassify ServiceQuotaExceededException/ThrottlingException as retryable in event-processor so SQS native redrive recovers maxVms hits; (B) tune IP-ctrl ingress (Lambda 300s→150s, SQS visibility 1800s→240s) + widen onboarded() fixture budget 60s→360s. Folds in the ledger-bff quantity Int!→Float! schema fix. Root-caused from 2026-05-21 e2e feature-suite failures.
 
 ## QUEUED
 
-_(none)_
-
+1. [agentcore-maxvms-prod-quota-increase](backlog/agentcore-maxvms-prod-quota-increase.md) [infra] — Request a Bedrock AgentCore maxVms (concurrent micro-VM) Service Quotas increase for production accounts. Sandbox deliberately keeps the low quota for cost; native SQS retry (agentcore-invocation-resilience) absorbs sandbox saturation. Sandbox-side alternative: cap ESM maxConcurrency / reservedConcurrency across agent-invoking ingress handlers.
+2. [e2e-fixture-agentcore-synchronous-coupling](backlog/e2e-fixture-agentcore-synchronous-coupling.md) [refactor] — onboarded() e2e fixture synchronously blocks on a Bedrock-driven projection (InvestorProfileSnapshot, written by IP-ctrl's AgentCore agent). agentcore-invocation-resilience widens the poll budget to 360s but the fixture stays coupled to agent latency — every onboarded()-using scenario pays the agent-invoke time. Evaluate decoupling.
 
 ## LATER
 
