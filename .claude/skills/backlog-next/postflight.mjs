@@ -121,7 +121,7 @@ if (snapshot.timestamp) {
   const ps = shSafe('ps -A -o lstart=,pid=,command=');
   if (ps.ok && !Number.isNaN(snapMs)) {
     for (const line of ps.out.split('\n')) {
-      if (!/(nx|jest)/.test(line)) continue;
+      if (!/\b(nx|jest)\b/.test(line)) continue;
       const started = Date.parse(line.slice(0, 24));         // lstart is 24-char ctime
       if (!Number.isNaN(started) && started < snapMs) warnings.push(line.trim());
     }
