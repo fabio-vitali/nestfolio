@@ -6,12 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [e2e-fixture-agentcore-synchronous-coupling](backlog/e2e-fixture-agentcore-synchronous-coupling.md) [refactor] — onboarded() e2e fixture synchronously blocks on a Bedrock-driven projection (InvestorProfileSnapshot, written by IP-ctrl's AgentCore agent). agentcore-invocation-resilience widens the poll budget to 360s but the fixture stays coupled to agent latency — every onboarded()-using scenario pays the agent-invoke time. Evaluate decoupling.
 
 ## QUEUED
 
-1. [e2e-fixture-agentcore-synchronous-coupling](backlog/e2e-fixture-agentcore-synchronous-coupling.md) [refactor] — onboarded() e2e fixture synchronously blocks on a Bedrock-driven projection (InvestorProfileSnapshot, written by IP-ctrl's AgentCore agent). agentcore-invocation-resilience widens the poll budget to 360s but the fixture stays coupled to agent latency — every onboarded()-using scenario pays the agent-invoke time. Evaluate decoupling.
+_(none)_
+
 
 ## LATER
 

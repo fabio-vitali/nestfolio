@@ -1,11 +1,15 @@
 ---
 id: e2e-fixture-agentcore-synchronous-coupling
-status: queued
+status: active
 type: refactor
 rank: 1
 notes: "onboarded() e2e fixture synchronously blocks on a Bedrock-driven projection (InvestorProfileSnapshot, written by IP-ctrl's AgentCore agent). agentcore-invocation-resilience widens the poll budget to 360s but the fixture stays coupled to agent latency — every onboarded()-using scenario pays the agent-invoke time. Evaluate decoupling."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Reducing the actual decision-cycle latency inside withLiveDecision (180s budget) — that is end-to-end pipeline tuning, not a fixture-coupling concern."
+  - "Changing the 360s native-retry poll budget itself — agentcore-invocation-resilience set it deliberately; this workstream relocates the poll, it does not retune it."
+  - "Direct-DDB seeding of the InvestorProfileSnapshot row — rejected to keep the events-only fixture convention intact; the 3 live-decision scenarios keep the real agent path."
+  - "Other fixtures (funded, withDecision, withHoldings, etc.) — unchanged."
 spec: null
 plan: null
 topic_memory: []
