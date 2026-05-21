@@ -2,7 +2,7 @@
 id: e2e-fixture-agentcore-synchronous-coupling
 status: queued
 type: refactor
-rank: 2
+rank: 1
 notes: "onboarded() e2e fixture synchronously blocks on a Bedrock-driven projection (InvestorProfileSnapshot, written by IP-ctrl's AgentCore agent). agentcore-invocation-resilience widens the poll budget to 360s but the fixture stays coupled to agent latency — every onboarded()-using scenario pays the agent-invoke time. Evaluate decoupling."
 references: []
 out_of_scope: []
