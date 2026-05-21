@@ -15,7 +15,7 @@ Stack: services/advisory/investor-profile-ctrl/src/service.stack.ts
 ## Ingress
 - advisoryBus -> investor-profile-ctrl-ingress (SQS -> Lambda)
   Subscriptions: INVESTOR_PROFILE_UPDATED, MANDATE_ISSUED, OPERATING_MODE_CHANGED, DECISION_BLOCKED, DECISION_APPROVED
-  Profile: agentProps (1024 MB / 5min timeout / batchSize 1 / concurrency 5)
+  Profile: agentProps (1024 MB / batchSize 1 / concurrency 5) with timing overrides — lambdaTimeout 150s, SQS visibilityTimeout 240s (fast native redrive on maxVms; no production deadline — see agentcore-invocation-resilience spec)
   Grants: AgentCore Memory API, InvokeAgentRuntime, AgentRuntimeUrl SSM read
   Pattern: materializeToTable (continuous projection — snapshot writer)
   errorEventType: INVESTOR_PROFILE_CTRL_FAILED

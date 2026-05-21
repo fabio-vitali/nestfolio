@@ -27,6 +27,13 @@ describe('InvestorProfileCtrlStack', () => {
     expect(Object.keys(queues).length).toBeGreaterThanOrEqual(2);
   });
 
+  it('tunes the Ingress Lambda timeout to 150s and SQS visibility timeout to 240s', () => {
+    // Continuous-projection writer with no production deadline — timing tuned
+    // for fast SQS native redrive on maxVms saturation, not over-provisioned.
+    template.hasResourceProperties('AWS::Lambda::Function', Match.objectLike({ Timeout: 150 }));
+    template.hasResourceProperties('AWS::SQS::Queue', Match.objectLike({ VisibilityTimeout: 240 }));
+  });
+
   it('creates EventBridge rules for inbound event types', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({

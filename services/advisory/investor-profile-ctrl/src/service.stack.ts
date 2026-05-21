@@ -1,3 +1,4 @@
+import { Duration } from 'aws-cdk-lib';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
@@ -28,8 +29,12 @@ export class InvestorProfileCtrlStack extends ServiceStack {
     // Ingress: continuous-projection triggers + KB ingestion events.
     // Subscribes to investor-domain mutations that drive InvestorProfileSnapshot
     // materialization (Task 3 of advisory-cycle-agent-precomputation). Uses
-    // agentProps because the handler dispatches to Bedrock (Sonnet + Haiku) —
-    // 1024 MB / 5min timeout / batchSize 1 / concurrency capped at 5.
+    // agentProps (1024 MB / batchSize 1 / concurrency 5) for the Bedrock
+    // dispatch, but overrides the timing knobs: this is a continuous-projection
+    // writer with NO production deadline (it resumes no SF task token), so the
+    // Lambda timeout is matched to the agent p99 (~90s) and the SQS visibility
+    // timeout is tuned so a maxVms-driven native redrive lands ~4min after a
+    // failure. See docs/superpowers/specs/2026-05-21-agentcore-invocation-resilience-design.md
     const ingress = new Ingress(this, 'Ingress', {
       state,
       eventTypes: [
@@ -40,6 +45,8 @@ export class InvestorProfileCtrlStack extends ServiceStack {
         ComplianceEventTypes.DECISION_APPROVED,
       ],
       profile: agentProps,
+      lambdaTimeout: Duration.seconds(150),
+      visibilityTimeout: Duration.seconds(240),
       lambdaProps: {
         paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       },
