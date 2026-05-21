@@ -22,7 +22,7 @@
  * Exit code 0 on success, 1 on any failure.
  */
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const REPO_ROOT = execSync('git rev-parse --show-toplevel').toString().trim();
@@ -51,14 +51,81 @@ function shSafe(cmd) {
 
 const failures = [];
 
-// 1. Tree clean
+// 1. Tree clean — delta-aware. Excuses dirt that (a) existed at preflight or
+// (b) is known background-tool litter; sweeps litter dirs from the repo root.
+const LITTER_PATTERNS = [
+  /^tmp-\d+-[a-z0-9]+$/,
+  /^nx-native-file-cache-[0-9a-f]+$/,
+  /^node-compile-cache$/,
+];
+const HEX_DIR = /^[0-9a-f]{20}$/;
+
+// Sweep repo-root litter dirs (direct readdir — empty hex dirs never appear in
+// `git status`). Empty hex dirs are removed only when empty; other litter dirs
+// unconditionally. Only ever removes directories whose basename matches a
+// litter pattern — never touches tracked files.
+const swept = [];
+for (const name of readdirSync(REPO_ROOT)) {
+  const full = join(REPO_ROOT, name);
+  let isDir = false;
+  try { isDir = statSync(full).isDirectory(); } catch { continue; }
+  if (!isDir) continue;
+  if (HEX_DIR.test(name)) {
+    let empty = false;
+    try { empty = readdirSync(full).length === 0; } catch { empty = false; }
+    if (empty) { rmSync(full, { recursive: true, force: true }); swept.push(name); }
+  } else if (LITTER_PATTERNS.some((re) => re.test(name))) {
+    rmSync(full, { recursive: true, force: true });
+    swept.push(name);
+  }
+}
+
+// Load the preflight snapshot (graceful if absent — e.g. resumed workstream).
+let snapshot = { timestamp: null, status: '' };
+const snapshotPath = join(
+  sh('git rev-parse --path-format=absolute --git-common-dir'),
+  'backlog-next-snapshot.json',
+);
+if (existsSync(snapshotPath)) {
+  try { snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8')); }
+  catch { /* corrupt snapshot — fall back to empty */ }
+}
+const snapshotEntries = new Set(
+  String(snapshot.status || '').split('\n').map((l) => l.trim()).filter(Boolean),
+);
+
+// Classify remaining dirt.
 const status = sh('git status --porcelain');
-if (status.length > 0) {
+const genuine = [];
+for (const line of status.split('\n').filter(Boolean)) {
+  if (snapshotEntries.has(line.trim())) continue;            // pre-existing
+  const firstSegment = line.slice(3).split('/')[0];          // porcelain: "XY path"
+  if (LITTER_PATTERNS.some((re) => re.test(firstSegment)) || HEX_DIR.test(firstSegment)) {
+    continue;                                                // background-tool litter
+  }
+  genuine.push(line);
+}
+if (genuine.length > 0) {
   failures.push({
     rule: 'tree-clean',
-    message: 'Working tree is dirty. Commit or revert before declaring the workstream done.',
-    detail: status,
+    message: 'Working tree has uncommitted workstream changes. Commit or revert before declaring the workstream done.',
+    detail: genuine.join('\n'),
   });
+}
+
+// Orphan-runner warning (never a failure): nx/jest processes older than the
+// snapshot timestamp are a likely litter source — surface, do not block.
+const warnings = [];
+if (snapshot.timestamp) {
+  const snapMs = Date.parse(snapshot.timestamp);
+  const ps = shSafe('ps -A -o lstart=,pid=,command=');
+  if (ps.ok && !Number.isNaN(snapMs)) {
+    for (const line of ps.out.split('\n')) {
+      if (!/(nx|jest)/.test(line)) continue;
+      const started = Date.parse(line.slice(0, 24));         // lstart is 24-char ctime
+      if (!Number.isNaN(started) && started < snapMs) warnings.push(line.trim());
+    }
+  }
 }
 
 // 2. backlog-lint
@@ -177,6 +244,14 @@ if (lane === 'complex') {
 }
 
 // Report
+// Informational output (prints whether or not the gate passes).
+if (swept.length > 0) {
+  console.log(`  swept ${swept.length} background-litter dir(s) from repo root: ${swept.join(', ')}`);
+}
+for (const w of warnings) {
+  console.warn(`  ⚠ orphan nx/jest process predates this workstream (likely litter source): ${w}`);
+}
+
 if (failures.length > 0) {
   console.error(`✗ Postflight failed (${failures.length} check${failures.length === 1 ? '' : 's'}):\n`);
   for (const f of failures) {
