@@ -6,12 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [bff-resolver-region-sweep](backlog/bff-resolver-region-sweep.md) [bug] — advisory-bff + ledger-bff mutation resolvers likely missing region field.
 
 ## QUEUED
 
-1. [bff-resolver-region-sweep](backlog/bff-resolver-region-sweep.md) [bug] — advisory-bff + ledger-bff mutation resolvers likely missing region field.
+_(none)_
+
 
 ## LATER
 
