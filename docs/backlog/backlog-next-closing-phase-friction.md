@@ -1,6 +1,6 @@
 ---
 id: backlog-next-closing-phase-friction
-status: active
+status: shipped
 type: bug
 notes: "Two /backlog-next closing-phase UX bugs: (A) postflight tree-clean check passes only by lucky timing when background mutators are active — TWO distinct upstream mutators observed: A.1 jest-worker scratch leak (tmp-<pid>-<rand>/), A.2 Nx daemon socket-dir CWD fallback (<20-hex>/ leaked after each restart). NX_SOCKET_DIR=$TMPDIR sidesteps A.2 entirely. (B) ExitWorktree's 'permanently delete' warning fires routinely after a squash-merge even though the work IS preserved on origin/main."
 references:
@@ -14,9 +14,9 @@ out_of_scope:
   - "Changing the Nx daemon's CWD-fallback behaviour inside node_modules/nx — upstream code, not ours."
   - "Killing or supervising orphan/zombie nx/jest processes as a runtime daemon — at most postflight surfaces them as a warning."
 spec: docs/superpowers/specs/2026-05-21-backlog-next-closing-phase-friction-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-21-backlog-next-closing-phase-friction.md
 topic_memory: []
-validation_gate: null
+validation_gate: "(A) preflight.mjs persists a git-status snapshot to <git-common-dir>/backlog-next-snapshot.json + best-effort `pnpm nx daemon --stop` (commit abdca747). postflight.mjs replaces the absolute tree-clean check with a litter-classifier (excuses pre-existing snapshot entries + background-tool patterns) + repo-root litter sweep + orphan-runner warning (commits 5aed2411, fd108701). (B) SKILL.md step 6.8 documents the expected post-merge ExitWorktree 'discard N commits' warning (commit c7ee4088). Validation — skill .mjs are not in the nx graph, so scenario-based: sweep removed a synthetic empty [0-9a-f]{20} hex dir + a tmp-9999-zz dir and excused them; a genuine untracked file still failed [tree-clean] (exit 1); a snapshot-listed path was excused by the delta-check; the orphan-runner regex was word-boundaried after the onnx false-positive surfaced live. `pnpm nx affected -t test,lint --base=origin/main`: no tasks (all changes Tier 0, outside the nx graph). No deploy required."
 ---
 
 # /backlog-next closing-phase friction — two independent UX bugs
