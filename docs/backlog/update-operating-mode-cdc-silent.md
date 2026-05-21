@@ -1,14 +1,14 @@
 ---
 id: update-operating-mode-cdc-silent
-status: shipped
+status: queued
 type: bug
-rank: null
-notes: "updateOperatingMode mutation succeeds (DDB UpdateItem returns AGGRESSIVE row) but neither INVESTOR_PROFILE_UPDATED (carrier) nor OPERATING_MODE_CHANGED (semantic) reach the investor bus within 60s — empty EventBusTrap buffer. Blocks update-operating-mode.e2e.test.ts which is the only e2e covering the mode re-derivation chain."
+rank: 1
+notes: "REOPENED 2026-05-21 — recurred with the identical signature (update-operating-mode.e2e.test.ts:182 timeout on INVESTOR_PROFILE_UPDATED, empty buffer; line 176 OPERATING_MODE_CHANGED passed). The 2026-05-18 'stale bundle' root cause is FALSIFIED: dev-investor-bff EgressPublisher Lambda LastModified is 2026-05-18T13:09:42 — byte-identical to the bundle that passed 7/7 that day, with zero investor-bff source commits since. Surviving hypothesis is intermittent single-event (carrier) loss between publisher and trap SQS."
 references:
-  - services/investor/investor-bff/src/schema.graphql
-  - services/investor/investor-bff/src/graphql/js-function/update-operating-mode.fn.js
   - services/investor/investor-bff/src/service.stack.ts
-  - services/investor/investor-bff/CLAUDE.md
+  - libs/event-processor/src/pipelines/change-data-capture.ts
+  - libs/event-processor/src/util/event-bridge-publisher.ts
+  - libs/integration-testing/src/fixtures/event-bus-trap.fixture.ts
   - apps/e2e-feature-tests/src/profile/update-operating-mode.e2e.test.ts
 out_of_scope:
   - Rewriting the CDC publisher's general `always`+`onFieldChange` semantics. Fix the operatingMode-specific gap; don't redesign event-processor's CDC pipe wholesale.
@@ -22,20 +22,36 @@ plan: null
 topic_memory:
   - project_operating_mode.md
   - project_investor_profile_collapse.md
-validation_gate: |
-  Reproduction confirmed 2026-05-18 12:19 UTC: bug failed at line 182 in 124.8s, line 176 (OPERATING_MODE_CHANGED) passed. Empty captured-but-unmatched buffer + line-182 failure = semantic event delivered, carrier event missing.
-  Diagnostic instrumentation added to libs/event-processor/src/pipelines/change-data-capture.ts (temporary console.log on record/publishing/publish-OK). Deployed dev-investor-bff at 12:56 UTC. Re-run e2e: PASS in 58.7s — CDC-TRACE logs proved BOTH events published in ONE batch (`publish OK 2`, same detail.id `bfe8604aad5a41d6a7352166a754b19f`, DetailTypes INVESTOR_PROFILE_UPDATED + OPERATING_MODE_CHANGED).
-  4/4 PASS post-redeploy with instrumentation.
-  Instrumentation reverted. Redeployed dev-investor-bff at ~14:?? UTC (clean bundle, no logs). 3/3 PASS — 72.7s, 100.1s, 67.6s.
-  Total: 7/7 consecutive PASS after redeploy.
-  Verified pre-existing unit coverage at libs/event-processor/test/pipelines/change-data-capture.test.ts:155-252 covers the always+onFieldChange path for operatingMode, goal, and the empty-change case. Tests green.
-  Root cause: stale Lambda bundle from the 2026-05-13 investor-bff deploy (the only structural change between the 2026-05-08 resplit ship and 2026-05-18 surfacing). The CFN stack updated 2026-05-13 13:17 UTC but the deployed bundle's behavior did not match source-level resolveEmissions. Post-redeploy bundle works correctly. Unverifiable retroactively (Lambda version history shows only $LATEST).
-  Alternative root-cause candidate (cannot rule out): transient EB-side per-entry delivery failure that did not throw NotRetryableError. Would not be caught by the publisher's retry loop because EB returned FailedEntryCount=0 for the dropped entry. No CloudWatch evidence supports this hypothesis (no warning/error log entries on the deployed Lambda in the failing window).
-validation_gate_residual_risk: |
-  If the stale-bundle theory is correct, the same drift could happen on any future deploy where CDK believes the asset hash is unchanged. Mitigation candidate (filed as follow-up): emit a deploy-time integrity check that the bundle's embedded change-data-capture.ts contains the expected resolveEmissions shape (e.g., grep the bundle for "onFieldChange" before declaring deploy successful). Out of scope for this workstream — file separately.
+validation_gate: null
 ---
 
 # updateOperatingMode CDC silent on mode-only change
+
+## REOPENED 2026-05-21 — the 2026-05-18 resolution is falsified
+
+The full feature e2e suite on 2026-05-21 reproduced this bug with the **identical signature**: `update-operating-mode.e2e.test.ts:182` timed out waiting for `INVESTOR_PROFILE_UPDATED` after 60 000 ms, empty captured-but-unmatched buffer; line 176 (`OPERATING_MODE_CHANGED`) passed. 32/33 scenarios green — this the lone failure.
+
+**The "stale Lambda bundle" root cause is disproven:**
+
+- `git log --since=2026-05-18 -- services/investor/investor-bff/` is **empty** — zero source commits since the redeploy.
+- The `dev-investor-bff-EgressPublisher…` Lambda's `LastModified` is **2026-05-18T13:09:42** — unchanged since the 2026-05-18 redeploy.
+- Therefore today's deployed CDC publisher bundle is **byte-identical** to the one that passed 7/7 on 2026-05-18. A bundle that was never re-deployed cannot acquire a "staleness" defect. The stale-bundle theory is falsified — and with it the premise of [[cdk-bundle-staleness-deploy-integrity]].
+
+**Surviving hypothesis: intermittent single-event (carrier) loss.** Static re-analysis confirms there is **no deterministic code path** that drops the carrier while keeping the semantic:
+
+- `change-data-capture.ts:95-107` — the `always` carrier is pushed unconditionally; both emissions go into one `publisher.publish([carrier, semantic])` call.
+- `event-bridge-publisher.ts` — partial `PutEvents` failure is handled: retryable codes retry only the failed entries; exhaustion throws (→ record-level Lambda retry, i.e. duplication, never a silent drop).
+- `buildEntry` (`change-data-capture.ts:123-133`) — both events' `detail.context` is built from the same `record`, so the EventBusTrap rule (`detail.context.tenantId` + `detail-type`) matches both or neither. `OPERATING_MODE_CHANGED` arrived ⇒ the carrier would route identically **if published**.
+- `event-bus-trap.fixture.ts` — dedups by SQS `MessageId` (unique per message), not `detail.id`; once a message lands in the trap queue it is received + buffered, never dropped.
+
+So the carrier intermittently never reaches the trap's SQS queue despite identical routing — environmental/timing, not yet pinned to publisher-side vs. EB→SQS-target-side loss.
+
+## Next investigative step (non-perturbing observer)
+
+Adding `console.log` to the Lambda perturbed timing and masked the bug (7/7 PASS on 2026-05-18). Instead install a **standing** EB rule on the dev InvestorBus → CloudWatch Logs target capturing `INVESTOR_PROFILE_UPDATED` + `OPERATING_MODE_CHANGED`. A future failing run then leaves a passive trail:
+
+- carrier in CloudWatch but not in trap SQS ⇒ EB→SQS target-delivery loss;
+- carrier absent from CloudWatch ⇒ publisher-side loss (revisit `EgestionEngine` batching / `bisectBatchOnError`).
 
 ## Surfacing run
 
@@ -85,7 +101,7 @@ The fix is whichever of (1)–(4) the investigation surfaces — could be a rede
 - No regression in `revoke-mandate.e2e.test.ts` or `update-goal.e2e.test.ts` (same Egress map covers all three).
 - CloudWatch evidence (Logs Insights query saved into validation_gate) showing the egress Lambda emits both events on a mode-only mutation.
 
-## Resolution (2026-05-18)
+## Resolution (2026-05-18) — FALSIFIED, see "REOPENED 2026-05-21" above
 
 **No code change required.** Investigation timeline:
 

@@ -18,6 +18,8 @@ validation_gate: null
 
 Surfaced 2026-05-18 during the [[update-operating-mode-cdc-silent]] investigation.
 
+> **2026-05-21 — premise weakened.** The originating incident recurred on 2026-05-21 against a deployed bundle that had NOT changed since 2026-05-18 (EgressPublisher Lambda `LastModified` 2026-05-18T13:09:42). The stale-bundle root cause is therefore falsified — see [[update-operating-mode-cdc-silent]]. A deploy-time bundle-integrity check has standalone merit, but it would NOT have caught the 2026-05-21 recurrence. Re-evaluate whether this item still earns a slot.
+
 ## Evidence
 
 - The 2026-05-08 resplit shipped `change-data-capture.ts` with the `always`+`onFieldChange` logic (commit `7862b7fb`).
