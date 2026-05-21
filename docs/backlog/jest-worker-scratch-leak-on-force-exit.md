@@ -1,11 +1,15 @@
 ---
 id: jest-worker-scratch-leak-on-force-exit
-status: queued
+status: active
 type: bug
 rank: 2
 notes: "Every test run leaks scratch dirs in repo root (jest_dx, empty 20-char-hex dirs, cdk.out<random>). Root cause: nx.json forceExit:true kills workers before cleanup. Third recurrence."
 references: []
-out_of_scope: []
+out_of_scope:
+  - "Fix candidate (5): orphan-process pruning / nx daemon affinity check — addresses the independent 40-day-zombie angle, not forceExit."
+  - "Fix candidate (4): postinstall cleanup script — defensive, does not address the source."
+  - "nx-native-file-cache-*/ and node-compile-cache/ accumulation — Nx daemon / Node internals, unrelated to forceExit cleanup-skipping."
+  - "Root-causing the 2026-04-08 zombie PID 48621 origin."
 spec: null
 plan: null
 topic_memory: []
