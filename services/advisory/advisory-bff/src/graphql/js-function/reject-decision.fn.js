@@ -1,7 +1,7 @@
 import { util } from '@aws-appsync/utils';
 
 export function request(ctx) {
-  const { tenantId, userId } = ctx.stash;
+  const { tenantId, userId, region } = ctx.stash;
   const { decisionId, reason } = ctx.arguments;
 
   if (!decisionId || decisionId.length === 0) {
@@ -27,6 +27,7 @@ export function request(ctx) {
   const userRejectionAttrs = {
     __typename: 'UserRejection',
     tenantId,
+    region,
     decisionId,
     rejectedAt: now,
     rejectedBy: userId,

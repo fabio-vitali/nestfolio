@@ -1,7 +1,7 @@
 import { util } from '@aws-appsync/utils';
 
 export function request(ctx) {
-  const { tenantId, userId } = ctx.stash;
+  const { tenantId, userId, region } = ctx.stash;
   const { decisionId } = ctx.arguments;
 
   if (!decisionId || decisionId.length === 0) {
@@ -23,6 +23,7 @@ export function request(ctx) {
     attributeValues: util.dynamodb.toMapValues({
       __typename: 'UserInteraction',
       tenantId,
+      region,
       decisionId,
       viewedAt: now,
       viewedBy: userId,
