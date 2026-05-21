@@ -10,7 +10,7 @@ out_of_scope:
   - "Changing the 360s native-retry poll budget itself — agentcore-invocation-resilience set it deliberately; this workstream relocates the poll, it does not retune it."
   - "Direct-DDB seeding of the InvestorProfileSnapshot row — rejected to keep the events-only fixture convention intact; the 3 live-decision scenarios keep the real agent path."
   - "Other fixtures (funded, withDecision, withHoldings, etc.) — unchanged."
-spec: null
+spec: docs/superpowers/specs/2026-05-21-e2e-fixture-agentcore-decoupling-design.md
 plan: null
 topic_memory: []
 validation_gate: null
