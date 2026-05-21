@@ -117,6 +117,8 @@ Then run only the **involved** `apps/e2e-feature-tests` scenarios — pick from 
 
 **6.8 Complex lane only — exit the worktree session.** After `finishing-a-development-branch` returns, call `ExitWorktree`. The merge skill cleans up the on-disk worktree and feature branch, but the Claude Code worktree **session** is harness state and must be exited explicitly. Skipping this means the next `/backlog-next` fails at Step 4 with `Already in a worktree session. Use ExitWorktree to leave it before entering another.` Postflight cannot detect this (Node can't see harness session state), so the discipline lives here.
 
+**Expected ExitWorktree warning after a clean merge.** Once `finishing-a-development-branch` has fast-forward- or squash-merged the feature branch into `main`, `ExitWorktree action: "remove"` warns it will "discard N commits permanently". This is expected: the worktree branch's commits are not reachable as a distinct branch tip, but their content is on `main`. Verify it is safe with `git merge-base --is-ancestor <feature-branch> main` (exit 0 ⇒ every branch commit is an ancestor of `main`), then re-invoke `ExitWorktree` with `discard_changes: true`. Do NOT treat the warning as a sign of lost work. A cherry-equivalence check that would downgrade this to an informational notice belongs in the `ExitWorktree` harness tool itself (not repo code) and is filed as an upstream request.
+
 ### 7. Postflight (enforced)
 
 ```bash
