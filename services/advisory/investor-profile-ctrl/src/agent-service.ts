@@ -7,7 +7,7 @@ import {
   type AgentNodeResult,
   type MemoryClient,
 } from '@nestfolio/agent-orchestrator';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { buildCdcItem, type RequestContext } from '@nestfolio/event-processor';
 
 export interface AgentServiceDeps {
@@ -26,6 +26,17 @@ export class DuplicateInvocationError extends Error {
 }
 
 const LOCK_TTL_SECONDS = 3600;
+
+/**
+ * AgentCore gate-rejection error names. These exceptions are raised before a
+ * micro-VM is provisioned, so the agent provably did not run and consumed zero
+ * tokens. On these the eager IN_PROGRESS idempotency lock is released so an SQS
+ * redrive can re-run the agent instead of short-circuiting on the stale lock.
+ */
+const GATE_REJECTION_ERROR_NAMES = new Set([
+  'ServiceQuotaExceededException',
+  'ThrottlingException',
+]);
 
 export const createAgentService = (deps: AgentServiceDeps) => {
   return {
@@ -67,15 +78,30 @@ export const createAgentService = (deps: AgentServiceDeps) => {
           availableKeys: Object.keys(subject),
         });
       }
-      const result = await dispatchAgentInvocation<Record<string, AgentNodeResult>>(target, {
-        tenantId,
-        decisionId,
-        upstreamOutputs: {
-          operatingMode,
-          investorProfile: subject.investorProfile ?? subject.context ?? {},
-          portfolioState: subject.portfolioState ?? {},
-        },
-      });
+      let result: Record<string, AgentNodeResult>;
+      try {
+        result = await dispatchAgentInvocation<Record<string, AgentNodeResult>>(target, {
+          tenantId,
+          decisionId,
+          upstreamOutputs: {
+            operatingMode,
+            investorProfile: subject.investorProfile ?? subject.context ?? {},
+            portfolioState: subject.portfolioState ?? {},
+          },
+        });
+      } catch (error: unknown) {
+        // On an AgentCore gate rejection (maxVms quota / throttling) the agent
+        // provably did not run — release the eager IN_PROGRESS lock so the SQS
+        // redrive re-runs it instead of short-circuiting as a DuplicateInvocation.
+        // Cost-safe: zero prior execution means no double-charge on re-run.
+        if (error instanceof Error && GATE_REJECTION_ERROR_NAMES.has(error.name)) {
+          await deps.docClient.send(new DeleteCommand({
+            TableName: deps.tableName,
+            Key: { pk: `DECISION#${decisionId}`, sk },
+          }));
+        }
+        throw error;
+      }
 
       // Phase β (Spec 4, 2026-05-06): discriminant check — fail loudly on any
       // degraded wave-node entry. First time this service has had any guard

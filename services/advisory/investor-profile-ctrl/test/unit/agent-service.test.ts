@@ -1,6 +1,6 @@
 import { mockClient } from 'aws-sdk-client-mock';
 import 'aws-sdk-client-mock-jest';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
@@ -43,6 +43,7 @@ describe('investor-profile-ctrl agent-service', () => {
     jest.clearAllMocks();
     ddbMock.reset();
     ddbMock.on(PutCommand).resolves({});
+    ddbMock.on(DeleteCommand).resolves({});
     (resolveAgentRuntimeTarget as jest.Mock).mockResolvedValue(
       'arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/test',
     );
@@ -92,6 +93,45 @@ describe('investor-profile-ctrl agent-service', () => {
       operatingMode: 'BALANCED',
       taskToken: 'token-456',
     })).rejects.toThrow('Agent failure');
+  });
+
+  // Regression (agentcore-quota-retry-stale-lock): a maxVms/throttle rejection
+  // is raised before the agent runs. The eager IN_PROGRESS lock must be
+  // released so the SQS redrive re-runs the agent instead of hitting the stale
+  // lock and short-circuiting as a DuplicateInvocationError.
+  it.each(['ServiceQuotaExceededException', 'ThrottlingException'])(
+    'releases the IN_PROGRESS lock (DeleteCommand) when dispatch is rejected with %s',
+    async (errorName) => {
+      const gateError = Object.assign(new Error('maxVms limit exceeded'), { name: errorName });
+      (dispatchAgentInvocation as jest.Mock).mockRejectedValue(gateError);
+
+      const service = createAgentService(deps);
+      await expect(service.runPipeline('evt-gate', {
+        tenantId: 't1',
+        decisionId: 'dp-gate',
+        operatingMode: 'BALANCED',
+        taskToken: 'tok',
+      })).rejects.toThrow('maxVms limit exceeded');
+
+      expect(ddbMock).toHaveReceivedCommandWith(DeleteCommand, {
+        TableName: 'test-table',
+        Key: { pk: 'DECISION#dp-gate', sk: 'INV#evt-gate' },
+      });
+    },
+  );
+
+  it('does NOT release the lock on a non-gate-rejection dispatch error', async () => {
+    (dispatchAgentInvocation as jest.Mock).mockRejectedValue(new Error('Agent failure'));
+
+    const service = createAgentService(deps);
+    await expect(service.runPipeline('evt-generic-fail', {
+      tenantId: 't1',
+      decisionId: 'dp-generic-fail',
+      operatingMode: 'BALANCED',
+      taskToken: 'tok',
+    })).rejects.toThrow('Agent failure');
+
+    expect(ddbMock).toHaveReceivedCommandTimes(DeleteCommand, 0);
   });
 
   it('uses INV#${eventId} as the sk and adds attribute_not_exists condition + ttl on IN_PROGRESS write', async () => {

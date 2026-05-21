@@ -6,8 +6,7 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [agentcore-quota-retry-stale-lock](backlog/agentcore-quota-retry-stale-lock.md) [bug] — Correctness gap in shipped agentcore-invocation-resilience: the eager AgentInvocation IN_PROGRESS idempotency lock (written before the agent invoke) is never released on a maxVms/throttle rejection, so the SQS redrive short-circuits as DuplicateInvocationError and never re-runs the agent — the snapshot is permanently lost despite the retry. Fix: release the lock on gate-rejection errors.
 
 ## QUEUED
 
