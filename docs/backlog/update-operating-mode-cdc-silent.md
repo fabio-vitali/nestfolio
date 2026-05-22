@@ -46,12 +46,37 @@ The full feature e2e suite on 2026-05-21 reproduced this bug with the **identica
 
 So the carrier intermittently never reaches the trap's SQS queue despite identical routing — environmental/timing, not yet pinned to publisher-side vs. EB→SQS-target-side loss.
 
-## Next investigative step (non-perturbing observer)
+## Diagnostic observer — LIVE since 2026-05-22
 
-Adding `console.log` to the Lambda perturbed timing and masked the bug (7/7 PASS on 2026-05-18). Instead install a **standing** EB rule on the dev InvestorBus → CloudWatch Logs target capturing `INVESTOR_PROFILE_UPDATED` + `OPERATING_MODE_CHANGED`. A future failing run then leaves a passive trail:
+A non-perturbing EventBridge → CloudWatch Logs observer is deployed on dev (account 771924376645, us-east-1). `console.log` instrumentation on the Lambda perturbs timing and masks the bug (the false 7/7 on 2026-05-18); this observer adds zero load to the publish path.
 
-- carrier in CloudWatch but not in trap SQS ⇒ EB→SQS target-delivery loss;
-- carrier absent from CloudWatch ⇒ publisher-side loss (revisit `EgestionEngine` batching / `bisectBatchOnError`).
+**Resources:**
+- EB rule `dev-investor-cdc-observer` on bus `dev-investor-event-bus` — pattern `{"detail-type":["INVESTOR_PROFILE_UPDATED","OPERATING_MODE_CHANGED"]}` (no tenant filter — dev is low-volume; scope at read time).
+- Target → CW Logs group `/aws/events/dev-investor-cdc-observer` (14-day retention).
+- CW Logs resource policy `EventBridgeToCWLogs-cdc-observer`.
+
+Verified end-to-end 2026-05-22 with a synthetic event (`detail.id=canary-verify`).
+
+**On the next failing `update-operating-mode.e2e.test.ts` run**, note the test's `e2e-…` tenantId, then:
+
+```
+AWS_PROFILE=nestfolio-dev aws logs filter-log-events --region us-east-1 \
+  --log-group-name /aws/events/dev-investor-cdc-observer \
+  --filter-pattern '"<tenantId>"'
+```
+
+Interpretation:
+- **both** event types present for that tenant ⇒ the carrier reached EventBridge; the loss is EB→SQS target delivery to the trap (or trap-side). Investigate the trap rule/SQS path — not the publisher.
+- **only** `OPERATING_MODE_CHANGED` present ⇒ publisher-side loss — the carrier never reached EB. Revisit `EgestionEngine` batching / `bisectBatchOnError` and the `PutEvents` result handling in `event-bridge-publisher.ts`.
+
+**Teardown** (run after the root cause is pinned and the observer is no longer needed):
+
+```
+AWS_PROFILE=nestfolio-dev aws events remove-targets --region us-east-1 --rule dev-investor-cdc-observer --event-bus-name dev-investor-event-bus --ids cw-logs
+AWS_PROFILE=nestfolio-dev aws events delete-rule --region us-east-1 --name dev-investor-cdc-observer --event-bus-name dev-investor-event-bus
+AWS_PROFILE=nestfolio-dev aws logs delete-log-group --region us-east-1 --log-group-name /aws/events/dev-investor-cdc-observer
+AWS_PROFILE=nestfolio-dev aws logs delete-resource-policy --region us-east-1 --policy-name EventBridgeToCWLogs-cdc-observer
+```
 
 ## Surfacing run
 
