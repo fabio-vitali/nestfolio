@@ -11,7 +11,8 @@ _(none)_
 
 ## QUEUED
 
-1. [update-operating-mode-cdc-silent](backlog/update-operating-mode-cdc-silent.md) [bug] — REOPENED 2026-05-21 — recurred with the identical signature (update-operating-mode.e2e.test.ts:182 timeout on INVESTOR_PROFILE_UPDATED, empty buffer; line 176 OPERATING_MODE_CHANGED passed). The 2026-05-18 'stale bundle' root cause is FALSIFIED: dev-investor-bff EgressPublisher Lambda LastModified is 2026-05-18T13:09:42 — byte-identical to the bundle that passed 7/7 that day, with zero investor-bff source commits since. Surviving hypothesis is intermittent single-event (carrier) loss between publisher and trap SQS.
+_(none)_
+
 
 ## LATER
 
@@ -52,6 +53,7 @@ _(none)_
 - [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md) [refactor] — 6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords
 - [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
+- [update-operating-mode-cdc-silent](backlog/update-operating-mode-cdc-silent.md) [bug] — REOPENED 2026-05-21 — recurred with the identical signature (update-operating-mode.e2e.test.ts:182 timeout on INVESTOR_PROFILE_UPDATED, empty buffer; line 176 OPERATING_MODE_CHANGED passed). The 2026-05-18 'stale bundle' root cause is FALSIFIED: dev-investor-bff EgressPublisher Lambda LastModified is 2026-05-18T13:09:42 — byte-identical to the bundle that passed 7/7 that day, with zero investor-bff source commits since. Surviving hypothesis is intermittent single-event (carrier) loss between publisher and trap SQS.
 - [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
 
 ## Recently Shipped (last 10)

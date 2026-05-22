@@ -1,8 +1,8 @@
 ---
 id: update-operating-mode-cdc-silent
-status: queued
+status: parking
 type: bug
-rank: 1
+rank: null
 notes: "REOPENED 2026-05-21 — recurred with the identical signature (update-operating-mode.e2e.test.ts:182 timeout on INVESTOR_PROFILE_UPDATED, empty buffer; line 176 OPERATING_MODE_CHANGED passed). The 2026-05-18 'stale bundle' root cause is FALSIFIED: dev-investor-bff EgressPublisher Lambda LastModified is 2026-05-18T13:09:42 — byte-identical to the bundle that passed 7/7 that day, with zero investor-bff source commits since. Surviving hypothesis is intermittent single-event (carrier) loss between publisher and trap SQS."
 references:
   - services/investor/investor-bff/src/service.stack.ts
@@ -155,6 +155,8 @@ A prior entry `update-operating-mode-mutation-rederivation-gap.md` was DROPPED 2
 
 Read the investor-bff `service.stack.ts` Egress construct, find the `eventTypes` map for the composite InvestorProfile row, check whether `operatingMode` change → `OPERATING_MODE_CHANGED` is declared and whether the carrier `INVESTOR_PROFILE_UPDATED` fires unconditionally on MODIFY. ~30-45 minute fix once the gap is identified. Add a regression unit test asserting both events fire on mode-only update.
 
-## Why queued (not parking)
+## Why parking (not queued)
 
-Per `feedback_e2e_gaps_queued_not_parking.md` — anything required to make `apps/e2e-feature-tests` green is queued. This is currently blocking 1 e2e scenario.
+Re-parked 2026-05-22. This blocks `update-operating-mode.e2e.test.ts`, which would normally keep it `queued` per `feedback_e2e_gaps_queued_not_parking.md` — but the actionable next step is now gated on an external signal: the diagnostic observer must first capture a fresh failing run to split publisher-side vs. EB→trap-SQS loss. Until that trail exists there is nothing to execute.
+
+Promote when the CDC observer log group `/aws/events/dev-investor-cdc-observer` captures a failing `update-operating-mode.e2e.test.ts` run with a usable trail (see "Diagnostic observer" above).
