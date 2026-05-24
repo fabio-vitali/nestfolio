@@ -75,15 +75,14 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     const currentPositions = (portfolio?.currentPositions as unknown[] | undefined) ?? [];
     const riskScore = (investorProfile?.riskScore as number | undefined) ?? 5;
 
-    // Narrative output schema: agent's writeAgentOutput previously persisted
-    // {explainability: shaped['explainability'].output} — the same shape now
-    // arrives directly through SF state. See narrative graph.ts.
-    // `rationale` first, fall back to `summary`. Final placeholder is
-    // defence-in-depth for the degraded-output path.
-    const explainability = (narrative?.explainability as Record<string, unknown> | undefined) ?? {};
+    // Narrative output shape: advisory-narrative-ctrl's agent-service.ts spreads
+    // `explainability` at the top level (`return { decisionId, ...explainability, metadata }`),
+    // so SF state carries narrative.rationale + narrative.summary directly — no
+    // `.explainability.` nesting. `rationale` first, fall back to `summary`.
+    // Final placeholder is defence-in-depth for the degraded-output path.
     const explanation =
-      (explainability.rationale as string | undefined) ??
-      (explainability.summary as string | undefined) ??
+      (narrative?.rationale as string | undefined) ??
+      (narrative?.summary as string | undefined) ??
       `Decision pending — the advisory narrative for this ${trigger} trigger has not been persisted yet.`;
 
     // Materialize the DecisionPacket row. CDC on this INSERT emits

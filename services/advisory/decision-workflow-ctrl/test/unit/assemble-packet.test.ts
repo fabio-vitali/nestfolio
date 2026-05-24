@@ -54,18 +54,22 @@ describe('assemble-packet handler', () => {
     );
   });
 
-  it('persists narrative.explainability.rationale onto the DecisionPacket as explanation (regression: empty .rationale broke e2e step 10)', async () => {
+  it('persists narrative.rationale onto the DecisionPacket as explanation (regression: agent-service.ts:143 spreads explainability at top level — placeholder fired on every decision before the fix)', async () => {
+    // Mirrors advisory-narrative-ctrl/src/agent-service.ts:143:
+    //   return { decisionId, ...explainability, metadata: {...} }
+    // → SF state carries narrative.{rationale,summary,keyFactors} directly,
+    // NOT under narrative.explainability.*
     await handler({
       ...baseEvent,
       investorProfile: null,
       marketAnalysis: null,
       portfolio: null,
       narrative: {
-        explainability: {
-          summary: 'short framing',
-          rationale: 'detailed reasoning behind the recommendation',
-          keyFactors: ['factor-1'],
-        },
+        decisionId: 'dec-1',
+        summary: 'short framing',
+        rationale: 'detailed reasoning behind the recommendation',
+        keyFactors: ['factor-1'],
+        metadata: { durationMs: 1234, modelTier: 'haiku' },
       },
     });
 
@@ -79,13 +83,13 @@ describe('assemble-packet handler', () => {
     );
   });
 
-  it('falls back to narrative.explainability.summary when rationale is missing', async () => {
+  it('falls back to narrative.summary when rationale is missing', async () => {
     await handler({
       ...baseEvent,
       investorProfile: null,
       marketAnalysis: null,
       portfolio: null,
-      narrative: { explainability: { summary: 'fallback summary' } },
+      narrative: { decisionId: 'dec-1', summary: 'fallback summary', metadata: { durationMs: 1, modelTier: 'haiku' } },
     });
 
     expect(mockCreateDecisionPacket).toHaveBeenCalledWith(
