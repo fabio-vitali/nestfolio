@@ -21,26 +21,14 @@
  * The mapping is documented in deploy-paths.md.
  */
 import { execSync } from 'node:child_process';
-
-const args = Object.fromEntries(
-  process.argv.slice(2).map((a) => {
-    const m = a.match(/^--([^=]+)=(.*)$/);
-    return m ? [m[1], m[2]] : [a.replace(/^--/, ''), true];
-  }),
-);
-
-const base = args.base || 'origin/main';
-const asJson = args.json === true;
-
-function sh(cmd) {
-  return execSync(cmd, { encoding: 'utf8' }).trim();
-}
+import { fileURLToPath } from 'node:url';
 
 // Tier 1 — deploy required. Order matters: first match wins for service extraction.
-const TIER1 = [
-  { re: /^services\/([^/]+)\/src\//,            reason: 'Lambda code',         service: true  },
-  { re: /^services\/([^/]+)\/infrastructure\//, reason: 'CDK stack',           service: true  },
-  { re: /^services\/([^/]+)\/domain\//,         reason: 'event/intent schema', service: true  },
+// Service paths are `services/<domain>/<service>/...`; the capture group is the service name (m[1]).
+export const TIER1 = [
+  { re: /^services\/[^/]+\/([^/]+)\/src\//,            reason: 'Lambda code',         service: true  },
+  { re: /^services\/[^/]+\/([^/]+)\/infrastructure\//, reason: 'CDK stack',           service: true  },
+  { re: /^services\/[^/]+\/([^/]+)\/domain\//,         reason: 'event/intent schema', service: true  },
   { re: /^infrastructure\//,                    reason: 'shared CDK / scripts',service: false },
   { re: /^libs\/event-processor\//,             reason: 'deployed library',    service: false },
   { re: /^libs\/cdk-constructs\//,              reason: 'deployed library',    service: false },
@@ -55,7 +43,7 @@ const TIER1 = [
 ];
 
 // Tier 0 — never deploy.
-const TIER0 = [
+export const TIER0 = [
   /^apps\/e2e-feature-tests\//,
   /^apps\/nestfolio-e2e\//,
   /^docs\//,
@@ -72,103 +60,127 @@ const TIER0 = [
 
 // Files matching these are infrastructure-adjacent and trigger deploy
 // regardless of where they sit.
-const ROOT_DEPLOY = [
+export const ROOT_DEPLOY = [
   /^package\.json$/,
   /^pnpm-lock\.yaml$/,
   /^tsconfig\.base\.json$/,
 ];
 
-let changedFiles;
-try {
-  changedFiles = sh(`git diff --name-only ${base}...HEAD`)
-    .split('\n')
-    .filter(Boolean);
-} catch (err) {
-  console.error(`[detect-deploy-needed] git diff failed against base '${base}': ${err.message}`);
-  process.exit(1);
-}
+export function classifyChanges(changedFiles) {
+  const triggers = [];
+  const skipped = [];
+  const unknownPaths = [];
+  const servicesSet = new Set();
 
-if (changedFiles.length === 0) {
-  console.log('deploy=false');
-  console.log('reason=no changes vs base');
-  console.log('services=');
-  process.exit(10);
-}
-
-const triggers = [];
-const skipped = [];
-const unknownPaths = [];
-const servicesSet = new Set();
-
-for (const file of changedFiles) {
-  // Tier 1 check first
-  let matched = false;
-  for (const rule of TIER1) {
-    const m = file.match(rule.re);
-    if (m) {
-      triggers.push({ file, reason: rule.reason });
-      if (rule.service) servicesSet.add(m[1]);
-      matched = true;
-      break;
+  for (const file of changedFiles) {
+    let matched = false;
+    for (const rule of TIER1) {
+      const m = file.match(rule.re);
+      if (m) {
+        triggers.push({ file, reason: rule.reason });
+        if (rule.service) servicesSet.add(m[1]);
+        matched = true;
+        break;
+      }
     }
+    if (matched) continue;
+
+    if (ROOT_DEPLOY.some((re) => re.test(file))) {
+      triggers.push({ file, reason: 'workspace-wide config' });
+      continue;
+    }
+
+    if (TIER0.some((re) => re.test(file))) {
+      skipped.push({ file, reason: 'no-deploy path' });
+      continue;
+    }
+
+    unknownPaths.push(file);
   }
-  if (matched) continue;
 
-  // Root deploy
-  if (ROOT_DEPLOY.some((re) => re.test(file))) {
-    triggers.push({ file, reason: 'workspace-wide config' });
-    continue;
-  }
-
-  // Tier 0
-  if (TIER0.some((re) => re.test(file))) {
-    skipped.push({ file, reason: 'no-deploy path' });
-    continue;
-  }
-
-  // Unknown
-  unknownPaths.push(file);
-}
-
-const deployNeeded = triggers.length > 0 || unknownPaths.length > 0;
-const services = [...servicesSet].sort();
-
-if (asJson) {
-  console.log(JSON.stringify({
-    deploy: deployNeeded,
-    services,
+  const deploy = triggers.length > 0 || unknownPaths.length > 0;
+  return {
+    deploy,
+    services: [...servicesSet].sort(),
     triggers,
     skipped,
     unknownPaths,
-    base,
-    changedCount: changedFiles.length,
-  }, null, 2));
-} else {
-  console.log(`deploy=${deployNeeded}`);
-  console.log(`services=${services.join(',')}`);
-  console.log(`reason=${
-    triggers.length > 0
-      ? `${triggers.length} deploy-required file(s)`
-      : unknownPaths.length > 0
-        ? `${unknownPaths.length} unknown path(s) — conservative default`
-        : 'all changes Tier 0'
-  }`);
-
-  if (triggers.length > 0) {
-    console.log('\nTriggers (Tier 1):');
-    for (const t of triggers) console.log(`  ${t.file} → ${t.reason}`);
-  }
-  if (unknownPaths.length > 0) {
-    console.log('\nUnknown paths (defaulted to deploy=true):');
-    for (const f of unknownPaths) console.log(`  ${f}`);
-    console.log('  → consider adding to deploy-paths.md');
-  }
-  if (skipped.length > 0 && (triggers.length > 0 || unknownPaths.length > 0)) {
-    console.log(`\nSkipped (Tier 0, no-deploy): ${skipped.length} file(s)`);
-  } else if (skipped.length > 0) {
-    console.log('\nAll changes Tier 0 (no-deploy):');
-    for (const s of skipped) console.log(`  ${s.file}`);
-  }
+  };
 }
 
-process.exit(deployNeeded ? 0 : 10);
+function main() {
+  const args = Object.fromEntries(
+    process.argv.slice(2).map((a) => {
+      const m = a.match(/^--([^=]+)=(.*)$/);
+      return m ? [m[1], m[2]] : [a.replace(/^--/, ''), true];
+    }),
+  );
+
+  const base = args.base || 'origin/main';
+  const asJson = args.json === true;
+
+  const sh = (cmd) => execSync(cmd, { encoding: 'utf8' }).trim();
+
+  let changedFiles;
+  try {
+    changedFiles = sh(`git diff --name-only ${base}...HEAD`)
+      .split('\n')
+      .filter(Boolean);
+  } catch (err) {
+    console.error(`[detect-deploy-needed] git diff failed against base '${base}': ${err.message}`);
+    process.exit(1);
+  }
+
+  if (changedFiles.length === 0) {
+    console.log('deploy=false');
+    console.log('reason=no changes vs base');
+    console.log('services=');
+    process.exit(10);
+  }
+
+  const { deploy: deployNeeded, services, triggers, skipped, unknownPaths } = classifyChanges(changedFiles);
+
+  if (asJson) {
+    console.log(JSON.stringify({
+      deploy: deployNeeded,
+      services,
+      triggers,
+      skipped,
+      unknownPaths,
+      base,
+      changedCount: changedFiles.length,
+    }, null, 2));
+  } else {
+    console.log(`deploy=${deployNeeded}`);
+    console.log(`services=${services.join(',')}`);
+    console.log(`reason=${
+      triggers.length > 0
+        ? `${triggers.length} deploy-required file(s)`
+        : unknownPaths.length > 0
+          ? `${unknownPaths.length} unknown path(s) — conservative default`
+          : 'all changes Tier 0'
+    }`);
+
+    if (triggers.length > 0) {
+      console.log('\nTriggers (Tier 1):');
+      for (const t of triggers) console.log(`  ${t.file} → ${t.reason}`);
+    }
+    if (unknownPaths.length > 0) {
+      console.log('\nUnknown paths (defaulted to deploy=true):');
+      for (const f of unknownPaths) console.log(`  ${f}`);
+      console.log('  → consider adding to deploy-paths.md');
+    }
+    if (skipped.length > 0 && (triggers.length > 0 || unknownPaths.length > 0)) {
+      console.log(`\nSkipped (Tier 0, no-deploy): ${skipped.length} file(s)`);
+    } else if (skipped.length > 0) {
+      console.log('\nAll changes Tier 0 (no-deploy):');
+      for (const s of skipped) console.log(`  ${s.file}`);
+    }
+  }
+
+  process.exit(deployNeeded ? 0 : 10);
+}
+
+if (import.meta.url === `file://${process.argv[1]}` || fileURLToPath(import.meta.url) === process.argv[1]) {
+  main();
+}

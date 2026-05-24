@@ -7,9 +7,9 @@ Used by `detect-deploy-needed.mjs`. Defines which changed paths trigger a dev-sa
 | Path glob | Why |
 |---|---|
 | `infrastructure/**` | Shared CDK constructs and deployment scripts |
-| `services/*/src/**` | Lambda runtime code (event-listeners, handlers, JS resolvers) |
-| `services/*/infrastructure/**` | Per-service CDK stack |
-| `services/*/domain/**` | Event/intent contracts compiled into Lambda bundles |
+| `services/*/*/src/**` | Lambda runtime code (event-listeners, handlers, JS resolvers) |
+| `services/*/*/infrastructure/**` | Per-service CDK stack |
+| `services/*/*/domain/**` | Event/intent contracts compiled into Lambda bundles |
 | `libs/event-processor/**` | Used by every Lambda |
 | `libs/cdk-constructs/**` | Used by every service stack |
 | `libs/agent-orchestrator/**` | Used by every agent-ctrl service |
@@ -38,6 +38,6 @@ If a changed path matches NO rule above, the script flags it as `deploy=true` wi
 
 ## Affected services
 
-For Tier 1 paths matching `services/<svc>/**`, the service name is extracted and added to the `services` output list. The agent uses this to scope `deploy.sh --services=<list>`.
+For Tier 1 paths matching `services/<domain>/<svc>/**`, the service name (the second segment, not the domain) is extracted and added to the `services` output list. The agent uses this to scope `deploy.sh --services=<list>`.
 
 For shared-lib paths (`libs/**`) and `infrastructure/**`, no specific service is implied — the deploy may need broader scoping or a full deploy. Agent decides.

@@ -1,7 +1,7 @@
 ---
 id: detect-deploy-needed-domain-layer-blind
-status: queued
-rank: 4
+status: shipped
+rank: null
 type: tooling
 notes: "detect-deploy-needed.mjs TIER1 regex assumes services/<svc>/src/ but real layout is services/<domain>/<svc>/src/ — flags deploy=true with services='' (empty), forcing manual --services scoping."
 references: []
@@ -9,7 +9,7 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Fixed TIER1 regexes in .claude/skills/backlog-next/detect-deploy-needed.mjs to match `services/<domain>/<service>/{src,infrastructure,domain}/...`. Extracted classifyChanges() pure function; 9-case unit test at .claude/skills/backlog-next/test/classify-changes.test.mjs passes (incl. regression guard for the old single-segment bug). Updated deploy-paths.md to reflect two-segment layout."
 ---
 
 # detect-deploy-needed.mjs is blind to the domain layer in service paths
