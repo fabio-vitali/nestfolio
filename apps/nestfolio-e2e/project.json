@@ -9,6 +9,7 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
+          "pnpm nx run nestfolio-host:config --prefix=dev",
           "pnpm nx run-many --target=nf-build --configuration=production --projects=nestfolio-host,onboarding-mfe,investor-mfe,dashboard-mfe,advisory-mfe,ledger-mfe --parallel=1",
           "pnpm exec playwright test --config apps/nestfolio-e2e/playwright.config.ts"
         ],
@@ -18,7 +19,11 @@
     "e2e-ui": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm exec playwright test --config apps/nestfolio-e2e/playwright.config.ts --ui"
+        "commands": [
+          "pnpm nx run nestfolio-host:config --prefix=dev",
+          "pnpm exec playwright test --config apps/nestfolio-e2e/playwright.config.ts --ui"
+        ],
+        "parallel": false
       }
     },
     "lint": {
