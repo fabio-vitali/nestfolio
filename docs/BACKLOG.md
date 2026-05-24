@@ -14,6 +14,7 @@ _(none)_
 1. [update-operating-mode-cdc-silent](backlog/update-operating-mode-cdc-silent.md) [bug] — REOPENED 2026-05-21 — recurred with the identical signature (update-operating-mode.e2e.test.ts:182 timeout on INVESTOR_PROFILE_UPDATED, empty buffer; line 176 OPERATING_MODE_CHANGED passed). The 2026-05-18 'stale bundle' root cause is FALSIFIED: dev-investor-bff EgressPublisher Lambda LastModified is 2026-05-18T13:09:42 — byte-identical to the bundle that passed 7/7 that day, with zero investor-bff source commits since. Surviving hypothesis is intermittent single-event (carrier) loss between publisher and trap SQS.
 2. [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
 3. [new-investor-happy-path-pending-at-decision-confirm](backlog/new-investor-happy-path-pending-at-decision-confirm.md) [bug] — new-investor-happy-path.spec.ts fails at decision-confirm: badge stuck at PENDING (expected AWAITING_CONFIRMATION). Surfaced 2026-05-24 during agentcore-maxvms ship validation — phase-1 SSE 402 is GONE, failure has shifted downstream to decision-workflow SF / compliance.
+4. [worktree-missing-host-runtime-config](backlog/worktree-missing-host-runtime-config.md) [tooling] — apps/nestfolio-host/public/assets/config.json is gitignored — fresh worktrees fail Playwright with a misleading renderer timeout until `pnpm nx run nestfolio-host:config --prefix=dev` is run. Auto-run on postinstall OR add as e2e dependency.
 
 ## LATER
 
@@ -53,7 +54,6 @@ _(none)_
 - [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md) [refactor] — 6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords
 - [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
-- [worktree-missing-host-runtime-config](backlog/worktree-missing-host-runtime-config.md) [tooling] — apps/nestfolio-host/public/assets/config.json is gitignored — fresh worktrees fail Playwright with a misleading renderer timeout until `pnpm nx run nestfolio-host:config --prefix=dev` is run. Auto-run on postinstall OR add as e2e dependency.
 - [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
 
 ## Recently Shipped (last 10)

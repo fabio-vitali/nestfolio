@@ -1,6 +1,7 @@
 ---
 id: worktree-missing-host-runtime-config
-status: parking
+status: queued
+rank: 4
 type: tooling
 notes: "apps/nestfolio-host/public/assets/config.json is gitignored — fresh worktrees fail Playwright with a misleading renderer timeout until `pnpm nx run nestfolio-host:config --prefix=dev` is run. Auto-run on postinstall OR add as e2e dependency."
 references: []
