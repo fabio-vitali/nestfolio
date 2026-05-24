@@ -1,6 +1,7 @@
 ---
 id: detect-deploy-needed-domain-layer-blind
-status: parking
+status: queued
+rank: 4
 type: tooling
 notes: "detect-deploy-needed.mjs TIER1 regex assumes services/<svc>/src/ but real layout is services/<domain>/<svc>/src/ — flags deploy=true with services='' (empty), forcing manual --services scoping."
 references: []
@@ -45,6 +46,6 @@ Change the three TIER1 regexes to:
 
 `m[1]` is now the service name (the leaf before `/src|/infrastructure|/domain`). Add a unit test that exercises a realistic two-segment path.
 
-## Why parking, not queued
+## Why promoted
 
-The conservative default produces correct behaviour (deploy=true) — only the auto-scoping is broken. Manual `--services=<svc>` workaround takes 5 seconds. No e2e gate impact. Promote when the next workstream re-encounters it or when a sweep batches multiple skill-script bugs together.
+Sibling bug `detect-doc-derivation-two-level-services-path` already sits in LATER with the same root cause (skill scripts unaware of the `services/<domain>/<service>/` layout). The user explicitly promoted this entry on 2026-05-25; rather than batch the two later, fix them together as a small skill-script sweep — both are 1-line regex edits + one unit test each. Scope: this entry covers the `detect-deploy-needed.mjs` fix only; the sibling promotion is tracked separately.
