@@ -6,8 +6,7 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [agentcore-maxvms-browser-path-resilience](backlog/agentcore-maxvms-browser-path-resilience.md) [spec] — Make AgentCore maxVms saturation non-fatal for the browser/onboarding path. Two independent fixes: (1) shorten idleTimeout/maxLifetime to 2 min / 30 min on the 4 advisory/investor agent runtimes (IP/PE/MI/AN-ctrl) so finished sessions free their micro-VMs before the next decision cycle starts; (2) onboarding-chat.component.ts auto-retries a 402/429 SSE error with backoff [2s,4s,8s] and surfaces a 'reconnecting' state, plus an accurate quota-exhausted terminal message. NO concurrency caps. Root-caused from 2026-05-22 apps/nestfolio-e2e 2/4 failure (new-investor-happy-path + deposit-reload-mid-flight both dead-end on phase-1 SSE 402).
 
 ## QUEUED
 
