@@ -1,18 +1,20 @@
 ---
 id: worktree-missing-host-runtime-config
-status: queued
-rank: 4
+status: shipped
 type: tooling
-notes: "apps/nestfolio-host/public/assets/config.json is gitignored — fresh worktrees fail Playwright with a misleading renderer timeout until `pnpm nx run nestfolio-host:config --prefix=dev` is run. Auto-run on postinstall OR add as e2e dependency."
+notes: "apps/nestfolio-host/public/assets/config.json is gitignored — fresh worktrees fail Playwright with a misleading renderer timeout until `pnpm nx run nestfolio-host:config --prefix=dev` is run. Fix: prepend that command to both `e2e` and `e2e-ui` target command lists in `apps/nestfolio-e2e/project.json`."
 references: []
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Commit 4d9f0ad6 prepends `pnpm nx run nestfolio-host:config --prefix=dev` to nestfolio-e2e:e2e and :e2e-ui command lists. Verified locally: backed up config.json, removed it, ran the new command, file regenerated identically (629 B, diff == 0). `pnpm nx affected -t test,lint --base=origin/main` PASS (8 suites / 43 tests, lint clean)."
+closed: "2026-05-24"
 ---
 
 # Fresh worktree missing host runtime config silently breaks Playwright
+
+SHIPPED 2026-05-24 on `main` (commit `4d9f0ad6`): `apps/nestfolio-e2e/project.json` `e2e` and `e2e-ui` targets now prepend `pnpm nx run nestfolio-host:config --prefix=dev` to their command lists. The config target writes `apps/nestfolio-host/public/assets/config.json` from SSM exports, which `nestfolio-host:esbuild` then copies into the bundle via the `public/**` assets glob — so fresh worktrees no longer hit the SPA-fallback `<!doctype "...` JSON parse error at federation init.
 
 ## Evidence
 
