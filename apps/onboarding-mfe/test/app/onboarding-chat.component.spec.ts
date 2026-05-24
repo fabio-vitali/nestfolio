@@ -340,6 +340,161 @@ describe('OnboardingChatComponent', () => {
     expect(userMessages.at(-1)?.content).toBe('GROWTH');
     expect(mockHttpAgent.run).toHaveBeenCalledTimes(1);
   });
+
+  // ── Quota-error auto-retry ────────────────────────────────────────────────
+
+  describe('quota-error auto-retry', () => {
+    beforeEach(async () => {
+      // Outer beforeEach's fixture.detectChanges() triggered ngOnInit which
+      // queued an async runAgent (awaits fetchAuthSession). Drain microtasks
+      // so the initial mockHttpAgent.run() call lands, then clear the counter
+      // so each test starts from a clean slate. Switch to fake timers AFTER
+      // the initial async settle (fake timers would freeze fetchAuthSession's
+      // Promise resolution).
+      await drainMicrotasks();
+      mockHttpAgent.run.mockClear();
+      jest.useFakeTimers();
+    });
+
+    it('schedules a retry after 2s on a 402 SSE error and shows reconnecting state', async () => {
+      const sub$ = new Subject<unknown>();
+      mockHttpAgent.run.mockReturnValue(sub$.asObservable());
+      component.ngOnInit();
+      await drainMicrotasks();
+      expect(mockHttpAgent.run).toHaveBeenCalledTimes(1);
+
+      const quotaErr = Object.assign(new Error('HTTP 402: {"message":"maxVms limit exceeded"}'), {
+        status: 402,
+        payload: { message: 'maxVms limit exceeded' },
+      });
+      sub$.error(quotaErr);
+      await drainMicrotasks();
+
+      expect(component.errorMessage()).toBeNull();
+      expect(component.reconnecting()).toBe(true);
+
+      jest.advanceTimersByTime(2_000);
+      await drainMicrotasks();
+
+      expect(mockHttpAgent.run).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows a quota-specific terminal message after 3 failed retries', async () => {
+      const sub$ = new Subject<unknown>();
+      mockHttpAgent.run.mockReturnValue(sub$.asObservable());
+      component.ngOnInit();
+      await drainMicrotasks();
+
+      const quotaErr = Object.assign(new Error('HTTP 402'), { status: 402 });
+
+      sub$.error(quotaErr);
+      await drainMicrotasks();
+      jest.advanceTimersByTime(2_000);
+      await drainMicrotasks();
+
+      sub$.error(quotaErr);
+      await drainMicrotasks();
+      jest.advanceTimersByTime(4_000);
+      await drainMicrotasks();
+
+      sub$.error(quotaErr);
+      await drainMicrotasks();
+      jest.advanceTimersByTime(8_000);
+      await drainMicrotasks();
+
+      sub$.error(quotaErr);
+      await drainMicrotasks();
+
+      expect(mockHttpAgent.run).toHaveBeenCalledTimes(4);
+      expect(component.reconnecting()).toBe(false);
+      expect(component.errorMessage()).toBe(
+        'Servizio temporaneamente sovraccarico, riprova tra poco.',
+      );
+    });
+
+    it('does not auto-retry on a non-quota error and surfaces the generic message', async () => {
+      const sub$ = new Subject<unknown>();
+      mockHttpAgent.run.mockReturnValue(sub$.asObservable());
+      component.ngOnInit();
+      await drainMicrotasks();
+
+      const networkErr = Object.assign(new Error('network down'), { status: 0 });
+      sub$.error(networkErr);
+      await drainMicrotasks();
+
+      jest.advanceTimersByTime(10_000);
+      await drainMicrotasks();
+
+      expect(mockHttpAgent.run).toHaveBeenCalledTimes(1);
+      expect(component.reconnecting()).toBe(false);
+      expect(component.errorMessage()).toBe(
+        'Connessione interrotta. Controlla la tua rete e riprova.',
+      );
+    });
+
+    it('resets the retry budget when the user sends a new message', async () => {
+      const sub$ = new Subject<unknown>();
+      mockHttpAgent.run.mockReturnValue(sub$.asObservable());
+      component.ngOnInit();
+      await drainMicrotasks();
+
+      const quotaErr = Object.assign(new Error('HTTP 402'), { status: 402 });
+      for (const ms of [2_000, 4_000, 8_000]) {
+        sub$.error(quotaErr);
+        await drainMicrotasks();
+        jest.advanceTimersByTime(ms);
+        await drainMicrotasks();
+      }
+      sub$.error(quotaErr);
+      await drainMicrotasks();
+      expect(component.errorMessage()).not.toBeNull();
+
+      const callsBeforeSend = mockHttpAgent.run.mock.calls.length;
+      component.inputValue.set('hello again');
+      component.sendMessage();
+      await drainMicrotasks();
+      expect(mockHttpAgent.run.mock.calls.length).toBe(callsBeforeSend + 1);
+
+      sub$.error(quotaErr);
+      await drainMicrotasks();
+      expect(component.reconnecting()).toBe(true);
+      expect(component.errorMessage()).toBeNull();
+    });
+
+    it('cancels the pending retry timer when the component is destroyed', async () => {
+      const sub$ = new Subject<unknown>();
+      mockHttpAgent.run.mockReturnValue(sub$.asObservable());
+      component.ngOnInit();
+      await drainMicrotasks();
+
+      const quotaErr = Object.assign(new Error('HTTP 402'), { status: 402 });
+      sub$.error(quotaErr);
+      await drainMicrotasks();
+      expect(component.reconnecting()).toBe(true);
+
+      fixture.destroy();
+      jest.advanceTimersByTime(10_000);
+      await drainMicrotasks();
+
+      expect(mockHttpAgent.run).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders a reconnecting banner while waiting for the next retry', async () => {
+      const sub$ = new Subject<unknown>();
+      mockHttpAgent.run.mockReturnValue(sub$.asObservable());
+      component.ngOnInit();
+      await drainMicrotasks();
+
+      const quotaErr = Object.assign(new Error('HTTP 402'), { status: 402 });
+      sub$.error(quotaErr);
+      await drainMicrotasks();
+      fixture.detectChanges();
+
+      const banner = fixture.nativeElement.querySelector('.reconnecting-banner');
+      expect(banner).toBeTruthy();
+      expect(banner.textContent).toContain('Riconnessione in corso');
+    });
+  });
 });
 
 // ── CTA renderer click → session refresh + AuthStore patch + dashboard navigate ──

@@ -62,6 +62,14 @@ const LOADING_DELAY_MS = 3_000;
 // optional follow-up text generation in the search_knowledge_base path.
 const TIMEOUT_MS = 45_000;
 
+// Backoff schedule for AgentCore quota (402) / throttle (429) errors. The
+// browser is the retry-of-last-resort for the onboarding SSE path (the backend
+// SQS native-redrive of agentcore-invocation-resilience covers only the
+// event-driven agents). 3 attempts ≈ 14s total added wait — fits the e2e
+// POM's 60s waitForRenderer with no POM change; absorbs transient saturation
+// without papering over sustained quota exhaustion.
+const RETRY_BACKOFF_MS = [2_000, 4_000, 8_000] as const;
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 @Component({
@@ -84,6 +92,13 @@ const TIMEOUT_MS = 45_000;
         <div class="progress-fill" [style.width.%]="progressPercent()"></div>
         <span class="progress-label">{{ phaseIndex() + 1 }} di {{ totalPhases() }}</span>
       </div>
+
+      <!-- Reconnecting banner — shown during quota-error auto-retry -->
+      @if (reconnecting()) {
+        <div class="reconnecting-banner" role="status">
+          <span>Riconnessione in corso…</span>
+        </div>
+      }
 
       <!-- Error banner -->
       @if (errorMessage()) {
@@ -173,6 +188,7 @@ export class OnboardingChatComponent implements OnInit {
   timedOut = signal(false);
   errorMessage = signal<string | null>(null);
   connectionStatus = signal('Attivo ora');
+  reconnecting = signal(false);
 
   // ── Internal state ─────────────────────────────────────────────────────────
   private streamSub: Subscription | null = null;
@@ -188,6 +204,8 @@ export class OnboardingChatComponent implements OnInit {
   // and forwarded as `state` on each /invocations call so the in-process graph
   // (which has no checkpointer) can resume at the correct phase.
   private agentState: Record<string, unknown> = {};
+  private retryAttempt = 0;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
 
   private getOrCreateSessionId(): string {
     const existing = sessionStorage.getItem(OnboardingChatComponent.SESSION_KEY);
@@ -203,6 +221,8 @@ export class OnboardingChatComponent implements OnInit {
       this.destroyAllRenderers();
     });
     // Kick off with an initial agent turn to get the greeting
+    this.retryAttempt = 0;
+    this.reconnecting.set(false);
     this.runAgent([]);
   }
 
@@ -217,18 +237,23 @@ export class OnboardingChatComponent implements OnInit {
     if (!content || this.isStreaming()) return;
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content };
     this.messages.update((prev) => [...prev, userMsg]);
+    this.retryAttempt = 0;
+    this.reconnecting.set(false);
     this.runAgent(this.messages());
   }
 
   retry(): void {
     this.errorMessage.set(null);
     this.timedOut.set(false);
+    this.retryAttempt = 0;
+    this.reconnecting.set(false);
     this.runAgent(this.messages());
   }
 
   // ── AG-UI SSE stream ───────────────────────────────────────────────────────
 
   private async runAgent(history: ChatMessage[]): Promise<void> {
+    this.reconnecting.set(false);
     this.cleanup();
 
     this.isStreaming.set(true);
@@ -394,7 +419,25 @@ export class OnboardingChatComponent implements OnInit {
       error: (err: unknown) => {
         // eslint-disable-next-line no-console
         console.error('[OnboardingChat] SSE error:', err);
-        this.errorMessage.set('Connessione interrotta. Controlla la tua rete e riprova.');
+        const status = (err as { status?: number } | null)?.status;
+        const isQuota = status === 402 || status === 429;
+        if (isQuota && this.retryAttempt < RETRY_BACKOFF_MS.length) {
+          const delay = RETRY_BACKOFF_MS[this.retryAttempt];
+          this.retryAttempt += 1;
+          this.cleanup();
+          this.reconnecting.set(true);
+          this.retryTimer = setTimeout(() => {
+            this.retryTimer = null;
+            this.runAgent(this.messages());
+          }, delay);
+          return;
+        }
+        this.errorMessage.set(
+          isQuota
+            ? 'Servizio temporaneamente sovraccarico, riprova tra poco.'
+            : 'Connessione interrotta. Controlla la tua rete e riprova.',
+        );
+        this.reconnecting.set(false);
         this.finishStream();
       },
       complete: () => {
@@ -537,6 +580,10 @@ export class OnboardingChatComponent implements OnInit {
     this.streamSub = null;
     if (this.loadingTimer) { clearTimeout(this.loadingTimer); this.loadingTimer = null; }
     if (this.timeoutTimer) { clearTimeout(this.timeoutTimer); this.timeoutTimer = null; }
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
   }
 
   /** Destroys all mounted renderer components and their output subscriptions.
