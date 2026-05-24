@@ -14,6 +14,12 @@ const mockGuardedWrite = jest.fn().mockResolvedValue(true);
 jest.mock('../../src/internal', () => ({
   guardedWrite: (...args: unknown[]) => mockGuardedWrite(...args),
   NotRetryableError: class NotRetryableError extends Error {},
+  RetryablePreconditionError: class RetryablePreconditionError extends Error {
+    constructor(public readonly condition: string, public readonly cause: unknown) {
+      super(`update precondition not met (condition: ${condition}); SQS will redrive`);
+      this.name = 'RetryablePreconditionError';
+    }
+  },
 }));
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
@@ -232,6 +238,62 @@ describe('IntentExecutor', () => {
 
       const cmd = ddbMock.commandCalls(UpdateCommand)[0].args[0].input;
       expect(cmd.ConditionExpression).toBe('attribute_exists(pk)');
+    });
+
+    it('returns deduplicated when ConditionalCheckFailedException and condition set with default policy', async () => {
+      const err = new Error('cond-fail');
+      err.name = 'ConditionalCheckFailedException';
+      ddbMock.on(UpdateCommand).rejectsOnce(err);
+
+      const intent = update('DecisionPacket', { status: 'BLOCKED' }, {
+        condition: 'attribute_exists(pk)',
+      });
+      const result = await executor.execute(intent, fakeCtx);
+      expect(result).toEqual({ _tag: 'update', success: true, deduplicated: true });
+    });
+
+    it('wraps ConditionalCheckFailedException as RetryablePreconditionError when onConditionFail is retry', async () => {
+      const err = new Error('cond-fail');
+      err.name = 'ConditionalCheckFailedException';
+      ddbMock.on(UpdateCommand).rejectsOnce(err);
+
+      // Hand-build the intent so we don't depend on Task 2's updateOrRetry
+      // factory inside this engine-level test.
+      const intent = {
+        _tag: 'update' as const,
+        typename: 'DecisionReadModel',
+        updates: { status: 'BLOCKED' },
+        condition: 'attribute_exists(pk)',
+        onConditionFail: 'retry' as const,
+      };
+
+      // The thrown error must NOT be the original SDK exception: that one
+      // carries `$fault: 'client'` and isRetryable() classifies it as
+      // terminal — SQS would never redrive. The wrapper has no $fault and
+      // falls through to the default-retryable branch of isRetryable().
+      await expect(executor.execute(intent, fakeCtx))
+        .rejects.toMatchObject({
+          name: 'RetryablePreconditionError',
+          condition: 'attribute_exists(pk)',
+          cause: err,
+        });
+    });
+
+    it('rethrows non-ConditionalCheckFailedException regardless of onConditionFail', async () => {
+      const err = new Error('throughput-exceeded');
+      err.name = 'ProvisionedThroughputExceededException';
+      ddbMock.on(UpdateCommand).rejectsOnce(err);
+
+      const intent = {
+        _tag: 'update' as const,
+        typename: 'DecisionReadModel',
+        updates: { status: 'BLOCKED' },
+        condition: 'attribute_exists(pk)',
+        onConditionFail: 'retry' as const,
+      };
+
+      await expect(executor.execute(intent, fakeCtx))
+        .rejects.toThrow('throughput-exceeded');
     });
   });
 });

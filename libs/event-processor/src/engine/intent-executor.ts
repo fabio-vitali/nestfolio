@@ -1,7 +1,7 @@
 import { PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { guardedWrite } from '../internal';
+import { guardedWrite, RetryablePreconditionError } from '../internal';
 import { pickRequestContext } from '../domain/schemas';
 import type { WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent, StoreIntent } from '../types/write-intent';
 import type { EventContext } from '../types/event-context';
@@ -164,11 +164,23 @@ export class IntentExecutor {
       }));
       return { _tag: 'update', success: true };
     } catch (error: unknown) {
-      // ConditionalCheckFailedException is the no-op signal for guarded
-      // updates (matches the executeRecord dedup pattern). Callers express
-      // "skip if pre-condition not met" via `condition` rather than reading
-      // and branching themselves.
+      // ConditionalCheckFailedException semantics depend on the caller's
+      // policy:
+      //
+      // - `onConditionFail: 'retry'` (set via updateOrRetry()) — throw a
+      //   RetryablePreconditionError so isRetryable() returns true and SQS
+      //   redrives. We cannot re-throw the original SDK error: it carries
+      //   `$fault: 'client'` which isRetryable() classifies as terminal,
+      //   so the redrive never fires.
+      // - `onConditionFail: 'skip'` or undefined (the default via the
+      //   `update()` factory) — return `{ success: true, deduplicated:
+      //   true }`. Matches executeRecord's putIfNotExists dedup pattern;
+      //   callers express "skip if pre-condition not met" via `condition`
+      //   without reading and branching themselves.
       if (intent.condition && error instanceof Error && error.name === 'ConditionalCheckFailedException') {
+        if (intent.onConditionFail === 'retry') {
+          throw new RetryablePreconditionError(intent.condition, error);
+        }
         return { _tag: 'update', success: true, deduplicated: true };
       }
       throw error;

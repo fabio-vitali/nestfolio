@@ -214,6 +214,59 @@ describe('advisory-bff', () => {
       expect(item['status']).toBe('BLOCKED');
     }, 120_000);
 
+    it('should land at BLOCKED when DECISION_BLOCKED arrives before DECISION_PACKET_CREATED (out-of-order delivery)', async () => {
+      const decisionId = `integ-blocked-oo-${Date.now()}`;
+      const pk = `Decision#${ctx.tenantId}#${decisionId}`;
+
+      // Step 1: emit DECISION_BLOCKED before any DECISION_PACKET_CREATED.
+      // With update({condition: attribute_exists(pk)}) this would be silently
+      // swallowed as deduplicated: true; with updateOrRetry() it throws
+      // ConditionalCheckFailed and SQS redrives the message.
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_BLOCKED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+        },
+      });
+
+      // Step 2: brief wait so DECISION_BLOCKED is in flight (and presumably
+      // already threw ConditionalCheckFailed → RetryablePreconditionError),
+      // then emit DECISION_PACKET_CREATED.
+      await new Promise((r) => setTimeout(r, 5_000));
+
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+          trigger: 'DRIFT',
+          proposedTrades: [],
+          explanation: 'Test for out-of-order BLOCKED',
+          confirmationRequired: false,
+        },
+      });
+
+      // Step 3: assert the row exists AND eventually flips to BLOCKED via the
+      // redelivered DECISION_BLOCKED. timeoutMs must cover at least one SQS
+      // redrive cycle: the advisory-bff IngressQueue has VisibilityTimeout
+      // = 180s (verified 2026-05-24 via aws sqs get-queue-attributes), so
+      // the first redelivery of the BLOCKED message happens ~180s after the
+      // initial fail. 240s = 180s visibility + 60s processing/buffer.
+      const item = await table.waitForItem({
+        table: 'advisory-bff',
+        pk,
+        sk: 'DecisionReadModel',
+        timeoutMs: 240_000,
+        match: { status: 'BLOCKED' },
+      });
+      expect(item['status']).toBe('BLOCKED');
+    }, 360_000);
+
     it('should update DecisionSummary to AWAITING_CONFIRMATION on USER_CONFIRMATION_REQUESTED', async () => {
       const decisionId = `integ-ucr-${Date.now()}`;
 

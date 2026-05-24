@@ -64,6 +64,12 @@ async function processDecisionPacket(
       tenantId,
       ccId,
       decisionPacketId,
+      // Dual-field: CDC carries this on subject so advisory-bff's
+      // decision-status-changed transform (which reads `decisionId`)
+      // can address the DecisionReadModel pk correctly. The
+      // `decisionPacketId` field stays for execution-ctrl / ledger-ctrl
+      // consumers that already key on that name.
+      decisionId: decisionPacketId,
       taskToken,
       mandateSnapshot: {
         level: 'ADVISORY',
@@ -119,6 +125,11 @@ async function processDecisionPacket(
       tenantId,
       ccId,
       decisionPacketId,
+      // Dual-field: see fallback-path note above. CDC must carry
+      // `decisionId` on subject so advisory-bff can address the
+      // DecisionReadModel pk; existing consumers keep reading
+      // `decisionPacketId`.
+      decisionId: decisionPacketId,
       taskToken,
       mandateSnapshot: mandate,
       status: 'COMPLETED',

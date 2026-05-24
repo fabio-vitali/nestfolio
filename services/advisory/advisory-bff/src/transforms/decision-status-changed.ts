@@ -1,4 +1,4 @@
-import { update, type WriteIntent } from '@nestfolio/event-processor';
+import { updateOrRetry, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
 type DecisionStatusPayload = {
@@ -8,8 +8,14 @@ type DecisionStatusPayload = {
   [key: string]: unknown;
 };
 
+// Status transitions that have a meaningful display value. DECISION_PACKET_UPDATED
+// is deliberately ABSENT: sfn-callback (in decision-workflow-ctrl) writes a
+// `DecisionPacket` update AFTER compliance returns DECISION_APPROVED/BLOCKED.
+// Both events fan out to advisory-bff. If we mapped DECISION_PACKET_UPDATED to a
+// status, the later UPDATED event would overwrite the terminal BLOCKED/APPROVED
+// with an intermediate state (Bug E surfaced via Playwright 2026-05-24). PENDING
+// (set by decisionPacketCreated) goes directly to the terminal status.
 const EVENT_TO_STATUS: Record<string, string> = {
-  DECISION_PACKET_UPDATED: 'COMPLIANCE_REVIEW',
   DECISION_APPROVED: 'APPROVED',
   DECISION_BLOCKED: 'BLOCKED',
   USER_CONFIRMATION_REQUESTED: 'AWAITING_CONFIRMATION',
@@ -29,19 +35,8 @@ export const decisionStatusChanged = (
   if (uow.event.subject.taskToken) {
     fields.taskToken = uow.event.subject.taskToken;
   }
-  // Copy explanation and proposedTrades from the subject when present.
-  // Post-Spec-2, AssemblePacket lands the CREATE event with these fields
-  // already populated and DECISION_PACKET_UPDATED rarely carries them again.
-  // Preserved as a no-op safety net: if a future producer emits an UPDATE with
-  // newly-synthesized content, the read model picks it up without code change.
-  if (typeof uow.event.subject.explanation === 'string') {
-    fields.explanation = uow.event.subject.explanation;
-  }
-  if (Array.isArray(uow.event.subject.proposedTrades)) {
-    fields.proposedTrades = uow.event.subject.proposedTrades;
-  }
 
-  return update('DecisionReadModel', fields, {
+  return updateOrRetry('DecisionReadModel', fields, {
     condition: 'attribute_exists(pk)',
     overrides: {
       pk: `Decision#${uow.event.subject.tenantId}#${uow.event.subject.decisionId}`,

@@ -1,4 +1,4 @@
-import { update } from '@nestfolio/event-processor';
+import { updateOrRetry } from '@nestfolio/event-processor';
 import { decisionStatusChanged } from '../../../src/transforms/decision-status-changed';
 
 describe('decisionStatusChanged transform', () => {
@@ -14,18 +14,17 @@ describe('decisionStatusChanged transform', () => {
     record: {},
   });
 
-  it('should map DECISION_PACKET_UPDATED to COMPLIANCE_REVIEW status', () => {
-    expect(decisionStatusChanged(makeUow('DECISION_PACKET_UPDATED') as any)).toEqual(
-      update('DecisionReadModel', { status: 'COMPLIANCE_REVIEW' }, {
-        condition: 'attribute_exists(pk)',
-        overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
-      }),
-    );
+  // Bug E (2026-05-24): DECISION_PACKET_UPDATED is deliberately NOT mapped.
+  // sfn-callback in decision-workflow-ctrl emits UPDATED AFTER compliance's
+  // terminal event — if mapped, it would overwrite BLOCKED/APPROVED with an
+  // intermediate state. PENDING (set on CREATE) goes directly to the terminal.
+  it('should return undefined for DECISION_PACKET_UPDATED (no status transition; preserves terminal state)', () => {
+    expect(decisionStatusChanged(makeUow('DECISION_PACKET_UPDATED') as any)).toBeUndefined();
   });
 
   it('should map DECISION_APPROVED to APPROVED status', () => {
     expect(decisionStatusChanged(makeUow('DECISION_APPROVED') as any)).toEqual(
-      update('DecisionReadModel', { status: 'APPROVED' }, {
+      updateOrRetry('DecisionReadModel', { status: 'APPROVED' }, {
         condition: 'attribute_exists(pk)',
         overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
@@ -34,7 +33,7 @@ describe('decisionStatusChanged transform', () => {
 
   it('should map DECISION_BLOCKED to BLOCKED status', () => {
     expect(decisionStatusChanged(makeUow('DECISION_BLOCKED') as any)).toEqual(
-      update('DecisionReadModel', { status: 'BLOCKED' }, {
+      updateOrRetry('DecisionReadModel', { status: 'BLOCKED' }, {
         condition: 'attribute_exists(pk)',
         overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
@@ -43,7 +42,7 @@ describe('decisionStatusChanged transform', () => {
 
   it('should map USER_CONFIRMATION_REQUESTED to AWAITING_CONFIRMATION status', () => {
     expect(decisionStatusChanged(makeUow('USER_CONFIRMATION_REQUESTED') as any)).toEqual(
-      update('DecisionReadModel', { status: 'AWAITING_CONFIRMATION' }, {
+      updateOrRetry('DecisionReadModel', { status: 'AWAITING_CONFIRMATION' }, {
         condition: 'attribute_exists(pk)',
         overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
@@ -54,7 +53,7 @@ describe('decisionStatusChanged transform', () => {
     expect(
       decisionStatusChanged(makeUow('USER_CONFIRMATION_REQUESTED', { taskToken: 'tok-123' }) as any),
     ).toEqual(
-      update('DecisionReadModel', { status: 'AWAITING_CONFIRMATION', taskToken: 'tok-123' }, {
+      updateOrRetry('DecisionReadModel', { status: 'AWAITING_CONFIRMATION', taskToken: 'tok-123' }, {
         condition: 'attribute_exists(pk)',
         overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
       }),
@@ -62,7 +61,7 @@ describe('decisionStatusChanged transform', () => {
   });
 
   it('should not write taskToken on transitions that do not carry one (DECISION_APPROVED)', () => {
-    const result = decisionStatusChanged(makeUow('DECISION_APPROVED') as any) as ReturnType<typeof update>;
+    const result = decisionStatusChanged(makeUow('DECISION_APPROVED') as any) as ReturnType<typeof updateOrRetry>;
     expect(result.updates).not.toHaveProperty('taskToken');
   });
 
@@ -70,22 +69,4 @@ describe('decisionStatusChanged transform', () => {
     expect(decisionStatusChanged(makeUow('UNKNOWN_EVENT') as any)).toBeUndefined();
   });
 
-  it('should copy explanation + proposedTrades from DECISION_PACKET_UPDATED subject (post-Spec-2 safety net for late-arriving content)', () => {
-    const explanation = 'detailed reasoning behind the recommendation';
-    const proposedTrades = [{ symbol: 'AAPL', side: 'BUY' }];
-    const result = decisionStatusChanged(
-      makeUow('DECISION_PACKET_UPDATED', { explanation, proposedTrades }) as any,
-    ) as ReturnType<typeof update>;
-    expect(result.updates).toMatchObject({
-      status: 'COMPLIANCE_REVIEW',
-      explanation,
-      proposedTrades,
-    });
-  });
-
-  it('should not copy explanation when missing from subject (e.g. DECISION_APPROVED from compliance-ctrl)', () => {
-    const result = decisionStatusChanged(makeUow('DECISION_APPROVED') as any) as ReturnType<typeof update>;
-    expect(result.updates).not.toHaveProperty('explanation');
-    expect(result.updates).not.toHaveProperty('proposedTrades');
-  });
 });

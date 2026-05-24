@@ -1,4 +1,4 @@
-export { NotRetryableError, isRetryable } from './errors';
+export { NotRetryableError, RetryablePreconditionError, isRetryable } from './errors';
 export { getUUID, getTime } from './core';
 export { logger } from './logger';
 export { tracer } from './tracer';

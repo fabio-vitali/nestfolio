@@ -15,6 +15,7 @@ export { normalizedEvent } from './intents/normalized-event';
 export { project } from './intents/project';
 export { accumulate } from './intents/accumulate';
 export { update } from './intents/update';
+export { updateOrRetry } from './intents/update-or-retry';
 export { store } from './intents/store';
 export { skip } from './intents/skip';
 

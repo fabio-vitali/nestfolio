@@ -12,6 +12,27 @@ export class NotRetryableError extends Error {
 }
 
 /**
+ * Error thrown by `updateOrRetry()` when its `condition` precondition is not
+ * yet satisfied. Wraps the original `ConditionalCheckFailedException` so the
+ * `isRetryable` classifier does not see the AWS SDK's `$fault: 'client'`
+ * marker and incorrectly drop the message.
+ *
+ * SQS partial-batch-failure semantics treat anything `isRetryable()` returns
+ * `true` for as a redrive candidate; this class falls through to the default
+ * (non-AwsSdkError → retryable) branch. The original SDK error is preserved
+ * on `cause` for debugging.
+ */
+export class RetryablePreconditionError extends Error {
+  constructor(
+    public readonly condition: string,
+    public readonly cause: unknown,
+  ) {
+    super(`update precondition not met (condition: ${condition}); SQS will redrive`);
+    this.name = this.constructor.name;
+  }
+}
+
+/**
  * Shape of an AWS SDK ServiceException (duck-typed to avoid import coupling).
  */
 interface AwsSdkError extends Error {

@@ -4,6 +4,7 @@ import { accumulate } from '../../src/intents/accumulate';
 import { store } from '../../src/intents/store';
 import { skip } from '../../src/intents/skip';
 import { update } from '../../src/intents/update';
+import { updateOrRetry } from '../../src/intents/update-or-retry';
 import type { EventPayload } from '../../src/types/handler-config';
 import type { EventContext } from '../../src/types/event-context';
 
@@ -106,6 +107,42 @@ describe('update()', () => {
       removes: ['tempField'],
       condition: 'attribute_exists(pk)',
       overrides: { pk: 'custom-pk', sk: 'custom-sk' },
+    });
+  });
+});
+
+describe('updateOrRetry()', () => {
+  it('should create an UpdateIntent with onConditionFail: retry', () => {
+    const intent = updateOrRetry('DecisionReadModel', { status: 'BLOCKED' }, {
+      condition: 'attribute_exists(pk)',
+    });
+    expect(intent).toEqual({
+      _tag: 'update',
+      typename: 'DecisionReadModel',
+      updates: { status: 'BLOCKED' },
+      condition: 'attribute_exists(pk)',
+      onConditionFail: 'retry',
+    });
+  });
+
+  it('should preserve removes, overrides, conditionNames, conditionValues', () => {
+    const intent = updateOrRetry('DecisionReadModel', { status: 'APPROVED' }, {
+      condition: 'attribute_exists(pk) AND #v = :v',
+      conditionNames: { '#v': 'version' },
+      conditionValues: { ':v': 1 },
+      removes: ['tempField'],
+      overrides: { pk: 'Decision#t#d', sk: 'DecisionReadModel' },
+    });
+    expect(intent).toEqual({
+      _tag: 'update',
+      typename: 'DecisionReadModel',
+      updates: { status: 'APPROVED' },
+      condition: 'attribute_exists(pk) AND #v = :v',
+      conditionNames: { '#v': 'version' },
+      conditionValues: { ':v': 1 },
+      removes: ['tempField'],
+      overrides: { pk: 'Decision#t#d', sk: 'DecisionReadModel' },
+      onConditionFail: 'retry',
     });
   });
 });

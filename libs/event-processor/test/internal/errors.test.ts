@@ -1,4 +1,4 @@
-import { isRetryable, NotRetryableError } from '../../src/internal/errors';
+import { isRetryable, NotRetryableError, RetryablePreconditionError } from '../../src/internal/errors';
 
 describe('isRetryable', () => {
   it('treats ServiceQuotaExceededException as retryable despite $fault client', () => {
@@ -39,5 +39,17 @@ describe('isRetryable', () => {
 
   it('treats a plain non-AWS error as retryable', () => {
     expect(isRetryable(new Error('network blip'))).toBe(true);
+  });
+
+  it('treats RetryablePreconditionError as retryable so SQS redrives updateOrRetry() misses', () => {
+    const original = Object.assign(new Error('cond fail'), {
+      name: 'ConditionalCheckFailedException',
+      $fault: 'client',
+    });
+    const wrapped = new RetryablePreconditionError('attribute_exists(pk)', original);
+    expect(isRetryable(wrapped)).toBe(true);
+    // Sanity check: the original SDK error WOULD be terminal — only the
+    // wrapper is retryable. This is the whole point of the wrapper.
+    expect(isRetryable(original)).toBe(false);
   });
 });

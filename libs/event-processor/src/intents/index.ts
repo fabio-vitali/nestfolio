@@ -3,5 +3,6 @@ export { normalizedEvent } from './normalized-event';
 export { project } from './project';
 export { accumulate } from './accumulate';
 export { update } from './update';
+export { updateOrRetry } from './update-or-retry';
 export { store } from './store';
 export { skip } from './skip';

@@ -181,6 +181,10 @@ describe('event-listener handler', () => {
           authorityLevel: 'L1',
           tenantId: 't-1',
           decisionPacketId: 'dp-1',
+          // Bug D regression: CDC subject must carry `decisionId` so
+          // advisory-bff's decision-status-changed transform can
+          // address `Decision#${tenantId}#${decisionId}`.
+          decisionId: 'dp-1',
         }),
       });
       expect(result.intents[1]).toMatchObject({
@@ -212,7 +216,14 @@ describe('event-listener handler', () => {
       expect(result.intents[0]).toMatchObject({
         _tag: 'record',
         typename: 'ComplianceCheck',
-        fields: expect.objectContaining({ result: 'BLOCKED', status: 'COMPLETED' }),
+        fields: expect.objectContaining({
+          result: 'BLOCKED',
+          status: 'COMPLETED',
+          decisionPacketId: 'dp-1',
+          // Bug D regression: dual-field write so DECISION_BLOCKED's
+          // CDC subject carries decisionId for advisory-bff.
+          decisionId: 'dp-1',
+        }),
       });
     });
 
@@ -236,6 +247,10 @@ describe('event-listener handler', () => {
           status: 'BLOCKED',
           result: 'BLOCKED',
           taskToken: 'integ-task-token',
+          decisionPacketId: 'dp-nomandante',
+          // Bug D regression: dual-field on the MANDATE_MISSING
+          // fallback path too — same CDC subject contract.
+          decisionId: 'dp-nomandante',
         }),
       });
       expect(evaluateSpy).not.toHaveBeenCalled();

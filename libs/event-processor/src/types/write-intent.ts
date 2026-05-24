@@ -35,6 +35,18 @@ export interface UpdateIntent {
   readonly conditionNames?: Record<string, string>;
   readonly conditionValues?: Record<string, unknown>;
   readonly overrides?: KeyOverrides;
+  /**
+   * Behavior on ConditionalCheckFailedException when `condition` is set.
+   * - 'skip' (default, also when undefined) — return
+   *   `{ success: true, deduplicated: true }` so SQS treats the message
+   *   as terminal. Use for dedup / skip-if-not-X patterns.
+   * - 'retry' — re-throw so SQS redrives the message. Use for
+   *   wait-until-X patterns where the precondition is expected to
+   *   become true on a subsequent delivery (e.g., another event
+   *   creates the row first). Set via the `updateOrRetry()` factory;
+   *   never set directly via `update()` opts.
+   */
+  readonly onConditionFail?: 'skip' | 'retry';
 }
 
 export interface StoreIntent {
