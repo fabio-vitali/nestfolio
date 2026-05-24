@@ -131,6 +131,11 @@ export class InvestorProfileCtrlStack extends ServiceStack {
         EVENT_BUS_NAME: this.eventBus.eventBusName,
         MEMORY_ID: memoryId,
       },
+      // Tightened from construct defaults (15 min / 4 h) — headless burst
+      // sessions; idle sits below the 240 s SQS-redrive window so quota frees
+      // before redrive (see agentcore-maxvms-browser-path-resilience spec).
+      idleTimeout: Duration.minutes(2),
+      maxLifetime: Duration.minutes(30),
     });
 
     // Grant the AgentRuntime role permission to emit trace envelopes to the

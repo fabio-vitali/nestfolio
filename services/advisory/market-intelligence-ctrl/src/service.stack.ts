@@ -155,6 +155,8 @@ export class MarketIntelligenceCtrlStack extends ServiceStack {
         EVENT_BUS_NAME: this.eventBus.eventBusName,
         MEMORY_ID: memoryId,
       },
+      idleTimeout: Duration.minutes(2),
+      maxLifetime: Duration.minutes(30),
     });
 
     // Grant the AgentRuntime role permission to emit trace envelopes to the

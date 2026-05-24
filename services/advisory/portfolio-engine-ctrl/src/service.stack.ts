@@ -1,3 +1,4 @@
+import { Duration } from 'aws-cdk-lib';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
@@ -128,6 +129,8 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
         EVENT_BUS_NAME: this.eventBus.eventBusName,
         MEMORY_ID: memoryId,
       },
+      idleTimeout: Duration.minutes(2),
+      maxLifetime: Duration.minutes(30),
     });
 
     // SSM-published runtime target. Defaults to the real AgentCore runtime ARN;

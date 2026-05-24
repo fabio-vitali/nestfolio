@@ -149,4 +149,13 @@ describe('AdvisoryNarrativeCtrlStack', () => {
     });
     expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
   });
+
+  it('overrides the AgentCore Runtime idle/lifetime to 2 min / 30 min', () => {
+    template.hasResourceProperties('AWS::BedrockAgentCore::Runtime', {
+      LifecycleConfiguration: {
+        IdleRuntimeSessionTimeout: 120,
+        MaxLifetime: 1800,
+      },
+    });
+  });
 });

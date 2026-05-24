@@ -34,6 +34,20 @@ describe('InvestorProfileCtrlStack', () => {
     template.hasResourceProperties('AWS::SQS::Queue', Match.objectLike({ VisibilityTimeout: 240 }));
   });
 
+  it('overrides the AgentCore Runtime idle/lifetime to 2 min / 30 min', () => {
+    // Defaults from libs/cdk-constructs/src/extensions/agent-runtime.ts are
+    // 15 min idle / 4 h max — far too loose for headless burst sessions that
+    // are never re-invoked. 2 min idle sits below the 240 s SQS-redrive window
+    // (see `agentcore-invocation-resilience`) so a 402'd invoke's micro-VMs
+    // are reclaimed before its redrive fires. CFN serialises Duration in seconds.
+    template.hasResourceProperties('AWS::BedrockAgentCore::Runtime', {
+      LifecycleConfiguration: {
+        IdleRuntimeSessionTimeout: 120,
+        MaxLifetime: 1800,
+      },
+    });
+  });
+
   it('creates EventBridge rules for inbound event types', () => {
     template.hasResourceProperties('AWS::Events::Rule', {
       EventPattern: Match.objectLike({

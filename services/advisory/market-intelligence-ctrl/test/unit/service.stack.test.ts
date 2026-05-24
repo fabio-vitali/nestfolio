@@ -190,4 +190,13 @@ describe('MarketIntelligenceCtrlStack', () => {
     const map = egressLambdaEntry.Properties.Environment.Variables.EVENT_TYPE_MAP as string;
     expect(map).toContain('MARKET_SNAPSHOT_UPDATED');
   });
+
+  it('overrides the AgentCore Runtime idle/lifetime to 2 min / 30 min', () => {
+    template.hasResourceProperties('AWS::BedrockAgentCore::Runtime', {
+      LifecycleConfiguration: {
+        IdleRuntimeSessionTimeout: 120,
+        MaxLifetime: 1800,
+      },
+    });
+  });
 });
