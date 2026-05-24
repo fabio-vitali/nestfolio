@@ -11,8 +11,8 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [update-operating-mode-cdc-silent](backlog/update-operating-mode-cdc-silent.md) [bug] — REOPENED 2026-05-21 — recurred with the identical signature (update-operating-mode.e2e.test.ts:182 timeout on INVESTOR_PROFILE_UPDATED, empty buffer; line 176 OPERATING_MODE_CHANGED passed). The 2026-05-18 'stale bundle' root cause is FALSIFIED: dev-investor-bff EgressPublisher Lambda LastModified is 2026-05-18T13:09:42 — byte-identical to the bundle that passed 7/7 that day, with zero investor-bff source commits since. Surviving hypothesis is intermittent single-event (carrier) loss between publisher and trap SQS.
+2. [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
 
 ## LATER
 
@@ -43,7 +43,6 @@ _(none)_
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — Moved to LATER 2026-05-15 — investigation revealed scope is full CI bring-up (OIDC IAM role + secret provisioning), not a workflow YAML edit. Deferred to dedicated CI-pipeline workstream once the system is stable.
 - [nx-daemon-self-upgrade-pollutes-pnpm-lock](backlog/nx-daemon-self-upgrade-pollutes-pnpm-lock.md) [bug] — nx daemon respawn (triggered by nx-console / nx-mcp polling) runs `pnpm add -D nx@latest --ignore-scripts`, which scans the repo root, finds leaked tmp-* dirs, registers them as pnpm workspace importers in pnpm-lock.yaml. Every IDE/MCP poll = new pnpm-lock drift.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
-- [operating-mode-changed-compliance-mandate-snapshot-e2e](backlog/operating-mode-changed-compliance-mandate-snapshot-e2e.md) [design] — Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
 - [portfolio-engine-service-unavailable-asymmetric-handling](backlog/portfolio-engine-service-unavailable-asymmetric-handling.md) [bug] — portfolio-engine graph returns serviceUnavailable instead of throwing; other 3 advisory agents throw
 - [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md) [infra] — Throwaway-PR rehearsal + branch-protection toggle. BLOCKED on ci-pipeline-bring-up — pipeline has never produced a green run.
@@ -53,7 +52,6 @@ _(none)_
 - [stale-memory-write-comments-phase-a-cleanup](backlog/stale-memory-write-comments-phase-a-cleanup.md) [refactor] — 6 stale comments in decision-workflow-ctrl + cdk-constructs reference writeAgentOutput / BatchCreate / ListMemoryRecords
 - [test-infrastructure-polling-audit](backlog/test-infrastructure-polling-audit.md) [refactor] — App code clean; test infra has 98 justified + 12 should-replace + 126 lower-priority polls.
 - [unified-ingress-refactoring](backlog/unified-ingress-refactoring.md) [refactor] — Single event-listener with ResumeIntent + PublishIntent (planned, not started).
-- [update-operating-mode-cdc-silent](backlog/update-operating-mode-cdc-silent.md) [bug] — REOPENED 2026-05-21 — recurred with the identical signature (update-operating-mode.e2e.test.ts:182 timeout on INVESTOR_PROFILE_UPDATED, empty buffer; line 176 OPERATING_MODE_CHANGED passed). The 2026-05-18 'stale bundle' root cause is FALSIFIED: dev-investor-bff EgressPublisher Lambda LastModified is 2026-05-18T13:09:42 — byte-identical to the bundle that passed 7/7 that day, with zero investor-bff source commits since. Surviving hypothesis is intermittent single-event (carrier) loss between publisher and trap SQS.
 - [wss-subscription-test-harness-test-support](backlog/wss-subscription-test-harness-test-support.md) [tooling] — For integration tests that need to assert AppSync @aws_subscribe broadcasts deliver.
 
 ## Recently Shipped (last 10)

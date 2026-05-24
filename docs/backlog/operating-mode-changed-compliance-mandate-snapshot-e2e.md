@@ -1,7 +1,8 @@
 ---
 id: operating-mode-changed-compliance-mandate-snapshot-e2e
-status: parking
+status: queued
 type: design
+rank: 2
 notes: "Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested."
 references:
   - "services/investor/investor-bff/src/graphql/js-function/update-operating-mode.fn.js"
@@ -49,4 +50,6 @@ Belongs in `apps/e2e-feature-tests`, not the investor-bff integration suite — 
 
 Out-of-scope for now: simulating compliance-ctrl latency, error-path testing (adapter rule mismatch, compliance handler failure).
 
-Promote to QUEUED only when there's evidence of intent to ship the e2e (or when a related compliance regression makes it urgent).
+## Promoted to QUEUED 2026-05-24
+
+The "evidence of intent to ship" trigger is satisfied by an explicit prioritisation decision: this coverage gap is real (a silent break in the propagation chain would not be caught today) and lands in the e2e-blocking-items-go-queued discipline (`feedback_e2e_gaps_queued_not_parking.md`).
