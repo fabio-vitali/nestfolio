@@ -1,6 +1,7 @@
 ---
 id: new-investor-happy-path-pending-at-decision-confirm
-status: parking
+status: queued
+rank: 3
 type: bug
 notes: "new-investor-happy-path.spec.ts fails at decision-confirm: badge stuck at PENDING (expected AWAITING_CONFIRMATION). Surfaced 2026-05-24 during agentcore-maxvms ship validation — phase-1 SSE 402 is GONE, failure has shifted downstream to decision-workflow SF / compliance."
 references: []
