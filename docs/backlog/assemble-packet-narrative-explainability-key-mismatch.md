@@ -1,7 +1,6 @@
 ---
 id: assemble-packet-narrative-explainability-key-mismatch
-status: queued
-rank: 4
+status: shipped
 type: bug
 notes: "AssemblePacket reads narrative.explainability.rationale but advisory-narrative-ctrl returns narrative with rationale spread at top level — placeholder fires on every successful decision. Surfaced 2026-05-24 by Bug B during the silent-dedup workstream."
 references:
@@ -13,7 +12,12 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Code: fix commit 368a9679 (`fix(advisory): assemble-packet reads narrative.rationale not narrative.explainability.rationale`).
+  Unit tests: pnpm nx affected -t test,lint --base=origin/main → 13 suites / 109 tests pass, 0 lint errors (regression test in assemble-packet.test.ts now uses the realistic agent-service.ts:143 shape).
+  Deploy: bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=decision-workflow-ctrl → AssemblePacket Lambda updated in 55.79s.
+  E2E: first-decision.e2e.test.ts PASS (102.5s) against deployed dev.
+  CloudWatch (/aws/lambda/dev-decision-workflow-ctrl-AssemblePacketA090128E-*): two consecutive DecisionPacket INSERT events carry full multi-sentence rationales (e.g. "Current market conditions show selective strength in technology (QQQ up 0.92%)…", "Your 10+ year time horizon and moderate risk tolerance support…") — NOT the "Decision pending — the advisory narrative for this DEPOSIT_DETECTED trigger has not been persisted yet." placeholder. Verified end-to-end.
 ---
 
 # AssemblePacket reads wrong key path for narrative rationale
