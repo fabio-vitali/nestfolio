@@ -1,7 +1,6 @@
 ---
 id: ferry-ledger-positions-to-advisory-steady-state-decisions
-status: queued
-rank: 1
+status: active
 type: bug
 notes: "PortfolioEngine agent doesn't emit currentPositions; no SF hop plumbs ledger CASH_BALANCE+POSITION_SNAPSHOT into advisory. AssemblePacket sees currentPositions=[] always → post-units-fix isInitialBuild=true system-wide → MAX_SINGLE_TRADE+TURNOVER_CAP skip on every decision, not just first-deposit. Steady-state guardrails effectively disabled. Surfaced 2026-05-25 by OQ1 of the decision-pipeline-units-calibration-suitability spec; the parent workstream consciously ships the skip as 'strictly better than units-bug status quo' (those rules fire absurdly today, e.g. 'Trade VTI (2000.0%) exceeds 20%'), but the steady-state regime needs both ledger-to-advisory plumbing AND an e2e scenario covering a post-onboarding rebalance — which would currently fail."
 references:
@@ -14,7 +13,10 @@ references:
     anchor: L290
   - path: docs/superpowers/specs/2026-05-25-decision-pipeline-units-calibration-suitability-design.md
   - path: apps/nestfolio-e2e/src/journeys
-out_of_scope: []
+out_of_scope:
+  - "Drift-rebalance calibration of guardrail-params (whether BALANCED maxSingleTradePercent=10 + monthlyTurnoverCapPercent=25 are correct for steady-state) — separate item once we can observe how often they fire."
+  - "Real ledger position market-value recalculation on price change (today positions carry stale prices) — separate item."
+  - "Generalising ledger snapshot reads for non-decision consumers — the projection lives in advisory only; cross-domain reuse is a separate workstream when a second consumer materialises."
 spec: null
 plan: null
 topic_memory: []
