@@ -157,8 +157,8 @@ describe('assemble-packet handler', () => {
     // agents start emitting structured outputs, real values flow through.
     expect(result.proposedTrades).toEqual([]);
     expect(result.currentPositions).toEqual([]);
-    expect(result.portfolioValue).toBe(0);
-    expect(result.riskScore).toBe(5);
+    expect(result.portfolioValueCents).toBe(0);
+    expect(result.riskCategory).toBe('MODERATE');
   });
 
   it('translates portfolio-engine allocations into proposedTrades (post-Phase-A shape)', async () => {
@@ -168,9 +168,12 @@ describe('assemble-packet handler', () => {
     // outputs (portfolio-construction / rebalance-planner) are renamed by the
     // agent-service layer before they reach SF state. The handler must read
     // portfolio.allocations.allocations, NOT portfolio['portfolio-construction'].allocations.
+    // quantityOrAmountCents = round(targetWeight * portfolioValueCents) — real cents,
+    // NOT the old round(targetWeight * totalExposure * 100) basis-point formula.
     const result = await handler({
       ...baseEvent,
-      investorProfile: { riskScore: 7 },
+      triggerAmountCents: 100_000, // $1000 deposit — the source of portfolioValueCents
+      investorProfile: { riskCategory: 'AGGRESSIVE' },
       marketAnalysis: null,
       portfolio: {
         decisionId: 'd-1',
@@ -179,7 +182,7 @@ describe('assemble-packet handler', () => {
             { instrument: 'AAPL', assetClass: 'EQUITY', targetWeight: 0.6, rationale: 'Growth' },
             { instrument: 'BND', assetClass: 'FIXED_INCOME', targetWeight: 0.4, rationale: 'Ballast' },
           ],
-          totalExposure: 100_000,
+          totalExposure: 1, // normalization indicator — NOT used for portfolioValueCents
           equityWeight: 0.6,
           riskMetrics: { concentrationRisk: 0.3, sectorDiversity: 0.7, largestPositionWeight: 0.6 },
           confidence: 0.85,
@@ -189,17 +192,18 @@ describe('assemble-packet handler', () => {
           estimatedTurnover: 0.1,
           confidence: 0.8,
         },
+        currentPositions: [],
         metadata: { durationMs: 1234, modeUsed: 'BALANCED' },
       },
       narrative: null,
     });
 
     expect(result.proposedTrades).toEqual([
-      { symbol: 'AAPL', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 6_000_000, targetWeightPercent: 60, rationale: 'Growth' },
-      { symbol: 'BND', assetClass: 'FIXED_INCOME', side: 'BUY', quantityOrAmountCents: 4_000_000, targetWeightPercent: 40, rationale: 'Ballast' },
+      { symbol: 'AAPL', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 60_000, targetWeightPercent: 60, rationale: 'Growth' },
+      { symbol: 'BND', assetClass: 'FIXED_INCOME', side: 'BUY', quantityOrAmountCents: 40_000, targetWeightPercent: 40, rationale: 'Ballast' },
     ]);
-    expect(result.portfolioValue).toBe(100_000);
-    expect(result.riskScore).toBe(7);
+    expect(result.portfolioValueCents).toBe(100_000);
+    expect(result.riskCategory).toBe('AGGRESSIVE');
   });
 
   it('falls back to placeholder when all upstream agent outputs are null (defence-in-depth)', async () => {
@@ -214,5 +218,121 @@ describe('assemble-packet handler', () => {
     expect(result.proposedTrades).toEqual([]);
     const call = mockCreateDecisionPacket.mock.calls[0][0];
     expect(call.explanation).toMatch(/Decision pending/);
+  });
+
+  describe('canonical cents + initial-build + riskCategory (decision-pipeline workstream)', () => {
+    it('portfolioValueCents derives from triggerAmountCents alone when positions are empty', async () => {
+      const result = await handler({
+        ...baseEvent,
+        triggerAmountCents: 100_000, // $1000 deposit
+        investorProfile: { riskCategory: 'MODERATE' },
+        marketAnalysis: null,
+        portfolio: {
+          allocations: {
+            allocations: [
+              { instrument: 'VTI', targetWeight: 0.14, assetClass: 'EQUITY', rationale: 'Core US' },
+            ],
+            totalExposure: 1,
+          },
+          currentPositions: [],
+        },
+        narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+      });
+      expect(result.portfolioValueCents).toBe(100_000);
+      expect(result.proposedTrades).toHaveLength(1);
+      // Real cents now: 0.14 * 100_000 = 14_000 (was 14 under the bug)
+      expect(result.proposedTrades[0].quantityOrAmountCents).toBe(14_000);
+      expect(result.proposedTrades[0].targetWeightPercent).toBeCloseTo(14);
+    });
+
+    it('portfolioValueCents adds existing positions value to triggerAmountCents', async () => {
+      const result = await handler({
+        ...baseEvent,
+        triggerAmountCents: 50_000, // $500 additional deposit
+        investorProfile: { riskCategory: 'AGGRESSIVE' },
+        marketAnalysis: null,
+        portfolio: {
+          allocations: { allocations: [], totalExposure: 1 },
+          currentPositions: [
+            { ticker: 'VTI', marketValueCents: 200_000 },
+            { ticker: 'BND', marketValueCents: 100_000 },
+          ],
+        },
+        narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+      });
+      expect(result.portfolioValueCents).toBe(350_000); // 200k + 100k + 50k
+      expect(result.isInitialBuild).toBe(false);
+    });
+
+    it('isInitialBuild is true when currentPositions is empty', async () => {
+      const result = await handler({
+        ...baseEvent,
+        triggerAmountCents: 100_000,
+        investorProfile: { riskCategory: 'MODERATE' },
+        marketAnalysis: null,
+        portfolio: { allocations: { allocations: [], totalExposure: 1 }, currentPositions: [] },
+        narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+      });
+      expect(result.isInitialBuild).toBe(true);
+    });
+
+    it('isInitialBuild is false when currentPositions has at least one entry', async () => {
+      const result = await handler({
+        ...baseEvent,
+        triggerAmountCents: 0,
+        investorProfile: { riskCategory: 'MODERATE' },
+        marketAnalysis: null,
+        portfolio: {
+          allocations: { allocations: [], totalExposure: 1 },
+          currentPositions: [{ ticker: 'VTI', marketValueCents: 100_000 }],
+        },
+        narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+      });
+      expect(result.isInitialBuild).toBe(false);
+    });
+
+    it('riskCategory falls back to MODERATE when investorProfile lacks riskCategory', async () => {
+      const result = await handler({
+        ...baseEvent,
+        triggerAmountCents: 100_000,
+        investorProfile: {}, // no riskCategory
+        marketAnalysis: null,
+        portfolio: { allocations: { allocations: [], totalExposure: 1 }, currentPositions: [] },
+        narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+      });
+      expect(result.riskCategory).toBe('MODERATE');
+    });
+
+    it('riskCategory passes through CONSERVATIVE | MODERATE | AGGRESSIVE from investorProfile', async () => {
+      for (const cat of ['CONSERVATIVE', 'MODERATE', 'AGGRESSIVE'] as const) {
+        const result = await handler({
+          ...baseEvent,
+          triggerAmountCents: 100_000,
+          investorProfile: { riskCategory: cat },
+          marketAnalysis: null,
+          portfolio: { allocations: { allocations: [], totalExposure: 1 }, currentPositions: [] },
+          narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+        });
+        expect(result.riskCategory).toBe(cat);
+      }
+    });
+
+    it('portfolioValueCents=0 (no triggerAmountCents, no positions) yields zero-cent trades but no crash', async () => {
+      const result = await handler({
+        ...baseEvent,
+        investorProfile: { riskCategory: 'MODERATE' },
+        marketAnalysis: null,
+        portfolio: {
+          allocations: {
+            allocations: [{ instrument: 'VTI', targetWeight: 0.5, assetClass: 'EQUITY', rationale: 'x' }],
+            totalExposure: 1,
+          },
+          currentPositions: [],
+        },
+        narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
+      });
+      expect(result.portfolioValueCents).toBe(0);
+      expect(result.proposedTrades[0].quantityOrAmountCents).toBe(0);
+    });
   });
 });

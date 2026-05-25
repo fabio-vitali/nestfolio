@@ -49,8 +49,9 @@ describe('compliance-ctrl', () => {
         proposedTrades: [
           { symbol: 'AAPL', side: 'BUY', quantity: 10, price: 150.0 },
         ],
-        portfolioValue: 50000,
-        riskScore: 5,
+        portfolioValueCents: 50000,
+        riskCategory: 'MODERATE',
+        isInitialBuild: false,
         currentPositions: [
           { symbol: 'AAPL', quantity: 5, value: 750.0 },
         ],
@@ -320,8 +321,9 @@ describe('compliance-ctrl', () => {
             rationale: 'Small buy under revoked mandate',
           },
         ],
-        portfolioValue: 100000,
-        riskScore: 5,
+        portfolioValueCents: 100000,
+        riskCategory: 'MODERATE',
+        isInitialBuild: false,
         currentPositions: [{ ticker: 'AAPL', weight: 5 }],
       },
     });
@@ -413,8 +415,9 @@ describe('compliance-ctrl', () => {
             rationale: 'Integration test trade',
           },
         ],
-        portfolioValue: 100000,
-        riskScore: 7,
+        portfolioValueCents: 100000,
+        riskCategory: 'AGGRESSIVE',
+        isInitialBuild: false,
         currentPositions: [
           { ticker: 'AAPL', weight: 10 },
         ],
@@ -492,8 +495,9 @@ describe('compliance-ctrl', () => {
             rationale: 'Integration test trade',
           },
         ],
-        portfolioValue: 100000,
-        riskScore: 7,
+        portfolioValueCents: 100000,
+        riskCategory: 'AGGRESSIVE',
+        isInitialBuild: false,
         currentPositions: [
           { ticker: 'AAPL', weight: 10 },
         ],
@@ -513,4 +517,197 @@ describe('compliance-ctrl', () => {
     const subject = detail.subject as Record<string, unknown>;
     expect(subject['authorityLevel']).toBe('L2');
   }, 300_000);
+
+  // ── Units calibration regression (workstream 2026-05-25) ─────────────
+  // These two cases prove the fix shipped in this workstream:
+  //   1. isInitialBuild=true skips MAX_SINGLE_TRADE + TURNOVER_CAP so a full
+  //      initial portfolio allocation passes even though individual trades
+  //      exceed the per-trade cap.
+  //   2. isInitialBuild=false with a 25%-of-portfolio trade (25_000 cents) is
+  //      correctly BLOCKED on MAX_SINGLE_TRADE — under the pre-fix bug the rule
+  //      engine read portfolioValue (old field) as 0 so 25_000 cents was
+  //      interpreted as 2500% of $0, but the division guard returned 0 and
+  //      silently passed; with portfolioValueCents the math is correct and the
+  //      cap fires at 10% of 100_000 = 10_000 cents.
+
+  describe('decision-pipeline-units-calibration-suitability (workstream 2026-05-25)', () => {
+    it('isInitialBuild=true, ADVISORY+BALANCED, BND@27 + 55% equity → DECISION_APPROVED (L2)', async () => {
+      // Per-test unique userId — isolates this scenario's MandateSnapshot pk from
+      // other concurrent tests that emit MANDATE_ISSUED against the same tenantId.
+      const userId = `integ-user-initbuild-${Date.now()}`;
+      const mandateId = `integ-mandate-initbuild-${Date.now()}`;
+      const policyPk = `GuardrailPolicy#${ctx.tenantId}#${userId}`;
+
+      // Seed MandateSnapshot via MANDATE_ISSUED with level=ADVISORY so
+      // AuthorityResolver returns L2 regardless of trade size.
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'compliance-ctrl',
+        detailType: 'MANDATE_ISSUED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId,
+          mandateId,
+          level: 'ADVISORY',
+          operatingMode: 'BALANCED',
+          effectiveDate: '2026-01-01T00:00:00.000Z',
+        },
+      });
+
+      // Wait for the compliance-ctrl MandateSnapshot row to land.
+      // pk=GuardrailPolicy#tenantId#userId, sk=MandateSnapshot (confirmed from
+      // the MANDATE_ISSUED projection tests above).
+      await table.waitForItem({
+        table: 'compliance-ctrl',
+        pk: policyPk,
+        sk: 'MandateSnapshot',
+        timeoutMs: 90_000,
+        match: { mandateId },
+      });
+
+      // Unique decisionId — match predicate below filters on subject.decisionPacketId
+      // so stale DECISION_APPROVED/BLOCKED frames from concurrent tests don't
+      // trigger a false positive.
+      const decisionId = `integ-initbuild-${Date.now()}`;
+
+      // Full initial portfolio: 6 trades totalling 100% of portfolio.
+      // Equity: VTI(14) + IXUS(14) + QQQ(14) + VWO(13) = 55%.
+      // MODERATE suitability cap = 60%; 55% < 60% → SUITABILITY passes.
+      // Fixed income: BND(27) + SHY(18) = 45%.
+      // isInitialBuild=true → MAX_SINGLE_TRADE and TURNOVER_CAP both skip.
+      // ADVISORY mandate → L2. No blocking violations → DECISION_APPROVED.
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'compliance-ctrl',
+        detailType: 'RECOMMENDATION_PROPOSED',
+        detail: {
+          decisionId,
+          tenantId: ctx.tenantId,
+          userId,
+          taskToken: `integ-task-token-${decisionId}`,
+          awaitingCompliance: true,
+          proposedTrades: [
+            { symbol: 'VTI',  assetClass: 'EQUITY',        side: 'BUY', quantityOrAmountCents: 14_000, targetWeightPercent: 14, rationale: 'Initial build' },
+            { symbol: 'IXUS', assetClass: 'EQUITY',        side: 'BUY', quantityOrAmountCents: 14_000, targetWeightPercent: 14, rationale: 'Initial build' },
+            { symbol: 'QQQ',  assetClass: 'EQUITY',        side: 'BUY', quantityOrAmountCents: 14_000, targetWeightPercent: 14, rationale: 'Initial build' },
+            { symbol: 'VWO',  assetClass: 'EQUITY',        side: 'BUY', quantityOrAmountCents: 13_000, targetWeightPercent: 13, rationale: 'Initial build' },
+            { symbol: 'BND',  assetClass: 'FIXED_INCOME',  side: 'BUY', quantityOrAmountCents: 27_000, targetWeightPercent: 27, rationale: 'Initial build' },
+            { symbol: 'SHY',  assetClass: 'FIXED_INCOME',  side: 'BUY', quantityOrAmountCents: 18_000, targetWeightPercent: 18, rationale: 'Initial build' },
+          ],
+          portfolioValueCents: 100_000,
+          riskCategory: 'MODERATE',
+          isInitialBuild: true,
+          currentPositions: [],
+        },
+      });
+
+      // Match on decisionPacketId — the CDC subject carries this from the
+      // ComplianceCheck row (handler writes decisionPacketId = subject.decisionId).
+      const event = await trap.waitForEvent({
+        detailType: 'DECISION_APPROVED',
+        match: (d) => {
+          const subject = (d as Record<string, unknown>).subject as Record<string, unknown>;
+          return subject?.['decisionPacketId'] === decisionId;
+        },
+        timeoutMs: 90_000,
+      });
+      expect(event.detailType).toBe('DECISION_APPROVED');
+      const detail = event.detail as Record<string, unknown>;
+      const subject = detail.subject as Record<string, unknown>;
+      // ADVISORY mandate forces L2 even when all checks pass.
+      expect(subject['authorityLevel']).toBe('L2');
+    }, 180_000);
+
+    it('isInitialBuild=false, ADVISORY+BALANCED, VTI@25% → DECISION_BLOCKED on MAX_SINGLE_TRADE', async () => {
+      // Per-test unique userId — isolates the MandateSnapshot row from other tests.
+      const userId = `integ-user-steadystate-${Date.now()}`;
+      const mandateId = `integ-mandate-steadystate-${Date.now()}`;
+      const policyPk = `GuardrailPolicy#${ctx.tenantId}#${userId}`;
+
+      // Seed MandateSnapshot via MANDATE_ISSUED with ADVISORY+BALANCED.
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'compliance-ctrl',
+        detailType: 'MANDATE_ISSUED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId,
+          mandateId,
+          level: 'ADVISORY',
+          operatingMode: 'BALANCED',
+          effectiveDate: '2026-01-01T00:00:00.000Z',
+        },
+      });
+
+      await table.waitForItem({
+        table: 'compliance-ctrl',
+        pk: policyPk,
+        sk: 'MandateSnapshot',
+        timeoutMs: 90_000,
+        match: { mandateId },
+      });
+
+      const decisionId = `integ-steadystate-${Date.now()}`;
+
+      // Single trade: VTI 25% allocation = 25_000 cents against 100_000 cents portfolio.
+      // BALANCED maxSingleTradePercent=10 → cap = 10_000 cents.
+      // 25_000 > 10_000 → MAX_SINGLE_TRADE fails → DECISION_BLOCKED.
+      // Pre-fix bug: portfolioValue (old field) was undefined, so maxAmountCents
+      // was NaN; `trade > NaN` is false in JS, so the check silently passed.
+      // portfolioValueCents fix ensures the math is correct.
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'compliance-ctrl',
+        detailType: 'RECOMMENDATION_PROPOSED',
+        detail: {
+          decisionId,
+          tenantId: ctx.tenantId,
+          userId,
+          taskToken: `integ-task-token-${decisionId}`,
+          awaitingCompliance: true,
+          proposedTrades: [
+            {
+              symbol: 'VTI',
+              assetClass: 'EQUITY',
+              side: 'BUY',
+              quantityOrAmountCents: 25_000,
+              targetWeightPercent: 25,
+              rationale: 'Steady-state rebalance exceeding single-trade cap',
+            },
+          ],
+          portfolioValueCents: 100_000,
+          riskCategory: 'MODERATE',
+          isInitialBuild: false,
+          currentPositions: [],
+        },
+      });
+
+      const event = await trap.waitForEvent({
+        detailType: 'DECISION_BLOCKED',
+        match: (d) => {
+          const subject = (d as Record<string, unknown>).subject as Record<string, unknown>;
+          return subject?.['decisionPacketId'] === decisionId;
+        },
+        timeoutMs: 90_000,
+      });
+      expect(event.detailType).toBe('DECISION_BLOCKED');
+      const detail = event.detail as Record<string, unknown>;
+      const subject = detail.subject as Record<string, unknown>;
+
+      // Verify the specific violation rule that fired.
+      const violations = subject['violations'] as Array<Record<string, unknown>> | undefined;
+      expect(violations).toBeDefined();
+      expect(violations!.some((v) => v['rule'] === 'MAX_SINGLE_TRADE')).toBe(true);
+      // Defensive exclusivity check: TURNOVER_CAP sits exactly at the 25% cap
+      // boundary (25_000 cents = 25% of 100_000 = cap, NOT over) and
+      // CONCENTRATION_LIMIT BALANCED=30% > the trade's 25%, so by design only
+      // MAX_SINGLE_TRADE fires. If a future params change (e.g. TURNOVER_CAP
+      // lowered, or CONCENTRATION_LIMIT tightened) makes a second rule fire,
+      // this assertion catches the silent expansion.
+      expect(violations).toHaveLength(1);
+
+      // ADVISORY mandate + violations → L2.
+      expect(subject['authorityLevel']).toBe('L2');
+    }, 180_000);
+  });
 });

@@ -25,8 +25,9 @@ function buildInput(overrides: Partial<ComplianceInput> = {}): ComplianceInput {
         rationale: 'Small buy',
       },
     ],
-    portfolioValue: 100_000_00,
-    riskScore: 5,
+    portfolioValueCents: 100_000_00,
+    riskCategory: 'MODERATE',
+    isInitialBuild: false,
     currentPositions: [],
     ...overrides,
   };

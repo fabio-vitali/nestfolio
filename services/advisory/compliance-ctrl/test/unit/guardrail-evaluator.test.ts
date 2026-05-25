@@ -13,8 +13,9 @@ function buildInput(overrides: Partial<ComplianceInput> = {}): ComplianceInput {
       effectiveDate: '2024-01-01T00:00:00.000Z',
     },
     proposedTrades: [],
-    portfolioValue: 100_000_00, // $100,000 in cents
-    riskScore: 5,
+    portfolioValueCents: 100_000_00, // $100,000 in cents
+    riskCategory: 'MODERATE',
+    isInitialBuild: false, // default: steady-state behaviour for existing tests
     currentPositions: [],
     ...overrides,
   };
@@ -202,5 +203,74 @@ describe('GuardrailEvaluator', () => {
 
     // 24% - 5% = 19%, within 20% CONSERVATIVE limit
     expect(concentrationCheck?.passed).toBe(true);
+  });
+
+  describe('isInitialBuild — initial portfolio construction skip', () => {
+    it('isInitialBuild=true → MAX_SINGLE_TRADE passes with "skipped" details (BND@27 that would otherwise fail)', () => {
+      const input = buildInput({
+        isInitialBuild: true,
+        portfolioValueCents: 100_000, // $1000
+        proposedTrades: [
+          { symbol: 'BND', assetClass: 'FIXED_INCOME', side: 'BUY', quantityOrAmountCents: 27_000, targetWeightPercent: 27, rationale: 'x' },
+        ],
+      });
+      const results = evaluator.evaluate(input);
+      const single = results.find((r) => r.name === 'MAX_SINGLE_TRADE')!;
+      expect(single.passed).toBe(true);
+      expect(single.details).toMatch(/[Ss]kipped/);
+      expect(single.details).toMatch(/initial portfolio construction/i);
+    });
+
+    it('isInitialBuild=true → TURNOVER_CAP passes with "skipped" details', () => {
+      const input = buildInput({
+        isInitialBuild: true,
+        portfolioValueCents: 100_000,
+        proposedTrades: [
+          { symbol: 'VTI',  assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 14_000, targetWeightPercent: 14, rationale: 'x' },
+          { symbol: 'IXUS', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 14_000, targetWeightPercent: 14, rationale: 'x' },
+          { symbol: 'QQQ',  assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 14_000, targetWeightPercent: 14, rationale: 'x' },
+          { symbol: 'VWO',  assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 13_000, targetWeightPercent: 13, rationale: 'x' },
+          { symbol: 'BND',  assetClass: 'FIXED_INCOME', side: 'BUY', quantityOrAmountCents: 27_000, targetWeightPercent: 27, rationale: 'x' },
+          { symbol: 'SHY',  assetClass: 'FIXED_INCOME', side: 'BUY', quantityOrAmountCents: 18_000, targetWeightPercent: 18, rationale: 'x' },
+        ],
+      });
+      const results = evaluator.evaluate(input);
+      const turnover = results.find((r) => r.name === 'TURNOVER_CAP')!;
+      expect(turnover.passed).toBe(true);
+      expect(turnover.details).toMatch(/[Ss]kipped/);
+    });
+
+    it('isInitialBuild=true → CONCENTRATION_LIMIT still runs and still blocks on >30% in a single allocation', () => {
+      const input = buildInput({
+        isInitialBuild: true,
+        portfolioValueCents: 100_000,
+        proposedTrades: [
+          // Single 35% allocation exceeds BALANCED concentration cap of 30%
+          { symbol: 'AAPL', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 35_000, targetWeightPercent: 35, rationale: 'x' },
+        ],
+      });
+      const results = evaluator.evaluate(input);
+      const conc = results.find((r) => r.name === 'CONCENTRATION_LIMIT')!;
+      expect(conc.passed).toBe(false);
+      expect(conc.details).toMatch(/35/);
+    });
+
+    it('isInitialBuild=false → MAX_SINGLE_TRADE fires normally on real over-cap trade in canonical cents (units regression)', () => {
+      // Real-cents regression: a 25% trade against a $1000 portfolio = 25_000 cents.
+      // BALANCED maxSingleTradePercent=10 → maxAmountCents = 100_000 * 10 / 100 = 10_000.
+      // 25_000 > 10_000 → fires.
+      const input = buildInput({
+        isInitialBuild: false,
+        portfolioValueCents: 100_000,
+        proposedTrades: [
+          { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 25_000, targetWeightPercent: 25, rationale: 'x' },
+        ],
+      });
+      const results = evaluator.evaluate(input);
+      const single = results.find((r) => r.name === 'MAX_SINGLE_TRADE')!;
+      expect(single.passed).toBe(false);
+      expect(single.details).toMatch(/25\.0%/); // reported percent matches canonical units (not 2500.0%)
+      expect(single.details).toMatch(/10%/);
+    });
   });
 });

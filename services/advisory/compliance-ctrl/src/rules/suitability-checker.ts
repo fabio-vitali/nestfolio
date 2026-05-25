@@ -1,40 +1,31 @@
-import type { ComplianceInput, CheckResult } from './rule-engine';
+import type { ComplianceInput, CheckResult, RiskCategory } from './rule-engine';
 
 /**
- * Maps risk scores (1-10) to maximum equity allocation percentages.
- * Lower risk score = lower equity tolerance.
+ * Maps risk category to maximum equity allocation percentage.
+ * Aligned with investor-bff/src/domain/risk-profile.service.ts band ranges:
+ * CONSERVATIVE → maxEquity=0.30, MODERATE → 0.60, AGGRESSIVE → 0.90.
  */
-const RISK_SCORE_TO_MAX_EQUITY: Record<number, number> = {
-  1: 10,
-  2: 20,
-  3: 30,
-  4: 40,
-  5: 50,
-  6: 60,
-  7: 70,
-  8: 80,
-  9: 90,
-  10: 100,
+const CATEGORY_TO_MAX_EQUITY: Record<RiskCategory, number> = {
+  CONSERVATIVE: 30,
+  MODERATE: 60,
+  AGGRESSIVE: 90,
 };
 
 /**
- * Checks suitability of proposed trades against the investor's risk profile.
- * Ensures the total equity exposure after trades stays within acceptable bounds
- * for the investor's risk score.
+ * Checks suitability of proposed trades against the investor's risk category.
+ * Ensures the total equity exposure after trades stays within acceptable bounds.
  */
 export class SuitabilityChecker {
   check(input: ComplianceInput): CheckResult {
-    const { riskScore, proposedTrades, currentPositions } = input;
+    const { riskCategory, proposedTrades, currentPositions } = input;
 
-    const maxEquityPercent = RISK_SCORE_TO_MAX_EQUITY[riskScore] ?? 50;
+    const maxEquityPercent = CATEGORY_TO_MAX_EQUITY[riskCategory] ?? 60;
 
-    // Calculate current equity weight from positions
     const currentEquityWeight = currentPositions.reduce(
       (sum, pos) => sum + pos.weight,
       0,
     );
 
-    // Calculate net equity change from proposed trades (only equity asset class)
     const equityChange = proposedTrades
       .filter((t) => t.assetClass === 'EQUITY')
       .reduce((sum, trade) => {
@@ -48,14 +39,14 @@ export class SuitabilityChecker {
       return {
         name: 'SUITABILITY',
         passed: false,
-        details: `Resulting equity exposure ${resultingEquity.toFixed(1)}% exceeds max ${maxEquityPercent}% for risk score ${riskScore}`,
+        details: `Resulting equity exposure ${resultingEquity.toFixed(1)}% exceeds max ${maxEquityPercent}% for risk category ${riskCategory}`,
       };
     }
 
     return {
       name: 'SUITABILITY',
       passed: true,
-      details: `Equity exposure ${resultingEquity.toFixed(1)}% is within acceptable range for risk score ${riskScore}`,
+      details: `Equity exposure ${resultingEquity.toFixed(1)}% is within acceptable range for risk category ${riskCategory}`,
     };
   }
 }

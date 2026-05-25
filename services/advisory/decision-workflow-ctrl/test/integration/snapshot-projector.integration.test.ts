@@ -80,7 +80,7 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
     expect(row['tenantId']).toBe(ctx.tenantId);
     expect(row['userId']).toBe(userId);
     expect(row['sourceEventId']).toBe(sourceEventId);
-    expect(row['agentOutput']).toEqual(agentOutput);
+    expect(JSON.parse(row['agentOutput'] as string)).toEqual(agentOutput);
   }, 90_000);
 
   // ── IP snapshot UPDATED → patch InvestorProfileSnapshot row ──────
@@ -107,7 +107,7 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
       sk: 'InvestorProfileSnapshot',
       timeoutMs: 60_000,
     });
-    expect((seeded['agentOutput'] as Record<string, unknown>)['riskScore']).toBe(30);
+    expect((JSON.parse(seeded['agentOutput'] as string) as Record<string, unknown>)['riskScore']).toBe(30);
     const seededUpdatedAt = seeded['updatedAt'];
 
     // Then publish UPDATED with a different riskScore.
@@ -130,14 +130,19 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
       table: 'decision-workflow-ctrl',
       pk: `InvestorProfileSnapshot#${ctx.tenantId}#${userId}`,
       sk: 'InvestorProfileSnapshot',
-      predicate: (item) =>
-        (item['agentOutput'] as Record<string, unknown> | undefined)?.['riskScore'] === 85,
+      predicate: (item) => {
+        try {
+          return (JSON.parse(item['agentOutput'] as string) as Record<string, unknown>)['riskScore'] === 85;
+        } catch {
+          return false;
+        }
+      },
       description: 'agentOutput.riskScore advances to 85',
       timeoutMs: 60_000,
     });
 
-    expect((updated['agentOutput'] as Record<string, unknown>)['riskScore']).toBe(85);
-    expect((updated['agentOutput'] as Record<string, unknown>)['raised']).toBe(true);
+    expect((JSON.parse(updated['agentOutput'] as string) as Record<string, unknown>)['riskScore']).toBe(85);
+    expect((JSON.parse(updated['agentOutput'] as string) as Record<string, unknown>)['raised']).toBe(true);
     expect(updated['updatedAt']).not.toBe(seededUpdatedAt);
   }, 120_000);
 
@@ -170,7 +175,7 @@ describe('decision-workflow-ctrl SnapshotProjectorIngress', () => {
 
     expect(row['__typename']).toBe('MarketSnapshot');
     expect(row['region']).toBe(region);
-    expect(row['agentOutput']).toEqual(agentOutput);
+    expect(JSON.parse(row['agentOutput'] as string)).toEqual(agentOutput);
   }, 90_000);
 
   // ── Negative: missing agentOutput → no row written ──────────────

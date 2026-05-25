@@ -84,22 +84,23 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
       "States.Format('InvestorProfileSnapshot#{}#{}', $.tenantId, $.userId)",
     );
     expect(state.Parameters.Key.sk.S).toBe('InvestorProfileSnapshot');
-    // No ResultSelector — extracting $.Item.agentOutput.M on a missing row
-    // raises States.Runtime, which AWS docs say is NOT catchable. Defer the
-    // extraction to a downstream Pass guarded by a Choice on isPresent.
+    // No ResultSelector — evaluating States.StringToJson($.Item.agentOutput.S)
+    // on a missing row raises States.Runtime, which AWS docs say is NOT catchable.
+    // Defer the extraction to a downstream Pass guarded by a Choice on
+    // isPresent($.investorProfileSnapshotResponse.Item.agentOutput.S).
     expect(state.ResultSelector).toBeUndefined();
     expect(state.ResultPath).toBe('$.investorProfileSnapshotResponse');
     expect(state.Next).toBe('CheckInvestorProfileSnapshotPresent');
   });
 
-  it('Branch A fault-tolerance: Choice on $.investorProfileSnapshotResponse.Item → ExtractInvestorProfileSnapshot or HandleMissingInvestorProfileSnapshot (both write empty-tolerant shape under $.agentResults.InvokeInvestorProfile)', () => {
+  it('Branch A fault-tolerance: Choice on $.investorProfileSnapshotResponse.Item.agentOutput.S → ExtractInvestorProfileSnapshot or HandleMissingInvestorProfileSnapshot (both write empty-tolerant shape under $.agentResults.InvokeInvestorProfile)', () => {
     const branchStates = definition.States.ParallelProjections.Branches[0].States;
 
     const choice = branchStates.CheckInvestorProfileSnapshotPresent;
     expect(choice).toBeDefined();
     expect(choice.Type).toBe('Choice');
     expect(choice.Choices).toHaveLength(1);
-    expect(choice.Choices[0].Variable).toBe('$.investorProfileSnapshotResponse.Item');
+    expect(choice.Choices[0].Variable).toBe('$.investorProfileSnapshotResponse.Item.agentOutput.S');
     expect(choice.Choices[0].IsPresent).toBe(true);
     expect(choice.Choices[0].Next).toBe('ExtractInvestorProfileSnapshot');
     expect(choice.Default).toBe('HandleMissingInvestorProfileSnapshot');
@@ -108,7 +109,7 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(extract).toBeDefined();
     expect(extract.Type).toBe('Pass');
     expect(extract.Parameters['agentOutput.$']).toBe(
-      '$.investorProfileSnapshotResponse.Item.agentOutput.M',
+      'States.StringToJson($.investorProfileSnapshotResponse.Item.agentOutput.S)',
     );
     expect(extract.ResultPath).toBe('$.agentResults.InvokeInvestorProfile');
     expect(extract.End).toBe(true);
@@ -119,6 +120,25 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(fallback.Result).toEqual({ agentOutput: {} });
     expect(fallback.ResultPath).toBe('$.agentResults.InvokeInvestorProfile');
     expect(fallback.End).toBe(true);
+  });
+
+  it('ExtractInvestorProfileSnapshot Pass parses agentOutput.S via States.StringToJson', () => {
+    const branchStates = definition.States.ParallelProjections.Branches[0].States;
+    const extract = branchStates.ExtractInvestorProfileSnapshot;
+    expect(extract.Type).toBe('Pass');
+    expect(extract.Parameters['agentOutput.$']).toBe(
+      'States.StringToJson($.investorProfileSnapshotResponse.Item.agentOutput.S)',
+    );
+  });
+
+  it('CheckInvestorProfileSnapshotPresent Choice predicate checks Item.agentOutput.S', () => {
+    const branchStates = definition.States.ParallelProjections.Branches[0].States;
+    const choice = branchStates.CheckInvestorProfileSnapshotPresent;
+    expect(choice.Type).toBe('Choice');
+    expect(choice.Choices[0].IsPresent).toBe(true);
+    expect(choice.Choices[0].Variable).toBe(
+      '$.investorProfileSnapshotResponse.Item.agentOutput.S',
+    );
   });
 
   it('adds LookupMarketSnapshot — DDB GetItem on MarketSnapshot key, captures full response on $.marketSnapshotResponse (no ResultSelector — that would raise the uncatchable States.Runtime on absent rows)', () => {
@@ -133,22 +153,23 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
       "States.Format('MarketSnapshot#{}', $.region)",
     );
     expect(state.Parameters.Key.sk.S).toBe('MarketSnapshot');
-    // No ResultSelector — extracting $.Item.agentOutput.M on a missing row
-    // raises States.Runtime, which AWS docs say is NOT catchable. Defer the
-    // extraction to a downstream Pass guarded by a Choice on isPresent.
+    // No ResultSelector — evaluating States.StringToJson($.Item.agentOutput.S)
+    // on a missing row raises States.Runtime, which AWS docs say is NOT catchable.
+    // Defer the extraction to a downstream Pass guarded by a Choice on
+    // isPresent($.marketSnapshotResponse.Item.agentOutput.S).
     expect(state.ResultSelector).toBeUndefined();
     expect(state.ResultPath).toBe('$.marketSnapshotResponse');
     expect(state.Next).toBe('CheckMarketSnapshotPresent');
   });
 
-  it('Branch B fault-tolerance: Choice on $.marketSnapshotResponse.Item → ExtractMarketSnapshot or HandleMissingMarketSnapshot (both write empty-tolerant shape under $.agentResults.InvokeMarketIntelligence)', () => {
+  it('Branch B fault-tolerance: Choice on $.marketSnapshotResponse.Item.agentOutput.S → ExtractMarketSnapshot or HandleMissingMarketSnapshot (both write empty-tolerant shape under $.agentResults.InvokeMarketIntelligence)', () => {
     const branchStates = definition.States.ParallelProjections.Branches[1].States;
 
     const choice = branchStates.CheckMarketSnapshotPresent;
     expect(choice).toBeDefined();
     expect(choice.Type).toBe('Choice');
     expect(choice.Choices).toHaveLength(1);
-    expect(choice.Choices[0].Variable).toBe('$.marketSnapshotResponse.Item');
+    expect(choice.Choices[0].Variable).toBe('$.marketSnapshotResponse.Item.agentOutput.S');
     expect(choice.Choices[0].IsPresent).toBe(true);
     expect(choice.Choices[0].Next).toBe('ExtractMarketSnapshot');
     expect(choice.Default).toBe('HandleMissingMarketSnapshot');
@@ -157,7 +178,7 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(extract).toBeDefined();
     expect(extract.Type).toBe('Pass');
     expect(extract.Parameters['agentOutput.$']).toBe(
-      '$.marketSnapshotResponse.Item.agentOutput.M',
+      'States.StringToJson($.marketSnapshotResponse.Item.agentOutput.S)',
     );
     expect(extract.ResultPath).toBe('$.agentResults.InvokeMarketIntelligence');
     expect(extract.End).toBe(true);
@@ -168,6 +189,25 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(fallback.Result).toEqual({ agentOutput: {} });
     expect(fallback.ResultPath).toBe('$.agentResults.InvokeMarketIntelligence');
     expect(fallback.End).toBe(true);
+  });
+
+  it('ExtractMarketSnapshot Pass parses agentOutput.S via States.StringToJson', () => {
+    const branchStates = definition.States.ParallelProjections.Branches[1].States;
+    const extract = branchStates.ExtractMarketSnapshot;
+    expect(extract.Type).toBe('Pass');
+    expect(extract.Parameters['agentOutput.$']).toBe(
+      'States.StringToJson($.marketSnapshotResponse.Item.agentOutput.S)',
+    );
+  });
+
+  it('CheckMarketSnapshotPresent Choice predicate checks Item.agentOutput.S', () => {
+    const branchStates = definition.States.ParallelProjections.Branches[1].States;
+    const choice = branchStates.CheckMarketSnapshotPresent;
+    expect(choice.Type).toBe('Choice');
+    expect(choice.Choices[0].IsPresent).toBe(true);
+    expect(choice.Choices[0].Variable).toBe(
+      '$.marketSnapshotResponse.Item.agentOutput.S',
+    );
   });
 
   it('adds ParallelProjections — Parallel with two branches (IP Choice + Market lookup), resultPath $.parallelResults', () => {
@@ -195,6 +235,8 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     );
     // triggerContext must still flow through so ResolveMandateSnapshot can read it.
     expect(state.Parameters['triggerContext.$']).toBe('$.triggerContext');
+    // triggerAmountCentsContainer must flow through to AssembleDecisionPacket (regression: Task 4).
+    expect(state.Parameters['triggerAmountCentsContainer.$']).toBe('$.triggerAmountCentsContainer');
   });
 
   // ---- ResolveMandateSnapshot Choice wrapping the existing mandate lookup -
@@ -217,6 +259,8 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     );
     // Must preserve agentResults that ParallelProjections produced.
     expect(state.Parameters['agentResults.$']).toBe('$.agentResults');
+    // triggerAmountCentsContainer must flow through to AssembleDecisionPacket (regression: Task 4).
+    expect(state.Parameters['triggerAmountCentsContainer.$']).toBe('$.triggerAmountCentsContainer');
   });
 
   it('preserves LookupMandateSnapshot + SetInvestorProfile internals', () => {
@@ -233,6 +277,8 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(set.Parameters.investorProfile['operatingMode.$']).toBe(
       '$.mandateSnapshot.operatingMode',
     );
+    // triggerAmountCentsContainer must flow through to AssembleDecisionPacket (regression: Task 4).
+    expect(set.Parameters['triggerAmountCentsContainer.$']).toBe('$.triggerAmountCentsContainer');
   });
 
   // ---- PE + AN unchanged shape ------------------------------------------
@@ -281,8 +327,11 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
 
   // ---- Main chain ordering ----------------------------------------------
 
-  it('wires the main chain UnpackTriggerEnvelope → ParallelProjections → MergeProjections → ResolveMandateSnapshot', () => {
-    expect(definition.States.UnpackTriggerEnvelope.Next).toBe('ParallelProjections');
+  it('wires the main chain UnpackTriggerEnvelope → ResolveTriggerAmountCents → ParallelProjections → MergeProjections → ResolveMandateSnapshot', () => {
+    expect(definition.States.UnpackTriggerEnvelope.Next).toBe('ResolveTriggerAmountCents');
+    // Both ResolveTriggerAmountCents branches converge on ParallelProjections.
+    expect(definition.States.SetTriggerAmountCentsFromTrigger.Next).toBe('ParallelProjections');
+    expect(definition.States.SetTriggerAmountCentsZero.Next).toBe('ParallelProjections');
     expect(definition.States.ParallelProjections.Next).toBe('MergeProjections');
     expect(definition.States.MergeProjections.Next).toBe('ResolveMandateSnapshot');
     // The Choice's default branch eventually feeds into InvokePortfolioEngine via SetInvestorProfile.
@@ -297,5 +346,74 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(definition.States.WaitForCompliance).toBeDefined();
     expect(definition.States.AssembleDecisionPacket).toBeDefined();
     expect(definition.States.RequestUserConfirmation).toBeDefined();
+  });
+
+  // ---- decision-pipeline-units-calibration-suitability workstream ----------
+
+  it('UnpackTriggerEnvelope does NOT include triggerAmountCents (resolved by ResolveTriggerAmountCents Choice)', () => {
+    const s = definition.States.UnpackTriggerEnvelope;
+    expect(s.Parameters['triggerAmountCents.$']).toBeUndefined();
+  });
+
+  it('ResolveTriggerAmountCents is a Choice on isPresent($.triggerContext.amountCents)', () => {
+    const s = definition.States.ResolveTriggerAmountCents;
+    expect(s).toBeDefined();
+    expect(s.Type).toBe('Choice');
+    expect(s.Choices).toHaveLength(1);
+    expect(s.Choices[0].Variable).toBe('$.triggerContext.amountCents');
+    expect(s.Choices[0].IsPresent).toBe(true);
+    expect(s.Choices[0].Next).toBe('SetTriggerAmountCentsFromTrigger');
+    expect(s.Default).toBe('SetTriggerAmountCentsZero');
+  });
+
+  it('SetTriggerAmountCentsFromTrigger Pass projects $.triggerContext.amountCents into $.triggerAmountCentsContainer.value', () => {
+    const s = definition.States.SetTriggerAmountCentsFromTrigger;
+    expect(s).toBeDefined();
+    expect(s.Type).toBe('Pass');
+    expect(s.Parameters['value.$']).toBe('$.triggerContext.amountCents');
+    expect(s.ResultPath).toBe('$.triggerAmountCentsContainer');
+  });
+
+  it('SetTriggerAmountCentsZero Pass injects { value: 0 } into $.triggerAmountCentsContainer', () => {
+    const s = definition.States.SetTriggerAmountCentsZero;
+    expect(s).toBeDefined();
+    expect(s.Type).toBe('Pass');
+    expect(s.Result).toEqual({ value: 0 });
+    expect(s.ResultPath).toBe('$.triggerAmountCentsContainer');
+  });
+
+  it('both ResolveTriggerAmountCents branches converge on ParallelProjections', () => {
+    expect(definition.States.SetTriggerAmountCentsFromTrigger.Next).toBe('ParallelProjections');
+    expect(definition.States.SetTriggerAmountCentsZero.Next).toBe('ParallelProjections');
+  });
+
+  it('AssembleDecisionPacket payload reads triggerAmountCents from $.triggerAmountCentsContainer.value', () => {
+    const s = definition.States.AssembleDecisionPacket;
+    expect(s.Parameters.Payload['triggerAmountCents.$']).toBe('$.triggerAmountCentsContainer.value');
+  });
+
+  it('AssembleDecisionPacket ResultSelector projects portfolioValueCents + isInitialBuild + riskCategory', () => {
+    const s = definition.States.AssembleDecisionPacket;
+    expect(s.ResultSelector['portfolioValueCents.$']).toBe('$.Payload.portfolioValueCents');
+    expect(s.ResultSelector['isInitialBuild.$']).toBe('$.Payload.isInitialBuild');
+    expect(s.ResultSelector['riskCategory.$']).toBe('$.Payload.riskCategory');
+    expect(s.ResultSelector).not.toHaveProperty('portfolioValue.$');
+    expect(s.ResultSelector).not.toHaveProperty('riskScore.$');
+  });
+
+  it('WaitForCompliance subject carries portfolioValueCents, isInitialBuild, riskCategory (not portfolioValue/riskScore)', () => {
+    const s = definition.States.WaitForCompliance;
+    const subject = s.Parameters.Entries[0].Detail.subject;
+    expect(subject['portfolioValueCents.$']).toBe('$.decisionPacket.portfolioValueCents');
+    expect(subject['isInitialBuild.$']).toBe('$.decisionPacket.isInitialBuild');
+    expect(subject['riskCategory.$']).toBe('$.decisionPacket.riskCategory');
+    expect(subject).not.toHaveProperty('portfolioValue.$');
+    expect(subject).not.toHaveProperty('riskScore.$');
+  });
+
+  it('HoistInvestorProfileFromTrigger seeds riskCategory from trigger riskProfile.category', () => {
+    const branchStates = definition.States.ParallelProjections.Branches[0].States;
+    const s = branchStates.HoistInvestorProfileFromTrigger;
+    expect(s.Parameters.agentOutput['riskCategory.$']).toBe('$.triggerContext.riskProfile.category');
   });
 });

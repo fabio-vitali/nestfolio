@@ -33,7 +33,7 @@ function projectIpSnapshot(
   const attrs = {
     tenantId,
     userId,
-    agentOutput,
+    agentOutput: JSON.stringify(agentOutput),
     sourceEventId: (subject.sourceEventId as string) ?? ctx.eventId,
     updatedAt: new Date().toISOString(),
   };
@@ -56,7 +56,7 @@ function projectMarketSnapshot(payload: EventPayload): WriteIntent {
     'MarketSnapshot',
     {
       region,
-      agentOutput,
+      agentOutput: JSON.stringify(agentOutput),
       updatedAt: new Date().toISOString(),
     },
     { pk: projectedMarketSnapshotPk(region), sk: PROJECTED_MARKET_SNAPSHOT_SK },

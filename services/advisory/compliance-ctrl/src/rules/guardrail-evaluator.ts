@@ -7,31 +7,43 @@ import { resolveGuardrailParams } from './guardrail-params';
  * via resolveGuardrailParams — no numeric fields on MandateSnapshot.
  *
  * Checks:
- * - Max single trade size (% of portfolio)
- * - Monthly turnover cap
- * - Concentration limits (single stock)
+ * - Max single trade size (% of portfolio) — skipped for initial portfolio construction
+ * - Concentration limits (single position) — always runs
+ * - Monthly turnover cap — skipped for initial portfolio construction
+ *
+ * The skip behaviour exists because BALANCED maxSingleTradePercent=10 and
+ * monthlyTurnoverCapPercent=25 are calibrated for drift rebalances; an
+ * initial allocation from cash necessarily exceeds them.
  */
 export class GuardrailEvaluator {
   evaluate(input: ComplianceInput): CheckResult[] {
-    const results: CheckResult[] = [];
-
-    results.push(this.checkSingleTradeSize(input));
-    results.push(this.checkConcentrationLimit(input));
-    results.push(this.checkTurnoverCap(input));
-
-    return results;
+    return [
+      this.checkSingleTradeSize(input),
+      this.checkConcentrationLimit(input),
+      this.checkTurnoverCap(input),
+    ];
   }
 
   private checkSingleTradeSize(input: ComplianceInput): CheckResult {
-    const { proposedTrades, portfolioValue, mandate } = input;
+    if (input.isInitialBuild) {
+      return {
+        name: 'MAX_SINGLE_TRADE',
+        passed: true,
+        details: 'Skipped for initial portfolio construction (no prior positions)',
+      };
+    }
+
+    const { proposedTrades, portfolioValueCents, mandate } = input;
     const params = resolveGuardrailParams(mandate.operatingMode);
     const maxPercent = params.maxSingleTradePercent;
-    const maxAmountCents = (portfolioValue * maxPercent) / 100;
+    const maxAmountCents = (portfolioValueCents * maxPercent) / 100;
 
     for (const trade of proposedTrades) {
       if (trade.quantityOrAmountCents > maxAmountCents) {
         const tradePercent =
-          (trade.quantityOrAmountCents / portfolioValue) * 100;
+          portfolioValueCents > 0
+            ? (trade.quantityOrAmountCents / portfolioValueCents) * 100
+            : 0;
         return {
           name: 'MAX_SINGLE_TRADE',
           passed: false,
@@ -52,13 +64,11 @@ export class GuardrailEvaluator {
     const params = resolveGuardrailParams(mandate.operatingMode);
     const maxConcentration = params.singleEtfConcentrationPercent;
 
-    // Build a map of current weights
     const positionWeights = new Map<string, number>();
     for (const pos of currentPositions) {
       positionWeights.set(pos.ticker, pos.weight);
     }
 
-    // Apply proposed trades to check resulting concentration
     for (const trade of proposedTrades) {
       const currentWeight = positionWeights.get(trade.symbol) ?? 0;
       const resultingWeight =
@@ -83,10 +93,18 @@ export class GuardrailEvaluator {
   }
 
   private checkTurnoverCap(input: ComplianceInput): CheckResult {
-    const { proposedTrades, portfolioValue, mandate } = input;
+    if (input.isInitialBuild) {
+      return {
+        name: 'TURNOVER_CAP',
+        passed: true,
+        details: 'Skipped for initial portfolio construction (no prior positions)',
+      };
+    }
+
+    const { proposedTrades, portfolioValueCents, mandate } = input;
     const params = resolveGuardrailParams(mandate.operatingMode);
     const maxTurnoverPercent = params.monthlyTurnoverCapPercent;
-    const maxTurnoverCents = (portfolioValue * maxTurnoverPercent) / 100;
+    const maxTurnoverCents = (portfolioValueCents * maxTurnoverPercent) / 100;
 
     const totalTurnoverCents = proposedTrades.reduce(
       (sum, trade) => sum + trade.quantityOrAmountCents,
@@ -94,7 +112,10 @@ export class GuardrailEvaluator {
     );
 
     if (totalTurnoverCents > maxTurnoverCents) {
-      const turnoverPercent = (totalTurnoverCents / portfolioValue) * 100;
+      const turnoverPercent =
+        portfolioValueCents > 0
+          ? (totalTurnoverCents / portfolioValueCents) * 100
+          : 0;
       return {
         name: 'TURNOVER_CAP',
         passed: false,

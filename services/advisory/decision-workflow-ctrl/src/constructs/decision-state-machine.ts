@@ -149,12 +149,12 @@ export class DecisionWorkflowDefinition extends Construct {
 
     // AssemblePacket invocation. The Lambda writes a DecisionPacket DDB row
     // (idempotent) AND returns the compliance inputs (proposedTrades,
-    // portfolioValue, riskScore, currentPositions) extracted from the agents'
-    // memory outputs. ResultSelector flattens the lambda:invoke envelope so we
-    // address the fields directly via $.decisionPacket.<field>. ResultPath
-    // captures only this packet — the existing top-level state ({decisionId,
-    // tenantId, userId, region, trigger, triggerContext}) flows through
-    // unchanged.
+    // portfolioValueCents, isInitialBuild, riskCategory, currentPositions)
+    // extracted from the agents' outputs. ResultSelector flattens the
+    // lambda:invoke envelope so we address the fields directly via
+    // $.decisionPacket.<field>. ResultPath captures only this packet — the
+    // existing top-level state ({decisionId, tenantId, userId, region, trigger,
+    // triggerContext}) flows through unchanged.
     // triggerEventId === decisionId per event-listener.ts (both are the trigger
     // event's id), so we reuse $.decisionId.
     const assemblePacket = new sfn.CustomState(this, 'AssembleDecisionPacket', {
@@ -171,10 +171,10 @@ export class DecisionWorkflowDefinition extends Construct {
             'trigger.$': '$.trigger',
             'triggerEventId.$': '$.decisionId',
             'executionArn.$': '$$.Execution.Id',
+            'triggerAmountCents.$': '$.triggerAmountCentsContainer.value',
             // Inter-agent state handoff Phase A: pass the 4 agent outputs in
-            // directly so assemble-packet.ts (Task 3) reads them from event,
-            // not from AgentCore Memory ListMemoryRecords. See
-            // docs/backlog/inter-agent-state-handoff-sf-vs-memory.md.
+            // directly so assemble-packet.ts reads them from event, not from
+            // AgentCore Memory ListMemoryRecords.
             'investorProfile.$': '$.agentResults.InvokeInvestorProfile.agentOutput',
             'marketAnalysis.$': '$.agentResults.InvokeMarketIntelligence.agentOutput',
             'portfolio.$': '$.agentResults.InvokePortfolioEngine.agentOutput',
@@ -183,8 +183,9 @@ export class DecisionWorkflowDefinition extends Construct {
         },
         ResultSelector: {
           'proposedTrades.$': '$.Payload.proposedTrades',
-          'portfolioValue.$': '$.Payload.portfolioValue',
-          'riskScore.$': '$.Payload.riskScore',
+          'portfolioValueCents.$': '$.Payload.portfolioValueCents',
+          'isInitialBuild.$': '$.Payload.isInitialBuild',
+          'riskCategory.$': '$.Payload.riskCategory',
           'currentPositions.$': '$.Payload.currentPositions',
         },
         ResultPath: '$.decisionPacket',
@@ -220,8 +221,9 @@ export class DecisionWorkflowDefinition extends Construct {
                   'taskToken.$': '$$.Task.Token',
                   'awaitingCompliance': true,
                   'proposedTrades.$': '$.decisionPacket.proposedTrades',
-                  'portfolioValue.$': '$.decisionPacket.portfolioValue',
-                  'riskScore.$': '$.decisionPacket.riskScore',
+                  'portfolioValueCents.$': '$.decisionPacket.portfolioValueCents',
+                  'isInitialBuild.$': '$.decisionPacket.isInitialBuild',
+                  'riskCategory.$': '$.decisionPacket.riskCategory',
                   'currentPositions.$': '$.decisionPacket.currentPositions',
                 },
                 'context': {
@@ -313,8 +315,36 @@ export class DecisionWorkflowDefinition extends Construct {
         'region.$': '$.context.region',
         'trigger.$': '$.type',
         'triggerContext.$': '$.subject',
+        // triggerAmountCents is resolved in a subsequent Choice state
+        // (ResolveTriggerAmountCents) so that non-deposit triggers that lack
+        // amountCents don't raise uncatchable States.Runtime here.
       },
     });
+
+    // Resolve triggerAmountCents from the trigger payload IF present (DEPOSIT_DETECTED),
+    // otherwise default to 0. The bare JSONPath `$.triggerContext.amountCents` raises
+    // uncatchable States.Runtime when the field is missing — work around via Choice + Pass.
+    // MANDATE_SNAPSHOT_CREATED / INVESTOR_PROFILE_UPDATED / PORTFOLIO_DRIFT_DETECTED /
+    // ORDER_* triggers have no amountCents. AssembleDecisionPacket reads the value via
+    // $.triggerAmountCentsContainer.value after this state resolves.
+    // Task 14 surfaced this regression (Task 4) in dev with failed orphan SF
+    // executions from MANDATE_SNAPSHOT_CREATED.
+    //
+    // Container shape is required because Pass.parameters always produces an object
+    // result — we can't extract a scalar via parameters alone. Downstream forwarders
+    // (MergeProjections, SetInvestorProfile, HoistMandateFromTrigger) and
+    // AssembleDecisionPacket Payload read $.triggerAmountCentsContainer.value.
+    const setTriggerAmountCentsFromTrigger = new sfn.Pass(this, 'SetTriggerAmountCentsFromTrigger', {
+      parameters: { 'value.$': '$.triggerContext.amountCents' },
+      resultPath: '$.triggerAmountCentsContainer',
+    });
+    const setTriggerAmountCentsZero = new sfn.Pass(this, 'SetTriggerAmountCentsZero', {
+      result: sfn.Result.fromObject({ value: 0 }),
+      resultPath: '$.triggerAmountCentsContainer',
+    });
+    const resolveTriggerAmountCents = new sfn.Choice(this, 'ResolveTriggerAmountCents')
+      .when(sfn.Condition.isPresent('$.triggerContext.amountCents'), setTriggerAmountCentsFromTrigger)
+      .otherwise(setTriggerAmountCentsZero);
 
     // --- Projection lookups (replace the legacy per-decision IP + Market agents) ---
     //
@@ -329,11 +359,13 @@ export class DecisionWorkflowDefinition extends Construct {
     //     path. See plan §Open Question #3.
 
     // Fault-tolerance: a missing InvestorProfileSnapshot row produces a
-    // States.Runtime when a ResultSelector tries to extract $.Item.agentOutput.M,
-    // and States.Runtime is NOT catchable per AWS docs. Capture the raw GetItem
+    // States.Runtime when States.StringToJson(undefined) is evaluated, and
+    // States.Runtime is NOT catchable per AWS docs. Capture the raw GetItem
     // response on $.investorProfileSnapshotResponse (no ResultSelector), then use
-    // a Choice on isPresent($.Item) to branch — symmetric with the Market branch
-    // below. PE+AN tolerate empty investorProfile via `?? {}`, so the absent path
+    // a Choice on isPresent($.investorProfileSnapshotResponse.Item.agentOutput.S)
+    // to branch — symmetric with the Market branch below. ExtractInvestorProfileSnapshot
+    // parses the JSON-string agentOutput via States.StringToJson on the hit path.
+    // PE+AN tolerate empty investorProfile via `?? {}`, so the absent path
     // degrades the decision rather than aborting the cycle.
     const lookupInvestorProfileSnapshot = new sfnTasks.DynamoGetItem(this, 'LookupInvestorProfileSnapshot', {
       table: props.table,
@@ -351,7 +383,8 @@ export class DecisionWorkflowDefinition extends Construct {
     });
     const extractInvestorProfileSnapshot = new sfn.Pass(this, 'ExtractInvestorProfileSnapshot', {
       parameters: {
-        'agentOutput.$': '$.investorProfileSnapshotResponse.Item.agentOutput.M',
+        'agentOutput.$':
+          'States.StringToJson($.investorProfileSnapshotResponse.Item.agentOutput.S)',
       },
       resultPath: '$.agentResults.InvokeInvestorProfile',
     });
@@ -360,7 +393,10 @@ export class DecisionWorkflowDefinition extends Construct {
       resultPath: '$.agentResults.InvokeInvestorProfile',
     });
     const checkInvestorProfileSnapshotPresent = new sfn.Choice(this, 'CheckInvestorProfileSnapshotPresent')
-      .when(sfn.Condition.isPresent('$.investorProfileSnapshotResponse.Item'), extractInvestorProfileSnapshot)
+      .when(
+        sfn.Condition.isPresent('$.investorProfileSnapshotResponse.Item.agentOutput.S'),
+        extractInvestorProfileSnapshot,
+      )
       .otherwise(handleMissingInvestorProfileSnapshot);
 
     const hoistInvestorProfileFromTrigger = new sfn.Pass(this, 'HoistInvestorProfileFromTrigger', {
@@ -381,7 +417,15 @@ export class DecisionWorkflowDefinition extends Construct {
           'timeHorizon.$': '$.triggerContext.goal.timeHorizonMonths',
           'riskWillingness': 'inline',
           'riskScore.$': '$.triggerContext.riskProfile.score',
-          'riskCategory': 'MODERATE',
+          // Safety: `riskCategory.$: '$.triggerContext.riskProfile.category'` only
+          // executes when ResolveInvestorProfile routes here via
+          // isPresent('$.triggerContext.goal'). Today, only INVESTOR_PROFILE_UPDATED
+          // triggers carry both `goal` AND `riskProfile.category`, so the JSONPath is
+          // safe. If a future trigger type satisfies isPresent($.triggerContext.goal)
+          // but lacks riskProfile.category, States.Runtime would raise (uncatchable —
+          // see feedback_states_runtime_uncatchable). Tighten the Choice predicate if a
+          // new trigger needs to enter this path without a full riskProfile.
+          'riskCategory.$': '$.triggerContext.riskProfile.category',
           'regulatoryFlags': [],
           'suitabilityAssessment': 'inline-from-trigger',
           'confidence': 1.0,
@@ -398,12 +442,13 @@ export class DecisionWorkflowDefinition extends Construct {
     //     because no trigger carries market analysis.
     //
     //     Fault-tolerance: a missing MarketSnapshot row produces an SF
-    //     States.Runtime when extracting $.Item.agentOutput.M, which is
+    //     States.Runtime when States.StringToJson(undefined) is evaluated, which is
     //     UNCATCHABLE per AWS docs ("aren't catchable using Retry or Catch").
     //     We instead capture the raw GetItem response on $.marketSnapshotResponse
     //     (no ResultSelector — that's the part that would raise), then use a
-    //     Choice on isPresent($.Item) to branch: ExtractMarketSnapshot lifts the
-    //     real agentOutput on the hit path, HandleMissingMarketSnapshot seeds
+    //     Choice on isPresent($.marketSnapshotResponse.Item.agentOutput.S) to
+    //     branch: ExtractMarketSnapshot parses the JSON-string agentOutput via
+    //     States.StringToJson on the hit path, HandleMissingMarketSnapshot seeds
     //     an empty default on the miss path. PE+AN tolerate empty marketAnalysis
     //     via `?? {}` (event-listener.ts in each), so absent market context
     //     degrades the decision rather than aborting the cycle.
@@ -419,7 +464,8 @@ export class DecisionWorkflowDefinition extends Construct {
     });
     const extractMarketSnapshot = new sfn.Pass(this, 'ExtractMarketSnapshot', {
       parameters: {
-        'agentOutput.$': '$.marketSnapshotResponse.Item.agentOutput.M',
+        'agentOutput.$':
+          'States.StringToJson($.marketSnapshotResponse.Item.agentOutput.S)',
       },
       resultPath: '$.agentResults.InvokeMarketIntelligence',
     });
@@ -428,7 +474,10 @@ export class DecisionWorkflowDefinition extends Construct {
       resultPath: '$.agentResults.InvokeMarketIntelligence',
     });
     const checkMarketSnapshotPresent = new sfn.Choice(this, 'CheckMarketSnapshotPresent')
-      .when(sfn.Condition.isPresent('$.marketSnapshotResponse.Item'), extractMarketSnapshot)
+      .when(
+        sfn.Condition.isPresent('$.marketSnapshotResponse.Item.agentOutput.S'),
+        extractMarketSnapshot,
+      )
       .otherwise(handleMissingMarketSnapshot);
 
     // (C) Parallel: run the IP Choice + Market lookup concurrently.
@@ -442,6 +491,15 @@ export class DecisionWorkflowDefinition extends Construct {
     //     $.agentResults.<StateId>.agentOutput so PE+AN subjects can reference
     //     them via JSONPath. Preserve triggerContext so ResolveMandateSnapshot
     //     below can still inspect $.triggerContext.operatingMode.
+    //
+    // Pass-through plumbing pattern: every Pass state on the path from
+    // UnpackTriggerEnvelope to AssembleDecisionPacket uses `parameters:` with
+    // default `resultPath: '$'`, which fully replaces top-level SF state. Any
+    // field that must reach AssembleDecisionPacket (triggerAmountCents,
+    // triggerContext, agentResults, etc.) MUST be listed explicitly in EVERY
+    // such Pass state. If you add a new Pass state on this path, replicate the
+    // full identity-field set or the value silently drops. Regression tests at
+    // test/unit/decision-state-machine.test.ts assert each forwarding line.
     const mergeProjections = new sfn.Pass(this, 'MergeProjections', {
       parameters: {
         'decisionId.$': '$.decisionId',
@@ -450,6 +508,7 @@ export class DecisionWorkflowDefinition extends Construct {
         'region.$': '$.region',
         'trigger.$': '$.trigger',
         'triggerContext.$': '$.triggerContext',
+        'triggerAmountCentsContainer.$': '$.triggerAmountCentsContainer',
         'agentResults': {
           'InvokeInvestorProfile': {
             'agentOutput.$': '$.parallelResults[0].agentResults.InvokeInvestorProfile.agentOutput',
@@ -495,6 +554,7 @@ export class DecisionWorkflowDefinition extends Construct {
         'region.$': '$.region',
         'trigger.$': '$.trigger',
         'triggerContext.$': '$.triggerContext',
+        'triggerAmountCentsContainer.$': '$.triggerAmountCentsContainer',
         // Preserve agentResults through the mandate-lookup branch so PE+AN can
         // still resolve $.agentResults.InvokeInvestorProfile.agentOutput +
         // $.agentResults.InvokeMarketIntelligence.agentOutput downstream.
@@ -515,6 +575,7 @@ export class DecisionWorkflowDefinition extends Construct {
         'region.$': '$.region',
         'trigger.$': '$.trigger',
         'triggerContext.$': '$.triggerContext',
+        'triggerAmountCentsContainer.$': '$.triggerAmountCentsContainer',
         // Preserve agentResults through the mandate-hoist branch — same reason
         // as SetInvestorProfile above (Pass replaces top-level state).
         'agentResults.$': '$.agentResults',
@@ -541,8 +602,14 @@ export class DecisionWorkflowDefinition extends Construct {
 
     // --- Wire the chain ---
 
+    // Both ResolveTriggerAmountCents branches (hit + miss) converge on
+    // parallelProjections via afterwards(), mirroring the mandateResolved pattern.
+    const amountCentsResolved = resolveTriggerAmountCents
+      .afterwards()
+      .next(parallelProjections);
+
     const definition = unpackTriggerEnvelope
-      .next(parallelProjections)
+      .next(amountCentsResolved)
       .next(mergeProjections)
       .next(mandateResolved)
       .next(invokeAdvisoryNarrative)

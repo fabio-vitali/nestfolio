@@ -150,8 +150,9 @@ describe('event-listener handler', () => {
         rationale: 'Good value',
       },
     ],
-    portfolioValue: 10_000_000,
-    riskScore: 7,
+    portfolioValueCents: 10_000_000,
+    riskCategory: 'MODERATE',
+    isInitialBuild: false,
     currentPositions: [{ ticker: 'MSFT', weight: 10 }],
   };
 
@@ -265,7 +266,8 @@ describe('event-listener handler', () => {
           tenantId: 't-1',
           userId: 'u-1',
           taskToken: 'tok',
-          // Missing: proposedTrades, portfolioValue, riskScore, currentPositions
+          // Missing: proposedTrades, portfolioValueCents, currentPositions
+          // (riskCategory + isInitialBuild have sane defaults and are NOT required)
         }, { tenantId: 't-1' }),
       ]);
       expect(result.batchItemFailures).toHaveLength(1);
@@ -283,6 +285,92 @@ describe('event-listener handler', () => {
       expect(result.batchItemFailures).toHaveLength(1);
       expect(getMandateSnapshot).not.toHaveBeenCalled();
       expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it('builds ComplianceInput with isInitialBuild + riskCategory + portfolioValueCents from RECOMMENDATION_PROPOSED subject', async () => {
+      getMandateSnapshot.mockResolvedValue(mandate);
+      const captured: unknown[] = [];
+      evaluateSpy.mockImplementation((input: unknown) => {
+        captured.push(input);
+        return { result: 'APPROVED' as const, authorityLevel: 'L2' as const, violations: [], checks: [] };
+      });
+
+      const harness = makeHarness();
+      await harness.process([
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', {
+          decisionId: 'dec-1',
+          tenantId: 't-1',
+          userId: 'u-1',
+          taskToken: 'tt-1',
+          proposedTrades: [
+            { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 14_000, targetWeightPercent: 14, rationale: 'x' },
+          ],
+          portfolioValueCents: 100_000,
+          riskCategory: 'MODERATE',
+          isInitialBuild: true,
+          currentPositions: [],
+        }, { tenantId: 't-1' }),
+      ]);
+
+      expect(captured[0]).toMatchObject({
+        portfolioValueCents: 100_000,
+        riskCategory: 'MODERATE',
+        isInitialBuild: true,
+      });
+      expect(captured[0]).not.toHaveProperty('portfolioValue');
+      expect(captured[0]).not.toHaveProperty('riskScore');
+    });
+
+    it('defaults riskCategory to MODERATE when subject is missing the field', async () => {
+      getMandateSnapshot.mockResolvedValue(mandate);
+      const captured: unknown[] = [];
+      evaluateSpy.mockImplementation((input: unknown) => {
+        captured.push(input);
+        return { result: 'APPROVED' as const, authorityLevel: 'L2' as const, violations: [], checks: [] };
+      });
+
+      const harness = makeHarness();
+      await harness.process([
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', {
+          decisionId: 'dec-2',
+          tenantId: 't-1',
+          userId: 'u-1',
+          taskToken: 'tt-2',
+          proposedTrades: [],
+          portfolioValueCents: 50_000,
+          // riskCategory intentionally omitted
+          isInitialBuild: false,
+          currentPositions: [],
+        }, { tenantId: 't-1' }),
+      ]);
+
+      expect((captured[0] as Record<string, unknown>).riskCategory).toBe('MODERATE');
+    });
+
+    it('defaults isInitialBuild to false when subject is missing the field', async () => {
+      getMandateSnapshot.mockResolvedValue(mandate);
+      const captured: unknown[] = [];
+      evaluateSpy.mockImplementation((input: unknown) => {
+        captured.push(input);
+        return { result: 'APPROVED' as const, authorityLevel: 'L2' as const, violations: [], checks: [] };
+      });
+
+      const harness = makeHarness();
+      await harness.process([
+        fakeSqsRecord('RECOMMENDATION_PROPOSED', {
+          decisionId: 'dec-3',
+          tenantId: 't-1',
+          userId: 'u-1',
+          taskToken: 'tt-3',
+          proposedTrades: [],
+          portfolioValueCents: 50_000,
+          riskCategory: 'CONSERVATIVE',
+          // isInitialBuild intentionally omitted
+          currentPositions: [],
+        }, { tenantId: 't-1' }),
+      ]);
+
+      expect((captured[0] as Record<string, unknown>).isInitialBuild).toBe(false);
     });
 
     it('should skip unknown event types gracefully', async () => {

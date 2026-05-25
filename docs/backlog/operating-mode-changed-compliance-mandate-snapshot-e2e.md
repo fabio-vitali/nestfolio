@@ -2,7 +2,7 @@
 id: operating-mode-changed-compliance-mandate-snapshot-e2e
 status: queued
 type: design
-rank: 2
+rank: 3
 notes: "Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested."
 references:
   - "services/investor/investor-bff/src/graphql/js-function/update-operating-mode.fn.js"

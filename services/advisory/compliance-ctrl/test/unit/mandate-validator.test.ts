@@ -15,8 +15,9 @@ function buildInput(mandateOverrides: Partial<MandateSnapshot> = {}): Compliance
     userId: 'u-1',
     mandate: { ...BASE_MANDATE, ...mandateOverrides },
     proposedTrades: [],
-    portfolioValue: 100_000_00,
-    riskScore: 5,
+    portfolioValueCents: 100_000_00,
+    riskCategory: 'MODERATE',
+    isInitialBuild: false,
     currentPositions: [],
   };
 }

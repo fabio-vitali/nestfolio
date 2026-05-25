@@ -44,7 +44,9 @@ async function processDecisionPacket(
   const taskToken = subject.taskToken as string | undefined;
 
   // Validate required fields
-  const requiredFields = ['proposedTrades', 'portfolioValue', 'riskScore', 'currentPositions'];
+  // riskCategory + isInitialBuild have sane defaults and are NOT required;
+  // portfolioValueCents replaces the old portfolioValue field.
+  const requiredFields = ['proposedTrades', 'portfolioValueCents', 'currentPositions'];
   const missingFields = requiredFields.filter((f) => !(f in subject));
   if (missingFields.length) {
     throw new NotRetryableError(`Missing fields: ${missingFields.join(', ')}`);
@@ -93,8 +95,10 @@ async function processDecisionPacket(
   };
 
   const proposedTrades = (subject.proposedTrades as ComplianceInput['proposedTrades']) ?? [];
-  const portfolioValue = (subject.portfolioValue as number) ?? 0;
-  const riskScore = (subject.riskScore as number) ?? 5;
+  const portfolioValueCents = (subject.portfolioValueCents as number) ?? 0;
+  const riskCategory =
+    (subject.riskCategory as ComplianceInput['riskCategory']) ?? 'MODERATE';
+  const isInitialBuild = (subject.isInitialBuild as boolean) ?? false;
   const currentPositions = (subject.currentPositions as ComplianceInput['currentPositions']) ?? [];
 
   const complianceInput: ComplianceInput = {
@@ -103,8 +107,9 @@ async function processDecisionPacket(
     userId,
     mandate,
     proposedTrades,
-    portfolioValue,
-    riskScore,
+    portfolioValueCents,
+    riskCategory,
+    isInitialBuild,
     currentPositions,
   };
 

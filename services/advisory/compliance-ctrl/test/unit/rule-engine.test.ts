@@ -27,8 +27,9 @@ function buildInput(overrides: Partial<ComplianceInput> = {}): ComplianceInput {
         rationale: 'Good value',
       },
     ],
-    portfolioValue: 100_000_00,
-    riskScore: 7,
+    portfolioValueCents: 100_000_00,
+    riskCategory: 'AGGRESSIVE', // old riskScore=7 → closest category is AGGRESSIVE (cap 90%)
+    isInitialBuild: false,
     currentPositions: [{ ticker: 'MSFT', weight: 10 }],
     ...overrides,
   };
@@ -87,8 +88,8 @@ describe('RuleEngine', () => {
 
   it('should BLOCK when suitability check fails', () => {
     const input = buildInput({
-      riskScore: 2, // max 20% equity
-      currentPositions: [{ ticker: 'AAPL', weight: 18 }],
+      riskCategory: 'CONSERVATIVE', // old riskScore=2 → CONSERVATIVE (cap 30%)
+      currentPositions: [{ ticker: 'AAPL', weight: 28 }],
       proposedTrades: [
         {
           symbol: 'GOOG',
@@ -103,7 +104,7 @@ describe('RuleEngine', () => {
 
     const output = engine.evaluate(input);
 
-    // 18% + 5% = 23% > 20% max for risk score 2
+    // 28% + 5% = 33% > 30% max for CONSERVATIVE risk category
     expect(output.result).toBe('BLOCKED');
     expect(output.violations.some((v) => v.rule === 'SUITABILITY')).toBe(true);
   });

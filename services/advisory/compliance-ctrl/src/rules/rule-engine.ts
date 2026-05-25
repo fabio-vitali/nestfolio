@@ -6,6 +6,7 @@ import { AuthorityResolver } from './authority-resolver';
 export type OperatingMode = 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
 export type RebalanceCadence = 'MONTHLY' | 'QUARTERLY';
 export type MandateLevel = 'ADVISORY' | 'DISCRETIONARY';
+export type RiskCategory = 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE';
 
 export interface MandateSnapshot {
   level: MandateLevel;
@@ -27,8 +28,9 @@ export interface ComplianceInput {
     targetWeightPercent: number;
     rationale: string;
   }>;
-  portfolioValue: number;
-  riskScore: number;
+  portfolioValueCents: number;
+  riskCategory: RiskCategory;
+  isInitialBuild: boolean;
   currentPositions: Array<{ ticker: string; weight: number }>;
 }
 

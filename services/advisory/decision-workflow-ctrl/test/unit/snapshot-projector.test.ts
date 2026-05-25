@@ -40,7 +40,8 @@ describe('snapshot-projector', () => {
     const fields = (intent as { fields: Record<string, unknown> }).fields;
     expect(fields.tenantId).toBe('tenant-1');
     expect(fields.userId).toBe('user-1');
-    expect(fields.agentOutput).toEqual({ riskScore: 55, riskTolerance: 'MODERATE' });
+    expect(typeof fields.agentOutput).toBe('string');
+    expect(JSON.parse(fields.agentOutput as string)).toEqual({ riskScore: 55, riskTolerance: 'MODERATE' });
     expect(fields.sourceEventId).toBe('src-e1');
     expect(typeof fields.updatedAt).toBe('string');
   });
@@ -76,7 +77,8 @@ describe('snapshot-projector', () => {
     );
     expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.sk).toBe(PROJECTED_IP_SNAPSHOT_SK);
     const updates = (intent as { updates: Record<string, unknown> }).updates;
-    expect(updates.agentOutput).toEqual({ riskScore: 70 });
+    expect(typeof updates.agentOutput).toBe('string');
+    expect(JSON.parse(updates.agentOutput as string)).toEqual({ riskScore: 70 });
     expect(updates.sourceEventId).toBe('src-e2');
   });
 
@@ -113,7 +115,8 @@ describe('snapshot-projector', () => {
     expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.sk).toBe(PROJECTED_MARKET_SNAPSHOT_SK);
     const fields = (intent as { fields: Record<string, unknown> }).fields;
     expect(fields.region).toBe('us-east-1');
-    expect(fields.agentOutput).toEqual({ signals: ['risk-on'], regime: 'BULL' });
+    expect(typeof fields.agentOutput).toBe('string');
+    expect(JSON.parse(fields.agentOutput as string)).toEqual({ signals: ['risk-on'], regime: 'BULL' });
     expect(typeof fields.updatedAt).toBe('string');
     // Field-level pk/sk are NOT set — they come from overrides only.
     expect(fields.pk).toBeUndefined();

@@ -10,7 +10,7 @@ import { resolveGuardrailParams } from './guardrail-params';
  */
 export class AuthorityResolver {
   resolve(input: ComplianceInput, violations: Violation[]): 'L1' | 'L2' {
-    const { mandate, proposedTrades, portfolioValue } = input;
+    const { mandate, proposedTrades, portfolioValueCents } = input;
 
     // Revoked mandate forces user-confirmation gate; mandate-validator emits
     // a BLOCKING violation so the final result will be BLOCKED regardless.
@@ -31,7 +31,7 @@ export class AuthorityResolver {
     const guardrails = resolveGuardrailParams(mandate.operatingMode);
 
     // Check each trade against mode-derived maxSingleTradePercent
-    const maxTradeAmountCents = (portfolioValue * guardrails.maxSingleTradePercent) / 100;
+    const maxTradeAmountCents = (portfolioValueCents * guardrails.maxSingleTradePercent) / 100;
     const hasOversizedTrade = proposedTrades.some(
       (trade) => trade.quantityOrAmountCents > maxTradeAmountCents,
     );
@@ -40,7 +40,7 @@ export class AuthorityResolver {
     }
 
     // Check total turnover against mode-derived monthlyTurnoverCapPercent
-    const maxTurnoverCents = (portfolioValue * guardrails.monthlyTurnoverCapPercent) / 100;
+    const maxTurnoverCents = (portfolioValueCents * guardrails.monthlyTurnoverCapPercent) / 100;
     const totalTurnoverCents = proposedTrades.reduce(
       (sum, trade) => sum + trade.quantityOrAmountCents, 0,
     );

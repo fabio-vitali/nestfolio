@@ -1,5 +1,5 @@
 import { SuitabilityChecker } from '../../src/rules/suitability-checker';
-import type { ComplianceInput } from '../../src/rules/rule-engine';
+import type { ComplianceInput, RiskCategory } from '../../src/rules/rule-engine';
 
 function buildInput(overrides: Partial<ComplianceInput> = {}): ComplianceInput {
   return {
@@ -13,8 +13,9 @@ function buildInput(overrides: Partial<ComplianceInput> = {}): ComplianceInput {
       effectiveDate: '2024-01-01T00:00:00.000Z',
     },
     proposedTrades: [],
-    portfolioValue: 100_000_00,
-    riskScore: 5,
+    portfolioValueCents: 100_000_00,
+    riskCategory: 'MODERATE',
+    isInitialBuild: true,
     currentPositions: [],
     ...overrides,
   };
@@ -23,95 +24,93 @@ function buildInput(overrides: Partial<ComplianceInput> = {}): ComplianceInput {
 describe('SuitabilityChecker', () => {
   const checker = new SuitabilityChecker();
 
-  it('should pass when equity exposure is within risk score limits', () => {
+  it('passes when MODERATE + ~55% equity (under 60% cap)', () => {
     const input = buildInput({
-      riskScore: 7, // max 70% equity
-      currentPositions: [{ ticker: 'AAPL', weight: 30 }],
+      riskCategory: 'MODERATE',
       proposedTrades: [
-        {
-          symbol: 'GOOG',
-          assetClass: 'EQUITY',
-          side: 'BUY',
-          quantityOrAmountCents: 10_000_00,
-          targetWeightPercent: 10,
-          rationale: 'Diversify',
-        },
+        { symbol: 'VTI',  assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 14_000, targetWeightPercent: 14, rationale: 'x' },
+        { symbol: 'IXUS', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 14_000, targetWeightPercent: 14, rationale: 'x' },
+        { symbol: 'QQQ',  assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 14_000, targetWeightPercent: 14, rationale: 'x' },
+        { symbol: 'VWO',  assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 13_000, targetWeightPercent: 13, rationale: 'x' },
+        { symbol: 'BND',  assetClass: 'FIXED_INCOME', side: 'BUY', quantityOrAmountCents: 27_000, targetWeightPercent: 27, rationale: 'x' },
+        { symbol: 'SHY',  assetClass: 'FIXED_INCOME', side: 'BUY', quantityOrAmountCents: 18_000, targetWeightPercent: 18, rationale: 'x' },
       ],
     });
-
     const result = checker.check(input);
-
-    // Current: 30%, adding 10% equity = 40%, max 70%
     expect(result.passed).toBe(true);
   });
 
-  it('should fail when equity exposure exceeds risk score limits', () => {
+  it('blocks when MODERATE + 65% equity (over 60% cap)', () => {
     const input = buildInput({
-      riskScore: 3, // max 30% equity
-      currentPositions: [{ ticker: 'AAPL', weight: 25 }],
+      riskCategory: 'MODERATE',
       proposedTrades: [
-        {
-          symbol: 'GOOG',
-          assetClass: 'EQUITY',
-          side: 'BUY',
-          quantityOrAmountCents: 10_000_00,
-          targetWeightPercent: 10,
-          rationale: 'Buy more equity',
-        },
+        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 65_000, targetWeightPercent: 65, rationale: 'x' },
       ],
     });
-
     const result = checker.check(input);
-
-    // Current: 25%, adding 10% = 35%, max 30%
     expect(result.passed).toBe(false);
-    expect(result.details).toContain('exceeds max');
+    expect(result.details).toMatch(/60%/);
+    expect(result.details).toMatch(/MODERATE/);
   });
 
-  it('should pass when selling equity reduces exposure within limits', () => {
+  it('blocks when CONSERVATIVE + 35% equity (over 30% cap)', () => {
     const input = buildInput({
-      riskScore: 3, // max 30%
-      currentPositions: [
-        { ticker: 'AAPL', weight: 20 },
-        { ticker: 'GOOG', weight: 15 },
-      ],
+      riskCategory: 'CONSERVATIVE',
       proposedTrades: [
-        {
-          symbol: 'GOOG',
-          assetClass: 'EQUITY',
-          side: 'SELL',
-          quantityOrAmountCents: 5_000_00,
-          targetWeightPercent: 10,
-          rationale: 'Reduce exposure',
-        },
+        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 35_000, targetWeightPercent: 35, rationale: 'x' },
       ],
     });
-
     const result = checker.check(input);
+    expect(result.passed).toBe(false);
+    expect(result.details).toMatch(/30%/);
+  });
 
-    // Current: 35%, selling 10% equity = 25%, max 30%
+  it('blocks when AGGRESSIVE + 95% equity (over 90% cap)', () => {
+    const input = buildInput({
+      riskCategory: 'AGGRESSIVE',
+      proposedTrades: [
+        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 95_000, targetWeightPercent: 95, rationale: 'x' },
+      ],
+    });
+    const result = checker.check(input);
+    expect(result.passed).toBe(false);
+    expect(result.details).toMatch(/90%/);
+  });
+
+  it('respects current positions when computing resulting equity', () => {
+    const input = buildInput({
+      riskCategory: 'MODERATE',
+      currentPositions: [{ ticker: 'AAPL', weight: 40 }],
+      proposedTrades: [
+        { symbol: 'GOOG', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 25_000, targetWeightPercent: 25, rationale: 'x' },
+      ],
+    });
+    const result = checker.check(input);
+    // 40 + 25 = 65 > 60 cap → blocks
+    expect(result.passed).toBe(false);
+  });
+
+  it('SELL trades subtract from equity', () => {
+    const input = buildInput({
+      riskCategory: 'MODERATE',
+      currentPositions: [{ ticker: 'AAPL', weight: 70 }],
+      proposedTrades: [
+        { symbol: 'AAPL', assetClass: 'EQUITY', side: 'SELL', quantityOrAmountCents: 20_000, targetWeightPercent: 20, rationale: 'x' },
+      ],
+    });
+    const result = checker.check(input);
+    // 70 - 20 = 50 ≤ 60 → passes
     expect(result.passed).toBe(true);
   });
 
-  it('should ignore non-equity asset classes in suitability check', () => {
+  it('defaults to 60% cap for unrecognized riskCategory at runtime (defensive)', () => {
     const input = buildInput({
-      riskScore: 2, // max 20% equity
-      currentPositions: [{ ticker: 'SPY', weight: 15 }],
+      riskCategory: 'GARBAGE' as RiskCategory,
       proposedTrades: [
-        {
-          symbol: 'AGG',
-          assetClass: 'FIXED_INCOME',
-          side: 'BUY',
-          quantityOrAmountCents: 20_000_00,
-          targetWeightPercent: 20,
-          rationale: 'Buy bonds',
-        },
+        { symbol: 'VTI', assetClass: 'EQUITY', side: 'BUY', quantityOrAmountCents: 55_000, targetWeightPercent: 55, rationale: 'x' },
       ],
     });
-
     const result = checker.check(input);
-
-    // Only 15% equity (bonds not counted), max 20%
-    expect(result.passed).toBe(true);
+    expect(result.passed).toBe(true); // 55 ≤ 60 default
   });
 });
