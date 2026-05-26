@@ -27,6 +27,43 @@ interface AssemblePacketEvent {
   narrative?: Record<string, unknown> | null;
 }
 
+interface Allocation {
+  instrument: string;
+  assetClass: string;
+  targetWeight: number;
+  rationale: string;
+}
+
+interface CurrentPosition {
+  symbol: string;
+  quantity: number;
+  marketValueCents: number;
+}
+
+function indexTargets(allocations: ReadonlyArray<Partial<Allocation>>): Map<string, Allocation> {
+  const out = new Map<string, Allocation>();
+  for (const a of allocations) {
+    if (!a.instrument || a.assetClass === 'CASH') continue;
+    const symbol = a.instrument.trim().toUpperCase();
+    if (!symbol) continue;
+    out.set(symbol, {
+      instrument: symbol,
+      assetClass: (a.assetClass as string) ?? 'OTHER',
+      targetWeight: (a.targetWeight as number) ?? 0,
+      rationale: (a.rationale as string) ?? '',
+    });
+  }
+  return out;
+}
+
+function indexCurrent(currentPositions: ReadonlyArray<CurrentPosition>): Map<string, CurrentPosition> {
+  const out = new Map<string, CurrentPosition>();
+  for (const p of currentPositions) out.set(p.symbol, p);
+  return out;
+}
+
+export const __INTERNAL__ = { indexTargets, indexCurrent };
+
 export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
   return async (event: AssemblePacketEvent): Promise<Record<string, unknown>> => {
     const {

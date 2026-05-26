@@ -343,6 +343,28 @@ describe('assemble-packet handler', () => {
   });
 });
 
+import { __INTERNAL__ as ap } from '../../src/handlers/assemble-packet';
+
+describe('assemble-packet — indexing helpers', () => {
+  it('normalizes target symbols (trim + uppercase) and skips CASH/blank', () => {
+    const targets = ap.indexTargets([
+      { instrument: 'vti ', assetClass: 'EQUITY', targetWeight: 0.6, rationale: '' },
+      { instrument: '  BND', assetClass: 'FIXED_INCOME', targetWeight: 0.4, rationale: '' },
+      { instrument: 'CASH', assetClass: 'CASH', targetWeight: 0.1, rationale: '' },  // dropped
+      { instrument: '', assetClass: 'EQUITY', targetWeight: 0.1, rationale: '' },    // dropped
+    ]);
+    expect([...targets.keys()].sort()).toEqual(['BND', 'VTI']);
+    expect(targets.get('VTI')?.targetWeight).toBe(0.6);
+  });
+
+  it('indexes currentPositions by symbol', () => {
+    const current = ap.indexCurrent([
+      { symbol: 'VTI', quantity: 10, marketValueCents: 200_000 },
+    ]);
+    expect(current.get('VTI')?.marketValueCents).toBe(200_000);
+  });
+});
+
 describe('assemble-packet — ledgerSnapshot integration', () => {
   const mockCreateDecisionPacket = jest.fn();
   const mockRepo = { createDecisionPacket: mockCreateDecisionPacket } as any;
