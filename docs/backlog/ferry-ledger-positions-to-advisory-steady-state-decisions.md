@@ -1,6 +1,6 @@
 ---
 id: ferry-ledger-positions-to-advisory-steady-state-decisions
-status: active
+status: shipped
 type: bug
 notes: "PortfolioEngine agent doesn't emit currentPositions; no SF hop plumbs ledger CASH_BALANCE+POSITION_SNAPSHOT into advisory. AssemblePacket sees currentPositions=[] always → post-units-fix isInitialBuild=true system-wide → MAX_SINGLE_TRADE+TURNOVER_CAP skip on every decision, not just first-deposit. Steady-state guardrails effectively disabled. Surfaced 2026-05-25 by OQ1 of the decision-pipeline-units-calibration-suitability spec; the parent workstream consciously ships the skip as 'strictly better than units-bug status quo' (those rules fire absurdly today, e.g. 'Trade VTI (2000.0%) exceeds 20%'), but the steady-state regime needs both ledger-to-advisory plumbing AND an e2e scenario covering a post-onboarding rebalance — which would currently fail."
 references:
@@ -17,10 +17,16 @@ out_of_scope:
   - "Drift-rebalance calibration of guardrail-params (whether BALANCED maxSingleTradePercent=10 + monthlyTurnoverCapPercent=25 are correct for steady-state) — separate item once we can observe how often they fire."
   - "Real ledger position market-value recalculation on price change (today positions carry stale prices) — separate item."
   - "Generalising ledger snapshot reads for non-decision consumers — the projection lives in advisory only; cross-domain reuse is a separate workstream when a second consumer materialises."
-spec: null
-plan: null
+spec: docs/superpowers/specs/2026-05-26-ferry-ledger-positions-to-advisory-design.md
+plan: docs/superpowers/plans/2026-05-26-ferry-ledger-positions-to-advisory.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  - Deploy: `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=decision-workflow-ctrl,compliance-ctrl` clean (final deploy at 62fc76b7 for the LedgerSnapshot record()→update() fix, 40s, "✅ dev-decision-workflow-ctrl").
+  - Unit/lint: `pnpm nx affected -t test,lint --base=origin/main` green (109 tests across 8 projects in 18s).
+  - DWC integration (Tests 12 + 13 — projection materialisation + last-write-wins upsert): `AWS_PROFILE=nestfolio-dev NESTFOLIO_INTEG_PREFIX=dev pnpm nx run decision-workflow-ctrl:test-integration -- --verbose --testNamePattern="LedgerSnapshot projection"` → 2 passed, 21 skipped, 23 total in 53s.
+  - DWC integration (Tests 14 + 15 — full SF chain): `it.skip`-ped at commit 8458e131. Runtime unblock owned by QUEUED item `dwc-integration-agent-mock-for-sf-packet-shape` (rank 4) — trap-based agent stub bypasses AgentCore maxVms saturation. Per [[feedback-e2e-gaps-queued-not-parking]] tracked queued, never parked.
+  - Compliance integration (Tasks 16-18 — MAX_SINGLE_TRADE + TURNOVER_CAP fire under steady-state input; initial-build skip preserved): `AWS_PROFILE=nestfolio-dev NESTFOLIO_INTEG_PREFIX=dev pnpm nx run compliance-ctrl:test-integration -- --verbose --testNamePattern="Steady-state guardrails — ferry-ledger"` → 3 passed, 12 skipped, 15 total in 105s.
+  - PW scenario `apps/nestfolio-e2e/src/scenarios/rebalance-trades-on-drift.spec.ts` committed (Task 22). Runtime-green dependency on the same QUEUED `dwc-integration-agent-mock-for-sf-packet-shape` item — same agent-pipeline blocker.
 ---
 
 # Steady-state decision flow lacks ledger position plumbing
