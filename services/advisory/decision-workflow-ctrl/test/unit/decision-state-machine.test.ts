@@ -419,6 +419,22 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(s.Parameters.agentOutput['riskCategory.$']).toBe('$.triggerContext.riskProfile.category');
   });
 
+  // ---- Task 5: ledgerSnapshot lift + pass-through ---------------------------
+
+  it('MergeProjections lifts $.parallelResults[2].ledgerSnapshot.state to $.ledgerSnapshot', () => {
+    expect(definition.States.MergeProjections.Parameters['ledgerSnapshot.$']).toBe(
+      '$.parallelResults[2].ledgerSnapshot.state',
+    );
+  });
+
+  it('SetInvestorProfile forwards ledgerSnapshot through', () => {
+    expect(definition.States.SetInvestorProfile.Parameters['ledgerSnapshot.$']).toBe('$.ledgerSnapshot');
+  });
+
+  it('HoistMandateFromTrigger forwards ledgerSnapshot through', () => {
+    expect(definition.States.HoistMandateFromTrigger.Parameters['ledgerSnapshot.$']).toBe('$.ledgerSnapshot');
+  });
+
   // ---- Branch C: LookupLedgerSnapshot ---------------------------------------
 
   it('ParallelProjections includes a LookupLedgerSnapshot branch (Branch C) with Choice on isPresent($.ledgerSnapshotResponse.Item.state.S)', () => {

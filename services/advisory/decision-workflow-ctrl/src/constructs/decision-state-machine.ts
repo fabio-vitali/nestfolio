@@ -558,6 +558,7 @@ export class DecisionWorkflowDefinition extends Construct {
             'agentOutput.$': '$.parallelResults[1].agentResults.InvokeMarketIntelligence.agentOutput',
           },
         },
+        'ledgerSnapshot.$': '$.parallelResults[2].ledgerSnapshot.state',
       },
     });
 
@@ -602,6 +603,7 @@ export class DecisionWorkflowDefinition extends Construct {
         // Pass-only state replaces top-level state; without this line the
         // ParallelProjections + MergeProjections output would be dropped here.
         'agentResults.$': '$.agentResults',
+        'ledgerSnapshot.$': '$.ledgerSnapshot',
         'investorProfile': {
           'operatingMode.$': '$.mandateSnapshot.operatingMode',
         },
@@ -620,6 +622,7 @@ export class DecisionWorkflowDefinition extends Construct {
         // Preserve agentResults through the mandate-hoist branch — same reason
         // as SetInvestorProfile above (Pass replaces top-level state).
         'agentResults.$': '$.agentResults',
+        'ledgerSnapshot.$': '$.ledgerSnapshot',
         'investorProfile': {
           'operatingMode.$': '$.triggerContext.operatingMode',
         },
