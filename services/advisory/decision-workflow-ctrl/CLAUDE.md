@@ -9,6 +9,9 @@ Stack: services/advisory/decision-workflow-ctrl/src/service.stack.ts
   - MandateSnapshot row (added 2026-05-10) — service-private projection, pk=`MandateSnapshot#{tenantId}#{userId}`, sk='MandateSnapshot', carries operatingMode + level + status. Read by the SF via Direct DDB GetItem.
   - InvestorProfileSnapshot row (added by SnapshotProjectorIngress — precomputation Task 8). DWC-local mirror of IP-ctrl's snapshot, pk=`InvestorProfileSnapshot#{tenantId}#{userId}`, sk='InvestorProfileSnapshot'. Read by the SF via Direct DDB GetItem so PE/AN don't need cross-service grants.
   - MarketSnapshot row (added by SnapshotProjectorIngress — precomputation Task 8). DWC-local mirror of MI-ctrl's snapshot, pk=`MarketSnapshot#{region}`, sk='MarketSnapshot'. Read by the SF via Direct DDB GetItem.
+  - LedgerSnapshot row (added by SnapshotProjectorIngress). DWC-local mirror of the ledger's per-tenant positions + cashBalanceCents,
+    pk=`LedgerSnapshot#{tenantId}`, sk='LedgerSnapshot'. `state` is JSON-stringified to mirror IP/Market projections so the SF parses
+    via `States.StringToJson` on read. Used by AssemblePacket to compute portfolioValueCents + delta-based proposedTrades.
 
 ## Ingress (3 ingresses)
 - CallbackIngress: advisoryBus → decision-workflow-ctrl-callback-ingress (SQS → Lambda: sfn-callback.ts)
