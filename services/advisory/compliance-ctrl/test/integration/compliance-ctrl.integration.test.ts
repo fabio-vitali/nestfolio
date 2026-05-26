@@ -875,5 +875,81 @@ describe('compliance-ctrl', () => {
       expect(violations).toBeDefined();
       expect(violations!.some((v) => v['rule'] === 'TURNOVER_CAP')).toBe(true);
     }, 300_000);
+
+    it('APPROVES the same oversized trades when isInitialBuild=true (skip path preserved)', async () => {
+      const userId = `integ-user-ferry-skip-${Date.now()}`;
+      const mandateId = `integ-mandate-ferry-skip-${Date.now()}`;
+      const policyPk = `GuardrailPolicy#${ctx.tenantId}#${userId}`;
+
+      // Seed MandateSnapshot with BALANCED operatingMode.
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'compliance-ctrl',
+        detailType: 'MANDATE_ISSUED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId,
+          mandateId,
+          level: 'DISCRETIONARY',
+          operatingMode: 'BALANCED',
+          effectiveDate: '2026-01-01T00:00:00.000Z',
+        },
+      });
+
+      await table.waitForItem({
+        table: 'compliance-ctrl',
+        pk: policyPk,
+        sk: 'MandateSnapshot',
+        timeoutMs: 90_000,
+        match: { mandateId },
+      });
+
+      const decisionId = `integ-ferry-skip-${Date.now()}`;
+
+      // Same 15% trade as the MAX_SINGLE_TRADE case above — would block at
+      // isInitialBuild=false, but isInitialBuild=true skips MAX_SINGLE_TRADE
+      // and TURNOVER_CAP. No other blocking violations → DECISION_APPROVED.
+      // DISCRETIONARY+BALANCED, no violations after skip → L1.
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'compliance-ctrl',
+        detailType: 'RECOMMENDATION_PROPOSED',
+        detail: {
+          decisionId,
+          tenantId: ctx.tenantId,
+          userId,
+          taskToken: `integ-task-token-${decisionId}`,
+          awaitingCompliance: true,
+          proposedTrades: [
+            {
+              symbol: 'VTI',
+              assetClass: 'EQUITY',
+              side: 'BUY',
+              quantityOrAmountCents: 15_000,
+              targetWeightPercent: 15,
+              rationale: 'Initial allocation above steady-state cap',
+            },
+          ],
+          portfolioValueCents: 100_000,
+          riskCategory: 'MODERATE',
+          isInitialBuild: true,
+          currentPositions: [],
+        },
+      });
+
+      const event = await trap.waitForEvent({
+        detailType: 'DECISION_APPROVED',
+        match: (d) => {
+          const subject = (d as Record<string, unknown>).subject as Record<string, unknown>;
+          return subject?.['decisionPacketId'] === decisionId;
+        },
+        timeoutMs: 120_000,
+      });
+      expect(event.detailType).toBe('DECISION_APPROVED');
+      const detail = event.detail as Record<string, unknown>;
+      const subject = detail.subject as Record<string, unknown>;
+      // DISCRETIONARY+BALANCED, no violations after skip → L1.
+      expect(subject['authorityLevel']).toBe('L1');
+    }, 300_000);
   });
 });
