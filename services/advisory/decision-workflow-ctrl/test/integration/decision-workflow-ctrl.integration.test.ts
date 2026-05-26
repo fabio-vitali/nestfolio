@@ -757,4 +757,83 @@ describe('LedgerSnapshot projection', () => {
     expect(parsed.positions.VTI?.quantity).toBe(10);
     expect(parsed.cashBalanceCents).toBe(500_000);
   }, 120_000);
+
+  it('repeated PORTFOLIO_UPDATED for the same tenant upserts (last write wins)', async () => {
+    // Emit seq=5 — first upsert
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'PORTFOLIO_UPDATED',
+      detail: {
+        id: `integ-port-seq5-${Date.now()}`,
+        type: 'PORTFOLIO_UPDATED',
+        timestamp: new Date().toISOString(),
+        subject: {
+          tenantId: ctx.tenantId,
+          streamType: 'CASH',
+          snapshot: {
+            positions: { VTI: { quantity: 5, lastFillPrice: 200 } },
+            cashBalanceCents: 300_000,
+            lastEventSequence: 5,
+          },
+        },
+        context: {
+          tenantId: ctx.tenantId,
+          userId: ctx.tenantId,
+          region: 'us-east-1',
+        },
+      },
+    });
+
+    // Wait for seq=5 to land
+    await table.waitForItem({
+      table: 'decision-workflow-ctrl',
+      pk: `LedgerSnapshot#${ctx.tenantId}`,
+      sk: 'LedgerSnapshot',
+      predicate: (item) => item['lastEventSequence'] === 5,
+      description: 'lastEventSequence === 5',
+      timeoutMs: 60_000,
+    });
+
+    // Emit seq=7 — second upsert (last write wins)
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'PORTFOLIO_UPDATED',
+      detail: {
+        id: `integ-port-seq7-${Date.now()}`,
+        type: 'PORTFOLIO_UPDATED',
+        timestamp: new Date().toISOString(),
+        subject: {
+          tenantId: ctx.tenantId,
+          streamType: 'CASH',
+          snapshot: {
+            positions: { VTI: { quantity: 7, lastFillPrice: 210 } },
+            cashBalanceCents: 800_000,
+            lastEventSequence: 7,
+          },
+        },
+        context: {
+          tenantId: ctx.tenantId,
+          userId: ctx.tenantId,
+          region: 'us-east-1',
+        },
+      },
+    });
+
+    // Wait for seq=7 to overwrite — confirms last-write-wins upsert.
+    // NOTE: there is no lastEventSequence guard today (no conditional update).
+    // See ferry-ledger spec §"Late-arrival behaviour" for context.
+    const row = await table.waitForItem({
+      table: 'decision-workflow-ctrl',
+      pk: `LedgerSnapshot#${ctx.tenantId}`,
+      sk: 'LedgerSnapshot',
+      predicate: (item) => item['lastEventSequence'] === 7,
+      description: 'lastEventSequence === 7',
+      timeoutMs: 60_000,
+    });
+
+    const parsed = JSON.parse(row['state'] as string) as { cashBalanceCents: number };
+    expect(parsed.cashBalanceCents).toBe(800_000);
+  }, 120_000);
 });
