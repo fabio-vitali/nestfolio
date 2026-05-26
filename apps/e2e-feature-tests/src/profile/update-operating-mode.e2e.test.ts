@@ -215,7 +215,7 @@ describe('scenario — investor switches operatingMode CONSERVATIVE → AGGRESSI
             rationale: 'E2E mode-switch test trade',
           },
         ],
-        portfolioValue: CAPITAL_AMOUNT,
+        portfolioValueCents: CAPITAL_AMOUNT,
         riskScore: 5,
         currentPositions: [],
       },

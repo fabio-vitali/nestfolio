@@ -1,17 +1,23 @@
 ---
 id: update-operating-mode-e2e-portfolio-value-cents-mismatch
-status: queued
+status: shipped
 type: bug
-rank: 2
-notes: "3/3 runs 2026-05-26: update-operating-mode.e2e.test.ts:224 times out waiting for ComplianceCheck row because compliance-ctrl rejects the directly-injected RECOMMENDATION_PROPOSED with `Missing fields: portfolioValueCents`. Test sends `portfolioValue` (line 218); compliance-ctrl expects `portfolioValueCents`. Schema contract mismatch — fix on whichever side has drifted."
+notes: "SHIPPED 2026-05-26: schema-field rename `portfolioValue` → `portfolioValueCents` on the e2e-test side of the contract. The compliance-ctrl handler was renamed (likely during the 2026-05-25 units-correction ship in `e2e-test-tolerance-or-agent-constraint-against-suitability-block`) but the two e2e tests that synthesise RECOMMENDATION_PROPOSED directly were never updated. Math was already internally consistent in cents (6000 / 100_000 = 6%); just the field name had drifted. Scope expanded to include `operating-mode-authority.e2e.test.ts:159` (identical drift, same suite, same fix) per [[feedback-e2e-gaps-queued-not-parking]]."
 references:
   - apps/e2e-feature-tests/src/profile/update-operating-mode.e2e.test.ts
+  - apps/e2e-feature-tests/src/advisory/operating-mode-authority.e2e.test.ts
   - services/advisory/compliance-ctrl/src/handlers/event-listener.ts
 out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  - Pre-fix evidence: 3/3 runs 2026-05-26 (12:39 / 12:44 / 12:48 UTC) of `update-operating-mode.e2e.test.ts` failed at line 224 with `ComplianceCheck row for decisionId=... not found within 120 s`; compliance-ctrl Ingress CW logs showed `NotRetryableError: Missing fields: portfolioValueCents` for every injected RECOMMENDATION_PROPOSED.
+  - Fix: rename `portfolioValue` → `portfolioValueCents` at `apps/e2e-feature-tests/src/profile/update-operating-mode.e2e.test.ts:218` AND `apps/e2e-feature-tests/src/advisory/operating-mode-authority.e2e.test.ts:159`.
+  - Unit/lint: `pnpm nx affected -t test,lint --base=origin/main` → 3 projects + 1 dep, all green (test suite for nestfolio-host 8/8, 43/43 tests).
+  - Deploy: not needed — test-only edits; existing deployed dev already enforces the `portfolioValueCents` contract (detect-deploy-needed → exit 10).
+  - E2E `update-operating-mode.e2e.test.ts` against deployed dev: 2/2 consecutive passes (`scenario — investor switches operatingMode CONSERVATIVE → AGGRESSIVE (re-derivation)` in 55s + 65s).
+  - E2E `operating-mode-authority.e2e.test.ts` against deployed dev: 3/3 nested scenarios (CONSERVATIVE → L2, BALANCED → L1, AGGRESSIVE → L1) green in 120s.
 ---
 
 # update-operating-mode e2e: portfolioValue / portfolioValueCents schema mismatch

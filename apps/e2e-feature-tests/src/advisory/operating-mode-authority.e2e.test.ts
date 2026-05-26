@@ -156,7 +156,7 @@ describe.each([
           targetWeightPercent: TRADE_PERCENT,
           rationale: 'E2E test trade',
         }],
-        portfolioValue: CAPITAL_AMOUNT,
+        portfolioValueCents: CAPITAL_AMOUNT,
         riskScore: 5,
         currentPositions: [],
       },
