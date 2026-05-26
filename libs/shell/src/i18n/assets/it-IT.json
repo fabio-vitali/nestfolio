@@ -158,7 +158,8 @@
       "rejectTitle": "Rifiuta Decisione",
       "rejectReasonPlaceholder": "Inserisci il motivo del rifiuto...",
       "confirmSuccess": "Decisione approvata con successo",
-      "rejectSuccess": "Decisione rifiutata con successo"
+      "rejectSuccess": "Decisione rifiutata con successo",
+      "rebalanceBadge": "Ribilanciamento"
     }
   },
   "notifications": {

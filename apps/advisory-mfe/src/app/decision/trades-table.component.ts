@@ -19,7 +19,7 @@ import type { ProposedTrade } from '../stores/advisory.store';
       </thead>
       <tbody>
         @for (trade of trades(); track trade.symbol) {
-          <tr>
+          <tr data-testid="proposed-trade">
             <td class="symbol-cell">{{ trade.symbol }}</td>
             <td>
               <span class="side-tag" [class.side-buy]="trade.side === 'BUY'" [class.side-sell]="trade.side === 'SELL'">

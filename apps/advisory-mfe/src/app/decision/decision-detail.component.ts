@@ -56,7 +56,12 @@ import { TradesTableComponent } from './trades-table.component';
           <div class="headline-card">
             <div class="headline-top">
               <h2 class="headline-title">{{ store.headline() }}</h2>
-              <nf-status-badge [label]="decision.status" [severity]="store.statusSeverity()" />
+              <div class="headline-badges">
+                <nf-status-badge [label]="decision.status" [severity]="store.statusSeverity()" />
+                @if (decision.proposedTrades?.some(t => t.side === 'SELL')) {
+                  <span class="rebalance-badge" data-testid="rebalance-badge">{{ 'advisory.detail.rebalanceBadge' | translate }}</span>
+                }
+              </div>
             </div>
 
             <div class="agent-badges">
@@ -216,6 +221,24 @@ import { TradesTableComponent } from './trades-table.component';
       justify-content: space-between;
       gap: 0.5rem;
       margin-bottom: 0.5rem;
+    }
+
+    .headline-badges {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      flex-shrink: 0;
+    }
+
+    .rebalance-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: var(--p-orange-100);
+      color: var(--p-orange-700);
     }
 
     .headline-title {

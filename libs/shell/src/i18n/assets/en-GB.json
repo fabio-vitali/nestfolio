@@ -158,7 +158,8 @@
       "rejectTitle": "Reject Decision",
       "rejectReasonPlaceholder": "Enter reason for rejection...",
       "confirmSuccess": "Decision approved successfully",
-      "rejectSuccess": "Decision rejected successfully"
+      "rejectSuccess": "Decision rejected successfully",
+      "rebalanceBadge": "Rebalance"
     }
   },
   "notifications": {
