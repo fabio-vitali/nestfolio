@@ -1,6 +1,6 @@
 ---
 id: dwc-integration-agent-mock-for-sf-packet-shape
-status: queued
+status: active
 rank: 4
 type: tooling
 notes: "Task 10 packet-shape integration test (decision-workflow-ctrl.integration.test.ts:534) needs full SF chain (PE+AN, 240s budget). Dev sandbox hits PE TaskTimedOut at 120s due to AgentCore maxVms saturation. CW evidence: execution arn fb73afaa-f6c0-4d6e-7aa4-c70d4f532072 entered InvokePortfolioEngine at 15:24:38, TaskTimedOut at 15:26:38 (exactly 120s). Currently it.skip'ped. Needs trap-based agent stub (CONSTRUCT_PORTFOLIO/GENERATE_NARRATIVE → fake _COMPLETED with synthetic agentOutput + captured taskToken) to bypass Bedrock and unblock the contract assertion. ALSO unblocks ferry-ledger-positions-to-advisory's DWC Tests 14+15 (LedgerSnapshot end-to-end SF chain, skipped at 8458e131) AND apps/nestfolio-e2e/src/scenarios/rebalance-trades-on-drift.spec.ts — all hit the same PE-via-Bedrock path."
@@ -9,7 +9,11 @@ references:
     anchor: L534
   - path: services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
   - path: docs/superpowers/specs/2026-05-25-decision-pipeline-units-calibration-suitability-design.md
-out_of_scope: []
+out_of_scope:
+  - Mocking the real Bedrock InvokeAgentRuntime call (different layer — handled by SsmOverride / FakeLlm patterns).
+  - Increasing AgentCore maxVms quota in the sandbox (covered by agentcore-maxvms-prod-quota-increase LATER item).
+  - Production SF state-machine changes (the agent stub is test-side only — production SF stays unchanged).
+  - Re-enabling integration tests that fail for reasons unrelated to PE/AN agent timeouts (separate flake categories filed under integration-deep-coldstart-flakes-post-trap-hardening).
 spec: null
 plan: null
 topic_memory: []
