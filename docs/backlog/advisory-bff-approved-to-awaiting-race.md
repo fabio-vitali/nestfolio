@@ -1,6 +1,6 @@
 ---
 id: advisory-bff-approved-to-awaiting-race
-status: queued
+status: active
 rank: 5
 type: bug
 notes: "Surfaced 2026-05-25 during Task 15 of decision-pipeline-units-calibration-suitability. Playwright new-investor-happy-path round 2 (round 1 PASSED): compliance correctly returned APPROVED+L2, SF reached RequestUserConfirmation and emitted USER_CONFIRMATION_REQUESTED (verified via SF execution history `6f92c4f3-10da-acd8-ff7d-1c4458a2eb3d_5b4e1018-...`, AuditArtifact ccId `c5f9e2f7-e913-42a2-957b-4b11a01db7ab` shows `result: APPROVED, authorityLevel: L2`). But advisory-bff didn't transition DecisionPacket.status from APPROVED → AWAITING_CONFIRMATION — UI badge stuck on APPROVED. Same class as Bug E (DECISION_PACKET_UPDATED overwriting terminal state) shipped 2026-05-24 in `new-investor-happy-path-pending-at-decision-confirm`; residual race. Blocks the 2-consecutive-Playwright-pass gate of any workstream that touches the advisory decision flow."
@@ -11,7 +11,9 @@ references:
   - path: docs/backlog/e2e-test-tolerance-or-agent-constraint-against-suitability-block.md
   - path: apps/nestfolio-e2e/src/journeys/new-investor-happy-path.spec.ts
     anchor: L171-L179
-out_of_scope: []
+out_of_scope:
+  - LLM allocation variability (different concern; addressed by Tasks 6-7 of decision-pipeline-units-calibration-suitability).
+  - AgentCore maxVms quota issues (separate item `agentcore-maxvms-prod-quota-increase`).
 spec: null
 plan: null
 topic_memory:
