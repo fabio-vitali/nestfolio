@@ -686,3 +686,75 @@ describe('decision-workflow-ctrl packet-shape contract (workstream 2026-05-25)',
     expect(evt.detail.subject).not.toHaveProperty('riskScore');
   }, 240_000);
 });
+
+// ── LedgerSnapshot projection (workstream ferry-ledger-positions-to-advisory) ─
+//
+// Verifies the SnapshotProjectorIngress PORTFOLIO_UPDATED handler materialises
+// a LedgerSnapshot row in the DWC local State table. The row is keyed at
+// pk=`LedgerSnapshot#${tenantId}`, sk='LedgerSnapshot' (see
+// projected-snapshot.repository.ts).
+//
+// NOTE: These tests WILL FAIL against dev until the ferry-ledger deploy
+// (Task 19) has run — the SnapshotProjectorIngress subscription to
+// PORTFOLIO_UPDATED from the advisory bus, and the SF Branch C
+// LookupLedgerSnapshot, are added in this workstream.
+
+describe('LedgerSnapshot projection', () => {
+  let ctx: TestContext;
+  let eb: EventBridgeClient;
+  let table: TableAssertions;
+
+  beforeAll(async () => {
+    ctx = await createIntegrationTestContext();
+    eb = new EventBridgeClient(ctx);
+    table = new TableAssertions(ctx);
+    table.registerCleanup();
+  }, 90_000);
+
+  afterAll(async () => {
+    await ctx.cleanup.runAll();
+  }, 60_000);
+
+  it('materialises a LedgerSnapshot row from PORTFOLIO_UPDATED', async () => {
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'PORTFOLIO_UPDATED',
+      detail: {
+        id: `integ-port-${Date.now()}`,
+        type: 'PORTFOLIO_UPDATED',
+        timestamp: new Date().toISOString(),
+        subject: {
+          tenantId: ctx.tenantId,
+          streamType: 'CASH',
+          snapshot: {
+            positions: { VTI: { quantity: 10, lastFillPrice: 200 } },
+            cashBalanceCents: 500_000,
+            lastEventSequence: 1,
+          },
+        },
+        context: {
+          tenantId: ctx.tenantId,
+          userId: ctx.tenantId,
+          region: 'us-east-1',
+        },
+      },
+    });
+
+    const row = await table.waitForItem({
+      table: 'decision-workflow-ctrl',
+      pk: `LedgerSnapshot#${ctx.tenantId}`,
+      sk: 'LedgerSnapshot',
+      timeoutMs: 60_000,
+    });
+
+    expect(row['tenantId']).toBe(ctx.tenantId);
+    expect(row['lastEventSequence']).toBe(1);
+    const parsed = JSON.parse(row['state'] as string) as {
+      positions: { VTI?: { quantity: number } };
+      cashBalanceCents: number;
+    };
+    expect(parsed.positions.VTI?.quantity).toBe(10);
+    expect(parsed.cashBalanceCents).toBe(500_000);
+  }, 120_000);
+});
