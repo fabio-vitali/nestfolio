@@ -131,12 +131,14 @@ The following actions against the **dev sandbox** (AWS account 771924376645) are
 - **E2E gates against deployed dev.** `pnpm nx run e2e-feature-tests:test-e2e-features` (Jest) and `pnpm nx run nestfolio-e2e:e2e` (Playwright), including their `NESTFOLIO_INTEG_PREFIX=dev` invocations.
 - **Read-only AWS introspection** in account 771924376645: CloudWatch Logs (`/aws/lambda/dev-*`, `/aws/bedrock-agentcore/runtime/dev-*`, `/aws/states/dev-*`), DynamoDB scans/queries, EventBridge rule listings, SSM parameter reads, Step Functions execution history, S3 listings.
 - **Bedrock AgentCore Runtime updates** that are part of a `deploy.sh` invocation (the script handles esbuild → Docker → ECR push → AgentCore runtime update as one unit).
+- **Local git cleanup of workstream worktrees.** `git worktree remove .claude/worktrees/<name>`, `git worktree prune`, `git worktree list`, and `git branch -d <branch>` (the safe `-d` only, never `-D`). All four are local-only, network-free, and reversible via reflog.
+- **`git push origin main` after a Doc-layer or Simple lane workstream.** Per `/backlog-next` lane classification (CLAUDE.md § "Backlog Discipline" lane table) and the standing policy in user memory ("docs/backlog commits go to main", "simple fixes stay on main"), doc-only and small single-service fixes intentionally bypass the worktree/PR path. The push completes the lane the workstream was started in. Complex-lane work is gated by `superpowers:finishing-a-development-branch`, which uses its own PR flow. `git push --force` to any branch still requires explicit confirmation.
 
 **Still requires explicit confirmation:**
 
 - Anything against staging or prod accounts.
 - Mutations to shared S3 buckets or DDB tables outside `dev-*` naming.
-- `git push --force` to any branch, `git reset --hard` on shared branches.
+- `git push --force` to any branch, `git reset --hard` on shared branches, `git branch -D` (force-delete).
 - Anything outside this repo's working directory.
 
 ## BLOCKED commands — do NOT attempt these
