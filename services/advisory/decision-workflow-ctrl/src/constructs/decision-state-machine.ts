@@ -480,14 +480,55 @@ export class DecisionWorkflowDefinition extends Construct {
       )
       .otherwise(handleMissingMarketSnapshot);
 
-    // (C) Parallel: run the IP Choice + Market lookup concurrently.
+    // (C) LookupLedgerSnapshot — always GetItem keyed by tenantId. Ledger
+    //     positions are a per-tenant projection; we never hoist from trigger payload
+    //     because no trigger carries a full ledger state.
+    //
+    //     Fault-tolerance: a missing LedgerSnapshot row produces an SF
+    //     States.Runtime when States.StringToJson(undefined) is evaluated, which is
+    //     UNCATCHABLE per AWS docs. We capture the raw GetItem response on
+    //     $.ledgerSnapshotResponse (no ResultSelector), then use a Choice on
+    //     isPresent($.ledgerSnapshotResponse.Item.state.S) to branch:
+    //     ExtractLedgerSnapshot parses the JSON-string state via States.StringToJson
+    //     on the hit path, HandleMissingLedgerSnapshot seeds empty defaults on
+    //     the miss path. PE tolerates empty ledger context via `?? {}` so absent
+    //     ledger context degrades the decision rather than aborting the cycle.
+    const lookupLedgerSnapshot = new sfnTasks.DynamoGetItem(this, 'LookupLedgerSnapshot', {
+      table: props.table,
+      key: {
+        pk: sfnTasks.DynamoAttributeValue.fromString(
+          sfn.JsonPath.format('LedgerSnapshot#{}', sfn.JsonPath.stringAt('$.tenantId')),
+        ),
+        sk: sfnTasks.DynamoAttributeValue.fromString('LedgerSnapshot'),
+      },
+      resultPath: '$.ledgerSnapshotResponse',
+    });
+    const extractLedgerSnapshot = new sfn.Pass(this, 'ExtractLedgerSnapshot', {
+      parameters: {
+        'state.$': 'States.StringToJson($.ledgerSnapshotResponse.Item.state.S)',
+      },
+      resultPath: '$.ledgerSnapshot',
+    });
+    const handleMissingLedgerSnapshot = new sfn.Pass(this, 'HandleMissingLedgerSnapshot', {
+      result: sfn.Result.fromObject({ state: { positions: {}, cashBalanceCents: 0 } }),
+      resultPath: '$.ledgerSnapshot',
+    });
+    const checkLedgerSnapshotPresent = new sfn.Choice(this, 'CheckLedgerSnapshotPresent')
+      .when(
+        sfn.Condition.isPresent('$.ledgerSnapshotResponse.Item.state.S'),
+        extractLedgerSnapshot,
+      )
+      .otherwise(handleMissingLedgerSnapshot);
+
+    // (D) Parallel: run the IP Choice + Market lookup + Ledger lookup concurrently.
     const parallelProjections = new sfn.Parallel(this, 'ParallelProjections', {
       resultPath: '$.parallelResults',
     });
     parallelProjections.branch(resolveInvestorProfile);
     parallelProjections.branch(lookupMarketSnapshot.next(checkMarketSnapshotPresent));
+    parallelProjections.branch(lookupLedgerSnapshot.next(checkLedgerSnapshotPresent));
 
-    // (D) MergeProjections — lift each branch's result back into top-level
+    // (E) MergeProjections — lift each branch's result back into top-level
     //     $.agentResults.<StateId>.agentOutput so PE+AN subjects can reference
     //     them via JSONPath. Preserve triggerContext so ResolveMandateSnapshot
     //     below can still inspect $.triggerContext.operatingMode.

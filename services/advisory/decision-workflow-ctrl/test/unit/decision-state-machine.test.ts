@@ -210,16 +210,18 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     );
   });
 
-  it('adds ParallelProjections — Parallel with two branches (IP Choice + Market lookup), resultPath $.parallelResults', () => {
+  it('adds ParallelProjections — Parallel with three branches (IP Choice + Market lookup + Ledger lookup), resultPath $.parallelResults', () => {
     const state = definition.States.ParallelProjections;
     expect(state).toBeDefined();
     expect(state.Type).toBe('Parallel');
     expect(state.ResultPath).toBe('$.parallelResults');
-    expect(state.Branches).toHaveLength(2);
+    expect(state.Branches).toHaveLength(3);
     // Branch 0 starts at the IP Choice.
     expect(state.Branches[0].StartAt).toBe('ResolveInvestorProfile');
     // Branch 1 starts at LookupMarketSnapshot.
     expect(state.Branches[1].StartAt).toBe('LookupMarketSnapshot');
+    // Branch 2 starts at LookupLedgerSnapshot.
+    expect(state.Branches[2].StartAt).toBe('LookupLedgerSnapshot');
   });
 
   it('adds MergeProjections — lifts both branches into top-level $.agentResults', () => {
@@ -415,5 +417,53 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     const branchStates = definition.States.ParallelProjections.Branches[0].States;
     const s = branchStates.HoistInvestorProfileFromTrigger;
     expect(s.Parameters.agentOutput['riskCategory.$']).toBe('$.triggerContext.riskProfile.category');
+  });
+
+  // ---- Branch C: LookupLedgerSnapshot ---------------------------------------
+
+  it('ParallelProjections includes a LookupLedgerSnapshot branch (Branch C) with Choice on isPresent($.ledgerSnapshotResponse.Item.state.S)', () => {
+    const parallelState = definition.States.ParallelProjections;
+    expect(parallelState.Branches).toHaveLength(3);
+
+    const branchStates = parallelState.Branches[2].States;
+
+    // LookupLedgerSnapshot — DDB GetItem
+    const lookup = branchStates.LookupLedgerSnapshot;
+    expect(lookup).toBeDefined();
+    expect(lookup.Type).toBe('Task');
+    expect(lookup.Resource).toMatch(/states:::dynamodb:getItem$/);
+    expect(lookup.Parameters.Key.pk['S.$']).toBe(
+      "States.Format('LedgerSnapshot#{}', $.tenantId)",
+    );
+    expect(lookup.Parameters.Key.sk.S).toBe('LedgerSnapshot');
+    expect(lookup.ResultSelector).toBeUndefined();
+    expect(lookup.ResultPath).toBe('$.ledgerSnapshotResponse');
+    expect(lookup.Next).toBe('CheckLedgerSnapshotPresent');
+
+    // CheckLedgerSnapshotPresent — Choice on isPresent
+    const choice = branchStates.CheckLedgerSnapshotPresent;
+    expect(choice).toBeDefined();
+    expect(choice.Type).toBe('Choice');
+    expect(choice.Choices).toHaveLength(1);
+    expect(choice.Choices[0].Variable).toBe('$.ledgerSnapshotResponse.Item.state.S');
+    expect(choice.Choices[0].IsPresent).toBe(true);
+    expect(choice.Choices[0].Next).toBe('ExtractLedgerSnapshot');
+    expect(choice.Default).toBe('HandleMissingLedgerSnapshot');
+
+    // ExtractLedgerSnapshot — Pass that parses JSON string
+    const extract = branchStates.ExtractLedgerSnapshot;
+    expect(extract).toBeDefined();
+    expect(extract.Type).toBe('Pass');
+    expect(extract.Parameters['state.$']).toMatch(/States\.StringToJson/);
+    expect(extract.ResultPath).toBe('$.ledgerSnapshot');
+    expect(extract.End).toBe(true);
+
+    // HandleMissingLedgerSnapshot — Pass that seeds defaults
+    const fallback = branchStates.HandleMissingLedgerSnapshot;
+    expect(fallback).toBeDefined();
+    expect(fallback.Type).toBe('Pass');
+    expect(fallback.Result).toEqual({ state: { positions: {}, cashBalanceCents: 0 } });
+    expect(fallback.ResultPath).toBe('$.ledgerSnapshot');
+    expect(fallback.End).toBe(true);
   });
 });
