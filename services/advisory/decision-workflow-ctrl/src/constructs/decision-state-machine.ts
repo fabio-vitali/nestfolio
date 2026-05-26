@@ -179,6 +179,7 @@ export class DecisionWorkflowDefinition extends Construct {
             'marketAnalysis.$': '$.agentResults.InvokeMarketIntelligence.agentOutput',
             'portfolio.$': '$.agentResults.InvokePortfolioEngine.agentOutput',
             'narrative.$': '$.agentResults.InvokeAdvisoryNarrative.agentOutput',
+            'ledgerSnapshot.$': '$.ledgerSnapshot',
           },
         },
         ResultSelector: {

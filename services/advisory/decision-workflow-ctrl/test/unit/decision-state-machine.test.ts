@@ -482,4 +482,17 @@ describe('Decision SF state machine (post-precomputation rewire)', () => {
     expect(fallback.ResultPath).toBe('$.ledgerSnapshot');
     expect(fallback.End).toBe(true);
   });
+
+  // ---- Task 6: AssembleDecisionPacket Payload carries ledgerSnapshot --------
+
+  it('AssembleDecisionPacket Payload includes ledgerSnapshot', () => {
+    expect(definition.States.AssembleDecisionPacket.Parameters.Payload['ledgerSnapshot.$']).toBe(
+      '$.ledgerSnapshot',
+    );
+  });
+
+  it('AssembleDecisionPacket ResultSelector still flattens proposedTrades + currentPositions', () => {
+    expect(definition.States.AssembleDecisionPacket.ResultSelector['proposedTrades.$']).toBe('$.Payload.proposedTrades');
+    expect(definition.States.AssembleDecisionPacket.ResultSelector['currentPositions.$']).toBe('$.Payload.currentPositions');
+  });
 });
