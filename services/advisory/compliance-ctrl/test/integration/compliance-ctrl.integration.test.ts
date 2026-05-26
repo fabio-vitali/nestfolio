@@ -710,4 +710,95 @@ describe('compliance-ctrl', () => {
       expect(subject['authorityLevel']).toBe('L2');
     }, 180_000);
   });
+
+  // ── Steady-state guardrails — ferry-ledger ────────────────────────────
+  // These three cases exercise the two guardrails that are gated on
+  // isInitialBuild=false (MAX_SINGLE_TRADE, TURNOVER_CAP) under the
+  // BALANCED operating mode, plus the initial-build skip path as a
+  // regression guard. Added as part of the ferry-ledger-positions-to-advisory
+  // workstream to prove that the positions payload delivered by the new
+  // ledger ferry is correctly evaluated in steady-state cycles.
+
+  describe('Steady-state guardrails — ferry-ledger', () => {
+    it('BLOCKS a decision when a single trade exceeds maxSingleTradePercent in steady state', async () => {
+      const userId = `integ-user-ferry-mst-${Date.now()}`;
+      const mandateId = `integ-mandate-ferry-mst-${Date.now()}`;
+      const policyPk = `GuardrailPolicy#${ctx.tenantId}#${userId}`;
+
+      // Seed MandateSnapshot with BALANCED operatingMode (maxSingleTradePercent=10).
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'compliance-ctrl',
+        detailType: 'MANDATE_ISSUED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId,
+          mandateId,
+          level: 'DISCRETIONARY',
+          operatingMode: 'BALANCED',
+          effectiveDate: '2026-01-01T00:00:00.000Z',
+        },
+      });
+
+      await table.waitForItem({
+        table: 'compliance-ctrl',
+        pk: policyPk,
+        sk: 'MandateSnapshot',
+        timeoutMs: 90_000,
+        match: { mandateId },
+      });
+
+      const decisionId = `integ-ferry-mst-${Date.now()}`;
+
+      // Single trade: VTI at 15% of portfolio (15_000 cents on 100_000).
+      // BALANCED maxSingleTradePercent=10 → cap=10_000 cents.
+      // 15_000 > 10_000 → MAX_SINGLE_TRADE fires → DECISION_BLOCKED.
+      // targetWeightPercent=15 < singleEtfConcentrationPercent=30 (BALANCED) so
+      // CONCENTRATION_LIMIT does NOT fire — only MAX_SINGLE_TRADE blocks.
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'compliance-ctrl',
+        detailType: 'RECOMMENDATION_PROPOSED',
+        detail: {
+          decisionId,
+          tenantId: ctx.tenantId,
+          userId,
+          taskToken: `integ-task-token-${decisionId}`,
+          awaitingCompliance: true,
+          proposedTrades: [
+            {
+              symbol: 'VTI',
+              assetClass: 'EQUITY',
+              side: 'BUY',
+              quantityOrAmountCents: 15_000,
+              targetWeightPercent: 15,
+              rationale: 'Steady-state rebalance above single-trade cap',
+            },
+          ],
+          portfolioValueCents: 100_000,
+          riskCategory: 'MODERATE',
+          isInitialBuild: false,
+          currentPositions: [
+            { ticker: 'VTI', weight: 0 },
+          ],
+        },
+      });
+
+      const event = await trap.waitForEvent({
+        detailType: 'DECISION_BLOCKED',
+        match: (d) => {
+          const subject = (d as Record<string, unknown>).subject as Record<string, unknown>;
+          return subject?.['decisionPacketId'] === decisionId;
+        },
+        timeoutMs: 120_000,
+      });
+      expect(event.detailType).toBe('DECISION_BLOCKED');
+      const detail = event.detail as Record<string, unknown>;
+      const subject = detail.subject as Record<string, unknown>;
+
+      const violations = subject['violations'] as Array<Record<string, unknown>> | undefined;
+      expect(violations).toBeDefined();
+      expect(violations!.some((v) => v['rule'] === 'MAX_SINGLE_TRADE')).toBe(true);
+    }, 300_000);
+  });
 });
