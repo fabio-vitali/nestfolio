@@ -837,3 +837,155 @@ describe('LedgerSnapshot projection', () => {
     expect(parsed.cashBalanceCents).toBe(800_000);
   }, 120_000);
 });
+
+// ── SF reads LedgerSnapshot → AssemblePacket payload (workstream ferry-ledger-positions-to-advisory) ──
+//
+// Verifies the end-to-end chain:
+//   1. PORTFOLIO_UPDATED → SnapshotProjectorIngress writes LedgerSnapshot row.
+//   2. PORTFOLIO_DRIFT_DETECTED → SF starts, Branch C (LookupLedgerSnapshot) reads
+//      the row, ExtractLedgerSnapshot parses positions, AssembleDecisionPacket Lambda
+//      receives ledgerSnapshot with populated positions + cashBalanceCents.
+//   3. The SF emits RECOMMENDATION_PROPOSED (via WaitForCompliance CDC) carrying
+//      subject.currentPositions derived from the LedgerSnapshot.
+//
+// NOTE: AssemblePacket returns currentPositions to the SF state (ResultSelector) but
+// does NOT persist them to the DDB DecisionPacket row — currentPositions lives in SF
+// state, not in DDB. Assertion therefore reads from the RECOMMENDATION_PROPOSED CDC
+// event captured by the trap.
+//
+// NOTE: This test WILL FAIL against dev until Task 19's deploy (SnapshotProjectorIngress
+// PORTFOLIO_UPDATED subscription + SF Branch C wiring). It also requires the full
+// advisory pipeline (PE + AN agents, ~120s each) to produce RECOMMENDATION_PROPOSED.
+// The AgentCore maxVms quota saturation issue applies here too — see existing skip note
+// above on the packet-shape contract test.
+
+describe('SF reads ledgerSnapshot into AssemblePacket payload', () => {
+  let ctx: TestContext;
+  let eb: EventBridgeClient;
+  let trap: EventBusTrap;
+  let table: TableAssertions;
+
+  beforeAll(async () => {
+    ctx = await createIntegrationTestContext();
+    eb = new EventBridgeClient(ctx);
+    trap = new EventBusTrap(ctx);
+    table = new TableAssertions(ctx);
+    table.registerCleanup();
+
+    // Arm trap for RECOMMENDATION_PROPOSED — this carries currentPositions from
+    // SF state (populated by AssemblePacket from the LedgerSnapshot lookup).
+    await trap.deploy({
+      bus: 'advisory',
+      detailType: ['RECOMMENDATION_PROPOSED'],
+    });
+  }, 90_000);
+
+  afterAll(async () => {
+    await ctx.cleanup.runAll();
+  }, 60_000);
+
+  it('SF threads ledgerSnapshot into AssemblePacket — RECOMMENDATION_PROPOSED carries currentPositions', async () => {
+    const portfolioId = `integ-ledger-drift-${Date.now()}`;
+    const mandateId = `integ-mandate-ledger-${Date.now()}`;
+
+    // ── Step 1: Seed MandateSnapshot so SF can resolve operatingMode ──
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'MANDATE_ISSUED',
+      detail: {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        mandateId,
+        level: 'ADVISORY',
+        operatingMode: 'BALANCED',
+        effectiveDate: new Date().toISOString(),
+      },
+    });
+    await table.waitForItem({
+      table: 'decision-workflow-ctrl',
+      pk: `MandateSnapshot#${ctx.tenantId}#${ctx.userId}`,
+      sk: 'MandateSnapshot',
+      timeoutMs: 30_000,
+    });
+
+    // ── Step 2: Seed LedgerSnapshot via PORTFOLIO_UPDATED ──
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'PORTFOLIO_UPDATED',
+      detail: {
+        id: `integ-port-drift-${Date.now()}`,
+        type: 'PORTFOLIO_UPDATED',
+        timestamp: new Date().toISOString(),
+        subject: {
+          tenantId: ctx.tenantId,
+          streamType: 'CASH',
+          snapshot: {
+            positions: { VTI: { quantity: 10, lastFillPrice: 200 } },
+            cashBalanceCents: 50_000,
+            lastEventSequence: 3,
+          },
+        },
+        context: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          region: 'us-east-1',
+        },
+      },
+    });
+
+    // Wait for LedgerSnapshot projection to land before triggering the SF —
+    // Branch C's DDB GetItem must find the row to exercise the hit path.
+    await table.waitForItem({
+      table: 'decision-workflow-ctrl',
+      pk: `LedgerSnapshot#${ctx.tenantId}`,
+      sk: 'LedgerSnapshot',
+      timeoutMs: 60_000,
+    });
+
+    // ── Step 3: Emit PORTFOLIO_DRIFT_DETECTED to start the SF ──
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'PORTFOLIO_DRIFT_DETECTED',
+      detail: {
+        portfolioId,
+        tenantId: ctx.tenantId,
+        driftPercentage: 0.12,
+        driftDirection: 'OVERWEIGHT_EQUITY',
+        detectedAt: new Date().toISOString(),
+      },
+    });
+
+    // ── Step 4: Assert RECOMMENDATION_PROPOSED carries currentPositions from LedgerSnapshot ──
+    //
+    // AssemblePacket maps LedgerSnapshot.positions → currentPositions (symbols with quantity>0).
+    // The SF propagates currentPositions from the AssembleDecisionPacket ResultSelector into the
+    // WaitForCompliance putEvents payload (subject.currentPositions).
+    // Budget: 240s for the full advisory pipeline (PE 120s + AN 120s).
+    const evt = await trap.waitForEvent<{
+      subject: {
+        currentPositions: Array<{ symbol: string; quantity: number; marketValueCents: number }>;
+        isInitialBuild: boolean;
+        [key: string]: unknown;
+      };
+    }>({
+      detailType: 'RECOMMENDATION_PROPOSED',
+      match: (detail) => {
+        const s = detail.subject as { userId?: string };
+        return s?.userId === ctx.userId;
+      },
+      timeoutMs: 240_000,
+    });
+
+    // currentPositions must contain the VTI position from the seeded LedgerSnapshot
+    const vtiPosition = evt.detail.subject.currentPositions.find(
+      (p) => p.symbol === 'VTI',
+    );
+    expect(vtiPosition).toBeDefined();
+    expect(vtiPosition!.quantity).toBe(10);
+    // isInitialBuild=false because currentPositions is non-empty
+    expect(evt.detail.subject.isInitialBuild).toBe(false);
+  }, 300_000);
+});
