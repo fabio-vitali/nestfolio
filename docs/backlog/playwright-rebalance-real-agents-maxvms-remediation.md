@@ -1,6 +1,6 @@
 ---
 id: playwright-rebalance-real-agents-maxvms-remediation
-status: queued
+status: active
 rank: 6
 type: infra
 notes: "Playwright rebalance-trades-on-drift.spec.ts must run real agents per [[feedback-e2e-no-external-mocks]] (no stub allowed) but is structurally blocked by AgentCore maxVms saturation timing out PE at 120s. Already-shipped resilience (retryable + SQS redrive + idleTimeout tuning) does not help because SF TimeoutSeconds=120s ages out before retry can resolve. Dev-cost constraint (2026-05-26): a maxVms quota increase is acceptable ONLY if it net-lowers spend by eliminating retry storms / TaskTimedOut waste; pure quota bump that raises bills is rejected."
@@ -8,11 +8,19 @@ references:
   - path: apps/nestfolio-e2e/src/scenarios/rebalance-trades-on-drift.spec.ts
   - path: apps/nestfolio-e2e/src/fixtures/inject-portfolio-updated.ts
   - path: services/advisory/decision-workflow-ctrl/src/constructs/decision-state-machine.ts
+  - path: services/advisory/decision-workflow-ctrl/src/agent-budgets.ts
   - path: docs/backlog/agentcore-maxvms-prod-quota-increase.md
   - path: docs/backlog/agentcore-invocation-resilience.md
   - path: docs/backlog/agentcore-maxvms-browser-path-resilience.md
   - path: docs/backlog/dwc-integration-agent-mock-for-sf-packet-shape.md
-out_of_scope: []
+out_of_scope:
+  - "Production-account maxVms quota increase — tracked separately in agentcore-maxvms-prod-quota-increase. This workstream is sandbox-only."
+  - "Integration-side agent stub for SF packet-shape coverage — already shipped (as deletion) in dwc-integration-agent-mock-for-sf-packet-shape. The integration layer is closed."
+  - "Onboarding browser-path 402/429 SSE retry — already shipped in agentcore-maxvms-browser-path-resilience. This workstream targets the rebalance Playwright scenario only."
+  - "Any other Playwright scenario (new-investor-happy-path, deposit-reload-mid-flight, etc.). The rebalance scenario is the sole gate; cross-scenario hardening is filed separately if it surfaces."
+  - "Broad Lambda concurrency overhaul — only the agent-ingress concurrency knobs (Candidate A scope: PE-ctrl / AN-ctrl ESM or reservedConcurrency in sandbox config) are in play. Other services' concurrency is untouched."
+  - "Rewriting the rebalance UI itself. Candidate D may replace synthetic injections with a deeper user journey but does not redesign /advisory page rendering."
+  - "Building a maxVms admission-controller / job-queue inside the app. If concurrency capping is needed, it lives at AWS-native knobs (ESM maxConcurrency, Lambda reservedConcurrency) — no application-level queue."
 spec: null
 plan: null
 topic_memory: []

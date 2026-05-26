@@ -6,12 +6,12 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [playwright-rebalance-real-agents-maxvms-remediation](backlog/playwright-rebalance-real-agents-maxvms-remediation.md) [infra] — Playwright rebalance-trades-on-drift.spec.ts must run real agents per [[feedback-e2e-no-external-mocks]] (no stub allowed) but is structurally blocked by AgentCore maxVms saturation timing out PE at 120s. Already-shipped resilience (retryable + SQS redrive + idleTimeout tuning) does not help because SF TimeoutSeconds=120s ages out before retry can resolve. Dev-cost constraint (2026-05-26): a maxVms quota increase is acceptable ONLY if it net-lowers spend by eliminating retry storms / TaskTimedOut waste; pure quota bump that raises bills is rejected.
 
 ## QUEUED
 
-1. [playwright-rebalance-real-agents-maxvms-remediation](backlog/playwright-rebalance-real-agents-maxvms-remediation.md) [infra] — Playwright rebalance-trades-on-drift.spec.ts must run real agents per [[feedback-e2e-no-external-mocks]] (no stub allowed) but is structurally blocked by AgentCore maxVms saturation timing out PE at 120s. Already-shipped resilience (retryable + SQS redrive + idleTimeout tuning) does not help because SF TimeoutSeconds=120s ages out before retry can resolve. Dev-cost constraint (2026-05-26): a maxVms quota increase is acceptable ONLY if it net-lowers spend by eliminating retry storms / TaskTimedOut waste; pure quota bump that raises bills is rejected.
+_(none)_
+
 
 ## LATER
 
