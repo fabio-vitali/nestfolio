@@ -254,6 +254,16 @@ describe('DecisionWorkflowCtrlStack', () => {
         }),
       });
     });
+
+    it('subscribes to PORTFOLIO_UPDATED', () => {
+      template.hasResourceProperties('AWS::Events::Rule', {
+        EventPattern: Match.objectLike({
+          'detail-type': Match.arrayWith([
+            'PORTFOLIO_UPDATED',
+          ]),
+        }),
+      });
+    });
   });
 
   describe('Egress emits MANDATE_SNAPSHOT_CREATED on MandateSnapshot:INSERT', () => {
