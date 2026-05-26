@@ -2,10 +2,13 @@ import { createHandlers } from '../../src/handlers/snapshot-projector';
 import {
   PROJECTED_IP_SNAPSHOT_SK,
   PROJECTED_MARKET_SNAPSHOT_SK,
+  PROJECTED_LEDGER_SNAPSHOT_SK,
   projectedIpSnapshotPk,
   projectedMarketSnapshotPk,
+  projectedLedgerSnapshotPk,
 } from '../../src/repositories/projected-snapshot.repository';
 import type { EventContext, EventPayload } from '@nestfolio/event-processor';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 
 const ctx = (eventType: string, overrides: Partial<EventContext> = {}): EventContext => ({
   eventId: 'evt-1', eventType, tenantId: 'tenant-1', userId: 'user-1', region: 'us-east-1',
@@ -142,5 +145,48 @@ describe('snapshot-projector', () => {
         ctx('MARKET_SNAPSHOT_UPDATED', { tenantId: 'SYSTEM' }),
       ),
     ).rejects.toThrow(/agentOutput/);
+  });
+});
+
+describe('snapshot-projector — LedgerSnapshot', () => {
+  const handlers = createHandlers();
+
+  it('projects PORTFOLIO_UPDATED into a LedgerSnapshot record intent', async () => {
+    const result = await handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
+      payload({
+        tenantId: 'tenant-abc',
+        snapshot: {
+          positions: { VTI: { quantity: 10, lastFillPrice: 200 } },
+          cashBalanceCents: 5_000_00,
+          lastEventSequence: 7,
+        },
+      }),
+      ctx('PORTFOLIO_UPDATED', { tenantId: 'tenant-abc', eventId: 'evt-1' }),
+    );
+    const intent = Array.isArray(result) ? result[0] : result;
+    expect(intent._tag).toBe('record');
+    expect(intent.typename).toBe('LedgerSnapshot');
+    expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.pk).toBe(
+      projectedLedgerSnapshotPk('tenant-abc'),
+    );
+    expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.sk).toBe(PROJECTED_LEDGER_SNAPSHOT_SK);
+    const fields = (intent as { fields: Record<string, unknown> }).fields;
+    expect(fields.tenantId).toBe('tenant-abc');
+    expect(fields.lastEventSequence).toBe(7);
+    expect(typeof fields.state).toBe('string');
+    const parsed = JSON.parse(fields.state as string);
+    expect(parsed.positions.VTI.quantity).toBe(10);
+    expect(parsed.cashBalanceCents).toBe(500_000);
+    expect(fields.sourceEventId).toBe('evt-1');
+    expect(typeof fields.updatedAt).toBe('string');
+  });
+
+  it('raises NotRetryableError when subject.snapshot is missing', async () => {
+    await expect(
+      handlers[LedgerCtrlEventTypes.PORTFOLIO_UPDATED](
+        payload({ tenantId: 'tenant-abc' }),
+        ctx('PORTFOLIO_UPDATED', { tenantId: 'tenant-abc', eventId: 'evt-2' }),
+      ),
+    ).rejects.toThrow(/missing subject\.snapshot/);
   });
 });

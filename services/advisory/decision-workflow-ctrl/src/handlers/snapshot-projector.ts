@@ -9,11 +9,14 @@ import {
 } from '@nestfolio/event-processor';
 import { InvestorProfileEventTypes } from '@nestfolio/investor-profile-ctrl/events';
 import { MarketIntelligenceEventTypes } from '@nestfolio/market-intelligence-ctrl/events';
+import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 import {
   PROJECTED_IP_SNAPSHOT_SK,
   PROJECTED_MARKET_SNAPSHOT_SK,
+  PROJECTED_LEDGER_SNAPSHOT_SK,
   projectedIpSnapshotPk,
   projectedMarketSnapshotPk,
+  projectedLedgerSnapshotPk,
 } from '../repositories/projected-snapshot.repository';
 
 function projectIpSnapshot(
@@ -63,6 +66,37 @@ function projectMarketSnapshot(payload: EventPayload): WriteIntent {
   );
 }
 
+function projectLedgerSnapshot(payload: EventPayload, ctx: EventContext): WriteIntent {
+  const subject = payload.subject ?? {};
+  const tenantId = (subject.tenantId as string) ?? ctx.tenantId;
+  const snapshot = subject.snapshot as
+    | { positions: Record<string, unknown>; cashBalanceCents: number; lastEventSequence: number }
+    | undefined;
+  if (!snapshot) {
+    throw new NotRetryableError(
+      `${ctx.eventType} missing subject.snapshot for tenant=${tenantId}`,
+    );
+  }
+  const attrs = {
+    tenantId,
+    state: JSON.stringify({
+      positions: snapshot.positions,
+      cashBalanceCents: snapshot.cashBalanceCents,
+    }),
+    lastEventSequence: snapshot.lastEventSequence,
+    sourceEventId: (subject.sourceEventId as string) ?? ctx.eventId,
+    updatedAt: new Date().toISOString(),
+  };
+  return record(
+    'LedgerSnapshot',
+    attrs,
+    {
+      pk: projectedLedgerSnapshotPk(tenantId),
+      sk: PROJECTED_LEDGER_SNAPSHOT_SK,
+    },
+  );
+}
+
 export const createHandlers = () => ({
   [InvestorProfileEventTypes.INVESTOR_PROFILE_SNAPSHOT_CREATED]: async (
     p: EventPayload,
@@ -76,6 +110,10 @@ export const createHandlers = () => ({
     p: EventPayload,
     _c: EventContext,
   ) => projectMarketSnapshot(p),
+  [LedgerCtrlEventTypes.PORTFOLIO_UPDATED]: async (
+    p: EventPayload,
+    c: EventContext,
+  ) => projectLedgerSnapshot(p, c),
 });
 
 export const handler = materializeToTable({
