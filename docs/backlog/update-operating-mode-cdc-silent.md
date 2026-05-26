@@ -1,8 +1,8 @@
 ---
 id: update-operating-mode-cdc-silent
-status: active
+status: shipped
 type: bug
-notes: "REOPENED 2026-05-21 — recurred with the identical signature (update-operating-mode.e2e.test.ts:182 timeout on INVESTOR_PROFILE_UPDATED, empty buffer; line 176 OPERATING_MODE_CHANGED passed). The 2026-05-18 'stale bundle' root cause is FALSIFIED: dev-investor-bff EgressPublisher Lambda LastModified is 2026-05-18T13:09:42 — byte-identical to the bundle that passed 7/7 that day, with zero investor-bff source commits since. Surviving hypothesis is intermittent single-event (carrier) loss between publisher and trap SQS."
+notes: "CLOSED 2026-05-26 as no-repro after 3 consecutive runs against deployed dev with the diagnostic observer live — INVESTOR_PROFILE_UPDATED + OPERATING_MODE_CHANGED arrived together on every run with identical detail.id. The 2026-05-21 recurrence is now untestable retroactively; the dossier's surviving 'intermittent carrier loss' hypothesis is unfalsifiable from clean traces. Test still red, but at line 224 (compliance-ctrl rejects injected RECOMMENDATION_PROPOSED with portfolioValueCents schema mismatch) — distinct bug filed as update-operating-mode-e2e-portfolio-value-cents-mismatch."
 references:
   - services/investor/investor-bff/src/service.stack.ts
   - libs/event-processor/src/pipelines/change-data-capture.ts
@@ -21,7 +21,8 @@ plan: null
 topic_memory:
   - project_operating_mode.md
   - project_investor_profile_collapse.md
-validation_gate: null
+validation_gate: |
+  3 consecutive runs of apps/e2e-feature-tests/src/profile/update-operating-mode.e2e.test.ts against deployed dev (2026-05-26 12:39 / 12:44 / 12:48 UTC). Carrier (INVESTOR_PROFILE_UPDATED) + semantic (OPERATING_MODE_CHANGED) arrived together on every run per the dev-investor-cdc-observer CloudWatch Logs trail at /aws/events/dev-investor-cdc-observer (tenants: e2e-1779799127433-6398a994, e2e-1779799476190-c0eda41f, e2e-1779799672045-42c418a5; identical detail.id per pair). Test still RED — fails at line 224 with `ComplianceCheck row for decisionId=... not found within 120 s` because compliance-ctrl rejects the directly-injected RECOMMENDATION_PROPOSED with `Missing fields: portfolioValueCents` (3/3 runs in compliance-ctrl Ingress logs). That distinct schema-mismatch bug is filed at [[update-operating-mode-e2e-portfolio-value-cents-mismatch]]. Observer torn down post-ship (4 AWS resources removed).
 ---
 
 # updateOperatingMode CDC silent on mode-only change
@@ -157,3 +158,43 @@ Read the investor-bff `service.stack.ts` Egress construct, find the `eventTypes`
 ## Promoted to QUEUED 2026-05-24
 
 Originally re-parked 2026-05-22 on the rationale that the actionable next step was gated on the diagnostic observer first capturing a fresh failing run. Promoted per the e2e-blocking-items-go-queued discipline (`feedback_e2e_gaps_queued_not_parking.md`): the test is RED and the observer is live, so an investigator picking this up can drive a failing run themselves and read the trail in `/aws/events/dev-investor-cdc-observer` as the first concrete step — no further external signal required.
+
+## Closed no-repro 2026-05-26
+
+Three consecutive runs of `update-operating-mode.e2e.test.ts` against deployed dev, with the diagnostic observer live, all delivered both events cleanly:
+
+| Run | Time (UTC) | Tenant | OPERATING_MODE_CHANGED | INVESTOR_PROFILE_UPDATED | shared detail.id |
+|---|---|---|---|---|---|
+| 1 | 12:39:10 | `e2e-1779799127433-6398a994` | ✓ | ✓ | `faa572996ac43b8cfc2f3c4b1b477376` |
+| 2 | 12:44:59 | `e2e-1779799476190-c0eda41f` | ✓ | ✓ | `b47411d4cf9d1f6d4fe393333905e057` |
+| 3 | 12:48:35 | `e2e-1779799672045-42c418a5` | ✓ | ✓ | `986d4924c04c33b45c85e6c2cc8206c2` |
+
+The identical `detail.id` per pair confirms both events came from the SAME DDB stream record's emission batch (see `libs/event-processor/src/pipelines/change-data-capture.ts:123-148` — `buildEntry` derives `detail.id` from `ctx.record.eventID`). The observer is on the EventBridge bus itself (rule pattern `{"detail-type":["INVESTOR_PROFILE_UPDATED","OPERATING_MODE_CHANGED"]}`, no tenant filter), so it sees every event that reaches the bus regardless of downstream rules. Empirically, the publisher is not losing the carrier today.
+
+**Why this closes the workstream:**
+
+- The 2026-05-21 reproduction is now untestable. The bundle is the same (Lambda `LastModified` unchanged since 2026-05-18T13:09:42), the source is the same (zero investor-bff source commits since), and 3 fresh runs against this stable state show consistent emissions. If the bug is intermittent at a rate below ~1-in-3, the next investigator needs either (a) a sustained failure-rate baseline (multi-day observer capture) or (b) a different reproduction trigger to make progress.
+- The dossier's investigation cost (instrument → reproduce → diagnose) far exceeds the residual signal. Re-opening is justified only on a fresh failing capture at `update-operating-mode.e2e.test.ts:182` with empty trap buffer.
+
+**Why the test stays RED (filed separately):**
+
+3/3 runs the test reaches line 224 and times out on `ComplianceCheck row for decisionId=... not found within 120 s`. Compliance-ctrl `/aws/lambda/dev-compliance-ctrl-IngressHandler...` logs from the 3 runs (12:39:16, 12:45:06, 12:48:45) all show:
+
+```
+{"level":"ERROR","message":"record processing failed",
+ "eventType":"RECOMMENDATION_PROPOSED",
+ "errorMessage":"Missing fields: portfolioValueCents", "retryable":false}
+```
+
+The test publishes `portfolioValue: CAPITAL_AMOUNT` (line 218) but compliance-ctrl validates `portfolioValueCents`. Schema-contract drift, separate from CDC. Filed at [[update-operating-mode-e2e-portfolio-value-cents-mismatch]] (queued, rank 2).
+
+**Observer teardown** — diagnostic infrastructure no longer needed, removed in this ship:
+
+```
+aws events remove-targets --rule dev-investor-cdc-observer --event-bus-name dev-investor-event-bus --ids cw-logs
+aws events delete-rule --name dev-investor-cdc-observer --event-bus-name dev-investor-event-bus
+aws logs delete-log-group --log-group-name /aws/events/dev-investor-cdc-observer
+aws logs delete-resource-policy --policy-name EventBridgeToCWLogs-cdc-observer
+```
+
+**Reopen criteria:** a fresh failing capture at `update-operating-mode.e2e.test.ts:182` (or any other consumer) with carrier missing but semantic present, OR an integration test for the publisher that hits the same code path under simulated EB partial-delivery and demonstrates a silent drop.
