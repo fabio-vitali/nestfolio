@@ -164,21 +164,23 @@ describe('snapshot-projector — LedgerSnapshot', () => {
       ctx('PORTFOLIO_UPDATED', { tenantId: 'tenant-abc', eventId: 'evt-1' }),
     );
     const intent = Array.isArray(result) ? result[0] : result;
-    expect(intent._tag).toBe('record');
+    // UpdateIntent (UpsertItem) — PORTFOLIO_UPDATED is both create+update so
+    // record()'s attribute_not_exists(pk) guard would silently dedup the 2nd+ emit.
+    expect(intent._tag).toBe('update');
     expect(intent.typename).toBe('LedgerSnapshot');
     expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.pk).toBe(
       projectedLedgerSnapshotPk('tenant-abc'),
     );
     expect((intent as { overrides?: { pk?: string; sk?: string } }).overrides?.sk).toBe(PROJECTED_LEDGER_SNAPSHOT_SK);
-    const fields = (intent as { fields: Record<string, unknown> }).fields;
-    expect(fields.tenantId).toBe('tenant-abc');
-    expect(fields.lastEventSequence).toBe(7);
-    expect(typeof fields.state).toBe('string');
-    const parsed = JSON.parse(fields.state as string);
+    const updates = (intent as { updates: Record<string, unknown> }).updates;
+    expect(updates.tenantId).toBe('tenant-abc');
+    expect(updates.lastEventSequence).toBe(7);
+    expect(typeof updates.state).toBe('string');
+    const parsed = JSON.parse(updates.state as string);
     expect(parsed.positions.VTI.quantity).toBe(10);
     expect(parsed.cashBalanceCents).toBe(500_000);
-    expect(fields.sourceEventId).toBe('evt-1');
-    expect(typeof fields.updatedAt).toBe('string');
+    expect(updates.sourceEventId).toBe('evt-1');
+    expect(typeof updates.updatedAt).toBe('string');
   });
 
   it('raises NotRetryableError when subject.snapshot is missing', async () => {

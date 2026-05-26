@@ -87,12 +87,17 @@ function projectLedgerSnapshot(payload: EventPayload, ctx: EventContext): WriteI
     sourceEventId: (subject.sourceEventId as string) ?? ctx.eventId,
     updatedAt: new Date().toISOString(),
   };
-  return record(
+  // PORTFOLIO_UPDATED represents both create and update semantics in a single
+  // event type — use update() (UpdateItem upsert) rather than record() which
+  // carries attribute_not_exists(pk) and silently deduplicates the 2nd+ emit.
+  return update(
     'LedgerSnapshot',
     attrs,
     {
-      pk: projectedLedgerSnapshotPk(tenantId),
-      sk: PROJECTED_LEDGER_SNAPSHOT_SK,
+      overrides: {
+        pk: projectedLedgerSnapshotPk(tenantId),
+        sk: PROJECTED_LEDGER_SNAPSHOT_SK,
+      },
     },
   );
 }
