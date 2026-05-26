@@ -15,7 +15,7 @@ out_of_scope:
   - LLM allocation variability (different concern; addressed by Tasks 6-7 of decision-pipeline-units-calibration-suitability).
   - AgentCore maxVms quota issues (separate item `agentcore-maxvms-prod-quota-increase`).
 spec: null
-plan: null
+plan: docs/superpowers/plans/2026-05-26-advisory-bff-approved-to-awaiting-race.md
 topic_memory:
   - project_e2e_feature_tests.md
 validation_gate: null
