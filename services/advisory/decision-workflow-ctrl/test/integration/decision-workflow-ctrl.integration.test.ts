@@ -988,4 +988,79 @@ describe('SF reads ledgerSnapshot into AssemblePacket payload', () => {
     // isInitialBuild=false because currentPositions is non-empty
     expect(evt.detail.subject.isInitialBuild).toBe(false);
   }, 300_000);
+
+  it('SF tolerates absent LedgerSnapshot — RECOMMENDATION_PROPOSED reflects initial-build state', async () => {
+    // Use a unique userId so there is no pre-existing MandateSnapshot row for this user.
+    // Note: LedgerSnapshot is keyed by tenantId (not userId), so isolation here relies on
+    // ctx.tenantId not having a LedgerSnapshot row — or if it does, the test correctly
+    // observes the present row (which would yield isInitialBuild=false and fail, correctly
+    // signalling that the isolation assumption is violated and a fresh tenant is needed).
+    //
+    // Guards against regression: feedback-states-runtime-uncatchable — SF Catch on
+    // States.Runtime silently never fires; Choice-on-isPresent($.ledgerSnapshotResponse.Item.state.S)
+    // must route the absent-row case to HandleMissingLedgerSnapshot, not raise uncatchable
+    // States.Runtime from States.StringToJson(undefined).
+    const uniqueUserId = `integ-nolsn-${Date.now()}`;
+    const mandateId = `integ-mandate-nolsn-${Date.now()}`;
+    const depositId = `integ-deposit-nolsn-${Date.now()}`;
+
+    // ── Seed MandateSnapshot (required so SF LookupMandateSnapshot resolves operatingMode) ──
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'MANDATE_ISSUED',
+      detail: {
+        tenantId: ctx.tenantId,
+        userId: uniqueUserId,
+        mandateId,
+        level: 'ADVISORY',
+        operatingMode: 'BALANCED',
+        effectiveDate: new Date().toISOString(),
+      },
+    });
+    await table.waitForItem({
+      table: 'decision-workflow-ctrl',
+      pk: `MandateSnapshot#${ctx.tenantId}#${uniqueUserId}`,
+      sk: 'MandateSnapshot',
+      timeoutMs: 30_000,
+    });
+
+    // ── Emit DEPOSIT_DETECTED — no prior PORTFOLIO_UPDATED for this userId ──
+    //
+    // HandleMissingLedgerSnapshot seeds ledgerSnapshot = { positions: {}, cashBalanceCents: 0 }.
+    // AssemblePacket receives an empty positions map → currentPositions=[] → isInitialBuild=true.
+    await eb.putEvent({
+      bus: 'advisory',
+      targetService: 'decision-workflow-ctrl',
+      detailType: 'DEPOSIT_DETECTED',
+      detail: {
+        depositId,
+        tenantId: ctx.tenantId,
+        userId: uniqueUserId,
+        amountCents: 200_000,
+        currency: 'USD',
+      },
+    });
+
+    // ── Assert RECOMMENDATION_PROPOSED reflects initial-build state ──
+    //
+    // Budget: 240s for the full advisory pipeline (PE + AN agents).
+    const evt = await trap.waitForEvent<{
+      subject: {
+        currentPositions: Array<{ symbol: string; quantity: number }>;
+        isInitialBuild: boolean;
+        [key: string]: unknown;
+      };
+    }>({
+      detailType: 'RECOMMENDATION_PROPOSED',
+      match: (detail) => {
+        const s = detail.subject as { userId?: string };
+        return s?.userId === uniqueUserId;
+      },
+      timeoutMs: 240_000,
+    });
+
+    expect(evt.detail.subject.currentPositions ?? []).toEqual([]);
+    expect(evt.detail.subject.isInitialBuild).toBe(true);
+  }, 300_000);
 });
