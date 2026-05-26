@@ -251,15 +251,18 @@ describe('assemble-packet handler', () => {
         triggerAmountCents: 50_000, // $500 additional deposit
         investorProfile: { riskCategory: 'AGGRESSIVE' },
         marketAnalysis: null,
+        ledgerSnapshot: {
+          positions: {
+            VTI: { quantity: 4, lastFillPrice: 500 }, // 4 * 500 * 100 = 200_000c
+            BND: { quantity: 2, lastFillPrice: 500 }, // 2 * 500 * 100 = 100_000c
+          },
+          cashBalanceCents: 0,
+        },
         portfolio: {
           allocations: { allocations: [], totalExposure: 1 },
-          currentPositions: [
-            { ticker: 'VTI', marketValueCents: 200_000 },
-            { ticker: 'BND', marketValueCents: 100_000 },
-          ],
         },
         narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
-      });
+      } as any);
       expect(result.portfolioValueCents).toBe(350_000); // 200k + 100k + 50k
       expect(result.isInitialBuild).toBe(false);
     });
@@ -282,12 +285,15 @@ describe('assemble-packet handler', () => {
         triggerAmountCents: 0,
         investorProfile: { riskCategory: 'MODERATE' },
         marketAnalysis: null,
+        ledgerSnapshot: {
+          positions: { VTI: { quantity: 2, lastFillPrice: 500 } },
+          cashBalanceCents: 0,
+        },
         portfolio: {
           allocations: { allocations: [], totalExposure: 1 },
-          currentPositions: [{ ticker: 'VTI', marketValueCents: 100_000 }],
         },
         narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
-      });
+      } as any);
       expect(result.isInitialBuild).toBe(false);
     });
 
@@ -334,5 +340,68 @@ describe('assemble-packet handler', () => {
       expect(result.portfolioValueCents).toBe(0);
       expect(result.proposedTrades[0].quantityOrAmountCents).toBe(0);
     });
+  });
+});
+
+describe('assemble-packet — ledgerSnapshot integration', () => {
+  const mockCreateDecisionPacket = jest.fn();
+  const mockRepo = { createDecisionPacket: mockCreateDecisionPacket } as any;
+
+  const handler = createAssemblePacketHandler({
+    decisionPacketRepository: mockRepo,
+  });
+
+  const baseEventDefaults = {
+    decisionId: 'dec-1',
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    region: 'us-east-1',
+    trigger: 'DEPOSIT_DETECTED',
+    triggerEventId: 'dec-1',
+    executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
+    investorProfile: null,
+    marketAnalysis: null,
+    narrative: null,
+  };
+
+  const baseEvent = (overrides: Record<string, unknown>) => ({ ...baseEventDefaults, ...overrides });
+
+  beforeEach(() => {
+    mockCreateDecisionPacket.mockReset();
+    mockCreateDecisionPacket.mockResolvedValue(true);
+  });
+
+  it('computes currentPositions from ledgerSnapshot.positions, dropping zero-quantity entries', async () => {
+    const event = baseEvent({
+      ledgerSnapshot: {
+        positions: {
+          VTI: { quantity: 10, lastFillPrice: 200 },     // 200_000c
+          BND: { quantity: 50, lastFillPrice: 80 },      //  400_000c
+          ZERO: { quantity: 0, lastFillPrice: 100 },     // dropped
+        },
+        cashBalanceCents: 100_000,
+      },
+      triggerAmountCents: 0,
+      portfolio: { allocations: [] },
+    });
+    const out = await handler(event as any);
+    expect(out.currentPositions).toEqual([
+      { symbol: 'VTI', quantity: 10, marketValueCents: 200_000 },
+      { symbol: 'BND', quantity: 50, marketValueCents: 400_000 },
+    ]);
+    expect(out.portfolioValueCents).toBe(200_000 + 400_000 + 100_000);
+    expect(out.isInitialBuild).toBe(false);
+  });
+
+  it('treats empty positions as initial build and uses cash + trigger as portfolioValue', async () => {
+    const event = baseEvent({
+      ledgerSnapshot: { positions: {}, cashBalanceCents: 0 },
+      triggerAmountCents: 5_000_000,
+      portfolio: { allocations: [] },
+    });
+    const out = await handler(event as any);
+    expect(out.currentPositions).toEqual([]);
+    expect(out.portfolioValueCents).toBe(5_000_000);
+    expect(out.isInitialBuild).toBe(true);
   });
 });

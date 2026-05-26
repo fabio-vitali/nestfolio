@@ -59,13 +59,31 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
     // + currentPositionsValueCents instead.
     const allocationEnvelope = (portfolio?.allocations as Record<string, unknown> | undefined) ?? {};
     const allocationsArray = (allocationEnvelope.allocations as Array<Record<string, unknown>> | undefined) ?? [];
-    const currentPositions = (portfolio?.currentPositions as Array<Record<string, unknown>> | undefined) ?? [];
 
-    const currentPositionsValueCents = currentPositions.reduce<number>((sum, pos) => {
-      const v = (pos?.marketValueCents as number | undefined) ?? 0;
-      return sum + (Number.isFinite(v) ? v : 0);
-    }, 0);
-    const portfolioValueCents = currentPositionsValueCents + (triggerAmountCents ?? 0);
+    // LedgerSnapshot is plumbed in by the SF (Branch C of ParallelProjections).
+    // On absent-row, the SF substitutes { positions: {}, cashBalanceCents: 0 } —
+    // so we never have to handle `undefined` here.
+    const ledgerSnapshot = ((event as Record<string, unknown>).ledgerSnapshot as
+      | { positions?: Record<string, { quantity?: number; lastFillPrice?: number }>; cashBalanceCents?: number }
+      | undefined) ?? { positions: {}, cashBalanceCents: 0 };
+
+    const positionsBySymbol = ledgerSnapshot.positions ?? {};
+    const cashBalanceCents = ledgerSnapshot.cashBalanceCents ?? 0;
+
+    const currentPositions = Object.entries(positionsBySymbol)
+      .filter(([, p]) => (p?.quantity ?? 0) > 0)
+      .map(([symbol, p]) => ({
+        symbol: symbol.trim().toUpperCase(),
+        quantity: p.quantity!,
+        marketValueCents: Math.round((p.quantity ?? 0) * (p.lastFillPrice ?? 0) * 100),
+      }));
+
+    const currentPositionsValueCents = currentPositions.reduce(
+      (sum, p) => sum + p.marketValueCents,
+      0,
+    );
+    const portfolioValueCents =
+      currentPositionsValueCents + cashBalanceCents + (triggerAmountCents ?? 0);
 
     // Map allocations → ProposedTrade shape per advisory-bff schema
     // (services/advisory/advisory-bff/src/schema.graphql, ProposedTrade type).
