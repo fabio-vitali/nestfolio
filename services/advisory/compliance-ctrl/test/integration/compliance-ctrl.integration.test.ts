@@ -800,5 +800,80 @@ describe('compliance-ctrl', () => {
       expect(violations).toBeDefined();
       expect(violations!.some((v) => v['rule'] === 'MAX_SINGLE_TRADE')).toBe(true);
     }, 300_000);
+
+    it('BLOCKS when sum of trade absolute values exceeds monthlyTurnoverCapPercent', async () => {
+      const userId = `integ-user-ferry-tc-${Date.now()}`;
+      const mandateId = `integ-mandate-ferry-tc-${Date.now()}`;
+      const policyPk = `GuardrailPolicy#${ctx.tenantId}#${userId}`;
+
+      // Seed MandateSnapshot with BALANCED operatingMode (monthlyTurnoverCapPercent=25).
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'compliance-ctrl',
+        detailType: 'MANDATE_ISSUED',
+        detail: {
+          tenantId: ctx.tenantId,
+          userId,
+          mandateId,
+          level: 'DISCRETIONARY',
+          operatingMode: 'BALANCED',
+          effectiveDate: '2026-01-01T00:00:00.000Z',
+        },
+      });
+
+      await table.waitForItem({
+        table: 'compliance-ctrl',
+        pk: policyPk,
+        sk: 'MandateSnapshot',
+        timeoutMs: 90_000,
+        match: { mandateId },
+      });
+
+      const decisionId = `integ-ferry-tc-${Date.now()}`;
+
+      // 4 trades × 7_000 cents = 28_000 cents total (28% of 100_000 portfolio).
+      // BALANCED monthlyTurnoverCapPercent=25 → cap=25_000 cents.
+      // 28_000 > 25_000 → TURNOVER_CAP fires → DECISION_BLOCKED.
+      // Each individual trade 7% < maxSingleTradePercent=10 → MAX_SINGLE_TRADE passes.
+      // Each targetWeightPercent=7 < singleEtfConcentrationPercent=30 → CONCENTRATION_LIMIT passes.
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'compliance-ctrl',
+        detailType: 'RECOMMENDATION_PROPOSED',
+        detail: {
+          decisionId,
+          tenantId: ctx.tenantId,
+          userId,
+          taskToken: `integ-task-token-${decisionId}`,
+          awaitingCompliance: true,
+          proposedTrades: [
+            { symbol: 'VTI',  assetClass: 'EQUITY',       side: 'BUY', quantityOrAmountCents: 7_000, targetWeightPercent: 7, rationale: 'Rebalance' },
+            { symbol: 'IXUS', assetClass: 'EQUITY',       side: 'BUY', quantityOrAmountCents: 7_000, targetWeightPercent: 7, rationale: 'Rebalance' },
+            { symbol: 'QQQ',  assetClass: 'EQUITY',       side: 'BUY', quantityOrAmountCents: 7_000, targetWeightPercent: 7, rationale: 'Rebalance' },
+            { symbol: 'BND',  assetClass: 'FIXED_INCOME', side: 'BUY', quantityOrAmountCents: 7_000, targetWeightPercent: 7, rationale: 'Rebalance' },
+          ],
+          portfolioValueCents: 100_000,
+          riskCategory: 'MODERATE',
+          isInitialBuild: false,
+          currentPositions: [],
+        },
+      });
+
+      const event = await trap.waitForEvent({
+        detailType: 'DECISION_BLOCKED',
+        match: (d) => {
+          const subject = (d as Record<string, unknown>).subject as Record<string, unknown>;
+          return subject?.['decisionPacketId'] === decisionId;
+        },
+        timeoutMs: 120_000,
+      });
+      expect(event.detailType).toBe('DECISION_BLOCKED');
+      const detail = event.detail as Record<string, unknown>;
+      const subject = detail.subject as Record<string, unknown>;
+
+      const violations = subject['violations'] as Array<Record<string, unknown>> | undefined;
+      expect(violations).toBeDefined();
+      expect(violations!.some((v) => v['rule'] === 'TURNOVER_CAP')).toBe(true);
+    }, 300_000);
   });
 });
