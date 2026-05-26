@@ -716,27 +716,18 @@ describe('LedgerSnapshot projection', () => {
   }, 60_000);
 
   it('materialises a LedgerSnapshot row from PORTFOLIO_UPDATED', async () => {
+    // `detail` is the SUBJECT body — eb.putEvent wraps it in {id,type,timestamp,subject:detail,context}.
     await eb.putEvent({
       bus: 'advisory',
       targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_UPDATED',
       detail: {
-        id: `integ-port-${Date.now()}`,
-        type: 'PORTFOLIO_UPDATED',
-        timestamp: new Date().toISOString(),
-        subject: {
-          tenantId: ctx.tenantId,
-          streamType: 'CASH',
-          snapshot: {
-            positions: { VTI: { quantity: 10, lastFillPrice: 200 } },
-            cashBalanceCents: 500_000,
-            lastEventSequence: 1,
-          },
-        },
-        context: {
-          tenantId: ctx.tenantId,
-          userId: ctx.tenantId,
-          region: 'us-east-1',
+        tenantId: ctx.tenantId,
+        streamType: 'CASH',
+        snapshot: {
+          positions: { VTI: { quantity: 10, lastFillPrice: 200 } },
+          cashBalanceCents: 500_000,
+          lastEventSequence: 1,
         },
       },
     });
@@ -765,22 +756,12 @@ describe('LedgerSnapshot projection', () => {
       targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_UPDATED',
       detail: {
-        id: `integ-port-seq5-${Date.now()}`,
-        type: 'PORTFOLIO_UPDATED',
-        timestamp: new Date().toISOString(),
-        subject: {
-          tenantId: ctx.tenantId,
-          streamType: 'CASH',
-          snapshot: {
-            positions: { VTI: { quantity: 5, lastFillPrice: 200 } },
-            cashBalanceCents: 300_000,
-            lastEventSequence: 5,
-          },
-        },
-        context: {
-          tenantId: ctx.tenantId,
-          userId: ctx.tenantId,
-          region: 'us-east-1',
+        tenantId: ctx.tenantId,
+        streamType: 'CASH',
+        snapshot: {
+          positions: { VTI: { quantity: 5, lastFillPrice: 200 } },
+          cashBalanceCents: 300_000,
+          lastEventSequence: 5,
         },
       },
     });
@@ -801,22 +782,12 @@ describe('LedgerSnapshot projection', () => {
       targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_UPDATED',
       detail: {
-        id: `integ-port-seq7-${Date.now()}`,
-        type: 'PORTFOLIO_UPDATED',
-        timestamp: new Date().toISOString(),
-        subject: {
-          tenantId: ctx.tenantId,
-          streamType: 'CASH',
-          snapshot: {
-            positions: { VTI: { quantity: 7, lastFillPrice: 210 } },
-            cashBalanceCents: 800_000,
-            lastEventSequence: 7,
-          },
-        },
-        context: {
-          tenantId: ctx.tenantId,
-          userId: ctx.tenantId,
-          region: 'us-east-1',
+        tenantId: ctx.tenantId,
+        streamType: 'CASH',
+        snapshot: {
+          positions: { VTI: { quantity: 7, lastFillPrice: 210 } },
+          cashBalanceCents: 800_000,
+          lastEventSequence: 7,
         },
       },
     });
@@ -915,22 +886,12 @@ describe('SF reads ledgerSnapshot into AssemblePacket payload', () => {
       targetService: 'decision-workflow-ctrl',
       detailType: 'PORTFOLIO_UPDATED',
       detail: {
-        id: `integ-port-drift-${Date.now()}`,
-        type: 'PORTFOLIO_UPDATED',
-        timestamp: new Date().toISOString(),
-        subject: {
-          tenantId: ctx.tenantId,
-          streamType: 'CASH',
-          snapshot: {
-            positions: { VTI: { quantity: 10, lastFillPrice: 200 } },
-            cashBalanceCents: 50_000,
-            lastEventSequence: 3,
-          },
-        },
-        context: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          region: 'us-east-1',
+        tenantId: ctx.tenantId,
+        streamType: 'CASH',
+        snapshot: {
+          positions: { VTI: { quantity: 10, lastFillPrice: 200 } },
+          cashBalanceCents: 50_000,
+          lastEventSequence: 3,
         },
       },
     });
