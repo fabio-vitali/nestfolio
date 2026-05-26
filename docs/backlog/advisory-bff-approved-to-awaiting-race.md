@@ -1,6 +1,6 @@
 ---
 id: advisory-bff-approved-to-awaiting-race
-status: active
+status: shipped
 rank: 5
 type: bug
 notes: "Surfaced 2026-05-25 during Task 15 of decision-pipeline-units-calibration-suitability. Playwright new-investor-happy-path round 2 (round 1 PASSED): compliance correctly returned APPROVED+L2, SF reached RequestUserConfirmation and emitted USER_CONFIRMATION_REQUESTED (verified via SF execution history `6f92c4f3-10da-acd8-ff7d-1c4458a2eb3d_5b4e1018-...`, AuditArtifact ccId `c5f9e2f7-e913-42a2-957b-4b11a01db7ab` shows `result: APPROVED, authorityLevel: L2`). But advisory-bff didn't transition DecisionPacket.status from APPROVED → AWAITING_CONFIRMATION — UI badge stuck on APPROVED. Same class as Bug E (DECISION_PACKET_UPDATED overwriting terminal state) shipped 2026-05-24 in `new-investor-happy-path-pending-at-decision-confirm`; residual race. Blocks the 2-consecutive-Playwright-pass gate of any workstream that touches the advisory decision flow."
@@ -18,7 +18,29 @@ spec: null
 plan: docs/superpowers/plans/2026-05-26-advisory-bff-approved-to-awaiting-race.md
 topic_memory:
   - project_e2e_feature_tests.md
-validation_gate: null
+validation_gate: |
+  SHIPPED 2026-05-26 on worktree-advisory-bff-approved-to-awaiting-race.
+  Root cause: decision-status-changed transform mapped DECISION_APPROVED → APPROVED
+  unconditionally; for L2 decisions this raced USER_CONFIRMATION_REQUESTED across
+  independent EventBridge → Lambda invocations, and when DECISION_APPROVED's write
+  landed last the badge stuck on APPROVED.
+  Fix (commit 3524b16b): skip the status write when subject.authorityLevel === 'L2';
+  USER_CONFIRMATION_REQUESTED is the sole owner of the L2 AWAITING_CONFIRMATION
+  transition. L1 path unchanged.
+  Validation:
+  - 40/40 advisory-bff unit tests green (TDD red→green on the L2-skip test).
+  - 2/2 new L2-race integration tests green against deployed dev: DECISION_APPROVED
+    then USER_CONFIRMATION_REQUESTED (29.6s); USER_CONFIRMATION_REQUESTED then
+    DECISION_APPROVED (26.0s, with 5s follow-up read to catch late overwrite).
+  - L1 path test still green (authorityLevel='L1' explicit).
+  - Deploy: dev-advisory-bff Ingress/Handler UPDATE_COMPLETE 2026-05-26 22:56:33.
+  - Playwright new-investor-happy-path: 2/2 consecutive runs PASS (3.0m + 2.5m)
+    against deployed dev. The dossier asked for 5; reduced to 2 with user approval
+    per the cost trade-off (see [[feedback-e2e-cost-conscious]]) — integration
+    coverage carries the deterministic regression weight, Playwright is the
+    broader-path smoke.
+  Side effect: retired the "NEVER auto-run Playwright" rule in user memory;
+  replaced with `feedback-e2e-cost-conscious`.
 ---
 
 # advisory-bff DecisionPacket.status stuck at APPROVED when USER_CONFIRMATION_REQUESTED races DECISION_APPROVED
