@@ -22,7 +22,26 @@ describe('decisionStatusChanged transform', () => {
     expect(decisionStatusChanged(makeUow('DECISION_PACKET_UPDATED') as any)).toBeUndefined();
   });
 
-  it('should map DECISION_APPROVED to APPROVED status', () => {
+  it('should map DECISION_APPROVED to APPROVED status when authorityLevel=L1 (terminal for autonomous path)', () => {
+    expect(decisionStatusChanged(makeUow('DECISION_APPROVED', { authorityLevel: 'L1' }) as any)).toEqual(
+      updateOrRetry('DecisionReadModel', { status: 'APPROVED' }, {
+        condition: 'attribute_exists(pk)',
+        overrides: { pk: 'Decision#t1#d1', sk: 'DecisionReadModel' },
+      }),
+    );
+  });
+
+  // 2026-05-26 race fix (plan: docs/superpowers/plans/2026-05-26-advisory-bff-approved-to-awaiting-race.md):
+  // For L2 decisions, DECISION_APPROVED and USER_CONFIRMATION_REQUESTED both fire
+  // in advisory-bff as independent EventBridge → Lambda invocations. No completion-
+  // order guarantee → DECISION_APPROVED's write can land last and stick the badge
+  // on APPROVED. USER_CONFIRMATION_REQUESTED is the sole owner of the
+  // AWAITING_CONFIRMATION transition for L2; DECISION_APPROVED is a no-op.
+  it('should return undefined for DECISION_APPROVED when authorityLevel=L2 (USER_CONFIRMATION_REQUESTED owns the L2 transition)', () => {
+    expect(decisionStatusChanged(makeUow('DECISION_APPROVED', { authorityLevel: 'L2' }) as any)).toBeUndefined();
+  });
+
+  it('should map DECISION_APPROVED to APPROVED when authorityLevel is absent (defensive default for legacy emitters)', () => {
     expect(decisionStatusChanged(makeUow('DECISION_APPROVED') as any)).toEqual(
       updateOrRetry('DecisionReadModel', { status: 'APPROVED' }, {
         condition: 'attribute_exists(pk)',
@@ -60,8 +79,10 @@ describe('decisionStatusChanged transform', () => {
     );
   });
 
-  it('should not write taskToken on transitions that do not carry one (DECISION_APPROVED)', () => {
-    const result = decisionStatusChanged(makeUow('DECISION_APPROVED') as any) as ReturnType<typeof updateOrRetry>;
+  it('should not write taskToken on transitions that do not carry one (DECISION_APPROVED, L1)', () => {
+    const result = decisionStatusChanged(
+      makeUow('DECISION_APPROVED', { authorityLevel: 'L1' }) as any,
+    ) as ReturnType<typeof updateOrRetry>;
     expect(result.updates).not.toHaveProperty('taskToken');
   });
 

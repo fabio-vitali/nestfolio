@@ -98,7 +98,10 @@ describe('advisory-bff', () => {
         timeoutMs: 30_000,
       });
 
-      // Now send DECISION_APPROVED — update() with condition: attribute_exists(pk)
+      // Now send DECISION_APPROVED — update() with condition: attribute_exists(pk).
+      // authorityLevel: 'L1' is the autonomous-execute path (no user confirm); this
+      // event is the terminal compliance state. Post-2026-05-26 race fix, the
+      // transform discriminates L1/L2 on this subject field; pass it explicitly.
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'advisory-bff',
@@ -106,6 +109,7 @@ describe('advisory-bff', () => {
         detail: {
           tenantId: ctx.tenantId,
           decisionId,
+          authorityLevel: 'L1',
         },
       });
 
@@ -120,6 +124,114 @@ describe('advisory-bff', () => {
 
       expect(item['status']).toBe('APPROVED');
     }, 120_000);
+
+    // 2026-05-26 L2 race regression (plan: docs/superpowers/plans/2026-05-26-advisory-bff-approved-to-awaiting-race.md).
+    // For L2 decisions, compliance-ctrl emits DECISION_APPROVED (authorityLevel=L2)
+    // AND decision-workflow-ctrl SF emits USER_CONFIRMATION_REQUESTED. Both land
+    // in advisory-bff as independent Lambda invocations with no ordering
+    // guarantee — if DECISION_APPROVED's write lands last, badge sticks on APPROVED
+    // and Confirm button never appears. Pre-fix, both orderings could resolve to
+    // APPROVED depending on Lambda completion order; post-fix, DECISION_APPROVED
+    // is a no-op for L2 and the final status is deterministically
+    // AWAITING_CONFIRMATION regardless of order.
+    it('L2 race: DECISION_APPROVED then USER_CONFIRMATION_REQUESTED — final status=AWAITING_CONFIRMATION', async () => {
+      const decisionId = `integ-l2-race-aprbefore-${Date.now()}`;
+      const pk = `Decision#${ctx.tenantId}#${decisionId}`;
+
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+          trigger: 'REBALANCE',
+          proposedTrades: [{ symbol: 'VTI', action: 'BUY', quantity: 1 }],
+          explanation: 'L2 race fixture (APPROVED first)',
+          confirmationRequired: true,
+        },
+      });
+      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000 });
+
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_APPROVED',
+        detail: { tenantId: ctx.tenantId, decisionId, authorityLevel: 'L2' },
+      });
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'USER_CONFIRMATION_REQUESTED',
+        detail: { tenantId: ctx.tenantId, decisionId, taskToken: 'tok-l2-race-a' },
+      });
+
+      const item = await table.waitForItem({
+        table: 'advisory-bff',
+        pk,
+        sk: 'DecisionReadModel',
+        timeoutMs: 60_000,
+        match: { status: 'AWAITING_CONFIRMATION' },
+      });
+      expect(item['status']).toBe('AWAITING_CONFIRMATION');
+    }, 120_000);
+
+    it('L2 race: USER_CONFIRMATION_REQUESTED then DECISION_APPROVED — final status=AWAITING_CONFIRMATION', async () => {
+      const decisionId = `integ-l2-race-confbefore-${Date.now()}`;
+      const pk = `Decision#${ctx.tenantId}#${decisionId}`;
+
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_PACKET_CREATED',
+        detail: {
+          tenantId: ctx.tenantId,
+          decisionId,
+          trigger: 'REBALANCE',
+          proposedTrades: [{ symbol: 'VTI', action: 'BUY', quantity: 1 }],
+          explanation: 'L2 race fixture (USER_CONFIRMATION_REQUESTED first)',
+          confirmationRequired: true,
+        },
+      });
+      await table.waitForItem({ table: 'advisory-bff', pk, sk: 'DecisionReadModel', timeoutMs: 30_000 });
+
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'USER_CONFIRMATION_REQUESTED',
+        detail: { tenantId: ctx.tenantId, decisionId, taskToken: 'tok-l2-race-b' },
+      });
+      await eb.putEvent({
+        bus: 'advisory',
+        targetService: 'advisory-bff',
+        detailType: 'DECISION_APPROVED',
+        detail: { tenantId: ctx.tenantId, decisionId, authorityLevel: 'L2' },
+      });
+
+      // The interesting assertion: 30s window to let any racing APPROVED write
+      // land — final state must remain AWAITING_CONFIRMATION.
+      const item = await table.waitForItem({
+        table: 'advisory-bff',
+        pk,
+        sk: 'DecisionReadModel',
+        timeoutMs: 60_000,
+        match: { status: 'AWAITING_CONFIRMATION' },
+      });
+      expect(item['status']).toBe('AWAITING_CONFIRMATION');
+
+      // Defensive: re-read after 5s in case DECISION_APPROVED's invocation was
+      // cold-starting at first read. Status must still be AWAITING_CONFIRMATION
+      // (no late-arrival overwrite).
+      await new Promise((r) => setTimeout(r, 5_000));
+      const followUp = await table.waitForItem({
+        table: 'advisory-bff',
+        pk,
+        sk: 'DecisionReadModel',
+        timeoutMs: 5_000,
+        match: { status: 'AWAITING_CONFIRMATION' },
+      });
+      expect(followUp['status']).toBe('AWAITING_CONFIRMATION');
+    }, 180_000);
 
     it('should update DecisionSummary to COMPLIANCE_REVIEW on DECISION_PACKET_UPDATED', async () => {
       const decisionId = `integ-updated-${Date.now()}`;

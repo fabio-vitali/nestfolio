@@ -27,6 +27,22 @@ export const decisionStatusChanged = (
   const newStatus = EVENT_TO_STATUS[uow.event.type];
   if (!newStatus) return undefined as unknown as WriteIntent;
 
+  // 2026-05-26 L2 race fix: for L2 decisions DECISION_APPROVED and
+  // USER_CONFIRMATION_REQUESTED both fire and land here as independent
+  // EventBridge → Lambda invocations. No completion-order guarantee → if
+  // DECISION_APPROVED's write lands last, the badge sticks on APPROVED and the
+  // Confirm button never appears. USER_CONFIRMATION_REQUESTED is the sole owner
+  // of the AWAITING_CONFIRMATION transition for L2; this branch makes
+  // DECISION_APPROVED a no-op for L2 so only one writer drives the L2 status.
+  // L1 keeps the APPROVED terminal write (SF never emits
+  // USER_CONFIRMATION_REQUESTED for L1; see decision-state-machine.ts approvedL1End).
+  if (
+    uow.event.type === 'DECISION_APPROVED' &&
+    (uow.event.subject as { authorityLevel?: string }).authorityLevel === 'L2'
+  ) {
+    return undefined as unknown as WriteIntent;
+  }
+
   // USER_CONFIRMATION_REQUESTED carries the SF taskToken on subject — persist
   // it onto DecisionReadModel so the confirmDecision / rejectDecision pre-step
   // can read it and stamp it onto the UserConfirmation / UserRejection row.
