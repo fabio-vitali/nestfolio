@@ -6,6 +6,7 @@
 
 export const PROJECTED_IP_SNAPSHOT_SK = 'InvestorProfileSnapshot' as const;
 export const PROJECTED_MARKET_SNAPSHOT_SK = 'MarketSnapshot' as const;
+export const PROJECTED_LEDGER_SNAPSHOT_SK = 'LedgerSnapshot' as const;
 
 export function projectedIpSnapshotPk(tenantId: string, userId: string): string {
   return `InvestorProfileSnapshot#${tenantId}#${userId}`;
@@ -13,4 +14,8 @@ export function projectedIpSnapshotPk(tenantId: string, userId: string): string 
 
 export function projectedMarketSnapshotPk(region: string): string {
   return `MarketSnapshot#${region}`;
+}
+
+export function projectedLedgerSnapshotPk(tenantId: string): string {
+  return `LedgerSnapshot#${tenantId}`;
 }
