@@ -1,13 +1,18 @@
 ---
 id: operating-mode-changed-compliance-mandate-snapshot-e2e
-status: queued
+status: active
 type: design
 rank: 3
 notes: "Cross-service E2E reservation: updateOperatingMode mutation → INVESTOR_PROFILE_UPDATED+OPERATING_MODE_CHANGED CDC → advisory-adpt → AdvisoryBus → compliance-ctrl → MandateSnapshot.operatingMode patch. Currently only the investor-bff side (profile.operatingMode) is asserted; the cross-service propagation chain is untested."
 references:
   - "services/investor/investor-bff/src/graphql/js-function/update-operating-mode.fn.js"
   - "services/investor/investor-bff/CLAUDE.md"
-out_of_scope: []
+out_of_scope:
+  - "Simulating compliance-ctrl latency or error-path failures (adapter-rule mismatch, handler exception). Test asserts the happy-path chain only."
+  - "Asserting intermediate hops (EventBridge rule fire, adapter forward, AdvisoryBus delivery). Events are an implementation detail; only the terminal MandateSnapshot patch is asserted."
+  - "Compliance authority resolver behavior / mode-aware policy evaluation logic. We assert the read-model patch lands; we do not assert downstream policy decisions change."
+  - "Renaming or restructuring the e2e fixture surface or scenario layout. Ships as a single new scenario file under existing conventions."
+  - "Backfilling integration coverage for advisory-adpt's OPERATING_MODE_CHANGED forward rule or compliance-ctrl's MandateSnapshot handler. If the e2e exposes a wiring gap, file a separate ticket via backlog-add."
 spec: null
 plan: null
 topic_memory:
