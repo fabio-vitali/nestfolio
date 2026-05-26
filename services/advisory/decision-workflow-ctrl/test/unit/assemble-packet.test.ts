@@ -511,3 +511,71 @@ describe('assemble-packet — delta proposedTrades', () => {
     expect(old).toMatchObject({ side: 'SELL', quantityOrAmountCents: 50_000, targetWeightPercent: 0 });
   });
 });
+
+describe('assemble-packet — micro-trade filter + ordering', () => {
+  const mockCreateDecisionPacket = jest.fn();
+  const mockRepo = { createDecisionPacket: mockCreateDecisionPacket } as any;
+
+  const handler = createAssemblePacketHandler({
+    decisionPacketRepository: mockRepo,
+  });
+
+  const baseEventDefaults = {
+    decisionId: 'dec-1',
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    region: 'us-east-1',
+    trigger: 'DEPOSIT_DETECTED',
+    triggerEventId: 'dec-1',
+    executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
+    investorProfile: null,
+    marketAnalysis: null,
+    narrative: null,
+  };
+
+  const baseEvent = (overrides: Record<string, unknown>) => ({ ...baseEventDefaults, ...overrides });
+
+  beforeEach(() => {
+    mockCreateDecisionPacket.mockReset();
+    mockCreateDecisionPacket.mockResolvedValue(true);
+  });
+
+  it('drops trades whose quantityOrAmountCents is < 1% of portfolioValueCents', async () => {
+    // VTI@200/share, 1000 shares → 1000*200*100 = 20_000_000c portfolio (no cash).
+    // Target VTI 99.5% of 20_000_000 = 19_900_000c; current 20_000_000c.
+    // Delta = -100_000c. Epsilon (1% of 20_000_000) = 200_000c. Delta below epsilon → drop.
+    const out = await handler(baseEvent({
+      ledgerSnapshot: {
+        positions: { VTI: { quantity: 1000, lastFillPrice: 200 } },
+        cashBalanceCents: 0,
+      },
+      triggerAmountCents: 0,
+      portfolio: { allocations: { allocations: [
+        { instrument: 'VTI', assetClass: 'EQUITY', targetWeight: 0.995, rationale: '' },
+      ] }},
+    }) as any);
+    expect(out.proposedTrades).toEqual([]);
+  });
+
+  it('orders SELLs before BUYs, then by symbol ascending', async () => {
+    const out = await handler(baseEvent({
+      ledgerSnapshot: {
+        positions: {
+          AAA: { quantity: 100, lastFillPrice: 100 },   // 1_000_000c
+          ZZZ: { quantity: 100, lastFillPrice: 100 },   // 1_000_000c
+        },
+        cashBalanceCents: 10_000_000,                   // portfolioValue = 12_000_000c
+      },
+      triggerAmountCents: 0,
+      portfolio: { allocations: { allocations: [
+        // VTI target 50% = 6_000_000c, not held → BUY 6_000_000c
+        { instrument: 'VTI', assetClass: 'EQUITY', targetWeight: 0.5, rationale: '' },
+        // AAA target 25% = 3_000_000c, current 1_000_000c → BUY 2_000_000c
+        { instrument: 'AAA', assetClass: 'EQUITY', targetWeight: 0.25, rationale: '' },
+        // ZZZ not in target → full SELL 1_000_000c
+      ] }},
+    }) as any);
+    const sides = out.proposedTrades.map((t: any) => `${t.side}:${t.symbol}`);
+    expect(sides).toEqual(['SELL:ZZZ', 'BUY:AAA', 'BUY:VTI']);
+  });
+});

@@ -1,5 +1,6 @@
 import { requireEnv } from '@nestfolio/event-processor';
 import { DecisionPacketRepository } from '../repositories/decision-packet.repository';
+import { MICRO_TRADE_EPSILON_BPS } from '../trade-thresholds';
 
 interface AssemblePacketDeps {
   decisionPacketRepository: DecisionPacketRepository;
@@ -172,7 +173,13 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
       });
     }
 
-    const proposedTrades = candidates;   // epsilon filter + ordering applied in Task 11
+    const epsilonCents = Math.round(
+      (portfolioValueCents * MICRO_TRADE_EPSILON_BPS) / 10_000,
+    );
+    const sideRank = (side: 'BUY' | 'SELL') => (side === 'SELL' ? 0 : 1);
+    const proposedTrades = candidates
+      .filter((t) => t.quantityOrAmountCents >= epsilonCents)
+      .sort((a, b) => sideRank(a.side) - sideRank(b.side) || a.symbol.localeCompare(b.symbol));
 
     const isInitialBuild = currentPositions.length === 0;
     const riskCategory =
