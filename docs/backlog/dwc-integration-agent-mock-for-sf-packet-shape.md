@@ -3,7 +3,7 @@ id: dwc-integration-agent-mock-for-sf-packet-shape
 status: active
 rank: 4
 type: tooling
-notes: "Task 10 packet-shape integration test (decision-workflow-ctrl.integration.test.ts:534) needs full SF chain (PE+AN, 240s budget). Dev sandbox hits PE TaskTimedOut at 120s due to AgentCore maxVms saturation. CW evidence: execution arn fb73afaa-f6c0-4d6e-7aa4-c70d4f532072 entered InvokePortfolioEngine at 15:24:38, TaskTimedOut at 15:26:38 (exactly 120s). Currently it.skip'ped. Needs trap-based agent stub (CONSTRUCT_PORTFOLIO/GENERATE_NARRATIVE → fake _COMPLETED with synthetic agentOutput + captured taskToken) to bypass Bedrock and unblock the contract assertion. ALSO unblocks ferry-ledger-positions-to-advisory's DWC Tests 14+15 (LedgerSnapshot end-to-end SF chain, skipped at 8458e131) AND apps/nestfolio-e2e/src/scenarios/rebalance-trades-on-drift.spec.ts — all hit the same PE-via-Bedrock path."
+notes: "Task 10 packet-shape integration test (decision-workflow-ctrl.integration.test.ts:534) needs full SF chain (PE+AN, 240s budget). Dev sandbox hits PE TaskTimedOut at 120s due to AgentCore maxVms saturation. CW evidence: execution arn fb73afaa-f6c0-4d6e-7aa4-c70d4f532072 entered InvokePortfolioEngine at 15:24:38, TaskTimedOut at 15:26:38 (exactly 120s). Currently it.skip'ped. Needs trap-based agent stub (CONSTRUCT_PORTFOLIO/GENERATE_NARRATIVE → fake _COMPLETED with synthetic agentOutput + captured taskToken) to bypass Bedrock and unblock the contract assertion. ALSO unblocks ferry-ledger-positions-to-advisory's DWC Tests 14+15 (LedgerSnapshot end-to-end SF chain, skipped at 8458e131). Scope is Jest integration only per user [[feedback-mock-all-external-apis]]; the parallel Playwright path apps/nestfolio-e2e/src/scenarios/rebalance-trades-on-drift.spec.ts must NOT use the stub (real agents per [[feedback-e2e-no-external-mocks]]) and is filed separately as playwright-rebalance-real-agents-maxvms-remediation."
 references:
   - path: services/advisory/decision-workflow-ctrl/test/integration/decision-workflow-ctrl.integration.test.ts
     anchor: L534
@@ -14,6 +14,7 @@ out_of_scope:
   - Increasing AgentCore maxVms quota in the sandbox (covered by agentcore-maxvms-prod-quota-increase LATER item).
   - Production SF state-machine changes (the agent stub is test-side only — production SF stays unchanged).
   - Re-enabling integration tests that fail for reasons unrelated to PE/AN agent timeouts (separate flake categories filed under integration-deep-coldstart-flakes-post-trap-hardening).
+  - Playwright apps/nestfolio-e2e/src/scenarios/rebalance-trades-on-drift.spec.ts re-enabling — filed as playwright-rebalance-real-agents-maxvms-remediation because e2e policy forbids agent mocking and needs an infrastructure-layer maxVms fix.
 spec: null
 plan: null
 topic_memory: []
@@ -26,15 +27,19 @@ validation_gate: null
 
 Per [[feedback-e2e-gaps-queued-not-parking]]: this is an integration-suite coverage gap. The test exists, is correct, and would catch real contract regressions in the SF→AssemblePacket→Compliance handoff — it's just structurally blocked by the dev sandbox's AgentCore maxVms quota intermittently timing out PortfolioEngine. The gap is the test infrastructure, not the test design.
 
-## The blocked tests
+## Scope refinement (adoption 2026-05-26)
 
-Three artifacts now block on this same agent-stub infrastructure:
+User policy splits the original 3 blocked artifacts into two lanes that need DIFFERENT mechanisms:
+
+- **Integration lane (this workstream).** [[feedback-mock-all-external-apis]] says "ALL third-party + LLM calls must be mocked in integration tests." Jest integration tests are the right place for an agent stub — the trap-based design carries through unchanged for them.
+- **E2E lane (filed separately).** [[feedback-e2e-no-external-mocks]] says e2e runs "real APIs, real LLMs, real keys, real rate limits." The Playwright path can NOT use the stub. The maxVms saturation has to be solved at the infrastructure layer for that path. Filed as `playwright-rebalance-real-agents-maxvms-remediation`.
+
+## The blocked integration tests
 
 1. **DWC Test 10** — `services/advisory/decision-workflow-ctrl/test/integration/decision-workflow-ctrl.integration.test.ts:534` (`decision-workflow-ctrl packet-shape contract (workstream 2026-05-25)`), `it.skip`-ped. Asserts the post-units-fix RECOMMENDATION_PROPOSED contract.
 2. **DWC Tests 14 + 15** — same file, `LedgerSnapshot end-to-end SF chain` describe block, `it.skip`-ped at commit `8458e131` (ferry-ledger-positions-to-advisory workstream). Assert that LedgerSnapshot reaches AssemblePacket through a real SF execution and produces non-empty delta trades.
-3. **PW scenario** — `apps/nestfolio-e2e/src/scenarios/rebalance-trades-on-drift.spec.ts` (committed during ferry-ledger workstream). Asserts that a post-onboarding rebalance produces compliant trades against a known holdings snapshot.
 
-All three hit the same `InvokePortfolioEngine` → AgentCore Bedrock path and time out under dev sandbox maxVms saturation.
+Both hit the same `InvokePortfolioEngine` → AgentCore Bedrock path and time out under dev sandbox maxVms saturation. The agent stub bypasses Bedrock for the SF chain so the contract assertions become deterministic.
 
 ### Original Test 10 assertions (unchanged)
 
@@ -63,21 +68,23 @@ Recommend A; it's localized to test code and doesn't change production SF.
 
 ## Done definition
 
-- Test fixture (in `libs/test-support` or similar) that traps `CONSTRUCT_PORTFOLIO` / `GENERATE_NARRATIVE` and emits `_COMPLETED` events with synthetic agent outputs and the captured taskToken.
-- All three blocked artifacts re-enabled and passing 2 consecutive runs per [[feedback-flake-means-broken]]:
+- Test fixture (in `libs/integration-testing`) that traps `CONSTRUCT_PORTFOLIO` / `GENERATE_NARRATIVE` on the advisory bus, captures `subject.taskToken`, and emits `PORTFOLIO_COMPLETED` / `NARRATIVE_COMPLETED` with synthetic `agentOutput` so SF resumes without invoking Bedrock.
+- Both integration blockers re-enabled and passing 2 consecutive runs per [[feedback-flake-means-broken]]:
   - `decision-workflow-ctrl.integration.test.ts:534` (Test 10 — packet-shape contract).
   - DWC Tests 14 + 15 (LedgerSnapshot end-to-end SF chain), `it.skip` removed.
-  - `apps/nestfolio-e2e/src/scenarios/rebalance-trades-on-drift.spec.ts` runs to completion.
-- Documentation in `libs/test-support` README + the DWC service card.
+- Documentation in the fixture's home lib + the DWC service card.
 
 ## Out of scope (deferred)
 
-- Mocking the real Bedrock InvokeAgentRuntime call (that's a different layer — handled by SsmOverride or FakeLlm patterns).
-- Increasing AgentCore maxVms quota in the sandbox (that's the `agentcore-maxvms-prod-quota-increase` LATER item).
+- Mocking the real Bedrock InvokeAgentRuntime call (different layer — handled by SsmOverride / FakeLlm patterns).
+- Increasing AgentCore maxVms quota in the sandbox (`agentcore-maxvms-prod-quota-increase` LATER).
+- Production SF state-machine changes (the agent stub is test-side only — production SF stays unchanged).
+- Re-enabling integration tests that fail for reasons unrelated to PE/AN agent timeouts (separate flake categories filed under `integration-deep-coldstart-flakes-post-trap-hardening`).
+- Playwright `rebalance-trades-on-drift.spec.ts` re-enabling (filed as `playwright-rebalance-real-agents-maxvms-remediation` — the Playwright path runs real agents per [[feedback-e2e-no-external-mocks]] and needs a maxVms infrastructure fix, not a stub).
 
 ## Related
 
 - Parent workstream: `e2e-test-tolerance-or-agent-constraint-against-suitability-block` (decision-pipeline-units-calibration-suitability).
-- Dependent shipped workstream: `ferry-ledger-positions-to-advisory-steady-state-decisions` — its DWC Tests 14+15 and PW `rebalance-trades-on-drift.spec.ts` are runtime-blocked on the agent stub delivered here.
-- Related backlog: `agentcore-maxvms-prod-quota-increase`, shipped `agentcore-maxvms-browser-path-resilience`, `agentcore-invocation-resilience`.
-- Feedback: [[feedback-e2e-gaps-queued-not-parking]], [[feedback-flake-means-broken]].
+- Spun off: `playwright-rebalance-real-agents-maxvms-remediation` — Playwright path filed separately because policy requires real agents end-to-end.
+- Related backlog: `agentcore-maxvms-prod-quota-increase` (LATER), shipped `agentcore-maxvms-browser-path-resilience` (idleTimeout/maxLifetime tuning), shipped `agentcore-invocation-resilience` (event-processor retryable + SQS native redrive).
+- Feedback: [[feedback-mock-all-external-apis]], [[feedback-e2e-no-external-mocks]], [[feedback-e2e-gaps-queued-not-parking]], [[feedback-flake-means-broken]].
