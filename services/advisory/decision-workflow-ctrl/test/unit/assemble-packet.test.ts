@@ -323,7 +323,10 @@ describe('assemble-packet handler', () => {
       }
     });
 
-    it('portfolioValueCents=0 (no triggerAmountCents, no positions) yields zero-cent trades but no crash', async () => {
+    it('portfolioValueCents=0 (no triggerAmountCents, no positions) yields no trades and no crash', async () => {
+      // Delta logic: targetCents = round(0.5 * 0) = 0, currentCents = 0, delta = 0 → skipped.
+      // Zero-cent trades are meaningless under delta semantics; the important invariant is
+      // that the handler completes without throwing and returns an empty proposedTrades array.
       const result = await handler({
         ...baseEvent,
         investorProfile: { riskCategory: 'MODERATE' },
@@ -338,7 +341,7 @@ describe('assemble-packet handler', () => {
         narrative: { decisionId: 'dec-1', rationale: 'ok', metadata: {} },
       });
       expect(result.portfolioValueCents).toBe(0);
-      expect(result.proposedTrades[0].quantityOrAmountCents).toBe(0);
+      expect(result.proposedTrades).toEqual([]);
     });
   });
 });
@@ -425,5 +428,86 @@ describe('assemble-packet — ledgerSnapshot integration', () => {
     expect(out.currentPositions).toEqual([]);
     expect(out.portfolioValueCents).toBe(5_000_000);
     expect(out.isInitialBuild).toBe(true);
+  });
+});
+
+describe('assemble-packet — delta proposedTrades', () => {
+  const mockCreateDecisionPacket = jest.fn();
+  const mockRepo = { createDecisionPacket: mockCreateDecisionPacket } as any;
+
+  const handler = createAssemblePacketHandler({
+    decisionPacketRepository: mockRepo,
+  });
+
+  const baseEventDefaults = {
+    decisionId: 'dec-1',
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    region: 'us-east-1',
+    trigger: 'DEPOSIT_DETECTED',
+    triggerEventId: 'dec-1',
+    executionArn: 'arn:aws:states:us-east-1:123:execution:sm:exec-1',
+    investorProfile: null,
+    marketAnalysis: null,
+    narrative: null,
+  };
+
+  const baseEvent = (overrides: Record<string, unknown>) => ({ ...baseEventDefaults, ...overrides });
+
+  beforeEach(() => {
+    mockCreateDecisionPacket.mockReset();
+    mockCreateDecisionPacket.mockResolvedValue(true);
+  });
+
+  it('BUYs symbols in target but not held, sized at full target', async () => {
+    const out = await handler(baseEvent({
+      ledgerSnapshot: { positions: {}, cashBalanceCents: 10_000_00 },
+      triggerAmountCents: 0,
+      portfolio: { allocations: { allocations: [
+        { instrument: 'VTI', assetClass: 'EQUITY', targetWeight: 0.6, rationale: 'r' },
+      ] }},
+    }) as any);
+    expect(out.proposedTrades).toEqual([
+      expect.objectContaining({ symbol: 'VTI', side: 'BUY', quantityOrAmountCents: 6_000_00, targetWeightPercent: 60 }),
+    ]);
+  });
+
+  it('BUYs when target > current and SELLs when target < current', async () => {
+    const out = await handler(baseEvent({
+      ledgerSnapshot: {
+        // 100_000 cash + VTI@200_000c + BND@200_000c = 500_000c portfolio.
+        positions: {
+          VTI: { quantity: 10, lastFillPrice: 200 },   // currentCents 200_000
+          BND: { quantity: 25, lastFillPrice: 80 },    // currentCents 200_000
+        },
+        cashBalanceCents: 100_000,
+      },
+      triggerAmountCents: 0,
+      portfolio: { allocations: { allocations: [
+        // target VTI 80% = 400_000c → BUY 200_000c
+        { instrument: 'VTI', assetClass: 'EQUITY', targetWeight: 0.8, rationale: '' },
+        // target BND 20% = 100_000c → SELL 100_000c
+        { instrument: 'BND', assetClass: 'FIXED_INCOME', targetWeight: 0.2, rationale: '' },
+      ] }},
+    }) as any);
+    const vti = out.proposedTrades.find((t: any) => t.symbol === 'VTI')!;
+    const bnd = out.proposedTrades.find((t: any) => t.symbol === 'BND')!;
+    expect(vti).toMatchObject({ side: 'BUY', quantityOrAmountCents: 200_000, targetWeightPercent: 80 });
+    expect(bnd).toMatchObject({ side: 'SELL', quantityOrAmountCents: 100_000, targetWeightPercent: 20 });
+  });
+
+  it('emits a full SELL for symbols held but not in target', async () => {
+    const out = await handler(baseEvent({
+      ledgerSnapshot: {
+        positions: { OLD: { quantity: 5, lastFillPrice: 100 } },   // 50_000c
+        cashBalanceCents: 0,
+      },
+      triggerAmountCents: 0,
+      portfolio: { allocations: { allocations: [
+        { instrument: 'VTI', assetClass: 'EQUITY', targetWeight: 1.0, rationale: '' },
+      ] }},
+    }) as any);
+    const old = out.proposedTrades.find((t: any) => t.symbol === 'OLD')!;
+    expect(old).toMatchObject({ side: 'SELL', quantityOrAmountCents: 50_000, targetWeightPercent: 0 });
   });
 });

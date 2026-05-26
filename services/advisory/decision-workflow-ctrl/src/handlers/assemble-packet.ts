@@ -124,18 +124,55 @@ export function createAssemblePacketHandler(deps: AssemblePacketDeps) {
 
     // Map allocations → ProposedTrade shape per advisory-bff schema
     // (services/advisory/advisory-bff/src/schema.graphql, ProposedTrade type).
-    // quantityOrAmountCents is canonical cents: round(targetWeight * portfolioValueCents).
-    const proposedTrades = allocationsArray.map((a) => {
-      const targetWeight = (a.targetWeight as number | undefined) ?? 0;
-      return {
-        symbol: (a.instrument as string) ?? '',
-        assetClass: (a.assetClass as string) ?? 'OTHER',
-        side: 'BUY',
-        quantityOrAmountCents: Math.round(targetWeight * portfolioValueCents),
-        targetWeightPercent: targetWeight * 100,
-        rationale: (a.rationale as string) ?? '',
-      };
-    });
+    // Delta-based: quantityOrAmountCents = |targetCents - currentCents|.
+    // side = BUY when target > current, SELL when target < current.
+    // Held symbols not in target → full SELL.
+    // Initial-build path (currentPositions=[]) degenerates correctly:
+    //   delta = targetCents - 0 = targetCents → BUY targetCents.
+    const targets = indexTargets(allocationsArray as ReadonlyArray<Partial<Allocation>>);
+    const current = indexCurrent(currentPositions);
+
+    interface TradeCandidate {
+      symbol: string;
+      assetClass: string;
+      side: 'BUY' | 'SELL';
+      quantityOrAmountCents: number;
+      targetWeightPercent: number;
+      rationale: string;
+    }
+
+    const candidates: TradeCandidate[] = [];
+
+    // Pass 1: every target symbol.
+    for (const [symbol, target] of targets) {
+      const targetCents = Math.round(target.targetWeight * portfolioValueCents);
+      const currentCents = current.get(symbol)?.marketValueCents ?? 0;
+      const delta = targetCents - currentCents;
+      if (delta === 0) continue;
+      candidates.push({
+        symbol,
+        assetClass: target.assetClass,
+        side: delta > 0 ? 'BUY' : 'SELL',
+        quantityOrAmountCents: Math.abs(delta),
+        targetWeightPercent: target.targetWeight * 100,
+        rationale: target.rationale,
+      });
+    }
+
+    // Pass 2: held symbols not in target → full SELL.
+    for (const [symbol, pos] of current) {
+      if (targets.has(symbol)) continue;
+      candidates.push({
+        symbol,
+        assetClass: 'OTHER',
+        side: 'SELL',
+        quantityOrAmountCents: pos.marketValueCents,
+        targetWeightPercent: 0,
+        rationale: 'Liquidating position no longer in target allocation.',
+      });
+    }
+
+    const proposedTrades = candidates;   // epsilon filter + ordering applied in Task 11
 
     const isInitialBuild = currentPositions.length === 0;
     const riskCategory =
