@@ -48,6 +48,7 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       lambdaProps: {
         paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       },
+      reservedConcurrency: 1,
     });
 
     // Egress: CDC events.

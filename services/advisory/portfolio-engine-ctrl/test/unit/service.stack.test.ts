@@ -148,6 +148,18 @@ describe('PortfolioEngineCtrlStack', () => {
     expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
   });
 
+  it('caps PE Lambda function ReservedConcurrentExecutions to 1 (layered on SQS ESM floor to achieve effective concurrency=1)', () => {
+    // The SQS ESM MaximumConcurrency=2 floor (AWS API constraint) still leaves
+    // 1 contention slot: both Lambda instances race for a single micro-VM and
+    // one fails with "maxVms limit exceeded" (permanent SF task token failure).
+    // reservedConcurrency=1 caps actual concurrent invocations to 1; the 2nd
+    // SQS batch hits Lambda throttling and SQS re-delivers it after the
+    // visibility timeout — no permanent failure.
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      ReservedConcurrentExecutions: 1,
+    });
+  });
+
   it('overrides the AgentCore Runtime idle/lifetime to 2 min / 30 min', () => {
     template.hasResourceProperties('AWS::BedrockAgentCore::Runtime', {
       LifecycleConfiguration: {
