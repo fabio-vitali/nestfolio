@@ -5,7 +5,13 @@
 **Date:** 2026-05-27
 **Lane:** Complex (worktree-first per [[feedback-worktree-first-no-commits-on-main]])
 
-> **2026-05-27 PIVOT — re-scoped from "AgentCore maxVms remediation" to "diagnose actual flake causes for the journeys".** Phase 1 measurements (see §6) showed maxVms utilization at 1.1% (peak 11 vs quota 1000) — the saturation hypothesis was wrong. Real flakes exist (694 `ServiceQuotaExceeded` + 5291 `TaskTimedOut` + 376/376 memory-strategy throttle failures over 30d) but from a different root cause: PE Lambda IngressHandler hitting a non-maxVms quota, likely Bedrock `InvokeModel` rate throttling. §4 decision tree (maxVms mechanism selection) is superseded; §4-bis below describes the new investigation phase. §7 (mechanism selected) will be populated from the new investigation, NOT from the maxVms decision tree. The journey-greenness goal in §1 is unchanged — only the mechanism has pivoted.
+> **2026-05-27 — pivot history. READ THIS FIRST.** This workstream pivoted THREE times. Sections §1-§4 reflect the original framing; §6-bis recorded a (later-revised) interpretation; §6-bis-extended and §7 hold the **current, correct** mechanism. Read §6-bis-extended + §7 first, then loop back for context.
+>
+> **Pivot 1 (brainstorming):** Original target was the speculative `rebalance-trades-on-drift.spec.ts` scenario; brainstorming proved it tested a production feature (weight-drift detector) that doesn't exist. Workstream re-targeted to the two journeys.
+>
+> **Pivot 2 (Phase 1 measurements, see §6-bis):** I declared "maxVms hypothesis disproved" because M1 (1000-quota) ≫ M2 peak (11). **This was wrong — see Pivot 3 correction.** The 1000-quota is not the binding constraint.
+>
+> **Pivot 3 (Phase 2 investigation, see §6-bis-extended):** The maxVms framing was directionally correct all along. The binding constraint is **1 concurrent session per micro-VM** (per-runtime), not 1000 sessions per account. With `sqsMaxConcurrency=10` Lambdas competing for 1 micro-VM slot, 9/10 fail with "maxVms limit exceeded" on every burst drain. Original §4 Case B is the right mechanism. §6-bis's "hypothesis disproved" claim is hereby **corrected by §6-bis-extended I1**.
 
 ---
 
@@ -230,6 +236,12 @@ _Collected against deployed dev (account 771924376645, us-east-1) during a live 
 - **376/376 memory-strategy extraction jobs FAILED** with `CUSTOM_MODEL_BEDROCK_THROTTLING`. Separate Bedrock model throttle pool (NOT the AgentCore maxVms quota). InvestorPreferenceLearner: 212 failed; RationaleArchivist: 164 failed.
 
 The dossier's original maxVms hypothesis assumed a deliberately-low quota; M1 disproved that. The real cause is somewhere in the Bedrock `InvokeModel` / `InvokeAgentRuntime` rate space (the L-617C96C1 quota measured 25/s per agent), the PE Ingress retry path, or both.
+
+### ⚠️ Correction (2026-05-27 14:14 UTC) — this section was WRONG
+
+The paragraph above is **superseded by §6-bis-extended I1**. Phase 2 investigation revealed that the binding maxVms constraint is **1 concurrent session per micro-VM** (per-runtime), not the account-wide 1000 quota. The error message literally says "maxVms limit exceeded" and references the 1000-quota by name, but the limit fires on the 2nd-Nth concurrent `InvokeAgentRuntime` call against the *same runtime*, not on the 1001st across the account. With `sqsMaxConcurrency=10` Lambdas competing for the 1 micro-VM slot, 9/10 fail on every burst drain. The maxVms framing in §1-§4 was directionally correct all along; the mistake was reading "M1 quota=1000, M2 peak=11" as "1.1% utilization → saturation impossible" when the real constraint scope is per-runtime not per-account.
+
+The lesson: data-collection without correctly-scoped constraint interpretation yields false negatives. Recorded in memory as an extension of [[feedback-measure-before-proposing]].
 
 ## 4-bis. Investigation plan (replaces §4 for mechanism selection)
 
