@@ -33,7 +33,7 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       state,
       profile: agentProfile({
         agentLatencyP90Ms: 35_000,
-        expectedBurstSize: 40,
+        expectedBurstSize: 4,
         uxBudgetSeconds: AGENT_BUDGETS.ADVISORY_NARRATIVE_UX_SEC,
       }),
       eventTypes: [

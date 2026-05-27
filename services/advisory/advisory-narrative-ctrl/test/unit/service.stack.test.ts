@@ -143,9 +143,17 @@ describe('AdvisoryNarrativeCtrlStack', () => {
     expect(Object.keys(lambdas).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('Ingress EventSourceMapping has MaximumConcurrency=12 (agentProfile: ceil(40×35/120))', () => {
+  it('Ingress EventSourceMapping has MaximumConcurrency=2 (agentProfile: ceil(4×35/120) — sandbox cap)', () => {
     const esms = template.findResources('AWS::Lambda::EventSourceMapping', {
-      Properties: { ScalingConfig: { MaximumConcurrency: 12 } },
+      Properties: { ScalingConfig: { MaximumConcurrency: 2 } },
+    });
+    expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('caps AN ingress sqsMaxConcurrency to 2 in sandbox via expectedBurstSize=4', () => {
+    // expectedBurstSize=4 → ceil(4×35/120)=ceil(1.167)=2. Visibility: 58×4=232 ≤ 240. NOT for prod.
+    const esms = template.findResources('AWS::Lambda::EventSourceMapping', {
+      Properties: { ScalingConfig: { MaximumConcurrency: 2 } },
     });
     expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
   });
