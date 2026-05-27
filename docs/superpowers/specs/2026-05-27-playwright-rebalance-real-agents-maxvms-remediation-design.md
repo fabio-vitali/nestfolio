@@ -351,50 +351,58 @@ The CloudWatch `Throttles` metric for PE (`InvokeAgentRuntime`) is the binding c
 
 ## 7. Mechanism selected
 
-**Selected: Case B from §4 (which maps to F1 in §4-bis, reframed) — reduce `sqsMaxConcurrency` to 1 on PE and AN by lowering `expectedBurstSize` to 4**
+**Selected: handler-level retry classification of transient errors in PE + AN Ingress event-listeners**
 
-**Evidence:**
-- I1: The binding constraint is per-micro-VM (1 concurrent session per runtime), not the account-wide 1000 quota. Increasing the quota (F2) would not help — the account quota is irrelevant.
-- I2: 95.7% of PE invocations fail during a burst drain. Each failure permanently kills a SF task token. Reducing concurrency from 10→1 eliminates the 9 competing slots and drops the failure rate to near-zero.
-- I3: Memory strategy throttle is orthogonal (Haiku vs Opus/Sonnet, separate pool). F4 would not improve journey pass rate.
-- F3 (spread request rate) and F5 (reduce pipeline latency) are out of scope — the cause is structural concurrency, not rate or latency.
+> **History:** This §7 was rewritten 2026-05-27 after Pivot 4 surfaced. Earlier versions selected "Case B + reservedConcurrency=1" — that mechanism is now reverted (commits `abecc1b4` + `310bab40`). The reason: capping concurrency in dev masked a production bug (transient errors permanently kill SF task tokens) and made the sandbox useless as a resilience regression test. The current mechanism fixes the architectural bug; sandbox 1-VM-per-runtime serves as the realistic stress test.
 
-**Implementation:**
+**Evidence (from §6-bis-extended):**
+- I1: The binding constraint is per-micro-VM (1 concurrent session per runtime), not the account-wide 1000 quota.
+- I2: 95.7% of PE invocations fail during a burst drain. The PE handler treats each failure as PERMANENT (emit AgentFailure → SendTaskFailure → SF dead). The contention is genuinely transient — the failed Lambda's task token would succeed if retried after the in-flight call releases the micro-VM (~30s).
+- I3: Memory-strategy throttle is orthogonal (separate Haiku pool).
 
-Two service-stack changes only. Both use the `agentProfile()` formula:
-`sqsMaxConcurrency = max(1, ceil(expectedBurstSize × agentLatencyP90Ms/1000 / uxBudgetSeconds))`
+**Root cause:** PE and AN Ingress handlers' blanket `catch (err)` at `services/advisory/portfolio-engine-ctrl/src/handlers/event-listener.ts:107-138` and `services/advisory/advisory-narrative-ctrl/src/handlers/event-listener.ts:124-152`. The catch was intentional to avoid SQS retrying with the same task token after a permanent failure (which would just re-fail). But for TRANSIENT errors, same-task-token retry IS the correct behaviour — the agent's input hasn't changed; only the resource contention has cleared. The handler conflated transient and permanent error classes.
 
-- **PE** (`services/advisory/portfolio-engine-ctrl/src/service.stack.ts:45`):
-  Change `expectedBurstSize: 40` → `expectedBurstSize: 5` (4 trips a CDK validation, see below).
-  Formula: `ceil(5 × 29 / 120) = ceil(1.208) = 2` → `sqsMaxConcurrency=2`.
-  Plus: set `reservedConcurrency=1` on the PE Ingress Lambda function (see "CDK floor" below).
-  Invariant: `visibilityTimeoutSec = ceil(29 × 1.5) + 5 = 49` × `visibilityMultiplier=4` = 196s ≤ 240. Passes.
+**Implementation:** add a retryability check before the AgentFailure emit. Classification uses event-processor's `isRetryable()` (`libs/event-processor/src/internal/errors.ts:59`) which already handles `ServiceQuotaExceededException`, AWS SDK throttling errors, and other non-client-fault classes.
 
-- **AN** (`services/advisory/advisory-narrative-ctrl/src/service.stack.ts:36`):
-  Change `expectedBurstSize: 40` → `expectedBurstSize: 4`.
-  Formula: `ceil(4 × 35 / 120) = ceil(1.167) = 2`.
-  Plus: set `reservedConcurrency=1` on the AN Ingress Lambda function.
-  Invariant: AN `visibilityTimeoutSec = ceil(35 × 1.5) + 5 = 58` × 4 = 232s ≤ 240. Passes.
+```typescript
+} catch (err) {
+  if (err instanceof DuplicateInvocationError) { ... }
+  const error = err as Error;
+  if (isRetryable(error)) {
+    logger.warn('Agent run failed with transient error; rethrowing for SQS retry', { ... });
+    throw error;
+  }
+  logger.error('Agent run failed with permanent error; emitting AgentFailure', { ... });
+  return [ record('AgentFailure', { ... }, { ... }) ];
+}
+```
 
-**CDK / SQS ESM floor discovery (2026-05-27 implementation):** The SQS Event Source Mapping API rejects `ScalingConfig.MaximumConcurrency < 2` with `ValidationError`. So the lowest the ESM can drive is 2, not 1. To achieve effective concurrency=1, the fix MUST also set `reservedConcurrency=1` on the Lambda function. With both knobs in place:
-- ESM tries to invoke up to 2 concurrent Lambdas (the floor)
-- Lambda `reservedConcurrency=1` caps actual concurrent executions to 1
-- The 2nd batch hits Lambda throttling (not maxVms throttling); SQS visibility-timeout returns the message to the queue; it's re-delivered after the 1st execution completes
-- No permanent SF task token failures; no AgentFailure CDC emissions from maxVms
+Shipped as commits `06317f37` (PE) + `54e7ed8b` (AN). Regression tests cover both branches (transient rethrow + permanent emit).
 
-The `expectedBurstSize` changes still matter — they keep the `agentProfile()`-derived knobs honest (visibility, batch size). `reservedConcurrency=1` is the actual concurrency cap.
+**Effect on the sandbox 1-VM scenario:**
+- 10 Lambdas dispatched from a burst drain; 1 wins (acquires the single micro-VM session), 9 throw retryable
+- SQS visibility-timeout (~196s PE, ~232s AN per the `agentProfile()`-derived values) returns the 9 messages to the queue
+- First batch's agent invocation completes in ~30s, releasing the micro-VM
+- Subsequent redelivered batches succeed one at a time as the 1-VM serializes contention
+- No permanent SF task token failures; journeys pass
 
-**Effect:** At most 1 Lambda invocation processes a PE job at any time → no concurrent-slot competition → `maxVms limit exceeded` rate drops from 95.7% → ~0%. Queue drain is serialised; each job takes ~30s (PE) or ~35s (AN). Throughput is lower (~2/min for PE), but that is acceptable in sandbox where there is no concurrent multi-tenant load; the journeys run single-tenant sequentially.
+**Production readiness:**
+- Same code path works for prod (e.g., maxVms=20 per runtime, 100 concurrent users) — contention is just shorter
+- No sandbox-only knobs to revert; the fix is universal
+- Sandbox 1-VM-per-runtime serves as the regression test for the resilience pattern (per user's framing 2026-05-27)
 
-**Cost-positive claim:** The 264/minute PE throttle events (from `AWS/Bedrock-AgentCore Throttles`) go to ~0. M6 AgentRuntime cost ($69.68/30d) drops because failed invocations that hold micro-VMs are eliminated. Bedrock cost also drops (fewer failed agent starts that consume tokens before failing). Exact delta measurable via M3+M4 re-measurement ≥24h post-deploy.
-
-**Trade-off acknowledged:** Sandbox-only change. Not appropriate for production where multiple concurrent decisions are expected (would create queue backlog under real multi-tenant load). Production fix requires maxVms-per-runtime quota increase or multiple runtime endpoints — tracked in `agentcore-maxvms-prod-quota-increase` (LATER).
+**Cost-positive claim:**
+- Post-fix M3 ServiceQuotaExceeded count: likely UNCHANGED or slightly higher (retries DO still throttle until the in-flight call completes — that's by design; "M3 went down" was the wrong metric to chase)
+- Post-fix M4 SF TaskTimedOut count: drops significantly (transient errors no longer time out the SF; only true outages > visibilityTimeout × maxReceives do)
+- Net cost: slightly higher Lambda invocations (retries cost ~$0.0000002 each) but fewer wasted SF executions + fewer manual journey reruns. Net positive in dollars; very positive in determinism.
 
 **Alternatives considered + rejected:**
-- **F2 (increase L-3E5722B2 quota):** The account-wide 1000 quota is not the binding constraint; the per-micro-VM single-session limit is. A quota increase would not help.
-- **F3 (backoff layer):** More invasive, requires code changes in agent-orchestrator. The structural cause (10 concurrent slots competing for 1 micro-VM) persists even with backoff — backoff would just spread the failures over time, not eliminate them.
-- **F4 (decouple memory strategy throttle):** Orthogonal to journey flakes per I3. The Haiku throttle pool is separate.
-- **F5 (reduce decision-pipeline latency):** The pipeline is 101s/120s even with serial invocations. Latency reduction may help margin but does not address the 95.7% structural failure rate from concurrency. File as follow-up if serialisation leaves journey still marginal.
+- **Cap concurrency (prior §7: Case B + reservedConcurrency=1):** Reverted. Masked the production bug; made sandbox useless as resilience regression test; would need to be removed before prod deploy.
+- **Circuit breaker for AgentCore:** Right layer for sustained outages (Bedrock region failure, quota fully exhausted across multi-tenant load) but overkill for the transient-burst pattern Phase 2 measured. Filed as queued follow-up `agentcore-circuit-breaker` for production-readiness work alongside the existing `broker-alpaca-adpt` CB pattern (rule of three — design discussion may extract a generic CB lib).
+- **F2 (increase L-3E5722B2 quota):** The account-wide 1000-quota isn't the binding constraint per I1; the per-micro-VM single-session limit is. A quota increase would not help.
+- **F3 (backoff layer in agent-orchestrator):** More invasive, requires code changes in shared lib. The retry classification fix achieves the same effect at the right layer (handler) with much smaller blast radius.
+- **F4 (decouple memory-strategy throttle):** Orthogonal to journey flakes per I3.
+- **F5 (reduce decision-pipeline latency):** The pipeline is 101s/120s. Latency reduction helps margin but doesn't address the bug. File as follow-up if post-validation shows the journey is still marginal after retry classification is in place.
 
 ## 8. Validation gate
 
