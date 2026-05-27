@@ -43,6 +43,7 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       lambdaProps: {
         paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       },
+      reservedConcurrency: 1,
     });
 
     // Grant KB access to the ingress handler (feedback-correlator runs inline)
