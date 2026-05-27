@@ -42,7 +42,7 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       ],
       profile: agentProfile({
         agentLatencyP90Ms: 29_000,
-        expectedBurstSize: 40,
+        expectedBurstSize: 5,
         uxBudgetSeconds: AGENT_BUDGETS.PORTFOLIO_ENGINE_UX_SEC,
       }),
       lambdaProps: {

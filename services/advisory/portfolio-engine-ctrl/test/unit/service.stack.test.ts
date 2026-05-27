@@ -131,9 +131,19 @@ describe('PortfolioEngineCtrlStack', () => {
     expect(Object.keys(lambdas).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('Ingress EventSourceMapping has MaximumConcurrency=10 (agentProfile: ceil(40×29/120))', () => {
+  it('Ingress EventSourceMapping has MaximumConcurrency=2 (agentProfile: ceil(5×29/120) — sandbox cap)', () => {
     const esms = template.findResources('AWS::Lambda::EventSourceMapping', {
-      Properties: { ScalingConfig: { MaximumConcurrency: 10 } },
+      Properties: { ScalingConfig: { MaximumConcurrency: 2 } },
+    });
+    expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('caps PE ingress sqsMaxConcurrency to 2 in sandbox via expectedBurstSize=5', () => {
+    // expectedBurstSize=5 → ceil(5×29/120)=ceil(1.208)=2. CDK minimum is 2
+    // (SqsEventSource rejects maxConcurrency=1), so 5 is the lowest burst that
+    // still synthesises. Visibility: 49×4=196 ≤ 240 (uxBudget×2). NOT for prod.
+    const esms = template.findResources('AWS::Lambda::EventSourceMapping', {
+      Properties: { ScalingConfig: { MaximumConcurrency: 2 } },
     });
     expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
   });
