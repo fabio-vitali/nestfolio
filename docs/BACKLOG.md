@@ -12,7 +12,6 @@ _(none)_
 ## QUEUED
 
 1. [weight-drift-detector](backlog/weight-drift-detector.md) [design] — Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming.
-2. [agentcore-circuit-breaker](backlog/agentcore-circuit-breaker.md) [design] — Design + ship a circuit breaker for InvokeAgentRuntime calls across the 5 agent runtimes (onboarding-bff, PE, AN, IP, MI). Layered defense on top of the just-shipped retry classification (commits 06317f37 + 54e7ed8b). Retry handles transient bursts; CB caps sustained outages (Bedrock regional failure, quota fully exhausted under prod multi-tenant load). Rule of three with broker-alpaca-adpt CB pattern — design may extract a generic CB lib.
 
 ## LATER
 
