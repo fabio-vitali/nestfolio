@@ -143,31 +143,11 @@ describe('AdvisoryNarrativeCtrlStack', () => {
     expect(Object.keys(lambdas).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('Ingress EventSourceMapping has MaximumConcurrency=2 (agentProfile: ceil(4×35/120) — sandbox cap)', () => {
+  it('Ingress EventSourceMapping has MaximumConcurrency=12 (agentProfile: ceil(40×35/120))', () => {
     const esms = template.findResources('AWS::Lambda::EventSourceMapping', {
-      Properties: { ScalingConfig: { MaximumConcurrency: 2 } },
+      Properties: { ScalingConfig: { MaximumConcurrency: 12 } },
     });
     expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('caps AN ingress sqsMaxConcurrency to 2 in sandbox via expectedBurstSize=4', () => {
-    // expectedBurstSize=4 → ceil(4×35/120)=ceil(1.167)=2. Visibility: 58×4=232 ≤ 240. NOT for prod.
-    const esms = template.findResources('AWS::Lambda::EventSourceMapping', {
-      Properties: { ScalingConfig: { MaximumConcurrency: 2 } },
-    });
-    expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('caps AN Lambda function ReservedConcurrentExecutions to 1 (layered on SQS ESM floor to achieve effective concurrency=1)', () => {
-    // The SQS ESM MaximumConcurrency=2 floor (AWS API constraint) still leaves
-    // 1 contention slot: both Lambda instances race for a single micro-VM and
-    // one fails with "maxVms limit exceeded" (permanent SF task token failure).
-    // reservedConcurrency=1 caps actual concurrent invocations to 1; the 2nd
-    // SQS batch hits Lambda throttling and SQS re-delivers it after the
-    // visibility timeout — no permanent failure.
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      ReservedConcurrentExecutions: 1,
-    });
   });
 
   it('overrides the AgentCore Runtime idle/lifetime to 2 min / 30 min', () => {

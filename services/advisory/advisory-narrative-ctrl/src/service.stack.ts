@@ -33,7 +33,7 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       state,
       profile: agentProfile({
         agentLatencyP90Ms: 35_000,
-        expectedBurstSize: 4,
+        expectedBurstSize: 40,
         uxBudgetSeconds: AGENT_BUDGETS.ADVISORY_NARRATIVE_UX_SEC,
       }),
       eventTypes: [
@@ -43,7 +43,6 @@ export class AdvisoryNarrativeCtrlStack extends ServiceStack {
       lambdaProps: {
         paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       },
-      reservedConcurrency: 1,
     });
 
     // Grant KB access to the ingress handler (feedback-correlator runs inline)
