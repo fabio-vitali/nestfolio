@@ -11,8 +11,9 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [ledger-ctrl-resilience-pairwise-timeout](backlog/ledger-ctrl-resilience-pairwise-timeout.md) [bug] — order-agnostic pairwise resilience test exceeded 300s budget — suspect shared-dev DDB-stream backlog slowing reducer
+2. [mock-agent-runtime-cdc-unreliable](backlog/mock-agent-runtime-cdc-unreliable.md) [bug] — MI + narrative resilience tests catch CDC trap timeouts despite using mock-agent-runtime; SSM-override may not propagate to warm Lambda
+3. [investor-ctrl-system-trap-canary-timeout](backlog/investor-ctrl-system-trap-canary-timeout.md) [bug] — SYSTEM-tenant trap canary needs >30s on investor-bus when stacked with 2 other traps — root cause unknown
 
 ## LATER
 
@@ -38,10 +39,7 @@ _(none)_
 - [integration-suite-lever-5-cdk-bundling](backlog/integration-suite-lever-5-cdk-bundling.md) [refactor] — cdk-constructs:test bundles 57 assets in 32s as it synthesizes per-construct stacks in tests. This sits in the unit suite, not integration. Dossier called out as out-of-scope for integration slowness but worth tracking if unit wall-clock becomes a concern.
 - [integration-test-mock-resilience](backlog/integration-test-mock-resilience.md) [tooling] — Demoted to LATER 2026-05-12 per its own ship-trigger ('Promote when integration test flakiness on agent-bound suites or per-suite SSM overrides becomes load-bearing'). Piece 2 (StateResetFixture) superseded by 2026-05-05 bootstrap uplift; piece 3 (SsmOverride) effectively closed by 2026-05-12 integration-test-ssm-cleanup-hardening-on-abort. Only piece 1 (FakeLlm via env var in agent-factory) remains, and it's not currently load-bearing — agent flakiness is being mitigated structurally (orchestrator retry/fallback, prompt cleanup) rather than via test-time fakes. Promote again when a concrete agent-bound integration flake demands it.
 - [investor-bff-13-latent-tsc-errors](backlog/investor-bff-13-latent-tsc-errors.md) [bug] — 13 latent tsc --noEmit errors; not a deploy blocker (esbuild strips types).
-- [investor-ctrl-system-trap-canary-timeout](backlog/investor-ctrl-system-trap-canary-timeout.md) [bug] — SYSTEM-tenant trap canary needs >30s on investor-bus when stacked with 2 other traps — root cause unknown
 - [ledger-ctrl-2-latent-tsc-errors](backlog/ledger-ctrl-2-latent-tsc-errors.md) [bug] — Two latent tsc --noEmit errors in services/ledger/ledger-ctrl/src/repositories/ledger.repository.ts:79 and :185 — `'timestamp' does not exist in type 'TableEntry'`. Surfaced 2026-05-15 during the ledger-ctrl-simulated-trade-quantity-undefined ship. Not a deploy or test blocker (esbuild strips types; ts-jest is lenient on excess-property in nested generics). Same class as investor-bff-13-latent-tsc-errors.
-- [ledger-ctrl-resilience-pairwise-timeout](backlog/ledger-ctrl-resilience-pairwise-timeout.md) [bug] — order-agnostic pairwise resilience test exceeded 300s budget — suspect shared-dev DDB-stream backlog slowing reducer
-- [mock-agent-runtime-cdc-unreliable](backlog/mock-agent-runtime-cdc-unreliable.md) [bug] — MI + narrative resilience tests catch CDC trap timeouts despite using mock-agent-runtime; SSM-override may not propagate to warm Lambda
 - [nestfolio-e2e-eventbridge-client-wrapper-migration](backlog/nestfolio-e2e-eventbridge-client-wrapper-migration.md) [refactor] — apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts is the lone file in the Playwright app that imports @aws-sdk/client-eventbridge directly — migrate to EventBridgeClient from @nestfolio/test-support for consistency with the Jest e2e app.
 - [nestfolio-e2e-workflow-no-aws-credentials](backlog/nestfolio-e2e-workflow-no-aws-credentials.md) [bug] — Moved to LATER 2026-05-15 — investigation revealed scope is full CI bring-up (OIDC IAM role + secret provisioning), not a workflow YAML edit. Deferred to dedicated CI-pipeline workstream once the system is stable.
 - [nx-daemon-self-upgrade-pollutes-pnpm-lock](backlog/nx-daemon-self-upgrade-pollutes-pnpm-lock.md) [bug] — nx daemon respawn (triggered by nx-console / nx-mcp polling) runs `pnpm add -D nx@latest --ignore-scripts`, which scans the repo root, finds leaked tmp-* dirs, registers them as pnpm workspace importers in pnpm-lock.yaml. Every IDE/MCP poll = new pnpm-lock drift.

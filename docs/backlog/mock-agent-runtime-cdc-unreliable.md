@@ -1,6 +1,7 @@
 ---
 id: mock-agent-runtime-cdc-unreliable
-status: parking
+status: queued
+rank: 2
 type: bug
 notes: "MI + narrative resilience tests catch CDC trap timeouts despite using mock-agent-runtime; SSM-override may not propagate to warm Lambda"
 references: []

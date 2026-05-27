@@ -1,6 +1,7 @@
 ---
 id: ledger-ctrl-resilience-pairwise-timeout
-status: parking
+status: queued
+rank: 1
 type: bug
 notes: "order-agnostic pairwise resilience test exceeded 300s budget — suspect shared-dev DDB-stream backlog slowing reducer"
 references: []

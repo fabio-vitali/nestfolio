@@ -1,6 +1,7 @@
 ---
 id: investor-ctrl-system-trap-canary-timeout
-status: parking
+status: queued
+rank: 3
 type: bug
 notes: "SYSTEM-tenant trap canary needs >30s on investor-bus when stacked with 2 other traps — root cause unknown"
 references: []
