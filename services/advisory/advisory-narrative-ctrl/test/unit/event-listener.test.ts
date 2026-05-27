@@ -223,8 +223,15 @@ describe('advisory-narrative-ctrl event-listener', () => {
   });
 
   describe('GENERATE_NARRATIVE handler — failure paths', () => {
-    it('on agent error: emits AgentFailure intent with taskToken (does NOT rethrow)', async () => {
-      mockRunPipeline.mockRejectedValueOnce(new Error('Bedrock throttle'));
+    it('on permanent agent error (client-fault non-retryable): emits AgentFailure intent with taskToken (does NOT rethrow)', async () => {
+      // A plain AWS SDK client-fault error (e.g. ValidationException) is NOT retryable.
+      // isRetryable() returns false when $fault='client' and $retryable is undefined
+      // and the name is not in RETRYABLE_CLIENT_FAULT_NAMES.
+      const permanentErr = Object.assign(new Error('Invalid agent output schema'), {
+        name: 'ValidationException',
+        $fault: 'client' as const,
+      });
+      mockRunPipeline.mockRejectedValueOnce(permanentErr);
 
       const payload: EventPayload = {
         subject: { tenantId: 't1', decisionId: 'd1', taskToken: 'token-abc', operatingMode: 'BALANCED' },
@@ -241,11 +248,31 @@ describe('advisory-narrative-ctrl event-listener', () => {
             tenantId: 't1',
             agentName: 'advisory-narrative',
             taskToken: 'token-abc',
-            errorType: 'Error',
-            errorMessage: 'Bedrock throttle',
+            errorType: 'ValidationException',
+            errorMessage: 'Invalid agent output schema',
           }),
         }),
       ]);
+    });
+
+    it('on transient ServiceQuotaExceededException (maxVms contention): rethrows for SQS retry, does NOT emit AgentFailure', async () => {
+      // ServiceQuotaExceededException is in RETRYABLE_CLIENT_FAULT_NAMES — isRetryable() returns true.
+      // The handler must rethrow so SQS visibility-timeout redelivers the same message
+      // + same task token after contention clears.
+      const transientErr = Object.assign(new Error('maxVms limit exceeded for account 771924376645'), {
+        name: 'ServiceQuotaExceededException',
+        $fault: 'client' as const,
+        $retryable: { throttling: true },
+      });
+      mockRunPipeline.mockRejectedValueOnce(transientErr);
+
+      const payload: EventPayload = {
+        subject: { tenantId: 't1', decisionId: 'd1', taskToken: 'token-abc', operatingMode: 'BALANCED' },
+      };
+
+      await expect(handlers.GENERATE_NARRATIVE(payload, baseCtx)).rejects.toThrow(
+        'maxVms limit exceeded for account 771924376645',
+      );
     });
 
     it('returns an empty intent array when DuplicateInvocationError is thrown', async () => {
