@@ -365,14 +365,24 @@ Two service-stack changes only. Both use the `agentProfile()` formula:
 `sqsMaxConcurrency = max(1, ceil(expectedBurstSize × agentLatencyP90Ms/1000 / uxBudgetSeconds))`
 
 - **PE** (`services/advisory/portfolio-engine-ctrl/src/service.stack.ts:45`):
-  Change `expectedBurstSize: 40` → `expectedBurstSize: 4`.
-  Formula: `ceil(4 × 29 / 120) = ceil(0.967) = 1` → `sqsMaxConcurrency=1`.
-  Invariant: `visibilityTimeoutSec = ceil(29 × 1.5) + 5 = 49` × `visibilityMultiplier=4` = 196s ≤ 240 (120×2). Passes.
+  Change `expectedBurstSize: 40` → `expectedBurstSize: 5` (4 trips a CDK validation, see below).
+  Formula: `ceil(5 × 29 / 120) = ceil(1.208) = 2` → `sqsMaxConcurrency=2`.
+  Plus: set `reservedConcurrency=1` on the PE Ingress Lambda function (see "CDK floor" below).
+  Invariant: `visibilityTimeoutSec = ceil(29 × 1.5) + 5 = 49` × `visibilityMultiplier=4` = 196s ≤ 240. Passes.
 
-- **AN** (`services/advisory/advisory-narrative-ctrl/src/service.stack.ts` — line to be confirmed at write time):
+- **AN** (`services/advisory/advisory-narrative-ctrl/src/service.stack.ts:36`):
   Change `expectedBurstSize: 40` → `expectedBurstSize: 4`.
-  Formula: `ceil(4 × 35 / 120) = ceil(1.167) = 2`. If 2 still causes contention, lower to `expectedBurstSize: 3` → `ceil(3 × 35 / 120) = ceil(0.875) = 1`.
+  Formula: `ceil(4 × 35 / 120) = ceil(1.167) = 2`.
+  Plus: set `reservedConcurrency=1` on the AN Ingress Lambda function.
   Invariant: AN `visibilityTimeoutSec = ceil(35 × 1.5) + 5 = 58` × 4 = 232s ≤ 240. Passes.
+
+**CDK / SQS ESM floor discovery (2026-05-27 implementation):** The SQS Event Source Mapping API rejects `ScalingConfig.MaximumConcurrency < 2` with `ValidationError`. So the lowest the ESM can drive is 2, not 1. To achieve effective concurrency=1, the fix MUST also set `reservedConcurrency=1` on the Lambda function. With both knobs in place:
+- ESM tries to invoke up to 2 concurrent Lambdas (the floor)
+- Lambda `reservedConcurrency=1` caps actual concurrent executions to 1
+- The 2nd batch hits Lambda throttling (not maxVms throttling); SQS visibility-timeout returns the message to the queue; it's re-delivered after the 1st execution completes
+- No permanent SF task token failures; no AgentFailure CDC emissions from maxVms
+
+The `expectedBurstSize` changes still matter — they keep the `agentProfile()`-derived knobs honest (visibility, batch size). `reservedConcurrency=1` is the actual concurrency cap.
 
 **Effect:** At most 1 Lambda invocation processes a PE job at any time → no concurrent-slot competition → `maxVms limit exceeded` rate drops from 95.7% → ~0%. Queue drain is serialised; each job takes ~30s (PE) or ~35s (AN). Throughput is lower (~2/min for PE), but that is acceptable in sandbox where there is no concurrent multi-tenant load; the journeys run single-tenant sequentially.
 
