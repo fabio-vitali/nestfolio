@@ -172,7 +172,7 @@ After implementing the mechanism, re-run M3 and M4 after 2× consecutive green j
 
 - If post-fix M3 (ServiceQuotaExceeded count) drops to 0 OR post-fix M4 (TaskTimedOut count) drops to 0 → cost-positive verified.
 - If post-fix M3+M4 unchanged BUT journeys pass 2× consecutively → cost-NEUTRAL (acceptable per dossier; document residual saturation separately).
-- If post-fix M3+M4 INCREASE → mechanism backfired. Revert; pick next mechanism in priority order (Case A < Case B < Case C, then maxVms quota increase as last resort).
+- If post-fix M3+M4 INCREASE → mechanism backfired. Revert; pick next mechanism. The backfire-fallback priority order is Case A (cheapest, no agent-pipeline change) → Case B (sandbox-only ESM cap) → Case A+B combined → maxVms quota increase as last resort. This priority applies ONLY when re-selecting after a backfire; the primary selection in the secondary branch uses M2 dominance.
 
 ### Mechanisms NOT to apply blindly
 
@@ -233,8 +233,8 @@ pnpm nx run nestfolio-e2e:e2e -- --grep "new-investor-happy-path"
 pnpm nx run nestfolio-e2e:e2e -- --grep "deposit-reload-mid-flight"
 ```
 
-- All 4 runs PASS without rerun.
-- If any single run fails-then-passes: pull CloudWatch evidence from the failure window, document under `## Flake investigation`, and run a third confirmation pass before declaring shipped.
+- **Required:** all 4 runs in the cadence above PASS first-try. A rerun-pass after a fail does NOT count as evidence and does NOT close the gate — see [[feedback-flake-means-broken]].
+- **If a flake surfaces** (any single run fails then passes on rerun): pull CloudWatch evidence from the failure window into `## Flake investigation`, then run a SEPARATE confirmation pair (2 more consecutive runs, first-try green) before declaring shipped. The original failing run is recorded as evidence the system still flakes; the confirmation pair is the gate, not the rerun.
 - Post-fix M3 + M4 re-measured ≥ 24h after deploy. Numbers land in §7's cost-positive vs cost-neutral classification per §4 quaternary branch.
 
 _To be populated with concrete commit SHAs, deploy log line, run identifiers, and post-fix M3/M4 delta._
