@@ -199,23 +199,23 @@ Most likely future shape: extend `journeys/new-investor-happy-path.spec.ts` with
 
 Records the deleted test's last-seen SHA so it's recoverable from git history.
 
-## 6. Baseline measurements
+## 6. Baseline measurements (2026-05-27 11:30 UTC)
 
-_To be populated as the first commit in execution (per §3)._
+_Collected against deployed dev (account 771924376645, us-east-1) during a live `new-investor-happy-path` Playwright run. Journey PASSED (1/1 green, 2.6 min)._
 
 | Quantity | Measured value | Source command |
 |---|---|---|
-| M1 dev maxVms quota | _TBD_ | `aws service-quotas list-service-quotas` |
-| M2 peak concurrent — onboarding-bff | _TBD_ | `list-agent-runtime-sessions` |
-| M2 peak concurrent — portfolio-engine-ctrl | _TBD_ | same |
-| M2 peak concurrent — advisory-narrative-ctrl | _TBD_ | same |
-| M2 peak concurrent — investor-profile-ctrl | _TBD_ | same |
-| M2 peak concurrent — market-intelligence-ctrl | _TBD_ | same |
-| M3 ServiceQuotaExceeded count (30d) | _TBD_ | logs insights |
-| M4 SF TaskTimedOut count (30d) | _TBD_ | cloudwatch + insights |
-| M5 journey wall-clock baseline | _TBD_ | instrumented Playwright run |
-| M6 Bedrock 30d cost | _TBD_ | cost explorer |
-| Memory strategy activity (tertiary) | _TBD_ | `list-memory-strategy-executions` |
+| M1 dev maxVms quota | 1000 Active Session Workloads per account (QuotaCode=L-3E5722B2, Adjustable=True); InvokeAgentRuntime rate=25/s per agent (L-617C96C1, Adjustable=True) | `aws service-quotas list-service-quotas --service-code bedrock-agentcore` |
+| M2 peak concurrent — onboarding-bff | 1 micro-VM (idleTimeout=5min; 1 new VM created at 11:20:13Z during journey) | CloudWatch Logs stream count on `/aws/bedrock-agentcore/runtimes/onboarding_agent-YZ0LJhFVyA-DEFAULT` |
+| M2 peak concurrent — portfolio-engine-ctrl | 3 micro-VMs (idleTimeout=2min; VMs at 11:21:15, 11:21:40, 11:21:46Z) | same |
+| M2 peak concurrent — advisory-narrative-ctrl | 4 micro-VMs (idleTimeout=2min; VMs at 11:21:45, 11:21:57, 11:22:08, 11:22:13Z) | same |
+| M2 peak concurrent — investor-profile-ctrl | 1 micro-VM (idleTimeout=2min; VM at 11:21:07Z) | same |
+| M2 peak concurrent — market-intelligence-ctrl | 2 micro-VMs (idleTimeout=2min; VMs at 11:20:35, 11:20:36Z) | same |
+| M3 ServiceQuotaExceeded count (30d) | 694 total: PE=667 (96%), AN=27 (4%). Clustered: peaks at 2026-05-21 10:00Z (38/h), 22:00Z (32/h) and 2026-05-22 11:00Z (36/h) | `aws logs start-query` on PE+AN IngressHandler log groups |
+| M4 SF TaskTimedOut count (30d) | 5291 TaskTimedOut events from SF logs, all at `putEvents.waitForTaskToken` resource. CloudWatch ExecutionsTimedOut metric: 308 over 30d (peaks: 2026-05-17 104, 2026-05-03 42) | `aws cloudwatch get-metric-statistics` + Logs Insights on SF execution log group |
+| M5 journey wall-clock baseline | 156s total (2.6 min). Top phases: onboarding-wizard≈40s, decision-pipeline (MI+IP+PE+AN combined)≈101s, deposit≈35s, confirm+logout≈15s. Decision-pipeline breakdown: MI-snapshot 35s → IP-snapshot 8s → PE-agents 30s → AN-agents 28s | Playwright reporter + AgentCore micro-VM creation timestamps |
+| M6 Bedrock 30d cost | $486.37 Claude total (Sonnet 4.6 $154.94 + Haiku 4.5 $120.19 + Opus 4.6 $92.06 + Opus 4.5 $0.77 + Sonnet 4.5 $0.47); AgentCore runtime $69.68; Amazon Bedrock (KB/NovaPro) $39.68. Total AWS: $595.57 (30d). No tag-based filter available (resources untagged in dev) | `aws ce get-cost-and-usage --group-by SERVICE` |
+| Memory strategy activity (tertiary) | 376 extraction jobs in `nestfolio_dev_agent_memory`: 376/376 FAILED with CUSTOM_MODEL_BEDROCK_THROTTLING. Strategies: InvestorPreferenceLearner (212), RationaleArchivist (164). Memory strategies use SEPARATE Bedrock throttle pool — not the same micro-VM quota as M1. | `aws bedrock-agentcore list-memory-extraction-jobs` |
 
 ## 7. Mechanism selected
 
