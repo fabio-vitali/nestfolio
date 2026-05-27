@@ -328,8 +328,8 @@ describe('ledger-ctrl: DECISION_PACKET_CREATED → simulated LedgerEntry writes'
       detail: {
         decisionPacketId: dpId,
         proposedTrades: [
-          { symbol: 'AAPL', side: 'BUY', quantity: 10 },
-          { symbol: 'MSFT', side: 'SELL', quantity: 5 },
+          { symbol: 'AAPL', side: 'BUY', quantityOrAmountCents: 150_000 },
+          { symbol: 'MSFT', side: 'SELL', quantityOrAmountCents: 50_000 },
         ],
       },
     });
@@ -424,7 +424,7 @@ describe('ledger-ctrl: simulation CDC chain → BALANCE_UPDATED', () => {
       detail: {
         decisionPacketId: `dp-cdc-${Date.now()}`,
         proposedTrades: [
-          { symbol: 'AAPL', side: 'BUY', quantity: 10 },
+          { symbol: 'AAPL', side: 'BUY', quantityOrAmountCents: 150_000 },
         ],
       },
     });

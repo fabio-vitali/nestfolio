@@ -259,5 +259,8 @@ describe('advisory-narrative-ctrl resilience: order-agnostic pairwise', () => {
     } finally {
       await ctxA.cleanup.runAll();
     }
-  }, 240_000);
+    // 360s budget: 2 waitForEvent calls × 90s + 25s of inter-event sleeps,
+    // plus ctxA/ctxB setup + cleanup. Same observational-CDC tolerance as
+    // the MI resilience suite — expect(true).toBe(true) holds either way.
+  }, 360_000);
 });

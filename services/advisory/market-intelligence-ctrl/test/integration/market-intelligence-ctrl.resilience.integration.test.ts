@@ -204,5 +204,9 @@ describe('market-intelligence-ctrl resilience: order-agnostic pairwise', () => {
     } finally {
       await ctxA.cleanup.runAll();
     }
-  }, 360_000);
+    // 600s budget: 4 waitForEvent calls × 120s = 480s worst-case (when the
+    // mock-agent-runtime SSM-override doesn't propagate to a warm Lambda),
+    // plus ctxA/ctxB setup + cleanup. The CDC capture is observational —
+    // expect(true).toBe(true) holds whether or not CDC fired.
+  }, 600_000);
 });

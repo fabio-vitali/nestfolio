@@ -325,7 +325,12 @@ describe('ledger-ctrl resilience: order-agnostic pairwise', () => {
     } finally {
       await ctxA.cleanup.runAll();
     }
-  }, 300_000);
+    // 480s budget (was 300s). 2 contexts × (waitForSnapshot 90s + 30s) +
+    // setup + cleanup totals ~280s on a warm deploy but pushed past 300s
+    // in 2026-05-27 runs. Suspected environmental: backlog of DDB stream
+    // records on shared dev table slowing the reducer Lambda. Tracked
+    // under ledger-ctrl-resilience-pairwise-timeout backlog.
+  }, 480_000);
 });
 
 // ── Order-Agnostic: Full Shuffle (Financial-Critical) ────────────────────

@@ -178,12 +178,23 @@ describe('investor-ctrl', () => {
     let systemTrap: EventBusTrap;
 
     beforeAll(async () => {
-      systemTrap = new EventBusTrap({ ...ctx, tenantId: 'SYSTEM' });
+      // canaryTimeout bumped 30s → 60s for this trap only. This is the THIRD
+      // trap deployed on investor-bus in this suite (notification + report
+      // traps in outer beforeAll already active). EB rule activation +
+      // SetQueueAttributes policy propagation appears to need >30s when
+      // multiple traps are stacked on the same bus — investor-ctrl-system-
+      // trap-canary-timeout backlog tracks the underlying environmental
+      // saturation (orphan rules left by failed OrphanReaper cleanups).
+      systemTrap = new EventBusTrap({
+        ...ctx,
+        tenantId: 'SYSTEM',
+        timings: { ...ctx.timings, canaryTimeout: 60_000 },
+      });
       await systemTrap.deploy({
         bus: 'investor',
         detailType: 'NOTIFICATION_CREATED',
       });
-    }, 90_000);
+    }, 120_000);
 
     const circuitBreakerEvents = [
       { detailType: 'BROKER_CIRCUIT_OPEN' },

@@ -233,10 +233,15 @@ describe('advisory-bff', () => {
       expect(followUp['status']).toBe('AWAITING_CONFIRMATION');
     }, 180_000);
 
-    it('should update DecisionSummary to COMPLIANCE_REVIEW on DECISION_PACKET_UPDATED', async () => {
+    // DECISION_PACKET_UPDATED is a deliberate no-op for status — see
+    // transforms/decision-status-changed.ts:11-17 (Bug E fix, 2026-05-24). SF
+    // emits DECISION_PACKET_UPDATED after compliance returns terminal
+    // APPROVED/BLOCKED; both fan out to advisory-bff. Mapping UPDATED to any
+    // intermediate status would race the terminal write. This test guards
+    // against re-introducing such a mapping.
+    it('should NOT change DecisionSummary status on DECISION_PACKET_UPDATED (no-op by design)', async () => {
       const decisionId = `integ-updated-${Date.now()}`;
 
-      // Event-driven fixture: DECISION_PACKET_CREATED creates the DecisionSummary
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'advisory-bff',
@@ -251,15 +256,14 @@ describe('advisory-bff', () => {
         },
       });
 
-      // Wait for DecisionSummary to exist
       await table.waitForItem({
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
         timeoutMs: 30_000,
+        match: { status: 'PENDING' },
       });
 
-      // Now publish DECISION_PACKET_UPDATED
       await eb.putEvent({
         bus: 'advisory',
         targetService: 'advisory-bff',
@@ -270,15 +274,16 @@ describe('advisory-bff', () => {
         },
       });
 
-      // Wait for status flip to COMPLIANCE_REVIEW (single primitive call replaces outer poll loop)
+      // Allow handler invocation to complete (SQS → Lambda → no-op return)
+      await new Promise((r) => setTimeout(r, 10_000));
+
       const item = await table.waitForItem({
         table: 'advisory-bff',
         pk: `Decision#${ctx.tenantId}#${decisionId}`,
         sk: 'DecisionReadModel',
-        timeoutMs: 30_000,
-        match: { status: 'COMPLIANCE_REVIEW' },
+        timeoutMs: 5_000,
       });
-      expect(item['status']).toBe('COMPLIANCE_REVIEW');
+      expect(item['status']).toBe('PENDING');
     }, 120_000);
 
     it('should update DecisionSummary to BLOCKED on DECISION_BLOCKED', async () => {
