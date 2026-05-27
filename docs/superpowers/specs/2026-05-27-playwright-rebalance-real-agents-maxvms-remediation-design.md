@@ -287,9 +287,92 @@ The mechanism is one of:
 
 Phase 2 deliverable: I1+I2+I3 outputs land in §6-bis-extended (one extra subsection per investigation), then §7 records the chosen F mechanism + rationale grounded in the investigation evidence.
 
+## 6-bis-extended. Investigation findings (I1-I3) — 2026-05-27
+
+### I1: Dominant throttling quota
+
+**Finding:** The 694 `ServiceQuotaExceeded` events all carry `errorType=ServiceQuotaExceededException` and `errorMessage="maxVms limit exceeded for account 771924376645"`. This maps to quota **L-3E5722B2 "Active Session Workloads per Account"** (Value=1000, Adjustable=True). However, the account-wide 1000-session quota is NOT the binding constraint — the binding constraint is that each AgentCore runtime micro-VM can serve **only 1 concurrent session at a time**. When `sqsMaxConcurrency=10` PE Lambda invocations run concurrently, the first one claims the micro-VM, and the other 9 immediately receive "maxVms limit exceeded" for their attempt to create a new session on the same runtime.
+
+Confirmed by CloudWatch `Sessions` metric (Max=1 throughout all burst windows) — the account is never above 1 concurrent session per runtime even during a 276-invocation/minute burst.
+
+| Quota | Code | Value | Adjustable | Binding? |
+|---|---|---|---|---|
+| Active Session Workloads per Account | L-3E5722B2 | 1000 | Yes | No (actual binding: 1 session per micro-VM) |
+| InvokeAgentRuntime rate per agent | L-617C96C1 | 25/s | Yes | No (max observed: 4.6/s) |
+
+### I2: Retry storm shape
+
+**Finding: queue-drain burst, NOT per-execution retry storm.**
+
+The 5291 TaskTimedOut events and M4 SF-level timeouts are caused by a queue-backlog drain pattern, not within-execution retries. Evidence from 2026-05-22 11:25-11:35Z (worst observed window):
+
+| Metric | Value |
+|---|---|
+| PE IngressQueue depth at 13:20-13:26 UTC+2 | 127–173 messages (building backlog) |
+| PE IngressQueue depth at 13:27 UTC+2 | Drains to 0 |
+| PE `Invocations` in 13:27 minute | 276 |
+| PE `Throttles` in 13:27 minute | 264 (95.7% failure rate) |
+| Successful PE invocations in 13:27 minute | 12 (4.3%) |
+| AN Throttles in same window | 6 (negligible vs PE) |
+
+**Mechanism:** The PE handler wraps `ServiceQuotaExceededException` in a `try/catch` that emits an `AgentFailure` CDC row and returns cleanly — the SQS message is consumed (not re-queued). Each failed invocation permanently fails its SF task token. There are no within-execution retries. The "storm" is 10 concurrent Lambda slots all competing for the same single micro-VM, draining a 173-message backlog in one burst: ~10 batches fire simultaneously, 9/10 fail per batch.
+
+**Conclusion: storm, not slowness.** The 5291 TaskTimedOut events are permanent failures, not retries within a 120s window.
+
+### I3: Memory-strategy throttle attribution
+
+**Finding: separate model, orthogonal throttle pool.**
+
+Memory strategies confirmed from `services/advisory/decision-workflow-ctrl/src/service.stack.ts`:
+
+| Strategy | Type | Model |
+|---|---|---|
+| InvestorPreferenceLearner | USER_PREFERENCE_MEMORY | `us.anthropic.claude-haiku-4-5-20251001-v1:0` (Haiku) |
+| MarketSignals | SEMANTIC_MEMORY | AWS-managed extraction (no explicit model) |
+| RationaleArchivist | SEMANTIC_MEMORY | `us.anthropic.claude-haiku-4-5-20251001-v1:0` (Haiku) |
+
+The 376/376 extraction failures carry error `CUSTOM_MODEL_BEDROCK_THROTTLING` — a separate Bedrock InvokeModel TPM/RPM limit for Haiku inference profiles. The agent invocation path uses **Opus 4.6 + Sonnet 4.6** (PE runtime) — a completely different model family. The memory strategy throttle is **orthogonal to the agent invocation path**. Decoupling (F4) would not affect the journey flake rate; the two throttle pools don't compete.
+
+The CloudWatch `Throttles` metric for PE (`InvokeAgentRuntime`) is the binding constraint, not the memory Haiku throttle.
+
+**Summary of root cause:** `sqsMaxConcurrency=10` on the PE IngressHandler means 10 Lambda invocations compete for the same PE micro-VM simultaneously. One wins; 9 fail immediately with "maxVms limit exceeded" (the per-micro-VM single-session constraint). When the queue builds (e.g., during parallel Playwright runs or integration test blasts), a drain burst causes 264/276 PE invocations to fail in a single minute — each failure permanently kills a SF task token and contributes to the M4 TaskTimedOut count.
+
 ## 7. Mechanism selected
 
-_To be populated after §6-bis investigation (I1+I2+I3 outcomes), choosing from F1-F5 per the §4-bis criteria. The §4 maxVms decision tree no longer applies._
+**Selected: Case B from §4 (which maps to F1 in §4-bis, reframed) — reduce `sqsMaxConcurrency` to 1 on PE and AN by lowering `expectedBurstSize` to 4**
+
+**Evidence:**
+- I1: The binding constraint is per-micro-VM (1 concurrent session per runtime), not the account-wide 1000 quota. Increasing the quota (F2) would not help — the account quota is irrelevant.
+- I2: 95.7% of PE invocations fail during a burst drain. Each failure permanently kills a SF task token. Reducing concurrency from 10→1 eliminates the 9 competing slots and drops the failure rate to near-zero.
+- I3: Memory strategy throttle is orthogonal (Haiku vs Opus/Sonnet, separate pool). F4 would not improve journey pass rate.
+- F3 (spread request rate) and F5 (reduce pipeline latency) are out of scope — the cause is structural concurrency, not rate or latency.
+
+**Implementation:**
+
+Two service-stack changes only. Both use the `agentProfile()` formula:
+`sqsMaxConcurrency = max(1, ceil(expectedBurstSize × agentLatencyP90Ms/1000 / uxBudgetSeconds))`
+
+- **PE** (`services/advisory/portfolio-engine-ctrl/src/service.stack.ts:45`):
+  Change `expectedBurstSize: 40` → `expectedBurstSize: 4`.
+  Formula: `ceil(4 × 29 / 120) = ceil(0.967) = 1` → `sqsMaxConcurrency=1`.
+  Invariant: `visibilityTimeoutSec = ceil(29 × 1.5) + 5 = 49` × `visibilityMultiplier=4` = 196s ≤ 240 (120×2). Passes.
+
+- **AN** (`services/advisory/advisory-narrative-ctrl/src/service.stack.ts` — line to be confirmed at write time):
+  Change `expectedBurstSize: 40` → `expectedBurstSize: 4`.
+  Formula: `ceil(4 × 35 / 120) = ceil(1.167) = 2`. If 2 still causes contention, lower to `expectedBurstSize: 3` → `ceil(3 × 35 / 120) = ceil(0.875) = 1`.
+  Invariant: AN `visibilityTimeoutSec = ceil(35 × 1.5) + 5 = 58` × 4 = 232s ≤ 240. Passes.
+
+**Effect:** At most 1 Lambda invocation processes a PE job at any time → no concurrent-slot competition → `maxVms limit exceeded` rate drops from 95.7% → ~0%. Queue drain is serialised; each job takes ~30s (PE) or ~35s (AN). Throughput is lower (~2/min for PE), but that is acceptable in sandbox where there is no concurrent multi-tenant load; the journeys run single-tenant sequentially.
+
+**Cost-positive claim:** The 264/minute PE throttle events (from `AWS/Bedrock-AgentCore Throttles`) go to ~0. M6 AgentRuntime cost ($69.68/30d) drops because failed invocations that hold micro-VMs are eliminated. Bedrock cost also drops (fewer failed agent starts that consume tokens before failing). Exact delta measurable via M3+M4 re-measurement ≥24h post-deploy.
+
+**Trade-off acknowledged:** Sandbox-only change. Not appropriate for production where multiple concurrent decisions are expected (would create queue backlog under real multi-tenant load). Production fix requires maxVms-per-runtime quota increase or multiple runtime endpoints — tracked in `agentcore-maxvms-prod-quota-increase` (LATER).
+
+**Alternatives considered + rejected:**
+- **F2 (increase L-3E5722B2 quota):** The account-wide 1000 quota is not the binding constraint; the per-micro-VM single-session limit is. A quota increase would not help.
+- **F3 (backoff layer):** More invasive, requires code changes in agent-orchestrator. The structural cause (10 concurrent slots competing for 1 micro-VM) persists even with backoff — backoff would just spread the failures over time, not eliminate them.
+- **F4 (decouple memory strategy throttle):** Orthogonal to journey flakes per I3. The Haiku throttle pool is separate.
+- **F5 (reduce decision-pipeline latency):** The pipeline is 101s/120s even with serial invocations. Latency reduction may help margin but does not address the 95.7% structural failure rate from concurrency. File as follow-up if serialisation leaves journey still marginal.
 
 ## 8. Validation gate
 
