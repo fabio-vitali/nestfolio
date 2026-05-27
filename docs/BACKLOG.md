@@ -6,7 +6,7 @@
 
 ## ACTIVE
 
-- [playwright-rebalance-real-agents-maxvms-remediation](backlog/playwright-rebalance-real-agents-maxvms-remediation.md) [infra] — Playwright rebalance-trades-on-drift.spec.ts must run real agents per [[feedback-e2e-no-external-mocks]] (no stub allowed) but is structurally blocked by AgentCore maxVms saturation timing out PE at 120s. Already-shipped resilience (retryable + SQS redrive + idleTimeout tuning) does not help because SF TimeoutSeconds=120s ages out before retry can resolve. Dev-cost constraint (2026-05-26): a maxVms quota increase is acceptable ONLY if it net-lowers spend by eliminating retry storms / TaskTimedOut waste; pure quota bump that raises bills is rejected.
+- [playwright-rebalance-real-agents-maxvms-remediation](backlog/playwright-rebalance-real-agents-maxvms-remediation.md) [infra] — Diagnose actual flake causes for Playwright journeys (new-investor-happy-path + deposit-reload-mid-flight) and ship a targeted fix. Re-scoped 2026-05-27 after Phase 1 measurements showed AgentCore maxVms utilization at 1.1% (peak 11 vs quota 1000) — the original maxVms-saturation hypothesis was wrong. Real flakes exist (694 ServiceQuotaExceeded + 5291 TaskTimedOut + 376/376 memory-strategy throttle failures over 30d) but from a different root cause, likely Bedrock InvokeModel/InvokeAgentRuntime rate throttling on the PE IngressHandler path. Also: original 'rebalance Playwright scenario' framing dropped 2026-05-27 brainstorming after discovery that reconciliation-ctrl has no weight-vs-target drift detector (the speculative PORTFOLIO_DRIFT_DETECTED emitter doesn't exist). Workstream now: investigate actual root cause, propose measurement-grounded fix, delete speculative rebalance scenario, file two follow-up dossiers.
 
 ## QUEUED
 

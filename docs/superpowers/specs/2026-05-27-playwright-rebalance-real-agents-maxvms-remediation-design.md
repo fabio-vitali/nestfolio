@@ -1,9 +1,11 @@
-# Playwright rebalance — real-agents path & maxVms remediation (design)
+# Playwright journey flake remediation (design)
 
 **Workstream:** `playwright-rebalance-real-agents-maxvms-remediation`
 **Status:** active
 **Date:** 2026-05-27
 **Lane:** Complex (worktree-first per [[feedback-worktree-first-no-commits-on-main]])
+
+> **2026-05-27 PIVOT — re-scoped from "AgentCore maxVms remediation" to "diagnose actual flake causes for the journeys".** Phase 1 measurements (see §6) showed maxVms utilization at 1.1% (peak 11 vs quota 1000) — the saturation hypothesis was wrong. Real flakes exist (694 `ServiceQuotaExceeded` + 5291 `TaskTimedOut` + 376/376 memory-strategy throttle failures over 30d) but from a different root cause: PE Lambda IngressHandler hitting a non-maxVms quota, likely Bedrock `InvokeModel` rate throttling. §4 decision tree (maxVms mechanism selection) is superseded; §4-bis below describes the new investigation phase. §7 (mechanism selected) will be populated from the new investigation, NOT from the maxVms decision tree. The journey-greenness goal in §1 is unchanged — only the mechanism has pivoted.
 
 ---
 
@@ -217,9 +219,77 @@ _Collected against deployed dev (account 771924376645, us-east-1) during a live 
 | M6 Bedrock 30d cost | $486.37 Claude total (Sonnet 4.6 $154.94 + Haiku 4.5 $120.19 + Opus 4.6 $92.06 + Opus 4.5 $0.77 + Sonnet 4.5 $0.47); AgentCore runtime $69.68; Amazon Bedrock (KB/NovaPro) $39.68. Total AWS: $595.57 (30d). No tag-based filter available (resources untagged in dev) | `aws ce get-cost-and-usage --group-by SERVICE` |
 | Memory strategy activity (tertiary) | 376 extraction jobs in `nestfolio_dev_agent_memory`: 376/376 FAILED with CUSTOM_MODEL_BEDROCK_THROTTLING. Strategies: InvestorPreferenceLearner (212), RationaleArchivist (164). Memory strategies use SEPARATE Bedrock throttle pool — not the same micro-VM quota as M1. | `aws bedrock-agentcore list-memory-extraction-jobs` |
 
+## 6-bis. Phase 1 finding (2026-05-27)
+
+§4 primary branch (saturation-physically-possible check) **fired**: M1 quota (1000) ≫ Σ M2 peak (11) × 1.2 = 13.2. AgentCore maxVms is at 1.1% utilization — saturation cannot physically be the cause of journey flakes.
+
+**But the flakes are real:** M3 + M4 + the memory-strategy tertiary measurement document significant production pain on a different axis:
+
+- **694 `ServiceQuotaExceeded` events over 30d**, 96% in PE Lambda IngressHandler (667 events), 4% in AN (27 events). Clustered (peaks 38/h on 2026-05-21, 36/h on 2026-05-22) — suggests bursts of throttling, not sustained background load.
+- **5291 `TaskTimedOut` events on the SF**, all at `putEvents.waitForTaskToken`. The CloudWatch `ExecutionsTimedOut` metric counts 308 SF-level execution timeouts (peak 104 on 2026-05-17). Discrepancy 5291 vs 308 = retries within the SF deadline; many timeouts get re-driven and only some bubble up to execution-level failure.
+- **376/376 memory-strategy extraction jobs FAILED** with `CUSTOM_MODEL_BEDROCK_THROTTLING`. Separate Bedrock model throttle pool (NOT the AgentCore maxVms quota). InvestorPreferenceLearner: 212 failed; RationaleArchivist: 164 failed.
+
+The dossier's original maxVms hypothesis assumed a deliberately-low quota; M1 disproved that. The real cause is somewhere in the Bedrock `InvokeModel` / `InvokeAgentRuntime` rate space (the L-617C96C1 quota measured 25/s per agent), the PE Ingress retry path, or both.
+
+## 4-bis. Investigation plan (replaces §4 for mechanism selection)
+
+§4 (maxVms decision tree) is **superseded** for this workstream. The new investigation:
+
+### I1 — Pin down which quota is throttling
+
+The 694 `ServiceQuotaExceeded` events have an `errorCode` / `__type` / `message` field on the exception. Extract those from CloudWatch:
+
+```bash
+aws logs start-query \
+  --log-group-names <PE+AN IngressHandler log groups> \
+  --start-time $(($(date +%s) - 2592000)) --end-time $(date +%s) \
+  --query-string 'fields @timestamp, @message | filter @message like /ServiceQuotaExceeded/ | parse @message /"__type":"(?<type>[^"]+)"/ | parse @message /"message":"(?<msg>[^"]+)"/ | stats count() by type, msg | sort count() desc'
+```
+
+Outcome: a histogram of which specific quotas are exceeded. Candidates by service:
+- Bedrock `InvokeModel` tokens-per-minute (TPM) cap (per region, per model)
+- Bedrock `InvokeModel` requests-per-minute (RPM) cap
+- AgentCore `InvokeAgentRuntime` rate cap (25/s per agent — already known from M1)
+- Bedrock cross-region inference profile cap (memory-strategy 376/376 throttle hint)
+
+### I2 — Pin down the retry storm shape
+
+If a single SF execution generates many `ServiceQuotaExceeded` retries inside its 120s deadline, the resulting `TaskTimedOut` is caused by retry exhaustion, not by the underlying agent latency. Verify by correlating timestamps:
+
+```bash
+# For each SF execution that ended in TaskTimedOut on 2026-05-17 (peak day),
+# count the number of ServiceQuotaExceeded events in PE+AN logs within the
+# execution's 120s window.
+```
+
+If avg retries per failed execution > ~5, the retry storm IS the binding issue and the fix is at the retry-policy layer (or the upstream rate cap). If retries are flat ~1-2, the timeout is caused by underlying slowness (M5 already shows decision-pipeline at 101s out of 120s budget — 16% headroom).
+
+### I3 — Pin down the memory-strategy throttle
+
+376/376 failures suggests the memory-strategy execution profile (cross-region Haiku inference) is hitting a Bedrock model TPM/RPM cap independently of the per-agent budget. Verify the strategy execution model + region:
+
+```bash
+aws bedrock-agentcore-control list-memory-strategies --memory-id <ID>
+# inspect modelId + region for each strategy
+```
+
+Outcome: confirm whether the memory-strategy throttle is on the same model used by agents (compounding effect) or on a separate model (additive cost but orthogonal).
+
+### Mechanism selection (from I1+I2+I3 outcomes)
+
+The mechanism is one of:
+
+- **F1 — Reduce PE Ingress retry attempts** if I2 shows retry storms. Lower the SQS visibility timeout or shorten the retry policy on the Lambda's outbound Bedrock client. Cost-positive (fewer throttled calls).
+- **F2 — Increase the binding Bedrock quota** if I1 identifies a single dominant quota that's adjustable. The 25/s `InvokeAgentRuntime` cap is adjustable. Cost: ~$0 marginal (it's a rate cap, not a billed resource); risk: hides the underlying retry pattern.
+- **F3 — Spread the request rate** if I1 shows TPM/RPM saturation. Add a backoff layer in the agent invocation chain, or batch-coalesce requests where possible. More invasive.
+- **F4 — Decouple memory-strategy throttle** if I3 shows compounding. Move strategies to a different model or rate-limit them independently of the agent invocation path.
+- **F5 — Reduce decision-pipeline latency** if M5's 101s/120s ratio is too tight even without saturation. Pursue separately — out of scope here, file follow-up dossier.
+
+Phase 2 deliverable: I1+I2+I3 outputs land in §6-bis-extended (one extra subsection per investigation), then §7 records the chosen F mechanism + rationale grounded in the investigation evidence.
+
 ## 7. Mechanism selected
 
-_To be populated after §6, deriving from §4 decision tree._
+_To be populated after §6-bis investigation (I1+I2+I3 outcomes), choosing from F1-F5 per the §4-bis criteria. The §4 maxVms decision tree no longer applies._
 
 ## 8. Validation gate
 
