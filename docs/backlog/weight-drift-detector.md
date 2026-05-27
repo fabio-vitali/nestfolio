@@ -1,7 +1,6 @@
 ---
 id: weight-drift-detector
-status: queued
-rank: 7
+status: parking
 type: design
 notes: "Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming."
 references:
@@ -32,8 +31,8 @@ The system has the rebalance code path (DWC SF starts on PORTFOLIO_DRIFT_DETECTE
 4. How does the detector debounce (avoid emitting PORTFOLIO_DRIFT_DETECTED on every tick when the market is moving)?
 5. Does it emit per-tenant or per-portfolio?
 
-## Why this is queued (not parking)
-Per [[feedback-e2e-gaps-queued-not-parking]]: this blocks the future re-instatement of a UI-driven rebalance Playwright scenario (playwright-rebalance-after-weight-drift-detector). Litmus: without this, rebalance can never be exercised organically end-to-end.
+## Why parking (moved from queued 2026-05-27)
+Originally filed `queued` per [[feedback-e2e-gaps-queued-not-parking]] because it blocks a future UI-driven rebalance Playwright scenario. Moved to `parking` by user request — the dependent e2e scenario (playwright-rebalance-after-weight-drift-detector) is itself parked, so there is no live e2e gate waiting on this. Promote back to `queued` when the parked Playwright scenario is promoted.
 
 ## Related
 - Parent: playwright-rebalance-real-agents-maxvms-remediation (the discovery)
