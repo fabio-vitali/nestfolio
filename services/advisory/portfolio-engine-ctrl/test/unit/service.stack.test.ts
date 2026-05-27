@@ -131,33 +131,11 @@ describe('PortfolioEngineCtrlStack', () => {
     expect(Object.keys(lambdas).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('Ingress EventSourceMapping has MaximumConcurrency=2 (agentProfile: ceil(5×29/120) — sandbox cap)', () => {
+  it('Ingress EventSourceMapping has MaximumConcurrency=10 (agentProfile: ceil(40×29/120))', () => {
     const esms = template.findResources('AWS::Lambda::EventSourceMapping', {
-      Properties: { ScalingConfig: { MaximumConcurrency: 2 } },
+      Properties: { ScalingConfig: { MaximumConcurrency: 10 } },
     });
     expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('caps PE ingress sqsMaxConcurrency to 2 in sandbox via expectedBurstSize=5', () => {
-    // expectedBurstSize=5 → ceil(5×29/120)=ceil(1.208)=2. CDK minimum is 2
-    // (SqsEventSource rejects maxConcurrency=1), so 5 is the lowest burst that
-    // still synthesises. Visibility: 49×4=196 ≤ 240 (uxBudget×2). NOT for prod.
-    const esms = template.findResources('AWS::Lambda::EventSourceMapping', {
-      Properties: { ScalingConfig: { MaximumConcurrency: 2 } },
-    });
-    expect(Object.keys(esms).length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('caps PE Lambda function ReservedConcurrentExecutions to 1 (layered on SQS ESM floor to achieve effective concurrency=1)', () => {
-    // The SQS ESM MaximumConcurrency=2 floor (AWS API constraint) still leaves
-    // 1 contention slot: both Lambda instances race for a single micro-VM and
-    // one fails with "maxVms limit exceeded" (permanent SF task token failure).
-    // reservedConcurrency=1 caps actual concurrent invocations to 1; the 2nd
-    // SQS batch hits Lambda throttling and SQS re-delivers it after the
-    // visibility timeout — no permanent failure.
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      ReservedConcurrentExecutions: 1,
-    });
   });
 
   it('overrides the AgentCore Runtime idle/lifetime to 2 min / 30 min', () => {

@@ -42,13 +42,12 @@ export class PortfolioEngineCtrlStack extends ServiceStack {
       ],
       profile: agentProfile({
         agentLatencyP90Ms: 29_000,
-        expectedBurstSize: 5,
+        expectedBurstSize: 40,
         uxBudgetSeconds: AGENT_BUDGETS.PORTFOLIO_ENGINE_UX_SEC,
       }),
       lambdaProps: {
         paramsAndSecrets: PARAMS_AND_SECRETS_LAYER,
       },
-      reservedConcurrency: 1,
     });
 
     // Egress: CDC events.
