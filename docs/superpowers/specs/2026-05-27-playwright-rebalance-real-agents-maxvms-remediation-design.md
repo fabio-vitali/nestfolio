@@ -131,12 +131,13 @@ Three cases; if two are tied, apply both fixes.
 
 #### Case A: `onboarding-bff` dominates (≥ 60% of total peak)
 
-Tighten `onboarding-bff` `idleTimeout` from 2 min → 30 s.
+Tighten `onboarding-bff` `idleTimeout` from 5 min → 30 s.
 
-Rationale: `onboarding-bff` is invoked per-phase (7 phases), each phase is short (~5-15s LLM call). 2-min `idleTimeout` means each finished phase holds a micro-VM for ~10× its actual work duration, stacking sessions across the wizard. 30s is enough for the user to read the renderer + click the next CTA without losing the warm session.
+Rationale: `onboarding-bff` is invoked per-phase (7 phases), each phase is short (~5-15s LLM call). The current 5-min `idleTimeout` (already tightened from the AgentCore 15-min default per the inline comment at `services/investor/onboarding-bff/src/service.stack.ts:72-74`) means each finished phase holds a micro-VM for ~20-60× its actual work duration, stacking sessions across the wizard. 30s is enough for the user to read the renderer + click the next CTA without losing the warm session.
 
-- File: `services/onboarding/onboarding-bff/src/service.stack.ts`
-- Change: one-line `Duration.minutes(2)` → `Duration.seconds(30)`.
+- File: `services/investor/onboarding-bff/src/service.stack.ts:83`
+- Change: one-line `Duration.minutes(5)` → `Duration.seconds(30)`.
+- Optional companion: also lower `maxLifetime` from `Duration.hours(1)` to `Duration.minutes(15)` at line 84. Only apply if M2 shows MaxLifetime is being hit (sessions ageing out at 1h rather than being released via idle). Default: leave `maxLifetime` alone.
 
 #### Case B: `portfolio-engine-ctrl` and/or `advisory-narrative-ctrl` dominate (≥ 50% of total peak)
 
