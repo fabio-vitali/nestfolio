@@ -10,8 +10,8 @@
 
 ## QUEUED
 
-_(none)_
-
+1. [weight-drift-detector](backlog/weight-drift-detector.md) [design] — Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming.
+2. [agentcore-circuit-breaker](backlog/agentcore-circuit-breaker.md) [design] — Design + ship a circuit breaker for InvokeAgentRuntime calls across the 5 agent runtimes (onboarding-bff, PE, AN, IP, MI). Layered defense on top of the just-shipped retry classification (commits 06317f37 + 54e7ed8b). Retry handles transient bursts; CB caps sustained outages (Bedrock regional failure, quota fully exhausted under prod multi-tenant load). Rule of three with broker-alpaca-adpt CB pattern — design may extract a generic CB lib.
 
 ## LATER
 
@@ -43,6 +43,7 @@ _(none)_
 - [nx-daemon-self-upgrade-pollutes-pnpm-lock](backlog/nx-daemon-self-upgrade-pollutes-pnpm-lock.md) [bug] — nx daemon respawn (triggered by nx-console / nx-mcp polling) runs `pnpm add -D nx@latest --ignore-scripts`, which scans the repo root, finds leaked tmp-* dirs, registers them as pnpm workspace importers in pnpm-lock.yaml. Every IDE/MCP poll = new pnpm-lock drift.
 - [onboarding-repo-update-phase-validation-exception](backlog/onboarding-repo-update-phase-validation-exception.md) [bug] — Latent backend bug; non-blocking for onboarding e2e per Spec 3 ship.
 - [pinned-retry-prompt-interference-agent-factory](backlog/pinned-retry-prompt-interference-agent-factory.md) [bug] — γ.4 retry stacks two corrective directives; cleaner separation needed.
+- [playwright-rebalance-after-weight-drift-detector](backlog/playwright-rebalance-after-weight-drift-detector.md) [tooling] — Re-add Playwright rebalance coverage on top of a real organic trigger once weight-drift-detector ships. Deleted 2026-05-27 in playwright-rebalance-real-agents-maxvms-remediation as speculative coverage of a not-yet-built production feature.
 - [portfolio-engine-service-unavailable-asymmetric-handling](backlog/portfolio-engine-service-unavailable-asymmetric-handling.md) [bug] — portfolio-engine graph returns serviceUnavailable instead of throwing; other 3 advisory agents throw
 - [pr-pipeline-required-status-check](backlog/pr-pipeline-required-status-check.md) [infra] — Throwaway-PR rehearsal + branch-protection toggle. BLOCKED on ci-pipeline-bring-up — pipeline has never produced a green run.
 - [rebalance-planner-mode-awareness](backlog/rebalance-planner-mode-awareness.md) [refactor] — rebalance-planner stays mode-blind; promote on mode-correlated gap.
