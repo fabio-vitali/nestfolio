@@ -1,6 +1,6 @@
 ---
 id: playwright-rebalance-real-agents-maxvms-remediation
-status: active
+status: shipped
 rank: 6
 type: infra
 notes: "Diagnose actual flake causes for Playwright journeys (new-investor-happy-path + deposit-reload-mid-flight) and ship a targeted fix. Re-scoped 2026-05-27 after Phase 1 measurements showed AgentCore maxVms utilization at 1.1% (peak 11 vs quota 1000) — the original maxVms-saturation hypothesis was wrong. Real flakes exist (694 ServiceQuotaExceeded + 5291 TaskTimedOut + 376/376 memory-strategy throttle failures over 30d) but from a different root cause, likely Bedrock InvokeModel/InvokeAgentRuntime rate throttling on the PE IngressHandler path. Also: original 'rebalance Playwright scenario' framing dropped 2026-05-27 brainstorming after discovery that reconciliation-ctrl has no weight-vs-target drift detector (the speculative PORTFOLIO_DRIFT_DETECTED emitter doesn't exist). Workstream now: investigate actual root cause, propose measurement-grounded fix, delete speculative rebalance scenario, file two follow-up dossiers."
@@ -24,7 +24,18 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-05-27-playwright-rebalance-real-agents-maxvms-remediation-design.md
 plan: docs/superpowers/plans/2026-05-27-playwright-rebalance-real-agents-maxvms-remediation.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Both journeys passed 2× consecutively first-try against deployed dev 2026-05-27:
+  - val1 new-investor-happy-path 3.8m PASS; val1 deposit-reload-mid-flight 1.8m PASS
+  - val2 new-investor-happy-path 3.2m PASS; val2 deposit-reload-mid-flight 1.8m PASS
+  No flakes per [[feedback-flake-means-broken]]. Mechanism: PE+AN handler retry
+  classification (commits 06317f37 PE + 54e7ed8b AN). Deploys: dev-portfolio-engine-ctrl
+  UPDATE_COMPLETE 17:53:11 + dev-advisory-narrative-ctrl UPDATE_COMPLETE 17:53:10.
+  Spec §8 has the full evidence including the deferred 24h M3/M4 trend re-measurement.
+  Three follow-up dossiers filed: weight-drift-detector (queued rank 7),
+  playwright-rebalance-after-weight-drift-detector (parking), agentcore-circuit-breaker
+  (queued rank 8). Three pivots in execution — all measurement-driven, all documented
+  in the Reframe history section below.
 ---
 
 # Playwright journey flake remediation (was: rebalance-real-agents-maxvms-remediation)
