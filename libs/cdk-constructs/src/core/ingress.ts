@@ -34,6 +34,18 @@ export interface IngressProps {
   maxBatchingWindow?: Duration;
   /** Maximum concurrent Lambda invocations from the SQS event source. Unset = no cap. */
   maxConcurrency?: number;
+  /**
+   * Lambda function-level reserved concurrency cap.
+   *
+   * Use this alongside `maxConcurrency` to enforce effective concurrency=1 when
+   * the SQS ESM `ScalingConfig.MaximumConcurrency` floor of 2 (AWS API constraint)
+   * would otherwise allow 2 Lambda instances to compete for a single micro-VM slot,
+   * causing the second to fail with "maxVms limit exceeded" (permanent SF task token
+   * failure). Setting `reservedConcurrency: 1` lets the second batch hit Lambda
+   * throttling instead — SQS re-queues it after the visibility timeout rather than
+   * treating the failure as terminal.
+   */
+  reservedConcurrency?: number;
   maxRetries?: number;
   /** Visibility timeout for the SQS queue. Precedence: explicit prop > profile.visibilityTimeout > 6× effectiveLambdaTimeout. */
   visibilityTimeout?: Duration;
@@ -82,6 +94,9 @@ export class Ingress extends Construct {
       ...lambdaTimeoutOverride,
       entry,
       environment: env,
+      ...(props.reservedConcurrency !== undefined
+        ? { reservedConcurrentExecutions: props.reservedConcurrency }
+        : {}),
     });
 
     // IAM: State grants

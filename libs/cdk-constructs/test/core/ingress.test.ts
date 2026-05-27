@@ -315,6 +315,27 @@ describe('Ingress construct', () => {
     });
   });
 
+  describe('reservedConcurrency prop', () => {
+    it('passes reservedConcurrency prop through to the underlying Lambda', () => {
+      const { template } = createIngress({
+        ingressOverrides: { reservedConcurrency: 1 },
+      });
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        ReservedConcurrentExecutions: 1,
+      });
+    });
+
+    it('does not set ReservedConcurrentExecutions when reservedConcurrency is not passed', () => {
+      const { template } = createIngress();
+      const fns = template.findResources('AWS::Lambda::Function');
+      const fnKey = Object.keys(fns).find(
+        (k) => fns[k].Properties?.Environment?.Variables?.SERVICE_NAME === 'test-svc',
+      );
+      expect(fnKey).toBeDefined();
+      expect(fns[fnKey!].Properties.ReservedConcurrentExecutions).toBeUndefined();
+    });
+  });
+
   describe('profile.visibilityTimeout fallback', () => {
     it('uses profile.visibilityTimeout when explicit prop is absent', () => {
       const { template } = createIngress({
