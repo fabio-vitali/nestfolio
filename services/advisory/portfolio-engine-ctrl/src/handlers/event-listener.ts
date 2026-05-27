@@ -4,6 +4,7 @@ import {
   materializeToTable,
   record,
   NotRetryableError,
+  isRetryable,
   type EventPayload,
   type EventContext,
   type WriteIntent,
@@ -109,12 +110,27 @@ export const createHandlers = (deps: IngressDeps) => {
           logger.info('Duplicate CONSTRUCT_PORTFOLIO event, skipping', { eventId: ctx.eventId, decisionId });
           return [];
         }
-        // Caught error path: emit AgentFailure CDC row instead of rethrowing.
-        // Re-throwing would trigger SQS retry, which would re-invoke the agent
-        // on the SAME task token — wrong. CallbackIngress (DWC, Task 10) decides
-        // retry policy based on the PORTFOLIO_FAILED event we emit via CDC.
         const error = err as Error;
-        logger.error('Agent run failed; emitting AgentFailure', {
+
+        // Transient errors (Bedrock throttle, AgentCore maxVms contention, network
+        // blips) MUST rethrow so SQS redelivers the same message + same task token
+        // after the visibility-timeout. Re-invoking on the same task token IS correct
+        // for transient errors — the agent's input hasn't changed; only the resource
+        // contention has cleared. Permanent errors (schema mismatch, bad input,
+        // agent logic threw) emit AgentFailure → DWC → SendTaskFailure → SF error.
+        // Classification uses event-processor's isRetryable() which handles AWS SDK
+        // errors including ServiceQuotaExceededException.
+        if (isRetryable(error)) {
+          logger.warn('Agent run failed with transient error; rethrowing for SQS retry', {
+            decisionId,
+            eventId: ctx.eventId,
+            errorType: error.name,
+            errorMessage: error.message,
+          });
+          throw error;
+        }
+
+        logger.error('Agent run failed with permanent error; emitting AgentFailure', {
           decisionId,
           eventId: ctx.eventId,
           errorType: error.name,
