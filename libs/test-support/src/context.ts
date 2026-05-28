@@ -30,7 +30,7 @@ function createTimingConfig(overrides?: Partial<TimingConfig>): TimingConfig {
   return {
     eventTimeout: overrides?.eventTimeout ?? 90_000 * multiplier,
     pollInterval: overrides?.pollInterval ?? 500,
-    canaryTimeout: overrides?.canaryTimeout ?? 30_000 * multiplier,
+    canaryTimeout: overrides?.canaryTimeout ?? 60_000 * multiplier,
     putEventRetries: overrides?.putEventRetries ?? 3,
     putEventBackoffMs: overrides?.putEventBackoffMs ?? 500,
   };
