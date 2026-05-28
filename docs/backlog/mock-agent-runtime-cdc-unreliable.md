@@ -1,8 +1,8 @@
 ---
 id: mock-agent-runtime-cdc-unreliable
-status: active
+status: shipped
 type: bug
-notes: "MI REFRESH_TICK slow-tier uses create-only record() → CCFEx every 15min on existing regional row. Narrative piece moved out (agent-service.ts:127 DOES write ReasoningOutput → EXPLANATION_GENERATED fires; resilience trap misses it for a different, unverified reason filed in advisory-narrative-resilience-cdc-trap-miss.md)."
+notes: "MI slow-tier REFRESH_TICK now uses update() upsert instead of create-only record(); production-dev CCFEx errors stopped (3 consecutive clean ticks observed post-deploy); MI integration suite green 2x in 109s/101s (was timing out at 600s). Narrative piece split to advisory-narrative-resilience-cdc-trap-miss.md."
 references:
   - services/advisory/market-intelligence-ctrl/src/handlers/event-listener.ts
   - services/advisory/market-intelligence-ctrl/test/integration/market-intelligence-ctrl.resilience.integration.test.ts
@@ -18,7 +18,20 @@ out_of_scope:
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Code: commit c0ce8615 — slow-tier `record('MarketSnapshot', …)` → `update('MarketSnapshot', …, { overrides: { pk, sk } })`
+    + unit test asserts `_tag: 'update'` and no `condition` (would re-introduce CCFEx).
+  Unit/lint: `pnpm nx affected -t test,lint --base=origin/main` → 9 projects, 110/110 tests green, lint green.
+  Deploy: `bash infrastructure/scripts/deploy.sh sandbox --prefix=dev --services=market-intelligence-ctrl` →
+    dev-market-intelligence-ctrl UPDATE_COMPLETE in 56.54s (Ingress/Handler UPDATE_COMPLETE at 12:11:35).
+  Production-dev observation: 17-min window post-deploy on
+    /aws/lambda/dev-market-intelligence-ctr-IngressHandler*:
+    - ERROR events: 0 (was ~6/15min before fix)
+    - 3 scheduled REFRESH_TICKs (10:25, 10:40, 10:55 UTC) all clean
+    - 25 intent batches, 100% emit new shape `tags=['record', 'update']`
+  Integration: `pnpm nx run market-intelligence-ctrl:test-integration` ×2
+    → 5/5 pass both times, resilience suite 109s / 101s (down from 600s timeout budget),
+      zero "did not produce CDC" warnings.
 ---
 
 # MI + advisory-narrative resilience: CDC trap times out despite MockApiFixture
