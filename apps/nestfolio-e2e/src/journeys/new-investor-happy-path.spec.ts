@@ -132,25 +132,25 @@ test('new-investor-happy-path: onboarding → deposit → decision → logout', 
     await investor.waitForDetected();
   });
 
-  // Step 8 — pending-decisions counter advances on the dashboard, AND a
-  //          subsequent dashboard-bff-scoped DEPOSIT_DETECTED reaches the
-  //          live subscription without a page reload (WSS path proof).
+  // Step 8 — a synthetic DEPOSIT_DETECTED scoped to dashboard-bff reaches the
+  //          activity feed via the WSS subscription without a page reload.
+  //          (Activity row is append-only and keyed by eventId, so this proof
+  //          does not race the real pipeline's DECISION_APPROVED decrement.)
   await test.step('decision pipeline triggers + WSS live-update verified', async () => {
     await authedPage.goto('/dashboard');
     await dashboard.waitForLoaded();
-    // Pipeline write reaches the dashboard via either getDashboard query or
-    // a WSS frame — accept whichever; baseline is the current displayed count.
+    // Page-settled wait: any non-zero pending count proves the dashboard read
+    // model loaded. The value itself is no longer the assertion target.
     await dashboard.waitForPendingDecisionsAtLeast(1, 180_000);
-    const baseline = await dashboard.getCurrentPendingDecisions();
 
     // Fire a real DEPOSIT_DETECTED scoped to dashboard-bff only (source
     // `integration-test:dashboard-bff` — passes dashboard-bff's $or Ingress
     // filter but is dropped by advisory-adpt, so no agent pipeline cost).
     // The dashboard is mounted with an active subscription; with no page
     // reload between this inject and the assert below, the only path the
-    // count update can travel is the `onDashboardUpdate` WSS broadcast.
-    await injectDashboardBffTriggerEvent(ctx, tenant);
-    await dashboard.waitForPendingDecisionsAtLeast(baseline + 1, 30_000);
+    // Activity row can travel is the `onActivityUpdate` WSS broadcast.
+    const { eventId } = await injectDashboardBffTriggerEvent(ctx, tenant);
+    await dashboard.waitForActivityByEventId(eventId, 30_000);
 
     // Wait for advisory-bff's projection to actually carry the decision row
     // the dashboard counter is announcing. The two projections run in
