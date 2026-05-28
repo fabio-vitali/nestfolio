@@ -72,7 +72,14 @@ describe('market-intelligence-ctrl event-listener', () => {
   });
 
   describe('MARKET_SNAPSHOT_REFRESH_TICK handler (slow-tier)', () => {
-    it('runs the slow-tier rebuild and emits MarketSnapshot record intent with both fastComponentsAt and slowComponentsAt set', async () => {
+    // The regional MarketSnapshot row is long-lived: one row per region,
+    // created at bootstrap and rebuilt by every 15-min REFRESH_TICK forever.
+    // Slow-tier MUST upsert, not create-only — a `record()` intent fails
+    // `attribute_not_exists(pk)` on every tick after the first (~95 CCFEx/day
+    // observed in production-dev 2026-05-28). `update()` with no explicit
+    // condition is a DDB UpdateItem upsert, identical shape to the already-
+    // working fast-tier path.
+    it('emits MarketSnapshot update intent (upsert) with both fastComponentsAt and slowComponentsAt set', async () => {
       const payload: EventPayload = {
         subject: { region: 'us-east-1' },
       };
@@ -91,9 +98,9 @@ describe('market-intelligence-ctrl event-listener', () => {
       expect(result).toEqual(expect.arrayContaining([
         expect.objectContaining({ _tag: 'record', typename: 'AgentInvocation' }),
         expect.objectContaining({
-          _tag: 'record',
+          _tag: 'update',
           typename: 'MarketSnapshot',
-          fields: expect.objectContaining({
+          updates: expect.objectContaining({
             region: 'us-east-1',
             slowComponentsAt: expect.any(String),
             fastComponentsAt: expect.any(String),
@@ -105,6 +112,15 @@ describe('market-intelligence-ctrl event-listener', () => {
           }),
         }),
       ]));
+
+      const snapshotIntent = result.find(
+        (i): i is { _tag: string; condition?: string } =>
+          (i as { typename?: string }).typename === 'MarketSnapshot',
+      );
+      // Unconditional update — UpdateCommand without ConditionExpression
+      // is a natural DDB upsert. Adding a condition would re-introduce
+      // the CCFEx-on-existing-row failure mode this fix removes.
+      expect(snapshotIntent?.condition).toBeUndefined();
     });
 
     it('falls back to AWS_REGION / us-east-1 when subject.region is absent', async () => {
@@ -114,11 +130,11 @@ describe('market-intelligence-ctrl event-listener', () => {
       const result = await handlers.MARKET_SNAPSHOT_REFRESH_TICK(payload, ctx);
 
       const snapshotIntent = result.find(
-        (i): i is { _tag: 'record'; typename: string; fields: Record<string, unknown>; overrides?: { pk?: string; sk?: string } } =>
+        (i): i is { _tag: 'update'; typename: string; updates: Record<string, unknown>; overrides?: { pk?: string; sk?: string } } =>
           (i as { typename?: string }).typename === 'MarketSnapshot',
       );
       expect(snapshotIntent).toBeDefined();
-      expect(snapshotIntent!.fields.region).toBe(process.env.AWS_REGION ?? 'us-east-1');
+      expect(snapshotIntent!.updates.region).toBe(process.env.AWS_REGION ?? 'us-east-1');
     });
 
     it('returns deduplicated output without intents when DuplicateInvocationError is thrown', async () => {
