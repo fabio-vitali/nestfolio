@@ -18,7 +18,7 @@ out_of_scope:
   - Touching the sister fixture injectAdvisoryBffTriggerEvent (different surface — advisory-bff).
   - Adding a new getRecentActivity-style query surface; the existing query stays as the on-mount loader.
 spec: docs/superpowers/specs/2026-05-28-activity-live-broadcast-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-28-activity-live-broadcast.md
 topic_memory: []
 validation_gate: null
 ---
