@@ -46,4 +46,17 @@ export class DashboardPage {
     return match ? parseInt(match[1], 10) : 0;
   }
 
+  /**
+   * Wait until the activity feed contains an entry with the given activityId.
+   *
+   * WSS proof: the row only reaches the DOM via the onActivityUpdate broadcast
+   * (no page reload between inject and assert). Activity rows are append-only
+   * so this assertion does not race with concurrent DECISION_APPROVED decrements.
+   */
+  async waitForActivityByEventId(activityId: string, timeout = 30_000): Promise<void> {
+    await this.page
+      .locator(`.activity-item[data-activity-id="${activityId}"]`)
+      .waitFor({ state: 'visible', timeout });
+  }
+
 }
