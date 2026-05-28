@@ -84,8 +84,16 @@ async function runMarketAgent(
   ];
 
   if (tier === 'slow') {
+    // Slow-tier full rebuild. The regional MarketSnapshot row is long-lived
+    // (one row per region, recurring 15-min tick forever) so MUST upsert.
+    // `update()` without an explicit condition is a DDB UpdateItem upsert
+    // (creates if missing, overwrites SET fields if present) — the natural
+    // primitive for continuous projection. Previously used `record()` which
+    // is create-only (`attribute_not_exists(pk)`); after the bootstrap tick,
+    // every subsequent tick CCFEx'd silently — observed as ~95 errors/day
+    // in production-dev 2026-05-28.
     intents.push(
-      record(
+      update(
         'MarketSnapshot',
         {
           region,
@@ -95,7 +103,7 @@ async function runMarketAgent(
           sourceEventIds: [ctx.eventId],
           updatedAt: now,
         },
-        { pk: marketSnapshotPk(region), sk: MARKET_SNAPSHOT_SK },
+        { overrides: { pk: marketSnapshotPk(region), sk: MARKET_SNAPSHOT_SK } },
       ),
     );
   } else {
