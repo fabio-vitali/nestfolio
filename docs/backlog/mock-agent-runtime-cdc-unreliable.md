@@ -2,7 +2,7 @@
 id: mock-agent-runtime-cdc-unreliable
 status: active
 type: bug
-notes: "MI REFRESH_TICK slow-tier uses create-only record() → CCFEx every 15min on existing regional row; narrative trap asserts EXPLANATION_GENERATED but handler emits NARRATIVE_COMPLETED. Two unrelated root causes; dossier's SSM-cache + shared-egress hypotheses disproved."
+notes: "MI REFRESH_TICK slow-tier uses create-only record() → CCFEx every 15min on existing regional row. Narrative piece moved out (agent-service.ts:127 DOES write ReasoningOutput → EXPLANATION_GENERATED fires; resilience trap misses it for a different, unverified reason filed in advisory-narrative-resilience-cdc-trap-miss.md)."
 references:
   - services/advisory/market-intelligence-ctrl/src/handlers/event-listener.ts
   - services/advisory/market-intelligence-ctrl/test/integration/market-intelligence-ctrl.resilience.integration.test.ts
@@ -71,27 +71,29 @@ Fast-tier (YAHOO/MARKETWATCH/SEC/FRED/ALPHA) correctly uses `update()`. Slow-tie
 
 This breaks both production-dev steady state AND the resilience test (which fires REFRESH_TICK against the same regional row).
 
-### Root cause #2 — narrative trap waits for an event the handler never emits
+### Root cause #2 — narrative resilience: trap misses EXPLANATION_GENERATED (separate dossier)
 
-`advisory-narrative-ctrl.resilience.integration.test.ts:153,173,207,242` traps `detailType: ['EXPLANATION_GENERATED']`.
+Initial hypothesis ("handler doesn't emit EXPLANATION_GENERATED at all") was **wrong**: `services/advisory/advisory-narrative-ctrl/src/agent-service.ts:125-132` writes a `ReasoningOutput` row via a raw `PutCommand` independent of the handler's `WriteIntent[]` return value, and `service.stack.ts:65` maps `ReasoningOutput INSERT → EXPLANATION_GENERATED` for CDC. The basic integration test (`advisory-narrative-ctrl.integration.test.ts:95-98`) asserts `EXPLANATION_GENERATED` with no try/catch and presumably passes — confirming the path works for mock-driven invocations.
 
-The handler at `event-listener.ts:111-123` emits `record('AgentCompletion', …)`. Per `services/advisory/advisory-narrative-ctrl/CLAUDE.md` egress:
-- `ReasoningOutput` → `EXPLANATION_GENERATED` (insert only)
-- `AgentCompletion` → `NARRATIVE_COMPLETED` (insert only)
-- `AgentFailure` → `NARRATIVE_FAILED` (insert only)
+Why the resilience-test trap consistently misses it remains unverified. Likely candidates: (a) Parameters & Secrets Lambda Extension SSM cache (5-min TTL) — a warm Lambda still hits the previous test's (now stale) mock URL after `SsmOverrideFixture.overrideAndDeriveRestore` runs in this test's `beforeAll`; (b) `overrideAndDeriveRestore` derives the "restore" value from the current param when it runs, so if a sibling test already mutated the param, the cleanup path corrupts state for the next run.
 
-The handler never writes a `ReasoningOutput` row, so `EXPLANATION_GENERATED` is never emitted. A successful invocation emits `NARRATIVE_COMPLETED` — which the trap doesn't subscribe to. Trap is structurally unable to fire; not an "AgentRuntime unavailable" condition.
+Moved out to **`advisory-narrative-resilience-cdc-trap-miss.md`** (status: parking). The MI fix stands on its own — the production-dev REFRESH_TICK CCFEx evidence is independent.
 
 ## Dossier original hypotheses — status
 
 - **H1 SSM cache propagation**: Not the cause for MI. The CCFEx happens at write time, BEFORE the trap could observe the agent's return value matters. (Cannot rule out for narrative without a separate measurement, but root cause #2 explains the symptom independently.)
 - **H2 CDC egress on shared regional row**: Disproved. Zero egress ERROR entries over 24h.
 
-## Fix shape (sketch — settle in brainstorming)
+## Fix shape
 
-- MI: change slow-tier from `record()` to `update()` for the MarketSnapshot row. Keep one explicit bootstrap path (handler, script, or first-tick `attribute_not_exists OR …` choice) so a fresh deploy still creates the row.
-- Narrative: align trap and handler. Two options — (a) flip the trap to `NARRATIVE_COMPLETED` (cheap, preserves current handler shape), (b) make the handler also write `ReasoningOutput` so `EXPLANATION_GENERATED` becomes a real signal (heavier, aligns with the implied egress schema).
-- Validation gate: scheduled REFRESH_TICK in production-dev must stop ERROR'ing; both resilience suites must observe CDC (or be re-asserted on the right detail-type) and pass without `console.warn` fallthrough.
+MI slow-tier: change `record('MarketSnapshot', …)` → an upsert-style write. Two viable shapes:
+
+1. **`update()` + explicit bootstrap** — `update()` requires `attribute_exists(pk)`. Need a one-shot bootstrap that creates the empty `MarketSnapshot#{region}` row at stack-deploy time (a custom resource or a Lambda invocation) OR a fallback `record()` on first tick. Cleaner CDC semantics: every tick is a "Modify" event, not a mix of "Insert" + "Modify".
+2. **PutCommand without conditional** — bypass `record()`/`update()` and issue a raw `PutCommand` (no `attribute_not_exists` guard). Always succeeds; row always exists post-tick. Simplest, but bypasses event-processor's idempotency machinery, so a duplicate REFRESH_TICK with the same EB eventId would re-run the agent unnecessarily.
+
+Preferred: option 1 with a single bootstrap row created from `ScheduledEmitter` or a fresh-deploy hook. Falls out of brainstorming below.
+
+Validation gate (this workstream): scheduled REFRESH_TICK in production-dev must stop ERROR'ing within one tick after deploy; MI resilience integration test must run without "Run A refresh tick did not produce CDC" warnings.
 
 ## Related
 

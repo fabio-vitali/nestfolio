@@ -6,7 +6,7 @@
 
 ## ACTIVE
 
-- [mock-agent-runtime-cdc-unreliable](backlog/mock-agent-runtime-cdc-unreliable.md) [bug] — MI REFRESH_TICK slow-tier uses create-only record() → CCFEx every 15min on existing regional row; narrative trap asserts EXPLANATION_GENERATED but handler emits NARRATIVE_COMPLETED. Two unrelated root causes; dossier's SSM-cache + shared-egress hypotheses disproved.
+- [mock-agent-runtime-cdc-unreliable](backlog/mock-agent-runtime-cdc-unreliable.md) [bug] — MI REFRESH_TICK slow-tier uses create-only record() → CCFEx every 15min on existing regional row. Narrative piece moved out (agent-service.ts:127 DOES write ReasoningOutput → EXPLANATION_GENERATED fires; resilience trap misses it for a different, unverified reason filed in advisory-narrative-resilience-cdc-trap-miss.md).
 
 ## QUEUED
 
@@ -17,6 +17,7 @@
 - [advisory-handler-type-narrowing-debt](backlog/advisory-handler-type-narrowing-debt.md) [refactor] — materializeToTable overload mismatch + intents missing on inferred handler return types across IP/MI/PE/AN advisory services
 - [advisory-narrative-ctrl-eager-write-refactor](backlog/advisory-narrative-ctrl-eager-write-refactor.md) [refactor] — Refactor advisory-narrative-ctrl handler to write AgentInvocation HEAD row eagerly before Memory reads, so integration tests see the row in ~5s instead of ~30-40s.
 - [advisory-narrative-ctrl-memory-retry-env-plumb](backlog/advisory-narrative-ctrl-memory-retry-env-plumb.md) [tooling] — Plumb MEMORY_READ_RETRY_DELAYS_MS_OVERRIDE as Lambda env var on dev so integration test can tighten waitForItem 60s→10s. Risk: dev/prod Memory-consistency skew.
+- [advisory-narrative-resilience-cdc-trap-miss](backlog/advisory-narrative-resilience-cdc-trap-miss.md) [bug] — Resilience-suite EventBusTrap on EXPLANATION_GENERATED consistently times out despite mock-agent-runtime + SsmOverrideFixture; basic integration suite passes the same assertion. Likely warm-Lambda SSM cache or overrideAndDeriveRestore corrupting param state.
 - [advisory-phase-ab-integration-coverage](backlog/advisory-phase-ab-integration-coverage.md) [tooling] — Phase A SF state + Phase B Memory emit/retrieval have unit + manual smoke coverage but no integration tests — gap surfaced post-Phase-B ship.
 - [agent-tracer-bedrock-converse-token-extraction](backlog/agent-tracer-bedrock-converse-token-extraction.md) [bug] — AgentTracer.handleLLMEnd returns 0 input/output tokens for ChatBedrockConverse — usage field path mismatch. Diagnostic envelopes lose cost/decode signal.
 - [agentcore-maxvms-prod-quota-increase](backlog/agentcore-maxvms-prod-quota-increase.md) [infra] — Request a Bedrock AgentCore maxVms (concurrent micro-VM) Service Quotas increase for production accounts. Sandbox deliberately keeps the low quota for cost; native SQS retry (agentcore-invocation-resilience) absorbs sandbox saturation. Sandbox-side alternative: cap ESM maxConcurrency / reservedConcurrency across agent-invoking ingress handlers.
