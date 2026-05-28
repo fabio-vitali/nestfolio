@@ -1,6 +1,6 @@
 ---
 id: happy-path-pendingcount-wss-decrement-race
-status: active
+status: shipped
 type: bug
 notes: "new-investor-happy-path Step 8 WSS counter assertion races real DECISION_APPROVED -1 within 30s; post-2026-05-09 inc/dec semantics broke the monotonic-up invariant."
 references:
@@ -20,7 +20,15 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-05-28-activity-live-broadcast-design.md
 plan: docs/superpowers/plans/2026-05-28-activity-live-broadcast.md
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  - nx affected -t test,lint --base=origin/main: GREEN (30 projects, 51 dashboard-bff unit tests pass with Activity dispatch logs)
+  - dev-dashboard-bff deploy UPDATE_COMPLETE 2026-05-28T23:53:35 (CFN stack; DashboardPublisher Lambda + AppSync Schema both UPDATE_COMPLETE)
+  - dev-investor-web deploy UPDATE_COMPLETE 2026-05-28T23:52:30 (CFN stack; investor-web shell + dashboard-mfe bundle redeployed)
+  - dashboard-bff:test-integration: 21/21 GREEN on warm rerun (250s); first run had 1 pre-existing cold-start flake matching integration-deep-coldstart-flakes-post-trap-hardening; new T7 case "broadcasts publishActivityUpdate on DEPOSIT_DETECTED" passed both runs.
+  - nestfolio-e2e:e2e run 1: 4/4 PASS (4.8m total; new-investor-happy-path 2.8m) — /tmp/pw-run-1.log
+  - nestfolio-e2e:e2e run 2: 4/4 PASS (4.5m total; new-investor-happy-path 2.7m) — /tmp/pw-run-2.log
+  - Final code review: APPROVED (no Critical/Important issues; minor items pre-existing parity)
+  - Implementation: commits 61bff352..9725a528 (15 commits) on worktree-activity-live-broadcast
 ---
 
 # new-investor-happy-path Step 8 WSS counter assertion races real DECISION_APPROVED decrement
