@@ -37,7 +37,9 @@ The test (`ledger-ctrl.integration.test.ts:477`) already passes `timeoutMs: 120_
 Exceeded timeout of 300000 ms for a test.
 ```
 
-Test sets jest `it(..., 300_000)`. Hits the 5-minute test-level limit. Run #3 hard-fail (not retry-passed). May be order-agnostic state convergence taking too long, or genuine logic regression.
+Test sets jest `it(..., 300_000)`. Hits the 5-minute test-level limit. Run #3 hard-fail (not retry-passed).
+
+**Investigated 2026-05-28 under `ledger-ctrl-resilience-pairwise-timeout` (shipped).** Empirical CloudWatch evidence (14d Duration/IteratorAge/Errors on `dev-ledger-ctrl-ReducerFnB8BFD8FF-wCVIOafQsvir`) ruled out reducer logic regression and reserved-concurrency starvation. The failure day was actually one of the lower-lag IteratorAge days in the window. Per-invocation Duration is stable (45-150ms avg). Cause is environmental noise outside the reducer (test-context setup, EB rule propagation, OrphanReaper churn). Workaround (480s test budget, commit `d5e0152b`) is the correct fix. See `docs/backlog/ledger-ctrl-resilience-pairwise-timeout.md` for the measurements table.
 
 ### C. `ledger-ctrl resilience full-shuffle — 3 events shuffled order`
 
