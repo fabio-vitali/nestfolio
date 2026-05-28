@@ -33,7 +33,7 @@ export interface BroadcastFromStreamConfig {
   serviceName: string;
   appsyncUrl: string;
   region?: string;
-  /** Keyed by the row's `sk` (or `__typename` if your stream uses it). */
+  /** Keyed by the row's `__typename` (falls back to `sk` for legacy callers). */
   broadcasts: Record<string, StreamBroadcastEntry>;
 }
 
@@ -69,7 +69,7 @@ async function processRecord(
   const newImage = unmarshall(newImageRaw);
   const oldImage = oldImageRaw ? unmarshall(oldImageRaw) : undefined;
 
-  const typename = String(newImage['sk'] ?? newImage['__typename'] ?? '');
+  const typename = String(newImage['__typename'] ?? newImage['sk'] ?? '');
   const entry = config.broadcasts[typename];
   if (!entry) return;
 

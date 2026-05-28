@@ -155,3 +155,54 @@ describe('broadcastFromStream', () => {
     expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('broadcastFromStream dispatch key', () => {
+  beforeEach(() => (postAppSyncMutation as jest.Mock).mockReset().mockResolvedValue(undefined));
+
+  it('dispatches by __typename when sk is compound', async () => {
+    const handler = broadcastFromStream({
+      serviceName: 'test',
+      appsyncUrl: 'https://x.example/graphql',
+      broadcasts: {
+        Activity: {
+          mutation: 'mutation X { x }',
+          mapImage: (img) => ({ ok: img['__typename'] }),
+        },
+      },
+    });
+    await handler(makeEvent([{
+      eventName: 'INSERT',
+      newImage: {
+        pk: 'T#tenant1',
+        sk: 'Activity#2026-05-28T00:00:00Z#evt-42',
+        __typename: 'Activity',
+        activityId: 'evt-42',
+      },
+    }]), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+    expect((postAppSyncMutation as jest.Mock).mock.calls[0][0].variables).toEqual({ ok: 'Activity' });
+  });
+
+  it('still dispatches scalar-sk rows (backwards-compat)', async () => {
+    const handler = broadcastFromStream({
+      serviceName: 'test',
+      appsyncUrl: 'https://x.example/graphql',
+      broadcasts: {
+        AdvisoryStatus: {
+          mutation: 'mutation X { x }',
+          mapImage: () => ({ ok: true }),
+        },
+      },
+    });
+    await handler(makeEvent([{
+      eventName: 'INSERT',
+      newImage: {
+        pk: 'T#tenant1',
+        sk: 'AdvisoryStatus',
+        __typename: 'AdvisoryStatus',
+        pendingDecisionsCount: 1,
+      },
+    }]), {} as never, () => {});
+    expect(postAppSyncMutation).toHaveBeenCalledTimes(1);
+  });
+});
