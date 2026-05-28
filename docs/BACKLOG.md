@@ -11,8 +11,7 @@ _(none)_
 
 ## QUEUED
 
-_(none)_
-
+1. [happy-path-pendingcount-wss-decrement-race](backlog/happy-path-pendingcount-wss-decrement-race.md) [bug] — new-investor-happy-path Step 8 WSS counter assertion races real DECISION_APPROVED -1 within 30s; post-2026-05-09 inc/dec semantics broke the monotonic-up invariant.
 
 ## LATER
 
