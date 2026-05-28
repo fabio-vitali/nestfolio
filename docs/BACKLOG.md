@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [mock-agent-runtime-cdc-unreliable](backlog/mock-agent-runtime-cdc-unreliable.md) [bug] — MI REFRESH_TICK slow-tier uses create-only record() → CCFEx every 15min on existing regional row; narrative trap asserts EXPLANATION_GENERATED but handler emits NARRATIVE_COMPLETED. Two unrelated root causes; dossier's SSM-cache + shared-egress hypotheses disproved.
 
 ## QUEUED
 
-1. [mock-agent-runtime-cdc-unreliable](backlog/mock-agent-runtime-cdc-unreliable.md) [bug] — MI + narrative resilience tests catch CDC trap timeouts despite using mock-agent-runtime; SSM-override may not propagate to warm Lambda
-2. [investor-ctrl-system-trap-canary-timeout](backlog/investor-ctrl-system-trap-canary-timeout.md) [bug] — SYSTEM-tenant trap canary needs >30s on investor-bus when stacked with 2 other traps — root cause unknown
+1. [investor-ctrl-system-trap-canary-timeout](backlog/investor-ctrl-system-trap-canary-timeout.md) [bug] — SYSTEM-tenant trap canary needs >30s on investor-bus when stacked with 2 other traps — root cause unknown
 
 ## LATER
 
