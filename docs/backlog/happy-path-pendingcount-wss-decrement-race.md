@@ -1,7 +1,6 @@
 ---
 id: happy-path-pendingcount-wss-decrement-race
-status: queued
-rank: 1
+status: active
 type: bug
 notes: "new-investor-happy-path Step 8 WSS counter assertion races real DECISION_APPROVED -1 within 30s; post-2026-05-09 inc/dec semantics broke the monotonic-up invariant."
 references:
@@ -11,8 +10,14 @@ references:
   - path: services/investor/dashboard-bff/src/handlers/event-listener.ts
   - path: services/investor/dashboard-bff/src/handlers/dashboard-publisher.ts
   - path: apps/nestfolio-e2e/src/fixtures/inject-advisory-update.ts
-out_of_scope: []
-spec: null
+out_of_scope:
+  - Modifying the existing AdvisoryStatus pendingDecisionsCount inc/dec semantics (counter stays as-is; assertion target moves to Activity).
+  - Live-push for PortfolioSummary or PositionSnapshot — separately filed as dashboard-live-push-portfolio-summary and dashboard-live-push-position-snapshots.
+  - Refactoring dashboard-publisher.ts beyond adding the new Activity broadcast entry.
+  - Investigating sub-100ms DOM render coalescing of the pendingDecisionsCount value — moot once the assertion target moves to the append-only Activity row.
+  - Touching the sister fixture injectAdvisoryBffTriggerEvent (different surface — advisory-bff).
+  - Adding a new getRecentActivity-style query surface; the existing query stays as the on-mount loader.
+spec: docs/superpowers/specs/2026-05-28-activity-live-broadcast-design.md
 plan: null
 topic_memory: []
 validation_gate: null
