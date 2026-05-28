@@ -74,7 +74,7 @@ export async function injectAdvisoryBffTriggerEvent(
 export async function injectDashboardBffTriggerEvent(
   ctx: TestContext,
   tenant: FreshTenant,
-): Promise<void> {
+): Promise<{ eventId: string }> {
   const busArn = await ctx.ssm.busArn('investor');
   const eb = new EventBridgeClient({ region: ctx.region });
   const eventId = `e2e-${randomUUID()}`;
@@ -111,4 +111,5 @@ export async function injectDashboardBffTriggerEvent(
       `injectDashboardBffTriggerEvent: PutEvents failed — ${result.Entries?.[0]?.ErrorMessage ?? 'unknown'}`,
     );
   }
+  return { eventId };
 }
