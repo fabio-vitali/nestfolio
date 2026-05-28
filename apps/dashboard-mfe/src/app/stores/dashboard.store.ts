@@ -29,6 +29,7 @@ export interface PositionSnapshot {
 }
 
 export interface ActivityEntry {
+  activityId: string;
   activityType: string;
   description: string;
   createdAt: string;

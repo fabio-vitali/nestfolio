@@ -26,6 +26,7 @@ const POSITION_SNAPSHOT_FIELDS = `
 
 const ACTIVITY_ENTRY_FIELDS = `
   fragment ActivityEntryFields on ActivityEntry {
+    activityId
     activityType
     description
     createdAt
@@ -123,4 +124,15 @@ export const ON_DASHBOARD_UPDATE = `
     }
   }
   ${ADVISORY_STATUS_FIELDS}
+`;
+
+export const ON_ACTIVITY_UPDATE = `
+  subscription OnActivityUpdate($tenantId: ID!) {
+    onActivityUpdate(tenantId: $tenantId) {
+      activity {
+        ...ActivityEntryFields
+      }
+    }
+  }
+  ${ACTIVITY_ENTRY_FIELDS}
 `;
