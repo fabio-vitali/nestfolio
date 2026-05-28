@@ -157,6 +157,7 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
   readonly i18n = inject(I18nService);
   readonly store = inject(DashboardStore);
   private updateSubscription: Subscription | null = null;
+  private activitySubscription: Subscription | null = null;
 
   async ngOnInit(): Promise<void> {
     await this.loadDashboard();
@@ -166,6 +167,8 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.updateSubscription?.unsubscribe();
     this.updateSubscription = null;
+    this.activitySubscription?.unsubscribe();
+    this.activitySubscription = null;
   }
 
   private subscribeToUpdates(): void {
@@ -178,6 +181,16 @@ export class DashboardContainerComponent implements OnInit, OnDestroy {
           const advisoryStatus = data?.onDashboardUpdate?.advisoryStatus;
           if (advisoryStatus) {
             this.store.setAdvisoryStatus(advisoryStatus);
+          }
+        },
+      });
+    this.activitySubscription = this.dashboardService
+      .subscribeToActivityUpdates(tenantId)
+      .subscribe({
+        next: (data) => {
+          const activity = data?.onActivityUpdate?.activity;
+          if (activity) {
+            this.store.addActivity(activity);
           }
         },
       });
