@@ -12,7 +12,7 @@ out_of_scope:
   - "Live-push transport (deferred dashboard-live-push-* items)."
   - "Event sourcing on the write side — not adopted."
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-29-bff-readmodel-w0-event-processor-foundation.md
 topic_memory: []
 validation_gate: null
 ---
