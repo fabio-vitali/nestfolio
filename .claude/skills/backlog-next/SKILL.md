@@ -57,7 +57,8 @@ If midway you realize the lane was wrong (started Simple, architectural decision
 ### 4. Adopt to ACTIVE (Complex lane only)
 
 1. `EnterWorktree` — branches from `origin/main`. **Do NOT commit on `main` first**; preflight already verified main is clean.
-2. Inside the worktree: edit `docs/backlog/<id>.md` → `status: active`, fill `out_of_scope:` (rule 4). Commit.
+   - **Self-heal a phantom worktree session.** If `EnterWorktree` errors with `Already in a worktree session`, a PRIOR session forgot Step 6.8 (`ExitWorktree`) and the harness still thinks it's inside a worktree that may since have been removed from disk. Preflight cannot catch this — Node can't see harness session state, and the phantom case leaves no disk artifact. Recover in place: confirm disk is clean (`git rev-parse --abbrev-ref HEAD` on `main`, `git status --short` empty, `git worktree list` shows no unexpected entry), then call `ExitWorktree` with `action: "keep"` to clear the dead session (`keep` never deletes, so real work is never lost), then retry `EnterWorktree`. Only if `git worktree list` + `git status` reveal genuine uncommitted work in a real leftover worktree, stop and ask the user before clearing. An upstream request to have `EnterWorktree`/`ExitWorktree` auto-reconcile a removed-on-disk session lives in the harness tools, not here.
+2. Inside the worktree: edit `docs/backlog/<id>.md` → `status: active`, fill `out_of_scope:` (rule 4). Commit. **Use the worktree's own path for every edit** — `EnterWorktree` switches the harness cwd but the Edit tool resolves absolute paths verbatim, so a path under the original repo root silently writes to `main`'s checkout instead of the worktree. After the first edit, `git status --short` in the worktree to confirm the change actually landed there.
 3. `node .claude/skills/backlog-lint/lint.mjs --fix`. Commit the regenerated `docs/BACKLOG.md`.
 
 Doc-layer and Simple lanes skip adoption — work the item directly on `main`.
