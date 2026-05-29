@@ -1,6 +1,6 @@
 ---
 id: bff-readmodel-w1-ledger-bff
-status: active
+status: shipped
 type: refactor
 out_of_scope:
   - "Any BFF other than ledger-bff (dashboard/advisory/investor are w2–w5)."
@@ -15,7 +15,28 @@ references:
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
 plan: docs/superpowers/plans/2026-05-29-bff-readmodel-w1-ledger-bff.md
 topic_memory: [project_read_model_redesign.md]
-validation_gate: null
+validation_gate: |
+  Shipped 2026-05-29 on branch worktree-bff-readmodel-w1-ledger-bff
+  (commits 8e33b8bf..0738f1ad). Subagent-driven; each task TDD + two-stage review
+  (spec + code quality), Task 4 enforcement proven via a tsc mutation check
+  (deleting a @ts-expect-error produced a real TS2769), Task 5 helpers proven
+  non-vacuous via an assertion-swap mutation check.
+  - All 4 P1 read rows (PortfolioLatest, Position, Simulation, SimulationPosition)
+    migrated project() → projectVersioned() keyed on snapshot.lastEventSequence;
+    SnapshotAt project() → record() (P2). Simulated-path snapshot-shape mismatch
+    fixed (reads payload.snapshot.* not top-level).
+  - ReadModelOwnership registered (P1×4 + P2×3) in src/read-model-ownership.ts;
+    compile-time enforcement type-test (test/types/read-model-ownership.type-test.ts).
+  - nx affected -t test,lint --base=origin/main: ledger-bff 41/41 unit + lint PASS.
+  - Deploy: dev-ledger-bff UPDATE_COMPLETE (771924376645, /tmp/w1-ledger-bff-deploy.log).
+  - Integration (deployed dev): 11/11 PASS incl. "version guard — keeps the newest
+    version and drops a stale BALANCE_UPDATED" (40.2s) and getSimulationComparison.
+  - E2E (deployed dev, user-approved 1x): accept-decision 1/1 PASS — confirmed
+    decision → real fill → ledger getPortfolio cashBalanceCents + VTI position
+    materialized via the real producer's lastEventSequence (organic version source).
+  - ledger-bff service card regenerated (Read model ownership section).
+  - Side-finding filed: ledger-bff-latent-tsc-errors (parking).
+  No other BFF touched.
 ---
 
 # Workstream 1 — ledger-bff (reference migration)
