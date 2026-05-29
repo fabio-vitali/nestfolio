@@ -224,6 +224,55 @@ function entry(id: string, ts = '2026-05-28T00:00:00Z'): ActivityEntry {
   };
 }
 
+describe('DashboardStore.mergeActivities', () => {
+  let store: InstanceType<typeof DashboardStore>;
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(DashboardStore);
+    store.reset();
+  });
+
+  it('preserves a live row when a later query snapshot arrives (clobber regression)', () => {
+    // Live frame lands first (subscription established before query returns)
+    store.mergeActivities([entry('live', '2026-05-28T12:48:03Z')]);
+    // Snapshot query returns WITHOUT the just-arrived live row (it committed after the read)
+    store.mergeActivities([entry('snap', '2026-05-28T12:47:00Z')]);
+
+    const ids = store.activities().map((a) => a.activityId);
+    expect(ids).toContain('live'); // must NOT be clobbered
+    expect(ids).toContain('snap');
+    expect(ids).toEqual(['live', 'snap']); // newest createdAt first
+  });
+
+  it('is order-independent (query-then-live == live-then-query)', () => {
+    store.mergeActivities([entry('a', '2026-05-28T10:00:00Z')]);
+    store.mergeActivities([entry('b', '2026-05-28T11:00:00Z')]);
+    const ab = store.activities().map((a) => a.activityId);
+
+    store.reset();
+    store.mergeActivities([entry('b', '2026-05-28T11:00:00Z')]);
+    store.mergeActivities([entry('a', '2026-05-28T10:00:00Z')]);
+    const ba = store.activities().map((a) => a.activityId);
+
+    expect(ab).toEqual(ba);
+    expect(ab).toEqual(['b', 'a']); // newest first regardless of arrival order
+  });
+
+  it('dedupes by activityId across merges', () => {
+    store.mergeActivities([entry('x', '2026-05-28T10:00:00Z')]);
+    store.mergeActivities([entry('x', '2026-05-28T10:00:00Z')]);
+    expect(store.activities()).toHaveLength(1);
+  });
+
+  it('dedupes duplicate ids within a single incoming array', () => {
+    store.mergeActivities([
+      entry('x', '2026-05-28T10:00:00Z'),
+      entry('x', '2026-05-28T10:00:00Z'),
+    ]);
+    expect(store.activities()).toHaveLength(1);
+  });
+});
+
 describe('DashboardStore.addActivity', () => {
   let store: InstanceType<typeof DashboardStore>;
   beforeEach(() => {

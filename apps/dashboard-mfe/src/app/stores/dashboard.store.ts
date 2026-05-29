@@ -125,14 +125,25 @@ export const DashboardStore = signalStore(
     setPositions(positions: PositionSnapshot[]): void {
       patchState(store, { positions });
     },
+    mergeActivities(incoming: ActivityEntry[]): void {
+      const existing = store.activities();
+      const seen = new Set<string>();
+      const merged: ActivityEntry[] = [];
+      for (const a of [...incoming, ...existing]) {   // incoming-first: live wins
+        if (seen.has(a.activityId)) continue;          // dedupe, keep first
+        seen.add(a.activityId);
+        merged.push(a);
+      }
+      merged.sort((l, r) => (l.createdAt < r.createdAt ? 1 : l.createdAt > r.createdAt ? -1 : 0)); // stable desc
+      patchState(store, { activities: merged.slice(0, 50) });
+    },
+    // Intentionally MERGES (not replaces) so a query snapshot can't clobber a
+    // live row; use reset() for a hard clear (e.g. logout).
     setActivities(activities: ActivityEntry[]): void {
-      patchState(store, { activities });
+      this.mergeActivities(activities);
     },
     addActivity(entry: ActivityEntry): void {
-      const current = store.activities();
-      if (current.some((a) => a.activityId === entry.activityId)) return; // dedupe
-      const next = [entry, ...current].slice(0, 50);                       // cap
-      patchState(store, { activities: next });
+      this.mergeActivities([entry]);
     },
     setSimulationSummary(simulationSummary: SimulationSummary | null): void {
       patchState(store, { simulationSummary });
