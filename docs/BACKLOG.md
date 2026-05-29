@@ -62,7 +62,7 @@ _(none)_
 
 ## Recently Shipped (last 10)
 
-- 2026-05-28 — [happy-path-pendingcount-wss-decrement-race](backlog/happy-path-pendingcount-wss-decrement-race.md) [bug] — new-investor-happy-path Step 8 WSS counter assertion races real DECISION_APPROVED -1 within 30s; post-2026-05-09 inc/dec semantics broke the monotonic-up invariant.
+- 2026-05-29 — [happy-path-pendingcount-wss-decrement-race](backlog/happy-path-pendingcount-wss-decrement-race.md) [bug] — new-investor-happy-path Step 8 WSS counter assertion races real DECISION_APPROVED -1 within 30s; post-2026-05-09 inc/dec semantics broke the monotonic-up invariant.
 - 2026-05-28 — [investor-ctrl-system-trap-canary-timeout](backlog/investor-ctrl-system-trap-canary-timeout.md) [bug] — 30s default canaryTimeout was at the tail of stacked EB+SQS propagation; orphan-rule hypothesis disproved (0 rules across all 4 buses); default bumped 30s→60s + per-test workaround removed.
 - 2026-05-28 — [ledger-ctrl-resilience-pairwise-timeout](backlog/ledger-ctrl-resilience-pairwise-timeout.md) [bug] — Investigated 2026-05-28. Empirical evidence shows no reducer regression — the workaround timeout bump (d5e0152b) is the correct fix. Residual variance belongs to integration-deep-coldstart-flakes-post-trap-hardening (Case B).
 - 2026-05-28 — [mock-agent-runtime-cdc-unreliable](backlog/mock-agent-runtime-cdc-unreliable.md) [bug] — MI slow-tier REFRESH_TICK now uses update() upsert instead of create-only record(); production-dev CCFEx errors stopped (3 consecutive clean ticks observed post-deploy); MI integration suite green 2x in 109s/101s (was timing out at 600s). Narrative piece split to advisory-narrative-resilience-cdc-trap-miss.md.
