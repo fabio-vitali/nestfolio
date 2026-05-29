@@ -16,6 +16,7 @@ module.exports = {
     '^@nestfolio/event-processor$': '<rootDir>/../../../libs/event-processor/src/index.ts',
     '^@nestfolio/event-processor/(.*)$': '<rootDir>/../../../libs/event-processor/src/$1',
     '^@nestfolio/ledger-ctrl/events$': '<rootDir>/../../ledger/ledger-ctrl/src/domain/events.ts',
+    '^@nestfolio/test-support$': '<rootDir>/../../../libs/test-support/src/index.ts',
   },
   transformIgnorePatterns: ['node_modules/(?!.*p-limit/|.*yocto-queue/)'],
 };
