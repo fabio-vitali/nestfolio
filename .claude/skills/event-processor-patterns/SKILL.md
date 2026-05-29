@@ -352,6 +352,7 @@ Returned from handlers to declare what the engine should write. Import builder f
 |--------|-----|---------|------------|
 | `RecordIntent` | `'record'` | `record(typename, fields, overrides?)` | `typename`, `fields`, `overrides?` |
 | `ProjectIntent` | `'project'` | `project(typename, fields, overrides?)` | `typename`, `fields`, `overrides?` |
+| `ProjectVersionedIntent` | `'projectVersioned'` | `projectVersioned(typename, fields, opts)` | `typename`, `fields`, `opts: { version, overrides? }` |
 | `AccumulateIntent` | `'accumulate'` | `accumulate(typename, config)` | `typename`, `config: { field, increment, ttl?, overrides? }` |
 | `UpdateIntent` | `'update'` | `update(typename, updates, opts?)` | `typename`, `updates`, `removes?`, `condition?`, `overrides?` |
 | `StoreIntent` | `'store'` | `store(body, opts?)` | `body`, `format?` (`'json'\|'csv'`), `key?` |
@@ -383,6 +384,40 @@ project('OrderView', { orderId: '123', status: 'open' })
 // Dynamic fields → returns HandlerFn (called with payload+ctx)
 project('OrderView', (payload, ctx) => ({ ...payload.subject, tenantId: ctx.tenantId }))
 ```
+
+**`projectVersioned` builder (P1 versioned-snapshot — blessed intent for all P1 read rows):**
+
+This is the **required** intent for read rows whose state is driven by an external authority (another service, broker, settlement system). It performs a full-row conditional `PutItem` guarded by:
+
+```
+attribute_not_exists(pk) OR attribute_not_exists(#v) OR #v < :version
+```
+
+The three clauses:
+
+| Clause | Condition | Effect |
+|--------|-----------|--------|
+| `attribute_not_exists(pk)` | Row does not exist yet | New row accepted unconditionally |
+| `attribute_not_exists(#v)` | Row exists but has no `__version` (legacy `project()` row) | Self-heals to versioned on first P1 write |
+| `#v < :version` | Stored `__version` is strictly older | Update accepted |
+
+**On stale or equal version** (`ConditionalCheckFailedException`): the event is **dropped as deduplicated (terminal)**. It is deliberately **not** redriven — this contrasts with `updateOrRetry`, which throws `RetryablePreconditionError` to wait on a precondition.
+
+`version` is **required** — a P1 projection cannot be created without it.
+
+```ts
+// Static fields → returns ProjectVersionedIntent directly
+projectVersioned('PortfolioSummary', { ...fullState, tenantId: ctx.tenantId }, { version })
+
+// Dynamic fields → returns HandlerFn (called with payload+ctx)
+projectVersioned(
+  'PortfolioSummary',
+  (payload, ctx) => ({ ...payload.subject, tenantId: ctx.tenantId }),
+  { version: (payload) => payload.subject.__version as number },
+)
+```
+
+`opts.overrides?: { pk?: string; sk?: string }` works identically to other intents.
 
 **`update` builder:**
 ```ts
@@ -548,6 +583,60 @@ const kRecord = fakeKinesisRecord('Order.Created', { orderId: '123' }, {
 ```
 
 > **Public testing exports** from `@nestfolio/event-processor`: `createTestHarness`, `fakeSqsRecord`, `fakeDdbStreamRecord`.
+
+---
+
+## Read-Model Ownership
+
+**Canonical doc:** `docs/architecture/READ-MODEL-OWNERSHIP.md` — the full model, per-row classification, and enforcement roadmap. This section is a reference summary; the doc is the source of truth.
+
+### The rule
+
+Every aggregate has exactly one owner. After creation, the key question is **"who drives ongoing state changes?"**
+
+| Driver | Kind | Blessed intents |
+|--------|------|-----------------|
+| Local actor (user / same service) | **Command-owned** | `update` (field-level); `record` for the one-time seed write |
+| External authority (another service, broker, settlement) | **Projection** | P1 → `projectVersioned`; P2 → `record`; P3 → computed, NOT `accumulate` |
+
+### Projection variants
+
+| Variant | Name | Blessed intent |
+|---------|------|----------------|
+| **P1** | Versioned snapshot | `projectVersioned` |
+| **P2** | Append-only log (`RecentActivity`, `HistoryEntry`) | `record` |
+| **P3** | Derived aggregate (counts/rollups over owned rows) | Computed read — **never `accumulate`** |
+
+**Never `accumulate` a cross-event projection.** `accumulate` is for atomic in-place increments on command-owned rows, not for projecting state from multiple disparate event types.
+
+### `ReadModelOwnership` registry
+
+Opt a typename into compile-time enforcement by augmenting the open interface in the service's `src/ownership.ts`:
+
+```ts
+declare module '@nestfolio/event-processor' {
+  interface ReadModelOwnership {
+    PortfolioSummary: Projection<'P1'>;
+    RecentActivity:   Projection<'P2'>;
+    AdvisoryStatus:   Projection<'P3'>;
+    Notification:     CommandOwned;
+  }
+}
+```
+
+Import `Projection` and `CommandOwned` from `@nestfolio/event-processor`. The registry is empty by default — no existing call sites break until a typename is registered.
+
+### Per-factory constraint summary
+
+| Factory | Rejects | Allows |
+|---------|---------|--------|
+| `projectVersioned` | `CommandOwned`, `P2`, `P3` | P1, unregistered |
+| `project`, `accumulate`, `update`, `updateOrRetry` | Any `Projection` (P1, P2, P3) | `CommandOwned`, unregistered |
+| `record` | P1, P3 | P2 (append-log) and `CommandOwned` (seed-by-one-event path) |
+
+### String-literal enforcement caveat
+
+Constraints only fire when `typename` is a **string literal** (or a `const`-inferred literal type). A value widened to plain `string` (e.g. `const t: string = 'PortfolioSummary'`) bypasses the constraint silently. Passing string literals directly is the established call-site convention.
 
 ---
 
