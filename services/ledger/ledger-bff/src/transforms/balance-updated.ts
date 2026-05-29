@@ -1,4 +1,4 @@
-import { project, type WriteIntent } from '@nestfolio/event-processor';
+import { projectVersioned, record, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
 type BalancePayload = {
@@ -20,23 +20,24 @@ export const balanceUpdated = (
   const payload = event.subject as BalancePayload & Record<string, unknown>;
 
   const balanceCents = payload.cashBalanceCents ?? 0;
+  const version = Number(payload.snapshot?.lastEventSequence ?? 0);
 
   const intents: WriteIntent[] = [
-    project('PortfolioLatest', {
+    projectVersioned('PortfolioLatest', {
       tenantId,
       userId,
       region,
       cashBalanceCents: balanceCents,
     }, {
-      pk: `Portfolio#${tenantId}`,
-      sk: 'Latest',
+      version,
+      overrides: { pk: `Portfolio#${tenantId}`, sk: 'Latest' },
     }),
   ];
 
   if (payload.snapshot) {
     const streamType = payload.streamType ?? 'actual';
     intents.push(
-      project('SnapshotAt', {
+      record('SnapshotAt', {
         tenantId,
         userId,
         region,

@@ -1,4 +1,3 @@
-import { project } from '@nestfolio/event-processor';
 import { balanceUpdated } from '../../../src/transforms/balance-updated';
 
 describe('balanceUpdated transform', () => {
@@ -14,38 +13,59 @@ describe('balanceUpdated transform', () => {
     record: {},
   });
 
-  it('should return single project intent for balance without snapshot', () => {
-    const result = balanceUpdated(makeUow({
-      cashBalanceCents: 950_000,
-      deltaCents: -50_000,
-    }) as Parameters<typeof balanceUpdated>[0]);
-
-    expect(result).toEqual(
-      project('PortfolioLatest', {
-        tenantId: 't1',
-        cashBalanceCents: 950_000,
-      }, { pk: 'Portfolio#t1', sk: 'Latest' }),
-    );
-  });
-
-  it('should return array with snapshot intent when snapshot is present', () => {
+  it('writes a versioned PortfolioLatest projection keyed on snapshot.lastEventSequence', () => {
     const result = balanceUpdated(makeUow({
       cashBalanceCents: 950_000,
       deltaCents: -50_000,
       snapshot: {
         positions: { VTI: { symbol: 'VTI', quantity: 10 } },
         cashBalanceCents: 950_000,
-        lastEventSequence: 5,
+        lastEventSequence: 7,
       },
     }) as Parameters<typeof balanceUpdated>[0]);
 
-    expect(Array.isArray(result)).toBe(true);
-    const intents = result as Record<string, unknown>[];
+    const intents = (Array.isArray(result) ? result : [result]) as Array<Record<string, unknown>>;
+    const latest = intents.find((i) => i.typename === 'PortfolioLatest');
+    expect(latest).toMatchObject({
+      _tag: 'projectVersioned',
+      typename: 'PortfolioLatest',
+      version: 7,
+      overrides: { pk: 'Portfolio#t1', sk: 'Latest' },
+    });
+    expect((latest!.fields as Record<string, unknown>).cashBalanceCents).toBe(950_000);
+  });
+
+  it('writes SnapshotAt as an append-only record (P2) when snapshot is present', () => {
+    const result = balanceUpdated(makeUow({
+      cashBalanceCents: 950_000,
+      snapshot: {
+        positions: { VTI: { symbol: 'VTI', quantity: 10 } },
+        cashBalanceCents: 950_000,
+        lastEventSequence: 7,
+      },
+    }) as Parameters<typeof balanceUpdated>[0]);
+
+    const intents = result as Array<Record<string, unknown>>;
+    expect(Array.isArray(intents)).toBe(true);
     expect(intents).toHaveLength(2);
-    expect(intents[0]._tag).toBe('project');
-    expect(intents[0].typename).toBe('PortfolioLatest');
-    expect(intents[1]._tag).toBe('project');
-    expect(intents[1].typename).toBe('SnapshotAt');
-    expect(intents[1].overrides.pk).toBe('SnapshotAt#t1#actual');
+    const snap = intents.find((i) => i.typename === 'SnapshotAt');
+    expect(snap).toMatchObject({
+      _tag: 'record',
+      typename: 'SnapshotAt',
+      overrides: { pk: 'SnapshotAt#t1#actual', sk: '2026-01-01T00:00:00.000Z' },
+    });
+  });
+
+  it('defaults version to 0 when no snapshot present (legacy/simplified event)', () => {
+    const result = balanceUpdated(makeUow({
+      cashBalanceCents: 500_000,
+    }) as Parameters<typeof balanceUpdated>[0]);
+
+    const intent = result as Record<string, unknown>;
+    expect(intent).toMatchObject({
+      _tag: 'projectVersioned',
+      typename: 'PortfolioLatest',
+      version: 0,
+    });
   });
 });
