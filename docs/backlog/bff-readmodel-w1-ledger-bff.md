@@ -1,8 +1,14 @@
 ---
 id: bff-readmodel-w1-ledger-bff
-status: queued
-rank: 1
+status: active
 type: refactor
+out_of_scope:
+  - "Any BFF other than ledger-bff (dashboard/advisory/investor are w2–w5)."
+  - "Changing ledger-ctrl's producer side — it already stamps lastEventSequence; w1 only consumes it."
+  - "Externally-settled-entity ownership (Deposit/Withdrawal/Order) — that is w5."
+  - "Live-push transport for ledger read rows — deferred dashboard-live-push-* family, rebuilt later."
+  - "Governance/freeze enforcement layers 3+4 (skills + audits) — that is w6."
+  - "AdvisoryStatus P3 re-sourcing — belongs to w2/w3."
 notes: "Workstream 1 (reference migration) of bff-read-model-materialization-redesign: migrate ledger-bff read rows to version-guarded P1 projections via projectVersioned, keyed on lastEventSequence as __version. Lowest risk; ledger-ctrl already stamps versions; proves the w0 primitive end-to-end."
 references:
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
