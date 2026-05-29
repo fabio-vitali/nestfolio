@@ -16,6 +16,12 @@ type LedgerEntryPayload = {
   timestamp: string;
   sequenceNo: number;
   streamType?: string;
+  // Top-level fields consumed by the P2 append-logs (HistoryEntry / Checkpoint).
+  // These predate w1 and are left untouched — the broader producer-shape mismatch
+  // (the real LedgerEntryEvent carries these only inside `snapshot`) is filed as
+  // ledger-entry-recorded-producer-shape-mismatch, out of w1 scope.
+  cashBalanceCents?: number;
+  positions?: Record<string, PositionRecord>;
   snapshot?: {
     positions: Record<string, PositionRecord>;
     cashBalanceCents: number;
@@ -97,8 +103,8 @@ export const ledgerEntryRecorded = (
         userId,
         region,
         date,
-        cashBalanceCents: payload.snapshot?.cashBalanceCents ?? 0,
-        positions: payload.snapshot?.positions ?? {},
+        cashBalanceCents: payload.cashBalanceCents ?? 0,
+        positions: payload.positions ?? {},
       }, {
         pk: `Checkpoint#${tenantId}`,
         sk: date,

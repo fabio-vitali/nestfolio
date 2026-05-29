@@ -32,8 +32,8 @@ describe('ledger-bff', () => {
 
   // ── Event Materializations ──────────────────────────────────────────
   //
-  // BALANCE_UPDATED → project('PortfolioLatest', ...) → pk: Portfolio#<tenantId>, sk: Latest
-  // PORTFOLIO_UPDATED → project('Position', ...) → pk: Portfolio#<tenantId>, sk: Position#<symbol>
+  // BALANCE_UPDATED → projectVersioned('PortfolioLatest', ...) → pk: Portfolio#<tenantId>, sk: Latest
+  // PORTFOLIO_UPDATED → projectVersioned('Position', ...) → pk: Portfolio#<tenantId>, sk: Position#<symbol>
   // LEDGER_ENTRY_RECORDED → record('HistoryEntry', ...) with override → pk: History#<tenantId>, sk: Entry#<sequenceNo>
   //
   // Note: get-balance.fn.js resolver and event-listener transform both use sk: 'Latest'.
@@ -51,7 +51,7 @@ describe('ledger-bff', () => {
         },
       });
 
-      // project() → deterministic sk: Latest
+      // projectVersioned() → deterministic sk: Latest
       const item = await table.waitForItem({
         table: 'ledger-bff',
         pk: `Portfolio#${ctx.tenantId}`,
@@ -85,7 +85,7 @@ describe('ledger-bff', () => {
         },
       });
 
-      // project() → deterministic sk: Position#<symbol>
+      // projectVersioned() → deterministic sk: Position#<symbol>
       const item = await table.waitForItem({
         table: 'ledger-bff',
         pk: `Portfolio#${ctx.tenantId}`,
