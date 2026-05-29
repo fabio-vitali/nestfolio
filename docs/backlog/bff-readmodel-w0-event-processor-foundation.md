@@ -1,6 +1,6 @@
 ---
 id: bff-readmodel-w0-event-processor-foundation
-status: active
+status: shipped
 type: refactor
 notes: "Workstream 0 of bff-read-model-materialization-redesign: add the projectVersioned WriteIntent + reserved __version convention + type-level ownership tags (CommandOwned | Projection<'P1'|'P2'|'P3'>) to event-processor, plus the canonical READ-MODEL-OWNERSHIP.md doc and the event-processor-patterns skill update (enforcement layers 1+2). Foundation for the whole rollout; no consumer behavior change yet."
 references:
@@ -13,8 +13,27 @@ out_of_scope:
   - "Event sourcing on the write side — not adopted."
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
 plan: docs/superpowers/plans/2026-05-29-bff-readmodel-w0-event-processor-foundation.md
-topic_memory: []
-validation_gate: null
+topic_memory: [project_read_model_redesign.md]
+validation_gate: |
+  Shipped 2026-05-29 on branch worktree-bff-readmodel-w0-event-processor-foundation
+  (15 commits, 1cdb0253..3b4f60cc). Subagent-driven: each of 8 tasks passed
+  spec-compliance + code-quality review; final whole-implementation review (opus)
+  returned READY TO MERGE (mutation-tested the type-level assertions to confirm
+  they are not vacuous; verified the factory retrofit added zero new tsc errors at
+  real literal call sites).
+  Gates (run from worktree):
+  - event-processor:typecheck (tsc --noEmit on type-test) → PASS, 0 errors; all
+    @ts-expect-error directives consumed (type machinery genuinely rejects wrong
+    intent×typename combos; degrades to plain string for unregistered/widened).
+  - event-processor:build (real tsc over src) → PASS.
+  - pnpm nx affected -t test,lint --base=origin/main → PASS for 29 projects
+    (event-processor 291 tests, test-support incl. version-guard, + all consumers
+    — the shared-lib change is provably non-breaking).
+  Deploy: SKIPPED by user decision — zero runtime behavior change by design
+  (projectVersioned/executor/ownership types have no callers yet; factory retrofit
+  is type-only/runtime-identical; test-support not bundled). A deploy would rebuild
+  ~28 consumers with functionally identical bundles and add no validation signal.
+  Layers 1 (types) + 2 (canonical doc) delivered; layers 3+4 deferred to w6.
 ---
 
 # Workstream 0 — event-processor foundation (versioned projection primitive + type freeze)
