@@ -1,4 +1,3 @@
-import { project } from '@nestfolio/event-processor';
 import { portfolioUpdated } from '../../../src/transforms/portfolio-updated';
 
 describe('portfolioUpdated transform', () => {
@@ -14,47 +13,50 @@ describe('portfolioUpdated transform', () => {
     record: {},
   });
 
-  it('should return project intents for each position', () => {
-    const result = portfolioUpdated(makeUow({
-      positions: {
-        VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 251 },
-      },
-    }) as Parameters<typeof portfolioUpdated>[0]);
-
-    expect(result).toEqual(
-      project('Position', {
-        tenantId: 't1',
-        symbol: 'VTI',
-        quantity: 10,
-        averageCostBasis: 250,
-        totalCostBasis: 2500,
-        lastFillPrice: 251,
-      }, { pk: 'Portfolio#t1', sk: 'Position#VTI' }),
-    );
+  const pos = (symbol: string) => ({
+    symbol, quantity: 10, averageCostBasis: 150, totalCostBasis: 1500, lastFillPrice: 155,
   });
 
-  it('should return array with snapshot when snapshot is present', () => {
+  it('writes versioned Position projections keyed on snapshot.lastEventSequence', () => {
     const result = portfolioUpdated(makeUow({
-      positions: {
-        VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 251 },
-      },
-      snapshot: {
-        positions: { VTI: { symbol: 'VTI', quantity: 10 } },
-        cashBalanceCents: 9_500_000,
-        lastEventSequence: 6,
-      },
+      positions: { AAPL: pos('AAPL'), MSFT: pos('MSFT') },
+      snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 12 },
     }) as Parameters<typeof portfolioUpdated>[0]);
 
-    expect(Array.isArray(result)).toBe(true);
-    const intents = result as Record<string, unknown>[];
+    const intents = result as Array<Record<string, unknown>>;
+    const positions = intents.filter((i) => i.typename === 'Position');
+    expect(positions).toHaveLength(2);
+    for (const p of positions) {
+      expect(p._tag).toBe('projectVersioned');
+      expect(p.version).toBe(12);
+    }
+    const aapl = positions.find((p) => (p.overrides as Record<string, string>).sk === 'Position#AAPL');
+    expect(aapl).toMatchObject({ overrides: { pk: 'Portfolio#t1', sk: 'Position#AAPL' } });
+    expect((aapl!.fields as Record<string, unknown>).quantity).toBe(10);
+  });
+
+  it('writes SnapshotAt as an append-only record (P2) when snapshot is present', () => {
+    const result = portfolioUpdated(makeUow({
+      positions: { AAPL: pos('AAPL') },
+      snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 12 },
+    }) as Parameters<typeof portfolioUpdated>[0]);
+
+    const intents = result as Array<Record<string, unknown>>;
     expect(intents).toHaveLength(2);
-    expect(intents[0].typename).toBe('Position');
-    expect(intents[1].typename).toBe('SnapshotAt');
+    const snap = intents.find((i) => i.typename === 'SnapshotAt');
+    expect(snap).toMatchObject({
+      _tag: 'record',
+      typename: 'SnapshotAt',
+      overrides: { pk: 'SnapshotAt#t1#actual', sk: '2026-01-01T00:00:00.000Z' },
+    });
   });
 
-  it('should return empty array for empty positions', () => {
-    const result = portfolioUpdated(makeUow({ positions: {} }) as Parameters<typeof portfolioUpdated>[0]);
-    // With empty positions and no snapshot, intents array is empty → length 1 check fails
-    expect(result).toEqual([]);
+  it('defaults version to 0 when no snapshot present', () => {
+    const result = portfolioUpdated(makeUow({
+      positions: { AAPL: pos('AAPL') },
+    }) as Parameters<typeof portfolioUpdated>[0]);
+
+    const intent = result as Record<string, unknown>;
+    expect(intent).toMatchObject({ _tag: 'projectVersioned', typename: 'Position', version: 0 });
   });
 });

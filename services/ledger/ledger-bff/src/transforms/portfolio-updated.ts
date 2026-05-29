@@ -1,4 +1,4 @@
-import { project, type WriteIntent } from '@nestfolio/event-processor';
+import { projectVersioned, record, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
 type PositionRecord = {
@@ -27,11 +27,12 @@ export const portfolioUpdated = (
   const payload = event.subject as PortfolioPayload & Record<string, unknown>;
 
   const positions = payload.positions ?? {};
+  const version = Number(payload.snapshot?.lastEventSequence ?? 0);
   const intents: WriteIntent[] = [];
 
   for (const [symbol, position] of Object.entries(positions)) {
     intents.push(
-      project('Position', {
+      projectVersioned('Position', {
         tenantId,
         userId,
         region,
@@ -41,8 +42,8 @@ export const portfolioUpdated = (
         totalCostBasis: position.totalCostBasis ?? 0,
         lastFillPrice: position.lastFillPrice ?? 0,
       }, {
-        pk: `Portfolio#${tenantId}`,
-        sk: `Position#${symbol}`,
+        version,
+        overrides: { pk: `Portfolio#${tenantId}`, sk: `Position#${symbol}` },
       }),
     );
   }
@@ -50,7 +51,7 @@ export const portfolioUpdated = (
   if (payload.snapshot) {
     const streamType = payload.streamType ?? 'actual';
     intents.push(
-      project('SnapshotAt', {
+      record('SnapshotAt', {
         tenantId,
         userId,
         region,
