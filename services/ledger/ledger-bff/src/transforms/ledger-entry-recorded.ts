@@ -1,4 +1,4 @@
-import { record, project, type WriteIntent } from '@nestfolio/event-processor';
+import { record, projectVersioned, type WriteIntent } from '@nestfolio/event-processor';
 import type { UnitOfWork, BusEvent } from '@nestfolio/event-processor';
 
 type PositionRecord = {
@@ -16,8 +16,11 @@ type LedgerEntryPayload = {
   timestamp: string;
   sequenceNo: number;
   streamType?: string;
-  cashBalanceCents?: number;
-  positions?: Record<string, PositionRecord>;
+  snapshot?: {
+    positions: Record<string, PositionRecord>;
+    cashBalanceCents: number;
+    lastEventSequence: number;
+  };
 };
 
 const CHECKPOINT_INTERVAL = 100;
@@ -46,27 +49,29 @@ export const ledgerEntryRecorded = (
     }),
   ];
 
-  // Simulated stream: update simulation projections
+  // Simulated stream: version-guarded projections fed from the snapshot.
   if (payload.streamType === 'simulated') {
-    const cashBalanceCents = payload.cashBalanceCents ?? 0;
-    const positions = payload.positions ?? {};
+    const snapshot = payload.snapshot;
+    const cashBalanceCents = snapshot?.cashBalanceCents ?? 0;
+    const positions = snapshot?.positions ?? {};
+    const version = Number(snapshot?.lastEventSequence ?? 0);
 
     intents.push(
-      project('Simulation', {
+      projectVersioned('Simulation', {
         tenantId,
         userId,
         region,
         cashBalanceCents,
         positions,
       }, {
-        pk: `Simulation#${tenantId}`,
-        sk: 'Latest',
+        version,
+        overrides: { pk: `Simulation#${tenantId}`, sk: 'Latest' },
       }),
     );
 
     for (const [symbol, position] of Object.entries(positions)) {
       intents.push(
-        project('SimulationPosition', {
+        projectVersioned('SimulationPosition', {
           tenantId,
           userId,
           region,
@@ -76,14 +81,14 @@ export const ledgerEntryRecorded = (
           totalCostBasis: position.totalCostBasis ?? 0,
           lastFillPrice: position.lastFillPrice ?? 0,
         }, {
-          pk: `Simulation#${tenantId}`,
-          sk: `Position#${symbol}`,
+          version,
+          overrides: { pk: `Simulation#${tenantId}`, sk: `Position#${symbol}` },
         }),
       );
     }
   }
 
-  // Checkpoint every N entries
+  // Checkpoint every N entries (append-only).
   if (payload.sequenceNo > 0 && payload.sequenceNo % CHECKPOINT_INTERVAL === 0) {
     const date = payload.timestamp.slice(0, 10);
     intents.push(
@@ -92,8 +97,8 @@ export const ledgerEntryRecorded = (
         userId,
         region,
         date,
-        cashBalanceCents: payload.cashBalanceCents ?? 0,
-        positions: payload.positions ?? {},
+        cashBalanceCents: payload.snapshot?.cashBalanceCents ?? 0,
+        positions: payload.snapshot?.positions ?? {},
       }, {
         pk: `Checkpoint#${tenantId}`,
         sk: date,

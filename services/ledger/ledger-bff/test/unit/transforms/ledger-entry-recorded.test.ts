@@ -1,4 +1,3 @@
-import { record } from '@nestfolio/event-processor';
 import { ledgerEntryRecorded } from '../../../src/transforms/ledger-entry-recorded';
 
 describe('ledgerEntryRecorded transform', () => {
@@ -14,76 +13,74 @@ describe('ledgerEntryRecorded transform', () => {
     record: {},
   });
 
-  it('should return single record intent for history entry', () => {
+  it('writes a HistoryEntry record (P2) for an actual-stream entry', () => {
     const result = ledgerEntryRecorded(makeUow({
-      eventId: 'entry-1',
+      eventId: 'evt-1',
       eventType: 'ORDER_FILLED',
-      payload: { symbol: 'VTI', quantity: 10 },
+      payload: { orderId: 'o1' },
       timestamp: '2026-01-01T00:00:00.000Z',
-      sequenceNo: 1,
+      sequenceNo: 42,
     }) as Parameters<typeof ledgerEntryRecorded>[0]);
 
-    expect(result).toEqual(
-      record('HistoryEntry', {
-        tenantId: 't1',
-        eventId: 'entry-1',
-        eventType: 'ORDER_FILLED',
-        payload: { symbol: 'VTI', quantity: 10 },
-        createdAt: '2026-01-01T00:00:00.000Z',
-        sequenceNo: 1,
-        streamType: undefined,
-      }, { pk: 'History#t1', sk: 'Entry#1' }),
-    );
+    const intent = result as Record<string, unknown>;
+    expect(intent).toMatchObject({
+      _tag: 'record',
+      typename: 'HistoryEntry',
+      overrides: { pk: 'History#t1', sk: 'Entry#42' },
+    });
   });
 
-  it('should include simulation intents for simulated stream', () => {
+  it('writes versioned Simulation + SimulationPosition from snapshot for a simulated entry', () => {
     const result = ledgerEntryRecorded(makeUow({
-      eventId: 'entry-1',
-      eventType: 'ORDER_FILLED',
-      payload: { symbol: 'VTI' },
+      eventId: 'evt-sim',
+      eventType: 'SIMULATED_TRADE',
+      payload: {},
       timestamp: '2026-01-01T00:00:00.000Z',
-      sequenceNo: 1,
+      sequenceNo: 5,
       streamType: 'simulated',
-      cashBalanceCents: 500_000,
-      positions: {
-        VTI: { symbol: 'VTI', quantity: 10, averageCostBasis: 250, totalCostBasis: 2500, lastFillPrice: 251 },
+      snapshot: {
+        positions: { AAPL: { symbol: 'AAPL', quantity: 12, averageCostBasis: 148, totalCostBasis: 1776, lastFillPrice: 155 } },
+        cashBalanceCents: 950_000,
+        lastEventSequence: 9,
       },
     }) as Parameters<typeof ledgerEntryRecorded>[0]);
 
-    expect(Array.isArray(result)).toBe(true);
-    const intents = result as Record<string, unknown>[];
-    expect(intents).toHaveLength(3); // history + simulation summary + simulation position
-    expect(intents[0].typename).toBe('HistoryEntry');
-    expect(intents[1].typename).toBe('Simulation');
-    expect(intents[2].typename).toBe('SimulationPosition');
+    const intents = result as Array<Record<string, unknown>>;
+
+    const sim = intents.find((i) => i.typename === 'Simulation');
+    expect(sim).toMatchObject({
+      _tag: 'projectVersioned',
+      typename: 'Simulation',
+      version: 9,
+      overrides: { pk: 'Simulation#t1', sk: 'Latest' },
+    });
+    expect((sim!.fields as Record<string, unknown>).cashBalanceCents).toBe(950_000);
+
+    const simPos = intents.find((i) => i.typename === 'SimulationPosition');
+    expect(simPos).toMatchObject({
+      _tag: 'projectVersioned',
+      typename: 'SimulationPosition',
+      version: 9,
+      overrides: { pk: 'Simulation#t1', sk: 'Position#AAPL' },
+    });
+    expect((simPos!.fields as Record<string, unknown>).quantity).toBe(12);
   });
 
-  it('should include checkpoint intent at CHECKPOINT_INTERVAL boundaries', () => {
+  it('writes a Checkpoint record (P2) when sequenceNo is a multiple of 100', () => {
     const result = ledgerEntryRecorded(makeUow({
-      eventId: 'entry-100',
-      eventType: 'ORDER_FILLED',
+      eventId: 'evt-cp',
+      eventType: 'CHECKPOINT',
       payload: {},
-      timestamp: '2026-01-01T00:00:00.000Z',
-      sequenceNo: 100,
-      cashBalanceCents: 1_000_000,
-      positions: {},
+      timestamp: '2026-01-15T00:00:00.000Z',
+      sequenceNo: 200,
     }) as Parameters<typeof ledgerEntryRecorded>[0]);
 
-    expect(Array.isArray(result)).toBe(true);
-    const intents = result as Record<string, unknown>[];
-    expect(intents.some((i: Record<string, unknown>) => i.typename === 'Checkpoint')).toBe(true);
-  });
-
-  it('should not include checkpoint for non-boundary sequence numbers', () => {
-    const result = ledgerEntryRecorded(makeUow({
-      eventId: 'entry-50',
-      eventType: 'ORDER_FILLED',
-      payload: {},
-      timestamp: '2026-01-01T00:00:00.000Z',
-      sequenceNo: 50,
-    }) as Parameters<typeof ledgerEntryRecorded>[0]);
-
-    // Should be single intent (no checkpoint)
-    expect((result as Record<string, unknown>)._tag ?? ((result as Record<string, unknown>[])[0])?._tag).toBe('record');
+    const intents = result as Array<Record<string, unknown>>;
+    const cp = intents.find((i) => i.typename === 'Checkpoint');
+    expect(cp).toMatchObject({
+      _tag: 'record',
+      typename: 'Checkpoint',
+      overrides: { pk: 'Checkpoint#t1', sk: '2026-01-15' },
+    });
   });
 });
