@@ -24,6 +24,12 @@
     },
     "lint": {
       "executor": "@nx/eslint:lint"
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/event-processor/tsconfig.type-test.json"
+      }
     }
   },
   "tags": ["scope:platform", "type:lib"]

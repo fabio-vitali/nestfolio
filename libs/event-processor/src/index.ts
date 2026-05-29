@@ -9,6 +9,12 @@ export type {
   RecordResult, IntentResult, BatchResult, RecordOutcome,
 } from './types';
 
+export type {
+  ProjectionVariant, CommandOwned, Projection, OwnershipTag, ReadModelOwnership,
+  AnyProjectionKey, CommandOwnedKey, P1Key, P2Key, P3Key,
+  RejectNonP1, RejectProjection, RejectNonAppend,
+} from './types/ownership';
+
 // Intent helpers
 export { record } from './intents/record';
 export { normalizedEvent } from './intents/normalized-event';
