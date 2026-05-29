@@ -1,5 +1,5 @@
 import { mockClient } from 'aws-sdk-client-mock';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { IntentExecutor } from '@nestfolio/event-processor';
 import { expectVersionedWrite, expectStaleDrop } from '@nestfolio/test-support';
@@ -49,8 +49,14 @@ describe('ledger-bff PortfolioLatest version guard', () => {
     executor = new IntentExecutor({ docClient, tableName: 'TestTable' });
   });
 
+  // NOTE: use onAnyCommand() rather than on(PutCommand). The executor instantiates
+  // PutCommand from its OWN resolved @aws-sdk/lib-dynamodb copy; under pnpm's nested
+  // resolution that can be a distinct class from the one this test imports, so a
+  // command-class matcher (on(PutCommand)) silently fails to match and the send
+  // falls through to the default resolve. onAnyCommand() intercepts every send on
+  // the mocked docClient regardless of command-class identity.
   it('applies a fresh versioned write when the condition succeeds', async () => {
-    ddbMock.on(PutCommand).resolves({});
+    ddbMock.onAnyCommand().resolves({});
     const result = await executor.execute(portfolioLatestIntent(10), fakeCtx);
     expectVersionedWrite(result);
   });
@@ -58,7 +64,7 @@ describe('ledger-bff PortfolioLatest version guard', () => {
   it('drops a stale write when the version condition fails', async () => {
     const err = new Error('stale');
     err.name = 'ConditionalCheckFailedException';
-    ddbMock.on(PutCommand).rejects(err);
+    ddbMock.onAnyCommand().rejects(err);
     const result = await executor.execute(portfolioLatestIntent(3), fakeCtx);
     expectStaleDrop(result);
   });

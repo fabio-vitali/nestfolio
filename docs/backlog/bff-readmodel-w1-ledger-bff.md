@@ -32,6 +32,12 @@ validation_gate: |
   - ReadModelOwnership registered (P1×4 + P2×3) in src/read-model-ownership.ts;
     compile-time enforcement type-test (test/types/read-model-ownership.type-test.ts).
   - nx affected -t test,lint --base=origin/main: ledger-bff 41/41 unit + lint PASS.
+  - Post-merge fix on main: the Task 5 executor unit test passed in the symlinked
+    worktree but deterministically failed in the real main checkout — aws-sdk-client-mock
+    on(PutCommand) matched by command-class identity, which pnpm nested resolution
+    split into two copies on main. Switched to onAnyCommand() (no class-identity
+    dependency); version-guard 3/3 + full suite 41/41 green in main. Product behavior
+    was always correct (proven by the deployed-dev integration version-guard test).
   - Deploy: dev-ledger-bff UPDATE_COMPLETE twice (initial + post-scope-correction
     re-deploy so deployed == shipped; 771924376645).
   - Integration (deployed dev): 11/11 PASS, re-run green after the re-deploy, incl.
