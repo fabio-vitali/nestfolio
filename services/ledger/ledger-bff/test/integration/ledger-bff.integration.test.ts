@@ -47,6 +47,7 @@ describe('ledger-bff', () => {
         detail: {
           cashBalanceCents: 500000,
           deltaCents: 50000,
+          snapshot: { positions: {}, cashBalanceCents: 500000, lastEventSequence: 1 },
         },
       });
 
@@ -80,6 +81,7 @@ describe('ledger-bff', () => {
               lastFillPrice: 155.0,
             },
           },
+          snapshot: { positions: {}, cashBalanceCents: 0, lastEventSequence: 1 },
         },
       });
 
@@ -130,6 +132,82 @@ describe('ledger-bff', () => {
       expect(item['eventId']).toEqual(expect.any(String));
       expect(item['sequenceNo']).toBe(sequenceNo);
     }, 120_000);
+  });
+
+  // ── Version guard (P1 projection) ───────────────────────────────────
+  //
+  // projectVersioned drops stale/duplicate deliveries (no clobber). We assert
+  // the materialized __version never regresses and the stale event's field
+  // value never wins.
+  describe('version guard', () => {
+    it('keeps the newest version and drops a stale BALANCE_UPDATED', async () => {
+      const pk = `Portfolio#${ctx.tenantId}`;
+
+      // Fresh write at version 20.
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'ledger-bff',
+        detailType: 'BALANCE_UPDATED',
+        detail: {
+          cashBalanceCents: 2_000_000,
+          snapshot: { positions: {}, cashBalanceCents: 2_000_000, lastEventSequence: 20 },
+        },
+      });
+      const fresh = await table.waitForItem({
+        table: 'ledger-bff',
+        pk,
+        sk: 'Latest',
+        timeoutMs: 60_000,
+        predicate: (item) => item['__version'] === 20,
+        description: 'version=20 applied',
+      });
+      expect(fresh['__version']).toBe(20);
+      expect(fresh['cashBalanceCents']).toBe(2_000_000);
+
+      // Stale write at version 10 — must be dropped, not applied.
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'ledger-bff',
+        detailType: 'BALANCE_UPDATED',
+        detail: {
+          cashBalanceCents: 111,
+          snapshot: { positions: {}, cashBalanceCents: 111, lastEventSequence: 10 },
+        },
+      });
+
+      // Give the stale event time to traverse EB → SQS → Lambda before we
+      // assert non-regression — otherwise the early loop iterations would
+      // assert before the stale write could even have clobbered the row.
+      await new Promise((r) => setTimeout(r, 6_000));
+
+      // Settle window: poll for ~16s asserting the row never regresses to the stale value.
+      for (let i = 0; i < 8; i++) {
+        const item = await table.waitForItem({ table: 'ledger-bff', pk, sk: 'Latest', timeoutMs: 30_000 });
+        expect(item['__version']).toBe(20);
+        expect(item['cashBalanceCents']).toBe(2_000_000);
+        await new Promise((r) => setTimeout(r, 2_000));
+      }
+
+      // A newer write at version 30 IS applied.
+      await eb.putEvent({
+        bus: 'ledger',
+        targetService: 'ledger-bff',
+        detailType: 'BALANCE_UPDATED',
+        detail: {
+          cashBalanceCents: 3_000_000,
+          snapshot: { positions: {}, cashBalanceCents: 3_000_000, lastEventSequence: 30 },
+        },
+      });
+      const applied = await table.waitForItem({
+        table: 'ledger-bff',
+        pk,
+        sk: 'Latest',
+        predicate: (item) => item['__version'] === 30 && item['cashBalanceCents'] === 3_000_000,
+        timeoutMs: 60_000,
+      });
+      expect(applied['__version']).toBe(30);
+      expect(applied['cashBalanceCents']).toBe(3_000_000);
+    }, 180_000);
   });
 
   // ── AppSync Queries ─────────────────────────────────────────────────
@@ -259,9 +337,12 @@ describe('ledger-bff', () => {
           timestamp: new Date().toISOString(),
           sequenceNo: 1,
           streamType: 'simulated',
-          cashBalanceCents: 950_000,
-          positions: {
-            AAPL: { symbol: 'AAPL', quantity: 12, averageCostBasis: 148.0, totalCostBasis: 1776.0, lastFillPrice: 155.0 },
+          snapshot: {
+            cashBalanceCents: 950_000,
+            lastEventSequence: 1,
+            positions: {
+              AAPL: { symbol: 'AAPL', quantity: 12, averageCostBasis: 148.0, totalCostBasis: 1776.0, lastFillPrice: 155.0 },
+            },
           },
         },
       });
