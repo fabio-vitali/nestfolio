@@ -3,6 +3,7 @@ id: bff-readmodel-w5-externally-settled-entities
 status: queued
 rank: 5
 type: refactor
+effort: xhigh
 notes: "Workstream 5 (cross-domain, last) of bff-read-model-materialization-redesign: broker-ctrl (Execution) owns the Deposit/Withdrawal funding lifecycle + emits versioned lifecycle events; investor-bff deposit/withdrawal → P1 projections; initiateDeposit → intent event + optimistic UI; ledger-ctrl consumes settled for cash. Fixes deposit-settlement-never-persisted."
 references:
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
@@ -13,6 +14,14 @@ validation_gate: null
 ---
 
 # Workstream 5 — externally-settled entities (cross-domain)
+
+> ⚠️ **EFFORT: xhigh** (`effort: xhigh` in frontmatter). Set reasoning effort to
+> xhigh before executing this workstream — do not run it at the default. Why:
+> the only cross-domain workstream in the program. It designates broker-ctrl as a
+> new funding-lifecycle aggregate owner, introduces intent events + optimistic
+> UI, and re-routes ledger-ctrl to consume settlement — spanning Execution +
+> investor + ledger. New ownership topology, not a projection swap; fixes the
+> deposit-settlement-never-persisted latent bug by construction.
 
 The only part of the program that reaches beyond the read-side BFFs. Deposits/
 withdrawals are started by the user but finished by an outside system, so the
