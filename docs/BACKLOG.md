@@ -6,13 +6,11 @@
 
 ## ACTIVE
 
-_(none)_
-
+- [bff-readmodel-w0-event-processor-foundation](backlog/bff-readmodel-w0-event-processor-foundation.md) [refactor] — Workstream 0 of bff-read-model-materialization-redesign: add the projectVersioned WriteIntent + reserved __version convention + type-level ownership tags (CommandOwned | Projection<'P1'|'P2'|'P3'>) to event-processor, plus the canonical READ-MODEL-OWNERSHIP.md doc and the event-processor-patterns skill update (enforcement layers 1+2). Foundation for the whole rollout; no consumer behavior change yet.
 
 ## QUEUED
 
-1. [bff-readmodel-w0-event-processor-foundation](backlog/bff-readmodel-w0-event-processor-foundation.md) [refactor] — Workstream 0 of bff-read-model-materialization-redesign: add the projectVersioned WriteIntent + reserved __version convention + type-level ownership tags (CommandOwned | Projection<'P1'|'P2'|'P3'>) to event-processor, plus the canonical READ-MODEL-OWNERSHIP.md doc and the event-processor-patterns skill update (enforcement layers 1+2). Foundation for the whole rollout; no consumer behavior change yet.
-2. [weight-drift-detector](backlog/weight-drift-detector.md) [design] — Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming.
+1. [weight-drift-detector](backlog/weight-drift-detector.md) [design] — Production-feature gap: no service emits PORTFOLIO_DRIFT_DETECTED on the weight-vs-target axis (the kind that motivates a rebalance). reconciliation-ctrl only handles Intent-vs-Settlement drift (broker errors). DWC SF reacts to the event correctly but no producer exists on the user-driven path. Surfaced 2026-05-27 during playwright-rebalance-real-agents-maxvms-remediation brainstorming.
 
 ## LATER
 
