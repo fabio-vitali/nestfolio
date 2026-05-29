@@ -1,8 +1,8 @@
 ---
 id: happy-path-pendingcount-wss-decrement-race
-status: active
+status: shipped
 type: bug
-notes: "REOPENED 2026-05-29 — the 2026-05-29 Activity-broadcast fix closed the decrement race but a residual remains: Step 8 still fails on first try / passes on rerun. Leading hypothesis: WSS subscription-establishment race with no feed backfill (onActivityUpdate frame dropped if broadcast fires before subscribe_success; feed never reconciles). Original symptom: WSS counter assertion raced real DECISION_APPROVED -1 within 30s; post-2026-05-09 inc/dec semantics broke the monotonic-up invariant."
+notes: "SHIPPED 2026-05-29 — residual closed by subscribe-before-query + merge-reduce in dashboard-mfe (commits 125e9441..040b52de). ngOnInit now subscribes before the snapshot query; a single mergeActivities reducer (incoming-first, dedupe by activityId, stable createdAt-desc, cap 50) feeds both the query and the live subscription so neither clobbers the other; retry() re-queries + merges on WSS reconnect. e2e new-investor-happy-path 4/4 green (run-once per user decision). Earlier 2026-05-29 Activity-broadcast fix had closed the decrement race; this closes the mount→subscribe gap + reconnect hole that remained."
 references:
   - path: apps/nestfolio-e2e/src/journeys/new-investor-happy-path.spec.ts
     anchor: L138-L162
@@ -27,6 +27,15 @@ spec: docs/superpowers/specs/2026-05-29-activity-feed-subscribe-before-query-des
 plan: docs/superpowers/plans/2026-05-29-activity-feed-subscribe-before-query.md
 topic_memory: []
 validation_gate: |
+  RESIDUAL CLOSED 2026-05-29 (subscribe-before-query + merge-reduce, dashboard-mfe):
+  - dashboard-mfe:test: 75/75 GREEN (11 suites). store.spec 22/22 (+4 mergeActivities: clobber regression, order-independence, cross-merge dedupe, intra-incoming dedupe); container.spec 8/8 (+2: live frame survives during initial load; getRecentActivity backfill on subscription reconnect). No open-handle warnings (retry timer torn down by ngOnDestroy).
+  - dashboard-mfe:lint: GREEN (all files pass).
+  - nx affected -t test,lint --base=origin/main: GREEN (dashboard-mfe + nestfolio-host; 43 host tests + 75 dashboard-mfe tests).
+  - dashboard-mfe:deploy-mfe --prefix=dev: bundle live at s3://771924376645-dev-nestfolio-mfe-dashboard, /mfe/dashboard/* invalidated, ~2026-05-29T10:30Z (deploy.log /tmp/dashboard-mfe-deploy.log).
+  - nestfolio-e2e:e2e run 1: 4/4 PASS (4.2m total; new-investor-happy-path 2.5m, Step 8 waitForActivityByEventId GREEN; advisory-generating-state + deposit-reload-mid-flight also green) — /tmp/pw-resid-run-1.log. Run-once per explicit user decision (cost-conscious).
+  - Per-task two-stage review (spec compliance + code quality): all PASS. Minor findings adjudicated and declined with rationale (V8-stable-sort tie-break would break the pinned insertion-order contract; post-destroy mergeActivities guard is benign + self-healing → YAGNI; fake-timers unnecessary as ngOnDestroy already cancels the retry timer; unbounded retry intentional for a reconnecting WS).
+  - Implementation: commits 125e9441..040b52de (3 commits) on worktree-activity-feed-subscribe-before-query, merged to main.
+  --- PRIOR Activity-broadcast fix (decrement-race elimination, retained for history) ---
   - nx affected -t test,lint --base=origin/main: GREEN (30 projects, 51 dashboard-bff unit tests pass with Activity dispatch logs)
   - dev-dashboard-bff deploy UPDATE_COMPLETE 2026-05-28T23:53:35 (CFN stack; DashboardPublisher Lambda + AppSync Schema both UPDATE_COMPLETE)
   - dev-investor-web deploy UPDATE_COMPLETE 2026-05-28T23:52:30 (CFN stack; investor-web shell + dashboard-mfe bundle redeployed)
@@ -159,3 +168,48 @@ Candidate fix shape: after the activity subscription's first delivery / on
 `subscribe_success`, re-run `getRecentActivity` and merge (dedupe by
 `activityId`); add reconnect handling. Belongs in production code
 (`dashboard-container.component.ts` / `dashboard.service.ts`), not the POM.
+
+---
+
+## SHIPPED 2026-05-29 — residual closed (subscribe-before-query + merge-reduce)
+
+Implemented the reconcile design as three client-side changes in `dashboard-mfe`
+(no schema/resolver/BFF change — `getRecentActivity` already existed end-to-end).
+Commits `125e9441..040b52de` on `worktree-activity-feed-subscribe-before-query`,
+merged to `main`.
+
+1. **Single `mergeActivities` reducer** (`dashboard.store.ts`). Both the snapshot
+   query and the live subscription now flow through one reducer: incoming-first
+   union, dedupe by `activityId` (keep first → a live frame wins over an older
+   snapshot copy), stable `createdAt`-descending (V8 stable sort preserves
+   insertion order on ties — relied on deliberately), cap 50. `setActivities`
+   and `addActivity` route through it, so a late query snapshot can no longer
+   clobber a live row regardless of arrival order. `setActivities` now MERGES,
+   not replaces — `reset()` is the hard-clear path (logout).
+2. **Subscribe before query** (`dashboard-container.component.ts` `ngOnInit`).
+   `subscribeToUpdates()` runs before `await loadDashboard()`, so a frame
+   arriving during the initial load is merged in, not lost to the mount→subscribe
+   gap. Proven by a test that emits a live frame while `getRecentActivity` is
+   still pending and asserts the frame survives an empty snapshot.
+3. **Reconnect backfill** (`dashboard-container.component.ts`). `retry({ delay })`
+   on the activity subscription calls `backfillActivities()` (→ `getRecentActivity`
+   + `mergeActivities`) and re-subscribes after a 2s `timer` backoff whenever the
+   WS drops, recovering rows missed while disconnected. Unbounded by design;
+   `ngOnDestroy` tears down the retry timer (no leak / no open-handle warning).
+
+**Hypothesis confirmation note:** the leading hypothesis (mount→subscribe gap +
+no feed reconciliation) was addressed structurally rather than by first capturing
+an attempt-1 failing run. The fix is correct independent of which gap fired
+(during-load drop OR reconnect drop), and the merge reducer makes the feed
+order- and source-independent. The run-once e2e gate (per user's cost-conscious
+decision) passed 4/4 with the deployed bundle; if Step 8 ever fails first-try
+again, the merge/backfill makes a dropped-then-recovered row converge rather than
+stay lost — but a future failing-run capture would still be the way to prove a
+*different* residual, should one surface.
+
+**Generalisation candidate:** the same subscribe-before-query + merge-reduce
+pattern applies to the PortfolioSummary / PositionSnapshot live-push dossiers
+([[dashboard-live-push-portfolio-summary]], [[dashboard-live-push-position-snapshots]]);
+noted there.
+
+**Validation:** see `validation_gate` frontmatter.
