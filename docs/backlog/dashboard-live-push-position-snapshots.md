@@ -1,6 +1,7 @@
 ---
 id: dashboard-live-push-position-snapshots
-status: parking
+status: queued
+rank: 2
 type: bug
 notes: "PositionSnapshot list stale after PORTFOLIO_UPDATED until refresh; dashboard-publisher.ts only broadcasts AdvisoryStatus."
 references: []
@@ -17,6 +18,8 @@ The dashboard MFE renders the holdings list from `getPositionSnapshots` on mount
 
 UX impact: holdings table is the most-watched widget post-trade; staleness here looks like the trade didn't go through.
 
-Surfaced 2026-05-28 during `happy-path-pendingcount-wss-decrement-race` brainstorming (Option 1 — Activity-broadcast — audit of dashboard live-push coverage). Note: positions are an ARRAY, not a scalar snapshot — design choice between (a) per-symbol delta broadcast (each row mutation pushes one symbol) and (b) full-list snapshot (refresh the entire array on any mutation). (a) scales better for tenants with many positions; (b) is simpler. Adopt whichever pattern fits after the Activity workstream's per-surface pattern is concrete.
+Surfaced 2026-05-28 during `happy-path-pendingcount-wss-decrement-race` brainstorming (Option 1 — Activity-broadcast — audit of dashboard live-push coverage). Note: positions are an ARRAY, not a scalar snapshot — design choice between (a) per-symbol delta broadcast (each row mutation pushes one symbol) and (b) full-list snapshot (refresh the entire array on any mutation). (a) scales better for tenants with many positions; (b) is simpler. Pick (a) vs (b) via brainstorming against the now-concrete Activity-broadcast per-surface pattern.
 
-Cheapest next step: pick (a) vs (b) via brainstorming, then mirror the Activity-broadcast surface design (separate `publishPositionUpdate` mutation + `onPositionUpdate` subscription if delta, or extend `publishDashboardUpdate` if full-list).
+Promoted to QUEUED (rank 2) on 2026-05-29 boundary review alongside `dashboard-live-push-portfolio-summary` (rank 1): the gating dependency — the Activity live-broadcast workstream — shipped 2026-05-29, making its per-surface pattern concrete. Same file (`dashboard-publisher.ts`) and same fix shape as rank 1; intended to be executed as a pair.
+
+Next step: pick (a) vs (b) via brainstorming, then mirror the Activity-broadcast surface design (separate `publishPositionUpdate` mutation + `onPositionUpdate` subscription if delta, or extend `publishDashboardUpdate` if full-list).

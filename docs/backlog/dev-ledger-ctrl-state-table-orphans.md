@@ -1,6 +1,6 @@
 ---
 id: dev-ledger-ctrl-state-table-orphans
-status: parking
+status: dropped
 type: infra
 notes: "Two orphan dev-ledger-ctrl-StateTable... tables (0 items, streams enabled) left over from 2026-04-03 deploys. Not a cost or correctness issue; visual clutter + minor account-level resource overhead."
 references: []
@@ -52,6 +52,6 @@ AWS_PROFILE=nestfolio-dev aws dynamodb delete-table --region us-east-1 \
   --table-name dev-ledger-ctrl-StateTable962DE04C-8W0FITRPOY2O
 ```
 
-## Promote when
+## Dropped (2026-05-29 boundary review)
 
-A second service shows the same orphan-table pattern, OR when account-level DDB resource quotas become relevant, OR when audit of CDK replacement history is needed. Until then this is parking.
+Aged out. Two empty (0-item) orphan tables with near-zero storage + idle-stream cost, no correctness impact, on a disposable dev account where the sole dev is unaffected by `list-tables` clutter. The trigger conditions (a second service showing the pattern, DDB resource quotas mattering, or a CDK-replacement audit) have not fired and aren't anticipated. The delete commands above remain a 30-second copy-paste if the clutter ever becomes annoying — no need to carry this in the backlog.
