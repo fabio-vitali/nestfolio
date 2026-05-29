@@ -40,15 +40,22 @@ Stack: services/ledger/ledger-bff/src/service.stack.ts
 - event-listener.ts — materializeToTable pipeline; handles BALANCE_UPDATED, PORTFOLIO_UPDATED, LEDGER_ENTRY_RECORDED via transform functions
 - graphql-resolver.ts — AppSync Lambda resolver; handles getPortfolioAt (time-travel via snapshot replay) and getSimulationComparison (actual vs simulated portfolio diff)
 
+## Read model
+- ReadModelOwnership registered in src/read-model-ownership.ts
+  - P1 (versioned snapshots via projectVersioned, keyed on lastEventSequence): PortfolioLatest, Position, Simulation, SimulationPosition
+  - P2 (append-only logs via record, idempotent/order-independent): SnapshotAt, HistoryEntry, Checkpoint
+
 ## Tests
-- service.stack.test.ts
-- handlers/event-listener.test.ts
-- handlers/graphql-resolver.test.ts
-- repositories/portfolio.repository.test.ts
-- transforms/balance-updated.test.ts
-- transforms/ledger-entry-recorded.test.ts
-- transforms/portfolio-updated.test.ts
-- integration/ledger-bff.integration.test.ts
+- test/unit/service.stack.test.ts
+- test/unit/handlers/event-listener.test.ts
+- test/unit/handlers/graphql-resolver.test.ts
+- test/unit/repositories/portfolio.repository.test.ts
+- test/unit/transforms/balance-updated.test.ts
+- test/unit/transforms/ledger-entry-recorded.test.ts
+- test/unit/transforms/portfolio-updated.test.ts
+- test/unit/version-guard.test.ts
+- test/types/read-model-ownership.type-test.ts
+- test/integration/ledger-bff.integration.test.ts
 
 ## Dependencies
 - libs: cdk-constructs/core, cdk-constructs/extensions, cdk-constructs/utils, event-processor
