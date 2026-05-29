@@ -179,10 +179,11 @@ sequenced **last**.
    band-aid + status-fragment events; `AdvisoryStatus` count → P3.
 4. **investor-bff** — confirm command rows follow the field-level + condition +
    seed-by-event rules; `CashBalance` → P1 projection.
-5. **Externally-settled entities** — designate the Deposit/Withdrawal/Order
-   aggregate owner in Execution/Ledger; versioned lifecycle events; investor-bff
-   deposit/withdrawal → P1 projections; `initiateDeposit` → intent event +
-   optimistic UI. Cross-domain; last.
+5. **Externally-settled entities** — `broker-ctrl` (Execution) owns the
+   Deposit/Withdrawal funding lifecycle (Orders already Execution-owned); emit
+   versioned lifecycle events; investor-bff deposit/withdrawal → P1 projections;
+   `initiateDeposit` → intent event + optimistic UI; `ledger-ctrl` consumes
+   "settled" for cash. Cross-domain; last.
 6. **Governance / freeze (cross-cutting)** — enforcement layers 3 + 4 from
    "Freezing the model": update `event-processor-patterns`, `create-service`,
    `create-feature`, `create-event`, `testing-patterns`, the `CLAUDE.md` router,
@@ -249,15 +250,27 @@ afterthought.
 - Event sourcing on the write side — explicitly **not** adopted; the system stays
   state-stored-aggregate + CDC-outbox.
 
-## Risks & open decisions (for review)
-- **Externally-settled scope.** Workstream 5 reaches into Execution/Ledger and
-  changes deposit UX (optimistic, eventually-consistent). Decision at review:
-  keep it in this program (sequenced last) or split it into a sibling program.
-- **Deposit-aggregate-owner location.** ledger-ctrl vs execution-ctrl vs a broker
-  service — to be settled in workstream 5's own brainstorming, not here.
-- **`__version` plumbing for non-ledger owners.** investor/advisory/decision-
-  workflow producers must stamp a monotonic version; the foundation workstream
-  defines the convention (reserved `__version` attribute + carriage in events).
+## Decisions (settled 2026-05-29) & residual risks
+
+Settled at review:
+- **Externally-settled scope — KEPT in this program**, sequenced last
+  (workstream 5). Not split to a sibling program.
+- **Funding (deposit/withdrawal) lifecycle owner = `broker-ctrl` (Execution
+  domain).** It owns the requested→detected→settled→failed lifecycle and emits
+  versioned lifecycle events (adjacent to `DEPOSIT_DETECTED` from the broker
+  adapters; consistent with Execution owning order lifecycle). `ledger-ctrl`
+  keeps *consuming* "settled" to adjust cash — it records the effect, it does not
+  own the funding rail. No new service. Orders are already Execution-owned;
+  workstream 5 aligns them. Revisable within workstream 5 if it doesn't fit.
+- **`__version` convention — CONFIRMED.** A reserved `__version` attribute on the
+  owned row, stamped by the owning producer (investor/advisory/decision-workflow/
+  broker-ctrl) and carried in emitted events; the foundation workstream pins down
+  the exact attribute + carriage convention.
+
+Residual risks (technical, for the workstreams):
+- **`__version` plumbing for non-ledger owners.** Those producers don't stamp a
+  version today; the foundation workstream defines the convention and each
+  producer adopts it as its BFF migrates.
 - **`projectVersioned` stale-handling.** Dropped-not-redriven is correct for
   stale events but must be distinguished from genuine precondition-wait
   (`updateOrRetry`); the foundation workstream must keep both paths.

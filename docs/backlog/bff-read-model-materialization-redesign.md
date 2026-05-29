@@ -1,6 +1,6 @@
 ---
 id: bff-read-model-materialization-redesign
-status: active
+status: shipped
 type: design
 notes: "Systemic redesign of BFF read-model materialization across investor/ledger/advisory/dashboard BFFs. Replace field-by-field projection from overlapping event types (no version guard) with a canonical versioned atomic snapshot projection. Dissolves the structural-zero, totalValueCents double-count, out-of-order field clobber, and sparse-item-race bug class at the source. Dev-phase, breaking changes free."
 references:
@@ -15,7 +15,7 @@ out_of_scope:
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: "Spec + decomposition + enforcement plan committed at docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md (commit fc8e329c+; decisions settled + recorded 2026-05-29: externally-settled KEPT in-program, funding owner=broker-ctrl, __version confirmed). Reviewed + approved by user 2026-05-29. Decomposed into 7 workstreams (0-6); workstream 0 (event-processor foundation) filed queued rank 1. Doc-layer design item — the spec is its deliverable."
 ---
 
 # Systemic BFF read-model materialization redesign
