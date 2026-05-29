@@ -1,6 +1,7 @@
 export { record } from './record';
 export { normalizedEvent } from './normalized-event';
 export { project } from './project';
+export { projectVersioned } from './project-versioned';
 export { accumulate } from './accumulate';
 export { update } from './update';
 export { updateOrRetry } from './update-or-retry';

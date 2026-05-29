@@ -2,7 +2,7 @@
 
 // Types
 export type {
-  WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent, StoreIntent, SkipIntent, KeyOverrides,
+  WriteIntent, RecordIntent, ProjectIntent, ProjectVersionedIntent, AccumulateIntent, UpdateIntent, StoreIntent, SkipIntent, KeyOverrides,
   HandlerFn, HandlerEntry, EventPayload,
   EventContext,
   StreamRecord, StreamContext,
@@ -19,6 +19,7 @@ export type {
 export { record } from './intents/record';
 export { normalizedEvent } from './intents/normalized-event';
 export { project } from './intents/project';
+export { projectVersioned } from './intents/project-versioned';
 export { accumulate } from './intents/accumulate';
 export { update } from './intents/update';
 export { updateOrRetry } from './intents/update-or-retry';

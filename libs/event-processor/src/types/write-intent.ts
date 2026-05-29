@@ -17,6 +17,15 @@ export interface ProjectIntent {
   readonly overrides?: KeyOverrides;
 }
 
+export interface ProjectVersionedIntent {
+  readonly _tag: 'projectVersioned';
+  readonly typename: string;
+  readonly fields: Record<string, unknown>;
+  /** Monotonic version stamped on the owned row (reserved `__version` attribute). */
+  readonly version: number;
+  readonly overrides?: KeyOverrides;
+}
+
 export interface AccumulateIntent {
   readonly _tag: 'accumulate';
   readonly typename: string;
@@ -60,4 +69,4 @@ export interface SkipIntent {
   readonly _tag: 'skip';
 }
 
-export type WriteIntent = RecordIntent | ProjectIntent | AccumulateIntent | UpdateIntent | StoreIntent | SkipIntent;
+export type WriteIntent = RecordIntent | ProjectIntent | ProjectVersionedIntent | AccumulateIntent | UpdateIntent | StoreIntent | SkipIntent;
