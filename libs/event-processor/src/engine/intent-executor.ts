@@ -3,7 +3,7 @@ import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { guardedWrite, RetryablePreconditionError } from '../internal';
 import { pickRequestContext } from '../domain/schemas';
-import type { WriteIntent, RecordIntent, ProjectIntent, AccumulateIntent, UpdateIntent, StoreIntent } from '../types/write-intent';
+import type { WriteIntent, RecordIntent, ProjectIntent, ProjectVersionedIntent, AccumulateIntent, UpdateIntent, StoreIntent } from '../types/write-intent';
 import type { EventContext } from '../types/event-context';
 import type { IntentResult } from '../types/result-types';
 import { toCsv } from '../util/csv-serializer';
@@ -51,6 +51,7 @@ export class IntentExecutor {
     switch (intent._tag) {
       case 'record':    return this.executeRecord(intent, ctx);
       case 'project':   return this.executeProject(intent, ctx);
+      case 'projectVersioned': return this.executeProjectVersioned(intent, ctx);
       case 'accumulate': return this.executeAccumulate(intent, ctx);
       case 'update':    return this.executeUpdate(intent, ctx);
       case 'skip':      return { _tag: 'skip', success: true };
@@ -89,6 +90,39 @@ export class IntentExecutor {
       Item: item,
     }));
     return { _tag: 'project', success: true };
+  }
+
+  private async executeProjectVersioned(intent: ProjectVersionedIntent, ctx: EventContext): Promise<IntentResult> {
+    const pk = intent.overrides?.pk ?? `T#${ctx.tenantId}`;
+    const sk = intent.overrides?.sk ?? intent.typename;
+
+    const item = stripUndefinedDeep({
+      pk, sk, __typename: intent.typename,
+      ...pickRequestContext(ctx),
+      ...intent.fields,
+      __version: intent.version,
+      updatedAt: ctx.timestamp,
+    });
+
+    try {
+      await this.deps.docClient.send(new PutCommand({
+        TableName: this.deps.tableName,
+        Item: item,
+        // Full-row write only when the row is new OR strictly newer than stored.
+        // Equal/older version => ConditionalCheckFailedException => dropped below.
+        ConditionExpression: 'attribute_not_exists(pk) OR #v < :version',
+        ExpressionAttributeNames: { '#v': '__version' },
+        ExpressionAttributeValues: { ':version': intent.version },
+      }));
+      return { _tag: 'projectVersioned', success: true };
+    } catch (error: unknown) {
+      // Stale/duplicate version: DROP (terminal), NOT redrive. Deliberately
+      // distinct from updateOrRetry's RetryablePreconditionError precondition-wait.
+      if (error instanceof Error && error.name === 'ConditionalCheckFailedException') {
+        return { _tag: 'projectVersioned', success: true, deduplicated: true };
+      }
+      throw error;
+    }
   }
 
   private async executeAccumulate(intent: AccumulateIntent, ctx: EventContext): Promise<IntentResult> {

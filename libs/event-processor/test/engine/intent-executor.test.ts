@@ -195,6 +195,55 @@ describe('IntentExecutor', () => {
     });
   });
 
+  describe('projectVersioned intent (versioned full-row upsert)', () => {
+    const intent = {
+      _tag: 'projectVersioned' as const,
+      typename: 'PortfolioSummary',
+      fields: { totalValueCents: 100 },
+      version: 7,
+    };
+
+    it('sends a full-row PutCommand guarded by the version condition', async () => {
+      const result = await executor.execute(intent, fakeCtx);
+      expect(result).toEqual({ _tag: 'projectVersioned', success: true });
+
+      const cmd = ddbMock.commandCalls(PutCommand)[0].args[0].input;
+      expect(cmd.Item!.pk).toBe('T#tenant-1');
+      expect(cmd.Item!.sk).toBe('PortfolioSummary');
+      expect(cmd.Item!.__typename).toBe('PortfolioSummary');
+      expect(cmd.Item!.__version).toBe(7);
+      expect(cmd.Item!.totalValueCents).toBe(100);
+      expect(cmd.ConditionExpression).toBe('attribute_not_exists(pk) OR #v < :version');
+      expect(cmd.ExpressionAttributeNames).toEqual({ '#v': '__version' });
+      expect(cmd.ExpressionAttributeValues).toEqual({ ':version': 7 });
+    });
+
+    it('drops (deduplicated) a stale/duplicate version on ConditionalCheckFailedException', async () => {
+      const err = new Error('stale');
+      err.name = 'ConditionalCheckFailedException';
+      ddbMock.on(PutCommand).rejectsOnce(err);
+
+      const result = await executor.execute(intent, fakeCtx);
+      expect(result).toEqual({ _tag: 'projectVersioned', success: true, deduplicated: true });
+    });
+
+    it('re-throws non-condition errors (no silent drop)', async () => {
+      const err = new Error('throughput');
+      err.name = 'ProvisionedThroughputExceededException';
+      ddbMock.on(PutCommand).rejectsOnce(err);
+
+      await expect(executor.execute(intent, fakeCtx)).rejects.toThrow('throughput');
+    });
+
+    it('honors key overrides', async () => {
+      const overridden = { ...intent, overrides: { pk: 'P#1', sk: 'S#1' } };
+      await executor.execute(overridden, fakeCtx);
+      const cmd = ddbMock.commandCalls(PutCommand)[0].args[0].input;
+      expect(cmd.Item!.pk).toBe('P#1');
+      expect(cmd.Item!.sk).toBe('S#1');
+    });
+  });
+
   describe('update intent', () => {
     it('should build UpdateCommand with SET expression', async () => {
       const intent = update('DecisionPacket', { status: 'APPROVED', authorityLevel: 'L1' });
