@@ -13,7 +13,7 @@ notes: "Workstream 1 (reference migration) of bff-read-model-materialization-red
 references:
   - "docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md"
 spec: docs/superpowers/specs/2026-05-29-bff-read-model-materialization-redesign-design.md
-plan: null
+plan: docs/superpowers/plans/2026-05-29-bff-readmodel-w1-ledger-bff.md
 topic_memory: [project_read_model_redesign.md]
 validation_gate: null
 ---
