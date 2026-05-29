@@ -1,3 +1,8 @@
+// Side-effect import keeps the ReadModelOwnership augmentation explicit and
+// resilient if the tsconfig `include` is ever narrowed. The `declare module`
+// merge is global across the compilation; this import is not what "activates"
+// it — do not infer that other handlers need it.
+import '../read-model-ownership';
 import { materializeToTable, toUow, type EventPayload, type EventContext } from '@nestfolio/event-processor';
 import { LedgerCtrlEventTypes } from '@nestfolio/ledger-ctrl/events';
 import { balanceUpdated } from '../transforms/balance-updated';

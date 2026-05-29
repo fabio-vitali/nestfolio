@@ -9,6 +9,7 @@
     "src/**/*.spec.ts",
     "test/**/*.spec.ts",
     "src/**/*.test.ts",
-    "test/**/*.test.ts"
+    "test/**/*.test.ts",
+    "test/**/*.type-test.ts"
   ]
 }
