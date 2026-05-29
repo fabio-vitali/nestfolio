@@ -59,6 +59,7 @@ try {
 const actions = new Map(); // key: action description → set of triggering files
 const affectedServices = new Set();
 const newServices = new Set();
+const svcDirs = new Map(); // svc name → "services/<domain>/<service>" (for accurate display)
 const flowSpecsToValidate = new Set();
 const flowSpecsTouched = new Set();
 const adapterChanges = new Set();
@@ -69,16 +70,20 @@ function addAction(key, file) {
 }
 
 for (const file of changedFiles) {
-  const svcMatch = file.match(/^services\/([^/]+)\/(.+)$/);
+  // Services are two-level: services/<domain>/<service>/<rest>.
+  const svcMatch = file.match(/^services\/([^/]+)\/([^/]+)\/(.+)$/);
   if (svcMatch) {
-    const [, svc, rest] = svcMatch;
+    const [, domain, service, rest] = svcMatch;
+    const svc = service;                 // service name (unique; consumed by audit-service)
+    const svcDir = `services/${domain}/${service}`;
+    svcDirs.set(svc, svcDir);
 
     // Tests / project config don't need derivation
     if (rest.startsWith('test/')) continue;
     if (rest === 'project.json' || rest === 'package.json' || rest.startsWith('tsconfig')) continue;
 
     // New service detection: does the service folder exist on the base ref?
-    const baseExists = shSafe(`git cat-file -e ${base}:services/${svc}/project.json`).ok;
+    const baseExists = shSafe(`git cat-file -e ${base}:${svcDir}/project.json`).ok;
     if (!baseExists) {
       newServices.add(svc);
       continue;
@@ -128,15 +133,16 @@ for (const file of changedFiles) {
 
 // New service implies a more thorough sweep
 for (const svc of newServices) {
-  addAction('generate-c4-diagrams (full pipeline)', `services/${svc}/`);
-  addAction(`audit-service ${svc}`, `services/${svc}/`);
-  addAction(`flow spec coverage for new service ${svc}`, `services/${svc}/`);
-  addAction('audit-system (cross-domain consistency check for new service)', `services/${svc}/`);
+  const dir = `${svcDirs.get(svc) ?? `services/${svc}`}/`;
+  addAction('generate-c4-diagrams (full pipeline)', dir);
+  addAction(`audit-service ${svc}`, dir);
+  addAction(`flow spec coverage for new service ${svc}`, dir);
+  addAction('audit-system (cross-domain consistency check for new service)', dir);
 }
 
 // Adapter changes touch both ends of a flow
 for (const adpt of adapterChanges) {
-  addAction(`audit-domain for both domains touched by ${adpt}`, `services/${adpt}/`);
+  addAction(`audit-domain for both domains touched by ${adpt}`, `${svcDirs.get(adpt) ?? `services/${adpt}`}/`);
 }
 
 const hasDerivation = actions.size > 0;

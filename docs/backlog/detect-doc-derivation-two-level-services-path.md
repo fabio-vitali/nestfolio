@@ -1,6 +1,6 @@
 ---
 id: detect-doc-derivation-two-level-services-path
-status: parking
+status: shipped
 type: bug
 notes: "detect-doc-derivation.mjs misparses services/<domain>/<service>/...; extracts the domain (e.g. 'advisory') as svc and reports it as a 'new service' on every workstream touching an existing service."
 references: []
@@ -8,7 +8,19 @@ out_of_scope: []
 spec: null
 plan: null
 topic_memory: []
-validation_gate: null
+validation_gate: |
+  Fixed 2026-05-29 (Simple lane, on main) ahead of the read-model w1-w5 rollout
+  (all touch services/<domain>/<bff>/, which would have tripped this on every step).
+  Change: regex :72 now /^services\/([^/]+)\/([^/]+)\/(.+)$/ capturing domain+service;
+  svc = leaf service name (consumed by audit-service); project.json existence check
+  uses the full services/<domain>/<service>/project.json path; svcDirs map added for
+  accurate display in the new-service + adapter follow-up loops.
+  Verified: (a) inline parse test — ledger-bff/advisory-bff src/ paths → audit-service
+  (not new-service), test/ paths skipped, -adpt detected; (b) clean main → derivation=false
+  exit 10; (c) real range 52b5ab55~1...HEAD whose only services file is
+  services/investor/dashboard-bff/test/... → correctly parsed as service=dashboard-bff
+  and skipped (test/), where the OLD regex would have falsely reported domain 'investor'
+  as a new service.
 ---
 
 # detect-doc-derivation.mjs misparses two-level services/<domain>/<service> paths
