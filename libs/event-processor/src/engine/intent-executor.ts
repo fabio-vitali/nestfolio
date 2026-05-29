@@ -108,9 +108,12 @@ export class IntentExecutor {
       await this.deps.docClient.send(new PutCommand({
         TableName: this.deps.tableName,
         Item: item,
-        // Full-row write only when the row is new OR strictly newer than stored.
-        // Equal/older version => ConditionalCheckFailedException => dropped below.
-        ConditionExpression: 'attribute_not_exists(pk) OR #v < :version',
+        // Full-row write accepted when: the row is brand-new (no pk) OR it is a
+        // legacy row with no __version yet (first versioned write self-heals a row
+        // previously written by plain project()) OR the incoming version is
+        // strictly newer than stored. Equal/older versions on an already-versioned
+        // row => ConditionalCheckFailedException => dropped below.
+        ConditionExpression: 'attribute_not_exists(pk) OR attribute_not_exists(#v) OR #v < :version',
         ExpressionAttributeNames: { '#v': '__version' },
         ExpressionAttributeValues: { ':version': intent.version },
       }));

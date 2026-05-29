@@ -4,7 +4,7 @@
 
 **Goal:** Add the `projectVersioned` versioned-snapshot WriteIntent, the reserved `__version` convention, and compile-time row-ownership type tags to `event-processor`, plus the canonical ownership doc + `test-support` helper + skill update — with zero consumer behavior change (no BFF migrated yet).
 
-**Architecture:** A new `projectVersioned` intent does a full-row conditional `PutItem` guarded by `attribute_not_exists(pk) OR #__version < :version`; on condition-fail it is **dropped as stale/deduplicated** (NOT redriven — distinct from `updateOrRetry`). Row ownership is encoded as a **declaration-merging open registry** (`interface ReadModelOwnership {}`) augmented per-service via `declare module`; all intent factories become generic over the merged registry and **reject known-bad typenames via conditional types**, degrading to plain `string` for unregistered typenames so existing call sites keep compiling. The registry is empty at w0 (no breakage); enforcement bites incrementally as each BFF registers its rows in w1–5.
+**Architecture:** A new `projectVersioned` intent does a full-row conditional `PutItem` guarded by `attribute_not_exists(pk) OR attribute_not_exists(#__version) OR #__version < :version` (the middle clause lets the first versioned write self-heal a legacy row previously written by plain `project()`); on condition-fail it is **dropped as stale/deduplicated** (NOT redriven — distinct from `updateOrRetry`). Row ownership is encoded as a **declaration-merging open registry** (`interface ReadModelOwnership {}`) augmented per-service via `declare module`; all intent factories become generic over the merged registry and **reject known-bad typenames via conditional types**, degrading to plain `string` for unregistered typenames so existing call sites keep compiling. The registry is empty at w0 (no breakage); enforcement bites incrementally as each BFF registers its rows in w1–5.
 
 **Tech Stack:** TypeScript (conditional/mapped types), `@aws-sdk/lib-dynamodb` (`PutCommand`), Nx, Jest + `aws-sdk-client-mock`, `tsc --noEmit` for type-level assertions.
 
@@ -14,8 +14,8 @@
 
 - **Enforcement mechanism:** declaration-merging registry (chosen 2026-05-29 via AskUserQuestion).
 - **Reserved attribute:** `__version` (double-underscore, mirrors `__typename`), stamped on the owned row and (in w1–5) carried top-level in emitted events. ledger's `lastEventSequence` is the existing reference sequence; the convention is documented in `READ-MODEL-OWNERSHIP.md`.
-- **`projectVersioned` write op:** conditional **`PutItem`** (full-row replace) — closes structural-zeros by writing the entire snapshot, no stale leftover fields.
-- **Stale handling:** `ConditionalCheckFailedException` → `{ success: true, deduplicated: true }` (terminal/dropped). The `updateOrRetry` precondition-wait path (`RetryablePreconditionError`) is untouched.
+- **`projectVersioned` write op:** conditional **`PutItem`** (full-row replace) — closes structural-zeros by writing the entire snapshot, no stale leftover fields. Guard: `attribute_not_exists(pk) OR attribute_not_exists(#__version) OR #__version < :version`. The middle clause is a **legacy-row self-heal**: the first versioned write to a row that pre-dates versioning (no `__version`, e.g. written by plain `project()`) is accepted rather than silently dropped, so the w1–5 migration path converges.
+- **Stale handling:** `ConditionalCheckFailedException` (equal/older version on an already-versioned row) → `{ success: true, deduplicated: true }` (terminal/dropped). The `updateOrRetry` precondition-wait path (`RetryablePreconditionError`) is untouched.
 - **Per-factory ownership constraints:**
   | factory | rejects (when registered) | rationale |
   |---|---|---|
@@ -422,7 +422,7 @@ Append to `libs/event-processor/test/engine/intent-executor.test.ts` (inside the
       expect(cmd.Item!.__typename).toBe('PortfolioSummary');
       expect(cmd.Item!.__version).toBe(7);
       expect(cmd.Item!.totalValueCents).toBe(100);
-      expect(cmd.ConditionExpression).toBe('attribute_not_exists(pk) OR #v < :version');
+      expect(cmd.ConditionExpression).toBe('attribute_not_exists(pk) OR attribute_not_exists(#v) OR #v < :version');
       expect(cmd.ExpressionAttributeNames).toEqual({ '#v': '__version' });
       expect(cmd.ExpressionAttributeValues).toEqual({ ':version': 7 });
     });
@@ -486,9 +486,12 @@ Add `ProjectVersionedIntent` to the existing `write-intent` type import at the t
       await this.deps.docClient.send(new PutCommand({
         TableName: this.deps.tableName,
         Item: item,
-        // Full-row write only when the row is new OR strictly newer than stored.
-        // Equal/older version => ConditionalCheckFailedException => dropped below.
-        ConditionExpression: 'attribute_not_exists(pk) OR #v < :version',
+        // Full-row write accepted when: the row is brand-new (no pk) OR it is a
+        // legacy row with no __version yet (first versioned write self-heals a row
+        // previously written by plain project()) OR the incoming version is
+        // strictly newer than stored. Equal/older versions on an already-versioned
+        // row => ConditionalCheckFailedException => dropped below.
+        ConditionExpression: 'attribute_not_exists(pk) OR attribute_not_exists(#v) OR #v < :version',
         ExpressionAttributeNames: { '#v': '__version' },
         ExpressionAttributeValues: { ':version': intent.version },
       }));

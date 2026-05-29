@@ -6,7 +6,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { IntentExecutor } from '../../src/engine/intent-executor';
 import { update } from '../../src/intents/update';
 import type { EventContext } from '../../src/types/event-context';
-import type { RecordIntent, ProjectIntent, AccumulateIntent, SkipIntent, StoreIntent } from '../../src/types/write-intent';
+import type { RecordIntent, ProjectIntent, ProjectVersionedIntent, AccumulateIntent, SkipIntent, StoreIntent } from '../../src/types/write-intent';
 
 // Mock guardedWrite from internal
 const mockGuardedWrite = jest.fn().mockResolvedValue(true);
@@ -196,8 +196,8 @@ describe('IntentExecutor', () => {
   });
 
   describe('projectVersioned intent (versioned full-row upsert)', () => {
-    const intent = {
-      _tag: 'projectVersioned' as const,
+    const intent: ProjectVersionedIntent = {
+      _tag: 'projectVersioned',
       typename: 'PortfolioSummary',
       fields: { totalValueCents: 100 },
       version: 7,
@@ -213,7 +213,7 @@ describe('IntentExecutor', () => {
       expect(cmd.Item!.__typename).toBe('PortfolioSummary');
       expect(cmd.Item!.__version).toBe(7);
       expect(cmd.Item!.totalValueCents).toBe(100);
-      expect(cmd.ConditionExpression).toBe('attribute_not_exists(pk) OR #v < :version');
+      expect(cmd.ConditionExpression).toBe('attribute_not_exists(pk) OR attribute_not_exists(#v) OR #v < :version');
       expect(cmd.ExpressionAttributeNames).toEqual({ '#v': '__version' });
       expect(cmd.ExpressionAttributeValues).toEqual({ ':version': 7 });
     });
@@ -241,6 +241,13 @@ describe('IntentExecutor', () => {
       const cmd = ddbMock.commandCalls(PutCommand)[0].args[0].input;
       expect(cmd.Item!.pk).toBe('P#1');
       expect(cmd.Item!.sk).toBe('S#1');
+    });
+
+    it('reserved __version from intent.version overrides any __version in fields', async () => {
+      const sneaky = { ...intent, fields: { totalValueCents: 100, __version: 999 } };
+      await executor.execute(sneaky, fakeCtx);
+      const cmd = ddbMock.commandCalls(PutCommand)[0].args[0].input;
+      expect(cmd.Item!.__version).toBe(7);
     });
   });
 
